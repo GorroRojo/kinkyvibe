@@ -1,26 +1,11 @@
 <script>
 	//@ts-nocheck
 	import CardRow from '../components/CardRow.svelte';
-	import Navbar from '../components/Navbar.svelte';
 	let name = 'world';
 </script>
 
 <main>
-	<h1>KinkyVibe</h1>
 
-	<Navbar
-		links={[
-			{ name: 'Informacion', sub: 'Textos y Materiales', href: '#informacion' },
-			{
-				name: 'Amigues',
-				sub: 'Emprendimientos y Profesionales',
-				href: '#amigues'
-			},
-			{ name: 'Calendario', sub: 'Talleres y Eventos', href: '#calendario' },
-			{ name: 'Tienda', sub: 'Juguetes e Implementos', href: '#tienda' },
-			{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#servicios' }
-		]}
-	/>
 	<CardRow
 		id="informacion"
 		title="Para informarnos"
@@ -62,31 +47,16 @@
 		]}
 		--color-1="var(--2)"
 		--color-2="var(--1)"
+        href="/calendario"
 	/>
 </main>
 
 <style>
-	:root {
-		--1: #ff48c4;
-		--2: #6511f8;
-		/* 		--3: #1d805f; */
-		--3: #2aedab;
-
-		scroll-behavior: smooth;
-	}
-	:global(*) {
-		box-sizing: border-box;
-	}
-	:global(body) {
-		position: relative;
-	}
+	
 	main {
 		width: 100%;
 		max-width: 50rem;
 		margin: auto;
 	}
-	h1 {
-		text-align: center;
-		width: 100%;
-	}
+
 </style>

@@ -5,6 +5,7 @@
 	export let title = '';
 	export let items = [];
 	export let id;
+	export let href;
 </script>
 
 <div {id}>
@@ -22,7 +23,7 @@
 			</li>
 		{/each}
 	</ul>
-	<button>...ver más</button>
+	<a {href}>...ver más</a>
 </div>
 
 <style>
@@ -103,7 +104,8 @@
 	h3 {
 		margin: 1em;
 	}
-	button {
+	a {
+		display: block;
 		position: absolute;
 		right: -0.5rem;
 		top: calc(50% - 1.5em);
@@ -119,11 +121,14 @@
 		font-size: 1.1em;
 		cursor: pointer;
 		transition: 100ms;
+
+		text-decoration: none;
+		font-weight: normal;
 	}
-	button:hover {
+	a:hover {
 		transform: scale(105%) translateX(-0.4em);
 	}
-	button:active {
+	a:active {
 		filter: brightness(90%);
 		background: var(--1);
 	}
