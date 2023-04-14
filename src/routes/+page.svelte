@@ -21,7 +21,6 @@
 			{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#servicios' }
 		]}
 	/>
-
 	<CardRow
 		id="informacion"
 		title="Para informarnos"
