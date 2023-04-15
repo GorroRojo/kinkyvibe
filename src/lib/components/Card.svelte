@@ -21,7 +21,7 @@
 	{/if}
 </a>
 
-<style>
+<style lang="scss">
 	:root {
 		--round: 1rem;
 	}
@@ -47,13 +47,13 @@
 		padding-bottom: 1em;
 		transition: 100ms;
 		transform: scale(100%);
-	}
-	a.mark {
-		border: 3px var(--color, var(--color-2, var(--1))) solid;
-		height: 100%;
-	}
-	a:hover {
-		transform: scale(105%);
+		&.mark {
+			border: 3px var(--color, var(--color-2, var(--1))) solid;
+			height: 100%;
+		}
+		&:hover {
+			transform: scale(105%);
+		}
 	}
 	span {
 		position: absolute;

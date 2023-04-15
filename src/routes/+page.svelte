@@ -1,11 +1,11 @@
 <script>
 	//@ts-nocheck
-	import CardRow from '../components/CardRow.svelte';
+	import CardRow from '$lib/components/CardRow.svelte';
 	let name = 'world';
+	export let data;
 </script>
 
 <main>
-
 	<CardRow
 		id="informacion"
 		title="Para informarnos"
@@ -47,16 +47,21 @@
 		]}
 		--color-1="var(--2)"
 		--color-2="var(--1)"
-        href="/calendario"
+		href="/calendario"
 	/>
+	<ul>
+		{#each data.posts as post}
+			<li>
+				<h2><a href={post.path}>{post.meta.title}</a></h2>
+			</li>
+		{/each}
+	</ul>
 </main>
 
 <style>
-	
 	main {
 		width: 100%;
 		max-width: 50rem;
 		margin: auto;
 	}
-
 </style>

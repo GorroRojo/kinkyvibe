@@ -1,9 +1,11 @@
 <script>
-	import Navbar from '../components/Navbar.svelte';
+	import Navbar from '$lib/components/Navbar.svelte';
+	import '$lib/styles/style.scss';
+	import { fade } from 'svelte/transition';
+	export let data;
 </script>
 
 <a href="/">KinkyVibe</a>
-
 <Navbar
 	links={[
 		{ name: 'Informacion', sub: 'Textos y Materiales', href: '#informacion' },
@@ -17,28 +19,25 @@
 		{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#servicios' }
 	]}
 />
-<slot />
+{#key data.currentRoute}
+	<main in:fade={{ delay: 100, duration: 100 }} out:fade={{ duration: 100 }}>
+		<slot />
+	</main>
+{/key}
 
 <style>
 	a {
-        color: black;
-        display:block;
+		color: black;
+		display: block;
 		font-size: 2em;
 		text-align: center;
 		width: 100%;
-        text-decoration: none;
+		text-decoration: none;
 	}
-    :root {
-		--1: #ff48c4;
-		--2: #6511f8;
-		/* 		--3: #1d805f; */
-		--3: #2aedab;
 
-		scroll-behavior: smooth;
-	}
 	:global(*) {
 		box-sizing: border-box;
-        font-family: 'Lato', sans-serif;
+		font-family: 'Lato', sans-serif;
 	}
 	:global(body) {
 		position: relative;
