@@ -15,8 +15,8 @@
 			href: '#amigues'
 		},
 		{ name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
-		{ name: 'Tienda', sub: 'Juguetes e Implementos', href: '#tienda' },
-		{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#servicios' }
+		{ name: 'Tienda', sub: 'Juguetes e Implementos', href: '#' },
+		{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#' }
 	]}
 />
 {#key data.currentRoute}
