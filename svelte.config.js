@@ -18,7 +18,11 @@ const config = {
 				plugins: [autoprefixer]
 			}
 		}),
-		mdsvex({ extensions: ['.md'], rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings] })
+		mdsvex({ extensions: ['.md'], 
+		smartypants: {
+			quotes: true, ellipses: true, dashes: 'oldschool'
+		},
+		rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings] })
 	]
 };
 
