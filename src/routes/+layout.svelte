@@ -4,21 +4,22 @@
 	import { fade } from 'svelte/transition';
 	export let data;
 </script>
-
-<a href="/">KinkyVibe</a>
-<Navbar
-	links={[
-		{ name: 'Informacion', sub: 'Textos y Materiales', href: '#informacion' },
-		{
-			name: 'Amigues',
-			sub: 'Emprendimientos y Profesionales',
-			href: '#amigues'
-		},
-		{ name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
-		{ name: 'Tienda', sub: 'Juguetes e Implementos', href: '#' },
-		{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#' }
-	]}
-/>
+<header>
+	<a href="/">KinkyVibe</a>
+	<Navbar
+		links={[
+			{ name: 'Informacion', sub: 'Textos y Materiales', href: '#informacion' },
+			{
+				name: 'Amigues',
+				sub: 'Emprendimientos y Profesionales',
+				href: '#amigues'
+			},
+			{ name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
+			{ name: 'Tienda', sub: 'Juguetes e Implementos', href: 'https://kinkyvibe.mitiendanube.com' },
+			{ name: 'Servicios', sub: 'Asesorías y Clases', href: '#' }
+		]}
+	/>
+</header>
 {#key data.currentRoute}
 	<main in:fade={{ delay: 100, duration: 100 }} out:fade={{ duration: 100 }}>
 		<slot />

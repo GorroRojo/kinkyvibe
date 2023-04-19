@@ -74,12 +74,12 @@
 		height: 100%;
 		background: var(--color-1, var(--2));
 		width: 20%;
-		-webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.8));
+		mask-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.8));
 		pointer-events: none;
 		transition: 300ms;
 		top: 0;
 	}
-	ul:has(+ button:hover)::after {
+	ul:has(+ a:hover)::after {
 		width: 40%;
 	}
 
