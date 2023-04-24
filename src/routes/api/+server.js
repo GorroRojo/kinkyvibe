@@ -1,5 +1,4 @@
 // @ts-nocheck
-/** @type {import('./$types').RequestHandler} */
 import { json } from '@sveltejs/kit';
 import { fetchMarkdownPosts } from '$lib/utils';
 
