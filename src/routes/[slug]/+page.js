@@ -1,5 +1,5 @@
 //@ts-nocheck
-export const prerender = true;
+export const prerender = 'auto';
 export async function load({ params }) {
 	try {
 		const post = await import(`../../lib/posts/${params.slug}.md`);
