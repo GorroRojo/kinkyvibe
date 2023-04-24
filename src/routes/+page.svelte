@@ -9,20 +9,10 @@
 	<CardRow
 		id="informacion"
 		title="Para informarnos"
-		items={[
-			{
-				name: 'The New Topping Book',
-				src: 'https://img1.od-cdn.com/ImageType-400/2320-1/32F/D81/AE/%7B32FD81AE-838E-4A39-829A-8315B59B8C3E%7DImg400.jpg',
-				tags: ['BDSM', 'Ingles']
-			},
-			{ name: 'Guia para Bottoms', tags: ['BDSM', 'Guia'], mark: 'nuevo!' },
-			{
-				name: 'Una pequeña guía rápida de Tipos de Materiales',
-				tags: ['BDSM', 'seguridad', 'materiales', 'salud', 'guía']
-			}
-		]}
+		items={data.posts.filter(p=>p.meta.category="material").slice(0,3).map(post=>({name: post.meta.title, tags: post.meta.tags, href: post.path}))}
 		--color-1="var(--2)"
 		--color-2="var(--1)"
+		href="/material"
 	/>
 
 	<CardRow
@@ -49,13 +39,6 @@
 		--color-2="var(--1)"
 		href="/calendario"
 	/>
-	<ul>
-		{#each data.posts as post}
-			<li>
-				<h2><a href={post.path}>{post.meta.title}</a></h2>
-			</li>
-		{/each}
-	</ul>
 </main>
 
 <style>

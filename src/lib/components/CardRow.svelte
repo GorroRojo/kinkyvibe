@@ -78,6 +78,7 @@
 		pointer-events: none;
 		transition: 300ms;
 		top: 0;
+		border-radius: 0 0.5em 0.5em 0;
 	}
 	ul:has(+ a:hover)::after {
 		width: 40%;

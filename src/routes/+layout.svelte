@@ -8,7 +8,7 @@
 	<a href="/">KinkyVibe</a>
 	<Navbar
 		links={[
-			{ name: 'Informacion', sub: 'Textos y Materiales', href: '#informacion' },
+			{ name: 'Informacion', sub: 'Textos y Materiales', href: '/material' },
 			{
 				name: 'Amigues',
 				sub: 'Emprendimientos y Profesionales',
