@@ -8,6 +8,8 @@ tags:
     - guía
 authors:
     - DemonWeb
+# unlisted: true
+thumbnail_url: 2
 ---
 
 <script>

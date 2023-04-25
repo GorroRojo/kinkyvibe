@@ -9,7 +9,15 @@
 	<CardRow
 		id="informacion"
 		title="Para informarnos"
-		items={data.posts.filter(p=>p.meta.category="material").slice(0,3).map(post=>({name: post.meta.title, tags: post.meta.tags, href: post.path}))}
+		items={data.posts
+			.filter((p) => (p.meta.category = 'material'))
+			.slice(0, 3)
+			.map((post) => ({
+				name: post.meta.title, 
+				tags: post.meta.tags, 
+				href: post.path,
+				src: post.meta.thumbnail_url
+				}))}
 		--color-1="var(--2)"
 		--color-2="var(--1)"
 		href="/material"
