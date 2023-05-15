@@ -35,6 +35,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@octokit/core": "^4.2.0",
 		"rehype-autolink-headings": "^6.1.1",
 		"rehype-slug": "^5.1.0"
 	}
