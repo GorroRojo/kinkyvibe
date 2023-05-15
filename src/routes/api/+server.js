@@ -4,13 +4,11 @@ import { fetchMarkdownPosts } from '$lib/utils';
 
 export async function GET() {
 	var allPosts;
-	await fetchMarkdownPosts().then((posts)=>{
-		allPosts=posts
-	}).catch((err)=>{
-		error(err);
-	});
-	const sortedPosts = allPosts.sort((a, b) => {
-		return new Date(b.meta.date) - new Date(a.meta.date);
-	});
+	try {
+		allPosts = await fetchMarkdownPosts();
+	} catch (err) {
+		throw error(400, err);
+	}
+	const sortedPosts = allPosts.sort((a, b) => new Date(b.meta.date) - new Date(a.meta.date));
 	return json(sortedPosts);
 }

@@ -1,11 +1,11 @@
 //@ts-nocheck
 export async function load({ fetch }) {
 	const response = await fetch('/api');
-	let posts;
+	let posts, err;
 	try {
 		posts = await response.json();
-	} catch (err) {
-		posts = [err];
+	} catch (e) {
+		err = e;
 	}
-	return { posts };
+	return { posts, err };
 }
