@@ -15,7 +15,7 @@ export const fetchMarkdownPosts = async () => {
 	}
 	allPosts = await Promise.all(allPosts.map(async ([path, resolver]) => [path, await resolver()]));
 	allPosts = allPosts
-		.filter((a) => a)
+		.filter(([_,{metadata}])=> metadata && !metadata.unlisted)
 		.map(([path, { metadata }]) => {
 			const postPath = path.slice(15, -3);
 			let thumbnail_url;
