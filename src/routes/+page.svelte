@@ -1,6 +1,7 @@
 <script>
 	//@ts-nocheck
 	import CardRow from '$lib/components/CardRow.svelte';
+	import PostList from '$lib/components/PostList.svelte';
 	export let data;
 	let { posts, err } = data;
 </script>
@@ -12,13 +13,13 @@
 			id="informacion"
 			title="Para informarnos"
 			items={posts
-				.filter((p) => (p.meta.category = 'material'))
+				.filter((p) => (p.category = 'material'))
 				.slice(0, 3)
 				.map((post) => ({
-					name: post.meta.title,
-					tags: post.meta.tags,
+					name: post.title,
+					tags: post.tags,
 					href: post.path,
-					src: post.meta.thumbnail_url
+					src: post.src
 				}))}
 			--color-1="var(--2)"
 			--color-2="var(--1)"
@@ -51,7 +52,8 @@
 			--color-2="var(--1)"
 			href="/calendario"
 		/>
-	{:else}
+	<PostList {posts} />
+		{:else}
 	{JSON.stringify(posts)}
 		{JSON.stringify(err)}
 	{/if}
