@@ -39,7 +39,7 @@
 		text-decoration: none;
 	}
 
-	:global(*) {
+	:global(*:not(code *)) {
 		box-sizing: border-box;
 		font-family: 'Lato', sans-serif;
 	}
