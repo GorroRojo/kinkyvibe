@@ -1,12 +1,12 @@
 <script>
 	import Tags from './Tags.svelte';
-	/** @type String **/
+	/** @type string **/
 	export let src;
-	/** @type Array<String> **/
+	/** @type Array<string> **/
 	export let tags;
-	/** @type String **/
+	/** @type string **/
 	export let mark;
-	/** @type String **/
+	/** @type string **/
 	export let href;
 </script>
 
@@ -47,6 +47,8 @@
 		padding-bottom: 1em;
 		transition: 100ms;
 		transform: scale(100%);
+		text-decoration: none;
+		color: inherit;
 		&.mark {
 			border: 3px var(--color, var(--color-2, var(--1))) solid;
 			height: 100%;

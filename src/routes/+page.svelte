@@ -8,6 +8,7 @@
 <main>
 	{#if !err}
 		<CardRow
+		index=0
 			id="informacion"
 			title="Para informarnos"
 			items={posts
@@ -25,6 +26,7 @@
 		/>
 
 		<CardRow
+		index=1
 			id="amigues"
 			title="Para apoyarnos"
 			items={[
@@ -37,6 +39,7 @@
 		/>
 
 		<CardRow
+		index=2
 			id="calendario"
 			title="Para encontrarnos"
 			items={[

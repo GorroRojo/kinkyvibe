@@ -2,20 +2,26 @@
 	//@ts-nocheck
 	import Tags from './Tags.svelte';
 	import Card from './Card.svelte';
+	import { fly } from 'svelte/transition';
 	export let title = '';
 	export let items = [];
 	export let id;
 	export let href;
+	export let index;
 </script>
 
-<div {id}>
+<div
+	{id}
+	in:fly={{ x: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300}}
+	out:fly={{ x: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
+>
 	{#if title}
 		<h2>
 			{title}
 		</h2>
 	{/if}
 	<ul>
-		{#each items as { name, src, href, tags, mark }}
+		{#each items as { name, src, href, tags, mark }, i}
 			<li>
 				<Card {src} {href} {tags} {mark}>
 					<h3>{name}</h3>

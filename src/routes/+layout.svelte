@@ -1,9 +1,10 @@
 <script>
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
-	import { fade } from 'svelte/transition';
+	import { fade,fly } from 'svelte/transition';
 	export let data;
 </script>
+
 <header>
 	<a href="/">KinkyVibe</a>
 	<Navbar
@@ -21,11 +22,13 @@
 	/>
 </header>
 {#key data.currentRoute}
-	<main in:fade={{ delay: 100, duration: 100 }} out:fade={{ duration: 100 }}>
-		<slot />
-	</main>
+	<main 
+	in:fly={{ y: 100, duration: 300 , delay: 300 }}
+    out:fly={{ y: -30, duration: 300 }}
+	>
+	<slot />
+</main>
 {/key}
-
 <style>
 	a {
 		color: black;
