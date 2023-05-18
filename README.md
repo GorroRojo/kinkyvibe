@@ -111,3 +111,17 @@ Después dentro del contenido de la página, para insertar las imágenes, debemo
     /* acá vamos a importar las imágenes */
 </script>
 ```
+
+
+2. Dentro del bloque _(donde acá arriba está el comentario)_, por cada archivo que hayamos subido que querramos usar, teniendo a mano el nombre del archivo _(por ejemplo, `1.png`)_ y un pseudónimo que le querramos dar _(por ejemplo, `pag1`)_, metemos la siguiente linea.
+```svelte
+import pag1 from '$lib/posts/media/como-hacer-un-pete/1.png'
+```
+De esta forma, después podremos hacer referencia a pag1 a la hora de meter una imagen, parecido a como metemos las imagenes externas _(`![alt](url)`)_ pero con unas llaves de más y con el pseudónimo que le pusimos a la imagen _(`![alt]({pseudonimo})`)_.
+
+Siguiendo el ejemplo, puedo poner varias imágenes si las cargo y escribo esto.
+
+```svelte
+<script>
+    import pag1 from '$lib
+```
