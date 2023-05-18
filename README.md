@@ -123,5 +123,11 @@ Siguiendo el ejemplo, puedo poner varias imágenes si las cargo y escribo esto.
 
 ```svelte
 <script>
-    import pag1 from '$lib
+    import pag1 from '$lib/posts/media/como-hacer-un-pete/1.png'
+    import pag2 from '$lib/posts/media/como-hacer-un-pete/2.png'
+</script>
+Bienvenides a la peteguía. Aquí está la guía en imágenes.
+
+![diagrama de las partes de genitales]({pag1})
+![diagrama de las partes de otros genitales]({pag2})
 ```
