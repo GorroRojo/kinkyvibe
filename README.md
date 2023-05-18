@@ -31,6 +31,12 @@ El contenido puede ser estilizado:
 | `kinky<sub>vibe</sub>` | kinky<sub>vibe</sub> |
 | `kinky<sup>vibe</sup>` | kinky<sup>vibe</sup> |
 
+Comenzando una linea con un `> ` se hace un bloque de cita
+
+> Que se ve algo masomenos así. Wow.
+
+Y las imágenes son iguales que los links pero con un `!` al principio: `![texto alternativo](https://imgur.com/mi-imagen.png)`. Sin embargo, sólo usar esto para imagene externas, para imagenes propias cargadas a la página es como detallo en un momento.
+
 Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando mas `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
 
 ## Propiedades
