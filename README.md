@@ -84,7 +84,7 @@ Si se agrega esta propiedad con el valor `true`, la publicación no aparece en n
 ### thumbnail_url
 El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
 
-## Imágenes y otras consideraciones
+## Imágenes
 
 Las imágenes y otros archivos deben cargarse en la subcarpeta `/media/` y luego en otra subcarpeta que tenga el nombre de la publicación, o sea el mismo nombre que el `.md` pero sin la extensión.
 
