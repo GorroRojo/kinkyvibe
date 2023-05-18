@@ -12,7 +12,7 @@ const config = {
 		alias: { $lib: '/src/lib/' },
 		adapter: adapter()
 	},
-	extensions: ['.svelte', '.md'],
+	extensions: ['.svelte', '.md', '.svx'],
 	preprocess: [
 		sveltePreprocess({
 			postcss: {
@@ -20,7 +20,7 @@ const config = {
 			}
 		}),
 		mdsvex({
-			extensions: ['.md'],
+			extensions: ['.md', '.svx'],
 			smartypants: {
 				quotes: true,
 				ellipses: true,
