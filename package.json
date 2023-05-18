@@ -36,7 +36,10 @@
 	"type": "module",
 	"dependencies": {
 		"@octokit/core": "^4.2.0",
+		"lucide-svelte": "^0.217.0",
 		"rehype-autolink-headings": "^6.1.1",
-		"rehype-slug": "^5.1.0"
+		"rehype-slug": "^5.1.0",
+		"remark-gfm": "^3.0.1",
+		"simple-icons": "^8.14.0"
 	}
 }

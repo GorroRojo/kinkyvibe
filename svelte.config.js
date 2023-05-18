@@ -3,7 +3,8 @@ import sveltePreprocess from 'svelte-preprocess';
 import { mdsvex } from 'mdsvex';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import autoprefixer from 'autoprefixer'
+import autoprefixer from 'autoprefixer';
+import remarkGfm from 'remark-gfm';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -18,11 +19,17 @@ const config = {
 				plugins: [autoprefixer]
 			}
 		}),
-		mdsvex({ extensions: ['.md'], 
-		smartypants: {
-			quotes: true, ellipses: true, dashes: 'oldschool'
-		},
-		rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings] })
+		mdsvex({
+			extensions: ['.md'],
+			smartypants: {
+				quotes: true,
+				ellipses: true,
+				dashes: 'oldschool'
+			},
+			remarkPlugins: [remarkGfm],
+			rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings],
+			layout: './src/lib/mdsvex/layout.svelte'
+		})
 	]
 };
 
