@@ -1,29 +1,37 @@
 <script>
 	//@ts-nocheck
-	import { ArrowRight, BookOpen, Heart, Sparkles, CalendarRange, ShoppingCart } from 'lucide-svelte';
+	import {
+		ArrowRight,
+		BookOpen,
+		Heart,
+		Sparkles,
+		CalendarRange,
+		ShoppingCart
+	} from 'lucide-svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
+	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
 	import { fade, fly } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
-	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	export let data;
 </script>
+
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
 <header>
 	<div id="me">
 		<ul id="redes">
-			<li><a href="https://cafecito.app/kinkyvibe"><SimpleIcon icon={siKofi} /></a></li>
+			<!-- <li><a href="https://cafecito.app/kinkyvibe"><SimpleIcon icon={siKofi} /></a></li> -->
+			<li><a href="https://t.me/BDSMtextos"><SimpleIcon icon={siTelegram} /></a></li>
 			<li>
 				<a href="https://www.instagram.com/kinkyvibeargentina/"><SimpleIcon icon={siInstagram} /></a
 				>
 			</li>
 			<!-- <li><a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} /></a></li> -->
-			<li><a href="https://t.me/BDSMtextos"><SimpleIcon icon={siTelegram} /></a></li>
-			<li><a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} /></a></li>
+			<!-- <li><a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} /></a></li> -->
 			<!-- <li><a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} /></a></li> -->
 			<!-- recursero -->
 			<!-- fanzines -->
