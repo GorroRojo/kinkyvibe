@@ -23,6 +23,8 @@
 </svg>
 <style>
     svg {
+        scale: var(--scale, 1);
+        translate: var(--translate, 0 0);
         color: var(--color, var(--1));
         fill: var(--color, var(--1));
         /* stroke: var(--color, var(--1)); */
