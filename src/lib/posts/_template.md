@@ -10,6 +10,31 @@ authors:
 unlisted: true
 # thumbnail_url: 2
 ---
+# Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+##### Heading 5
+###### Heading 6
+
+Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet.
+
+Otro parrafo.
+
+- Lista
+- tremenda lsita
+  - sub list  
+  - sub list
+    - sub sub lista
+
+> cita muy importante de alguien que importa mucho
+
+*enfasis* **otroenfasis** ***doble enfasis*** `código` ~~strikethrough~~
+
+|head1|head2|
+|-|-|
+|value1|value2|
+
 Cada publicación se debe hacer como un `.md` que comience con un bloque delimitado por lineas que tienen tres guiones, dentro del cual se setean las propiedades de esa publicación.
 Así
 
