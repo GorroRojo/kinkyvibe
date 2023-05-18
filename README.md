@@ -1,38 +1,58 @@
-# kinkyvibe# create-svelte
+Cada publicación se debe hacer como un `.md` que comience con un bloque delimitado por lineas que tienen tres guiones, dentro del cual se setean las propiedades de esa publicación.
+Así
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
+```md
+---
+propiedad: valor
+lista:
+    - un elemento de la lista
+    - otro elemento
+---
+( Contenido visible de la página )
 ```
 
-## Developing
+## Propiedades
+### title
+Automáticamente se pone inserta de todo.
+### date
+Debería partirse entre creation_date, modify_date, y publish_date.
+¿Quizás todo archivo que no tenga publish_date aparece oculto?
+### category
+Por ahora, `material`, `calendario`, o `amigues`. A revisar.
+### type
+Confuso, pero en principio algo como 
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- `pdf`
+- `img`
+  para contenido que existe en formato imágen, es decir que el material en sí es una o varias imágenes
+- `text`?
+- `event`? charla? charla debate?
 
-```bash
-npm run dev
+Lo que queda por definir es qué cosas son un type, qué cosas una categoría, y qué cosas se filtran por etiquetas simplemente.
+### tags
+En algún lado deberían figurar todas.
+### authors
+En algún lado deberían figurar todos. *Es una lista, no un valor único.*
+### unlisted
+Si se agrega esta propiedad con el valor `true`, la publicación no aparece en ninguna lista. Sólo es accesible mediante la url.
+### thumbnail_url
+## Imágenes y otras consideraciones
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+Las imágenes y otros archivos deben cargarse en la subcarpeta `/media/` y luego en otra subcarpeta que tenga el nombre de la publicación, o sea el mismo nombre que el `.md` pero sin la extensión.
 
-## Building
+Luego, dentro de esa carpeta, se meten cuantos archivos se quiera, cada uno con un número como nombre, y nada más (sin contar la terminación de formato tipo `.png`).
 
-To create a production version of your app:
+De modo que quedaría:
 
-```bash
-npm run build
-```
+- posts/
+  - como-hacer-un-pete.md
+  - media/
+    - como-hacer-un-pete/
+      - 1.png
+      - 2.png
+      - 3.jpeg
+      - 4.pdf
 
-You can preview the production build with `npm run preview`.
+Y así, luego en el cuerpo del documento se hace referencia a estos archivos por su número, así como en la propiedad `thumbnail_url`.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+El nombre del archivo `.md` es el que determina cómo va a ser el URL. En caso de cambiarlo, cualquier link a esa página va a dejar de funcionar. Por eso el título es una propiedad separada, y sin relación automática al nombre del archivo.
