@@ -2,15 +2,29 @@ El contenido de las páginas está en los siguientes archivos
 
 | URL         | Archivo                                   |
 | ----------- | ----------------------------------------- |
-|`/`          |`/src/routes/page.svelte`                  |
-|`/nosotres`  |`/src/routes/(content)/nosotres/+page.md`  |
-|`/material`  |`/src/routes/(content)/material/+page.md`  |
-|`/amigues`   |`/src/routes/(content)/amigues/+page.md`   |
-|`/calendario`|`/src/routes/(content)/calendario/+page.md`|
-|`/servicios` |`/src/routes/(content)/servicios/+page.md` |
+|`/`          |[`/src/routes/+page.svelte`](/src/routes/+page.svelte)                  |
+|`/nosotres`  |[`/src/routes/(content)/nosotres/+page.md`](`/src/routes/(content)/nosotres/+page.md`)  |
+|`/material`  |[`/src/routes/(content)/material/+page.md`](`/src/routes/(content)/material/+page.md`)  |
+|`/amigues`   |[`/src/routes/(content)/amigues/+page.md`](`/src/routes/(content)/amigues/+page.md`)   |
+|`/calendario`|[`/src/routes/(content)/calendario/+page.md`](`/src/routes/(content)/calendario/+page.md`)|
+|`/servicios` |[`/src/routes/(content)/servicios/+page.md`](`/src/routes/(content)/servicios/+page.md`) |
 
-En los archivos `.md` está en Markdown mezclado con Svelte(que se ve como HTML), y en los `.svelte` es puro svelte.
-Cada publicación se debe hacer como un `.md` que comience con un bloque delimitado por lineas que tienen tres guiones, dentro del cual se setean las propiedades de esa publicación.
+En los archivos `.md` está en Markdown, mezclado con Svelte _(que se ve como HTML)_ . En los `.svelte` es Svelte simplemente.
+
+Después, las publicaciones (eventos, articulos, links, etc...) están en [/src/lib/posts](/src/lib/posts). Cada publicación consiste de un archivo `url-de-publicacion.md` que comienza con un bloque de propiedades delimitado por tres guiones `---` y luego tiene el contenido en sí de la publicación que va a estar visible.
+
+El contenido de la publicación puede ser estilizado:
+
+| formato | resultado |
+| - | - |
+| `*kinkyvibe*` | *kinkyvibe* |
+| `**kinkyvibe**` | **kinkyvibe** |
+| `***kinkyvibe***` | ***kinkyvibe*** |
+| \`kinkyvibe\` | `kinkyvibe` |
+| `[kinkyvibe](https://kinkyvibe.ar)` | [kinkyvibe](kinkyvibe.ar) |
+| `~~kinkyvibe~~` | ~~kinkyvibe~~ |
+| `kinky<sub>vibe</sub>` | kinky<sub>vibe</sub> |
+| `kinky<sup>vibe</sup>` | kinky<sup>vibe</sup> |
 
 ```md
 ---
