@@ -35,9 +35,9 @@ Comenzando una linea con un `> ` se hace un bloque de cita
 
 > Que se ve algo masomenos así. Wow.
 
-Y las imágenes son iguales que los links pero con un `!` al principio: `![texto alternativo](https://imgur.com/mi-imagen.png)`. Sin embargo, para imagenes y otros archivos que carguemos nosotres mismes es ligeramente distinto. Ver [#imágenes](#imagenes).
+Y las imágenes son iguales que los links pero con un `!` al principio: `![texto alternativo](https://imgur.com/mi-imagen.png)`. Sin embargo, para imagenes y otros archivos que carguemos nosotres mismes es ligeramente distinto. Ver [#imágenes](#imágenes).
 
-Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando mas `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
+Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando más `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
 
 ## Propiedades
 
@@ -79,7 +79,7 @@ En algún lado deberían figurar todas.
 En algún lado deberían figurar todos. *Es una lista, no un valor único.*
 
 ### unlisted
-Si se agrega esta propiedad con el valor `true`, la publicación no aparece en ninguna lista. Sólo es accesible mediante la url.
+Si se agrega esta propiedad con el valor `true`, la publicación no aparece en ninguna lista. Sólo es accesible mediante la url directa.
 
 ### thumbnail_url
 El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
@@ -103,4 +103,11 @@ De modo que quedaría:
 
 Y así, luego en el cuerpo del documento se hace referencia a estos archivos por su número, así como en la propiedad `thumbnail_url`.
 
-El nombre del archivo `.md` es el que determina cómo va a ser el URL. En caso de cambiarlo, cualquier link a esa página va a dejar de funcionar. Por eso el título es una propiedad separada, y sin relación automática al nombre del archivo.
+Después dentro del contenido de la página, para insertar las imágenes, debemos hacer un par de cosas.
+
+1. Entre el bloque de propiedades y el contenido, metemos un bloque de `script`
+```svelte
+<script>
+    /* acá vamos a importar las imágenes */
+</script>
+```
