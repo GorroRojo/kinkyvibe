@@ -77,7 +77,7 @@
 		text-decoration-color: var(--1);
 	}
 	h3 a:hover {
-		text-decoration-thickness: 2px;
+		text-decoration-thickness: .11em;
 	}
 	.tags {
 		/* position: absolute;
