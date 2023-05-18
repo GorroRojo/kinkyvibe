@@ -1,4 +1,5 @@
 El contenido de las páginas está en los siguientes archivos
+
 | URL         | Archivo                                   |
 |:..........-:|:-----------------------------------------:|
 |`/`          |`/src/routes/page.svelte`                  |
@@ -7,6 +8,7 @@ El contenido de las páginas está en los siguientes archivos
 |`/amigues`   |`/src/routes/(content)/amigues/+page.md`   |
 |`/calendario`|`/src/routes/(content)/calendario/+page.md`|
 |`/servicios` |`/src/routes/(content)/servicios/+page.md` |
+
 En los archivos `.md` está en Markdown mezclado con Svelte(que se ve como HTML), y en los `.svelte` es puro svelte.
 Cada publicación se debe hacer como un `.md` que comience con un bloque delimitado por lineas que tienen tres guiones, dentro del cual se setean las propiedades de esa publicación.
 
