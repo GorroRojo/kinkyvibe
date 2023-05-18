@@ -8,7 +8,6 @@
 	<meta property="og:title" content={data.title} />
 </svelte:head>
 <article>
-	<h1>{data.title}</h1>
 	{#if !data.error}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
 		<svelte:component this={data.content} />
@@ -23,10 +22,10 @@
 		width: 100%;
 		position: relative;
 		margin-inline: auto;
+		margin-top: 3em;
 	}
 	h1 {
 		font-size: 2em;
-		margin-top: 2em;
 	}
 	:global(img) {
 		margin-inline: auto;
