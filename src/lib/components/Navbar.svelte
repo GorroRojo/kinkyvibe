@@ -1,15 +1,16 @@
 <script>
 	//@ts-nocheck
-	import {page} from '$app/stores'
+	import { page } from '$app/stores';
+	import { Heart } from 'lucide-svelte';
 	export let links;
 </script>
 
 <nav>
 	<ul>
-		{#each links as { name, sub, href, current }}
+		{#each links as { icon, name, sub, href }}
 			<li class:current={$page.url.pathname.includes(href)}>
 				<a {href}>
-					<span>{name}</span>
+					<span><span><svelte:component this={icon} size="1em" /></span>{name}</span>
 					<small>{sub}</small>
 				</a>
 			</li>
@@ -17,14 +18,12 @@
 	</ul>
 </nav>
 
-<style>
+<style lang="scss">
 	nav ul {
 		padding: 0;
 		display: flex;
-		gap: 1em;
-		row-gap: .4em;
-		flex-wrap: wrap;
-		justify-content: space-around;
+		row-gap: 0.4em;
+		justify-content: center;
 		margin-inline: auto;
 		max-width: 1000px;
 	}
@@ -37,7 +36,6 @@
 		height: 4em;
 	}
 	nav a {
-		text-align: center;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -46,18 +44,30 @@
 		color: var(--1);
 		font-size: 1.2em;
 		flex: 1;
-		border: 2px solid var(--1);
-		border-radius: 1em;
+		/* border: 2px solid var(--1); */
+		/* border-radius: 1em; */
 		background: transparent;
 		height: 100%;
 		text-decoration: none;
 		/* box-shadow: 0 0 .2em rgba(1,1,1,.3); */
 		transition: 200ms;
+		max-width: 20vw;
+		overflow-x: visible;
+		border-radius: 1em;
+
+		& > span > span {
+			position: relative;
+			top: 0.2em;
+			margin-right: 0.3em;
+		}
 	}
-	.current a, .current span {
+
+	.current a,
+	.current> span {
 		border-color: var(--2);
 		color: var(--2);
 		background: white;
+		box-shadow: 0 0 .5em rgba(1,1,1,.1);
 	}
 	nav span {
 		color: var(--1);
@@ -65,6 +75,7 @@
 		transition: 100ms;
 		text-decoration: none;
 	}
+
 
 	nav li:hover span {
 		translate: 0 0;
@@ -74,11 +85,59 @@
 		display: block;
 		font-size: 0.6em;
 		color: gray;
-		font-style: small-caps;
 		scale: 0;
 		transition: 100ms;
+		white-space: nowrap;
 	}
 	nav li:hover small {
 		scale: 1;
+	}
+	@media screen and (max-width: 670px) {
+		nav {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			z-index: 1;
+			background: white;
+			ul {
+				flex-wrap: nowrap;
+				gap: 1em;
+				/* width: 100%; */
+				li {
+					width: 15vw;
+					height: 4em;
+					&:hover span {
+						translate: 0 0.2em;
+					}
+					/* &.current, */
+					&.current span span {
+						scale: 2;
+						translate: 0 .1em;
+					}
+				}
+
+				a {
+					border: 0;
+					span {
+						display: flex;
+						flex-direction: column;
+						/* width: 100%; */
+						justify-items: center;
+						align-items: center;
+
+						span {
+							font-size: 1em;
+							scale: 1.5;
+							top: -1rem;
+							margin-right: 0;
+						}
+					}
+					small {
+						display: none;
+					}
+				}
+			}
+		}
 	}
 </style>

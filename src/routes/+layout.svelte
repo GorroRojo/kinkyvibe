@@ -1,7 +1,7 @@
 <script>
 	//@ts-nocheck
-	import { ArrowRight } from 'lucide-svelte';
-	import { siTiktok, siInstagram, siTwitter } from 'simple-icons';
+	import { ArrowRight, BookOpen, Heart, Sparkles, CalendarRange, ShoppingCart } from 'lucide-svelte';
+	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
 	import { fade, fly } from 'svelte/transition';
@@ -10,17 +10,22 @@
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	export let data;
 </script>
-
+<svelte:head>
+	<title>KinkyVibe.ar</title>
+</svelte:head>
 <header>
 	<div id="me">
 		<ul id="redes">
-			<li><a href="/"><SimpleIcon icon={siTiktok} /></a></li>
-			<li><a href="/"><SimpleIcon icon={siInstagram} /></a></li>
-			<li><a href="/"><SimpleIcon icon={siTwitter} /></a></li>
-			<!-- cafecitoapp -->
-			<!-- youtube -->
+			<li><a href="https://cafecito.app/kinkyvibe"><SimpleIcon icon={siKofi} /></a></li>
+			<li>
+				<a href="https://www.instagram.com/kinkyvibeargentina/"><SimpleIcon icon={siInstagram} /></a
+				>
+			</li>
+			<!-- <li><a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} /></a></li> -->
+			<li><a href="https://t.me/BDSMtextos"><SimpleIcon icon={siTelegram} /></a></li>
+			<li><a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} /></a></li>
+			<!-- <li><a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} /></a></li> -->
 			<!-- recursero -->
-			<!-- telegram -->
 			<!-- fanzines -->
 		</ul>
 		<a id="title" href="/">
@@ -32,15 +37,16 @@
 	</div>
 	<Navbar
 		links={[
-			{ name: 'Informacion', sub: 'Textos y Materiales', href: '/material' },
+			{ icon: BookOpen, name: 'Informacion', sub: 'Textos y Materiales', href: '/material' },
+			{ icon: Heart, name: 'Amigues', sub: 'Emprendimientos y Profesionales', href: '/amigues' },
+			{ icon: CalendarRange, name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
 			{
-				name: 'Amigues',
-				sub: 'Emprendimientos y Profesionales',
-				href: '/amigues'
+				icon: ShoppingCart,
+				name: 'Tienda',
+				sub: 'Juguetes e Implementos',
+				href: 'https://kinkyvibe.mitiendanube.com'
 			},
-			{ name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
-			{ name: 'Tienda', sub: 'Juguetes e Implementos', href: 'https://kinkyvibe.mitiendanube.com' },
-			{ name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
+			{ icon: Sparkles, name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
 		]}
 	/>
 </header>
@@ -91,10 +97,10 @@
 		padding: 0;
 		/* padding-right: 1em; */
 		display: flex;
-		gap: 0.3em;
+		gap: 0.6em;
 		flex-direction: row-reverse;
 		justify-content: space-evenly;
-		max-width: 10em;
+		max-width: 20em;
 		justify-self: right;
 	}
 	:global(svg) {
