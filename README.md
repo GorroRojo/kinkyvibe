@@ -1,3 +1,5 @@
+> Ahora mismo este readme sigue como guía para editar la página para quienes tienen permiso de commit, no pretende ser un README.md tradicional.
+
 ## Páginas
 El contenido de las páginas está en los siguientes archivos
 
