@@ -82,7 +82,7 @@
 	:global(body) {
 		position: relative;
 		min-height: 99vh;
-		padding-bottom: 20em;
+		padding-bottom: 30em;
 		box-sizing: border-box;
 		/* overflow-y: scroll; */
 	}
