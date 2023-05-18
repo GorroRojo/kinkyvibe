@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe - {data.title}</title>
+	<title>{data.title} - KinkyVibe.ar</title>
 	<meta property="og:title" content={data.title} />
 </svelte:head>
 <article>
