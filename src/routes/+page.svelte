@@ -9,40 +9,9 @@
 <main>
 	{#if !err}
 		<CardRow
-		index=0
-			id="informacion"
-			title="Para informarnos"
-			items={posts
-				.filter((p) => (p.category = 'material'))
-				.slice(0, 3)
-				.map((post) => ({
-					name: post.title,
-					tags: post.tags,
-					href: post.path,
-					src: post.src
-				}))}
-			--color-1="var(--2)"
-			--color-2="var(--1)"
-			href="/material"
-		/>
-
-		<CardRow
-		index=1
-			id="amigues"
-			title="Para apoyarnos"
-			items={[
-				{ name: 'Pastel Dom', mark: 'descuento', tags: ['emprendimiento', 'cuerdas', 'shibari'] },
-				{ name: 'Soguita Shibari', tags: ['clases', 'shibari'] },
-				{ name: 'KinkyBunny', tags: ['emprendimiento', 'BDSM'] }
-			]}
-			--color-1="var(--1)"
-			--color-2="var(--2)"
-		/>
-
-		<CardRow
-		index=2
+			index="0"
 			id="calendario"
-			title="Para encontrarnos"
+			title="Talleres y eventos"
 			items={[
 				{ name: 'Taller de Dominación', tags: ['taller', 'Dom', 'BDSM'] },
 				{ name: 'Picantearla', tags: ['evento', 'social', 'LGBT+'] },
@@ -52,9 +21,40 @@
 			--color-2="var(--1)"
 			href="/calendario"
 		/>
-	<PostList {posts} />
-		{:else}
-	{JSON.stringify(posts)}
+		<CardRow
+			index="0"
+			id="informacion"
+			title="Artículos, links y descargables"
+			items={posts
+				.filter((p) => (p.category = 'material'))
+				.slice(0, 3)
+				.map((post) => ({
+					name: post.title,
+					tags: post.tags,
+					href: post.path,
+					src: post.src
+				}))}
+			--color-1="var(--1)"
+			--color-2="var(--2)"
+			href="/material"
+		/>
+
+		<CardRow
+			index="1"
+			id="amigues"
+			title="Para apoyarnos"
+			items={[
+				{ name: 'Pastel Dom', mark: 'descuento', tags: ['emprendimiento', 'cuerdas', 'shibari'] },
+				{ name: 'Soguita Shibari', tags: ['clases', 'shibari'] },
+				{ name: 'KinkyBunny', tags: ['emprendimiento', 'BDSM'] }
+			]}
+			--color-1="var(--2)"
+			--color-2="var(--1)"
+		/>
+
+		<PostList {posts} />
+	{:else}
+		{JSON.stringify(posts)}
 		{JSON.stringify(err)}
 	{/if}
 </main>
