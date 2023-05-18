@@ -1,3 +1,4 @@
+## Páginas
 El contenido de las páginas está en los siguientes archivos
 
 | URL         | Archivo                                   |
@@ -11,9 +12,13 @@ El contenido de las páginas está en los siguientes archivos
 
 En los archivos `.md` está en Markdown, mezclado con Svelte _(que se ve como HTML)_ . En los `.svelte` es Svelte simplemente.
 
+## Publicaciones
 Después, las publicaciones (eventos, articulos, links, etc...) están en [/src/lib/posts](/src/lib/posts). Cada publicación consiste de un archivo `url-de-publicacion.md` que comienza con un bloque de propiedades delimitado por tres guiones `---` y luego tiene el contenido en sí de la publicación que va a estar visible.
 
-El contenido de la publicación puede ser estilizado:
+Si la publicación tiene imágenes u otros archivos, estos están _(usando el ejemplo)_ en `/src/lib/posts/media/url-de-publicación/1.png`. Cada archivo debe tener como título un número comenzando por cero y nada más, sólo seguido por el formato del archivo. El nombre de la carpeta debe ser exactamente igual al nombre del archivo de la publicación. Tal que en este ejemplo, la publicación sería `/src/lib/posts/url-de-publicación.md`.
+
+## Contenido
+El contenido puede ser estilizado:
 
 | formato | resultado |
 | - | - |
@@ -26,6 +31,10 @@ El contenido de la publicación puede ser estilizado:
 | `kinky<sub>vibe</sub>` | kinky<sub>vibe</sub> |
 | `kinky<sup>vibe</sup>` | kinky<sup>vibe</sup> |
 
+Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando mas `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
+
+## Propiedades
+
 ```md
 ---
 propiedad: valor
@@ -36,14 +45,16 @@ lista:
 ( Contenido visible de la página )
 ```
 
-## Propiedades
 ### title
-Automáticamente se pone inserta de todo.
+Automáticamente se inserta arriba de todo, no hace falta repetirlo como un encabezado.
+
 ### date
 Debería partirse entre creation_date, modify_date, y publish_date.
 ¿Quizás todo archivo que no tenga publish_date aparece oculto?
+
 ### category
 Por ahora, `material`, `calendario`, o `amigues`. A revisar.
+
 ### type
 Confuso, pero en principio algo como 
 
@@ -54,13 +65,19 @@ Confuso, pero en principio algo como
 - `event`? charla? charla debate?
 
 Lo que queda por definir es qué cosas son un type, qué cosas una categoría, y qué cosas se filtran por etiquetas simplemente.
+
 ### tags
 En algún lado deberían figurar todas.
+
 ### authors
 En algún lado deberían figurar todos. *Es una lista, no un valor único.*
+
 ### unlisted
 Si se agrega esta propiedad con el valor `true`, la publicación no aparece en ninguna lista. Sólo es accesible mediante la url.
+
 ### thumbnail_url
+El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
+
 ## Imágenes y otras consideraciones
 
 Las imágenes y otros archivos deben cargarse en la subcarpeta `/media/` y luego en otra subcarpeta que tenga el nombre de la publicación, o sea el mismo nombre que el `.md` pero sin la extensión.
