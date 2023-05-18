@@ -1,7 +1,7 @@
 El contenido de las páginas está en los siguientes archivos
 
 | URL         | Archivo                                   |
-|:..........-:|:-----------------------------------------:|
+| ----------- | ----------------------------------------- |
 |`/`          |`/src/routes/page.svelte`                  |
 |`/nosotres`  |`/src/routes/(content)/nosotres/+page.md`  |
 |`/material`  |`/src/routes/(content)/material/+page.md`  |
