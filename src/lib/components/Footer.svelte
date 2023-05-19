@@ -62,6 +62,9 @@
 </footer>
 
 <style>
+	:global(body) {
+		padding-bottom: 40rem;
+	}
 	footer {
 		margin: 0;
 		margin-top: 8em;
@@ -98,5 +101,10 @@
 	li > ul {
 		padding: 0;
 		list-style: none;
+	}
+	@media screen and (max-width: 680px) {
+		footer {
+			bottom: 6rem;
+		}
 	}
 </style>
