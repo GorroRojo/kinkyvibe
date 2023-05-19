@@ -138,8 +138,7 @@ una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen
 
 hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deben ser visibles en listas comunes
 
-- -
-  - title*
+- - title*
   - description*
   - published_date
   - updated_date
@@ -150,8 +149,7 @@ hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deb
   - force_unlisted
   - force_unpublished
 - Material
-  - -
-    - author*
+  - - author*
   - descargable
     - descargable*
   - link
