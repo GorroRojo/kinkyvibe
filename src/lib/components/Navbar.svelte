@@ -131,9 +131,10 @@
 							/* width: 100%; */
 							justify-items: center;
 							align-items: center;
+							font-size: .8em;
 
 							span {
-								font-size: 1em;
+								font-size: 1.2em;
 								scale: 1.5;
 								top: -1rem;
 								margin-right: 0;
