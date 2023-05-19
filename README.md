@@ -133,3 +133,231 @@ Bienvenides a la peteguía. Aquí está la guía en imágenes.
 ![diagrama de las partes de genitales]({pag1})
 ![diagrama de las partes de otros genitales]({pag2})
 ```
+## Etiquetas y tipos (WIP)
+una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen bdsm + una pequeña explicación, o un post principal por etiqueta
+
+hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deben ser visibles en listas comunes
+
+### Para todo
+title*
+description*
+published_date
+updated_date
+type (por ahora sólo material: descargable, link, contenido)
+tags*
+category*
+featured (imagen para mostrar en tarjetas, vistas previas del link, etc; si no hay, generar uno de alguna forma?)
+force_unlisted
+force_unpublished
+
+### Material
+authors*
+#### descargable
+descargable*
+
+#### link
+bookmark_of*
+access_date* (cuándo se chequeó el link por ult vez)
+#### contenido
+via (link a original si es una traducción, adaptación, repost, etc)
+### Calendario
+start*
+end / duration *
+organizer*
+location (si no hay, se asume que es online)
+website
+### Amigues
+logo || photo (si no, se usa featured)
+email
+website
+location (si hay, es tipo venue)
+authors
+
+title = p-name
+date < dt-published dt-updated
+types
+- material
+  - descargable
+  - link
+  - consumible (otro nombre? contenido?)
+- calendario
+  - tags: feria, charla, debate, picnic, deberían ser etiquetas
+- amigues
+  - emprendimiento
+  - proyecto
+  - profesional de la salud
+  - se quiere estas tres cosas sean exclusivas entre sí y tan acotado? existe la posibilidad de que la lista empiece a crecer un montón?
+tags
+  - BDSM | Género | Abolicionismo | Anarquía | Sexualidad
+  - [practicas]
+  - KinkyVibe
+authors = p-author h-card
+unlisted
+thumbnail_url = u-featured
+p-summary
+
+- material
+  - h-entry
+    - h-cite
+      - dt-accessed
+      - dt-published
+      - p-publication
+    - u-bookmark-of
+    - u-repost-of
+- calendario
+  - h-event
+    - p-location (h-card | h-adr)
+    - dt-start
+    - dt-end
+    - dt-duration
+    - p-organizer h-card
+    - foto de lugar
+    - foto de punto en mapa
+- amigues
+  - h-card
+    - p-nickname
+    - u-email
+    - u-logo
+    - u-photo
+    - u-url u-uid
+    - p-adr h-adr
+    - p-tel
+    - p-job-title
+    - p-role (explicando job-title)
+    - p-gender-identity
+    - u-pronoun (https//pronoun.is)
+    - dt-bday
+  - h-resume
+    - p-contact h-card
+    - p-education h-event,h-card
+    - p-experience h-event,h-card
+    - p-skill
+    - p-affiliation h-card
+  - h-venue
+    - p-location
+#### material
+descargable
+📑 collection (of posts...medio al pedo, un link a un tag y listo)
+🎴 comics
+texto
+📄 article
+🔖 bookmark
+♺ repost
+🎥 video
+📷 photo
+🎤 audio
+⭐️ review
+📔 note
+#### calendario
+status: abierto | anunciado | terminado?pasado?acabado? | sold out? lleno? acabado?
+📅 event
+♫ jam
+📽️ presentation
+🎙 performance
+#### amigues
+📍 venue
+emprendimiento
+proyecto
+profesional de la salud
+
+
+rel=license
+rel=nofollow para desincentivar a buscadores seguir ese link
+rel=tag
+rel=home
+#### h-feed
+- p-name
+- p-author (h-card)
+- u-url
+- u-photo
+- ?p-summary
+- multiple nested h-entry
+#### h-adr
+- p-street-address
+- p-extended-address
+- p-location
+- p-region
+- p-postal-code
+- p-country-name
+- no tiene p-name, "it's likely a vanue, you should use h-card instead"
+
+#### h-entry
+- p-name
+- p-summary
+- e-content
+- dt-published
+- dt-updated
+- p-author (o h-card)
+- p-category??
+- u-url
+- u-uid??
+- p-location (o h-card, h-adr, h-geo)
+- u-syndication??
+- u-in-reply-to (o h-cite)
+- p-rsvp: yes | no | maybe | interested
+- u-like-of (o h-cite)
+- u-repost-of (o h-cite)
+proposed
+- u-repost??
+- u-bookmark-of (o h-cite)
+- u-featured (imagen principal)
+### Calendario
+
+### Material
+rel
+  author
+  enclosure (para descargables)
+
+### Amigues
+
+#### h-event
+- p-name
+- p-summary
+- dt-start
+- dt-end
+- dt-duration
+- p-description (o e-content)
+- u-url
+- ~~category~~
+- p-location (puede ser h-card, h-adr, h-geo)
+- p-organizer (puede ser h-card)
+  foto del lugar y punto en mapa
+#### h-cite
+- dt-accessed
+- u-url = u-uid
+- p-publication
+- p-name
+- dt-published
+- p-author (o h-card)
+- p-content
+#### h-resume
+- p-name
+- p-summary (qualifications and objectives)
+- p-contact h-card
+- p-education h-event, p-education h-card (education time, school)
+- p-experience h-event, p-experience h-card
+- p-skill
+- p-affiliation h-card
+#### h-card
+- p-name
+- p-honorific-prefix
+- p-sort-string
+- p-honorifix-suffic
+- p-nickname
+- u-email
+- u-logo
+- u-photo
+- u-url u-uid
+- p-adr (o h-adr)
+- p-geo / u-geo (o h-geo)
+- p-tel
+- p-note?
+- p-org (o h-card)
+- p-job-title
+- p-role (descripcion del job-title)
+- p-gender-identity
+- u-pronoun (see http://pronoun.is)
+- p-category?
+
+- dt-anniversary
+- dt-bday
