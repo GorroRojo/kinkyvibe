@@ -138,18 +138,31 @@ una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen
 
 hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deben ser visibles en listas comunes
 
-### Para todo
-title*
-description*
-published_date
-updated_date
-type (por ahora sólo material: descargable, link, contenido)
-tags*
-category*
-featured (imagen para mostrar en tarjetas, vistas previas del link, etc; si no hay, generar uno de alguna forma?)
-force_unlisted
-force_unpublished
-
+- -
+  - title*
+  - description*
+  - published_date
+  - updated_date
+  - type (por ahora sólo material: descargable, link, contenido)
+  - tags*
+  - category*
+  - featured (imagen para mostrar en tarjetas, vistas previas del link, etc; si no hay, generar uno de alguna forma?)
+  - force_unlisted
+  - force_unpublished
+- Material
+  - -
+    - author*
+  - descargable
+    - descargable*
+  - link
+    - bookmark_of*
+    - access_date*
+  - contenido
+    - via (link a original si es una trad, adapt, repost, etc)
+- Calendario
+  - start*
+  - end / duration *
+  - organizer
 ### Material
 authors*
 #### descargable
