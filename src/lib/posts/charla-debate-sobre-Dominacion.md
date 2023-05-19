@@ -13,7 +13,7 @@ thumbnail_url: 1
 ---
 
 <script>
-  import img from './media/charla-debate-sobre-Dominacion/1.jpeg';
+  import img from '$lib/posts/media/charla-debate-sobre-Dominacion/1.jpeg';
 </script>
 
 Desde este espacio y Kinky Vibe Argentina, armamos este espacio para pensar la dominación y sus aledaños. En general hacemos y vemos que se realizan múltiples talleres, pero no suficientes instancias de diálogo y debate para seguir pensando y re-pensando nuestras prácticas y deseos. 
