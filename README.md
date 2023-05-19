@@ -123,24 +123,22 @@ hace falta un archivo:
 
 - - title*
   - description*
-  - published_date
-  - updated_date
-  - type (por ahora sólo material: descargable, link, contenido)
   - tags*
   - category*
   - featured (imagen para mostrar en tarjetas, vistas previas del link, etc; si no hay, generar uno de alguna forma?)
+  - published_date
+  - updated_date
+  - author (quién escribió artículo, quién organiza un evento, quién es miembro de un proyecto)
+  - type (por ahora sólo material: descargable, link, contenido)
   - force_unlisted
   - force_unpublished
 - Material
-  - - author*
+    - link (* para descargable y link, en contenido lleva al contenido original es es una trad, adapta, repost, etc)
   - descargable
-    - descargable*
   - link
-    - bookmark_of*
-    - access_date*
+    - access_date* (lo marca como descargable, la última que vez que se chequeó el link)
     - bookmark_published_date
   - contenido
-    - via (link a original si es una trad, adapt, repost, etc)
 - Calendario
   - etiquetas particulares de eventos:
     - feria, charla, debate?, picnic?, social?, juegos?, taller
