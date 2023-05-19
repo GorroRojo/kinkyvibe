@@ -136,7 +136,10 @@ Bienvenides a la peteguía. Aquí está la guía en imágenes.
 ## Etiquetas y tipos (WIP)
 una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen bdsm + una pequeña explicación, o un post principal por etiqueta
 
-hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deben ser visibles en listas comunes
+hace falta un archivo:
+- titulando y estableciendo grupos de etiquetas
+- fusionando etiquetas como alias de una sola
+- marcando etiquetas que no deben estar visibles
 
 - - title*
   - description*
@@ -155,101 +158,70 @@ hace falta un archivo agrupando etiquetas y maybe marcando qué etiquetas no deb
   - link
     - bookmark_of*
     - access_date*
+    - bookmark_published_date
   - contenido
     - via (link a original si es una trad, adapt, repost, etc)
 - Calendario
+  - etiquetas particulares de eventos:
+    - feria, charla, debate?, picnic?, social?, juegos?, taller
+  - status* (abierto | anunciado | terminado?pasado?acabado? | sold out? lleno? acabado?)
   - start*
   - end / duration *
-  - organizer
-### Material
-authors*
-#### descargable
-descargable*
-
-#### link
-bookmark_of*
-access_date* (cuándo se chequeó el link por ult vez)
-#### contenido
-via (link a original si es una traducción, adaptación, repost, etc)
-### Calendario
-start*
-end / duration *
-organizer*
-location (si no hay, se asume que es online)
-website
-### Amigues
-logo || photo (si no, se usa featured)
-email
-website
-location (si hay, es tipo venue)
-authors
-
-title = p-name
-date < dt-published dt-updated
-types
-- material
-  - descargable
+  - organizer*
+  - location (si no hay, es online)
   - link
-  - consumible (otro nombre? contenido?)
-- calendario
-  - tags: feria, charla, debate, picnic, deberían ser etiquetas
-- amigues
-  - emprendimiento
-  - proyecto
-  - profesional de la salud
-  - se quiere estas tres cosas sean exclusivas entre sí y tan acotado? existe la posibilidad de que la lista empiece a crecer un montón?
+- Amigues
+  - etiquetas particulares de amigues:
+    - emprendimiento, proyecto, profesional de la salud
+  - member*
+  - pronoun* (https://pronombr.es)
+  - link*
+  - logo || photo (si no, se usa featured)
+  - email
+  - location (si hay, es venue)
+  - tel
+  - job_title
+  - job_role (explicando brevemente job_title)
+  - gender_identity
+  - bday
+  - affiliation h-card
+  - ?education h-event,h-card
+  - ?experience h-event,h-card
+  - ?skill
+
+hay algunas que son conceptos distintos pero en realidad están siempre, así que de podría elegir un nombre genérico y usar ese. hay que ver cómo unificar
+
+material: author
+calendario: organizer
+amigues: member
+
+material: descargable, bookmark_of, via, 
+calendario y amigues: website
+
 tags
   - BDSM | Género | Abolicionismo | Anarquía | Sexualidad
   - [practicas]
   - KinkyVibe
-authors = p-author h-card
-unlisted
-thumbnail_url = u-featured
-p-summary
 
 - material
   - h-entry
     - h-cite
-      - dt-accessed
-      - dt-published
-      - p-publication
     - u-bookmark-of
     - u-repost-of
 - calendario
   - h-event
-    - p-location (h-card | h-adr)
-    - dt-start
-    - dt-end
-    - dt-duration
-    - p-organizer h-card
-    - foto de lugar
-    - foto de punto en mapa
 - amigues
   - h-card
-    - p-nickname
-    - u-email
-    - u-logo
-    - u-photo
-    - u-url u-uid
-    - p-adr h-adr
-    - p-tel
-    - p-job-title
-    - p-role (explicando job-title)
-    - p-gender-identity
-    - u-pronoun (https//pronoun.is)
-    - dt-bday
   - h-resume
-    - p-contact h-card
-    - p-education h-event,h-card
-    - p-experience h-event,h-card
-    - p-skill
-    - p-affiliation h-card
-  - h-venue
-    - p-location
+
+rel
+  author
+  enclosure (para descargables)
 #### material
 descargable
 📑 collection (of posts...medio al pedo, un link a un tag y listo)
 🎴 comics
+
 texto
 📄 article
 🔖 bookmark
@@ -267,9 +239,6 @@ status: abierto | anunciado | terminado?pasado?acabado? | sold out? lleno? acaba
 🎙 performance
 #### amigues
 📍 venue
-emprendimiento
-proyecto
-profesional de la salud
 
 
 rel=license
@@ -315,9 +284,7 @@ proposed
 ### Calendario
 
 ### Material
-rel
-  author
-  enclosure (para descargables)
+
 
 ### Amigues
 
