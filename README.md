@@ -56,32 +56,11 @@ lista:
 ### title
 Automáticamente se inserta arriba de todo, no hace falta repetirlo como un encabezado.
 
-### date
-Debería partirse entre creation_date, modify_date, y publish_date.
-¿Quizás todo archivo que no tenga publish_date aparece oculto?
-
 ### category
 Por ahora, `material`, `calendario`, o `amigues`. A revisar.
 
-### type
-Confuso, pero en principio algo como 
-
-- `pdf`
-- `img`
-  para contenido que existe en formato imágen, es decir que el material en sí es una o varias imágenes
-- `text`?
-- `event`? charla? charla debate?
-
-Lo que queda por definir es qué cosas son un type, qué cosas una categoría, y qué cosas se filtran por etiquetas simplemente.
-
-### tags
-En algún lado deberían figurar todas.
-
 ### authors
 En algún lado deberían figurar todos. *Es una lista, no un valor único.*
-
-### unlisted
-Si se agrega esta propiedad con el valor `true`, la publicación no aparece en ninguna lista. Sólo es accesible mediante la url directa.
 
 ### thumbnail_url
 El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
@@ -140,6 +119,7 @@ hace falta un archivo:
 - titulando y estableciendo grupos de etiquetas
 - fusionando etiquetas como alias de una sola
 - marcando etiquetas que no deben estar visibles
+- estableciendo un post como post principal para cada etiqueta?
 
 - - title*
   - description*
@@ -203,6 +183,40 @@ tags
   - [practicas]
   - KinkyVibe
 
+### indieweb
+#### rel
+rel
+  author
+  enclosure (para descargables)
+rel=license
+rel=nofollow para desincentivar a buscadores seguir ese link
+rel=tag
+rel=home
+#### emoji post type
+estandar de emoji por tipo de post
+- material
+  - descargable
+    - 📑 collection (of posts...medio al pedo, un link a un tag y listo)
+    - 🎴 comics
+  - contenido
+    - 📄 article
+    - 🎥 video
+    - 📷 photo
+    - 🎤 audio
+    - ⭐️ review
+    - 📔 note
+  - link
+    - 🔖 bookmark
+    - ♺ repost
+- calendario
+  - 📅 event
+  - ♫ jam
+  - 📽️ presentation
+  - 🎙 performance
+- amigues
+  - 📍 venue
+
+#### microformats2
 - material
   - h-entry
     - h-cite
@@ -213,46 +227,14 @@ tags
 - amigues
   - h-card
   - h-resume
-
-rel
-  author
-  enclosure (para descargables)
-#### material
-descargable
-📑 collection (of posts...medio al pedo, un link a un tag y listo)
-🎴 comics
-
-texto
-📄 article
-🔖 bookmark
-♺ repost
-🎥 video
-📷 photo
-🎤 audio
-⭐️ review
-📔 note
-#### calendario
-status: abierto | anunciado | terminado?pasado?acabado? | sold out? lleno? acabado?
-📅 event
-♫ jam
-📽️ presentation
-🎙 performance
-#### amigues
-📍 venue
-
-
-rel=license
-rel=nofollow para desincentivar a buscadores seguir ese link
-rel=tag
-rel=home
-#### h-feed
+##### h-feed
 - p-name
 - p-author (h-card)
 - u-url
 - u-photo
 - ?p-summary
 - multiple nested h-entry
-#### h-adr
+##### h-adr
 - p-street-address
 - p-extended-address
 - p-location
@@ -261,7 +243,7 @@ rel=home
 - p-country-name
 - no tiene p-name, "it's likely a vanue, you should use h-card instead"
 
-#### h-entry
+##### h-entry
 - p-name
 - p-summary
 - e-content
@@ -281,14 +263,8 @@ proposed
 - u-repost??
 - u-bookmark-of (o h-cite)
 - u-featured (imagen principal)
-### Calendario
 
-### Material
-
-
-### Amigues
-
-#### h-event
+##### h-event
 - p-name
 - p-summary
 - dt-start
@@ -300,7 +276,7 @@ proposed
 - p-location (puede ser h-card, h-adr, h-geo)
 - p-organizer (puede ser h-card)
   foto del lugar y punto en mapa
-#### h-cite
+##### h-cite
 - dt-accessed
 - u-url = u-uid
 - p-publication
@@ -308,7 +284,7 @@ proposed
 - dt-published
 - p-author (o h-card)
 - p-content
-#### h-resume
+##### h-resume
 - p-name
 - p-summary (qualifications and objectives)
 - p-contact h-card
@@ -316,7 +292,7 @@ proposed
 - p-experience h-event, p-experience h-card
 - p-skill
 - p-affiliation h-card
-#### h-card
+##### h-card
 - p-name
 - p-honorific-prefix
 - p-sort-string
