@@ -133,25 +133,21 @@ hace falta un archivo:
   - force_unlisted
   - force_unpublished
 - Material
-    - link (* para descargable y link, en contenido lleva al contenido original es es una trad, adapta, repost, etc)
-  - descargable
-  - link
-    - access_date* (lo marca como descargable, la última que vez que se chequeó el link)
-    - bookmark_published_date
-  - contenido
+  - link (* para descargable y link, en contenido lleva al contenido original es es una trad, adapta, repost, etc)
+  - cuando es de tipo "link"
+    - access_date* (la última que vez que se chequeó el link)
+    - original_published_date
 - Calendario
   - etiquetas particulares de eventos:
     - feria, charla, debate?, picnic?, social?, juegos?, taller
   - status* (abierto | anunciado | terminado?pasado?acabado? | sold out? lleno? acabado?)
   - start*
   - end / duration *
-  - organizer*
   - location (si no hay, es online)
   - link
 - Amigues
-  - etiquetas particulares de amigues:
+  - tags particulares de amigues:
     - emprendimiento, proyecto, profesional de la salud
-  - member*
   - pronoun* (https://pronombr.es)
   - link*
   - logo || photo (si no, se usa featured)
