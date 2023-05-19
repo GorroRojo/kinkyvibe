@@ -20,7 +20,7 @@
 			<h3>Contenido</h3>
 			<ul class="contenido">
 				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
-				<li><a href="/material"><BookOpen {style} />Información</a></li>
+				<li><a href="/material"><BookOpen {style} />Material</a></li>
 				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
 				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style} />Tienda</a></li>
