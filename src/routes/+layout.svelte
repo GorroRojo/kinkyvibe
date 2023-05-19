@@ -24,15 +24,16 @@
 <header>
 	<div id="me">
 		<ul id="redes">
-			<!-- <li><a href="https://cafecito.app/kinkyvibe"><SimpleIcon icon={siKofi} /></a></li> -->
-			<li><a href="https://t.me/BDSMtextos"><SimpleIcon icon={siTelegram} /></a></li>
 			<li>
-				<a href="https://www.instagram.com/kinkyvibeargentina/"><SimpleIcon icon={siInstagram} /></a
-				>
+				<a href="https://t.me/BDSMtextos">
+					<SimpleIcon icon={siTelegram} />
+				</a>
 			</li>
-			<!-- <li><a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} /></a></li> -->
-			<!-- <li><a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} /></a></li> -->
-			<!-- <li><a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} /></a></li> -->
+			<li>
+				<a href="https://www.instagram.com/kinkyvibeargentina/">
+					<SimpleIcon icon={siInstagram} />
+				</a>
+			</li>
 			<!-- recursero -->
 			<!-- fanzines -->
 		</ul>
@@ -82,7 +83,7 @@
 	:global(body) {
 		position: relative;
 		min-height: 99vh;
-		padding-bottom: 30em;
+		padding-bottom: 40rem;
 		box-sizing: border-box;
 		/* overflow-y: scroll; */
 	}
@@ -110,6 +111,7 @@
 		justify-content: space-evenly;
 		max-width: 20em;
 		justify-self: right;
+		--color: var(--1);
 	}
 	:global(svg) {
 		width: 24;

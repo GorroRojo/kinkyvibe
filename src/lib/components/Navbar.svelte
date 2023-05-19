@@ -10,7 +10,10 @@
 		{#each links as { icon, name, sub, href }}
 			<li class:current={$page.url.pathname.includes(href)}>
 				<a {href}>
-					<span><span><svelte:component this={icon} size="1em" /></span>{name}</span>
+					<span>
+						<span><svelte:component this={icon} size="1em" /></span>
+						{name}
+					</span>
 					<small>{sub}</small>
 				</a>
 			</li>
@@ -62,12 +65,13 @@
 		}
 	}
 
-	.current a,
-	.current> span {
-		border-color: var(--2);
+	.current span {
 		color: var(--2);
+		--color: var(--2);
+	}
+	.current a {
 		background: white;
-		box-shadow: 0 0 .5em rgba(1,1,1,.1);
+		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
 	}
 	nav span {
 		color: var(--1);
@@ -75,7 +79,6 @@
 		transition: 100ms;
 		text-decoration: none;
 	}
-
 
 	nav li:hover span {
 		translate: 0 0;
@@ -92,7 +95,7 @@
 	nav li:hover small {
 		scale: 1;
 	}
-	@media screen and (max-width: 670px) {
+	@media screen and (max-width: 680px) {
 		nav {
 			position: fixed;
 			bottom: 0;
@@ -108,33 +111,37 @@
 					width: 15vw;
 					height: 4em;
 					&:hover span {
-						translate: 0 0.2em;
+						translate: 0 0em;
 					}
 					/* &.current, */
-					&.current span span {
-						scale: 2;
-						translate: 0 .1em;
-					}
-				}
-
-				a {
-					border: 0;
-					span {
-						display: flex;
-						flex-direction: column;
-						/* width: 100%; */
-						justify-items: center;
-						align-items: center;
-
-						span {
-							font-size: 1em;
-							scale: 1.5;
-							top: -1rem;
-							margin-right: 0;
+					&.current {
+						a {
+							box-shadow:none;
+						}
+						span span {
+							scale: 2;
+							translate: 0 0.1em;
 						}
 					}
-					small {
-						display: none;
+					a {
+						border: 0;
+						span {
+							display: flex;
+							flex-direction: column;
+							/* width: 100%; */
+							justify-items: center;
+							align-items: center;
+
+							span {
+								font-size: 1em;
+								scale: 1.5;
+								top: -1rem;
+								margin-right: 0;
+							}
+						}
+						small {
+							display: none;
+						}
 					}
 				}
 			}

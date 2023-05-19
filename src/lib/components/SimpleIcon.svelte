@@ -1,25 +1,13 @@
 <script>
-    
     // @ts-nocheck
     /** Icon data from SimpleIcon's module import
-     * @type {{
-     *      title: string,
-     *      slug: string,
-     *      hex: string,
-     *      source: string,
-     *      svg: string,
-     *      path: string,
-     *      guidelines: string,
-     *      license: {
-     *          type:string,
-     *          url: string
-     *      }
-     * }}
+     * @type {SimpleIcon}
      */
     export let icon;
 </script>
 <svg role="img" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    {@html icon.svg.slice(71,-5)}
+    <path d={icon.path}></path>
+    <!-- {@html icon.svg.slice(71,-6)} -->
 </svg>
 <style>
     svg {

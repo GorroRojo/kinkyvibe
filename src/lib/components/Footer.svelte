@@ -9,7 +9,8 @@
 	} from 'lucide-svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
-	let style = "scale:var(--scale,1);translate:var(--translate,0 0);"
+	let style = `scale:var(--scale,1);
+				 translate:var(--translate,0 0);`;
 </script>
 
 <footer>
@@ -18,11 +19,11 @@
 		<li>
 			<h3>Contenido</h3>
 			<ul class="contenido">
-				<li><a href="/nosotres"><ArrowRight {style}/>Nosotres</a></li>
-				<li><a href="/material"><BookOpen {style}/>Información</a></li>
-				<li><a href="/amigues"><Heart {style}/>Amigues</a></li>
-				<li><a href="/calendario"><CalendarRange {style}/>Calendario</a></li>
-				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style}/>Tienda</a></li>
+				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
+				<li><a href="/material"><BookOpen {style} />Información</a></li>
+				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
+				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
+				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style} />Tienda</a></li>
 				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 			</ul>
 		</li>
@@ -30,13 +31,21 @@
 			<h3>Redes</h3>
 			<ul class="redes">
 				<li>
-					<a href="https://cafecito.app/kinkyvibe"><SimpleIcon icon={siKofi} />CafecitoApp</a>
+					<a href="https://cafecito.app/kinkyvibe">
+						<SimpleIcon icon={siKofi} />CafecitoApp
+					</a>
 				</li>
-				<li><a href="https://t.me/BDSMtextos"><SimpleIcon icon={siTelegram} />Telegram</a></li>
 				<li>
-					<a href="https://www.instagram.com/kinkyvibeargentina/"
-						><SimpleIcon icon={siInstagram} />Instagram</a
-					>
+					<a href="https://t.me/BDSMtextos">
+						<SimpleIcon icon={siTelegram} />
+						Telegram
+					</a>
+				</li>
+				<li>
+					<a href="https://www.instagram.com/kinkyvibeargentina/">
+						<SimpleIcon icon={siInstagram} />
+						Instagram
+					</a>
 				</li>
 				<li>
 					<a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} />Twitter</a>
