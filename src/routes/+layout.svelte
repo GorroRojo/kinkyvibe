@@ -46,7 +46,7 @@
 	</div>
 	<Navbar
 		links={[
-			{ icon: BookOpen, name: 'Información', sub: 'Textos y Materiales', href: '/material' },
+			{ icon: BookOpen, name: 'Material', sub: 'Textos y Materiales', href: '/material' },
 			{ icon: Heart, name: 'Amigues', sub: 'Emprendimientos y Profesionales', href: '/amigues' },
 			{ icon: CalendarRange, name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
 			{
