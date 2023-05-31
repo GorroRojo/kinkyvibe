@@ -9,7 +9,7 @@ tags:
 authors:
     - DemonWeb
 # unlisted: true
-thumbnail_url: 2
+featured: 2
 ---
 
 <script>

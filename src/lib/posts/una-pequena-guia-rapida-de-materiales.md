@@ -9,7 +9,7 @@ tags:
     - seguridad
 authors: 
     - DemonWeb
-thumbnail_url: 1
+featured: 1
 ---
 <script>
     import pag1 from '$lib/posts/media/una-pequena-guia-rapida-de-materiales/1.jpeg/';

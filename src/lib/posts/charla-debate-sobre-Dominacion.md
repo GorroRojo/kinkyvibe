@@ -9,7 +9,7 @@ event_date: 2023-04-26
 event_time: 20:30
 tags:
   - Dominación
-thumbnail_url: 1
+featured: 1
 ---
 
 <script>

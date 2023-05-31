@@ -1,5 +1,6 @@
 <script>
 	import Calendar from '$lib/components/Calendar.svelte';
+	import PostList from '$lib/components/PostList.svelte';
 	import { isSameDay, setDate } from 'date-fns';
 	const data = [
 		{
@@ -45,15 +46,7 @@
 	</Calendar>
 </div>
 
-<!-- <style>
-    /* --header-margin
---month-font-weight
---month-font-size
---week-days-color
---week-days-font-weight
---week-days-margin
---cell-height */
-</style> -->
+<PostList />
 
 <style lang="scss">
 	#calendar {

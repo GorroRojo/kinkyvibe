@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	export let posts;
+	export let posts = [];
 	import Tags from '$lib/components/Tags.svelte';
 	import { fly } from 'svelte/transition';
 </script>

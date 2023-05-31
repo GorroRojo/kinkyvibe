@@ -9,7 +9,7 @@ export async function load({ fetch }) {
 				title: post.meta.title,
 				href: '/' + post.path,
 				tags: post.meta.tags,
-				src: post.meta.thumbnail_url,
+				src: post.meta.featured,
 				path: post.path,
 				date: post.meta.date
 					? new Intl.DateTimeFormat('es-AR').format(new Date(post.meta.date))
