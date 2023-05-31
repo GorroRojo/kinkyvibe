@@ -119,7 +119,6 @@
 		grid-template-columns: repeat(7, 1fr);
 		align-items: center;
 		justify-items: center;
-		/* height: 100%; */
 		width: 100%;
 		aspect-ratio: 7/5;
 	}
@@ -131,7 +130,6 @@
 	}
 
 	.cell {
-		/* height: var(--cell-height, clamp(4rem, 7vw, 8rem)); */
 		text-align: center;
 		width: 100%;
 		height: 100%;
