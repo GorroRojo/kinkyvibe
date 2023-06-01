@@ -59,20 +59,6 @@ lista:
 ( Contenido visible de la página )
 ```
 
-### title
-
-Automáticamente se inserta arriba de todo, no hace falta repetirlo como un encabezado.
-
-### category
-
-Por ahora, `material`, `calendario`, o `amigues`. A revisar.
-
-### authors
-
-En algún lado deberían figurar todos. _Es una lista, no un valor único._
-
-### thumbnail_url
-
 El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
 
 ## Imágenes
@@ -123,6 +109,21 @@ Siguiendo el ejemplo, puedo poner varias imágenes si las cargo y escribo esto.
 Bienvenides a la peteguía. Aquí está la guía en imágenes. ![diagrama de las partes de genitales]({pag1})
 ![diagrama de las partes de otros genitales]({pag2})
 ```
+
+## Poner cosas en columnas
+
+Rodeando dos bloques (por ejemplo, imágenes) con un divisor de clase `col-2` podemos ponerlos en dos columnas iguales
+
+```html
+<div class="col-2">
+	<img src="{pag1}" />
+	<img src="{pag2}" />
+</div>
+```
+
+`col-3` es para 3, y `col-4` es para 4
+
+si se quiere unir varias cosas como un solo bloque, simplemente se las rodea con un `<div>...</div>` sin ninguna clase
 
 ## Etiquetas y tipos (WIP)
 
