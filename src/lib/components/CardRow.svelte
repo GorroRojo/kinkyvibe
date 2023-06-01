@@ -12,7 +12,7 @@
 
 <div
 	{id}
-	in:fly={{ x: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300}}
+	in:fly={{ x: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
 	out:fly={{ x: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
 >
 	{#if title}
@@ -21,7 +21,7 @@
 		</h2>
 	{/if}
 	<ul>
-		{#each items as { name, src, href, tags, mark }, i}
+		{#each items as { path: href, meta: { title: name, featured: src, tags }, mark }, i}
 			<li>
 				<Card {src} {href} {tags} {mark}>
 					<h3>{name}</h3>
