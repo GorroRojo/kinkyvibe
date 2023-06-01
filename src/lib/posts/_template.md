@@ -178,3 +178,89 @@ Otro parrafo.
 |head1|head2|
 |-|-|
 |value1|value2|
+
+si se queire sin explicaciones:
+
+```yaml
+---
+#published_date: 2023-05-16
+#updated_date: 2023-11-04
+title: Amigue de ejemplo
+summary: Una demostración de todas las cosas que puede tener una publicación
+tags:
+    - BDSM
+    - KinkyVibe
+category: amigues
+authors:
+    - DemonWeb
+    - FideosConTuco
+    - Gorro_Rojo
+#featured: 1
+#force_unlisted: false
+#force_unpublished: false
+pronoun: https://pronombr.es/elle&él
+link: https://instagram.com/gnosis.king
+#logo: 2
+#photo: 3
+#email: ayuda@kinkyvibe.ar
+#location: Thames 240, Ciudad Autónoma de Buenos Aires
+#tel: +54 9 11 5555 3333
+#job_title: Educador BDSM - Dominatrix - Putito
+#gender_identity: Perrito Travo Interdimensional
+#bday: 1996-04-09
+
+---
+```
+```yaml
+---
+#published_date: 2023-05-16
+#updated_date: 2023-11-04
+title: Evento de ejemplo
+summary: Una demostración de todas las cosas que puede tener una publicación
+tags:
+    - BDSM
+    - KinkyVibe
+category: calendario
+authors:
+    - DemonWeb
+    - FideosConTuco
+    - Gorro_Rojo
+#featured: 1
+#force_unlisted: false
+#force_unpublished: false
+# formato: anunciado | abierto | lleno | cancelado
+status: abierto
+start: 2023-06-02T20:00-03:00
+end: 2023-06-02T23:00-03:00
+# Si no está presente esta propiedad, se asume que es online
+#location: Thames 240, Ciudad Autónoma de Buenos Aires
+# Un link de acción en el evento, para inscribirse o para ir algun post original
+link: https://forms.google.com/elmejoreventodelmundo
+link_text: Inscibirme ➡️
+---
+```
+
+```yaml
+---
+#published_date: 2023-05-16
+#updated_date: 2023-11-04
+title: Material de ejemplo
+summary: Una demostración de todas las cosas que puede tener una publicación
+tags:
+    - BDSM
+    - KinkyVibe
+category: material
+authors:
+    - DemonWeb
+    - FideosConTuco
+    - Gorro_Rojo
+#featured: 1
+#force_unlisted: false
+#force_unpublished: false
+type: contenido
+#link: https://www.altoporno.gay/edu
+########### ----- Para tipo 'link' ----- ###########
+#access_date: 2023-11-21
+#original_published_date: 2010-04-03
+---
+```
