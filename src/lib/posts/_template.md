@@ -3,6 +3,11 @@
 # Si la propiedad tiene un '#' antes, se ignora
 # Para activarla, sacarle el '#'
 
+
+################################################
+## ------ Para todas las publicaciones ------ ##
+################################################
+
 # La fecha de publicación, una vez esto está activado la publicación se vuelve visible
 # Formato: YYYY-MM-DD
 #published_date: 2023-05-16
@@ -42,7 +47,9 @@ authors:
 #force_unpublished: false
 
 
+####################################################
 ## ------ Para publicaciónes de 'material' ------ ##
+####################################################
 
 # Indica tipo de publicación
 # formato: descargable | link | contenido
@@ -52,7 +59,8 @@ authors:
 # (opcional) Si es tipo contenido: link al contenido original en caso de ser una traducción un repost, una adaptación, etc
 #link: https://www.altoporno.gay/edu
 
-### ----- Para tipo 'link' ----- ###
+
+########### ----- Para tipo 'link' ----- ###########
 
 # La última vez que se chequeó que ese link funcionara y conteniera lo que se supone que contiene
 #access_date: 2023-11-21
@@ -61,7 +69,9 @@ authors:
 #original_published_date: 2010-04-03
 
 
+######################################################
 ## ------ Para publicaciónes de 'calendario' ------ ##
+######################################################
 
 # El estado en el que está el evento
 # Una vez ya haya pasado, esto se vuelve irrelevante automáticamente
@@ -90,7 +100,10 @@ authors:
 #link_text: Inscibirme ➡️
 
 
+###################################################
 ## ------ Para publicaciones de 'amigues' ------ ##
+###################################################
+
 # El título de la publicación debe ser nombre de la persona/emprendimiento/proyecto
 
 # Pronombres, campo libre pero sugiero que usen un link a pronombr.es
