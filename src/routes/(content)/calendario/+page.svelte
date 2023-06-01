@@ -72,7 +72,7 @@
 		max-width: 800px;
 		margin-inline: auto;
 		height: 30em;
-		margin-bottom: 20em;
+		/* margin-bottom: 20em; */
 	}
 	button.past {
 		opacity: 0.2;

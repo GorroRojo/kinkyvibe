@@ -33,6 +33,7 @@
 		gap: 3em;
 		flex-direction: column;
 		padding: 0;
+		padding-top: 3em;
 	}
 	#posts > li {
 		position: relative;

@@ -29,10 +29,10 @@
 				.filter((p) => (p.category = 'material'))
 				.slice(0, 3)
 				.map((post) => ({
-					name: post.title,
-					tags: post.tags,
+					name: post.meta.title,
+					tags: post.meta.tags,
 					href: post.path,
-					src: post.src
+					src: post.meta.featured
 				}))}
 			--color-1="var(--1)"
 			--color-2="var(--2)"
