@@ -179,8 +179,7 @@ Otro parrafo.
 |-|-|
 |value1|value2|
 
-si se queire sin explicaciones:
-
+## Para amigues
 ```yaml
 ---
 #published_date: 2023-05-16
@@ -211,6 +210,7 @@ link: https://instagram.com/gnosis.king
 
 ---
 ```
+## Para calendario
 ```yaml
 ---
 #published_date: 2023-05-16
@@ -239,7 +239,7 @@ link: https://forms.google.com/elmejoreventodelmundo
 link_text: Inscibirme ➡️
 ---
 ```
-
+## Para material
 ```yaml
 ---
 #published_date: 2023-05-16
