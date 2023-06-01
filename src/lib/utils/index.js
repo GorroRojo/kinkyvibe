@@ -1,3 +1,4 @@
+// import {format,addDays} from "date-fns"
 /** @typedef {{
  * 		title: string,
  * 		description: string,
@@ -22,8 +23,8 @@
  */
 /** @typedef {PostData & {
  *		status: 'abierto' | 'anunciado' | 'lleno',
- * 		start: Date,
- * 		end?: Date,
+ * 		start: string,
+ * 		end?: string,
  * 		duration?: Date,
  * 		location?: string,
  * 		link?: URL
@@ -129,6 +130,7 @@ function validatePost(post) {
 				} else if (metadata.end === undefined && metadata.duration === undefined) {
 					throw new Error('end/duration is missing in ' + path);
 				}
+				// metadata.start = format(addDays(new Date(metadata.start),1), "yyyy-MM-dd")
 				// TODO validate link url?
 				break;
 			case 'material':

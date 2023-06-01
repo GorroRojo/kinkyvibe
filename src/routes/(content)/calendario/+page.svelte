@@ -1,26 +1,28 @@
 <script>
+	//@ts-nocheck
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { isSameDay, setDate } from 'date-fns';
-	const data = [
-		{
-			date: setDate(new Date(), 21),
-			events: [
-				{ color: '#f00', name: 'picantearla' },
-				{ color: '#0ff', name: 'durx' }
-			]
-		},
-		{ date: setDate(new Date(), 2), events: [{ color: '#ff0', name: 'dissidir' }] },
-		{ date: setDate(new Date(), 3), events: [{ color: '#f0f', name: 'taller dominaciónismo' }] }
-	];
+	import { addDays, format } from 'date-fns';
+
+	export let data = [];
+	data.days = data.posts.reduce((dates, post) => {
+		post.meta.start = format(addDays(new Date(post.meta.start), 1), 'yyyy-MM-dd');
+		if (dates[post.meta.start]) {
+			dates[post.meta.start].push(post);
+		} else {
+			dates[post.meta.start] = [post];
+		}
+		return dates;
+	}, {});
 </script>
 
 <svelte:head>
 	<title>KinkyVibe.ar - Calendario</title>
 </svelte:head>
+
 <div id="calendar">
 	<Calendar let:date let:today let:past>
-		{@const day = data.find((a) => isSameDay(a.date, date))}
+		{@const day = data.days[date]}
 		<button
 			class:today
 			class:past
@@ -32,13 +34,14 @@
 				)}
 		>
 			<div class="date" class:today>
-				{date.toLocaleDateString('es-AR', { day: 'numeric' })}
+				{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
+				<!-- {JSON.stringify(date)} -->
 			</div>
 			{#if day}
 				<div class="dot" />
-				{#each day.events as event}
-					<a class="bar" style:--evt-color={event.color || null}>
-						<span>{event.name ?? ' '}</span>
+				{#each day as event}
+					<a href={event.path} class="bar" style:--evt-color={event.color || '#ff8'}>
+						<span>{event.meta.title ?? ' '}</span>
 					</a>
 				{/each}
 			{/if}
@@ -46,7 +49,7 @@
 	</Calendar>
 </div>
 
-<PostList />
+<PostList posts={data.posts} />
 
 <style lang="scss">
 	#calendar {
@@ -55,7 +58,7 @@
 		height: 30em;
 	}
 	button.past {
-		opacity: 0.2 !important;
+		opacity: 0.2;
 	}
 	button.today {
 		outline: 3px solid var(--1);
@@ -97,9 +100,14 @@
 			outline-offset: -2px;
 			overflow: hidden;
 			transition: 200ms ease-in;
+			text-decoration: none !important;
+
 			span {
 				text-transform: capitalize;
 				color: #555;
+			}
+			* {
+				text-decoration: none !important;
 			}
 		}
 

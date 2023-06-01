@@ -9,14 +9,15 @@
 		getDaysInMonth,
 		isSameMonth,
 		isSameYear,
-		setDate
+		setDate,
+		format
 	} from 'date-fns';
 	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
 	export let start_on_sunday = true;
-	export let view_date = new Date();
 	let today_date = new Date();
+	export let view_date = today_date;
 	let month_change_direction = 1;
 
 	const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -83,7 +84,8 @@
 			<div class="cell" />
 		{/each}
 		{#each Array(days_in_month) as _, i}
-			{@const date = setDate(view_date, i + 1)}
+			{@const date_og = setDate(view_date, i + 1)}
+			{@const date = format(date_og,"yyyy-MM-dd")}
 			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
 			{@const past =
 				getDate(today_date) > i + 1
@@ -91,7 +93,7 @@
 					: today_date > view_date}
 			<div class="cell">
 				<slot {date} {today} {past}>
-					{date.toLocaleDateString(undefined, { day: 'numeric' })}
+					{date_og.toLocaleDateString(undefined, { day: 'numeric' })}
 				</slot>
 			</div>
 		{/each}

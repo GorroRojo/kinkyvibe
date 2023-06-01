@@ -10,6 +10,7 @@ event_time: 20:30
 tags:
   - Dominación
 featured: 1
+start: 2023-06-06
 ---
 
 <script>
