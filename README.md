@@ -44,6 +44,8 @@ Y las imágenes son iguales que los links pero con un `!` al principio: `![texto
 
 Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando más `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
 
+Las propiedades que indiquen un momento en el tiempo se hacen con el siguiente formato (año)`-`(mes)`-`(día)`T`(hora)`:`(minuto)`-03:00`
+
 ## Propiedades
 
 ```md
