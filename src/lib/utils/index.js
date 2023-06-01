@@ -1,6 +1,6 @@
 /** @typedef {{
  * 		title: string,
- * 		description: string,
+ * 		summary: string,
  * 		tags: string[] | string,
  * 		category: "material" | "calendario" | "amigues",
  * 		authors: string[] | string,
@@ -9,7 +9,6 @@
  * 		updated_date?: Date,
  * 		force_unlisted?: boolean,
  * 		force_unpublished?: boolean
- * 		validate?: boolean
  * }} PostData
  */
 
@@ -99,7 +98,7 @@ function validatePost(post) {
 	try {
 		if (metadata.title === undefined) {
 			throw new Error('title is missing in ' + path);
-		} else if (metadata.description === undefined) {
+		} else if (metadata.summary === undefined) {
 			throw new Error('description is missing in ' + path);
 		} else if (metadata.tags === undefined) {
 			throw new Error('tags is missing in ' + path);
