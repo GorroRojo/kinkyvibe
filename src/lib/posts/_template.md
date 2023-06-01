@@ -3,7 +3,7 @@
 # Si la propiedad tiene un '#' antes, se ignora
 # Para activarla, sacarle el '#'
 
-# La fecha de publicación, una vez esto está seteado la publicación se vuelve visible
+# La fecha de publicación, una vez esto está activado la publicación se vuelve visible
 # Formato: YYYY-MM-DD
 #published_date: 2023-05-16
 
