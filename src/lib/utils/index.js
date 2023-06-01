@@ -26,6 +26,7 @@
  * 		duration?: Date,
  * 		location?: string,
  * 		link?: URL
+ * 		link_text?: string
  * }} CalendarioPostData */
 /** @typedef {PostData & {
  * 		pronoun: string | URL,

@@ -1,14 +1,12 @@
 ---
 title: Charla Debate sobre Dominación
 category: calendario
-type: Charla Debate
 organizer:
   - KinkyVibe
-location: Online
-event_date: 2023-04-26
-event_time: 20:30
 tags:
   - Dominación
+  - BDSM
+  - Charla Debate
 featured: 1
 start: 2023-06-06
 ---
