@@ -1,10 +1,9 @@
-// import {format,addDays} from "date-fns"
 /** @typedef {{
  * 		title: string,
  * 		description: string,
  * 		tags: string[] | string,
  * 		category: "material" | "calendario" | "amigues",
- * 		author: string[] | string,
+ * 		authors: string[] | string,
  * 		featured?: number | string,
  * 		published_date?: Date,
  * 		updated_date?: Date,
@@ -106,7 +105,7 @@ function validatePost(post) {
 			throw new Error('tags is missing in ' + path);
 		} else if (metadata.category === undefined) {
 			throw new Error('category is missing in ' + path);
-		} else if (metadata.author === undefined) {
+		} else if (metadata.authors === undefined) {
 			throw new Error('author is missing in ' + path);
 		}
 		switch (metadata.category) {
@@ -130,7 +129,6 @@ function validatePost(post) {
 				} else if (metadata.end === undefined && metadata.duration === undefined) {
 					throw new Error('end/duration is missing in ' + path);
 				}
-				// metadata.start = format(addDays(new Date(metadata.start),1), "yyyy-MM-dd")
 				// TODO validate link url?
 				break;
 			case 'material':
@@ -162,11 +160,5 @@ function validatePost(post) {
 		// @ts-ignore
 		return { error: err.message, meta: metadata, path };
 	}
-
-	// let thumbnail_url;
-	// let thumbnail_url;
-	// if (metadata.thumbnail_url !== undefined) {
-	// 	thumbnail_url = thumbURL(postPath, metadata.thumbnail_url);
-	// }
 	return { meta: { ...metadata, featured }, path };
 }

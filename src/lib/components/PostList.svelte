@@ -6,14 +6,16 @@
 </script>
 
 <ul id="posts">
-	{#each posts as { title, href, tags, mark, src, date, authors }, i}
+	{#each posts as { path: href, meta: { title, tags, published_date: date, authors } }, i}
 		<li
 			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
 			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
 		>
 			<div class="content">
 				<div class="publication">
-					<address>{authors.join(', ')}</address>
+					{#if authors}
+						<address>{authors.join(', ')}</address>
+					{/if}
 					-
 					<time datetime={date}>{date}</time>
 				</div>
@@ -23,6 +25,7 @@
 		</li>
 	{/each}
 </ul>
+
 <style lang="scss">
 	ul#posts {
 		display: flex;
@@ -77,7 +80,7 @@
 		text-decoration-color: var(--1);
 	}
 	h3 a:hover {
-		text-decoration-thickness: .11em;
+		text-decoration-thickness: 0.11em;
 	}
 	.tags {
 		/* position: absolute;
