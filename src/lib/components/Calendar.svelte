@@ -19,7 +19,6 @@
 	let today_date = new Date();
 	export let view_date = today_date;
 	let month_change_direction = 1;
-
 	const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 	const set_next_month = () => {
 		month_change_direction = 1;
@@ -30,9 +29,10 @@
 		view_date = addMonths(view_date, month_change_direction);
 	};
 	const set_today = () => {
-		month_change_direction = getYear(today_date)==getYear(view_date)
-		? Math.sign(getMonth(today_date) - getMonth(view_date))
-		: Math.sign(getYear(today_date) - getYear(view_date))*12;
+		month_change_direction =
+			getYear(today_date) == getYear(view_date)
+				? Math.sign(getMonth(today_date) - getMonth(view_date))
+				: Math.sign(getYear(today_date) - getYear(view_date)) * 12;
 		view_date = new Date(today_date);
 	};
 
@@ -72,8 +72,8 @@
 {#key view_date}
 	<div
 		class="grid"
-		in:fly={{ x: 100 * month_change_direction, duration: 200, delay: 200 }}
-		out:fly={{ x: -100 * month_change_direction, duration: 200 }}
+		in:fly={{ x: 100 * month_change_direction, duration: 300, delay: 300 }}
+		out:fly={{ x: -100 * month_change_direction, duration: 300 }}
 	>
 		{#each WEEK_DAYS as day}
 			<div class="week-days">
@@ -85,7 +85,7 @@
 		{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate(view_date, i + 1)}
-			{@const date = format(date_og,"yyyy-MM-dd")}
+			{@const date = format(date_og, 'yyyy-MM-dd')}
 			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
 			{@const past =
 				getDate(today_date) > i + 1
@@ -123,6 +123,7 @@
 		justify-items: center;
 		width: 100%;
 		aspect-ratio: 7/5;
+		row-gap: 1em;
 	}
 
 	.week-days {
@@ -141,7 +142,7 @@
 		background: transparent;
 		color: #222;
 		border: 0;
-		border-radius: .6em;
+		border-radius: 0.6em;
 		padding: 1em;
 		cursor: pointer;
 	}

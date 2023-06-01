@@ -1,28 +1,29 @@
 <script>
 	//@ts-nocheck
 	export let posts = [];
+	export let filter = false;
 	import Tags from '$lib/components/Tags.svelte';
 	import { fly } from 'svelte/transition';
 </script>
 
 <ul id="posts">
-	{#each posts as { path: href, meta: { title, tags, published_date: date, authors } }, i}
-		<li
-			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
-		>
-			<div class="content">
-				<div class="publication">
-					{#if authors}
-						<address>{authors.join(', ')}</address>
-					{/if}
-					-
-					<time datetime={date}>{date}</time>
+	{#each posts as { path, meta: { title, tags, published_date, authors } }, i}
+		{#if !filter || (filter && posts[i][filter.prop] == filter.value)}
+			<li
+				in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
+				out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
+			>
+				<div class="content">
+					<div class="publication">
+						{#if authors}<address>{authors.join(', ')}</address>{/if}
+						{#if authors && published_date}-{/if}
+						{#if published_date}<time datetime={published_date}>{published_date}</time>{/if}
+					</div>
+					<h3><a href={path}>{title}</a></h3>
+					<div class="tags"><Tags {tags} /></div>
 				</div>
-				<h3><a {href}>{title}</a></h3>
-				<div class="tags"><Tags {tags} /></div>
-			</div>
-		</li>
+			</li>
+		{/if}
 	{/each}
 </ul>
 
@@ -88,7 +89,7 @@
 		--color: var(--2);
 		opacity: 0.5;
 	}
-	img {
+	/* img {
 		aspect-ratio: auto;
 		width: 100%;
 		height: 10em;
@@ -96,5 +97,5 @@
 		object-position: center;
 		grid-area: img;
 		box-sizing: content-box;
-	}
+	} */
 </style>

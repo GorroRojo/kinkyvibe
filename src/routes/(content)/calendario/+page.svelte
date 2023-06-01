@@ -2,16 +2,20 @@
 	//@ts-nocheck
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { addDays, format } from 'date-fns';
+	import { addDays, format, isSameMonth } from 'date-fns';
 
-	export let data = [];
-	data.days = data.posts.reduce((dates, post) => {
-		post.meta.start = format(addDays(new Date(post.meta.start), 1), 'yyyy-MM-dd');
+	export let data;
+	let view_date;
+	data.days = data.posts.reduce((dates, post, i) => {
+		const start_date = new Date(post.meta.start);
+		post.meta.start = format(addDays(start_date, 1), 'yyyy-MM-dd');
+		// post.meta.start_time = format(start_date, 'hh:mm');
 		if (dates[post.meta.start]) {
-			dates[post.meta.start].push(post);
+			dates[post.meta.start].push({ i, ...post });
 		} else {
-			dates[post.meta.start] = [post];
+			dates[post.meta.start] = [{ i, ...post }];
 		}
+
 		return dates;
 	}, {});
 </script>
@@ -21,12 +25,12 @@
 </svelte:head>
 
 <div id="calendar">
-	<Calendar let:date let:today let:past>
-		{@const day = data.days[date]}
+	<Calendar let:date let:today let:past bind:view_date>
+		{@const events = data.days[date]}
 		<button
 			class:today
 			class:past
-			disabled={!day}
+			disabled={!events}
 			on:click={() =>
 				alert(
 					`You selected the date ${date.toLocaleDateString(undefined)}.` +
@@ -35,11 +39,14 @@
 		>
 			<div class="date" class:today>
 				{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
-				<!-- {JSON.stringify(date)} -->
 			</div>
-			{#if day}
+			{#if events}
 				<div class="dot" />
-				{#each day as event}
+				{#each events as event}
+					<!-- {(() => {
+						data.posts[event.i].meta.visible = true;
+						return '';
+					})()} -->
 					<a href={event.path} class="bar" style:--evt-color={event.color || '#ff8'}>
 						<span>{event.meta.title ?? ' '}</span>
 					</a>
@@ -48,14 +55,24 @@
 		</button>
 	</Calendar>
 </div>
-
-<PostList posts={data.posts} />
+<PostList
+	filter={{ prop: 'visible', value: true }}
+	posts={data.posts.map((p) => ({
+		meta: {
+			published_date: p.meta.start,
+			...p.meta
+		},
+		visible: isSameMonth(new Date(p.meta.start), view_date),
+		path: p.path
+	}))}
+/>
 
 <style lang="scss">
 	#calendar {
 		max-width: 800px;
 		margin-inline: auto;
 		height: 30em;
+		margin-bottom: 20em;
 	}
 	button.past {
 		opacity: 0.2;
@@ -109,6 +126,8 @@
 			* {
 				text-decoration: none !important;
 			}
+
+			height: 100%;
 		}
 
 		.date {
@@ -132,6 +151,13 @@
 			.bar {
 				height: 100%;
 			}
+		}
+		.date {
+			position: absolute;
+			height: 2em;
+			top: -2.3em;
+			font-size: 1em;
+			background: white;
 		}
 	}
 </style>
