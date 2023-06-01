@@ -15,15 +15,3 @@
 		{data.content}
 	{/if}
 </article>
-
-<style lang="scss">
-	article {
-		max-width: 800px;
-		width: 100%;
-		position: relative;
-		margin-inline: auto;
-		margin-top: 3em;
-		overflow-x: visible;
-	}
-	
-</style>

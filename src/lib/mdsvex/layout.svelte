@@ -7,7 +7,16 @@
 
 <style lang="scss">
 	h1 {
-		font-size: 2em;
+		font-size: 3rem;
+	}
+	:global(article) {
+		max-width: 800px;
+		width: 100%;
+		position: relative;
+		margin-inline: auto;
+		margin-top: 3em;
+		overflow-x: visible;
+        padding-inline: 5px;
 	}
 	:global(article *) {
 		font-size: 1.5rem;
