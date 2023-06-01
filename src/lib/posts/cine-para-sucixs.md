@@ -4,12 +4,12 @@ published_date: 2023-06-01
 title: Cine Para Sucixs
 summary: Ciclo de porno queer. Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 tags:
-    - KinkyVibe
-    - porno
-    - queer
+  - KinkyVibe
+  - porno
+  - queer
 category: calendario
 authors:
-    - KinkyVibe
+  - KinkyVibe
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
@@ -20,15 +20,17 @@ location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/781KBBrXQfCvd6mX6
 link_text: Inscibirme ➡️
 ---
+
 <script>
     import pag1 from '$lib/posts/media/cine-para-sucixs/1.webp';
     import pag2 from '$lib/posts/media/cine-para-sucixs/2.webp';
 </script>
 
 <div class="col-2">
-<img src={pag1} />
-<img src={pag2} />
+<img src={pag1} alt="" />
+<img src={pag2} alt="" />
 </div>
+
 
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 
@@ -52,5 +54,10 @@ Les dejamos el cronograma para que se vayan preparando:
 - 00:30 horas. Charla-Debate
 - 01:00 horas. Cierre con DJ
 
-
 ¿Quiénes vienen? 🔥
+
+<style>
+    li {
+        list-style-type: '👉 ';
+    }
+</style>
