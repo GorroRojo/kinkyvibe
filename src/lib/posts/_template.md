@@ -101,13 +101,15 @@ authors:
 #   ellx | ell_ | ell* | ell@ | ella  | él | cualquiera
 # también se pueden unir con un &, por ejemplo
 #   elle&él | él&elle&ella | etc...
-# no tiene support para plurales, lo más cercano es algo así
-# https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,
-# pero está bastante roto, así que en ese caso meter texto simplemente
-# para casos complejos, en la página hay generador
+# para casos complejos, en la página hay generador que permite personalizar mas
+# pero que genera links mucho menos legibles
 # por ejemplo, los de gorrite son:
 # https://pronombr.es/eso&elle,le,le,une,eso&elle,les,unes,les,e,co,
-#pronoun: https://pronombr.es/elle
+# y como no tiene support para plurales, lo más cercano es algo así
+# https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,
+# pero no es realmente plural, así que en ese caso se puede usar texto
+# y listo, meter 'elles' en vez de un link
+#pronoun: https://pronombr.es/elle&él
 
 # Link a su perfil/página del proyecto
 #link: https://instagram.com/gnosis.king
