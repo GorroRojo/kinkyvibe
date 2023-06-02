@@ -188,6 +188,15 @@ propiedades
   - ?experience h-event,h-card
   - ?skill
 
+
+### layouts [wip]
+
+blank (contenido)
+standard [default material contenido](titulo, summary, featured+ contenido (+ link))
+[default material link/descargable]
+event [default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
+[default amigues](foto, titulo, jobtitle, summary, link (+ map))
+[default amigues w/location]
 ### indieweb
 
 #### rel
