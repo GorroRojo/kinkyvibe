@@ -18,7 +18,7 @@ start: 2023-06-03T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2023-06-04T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/781KBBrXQfCvd6mX6
-link_text: Inscibirme ➡️
+link_text: Inscibirme
 ---
 
 <script>
@@ -56,8 +56,34 @@ Les dejamos el cronograma para que se vayan preparando:
 
 ¿Quiénes vienen? 🔥
 
+{#if link}
+  <a class="cta" href={link}>{link_text}</a>
+{/if}
+
 <style>
     li {
         list-style-type: '👉 ';
+    }
+    .cta {
+      background: var(--1);
+      padding: .5em 1em;
+      color: white;
+      font-weight: bold;
+      border-radius: .3em;
+      margin-inline: auto;
+      display: block;
+      width: 7em;
+      text-align: center;
+      /* translate: 6em; */
+      font-size: 3em;
+      text-decoration: none;
+      margin-top: 2em;
+      transition: 200ms;
+      box-shadow: 0 0 0 0;
+    }
+    .cta:hover {
+      scale: 1.1;
+      /* filter: brightness(1.05); */
+      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
     }
 </style>
