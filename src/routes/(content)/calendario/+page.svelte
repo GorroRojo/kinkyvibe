@@ -71,7 +71,7 @@
 	#calendar {
 		max-width: 800px;
 		margin-inline: auto;
-		height: 30em;
+		/* height: 30em; */
 		/* margin-bottom: 20em; */
 	}
 	button.past {
