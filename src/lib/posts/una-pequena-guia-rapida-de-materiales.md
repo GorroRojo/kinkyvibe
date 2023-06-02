@@ -1,5 +1,5 @@
 ---
-pulished_date: 2023-02-01
+published_date: 2023-02-01
 title: Una pequeña guía rápida de materiales
 summary: 
 # TODO completar summary
