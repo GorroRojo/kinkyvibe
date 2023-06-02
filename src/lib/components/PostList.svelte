@@ -16,8 +16,8 @@
 				<div class="content">
 					<div class="publication">
 						{#if authors}<address>{authors.join(', ')}</address>{/if}
-						{#if authors && published_date}-{/if}
-						{#if published_date}<time datetime={published_date}>{published_date}</time>{/if}
+						{#if authors && published_date}&nbsp;-&nbsp;{/if}
+						{#if published_date}<time datetime={published_date}>{new Date(published_date).toLocaleDateString('es-AR')}</time>{/if}
 					</div>
 					<h3><a href={path}>{title}</a></h3>
 					<div class="tags"><Tags {tags} /></div>
