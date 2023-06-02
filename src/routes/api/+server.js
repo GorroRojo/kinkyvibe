@@ -9,6 +9,6 @@ export async function GET() {
 	} catch (err) {
 		throw error(400, err);
 	}
-	const sortedPosts = allPosts.sort((a, b) => new Date(b.meta.date) - new Date(a.meta.date));
+	const sortedPosts = allPosts.sort((a, b) => new Date(b.meta.published_date) - new Date(a.meta.published_date));
 	return json(sortedPosts);
 }
