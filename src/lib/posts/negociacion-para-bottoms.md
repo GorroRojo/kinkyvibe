@@ -6,6 +6,7 @@ type: PDF
 tags:
     - BDSM
     - guía
+    - KinkyVibe
 authors:
     - DemonWeb
 # unlisted: true

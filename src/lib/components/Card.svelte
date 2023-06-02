@@ -8,6 +8,11 @@
 	export let mark;
 	/** @type string **/
 	export let href;
+	let kinkyVibeTagIndex = tags.indexOf('KinkyVibe')
+	if (kinkyVibeTagIndex !== -1) {
+		tags.splice(kinkyVibeTagIndex,1);
+		mark = "KinkyVibe"
+	}
 </script>
 
 <a {href} class:mark>
