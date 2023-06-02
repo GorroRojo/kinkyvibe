@@ -4,11 +4,13 @@
 	export let filter = false;
 	import Tags from '$lib/components/Tags.svelte';
 	import { fly } from 'svelte/transition';
+	import { addHours } from 'date-fns';
 </script>
 
 <ul id="posts">
-	{#each posts as { path, meta: { title, tags, published_date, authors } }, i}
+	{#each posts as { path, meta: { title, tags, published_date, authors, start } }, i}
 		{#if !filter || (filter && posts[i][filter.prop] == filter.value)}
+		{@const date = start?addHours(new Date(start),3):published_date}
 			<li
 				in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
 				out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
@@ -17,7 +19,9 @@
 					<div class="publication">
 						{#if authors}<address>{authors.join(', ')}</address>{/if}
 						{#if authors && published_date}&nbsp;-&nbsp;{/if}
-						{#if published_date}<time datetime={published_date}>{new Date(published_date).toLocaleDateString('es-AR')}</time>{/if}
+						{#if date}
+							<time datetime={date}>{new Date(date).toLocaleDateString('es-AR')}</time>
+						{/if}
 					</div>
 					<h3><a href={path}>{title}</a></h3>
 					<div class="tags"><Tags {tags} /></div>
