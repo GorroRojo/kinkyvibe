@@ -1,16 +1,21 @@
 ---
+pulished_date: 2023-02-01
 title: Una pequeña guía rápida de materiales
-date: 2023-02-01
-category: material
-type: img
+summary: 
+# TODO completar summary
 tags:
     - salud
     - materiales
     - seguridad
     - KinkyVibe
+category: material
 authors: 
     - DemonWeb
 featured: 1
+#force_unlisted: 
+#force_unpublished: 
+type: contenido  # descargable | link | contenido #
+#link:
 ---
 <script>
     import pag1 from '$lib/posts/media/una-pequena-guia-rapida-de-materiales/1.jpeg/';
