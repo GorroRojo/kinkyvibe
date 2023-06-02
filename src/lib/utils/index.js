@@ -59,15 +59,16 @@ export const fetchMarkdownPosts = async () => {
 	 * @return {*}
 	 */
 	function thumbURL(postSlug, assetID) {
-		return allThumbs[
-			Object.keys(allThumbs).find((path) => path.endsWith(postSlug + '/' + assetID + '.jpeg')) ?? ''
-		];
+		let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
+		return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
 	}
 	let validatedPosts = await validateAll(allPosts);
-	validatedPosts.forEach((post) => {
-		if (post.meta.featured !== undefined) {
-			post.meta.featured = thumbURL(post.path, post.meta.featured);
+	validatedPosts = validatedPosts.map((post) => {
+		let { featured } = post.meta;
+		if (featured && (featured + '').length < 3) {
+			featured = thumbURL(post.path, featured);
 		}
+		return { ...post, meta: { ...post.meta, featured } };
 	});
 	// TODO performance, i'm looping way way way too many times
 	return validatedPosts;
@@ -95,7 +96,6 @@ async function validateAll(posts) {
 function validatePost(post) {
 	const path = post[0].slice(15, -3);
 	const { metadata } = post[1];
-	let featured;
 	try {
 		if (metadata.title === undefined) {
 			throw new Error('title is missing in ' + path);
@@ -160,5 +160,5 @@ function validatePost(post) {
 		// @ts-ignore
 		return { error: err.message, meta: metadata, path };
 	}
-	return { meta: { ...metadata, featured }, path };
+	return { meta: metadata, path };
 }
