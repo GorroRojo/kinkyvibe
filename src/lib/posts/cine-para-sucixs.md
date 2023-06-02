@@ -38,7 +38,7 @@ Nos encontramos el SÁBADO 3 de JUNIO para la primera edición de este ciclo.
 
 Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 
-A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de @qivillacrespo, que ya a esta altura, es nuestra segunda casa.
+A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.
 
 Las entradas pueden conseguirlas ya mismo en Pre-Venta entrando al link en nuestro perfil.
 
@@ -48,8 +48,8 @@ O $2.000 ese día en puerta.
 Les dejamos el cronograma para que se vayan preparando:
 
 - 20:30 horas. Comienza el evento. Va a estar ya la feria disponible.
-- 21:00 horas. Entrevista a Maite (él), Productor de Porno de @hedonistasweb
-- 22:30 horas. Perfo Erótica con @lynxtironi y @vortex.shibar1
+- 21:00 horas. Entrevista a Maite (él), Productor de Porno de [@hedonistasweb](https://instagram.com/hedonistasweb)
+- 22:30 horas. Perfo Erótica con [@lynxtironi](https://instagram.com/lynxtironi) y [@vortex.shibar1](https://instagram.com/vortex.shibar1)
 - 23:00 horas. Proyección de cortos de Porno y Posporno
 - 00:30 horas. Charla-Debate
 - 01:00 horas. Cierre con DJ
@@ -85,5 +85,10 @@ Les dejamos el cronograma para que se vayan preparando:
       scale: 1.1;
       /* filter: brightness(1.05); */
       box-shadow: .6em .6em 1em rgba(0,0,0,.1);
+    }
+    a {
+      color: #222;
+      /* text-decoration: none; */
+      text-decoration-color: var(--1);
     }
 </style>
