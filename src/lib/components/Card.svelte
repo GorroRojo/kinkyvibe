@@ -8,21 +8,29 @@
 	export let mark;
 	/** @type string **/
 	export let href;
-	let kinkyVibeTagIndex = tags.indexOf('KinkyVibe')
-	if (kinkyVibeTagIndex !== -1) {
-		tags.splice(kinkyVibeTagIndex,1);
-		mark = "KinkyVibe"
-	}
+	// $:{
+	// 	let kinkyVibeTagIndex = tags.indexOf('KinkyVibe')
+	// 	if (kinkyVibeTagIndex !== -1) {
+	// 		tags.splice(kinkyVibeTagIndex,1);
+	// 		mark = "KinkyVibe"
+	// 	}
+	// }
+	$: reactiveMark = tags.includes("KinkyVibe") ? 'KinkyVibe' : undefined
+	$: reactiveTags = tags.includes("KinkyVibe")
+		? [
+			...tags.slice(0,tags.indexOf('KinkyVibe')),
+		...tags.slice(tags.indexOf('KinkyVibe')+1)
+		] : tags
 </script>
 
-<a {href} class:mark>
-	{#if mark}
-		<span>{mark}</span>
+<a {href} class:mark={reactiveMark}>
+	{#if reactiveMark}
+		<span>{reactiveMark}</span>
 	{/if}
 	<img {src} alt="" />
 	<slot />
-	{#if tags}
-		<Tags {tags} ref="tags" --color="var(--color-2)" />
+	{#if reactiveTags}
+		<Tags tags={reactiveTags} ref="tags" --color="var(--color-2)" />
 	{/if}
 </a>
 
@@ -70,5 +78,6 @@
 		padding: 0.2em 0.5em;
 		color: white;
 		background: var(--color, var(--color-2, var(--1)));
+		z-index: 1;
 	}
 </style>

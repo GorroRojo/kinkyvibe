@@ -8,76 +8,70 @@
 ## ------ Para todas las publicaciones ------ ##
 ################################################
 
-# La fecha de publicación, una vez esto está activado la publicación se vuelve visible
-# Formato: YYYY-MM-DD
-#published_date: 2023-05-16
+#published_date: 2023-05-16   # (YYYY-MM-DD) fecha de publicación #
+#updated_date: 2023-11-04   # (YYYY-MM-DD) ult vez actualizó el post #
+title: Publicación de ejemplo  # el nombre de la página en el navegador #
 
-# La última vez que se actualizó el post, si se actualizó alguna vez
-#updated_date: 2023-11-04
-
-# El título que va a aparecer en el nombre de la página y como título antes del contenido
-title: Publicación de ejemplo
-
-# Un resumen para las listas de posts y para que aparezca en links, buscadores, etc
 summary: Una demostración de todas las cosas que puede tener una publicación
+# Un resumen para las listas de posts y para que aparezca en links, buscadores, etc
 
-# Las etiquetas (acá un par puestas a modo ejemplo)
 tags:
     - BDSM
-    - KinkyVibe
+    - KinkyVibe # etiqueta especial que marca las cosas con un highlight #
 
-# La categoría, una de las siguientes: material | calendario | amigues
-category: material
+category: material  # material | calendario | amigues #
 
-# Quién recibe crédito por el material, el evento, o quiénes forman parte de un emprendimiento/proyecto
 authors:
     - DemonWeb
     - FideosConTuco
     - Gorro_Rojo
+# Quién recibe crédito por el material
+# quiénes organizan el evento
+# o quiénes forman parte de un emprendimiento/proyecto
 
-# (opcional) ID de la imagen que aparece de miniatura en las listas y previews de links
 #featured: 1
+# (opcional) ID de la imagen que aparece de miniatura en las listas y previews de links
 
+#force_unlisted: false  # true | false #
 # (opcional) fuerza a que no aparezca en listas, aún si tiene fecha de publicación seteada. seguirá funcionando el url.
-# formato: true | false
-#force_unlisted: false
 
+#force_unpublished: false  # true | false #
 # (opcional) fuerza a que no esté publicada bajo el url además de no aparecer en ninguna lista: 
-# formato: true | false
-#force_unpublished: false
 
 
 ####################################################
 ## ------ Para publicaciónes de 'material' ------ ##
 ####################################################
 
-# Indica tipo de publicación
-# formato: descargable | link | contenido
-#type: contenido
+#type: contenido  # descargable | link | contenido #
 
-# Si es tipo descargable o link: link a ese descargable o ese link
-# (opcional) Si es tipo contenido: link al contenido original en caso de ser una traducción un repost, una adaptación, etc
 #link: https://www.altoporno.gay/edu
+# Para:
+#   descargable o link:
+#       link a ese descargable o ese link
+#   contenido:
+#       link (opcional) al contenido original en caso de
+#       ser una traducción un repost, una adaptación, etc
 
 
 ########### ----- Para tipo 'link' ----- ###########
 
+#access_date: 2023-11-21  # YYYY-MM-DD #
 # La última vez que se chequeó que ese link funcionara y conteniera lo que se supone que contiene
-#access_date: 2023-11-21
 
+#original_published_date: 2010-04-03  # YYYY-MM-DD #
 # La fecha de publicación original del contenido linkeado
-#original_published_date: 2010-04-03
 
 
 ######################################################
 ## ------ Para publicaciónes de 'calendario' ------ ##
 ######################################################
 
-# El estado en el que está el evento
+#status: abierto  # anunciado | abierto | lleno | cancelado #
 # Una vez ya haya pasado, esto se vuelve irrelevante automáticamente
-# formato: anunciado | abierto | lleno | cancelado
-#status: abierto
 
+#start: 2023-06-02T20:00-03:00
+#end: 2023-06-02T23:00-03:00
 # Fecha y hora en la que comienza y termina el evento
 # formato: YYYY-MM-DDThh:mm-03:00
 #          año       T     -03:00
@@ -88,24 +82,20 @@ authors:
 #    el -03:00 marca la zona horaria
 # ejemplo, para el 2 de junio de 2023
 #          de las 20hs hasta las 23hs
-#start: 2023-06-02T20:00-03:00
-#end: 2023-06-02T23:00-03:00
 
-# Ubicación física donde sucede
-# Si no está presente esta propiedad, se asume que es online
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
+# Ubicación física donde sucede. si no está se asume online
 
-# Un link de acción en el evento, para inscribirse o para ir algun post original
 #link: https://forms.google.com/elmejoreventodelmundo
 #link_text: Inscibirme ➡️
+# Un link de acción en el evento, para inscribirse o para ir algun post original
 
 
 ###################################################
 ## ------ Para publicaciones de 'amigues' ------ ##
 ###################################################
 
-# El título de la publicación debe ser nombre de la persona/emprendimiento/proyecto
-
+#pronoun: https://pronombr.es/elle&él
 # Pronombres, campo libre pero sugiero que usen un link a pronombr.es
 # https://pronombr.es/elle
 #                         ↖cualquier pronombre
@@ -122,37 +112,28 @@ authors:
 # https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,
 # pero no es realmente plural, así que en ese caso se puede usar texto
 # y listo, meter 'elles' en vez de un link
-#pronoun: https://pronombr.es/elle&él
 
-# Link a su perfil/página del proyecto
-#link: https://instagram.com/gnosis.king
+#link: https://instagram.com/gnosis.king # Link a su perfil/página del proyecto #
 
-# (opcional) ID de imagen de su logo
-#logo: 2
+## opcionales ##
 
-# (opcional) ID de foto de la persona / lugar
-#photo: 3
-
-# (opcional) email de contacto
-#email: ayuda@kinkyvibe.ar
-
-# (opcional) ubicación, cuando es relevante, como para una publicación sobre el QI
-#location: Thames 240, Ciudad Autónoma de Buenos Aires
-
-# (opcional) teléfono de contacto
-#tel: +54 9 11 5555 3333
+#logo: 2  # (opcional) ID de imagen de su logo #
+#photo: 3  # (opcional) ID de foto de la persona / lugar #
+#email: ayuda@kinkyvibe.ar  # (opcional) email de contacto #
+#location: Thames 240, Ciudad Autónoma de Buenos Aires  # (opcional) #
+#tel: +54 9 11 5555 3333  # (opcional) #
+#bday: 1996-04-09  # (opcional) cumpleaños, porque por qué no "
 
 # (opcional) pequeño subtítulo de la persona
 # el 'summary' entonces se puede pensar como una versión más extendida de esto
 #job_title: Educador BDSM - Dominatrix - Putito
 
-# (opcional) identidad de género, para quien la quiera incluir(?
+# (opcional) identidad de género, para quien la quiera incluir(? #
 #gender_identity: Perrito Travo Interdimensional
 
-# (opcional) cumpleaños, porque por qué no
-#bday: 1996-04-09
 
-unlisted: true
+
+force_unlisted: true
 ---
 # Heading 1
 ## Heading 2
