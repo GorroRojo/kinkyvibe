@@ -1,8 +1,9 @@
 ---
+pulished_date: 2023-01-11
+#update_date: 
 title: The Toybag Guide to Canes and Caning
-date: 2023-01-11
-category: material
-type: pdf
+summary:
+# TODO llenar summary
 tags:
   - practica
   - impacto
@@ -10,8 +11,14 @@ tags:
   - BDSM
   - guia
   - inglés
+category: material
 authors:
   - Janey W. Hardy
+#featured: 
+#force_unlisted: false
+#force_unpublished: false
+type: descargable
+#link:
 ---
 
 <script>

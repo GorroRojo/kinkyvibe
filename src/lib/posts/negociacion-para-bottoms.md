@@ -1,16 +1,25 @@
 ---
+published_date: 2023-02-04
+#updated_date: 2023-11-04
 title: Una guía de negociación rápida para bottoms
-date: 2023-02-14
-category: material
-type: PDF
+summary: 
+# TODO llenar el summary
 tags:
     - BDSM
     - guía
+    - negociación
     - KinkyVibe
+category: material
 authors:
     - DemonWeb
-# unlisted: true
 featured: 2
+#force_unlisted: false
+#force_unpublished: false
+type: descargable
+#link: https://www.altoporno.gay/edu
+########### ----- Para tipo 'link' ----- ###########
+#access_date: 2023-11-21
+#original_published_date: 2010-04-03
 ---
 
 <script>

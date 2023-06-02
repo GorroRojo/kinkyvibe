@@ -169,7 +169,7 @@ title: Amigue de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
-    - KinkyVibe
+    - KinkyVibe # etiqueta especial #
 category: amigues
 authors:
     - DemonWeb
@@ -200,7 +200,7 @@ title: Evento de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
-    - KinkyVibe
+    - KinkyVibe # etiqueta especial #
 category: calendario
 authors:
     - DemonWeb
@@ -209,13 +209,10 @@ authors:
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
-# formato: anunciado | abierto | lleno | cancelado
-status: abierto
+status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-06-02T20:00-03:00
-end: 2023-06-02T23:00-03:00
-# Si no está presente esta propiedad, se asume que es online
+end:   2023-06-02T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
-# Un link de acción en el evento, para inscribirse o para ir algun post original
 link: https://forms.google.com/elmejoreventodelmundo
 link_text: Inscibirme ➡️
 ---
@@ -229,7 +226,7 @@ title: Material de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
-    - KinkyVibe
+    - KinkyVibe # etiqueta especial #
 category: material
 authors:
     - DemonWeb
@@ -238,7 +235,7 @@ authors:
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido
+type: contenido  # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21
