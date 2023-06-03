@@ -29,6 +29,6 @@ Holi holi! Por aquí vengo a dejarles una guía en inglés de juegos con varilla
 
 Es bastante completa aunque se centra más que nada en nalgas y piernas.
 
-<object data={guia} type="application/pdf" width="800px" height="1000px">
+<object data={guia} type="application/pdf" width="800px" height="1000px" alt="pdf">
 <a href={guia}>Ir al pdf ↗️</a>
 </object>

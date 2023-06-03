@@ -1,0 +1,4 @@
+---
+KinkyVibe:
+    color: hotpink
+---

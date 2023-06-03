@@ -47,7 +47,7 @@
 						data.posts[event.i].meta.visible = true;
 						return '';
 					})()} -->
-					<a href={event.path} class="bar" style:--evt-color={event.color || '#ff8'}>
+					<a href={event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
 						<span>{event.meta.title ?? ' '}</span>
 					</a>
 				{/each}
@@ -107,9 +107,9 @@
 			display: grid;
 			place-content: center;
 			height: 0.2em;
-			margin-inline: -0.2em;
-			background: white;
-			border-radius: 0.3em;
+			/* margin-inline: -0.2em; */
+			/* background: white; */
+			/* border-radius: 0.3em; */
 			font-size: 1.5em;
 			z-index: 1;
 			word-break: break-word;
@@ -122,12 +122,15 @@
 			span {
 				text-transform: capitalize;
 				color: #555;
+				opacity: 0;
 			}
 			* {
 				text-decoration: none !important;
 			}
 
 			height: 100%;
+			max-height: 20%;
+			background: var(--evt-color)
 		}
 
 		.date {
@@ -153,11 +156,11 @@
 			}
 		}
 		.date {
-			position: absolute;
+			/* position: absolute;
 			height: 2em;
 			top: -2.3em;
 			font-size: 1em;
-			background: white;
+			background: white; */
 		}
 	}
 </style>

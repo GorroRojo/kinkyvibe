@@ -5,32 +5,19 @@
 	/** @type Array<string> **/
 	export let tags;
 	/** @type string **/
-	export let mark;
+	let mark;
 	/** @type string **/
 	export let href;
-	// $:{
-	// 	let kinkyVibeTagIndex = tags.indexOf('KinkyVibe')
-	// 	if (kinkyVibeTagIndex !== -1) {
-	// 		tags.splice(kinkyVibeTagIndex,1);
-	// 		mark = "KinkyVibe"
-	// 	}
-	// }
-	$: reactiveMark = tags.includes("KinkyVibe") ? 'KinkyVibe' : undefined
-	$: reactiveTags = tags.includes("KinkyVibe")
-		? [
-			...tags.slice(0,tags.indexOf('KinkyVibe')),
-		...tags.slice(tags.indexOf('KinkyVibe')+1)
-		] : tags
 </script>
 
-<a {href} class:mark={reactiveMark}>
-	{#if reactiveMark}
-		<span>{reactiveMark}</span>
+<a {href} class:mark={mark}>
+	{#if mark}
+		<span>{mark}</span>
 	{/if}
 	<img {src} alt="" />
 	<slot />
-	{#if reactiveTags}
-		<Tags tags={reactiveTags} ref="tags" --color="var(--color-2)" />
+	{#if tags}
+		<Tags tags={tags} bind:mark ref="tags" --color="var(--color-2)" />
 	{/if}
 </a>
 

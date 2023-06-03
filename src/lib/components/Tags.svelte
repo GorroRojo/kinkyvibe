@@ -2,10 +2,15 @@
 	// @ts-nocheck
 	export let tags = [];
 	export let ref;
+	export let mark;
+	$: mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	$: filteredTags = mark
+		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
+		: tags;
 </script>
 
 <ul {ref}>
-	{#each tags as tag}
+	{#each filteredTags as tag}
 		<li>{tag}</li>
 	{/each}
 </ul>
@@ -25,7 +30,7 @@
 	}
 	li {
 		display: block;
-		padding: 0.5em;
+		padding: 0.5em 0.8em;
 		border-radius: 3em;
 		background: var(--color, var(--1));
 		color: white;
