@@ -192,11 +192,10 @@ propiedades
 ### layouts [wip]
 
 blank (contenido)
-standard [default material contenido](titulo, summary, featured+ contenido (+ link))
+standard [default material contenido](titulo, summary, featured, contenido (+ link) (+access date, og publish)(publishdate, authors, tags))
 [default material link/descargable]
-event [default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
+[default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
 [default amigues](foto, titulo, jobtitle, summary, link (+ map))
-[default amigues w/location]
 ### indieweb
 
 #### rel
