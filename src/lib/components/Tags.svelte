@@ -34,5 +34,10 @@
 		border-radius: 3em;
 		background: var(--color, var(--1));
 		color: white;
+		transition: 50ms;
+	}
+	li:hover {
+		/* scale: 1.2; */
+		text-decoration:underline;
 	}
 </style>
