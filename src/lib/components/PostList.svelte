@@ -2,10 +2,9 @@
 	//@ts-nocheck
 	export let posts = [];
 	export let filter = false;
-	import Tags from '$lib/components/Tags.svelte';
 	import { fly } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { addHours } from 'date-fns';
+	import PostListItem from './PostListItem.svelte';
 	/**
 	 * @type {[]}
 	 */
@@ -31,10 +30,8 @@
 		if (positiveTagFilters == []) {
 			return true;
 		} else {
-			return (
-				p.meta.tags.filter((t) => positiveTagFilters.includes(t)).length ==
-				positiveTagFilters.length
-			);
+			const matchedTags = p.meta.tags.filter((t) => positiveTagFilters.includes(t));
+			return matchedTags.length == positiveTagFilters.length;
 		}
 	});
 </script>
@@ -52,26 +49,13 @@
 	{/each}
 </form>
 <ul id="posts">
-	{#each tagFilteredPosts as { path, meta: { title, tags, published_date, authors, start, featured: src, mark } }, i (path)}
-		{@const date = start ? addHours(new Date(start), 3) : published_date}
+	{#each tagFilteredPosts as post, i (post.path)}
 		<li
-			class="post"
-			class:mark
+			animate:flip={{ duration: 300 }}
 			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
 			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
-			animate:flip={{ duration: 300 }}
-			id={path}
 		>
-			<div class="publication">
-				{#if authors}<address>{authors.join(', ')}</address>{/if}
-				{#if authors && published_date}&nbsp;-&nbsp;{/if}
-				{#if date}
-					<time datetime={date}>{new Date(date).toLocaleDateString('es-AR')}</time>
-				{/if}
-			</div>
-			<img {src} alt="" />
-			<h3><a href={path}>{title}</a></h3>
-			<div class="tags"><Tags {tags} bind:mark /></div>
+			<PostListItem {post} />
 		</li>
 	{/each}
 </ul>
@@ -83,78 +67,9 @@
 		flex-direction: column;
 		padding: 0;
 	}
-	.post {
-		--post-color: var(--2);
-		position: relative;
-		width: 100%;
-		max-width: 900px;
-		height: 10.5em;
-
-		display: grid;
-		grid-template-areas: 'img title' 'img tags';
-		grid-template-columns: 9em 1fr;
-		gap: 2em;
-		box-sizing: content-box;
-		align-items: center;
-
-		margin-inline: auto;
-		/* padding: 1em; */
-		padding-top: 1.7em;
-
+	li {
 		list-style: none;
-		background: white;
-		border-radius: 2em;
-		box-shadow: 0 1em 1em rgba(0, 0, 0, 0.1);
-		overflow: hidden;
-		&.mark {
-			--post-color: var(--1);
-		}
 	}
-	h3 {
-		grid-area: title;
-		font-size: 2em;
-		/* align-self:flex-start; */
-		margin: 0;
-	}
-	.tags {
-		grid-area: tags;
-		--color: var(--post-color);
-	}
-	img {
-		grid-area: img;
-		max-height: 11em;
-		max-width: 8em;
-		object-fit: contain;
-		object-position: center;
-		border-radius: 1em;
-		width: unset;
-		margin-left: 1em;
-	}
-	.publication {
-		display: block;
-		background: var(--post-color, var(--2));
-		color: whiite;
-		position: absolute;
-		right: 0;
-		left: 0;
-		top: 0;
-		height: 1.7em;
-		display: flex;
-		align-items: center;
-		padding-left: 1.5em;
-		color: white;
-		* {
-			display: inline;
-		}
-	}
-	h3 a {
-		color: inherit;
-		text-decoration-color: var(--post-color, var(--2));
-	}
-	h3 a:hover {
-		text-decoration-thickness: 0.11em;
-	}
-
 	form {
 		margin-top: 2em;
 		font-size: 0.9em;
