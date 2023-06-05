@@ -7,13 +7,13 @@
 	export let data;
 	let view_date;
 	data.days = data.posts.reduce((dates, post, i) => {
-		const start_date = new Date(post.meta.start);
-		post.meta.start = format(addDays(start_date, 1), 'yyyy-MM-dd');
+		let start_date = new Date(post.meta.start);
+		start_date = format(addDays(start_date, 1), 'yyyy-MM-dd');
 		// post.meta.start_time = format(start_date, 'hh:mm');
-		if (dates[post.meta.start]) {
-			dates[post.meta.start].push({ i, ...post });
+		if (dates[start_date]) {
+			dates[start_date].push({ i, ...post });
 		} else {
-			dates[post.meta.start] = [{ i, ...post }];
+			dates[start_date] = [{ i, ...post }];
 		}
 
 		return dates;
@@ -47,7 +47,7 @@
 						data.posts[event.i].meta.visible = true;
 						return '';
 					})()} -->
-					<a href={event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
+					<a href={'#' + event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
 						<span>{event.meta.title ?? ' '}</span>
 					</a>
 				{/each}
@@ -71,8 +71,6 @@
 	#calendar {
 		max-width: 800px;
 		margin-inline: auto;
-		/* height: 30em; */
-		/* margin-bottom: 20em; */
 	}
 	button.past {
 		opacity: 0.2;
@@ -104,33 +102,25 @@
 			display: none;
 		}
 		.bar {
-			display: grid;
-			place-content: center;
-			height: 0.2em;
-			/* margin-inline: -0.2em; */
-			/* background: white; */
-			/* border-radius: 0.3em; */
-			font-size: 1.5em;
+			width: 100%;
+height: auto;
 			z-index: 1;
-			word-break: break-word;
 			outline: 3px solid var(--evt-color);
 			outline-offset: -2px;
-			overflow: hidden;
 			transition: 200ms ease-in;
+
+			font-size: 1.3em;
+			overflow: hidden;
+			color: white;
+			/* word-break: break-all; */
+			text-align: left;
+			text-overflow: ellipsis;
+			text-transform: capitalize;
 			text-decoration: none !important;
-
-			span {
-				text-transform: capitalize;
-				color: #555;
-				opacity: 0;
-			}
-			* {
-				text-decoration: none !important;
-			}
-
-			height: 100%;
-			max-height: 20%;
-			background: var(--evt-color)
+			white-space: nowrap;
+			/* overflow: visible; */
+			background: var(--evt-color);
+			transition: 100ms;
 		}
 
 		.date {
@@ -153,6 +143,7 @@
 			gap: 0.5em;
 			.bar {
 				height: 100%;
+				white-space:normal;
 			}
 		}
 		.date {
