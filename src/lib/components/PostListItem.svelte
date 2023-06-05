@@ -5,12 +5,12 @@
 		path,
 		meta: { title, tags, published_date, authors, start, end, featured: src, mark }
 	} = post;
-	import { addHours, format } from 'date-fns';
+	import { addHours, format, isBefore, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
 	const date = post.meta.start ? addHours(new Date(post.meta.start), 3) : post.meta.published_date;
 </script>
 
-<a href={path} class="post" class:mark id={path}>
+<a href={path} class="post" class:mark id={path} class:past={start?isPast(new Date(start)):false}>
 	<div class="publication">
 		<!-- {#if authors}<address>{authors.join(', ')}</address>{/if} -->
 		<!-- {#if authors && published_date}&nbsp;-&nbsp;{/if} -->
@@ -59,6 +59,9 @@
 		overflow: hidden;
 		&.mark {
 			--post-color: var(--1);
+		}
+		&.past {
+			filter:saturate(0) brightness(1);
 		}
 	}
 	h3 {
