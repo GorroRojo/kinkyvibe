@@ -64,11 +64,12 @@ export const fetchMarkdownPosts = async () => {
 	}
 	let validatedPosts = await validateAll(allPosts);
 	validatedPosts = validatedPosts.map((post) => {
-		let { featured } = post.meta;
+		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
 			featured = thumbURL(post.path, featured);
 		}
-		return { ...post, meta: { ...post.meta, featured } };
+		tags = [...tags].sort();
+		return { ...post, meta: { ...post.meta, featured, tags } };
 	});
 	// TODO performance, i'm looping way way way too many times
 	return validatedPosts;
@@ -96,59 +97,71 @@ async function validateAll(posts) {
 function validatePost(post) {
 	const path = post[0].slice(15, -3);
 	const { metadata } = post[1];
+	let missing = validateMissingData(metadata);
+	if (missing) return { error: missing, meta: metadata, path };
+	return { meta: metadata, path };
+}
+
+/**
+ *
+ *
+ * @param {AnyPostData} data
+ * @return {*}
+ */
+function validateMissingData(data) {
 	try {
-		if (metadata.title === undefined) {
-			throw new Error('title is missing in ' + path);
-		} else if (metadata.summary === undefined) {
-			throw new Error('description is missing in ' + path);
-		} else if (metadata.tags === undefined) {
-			throw new Error('tags is missing in ' + path);
-		} else if (metadata.category === undefined) {
-			throw new Error('category is missing in ' + path);
-		} else if (metadata.authors === undefined) {
-			throw new Error('author is missing in ' + path);
+		if (data.title === undefined) {
+			throw new Error('title is missing');
+		} else if (data.summary === undefined) {
+			throw new Error('description is missing');
+		} else if (data.tags === undefined) {
+			throw new Error('tags is missing');
+		} else if (data.category === undefined) {
+			throw new Error('category is missing');
+		} else if (data.authors === undefined) {
+			throw new Error('author is missing');
 		}
-		switch (metadata.category) {
+		switch (data.category) {
 			case 'amigues':
-				if (metadata.pronoun === undefined) {
-					throw new Error('pronoun is missing in ' + path);
+				if (data.pronoun === undefined) {
+					throw new Error('pronoun is missing');
 				}
-				if (metadata.link === undefined) {
-					throw new Error('link is missing in ' + path);
+				if (data.link === undefined) {
+					throw new Error('link is missing');
 				}
 				// TODO validate link url, logo, photo, email, gender url, pronoun url, bday date
 				break;
 			case 'calendario':
-				if (metadata.status === undefined) {
-					throw new Error('status is missing in ' + path);
-				} else if (!['abierto', 'anunciado', 'lleno'].includes(metadata.status)) {
+				if (data.status === undefined) {
+					throw new Error('status is missing');
+				} else if (!['abierto', 'anunciado', 'lleno'].includes(data.status)) {
 					throw new Error('status is invalid in ' + path);
 				}
-				if (metadata.start === undefined) {
-					throw new Error('start is missing in ' + path);
-				} else if (metadata.end === undefined && metadata.duration === undefined) {
-					throw new Error('end/duration is missing in ' + path);
+				if (data.start === undefined) {
+					throw new Error('start is missing');
+				} else if (data.end === undefined && data.duration === undefined) {
+					throw new Error('end/duration is missing');
 				}
 				// TODO validate link url?
 				break;
 			case 'material':
-				if (metadata.type === undefined) {
-					throw new Error('type is missing in ' + path);
-				} else if (!['descargable', 'link', 'contenido'].includes(metadata.type)) {
+				if (data.type === undefined) {
+					throw new Error('type is missing');
+				} else if (!['descargable', 'link', 'contenido'].includes(data.type)) {
 					throw new Error('type is invalid in ' + path);
 				}
-				if (metadata.link === undefined) {
-					throw new Error('link is missing in ' + path);
+				if (data.link === undefined) {
+					throw new Error('link is missing');
 				} else {
 					// TODO chequear que es un url valido?
 				}
-				if (metadata.access_date === undefined) {
-					throw new Error('access_date is missing in ' + path);
+				if (data.access_date === undefined) {
+					throw new Error('access_date is missing');
 				} else {
 					// TODO chequear que es un date valido?
 				}
-				if (metadata.original_published_date === undefined) {
-					throw new Error('original_published_date is missing in ' + path);
+				if (data.original_published_date === undefined) {
+					throw new Error('original_published_date is missing');
 				} else {
 					// TODO chequear que es un date valido?
 				}
@@ -158,7 +171,7 @@ function validatePost(post) {
 		}
 	} catch (err) {
 		// @ts-ignore
-		return { error: err.message, meta: metadata, path };
+		return { error: err.message };
 	}
-	return { meta: metadata, path };
+	return false;
 }
