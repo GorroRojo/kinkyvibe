@@ -1,8 +1,8 @@
 <script>
 	// @ts-nocheck
-	export let tags = [];
+	export let tags;
 	export let ref;
-	export let mark;
+	export let mark = '';
 	$: mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	$: filteredTags = mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
@@ -23,7 +23,6 @@
 		padding: 0 0.4em;
 		overflow-x: scroll;
 		overflow-y: hidden;
-		/* 		width: 100%; */
 	}
 	ul::-webkit-scrollbar {
 		display: none;
@@ -37,7 +36,6 @@
 		transition: 50ms;
 	}
 	li:hover {
-		/* scale: 1.2; */
-		text-decoration:underline;
+		text-decoration: underline;
 	}
 </style>

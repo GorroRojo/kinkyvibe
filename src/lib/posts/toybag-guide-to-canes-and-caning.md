@@ -1,5 +1,5 @@
 ---
-pulished_date: 2023-01-11
+published_date: 2023-01-11
 #update_date: 
 title: The Toybag Guide to Canes and Caning
 summary:

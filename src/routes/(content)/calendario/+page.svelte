@@ -191,12 +191,5 @@
 				white-space: normal;
 			}
 		}
-		.date {
-			/* position: absolute;
-			height: 2em;
-			top: -2.3em;
-			font-size: 1em;
-			background: white; */
-		}
 	}
 </style>

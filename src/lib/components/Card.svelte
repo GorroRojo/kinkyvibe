@@ -29,7 +29,8 @@
 		height: 10em;
 		width: 100%;
 		background: gray;
-		border-radius: var(--round) var(--round) 0 0;
+		--cround: calc(var(--round)*.7);
+		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
 		outline: 0 !important;
 		object-fit: cover;

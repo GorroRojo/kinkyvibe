@@ -8,7 +8,7 @@
 		CalendarRange,
 		ShoppingCart
 	} from 'lucide-svelte';
-	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
+	import { siInstagram, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
@@ -117,13 +117,9 @@
 		height: 24px;
 	}
 	#title {
-		font-size: 2.5em;
-		height: 100%;
 		img {
-			height: 100%;
-			max-width: 100%;
-			object-fit: contain;
-			object-position: center;
+			max-width: 10vh;
+			min-width: 2em;
 		}
 	}
 	#quien {

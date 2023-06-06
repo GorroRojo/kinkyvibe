@@ -1,0 +1,10 @@
+import CustomH2 from '$lib/mdsvex/CustomH2.svelte';
+import CustomH3 from '$lib/mdsvex/CustomH3.svelte';
+import CustomLi from '$lib/mdsvex/CustomLi.svelte';
+import CustomBlockquote from '$lib/mdsvex/CustomBlockquote.svelte';
+import CustomImg from '$lib/mdsvex/CustomImg.svelte';
+export const h2 = CustomH2;
+export const h3 = CustomH3;
+export const li = CustomLi;
+export const img = CustomImg;
+export const blockquote = CustomBlockquote;

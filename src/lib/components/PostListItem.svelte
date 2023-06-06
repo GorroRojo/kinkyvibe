@@ -5,9 +5,9 @@
 		path,
 		meta: { title, tags, published_date, authors, start, end, featured: src, mark }
 	} = post;
-	import { addHours, format, isBefore, isPast } from 'date-fns';
+	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
-	const date = post.meta.start ? addHours(new Date(post.meta.start), 3) : post.meta.published_date;
+	const date = start ? addHours(new Date(start), 3) : published_date;
 </script>
 
 <a href={path} class="post" class:mark id={path} class:past={start?isPast(new Date(start)):false}>
@@ -49,7 +49,6 @@
 		align-items: center;
 
 		margin-inline: auto;
-		/* padding: 1em; */
 		padding-top: 1.7em;
 
 		list-style: none;
@@ -70,9 +69,9 @@
 		/* align-self:flex-start; */
 		margin: 0;
 	}
-	.time {
+	/* .time {
 		grid-area: time;
-	}
+	} */
 	.tags {
 		grid-area: tags;
 		--color: var(--post-color);

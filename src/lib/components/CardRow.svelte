@@ -1,6 +1,5 @@
 <script>
 	//@ts-nocheck
-	import Tags from './Tags.svelte';
 	import Card from './Card.svelte';
 	import { fly } from 'svelte/transition';
 	export let title = '';

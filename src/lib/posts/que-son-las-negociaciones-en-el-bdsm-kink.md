@@ -19,27 +19,23 @@ type: contenido  # descargable | link | contenido #
 #access_date: 2023-11-21
 #original_published_date: 2010-04-03
 ---
-Una negociación es el proceso por el cual se deciden y consensuan las prácticas, dinámicas o juegos que dos o más personas van a realizar dentro de un contexto bdsm.
+Una **negociación** es el proceso por el cual se **deciden** y **consensuan** las **prácticas**, **dinámicas** o **juegos** que dos o más personas van a realizar **dentro de un contexto BDSM**.
 
-En la misma se analizan e intercambian gustos, límites, necesidades, expectativas, acuerdos, intenciones y deseos.
+En la misma se **analizan** e **intercambian** gustos, límites, necesidades, expectativas, acuerdos, intenciones y deseos.
 
-## ¿Y para qué sirven?
+## ¿Y...para qué sirven?
 
-Las negociaciones en el BDSM son muy muy importantes, ya que no sólo nos permiten conocer los deseos y necesidades de otres, sino que nos permiten armar escenas y dinámicas que nos satisfagan y nos hagan sentir cómodes y segures.
+**Las negociaciones en el BDSM son muy muy importantes**, ya que no sólo nos permiten conocer los deseos y necesidades de otres, sino que nos permiten armar escenas y dinámicas que nos satisfagan y nos hagan sentir **cómodes** y **segures**.
+Además es **la** forma que tenemos de evitar pasar sobre los límites de otras personas, y construir un juego en donde **todes** nos sintamos cómodes.
 
-Además es la forma que tenemos de evitar pasar sobre los límites de otras personas, y construir un juego en donde todes nos sintamos cómodes.
 
 ## ¿Qué tipo de negociaciones hay?
 
-- Modelos inclusivos
-- Modelos exclusivos
-- Modelos de negociación más "formal" o profunda
-
-### Modelos inclusivos
+### Modelos *inclusivos*
 Hacemos las prácticas que dijimos que vamos a hacer, lo que no hablamos queda por fuera hasta ser hablado
-### Modelos exclusivos
+### Modelos *exclusivos*
 Compartimos los límites, y dejamos abierto a las prácticas que surjan
-### Modelos de negociación más "formal" o profunda
+### Modelos de negociación más *"formal"* o *profunda*
 Nos sentamos antes de jugar o días antes (muchas veces también por chat) preguntamos por deseos, límites, expectativas, cuestiones mentales/emocionales/corporales.
 ## ¿Qué cosas puedo hablar en una negociación?
 - Negociar un vínculo y sus expectativas
@@ -49,7 +45,8 @@ Nos sentamos antes de jugar o días antes (muchas veces también por chat) pregu
   - qué no quiero hacer/que me hagan
   - qué necesito hacer/que me hagan
 - Hablar sobre cuidados generales y específicos de las prácticas
-  - no quiero que me hagas esto, necesito que tengas en cuenta esta otra cosa)
+  - no quiero que me hagas esto
+  - necesito que tengas en cuenta esta otra cosa
 - Intercambiar expectativas sobre la práctica que vamos a hacer
   - ¿Querés que sea genital, erótica, nogenital?
   - ¿Sensual, sádica, amorosa, todas juntas, todas separadas?
@@ -68,11 +65,15 @@ En general la expectativa que muches tienen con las negociaciones es poder logra
 
 Pero no somos ajenes a lo difícil que puede ser desarrollar estas herramientas, así como aplicarlas. Negociar de forma amplia requiere escucha, atención, ser vulnerables, exponernos, ser honestes, y compartir.
 
-## Un extracto de "Queering consent: Negotiating crical constent in LES-BI-TRANS-QUEER BDSM contexts"
-<small>"Cuirzando el consentimiento: negociando consentimiento crítico en contextos BDSM lesbo bi trans cuir"</small>
+---
+
+## <small>un extracto de:</small> <strong>&nbsp;Queering consent: Negotiating crical constent in les-bi-trans-queer BDSM contexts</strong>
+
+
+<em style="color: var(--1);opacity:.7">Cuirzando el consentimiento: negociando consentimiento crítico en contextos BDSM lesbo bi trans cuir</em>
 
 > Vale, ¿cómo puedo comunicar en absoluto lo que quiero, cómo pueden otras personascomunicar lo que quieren? Porque no siempre es lo mismo, cómo puedo hacerlo y cómo quiero hacerlo. Y luego también seguir aprendiendo siempre cómo, y ampliar el repertorio: ¿Cómo puedo obtener respuestas, cómo puedo averiguar si alguien ahora simplemente me dice que sí de alguna manera porque no se atreve a decir que no? <small>(...)</small>
-> 
-> Especialmente cuando se trata de la sexualidad, puede ser un reto admitir los deseos, las fantasías y los miedos más profundos de uno mismo, ya que implica mostrar vulnerabilidad y arriesgarse al rechazo.
-> 
-> Por lo tanto, conocer los propios límites y comunicarlos a menudo sólo se aprende a través del ensayo y error de los procesos de negociación y el juego. (Aprender haciendo).
+
+>Especialmente cuando se trata de la sexualidad, puede ser un reto admitir los deseos, las fantasías y los miedos más profundos de uno mismo, ya que implica mostrar vulnerabilidad y arriesgarse al rechazo.
+
+>Por lo tanto, conocer los propios límites y comunicarlos a menudo sólo se aprende a través del ensayo y error de los procesos de negociación y el juego. (Aprender haciendo).

@@ -15,7 +15,7 @@
 			items={posts
 				.filter((p) => (p.meta.category == 'calendario'))
 				.slice(0, 3)}
-			--color-1="var(--2)"
+			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 			href="/calendario"
 		/>
@@ -27,7 +27,7 @@
 				.filter((p) => (p.meta.category == 'material'))
 				.slice(0, 3)}
 			--color-1="var(--1)"
-			--color-2="var(--2)"
+			--color-2="var(--2-dark)"
 			href="/material"
 		/>
 
@@ -38,14 +38,14 @@
 			items={posts
 				.filter((p) => (p.meta.category == 'amigues'))
 				.slice(0, 3)}
-			--color-1="var(--2)"
+			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 		/>
 
 		<PostList {posts} />
 	{:else}
-		{JSON.stringify(posts)}
-		{JSON.stringify(err)}
+		posts: {JSON.stringify(posts)}
+		err: {JSON.stringify(err)}
 	{/if}
 </main>
 
