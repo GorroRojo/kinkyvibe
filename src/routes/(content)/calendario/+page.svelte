@@ -3,9 +3,11 @@
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { addDays, format, isSameMonth } from 'date-fns';
-
+	import { view_date } from '$lib/utils/stores.js';
+	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
+	// const vd = writable(new Date());
 	export let data;
-	let view_date;
+	// let view_date;
 	data.days = data.posts.reduce((dates, post, i) => {
 		let start_date = new Date(post.meta.start);
 		start_date = format(addDays(start_date, 1), 'yyyy-MM-dd');
@@ -23,57 +25,96 @@
 <svelte:head>
 	<title>KinkyVibe.ar - Calendario</title>
 </svelte:head>
-
-<div id="calendar">
-	<Calendar let:date let:today let:past bind:view_date>
-		{@const events = data.days[date]}
-		<button
-			class:today
-			class:past
-			disabled={!events}
-			on:click={() =>
-				alert(
-					`You selected the date ${date.toLocaleDateString(undefined)}.` +
-						(today ? `\nThis date is today!` : '')
-				)}
-		>
-			<div class="date" class:today>
-				{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
-			</div>
-			{#if events}
-				<div class="dot" />
-				{#each events as event}
-					<!-- {(() => {
-						data.posts[event.i].meta.visible = true;
-						return '';
-					})()} -->
-					<a href={'#' + event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
-						<span>{event.meta.title ?? ' '}</span>
-					</a>
-				{/each}
-			{/if}
-		</button>
-	</Calendar>
+<div id="container">
+	<div id="calendar">
+		<CalendarHeader />
+		<Calendar let:date let:today let:past>
+			{@const events = data.days[date]}
+			<button
+				class:today
+				class:past
+				disabled={!events}
+				on:click={() =>
+					alert(
+						`You selected the date ${date.toLocaleDateString(undefined)}.` +
+							(today ? `\nThis date is today!` : '')
+					)}
+			>
+				<div class="date" class:today>
+					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
+				</div>
+				{#if events}
+					<div class="dot" />
+					{#each events as event}
+						{@const start = new Date(event.meta.start)}
+						{@const minutes = format(start, 'mm')}
+						<!-- {(() => {
+							data.posts[event.i].meta.visible = true;
+							return '';
+						})()} -->
+						<a href={'#' + event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
+							<span>
+								<strong
+									>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
+										start,
+										'aaa'
+									)}</strong
+								>
+								&sdot;
+								{event.meta.title ?? ' '}
+							</span>
+						</a>
+					{/each}
+				{/if}
+			</button>
+		</Calendar>
+	</div>
+	<div id="postlist">
+		<PostList
+			filter={{ prop: 'visible', value: true }}
+			posts={data.posts.map((p) => ({
+				meta: {
+					published_date: p.meta.start,
+					...p.meta
+				},
+				visible: isSameMonth(new Date(p.meta.start), $view_date),
+				path: p.path
+			}))}
+		/>
+	</div>
 </div>
-<PostList
-	filter={{ prop: 'visible', value: true }}
-	posts={data.posts.map((p) => ({
-		meta: {
-			published_date: p.meta.start,
-			...p.meta
-		},
-		visible: isSameMonth(new Date(p.meta.start), view_date),
-		path: p.path
-	}))}
-/>
 
 <style lang="scss">
+	@media (min-width: 1200px) {
+		#container {
+			display: grid;
+			grid-template-areas: 'postlist calendar';
+			grid-template-columns: 1fr 1fr;
+			margin-inline: 1em 3em;
+			gap: 1em;
+		}
+		#calendar {
+			grid-area: calendar;
+			min-width: 0;
+		}
+		#postlist {
+			grid-area: postlist;
+			min-width: 0;
+		}
+	}
+	strong {
+		color: unset;
+	}
 	#calendar {
 		max-width: 800px;
 		margin-inline: auto;
+		/* max-height: 80vh; */
+		min-height: 0;
+		min-width: 0;
+		/* overflow: hidden; */
 	}
 	button.past {
-		opacity: 0.2;
+		opacity: 0.2 !important;
 	}
 	button.today {
 		outline: 3px solid var(--1);
@@ -89,6 +130,8 @@
 		position: relative;
 		width: 100%;
 		height: 100%;
+		aspect-ratio: 1/1;
+		min-height: 0;
 		scale: 0.9;
 		flex-direction: column;
 		justify-content: start;
@@ -100,10 +143,12 @@
 		transition: all 0.1s ease-in;
 		.dot {
 			display: none;
+			min-height: 0;
 		}
 		.bar {
 			width: 100%;
-height: auto;
+			height: auto;
+			min-height: 0;
 			z-index: 1;
 			outline: 3px solid var(--evt-color);
 			outline-offset: -2px;
@@ -143,7 +188,7 @@ height: auto;
 			gap: 0.5em;
 			.bar {
 				height: 100%;
-				white-space:normal;
+				white-space: normal;
 			}
 		}
 		.date {

@@ -61,7 +61,7 @@
 			--post-color: var(--1);
 		}
 		&.past {
-			filter:saturate(0) brightness(1);
+			opacity: .5;
 		}
 	}
 	h3 {
@@ -112,7 +112,7 @@
 		scale: 1;
 		transition: 100ms;
 	}
-	a:hover {
+	a:hover:not(.past) {
 		scale: 1.03;
 	}
 </style>
