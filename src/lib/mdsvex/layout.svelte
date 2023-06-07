@@ -23,6 +23,12 @@
 		font-size: 3rem;
 		margin-bottom: 0.2em;
 	}
+	:global(article sup) {
+		line-height: 0;
+		font-size: .7em;
+		color: var(--2-dark);
+		font-weight: bold;
+	}
 
 	:global(article) {
 		max-width: 800px;
