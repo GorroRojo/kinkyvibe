@@ -12,6 +12,8 @@
  * }} PostData
  */
 
+import { json } from '@sveltejs/kit';
+
 /** @typedef {PostData & {
  * 		type: 'descargable' | 'link' | 'contenido',
  * 		link: URL,
@@ -42,7 +44,18 @@
  * 		bday?: Date,
  * }} AmiguesPostData */
 // TODO affiliation, education, experience, skill
+// import tagConfig from '$lib/posts/_tags.md'
+
 /** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
+
+export const fetchTags = async () => {
+	/** @type {*} */
+	var { metadata: tagConfig } = await Object.entries(
+		import.meta.glob('$lib/posts/_tags.md')
+	)[0][1]();
+	return tagConfig;
+};
+
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
@@ -52,8 +65,6 @@ export const fetchMarkdownPosts = async () => {
 	);
 
 	/**
-	 *
-	 *
 	 * @param {string} postSlug
 	 * @param {number|string} assetID
 	 * @return {*}
@@ -62,6 +73,7 @@ export const fetchMarkdownPosts = async () => {
 		let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
 		return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
 	}
+
 	let validatedPosts = await validateAll(allPosts);
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
@@ -135,7 +147,7 @@ function validateMissingData(data) {
 				if (data.status === undefined) {
 					throw new Error('status is missing');
 				} else if (!['abierto', 'anunciado', 'lleno'].includes(data.status)) {
-					throw new Error('status is invalid in ' + path);
+					throw new Error('status is invalid');
 				}
 				if (data.start === undefined) {
 					throw new Error('start is missing');
@@ -148,7 +160,7 @@ function validateMissingData(data) {
 				if (data.type === undefined) {
 					throw new Error('type is missing');
 				} else if (!['descargable', 'link', 'contenido'].includes(data.type)) {
-					throw new Error('type is invalid in ' + path);
+					throw new Error('type is invalid');
 				}
 				if (data.link === undefined) {
 					throw new Error('link is missing');
@@ -167,7 +179,7 @@ function validateMissingData(data) {
 				}
 				break;
 			default:
-				throw new Error('category is invalid in ' + path);
+				throw new Error('category is invalid');
 		}
 	} catch (err) {
 		// @ts-ignore

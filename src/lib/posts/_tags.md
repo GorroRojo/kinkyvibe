@@ -1,4 +1,6 @@
 ---
-KinkyVibe:
-    color: hotpink
+tags:
+    KinkyVibe:
+        color: red
 ---
+Wow

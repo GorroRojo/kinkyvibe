@@ -1,14 +1,34 @@
 // @ts-nocheck
 import { error, json } from '@sveltejs/kit';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { fetchMarkdownPosts, fetchTags } from '$lib/utils';
 
-export async function GET() {
+export async function GET({ url }) {
 	var allPosts;
-	try {
-		allPosts = await fetchMarkdownPosts();
-	} catch (err) {
-		throw error(400, err);
+	const params = url.searchParams;
+	if (params.has('getTags')) {
+		return json(await fetchTags());
+	} else {
+		try {
+			allPosts = await fetchMarkdownPosts();
+		} catch (err) {
+			throw error(400, err);
+		}
+		allPosts = allPosts.filter((p) => {
+			let result = true;
+			if (params.get('category')) {
+				result &= p.meta.category == params.get('category');
+			}".."
+			if (params.has('tags')) {
+				result &= params
+					.get('tags').split(",")
+					.map((t) => p.meta.tags.includes(t))
+					.reduce((a, b) => a && b);
+			}
+			return result;
+		});
+		const sortedPosts = allPosts.sort(
+			(a, b) => new Date(b.meta.published_date) - new Date(a.meta.published_date)
+		);
+		return json(sortedPosts);
 	}
-	const sortedPosts = allPosts.sort((a, b) => new Date(b.meta.published_date) - new Date(a.meta.published_date));
-	return json(sortedPosts);
 }

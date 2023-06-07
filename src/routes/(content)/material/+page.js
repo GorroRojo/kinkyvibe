@@ -1,15 +1,8 @@
 //@ts-nocheck
 
 export async function load({ fetch }) {
-	let response;
-	let posts;
 	try {
-		response = await fetch('../api');
-		posts = await response.json();
-		return {
-			posts: posts
-				.filter((post) => post.meta.category == 'material')
-		};
+		return {posts: await (await fetch('../api?category=material')).json()};
 	} catch (err) {
 		return { isError: true, err };
 	} 
