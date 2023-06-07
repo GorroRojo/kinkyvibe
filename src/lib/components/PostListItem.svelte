@@ -80,13 +80,13 @@
 	}
 	img {
 		grid-area: img;
-		max-height: 11em;
+		max-height: 10em;
 		max-width: 8em;
 		object-fit: contain;
 		object-position: center;
 		border-radius: 1em;
-		width: unset;
 		margin-left: 1em;
+		justify-self: center;
 	}
 	.publication {
 		display: block;
