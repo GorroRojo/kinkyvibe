@@ -8,5 +8,9 @@ tags:
         aliasOf: KinkyVibe
     BDSM:
         color: red
+    guia:
+        aliasOf: guía
+    negociacion:
+        aliasOf: negociación
 ---
 Wow

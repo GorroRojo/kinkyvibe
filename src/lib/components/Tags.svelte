@@ -8,12 +8,18 @@
 	$: filteredTags = mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 		: tags;
+	function aliasTag(tag) {
+		while (tagsConfig.tags[tag] && tagsConfig.tags[tag].aliasOf) {
+			tag = tagsConfig.tags[tag].aliasOf
+		}
+		return tag;
+	}
 </script>
 
 <ul {ref}>
 	{#each filteredTags as tag}
-	{@const color = tagsConfig.tags[tag]?.color ?? 'var(--color,var(--1))'}
-		<li style:--local-color={color}>{tag}</li>
+	{@const color = tagsConfig.tags[aliasTag(tag)]?.color ?? 'var(--color,var(--1))'}
+		<li style:--local-color={color}>{aliasTag(tag)}</li>
 	{/each}
 </ul>
 
