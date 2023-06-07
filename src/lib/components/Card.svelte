@@ -1,23 +1,21 @@
 <script>
 	import Tags from './Tags.svelte';
-	/** @type string **/
-	export let src;
-	/** @type Array<string> **/
-	export let tags;
-	/** @type string **/
-	let mark;
-	/** @type string **/
-	export let href;
+	export let post;
+	let {
+		path:href,
+		meta: { tags, tagsConfig, featured: src },
+		mark
+	} = post;
 </script>
 
-<a {href} class:mark={mark}>
+<a {href} class:mark>
 	{#if mark}
 		<span>{mark}</span>
 	{/if}
 	<img {src} alt="" />
 	<slot />
 	{#if tags}
-		<Tags tags={tags} bind:mark ref="tags" --color="var(--color-2)" />
+		<Tags {tags} {tagsConfig} bind:mark ref="tags" --color="var(--color-2)" />
 	{/if}
 </a>
 
@@ -29,7 +27,7 @@
 		height: 10em;
 		width: 100%;
 		background: gray;
-		--cround: calc(var(--round)*.7);
+		--cround: calc(var(--round) * 0.7);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
 		outline: 0 !important;

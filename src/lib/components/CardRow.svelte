@@ -20,10 +20,10 @@
 		</h2>
 	{/if}
 	<ul>
-		{#each items as { path: href, meta: { title: name, featured: src, tags }, mark }, i}
+		{#each items as post, i}
 			<li>
-				<Card {src} {href} {tags} {mark}>
-					<h3>{name}</h3>
+				<Card {post}>
+					<h3>{post.meta.title}</h3>
 				</Card>
 			</li>
 		{/each}

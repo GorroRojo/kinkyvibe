@@ -1,6 +1,7 @@
 <script>
 	// @ts-nocheck
 	export let tags;
+	export let tagsConfig;
 	export let ref;
 	export let mark = '';
 	$: mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
@@ -11,7 +12,8 @@
 
 <ul {ref}>
 	{#each filteredTags as tag}
-		<li>{tag}</li>
+	{@const color = tagsConfig.tags[tag]?.color ?? 'var(--color,var(--1))'}
+		<li style:--local-color={color}>{tag}</li>
 	{/each}
 </ul>
 
@@ -31,8 +33,9 @@
 		display: block;
 		padding: 0.5em 0.8em;
 		border-radius: 3em;
-		background: var(--color, var(--1));
 		color: white;
+		--local-color: var(--color);
+		background: var(--local-color, var(--1));
 		transition: 50ms;
 	}
 	li:hover {

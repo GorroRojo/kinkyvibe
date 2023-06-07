@@ -3,7 +3,7 @@
 	export let post;
 	let {
 		path,
-		meta: { title, tags, published_date, authors, start, end, featured: src, mark }
+		meta: { title, tags, published_date, authors, start, end, featured: src, mark, tagsConfig }
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
@@ -30,7 +30,9 @@
 	<h3>
 		{title}
 	</h3>
-	<div class="tags"><Tags {tags} bind:mark /></div>
+	<div class="tags">
+		<Tags {tags} {tagsConfig} bind:mark />
+	</div>
 </a>
 
 <style lang="scss">

@@ -5,9 +5,7 @@
 	import { fly } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import PostListItem from './PostListItem.svelte';
-	/**
-	 * @type {[]}
-	 */
+	/** @type {[]} */
 	let positiveTagFilters = [];
 	function togglePositiveTagFilter(tag) {
 		let iOf = positiveTagFilters.indexOf(tag);

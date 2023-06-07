@@ -11,9 +11,6 @@
  * 		force_unpublished?: boolean
  * }} PostData
  */
-
-import { json } from '@sveltejs/kit';
-
 /** @typedef {PostData & {
  * 		type: 'descargable' | 'link' | 'contenido',
  * 		link: URL,
@@ -50,10 +47,10 @@ import { json } from '@sveltejs/kit';
 
 export const fetchTags = async () => {
 	/** @type {*} */
-	var { metadata: tagConfig } = await Object.entries(
+	var { metadata: tagsConfig } = await Object.entries(
 		import.meta.glob('$lib/posts/_tags.md')
 	)[0][1]();
-	return tagConfig;
+	return tagsConfig;
 };
 
 export const fetchMarkdownPosts = async () => {
@@ -75,13 +72,15 @@ export const fetchMarkdownPosts = async () => {
 	}
 
 	let validatedPosts = await validateAll(allPosts);
+	const tagsConfig = await fetchTags();
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
 			featured = thumbURL(post.path, featured);
 		}
 		tags = [...tags].sort();
-		return { ...post, meta: { ...post.meta, featured, tags } };
+		// TODO filter tags config to only relevant config
+		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig}  };
 	});
 	// TODO performance, i'm looping way way way too many times
 	return validatedPosts;
