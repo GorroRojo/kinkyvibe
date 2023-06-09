@@ -8,18 +8,28 @@
 	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
 	const date = start ? addHours(new Date(start), 3) : published_date;
+	if (tags.includes('KinkyVibe')) {
+		mark = mark ? mark : 'KinkyVibe';
+		let indexOfMark = tags.indexOf('KinkyVibe');
+		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
+	}
+	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 </script>
 
-<a href={path} class="post" class:mark id={path} class:past={start?isPast(new Date(start)):false}>
+<a
+	href={path}
+	class="post"
+	class:mark
+	id={path}
+	class:past={start ? isPast(new Date(start)) : false}
+>
 	<div class="publication">
-		<!-- {#if authors}<address>{authors.join(', ')}</address>{/if} -->
-		<!-- {#if authors && published_date}&nbsp;-&nbsp;{/if} -->
 		{#if date}
 			<time datetime={start}>
 				{#if start}
-					 {format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end),'HH:mm')}
+					{format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end), 'HH:mm')}
 				{:else}
-					{authors?authors.join(', '):''}
+					{authors ? authors.join(', ') : ''}
 					{authors && date ? ' - ' : ''}
 					{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 				{/if}
@@ -31,7 +41,7 @@
 		{title}
 	</h3>
 	<div class="tags">
-		<Tags {tags} {tagsConfig} bind:mark />
+		<Tags {tags} {tagsConfig} {mark} />
 	</div>
 </a>
 
@@ -62,7 +72,7 @@
 			--post-color: var(--1);
 		}
 		&.past {
-			opacity: .5;
+			opacity: 0.5;
 		}
 	}
 	h3 {
@@ -70,6 +80,7 @@
 		font-size: 2em;
 		/* align-self:flex-start; */
 		margin: 0;
+		margin-left: 1em;
 	}
 	/* .time {
 		grid-area: time;

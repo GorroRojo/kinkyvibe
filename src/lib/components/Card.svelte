@@ -6,6 +6,7 @@
 		meta: { tags, tagsConfig, featured: src },
 		mark
 	} = post;
+	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined
 </script>
 
 <a {href} class:mark>
@@ -15,7 +16,7 @@
 	<img {src} alt="" />
 	<slot />
 	{#if tags}
-		<Tags {tags} {tagsConfig} bind:mark ref="tags" --color="var(--color-2)" />
+		<Tags {tags} {tagsConfig} {mark} ref="tags" --color="var(--color-2)" />
 	{/if}
 </a>
 
