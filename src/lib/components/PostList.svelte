@@ -21,9 +21,10 @@
 	$: outerFilteredPosts = posts.filter(
 		(p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
-	$: tags = Array.from(
-		new Set(outerFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))
-	);
+	$: tags = Array.from(new Set(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])));
+	$: tagsConfig = tagFilteredPosts
+		.map((p) => p.meta.tagsConfig)
+		.reduce((sum, curr) => ({ ...sum, ...curr }), {});
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) => {
 		if (positiveTagFilters == []) {
 			return true;
@@ -34,14 +35,16 @@
 	});
 </script>
 
-<!-- {JSON.stringify(positiveTagFilters)} -->
 <form>
-	{#each tags as tag}
-		<label style:--tag-color={tag == 'KinkyVibe' ? 'var(--1)' : 'var(--2)'}
+	{#each [...tags].sort() as tag (tag)}
+		{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+		{@const color = config?.color ? config.color : 'var(--color,var(--2))'}
+		<label style:--tag-color={color} animate:flip={{ duration: 600 }}
 			><input
 				type="checkbox"
 				on:click={() => togglePositiveTagFilter(tag)}
 				name={tag}
+				checked={positiveTagFilters.includes(tag)}
 			/>{tag}</label
 		>
 	{/each}
@@ -89,6 +92,7 @@
 			outline: 1px solid var(--tag-color);
 			color: var(--tag-color);
 			transition: 300ms;
+			cursor: pointer;
 			/* width: 100px; */
 			&:has(:checked) {
 				color: white;
