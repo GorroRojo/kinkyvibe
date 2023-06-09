@@ -33,6 +33,6 @@ Se las dejo por aquí.
 
 Si les gusta y quieren ayudarnos, pueden mandarnos un cafecito, les dejé el link en pinneados ❤️
 
-<object data={guia} type="application/pdf" width="800px" height="1000px">
+<object aria-label="Guía de negociación para bottoms" data={guia} type="application/pdf" width="800px" height="1000px">
 <a href={guia}>Ir al pdf ↗️</a>
 </object>
