@@ -6,6 +6,11 @@
 <script>
 	//@ts-nocheck
 	import Tags from '$lib/components/Tags.svelte';
+	import { onMount } from 'svelte';
+	let tagsConfig = {tags:{}};
+	onMount(()=>{
+		fetch('/api?getTags').then(r=>r.json()).then(c=>tagsConfig = c);
+	})
 	export let title;
 	export let tags;
 	export let authors;
@@ -15,7 +20,7 @@
 {#if authors}
 	<address>por {authors}</address>
 {/if}
-<Tags {tags} />
+<Tags {tags} {tagsConfig} />
 <slot />
 
 <style lang="scss">
