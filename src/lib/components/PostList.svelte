@@ -21,18 +21,38 @@
 	$: outerFilteredPosts = posts.filter(
 		(p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
-	$: tags = Array.from(new Set(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])));
-	$: tagsConfig = tagFilteredPosts
+	let tagsConfig = posts
 		.map((p) => p.meta.tagsConfig)
 		.reduce((sum, curr) => ({ ...sum, ...curr }), {});
+	let uniq = (arr) => [...new Set(arr)];
+	$: tags = uniq(
+		uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])).map(aliasTag)
+	);
+	// $: tags = [...new Set(nonAliasTags.map(aliasTag))];
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) => {
 		if (positiveTagFilters == []) {
 			return true;
 		} else {
-			const matchedTags = p.meta.tags.filter((t) => positiveTagFilters.includes(t));
+			const matchedTags = p.meta.tags.filter((t) => positiveTagFilters.includes(aliasTag(t)));
 			return matchedTags.length == positiveTagFilters.length;
 		}
 	});
+	function aliasTag(tag) {
+		let result = tag;
+		let max = 20;
+		while (
+			Object.hasOwn(tagsConfig.tags, result) &&
+			Object.hasOwn(tagsConfig.tags[result], 'aliasOf')
+		) {
+			result = tagsConfig.tags[tag].aliasOf;
+			if (max-- < 0) {
+				alert('too many aliases: ', tag);
+				break;
+			}
+			max--;
+		}
+		return result;
+	}
 </script>
 
 <form>
