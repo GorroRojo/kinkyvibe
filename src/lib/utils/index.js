@@ -53,6 +53,23 @@ export const fetchTags = async () => {
 	return tagsConfig;
 };
 
+/**
+ *
+ * @param {string} postSlug
+ * @param {string | number} assetID
+ * @param {Record<string,any> | false} allThumbs
+ */
+export const thumbURL = (postSlug, assetID, allThumbs = false) => {
+	if (!allThumbs) {
+		allThumbs = import.meta.glob(
+			['$lib/posts/media/*/*.jpeg', '$lib/posts/media/*/*.png', '$lib/posts/media/*/*.webp'],
+			{ eager: true, as: 'url' }
+		);
+	}
+	let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
+	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
+};
+
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
@@ -61,26 +78,16 @@ export const fetchMarkdownPosts = async () => {
 		{ eager: true, as: 'url' }
 	);
 
-	/**
-	 * @param {string} postSlug
-	 * @param {number|string} assetID
-	 * @return {*}
-	 */
-	function thumbURL(postSlug, assetID) {
-		let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
-		return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
-	}
-
 	let validatedPosts = await validateAll(allPosts);
 	const tagsConfig = await fetchTags();
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
-			featured = thumbURL(post.path, featured);
+			featured = thumbURL(post.path, featured,allThumbs);
 		}
 		tags = [...tags].sort();
 		// TODO filter tags config to only relevant config
-		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig}  };
+		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
 	});
 	// TODO performance, i'm looping way way way too many times
 	return validatedPosts;
