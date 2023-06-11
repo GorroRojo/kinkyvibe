@@ -1,8 +1,8 @@
 ---
 published_date: 2022-05-06
 #updated_date: 2023-11-04
-title: ¿Qué son las negociaciones en el BDSM-KINK?
-summary: Una demostración de todas las cosas que puede tener una publicación
+title: Negociaciones en el BDSM-KINK
+summary: 
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #
