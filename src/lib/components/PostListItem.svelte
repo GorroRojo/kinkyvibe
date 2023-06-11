@@ -3,7 +3,7 @@
 	export let post;
 	let {
 		path,
-		meta: { title, tags, published_date, authors, start, end, featured: src, mark, tagsConfig }
+		meta: { title, summary, tags, published_date, authors, start, end, featured: src, mark, tagsConfig }
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
@@ -40,6 +40,9 @@
 	<h3>
 		{title}
 	</h3>
+	{#if summary}
+		<p class="summary">{summary}</p>
+	{/if}
 	<div class="tags">
 		<Tags {tags} {tagsConfig} {mark} />
 	</div>
@@ -54,9 +57,9 @@
 		height: 10.5em;
 
 		display: grid;
-		grid-template-areas: 'img title' 'img tags';
-		grid-template-columns: 9em 1fr;
-		gap: 2em;
+		grid-template-areas: 'img title' 'img summary' 'img tags';
+		/* grid-template-columns: 9em 2fr 1fr; */
+		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
 
@@ -75,12 +78,14 @@
 			opacity: 0.5;
 		}
 	}
-	h3 {
+	a h3 {
 		grid-area: title;
 		font-size: 2em;
 		/* align-self:flex-start; */
 		margin: 0;
-		margin-left: 1em;
+		text-decoration: underline;
+		text-decoration-color: var(--post-color,var(--2));
+		/* margin-left: 1em; */
 	}
 	/* .time {
 		grid-area: time;
@@ -91,9 +96,14 @@
 		z-index: 3;
 		/* cursor:crosshair; */
 	}
+	a.post p.summary {
+		grid-area: summary;
+		margin: 0;
+		padding: 0;
+	}
 	img {
 		grid-area: img;
-		max-height: 10em;
+		max-height: 9em;
 		max-width: 8em;
 		object-fit: contain;
 		object-position: center;
@@ -120,7 +130,7 @@
 	}
 	a {
 		color: inherit;
-		text-decoration-color: var(--post-color, var(--2));
+		text-decoration-color: transparent;
 		scale: 1;
 		transition: 100ms;
 	}
