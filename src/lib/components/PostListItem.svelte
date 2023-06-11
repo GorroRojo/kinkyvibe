@@ -58,7 +58,7 @@
 
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
-		/* grid-template-columns: 9em 2fr 1fr; */
+		grid-template-columns: 9em 1fr;
 		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
@@ -100,6 +100,7 @@
 		grid-area: summary;
 		margin: 0;
 		padding: 0;
+		align-self:flex-start;
 	}
 	img {
 		grid-area: img;
