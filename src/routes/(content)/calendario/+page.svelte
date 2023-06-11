@@ -92,6 +92,8 @@
 			grid-template-columns: 1fr 1fr;
 			margin-inline: 1em 3em;
 			gap: 1em;
+			position:sticky;
+			top: 0;
 		}
 		#calendar {
 			grid-area: calendar;
