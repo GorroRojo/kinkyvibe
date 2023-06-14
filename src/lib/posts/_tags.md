@@ -1,13 +1,25 @@
 ---
 groups:
-  bdsm:
-    members: [seguridad, negociación, impacto, caning]
+  - name: KinkyVibe
+    color: var(--1)
+  - name: BDSM
+    members:
+      - seguridad
+      - negociación
+      - dominación
+      - bondage
     color: red
     sub:
-      - practicas:
-          members: [impacto, caning]
-  idioma:
-    members: [inglés, espanol]
+      - name: practicas
+        members:
+          - impacto
+          - caning
+  - name: idioma
+    members:
+      - inglés
+      - espanol
+    color: darkblue
+
 tags:
   KinkyVibe:
     color: var(--1)
@@ -17,10 +29,16 @@ tags:
     aliasOf: KinkyVibe
   BDSM:
     color: red
+  bdsm:
+    aliasOf: BDSM
   guia:
     aliasOf: guía
   negociacion:
     aliasOf: negociación
+  ingles:
+    aliasOf: inglés
+  espanol:
+    aliasOf: "español"
 ---
 
 Wow

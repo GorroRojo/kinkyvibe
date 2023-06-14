@@ -1,55 +1,11 @@
-/** @typedef {{
- * 		title: string,
- * 		summary: string,
- * 		tags: string[] | string,
- * 		category: "material" | "calendario" | "amigues",
- * 		authors: string[] | string,
- * 		featured?: number | string,
- * 		published_date?: Date,
- * 		updated_date?: Date,
- * 		force_unlisted?: boolean,
- * 		force_unpublished?: boolean
- * }} PostData
- */
-/** @typedef {PostData & {
- * 		type: 'descargable' | 'link' | 'contenido',
- * 		link: URL,
- * 		access_date: Date,
- * 		original_published_date: Date
- * }} MaterialPostData
- */
-/** @typedef {PostData & {
- *		status: 'abierto' | 'anunciado' | 'lleno',
- * 		start: string,
- * 		end?: string,
- * 		duration?: Date,
- * 		location?: string,
- * 		link?: URL
- * 		link_text?: string
- * }} CalendarioPostData */
-/** @typedef {PostData & {
- * 		pronoun: string | URL,
- * 		link: URL,
- * 		logo?: URL | number,
- * 		photo?: URL | number,
- * 		email?: string,
- * 		location?: string,
- * 		tel?: string,
- * 		job_title?: string,
- * 		job_role?: string,
- * 		gender_identity?: string | URL,
- * 		bday?: Date,
- * }} AmiguesPostData */
-// TODO affiliation, education, experience, skill
-// import tagConfig from '$lib/posts/_tags.md'
-
-/** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
+import '$lib/types.d.js';
 
 export const fetchTags = async () => {
 	/** @type {*} */
 	var { metadata: tagsConfig } = await Object.entries(
 		import.meta.glob('$lib/posts/_tags.md')
 	)[0][1]();
+    aliaserFactory(tagsConfig)
 	return tagsConfig;
 };
 
@@ -70,6 +26,29 @@ export const thumbURL = (postSlug, assetID, allThumbs = false) => {
 	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
 };
 
+/**
+ * @param {*} tagsConfig
+ * @returns {(tag: string)=>string}
+ */
+function aliaserFactory(tagsConfig) {
+	return (tag) => {
+		let result = tag;
+		let max = 20;
+		while (
+			Object.hasOwn(tagsConfig.tags, result) &&
+			Object.hasOwn(tagsConfig.tags[result], 'aliasOf')
+		) {
+			result = tagsConfig.tags[tag].aliasOf;
+			if (max-- < 0) {
+				console.error('too many aliases: ' + tag);
+				break;
+			}
+			max--;
+		}
+		return result;
+	};
+}
+
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
@@ -83,14 +62,13 @@ export const fetchMarkdownPosts = async () => {
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
-			featured = thumbURL(post.path, featured,allThumbs);
+			featured = thumbURL(post.path, featured, allThumbs);
 		}
 		tags = [...tags].sort();
-		// TODO filter tags config to only relevant config
 		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
 	});
 	// TODO performance, i'm looping way way way too many times
-	return validatedPosts;
+	return [...validatedPosts];
 };
 
 /**
