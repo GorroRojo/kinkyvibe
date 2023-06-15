@@ -19,6 +19,11 @@ groups:
       - inglés
       - espanol
     color: darkblue
+  - name: evento
+    color: salmon
+    members:
+      - Picantearla
+      - porno
 
 tags:
   KinkyVibe:
@@ -38,7 +43,9 @@ tags:
   ingles:
     aliasOf: inglés
   espanol:
-    aliasOf: "español"
+    aliasOf: 'español'
+  practicas:
+    aliasOf: 'practica'
 ---
 
 Wow
