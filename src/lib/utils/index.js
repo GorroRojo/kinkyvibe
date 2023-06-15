@@ -1,14 +1,38 @@
 import '$lib/types.d.js';
 
 export const fetchTags = async () => {
-	/** @type {*} */
-	var { metadata: tagsConfig } = await Object.entries(
+	
+	//@ts-expect-error
+	var { metadata: tagsConfig } = /** @type {{groups: Group[], tags:*}} */ await Object.entries(
 		import.meta.glob('$lib/posts/_tags.md')
 	)[0][1]();
-    aliaserFactory(tagsConfig)
-	return tagsConfig;
+	let alias = aliaserFactory(tagsConfig);
+	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group)=>groupMap(group, (g)=>{
+		const name = alias(g.name);
+		const members = g.members?.map(alias)
+		if (members) return {...g, name, members}
+		else return {...g, name}
+	}))
+	return {...tagsConfig, groups: aliasedGroups};
 };
 
+/**Calls fn for the group and every subgroup and returns the resulting group.
+ * @param {Group} group
+ * @param {(group: Group)=>Object} fn
+ * @returns {any}
+ */
+function groupMap(group, fn) {
+	let mappedSubs = [];
+	let mappedGroup = fn(group);
+	if (group.sub) {
+		for (const sub of group.sub) {
+			mappedSubs.push(groupMap(sub, fn));
+		}
+		return {...mappedGroup, sub: mappedSubs};
+	} else {
+		return fn(group);
+	}
+}
 /**
  *
  * @param {string} postSlug
@@ -59,11 +83,13 @@ export const fetchMarkdownPosts = async () => {
 
 	let validatedPosts = await validateAll(allPosts);
 	const tagsConfig = await fetchTags();
+	const alias = aliaserFactory(tagsConfig);
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
 			featured = thumbURL(post.path, featured, allThumbs);
 		}
+		if (Array.isArray(tags)) tags = tags.map(alias);
 		tags = [...tags].sort();
 		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
 	});

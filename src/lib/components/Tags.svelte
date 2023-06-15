@@ -10,26 +10,13 @@
 	$: filteredTags = mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 		: tags;
-	function aliasTag(tag) {
-		let result = tag;
-		let max = 20;
-		while (Object.hasOwn(tagsConfig.tags, result) && Object.hasOwn(tagsConfig.tags[result], 'aliasOf')) {
-			result = tagsConfig.tags[tag].aliasOf;
-			if (max-- < 0) {
-				alert('too many aliases: ', tag);
-				break;
-			};
-			max--;
-		}
-		return result;
-	}
 </script>
 
 <ul {ref}>
 	{#each [...new Set(filteredTags)] as tag (tag)}
 		{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
 		{@const color = config ? config?.color : 'var(--color,var(--1))'}
-		<li style:--tag-color={color} animate:flip>{aliasTag(tag)}</li>
+		<li style:--tag-color={color} animate:flip>{tag}</li>
 	{/each}
 </ul>
 

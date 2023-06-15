@@ -58,6 +58,11 @@ config groups<br/>
 {#each $tagsConfig.groups as group}
 - {JSON.stringify(group)}<br/>
 {/each}
+<br/>
+config tags<br/>
+{#each Object.entries($tagsConfig.tags) as tag}
+- {tag[0]}: {JSON.stringify(tag[1])}<br/>
+{/each}h
 <FilterBar />
 
 <ul id="posts">
