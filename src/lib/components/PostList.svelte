@@ -21,39 +21,23 @@
 
 	let uniq = (arr) => [...new Set(arr)];
 	$: visibleTags.set(
-		uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])).map(aliasTag))
+		uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])))
 	);
-	// $: tags = [...new Set(nonAliasTags.map(aliasTag))];
+	// $: tags = [...new Set(nonAliasTags)];
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
 		// $filteredTags && $filteredTags.length == 0
 		// 	? true
-		// 	: p.meta.tags.filter((t) => $filteredTags.includes(aliasTag(t))).length ==
+		// 	: p.meta.tags.filter((t) => $filteredTags.includes(t)).length ==
 		// 	  $filteredTags.length
 		true
 	);
-	function aliasTag(tag) {
-		let result = tag;
-		let max = 20;
-		// while (
-		// 	Object.hasOwn($tagsConfig.tags, result) &&
-		// 	Object.hasOwn($tagsConfig.tags[result], 'aliasOf')
-		// ) {
-		// 	result = $tagsConfig.tags[tag].aliasOf;
-		// 	if (max-- < 0) {
-		// 		alert('too many aliases: ', tag);
-		// 		break;
-		// 	}
-		// 	max--;
-		// }
-		return result;
-	}
 </script>
 filtered<br/>
 {$filteredTags}<br/><br/>
 visible<br/>
 {$visibleTags}<br/><br/>
-config<br/>
-{JSON.stringify($tagsConfig)}<br/><br/>
+<!-- config<br/> -->
+<!-- {JSON.stringify($tagsConfig)}<br/><br/> -->
 config groups<br/>
 {#each $tagsConfig.groups as group}
 - {JSON.stringify(group)}<br/>
@@ -62,7 +46,7 @@ config groups<br/>
 config tags<br/>
 {#each Object.entries($tagsConfig.tags) as tag}
 - {tag[0]}: {JSON.stringify(tag[1])}<br/>
-{/each}h
+{/each}
 <FilterBar />
 
 <ul id="posts">

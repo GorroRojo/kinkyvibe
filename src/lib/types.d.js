@@ -11,7 +11,7 @@
  */
 
 /**@typedef List
- * @prop {string[]} items
+ * @prop {string[]|Group[]} items
  * @prop {'taglist'|'subgroups'} classname
  * @prop {boolean} visible
  * */

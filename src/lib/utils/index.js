@@ -21,7 +21,7 @@ export const fetchTags = async () => {
  * @param {(group: Group)=>Object} fn
  * @returns {any}
  */
-function groupMap(group, fn) {
+export function groupMap(group, fn) {
 	let mappedSubs = [];
 	let mappedGroup = fn(group);
 	if (group.sub) {
@@ -33,6 +33,11 @@ function groupMap(group, fn) {
 		return fn(group);
 	}
 }
+
+// export function groupMapArray(group, fn) {
+// 	let mapped
+// }
+
 /**
  *
  * @param {string} postSlug

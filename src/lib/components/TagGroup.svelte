@@ -4,8 +4,6 @@
 	import Tag from './Tag.svelte';
 	import { visibleTags, filteredTags } from '$lib/utils/stores';
 
-	
-
 	/** @type Group */
 	export let group;
 
@@ -19,7 +17,6 @@
 				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
 		);
 	}
-	
 
 	/** @type {List} */
 	let memberList = {
