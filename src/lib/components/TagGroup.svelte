@@ -1,6 +1,6 @@
 <script>
 	import { flip } from 'svelte/animate';
-	import { fade } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { visibleTags, filteredTags } from '$lib/utils/stores';
 	import { afterUpdate } from 'svelte';
@@ -112,7 +112,7 @@
 
 <!-- {JSON.stringify(lists)} -->
 <div
-	transition:fade={{ duration: 500 }}
+	in:scale={{ duration: 500 }}
 	class="filtergroup"
 	style:--tag-color={group.color ?? 'inherit'}
 	class:noname={!$visibleTags.includes(group.name)}
@@ -120,7 +120,7 @@
 	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && $visibleTags.includes(t.name)) || (t.lists != undefined && (group.members.length > 0 || group.sub.length > 0))) as el (el.id)}
 		<svelte:element
 			this={el.id == 1 ? 'span' : 'div'}
-			transition:fade={{ duration: 500 }}
+			in:scale={{ duration: 500 }}
 			class={el.id == 1 ? 'groupname' : 'groupitems'}
 		>
 			{#if el.name != /*@ts-ignore*/ undefined}
@@ -132,9 +132,9 @@
 				/>
 			{:else if el.lists != undefined}
 				{#each el.lists as list (list.classname)}
-					<ul class={list.classname} transition:fade={{ duration: 500 }}>
+					<ul class={list.classname} in:scale={{ duration: 500 }}>
 						{#each list.items as item (typeof item == 'string' ? item : item.name)}
-							<li transition:fade={{ duration: 500 }}>
+							<li in:scale={{ duration: 500 }}>
 								{#if typeof item == /**@ts-ignore*/ 'string'}
 									<Tag
 										tag={item}
@@ -154,7 +154,7 @@
 	{/each}
 	<!-- {#if group.name}
 		{#if $visibleTags.includes(group.name)}
-			<span transition:fade={{duration:500}} out:fade={{duration:100}} class="groupname" />
+			<span transition:scale={{duration:500}} out:scale={{duration:100}} class="groupname" />
 		{/if}
 	{/if}
 	{#if group.members || group.sub}
@@ -169,7 +169,6 @@
 		min-width: 0;
 		align-items: center;
 		font-family: sans-serif;
-		/* transition: 200ms; */
 	}
 	.filtergroup.noname {
 		background: transparent;
@@ -183,7 +182,6 @@
 		--text-color: color-mix(in hsl, var(--tag-color) 80%, black);
 		--faded-color: color-mix(in srgb, var(--tag-color) 10%, white);
 		background: var(--faded-color);
-		/* transition: 200ms; */
 	}
 	:global(.taglist:has(li)),
 	:global(.filtergroup:has(li)),

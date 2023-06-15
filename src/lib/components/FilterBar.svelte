@@ -4,7 +4,7 @@
 	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
 	import { flip } from 'svelte/animate';
-	import { fade } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
 	import { json } from '@sveltejs/kit';
@@ -41,7 +41,7 @@
 				const sx = t + (u * from.width) / to.width;
 				const sy = t + (u * from.height) / to.height;
 
-				return `transform: ${transform} translate(${x}px,0px)`//${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
+				return `transform: ${transform} translate(${x}px,${y}px)`//${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
 			}
 		};
 	}
@@ -140,7 +140,7 @@ filtered groups<br />
 
 <div class="filterbar">
 	{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-		<div animate:betterflip={{ duration: 2000 }} transition:fade>
+		<div animate:betterflip={{ duration: 0 }} in:scale={{duration: 500}}>
 			<TagGroup {group} />
 		</div>
 	{/each}
@@ -152,13 +152,16 @@ filtered groups<br />
 		flex-wrap: wrap;
 		width: 100%;
 		justify-content: center;
-		align-items: center;
+		align-items: flex-start;
 		--gap: 0.7em;
 		gap: var(--gap);
 		column-gap: calc(var(--gap) * 0.8);
 		--tag-color: var(--1, indigo);
 	}
-	/* .filterbar div {
-
-	} */
+	.filterbar div {
+		height: 4em;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
 </style>
