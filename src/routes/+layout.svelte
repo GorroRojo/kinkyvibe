@@ -15,7 +15,13 @@
 	import { fade, fly } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
+	import { filteredTags, tagsConfig } from '$lib/utils/stores';
+	import { onMount } from 'svelte';
 	export let data;
+	// onMount(() => {
+	tagsConfig.set(data.tagsConfig);
+	filteredTags.set([]);
+	// });
 </script>
 
 <svelte:head>

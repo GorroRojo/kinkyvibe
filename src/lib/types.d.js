@@ -1,7 +1,7 @@
 /**@typedef Group
  * @prop {string} name
- * @prop {string[]} [members]
- * @prop {Group[]} [sub]
+ * @prop {string[]} members
+ * @prop {Group[]} sub
  * @prop {string} [color]
  */
 
@@ -12,7 +12,7 @@
 
 /**@typedef List
  * @prop {string[]|Group[]} items
- * @prop {'taglist'|'subgroups'} classname
+ * @prop {string} classname
  * @prop {boolean} visible
  * */
 

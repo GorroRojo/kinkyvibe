@@ -31,10 +31,6 @@
 		user-select: none;
 		display: inline-block;
 		flex: 1 1;
-		/* --outline-color: var(--tag-color); */
-		/* --text-color: var(--tag-color); */
-		/* --fill-color: var(--tag-color); */
-		/* --filled-text-color: white; */
 	}
 	.tag.noBorder {
 		border: 0;
@@ -44,7 +40,7 @@
 		color: var(--text-color, var(--tag-color));
 		background: transparent;
 		cursor: pointer;
-		transition: 200ms;
+		/* transition: 200ms; */
 		outline: var(--off-outline, none);
 		outline-offset: var(--off-outline-offset, 0);
 	}

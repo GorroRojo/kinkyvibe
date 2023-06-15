@@ -1,42 +1,45 @@
 import '$lib/types.d.js';
 
 export const fetchTags = async () => {
-	
 	//@ts-expect-error
 	var { metadata: tagsConfig } = /** @type {{groups: Group[], tags:*}} */ await Object.entries(
 		import.meta.glob('$lib/posts/_tags.md')
 	)[0][1]();
 	let alias = aliaserFactory(tagsConfig);
-	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group)=>groupMap(group, (g)=>{
-		const name = alias(g.name);
-		const members = g.members?.map(alias)
-		if (members) return {...g, name, members}
-		else return {...g, name}
-	}))
-	return {...tagsConfig, groups: aliasedGroups};
+	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group) =>
+		groupMap(group, (g) => {
+			const name = alias(g.name);
+			const members = g.members?.map(alias);
+			if (members) return { ...g, name, members };
+			else return { ...g, name, members: [] };
+		})
+	);
+	return { ...tagsConfig, groups: aliasedGroups };
 };
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
- * @param {(group: Group)=>Object} fn
+ * @param {(group: Group)=>Group|false} fn
  * @returns {any}
  */
 export function groupMap(group, fn) {
 	let mappedSubs = [];
 	let mappedGroup = fn(group);
-	if (group.sub) {
+	if (mappedGroup === false) return false;
+	if (group.sub && group.sub.length > 0) {
 		for (const sub of group.sub) {
-			mappedSubs.push(groupMap(sub, fn));
+			const neoSub = groupMap(sub, fn);
+			if (neoSub != false) mappedSubs.push(neoSub);
 		}
-		return {...mappedGroup, sub: mappedSubs};
+		return {
+			...mappedGroup,
+			sub: mappedSubs,
+			members: mappedGroup.members ?? []
+		};
 	} else {
-		return fn(group);
+		return { ...mappedGroup, members: mappedGroup.members ?? [], sub: [] };
 	}
 }
-
-// export function groupMapArray(group, fn) {
-// 	let mapped
-// }
 
 /**
  *

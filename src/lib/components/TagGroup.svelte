@@ -3,6 +3,45 @@
 	import { fade } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { visibleTags, filteredTags } from '$lib/utils/stores';
+	import { afterUpdate } from 'svelte';
+	import { sub } from 'date-fns';
+	import { cubicOut } from 'svelte/easing';
+
+	/**@param {HTMLElement} node
+	 * @param {{from:DOMRect, to:DOMRect}} ends
+	 * @param {any} params
+	 * @returns {{
+	 *  delay?: number,
+	 *  duration?: number,
+	 *  easing?: (t: number) => number,
+	 *  css?: (t: number, u: number) => string,
+	 *  tick?: (t: number, u: number) => void
+	 * }}
+	 */
+	function betterflip(node, { from, to }, params) {
+		const style = getComputedStyle(node);
+		const transform = style.transform === 'none' ? '' : style.transform;
+
+		const [ox, oy] = style.transformOrigin.split(' ').map(parseFloat);
+		const dx = from.left + (from.width * ox) / to.width - (to.left + ox);
+		const dy = from.top + (from.height * oy) / to.height - (to.top + oy);
+		//@ts-ignore
+		const { delay = 0, duration = (d) => Math.sqrt(d) * 120, easing = cubicOut } = params;
+
+		return {
+			delay,
+			duration: typeof duration === 'function' ? duration(Math.sqrt(dx * dx + dy * dy)) : duration,
+			easing,
+			css: (t, u) => {
+				const x = u * dx;
+				const y = u * dy;
+				const sx = t + (u * from.width) / to.width;
+				const sy = t + (u * from.height) / to.height;
+
+				return `transform: ${transform} translate(${x}px,0px)`; //${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
+			}
+		};
+	}
 
 	/** @type Group */
 	export let group;
@@ -18,63 +57,109 @@
 		);
 	}
 
-	/** @type {List} */
-	let memberList = {
-		items: group.members ?? [],
-		classname: 'taglist',
-		visible: group.members != undefined && group.members.length > 0
-	};
-	/** @type {List} */
-	let subList = {
-		items: group.sub ?? [],
-		classname: 'subgroups',
-		visible: group.sub != undefined && group.sub.length > 0
-	};
+	// /** @type {List} */
+	// let memberList = {
+	// 	items: group.members ?? [],
+	// 	classname: 'taglist',
+	// 	visible: group.members != undefined && group.members.length > 0
+	// };
+	// /** @type {List} */
+	// let subList = {
+	// 	items: group.sub ?? [],
+	// 	classname: 'subgroups',
+	// 	visible: group.sub != undefined && group.sub.length > 0 && group.sub.some((ss) => isVisible(ss))
+	// };
 
 	/**@type {List[]} */
-	let lists = [memberList, subList].filter((i) => i.visible);
+	$: lists = [
+		{
+			items: group.members ?? [],
+			classname: 'taglist',
+			visible: true
+			// group.members != undefined && group.members.length > 0
+		},
+		{
+			items: group.sub ?? [],
+			classname: 'subgroups',
+			visible: true
+			// group.sub != undefined && group.sub.length > 0 && group.sub.some((ss) => isVisible(ss))
+		}
+	].filter((i) => i.visible);
+
+	/** @param {Group} group
+	 *  @param {string[]} visible
+	 *  @return {boolean}
+	 */
+	function isVisible(group, visible = $visibleTags) {
+		return (
+			($visibleTags.includes(group.name) ||
+				(group.members && group.members.length > 0) ||
+				(group.sub && group.sub.length > 0 && group.sub.some((s) => isVisible(s)))) ??
+			false
+		);
+	}
+	/**@param {Group[]} sub @param {string[]} visible @returns boolean*/
+	let isSubListVisible = (sub, visible) =>
+		sub != undefined &&
+		sub.length > 0 &&
+		sub.some(
+			(s) =>
+				$visibleTags.includes(s.name) ||
+				(s.members && s.members.length > 0) ||
+				(s.sub && s.sub.length > 0 && s.sub.some((ss) => isVisible(ss)))
+		);
 </script>
 
+<!-- {JSON.stringify(lists)} -->
 <div
-	transition:fade
+	transition:fade={{ duration: 500 }}
 	class="filtergroup"
 	style:--tag-color={group.color ?? 'inherit'}
 	class:noname={!$visibleTags.includes(group.name)}
 >
-	{#if group.name}
-		{#if $visibleTags.includes(group.name)}
-			<span transition:fade class="groupname">
+	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && $visibleTags.includes(t.name)) || (t.lists != undefined && (group.members.length > 0 || group.sub.length > 0))) as el (el.id)}
+		<svelte:element
+			this={el.id == 1 ? 'span' : 'div'}
+			transition:fade={{ duration: 500 }}
+			class={el.id == 1 ? 'groupname' : 'groupitems'}
+		>
+			{#if el.name != /*@ts-ignore*/ undefined}
 				<Tag
-					tag={group.name}
+					tag={el.name}
 					noBorder
-					isCheckbox={$visibleTags.includes(group.name)}
-					onInput={() => togglePositiveTagFilter(group.name)}
+					isCheckbox={$visibleTags.includes(el.name)}
+					onInput={() => togglePositiveTagFilter(el.name)}
 				/>
-			</span>
+			{:else if el.lists != undefined}
+				{#each el.lists as list (list.classname)}
+					<ul class={list.classname} transition:fade={{ duration: 500 }}>
+						{#each list.items as item (typeof item == 'string' ? item : item.name)}
+							<li transition:fade={{ duration: 500 }}>
+								{#if typeof item == /**@ts-ignore*/ 'string'}
+									<Tag
+										tag={item}
+										noBorder
+										onInput={() => togglePositiveTagFilter(item)}
+										isCheckbox={true}
+									/>
+								{:else}
+									<svelte:self group={item} />
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/each}
+			{/if}
+		</svelte:element>
+	{/each}
+	<!-- {#if group.name}
+		{#if $visibleTags.includes(group.name)}
+			<span transition:fade={{duration:500}} out:fade={{duration:100}} class="groupname" />
 		{/if}
 	{/if}
 	{#if group.members || group.sub}
-		<div class="groupitems">
-			{#each lists as list (list.classname)}
-				<ul class={list.classname} transition:fade animate:flip>
-					{#each list.items as item (typeof item == 'string' ? item : item.name)}
-						<li animate:flip transition:fade>
-							{#if typeof item == /**@ts-ignore*/ 'string'}
-								<Tag
-									tag={item}
-									noBorder
-									onInput={() => togglePositiveTagFilter(item)}
-									isCheckbox={true}
-								/>
-							{:else}
-								<svelte:self group={item} />
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{/each}
-		</div>
-	{/if}
+		<div class="groupitems" />
+	{/if} -->
 </div>
 
 <style>
@@ -84,7 +169,7 @@
 		min-width: 0;
 		align-items: center;
 		font-family: sans-serif;
-		transition: 200ms;
+		/* transition: 200ms; */
 	}
 	.filtergroup.noname {
 		background: transparent;
@@ -98,8 +183,12 @@
 		--text-color: color-mix(in hsl, var(--tag-color) 80%, black);
 		--faded-color: color-mix(in srgb, var(--tag-color) 10%, white);
 		background: var(--faded-color);
+		/* transition: 200ms; */
+	}
+	:global(.taglist:has(li)),
+	:global(.filtergroup:has(li)),
+	:global(.filtergroup:has(span)) {
 		outline: 3px solid white;
-		transition: 200ms;
 	}
 
 	:global(.filterbar > .filtergroup) {
@@ -107,31 +196,38 @@
 	}
 
 	.taglist {
-		display: flex;
-		flex-wrap: wrap;
 		border-radius: 1em;
 		overflow: hidden;
-		justify-content: center;
 		align-items: center;
 		min-width: 0;
 	}
 	.subgroups {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
 		flex-direction: row;
 		row-gap: 0.3em;
 		column-gap: 0.3em;
 	}
-	ul {
+	ul:has(li) {
 		margin: 0;
+		opacity: 1;
+	}
+	ul {
+		display: flex;
+		justify-content: center;
+		flex-wrap: wrap;
+		margin: -0.1em -0.6em;
 		padding: 0;
-		transition: 700ms;
+		opacity: 0;
+		/* transition: 700ms; */
 	}
 	li {
 		list-style: none;
 		text-align: center;
 		display: flex;
+		height: 0;
+	}
+	:global(.filtergroup .groupitems li:has(li)),
+	:global(.filtergroup .groupitems li:has(label)) {
+		height: unset;
 	}
 	.taglist li {
 		flex: 1 1;
@@ -144,10 +240,10 @@
 	.groupname {
 		color: var(--tag-color);
 		--fill-color: transparent;
-		transition: 200ms;
+		/* transition: 200ms; */
 	}
 	.groupname + .groupitems {
-		margin-left: 5px;
+		/* margin-left: 5px; */
 	}
 	.groupitems {
 		display: flex;
@@ -156,6 +252,6 @@
 		row-gap: 0.2em;
 		column-gap: 0.6em;
 		justify-content: center;
-		transition: 200ms;
+		/* transition: 700ms; */
 	}
 </style>

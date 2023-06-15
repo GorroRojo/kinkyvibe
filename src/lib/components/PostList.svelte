@@ -25,19 +25,15 @@
 	);
 	// $: tags = [...new Set(nonAliasTags)];
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
-		// $filteredTags && $filteredTags.length == 0
-		// 	? true
-		// 	: p.meta.tags.filter((t) => $filteredTags.includes(t)).length ==
-		// 	  $filteredTags.length
-		true
+		$filteredTags && $filteredTags.length == 0
+			? true
+			: $filteredTags.every(f=>p.meta.tags.includes(f))
 	);
 </script>
-filtered<br/>
+<!-- filtered<br/>
 {$filteredTags}<br/><br/>
 visible<br/>
 {$visibleTags}<br/><br/>
-<!-- config<br/> -->
-<!-- {JSON.stringify($tagsConfig)}<br/><br/> -->
 config groups<br/>
 {#each $tagsConfig.groups as group}
 - {JSON.stringify(group)}<br/>
@@ -46,13 +42,15 @@ config groups<br/>
 config tags<br/>
 {#each Object.entries($tagsConfig.tags) as tag}
 - {tag[0]}: {JSON.stringify(tag[1])}<br/>
-{/each}
-<FilterBar />
+{/each} -->
+<div id="filterbar">
+	<FilterBar />
+</div>
 
 <ul id="posts">
 	{#each tagFilteredPosts as post, i (post.path)}
 		<li
-			animate:flip={{ duration: 300 }}
+			animate:flip={{ duration: 700 }}
 			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
 			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
 		>
@@ -62,11 +60,16 @@ config tags<br/>
 </ul>
 
 <style lang="scss">
+	#filterbar {
+		margin-top: 3em;
+		/* height: 7em; */
+	}
 	#posts {
 		display: flex;
 		gap: 3em;
 		flex-direction: column;
 		padding: 0;
+		margin-top: 3em;
 	}
 	li {
 		list-style: none;
