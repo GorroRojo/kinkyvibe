@@ -7,11 +7,12 @@ groups:
       - seguridad
       - negociación
       - dominación
-      - bondage
     color: red
     sub:
       - name: practicas
         members:
+          - bondage
+          - Shibari
           - impacto
           - caning
   - name: idioma
@@ -24,7 +25,7 @@ groups:
     members:
       - Picantearla
       - porno
-
+  - name: Educadores
 tags:
   KinkyVibe:
     color: var(--1)
@@ -46,6 +47,10 @@ tags:
     aliasOf: 'español'
   practicas:
     aliasOf: 'practica'
+  Shibari:
+    aliasOf: shibari
+  Educadores:
+    aliasOf: educadores
 ---
 
 Wow
