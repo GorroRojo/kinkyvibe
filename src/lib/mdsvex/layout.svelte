@@ -21,7 +21,7 @@
 
 <h1>{title}</h1>
 {#if authors}
-	<address>por {authors}</address>
+	<address>por {authors.length>1?authors.slice(0,authors.length-1).join(', ')+' & ' + authors[authors.length-1]:authors}</address>
 {/if}
 <Tags tags={tags.map(aliaserFactory(tagsConfig))} {tagsConfig} />
 <slot />
@@ -49,6 +49,7 @@
 	}
 	:global(article p, .cli) {
 		font-size: 1.5rem;
+		line-height: 1.5;
 	}
 	:global(.cli .cli) {
 		margin-block: 0.4em;
