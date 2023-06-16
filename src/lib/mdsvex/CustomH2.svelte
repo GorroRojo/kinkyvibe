@@ -4,6 +4,7 @@
 
 <style>
     h2 {
-        font-size: 2rem;
+        font-size: var(--font-size, 2rem);
+        font-weight: var(--font-weight, initial);
     }
 </style>
