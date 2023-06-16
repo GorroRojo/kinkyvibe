@@ -57,6 +57,9 @@
 		);
 	}
 
+	/**@type{(evt: InputEvent, tag: string)=>*}*/
+	export let onInput;
+
 	// /** @type {List} */
 	// let memberList = {
 	// 	items: group.members ?? [],
@@ -139,7 +142,7 @@
 									<Tag
 										tag={item}
 										noBorder
-										onInput={() => togglePositiveTagFilter(item)}
+										onInput={(evt) => onInput(evt, item)}
 										isCheckbox={true}
 									/>
 								{:else}

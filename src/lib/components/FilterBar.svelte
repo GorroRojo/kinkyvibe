@@ -10,7 +10,7 @@
 	import { json } from '@sveltejs/kit';
 	import { cubicOut } from 'svelte/easing';
 
-/**@param {HTMLElement} node
+	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
 	 * @param {any} params
 	 * @returns {{
@@ -21,7 +21,7 @@
 	 *  tick?: (t: number, u: number) => void
 	 * }}
 	 */
-	 function betterflip(node, { from, to }, params) {
+	function betterflip(node, { from, to }, params) {
 		const style = getComputedStyle(node);
 		const transform = style.transform === 'none' ? '' : style.transform;
 
@@ -41,11 +41,10 @@
 				const sx = t + (u * from.width) / to.width;
 				const sy = t + (u * from.height) / to.height;
 
-				return `transform: ${transform} translate(${x}px,${y}px)`//${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
+				return `transform: ${transform} translate(${x}px,${y}px)`; //${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
 			}
 		};
 	}
-
 
 	/**@type Group[] */
 	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
@@ -64,6 +63,17 @@
 			// alert(JSON.stringify(filteredGroups))
 		});
 	});
+
+	/**
+	 * @param {string} tag
+	 */
+	function togglePositiveTagFilter(tag) {
+		filteredTags.update((fTags) =>
+			!fTags.includes(tag)
+				? [...fTags, tag]
+				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
+		);
+	}
 
 	/**
 	 * @param {string[]} tags
@@ -140,8 +150,8 @@ filtered groups<br />
 
 <div class="filterbar">
 	{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-		<div animate:betterflip={{ duration: 0 }} in:scale={{duration: 500}}>
-			<TagGroup {group} />
+		<div animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 }}>
+			<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(tag)} />
 		</div>
 	{/each}
 </div>
