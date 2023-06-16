@@ -14,7 +14,7 @@ groups:
           - bondage
           - Shibari
           - impacto
-          - caning
+          - electro
   - name: idioma
     members:
       - inglés
