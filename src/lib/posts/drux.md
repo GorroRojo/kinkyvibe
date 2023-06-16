@@ -9,7 +9,7 @@ tags:
   - Educadores
 category: amigues
 authors:
-  - Soguita
+  - Drux
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
