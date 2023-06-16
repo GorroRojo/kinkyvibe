@@ -14,7 +14,7 @@
 		addDays,
 		isPast
 	} from 'date-fns';
-	import { fly } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
 
 	export let start_on_sunday = true;
@@ -35,9 +35,10 @@
 {#key $view_date}
 	<div
 		class="grid"
-		in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
-		out:fly={{ x: -100 * $month_change_direction, duration: 300 }}
-	>
+transition:scale
+		>
+		<!-- in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
+		out:fly={{ x: -100 * $month_change_direction, duration: 300 }} -->
 		{#each WEEK_DAYS as day}
 			<div class="week-days">
 				{day}

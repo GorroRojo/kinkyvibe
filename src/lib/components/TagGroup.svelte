@@ -2,10 +2,9 @@
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
-	import { visibleTags, filteredTags } from '$lib/utils/stores';
-	import { afterUpdate } from 'svelte';
-	import { sub } from 'date-fns';
+	import { visibleTags } from '$lib/utils/stores';
 	import { cubicOut } from 'svelte/easing';
+	import { page } from '$app/stores';
 
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
@@ -46,32 +45,13 @@
 	/** @type Group */
 	export let group;
 
-	/**
-	 * @param {string} tag
-	 */
-	function togglePositiveTagFilter(tag) {
-		filteredTags.update((fTags) =>
-			!fTags.includes(tag)
-				? [...fTags, tag]
-				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
-		);
-	}
-
 	/**@type{(evt: InputEvent, tag: string)=>*}*/
 	export let onInput;
 
-	// /** @type {List} */
-	// let memberList = {
-	// 	items: group.members ?? [],
-	// 	classname: 'taglist',
-	// 	visible: group.members != undefined && group.members.length > 0
-	// };
-	// /** @type {List} */
-	// let subList = {
-	// 	items: group.sub ?? [],
-	// 	classname: 'subgroups',
-	// 	visible: group.sub != undefined && group.sub.length > 0 && group.sub.some((ss) => isVisible(ss))
-	// };
+	/**@type {boolean}*/
+	export let checked =
+		$page.url.searchParams.has('tags') &&
+		$page.url.searchParams.get('tags')?.split(',').includes(group.name) != undefined;
 
 	/**@type {List[]} */
 	$: lists = [
@@ -113,7 +93,6 @@
 		);
 </script>
 
-<!-- {JSON.stringify(lists)} -->
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
@@ -131,7 +110,9 @@
 					tag={el.name}
 					noBorder
 					isCheckbox={$visibleTags.includes(el.name)}
-					onInput={() => togglePositiveTagFilter(el.name)}
+					onInput={(evt) => onInput(evt, el.name)}
+					checked={$page.url.searchParams.has('tags') &&
+						$page.url.searchParams.get('tags')?.split(',').includes(el.name)}
 				/>
 			{:else if el.lists != undefined}
 				{#each el.lists as list (list.classname)}
@@ -144,9 +125,16 @@
 										noBorder
 										onInput={(evt) => onInput(evt, item)}
 										isCheckbox={true}
+										checked={$page.url.searchParams.has('tags') &&
+											$page.url.searchParams.get('tags')?.split(',').includes(item)}
 									/>
 								{:else}
-									<svelte:self group={item} />
+									<svelte:self
+										group={item}
+										{onInput}
+										checked={$page.url.searchParams.has('tags') &&
+											$page.url.searchParams.get('tags')?.split(',').includes(item.name)}
+									/>
 								{/if}
 							</li>
 						{/each}
@@ -155,14 +143,6 @@
 			{/if}
 		</svelte:element>
 	{/each}
-	<!-- {#if group.name}
-		{#if $visibleTags.includes(group.name)}
-			<span transition:scale={{duration:500}} out:scale={{duration:100}} class="groupname" />
-		{/if}
-	{/if}
-	{#if group.members || group.sub}
-		<div class="groupitems" />
-	{/if} -->
 </div>
 
 <style>

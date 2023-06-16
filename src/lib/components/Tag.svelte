@@ -13,7 +13,7 @@
 
 {#if isCheckbox}
 	<label class="tag" class:noBorder>
-		<input type="checkbox" on:change={onInput} {name} bind:checked />
+		<input type="checkbox" on:input={onInput} {name} bind:checked />
 		{tag}
 	</label>
 {:else}

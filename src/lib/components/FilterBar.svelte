@@ -1,5 +1,4 @@
 <script>
-	// import { setContext } from 'svelte';
 	import '$lib/types.d.js';
 	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
@@ -7,7 +6,8 @@
 	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
-	import { json } from '@sveltejs/kit';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
 	/**@param {HTMLElement} node
@@ -48,31 +48,43 @@
 
 	/**@type Group[] */
 	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
-	// $: console.log('changed', filteredGroups);
 	/**@type string[]*/
 	let orphanTags = [];
-	// console.log(orphanTags)
-	// console.log($visibleTags)
 	onMount(() => {
-		// console.log(filteredGroups);
 		visibleTags.subscribe((v) => {
 			orphanTags = getOrphanTags(v);
 			filteredGroups = filterGroups($tagsConfig.groups, v);
-			console.log('before', orphanTags);
-			console.log('after', orphanTags);
-			// alert(JSON.stringify(filteredGroups))
 		});
+		if ($page.url.searchParams.has('tags')) {
+			//@ts-ignore
+			filteredTags.set($page.url.searchParams.get('tags')?.split(','))
+		}
 	});
 
 	/**
+	 * @param {boolean} checked
 	 * @param {string} tag
 	 */
-	function togglePositiveTagFilter(tag) {
-		filteredTags.update((fTags) =>
-			!fTags.includes(tag)
-				? [...fTags, tag]
-				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
-		);
+	function togglePositiveTagFilter(checked, tag) {
+		if (checked) {
+			filteredTags.update((fTags) => [...fTags, tag]);
+		} else {
+			filteredTags.update((fTags) => [
+				...fTags.slice(0, fTags.indexOf(tag)),
+				...fTags.slice(fTags.indexOf(tag) + 1)
+			]);
+		}
+		$page.url.searchParams.set('tags', $filteredTags.join(','));
+		goto(`?${$page.url.searchParams.toString()}`, {noScroll:true});
+		// if ($filteredTags.length > 0) {
+		// } else {
+		// 	$page.url.searchParams.delete('tags');
+		// 	if ($page.url.searchParams.entries.length == 0) {
+		// 		goto('');
+		// 	} else {
+		// 		goto(`?${$page.url.searchParams.toString()}`);
+		// 	}
+		// }
 	}
 
 	/**
@@ -102,10 +114,6 @@
 			return accumulated;
 		}
 	}
-
-	// function isTagVisible(/**@type {string}*/ tag) {
-	// 	return $visibleTags.includes(aliasTag(tag));
-	// }
 
 	/**
 	 * @param {Group[]} groups
@@ -138,20 +146,10 @@
 	}
 </script>
 
-<!-- <br />
-filtered groups<br />
-{#each filteredGroups as group}
-	## {group.name} ##<br />
-	{#if group.members} - {JSON.stringify(group.members)}<br />{/if}
-	{#if group.sub} - {JSON.stringify(group.sub)}<br />{/if}
-{/each}
-<br />orphan tags<br />
-{orphanTags} -->
-
 <div class="filterbar">
 	{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-		<div animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 }}>
-			<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(tag)} />
+		<div animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+			<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)} />
 		</div>
 	{/each}
 </div>

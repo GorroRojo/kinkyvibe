@@ -51,8 +51,8 @@ config tags<br/>
 	{#each tagFilteredPosts as post, i (post.path)}
 		<li
 			animate:flip={{ duration: 700 }}
-			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
+			in:fly={{ y: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
+			out:fly={{ y: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
 		>
 			<PostListItem {post} />
 		</li>
