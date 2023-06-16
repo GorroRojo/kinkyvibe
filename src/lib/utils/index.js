@@ -49,10 +49,12 @@ export function groupMap(group, fn) {
  */
 export const thumbURL = (postSlug, assetID, allThumbs = false) => {
 	if (!allThumbs) {
-		allThumbs = import.meta.glob(
-			['$lib/posts/media/*/*.jpeg', '$lib/posts/media/*/*.png', '$lib/posts/media/*/*.webp'],
-			{ eager: true, as: 'url' }
-		);
+		allThumbs = import.meta.glob([
+			'$lib/posts/media/*/*.jpeg',
+			'$lib/posts/media/*/*.jpg',
+			'$lib/posts/media/*/*.png',
+			'$lib/posts/media/*/*.webp'
+		], { eager: true, as: 'url' });
 	}
 	let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
 	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
@@ -84,10 +86,12 @@ function aliaserFactory(tagsConfig) {
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
-	var allThumbs = import.meta.glob(
-		['$lib/posts/media/*/*.jpeg', '$lib/posts/media/*/*.png', '$lib/posts/media/*/*.webp'],
-		{ eager: true, as: 'url' }
-	);
+	var allThumbs = import.meta.glob([
+		'$lib/posts/media/*/*.jpeg',
+		'$lib/posts/media/*/*.jpg',
+		'$lib/posts/media/*/*.png',
+		'$lib/posts/media/*/*.webp'
+	], { eager: true, as: 'url' });
 
 	let validatedPosts = await validateAll(allPosts);
 	const tagsConfig = await fetchTags();
