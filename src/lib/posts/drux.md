@@ -26,7 +26,7 @@ link: https://instagram.com/drux.ropes
 ---
 
 <script>
-    import foto from '$lib/posts/media/soguita/1.jpg';
+    import foto from '$lib/posts/media/drux/1.jpg';
 </script>
 
 ![ ]({foto})

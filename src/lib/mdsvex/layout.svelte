@@ -91,6 +91,7 @@
 		position: relative;
 		width: 100%;
 		object-fit: contain;
+		object-position: center;
 		border-radius: 1em;
 	}
 	:global(article .col-2),
@@ -99,7 +100,7 @@
 		display: grid;
 		gap: 0.5em;
 		margin-block: 1em;
-		margin-inline: -4em;
+		/* margin-inline: -4em; */
 		max-width: 100vw;
 	}
 	@media (max-width: 900px) {

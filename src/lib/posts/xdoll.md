@@ -26,11 +26,10 @@ link: https://instagram.com/xdoll_art_and_ropes/
 ---
 
 <script>
-    import foto from '$lib/posts/media/soguita/1.jpg';
+    import foto from '$lib/posts/media/xdoll/1.jpg';
 </script>
 
-![ ]({foto})
-
-{summary}
-
-[Link]({link})
+<div class="col-2">
+<img alt="" src={foto} />
+<div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
+</div>
