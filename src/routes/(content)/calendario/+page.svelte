@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import { ArrowLeft } from 'lucide-svelte';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { addDays, format, isSameMonth } from 'date-fns';
@@ -21,6 +22,8 @@
 		return dates;
 	}, {});
 </script>
+
+<a class="back" href="/"><ArrowLeft size="20" style="translate: 0 .3em" /> Volver</a>
 
 <svelte:head>
 	<title>KinkyVibe.ar - Calendario</title>
@@ -92,7 +95,7 @@
 			grid-template-columns: 1fr 1fr;
 			margin-inline: 1em 3em;
 			gap: 1em;
-			position:sticky;
+			position: sticky;
 			top: 0;
 		}
 		#calendar {
@@ -193,5 +196,14 @@
 				white-space: normal;
 			}
 		}
+	}
+	a.back {
+		display: block;
+		width: 100%;
+		max-width: 900px;
+		margin: 1.5em auto -2em;
+		padding-left: 1em;
+		color: var(--2);
+		text-decoration: none;
 	}
 </style>
