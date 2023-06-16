@@ -40,6 +40,7 @@
 				.slice(0, 3)}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
+			href="/amigues"
 		/>
 
 		<PostList {posts} />
