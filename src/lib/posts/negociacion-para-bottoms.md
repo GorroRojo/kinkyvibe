@@ -1,7 +1,7 @@
 ---
 published_date: 2023-02-04
 #updated_date: 2023-11-04
-title: Una guía de negociación rápida para bottoms
+title: Negociación rápida para bottoms
 summary: 
 # TODO llenar el summary
 tags:
