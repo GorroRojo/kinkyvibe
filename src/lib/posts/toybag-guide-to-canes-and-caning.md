@@ -1,6 +1,6 @@
 ---
 published_date: 2023-01-11
-#update_date: 
+#update_date:
 title: The Toybag Guide to Canes and Caning
 summary:
 # TODO llenar summary
@@ -14,16 +14,16 @@ tags:
 category: material
 authors:
   - Janey W. Hardy
-#featured: 
-force_unlisted: true
+featured: 2
+# force_unlisted: true
 #force_unpublished: false
 type: descargable
 #link:
 ---
 
 <script>
-    import guia from '$lib/posts/media/toybag-guide-to-canes-and-caning/1.pdf'
-    </script>
+  import guia from '$lib/posts/media/toybag-guide-to-canes-and-caning/1.pdf'
+</script>
 
 Holi holi! Por aquí vengo a dejarles una guía en inglés de juegos con varillas (canes) ✨⚡️
 
