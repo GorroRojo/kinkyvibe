@@ -50,10 +50,13 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 - Rígido o blando
 - Puede venir con o sin vibrador.
 - Viene en distintos tipos de densisades y puede usarse para juguetes de todo tipo.
-- Es un material que **puede usarse sin preservativo** si se quiere, una vez lavado no quedan residuos biológicos sobre el mismo. 
+- Es un material que **puede usarse sin preservativo** si se quiere, una vez lavado no quedan residuos biológicos sobre el mismo.
   - Muchas personas también usan una solución de agua con un 10% de lavandina para esterilizarlo.
 
+---
+
 ## 😁 Metales
+
 <div class="row">
 <div class="card good">No poroso</div>
 <div class="card good">No tóxico</div>
@@ -66,7 +69,10 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 - Hay muchos tipos de metales, así que **la seguridad depende de si les están diciendo qué material están llevando**.
 - No suele venir con vibrador.
 
+---
+
 ## 😁 Vidrio templado <small>(Borosilicato)</small>
+
 <div class="row">
 <div class="card good">No poroso</div>
 <div class="card good">No tóxico</div>
@@ -78,7 +84,10 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 - Hay muchos tipos de vidrios templados, y **se venden versiones no seguras en el mercado**.
 - No suele venir con vibrador.
 
+---
+
 ## 🙂 ABS / Plástico duro <small>(Acrylonitrile butadiene styrene)</small>
+
 <div class="row">
 <div class="card maybe">Suele ser no poroso, pero hay versiones que sí lo son.</div>
 <div class="card good">No tóxico.</div>
@@ -88,7 +97,10 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 
 - Rígido.
 
+---
+
 ## 😐 TPE <small>(Termo plástico)</small>
+
 <div class="row">
 <div class="card bad">Poroso</div>
 <div class="card maybe">Suele ser no tóxico</div>
@@ -98,25 +110,32 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 - Es un material blando.
 - Suele ser usado para vibradores, anillos y dildos.
 
+---
+
 ## ☹️ PVC / Jelly <small>(Policloruro de vinilo)</small>
+
 <div class="row">
 <div class="card bad">Poroso</div>
 <div class="card bad">Tóxico</div>
 <div class="card bad">Puede derretir el látex</div>
 <div class="card bad">No puede ser esterilizado. No recomendado</div>
-<div class="card bad">Se derrite en contacto con otro material de pvc</div>
+<div class="card bad">Se derrite en contacto con otro material de PVC</div>
 </div>
 
-- Tiene **ftalatos**<sup>*</sup>
+- Tiene **ftalatos**<sup>\*</sup>
 
-***Compone el 80% de los juguetes del mercado***
+<p><small id="foot1">\* ftalatos son plastificadores, sustancias añadidas a los plásticos para incrementar su flexibilidad.</small></p>
 
-<small id="foot1">* ftalatos son plastificadores, sustancias añadidas a los plásticos para incrementar su flexibilidad.</small>
+<p><strong style="font-size:2rem;color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
+
 
 <style>
+    hr {
+        margin-block: 4em;
+    }
     :global(article h2) {
         --font-size: 3rem;
-        margin-top: 1em;
+        margin-top:0;
     }
     .row {
         display: flex;
