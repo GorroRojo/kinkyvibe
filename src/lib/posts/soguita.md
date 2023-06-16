@@ -29,8 +29,7 @@ link: https://instagram.com/sogashibari
     import foto from '$lib/posts/media/soguita/1.jpg';
 </script>
 
-![ ]({foto})
-
-{summary}
-
-[Link]({link})
+<div class="col-2">
+<img alt="" src={foto} />
+<div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
+</div>
