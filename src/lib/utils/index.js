@@ -64,7 +64,7 @@ export const thumbURL = (postSlug, assetID, allThumbs = false) => {
  * @param {*} tagsConfig
  * @returns {(tag: string)=>string}
  */
-function aliaserFactory(tagsConfig) {
+export function aliaserFactory(tagsConfig) {
 	return (tag) => {
 		let result = tag;
 		let max = 20;

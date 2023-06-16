@@ -1,16 +1,19 @@
 <script context="module">
 	import { h2, h3, li, img, blockquote } from './components.js';
 	export { h2, h3, li, img, blockquote };
+	import { aliaserFactory } from '$lib/utils/index.js';
 </script>
 
 <script>
 	//@ts-nocheck
 	import Tags from '$lib/components/Tags.svelte';
 	import { onMount } from 'svelte';
-	let tagsConfig = {tags:{}};
-	onMount(()=>{
-		fetch('/api?getTags').then(r=>r.json()).then(c=>tagsConfig = c);
-	})
+	let tagsConfig = { tags: {} };
+	onMount(() => {
+		fetch('/api?getTags')
+			.then((r) => r.json())
+			.then((c) => (tagsConfig = c));
+	});
 	export let title;
 	export let tags;
 	export let authors;
@@ -20,7 +23,7 @@
 {#if authors}
 	<address>por {authors}</address>
 {/if}
-<Tags {tags} {tagsConfig} />
+<Tags tags={tags.map(aliaserFactory(tagsConfig))} {tagsConfig} />
 <slot />
 
 <style lang="scss">
@@ -30,7 +33,7 @@
 	}
 	:global(article sup) {
 		line-height: 0;
-		font-size: .7em;
+		font-size: 0.7em;
 		color: var(--2-dark);
 		font-weight: bold;
 	}

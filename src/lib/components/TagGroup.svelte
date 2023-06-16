@@ -49,9 +49,9 @@
 	export let onInput;
 
 	/**@type {boolean}*/
-	export let checked =
-		$page.url.searchParams.has('tags') &&
-		$page.url.searchParams.get('tags')?.split(',').includes(group.name) != undefined;
+	// export let checked =
+	// 	$page.url.searchParams.has('tags') &&
+	// 	$page.url.searchParams.get('tags')?.split(',').includes(group.name) != undefined;
 
 	/**@type {List[]} */
 	$: lists = [
@@ -99,7 +99,7 @@
 	style:--tag-color={group.color ?? 'inherit'}
 	class:noname={!$visibleTags.includes(group.name)}
 >
-	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && $visibleTags.includes(t.name)) || (t.lists != undefined && (group.members.length > 0 || group.sub.length > 0))) as el (el.id)}
+	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && $visibleTags.includes(t.name)) || (t.lists != undefined && (group.members.length > 0 || isSubListVisible(group.sub, $visibleTags)))) as el (el.id)}
 		<svelte:element
 			this={el.id == 1 ? 'span' : 'div'}
 			in:scale={{ duration: 500 }}
@@ -162,14 +162,14 @@
 
 	.filtergroup,
 	.taglist {
-		--text-color: color-mix(in hsl, var(--tag-color) 80%, black);
-		--faded-color: color-mix(in srgb, var(--tag-color) 10%, white);
+		--text-color: color-mix(in hsl, var(--tag-color) 100%, black);
+		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
 		background: var(--faded-color);
 	}
 	:global(.taglist:has(li)),
 	:global(.filtergroup:has(li)),
 	:global(.filtergroup:has(span)) {
-		outline: 3px solid white;
+		outline: 3px solid var(--tag-color);
 	}
 
 	:global(.filterbar > .filtergroup) {
@@ -223,9 +223,9 @@
 		--fill-color: transparent;
 		/* transition: 200ms; */
 	}
-	.groupname + .groupitems {
-		/* margin-left: 5px; */
-	}
+	/* .groupname + .groupitems {
+		margin-left: 5px;
+	} */
 	.groupitems {
 		display: flex;
 		flex-direction: column;

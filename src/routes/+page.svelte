@@ -42,7 +42,7 @@
 			--color-2="var(--1)"
 			href="/amigues"
 		/>
-
+		<div id="lista" />
 		<PostList {posts} />
 	{:else}
 		posts: {JSON.stringify(posts)}

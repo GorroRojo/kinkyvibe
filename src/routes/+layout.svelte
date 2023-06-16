@@ -12,7 +12,7 @@
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
-	import { fade, fly } from 'svelte/transition';
+	import { fade, fly, scale } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
 	import { filteredTags, tagsConfig } from '$lib/utils/stores';
@@ -66,7 +66,7 @@
 	/>
 </header>
 {#key data.currentRoute}
-	<main in:fly={{ y: 100, duration: 300, delay: 300 }} out:fly={{ y: -30, duration: 300 }}>
+	<main in:fade={{ duration: 300, delay: 300 }}>
 		<slot />
 	</main>
 {/key}

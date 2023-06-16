@@ -20,29 +20,15 @@
 	);
 
 	let uniq = (arr) => [...new Set(arr)];
-	$: visibleTags.set(
-		uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])))
-	);
+	$: visibleTags.set(uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))));
 	// $: tags = [...new Set(nonAliasTags)];
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
 		$filteredTags && $filteredTags.length == 0
 			? true
-			: $filteredTags.every(f=>p.meta.tags.includes(f))
+			: $filteredTags.every((f) => p.meta.tags.includes(f))
 	);
 </script>
-<!-- filtered<br/>
-{$filteredTags}<br/><br/>
-visible<br/>
-{$visibleTags}<br/><br/>
-config groups<br/>
-{#each $tagsConfig.groups as group}
-- {JSON.stringify(group)}<br/>
-{/each}
-<br/>
-config tags<br/>
-{#each Object.entries($tagsConfig.tags) as tag}
-- {tag[0]}: {JSON.stringify(tag[1])}<br/>
-{/each} -->
+
 <div id="filterbar">
 	<FilterBar />
 </div>

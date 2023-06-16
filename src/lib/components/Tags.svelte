@@ -16,7 +16,7 @@
 	{#each [...new Set(filteredTags)] as tag (tag)}
 		{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
 		{@const color = config ? config?.color : 'var(--color,var(--1))'}
-		<li style:--tag-color={color} animate:flip>{tag}</li>
+		<li style:--tag-color={color} animate:flip><a href="/todo?tags={tag}">{tag}</a></li>
 	{/each}
 </ul>
 
@@ -34,14 +34,18 @@
 	}
 	li {
 		display: block;
-		padding: 0.5em 0.8em;
 		border-radius: 3em;
-		color: white;
 		--tag-color: var(--color);
 		background: var(--tag-color, var(--1));
+		padding: 0.5em 0.8em;
 		transition: 50ms;
+	}
+	a {
+		color: white;
+		text-decoration:none;
 	}
 	li:hover {
 		text-decoration: underline;
+		text-decoration-color: white;
 	}
 </style>

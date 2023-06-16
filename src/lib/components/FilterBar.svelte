@@ -55,10 +55,14 @@
 			orphanTags = getOrphanTags(v);
 			filteredGroups = filterGroups($tagsConfig.groups, v);
 		});
-		if ($page.url.searchParams.has('tags')) {
-			//@ts-ignore
-			filteredTags.set($page.url.searchParams.get('tags')?.split(','))
-		}
+		page.subscribe((p)=>{
+			if ($page.url.searchParams.has('tags')) {
+				if ($page.url.searchParams.get('tags') != ''){
+					//@ts-ignore
+					filteredTags.set($page.url.searchParams.get('tags')?.split(','))
+				}
+			} else filteredTags.set([])
+		})
 	});
 
 	/**
