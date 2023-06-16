@@ -113,7 +113,7 @@ _Monitorean_
       background: var(--4-light);
       color:var(--2-dark);
       display:block;
-      margin-inline: -100000em;
+      margin-inline: 0em;
       text-align: center;
       padding: 1em;
       font-weight: bold;
