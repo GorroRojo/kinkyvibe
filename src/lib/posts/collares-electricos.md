@@ -28,7 +28,7 @@ original_published_date: 2021-02-04
 
 traducido *medio así nomás* de una parte de [este artículo](https://www.domme-chronicles.com/2021-02/shock-collars-in-bdsm-play-are-they-safe)
 
-<small style="font-size: 2rem;"><mark>Aviso</mark>: No está super editado para ser fiel al artículo original, pero se pone bastante tajante le autore hacia el final.</small>
+<small style="font-size: 2rem;"><mark>Aviso</mark>: El artículo no está super editado para ser fiel al original, pero igual aviso que se pone bastante tajante le autore hacia el final.</small>
 <br/>
 <br/>
 
