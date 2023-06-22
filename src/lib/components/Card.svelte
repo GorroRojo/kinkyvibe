@@ -38,7 +38,7 @@
 		--round: 1rem;
 	}
 	.card-img {
-		height: 10em;
+		height: 15em;
 		width: 100%;
 		background: gray;
 		--cround: calc(var(--round) * 0.7);
