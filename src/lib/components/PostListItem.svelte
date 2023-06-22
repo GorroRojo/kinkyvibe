@@ -53,7 +53,7 @@
 	</div>
 	<img {src} alt="" />
 	<h3>
-		{title}
+		{#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if}{title}
 	</h3>
 	{#if summary}
 		<p class="summary">{summary}</p>
@@ -129,6 +129,9 @@
 		text-decoration: underline;
 		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
+		small {
+			color: var(--post-color, var(--2));
+		}
 	}
 	/* .time {
 		grid-area: time;
