@@ -72,7 +72,7 @@
 {/key}
 <Footer />
 
-<style lang="scss">
+<style>
 	#title {
 		color: black;
 		display: block;
@@ -122,11 +122,9 @@
 		width: 24;
 		height: 24px;
 	}
-	#title {
-		img {
-			max-width: 10vh;
-			min-width: 2em;
-		}
+	#title img {
+		max-width: 10vh;
+		min-width: 2em;
 	}
 	#quien {
 		justify-self: left;
@@ -145,27 +143,28 @@
 		background: transparent;
 		outline: 0;
 		transition: 100ms;
-		&:hover {
-			scale: 1.1;
-			box-shadow: 0 0 0.4em rgba(1, 1, 1, 0.2);
-			background: white;
-			outline: 5px solid white;
-		}
 	}
+	#redes a:hover {
+		scale: 1.1;
+		box-shadow: 0 0 0.4em rgba(1, 1, 1, 0.2);
+		background: white;
+		outline: 5px solid white;
+	}
+
 	#quien a {
 		color: white;
 		text-decoration: none;
 		transition: 300ms;
-		&:hover {
-			scale: 1.1;
-			box-shadow: 5px 5px 1em rgba(1, 1, 1, 0.2);
-			/* background: var(--1); */
-			/* filter: brightness(1.3); */
-		}
-		&:active {
-			scale: 1.05;
-			box-shadow: none;
-		}
+	}
+	#quien a:hover {
+		scale: 1.1;
+		box-shadow: 5px 5px 1em rgba(1, 1, 1, 0.2);
+		/* background: var(--1); */
+		/* filter: brightness(1.3); */
+	}
+	#quien a:active {
+		scale: 1.05;
+		box-shadow: none;
 	}
 	#quien a {
 		padding-inline: 0.6em;
