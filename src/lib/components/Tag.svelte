@@ -35,7 +35,7 @@
 		border-radius: var(--border-radius, 2em);
 		user-select: none;
 		display: inline-block;
-		/* flex: 1 1; */
+		flex: 1 1;
 	}
 	.tag.noBorder {
 		border: 0;
