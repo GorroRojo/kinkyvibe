@@ -2,7 +2,7 @@
 published_date: 2022-05-06
 #updated_date: 2023-11-04
 title: Negociaciones en el BDSM-KINK
-summary: 
+summary: "Una negociación es el proceso por el cual se deciden y consensuan las prácticas, dinámicas o juegos que dos o más personas van a realizar dentro de un contexto BDSM."
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #

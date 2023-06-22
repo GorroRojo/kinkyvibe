@@ -7,6 +7,7 @@ tags:
   - salud
   - materiales
   - seguridad
+  - guia
   - KinkyVibe
 category: material
 authors:

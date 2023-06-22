@@ -7,6 +7,7 @@ tags:
     - BDSM
     - electro
     - seguridad
+    - articulo
 category: material
 authors:
     - BusterBDSM
