@@ -3,11 +3,22 @@
 	export let post;
 	let {
 		path,
-		meta: { title, summary, tags, published_date, authors, start, end, featured: src, mark, tagsConfig }
+		meta: {
+			title,
+			summary,
+			tags,
+			published_date,
+			authors,
+			start,
+			end,
+			featured: src,
+			mark,
+			tagsConfig
+		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
-	import Tag from './Tag.svelte'
+	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
 	const date = start ? addHours(new Date(start), 3) : published_date;
 	if (tags.includes('KinkyVibe')) {
@@ -17,7 +28,7 @@
 	}
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
-	onMount(()=>mounted=true)
+	onMount(() => (mounted = true));
 </script>
 
 <a
@@ -69,7 +80,7 @@
 		/* padding: 0 0.4em; */
 		overflow-x: scroll;
 		overflow-y: hidden;
-		gap: .3em;
+		gap: 0.3em;
 		/* position: absolute; */
 		/* bottom: -1em; */
 		/* left: 0; */
@@ -89,12 +100,13 @@
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
+		grid-template-rows: auto auto 3em;
 		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
 
 		margin-inline: auto;
-		padding-top: 1.7em;
+		padding-top: 2em;
 		padding-right: 1em;
 
 		list-style: none;
@@ -115,7 +127,7 @@
 		/* align-self:flex-start; */
 		margin: 0;
 		text-decoration: underline;
-		text-decoration-color: var(--post-color,var(--2));
+		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
 	}
 	/* .time {
@@ -131,7 +143,28 @@
 		grid-area: summary;
 		margin: 0;
 		padding: 0;
-		align-self:flex-start;
+		align-self: flex-start;
+	}
+	.summary {
+		max-height: 100%;
+		min-height: 0;
+		/* overflow:hidden; */
+		overflow: auto;
+		text-overflow: ellipsis;
+	}
+	@media (max-width: 680px) {
+		.summary {
+			display: none;
+		}
+		.post {
+			grid-template-areas: 'img title' 'img tags';
+			grid-template-rows: 1fr 3em;
+
+		}
+		h3 {
+			align-self: flex-start;
+			padding-top: .2em;
+		}
 	}
 	img {
 		grid-area: img;
