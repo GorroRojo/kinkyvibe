@@ -8,6 +8,7 @@
 
 <main>
 	{#if !err}
+	<div class="cardrow">
 		<CardRow
 			index="0"
 			id="calendario"
@@ -19,6 +20,8 @@
 			--color-2="var(--1)"
 			href="/calendario"
 		/>
+	</div>
+	<div class="cardrow">
 		<CardRow
 			index="0"
 			id="informacion"
@@ -30,7 +33,8 @@
 			--color-2="var(--2-dark)"
 			href="/material"
 		/>
-
+	</div>
+	<div class="cardrow">
 		<CardRow
 			index="1"
 			id="amigues"
@@ -42,6 +46,7 @@
 			--color-2="var(--1)"
 			href="/amigues"
 		/>
+	</div>
 		<div id="lista" />
 		<PostList {posts} />
 	{:else}
@@ -55,5 +60,8 @@
 		width: 100%;
 		max-width: 50rem;
 		margin: auto;
+	}
+	.cardrow {
+		margin-block: 4rem;
 	}
 </style>

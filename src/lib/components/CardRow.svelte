@@ -29,7 +29,7 @@
 			</li>
 		{/each}
 	</ul>
-	<a class="btn-more" {href}>...ver más</a>
+	{#if href}<a class="btn-more" {href}>...ver más</a>{/if}
 </div>
 
 <style>
@@ -41,7 +41,7 @@
 		padding: 1em;
 		border-radius: 0.5em;
 		position: relative;
-		margin: 4em 0 1em 0;
+		margin: 0em 0 1em 0;
 	}
 	.card-title {
 		margin: 1em;
@@ -62,7 +62,8 @@
 	.cardcontainer {
 		width: var(--card-width);
 		flex: 1;
-		display: block;
+		display: flex;
+		justify-content: center;
 		padding-bottom: 1em;
 		position: relative;
 		overflow: visible;
