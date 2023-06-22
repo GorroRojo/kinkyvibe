@@ -8,8 +8,8 @@
 <nav>
 	<ul>
 		{#each links as { icon, name, sub, href }}
-			<li class:current={$page.url.pathname.includes(href)}>
-				<a {href}>
+			<li class:current={$page.url.pathname.includes(href)} >
+				<a {href} tabindex="0">
 					<span>
 						<span><svelte:component this={icon} size="1em" /></span>
 						{name}
@@ -80,8 +80,12 @@
 		text-decoration: none;
 	}
 
-	nav li:hover span {
+	nav li:hover span,nav a:focus span {
 		translate: 0 0;
+	}
+	nav a:focus {
+		outline: 2px solid var(--1);
+		border: 0;
 	}
 
 	nav li small {
@@ -92,7 +96,7 @@
 		transition: 100ms;
 		white-space: nowrap;
 	}
-	nav li:hover small {
+	nav li:hover small,nav a:focus small {
 		scale: 1;
 	}
 	@media screen and (max-width: 680px) {
@@ -111,7 +115,7 @@
 				li {
 					width: 15vw;
 					height: 4em;
-					&:hover span {
+					&:hover span,a:focus span {
 						translate: 0 0em;
 					}
 					/* &.current, */

@@ -13,7 +13,7 @@
 	onMount(() => (mounted = true));
 </script>
 
-<a {href} class="card {mark ? 'mark' : ''}">
+<a {href} class="card {mark ? 'mark' : ''}" tabindex="0">
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
@@ -64,15 +64,16 @@
 		color: inherit;
 	}
 	.card.mark {
-		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 		--shadow-color: var(--color,var(--color-2,var(--1)));
-		box-shadow: 0 0 .3em .2em rgba(0,0,0,.1);
+		box-shadow: 0 0 .3em .2em rgba(0,0,0,.05);
 		height: 100%;
+		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 	}
-	.card.mark:hover {
-		box-shadow: 0em 0em 2em -.3em var(--shadow-color);
+	.card.mark:hover,.card.mark:focus {
+		outline: 3px var(--color, var(--color-2, var(--1))) solid;
+		box-shadow: 0em 0em 0em -0em var(--shadow-color);
 	} 
-	.card:hover {
+	.card:hover,.card:focus {
 		transform: scale(105%);
 	}
 	.card-mark {
@@ -89,7 +90,8 @@
 		opacity: 0;
 		transition: 200ms;
 	}
-	.card.mark:hover .card-mark {
+	.card.mark:hover .card-mark,
+	.card.mark:focus .card-mark {
 		opacity: 1;
 		scale: 1;
 	}

@@ -37,6 +37,7 @@
 	class:mark
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
+	tabindex="0"
 >
 	<div class="publication">
 		{#if date}
@@ -202,7 +203,7 @@
 		scale: 1;
 		transition: 100ms;
 	}
-	a:hover:not(.past) {
+	a:hover:not(.past), a:focus {
 		scale: 1.03;
 	}
 </style>

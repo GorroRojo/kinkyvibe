@@ -29,7 +29,7 @@
 			</li>
 		{/each}
 	</ul>
-	{#if href}<a class="btn-more" {href}>...ver más</a>{/if}
+	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
 </div>
 
 <style>
@@ -127,7 +127,7 @@
 		text-decoration: none;
 		font-weight: normal;
 	}
-	.btn-more:hover {
+	.btn-more:hover, .btn-more:focus {
 		transform: scale(105%) translateX(-0.4em);
 	}
 	.btn-more:active {

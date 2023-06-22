@@ -15,8 +15,8 @@
 </script>
 
 {#if isCheckbox}
-	<label class="tag" class:noBorder>
-		<input type="checkbox" on:input={onInput} {name} bind:checked />
+	<label class="tag" class:noBorder >
+		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
 		{tag}
 	</label>
 {:else if isLink}
@@ -45,9 +45,15 @@
 		color: var(--text-color, var(--tag-color));
 		background: transparent;
 		cursor: pointer;
-		/* transition: 200ms; */
+		transition: 200ms;
 		outline: var(--off-outline, none);
 		outline-offset: var(--off-outline-offset, 0);
+	}
+	label:has(:focus) {
+		outline: 3px solid var(--outline-color, var(--tag-color));
+		scale: 1.05;
+		background:color-mix(in srgb, var(--tag-color, var(--1)) 50%,transparent) !important;
+		color: var(--filled-text-color, white);
 	}
 	a.tag,
 	label.tag:has(:checked),
@@ -59,7 +65,12 @@
 		text-decoration-color: transparent;
 	}
 	input {
-		display: none;
+		border: 0;
+		margin: 0;
+		padding: 0;
+		width: 0;
+		height: 0;
+		opacity: 0;
 	}
 	a:hover {
 		text-decoration-color: white;
