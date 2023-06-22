@@ -103,6 +103,7 @@
 			right: 0;
 			z-index: 1;
 			background: white;
+			font-size: 1.2em;
 			ul {
 				flex-wrap: nowrap;
 				gap: 1em;
