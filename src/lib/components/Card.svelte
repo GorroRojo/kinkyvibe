@@ -41,7 +41,7 @@
 		height: 15em;
 		width: 100%;
 		background: gray;
-		--cround: calc(var(--round) * 0.7);
+		--cround: calc(var(--round) * .93);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
 		outline: 0 !important;
@@ -64,21 +64,34 @@
 		color: inherit;
 	}
 	.card.mark {
-		border: 3px var(--color, var(--color-2, var(--1))) solid;
+		outline: 0px var(--color, var(--color-2, var(--1))) solid;
+		--shadow-color: var(--color,var(--color-2,var(--1)));
+		box-shadow: 0 0 .3em .2em rgba(0,0,0,.1);
 		height: 100%;
 	}
+	.card.mark:hover {
+		box-shadow: 0em 0em 2em -.3em var(--shadow-color);
+	} 
 	.card:hover {
 		transform: scale(105%);
 	}
 	.card-mark {
 		position: absolute;
-		top: 0;
-		left: 0;
-		border-radius: calc(var(--round) * 0.5) 0;
+		top: -.7em;
+		left: -1em;
+		--radius: calc(var(--round) * .9) ;
+		border-radius: var(--round);
 		padding: 0.2em 0.5em;
 		color: white;
 		background: var(--color, var(--color-2, var(--1)));
 		z-index: 1;
+		scale: 0;
+		opacity: 0;
+		transition: 200ms;
+	}
+	.card.mark:hover .card-mark {
+		opacity: 1;
+		scale: 1;
 	}
 	.tagrow {
 		list-style: none;

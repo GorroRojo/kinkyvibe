@@ -50,9 +50,10 @@
 	.cardrow {
 		display: flex;
 		gap: 1em;
-		padding: 1em;
+		padding: 2em;
 		overflow-x: scroll;
-		overflow-y: scroll;
+		overflow-y: visible;
+		margin: 0;
 		width: 100%;
 	}
 	::-webkit-scrollbar {
@@ -98,7 +99,7 @@
 
 		font-size: 1.2em;
 
-		overflow: show;
+		overflow: visible;
 
 		color: var(--color-1, var(--2));
 		background: white;
