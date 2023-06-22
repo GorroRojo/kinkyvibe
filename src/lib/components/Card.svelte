@@ -1,30 +1,43 @@
 <script>
+	import { onMount } from 'svelte/internal';
+	import Tag from './Tag.svelte';
 	import Tags from './Tags.svelte';
 	export let post;
 	let {
-		path:href,
+		path: href,
 		meta: { tags, tagsConfig, featured: src },
 		mark
 	} = post;
-	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined
+	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	let mounted = false;
+	onMount(() => (mounted = true));
 </script>
 
-<a {href} class:mark>
+<a {href} class="card {mark ? 'mark' : ''}">
 	{#if mark}
-		<span>{mark}</span>
+		<span class="card-mark">{mark}</span>
 	{/if}
-	<img {src} alt="" />
+	<img class="card-img" {src} alt="" />
 	<slot />
 	{#if tags}
-		<Tags {tags} {tagsConfig} {mark} ref="tags" --color="var(--color-2)" />
+		<!-- <div class="tags"><Tags {tags} {tagsConfig} {mark} --color="var(--color-2)" /></div> -->
+		<ul class="tagrow">
+			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
+				{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
+				<li style:--tag-color={color} style:white-space={'nowrap'}>
+					<Tag {tag} isLink={mounted} />
+				</li>
+			{/each}
+		</ul>
 	{/if}
 </a>
 
-<style lang="scss">
+<style>
 	:root {
 		--round: 1rem;
 	}
-	img {
+	.card-img {
 		height: 10em;
 		width: 100%;
 		background: gray;
@@ -34,7 +47,7 @@
 		outline: 0 !important;
 		object-fit: cover;
 	}
-	a {
+	.card {
 		display: flex;
 		justify-content: flex-start;
 		flex-direction: column;
@@ -49,15 +62,15 @@
 		transform: scale(100%);
 		text-decoration: none;
 		color: inherit;
-		&.mark {
-			border: 3px var(--color, var(--color-2, var(--1))) solid;
-			height: 100%;
-		}
-		&:hover {
-			transform: scale(105%);
-		}
 	}
-	span {
+	.card.mark {
+		border: 3px var(--color, var(--color-2, var(--1))) solid;
+		height: 100%;
+	}
+	.card:hover {
+		transform: scale(105%);
+	}
+	.card-mark {
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -66,5 +79,22 @@
 		color: white;
 		background: var(--color, var(--color-2, var(--1)));
 		z-index: 1;
+	}
+	.tagrow {
+		list-style: none;
+		padding: 0;
+		display: flex;
+		font-size: 0.8em;
+		/* padding: 0 0.4em; */
+		overflow-x: scroll;
+		overflow-y: hidden;
+		position: absolute;
+		bottom: -1em;
+		left: 0;
+		width: var(--card-width);
+		transition: 100ms;
+	}
+	.tagrow::-webkit-scrollbar {
+		display: none;
 	}
 </style>

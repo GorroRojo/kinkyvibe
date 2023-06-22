@@ -1,6 +1,7 @@
 <script>
-    //@ts-nocheck
+	//@ts-nocheck
 	export let isCheckbox = false;
+	export let isLink = false;
 	export let tag = '';
 	export let name = tag;
 	export let checked = false;
@@ -8,7 +9,9 @@
 	/**
 	 * @type function
 	 */
-	export let onInput= ()=>{return};
+	export let onInput = () => {
+		return;
+	};
 </script>
 
 {#if isCheckbox}
@@ -16,6 +19,8 @@
 		<input type="checkbox" on:input={onInput} {name} bind:checked />
 		{tag}
 	</label>
+{:else if isLink}
+	<a class="tag" href="/todo?tags={tag}" class:noBorder>{tag}</a>
 {:else}
 	<!-- <a {href}> -->
 	<span class="tag" class:noBorder>
@@ -30,7 +35,7 @@
 		border-radius: var(--border-radius, 2em);
 		user-select: none;
 		display: inline-block;
-		flex: 1 1;
+		/* flex: 1 1; */
 	}
 	.tag.noBorder {
 		border: 0;
@@ -44,14 +49,19 @@
 		outline: var(--off-outline, none);
 		outline-offset: var(--off-outline-offset, 0);
 	}
+	a.tag,
 	label.tag:has(:checked),
 	span.tag {
 		background: var(--fill-color, var(--tag-color, var(--1)));
 		color: var(--filled-text-color, white);
 		outline: var(--filled-outline, none);
 		outline-offset: var(--filled-outline-offset, 0);
+		text-decoration-color: transparent;
 	}
 	input {
 		display: none;
+	}
+	a:hover {
+		text-decoration-color: white;
 	}
 </style>

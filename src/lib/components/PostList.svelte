@@ -2,7 +2,7 @@
 	//@ts-nocheck
 	export let posts = [];
 	export let filter = false;
-	import { fly } from 'svelte/transition';
+	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
@@ -36,9 +36,8 @@
 <ul id="posts">
 	{#each tagFilteredPosts as post, i (post.path)}
 		<li
-			animate:flip={{ duration: 700 }}
-			in:fly={{ y: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-			out:fly={{ y: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
+		in:scale|local={{delay: i*100}}
+			animate:flip={{ duration: 500 }}
 		>
 			<PostListItem {post} />
 		</li>

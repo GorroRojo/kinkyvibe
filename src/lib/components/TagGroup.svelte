@@ -1,10 +1,12 @@
 <script>
+	import FilterBar from './FilterBar.svelte';
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { visibleTags } from '$lib/utils/stores';
 	import { cubicOut } from 'svelte/easing';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte/internal';
 
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
@@ -91,8 +93,9 @@
 				(s.members && s.members.length > 0) ||
 				(s.sub && s.sub.length > 0 && s.sub.some((ss) => isVisible(ss)))
 		);
+	let mounted = false;
+	onMount(() => (mounted = true));
 </script>
-
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
@@ -119,15 +122,26 @@
 					<ul class={list.classname} in:scale={{ duration: 500 }}>
 						{#each list.items as item (typeof item == 'string' ? item : item.name)}
 							<li in:scale={{ duration: 500 }}>
-								{#if typeof item == /**@ts-ignore*/ 'string'}
-									<Tag
-										tag={item}
-										noBorder
-										onInput={(evt) => onInput(evt, item)}
-										isCheckbox={true}
-										checked={$page.url.searchParams.has('tags') &&
-											$page.url.searchParams.get('tags')?.split(',').includes(item)}
-									/>
+								{#if typeof item == 'string'}
+									{#if mounted}
+									{@const dummy = /**@ts-ignore*/ false}
+										<Tag
+											onInput={(evt) => onInput(evt, item)}
+											tag={item}
+											isCheckbox
+											checked={$page.url.searchParams.has('tags') &&
+												$page.url.searchParams.get('tags')?.split(',').includes(item)}
+											noBorder
+											isLink={!mounted}
+										/>
+									{:else}
+										<Tag tag={item}
+										--filled-text-color='var(--text-color, var(--tag-color))'
+										--filled-outline='none'
+										--filled-outline-offset='0'
+										--fill-color='transparent'
+										/>
+									{/if}
 								{:else}
 									<svelte:self
 										group={item}
@@ -154,6 +168,7 @@
 		font-family: sans-serif;
 	}
 	.filtergroup.noname {
+		outline: 0;
 		background: transparent;
 	}
 	.filtergroup:has(> .groupname :checked) {
@@ -183,11 +198,12 @@
 		min-width: 0;
 	}
 	.subgroups {
-		flex-direction: row;
+		flex-direction: column;
+		align-items: center;
 		row-gap: 0.3em;
 		column-gap: 0.3em;
 	}
-	ul:has(li) {
+	:global(.filterbar .filtergroup ul:has(li)) {
 		margin: 0;
 		opacity: 1;
 	}
@@ -204,7 +220,7 @@
 		list-style: none;
 		text-align: center;
 		display: flex;
-		height: 0;
+		/* height: 0; */
 	}
 	:global(.filtergroup .groupitems li:has(li)),
 	:global(.filtergroup .groupitems li:has(label)) {

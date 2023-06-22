@@ -2,11 +2,12 @@
 	import '$lib/types.d.js';
 	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
-	import { flip } from 'svelte/animate';
 	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
+	// @ts-ignore
 	import { page } from '$app/stores';
+	// @ts-ignore
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
@@ -38,7 +39,9 @@
 			css: (t, u) => {
 				const x = u * dx;
 				const y = u * dy;
+				// @ts-ignore
 				const sx = t + (u * from.width) / to.width;
+				// @ts-ignore
 				const sy = t + (u * from.height) / to.height;
 
 				return `transform: ${transform} translate(${x}px,${y}px)`; //${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
@@ -55,6 +58,7 @@
 			orphanTags = getOrphanTags(v);
 			filteredGroups = filterGroups($tagsConfig.groups, v);
 		});
+		// @ts-ignore
 		page.subscribe((p)=>{
 			if ($page.url.searchParams.has('tags')) {
 				if ($page.url.searchParams.get('tags') != ''){
@@ -163,15 +167,15 @@
 		display: flex;
 		flex-wrap: wrap;
 		width: 100%;
+		/* height: 10rem; */
 		justify-content: center;
-		align-items: flex-start;
+		align-items: center;
 		--gap: 0.7em;
 		gap: var(--gap);
 		column-gap: calc(var(--gap) * 0.8);
 		--tag-color: var(--1, indigo);
 	}
 	.filterbar div {
-		height: 4em;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;

@@ -7,6 +7,8 @@
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
 	import Tags from './Tags.svelte';
+	import Tag from './Tag.svelte'
+	import { onMount } from 'svelte/internal';
 	const date = start ? addHours(new Date(start), 3) : published_date;
 	if (tags.includes('KinkyVibe')) {
 		mark = mark ? mark : 'KinkyVibe';
@@ -14,6 +16,8 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	let mounted = false;
+	onMount(()=>mounted=true)
 </script>
 
 <a
@@ -44,11 +48,37 @@
 		<p class="summary">{summary}</p>
 	{/if}
 	<div class="tags">
-		<Tags {tags} {tagsConfig} {mark} />
+		<ul class="tagrow">
+			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
+				{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
+				<li style:--tag-color={color} style:white-space={'nowrap'}>
+					<Tag {tag} isLink={mounted} />
+				</li>
+			{/each}
+		</ul>
 	</div>
 </a>
 
 <style lang="scss">
+	.tagrow {
+		list-style: none;
+		padding: 0;
+		display: flex;
+		font-size: 0.8em;
+		/* padding: 0 0.4em; */
+		overflow-x: scroll;
+		overflow-y: hidden;
+		gap: .3em;
+		/* position: absolute; */
+		/* bottom: -1em; */
+		/* left: 0; */
+		/* width: var(--card-width); */
+		transition: 100ms;
+	}
+	.tagrow::-webkit-scrollbar {
+		display: none;
+	}
 	.post {
 		--post-color: var(--2);
 		position: relative;
@@ -65,6 +95,7 @@
 
 		margin-inline: auto;
 		padding-top: 1.7em;
+		padding-right: 1em;
 
 		list-style: none;
 		background: white;
@@ -123,7 +154,7 @@
 		height: 1.7em;
 		display: flex;
 		align-items: center;
-		padding-left: 1.5em;
+		padding-inline: 1.5em;
 		color: white;
 		* {
 			display: inline;
