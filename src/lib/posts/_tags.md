@@ -15,20 +15,27 @@ groups:
           - Shibari
           - electro
         sub:
-        - name: impacto
-          members:
-          - caning 
+          - name: impacto
+            members:
+              - caning
   - name: idioma
     members:
       - inglés
       - espanol
     color: darkblue
-  - name: evento
+  - name: calendario
     color: salmon
-    members:
-      - Picantearla
-      - porno
-  - name: Educadores
+    sub:
+      - name: tipo
+        members: ['cine', 'taller', 'evento', 'charla', 'debate', 'picnic']
+      - name: 'nombreevento'
+        members: ['Picantearla', 'Cine para Sucixs']
+  - name: material
+    members: ['guía', 'artículo', 'libro']
+    color: 'var(--3-dark)'
+  - name: amigues
+    members: ['educadores']
+    color: 'var(--2)'
 tags:
   KinkyVibe:
     color: var(--1)
@@ -54,6 +61,8 @@ tags:
     aliasOf: shibari
   Educadores:
     aliasOf: educadores
+  articulo:
+    aliasOf: 'artículo'
 ---
 
 Wow
