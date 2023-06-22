@@ -1,6 +1,6 @@
 <script>
-	//@ts-nocheck
 	import {
+		ArrowLeft,
 		ArrowRight,
 		BookOpen,
 		Heart,
@@ -12,11 +12,12 @@
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
 	import { filteredTags, tagsConfig } from '$lib/utils/stores';
-	import { onMount } from 'svelte';
+	// @ts-ignore
+	import { navigating } from "$app/stores";
 	export let data;
 	// onMount(() => {
 	tagsConfig.set(data.tagsConfig);
@@ -65,6 +66,9 @@
 		]}
 	/>
 </header>
+{#if data.currentRoute != '/'}
+	<a class="back" href={$navigating?.from?.url ?? '/'}><ArrowLeft size="20" style="translate: 0 .3em" /> Inicio</a>
+{/if}
 {#key data.currentRoute}
 	<main in:fade={{ duration: 300, delay: 300 }}>
 		<slot />
@@ -81,7 +85,20 @@
 		width: 100%;
 		text-decoration: none;
 	}
-
+	a.back {
+		display: block;
+		width: 100%;
+		max-width: 800px;
+		margin: 0 auto 0em;
+		/* padding-left: 1em; */
+		color: var(--2);
+		text-decoration: none;
+	}
+	@media (max-width:680px) {
+		a.back {
+			display:none;
+		}
+	}
 	:global(*:not(code *)) {
 		box-sizing: border-box;
 		font-family: 'Lato', sans-serif;

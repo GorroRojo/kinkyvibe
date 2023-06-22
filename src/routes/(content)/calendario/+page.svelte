@@ -23,8 +23,6 @@
 	}, {});
 </script>
 
-<a class="back" href="/"><ArrowLeft size="20" style="translate: 0 .3em" /> Volver</a>
-
 <svelte:head>
 	<title>KinkyVibe.ar - Calendario</title>
 </svelte:head>

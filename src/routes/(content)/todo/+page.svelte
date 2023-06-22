@@ -5,8 +5,6 @@
 	import PostList from '$lib/components/PostList.svelte';
 </script>
 
-<a class="back" href="/"><ArrowLeft size="20" style="translate: 0 .3em" /> Volver</a>
-
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
