@@ -11,61 +11,60 @@
 
 <div
 	{id}
-	in:fly={{ x: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-	out:fly={{ x: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
+	in:fly={{ y: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
+	out:fly={{ y: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
+	class="cardrowcontainer"
 >
 	{#if title}
-		<h2>
+		<h2 class="cardrow_title">
 			{title}
 		</h2>
 	{/if}
-	<ul>
+	<ul class="cardrow">
 		{#each items as post, i}
-			<li>
+			<li class="cardcontainer">
 				<Card {post}>
-					<h3>{post.meta.title}</h3>
+					<h3 class="card-title">{post.meta.title}</h3>
 				</Card>
 			</li>
 		{/each}
 	</ul>
-	<a {href}>...ver más</a>
+	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
 </div>
 
 <style>
 	:root {
 		--card-width: 200px;
 	}
-	:global([ref='tags']) {
-		position: absolute;
-		bottom: -1em;
-		left: 0;
-		width: var(--card-width);
-		transition: 100ms;
-	}
-	div {
+	.cardrowcontainer {
 		background: var(--color-1, var(--2));
 		padding: 1em;
 		border-radius: 0.5em;
 		position: relative;
-		margin: 4em 0 1em 0;
+		margin: 0em 0 1em 0;
+	}
+	.card-title {
+		margin: 1em;
 	}
 
-	ul {
+	.cardrow {
 		display: flex;
 		gap: 1em;
-		padding: 1em;
+		padding: 2em;
 		overflow-x: scroll;
-		overflow-y: scroll;
+		overflow-y: visible;
+		margin: 0;
 		width: 100%;
 	}
 	::-webkit-scrollbar {
 		display: none;
 	}
 
-	li {
+	.cardcontainer {
 		width: var(--card-width);
 		flex: 1;
-		display: block;
+		display: flex;
+		justify-content: center;
 		padding-bottom: 1em;
 		position: relative;
 		overflow: visible;
@@ -85,13 +84,13 @@
 		top: 0;
 		border-radius: 0 0.5em 0.5em 0;
 	}
-	ul:has(+ a:hover)::after {
+	.cardrowcontainer:has(+ a:hover)::after {
 		width: 40%;
 	}
 
-	h2 {
+	.cardrow_title {
 		display: block;
-		margin: 0;
+		margin: 0em;
 		padding: 0.5rem 1rem;
 		/* height: em; */
 
@@ -100,17 +99,14 @@
 
 		font-size: 1.2em;
 
-		overflow: show;
+		overflow: visible;
 
 		color: var(--color-1, var(--2));
 		background: white;
 		border: 3px var(--color-1, var(--2)) solid;
 		border-radius: 1rem;
 	}
-	h3 {
-		margin: 1em;
-	}
-	a {
+	.btn-more {
 		display: block;
 		position: absolute;
 		right: -0.5rem;
@@ -131,10 +127,10 @@
 		text-decoration: none;
 		font-weight: normal;
 	}
-	a:hover {
+	.btn-more:hover, .btn-more:focus {
 		transform: scale(105%) translateX(-0.4em);
 	}
-	a:active {
+	.btn-more:active {
 		filter: brightness(90%);
 		background: var(--1);
 	}

@@ -2,7 +2,7 @@
 published_date: 2021-05-20
 #updated_date: 2023-11-04
 title: BDSM - Una Introducción Amorosa
-summary: 
+summary: Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #

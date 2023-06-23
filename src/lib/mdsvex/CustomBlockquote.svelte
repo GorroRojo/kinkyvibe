@@ -5,7 +5,7 @@
 <style>
     blockquote {
 		padding: 0rem;
-		margin: 5rem 2rem;
+		margin: 2rem 2rem;
         margin-bottom: 1rem;
 		position: relative;
 		--quotes-size: 2em;
@@ -14,7 +14,7 @@
 		line-height: 1.6;
 		word-spacing: 2px;
 		font-style: italic;
-		font-size: 2em;
+		/* font-size: 2em !important; */
 	}
     :global(.cblockquote + .cblockquote) {
         margin-top: 1rem;
