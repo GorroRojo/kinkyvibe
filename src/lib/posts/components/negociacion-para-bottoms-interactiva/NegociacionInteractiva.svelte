@@ -9,7 +9,7 @@
 	import Leaf from './Leaf.svelte';
 	let name = 'world';
 	let prompts = [];
-	let currentPage = 18;
+	let currentPage = 0;
 	import { pages } from './frases.js';
 	import { goto } from '$app/navigation';
 	let textinput = () => ({ component: TextInput, content: '' });
@@ -182,6 +182,7 @@
 	}
 	button {
 		display: none;
+		cursor: pointer;
 	}
 	.negociacioninteractiva {
 		display:grid;
