@@ -8,6 +8,8 @@ export const pages = [
   <p> Esto, en mi opinión, <strong>no suplanta una negociación en persona</strong>. Sino que por el contrario puede ser un gran medio a través del cual tener una negociación. ¡Podés completarlo enfrente de la otra persona e ir charlando! Creo que puede ser un buen medio/disparador para tener una conversación sobre qué queremos y qué nos gusta.</p>
   <p> Por último: <strong>LA GUÍA NO ES PERFECTA</strong>. Es solo la opinión de un puñado de personas teniendo en cuenta múltiples experiencias Hay algunas cosas que la lista da por sentado. Instamos a las personas a tener prácticas de kink/bdsm con comunicación, consentimiento, precaución y cuidado</p>
   <p>Mi telegram es: <a href="https://t.me/demonweb" target="_blank">@demonweb</a></p>
+
+  <p>Para comenzar, apretá en siguiente!</p>
     `
 	},
 	{
