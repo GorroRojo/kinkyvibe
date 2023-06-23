@@ -1,14 +1,9 @@
 <script>
-	import NegociacionInteractiva from './NegociacionInteractiva.svelte';
-	// import "./global.css";
+	//@ts-nocheck
 	import TextInput from './TextInput.svelte';
 	import MarkInput from './MarkInput.svelte';
-	import { scale } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
 	import Phrase from './Phrase.svelte';
 	import Leaf from './Leaf.svelte';
-	let name = 'world';
-	let prompts = [];
 	let currentPage = 0;
 	import { pages } from './frases.js';
 	import { goto } from '$app/navigation';
@@ -72,31 +67,32 @@
 	}
 	let y = 0;
 </script>
-<div id="top"></div>
+
+<div id="top" />
 <svelte:window bind:scrollY={y} />
 <div class="stepper">
-		{#if currentPage > 0}<button
-				on:click={() => {
-					currentPage--;
-					goto('#top');
-				}}>Anterior</button
-			>{/if}
-		<div>{currentPage + 1} / {pages.length}</div>
-		{#if currentPage < pages.length - 1}
-			<button
-				on:click={() => {
-					currentPage++;
-					goto('#top');
-				}}>Siguiente</button
-			>
-		{:else}
-			<button
-				style:color="color-mix(in srgb, var(--good) 10%, white)"
-				style:background="color-mix(in srgb, var(--good) 50%, black)"
-				on:click={() => window.print()}>Exportar respuestas</button
-			>
-		{/if}
-	</div>
+	{#if currentPage > 0}<button
+			on:click={() => {
+				currentPage--;
+				goto('#top');
+			}}>Anterior</button
+		>{/if}
+	<div class="stepnumber">{currentPage + 1} / {pages.length}</div>
+	{#if currentPage < pages.length - 1}
+		<button
+			on:click={() => {
+				currentPage++;
+				goto('#top');
+			}}>Siguiente</button
+		>
+	{:else}
+		<button
+			style:color="white"
+			style:background="var(--1)"
+			on:click={() => window.print()}>Exportar respuestas</button
+		>
+	{/if}
+</div>
 <div class="negociacioninteractiva">
 	{#each pages as page, i}
 		<div class="page" class:current={currentPage == i}>
@@ -109,9 +105,10 @@
 				{/each}
 			</ul>
 		</div>
-    {/each}
-  </div>
-	<!-- <div class="stepper">
+	{/each}
+</div>
+
+<!-- <div class="stepper">
 		{#if currentPage > 0}<button
 				on:click={() => {
 					currentPage--;
@@ -138,7 +135,7 @@
 <style>
 	.negociacioninteractiva {
 		position: relative;
-    font-size: 1.5rem;
+		font-size: 1.5rem;
 		--good: green;
 		--bad: coral;
 		--neutral: gold;
@@ -146,12 +143,12 @@
 		--bad-decoration: 2px line-through color-mix(in srgb, var(--bad) 60%, white);
 		scroll-behavior: smooth;
 	}
-  :global(.negociacioninteractiva *) {
-    max-width: 100%;
-  }
+	:global(.negociacioninteractiva *) {
+		max-width: 100%;
+	}
 	:global(.negociacioninteractiva a) {
 		color: currentcolor;
-		text-decoration-color: salmon;
+		text-decoration-color: var(--1);
 	}
 	:global(.negociacioninteractiva a:visited) {
 		color: currentcolor;
@@ -173,7 +170,7 @@
 		/* display: none; */
 		justify-content: space-between;
 		align-items: center;
-    width: 100%;
+		width: 100%;
 		/* bottom: 0; */
 		/* left: 0em; */
 		/* right: 0em; */
@@ -185,8 +182,8 @@
 		cursor: pointer;
 	}
 	.negociacioninteractiva {
-		display:grid;
-    grid-template-areas: 'page';
+		display: grid;
+		grid-template-areas: 'page';
 	}
 	ul {
 		padding: 0 0.1em;
@@ -212,11 +209,11 @@
 			padding: 1em;
 			margin-block: 1em;
 			font-size: 1em;
-      background-color: var(--3);
-      border-radius: 1em;
-      border: 0;
-      color: white;
-      font-size: 1.2em;
+			background-color: var(--2);
+			border-radius: 1em;
+			border: 0;
+			color: white;
+			font-size: 1.2em;
 		}
 		:global(.negociacioninteractiva li:has(.true)),
 		:global(.negociacioninteractiva li:has(.indeterminate)),
@@ -228,10 +225,16 @@
 		}
 		.stepper {
 			display: flex;
-      position: sticky; top: 0;
-      background: #eee;
-      z-index: 2;
-      border-bottom: 2px solid var(--3) ;
+			position: sticky;
+			top: 0;
+			background: #eee;
+			z-index: 2;
+			border-bottom: 2px solid var(--2);
+		}
+		.stepnumber {
+			color: var(--2);
+			font-weight: bold;
+			font-size: 1.5em;
 		}
 		.page {
 			/* position: absolute; */
@@ -242,10 +245,10 @@
 			transition: 300ms;
 			transition-delay: 0ms;
 			padding-bottom: 5em;
-      grid-area:page;
-      height: 0;
-      min-width: 0;
-      min-height: 0;
+			grid-area: page;
+			height: 0;
+			min-width: 0;
+			min-height: 0;
 		}
 		.page.current {
 			opacity: 1;
@@ -253,7 +256,7 @@
 			translate: 1 1;
 			rotate: 0deg;
 			transition-delay: 0ms;
-      height: auto;
+			height: auto;
 		}
 	}
 </style>
