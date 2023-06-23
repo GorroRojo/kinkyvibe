@@ -1,13 +1,41 @@
 ---
 groups:
-  bdsm:
-    members: [seguridad, negociación, impacto, caning]
+  - name: KinkyVibe
+    color: var(--1)
+  - name: BDSM
+    members:
+      - seguridad
+      - negociación
+      - dominación
     color: red
     sub:
-      - practicas:
-          members: [impacto, caning]
-  idioma:
-    members: [inglés, espanol]
+      - name: practicas
+        members:
+          - bondage
+          - Shibari
+          - electro
+        sub:
+          - name: impacto
+            members:
+              - caning
+  - name: idioma
+    members:
+      - inglés
+      - espanol
+    color: darkblue
+  - name: calendario
+    color: salmon
+    sub:
+      - name: tipo
+        members: ['cine', 'taller', 'evento', 'charla', 'debate', 'picnic']
+      - name: 'nombreevento'
+        members: ['Picantearla', 'Cine para Sucixs']
+  - name: material
+    members: ['guía', 'artículo', 'libro']
+    color: 'var(--3-dark)'
+  - name: amigues
+    members: ['educadores']
+    color: 'var(--2)'
 tags:
   KinkyVibe:
     color: var(--1)
@@ -17,10 +45,24 @@ tags:
     aliasOf: KinkyVibe
   BDSM:
     color: red
+  bdsm:
+    aliasOf: BDSM
   guia:
     aliasOf: guía
   negociacion:
     aliasOf: negociación
+  ingles:
+    aliasOf: inglés
+  espanol:
+    aliasOf: 'español'
+  practicas:
+    aliasOf: 'practica'
+  Shibari:
+    aliasOf: shibari
+  Educadores:
+    aliasOf: educadores
+  articulo:
+    aliasOf: 'artículo'
 ---
 
 Wow

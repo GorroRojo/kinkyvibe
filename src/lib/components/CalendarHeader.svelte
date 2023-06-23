@@ -54,7 +54,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin: var(--header-margin, 0 0 2rem 0);
+		margin: var(--header-margin, 0 0 0rem 0);
 		min-width: 0;
 		max-width: 100%;
 		width: 100%;

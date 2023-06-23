@@ -1,89 +1,112 @@
-/** @typedef {{
- * 		title: string,
- * 		summary: string,
- * 		tags: string[] | string,
- * 		category: "material" | "calendario" | "amigues",
- * 		authors: string[] | string,
- * 		featured?: number | string,
- * 		published_date?: Date,
- * 		updated_date?: Date,
- * 		force_unlisted?: boolean,
- * 		force_unpublished?: boolean
- * }} PostData
- */
-/** @typedef {PostData & {
- * 		type: 'descargable' | 'link' | 'contenido',
- * 		link: URL,
- * 		access_date: Date,
- * 		original_published_date: Date
- * }} MaterialPostData
- */
-/** @typedef {PostData & {
- *		status: 'abierto' | 'anunciado' | 'lleno',
- * 		start: string,
- * 		end?: string,
- * 		duration?: Date,
- * 		location?: string,
- * 		link?: URL
- * 		link_text?: string
- * }} CalendarioPostData */
-/** @typedef {PostData & {
- * 		pronoun: string | URL,
- * 		link: URL,
- * 		logo?: URL | number,
- * 		photo?: URL | number,
- * 		email?: string,
- * 		location?: string,
- * 		tel?: string,
- * 		job_title?: string,
- * 		job_role?: string,
- * 		gender_identity?: string | URL,
- * 		bday?: Date,
- * }} AmiguesPostData */
-// TODO affiliation, education, experience, skill
-// import tagConfig from '$lib/posts/_tags.md'
-
-/** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
+import '$lib/types.d.js';
 
 export const fetchTags = async () => {
-	/** @type {*} */
-	var { metadata: tagsConfig } = await Object.entries(
+	//@ts-expect-error
+	var { metadata: tagsConfig } = /** @type {{groups: Group[], tags:*}} */ await Object.entries(
 		import.meta.glob('$lib/posts/_tags.md')
 	)[0][1]();
-	return tagsConfig;
+	let alias = aliaserFactory(tagsConfig);
+	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group) =>
+		groupMap(group, (g) => {
+			const name = alias(g.name);
+			const members = g.members?.map(alias);
+			if (members) return { ...g, name, members };
+			else return { ...g, name, members: [] };
+		})
+	);
+	return { ...tagsConfig, groups: aliasedGroups };
 };
+
+/**Calls fn for the group and every subgroup and returns the resulting group.
+ * @param {Group} group
+ * @param {(group: Group)=>Group|false} fn
+ * @returns {any}
+ */
+export function groupMap(group, fn) {
+	let mappedSubs = [];
+	let mappedGroup = fn(group);
+	if (mappedGroup === false) return false;
+	if (group.sub && group.sub.length > 0) {
+		for (const sub of group.sub) {
+			const neoSub = groupMap(sub, fn);
+			if (neoSub != false) mappedSubs.push(neoSub);
+		}
+		return {
+			...mappedGroup,
+			sub: mappedSubs,
+			members: mappedGroup.members ?? []
+		};
+	} else {
+		return { ...mappedGroup, members: mappedGroup.members ?? [], sub: [] };
+	}
+}
+
+/**
+ *
+ * @param {string} postSlug
+ * @param {string | number} assetID
+ * @param {Record<string,any> | false} allThumbs
+ */
+export const thumbURL = (postSlug, assetID, allThumbs = false) => {
+	if (!allThumbs) {
+		allThumbs = import.meta.glob([
+			'$lib/posts/media/*/*.jpeg',
+			'$lib/posts/media/*/*.jpg',
+			'$lib/posts/media/*/*.png',
+			'$lib/posts/media/*/*.webp'
+		], { eager: true, as: 'url' });
+	}
+	let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
+	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
+};
+
+/**
+ * @param {*} tagsConfig
+ * @returns {(tag: string)=>string}
+ */
+export function aliaserFactory(tagsConfig) {
+	return (tag) => {
+		let result = tag;
+		let max = 20;
+		while (
+			Object.hasOwn(tagsConfig.tags, result) &&
+			Object.hasOwn(tagsConfig.tags[result], 'aliasOf')
+		) {
+			result = tagsConfig.tags[tag].aliasOf;
+			if (max-- < 0) {
+				console.error('too many aliases: ' + tag);
+				break;
+			}
+			max--;
+		}
+		return result;
+	};
+}
 
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
-	var allThumbs = import.meta.glob(
-		['$lib/posts/media/*/*.jpeg', '$lib/posts/media/*/*.png', '$lib/posts/media/*/*.webp'],
-		{ eager: true, as: 'url' }
-	);
-
-	/**
-	 * @param {string} postSlug
-	 * @param {number|string} assetID
-	 * @return {*}
-	 */
-	function thumbURL(postSlug, assetID) {
-		let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
-		return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
-	}
+	var allThumbs = import.meta.glob([
+		'$lib/posts/media/*/*.jpeg',
+		'$lib/posts/media/*/*.jpg',
+		'$lib/posts/media/*/*.png',
+		'$lib/posts/media/*/*.webp'
+	], { eager: true, as: 'url' });
 
 	let validatedPosts = await validateAll(allPosts);
 	const tagsConfig = await fetchTags();
+	const alias = aliaserFactory(tagsConfig);
 	validatedPosts = validatedPosts.map((post) => {
 		let { featured, tags } = post.meta;
 		if (featured && (featured + '').length < 3) {
-			featured = thumbURL(post.path, featured);
+			featured = thumbURL(post.path, featured, allThumbs);
 		}
+		if (Array.isArray(tags)) tags = tags.map(alias);
 		tags = [...tags].sort();
-		// TODO filter tags config to only relevant config
-		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig}  };
+		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
 	});
 	// TODO performance, i'm looping way way way too many times
-	return validatedPosts;
+	return [...validatedPosts];
 };
 
 /**

@@ -2,59 +2,42 @@
 	//@ts-nocheck
 	export let posts = [];
 	export let filter = false;
-	import { fly } from 'svelte/transition';
+	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
+	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
+	import FilterBar from './FilterBar.svelte';
 	/** @type {[]} */
-	let positiveTagFilters = [];
 	function togglePositiveTagFilter(tag) {
-		let iOf = positiveTagFilters.indexOf(tag);
-		if (iOf == -1) {
-			positiveTagFilters = [...positiveTagFilters, tag];
-		} else {
-			positiveTagFilters = [
-				...positiveTagFilters.slice(0, iOf),
-				...positiveTagFilters.slice(iOf + 1)
-			];
-		}
+		filteredTags.update((fTags) =>
+			fTags.includes(tag)
+				? [...fTags, tag]
+				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
+		);
 	}
 	$: outerFilteredPosts = posts.filter(
 		(p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
-	$: tags = Array.from(new Set(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], [])));
-	$: tagsConfig = tagFilteredPosts
-		.map((p) => p.meta.tagsConfig)
-		.reduce((sum, curr) => ({ ...sum, ...curr }), {});
-	$: tagFilteredPosts = outerFilteredPosts.filter((p) => {
-		if (positiveTagFilters == []) {
-			return true;
-		} else {
-			const matchedTags = p.meta.tags.filter((t) => positiveTagFilters.includes(t));
-			return matchedTags.length == positiveTagFilters.length;
-		}
-	});
+
+	let uniq = (arr) => [...new Set(arr)];
+	$: visibleTags.set(uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))));
+	// $: tags = [...new Set(nonAliasTags)];
+	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
+		$filteredTags && $filteredTags.length == 0
+			? true
+			: $filteredTags.every((f) => p.meta.tags.includes(f))
+	);
 </script>
 
-<form>
-	{#each [...tags].sort() as tag (tag)}
-		{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
-		{@const color = config?.color ? config.color : 'var(--color,var(--2))'}
-		<label style:--tag-color={color} animate:flip={{ duration: 600 }}
-			><input
-				type="checkbox"
-				on:click={() => togglePositiveTagFilter(tag)}
-				name={tag}
-				checked={positiveTagFilters.includes(tag)}
-			/>{tag}</label
-		>
-	{/each}
-</form>
+<div id="filterbar">
+	<FilterBar />
+</div>
+
 <ul id="posts">
 	{#each tagFilteredPosts as post, i (post.path)}
 		<li
-			animate:flip={{ duration: 300 }}
-			in:fly={{ x: ((i % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-			out:fly={{ x: ((i % 2) - 0.5) * 2 * -200, duration: 300 }}
+		in:scale|local={{delay: i*100}}
+			animate:flip={{ duration: 500 }}
 		>
 			<PostListItem {post} />
 		</li>
@@ -62,43 +45,18 @@
 </ul>
 
 <style lang="scss">
+	#filterbar {
+		margin-top: 3em;
+		/* height: 7em; */
+	}
 	#posts {
 		display: flex;
 		gap: 3em;
 		flex-direction: column;
 		padding: 0;
+		margin-top: 3em;
 	}
 	li {
 		list-style: none;
-	}
-	form {
-		margin-top: 2em;
-		font-size: 0.9em;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.3em;
-		justify-content: center;
-		border-radius: 1em;
-		/* background: white; */
-		padding: 5px;
-		input {
-			display: none;
-		}
-		label {
-			--tag-color: var(--2);
-			padding: 0.5em 0.7em;
-			background: transparent;
-			border-radius: 1em;
-			outline: 1px solid var(--tag-color);
-			color: var(--tag-color);
-			transition: 300ms;
-			cursor: pointer;
-			/* width: 100px; */
-			&:has(:checked) {
-				color: white;
-				outline: none;
-				background: var(--tag-color);
-			}
-		}
 	}
 </style>

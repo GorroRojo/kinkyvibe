@@ -1,14 +1,16 @@
 <script>
-	//@ts-nocheck
+	// @ts-nocheck
+	import { ArrowLeft } from 'lucide-svelte';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { addDays, format, isSameMonth } from 'date-fns';
+	import { addDays, format, isSameMonth, isPast } from 'date-fns';
 	import { view_date } from '$lib/utils/stores.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
+	import CardRow from '$lib/components/CardRow.svelte';
 	// const vd = writable(new Date());
 	export let data;
 	// let view_date;
-	data.days = data.posts.reduce((dates, post, i) => {
+	let days = data.posts.reduce((dates, post, i) => {
 		let start_date = new Date(post.meta.start);
 		start_date = format(addDays(start_date, 1), 'yyyy-MM-dd');
 		// post.meta.start_time = format(start_date, 'hh:mm');
@@ -25,20 +27,26 @@
 <svelte:head>
 	<title>KinkyVibe.ar - Calendario</title>
 </svelte:head>
+
+<div class="cardrow">
+	<CardRow
+		items={data.posts.filter((p) => !isPast(new Date(p.meta.start)))}
+		--color-1="transparent"
+	/>
+</div>
+
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader />
 		<Calendar let:date let:today let:past>
-			{@const events = data.days[date]}
+			{@const events = days ? days[date] : []}
 			<button
 				class:today
 				class:past
 				disabled={!events}
-				on:click={() =>
-					alert(
-						`You selected the date ${date.toLocaleDateString(undefined)}.` +
-							(today ? `\nThis date is today!` : '')
-					)}
+				style={events && events.length > 0 && events[0].meta.featured
+					? `--event-image: url("${events[0].meta.featured}");`
+					: ''}
 			>
 				<div class="date" class:today>
 					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
@@ -54,14 +62,14 @@
 						})()} -->
 						<a href={'#' + event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
 							<span>
+								{event.meta.title ?? ' '}
+								&sdot;
 								<strong
 									>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
 										start,
 										'aaa'
 									)}</strong
 								>
-								&sdot;
-								{event.meta.title ?? ' '}
 							</span>
 						</a>
 					{/each}
@@ -85,22 +93,10 @@
 </div>
 
 <style lang="scss">
-	@media (min-width: 1200px) {
-		#container {
-			display: grid;
-			grid-template-areas: 'postlist calendar';
-			grid-template-columns: 1fr 1fr;
-			margin-inline: 1em 3em;
-			gap: 1em;
-		}
-		#calendar {
-			grid-area: calendar;
-			min-width: 0;
-		}
-		#postlist {
-			grid-area: postlist;
-			min-width: 0;
-		}
+	
+	.cardrow {
+		max-width: 1200px;
+		margin-inline: auto;
 	}
 	strong {
 		color: unset;
@@ -109,6 +105,10 @@
 		max-width: 800px;
 		margin-inline: auto;
 		/* max-height: 80vh; */
+		height: 40em;
+		margin-bottom: 3em;
+		padding-bottom: 3em;
+		width: 100%;
 		min-height: 0;
 		min-width: 0;
 		/* overflow: hidden; */
@@ -190,6 +190,36 @@
 				height: 100%;
 				white-space: normal;
 			}
+		}
+		.date {
+			display: none;
+		}
+		background-image: var(--event-image, none);
+		background-position: center center;
+		background-repeat: repeat;
+		background-size: cover;
+	}
+	@media (min-width: 1200px) {
+		#container {
+			display: grid;
+			grid-template-areas: 'postlist calendar';
+			grid-template-columns: 1fr 1fr;
+			margin-inline: 1em 3em;
+			gap: 2em;
+			position: sticky;
+			top: 0;
+		}
+		#calendar {
+			grid-area: calendar;
+			min-width: 0;
+			/* height: min(max(60vw, 30em), 60em); */
+			height: 90vh;
+			position: sticky;
+			top: 0;
+		}
+		#postlist {
+			grid-area: postlist;
+			min-width: 0;
 		}
 	}
 </style>

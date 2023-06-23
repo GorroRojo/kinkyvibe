@@ -14,7 +14,7 @@
 		addDays,
 		isPast
 	} from 'date-fns';
-	import { fly } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
 
 	export let start_on_sunday = true;
@@ -33,32 +33,30 @@
 <!-- <CalendarHeader /> -->
 
 {#key $view_date}
-	<div
-		class="grid"
-		in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
-		out:fly={{ x: -100 * $month_change_direction, duration: 300 }}
-	>
-		{#each WEEK_DAYS as day}
-			<div class="week-days">
-				{day}
-			</div>
-		{/each}
-		{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _}
-			<div class="cell" />
-		{/each}
+<div class="grid">
+	<!-- in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
+	out:fly={{ x: -100 * $month_change_direction, duration: 300 }} -->
+	{#each WEEK_DAYS as day, i}
+		<div class="week-days" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
+			{day}
+		</div>
+	{/each}
+	{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
+		<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }} />
+	{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate($view_date, i + 1)}
 			{@const date = format(date_og, 'yyyy-MM-dd')}
 			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
 			{@const past = isPast(addDays(date_og, 1))}
-			<div class="cell">
+			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
 				<slot {date} {today} {past}>
 					{date_og.toLocaleDateString(undefined, { day: 'numeric' })}
 				</slot>
 			</div>
 		{/each}
 	</div>
-{/key}
+	{/key}
 
 <style>
 	.grid {
@@ -66,20 +64,23 @@
 		grid-template-columns: repeat(7, 1fr);
 		align-items: center;
 		justify-items: center;
+		row-gap: 0em;
+
 		/* width: 100%; */
 		min-width: 0;
-		max-height: 80vh;
 		max-width: 100%;
+
 		height: 100%;
+		/* max-height: 80vh; */
 		min-height: 0;
-		row-gap: 1em;
-		aspect-ratio: 7/5;
+
+		/* aspect-ratio: 7/5; */
 	}
 
 	.week-days {
 		color: var(--week-days-color, gray);
 		font-weight: var(--week-days-font-weight, 600);
-		margin: var(--week-days-margin, 0 0 0.5rem 0);
+		margin: var(--week-days-margin, 0 0 0rem 0);
 	}
 
 	.cell {
