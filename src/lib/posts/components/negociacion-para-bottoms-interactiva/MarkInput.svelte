@@ -6,24 +6,29 @@
 	let checked = false;
 	let indeterminate = false;
 	let state = 'false';
-	let click = ()=>{
-	if (state === 'true') {
-		checked, state = 'indeterminate'
-		indeterminate = true;
-	} else if (state === 'indeterminate') {
-		checked = false;
-		state = 'false';
-		indeterminate = false;
-	} else {
-		checked = true;
-		state = 'true';
-	}
-}
+	let click = () => {
+		if (state === 'true') {
+			state = 'indeterminate';
+			indeterminate = true;
+		} else if (state === 'indeterminate') {
+			checked = false;
+			state = 'false';
+			indeterminate = false;
+		} else {
+			checked = true;
+			state = 'true';
+		}
+	};
 </script>
-<label  class={state}><input on:input|preventDefault={click} bind:checked bind:indeterminate type=checkbox /><slot /></label>
+
+<label class={state}
+	><input on:input|preventDefault={click} bind:checked bind:indeterminate type="checkbox" /><slot
+	/></label
+>
+
 <style>
 	label:has(:focus) {
-		outline: 1px solid white;
+		outline: 1px solid gray;
 	}
 	input {
 		opacity: 0;
@@ -32,14 +37,14 @@
 	}
 	label {
 		display: inline-block;
-		scale: .8;
+		scale: 0.8;
 		margin-inline: 0em;
-		padding: .1em .3em;
-		border-radius: .4em;
+		padding: 0.1em 0.3em;
+		border-radius: 0.4em;
 		cursor: pointer;
 		/* --curr: var(--off); */
 		text-decoration: var(--curr-decoration);
-		opacity: .7;
+		opacity: 0.7;
 		--background-opacity: 5%;
 		--faded-curr: color-mix(in srgb, var(--curr) var(--background-opacity), transparent);
 		background: var(--faded-curr);
@@ -48,17 +53,17 @@
 		user-select: none;
 	}
 	label:hover {
-		scale: .9;
+		scale: 0.9;
 	}
-	label.true{
+	label.true {
 		--curr: var(--good);
-		--background-opacity: 1%;
+		--background-opacity: 10%;
 		text-decoration: none;
 		opacity: 1;
 		scale: 1;
 	}
 	label.indeterminate {
-		--background-opacity: 1%;
+		--background-opacity: 10%;
 		--curr: var(--bad);
 		opacity: 1;
 		scale: 1;

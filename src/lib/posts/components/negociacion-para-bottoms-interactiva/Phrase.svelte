@@ -3,27 +3,33 @@
 	let checked = false;
 	let indeterminate = false;
 	let state = 'false';
-	let click = ()=>{
-	if (state === 'true') {
-		checked, state = 'indeterminate'
-		indeterminate = true;
-	} else if (state === 'indeterminate') {
-		checked = undefined;
-		state = 'false';
-		indeterminate = false;
-	} else {
-		checked = true;
-		state = 'true';
-	}
-}
+	let click = () => {
+		if (state === 'true') {
+			checked, (state = 'indeterminate');
+			indeterminate = true;
+		} else if (state === 'indeterminate') {
+			checked = undefined;
+			state = 'false';
+			indeterminate = false;
+		} else {
+			checked = true;
+			state = 'true';
+		}
+	};
 </script>
 
-	<label class={state}
-		><input on:input|preventDefault={click} bind:checked bind:indeterminate type="checkbox" class="blockcheck" />
-		{#each inputs as input}
-			<svelte:component this={input.component}>{input.content}</svelte:component>
-		{/each}
-	</label>
+<label class={state}
+	><input
+		on:input|preventDefault={click}
+		bind:checked
+		bind:indeterminate
+		type="checkbox"
+		class="blockcheck"
+	/>
+	{#each inputs as input}
+		<svelte:component this={input.component}>{input.content}</svelte:component>
+	{/each}
+</label>
 
 <style>
 	label {
@@ -53,8 +59,7 @@
 		accent-color: var(--curr);
 		cursor: pointer;
 		position: absolute;
-		left: -.5em;
+		left: -0.5em;
 		top: 0.8em;
 	}
-	
 </style>
