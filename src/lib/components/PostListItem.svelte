@@ -11,9 +11,12 @@
 			authors,
 			start,
 			end,
+			status,
 			featured: src,
 			mark,
-			tagsConfig
+			tagsConfig,
+			link,
+			link_text
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
@@ -29,6 +32,7 @@
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
+	let past = start ? isPast(new Date(start)) : false;
 </script>
 
 <a
@@ -54,7 +58,9 @@
 	</div>
 	<img {src} alt="" />
 	<h3>
-		{#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if}{title}
+		<!-- {#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if} -->
+		{#if status && ["cancelado","lleno"].includes(status) || past}<small>{past ? 'TERMINADO' : status.toUpperCase()}</small> {/if}
+		{title}
 	</h3>
 	{#if summary}
 		<p class="summary">{summary}</p>
@@ -70,6 +76,7 @@
 			{/each}
 		</ul>
 	</div>
+	{#if link && link_text && status && status == 'abierto' && !past}<a class="CTA" href={link} target="_blank">{link_text}</a>{/if}
 </a>
 
 <style lang="scss">
@@ -90,6 +97,22 @@
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
+	}
+	.post:has(.CTA) {
+		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta'
+	}
+	.CTA {
+		grid-area: cta;
+		background: var(--post-color);
+		color: white;
+		padding: .5em;
+		border-radius: 1em;
+		outline: 2px dashed var(--post-color);
+		outline-offset: 2px;
+	}
+	.CTA:hover {
+		outline-offset: 4px;
+		/* outline-style: dashed; */
 	}
 	.post {
 		--post-color: var(--2);
@@ -163,11 +186,10 @@
 		.post {
 			grid-template-areas: 'img title' 'img tags';
 			grid-template-rows: 1fr 3em;
-
 		}
 		h3 {
 			align-self: flex-start;
-			padding-top: .2em;
+			padding-top: 0.2em;
 		}
 	}
 	img {
@@ -203,7 +225,8 @@
 		scale: 1;
 		transition: 100ms;
 	}
-	a:hover:not(.past), a:focus {
+	a:hover:not(.past),
+	a:focus {
 		scale: 1.03;
 	}
 </style>
