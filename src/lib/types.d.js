@@ -1,3 +1,6 @@
+/**
+ * @typedef { 'head' |'face' |'neck' |'shoulder-left' |'shoulder-right' |'arm-left' |'forearm-left' |'arm-right' |'forearm-right' |'chest-left' |'chest-right' |'belly-left' |'ribs-left' |'belly-right' |'belly' |'ribs-right' |'thigh-left' |'innerthigh-left' |'feet-left' |'calf-left' |'knee-left' |'thigh-right' |'genitalia' |'innerthigh-right' |'right-feet' |'calf-right' |'knee-right' |'elbow-right' |'hand-right' |'elbow-left' |'hands-left' |'armback-left' |'leg-left' |'buttock' |'loin' |'column' |'head-back' |'nape' |'armback-right' |'leg-right' |'back-right' |'clavicule-right' |'back-left' |'clavicule-left'|string  } BodyPart
+*/
 /**@typedef Group
  * @prop {string} name
  * @prop {string[]} members
@@ -24,7 +27,7 @@
  * @prop {string[]|string} authors
  * @prop {number | string} [featured]
  * @prop {Date} [published_date]
- * @prop {Date} [update_date] 
+ * @prop {Date} [update_date]
  * @prop {boolean} [force_unlisted]
  * @prop {boolean} [force_unpublished]
  */
@@ -59,5 +62,3 @@
  * }} AmiguesPostData */
 // TODO affiliation, education, experience, skill
 /** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
-
-

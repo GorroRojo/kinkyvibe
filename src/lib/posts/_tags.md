@@ -13,11 +13,13 @@ groups:
         members:
           - bondage
           - Shibari
+          - cuchillos
           - electro
         sub:
           - name: impacto
             members:
               - caning
+              - golpes
   - name: idioma
     members:
       - inglés
