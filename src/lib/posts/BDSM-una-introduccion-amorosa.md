@@ -8,6 +8,7 @@ tags:
     - KinkyVibe # etiqueta especial #
     - inicial
     - historia
+layout: material
 category: material
 authors:
     - DemonWeb

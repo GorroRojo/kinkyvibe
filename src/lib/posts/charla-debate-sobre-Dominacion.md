@@ -1,5 +1,6 @@
 ---
 title: Charla Debate sobre Dominación
+layout: calendario
 category: calendario
 organizer:
   - KinkyVibe

@@ -8,6 +8,7 @@ tags:
   - Picantearla
   - evento
   - bdsm
+layout: calendario
 category: calendario
 authors:
   - KinkyVibe

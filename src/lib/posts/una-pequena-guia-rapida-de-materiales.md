@@ -9,6 +9,7 @@ tags:
   - seguridad
   - guia
   - KinkyVibe
+layout: material
 category: material
 authors:
   - DemonWeb

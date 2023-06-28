@@ -9,6 +9,7 @@ tags:
   - taller
   - practicas
   - impacto
+layout: calendario
 category: calendario
 authors:
   - DemonWeb

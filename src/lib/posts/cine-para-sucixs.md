@@ -9,6 +9,7 @@ tags:
   - queer
   - cine
   - Cine para Sucixs
+layout: calendario
 category: calendario
 authors:
   - KinkyVibe

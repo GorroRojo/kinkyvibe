@@ -9,6 +9,7 @@ tags:
     - guía
     - negociación
     - KinkyVibe
+layout: material
 category: material
 authors:
     - DemonWeb

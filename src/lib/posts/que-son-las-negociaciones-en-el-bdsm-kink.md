@@ -7,6 +7,7 @@ tags:
     - BDSM
     - KinkyVibe # etiqueta especial #
     - negociación
+layout: material
 category: material
 authors:
     - DemonWeb

@@ -7,6 +7,7 @@ tags:
   - BDSM
   - Shibari
   - Educadores
+layout: amigues
 category: amigues
 authors:
   - Soguita

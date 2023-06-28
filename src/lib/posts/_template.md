@@ -19,6 +19,7 @@ tags:
     - BDSM
     - KinkyVibe # etiqueta especial que marca las cosas con un highlight #
 
+layout: material
 category: material  # material | calendario | amigues #
 
 authors:
@@ -170,6 +171,7 @@ summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #
+layout: amigues
 category: amigues
 authors:
     - DemonWeb
@@ -201,6 +203,7 @@ summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #
+layout: calendario
 category: calendario
 authors:
     - DemonWeb
@@ -227,6 +230,7 @@ summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
     - BDSM
     - KinkyVibe # etiqueta especial #
+layout: material
 category: material
 authors:
     - DemonWeb

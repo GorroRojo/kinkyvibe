@@ -8,6 +8,7 @@ tags:
     - electro
     - seguridad
     - articulo
+layout: material
 category: material
 authors:
     - BusterBDSM

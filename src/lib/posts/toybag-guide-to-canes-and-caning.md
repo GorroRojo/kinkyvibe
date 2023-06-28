@@ -11,6 +11,7 @@ tags:
   - BDSM
   - guia
   - inglés
+layout: material
 category: material
 authors:
   - Janey W. Hardy
