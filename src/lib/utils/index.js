@@ -56,7 +56,7 @@ export const thumbURL = (postSlug, assetID, allThumbs = false) => {
 			'$lib/posts/media/*/*.webp'
 		], { eager: true, as: 'url' });
 	}
-	let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
+	let regex = new RegExp(`/${postSlug}/${assetID}.\\w+`);
 	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
 };
 
