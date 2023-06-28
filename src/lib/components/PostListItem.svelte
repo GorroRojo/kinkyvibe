@@ -59,7 +59,7 @@
 	<img {src} alt="" />
 	<h3>
 		<!-- {#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if} -->
-		{#if status && ["cancelado","lleno"].includes(status) || past}<small>{past ? 'TERMINADO' : status.toUpperCase()}</small> {/if}
+		{#if status && ["cancelado","lleno"].includes(status) || past}<small>{past && !(status&&status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}</small> {/if}
 		{title}
 	</h3>
 	{#if summary}
