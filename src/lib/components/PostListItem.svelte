@@ -39,6 +39,7 @@
 	href={path}
 	class="post"
 	class:mark
+	class:noimg={!src}
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
@@ -56,10 +57,13 @@
 			</time>
 		{/if}
 	</div>
-	<img {src} alt="" />
+	{#if src}<img {src} alt="" />{/if}
 	<h3>
 		<!-- {#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if} -->
-		{#if status && ["cancelado","lleno"].includes(status) || past}<small>{past && !(status&&status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}</small> {/if}
+		{#if (status && ['cancelado', 'lleno'].includes(status)) || past}<small
+				>{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}</small
+			>
+		{/if}
 		{title}
 	</h3>
 	{#if summary}
@@ -76,7 +80,11 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && link_text && status && status == 'abierto' && !past}<a class="CTA" href={link} target="_blank">{link_text}</a>{/if}
+	{#if link && link_text && status && status == 'abierto' && !past}<a
+			class="CTA"
+			href={link}
+			target="_blank">{link_text}</a
+		>{/if}
 </a>
 
 <style lang="scss">
@@ -99,13 +107,13 @@
 		display: none;
 	}
 	.post:has(.CTA) {
-		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta'
+		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
 	}
 	.CTA {
 		grid-area: cta;
 		background: var(--post-color);
 		color: white;
-		padding: .5em;
+		padding: 0.5em;
 		border-radius: 1em;
 		outline: 2px dashed var(--post-color);
 		outline-offset: 2px;
@@ -143,6 +151,9 @@
 		}
 		&.past {
 			opacity: 0.5;
+		}
+		&.noimg {
+			grid-template-columns: 0 1fr;
 		}
 	}
 	a h3 {
