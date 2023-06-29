@@ -17,13 +17,19 @@
 	export let title;
 	export let tags;
 	export let authors;
+	export let authorsData;
 </script>
 
 <h1>{title}</h1>
 {#if authors}
-	<address>por {authors.length>1?authors.slice(0,authors.length-1).join(', ')+' & ' + authors[authors.length-1]:authors}</address>
+	<address>
+		por {authors.length > 1
+			? authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]
+			: authors}
+	</address>
 {/if}
 <Tags tags={tags.map(aliaserFactory(tagsConfig))} {tagsConfig} />
+
 <slot />
 
 <style lang="scss">
@@ -97,6 +103,10 @@
 		object-fit: contain;
 		object-position: center;
 		border-radius: 1em;
+	}
+	:global(article a) {
+		color: unset;
+		text-decoration-color: var(--1);
 	}
 	:global(article .col-2),
 	:global(article .col-3),
