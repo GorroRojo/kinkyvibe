@@ -17,12 +17,18 @@ export async function GET({ url }) {
 			let result = true;
 			if (params.get('category')) {
 				result &= p.meta.category == params.get('category');
-			}".."
+			}
+			('..');
 			if (params.has('tags')) {
 				result &= params
-					.get('tags').split(",")
+					.get('tags')
+					.split(',')
 					.map((t) => p.meta.tags.includes(t))
 					.reduce((a, b) => a && b);
+			}
+
+			if (params.has('getAuthors')) {
+				allPosts = allPosts.filter((p) => p.meta.logo || p.meta.photo);
 			}
 			return result;
 		});
