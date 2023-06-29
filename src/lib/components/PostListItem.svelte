@@ -16,7 +16,9 @@
 			mark,
 			tagsConfig,
 			link,
-			link_text
+			link_text,
+			category,
+			job_title
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
@@ -37,7 +39,7 @@
 
 <a
 	href={path}
-	class="post"
+	class="post {category}"
 	class:mark
 	class:noimg={!src}
 	id={path}
@@ -45,16 +47,20 @@
 	tabindex="0"
 >
 	<div class="publication">
-		{#if date}
-			<time datetime={start}>
-				{#if start}
-					{format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end), 'HH:mm')}
-				{:else}
-					{authors ? authors.join(', ') : ''}
-					{authors && date ? ' - ' : ''}
-					{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
-				{/if}
-			</time>
+		{#if category != 'amigues'}
+			{#if date}
+				<time datetime={start}>
+					{#if start}
+						{format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end), 'HH:mm')}
+					{:else}
+						{authors ? authors.join(', ') : ''}
+						{authors && date ? ' - ' : ''}
+						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
+					{/if}
+				</time>
+			{/if}
+		{:else}
+			{job_title}
 		{/if}
 	</div>
 	{#if src}<img {src} alt="" />{/if}
@@ -88,6 +94,17 @@
 </a>
 
 <style lang="scss">
+	.post.amigues {
+		border-radius: 999em;
+		padding-top: 0;
+		outline: 2px solid var(--post-color, var(--2));
+		img {
+			border-radius: 10em;
+		}
+		.publication {
+			display:none;
+		}
+	}
 	.tagrow {
 		list-style: none;
 		padding: 0;
