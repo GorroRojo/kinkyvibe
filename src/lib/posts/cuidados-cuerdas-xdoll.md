@@ -86,10 +86,6 @@ Siempre existe la posibilidad de daño nervioso asintomático, en general hay al
 
 *Se recomienda qué si sentimos dolor o tenemos una lesión, esperemos hasta sentirnos mejor antes de seguir practicando. Así como ir al médico en caso de daño grave.*
 
----
-
-<a href="/xdoll"><img src={logo} alt="xdoll" /> Escrito por xdoll</a>
-
 <style>
 .callout {
     display: block;
@@ -107,18 +103,5 @@ Siempre existe la posibilidad de daño nervioso asintomático, en general hay al
 .callout p {
     margin-bottom: 0;
     margin-top: 0;
-}
-a:has(img) {
-  font-size: 2em;
-  text-decoration-color: var(--1);
-  color: unset;
-  display:block;
-  margin-inline: auto;
-  width: auto;
-}
-a img {
-  width: 2em;
-  display: inline-block;
-  translate: 0em .5em ;
 }
 </style>
