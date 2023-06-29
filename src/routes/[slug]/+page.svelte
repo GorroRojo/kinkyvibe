@@ -35,6 +35,7 @@
 	<h1>{data.title}</h1>
 	{#if data.authors && data.category != 'amigues'}
 		<address>
+			{#if data.category == 'calendario'}Organizado{/if}
 			{#await data.authorsData}
 				por {data.authors.length > 1
 					? data.authors.slice(0, data.authors.length - 1).join(', ') +
@@ -60,7 +61,12 @@
 				{/each}
 				<!-- promise was fulfilled -->
 			{/await}
-			&ThickSpace;-&ThickSpace; <time datetime={data.published_date}>{(new Date(data.published_date)).toLocaleDateString('es-AR',{dateStyle: 'long'})}</time>
+			&ThickSpace;-&ThickSpace;
+			<time datetime={data.category == 'material' ? data.published_date : data.start}
+				>{new Date(
+					data.category == 'material' ? data.published_date : data.start
+				).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
+			>
 		</address>
 	{/if}
 	{#if !data.error}
