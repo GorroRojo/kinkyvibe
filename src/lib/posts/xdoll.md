@@ -16,8 +16,8 @@ featured: 1
 #force_unpublished: false
 pronoun: https://pronombr.es/ella
 link: https://instagram.com/xdoll_art_and_ropes/
-# logo:
-#photo: 3
+logo: 2
+photo: 1
 #email: ayuda@kinkyvibe.ar
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #tel: +54 9 11 5555 3333
