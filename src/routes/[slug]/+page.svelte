@@ -1,6 +1,5 @@
 <script>
 	import PostList from '$lib/components/PostList.svelte';
-
 	//@ts-nocheck
 	export let data;
 </script>
@@ -61,6 +60,7 @@
 				{/each}
 				<!-- promise was fulfilled -->
 			{/await}
+			&ThickSpace;-&ThickSpace; <time datetime={data.published_date}>{(new Date(data.published_date)).toLocaleDateString('es-AR',{dateStyle: 'long'})}</time>
 		</address>
 	{/if}
 	{#if !data.error}
