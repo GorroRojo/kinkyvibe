@@ -7,6 +7,7 @@ tags:
   - BDSM
   - Educadores
   - Dominatrix
+  - KinkyVibe
 layout: amigues
 category: amigues
 authors:
