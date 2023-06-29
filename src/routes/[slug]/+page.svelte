@@ -31,7 +31,38 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.tags} />
 </svelte:head>
+
 <article>
+	<h1>{data.title}</h1>
+	{#if data.authors && data.category != 'amigues'}
+		<address>
+			{#await data.authorsData}
+				por {data.authors.length > 1
+					? data.authors.slice(0, data.authors.length - 1).join(', ') +
+					  ' & ' +
+					  data.authors[data.authors.length - 1]
+					: data.authors}
+			{:then authorsData}
+				por
+				{#each data.authors as author, i}
+					{@const authorData = authorsData.find(
+						(/** @type {{ path: any; }} */ a) => a.path == author
+					)}
+					{#if i == data.authors.length - 1 && i > 0}
+						&nbsp;&
+					{:else if i > 0}
+						,
+					{/if}
+					{#if authorData}
+						<a href={authorData.path}>{author}</a>
+					{:else}
+						{author}
+					{/if}
+				{/each}
+				<!-- promise was fulfilled -->
+			{/await}
+		</address>
+	{/if}
 	{#if !data.error}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
 		<svelte:component this={data.content} />
@@ -41,7 +72,11 @@
 </article>
 
 {#if data.category == 'amigues'}
-	<PostList posts={data.posts.filter((/** @type {{ meta: { title: any; }; }} */ p) => p.meta.title != data.title)} />
+	<PostList
+		posts={data.posts.filter(
+			(/** @type {{ meta: { title: any; }; }} */ p) => p.meta.title != data.title
+		)}
+	/>
 {:else}
 	{#await data.authorsData then authorsData}
 		{#if JSON.stringify(data.authorsData) != '[]' && data.authorsData != undefined && data.authorsData[0] != undefined}
@@ -102,5 +137,8 @@
 	hr {
 		max-width: 800px;
 		margin: 2rem auto;
+	}
+	hr {
+		margin-top: 10rem;
 	}
 </style>
