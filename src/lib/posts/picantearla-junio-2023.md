@@ -1,6 +1,6 @@
 ---
-published_date: 2023-06-10
-#updated_date: 2023-11-04
+published_date: 2023-06-10Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Picantearla | Junio 2023
 summary: Espacio de exploración de prácticas BDSM. Un taller de prácticas fetichistas + juegos grupales.
 tags:

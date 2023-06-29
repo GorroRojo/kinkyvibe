@@ -1,6 +1,6 @@
 ---
-published_date: 2023-06-15
-#updated_date: 2023-11-04
+published_date: 2023-06-15Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: xdoll - arts and ropes
 summary: Licenciada en Artes Visuales ~"proyecto de enlace"~ colabs y clases
 tags:

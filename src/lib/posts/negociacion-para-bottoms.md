@@ -1,6 +1,6 @@
 ---
-published_date: 2023-02-04
-#updated_date: 2023-11-04
+published_date: 2023-02-04Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Negociación rápida para bottoms
 summary: "Armé este modelo para aquellas personas que no quieren usar una checklist, o tener una negociación larga, y quieren un modelo pre-hecho para poder establecer gustos, necesidades, intenciones, preferencias, límites, entre otros. "
 # TODO llenar el summary
@@ -19,8 +19,8 @@ featured: 2
 type: descargable
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
-#access_date: 2023-11-21
-#original_published_date: 2010-04-03
+#access_date: 2023-11-21Z-03:00
+#original_published_date: 2010-04-03Z-03:00Z-03:00
 ---
 
 <script>

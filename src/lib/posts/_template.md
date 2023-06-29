@@ -8,8 +8,8 @@
 ## ------ Para todas las publicaciones ------ ##
 ################################################
 
-#published_date: 2023-05-16   # (YYYY-MM-DD) fecha de publicación #
-#updated_date: 2023-11-04   # (YYYY-MM-DD) ult vez actualizó el post #
+#published_date: 2023-05-16Z-03:00Z-03:00   # (YYYY-MM-DD) fecha de publicación #
+#updated_date: 2023-11-04Z-03:00   # (YYYY-MM-DD) ult vez actualizó el post #
 title: Publicación de ejemplo  # el nombre de la página en el navegador #
 
 summary: Una demostración de todas las cosas que puede tener una publicación
@@ -57,10 +57,10 @@ authors:
 
 ########### ----- Para tipo 'link' ----- ###########
 
-#access_date: 2023-11-21  # YYYY-MM-DD #
+#access_date: 2023-11-21Z-03:00  # YYYY-MM-DD #
 # La última vez que se chequeó que ese link funcionara y conteniera lo que se supone que contiene
 
-#original_published_date: 2010-04-03  # YYYY-MM-DD #
+#original_published_date: 2010-04-03Z-03:00Z-03:00  # YYYY-MM-DD #
 # La fecha de publicación original del contenido linkeado
 
 
@@ -164,8 +164,8 @@ Otro parrafo.
 ## Para amigues
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Amigue de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
@@ -196,8 +196,8 @@ link: https://instagram.com/gnosis.king
 ## Para calendario
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Evento de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
@@ -223,8 +223,8 @@ link_text: Inscibirme ➡️
 ## Para material
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
@@ -242,7 +242,7 @@ authors:
 type: contenido  # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
-#access_date: 2023-11-21
-#original_published_date: 2010-04-03
+#access_date: 2023-11-21Z-03:00
+#original_published_date: 2010-04-03Z-03:00Z-03:00
 ---
 ```

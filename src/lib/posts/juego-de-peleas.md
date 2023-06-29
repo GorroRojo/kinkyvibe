@@ -1,6 +1,6 @@
 ---
-published_date: 2022-04-01
-# updated_date: 2023-11-04
+published_date: 2022-04-01Z-03:00Z-03:00
+# updated_date: 2023-11-04Z-03:00
 title: Juego de Peleas - Cómo golpear a alguien que te importa
 summary: Azotar es una forma aceptada de juego de impacto para muchos pervertidos, pero el juego corporal rudo puede hacer que incluso los jugadores experimentados se estremezcan.
 tags:
@@ -20,8 +20,8 @@ featured: 1
 type: contenido # descargable | link | contenido #
 link: https://bound-together.net/punching-101/
 ########### ----- Para tipo 'link' ----- ###########
-access_date: 2023-06-28
-original_published_date: 2019-11-10
+access_date: 2023-06-28Z-03:00
+original_published_date: 2019-11-10Z-03:00Z-03:00
 ---
 
 <script>

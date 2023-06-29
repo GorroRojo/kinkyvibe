@@ -1,6 +1,6 @@
 ---
-published_date: 2023-02-02
-#updated_date: 2023-11-04
+published_date: 2023-02-02Z-03:00Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Collares Eléctricos en Humanes
 summary: Traducción de un artículo sobre los riesgos inmitigables de electrocutar el cuello.
 tags:
@@ -19,8 +19,8 @@ featured: 1
 type: contenido  # descargable | link | contenido #
 link: https://www.domme-chronicles.com/2021/02/shock-collars-in-bdsm-play-are-they-safe
 ########### ----- Para tipo 'link' ----- ###########
-access_date: 2023-06-16
-original_published_date: 2021-02-04
+access_date: 2023-06-16Z-03:00
+original_published_date: 2021-02-04Z-03:00Z-03:00
 ---
 <script>
     import frente from '$lib/posts/media/collares-electricos/1.png'
