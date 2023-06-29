@@ -2,18 +2,20 @@
 	import { onMount } from 'svelte/internal';
 	import Tag from './Tag.svelte';
 	import Tags from './Tags.svelte';
+	import { isPast } from 'date-fns';
 	export let post;
 	let {
 		path: href,
 		meta: { tags, tagsConfig, featured: src },
-		mark
+		mark,
+		start
 	} = post;
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
 </script>
-
-<a {href} class="card {mark ? 'mark' : ''}" tabindex="0">
+<!-- TODO past no funciona? -->
+<a {href} class:past={isPast(new Date(start))} class="card {mark ? 'mark' : ''}" tabindex="0">
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
@@ -62,6 +64,9 @@
 		transform: scale(100%);
 		text-decoration: none;
 		color: inherit;
+	}
+	.card.past {
+		opacity: .8;
 	}
 	.card.mark {
 		--shadow-color: var(--color,var(--color-2,var(--1)));
