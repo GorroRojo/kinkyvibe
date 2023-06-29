@@ -1,4 +1,5 @@
 // @ts-nocheck
+export const prerender = true;
 import { error, json } from '@sveltejs/kit';
 import { fetchMarkdownPosts, fetchTags } from '$lib/utils';
 
