@@ -12,7 +12,7 @@
 	// let view_date;
 	let days = data.posts.reduce((dates, post, i) => {
 		let start_date = new Date(post.meta.start);
-		start_date = format(addDays(start_date, 1), 'yyyy-MM-dd');
+		start_date = format(addDays(start_date, 0), 'yyyy-MM-dd');
 		// post.meta.start_time = format(start_date, 'hh:mm');
 		if (dates[start_date]) {
 			dates[start_date].push({ i, ...post });
