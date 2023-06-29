@@ -49,7 +49,6 @@ export async function load({ params }) {
 				post.metadata.authors.every((/** @type {any} */ a) => p.meta.authors.includes(a))
 			);
 		}
-		console.log(posts)
 		return {
 			content,
 			...post.metadata,
