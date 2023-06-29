@@ -81,7 +81,6 @@
 	{#await data.authorsData then authorsData}
 		{#if JSON.stringify(data.authorsData) != '[]' && data.authorsData != undefined && data.authorsData[0] != undefined}
 			<hr />
-			<h3>Escrito por</h3>
 			{#each authorsData as author}
 				<a class="author-callout" href={author.path}>
 					<img class="author-image" src={author.logo ?? author.photo} alt="" />
