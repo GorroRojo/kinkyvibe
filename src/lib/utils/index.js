@@ -51,6 +51,7 @@ export const thumbURL = (postSlug, assetID, allThumbs = false) => {
 	if (!allThumbs) {
 		allThumbs = import.meta.glob([
 			'$lib/posts/media/*/*.jpeg',
+			'$lib/posts/media/*/*.jfif',
 			'$lib/posts/media/*/*.jpg',
 			'$lib/posts/media/*/*.png',
 			'$lib/posts/media/*/*.webp'
@@ -88,6 +89,7 @@ export const fetchMarkdownPosts = async () => {
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
 	var allThumbs = import.meta.glob([
 		'$lib/posts/media/*/*.jpeg',
+		'$lib/posts/media/*/*.jfif',
 		'$lib/posts/media/*/*.jpg',
 		'$lib/posts/media/*/*.png',
 		'$lib/posts/media/*/*.webp'
