@@ -36,7 +36,7 @@ groups:
     members: ['guía', 'artículo', 'libro']
     color: 'var(--3-dark)'
   - name: amigues
-    members: ['educadores']
+    members: ['educadores', 'dominatrix']
     color: 'var(--2)'
 tags:
   KinkyVibe:
@@ -65,6 +65,8 @@ tags:
     aliasOf: educadores
   articulo:
     aliasOf: 'artículo'
+  Dominatrix:
+    aliasOf: 'dominatrix'
 ---
 
 Wow
