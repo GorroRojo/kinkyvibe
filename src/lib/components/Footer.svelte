@@ -21,23 +21,28 @@
 		<li>
 			<h3>Contenido</h3>
 			<ul class="contenido">
-				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
 				<li><a href="/material"><BookOpen {style} />Material</a></li>
 				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
-				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style} />Tienda</a></li>
-				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li><a href="/todo"><Layers {style} />Todo</a></li>
 			</ul>
 		</li>
 		<li>
-			<h3>Redes</h3>
-			<ul class="redes">
+			<h3>Sobre nosotres</h3>
+			<ul>
+				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
+				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style} />Tienda</a></li>
+				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li>
 					<a href="https://cafecito.app/kinkyvibe">
 						<SimpleIcon icon={siKofi} />CafecitoApp
 					</a>
 				</li>
+			</ul>
+		</li>
+		<li>
+			<h3>Redes</h3>
+			<ul class="redes">
 				<li>
 					<a href="https://t.me/BDSMtextos">
 						<SimpleIcon icon={siTelegram} />
@@ -103,6 +108,7 @@
 		list-style: none;
 		justify-content: space-around;
 		padding: 0;
+		gap: 4px;
 	}
 	li > ul {
 		padding: 0;
