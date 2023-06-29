@@ -17,17 +17,11 @@
 	export let title;
 	export let tags;
 	export let authors;
+	export let category;
 	export let authorsData;
 </script>
 
-<h1>{title}</h1>
-{#if authors}
-	<address>
-		por {authors.length > 1
-			? authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]
-			: authors}
-	</address>
-{/if}
+
 <Tags tags={tags.map(aliaserFactory(tagsConfig))} {tagsConfig} />
 
 <slot />
