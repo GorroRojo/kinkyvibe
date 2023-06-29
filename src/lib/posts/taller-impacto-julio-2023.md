@@ -1,0 +1,121 @@
+---
+published_date: 2023-06-20
+#updated_date: 2023-11-04
+title: Taller de Juegos de Impacto
+summary: ¡Volvió este taller que amamos! Un teórico-práctico sobre cómo impactamos / golpeamos / nalgueamos / azotamos / latigamos nuestro cuelpo o el de otres con fines eróticos, sensuales, sexuales, o terapéuticos.
+tags:
+  - BDSM
+  - KinkyVibe # etiqueta especial #
+  - taller
+  - practicas
+  - impacto
+layout: calendario
+category: calendario
+authors:
+  - DemonWeb
+featured: 1
+#force_unlisted: false
+#force_unpublished: false
+status: abierto # anunciado | abierto | lleno | cancelado #
+start: 2023-07-02T15:00-03:00
+end: 2023-07-02T18:00-03:00
+location: Thames 240, Ciudad Autónoma de Buenos Aires
+link: https://docs.google.com/forms/d/e/1FAIpQLSet7KCsGE1vhHoZWBcdUrqWim_Xv5NbjS0TTPFK7MQ3wAn4Gw/viewform
+link_text: PRE-VENTA
+---
+
+<script>
+    import i1 from '$lib/posts/media/taller-impacto-junio-2023/1.jpg'
+    import i2 from '$lib/posts/media/taller-impacto-junio-2023/2.jpg'
+</script>
+
+<div class="col-2">
+<img alt="" src="{i1}" />
+<img alt="" src="{i2}" />
+</div>
+
+> ¡Volvió este taller que amamos!
+
+## ¿Dónde?
+
+Thames 240, CABA, Argentina. En Cooperativa Cultural QI
+
+## ¿Cuándo? ¿A qué hora?
+
+2 de Julio, de 15 a 18 hs 
+
+(2:30 de demostración y teoría y 30 de práctica!)
+
+## ¿Cuánto? 
+En pre-venta a $3.000, en puerta $3.500 y **si tambien participan de [Picantearla](/picantearla-junio-2023), está a `$2.500`**.
+
+## ¿Qué tengo que llevar?
+¡Cualquier elemento que tengas con el que quieras jugar! Fustas, palmetas, reglas, cucharas de madera, espátulas (no obligatorio) Igual vamos a estar prestando a quienes no tengan
+
+## ¿En qué consisten los juegos de impacto?
+
+Son prácticas consensuadas en donde impactamos/golpeamos (nalguear, azotar, latigar) nuestro cuerpo o el de otres con fines: eróticos, sensuales, sexuales, terapéuticos, entre otros.
+
+**NO NECESARIAMENTE TRATAN DE DOLOR!** Con los elementos podemos generar múltiples sensaciones y dinámicas! Juegos de poder, disciplina, sensaciones, mimos, cosquillas y más!
+
+## ¿Qué vamos a ver en la clase?
+
+- Negociación, consentimiento y comunicación
+- Tipos de juegos de impacto
+- Tipos de elementos y cómo usarlos
+- Aplicaciones del dolor y las sensaciones
+- Y más!
+
+También vamos a tener un espacio práctico para aprender las técnicas y probar los elementos
+
+## ¿Qué tengo que llevar?
+¡Cualquier elemento que tengas con el que quieras jugar!
+Fustas, palmetas, reglas, cucharas de madera, espátulas (no obligatorio) Igual vamos a estar prestando a quienes no tengan.
+
+## ¿Tengo que llevar modelo?
+No es necesario para tomar la clase. ¡Podés venir con alguien si querés!
+
+## ¿Qué onda la accesibilidad del espacio?
+
+QI cuenta con:
+- Barra para comida y bebida
+- Baños accesibles y sin género
+- Espacio accesible con rampa
+- Patio donde fumar
+
+{#if link}
+<a class="cta" href={link}>{link_text}</a>
+{/if}
+
+<style>
+    :global(article h2) {
+        margin-top: 3em;
+    }
+    .cta {
+      background: var(--1);
+      padding: .5em 1em;
+      color: white;
+      font-weight: bold;
+      border-radius: .3em;
+      margin-inline: auto;
+      display: block;
+      width: 7em;
+      text-align: center;
+      /* translate: 6em; */
+      font-size: 3em;
+      text-decoration: none;
+      margin-top: 2em;
+      transition: 200ms;
+      box-shadow: 0 0 0 0;
+    }
+    .cta:hover {
+      scale: 1.1;
+      /* filter: brightness(1.05); */
+      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
+    }
+    a {
+      color: #222;
+      /* text-decoration: none; */
+      text-decoration-color: var(--1);
+    }
+</style>
