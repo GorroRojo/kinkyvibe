@@ -5,7 +5,9 @@
 		Heart,
 		Sparkles,
 		CalendarRange,
-		ShoppingCart
+		ShoppingCart,
+		Rss,
+		Layers
 	} from 'lucide-svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
@@ -25,6 +27,7 @@
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
 				<li><a href="https://kinkyvibe.mitiendanube.com"><ShoppingCart {style} />Tienda</a></li>
 				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
+				<li><a href="/todo"><Layers {style} />Todo</a></li>
 			</ul>
 		</li>
 		<li>
@@ -55,6 +58,9 @@
 				</li>
 				<li>
 					<a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} />TikTok</a>
+				</li>
+				<li>
+					<a href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>
 				</li>
 			</ul>
 		</li>
