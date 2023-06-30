@@ -9,7 +9,7 @@ groups:
       - dominación
     color: red
     sub:
-      - name: practicas
+      - name: prácticas
         members:
           - bondage
           - Shibari
@@ -33,7 +33,7 @@ groups:
       - name: 'nombreevento'
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
-    members: ['guía', 'artículo', 'libro']
+    members: ['guía', 'artículo', 'libro', 'interactivo']
     color: 'var(--3-dark)'
   - name: amigues
     members: ['educadores', 'dominatrix']
@@ -58,7 +58,11 @@ tags:
   espanol:
     aliasOf: 'español'
   practicas:
-    aliasOf: 'practica'
+    aliasOf: 'prácticas'
+  practica:
+    aliasOf: 'prácticas'
+  práctica:
+    aliasOf: 'prácticas'
   Shibari:
     aliasOf: shibari
   Educadores:
