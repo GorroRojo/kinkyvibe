@@ -50,4 +50,12 @@
 	.textinput:focus {
 		--border-opacity: 10%;
 	}
+	@media print {
+		.textinput {
+			border-bottom: 0;
+			text-decoration: 1px underline dashed rgb(76,76,255);
+			font-family:cursive;
+			color: rgb(76, 76, 255);
+		}
+	}
 </style>

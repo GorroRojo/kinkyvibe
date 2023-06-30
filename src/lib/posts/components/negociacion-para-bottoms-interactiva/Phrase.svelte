@@ -1,5 +1,6 @@
 <script>
-	export let inputs;
+	/**@type {{component: *, content: string}[]}*/
+	export let inputs = [];
 	let checked = false;
 	let indeterminate = false;
 	let state = 'false';

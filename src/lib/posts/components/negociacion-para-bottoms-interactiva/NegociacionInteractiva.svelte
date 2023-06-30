@@ -108,29 +108,6 @@
 	{/each}
 </div>
 
-<!-- <div class="stepper">
-		{#if currentPage > 0}<button
-				on:click={() => {
-					currentPage--;
-					goto('#top');
-				}}>Anterior</button
-			>{/if}
-		<div>{currentPage + 1} / {pages.length}</div>
-		{#if currentPage < pages.length - 1}
-			<button
-				on:click={() => {
-					currentPage++;
-					goto('#top');
-				}}>Siguiente</button
-			>
-		{:else}
-			<button
-				style:color="color-mix(in srgb, var(--good) 10%, white)"
-				style:background="color-mix(in srgb, var(--good) 50%, black)"
-				on:click={() => window.print()}>Exportar respuestas</button
-			>
-		{/if}
-	</div> -->
 
 <style>
 	.negociacioninteractiva {
@@ -257,6 +234,11 @@
 			rotate: 0deg;
 			transition-delay: 0ms;
 			height: auto;
+		}
+	}
+	@media print {
+		:global(.negociacioninteractiva [type="text"]) {
+			border-bottom: 0 !important;
 		}
 	}
 </style>

@@ -5,7 +5,7 @@
 <script>
 	let checked = false;
 	let indeterminate = false;
-	let state = 'false';
+	export let state = 'false';
 	let click = () => {
 		if (state === 'true') {
 			state = 'indeterminate';
@@ -68,5 +68,10 @@
 		opacity: 1;
 		scale: 1;
 		text-decoration: var(--bad-decoration);
+	}
+	@media print {
+		label.false {
+			opacity: .2;
+		}
 	}
 </style>
