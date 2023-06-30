@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import { Calendar, Text } from 'lucide-svelte';
 	export let post;
 	let {
 		path,
@@ -35,6 +36,10 @@
 	let mounted = false;
 	onMount(() => (mounted = true));
 	let past = start ? isPast(new Date(start)) : false;
+	let style = `scale:var(--scale,1);
+				 translate:var(--translate,0 0);
+				 display: inline-block;
+				 margin-right: .4em;`;
 </script>
 
 <a
@@ -47,6 +52,8 @@
 	tabindex="0"
 >
 	<div class="publication">
+		{#if category == 'calendario'}<Calendar {style}/>&ThickSpace;{/if}
+		{#if category == 'material'}<Text {style}/>&ThickSpace;{/if}
 		{#if category != 'amigues'}
 			{#if date}
 				<time datetime={start}>
@@ -102,7 +109,7 @@
 			border-radius: 10em;
 		}
 		.publication {
-			display:none;
+			display: none;
 		}
 	}
 	.tagrow {
