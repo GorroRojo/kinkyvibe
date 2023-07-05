@@ -22,11 +22,9 @@
 {:else if isLink}
 	<a class="tag" href="/todo?tags={tag}" class:noBorder>{tag}</a>
 {:else}
-	<!-- <a {href}> -->
 	<span class="tag" class:noBorder>
 		{tag}
 	</span>
-	<!-- </a> -->
 {/if}
 
 <style>

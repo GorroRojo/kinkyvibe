@@ -1,6 +1,6 @@
 <script context="module">
-	import { h2, h3, li, img, blockquote } from './components.js';
-	export { h2, h3, li, img, blockquote };
+	// import { h2, h3, li, img, blockquote } from './components.js';
+	// export { h2, h3, li, img, blockquote };
 	import { aliaserFactory } from '$lib/utils/index.js';
 </script>
 
@@ -14,11 +14,11 @@
 			.then((r) => r.json())
 			.then((c) => (tagsConfig = c));
 	});
-	export let title;
+	// export let title;
 	export let tags;
-	export let authors;
-	export let category;
-	export let authorsData;
+	// export let authors;
+	// export let category;
+	// export let authorsData;
 </script>
 
 

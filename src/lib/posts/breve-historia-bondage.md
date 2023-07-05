@@ -1,5 +1,5 @@
 ---
-published_date: 2022-11-11Z-03:00Z-03:00
+published_date: 2022-11-11Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Una breve historia del bondage con cuerdas
 summary: El bondage con cuerdas contemporáneo se desarrolló de forma paralela en Japón y Estados Unidos a principios del siglo XX.
@@ -103,7 +103,7 @@ Hoy en día, la línea entre Oriente y occidentecontinúa desdibujándose y la l
     .col-2 p:first-child strong {
         color: var(--2);
     }
-    :global(article h2) {
+    h2 {
         text-align:center;
         margin-bottom: 0;
         font-weight: bold;

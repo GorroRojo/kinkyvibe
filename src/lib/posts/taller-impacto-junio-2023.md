@@ -88,7 +88,7 @@ QI cuenta con:
 {/if}
 
 <style>
-    :global(article h2) {
+    h2 {
         margin-top: 3em;
     }
     .cta {

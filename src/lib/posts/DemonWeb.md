@@ -16,7 +16,7 @@ featured: 1
 #force_unlisted: false
 #force_unpublished: false
 pronoun: https://pronombr.es/él
-link: https://instagram.com/kinkyvibeargetina/
+link: https://instagram.com/kinkyvibeargentina/
 logo: 1
 # photo: 1
 #email: ayuda@kinkyvibe.ar
