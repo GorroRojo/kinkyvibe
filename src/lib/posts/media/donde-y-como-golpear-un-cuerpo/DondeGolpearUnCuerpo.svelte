@@ -239,7 +239,7 @@
 		grid-area: implementos;
 	}
 	label {
-		font-size: 1.1rem;
+		font-size: var(--step-1);
 		--color: var(--1);
 		display: inline-block;
 		padding: 0.4em 0.8em;

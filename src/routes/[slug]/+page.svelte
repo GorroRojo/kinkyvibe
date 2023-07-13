@@ -1,7 +1,16 @@
 <script>
+	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
+	import Tags from '$lib/components/Tags.svelte'
 	//@ts-nocheck
 	export let data;
+	import { onMount } from 'svelte';
+	let tagsConfig = { tags: {} };
+	onMount(() => {
+		fetch('/api?getTags')
+			.then((r) => r.json())
+			.then((c) => (tagsConfig = c));
+	});
 </script>
 
 <svelte:head>
@@ -69,11 +78,19 @@
 			>
 		</address>
 	{/if}
+	<div id="tags">
+		<Tags tags={data.tags?.map(aliaserFactory(tagsConfig))} {tagsConfig} />
+	</div>
+
 	{#if !data.error}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
-		<svelte:component this={data.content} />
+		<div class="content">
+			<svelte:component this={data.content} />
+		</div>
 	{:else}
-		{data.content}
+		<div class="content">
+			{data.content}
+		</div>
 	{/if}
 </article>
 
@@ -99,6 +116,12 @@
 {/if}
 
 <style>
+	#tags {
+		margin-inline: auto;
+		max-width: 800px;
+		width: 100%;
+		margin-top: 2em;
+	}
 	.author-summary {
 		text-decoration: none;
 		grid-area: summary;

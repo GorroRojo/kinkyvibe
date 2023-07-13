@@ -46,9 +46,9 @@ link_text: 'PRE-VENTA'
 - Vamos a contar con un espacio de negociación grupal y un cierre de cuidados posteriores entre todes.
 - Va a haber barra con comida.  -->
 
-<div style="text-align:center;font-size: 2em;margin: 2em;"><strong>ESTO NO ES UNA FIESTA</strong></div>
+<div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>ESTO NO ES UNA FIESTA</strong></div>
 
-<div style="text-align:center;font-size: 2em;margin: 2em;"><strong>🍭&nbsp;ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS&nbsp;/&nbsp;BDSM&nbsp;🍭</strong></div>
+<div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>🍭&nbsp;ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS&nbsp;/&nbsp;BDSM&nbsp;🍭</strong></div>
 
 <!-- > Venite si tenés ganas de conocer gente, jugar en un ambiente con musiquita suave, luces cálidas, y compartir sensualidad y fetiches con otres.  -->
 
@@ -118,7 +118,7 @@ _Monitorean_
       text-align: center;
       padding: 1em;
       font-weight: bold;
-      font-size: 1em;
+      font-size: var(--step-1);
     }
     li {
         list-style-type: '👉 ';
@@ -135,7 +135,7 @@ _Monitorean_
       min-width: 0;
       /* width: auto; */
       text-align: center;
-      font-size: 3em;
+      font-size: var(--step-4);
       text-decoration: none;
       margin-top: 2em;
       transition: 200ms;

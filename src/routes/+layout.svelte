@@ -80,7 +80,6 @@
 	#title {
 		color: black;
 		display: block;
-		font-size: 2em;
 		text-align: center;
 		width: 100%;
 		text-decoration: none;
@@ -98,19 +97,6 @@
 		a.back {
 			display:none;
 		}
-	}
-	:global(*:not(code *)) {
-		box-sizing: border-box;
-		font-family: 'Lato', sans-serif;
-	}
-	:global(body) {
-		position: relative;
-		min-height: 99vh;
-		box-sizing: border-box;
-		/* overflow-y: scroll; */
-	}
-	:global(html) {
-		overflow-x: hidden;
 	}
 	#me {
 		display: grid;

@@ -102,7 +102,7 @@ QI cuenta con:
       width: 7em;
       text-align: center;
       /* translate: 6em; */
-      font-size: 3em;
+      font-size: var(--step-4);
       text-decoration: none;
       margin-top: 2em;
       transition: 200ms;

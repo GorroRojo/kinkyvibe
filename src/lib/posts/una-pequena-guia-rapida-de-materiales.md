@@ -34,7 +34,7 @@ type: contenido # descargable | link | contenido #
 
 Vamos a dividr a los juguetes en su **nivel de seguridad** para nuestres cuerpes.
 
-## <small style="font-size: 2rem">A tener en cuenta:</small>&nbsp;&nbsp;**¿Qué es la porosidad?**
+## <small style="font-size: var(--step-1)">A tener en cuenta:</small>&nbsp;&nbsp;**¿Qué es la porosidad?**
 
 Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materiales tienen poros donde pueden **reproducirse las bacterias** <small>(además de quedar residuos biológicos: o sea, ser un vehículo para transmitir infecciones)</small>, y otros no.
 
@@ -129,7 +129,7 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 
 <p><small id="foot1">\* ftalatos son plastificadores, sustancias añadidas a los plásticos para incrementar su flexibilidad.</small></p>
 
-<p><strong style="font-size:2rem;color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
+<p><strong style="font-size:var(--step-2);color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
 
 
 <style>
