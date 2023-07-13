@@ -1,16 +1,16 @@
 ---
-published_date: 2023-06-28Z-03:00Z-03:00
+published_date: 2023-06-28Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Dónde y con qué golpear un cuerpo de forma consensuada.
 summary: Una demostración de todas las cosas que puede tener una publicación
+category: material
+layout: material
 tags:
   - BDSM
   - KinkyVibe # etiqueta especial #
   - impacto
   - interactivo
   - caning
-layout: material
-category: material
 authors:
   - DemonWeb
 featured: 1
@@ -49,6 +49,7 @@ type: contenido # descargable | link | contenido #
 ## Cuidados específicos, emocionales y físicos, **post-práctica**
 
 ### Físicos
+
 - **Árnica**
   - Recomendamos partícularmente los que vienen en roll-on. <small>Reduce la inflamación</small>
 - **Hielo**
@@ -57,7 +58,9 @@ type: contenido # descargable | link | contenido #
   - Cuida la piel
 - **Agua**
 - **Fruta, dulces, algo salado**
+
 ### Emocionales
+
 - **Charlar sobre la experiencia**
 - **Contención**
 - **Mimos**
