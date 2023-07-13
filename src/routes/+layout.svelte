@@ -60,7 +60,7 @@
 				icon: ShoppingCart,
 				name: 'Tienda',
 				sub: 'Juguetes e Implementos',
-				href: 'https://kinkyvibe.mitiendanube.com'
+				href: 'https://tienda.kinkyvibe.ar'
 			},
 			{ icon: Sparkles, name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
 		]}
