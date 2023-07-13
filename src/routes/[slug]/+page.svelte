@@ -1,7 +1,7 @@
 <script>
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
-	import Tags from '$lib/components/Tags.svelte'
+	import Tags from '$lib/components/Tags.svelte';
 	//@ts-nocheck
 	export let data;
 	import { onMount } from 'svelte';
@@ -42,9 +42,9 @@
 
 <article>
 	<h1>{data.title}</h1>
-	{#if data.authors && data.category != 'amigues'}
+	{#if data.authors && data.layout != 'amigues'}
 		<address>
-			{#if data.category == 'calendario'}Organizado{/if}
+			{#if data.layout == 'calendario'}Organizado{/if}
 			{#await data.authorsData}
 				por {data.authors.length > 1
 					? data.authors.slice(0, data.authors.length - 1).join(', ') +
@@ -71,16 +71,18 @@
 				<!-- promise was fulfilled -->
 			{/await}
 			&ThickSpace;-&ThickSpace;
-			<time datetime={data.category == 'material' ? data.published_date : data.start}
+			<time datetime={data.layout == 'calendario' ? data.start : data.published_date}
 				>{new Date(
-					data.category == 'material' ? data.published_date : data.start
+					data.layout == 'material' ? data.published_date : data.start
 				).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
 			>
 		</address>
 	{/if}
-	<div id="tags">
-		<Tags tags={data.tags?.map(aliaserFactory(tagsConfig))} {tagsConfig} />
-	</div>
+	{#if data?.tags}
+		<div id="tags">
+			<Tags tags={data.tags?.map(aliaserFactory(tagsConfig))} {tagsConfig} />
+		</div>
+	{/if}
 
 	{#if !data.error}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
@@ -94,7 +96,7 @@
 	{/if}
 </article>
 
-{#if data.category == 'amigues'}
+{#if data.layout == 'amigues' && data.posts}
 	<PostList
 		posts={data.posts.filter(
 			(/** @type {{ meta: { title: any; }; }} */ p) => p.meta.title != data.title
