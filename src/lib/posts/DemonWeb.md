@@ -35,3 +35,30 @@ job_title: Educador BDSM
 <img alt="" src={foto} />
 <div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
 </div>
+
+Educadores BDSM con quienes he tomado clases o talleres:
+
+- Karadahouse
+- Lola Jean
+- Evie Lupine
+- Midori
+- Morgan Thorne
+
+También viajé a Londres, Berlin, Madrid y Barcelona y tomé clases con varies educadores
+
+En shibari:
+
+- Karadahouse (Queerope)
+- Anatomie
+- Clases con educadores de acá.
+
+Además de 7 años e experiencia como modelo y 5 años dando clases con personas hermosas como [@xdoll](/xdoll) y [@drux](/drux).
+
+En ESI:
+
+- ESI en filo y letras
+- ESI por mocha celis
+- ESI y discapacidad con Silvina Peirano
+- Salud sexual y reproductiva por fusa
+
+Entre muchísimas otras. sigo formándome todo el tiempo. Tomé un taller de porno y ESI con Laura Milano el viernes.
