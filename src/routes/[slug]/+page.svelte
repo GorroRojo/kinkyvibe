@@ -42,9 +42,10 @@
 
 <article>
 	<h1>{data.title}</h1>
-	{#if data.authors && data.layout != 'amigues'}
+	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1)}
 		<address>
 			{#if data.layout == 'calendario'}Organizado{/if}
+			{#if data.layout == 'amigues'}Integrado{/if}
 			{#await data.authorsData}
 				por {data.authors.length > 1
 					? data.authors.slice(0, data.authors.length - 1).join(', ') +
@@ -70,12 +71,14 @@
 				{/each}
 				<!-- promise was fulfilled -->
 			{/await}
+			{#if data.layout != 'amigues'}
 			&ThickSpace;-&ThickSpace;
 			<time datetime={data.layout == 'calendario' ? data.start : data.published_date}
 				>{new Date(
-					data.layout == 'material' ? data.published_date : data.start
+					data.layout == 'calendaio' ? data.start : data.published_date
 				).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
 			>
+			{/if}
 		</address>
 	{/if}
 	{#if data?.tags}
