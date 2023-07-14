@@ -43,7 +43,8 @@
 			</div>
 
 			{#key display_type}
-				<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
+			<p class="post-amount">{tagFilteredPosts.length} resultados</p>
+			<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
 					{#if display_type == 'list'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
@@ -74,6 +75,18 @@
 		/* margin-top: 3em; */
 		max-width: 50rem;
 		margin-inline: auto;
+	}
+	.post-amount {
+		position: absolute;
+		left: 0;
+		right: 0;
+		text-align: right;
+		top: -2em;
+		max-width: 50rem;
+		margin-inline: auto;
+		padding-left: 2em;
+		opacity: .7;
+		
 	}
 	h3 {
 		margin: 1em;
@@ -109,6 +122,7 @@
 		}
 		#posts {
 			width: 100%;
+			/* grid-area: main; */
 		}
 		#filterbar {
 			grid-area: left;
