@@ -2,24 +2,6 @@
 groups:
   - name: KinkyVibe
     color: var(--1)
-  - name: BDSM
-    members:
-      - seguridad
-      - negociación
-      - dominación
-    color: red
-    sub:
-      - name: prácticas
-        members:
-          - bondage
-          - Shibari
-          - cuchillos
-          - electro
-        sub:
-          - name: impacto
-            members:
-              - caning
-              - golpes
   - name: idioma
     members:
       - inglés
@@ -38,6 +20,25 @@ groups:
   - name: amigues
     members: ['educadores', 'dominatrix', 'artista']
     color: 'var(--2)'
+  - name: BDSM
+    members:
+      - seguridad
+      - negociación
+      - dominación
+    color: red
+    sub:
+      - name: prácticas
+        members:
+          - bondage
+          - Shibari
+          - cuchillos
+          - electro
+        sub:
+          - name: impacto
+            members:
+              - caning
+              - golpes
+  
 tags:
   KinkyVibe:
     color: var(--1)
