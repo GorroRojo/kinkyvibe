@@ -16,7 +16,7 @@
 </script>
 
 <footer>
-	Codigueado por <a href="https://www.gorro.ar/">Gorro_Rojo</a>
+	Codigueado por <a href="/Gorro_Rojo">Gorro_Rojo</a>
 	<ul>
 		<li>
 			<h3>Contenido</h3>

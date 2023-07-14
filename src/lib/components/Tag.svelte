@@ -43,7 +43,7 @@
 		color: var(--text-color, var(--tag-color));
 		background: transparent;
 		cursor: pointer;
-		transition: 200ms;
+		transition: 0ms;
 		outline: var(--off-outline, none);
 		outline-offset: var(--off-outline-offset, 0);
 	}

@@ -150,7 +150,7 @@
 		--post-color: var(--2);
 		position: relative;
 		width: 100%;
-		max-width: 900px;
+		/* max-width: 900px; */
 		height: 10.5em;
 
 		display: grid;

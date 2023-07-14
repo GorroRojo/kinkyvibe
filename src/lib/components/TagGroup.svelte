@@ -159,19 +159,28 @@
 	{/each}
 </div>
 
-<style>
+<style langs="scss">
 	.filtergroup {
 		display: flex;
-		border-radius: 1em;
+		border-radius: 0.3em;
 		min-width: 0;
 		align-items: center;
 		font-family: sans-serif;
+		--border-radius: 0.3em;
+		transition: 100ms;
+		outline: 3px solid transparent;
+		justify-content:center;
 	}
 	.filtergroup.noname {
-		outline: 0;
+		outline-color: transparent;
 		background: transparent;
+		box-shadow: none;
+	}
+	.filtergroup.noname ul {
+		align-items: center;
 	}
 	.filtergroup:has(> .groupname :checked) {
+		outline: 3px solid var(--tag-color);
 		background: var(--tag-color);
 	}
 
@@ -184,7 +193,7 @@
 	:global(.taglist:has(li)),
 	:global(.filtergroup:has(li)),
 	:global(.filtergroup:has(span)) {
-		outline: 3px solid var(--tag-color);
+		box-shadow: -2px 0 var(--tag-color);
 	}
 
 	:global(.filterbar > .filtergroup) {
@@ -192,14 +201,14 @@
 	}
 
 	.taglist {
-		border-radius: 1em;
+		border-radius: .3em;
 		overflow: hidden;
-		align-items: center;
+		align-items: start;
 		min-width: 0;
 	}
 	.subgroups {
 		flex-direction: column;
-		align-items: center;
+		align-items: start;
 		row-gap: 0.3em;
 		column-gap: 0.3em;
 	}
@@ -230,14 +239,17 @@
 		flex: 1 1;
 	}
 	:global(.taglist > li:has(:checked) + li:has(:checked)) {
-		--border-radius: 0 2em 2em 0;
+		--border-radius: 0 .3em .3em 0;
 		border-left: 10px solid var(--tag-color);
 		margin-left: -10px;
 	}
 	.groupname {
 		color: var(--tag-color);
 		--fill-color: transparent;
-		/* transition: 200ms; */
+		display:flex;
+		justify-content: stretch;
+		text-align: center;
+		flex: 1 1;
 	}
 	/* .groupname + .groupitems {
 		margin-left: 5px;
@@ -249,6 +261,12 @@
 		row-gap: 0.2em;
 		column-gap: 0.6em;
 		justify-content: center;
+		align-items: start;
 		/* transition: 700ms; */
+	}
+	@container (min-width: 1300px) {
+		.groupname {
+			width: 100%;
+		}
 	}
 </style>

@@ -11,6 +11,8 @@
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
+	export let display_type = 'list';
+
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
 	 * @param {any} params
@@ -59,14 +61,14 @@
 			filteredGroups = filterGroups($tagsConfig.groups, v);
 		});
 		// @ts-ignore
-		page.subscribe((p)=>{
+		page.subscribe((p) => {
 			if ($page.url.searchParams.has('tags')) {
-				if ($page.url.searchParams.get('tags') != ''){
+				if ($page.url.searchParams.get('tags') != '') {
 					//@ts-ignore
-					filteredTags.set($page.url.searchParams.get('tags')?.split(','))
+					filteredTags.set($page.url.searchParams.get('tags')?.split(','));
 				}
-			} else filteredTags.set([])
-		})
+			} else filteredTags.set([]);
+		});
 	});
 
 	/**
@@ -83,7 +85,7 @@
 			]);
 		}
 		$page.url.searchParams.set('tags', $filteredTags.join(','));
-		goto(`?${$page.url.searchParams.toString()}`, {noScroll:true});
+		goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
 		// if ($filteredTags.length > 0) {
 		// } else {
 		// 	$page.url.searchParams.delete('tags');
@@ -155,29 +157,107 @@
 </script>
 
 <div class="filterbar">
-	{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-		<div animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-			<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)} />
-		</div>
-	{/each}
+	<div id="display-type" class="option-group">
+		<label>
+			<input
+				type="radio"
+				name="display-type"
+				id="display-type-list"
+				bind:group={display_type}
+				value="list"
+			/>Lista
+		</label>
+		<label>
+			<input
+				type="radio"
+				name="display-type"
+				id="display-type-grid"
+				bind:group={display_type}
+				value="grid"
+			/>Grilla
+		</label>
+	</div>
+	<div class="tagfilters">
+		{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
+			<div class="tag-group-container" animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+				<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)} />
+			</div>
+		{/each}
+	</div>
 </div>
 
-<style>
+<style lang="scss">
+	.option-group {
+		display: flex;
+		gap: 0.2em;
+		align-items: center;
+		justify-content: center;
+
+		width: auto;
+		min-width: 0;
+		height: auto;
+		min-height: 0;
+		/* margin-bottom: 1em; */
+		background: white;
+		border-radius: 0.5em;
+		outline: 2px solid var(--1);
+		label {
+			display: flex;
+			align-items: center;
+			gap: 0.5em;
+			cursor: pointer;
+			color: var(--1);
+			padding: 0.5em;
+			border-radius: 0.5em;
+			flex: 1 1;
+			transition: 200ms;
+			outline: 2px solid transparent;
+			&:has(input:checked) {
+				background: var(--1);
+				outline: 2px solid var(--1);
+				color: white;
+			}
+		}
+		input {
+			display: none;
+		}
+	}
 	.filterbar {
 		display: flex;
 		flex-wrap: wrap;
 		width: 100%;
 		/* height: 10rem; */
-		justify-content: center;
-		align-items: center;
 		--gap: 0.7em;
 		gap: var(--gap);
+		justify-content: center;
+		align-items: center;
 		column-gap: calc(var(--gap) * 0.8);
 		--tag-color: var(--1, indigo);
+		max-width: 100%;
+		/* container-type: inline-size; */
 	}
-	.filterbar div {
+	.tagfilters {
+		gap: var(--gap);
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		max-width: 100dvw;
+	}
+	.tag-group-container {
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
+	}
+	@container (min-width: 1300px) {
+		.tagfilters {
+			flex-direction: column;
+		}
+		.groupname {
+			width: 100%;
+		}
+	}
+	@media screen and (min-width: 1300px) {
+		
 	}
 </style>

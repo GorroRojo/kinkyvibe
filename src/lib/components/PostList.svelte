@@ -7,6 +7,7 @@
 	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
+	import Card from './Card.svelte';
 	/** @type {[]} */
 	function togglePositiveTagFilter(tag) {
 		filteredTags.update((fTags) =>
@@ -27,36 +28,101 @@
 			? true
 			: $filteredTags.every((f) => p.meta.tags.includes(f))
 	);
+
+	/**
+	 * @type {"list"|"grid"}
+	 */
+	export let display_type = 'list';
 </script>
 
-<div id="filterbar">
-	<FilterBar />
-</div>
+{#if tagFilteredPosts.length > 0}
+	<div class="container">
+		<div class="postlist">
+			<div id="filterbar">
+				<FilterBar bind:display_type />
+			</div>
 
-<ul id="posts">
-	{#each tagFilteredPosts as post, i (post.path)}
-		<li
-		in:scale|local={{delay: i*100}}
-			animate:flip={{ duration: 500 }}
-		>
-			<PostListItem {post} />
-		</li>
-	{/each}
-</ul>
+			{#key display_type}
+				<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
+					{#if display_type == 'list'}
+						{#each tagFilteredPosts as post, i (post.path)}
+							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
+								<PostListItem {post} />
+							</li>
+						{/each}
+					{:else if display_type == 'grid'}
+						{#each tagFilteredPosts as post, i (post.path)}
+							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
+								<Card {post}>
+									<h3>{post.meta.title}</h3>
+								</Card>
+							</li>
+						{/each}
+					{/if}
+				</ul>
+			{/key}
+		</div>
+	</div>
+{/if}
 
 <style lang="scss">
-	#filterbar {
-		margin-top: 3em;
-		/* height: 7em; */
-	}
 	#posts {
 		display: flex;
 		gap: 3em;
 		flex-direction: column;
 		padding: 0;
-		margin-top: 3em;
+		/* margin-top: 3em; */
+		max-width: 50rem;
+		margin-inline: auto;
+	}
+	h3 {
+		margin: 1em;
 	}
 	li {
 		list-style: none;
+	}
+
+	.postlist {
+		display: grid;
+		gap: 1em;
+	}
+	.container {
+		container-type: inline-size;
+	}
+	#posts.grid {
+		/* display:grid; */
+		/* grid-auto-flow: column; */
+		/* max-width: 100%; */
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		width: 100%;
+	}
+	@container (min-width: 1300px) {
+		.postlist {
+			grid-template-areas: 'left' 'main' 'right';
+			grid-template-columns: 1fr 50rem 1fr;
+			gap: 1em;
+			align-items: start;
+			align-content: start;
+			padding-left: 1em;
+		}
+		#posts {
+			width: 100%;
+		}
+		#filterbar {
+			grid-area: left;
+			position: sticky;
+			top: 1em;
+			display: block;
+			height: auto;
+			align-self: start;
+			min-width: 0;
+		}
+		#display-type {
+			margin-bottom: 1em;
+		}
+	}
+	@media screen and (min-width: 1300px) {
 	}
 </style>
