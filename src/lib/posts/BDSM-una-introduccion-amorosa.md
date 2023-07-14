@@ -4,23 +4,25 @@ published_date: 2021-05-20Z-03:00Z-03:00
 title: BDSM - Una Introducción Amorosa
 summary: Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente
 tags:
-    - BDSM
-    - KinkyVibe # etiqueta especial #
-    - inicial
-    - historia
+  - español
+  - BDSM
+  - KinkyVibe # etiqueta especial #
+  - inicial
+  - historia
 layout: material
 category: material
 authors:
-    - DemonWeb
+  - DemonWeb
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido  # descargable | link | contenido #
+type: contenido # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00Z-03:00
 ---
+
 > Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente
 
 ## Se trata de confianza, cuidado y comunicación
@@ -38,13 +40,13 @@ Mientras confiemos y nos cuidemos entre nosotres, podemos explorar lo que sea qu
 
 El **BDSM** es un acrónimo y un término paraguas que significa:
 
-**B:** *__B__ondage*. Restringir la movilidad de alguien (sea nosotres u otre) ya sea con cuerdas, esposas, grilletes, nuestras manos o pañuelos de seda.
+**B:** _**B**ondage_. Restringir la movilidad de alguien (sea nosotres u otre) ya sea con cuerdas, esposas, grilletes, nuestras manos o pañuelos de seda.
 
-**D/S**: De intercambio de poder o *__D__ominación/__S__umición*, en donde una de las personas tiene "autoridad", "control" o "poder" sobre la otra persona, dentro de una escena<sup>*</sup> y de forma consensuada.
+**D/S**: De intercambio de poder o _**D**ominación/**S**umición_, en donde una de las personas tiene "autoridad", "control" o "poder" sobre la otra persona, dentro de una escena<sup>\*</sup> y de forma consensuada.
 
-**S/M**: Por último tenemos el __s__ado__m__asoquismo, que implica dar o recibir experiencias corporales de distinta índole. Ya sea nalgueadas, cera de velas, cosquillas, azotes, ¡entre miles de posibilidades!
+**S/M**: Por último tenemos el **s**ado**m**asoquismo, que implica dar o recibir experiencias corporales de distinta índole. Ya sea nalgueadas, cera de velas, cosquillas, azotes, ¡entre miles de posibilidades!
 
-<small>* - "Escena" es el término que usamos para referirnos al marco en el que sucede una actividad/intercambio BDSM</small>
+<small>\* - "Escena" es el término que usamos para referirnos al marco en el que sucede una actividad/intercambio BDSM</small>
 
 Mucha gente considera el BDSM deshumanizanto, enfermo, y muchas otras palabras que arrastramo de las épocas más intensas de **patologización y psiquiatrización de la sexualidad humana**. Quienes tenemos estas prácticas sabemos que es una forma hermosa de exporar, sentir, jugar y tener contacto con otres.
 
@@ -54,59 +56,59 @@ Las personas pueden tener relaciones sexuales sin conversación, negociación o 
 
 Es importante que entendamos la genealogía de las prácticas sadomasoquistas para poder desentramar cómo es que llegamos a la actualidad.
 
-Hay representaciones de las prácticas sadomasoquistas en el arte griego. El antiguo Kama Sutra <small>(300 A.C.)</small> muestra nalgueadas eróticas, así como tips y trucos para aprender a morder eróticamente a tu amante, y las referencias europeas en el arte datan del siglo XV. Pero el BDSM floreció durante el siglo XVIII, cuando algunos burdeles europeos comenzaron a especializarse en restricciones, flagelación y otros *"castigos"* que las mujeres cis *"dominantes"*<sup>*</sup> aplicaban a hombres cis _"sumisos"_ voluntariamente.
+Hay representaciones de las prácticas sadomasoquistas en el arte griego. El antiguo Kama Sutra <small>(300 A.C.)</small> muestra nalgueadas eróticas, así como tips y trucos para aprender a morder eróticamente a tu amante, y las referencias europeas en el arte datan del siglo XV. Pero el BDSM floreció durante el siglo XVIII, cuando algunos burdeles europeos comenzaron a especializarse en restricciones, flagelación y otros _"castigos"_ que las mujeres cis _"dominantes"_<sup>\*</sup> aplicaban a hombres cis _"sumisos"_ voluntariamente.
 
-<small>* - Entre les más conocides se encuentra <em><a href="https://en.wikipedia.org/wiki/Theresa_Berkley" target="_blank">Theresa Berkley</a></em>, una dominatriz del siglo XIX que se especializaba en la flagelación erótica e invento el <em>Caballo Berkley</em> o <em>"Chavalet"</em> como ella lo llamaba. Un tipo de caballete para nalgueadas.</small>
+<small>\* - Entre les más conocides se encuentra <em><a href="https://en.wikipedia.org/wiki/Theresa_Berkley" target="_blank">Theresa Berkley</a></em>, una dominatriz del siglo XIX que se especializaba en la flagelación erótica e invento el <em>Caballo Berkley</em> o <em>"Chavalet"</em> como ella lo llamaba. Un tipo de caballete para nalgueadas.</small>
 
-Finalmente, en 1791, el **Marquéz francés de Sade** publicó la primera novela con contenidos que pueden ser atribuidos a un proto-S&M, *"Justine"*. Su nombre nos dió el termino "__sadi__smo", que fue utilizado para referirse al **placer que genera provocarle daño a une otre**. El vínculo del origen de la palabra con su uso en la actualidad distan muchísimo.
+Finalmente, en 1791, el **Marquéz francés de Sade** publicó la primera novela con contenidos que pueden ser atribuidos a un proto-S&M, _"Justine"_. Su nombre nos dió el termino "**sadi**smo", que fue utilizado para referirse al **placer que genera provocarle daño a une otre**. El vínculo del origen de la palabra con su uso en la actualidad distan muchísimo.
 
 Primero y principal, casi ninguna de las prácticas que Sade relata en sus obras literarias son consensuales, mientras que la primera regla del BDSM es **consensuar las prácticas**. Otra cuestión que sigue causando estragos es que Sade pasó más de 34 años de su vida privado de libertad, en parte por los crímenes que había cometido sobre otres de forma no-consensuada. Aunque hayan pasado **siglos** desde su publicación, el hombre sigue evocando la misma respuesta en la visión social de las prácticas fetichistas, a las cuales **se les sigue mirando de forma patologizadora y criminalizante**.
 
-En 1870, **Leopold Von Sacher-Masoch** publicó la novela *"La Venus de las Pieles"* sobre la sumisión sexual masculina. En nuestros días, su celebridad se debe ante todo al escándalo que acompañó la publicación de algunas de sus novelas <small>(esta mencionada, en particular)</small> y a ser el apellido **Masoch** el inspirador de la palabras **masoq**uismo, cuya utilización para definir ciertos comportamientos sexuales aparece por primera vez en *Psicopatía sexual* <small>(1886)</small> de **Krafft Ebing**, quien le otorgó este nombre a la causa de las peculiares aficiones de sus personajes. Este último título forense fue referencia para médiques y jueces. Ebing introduce en él términos como *sadismo*, *masoquismo*, _**homosexualidad**_, etc.
+En 1870, **Leopold Von Sacher-Masoch** publicó la novela _"La Venus de las Pieles"_ sobre la sumisión sexual masculina. En nuestros días, su celebridad se debe ante todo al escándalo que acompañó la publicación de algunas de sus novelas <small>(esta mencionada, en particular)</small> y a ser el apellido **Masoch** el inspirador de la palabras **masoq**uismo, cuya utilización para definir ciertos comportamientos sexuales aparece por primera vez en _Psicopatía sexual_ <small>(1886)</small> de **Krafft Ebing**, quien le otorgó este nombre a la causa de las peculiares aficiones de sus personajes. Este último título forense fue referencia para médiques y jueces. Ebing introduce en él términos como _sadismo_, _masoquismo_, _**homosexualidad**_, etc.
 
-Es importante aclarar que Krafft-Ebing consideraba que *la procreación* era el objetivo del deseo sexual, y que cualquier otra forma de sexo recreacional era una *perversión*.<sup>*</sup>
+Es importante aclarar que Krafft-Ebing consideraba que _la procreación_ era el objetivo del deseo sexual, y que cualquier otra forma de sexo recreacional era una _perversión_.<sup>\*</sup>
 
-<small>* - "With opportunity for the natural satisfaction of the sexual instinct, every expression of it that does not corresponde with the purpose of nature-i.e.,propagation,-must be regarded as perverse." <em>Psuchopathia Sexualis</em>, 7th ed. translation, pg 56, 12th ed. translation, pg 79.</small>
+<small>\* - "With opportunity for the natural satisfaction of the sexual instinct, every expression of it that does not corresponde with the purpose of nature-i.e.,propagation,-must be regarded as perverse." <em>Psuchopathia Sexualis</em>, 7th ed. translation, pg 56, 12th ed. translation, pg 79.</small>
 
-En 1905<sup>*</sup> **Sigmund Freud** acuñó la palabra **sadomasoquismo** y concluyó que la misma derivaba de un desarrollo psicológico aberrante producido durante la infancia. Su trabajo asentó las bases para lo que luego iba a ser considerado como la "médica aceptada", marcando la perspectiva que se tendría con respecto al tema.
+En 1905<sup>\*</sup> **Sigmund Freud** acuñó la palabra **sadomasoquismo** y concluyó que la misma derivaba de un desarrollo psicológico aberrante producido durante la infancia. Su trabajo asentó las bases para lo que luego iba a ser considerado como la "médica aceptada", marcando la perspectiva que se tendría con respecto al tema.
 
-<small>* - En el libro <em>Tres ensayos sobre teoría sexual, 1905</em></small>
+<small>\* - En el libro <em>Tres ensayos sobre teoría sexual, 1905</em></small>
 
 Es imporante señalar que **todas las observaciones que fueron llevadas a cabo fueron hechas sobre sujetxs psiquiatrizadxs y privadxs de su libertad**.
 
-Recién durante el siglo XX pudimos empezar a ver un cambio con respecto a cómo se representaban muchas de estas prácticas, en parte debido a la globalización e industrialización. **[Peter Tupper](https://petertupper.com/biography)**, autor de *A lover's Pinch: A cultural history of sadomasochism*<sup>*</sup>, en su disertación sobre los orígenes del sadomasoquismo en la cultura occidental nota 3 grandes períodos que va a llamar: 
+Recién durante el siglo XX pudimos empezar a ver un cambio con respecto a cómo se representaban muchas de estas prácticas, en parte debido a la globalización e industrialización. **[Peter Tupper](https://petertupper.com/biography)**, autor de _A lover's Pinch: A cultural history of sadomasochism_<sup>\*</sup>, en su disertación sobre los orígenes del sadomasoquismo en la cultura occidental nota 3 grandes períodos que va a llamar:
 
 1. **El fetichismo europeo** <small>(desde 1928)</small>
 2. **Fetichismo americano** <small>(desde 1934)</small>
 3. **Gay Leather** <small>(desde 1940)</small>
 
-Lamentablemente este es un tema *laaargo* que vamos a tener que seguir en otro artículo. Ahora, volvemos:
+Lamentablemente este es un tema _laaargo_ que vamos a tener que seguir en otro artículo. Ahora, volvemos:
 
-<small>* - El aprieto de une amante: Una historia cultural del sadomasoquismo</small>
+<small>\* - El aprieto de une amante: Una historia cultural del sadomasoquismo</small>
 
 ## Otra forma de jugar
 
-Hoy en día tenemos más información disponible acerca del BDSM y las prácticas fetichistas, y hemos podido llevasr a cabo múltiples redadas **contra la patologización de nuestros placeres**, los cuales han llevado a una "aceptación" más general por parte de las comunidades occidentales. No sin habernos hecho derramar sangre, sudo y lágrimas. Ha sido realmente *enorme* el esfuerzo llevado a cabo <small>(que todavía no termina)</small> por parte de activistas LGTB y heterosexuales en pos de liberar nuestras posiilidades eróticas y relacionales.
+Hoy en día tenemos más información disponible acerca del BDSM y las prácticas fetichistas, y hemos podido llevasr a cabo múltiples redadas **contra la patologización de nuestros placeres**, los cuales han llevado a una "aceptación" más general por parte de las comunidades occidentales. No sin habernos hecho derramar sangre, sudo y lágrimas. Ha sido realmente _enorme_ el esfuerzo llevado a cabo <small>(que todavía no termina)</small> por parte de activistas LGTB y heterosexuales en pos de liberar nuestras posiilidades eróticas y relacionales.
 
-En los estudios psicológicos y sociales llevados a cabo en la última década, la gran mayoría ha revelado que **no hay diferencias sustanciales entre las personas que practican BDSM y las que no**. Más allá de que no querramos tener prácticas *"vainilla"* o consideradas *"convencionales"*.<sup>*</sup>
+En los estudios psicológicos y sociales llevados a cabo en la última década, la gran mayoría ha revelado que **no hay diferencias sustanciales entre las personas que practican BDSM y las que no**. Más allá de que no querramos tener prácticas _"vainilla"_ o consideradas _"convencionales"_.<sup>\*</sup>
 
-<small>* - El estudio puede ser encontrado en <em>The Psychology of Sex</em> de Meg John Barker</small>
+<small>\* - El estudio puede ser encontrado en <em>The Psychology of Sex</em> de Meg John Barker</small>
 
-**Es importante que tengamos cuidado antes de saltar a decir que algo *"nos parece extraño"* o de lo cual no tenemos mucha información *"es enfermo"*. Bajo la carátula de *perverso* y de *desviado* se han anulado muchas vidas, posibilidades y libertades.**. Las palabras que usamos tienen peso, y el sistema médico y psiquiátrico tiene mucho más poder del que somos conscientes. No fue <small>(ni es, en muchos lugares)</small> hace tanto que debatíamos acerca de *"sexo oral"*, *"homosexualidad"* y *"masturbación"*, todas las cuales fueron consideradas perversiones.
+**Es importante que tengamos cuidado antes de saltar a decir que algo _"nos parece extraño"_ o de lo cual no tenemos mucha información _"es enfermo"_. Bajo la carátula de _perverso_ y de _desviado_ se han anulado muchas vidas, posibilidades y libertades.**. Las palabras que usamos tienen peso, y el sistema médico y psiquiátrico tiene mucho más poder del que somos conscientes. No fue <small>(ni es, en muchos lugares)</small> hace tanto que debatíamos acerca de _"sexo oral"_, _"homosexualidad"_ y _"masturbación"_, todas las cuales fueron consideradas perversiones.
 
-<small>* - La "homosexualidad" dejó el Manual de Diganóstico de Desórdenes Mentales (DSM) recién en el 1987. La Organicación Mundial de la Salud removió la misma de la Clasificación Internacional de Enfermedades en 1992. <a href="https://www.psychologytoday.com/us/blog/hide-and-seek/201509/when-homosexuality-stopped-being-mental-disorder" target="_blank">Link</a></small>
+<small>\* - La "homosexualidad" dejó el Manual de Diganóstico de Desórdenes Mentales (DSM) recién en el 1987. La Organicación Mundial de la Salud removió la misma de la Clasificación Internacional de Enfermedades en 1992. <a href="https://www.psychologytoday.com/us/blog/hide-and-seek/201509/when-homosexuality-stopped-being-mental-disorder" target="_blank">Link</a></small>
 
 ## Nunca abusivo
 
 Tomemos por ejemplo los deportes. Cuando les jugadores de fútbol hacen jugadas brillantes, les compañeres de equipo a menudo les dan una palmada en el trasero, les golpean o golpean sus cascos. Les destinataries aceptan ese "abuso" con gratitud como un signo de aprecio y afecto. O consideremos una caminara por una montaña. Te quemás con el sol, las espinas lastiman tus piernas, y para cuando alcanzzas la cima estás doloride y agotade. Sin emargo, te sentís eufórique. <small>(O eso me dijeron porque ni en pedo te subo una montaña, prefiero que me nalgueen)</small>
 
-**La principal diferencia entre estas experiencias y el BDSM es el contexto**. Esos contextos (subir montañas, jugar al fútbol) son "socialmente aceptados", tienen una marcada ausencia de "componente sexual y/o erótico" *(si está, debe ser implícito y para consumo cis masculino)*.
+**La principal diferencia entre estas experiencias y el BDSM es el contexto**. Esos contextos (subir montañas, jugar al fútbol) son "socialmente aceptados", tienen una marcada ausencia de "componente sexual y/o erótico" _(si está, debe ser implícito y para consumo cis masculino)_.
 
 Esto es en parte ya que nos dieron esta educación en la cual lo sexual tiene que ver con lo genital y debe suceder entre dos personas heterosexuales, cisgénero, en un vínculo romántico, blanques, clase media alta, y de ser posile casades o con fines reproducivos. **El sexo, el placer, las prácticas eróticas que sucedan por fuera de este marco son consideradas sucias, desviadas, perversas.**
 
 Los medios se han encargado de distorsionar las prácticas BDSM, entre ellas representando casi siempre su componente más relacionado con el dolor, cuando el dolor es una posibilidad más dentro del encuadre BDSM, no una constante ni una regla. **En realidad, la idea de BDSM=dolor es un gran mito.**
 
-En el libro *SM 101: Una introducción realista* de Jay Wiseman publicado en 1996, se hace mucho énfasis en que **el BDSM _"siempre es consensual, y el abuso no lo es"_**. Y aclara que _"no se necesitan restricciones, bromas o látigos para abusar de alguien"_. En manos cuidadosas <small>(ya sean las nuestras sobre nosotres, o las de alguien más)</small> el equipamiento <small>(látigos, esposas, velas)</small> aumentan la excitación sexual <small>(o mismo aumentan nuestra posibilidad de relajarnos o dejarnos ir)</small>, permitiendo que ambes jugadores disfruten de su interacción o *escena*.
+En el libro _SM 101: Una introducción realista_ de Jay Wiseman publicado en 1996, se hace mucho énfasis en que **el BDSM _"siempre es consensual, y el abuso no lo es"_**. Y aclara que _"no se necesitan restricciones, bromas o látigos para abusar de alguien"_. En manos cuidadosas <small>(ya sean las nuestras sobre nosotres, o las de alguien más)</small> el equipamiento <small>(látigos, esposas, velas)</small> aumentan la excitación sexual <small>(o mismo aumentan nuestra posibilidad de relajarnos o dejarnos ir)</small>, permitiendo que ambes jugadores disfruten de su interacción o _escena_.
 
 Cuando en las prácticas BDSM se va a infligir dolor real, siempre se controla cuidadosamente con la persona que lo va a recibir especificando los límites claramente de antemano. Laspersonas que disfrutan del dolor o sensaciones intensas suelen tener un contexto en el cual lo hacen. <b>El sadomasoquismo es la exploración de las sensaciones corporales que se encuentran y desencuentran en todos los caminos posibles entre dolor y placer.</b> **No son extremos ni binarios**.
 
@@ -114,7 +116,7 @@ Cuando en las prácticas BDSM se va a infligir dolor real, siempre se controla c
 
 El BDSM tiene mucho de teatral, de creatividad y de fantasía. Por lo general, hablamos de "roles" y a las sesiones BDSM se les llama "escenas". Solemos acordar y negociar límites y pautas para "la escena" así como tamién palabras de seguridad por si algo no sale como lo queremos y nos sentimos mal.
 
-Generalmente, las palabras de seguridad están pensadas para no ser confundidas con terminos como *"no"*, *"pará"* o *"no más*" ya que muches disfrutamos de la ilusión y de los juegos relacionados con la resistencia. El más conocido es el *método "semáforo"* <small>(<span style="color:green;">Verde</span> para "Ok", <span style="color:var(--4-dark);">Amarillo</span> para "Bajar un cambio" y <span style="color:darkred;">Rojo</span> para parar)</small> + una seña de seguridad para indicar que deseamos parar todo y hablar o atende una emergencia <small>(que nos sintamos mal, algo no nos haya gustado, etc)</small>. **No respetar la palabra de seguridad de otra persona es considerado violencia y es una práctica abusiva. Las personas que "reciben" <small>(bot, sumi)</small> están a cargo.**
+Generalmente, las palabras de seguridad están pensadas para no ser confundidas con terminos como _"no"_, _"pará"_ o _"no más_" ya que muches disfrutamos de la ilusión y de los juegos relacionados con la resistencia. El más conocido es el _método "semáforo"_ <small>(<span style="color:green;">Verde</span> para "Ok", <span style="color:var(--4-dark);">Amarillo</span> para "Bajar un cambio" y <span style="color:darkred;">Rojo</span> para parar)</small> + una seña de seguridad para indicar que deseamos parar todo y hablar o atende una emergencia <small>(que nos sintamos mal, algo no nos haya gustado, etc)</small>. **No respetar la palabra de seguridad de otra persona es considerado violencia y es una práctica abusiva. Las personas que "reciben" <small>(bot, sumi)</small> están a cargo.**
 
 ## ¿Qué significa esto?
 
@@ -156,14 +158,14 @@ Las habilidades requeridas para practicar BDSM incluyen confianza, comunicación
 
 ## `edit` Disciplina
 
-Quería comentar para quienes lo hayan visto en otro lado, que en el momento tuve miedo de complicar todo mucho y no puse la definición de *Disciplina*. Lo cual fue un error, y va a ser modificado en el futuro. Pero la dejo por acá:                                                                                                                    Disciplina en el contexto BDSM tiene muchos significados, uno de ellos es el de jugar a enseñarle a otra persona a seguir tus órdenes o reglas. Muchas veces esto es considerado un tipo de “bondage mental”, bajo la idea de que la otra persona se portaría “bien” buscando no ser castigade o buscando ser felicitade. 
+Quería comentar para quienes lo hayan visto en otro lado, que en el momento tuve miedo de complicar todo mucho y no puse la definición de _Disciplina_. Lo cual fue un error, y va a ser modificado en el futuro. Pero la dejo por acá: Disciplina en el contexto BDSM tiene muchos significados, uno de ellos es el de jugar a enseñarle a otra persona a seguir tus órdenes o reglas. Muchas veces esto es considerado un tipo de “bondage mental”, bajo la idea de que la otra persona se portaría “bien” buscando no ser castigade o buscando ser felicitade.
 
-El concepto de Disciplina que tenemos hoy en día tiene su origen en las raíces del BDSM Estadounidense, el cual deviene en su mayoría de la escena leather, fundada en 1940 por hombres cis gays, los cuales eran veteranes del sistema militar. 
-Esto en parte tuvo que ver con que el sistema militar suele tener una gran cuota de disciplinamiento y entrenamiento (en su gran mayoría, no consensuado), la cual muches participantes trajeron de regreso a casa, pero en otros contextos y formas. 
+El concepto de Disciplina que tenemos hoy en día tiene su origen en las raíces del BDSM Estadounidense, el cual deviene en su mayoría de la escena leather, fundada en 1940 por hombres cis gays, los cuales eran veteranes del sistema militar.
+Esto en parte tuvo que ver con que el sistema militar suele tener una gran cuota de disciplinamiento y entrenamiento (en su gran mayoría, no consensuado), la cual muches participantes trajeron de regreso a casa, pero en otros contextos y formas.
 
-El BDSM comprende que la disciplina y el poder son una parte de las relaciones y vínculos humanos (entre nosotres y con el entorno), siendo la gran mayoría de nuestras experiencias en contextos no consensuales: cuando somos niñes no podemos elegir cuándo o qué comer, y cuando somos adultes, hay leyes, normas y miles de otras cosas que nos rodean. 
+El BDSM comprende que la disciplina y el poder son una parte de las relaciones y vínculos humanos (entre nosotres y con el entorno), siendo la gran mayoría de nuestras experiencias en contextos no consensuales: cuando somos niñes no podemos elegir cuándo o qué comer, y cuando somos adultes, hay leyes, normas y miles de otras cosas que nos rodean.
 
-Por eso es importante reforzar la necesidad de negociar, consensuar, pactar e informarnos sobre las prácticas que nos gustan. Muchas personas disfrutan de las prácticas consensuadas de disciplina de esta forma :D 
+Por eso es importante reforzar la necesidad de negociar, consensuar, pactar e informarnos sobre las prácticas que nos gustan. Muchas personas disfrutan de las prácticas consensuadas de disciplina de esta forma :D
 
 Es importante agregar que por el hecho de que muches tenemos experiencias de trauma producto de ejercicios de violencia disciplinatoria no consensuada, por eso es recomendable tener especial cuidado a la hora de explorar este concepto y juego con otres.
 
@@ -171,13 +173,11 @@ Es importante agregar que por el hecho de que muches tenemos experiencias de tra
 
 ## **VIBRA MUTANTE**
 
-*No creemos que la teoría esté desarraigada de la realidad. Escribimos, traducimos, copiamos, re-publicamos, circulamos aquello que nos parece importante estar hablando; aquello que nos hace falta.*
+_No creemos que la teoría esté desarraigada de la realidad. Escribimos, traducimos, copiamos, re-publicamos, circulamos aquello que nos parece importante estar hablando; aquello que nos hace falta._
 
-*Buscamos colectivizar, organizarnos, amarnos, construir y compartir saberes, placeres, y herramientas que nos ayuden a pensar, resignificar, sanar, cuestionar y comprender.*
+_Buscamos colectivizar, organizarnos, amarnos, construir y compartir saberes, placeres, y herramientas que nos ayuden a pensar, resignificar, sanar, cuestionar y comprender._
 
-*Creemos en construir(nos) como comunidad- cuir, antifascista, antipunitivista, autocrítica, y compasiva.*
-
-
+_Creemos en construir(nos) como comunidad- cuir, antifascista, antipunitivista, autocrítica, y compasiva._
 
 <style>
     a {

@@ -4,6 +4,7 @@ published_date: 2023-06-15Z-03:00Z-03:00
 title: Drux Ropes
 summary: 
 tags:
+  - español
   - BDSM
   - Shibari
   - Educadores

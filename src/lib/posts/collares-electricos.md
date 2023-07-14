@@ -4,38 +4,40 @@ published_date: 2023-02-02Z-03:00Z-03:00
 title: Collares Eléctricos en Humanes
 summary: Traducción de un artículo sobre los riesgos inmitigables de electrocutar el cuello.
 tags:
-    - BDSM
-    - electro
-    - seguridad
-    - articulo
+  - español
+  - BDSM
+  - electro
+  - seguridad
+  - articulo
 layout: material
 category: material
 authors:
-    - BusterBDSM
-    - Gorro_Rojo
+  - BusterBDSM
+  - Gorro_Rojo
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido  # descargable | link | contenido #
+type: contenido # descargable | link | contenido #
 link: https://www.domme-chronicles.com/2021/02/shock-collars-in-bdsm-play-are-they-safe
 ########### ----- Para tipo 'link' ----- ###########
 access_date: 2023-06-16Z-03:00
 original_published_date: 2021-02-04Z-03:00Z-03:00
 ---
+
 <script>
     import frente from '$lib/posts/media/collares-electricos/1.png'
     import costado from '$lib/posts/media/collares-electricos/2.png'
     import atras from '$lib/posts/media/collares-electricos/3.png'
 </script>
 
-traducido *medio así nomás* de una parte de [este artículo](https://www.domme-chronicles.com/2021-02/shock-collars-in-bdsm-play-are-they-safe)
+traducido _medio así nomás_ de una parte de [este artículo](https://www.domme-chronicles.com/2021-02/shock-collars-in-bdsm-play-are-they-safe)
 
 <p><small style="font-size: var(--step-0);"><mark>Aviso</mark>: El artículo no está super editado para ser fiel al original, pero igual aviso que se pone bastante tajante le autore hacia el final.</small></p>
 <br/>
 <br/>
 
-
 ---
+
 Bueno, hablemos sobre los **collares de shock/Estim**.
 
 Por referencia, **soy fisioterapeuta especializado en trastornos neuromusculoesqueléticos** <small>(nervios, músculos y articulaciones)</small> a largo plazo, pero también tengo una formación médica especializada en evaluación respiratoria y neurológica central.
@@ -48,20 +50,19 @@ Empecemos con la parte anterior (o delantera) del cuello:
 
 ![diagrama de la parte delantera del cuello]({frente})
 
-
-Aquí vemos la parte anterior del cuello con la cabeza inclinada hacia atrás. 
+Aquí vemos la parte anterior del cuello con la cabeza inclinada hacia atrás.
 
 - La estructura más superficial <small>(cercana a la superficie)</small>, mostrada aquí tensa, es el **músculo esternocleidomastoideo** a cada lado de la parte delantera del cuello.
-  - **Si la corriente pasa a través de estos, pueden hacer girar bruscamente la cabeza hacia atrás**, apretando las raíces nerviosas que salen por la parte posterior <small>(más sobre eso más tarde)</small>. 
+  - **Si la corriente pasa a través de estos, pueden hacer girar bruscamente la cabeza hacia atrás**, apretando las raíces nerviosas que salen por la parte posterior <small>(más sobre eso más tarde)</small>.
 - Luego tenemos **la laringe** o caja de voz, que es una delicada serie de músculos.
   - Es bastante fácil dañar uno, pero sucede normalmente a través de un trauma, lo que suele resultar en la **pérdida de la voz y la necesidad de comer a través de una pajita**.
 
-Estamos más preocupados por las estructuras nerviosas que suministran la laringe. 
+Estamos más preocupados por las estructuras nerviosas que suministran la laringe.
 
 - El **nervio laríngeo** recurrente corre por el interior de la garganta como parte del nervio vago, que está bastante protegido del exterior <small>(es lo mejor, ya que mantiene la respiración y el bombeo del corazón)</small>
-  - La parte *"recurrente"* de este nervio es que se bucle desde la parte superior del pecho y corre cerca de la piel hasta la caja de voz. Si se daña ese nervio <small>(e incluso la corriente de bajo nivel puede causar cambios en el "software" nervioso)</small>, **le sumise se enfrenta a una discapacidad potencialmente permanente**.
+  - La parte _"recurrente"_ de este nervio es que se bucle desde la parte superior del pecho y corre cerca de la piel hasta la caja de voz. Si se daña ese nervio <small>(e incluso la corriente de bajo nivel puede causar cambios en el "software" nervioso)</small>, **le sumise se enfrenta a una discapacidad potencialmente permanente**.
 
-Lo que es importante tener en cuenta es que el daño nervioso rara vez es mecánico o relacionado con un trauma. Los cambios en la sensibilidad del nervio a través de la inflamación, el dolor crónico o el impulso eléctrico regularmente causan *"radiculopatía"* o una reducción de la sensibilidad y, por lo tanto, de la función de ese nervio.
+Lo que es importante tener en cuenta es que el daño nervioso rara vez es mecánico o relacionado con un trauma. Los cambios en la sensibilidad del nervio a través de la inflamación, el dolor crónico o el impulso eléctrico regularmente causan _"radiculopatía"_ o una reducción de la sensibilidad y, por lo tanto, de la función de ese nervio.
 
 Así que hacerle cosquillas al nervio laríngeo recurrente significa **estar adivinando si vas a causar daño nervioso o no**, y **no se puede ver** el potencial daño hasta que sea muy tarde. **No hay forma de mitigar el riesgo, no hay señales que podamos usar de advertencia**.
 
@@ -80,7 +81,7 @@ Eso que se ve en el dibujo es la arteria carótida. Hay una de cada lado. Es a l
 
 La vena yugular (que se ve azul y cortada en el dibujo, en la parte del cuello más cercana a la oreja) saca la sangre del cerebro y la vuelve a llevar al corazón. La yugular es de baja presion y la carótide es de alta presión. Para hacer frente a la presión, la carótida está envuelta en nuestro viejo amigo, músculo liso.
 
-**Si se le hace un espasmo a ese músculo liso, ahora tenemos une sumi con un derrame cerebral**. 
+**Si se le hace un espasmo a ese músculo liso, ahora tenemos une sumi con un derrame cerebral**.
 
 **El riesgo es muy bajo**, sí, pero **_es imposible de mitigar_**. Lo único que podemos hacer es cruzar los dedos y esperar no causar un evento neurológico que le cambie la vida a le sumi.
 
@@ -97,7 +98,7 @@ Incluso la estimulación electrica local puede causar muerte súbita o daño per
 Acá podemos ver una vista directa de la cervical, con los nervios en amarillo y las venas en rojo. Los discos están en azul, pero no hay que preocuparse por ellos.
 
 Los nervios cervicales se encargan de la sensación y el control muscular de: la cabeza (sostenerla), los hombros (subir los hombros y brazos), los biceps, triceps, los músculos del antebrazo que se usan par agarrar, los músculos pequeños de la mano, y los pulgares.
-  
+
 Pasar electricidad por la nuca significa pasarla por la raiz nerviosa, que es la parte más sensible del nervio. El pequeño nódulo justo entrando a la espina es el centro de preocesamiento de la señal antes de que entre realmente a la espina.
 
 Si eso se daña o inflama (entre otras cosas) eso pueda causar _cosquilleo_, _adormimiento_, _debilidad en los brasos_, e **incapacidad de sostener cosas**, incluso posiblemente en ambos brazos si la corriente es repentina como en un collar eléctrico.
@@ -116,7 +117,7 @@ Por supuesto que en esa area también está la médula espinal. A menos que le s
 
 **En resumen, en TODAS PARTES del cuello hay ALTO RIESGO, ESTRUCTURA DE ALTA SENSIBILIDAD y es IMPOSIBLE MITIGAR RIESGOS.**
 
-Al final del día, al diseñar una escena, preguntémonos *'¿Vale la pena? ¿Por qué no simplemente ponerle una correa en los genitales y hacerle acabar 50 veces mientras grita?'*
+Al final del día, al diseñar una escena, preguntémonos _'¿Vale la pena? ¿Por qué no simplemente ponerle una correa en los genitales y hacerle acabar 50 veces mientras grita?'_
 
 Jueguen con otra cosa, porque las consecuencias de pensar que se puede manejar esto pueden ser que une sumi tiene que pasar años volviendo a aprender a hablar, o a reconocer a su familia, o a usar sus brazos. ¿10 minutos de juego lo valen?
 

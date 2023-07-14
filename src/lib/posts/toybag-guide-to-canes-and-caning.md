@@ -5,6 +5,7 @@ title: The Toybag Guide to Canes and Caning
 summary: "Una guía en inglés de juegos con varillas, centrada sobretodo en nalgas y piernas."
 # TODO llenar summary
 tags:
+  - español
   - practica
   - impacto
   - caning

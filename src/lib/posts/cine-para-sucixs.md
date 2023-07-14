@@ -4,6 +4,7 @@ published_date: 2023-06-01Z-03:00Z-03:00
 title: Cine Para Sucixs | Junio 2023
 summary: Ciclo de porno queer. Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 tags:
+  - español
   - KinkyVibe
   - porno
   - queer
@@ -34,7 +35,6 @@ link_text: Inscibirme
 <img src={pag2} alt="" />
 </div>
 
-
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 
 Nos encontramos el SÁBADO 3 de JUNIO para la primera edición de este ciclo.
@@ -60,7 +60,7 @@ Les dejamos el cronograma para que se vayan preparando:
 ¿Quiénes vienen? 🔥
 
 {#if link}
-  <a class="cta" href={link}>{link_text}</a>
+<a class="cta" href={link}>{link_text}</a>
 {/if}
 
 <style>

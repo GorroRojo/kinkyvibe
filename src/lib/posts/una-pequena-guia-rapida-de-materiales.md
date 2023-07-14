@@ -4,6 +4,7 @@ updated_date: 2023-06-16Z-03:00
 title: Guía rápida de materiales
 summary: Para saber más sobre qué dildos, fundas y vibradores compramos.
 tags:
+  - español
   - salud
   - materiales
   - seguridad
@@ -130,7 +131,6 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 <p><small id="foot1">\* ftalatos son plastificadores, sustancias añadidas a los plásticos para incrementar su flexibilidad.</small></p>
 
 <p><strong style="font-size:var(--step-2);color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
-
 
 <style>
     hr {

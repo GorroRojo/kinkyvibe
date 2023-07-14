@@ -6,6 +6,7 @@ summary: Una demostración de todas las cosas que puede tener una publicación
 category: material
 layout: material
 tags:
+  - español
   - BDSM
   - KinkyVibe # etiqueta especial #
   - impacto

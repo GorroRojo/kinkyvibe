@@ -4,6 +4,7 @@ published_date: 2021-05-25Z-03:00Z-03:00Z-03:00
 title: Canes - Guía Mega Básica
 summary: ¿Qué tipo de cane debería comprar? ¿De qué material? ¿Qué hace a una buena cane?
 tags:
+  - español
   - BDSM
   - caning
   - impacto

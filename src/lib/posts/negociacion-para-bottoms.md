@@ -2,17 +2,18 @@
 published_date: 2023-02-04Z-03:00Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Negociación rápida para bottoms
-summary: "Armé este modelo para aquellas personas que no quieren usar una checklist, o tener una negociación larga, y quieren un modelo pre-hecho para poder establecer gustos, necesidades, intenciones, preferencias, límites, entre otros. "
+summary: 'Armé este modelo para aquellas personas que no quieren usar una checklist, o tener una negociación larga, y quieren un modelo pre-hecho para poder establecer gustos, necesidades, intenciones, preferencias, límites, entre otros. '
 # TODO llenar el summary
 tags:
-    - BDSM
-    - guía
-    - negociación
-    - KinkyVibe
+  - español
+  - BDSM
+  - guía
+  - negociación
+  - KinkyVibe
 layout: material
 category: material
 authors:
-    - DemonWeb
+  - DemonWeb
 featured: 2
 #force_unlisted: false
 #force_unpublished: false
@@ -26,6 +27,7 @@ type: descargable
 <script>
     import guia from '$lib/posts/media/negociacion-para-bottoms/1.pdf'
 </script>
+
 Holi a todes! El otro día subí una guía de negociación para bottoms ⚡️
 
 La estoy volviendo a subir porque la revisamos, editamos bien bonita y le agregamos cositas.

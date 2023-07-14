@@ -4,6 +4,7 @@ published_date: 2000-08-04Z-03:00Z-03:00
 title: Gorrite
 summary: Programadore, artista, captive.
 tags:
+  - español
   - BDSM
   - artista
 layout: amigues

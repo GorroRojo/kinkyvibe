@@ -4,6 +4,7 @@ published_date: 2022-04-01Z-03:00Z-03:00
 title: Juego de Peleas - Cómo golpear a alguien que te importa
 summary: Azotar es una forma aceptada de juego de impacto para muchos pervertidos, pero el juego corporal rudo puede hacer que incluso los jugadores experimentados se estremezcan.
 tags:
+  - español
   - BDSM
   - golpes
   - seguridad
@@ -29,9 +30,9 @@ original_published_date: 2019-11-10Z-03:00Z-03:00
   import HumanBody from '$lib/components/HumanBody.svelte';
 </script>
 
-Azotar, es una forma aceptada de juego de impacto para muchos pervertidos, pero el juego corporal rudo <small>(puñetazos, bofetadas, patadas, etc.)</small> puede hacer que incluso los jugadores experimentados se estremezcan <small>(juego de palabras)</small>. 
+Azotar, es una forma aceptada de juego de impacto para muchos pervertidos, pero el juego corporal rudo <small>(puñetazos, bofetadas, patadas, etc.)</small> puede hacer que incluso los jugadores experimentados se estremezcan <small>(juego de palabras)</small>.
 
-Golpear en particular parece tener mala reputación, aunque puede ser una forma intensamente visceral de conectarse con su pareja si se hace de la manera correcta. Los puñetazos son una parte habitual de nuestro juego, pero a menudo se han encontrado con escepticismo o reacciones de "tú lo haces, pero yo nunca haría eso" cuando surge en foros en línea. 
+Golpear en particular parece tener mala reputación, aunque puede ser una forma intensamente visceral de conectarse con su pareja si se hace de la manera correcta. Los puñetazos son una parte habitual de nuestro juego, pero a menudo se han encontrado con escepticismo o reacciones de "tú lo haces, pero yo nunca haría eso" cuando surge en foros en línea.
 
 Es probable que esto se deba a que los puñetazos <small>(a diferencia de los azotes, las nalgadas, los azotes, etc.)</small> se ven comúnmente como una reacción descontrolada y enojada asociada con el abuso doméstico o el combate cuerpo a cuerpo. Pero en realidad, los puñetazos en BDSM son tan controlados y precisos, si no más, como cualquier otra forma de impacto y no se parecen a las peleas reales.
 
@@ -85,7 +86,6 @@ Como regla general, apunte a las partes más suaves y carnosas del cuerpo y evit
 ![ ]({diagrama})
 <small>De izquierda a derecha: parte delantera del cuerpo, parte posterior del cuerpo, parte lateral del cuerpo</small>
 
-
 - SÍ <small>(ESTRELLAS VERDES)</small>
   - Por debajo de la clavícula <small>(pero por encima de los senos)</small>
   - Parte superior de los brazos
@@ -103,7 +103,6 @@ Como regla general, apunte a las partes más suaves y carnosas del cuerpo y evit
   - Esternón
 
 Comience con las áreas de "sí" primero y, si está interesado, pase a las "quizás" sólo una vez que haya dominado la técnica adecuada. Si bien algunos jugadores de vanguardia se aventuran en los "No", no lo aconsejamos sin una abundante investigación y experiencia en el juego corporal rudo.
-
 
 ## Negociación y Práctica
 

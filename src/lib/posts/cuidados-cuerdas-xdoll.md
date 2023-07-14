@@ -4,6 +4,7 @@ published_date: 2022-12-21Z-03:00Z-03:00
 title: Información para prácticas restrictivas con cuerdas.
 summary: Las prácticas restrictivas con cuerdas involucran siempre un riesgo asumido el cual debe ser comunicado y entendido entre las partes. Una forma de evitar daños en las personas es estar preparados y tratar de disminuir esos riesgos.
 tags:
+  - español
   - BDSM
   - shibari
   - seguridad
@@ -84,7 +85,7 @@ Existen varios tipos de monitoreos, los de cuerpo completo (sensibilidad, fuerza
 
 Siempre existe la posibilidad de daño nervioso asintomático, en general hay algún tipo de cosquilleo parcial y/o sensación punzante (tipo pinchazos) antes de que se produzca el daño. Pero el contexto en el que nos encontramos puede modificar la percepción de esos síntomas, como por adrenalina, dopamina, excitación, etc. Es importante estar alerta a este tipo de síntomas y parar la práctica.
 
-*Se recomienda qué si sentimos dolor o tenemos una lesión, esperemos hasta sentirnos mejor antes de seguir practicando. Así como ir al médico en caso de daño grave.*
+_Se recomienda qué si sentimos dolor o tenemos una lesión, esperemos hasta sentirnos mejor antes de seguir practicando. Así como ir al médico en caso de daño grave._
 
 <style>
 .callout {

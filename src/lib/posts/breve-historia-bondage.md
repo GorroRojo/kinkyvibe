@@ -4,19 +4,20 @@ published_date: 2022-11-11Z-03:00
 title: Una breve historia del bondage con cuerdas
 summary: El bondage con cuerdas contemporáneo se desarrolló de forma paralela en Japón y Estados Unidos a principios del siglo XX.
 tags:
-    - BDSM
-    - bondage
-    - shibari
-    - historia
+  - español
+  - BDSM
+  - bondage
+  - shibari
+  - historia
 layout: material
 category: material
 authors:
-    - RopeStudy
-    - BDSMLibre
+  - RopeStudy
+  - BDSMLibre
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido  # descargable | link | contenido #
+type: contenido # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00
@@ -29,6 +30,7 @@ type: contenido  # descargable | link | contenido #
 </div>
 
 ## 1920s
+
 <div class="col-2">
 <p></p>
 <p><strong>Seiu Ito</strong> comienza a crear pinturas de ataduras eróticas inspiradas en representaciones en el teatro y la historia <small>(como hojojutsu)</small>.</p>

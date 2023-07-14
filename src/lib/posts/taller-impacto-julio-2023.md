@@ -4,6 +4,7 @@ published_date: 2023-06-20Z-03:00Z-03:00
 title: Taller de Juegos de Impacto
 summary: ¡Volvió este taller que amamos! Un teórico-práctico sobre cómo impactamos / golpeamos / nalgueamos / azotamos / latigamos nuestro cuelpo o el de otres con fines eróticos, sensuales, sexuales, o terapéuticos.
 tags:
+  - español
   - BDSM
   - KinkyVibe # etiqueta especial #
   - taller
@@ -42,14 +43,16 @@ Thames 240, CABA, Argentina. En Cooperativa Cultural QI
 
 ## ¿Cuándo? ¿A qué hora?
 
-2 de Julio, de 15 a 18 hs 
+2 de Julio, de 15 a 18 hs
 
 (2:30 de demostración y teoría y 30 de práctica!)
 
-## ¿Cuánto? 
+## ¿Cuánto?
+
 En pre-venta a $3.000, en puerta $3.500 y **si tambien participan de [Picantearla](/picantearla-junio-2023), está a `$2.500`**.
 
 ## ¿Qué tengo que llevar?
+
 ¡Cualquier elemento que tengas con el que quieras jugar! Fustas, palmetas, reglas, cucharas de madera, espátulas (no obligatorio) Igual vamos a estar prestando a quienes no tengan
 
 ## ¿En qué consisten los juegos de impacto?
@@ -69,15 +72,18 @@ Son prácticas consensuadas en donde impactamos/golpeamos (nalguear, azotar, lat
 También vamos a tener un espacio práctico para aprender las técnicas y probar los elementos
 
 ## ¿Qué tengo que llevar?
+
 ¡Cualquier elemento que tengas con el que quieras jugar!
 Fustas, palmetas, reglas, cucharas de madera, espátulas (no obligatorio) Igual vamos a estar prestando a quienes no tengan.
 
 ## ¿Tengo que llevar modelo?
+
 No es necesario para tomar la clase. ¡Podés venir con alguien si querés!
 
 ## ¿Qué onda la accesibilidad del espacio?
 
 QI cuenta con:
+
 - Barra para comida y bebida
 - Baños accesibles y sin género
 - Espacio accesible con rampa
