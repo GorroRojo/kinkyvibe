@@ -7,6 +7,7 @@ tags:
   - BDSM
   - Shibari
   - Educadores
+  - artista
 layout: amigues
 category: amigues
 authors:

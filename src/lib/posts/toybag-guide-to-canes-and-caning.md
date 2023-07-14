@@ -30,6 +30,6 @@ Holi holi! Por aquí vengo a dejarles una guía en inglés de juegos con varilla
 
 Es bastante completa aunque se centra más que nada en nalgas y piernas.
 
-<object title="Toybag guide to canes and caning" data={guia} type="application/pdf" width="800px" height="1000px" alt="pdf">
+<object title="Toybag guide to canes and caning" data={guia} type="application/pdf" width="50rem" height="1000px" alt="pdf">
 <a href={guia}>Ir al pdf ↗️</a>
 </object>

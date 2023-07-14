@@ -36,7 +36,7 @@ groups:
     members: ['guía', 'artículo', 'libro', 'interactivo']
     color: 'var(--3-dark)'
   - name: amigues
-    members: ['educadores', 'dominatrix']
+    members: ['educadores', 'dominatrix', 'artista']
     color: 'var(--2)'
 tags:
   KinkyVibe:

@@ -87,7 +87,7 @@
 	a.back {
 		display: block;
 		width: 100%;
-		max-width: 800px;
+		max-width: 50rem;
 		margin: 0 auto 0em;
 		/* padding-left: 1em; */
 		color: var(--2);
@@ -105,7 +105,7 @@
 		justify-content: center;
 		align-items: center;
 		gap: 1em;
-		max-width: 800px;
+		max-width: 50rem;
 		margin-inline: auto;
 		margin-top: 0.5em;
 	}

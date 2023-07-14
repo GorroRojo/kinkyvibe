@@ -5,6 +5,7 @@ title: Gorrite
 summary: Programadore, artista, captive.
 tags:
   - BDSM
+  - artista
 layout: amigues
 category: amigues
 authors:

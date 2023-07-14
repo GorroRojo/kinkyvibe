@@ -102,7 +102,7 @@
 		color: unset;
 	}
 	#calendar {
-		max-width: 800px;
+		max-width: 50rem;
 		margin-inline: auto;
 		/* max-height: 80vh; */
 		height: 40em;

@@ -48,7 +48,8 @@
 		/>
 	</div>
 		<div id="lista" />
-		<PostList {posts} />
+		<PostList posts={posts} />
+		<!-- .filter((p) => !(p.meta.start && new Date(p.meta.start).getTime() < Date.now()))} -->
 	{:else}
 		posts: {JSON.stringify(posts)}
 		err: {JSON.stringify(err)}

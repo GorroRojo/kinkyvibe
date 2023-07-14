@@ -123,7 +123,7 @@
 <style>
 	#tags {
 		margin-inline: auto;
-		max-width: 800px;
+		max-width: 50rem;
 		width: 100%;
 		margin-top: 2em;
 	}
@@ -145,7 +145,7 @@
 		grid-template-columns: 7rem 1fr;
 		align-items: center;
 		gap: 1rem;
-		max-width: 800px;
+		max-width: 50rem;
 		margin: 0 auto;
 	}
 	.author-callout > * {
@@ -168,7 +168,7 @@
 	}
 	h3,
 	hr {
-		max-width: 800px;
+		max-width: 50rem;
 		margin: 2rem auto;
 	}
 	hr {
