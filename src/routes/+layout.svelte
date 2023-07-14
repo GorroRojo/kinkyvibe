@@ -88,7 +88,7 @@
 		display: block;
 		width: 100%;
 		max-width: 50rem;
-		margin: 0 auto 0em;
+		margin: 0 auto 1.4em;
 		/* padding-left: 1em; */
 		color: var(--2);
 		text-decoration: none;

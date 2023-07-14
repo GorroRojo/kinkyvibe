@@ -44,11 +44,9 @@ export async function load({ params }) {
 				}
 			);
 		let posts;
-		if (post.metadata.category == 'amigues') {
-			posts = (await fetchMarkdownPosts()).filter((p) =>
-				post.metadata.authors.every((/** @type {any} */ a) => p.meta.authors.includes(a))
-			);
-		}
+		posts = (await fetchMarkdownPosts()).filter((p) =>
+			post.metadata.authors.some((/** @type {any} */ a) => p.meta.authors.includes(a))
+		);
 		return {
 			content,
 			...post.metadata,

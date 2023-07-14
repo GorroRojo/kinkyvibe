@@ -72,12 +72,12 @@
 				<!-- promise was fulfilled -->
 			{/await}
 			{#if data.layout != 'amigues'}
-			&ThickSpace;-&ThickSpace;
-			<time datetime={data.layout == 'calendario' ? data.start : data.published_date}
-				>{new Date(
-					data.layout == 'calendaio' ? data.start : data.published_date
-				).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
-			>
+				&ThickSpace;-&ThickSpace;
+				<time datetime={data.layout == 'calendario' ? data.start : data.published_date}
+					>{new Date(
+						data.layout == 'calendaio' ? data.start : data.published_date
+					).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
+				>
 			{/if}
 		</address>
 	{/if}
@@ -98,17 +98,11 @@
 		</div>
 	{/if}
 </article>
+<hr />
 
-{#if data.layout == 'amigues' && data.posts}
-	<PostList
-		posts={data.posts.filter(
-			(/** @type {{ meta: { title: any; }; }} */ p) => p.meta.title != data.title
-		)}
-	/>
-{:else}
+{#if data.layout != 'amigues' || data.authors.length > 1}
 	{#await data.authorsData then authorsData}
 		{#if JSON.stringify(data.authorsData) != '[]' && data.authorsData != undefined && data.authorsData[0] != undefined}
-			<hr />
 			{#each authorsData as author}
 				<a class="author-callout" href={author.path}>
 					<img class="author-image" src={author.logo ?? author.photo} alt="" />
@@ -118,6 +112,15 @@
 			{/each}
 		{/if}
 	{/await}
+{/if}
+{#if data.posts && data.posts.filter((/** @type {{meta: {title: any; }; }}*/ p) => p.meta.title != data.title).length > 0}
+	{@const posts = data.posts.filter(
+		(/** @type {{meta: {title: any; }; }}*/ p) => p.meta.title != data.title
+	)}
+	<div class="content">
+		<h3>{data.authors.length > 1 ? 'También escribieron' : 'También escribió'}</h3>
+	</div>
+	<PostList {posts} />
 {/if}
 
 <style>
@@ -146,7 +149,7 @@
 		align-items: center;
 		gap: 1rem;
 		max-width: 50rem;
-		margin: 0 auto;
+		margin: 1em auto;
 	}
 	.author-callout > * {
 		min-height: 0;

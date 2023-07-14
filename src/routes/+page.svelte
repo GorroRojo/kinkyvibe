@@ -57,12 +57,24 @@
 </main>
 
 <style>
+	#lista {
+		display:none;
+	}
 	main {
-		width: 100%;
-		max-width: 50rem;
+		/* width: 100%; */
+		/* max-width: 50rem; */
 		margin: auto;
+		display: grid;
+		gap: 3rem;
+		padding-top: 3rem;
 	}
 	.cardrow {
-		margin-block: 4rem;
+		width: 100%;
+		max-width: 50rem;
+		margin-inline: auto;
+	}
+	main > * {
+		min-width: 0;
+		min-height: 0;
 	}
 </style>
