@@ -27,7 +27,9 @@ export async function GET({ url }) {
 					.map((t) => p.meta.tags.includes(t))
 					.reduce((a, b) => a && b);
 			}
-
+			if (params.has('body')) {
+				result &= p.default.render().html.includes(params.get('body'));
+			}
 			if (params.has('getAuthors')) {
 				allPosts = allPosts.filter((p) => p.meta.logo || p.meta.photo);
 			}

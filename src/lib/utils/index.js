@@ -114,9 +114,7 @@ export const fetchMarkdownPosts = async () => {
 		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
 	});
 	// TODO performance, i'm looping way way way too many times
-	return [
-		...validatedPosts
-	];
+	return [...validatedPosts];
 };
 
 /**
@@ -126,24 +124,24 @@ export const fetchMarkdownPosts = async () => {
  * @return {Promise<{meta: AnyPostData, path:string}[]>}
  */
 async function validateAll(posts) {
-	/** @type {[string,{metadata:AnyPostData}][]} */
+	/** @type {[string,{metadata:AnyPostData,default?:{render:()=>{html:string,css:{code:string}}}}][]} */
 	const raw = await Promise.all(posts.map(async ([path, resolver]) => [path, await resolver()]));
 	const validated = raw
-		.filter(([path, { metadata }]) => metadata && !metadata.force_unlisted && !(path[15] == '_'))
+		.filter(([path, post]) => post.metadata && !post.metadata.force_unlisted && !(path[15] == '_'))
 		.map((p) => validatePost(p));
 	return validated;
 }
 
 /**
- * @param {[string,{metadata:AnyPostData}]} post
- * @return {{error?: any, meta: AnyPostData, path: string}}
+ * @param {[string,{metadata:AnyPostData, default?: {render: ()=>{html:string,css:{code:string}}}}]} post
+ * @return {{error?: any, default?: {render: function}, meta: AnyPostData, path: string}}
  */
 function validatePost(post) {
 	const path = post[0].slice(15, -3);
 	const { metadata } = post[1];
 	let missing = validateMissingData(metadata);
-	if (missing) return { error: missing, meta: metadata, path };
-	return { meta: metadata, path };
+	if (missing) return { error: missing, meta: metadata, default: post[1].default, path };
+	return { meta: metadata, default: post[1].default, path };
 }
 
 /**
