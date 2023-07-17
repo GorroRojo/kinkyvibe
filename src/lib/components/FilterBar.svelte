@@ -224,7 +224,8 @@
 	}
 	.filterbar {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
+		/* flex-wrap: wrap; */
 		width: 100%;
 		/* height: 10rem; */
 		--gap: 0.7em;
