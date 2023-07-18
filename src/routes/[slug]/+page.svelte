@@ -2,10 +2,13 @@
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tags from '$lib/components/Tags.svelte';
+	import { currentPostData } from '$lib/utils/stores.js';
+	import { page } from '$app/stores';
 	//@ts-nocheck
 	export let data;
 	import { onMount } from 'svelte';
 	let tagsConfig = { tags: {} };
+	currentPostData.set({category: data.category, path: $page.url.pathname});
 	onMount(() => {
 		fetch('/api?getTags')
 			.then((r) => r.json())

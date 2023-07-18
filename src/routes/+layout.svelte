@@ -6,7 +6,8 @@
 		Heart,
 		Sparkles,
 		CalendarRange,
-		ShoppingCart
+		ShoppingCart,
+		ChevronLeft
 	} from 'lucide-svelte';
 	import { siInstagram, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
@@ -15,9 +16,10 @@
 	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
-	import { filteredTags, tagsConfig } from '$lib/utils/stores';
+	import { filteredTags, tagsConfig, currentPostData } from '$lib/utils/stores';
+	import { page } from '$app/stores';
 	// @ts-ignore
-	import { navigating } from "$app/stores";
+	import { navigating } from '$app/stores';
 	export let data;
 	// onMount(() => {
 	tagsConfig.set(data.tagsConfig);
@@ -67,7 +69,19 @@
 	/>
 </header>
 {#if data.currentRoute != '/'}
-	<a class="back" href={$navigating?.from?.url ?? '/'}><ArrowLeft size="20" style="translate: 0 .3em" /> Inicio</a>
+	<div class="breadcrumbs">
+		<a href={'/'}>
+			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
+				<ArrowLeft size="20" style="translate: 0 .4em" />
+			{/if}
+			Inicio
+		</a>
+
+		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
+			<ChevronLeft size="20" style="translate: 0 .4em" />
+			<a href={$currentPostData.category}>{$currentPostData.category}</a>
+		{/if}
+	</div>
 {/if}
 {#key data.currentRoute}
 	<main in:fade={{ duration: 300, delay: 300 }}>
@@ -84,18 +98,26 @@
 		width: 100%;
 		text-decoration: none;
 	}
-	a.back {
-		display: block;
+	.breadcrumbs {
+		display: flex;
 		width: 100%;
 		max-width: 50rem;
 		margin: 0 auto 1.4em;
 		/* padding-left: 1em; */
 		color: var(--2);
 		text-decoration: none;
+		align-items: baseline;
+		gap: 1em;
+		justify-content: center;
+		margin-top: 1em;
 	}
-	@media (max-width:680px) {
-		a.back {
-			display:none;
+	.breadcrumbs a {
+		text-decoration: none;
+		text-transform: capitalize;
+	}
+	@media (max-width: 680px) {
+		a.breadcrumbs {
+			display: none;
 		}
 	}
 	#me {
