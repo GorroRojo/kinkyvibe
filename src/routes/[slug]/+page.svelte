@@ -101,6 +101,11 @@
 		</div>
 	{/if}
 </article>
+{#if data.tags.includes("KinkyVibe")}
+<div id="cafecito">
+Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso, <a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
+</div>
+{/if}
 <hr />
 
 {#if data.layout != 'amigues' || data.authors.length > 1}
@@ -127,6 +132,20 @@
 {/if}
 
 <style>
+	#cafecito {
+		max-width: 50rem;
+		margin-inline: auto;
+		width: 100%;
+		font-size: var(--step-1);
+		padding: 1em;
+		background: var(--2-light);
+		color: white;
+		margin-top: 1em;
+		border-radius: .3em;
+	}
+	#cafecito a {
+		--color: var(--4-light);
+	}
 	#tags {
 		margin-inline: auto;
 		max-width: 50rem;
@@ -178,6 +197,6 @@
 		margin: 2rem auto;
 	}
 	hr {
-		margin-top: 10rem;
+		margin-block: 3rem;
 	}
 </style>
