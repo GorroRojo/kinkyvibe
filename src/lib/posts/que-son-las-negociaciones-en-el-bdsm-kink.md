@@ -76,7 +76,7 @@ Pero no somos ajenes a lo difícil que puede ser desarrollar estas herramientas,
 
 ---
 
-## <small>un extracto de:</small> <strong>&nbsp;Queering consent: Negotiating crical constent in les-bi-trans-queer BDSM contexts</strong>
+## <small>un extracto de:</small> <strong>&nbsp;Queering consent: Negotiating critical consent in les-bi-trans-queer BDSM contexts</strong>
 
 <em style="color: var(--1);opacity:.7">Cuirzando el consentimiento: negociando consentimiento crítico en contextos BDSM lesbo bi trans cuir</em>
 
