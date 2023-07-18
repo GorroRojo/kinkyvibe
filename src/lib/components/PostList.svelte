@@ -4,29 +4,25 @@
 	export let filter = false;
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
+	import { filteredTags, visibleTags, allTags } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
 	/** @type {[]} */
-	function togglePositiveTagFilter(tag) {
-		filteredTags.update((fTags) =>
-			fTags.includes(tag)
-				? [...fTags, tag]
-				: [...fTags.slice(0, fTags.indexOf(tag)), ...fTags.slice(fTags.indexOf(tag) + 1)]
-		);
-	}
+	
 	$: outerFilteredPosts = posts.filter(
 		(p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
 
 	let uniq = (arr) => [...new Set(arr)];
+
+	$: allTags.set(posts.reduce((a, b) => [...a, ...b.meta.tags], []));
 	$: visibleTags.set(uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))));
 	// $: tags = [...new Set(nonAliasTags)];
 	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
 		$filteredTags && $filteredTags.length == 0
 			? true
-			: $filteredTags.every((f) => p.meta.tags.includes(f))
+			: $filteredTags.every((f) => !$allTags.includes(f) || p.meta.tags.includes(f))
 	);
 
 	/**
@@ -43,8 +39,8 @@
 			</div>
 
 			{#key display_type}
-			<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-			<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
+				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
+				<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
 					{#if display_type == 'list'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
@@ -85,8 +81,7 @@
 		max-width: 50rem;
 		margin-inline: auto;
 		padding-left: 2em;
-		opacity: .7;
-		
+		opacity: 0.7;
 	}
 	h3 {
 		margin: 1em;

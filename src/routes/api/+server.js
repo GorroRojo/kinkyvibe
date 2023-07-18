@@ -1,13 +1,15 @@
 // @ts-nocheck
 // export const prerender = true;
 import { error, json } from '@sveltejs/kit';
-import { fetchMarkdownPosts, fetchTags } from '$lib/utils';
+import { fetchGlossary, fetchMarkdownPosts, fetchTags } from '$lib/utils';
 
 export async function GET({ url }) {
 	var allPosts;
 	const params = url.searchParams;
 	if (params.has('getTags')) {
 		return json(await fetchTags());
+	} else if (params.has('getGlossary')) {
+		return json(await fetchGlossary());
 	} else {
 		try {
 			allPosts = await fetchMarkdownPosts();

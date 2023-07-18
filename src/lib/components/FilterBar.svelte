@@ -86,15 +86,6 @@
 		}
 		$page.url.searchParams.set('tags', $filteredTags.join(','));
 		goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
-		// if ($filteredTags.length > 0) {
-		// } else {
-		// 	$page.url.searchParams.delete('tags');
-		// 	if ($page.url.searchParams.entries.length == 0) {
-		// 		goto('');
-		// 	} else {
-		// 		goto(`?${$page.url.searchParams.toString()}`);
-		// 	}
-		// }
 	}
 
 	/**
@@ -179,8 +170,15 @@
 	</div>
 	<div class="tagfilters">
 		{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-			<div class="tag-group-container" animate:betterflip={{ duration: 0 }} in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-				<TagGroup {group} onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)} />
+			<div
+				class="tag-group-container"
+				animate:betterflip={{ duration: 0 }}
+				in:scale={{ duration: 500 /*@ts-ignore*/ }}
+			>
+				<TagGroup
+					{group}
+					onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)}
+				/>
 			</div>
 		{/each}
 	</div>
@@ -234,7 +232,7 @@
 		align-items: center;
 		column-gap: calc(var(--gap) * 0.8);
 		--tag-color: var(--1, indigo);
-		max-width: 100%;
+		max-width: min(100%, 100dvw);
 		/* container-type: inline-size; */
 	}
 	.tagfilters {
@@ -259,6 +257,5 @@
 		}
 	}
 	@media screen and (min-width: 1300px) {
-		
 	}
 </style>

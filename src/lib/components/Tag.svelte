@@ -28,12 +28,33 @@
 {/if}
 
 <style>
+	/*
+	
+	variables:
+
+		--tag-color
+		--border-radius
+		--outline-color
+		--text-color
+		--off-background
+		--off-outline
+		--off-outline-offset
+		--filled-text-color
+		--filled-outline
+		--filled-outline-offset
+		--filled-color
+		--text-decoration
+		--off-text-decoration
+
+	*/
 	.tag {
-		padding: 0.3em 0.6em;
+		padding: var(--padding, 0.3em 0.6em);
 		border-radius: var(--border-radius, 2em);
 		user-select: none;
 		display: inline-block;
+		font-size: var(--font-size);
 		flex: 1 1;
+		text-decoration: var(--text-decoration);
 	}
 	.tag.noBorder {
 		border: 0;
@@ -41,7 +62,7 @@
 	label.tag {
 		border: 1px solid var(--outline-color, var(--tag-color));
 		color: var(--text-color, var(--tag-color));
-		background: transparent;
+		background: var(--off-background, transparent);
 		cursor: pointer;
 		transition: 0ms;
 		outline: var(--off-outline, none);

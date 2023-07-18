@@ -7,6 +7,9 @@ export const month_change_direction = writable(1);
 export const filteredTags = writable([]);
 /** @type {import('svelte/store').Writable<string[]>} */
 export const visibleTags = writable([]);
+/** @type {import('svelte/store').Writable<string[]>} */
+export const allTags = writable([]);
+
 
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */
 export const tagsConfig = writable();

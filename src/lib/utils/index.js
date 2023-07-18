@@ -17,6 +17,14 @@ export const fetchTags = async () => {
 	return { ...tagsConfig, groups: aliasedGroups };
 };
 
+export const fetchGlossary = async () => {
+	//@ts-expect-error
+	var { metadata: glossary } = /** @type {{terminos:string[]}} */ await Object.entries(
+		import.meta.glob('$lib/posts/_glossary.md')
+	)[0][1]();
+	return glossary;
+}
+
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
  * @param {(group: Group)=>Group|false} fn
@@ -87,6 +95,11 @@ export function aliaserFactory(tagsConfig) {
 	};
 }
 
+/**
+ * Fetches markdown posts and performs validations and transformations.
+ *
+ * @return {Array} An array of validated and transformed posts.
+ */
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
