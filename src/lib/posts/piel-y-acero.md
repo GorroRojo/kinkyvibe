@@ -6,6 +6,7 @@ summary: Una cartilla para el juego de cuchillos BDSM
 tags:
   - español
   - BDSM
+  - prácticas
   - cuchillos
   - seguridad
   - articulo

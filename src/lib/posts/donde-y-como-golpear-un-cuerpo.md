@@ -9,8 +9,9 @@ tags:
   - español
   - BDSM
   - KinkyVibe # etiqueta especial #
-  - impacto
   - interactivo
+  - impacto
+  - prácticas
   - caning
 authors:
   - DemonWeb

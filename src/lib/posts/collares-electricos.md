@@ -6,6 +6,7 @@ summary: Traducción de un artículo sobre los riesgos inmitigables de electrocu
 tags:
   - español
   - BDSM
+  - prácticas
   - electro
   - seguridad
   - articulo

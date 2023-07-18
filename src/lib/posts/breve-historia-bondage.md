@@ -7,6 +7,7 @@ tags:
   - español
   - BDSM
   - bondage
+  - prácticas
   - shibari
   - historia
 layout: material

@@ -6,6 +6,8 @@ summary: Azotar es una forma aceptada de juego de impacto para muchos pervertido
 tags:
   - español
   - BDSM
+  - impacto
+  - prácticas
   - golpes
   - seguridad
   - articulo
