@@ -132,6 +132,7 @@
 	}
 	dt {
 		font-weight: bold;
+		color: var(--1);
 	}
 	dd small:last-of-type {
 		display: inline-block;
