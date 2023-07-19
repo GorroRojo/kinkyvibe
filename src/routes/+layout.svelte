@@ -9,7 +9,7 @@
 		ShoppingCart,
 		ChevronLeft
 	} from 'lucide-svelte';
-	import { siInstagram, siTelegram } from 'simple-icons';
+	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import '$lib/styles/style.scss';
@@ -33,6 +33,11 @@
 <header>
 	<div id="me">
 		<ul id="redes">
+			<li>
+				<a href="https://cafecito.app/kinkyvibe">
+					<SimpleIcon icon={siKofi} />
+				</a>
+			</li>
 			<li>
 				<a href="https://t.me/BDSMtextos">
 					<SimpleIcon icon={siTelegram} />
