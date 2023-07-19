@@ -168,7 +168,7 @@
 		list-style: none;
 		background: white;
 		border-radius: 2em;
-		box-shadow: 0 1em 1em rgba(0, 0, 0, 0.1);
+		box-shadow: 0 .1em .3em rgba(0, 0, 0, 0.1);
 		overflow: hidden;
 		&.mark {
 			--post-color: var(--1);
