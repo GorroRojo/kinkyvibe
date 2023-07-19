@@ -88,6 +88,8 @@
 	}
 	li {
 		list-style: none;
+		max-width: 100dvw;
+		min-width: 0;
 	}
 
 	.postlist {
@@ -117,11 +119,9 @@
 		}
 		#posts {
 			width: 100%;
-			/* grid-area: main; */
 		}
 		#filterbar {
 			grid-area: left;
-			position: sticky;
 			top: 1em;
 			display: block;
 			height: auto;

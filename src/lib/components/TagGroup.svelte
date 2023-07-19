@@ -170,6 +170,10 @@
 		transition: 100ms;
 		outline: 3px solid transparent;
 		justify-content:center;
+		flex-wrap: wrap;
+		& > * {
+			margin-left: 8px;
+		}
 	}
 	.filtergroup.noname {
 		outline-color: transparent;
@@ -223,6 +227,7 @@
 		margin: -0.1em -0.6em;
 		padding: 0;
 		opacity: 0;
+		max-width: 100%;
 		/* transition: 700ms; */
 	}
 	li {
@@ -244,12 +249,12 @@
 		margin-left: -10px;
 	}
 	.groupname {
-		color: var(--tag-color);
-		--fill-color: transparent;
 		display:flex;
+		color: var(--tag-color);
 		justify-content: stretch;
-		text-align: center;
 		flex: 1 1;
+		text-align: center;
+		--fill-color: transparent;
 	}
 	/* .groupname + .groupitems {
 		margin-left: 5px;
@@ -257,11 +262,11 @@
 	.groupitems {
 		display: flex;
 		flex-direction: column;
-		/* flex-wrap: wrap; */
 		row-gap: 0.2em;
 		column-gap: 0.6em;
 		justify-content: center;
 		align-items: start;
+		/* flex-wrap: wrap; */
 		/* transition: 700ms; */
 	}
 	@container (min-width: 1300px) {

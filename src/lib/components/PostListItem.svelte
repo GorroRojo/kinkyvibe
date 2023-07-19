@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { Calendar, Text } from 'lucide-svelte';
+	import { Calendar, Text, DollarSign } from 'lucide-svelte';
 	export let post;
 	let {
 		path,
@@ -52,8 +52,11 @@
 	tabindex="0"
 >
 	<div class="publication">
-		{#if category == 'calendario'}<Calendar {style}/>&ThickSpace;{/if}
-		{#if category == 'material'}<Text {style}/>&ThickSpace;{/if}
+		{#if category == 'calendario'}<Calendar {style} />&ThickSpace;{/if}
+		{#if category == 'material'}
+		{#if tags.includes('pago')}<DollarSign {style} />&ThickSpace;{/if}
+			<Text {style} />&ThickSpace;
+		{/if}
 		{#if category != 'amigues'}
 			{#if date}
 				<time datetime={start}>
@@ -77,6 +80,7 @@
 				>{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}</small
 			>
 		{/if}
+
 		{title}
 	</h3>
 	{#if summary}
@@ -168,7 +172,7 @@
 		list-style: none;
 		background: white;
 		border-radius: 2em;
-		box-shadow: 0 .1em .3em rgba(0, 0, 0, 0.1);
+		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
 		overflow: hidden;
 		&.mark {
 			--post-color: var(--1);
@@ -182,7 +186,7 @@
 	}
 	a h3 {
 		grid-area: title;
-		font-size: 2em;
+		font-size: var(--step-2);
 		/* align-self:flex-start; */
 		margin: 0;
 		text-decoration: underline;
@@ -206,6 +210,7 @@
 		margin: 0;
 		padding: 0;
 		align-self: flex-start;
+		font-size: var(--step-0);
 	}
 	.summary {
 		max-height: 100%;
@@ -250,6 +255,7 @@
 		align-items: center;
 		padding-inline: 1.5em;
 		color: white;
+		font-size: var(--step--1);
 		* {
 			display: inline;
 		}

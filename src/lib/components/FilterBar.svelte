@@ -241,12 +241,13 @@
 		flex-direction: row;
 		flex-wrap: wrap;
 		justify-content: center;
-		max-width: 100dvw;
+		max-width: min(100dvw, 100%);
 	}
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
+		max-width: 100%;
 	}
 	@container (min-width: 1300px) {
 		.tagfilters {
