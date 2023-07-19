@@ -15,7 +15,21 @@ groups:
       - name: 'nombreevento'
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
-    members: ['guía', 'artículo', 'libro', 'interactivo']
+    sub:
+    - name: formato
+      members:  
+      - guía
+      - artículo
+      - libro
+      - fanzine
+    - name: interaccion
+      members:
+      - descargable
+      - interactivo
+    - name: precio
+      members:
+      - pago
+      - gratis
     color: 'var(--3-dark)'
   - name: amigues
     members: ['educadores', 'dominatrix', 'artista']
@@ -25,6 +39,7 @@ groups:
       - seguridad
       - negociación
       - dominación
+      - sumisión
     color: red
     sub:
       - name: prácticas
@@ -38,7 +53,12 @@ groups:
             members:
               - caning
               - golpes
-  
+              - nalgueadas
+  - name: sexualidad
+    members:
+    - hablar sucio
+    - pegging
+    color: var(--4-dark)
 tags:
   KinkyVibe:
     color: var(--1)
