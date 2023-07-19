@@ -10,6 +10,7 @@ tags:
   - cuchillos
   - seguridad
   - articulo
+  - gratis
 layout: material
 category: material
 authors:

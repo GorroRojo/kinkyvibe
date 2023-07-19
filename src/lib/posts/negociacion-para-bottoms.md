@@ -2,7 +2,7 @@
 published_date: 2023-02-04Z-03:00Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Negociación rápida para bottoms
-summary: 'Armé este modelo para aquellas personas que no quieren usar una checklist, o tener una negociación larga, y quieren un modelo pre-hecho para poder establecer gustos, necesidades, intenciones, preferencias, límites, entre otros. '
+summary: 'Un modelo para quienes que no quieren usar una checklist o tener una negociación larga, y quieren un modelo pre-hecho para establecer gustos, necesidades, intenciones, preferencias, límites, entre otros.'
 # TODO llenar el summary
 tags:
   - español
@@ -10,6 +10,8 @@ tags:
   - guía
   - negociación
   - KinkyVibe
+  - descargable
+  - gratis
 layout: material
 category: material
 authors:
@@ -17,7 +19,6 @@ authors:
 featured: 2
 #force_unlisted: false
 #force_unpublished: false
-type: descargable
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00

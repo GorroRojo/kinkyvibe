@@ -56,9 +56,17 @@ groups:
               - nalgueadas
   - name: sexualidad
     members:
-    - hablar sucio
-    - pegging
-    color: var(--4-dark)
+    sub:
+      - name: personas
+        members:
+        - salud
+        - género
+        - queer 
+      - name: prácticas
+        members:
+        - hablar sucio
+        - pegging
+    color: var(--1-dark)
 tags:
   KinkyVibe:
     color: var(--1)

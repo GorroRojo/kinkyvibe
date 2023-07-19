@@ -10,6 +10,7 @@ tags:
   - electro
   - seguridad
   - articulo
+  - gratis # gratis | pago #
 layout: material
 category: material
 authors:

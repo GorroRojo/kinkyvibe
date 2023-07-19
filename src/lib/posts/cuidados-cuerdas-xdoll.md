@@ -8,6 +8,8 @@ tags:
   - BDSM
   - shibari
   - seguridad
+  - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
+  - gratis
 layout: material
 category: material
 authors:

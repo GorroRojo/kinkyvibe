@@ -13,6 +13,8 @@ tags:
   - impacto
   - prácticas
   - caning
+  - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
+  - gratis
 authors:
   - DemonWeb
 featured: 1

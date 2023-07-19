@@ -11,6 +11,7 @@ tags:
   - BDSM
   - guia
   - inglés
+  - gratis
 layout: material
 category: material
 authors:

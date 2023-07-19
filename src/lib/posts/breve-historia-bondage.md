@@ -10,6 +10,8 @@ tags:
   - prácticas
   - shibari
   - historia
+  - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
+  - gratis # gratis | pago #
 layout: material
 category: material
 authors:

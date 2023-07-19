@@ -11,6 +11,7 @@ tags:
   - golpes
   - seguridad
   - articulo
+  - gratis
 layout: material
 category: material
 authors:

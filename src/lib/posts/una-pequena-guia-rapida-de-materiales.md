@@ -10,6 +10,7 @@ tags:
   - seguridad
   - guia
   - KinkyVibe
+  - gratis
 layout: material
 category: material
 authors:

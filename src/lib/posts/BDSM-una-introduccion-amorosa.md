@@ -9,6 +9,8 @@ tags:
   - KinkyVibe # etiqueta especial #
   - inicial
   - historia
+  - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
+  - gratis # gratis | pago #
 layout: material
 category: material
 authors:

@@ -8,6 +8,8 @@ tags:
   - BDSM
   - KinkyVibe # etiqueta especial #
   - negociación
+  - gratis
+  - artículo
 layout: material
 category: material
 authors:
