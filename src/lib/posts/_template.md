@@ -165,7 +165,7 @@ _enfasis_ **otroenfasis** **_doble enfasis_** `código` ~~strikethrough~~
 
 ```yaml
 ---
-#published_date: 2023-05-16Z-03:00Z-03:00
+#published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Amigue de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
@@ -200,7 +200,7 @@ link: https://instagram.com/gnosis.king
 
 ```yaml
 ---
-#published_date: 2023-05-16Z-03:00Z-03:00
+#published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Evento de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
@@ -230,27 +230,29 @@ link_text: Inscibirme ➡️
 
 ```yaml
 ---
-#published_date: 2023-05-16Z-03:00Z-03:00
+#published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
-  - español
-  - BDSM
+  - español # español | inglés #
+  - gratis # gratis | pago #
+  - contenido # descargable | link | contenido #
   - KinkyVibe # etiqueta especial #
+  - BDSM
 layout: material
 category: material
 authors:
   - DemonWeb
-  - FideosConTuco
+  - PauConTuco
   - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
+#redirect: false
 #access_date: 2023-11-21Z-03:00
-#original_published_date: 2010-04-03Z-03:00Z-03:00
+#original_published_date: 2010-04-03Z-03:00
 ---
 ```

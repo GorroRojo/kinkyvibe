@@ -1,16 +1,16 @@
 import { thumbURL, aliaserFactory, fetchTags, fetchMarkdownPosts } from '$lib/utils/index.js';
+import { redirect } from '@sveltejs/kit';
 export const prerender = 'auto';
-/**
- *
- *
- * @export
- * @param {{params:*}} _
- * @return {Promise<*>}
- */
+/** @type {import("./$types").PageLoad} */
 export async function load({ params }) {
+	const post = await import(`../../lib/posts/${params.slug}.md`);
+	const content = post.default;
+	
+	if (post.metadata.category == 'material' && post.metadata.link && post.metadata.redirect) {
+		throw redirect(308, post.metadata.link);
+	}
 	try {
-		const post = await import(`../../lib/posts/${params.slug}.md`);
-		const content = post.default;
+
 		const tagsConfig = await fetchTags();
 		const alias = aliaserFactory(tagsConfig);
 		const authorsData = (
@@ -47,6 +47,7 @@ export async function load({ params }) {
 		posts = (await fetchMarkdownPosts()).filter((p) =>
 			post.metadata.authors.some((/** @type {any} */ a) => p.meta.authors.includes(a))
 		);
+
 		return {
 			content,
 			...post.metadata,

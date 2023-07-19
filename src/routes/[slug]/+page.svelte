@@ -101,11 +101,11 @@
 		</div>
 	{/if}
 </article>
-{#if data.tags.includes("KinkyVibe")}
+<!-- {#if data.tags.includes("KinkyVibe")}
 <div id="cafecito">
 Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso, <a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
 </div>
-{/if}
+{/if} -->
 <hr />
 
 {#if data.layout != 'amigues' || data.authors.length > 1}
