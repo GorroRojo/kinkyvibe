@@ -55,7 +55,7 @@
 		flex-direction: column;
 		margin: 0;
 		border-radius: var(--round);
-		width: var(--card-width);
+		width: var(--card-width, 13rem);
 		height: 100%;
 		background: white;
 		cursor: pointer;

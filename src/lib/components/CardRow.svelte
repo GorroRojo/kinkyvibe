@@ -34,7 +34,7 @@
 
 <style>
 	:root {
-		--card-width: 200px;
+		--card-width: 13rem;
 	}
 	.cardrowcontainer {
 		background: var(--color-1, var(--2));
