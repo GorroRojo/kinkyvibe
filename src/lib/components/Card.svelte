@@ -27,7 +27,10 @@
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
 				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
-				<li style:--tag-color={color} style:white-space={'nowrap'}>
+				<li 
+				style:--tag-color={color} 
+				style:white-space={'nowrap'}
+				style:--hover-text-decoration={"underline white"}>
 					<Tag {tag} isLink={mounted} />
 				</li>
 			{/each}

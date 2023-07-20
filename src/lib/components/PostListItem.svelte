@@ -94,7 +94,15 @@
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
 				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
-				<li style:--tag-color={color} style:white-space={'nowrap'}>
+				<li
+					style:--tag-color={color}
+					style:--filled-text-color={color}
+					style:--fill-color={'transparent'}
+					style:--filled-outline={"1px solid " + color}
+					style:--filled-outline-offset={"-1px"}
+					style:--hover-text-decoration={"underline " + color}
+					style:white-space={'nowrap'}
+				>
 					<Tag {tag} isLink={mounted} />
 				</li>
 			{/each}
