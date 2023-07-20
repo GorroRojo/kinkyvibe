@@ -76,7 +76,7 @@
 	{/if}
 	{#if data?.tags}
 		<div id="tags">
-			<Tags tags={data.tags?.map(aliaserFactory($tagsConfig))} />
+			<Tags tags={data.tags} />
 		</div>
 	{/if}
 
@@ -187,6 +187,7 @@
 		font-size: 1.5em;
 		text-decoration: underline var(--1);
 		color: black;
+		line-height: .5;
 	}
 	h3,
 	hr {

@@ -27,6 +27,7 @@ export async function load({ params }) {
 				post.metadata.authors.map(async (/** @type {any} */ author) => {
 					let authorpost;
 					try {
+						if (author == "KinkyVibe") author = "nosotres";
 						authorpost = await import(`../../lib/posts/${author.replaceAll(' ', '-')}.md`);
 					} catch (e) {
 						authorpost = false;
