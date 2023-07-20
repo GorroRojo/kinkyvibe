@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { Calendar, Text, DollarSign } from 'lucide-svelte';
+	import { Calendar, Text, ShoppingCart, Download, MousePointerClick } from 'lucide-svelte';
 	export let post;
 	let {
 		path,
@@ -23,7 +23,6 @@
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
-	import Tags from './Tags.svelte';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
 	const date = start ? addHours(new Date(start), 3) : published_date;
@@ -52,10 +51,14 @@
 	tabindex="0"
 >
 	<div class="publication">
-		{#if category == 'calendario'}<Calendar {style} />&ThickSpace;{/if}
-		{#if category == 'material'}
-		{#if tags.includes('pago')}<DollarSign {style} />&ThickSpace;{/if}
-			<Text {style} />&ThickSpace;
+		{#if category == 'calendario'}<Calendar {style} />&ThickSpace;
+		{:else if category == 'material'}
+			{#if tags.includes('pago')}<ShoppingCart {style} />
+			{:else if tags.includes('descargable')}<Download {style} />
+			{:else if tags.includes('interactivo')}
+				<MousePointerClick {style} />
+			{:else}<Text {style} />&ThickSpace;
+			{/if}
 		{/if}
 		{#if category != 'amigues'}
 			{#if date}
