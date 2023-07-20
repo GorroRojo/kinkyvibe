@@ -98,7 +98,7 @@ export function aliaserFactory(tagsConfig) {
 /**
  * Fetches markdown posts and performs validations and transformations.
  *
- * @return {Array} An array of validated and transformed posts.
+ * @return {Promise<[]>} An array of validated and transformed posts.
  */
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
@@ -124,7 +124,7 @@ export const fetchMarkdownPosts = async () => {
 		}
 		if (Array.isArray(tags)) tags = tags.map(alias);
 		tags = [...tags].sort();
-		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
+		return { ...post, meta: { ...post.meta, featured, tags } };
 	});
 	// TODO performance, i'm looping way way way too many times
 	return [...validatedPosts];

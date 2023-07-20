@@ -83,9 +83,6 @@
 		outline-offset: var(--filled-outline-offset, 0);
 		text-decoration-color: transparent;
 	}
-	a.tag {
-		/* text-decoration: underline var(--color, var(--1)); */
-	}
 	input {
 		border: 0;
 		margin: 0;

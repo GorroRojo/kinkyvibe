@@ -2,18 +2,12 @@
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tags from '$lib/components/Tags.svelte';
-	import { currentPostData } from '$lib/utils/stores.js';
+	import { tagsConfig, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	//@ts-nocheck
 	export let data;
 	import { onMount } from 'svelte';
-	let tagsConfig = { tags: {} };
-	currentPostData.set({category: data.category, path: $page.url.pathname});
-	onMount(() => {
-		fetch('/api?getTags')
-			.then((r) => r.json())
-			.then((c) => (tagsConfig = c));
-	});
+	currentPostData.set({ category: data.category, path: $page.url.pathname });
 </script>
 
 <svelte:head>
@@ -86,7 +80,7 @@
 	{/if}
 	{#if data?.tags}
 		<div id="tags">
-			<Tags tags={data.tags?.map(aliaserFactory(tagsConfig))} {tagsConfig} />
+			<Tags tags={data.tags?.map(aliaserFactory($tagsConfig))} />
 		</div>
 	{/if}
 
@@ -101,11 +95,11 @@
 		</div>
 	{/if}
 </article>
-<!-- {#if data.tags.includes("KinkyVibe")}
+{#if data.tags.includes("KinkyVibe")}
 <div id="cafecito">
 Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso, <a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
 </div>
-{/if} -->
+{/if}
 <hr />
 
 {#if data.layout != 'amigues' || data.authors.length > 1}
@@ -141,7 +135,7 @@ Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te 
 		background: var(--2-light);
 		color: white;
 		margin-top: 1em;
-		border-radius: .3em;
+		border-radius: 0.3em;
 	}
 	#cafecito a {
 		--color: var(--4-light);

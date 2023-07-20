@@ -15,7 +15,6 @@
 			status,
 			featured: src,
 			mark,
-			tagsConfig,
 			link,
 			link_text,
 			category,
@@ -25,6 +24,7 @@
 	import { addHours, format, isPast } from 'date-fns';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
+	import { tagsConfig } from '$lib/utils/stores';
 	const date = start ? addHours(new Date(start), 3) : published_date;
 	if (tags.includes('KinkyVibe')) {
 		mark = mark ? mark : 'KinkyVibe';
@@ -92,7 +92,7 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
-				{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li style:--tag-color={color} style:white-space={'nowrap'}>
 					<Tag {tag} isLink={mounted} />

@@ -120,11 +120,6 @@
 		text-decoration: none;
 		text-transform: capitalize;
 	}
-	@media (max-width: 680px) {
-		a.breadcrumbs {
-			display: none;
-		}
-	}
 	#me {
 		display: grid;
 		grid-template-columns: 1fr 0.3fr 1fr;

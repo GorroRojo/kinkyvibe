@@ -1,4 +1,5 @@
 <script>
+	import { tagsConfig } from '$lib/utils/stores';
 	import { onMount } from 'svelte/internal';
 	import Tag from './Tag.svelte';
 	import Tags from './Tags.svelte';
@@ -6,7 +7,7 @@
 	export let post;
 	let {
 		path: href,
-		meta: { tags, tagsConfig, featured: src },
+		meta: { tags, featured: src },
 		mark,
 		start
 	} = post;
@@ -22,10 +23,9 @@
 	<img class="card-img" {src} alt="" />
 	<slot />
 	{#if tags}
-		<!-- <div class="tags"><Tags {tags} {tagsConfig} {mark} --color="var(--color-2)" /></div> -->
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
-				{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li style:--tag-color={color} style:white-space={'nowrap'}>
 					<Tag {tag} isLink={mounted} />

@@ -3,11 +3,9 @@
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import { onMount } from 'svelte/internal';
+	import { tagsConfig } from '$lib/utils/stores';
 	export let tags;
-	export let tagsConfig = { tags: {} };
-	// if (tagsConfig == {} || tagsConfig == undefined || tagsConfig == null) tagsConfig = { tags: {} };
 	export let mark = '';
-	// $: mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	$: filteredTags = mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 		: tags;
@@ -17,7 +15,7 @@
 
 <ul>
 	{#each [...new Set(filteredTags)] as tag (tag)}
-		{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+		{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 		{@const color = config ? config?.color : 'var(--color,var(--1))'}
 		<li style:--tag-color={color} class:invisible in:scale animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>

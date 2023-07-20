@@ -11,7 +11,7 @@ export const visibleTags = writable([]);
 export const allTags = writable([]);
 
 /** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|'', path: string}>} */
-export const currentPostData = writable(''); 
+export const currentPostData = writable(); 
 
 
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */

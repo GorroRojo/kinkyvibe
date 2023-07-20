@@ -3,7 +3,7 @@
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
-	import { filteredTags, allTags } from '$lib/utils/stores';
+	import { filteredTags, tagsConfig } from '$lib/utils/stores';
 	import { aliaserFactory, fetchGlossary } from '$lib/utils/index.js';
 	import { ArrowLeft } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
@@ -11,7 +11,7 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	let glosario = fetchGlossary();
-	var alias = aliaserFactory(data.tagsConfig);
+	var alias = aliaserFactory($tagsConfig);
 	function togglePositiveTagFilter(checked, tag) {
 		if (checked) {
 			filteredTags.update((fTags) => [...fTags, tag]);
@@ -139,14 +139,5 @@
 		margin-left: 0.3em;
 		opacity: 0.8;
 		text-align: right;
-	}
-	a.back {
-		display: block;
-		width: 100%;
-		max-width: 900px;
-		margin: 1.5em auto -2em;
-		padding-left: 1em;
-		color: var(--2);
-		text-decoration: none;
 	}
 </style>
