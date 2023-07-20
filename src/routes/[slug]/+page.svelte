@@ -40,16 +40,13 @@
 	<h1>{data.title}</h1>
 	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1)}
 		<address>
-			{#if data.layout == 'calendario'}Organizado{/if}
-			{#if data.layout == 'amigues'}Integrado{/if}
 			{#await data.authorsData}
-				por {data.authors.length > 1
+				{data.authors.length > 1
 					? data.authors.slice(0, data.authors.length - 1).join(', ') +
 					  ' & ' +
 					  data.authors[data.authors.length - 1]
 					: data.authors}
 			{:then authorsData}
-				por
 				{#each data.authors as author, i}
 					{@const authorData = authorsData.find(
 						(/** @type {{ path: any; }} */ a) => a.path == author
@@ -120,7 +117,13 @@
 		(/** @type {{meta: {title: any; }; }}*/ p) => p.meta.title != data.title
 	)}
 	<div class="content">
-		<h3>{data.authors.length > 1 ? 'También escribieron' : 'También escribió'}</h3>
+		<h3>Más cosas de 
+			{data.authors.length > 1
+				? data.authors.slice(0, -1).join(', ') +
+				  ' o ' +
+				  data.authors[data.authors.length - 1]
+				: data.authors[0]}
+		</h3>
 	</div>
 	<PostList {posts} />
 {/if}
