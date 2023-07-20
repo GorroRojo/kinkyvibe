@@ -96,11 +96,11 @@
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
-					style:--filled-text-color={color}
-					style:--fill-color={'transparent'}
-					style:--filled-outline={"1px solid " + color}
+					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+					style:--filled-outline={"1px solid var(--tag-color)"}
+					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
 					style:--filled-outline-offset={"-1px"}
-					style:--hover-text-decoration={"underline " + color}
+					style:--hover-text-decoration={"underline var(--tag-color)"}
 					style:white-space={'nowrap'}
 				>
 					<Tag {tag} isLink={mounted} />
