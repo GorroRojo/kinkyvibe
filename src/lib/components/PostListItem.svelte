@@ -91,7 +91,7 @@
 	{/if}
 	<div class="tags">
 		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
+			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
 				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li style:--tag-color={color} style:white-space={'nowrap'}>
