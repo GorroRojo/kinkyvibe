@@ -32,6 +32,7 @@
 	}
 	ul {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.2em;
 		font-size: 0.8em;
 		padding: 0 0.4em;
