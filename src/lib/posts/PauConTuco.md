@@ -14,8 +14,8 @@ authors:
 #featured: 1
 force_unlisted: true
 #force_unpublished: false
-pronoun: https://pronombr.es/elle&él
-link: https://instagram.com/gnosis.king
+pronoun: https://pronombr.es/ella&elle
+link: https://instagram.com/tallarinescontuco
 #logo: 2
 #photo: 3
 #email: ayuda@kinkyvibe.ar
@@ -25,3 +25,5 @@ link: https://instagram.com/gnosis.king
 #gender_identity: Perrito Travo Interdimensional
 #bday: 1996-04-09
 ---
+
+[Link a su pagina]({link})
