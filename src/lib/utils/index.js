@@ -16,25 +16,31 @@ export const fetchTags = async () => {
 		})
 	);
 	/** @type {Record<string,Record<string,string>>} */
-	let coloredTags = {};
-	tagsConfig.groups.forEach((/**@type{Group}*/ group) =>
+	let coloredGroupedTags = {};
+	aliasedGroups.forEach((/**@type{Group}*/ group) =>
 		groupMap(group, (g) => {
+			if (g.sub) {
+				g.sub.forEach((s) => {
+					if (!s.color) {
+						s.color = g.color;
+					}
+					s.parent = g.parent ? g.parent + '/' + g.name : g.name;
+				});
+			}
 			if (g.color != undefined) {
 				if (g.members) {
-					g.members.forEach((m) =>
-					coloredTags[m]
-					// @ts-ignore
-					? (coloredTags[m].color = g.color)
-					// @ts-ignore
-							: (coloredTags[m] = { color: g.color })
-					);
-				}
-				if (g.sub) {
-					g.sub.forEach((s) => {
-						if (!s.color) {
-							s.color = g.color;
+					[g.name, ...g.members].forEach((m) => {
+						if (coloredGroupedTags[m]) {
+							// @ts-ignore
+							coloredGroupedTags[m].color = g.color;
+							coloredGroupedTags[m].group = g.parent ? g.parent + '/' + g.name : g.name;
+						} else {
+							coloredGroupedTags[m] = {
+								// @ts-ignore
+								color: g.color,
+								group: g.parent ? g.parent + '/' + g.name : g.name
+							};
 						}
-						s.parent = g.name;
 					});
 				}
 			}
@@ -43,7 +49,10 @@ export const fetchTags = async () => {
 	);
 	return {
 		...tagsConfig,
-		tags: Object.fromEntries([...Object.entries(tagsConfig.tags), ...Object.entries(coloredTags)]),
+		tags: Object.fromEntries([
+			...Object.entries(tagsConfig.tags),
+			...Object.entries(coloredGroupedTags)
+		]),
 		groups: aliasedGroups
 	};
 };
@@ -129,7 +138,7 @@ export function aliaserFactory(tagsConfig) {
 /**
  * Fetches markdown posts and performs validations and transformations.
  *
- * @return {Promise<[]>} An array of validated and transformed posts.
+ * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
  */
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
@@ -154,7 +163,9 @@ export const fetchMarkdownPosts = async () => {
 			featured = thumbURL(post.path, featured, allThumbs);
 		}
 		if (Array.isArray(tags)) tags = tags.map(alias);
-		tags = [...tags].sort();
+		tags = [...tags].sort((a, b) =>
+			(tagsConfig.tags[a]?.group ?? '').localeCompare(tagsConfig.tags[b]?.group ?? '')
+		);
 		return { ...post, meta: { ...post.meta, featured, tags } };
 	});
 	// TODO performance, i'm looping way way way too many times
