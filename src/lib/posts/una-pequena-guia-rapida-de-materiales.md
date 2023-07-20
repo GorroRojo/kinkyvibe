@@ -18,7 +18,6 @@ authors:
 featured: 1
 #force_unlisted:
 #force_unpublished:
-type: contenido # descargable | link | contenido #
 #link:
 ---
 

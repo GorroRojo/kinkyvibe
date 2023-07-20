@@ -12,6 +12,7 @@ tags:
   - guia
   - inglés
   - gratis
+  - descargable
 layout: material
 category: material
 authors:
@@ -19,7 +20,6 @@ authors:
 featured: 2
 # force_unlisted: true
 #force_unpublished: false
-type: descargable
 #link:
 ---
 

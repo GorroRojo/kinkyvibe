@@ -18,7 +18,6 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00

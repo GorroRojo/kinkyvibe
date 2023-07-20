@@ -21,7 +21,6 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido # descargable | link | contenido #
 link: https://bound-together.net/punching-101/
 ########### ----- Para tipo 'link' ----- ###########
 access_date: 2023-06-28Z-03:00

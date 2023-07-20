@@ -19,7 +19,6 @@ authors:
 # featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido # descargable | link | contenido #
 # link: https://www.domme-chronicles.com/2021/02/shock-collars-in-bdsm-play-are-they-safe
 ########### ----- Para tipo 'link' ----- ###########
 # access_date: 2023-06-16Z-03:00
