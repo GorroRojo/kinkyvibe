@@ -7,7 +7,7 @@
 ## ------ Para todas las publicaciones ------ ##
 ################################################
 
-#published_date: 2023-05-16Z-03:00Z-03:00   # (YYYY-MM-DD) fecha de publicación #
+#published_date: 2023-05-16Z-03:00   # (YYYY-MM-DD) fecha de publicación #
 #updated_date: 2023-11-04Z-03:00   # (YYYY-MM-DD) ult vez actualizó el post #
 title: Publicación de ejemplo # el nombre de la página en el navegador #
 
@@ -58,7 +58,7 @@ authors:
 #access_date: 2023-11-21Z-03:00  # YYYY-MM-DD #
 # La última vez que se chequeó que ese link funcionara y conteniera lo que se supone que contiene
 
-#original_published_date: 2010-04-03Z-03:00Z-03:00  # YYYY-MM-DD #
+#original_published_date: 2010-04-03Z-03:00  # YYYY-MM-DD #
 # La fecha de publicación original del contenido linkeado
 
 ######################################################

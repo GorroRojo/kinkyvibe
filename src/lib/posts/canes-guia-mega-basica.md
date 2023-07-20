@@ -1,5 +1,5 @@
 ---
-published_date: 2021-05-25Z-03:00Z-03:00Z-03:00
+published_date: 2021-05-25Z-03:00Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Canes - Guía Mega Básica
 summary: ¿Qué tipo de cane debería comprar? ¿De qué material? ¿Qué hace a una buena cane?
@@ -21,7 +21,7 @@ force_unlisted: true
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00
-#original_published_date: 2010-04-03Z-03:00Z-03:00
+#original_published_date: 2010-04-03Z-03:00
 ---
 
 Una guía sobre "Canes", super básica. Que hice hace mil años, y dejo acá.

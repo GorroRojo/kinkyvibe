@@ -1,5 +1,5 @@
 ---
-published_date: 2022-12-21Z-03:00Z-03:00
+published_date: 2022-12-21Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Información para prácticas restrictivas con cuerdas.
 summary: Las prácticas restrictivas con cuerdas involucran siempre un riesgo asumido el cual debe ser comunicado y entendido entre las partes. Una forma de evitar daños en las personas es estar preparados y tratar de disminuir esos riesgos.
@@ -20,7 +20,7 @@ force_unlisted: true
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00
-#original_published_date: 2010-04-03Z-03:00Z-03:00
+#original_published_date: 2010-04-03Z-03:00
 ---
 
 <script>

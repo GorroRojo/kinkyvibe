@@ -1,5 +1,5 @@
 ---
-published_date: 2022-04-01Z-03:00Z-03:00
+published_date: 2022-04-01Z-03:00
 # updated_date: 2023-11-04Z-03:00
 title: Piel y Acero
 summary: Una cartilla para el juego de cuchillos BDSM
@@ -22,7 +22,7 @@ authors:
 # link: https://www.domme-chronicles.com/2021/02/shock-collars-in-bdsm-play-are-they-safe
 ########### ----- Para tipo 'link' ----- ###########
 # access_date: 2023-06-16Z-03:00
-# original_published_date: 2021-02-04Z-03:00Z-03:00
+# original_published_date: 2021-02-04Z-03:00
 ---
 
 El original de este texto fue sacado de The Black Pomegranate, pero editado y traducido

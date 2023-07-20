@@ -1,5 +1,5 @@
 ---
-published_date: 2021-05-20Z-03:00Z-03:00
+published_date: 2021-05-20Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: BDSM - Una Introducción Amorosa
 summary: Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente
@@ -21,7 +21,7 @@ featured: 1
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #access_date: 2023-11-21Z-03:00
-#original_published_date: 2010-04-03Z-03:00Z-03:00
+#original_published_date: 2010-04-03Z-03:00
 ---
 
 > Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente

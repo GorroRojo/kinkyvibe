@@ -1,5 +1,5 @@
 ---
-published_date: 2000-08-04Z-03:00Z-03:00
+published_date: 2000-08-04Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Gorrite
 summary: Programadore, artista, captive.

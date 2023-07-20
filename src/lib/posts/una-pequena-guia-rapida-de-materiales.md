@@ -1,5 +1,5 @@
 ---
-published_date: 2023-02-01Z-03:00Z-03:00
+published_date: 2023-02-01Z-03:00
 updated_date: 2023-06-16Z-03:00
 title: Guía rápida de materiales
 summary: Para saber más sobre qué dildos, fundas y vibradores compramos.
