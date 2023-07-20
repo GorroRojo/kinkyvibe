@@ -32,7 +32,14 @@ groups:
       - gratis
     color: 'var(--3-dark)'
   - name: amigues
-    members: ['educadores', 'dominatrix', 'artista']
+    members: 
+    - educadores 
+    - dominatrix 
+    - artista
+    sub:
+    - name: profesional
+      members:
+      - psico 
     color: 'var(--2)'
   - name: BDSM
     members:
