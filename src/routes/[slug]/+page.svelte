@@ -4,7 +4,6 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import { tagsConfig, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	//@ts-nocheck
 	export let data;
 	import { onMount } from 'svelte';
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
@@ -30,11 +29,11 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta property="og:type" content="article" />
 
-	<meta property="article:published_time" content={data.published_date} />
-	<meta property="article:modified_time" content={data.updated_date} />
-	<meta property="article:author" content={data.authors} />
+	<meta property="article:published_time" content={data.published_date?.toString()} />
+	<meta property="article:modified_time" content={data.updated_date?.toString()} />
+	<meta property="article:author" content={data.authors?.join(', ')} />
 	<!-- <meta property="article:section" content="" /> -->
-	<meta property="article:tag" content={data.tags} />
+	<meta property="article:tag" content={data.tags?.join(', ')} />
 </svelte:head>
 
 <article>
@@ -70,9 +69,9 @@
 			{/await}
 			{#if data.layout != 'amigues'}
 				&ThickSpace;-&ThickSpace;
-				<time datetime={data.layout == 'calendario' ? data.start : data.published_date}
+				<time datetime={data.layout == 'calendario' ? data.start : data.published_date?.toString()}
 					>{new Date(
-						data.layout == 'calendaio' ? data.start : data.published_date
+						data.layout == 'calendario' ? data.start : data.published_date?.toString() ?? ''
 					).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
 				>
 			{/if}
@@ -95,16 +94,17 @@
 		</div>
 	{/if}
 </article>
-{#if data.tags.includes("KinkyVibe")}
-<div id="cafecito">
-Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso, <a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
-</div>
+{#if data.tags?.includes('KinkyVibe')}
+	<div id="cafecito">
+		Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso,
+		<a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
+	</div>
 {/if}
 <hr />
 
 {#if data.layout != 'amigues' || data.authors.length > 1}
 	{#await data.authorsData then authorsData}
-		{#if JSON.stringify(data.authorsData) != '[]' && data.authorsData != undefined && data.authorsData[0] != undefined}
+		{#if JSON.stringify(authorsData) != '[]' && authorsData != undefined && authorsData[0] != undefined}
 			{#each authorsData as author}
 				<a class="author-callout" href={author.path}>
 					<img class="author-image" src={author.logo ?? author.photo} alt="" />
