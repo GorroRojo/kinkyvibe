@@ -99,7 +99,7 @@
 					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
 					style:--filled-outline={"1px solid var(--tag-color)"}
 					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
-					style:--filled-outline-offset={"-1px"}
+					style:--filled-outline-offset={"-2px"}
 					style:--hover-text-decoration={"underline var(--tag-color)"}
 					style:white-space={'nowrap'}
 				>
