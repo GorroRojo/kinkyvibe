@@ -23,20 +23,22 @@
 /** @typedef PostData
  * @prop {string} title
  * @prop {string} summary
- * @prop {string[]|string} tags
+ * @prop {string[]} tags
  * @prop {'material'|'calendario'|'amigues'} category
- * @prop {string[]|string} authors
+ * @prop {'material'|'calendario'|'amigues'} layout
+ * @prop {string[]} authors
  * @prop {number | string} [featured]
  * @prop {Date} [published_date]
- * @prop {Date} [update_date]
+ * @prop {Date} [updated_date]
  * @prop {boolean} [force_unlisted]
  * @prop {boolean} [force_unpublished]
  */
 /** @typedef {PostData & {
  * 		type: 'descargable' | 'link' | 'contenido',
- * 		link: URL,
+ * 		link: string,
  * 		access_date: Date,
  * 		original_published_date: Date
+ *      redirect: boolean 
  * }} MaterialPostData
  */
 /** @typedef {PostData & {
