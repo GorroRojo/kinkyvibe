@@ -140,7 +140,7 @@ export function aliaserFactory(tagsConfig) {
  *
  * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
  */
-export const fetchMarkdownPosts = async (/**@type {string?} */ path) => {
+export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
 	var allThumbs = import.meta.glob(
