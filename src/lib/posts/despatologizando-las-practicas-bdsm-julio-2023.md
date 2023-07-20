@@ -19,7 +19,7 @@ featured: 1
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-07-22T10:00-03:00
 end: 2023-07-22T12:00-03:00
-location: Thames 240, Ciudad Autónoma de Buenos Aires
+# location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/36pWMpc2bW2eB7356
 link_text: Inscribirse
 ---
@@ -40,13 +40,12 @@ Desde [Fugas Críticas](/FugasCriticas) y [Kinky Vibe](/nosotres) lanzamos nuest
 
 Armamos este taller con el fin de brindar herramientas a personas que acompañen procesos terapéuticos o divulguen en sexualidad, y quieran incorporar y profundizar en las **perspectivas de diversidad erótica**, más específicamente desde los aportes de los colectivos kinky/BDSM.
 
-Nos reunimos *cansades* de leer y escuchar discursos psico/médicos que refuercen la idea de una sexualidad natural, buena y sana, vs una enferma, desviada y maligna.
+Nos reunimos _cansades_ de leer y escuchar discursos psico/médicos que refuercen la idea de una sexualidad natural, buena y sana, vs una enferma, desviada y maligna.
 Invitamos a las personas que trabajan en los ámbitos de educación sexual y salud mental, a **analizar como los discursos dominantes han construido una idea de sexualidad específica** y como la misma obtura las posibilidades de existencia de las personas, así como las destina a esconderse, normalizarse, o excluirse.
 
 ## ¿A quién está dirigido?
 
 Está dirigido a agentes de salud y salud mental, educadores sexuales, sexólogues, médiques, activistas en sexualidad, terapeutas, y personas interesadas en la temática. NO es necesario acreditar un título de grado o certificaciones académicas.
-
 
 ## ¿De qué se trata este taller?
 
@@ -87,26 +86,26 @@ Cualquier otra consulta escriben a [kinkyvibe.talleres@gmail.com](mailto:kinkyvi
     text-align: center;
     color: var(--2-dark);
   }
-        .cta {
-      background: var(--1);
-      padding: .5em 1em;
-      color: white;
-      font-weight: bold;
-      border-radius: .3em;
-      margin-inline: auto;
-      display: block;
-      width: 7em;
-      text-align: center;
-      /* translate: 6em; */
-      font-size: var(--step-4);
-      text-decoration: none;
-      margin-block: 2em;
-      transition: 200ms;
-      box-shadow: 0 0 0 0;
-    }
-    .cta:hover {
-      scale: 1.1;
-      /* filter: brightness(1.05); */
-      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
-    }
+  .cta {
+    background: var(--1);
+    padding: .5em 1em;
+    color: white;
+    font-weight: bold;
+    border-radius: .3em;
+    margin-inline: auto;
+    display: block;
+    width: 7em;
+    text-align: center;
+    /* translate: 6em; */
+    font-size: var(--step-4);
+    text-decoration: none;
+    margin-block: 2em;
+    transition: 200ms;
+    box-shadow: 0 0 0 0;
+  }
+  .cta:hover {
+    scale: 1.1;
+    /* filter: brightness(1.05); */
+    box-shadow: .6em .6em 1em rgba(0,0,0,.1);
+  }
 </style>

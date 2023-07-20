@@ -11,7 +11,8 @@ tags:
 layout: amigues
 category: amigues
 authors:
-  - KinkyBunny
+  - Manu
+  - Juani
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
