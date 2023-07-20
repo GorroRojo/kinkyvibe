@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2021-05-20Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: "BDSM: una introducción amorosa"
 summary: Por la construcción de una sexualidad más informada, consensuada, disidente y elegida libremente. Versión ilustrada.

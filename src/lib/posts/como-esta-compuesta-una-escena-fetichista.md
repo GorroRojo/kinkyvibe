@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-01-10Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: ¿Cómo está compuesta una escena fetichista?
 summary: Introducimos algunas nociones de prácticas de BDSM, así como mostramos estructuras que podemos usar para jugar. Con énfasis en la comunicación activa, el consentimiento y el cuidado.

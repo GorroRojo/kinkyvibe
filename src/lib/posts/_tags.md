@@ -60,8 +60,11 @@ groups:
       - name: personas
         members:
         - salud
+        - squirt
+      - name: queer
+        members: 
         - género
-        - queer 
+        - asexualidad
       - name: prácticas
         members:
         - hablar sucio

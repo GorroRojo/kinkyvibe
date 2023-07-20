@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-08-01Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Lecciones que aprendí siendo una dominatriz
 summary: Un texto introductorio a algunas nociones sobre BDSM / sadomasoquismo de la mano de Mitsu Mark, una conocida Dominatriz.

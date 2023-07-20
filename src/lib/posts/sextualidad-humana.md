@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-11-30Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Sextualidad humana
 summary: Este fanzines es una colección breve de varios artículos que desarrollan sobre anatomía vulvovaginal, pH, el humen, y la exploración y deconstrucción de las bases de la excitación y el deseo sexual.

@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-03-29Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: "Asexualidad: Una pequeña guía. Volumen 2"
 summary: En esta ocasión, ampliamos en una variedad de temas que surgieron en base al primer volumen, pero optamos por un formato de preguntas frecuentes para cubrir más información.
@@ -11,6 +11,7 @@ tags:
   - fanzine
   - inicial
   - queer
+  - asexualidad
 layout: material
 category: material
 authors:

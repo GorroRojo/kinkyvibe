@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2021-10-02Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: "Eyaculación y Squirt de Vulvas"
 summary: Alma de Fuego es una tienda erótica autogestiva feminista chilena con la que hicimos una alianza. 
@@ -10,6 +10,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - fanzine
   - salud
+  - squirt
 layout: material
 category: material
 authors:

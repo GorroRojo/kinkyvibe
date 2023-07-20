@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-05-10Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Anatomía de un spanking
 summary: Los cinco tipos más comunes de dar nalgueadas. Exploramos cómo se siente cada uno y cómo adminsitrarlas.

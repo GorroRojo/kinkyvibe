@@ -1,5 +1,5 @@
 ---
-published_date: 2023-07-19Z-03:00
+published_date: 2019-08-12Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: ¿Qué es el squirting o eyaculación vaginal?
 summary: Una pequeña historieta donde quisimos abarcar las nociones básicas de la eyaculación vaginal.
@@ -10,6 +10,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - fanzine
   - salud
+  - squirt
 layout: material
 category: material
 authors:
