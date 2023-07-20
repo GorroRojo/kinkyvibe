@@ -113,6 +113,7 @@
 		left: 0;
 		width: var(--card-width);
 		transition: 100ms;
+		max-width: 100%;
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
