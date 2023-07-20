@@ -16,7 +16,7 @@
 </script>
 
 <footer>
-	Codigueado por <a href="/Gorro_Rojo">Gorro_Rojo</a>
+	Codigueado por <a href="/Gorro_Rojo">Gorro_Rojo</a>. Esta página es <a href="https://github.com/gorrorojo/kinkyvibe">código abierto</a> y software libre.
 	<ul>
 		<li>
 			<h3>Contenido</h3>
