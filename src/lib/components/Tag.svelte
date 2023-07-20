@@ -42,7 +42,7 @@
 		--filled-text-color
 		--filled-outline
 		--filled-outline-offset
-		--filled-color
+		--fill-color
 		--text-decoration
 		--off-text-decoration
 
@@ -81,7 +81,7 @@
 		color: var(--filled-text-color, white);
 		outline: var(--filled-outline, none);
 		outline-offset: var(--filled-outline-offset, 0);
-		text-decoration-color: transparent;
+		text-decoration-color: var(--text-decoration, "none");
 	}
 	input {
 		border: 0;
@@ -92,7 +92,7 @@
 		opacity: 0;
 		position: absolute;
 	}
-	a:hover {
-		text-decoration: underline white;
+	a.tag:hover {
+		text-decoration: var(--hover-text-decoration, var(--text-decoration), none);
 	}
 </style>
