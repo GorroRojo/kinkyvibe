@@ -32,6 +32,6 @@ link: https://instagram.com/drux.ropes
 </script>
 
 <div class="col-2">
-<img alt="" src={foto} />
+<img alt="" src={foto} style="border-radius: 50rem;"/>
 <div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
 </div>
