@@ -5,7 +5,7 @@ groups:
   - name: idioma
     members:
       - inglés
-      - espanol
+      - español
     color: darkblue
   - name: calendario
     color: salmon
