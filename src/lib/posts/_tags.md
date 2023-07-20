@@ -11,7 +11,7 @@ groups:
     color: salmon
     sub:
       - name: tipo
-        members: ['cine', 'taller', 'evento', 'charla', 'debate', 'picnic']
+        members: ['cine', 'taller', 'evento', 'charla debate', 'picnic']
       - name: 'nombreevento'
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
@@ -36,6 +36,7 @@ groups:
     - educadores 
     - dominatrix 
     - artista
+    - emprendimiento
     sub:
     - name: profesional
       members:
@@ -47,14 +48,16 @@ groups:
       - negociación
       - dominación
       - sumisión
+      - sadomasoquismo
     color: red
     sub:
       - name: prácticas
         members:
-          - bondage
-          - Shibari
           - cuchillos
           - electro
+          - sensaciones
+          - bondage
+          - Shibari
         sub:
           - name: impacto
             members:
@@ -67,6 +70,8 @@ groups:
       - name: personas
         members:
         - salud
+        - materiales
+        - porno
         - squirt
       - name: queer
         members: 

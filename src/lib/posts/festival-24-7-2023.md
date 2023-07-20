@@ -1,0 +1,134 @@
+---
+published_date: 2023-07-18Z-03:00
+#updated_date: 2023-11-04Z-03:00
+title: Festival 24/7
+summary: Dia internacional del BDSM ¡Festejamos el orgullo kinky queer!
+tags:
+  - español
+  - KinkyVibe
+  - evento
+  - taller
+  - cine
+  - charla debate
+  - BDSM
+  - prácticas
+  - bondage
+  - shibari
+  - sensaciones
+  - sadomasoquismo
+layout: calendario
+category: calendario
+authors:
+  - KinkyVibe
+  - KinkyBunny ## TODO ## hacer página
+featured: 1
+#force_unlisted: false
+#force_unpublished: false
+status: abierto # abierto | anunciado | lleno | cancelado
+start: 2023-07-23T16:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2023-07-24T00:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+location: Thames 240, Ciudad Autónoma de Buenos Aires
+link: https://forms.gle/bn8RgaLhvJkxgcHT8
+link_text: 'PRE-VENTA'
+---
+
+<script>
+    import flyer from '$lib/posts/media/festival-24-7-2023/1.jpg';
+    const style = `
+      display: block;
+      position: absolute;
+      top: -1em;
+      font-size: var(--step-1);
+      color: var(--2);
+    `
+</script>
+
+![flyer]({flyer})
+
+Hola pervertides!
+Este **Domingo 23 de Julio** hacemos el teje bondagero de unirnos [Kinky Bunny](/KinkyBunny) y [Kinky Vibe](/nosotres) para festejar el día internacional del bdsm!
+
+Así que le traemos festival!
+
+## Cronograma
+
+### <small {style}>16 a 20hs</small> Laboratorio de Prácticas Somáticas Fetichistas
+
+Proponemos un espacio que va a ser coordinado por Mel (él), que se propone investigar lo corporal, lo emotivo, lo somático a través de la exploración de distintas prácticas fetichistas. Preguntándonos por lo que nos produce placer, y lo que nos estremece, y compartiéndolo con otres.
+
+Vamos a estar aprendiendo la seguridad de cada una, e invitándonos a buscar usos creativos que nos permitan explorar el mundo de los fetiches, trabajando sobre tres ejes:
+
+- La sensación (juegos de sensaciones)
+- La restricción ([bondage](/todo?tags=bondage))
+- El dolor (sadomasoquismo)
+
+Luego de cada práctica vamos a parar a charlar e ir compartiendo como nos sentimos.
+
+### <small {style}>21 a 24hs</small> ¡Festival Kinky!
+
+- Jam de Cuerdas con Speed Dating
+- Feria Autogestiva y Fetichista
+- Proyección BDSM y Charla Debate
+
+### <small {style}>24hs</small> ¡Festejo!
+
+En el 2003 (hace 20 años!) un tal Kurt Walter Fischer (quien se conoce como el fundador del primer Club de BDSM de Europa, Rosa5), propuso el 24 de Julio como el día internacional del BDSM.
+
+Haciendo referencia a la dinámica 24/7 que consiste de tener un vínculo de Dominación/Sumisión que está activo "24/7" (hay también múltiples formas de vivirlo).
+
+Esta fecha empezó a celebrarse y muy prontamente se volvió internacional.
+
+Siendo hoy en día una fecha de celebración del orgullo, de militancia por el derecho a ejercer nuestra s\*xualidad sin miedo, sin escondernos y sin estigmas ni discriminación.
+
+En este caso en celebración de nuestras (la de Bunny y la de Vibe) identidades trans y queer, usamos la bandera kinky que incluye a las otras dos.
+
+Les invitamos a celebrar con nosotres el orgullo de las prácticas sad\*masoquistas disidentes!
+
+{#if link}
+<a class="cta" href={link}>{link_text}</a>
+{/if}
+
+<style>
+  h3 {
+    position: relative;
+    margin-top: 1.5em;
+  }
+  code{
+    background: var(--4-light);
+    color:var(--2-dark);
+    display:block;
+    margin-inline: 0em;
+    text-align: center;
+    padding: 1em;
+    font-weight: bold;
+    font-size: var(--step-1);
+  }
+  .cta {
+    background: var(--1);
+    color: white;
+    font-weight: bold;
+    border-radius: .3em;
+    display: block;
+    margin: 2em auto;
+    padding: .5em 1em;
+    width: 10em;
+    min-width: 0;
+    /* width: auto; */
+    text-align: center;
+    font-size: var(--step-4);
+    text-decoration: none;
+    transition: 200ms;
+    box-shadow: 0 0 0 0;
+    white-space:nowrap;
+  }
+  .cta:hover {
+    scale: 1.1;
+    /* filter: brightness(1.05); */
+    box-shadow: .6em .6em 1em rgba(0,0,0,.1);
+  }
+  a {
+    color: #222;
+    /* text-decoration: none; */
+    text-decoration-color: var(--1);
+  }
+</style>
