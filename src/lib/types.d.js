@@ -6,6 +6,7 @@
  * @prop {string[]} members
  * @prop {Group[]} sub
  * @prop {string} [color]
+ * @prop {string} [parent]
  */
 
 /** @typedef TagProps

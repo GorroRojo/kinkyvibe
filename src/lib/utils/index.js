@@ -2,9 +2,10 @@ import '$lib/types.d.js';
 
 export const fetchTags = async () => {
 	//@ts-expect-error
-	var { metadata: tagsConfig } = /** @type {{groups: Group[], tags:*}} */ await Object.entries(
-		import.meta.glob('$lib/posts/_tags.md')
-	)[0][1]();
+	var { metadata: tagsConfig } =
+		/** @type {{metadata:{groups: Group[], tags:*}}} */ await Object.entries(
+			import.meta.glob('$lib/posts/_tags.md')
+		)[0][1]();
 	let alias = aliaserFactory(tagsConfig);
 	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group) =>
 		groupMap(group, (g) => {
@@ -14,7 +15,37 @@ export const fetchTags = async () => {
 			else return { ...g, name, members: [] };
 		})
 	);
-	return { ...tagsConfig, groups: aliasedGroups };
+	/** @type {Record<string,Record<string,string>>} */
+	let coloredTags = {};
+	tagsConfig.groups.forEach((/**@type{Group}*/ group) =>
+		groupMap(group, (g) => {
+			if (g.color != undefined) {
+				if (g.members) {
+					g.members.forEach((m) =>
+					coloredTags[m]
+					// @ts-ignore
+					? (coloredTags[m].color = g.color)
+					// @ts-ignore
+							: (coloredTags[m] = { color: g.color })
+					);
+				}
+				if (g.sub) {
+					g.sub.forEach((s) => {
+						if (!s.color) {
+							s.color = g.color;
+						}
+						s.parent = g.name;
+					});
+				}
+			}
+			return g;
+		})
+	);
+	return {
+		...tagsConfig,
+		tags: Object.fromEntries([...Object.entries(tagsConfig.tags), ...Object.entries(coloredTags)]),
+		groups: aliasedGroups
+	};
 };
 
 export const fetchGlossary = async () => {
@@ -23,7 +54,7 @@ export const fetchGlossary = async () => {
 		import.meta.glob('$lib/posts/_glossary.md')
 	)[0][1]();
 	return glossary;
-}
+};
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
