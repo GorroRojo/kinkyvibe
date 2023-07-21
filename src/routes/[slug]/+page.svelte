@@ -15,6 +15,8 @@
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
+	<meta property="og:url" content={$page.url.href} />
+
 	<meta property="og:title" content={data.title} />
 	<meta name="twitter:title" content={data.title} />
 
@@ -22,8 +24,8 @@
 	<meta name="twitter:description" content={data.summary} />
 	<meta property="og:description" content={data.summary} />
 
-	<meta property="og:image" content={data.featured + ''} />
-	<meta name="twitter:image" content={data.featured + ''} />
+	<meta property="og:image" content={$page.url.hostname + data.featured} />
+	<meta name="twitter:image" content={$page.url.hostname + data.featured} />
 
 	<meta name="twitter:site" content="@kinkyvibearg" />
 	<meta name="twitter:card" content="summary_large_image" />
