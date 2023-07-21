@@ -9,6 +9,7 @@ tags:
   - caning
   - BDSM
   - guia
+  - libro
   - inglés
   - gratis
   - descargable
