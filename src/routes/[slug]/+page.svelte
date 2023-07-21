@@ -90,6 +90,13 @@
 	{/if}
 
 	{#if !data.error}
+		{#if data.layout == 'amigues' && data.summary}
+			<div class="content">
+				<p>
+					{data.summary}
+				</p>
+			</div>
+		{/if}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
 		<div class="content">
 			<svelte:component this={data.content} />
@@ -101,11 +108,6 @@
 	{/if}
 
 	{#if data.layout == 'amigues'}
-		<div class="content">
-			<p>
-				{data.summary}
-			</p>
-		</div>
 		<a href={data.link} class="cta">Ir a su página</a>
 	{:else if data.layout == 'calendario' && data.link && data.link_text}
 		<a href={data.link} class="cta">{data.link_text}</a>
@@ -170,7 +172,7 @@
 		max-width: 70rem;
 		width: 100%;
 		margin-top: 2em;
-		justify-content:center;
+		justify-content: center;
 	}
 	.author-summary {
 		text-decoration: none;
@@ -272,8 +274,8 @@
 		box-shadow: 0.6em 0.6em 1em rgba(0, 0, 0, 0.1);
 	}
 	@media (max-width: 630px) {
-	.profile-header {
-		grid-auto-flow: row;
-	}
+		.profile-header {
+			grid-auto-flow: row;
+		}
 	}
 </style>
