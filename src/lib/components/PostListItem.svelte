@@ -1,6 +1,13 @@
 <script>
 	//@ts-nocheck
-	import { Calendar, Text, ShoppingCart, Download, MousePointerClick } from 'lucide-svelte';
+	import {
+		CalendarRange,
+		BookOpen,
+		ShoppingCart,
+		Download,
+		MousePointerClick,
+		Heart
+	} from 'lucide-svelte';
 	import 'add-to-calendar-button';
 	export let post;
 	let {
@@ -52,29 +59,42 @@
 	tabindex="0"
 >
 	<div class="publication">
-		{#if category == 'calendario'}<Calendar {style} />&ThickSpace;
-		{:else if category == 'material'}
-			{#if tags.includes('pago')}<ShoppingCart {style} />
-			{:else if tags.includes('descargable')}<Download {style} />
-			{:else if tags.includes('interactivo')}
-				<MousePointerClick {style} />
-			{:else}<Text {style} />&ThickSpace;
+		<div class="icon">
+			{#if category == 'calendario'}
+				<CalendarRange {style} />
+			{:else if category == 'material'}
+				{#if tags.includes('pago')}
+					<ShoppingCart {style} />
+				{:else if tags.includes('descargable')}
+					<Download {style} />
+				{:else if tags.includes('interactivo')}
+					<MousePointerClick {style} />
+				{:else}
+					<BookOpen {style} />
+				{/if}
+			{:else}
+				<Heart {style} strokeWidth="3px" />
 			{/if}
-		{/if}
+			&ThickSpace;
+		</div>
 		{#if category != 'amigues'}
 			{#if date}
-				<time datetime={start}>
-					{#if start}
+				{#if start}
+					<time datetime={start}>
 						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
 						) + format(new Date(end), 'HH:mm')}
-					{:else}
+					</time>
+				{:else}
+					<address>
 						{authors ? authors.join(', ') : ''}
-						{authors && date ? ' - ' : ''}
+					</address>
+					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
+					<time datetime={date}>
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
-					{/if}
-				</time>
+					</time>
+				{/if}
 				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && link_text && status && status == 'abierto' && !past}
 					<add-to-calendar-button
 						style={`
@@ -113,22 +133,20 @@
 					<!-- trigger="hover" -->
 				{/if}
 				{#if (status && ['cancelado', 'lleno'].includes(status)) || past}
-					<small>
+					<small class="status">
 						{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}
 					</small>
 				{/if}
 			{/if}
 		{:else}
-			{job_title}
+			<span class="job-title">{job_title}</span>
 		{/if}
 	</div>
 	{#if src}<img {src} alt="" />{/if}
 	<h3>
 		{title}
 	</h3>
-	{#if summary}
-		<p class="summary">{summary}</p>
-	{/if}
+	<p class="summary">{summary ?? ''}</p>
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
@@ -164,7 +182,19 @@
 			border-radius: 10em;
 		}
 		.publication {
-			display: none;
+			background: none;
+			time,
+			address,
+			.job-title {
+				display: none;
+			}
+			.icon {
+				color: var(--post-color);
+				left: -1em;
+				position: relative;
+				scale: .8;
+				top: -.2em;
+			}
 		}
 	}
 	.tagrow {
@@ -211,7 +241,7 @@
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
-		grid-template-rows: auto auto 2.4em;
+		grid-template-rows: auto 1fr 2.4em;
 		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
@@ -242,6 +272,8 @@
 		font-size: var(--step-2);
 		/* align-self:flex-start; */
 		margin: 0;
+		margin-top: 0.2em;
+		margin-bottom: 0.1em;
 		text-decoration: underline;
 		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
@@ -260,14 +292,13 @@
 		z-index: 3;
 		/* cursor:crosshair; */
 	}
-	a.post p.summary {
+	.summary {
 		grid-area: summary;
 		margin: 0;
-		padding: 0;
+		padding: 0.2em0;
 		align-self: flex-start;
 		font-size: var(--step-0);
-	}
-	.summary {
+		display: block;
 		max-height: 100%;
 		min-height: 0;
 		/* overflow:hidden; */
