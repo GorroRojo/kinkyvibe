@@ -1,6 +1,7 @@
 <script>
 	//@ts-nocheck
 	import { Calendar, Text, ShoppingCart, Download, MousePointerClick } from 'lucide-svelte';
+	import 'add-to-calendar-button';
 	export let post;
 	let {
 		path,
@@ -64,13 +65,53 @@
 			{#if date}
 				<time datetime={start}>
 					{#if start}
-						{format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end), 'HH:mm')}
+						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
+							'|',
+							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
+						) + format(new Date(end), 'HH:mm')}
 					{:else}
 						{authors ? authors.join(', ') : ''}
 						{authors && date ? ' - ' : ''}
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					{/if}
 				</time>
+				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && link_text && status && status == 'abierto' && !past}
+					<add-to-calendar-button
+						style={`
+							--btn-text: white;
+							--keyboard-focus: var(--post-color, var(--2));
+							--btn-background: transparent;
+							--btn-shadow: none;
+							--btn-shadow-hover: none;
+							--list-background: white;
+							--list-background-hover: var(--1-light) ;
+							--list-text-hover: white;
+							--btn-border: none;
+							--list-shadow: 0 0 1em 0 var(--1-light);
+							`}
+						name={title}
+						description={summary}
+						startDate={format(new Date(start), 'yyyy-MM-dd')}
+						startTime={format(new Date(start), 'HH:mm')}
+						endDate={format(new Date(end), 'yyyy-MM-dd')}
+						endTime={format(new Date(end), 'HH:mm')}
+						timeZone="America/Buenos_Aires"
+						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+						language="es"
+						iCalFileName="Sample Event"
+						listStyle="overlay"
+						buttonStyle="3d"
+						inline
+						organizer="Mel|kinkyvibe@gmail.com"
+						size="1"
+						hideBackground
+					/>
+					 <!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
+					<!-- label="CUSTOM LABEL" -->
+					<!-- buttonStyle="round" -->
+					<!-- location="World Wide Web" -->
+					<!-- trigger="hover" -->
+				{/if}
 			{/if}
 		{:else}
 			{job_title}
@@ -92,15 +133,17 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
-				{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
+				{@const config = Object.keys($tagsConfig.tags).includes(tag)
+					? $tagsConfig.tags[tag]
+					: false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
 					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
-					style:--filled-outline={"1px solid var(--tag-color)"}
+					style:--filled-outline={'1px solid var(--tag-color)'}
 					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
-					style:--filled-outline-offset={"-2px"}
-					style:--hover-text-decoration={"underline var(--tag-color)"}
+					style:--filled-outline-offset={'-2px'}
+					style:--hover-text-decoration={'underline var(--tag-color)'}
 					style:white-space={'nowrap'}
 				>
 					<Tag {tag} isLink={mounted} />
@@ -108,11 +151,9 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && link_text && status && status == 'abierto' && !past}<a
-			class="CTA"
-			href={link}
-			target="_blank">{link_text}</a
-		>{/if}
+	{#if link && link_text && status && status == 'abierto' && !past}
+		<a href={link} class="CTA" target="_blank">{link_text}</a>
+	{/if}
 </a>
 
 <style lang="scss">
@@ -163,7 +204,7 @@
 	}
 	.post {
 		--post-color: var(--2);
-		position: relative;
+		/* position: relative; */
 		width: 100%;
 		/* max-width: 900px; */
 		height: 10.5em;
@@ -184,7 +225,7 @@
 		background: white;
 		border-radius: 2em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
-		overflow: hidden;
+		/* overflow: hidden; */
 		&.mark {
 			--post-color: var(--1);
 		}
@@ -196,6 +237,8 @@
 		}
 	}
 	a h3 {
+		/* display: flex; */
+		/* align-items: center; */
 		grid-area: title;
 		font-size: var(--step-2);
 		/* align-self:flex-start; */
@@ -212,6 +255,8 @@
 	} */
 	.tags {
 		grid-area: tags;
+		max-width: 100%;
+		min-width: 0;
 		--color: var(--post-color);
 		z-index: 3;
 		/* cursor:crosshair; */
@@ -230,19 +275,7 @@
 		overflow: auto;
 		text-overflow: ellipsis;
 	}
-	@media (max-width: 680px) {
-		.summary {
-			display: none;
-		}
-		.post {
-			grid-template-areas: 'img title' 'img tags';
-			grid-template-rows: 1fr 3em;
-		}
-		h3 {
-			align-self: flex-start;
-			padding-top: 0.2em;
-		}
-	}
+
 	img {
 		grid-area: img;
 		max-height: 9em;
@@ -254,7 +287,10 @@
 		justify-self: center;
 	}
 	.publication {
-		display: block;
+		display: grid;
+		grid-auto-flow: column;
+		align-items: center;
+		justify-content: start;
 		background: var(--post-color, var(--2));
 		color: whiite;
 		position: absolute;
@@ -262,14 +298,17 @@
 		left: 0;
 		top: 0;
 		height: 1.7em;
-		display: flex;
-		align-items: center;
 		padding-inline: 1.5em;
 		color: white;
 		font-size: var(--step--1);
-		* {
-			display: inline;
+		border-radius: 2em 2em 0 0;
+		& > * {
+			min-height: 0;
+			min-width: 0;
 		}
+	}
+	.calendario .publication {
+		grid-template-columns: 2em 1fr auto;
 	}
 	a {
 		color: inherit;
@@ -280,5 +319,32 @@
 	a:hover:not(.past),
 	a:focus {
 		scale: 1.03;
+	}
+
+	@container (max-width: 680px) {
+		.summary {
+			/* display: none; */
+		}
+		.post {
+			grid-template-areas: 'title title' 'img summary' 'img tags';
+			grid-template-rows: auto 1.5fr 3em;
+			&:has(.CTA) {
+				grid-template-areas:
+					'title title title'
+					'img summary summary'
+					'img tags cta';
+			}
+		}
+		h3 {
+			align-self: flex-start;
+			padding-left: 1em;
+			line-height: 1;
+			height: auto;
+			/* justify-self: center; */
+			/* padding-top: 0.2em; */
+		}
+		img {
+			max-height: calc(100% - 1em);
+		}
 	}
 </style>

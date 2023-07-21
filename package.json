@@ -36,6 +36,7 @@
 	"type": "module",
 	"dependencies": {
 		"@octokit/core": "^4.2.0",
+		"add-to-calendar-button": "^2.2.10",
 		"date-fns": "^2.30.0",
 		"lucide-svelte": "^0.217.0",
 		"rehype-autolink-headings": "^6.1.1",
