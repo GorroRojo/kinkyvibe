@@ -53,11 +53,10 @@ export async function load({ params }) {
 
 		const tagsConfig = await fetchTags();
 		const alias = aliaserFactory(tagsConfig);
-		const { meta } = processMetadata({ path: params.slug, meta: post.metadata }, alias, tagsConfig);
+		const { meta } = await processMetadata({ path: params.slug, meta: post.metadata }, alias, tagsConfig);
 		return {
 			content,
 			...meta,
-			featured: meta.featured ? thumbURL(params.slug, meta.featured) : undefined,
 			authorsData,
 			posts
 		};

@@ -90,23 +90,31 @@ export function groupMap(group, fn) {
 }
 
 /**
+ * Retrieves all the URL paths of the image files in posts/media/*
+ *
+ * @return {Promise<Record<string,string>>} - A promise that resolves to an array of URL paths.
+ */
+export const fetchAllThumbs = async () =>
+	import.meta.glob(
+		[
+			'$lib/posts/media/*/*.jpeg',
+			'$lib/posts/media/*/*.jfif',
+			'$lib/posts/media/*/*.jpg',
+			'$lib/posts/media/*/*.png',
+			'$lib/posts/media/*/*.webp'
+		],
+		{ eager: true, as: 'url' }
+	);
+
+/**
  *
  * @param {string} postSlug
  * @param {string | number} assetID
  * @param {Record<string,any> | false} allThumbs
  */
-export const thumbURL = (postSlug, assetID, allThumbs = false) => {
+export const thumbURL = async (postSlug, assetID, allThumbs = false) => {
 	if (!allThumbs) {
-		allThumbs = import.meta.glob(
-			[
-				'$lib/posts/media/*/*.jpeg',
-				'$lib/posts/media/*/*.jfif',
-				'$lib/posts/media/*/*.jpg',
-				'$lib/posts/media/*/*.png',
-				'$lib/posts/media/*/*.webp'
-			],
-			{ eager: true, as: 'url' }
-		);
+		allThumbs = await fetchAllThumbs();
 	}
 	let regex = new RegExp(`/${postSlug}/${assetID}.\\w+`);
 	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
@@ -143,35 +151,21 @@ export function aliaserFactory(tagsConfig) {
 export const fetchMarkdownPosts = async () => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
-	var allThumbs = import.meta.glob(
-		[
-			'$lib/posts/media/*/*.jpeg',
-			'$lib/posts/media/*/*.jfif',
-			'$lib/posts/media/*/*.jpg',
-			'$lib/posts/media/*/*.png',
-			'$lib/posts/media/*/*.webp'
-		],
-		{ eager: true, as: 'url' }
-	);
-
 	let validatedPosts = await validateAll(allPosts);
 
-	validatedPosts = await processMetadataAll(validatedPosts, allThumbs);
+	validatedPosts = await processMetadataAll(validatedPosts);
 	// TODO performance, i'm looping way way way too many times
 	return [...validatedPosts];
 };
 
 /**
  * @param {{meta: AnyPostData, path: string}[]} posts
- * @param {Record<string,string>} [allThumbs={}]
  * @return {Promise<{meta: AnyPostData, path:string}[]>}
  */
-export async function processMetadataAll(posts, allThumbs = {}) {
+export async function processMetadataAll(posts) {
 	const tagsConfig = await fetchTags();
 	const alias = aliaserFactory(tagsConfig);
-	return posts.map((post) =>
-		processMetadata(post, alias, tagsConfig, allThumbs)
-	);
+	return await Promise.all(posts.map(async (post) => await processMetadata(post, alias, tagsConfig)));
 }
 
 /**
@@ -180,13 +174,12 @@ export async function processMetadataAll(posts, allThumbs = {}) {
  * @param {{path:string,meta:AnyPostData}} post - The post.
  * @param {(tag: string)=>string} alias - The alias function for tags.
  * @param {{groups: Group[], tags:Record<string,{group?:string}>}} tagsConfig - The configuration object for tags.
- * @param {Record<string,*>|false} allThumbs - The object containing all thumbnails.
- * @return {{path:string,meta:AnyPostData}} This function does not return a value.
+ * @return {Promise<{path:string,meta:AnyPostData}>} This function does not return a value.
  */
-export function processMetadata(post, alias, tagsConfig, allThumbs = {}) {
+export async function processMetadata(post, alias, tagsConfig) {
 	let featured = post.meta.featured + '';
-	if (allThumbs !== false && featured && featured.length < 3) {
-		featured = thumbURL(post.path, featured, allThumbs);
+	if (featured && featured.length < 3) {
+		featured = await thumbURL(post.path, featured);
 	}
 
 	let tags = [];
@@ -197,7 +190,7 @@ export function processMetadata(post, alias, tagsConfig, allThumbs = {}) {
 				(tagsConfig.tags[a]?.group ?? '').localeCompare(tagsConfig.tags[b]?.group ?? '')
 			);
 	} else tags = [post.meta.tags];
-	return { ...post, meta: { ...post.meta, featured, tags } }
+	return { ...post, meta: { ...post.meta, featured, tags } };
 }
 
 /**
