@@ -334,6 +334,7 @@
 		color: white;
 		font-size: var(--step--1);
 		border-radius: 2em 2em 0 0;
+		--translate: 0 .1em;
 		& > * {
 			min-height: 0;
 			min-width: 0;
