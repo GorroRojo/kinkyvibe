@@ -7,7 +7,7 @@
 	export let post;
 	let {
 		path: href,
-		meta: { tags, featured: src },
+		meta: { tags, featured: src, category, title },
 		mark,
 		start
 	} = post;
@@ -16,12 +16,12 @@
 	onMount(() => (mounted = true));
 </script>
 <!-- TODO past no funciona? -->
-<a {href} class:past={isPast(new Date(start))} class="card {mark ? 'mark' : ''}" tabindex="0">
+<a {href} class:past={isPast(new Date(start))} class="card {mark ? 'mark' : ''} {category}" tabindex="0">
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
 	<img class="card-img" {src} alt="" />
-	<slot />
+	<h3>{title}</h3>
 	{#if tags}
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
@@ -49,7 +49,7 @@
 		--cround: calc(var(--round) * .93);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
-		outline: 0 !important;
+		outline: 0;
 		object-fit: cover;
 	}
 	.card {
@@ -68,10 +68,16 @@
 		text-decoration: none;
 		color: inherit;
 	}
+	h3 {
+		margin: auto auto;
+		padding: 0.5em;
+		text-align: center;
+	}
 	.card.past {
 		opacity: .8;
 	}
 	.card.mark {
+		--post-color: var(--1);
 		--shadow-color: var(--color,var(--color-2,var(--1)));
 		box-shadow: 0 0 .3em .2em rgba(0,0,0,.05);
 		height: 100%;
@@ -120,5 +126,21 @@
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
+	}
+	.amigues {
+		border-top-left-radius: 999em;
+		border-top-right-radius: 999em;
+		margin-inline: .3em;
+	}
+	.amigues .card-img {
+		outline: 1px solid var(--post-color, var(--2));
+		height: unset;
+		aspect-ratio: 1;
+		border-radius: 999em;
+		scale: 1.1;
+	}
+	.amigues h3 {
+		font-size: var(--step-1);
+		padding-top: 1em;
 	}
 </style>

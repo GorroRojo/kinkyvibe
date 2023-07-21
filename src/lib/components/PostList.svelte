@@ -9,7 +9,7 @@
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
 	/** @type {[]} */
-	
+
 	$: outerFilteredPosts = posts.filter(
 		(p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
@@ -50,9 +50,7 @@
 					{:else if display_type == 'grid'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
-								<Card {post}>
-									<h3>{post.meta.title}</h3>
-								</Card>
+								<Card {post} />
 							</li>
 						{/each}
 					{/if}
@@ -82,9 +80,6 @@
 		margin-inline: auto;
 		padding-left: 2em;
 		opacity: 0.7;
-	}
-	h3 {
-		margin: 1em;
 	}
 	li {
 		list-style: none;

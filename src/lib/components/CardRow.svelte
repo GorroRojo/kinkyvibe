@@ -23,9 +23,7 @@
 	<ul class="cardrow">
 		{#each items as post, i}
 			<li class="cardcontainer">
-				<Card {post}>
-					<h3 class="card-title">{post.meta.title}</h3>
-				</Card>
+				<Card {post} />
 			</li>
 		{/each}
 	</ul>
@@ -42,9 +40,6 @@
 		border-radius: 0.5em;
 		position: relative;
 		margin: 0em 0 1em 0;
-	}
-	.card-title {
-		margin: 1em;
 	}
 
 	.cardrow {

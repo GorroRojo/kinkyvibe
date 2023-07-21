@@ -106,11 +106,16 @@
 						size="1"
 						hideBackground
 					/>
-					 <!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
+					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
 					<!-- buttonStyle="round" -->
 					<!-- location="World Wide Web" -->
 					<!-- trigger="hover" -->
+				{/if}
+				{#if (status && ['cancelado', 'lleno'].includes(status)) || past}
+					<small>
+						{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}
+					</small>
 				{/if}
 			{/if}
 		{:else}
@@ -119,12 +124,6 @@
 	</div>
 	{#if src}<img {src} alt="" />{/if}
 	<h3>
-		<!-- {#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if} -->
-		{#if (status && ['cancelado', 'lleno'].includes(status)) || past}<small
-				>{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}</small
-			>
-		{/if}
-
 		{title}
 	</h3>
 	{#if summary}
@@ -212,13 +211,13 @@
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
-		grid-template-rows: auto auto 3em;
+		grid-template-rows: auto auto 2.4em;
 		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
 
 		margin-inline: auto;
-		padding-top: 2em;
+		padding-top: 1.7em;
 		padding-right: 1em;
 
 		list-style: none;
@@ -278,13 +277,15 @@
 
 	img {
 		grid-area: img;
-		max-height: 9em;
-		max-width: 8em;
+		max-height: calc(100% - 1em);
+		max-width: calc(100% - 0em);
 		object-fit: contain;
 		object-position: center;
 		border-radius: 1em;
 		margin-left: 1em;
 		justify-self: center;
+		min-height: 0;
+		min-width: 0;
 	}
 	.publication {
 		display: grid;
@@ -325,9 +326,9 @@
 		.summary {
 			/* display: none; */
 		}
-		.post {
+		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
-			grid-template-rows: auto 1.5fr 3em;
+			grid-template-rows: auto 1fr 2em;
 			&:has(.CTA) {
 				grid-template-areas:
 					'title title title'
@@ -335,15 +336,15 @@
 					'img tags cta';
 			}
 		}
-		h3 {
+		:not(.amigues) > h3 {
 			align-self: flex-start;
 			padding-left: 1em;
-			line-height: 1;
+			line-height: 1.3;
 			height: auto;
 			/* justify-self: center; */
 			/* padding-top: 0.2em; */
 		}
-		img {
+		:not(.amigues) > img {
 			max-height: calc(100% - 1em);
 		}
 	}
