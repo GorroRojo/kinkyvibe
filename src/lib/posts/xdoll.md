@@ -28,11 +28,3 @@ photo: 1
 #bday: 1996-04-09
 ---
 
-<script>
-    import foto from '$lib/posts/media/xdoll/1.jpg';
-</script>
-
-<div class="col-2">
-<img alt="" src={foto} style="border-radius: 50rem;"/>
-<div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
-</div>

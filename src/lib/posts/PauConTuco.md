@@ -25,5 +25,3 @@ link: https://instagram.com/tallarinescontuco
 #gender_identity: Perrito Travo Interdimensional
 #bday: 1996-04-09
 ---
-
-[Link a su pagina]({link})

@@ -39,7 +39,14 @@
 </svelte:head>
 
 <article>
-	<h1>{data.title}</h1>
+	{#if data.layout == 'amigues'}
+		<div class="profile-header">
+			<img src={data.featured + ''} class="profile-pic" alt="" />
+			<h1 class="profile-name">{data.title}</h1>
+		</div>
+	{:else}
+		<h1>{data.title}</h1>
+	{/if}
 	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1)}
 		<address>
 			{#await data.authorsData}
@@ -92,6 +99,17 @@
 			{data.content}
 		</div>
 	{/if}
+
+	{#if data.layout == 'amigues'}
+		<div class="content">
+			<p>
+				{data.summary}
+			</p>
+		</div>
+		<a href={data.link} class="cta">Ir a su página</a>
+	{:else if data.layout == 'calendario' && data.link && data.link_text}
+		<a href={data.link} class="cta">{data.link_text}</a>
+	{/if}
 </article>
 {#if data.tags?.includes('KinkyVibe')}
 	<div id="cafecito">
@@ -119,11 +137,10 @@
 		(/** @type {{meta: {title: any; }; }}*/ p) => p.meta.title != data.title
 	)}
 	<div class="content">
-		<h3>Más cosas de 
+		<h3>
+			Más cosas de
 			{data.authors.length > 1
-				? data.authors.slice(0, -1).join(', ') +
-				  ' o ' +
-				  data.authors[data.authors.length - 1]
+				? data.authors.slice(0, -1).join(', ') + ' o ' + data.authors[data.authors.length - 1]
 				: data.authors[0]}
 		</h3>
 	</div>
@@ -131,6 +148,9 @@
 {/if}
 
 <style>
+	address {
+		text-align: center;
+	}
 	#cafecito {
 		max-width: 50rem;
 		margin-inline: auto;
@@ -147,9 +167,10 @@
 	}
 	#tags {
 		margin-inline: auto;
-		max-width: 50rem;
+		max-width: 70rem;
 		width: 100%;
 		margin-top: 2em;
+		justify-content:center;
 	}
 	.author-summary {
 		text-decoration: none;
@@ -189,7 +210,7 @@
 		font-size: 1.5em;
 		text-decoration: underline var(--1);
 		color: black;
-		line-height: .5;
+		line-height: 0.5;
 	}
 	h3,
 	hr {
@@ -198,5 +219,61 @@
 	}
 	hr {
 		margin-block: 3rem;
+	}
+
+	.profile-header {
+		display: grid;
+		grid-template-columns: 4em 1fr;
+		gap: 1em;
+		align-items: center;
+		font-size: var(--step-3);
+		justify-content: center;
+		justify-items: start;
+		width: max-content;
+		margin-inline: auto;
+		max-width: 100%;
+	}
+	.profile-pic {
+		display: block;
+		border-radius: 9999em;
+		object-fit: contain;
+		object-position: right;
+		max-height: 4em;
+		width: auto;
+		justify-self: right;
+		aspect-ratio: 1;
+		translate: 0 -0.2em;
+	}
+	.profile-name {
+		justify-self: left;
+		text-align: left;
+		max-width: 100%;
+	}
+	.cta {
+		background: var(--1);
+		padding: 0.5em 1em;
+		color: white;
+		font-weight: bold;
+		border-radius: 0.3em;
+		margin-inline: auto;
+		display: block;
+		width: max-content;
+		text-align: center;
+		/* translate: 6em; */
+		font-size: var(--step-4);
+		text-decoration: none;
+		margin-block: 2em;
+		transition: 200ms;
+		box-shadow: 0 0 0 0;
+	}
+	.cta:hover {
+		scale: 1.1;
+		/* filter: brightness(1.05); */
+		box-shadow: 0.6em 0.6em 1em rgba(0, 0, 0, 0.1);
+	}
+	@media (max-width: 630px) {
+	.profile-header {
+		grid-auto-flow: row;
+	}
 	}
 </style>

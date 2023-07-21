@@ -38,6 +38,7 @@
 		padding: 0 0.4em;
 		overflow-x: scroll;
 		overflow-y: hidden;
+		justify-content: center;
 	}
 	ul::-webkit-scrollbar {
 		display: none;

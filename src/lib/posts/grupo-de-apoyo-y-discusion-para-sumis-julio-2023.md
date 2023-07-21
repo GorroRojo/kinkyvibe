@@ -69,7 +69,7 @@ El espacio va a estar coordinado por [Mel](/DemonWeb) [(él)](https://mis.pronom
 *flyer: [Pau](/PauConTuco) [@tallarinescontuco](https://instagram.com/tallarinescontuco)*
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>

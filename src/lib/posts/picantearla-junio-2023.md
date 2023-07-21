@@ -107,7 +107,7 @@ _Monitorean_
 🔥 _¿Quiénes vienen?_ 🔥
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>

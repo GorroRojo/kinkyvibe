@@ -60,7 +60,7 @@ Les dejamos el cronograma para que se vayan preparando:
 ¿Quiénes vienen? 🔥
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>

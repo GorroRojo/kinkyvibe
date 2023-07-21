@@ -29,9 +29,7 @@ logo: 1
 #bday: 1996-04-09
 ---
 
-<script>
-    import l from '$lib/posts/media/nosotres/1.png';
-</script>
+
 
 <!-- Hola! ¿Todo bien? Mi nombre es Mel, soy une Sub, Educadore Sexual y Educadore BDSM con más de 7 años de experiencia (enseñando y jugando). Abrí este canal con el objetivo de subir material y poder dar un poco mis opiniones. En parte está pensado para acompañar el drive en el cual ya subo cosas :D Podés ayudarme a seguir traduciendo, subiendo materiales y dedicándome a este espacio: https://cafecito.app/kinkyvibe -->
 

@@ -85,7 +85,7 @@ En este caso en celebración de nuestras (la de Bunny y la de Vibe) identidades 
 Les invitamos a celebrar con nosotres el orgullo de las prácticas sad\*masoquistas disidentes!
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>

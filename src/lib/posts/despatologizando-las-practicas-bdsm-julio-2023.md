@@ -76,7 +76,7 @@ Cualquier otra consulta escriben a [kinkyvibe.talleres@gmail.com](mailto:kinkyvi
 <p style="text-align:center">🖤Les agradecemos mucho que lo difundan! 🖤</p>
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>

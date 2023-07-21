@@ -90,7 +90,7 @@ QI cuenta con:
 - Patio donde fumar
 
 {#if link}
-<a class="cta" href={link}>{link_text}</a>
+
 {/if}
 
 <style>
