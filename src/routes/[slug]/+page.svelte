@@ -24,8 +24,8 @@
 	<meta name="twitter:description" content={data.summary} />
 	<meta property="og:description" content={data.summary} />
 
-	<meta property="og:image" content={new URL(data.featured + '').href} />
-	<meta name="twitter:image" content={new URL(data.featured + '').href} />
+	<meta property="og:image" content={data.featured + ''} />
+	<meta name="twitter:image" content={data.featured + ''} />
 
 	<meta name="twitter:site" content="@kinkyvibearg" />
 	<meta name="twitter:card" content="summary_large_image" />
