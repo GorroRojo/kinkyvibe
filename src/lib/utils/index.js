@@ -121,8 +121,8 @@ export function aliaserFactory(tagsConfig) {
 		let result = tag;
 		let max = 20;
 		while (
-			Object.hasOwn(tagsConfig.tags, result) &&
-			Object.hasOwn(tagsConfig.tags[result], 'aliasOf')
+			Object.keys(tagsConfig.tags).includes(result) &&
+			Object.keys(tagsConfig.tags[result]).includes('aliasOf')
 		) {
 			result = tagsConfig.tags[tag].aliasOf;
 			if (max-- < 0) {

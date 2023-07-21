@@ -15,7 +15,7 @@
 
 <ul>
 	{#each [...new Set(filteredTags)] as tag (tag)}
-		{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
+		{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
 		{@const color = config ? config?.color : 'var(--color,var(--1))'}
 		<li style:--tag-color={color} class:invisible in:scale animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>

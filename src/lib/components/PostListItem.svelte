@@ -92,7 +92,7 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
-				{@const config = Object.hasOwn($tagsConfig.tags, tag) ? $tagsConfig.tags[tag] : false}
+				{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
