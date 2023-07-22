@@ -26,7 +26,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-07-23T16:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-07-24T00:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-07-24T00:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/bn8RgaLhvJkxgcHT8
 link_text: 'PRE-VENTA'
@@ -35,11 +35,7 @@ link_text: 'PRE-VENTA'
 <script>
     import flyer from '$lib/posts/media/festival-24-7-2023/1.jpg';
     const style = `
-      display: block;
-      position: absolute;
-      top: -1em;
-      font-size: var(--step-1);
-      color: var(--2);
+ 
     `
 </script>
 
@@ -52,7 +48,7 @@ Así que le traemos festival!
 
 ## Cronograma
 
-### <small {style}>16 a 20hs</small> Laboratorio de Prácticas Somáticas Fetichistas
+### <small>16 a 20hs</small> Laboratorio de Prácticas Somáticas Fetichistas
 
 Proponemos un espacio que va a ser coordinado por Mel (él), que se propone investigar lo corporal, lo emotivo, lo somático a través de la exploración de distintas prácticas fetichistas. Preguntándonos por lo que nos produce placer, y lo que nos estremece, y compartiéndolo con otres.
 
@@ -64,13 +60,13 @@ Vamos a estar aprendiendo la seguridad de cada una, e invitándonos a buscar uso
 
 Luego de cada práctica vamos a parar a charlar e ir compartiendo como nos sentimos.
 
-### <small {style}>21 a 24hs</small> ¡Festival Kinky!
+### <small>21 a 24hs</small> ¡Festival Kinky!
 
 - Jam de Cuerdas con Speed Dating
 - Feria Autogestiva y Fetichista
 - Proyección BDSM y Charla Debate
 
-### <small {style}>24hs</small> ¡Festejo!
+### <small>24hs</small> ¡Festejo!
 
 En el 2003 (hace 20 años!) un tal Kurt Walter Fischer (quien se conoce como el fundador del primer Club de BDSM de Europa, Rosa5), propuso el 24 de Julio como el día internacional del BDSM.
 
@@ -93,6 +89,13 @@ Les invitamos a celebrar con nosotres el orgullo de las prácticas sad\*masoquis
     position: relative;
     margin-top: 1.5em;
   }
+  h3 small {
+     display: block;
+      position: absolute;
+      top: -1em;
+      font-size: var(--step-1);
+      color: var(--2);
+  }
   code{
     background: var(--4-light);
     color:var(--2-dark);
@@ -102,29 +105,6 @@ Les invitamos a celebrar con nosotres el orgullo de las prácticas sad\*masoquis
     padding: 1em;
     font-weight: bold;
     font-size: var(--step-1);
-  }
-  .cta {
-    background: var(--1);
-    color: white;
-    font-weight: bold;
-    border-radius: .3em;
-    display: block;
-    margin: 2em auto;
-    padding: .5em 1em;
-    width: 10em;
-    min-width: 0;
-    /* width: auto; */
-    text-align: center;
-    font-size: var(--step-4);
-    text-decoration: none;
-    transition: 200ms;
-    box-shadow: 0 0 0 0;
-    white-space:nowrap;
-  }
-  .cta:hover {
-    scale: 1.1;
-    /* filter: brightness(1.05); */
-    box-shadow: .6em .6em 1em rgba(0,0,0,.1);
   }
   a {
     color: #222;
