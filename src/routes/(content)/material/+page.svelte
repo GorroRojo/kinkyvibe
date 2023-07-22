@@ -114,7 +114,7 @@
 							{/if}
 						</dd>
 					</div>
-					<a href="/wiki/{termino.name}"><ArrowRight /></a>
+					<!-- <a href="/wiki/{termino.name}"><ArrowRight /></a> -->
 				</div>
 			{/each}
 		</dl>
@@ -165,7 +165,8 @@
 		position: relative;
 		margin-top: 1em;
 		display: grid;
-		grid-template-columns: 1fr 5em;
+		/* grid-template-columns: 1fr 5em; */
+		grid-template-columns: 1fr;
 		transition: 100ms;
 		gap: 0.8em;
 		& > a {
