@@ -10,7 +10,7 @@ tags:
 layout: amigues
 category: amigues
 authors:
-  - PauConTuco
+  - TallarinesConTuco
 #featured: 1
 force_unlisted: true
 #force_unpublished: false

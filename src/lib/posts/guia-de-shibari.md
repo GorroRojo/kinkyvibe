@@ -19,7 +19,7 @@ category: material
 authors:
   - DemonWeb
   - PastelDom
-  - PauConTuco
+  - TallarinesConTuco
 featured: 1
 #force_unlisted: false
 #force_unpublished: false

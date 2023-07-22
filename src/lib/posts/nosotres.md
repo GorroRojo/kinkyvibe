@@ -13,7 +13,7 @@ tags:
   - KinkyVibe
 authors:
   - DemonWeb
-  - PauConTuco
+  - TallarinesConTuco
 featured: 1
 # force_unlisted: true
 #force_unpublished: false
@@ -83,7 +83,7 @@ También compartimos casi todo lo que subimos acá por [instagram](https://www.i
 
 ## ¿Quiénes somos?
 
-Somos [Mel](/DemonWeb) y [Pau](/PauConTuco) y este sitio web lo armó [Gorrite](/Gorro_Rojo) 🌈
+Somos [Mel](/DemonWeb) y [Pau](/TallarinesConTuco) y este sitio web lo armó [Gorrite](/Gorro_Rojo) 🌈
 
 ## ¡Quiero ayudar!
 

@@ -15,7 +15,7 @@ layout: material
 category: material
 authors:
   - DemonWeb
-  - PauConTuco
+  - TallarinesConTuco
 featured: 1
 #force_unlisted: false
 #force_unpublished: false

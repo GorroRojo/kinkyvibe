@@ -233,6 +233,7 @@ link_text: Inscibirme ➡️
 #published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
+#wiki: material # para si es una entry de la wiki #
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
   - español # español | inglés #
@@ -246,7 +247,7 @@ layout: material
 category: material
 authors:
   - DemonWeb
-  - PauConTuco
+  - TallarinesConTuco
   - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
