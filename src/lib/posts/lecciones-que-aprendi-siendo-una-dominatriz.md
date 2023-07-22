@@ -10,6 +10,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - BDSM
   - fanzine
+  - intercambio de poder
   - dominación
 layout: material
 category: material

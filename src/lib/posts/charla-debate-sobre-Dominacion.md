@@ -6,6 +6,7 @@ organizer:
   - KinkyVibe
 tags:
   - español
+  - intercambio de poder
   - Dominación
   - BDSM
   - Charla Debate
