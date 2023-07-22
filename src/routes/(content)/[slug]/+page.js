@@ -22,7 +22,7 @@ export async function load({ params }) {
 		throw redirect(308, post.metadata.link);
 	}
 	try {
-		const authorsData = 
+		const authorsData = await Promise.all(
 			(await Promise.all(
 				post.metadata.authors.map(async (/** @type {any} */ author) => {
 					let authorpost;
@@ -38,14 +38,14 @@ export async function load({ params }) {
 		
 			// eslint-disable-next-line no-unused-vars
 			.filter(([_, data]) => data)
-			.map(([author, authorpost]) => {
+			.map(async ([author, authorpost]) => {
 				return {
 					...authorpost.metadata,
-					logo: thumbURL(author, authorpost.metadata.logo ?? authorpost.metadata.photo),
+					logo: await thumbURL(author, authorpost.metadata.logo ?? authorpost.metadata.photo??authorpost.metadata.featured),
 					tags: authorpost.metadata.tags,
 					path: author
 				};
-			});
+			}));
 		let posts;
 		posts = (await fetchMarkdownPosts()).filter((p) =>
 			post.metadata.authors.some((/** @type {any} */ a) => p.meta.authors.includes(a))
