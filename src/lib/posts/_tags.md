@@ -46,11 +46,13 @@ groups:
     members:
       - seguridad
       - negociación
-      - dominación
-      - sumisión
       - sadomasoquismo
     color: red
     sub:
+      - name: intercambio de poder
+        members:
+          - dominación
+          - sumisión
       - name: prácticas
         members:
           - cuchillos
@@ -83,6 +85,8 @@ groups:
         - pegging
     color: var(--1-dark)
 tags:
+  D/s:
+    aliasOf: intercambio de poder
   KinkyVibe:
     color: var(--1)
   kinkyvibe:
