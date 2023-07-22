@@ -240,7 +240,7 @@ tags:
   - gratis # gratis | pago #
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #
-#  - descargable # descargable | link #
+  - online # online | descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
 layout: material
