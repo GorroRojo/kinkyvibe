@@ -30,7 +30,7 @@
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
-<div class="wip">Este sitió esta en plena construcción, sobretodo en la sección de wiki. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. O directamente en <a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.</div>
+<div class="wip">Este sitió esta en plena construcción. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. O directamente en <a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.</div>
 <header>
 	<div id="me">
 		<ul id="redes">
