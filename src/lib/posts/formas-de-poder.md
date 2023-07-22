@@ -1,7 +1,7 @@
 ---
 published_date: 2018-09-19Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Formas de Poder
+title: Formas de Poder, 2010. SM-feminist
 #wiki: material # para si es una entry de la wiki #
 summary: 
 tags:
@@ -28,6 +28,8 @@ authors:
 #access_date: 2023-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00
 ---
+
+Esto es una traducción de un posteo en un Blog del 2010.
 
 Un post acá acaba de recibir un comentario muy interesante. Voy a reproducirlo y luego hacer algunos comentarios propios.
 
