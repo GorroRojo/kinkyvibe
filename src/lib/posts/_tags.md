@@ -25,7 +25,10 @@ groups:
     - name: interaccion
       members:
       - descargable
-      - interactivo
+      sub:
+      - name: online
+        members:
+        - interactivo
     - name: precio
       members:
       - pago

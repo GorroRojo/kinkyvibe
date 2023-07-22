@@ -9,6 +9,7 @@ tags:
   - español
   - BDSM
   - KinkyVibe # etiqueta especial #
+  - online
   - interactivo
   - impacto
   - prácticas

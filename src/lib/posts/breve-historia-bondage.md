@@ -12,6 +12,7 @@ tags:
   - historia
   - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #
+  - online
 layout: material
 category: material
 authors:
