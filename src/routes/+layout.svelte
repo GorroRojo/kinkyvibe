@@ -30,6 +30,7 @@
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
+<div class="wip">Este sitió esta en plena construcción y puede estar medio roto, sobretodo en la sección de wiki. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. Esperamos llegar a una versión estable en los próximos meses.</div>
 <header>
 	<div id="me">
 		<ul id="redes">
@@ -96,6 +97,16 @@
 <Footer />
 
 <style>
+	.wip {
+		background: var(--3-dark);
+		color: white;
+		text-align: center;
+		padding-block: .5em;
+	}
+	.wip a:hover {
+		color: white;
+		text-decoration-color: white;
+	}
 	#title {
 		color: black;
 		display: block;
