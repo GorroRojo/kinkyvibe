@@ -66,28 +66,6 @@ Les dejamos el cronograma para que se vayan preparando:
 {/if}
 
 <style>
-    .cta {
-      background: var(--1);
-      padding: .5em 1em;
-      color: white;
-      font-weight: bold;
-      border-radius: .3em;
-      margin-inline: auto;
-      display: block;
-      width: 7em;
-      text-align: center;
-      /* translate: 6em; */
-      font-size: 3em;
-      text-decoration: none;
-      margin-top: 2em;
-      transition: 200ms;
-      box-shadow: 0 0 0 0;
-    }
-    .cta:hover {
-      scale: 1.1;
-      /* filter: brightness(1.05); */
-      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */

@@ -73,30 +73,6 @@ El espacio va a estar coordinado por [Mel](/DemonWeb) [(él)](https://mis.pronom
 {/if}
 
 <style>
-    .cta {
-      background: var(--1);
-      color: white;
-      font-weight: bold;
-      border-radius: .3em;
-      display: block;
-      margin-inline: auto;
-      padding: .5em 1em;
-      width: 10em;
-      min-width: 0;
-      /* width: auto; */
-      text-align: center;
-      font-size: var(--step-4);
-      text-decoration: none;
-      margin-block: 2em;
-      transition: 200ms;
-      box-shadow: 0 0 0 0;
-      white-space:nowrap;
-    }
-    .cta:hover {
-      scale: 1.1;
-      /* filter: brightness(1.05); */
-      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */

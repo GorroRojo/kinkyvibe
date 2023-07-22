@@ -75,37 +75,11 @@ Cualquier otra consulta escriben a [kinkyvibe.talleres@gmail.com](mailto:kinkyvi
 
 <p style="text-align:center">🖤Les agradecemos mucho que lo difundan! 🖤</p>
 
-{#if link}
-
-{/if}
-
 <style>
   blockquote {
     font-weight: bold;
     font-size: var(--step-2);
     text-align: center;
     color: var(--2-dark);
-  }
-  .cta {
-    background: var(--1);
-    padding: .5em 1em;
-    color: white;
-    font-weight: bold;
-    border-radius: .3em;
-    margin-inline: auto;
-    display: block;
-    width: 7em;
-    text-align: center;
-    /* translate: 6em; */
-    font-size: var(--step-4);
-    text-decoration: none;
-    margin-block: 2em;
-    transition: 200ms;
-    box-shadow: 0 0 0 0;
-  }
-  .cta:hover {
-    scale: 1.1;
-    /* filter: brightness(1.05); */
-    box-shadow: .6em .6em 1em rgba(0,0,0,.1);
   }
 </style>
