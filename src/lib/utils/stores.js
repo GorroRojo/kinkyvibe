@@ -11,8 +11,12 @@ export const visibleTags = writable([]);
 export const allTags = writable([]);
 
 /** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|undefined, path: string}>} */
-export const currentPostData = writable(); 
+export const currentPostData = writable();
 
+/** @type {import('svelte/store').Writable<(tag: string)=>(string)>} */
+export const alias = writable((tag) => '');
+
+export const togglePositiveTagFilterFn = writable((a,b) => '');
 
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */
 export const tagsConfig = writable();

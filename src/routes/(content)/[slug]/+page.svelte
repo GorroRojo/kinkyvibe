@@ -88,37 +88,48 @@
 			<Tags tags={data.tags} />
 		</div>
 	{/if}
-
 	{#if !data.error}
-		{#if data.layout == 'amigues' && data.summary}
+		{#if data.summary}
 			<div class="content">
 				<p>
 					{data.summary}
 				</p>
 			</div>
 		{/if}
+
+		{#if data.original_published_date}
+			<div id="via">
+				Fecha de publicación original: {new Date(
+					data.layout == 'calendario' ? data.start : data.original_published_date?.toString() ?? ''
+				).toLocaleDateString('es-AR', { dateStyle: 'long' })} <br />
+				Link: <a href={data.link}>{data.link}</a>
+			</div>
+		{/if}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
 		<div class="content">
 			<svelte:component this={data.content} />
 		</div>
+
+		{#if data.layout == 'amigues'}
+			<a href={data.link} class="cta">Ir a su página</a>
+		{:else if data.layout == 'calendario' && data.link && data.link_text}
+			<a href={data.link} class="cta">{data.link_text}</a>
+		{/if}
+
+		{#if data.tags?.includes('KinkyVibe')}
+			<div id="cafecito">
+				Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó
+				valioso,
+				<a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
+			</div>
+		{/if}
 	{:else}
 		<div class="content">
 			{data.content}
 		</div>
 	{/if}
-
-	{#if data.layout == 'amigues'}
-		<a href={data.link} class="cta">Ir a su página</a>
-	{:else if data.layout == 'calendario' && data.link && data.link_text}
-		<a href={data.link} class="cta">{data.link_text}</a>
-	{/if}
 </article>
-{#if data.tags?.includes('KinkyVibe')}
-	<div id="cafecito">
-		Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó valioso,
-		<a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
-	</div>
-{/if}
+
 <hr />
 
 {#if data.layout != 'amigues' || data.authors.length > 1}
@@ -153,16 +164,26 @@
 	address {
 		text-align: center;
 	}
-	#cafecito {
+	#cafecito,
+	#via {
 		max-width: 50rem;
-		margin-inline: auto;
+		margin: 2em auto;
 		width: 100%;
-		font-size: var(--step-1);
 		padding: 1em;
-		background: var(--2-light);
 		color: white;
-		margin-top: 1em;
 		border-radius: 0.3em;
+	}
+	#via {
+		background: var(--2-light);
+		font-size: var(--step-0);
+	}
+	#via a {
+		--color: var(--4-light);
+	}
+	#cafecito {
+		margin-top: 1em;
+		font-size: var(--step-1);
+		background: var(--2-light);
 	}
 	#cafecito a {
 		--color: var(--4-light);

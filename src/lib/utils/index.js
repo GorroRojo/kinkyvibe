@@ -145,12 +145,17 @@ export function aliaserFactory(tagsConfig) {
 
 /**
  * Fetches markdown posts and performs validations and transformations.
- *
+ * @param {boolean} wiki - Whether or not the posts are from the wiki
  * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
  */
-export const fetchMarkdownPosts = async () => {
+export const fetchMarkdownPosts = async (wiki = false) => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
-	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
+	var allPosts;
+	if (wiki) {
+		allPosts = Object.entries(import.meta.glob('$lib/wiki/*.md'));
+	} else {
+		allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
+	}
 	let validatedPosts = await validateAll(allPosts);
 
 	validatedPosts = await processMetadataAll(validatedPosts);
@@ -165,7 +170,9 @@ export const fetchMarkdownPosts = async () => {
 export async function processMetadataAll(posts) {
 	const tagsConfig = await fetchTags();
 	const alias = aliaserFactory(tagsConfig);
-	return await Promise.all(posts.map(async (post) => await processMetadata(post, alias, tagsConfig)));
+	return await Promise.all(
+		posts.map(async (post) => await processMetadata(post, alias, tagsConfig))
+	);
 }
 
 /**

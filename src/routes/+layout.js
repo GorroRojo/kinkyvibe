@@ -7,6 +7,6 @@
  * @returns
  */
 export const load = async ({ url, fetch }) => {
-	const tagsConfig = await (await fetch('../api?getTags')).json();
+	const tagsConfig = await (await fetch('/api?getTags')).json();
 	return { currentRoute: url.pathname, tagsConfig };
 };

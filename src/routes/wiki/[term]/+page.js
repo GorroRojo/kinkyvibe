@@ -12,9 +12,9 @@ export async function load({ params }) {
 	/** @type {{metadata: AnyPostData, default: *}} */
 	let post;
 	try {
-		post = await import(`../../lib/posts/${params.slug}.md`);
+		post = await import(`../../../lib/wiki/${params.term}.md`);
 	} catch (e) {
-		return { content: e + '\nparams.slug: ' + params.slug, title: 'Error', date: '', error: true };
+		return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
 	}
 	const content = post.default;
 
@@ -53,7 +53,7 @@ export async function load({ params }) {
 
 		const tagsConfig = await fetchTags();
 		const alias = aliaserFactory(tagsConfig);
-		const { meta } = await processMetadata({ path: params.slug, meta: post.metadata }, alias, tagsConfig);
+		const { meta } = await processMetadata({ path: params.term, meta: post.metadata }, alias, tagsConfig);
 		return {
 			content,
 			...meta,
@@ -61,6 +61,6 @@ export async function load({ params }) {
 			posts
 		};
 	} catch (e) {
-		return { content: e + '\nparams.slug: ' + params.slug, title: 'Error', date: '', error: true };
+		return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
 	}
 }

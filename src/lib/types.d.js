@@ -39,6 +39,7 @@
  * 		access_date: Date,
  * 		original_published_date: Date
  *      redirect: boolean 
+ *      wiki?: string
  * }} MaterialPostData
  */
 /** @typedef {PostData & {

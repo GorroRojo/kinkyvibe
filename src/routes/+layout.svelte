@@ -30,7 +30,7 @@
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
-<div class="wip">Este sitió esta en plena construcción y puede estar medio roto, sobretodo en la sección de wiki. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. Esperamos llegar a una versión estable en los próximos meses.</div>
+<div class="wip">Este sitió esta en plena construcción, sobretodo en la sección de wiki. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. O directamente en <a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.</div>
 <header>
 	<div id="me">
 		<ul id="redes">
@@ -74,7 +74,7 @@
 		]}
 	/>
 </header>
-{#if data.currentRoute != '/'}
+{#if data.currentRoute != '/' && !data.currentRoute.includes("/wiki/")}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
