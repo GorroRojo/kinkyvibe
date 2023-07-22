@@ -1,9 +1,9 @@
 ---
 published_date: 2018-09-19Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Formas de Poder, 2010. SM-feminist
+title: Formas de Poder
 #wiki: material # para si es una entry de la wiki #
-summary: 
+summary: Una lectura básica sobre los vínculos BDSM. Una traducción de una publicación en el blog de SM-feminist del 2010.
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #
@@ -22,14 +22,12 @@ authors:
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
-#link: https://www.altoporno.gay/edu
+link: https://sm-feminist.blogspot.com/2010/07/forms-of-power.html
 ########### ----- Para tipo 'link' ----- ###########
 #redirect: false
 #access_date: 2023-11-21Z-03:00
-#original_published_date: 2010-04-03Z-03:00
+original_published_date: 2010-04-03Z-03:00
 ---
-
-Esto es una traducción de un posteo en un Blog del 2010.
 
 Un post acá acaba de recibir un comentario muy interesante. Voy a reproducirlo y luego hacer algunos comentarios propios.
 
@@ -75,4 +73,3 @@ Esa es la cosa. Creo que las personas tienen cierta responsabilidad en lo que ot
 
 Además, soy una mujer cis. No quiero que las personas me protejan porque están "pensando en mí". No quiero que la gente proteja a mi pareja de mí sin, ya sabes, al menos decirle tres palabras a ella primero. **Quiero una vida plena con mi pareja que incluya los tipos de dinámicas que ella y yo elegimos para nosotras, gracias**.
 
-<small>Traducido de <a href="https://sm-feminist.blogspot.com/">https://sm-feminist.blogspot.com/2010/07/forms-of-power.html</a></small>
