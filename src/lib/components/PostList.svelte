@@ -4,10 +4,11 @@
 	export let filter = false;
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { filteredTags, visibleTags, allTags } from '$lib/utils/stores';
+	import { filteredTags, visibleTags, allTags, userConfig } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
+	
 	/** @type {[]} */
 
 	$: outerFilteredPosts = posts.filter(
@@ -25,29 +26,26 @@
 			: $filteredTags.every((f) => !$allTags.includes(f) || p.meta.tags.includes(f))
 	);
 
-	/**
-	 * @type {"list"|"grid"}
-	 */
-	export let display_type = 'list';
+	
 </script>
 
 {#if tagFilteredPosts.length > 0}
 	<div class="container">
 		<div class="postlist">
 			<div id="filterbar">
-				<FilterBar bind:display_type />
+				<FilterBar />
 			</div>
 
-			{#key display_type}
+			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-				<ul id="posts" in:fade={{ duration: 300 }} class={display_type}>
-					{#if display_type == 'list'}
+				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type}>
+					{#if $userConfig.display_type == 'list'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
 								<PostListItem {post} />
 							</li>
 						{/each}
-					{:else if display_type == 'grid'}
+					{:else if $userConfig.display_type == 'grid'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
 								<Card {post} />

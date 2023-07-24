@@ -4,7 +4,8 @@
 		filteredTags,
 		visibleTags,
 		tagsConfig,
-		togglePositiveTagFilterFn
+		togglePositiveTagFilterFn,
+		userConfig
 	} from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
 	import { fade, scale } from 'svelte/transition';
@@ -16,7 +17,6 @@
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
-	export let display_type = 'list';
 
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
@@ -159,7 +159,7 @@
 				type="radio"
 				name="display-type"
 				id="display-type-list"
-				bind:group={display_type}
+				bind:group={$userConfig.display_type}
 				value="list"
 			/>Lista
 		</label>
@@ -168,7 +168,7 @@
 				type="radio"
 				name="display-type"
 				id="display-type-grid"
-				bind:group={display_type}
+				bind:group={$userConfig.display_type}
 				value="grid"
 			/>Grilla
 		</label>
