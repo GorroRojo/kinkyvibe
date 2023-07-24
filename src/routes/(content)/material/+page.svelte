@@ -6,7 +6,7 @@
 	import Tag from '$lib/components/Tag.svelte';
 	import { filteredTags, tagsConfig, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { aliaserFactory, fetchGlossary } from '$lib/utils/index.js';
-	import { ArrowRight } from 'lucide-svelte';
+	import { ArrowRight, FlaskConical } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
@@ -21,37 +21,45 @@
 				index % 2 == 0 ? { type: 'text', content: piece } : { type: Tag, content: piece }
 			);
 	}
+
+	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
 
 <svelte:head>
 	<title>KinkyVibe.ar - Artículos, links y descargables</title>
 </svelte:head>
-
 <div class="glosario">
 	<p>
-		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" />,
+		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" /> sobre
+		<InlineTag tag="BDSM" />
 		podés buscar según qué <InlineTag tag="práctica" /> te interesa (por ej. <InlineTag
 			tag="shibari"
-		/> o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag tag="inglés" /> o <InlineTag
-			tag="español"
-		/>) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag tag="online" />).
+		/>, <InlineTag tag="electro" /> play o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag
+			tag="inglés"
+		/> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag
+			tag="online"
+		/>).
 	</p>
 	{#await glosario then { terminos }}
 		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
-		<!--{#if terminosFiltrados.length == 0}
-			<p>
-				Hola troles acá pueden buscar por
-				<InlineTag tag="bondage" />
-				o [bdsm] o [gay] uwu
-			</p>
-		{/if} -->
 		<dl>
 			{#each terminosFiltrados as termino (termino.name)}
 				{@const description = termino.description ? parseDescription(termino.description) : ''}
 				<div animate:flip in:fade>
 					<div>
 						<button on:click={() => $togglePositiveTagFilterFn(false, termino.name)}>x</button>
-						<dt>{termino.name.charAt(0).toUpperCase() + termino.name.slice(1)}</dt>
+						<dt>
+							{termino.name.charAt(0).toUpperCase() + termino.name.slice(1)}
+							{#if data.wiki.find(w=>w.meta.wiki == termino.name)}
+							<a href="/wiki/{termino.name}">
+								<span>
+									<FlaskConical {style} />
+									Ver en la wiki
+									<ArrowRight {style} />
+								</span>
+							</a>
+							{/if}
+						</dt>
 						<dd>
 							{#if description}
 								{#each description as d}
@@ -102,7 +110,6 @@
 							{/if}
 						</dd>
 					</div>
-					<!-- <a href="/wiki/{termino.name}"><ArrowRight /></a> -->
 				</div>
 			{/each}
 		</dl>
@@ -156,23 +163,27 @@
 		grid-template-columns: 1fr;
 		transition: 100ms;
 		gap: 0.8em;
-		& > a {
+		dt > a {
 			/* --color: var(--2); */
 			color: var(--color);
-			outline: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
+			border: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
 			background: color-mix(in srgb, var(--color) 10%, transparent);
 			border-radius: 1em;
-			padding: 1em;
-			display: grid;
-			place-content: center;
+			padding: 0.3em;
+			/* place-content: center; */
+			text-align: center;
+			text-decoration: none;
+			font-size: calc(0.8 * var(--step--1));
+			line-height: 1;
+			position: relative;
+			left: 0;
 			transition: 100ms;
+			margin-left: 0.5em;
+			bottom: 0.1em;
+			opacity: 0.8;
 			&:hover {
-				scale: 1.08;
-				translate: -10px;
+				left: 0.3em;
 			}
-		}
-		&:has(> a:hover) {
-			translate: 10px;
 		}
 	}
 	dt {
