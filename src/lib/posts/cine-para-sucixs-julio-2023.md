@@ -61,10 +61,6 @@ Les dejamos el cronograma para que se vayan preparando:
 
 ¿Quiénes vienen? 🔥
 
-{#if link && link_text}
-
-{/if}
-
 <style>
     a {
       color: #222;

@@ -68,10 +68,6 @@ El espacio va a estar coordinado por [Mel](/DemonWeb) [(él)](https://mis.pronom
 
 *flyer: [Pau](/TallarinesConTuco) [@tallarinescontuco](https://instagram.com/tallarinescontuco)*
 
-{#if link}
-
-{/if}
-
 <style>
     a {
       color: #222;

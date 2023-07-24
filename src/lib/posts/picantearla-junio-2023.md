@@ -106,10 +106,6 @@ _Monitorean_
 
 🔥 _¿Quiénes vienen?_ 🔥
 
-{#if link}
-
-{/if}
-
 <style>
     code{
       background: var(--4-light);

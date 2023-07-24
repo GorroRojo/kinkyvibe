@@ -59,10 +59,6 @@ Les dejamos el cronograma para que se vayan preparando:
 
 ¿Quiénes vienen? 🔥
 
-{#if link}
-
-{/if}
-
 <style>
     li {
         list-style-type: '👉 ';

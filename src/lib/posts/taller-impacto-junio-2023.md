@@ -89,10 +89,6 @@ QI cuenta con:
 - Espacio accesible con rampa
 - Patio donde fumar
 
-{#if link}
-
-{/if}
-
 <style>
     h2 {
         margin-top: 3em;
