@@ -12,7 +12,7 @@ export async function GET({ url }) {
 		return json(await fetchGlossary());
 	} else {
 		try {
-			allPosts = await fetchMarkdownPosts();
+			allPosts = await fetchMarkdownPosts(params.has('wiki'));
 		} catch (err) {
 			throw error(400, err);
 		}
