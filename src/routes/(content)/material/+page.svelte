@@ -26,7 +26,8 @@
 					]);
 				}
 				$page.url.searchParams.set('tags', $filteredTags.join(','));
-				goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
+					window.history.pushState('','',`?${$page.url.searchParams.toString()}`);
+				// goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
 			}
 	);
 

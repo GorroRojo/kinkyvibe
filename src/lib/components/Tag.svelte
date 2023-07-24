@@ -68,12 +68,7 @@
 		outline: var(--off-outline, none);
 		outline-offset: var(--off-outline-offset, 0);
 	}
-	label:has(:focus) {
-		outline: 3px solid var(--outline-color, var(--tag-color));
-		scale: 1.05;
-		background:color-mix(in srgb, var(--tag-color, var(--1)) 50%,transparent) !important;
-		color: var(--filled-text-color, white);
-	}
+	
 	a.tag,
 	label.tag:has(:checked),
 	span.tag {
@@ -82,6 +77,12 @@
 		outline: var(--filled-outline, none);
 		outline-offset: var(--filled-outline-offset, 0);
 		text-decoration-color: var(--text-decoration, "none");
+	}
+	label.tag:has(:focus) {
+		outline: 1px dotted var(--outline-color, var(--tag-color, var(--1))) !important;
+		scale: 1.05;
+		/* background:color-mix(in srgb, var(--tag-color, var(--1)) 50%,transparent); */
+		/* color: var(--filled-text-color, white); */
 	}
 	input {
 		border: 0;

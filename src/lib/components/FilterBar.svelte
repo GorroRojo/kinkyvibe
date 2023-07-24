@@ -1,6 +1,11 @@
 <script>
 	import '$lib/types.d.js';
-	import { filteredTags, visibleTags, tagsConfig } from '$lib/utils/stores';
+	import {
+		filteredTags,
+		visibleTags,
+		tagsConfig,
+		togglePositiveTagFilterFn
+	} from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
 	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
@@ -75,18 +80,18 @@
 	 * @param {boolean} checked
 	 * @param {string} tag
 	 */
-	function togglePositiveTagFilter(checked, tag) {
-		if (checked) {
-			filteredTags.update((fTags) => [...fTags, tag]);
-		} else {
-			filteredTags.update((fTags) => [
-				...fTags.slice(0, fTags.indexOf(tag)),
-				...fTags.slice(fTags.indexOf(tag) + 1)
-			]);
-		}
-		$page.url.searchParams.set('tags', $filteredTags.join(','));
-		goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
-	}
+	// function togglePositiveTagFilter(checked, tag) {
+	// 	if (checked) {
+	// 		filteredTags.update((fTags) => [...fTags, tag]);
+	// 	} else {
+	// 		filteredTags.update((fTags) => [
+	// 			...fTags.slice(0, fTags.indexOf(tag)),
+	// 			...fTags.slice(fTags.indexOf(tag) + 1)
+	// 		]);
+	// 	}
+	// 	$page.url.searchParams.set('tags', $filteredTags.join(','));
+	// 	goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
+	// }
 
 	/**
 	 * @param {string[]} tags
@@ -177,7 +182,7 @@
 			>
 				<TagGroup
 					{group}
-					onInput={(evt, tag) => togglePositiveTagFilter(evt.target?.checked, tag)}
+					onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
 				/>
 			</div>
 		{/each}
