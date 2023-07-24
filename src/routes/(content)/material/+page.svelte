@@ -26,8 +26,7 @@
 					]);
 				}
 				$page.url.searchParams.set('tags', $filteredTags.join(','));
-					window.history.pushState('','',`?${$page.url.searchParams.toString()}`);
-				// goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
+				window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
 			}
 	);
 
@@ -47,10 +46,15 @@
 
 <div class="glosario">
 	<p>
-		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" />, podés buscar según qué <InlineTag tag="práctica" /> te interesa (por ej. <InlineTag tag="shibari"/> o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag tag="inglés" /> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag tag="online" />).
+		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" />,
+		podés buscar según qué <InlineTag tag="práctica" /> te interesa (por ej. <InlineTag
+			tag="shibari"
+		/> o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag tag="inglés" /> o <InlineTag
+			tag="español"
+		/>) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag tag="online" />).
 	</p>
 	{#await glosario then { terminos }}
-		 {@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
+		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
 		<!--{#if terminosFiltrados.length == 0}
 			<p>
 				Hola troles acá pueden buscar por

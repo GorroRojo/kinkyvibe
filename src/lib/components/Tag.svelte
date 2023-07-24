@@ -81,8 +81,6 @@
 	label.tag:has(:focus) {
 		outline: 1px dotted var(--outline-color, var(--tag-color, var(--1))) !important;
 		scale: 1.05;
-		/* background:color-mix(in srgb, var(--tag-color, var(--1)) 50%,transparent); */
-		/* color: var(--filled-text-color, white); */
 	}
 	input {
 		border: 0;
