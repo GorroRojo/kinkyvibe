@@ -46,14 +46,14 @@ export async function load({ params }) {
 					path: author
 				};
 			});
-		let posts;
-		posts = (await fetchMarkdownPosts()).filter((p) =>
-			post.metadata.authors.some((/** @type {any} */ a) => p.meta.authors.includes(a))
-		);
-
-		const tagsConfig = await fetchTags();
-		const alias = aliaserFactory(tagsConfig);
-		const { meta } = await processMetadata({ path: params.term, meta: post.metadata }, alias, tagsConfig);
+			
+			const tagsConfig = await fetchTags();
+			const alias = aliaserFactory(tagsConfig);
+			const { meta } = await processMetadata({ path: params.term, meta: post.metadata }, alias, tagsConfig);
+			let posts;
+			posts = (await fetchMarkdownPosts()).filter((p) =>
+				meta.wiki && p.meta.tags.includes(meta.wiki)
+			);
 		return {
 			content,
 			...meta,

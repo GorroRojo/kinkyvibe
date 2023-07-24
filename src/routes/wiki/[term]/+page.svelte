@@ -97,7 +97,18 @@
 </article>
 <hr />
 
+<h2>
+	Materiales, amigues y eventos relevantes
+</h2>
+
+<PostList posts={data.posts}/>
+
 <style>
+	h2 {
+		text-align: center;
+		width: 100%;
+		font-size: var(--step-3);
+	}
 	:global(article.wiki .backtotop) {
 		font-size: var(--step-0);
 		margin-left: 0.2em;
