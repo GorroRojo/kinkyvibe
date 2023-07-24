@@ -13,23 +13,6 @@
 	import { fade } from 'svelte/transition';
 	let glosario = fetchGlossary();
 
-	alias.update(() => aliaserFactory($tagsConfig));
-	togglePositiveTagFilterFn.update(
-		() =>
-			function (checked, tag) {
-				if (checked) {
-					filteredTags.update((fTags) => [...fTags, tag]);
-				} else {
-					filteredTags.update((fTags) => [
-						...fTags.slice(0, fTags.indexOf(tag)),
-						...fTags.slice(fTags.indexOf(tag) + 1)
-					]);
-				}
-				$page.url.searchParams.set('tags', $filteredTags.join(','));
-				window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
-			}
-	);
-
 	function parseDescription(description) {
 		const regex = /\[\[([^\]]*)\]\]/g;
 		return description
@@ -170,7 +153,6 @@
 		position: relative;
 		margin-top: 1em;
 		display: grid;
-		/* grid-template-columns: 1fr 5em; */
 		grid-template-columns: 1fr;
 		transition: 100ms;
 		gap: 0.8em;

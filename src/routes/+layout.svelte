@@ -16,21 +16,48 @@
 	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
-	import { filteredTags, tagsConfig, currentPostData } from '$lib/utils/stores';
+	import { filteredTags, tagsConfig, currentPostData, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import { aliaserFactory } from '$lib/utils/index.js';
 	import { page } from '$app/stores';
-	// @ts-ignore
 	import { navigating } from '$app/stores';
 	export let data;
 	// onMount(() => {
 	tagsConfig.set(data.tagsConfig);
 	filteredTags.set([]);
 	// });
+	alias.update(() => aliaserFactory($tagsConfig));
+	togglePositiveTagFilterFn.update(
+		() =>
+			function (checked, tag) {
+				if (checked) {
+					filteredTags.update((fTags) => [...fTags, tag]);
+				} else {
+					filteredTags.update((fTags) => [
+						...fTags.slice(0, fTags.indexOf(tag)),
+						...fTags.slice(fTags.indexOf(tag) + 1)
+					]);
+				}
+				$page.url.searchParams.set('tags', $filteredTags.join(','));
+				if ($filteredTags.length > 0) {
+					window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
+				} else {
+					$page.url.searchParams.delete('tags');
+					window.history.replaceState('', '', $page.url);
+				}
+			}
+	);
 </script>
 
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
-<div class="wip">Este sitió esta en plena construcción. Reportar problemas a <a href="t.me/Gorro_Rojo">@Gorro_Rojo</a> por Telegram. O directamente en <a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.</div>
+<div class="wip">
+	Este sitió esta en plena construcción. Reportar problemas a <a href="t.me/Gorro_Rojo"
+		>@Gorro_Rojo</a
+	>
+	por Telegram. O directamente en
+	<a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.
+</div>
 <header>
 	<div id="me">
 		<ul id="redes">
@@ -74,7 +101,7 @@
 		]}
 	/>
 </header>
-{#if data.currentRoute != '/' && !data.currentRoute.includes("/wiki/")}
+{#if data.currentRoute != '/' && !data.currentRoute.includes('/wiki/')}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
@@ -101,7 +128,7 @@
 		background: var(--3-dark);
 		color: white;
 		text-align: center;
-		padding-block: .5em;
+		padding-block: 0.5em;
 	}
 	.wip a:hover {
 		color: white;
