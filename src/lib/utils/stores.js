@@ -12,7 +12,7 @@ export const visibleTags = writable([]);
 /** @type {import('svelte/store').Writable<string[]>} */
 export const allTags = writable([]);
 
-/** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|undefined, path: string}>} */
+/** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|'wiki', path: string}>} */
 export const currentPostData = writable();
 
 /** @type {import('svelte/store').Writable<(tag: string)=>(string)>} */

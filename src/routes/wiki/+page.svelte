@@ -1,5 +1,6 @@
 <script>
-	import { tagsConfig } from '$lib/utils/stores';
+	import { tagsConfig, currentPostData } from '$lib/utils/stores';
+	import { page } from '$app/stores';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -11,19 +12,20 @@
 		return lines.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }));
 	}
 
-    /** @type {(termino:string, groups?: Group[])=>Group|undefined}*/
+	/** @type {(termino:string, groups?: Group[])=>Group|undefined}*/
 	function getGroup(termino, groups = $tagsConfig.groups) {
 		for (let group of groups) {
 			if (group.name == termino) {
 				return group;
 			} else {
-                if (group.sub) {
-                    const sub = getGroup(termino, group.sub)
-                    if (sub) return sub;
-                }
-            }
+				if (group.sub) {
+					const sub = getGroup(termino, group.sub);
+					if (sub) return sub;
+				}
+			}
 		}
 	}
+	currentPostData.set({ category:'wiki', path: $page.url.pathname });
 </script>
 
 <article>
@@ -46,7 +48,7 @@
 						{#if type == 'text' || !entry}
 							{line}
 						{:else}
-							<a href="/wiki/{entry.meta.title}">{line}</a>
+							<a href="/wiki/{entry.meta.wiki}">{line}</a>
 						{/if}
 					{/each}
 				</dd>
@@ -60,9 +62,9 @@
 		max-width: 50rem;
 		margin: auto;
 		font-size: var(--step-1);
-        h1 {
-            text-align: left;
-        }
+		h1 {
+			text-align: left;
+		}
 		dl > div {
 			margin-bottom: 0.3em;
 		}

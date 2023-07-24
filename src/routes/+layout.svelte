@@ -16,7 +16,13 @@
 	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from './logo.png';
-	import { filteredTags, tagsConfig, currentPostData, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import {
+		filteredTags,
+		tagsConfig,
+		currentPostData,
+		alias,
+		togglePositiveTagFilterFn
+	} from '$lib/utils/stores';
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import { page } from '$app/stores';
 	import { navigating } from '$app/stores';
@@ -101,7 +107,7 @@
 		]}
 	/>
 </header>
-{#if data.currentRoute != '/' && !data.currentRoute.includes('/wiki/')}
+{#if data.currentRoute != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
@@ -112,7 +118,15 @@
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
 			<ChevronLeft size="20" style="translate: 0 .4em" />
-			<a href={$currentPostData.category}>{$currentPostData.category}</a>
+			{#if data.currentRoute.startsWith('/wiki')}
+				<a href="/material">Material</a>
+				{#if data.currentRoute.includes('wiki/')}
+					<ChevronLeft size="20" style="translate: 0 .4em" />
+					<a href="/wiki">wiki</a>
+				{/if}
+			{:else}
+				<a href={$currentPostData.category}>{$currentPostData.category}</a>
+			{/if}
 		{/if}
 	</div>
 {/if}

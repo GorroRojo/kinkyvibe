@@ -4,6 +4,6 @@ import { fetchGlossary, fetchMarkdownPosts } from "$lib/utils";
 export async function load() {
     return {
         glosario: await fetchGlossary(),
-        entries: await fetchMarkdownPosts(true)
+        entries: await fetchMarkdownPosts(true),
     }
 }
