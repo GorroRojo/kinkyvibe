@@ -45,7 +45,7 @@
 			<h1 class="profile-name">{data.title}</h1>
 		</div>
 	{:else}
-		<h1>{data.title}</h1>
+		<h1 id="title">{data.title}</h1>
 	{/if}
 	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1)}
 		<address>

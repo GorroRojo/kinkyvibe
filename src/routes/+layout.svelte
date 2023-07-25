@@ -85,7 +85,7 @@
 			<!-- recursero -->
 			<!-- fanzines -->
 		</ul>
-		<a id="title" href="/">
+		<a id="logo" href="/">
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="quien">
@@ -148,7 +148,7 @@
 		color: white;
 		text-decoration-color: white;
 	}
-	#title {
+	#logo {
 		color: black;
 		display: block;
 		text-align: center;
@@ -199,7 +199,7 @@
 		width: 24;
 		height: 24px;
 	}
-	#title img {
+	#logo img {
 		max-width: 10vh;
 		min-width: 2em;
 	}

@@ -100,8 +100,13 @@ article.wiki {
 		font-size: var(--step-1);
 		display: block;
 	}
-	h1,h2,h3,h4,h5,h6 {
-		position:relative;
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		position: relative;
 	}
 	h1 {
 		font-size: var(--step-5);
@@ -196,7 +201,7 @@ article.wiki {
 	}
 	blockquote {
 		font-size: var(--step-0);
-		opacity: .9;
+		opacity: 0.9;
 		margin-block: 0;
 		padding-left: 1em;
 		border-left: 2px solid var(--1);
@@ -214,7 +219,7 @@ article.wiki {
 	.toc {
 		display: none;
 		background: color-mix(in srgb, var(--1-light) 10%, transparent);
-		padding: .5em;
+		padding: 0.5em;
 		font-size: var(--step-0);
 		li {
 			margin: 0;
@@ -223,7 +228,6 @@ article.wiki {
 			display: block;
 		}
 	}
-
 
 	.col-2,
 	.col-3,
@@ -242,6 +246,31 @@ article.wiki {
 	}
 	.col-4 {
 		grid-template-columns: 1fr 1fr 1fr 1fr;
+	}
+
+	.backtotop,
+	.linktothis {
+		opacity: 0.15;
+		text-decoration: none;
+		&:hover {
+			opacity: 0.3;
+		}
+	}
+	.backtotop {
+		margin-left: 0.2em;
+		svg {
+			height: auto;
+			width: 1ch;
+		}
+	}
+	.linktothis {
+		position: absolute;
+		opacity: 0.1;
+		right: 100%;
+		font-weight: 400;
+		padding-right: 0.2em;
+		transform-origin: right;
+		scale: 0.7;
 	}
 }
 @media (max-width: 900px) {

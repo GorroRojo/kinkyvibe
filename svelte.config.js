@@ -6,6 +6,7 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import autoprefixer from 'autoprefixer';
 import remarkGfm from 'remark-gfm';
 import toc from '@jsdevtools/rehype-toc';
+import customRehype from './src/lib/utils/customRehype.js';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -28,7 +29,7 @@ const config = {
 				dashes: 'oldschool'
 			},
 			remarkPlugins: [remarkGfm],
-			rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings, toc],
+			rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings, toc, customRehype],
 			layout: './src/lib/mdsvex/layout.svelte'
 		})
 	]

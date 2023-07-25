@@ -9,21 +9,6 @@
 	import { onMount } from 'svelte';
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
 
-    /**@type {(n: Element)=>void}*/
-	function addHeadingLinks(n) {
-		if (/H\d/.test(n.tagName)) {
-			n.innerHTML = `
-        <a href="#${n.id}" class="linktothis">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hash"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
-</a>
- ${n.innerHTML}    
-<a href="#title" class="backtotop">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-corner-right-up"><polyline points="10 9 15 4 20 9"/><path d="M4 20h7a4 4 0 0 0 4-4V4"/></svg>
-</a>
-    `;
-		}
-		return;
-	}
 
     /**@type {(n: Element)=>void}*/
     function addWikiLinks (n) {
@@ -38,7 +23,6 @@
 	/** @type {import('svelte/action').Action} */
 	function process(node) {
 		[...node.children].forEach((n, i) => {
-			addHeadingLinks(n);
             addWikiLinks(n);
 		});
 		return {
@@ -108,22 +92,5 @@
 		text-align: center;
 		width: 100%;
 		font-size: var(--step-3);
-	}
-	:global(article.wiki .backtotop) {
-		font-size: var(--step-0);
-		margin-left: 0.2em;
-		opacity: 0.3;
-	}
-	:global(article.wiki .linktothis) {
-		font-size: var(--step-0);
-		margin-left: 0.5em;
-		text-decoration: none;
-		opacity: 0.1;
-		position: absolute;
-		bottom: 0.5em;
-		left: -2em;
-	}
-	:global(article.wiki .linktothis:hover) {
-		opacity: 0.3;
 	}
 </style>
