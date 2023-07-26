@@ -1,8 +1,8 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Tallarines con Tuco
-summary: 🐸
+summary: Soy ilustradora, aficionada al excel, coleccionista de hobbies y lo que haga falta
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -11,8 +11,8 @@ layout: amigues
 category: amigues
 authors:
   - TallarinesConTuco
-#featured: 1
-force_unlisted: true
+featured: 1
+# force_unlisted: true
 #force_unpublished: false
 pronoun: https://pronombr.es/ella&elle
 link: https://instagram.com/tallarinescontuco
