@@ -12,8 +12,10 @@ groups:
     color: salmon
     sub:
       - name: tipo
-        members: ['cine', 'taller', 'evento', 'charla debate', 'picnic']
+        noname: true
+        members: ['cine', 'taller', 'evento', 'charla debate', 'laboratorio', 'picnic']
       - name: 'nombreevento'
+        noname: true
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
     sub:

@@ -7,7 +7,7 @@ tags:
   - español
   - KinkyVibe
   - evento
-  - taller
+  - laboratorio
   - cine
   - charla debate
   - BDSM
