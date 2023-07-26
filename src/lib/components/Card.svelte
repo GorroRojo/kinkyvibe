@@ -14,9 +14,49 @@
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
+
+	/**@type {(tag:string)=>string[]}*/
+	function getParents(tag) {
+		/**@type {string[]}*/
+		let parents = [];
+		$tagsConfig.groups.forEach((g) => {
+			parents = [...parents, ...findTagAndReturnParents(tag, g)];
+		});
+		return parents;
+	}
+
+	/**
+	 * Finds a specific tag within a group and returns its parents.
+	 * @param {string} tag - The tag to search for.
+	 * @param {Group} group - The group object to search within.
+	 * @param {string[]} [parents=[]] - An array of parent names (optional, defaults to an empty array).
+	 * @returns {string[]} - An array containing the names of the parents of the tag.
+	 */
+	function findTagAndReturnParents(tag, group, parents = []) {
+		if (group.name == tag) return parents;
+		if (group.members.includes(tag)) return [...parents, group.name];
+		/**@type {string[]}*/
+		let deeper = [];
+		group.sub.forEach((sub) => {
+			deeper.push(...findTagAndReturnParents(tag, sub, ['sub', ...parents, group.name]));
+		});
+		return deeper;
+	}
+
+	/**@type {(tag:string[])=>string[]}*/
+	function removeParents(tags) {
+		let allParents = [...new Set(tags.map((t) => getParents(t)).flat())];
+		return tags.filter((t) => !allParents.includes(t));
+	}
 </script>
+
 <!-- TODO past no funciona? -->
-<a {href} class:past={isPast(new Date(start))} class="card {mark ? 'mark' : ''} {category}" tabindex="0">
+<a
+	{href}
+	class:past={isPast(new Date(start))}
+	class="card {mark ? 'mark' : ''} {category}"
+	tabindex="0"
+>
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
@@ -24,13 +64,16 @@
 	<h3>{title}</h3>
 	{#if tags}
 		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
-				{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
+			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
+				{@const config = Object.keys($tagsConfig.tags).includes(tag)
+					? $tagsConfig.tags[tag]
+					: false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
-				<li 
-				style:--tag-color={color} 
-				style:white-space={'nowrap'}
-				style:--hover-text-decoration={"underline white"}>
+				<li
+					style:--tag-color={color}
+					style:white-space={'nowrap'}
+					style:--hover-text-decoration={'underline white'}
+				>
 					<Tag {tag} isLink={mounted} />
 				</li>
 			{/each}
@@ -46,7 +89,7 @@
 		height: 15em;
 		width: 100%;
 		background: gray;
-		--cround: calc(var(--round) * .93);
+		--cround: calc(var(--round) * 0.93);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
 		outline: 0;
@@ -74,27 +117,29 @@
 		text-align: center;
 	}
 	.card.past {
-		opacity: .8;
+		opacity: 0.8;
 	}
 	.card.mark {
 		--post-color: var(--1);
-		--shadow-color: var(--color,var(--color-2,var(--1)));
-		box-shadow: 0 0 .3em .2em rgba(0,0,0,.05);
+		--shadow-color: var(--color, var(--color-2, var(--1)));
+		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
 		height: 100%;
 		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 	}
-	.card.mark:hover,.card.mark:focus {
+	.card.mark:hover,
+	.card.mark:focus {
 		outline: 3px var(--color, var(--color-2, var(--1))) solid;
 		box-shadow: 0em 0em 0em -0em var(--shadow-color);
-	} 
-	.card:hover,.card:focus {
+	}
+	.card:hover,
+	.card:focus {
 		transform: scale(105%);
 	}
 	.card-mark {
 		position: absolute;
-		top: -.7em;
+		top: -0.7em;
 		left: -1em;
-		--radius: calc(var(--round) * .9) ;
+		--radius: calc(var(--round) * 0.9);
 		border-radius: var(--round);
 		padding: 0.2em 0.5em;
 		color: white;
@@ -130,7 +175,7 @@
 	.amigues {
 		border-top-left-radius: 999em;
 		border-top-right-radius: 999em;
-		margin-inline: .3em;
+		margin-inline: 0.3em;
 	}
 	.amigues .card-img {
 		outline: 1px solid var(--post-color, var(--2));

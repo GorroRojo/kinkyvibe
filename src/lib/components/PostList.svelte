@@ -35,7 +35,7 @@
 						post.meta.tags
 							.map((/**@type {string}*/ t) => {
 								let p = getParents(t);
-								console.log(post.meta.title,t, p);
+								console.log(post.meta.title, t, p);
 								return p;
 							})
 							.flat()
@@ -68,12 +68,13 @@
 	 */
 	function findTagAndReturnParents(tag, group, parents = []) {
 		if (group.name == tag) return parents;
-		if (group.members.includes(tag)) return [...parents, group.name]
-		let deeper
+		if (group.members.includes(tag)) return [...parents, group.name];
+		/**@type {string[]}*/
+		let deeper = [];
 		group.sub.forEach((sub) => {
-			deeper = findTagAndReturnParents(tag, sub, [...parents, group.name]);
+			deeper.push(...findTagAndReturnParents(tag, sub, ['sub', ...parents, group.name]));
 		});
-		return deeper ? [...deeper] : [];
+		return deeper;
 	}
 
 	/**@type {(groups: Group[]|Group|undefined)=>string[]}*/
