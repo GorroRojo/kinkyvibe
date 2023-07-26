@@ -42,13 +42,13 @@ groups:
     color: 'var(--3-dark)'
   - name: amigues
     members: 
-    - educadores 
-    - dominatrix 
-    - artista
     - emprendimiento
     sub:
     - name: profesional
       members:
+      - dominatrix 
+      - artista
+      - educadores 
       - psico 
     color: 'var(--2)'
   - name: BDSM

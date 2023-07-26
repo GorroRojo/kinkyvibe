@@ -21,7 +21,7 @@ logo: 1
 #email: ayuda@kinkyvibe.ar
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #tel: +54 9 11 5555 3333
-job_title: Educador BDSM
+# job_title: Educador BDSM
 #gender_identity: Perrito Travo Interdimensional
 #bday: 1996-04-09
 ---
