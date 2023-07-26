@@ -7,6 +7,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte/internal';
+	import {togglePositiveTagFilterFn} from '$lib/utils/stores'
 
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
@@ -47,13 +48,9 @@
 	/** @type Group */
 	export let group;
 
-	/**@type{(evt: InputEvent, tag: string)=>*}*/
-	export let onInput;
+	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
+	export let onInput = (evt,tag)=>$togglePositiveTagFilterFn(evt.target?.checked, tag);
 
-	/**@type {boolean}*/
-	// export let checked =
-	// 	$page.url.searchParams.has('tags') &&
-	// 	$page.url.searchParams.get('tags')?.split(',').includes(group.name) != undefined;
 
 	/**@type {List[]} */
 	$: lists = [
@@ -95,14 +92,30 @@
 		);
 	let mounted = false;
 	onMount(() => (mounted = true));
+
+	/** @type {(group:Group)=>string[]}*/
+	function getAllMembers(group) {
+		let res = [group.name];
+		res.push(...group.members);
+		// @ts-ignore
+		res.push(...group.sub.map((g) => getAllMembers(g)));
+		return res.flat();
+	}
+	let noname =
+		group.noname ||
+		!(
+			$visibleTags.includes(group.name) ||
+			getAllMembers(group).some((t) => $visibleTags.includes(t))
+		);
 </script>
+
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
 	style:--tag-color={group.color ?? 'inherit'}
-	class:noname={!$visibleTags.includes(group.name)}
+	class:noname
 >
-	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && $visibleTags.includes(t.name)) || (t.lists != undefined && (group.members.length > 0 || isSubListVisible(group.sub, $visibleTags)))) as el (el.id)}
+	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && !noname) || (t.lists != undefined && (group.members.length > 0 || isSubListVisible(group.sub, $visibleTags)))) as el (el.id)}
 		<svelte:element
 			this={el.id == 1 ? 'span' : 'div'}
 			in:scale={{ duration: 500 }}
@@ -112,7 +125,7 @@
 				<Tag
 					tag={el.name}
 					noBorder
-					isCheckbox={$visibleTags.includes(el.name)}
+					isCheckbox
 					onInput={(evt) => onInput(evt, el.name)}
 					checked={$page.url.searchParams.has('tags') &&
 						$page.url.searchParams.get('tags')?.split(',').includes(el.name)}
@@ -124,7 +137,7 @@
 							<li in:scale={{ duration: 500 }}>
 								{#if typeof item == 'string'}
 									{#if mounted}
-									{@const dummy = /**@ts-ignore*/ false}
+										{@const dummy = /**@ts-ignore*/ false}
 										<Tag
 											onInput={(evt) => onInput(evt, item)}
 											tag={item}
@@ -132,23 +145,18 @@
 											checked={$page.url.searchParams.has('tags') &&
 												$page.url.searchParams.get('tags')?.split(',').includes(item)}
 											noBorder
-											isLink={!mounted}
 										/>
 									{:else}
-										<Tag tag={item}
-										--filled-text-color='var(--text-color, var(--tag-color))'
-										--filled-outline='none'
-										--filled-outline-offset='0'
-										--fill-color='transparent'
+										<Tag
+											tag={item}
+											--filled-text-color="var(--text-color, var(--tag-color))"
+											--filled-outline="none"
+											--filled-outline-offset="0"
+											--fill-color="transparent"
 										/>
 									{/if}
 								{:else}
-									<svelte:self
-										group={item}
-										{onInput}
-										checked={$page.url.searchParams.has('tags') &&
-											$page.url.searchParams.get('tags')?.split(',').includes(item.name)}
-									/>
+									<svelte:self group={item} />
 								{/if}
 							</li>
 						{/each}
@@ -163,16 +171,17 @@
 	.filtergroup {
 		display: flex;
 		border-radius: 0.3em;
+		flex-direction: column;
 		min-width: 0;
 		align-items: center;
 		font-family: sans-serif;
 		--border-radius: 0.3em;
 		transition: 100ms;
 		outline: 3px solid transparent;
-		justify-content:center;
+		justify-content: center;
 		flex-wrap: wrap;
 		& > * {
-			margin-left: 8px;
+			/* margin-left: 8px; */
 		}
 	}
 	.filtergroup.noname {
@@ -185,7 +194,7 @@
 	}
 	.filtergroup:has(> .groupname :checked) {
 		outline: 3px solid var(--tag-color);
-		background: var(--tag-color);
+		background: color-mix(in srgb, var(--tag-color) 10%, transparent);
 	}
 
 	.filtergroup,
@@ -205,14 +214,14 @@
 	}
 
 	.taglist {
-		border-radius: .3em;
+		border-radius: 0.3em;
 		overflow: hidden;
-		align-items: start;
+		align-items: center;
 		min-width: 0;
 	}
 	.subgroups {
 		flex-direction: column;
-		align-items: start;
+		align-items: center;
 		row-gap: 0.3em;
 		column-gap: 0.3em;
 	}
@@ -241,33 +250,43 @@
 		height: unset;
 	}
 	.taglist li {
-		flex: 1 1;
+		/* flex: 1 1; */
 	}
 	:global(.taglist > li:has(:checked) + li:has(:checked)) {
-		--border-radius: 0 .3em .3em 0;
+		--border-radius: 0 0.3em 0.3em 0;
 		border-left: 10px solid var(--tag-color);
 		margin-left: -10px;
 	}
 	.groupname {
-		display:flex;
-		color: var(--tag-color);
+		display: flex;
+		/* color: var(--tag-color); */
 		justify-content: stretch;
 		flex: 1 1;
 		text-align: center;
-		--fill-color: transparent;
+		/* --fill-color: transparent; */
 	}
 	/* .groupname + .groupitems {
 		margin-left: 5px;
 	} */
 	.groupitems {
-		display: flex;
 		flex-direction: column;
 		row-gap: 0.2em;
 		column-gap: 0.6em;
 		justify-content: center;
-		align-items: start;
+		align-items: center;
 		/* flex-wrap: wrap; */
 		/* transition: 700ms; */
+	}
+	:global(.groupitems) {
+		display: none;
+	}
+	.groupname:has(:checked) + .groupitems,
+	.groupname:has(span) + .groupitems,
+	:global(.groupitems:has(:checked)) {
+		display: flex;
+	}
+	.noname .groupitems {
+		display: flex;
 	}
 	@container (min-width: 1300px) {
 		.groupname {

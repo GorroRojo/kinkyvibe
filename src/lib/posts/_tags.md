@@ -3,6 +3,7 @@ groups:
   - name: KinkyVibe
     color: var(--1)
   - name: idioma
+    noname: true
     members:
       - inglés
       - español
@@ -17,12 +18,14 @@ groups:
   - name: material
     sub:
     - name: formato
+      noname: true
       members:  
       - guía
       - artículo
       - libro
       - fanzine
     - name: interaccion
+      noname: true
       members:
       - descargable
       sub:
@@ -30,6 +33,7 @@ groups:
         members:
         - interactivo
     - name: precio
+      noname: true
       members:
       - pago
       - gratis
@@ -50,7 +54,7 @@ groups:
       - seguridad
       - negociación
       - sadomasoquismo
-    color: red
+    color: "#ff4444"
     sub:
       - name: intercambio de poder
         members:
@@ -69,10 +73,11 @@ groups:
               - caning
               - golpes
               - nalgueadas
-  - name: sexualidad
+  - name: género y salud sexual
     members:
     sub:
       - name: personas
+        noname: true
         members:
         - salud
         - materiales

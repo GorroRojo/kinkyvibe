@@ -1,32 +1,129 @@
 <script>
-	//@ts-nocheck
-	export let posts = [];
-	export let filter = false;
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { filteredTags, visibleTags, allTags, userConfig } from '$lib/utils/stores';
+	import { filteredTags, visibleTags, allTags, userConfig, tagsConfig } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
-	
-	/** @type {[]} */
+	/**
+	 * @type {Record<string,*>[]}
+	 */
+	export let posts = [];
+	/** @type {false|{prop: string, value: string}}*/
+	export let filter = false;
 
 	$: outerFilteredPosts = posts.filter(
-		(p) => !filter || (filter && p[filter.prop] == filter.value)
+		(/**@type {Record<string,string>}*/ p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
 
+	/**@type {<T>(arr: T[])=>T[]}*/
 	let uniq = (arr) => [...new Set(arr)];
 
-	$: allTags.set(posts.reduce((a, b) => [...a, ...b.meta.tags], []));
+	// @ts-ignore
 	$: visibleTags.set(uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))));
 	// $: tags = [...new Set(nonAliasTags)];
-	$: tagFilteredPosts = outerFilteredPosts.filter((p) =>
+	// /** @type {{[k: string]: Group | undefined}}*/
+	// $: groupByName = Object.fromEntries(
+	// 	getAllGroupNames($tagsConfig.groups).map((name) => [name, getGroupByName(name)])
+	// );
+	$: tagFilteredPosts = outerFilteredPosts.filter((post) =>
 		$filteredTags && $filteredTags.length == 0
 			? true
-			: $filteredTags.every((f) => !$allTags.includes(f) || p.meta.tags.includes(f))
+			: $filteredTags.every(
+					(f) =>
+						post.meta.tags.includes(f) ||
+						post.meta.tags
+							.map((/**@type {string}*/ t) => {
+								let p = getParents(t);
+								console.log(post.meta.title,t, p);
+								return p;
+							})
+							.flat()
+							.includes(f)
+			  )
 	);
 
-	
+	/**
+	for each post
+		are all the filtered tags or their parents
+
+	*/
+
+	/**@type {(tag:string)=>string[]}*/
+	function getParents(tag) {
+		/**@type {string[]}*/
+		let parents = [];
+		$tagsConfig.groups.forEach((g) => {
+			parents = [...parents, ...findTagAndReturnParents(tag, g)];
+		});
+		return parents;
+	}
+
+	/**
+	 * Finds a specific tag within a group and returns its parents.
+	 * @param {string} tag - The tag to search for.
+	 * @param {Group} group - The group object to search within.
+	 * @param {string[]} [parents=[]] - An array of parent names (optional, defaults to an empty array).
+	 * @returns {string[]} - An array containing the names of the parents of the tag.
+	 */
+	function findTagAndReturnParents(tag, group, parents = []) {
+		if (group.name == tag) return parents;
+		if (group.members.includes(tag)) return [...parents, group.name]
+		let deeper
+		group.sub.forEach((sub) => {
+			deeper = findTagAndReturnParents(tag, sub, [...parents, group.name]);
+		});
+		return deeper ? [...deeper] : [];
+	}
+
+	/**@type {(groups: Group[]|Group|undefined)=>string[]}*/
+	function getAllChildren(groups = $tagsConfig.groups) {
+		if (!groups) return [];
+		if (!Array.isArray(groups)) groups = [groups];
+		/**@type {string[]}*/
+		let children = [];
+		[groups].flat().forEach((g) => {
+			children = [...children, g.name, ...g.members, ...getAllChildren(g.sub)];
+		});
+		return children;
+	}
+
+	/** @param {Group[]|Group} groups
+	 * @returns {string[]}
+	 */
+	function getAllGroupNames(groups) {
+		if (Array.isArray(groups)) {
+			// console.log(groups);
+			//@ts-ignore
+			return groups.reduce((prev, g) => [...prev, ...getAllGroupNames(g)], []);
+		} else {
+			let accumulated = [groups.name];
+			if (groups.sub) {
+				accumulated.push(...getAllGroupNames(groups.sub));
+			}
+			return accumulated;
+		}
+	}
+
+	/** breadth-first search
+	 * @type {(name:string)=>Group|undefined}
+	 * */
+	function getGroupByName(name, groups = $tagsConfig.groups) {
+		for (let g of groups) {
+			if (g.name == name) return g;
+		}
+		for (let g of groups) {
+			let sub;
+			if (g.sub) sub = getGroupByName(g.sub);
+			if (sub) return sub;
+		}
+	}
+
+	$: allTags.set([
+		// @ts-ignore
+		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
+		...getAllGroupNames($tagsConfig.groups)
+	]);
 </script>
 
 {#if tagFilteredPosts.length > 0}

@@ -18,7 +18,7 @@ export const currentPostData = writable();
 /** @type {import('svelte/store').Writable<(tag: string)=>(string)>} */
 export const alias = writable((tag) => '');
 
-/** @type {import('svelte/store').Writable<(a:string,b:string)=>string|void>} */
+/** @type {import('svelte/store').Writable<(a:boolean,b:string)=>string|void>} */
 export const togglePositiveTagFilterFn = writable((a, b) => '');
 
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */

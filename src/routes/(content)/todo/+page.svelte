@@ -10,14 +10,4 @@
 </svelte:head>
 <PostList posts={data.posts} />
 
-<style>
-	a.back {
-		display: block;
-		width: 100%;
-		max-width: 900px;
-		margin: 1.5em auto -2em;
-		padding-left: 1em;
-		color: var(--2);
-		text-decoration: none;
-	}
-</style>
+

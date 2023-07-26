@@ -9,7 +9,7 @@ tags:
   - descargable # descargable | link | contenido #
   - KinkyVibe # etiqueta especial #
   - fanzine
-  - BDSM
+  # - BDSM
   - dominación
 layout: material
 category: material

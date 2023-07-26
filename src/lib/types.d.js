@@ -5,6 +5,7 @@
  * @prop {string} name
  * @prop {string[]} members
  * @prop {Group[]} sub
+ * @prop {boolean} [noname]
  * @prop {string} [color]
  * @prop {string} [parent]
  */

@@ -15,7 +15,7 @@
 </script>
 
 {#if isCheckbox}
-	<label class="tag" class:noBorder >
+	<label class="tag" class:noBorder>
 		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
 		{tag}
 	</label>
@@ -59,16 +59,7 @@
 	.tag.noBorder {
 		border: 0;
 	}
-	label.tag {
-		border: 1px solid var(--outline-color, var(--tag-color));
-		color: var(--text-color, var(--tag-color));
-		background: var(--off-background, transparent);
-		cursor: pointer;
-		transition: 0ms;
-		outline: var(--off-outline, none);
-		outline-offset: var(--off-outline-offset, 0);
-	}
-	
+
 	a.tag,
 	label.tag:has(:checked),
 	span.tag {
@@ -76,7 +67,23 @@
 		color: var(--filled-text-color, white);
 		outline: var(--filled-outline, none);
 		outline-offset: var(--filled-outline-offset, 0);
-		text-decoration-color: var(--text-decoration, "none");
+		text-decoration-color: var(--text-decoration, 'none');
+	}
+	label.tag,
+	a.tag {
+		cursor: pointer;
+	}
+	span.tag,
+	label.tag {
+		border: 1px solid var(--outline-color, var(--tag-color));
+		color: var(--text-color, var(--tag-color));
+		background: var(--off-background, transparent);
+		transition: 0ms;
+		outline: var(--off-outline, none);
+		outline-offset: var(--off-outline-offset, 0);
+	}
+	span.tag {
+		cursor: unset;
 	}
 	label.tag:has(:focus) {
 		outline: 1px dotted var(--outline-color, var(--tag-color, var(--1))) !important;

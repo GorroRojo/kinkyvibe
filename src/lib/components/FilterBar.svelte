@@ -11,9 +11,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
-	// @ts-ignore
 	import { page } from '$app/stores';
-	// @ts-ignore
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
@@ -182,7 +180,6 @@
 			>
 				<TagGroup
 					{group}
-					onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
 				/>
 			</div>
 		{/each}
