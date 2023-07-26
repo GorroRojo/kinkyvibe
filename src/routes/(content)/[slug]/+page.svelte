@@ -42,7 +42,7 @@
 	{#if data.layout == 'amigues'}
 		<div class="profile-header">
 			<img src={data.featured + ''} class="profile-pic" alt="" />
-			<h1 class="profile-name">{data.title}</h1>
+			<h1 id="title" class="profile-name">{data.title}</h1>
 		</div>
 	{:else}
 		<h1 id="title">{data.title}</h1>
