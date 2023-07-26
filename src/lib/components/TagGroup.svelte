@@ -177,7 +177,7 @@
 		font-family: sans-serif;
 		--border-radius: 0.3em;
 		transition: 100ms;
-		outline: 3px solid transparent;
+		/* outline: 3px solid transparent; */
 		justify-content: center;
 		flex-wrap: wrap;
 		& > * {
@@ -207,10 +207,12 @@
 	:global(.filtergroup:has(li)),
 	:global(.filtergroup:has(span)) {
 		box-shadow: -2px 0 var(--tag-color);
+		outline: 2px solid var(--tag-color);
 	}
 
 	:global(.filterbar > .filtergroup) {
-		box-shadow: 0 0 0em -0em rgba(0, 0, 0, 0.3);
+		outline: 2px solid var(--tag-color);
+		/* box-shadow: 0 0 0em -0em rgba(0, 0, 0, 0.3); */
 	}
 
 	.taglist {
@@ -264,6 +266,9 @@
 		flex: 1 1;
 		text-align: center;
 		/* --fill-color: transparent; */
+	}
+	:global(.groupname:has(:checked)) {
+		--border-radius: .3em .3em 0 0;
 	}
 	/* .groupname + .groupitems {
 		margin-left: 5px;
