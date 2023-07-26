@@ -29,10 +29,6 @@ logo: 1
 #bday: 1996-04-09
 ---
 
-
-
-<!-- Hola! ¿Todo bien? Mi nombre es Mel, soy une Sub, Educadore Sexual y Educadore BDSM con más de 7 años de experiencia (enseñando y jugando). Abrí este canal con el objetivo de subir material y poder dar un poco mis opiniones. En parte está pensado para acompañar el drive en el cual ya subo cosas :D Podés ayudarme a seguir traduciendo, subiendo materiales y dedicándome a este espacio: https://cafecito.app/kinkyvibe -->
-
 Kinky Vibe es un proyecto de divulgación y acompañamiento disidente. Contamos con una tienda erótica y de cuidados, pro-sexo y kinky y trabajamos priorizando la educación sexual y los cuidados éticos comunitarios.
 
 Kinky Vibe comenzó como un proyecto orientado a artistas LGTB+, personas fetichistas, y personas de las comunidades feministas de nicho en las que estábamos en ese momento <small>(pre ni una menos)</small>. Años después, ahora nos dirijimos a **todas las personas con curiosidad por temáticas relacionadas a sexualidad en su amplio espectro desde un enfoque interseccional, pro-sexo, despatologizante y crítico**. Trabajando con temáticas de afectos, géneros, orientaciones, comunidades, discursos, prácticas sexuales específicas, cuidados sexuales, etc.
