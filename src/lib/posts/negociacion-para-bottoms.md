@@ -16,6 +16,7 @@ layout: material
 category: material
 authors:
   - DemonWeb
+  - TallarinesConTuco
 featured: 2
 #force_unlisted: false
 #force_unpublished: false
@@ -29,14 +30,6 @@ featured: 2
     import guia from '$lib/posts/media/negociacion-para-bottoms/1.pdf'
 </script>
 
-Holi a todes! El otro día subí una guía de negociación para bottoms ⚡️
-
-La estoy volviendo a subir porque la revisamos, editamos bien bonita y le agregamos cositas.
-
-Se las dejo por aquí.
-
-Si les gusta y quieren ayudarnos, pueden mandarnos un cafecito, les dejé el link en pinneados ❤️
-
 <object aria-label="Guía de negociación para bottoms" data={guia} type="application/pdf" width="50rem" height="1000px">
-<a href={guia}>Ir al pdf ↗️</a>
+<a href={guia} class="cta">Ir al pdf ↗️</a>
 </object>
