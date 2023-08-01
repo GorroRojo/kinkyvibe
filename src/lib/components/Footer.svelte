@@ -31,10 +31,10 @@
 			<h3>Sobre nosotres</h3>
 			<ul>
 				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
-				<li><a href="https://tienda.kinkyvibe.ar"><ShoppingCart {style} />Tienda</a></li>
+				<li><a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a></li>
 				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li>
-					<a href="https://cafecito.app/kinkyvibe">
+					<a href="https://cafecito.app/kinkyvibe" target="_blank">
 						<SimpleIcon icon={siKofi} />CafecitoApp
 					</a>
 				</li>
@@ -44,13 +44,13 @@
 			<h3>Redes</h3>
 			<ul class="redes">
 				<li>
-					<a href="https://t.me/BDSMtextos">
+					<a href="https://t.me/BDSMtextos" target="_blank">
 						<SimpleIcon icon={siTelegram} />
 						Telegram
 					</a>
 				</li>
 				<li>
-					<a href="https://www.instagram.com/kinkyvibeargentina/">
+					<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank">
 						<SimpleIcon icon={siInstagram} />
 						Instagram
 					</a>

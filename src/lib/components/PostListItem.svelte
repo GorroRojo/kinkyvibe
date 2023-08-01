@@ -274,7 +274,7 @@
 		margin: 0;
 		margin-top: 0.2em;
 		margin-bottom: 0.1em;
-		text-decoration: underline;
+		/* text-decoration: underline; */
 		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
 		small {

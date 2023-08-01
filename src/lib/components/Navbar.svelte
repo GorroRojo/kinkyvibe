@@ -7,9 +7,9 @@
 
 <nav>
 	<ul>
-		{#each links as { icon, name, sub, href }}
+		{#each links as { icon, name, sub, href, target = undefined }}
 			<li class:current={$page.url.pathname.includes(href)} >
-				<a {href} tabindex="0">
+				<a {href} {target} tabindex="0">
 					<span>
 						<span><svelte:component this={icon} size="1em" /></span>
 						{name}

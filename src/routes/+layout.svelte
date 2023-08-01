@@ -68,17 +68,17 @@
 	<div id="me">
 		<ul id="redes">
 			<li>
-				<a href="https://cafecito.app/kinkyvibe">
+				<a href="https://cafecito.app/kinkyvibe" target="_blank">
 					<SimpleIcon icon={siKofi} />
 				</a>
 			</li>
 			<li>
-				<a href="https://t.me/BDSMtextos">
+				<a href="https://t.me/BDSMtextos" target="_blank">
 					<SimpleIcon icon={siTelegram} />
 				</a>
 			</li>
 			<li>
-				<a href="https://www.instagram.com/kinkyvibeargentina/">
+				<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank">
 					<SimpleIcon icon={siInstagram} />
 				</a>
 			</li>
@@ -101,7 +101,8 @@
 				icon: ShoppingCart,
 				name: 'Tienda',
 				sub: 'Juguetes e Implementos',
-				href: 'https://tienda.kinkyvibe.ar'
+				href: 'https://tienda.kinkyvibe.ar',
+				target: "_blank"
 			},
 			{ icon: Sparkles, name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
 		]}
