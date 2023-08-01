@@ -120,7 +120,7 @@
 			<div id="cafecito">
 				Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó
 				valioso,
-				<a href="https://cafecito.app/kinkyvibe">considerá apoyarnos con algún cafecito</a>. 🤗
+				<a href="https://cafecito.app/kinkyvibe" target="_blank">considerá apoyarnos con algún cafecito</a>. 🤗
 			</div>
 		{/if}
 	{:else}
