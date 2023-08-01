@@ -148,7 +148,9 @@
 	<h3>
 		{title}
 	</h3>
-	<p class="summary">{summary ?? ''}</p>
+	<p class="summary">
+		{summary ?? ''}
+	</p>
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
@@ -303,8 +305,11 @@
 		display: block;
 		max-height: 100%;
 		min-height: 0;
-		/* overflow:hidden; */
-		overflow: auto;
+		white-space: normal;
+		overflow: hidden;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
 		text-overflow: ellipsis;
 	}
 
