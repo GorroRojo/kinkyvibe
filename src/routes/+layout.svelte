@@ -154,6 +154,7 @@
 		display: block;
 		text-align: center;
 		width: 100%;
+		max-height: 10rem;
 		text-decoration: none;
 	}
 	.breadcrumbs {
