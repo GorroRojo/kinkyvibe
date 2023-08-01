@@ -111,7 +111,7 @@
 		</div>
 
 		{#if data.layout == 'amigues'}
-			<a href={data.link} class="cta">Ir a su página</a>
+			<a href={data.link} class="cta">{data.link_text ?? "Ir a su página"}</a>
 		{:else if data.layout == 'calendario' && data.link && data.link_text}
 			<a href={data.link} class="cta">{data.link_text}</a>
 		{/if}
@@ -283,7 +283,7 @@
 		width: max-content;
 		text-align: center;
 		/* translate: 6em; */
-		font-size: var(--step-4);
+		font-size: var(--step-3);
 		text-decoration: none;
 		margin-block: 2em;
 		transition: 200ms;
