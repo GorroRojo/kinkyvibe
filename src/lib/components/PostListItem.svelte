@@ -75,7 +75,7 @@
 					<BookOpen {style} />
 				{/if}
 			{:else}
-				<Heart {style} strokeWidth="3px" />
+				<Heart style={style+"fill:var(--post-color);"} strokeWidth="3px" />
 			{/if}
 			&ThickSpace;
 		</div>
