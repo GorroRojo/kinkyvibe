@@ -26,7 +26,8 @@
 			link,
 			link_text,
 			category,
-			job_title
+			job_title,
+			redirect
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
@@ -57,6 +58,7 @@
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
+	target={redirect || path.startsWith('https') ? '_blank' : undefined}
 >
 	<div class="publication">
 		<div class="icon">
@@ -192,8 +194,8 @@
 				color: var(--post-color);
 				left: -1em;
 				position: relative;
-				scale: .8;
-				top: -.2em;
+				scale: 0.8;
+				top: -0.2em;
 			}
 		}
 	}
@@ -334,7 +336,7 @@
 		color: white;
 		font-size: var(--step--1);
 		border-radius: 2em 2em 0 0;
-		--translate: 0 .1em;
+		--translate: 0 0.1em;
 		& > * {
 			min-height: 0;
 			min-width: 0;
