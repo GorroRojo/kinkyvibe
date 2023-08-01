@@ -81,7 +81,7 @@
 	{/if}
 </a>
 
-<style>
+<style lang="scss">
 	:root {
 		--round: 1rem;
 	}
@@ -166,11 +166,39 @@
 		bottom: -1em;
 		left: 0;
 		width: var(--card-width);
-		transition: 100ms;
+		/* transition: 100ms; */
 		max-width: 100%;
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
+		opacity: 0;
+		transition: 500ms;
+	}
+	.tagrow:hover {
+		--scrollbar-width: calc(var(--step--1) * .4);
+		scrollbar-width: thin;
+		scrollbar-color: #ff00dd #ffffff;
+		margin-bottom: calc(var(--scrollbar-width) * -1);
+
+		/* Chrome, Edge and Safari */
+		&::-webkit-scrollbar {
+			opacity: 1;
+			display: unset;
+			width: var(--scrollbar-width);
+			height: var(--scrollbar-width);
+		}
+		&::-webkit-scrollbar-track {
+			border-radius: 0px;
+			background-color: transparent;
+		}
+
+		&::-webkit-scrollbar-thumb {
+			border-radius: 1rem;
+			background-color: var(--1-light);
+			&:active {
+				background-color: var(--1);
+			}
+		}
 	}
 	.amigues {
 		border-top-left-radius: 999em;
