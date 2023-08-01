@@ -15,7 +15,6 @@
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
-
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
 	 * @param {any} params
@@ -178,11 +177,20 @@
 				animate:betterflip={{ duration: 0 }}
 				in:scale={{ duration: 500 /*@ts-ignore*/ }}
 			>
-				<TagGroup
-					{group}
-				/>
+				<TagGroup {group} />
 			</div>
 		{/each}
+		{#if $filteredTags.length > 0}
+			<div class="tag-group-container">
+				<button
+					on:click={() => {
+						$filteredTags = [];
+						$page.url.searchParams.delete('tags');
+						window.history.replaceState('', '', $page.url);
+					}}>Despejar filtros</button
+				>
+			</div>
+		{/if}
 	</div>
 </div>
 

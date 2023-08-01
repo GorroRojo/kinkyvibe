@@ -127,12 +127,12 @@
 	]);
 </script>
 
-{#if tagFilteredPosts.length > 0}
-	<div class="container">
-		<div class="postlist">
-			<div id="filterbar">
-				<FilterBar />
-			</div>
+{#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
+<div class="container">
+	<div class="postlist">
+		<div id="filterbar">
+			<FilterBar />
+		</div>
 
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
