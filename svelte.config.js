@@ -28,8 +28,8 @@ const config = {
 				ellipses: true,
 				dashes: 'oldschool'
 			},
-			remarkPlugins: [remarkGfm],
-			rehypePlugins: [rehypeSlug, rehypeAutolinkHeadings, toc, customRehype],
+			// remarkPlugins: [remarkGfm],
+			rehypePlugins: [rehypeSlug, customRehype, toc],
 			layout: './src/lib/mdsvex/layout.svelte'
 		})
 	]

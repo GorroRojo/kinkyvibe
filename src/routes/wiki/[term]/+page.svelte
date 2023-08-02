@@ -23,7 +23,7 @@
 	/** @type {import('svelte/action').Action} */
 	function process(node) {
 		[...node.children].forEach((n, i) => {
-            addWikiLinks(n);
+            // addWikiLinks(n);
 		});
 		return {
 			destroy() {}

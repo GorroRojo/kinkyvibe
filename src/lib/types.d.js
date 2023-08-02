@@ -25,7 +25,7 @@
  * @prop {string} title
  * @prop {string} summary
  * @prop {string[]} tags
- * @prop {'material'|'calendario'|'amigues'} category
+ * @prop {'material'|'calendario'|'amigues'|'wiki'} category
  * @prop {'material'|'calendario'|'amigues'} layout
  * @prop {string[]} authors
  * @prop {number | string} [featured]
