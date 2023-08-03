@@ -82,6 +82,8 @@ article address {
 article.wiki {
 	h1 {
 		text-align: left;
+		max-width: calc(var(--step-0) * 40);
+		margin-bottom: 0;
 	}
 }
 
@@ -89,7 +91,7 @@ article.wiki {
 	width: 100%;
 	position: relative;
 	margin-inline: auto;
-	margin-top: 3em;
+	margin-top: 2em;
 	overflow-x: visible;
 	padding-inline: 5px;
 
@@ -121,7 +123,8 @@ article.wiki {
 	h4 {
 		font-size: var(--step-1);
 	}
-	h5,h6 {
+	h5,
+	h6 {
 		font-size: var(--step-0);
 	}
 	h6 {
@@ -216,6 +219,25 @@ article.wiki {
 		margin-top: 0;
 		padding-top: 1em;
 	}
+	dl {
+		div {
+			dt {
+				font-weight: bold;
+			}
+			dd {position:relative;}
+			dd::before {
+				position: absolute;
+				left: -1.2em;
+				top: -.2em;
+				content: '┗ ';
+				color: var(--1);
+				opacity: .5;
+			}
+			& + div {
+				margin-top: 1em;
+			}
+		}
+	}
 	.toc {
 		display: none;
 		background: color-mix(in srgb, var(--1-light) 10%, transparent);
@@ -280,6 +302,7 @@ article.wiki {
 		margin-inline: 0;
 	}
 }
-a, button {
+a,
+button {
 	cursor: pointer;
 }

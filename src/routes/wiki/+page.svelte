@@ -28,7 +28,7 @@
 	currentPostData.set({ category:'wiki', path: $page.url.pathname });
 </script>
 
-<article>
+<article class="content">
 	<h1>Wiki-Kinky</h1>
 	<dl>
 		{#each data.glosario.terminos as termino}
