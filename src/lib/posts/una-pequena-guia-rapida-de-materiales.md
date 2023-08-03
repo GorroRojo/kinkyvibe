@@ -151,7 +151,7 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
     .card {
         width: 7em;
         height: 5em;
-        font-size: 1.2em;
+        font-size: var(--step-0);
         background: white;
         border-radius: 1em;
         display: inline-grid;
