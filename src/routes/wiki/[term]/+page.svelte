@@ -9,21 +9,23 @@
 	import { onMount } from 'svelte';
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
 
-
-    /**@type {(n: Element)=>void}*/
-    function addWikiLinks (n) {
+	/**@type {(n: Element)=>void}*/
+	function addWikiLinks(n) {
 		const regex = /\[\[([^\]]*)\]\]/g;
 		n.innerHTML = n.innerHTML
 			.split(regex)
 			.map((piece, index) =>
-				index % 2 == 0 ? piece : '<a href="/wiki/' +piece.replaceAll(' ','-')+ '">' + piece + '</a>'
-			).join('');
-    }
+				index % 2 == 0
+					? piece
+					: '<a href="/wiki/' + piece.replaceAll(' ', '-') + '">' + piece + '</a>'
+			)
+			.join('');
+	}
 
 	/** @type {import('svelte/action').Action} */
 	function process(node) {
 		[...node.children].forEach((n, i) => {
-            // addWikiLinks(n);
+			// addWikiLinks(n);
 		});
 		return {
 			destroy() {}
@@ -61,8 +63,8 @@
 </svelte:head>
 
 <article class="wiki" id="title">
-	<h1>{data.title}</h1>
 	{#if !data.error}
+		<h1>{data.title}</h1>
 		{#if data.summary}
 			<div class="content">
 				<p>
@@ -70,22 +72,27 @@
 				</p>
 			</div>
 		{/if}
-		<div class="content" use:process>
+		<div class="content">
 			<svelte:component this={data.content} />
 		</div>
+	{:else if data.content.includes('Unknown variable dynamic import')}
+		<h1>Esta wiki todavía no existe!</h1>
+		<div class="content">
+			<p>Podés comunicarte con <a href="/Gorro_Rojo">@Gorro_Rojo</a> para pedir que se agregue :D</p>
+		</div>
 	{:else}
+		<h1>{data.title}</h1>
 		<div class="content">
 			{data.content}
 		</div>
 	{/if}
 </article>
-<hr />
 
-<h2>
-	Materiales, amigues y eventos relevantes
-</h2>
-
-<PostList posts={data.posts}/>
+{#if !data.error}
+	<hr />
+	<h2>Materiales, amigues y eventos relevantes</h2>
+	<PostList posts={data.posts} />
+{/if}
 
 <style>
 	h2 {
