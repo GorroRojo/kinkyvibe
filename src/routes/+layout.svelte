@@ -58,7 +58,7 @@
 	<title>KinkyVibe.ar</title>
 </svelte:head>
 <div class="wip">
-	Este sitió esta en plena construcción. Reportar problemas a <a href="t.me/Gorro_Rojo"
+	Este sitió esta en plena construcción. Reportar problemas a <a href="https://t.me/Gorro_Rojo"
 		>@Gorro_Rojo</a
 	>
 	por Telegram. O directamente en
@@ -102,7 +102,7 @@
 				name: 'Tienda',
 				sub: 'Juguetes e Implementos',
 				href: 'https://tienda.kinkyvibe.ar',
-				target: "_blank"
+				target: '_blank'
 			},
 			{ icon: Sparkles, name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
 		]}
