@@ -182,10 +182,11 @@ export default function customRehype() {
 			],
 			[
 				// eslint-disable-next-line no-useless-escape
-				/(?<![\w\d])@(\S+)/g,
-				(_, user, { index, stack }) => {
+				/(?<![\w\d])(\\?)@(\S+)/g,
+				(_, escape, user) => {
 					// const parent = stack[stack.length - 2];
 					// parent.children[index].value = parent.children[index].value + space;
+					if (escape) return '@' + user;
 					return h('a.mention', { href: '/' + user }, '@' + user);
 				}
 			]
