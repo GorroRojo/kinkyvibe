@@ -147,25 +147,8 @@ export default function customRehype() {
 					const next = parent.children[index + 2 + foundInParent * 2];
 					const lastCharOfPreviousNode = previous?.value?.slice(-1) ?? '';
 					const firstCharOfNextNode = next?.value[0] ?? '';
-					console.log('-----------------------------------------');
-					console.log('---------------  MATCH  -----------------');
-					console.log({
-						foundInParent,
-						original,
-						previous: previous.value,
-						next: next.value,
-						lastCharOfPreviousNode,
-						firstCharOfNextNode
-					});
 					if (lastCharOfPreviousNode == '[' && firstCharOfNextNode == ']') {
-						console.log('-----------------------------------------');
-						console.log('-------------  GOOD CHARS  --------------');
-						console.log(previous.value);
-						console.log({ original, lit, link });
-						console.log(next.value);
-
 						foundInParent++;
-
 						previous.value = previous.value.slice(0, -1);
 						next.value = next.value.slice(1);
 						return h(
