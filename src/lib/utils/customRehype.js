@@ -1,4 +1,4 @@
-import { CONTINUE, SKIP, visit } from 'unist-util-visit';
+import { SKIP, visit } from 'unist-util-visit';
 import { headingRank } from 'hast-util-heading-rank';
 import { hasProperty } from 'hast-util-has-property';
 import { findAndReplace } from 'hast-util-find-and-replace';
@@ -83,7 +83,8 @@ const linkIcon = {
  */
 export default function customRehype() {
 	return (tree) => {
-		visit(tree, 'element', (node, index, parent) => {
+		// eslint-disable-next-line no-unused-vars
+		visit(tree, 'element', (node, _index, _parent) => {
 			if (headingRank(node) && hasProperty(node, 'id')) {
 				node.children.unshift({
 					type: 'element',
@@ -128,12 +129,65 @@ export default function customRehype() {
 		// 	// // @ts-expect-error
 		// 	// parent.children.splice(index, 1, insert);
 		// });
+		let foundInParent = 0;
+		/**
+		 * @type {any}
+		 */
+		let prevParent;
 		findAndReplace(tree, [
 			[
-				/\[([^\]]*?)( : [^\]]*)?\]/g,
-				// @ts-expect-error
-				(_, lit, link) =>
-					h('a', { href: '/wiki/' + (link ? link.slice(3) : lit).trim().replaceAll(' ', '-') }, lit)
+				/\[([^\]:]+)( : [^\]]+)?\]/g,
+				(original, link, lit, { index, stack }) => {
+					const parent = stack[stack.length - 2];
+					if (prevParent !== parent) {
+						foundInParent = 0;
+						prevParent = parent;
+					}
+					const previous = parent.children[index + foundInParent * 2];
+					const next = parent.children[index + 2 + foundInParent * 2];
+					const lastCharOfPreviousNode = previous?.value?.slice(-1) ?? '';
+					const firstCharOfNextNode = next?.value[0] ?? '';
+					console.log('-----------------------------------------');
+					console.log('---------------  MATCH  -----------------');
+					console.log({
+						foundInParent,
+						original,
+						previous: previous.value,
+						next: next.value,
+						lastCharOfPreviousNode,
+						firstCharOfNextNode
+					});
+					if (lastCharOfPreviousNode == '[' && firstCharOfNextNode == ']') {
+						console.log('-----------------------------------------');
+						console.log('-------------  GOOD CHARS  --------------');
+						console.log(previous.value);
+						console.log({ original, lit, link });
+						console.log(next.value);
+
+						foundInParent++;
+
+						previous.value = previous.value.slice(0, -1);
+						next.value = next.value.slice(1);
+						return h(
+							'a.wikilink',
+							{
+								href: '/wiki/' + link.trim().replaceAll(' ', '-')
+							},
+							lit ? lit.slice(3) : link
+						);
+					} else {
+						return original;
+					}
+				}
+			],
+			[
+				// eslint-disable-next-line no-useless-escape
+				/(?<![\w\d])@(\S+)/g,
+				(_, user, { index, stack }) => {
+					// const parent = stack[stack.length - 2];
+					// parent.children[index].value = parent.children[index].value + space;
+					return h('a.mention', { href: '/' + user }, '@' + user);
+				}
 			]
 		]);
 		// /**@type Node*/ h('a', { href: '/wiki/' + value.replaceAll(' ', '-'), children: value })

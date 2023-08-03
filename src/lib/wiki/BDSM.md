@@ -28,14 +28,14 @@ authors:
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Podríamos hablar de [[bondage]]
+
 
 ## Siglas
 
 Las siglas de BDSM refieren a:
 
 - B y D de [[bondage]] y [[disciplina]]
-- D y S de que refieren a dominación y sumisión en un [[intercambio de poder]]
+- D y S de que refieren a [[dominacion : dominación]] y [[sumision : sumisión]] en un [[intercambio de poder]]
 - S y M de [[sadomasoquismo]]
 
 ## Historia
