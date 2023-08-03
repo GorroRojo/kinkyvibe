@@ -66,7 +66,7 @@ Es una actividad **a la gorra**. Sugerimos un mínimo de $1.000, pero es complet
 
 El espacio va a estar coordinado por [Mel](/DemonWeb) [(él)](https://mis.pronombr.es/son/él&elle)
 
-*flyer: [Pau](/TallarinesConTuco) [@tallarinescontuco](https://instagram.com/tallarinescontuco)*
+*flyer: [Pau](/TallarinesConTuco) [\@tallarinescontuco](https://instagram.com/tallarinescontuco)*
 
 <style>
     a {

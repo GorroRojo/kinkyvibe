@@ -43,7 +43,7 @@ Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, en
 
 **En esta edición, vamos a contar con los inigualables cortos de EROTIDA, LO PUEDEN CREER? O SEAAA**
 
-A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.
+A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [\@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.
 
 Las entradas pueden conseguirlas ya mismo en Pre-Venta entrando al link en nuestro perfil.
 
@@ -53,8 +53,8 @@ O $2.000 ese día en puerta.
 Les dejamos el cronograma para que se vayan preparando:
 
 - 20:30 horas. Comienza el evento. Va a estar ya la feria disponible.
-- 21:00 horas. Entrevista a Assia (ella), Domina fantasiosa [@foxyassiaok](https://instagram.com/foxyassiaok)
-- 22:30 horas. Sesión en vivo a manos de [@sogashibari](/soguita)
+- 21:00 horas. Entrevista a Assia (ella), Domina fantasiosa [\@foxyassiaok](https://instagram.com/foxyassiaok)
+- 22:30 horas. Sesión en vivo a manos de [\@sogashibari](/soguita)
 - 23:00 horas. Proyección de cortos de Porno y Posporno
 - 00:30 horas. Charla-Debate
 - 01:00 horas. Cierre con DJ

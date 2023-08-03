@@ -96,13 +96,13 @@ Dictado por **Mel**
 
 _Monitorean_
 
-- [@eze_lh](https://instagram.com/eze_lh)
-- [@mareupia](https://instagram.com/mareupia)
-- [@cero.rigger](https://instagram.com/cero.rigger)
-  <!-- - [@gorro_rojo](https://instagram.com/gorro_rojo) -->
-  <!-- - [@gnosis.king](https://instagram.com/gnosis.king) -->
-- [@silvina.chivy](https://instagram.com/silvina.chivy)
-- [@callianix](https://instagram.com/callianix)
+- [\@eze_lh](https://instagram.com/eze_lh)
+- [\@mareupia](https://instagram.com/mareupia)
+- [\@cero.rigger](https://instagram.com/cero.rigger)
+  <!-- - [\@gorro_rojo](https://instagram.com/gorro_rojo) -->
+  <!-- - [\@gnosis.king](https://instagram.com/gnosis.king) -->
+- [\@silvina.chivy](https://instagram.com/silvina.chivy)
+- [\@callianix](https://instagram.com/callianix)
 
 🔥 _¿Quiénes vienen?_ 🔥
 
@@ -116,9 +116,6 @@ _Monitorean_
       padding: 1em;
       font-weight: bold;
       font-size: var(--step-1);
-    }
-    li {
-        list-style-type: '👉 ';
     }
     a {
       color: #222;
