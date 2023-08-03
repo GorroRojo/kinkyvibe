@@ -7,7 +7,8 @@
 		CalendarRange,
 		ShoppingCart,
 		Rss,
-		Layers
+		Layers,
+		Globe
 	} from 'lucide-svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
@@ -25,6 +26,7 @@
 				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
 				<li><a href="/todo"><Layers {style} />Todo</a></li>
+				<li><a href="/wiki"><Globe {style} />Wiki</a></li>
 			</ul>
 		</li>
 		<li>
