@@ -2,9 +2,9 @@ import adapter from '@sveltejs/adapter-cloudflare';
 import sveltePreprocess from 'svelte-preprocess';
 import { mdsvex } from 'mdsvex';
 import rehypeSlug from 'rehype-slug';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+// import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import autoprefixer from 'autoprefixer';
-import remarkGfm from 'remark-gfm';
+// import remarkGfm from 'remark-gfm';
 import toc from '@jsdevtools/rehype-toc';
 import customRehype from './src/lib/utils/customRehype.js';
 
