@@ -7,7 +7,8 @@
 		Sparkles,
 		CalendarRange,
 		ShoppingCart,
-		ChevronLeft
+		ChevronLeft,
+		Globe
 	} from 'lucide-svelte';
 	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
@@ -25,7 +26,6 @@
 	} from '$lib/utils/stores';
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import { page } from '$app/stores';
-	import { navigating } from '$app/stores';
 	export let data;
 	// onMount(() => {
 	tagsConfig.set(data.tagsConfig);
@@ -89,7 +89,7 @@
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="quien">
-			<a href="/nosotres">Nosotres <ArrowRight size="18" /></a>
+			<a href="/nosotres">Nuestros servicios <ArrowRight size="18" /></a>
 		</div>
 	</div>
 	<Navbar
@@ -104,7 +104,7 @@
 				href: 'https://tienda.kinkyvibe.ar',
 				target: '_blank'
 			},
-			{ icon: Sparkles, name: 'Servicios', sub: 'Asesorías y Clases', href: '/servicios' }
+			{ icon: Globe, name: 'Kinkipedia', sub: 'Enciclopedia Fetichista', href: '/wiki' }
 		]}
 	/>
 </header>
@@ -119,15 +119,17 @@
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
 			<ChevronLeft size="20" style="translate: 0 .4em" />
-			{#if data.currentRoute.startsWith('/wiki')}
-				<a href="/material">Material</a>
-				{#if data.currentRoute.includes('wiki/')}
-					<ChevronLeft size="20" style="translate: 0 .4em" />
-					<a href="/wiki">wiki</a>
-				{/if}
-			{:else}
-				<a href={$currentPostData.category}>{$currentPostData.category}</a>
-			{/if}
+			<!-- {#if data.currentRoute.startsWith('/wiki')} -->
+			<!-- <a href="/material">Kinkipedia</a> -->
+			<!-- {#if data.currentRoute.includes('wiki/')} -->
+			<!-- <ChevronLeft size="20" style="translate: 0 .4em" /> -->
+			<!-- <a href="/wiki">wiki</a> -->
+			<!-- {/if} -->
+			<!-- {:else} -->
+			<a href={'/' + $currentPostData.category}
+				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
+			>
+			<!-- {/if} -->
 		{/if}
 	</div>
 {/if}
