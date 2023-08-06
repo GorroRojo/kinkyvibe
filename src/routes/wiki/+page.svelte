@@ -21,7 +21,6 @@
 
 <article class="content">
 	<h1>Kinkipedia</h1>
-	<p>Esta sección está en construcción. El contenido aún no está escrito, si no que está de prueba mientras construyo el sistema para navegarlo. Disculpá maestro</p>
 	<dl>
 		<GlosarioTree entries={data.entries} groups={$tagsConfig.groups} />
 	</dl>
@@ -62,9 +61,6 @@
 		font-size: var(--step-1);
 		h1 {
 			text-align: left;
-		}
-		dl > div {
-			margin-bottom: 0.3em;
 		}
 	}
 </style>

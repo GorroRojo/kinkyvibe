@@ -13,12 +13,17 @@ terminos:
       Palabra que encapsula a las [[prácticas]] de restricción física.
   - name: disciplina
   - name: dominación
+  - name: shibari
+  - name: sadomasoquismo
   - name: sumisión
   - name: sadismo
   - name: masoquismo
   - name: bottom
     description: |
       Comúnmente, la persona que "recibe" una [[práctica]]. 
+  - name: edad
+    description: |
+      Un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad.
   - name: top
     description: |
       Comúnmente, la persona que "da" una [[práctica]].  
@@ -32,8 +37,6 @@ terminos:
     description: |
       Un acuerdo entre varias partes, comunmente alguna [[dominante]] y alguna [[sumisa]], donde la parte [[sumisa]] le entrega poder sobre aspectos de sí misma a la [[dominante]].
   - name: prácticas
-    description: |
-      Ejemplos: [[bondage]], juegos de [[impacto]], [[electro]] play, juegos con [[cuchillos]], etc...
 ---
 
 Hola! 👋

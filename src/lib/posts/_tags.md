@@ -55,11 +55,15 @@ groups:
     members:
       - seguridad
       - negociación
-      - sadomasoquismo
       - dinámicas
+      - disciplina
       - shibari
     color: "#ff4444"
     sub:
+      - name: sadomasoquismo
+        members: 
+        - sadismo
+        - masoquismo   
       - name: prácticas
         members:
           - cuchillos

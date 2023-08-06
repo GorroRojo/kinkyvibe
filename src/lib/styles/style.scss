@@ -224,8 +224,20 @@ article.wiki {
 			dt {
 				font-weight: bold;
 			}
-			dd {position:relative;}
+			dd {
+				position:relative;
+					border-left: 1px solid color-mix(in srgb, var(--1) 30%, transparent);
+					padding-left: .7em;
+					translate: -.7em;
+					dl {
+					margin-top: 0;
+				}
+				span + dl {
+					margin-top: .4em;
+				}
+			}
 			dd::before {
+				translate: .7em;
 				position: absolute;
 				left: -1.2em;
 				top: -.2em;
@@ -233,9 +245,10 @@ article.wiki {
 				color: var(--1);
 				opacity: .5;
 			}
-			& + div {
-				margin-top: 1em;
+			&:has(dd) + div {
+				margin-top: .2em;
 			}
+			
 		}
 	}
 	.toc {

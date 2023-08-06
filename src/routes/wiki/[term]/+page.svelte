@@ -125,10 +125,6 @@
 	<meta property="article:tag" content={data.tags?.join(', ')} />
 </svelte:head>
 
-<p>
-	Esta sección está en construcción. El contenido aún no está escrito, si no que está de prueba
-	mientras construyo el sistema para navegarlo. Disculpá maestro
-</p>
 <article class="wiki" id="title">
 	<h1>{data.title == 'Error' ? guessedTitle : data.title}</h1>
 	<div class="lineage">

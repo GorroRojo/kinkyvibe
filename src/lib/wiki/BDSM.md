@@ -4,20 +4,8 @@
 title: BDSM
 wiki: BDSM # para si es una entry de la wiki #
 summary: Una demostración de todas las cosas que puede tener una publicación
-tags:
-  - español # español | inglés #
-  - gratis # gratis | pago #
-  - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - gratis # gratis | pago #
-#  - descargable # descargable | link #
-  - KinkyVibe # etiqueta especial #
-  - BDSM
 layout: wiki
 category: wiki
-authors:
-  - DemonWeb
-  - TallarinesConTuco
-  - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
