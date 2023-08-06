@@ -25,14 +25,22 @@ export const togglePositiveTagFilterFn = writable((a, b) => '');
 export const tagsConfig = writable();
 
 /** @type import('svelte/store').Writable<{display_type: 'list'|'grid'}> */
-export const userConfig = writable({display_type: 'list'});
+export const userConfig = writable({ display_type: 'list' });
+
+/** @type import('svelte/store').Writable<{terminos:{name:string,description:string,related?:string[]}[]}> */
+export const glosario = writable({terminos:[]});
 
 if (browser) {
-    try {
-        userConfig.set(JSON.parse(localStorage.getItem('kinkyconfig') ?? '[object Object]' /** forcing an error without breaking typing */));
-    } catch {
-        // 
-    } finally {
-        userConfig.subscribe((v) => localStorage.setItem('kinkyconfig', JSON.stringify(v)));
-    }
+	try {
+		userConfig.set(
+			JSON.parse(
+				localStorage.getItem('kinkyconfig') ??
+					'[object Object]' /** forcing an error without breaking typing */
+			)
+		);
+	} catch {
+		//
+	} finally {
+		userConfig.subscribe((v) => localStorage.setItem('kinkyconfig', JSON.stringify(v)));
+	}
 }

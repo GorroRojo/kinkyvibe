@@ -78,7 +78,9 @@
 	{:else if data.content.includes('Unknown variable dynamic import')}
 		<h1>Esta wiki todavía no existe!</h1>
 		<div class="content">
-			<p>Podés comunicarte con <a href="/Gorro_Rojo">@Gorro_Rojo</a> para pedir que se agregue :D</p>
+			<p>
+				Podés comunicarte con <a href="/Gorro_Rojo">@Gorro_Rojo</a> para pedir que se agregue :D
+			</p>
 		</div>
 	{:else}
 		<h1>{data.title}</h1>

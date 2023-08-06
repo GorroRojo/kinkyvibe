@@ -6,8 +6,8 @@ wiki: bondage # para si es una entry de la wiki #
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
   - BDSM
-layout: material
-category: material
+layout: wiki
+category: wiki
 authors:
   - DemonWeb
 #featured: 1

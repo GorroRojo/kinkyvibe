@@ -1,9 +1,12 @@
 <script>
-	import { tagsConfig, currentPostData } from '$lib/utils/stores';
+	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
+	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
+
+	$: glosario.set(data.glosario);
 
 	/**@type {(description:string)=>*}*/
 	function parseDescription(description) {
@@ -12,31 +15,40 @@
 		return lines.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }));
 	}
 
-	/** @type {(termino:string, groups?: Group[])=>Group|undefined}*/
-	function getGroup(termino, groups = $tagsConfig.groups) {
+	/** @type {(termino:string, groups?: Group[], level?: number)=>Group&{level:number}|undefined}*/
+	function getGroup(termino, groups = $tagsConfig.groups, level = 0) {
 		for (let group of groups) {
 			if (group.name == termino) {
-				return group;
+				return { ...group, level };
 			} else {
+				if (group.members && group.members.includes(termino)) {
+					return { ...group, level: level + 1 };
+				}
 				if (group.sub) {
-					const sub = getGroup(termino, group.sub);
+					const sub = getGroup(termino, group.sub, level + 1);
 					if (sub) return sub;
 				}
 			}
 		}
 	}
-	currentPostData.set({ category:'wiki', path: $page.url.pathname });
+	// currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 </script>
 
 <article class="content">
-	<h1>Wiki-Kinky</h1>
+	<h1>Kinkipedia</h1>
+	<dl>
+		<GlosarioTree entries={data.entries} groups={$tagsConfig.groups} />
+	</dl>
+
+	<!--
 	<dl>
 		{#each data.glosario.terminos as termino}
 			{@const description = termino.description ? parseDescription(termino.description) : ''}
 			{@const entry = data.entries.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'))}
-			<div>
+			<div class={'indent-' + 0}>
 				<dt>
 					{#if entry && entry.meta && entry.meta.wiki}
+						{getGroup(entry?.meta?.wiki)?.level}
 						<a href="/wiki/{entry.meta.wiki}">{entry.meta.title}</a>
 					{:else}
 						{termino.name}
@@ -54,7 +66,7 @@
 				</dd>
 			</div>
 		{/each}
-	</dl>
+	</dl> -->
 </article>
 
 <style lang="scss">

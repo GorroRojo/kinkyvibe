@@ -12,8 +12,8 @@ tags:
 #  - descargable # descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
-layout: material
-category: material
+layout: wiki
+category: wiki
 authors:
   - DemonWeb
   - TallarinesConTuco
