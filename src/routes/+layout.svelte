@@ -176,6 +176,7 @@
 	}
 	#me {
 		display: grid;
+		grid-template-areas: 'redes logo quien';
 		grid-template-columns: 1fr 0.3fr 1fr;
 		/* height: 10em; */
 		justify-content: center;
@@ -185,7 +186,12 @@
 		margin-inline: auto;
 		margin-top: 0.5em;
 	}
+	#me > * {
+		/* min-width: 0; */
+		max-width: 100%;
+	}
 	#redes {
+		grid-area: redes;
 		list-style: none;
 		padding: 0;
 		/* padding-right: 1em; */
@@ -206,13 +212,19 @@
 		min-width: 2em;
 	}
 	#quien {
+		grid-area: quien;
 		justify-self: left;
 		font-size: 0.9em;
+		display: flex;
+		gap: 0.5em;
+		align-items: center;
+		text-align: center;
+		/* color royalblue */
 	}
 	#quien a,
 	#redes a {
 		--size: 1.5em;
-		height: var(--size);
+		/* height: var(--size); */
 		font-size: 1.2em;
 		/* translate: 0 0.1em; */
 	}
@@ -253,7 +265,7 @@
 		border-radius: 3em;
 		/* background: linear-gradient(125.13deg, #ff009f 6%, #4529ab 100%); */
 		background: var(--2);
-		max-width: 10em;
+		max-width: 11em;
 	}
 
 	#me li a {
@@ -261,5 +273,41 @@
 		color: hotpink;
 		background: transparent;
 		border-radius: 3em;
+	}
+	#logo {
+		grid-area: logo;
+	}
+
+	@media (max-width: 680px) {
+		#me {
+			grid-template-areas: 'logo quien redes';
+			grid-template-columns: 0.3fr auto 1fr;
+			justify-content: center;
+			justify-items: center;
+			padding-inline: 1em;
+		}
+		#redes {
+			justify-self: unset;
+			justify-content: center;
+		}
+		#quien {
+			justify-self: unset;
+		}
+	}
+	@media (max-width: 480px) {
+		#me {
+			grid-template-areas: 'logo quien';
+			grid-template-columns: .3fr auto;
+			flex-wrap: wrap;
+			max-width: 100%;
+		}
+		#redes {
+			display: none;
+		}
+	}
+	@media (max-width: 200px) {
+		#me {
+			grid-template-areas: 'logo' 'quien';
+		}
 	}
 </style>

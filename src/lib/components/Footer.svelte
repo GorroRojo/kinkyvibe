@@ -76,7 +76,7 @@
 
 <style>
 	:global(body) {
-		padding-bottom: 40rem;
+		/* padding-bottom: 40rem; */
 	}
 	footer {
 		margin: 0;
@@ -85,11 +85,12 @@
 		background: indigo;
 		color: white;
 		border-radius: 2em 2em 0 0;
-		position: absolute;
+		/* position: absolute; */
 		bottom: 0;
 		left: 0;
 		right: 0;
 		box-sizing: border-box;
+		font-size: var(--step--1);
 		/* transition: 1000ms; */
 	}
 	a {
@@ -110,6 +111,7 @@
 		list-style: none;
 		justify-content: space-around;
 		padding: 0;
+		flex-wrap: wrap;
 		gap: 4px;
 	}
 	li > ul {
@@ -119,6 +121,9 @@
 	@media screen and (max-width: 680px) {
 		footer {
 			bottom: 6rem;
+		}
+		:global(body) {
+			padding-bottom: 6rem;
 		}
 	}
 </style>
