@@ -67,7 +67,7 @@
 					<a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} />TikTok</a>
 				</li>
 				<li>
-					<a href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>
+					<a data-sveltekit-reload href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>
 				</li>
 			</ul>
 		</li>
