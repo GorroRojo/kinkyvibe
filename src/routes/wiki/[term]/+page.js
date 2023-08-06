@@ -11,56 +11,67 @@ export const prerender = 'auto';
 export async function load({ params }) {
 	/** @type {{metadata: AnyPostData, default: *}} */
 	let post;
+	const tagsConfig = await fetchTags();
+	/**@type {(tag:string)=>string[]}*/
+	function getParents(tag) {
+		/**@type {string[]}*/
+		let parents = [];
+		tagsConfig.groups.forEach((/** @type {Group} */ g) => {
+			parents = [...parents, ...findTagAndReturnParents(tag, g)];
+		});
+		return parents;
+	}
 	try {
 		post = await import(`../../../lib/wiki/${params.term}.md`);
-	} catch (e) {
-		return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
-	}
-	const content = post.default;
-
-	if (post.metadata.category == 'material' && post.metadata.link && post.metadata.redirect) {
-		throw redirect(308, post.metadata.link);
-	}
-	try {
-		const authorsData = (
-			await Promise.all(
-				post.metadata.authors.map(async (/** @type {any} */ author) => {
-					let authorpost;
-					try {
-						if (author == "KinkyVibe") author = "nosotres";
-						authorpost = await import(`../../lib/posts/${author.replaceAll(' ', '-')}.md`);
-					} catch (e) {
-						authorpost = false;
-					}
-					return [author.replaceAll(' ', '-'), authorpost];
-				})
-			)
-		)
-			// eslint-disable-next-line no-unused-vars
-			.filter(([_, data]) => data)
-			.map(([author, authorpost]) => {
-				return {
-					...authorpost.metadata,
-					logo: thumbURL(author, authorpost.metadata.logo ?? authorpost.metadata.photo),
-					tags: authorpost.metadata.tags,
-					path: author
-				};
-			});
-			
-			const tagsConfig = await fetchTags();
-			const alias = aliaserFactory(tagsConfig);
-			const { meta } = await processMetadata({ path: params.term, meta: post.metadata }, alias, tagsConfig);
-			let posts;
-			posts = (await fetchMarkdownPosts()).filter((p) =>
-				meta.wiki && p.meta.tags.includes(meta.wiki)
-			);
+		const content = post.default;
+		const alias = aliaserFactory(tagsConfig);
+		const { meta } = await processMetadata(
+			{ path: params.term, meta: post.metadata },
+			alias,
+			tagsConfig
+		);
+		let posts = (await fetchMarkdownPosts()).filter(
+			(p) => meta.wiki && p.meta.tags.includes(meta.wiki)
+		);
 		return {
 			content,
 			...meta,
-			authorsData,
 			posts
 		};
 	} catch (e) {
+		// return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
+	}
+	try {
+		let posts = (await fetchMarkdownPosts()).filter(
+			(p) =>
+				p.meta.tags.includes(params.term) ||
+				p.meta.tags.some((/**@type {string}*/ t) => getParents(t)?.includes(params.term))
+		);
+		return {
+			title: params.term.replaceAll('-', ' '),
+			posts,
+			error: true
+		}
+		
+	} catch (e) {
 		return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
 	}
+}
+
+/**
+ * Finds a specific tag within a group and returns its parents.
+ * @param {string} tag - The tag to search for.
+ * @param {Group} group - The group object to search within.
+ * @param {string[]} [parents=[]] - An array of parent names (optional, defaults to an empty array).
+ * @returns {string[]} - An array containing the names of the parents of the tag.
+ */
+function findTagAndReturnParents(tag, group, parents = []) {
+	if (group.name == tag) return parents;
+	if (group.members.includes(tag)) return [...parents, group.name];
+	/**@type {string[]}*/
+	let deeper = [];
+	group.sub.forEach((sub) => {
+		deeper.push(...findTagAndReturnParents(tag, sub, [...parents, group.name]));
+	});
+	return deeper;
 }
