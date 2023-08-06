@@ -57,6 +57,7 @@ groups:
       - negociación
       - sadomasoquismo
       - dinámicas
+      - shibari
     color: "#ff4444"
     sub:
       - name: prácticas
@@ -64,9 +65,10 @@ groups:
           - cuchillos
           - electro
           - sensaciones
-          - bondage
-          - Shibari
         sub:
+          - name: bondage
+            members:
+            - shibari 
           - name: intercambio de poder
             members:
               - dominación
@@ -104,8 +106,6 @@ tags:
     aliasOf: KinkyVibe
   Kinkyvibe:
     aliasOf: KinkyVibe
-  BDSM:
-    color: red
   bdsm:
     aliasOf: BDSM
   guia:
