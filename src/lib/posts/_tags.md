@@ -56,12 +56,9 @@ groups:
       - seguridad
       - negociación
       - sadomasoquismo
+      - dinámicas
     color: "#ff4444"
     sub:
-      - name: intercambio de poder
-        members:
-          - dominación
-          - sumisión
       - name: prácticas
         members:
           - cuchillos
@@ -70,6 +67,10 @@ groups:
           - bondage
           - Shibari
         sub:
+          - name: intercambio de poder
+            members:
+              - dominación
+              - sumisión
           - name: impacto
             members:
               - caning
