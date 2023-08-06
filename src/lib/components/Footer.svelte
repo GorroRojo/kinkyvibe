@@ -26,7 +26,7 @@
 				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>
 				<li><a href="/todo"><Layers {style} />Todo</a></li>
-				<li><a href="/wiki"><Globe {style} />Wiki</a></li>
+				<li><a href="/wiki"><Globe {style} />Kinkipedia</a></li>
 			</ul>
 		</li>
 		<li>
