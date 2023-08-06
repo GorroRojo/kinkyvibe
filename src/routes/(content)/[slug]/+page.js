@@ -9,6 +9,7 @@ import { redirect } from '@sveltejs/kit';
 export const prerender = 'auto';
 /** @type {import("./$types").PageLoad} */
 export async function load({ params }) {
+	if (params.slug == 'kinkipedia') throw redirect(308, '/wiki');
 	/** @type {{metadata: AnyPostData, default: *}} */
 	let post;
 	try {
@@ -17,7 +18,6 @@ export async function load({ params }) {
 		return { content: e + '\nparams.slug: ' + params.slug, title: 'Error', date: '', error: true };
 	}
 	const content = post.default;
-
 	if (post.metadata.category == 'material' && post.metadata.link && post.metadata.redirect) {
 		throw redirect(308, post.metadata.link);
 	}
