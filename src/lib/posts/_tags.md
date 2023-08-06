@@ -69,6 +69,7 @@ groups:
           - cuchillos
           - electro
           - sensaciones
+          - edad
         sub:
           - name: bondage
             members:
