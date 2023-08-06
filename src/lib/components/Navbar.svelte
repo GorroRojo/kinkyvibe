@@ -11,7 +11,7 @@
 		{#each links as { icon, name, sub, href, target = undefined }}
 			<li
 				class:current={$page.url.pathname.includes(href) ||
-					($currentPostData.path == $page.url.pathname &&
+					($currentPostData && $currentPostData?.path == $page?.url?.pathname &&
 						$currentPostData?.category == href.slice(1))}
 			>
 				<a {href} {target} tabindex="0">
