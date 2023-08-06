@@ -15,27 +15,13 @@
 		return lines.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }));
 	}
 
-	/** @type {(termino:string, groups?: Group[], level?: number)=>Group&{level:number}|undefined}*/
-	function getGroup(termino, groups = $tagsConfig.groups, level = 0) {
-		for (let group of groups) {
-			if (group.name == termino) {
-				return { ...group, level };
-			} else {
-				if (group.members && group.members.includes(termino)) {
-					return { ...group, level: level + 1 };
-				}
-				if (group.sub) {
-					const sub = getGroup(termino, group.sub, level + 1);
-					if (sub) return sub;
-				}
-			}
-		}
-	}
+	
 	// currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 </script>
 
 <article class="content">
 	<h1>Kinkipedia</h1>
+	<p>Esta sección está en construcción. El contenido aún no está escrito, si no que está de prueba mientras construyo el sistema para navegarlo. Disculpá maestro</p>
 	<dl>
 		<GlosarioTree entries={data.entries} groups={$tagsConfig.groups} />
 	</dl>

@@ -7,30 +7,93 @@
 	import { page } from '$app/stores';
 	export let data;
 	import { onMount } from 'svelte';
-	currentPostData.set({ category: data.category, path: $page.url.pathname });
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
-	/**@type {(n: Element)=>void}*/
-	function addWikiLinks(n) {
-		const regex = /\[\[([^\]]*)\]\]/g;
-		n.innerHTML = n.innerHTML
-			.split(regex)
-			.map((piece, index) =>
-				index % 2 == 0
-					? piece
-					: '<a href="/wiki/' + piece.replaceAll(' ', '-') + '">' + piece + '</a>'
-			)
-			.join('');
+	/** @type {(termino:string, groups?: Group[], level?: number)=>Array<Group&{level?:number}>|undefined}*/
+	function getGroups(termino, groups = $tagsConfig.groups, level = 0) {
+		let matches = [];
+		for (let group of groups) {
+			if (group.name == termino) {
+				matches.push({ ...group, level });
+			} else {
+				if (group.members && group.members.includes(termino)) {
+					matches.push({ ...group, level: level + 1 });
+				}
+				if (group.sub) {
+					const sub = getGroups(termino, group.sub, level + 1);
+					if (sub) matches.push(...sub);
+				}
+			}
+		}
+		return matches;
 	}
 
-	/** @type {import('svelte/action').Action} */
-	function process(node) {
-		[...node.children].forEach((n, i) => {
-			// addWikiLinks(n);
-		});
-		return {
-			destroy() {}
-		};
+	/**@type {(termino:string, groups?: Group[], parents?: {name:string}[])=>{name:string}[][]}*/
+	function getAscendance(termino, groups = $tagsConfig.groups, parents = []) {
+		/**@type {{name:string}[][]}*/
+		let branches = [];
+		for (let group of groups) {
+			if (group.name == termino) {
+				branches.push(parents);
+			} else if (group.members && group.members.includes(termino)) {
+				branches.push([...parents, { name: group.name }]);
+			}
+
+			if (group.sub) {
+				branches = [
+					...branches,
+					...getAscendance(termino, group.sub, [...parents, { name: group.name }])
+				];
+			}
+		}
+		return branches;
 	}
+
+	/**@type {(termino:string, groups?: Group[], parents?: {name:string}[])=>{name:string}[][]}*/
+	function getDescendance(termino, groups = getGroups(termino), parents = []) {
+		/**@type {{name:string}[][]}*/
+		let branches = [];
+		let maxDepth = 1;
+		if (parents.length >= maxDepth) {
+			return branches;
+		}
+		if (groups) {
+			for (let group of groups) {
+				let localParents = [...parents];
+				if (group.name != termino) {
+					if (localParents.length == 0) {
+						return branches;
+					}
+					localParents.push({name: group.name})
+					if (localParents.length >= maxDepth) {
+						branches.push(localParents)
+						continue;
+					}
+				}
+				if (group.members) {
+					branches.push(
+						...group.members.map((name) => [...localParents, { name }]
+						)
+					);
+				}
+				if (group.sub) {
+					branches = [...branches, ...getDescendance(termino, group.sub, localParents)];
+				}
+			}
+		}
+		return branches;
+	}
+	const guessedTitle = decodeURI($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	const ascendance = getAscendance(data.wiki ?? guessedTitle ?? 'BDSM');
+	const descendance = getDescendance(data.wiki ?? guessedTitle ?? 'inglés');
+	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
+
+	const style = `
+	scale: .8;
+	translate: 0 .5em;
+	color: var(--1);
+	`;
 </script>
 
 <svelte:head>
@@ -62,9 +125,33 @@
 	<meta property="article:tag" content={data.tags?.join(', ')} />
 </svelte:head>
 
+<p>
+	Esta sección está en construcción. El contenido aún no está escrito, si no que está de prueba
+	mientras construyo el sistema para navegarlo. Disculpá maestro
+</p>
 <article class="wiki" id="title">
+	<h1>{data.title == 'Error' ? guessedTitle : data.title}</h1>
+	<div class="lineage">
+		<div class="ascendance">
+			{#each ascendance as line}
+				<div>
+					{#each line as { name }}
+						<a href={'/wiki/' + name}><ChevronLeft {style} />{name}</a>
+					{/each}
+				</div>
+			{/each}
+		</div>
+		<div class="descendance">
+			{#each descendance as line}
+				<div>
+					{#each line as { name }}
+						<a href={'/wiki/' + name}>{name}<ChevronRight {style} /></a>
+					{/each}
+				</div>
+			{/each}
+		</div>
+	</div>
 	{#if !data.error}
-		<h1>{data.title}</h1>
 		{#if data.summary}
 			<div class="content">
 				<p>
@@ -75,31 +162,49 @@
 		<div class="content">
 			<svelte:component this={data.content} />
 		</div>
-	{:else if data.content.includes('Unknown variable dynamic import')}
-		<h1>Esta wiki todavía no existe!</h1>
+	{:else}
 		<div class="content">
+			<h2>Esta wiki todavía no existe!</h2>
 			<p>
 				Podés comunicarte con <a href="/Gorro_Rojo">@Gorro_Rojo</a> para pedir que se agregue :D
 			</p>
 		</div>
-	{:else}
-		<h1>{data.title}</h1>
-		<div class="content">
-			{data.content}
-		</div>
 	{/if}
 </article>
 
-{#if !data.error}
-	<hr />
-	<h2>Materiales, amigues y eventos relevantes</h2>
-	<PostList posts={data.posts} />
-{/if}
+<hr />
+<h2>Materiales, amigues y eventos relevantes</h2>
+<PostList posts={data.posts} />
 
 <style>
 	h2 {
 		text-align: center;
 		width: 100%;
 		font-size: var(--step-3);
+	}
+
+	.lineage {
+		max-width: 45rem;
+		width: 100%;
+		margin-inline: auto;
+		display: flex;
+		justify-content: space-between;
+		margin-top: 1em;
+	}
+	.ascendance,
+	.descendance {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		flex-direction: column;
+	}
+	.descendance,
+	.descendance div {
+		/* justify-content: right; */
+	}
+	.ascendance div,
+	.descendance div {
+		display: flex;
+		gap: 0.5em;
 	}
 </style>
