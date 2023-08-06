@@ -280,7 +280,7 @@
 		grid-area: logo;
 	}
 
-	@media (max-width: 680px) {
+	/* @media (max-width: 580px) {
 		#me {
 			grid-template-areas: 'logo quien redes';
 			grid-template-columns: 0.3fr auto 1fr;
@@ -295,8 +295,8 @@
 		#quien {
 			justify-self: unset;
 		}
-	}
-	@media (max-width: 480px) {
+	} */
+	@media (max-width: 500px) {
 		#me {
 			grid-template-areas: 'logo quien';
 			grid-template-columns: .3fr auto;
@@ -307,9 +307,13 @@
 			display: none;
 		}
 	}
-	@media (max-width: 200px) {
+	@media (max-width: 330px) {
 		#me {
-			grid-template-areas: 'logo' 'quien';
+			grid-template-areas: 'logo';
+			grid-template-columns: 1fr;
+		}
+		#quien {
+			display:none;
 		}
 	}
 </style>

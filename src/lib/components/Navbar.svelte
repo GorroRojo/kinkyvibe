@@ -113,6 +113,7 @@
 			bottom: 0;
 			left: 0;
 			right: 0;
+			padding-inline:1em;
 			z-index: 1;
 			background: white;
 			font-size: 1em;
@@ -167,7 +168,7 @@
 			}
 		}
 	}
-	@media screen and (max-width: 480px) {
+	@media screen and (max-width: 340px) {
 		nav ul li a span {
 			color: transparent;
 		}
