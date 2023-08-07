@@ -1,7 +1,10 @@
 <script>
+	// @ts-nocheck
+
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import {Search} from 'lucide-svelte'
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -14,15 +17,52 @@
 		const lines = description.split(regex);
 		return lines.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }));
 	}
-
-	
+	let query = '';
 	// currentPostData.set({ category: 'wiki', path: $page.url.pathname });
+
+	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
+	function getGroups(termino, groups = $tagsConfig.groups) {
+		let matches = [];
+		for (let group of groups) {
+			if (group.name == termino) {
+				matches.push({ ...group });
+			} else {
+				if (group.members && group.members.includes(termino)) {
+					matches.push({ ...group });
+				}
+				if (group.sub) {
+					const sub = getGroups(termino, group.sub);
+					if (sub) matches.push(...sub);
+				}
+			}
+		}
+		return matches.filter((i) => i);
+	}
+	const style =  `
+	font-size: var(--step-1);
+	position:absolute;
+	left: .6em;
+	translate: 0 .5em;
+	color: var(--1);
+	z-index: 1;
+	`
 </script>
 
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<dl>
-		<GlosarioTree entries={data.entries} groups={$tagsConfig.groups} />
+		<div class="searchbox"><Search {style} /><input class="searchbox" type="search" bind:value={query} /></div>
+		{#if query == '' || !query}
+			<GlosarioTree entries={data.entries} items={$tagsConfig.groups} {query} />
+		{:else}
+			<GlosarioTree
+				entries={data.entries}
+				items={$glosario.terminos
+					.map((/** @type {{ name: string; }} */ t) => t.name)}
+				spare
+				{query}
+			/>
+		{/if}
 	</dl>
 
 	<!--
@@ -61,6 +101,28 @@
 		font-size: var(--step-1);
 		h1 {
 			text-align: left;
+		}
+	}
+	.searchbox {
+		width: 100%;
+		position: relative;
+		/* z-index: -1; */
+		/* pointer-events: none; */
+	}
+	.searchbox input {
+		position:relative;
+		width: 100%;
+		border-radius: 10em;
+		font-size: var(--step-1);
+		padding: 0.4em 0.8em;
+		padding-left: 2em;
+		margin-bottom: 1em;
+		border: 0;
+		outline: 1px solid var(--1-light);
+
+		transition: 100ms;
+		&:focus {
+			outline-width: 3px;
 		}
 	}
 </style>

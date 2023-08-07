@@ -29,52 +29,57 @@
 		return matches;
 	}
 
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string}[])=>{name:string}[][]}*/
+	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
 	function getAscendance(termino, groups = $tagsConfig.groups, parents = []) {
 		/**@type {{name:string}[][]}*/
 		let branches = [];
 		for (let group of groups) {
+			let haswiki = data.entries?.find((e) => e.meta.wiki == group.name);
 			if (group.name == termino) {
 				branches.push(parents);
 			} else if (group.members && group.members.includes(termino)) {
-				branches.push([...parents, { name: group.name }]);
+				branches.push([...parents, { name: group.name, disabled: !haswiki }]);
 			}
 
 			if (group.sub) {
 				branches = [
 					...branches,
-					...getAscendance(termino, group.sub, [...parents, { name: group.name }])
+					...getAscendance(termino, group.sub, [
+						...parents,
+						{ name: group.name, disabled: !haswiki }
+					])
 				];
 			}
 		}
 		return branches;
 	}
 
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string}[])=>{name:string}[][]}*/
+	/**@type {(termino:string, groups?: Group[], parents?: {name:string,disabled?:boolean}[])=>{name:string,disabled?:boolean}[][]}*/
 	function getDescendance(termino, groups = getGroups(termino), parents = []) {
-		/**@type {{name:string}[][]}*/
+		/**@type {{name:string, disabled?: boolean}[][]}*/
 		let branches = [];
-		let maxDepth = 1;
+		let maxDepth = 2;
 		if (parents.length >= maxDepth) {
 			return branches;
 		}
 		if (groups) {
+			let haswikifn = (/**@type string*/ n) => data.entries?.some((e) => e.meta.wiki == n);
 			for (let group of groups) {
 				let localParents = [...parents];
 				if (group.name != termino) {
-					if (localParents.length == 0) {
-						return branches;
-					}
-					localParents.push({name: group.name})
+					let haswiki = haswikifn(group.name);
+					// if (localParents.length == 0) {
+					// 	return branches;
+					// }
+					localParents.push({ name: group.name, disabled: !haswiki });
 					if (localParents.length >= maxDepth) {
-						branches.push(localParents)
+						branches.push(localParents);
 						continue;
 					}
 				}
 				if (group.members) {
 					branches.push(
-						...group.members.map((name) => [...localParents, { name }]
-						)
+						...group.members.map((name) => [...localParents, { name, disabled: !haswikifn(name) }])
 					);
 				}
 				if (group.sub) {
@@ -82,7 +87,7 @@
 				}
 			}
 		}
-		return branches;
+		return branches.filter(branch=>branch.some(i=>!i.disabled));
 	}
 	const guessedTitle = decodeURI($page.url.pathname.slice(6)).replaceAll('-', ' ');
 	const ascendance = getAscendance(data.wiki ?? guessedTitle ?? 'BDSM');
@@ -131,8 +136,12 @@
 		<div class="ascendance">
 			{#each ascendance as line}
 				<div>
-					{#each line as { name }}
-						<a href={'/wiki/' + name}><ChevronLeft {style} />{name}</a>
+					{#each line as { name, disabled = false }}
+						{#if disabled}
+							<span><ChevronLeft {style} />{name}</span>
+						{:else}
+							<a href={'/wiki/' + name}><ChevronLeft {style} />{name}</a>
+						{/if}
 					{/each}
 				</div>
 			{/each}
@@ -140,8 +149,12 @@
 		<div class="descendance">
 			{#each descendance as line}
 				<div>
-					{#each line as { name }}
-						<a href={'/wiki/' + name}>{name}<ChevronRight {style} /></a>
+					{#each line as { name, disabled = false }}
+						{#if disabled}
+							<span>{name}<ChevronRight {style}/></span>
+						{:else}
+							<a href={'/wiki/' + name}>{name}<ChevronRight {style} /></a>
+						{/if}
 					{/each}
 				</div>
 			{/each}
@@ -194,9 +207,9 @@
 		gap: 0.5em;
 		flex-direction: column;
 	}
-	.descendance,
-	.descendance div {
-		/* justify-content: right; */
+	.ascendance div > *,
+	.descendance div > *{
+		position: relative;
 	}
 	.ascendance div,
 	.descendance div {

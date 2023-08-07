@@ -34,6 +34,7 @@ export async function load({ params }) {
 			(p) => meta.wiki && p.meta.tags.includes(meta.wiki)
 		);
 		return {
+			entries: await fetchMarkdownPosts(true),
 			content,
 			...meta,
 			posts
@@ -48,6 +49,7 @@ export async function load({ params }) {
 				p.meta.tags.some((/**@type {string}*/ t) => getParents(t)?.includes(params.term))
 		);
 		return {
+			entries: await fetchMarkdownPosts(true),
 			title: params.term.replaceAll('-', ' '),
 			posts,
 			error: true
