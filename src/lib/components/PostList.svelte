@@ -35,7 +35,6 @@
 						post.meta.tags
 							.map((/**@type {string}*/ t) => {
 								let p = getParents(t);
-								console.log(post.meta.title, t, p);
 								return p;
 							})
 							.flat()
