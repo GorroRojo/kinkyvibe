@@ -17,7 +17,7 @@ category: wiki
 #access_date: 2023-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00
 ---
-F
+
 Los juegos con la edad, también conocido como _"ageplay"_ son una serie de [[prácticas]] entendidas como un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad. Puede ser jugar a tener más edad, o jugar a tener menos. Pueden ser juegos en un contexto erótico con otres, o juegos lúdico con une misme, entre miles de otras opciones.
 
 Los juegos con la edad nos permiten muchas cosas entre esas desestresarnos, ir a un lugar de comfort y cuidados, erotizar los cuidados y los mimos, o simplemente disfrutar de darlos y recibirlos.

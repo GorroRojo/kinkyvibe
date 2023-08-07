@@ -66,11 +66,18 @@ groups:
         - masoquismo   
       - name: prácticas
         members:
+          - top
+          - bottom
           - cuchillos
           - electro
           - sensaciones
-          - edad
         sub:
+          - name: edad
+            members: 
+            - pequeñe
+            - middle
+            - cuidadore
+            - grande 
           - name: bondage
             members:
             - shibari 
