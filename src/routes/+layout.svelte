@@ -92,21 +92,23 @@
 			<a href="/nosotres">Nuestros servicios <ArrowRight size="18" /></a>
 		</div>
 	</div>
-	<Navbar
-		links={[
-			{ icon: BookOpen, name: 'Material', sub: 'Textos y Materiales', href: '/material' },
-			{ icon: Heart, name: 'Amigues', sub: 'Emprendimientos y Profesionales', href: '/amigues' },
-			{ icon: CalendarRange, name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
-			{
-				icon: ShoppingCart,
-				name: 'Tienda',
-				sub: 'Juguetes e Implementos',
-				href: 'https://tienda.kinkyvibe.ar',
-				target: '_blank'
-			},
-			{ icon: Globe, name: 'Kinkipedia', sub: 'Enciclopedia Fetichista', href: '/wiki' }
-		]}
-	/>
+	<div>
+		<Navbar
+			links={[
+				{ icon: BookOpen, name: 'Material', sub: 'Textos y Materiales', href: '/material' },
+				{ icon: Heart, name: 'Amigues', sub: 'Emprendimientos y Profesionales', href: '/amigues' },
+				{ icon: CalendarRange, name: 'Calendario', sub: 'Talleres y Eventos', href: '/calendario' },
+				{
+					icon: ShoppingCart,
+					name: 'Tienda',
+					sub: 'Juguetes e Implementos',
+					href: 'https://tienda.kinkyvibe.ar',
+					target: '_blank'
+				},
+				{ icon: Globe, name: 'Kinkipedia', sub: 'Enciclopedia Fetichista', href: '/wiki' }
+			]}
+		/>
+	</div>
 </header>
 {#if data.currentRoute != '/'}
 	<div class="breadcrumbs">
@@ -279,7 +281,25 @@
 	#logo {
 		grid-area: logo;
 	}
-
+	@media (min-width: 1380px) {
+		header {
+			display: flex;
+			justify-content: stretch;
+			padding-inline: 2em;
+		}
+		header > * {
+			flex: 1 1;
+			width: 100%;
+		}
+		#me {
+			margin-inline: 0;
+			grid-template-areas: 'logo redes quien';
+			grid-template-columns: 10em auto auto;
+		}
+		.breadcrumbs {
+			margin-block: 0 1.5em;
+		}
+	}
 	/* @media (max-width: 580px) {
 		#me {
 			grid-template-areas: 'logo quien redes';
@@ -299,7 +319,7 @@
 	@media (max-width: 500px) {
 		#me {
 			grid-template-areas: 'logo quien';
-			grid-template-columns: .3fr auto;
+			grid-template-columns: 0.3fr auto;
 			flex-wrap: wrap;
 			max-width: 100%;
 		}
@@ -313,7 +333,7 @@
 			grid-template-columns: 1fr;
 		}
 		#quien {
-			display:none;
+			display: none;
 		}
 	}
 </style>
