@@ -13,7 +13,7 @@ tags:
 layout: material
 category: material
 authors:
-  - xdoll
+  - XDoll
 featured: 1
 # force_unlisted: true
 #force_unpublished: false
