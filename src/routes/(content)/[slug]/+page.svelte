@@ -260,7 +260,6 @@
 		display: block;
 		border-radius: 9999em;
 		object-fit: cover;
-		/* object-position: right; */
 		max-height: 4em;
 		width: auto;
 		justify-self: right;
