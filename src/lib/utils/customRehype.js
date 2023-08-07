@@ -137,8 +137,9 @@ export default function customRehype() {
 		findAndReplace(tree, [
 			[
 				/\[([^\]:]+)( : [^\]]+)?\]/g,
-				(original, link, lit, { index, stack }) => {
+				(original, link, lit, { stack }) => {
 					const parent = stack[stack.length - 2];
+					const index = parent.children.findIndex((/**@type **/ c)=> c?.value && c?.value?.includes(original)) - 1
 					if (prevParent !== parent) {
 						foundInParent = 0;
 						prevParent = parent;
