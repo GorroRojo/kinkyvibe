@@ -8,6 +8,12 @@ groups:
       - inglés
       - español
     color: darkblue
+  - name: precio
+    noname: true
+    members:
+    - pago
+    - a la gorra
+    - gratis
   - name: calendario
     color: salmon
     sub:
@@ -34,11 +40,6 @@ groups:
       - name: online
         members:
         - interactivo
-    - name: precio
-      noname: true
-      members:
-      - pago
-      - gratis
     color: 'var(--3-dark)'
   - name: amigues
     members: 
