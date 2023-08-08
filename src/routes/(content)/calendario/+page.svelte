@@ -22,6 +22,7 @@
 
 		return dates;
 	}, {});
+	data.posts.sort((a,b)=>new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
 </script>
 
 <svelte:head>
