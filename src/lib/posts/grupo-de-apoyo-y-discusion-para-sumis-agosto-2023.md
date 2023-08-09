@@ -6,7 +6,6 @@ summary: Un espacio de discusión, apoyo e intercambio dirigido a personas que q
 tags: 
   - español
   - KinkyVibe
-  - evento
   - bdsm
   - a la gorra
   - sumisión
