@@ -4,7 +4,40 @@
 	import PostList from '$lib/components/PostList.svelte';
 	export let data;
 	let { posts, err } = data;
+
+	let title = "KinkyVibe.ar";
+	let summary = "Red de información y encuentros BDSM-kinky-queer-lgbt";
 </script>
+
+<svelte:head>
+	<title>KinkyVibe.ar</title>
+	<link rel="icon" href="favicon.png" />
+
+	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
+
+	<meta property="og:url" content="/" />
+
+	<meta property="og:title" content={title} />
+	<meta name="twitter:title" content={title} />
+
+	<meta name="description" content={summary} />
+	<meta name="twitter:description" content={summary} />
+	<meta property="og:description" content={summary} />
+
+	<!-- <meta property="og:image" content={data.featured + ''} /> -->
+	<!-- <meta name="twitter:image" content={data.featured + ''} /> -->
+
+	<meta name="twitter:site" content="@kinkyvibearg" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<!-- <meta property="og:type" content="article" /> -->
+
+	<!-- <meta property="article:published_time" content={data.published_date?.toString()} /> -->
+	<!-- <meta property="article:modified_time" content={data.updated_date?.toString()} /> -->
+	<!-- <meta property="article:author" content={data.authors?.join(', ')} /> -->
+	<!-- <meta property="article:section" content="" /> -->
+	<!-- <meta property="article:tag" content={data.tags?.join(', ')} /> -->
+</svelte:head>
+
 
 <main>
 	{#if !err}

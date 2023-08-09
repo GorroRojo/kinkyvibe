@@ -47,7 +47,9 @@
 	z-index: 1;
 	`
 </script>
-
+<svelte:head>
+	<title>Kinkipedia - Enciclopedia Fetichista</title>
+</svelte:head>
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<dl>

@@ -102,7 +102,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.title} - KinkyVibe.ar</title>
+	<title>{data.title} - Kinkipedia</title>
 	<link rel="icon" href="favicon.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
