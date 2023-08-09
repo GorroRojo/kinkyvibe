@@ -228,11 +228,11 @@
 		color: white;
 		padding: 0.5em;
 		border-radius: 1em;
-		outline: 2px dashed var(--post-color);
-		outline-offset: 2px;
+		/* outline: 2px dashed var(--post-color);
+		outline-offset: 2px; */
 	}
 	.CTA:hover {
-		outline-offset: 4px;
+		/* outline-offset: 4px; */
 		/* outline-style: dashed; */
 	}
 	.post {
