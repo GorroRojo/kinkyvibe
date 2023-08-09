@@ -231,10 +231,6 @@
 		/* outline: 2px dashed var(--post-color);
 		outline-offset: 2px; */
 	}
-	.CTA:hover {
-		/* outline-offset: 4px; */
-		/* outline-style: dashed; */
-	}
 	.post {
 		--post-color: var(--2);
 		/* position: relative; */

@@ -1,5 +1,4 @@
 import { fetchMarkdownPosts } from '$lib/utils';
-import { json } from '@sveltejs/kit';
 import * as ics from 'ics';
 
 /**
@@ -29,7 +28,7 @@ export async function GET() {
             htmlContent: `<!DOCTYPE html><html><body>
             <p><a href="${postPath}">${postPath}</a></p>
             <p>${post.meta.summary}</p>
-            </body></html>`
+            </body></html>`,
 			location: post.meta.location ?? postPath,
 			calName: 'KinkyVibe',
 			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' } //TODO añadir email
