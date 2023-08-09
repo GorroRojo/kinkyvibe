@@ -30,5 +30,5 @@ export async function GET() {
 		};
 		events.push(event);
 	}
-	return new Response(ics.createEvents(events).value);
+	return new Response(ics.createEvents(events).value, { headers: { 'Content-Type': 'text/calendar' } });
 }
