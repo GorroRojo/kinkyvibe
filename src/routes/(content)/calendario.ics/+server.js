@@ -10,7 +10,7 @@ import * as ics from 'ics';
  */
 function stringToDateArray(s) {
     let d = new Date(s)
-    return [d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]
+    return [d.getFullYear(), d.getMonth()+1, d.getDate(), d.getHours(), d.getMinutes()]
 }
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
@@ -24,7 +24,9 @@ export async function GET() {
 			end: stringToDateArray(post.meta.end ?? post.meta.start + post.meta.duration),
 			title: post.meta.title,
 			url: 'https://kinkyvibe.com' + post.path,
-            description: post.meta.summary
+            description: post.meta.summary,
+            location: post.meta.location,
+            calName: 'KinkyVibe',
 		};
 		events.push(event);
 	}
