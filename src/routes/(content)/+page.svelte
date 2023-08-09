@@ -27,8 +27,8 @@
 	<!-- <meta property="og:image" content={data.featured + ''} /> -->
 	<!-- <meta name="twitter:image" content={data.featured + ''} /> -->
 
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
+	<!-- <meta name="twitter:site" content="@kinkyvibearg" /> -->
+	<!-- <meta name="twitter:card" content="summary_large_image" /> -->
 	<!-- <meta property="og:type" content="article" /> -->
 
 	<!-- <meta property="article:published_time" content={data.published_date?.toString()} /> -->
