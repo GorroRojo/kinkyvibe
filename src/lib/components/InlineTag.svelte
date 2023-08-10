@@ -7,9 +7,9 @@
 	export let tag;
 	/** @type string */
 	export let internalTag;
-	/** @type {(a:string,b:string)=>*}*/
+	/** @type {(a:boolean,b:string)=>*}*/
 	let toggle = $togglePositiveTagFilterFn;
-	let checked = $filteredTags.includes(tag);
+	let checked = $filteredTags?.includes(tag) ?? false;
 	const aliasedTag = $alias(internalTag ?? tag);
 
 	togglePositiveTagFilterFn.subscribe((f) => (toggle = f));
