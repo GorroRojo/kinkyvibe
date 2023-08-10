@@ -6,7 +6,7 @@
 	import Tag from '$lib/components/Tag.svelte';
 	import { filteredTags, tagsConfig, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { aliaserFactory, fetchGlossary } from '$lib/utils/index.js';
-	import { ArrowRight, FlaskConical } from 'lucide-svelte';
+	import { ArrowRight, Globe } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
@@ -39,7 +39,6 @@
 		/> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag
 			tag="online"
 		/>).
-		<a class="gotowiki" href="/wiki"><FlaskConical {style} />Ir al wiki<ArrowRight {style} /></a>
 	</p>
 	{#await glosario then { terminos }}
 		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
@@ -54,7 +53,7 @@
 							{#if data.wiki.find((w) => w.meta.wiki == termino.name)}
 								<a href="/wiki/{termino.name}" class="gotowiki">
 									<span>
-										<FlaskConical {style} />
+										<Globe {style} />
 										Ver en la wiki
 										<ArrowRight {style} />
 									</span>

@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { ArrowLeft, FlaskConical, ArrowRight } from 'lucide-svelte';
+	import { ArrowLeft, Globe, ArrowRight } from 'lucide-svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
@@ -35,7 +35,6 @@
 <div class="glosario">
 	<p>
 		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" />, que dan <InlineTag tag="clases" /> o profesionales de la salud mental que ofrecen espacios de <InlineTag tag="terapia" />. También podrás encontrar <InlineTag tag="artistas" internalTag="arte" /> y <InlineTag tag="emprendimientos" internalTag="emprendimiento" />.
-		<a class="gotowiki" href="/wiki"><FlaskConical {style} />Ir al wiki<ArrowRight {style} /></a>
 	</p>
 	{#await glosario then { terminos }}
 		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
@@ -50,7 +49,7 @@
 							{#if data.wiki.find((w) => w.meta.wiki == termino.name)}
 								<a href="/wiki/{termino.name}" class="gotowiki">
 									<span>
-										<FlaskConical {style} />
+										<Globe {style} />
 										Ver en la wiki
 										<ArrowRight {style} />
 									</span>
