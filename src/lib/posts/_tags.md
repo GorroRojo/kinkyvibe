@@ -45,10 +45,14 @@ groups:
     color: 'var(--3-dark)'
   - name: amigues
     noname: true 
-    members: 
-    - emprendimiento
     sub:
-    - name: profesional
+    - name: amiguestipo
+      noname: true
+      members: 
+      - emprendimiento
+      - profesional
+    - name: servicio
+      noname: true
       members:
       - sesiones 
       - arte

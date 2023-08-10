@@ -8,6 +8,7 @@ tags:
   - BDSM
   - Shibari
   - clases
+  - profesional
 layout: amigues
 category: amigues
 authors:

@@ -9,6 +9,7 @@ tags:
   - shibari
   - sesiones
   - clases
+  - profesional
 layout: amigues
 category: amigues
 authors:

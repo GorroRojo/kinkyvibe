@@ -10,6 +10,8 @@ tags:
   - BDSM
   - salud
   - género
+  - emprendimiento
+  - clases
   - KinkyVibe
 authors:
   - DemonWeb

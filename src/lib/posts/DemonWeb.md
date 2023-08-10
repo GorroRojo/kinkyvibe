@@ -8,6 +8,7 @@ tags:
   - BDSM
   - clases
   - sesiones
+  - profesional
   - KinkyVibe
 layout: amigues
 category: amigues

@@ -7,6 +7,7 @@ tags:
   - español
   - KinkyVibe # etiqueta especial #
   - arte
+  - profesional
 layout: amigues
 category: amigues
 authors:

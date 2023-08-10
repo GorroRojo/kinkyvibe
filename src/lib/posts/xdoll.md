@@ -9,6 +9,7 @@ tags:
   - Shibari
   - clases
   - arte
+  - profesional
 layout: amigues
 category: amigues
 authors:

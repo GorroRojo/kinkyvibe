@@ -8,6 +8,7 @@ tags:
   - clases
   - profesional
   - terapia
+  - profesional
 layout: amigues
 category: amigues
 authors:
