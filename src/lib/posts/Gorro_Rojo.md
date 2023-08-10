@@ -6,7 +6,7 @@ summary: Programadore, artista, captive.
 tags:
   - español
   - BDSM
-  - artista
+  - arte
 layout: amigues
 category: amigues
 authors:

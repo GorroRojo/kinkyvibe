@@ -6,7 +6,7 @@ summary: Soy ilustradora, aficionada al excel, coleccionista de hobbies y lo que
 tags:
   - español
   - KinkyVibe # etiqueta especial #
-  - artista
+  - arte
 layout: amigues
 category: amigues
 authors:

@@ -5,7 +5,7 @@ title: Kinky Bunny
 summary: BDSM kawaii desde 2016 ✨
 tags:
   - español
-  - educadores
+  - clases
   - BDSM
   - emprendimiento
 layout: amigues

@@ -54,7 +54,7 @@ Les dejamos el cronograma para que se vayan preparando:
 
 - 20:30 horas. Comienza el evento. Va a estar ya la feria disponible.
 - 21:00 horas. Entrevista a Assia (ella), Domina fantasiosa [\@foxyassiaok](https://instagram.com/foxyassiaok)
-- 22:30 horas. Sesión en vivo a manos de [\@sogashibari](/soguita)
+- 22:30 horas. Sesión en vivo a manos de [\@sogashibari](/Sogashibari)
 - 23:00 horas. Proyección de cortos de Porno y Posporno
 - 00:30 horas. Charla-Debate
 - 01:00 horas. Cierre con DJ

@@ -6,7 +6,7 @@ summary: Dibujante de cosas eróticas y porno de todo tipo; intentando que cada 
 tags:
   - español
   - BDSM
-  - artista
+  - arte
 layout: amigues
 category: amigues
 authors:

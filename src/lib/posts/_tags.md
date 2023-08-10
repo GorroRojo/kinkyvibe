@@ -15,6 +15,7 @@ groups:
     - a la gorra
     - gratis
   - name: calendario
+    noname: true 
     color: salmon
     sub:
       - name: tipo
@@ -24,6 +25,7 @@ groups:
         noname: true
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
+    noname: true 
     sub:
     - name: formato
       noname: true
@@ -42,15 +44,16 @@ groups:
         - interactivo
     color: 'var(--3-dark)'
   - name: amigues
+    noname: true 
     members: 
     - emprendimiento
     sub:
     - name: profesional
       members:
-      - dominatrix 
-      - artista
-      - educadores 
-      - psico 
+      - sesiones 
+      - arte
+      - clases
+      - terapia
     color: 'var(--2)'
   - name: BDSM
     members:
@@ -137,8 +140,6 @@ tags:
     aliasOf: 'prácticas'
   Shibari:
     aliasOf: shibari
-  Educadores:
-    aliasOf: educadores
   articulo:
     aliasOf: 'artículo'
   Dominatrix:

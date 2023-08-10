@@ -6,8 +6,8 @@ summary: Mi nombre es Mel, soy Sub, Switch, Dominatrix Profesional, y educador B
 tags:
   - español
   - BDSM
-  - Educadores
-  - Dominatrix
+  - clases
+  - sesiones
   - KinkyVibe
 layout: amigues
 category: amigues

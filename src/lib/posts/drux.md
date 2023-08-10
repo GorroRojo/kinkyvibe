@@ -7,7 +7,7 @@ tags:
   - español
   - BDSM
   - Shibari
-  - Educadores
+  - clases
 layout: amigues
 category: amigues
 authors:

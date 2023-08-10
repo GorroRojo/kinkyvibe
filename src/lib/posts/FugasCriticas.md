@@ -5,9 +5,9 @@ title: Fugas Críticas
 summary: 🏳️‍🌈 Géneros, sexualidades y vínculos desde una perspectiva crítica. Talleres y propuestas para fugarnos de todo lo que nos oprime.
 tags:
   - español
-  - educadores
+  - clases
   - profesional
-  - psico
+  - terapia
 layout: amigues
 category: amigues
 authors:
