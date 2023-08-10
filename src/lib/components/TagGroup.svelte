@@ -290,7 +290,7 @@
 	:global(.groupitems:has(:checked)) {
 		display: flex;
 	}
-	.noname .groupitems {
+	.noname > .groupitems {
 		display: flex;
 	}
 	@container (min-width: 1300px) {
