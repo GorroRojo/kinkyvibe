@@ -1,4 +1,6 @@
 <script>
+	import 'add-to-calendar-button';
+	import { format } from 'date-fns';
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tags from '$lib/components/Tags.svelte';
@@ -44,10 +46,66 @@
 			<img src={data.featured + ''} class="profile-pic" alt="" />
 			<h1 id="title" class="profile-name">{data.title}</h1>
 		</div>
+	{:else if data.layout == 'calendario'}
+		<h1 id="title">{data.title}</h1>
+		<div class="event-header">
+			{#if data.featured}<img src={data.featured + ''} alt="poster" />{/if}
+			<p class="event-times">
+				<small>desde</small><time datetime={data.start}
+					>{new Date(data.start).toLocaleString('es-AR', {
+						dateStyle: 'long',
+						timeStyle: 'short'
+					})}hs</time
+				>
+				<small>hasta</small><time datetime={data.end ?? data.start + data.duration}
+					>{new Date(data.end ?? data.start + data.duration).toLocaleString('es-AR', {
+						dateStyle: 'long',
+						timeStyle: 'short'
+					})}hs</time
+				>
+				<small>en</small>
+				<span>
+					{data.location ?? 'Online'}
+				</span>
+			</p>
+			<div class="event-atcb">
+				<a href={data.link}>{data.link_text ?? "Inscripción"}</a>
+				<add-to-calendar-button
+					style={`
+					--btn-background: var(--1);
+					--btn-border: var(--1);
+					--btn-text: white;
+					--btn-shadow: none;
+					--btn-background-hover: var(--1-light);
+					--btn-border-hover: white;
+					--btn-text-hover: white;
+					--btn-shadow-hover: 0 0 1em var(--1-light);
+					--font: 'Lato', sans-serif;
+					`}
+					trigger="click"
+					name={data.title}
+					description={data.summary}
+					startDate={format(new Date(data.start), 'yyyy-MM-dd')}
+					startTime={format(new Date(data.start), 'HH:mm')}
+					endDate={format(new Date(data.end ?? data.start + data.duration), 'yyyy-MM-dd')}
+					endTime={format(new Date(data.end ?? data.start + data.duration), 'HH:mm')}
+					timeZone="America/Buenos_Aires"
+					options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+					language="es"
+					iCalFileName="Sample Event"
+					listStyle="overlay"
+					label="Agregar a mi calendario"
+					buttonStyle="3d"
+					organizer="Mel|kinkyvibe@gmail.com"
+					size="8"
+				/>
+				
+			</div>
+		</div>
 	{:else}
 		<h1 id="title">{data.title}</h1>
 	{/if}
-	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1)}
+	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1) && data.category != 'calendario'}
 		<address>
 			{#await data.authorsData}
 				{data.authors.length > 1
@@ -111,7 +169,7 @@
 		</div>
 
 		{#if data.layout == 'amigues'}
-			<a href={data.link} class="cta">{data.link_text ?? "Ir a su página"}</a>
+			<a href={data.link} class="cta">{data.link_text ?? 'Ir a su página'}</a>
 		{:else if data.layout == 'calendario' && data.link && data.link_text}
 			<a href={data.link} class="cta">{data.link_text}</a>
 		{/if}
@@ -120,7 +178,9 @@
 			<div id="cafecito">
 				Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó
 				valioso,
-				<a href="https://cafecito.app/kinkyvibe" target="_blank">considerá apoyarnos con algún cafecito</a>. 🤗
+				<a href="https://cafecito.app/kinkyvibe" target="_blank"
+					>considerá apoyarnos con algún cafecito</a
+				>. 🤗
 			</div>
 		{/if}
 	{:else}
@@ -160,7 +220,7 @@
 	<PostList {posts} />
 {/if}
 
-<style>
+<style lang="scss">
 	address {
 		text-align: center;
 	}
@@ -242,6 +302,93 @@
 	}
 	hr {
 		margin-block: 3rem;
+	}
+
+	.event-header {
+		background: var(--2-dark);
+		color: white;
+
+		--radius: 1em;
+		border-radius: var(--radius);
+		/* overflow: hidden; */
+		display: grid;
+		grid-template-areas: 'title title' 'pic time' 'pic location' 'button button';
+		grid-template-columns: auto 4fr;
+		column-gap: 0.3em;
+		font-size: var(--step-1);
+		margin-inline: auto;
+		margin-top: 1.4em;
+		max-width: 40rem;
+		outline: 3px solid var(--2-dark);
+		/* outline: 2px dotted var(--2); */
+		& > * {
+			min-width: 0;
+		}
+
+		img {
+			max-width: 100%;
+			max-height: 100%;
+			height: 10em;
+			min-width: 0;
+			min-height: 0;
+			grid-area: pic;
+			border-top-left-radius: var(--radius);
+		}
+		h1 {
+			grid-area: title;
+		}
+		small {
+			opacity: .7;
+		}
+		.event-times {
+			grid-area: time;
+			display: flex;
+			flex-direction: column;
+			margin-block: 0;
+			padding-top: .2em;
+		}
+		.event-atcb {
+			align-self: center;
+			justify-self: center;
+			grid-area: button;
+
+			display: flex;
+			flex-direction: row;
+			justify-content: center;
+			background:white;
+			width: 100%;
+			flex-wrap: wrap;
+			a {
+				background: var(--1);
+				padding: .2em 1em;
+				display: grid;
+				place-items: center;
+				margin: .2em;
+				border-radius: .3em;
+				font-weight: bold;
+				height: auto;
+				line-height: 2em;
+				&:hover {
+					background: var(--1-light);
+					color: unset;
+					text-decoration: unset;
+					box-shadow: 0 0 .5em var(--1-light);
+				}
+			}
+		}
+	}
+	@media (max-width: 500px) {
+		.event-header {
+			grid-template-areas: 'title' 'time' 'location' 'button';
+			column-gap: 0;
+			.event-times {
+				padding-left: .5em;
+				padding-bottom: .5em;
+			}
+			img {
+				display:none;
+			}
+		}
 	}
 
 	.profile-header {
