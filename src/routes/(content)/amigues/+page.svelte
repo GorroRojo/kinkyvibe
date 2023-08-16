@@ -34,7 +34,7 @@
 </svelte:head>
 <div class="glosario">
 	<p>
-		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" />, que dan <InlineTag tag="clases" /> o profesionales de la salud mental que ofrecen espacios de <InlineTag tag="terapia" />. También podrás encontrar <InlineTag tag="artistas" internalTag="arte" /> y <InlineTag tag="emprendimientos" internalTag="emprendimiento" />.
+		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" /> BDSM, que dan <InlineTag tag="clases" /> o profesionales de la salud mental que ofrecen espacios de <InlineTag tag="terapia" />. También podrás encontrar <InlineTag tag="artistas" internalTag="arte" /> y <InlineTag tag="emprendimientos" internalTag="emprendimiento" />.
 	</p>
 	{#await glosario then { terminos }}
 		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
