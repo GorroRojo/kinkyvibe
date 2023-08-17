@@ -124,12 +124,18 @@
 		--shadow-color: var(--color, var(--color-2, var(--1)));
 		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
 		height: 100%;
-		outline: 0px var(--color, var(--color-2, var(--1))) solid;
+		outline: 0px var(--color, var(--color-2, var(--1))) solid; 
+		&.amigues img {
+			box-shadow: .0em .1em 0 .1em var(--post-color, var(--color-2, var(--2)));
+		}
 	}
 	.card.mark:hover,
 	.card.mark:focus {
 		outline: 3px var(--color, var(--color-2, var(--1))) solid;
 		box-shadow: 0em 0em 0em -0em var(--shadow-color);
+		&.amigues img {
+			outline: 3px var(--color, var(--color-2, var(--1))) solid;
+		}
 	}
 	.card:hover,
 	.card:focus {
