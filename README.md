@@ -7,11 +7,11 @@ El contenido de las páginas está en los siguientes archivos
 | URL           | Archivo                                                                                      |
 | ------------- | -------------------------------------------------------------------------------------------- |
 | `/`           | [`/src/routes/+page.svelte`](/src/routes/+page.svelte)                                       |
-| `/nosotres`   | [`/src/routes/(content)/nosotres/+page.md`](<`/src/routes/(content)/nosotres/+page.md`>)     |
-| `/material`   | [`/src/routes/(content)/material/+page.md`](<`/src/routes/(content)/material/+page.md`>)     |
-| `/amigues`    | [`/src/routes/(content)/amigues/+page.md`](<`/src/routes/(content)/amigues/+page.md`>)       |
-| `/calendario` | [`/src/routes/(content)/calendario/+page.md`](<`/src/routes/(content)/calendario/+page.md`>) |
-| `/servicios`  | [`/src/routes/(content)/servicios/+page.md`](<`/src/routes/(content)/servicios/+page.md`>)   |
+| `/nosotres`   | [`/src/routes/(content)/nosotres/+page.svelte`](<`/src/routes/(content)/nosotres/+page.svelte`>)     |
+| `/material`   | [`/src/routes/(content)/material/+page.svelte`](<`/src/routes/(content)/material/+page.svelte`>)     |
+| `/amigues`    | [`/src/routes/(content)/amigues/+page.svelte`](<`/src/routes/(content)/amigues/+page.svelte`>)       |
+| `/calendario` | [`/src/routes/(content)/calendario/+page.svelte`](<`/src/routes/(content)/calendario/+page.svelte`>) |
+| `/servicios`  | [`/src/routes/(content)/servicios/+page.svelte`](<`/src/routes/(content)/servicios/+page.svelte`>)   |
 
 En los archivos `.md` está en Markdown, mezclado con Svelte _(que se ve como HTML)_ . En los `.svelte` es Svelte simplemente.
 
@@ -44,7 +44,6 @@ Y las imágenes son iguales que los links pero con un `!` al principio: `![texto
 
 Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando más `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
 
-Las propiedades que indiquen un momento en el tiempo se hacen con el siguiente formato (año)`-`(mes)`-`(día)`T`(hora)`:`(minuto)`-03:00`
 
 ## Propiedades
 
@@ -59,7 +58,7 @@ lista:
 ( Contenido visible de la página )
 ```
 
-El nro correspondiente al archivo subido en `/media/` que se quiere usar como thumbnail de la publicación.
+Las propiedades que indiquen un momento en el tiempo se hacen con el siguiente formato (año)`-`(mes)`-`(día)`T`(hora)`:`(minuto)`-03:00`
 
 ## Imágenes
 
@@ -78,7 +77,7 @@ De modo que quedaría:
       - 3.jpeg
       - 4.pdf
 
-Y así, luego en el cuerpo del documento se hace referencia a estos archivos por su número, así como en la propiedad `thumbnail_url`.
+Y así, luego en el cuerpo del documento se hace referencia a estos archivos por su número, así como en la propiedad `featured`.
 
 Después dentro del contenido de la página, para insertar las imágenes, debemos hacer un par de cosas.
 
@@ -125,26 +124,22 @@ Rodeando dos bloques (por ejemplo, imágenes) con un divisor de clase `col-2` po
 
 si se quiere unir varias cosas como un solo bloque, simplemente se las rodea con un `<div>...</div>` sin ninguna clase
 
-## Etiquetas y tipos (WIP)
+## Etiquetas
 
 una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen bdsm + una pequeña explicación, o un post principal por etiqueta
 
 hace falta un archivo:
 
-- titulando y estableciendo grupos de etiquetas
-- fusionando etiquetas como alias de una sola
-- marcando etiquetas que no deben estar visibles
-- estableciendo un post como post principal para cada etiqueta?
-- estableciendo iconos por etiqueta? superduper opcional
-- color de etiquetas?
+- [X] titulando y estableciendo grupos de etiquetas
+- [X] fusionando etiquetas como alias de una sola
+- [X] marcando etiquetas que no deben estar visibles
+- [ ] estableciendo un post como post principal para cada etiqueta?
+- [ ] estableciendo iconos por etiqueta? superduper opcional
+- [X] color de etiquetas?
 
-tags
+Los colores, alias, y grupos están en [_tags.md](/src/lib/posts/_tags.md?plain=1), las descripciones en [_glossary.md](/src/lib/posts/_glossary.md?plain=1) y los posts para cada tag en [`/src/lib/wiki/`](/src/lib/wiki/)
 
-- BDSM | Género | Abolicionismo | Anarquía | Sexualidad
-- [practicas]
-- KinkyVibe
-
-propiedades
+## Propiedades de los posts
 
 - - title\*
   - description\*
@@ -188,27 +183,57 @@ propiedades
   - ?experience h-event,h-card
   - ?skill
 
+más info y ejemplos completos copiables para cada categoría en [_template.md](/src/lib/posts/_template.md)
 
 ### layouts [wip]
 
-blank (contenido)
-standard [default material contenido](titulo, summary, featured, contenido (+ link) (+access date, og publish)(publishdate, authors, tags))
-[default material link/descargable]
-[default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
-[default amigues](foto, titulo, jobtitle, summary, link (+ map))
-### indieweb
+- blank (contenido)
+- [ ] standard [default material contenido] 
+  - [X] título
+  - [X] summary
+  - [ ] featured
+  - [X] contenido
+  - [X] og link
+  - [ ] og access date
+  - [X] og publish
+  - [X] publish date
+  - [X] authors
+  - [X] tags 
+- [ ] [default material link/descargable]
+- [X] [default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
+  - [X] poster
+  - [X] título
+  - [X] summary
+  - [X] fecha
+  - [X] hora
+  - [X] lugar
+  - [X] CTA
+  - [X] add to calendar
+- [default amigues] (foto, titulo, jobtitle, summary, link (+ map))
+  - [X] foto
+  - [ ] título
+  - [ ] jobtitle
+  - [X] summary
+  - [X] link
+  - [ ] map
+  - [ ] pronouns
+  - [ ] mail
+  - [ ] phone
+  - [ ] bday
+
+### pendientes: indieweb & standards
 
 #### rel
 
-rel
-author
-enclosure (para descargables)
-rel=license
-rel=nofollow para desincentivar a buscadores seguir ese link
-rel=tag
-rel=home
+- [ ] rel
+- [ ] author
+- [ ] enclosure (para descargables)
+- [ ] rel=license
+- [ ] rel=nofollow para desincentivar a buscadores seguir ese link
+- [ ] rel=tag
+- [ ] rel=home
 
-#### emoji post type
+#### emoji post type (de baja esto?)
 
 estandar de emoji por tipo de post
 
