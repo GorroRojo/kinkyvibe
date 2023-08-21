@@ -11,7 +11,7 @@ tags:
 layout: amigues
 category: amigues
 authors:
-  - Gabrielosalmon
+  - Vulvarnes
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
