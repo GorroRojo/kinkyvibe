@@ -16,7 +16,7 @@ featured: 1
 #force_unlisted: false
 #force_unpublished: false
 pronoun: https://pronombr.es/cualquiera
-link: www.vulvarnes.com
+link: https://www.vulvarnes.com
 # logo:
 #photo: 3
 email: Vulvarnes.vv@gmail.com
