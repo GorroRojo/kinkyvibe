@@ -9,6 +9,7 @@ tags:
   - Shibari
   - clases
   - profesional
+  - Córdoba
 layout: amigues
 category: amigues
 authors:

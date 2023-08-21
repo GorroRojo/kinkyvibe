@@ -8,6 +8,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - arte
   - profesional
+  - AMBA
 layout: amigues
 category: amigues
 authors:

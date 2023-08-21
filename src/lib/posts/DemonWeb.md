@@ -10,6 +10,7 @@ tags:
   - sesiones
   - profesional
   - KinkyVibe
+  - AMBA
 layout: amigues
 category: amigues
 authors:

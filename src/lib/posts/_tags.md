@@ -8,6 +8,14 @@ groups:
       - inglés
       - español
     color: darkblue
+  - name: lugar
+    noname: true
+    members:
+    - Córdoba
+    - AMBA 
+    - Santa Cruz
+    - Online
+    color: darkblue
   - name: precio
     noname: true
     members:
@@ -74,6 +82,7 @@ groups:
         - masoquismo   
       - name: prácticas
         members:
+          - pet
           - top
           - bottom
           - cuchillos
@@ -110,6 +119,8 @@ groups:
         - squirt
       - name: queer
         members: 
+        - pet
+        - furry
         - género
         - asexualidad
       - name: prácticas

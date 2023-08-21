@@ -2,7 +2,7 @@
 published_date: 2023-06-15Z-03:00
 updated_date: 2023-08-049Z-03:00
 title: Soga Shibari
-summary: Atadorx, sádicx y dom. Talleres, cuerdas de yute, sesiones privadas y en vivo. Shibari y BDSM. 
+summary: Soy Sogui. Atadorx, sádicx y dom. Talleres, cuerdas de yute, sesiones privadas y en vivo. Shibari y BDSM. 
 tags:
   - español
   - BDSM
@@ -10,6 +10,7 @@ tags:
   - sesiones
   - clases
   - profesional
+  - AMBA
 layout: amigues
 category: amigues
 authors:

@@ -10,6 +10,7 @@ tags:
   - clases
   - arte
   - profesional
+  - Córdoba
 layout: amigues
 category: amigues
 authors:

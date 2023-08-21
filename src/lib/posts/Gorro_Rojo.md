@@ -8,6 +8,7 @@ tags:
   - BDSM
   - arte
   - profesional
+  - AMBA
 layout: amigues
 category: amigues
 authors:

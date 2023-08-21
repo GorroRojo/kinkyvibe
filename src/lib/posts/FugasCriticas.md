@@ -9,6 +9,7 @@ tags:
   - profesional
   - terapia
   - profesional
+  - AMBA
 layout: amigues
 category: amigues
 authors:
