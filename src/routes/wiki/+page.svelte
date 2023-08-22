@@ -1,5 +1,10 @@
 <script>
 	// @ts-nocheck
+	/**
+	 * TODO el codigo este y el de los componentes es feo feo feo
+	 * hay que unificar los datos de la entry, del termino, y del grupo **ANTES**
+	 * de filtrar y mostrarlos
+	 */
 
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
