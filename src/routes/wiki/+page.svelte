@@ -4,12 +4,15 @@
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
 	import { page } from '$app/stores';
-	import {Search} from 'lucide-svelte'
+	import { Search } from 'lucide-svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	$: glosario.set(data.glosario);
+	$: glosario.set({
+		...data.glosario,
+		terminos: data.glosario.terminos.map((t) => ({ ...t, visible: true, spare: true }))
+	});
 
 	/**@type {(description:string)=>*}*/
 	function parseDescription(description) {
@@ -38,33 +41,84 @@
 		}
 		return matches.filter((i) => i);
 	}
-	const style =  `
+
+	function includesNormalized(a, q = query) {
+		if (a === undefined) {
+			return false;
+		}
+		let normalize = (s) =>
+			s
+				.toLowerCase()
+				.replaceAll('á', 'a')
+				.replaceAll('é', 'e')
+				.replaceAll('í', 'i')
+				.replaceAll('ó', 'o')
+				.replaceAll('ú', 'u');
+		return normalize(a).includes(normalize(q));
+	}
+	function onQueryChange(query = '') {
+		if (query == undefined || query.trim() == '') {
+			$glosario.terminos = $glosario.terminos.map((termino) => ({
+				...termino,
+				visible: true,
+				spare: true
+			}));
+			$page.url.searchParams.delete('q');
+		} else {
+			$glosario.terminos = $glosario.terminos.map((termino) => {
+				let entry = data.entries.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'));
+				$page.url.searchParams.set('q', query);
+				if (
+					includesNormalized(termino.name) ||
+					includesNormalized(termino.description) ||
+					includesNormalized(termino.related?.join(' ')) ||
+					includesNormalized(termino.aka?.join(' '))
+				) {
+					return { ...termino, visible: true, spare: true };
+				} else {
+					return { ...termino, visible: false, spare: true };
+				}
+			});
+		}
+	}
+	onQueryChange(undefined);
+
+	const style = `
 	font-size: var(--step-1);
 	position:absolute;
 	left: .6em;
 	translate: 0 .5em;
 	color: var(--1);
 	z-index: 1;
-	`
+	`;
 </script>
+
 <svelte:head>
 	<title>Kinkipedia - Enciclopedia Fetichista</title>
 </svelte:head>
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<dl>
-		<div class="searchbox"><Search {style} /><input class="searchbox" type="search" bind:value={query} /></div>
-		{#if query == '' || !query}
-			<GlosarioTree entries={data.entries} items={$tagsConfig.groups} {query} />
-		{:else}
-			<GlosarioTree
-				entries={data.entries}
-				items={$glosario.terminos
-					.map((/** @type {{ name: string; }} */ t) => t.name)}
-				spare
-				{query}
+		<div class="searchbox">
+			<Search {style} /><input
+				class="searchbox"
+				type="search"
+				on:input={(evt) => onQueryChange(evt.target.value)}
+				on:change={(evt) => onQueryChange(evt.target.value)}
+				bind:value={query}
 			/>
-		{/if}
+		</div>
+		{#key query}
+			{#if query == '' || !query}
+				<GlosarioTree entries={data.entries} items={$tagsConfig.groups} {query} />
+			{:else}
+				<GlosarioTree
+					entries={data.entries}
+					items={$glosario.terminos.map((/** @type {{ name: string; }} */ t) => t.name)}
+					{query}
+				/>
+			{/if}
+		{/key}
 	</dl>
 
 	<!--
@@ -112,7 +166,7 @@
 		/* pointer-events: none; */
 	}
 	.searchbox input {
-		position:relative;
+		position: relative;
 		width: 100%;
 		border-radius: 10em;
 		font-size: var(--step-1);

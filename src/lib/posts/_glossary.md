@@ -22,7 +22,7 @@ terminos:
   - name: sadismo
   - name: masoquismo
   - name: primal
-    aka: primal play
+    aka: ["primal play"]
     description: |
       Los juegos primales incluyen algunos tipos de [[lucha]] y comportamientos animales. Se trata de entrar en mentalidad instintiva, intentando dejar de lado los comportamientos aprendidos. Mientras haya un alto nivel de confianza, pueden ser una [[práctica]] explosiva e íntima. 
     related: ["mascota"]
@@ -33,11 +33,11 @@ terminos:
     description: |
       Comúnmente, la persona que "recibe" una [[práctica]]. 
   - name: edad
-    aka: age play
+    aka: ["age play"]
     description: |
       Un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad.
   - name: pequeñe
-    aka: little 
+    aka: ["little "]
     description: |
       Suele ser como se le llama a las personas adultas que juegan a tener menos edad que su edad cronológica en juegos con la [[edad]]. También "little".
   - name: middle
