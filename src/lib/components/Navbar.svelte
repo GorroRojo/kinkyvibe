@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
 	import { Heart } from 'lucide-svelte';
 	export let links;
@@ -7,9 +8,13 @@
 
 <nav>
 	<ul>
-		{#each links as { icon, name, sub, href }}
-			<li class:current={$page.url.pathname.includes(href)} >
-				<a {href} tabindex="0">
+		{#each links as { icon, name, sub, href, target = undefined }}
+			<li
+				class:current={$page.url.pathname.includes(href) ||
+					($currentPostData && $currentPostData?.path == $page?.url?.pathname &&
+						$currentPostData?.category == href.slice(1))}
+			>
+				<a {href} {target} tabindex="0">
 					<span>
 						<span><svelte:component this={icon} size="1em" /></span>
 						{name}
@@ -74,17 +79,19 @@
 		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
 	}
 	nav span {
-		color: var(--1);
+		--color: var(--1);
+		color: var(--color);
 		translate: 0 0.3em;
 		transition: 100ms;
 		text-decoration: none;
 	}
 
-	nav li:hover span,nav a:focus span {
+	nav li:hover span,
+	nav a:focus span {
 		translate: 0 0;
 	}
 	nav a:focus {
-		outline: 2px solid var(--1);
+		outline: 2px solid var(--color);
 		border: 0;
 	}
 
@@ -96,7 +103,8 @@
 		transition: 100ms;
 		white-space: nowrap;
 	}
-	nav li:hover small,nav a:focus small {
+	nav li:hover small,
+	nav a:focus small {
 		scale: 1;
 	}
 	@media screen and (max-width: 680px) {
@@ -105,9 +113,10 @@
 			bottom: 0;
 			left: 0;
 			right: 0;
+			padding-inline:1em;
 			z-index: 1;
 			background: white;
-			font-size: 1.2em;
+			font-size: 1em;
 			ul {
 				flex-wrap: nowrap;
 				gap: 1em;
@@ -115,17 +124,22 @@
 				li {
 					width: 15vw;
 					height: 4em;
-					&:hover span,a:focus span {
-						translate: 0 0em;
+					&:hover span,
+					a:hover span,
+					a:focus {
+						outline: none;
+						span {
+							translate: 0 0.3em;
+						}
 					}
 					/* &.current, */
 					&.current {
 						a {
-							box-shadow:none;
+							box-shadow: none;
 						}
 						span span {
 							scale: 2;
-							translate: 0 0.1em;
+							translate: 0 0.2em;
 						}
 					}
 					a {
@@ -136,9 +150,10 @@
 							/* width: 100%; */
 							justify-items: center;
 							align-items: center;
-							font-size: .8em;
+							font-size: 0.8em;
 
 							span {
+								color: var(--color);
 								font-size: 1.2em;
 								scale: 1.5;
 								top: -1rem;
@@ -151,6 +166,23 @@
 					}
 				}
 			}
+		}
+	}
+	@media screen and (max-width: 340px) {
+		nav ul li a span {
+			color: transparent;
+		}
+		nav ul li a span span {
+			top: -0.3em;
+			scale: 2;
+		}
+		.current span span {
+			top: -0.7em;
+		}
+		.current span,
+		nav a:focus span,
+		nav li:hover span {
+			translate: 0 0.4em;
 		}
 	}
 </style>

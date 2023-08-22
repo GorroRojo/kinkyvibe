@@ -1,35 +1,33 @@
 ---
-published_date: 2023-06-15
-#updated_date: 2023-11-04
-title: xdoll - arts and ropes
-summary: Licenciada en Artes Visuales ~"proyecto de enlace"~ colabs y clases
+published_date: 2023-06-15Z-03:00
+#updated_date: 2023-11-04Z-03:00
+title: XDoll
+summary: Lic. en Artes Visuales, me auto ato, soy bottom y rigger 
 tags:
+  - español
   - BDSM
   - Shibari
-  - Educadores
+  - clases
+  - arte
+  - profesional
+  - Córdoba
+layout: amigues
 category: amigues
 authors:
-  - xdoll
+  - XDoll
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-pronoun: https://pronombr.es/ella
+pronoun: https://pronombr.es/ella&cualquiera
 link: https://instagram.com/xdoll_art_and_ropes/
-# logo:
-#photo: 3
-#email: ayuda@kinkyvibe.ar
+# logo: 2
+photo: 1
+email: demondolldrusil@gmail.com
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
-#tel: +54 9 11 5555 3333
+tel: 35 1791 1561
 #job_title: Educador BDSM - Dominatrix - Putito
-#gender_identity: Perrito Travo Interdimensional
-#bday: 1996-04-09
+gender_identity: Femenino
+bday: 2023-10-01Z-03:00
 ---
 
-<script>
-    import foto from '$lib/posts/media/xdoll/1.jpg';
-</script>
-
-<div class="col-2">
-<img alt="" src={foto} />
-<div><p>{summary}</p><p><a href={link} target="_blank">Ir a su pagina</a></p></div>
-</div>
+Información para prácticas y experiencia con cuerdas 

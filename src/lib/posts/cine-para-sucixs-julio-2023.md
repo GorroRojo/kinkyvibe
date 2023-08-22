@@ -1,14 +1,16 @@
 ---
-published_date: 2023-06-21
-#updated_date: 2023-11-04
+published_date: 2023-06-21Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Cine Para Sucixs | Julio 2023
 summary: Ciclo de porno queer. Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 tags:
+  - español
   - KinkyVibe
   - porno
   - queer
   - cine
   - Cine para Sucixs
+layout: calendario
 category: calendario
 authors:
   - KinkyVibe
@@ -33,7 +35,6 @@ link_text: Inscibirme
 <img src="{pag2}" alt="" />
 </div>
 
-
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 
 Nos encontramos el SÁBADO 3 de JUNIO para la primera edición de este ciclo.
@@ -42,7 +43,7 @@ Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, en
 
 **En esta edición, vamos a contar con los inigualables cortos de EROTIDA, LO PUEDEN CREER? O SEAAA**
 
-A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.
+A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [\@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.
 
 Las entradas pueden conseguirlas ya mismo en Pre-Venta entrando al link en nuestro perfil.
 
@@ -52,41 +53,15 @@ O $2.000 ese día en puerta.
 Les dejamos el cronograma para que se vayan preparando:
 
 - 20:30 horas. Comienza el evento. Va a estar ya la feria disponible.
-- 21:00 horas. Entrevista a Assia (ella), Domina fantasiosa [@foxyassiaok](https://instagram.com/foxyassiaok)
-- 22:30 horas. Sesión en vivo a manos de [@sogashibari](/soguita)
+- 21:00 horas. Entrevista a Assia (ella), Domina fantasiosa [\@foxyassiaok](https://instagram.com/foxyassiaok)
+- 22:30 horas. Sesión en vivo a manos de [\@sogashibari](/Sogashibari)
 - 23:00 horas. Proyección de cortos de Porno y Posporno
 - 00:30 horas. Charla-Debate
 - 01:00 horas. Cierre con DJ
 
 ¿Quiénes vienen? 🔥
 
-{#if link && link_text}
-  <a class="cta" href={link}>{link_text}</a>
-{/if}
-
 <style>
-    .cta {
-      background: var(--1);
-      padding: .5em 1em;
-      color: white;
-      font-weight: bold;
-      border-radius: .3em;
-      margin-inline: auto;
-      display: block;
-      width: 7em;
-      text-align: center;
-      /* translate: 6em; */
-      font-size: 3em;
-      text-decoration: none;
-      margin-top: 2em;
-      transition: 200ms;
-      box-shadow: 0 0 0 0;
-    }
-    .cta:hover {
-      scale: 1.1;
-      /* filter: brightness(1.05); */
-      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */

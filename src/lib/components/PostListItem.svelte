@@ -1,5 +1,14 @@
 <script>
 	//@ts-nocheck
+	import {
+		CalendarRange,
+		BookOpen,
+		ShoppingCart,
+		Download,
+		MousePointerClick,
+		Heart
+	} from 'lucide-svelte';
+	import 'add-to-calendar-button';
 	export let post;
 	let {
 		path,
@@ -11,15 +20,20 @@
 			authors,
 			start,
 			end,
+			status,
 			featured: src,
 			mark,
-			tagsConfig
+			link,
+			link_text,
+			category,
+			job_title,
+			redirect
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
-	import Tags from './Tags.svelte';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
+	import { tagsConfig } from '$lib/utils/stores';
 	const date = start ? addHours(new Date(start), 3) : published_date;
 	if (tags.includes('KinkyVibe')) {
 		mark = mark ? mark : 'KinkyVibe';
@@ -29,50 +43,164 @@
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
+	let past = start ? isPast(new Date(start)) : false;
+	let style = `scale:var(--scale,1);
+				 translate:var(--translate,0 0);
+				 display: inline-block;
+				 margin-right: .4em;`;
 </script>
 
 <a
 	href={path}
-	class="post"
+	class="post {category}"
 	class:mark
+	class:noimg={!src}
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
+	target={redirect || path.startsWith('https') ? '_blank' : undefined}
 >
 	<div class="publication">
-		{#if date}
-			<time datetime={start}>
-				{#if start}
-					{format(new Date(start), 'yyyy-MM-dd | HH:mm - ') + format(new Date(end), 'HH:mm')}
+		<div class="icon">
+			{#if category == 'calendario'}
+				<CalendarRange {style} />
+			{:else if category == 'material'}
+				{#if tags.includes('pago')}
+					<ShoppingCart {style} />
+				{:else if tags.includes('descargable')}
+					<Download {style} />
+				{:else if tags.includes('interactivo')}
+					<MousePointerClick {style} />
 				{:else}
-					{authors ? authors.join(', ') : ''}
-					{authors && date ? ' - ' : ''}
-					{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
+					<BookOpen {style} />
 				{/if}
-			</time>
+			{:else}
+				<Heart style={style+"fill:var(--post-color);"} strokeWidth="3px" />
+			{/if}
+			&ThickSpace;
+		</div>
+		{#if category != 'amigues'}
+			{#if date}
+				{#if start}
+					<time datetime={start}>
+						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
+							'|',
+							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
+						) + format(new Date(end), 'HH:mm')}
+					</time>
+				{:else}
+					<address>
+						{authors ? authors.join(', ') : ''}
+					</address>
+					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
+					<time datetime={date}>
+						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
+					</time>
+				{/if}
+				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && link_text && status && status == 'abierto' && !past}
+					<add-to-calendar-button
+						style={`
+							--btn-text: white;
+							--keyboard-focus: var(--post-color, var(--2));
+							--btn-background: transparent;
+							--btn-shadow: none;
+							--btn-shadow-hover: none;
+							--list-background: white;
+							--list-background-hover: var(--1-light) ;
+							--list-text-hover: white;
+							--btn-border: none;
+							--list-shadow: 0 0 1em 0 var(--1-light);
+							`}
+						name={title}
+						description={summary}
+						startDate={format(new Date(start), 'yyyy-MM-dd')}
+						startTime={format(new Date(start), 'HH:mm')}
+						endDate={format(new Date(end), 'yyyy-MM-dd')}
+						endTime={format(new Date(end), 'HH:mm')}
+						timeZone="America/Buenos_Aires"
+						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+						language="es"
+						iCalFileName="Sample Event"
+						listStyle="overlay"
+						buttonStyle="3d"
+						inline
+						organizer="Mel|kinkyvibe@gmail.com"
+						size="1"
+						hideBackground
+					/>
+					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
+					<!-- label="CUSTOM LABEL" -->
+					<!-- buttonStyle="round" -->
+					<!-- location="World Wide Web" -->
+					<!-- trigger="hover" -->
+				{/if}
+				{#if (status && ['cancelado', 'lleno'].includes(status)) || past}
+					<small class="status">
+						{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}
+					</small>
+				{/if}
+			{/if}
+		{:else}
+			<span class="job-title">{job_title}</span>
 		{/if}
 	</div>
-	<img {src} alt="" />
+	{#if src}<img {src} alt="" />{/if}
 	<h3>
-		{#if start ? isPast(new Date(start)) : false}<small>TERMINADO</small> {/if}{title}
+		{title}
 	</h3>
-	{#if summary}
-		<p class="summary">{summary}</p>
-	{/if}
+	<p class="summary">
+		{summary ?? ''}
+	</p>
 	<div class="tags">
 		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')].sort() as tag}
-				{@const config = Object.hasOwn(tagsConfig.tags, tag) ? tagsConfig.tags[tag] : false}
+			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')] as tag}
+				{@const config = Object.keys($tagsConfig.tags).includes(tag)
+					? $tagsConfig.tags[tag]
+					: false}
 				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
-				<li style:--tag-color={color} style:white-space={'nowrap'}>
+				<li
+					style:--tag-color={color}
+					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+					style:--filled-outline={'1px solid var(--tag-color)'}
+					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
+					style:--filled-outline-offset={'-2px'}
+					style:--hover-text-decoration={'underline var(--tag-color)'}
+					style:white-space={'nowrap'}
+				>
 					<Tag {tag} isLink={mounted} />
 				</li>
 			{/each}
 		</ul>
 	</div>
+	{#if link && link_text && status && status == 'abierto' && !past}
+		<a href={link} class="CTA" target="_blank">{link_text}</a>
+	{/if}
 </a>
 
 <style lang="scss">
+	.post.amigues {
+		border-radius: 999em;
+		padding-top: 0;
+		outline: 2px solid var(--post-color, var(--2));
+		img {
+			border-radius: 10em;
+		}
+		.publication {
+			background: none;
+			time,
+			address,
+			.job-title {
+				display: none;
+			}
+			.icon {
+				color: var(--post-color);
+				left: -1em;
+				position: relative;
+				scale: 0.8;
+				top: -0.2em;
+			}
+		}
+	}
 	.tagrow {
 		list-style: none;
 		padding: 0;
@@ -91,43 +219,62 @@
 	.tagrow::-webkit-scrollbar {
 		display: none;
 	}
+	.post:has(.CTA) {
+		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
+	}
+	.CTA {
+		grid-area: cta;
+		background: var(--post-color);
+		color: white;
+		padding: 0.5em;
+		border-radius: 1em;
+		/* outline: 2px dashed var(--post-color);
+		outline-offset: 2px; */
+	}
 	.post {
 		--post-color: var(--2);
-		position: relative;
+		/* position: relative; */
 		width: 100%;
-		max-width: 900px;
+		/* max-width: 900px; */
 		height: 10.5em;
 
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
-		grid-template-rows: auto auto 3em;
+		grid-template-rows: auto 1fr 2.4em;
 		column-gap: 1em;
 		box-sizing: content-box;
 		align-items: center;
 
 		margin-inline: auto;
-		padding-top: 2em;
+		padding-top: 1.7em;
 		padding-right: 1em;
 
 		list-style: none;
 		background: white;
 		border-radius: 2em;
-		box-shadow: 0 1em 1em rgba(0, 0, 0, 0.1);
-		overflow: hidden;
+		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		/* overflow: hidden; */
 		&.mark {
 			--post-color: var(--1);
 		}
 		&.past {
 			opacity: 0.5;
 		}
+		&.noimg {
+			grid-template-columns: 0 1fr;
+		}
 	}
 	a h3 {
+		/* display: flex; */
+		/* align-items: center; */
 		grid-area: title;
-		font-size: 2em;
+		font-size: var(--step-2);
 		/* align-self:flex-start; */
 		margin: 0;
-		text-decoration: underline;
+		margin-top: 0.2em;
+		margin-bottom: 0.1em;
+		/* text-decoration: underline; */
 		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
 		small {
@@ -139,49 +286,46 @@
 	} */
 	.tags {
 		grid-area: tags;
+		max-width: 100%;
+		min-width: 0;
 		--color: var(--post-color);
 		z-index: 3;
 		/* cursor:crosshair; */
 	}
-	a.post p.summary {
+	.summary {
 		grid-area: summary;
 		margin: 0;
-		padding: 0;
+		padding: 0.2em0;
 		align-self: flex-start;
-	}
-	.summary {
+		font-size: var(--step-0);
+		display: block;
 		max-height: 100%;
 		min-height: 0;
-		/* overflow:hidden; */
-		overflow: auto;
+		white-space: normal;
+		overflow: hidden;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
 		text-overflow: ellipsis;
 	}
-	@media (max-width: 680px) {
-		.summary {
-			display: none;
-		}
-		.post {
-			grid-template-areas: 'img title' 'img tags';
-			grid-template-rows: 1fr 3em;
 
-		}
-		h3 {
-			align-self: flex-start;
-			padding-top: .2em;
-		}
-	}
 	img {
 		grid-area: img;
-		max-height: 9em;
-		max-width: 8em;
+		max-height: calc(100% - 1em);
+		max-width: calc(100% - 0em);
 		object-fit: contain;
 		object-position: center;
 		border-radius: 1em;
 		margin-left: 1em;
 		justify-self: center;
+		min-height: 0;
+		min-width: 0;
 	}
 	.publication {
-		display: block;
+		display: grid;
+		grid-auto-flow: column;
+		align-items: center;
+		justify-content: start;
 		background: var(--post-color, var(--2));
 		color: whiite;
 		position: absolute;
@@ -189,13 +333,18 @@
 		left: 0;
 		top: 0;
 		height: 1.7em;
-		display: flex;
-		align-items: center;
 		padding-inline: 1.5em;
 		color: white;
-		* {
-			display: inline;
+		font-size: var(--step--1);
+		border-radius: 2em 2em 0 0;
+		--translate: 0 0.1em;
+		& > * {
+			min-height: 0;
+			min-width: 0;
 		}
+	}
+	.calendario .publication {
+		grid-template-columns: 2em 1fr auto;
 	}
 	a {
 		color: inherit;
@@ -203,7 +352,35 @@
 		scale: 1;
 		transition: 100ms;
 	}
-	a:hover:not(.past), a:focus {
+	a:hover:not(.past),
+	a:focus {
 		scale: 1.03;
+	}
+
+	@container (max-width: 680px) {
+		.summary {
+			/* display: none; */
+		}
+		.post:not(.amigues) {
+			grid-template-areas: 'title title' 'img summary' 'img tags';
+			grid-template-rows: auto 1fr 2em;
+			&:has(.CTA) {
+				grid-template-areas:
+					'title title title'
+					'img summary summary'
+					'img tags cta';
+			}
+		}
+		:not(.amigues) > h3 {
+			align-self: flex-start;
+			padding-left: 1em;
+			line-height: 1.3;
+			height: auto;
+			/* justify-self: center; */
+			/* padding-top: 0.2em; */
+		}
+		:not(.amigues) > img {
+			max-height: calc(100% - 1em);
+		}
 	}
 </style>

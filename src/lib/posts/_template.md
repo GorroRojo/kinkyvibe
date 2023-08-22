@@ -3,28 +3,29 @@
 # Si la propiedad tiene un '#' antes, se ignora
 # Para activarla, sacarle el '#'
 
-
 ################################################
 ## ------ Para todas las publicaciones ------ ##
 ################################################
 
-#published_date: 2023-05-16   # (YYYY-MM-DD) fecha de publicación #
-#updated_date: 2023-11-04   # (YYYY-MM-DD) ult vez actualizó el post #
-title: Publicación de ejemplo  # el nombre de la página en el navegador #
+#published_date: 2023-05-16Z-03:00   # (YYYY-MM-DD) fecha de publicación #
+#updated_date: 2023-11-04Z-03:00   # (YYYY-MM-DD) ult vez actualizó el post #
+title: Publicación de ejemplo # el nombre de la página en el navegador #
 
 summary: Una demostración de todas las cosas que puede tener una publicación
 # Un resumen para las listas de posts y para que aparezca en links, buscadores, etc
 
 tags:
-    - BDSM
-    - KinkyVibe # etiqueta especial que marca las cosas con un highlight #
+  - español
+  - BDSM
+  - KinkyVibe # etiqueta especial que marca las cosas con un highlight #
 
-category: material  # material | calendario | amigues #
+layout: material
+category: material # material | calendario | amigues #
 
 authors:
-    - DemonWeb
-    - FideosConTuco
-    - Gorro_Rojo
+  - DemonWeb
+  - FideosConTuco
+  - Gorro_Rojo
 # Quién recibe crédito por el material
 # quiénes organizan el evento
 # o quiénes forman parte de un emprendimiento/proyecto
@@ -36,8 +37,7 @@ authors:
 # (opcional) fuerza a que no aparezca en listas, aún si tiene fecha de publicación seteada. seguirá funcionando el url.
 
 #force_unpublished: false  # true | false #
-# (opcional) fuerza a que no esté publicada bajo el url además de no aparecer en ninguna lista: 
-
+# (opcional) fuerza a que no esté publicada bajo el url además de no aparecer en ninguna lista:
 
 ####################################################
 ## ------ Para publicaciónes de 'material' ------ ##
@@ -53,15 +53,13 @@ authors:
 #       link (opcional) al contenido original en caso de
 #       ser una traducción un repost, una adaptación, etc
 
-
 ########### ----- Para tipo 'link' ----- ###########
 
-#access_date: 2023-11-21  # YYYY-MM-DD #
+#access_date: 2023-11-21Z-03:00  # YYYY-MM-DD #
 # La última vez que se chequeó que ese link funcionara y conteniera lo que se supone que contiene
 
-#original_published_date: 2010-04-03  # YYYY-MM-DD #
+#original_published_date: 2010-04-03Z-03:00  # YYYY-MM-DD #
 # La fecha de publicación original del contenido linkeado
-
 
 ######################################################
 ## ------ Para publicaciónes de 'calendario' ------ ##
@@ -89,7 +87,6 @@ authors:
 #link: https://forms.google.com/elmejoreventodelmundo
 #link_text: Inscibirme ➡️
 # Un link de acción en el evento, para inscribirse o para ir algun post original
-
 
 ###################################################
 ## ------ Para publicaciones de 'amigues' ------ ##
@@ -131,15 +128,19 @@ authors:
 # (opcional) identidad de género, para quien la quiera incluir(? #
 #gender_identity: Perrito Travo Interdimensional
 
-
-
 force_unlisted: true
 ---
+
 # Heading 1
+
 ## Heading 2
+
 ### Heading 3
+
 #### Heading 4
+
 ##### Heading 5
+
 ###### Heading 6
 
 Lorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit ametLorem ipsum dolor sit amet.
@@ -148,33 +149,36 @@ Otro parrafo.
 
 - Lista
 - tremenda lsita
-  - sub list  
+  - sub list
   - sub list
     - sub sub lista
 
 > cita muy importante de alguien que importa mucho
 
-*enfasis* **otroenfasis** ***doble enfasis*** `código` ~~strikethrough~~
+_enfasis_ **otroenfasis** **_doble enfasis_** `código` ~~strikethrough~~
 
-|head1|head2|
-|-|-|
-|value1|value2|
+| head1  | head2  |
+| ------ | ------ |
+| value1 | value2 |
 
 ## Para amigues
+
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Amigue de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
-    - BDSM
-    - KinkyVibe # etiqueta especial #
+  - español
+  - BDSM
+  - KinkyVibe # etiqueta especial #
+layout: amigues
 category: amigues
 authors:
-    - DemonWeb
-    - FideosConTuco
-    - Gorro_Rojo
+  - DemonWeb
+  - FideosConTuco
+  - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
@@ -191,54 +195,67 @@ link: https://instagram.com/gnosis.king
 
 ---
 ```
+
 ## Para calendario
+
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Evento de ejemplo
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
-    - BDSM
-    - KinkyVibe # etiqueta especial #
+  - español
+  - BDSM
+  - KinkyVibe # etiqueta especial #
+layout: calendario
 category: calendario
 authors:
-    - DemonWeb
-    - FideosConTuco
-    - Gorro_Rojo
+  - DemonWeb
+  - FideosConTuco
+  - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-06-02T20:00-03:00
-end:   2023-06-02T23:00-03:00
+end: 2023-06-02T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.google.com/elmejoreventodelmundo
 link_text: Inscibirme ➡️
 ---
 ```
+
 ## Para material
+
 ```yaml
 ---
-#published_date: 2023-05-16
-#updated_date: 2023-11-04
+#published_date: 2023-05-16Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
+#wiki: material # para si es una entry de la wiki #
 summary: Una demostración de todas las cosas que puede tener una publicación
 tags:
-    - BDSM
-    - KinkyVibe # etiqueta especial #
+  - español # español | inglés #
+  - gratis # gratis | pago #
+  - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
+  - gratis # gratis | pago #
+  - online # online | descargable | link #
+  - KinkyVibe # etiqueta especial #
+  - BDSM
+layout: material
 category: material
 authors:
-    - DemonWeb
-    - FideosConTuco
-    - Gorro_Rojo
+  - DemonWeb
+  - TallarinesConTuco
+  - Gorro_Rojo
 #featured: 1
 #force_unlisted: false
 #force_unpublished: false
-type: contenido  # descargable | link | contenido #
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
-#access_date: 2023-11-21
-#original_published_date: 2010-04-03
+#redirect: false
+#access_date: 2023-11-21Z-03:00
+#original_published_date: 2010-04-03Z-03:00
 ---
 ```

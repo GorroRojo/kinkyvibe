@@ -1,21 +1,24 @@
 ---
-published_date: 2023-02-01
-updated_date: 2023-06-16
+published_date: 2023-02-01Z-03:00
+updated_date: 2023-06-16Z-03:00
 title: Guía rápida de materiales
 summary: Para saber más sobre qué dildos, fundas y vibradores compramos.
 tags:
+  - español
   - salud
   - materiales
   - seguridad
   - guia
   - KinkyVibe
+  - gratis
+  - online
+layout: material
 category: material
 authors:
   - DemonWeb
 featured: 1
 #force_unlisted:
 #force_unpublished:
-type: contenido # descargable | link | contenido #
 #link:
 ---
 
@@ -33,7 +36,7 @@ type: contenido # descargable | link | contenido #
 
 Vamos a dividr a los juguetes en su **nivel de seguridad** para nuestres cuerpes.
 
-## <small style="font-size: 2rem">A tener en cuenta:</small>&nbsp;&nbsp;**¿Qué es la porosidad?**
+## <small style="font-size: var(--step-1)">A tener en cuenta:</small>&nbsp;&nbsp;**¿Qué es la porosidad?**
 
 Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materiales tienen poros donde pueden **reproducirse las bacterias** <small>(además de quedar residuos biológicos: o sea, ser un vehículo para transmitir infecciones)</small>, y otros no.
 
@@ -128,15 +131,14 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
 
 <p><small id="foot1">\* ftalatos son plastificadores, sustancias añadidas a los plásticos para incrementar su flexibilidad.</small></p>
 
-<p><strong style="font-size:2rem;color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
-
+<p><strong style="font-size:var(--step-2);color:red;text-align:center;width:100%;display:block;">Compone el 80% de los juguetes del mercado</strong></p>
 
 <style>
     hr {
-        margin-block: 4em;
+        margin-block: 4em 2em;
     }
-    :global(article h2) {
-        --font-size: 3rem;
+    h2 {
+        font-size: 3rem;
         margin-top:0;
     }
     .row {
@@ -149,7 +151,7 @@ Las bacterias necesitan **aire** y **humedad** para reproducirse. Algunos materi
     .card {
         width: 7em;
         height: 5em;
-        font-size: 1.2em;
+        font-size: var(--step-0);
         background: white;
         border-radius: 1em;
         display: inline-grid;

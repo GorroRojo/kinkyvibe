@@ -1,23 +1,25 @@
 ---
-published_date: 2023-01-11
-#update_date:
+published_date: 2023-01-11Z-03:00
+#updated_date:
 title: The Toybag Guide to Canes and Caning
 summary: "Una guía en inglés de juegos con varillas, centrada sobretodo en nalgas y piernas."
-# TODO llenar summary
 tags:
-  - practica
+  - prácticas
   - impacto
   - caning
   - BDSM
   - guia
+  - libro
   - inglés
+  - gratis
+  - descargable
+layout: material
 category: material
 authors:
   - Janey W. Hardy
 featured: 2
 # force_unlisted: true
 #force_unpublished: false
-type: descargable
 #link:
 ---
 
@@ -29,6 +31,6 @@ Holi holi! Por aquí vengo a dejarles una guía en inglés de juegos con varilla
 
 Es bastante completa aunque se centra más que nada en nalgas y piernas.
 
-<object title="Toybag guide to canes and caning" data={guia} type="application/pdf" width="800px" height="1000px" alt="pdf">
+<object title="Toybag guide to canes and caning" data={guia} type="application/pdf" width="50rem" height="1000px" alt="pdf">
 <a href={guia}>Ir al pdf ↗️</a>
 </object>

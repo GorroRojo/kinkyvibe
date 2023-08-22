@@ -1,6 +1,6 @@
 //@ts-nocheck
 import { fetchMarkdownPosts } from '$lib/utils';
-const siteURL = 'https://kinkyvibe.pages.dev';
+const siteURL = 'https://kinkyvibe.ar';
 const siteTitle = 'KinkyVibe';
 const siteDescription = 'Your site description here';
 
@@ -31,11 +31,11 @@ const render = (posts) => `<?xml version="1.0" encoding="UTF-8" ?>
 ${posts
 	.map(
 		(post) => `<item>
-<guid isPermaLink="true">${siteURL}/blog/${post.path}</guid>
+<guid isPermaLink="true">${siteURL}/${post.path}</guid>
 <title>${post.meta.title}</title>
-<link>${siteURL}/blog/${post.path}</link>
+<link>${siteURL}/${post.path}</link>
 <description>${post.meta.title}</description>
-<pubDate>${new Date(post.meta.date).toUTCString()}</pubDate>
+<pubDate>${new Date(post.meta.published_date).toUTCString()}</pubDate>
 </item>`
 	)
 	.join('')}

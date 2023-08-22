@@ -1,0 +1,59 @@
+---
+published_date: 2023-05-29Z-03:00
+#updated_date: 2023-11-04Z-03:00
+title: DemonWeb / Mel
+summary: Mi nombre es Mel, soy Sub, Switch, Dominatrix Profesional, y educador BDSM.
+tags:
+  - español
+  - BDSM
+  - clases
+  - sesiones
+  - profesional
+  - KinkyVibe
+  - AMBA
+layout: amigues
+category: amigues
+authors:
+  - DemonWeb
+featured: 1
+#force_unlisted: false
+#force_unpublished: false
+pronoun: https://pronombr.es/él&elle
+link: https://instagram.com/kinkyvibeargentina/
+logo: 1
+# photo: 1
+#email: ayuda@kinkyvibe.ar
+#location: Thames 240, Ciudad Autónoma de Buenos Aires
+#tel: +54 9 11 5555 3333
+job_title: Educador BDSM
+#gender_identity: Perrito Travo Interdimensional
+#bday: 1996-04-09
+---
+
+
+Educadores BDSM con quienes he tomado clases o talleres:
+
+- Karadahouse
+- Lola Jean
+- Evie Lupine
+- Midori
+- Morgan Thorne
+
+También viajé a Londres, Berlin, Madrid y Barcelona y tomé clases con varies educadores
+
+En shibari:
+
+- Karadahouse (Queerope)
+- Anatomie
+- Clases con educadores de acá.
+
+Además de 7 años e experiencia como modelo y 5 años dando clases con personas hermosas como [\@xdoll](/XDoll) y [\@drux](/Drux).
+
+En ESI:
+
+- ESI en filo y letras
+- ESI por mocha celis
+- ESI y discapacidad con Silvina Peirano
+- Salud sexual y reproductiva por fusa
+
+Entre muchísimas otras. sigo formándome todo el tiempo. Tomé un taller de porno y ESI con Laura Milano el viernes.

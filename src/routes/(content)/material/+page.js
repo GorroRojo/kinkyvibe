@@ -3,8 +3,8 @@
 export async function load({ fetch }) {
 	try {
 		const posts = await (await fetch('../api?category=material')).json();
-		const tagsConfig = await (await fetch('../api?getTags')).json();
-		return { posts, tagsConfig };
+		const wiki = await (await fetch('../api?wiki')).json();
+		return { posts, wiki };
 	} catch (err) {
 		return { isError: true, err };
 	}

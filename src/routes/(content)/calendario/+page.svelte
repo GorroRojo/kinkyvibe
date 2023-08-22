@@ -1,5 +1,6 @@
 <script>
 	// @ts-nocheck
+	import 'add-to-calendar-button';
 	import { ArrowLeft } from 'lucide-svelte';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -12,7 +13,7 @@
 	// let view_date;
 	let days = data.posts.reduce((dates, post, i) => {
 		let start_date = new Date(post.meta.start);
-		start_date = format(addDays(start_date, 1), 'yyyy-MM-dd');
+		start_date = format(addDays(start_date, 0), 'yyyy-MM-dd');
 		// post.meta.start_time = format(start_date, 'hh:mm');
 		if (dates[start_date]) {
 			dates[start_date].push({ i, ...post });
@@ -22,6 +23,7 @@
 
 		return dates;
 	}, {});
+	data.posts.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime());
 </script>
 
 <svelte:head>
@@ -34,7 +36,7 @@
 		--color-1="transparent"
 	/>
 </div>
-
+	
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader />
@@ -89,11 +91,62 @@
 				path: p.path
 			}))}
 		/>
+		<!-- style={`
+							--btn-text: white;
+							--keyboard-focus: var(--post-color, var(--2));
+							--btn-background: transparent;
+							--btn-shadow: none;
+							--btn-shadow-hover: none;
+							--list-background: white;
+							--list-background-hover: var(--1-light) ;
+							--list-text-hover: white;
+							--list-shadow: 0 0 1em 0 var(--1-light);
+							`} -->
+	<p class="subscribe">
+		También podés <add-to-calendar-button
+			style={`
+				--btn-background: var(--2);
+				--btn-border: var(--3);
+				--btn-text: white;
+				--btn-shadow: none;
+				--btn-background-hover: var(--2);
+				--btn-border-hover: white;
+				--btn-text-hover: white;
+				--btn-shadow-hover: 0 0 1em var(--3-light);
+				--font: 'Lato', sans-serif;
+				`}
+			startDate={format(new Date(), 'yyyy-MM-dd')}
+			options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+			language="es"
+			listStyle="overlay"
+			buttonStyle="3d"
+			size="10"
+			inline
+			subscribe
+			trigger="click"
+			icsFile="https://kinkyvibe.ar/calendario.ics"
+			name="Calendario Kinky"
+			label="suscribirte a este calendario"
+		/> para nunca perderte de nada!
+	</p>
+	<!-- lightMode="bodyScheme" -->
+	<!-- size="1" -->
 	</div>
 </div>
 
 <style lang="scss">
-	
+	.subscribe {
+		font-size: var(--step-1);
+		text-align: center;
+		/* outline: 2px dashed var(--3); */
+		/* outline-offset: -4px; */
+		background: var(--1-dark);
+		color: white;
+		border-radius: 1em;
+		padding: 1em 1.5em;
+		/* max-width: max-content; */
+		margin: 2em auto;
+	}
 	.cardrow {
 		max-width: 1200px;
 		margin-inline: auto;
@@ -102,7 +155,7 @@
 		color: unset;
 	}
 	#calendar {
-		max-width: 800px;
+		max-width: 50rem;
 		margin-inline: auto;
 		/* max-height: 80vh; */
 		height: 40em;

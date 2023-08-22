@@ -1,13 +1,15 @@
 ---
-published_date: 2023-06-10
-#updated_date: 2023-11-04
+published_date: 2023-06-10Z-03:00
+#updated_date: 2023-11-04Z-03:00
 title: Picantearla | Junio 2023
 summary: Espacio de exploración de prácticas BDSM. Un taller de prácticas fetichistas + juegos grupales.
 tags:
+  - español
   - KinkyVibe
   - Picantearla
   - evento
   - bdsm
+layout: calendario
 category: calendario
 authors:
   - KinkyVibe
@@ -16,7 +18,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-06-23T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2023-06-04T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-06-24T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/XNuo5hFnmBWPikGG8
 link_text: 'PRE-VENTA'
@@ -45,9 +47,9 @@ link_text: 'PRE-VENTA'
 - Vamos a contar con un espacio de negociación grupal y un cierre de cuidados posteriores entre todes.
 - Va a haber barra con comida.  -->
 
-<div style="text-align:center;font-size: 2em;margin: 2em;"><strong>ESTO NO ES UNA FIESTA</strong></div>
+<div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>ESTO NO ES UNA FIESTA</strong></div>
 
-<div style="text-align:center;font-size: 2em;margin: 2em;"><strong>🍭&nbsp;ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS&nbsp;/&nbsp;BDSM&nbsp;🍭</strong></div>
+<div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>🍭&nbsp;ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS&nbsp;/&nbsp;BDSM&nbsp;🍭</strong></div>
 
 <!-- > Venite si tenés ganas de conocer gente, jugar en un ambiente con musiquita suave, luces cálidas, y compartir sensualidad y fetiches con otres.  -->
 
@@ -94,19 +96,15 @@ Dictado por **Mel**
 
 _Monitorean_
 
-- [@eze_lh](https://instagram.com/eze_lh)
-- [@mareupia](https://instagram.com/mareupia)
-- [@cero.rigger](https://instagram.com/cero.rigger)
-  <!-- - [@gorro_rojo](https://instagram.com/gorro_rojo) -->
-  <!-- - [@gnosis.king](https://instagram.com/gnosis.king) -->
-- [@silvina.chivy](https://instagram.com/silvina.chivy)
-- [@callianix](https://instagram.com/callianix)
+- [\@eze_lh](https://instagram.com/eze_lh)
+- [\@mareupia](https://instagram.com/mareupia)
+- [\@cero.rigger](https://instagram.com/cero.rigger)
+  <!-- - [\@gorro_rojo](https://instagram.com/gorro_rojo) -->
+  <!-- - [\@gnosis.king](https://instagram.com/gnosis.king) -->
+- [\@silvina.chivy](https://instagram.com/silvina.chivy)
+- [\@callianix](https://instagram.com/callianix)
 
 🔥 _¿Quiénes vienen?_ 🔥
-
-{#if link}
-<a class="cta" href={link}>{link_text}</a>
-{/if}
 
 <style>
     code{
@@ -117,34 +115,7 @@ _Monitorean_
       text-align: center;
       padding: 1em;
       font-weight: bold;
-      font-size: 1em;
-    }
-    li {
-        list-style-type: '👉 ';
-    }
-    .cta {
-      background: var(--1);
-      color: white;
-      font-weight: bold;
-      border-radius: .3em;
-      display: block;
-      margin-inline: auto;
-      padding: .5em 1em;
-      width: 10em;
-      min-width: 0;
-      /* width: auto; */
-      text-align: center;
-      font-size: 3em;
-      text-decoration: none;
-      margin-top: 2em;
-      transition: 200ms;
-      box-shadow: 0 0 0 0;
-      white-space:nowrap;
-    }
-    .cta:hover {
-      scale: 1.1;
-      /* filter: brightness(1.05); */
-      box-shadow: .6em .6em 1em rgba(0,0,0,.1);
+      font-size: var(--step-1);
     }
     a {
       color: #222;

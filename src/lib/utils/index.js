@@ -2,9 +2,10 @@ import '$lib/types.d.js';
 
 export const fetchTags = async () => {
 	//@ts-expect-error
-	var { metadata: tagsConfig } = /** @type {{groups: Group[], tags:*}} */ await Object.entries(
-		import.meta.glob('$lib/posts/_tags.md')
-	)[0][1]();
+	var { metadata: tagsConfig } =
+		/** @type {{metadata:{groups: Group[], tags:*}}} */ await Object.entries(
+			import.meta.glob('$lib/posts/_tags.md')
+		)[0][1]();
 	let alias = aliaserFactory(tagsConfig);
 	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group) =>
 		groupMap(group, (g) => {
@@ -14,7 +15,54 @@ export const fetchTags = async () => {
 			else return { ...g, name, members: [] };
 		})
 	);
-	return { ...tagsConfig, groups: aliasedGroups };
+	/** @type {Record<string,Record<string,string>>} */
+	let coloredGroupedTags = {};
+	aliasedGroups.forEach((/**@type{Group}*/ group) =>
+		groupMap(group, (g) => {
+			if (g.sub) {
+				g.sub.forEach((s) => {
+					if (!s.color) {
+						s.color = g.color;
+					}
+					s.parent = g.parent ? g.parent + '/' + g.name : g.name;
+				});
+			}
+			if (g.color != undefined) {
+				if (g.members) {
+					[g.name, ...g.members].forEach((m) => {
+						if (coloredGroupedTags[m]) {
+							// @ts-ignore
+							coloredGroupedTags[m].color = g.color;
+							coloredGroupedTags[m].group = g.parent ? g.parent + '/' + g.name : g.name;
+						} else {
+							coloredGroupedTags[m] = {
+								// @ts-ignore
+								color: g.color,
+								group: g.parent ? g.parent + '/' + g.name : g.name
+							};
+						}
+					});
+				}
+			}
+			return g;
+		})
+	);
+	return {
+		...tagsConfig,
+		tags: Object.fromEntries([
+			...Object.entries(tagsConfig.tags),
+			...Object.entries(coloredGroupedTags)
+		]),
+		groups: aliasedGroups
+	};
+};
+
+export const fetchGlossary = async () => {
+	//@ts-expect-error
+	var { metadata: glossary } = /** @type {{terminos:string[]}} */ await Object.entries(
+		import.meta.glob('$lib/posts/_glossary.md')
+	)[0][1]();
+	return glossary;
 };
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
@@ -42,21 +90,33 @@ export function groupMap(group, fn) {
 }
 
 /**
+ * Retrieves all the URL paths of the image files in posts/media/*
+ *
+ * @return {Promise<Record<string,string>>} - A promise that resolves to an array of URL paths.
+ */
+export const fetchAllThumbs = async () =>
+	import.meta.glob(
+		[
+			'$lib/posts/media/*/*.jpeg',
+			'$lib/posts/media/*/*.jfif',
+			'$lib/posts/media/*/*.jpg',
+			'$lib/posts/media/*/*.png',
+			'$lib/posts/media/*/*.webp'
+		],
+		{ eager: true, as: 'url' }
+	);
+
+/**
  *
  * @param {string} postSlug
  * @param {string | number} assetID
  * @param {Record<string,any> | false} allThumbs
  */
-export const thumbURL = (postSlug, assetID, allThumbs = false) => {
+export const thumbURL = async (postSlug, assetID, allThumbs = false) => {
 	if (!allThumbs) {
-		allThumbs = import.meta.glob([
-			'$lib/posts/media/*/*.jpeg',
-			'$lib/posts/media/*/*.jpg',
-			'$lib/posts/media/*/*.png',
-			'$lib/posts/media/*/*.webp'
-		], { eager: true, as: 'url' });
+		allThumbs = await fetchAllThumbs();
 	}
-	let regex = new RegExp(`${postSlug}/${assetID}.\\w+`);
+	let regex = new RegExp(`/${postSlug}/${assetID}.\\w+`);
 	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
 };
 
@@ -69,8 +129,8 @@ export function aliaserFactory(tagsConfig) {
 		let result = tag;
 		let max = 20;
 		while (
-			Object.hasOwn(tagsConfig.tags, result) &&
-			Object.hasOwn(tagsConfig.tags[result], 'aliasOf')
+			Object.keys(tagsConfig.tags).includes(result) &&
+			Object.keys(tagsConfig.tags[result]).includes('aliasOf')
 		) {
 			result = tagsConfig.tags[tag].aliasOf;
 			if (max-- < 0) {
@@ -83,31 +143,62 @@ export function aliaserFactory(tagsConfig) {
 	};
 }
 
-export const fetchMarkdownPosts = async () => {
+/**
+ * Fetches markdown posts and performs validations and transformations.
+ * @param {boolean} wiki - Whether or not the posts are from the wiki
+ * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
+ */
+export const fetchMarkdownPosts = async (wiki = false) => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
-	var allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
-	var allThumbs = import.meta.glob([
-		'$lib/posts/media/*/*.jpeg',
-		'$lib/posts/media/*/*.jpg',
-		'$lib/posts/media/*/*.png',
-		'$lib/posts/media/*/*.webp'
-	], { eager: true, as: 'url' });
-
+	var allPosts;
+	if (wiki) {
+		allPosts = Object.entries(import.meta.glob('$lib/wiki/*.md'));
+	} else {
+		allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
+	}
 	let validatedPosts = await validateAll(allPosts);
-	const tagsConfig = await fetchTags();
-	const alias = aliaserFactory(tagsConfig);
-	validatedPosts = validatedPosts.map((post) => {
-		let { featured, tags } = post.meta;
-		if (featured && (featured + '').length < 3) {
-			featured = thumbURL(post.path, featured, allThumbs);
-		}
-		if (Array.isArray(tags)) tags = tags.map(alias);
-		tags = [...tags].sort();
-		return { ...post, meta: { ...post.meta, featured, tags, tagsConfig } };
-	});
+
+	validatedPosts = await processMetadataAll(validatedPosts);
 	// TODO performance, i'm looping way way way too many times
 	return [...validatedPosts];
 };
+
+/**
+ * @param {{meta: AnyPostData, path: string}[]} posts
+ * @return {Promise<{meta: AnyPostData, path:string}[]>}
+ */
+export async function processMetadataAll(posts) {
+	const tagsConfig = await fetchTags();
+	const alias = aliaserFactory(tagsConfig);
+	return await Promise.all(
+		posts.map(async (post) => await processMetadata(post, alias, tagsConfig))
+	);
+}
+
+/**
+ * Processes the metadata using the given parameters.
+ *
+ * @param {{path:string,meta:AnyPostData}} post - The post.
+ * @param {(tag: string)=>string} alias - The alias function for tags.
+ * @param {{groups: Group[], tags:Record<string,{group?:string}>}} tagsConfig - The configuration object for tags.
+ * @return {Promise<{path:string,meta:AnyPostData}>} This function does not return a value.
+ */
+export async function processMetadata(post, alias, tagsConfig) {
+	let featured = post.meta.featured + '';
+	if (featured && featured.length < 3) {
+		featured = await thumbURL(post.path, featured);
+	}
+
+	let tags = [];
+	if (Array.isArray(post.meta.tags)) {
+		tags = [...post.meta.tags]
+			.map(alias)
+			.sort((a, b) =>
+				(tagsConfig.tags[a]?.group ?? '').localeCompare(tagsConfig.tags[b]?.group ?? '')
+			);
+	} else tags = [post.meta.tags];
+	return { ...post, meta: { ...post.meta, featured, tags } };
+}
 
 /**
  * @param {[string, ()=>Promise<{
@@ -116,24 +207,24 @@ export const fetchMarkdownPosts = async () => {
  * @return {Promise<{meta: AnyPostData, path:string}[]>}
  */
 async function validateAll(posts) {
-	/** @type {[string,{metadata:AnyPostData}][]} */
+	/** @type {[string,{metadata:AnyPostData,default?:{render:()=>{html:string,css:{code:string}}}}][]} */
 	const raw = await Promise.all(posts.map(async ([path, resolver]) => [path, await resolver()]));
 	const validated = raw
-		.filter(([path, { metadata }]) => metadata && !metadata.force_unlisted && !(path[15] == '_'))
+		.filter(([path, post]) => post.metadata && !post.metadata.force_unlisted && !(path[15] == '_'))
 		.map((p) => validatePost(p));
 	return validated;
 }
 
 /**
- * @param {[string,{metadata:AnyPostData}]} post
- * @return {{error?: any, meta: AnyPostData, path: string}}
+ * @param {[string,{metadata:AnyPostData, default?: {render: ()=>{html:string,css:{code:string}}}}]} post
+ * @return {{error?: any, default?: {render: function}, meta: AnyPostData, path: string}}
  */
 function validatePost(post) {
-	const path = post[0].slice(15, -3);
+	const path = post[0].includes('wiki/') ? post[0].slice(14, -3) : post[0].slice(15, -3);
 	const { metadata } = post[1];
 	let missing = validateMissingData(metadata);
-	if (missing) return { error: missing, meta: metadata, path };
-	return { meta: metadata, path };
+	if (missing) return { error: missing, meta: metadata, default: post[1].default, path };
+	return { meta: metadata, default: post[1].default, path };
 }
 
 /**
