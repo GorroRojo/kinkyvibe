@@ -27,14 +27,3 @@ link: https://forms.gle/vp1d7Sn5bYoUkvwTA
 link_text: PRE-VENTA
 ---
 
-
-<style>
-    h2 {
-        margin-top: 3em;
-    }
-    a {
-      color: #222;
-      /* text-decoration: none; */
-      text-decoration-color: var(--1);
-    }
-</style>

@@ -3,8 +3,6 @@
 #updated_date: 2023-11-04Z-03:00
 title: Juegos con la edad
 wiki: edad # para si es una entry de la wiki #
-alias:
-  - ageplay
 summary: Un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad.
 layout: wiki
 category: wiki
