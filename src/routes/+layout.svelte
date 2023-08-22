@@ -26,6 +26,7 @@
 	} from '$lib/utils/stores';
 	import { aliaserFactory } from '$lib/utils/index.js';
 	import { page } from '$app/stores';
+	import AgeModal from '$lib/components/AgeModal.svelte';
 	export let data;
 	// onMount(() => {
 	tagsConfig.set(data.tagsConfig);
@@ -64,6 +65,7 @@
 	por Telegram. O directamente en
 	<a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.
 </div>
+<AgeModal />
 <header>
 	<div id="me">
 		<ul id="redes">
