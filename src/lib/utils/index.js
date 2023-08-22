@@ -220,7 +220,7 @@ async function validateAll(posts) {
  * @return {{error?: any, default?: {render: function}, meta: AnyPostData, path: string}}
  */
 function validatePost(post) {
-	const path = post[0].slice(15, -3);
+	const path = post[0].includes('wiki/') ? post[0].slice(14, -3) : post[0].slice(15, -3);
 	const { metadata } = post[1];
 	let missing = validateMissingData(metadata);
 	if (missing) return { error: missing, meta: metadata, default: post[1].default, path };

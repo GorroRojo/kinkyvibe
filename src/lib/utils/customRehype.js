@@ -139,17 +139,32 @@ export default function customRehype() {
 				/\[([^\]:]+)( : [^\]]+)?\]/g,
 				(original, link, lit, { stack }) => {
 					const parent = stack[stack.length - 2];
-					const index = parent.children.findIndex((/**@type **/ c)=> c?.value && c?.value?.includes(original)) - 1
+					const index =
+						parent.children.findIndex(
+							(/**@type **/ c) => c?.value && c?.value?.includes(original)
+						) - 1;
 					if (prevParent !== parent) {
 						foundInParent = 0;
 						prevParent = parent;
 					}
-					const previous = parent.children[index + foundInParent * 2];
-					const next = parent.children[index + 2 + foundInParent * 2];
+					const previous = parent.children[index + foundInParent];
+					const next = parent.children[index + 2 + foundInParent];
 					const lastCharOfPreviousNode = previous?.value?.slice(-1) ?? '';
 					const firstCharOfNextNode = next?.value[0] ?? '';
+					// console.log({
+					// 	original,
+					// 	link,
+					// 	lit,
+					// 	previous: previous,
+					// 	next: next,
+					// 	foundInParent,
+					// 	index,
+					// 	c: { lastCharOfPreviousNode, firstCharOfNextNode }
+					// });
+					// console.log(parent.children);
 					if (lastCharOfPreviousNode == '[' && firstCharOfNextNode == ']') {
-						foundInParent++;
+						// console.log('wrap detected!');
+						// foundInParent++;
 						previous.value = previous.value.slice(0, -1);
 						next.value = next.value.slice(1);
 						return h(
