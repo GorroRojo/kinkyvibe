@@ -62,7 +62,7 @@
 			{
 				'@type': 'ListItem',
 				position: 1,
-				name: $currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category,
+				name: $currentPostData?.category == 'wiki' ? 'Kinkipedia' : $currentPostData?.category ?? '',
 				item: 'https://example.com/books'
 			}
 		]
