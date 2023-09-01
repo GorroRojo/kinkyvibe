@@ -1,18 +1,30 @@
 <script>
-	//@ts-nocheck
 	import CardRow from '$lib/components/CardRow.svelte';
+	import LDTag from '$lib/components/LDTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	export let data;
 	let { posts, err } = data;
 
-	let title = "KinkyVibe.ar";
-	let summary = "Red de información y encuentros BDSM-kinky-queer-lgbt";
+	const title = 'KinkyVibe.ar';
+	const summary = 'Red de información y encuentros BDSM-kinky-queer-lgbt';
+	const canonical = "https://kinkyvibe.ar"
+	/**@type {LD.Schema}*/
+	const websiteSchema = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		'@id': canonical+'#organization',
+		url: canonical,
+		name: title,
+		description: summary,
+		sameAs: ['https://twitter.com/kinkyvibearg'],
+		logo: 'https://KinkyVibe.ar/favicon.png',
+	};
 </script>
 
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 	<link rel="icon" href="favicon.png" />
-
+	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
 	<meta property="og:url" content="/" />
@@ -38,51 +50,45 @@
 	<!-- <meta property="article:tag" content={data.tags?.join(', ')} /> -->
 </svelte:head>
 
+<LDTag schema={websiteSchema} />
 
 <main>
 	{#if !err}
-	<div class="cardrow">
-		<CardRow
-			index="0"
-			id="calendario"
-			title="Talleres y eventos"
-			items={posts
-				.filter((p) => (p.meta.category == 'calendario'))
-				.slice(0, 3)}
-			--color-1="var(--2-dark)"
-			--color-2="var(--1)"
-			href="/calendario"
-		/>
-	</div>
-	<div class="cardrow">
-		<CardRow
-			index="0"
-			id="informacion"
-			title="Artículos, links y descargables"
-			items={posts
-				.filter((p) => (p.meta.category == 'material'))
-				.slice(0, 3)}
-			--color-1="var(--1)"
-			--color-2="var(--2-dark)"
-			href="/material"
-		/>
-	</div>
-	<div class="cardrow">
-		<CardRow
-			index="1"
-			id="amigues"
-			title="Para apoyarnos"
-			items={posts
-				.filter((p) => (p.meta.category == 'amigues'))
-				.slice(0, 3)}
-			--color-1="var(--2-dark)"
-			--color-2="var(--1)"
-			href="/amigues"
-		/>
-	</div>
+		<div class="cardrow">
+			<CardRow
+				index="0"
+				id="calendario"
+				title="Talleres y eventos"
+				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'calendario').slice(0, 3)}
+				--color-1="var(--2-dark)"
+				--color-2="var(--1)"
+				href="/calendario"
+			/>
+		</div>
+		<div class="cardrow">
+			<CardRow
+				index="0"
+				id="informacion"
+				title="Artículos, links y descargables"
+				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material').slice(0, 3)}
+				--color-1="var(--1)"
+				--color-2="var(--2-dark)"
+				href="/material"
+			/>
+		</div>
+		<div class="cardrow">
+			<CardRow
+				index="1"
+				id="amigues"
+				title="Para apoyarnos"
+				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues').slice(0, 3)}
+				--color-1="var(--2-dark)"
+				--color-2="var(--1)"
+				href="/amigues"
+			/>
+		</div>
 		<div id="lista" />
-		<PostList posts={posts} />
-		<!-- .filter((p) => !(p.meta.start && new Date(p.meta.start).getTime() < Date.now()))} -->
+		<PostList {posts} />
 	{:else}
 		posts: {JSON.stringify(posts)}
 		err: {JSON.stringify(err)}
@@ -91,7 +97,7 @@
 
 <style>
 	#lista {
-		display:none;
+		display: none;
 	}
 	main {
 		/* width: 100%; */

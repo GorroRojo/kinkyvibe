@@ -1,4 +1,5 @@
 <script>
+	import LDTag from '$lib/components/LDTag.svelte';
 	import {
 		ArrowLeft,
 		ArrowRight,
@@ -53,6 +54,19 @@
 				}
 			}
 	);
+	/**@type {LD.BreadcrumbList & {"@context": string}}*/
+	let ldBreadcrumb = {
+		'@context': 'https://schema.org',
+		'@type': 'BreadcrumbList',
+		itemListElement: [
+			{
+				'@type': 'ListItem',
+				position: 1,
+				name: $currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category,
+				item: 'https://example.com/books'
+			}
+		]
+	};
 </script>
 
 <svelte:head>
@@ -122,18 +136,11 @@
 		</a>
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
+			<LDTag schema={ldBreadcrumb} />
 			<ChevronLeft size="20" style="translate: 0 .4em" />
-			<!-- {#if data.currentRoute.startsWith('/wiki')} -->
-			<!-- <a href="/material">Kinkipedia</a> -->
-			<!-- {#if data.currentRoute.includes('wiki/')} -->
-			<!-- <ChevronLeft size="20" style="translate: 0 .4em" /> -->
-			<!-- <a href="/wiki">wiki</a> -->
-			<!-- {/if} -->
-			<!-- {:else} -->
 			<a href={'/' + $currentPostData.category}
 				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
 			>
-			<!-- {/if} -->
 		{/if}
 	</div>
 {/if}
