@@ -221,6 +221,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-06-02T20:00-03:00
 end: 2023-06-02T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
+#location_name: QI Centro Cultural
 link: https://forms.google.com/elmejoreventodelmundo
 link_text: Inscibirme ➡️
 ---

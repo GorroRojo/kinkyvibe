@@ -49,6 +49,7 @@
  * 		end?: string,
  * 		duration?: Date,
  * 		location?: string,
+ * 		location_name?: string,
  * 		link?: URL
  * 		link_text?: string
  * }} CalendarioPostData */

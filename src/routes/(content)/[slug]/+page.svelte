@@ -2,66 +2,72 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
-	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import { tagsConfig, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	export let data;
-	import { onMount } from 'svelte';
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
-	/**@type LD.Article & {'@context':'https://schema.org'}*/
-	const ldArticle = {
-		'@context': 'https://schema.org',
-		'@type': 'NewsArticle',
-		headline: data.title,
-		image: [data.featured + ''],
-		datePublished: new Date(data.published_date ?? '').toISOString(),
-		dateModified: new Date(data.updated_date ?? data.published_date ?? '').toISOString(),
-		author: data.authors?.map((a) => ({
-			'@type': 'Person',
-			name: a,
-			url: 'https://kinkyvibe.ar/' + a
-		}))
-	};
-	/**@type LD.Event & {"@context":"https://schema.org"}*/
-	const ldEvent = {
-		'@context': 'https://schema.org',
-		'@type': 'Event',
-		name: data.title,
-		startDate: new Date(data.start ?? '').toISOString(),
-		endDate: new Date(data.end ?? (data.start ?? '') + data.end).toISOString(),
-		eventAttendanceMode: data.location
-			? 'https://schema.org/OnlineEventAttendanceMode'
-			: 'https://schema.org/OfflineEventAttendanceMode',
-		eventStatus:
-			data.status == 'cancelado'
-				? 'https://schema.org/EventCancelled'
-				: 'https://schema.org/EventScheduled',
-		location: data.location ?? { '@type': 'VirtualLocation', url: data.link },
-		image: [data.featured + ''],
-		description: data.summary
-		//   "offers": {
-		//     "@type": "Offer",
-		//     "url": "https://www.example.com/event_offer/12345_201803180430",
-		//     "price": "30",
-		//     "priceCurrency": "USD",
-		//     "availability": "https://schema.org/InStock",
-		//     "validFrom": "2024-05-21T12:00"
-		//   },
-		//   "performer": {
-		//     "@type": "PerformingGroup",
-		//     "name": "Kira and Morrison"
-		//   },
-		//   "organizer": {
-		//     "@type": "Organization",
-		//     "name": "Kira and Morrison Music",
-		//     "url": "https://kiraandmorrisonmusic.com"
-		//   }
-	};
 </script>
 
-<LDTag schema={data.category == 'calendario' ? ldEvent : ldArticle} />
+<LDTag
+	schema={data.category == 'calendario'
+		? /**@type LD.Event & {"@context":"https://schema.org"}*/ {
+				'@context': 'https://schema.org',
+				'@type': 'Event',
+				name: data.title,
+				startDate: new Date(data.start ?? '').toISOString(),
+				endDate: new Date(data.end ?? (data.start ?? '') + data.end).toISOString(),
+				eventAttendanceMode: data.location
+					? 'https://schema.org/OnlineEventAttendanceMode'
+					: 'https://schema.org/OfflineEventAttendanceMode',
+				eventStatus:
+					data.status == 'cancelado'
+						? 'https://schema.org/EventCancelled'
+						: 'https://schema.org/EventScheduled',
+				location: data.location
+					? {
+							'@type': 'Place',
+							name: data.location_name ?? data.title,
+							address: { '@type': 'PostalAddress', name: data.location }
+					  }
+					: { '@type': 'VirtualLocation', url: data.link },
+				image: [data.featured + ''],
+				description: data.summary,
+				//   "offers": {
+				//     "@type": "Offer",
+				//     "url": "https://www.example.com/event_offer/12345_201803180430",
+				//     "price": "30",
+				//     "priceCurrency": "USD",
+				//     "availability": "https://schema.org/InStock",
+				//     "validFrom": "2024-05-21T12:00"
+				//   },
+				//   "performer": {
+				//     "@type": "PerformingGroup",
+				//     "name": "Kira and Morrison"
+				//   },
+				organizer: {
+					'@type': data.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
+					name: data.tags?.includes('KinkyVibe') ? 'KinkyVibe' : data.authors?.[0] ?? 'KinkyVibe',
+					url:
+						'https://kinkyvibe.ar/' +
+						(data.tags?.includes('KinkyVibe') ? 'KinkyVibe' : data.authors?.[0] ?? 'KinkyVibe')
+				}
+		  }
+		: /**@type LD.Article & {'@context':'https://schema.org'}*/ {
+				'@context': 'https://schema.org',
+				'@type': 'NewsArticle',
+				headline: data.title,
+				image: [data.featured + ''],
+				datePublished: new Date(data.published_date ?? '').toISOString(),
+				dateModified: new Date(data.updated_date ?? data.published_date ?? '').toISOString(),
+				author: data.authors?.map((a) => ({
+					'@type': 'Person',
+					name: a,
+					url: 'https://kinkyvibe.ar/' + a
+				}))
+		  }}
+/>
 <svelte:head>
 	<title>{data.title} - KinkyVibe.ar</title>
 	<link rel="icon" href="favicon.png" />
