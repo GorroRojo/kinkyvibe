@@ -10,7 +10,7 @@ export const prerender = true;
 export const GET = async () => {
 	const allPosts = await fetchMarkdownPosts();
 	const sortedPosts = allPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
-	const pages = ['', 'material', 'calendario', 'amigues', 'wiki'];
+	const pages = ['', 'material', 'calendario', 'amigues', 'wiki', 'todo'];
 	const body = render(pages, sortedPosts);
 	const options = {
 		headers: {
