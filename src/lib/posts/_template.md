@@ -208,6 +208,7 @@ tags:
   - español
   - BDSM
   - KinkyVibe # etiqueta especial #
+  - pago # pago | gratis | a la gorra #
 layout: calendario
 category: calendario
 authors:
