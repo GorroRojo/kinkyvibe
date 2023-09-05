@@ -19,7 +19,7 @@ featured: 1
 pronoun: https://pronombr.es/ella
 link: https://www.instagram.com/soleropebunny/
 # logo: 2
-photo: 1
+# photo: 1
 # email: demondolldrusil@gmail.com
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 # tel: 35 1791 1561
