@@ -18,7 +18,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-07-21T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2023-07-21T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2023-07-21T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/fpK1riS6PVMaaxMHA
 link_text: 'Anotarse'

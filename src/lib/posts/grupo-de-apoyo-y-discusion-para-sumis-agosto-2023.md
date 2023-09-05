@@ -1,5 +1,5 @@
 ---
-published_date: 2023-08-7Z-03:00
+published_date: 2023-08-07Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Grupo de Apoyo y Discusion para Sumis
 summary: Un espacio de discusión, apoyo e intercambio dirigido a personas que quieran hablar con otres que habiten sus mismos roles (o similares) y que tengan algunas experiencias cercanas.
@@ -19,7 +19,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-31T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2023-08-31T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2023-08-31T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/Yr3CRxj7Hk2uzjCa9
 link_text: 'Anotarse'

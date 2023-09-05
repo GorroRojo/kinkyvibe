@@ -21,7 +21,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-08-20T16:30-03:00
-end: 2023-08-20T18:00-03:00
+end:   2023-08-20T18:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/vp1d7Sn5bYoUkvwTA

@@ -17,7 +17,7 @@
 				'@type': 'Event',
 				name: data.title,
 				startDate: new Date(data.start ?? '').toISOString(),
-				endDate: new Date(data.end ?? (data.start ?? '') + data.end).toISOString(),
+				endDate: new Date(data.end ?? (data.start ?? '') + (data.duration ?? '')).toISOString(),
 				eventAttendanceMode: data.location
 					? 'https://schema.org/OnlineEventAttendanceMode'
 					: 'https://schema.org/OfflineEventAttendanceMode',
@@ -70,7 +70,7 @@
 />
 <svelte:head>
 	<title>{data.title} - KinkyVibe.ar</title>
-	<link rel="icon" href="favicon.png" />
+	<link rel="icon" href="favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 

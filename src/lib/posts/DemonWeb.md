@@ -47,7 +47,7 @@ En shibari:
 - Anatomie
 - Clases con educadores de acá.
 
-Además de 7 años e experiencia como modelo y 5 años dando clases con personas hermosas como [\@xdoll](/XDoll) y [\@drux](/Drux).
+Además de 7 años e experiencia como modelo y 5 años dando clases con personas hermosas como @XDoll y @Drux .
 
 En ESI:
 

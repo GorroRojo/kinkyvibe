@@ -17,13 +17,13 @@
 		name: title,
 		description: summary,
 		sameAs: ['https://twitter.com/kinkyvibearg'],
-		logo: 'https://KinkyVibe.ar/favicon.png',
+		logo: 'https://KinkyVibe.ar/favicon-32x32.png',
 	};
 </script>
 
 <svelte:head>
 	<title>KinkyVibe.ar</title>
-	<link rel="icon" href="favicon.png" />
+	<link rel="icon" href="favicon-32x32.png" />
 	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
