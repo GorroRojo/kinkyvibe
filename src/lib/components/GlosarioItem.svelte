@@ -201,6 +201,9 @@
 	dt {
 		text-transform: capitalize;
 	}
+	dt small {
+		text-transform: none;
+	}
 	small {
 		font-size: var(--step--1);
 	}

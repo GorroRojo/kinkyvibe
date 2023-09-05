@@ -8,51 +8,6 @@
 
 <script>
 	//@ts-nocheck
-
-	/**@type {(description:string)=>Array<{type:string,line:string}>|undefined}*/
-	function parseDescription(description, query) {
-		const regex = /\[\[([^\]]*)\]\]/g;
-		const lines = description
-			.split(regex)
-			.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }))
-			.map(({ line, type }) => {
-				if (query != '' && line.includes(query)) {
-					let parts = line.split(query);
-					return parts
-						.map((p, i) =>
-							i % 2 == 0
-								? [
-										{ line: p, type },
-										{ line: query, type: 'mark' }
-								  ]
-								: { line: p, type }
-						)
-						.flat();
-				} else return { line, type };
-			})
-			.flat()
-			.filter(({ line, type }) => line !== '');
-		return lines.length > 0 ? lines : undefined;
-	}
-
-	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
-	function getGroups(termino, groups = $tagsConfig.groups) {
-		let matches = [];
-		for (let group of groups) {
-			if (group.name == termino) {
-				matches.push({ ...group });
-			} else {
-				if (group.members && group.members.includes(termino)) {
-					matches.push({ ...group });
-				}
-				if (group.sub) {
-					const sub = getGroups(termino, group.sub);
-					if (sub) matches.push(...sub);
-				}
-			}
-		}
-		return matches.filter((i) => i);
-	}
 	/**@type {{meta:AnyPostData,path:string}[]}*/
 	export let entries;
 
