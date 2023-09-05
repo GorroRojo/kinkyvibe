@@ -4,7 +4,7 @@ const siteURL = 'https://kinkyvibe.ar';
 // const siteTitle = 'KinkyVibe';
 // const siteDescription = 'Your site description here';
 // TODO add wiki entries to sitemap
-export const prerender = true;
+// export const prerender = true;
 
 /** @type {import('./$types').RequestHandler} */
 export const GET = async () => {
