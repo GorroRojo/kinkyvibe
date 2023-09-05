@@ -389,9 +389,9 @@
 			grid-area: pic;
 			border-top-left-radius: var(--radius);
 		}
-		h1 {
+		/* h1 {
 			grid-area: title;
-		}
+		} */
 		small {
 			opacity: 0.7;
 		}
