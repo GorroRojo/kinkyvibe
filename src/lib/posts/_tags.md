@@ -87,8 +87,13 @@ groups:
           - bottom
           - cuchillos
           - electro
-          - sensaciones
+          - dolor
         sub:
+          - name: sensaciones
+            sub:
+            - name: temperatura
+              members: 
+              - fuego
           - name: edad
             members: 
             - pequeñe
