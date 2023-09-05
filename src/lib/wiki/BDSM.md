@@ -3,7 +3,7 @@
 #updated_date: 2023-11-04Z-03:00
 title: BDSM
 wiki: BDSM # para si es una entry de la wiki #
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: Una conjunción de bondage y disciplina, dominación y sumisión, y sadismo y masoquismo.
 layout: wiki
 category: wiki
 #featured: 1

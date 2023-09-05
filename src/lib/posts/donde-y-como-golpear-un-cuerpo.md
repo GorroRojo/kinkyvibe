@@ -2,7 +2,7 @@
 published_date: 2023-06-28Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Dónde y con qué golpear un cuerpo de forma consensuada.
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: Gráfico interactivo con cómo golpear con qué elementos a qué partes del cuerpo, de forma consensuada.
 category: material
 layout: material
 tags:

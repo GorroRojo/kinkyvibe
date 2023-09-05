@@ -11,7 +11,7 @@
 #updated_date: 2023-11-04Z-03:00   # (YYYY-MM-DD) ult vez actualizó el post #
 title: Publicación de ejemplo # el nombre de la página en el navegador #
 
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: -
 # Un resumen para las listas de posts y para que aparezca en links, buscadores, etc
 
 tags:
@@ -168,7 +168,7 @@ _enfasis_ **otroenfasis** **_doble enfasis_** `código` ~~strikethrough~~
 #published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Amigue de ejemplo
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: -
 tags:
   - español
   - BDSM
@@ -203,7 +203,7 @@ link: https://instagram.com/gnosis.king
 #published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Evento de ejemplo
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: -
 tags:
   - español
   - BDSM
@@ -236,7 +236,7 @@ link_text: Inscibirme ➡️
 #updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
 #wiki: material # para si es una entry de la wiki #
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: -
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #

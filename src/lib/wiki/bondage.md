@@ -3,7 +3,7 @@
 #updated_date: 2023-11-04Z-03:00
 title: Bondage
 wiki: bondage # para si es una entry de la wiki #
-summary: Una demostración de todas las cosas que puede tener una publicación
+summary: Prácticas de BDSM basadas en restringir el movimiento de una persona.
 tags:
   - BDSM
 layout: wiki
