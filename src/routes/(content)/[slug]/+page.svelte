@@ -28,9 +28,7 @@
 			let post = allPosts.find((post) => post.path == value.textContent?.slice(1));
 			p.className = 'p-pronoun';
 			p.textContent =
-				' [' +
-				(post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') +
-				']';
+				' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';
 			value.appendChild(p);
 		});
 	};
@@ -139,10 +137,10 @@
 				{#if data.pronoun}
 					{#if (data.pronoun + '').startsWith('https')}
 						<a class="u-pronouns" href={data.pronoun + ''}>
-							[{(data.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]
+							{@html (data.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
 						</a>
 					{:else}
-						[{data.pronoun}]
+						{data.pronoun}
 					{/if}
 				{/if}
 			</h1>
@@ -419,6 +417,7 @@
 	}
 	:global(.content small.p-pronoun) {
 		font-size: var(--step--1);
+		color: var(--1);
 	}
 
 	.event-header {

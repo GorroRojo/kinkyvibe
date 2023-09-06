@@ -62,6 +62,7 @@
 		wiki: 'h-entry'
 	}[category]}"
 	tabindex="0"
+	id={href}
 >
 	{#if mark}
 		<span class="card-mark">{mark}</span>
@@ -70,7 +71,10 @@
 	<h3 class="p-name">
 		{title}
 		{#if pronoun}
-			<br/><small class="p-pronouns">[{(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]</small>
+			<br />
+			<small class="p-pronouns">
+				{@html (pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
+			</small>
 		{/if}
 	</h3>
 	{#if tags}
@@ -128,8 +132,8 @@
 		text-align: center;
 	}
 	.p-pronouns {
-		font-size: .6em;
-		opacity: .7;
+		font-size: 0.6em;
+		opacity: 0.7;
 		color: var(--post-color, var(--2));
 		text-decoration: none;
 	}

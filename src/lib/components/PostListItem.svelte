@@ -158,7 +158,9 @@
 	<h3>
 		{title}
 		{#if pronoun}
-			<small class="p-pronouns">[{(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]</small>
+			<small class="p-pronouns">
+				{@html "&nbsp;" + (pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
+			</small>
 		{/if}
 	</h3>
 	<p class="summary p-summary">
@@ -292,6 +294,8 @@
 		/* margin-left: 1em; */
 		small {
 			color: var(--post-color, var(--2));
+			font-size: .7em;
+			font-weight: normal;
 		}
 	}
 	/* .time {
