@@ -31,11 +31,11 @@ link_text: Anotarse
 
 ## ¿Qué incluye Dom*? (en esta ocasión) ##
 
-Personas que se identifican como **"Dom"** o les gusta jugar en ese rol.
-**Daddys**/**papis**/**Mommys**/**Mamis**, **cuidadores**, **dueñes**.
-**Switches** que quieren venir a hablar de su experiencia como Dom.
-Personas que son "**tops**".
-¡Entre muchísimas otras opciones!
+- Personas que se identifican como **"Dom"** o les gusta jugar en ese rol.
+- **Daddys**/**papis**/**Mommys**/**Mamis**, **cuidadores**, **dueñes**.
+- **Switches** que quieren venir a hablar de su experiencia como Dom.
+- Personas que son "**tops**".
+- ¡Entre muchísimas otras opciones!
 
 El espacio va a estar coordinado por @DemonWeb de Kinky Vibe
 
