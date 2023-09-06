@@ -63,7 +63,7 @@
 		material: 'h-entry'
 	}[category]} u-url"
 	class:mark
-	class:noimg={!src}
+	class:noimg={!!src}
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
@@ -378,6 +378,12 @@
 					'title title title'
 					'img summary summary'
 					'img tags cta';
+			}
+			&:has(.CTA).brokenImg {
+				grid-template-areas:
+					'title title'
+					'summary summary'
+					'tags cta';
 			}
 		}
 		:not(.amigues) > h3 {

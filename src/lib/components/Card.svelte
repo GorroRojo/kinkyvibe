@@ -59,14 +59,14 @@
 		amigues: 'h-card',
 		calendario: 'h-event',
 		material: 'h-entry',
-		'wiki': 'h-entry'
+		wiki: 'h-entry'
 	}[category]}"
 	tabindex="0"
 >
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured" src={src+''} alt="" />
+	<img class="card-img u-featured placeholder-gradient" src={src + ''} alt="" />
 	<h3 class="p-name">{title}</h3>
 	{#if tags}
 		<ul class="tagrow">

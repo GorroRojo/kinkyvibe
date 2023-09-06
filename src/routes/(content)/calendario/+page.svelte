@@ -43,6 +43,7 @@
 		<Calendar let:date let:today let:past>
 			{@const events = days ? days[date] : []}
 			<button
+				style:--evt-color={events?.[0]?.color || 'var(--1)'}
 				class:today
 				class:past
 				disabled={!events}
@@ -247,7 +248,13 @@
 		.date {
 			display: none;
 		}
-		background-image: var(--event-image, none);
+		--post-color: var(--evt-color);
+		background: var(--event-image, linear-gradient(
+			to bottom right,
+			color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
+			var(--post-color, var(--2)) 50%,
+			color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
+		));
 		background-position: center center;
 		background-repeat: repeat;
 		background-size: cover;
