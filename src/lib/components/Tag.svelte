@@ -15,7 +15,7 @@
 </script>
 
 {#if isCheckbox}
-	<label class="tag" class:noBorder>
+	<label class="tag" class:checked class:noBorder>
 		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
 		{tag}
 	</label>
@@ -61,7 +61,7 @@
 	}
 
 	a.tag,
-	label.tag:has(:checked),
+	label.checked,
 	span.tag {
 		background: var(--fill-color, var(--tag-color, var(--1)));
 		color: var(--filled-text-color, white);

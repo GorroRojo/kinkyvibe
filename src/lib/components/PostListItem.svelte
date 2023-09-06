@@ -34,7 +34,12 @@
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
 	import { tagsConfig } from '$lib/utils/stores';
-	const date = start ? addHours(new Date(start), 3) : published_date;
+	var date = start ? addHours(new Date(start), 3) : published_date;
+	try {
+		format(new Date(date), 'yyyy-MM-dd');
+	} catch (e) {
+		date = ""
+	}
 	if (tags.includes('KinkyVibe')) {
 		mark = mark ? mark : 'KinkyVibe';
 		let indexOfMark = tags.indexOf('KinkyVibe');
@@ -86,7 +91,7 @@
 						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
-						) + format(new Date(end), 'HH:mm')}
+						) + format(new Date(end ?? ''), 'HH:mm')}
 					</time>
 				{:else}
 					<address>
