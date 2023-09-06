@@ -170,7 +170,9 @@
 				</span>
 			</p>
 			<div class="event-atcb">
-				<a href={data.link}>{data.link_text ?? 'Inscripción'}</a>
+				<div class="event-link-wrapper">
+					<a href={data.link}>{data.link_text ?? 'Inscripción'}</a>
+				</div>
 				<add-to-calendar-button
 					style={`
 					--btn-background: var(--1);
@@ -473,16 +475,33 @@
 			background: white;
 			width: 100%;
 			flex-wrap: wrap;
+			.event-link-wrapper {
+				--base-font-size-l: 18px;
+				--base-font-size-m: 18px;
+				--base-font-size-s: 18px;
+				display: block;
+				padding: 5px;
+				position: relative;
+				font-size: var(--base-font-size-m);
+			}
 			a {
-				background: var(--1);
-				padding: 0.2em 1em;
-				display: grid;
-				place-items: center;
-				margin: 0.2em;
-				border-radius: 0.3em;
+				align-items: center;
+				background-color: var(--1);
+				border: 1px solid var(--1);
+				border-radius: 6px;
+				display: flex;
 				font-weight: bold;
-				height: auto;
-				line-height: 2em;
+				justify-content: center;
+				line-height: 1.5em;
+				max-width: 350px;
+				min-width: 10em;
+				padding: 0.65em 1em;
+				position: relative;
+				touch-action: manipulation;
+				user-select: none;
+				-webkit-user-select: none;
+				width: 100%;
+				z-index: 1;
 				&:hover {
 					background: var(--1-light);
 					color: unset;
