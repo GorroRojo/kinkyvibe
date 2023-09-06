@@ -194,7 +194,7 @@ más info y ejemplos completos copiables para cada categoría en [_template.md](
   - [ ] featured
   - [X] contenido
   - [X] og link
-  - [ ] og access date
+  - [X] og access date
   - [X] og publish
   - [X] publish date
   - [X] authors
@@ -225,13 +225,12 @@ más info y ejemplos completos copiables para cada categoría en [_template.md](
 
 #### rel
 
-- [ ] rel
-- [ ] author
+- [X] author
 - [ ] enclosure (para descargables)
 - [ ] rel=license
 - [ ] rel=nofollow para desincentivar a buscadores seguir ese link
-- [ ] rel=tag
-- [ ] rel=home
+- [X] rel=tag
+- [X] rel=home
 
 #### emoji post type (de baja esto?)
 
