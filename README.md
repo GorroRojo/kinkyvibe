@@ -194,7 +194,7 @@ más info y ejemplos completos copiables para cada categoría en [_template.md](
   - [ ] featured
   - [X] contenido
   - [X] og link
-  - [ ] og access date
+  - [X] og access date
   - [X] og publish
   - [X] publish date
   - [X] authors
@@ -225,13 +225,12 @@ más info y ejemplos completos copiables para cada categoría en [_template.md](
 
 #### rel
 
-- [ ] rel
-- [ ] author
+- [X] author
 - [ ] enclosure (para descargables)
 - [ ] rel=license
 - [ ] rel=nofollow para desincentivar a buscadores seguir ese link
-- [ ] rel=tag
-- [ ] rel=home
+- [X] rel=tag
+- [X] rel=home
 
 #### emoji post type (de baja esto?)
 
@@ -279,7 +278,7 @@ estandar de emoji por tipo de post
 - u-url
 - u-photo
 - ?p-summary
-- multiple nested h-entry
+- [X] multiple nested h-entry
 
 ##### h-adr
 
@@ -293,14 +292,14 @@ estandar de emoji por tipo de post
 
 ##### h-entry
 
-- p-name
-- p-summary
+- [X] p-name
+- [X] p-summary
 - e-content
-- dt-published
+- [X] dt-published
 - dt-updated
-- p-author (o h-card)
+- [X] p-author (o h-card)
 - p-category??
-- u-url
+- [X] u-url
 - u-uid??
 - p-location (o h-card, h-adr, h-geo)
 - u-syndication??
@@ -315,33 +314,33 @@ estandar de emoji por tipo de post
 
 ##### h-event
 
-- p-name
+- [X] p-name
 - p-summary
-- dt-start
-- dt-end
+- [X] dt-start
+- [X] dt-end
 - dt-duration
 - p-description (o e-content)
-- u-url
+- [X] u-url
 - ~~category~~
-- p-location (puede ser h-card, h-adr, h-geo)
+- [X] (MASOMENOS) p-location (puede ser h-card, h-adr, h-geo)
 - p-organizer (puede ser h-card)
   foto del lugar y punto en mapa
 
 ##### h-cite
 
 - dt-accessed
-- u-url = u-uid
+- [X] u-url = u-uid
 - p-publication
 - p-name
-- dt-published
+- [X] dt-published
 - p-author (o h-card)
 - p-content
 
 ##### h-resume
 
-- p-name
-- p-summary (qualifications and objectives)
-- p-contact h-card
+- [X] p-name
+- [X] p-summary (qualifications and objectives)
+- [X] p-contact h-card
 - p-education h-event, p-education h-card (education time, school)
 - p-experience h-event, p-experience h-card
 - p-skill
@@ -349,15 +348,15 @@ estandar de emoji por tipo de post
 
 ##### h-card
 
-- p-name
+- [X] p-name
 - p-honorific-prefix
 - p-sort-string
 - p-honorifix-suffic
 - p-nickname
 - u-email
 - u-logo
-- u-photo
-- u-url u-uid
+- [X] u-photo
+- [X] u-url u-uid
 - p-adr (o h-adr)
 - p-geo / u-geo (o h-geo)
 - p-tel
