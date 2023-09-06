@@ -23,7 +23,7 @@
 		<li>
 			<h3>Contenido</h3>
 			<ul class="contenido">
-				<li><a href="/"><Home {style} />Inicio</a></li>
+				<li><a href="/" rel="home"><Home {style} />Inicio</a></li>
 				<li><a href="/material"><BookOpen {style} />Material</a></li>
 				<li><a href="/amigues"><Heart {style} />Amigues</a></li>
 				<li><a href="/calendario"><CalendarRange {style} />Calendario</a></li>

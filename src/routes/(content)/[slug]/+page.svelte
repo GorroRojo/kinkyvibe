@@ -187,7 +187,7 @@
 						,
 					{/if}
 					{#if authorData}
-						<a href={authorData.path}>{author}</a>
+						<a rel="author" href={authorData.path}>{author}</a>
 					{:else}
 						{author}
 					{/if}
@@ -239,7 +239,7 @@
 
 		{#if data.tags?.includes('KinkyVibe')}
 			<div id="cafecito">
-				Este material fue proporcionado por <a href="/nosotres">nosotres</a> ✨. Si te resultó
+				Este material fue proporcionado por <a rel="author" href="/nosotres">nosotres</a> ✨. Si te resultó
 				valioso,
 				<a href="https://cafecito.app/kinkyvibe" target="_blank"
 					>considerá apoyarnos con algún cafecito</a
@@ -259,7 +259,7 @@
 	{#await data.authorsData then authorsData}
 		{#if JSON.stringify(authorsData) != '[]' && authorsData != undefined && authorsData[0] != undefined}
 			{#each authorsData as author}
-				<a class="author-callout" href={author.path}>
+				<a class="author-callout" rel="author" href={author.path}>
 					<img class="author-image" src={author.logo ?? author.photo} alt="" />
 					<span class="author-title">{author.title}</span>
 					<span class="author-summary">{author.summary}</span>

@@ -20,7 +20,7 @@
 		{tag}
 	</label>
 {:else if isLink}
-	<a class="tag" href="/todo?tags={tag}" class:noBorder>{tag}</a>
+	<a class="tag" rel="tag" href="/todo?tags={tag}" class:noBorder>{tag}</a>
 {:else}
 	<span class="tag" class:noBorder>
 		{tag}

@@ -102,7 +102,7 @@
 			<!-- recursero -->
 			<!-- fanzines -->
 		</ul>
-		<a id="logo" href="/">
+		<a id="logo" rel="home" href="/">
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="quien">
