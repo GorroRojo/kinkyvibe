@@ -51,7 +51,7 @@
 </script>
 
 <a
-	href={path}
+	href={"/"+path}
 	class="post {category}"
 	class:mark
 	class:noimg={!src}
