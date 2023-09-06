@@ -114,7 +114,7 @@
 			left: 0;
 			right: 0;
 			padding-inline:1em;
-			z-index: 1;
+			z-index: 2;
 			background: white;
 			font-size: 1em;
 			ul {

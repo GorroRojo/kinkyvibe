@@ -8,6 +8,14 @@
 	import { page } from '$app/stores';
 	export let data;
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
+	/**@type {(s:string|number|Date)=>(string)}*/
+	let toISO = (s) => {
+		try {
+			return new Date(s).toISOString()
+		} catch (e) {
+			return s + "";
+		}
+	}
 </script>
 
 <LDTag
@@ -16,8 +24,8 @@
 				'@context': 'https://schema.org',
 				'@type': 'Event',
 				name: data.title,
-				startDate: new Date(data.start ?? '').toISOString(),
-				endDate: new Date(data.end ?? (data.start ?? '') + (data.duration ?? '')).toISOString(),
+				startDate: toISO(data.start ?? ''),
+				endDate: toISO(data.end ?? (data.start ?? '') + (data.duration ?? '')),
 				eventAttendanceMode: data.location
 					? 'https://schema.org/OnlineEventAttendanceMode'
 					: 'https://schema.org/OfflineEventAttendanceMode',
@@ -59,8 +67,8 @@
 				'@type': 'NewsArticle',
 				headline: data.title,
 				image: [data.featured + ''],
-				datePublished: new Date(data.published_date ?? '').toISOString(),
-				dateModified: new Date(data.updated_date ?? data.published_date ?? '').toISOString(),
+				datePublished: toISO(data.published_date ?? ''),
+				dateModified: toISO(data.updated_date ?? data.published_date ?? ''),
 				author: data.authors?.map((a) => ({
 					'@type': 'Person',
 					name: a,
@@ -327,7 +335,7 @@
 		grid-template-areas: 'img title' 'img summary';
 		grid-template-columns: 7rem 1fr;
 		align-items: center;
-		gap: 1rem;
+		gap: .6rem;
 		max-width: 50rem;
 		margin: 1em auto;
 	}
@@ -348,7 +356,10 @@
 		font-size: 1.5em;
 		text-decoration: underline var(--1);
 		color: black;
-		line-height: 0.5;
+		line-height: 1;
+	}
+	.author-summary {
+		padding-right: 1em;
 	}
 	h3,
 	hr {
@@ -442,6 +453,20 @@
 			}
 			img {
 				display: none;
+			}
+		}
+		.author-callout {
+			grid-template-areas: "img title" "summary summary";
+			border-radius: 2.6em;
+			.author-image {
+				z-index: 1;
+			}
+			.author-title {
+				padding-right: .5em;
+			}
+			.author-summary {
+				padding: 2em;
+				padding-top: 0;
 			}
 		}
 	}

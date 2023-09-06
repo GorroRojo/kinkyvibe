@@ -7,7 +7,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte/internal';
-	import {togglePositiveTagFilterFn} from '$lib/utils/stores'
+	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
 	/**@param {HTMLElement} node
 	 * @param {{from:DOMRect, to:DOMRect}} ends
@@ -49,8 +49,7 @@
 	export let group;
 
 	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
-	export let onInput = (evt,tag)=>$togglePositiveTagFilterFn(evt.target?.checked, tag);
-
+	export let onInput = (evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, tag);
 
 	/**@type {List[]} */
 	$: lists = [
@@ -123,7 +122,8 @@
 		>
 			{#if el.name != /*@ts-ignore*/ undefined}
 				<Tag
-					tag={el.name}
+					tag={el.name+" »"}
+					name={el.name}
 					noBorder
 					isCheckbox
 					onInput={(evt) => onInput(evt, el.name)}
@@ -252,7 +252,10 @@
 		height: unset;
 	}
 	.taglist li {
-		/* flex: 1 1; */
+		border-left: 1px solid color-mix(in srgb, var(--tag-color) 60%, transparent);
+	}
+	.taglist li:first-child {
+		border-left: none;
 	}
 	:global(.taglist > li:has(:checked) + li:has(:checked)) {
 		--border-radius: 0 0.3em 0.3em 0;
@@ -261,14 +264,12 @@
 	}
 	.groupname {
 		display: flex;
-		/* color: var(--tag-color); */
 		justify-content: stretch;
 		flex: 1 1;
 		text-align: center;
-		/* --fill-color: transparent; */
 	}
 	:global(.groupname:has(:checked)) {
-		--border-radius: .3em .3em 0 0;
+		--border-radius: 0.3em 0.3em 0 0;
 	}
 	/* .groupname + .groupitems {
 		margin-left: 5px;
@@ -296,6 +297,14 @@
 	@container (min-width: 1300px) {
 		.groupname {
 			width: 100%;
+		}
+		.groupitems,
+		.subgroups,
+		.filtergroup, .filtergroup.noname ul {
+			align-items: flex-end;
+		}
+		ul {
+			justify-content: flex-end;
 		}
 	}
 </style>

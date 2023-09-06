@@ -182,6 +182,7 @@
 		border-radius: 999em;
 		padding-top: 0;
 		outline: 2px solid var(--post-color, var(--2));
+		padding-right: 3em;
 		img {
 			border-radius: 10em;
 		}
@@ -243,7 +244,6 @@
 		grid-template-columns: 9em 1fr;
 		grid-template-rows: auto 1fr 2.4em;
 		column-gap: 1em;
-		box-sizing: content-box;
 		align-items: center;
 
 		margin-inline: auto;
