@@ -209,6 +209,7 @@ tags:
   - BDSM
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
+  - Online # online | AMBA | Córdoba | Santa Cruz #
 layout: calendario
 category: calendario
 authors:

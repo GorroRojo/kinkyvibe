@@ -1,5 +1,5 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2023-09-05Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Grupo de Apoyo y Discusión para Doms
 summary: Un espacio que organizamos y moderamos orientado a todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
@@ -8,6 +8,7 @@ tags:
   - BDSM
   - KinkyVibe # etiqueta especial #
   - a la gorra
+  - Online
 layout: calendario
 category: calendario
 authors:
