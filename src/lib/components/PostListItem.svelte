@@ -264,7 +264,6 @@
 		margin-inline: auto;
 		padding-top: 1.7em;
 		padding-right: 1em;
-
 		list-style: none;
 		background: white;
 		border-radius: 2em;
@@ -279,6 +278,12 @@
 		&.noimg {
 			grid-template-columns: 0 1fr;
 		}
+	}
+	.post.calendario {
+		height: 13.5em;
+	}
+	.post.material {
+		height: 11.5em;
 	}
 	a h3 {
 		/* display: flex; */
@@ -378,6 +383,7 @@
 		.summary {
 			/* display: none; */
 		}
+
 		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
 			grid-template-rows: auto 1fr 2em;
