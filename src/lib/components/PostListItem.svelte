@@ -38,7 +38,7 @@
 	try {
 		format(new Date(date), 'yyyy-MM-dd');
 	} catch (e) {
-		date = ""
+		date = '';
 	}
 	if (tags.includes('KinkyVibe')) {
 		mark = mark ? mark : 'KinkyVibe';
@@ -56,8 +56,12 @@
 </script>
 
 <a
-	href={"/"+path}
-	class="post {category}"
+	href={'/' + path}
+	class="post {category} {{
+		amigues: 'h-card',
+		calendario: 'h-event',
+		material: 'h-entry'
+	}[category]} u-url"
 	class:mark
 	class:noimg={!src}
 	id={path}
@@ -80,25 +84,25 @@
 					<BookOpen {style} />
 				{/if}
 			{:else}
-				<Heart style={style+"fill:var(--post-color);"} strokeWidth="3px" />
+				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
 			&ThickSpace;
 		</div>
 		{#if category != 'amigues'}
 			{#if date}
 				{#if start}
-					<time datetime={start}>
+					<time datetime={start} class="dt-start dt-end">
 						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
 						) + format(new Date(end ?? ''), 'HH:mm')}
 					</time>
 				{:else}
-					<address>
+					<address class="p-author">
 						{authors ? authors.join(', ') : ''}
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
-					<time datetime={date}>
+					<time class="dt-published" datetime={date}>
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
@@ -153,7 +157,7 @@
 	<h3>
 		{title}
 	</h3>
-	<p class="summary">
+	<p class="summary p-summary">
 		{summary ?? ''}
 	</p>
 	<div class="tags">

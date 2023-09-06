@@ -11,11 +11,11 @@
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
-			return new Date(s).toISOString()
+			return new Date(s).toISOString();
 		} catch (e) {
-			return s + "";
+			return s + '';
 		}
-	}
+	};
 </script>
 
 <LDTag
@@ -104,31 +104,39 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.tags?.join(', ')} />
 </svelte:head>
-<article>
+<article
+	class={'h-entry ' +
+		{
+			amigues: 'h-resume',
+			calendario: 'h-event',
+			material: 'h-entry'
+		}[data.layout ?? 'material']}
+>
+	<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
 	{#if data.layout == 'amigues'}
-		<div class="profile-header">
-			<img src={data.featured + ''} class="profile-pic" alt="" />
-			<h1 id="title" class="profile-name">{data.title}</h1>
+		<div class="profile-header h-card p-contact">
+			<img src={data.featured + ''} class="profile-pic u-photo" alt="" />
+			<h1 id="title" class="profile-name p-name">{data.title}</h1>
 		</div>
 	{:else if data.layout == 'calendario'}
-		<h1 id="title">{data.title}</h1>
+		<h1 id="title p-name">{data.title}</h1>
 		<div class="event-header">
 			{#if data.featured}<img src={data.featured + ''} alt="poster" />{/if}
 			<p class="event-times">
-				<small>desde</small><time datetime={data.start}
+				<small>desde</small><time class="dt-start" datetime={data.start}
 					>{new Date(data.start).toLocaleString('es-AR', {
 						dateStyle: 'long',
 						timeStyle: 'short'
 					})}hs</time
 				>
-				<small>hasta</small><time datetime={data.end ?? data.start + data.duration}
+				<small>hasta</small><time class="dt-end" datetime={data.end ?? data.start + data.duration}
 					>{new Date(data.end ?? data.start + data.duration).toLocaleString('es-AR', {
 						dateStyle: 'long',
 						timeStyle: 'short'
 					})}hs</time
 				>
 				<small>en</small>
-				<span>
+				<span class="p-location">
 					{data.location ?? 'Online'}
 				</span>
 			</p>
@@ -166,7 +174,7 @@
 			</div>
 		</div>
 	{:else}
-		<h1 id="title">{data.title}</h1>
+		<h1 id="title p-name">{data.title}</h1>
 	{/if}
 	{#if data.authors && (data.layout != 'amigues' || data.authors.length > 1) && data.category != 'calendario'}
 		<address>
@@ -187,19 +195,19 @@
 						,
 					{/if}
 					{#if authorData}
-						<a rel="author" href={authorData.path}>{author}</a>
+						<a rel="author" class="p-author u-url" href={authorData.path}>{author}</a>
 					{:else}
-						{author}
+						<span class="p-author">{author}</span>
 					{/if}
 				{/each}
 				<!-- promise was fulfilled -->
 			{/await}
 			{#if data.layout != 'amigues'}
 				&ThickSpace;-&ThickSpace;
-				<time datetime={data.layout == 'calendario' ? data.start : data.published_date?.toString()}
-					>{new Date(
-						data.layout == 'calendario' ? data.start : data.published_date?.toString() ?? ''
-					).toLocaleDateString('es-AR', { dateStyle: 'long' })}</time
+				<time datetime={data.published_date?.toString()} class="dt-published"
+					>{new Date(data.published_date?.toString() ?? '').toLocaleDateString('es-AR', {
+						dateStyle: 'long'
+					})}</time
 				>
 			{/if}
 		</address>
@@ -212,18 +220,22 @@
 	{#if !data.error}
 		{#if data.summary}
 			<div class="content">
-				<p>
+				<p class="p-summary">
 					{data.summary}
 				</p>
 			</div>
 		{/if}
 
 		{#if data.original_published_date}
-			<div id="via">
-				Fecha de publicación original: {new Date(
-					data.layout == 'calendario' ? data.start : data.original_published_date?.toString() ?? ''
-				).toLocaleDateString('es-AR', { dateStyle: 'long' })} <br />
-				Link: <a href={data.link}>{data.link}</a>
+			<div id="via" class="h-cite">
+				Fecha de publicación original: <span class="dt-published"
+					>{new Date(
+						data.layout == 'calendario'
+							? data.start
+							: data.original_published_date?.toString() ?? ''
+					).toLocaleDateString('es-AR', { dateStyle: 'long' })}</span
+				> <br />
+				Link: <a href={data.link} class="u-url">{data.link}</a>
 			</div>
 		{/if}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
@@ -239,8 +251,8 @@
 
 		{#if data.tags?.includes('KinkyVibe')}
 			<div id="cafecito">
-				Este material fue proporcionado por <a rel="author" href="/nosotres">nosotres</a> ✨. Si te resultó
-				valioso,
+				Este material fue proporcionado por <a rel="author" href="/nosotres">nosotres</a> ✨. Si te
+				resultó valioso,
 				<a href="https://cafecito.app/kinkyvibe" target="_blank"
 					>considerá apoyarnos con algún cafecito</a
 				>. 🤗
@@ -335,7 +347,7 @@
 		grid-template-areas: 'img title' 'img summary';
 		grid-template-columns: 7rem 1fr;
 		align-items: center;
-		gap: .6rem;
+		gap: 0.6rem;
 		max-width: 50rem;
 		margin: 1em auto;
 	}
@@ -456,13 +468,13 @@
 			}
 		}
 		.author-callout {
-			grid-template-areas: "img title" "summary summary";
+			grid-template-areas: 'img title' 'summary summary';
 			border-radius: 2.6em;
 			.author-image {
 				z-index: 1;
 			}
 			.author-title {
-				padding-right: .5em;
+				padding-right: 0.5em;
 			}
 			.author-summary {
 				padding: 2em;

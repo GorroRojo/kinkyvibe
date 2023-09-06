@@ -5,6 +5,7 @@
 	import Tags from './Tags.svelte';
 	import { isPast } from 'date-fns';
 	export let post;
+	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
 		path: href,
 		meta: { tags, featured: src, category, title },
@@ -53,15 +54,20 @@
 <!-- TODO past no funciona? -->
 <a
 	{href}
-	class:past={isPast(new Date(start))}
-	class="card {mark ? 'mark' : ''} {category}"
+	class:past={isPast(new Date(start ?? ''))}
+	class="card {mark ? 'mark' : ''} {category} {{
+		amigues: 'h-card',
+		calendario: 'h-event',
+		material: 'h-entry',
+		'wiki': 'h-entry'
+	}[category]}"
 	tabindex="0"
 >
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img" {src} alt="" />
-	<h3>{title}</h3>
+	<img class="card-img u-featured" src={src+''} alt="" />
+	<h3 class="p-name">{title}</h3>
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
@@ -124,9 +130,9 @@
 		--shadow-color: var(--color, var(--color-2, var(--1)));
 		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
 		height: 100%;
-		outline: 0px var(--color, var(--color-2, var(--1))) solid; 
+		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 		&.amigues img {
-			box-shadow: .0em .1em 0 .1em var(--post-color, var(--color-2, var(--2)));
+			box-shadow: 0em 0.1em 0 0.1em var(--post-color, var(--color-2, var(--2)));
 		}
 	}
 	.card.mark:hover,
@@ -181,7 +187,7 @@
 		transition: 500ms;
 	}
 	.tagrow:hover {
-		--scrollbar-width: calc(var(--step--1) * .4);
+		--scrollbar-width: calc(var(--step--1) * 0.4);
 		scrollbar-width: thin;
 		scrollbar-color: #ff00dd #ffffff;
 		margin-bottom: calc(var(--scrollbar-width) * -1);

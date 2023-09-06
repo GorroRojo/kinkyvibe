@@ -135,7 +135,7 @@
 
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type}>
+				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + " h-feed"}>
 					{#if $userConfig.display_type == 'list'}
 						{#each tagFilteredPosts as post, i (post.path)}
 							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
