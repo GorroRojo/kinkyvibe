@@ -1,10 +1,11 @@
 <script>
+	import { fetchMarkdownPosts } from '$lib/utils';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tags from '$lib/components/Tags.svelte';
-	import { tagsConfig, currentPostData } from '$lib/utils/stores.js';
+	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	export let data;
 	currentPostData.set({ category: data.category, path: $page.url.pathname });
@@ -15,6 +16,23 @@
 		} catch (e) {
 			return s + '';
 		}
+	};
+	/**@type {{path:string,meta:AnyPostData}[]}*/
+	let allPosts = [];
+	/** @type {import('svelte/action').Action}  */
+	let parseContent = async (node) => {
+		// @ts-ignore
+		node.querySelectorAll('a.mention').forEach(async (/**@type {HTMLAnchorElement}*/ value) => {
+			if (allPosts.length == 0) allPosts = await fetchMarkdownPosts();
+			let p = document.createElement('small');
+			let post = allPosts.find((post) => post.path == value.textContent?.slice(1));
+			p.className = 'p-pronoun';
+			p.textContent =
+				' [' +
+				(post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') +
+				']';
+			value.appendChild(p);
+		});
 	};
 </script>
 
@@ -116,7 +134,18 @@
 	{#if data.layout == 'amigues'}
 		<div class="profile-header h-card p-contact">
 			<img src={data.featured + ''} class="profile-pic u-photo" alt="" />
-			<h1 id="title" class="profile-name p-name">{data.title}</h1>
+			<h1 id="title" class="profile-name p-name">
+				{data.title}
+				{#if data.pronoun}
+					{#if (data.pronoun + '').startsWith('https')}
+						<a class="u-pronouns" href={data.pronoun + ''}>
+							[{(data.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]
+						</a>
+					{:else}
+						[{data.pronoun}]
+					{/if}
+				{/if}
+			</h1>
 		</div>
 	{:else if data.layout == 'calendario'}
 		<h1 id="title p-name">{data.title}</h1>
@@ -239,7 +268,7 @@
 			</div>
 		{/if}
 		<!-- <p>Published: {new Date(data.date)}</p> -->
-		<div class="content">
+		<div class="content" use:parseContent>
 			<svelte:component this={data.content} />
 		</div>
 
@@ -334,6 +363,11 @@
 		text-decoration: none;
 		grid-area: summary;
 	}
+	.u-pronouns {
+		font-size: 0.5em;
+		opacity: 0.7;
+		text-decoration: none;
+	}
 	.author-callout {
 		text-decoration: none;
 		font-style: italic;
@@ -380,6 +414,9 @@
 	}
 	hr {
 		margin-block: 3rem;
+	}
+	:global(.content small.p-pronoun) {
+		font-size: var(--step--1);
 	}
 
 	.event-header {

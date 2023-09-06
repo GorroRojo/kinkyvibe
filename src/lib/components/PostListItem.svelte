@@ -27,7 +27,8 @@
 			link_text,
 			category,
 			job_title,
-			redirect
+			redirect,
+			pronoun
 		}
 	} = post;
 	import { addHours, format, isPast } from 'date-fns';
@@ -63,7 +64,7 @@
 		material: 'h-entry'
 	}[category]} u-url"
 	class:mark
-	class:noimg={!!src}
+	class:noimg={src == 'undefined'}
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
@@ -156,6 +157,9 @@
 	{#if src}<img {src} alt="" />{/if}
 	<h3>
 		{title}
+		{#if pronoun}
+			<small class="p-pronouns">[{(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]</small>
+		{/if}
 	</h3>
 	<p class="summary p-summary">
 		{summary ?? ''}
@@ -379,12 +383,12 @@
 					'img summary summary'
 					'img tags cta';
 			}
-			&:has(.CTA).brokenImg {
+			/* &:has(.CTA).noimg {
 				grid-template-areas:
 					'title title'
 					'summary summary'
 					'tags cta';
-			}
+			} */
 		}
 		:not(.amigues) > h3 {
 			align-self: flex-start;

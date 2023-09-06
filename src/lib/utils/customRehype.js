@@ -103,32 +103,6 @@ export default function customRehype() {
 				return [SKIP];
 			}
 		});
-		// visit(tree, 'text', (node, index, parent) => {
-		// 	if (
-		// 		!node.value ||
-		// 		!parent ||
-		// 		!index ||
-		// 		typeof node.value !== 'string' ||
-		// 		!node.value.includes('[')
-		// 	)
-		// 		return [CONTINUE];
-		// 	console.log(typeof node.value !== 'string');
-		// 	// console.log(node.value);
-		// 	const regex = /\[\[([^\]]*)\]\]/g;
-		// 	const pieces = node.value.split('[');
-		// 	console.log(node.value.trim());
-		// 	console.log(
-		// 		parent.children.reduce((/**@type string*/ acc, /**@type Node*/ n) => acc + n.value, '')
-		// 	);
-		// 	if (pieces.length == 1) return [SKIP];
-		// 	// node.value = pieces.join(' °°°° ');
-		// 	// .map((piece, index) => (index % 2 == 0 ? piece : '<a>' + piece + '</a>'))
-		// 	// .join('');
-		// 	return [SKIP];
-		// 	// : h('a', { href: '/wiki/' + piece.replaceAll(' ', '-') }, piece)
-		// 	// // @ts-expect-error
-		// 	// parent.children.splice(index, 1, insert);
-		// });
 		let foundInParent = 0;
 		/**
 		 * @type {any}

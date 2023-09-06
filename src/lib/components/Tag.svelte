@@ -61,7 +61,7 @@
 	}
 
 	a.tag,
-	label.checked,
+	label.tag.checked,
 	span.tag {
 		background: var(--fill-color, var(--tag-color, var(--1)));
 		color: var(--filled-text-color, white);

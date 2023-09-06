@@ -257,7 +257,7 @@
 	.taglist li:first-child {
 		border-left: none;
 	}
-	:global(.taglist > li:has(:checked) + li:has(:checked)) {
+	:global(.taglist > li.checked + li.checked) {
 		--border-radius: 0 0.3em 0.3em 0;
 		border-left: 10px solid var(--tag-color);
 		margin-left: -10px;

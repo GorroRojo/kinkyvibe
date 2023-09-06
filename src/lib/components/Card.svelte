@@ -8,7 +8,7 @@
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
 		path: href,
-		meta: { tags, featured: src, category, title },
+		meta: { tags, featured: src, category, title, pronoun },
 		mark,
 		start
 	} = post;
@@ -67,7 +67,12 @@
 		<span class="card-mark">{mark}</span>
 	{/if}
 	<img class="card-img u-featured placeholder-gradient" src={src + ''} alt="" />
-	<h3 class="p-name">{title}</h3>
+	<h3 class="p-name">
+		{title}
+		{#if pronoun}
+			<br/><small class="p-pronouns">[{(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', ' / ')}]</small>
+		{/if}
+	</h3>
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
@@ -121,6 +126,12 @@
 		margin: auto auto;
 		padding: 0.5em;
 		text-align: center;
+	}
+	.p-pronouns {
+		font-size: .6em;
+		opacity: .7;
+		color: var(--post-color, var(--2));
+		text-decoration: none;
 	}
 	.card.past {
 		opacity: 0.8;
