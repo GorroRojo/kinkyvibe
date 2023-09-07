@@ -168,9 +168,11 @@
 				</span>
 			</p>
 			<div class="event-atcb">
-				<div class="event-link-wrapper">
-					<a href={data.link}>{data.link_text ?? 'Inscripción'}</a>
-				</div>
+				{#if data.link}
+					<div class="event-link-wrapper">
+						<a href={data.link}>{data.link_text ?? 'Inscripción'}</a>
+					</div>
+				{/if}
 				<add-to-calendar-button
 					style={`
 					--btn-background: var(--1);
