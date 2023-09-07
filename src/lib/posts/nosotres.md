@@ -86,7 +86,7 @@ También compartimos casi todo lo que subimos acá por [instagram](https://www.i
 
 ### ¿Quiénes somos?
 
-Somos [Mel](/DemonWeb) y [Pau](/TallarinesConTuco) y este sitio web lo armó [Gorrite](/Gorro_Rojo) 🌈
+Somos @DemonWeb y @TallarinesConTuco y este sitio web lo armó @Gorro_Rojo 🌈
 
 ### ¡Quiero ayudar!
 
