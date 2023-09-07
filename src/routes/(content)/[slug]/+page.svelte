@@ -136,7 +136,7 @@
 				{data.title}
 				{#if data.pronoun}
 					{#if (data.pronoun + '').startsWith('https')}
-						<a class="u-pronouns" href={data.pronoun + ''}>
+						<a target="_blank" class="u-pronouns" href={data.pronoun + ''}>
 							{@html (data.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
 						</a>
 					{:else}
