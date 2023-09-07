@@ -140,7 +140,7 @@
 							{@html (data.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
 						</a>
 					{:else}
-						{data.pronoun}
+						<span class="u-pronouns">{data.pronoun}</span>
 					{/if}
 				{/if}
 			</h1>
