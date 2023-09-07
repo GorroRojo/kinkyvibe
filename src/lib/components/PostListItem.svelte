@@ -64,7 +64,7 @@
 		material: 'h-entry'
 	}[category]} u-url"
 	class:mark
-	class:noimg={src == 'undefined'}
+	class:noimg={src == 'undefined' || !src}
 	id={path}
 	class:past={start ? isPast(new Date(start)) : false}
 	tabindex="0"
