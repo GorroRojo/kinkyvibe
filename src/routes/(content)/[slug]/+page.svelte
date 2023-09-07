@@ -418,8 +418,17 @@
 		margin-block: 3rem;
 	}
 	:global(.content small.p-pronoun) {
-		font-size: var(--step--1);
+		font-size: var(--step--2);
 		color: var(--1);
+		text-decoration:none;
+		display: inline-block;
+		background: var(--1);
+		color: white;
+		padding: .05em .3em;
+		border-radius: .3em;
+		margin-left: .2em;
+		position: relative;
+		bottom: .05em;
 	}
 
 	.event-header {
