@@ -9,6 +9,8 @@ tags:
   - KinkyVibe # etiqueta especial #
   - a la gorra
   - Online
+  - dominación
+  - grupo
 layout: calendario
 category: calendario
 authors:

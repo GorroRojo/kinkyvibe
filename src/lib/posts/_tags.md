@@ -28,7 +28,14 @@ groups:
     sub:
       - name: tipo
         noname: true
-        members: ['cine', 'taller', 'evento', 'charla debate', 'laboratorio', 'picnic']
+        members: 
+        - cine
+        - taller
+        - evento
+        - charla debate
+        - laboratorio
+        - picnic
+        - grupo
       - name: 'nombreevento'
         noname: true
         members: ['Picantearla', 'Cine para Sucixs']

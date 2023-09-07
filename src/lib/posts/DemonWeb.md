@@ -11,6 +11,7 @@ tags:
   - profesional
   - KinkyVibe
   - AMBA
+  - queer
 layout: amigues
 category: amigues
 authors:

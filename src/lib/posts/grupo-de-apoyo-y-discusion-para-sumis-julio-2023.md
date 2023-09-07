@@ -9,6 +9,7 @@ tags:
   - evento
   - bdsm
   - sumisión
+  - grupo
 layout: calendario
 category: calendario
 authors:

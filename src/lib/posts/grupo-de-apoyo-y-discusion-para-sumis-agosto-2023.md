@@ -10,6 +10,7 @@ tags:
   - a la gorra
   - sumisión
   - Online
+  - grupo
 layout: calendario
 category: calendario
 authors:
