@@ -193,7 +193,7 @@ article.wiki {
 			font-family: 'Courier New', Courier, monospace !important;
 		}
 	}
-	img {
+	img, video {
 		margin-inline: auto;
 		position: relative;
 		width: 100%;
@@ -201,6 +201,7 @@ article.wiki {
 		object-position: center;
 		border-radius: 1em;
 		max-width: 900px;
+		max-height: 90vh;
 	}
 	blockquote {
 		font-size: var(--step-0);
