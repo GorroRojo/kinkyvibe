@@ -1,4 +1,5 @@
 <script>
+	import Carrousel from '../../lib/components/Carrousel.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -7,17 +8,17 @@
 
 	const title = 'KinkyVibe.ar';
 	const summary = 'Red de información y encuentros BDSM-kinky-queer-lgbt';
-	const canonical = "https://kinkyvibe.ar"
+	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
 	const websiteSchema = {
 		'@context': 'https://schema.org',
 		'@type': 'Organization',
-		'@id': canonical+'#organization',
+		'@id': canonical + '#organization',
 		url: canonical,
 		name: title,
 		description: summary,
 		sameAs: ['https://twitter.com/kinkyvibearg'],
-		logo: 'https://KinkyVibe.ar/favicon-32x32.png',
+		logo: 'https://KinkyVibe.ar/favicon-32x32.png'
 	};
 </script>
 
@@ -54,12 +55,23 @@
 
 <main>
 	{#if !err}
+		<Carrousel
+			posts={posts
+				.filter(
+					(/** @type {{ meta: AnyPostData; }} */ p) =>
+						p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
+				)}
+		/>
 		<div class="cardrow">
 			<CardRow
 				index="0"
 				id="calendario"
 				title="Talleres y eventos"
-				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'calendario').slice(0, 3)}
+				items={posts
+					.filter(
+						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'calendario'
+					)
+					.slice(0, 3)}
 				--color-1="var(--2-dark)"
 				--color-2="var(--1)"
 				href="/calendario"
@@ -70,7 +82,11 @@
 				index="0"
 				id="informacion"
 				title="Artículos, links y descargables"
-				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material').slice(0, 3)}
+				items={posts
+					.filter(
+						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material'
+					)
+					.slice(0, 3)}
 				--color-1="var(--1)"
 				--color-2="var(--2-dark)"
 				href="/material"
@@ -81,7 +97,11 @@
 				index="1"
 				id="amigues"
 				title="Para apoyarnos"
-				items={posts.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues').slice(0, 3)}
+				items={posts
+					.filter(
+						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues'
+					)
+					.slice(0, 3)}
 				--color-1="var(--2-dark)"
 				--color-2="var(--1)"
 				href="/amigues"

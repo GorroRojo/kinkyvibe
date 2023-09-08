@@ -224,6 +224,10 @@ authors:
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-06-02T20:00-03:00
 end:   2023-06-02T23:00-03:00
+# carrousel_background: "#f2a68f"
+# carrousel_color: "white"
+# carrousel_accent_text: ""
+# carrousel_accent_bg: ""
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://forms.google.com/elmejoreventodelmundo
