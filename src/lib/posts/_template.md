@@ -174,6 +174,7 @@ tags:
   - BDSM
   - KinkyVibe # etiqueta especial #
   - AMBA # AMBA | Córdoba | Santa Cruz #
+  - profesional # profesional | emprendimiento #
 layout: amigues
 category: amigues
 authors:
