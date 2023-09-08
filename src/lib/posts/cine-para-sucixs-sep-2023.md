@@ -23,7 +23,7 @@ status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-09-30T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2023-10-01T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
-location_name: Qi Centro Cultural
+location_name: Cooperativa Cultural Qi
 link: https://forms.gle/PPyKWAwashBS6xhp7
 link_text: PRE-VENTA
 ---

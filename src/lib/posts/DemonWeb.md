@@ -12,6 +12,7 @@ tags:
   - KinkyVibe
   - AMBA
   - queer
+  - shibari
 layout: amigues
 category: amigues
 authors:
