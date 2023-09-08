@@ -32,9 +32,15 @@ link: https://www.instagram.com/soleropebunny/
   import imagen1 from './media/soleropebunny/2.jpeg'
   import imagen2 from './media/soleropebunny/3.png'
   import video from './media/soleropebunny/4.mp4'
+  import foto from './media/soleropebunny/5.jpg'
 </script>
 
 <br/>
+
+<figure>
+<img src={foto} alt="">
+<figcaption>Ezequiel Las Heras & Negra Noche</figcaption>
+</figure>
 
 # Con la soga al cuello
 
@@ -73,7 +79,7 @@ Para obtener los conocimientos sobre flexibilidad y cuidados de mi cuerpo, fui a
 
 Si el Shibari es un arte escénico, pensé que podía inscribirme en el INT (Instituto Nacional del Teatro) ya que esta institución promueve eventos / artistas de espacios teatrales. Hice mi alta individual y así también me inscribí en somoscultura.gob.ar, donde dentro de la categoría arte escénica coloqué la opción PERFORMER y como rol principal: OTRO y especificar que soy modelx de cuerdas.
 
-![]({imagen1})
+<img src={imagen1} alt="" />
 
 Llegó el momento que con este manifiesto no seamos LO OTRO, deseo que seamos quienes tienen NOMBRE/ IDENTIDAD DEFINIDA/POSICIÓN
 
@@ -122,7 +128,12 @@ _Sole Rope Bunny._
 
 <style>
   img,video{
+    margin-inline: auto;
+    display:block;
     width: unset;
     max-width: 100%;
+  }
+  .col-2 {
+    margin-top: 2rem;
   }
 </style>
