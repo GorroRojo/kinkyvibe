@@ -25,7 +25,9 @@
 		node.querySelectorAll('a.mention').forEach(async (/**@type {HTMLAnchorElement}*/ value) => {
 			if (allPosts.length == 0) allPosts = await fetchMarkdownPosts();
 			let p = document.createElement('small');
-			let post = allPosts.find((post) => post.path == value.textContent?.slice(1));
+			let name = value.textContent?.slice(1);
+			if (name == 'KinkyVibe') name = 'nosotres';
+			let post = allPosts.find((post) => post.path == name);
 			p.className = 'p-pronoun';
 			p.textContent =
 				' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';
