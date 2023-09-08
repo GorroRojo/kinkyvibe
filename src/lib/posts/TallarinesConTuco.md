@@ -41,7 +41,7 @@ Ese mismo año (2017) pasaron varias cosas:
 1)	Un compañero de la facultad me invitó a trabajar en La Casa de Teresa. Estaban queriendo desarrollar un equipo de comunicación para el centro cultural. La verdad es que yo era un queso diseñando, pero la práctica y el intercambio me ayudó un montón, aunque trabajé solo 1 año ahí.
 2)	Empecé a cruzarme más seguido con ferias de historieta y me interesé por la comunidad queer fanzinera que se estaba armando. 
 3)	Hice mi primer fanzine, titulado “Hola”. Una historieta corta de 8 páginas sin diálogo con un QR al final que promete una continuación de la historia, pero te rickrollea.
-En 2018 @Mel me invitó a ilustrar lo que luego se convertiría en [”Asexualidad. Un Pequeña guía. Volumen 1”]( https://kinkyvibe.ar/asexualidad-volumen-uno).
+En 2018 @DemonWeb me invitó a ilustrar lo que luego se convertiría en [”Asexualidad. Un Pequeña guía. Volumen 1”]( https://kinkyvibe.ar/asexualidad-volumen-uno).
 
 En el medio participé de la segunda edición del festival de historieta [\Vamos las Pibas (Actualmente V.L.P.)](https://www.instagram.com/vamoslaspibasfestival/) organizado por [Agus Casot](https://www.instagram.com/agustinahistorietas/). Hacía un calor de morirse, pero yo estaba emocionadísima de compartir espacio con tanta gente increíble por conocer y muches otres que ya conocía y admiraba.
 
