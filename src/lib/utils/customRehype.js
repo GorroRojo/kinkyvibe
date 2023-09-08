@@ -160,7 +160,8 @@ export default function customRehype() {
 					// const parent = stack[stack.length - 2];
 					// parent.children[index].value = parent.children[index].value + space;
 					if (escape) return '@' + user;
-					return h('a.mention', { href: '/' + user }, '@' + user);
+					const href = '/' + (user == 'KinkyVibe' ? 'nosotres' : user);
+					return h('a.mention', { href }, '@' + user);
 				}
 			]
 		]);
