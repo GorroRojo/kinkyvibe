@@ -49,5 +49,5 @@ Para finales de 2018 me incorporé oficialmente a Kinky Vibe. Inicié como ilust
 
 Al momento que escribo esto sigo haciendo todas esas cosas, pero también descubrí lo maravillosas que pueden ser las planillas de excel a la hora de organizar la tienda, los talleres, y la vida en general. Recomiendo el camino del dios excel, digo, recomiendo esta herramienta de trabajo…
 
-Al final el día, sí, hago dibujitos, pero un poco de todo lo que haga falta también.
+Al final del día, sí, hago dibujitos, pero un poco de todo lo que haga falta también.
 
