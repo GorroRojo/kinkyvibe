@@ -200,6 +200,8 @@
 		padding-right: 3em;
 		img {
 			border-radius: 10em;
+			aspect-ratio: 1;
+			object-fit: cover;
 		}
 		.publication {
 			background: none;
