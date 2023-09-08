@@ -16,7 +16,7 @@ authors:
 featured: 1
 # force_unlisted: true
 #force_unpublished: false
-pronoun: https://pronombr.es/ella
+pronoun: https://pronombr.es/ella&elle
 link: https://instagram.com/tallarinescontuco
 #logo: 2
 #photo: 3
