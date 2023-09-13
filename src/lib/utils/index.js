@@ -107,17 +107,20 @@ export const fetchAllThumbs = async () =>
 	);
 
 /**
- *
- * @param {string} postSlug
+ * @param {"calendario"|"amigues"|"material"|"wiki"} category
+ * @param {string} postID
  * @param {string | number} assetID
- * @param {Record<string,any> | false} allThumbs
  */
-export const thumbURL = async (postSlug, assetID, allThumbs = false) => {
-	if (!allThumbs) {
-		allThumbs = await fetchAllThumbs();
+export const thumbURL = async (category, postID, assetID, allThumbs = false) => {
+	for (const format of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
+		try {
+			let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
+			return thumb.default;
+		} catch (e) {
+			continue;
+		}
 	}
-	let regex = new RegExp(`/${postSlug}/${assetID}.\\w+`);
-	return allThumbs[Object.keys(allThumbs).find((path) => regex.test(path)) ?? ''];
+	return undefined;
 };
 
 /**
@@ -144,6 +147,17 @@ export function aliaserFactory(tagsConfig) {
 }
 
 /**
+ * Fetches a post from the specified category and post id.
+ *
+ * @param {"calendario"|"amigues"|"material"|"wiki"} category - The category of the post.
+ * @param {string} post - The id of the post.
+ * @return {Promise<{content: string, metadata: unknown}>} - The content and metadata of the post.
+ */
+export const fetchPost = async (category, post) => {
+	let { default: content, metadata } = await import(`../posts/${category}/${post}.md`);
+	return { content, metadata };
+};
+/**
  * Fetches markdown posts and performs validations and transformations.
  * @param {boolean} wiki - Whether or not the posts are from the wiki
  * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
@@ -154,7 +168,9 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 	if (wiki) {
 		allPosts = Object.entries(import.meta.glob('$lib/wiki/*.md'));
 	} else {
-		allPosts = Object.entries(import.meta.glob('$lib/posts/*.md'));
+		allPosts = Object.entries(import.meta.glob('$lib/posts/calendario/*.md'));
+		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/amigues/*.md')));
+		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/material/*.md')));
 	}
 	let validatedPosts = await validateAll(allPosts);
 
@@ -185,8 +201,8 @@ export async function processMetadataAll(posts) {
  */
 export async function processMetadata(post, alias, tagsConfig) {
 	let featured = post.meta.featured + '';
-	if (featured && featured.length < 3) {
-		featured = await thumbURL(post.path, featured);
+	if (featured) {
+		featured = await thumbURL(post.meta.category, post.path.split('/').slice(-1)[0], featured);
 	}
 
 	let tags = [];
