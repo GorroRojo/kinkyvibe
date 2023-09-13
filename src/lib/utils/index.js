@@ -134,15 +134,6 @@ export function aliaserFactory(tagsConfig) {
 }
 
 /**
- * @typedef ProcessedPost
- * @prop {string} path
- * @prop {AnyPostData} meta
- * @prop {ConstructorOfATypedSvelteComponent|undefined} content
- * @prop {ProcessedPost[]} authorsProfiles
- * @prop {ProcessedPost[]} relatedPosts
- */
-
-/**
  * Fetches a post from the specified category and post id.
  *
  * @param {"calendario"|"amigues"|"material"|"wiki"} category - The category of the post.
@@ -179,7 +170,7 @@ async function processPost(
 	/**@type {ProcessedPost[]} */
 	let relatedPosts = [];
 	if (!shallow) {
-		for (const author of meta.authors) {
+		for (const author of meta?.authors ?? []) {
 			const authorID = author == 'KinkyVibe' ? 'nosotres' : author.replaceAll(' ', '-');
 			if (authorID !== postID) {
 				try {
@@ -190,8 +181,13 @@ async function processPost(
 				}
 			}
 		}
-		relatedPosts = (await fetchMarkdownPosts()).filter((p) =>
-			meta.authors.some((/**@type string */ a) => p.meta.authors.includes(a))
+		relatedPosts = (await fetchMarkdownPosts()).filter(
+			(p) =>
+				meta.authors?.some(
+					(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
+				) ||
+				(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
+				(meta.category == 'wiki' && p.meta.tags.includes(postID))
 		);
 	}
 	const processedMeta = {
@@ -204,16 +200,20 @@ async function processPost(
 					)
 			: [alias(meta.tags)],
 		featured:
-			meta.featured !== undefined ? await thumbURL(meta.category, postID, meta.featured) : undefined
+			meta.featured !== undefined
+				? await thumbURL(meta.category, postID, meta.featured)
+				: undefined,
+		photo: meta.photo !== undefined ? await thumbURL(meta.category, postID, meta.photo) : undefined,
+		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined
 	};
-	const content = shallow ? undefined : postContent;
-	return {
-		content,
+	const processedPost = {
+		content: shallow ? undefined : postContent,
 		meta: processedMeta,
 		authorsProfiles,
 		relatedPosts,
-		path: meta.category + '/' + postID
+		path: '/' + meta.category + '/' + postID
 	};
+	return processedPost;
 }
 
 /**
@@ -225,7 +225,7 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts;
 	if (wiki) {
-		allPosts = Object.entries(import.meta.glob('$lib/wiki/*.md'));
+		allPosts = Object.entries(import.meta.glob('$lib/posts/wiki/*.md'));
 	} else {
 		allPosts = Object.entries(import.meta.glob('$lib/posts/calendario/*.md'));
 		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/amigues/*.md')));
@@ -244,4 +244,26 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 	}
 
 	return [...processedPosts];
+};
+
+/** @type {import('svelte/action').Action}  */
+export const processContent = async (node) => {
+	// @ts-ignore
+	node.querySelectorAll('a.mention').forEach(async (/**@type {HTMLAnchorElement}*/ el) => {
+		let p = document.createElement('small');
+		let name = el.textContent?.slice(1);
+		if (name === undefined) return;
+		else if (name == 'KinkyVibe') name = 'nosotres';
+		let post;
+		try {
+			post = await fetchPost('amigues', name, true);
+		} catch (e) {
+			return;
+		}
+		// let post = allPosts.find((post) => post.path == name);
+		p.className = 'p-pronoun';
+		p.textContent =
+			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';
+		el.appendChild(p);
+	});
 };
