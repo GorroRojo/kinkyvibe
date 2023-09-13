@@ -1,5 +1,9 @@
 import '$lib/types.d.js';
 
+/**
+ *
+ * @returns {Promise<{tags:Record<string,*>, groups:Group[]}>}
+ */
 export const fetchTags = async () => {
 	//@ts-expect-error
 	var { metadata: tagsConfig } =
@@ -130,20 +134,92 @@ export function aliaserFactory(tagsConfig) {
 }
 
 /**
+ * @typedef ProcessedPost
+ * @prop {string} path
+ * @prop {AnyPostData} meta
+ * @prop {ConstructorOfATypedSvelteComponent|undefined} content
+ * @prop {ProcessedPost[]} authorsProfiles
+ * @prop {ProcessedPost[]} relatedPosts
+ */
+
+/**
  * Fetches a post from the specified category and post id.
  *
  * @param {"calendario"|"amigues"|"material"|"wiki"} category - The category of the post.
- * @param {string} post - The id of the post.
- * @return {Promise<{content: string, metadata: unknown}>} - The content and metadata of the post.
+ * @param {string} postID - The id of the post.
+ * @param {boolean} [shallow=false]
+ * @return {Promise<ProcessedPost>} - The content and metadata of the post.
  */
-export const fetchPost = async (category, post) => {
-	let { default: content, metadata } = await import(`../posts/${category}/${post}.md`);
-	return { content, metadata };
+export const fetchPost = async (category, postID, shallow = false) => {
+	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
+	return await processPost(postContent, postID, meta, shallow);
 };
+
+/**
+ * Processes a post and returns relevant information.
+ *
+ * @param {ConstructorOfATypedSvelteComponent} postContent - The content of the post.
+ * @param {string} postID - The ID of the post.
+ * @param {AnyPostData} meta - The metadata associated with the post.
+ * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
+ * @param {{tags:Record<string,*>,groups:Group[]}} [tagsConfig=false] - The tags configuration.
+ * @param {(tag:string)=>string} [alias] - The alias function.
+ * @return {Promise<ProcessedPost>} An object containing the processed post information.
+ */
+async function processPost(
+	postContent,
+	postID,
+	meta,
+	shallow = false,
+	tagsConfig = { tags: [], groups: [] },
+	alias = aliaserFactory(tagsConfig)
+) {
+	if (tagsConfig.groups.length == 0) tagsConfig = await fetchTags();
+	let authorsProfiles = [];
+	/**@type {ProcessedPost[]} */
+	let relatedPosts = [];
+	if (!shallow) {
+		for (const author of meta.authors) {
+			const authorID = author == 'KinkyVibe' ? 'nosotres' : author.replaceAll(' ', '-');
+			if (authorID !== postID) {
+				try {
+					const authorProfile = await fetchPost('amigues', authorID, true);
+					authorsProfiles.push(authorProfile);
+				} catch (e) {
+					continue;
+				}
+			}
+		}
+		relatedPosts = (await fetchMarkdownPosts()).filter((p) =>
+			meta.authors.some((/**@type string */ a) => p.meta.authors.includes(a))
+		);
+	}
+	const processedMeta = {
+		...meta,
+		tags: Array.isArray(meta.tags)
+			? [...meta.tags]
+					.map(alias)
+					.sort(
+						(a, b) => tagsConfig.tags[a]?.group ?? a.localeCompare(tagsConfig.tags[b]?.group ?? b)
+					)
+			: [alias(meta.tags)],
+		featured:
+			meta.featured !== undefined ? await thumbURL(meta.category, postID, meta.featured) : undefined
+	};
+	const content = shallow ? undefined : postContent;
+	return {
+		content,
+		meta: processedMeta,
+		authorsProfiles,
+		relatedPosts,
+		path: meta.category + '/' + postID
+	};
+}
+
 /**
  * Fetches markdown posts and performs validations and transformations.
  * @param {boolean} wiki - Whether or not the posts are from the wiki
- * @return {Promise<{meta: AnyPostData, path:string}[]>} An array of validated and transformed posts.
+ * @return {Promise<ProcessedPost[]>} An array of validated and transformed posts.
  */
 export const fetchMarkdownPosts = async (wiki = false) => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
@@ -155,147 +231,17 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/amigues/*.md')));
 		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/material/*.md')));
 	}
-	let validatedPosts = await validateAll(allPosts);
-
-	validatedPosts = await processMetadataAll(validatedPosts);
-	// TODO performance, i'm looping way way way too many times
-	return [...validatedPosts];
-};
-
-/**
- * @param {{meta: AnyPostData, path: string}[]} posts
- * @return {Promise<{meta: AnyPostData, path:string}[]>}
- */
-export async function processMetadataAll(posts) {
+	let processedPosts = [];
 	const tagsConfig = await fetchTags();
 	const alias = aliaserFactory(tagsConfig);
-	return await Promise.all(
-		posts.map(async (post) => await processMetadata(post, alias, tagsConfig))
-	);
-}
+	for (const [rawPath, constructor] of allPosts) {
+		const path = rawPath.split('/').slice(-1)[0].split('.md')[0];
+		if (path.startsWith('_')) continue;
+		const { metadata, default: postContent } = await constructor();
+		if (!metadata || metadata.force_unlisted) continue;
 
-/**
- * Processes the metadata using the given parameters.
- *
- * @param {{path:string,meta:AnyPostData}} post - The post.
- * @param {(tag: string)=>string} alias - The alias function for tags.
- * @param {{groups: Group[], tags:Record<string,{group?:string}>}} tagsConfig - The configuration object for tags.
- * @return {Promise<{path:string,meta:AnyPostData}>} This function does not return a value.
- */
-export async function processMetadata(post, alias, tagsConfig) {
-	let featured = post.meta.featured + '';
-	if (featured) {
-		featured = await thumbURL(post.meta.category, post.path.split('/').slice(-1)[0], featured);
+		processedPosts.push(await processPost(postContent, path, metadata, true, tagsConfig, alias));
 	}
 
-	let tags = [];
-	if (Array.isArray(post.meta.tags)) {
-		tags = [...post.meta.tags]
-			.map(alias)
-			.sort((a, b) =>
-				(tagsConfig.tags[a]?.group ?? '').localeCompare(tagsConfig.tags[b]?.group ?? '')
-			);
-	} else tags = [post.meta.tags];
-	return { ...post, meta: { ...post.meta, featured, tags } };
-}
-
-/**
- * @param {[string, ()=>Promise<{
- * 		metadata:AnyPostData
- * }>][]} posts
- * @return {Promise<{meta: AnyPostData, path:string}[]>}
- */
-async function validateAll(posts) {
-	/** @type {[string,{metadata:AnyPostData,default?:{render:()=>{html:string,css:{code:string}}}}][]} */
-	const raw = await Promise.all(posts.map(async ([path, resolver]) => [path, await resolver()]));
-	const validated = raw
-		.filter(([path, post]) => post.metadata && !post.metadata.force_unlisted && !(path[15] == '_'))
-		.map((p) => validatePost(p));
-	return validated;
-}
-
-/**
- * @param {[string,{metadata:AnyPostData, default?: {render: ()=>{html:string,css:{code:string}}}}]} post
- * @return {{error?: any, default?: {render: function}, meta: AnyPostData, path: string}}
- */
-function validatePost(post) {
-	const path = post[0].includes('wiki/') ? post[0].slice(14, -3) : post[0].slice(15, -3);
-	const { metadata } = post[1];
-	let missing = validateMissingData(metadata);
-	if (missing) return { error: missing, meta: metadata, default: post[1].default, path };
-	return { meta: metadata, default: post[1].default, path };
-}
-
-/**
- *
- *
- * @param {AnyPostData} data
- * @return {*}
- */
-function validateMissingData(data) {
-	try {
-		if (data.title === undefined) {
-			throw new Error('title is missing');
-		} else if (data.summary === undefined) {
-			throw new Error('description is missing');
-		} else if (data.tags === undefined) {
-			throw new Error('tags is missing');
-		} else if (data.category === undefined) {
-			throw new Error('category is missing');
-		} else if (data.authors === undefined) {
-			throw new Error('author is missing');
-		}
-		switch (data.category) {
-			case 'amigues':
-				if (data.pronoun === undefined) {
-					throw new Error('pronoun is missing');
-				}
-				if (data.link === undefined) {
-					throw new Error('link is missing');
-				}
-				// TODO validate link url, logo, photo, email, gender url, pronoun url, bday date
-				break;
-			case 'calendario':
-				if (data.status === undefined) {
-					throw new Error('status is missing');
-				} else if (!['abierto', 'anunciado', 'lleno'].includes(data.status)) {
-					throw new Error('status is invalid');
-				}
-				if (data.start === undefined) {
-					throw new Error('start is missing');
-				} else if (data.end === undefined && data.duration === undefined) {
-					throw new Error('end/duration is missing');
-				}
-				// TODO validate link url?
-				break;
-			case 'material':
-				if (data.type === undefined) {
-					throw new Error('type is missing');
-				} else if (!['descargable', 'link', 'contenido'].includes(data.type)) {
-					throw new Error('type is invalid');
-				}
-				if (data.link === undefined) {
-					throw new Error('link is missing');
-				} else {
-					// TODO chequear que es un url valido?
-				}
-				if (data.access_date === undefined) {
-					throw new Error('access_date is missing');
-				} else {
-					// TODO chequear que es un date valido?
-				}
-				if (data.original_published_date === undefined) {
-					throw new Error('original_published_date is missing');
-				} else {
-					// TODO chequear que es un date valido?
-				}
-				break;
-			default:
-				throw new Error('category is invalid');
-		}
-	} catch (err) {
-		// @ts-ignore
-		return { error: err.message };
-	}
-	return false;
-}
+	return [...processedPosts];
+};

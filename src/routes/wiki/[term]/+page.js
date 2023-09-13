@@ -1,10 +1,7 @@
-import {
-	fetchMarkdownPosts,
-	processMetadata,
-	fetchTags,
-	aliaserFactory
-} from '$lib/utils/index.js';
+import { fetchMarkdownPosts, fetchTags, aliaserFactory } from '$lib/utils/index.js';
 export const prerender = 'auto';
+// @ts-ignore
+const processMetadata = (/**@type any*/ s, /**@type any*/ b, /**@type any*/ c) => s;
 /** @type {import("./$types").PageLoad} */
 export async function load({ params }) {
 	/** @type {{metadata: AnyPostData, default: *}} */
@@ -51,8 +48,7 @@ export async function load({ params }) {
 			title: params.term.replaceAll('-', ' '),
 			posts,
 			error: true
-		}
-		
+		};
 	} catch (e) {
 		return { content: e + '\nparams.term: ' + params.term, title: 'Error', date: '', error: true };
 	}
