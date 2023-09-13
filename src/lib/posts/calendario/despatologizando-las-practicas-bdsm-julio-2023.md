@@ -25,8 +25,8 @@ link_text: Inscribirse
 ---
 
 <script>
-    import i1 from '$lib/posts/media/despatologizando-las-practicas-bdsm-julio-2023/1.jpg'
-    import i2 from '$lib/posts/media/despatologizando-las-practicas-bdsm-julio-2023/2.jpg'
+    import i1 from '$lib/posts/calendario/media/despatologizando-las-practicas-bdsm-julio-2023/1.jpg'
+    import i2 from '$lib/posts/calendario/media/despatologizando-las-practicas-bdsm-julio-2023/2.jpg'
 </script>
 
 <div class="col-2">

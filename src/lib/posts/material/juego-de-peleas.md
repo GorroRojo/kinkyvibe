@@ -29,7 +29,7 @@ original_published_date: 2019-11-10Z-03:00
 ---
 
 <script>
-  import diagrama from '$lib/posts/media/juego-de-peleas/1.png';
+  import diagrama from '$lib/posts/material/media/juego-de-peleas/1.png';
   import HumanBody from '$lib/components/HumanBody.svelte';
 </script>
 

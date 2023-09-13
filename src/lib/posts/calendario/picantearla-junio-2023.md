@@ -26,9 +26,9 @@ link_text: 'PRE-VENTA'
 ---
 
 <script>
-    import pag1 from '$lib/posts/media/picantearla-junio-2023/1.jpeg';
-    import pag2 from '$lib/posts/media/picantearla-junio-2023/2.jpeg';
-    import banner from '$lib/posts/media/picantearla-junio-2023/banner.jpeg';
+    import pag1 from '$lib/posts/calendario/media/picantearla-junio-2023/1.jpeg';
+    import pag2 from '$lib/posts/calendario/media/picantearla-junio-2023/2.jpeg';
+    import banner from '$lib/posts/calendario/media/picantearla-junio-2023/banner.jpeg';
 </script>
 
 <img src={banner} alt="" />

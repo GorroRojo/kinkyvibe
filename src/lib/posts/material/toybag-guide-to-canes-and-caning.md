@@ -24,7 +24,7 @@ featured: 2
 ---
 
 <script>
-  import guia from '$lib/posts/media/toybag-guide-to-canes-and-caning/1.pdf'
+  import guia from '$lib/posts/material/media/toybag-guide-to-canes-and-caning/1.pdf'
 </script>
 
 Holi holi! Por aquí vengo a dejarles una guía en inglés de juegos con varillas (canes) ✨⚡️

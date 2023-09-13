@@ -27,9 +27,9 @@ link_text: 'PRE-VENTA'
 ---
 
 <script>
-    // import pag1 from '$lib/posts/media/picantearla-agosto-2023/1.jpeg';
-    // import pag2 from '$lib/posts/media/picantearla-agosto-2023/2.jpeg';
-    // import banner from '$lib/posts/media/picantearla-agosto-2023/banner.jpeg';
+    // import pag1 from '$lib/posts/calendario/media/picantearla-agosto-2023/1.jpeg';
+    // import pag2 from '$lib/posts/calendario/media/picantearla-agosto-2023/2.jpeg';
+    // import banner from '$lib/posts/calendario/media/picantearla-agosto-2023/banner.jpeg';
 </script>
 
 Lanzamos esta nueva propuesta con el fin de invitar a todas las personas interesadas en usar las prácticas eróticas-afectivas no-normativas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer. 

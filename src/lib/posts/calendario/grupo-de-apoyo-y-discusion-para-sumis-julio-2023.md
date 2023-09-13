@@ -26,7 +26,7 @@ link_text: 'Anotarse'
 ---
 
 <script>
-  import flyer from '$lib/posts/media/grupo-de-apoyo-y-discusion-para-sumis-julio-2023/1.jpg';
+  import flyer from '$lib/posts/calendario/media/grupo-de-apoyo-y-discusion-para-sumis-julio-2023/1.jpg';
 </script>
 
 ![flyer]({flyer})

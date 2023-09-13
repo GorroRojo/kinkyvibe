@@ -27,8 +27,8 @@ link_text: Inscibirme
 ---
 
 <script>
-    import pag1 from '$lib/posts/media/cine-para-sucixs-julio-2023/1.jpg';
-    import pag2 from '$lib/posts/media/cine-para-sucixs-julio-2023/2.jpg';
+    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/1.jpg';
+    import pag2 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/2.jpg';
 </script>
 
 <div class="col-2">

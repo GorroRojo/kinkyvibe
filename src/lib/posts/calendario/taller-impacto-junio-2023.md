@@ -27,8 +27,8 @@ link_text: Inscibirme
 ---
 
 <script>
-    import i1 from '$lib/posts/media/taller-impacto-junio-2023/1.jpg'
-    import i2 from '$lib/posts/media/taller-impacto-junio-2023/2.jpg'
+    import i1 from '$lib/posts/calendario/media/taller-impacto-junio-2023/1.jpg'
+    import i2 from '$lib/posts/calendario/media/taller-impacto-junio-2023/2.jpg'
 </script>
 
 <div class="col-2">

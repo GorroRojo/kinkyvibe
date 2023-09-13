@@ -23,9 +23,9 @@ featured: 1
 ---
 
 <script>
-    import pag1 from '$lib/posts/media/una-pequena-guia-rapida-de-materiales/1.jpeg/';
-    import pag2 from '$lib/posts/media/una-pequena-guia-rapida-de-materiales/2.jpeg/';
-    import pag3 from '$lib/posts/media/una-pequena-guia-rapida-de-materiales/3.jpeg/';
+    import pag1 from '$lib/posts/material/media/una-pequena-guia-rapida-de-materiales/1.jpeg/';
+    import pag2 from '$lib/posts/material/media/una-pequena-guia-rapida-de-materiales/2.jpeg/';
+    import pag3 from '$lib/posts/material/media/una-pequena-guia-rapida-de-materiales/3.jpeg/';
 </script>
 
 <!-- ![]({pag1}) -->

@@ -24,9 +24,9 @@ featured: 1
 ---
 
 <script>
-    import chequeos from '$lib/posts/media/cuidados-cuerdas-xdoll/1.png'
-    import brazo from '$lib/posts/media/cuidados-cuerdas-xdoll/2.png'
-    import logo from '$lib/posts/media/cuidados-cuerdas-xdoll/3.png'
+    import chequeos from '$lib/posts/material/media/cuidados-cuerdas-xdoll/1.png'
+    import brazo from '$lib/posts/material/media/cuidados-cuerdas-xdoll/2.png'
+    import logo from '$lib/posts/material/media/cuidados-cuerdas-xdoll/3.png'
 </script>
 
 Las prácticas restrictivas con cuerdas involucran siempre un riesgo asumido el cual debe ser comunicado y entendido entre las partes. Una forma de evitar daños en las personas es estar preparados y tratar de disminuir esos riesgos.

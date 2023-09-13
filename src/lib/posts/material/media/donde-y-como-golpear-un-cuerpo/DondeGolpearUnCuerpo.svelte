@@ -1,5 +1,5 @@
 <script>
-	import svgData from '$lib/posts/media/donde-y-como-golpear-un-cuerpo/svgData.js';
+	import svgData from '$lib/posts/material/media/donde-y-como-golpear-un-cuerpo/svgData.js';
 	/**@type Record<string, Record<string, string>>*/
 	const seguridad = {
 		flogger: {

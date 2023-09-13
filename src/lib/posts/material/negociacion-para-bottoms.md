@@ -27,7 +27,7 @@ featured: 2
 ---
 
 <script>
-    import guia from '$lib/posts/media/negociacion-para-bottoms/1.pdf'
+    import guia from '$lib/posts/material/media/negociacion-para-bottoms/1.pdf'
 </script>
 
 <object aria-label="Guía de negociación para bottoms" data={guia} type="application/pdf" width="50rem" height="1000px">

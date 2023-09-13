@@ -24,7 +24,7 @@ link: 1
 ---
 
 <script>
-  import guia from '$lib/posts/media/shibari-que-podes-usar/1.pdf'
+  import guia from '$lib/posts/material/media/shibari-que-podes-usar/1.pdf'
 </script>
 
 <object title="{title}" data={guia} type="application/pdf" width="50rem" height="1000px" alt="pdf">
