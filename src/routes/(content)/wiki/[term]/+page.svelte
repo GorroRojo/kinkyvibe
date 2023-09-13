@@ -1,13 +1,9 @@
 <script>
-	import { aliaserFactory } from '$lib/utils/index.js';
 	import PostList from '$lib/components/PostList.svelte';
-	import Tags from '$lib/components/Tags.svelte';
 	import { tagsConfig, currentPostData } from '$lib/utils/stores.js';
-	import { CornerRightUp } from 'lucide-svelte';
 	import { page } from '$app/stores';
-	export let data;
-	import { onMount } from 'svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
 	/** @type {(termino:string, groups?: Group[], level?: number)=>Array<Group&{level?:number}>|undefined}*/
@@ -90,8 +86,8 @@
 		return branches.filter(branch=>branch.some(i=>!i.disabled));
 	}
 	const guessedTitle = decodeURI($page.url.pathname.slice(6)).replaceAll('-', ' ');
-	const ascendance = getAscendance(data.wiki ?? guessedTitle ?? 'BDSM');
-	const descendance = getDescendance(data.wiki ?? guessedTitle ?? 'inglés');
+	const ascendance = getAscendance(data.meta.wiki ?? guessedTitle ?? 'BDSM');
+	const descendance = getDescendance(data.meta.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
 
 	const style = `
@@ -101,37 +97,37 @@
 	`;
 </script>
 
-<svelte:head>
-	<title>{data.title} - Kinkipedia</title>
-	<link rel="icon" href="favicon-32x32.png" />
 
+<svelte:head>
+	<title>{data.meta.title} - KinkyVibe.ar</title>
+	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
 	<meta property="og:url" content={$page.url.href} />
 
-	<meta property="og:title" content={data.title} />
-	<meta name="twitter:title" content={data.title} />
+	<meta property="og:title" content={data.meta.title} />
+	<meta name="twitter:title" content={data.meta.title} />
 
-	<meta name="description" content={data.summary} />
-	<meta name="twitter:description" content={data.summary} />
-	<meta property="og:description" content={data.summary} />
+	<meta name="description" content={data.meta.summary} />
+	<meta name="twitter:description" content={data.meta.summary} />
+	<meta property="og:description" content={data.meta.summary} />
 
-	<meta property="og:image" content={data.featured + ''} />
-	<meta name="twitter:image" content={data.featured + ''} />
+	<meta property="og:image" content={data.meta.featured + ''} />
+	<meta name="twitter:image" content={data.meta.featured + ''} />
 
 	<meta name="twitter:site" content="@kinkyvibearg" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta property="og:type" content="article" />
 
-	<meta property="article:published_time" content={data.published_date?.toString()} />
-	<meta property="article:modified_time" content={data.updated_date?.toString()} />
-	<meta property="article:author" content={data.authors?.join(', ')} />
+	<meta property="article:published_time" content={data.meta.published_date?.toString()} />
+	<meta property="article:modified_time" content={data.meta.updated_date?.toString()} />
+	<meta property="article:author" content={data.meta.authors?.join(', ')} />
 	<!-- <meta property="article:section" content="" /> -->
-	<meta property="article:tag" content={data.tags?.join(', ')} />
+	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
 
-<article class="wiki" id="title">
-	<h1>{data.title == 'Error' ? guessedTitle : data.title}</h1>
+<article class="h-entry wiki" id="title">
+	<h1>{data.meta.title == 'Error' ? guessedTitle : data.meta.title}</h1>
 	<div class="lineage">
 		<div class="ascendance">
 			{#each ascendance as line}
@@ -160,30 +156,21 @@
 			{/each}
 		</div>
 	</div>
-	{#if !data.error}
-		{#if data.summary}
+		{#if data.meta.summary}
 			<div class="content">
 				<p>
-					{data.summary}
+					{data.meta.summary}
 				</p>
 			</div>
 		{/if}
 		<div class="content">
 			<svelte:component this={data.content} />
 		</div>
-	{:else}
-		<div class="content">
-			<h2>Esta wiki todavía no existe!</h2>
-			<p>
-				Podés comunicarte con <a href="/Gorro_Rojo">@Gorro_Rojo</a> para pedir que se agregue :D
-			</p>
-		</div>
-	{/if}
 </article>
 
 <hr />
 <h2>Materiales, amigues y eventos relevantes</h2>
-<PostList posts={data.posts} />
+<PostList posts={data.relatedPosts} />
 
 <style>
 	h2 {
