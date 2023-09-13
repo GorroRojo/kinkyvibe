@@ -1,11 +1,9 @@
 import {
-	thumbURL,
 	fetchMarkdownPosts,
 	processMetadata,
 	fetchTags,
 	aliaserFactory
 } from '$lib/utils/index.js';
-import { redirect } from '@sveltejs/kit';
 export const prerender = 'auto';
 /** @type {import("./$types").PageLoad} */
 export async function load({ params }) {

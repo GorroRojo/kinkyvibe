@@ -41,7 +41,7 @@ export async function load({ params }) {
 			.map(async ([author, authorpost]) => {
 				return {
 					...authorpost.metadata,
-					logo: await thumbURL(author, authorpost.metadata.logo ?? authorpost.metadata.photo??authorpost.metadata.featured),
+					logo: await thumbURL('amigues', author, authorpost.metadata.logo ?? authorpost.metadata.photo??authorpost.metadata.featured),
 					tags: authorpost.metadata.tags,
 					path: author
 				};

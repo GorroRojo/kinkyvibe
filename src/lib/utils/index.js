@@ -90,28 +90,11 @@ export function groupMap(group, fn) {
 }
 
 /**
- * Retrieves all the URL paths of the image files in posts/media/*
- *
- * @return {Promise<Record<string,string>>} - A promise that resolves to an array of URL paths.
- */
-export const fetchAllThumbs = async () =>
-	import.meta.glob(
-		[
-			'$lib/posts/media/*/*.jpeg',
-			'$lib/posts/media/*/*.jfif',
-			'$lib/posts/media/*/*.jpg',
-			'$lib/posts/media/*/*.png',
-			'$lib/posts/media/*/*.webp'
-		],
-		{ eager: true, as: 'url' }
-	);
-
-/**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
  * @param {string | number} assetID
  */
-export const thumbURL = async (category, postID, assetID, allThumbs = false) => {
+export const thumbURL = async (category, postID, assetID) => {
 	for (const format of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
 		try {
 			let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
