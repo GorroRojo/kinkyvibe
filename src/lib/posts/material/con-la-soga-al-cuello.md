@@ -19,9 +19,9 @@ force_unlisted: true
 #original_published_date: 2010-04-03Z-03:00
 ---
 <script>
-  import imagen1 from './media/soleropebunny/2.jpeg'
-  import imagen2 from './media/soleropebunny/3.png'
-  import video from './media/soleropebunny/4.mp4'
+  import imagen1 from './media/con-la-soga-al-cuello/2.jpeg'
+  import imagen2 from './media/con-la-soga-al-cuello/3.png'
+  import video from './media/con-la-soga-al-cuello/4.mp4'
 </script>
 
 
