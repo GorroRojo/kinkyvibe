@@ -181,7 +181,7 @@ authors:
   - DemonWeb
   - FideosConTuco
   - Gorro_Rojo
-#featured: 1
+featured: 1
 #force_unlisted: false
 #force_unpublished: false
 pronoun: https://pronombr.es/elle&él
