@@ -1,0 +1,25 @@
+---
+#published_date: 2023-05-16Z-03:00
+#updated_date: 2023-11-04Z-03:00
+title: Evento de ejemplo
+summary: ""
+tags:
+  - español
+  - KinkyVibe # etiqueta especial #
+  - pago # pago | gratis | a la gorra #
+  - Online # online | AMBA | Córdoba | Santa Cruz #
+layout: calendario
+category: calendario
+authors:
+  - KinkyVibe
+#featured: 1
+#force_unlisted: false
+# force_unpublished: false
+status: abierto # anunciado | abierto | lleno | cancelado #
+start: 2023-06-02T20:00-03:00
+end:   2023-06-02T23:00-03:00
+#location: Thames 240, Ciudad Autónoma de Buenos Aires
+#location_name: Cooperativa Cultural Qi
+link: ""
+link_text: Inscibirme
+---
