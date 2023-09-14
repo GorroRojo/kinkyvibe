@@ -33,6 +33,10 @@ location: Av Maipú 2535, Olivos
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/r3XYkpsHU2SzgxmC9
 link_text: PRE-VENTA
+carrousel_background: "hsl(266, 80%, 28%)"
+carrousel_color: "hsl(59, 41%, 100%)"
+# carrousel_accent_text: ""
+carrousel_accent_bg: "#fd633a"
 ---
 
 > 📛 ESTA EDICIÓN NO ES PARA PRINCIPIANTES 📛

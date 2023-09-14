@@ -13,6 +13,7 @@ category: calendario
 authors:
   - KinkyVibe
 #featured: 1
+#logo: 2
 #force_unlisted: false
 # force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
@@ -22,4 +23,8 @@ end:   2023-06-02T23:00-03:00
 #location_name: Cooperativa Cultural Qi
 link: ""
 link_text: Inscibirme
+# carrousel_background: "#f2a68f"
+# carrousel_color: "white"
+# carrousel_accent_text: ""
+# carrousel_accent_bg: ""
 ---

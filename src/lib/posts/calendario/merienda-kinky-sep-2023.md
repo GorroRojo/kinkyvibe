@@ -20,8 +20,12 @@ featured: 1
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-09-24T16:00-03:00
 end:   2023-09-24T19:30-03:00
+carrousel_background: "#a74ed9"
+carrousel_color: "white"
+carrousel_accent_text: "#f2f0ff"
+carrousel_accent_bg: "#3a0eed"
 location: Plaza Lavalle, Zona Tribunales (C.A.B.A)
-#location_name: QI Centro Cultural
+location_name: Plaza Lavalle
 # link: https://forms.google.com/elmejoreventodelmundo
 # link_text: Inscibirme ➡️
 ---
