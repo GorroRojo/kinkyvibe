@@ -126,7 +126,7 @@
 </article>
 
 {#if data.relatedPosts.length > 0}
-	{@const relatedAuthors = [data.meta.postID, ...data.meta.authors]}
+	{@const relatedAuthors = [...new Set([data.meta.postID, ...data.meta.authors])]}
 	<div class="content">
 		<h3>
 			Más cosas de
