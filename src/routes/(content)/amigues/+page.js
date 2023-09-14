@@ -1,5 +1,9 @@
-//@ts-nocheck
 export async function load({ fetch }) {
-	const response = await fetch('../api?category=amigues');
-	return { posts: await response.json() };
+	try {
+		const posts = await (await fetch('../api?category=amigues')).json();
+		const wiki = await (await fetch('../api?wiki')).json();
+		return { posts, wiki };
+	} catch (err) {
+		return { isError: true, err };
+	}
 }
