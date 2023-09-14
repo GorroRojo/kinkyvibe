@@ -52,8 +52,15 @@
 			`
 		};
 	}
+	let clicked = false;
+	let autoslide = setInterval(() => {
+		if (clicked) {
+			clearInterval(autoslide);
+		} else {
+			index != posts.length - 1 ? index++ : (index = 0);
+		}
+	}, 10000);
 </script>
-
 <div
 	id="carrousel"
 	style:--currBackground={currBackground}
@@ -62,15 +69,22 @@
 	style:--currAccentBg={currAccentBg}
 	out:fade
 >
-	<button on:click={() => (index != 0 ? index-- : (index = posts.length - 1))}>&lt;</button>
+	<button
+		on:click={() => {
+			index != 0 ? index-- : (index = posts.length - 1);
+			clicked = true;
+		}}>&lt;</button
+	>
 	{#key index}
 		<div class="slide">
-			<img
-				in:spin={{ duration: 1500 }}
-				out:spin={{ duration: 1500 }}
-				src={(post.meta.logo ?? post.meta.featured) + ''}
-				alt=""
-			/>
+            <div class="img-wrapper">
+                <img
+                    in:spin={{ duration: 1500 }}
+                    out:spin={{ duration: 1500 }}
+                    src={(post.meta.logo ?? post.meta.featured) + ''}
+                    alt=""
+                />
+            </div>
 			<div class="details" in:fade={{ delay: 1100 }} out:fade>
 				<h2>
 					{format(new Date(post.meta.start), 'EEEE dd', { locale: es })} - {@html (
@@ -82,7 +96,12 @@
 			</div>
 		</div>
 	{/key}
-	<button on:click={() => (index != posts.length - 1 ? index++ : (index = 0))}>&gt;</button>
+	<button
+		on:click={() => {
+			index != posts.length - 1 ? index++ : (index = 0);
+			clicked = true;
+		}}>&gt;</button
+	>
 </div>
 
 <style>
@@ -128,6 +147,8 @@
 		display: flex;
 		align-items: center;
 		gap: 4em;
+        display: grid;
+        grid-template-columns: min(20em,40%) auto;
 
 		height: 100%;
 		min-height: 0;
@@ -182,7 +203,7 @@
 		scale: 1;
 		transition: background 1000ms 1000ms, color 1000ms 100ms, scale 200ms;
 		text-decoration: none;
-		border-radius: .3em;
+		border-radius: 0.3em;
 	}
 	.details a:hover {
 		color: var(--currAccent);
@@ -208,14 +229,26 @@
 	button:last-child {
 		right: 0;
 	}
+    .img-wrapper {
+        max-height: 100%;
+        min-width: 0;
+        min-height: 0;
+        height: 100%;
+        /* width: 40em; */
+        display: flex;
+        justify-content: center;
+    }
 	img {
-		padding: 0;
-		margin: 0;
-		max-height: 100%;
-		min-height: 0;
-		scale: 1.1;
-		box-shadow: 0 0 0.1em var(--currBackground);
-		border-radius: 0.3em;
-		z-index: 2;
+        padding: 0;
+        margin: 0;
+        scale: 1.1;
+        /* box-shadow: 0 0 0.1em var(--currBackground); */
+        border-radius: 0.3em;
+        z-index: 2;
+        transition: 1000ms;
+        max-width: 100%;
+        min-height: 0;
+        max-height: 100%;
+        object-fit: contain;
 	}
 </style>
