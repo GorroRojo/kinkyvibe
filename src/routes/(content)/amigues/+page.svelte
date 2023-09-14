@@ -12,7 +12,7 @@
 	import { fetchGlossary } from '$lib/utils/index.js';
 	let pinned = ['Gorro_Rojo', 'DemonWeb', 'TallarinesConTuco'];
 	data.posts.sort((a, b) => {
-		if (pinned.includes(a.path) && !pinned.includes(b.path)) {
+		if (pinned.includes(a.meta.postID) && !pinned.includes(b.meta.postID)) {
 			return -1;
 		} else return 0;
 	});

@@ -70,7 +70,7 @@
 			{:then authorsProfiles}
 				{#each authors as author, i}
 					{@const profile = authorsProfiles.find(
-						(/** @type {ProcessedPost} */ a) => (a.path + '').split('/').pop() == author
+						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}
 						&nbsp;&

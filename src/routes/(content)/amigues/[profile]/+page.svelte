@@ -84,9 +84,7 @@
 			{/if}
 		</h1>
 	</div>
-	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.path
-						.split('/')
-						.pop()))}
+	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
 		<address>
 			{#await data.authorsProfiles}
@@ -94,7 +92,7 @@
 			{:then authorsProfiles}
 				{#each authors as author, i}
 					{@const profile = authorsProfiles.find(
-						(/** @type {ProcessedPost} */ a) => (a.path + '').split('/').pop() == author
+						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}
 						&nbsp;&
@@ -128,7 +126,7 @@
 </article>
 
 {#if data.relatedPosts.length > 0}
-	{@const relatedAuthors = [data.path.split('/').pop(), ...data.meta.authors]}
+	{@const relatedAuthors = [data.meta.postID, ...data.meta.authors]}
 	<div class="content">
 		<h3>
 			Más cosas de

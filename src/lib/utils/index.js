@@ -188,7 +188,7 @@ async function processPost(
 				) ||
 				(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
 				(meta.category == 'wiki' && p.meta.tags.includes(postID)) ||
-				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.path.split('/').pop() != postID)
+				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.meta.postID != postID)
 		);
 	}
 	const processedMeta = {
@@ -205,7 +205,8 @@ async function processPost(
 				? await thumbURL(meta.category, postID, meta.featured)
 				: undefined,
 		photo: meta.photo !== undefined ? await thumbURL(meta.category, postID, meta.photo) : undefined,
-		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined
+		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined,
+		postID
 	};
 	const processedPost = {
 		content: shallow ? undefined : postContent,
@@ -236,12 +237,12 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 	const tagsConfig = await fetchTags();
 	const alias = aliaserFactory(tagsConfig);
 	for (const [rawPath, constructor] of allPosts) {
-		const path = rawPath.split('/').slice(-1)[0].split('.md')[0];
-		if (path.startsWith('_')) continue;
+		const postID = rawPath.split('/').slice(-1)[0].split('.md')[0];
+		if (postID.startsWith('_')) continue;
 		const { metadata, default: postContent } = await constructor();
 		if (!metadata || metadata.force_unlisted) continue;
 
-		processedPosts.push(await processPost(postContent, path, metadata, true, tagsConfig, alias));
+		processedPosts.push(await processPost(postContent, postID, metadata, true, tagsConfig, alias));
 	}
 
 	return [...processedPosts];
@@ -261,7 +262,6 @@ export const processContent = async (node) => {
 		} catch (e) {
 			return;
 		}
-		// let post = allPosts.find((post) => post.path == name);
 		p.className = 'p-pronoun';
 		p.textContent =
 			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';

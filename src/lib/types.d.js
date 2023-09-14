@@ -22,6 +22,7 @@
  * */
 
 /** @typedef PostData
+ * @prop {string} postID
  * @prop {string} title
  * @prop {string} summary
  * @prop {string[]} tags

@@ -23,7 +23,7 @@ export async function GET() {
 			start: stringToDateArray(post.meta.start),
 			end: stringToDateArray(post.meta.end ?? post.meta.start + post.meta.duration),
 			title: post.meta.title,
-			url: 'https://kinkyvibe.ar' + post.path,
+			url: postPath,
 			description: postPath + ' \n' + post.meta.summary,
             htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
 			location: post.meta.location ?? postPath,
