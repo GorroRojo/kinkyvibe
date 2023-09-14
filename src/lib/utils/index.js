@@ -143,6 +143,7 @@ export function aliaserFactory(tagsConfig) {
  */
 export const fetchPost = async (category, postID, shallow = false) => {
 	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
+	if (meta?.force_unpublished) throw Error("Post is unpublished");
 	return await processPost(postContent, postID, meta, shallow);
 };
 
