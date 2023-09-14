@@ -273,6 +273,7 @@ export const processContent = async (node) => {
 		} catch (e) {
 			return;
 		}
+		if (post.meta.pronoun == "" || !post.meta.pronoun) return;
 		p.className = 'p-pronoun';
 		p.textContent =
 			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';
