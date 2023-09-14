@@ -1,8 +1,8 @@
 ---
 published_date: 2020-06-28Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Nosotres
-summary: ¿Qué es Kinky Vibe?
+title: Kinky Vibe
+summary: Un proyecto de divulgación y acompañamiento disidente. Contamos con una tienda erótica y de cuidados, pro-sexo y kinky y trabajamos priorizando la educación sexual y los cuidados éticos comunitarios
 layout: amigues
 category: amigues
 tags:
