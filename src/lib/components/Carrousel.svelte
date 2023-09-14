@@ -144,10 +144,10 @@
 		);
 	}
 	.slide {
-		display: flex;
-		align-items: center;
+		/* display: flex; */
 		gap: 4em;
         display: grid;
+		align-items: center;
         grid-template-columns: min(20em,40%) auto;
 
 		height: 100%;
@@ -251,4 +251,28 @@
         max-height: 100%;
         object-fit: contain;
 	}
+    @media (max-width: 900px) {
+        #carrousel {
+            height: 40rem;
+        }
+        .slide {
+            grid-template-columns: 1fr;
+            width: 100%;
+            max-width: 100%;
+            left: 0;
+            padding-inline: 2.5em;
+        }
+        .img-wrapper {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            height: 20rem;
+        }
+        .details {
+            margin-right: 0;
+        }
+        img {
+            pointer-events: none;
+        }
+    }
 </style>
