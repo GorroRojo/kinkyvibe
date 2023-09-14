@@ -84,7 +84,9 @@
 			{/if}
 		</h1>
 	</div>
-	{#if data.meta.authors && data.meta.authors.length > 0}
+	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.path
+						.split('/')
+						.pop()))}
 		{@const authors = data.meta.authors}
 		<address>
 			{#await data.authorsProfiles}
@@ -126,12 +128,13 @@
 </article>
 
 {#if data.relatedPosts.length > 0}
+	{@const relatedAuthors = [data.path.split('/').pop(), ...data.meta.authors]}
 	<div class="content">
 		<h3>
 			Más cosas de
-			{data.meta.authors.length == 1
-				? data.meta.authors[0]
-				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
+			{relatedAuthors.length == 1
+				? relatedAuthors[0]
+				: [relatedAuthors.slice(0, -1).join(', '), relatedAuthors.slice(-1)[0]].join(' o ')}
 		</h3>
 	</div>
 	<PostList posts={data.relatedPosts} />

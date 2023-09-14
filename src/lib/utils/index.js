@@ -187,7 +187,8 @@ async function processPost(
 					(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
 				) ||
 				(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
-				(meta.category == 'wiki' && p.meta.tags.includes(postID))
+				(meta.category == 'wiki' && p.meta.tags.includes(postID)) ||
+				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.path.split('/').pop() != postID)
 		);
 	}
 	const processedMeta = {
