@@ -143,7 +143,7 @@ export function aliaserFactory(tagsConfig) {
  */
 export const fetchPost = async (category, postID, shallow = false) => {
 	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
-	if (meta?.force_unpublished) throw Error("Post is unpublished");
+	if (meta?.force_unpublished) throw Error('Post is unpublished');
 	return await processPost(postContent, postID, meta, shallow);
 };
 
@@ -192,14 +192,24 @@ async function processPost(
 				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.meta.postID != postID)
 		);
 	}
+	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
+	function getGroups(termino, groups = tagsConfig.groups) {
+		let matches = [];
+		for (let group of groups) {
+			if (group.name == termino) matches.push({ ...group });
+			else if (group.sub) {
+				const sub = getGroups(termino, group.sub);
+				if (sub) matches.push(...sub);
+			}
+		}
+		return matches.filter((i) => i);
+	}
 	const processedMeta = {
 		...meta,
 		tags: Array.isArray(meta.tags)
 			? [...meta.tags]
 					.map(alias)
-					.sort(
-						(a, b) => tagsConfig.tags[a]?.group ?? a.localeCompare(tagsConfig.tags[b]?.group ?? b)
-					)
+					.sort((a, b) => getGroups(a)?.[0]?.name.localeCompare(getGroups(b)?.[0]?.name))
 			: [alias(meta.tags)],
 		featured:
 			meta.featured !== undefined
