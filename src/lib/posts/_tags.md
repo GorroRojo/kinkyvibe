@@ -73,6 +73,7 @@ groups:
       - arte
       - clases
       - terapia
+      - eventos
     color: 'var(--2)'
   - name: BDSM
     members:

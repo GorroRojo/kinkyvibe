@@ -14,6 +14,7 @@ tags:
   - clases
   - KinkyVibe
   - AMBA
+  - eventos
 authors:
   - DemonWeb
   - TallarinesConTuco
