@@ -31,9 +31,9 @@ const render = (posts) => `<?xml version="1.0" encoding="UTF-8" ?>
 ${posts
 	.map(
 		(post) => `<item>
-<guid isPermaLink="true">${siteURL}/${post.path}</guid>
+<guid isPermaLink="true">${siteURL}${post.path}</guid>
 <title>${post.meta.title}</title>
-<link>${siteURL}/${post.path}</link>
+<link>${siteURL}${post.path}</link>
 <description>${post.meta.title}</description>
 <pubDate>${new Date(post.meta.published_date).toUTCString()}</pubDate>
 </item>`

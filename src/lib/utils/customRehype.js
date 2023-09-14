@@ -125,20 +125,7 @@ export default function customRehype() {
 					const next = parent.children[index + 2 + foundInParent];
 					const lastCharOfPreviousNode = previous?.value?.slice(-1) ?? '';
 					const firstCharOfNextNode = next?.value[0] ?? '';
-					// console.log({
-					// 	original,
-					// 	link,
-					// 	lit,
-					// 	previous: previous,
-					// 	next: next,
-					// 	foundInParent,
-					// 	index,
-					// 	c: { lastCharOfPreviousNode, firstCharOfNextNode }
-					// });
-					// console.log(parent.children);
 					if (lastCharOfPreviousNode == '[' && firstCharOfNextNode == ']') {
-						// console.log('wrap detected!');
-						// foundInParent++;
 						previous.value = previous.value.slice(0, -1);
 						next.value = next.value.slice(1);
 						return h(
@@ -157,15 +144,11 @@ export default function customRehype() {
 				// eslint-disable-next-line no-useless-escape
 				/(?<![\w\d])(\\?)@(\S+)/g,
 				(_, escape, user) => {
-					// const parent = stack[stack.length - 2];
-					// parent.children[index].value = parent.children[index].value + space;
 					if (escape) return '@' + user;
-					const href = '/' + (user == 'KinkyVibe' ? 'nosotres' : user);
+					const href = '/amigues/' + (user == 'KinkyVibe' ? 'nosotres' : user);
 					return h('a.mention', { href }, '@' + user);
 				}
 			]
 		]);
-		// /**@type Node*/ h('a', { href: '/wiki/' + value.replaceAll(' ', '-'), children: value })
-		// (/**@type string */ value) =>
 	};
 }

@@ -133,7 +133,7 @@
 	<div>
 		<dt>
 			{#if entry && entry.meta && entry.meta.wiki}
-				<a href="/wiki/{entry.meta.wiki}"
+				<a href="{entry.meta.wiki}"
 					><MiniMarkup value={entry.meta.title} {query} {entries} /></a
 				>
 			{:else}
@@ -164,7 +164,7 @@
 							{@const relatedEntry = entries.find((e) => e.meta.wiki == other.replaceAll(' ', '-'))}
 							{i == 0 ? '' : ', '}
 							{#if relatedEntry}
-								<a href="/wiki/{relatedEntry.path}"
+								<a href="{relatedEntry.path}"
 									><MiniMarkup value={relatedEntry.meta.title} {query} {entries} /></a
 								>
 							{:else}

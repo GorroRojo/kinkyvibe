@@ -1,5 +1,4 @@
-<script>
-	//@ts-nocheck
+<script context="module">
 	import {
 		CalendarRange,
 		BookOpen,
@@ -9,6 +8,14 @@
 		Heart
 	} from 'lucide-svelte';
 	import 'add-to-calendar-button';
+	import { addHours, format, isPast } from 'date-fns';
+	import Tag from './Tag.svelte';
+	import { onMount } from 'svelte/internal';
+	import { tagsConfig } from '$lib/utils/stores';
+</script>
+
+<script>
+	//@ts-nocheck
 	export let post;
 	let {
 		path,
@@ -31,10 +38,6 @@
 			pronoun
 		}
 	} = post;
-	import { addHours, format, isPast } from 'date-fns';
-	import Tag from './Tag.svelte';
-	import { onMount } from 'svelte/internal';
-	import { tagsConfig } from '$lib/utils/stores';
 	var date = start ? addHours(new Date(start), 3) : published_date;
 	try {
 		format(new Date(date), 'yyyy-MM-dd');
@@ -57,7 +60,7 @@
 </script>
 
 <a
-	href={'/' + path}
+	href={path}
 	class="post {category} {{
 		amigues: 'h-card',
 		calendario: 'h-event',
@@ -159,7 +162,8 @@
 		{title}
 		{#if pronoun}
 			<small class="p-pronouns">
-				{@html "&nbsp;" + (pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
+				{@html '&nbsp;' +
+					(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
 			</small>
 		{/if}
 	</h3>
@@ -301,7 +305,7 @@
 		/* margin-left: 1em; */
 		small {
 			color: var(--post-color, var(--2));
-			font-size: .7em;
+			font-size: 0.7em;
 			font-weight: normal;
 		}
 	}

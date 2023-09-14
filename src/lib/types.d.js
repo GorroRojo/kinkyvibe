@@ -22,13 +22,14 @@
  * */
 
 /** @typedef PostData
+ * @prop {string} postID
  * @prop {string} title
  * @prop {string} summary
  * @prop {string[]} tags
  * @prop {'material'|'calendario'|'amigues'|'wiki'} category
  * @prop {'material'|'calendario'|'amigues'} layout
  * @prop {string[]} authors
- * @prop {number | string} [featured]
+ * @prop {string} [featured]
  * @prop {Date} [published_date]
  * @prop {Date} [updated_date]
  * @prop {boolean} [force_unlisted]
@@ -54,10 +55,10 @@
  * 		link_text?: string
  * }} CalendarioPostData */
 /** @typedef {PostData & {
- * 		pronoun: string | URL,
+ * 		pronoun: string,
  * 		link: URL,
- * 		logo?: URL | number,
- * 		photo?: URL | number,
+ * 		logo?: string,
+ * 		photo?: string,
  * 		email?: string,
  * 		location?: string,
  * 		tel?: string,
@@ -67,6 +68,15 @@
  * 		bday?: Date,
  * }} AmiguesPostData */
 // TODO affiliation, education, experience, skill
+
+/**
+ * @typedef ProcessedPost
+ * @prop {string} path
+ * @prop {AnyPostData} meta
+ * @prop {ConstructorOfATypedSvelteComponent|undefined} content
+ * @prop {ProcessedPost[]} authorsProfiles
+ * @prop {ProcessedPost[]} relatedPosts
+ */
 /** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
 
 /**
