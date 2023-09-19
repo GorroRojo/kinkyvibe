@@ -133,7 +133,7 @@
 	<div>
 		<dt id={termino.name}>
 			{#if entry && entry.meta && entry.meta.wiki}
-				<a href={entry.meta.wiki}><MiniMarkup value={entry.meta.title} {query} {entries} /></a>
+				<a href="/wiki/{entry.meta.wiki}"><MiniMarkup value={entry.meta.title} {query} {entries} /></a>
 			{:else}
 				<MiniMarkup value={name} {query} {entries} />
 			{/if}
