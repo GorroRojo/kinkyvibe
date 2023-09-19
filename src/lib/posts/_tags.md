@@ -75,6 +75,7 @@ groups:
       - clases
       - terapia
       - eventos
+      - productos
     color: 'var(--2)'
   - name: BDSM
     members:

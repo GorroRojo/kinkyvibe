@@ -8,6 +8,7 @@ tags:
   - salud
   - emprendimiento
   - AMBA
+  - productos
 layout: amigues
 category: amigues
 authors:

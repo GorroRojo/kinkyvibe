@@ -9,6 +9,7 @@ tags:
   - queer
   - emprendimiento
   - género
+  - productos
 layout: amigues
 category: amigues
 authors:

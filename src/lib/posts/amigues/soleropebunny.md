@@ -9,6 +9,7 @@ tags:
   - Shibari
   - profesional
   - AMBA
+  - sesiones
 layout: amigues
 category: amigues
 authors:

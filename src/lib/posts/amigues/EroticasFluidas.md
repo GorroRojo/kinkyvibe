@@ -1,5 +1,5 @@
 ---
-published_date: 2023-05-19Z-03:00
+published_date: 2023-09-18Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Eróticas Fluidas / Andre
 summary: damos talleres y asesorías 1:1 💕auto-publicamos fanzines 🔖 ofrecemos psicoterapia crítica 💫 en base a las sexualidades, géneros y afectos 🏳️‍🌈⚧️🏳️‍⚧️

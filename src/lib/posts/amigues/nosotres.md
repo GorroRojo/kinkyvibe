@@ -11,10 +11,11 @@ tags:
   - salud
   - género
   - emprendimiento
-  - clases
   - KinkyVibe
   - AMBA
+  - clases
   - eventos
+  - productos
 authors:
   - DemonWeb
   - TallarinesConTuco

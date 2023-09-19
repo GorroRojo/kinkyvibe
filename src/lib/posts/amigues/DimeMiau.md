@@ -10,6 +10,7 @@ tags:
   - emprendimiento
   - pet
   - furry
+  - productos
 layout: amigues
 category: amigues
 authors:
