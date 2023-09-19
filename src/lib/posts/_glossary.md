@@ -12,15 +12,23 @@ terminos:
     aka: ["juegos con la restriccion"]
     description: |
       Palabra que encapsula a las [[prácticas]] de restricción física.
-  - name: disciplina
-  - name: dominación
   - name: shibari
     aka: ["bondage japones", "bondage con cuerdas"] 
     related: ["bondage"]
   - name: sadomasoquismo
-  - name: sumisión
+    related: 
+    - cosquillas
+    - impacto
+    - predicamento
+    - tortura genital
+    - dolor
+    - humillación
   - name: sadismo
+    description: |
+      Excitación al infligir dolor y/o sufrimiento de forma consensuada o al verlo ser infligido. Refiere tanto al dolor físico como al emocional o psicológico. Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos.
   - name: masoquismo
+    description: |
+      Excitación al recibir dolor y/o sufrir de forma consensuada. Refiere tanto al dolor físico como al emocional o psicológico. Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos.
   - name: primal
     aka: ["primal play"]
     description: |
@@ -76,12 +84,29 @@ terminos:
       Persona que tiene el poder en un [[intercambio de poder]]. 
     related: 
       - dominación
-  - name: sumise
   - name: intercambio de poder
     description: |
       Un acuerdo entre varias partes, comunmente alguna [[dominante]] y alguna [[sumisa]], donde la parte [[sumisa]] le entrega poder sobre aspectos de sí misma a la [[dominante]].
     related: ["dinámicas"]
   - name: prácticas
+  - name: asexualidad
+    aka: ["ace", "espectro asexual"]
+    description: |
+      Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas o sentirla de manera poco intensa, poco frecuente, bajo circunstacias determinadas o, incluso, fluctuar entre sentirla y no sentirla. Es un paraguas amplio donde habitan diferentes formas de experimentar la asexualidad.
+  - name: cuchillos
+    aka: ["juego con cuchillos", "knife play"]
+    description: |
+      [[prácticas]] que involucran el uso de cuchillos con o sin filo para generar [[sensaciones]], [[miedo]] (fear play), [[dolor]] (pain play) y [[cortes]] (blood play). Muchas veces se practica con cuchillos sin filo que pueden ser de madera, acrílico, metal, entre otros. También pueden usarse de forma práctica para remover cera del cuerpo de una forma más segura.
+    related: ["sensaciones", "miedo", "dolor", "cortes"]
+  - name: impacto
+    description: |
+      [[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos. Las mismas pueden usarse para generar [[dolor]] (pain play), estimulación sensorial ([[sensaciones]]), calentamiento (warm up), caricias, entre otros. Un ejemplo son las nalgadas, producidas por impactar las nalgas con la mano.
+  - name: pegging
+    description: |
+      Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis. 
+ 
+
+
 ---
 
 Hola! 👋

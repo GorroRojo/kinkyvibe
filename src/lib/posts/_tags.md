@@ -98,29 +98,30 @@ groups:
           - electro
           - dolor
         sub:
+          - name: intercambio de poder
+            members:
+              - dominación
+              - dominante
+              - sumisión
+          - name: bondage
+            members:
+            - shibari 
           - name: sensaciones
             sub:
             - name: temperatura
               members: 
               - fuego
+          - name: impacto
+            members:
+              - caning
+              - golpes
+              - nalgueadas
           - name: edad
             members: 
             - pequeñe
             - middle
             - cuidadore
             - grande 
-          - name: bondage
-            members:
-            - shibari 
-          - name: intercambio de poder
-            members:
-              - dominación
-              - sumisión
-          - name: impacto
-            members:
-              - caning
-              - golpes
-              - nalgueadas
   - name: género y salud sexual
     members:
     sub:
