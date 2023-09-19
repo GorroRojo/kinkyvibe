@@ -14,6 +14,7 @@ groups:
     - Córdoba
     - AMBA 
     - Santa Cruz
+    - Chile
     - Online
     color: darkblue
   - name: precio
