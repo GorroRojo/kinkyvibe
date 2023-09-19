@@ -124,18 +124,16 @@
 		termino.spare = false;
 	}
 
-	const hasDescription = description?.length > 0;
-	const hasMembers = filteredMembers?.length > 0;
-	const hasSub = groupdata.sub?.length > 0;
+	$: hasDescription = description?.length > 0;
+	$: hasMembers = filteredMembers?.length > 0;
+	$: hasSub = groupdata.sub?.length > 0;
 </script>
 
 {#if ((query == '' && ((termino && termino?.visible) || entry?.meta?.wiki)) || termino?.visible) && (termino.spare || uniqueListing) && (hasDescription || hasMembers || hasSub || termino.related)}
 	<div>
-		<dt>
+		<dt id={termino.name}>
 			{#if entry && entry.meta && entry.meta.wiki}
-				<a href="{entry.meta.wiki}"
-					><MiniMarkup value={entry.meta.title} {query} {entries} /></a
-				>
+				<a href={entry.meta.wiki}><MiniMarkup value={entry.meta.title} {query} {entries} /></a>
 			{:else}
 				<MiniMarkup value={name} {query} {entries} />
 			{/if}
@@ -157,20 +155,28 @@
 						<MiniMarkup value={rawdescription} {query} {entries} />
 					</span>
 				{/if}
+				{#if hasDescription && termino.related}<br>{/if}
 				{#if termino.related}
 					<small
 						>Ver también:
-						{#each termino.related as other, i}
-							{@const relatedEntry = entries.find((e) => e.meta.wiki == other.replaceAll(' ', '-'))}
+						<MiniMarkup
+							value={termino.related.map((t) => '[[' + t.replaceAll(' ', '-') + ']]').join(' | ')}
+							{query}
+							{entries}
+						/>
+						<!-- 
+							{#each termino.related as other, i}
+								{@const relatedEntry = entries.find((e) => e.meta.wiki == other.replaceAll(' ', '-'))}
 							{i == 0 ? '' : ', '}
 							{#if relatedEntry}
-								<a href="{relatedEntry.path}"
+								<a href={relatedEntry.path}
 									><MiniMarkup value={relatedEntry.meta.title} {query} {entries} /></a
 								>
 							{:else}
 								<MiniMarkup value={other} {query} {entries} />
 							{/if}
-						{/each}
+							{/each}
+						-->
 					</small>
 				{/if}
 				{#if hasMembers || hasSub}

@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import { glosario } from "$lib/utils/stores";
 	/**@type {(description:string)=>Array<{type:string,line:string}>|undefined}*/
 	function parseDescription(description, query) {
 		const regex = /\[\[([^\]]*)\]\]/g;
@@ -75,8 +76,11 @@
 
 {#each parseDescription(value, query) as { line, type, href }}
 	{@const entry = entries.find((e) => e.meta.wiki == (href ?? line)?.replaceAll(' ', '-'))}
+	{@const termino = $glosario.terminos.find((t) => t.name == (href ?? line)?.replaceAll(' ','-'))}
 	{#if type == 'link' && entry}
 		<a href="/wiki/{entry.meta.wiki}">{line}</a>
+	{:else if type == 'link' && termino}
+		<a href="/wiki#{termino.name}">{line}</a>
 	{:else if type == 'mark'}
 		<mark>{line}</mark>
 	{:else}
