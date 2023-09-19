@@ -7,7 +7,7 @@
 	export let tags;
 	export let mark = '';
 	export let showFilteredTags = true;
-	$: filteredTags = (mark
+	$: localFilteredTags = (mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 		: tags).filter((t)=> showFilteredTags || !filteredTags.includes(t));
 	let invisible = false;
@@ -15,7 +15,7 @@
 </script>
 
 <ul>
-	{#each [...new Set(filteredTags)] as tag (tag)}
+	{#each [...new Set(localFilteredTags)] as tag (tag)}
 		{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
 		{@const color = config ? config?.color : 'var(--color,var(--1))'}
 		<li style:--tag-color={color} class:invisible in:scale animate:flip>
