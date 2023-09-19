@@ -11,6 +11,8 @@ export const filteredTags = writable([]);
 export const visibleTags = writable([]);
 /** @type {import('svelte/store').Writable<string[]>} */
 export const allTags = writable([]);
+/** @type {import('svelte/store').Writable<Set<string>>} */
+export const redundantTags = writable(new Set());
 
 /** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|'wiki'|undefined, path: string}>} */
 export const currentPostData = writable();

@@ -3,12 +3,13 @@
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import { onMount } from 'svelte/internal';
-	import { tagsConfig } from '$lib/utils/stores';
+	import { tagsConfig, filteredTags } from '$lib/utils/stores';
 	export let tags;
 	export let mark = '';
-	$: filteredTags = mark
+	export let showFilteredTags = true;
+	$: filteredTags = (mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
-		: tags;
+		: tags).filter((t)=> showFilteredTags || !filteredTags.includes(t));
 	let invisible = false;
 	onMount(() => {invisible = false});
 </script>

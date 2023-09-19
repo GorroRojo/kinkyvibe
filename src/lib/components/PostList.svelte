@@ -1,31 +1,65 @@
 <script>
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { filteredTags, visibleTags, allTags, userConfig, tagsConfig } from '$lib/utils/stores';
+	import { filteredTags, visibleTags, allTags, userConfig, tagsConfig, redundantTags } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
 	/**
 	 * @type {Record<string,*>[]}
 	 */
+	/**@type ProcessedPost[]*/
 	export let posts = [];
 	/** @type {false|{prop: string, value: string}}*/
 	export let filter = false;
 
+	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
-		(/**@type {Record<string,string>}*/ p) => !filter || (filter && p[filter.prop] == filter.value)
+		// @ts-ignore
+		(/**@type {ProcessedPost}*/ p) => !filter || (filter && p[filter.prop] == filter.value)
 	);
 
 	/**@type {<T>(arr: T[])=>T[]}*/
 	let uniq = (arr) => [...new Set(arr)];
 
-	// @ts-ignore
-	$: visibleTags.set(uniq(uniq(tagFilteredPosts.reduce((all, p) => [...all, ...p.meta.tags], []))));
+	/**
+	 * @param {ProcessedPost[]} posts
+	 * @param {string[]} filteredTags
+	 * @returns {string[]}
+	 */
+	function getVisibleTags(posts, filteredTags) {
+		let presentTags = new Map();
+		for (const post of posts) {
+			for (const tag of post.meta.tags) {
+				const present = presentTags.get(tag);
+				if (present === undefined) {
+					presentTags.set(tag, 1);
+				} else {
+					presentTags.set(tag, present + 1);
+				}
+			}
+		}
+		return [...presentTags.entries()]
+			.filter(([tag, instances]) => {
+				if (instances < posts.length || filteredTags.includes(tag)) {
+					$redundantTags.delete(tag);
+					return true
+				} else {
+					$redundantTags.add(tag);
+					const parents = getParents(tag);
+					return filteredTags.some((ft) => parents.includes(ft));
+				}
+			})
+			.map((t) => t[0]);
+	}
+
+	$: visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
 	// $: tags = [...new Set(nonAliasTags)];
 	// /** @type {{[k: string]: Group | undefined}}*/
 	// $: groupByName = Object.fromEntries(
 	// 	getAllGroupNames($tagsConfig.groups).map((name) => [name, getGroupByName(name)])
 	// );
+	/**@type ProcessedPost[]*/
 	$: tagFilteredPosts = outerFilteredPosts.filter((post) =>
 		$filteredTags && $filteredTags.length == 0
 			? true
@@ -125,26 +159,25 @@
 		...getAllGroupNames($tagsConfig.groups)
 	]);
 </script>
-
 {#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
-<div class="container">
-	<div class="postlist">
-		<div id="filterbar">
-			<FilterBar />
-		</div>
+	<div class="container">
+		<div class="postlist">
+			<div id="filterbar">
+				<FilterBar />
+			</div>
 
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + " h-feed"}>
+				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
 					{#if $userConfig.display_type == 'list'}
 						{#each tagFilteredPosts as post, i (post.path)}
-							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
+							<li in:scale|local={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
 								<PostListItem {post} />
 							</li>
 						{/each}
 					{:else if $userConfig.display_type == 'grid'}
 						{#each tagFilteredPosts as post, i (post.path)}
-							<li in:scale|local={{ delay: i * 100 }} animate:flip={{ duration: 500 }}>
+							<li in:scale|local={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
 								<Card {post} />
 							</li>
 						{/each}

@@ -15,44 +15,6 @@
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
 
-	/**@param {HTMLElement} node
-	 * @param {{from:DOMRect, to:DOMRect}} ends
-	 * @param {any} params
-	 * @returns {{
-	 *  delay?: number,
-	 *  duration?: number,
-	 *  easing?: (t: number) => number,
-	 *  css?: (t: number, u: number) => string,
-	 *  tick?: (t: number, u: number) => void
-	 * }}
-	 */
-	function betterflip(node, { from, to }, params) {
-		const style = getComputedStyle(node);
-		const transform = style.transform === 'none' ? '' : style.transform;
-
-		const [ox, oy] = style.transformOrigin.split(' ').map(parseFloat);
-		const dx = from.left + (from.width * ox) / to.width - (to.left + ox);
-		const dy = from.top + (from.height * oy) / to.height - (to.top + oy);
-		//@ts-ignore
-		const { delay = 0, duration = (d) => Math.sqrt(d) * 120, easing = cubicOut } = params;
-
-		return {
-			delay,
-			duration: typeof duration === 'function' ? duration(Math.sqrt(dx * dx + dy * dy)) : duration,
-			easing,
-			css: (t, u) => {
-				const x = u * dx;
-				const y = u * dy;
-				// @ts-ignore
-				const sx = t + (u * from.width) / to.width;
-				// @ts-ignore
-				const sy = t + (u * from.height) / to.height;
-
-				return `transform: ${transform} translate(${x}px,${y}px)`; //${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
-			}
-		};
-	}
-
 	/**@type Group[] */
 	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
 	/**@type string[]*/
@@ -147,6 +109,8 @@
 			(group.sub && group.sub.length > 0 && group.sub.some(isVisible))
 		);
 	}
+	let view_filters = false;
+	$: view_filters = $filteredTags.length > 0 || view_filters;
 </script>
 
 <div class="filterbar">
@@ -170,31 +134,46 @@
 			/>Grilla
 		</label>
 	</div>
-	<div class="tagfilters">
-		{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc' }] as group (group.name)}
-			<div
-				class="tag-group-container"
-				animate:betterflip={{ duration: 0 }}
-				in:scale={{ duration: 500 /*@ts-ignore*/ }}
+	<label id="view_filters">
+		<input
+			type="checkbox"
+			name="view_filters"
+			disabled={$filteredTags.length > 0}
+			bind:checked={view_filters}
+		/> Ver filtros
+	</label>
+	{#if $filteredTags.length > 0}
+		<div class="tag-group-container">
+			<button
+				on:click={() => {
+					$filteredTags = [];
+					$page.url.searchParams.delete('tags');
+					window.history.replaceState('', '', $page.url);
+				}}>Despejar filtros</button
 			>
-				<TagGroup {group} />
-			</div>
-		{/each}
-		{#if $filteredTags.length > 0}
-			<div class="tag-group-container">
-				<button
-					on:click={() => {
-						$filteredTags = [];
-						$page.url.searchParams.delete('tags');
-						window.history.replaceState('', '', $page.url);
-					}}>Despejar filtros</button
-				>
-			</div>
-		{/if}
-	</div>
+		</div>
+	{/if}
+	{#if view_filters || $filteredTags.length > 0}
+		<div class="tagfilters">
+			{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc', noname: true }] as group (group.name)}
+				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+					<TagGroup {group} />
+				</div>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">
+	#view_filters {
+		display: block;
+		width: 100%;
+		max-width: 50rem;
+		margin-inline: auto;
+		font-size: var(--step-0);
+		text-align: center;
+		margin-block: 0.4em;
+	}
 	.option-group {
 		display: flex;
 		gap: 0.2em;
