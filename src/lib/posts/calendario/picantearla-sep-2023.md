@@ -14,7 +14,7 @@ tags:
   - AMBA
   - impacto
   - bondage
-  - pet
+  - mascota
   - shibari
   - edad
   - intercambio de poder

@@ -9,7 +9,7 @@
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
 	import { page } from '$app/stores';
-	import { Search } from 'lucide-svelte';
+	import { Search, Construction } from 'lucide-svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -96,13 +96,29 @@
 	color: var(--1);
 	z-index: 1;
 	`;
+	const wip_style = `
+	font-size: var(--step-1);
+	translate: 0 .1em;
+	color: white;
+	z-index: 1;
+	`
 </script>
 
 <svelte:head>
 	<title>Kinkipedia - Enciclopedia Fetichista</title>
 </svelte:head>
+<p class="callout building" style:--callout-color="var(--2-dark)" style:width="100%">
+	<Construction style={wip_style} />
+	&ThickSpace;
+	&ThickSpace;
+	En construcción
+	&ThickSpace;
+	&ThickSpace;
+	<Construction style={wip_style} />
+</p>
 <article class="content">
 	<h1>Kinkipedia</h1>
+	<p class="callout" style:--callout-color="var(--1)">El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en una situación de violencia podés contactarte con nosotres.</p>
 	<dl>
 		<div class="searchbox">
 			<Search {style} /><input
@@ -156,6 +172,22 @@
 </article>
 
 <style lang="scss">
+	.callout {
+		--callout-color: var(--1);
+		font-size: var(--step-0);
+		background: var(--callout-color);
+		color: white;
+		padding: .5em .76em;
+		border-radius: 1rem;
+		
+		&.building {
+			max-width: 100%;
+			text-align: center;
+			padding-block: .3em;
+			text-transform: uppercase;
+			margin-bottom: 2em;
+		}
+	}
 	article {
 		max-width: 50rem;
 		margin: auto;

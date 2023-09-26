@@ -8,7 +8,7 @@ tags:
   - AMBA #TODO lo es??
   - queer
   - emprendimiento
-  - pet
+  - mascota
   - furry
   - productos
 layout: amigues

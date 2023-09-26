@@ -92,7 +92,7 @@ groups:
         - masoquismo   
       - name: prácticas
         members:
-          - pet
+          - mascota
           - top
           - bottom
           - cuchillos
@@ -135,7 +135,7 @@ groups:
         - squirt
       - name: queer
         members: 
-        - pet
+        - mascota
         - furry
         - género
         - asexualidad

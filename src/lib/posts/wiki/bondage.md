@@ -20,20 +20,7 @@ authors:
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Podríamos hablar de [[bondage]] @DemonWeb y @TallarinesConTuco
+Entre esas se encuentran: esposas, cadenas, cuerdas, chokers/collares y correas, collares posturales, films, sillas restrictivas, [[shibari]], [[disciplina]], [[restricción mental]], [[momificación]], [[privación sensorial]] (tacto, escucha, vista, habla).
 
-O de gorro.rojo@gmail.com
+Puede realizarse con múltiples fines: estético, relajante, [[objetificación : objetificante]], [[humillación : humillante]], entre otras.
 
-## Siglas
-
-Las siglas de [[BDSM]] refieren a:
-
-- B y D de [[bondage : Bondage]] y [[disciplina : Disciplina]]
-- D y S de que refieren a dominación y sumisión en un [[intercambio de poder]]
-- S y M de [[sadomasoquismo : SadoMasoquismo]]
-
-## Historia
-
-## Más fuentes
-
-## Sadismo y Masoquismo

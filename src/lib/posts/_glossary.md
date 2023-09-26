@@ -8,13 +8,30 @@ terminos:
       - bottom
       - dominante
       - sumise
+  - name: disciplina
+    description: |
+      La [[práctica]] de enseñarle a le [[bottom]] y/o [[sub]] a obedecer órdenes, o a seguir las reglas que le Dom establezca. 
   - name: bondage
     aka: ["juegos con la restriccion"]
     description: |
       Palabra que encapsula a las [[prácticas]] de restricción física.
+    related: 
+      - humillación
+      - objetificación
+      - momificación
+      - privación sensorial
+      - restricción mental
+      - disciplina
+      - shibari
   - name: shibari
-    aka: ["bondage japones", "bondage con cuerdas"] 
-    related: ["bondage"]
+    aka: ["bondage japonés", "bondage con cuerdas", "rope bondage"] 
+    description: |
+      [[práctica]] erótica de origen japonés que consiste en restringir la movilidad de una persona usando cuerdas.
+    related:
+    - kinbaku
+    - bondage
+    - atadore
+    - conejite de cuerdas
   - name: sadomasoquismo
     related: 
     - cosquillas
@@ -25,21 +42,21 @@ terminos:
     - humillación
   - name: sadismo
     description: |
-      Excitación al infligir dolor y/o sufrimiento de forma consensuada o al verlo ser infligido. Refiere tanto al dolor físico como al emocional o psicológico. Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos.
+      Excitación que algunas personas experimentan al infligir dolor y/o sufrimiento de forma consensuada o al verlo ser infligido.
   - name: masoquismo
     description: |
-      Excitación al recibir dolor y/o sufrir de forma consensuada. Refiere tanto al dolor físico como al emocional o psicológico. Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos.
+      Excitación que algunas personas experimentan al recibir dolor y/o sufrir de forma consensuada.
   - name: primal
     aka: ["primal play"]
     description: |
-      Los juegos primales incluyen algunos tipos de [[lucha]] y comportamientos animales. Se trata de entrar en mentalidad instintiva, intentando dejar de lado los comportamientos aprendidos. Mientras haya un alto nivel de confianza, pueden ser una [[práctica]] explosiva e íntima. 
+      Los juegos primales incluyen algunos tipos de [[lucha]] y comportamientos animales.
     related: ["mascota"]
   - name: mascota
     aka: ["animal", "pet"]
     related: ["primal"]
   - name: bottom
     description: |
-      Comúnmente, la persona que "recibe" una [[práctica]]. 
+      Comúnmente, la persona que "recibe" una [[práctica]]. Hay múltiples formas y sabores de bottom: [[conejite de cuerdas]], [[power bottom]], [[Dom]] bottom, [[brat]] bottom, etc...
   - name: edad
     aka: ["age play"]
     description: |
@@ -62,12 +79,16 @@ terminos:
   - name: dolor
     aka: ["juegos con el dolor", "pain play"]
     description: |
-      Cualquier [[práctica]] donde una persona inflinge dolor sobre otra, que haya consentido, para generar placer.
+      Cualquier [[práctica]] donde una persona inflige dolor consensuadamente para generar placer.
     related: ["impacto", "electro", "sadomasoquismo"]
   - name: sensaciones
     aka: ["sensation play", "juegos de sensaciones"] 
     description: |
-      Cualquier [[práctica]] que involucre crear sensaciones inusuales sobre una persona. Se puede usar hielo, seda, cera caliente, texturas, etc. Se suele hacer con le [[bottom]] cegade.
+      Cualquier [[práctica]] que involucre crear sensaciones placenteras o displacenteras sobre una persona. Se puede usar hielo, seda, cera caliente, texturas, etc. Se suele hacer con le [[bottom]] cegade.
+  - name: electro
+    description: |
+      [[práctica]] que involucra el uso de electricidad para generar sensaciones en el cuerpo. Se considera un tipo de [[edge]] play.
+    related: ["sensaciones", "miedo", "juego de roles"] 
   - name: temperatura
     aka: ["juegos con la temperatura", "temperature play"]
     description: |
@@ -75,7 +96,7 @@ terminos:
   - name: fuego
     aka: ["juego con el fuego", "fire play"]
     description: |
-      [[práctica]]s que involucran el uso de fuego o de llamas. Por ejemplo el uso de alcohol para generar una llama breve y rapidamente extinguirla. Puede ser muy peligroso sin experiencia. 
+      [[práctica]]s que involucran el uso de fuego o de llamas. Por ejemplo el uso de alcohol para generar una llama breve y rápidamente extinguirla. Considerado un tipo de [[edge]] play.
   - name: top
     description: |
       Comúnmente, la persona que "da" una [[práctica]].  
@@ -89,24 +110,28 @@ terminos:
       Un acuerdo entre varias partes, comunmente alguna [[dominante]] y alguna [[sumisa]], donde la parte [[sumisa]] le entrega poder sobre aspectos de sí misma a la [[dominante]].
     related: ["dinámicas"]
   - name: prácticas
+  - name: género y salud sexual
+  - name: queer
   - name: asexualidad
     aka: ["ace", "espectro asexual"]
     description: |
-      Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas o sentirla de manera poco intensa, poco frecuente, bajo circunstacias determinadas o, incluso, fluctuar entre sentirla y no sentirla. Es un paraguas amplio donde habitan diferentes formas de experimentar la asexualidad.
+      Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas.
   - name: cuchillos
     aka: ["juego con cuchillos", "knife play"]
     description: |
-      [[prácticas]] que involucran el uso de cuchillos con o sin filo para generar [[sensaciones]], [[miedo]] (fear play), [[dolor]] (pain play) y [[cortes]] (blood play). Muchas veces se practica con cuchillos sin filo que pueden ser de madera, acrílico, metal, entre otros. También pueden usarse de forma práctica para remover cera del cuerpo de una forma más segura.
-    related: ["sensaciones", "miedo", "dolor", "cortes"]
+      [[prácticas]] que involucran el uso de cuchillos con o sin filo para generar [[sensaciones]], [[miedo]] (fear play), [[dolor]] (pain play) y [[cortes]] (blood play) como parte de un [[juego de roles]].
   - name: impacto
     description: |
-      [[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos. Las mismas pueden usarse para generar [[dolor]] (pain play), estimulación sensorial ([[sensaciones]]), calentamiento (warm up), caricias, entre otros. Un ejemplo son las nalgadas, producidas por impactar las nalgas con la mano.
+      [[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos.
+    related: 
+    - sensaciones
+    - juego de roles
+    - miedo
+    - dolor
+    - calentamiento
   - name: pegging
     description: |
       Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis. 
- 
-
-
 ---
 
 Hola! 👋
