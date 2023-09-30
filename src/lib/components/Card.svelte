@@ -2,7 +2,6 @@
 	import { tagsConfig } from '$lib/utils/stores';
 	import { onMount } from 'svelte/internal';
 	import Tag from './Tag.svelte';
-	import Tags from './Tags.svelte';
 	import { isPast } from 'date-fns';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
@@ -67,7 +66,7 @@
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured placeholder-gradient" src={src + ''} alt="" />
+	<img class="card-img u-featured placeholder-gradient" src={src} alt="" />
 	<h3 class="p-name">
 		{title}
 		{#if pronoun}
@@ -103,7 +102,12 @@
 	.card-img {
 		height: 15em;
 		width: 100%;
-		background: gray;
+		background: linear-gradient(
+		to bottom right,
+		color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
+		var(--post-color, var(--2)) 50%,
+		color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
+	);
 		--cround: calc(var(--round) * 0.93);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;
