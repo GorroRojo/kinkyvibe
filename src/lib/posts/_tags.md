@@ -90,6 +90,7 @@ groups:
           - cuchillos
           - electro
           - dolor
+          - humillación
         sub:
           - name: intercambio de poder
             members:

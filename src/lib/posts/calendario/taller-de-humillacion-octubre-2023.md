@@ -1,25 +1,27 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2023-09-30Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Evento de ejemplo
+title: Taller de Humillación
 summary: ""
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
+  - online
+  - humillación
 layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-#featured: 1
+featured: 1
 #logo: 2
 #force_unlisted: false
 # force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
-# opening_date: 2023-10-20Z-03:00
-start: 2023-06-02T20:00-03:00
-end:   2023-06-02T23:00-03:00
+status: anunciado # anunciado | abierto | lleno | cancelado #
+opening_date: 2023-09-30Z-03:00
+start: 2023-10-17T20:30-03:00
+end:   2023-10-17T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: ""
