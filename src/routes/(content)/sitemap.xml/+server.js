@@ -8,7 +8,11 @@ const siteURL = 'https://kinkyvibe.ar';
 /** @type {import('./$types').RequestHandler} */
 export const GET = async () => {
 	const allPosts = await fetchMarkdownPosts();
-	const sortedPosts = allPosts.sort((a, b) => (new Date(b.meta.published_date+"")).getTime() - (new Date(a.meta.published_date+"")).getTime());
+	const sortedPosts = allPosts.sort(
+		(a, b) =>
+			new Date(b.meta.published_date + '').getTime() -
+			new Date(a.meta.published_date + '').getTime()
+	);
 	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
 	const body = render(pages, sortedPosts);
 	const options = {
@@ -20,7 +24,12 @@ export const GET = async () => {
 
 	return new Response(body, options);
 };
-
+/**
+ *
+ * @param {string[]} pages
+ * @param {ProcessedPost[]} posts
+ * @returns
+ */
 const render = (pages, posts) =>
 	`<?xml version="1.0" encoding="UTF-8" ?>
 <urlset
@@ -41,13 +50,16 @@ ${pages.map(
 </url>`
 )}
 ${posts
-    .map(
-        (post) =>
-    `<url>
+	.map(
+		(post) =>
+			`<url>
     <loc>${siteURL}${post.path}</loc>
-    <lastmod>${new Date(post.meta.updated_date ?? post.meta.published_date).toISOString()}</lastmod>
+    <lastmod>${new Date(
+			post.meta.updated_date ?? post.meta.published_date ?? ''
+		).toISOString()}</lastmod>
     <priority>0.6</priority>
 </url>`
-).join('')}
+	)
+	.join('')}
 </urlset>
 `;
