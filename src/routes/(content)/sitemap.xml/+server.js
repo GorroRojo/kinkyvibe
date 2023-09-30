@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { fetchMarkdownPosts } from '$lib/utils';
 const siteURL = 'https://kinkyvibe.ar';
 // const siteTitle = 'KinkyVibe';
@@ -9,7 +8,7 @@ const siteURL = 'https://kinkyvibe.ar';
 /** @type {import('./$types').RequestHandler} */
 export const GET = async () => {
 	const allPosts = await fetchMarkdownPosts();
-	const sortedPosts = allPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
+	const sortedPosts = allPosts.sort((a, b) => (new Date(b.meta.published_date+"")).getTime() - (new Date(a.meta.published_date+"")).getTime());
 	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
 	const body = render(pages, sortedPosts);
 	const options = {
