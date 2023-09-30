@@ -118,7 +118,7 @@
 </p>
 <article class="content">
 	<h1>Kinkipedia</h1>
-	<p class="callout" style:--callout-color="var(--1)">El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en una situación de violencia podés contactarte con nosotres.</p>
+	<p class="callout" style:--callout-color="var(--1)">El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en una situación de violencia podés contactarte con nosotres o consultar <a target="_blank" href="https://recursero.info/violencia-sexual/">el recursero</a>.</p>
 	<dl>
 		<div class="searchbox">
 			<Search {style} /><input
@@ -179,13 +179,19 @@
 		color: white;
 		padding: .5em .76em;
 		border-radius: 1rem;
-		
+
 		&.building {
 			max-width: 100%;
 			text-align: center;
 			padding-block: .3em;
 			text-transform: uppercase;
 			margin-bottom: 2em;
+		}
+		a {
+			text-decoration: underline var(--2);
+			&:hover {
+				color: var(--2);
+			}
 		}
 	}
 	article {
