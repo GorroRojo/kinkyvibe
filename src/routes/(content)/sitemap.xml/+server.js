@@ -7,7 +7,7 @@ const siteURL = 'https://kinkyvibe.ar';
 
 /**
  * 
- * @param {string|Date} d 
+ * @param {string|Date|undefined} d 
  * @returns 
  */
 function date(d) {
@@ -23,8 +23,8 @@ export const GET = async () => {
 	const allPosts = await fetchMarkdownPosts();
 	const sortedPosts = allPosts.sort(
 		(a, b) =>
-			date(b.meta.published_date + '').getTime() -
-			date(a.meta.published_date + '').getTime()
+			date(b.meta.published_date).getTime() -
+			date(a.meta.published_date).getTime()
 	);
 	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
 	const body = render(pages, sortedPosts);
@@ -71,7 +71,7 @@ ${posts
 			`<url>
     <loc>${siteURL}${post.path}</loc>
     <lastmod>${date(
-			post.meta.updated_date ?? post.meta.published_date ?? ''
+			post.meta.updated_date ?? post.meta.published_date
 		).toISOString()}</lastmod>
     <priority>0.6</priority>
 </url>`
