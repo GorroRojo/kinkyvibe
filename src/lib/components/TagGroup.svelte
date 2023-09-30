@@ -103,8 +103,8 @@
 	let noname =
 		group.noname ||
 		!(
-			$visibleTags.includes(group.name) ||
-			getAllMembers(group).some((t) => $visibleTags.includes(t))
+		$visibleTags.includes(group.name) ||
+		getAllMembers(group).some((t) => $visibleTags.includes(t))
 		);
 </script>
 
@@ -257,6 +257,9 @@
 	.taglist li:first-child {
 		border-left: none;
 	}
+	.taglist li:last-child {
+		border-right: 1px solid color-mix(in srgb, var(--tag-color) 60%, transparent);
+	}
 	:global(.taglist > li.checked + li.checked) {
 		--border-radius: 0 0.3em 0.3em 0;
 		border-left: 10px solid var(--tag-color);
@@ -301,10 +304,10 @@
 		.groupitems,
 		.subgroups,
 		.filtergroup, .filtergroup.noname ul {
-			align-items: flex-end;
+			/* align-items: flex-end; */
 		}
 		ul {
-			justify-content: flex-end;
+			/* justify-content: flex-end; */
 		}
 	}
 </style>

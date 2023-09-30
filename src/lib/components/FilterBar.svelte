@@ -109,8 +109,8 @@
 			(group.sub && group.sub.length > 0 && group.sub.some(isVisible))
 		);
 	}
-	let view_filters = false;
-	$: view_filters = $filteredTags.length > 0 || view_filters;
+	let view_filters = true;
+	// $: view_filters = $filteredTags.length > 0 || view_filters;
 </script>
 
 <div class="filterbar">
@@ -134,14 +134,14 @@
 			/>Grilla
 		</label>
 	</div>
-	<label id="view_filters">
+	<!-- <label id="view_filters">
 		<input
 			type="checkbox"
 			name="view_filters"
 			disabled={$filteredTags.length > 0}
 			bind:checked={view_filters}
 		/> Ver filtros
-	</label>
+	</label> --> 
 	{#if $filteredTags.length > 0}
 		<div class="tag-group-container">
 			<button

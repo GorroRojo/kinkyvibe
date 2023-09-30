@@ -3,13 +3,11 @@ groups:
   - name: KinkyVibe
     color: var(--1)
   - name: idioma
-    noname: true
     members:
       - inglés
       - español
     color: darkblue
   - name: lugar
-    noname: true
     members:
     - Córdoba
     - AMBA 
@@ -18,13 +16,11 @@ groups:
     - Online
     color: darkblue
   - name: precio
-    noname: true
     members:
     - pago
     - a la gorra
     - gratis
   - name: calendario
-    noname: true 
     color: salmon
     sub:
       - name: tipo
@@ -41,26 +37,22 @@ groups:
         noname: true
         members: ['Picantearla', 'Cine para Sucixs']
   - name: material
-    noname: true 
     sub:
-    - name: formato
+    - name: tipo
       noname: true
       members:  
       - guía
       - artículo
       - libro
       - fanzine
-    - name: interaccion
+    - name: formato
       noname: true
       members:
+      - online
       - descargable
-      sub:
-      - name: online
-        members:
-        - interactivo
+      - interactivo
     color: 'var(--3-dark)'
   - name: amigues
-    noname: true 
     sub:
     - name: amiguestipo
       noname: true
@@ -126,10 +118,9 @@ groups:
   - name: género y salud sexual
     members:
     sub:
-      - name: personas
+      - name: salud
         noname: true
         members:
-        - salud
         - materiales
         - porno
         - squirt
