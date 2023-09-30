@@ -18,7 +18,18 @@
 </script>
 
 <footer>
-	Codigueado por <a href="/Gorro_Rojo">Gorro_Rojo</a>. Esta página es <a href="https://github.com/gorrorojo/kinkyvibe">código abierto</a> y software libre.
+	<div class="wip">
+		Este sitió esta en constante construcción. Reportar problemas a <a
+			href="https://t.me/Gorro_Rojo"
+		>
+			@Gorro_Rojo
+		</a>
+		por Telegram. O directamente en
+		<a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.
+	</div>
+	Codigueado por<a href="/Gorro_Rojo">Gorro_Rojo</a>. Esta página es
+	<a href="https://github.com/gorrorojo/kinkyvibe">código abierto</a>
+	y software libre.
 	<ul>
 		<li>
 			<h3>Contenido</h3>
@@ -35,7 +46,9 @@
 			<h3>Sobre nosotres</h3>
 			<ul>
 				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
-				<li><a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a></li>
+				<li>
+					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
+				</li>
 				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li>
 					<a href="https://cafecito.app/kinkyvibe" target="_blank">
@@ -77,8 +90,16 @@
 </footer>
 
 <style>
-	:global(body) {
-		/* padding-bottom: 40rem; */
+	.wip {
+		background: var(--2-dark);
+		color: white;
+		text-align: center;
+		padding-block: 0.5em;
+		margin-bottom: 1em;
+	}
+	.wip a:hover {
+		color: white;
+		text-decoration-color: white;
 	}
 	footer {
 		margin: 0;

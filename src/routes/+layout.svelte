@@ -73,13 +73,7 @@
 <svelte:head>
 	<title>KinkyVibe.ar</title>
 </svelte:head>
-<div class="wip">
-	Este sitió esta en plena construcción. Reportar problemas a <a href="https://t.me/Gorro_Rojo"
-		>@Gorro_Rojo</a
-	>
-	por Telegram. O directamente en
-	<a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.
-</div>
+
 <AgeModal />
 <header>
 	<div id="me">
@@ -150,19 +144,11 @@
 		<slot />
 	</main>
 {/key}
+
 <Footer />
 
 <style>
-	.wip {
-		background: var(--3-dark);
-		color: white;
-		text-align: center;
-		padding-block: 0.5em;
-	}
-	.wip a:hover {
-		color: white;
-		text-decoration-color: white;
-	}
+	
 	#logo {
 		color: black;
 		display: block;
