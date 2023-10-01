@@ -9,42 +9,6 @@
 	import { onMount } from 'svelte/internal';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
-	/**@param {HTMLElement} node
-	 * @param {{from:DOMRect, to:DOMRect}} ends
-	 * @param {any} params
-	 * @returns {{
-	 *  delay?: number,
-	 *  duration?: number,
-	 *  easing?: (t: number) => number,
-	 *  css?: (t: number, u: number) => string,
-	 *  tick?: (t: number, u: number) => void
-	 * }}
-	 */
-	function betterflip(node, { from, to }, params) {
-		const style = getComputedStyle(node);
-		const transform = style.transform === 'none' ? '' : style.transform;
-
-		const [ox, oy] = style.transformOrigin.split(' ').map(parseFloat);
-		const dx = from.left + (from.width * ox) / to.width - (to.left + ox);
-		const dy = from.top + (from.height * oy) / to.height - (to.top + oy);
-		//@ts-ignore
-		const { delay = 0, duration = (d) => Math.sqrt(d) * 120, easing = cubicOut } = params;
-
-		return {
-			delay,
-			duration: typeof duration === 'function' ? duration(Math.sqrt(dx * dx + dy * dy)) : duration,
-			easing,
-			css: (t, u) => {
-				const x = u * dx;
-				const y = u * dy;
-				const sx = t + (u * from.width) / to.width;
-				const sy = t + (u * from.height) / to.height;
-
-				return `transform: ${transform} translate(${x}px,0px)`; //${x}px, ${y}px)`; // scale(${sx}, ${sy});`;
-			}
-		};
-	}
-
 	/** @type Group */
 	export let group;
 
