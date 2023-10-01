@@ -6,7 +6,7 @@ summary: Las prácticas restrictivas con cuerdas involucran siempre un riesgo as
 tags:
   - español
   - BDSM
-  - shibari
+  - cuerdas
   - seguridad
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis

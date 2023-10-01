@@ -9,6 +9,7 @@ tags:
   - descargable # descargable | link | contenido #
   - KinkyVibe # etiqueta especial #
   - BDSM
+  - cuerdas
   - shibari
   - seguridad
   - inicial

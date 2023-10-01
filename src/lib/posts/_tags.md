@@ -69,13 +69,17 @@ groups:
       - eventos
       - productos
     color: 'var(--2)'
+  - name: cuerdas
+    color: "#ff4444"
+    members:
+    - shibari
+    - kinbaku
   - name: BDSM
     members:
       - seguridad
       - negociación
       - dinámicas
       - disciplina
-      - shibari
     color: "#ff4444"
     sub:
       - name: sadomasoquismo
@@ -99,7 +103,7 @@ groups:
               - sumisión
           - name: bondage
             members:
-            - shibari 
+            - cuerdas 
           - name: sensaciones
             sub:
             - name: temperatura

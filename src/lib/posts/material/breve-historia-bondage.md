@@ -5,10 +5,7 @@ title: Una breve historia del bondage con cuerdas
 summary: El bondage con cuerdas contemporáneo se desarrolló de forma paralela en Japón y Estados Unidos a principios del siglo XX.
 tags:
   - español
-  - BDSM
-  - bondage
-  - prácticas
-  - shibari
+  - cuerdas
   - historia
   - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #

@@ -11,6 +11,7 @@ tags:
   - BDSM
   - prácticas
   - bondage
+  - cuerdas
   - shibari
 layout: material
 category: material
