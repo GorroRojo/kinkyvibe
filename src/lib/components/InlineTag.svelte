@@ -22,6 +22,7 @@
 	isCheckbox
 	{checked}
 	--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+	--off-outline="1px solid var(--1-light)"
 	--font-size="1em"
 	--padding="0.1em 0.2em"
 	--border-radius=".3em"

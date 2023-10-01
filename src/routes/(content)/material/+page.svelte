@@ -33,7 +33,7 @@
 		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" /> sobre
 		<InlineTag tag="BDSM" />
 		podés buscar según qué <InlineTag tag="práctica" /> te interesa (por ej. <InlineTag
-			tag="shibari"
+			tag="cuerdas"
 		/>, <InlineTag tag="electro" /> play o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag
 			tag="inglés"
 		/> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag
