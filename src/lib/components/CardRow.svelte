@@ -30,7 +30,7 @@
 	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
 </div>
 
-<style>
+<style lang="scss">
 	:root {
 		--card-width: 13rem;
 	}
@@ -51,10 +51,6 @@
 		margin: 0;
 		width: 100%;
 	}
-	::-webkit-scrollbar {
-		display: none;
-	}
-
 	.cardcontainer {
 		width: var(--card-width);
 		flex: 1;
@@ -128,5 +124,34 @@
 	.btn-more:active {
 		filter: brightness(90%);
 		background: var(--1);
+	}
+	.cardrow::-webkit-scrollbar {
+		display: none;
+		opacity: 0;
+		transition: 500ms;
+	}
+	.cardrow {
+		--scrollbar-width: calc(var(--step--1) * 0.6);
+		scrollbar-width: thin;
+		scrollbar-color: #ff00dd #ffffff;
+		margin-bottom: calc(var(--scrollbar-width) * -1);
+
+		/* Chrome, Edge and Safari */
+		&::-webkit-scrollbar {
+			opacity: 1;
+			display: unset;
+			width: var(--scrollbar-width);
+			height: var(--scrollbar-width);
+		}
+		&::-webkit-scrollbar-track {
+			border-radius: 0px;
+			background-color: transparent;
+		}
+
+		&::-webkit-scrollbar-thumb {
+			border-radius: 1rem;
+			background-color: var(--color-2, var(--2));
+			cursor: ew-resize;
+		}
 	}
 </style>

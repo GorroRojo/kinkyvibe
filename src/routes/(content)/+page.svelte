@@ -71,9 +71,10 @@
 				title="Talleres y eventos"
 				items={posts
 					.filter(
-						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'calendario'
+						(/** @type {{ meta: AnyPostData; }} */ p) =>
+							p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
 					)
-					.slice(0, 3)}
+					.slice(0, 9)}
 				--color-1="var(--2-dark)"
 				--color-2="var(--1)"
 				href="/calendario"
@@ -88,7 +89,7 @@
 					.filter(
 						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material'
 					)
-					.slice(0, 3)}
+					.slice(0, 9)}
 				--color-1="var(--1)"
 				--color-2="var(--2-dark)"
 				href="/material"
@@ -98,12 +99,12 @@
 			<CardRow
 				index="1"
 				id="amigues"
-				title="Para apoyarnos"
+				title="Profesionales y emprendimientos"
 				items={posts
 					.filter(
 						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues'
 					)
-					.slice(0, 3)}
+					.slice(0, 9)}
 				--color-1="var(--2-dark)"
 				--color-2="var(--1)"
 				href="/amigues"
