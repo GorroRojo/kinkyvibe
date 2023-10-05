@@ -34,6 +34,7 @@
 	<CardRow
 		items={data.posts.filter((p) => !isPast(new Date(p.meta.start)))}
 		--color-1="transparent"
+		setId={false}
 	/>
 </div>
 	

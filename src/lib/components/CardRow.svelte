@@ -7,6 +7,7 @@
 	export let id;
 	export let href;
 	export let index;
+	export let setId = true;
 </script>
 
 <div
@@ -23,7 +24,7 @@
 	<ul class="cardrow">
 		{#each items as post, i}
 			<li class="cardcontainer">
-				<Card {post} />
+				<Card {setId} {post} />
 			</li>
 		{/each}
 	</ul>

@@ -11,6 +11,7 @@
 		mark,
 		start
 	} = post;
+	export let setId = true;
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
@@ -61,7 +62,7 @@
 		wiki: 'h-entry'
 	}[category]}"
 	tabindex="0"
-	id={href}
+	id={setId ? href : ""}
 >
 	{#if mark}
 		<span class="card-mark">{mark}</span>
