@@ -1,5 +1,5 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2023-09-10Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Picantearla - Edición Especial
 summary: Esta vez no va a ser recomendado para principiantes ya que lo haremos en un espacio privado y con la intención de habilitar más prácticas.

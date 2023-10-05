@@ -1,5 +1,5 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2023-10-04Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller inicial intensivo de shibari
 summary: "Dos días de información teórica para arrancar."
