@@ -98,6 +98,29 @@
 <a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
+	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
+		{@const authors = data.meta.authors}
+		<address>
+			{#await data.authorsProfiles}
+				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
+			{:then authorsProfiles}
+				{#each authors as author, i}
+					{@const profile = authorsProfiles.find(
+						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
+					)}
+					{#if i == authors.length - 1 && i > 0}
+						&nbsp;&
+					{:else if i > 0},
+					{/if}
+					{#if profile}
+						<a rel="author" class="p-author u-url" href={profile.path}>{author}</a>
+					{:else}
+						<span class="p-author">{author}</span>
+					{/if}
+				{/each}
+			{/await}
+		</address>
+	{/if}
 	<div class="event-header">
 		{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
 		<p class="event-times">
