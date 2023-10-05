@@ -236,21 +236,13 @@
 {/if}
 
 <style lang="scss">
-	#cafecito,
-	#via {
+	#cafecito {
 		max-width: 50rem;
 		margin: 2em auto;
 		width: 100%;
 		padding: 1em;
 		color: white;
 		border-radius: 0.3em;
-	}
-	#via {
-		background: var(--2-light);
-		font-size: var(--step-0);
-		a {
-			--color: var(--4-light);
-		}
 	}
 	#cafecito {
 		margin-top: 1em;

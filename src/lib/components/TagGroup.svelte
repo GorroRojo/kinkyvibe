@@ -144,9 +144,6 @@
 		/* outline: 3px solid transparent; */
 		justify-content: center;
 		flex-wrap: wrap;
-		& > * {
-			/* margin-left: 8px; */
-		}
 	}
 	.filtergroup.noname {
 		outline-color: transparent;
