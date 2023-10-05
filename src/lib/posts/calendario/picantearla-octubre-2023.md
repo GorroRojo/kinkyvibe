@@ -19,7 +19,7 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | lleno | cancelado
 opening_date: 2023-09-30Z-03:00
 start: 2023-10-27T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2023-10-28T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00

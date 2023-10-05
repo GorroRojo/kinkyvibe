@@ -18,7 +18,7 @@ featured: 1
 logo: 2
 #force_unlisted: false
 # force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 opening_date: 22-09-2023Z-03:00
 start: 2023-10-07T15:00-03:00
 end:   2023-10-07T19:00-03:00
