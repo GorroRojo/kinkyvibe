@@ -44,7 +44,6 @@
 		<Calendar let:date let:today let:past>
 			{@const events = days ? days[date] : []}
 			<button
-				style:--evt-color={events?.[0]?.color || 'var(--1)'}
 				class:today
 				class:past
 				disabled={!events}
@@ -64,7 +63,7 @@
 							data.posts[event.i].meta.visible = true;
 							return '';
 						})()} -->
-						<a href={'#' + event.path} class="bar" style:--evt-color={event.color || 'var(--1)'}>
+						<a href={'#' + event.path} class="bar" style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}>
 							<span>
 								{event.meta.title ?? ' '}
 								&sdot;
