@@ -15,7 +15,7 @@ tags:
 layout: material
 category: material
 authors:
-  - Eróticas Fluídas
+  - EroticasFluidas
   - Rebeldía Menstrual
 # TODO # ningune de ustedes??
 featured: 1
