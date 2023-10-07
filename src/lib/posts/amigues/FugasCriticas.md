@@ -7,7 +7,7 @@ tags:
   - español
   - clases
   - profesional
-  - terapia
+  - clases
   - AMBA
 layout: amigues
 category: amigues
@@ -17,7 +17,7 @@ featured: 1
 #force_unlisted: false
 #force_unpublished: false
 pronoun: https://pronombr.es/él&elle&ellx
-link: https://instagram.com/fugascriticas/
+link: https://fugascriticas.com/
 # logo: 1
 photo: 1
 email: hola@fugascriticas.com
