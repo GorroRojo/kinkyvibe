@@ -80,6 +80,8 @@ groups:
       - negociación
       - dinámicas
       - disciplina
+      - caída
+      - cuidados posteriores
     color: "#ff4444"
     sub:
       - name: sadomasoquismo

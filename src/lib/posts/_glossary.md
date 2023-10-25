@@ -132,6 +132,17 @@ terminos:
   - name: pegging
     description: |
       Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis. 
+  - name: caída
+    aka: ["caída", "bajón"]
+    description: |
+      El estado mental físico psicoemocional en el cual estamos después de una experiencia intensa pero positiva. 
+    related: ["cuidados posteriores"]
+  - name: cuidados posteriores
+    aka: ["aftercare"]
+    description: |
+      Prácticas para después de un intercambio fetichista, con el fin de procesar la escena y transicionar hacia la cotidianeidad.
+    related: ["caída"]
+
 ---
 
 Hola! 👋
