@@ -215,7 +215,7 @@
 		/* flex-wrap: wrap; */
 		width: 100%;
 		/* height: 10rem; */
-		--gap: 0.7em;
+		--gap: 1em;
 		gap: var(--gap);
 		justify-content: center;
 		align-items: center;
@@ -241,6 +241,7 @@
 	@container (min-width: 1300px) {
 		.tagfilters {
 			flex-direction: column;
+			max-width: 20rem;
 		}
 		.groupname {
 			width: 100%;

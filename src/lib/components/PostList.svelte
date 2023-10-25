@@ -1,7 +1,14 @@
 <script>
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import { filteredTags, visibleTags, allTags, userConfig, tagsConfig, redundantTags } from '$lib/utils/stores';
+	import {
+		filteredTags,
+		visibleTags,
+		allTags,
+		userConfig,
+		tagsConfig,
+		redundantTags
+	} from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
@@ -43,7 +50,7 @@
 			.filter(([tag, instances]) => {
 				if (instances < posts.length || filteredTags.includes(tag)) {
 					$redundantTags.delete(tag);
-					return true
+					return true;
 				} else {
 					$redundantTags.add(tag);
 					const parents = getParents(tag);
@@ -159,7 +166,9 @@
 		...getAllGroupNames($tagsConfig.groups)
 	]);
 </script>
+
 {#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
+	{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
 	<div class="container">
 		<div class="postlist">
 			<div id="filterbar">
@@ -169,19 +178,11 @@
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
 				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
-					{#if $userConfig.display_type == 'list'}
-						{#each tagFilteredPosts as post, i (post.path)}
-							<li in:scale|local={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
-								<PostListItem {post} />
-							</li>
-						{/each}
-					{:else if $userConfig.display_type == 'grid'}
-						{#each tagFilteredPosts as post, i (post.path)}
-							<li in:scale|local={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
-								<Card {post} />
-							</li>
-						{/each}
-					{/if}
+					{#each tagFilteredPosts as post, i (post.path)}
+						<li in:scale={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
+							<svelte:component this={Item} {post} />
+						</li>
+					{/each}
 				</ul>
 			{/key}
 		</div>

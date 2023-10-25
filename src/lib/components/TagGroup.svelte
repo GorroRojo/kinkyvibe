@@ -168,7 +168,7 @@
 	:global(.filtergroup:has(li)),
 	:global(.filtergroup:has(span)) {
 		box-shadow: -2px 0 var(--tag-color);
-		outline: 2px solid var(--tag-color);
+		outline: 1px solid var(--tag-color);
 	}
 
 	:global(.filterbar > .filtergroup) {
