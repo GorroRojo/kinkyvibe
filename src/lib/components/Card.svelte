@@ -7,9 +7,8 @@
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
 		path: href,
-		meta: { tags, featured: src, category, title, pronoun },
+		meta: { tags, featured: src, category, title, pronoun, start },
 		mark,
-		start
 	} = post;
 	export let setId = true;
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
@@ -143,7 +142,7 @@
 		text-decoration: none;
 	}
 	.card.past {
-		opacity: 0.8;
+		opacity: 0.3;
 	}
 	.card.mark {
 		--post-color: var(--1);
