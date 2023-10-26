@@ -23,7 +23,8 @@
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
 		// @ts-ignore
-		(/**@type {ProcessedPost}*/ p) => !filter || (filter && p[filter.prop] == filter.value)
+		(/**@type {ProcessedPost}*/ p) => (!filter || (filter && p[filter.prop] == filter.value)) &&
+			($userConfig.show_past_events || (new Date(p.meta.start).getTime() > Date.now() || p.meta.category != "calendario"))
 	);
 
 	/**@type {<T>(arr: T[])=>T[]}*/
@@ -172,7 +173,7 @@
 	<div class="container">
 		<div class="postlist">
 			<div id="filterbar">
-				<FilterBar />
+				<FilterBar event_toggle={tagFilteredPosts.some(p=>p.meta.category == 'calendario')}/>
 			</div>
 
 			{#key $userConfig.display_type}

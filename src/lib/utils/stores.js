@@ -26,8 +26,8 @@ export const togglePositiveTagFilterFn = writable((a, b) => '');
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */
 export const tagsConfig = writable();
 
-/** @type import('svelte/store').Writable<{display_type: 'list'|'grid'}> */
-export const userConfig = writable({ display_type: 'list' });
+/** @type import('svelte/store').Writable<{display_type: 'list'|'grid', show_past_events: boolean}> */
+export const userConfig = writable({ display_type: 'list', show_past_events: false });
 
 /** @type import('svelte/store').Writable<{terminos:{name:string,description:string,related?:string[]}[]}> */
 export const glosario = writable({terminos:[]});

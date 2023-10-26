@@ -1,12 +1,6 @@
 <script>
 	import '$lib/types.d.js';
-	import {
-		filteredTags,
-		visibleTags,
-		tagsConfig,
-		togglePositiveTagFilterFn,
-		userConfig
-	} from '$lib/utils/stores';
+	import { filteredTags, visibleTags, tagsConfig, userConfig } from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
 	import { fade, scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
@@ -14,6 +8,8 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { cubicOut } from 'svelte/easing';
+
+	export let event_toggle = true;
 
 	/**@type Group[] */
 	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
@@ -114,26 +110,54 @@
 </script>
 
 <div class="filterbar">
-	<div id="display-type" class="option-group">
-		<label>
-			<input
-				type="radio"
-				name="display-type"
-				id="display-type-list"
-				bind:group={$userConfig.display_type}
-				value="list"
-			/>Lista
-		</label>
-		<label>
-			<input
-				type="radio"
-				name="display-type"
-				id="display-type-grid"
-				bind:group={$userConfig.display_type}
-				value="grid"
-			/>Grilla
-		</label>
+	<div class="option-group-wrapper">
+		<div class="option-group-title">Ver como</div>
+		<div id="display-type" class="option-group">
+			<label>
+				<input
+					type="radio"
+					name="display-type"
+					id="display-type-list"
+					bind:group={$userConfig.display_type}
+					value="list"
+				/>Lista
+			</label>
+			<label>
+				<input
+					type="radio"
+					name="display-type"
+					id="display-type-grid"
+					bind:group={$userConfig.display_type}
+					value="grid"
+				/>Grilla
+			</label>
+		</div>
 	</div>
+	{#if event_toggle}
+		<div class="option-group-wrapper">
+			<div class="option-group-title">Mostrar eventos pasados</div>
+			<div id="show-past-events" class="option-group">
+				<label>
+					<input
+						type="radio"
+						name="show-past-events"
+						id="show-past-events-yes"
+						bind:group={$userConfig.show_past_events}
+						value={true}
+					/>Si
+				</label>
+				<label>
+					<input
+						type="radio"
+						name="show-past-events"
+						id="show-past-events-no"
+						bind:group={$userConfig.show_past_events}
+						value={false}
+					/>No
+				</label>
+			</div>
+		</div>
+	{/if}
 	<!-- <label id="view_filters">
 		<input
 			type="checkbox"
@@ -141,7 +165,7 @@
 			disabled={$filteredTags.length > 0}
 			bind:checked={view_filters}
 		/> Ver filtros
-	</label> --> 
+	</label> -->
 	{#if $filteredTags.length > 0}
 		<div class="tag-group-container">
 			<button
@@ -173,6 +197,21 @@
 		font-size: var(--step-0);
 		text-align: center;
 		margin-block: 0.4em;
+	}
+	.option-group-wrapper {
+		display: flex;
+		/* flex-direction: column; */
+
+		align-items: center;
+		gap: 0.6em;
+		width: auto;
+		min-width: 0;
+		height: auto;
+		min-height: 0;
+	}
+	.option-group-title {
+		color: var(--1);
+		font-size: 1.1em;
 	}
 	.option-group {
 		display: flex;
