@@ -1,6 +1,9 @@
 //@ts-nocheck
 // import { env } from '$env/dynamic/private';
 // import { Octokit } from '@octokit/core';
+
+import { fetchMarkdownPosts } from "$lib/utils";
+
 // import { error } from '@sveltejs/kit';
 export async function load() {
 	// const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
@@ -32,7 +35,9 @@ export async function load() {
     }
 	// let i;
 	// i = await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', gitHubRequestOptions);
+	const unlisted_posts = fetchMarkdownPosts(false, true);
 	return {
-		res: existing?.data?.content
+		res: existing?.data?.content,
+		unlisted_posts
 	};
 }

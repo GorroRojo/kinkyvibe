@@ -232,9 +232,10 @@ async function processPost(
 /**
  * Fetches markdown posts and performs validations and transformations.
  * @param {boolean} wiki - Whether or not the posts are from the wiki
+ * @param {boolean} unlisted - Whether or not the posts shown are unlisted
  * @return {Promise<ProcessedPost[]>} An array of validated and transformed posts.
  */
-export const fetchMarkdownPosts = async (wiki = false) => {
+export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts;
 	if (wiki) {
@@ -251,7 +252,8 @@ export const fetchMarkdownPosts = async (wiki = false) => {
 		const postID = rawPath.split('/').slice(-1)[0].split('.md')[0];
 		if (postID.startsWith('_')) continue;
 		const { metadata, default: postContent } = await constructor();
-		if (!metadata || metadata.force_unlisted) continue;
+		if (!metadata) continue;
+		if ((!unlisted && metadata.force_unlisted) || (unlisted && !metadata.force_unlisted)) continue;
 
 		processedPosts.push(await processPost(postContent, postID, metadata, true, tagsConfig, alias));
 	}
