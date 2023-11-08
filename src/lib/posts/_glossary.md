@@ -70,7 +70,7 @@ terminos:
     description: |
       Personas adultas que disfrutan de tomar roles relacionados a la adolescencia / pubertad en juegos con la [[edad]]. También "lolites".
   - name: cuidadore
-    ala: ["caregiver", "caretaker"]
+    aka: ["caregiver", "caretaker"]
     description: |
       Refiere a personas que quieren jugar a cuidar / compartir con [[pequeñe]]s sin tomar algún rol especifico.
   - name: grande
