@@ -1,7 +1,7 @@
 ---
-published_date: 2023-11-10Z-03:00
+published_date: 2023-11-16Z-03:00
 #updated_date: 2023-11-17Z-03:00
-title: Picantearla
+title: Picantearla (7° Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
 tags:
   - español
@@ -9,7 +9,6 @@ tags:
   - Picantearla
   - pago
   - evento
-  - taller
   - BDSM
   - AMBA
 layout: calendario
@@ -17,12 +16,13 @@ category: calendario
 authors:
   - KinkyVibe
 featured: 1
+logo: 2
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 opening_date: 2023-09-30Z-03:00
 start: 2023-11-17T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-11-17T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2023-11-18T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/pJLiruA3x6LWjzC18
