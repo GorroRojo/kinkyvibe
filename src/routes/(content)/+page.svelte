@@ -25,7 +25,7 @@
 
 <svelte:head>
 	<title>KinkyVibe.ar</title>
-	<link rel="icon" href="favicon-32x32.png" />
+	<link rel="icon" href="/favicon-32x32.png" />
 	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
