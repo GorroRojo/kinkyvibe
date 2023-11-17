@@ -2,12 +2,10 @@
 	import '$lib/types.d.js';
 	import { filteredTags, visibleTags, tagsConfig, userConfig } from '$lib/utils/stores';
 	import { groupMap } from '$lib/utils/index.js';
-	import { fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-	import { cubicOut } from 'svelte/easing';
 
 	export let event_toggle = true;
 

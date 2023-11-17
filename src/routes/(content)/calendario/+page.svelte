@@ -1,7 +1,6 @@
 <script>
 	// @ts-nocheck
 	import 'add-to-calendar-button';
-	import { ArrowLeft } from 'lucide-svelte';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { addDays, format, isSameMonth, isPast } from 'date-fns';

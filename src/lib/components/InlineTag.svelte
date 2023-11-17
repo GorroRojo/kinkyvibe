@@ -1,5 +1,4 @@
 <script>
-	import { page } from '$app/stores';
 	import { alias, togglePositiveTagFilterFn, filteredTags } from '$lib/utils/stores';
 	import Tag from '$lib/components/Tag.svelte';
 

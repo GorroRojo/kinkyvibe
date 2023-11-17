@@ -7,7 +7,7 @@
 	 */
 
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { tagsConfig, currentPostData, glosario } from '$lib/utils/stores';
+	import { tagsConfig, glosario } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { Search, Construction } from 'lucide-svelte';
 

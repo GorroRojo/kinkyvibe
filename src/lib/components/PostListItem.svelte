@@ -11,7 +11,7 @@
 	import { addHours, format, isPast } from 'date-fns';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
-	import { tagsConfig, filteredTags, redundantTags } from '$lib/utils/stores';
+	import { tagsConfig, filteredTags } from '$lib/utils/stores';
 </script>
 
 <script>

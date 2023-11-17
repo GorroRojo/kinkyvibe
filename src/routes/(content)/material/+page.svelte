@@ -4,10 +4,9 @@
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
-	import { filteredTags, tagsConfig, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
-	import { aliaserFactory, fetchGlossary } from '$lib/utils/index.js';
+	import { filteredTags, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import { fetchGlossary } from '$lib/utils/index.js';
 	import { ArrowRight, Globe } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';

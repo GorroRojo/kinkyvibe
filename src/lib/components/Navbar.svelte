@@ -2,7 +2,6 @@
 	//@ts-nocheck
 	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
-	import { Heart } from 'lucide-svelte';
 	export let links;
 </script>
 

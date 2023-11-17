@@ -2,9 +2,8 @@
 	// @ts-nocheck
 	import { format } from 'date-fns';
 	import es from 'date-fns/locale/es';
-	import { ReplaceAll } from 'lucide-svelte';
-	import { elasticOut, cubicOut, cubicInOut } from 'svelte/easing';
-	import { fade, fly, scale, slide } from 'svelte/transition';
+	import { cubicInOut } from 'svelte/easing';
+	import { fade } from 'svelte/transition';
 	/**@type {{path: string, meta: AnyPostData}[]}*/
 	export let posts;
 	let index = 0;

@@ -1,5 +1,4 @@
 <script context="module">
-	import MiniMarkup from './MiniMarkup.svelte';
 	import { flip } from 'svelte/animate';
 	import { tagsConfig, glosario } from '$lib/utils/stores';
 	import GlosarioItem from './GlosarioItem.svelte';

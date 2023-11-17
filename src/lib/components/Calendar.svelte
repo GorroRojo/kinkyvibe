@@ -1,10 +1,6 @@
 <script>
 	//@ts-nocheck
-	import CalendarHeader from './CalendarHeader.svelte';
 	import {
-		getYear,
-		addMonths,
-		getMonth,
 		getDate,
 		getDay,
 		getDaysInMonth,
@@ -14,8 +10,8 @@
 		addDays,
 		isPast
 	} from 'date-fns';
-	import { fly, scale } from 'svelte/transition';
-	import { view_date, month_change_direction } from '$lib/utils/stores';
+	import { scale } from 'svelte/transition';
+	import { view_date } from '$lib/utils/stores';
 
 	export let start_on_sunday = true;
 	let today_date = new Date();

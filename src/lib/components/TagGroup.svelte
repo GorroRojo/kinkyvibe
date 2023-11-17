@@ -1,10 +1,7 @@
 <script>
-	import FilterBar from './FilterBar.svelte';
-	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { visibleTags } from '$lib/utils/stores';
-	import { cubicOut } from 'svelte/easing';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte/internal';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
