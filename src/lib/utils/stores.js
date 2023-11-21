@@ -2,6 +2,7 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import '$lib/types.d.js';
+import tagsFactory from './tags';
 export const view_date = writable(new Date());
 export const month_change_direction = writable(1);
 
@@ -25,6 +26,8 @@ export const togglePositiveTagFilterFn = writable((a, b) => '');
 
 /** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */
 export const tagsConfig = writable();
+
+export const tags = writable(tagsFactory());
 
 /** @type import('svelte/store').Writable<{display_type: 'list'|'grid', show_past_events: boolean}> */
 export const userConfig = writable({ display_type: 'list', show_past_events: false });
