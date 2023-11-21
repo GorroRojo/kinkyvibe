@@ -34,6 +34,9 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		[Symbol.iterator]() {
 			return tagsMap.entries();
 		},
+		entries(){ 
+			return tagsMap.entries()
+		},
 		/**
 		 * @param {TagID} id
 		 */
