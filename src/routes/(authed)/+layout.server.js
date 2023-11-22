@@ -1,8 +1,12 @@
 // @ts-nocheck
 import { redirect } from '@sveltejs/kit';
 
-export function load({ cookies, url }) {
-	if (!cookies.get('logged_in')) {
+export function load({ locals, url }) {
+	if (locals.user == undefined) {
 		throw redirect(303, `/login?redirectTo=${url.pathname}`);
+	} else {
+		return {
+			user: locals.user
+		}
 	}
 }

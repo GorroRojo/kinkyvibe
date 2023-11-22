@@ -2,12 +2,8 @@
 import { redirect } from '@sveltejs/kit';
 // export const ssr = false;
 export const actions = {
-	default: ({ cookies }) => {
-		try {
-           cookies.delete('logged_in', { path: '/' })
-        } catch(e) {
-           console.log(e)
-        };
-		throw redirect(303, '/');
+	default: ({locals }) => {
+      locals.user = undefined
+		throw redirect(303, '/login');
 	}
 };
