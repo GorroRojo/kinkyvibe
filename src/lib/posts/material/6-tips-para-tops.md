@@ -26,7 +26,7 @@ featured: 1
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Estos tips creemos que aplican a quienes tenemos experiencia y a quienes no.
+Estos tips creemos que aplican a quienes tenemos experiencia, y a quienes no.
 
 Hay muchísimo del mundo de topear y de la dominación que tiene que ver con el cuidado, con aprender (de otres y de nuestros errores y experiencias).
 
