@@ -59,7 +59,6 @@
 	 */
 	function getAllMembersAndNames(groups) {
 		if (Array.isArray(groups)) {
-			// console.log(groups);
 			//@ts-ignore
 			return groups.reduce((prev, g) => [...prev, ...getAllMembersAndNames(g)], []);
 		} else {

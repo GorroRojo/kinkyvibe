@@ -2,11 +2,14 @@
 import { Buffer } from 'node:buffer';
 import { redirect } from '@sveltejs/kit';
 import { ghGet } from '$lib/external/github';
-export async function load({ locals, url }) {
+export async function load({ fetch, locals, url }) {
 	if (locals.user_token == undefined || locals.user_token == '') {
 		throw redirect(303, `/login?redirectTo=${url.pathname}`);
 	} else {
+		const tagsConfig = await (await fetch('/api?getTags')).json();
 		return {
+			currentRoute: url.pathname,
+			tagsConfig,
 			user: await getUser(locals.user_token),
 			contents: await getFileContent(
 				locals.user_token,

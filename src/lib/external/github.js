@@ -17,7 +17,6 @@ export async function ghGet(endpoint, token, raw = false) {
 	});
 	if (response.ok) {
 		let ret = response.json();
-		// if (raw) console.log(ret)
 		return ret;
 	} else {
 		throw new Error(

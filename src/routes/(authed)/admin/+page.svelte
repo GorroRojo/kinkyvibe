@@ -16,15 +16,7 @@
 	let value = form?.post?.raw ?? data?.contents.raw ?? '';
 </script>
 
-<div class="profile-header h-card p-contact">
-	<img src={data.user.avatar_url} class="profile-pic u-photo" alt="" />
-	<span id="title" class="profile-name p-name">
-		{data.user.name ?? data.user.login}
-	</span>
-	<form method="POST" action="/logout">
-		<input type="submit" value="Cerrar sesión" />
-	</form>
-</div>
+
 
 <article class="content">
 	<form method="POST" action="?/load">
@@ -69,36 +61,3 @@
 <!-- <textarea value={c}></textarea> -->
 <!-- <button on:click={save}>Save</button> -->
 
-<style>
-	.profile-header {
-		display: flex;
-		gap: 0.4em;
-		align-items: center;
-		font-size: var(--step-0);
-		justify-content: start;
-		justify-items: start;
-		width: max-content;
-		margin-inline: auto;
-		max-width: 100%;
-		width: 50rem;
-	}
-	.profile-pic {
-		display: block;
-		border-radius: 9999em;
-		object-fit: cover;
-		max-height: 1.5em;
-		width: auto;
-		justify-self: right;
-		aspect-ratio: 1;
-		translate: 0 -0em;
-	}
-	.profile-name {
-		margin-right: 1em;
-	}
-
-	@media (max-width: 630px) {
-		.profile-header {
-			grid-auto-flow: row;
-		}
-	}
-</style>

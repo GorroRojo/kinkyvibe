@@ -135,7 +135,6 @@
 	 */
 	function getAllGroupNames(groups) {
 		if (Array.isArray(groups)) {
-			// console.log(groups);
 			//@ts-ignore
 			return groups.reduce((prev, g) => [...prev, ...getAllGroupNames(g)], []);
 		} else {
