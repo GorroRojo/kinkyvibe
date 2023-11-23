@@ -61,6 +61,7 @@ function getUser(token) {
 	// @ts-ignore
 	return fetch(userURL, {
 		headers: {
+            "User-Agent": 'GorroRojo',
 			Accept: 'application/json',
 			Authorization: `Bearer ${token}`
 		}
@@ -69,7 +70,7 @@ function getUser(token) {
 			if (r.ok) {
 				return r.json();
 			} else {
-				throw new Error('JSON Error for response: ' + r.status + ' ' + r.statusText);
+				throw new Error('JSON Error for response at getUser: ' + r.status + ' ' + r.statusText);
 			}
 		})
 }
