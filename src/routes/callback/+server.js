@@ -10,7 +10,7 @@ export async function GET(request) {
 	const token = await getToken(code);
 	console.log('getting user from GH using token: ' + token);
 	// @ts-ignore
-	request.locals.user = token;
+	request.locals.user_token = token;
 	// return json(user);
 	throw redirect(302, '/admin');
 }
