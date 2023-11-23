@@ -66,15 +66,12 @@ function getUser(token) {
 		}
 	})
 		.then((r) => {
-            if (r.ok) {
-                return r.json();
-            } else {
-                throw new Error('JSON Error for response: \n' + r.status + '\n' + r.statusText);
-            }
+			if (r.ok) {
+				return r.json();
+			} else {
+				throw new Error('JSON Error for response: ' + r.status + ' ' + r.statusText);
+			}
 		})
-		.catch((err) => {
-			throw new Error('Error at getUser: ' + err);
-		});
 }
 
 // let i = {

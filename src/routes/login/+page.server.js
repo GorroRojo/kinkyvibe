@@ -6,7 +6,7 @@ const clientId = env.GITHUB_CLIENT_ID
 export const actions = {
 	default: async ({ url }) => {
 		const sessionId = '1234'
-		throw redirect(302, `${target}?client_id=${clientId}&state=${sessionId}`)
+		throw redirect(302, `${target}?client_id=${clientId}&state=${sessionId}&scope=repo`)
 	// 	throw redirect(303, url.searchParams.get('redirectTo') ?? '/');
 	}
 };
