@@ -87,8 +87,14 @@ function getToken(code) {
 			code: code
 		})
 	})
-		.then((r) => r.json())
-		.then((r) => r.access_token)
+		.then((r) => {
+            console.log(r)
+            return r.json()
+        })
+		.then((r) => {
+            console.log(r)
+            return r.access_token
+        })
         .catch((err)=> {throw new Error("Error at getToken: "+err)});
 }
 /**
