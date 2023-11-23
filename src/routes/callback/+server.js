@@ -86,7 +86,8 @@ function getToken(code) {
 		})
 	})
 		.then((r) => r.json())
-		.then((r) => r.access_token);
+		.then((r) => r.access_token)
+        .catch((err)=> {throw new Error("Error at getToken: "+err)});
 }
 /**
  *
@@ -101,5 +102,7 @@ function getUser(token) {
 			Accept: 'application/json',
 			Authorization: `Bearer ${token}`
 		}
-	}).then((r) => r.json());
+	}).then((r) => r.json())
+    .catch((err)=> {throw new Error("Error at getUser: "+err)});
+
 }
