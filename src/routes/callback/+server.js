@@ -7,7 +7,9 @@ const userURL = 'https://api.github.com/user';
 export async function GET(request) {
 	// get accessToken
 	const code = request.url.searchParams.get('code') ?? '';
+    console.log("getting token from GH using code: " + code)
 	const token = await getToken(code);
+    console.log("getting user from GH using token: " + token)
 	const user = await getUser(token);
     // @ts-ignore
     request.locals.user = user.login
