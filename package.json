@@ -38,6 +38,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@codemirror/lang-markdown": "^6.2.2",
 		"@octokit/core": "^4.2.0",
 		"add-to-calendar-button": "^2.2.10",
 		"date-fns": "^2.30.0",
@@ -52,6 +53,7 @@
 		"rehype-autolink-headings": "^6.1.1",
 		"remark-gfm": "^3.0.1",
 		"simple-icons": "^8.14.0",
+		"svelte-codemirror-editor": "^1.1.0",
 		"unist-util-visit": "^5.0.0",
 		"wrangler": "^3.3.0"
 	}
