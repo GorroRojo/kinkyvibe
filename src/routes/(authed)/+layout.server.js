@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Buffer } from 'node:buffer';
 import { redirect } from '@sveltejs/kit';
 import { ghGet } from '$lib/external/github';

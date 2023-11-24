@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { fetchMarkdownPosts } from '$lib/utils';
 const siteURL = 'https://kinkyvibe.ar';
 const siteTitle = 'KinkyVibe';

@@ -1,4 +1,3 @@
-//@ts-nocheck
 export async function load({ fetch }) {
 	const response = await fetch('/api');
 	let posts, err;
