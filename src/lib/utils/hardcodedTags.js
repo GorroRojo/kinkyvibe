@@ -117,7 +117,8 @@ export const hardcodedTags = [
 			'electro',
 			'dolor',
 			'humillación',
-			'primal'
+			'primal',
+			'asfixia'
 		],
 		color: '#ff4444'
 	},

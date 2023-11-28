@@ -97,6 +97,7 @@ groups:
           - electro
           - dolor
           - humillación
+          - asfixia
         sub:
           - name: intercambio de poder
             members:
