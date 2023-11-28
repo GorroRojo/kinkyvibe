@@ -24,7 +24,7 @@ start: 2023-12-01T18:00-03:00
 end:   2023-12-01T20:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-link: "https://drive.google.com/open?id=1m5Chop70rDqHb05L8E8XgzPIDGLVY7qn"
+link: "https://forms.gle/L3FzPBHGg8rfnYyr8"
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
