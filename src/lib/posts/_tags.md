@@ -142,6 +142,7 @@ groups:
         members:
         - hablar sucio
         - pegging
+        - fisting
     color: var(--1-dark)
 tags:
   D/s:

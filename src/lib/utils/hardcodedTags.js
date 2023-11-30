@@ -118,7 +118,8 @@ export const hardcodedTags = [
 			'dolor',
 			'humillación',
 			'primal',
-			'asfixia'
+			'asfixia',
+			'fisting'
 		],
 		color: '#ff4444'
 	},
