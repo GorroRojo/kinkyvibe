@@ -1,7 +1,7 @@
 ---
 published_date: 2023-11-21Z-03:00
 updated_date: 2023-11-28Z-03:00
-title: Placer y Riesgo
+title: Taller de Placer y Riesgo
 summary: Un taller sobre el movimiento Sadomasoquista. ¿Que vínculo tiene el placer y el riesgo? Nos adentramos en la historia de las culturas eróticas sadomasoquistas para recuperar su legado y pensar otras formas de deseo y comunidad posibles.
 tags:
   - español
