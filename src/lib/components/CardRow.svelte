@@ -4,9 +4,9 @@
 	import { fly } from 'svelte/transition';
 	export let title = '';
 	export let items = [];
-	export let id;
-	export let href;
-	export let index;
+	export let id = undefined;
+	export let href = undefined;
+	export let index = undefined;
 	export let setId = true;
 </script>
 

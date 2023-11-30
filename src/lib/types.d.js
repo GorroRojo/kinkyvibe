@@ -73,9 +73,9 @@
  * @typedef ProcessedPost
  * @prop {string} path
  * @prop {AnyPostData} meta
- * @prop {ConstructorOfATypedSvelteComponent|undefined} content
- * @prop {ProcessedPost[]} authorsProfiles
- * @prop {ProcessedPost[]} relatedPosts
+ * @prop {ConstructorOfATypedSvelteComponent|undefined} [content]
+ * @prop {ProcessedPost[]} [authorsProfiles]
+ * @prop {ProcessedPost[]} [relatedPosts]
  */
 /** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
 

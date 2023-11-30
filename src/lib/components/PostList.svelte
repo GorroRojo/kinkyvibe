@@ -17,7 +17,7 @@
 	 */
 	/**@type ProcessedPost[]*/
 	export let posts = [];
-	/** @type {false|{prop: string, value: string}}*/
+	/** @type {false|{prop: string, value: *}}*/
 	export let filter = false;
 
 	/**@type ProcessedPost[]*/
