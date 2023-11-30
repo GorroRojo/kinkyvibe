@@ -95,47 +95,47 @@ export function tagsFactory(rawTags = hardcodedTags) {
 			}
 		}
 		let rawColor = tag.color;
-		Object.defineProperty(tag, 'color', {
-			get: function () {
-				if (rawColor !== undefined) {
-					return rawColor;
-				}
-				let queue = [tag.id];
-				while (queue.length > 0) {
-					let currID = queue.pop();
-					if (currID === undefined) return undefined;
-					let curr = tags.get(currID);
-					if (curr == undefined) {
-						continue;
-					}
-					if (currID != tag.id && curr.color) {
-						return curr.color;
-					} else {
-						if (curr.parents) {
-							queue.push(...curr.parents);
-						} else {
-							return undefined;
-						}
-					}
-				}
-				return undefined;
-			}
-		});
-		Object.defineProperty(tag, 'allChildren', {
-			get: function () {
-				let res = [];
-				let queue = [tag.id];
-				while (queue.length > 0) {
-					let currID = queue.pop();
-					if (currID === undefined) return res;
-					let curr = tags.get(currID);
-					if (curr === undefined || curr.children === undefined) continue;
-					queue.push(...curr.children);
-					res.push(...curr.children);
-				}
-				return res;
-			}
-		});
+		// Object.defineProperty(tag, 'color', {
+		// 	get: function () {
+		// 		if (rawColor !== undefined) {
+		// 			return rawColor;
+		// 		}
+		// 		let queue = [tag.id];
+		// 		while (queue.length > 0) {
+		// 			let currID = queue.pop();
+		// 			if (currID === undefined) return undefined;
+		// 			let curr = tags.get(currID);
+		// 			if (curr == undefined) {
+		// 				continue;
+		// 			}
+		// 			if (currID != tag.id && curr.color) {
+		// 				return curr.color;
+		// 			} else {
+		// 				if (curr.parents) {
+		// 					queue.push(...curr.parents);
+		// 				} else {
+		// 					return undefined;
+		// 				}
+		// 			}
+		// 		}
+		// 		return undefined;
+		// 	}
+		// });
+		// Object.defineProperty(tag, 'allChildren', {
+		// 	get: function () {
+		// 		let res = [];
+		// 		let queue = [tag.id];
+		// 		while (queue.length > 0) {
+		// 			let currID = queue.pop();
+		// 			if (currID === undefined) return res;
+		// 			let curr = tags.get(currID);
+		// 			if (curr === undefined || curr.children === undefined) continue;
+		// 			queue.push(...curr.children);
+		// 			res.push(...curr.children);
+		// 		}
+		// 		return res;
+		// 	}
+		// });
 		if (tag.description !== undefined) {
 			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
 				if (l.type == 'link') {
