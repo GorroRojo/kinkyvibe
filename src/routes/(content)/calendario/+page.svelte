@@ -1,28 +1,35 @@
 <script>
-	// @ts-nocheck
 	import 'add-to-calendar-button';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { addDays, format, isSameMonth, isPast } from 'date-fns';
+	import { addDays, format, isSameMonth, isPast, addMonths, addHours } from 'date-fns';
 	import { view_date } from '$lib/utils/stores.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
-	// const vd = writable(new Date());
 	export let data;
-	// let view_date;
+	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
 	let days = data.posts.reduce((dates, post, i) => {
-		let start_date = new Date(post.meta.start);
-		start_date = format(addDays(start_date, 0), 'yyyy-MM-dd');
-		// post.meta.start_time = format(start_date, 'hh:mm');
+		let start_date = format(addDays(new Date(post.meta.start), 0), 'yyyy-MM-dd');
+		// @ts-ignore
 		if (dates[start_date]) {
+			// @ts-ignore
 			dates[start_date].push({ i, ...post });
 		} else {
+			// @ts-ignore
 			dates[start_date] = [{ i, ...post }];
 		}
-
 		return dates;
 	}, {});
 	data.posts.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime());
+	let skip_month_flag = true;
+
+	Object.entries(days).forEach(([date, posts]) => {
+		// if all the posts this month are inthe past, set view_date to next month
+		if (isSameMonth(addHours(new Date(date),3), $view_date) && !isPast(new Date(date))) {
+			skip_month_flag = false;
+		}
+	});
+	if (skip_month_flag) $view_date = addMonths(new Date(), 1);
 </script>
 
 <svelte:head>
@@ -36,17 +43,17 @@
 		setId={false}
 	/>
 </div>
-	
+
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader />
 		<Calendar let:date let:today let:past>
-			{@const events = days ? days[date] : []}
+			{@const events = days?.[date]}
 			<button
 				class:today
 				class:past
 				disabled={!events}
-				style={events && events.length > 0 && events[0].meta.featured
+				style={events && events?.length > 0 && events[0].meta.featured
 					? `--event-image: url("${events[0].meta.featured}");`
 					: ''}
 			>
@@ -62,7 +69,11 @@
 							data.posts[event.i].meta.visible = true;
 							return '';
 						})()} -->
-						<a href={'#' + event.path} class="bar" style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}>
+						<a
+							href={'#' + event.path}
+							class="bar"
+							style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
+						>
 							<span>
 								{event.meta.title ?? ' '}
 								&sdot;
@@ -102,9 +113,9 @@
 							--list-text-hover: white;
 							--list-shadow: 0 0 1em 0 var(--1-light);
 							`} -->
-	<p class="subscribe">
-		También podés <add-to-calendar-button
-			style={`
+		<p class="subscribe">
+			También podés <add-to-calendar-button
+				style={`
 				--btn-background: var(--2);
 				--btn-border: var(--3);
 				--btn-text: white;
@@ -115,22 +126,22 @@
 				--btn-shadow-hover: 0 0 1em var(--3-light);
 				--font: 'Lato', sans-serif;
 				`}
-			startDate={format(new Date(), 'yyyy-MM-dd')}
-			options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-			language="es"
-			listStyle="overlay"
-			buttonStyle="3d"
-			size="10"
-			inline
-			subscribe
-			trigger="click"
-			icsFile="https://kinkyvibe.ar/calendario.ics"
-			name="Calendario Kinky"
-			label="suscribirte a este calendario"
-		/> para nunca perderte de nada!
-	</p>
-	<!-- lightMode="bodyScheme" -->
-	<!-- size="1" -->
+				startDate={format(new Date(), 'yyyy-MM-dd')}
+				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+				language="es"
+				listStyle="overlay"
+				buttonStyle="3d"
+				size="10"
+				inline
+				subscribe
+				trigger="click"
+				icsFile="https://kinkyvibe.ar/calendario.ics"
+				name="Calendario Kinky"
+				label="suscribirte a este calendario"
+			/> para nunca perderte de nada!
+		</p>
+		<!-- lightMode="bodyScheme" -->
+		<!-- size="1" -->
 	</div>
 </div>
 
@@ -248,12 +259,15 @@
 			display: none;
 		}
 		--post-color: var(--evt-color);
-		background: var(--event-image, linear-gradient(
-			to bottom right,
-			color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
-			var(--post-color, var(--2)) 50%,
-			color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
-		));
+		background: var(
+			--event-image,
+			linear-gradient(
+				to bottom right,
+				color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
+				var(--post-color, var(--2)) 50%,
+				color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
+			)
+		);
 		background-position: center center;
 		background-repeat: repeat;
 		background-size: cover;
