@@ -20,8 +20,8 @@ force_unlisted: true
 # force_unpublished: false
 status: anunciado # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2023-12-01T18:00-03:00
-end:   2023-12-01T20:00-03:00
+start: 2024-01-17T19:00-03:00
+end:   2024-01-17T23:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 # link: "https://forms.gle/L3FzPBHGg8rfnYyr8"
