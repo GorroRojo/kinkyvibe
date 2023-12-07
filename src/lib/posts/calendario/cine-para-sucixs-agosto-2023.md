@@ -28,16 +28,6 @@ link: https://forms.gle/vp1d7Sn5bYoUkvwTA
 link_text: PRE-VENTA
 ---
 
-<script>
-    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/1.jpg';
-    // import pag2 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/2.jpg';
-</script>
-
-<!-- <div class="col-2"> -->
-<!-- <img src="{pag1}" alt="" /> -->
-<!-- <img src="{pag2}" alt="" /> -->
-<!-- </div> -->
-
 Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 
 A las 20:30 horas les queremos a todes con sus entraditas de Pre-Venta en las puertas de [\@qivillacrespo](https://instagram.com/qivillacrespo), que ya a esta altura, es nuestra segunda casa.

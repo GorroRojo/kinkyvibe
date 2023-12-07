@@ -25,17 +25,6 @@ location_name: Qi Centro Cultural
 link: https://forms.gle/781KBBrXQfCvd6mX6
 link_text: Inscibirme
 ---
-
-<script>
-    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs/1.webp';
-    import pag2 from '$lib/posts/calendario/media/cine-para-sucixs/2.webp';
-</script>
-
-<div class="col-2">
-<img src={pag1} alt="" />
-<img src={pag2} alt="" />
-</div>
-
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 
 Nos encontramos el SÁBADO 3 de JUNIO para la primera edición de este ciclo.

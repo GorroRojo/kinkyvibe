@@ -25,10 +25,6 @@ link: https://forms.gle/fpK1riS6PVMaaxMHA
 link_text: 'Anotarse'
 ---
 
-<script>
-  import flyer from '$lib/posts/calendario/media/grupo-de-apoyo-y-discusion-para-sumis-julio-2023/1.jpg';
-</script>
-
 ![flyer]({flyer})
 
 <div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>Holi sumisxs* hermosxs, les vemos, les leemos, y esta propuesta es para ustedes &lt;3</strong></div>

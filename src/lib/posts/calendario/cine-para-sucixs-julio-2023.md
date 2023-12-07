@@ -26,16 +26,6 @@ link: https://docs.google.com/forms/d/e/1FAIpQLSe5irT5IzzQ2BSQmWHrnJDFL5Irn76dfA
 link_text: Inscibirme
 ---
 
-<script>
-    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/1.jpg';
-    import pag2 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/2.jpg';
-</script>
-
-<div class="col-2">
-<img src="{pag1}" alt="" />
-<img src="{pag2}" alt="" />
-</div>
-
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 
 Nos encontramos el SÁBADO 3 de JUNIO para la primera edición de este ciclo.
