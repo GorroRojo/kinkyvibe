@@ -96,18 +96,30 @@ export function groupMap(group, fn) {
 /**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
- * @param {string | number} assetID
+ * @param {string} assetID
  */
 export const thumbURL = async (category, postID, assetID) => {
-	for (const format of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
+	//check if string is an integer
+	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
+	if ((""+assetID).match(/^\d+$/)) {
+		for (const format of formats) {
+			try {
+				let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
+				return thumb.default;
+			} catch (e) {
+				continue;
+			}
+		}
+		return undefined;
+	} else {
+		let [filename, format] = assetID.split('.');
 		try {
-			let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
+			let thumb = await import(`$lib/assets/${filename}.${format}`);
 			return thumb.default;
 		} catch (e) {
-			continue;
+			return undefined;
 		}
 	}
-	return undefined;
 };
 
 /**
@@ -274,7 +286,7 @@ export const processContent = async (node) => {
 		} catch (e) {
 			return;
 		}
-		if (post.meta.pronoun == "" || !post.meta.pronoun) return;
+		if (post.meta.pronoun == '' || !post.meta.pronoun) return;
 		p.className = 'p-pronoun';
 		p.textContent =
 			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';

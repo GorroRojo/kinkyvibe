@@ -19,8 +19,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Sogashibari
-featured: 1
-logo: 2
+featured: cine-para-sucixs-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado

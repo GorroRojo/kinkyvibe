@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: picantearla-miniatura.png
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false
