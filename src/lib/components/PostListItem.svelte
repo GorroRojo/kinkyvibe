@@ -110,7 +110,7 @@
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
-				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && link_text && status && status == 'abierto' && !past}
+				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && status && status == 'abierto' && !past}
 					<add-to-calendar-button
 						style={`
 							--btn-text: white;
@@ -191,8 +191,8 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && link_text && status && status == 'abierto' && !past}
-		<a href={link} class="CTA" target="_blank">{link_text}</a>
+	{#if link && status && status == 'abierto' && !past}
+		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
 	{/if}
 </a>
 
