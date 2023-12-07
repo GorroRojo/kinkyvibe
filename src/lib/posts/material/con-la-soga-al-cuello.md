@@ -57,7 +57,7 @@ Para obtener los conocimientos sobre flexibilidad y cuidados de mi cuerpo, fui a
 
 Si el Shibari es un arte escénico, pensé que podía inscribirme en el INT (Instituto Nacional del Teatro) ya que esta institución promueve eventos / artistas de espacios teatrales. Hice mi alta individual y así también me inscribí en somoscultura.gob.ar, donde dentro de la categoría arte escénica coloqué la opción PERFORMER y como rol principal: OTRO y especificar que soy modelx de cuerdas.
 
-![]({imagen1})
+![Sole atada en posición de jugador de futbol en el aire]({imagen1})
 
 Llegó el momento que con este manifiesto no seamos LO OTRO, deseo que seamos quienes tienen NOMBRE/ IDENTIDAD DEFINIDA/POSICIÓN
 

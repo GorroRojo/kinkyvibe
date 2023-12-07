@@ -54,29 +54,29 @@ email: druxs.ropes@gmail.com
 
 ## Fotos por [\@almachamot](https://instagram.com/almachamot)
 
-<img src={foto6} />
+<img alt="" src={foto6} />
 
-<img src={foto2} />
+<img alt="" src={foto2} />
 
 ---
 ### modela [\@melinsane](https://instagram.com/melinsane)
 
-<img src={foto1} />
+<img alt="" src={foto1} />
 
 ---
 
 ### modela [\@marius.sorcerer](https://instagram.com/marius.sorcerer)
 
-<img src={foto4} />
+<img alt="" src={foto4} />
 
 ---
 
 ### modela @XDoll
 
 <!-- <div class="col-2"> -->
-<img src={foto3} />
+<img alt="" src={foto3} />
 
-<img src={foto5} />
+<img alt="" src={foto5} />
 <!-- </div> -->
 
 ---
@@ -85,40 +85,40 @@ email: druxs.ropes@gmail.com
 ## Fotos por [\@murphy.mzm2](https://instagram.com/murphy.mzm2), modela [\@lilitfem](https://instagram.com/lilitfem)
 
 <!-- <div class="col-2"> -->
-<img src={foto7} />
-<img src={foto9} />
+<img alt="" src={foto7} />
+<img alt="" src={foto9} />
 <!-- </div> -->
 
-<img src={foto8} />
+<img alt="" src={foto8} />
 
 ## Fotos por [\@josha.smc](https://instagram.com/josha.smc), modela [\@charlieheyya](https://instagram.com/charlieheyya)
 
-<img src={foto10} />
+<img alt="" src={foto10} />
 
-<img src={foto11} />
+<img alt="" src={foto11} />
 
-<img src={foto12} />
+<img alt="" src={foto12} />
 
 ## Fotos por D
 
 
 ### modela [\@n.a.s.t.y.b.a.e](https://instagram.com/n.a.s.t.y.b.a.e)
 
-<img src={foto13} />
+<img alt="" src={foto13} />
 
-<img src={foto14} />
+<img alt="" src={foto14} />
 
-<img src={foto15} />
+<img alt="" src={foto15} />
 
 ### modela [\@xce.simone](https://instagram.com/xce.simone)
 
-<img src={foto16} />
+<img alt="" src={foto16} />
 
-<img src={foto17} />
+<img alt="" src={foto17} />
 
-<img src={foto18} />
+<img alt="" src={foto18} />
 
-<img src={foto19} />
+<img alt="" src={foto19} />
 
-<img src={foto20} />
+<img alt="" src={foto20} />
 
