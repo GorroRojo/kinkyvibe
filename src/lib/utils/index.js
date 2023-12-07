@@ -172,7 +172,7 @@ async function processPost(
 	let relatedPosts = [];
 	if (!shallow) {
 		for (const author of meta?.authors ?? []) {
-			const authorID = author == 'KinkyVibe' ? 'nosotres' : author.replaceAll(' ', '-');
+			const authorID = author.replaceAll(' ', '-');
 			if (authorID !== postID) {
 				try {
 					const authorProfile = await fetchPost('amigues', authorID, true);
@@ -268,7 +268,6 @@ export const processContent = async (node) => {
 		let p = document.createElement('small');
 		let name = el.textContent?.slice(1);
 		if (name === undefined) return;
-		else if (name == 'KinkyVibe') name = 'nosotres';
 		let post;
 		try {
 			post = await fetchPost('amigues', name, true);

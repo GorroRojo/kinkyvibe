@@ -136,7 +136,7 @@
 						{#if disabled}
 							<span><ChevronLeft {style} />{name}</span>
 						{:else}
-							<a href={'/wiki/' + name}><ChevronLeft {style} />{name}</a>
+							<a href={'/wiki/' + name.replaceAll(' ', '-')}><ChevronLeft {style} />{name}</a>
 						{/if}
 					{/each}
 				</div>
@@ -149,7 +149,7 @@
 						{#if disabled}
 							<span>{name}<ChevronRight {style}/></span>
 						{:else}
-							<a href={'/wiki/' + name}>{name}<ChevronRight {style} /></a>
+							<a href={'/wiki/' + name.replaceAll(' ', '-')}>{name}<ChevronRight {style} /></a>
 						{/if}
 					{/each}
 				</div>

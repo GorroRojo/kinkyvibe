@@ -121,7 +121,7 @@
 	</div>
 	{#if data.meta.tags?.includes('KinkyVibe')}
 		<div id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/nosotres">nosotres</a> ✨. Si te
+			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨. Si te
 			resultó valioso,
 			<a href="https://cafecito.app/kinkyvibe" target="_blank"
 				>considerá apoyarnos con algún cafecito</a

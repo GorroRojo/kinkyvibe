@@ -45,11 +45,10 @@
 		<li>
 			<h3>Sobre nosotres</h3>
 			<ul>
-				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
+				<li><a href="/amigues/KinkyVibe"><ArrowRight {style} />Nosotres y nuestros servicios</a></li>
 				<li>
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
 				</li>
-				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li>
 					<a href="https://cafecito.app/kinkyvibe" target="_blank">
 						<SimpleIcon icon={siKofi} />CafecitoApp

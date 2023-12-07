@@ -100,7 +100,7 @@
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="quien">
-			<a href="/amigues/nosotres">Nuestros servicios <ArrowRight size="18" /></a>
+			<a href="/amigues/KinkyVibe">Nuestros servicios <ArrowRight size="18" /></a>
 		</div>
 	</div>
 	<div>
