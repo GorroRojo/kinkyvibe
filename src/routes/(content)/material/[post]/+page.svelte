@@ -69,7 +69,7 @@
 				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
 			{:then authorsProfiles}
 				{#each authors as author, i}
-					{@const profile = authorsProfiles.find(
+					{@const profile = authorsProfiles?.find(
 						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}
@@ -111,7 +111,9 @@
 					dateStyle: 'long'
 				})}
 			</span><br />
-			Link: <a href={data.meta.link} class="u-url">{data.meta.link}</a>
+			{#if data.meta.link}
+			 <a href={data.meta.link} target="_blank" class="u-url">Link al original</a>
+			{/if}
 		</div>
 	{/if}
 	<div class="content" use:processContent>
@@ -131,8 +133,8 @@
 <hr />
 
 {#if data.meta.authors.length > 0}
-	{#await data.authorsProfiles then authorsData}
-		{#each authorsData as { path, meta: author }}
+	{#await data.authorsProfiles then authorsData }
+		{#each authorsData ?? [] as { path, meta: author }}
 			<a class="author-callout" rel="author" href={path}>
 				<img
 					class="author-image"
@@ -146,7 +148,7 @@
 	{/await}
 {/if}
 
-{#if data.relatedPosts.length > 0}
+{#if (data?.relatedPosts?.length ?? 0) > 0}
 	<div class="content">
 		<h3>
 			Más cosas de
