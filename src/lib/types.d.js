@@ -3,7 +3,7 @@
  */
 /**@typedef Group
  * @prop {string} name
- * @prop {string[]} members
+ * @prop {string[]} [members]
  * @prop {Group[]} sub
  * @prop {boolean} [noname]
  * @prop {string} [color]
@@ -13,6 +13,44 @@
 /** @typedef TagProps
  * @prop {string} [aliasOf]
  * @prop {string} [color]
+ */
+
+/** @typedef {string} TagID */
+/** @typedef {string} postID */
+
+/** 
+ * @typedef {Object} RawTag 
+ * @prop {TagID} id
+ * @prop {string} [visible_name]
+ * @prop {string} [color]
+ * @prop {string} [description]
+ * @prop {TagID[]} [related]
+ * @prop {string[]} [aka]
+ * @prop {TagID} [aliasOf]
+ * @prop {TagID[]} [children]
+ * @prop {postID} [entry]
+ * */
+
+/**
+ * @typedef {RawTag & {
+ *      getColor: ()=>(string|undefined),
+ *      getAllChildren: ()=>(string[]),
+ *      cleanDescription?: string,
+ *      parsedDescription?: Array<{line: string, type: "text"|"link"|"mark", href?: string}>,
+ *      parents?: TagID[]
+ * }} ProcessedTag
+ * @prop {()=>(string|undefined)} getColor
+ * @prop {()=>(string[])} getAllChildren
+ * @prop {string} [cleanDescription]
+ * @prop {Array<{line: string, type: "text"|"link"|"mark", href?: string}>} [parsedDescription]
+ * @prop {TagID[]} [parents]
+ */
+/**@typedef TagManager
+ * @prop {(tagID: string)=>(ProcessedTag|undefined)} get
+ * @prop {()=>([TagID, ProcessedTag][])} entries
+ * @prop {()=>(TagID[])} tags
+ * @prop {(tagID: string, value: RawTag)=>void} set
+ * @prop {string[]} missingTags
  */
 
 /**@typedef List

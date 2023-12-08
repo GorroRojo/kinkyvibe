@@ -1,7 +1,6 @@
 <script>
 	import '$lib/types.d.js';
-	import { filteredTags, visibleTags, tagsConfig, userConfig } from '$lib/utils/stores';
-	import { groupMap } from '$lib/utils/index.js';
+	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
@@ -9,14 +8,27 @@
 
 	export let event_toggle = true;
 
-	/**@type Group[] */
-	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
+	/** @type {(termino:string)=>(ProcessedTag)[]}*/
+	function getGroups(termino) {
+		let tag = $tagManager.get(termino);
+		return tag ? [tag] : [];
+	}
+	let tagsAsGroups = $tagManager
+		.entries()
+		.filter(([id, { parents }]) => parents?.includes('root'))
+		.map(([tag]) => getGroups(tag))
+		.flat();
+
+	/**@type ProcessedTag[] */
+	let filteredGroups = filterGroups(tagsAsGroups, $visibleTags);
 	/**@type string[]*/
 	let orphanTags = [];
+	let orphanGroup = { /**@type {()=>(string)}*/ getColor: () => undefined, getAllChildren: () => [], sub: orphanTags.map($tagManager.get), id: 'misc', noname: true }
 	onMount(() => {
 		visibleTags.subscribe((v) => {
 			orphanTags = getOrphanTags(v);
-			filteredGroups = filterGroups($tagsConfig.groups, v);
+			orphanGroup = { /**@type {()=>(string)}*/ getColor: () => undefined, getAllChildren: () => [], sub: orphanTags.map($tagManager.get), id: 'misc', noname: true }
+			filteredGroups = filterGroups(tagsAsGroups, v);
 		});
 		// @ts-ignore
 		page.subscribe((p) => {
@@ -30,81 +42,23 @@
 	});
 
 	/**
-	 * @param {boolean} checked
-	 * @param {string} tag
-	 */
-	// function togglePositiveTagFilter(checked, tag) {
-	// 	if (checked) {
-	// 		filteredTags.update((fTags) => [...fTags, tag]);
-	// 	} else {
-	// 		filteredTags.update((fTags) => [
-	// 			...fTags.slice(0, fTags.indexOf(tag)),
-	// 			...fTags.slice(fTags.indexOf(tag) + 1)
-	// 		]);
-	// 	}
-	// 	$page.url.searchParams.set('tags', $filteredTags.join(','));
-	// 	goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
-	// }
-
-	/**
 	 * @param {string[]} tags
 	 * @returns string[]
 	 */
 	function getOrphanTags(tags) {
-		return tags.filter((v) => !getAllMembersAndNames($tagsConfig.groups).includes(v));
-	}
-
-	/** @param {Group[]|Group} groups
-	 * @returns {string[]}
-	 */
-	function getAllMembersAndNames(groups) {
-		if (Array.isArray(groups)) {
-			// console.log(groups);
-			//@ts-ignore
-			return groups.reduce((prev, g) => [...prev, ...getAllMembersAndNames(g)], []);
-		} else {
-			let accumulated = [groups.name];
-			if (groups.members) {
-				accumulated.push(...groups.members);
-			}
-			if (groups.sub) {
-				accumulated.push(...getAllMembersAndNames(groups.sub));
-			}
-			return accumulated;
-		}
+		return tags.filter((v) => !$tagManager.tags().includes(v));
 	}
 
 	/**
-	 * @param {Group[]} groups
+	 * @param {ProcessedTag[]} groups
 	 * @param {string[]} tags
-	 * @returns Group[]
+	 * @returns ProcessedTag[]
 	 */
 	function filterGroups(groups, tags) {
-		return groups
-			.map((group) =>
-				groupMap(group, (g) => {
-					if (g.members && g.members.length > 0) {
-						return { ...g, members: g.members.filter((t) => tags.includes(t)) };
-					} else if ((g.sub && g.sub.length > 0) || $visibleTags.includes(g.name)) {
-						return { ...g };
-					} else {
-						return false;
-					}
-				})
-			)
-			.filter(isVisible);
+		return groups.filter((g) => g.getAllChildren().some((t) => tags.includes(t)));
 	}
 
-	/** @param {Group} group @returns boolean */
-	function isVisible(group) {
-		return (
-			$visibleTags.includes(group.name) ||
-			(group.members && group.members.length > 0) ||
-			(group.sub && group.sub.length > 0 && group.sub.some(isVisible))
-		);
-	}
 	let view_filters = true;
-	// $: view_filters = $filteredTags.length > 0 || view_filters;
 </script>
 
 <div class="filterbar">
@@ -177,9 +131,9 @@
 	{/if}
 	{#if view_filters || $filteredTags.length > 0}
 		<div class="tagfilters">
-			{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc', noname: true }] as group (group.name)}
+			{#each [...filteredGroups, orphanGroup] as group (group.id)}
 				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-					<TagGroup {group} />
+					<TagGroup tag={group} />
 				</div>
 			{/each}
 		</div>

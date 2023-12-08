@@ -1,131 +1,94 @@
 <script>
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
-	import { visibleTags } from '$lib/utils/stores';
+	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte/internal';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
-	/** @type Group */
-	export let group;
+	/** @type ProcessedTag */
+	export let tag;
 
 	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
-	export let onInput = (evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, tag);
+	export let onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t);
 
-	/**@type {List[]} */
-	$: lists = [
-		{
-			items: group.members ?? [],
-			classname: 'taglist',
-			visible: true
-			// group.members != undefined && group.members.length > 0
-		},
-		{
-			items: group.sub ?? [],
-			classname: 'subgroups',
-			visible: true
-			// group.sub != undefined && group.sub.length > 0 && group.sub.some((ss) => isVisible(ss))
-		}
-	].filter((i) => i.visible);
-
-	/** @param {Group} group
-	 *  @param {string[]} visible
+	/** @param {string} tagID
 	 *  @return {boolean}
 	 */
-	function isVisible(group, visible = $visibleTags) {
+	function isVisible(tagID) {
+		let t = $tagManager.get(tagID);
 		return (
-			($visibleTags.includes(group.name) ||
-				(group.members && group.members.length > 0) ||
-				(group.sub && group.sub.length > 0 && group.sub.some((s) => isVisible(s)))) ??
+			($visibleTags.includes(tagID) ||
+				(t?.children && t.children.length > 0 && t.children.some((s) => isVisible(s)))) ??
 			false
 		);
 	}
-	/**@param {Group[]} sub @param {string[]} visible @returns boolean*/
-	let isSubListVisible = (sub, visible) =>
-		sub != undefined &&
-		sub.length > 0 &&
-		sub.some(
-			(s) =>
-				$visibleTags.includes(s.name) ||
-				(s.members && s.members.length > 0) ||
-				(s.sub && s.sub.length > 0 && s.sub.some((ss) => isVisible(ss)))
-		);
+	/**@param {string[]} sub @returns boolean*/
+	let isSubListVisible = (sub) => sub && sub.length > 0 && sub.some(isVisible);
 	let mounted = false;
 	onMount(() => (mounted = true));
 
-	/** @type {(group:Group)=>string[]}*/
-	function getAllMembers(group) {
-		let res = [group.name];
-		res.push(...group.members);
-		// @ts-ignore
-		res.push(...group.sub.map((g) => getAllMembers(g)));
-		return res.flat();
-	}
 	let noname =
-		group.noname ||
+		// group.noname ||
 		!(
-		$visibleTags.includes(group.name) ||
-		getAllMembers(group).some((t) => $visibleTags.includes(t))
+			$visibleTags.includes(tag.id) ||
+			tag.getAllChildren().some((t) => $visibleTags.includes(t))
 		);
 </script>
 
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
-	style:--tag-color={group.color ?? 'inherit'}
+	style:--tag-color={tag.color ?? 'inherit'}
 	class:noname
 >
-	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && !noname) || (t.lists != undefined && (group.members.length > 0 || isSubListVisible(group.sub, $visibleTags)))) as el (el.id)}
-		<svelte:element
-			this={el.id == 1 ? 'span' : 'div'}
-			in:scale={{ duration: 500 }}
-			class={el.id == 1 ? 'groupname' : 'groupitems'}
-		>
-			{#if el.name != /*@ts-ignore*/ undefined}
-				<Tag
-					tag={el.name+" »"}
-					name={el.name}
-					noBorder
-					isCheckbox
-					onInput={(evt) => onInput(evt, el.name)}
-					checked={$page.url.searchParams.has('tags') &&
-						$page.url.searchParams.get('tags')?.split(',').includes(el.name)}
-				/>
-			{:else if el.lists != undefined}
-				{#each el.lists as list (list.classname)}
-					<ul class={list.classname} in:scale={{ duration: 500 }}>
-						{#each list.items as item (typeof item == 'string' ? item : item.name)}
-							<li in:scale={{ duration: 500 }}>
-								{#if typeof item == 'string'}
-									{#if mounted}
-										{@const dummy = /**@ts-ignore*/ false}
-										<Tag
-											onInput={(evt) => onInput(evt, item)}
-											tag={item}
-											isCheckbox
-											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(item)}
-											noBorder
-										/>
-									{:else}
-										<Tag
-											tag={item}
-											--filled-text-color="var(--text-color, var(--tag-color))"
-											--filled-outline="none"
-											--filled-outline-offset="0"
-											--fill-color="transparent"
-										/>
-									{/if}
-								{:else}
-									<svelte:self group={item} />
-								{/if}
-							</li>
-						{/each}
-					</ul>
+	{#if tag.id && !noname}
+		<span in:scale={{ duration: 500 }} class="groupname">
+			<Tag
+				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
+				name={tag.id}
+				noBorder
+				isCheckbox
+				onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) => onInput(evt, tag.id)}
+				checked={$page.url.searchParams.has('tags') &&
+					$page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
+			/>
+		</span>
+	{/if}
+	{#if isSubListVisible(tag.children ?? [])}
+		<div in:scale={{ duration: 500 }} class="groupitems">
+			<ul class="subgroups" in:scale={{ duration: 500 }}>
+				{#each tag.children ?? [] as item (item)}
+					{@const subTag = $tagManager.get(item)}
+					<li in:scale={{ duration: 500 }}>
+						{#if typeof item == 'string'}
+							{#if mounted}
+								<Tag
+									onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) =>
+										onInput(evt, subTag?.id ?? item)}
+									tag={item}
+									isCheckbox
+									checked={$page.url.searchParams.has('tags') &&
+										$page.url.searchParams.get('tags')?.split(',').includes(item)}
+									noBorder
+								/>
+							{:else}
+								<Tag
+									tag={item}
+									--filled-text-color="var(--text-color, var(--tag-color))"
+									--filled-outline="none"
+									--filled-outline-offset="0"
+									--fill-color="transparent"
+								/>
+							{/if}
+						{:else}
+							<svelte:self group={subTag} />
+						{/if}
+					</li>
 				{/each}
-			{/if}
-		</svelte:element>
-	{/each}
+			</ul>
+		</div>
+	{/if}
 </div>
 
 <style langs="scss">
@@ -261,7 +224,8 @@
 		}
 		.groupitems,
 		.subgroups,
-		.filtergroup, .filtergroup.noname ul {
+		.filtergroup,
+		.filtergroup.noname ul {
 			/* align-items: flex-end; */
 		}
 		ul {

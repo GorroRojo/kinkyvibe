@@ -11,7 +11,7 @@
 	import { addHours, format, isPast } from 'date-fns';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
-	import { tagsConfig, filteredTags } from '$lib/utils/stores';
+	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
 
 <script>
@@ -173,10 +173,8 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t)/* && !$redundantTags.has(t)*/)] as tag}
-				{@const config = Object.keys($tagsConfig.tags).includes(tag)
-					? $tagsConfig.tags[tag]
-					: false}
-				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
+				{@const config = $tagManager.get(tag)}
+				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
 					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}

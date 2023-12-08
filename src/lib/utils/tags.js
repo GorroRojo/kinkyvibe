@@ -1,41 +1,27 @@
-/** @typedef {string} TagID */
-/** @typedef {string} postID */
-/**
- * @typedef {Object} Tag
- * @prop {TagID} id
- * @prop {string} [visible_name]
- * @prop {string} [color]
- * @prop {string[]} [allChildren]
- * @prop {string} [description]
- * @prop {Array<{line: string, type: "text"|"link"|"mark", href?: string}>} [parsedDescription]
- * @prop {string} [cleanDescription]
- * @prop {TagID[]} [related]
- * @prop {string[]} [aka]
- * @prop {TagID} [aliasOf]
- * @prop {TagID[]} [children]
- * @prop {TagID[]} [parents]
- * @prop {postID} [entry]
- */
-/**@type Array<Tag> */
-
+/**@type Array<RawTag> */
 import hardcodedTags from './hardcodedTags';
+
 /**
  *
  *
- * @param {Array<Tag>} [rawTags=hardcodedTags]
- * @return {*}
+ * @param {Array<ProcessedTag>} [rawTags=hardcodedTags]
+ * @return {TagManager}
  */
+// @ts-ignore
 export function tagsFactory(rawTags = hardcodedTags) {
-	/** @type Array<Tag> */
-	/**@type Map<TagID, Tag> */
+	/** @type Array<ProcessedTag> */
+	/**@type Map<TagID, ProcessedTag> */
 	let tagsMap = new Map([...rawTags].map((t) => [t.id, t]));
 	let missingTags = [];
-	let tags = {
+	let tagManager = {
 		[Symbol.iterator]() {
 			return tagsMap.entries();
 		},
-		entries(){ 
-			return tagsMap.entries()
+		entries() {
+			return [...tagsMap.entries()];
+		},
+		tags() {
+			return [...tagsMap.keys()];
 		},
 		/**
 		 * @param {TagID} id
@@ -50,22 +36,26 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		},
 		/**
 		 * @param {TagID} id
-		 * @param {Tag} value
+		 * @param {RawTag} value
 		 */
 		set(id, value) {
-			return tagsMap.set(id, value);
+			// @ts-ignore
+			tagsMap.set(id, value);
+			return;
 		}
 	};
 	// add parents prop to all tags
-	for (let [id, tag] of tags) {
+	for (let [id, tag] of tagManager) {
 		for (let childID of tag?.children ?? []) {
-			let child = tags.get(childID);
+			let child = tagManager.get(childID);
 
 			if (child !== undefined) {
-				child.parents = child.parents ? [...child.parents, id] : [id];
+				child.parents =
+					child.parents && !child.parents.includes(id) ? [...child.parents, id] : [id];
 			} else {
-				tags.set(childID, {
+				tagManager.set(childID, {
 					id: childID,
+					// @ts-ignore
 					parents: [id]
 				});
 			}
@@ -73,7 +63,7 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		// generate alias tags from "aka"
 		if (tag.aka && tag.aka.length > 0) {
 			for (let aliasOfThis of tag?.aka ?? []) {
-				tags.set(aliasOfThis, {
+				tagManager.set(aliasOfThis, {
 					id: aliasOfThis,
 					aliasOf: id
 				});
@@ -82,7 +72,7 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		// backlink related tags
 		if (tag.related && tag.related.length > 0) {
 			for (let relatedToThis of tag.related) {
-				let r = tags.get(relatedToThis);
+				let r = tagManager.get(relatedToThis);
 				if (r !== undefined) {
 					if (r.related && r.related.length > 0) {
 						if (!r.related.includes(tag.id)) {
@@ -94,63 +84,60 @@ export function tagsFactory(rawTags = hardcodedTags) {
 				}
 			}
 		}
-		let rawColor = tag.color;
-		// Object.defineProperty(tag, 'color', {
-		// 	get: function () {
-		// 		if (rawColor !== undefined) {
-		// 			return rawColor;
-		// 		}
-		// 		let queue = [tag.id];
-		// 		while (queue.length > 0) {
-		// 			let currID = queue.pop();
-		// 			if (currID === undefined) return undefined;
-		// 			let curr = tags.get(currID);
-		// 			if (curr == undefined) {
-		// 				continue;
-		// 			}
-		// 			if (currID != tag.id && curr.color) {
-		// 				return curr.color;
-		// 			} else {
-		// 				if (curr.parents) {
-		// 					queue.push(...curr.parents);
-		// 				} else {
-		// 					return undefined;
-		// 				}
-		// 			}
-		// 		}
-		// 		return undefined;
-		// 	}
-		// });
-		// Object.defineProperty(tag, 'allChildren', {
-		// 	get: function () {
-		// 		let res = [];
-		// 		let queue = [tag.id];
-		// 		while (queue.length > 0) {
-		// 			let currID = queue.pop();
-		// 			if (currID === undefined) return res;
-		// 			let curr = tags.get(currID);
-		// 			if (curr === undefined || curr.children === undefined) continue;
-		// 			queue.push(...curr.children);
-		// 			res.push(...curr.children);
-		// 		}
-		// 		return res;
-		// 	}
-		// });
+		tag.getColor = () => {
+			if (tag.color !== undefined) {
+				return tag.color;
+			}
+			let queue = [tag.id];
+			while (queue.length > 0) {
+				let currID = queue.pop();
+				if (currID === undefined) return undefined;
+				let curr = tagManager.get(currID);
+				if (curr == undefined) {
+					continue;
+				}
+				if (currID != tag.id && curr.color) {
+					return curr.color;
+				} else {
+					if (curr.parents) {
+						queue.push(...curr.parents);
+					} else {
+						return undefined;
+					}
+				}
+			}
+			return undefined;
+		};
+		tag.getAllChildren = () => {
+			let res = [];
+			let queue = [tag.id];
+			while (queue.length > 0) {
+				let currID = queue.pop();
+				if (currID === undefined) return res;
+				let curr = tagManager.get(currID);
+				if (curr === undefined || curr.children === undefined) continue;
+				queue.push(...curr.children);
+				res.push(...curr.children);
+			}
+			return res;
+		};
 		if (tag.description !== undefined) {
 			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
 				if (l.type == 'link') {
-					if (tags.get(l.line) === undefined) {
+					if (tagManager.get(l.line) === undefined) {
 						missingTags.push(l.line);
 						return { type: 'text', line: l.line };
 					} else return l;
 				} else return l;
 			});
 		}
+		tag.visible_name = tag.visible_name ?? tag.id;
 	}
 
 	// link related and wikilinks
 
-	return { ...tags, missingTags: [...new Set(missingTags)] };
+	// @ts-ignore
+	return { ...tagManager, missingTags: [...new Set(missingTags)] };
 }
 export default tagsFactory;
 
@@ -169,16 +156,6 @@ const normalize = (s) =>
 		.replaceAll('í', 'i')
 		.replaceAll('ó', 'o')
 		.replaceAll('ú', 'u');
-/**
- * Determines if a normalized version of array `a` includes a normalized version of query `q`.
- *
- * @param {string} a - The array to search in.
- * @param {string} q - The query value to search for.
- * @return {boolean} Returns `true` if the query value is found in the array; otherwise, returns `false`.
- */
-function includesNormalized(a, q) {
-	return normalize(a).includes(normalize(q));
-}
 
 /**
  * Parses the given description and extracts links based on the provided query.

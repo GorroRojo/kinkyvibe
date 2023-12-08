@@ -11,6 +11,17 @@ tags:
   - evento
   - BDSM
   - AMBA
+  - impacto
+  - bondage
+  - mascota
+  - shibari
+  - edad
+  - intercambio de poder
+  - sensaciones
+  - fuego
+  - cuchillos
+  - miedo
+  - cnc
 layout: calendario
 category: calendario
 authors:
