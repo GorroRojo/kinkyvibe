@@ -1,6 +1,6 @@
 ---
 published_date: 2023-11-30Z-03:00
-# updated_date: 2023-12-12Z-03:00
+updated_date: 2023-12-12Z-03:00
 title: Grupo de Apoyo y Discusion para sumis*
 summary: Para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
 tags: 
@@ -21,7 +21,7 @@ featured: grupo-sumis-miniatura.png
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
 start: 2023-12-27T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-12-127T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2023-12-27T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/jVVnXzsMvYaELoaZ6
 link_text: 'INSCRIPCIÓN'
