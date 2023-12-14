@@ -5,7 +5,7 @@
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-
+	
 	export let event_toggle = true;
 
 	/** @type {(termino:string)=>(ProcessedTag)[]}*/

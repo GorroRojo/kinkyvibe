@@ -35,15 +35,11 @@
  * @typedef {RawTag & {
  *      getColor: ()=>(string|undefined),
  *      getAllChildren: ()=>(string[]),
+ *      getAllParents: ()=>(string[]),
  *      cleanDescription?: string,
  *      parsedDescription?: Array<{line: string, type: "text"|"link"|"mark", href?: string}>,
  *      parents?: TagID[]
  * }} ProcessedTag
- * @prop {()=>(string|undefined)} getColor
- * @prop {()=>(string[])} getAllChildren
- * @prop {string} [cleanDescription]
- * @prop {Array<{line: string, type: "text"|"link"|"mark", href?: string}>} [parsedDescription]
- * @prop {TagID[]} [parents]
  */
 /**@typedef TagManager
  * @prop {(tagID: string)=>(ProcessedTag|undefined)} get

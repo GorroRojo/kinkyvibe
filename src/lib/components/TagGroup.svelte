@@ -23,8 +23,6 @@
 			false
 		);
 	}
-	/**@param {string[]} sub @returns boolean*/
-	let isSubListVisible = (sub) => sub && sub.length > 0 && sub.some(isVisible);
 	let mounted = false;
 	onMount(() => (mounted = true));
 
@@ -55,7 +53,7 @@
 			/>
 		</span>
 	{/if}
-	{#if isSubListVisible(tag.children ?? [])}
+	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
 		<div in:scale={{ duration: 500 }} class="groupitems">
 			<ul class="subgroups" in:scale={{ duration: 500 }}>
 				{#each tag.children ?? [] as item (item)}

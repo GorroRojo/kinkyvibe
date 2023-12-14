@@ -121,6 +121,19 @@ export function tagsFactory(rawTags = hardcodedTags) {
 			}
 			return res;
 		};
+		tag.getAllParents = () => {
+			let res = [];
+			let queue = [tag.id];
+			while (queue.length > 0) {
+				let currID = queue.pop();
+				if (currID === undefined) return res;
+				let curr = tagManager.get(currID);
+				if (curr === undefined || curr.parents === undefined) continue;
+				queue.push(...(curr.parents));
+				res.push(...(curr.parents));
+			}
+			return res;
+		};
 		if (tag.description !== undefined) {
 			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
 				if (l.type == 'link') {
