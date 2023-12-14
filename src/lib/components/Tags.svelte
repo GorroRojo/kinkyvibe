@@ -1,23 +1,24 @@
 <script>
-	// @ts-nocheck
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
 	import { onMount } from 'svelte/internal';
-	import { tagsConfig, filteredTags } from '$lib/utils/stores';
+	import { filteredTags, tagManager } from '$lib/utils/stores';
+
+	/**@type {string[]}*/
 	export let tags;
 	export let mark = '';
 	export let showFilteredTags = true;
 	$: localFilteredTags = (mark
 		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
-		: tags).filter((t)=> showFilteredTags || !filteredTags.includes(t));
+		: tags).filter((t)=> showFilteredTags || !$filteredTags.includes(t));
 	let invisible = false;
 	onMount(() => {invisible = false});
 </script>
 
 <ul>
 	{#each [...new Set(localFilteredTags)] as tag (tag)}
-		{@const config = Object.keys($tagsConfig.tags).includes(tag) ? $tagsConfig.tags[tag] : false}
-		{@const color = config ? config?.color : 'var(--color,var(--1))'}
+		{@const config = $tagManager.get(tag)}
+		{@const color = config?.getColor() ?? 'var(--color,var(--1))'}
 		<li style:--tag-color={color} class:invisible in:scale animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>
 				{tag}

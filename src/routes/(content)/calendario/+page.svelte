@@ -95,8 +95,8 @@
 			filter={{ prop: 'visible', value: true }}
 			posts={data.posts.map((p) => ({
 				meta: {
-					published_date: p.meta.start,
-					...p.meta
+					...p.meta,
+					published_date: p.meta.start
 				},
 				visible: isSameMonth(new Date(p.meta.start), $view_date),
 				path: p.path

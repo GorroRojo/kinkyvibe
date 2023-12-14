@@ -82,16 +82,6 @@ _Monitorean_
 🔥 _¿Quiénes vienen?_ 🔥
 
 <style>
-    code{
-      background: var(--4-light);
-      color:var(--2-dark);
-      display:block;
-      margin-inline: 0em;
-      text-align: center;
-      padding: 1em;
-      font-weight: bold;
-      font-size: var(--step-1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */

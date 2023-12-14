@@ -24,15 +24,13 @@ export const alias = writable((tag) => '');
 /** @type {import('svelte/store').Writable<(a:boolean,b:string)=>string|void>} */
 export const togglePositiveTagFilterFn = writable((a, b) => '');
 
-/** @type import('svelte/store').Writable<{groups:Group[], tags:Record<string,TagProps>}> */
-export const tagsConfig = writable();
-
-export const tags = writable(tagsFactory());
+/**@type {import('svelte/store').Writable<TagManager>} */
+export const tagManager = writable(tagsFactory());
 
 /** @type import('svelte/store').Writable<{display_type: 'list'|'grid', show_past_events: boolean}> */
 export const userConfig = writable({ display_type: 'list', show_past_events: false });
 
-/** @type import('svelte/store').Writable<{terminos:{name:string,description:string,related?:string[]}[]}> */
+/** @type import('svelte/store').Writable<{terminos:(ProcessedTag&{name:string})[]}> */
 export const glosario = writable({terminos:[]});
 
 if (browser) {

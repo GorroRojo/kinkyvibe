@@ -20,7 +20,6 @@
 	import logo from './logo.png';
 	import {
 		filteredTags,
-		tagsConfig,
 		currentPostData,
 		alias,
 		togglePositiveTagFilterFn
@@ -30,10 +29,9 @@
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	export let data;
 	// onMount(() => {
-	tagsConfig.set(data.tagsConfig);
 	filteredTags.set([]);
 	// });
-	alias.update(() => aliaserFactory($tagsConfig));
+	alias.update(() => aliaserFactory());
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
@@ -72,6 +70,9 @@
 
 <svelte:head>
 	<title>KinkyVibe.ar</title>
+	<link rel="icon" href="/favicon-32x32.png" />
+	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
+	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
 <AgeModal />

@@ -1,131 +1,92 @@
 <script>
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
-	import { visibleTags } from '$lib/utils/stores';
+	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte/internal';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
-	/** @type Group */
-	export let group;
+	/** @type ProcessedTag */
+	export let tag;
+	export let gap = false;
+	export let nested = true;
 
 	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
-	export let onInput = (evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, tag);
+	export let onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t);
 
-	/**@type {List[]} */
-	$: lists = [
-		{
-			items: group.members ?? [],
-			classname: 'taglist',
-			visible: true
-			// group.members != undefined && group.members.length > 0
-		},
-		{
-			items: group.sub ?? [],
-			classname: 'subgroups',
-			visible: true
-			// group.sub != undefined && group.sub.length > 0 && group.sub.some((ss) => isVisible(ss))
-		}
-	].filter((i) => i.visible);
-
-	/** @param {Group} group
-	 *  @param {string[]} visible
+	/** @param {string} tagID
 	 *  @return {boolean}
 	 */
-	function isVisible(group, visible = $visibleTags) {
+	function isVisible(tagID) {
+		let t = $tagManager.get(tagID);
 		return (
-			($visibleTags.includes(group.name) ||
-				(group.members && group.members.length > 0) ||
-				(group.sub && group.sub.length > 0 && group.sub.some((s) => isVisible(s)))) ??
+			($visibleTags.includes(tagID) ||
+				(t?.children && t.children.length > 0 && t.children.some((s) => isVisible(s)))) ??
 			false
 		);
 	}
-	/**@param {Group[]} sub @param {string[]} visible @returns boolean*/
-	let isSubListVisible = (sub, visible) =>
-		sub != undefined &&
-		sub.length > 0 &&
-		sub.some(
-			(s) =>
-				$visibleTags.includes(s.name) ||
-				(s.members && s.members.length > 0) ||
-				(s.sub && s.sub.length > 0 && s.sub.some((ss) => isVisible(ss)))
-		);
 	let mounted = false;
 	onMount(() => (mounted = true));
-
-	/** @type {(group:Group)=>string[]}*/
-	function getAllMembers(group) {
-		let res = [group.name];
-		res.push(...group.members);
-		// @ts-ignore
-		res.push(...group.sub.map((g) => getAllMembers(g)));
-		return res.flat();
-	}
 	let noname =
-		group.noname ||
-		!(
-		$visibleTags.includes(group.name) ||
-		getAllMembers(group).some((t) => $visibleTags.includes(t))
-		);
+		tag.noname ||
+		!($visibleTags.includes(tag.id) || tag.getAllChildren().some((t) => $visibleTags.includes(t)));
 </script>
 
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
-	style:--tag-color={group.color ?? 'inherit'}
+	style:--tag-color={tag.getColor() ?? 'inherit'}
 	class:noname
+	class:nested
+	class:gap
 >
-	{#each [{ name: group.name, id: 1 }, { lists: lists, id: 2 }].filter((t) => (t.name != undefined && !noname) || (t.lists != undefined && (group.members.length > 0 || isSubListVisible(group.sub, $visibleTags)))) as el (el.id)}
-		<svelte:element
-			this={el.id == 1 ? 'span' : 'div'}
-			in:scale={{ duration: 500 }}
-			class={el.id == 1 ? 'groupname' : 'groupitems'}
-		>
-			{#if el.name != /*@ts-ignore*/ undefined}
-				<Tag
-					tag={el.name+" »"}
-					name={el.name}
-					noBorder
-					isCheckbox
-					onInput={(evt) => onInput(evt, el.name)}
-					checked={$page.url.searchParams.has('tags') &&
-						$page.url.searchParams.get('tags')?.split(',').includes(el.name)}
-				/>
-			{:else if el.lists != undefined}
-				{#each el.lists as list (list.classname)}
-					<ul class={list.classname} in:scale={{ duration: 500 }}>
-						{#each list.items as item (typeof item == 'string' ? item : item.name)}
-							<li in:scale={{ duration: 500 }}>
-								{#if typeof item == 'string'}
-									{#if mounted}
-										{@const dummy = /**@ts-ignore*/ false}
-										<Tag
-											onInput={(evt) => onInput(evt, item)}
-											tag={item}
-											isCheckbox
-											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(item)}
-											noBorder
-										/>
-									{:else}
-										<Tag
-											tag={item}
-											--filled-text-color="var(--text-color, var(--tag-color))"
-											--filled-outline="none"
-											--filled-outline-offset="0"
-											--fill-color="transparent"
-										/>
-									{/if}
-								{:else}
-									<svelte:self group={item} />
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{/each}
-			{/if}
-		</svelte:element>
-	{/each}
+	{#if tag.id && !noname}
+		<span in:scale={{ duration: 500 }} class="groupname">
+			<Tag
+				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
+				name={tag.id}
+				noBorder
+				isCheckbox
+				onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) => onInput(evt, tag.id)}
+				checked={$page.url.searchParams.has('tags') &&
+					$page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
+			/>
+		</span>
+	{/if}
+	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
+		<ul class="groupitems" in:scale={{ duration: 500 }}>
+			{#each tag.children.filter(isVisible) ?? [] as item (item)}
+				{@const subTag = $tagManager.get(item)}
+				<li in:scale={{ duration: 500 }}>
+					{#if !subTag?.children || subTag.children.length == 0}
+						{#if mounted}
+							<Tag
+								onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) =>
+									onInput(evt, subTag?.id ?? item)}
+								tag={item}
+								isCheckbox
+								checked={$page.url.searchParams.has('tags') &&
+									$page.url.searchParams.get('tags')?.split(',').includes(item)}
+								noBorder
+								--off-background="color-mix(in srgb, white 35%, transparent)"
+								--text-color="color-mix(in srgb, black 15%, var(--tag-color)"
+							/>
+						{:else}
+							<Tag
+								tag={item}
+								--filled-text-color="var(--text-color, var(--tag-color))"
+								--filled-outline="none"
+								--filled-outline-offset="0"
+								--fill-color="transparent"
+							/>
+						{/if}
+					{:else if subTag}
+						<svelte:self tag={subTag} />
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
 </div>
 
 <style langs="scss">
@@ -134,38 +95,28 @@
 		border-radius: 0.3em;
 		flex-direction: column;
 		min-width: 0;
-		align-items: center;
+		align-items: stretch;
 		font-family: sans-serif;
 		--border-radius: 0.3em;
 		transition: 100ms;
-		/* outline: 3px solid transparent; */
 		justify-content: center;
 		flex-wrap: wrap;
-	}
-	.filtergroup.noname {
-		outline-color: transparent;
-		background: transparent;
-		box-shadow: none;
-	}
-	.filtergroup.noname ul {
-		align-items: center;
-	}
-	.filtergroup:has(> .groupname :checked) {
-		outline: 3px solid var(--tag-color);
-		background: color-mix(in srgb, var(--tag-color) 10%, transparent);
-	}
-
-	.filtergroup,
-	.taglist {
+		width: 100%;
 		--text-color: color-mix(in hsl, var(--tag-color) 100%, black);
 		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
 		background: var(--faded-color);
 	}
-	:global(.taglist:has(li)),
+	.filtergroup:has(> .groupname :checked) {
+		outline: 3px solid var(--tag-color);
+		background: color-mix(in srgb, white 60%, transparent);
+	}
 	:global(.filtergroup:has(li)),
 	:global(.filtergroup:has(span)) {
 		box-shadow: -2px 0 var(--tag-color);
-		outline: 1px solid var(--tag-color);
+		outline: 1px solid color-mix(in srgb, var(--tag-color) 10%, transparent);
+	}
+	.filtergroup.nested {
+		outline-color: var(--tag-color);
 	}
 
 	:global(.filterbar > .filtergroup) {
@@ -173,56 +124,28 @@
 		/* box-shadow: 0 0 0em -0em rgba(0, 0, 0, 0.3); */
 	}
 
-	.taglist {
-		border-radius: 0.3em;
-		overflow: hidden;
-		align-items: center;
-		min-width: 0;
-	}
-	.subgroups {
-		flex-direction: column;
-		align-items: center;
-		row-gap: 0.3em;
-		column-gap: 0.3em;
-	}
-	:global(.filterbar .filtergroup ul:has(li)) {
+	:global(.filterbar .groupitems:has(li)) {
 		margin: 0;
 		opacity: 1;
 	}
 	ul {
-		display: flex;
 		justify-content: center;
 		flex-wrap: wrap;
-		margin: -0.1em -0.6em;
 		padding: 0;
-		opacity: 0;
 		max-width: 100%;
-		/* transition: 700ms; */
 	}
 	li {
 		list-style: none;
 		text-align: center;
 		display: flex;
+		align-items: stretch;
 		/* height: 0; */
 	}
 	:global(.filtergroup .groupitems li:has(li)),
 	:global(.filtergroup .groupitems li:has(label)) {
 		height: unset;
 	}
-	.taglist li {
-		border-left: 1px solid color-mix(in srgb, var(--tag-color) 60%, transparent);
-	}
-	.taglist li:first-child {
-		border-left: none;
-	}
-	.taglist li:last-child {
-		border-right: 1px solid color-mix(in srgb, var(--tag-color) 60%, transparent);
-	}
-	:global(.taglist > li.checked + li.checked) {
-		--border-radius: 0 0.3em 0.3em 0;
-		border-left: 10px solid var(--tag-color);
-		margin-left: -10px;
-	}
+
 	.groupname {
 		display: flex;
 		justify-content: stretch;
@@ -232,17 +155,11 @@
 	:global(.groupname:has(:checked)) {
 		--border-radius: 0.3em 0.3em 0 0;
 	}
-	/* .groupname + .groupitems {
-		margin-left: 5px;
-	} */
 	.groupitems {
 		flex-direction: column;
-		row-gap: 0.2em;
+		row-gap: 1px;
 		column-gap: 0.6em;
-		justify-content: center;
-		align-items: center;
-		/* flex-wrap: wrap; */
-		/* transition: 700ms; */
+		justify-content: stretch;
 	}
 	:global(.groupitems) {
 		display: none;
@@ -252,6 +169,14 @@
 	:global(.groupitems:has(:checked)) {
 		display: flex;
 	}
+	:global(.filtergroup:has(:checked)),
+	.filtergroup.noname {
+		margin-block: 0.5em;
+	}
+	.filtergroup.gap {
+		margin-block-end: 0;
+		margin-inline-end: 0.5em;
+	}
 	.noname > .groupitems {
 		display: flex;
 	}
@@ -259,13 +184,9 @@
 		.groupname {
 			width: 100%;
 		}
-		.groupitems,
-		.subgroups,
-		.filtergroup, .filtergroup.noname ul {
-			/* align-items: flex-end; */
-		}
-		ul {
-			/* justify-content: flex-end; */
+		.filtergroup.gap {
+			margin-block-end: 0.5em;
+			margin-inline-end: 0;
 		}
 	}
 </style>

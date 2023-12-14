@@ -1,5 +1,5 @@
 <script>
-	import { tagsConfig } from '$lib/utils/stores';
+	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte/internal';
 	import Tag from './Tag.svelte';
 	import { isPast } from 'date-fns';
@@ -15,37 +15,9 @@
 	let mounted = false;
 	onMount(() => (mounted = true));
 
-	/**@type {(tag:string)=>string[]}*/
-	function getParents(tag) {
-		/**@type {string[]}*/
-		let parents = [];
-		$tagsConfig.groups.forEach((g) => {
-			parents = [...parents, ...findTagAndReturnParents(tag, g)];
-		});
-		return parents;
-	}
-
-	/**
-	 * Finds a specific tag within a group and returns its parents.
-	 * @param {string} tag - The tag to search for.
-	 * @param {Group} group - The group object to search within.
-	 * @param {string[]} [parents=[]] - An array of parent names (optional, defaults to an empty array).
-	 * @returns {string[]} - An array containing the names of the parents of the tag.
-	 */
-	function findTagAndReturnParents(tag, group, parents = []) {
-		if (group.name == tag) return parents;
-		if (group.members.includes(tag)) return [...parents, group.name];
-		/**@type {string[]}*/
-		let deeper = [];
-		group.sub.forEach((sub) => {
-			deeper.push(...findTagAndReturnParents(tag, sub, ['sub', ...parents, group.name]));
-		});
-		return deeper;
-	}
-
 	/**@type {(tag:string[])=>string[]}*/
 	function removeParents(tags) {
-		let allParents = [...new Set(tags.map((t) => getParents(t)).flat())];
+		let allParents = [...new Set(tags.map((t) => $tagManager.get(t)?.parents ?? []).flat())];
 		return tags.filter((t) => !allParents.includes(t));
 	}
 </script>
@@ -79,10 +51,8 @@
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
-				{@const config = Object.keys($tagsConfig.tags).includes(tag)
-					? $tagsConfig.tags[tag]
-					: false}
-				{@const color = config ? config?.color : 'var(--color-2,var(--1))'}
+				{@const config = $tagManager.get(tag)}
+				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
 					style:white-space={'nowrap'}
