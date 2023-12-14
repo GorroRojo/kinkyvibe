@@ -39,7 +39,7 @@
 					id="display-type-list"
 					bind:group={$userConfig.display_type}
 					value="list"
-				/>Lista
+				/>lista
 			</label>
 			<label>
 				<input
@@ -48,33 +48,33 @@
 					id="display-type-grid"
 					bind:group={$userConfig.display_type}
 					value="grid"
-				/>Grilla
+				/>grilla
 			</label>
 		</div>
 	</div>
 	{#if event_toggle}
 		<div class="option-group-wrapper">
-			<div class="option-group-title">Mostrar eventos pasados</div>
 			<div id="show-past-events" class="option-group">
 				<label>
 					<input
-						type="radio"
-						name="show-past-events"
-						id="show-past-events-yes"
-						bind:group={$userConfig.show_past_events}
-						value={true}
-					/>Si
+					type="radio"
+					name="show-past-events"
+					id="show-past-events-yes"
+					bind:group={$userConfig.show_past_events}
+					value={true}
+					/>Mostrar
 				</label>
 				<label>
 					<input
-						type="radio"
-						name="show-past-events"
-						id="show-past-events-no"
-						bind:group={$userConfig.show_past_events}
-						value={false}
-					/>No
+					type="radio"
+					name="show-past-events"
+					id="show-past-events-no"
+					bind:group={$userConfig.show_past_events}
+					value={false}
+					/>Ocultar
 				</label>
 			</div>
+			<div class="option-group-title">eventos pasados</div>
 		</div>
 	{/if}
 
@@ -119,49 +119,40 @@
 <style lang="scss">
 	.option-group-wrapper {
 		display: flex;
-		/* flex-direction: column; */
-
-		align-items: center;
-		gap: 0.6em;
+		align-items: baseline;
+		gap: 0.4em;
 		width: auto;
 		min-width: 0;
 		height: auto;
 		min-height: 0;
-		&:nth-child(2) {
-			margin-bottom: 1em;
-		}
+		margin-bottom: 1em;
+		font-size: var(--step--1);
 	}
 	.option-group-title {
 		color: var(--1);
-		font-size: 1.1em;
 	}
 	.option-group {
 		display: flex;
-		gap: 0.2em;
-		align-items: center;
+		align-items: baseline;
 		justify-content: center;
-
 		width: auto;
 		min-width: 0;
 		height: auto;
 		min-height: 0;
 		background: white;
 		border-radius: 0.5em;
-		outline: 2px solid var(--1);
+		outline: 1px solid var(--1);
 		label {
 			display: flex;
-			align-items: center;
-			gap: 0.5em;
+			align-items: baseline;
 			cursor: pointer;
 			color: var(--1);
-			padding: 0.5em;
+			padding: 0.2em .3em;
 			border-radius: 0.5em;
 			flex: 1 1;
 			transition: 200ms;
-			outline: 2px solid transparent;
 			&:has(input:checked) {
 				background: var(--1);
-				outline: 2px solid var(--1);
 				color: white;
 			}
 		}
@@ -212,6 +203,7 @@
 		outline: 2px solid var(--1);
 		border-radius: 0.5em;
 		padding: 0.3em 0.6em;
+		margin-bottom: .5em;
 		color: var(--1);
 		background: white;
 		font-size: var(--step--1);
