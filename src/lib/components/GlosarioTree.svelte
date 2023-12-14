@@ -19,7 +19,7 @@
 	export let spare = false;
 </script>
 
-{#if type == 'group' && !spare && items.map((i) => i.name).join('') == $tagManager.tags().join('')}
+{#if type == 'group' && !spare && items.map((i) => i.name).join('') == $tagManager.tagIDs().join('')}
 	<svelte:self
 		{entries}
 		items={$glosario.terminos

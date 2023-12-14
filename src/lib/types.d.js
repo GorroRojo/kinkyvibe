@@ -29,6 +29,7 @@
  * @prop {TagID} [aliasOf]
  * @prop {TagID[]} [children]
  * @prop {postID} [entry]
+ * @prop {boolean} [noname]
  * */
 
 /**
@@ -38,13 +39,15 @@
  *      getAllParents: ()=>(string[]),
  *      cleanDescription?: string,
  *      parsedDescription?: Array<{line: string, type: "text"|"link"|"mark", href?: string}>,
- *      parents?: TagID[]
+ *      parents?: TagID[],
+ *      orphan?: boolean
  * }} ProcessedTag
  */
 /**@typedef TagManager
- * @prop {(tagID: string)=>(ProcessedTag|undefined)} get
+ * @prop {(tagID: string, fallbackData?: *)=>(ProcessedTag)} get
  * @prop {()=>([TagID, ProcessedTag][])} entries
- * @prop {()=>(TagID[])} tags
+ * @prop {()=>(TagID[])} tagIDs
+ * @prop {()=>(ProcessedTag[])} tagsData
  * @prop {(tagID: string, value: RawTag)=>void} set
  * @prop {string[]} missingTags
  */
@@ -80,8 +83,8 @@
  */
 /** @typedef {PostData & {
  *		status: 'abierto' | 'anunciado' | 'lleno' | 'cancelado',
- * 		start: string,
- * 		end?: string,
+ * 		start: Date,
+ * 		end?: Date,
  * 		duration?: Date,
  * 		location?: string,
  * 		location_name?: string,

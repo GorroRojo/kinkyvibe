@@ -5,30 +5,14 @@
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	
+
 	export let event_toggle = true;
 
-	/** @type {(termino:string)=>(ProcessedTag)[]}*/
-	function getGroups(termino) {
-		let tag = $tagManager.get(termino);
-		return tag ? [tag] : [];
-	}
-	let tagsAsGroups = $tagManager
-		.entries()
-		.filter(([id, { parents }]) => parents?.includes('root'))
-		.map(([tag]) => getGroups(tag))
-		.flat();
-
-	/**@type ProcessedTag[] */
-	let filteredGroups = filterGroups(tagsAsGroups, $visibleTags);
 	/**@type string[]*/
 	let orphanTags = [];
-	let orphanGroup = { /**@type {()=>(string)}*/ getColor: () => undefined, getAllChildren: () => [], sub: orphanTags.map($tagManager.get), id: 'misc', noname: true }
 	onMount(() => {
 		visibleTags.subscribe((v) => {
-			orphanTags = getOrphanTags(v);
-			orphanGroup = { /**@type {()=>(string)}*/ getColor: () => undefined, getAllChildren: () => [], sub: orphanTags.map($tagManager.get), id: 'misc', noname: true }
-			filteredGroups = filterGroups(tagsAsGroups, v);
+			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
 		});
 		// @ts-ignore
 		page.subscribe((p) => {
@@ -40,23 +24,6 @@
 			} else filteredTags.set([]);
 		});
 	});
-
-	/**
-	 * @param {string[]} tags
-	 * @returns string[]
-	 */
-	function getOrphanTags(tags) {
-		return tags.filter((v) => !$tagManager.tags().includes(v));
-	}
-
-	/**
-	 * @param {ProcessedTag[]} groups
-	 * @param {string[]} tags
-	 * @returns ProcessedTag[]
-	 */
-	function filterGroups(groups, tags) {
-		return groups.filter((g) => g.getAllChildren().some((t) => tags.includes(t)));
-	}
 
 	let view_filters = true;
 </script>
@@ -110,14 +77,7 @@
 			</div>
 		</div>
 	{/if}
-	<!-- <label id="view_filters">
-		<input
-			type="checkbox"
-			name="view_filters"
-			disabled={$filteredTags.length > 0}
-			bind:checked={view_filters}
-		/> Ver filtros
-	</label> -->
+
 	{#if $filteredTags.length > 0}
 		<div class="tag-group-container">
 			<button
@@ -130,10 +90,26 @@
 		</div>
 	{/if}
 	{#if view_filters || $filteredTags.length > 0}
+		{@const tags = [
+			...$tagManager
+				.tagsData()
+				.filter(
+					(td) =>
+						td?.parents?.includes('root') &&
+						(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
+							$visibleTags.includes(td.id))
+				),
+			$tagManager.get('misc', {
+				children: $visibleTags
+					.filter((v) => $tagManager.get(v).orphan)
+					.sort((a, b) => a.localeCompare(b)),
+				noname: true
+			})
+		]}
 		<div class="tagfilters">
-			{#each [...filteredGroups, orphanGroup] as group (group.id)}
+			{#each tags as tag, i (tag.id)}
 				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-					<TagGroup tag={group} />
+					<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
 				</div>
 			{/each}
 		</div>
@@ -141,15 +117,6 @@
 </div>
 
 <style lang="scss">
-	#view_filters {
-		display: block;
-		width: 100%;
-		max-width: 50rem;
-		margin-inline: auto;
-		font-size: var(--step-0);
-		text-align: center;
-		margin-block: 0.4em;
-	}
 	.option-group-wrapper {
 		display: flex;
 		/* flex-direction: column; */
@@ -160,6 +127,9 @@
 		min-width: 0;
 		height: auto;
 		min-height: 0;
+		&:nth-child(2) {
+			margin-bottom: 1em;
+		}
 	}
 	.option-group-title {
 		color: var(--1);
@@ -175,7 +145,6 @@
 		min-width: 0;
 		height: auto;
 		min-height: 0;
-		/* margin-bottom: 1em; */
 		background: white;
 		border-radius: 0.5em;
 		outline: 2px solid var(--1);
@@ -206,7 +175,7 @@
 		/* flex-wrap: wrap; */
 		width: 100%;
 		/* height: 10rem; */
-		--gap: 1em;
+		--gap: 1px;
 		gap: var(--gap);
 		justify-content: center;
 		align-items: center;
@@ -238,6 +207,13 @@
 			width: 100%;
 		}
 	}
-	@media screen and (min-width: 1300px) {
+	button {
+		border: none;
+		outline: 2px solid var(--1);
+		border-radius: 0.5em;
+		padding: 0.3em 0.6em;
+		color: var(--1);
+		background: white;
+		font-size: var(--step--1);
 	}
 </style>

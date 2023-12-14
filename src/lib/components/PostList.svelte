@@ -65,24 +65,22 @@
 	}
 
 	$: visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
-	console.log($tagManager.get('español')?.getAllParents());
 	/**@type ProcessedPost[]*/
 	$: tagFilteredPosts = outerFilteredPosts.filter(
 		(post) =>
 			$filteredTags.length == 0 ||
 			$filteredTags.every((f) => {
-				let includesTheseTags = post.meta.tags.includes(f);
-				let includesAscendances = post.meta.tags.some((t) =>
-					$tagManager.get(t)?.getAllParents().includes(f)
+				return (
+					post.meta.tags.includes(f) ||
+					post.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
 				);
-				return includesTheseTags || includesAscendances;
 			})
 	);
 
 	$: allTags.set([
 		// @ts-ignore
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
-		...$tagManager.tags()
+		...$tagManager.tagIDs()
 	]);
 </script>
 

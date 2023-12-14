@@ -3,6 +3,29 @@ import hardcodedTags from './hardcodedTags';
 
 /**
  *
+ * @param {TagID} id
+ * @param {*} [data]
+ * @returns {ProcessedTag}
+ */
+function orphanTagFactory(id, data) {
+	return {
+		id,
+		visible_name: id,
+		getColor() {
+			return undefined;
+		},
+		getAllChildren() {
+			return [];
+		},
+		getAllParents() {
+			return [];
+		},
+		orphan: (!data?.parents || data?.parents.length == 0) && !data?.aliasOf && (!data?.children || data?.children.length == 0),
+		...data
+	};
+}
+/**
+ *
  *
  * @param {Array<ProcessedTag>} [rawTags=hardcodedTags]
  * @return {TagManager}
@@ -20,44 +43,46 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		entries() {
 			return [...tagsMap.entries()];
 		},
-		tags() {
+		tagIDs() {
 			return [...tagsMap.keys()];
+		},
+		tagsData() {
+			return [...tagsMap.values()];
 		},
 		/**
 		 * @param {TagID} id
 		 */
-		get(id) {
-			let tag = tagsMap.get(id);
+		get(id, value = {}) {
+			const tag = tagsMap.get(id);
+			let res = tag;
 			if (tag?.aliasOf !== undefined) {
-				return tagsMap.get(tag?.aliasOf);
-			} else {
-				return tag;
+				res = tagsMap.get(tag?.aliasOf);
 			}
+			return res ?? orphanTagFactory(id, value);
 		},
 		/**
 		 * @param {TagID} id
-		 * @param {RawTag} value
+		 * @param {*} value
 		 */
 		set(id, value) {
 			// @ts-ignore
-			tagsMap.set(id, value);
+			tagsMap.set(id, orphanTagFactory(id, value));
 			return;
 		}
 	};
-	// add parents prop to all tags
 	for (let [id, tag] of tagManager) {
+		// add parents prop to all tags
 		for (let childID of tag?.children ?? []) {
 			let child = tagManager.get(childID);
 
-			if (child !== undefined) {
-				child.parents =
-					child.parents && !child.parents.includes(id) ? [...child.parents, id] : [id];
-			} else {
+			if (child.orphan) {
 				tagManager.set(childID, {
-					id: childID,
-					// @ts-ignore
 					parents: [id]
 				});
+			} else if (child.parents && !child.parents.includes(id)) {
+				child.parents = [...child.parents, id];
+			} else {
+				child.parents = [id];
 			}
 		}
 		// generate alias tags from "aka"
@@ -129,8 +154,8 @@ export function tagsFactory(rawTags = hardcodedTags) {
 				if (currID === undefined) return res;
 				let curr = tagManager.get(currID);
 				if (curr === undefined || curr.parents === undefined) continue;
-				queue.push(...(curr.parents));
-				res.push(...(curr.parents));
+				queue.push(...curr.parents);
+				res.push(...curr.parents);
 			}
 			return res;
 		};

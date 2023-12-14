@@ -384,10 +384,6 @@
 	}
 
 	@container (max-width: 680px) {
-		.summary {
-			/* display: none; */
-		}
-
 		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
 			grid-template-rows: auto 1fr 2em;
