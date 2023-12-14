@@ -7,7 +7,7 @@ tags:
   - charla debate
   - español
   - KinkyVibe # etiqueta especial #
-  # - pago # pago | gratis | a la gorra #
+  - a la gorra # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - BDSM
 layout: calendario
@@ -24,7 +24,7 @@ start: 2023-12-20T20:30-03:00
 end: 2023-12-20T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: 'https://forms.gle/jVVnXzsMvYaELoaZ6'
+link: 'https://forms.gle/musHVZMmoBoREPtb9'
 # link_text: Inscibirme
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
