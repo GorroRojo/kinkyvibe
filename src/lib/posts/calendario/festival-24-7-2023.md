@@ -35,9 +35,6 @@ link_text: 'PRE-VENTA'
 
 <script>
     import flyer from '$lib/posts/calendario/media/festival-24-7-2023/1.jpg';
-    const style = `
- 
-    `
 </script>
 
 ![flyer]({flyer})

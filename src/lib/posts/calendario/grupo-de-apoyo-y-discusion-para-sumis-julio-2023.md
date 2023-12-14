@@ -25,8 +25,6 @@ link: https://forms.gle/fpK1riS6PVMaaxMHA
 link_text: 'Anotarse'
 ---
 
-![flyer]({flyer})
-
 <div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>Holi sumisxs* hermosxs, les vemos, les leemos, y esta propuesta es para ustedes &lt;3</strong></div>
 
 Hace un tiempo que venimos queriendo armar un espacio de discusión, apoyo e intercambio dirigido a personas que quieran hablar con otres que habiten sus mismos roles <small>(o similares)</small> y que tengan algunas experiencias cercanas. 
