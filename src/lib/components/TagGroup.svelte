@@ -8,7 +8,7 @@
 
 	/** @type ProcessedTag */
 	export let tag;
-export let gap = false;
+	export let gap = false;
 	export let nested = true;
 
 	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
@@ -27,10 +27,11 @@ export let gap = false;
 	}
 	let mounted = false;
 	onMount(() => (mounted = true));
-	let noname = tag.noname || !(
-		$visibleTags.includes(tag.id) || tag.getAllChildren().some((t) => $visibleTags.includes(t))
-	);
+	let noname =
+		tag.noname ||
+		!($visibleTags.includes(tag.id) || tag.getAllChildren().some((t) => $visibleTags.includes(t)));
 </script>
+
 <div
 	in:scale={{ duration: 500 }}
 	class="filtergroup"
@@ -168,11 +169,13 @@ export let gap = false;
 	:global(.groupitems:has(:checked)) {
 		display: flex;
 	}
-	:global(.filtergroup:has(:checked)), .filtergroup.noname {
-		margin-block: .5em;
+	:global(.filtergroup:has(:checked)),
+	.filtergroup.noname {
+		margin-block: 0.5em;
 	}
 	.filtergroup.gap {
-		margin-block-end: .5em;
+		margin-block-end: 0;
+		margin-inline-end: 0.5em;
 	}
 	.noname > .groupitems {
 		display: flex;
@@ -180,6 +183,10 @@ export let gap = false;
 	@container (min-width: 1300px) {
 		.groupname {
 			width: 100%;
+		}
+		.filtergroup.gap {
+			margin-block-end: 0.5em;
+			margin-inline-end: 0;
 		}
 	}
 </style>
