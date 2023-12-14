@@ -1,10 +1,8 @@
 import '$lib/types.d.js';
 import tagsFactory from './tags';
 
-
-
 /**
- * 
+ *
  * @returns {Promise<{terminos:(ProcessedTag&{name:string})[]}>}
  */
 export const fetchGlossary = async () => {
@@ -73,7 +71,7 @@ export const thumbURL = async (category, postID, assetID) => {
  * @returns {(tag: string)=>string}
  */
 export function aliaserFactory(tagManager = tagsFactory()) {
-	return (tag) => tagManager.get(tag)?.id ?? tag
+	return (tag) => tagManager.get(tag)?.id ?? tag;
 }
 
 /**
@@ -127,9 +125,47 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		);
 	}
 
+	/**
+	 * @param {ProcessedTag} tag
+	 * @return {string[][]}
+	 */
+	const ancestry = (tag) => {
+		let branches = [];
+		let tagParents = tag.parents?.filter((p) => p != 'root') ?? [];
+		for (let p of tagParents) {
+			let subbranch = [];
+			let grandparents = ancestry(tagManager.get(p));
+			if (grandparents.length > 0) {
+				for (let g of grandparents) {
+					subbranch.push([...g, p]);
+				}
+			} else {
+				subbranch.push([p]);
+			}
+			branches.push(...subbranch);
+		}
+		return branches;
+	};
+	/**
+	 * @param {ProcessedTag} a
+	 * @param {ProcessedTag} b
+	 * @returns {number}
+	 */
+	function sortTags(a, b) {
+		let aAncestry = ancestry(a).map((br) => [...br.flat(), a.id]);
+		let bAncestry = ancestry(b).map((br) => [...br.flat(), b.id]);
+		if (aAncestry.length == 0) aAncestry = [[a.id]];
+		if (bAncestry.length == 0) bAncestry = [[b.id]];
+		return (
+			tagManager.tagIDs().indexOf(aAncestry[0][0]) - tagManager.tagIDs().indexOf(bAncestry[0][0])
+		);
+	}
 	const processedMeta = {
 		...meta,
-		tags: [...(meta.tags??[])].map((t) => tagManager.get(t)?.id ?? t).sort((a, b) => a.localeCompare(b)),
+		tags: [...(meta.tags ?? [])]
+			.map((t) => tagManager.get(t))
+			.sort(sortTags)
+			.map((t) => t.id),
 		featured:
 			meta.featured !== undefined
 				? await thumbURL(meta.category, postID, meta.featured)
