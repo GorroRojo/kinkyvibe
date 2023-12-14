@@ -20,7 +20,6 @@
 		}
 		return dates;
 	}, {});
-	data.posts.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime());
 	let skip_month_flag = true;
 
 	Object.entries(days).forEach(([date, posts]) => {

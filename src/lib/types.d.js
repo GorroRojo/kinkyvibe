@@ -67,8 +67,8 @@
  * @prop {'material'|'calendario'|'amigues'} layout
  * @prop {string[]} authors
  * @prop {string} [featured]
- * @prop {Date} [published_date]
- * @prop {Date} [updated_date]
+ * @prop {string} [published_date]
+ * @prop {string} [updated_date]
  * @prop {boolean} [force_unlisted]
  * @prop {boolean} [force_unpublished]
  */
@@ -83,8 +83,8 @@
  */
 /** @typedef {PostData & {
  *		status: 'abierto' | 'anunciado' | 'lleno' | 'cancelado',
- * 		start: Date,
- * 		end?: Date,
+ * 		start: string,
+ * 		end?: string,
  * 		duration?: Date,
  * 		location?: string,
  * 		location_name?: string,

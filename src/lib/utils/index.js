@@ -205,12 +205,21 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		const postID = rawPath.split('/').slice(-1)[0].split('.md')[0];
 		if (postID.startsWith('_')) continue;
 		const { metadata, default: postContent } = await constructor();
-		if (!metadata) continue;
-		if ((!unlisted && metadata.force_unlisted) || (unlisted && !metadata.force_unlisted)) continue;
+		if (
+			!metadata ||
+			(!unlisted && metadata.force_unlisted) ||
+			(unlisted && !metadata.force_unlisted)
+		) {
+			continue;
+		}
 		const tagManager = tagsFactory();
 		processedPosts.push(await processPost(postContent, postID, metadata, true, tagManager));
 	}
-
+	processedPosts.sort((a,b)=> {
+		/** @param {ProcessedPost} x @returns number */
+		let f = (x) => (new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date)).getTime()
+		return f(b) - f(a)
+	})
 	return [...processedPosts];
 };
 
