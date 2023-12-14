@@ -4,7 +4,7 @@
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
-	import { filteredTags, alias, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { fetchGlossary } from '$lib/utils/index.js';
 	import { ArrowRight, Globe } from 'lucide-svelte';
 	import { page } from '$app/stores';
@@ -65,15 +65,14 @@
 									{#if d.type == 'text'}
 										{d.content}
 									{:else if d.type == Tag}
-										{@const aliasedTag = $alias(d.content)}
 										<svelte:component
 											this={d.type}
 											tag={d.content}
 											onInput={(evt, tag) =>
-												$togglePositiveTagFilterFn(evt.target?.checked, aliasedTag)}
+												$togglePositiveTagFilterFn(evt.target?.checked, d.content)}
 											isCheckbox
 											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(aliasedTag)}
+												$page.url.searchParams.get('tags')?.split(',').includes(d.content)}
 											--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
 											--font-size="1em"
 											--padding="0.1em 0.2em"
@@ -88,14 +87,13 @@
 								<small>
 									Ver también:
 									{#each termino.related as tag, i}
-										{@const aliasedTag = $alias(tag)}
 										<Tag
 											{tag}
 											onInput={(evt, _) =>
-												$togglePositiveTagFilterFn(evt.target?.checked, aliasedTag)}
+												$togglePositiveTagFilterFn(evt.target?.checked, tag)}
 											isCheckbox
 											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(aliasedTag)}
+												$page.url.searchParams.get('tags')?.split(',').includes(tag)}
 											--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
 											--font-size="1em"
 											--padding="0.1em 0.2em"

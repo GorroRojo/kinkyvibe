@@ -21,7 +21,6 @@
 	import {
 		filteredTags,
 		currentPostData,
-		alias,
 		togglePositiveTagFilterFn
 	} from '$lib/utils/stores';
 	import { aliaserFactory } from '$lib/utils/index.js';
@@ -31,7 +30,6 @@
 	// onMount(() => {
 	filteredTags.set([]);
 	// });
-	alias.update(() => aliaserFactory());
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
