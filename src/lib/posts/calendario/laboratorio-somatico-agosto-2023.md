@@ -49,16 +49,6 @@ Lanzamos esta nueva propuesta con el fin de invitar a todas las personas interes
 - **Se van a permitir prácticas de juegos con la respiración, humillación, entre otras.**
 
 <style>
-    code{
-      background: var(--4-light);
-      color:var(--2-dark);
-      display:block;
-      margin-inline: 0em;
-      text-align: center;
-      padding: 1em;
-      font-weight: bold;
-      font-size: var(--step-1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */
