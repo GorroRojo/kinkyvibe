@@ -4,9 +4,9 @@
 
 El contenido de las páginas está en los siguientes archivos
 
-| URL           | Archivo                                                                                      |
-| ------------- | -------------------------------------------------------------------------------------------- |
-| `/`           | [`/src/routes/+page.svelte`](/src/routes/+page.svelte)                                       |
+| URL           | Archivo                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `/`           | [`/src/routes/+page.svelte`](/src/routes/+page.svelte)                                               |
 | `/nosotres`   | [`/src/routes/(content)/nosotres/+page.svelte`](<`/src/routes/(content)/nosotres/+page.svelte`>)     |
 | `/material`   | [`/src/routes/(content)/material/+page.svelte`](<`/src/routes/(content)/material/+page.svelte`>)     |
 | `/amigues`    | [`/src/routes/(content)/amigues/+page.svelte`](<`/src/routes/(content)/amigues/+page.svelte`>)       |
@@ -43,7 +43,6 @@ Comenzando una linea con un `> ` se hace un bloque de cita
 Y las imágenes son iguales que los links pero con un `!` al principio: `![texto alternativo](https://imgur.com/mi-imagen.png)`. Sin embargo, para imagenes y otros archivos que carguemos nosotres mismes es ligeramente distinto. Ver [#imágenes](#imágenes).
 
 Después, poniendo `#` al principio de una linea se pone como encabezado. Agregando más `#` se hace cada vez "mas chico" el título. Por ejemplo aquí viene un `## Propiedades`
-
 
 ## Propiedades
 
@@ -130,14 +129,14 @@ una pequeño contenido por etiqueta? tipo BDSM lleva a todos los posts que dicen
 
 hace falta un archivo:
 
-- [X] titulando y estableciendo grupos de etiquetas
-- [X] fusionando etiquetas como alias de una sola
-- [X] marcando etiquetas que no deben estar visibles
+- [x] titulando y estableciendo grupos de etiquetas
+- [x] fusionando etiquetas como alias de una sola
+- [x] marcando etiquetas que no deben estar visibles
 - [ ] estableciendo un post como post principal para cada etiqueta?
 - [ ] estableciendo iconos por etiqueta? superduper opcional
-- [X] color de etiquetas?
+- [x] color de etiquetas?
 
-Los colores, alias, y grupos están en [_tags.md](/src/lib/posts/_tags.md?plain=1), las descripciones en [_glossary.md](/src/lib/posts/_glossary.md?plain=1) y los posts para cada tag en [`/src/lib/wiki/`](/src/lib/wiki/)
+Los colores, alias, y grupos están en [\_tags.md](/src/lib/posts/_tags.md?plain=1), las descripciones en [\_glossary.md](/src/lib/posts/_glossary.md?plain=1) y los posts para cada tag en [`/src/lib/wiki/`](/src/lib/wiki/)
 
 ## Propiedades de los posts
 
@@ -183,38 +182,38 @@ Los colores, alias, y grupos están en [_tags.md](/src/lib/posts/_tags.md?plain=
   - ?experience h-event,h-card
   - ?skill
 
-más info y ejemplos completos copiables para cada categoría en [_template.md](/src/lib/posts/_template.md)
+más info y ejemplos completos copiables para cada categoría en [\_template.md](/src/lib/posts/_template.md)
 
 ### layouts [wip]
 
 - blank (contenido)
-- [ ] standard [default material contenido] 
-  - [X] título
-  - [X] summary
+- [ ] standard [default material contenido]
+  - [x] título
+  - [x] summary
   - [ ] featured
-  - [X] contenido
-  - [X] og link
-  - [X] og access date
-  - [X] og publish
-  - [X] publish date
-  - [X] authors
-  - [X] tags 
+  - [x] contenido
+  - [x] og link
+  - [x] og access date
+  - [x] og publish
+  - [x] publish date
+  - [x] authors
+  - [x] tags
 - [ ] [default material link/descargable]
-- [X] [default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
-  - [X] poster
-  - [X] título
-  - [X] summary
-  - [X] fecha
-  - [X] hora
-  - [X] lugar
-  - [X] CTA
-  - [X] add to calendar
+- [x] [default calendario] (poster, titulo, summary, fecha, hora, lugar, CTA)
+  - [x] poster
+  - [x] título
+  - [x] summary
+  - [x] fecha
+  - [x] hora
+  - [x] lugar
+  - [x] CTA
+  - [x] add to calendar
 - [default amigues] (foto, titulo, jobtitle, summary, link (+ map))
-  - [X] foto
+  - [x] foto
   - [ ] título
   - [ ] jobtitle
-  - [X] summary
-  - [X] link
+  - [x] summary
+  - [x] link
   - [ ] map
   - [ ] pronouns
   - [ ] mail
@@ -225,12 +224,12 @@ más info y ejemplos completos copiables para cada categoría en [_template.md](
 
 #### rel
 
-- [X] author
+- [x] author
 - [ ] enclosure (para descargables)
 - [ ] rel=license
 - [ ] rel=nofollow para desincentivar a buscadores seguir ese link
-- [X] rel=tag
-- [X] rel=home
+- [x] rel=tag
+- [x] rel=home
 
 #### emoji post type (de baja esto?)
 
@@ -278,7 +277,7 @@ estandar de emoji por tipo de post
 - u-url
 - u-photo
 - ?p-summary
-- [X] multiple nested h-entry
+- [x] multiple nested h-entry
 
 ##### h-adr
 
@@ -292,14 +291,14 @@ estandar de emoji por tipo de post
 
 ##### h-entry
 
-- [X] p-name
-- [X] p-summary
+- [x] p-name
+- [x] p-summary
 - e-content
-- [X] dt-published
+- [x] dt-published
 - dt-updated
-- [X] p-author (o h-card)
+- [x] p-author (o h-card)
 - p-category??
-- [X] u-url
+- [x] u-url
 - u-uid??
 - p-location (o h-card, h-adr, h-geo)
 - u-syndication??
@@ -314,33 +313,33 @@ estandar de emoji por tipo de post
 
 ##### h-event
 
-- [X] p-name
+- [x] p-name
 - p-summary
-- [X] dt-start
-- [X] dt-end
+- [x] dt-start
+- [x] dt-end
 - dt-duration
 - p-description (o e-content)
-- [X] u-url
+- [x] u-url
 - ~~category~~
-- [X] (MASOMENOS) p-location (puede ser h-card, h-adr, h-geo)
+- [x] (MASOMENOS) p-location (puede ser h-card, h-adr, h-geo)
 - p-organizer (puede ser h-card)
   foto del lugar y punto en mapa
 
 ##### h-cite
 
 - dt-accessed
-- [X] u-url = u-uid
+- [x] u-url = u-uid
 - p-publication
 - p-name
-- [X] dt-published
+- [x] dt-published
 - p-author (o h-card)
 - p-content
 
 ##### h-resume
 
-- [X] p-name
-- [X] p-summary (qualifications and objectives)
-- [X] p-contact h-card
+- [x] p-name
+- [x] p-summary (qualifications and objectives)
+- [x] p-contact h-card
 - p-education h-event, p-education h-card (education time, school)
 - p-experience h-event, p-experience h-card
 - p-skill
@@ -348,15 +347,15 @@ estandar de emoji por tipo de post
 
 ##### h-card
 
-- [X] p-name
+- [x] p-name
 - p-honorific-prefix
 - p-sort-string
 - p-honorifix-suffic
 - p-nickname
 - u-email
 - u-logo
-- [X] u-photo
-- [X] u-url u-uid
+- [x] u-photo
+- [x] u-url u-uid
 - p-adr (o h-adr)
 - p-geo / u-geo (o h-geo)
 - p-tel

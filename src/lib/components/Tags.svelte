@@ -8,11 +8,15 @@
 	export let tags;
 	export let mark = '';
 	export let showFilteredTags = true;
-	$: localFilteredTags = (mark
-		? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
-		: tags).filter((t)=> showFilteredTags || !$filteredTags.includes(t));
+	$: localFilteredTags = (
+		mark
+			? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
+			: tags
+	).filter((t) => showFilteredTags || !$filteredTags.includes(t));
 	let invisible = false;
-	onMount(() => {invisible = false});
+	onMount(() => {
+		invisible = false;
+	});
 </script>
 
 <ul>

@@ -5,7 +5,7 @@ title: Suki
 summary: Me dicen Suki, soy Historietista, Ilustradorx y realizadorx de animación. tmb Atadorx amateur
 tags:
   - español
-#   - AMBA # AMBA | Córdoba | Santa Cruz #
+  #   - AMBA # AMBA | Córdoba | Santa Cruz #
   - profesional # profesional | emprendimiento #
   - arte
 layout: amigues
@@ -26,4 +26,3 @@ tel: 1162635518
 gender_identity: Transmasculinidad
 bday: 2023-09-15
 ---
-

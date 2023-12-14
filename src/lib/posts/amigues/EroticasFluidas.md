@@ -5,7 +5,7 @@ title: Eróticas Fluidas / Andre
 summary: damos talleres y asesorías 1:1 💕auto-publicamos fanzines 🔖 ofrecemos psicoterapia crítica 💫 en base a las sexualidades, géneros y afectos 🏳️‍🌈⚧️🏳️‍⚧️
 tags:
   - español # español | inglés #
-#   - KinkyVibe # etiqueta especial #
+  #   - KinkyVibe # etiqueta especial #
   - Chile # AMBA | Córdoba | Santa Cruz #
   - profesional # profesional | emprendimiento #
   - terapia # sesiones, arte, clases, terapia, eventos #
@@ -27,5 +27,4 @@ tel: +56973952433
 #job_title: Educador BDSM - Dominatrix - Putito
 #gender_identity: Perrito Travo Interdimensional
 #bday: 1996-04-09
-
 ---

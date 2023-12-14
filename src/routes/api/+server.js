@@ -1,7 +1,7 @@
 // @ts-nocheck
 // export const prerender = true;
 import { error, json } from '@sveltejs/kit';
-import { fetchGlossary, fetchMarkdownPosts  } from '$lib/utils';
+import { fetchGlossary, fetchMarkdownPosts } from '$lib/utils';
 import tagsFactory from '$lib/utils/tags.js';
 
 export async function GET({ url }) {

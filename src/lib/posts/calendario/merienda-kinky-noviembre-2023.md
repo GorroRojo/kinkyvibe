@@ -19,11 +19,11 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-11-18T18:00-03:00
-end:   2023-11-18T21:00-03:00
-carrousel_background: "#a74ed9"
-carrousel_color: "white"
-carrousel_accent_text: "#f2f0ff"
-carrousel_accent_bg: "#3a0eed"
+end: 2023-11-18T21:00-03:00
+carrousel_background: '#a74ed9'
+carrousel_color: 'white'
+carrousel_accent_text: '#f2f0ff'
+carrousel_accent_bg: '#3a0eed'
 location: Parque Centenario (C.A.B.A)
 # location_name: Plaza Lavalle
 # link: https://forms.google.com/elmejoreventodelmundo

@@ -10,7 +10,8 @@
 		{#each links as { icon, name, sub, href, target = undefined }}
 			<li
 				class:current={$page.url.pathname.includes(href) ||
-					($currentPostData && $currentPostData?.path == $page?.url?.pathname &&
+					($currentPostData &&
+						$currentPostData?.path == $page?.url?.pathname &&
 						$currentPostData?.category == href.slice(1))}
 			>
 				<a {href} {target} tabindex="0">
@@ -112,7 +113,7 @@
 			bottom: 0;
 			left: 0;
 			right: 0;
-			padding-inline:1em;
+			padding-inline: 1em;
 			z-index: 2;
 			background: white;
 			font-size: 1em;

@@ -1,7 +1,7 @@
 ---
 published_date: 2019-02-29Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: "Asexualidad: Una pequeña guía. Volumen 1"
+title: 'Asexualidad: Una pequeña guía. Volumen 1'
 summary: Este es el primer volumen que escribimos para explicar conceptos introductorios respecto a la asexualidad, una orientación más dentro del bello arcoiris de la sexualidad
 tags:
   - español # español | inglés #

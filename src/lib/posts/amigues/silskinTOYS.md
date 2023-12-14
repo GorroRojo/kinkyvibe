@@ -30,11 +30,10 @@ gender_identity: Mujer
 bday: 1993-04-03
 ---
 
-Somos una pareja de artistas trabajando de lo que nos gusta! Diseñamos y producimos arte en silicona → Packers y prótesis super realistas al tacto y a la vista! 
+Somos una pareja de artistas trabajando de lo que nos gusta! Diseñamos y producimos arte en silicona → Packers y prótesis super realistas al tacto y a la vista!
 
 Pueden seguir nuestro trabajo y todas las novedades en Ig :
 
 https://www.instagram.com/sil.skintoys/
 
 https://silskintoys.com/
-

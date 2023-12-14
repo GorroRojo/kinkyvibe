@@ -119,7 +119,8 @@
 		text-decoration: none;
 		font-weight: normal;
 	}
-	.btn-more:hover, .btn-more:focus {
+	.btn-more:hover,
+	.btn-more:focus {
 		transform: scale(105%) translateX(-0.4em);
 	}
 	.btn-more:active {

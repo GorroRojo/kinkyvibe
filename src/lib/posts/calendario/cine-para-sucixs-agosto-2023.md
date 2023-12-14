@@ -21,7 +21,7 @@ featured: cine-para-sucixs-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-20T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-08-21T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-08-21T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/vp1d7Sn5bYoUkvwTA

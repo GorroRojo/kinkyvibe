@@ -18,38 +18,37 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-09-10T15:00-03:00
-end:   2023-09-10T18:30-03:00
-carrousel_background: "var(--3)"
-carrousel_color: "white"
-carrousel_accent_text: "white"
-carrousel_accent_bg: "#eca869"
+end: 2023-09-10T18:30-03:00
+carrousel_background: 'var(--3)'
+carrousel_color: 'white'
+carrousel_accent_text: 'white'
+carrousel_accent_bg: '#eca869'
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 link: https://forms.gle/kRuWgpvw69GyWiZV7
 link_text: PRE-VENTA
 ---
 
-
 ¿Qué implica eso y qué vamos a estar viendo?
+
 - Introducción a las prácticas anti-punitivistas y sus marcos teóricos
-- Formas alternativas de pensar una situación de conflicto y/o daño 
+- Formas alternativas de pensar una situación de conflicto y/o daño
 - Abordajes integrales múltiples a una situación de violencia y/o conflicto.
-- Espacio de reflexión y conversación sobre nuestras experiencias con el punitivismo así como las alternativas a esa forma de crear mundo que estamos queriendo probar 
+- Espacio de reflexión y conversación sobre nuestras experiencias con el punitivismo así como las alternativas a esa forma de crear mundo que estamos queriendo probar
 
+## ¿A quién está dirigido?
 
-## ¿A quién está dirigido? ##
-
-Cualquier persona/ser que le haga ruido/incomode/afecte la forma en la que muches venimos viviendo los conflictos y quiera arrimarse a otras formas de pensarlos. 
-
+Cualquier persona/ser que le haga ruido/incomode/afecte la forma en la que muches venimos viviendo los conflictos y quiera arrimarse a otras formas de pensarlos.
 
 Vamos a contar con ejercicio, ejemplos y bibliografía
 
-## Fecha, hora y lugar ##
-Día y hora:  **DOMINGO 10 de SEPTIEMBRE**. 15 a 18:30 horas
-Duración:  3 horas y media
-Lugar:  Thames 240, Villa Crespo. Cooperativa Cultural QI (CABA)
+## Fecha, hora y lugar
 
-## Entradas en pre-venta y en puerta ##
+Día y hora: **DOMINGO 10 de SEPTIEMBRE**. 15 a 18:30 horas
+Duración: 3 horas y media
+Lugar: Thames 240, Villa Crespo. Cooperativa Cultural QI (CABA)
+
+## Entradas en pre-venta y en puerta
 
 Entradas en Pre-Venta: $3.000
 

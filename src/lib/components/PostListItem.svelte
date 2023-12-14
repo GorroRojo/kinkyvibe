@@ -172,7 +172,7 @@
 	</p>
 	<div class="tags">
 		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t)/* && !$redundantTags.has(t)*/)] as tag}
+			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t) /* && !$redundantTags.has(t)*/)] as tag}
 				{@const config = $tagManager.get(tag)}
 				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li

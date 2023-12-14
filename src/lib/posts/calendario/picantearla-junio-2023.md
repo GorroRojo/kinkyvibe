@@ -18,7 +18,7 @@ featured: picantearla-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-06-23T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-06-24T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-06-24T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/XNuo5hFnmBWPikGG8
@@ -37,7 +37,6 @@ link_text: 'PRE-VENTA'
 <div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>ESTO NO ES UNA FIESTA</strong></div>
 
 <div style="text-align:center;font-size: var(--step-2); margin-block: 1em;"><strong>🍭&nbsp;ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS&nbsp;/&nbsp;BDSM&nbsp;🍭</strong></div>
-
 
 Es necesario **venir al taller** antes de tener las prácticas!
 

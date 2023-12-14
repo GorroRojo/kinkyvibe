@@ -58,7 +58,7 @@
 	}
 
 	/**
-	 * 
+	 *
 	 * @param {string} s
 	 */
 	const normalize = (s) =>

@@ -18,9 +18,10 @@ category: wiki
 
 Puede utilizarse para referirse al dolor físico o emocional/psicológico.
 
-Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos. 
+Los fines pueden ser múltiples: eróticos, sensuales, sexuales, catárticos, psicológicos.
 
-Algunas prácticas que lo incluyen: 
+Algunas prácticas que lo incluyen:
+
 - [[dominación]] sádica
 - tortura de cosquillas
 - juegos de [[impacto]]

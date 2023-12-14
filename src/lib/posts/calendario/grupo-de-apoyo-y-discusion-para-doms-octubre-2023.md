@@ -29,13 +29,13 @@ link: https://forms.gle/J4Jw186h7c5bETDa9
 link_text: INSCRIBITE
 ---
 
-Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir. 
+Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
 
-## ¿A quién está dirigido este espacio? ##
+## ¿A quién está dirigido este espacio?
 
-¡A toda persona que quiera venir! Y especialmente dirigido a quienes tienen, han tenido, o quieren tener experiencias como Dom/Top u otros roles aledaños. 
+¡A toda persona que quiera venir! Y especialmente dirigido a quienes tienen, han tenido, o quieren tener experiencias como Dom/Top u otros roles aledaños.
 
-## ¿Qué incluye Dom*? (en esta ocasión) ##
+## ¿Qué incluye Dom\*? (en esta ocasión)
 
 - Personas que se identifican como **"Dom"** o les gusta jugar en ese rol.
 - **Daddys**/**papis**/**Mommys**/**Mamis**, **cuidadores**, **dueñes**.

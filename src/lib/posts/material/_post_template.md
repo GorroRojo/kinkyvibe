@@ -3,7 +3,7 @@
 #updated_date: 2023-11-04Z-03:00
 title: Material de ejemplo
 #wiki: material # para si es una entry de la wiki #
-summary: ""
+summary: ''
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #

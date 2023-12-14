@@ -30,8 +30,6 @@ logo: 1
 #bday: 1996-04-09
 ---
 
-
-
 Permitannos presentarnos: Somos **Manu** y **Juani**, oriundxs de San Miguel <small>(Conurbano noroeste, Buenos Aires, Argentina)</small>. Ambxs estudiamos, entre otras cosas, distintas ramas de audiovisuales. Somos hermanxs y convivimos, lo cual nos ayuda a trabajar en equipo y lograr una homogeneidad en lo que hacemos. Adherimos al **antiespecismo**, por lo que buscamos representar que **el BDSM puede ser igual de disfrutable sin explotación animal**
 
 ¡Acá el único sufrimiento que queremos es el consensuado!

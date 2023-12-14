@@ -16,13 +16,12 @@ category: wiki
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Les participantes pueden incluir roles animales específicos (león, conejo, serpiente) o solo características asociadas a lo "primal" (gruñir, rasguñar, morder). 
+Les participantes pueden incluir roles animales específicos (león, conejo, serpiente) o solo características asociadas a lo "primal" (gruñir, rasguñar, morder).
 
-El juego también puede incluir las dinámicas de Depredador/presa con une o varies de les integrantes "cazando/persiguiendo" a otre. 
+El juego también puede incluir las dinámicas de Depredador/presa con une o varies de les integrantes "cazando/persiguiendo" a otre.
 
-Está vinculado, pero no necesariamente, con: 
+Está vinculado, pero no necesariamente, con:
 
-- [[mascota : Juego de Mascotas]] 
+- [[mascota : Juego de Mascotas]]
 - Juegos de roles con características animales (Animal roleplay)
 - Depredador/presa
-

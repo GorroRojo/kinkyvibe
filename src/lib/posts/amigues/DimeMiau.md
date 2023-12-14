@@ -35,4 +35,3 @@ bday: 1993-06-16
 Nos encanta romper barreras y hacer olas, así que estamos aquí para que brilles como un arcoíris en una tormenta eléctrica. En Dime Miau, no importa si sos más dulce que una frutilla o más atrevidx que un tigre. Queremos que te sientas en tu salsa, sin importar quién sos o cómo te movés.
 
 Así que si querés sentirte todx poderosx y destilar pura confianza, te decimos: ¡Vamos Miau, dale color a tu vida!
-

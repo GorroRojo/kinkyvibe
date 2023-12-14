@@ -25,7 +25,7 @@
 
 	Object.entries(days).forEach(([date, posts]) => {
 		// if all the posts this month are inthe past, set view_date to next month
-		if (isSameMonth(addHours(new Date(date),3), $view_date) && !isPast(new Date(date))) {
+		if (isSameMonth(addHours(new Date(date), 3), $view_date) && !isPast(new Date(date))) {
 			skip_month_flag = false;
 		}
 	});

@@ -76,10 +76,10 @@ Queremos ayudar a la población lgttbiq+ y de la diversidad erótica que buscan 
 
 ### ¿Dónde hacemos todo esto?
 
-¡Acá mismo! 
+¡Acá mismo!
 
 - En la sección de [Material](/material), escribimos y recopilamos información sobre todas estas temáticas. Se pueden filtrar por etiquetas según nuestro nivel de conocimiento, según nuestro idioma de preferencia, la temática sobre la que querramos aprender, o el formato que preferimos para consumir información.
-- Para formarnos entre nosotres y encontrarnos en espacios nuestros, tenemos el [Calendario](/calendario) con talleres, cursos, eventos y juntadas. 
+- Para formarnos entre nosotres y encontrarnos en espacios nuestros, tenemos el [Calendario](/calendario) con talleres, cursos, eventos y juntadas.
 - Para apoyar a más espacios, proyectos, y profesionales de nuestras comunidades, en [Amigues](/amigues) vamos armando una agenda de gente y de emprendimientos aledaños que también se pueden filtrar por especialidad.
 - Para equipar a nuestra comunidad <small>(y como principal medio de subsistencia)</small>, tenemos la [Tienda](https://tienda.kinkyvibe.ar) con juguetes, implementos, fanzines, libros, etc.
 - Para una atención más personalizada, ofrecemos [Servicios](/servicios) de formación y de asesoría partícular.

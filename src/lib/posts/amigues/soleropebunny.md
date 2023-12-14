@@ -39,4 +39,3 @@ link: https://www.instagram.com/soleropebunny/
 <img src={foto} alt="">
 <figcaption>Ezequiel Las Heras & Negra Noche</figcaption>
 </figure>
-

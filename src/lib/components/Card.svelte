@@ -8,7 +8,7 @@
 	let {
 		path: href,
 		meta: { tags, featured: src, category, title, pronoun, start },
-		mark,
+		mark
 	} = post;
 	export let setId = true;
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
@@ -33,12 +33,12 @@
 		wiki: 'h-entry'
 	}[category]}"
 	tabindex="0"
-	id={setId ? href : ""}
+	id={setId ? href : ''}
 >
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured placeholder-gradient" src={src} alt="" />
+	<img class="card-img u-featured placeholder-gradient" {src} alt="" />
 	<h3 class="p-name">
 		{title}
 		{#if pronoun}
@@ -73,11 +73,11 @@
 		height: 15em;
 		width: 100%;
 		background: linear-gradient(
-		to bottom right,
-		color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
-		var(--post-color, var(--2)) 50%,
-		color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
-	);
+			to bottom right,
+			color-mix(in srgb, var(--post-color, var(--2)) 70%, white) 0%,
+			var(--post-color, var(--2)) 50%,
+			color-mix(in srgb, var(--post-color, var(--2)) 70%, black) 100%
+		);
 		--cround: calc(var(--round) * 0.93);
 		border-radius: var(--cround) var(--cround) 0 0;
 		border: 0 !important;

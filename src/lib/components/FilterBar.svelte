@@ -57,20 +57,20 @@
 			<div id="show-past-events" class="option-group">
 				<label>
 					<input
-					type="radio"
-					name="show-past-events"
-					id="show-past-events-yes"
-					bind:group={$userConfig.show_past_events}
-					value={true}
+						type="radio"
+						name="show-past-events"
+						id="show-past-events-yes"
+						bind:group={$userConfig.show_past_events}
+						value={true}
 					/>Mostrar
 				</label>
 				<label>
 					<input
-					type="radio"
-					name="show-past-events"
-					id="show-past-events-no"
-					bind:group={$userConfig.show_past_events}
-					value={false}
+						type="radio"
+						name="show-past-events"
+						id="show-past-events-no"
+						bind:group={$userConfig.show_past_events}
+						value={false}
 					/>Ocultar
 				</label>
 			</div>
@@ -147,7 +147,7 @@
 			align-items: baseline;
 			cursor: pointer;
 			color: var(--1);
-			padding: 0.2em .3em;
+			padding: 0.2em 0.3em;
 			border-radius: 0.5em;
 			flex: 1 1;
 			transition: 200ms;
@@ -203,7 +203,7 @@
 		outline: 2px solid var(--1);
 		border-radius: 0.5em;
 		padding: 0.3em 0.6em;
-		margin-bottom: .5em;
+		margin-bottom: 0.5em;
 		color: var(--1);
 		background: white;
 		font-size: var(--step--1);

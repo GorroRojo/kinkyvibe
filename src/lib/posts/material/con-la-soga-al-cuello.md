@@ -18,12 +18,12 @@ force_unlisted: true
 #access_date: 2023-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00
 ---
+
 <script>
   import imagen1 from './media/con-la-soga-al-cuello/2.jpeg'
   import imagen2 from './media/con-la-soga-al-cuello/3.png'
   import video from './media/con-la-soga-al-cuello/4.mp4'
 </script>
-
 
 Presentación: Mi nombre es Sole y me reconozco pobre. Mi idea con este manifiesto es difundir lo que me sucede porque no encontré voz que me represente. Intento explicar cómo el arte me estimula, pero no puedo ingresar a muchos ámbitos culturales por mis limitaciones, que son mi género y mi clase social. A estos motivos hay que incluir que el arte erótico- escénico del Shibari/ Kinbaku es visto por algunxs artistas como si no fuese arte.
 

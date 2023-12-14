@@ -1,6 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils/index.js';
 
-export async function load({ fetch }) {
+export async function load() {
 	try {
 		const posts = await fetchMarkdownPosts();
 		return { posts };

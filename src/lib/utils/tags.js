@@ -20,7 +20,10 @@ function orphanTagFactory(id, data) {
 		getAllParents() {
 			return [];
 		},
-		orphan: (!data?.parents || data?.parents.length == 0) && !data?.aliasOf && (!data?.children || data?.children.length == 0),
+		orphan:
+			(!data?.parents || data?.parents.length == 0) &&
+			!data?.aliasOf &&
+			(!data?.children || data?.children.length == 0),
 		...data
 	};
 }

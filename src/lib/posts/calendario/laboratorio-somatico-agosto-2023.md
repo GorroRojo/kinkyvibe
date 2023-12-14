@@ -19,7 +19,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-13T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-08-14T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-08-14T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/7qY8FpT6hQVqMEmRA
@@ -32,7 +32,7 @@ link_text: 'PRE-VENTA'
     // import banner from '$lib/posts/calendario/media/picantearla-agosto-2023/banner.jpeg';
 </script>
 
-Lanzamos esta nueva propuesta con el fin de invitar a todas las personas interesadas en usar las prácticas eróticas-afectivas no-normativas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer. 
+Lanzamos esta nueva propuesta con el fin de invitar a todas las personas interesadas en usar las prácticas eróticas-afectivas no-normativas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer.
 
 ## ¿Qué vamos a hacer?
 

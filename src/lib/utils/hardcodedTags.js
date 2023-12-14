@@ -14,7 +14,7 @@ export const hardcodedTags = [
 			'prácticas',
 			'género y salud sexual',
 			'antipunitivismo',
-			'despatologización',
+			'despatologización'
 		]
 	},
 	{ id: 'idioma', children: ['español', 'inglés'], color: 'darkblue' },
@@ -27,7 +27,17 @@ export const hardcodedTags = [
 	{ id: 'calendario', children: ['tipo de evento', 'evento recurrente'], color: 'var(--3-dark)' },
 	{
 		id: 'tipo de evento',
-		children: ['cine', 'taller', 'evento', 'charla debate', 'laboratorio', 'picnic', 'grupo', 'entrevista', 'perfo']
+		children: [
+			'cine',
+			'taller',
+			'evento',
+			'charla debate',
+			'laboratorio',
+			'picnic',
+			'grupo',
+			'entrevista',
+			'perfo'
+		]
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
 	{ id: 'material', color: 'var(--3-dark)', children: ['tipo de material', 'formato de material'] },
@@ -39,8 +49,7 @@ export const hardcodedTags = [
 		id: 'servicio',
 		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos']
 	},
-	
-	
+
 	{
 		id: 'BDSM',
 		description:
@@ -121,9 +130,9 @@ export const hardcodedTags = [
 		children: ['queer', 'materiales', 'porno', 'squirt', 'feminismo', 'salud'],
 		color: '#ff4444'
 	},
-	{id:'antipunitivismo',color:'var(--2)'},
-	{id:'despatologización',color:'var(--2)'},
-	{id:'',color:'#ff4444'},
+	{ id: 'antipunitivismo', color: 'var(--2)' },
+	{ id: 'despatologización', color: 'var(--2)' },
+	{ id: '', color: '#ff4444' },
 	{ id: 'queer', children: ['furry', 'género', 'asexualidad'] },
 	{
 		id: 'asexualidad',

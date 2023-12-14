@@ -2,25 +2,25 @@
 // import { env } from '$env/dynamic/private';
 // import { Octokit } from '@octokit/core';
 
-import { fetchMarkdownPosts } from "$lib/utils";
+import { fetchMarkdownPosts } from '$lib/utils';
 
 // import { error } from '@sveltejs/kit';
 export async function load() {
 	// const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
-	let existing=false;
+	let existing = false;
 	// try {
-		// existing = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-		// 	owner: 'GorroRojo',
-		// 	repo: 'KinkyVibe',
-		// 	path: 'src/lib/posts/nuevo.md',
-		// 	headers: {
-		// 		'X-GitHub-Api-Version': '2022-11-28'
-		// 	}
-		// });
+	// existing = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+	// 	owner: 'GorroRojo',
+	// 	repo: 'KinkyVibe',
+	// 	path: 'src/lib/posts/nuevo.md',
+	// 	headers: {
+	// 		'X-GitHub-Api-Version': '2022-11-28'
+	// 	}
+	// });
 	// } catch (e) {
-		// throw error(400,e);
+	// throw error(400,e);
 	// }
-    let gitHubRequestOptions = {
+	let gitHubRequestOptions = {
 		owner: 'GorroRojo',
 		repo: 'KinkyVibe',
 		path: 'src/lib/posts/nuevo.md',
@@ -29,10 +29,10 @@ export async function load() {
 		headers: {
 			'X-GitHub-Api-Version': '2022-11-28'
 		}
+	};
+	if (existing && existing?.status != 404) {
+		gitHubRequestOptions.sha = existing.data.sha;
 	}
-    if (existing && existing?.status != 404) {
-        gitHubRequestOptions.sha = existing.data.sha;
-    }
 	// let i;
 	// i = await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', gitHubRequestOptions);
 	const unlisted_posts = fetchMarkdownPosts(false, true);

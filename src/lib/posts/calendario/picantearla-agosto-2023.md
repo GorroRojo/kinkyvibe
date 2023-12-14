@@ -21,12 +21,13 @@ featured: picantearla-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-11T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-08-12T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-08-12T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/d8WzK8nRPZz21UcGA
 link_text: 'PRE-VENTA'
 ---
+
 <!-- <img src={banner} alt="" /> -->
 
 <!-- <div class="col-2">

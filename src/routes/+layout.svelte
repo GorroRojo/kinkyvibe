@@ -149,7 +149,6 @@
 <Footer />
 
 <style>
-	
 	#logo {
 		color: black;
 		display: block;

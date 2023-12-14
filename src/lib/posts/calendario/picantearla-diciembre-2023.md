@@ -33,7 +33,7 @@ featured: picantearla-miniatura.png
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2023-12-29T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-12-30T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-12-30T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 # location_name: Qi Centro Cultural
 link: https://forms.gle/kyLoDRDLRjK4GS2N9

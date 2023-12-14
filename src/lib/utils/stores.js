@@ -31,7 +31,7 @@ export const tagManager = writable(tagsFactory());
 export const userConfig = writable({ display_type: 'list', show_past_events: false });
 
 /** @type import('svelte/store').Writable<{terminos:(ProcessedTag&{name:string})[]}> */
-export const glosario = writable({terminos:[]});
+export const glosario = writable({ terminos: [] });
 
 if (browser) {
 	try {

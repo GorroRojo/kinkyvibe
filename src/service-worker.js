@@ -3,7 +3,7 @@
 import { build, files } from '$service-worker';
 
 let timestamp = Date.now(); //TODO fix workaround for cloudflare not building https://github.com/GorroRojo/kinkyvibe/commit/f94468db6c5bd722c74a736f6d4f8658824ed8b6
- 
+
 const worker = self;
 const FILES = `cache${timestamp}`;
 

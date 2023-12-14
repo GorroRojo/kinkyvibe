@@ -7,7 +7,6 @@
 	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
-
 	let haswiki = (/**@type string*/ n) => true || data.entries?.some((e) => e.meta.wiki == n);
 	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
 	function getAscendance(termino) {

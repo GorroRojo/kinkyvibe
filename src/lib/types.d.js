@@ -18,8 +18,8 @@
 /** @typedef {string} TagID */
 /** @typedef {string} postID */
 
-/** 
- * @typedef {Object} RawTag 
+/**
+ * @typedef {Object} RawTag
  * @prop {TagID} id
  * @prop {string} [visible_name]
  * @prop {string} [color]

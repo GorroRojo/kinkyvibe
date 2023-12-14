@@ -28,6 +28,7 @@ email: druxs.ropes@gmail.com
 #gender_identity: Perrito Travo Interdimensional
 #bday: 1996-04-09
 ---
+
 <script>
   import foto1 from './media/Drux/2.webp';
   import foto2 from './media/Drux/3.webp';
@@ -59,6 +60,7 @@ email: druxs.ropes@gmail.com
 <img alt="" src={foto2} />
 
 ---
+
 ### modela [\@melinsane](https://instagram.com/melinsane)
 
 <img alt="" src={foto1} />
@@ -81,7 +83,6 @@ email: druxs.ropes@gmail.com
 
 ---
 
-
 ## Fotos por [\@murphy.mzm2](https://instagram.com/murphy.mzm2), modela [\@lilitfem](https://instagram.com/lilitfem)
 
 <!-- <div class="col-2"> -->
@@ -100,7 +101,6 @@ email: druxs.ropes@gmail.com
 <img alt="" src={foto12} />
 
 ## Fotos por D
-
 
 ### modela [\@n.a.s.t.y.b.a.e](https://instagram.com/n.a.s.t.y.b.a.e)
 
@@ -121,4 +121,3 @@ email: druxs.ropes@gmail.com
 <img alt="" src={foto19} />
 
 <img alt="" src={foto20} />
-

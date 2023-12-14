@@ -3,15 +3,15 @@
 	export let data;
 	let c = atob(data.res ?? '');
 	/**
-     * @param {any} e
+	 * @param {any} e
 	 */
-    function save(e) {
-        alert(document.querySelector('textarea')?.value);
+	function save(e) {
+		alert(document.querySelector('textarea')?.value);
 	}
 </script>
 
 <form method="POST" action="/logout">
-    <input type="submit" value="Log out" class="cta"/>
+	<input type="submit" value="Log out" class="cta" />
 </form>
 <div class="content">
 	<h2>Publicaciones no listadas</h2>

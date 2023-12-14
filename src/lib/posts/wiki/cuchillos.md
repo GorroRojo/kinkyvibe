@@ -16,7 +16,6 @@ category: wiki
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Muchas veces se practica con cuchillos sin filo de los cuales hay de madera, acrílico, metal, entre otros. 
+Muchas veces se practica con cuchillos sin filo de los cuales hay de madera, acrílico, metal, entre otros.
 
-También pueden usarse de forma práctica para remover cera del cuerpo de una forma más rápida, sensorial y sensual. 
-
+También pueden usarse de forma práctica para remover cera del cuerpo de una forma más rápida, sensorial y sensual.

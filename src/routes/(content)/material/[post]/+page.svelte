@@ -112,7 +112,7 @@
 				})}
 			</span><br />
 			{#if data.meta.link}
-			 <a href={data.meta.link} target="_blank" class="u-url">Link al original</a>
+				<a href={data.meta.link} target="_blank" class="u-url">Link al original</a>
 			{/if}
 		</div>
 	{/if}
@@ -121,8 +121,8 @@
 	</div>
 	{#if data.meta.tags?.includes('KinkyVibe')}
 		<div id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨. Si te
-			resultó valioso,
+			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
+			Si te resultó valioso,
 			<a href="https://cafecito.app/kinkyvibe" target="_blank"
 				>considerá apoyarnos con algún cafecito</a
 			>. 🤗
@@ -133,7 +133,7 @@
 <hr />
 
 {#if data.meta.authors.length > 0}
-	{#await data.authorsProfiles then authorsData }
+	{#await data.authorsProfiles then authorsData}
 		{#each authorsData ?? [] as { path, meta: author }}
 			<a class="author-callout" rel="author" href={path}>
 				<img

@@ -18,7 +18,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-07-22T10:00-03:00
-end:   2023-07-22T12:00-03:00
+end: 2023-07-22T12:00-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/36pWMpc2bW2eB7356
 link_text: Inscribirse

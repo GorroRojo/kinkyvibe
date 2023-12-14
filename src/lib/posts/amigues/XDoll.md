@@ -2,7 +2,7 @@
 published_date: 2023-06-15Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: XDoll
-summary: Lic. en Artes Visuales, me auto ato, soy bottom y rigger 
+summary: Lic. en Artes Visuales, me auto ato, soy bottom y rigger
 tags:
   - español
   - BDSM
@@ -30,4 +30,4 @@ gender_identity: Femenino
 bday: 2023-10-01Z-03:00
 ---
 
-Información para prácticas y experiencia con cuerdas 
+Información para prácticas y experiencia con cuerdas

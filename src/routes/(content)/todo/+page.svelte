@@ -8,5 +8,3 @@
 	<title>KinkyVibe.ar</title>
 </svelte:head>
 <PostList posts={data.posts} />
-
-
