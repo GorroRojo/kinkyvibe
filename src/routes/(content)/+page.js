@@ -1,9 +1,9 @@
-//@ts-nocheck
-export async function load({ fetch }) {
-	const response = await fetch('/api');
+import { fetchMarkdownPosts } from '$lib/utils/index.js';
+
+export async function load() {
 	let posts, err;
 	try {
-		posts = await response.json();
+		posts = await fetchMarkdownPosts()
 	} catch (e) {
 		err = e;
 	}
