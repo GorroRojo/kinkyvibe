@@ -8,7 +8,7 @@ tags:
   #   - KinkyVibe # etiqueta especial #
   - AMBA # AMBA | Córdoba | Santa Cruz #
   - profesional # profesional | emprendimiento #
-  - arte # sesiones, arte, clases, terapia, eventos #
+  - arte # sesiones, arte, clases, terapia, eventos, productos #
 layout: amigues
 category: amigues
 authors:
