@@ -8,14 +8,16 @@ category: amigues
 tags:
   - español
   - BDSM
-  - salud
-  - género
   - emprendimiento
   - KinkyVibe
   - AMBA
   - clases
   - eventos
   - productos
+  - género y salud sexual
+  - bondage
+  - impacto
+  - sensaciones
 authors:
   - DemonWeb
   - TallarinesConTuco

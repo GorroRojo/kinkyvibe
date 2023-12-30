@@ -10,6 +10,9 @@ tags:
   - emprendimiento
   - AMBA
   - productos
+  - impacto
+  - bondage
+  - cuchillos
 layout: amigues
 category: amigues
 authors:
