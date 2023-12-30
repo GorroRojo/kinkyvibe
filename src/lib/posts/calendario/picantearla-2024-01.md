@@ -1,5 +1,5 @@
 ---
-# published_date: 2023-11-16Z-03:00
+published_date: 2023-12-30Z-03:00
 #updated_date: 2023-11-17Z-03:00
 title: Picantearla (9° Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
@@ -17,16 +17,16 @@ authors:
   - KinkyVibe
 featured: picantearla-miniatura.png
 # logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
-status: anunciado # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2024-01-26T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2024-01-27T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-01-27T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
-# link: https://forms.gle/3TCCcE9wDN9WwWtN7
-# link_text: 'PRE-VENTA'
+link: https://forms.gle/3TCCcE9wDN9WwWtN7
+link_text: 'PRE-VENTA'
 ---
 
 ## 🤩 LA IDEA DEL EVENTO
@@ -53,11 +53,3 @@ Pero sí vamos a poder:
 - Ageplay
 
 Entre otras...
-
-<style>
-    a {
-      color: #222;
-      /* text-decoration: none; */
-      text-decoration-color: var(--1);
-    }
-</style>

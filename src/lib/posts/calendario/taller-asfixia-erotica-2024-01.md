@@ -1,8 +1,8 @@
 ---
-# published_date: 2023-11-28Z-03:00
+published_date: 2023-12-30Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Asfixia Erótica
-summary: 'Este taller está orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación y mucho más.'
+summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -16,16 +16,16 @@ authors:
   - KinkyVibe
 featured: asfixia-erotica-miniatura.png
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-01-17T19:00-03:00
-end: 2024-01-17T23:00-03:00
+end:   2024-01-17T22:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: "https://forms.gle/L3FzPBHGg8rfnYyr8"
-# link_text: PRE-VENTA
+link: "https://forms.gle/TubjeZfDKXjCqgKs5"
+link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""

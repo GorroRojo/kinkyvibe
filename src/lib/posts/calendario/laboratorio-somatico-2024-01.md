@@ -1,5 +1,5 @@
 ---
-# published_date: 2023-09-29Z-03:00
+published_date: 2023-12-30Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Laboratorio Somático de Prácticas Fetichistas
 summary: 'Laboratorio de investiación erótico-afectiva, abierto a todes quienes quieran probar distintos usos de las prácticas fetichistas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer.'
@@ -14,17 +14,17 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
-force_unlisted: true
+featured: laboratorio-somatico-miniatura.png
+# force_unlisted: true
 # force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 22-09-2023Z-03:00
 start: 2024-01-10T19:00-03:00
-end: 2024-01-10T23:00-03:00
+end:   2024-01-10T23:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: "https://forms.gle/hHBs84BGdPGPV85F9"
-# link_text: PRE-VENTA
+link: "https://forms.gle/sivu9aWCV9qrSEUc7"
+link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""

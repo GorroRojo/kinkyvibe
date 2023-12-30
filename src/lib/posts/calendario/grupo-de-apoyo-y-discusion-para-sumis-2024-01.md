@@ -20,10 +20,10 @@ featured: grupo-sumis-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
-start: 2023-12-27T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2023-12-27T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-01-25T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-01-25T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-link: https://forms.gle/jVVnXzsMvYaELoaZ6
+link: https://forms.gle/FRk7uytQi9QiUPn86
 link_text: 'INSCRIPCIÓN'
 ---
 
@@ -45,4 +45,3 @@ Armamos esta propuesta con el fin de generar un espacio para todas aquellas pers
 Te invitamos a que vengas a charlar con nosotres 💞
 
 > El espacio va a estar coordinado por @DemonWeb
-
