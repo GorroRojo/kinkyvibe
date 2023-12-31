@@ -5,9 +5,10 @@ title: Fugas Críticas
 summary: Brindamos recursos pedagógicos y espacios de encuentro para ampliar y desarrollar perspectivas disidentes sobre el género, la sexualidad y modos de vincularnos afectivamente
 tags:
   - español
-  - clases
   - profesional
   - clases
+  - comunidad
+  - terapia
   - AMBA
 layout: amigues
 category: amigues

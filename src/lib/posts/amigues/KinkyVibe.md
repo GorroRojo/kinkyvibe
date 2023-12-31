@@ -13,6 +13,7 @@ tags:
   - AMBA
   - clases
   - eventos
+  - comunidad
   - productos
   - género y salud sexual
   - bondage

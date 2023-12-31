@@ -47,7 +47,7 @@ export const hardcodedTags = [
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },
 	{
 		id: 'servicio',
-		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos']
+		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos', 'comunidad']
 	},
 
 	{
