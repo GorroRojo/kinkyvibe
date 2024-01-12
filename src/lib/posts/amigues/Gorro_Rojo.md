@@ -1,7 +1,7 @@
 ---
 published_date: 2000-08-04Z-03:00
-#updated_date: 2023-11-04Z-03:00
-title: Gorrite
+updated_date: 2024-01-12Z-03:00
+title: gorrite
 summary: Programadore, artista, captive.
 tags:
   - español
@@ -20,10 +20,22 @@ pronoun: https://pronombr.es/eso&elle,le,le,une,eso&elle,les,unes,les,e,co,
 link: https://gorro.ar
 logo: 1
 # photo: 1
-#email: ayuda@kinkyvibe.ar
+email: gorro.rojo@gmail.com
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #tel: +54 9 11 5555 3333
 # job_title: Educador BDSM
-#gender_identity: Perrito Travo Interdimensional
-#bday: 1996-04-09
+gender_identity: Agénero
+bday: 2000-08-04
 ---
+
+> Este perfil no es útil porque no estoy contratable para nada, pero como armé todo el sitio tenía que incluirme jsajss así que yafu. Lolamento (?
+
+Holi, soy gorrite <small>(así, en minúscula)</small>, soy une captive juguete de bondage; estoy autocollareade en una dinámica D/s 24/7 conmigo misme, con un comité de Doms y Tops, y con toda la comunidad; y programé todo este sitio web 🌈.
+
+Colaboro con @KinkyVibe armando el sitio, organizando el grupo de sumis, monitoreando eventos, modelando talleres, y ayudando a gestionar la comunidad de @AUCH .
+
+Por fuera de eso, hago arte 3D usando mi eterno amor [Blender](https://www.blender.org), y juego un poco con todos los tipos de arte con los que me cruzo. Actuación, canto, baile, escritura, animación, piano y cine.
+
+Soy arroase fetichista, agénero, neurodivergente, no-monógame, anticapacitista, y antiespecista vegane. Estoy en contra de la propiedad intelectual y amo el software libre. Me dan pánico los insectos. 
+
+Mucho gusto
