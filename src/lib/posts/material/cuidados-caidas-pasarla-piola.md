@@ -121,7 +121,7 @@ Habiendo dicho eso, acá dejamos información sobre posibles prácticas de cuida
 
 Hay una retroalimentación entre el cerebro y el cuerpo, el cuerpo y el cerebro. Podemos darle señales al cerebro y al cuerpo de seguridad y calma usando nuestro sistema nervioso.
 
-Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte de nuestro sistema nervioso que nos puede ayudar a regularnos.
+Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte de nuestro sistema nervioso que puede ayudar a regularnos.
 
 - Cuidarnos los cuerpitos comiendo cosas ricas, tomando agua, asegurándonos de estar un momento calentites y cómodes.
 - Darte un bañito con sales o una ducha.
@@ -134,9 +134,7 @@ Podemos asegurarnos de alimentar bien al cuerpo para recuperarnos mejor.
 - Carbohidratos, proteína, grasa, aminoácidos, vitaminas, electrolitos.
 - Prepararnos algo por adelantado.
 
-Hay una retroalimentación entre el cerebro y el cuerpo, el cuerpo y el cerebro. Podemos darle señales al cerebro y al cuerpo de seguridad y calma usando nuestro sistema nervioso. Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte parasintética de nuestro sistema nervioso, la parte que nos puede ayudar a regularnos.
-
-Para hacer esto, podemos ingerir comidas solubles con mucha fibra para ralentizar el sistema digestivo y comunicarnos con el nervio vago.
+Podemos también ingerir comidas solubles con mucha fibra para ralentizar el sistema digestivo y comunicarnos con el nervio vago.
 
 #### Para atender **moretones**
 
