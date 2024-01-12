@@ -5,10 +5,12 @@ title: AUCH!
 summary: 'Una comunidad en Telegram sobre BDSM/fetichismo y prácticas disidentes. Reglas, información, y códigos de convivencia que manejamos.'
 tags:
   - español # español | inglés #
-  #   - KinkyVibe # etiqueta especial #
-  - Online # AMBA | Córdoba | Santa Cruz #
-  - comunidad
   - KinkyVibe
+  - Online # AMBA | Córdoba | Santa Cruz #
+  - emprendimiento
+  - comunidad
+  - BDSM
+  - queer
 layout: amigues
 category: amigues
 authors:
