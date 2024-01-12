@@ -38,4 +38,10 @@ Por fuera de eso, hago arte 3D usando mi eterno amor [Blender](https://www.blend
 
 Soy arroase fetichista, agénero, neurodivergente, no-monógame, anticapacitista, y antiespecista vegane. Estoy en contra de la propiedad intelectual y amo el software libre. Me dan pánico los insectos. 
 
+## Contacto
+
+- Por telegram: [\@Gorro_Rojo](https://t.me/Gorro_Rojo)
+- Por instagram: [\@Gorro_Rojo](https://instagram.com/Gorro_Rojo)
+- Por mail: [gorro.rojo@gmail.com](mailto:gorro.rojo@gmail.com)
+
 Mucho gusto
