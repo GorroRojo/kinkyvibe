@@ -25,7 +25,7 @@ authors:
 featured: 1
 # force_unlisted: true
 #force_unpublished: false
-pronoun: elles
+pronoun: https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,
 link: https://kinkyvibe.ar
 # photo: 1
 logo: 1
