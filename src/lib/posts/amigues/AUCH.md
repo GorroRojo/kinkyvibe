@@ -1,7 +1,7 @@
 ---
 published_date: 2024-01-11Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: AUCH!
+title: ¡AUCH!
 summary: 'Una comunidad coordinada por Kinky Vibe en Telegram sobre BDSM, fetichismo y prácticas disidentes. Reglas, información, y códigos de convivencia que manejamos.'
 tags:
   - español # español | inglés #
