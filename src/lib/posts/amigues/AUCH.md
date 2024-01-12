@@ -49,9 +49,11 @@ Está organizado por y para la comunidad cuir LGTB hispanoparlante (mayoritariam
 
 ### Discursos que no
 
-No permitimos discrusos patologizantes, capacitistas, cisexistas, cuirodiantes/transodiantes, clasistas, gordodiantes, fascistas, o kinkshameros. <small>Si no sabés lo que significa algo, ¡podés preguntarnos!</small>
+No permitimos discrusos patologizantes, capacitistas, cisexistas, cuirodiantes/transodiantes, clasistas, gordodiantes, fascistas, o kinkshameros. 
 
-### Géneros y pronombres
+<small>Si no sabés lo que significa algo, ¡podés preguntarnos!</small>
+
+### Pronombres
 
 Muches de nosotres en el grupo somos cuir, no binaries, generofluído o trans. **No asumamos el género de las personas**, mejor **preguntar los pronombres** de las personas si no los conocemos, **y luego respetarlos**.
 
@@ -92,7 +94,7 @@ Si entramos en desacuerdo o conflicto con alguien, intentemos siempre asumir que
 
 ## Temática
 
-Intentemos minimizar los temas offtopic (no dejen de tenerlos, pero si son solo dos personas o algo así, pasen a privado)
+Intentemos minimizar los temas offtopic (no dejemos de tenerlos, pero si son solo dos personas o algo así, pasemos a privado)
 
 Este no es un grupo para pedir cosas no relacionadas. Entendemos si no tienen otro espacio, pero intentemos minimizar.
 
@@ -101,6 +103,14 @@ Este no es un grupo para pedir cosas no relacionadas. Entendemos si no tienen ot
 ## Introducciones y anuncios
 
 Si queremos conocer gente o hacernos conocer, podemos mandar un mensajito a modo de introducción usando el hashtag `#presentación`, compartiendo nuestros pronombres, nuestra preferencia para si queremos que nos pregunten antes de hablarnos por privado (usando `#hablame`, `#preguntame` o `#nomehables`), y lo que queramos contar ya sea nuestro relación con el BDSM o nuestros roles o si estamos en alguna búsqueda particular. Algunes también pasan foto para que les identifiquen en eventos.
+
+Ejemplo:
+
+> holii soy gorrite, pronombre elle, y soy une captive juguete de bondage.
+>
+> quiero empezar a conocer más gente así que voy a estar atente a cuando haya eventos y juntadas. Me interesa conocer Doms que les guste jugar con bondage con cadenas y rolplay de captividad, y aprender más sobre wax play que me viene interesando mucho
+>
+> **#presentación** **#hablame**
 
 Además, si estás en una búsqueda particular, podés mirar los anuncios pinneados en el grupo y contactar a @Gorro_Rojo en telegram si querés subir uno propio o si te interesa alguno de los anuncios ya listados.
 
@@ -125,7 +135,7 @@ Formas en las que podemos pedir/decir esto:
 
 Este es un grupo vinculado a @KinkyVibe <small>(mayormente nos conocemos presencialmente en <a href="/calendario?tags=KinkyVibe">los eventos</a>)</small> y coordinado por @DemonWeb , Ezequiel LH y @Gorro_Rojo .
 
-Es un proyecto voluntario autogestivo cuir al que le metemos tiempo y esfuerzo para brindar materiales gratuitos ante curiosidad, contención ante malestar y mediación ante conflictos.
+Es un proyecto voluntario autogestivo cuir al que le metemos tiempo y esfuerzo para brindar acceso a materiales ante necesidad y curiosidad, contención ante malestar y mediación ante conflictos.
 
 Pedimos entonces que quienes hagan uso del espacio y <small>(realmente)</small> puedan, [ayuden a que siga existiendo colaborando con cafecitos](https://cafecito.app/kinkyvibe).
 
