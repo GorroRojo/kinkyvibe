@@ -20,7 +20,7 @@ export const hardcodedTags = [
 	{ id: 'idioma', children: ['español', 'inglés'], color: 'darkblue' },
 	{
 		id: 'lugar',
-		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online'],
+		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online', 'Montevideo'],
 		color: 'darkblue'
 	},
 	{ id: 'precio', children: ['pago', 'a la gorra', 'gratis'], color: 'darkblue' },
