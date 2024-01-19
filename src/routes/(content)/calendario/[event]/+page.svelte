@@ -191,7 +191,7 @@
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />
 		{#if data.meta.link && data.meta.link_text}
-			<a href={data.meta.link} class="cta">{data.meta.link_text}</a>
+			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
 	</div>
 	{#if data.meta.tags.includes('KinkyVibe')}
