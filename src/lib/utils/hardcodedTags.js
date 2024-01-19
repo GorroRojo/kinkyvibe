@@ -36,7 +36,8 @@ export const hardcodedTags = [
 			'picnic',
 			'grupo',
 			'entrevista',
-			'perfo'
+			'perfo',
+			'jam de cuerdas'
 		]
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
