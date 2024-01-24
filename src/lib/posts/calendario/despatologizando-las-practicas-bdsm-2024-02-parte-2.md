@@ -26,6 +26,8 @@ end:   2024-02-29T21:30-03:00
 # link_text: Inscribirse
 ---
 
+> Esta es la parte 2, [ver parte 1](/calendario/despatologizando-las-practicas-bdsm-2024-02)
+
 Armamos este taller con el fin de brindar herramientas a personas que acompañen procesos terapéuticos o divulguen en sexualidad, y quieran incorporar y profundizar en las **perspectivas de diversidad erótica**, más específicamente desde los aportes de los colectivos kinky/BDSM.
 
 Nos reunimos _cansades_ de leer y escuchar discursos psico/médicos que refuercen la idea de una sexualidad natural, buena y sana, vs una enferma, desviada y maligna.
