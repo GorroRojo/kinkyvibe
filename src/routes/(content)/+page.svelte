@@ -56,7 +56,7 @@
 <LDTag schema={websiteSchema} />
 <div class="profile-header h-card p-contact hidden">
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
-	<img class="profile-pic u-photo" src={} alt="" />
+	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
 	<h1 class="profile-name p-name">
 		KinkyVibe
 		<a
