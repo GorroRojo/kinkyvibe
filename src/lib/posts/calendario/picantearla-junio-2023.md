@@ -25,12 +25,6 @@ link: https://forms.gle/XNuo5hFnmBWPikGG8
 link_text: 'PRE-VENTA'
 ---
 
-<img src={banner} alt="" />
-
-<!-- <div class="col-2">
-<img src={pag1} alt="" />
-<img src={pag2} alt="" />
-</div> -->
 
 `taller de prácticas fetichistas + juegos&nbsp;grupales`
 
