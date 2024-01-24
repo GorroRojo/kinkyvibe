@@ -55,18 +55,19 @@
 
 <LDTag schema={websiteSchema} />
 <div class="profile-header h-card p-contact hidden">
+	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
 	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
 	<h1 class="profile-name p-name">
 		KinkyVibe
-		<a
-			target="_blank"
-			class="u-pronouns"
-			href={'https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,'}
-		>
-			elles
-		</a>
 	</h1>
+	<a
+		target="_blank"
+		class="u-pronouns"
+		href={'https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,'}
+	>
+		elles
+	</a>
 	<p class="p-note">
 		Un proyecto de divulgación y acompañamiento disidente. Contamos con una tienda erótica y de
 		cuidados, pro-sexo y kinky y trabajamos priorizando la educación sexual y los cuidados éticos
