@@ -56,7 +56,7 @@
 
 <LDTag schema={websiteSchema} />
 {#await kinkyProfile then profile}
-	<div hidden class="profile-header h-card p-contact">
+	<div class="profile-header h-card p-contact hidden">
 		<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a> 
 		<img class="profile-pic u-photo" src={profile.meta.featured + ''} alt="" />
 		<h1 id="title" class="profile-name p-name">
@@ -143,6 +143,9 @@
 </main>
 
 <style>
+	.hidden {
+		display: none !important;
+	}
 	#lista {
 		display: none;
 	}
