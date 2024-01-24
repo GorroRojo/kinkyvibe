@@ -105,7 +105,7 @@
 				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
 			{:then authorsProfiles}
 				{#each authors as author, i}
-					{@const profile = authorsProfiles.find(
+					{@const profile = authorsProfiles?.find(
 						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}
@@ -170,6 +170,12 @@
 					new Date(data.meta.end ?? data.meta.start + data.meta.duration),
 					'yyyy-MM-dd'
 				)}
+				status={{
+					abierto: 'CONFIRMED',
+					cancelado: 'CANCELLED',
+					anunciado: 'TENTATIVE',
+					lleno: 'CONFIRMED'
+				}[data.meta.status] ?? 'CONFIRMED'}
 				endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
 				timeZone="America/Buenos_Aires"
 				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
@@ -209,7 +215,7 @@
 
 {#if data.meta.authors.length > 0}
 	{#await data.authorsProfiles then authorsData}
-		{#each authorsData as { path, meta: author }}
+		{#each authorsData ?? [] as { path, meta: author }}
 			<a class="author-callout" rel="author" href={path}>
 				<img
 					class="author-image"
@@ -223,7 +229,7 @@
 	{/await}
 {/if}
 
-{#if data.relatedPosts.length > 0}
+{#if data?.relatedPosts?.length ?? 0 > 0}
 	<div class="content">
 		<h3>
 			Más cosas de

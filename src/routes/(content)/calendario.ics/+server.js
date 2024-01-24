@@ -28,7 +28,16 @@ export async function GET() {
 			htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
 			location: post.meta.location ?? postPath,
 			calName: 'KinkyVibe',
-			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' } //TODO añadir email
+			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' },
+			// @ts-ignore
+			status:
+				// @ts-ignore
+				{
+					abierto: 'CONFIRMED',
+					cancelado: 'CANCELLED',
+					anunciado: 'TENTATIVE',
+					lleno: 'CONFIRMED'
+				}[post.meta.status] ?? 'CONFIRMED' //TODO añadir email
 		};
 		events.push(event);
 	}
