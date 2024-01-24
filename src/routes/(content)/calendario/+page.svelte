@@ -99,7 +99,7 @@
 				},
 				visible: isSameMonth(new Date(p.meta.start), $view_date),
 				path: p.path
-			}))}
+			})).sort((a,b)=>a.meta.start > b.meta.start ? 1 : -1)}
 		/>
 		<!-- style={`
 							--btn-text: white;
