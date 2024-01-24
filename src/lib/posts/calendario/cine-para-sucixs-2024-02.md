@@ -1,6 +1,6 @@
 ---
-# published_date: 2023-12-30Z-03:00
-#updated_date: 2023-11-04Z-03:00
+published_date: 2024-01-24Z-03:00
+#updated_date: 2024-11-04Z-03:00
 title: Cine Para Sucixs (9ª Edición)
 summary: Ciclo de Porno Cuir. Perfos, entrevistas y proyección de cortos p0rno queer-lgtb. Venite a ver cine sucio y mojarte con nosotres.
 tags:
@@ -20,7 +20,7 @@ authors:
   - KinkyVibe
 featured: cine-para-sucixs-miniatura.jpg
 # logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
 status: anunciado # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-03Z-03:00
