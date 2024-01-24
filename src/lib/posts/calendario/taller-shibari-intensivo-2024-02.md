@@ -1,5 +1,5 @@
 ---
-#published_date: 2023-05-16Z-03:00
+published_date: 2024-01-24Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller introductorio intensivo de Shibari
 summary: 'Este taller a cargo de Soga Shibari está pensado para personas que sienten curiosidad y no tienen contacto previo con Shibari. Un acercamiento a la técnica de ataduras de origen japonés de manera presencial y switch (aprendemos a atar y somos atadxs).'
