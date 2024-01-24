@@ -1,6 +1,6 @@
 ---
-#published_date: 2023-05-16Z-03:00
-#updated_date: 2023-11-04Z-03:00
+#published_date: 2024-02-16Z-03:00
+#updated_date:   2024-03-04Z-03:00
 title: Evento de ejemplo
 summary: ''
 tags:
@@ -18,8 +18,8 @@ authors:
 # force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2023-06-02T20:00-03:00
-end: 2023-06-02T23:00-03:00
+start: 2024-02-02T20:00-03:00
+end:   2024-02-02T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: ''
