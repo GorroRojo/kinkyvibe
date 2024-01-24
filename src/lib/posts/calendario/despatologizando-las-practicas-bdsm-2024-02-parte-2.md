@@ -1,5 +1,5 @@
 ---
-# published_date: 2023-07-10Z-03:00
+published_date: 2024-01-24Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Despatologizando las Prácticas BDSM (parte 2 de 2)
 summary: Invitamos a quienes trabajan en educación sexual y salud mental a analizar discursos que construyen una idea de sexualidad que destina a las personas fetichistas a esconderse, normalizarse, o excluirse.
@@ -8,14 +8,15 @@ tags:
   - KinkyVibe # etiqueta especial #
   - BDSM
   - Online
+  - taller
   - despatologización
 layout: calendario
 category: calendario
 authors:
   - DemonWeb
   - FugasCriticas
-featured: 1
-force_unlisted: true
+featured: despatologizando-las-practicas-bdsm-miniatura.jpg
+# force_unlisted: true
 #force_unpublished: false
 status: anunciado # anunciado | abierto | lleno | cancelado #
 start: 2024-02-29T19:00-03:00
