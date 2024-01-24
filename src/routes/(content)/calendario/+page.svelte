@@ -37,7 +37,7 @@
 
 <div class="cardrow">
 	<CardRow
-		items={data.posts.filter((p) => !isPast(new Date(p.meta.start)))}
+		items={data.posts.filter((p) => !isPast(new Date(p.meta.start))).sort((a,b)=>a.meta.start > b.meta.start ? 1 : -1)}
 		--color-1="transparent"
 		setId={false}
 	/>
