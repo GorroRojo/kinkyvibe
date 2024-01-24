@@ -56,7 +56,7 @@ Es un espacio donde vamos a socializar muchas herramientas que te permitan incor
 
 ## Facilidades que te brinda
 
-- 4 horas de encuentros virtuales sincrónicos
+- 5 horas de encuentros virtuales sincrónicos
 - Participá desde cualquier parte del mundo.
 - Diferentes medios de pago y posibilidad de pago en cuotas.
 - Posibilidad de becas
