@@ -21,7 +21,7 @@
 		sameAs: ['https://twitter.com/kinkyvibearg'],
 		logo: 'https://KinkyVibe.ar/favicon-32x32.png'
 	};
-	import kinkyProfilePic from 'src/lib/posts/amigues/media/KinkyVibe/1.png'
+	import kinkyProfilePic from '../logo.png';
 </script>
 
 <svelte:head>
@@ -54,17 +54,25 @@
 </svelte:head>
 
 <LDTag schema={websiteSchema} />
-	<div class="profile-header h-card p-contact hidden">
-		<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a> 
-		<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
-		<h1 class="profile-name p-name">
-			KinkyVibe
-					<a target="_blank" class="u-pronouns" href={"https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,"}>
-						elles
-					</a>
-		</h1>
-		<p class="p-note">Un proyecto de divulgación y acompañamiento disidente. Contamos con una tienda erótica y de cuidados, pro-sexo y kinky y trabajamos priorizando la educación sexual y los cuidados éticos comunitarios</p>
-	</div>
+<div class="profile-header h-card p-contact hidden">
+	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
+	<img class="profile-pic u-photo" src={} alt="" />
+	<h1 class="profile-name p-name">
+		KinkyVibe
+		<a
+			target="_blank"
+			class="u-pronouns"
+			href={'https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,'}
+		>
+			elles
+		</a>
+	</h1>
+	<p class="p-note">
+		Un proyecto de divulgación y acompañamiento disidente. Contamos con una tienda erótica y de
+		cuidados, pro-sexo y kinky y trabajamos priorizando la educación sexual y los cuidados éticos
+		comunitarios
+	</p>
+</div>
 <main>
 	{#if !err}
 		{#if $page.url.searchParams.has('carrousel')}
