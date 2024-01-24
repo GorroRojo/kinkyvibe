@@ -21,8 +21,8 @@ featured: rancheadita-kinky-miniatura.jpg
 # force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-01-21T19:00-03:00
-end:   2024-01-21T23:00-03:00
+start: 2024-02-17T17:00-03:00
+end:   2024-02-17T22:30-03:00
 location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 #location_name: Cooperativa Cultural Qi
 # link: ''
@@ -43,6 +43,9 @@ Hay una estructura metálica en el parque con muchos puntos de suspensión.
 
 ## A HACER QUÉ COSA
 
+- **17hs a 20hs** - Rancheadita Kinky, merienda y cuidados posteriores del [picantearla](/calendario/picantearla-2024-02).
+- **20hs a 22:30hs** - Jam de Cuerdas (_sin monitoreo_)
+
 Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb.
 
 Juntemonos a conocernos, comer cositas ricas, compartir experiencias, ranchear y atar 🌈
@@ -61,4 +64,4 @@ Podés llevar:
 - repelente
 - agua
 
-La activdad es gratuita, pasaremos gorra para bancar la organización. 
+La actividad es gratuita, pasaremos gorra para bancar la organización. 
