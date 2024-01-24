@@ -23,7 +23,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-01-26T19:00-03:00
 end:   2024-01-26T22:00-03:00
 location: Almagro, CABA
-#location_name: Cooperativa Cultural Qi
+location_name: Club Soguita Shibari
 link: 'https://forms.gle/asFkvdcsG1R2fT629'
 link_text: ULTIMA ENTRADA
 # carrousel_background: "#f2a68f"
