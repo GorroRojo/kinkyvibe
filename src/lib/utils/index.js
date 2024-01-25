@@ -101,7 +101,6 @@ export const fetchPost = async (category, postID, shallow = false) => {
 async function processPost(postContent, postID, meta, shallow = false, tagManager = tagsFactory()) {
 	let authorsProfiles = [];
 	/**@type {ProcessedPost[]} */
-	let relatedPosts = [];
 	if (!shallow) {
 		for (const author of meta?.authors ?? []) {
 			const authorID = author.replaceAll(' ', '-');
@@ -114,15 +113,6 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 				}
 			}
 		}
-		relatedPosts = (await fetchMarkdownPosts()).filter(
-			(p) =>
-				meta.authors?.some(
-					(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
-				) ||
-				(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
-				(meta.category == 'wiki' && p.meta.tags.includes(postID)) ||
-				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.meta.postID != postID)
-		);
 	}
 
 	/**
@@ -178,7 +168,6 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		content: shallow ? undefined : postContent,
 		meta: processedMeta,
 		authorsProfiles,
-		relatedPosts,
 		path: '/' + meta.category + '/' + postID
 	};
 	return processedPost;

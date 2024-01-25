@@ -7,8 +7,9 @@
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	export let data;
+	let calendarioPosts = data.allPosts.filter(p=>p.meta.layout == 'calendario')
 	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
-	let days = data.posts.reduce((dates, post, i) => {
+	let days = calendarioPosts.reduce((dates, post, i) => {
 		let start_date = format(addDays(new Date(post.meta.start), 0), 'yyyy-MM-dd');
 		// @ts-ignore
 		if (dates[start_date]) {
@@ -37,7 +38,7 @@
 
 <div class="cardrow">
 	<CardRow
-		items={data.posts.filter((p) => !isPast(new Date(p.meta.start))).sort((a,b)=>a.meta.start > b.meta.start ? 1 : -1)}
+		items={calendarioPosts.filter((p) => !isPast(new Date(p.meta.start))).sort((a,b)=>a.meta.start > b.meta.start ? 1 : -1)}
 		--color-1="transparent"
 		setId={false}
 	/>
@@ -64,10 +65,6 @@
 					{#each events as event}
 						{@const start = new Date(event.meta.start)}
 						{@const minutes = format(start, 'mm')}
-						<!-- {(() => {
-							data.posts[event.i].meta.visible = true;
-							return '';
-						})()} -->
 						<a
 							href={'#' + event.path}
 							class="bar"
@@ -92,7 +89,7 @@
 	<div id="postlist">
 		<PostList
 			filter={{ prop: 'visible', value: true }}
-			posts={data.posts.map((p) => ({
+			posts={calendarioPosts.map((p) => ({
 				meta: {
 					...p.meta,
 					published_date: p.meta.start

@@ -5,17 +5,19 @@
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
-	import { filteredTags, togglePositiveTagFilterFn} from '$lib/utils/stores.js';
+	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
 	import { fetchGlossary } from '$lib/utils/index.js';
 	let pinned = ['Gorro_Rojo', 'DemonWeb', 'TallarinesConTuco'];
-	data.posts.sort((a, b) => {
-		if (pinned.includes(a.meta.postID) && !pinned.includes(b.meta.postID)) {
-			return -1;
-		} else return 0;
-	});
+	let amiguesPosts = data.allPosts
+		.filter((p) => p.meta.layout == 'amigues')
+		.sort((a, b) => {
+			if (pinned.includes(a.meta.postID) && !pinned.includes(b.meta.postID)) {
+				return -1;
+			} else return 0;
+		});
 	let glosario = fetchGlossary();
 	function parseDescription(description) {
 		const regex = /\[\[([^\]]*)\]\]/g;
@@ -92,8 +94,7 @@
 									{#each termino.related as tag, i}
 										<Tag
 											{tag}
-											onInput={(evt, _) =>
-												$togglePositiveTagFilterFn(evt.target?.checked, tag)}
+											onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
 											isCheckbox
 											checked={$page.url.searchParams.has('tags') &&
 												$page.url.searchParams.get('tags')?.split(',').includes(tag)}
@@ -116,7 +117,7 @@
 	{/await}
 </div>
 
-<PostList posts={data.posts} />
+<PostList posts={amiguesPosts} />
 
 <style lang="scss">
 	.glosario {

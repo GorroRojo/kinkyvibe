@@ -55,6 +55,15 @@
 	translate: 0 .5em;
 	color: var(--1);
 	`;
+
+	const relatedPosts = data.allPosts.filter((p) => {
+			if (p.meta.tags.includes(data?.meta?.wiki ?? '')) return true;
+			let children = $tagManager.get(data?.meta?.wiki ?? '')?.getAllChildren() ?? [];
+			for (const c of children) {
+				if (p.meta.tags.includes(c)) return true;
+			}
+			return false;
+		})
 </script>
 
 <svelte:head>
@@ -124,8 +133,8 @@
 		{/if}
 	</div>
 </article>
-{#if data.relatedPosts && data.relatedPosts?.length > 0}
-	<PostList posts={data.relatedPosts}>
+{#if relatedPosts.length > 0}
+	<PostList posts={relatedPosts}>
 		<hr />
 		<h2>Materiales, amigues y eventos relevantes</h2>
 	</PostList>

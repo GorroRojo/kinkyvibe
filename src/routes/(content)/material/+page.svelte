@@ -89,8 +89,7 @@
 									{#each termino.related as tag, i}
 										<Tag
 											{tag}
-											onInput={(evt, _) =>
-												$togglePositiveTagFilterFn(evt.target?.checked, tag)}
+											onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
 											isCheckbox
 											checked={$page.url.searchParams.has('tags') &&
 												$page.url.searchParams.get('tags')?.split(',').includes(tag)}
@@ -113,7 +112,7 @@
 	{/await}
 </div>
 
-<PostList posts={data.posts} />
+<PostList posts={data.allPosts.filter((p) => p.meta.layout == 'material')} />
 
 <style lang="scss">
 	.glosario {

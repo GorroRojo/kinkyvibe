@@ -12,14 +12,6 @@ export async function load({ params }) {
 	}
 	return {
 		entries: await fetchMarkdownPosts(true),
-		...post,
-		relatedPosts: (await fetchMarkdownPosts()).filter((p) => {
-			if (p.meta.tags.includes(params.term)) return true;
-			let children = tagManager.get(params.term)?.getAllChildren() ?? [];
-			for (const c of children) {
-				if (p.meta.tags.includes(c)) return true;
-			}
-			return false;
-		})
+		...post
 	};
 }

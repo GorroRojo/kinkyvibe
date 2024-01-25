@@ -5,7 +5,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
-	let { posts, err } = data;
+	let { allPosts } = data;
 
 	const title = 'KinkyVibe.ar';
 	const summary = 'Red de información y encuentros BDSM-kinky-queer-lgbt';
@@ -58,9 +58,7 @@
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
 	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
-	<h1 class="profile-name p-name">
-		KinkyVibe
-	</h1>
+	<h1 class="profile-name p-name">KinkyVibe</h1>
 	<a
 		target="_blank"
 		class="u-pronouns"
@@ -75,67 +73,60 @@
 	</p>
 </div>
 <main>
-	{#if !err}
-		{#if $page.url.searchParams.has('carrousel')}
-			<Carrousel
-				posts={posts.filter(
+	{#if $page.url.searchParams.has('carrousel')}
+		<Carrousel
+			posts={allPosts.filter(
+				(/** @type {{ meta: AnyPostData; }} */ p) =>
+					p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
+			)}
+		/>
+	{/if}
+	<div class="cardrow">
+		<CardRow
+			index="0"
+			id="calendario"
+			title="Talleres y eventos"
+			items={allPosts
+				.filter(
 					(/** @type {{ meta: AnyPostData; }} */ p) =>
 						p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
-				)}
-			/>
-		{/if}
-		<div class="cardrow">
-			<CardRow
-				index="0"
-				id="calendario"
-				title="Talleres y eventos"
-				items={posts
-					.filter(
-						(/** @type {{ meta: AnyPostData; }} */ p) =>
-							p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
-					)
-					.slice(0, 9)}
-				--color-1="var(--2-dark)"
-				--color-2="var(--1)"
-				href="/calendario"
-			/>
-		</div>
-		<div class="cardrow">
-			<CardRow
-				index="0"
-				id="informacion"
-				title="Artículos, links y descargables"
-				items={posts
-					.filter(
-						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material'
-					)
-					.slice(0, 9)}
-				--color-1="var(--1)"
-				--color-2="var(--2-dark)"
-				href="/material"
-			/>
-		</div>
-		<div class="cardrow">
-			<CardRow
-				index="1"
-				id="amigues"
-				title="Profesionales y emprendimientos"
-				items={posts
-					.filter(
-						(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues'
-					)
-					.slice(0, 9)}
-				--color-1="var(--2-dark)"
-				--color-2="var(--1)"
-				href="/amigues"
-			/>
-		</div>
-		<div id="lista" />
-		<PostList {posts} />
-	{:else}
-		posts: {JSON.stringify(posts)}
-		err: {JSON.stringify(err)}
-	{/if}
+				)
+				.slice(0, 9)}
+			--color-1="var(--2-dark)"
+			--color-2="var(--1)"
+			href="/calendario"
+		/>
+	</div>
+	<div class="cardrow">
+		<CardRow
+			index="0"
+			id="informacion"
+			title="Artículos, links y descargables"
+			items={allPosts
+				.filter(
+					(/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'material'
+				)
+				.slice(0, 9)}
+			--color-1="var(--1)"
+			--color-2="var(--2-dark)"
+			href="/material"
+		/>
+	</div>
+	<div class="cardrow">
+		<CardRow
+			index="1"
+			id="amigues"
+			title="Profesionales y emprendimientos"
+			items={allPosts
+				.filter((/** @type {{ meta: { category: string; }; }} */ p) => p.meta.category == 'amigues')
+				.slice(0, 9)}
+			--color-1="var(--2-dark)"
+			--color-2="var(--1)"
+			href="/amigues"
+		/>
+	</div>
+	<div id="lista" />
+	<PostList posts={allPosts} />
 </main>
 
 <style>
