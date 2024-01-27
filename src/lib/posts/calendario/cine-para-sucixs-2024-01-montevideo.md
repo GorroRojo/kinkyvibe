@@ -50,6 +50,7 @@ Cami nos trae una experiencia más íntima dentro el orden de lo erótico y lo f
 Mezclamos el dolor, el poder, la humillación y la ternura en búsqueda de afectar(nos) a quienes nos ven e interpelar(nos) acerca de los límites del deseo, el cuerpo, la carne y la imaginación erótica. 
 
 //FECHA, HORA Y LUGAR//
+
 Día y hora: SÁBADO 27 de Enero. 20 horas
 
 Duración: 5 horas
