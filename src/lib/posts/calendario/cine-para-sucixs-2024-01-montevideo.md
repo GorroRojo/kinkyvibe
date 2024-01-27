@@ -36,9 +36,18 @@ link_text: PRE-VENTA
 ---
 ¡Nos vamos de viaje a Montevideo! Y llevamos Cine para Sucixs para allá
 
-Venite a ver sine sucio y mojarte con nosotres.
+Venite a ver cine sucio y mojarte con nosotres.
 
-Vamos a contar con un bloque de shibari con perfos de artistas de Argentina y Uruguay
+Vamos a contar con un bloque de perfos conformado:
+
+*Dieguita
+Que nos va a  traer una perfo que retrata en vivo al lienzo la escena de cruising en Playa Miramar con cuentos eróticos de Alberto Bassi.
+
+*Cam Wallace
+Cami nos trae una experiencia más íntima dentro el orden de lo erótico y lo fantasioso, jugando con los límites entre lo "rudo" y lo "tierno".
+
+*Sara y Onyx
+Mezclamos el dolor, el poder, la humillación y la ternura en búsqueda de afectar(nos) a quienes nos ven e interpelar(nos) acerca de los límites del deseo, el cuerpo, la carne y la imaginación erótica. 
 
 //FECHA, HORA Y LUGAR//
 Día y hora: SÁBADO 27 de Enero. 20 horas
