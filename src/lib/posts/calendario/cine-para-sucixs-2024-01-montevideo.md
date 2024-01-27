@@ -39,3 +39,13 @@ link_text: PRE-VENTA
 Venite a ver sine sucio y mojarte con nosotres.
 
 Vamos a contar con un bloque de shibari con perfos de artistas de Argentina y Uruguay
+
+//FECHA, HORA Y LUGAR//
+Día y hora: SÁBADO 27 de Enero. 20 horas
+
+Duración: 5 horas
+
+Lugar:  Pensión Cultural Milán, Juan Carlos Gómez 1531. Montevideo, Uruguay
+
+//ENTRADAS// 
+Valor de la entrada:  $7,65 USD / $300 URU 
