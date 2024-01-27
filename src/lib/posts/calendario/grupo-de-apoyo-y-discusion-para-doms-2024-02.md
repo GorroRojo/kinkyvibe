@@ -24,7 +24,7 @@ start: 2024-02-13T20:30-03:00
 end:   2024-02-13T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
-# link: https://forms.gle/XxTTzD6SP1GRyaqd8
+# link: [https://forms.gle/XxTTzD6SP1GRyaqd8](https://forms.gle/xGHYXsukdR6EjcXP6)
 # link_text: INSCRIBIRME
 ---
 
