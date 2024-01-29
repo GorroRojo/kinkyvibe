@@ -5,7 +5,6 @@
 		ArrowRight,
 		BookOpen,
 		Heart,
-		Sparkles,
 		CalendarRange,
 		ShoppingCart,
 		ChevronLeft,
@@ -62,7 +61,9 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar</title>
+	<link rel="icon" href="/favicon-32x32.png" />
+	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
+	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
 <AgeModal />
@@ -91,7 +92,7 @@
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="quien">
-			<a href="/amigues/nosotres">Nuestros servicios <ArrowRight size="18" /></a>
+			<a href="/amigues/KinkyVibe">Nuestros servicios <ArrowRight size="18" /></a>
 		</div>
 	</div>
 	<div>
