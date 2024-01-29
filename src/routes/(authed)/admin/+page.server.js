@@ -1,5 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import { ghGet, ghPut } from '$lib/external/github';
+import { Buffer } from 'buffer';
 export async function load() {
 	const unlisted_posts = fetchMarkdownPosts(false, true);
 	return {
