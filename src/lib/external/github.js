@@ -19,9 +19,7 @@ export async function ghGet(endpoint, token) {
 		let ret = response.json();
 		return ret;
 	} else {
-		throw new Error(
-			`GitHub API Error when getting ${endpoint}: ${response.status} ${response.statusText}`
-		);
+		console.log(`GitHub API Error when getting ${endpoint}: ${response.status} ${response.statusText}`)
 	}
 }
 
