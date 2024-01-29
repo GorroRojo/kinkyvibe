@@ -13,16 +13,13 @@
 	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
-	import { fade } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from '../logo.png';
-	import {
-		filteredTags,
-		currentPostData,
-		togglePositiveTagFilterFn
-	} from '$lib/utils/stores';
+	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
+	import UserMenu from '$lib/components/UserMenu.svelte';
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
@@ -67,7 +64,9 @@
 </svelte:head>
 
 <AgeModal />
+
 <header>
+	
 	<div id="me">
 		<ul id="redes">
 			<li>
@@ -91,8 +90,12 @@
 		<a id="logo" rel="home" href="/">
 			<img src={logo} alt="KinkyVibe" />
 		</a>
-		<div id="quien">
-			<a href="/amigues/KinkyVibe">Nuestros servicios <ArrowRight size="18" /></a>
+		<div id="user">
+			{#if data.user}
+				<UserMenu user={data.user} />
+			{:else}
+				<a href="/login?redirectTo={$page.url}">Iniciar sesión</a>
+			{/if}
 		</div>
 	</div>
 	<div>
@@ -140,6 +143,19 @@
 <Footer />
 
 <style>
+	#user {
+		/* position: absolute */
+	}
+	/* header {
+		display: grid;
+        grid-template-columns: 12em 1fr 10em 5em;
+		max-width: 50rem;
+		margin-inline: auto;
+		height: 3em;
+		align-items: center;
+        justify-content: space-between;
+        align-content: center;
+	} */
 	
 	#logo {
 		color: black;
@@ -168,7 +184,7 @@
 	}
 	#me {
 		display: grid;
-		grid-template-areas: 'redes logo quien';
+		grid-template-areas: 'redes logo user';
 		grid-template-columns: 1fr 0.3fr 1fr;
 		/* height: 10em; */
 		justify-content: center;
@@ -203,8 +219,8 @@
 		max-width: 10vh;
 		min-width: 2em;
 	}
-	#quien {
-		grid-area: quien;
+	#user {
+		grid-area: user;
 		justify-self: left;
 		font-size: 0.9em;
 		display: flex;
@@ -213,7 +229,7 @@
 		text-align: center;
 		/* color royalblue */
 	}
-	#quien a,
+	#user a,
 	#redes a {
 		--size: 1.5em;
 		/* height: var(--size); */
@@ -234,22 +250,22 @@
 		outline: 5px solid white;
 	}
 
-	#quien a {
+	#user a {
 		color: white;
 		text-decoration: none;
 		transition: 300ms;
 	}
-	#quien a:hover {
+	#user a:hover {
 		scale: 1.1;
 		box-shadow: 5px 5px 1em rgba(1, 1, 1, 0.2);
 		/* background: var(--1); */
 		/* filter: brightness(1.3); */
 	}
-	#quien a:active {
+	#user a:active {
 		scale: 1.05;
 		box-shadow: none;
 	}
-	#quien a {
+	#user a {
 		padding-inline: 0.6em;
 		display: flex;
 		align-items: center;
@@ -281,7 +297,7 @@
 		}
 		#me {
 			margin-inline: 0;
-			grid-template-areas: 'logo redes quien';
+			grid-template-areas: 'redes logo user';
 			grid-template-columns: 10em auto auto;
 		}
 		.breadcrumbs {
@@ -290,7 +306,7 @@
 	}
 	/* @media (max-width: 580px) {
 		#me {
-			grid-template-areas: 'logo quien redes';
+			grid-template-areas: 'logo user redes';
 			grid-template-columns: 0.3fr auto 1fr;
 			justify-content: center;
 			justify-items: center;
@@ -300,13 +316,13 @@
 			justify-self: unset;
 			justify-content: center;
 		}
-		#quien {
+		#user {
 			justify-self: unset;
 		}
 	} */
 	@media (max-width: 500px) {
 		#me {
-			grid-template-areas: 'logo quien';
+			grid-template-areas: 'logo user';
 			grid-template-columns: 0.3fr auto;
 			flex-wrap: wrap;
 			max-width: 100%;
@@ -320,7 +336,7 @@
 			grid-template-areas: 'logo';
 			grid-template-columns: 1fr;
 		}
-		#quien {
+		#user {
 			display: none;
 		}
 	}

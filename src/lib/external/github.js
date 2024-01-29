@@ -53,7 +53,7 @@ export async function ghPut(endpoint, token, body, sha) {
 		return ret;
 	} else {
 		throw new Error(
-			`GitHub API Error when getting ${endpoint}: ${response.status} ${response.statusText}`
+			`GitHub API Error when putting ${endpoint}: ${response.status} ${response.statusText}`
 		);
 	}
 }

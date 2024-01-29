@@ -1,26 +1,17 @@
 <script>
+	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { filteredTags } from '$lib/utils/stores';
 	export let data;
-	// onMount(() => {
 	filteredTags.set([]);
-	// });
 </script>
 
 <svelte:head>
 	<title>KV Admin</title>
 </svelte:head>
 <header>
+	<a href="/">⬅️ Inicio</a>
 	<span>Panel de administradore</span>
-    <a href="/">⬅️ volver a la página</a>
-	<div class="profile-header">
-		<img src={data.user.avatar_url} class="profile-pic" alt="" />
-		<span id="title" class="profile-name">
-			{data.user.name ?? data.user.login}
-		</span>
-	</div>
-    <form method="POST" action="/logout">
-        <input type="submit" value="Cerrar sesión" />
-    </form>
+	<UserMenu user={data.user} />
 </header>
 
 <slot />
@@ -28,35 +19,16 @@
 <style lang="scss">
 	header {
 		display: grid;
-        grid-template-columns: 12em 1fr 10em 5em;
+		grid-template-columns: 4em 1fr 5em;
 		max-width: 50rem;
 		margin-inline: auto;
 		height: 3em;
 		align-items: center;
-        justify-content: space-between;
-        align-content: center;
-	}
-	.profile-header {
-		display: flex;
-		gap: 0.4em;
-		align-items: center;
 		font-size: var(--step-0);
-		justify-content: start;
-		justify-items: start;
-		width: max-content;
-		max-width: 100%;
+		justify-content: space-between;
+		align-content: center;
 	}
-	.profile-pic {
-		display: block;
-		border-radius: 9999em;
-		object-fit: cover;
-		max-height: 1.5em;
-		width: auto;
-		justify-self: right;
-		aspect-ratio: 1;
-		translate: 0 -0em;
-	}
-	.profile-name {
-		margin-right: 1em;
+	span {
+		text-align: center;
 	}
 </style>

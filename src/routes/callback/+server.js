@@ -9,7 +9,7 @@ export async function GET(request) {
 	// @ts-ignore
 	request.locals.user_token = token;
 	request.cookies.set('userToken', token, { path: '/' });
-	throw redirect(302, '/admin');
+	throw redirect(302, '/');
 }
 
 /**

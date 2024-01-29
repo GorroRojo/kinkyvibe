@@ -2,8 +2,10 @@ import { ghGet } from '$lib/external/github';
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event: request, resolve }) {
 	//@ts-ignore
-	request.locals.user_token = request.cookies.get('userToken')
-	request.locals.user = await getUser(request.locals.user_token)
+	request.locals.user_token = request.cookies.get('userToken');
+	if (request.locals.user_token !== '') {
+		request.locals.user = await getUser(request.locals.user_token);
+	}
 	const response = await resolve(request);
 	return response;
 }
