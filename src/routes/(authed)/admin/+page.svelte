@@ -4,14 +4,6 @@
 	export let form;
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
-	// import { oneDark } from "@codemirror/theme-one-dark";
-
-	/**
-	 * @param {any} e
-	 */
-	function save(e) {
-		alert(document.querySelector('textarea')?.value);
-	}
 
 	let value = form?.post?.raw ?? data?.contents.raw ?? '';
 </script>
