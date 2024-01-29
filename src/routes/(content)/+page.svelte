@@ -91,6 +91,7 @@
 					(/** @type {{ meta: AnyPostData; }} */ p) =>
 						p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
 				)
+				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
 				.slice(0, 9)}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
