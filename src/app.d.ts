@@ -3,7 +3,8 @@
 declare global {
 	namespace App {
 		interface Locals {
-			user_token: string; // Your type here
+			user: GHUser,
+			user_token: string // Your type here
 		}
 		// interface Error {}
 		// interface Locals {}

@@ -35,7 +35,7 @@ export const actions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
-	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token, true);
+	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
 	let raw = Buffer.from(fileContent.content, fileContent.encoding).toString();
 	return { raw, ...fileContent };
 }

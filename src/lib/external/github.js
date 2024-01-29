@@ -7,7 +7,7 @@ import { Buffer } from 'buffer';
  * @return {Promise<*>} A promise that resolves with the response data from the API.
  * @throws {Error} If the API request fails, an error is thrown with the corresponding status and status text.
  */
-export async function ghGet(endpoint, token, raw = false) {
+export async function ghGet(endpoint, token) {
 	let response = await fetch('https://api.github.com/' + endpoint, {
 		headers: {
 			'User-Agent': 'GorroRojo',
@@ -31,6 +31,7 @@ export async function ghGet(endpoint, token, raw = false) {
  * @param {string} endpoint - The endpoint to send the PUT request to.
  * @param {string} token - The authentication token to include in the request header.
  * @param {string} body - The body of the PUT request.
+ * @param {string} sha
  * @return {Promise<*>} - A promise that resolves to the response from the GitHub API.
  */
 export async function ghPut(endpoint, token, body, sha) {
