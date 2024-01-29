@@ -1,4 +1,4 @@
-import { Buffer } from 'node:buffer';
+import { Buffer } from 'buffer';
 import { redirect } from '@sveltejs/kit';
 import { ghGet } from '$lib/external/github';
 export async function load({ fetch, locals, url }) {
