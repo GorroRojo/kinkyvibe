@@ -57,7 +57,7 @@ No permitimos discrusos patologizantes, capacitistas, cisexistas, cuirodiantes/t
 
 Muches de nosotres en el grupo somos cuir, no binaries, generofluído o trans. **No asumamos el género de las personas**, mejor **preguntar los pronombres** de las personas si no los conocemos, **y luego respetarlos**.
 
-Si no sabés bien qué significa esto, en [pronombr.es](https://pronombr.es) hay una buena y corta guía para entenderlo, que estaría bueno que leyamos todes.
+Si no sabés bien qué significa esto, en [pronombr.es](https://pronombr.es) hay una buena y corta guía para entenderlo, que estaría bueno que leamos todes.
 
 ### Advertencias de contenido
 
