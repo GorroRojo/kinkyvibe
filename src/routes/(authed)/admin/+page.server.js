@@ -13,6 +13,7 @@ export const actions = {
 		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
 		const data = await request.formData();
 		const fileContent = data.get('content');
+		// @ts-ignore
 		saveFileContent(token, data.get('path') ?? "", fileContent, data.get('sha'));
 		return { save: 'Guardado' };
 	},

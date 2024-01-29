@@ -4,12 +4,11 @@ const clientId = env.GITHUB_CLIENT_ID;
 const secret = env.GITHUB_CLIENT_SECRET;
 const tokenURL = 'https://github.com/login/oauth/access_token';
 export async function GET(request) {
-	// get accessToken
 	const code = request.url.searchParams.get('code') ?? '';
 	const token = await getToken(code);
 	// @ts-ignore
 	request.locals.user_token = token;
-	// return json(user);
+	request.cookies.set('userToken', token, { path: '/' });
 	throw redirect(302, '/admin');
 }
 
