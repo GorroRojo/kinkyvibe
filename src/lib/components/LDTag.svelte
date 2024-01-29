@@ -1,5 +1,5 @@
 <script context="module">
-    import '$lib/types.d.js';
+	import '$lib/types.d.js';
 	let site = {
 		title: 'Navillus: Jamstack developers for hire',
 		description:
@@ -14,19 +14,19 @@
 			name: 'Navillus'
 		}
 	};
-    /**@type import('schema-dts').WithContext<import('schema-dts').Organization>*/
-     const organizationSchema = {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "@id": `${site.url}#organization`,
-        url: site.url,
-        name: site.company.name,
-        description: site.description,
-        sameAs: [`https://twitter.com/${site.social.twitter}`],
-        logo: `${site.url}/favicon.svg`,
-    };
+	/**@type import('schema-dts').WithContext<import('schema-dts').Organization>*/
+	const organizationSchema = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		'@id': `${site.url}#organization`,
+		url: site.url,
+		name: site.company.name,
+		description: site.description,
+		sameAs: [`https://twitter.com/${site.social.twitter}`],
+		logo: `${site.url}/favicon.svg`
+	};
 
-     const websiteSchema = {
+	const websiteSchema = {
 		'@context': 'https://schema.org',
 		'@type': 'WebSite',
 		name: site.title,
@@ -38,15 +38,15 @@
 	 * @param {LD.Schema} thing
 	 **/
 	function serializeSchema(thing) {
-		return '<script type="application/ld+json">' + JSON.stringify(thing, null, 2) + '<\/script>';
+		return `<script type="application/ld+json">${JSON.stringify(thing, null, 2)}</${''}script>`;
 	}
-
 </script>
+
 <script>
-    /**@type LD.Schema*/
-    export let schema;
-
+	/**@type LD.Schema*/
+	export let schema;
 </script>
+
 <svelte:head>
 	{@html serializeSchema(schema)}
 </svelte:head>

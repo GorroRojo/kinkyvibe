@@ -29,17 +29,17 @@
 <!-- <CalendarHeader /> -->
 
 {#key $view_date}
-<div class="grid">
-	<!-- in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
+	<div class="grid">
+		<!-- in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
 	out:fly={{ x: -100 * $month_change_direction, duration: 300 }} -->
-	{#each WEEK_DAYS as day, i}
-		<div class="week-days" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
-			{day}
-		</div>
-	{/each}
-	{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
-		<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }} />
-	{/each}
+		{#each WEEK_DAYS as day, i}
+			<div class="week-days" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
+				{day}
+			</div>
+		{/each}
+		{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
+			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }} />
+		{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate($view_date, i + 1)}
 			{@const date = format(date_og, 'yyyy-MM-dd')}
@@ -52,7 +52,7 @@
 			</div>
 		{/each}
 	</div>
-	{/key}
+{/key}
 
 <style>
 	.grid {

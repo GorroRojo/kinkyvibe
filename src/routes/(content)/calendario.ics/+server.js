@@ -17,7 +17,7 @@ export async function GET() {
 	let events = [];
 	let eventPosts = (await fetchMarkdownPosts()).filter((p) => p.meta.category == 'calendario');
 	for (let post of eventPosts) {
-        let postPath = 'https://kinkyvibe.ar' + post.path;
+		let postPath = 'https://kinkyvibe.ar' + post.path;
 		/**@type ics.EventAttributes */
 		let event = {
 			start: stringToDateArray(post.meta.start),
@@ -25,10 +25,19 @@ export async function GET() {
 			title: post.meta.title,
 			url: postPath,
 			description: postPath + ' \n' + post.meta.summary,
-            htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
+			htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
 			location: post.meta.location ?? postPath,
 			calName: 'KinkyVibe',
-			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' } //TODO añadir email
+			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' },
+			// @ts-ignore
+			status:
+				// @ts-ignore
+				{
+					abierto: 'CONFIRMED',
+					cancelado: 'CANCELLED',
+					anunciado: 'TENTATIVE',
+					lleno: 'CONFIRMED'
+				}[post.meta.status] ?? 'CONFIRMED' //TODO añadir email
 		};
 		events.push(event);
 	}

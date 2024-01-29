@@ -14,27 +14,17 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: cine-para-sucixs-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-06-03T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-06-04T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-06-04T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/781KBBrXQfCvd6mX6
 link_text: Inscibirme
 ---
-
-<script>
-    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs/1.webp';
-    import pag2 from '$lib/posts/calendario/media/cine-para-sucixs/2.webp';
-</script>
-
-<div class="col-2">
-<img src={pag1} alt="" />
-<img src={pag2} alt="" />
-</div>
 
 **INAUGURAMOS UN CICLO DE P0RN0 PORQUE NOS GUSTA LA CHANCHADA ¿QUÉ TAL?**
 

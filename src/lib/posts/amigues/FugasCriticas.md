@@ -5,9 +5,10 @@ title: Fugas Críticas
 summary: Brindamos recursos pedagógicos y espacios de encuentro para ampliar y desarrollar perspectivas disidentes sobre el género, la sexualidad y modos de vincularnos afectivamente
 tags:
   - español
-  - clases
   - profesional
   - clases
+  - comunidad
+  - terapia
   - AMBA
 layout: amigues
 category: amigues
@@ -30,7 +31,7 @@ email: hola@fugascriticas.com
 
 ## Sobre Fugas Críticas
 
-Fugas Críticas es un proyecto en el que facilitamos recursos pedagógicos y espacios de encuentro para ampliar y desarrollar perspectivas disidentes sobre el género, la sexualidad y modos de vincularnos afectivamente. 
+Fugas Críticas es un proyecto en el que facilitamos recursos pedagógicos y espacios de encuentro para ampliar y desarrollar perspectivas disidentes sobre el género, la sexualidad y modos de vincularnos afectivamente.
 
 Buscamos acompañar a las personas a construir formas de vida y relaciones menos opresivas y más habitables, especialmente para las disidencias y para quienes se fugan de alguna norma.
 

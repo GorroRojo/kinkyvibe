@@ -1,6 +1,6 @@
 <script context="module">
 	import { flip } from 'svelte/animate';
-	import { tagsConfig, glosario } from '$lib/utils/stores';
+	import { glosario, tagManager } from '$lib/utils/stores';
 	import GlosarioItem from './GlosarioItem.svelte';
 	export let entries;
 </script>
@@ -13,23 +13,14 @@
 	/**@type {Group[]|string[]|{meta:AnyPostData,path:string}[]}}*/
 	export let items;
 
-	// export let searched = false;
 	export let query = '';
-	/**@ts-ignore*/
+
 	const type = typeof items[0] == 'string' ? 'string' : items[0]?.name ? 'group' : 'entry';
-
 	export let spare = false;
-
-	// if (type == 'string') {
-	// 	type == 'entry';
-	// 	items = items.map((name) => entries.find((e) => e.meta.wiki == name?.replaceAll(' ', '-')));
-	// }
 </script>
 
-<!-- <dl> -->
-
-{#if type == 'group' && !spare && items.map((i) => i.name).join('') == $tagsConfig.groups
-			.map((g) => g.name)
+{#if type == 'group' && !spare && items.map((i) => i.name).join('') == $tagManager
+			.tagIDs()
 			.join('')}
 	<svelte:self
 		{entries}
@@ -53,5 +44,3 @@
 		</div>
 	{/each}
 {/if}
-
-<!-- </dl> -->

@@ -27,8 +27,7 @@ const config = {
 				dashes: 'oldschool'
 			},
 			// remarkPlugins: [remarkGfm],
-			rehypePlugins: [rehypeSlug, customRehype, toc],
-			layout: './src/lib/mdsvex/layout.svelte'
+			rehypePlugins: [rehypeSlug, customRehype, toc]
 		})
 	]
 };

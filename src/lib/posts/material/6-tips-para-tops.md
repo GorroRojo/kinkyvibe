@@ -3,7 +3,7 @@ published_date: 2023-09-20Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: 6 tips para tops
 #wiki: material # para si es una entry de la wiki #
-summary: "Tips para tops y doms sobre cuidados"
+summary: 'Tips para tops y doms sobre cuidados'
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #
@@ -26,7 +26,7 @@ featured: 1
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Estos tips creemos que aplican a quienes tenemos experiencia y a quienes no.
+Estos tips creemos que aplican a quienes tenemos experiencia, y a quienes no.
 
 Hay muchísimo del mundo de topear y de la dominación que tiene que ver con el cuidado, con aprender (de otres y de nuestros errores y experiencias).
 
@@ -47,6 +47,7 @@ El BDSM tiene mucho de riesgo <small>(y eso es parte de lo que nos gusta)</small
 ### En el porno
 
 Suelen figurar muchas formas de ser Dom, pero por lo generar siguiendo un mismo esterotipo:
+
 - Hacer cosas que se ven flasheras
 - Hombre heterocis super hegemónicos
 - Sólo hacen dominación sádica
@@ -60,12 +61,14 @@ Suelen figurar muchas formas de ser Dom, pero por lo generar siguiendo un mismo 
 ## **3.** Investigá y aprendé <small>(leyendo, tomando clases, talleres...)</small>
 
 ### Pros de hacerlo
+
 - Sabés hacer prácticas bien.
 - Aprendés más formas de hacerlas y cómo hacerlas.
 - Aprendés cómo hacerlas de forma que no dañe.
 - Obtenés inspiración y ideas
 
 ### Cons de **no** hacerlo
+
 - Dañar a le bottom emocional y/o físicamente
 - Perder su confianza
 - Hacernos daño emocional/físico a nosotres.

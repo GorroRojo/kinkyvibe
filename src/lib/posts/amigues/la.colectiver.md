@@ -19,7 +19,7 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-pronoun: ""
+pronoun: ''
 link: https://instagram.com/la.colectiver
 #logo: 2
 #photo: 3
@@ -31,6 +31,6 @@ tel: 1131995978
 #bday: 1996-04-09
 ---
 
-Surge a partir del cumpleaños de la creadora de la cuenta, [\@florcolectiver](https://instagram.com/florcolectiver) de [\@sesocolectivo_](https://instagram.com/sesocolectivo_) y el aniversario del grupo de Telegram que acobija a esta comunidad administrada junto a @Silvina.Chivy
+Surge a partir del cumpleaños de la creadora de la cuenta, [\@florcolectiver](https://instagram.com/florcolectiver) de [\@sesocolectivo\_](https://instagram.com/sesocolectivo_) y el aniversario del grupo de Telegram que acobija a esta comunidad administrada junto a @Silvina.Chivy
 
 La fiesta cuenta con juegos para que se conozcan las personas que van solxs ó por primera vez, música que varia entre el pop, soundtracks de animé, reggaeton y cumbia, presentaciones de artistas de la comunidad y espacio de exploración de prácticas de bdsm monitoreadas por @KinkyVibe

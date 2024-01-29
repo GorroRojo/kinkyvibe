@@ -18,12 +18,12 @@ force_unlisted: true
 #access_date: 2023-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00
 ---
+
 <script>
   import imagen1 from './media/con-la-soga-al-cuello/2.jpeg'
   import imagen2 from './media/con-la-soga-al-cuello/3.png'
   import video from './media/con-la-soga-al-cuello/4.mp4'
 </script>
-
 
 Presentación: Mi nombre es Sole y me reconozco pobre. Mi idea con este manifiesto es difundir lo que me sucede porque no encontré voz que me represente. Intento explicar cómo el arte me estimula, pero no puedo ingresar a muchos ámbitos culturales por mis limitaciones, que son mi género y mi clase social. A estos motivos hay que incluir que el arte erótico- escénico del Shibari/ Kinbaku es visto por algunxs artistas como si no fuese arte.
 
@@ -57,7 +57,7 @@ Para obtener los conocimientos sobre flexibilidad y cuidados de mi cuerpo, fui a
 
 Si el Shibari es un arte escénico, pensé que podía inscribirme en el INT (Instituto Nacional del Teatro) ya que esta institución promueve eventos / artistas de espacios teatrales. Hice mi alta individual y así también me inscribí en somoscultura.gob.ar, donde dentro de la categoría arte escénica coloqué la opción PERFORMER y como rol principal: OTRO y especificar que soy modelx de cuerdas.
 
-![]({imagen1})
+![Sole atada en posición de jugador de futbol en el aire]({imagen1})
 
 Llegó el momento que con este manifiesto no seamos LO OTRO, deseo que seamos quienes tienen NOMBRE/ IDENTIDAD DEFINIDA/POSICIÓN
 

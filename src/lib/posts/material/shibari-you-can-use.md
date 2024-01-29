@@ -30,4 +30,4 @@ link: 1
 
 <object title="{title}" data={guia} type="application/pdf" width="50rem" height="1000px" alt="pdf">
 <a href={guia}>Ir al pdf ↗️</a>
-</object> 
+</object>

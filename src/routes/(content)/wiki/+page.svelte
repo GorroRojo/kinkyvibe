@@ -1,5 +1,4 @@
 <script>
-	// @ts-nocheck
 	/**
 	 * TODO el codigo este y el de los componentes es feo feo feo
 	 * hay que unificar los datos de la entry, del termino, y del grupo **ANTES**
@@ -7,7 +6,7 @@
 	 */
 
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { tagsConfig, glosario } from '$lib/utils/stores';
+	import { glosario, tagManager } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { Search, Construction } from 'lucide-svelte';
 
@@ -19,39 +18,17 @@
 		terminos: data.glosario.terminos.map((t) => ({ ...t, visible: true, spare: true }))
 	});
 
-	/**@type {(description:string)=>*}*/
-	function parseDescription(description) {
-		const regex = /\[\[([^\]]*)\]\]/g;
-		const lines = description.split(regex);
-		return lines.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }));
-	}
 	let query = '';
-	// currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
-	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
-	function getGroups(termino, groups = $tagsConfig.groups) {
-		let matches = [];
-		for (let group of groups) {
-			if (group.name == termino) {
-				matches.push({ ...group });
-			} else {
-				if (group.members && group.members.includes(termino)) {
-					matches.push({ ...group });
-				}
-				if (group.sub) {
-					const sub = getGroups(termino, group.sub);
-					if (sub) matches.push(...sub);
-				}
-			}
-		}
-		return matches.filter((i) => i);
-	}
-
+	/**
+	 * @param {string | undefined} a
+	 * @param {string} [q=query]
+	 */
 	function includesNormalized(a, q = query) {
 		if (a === undefined) {
 			return false;
 		}
-		let normalize = (s) =>
+		let normalize = (/** @type {string} */ s) =>
 			s
 				.toLowerCase()
 				.replaceAll('á', 'a')
@@ -86,6 +63,22 @@
 			});
 		}
 	}
+
+	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
+	function getGroups(termino) {
+		return [
+			{
+				name: termino,
+				sub: $tagManager.get(termino)?.children?.map((c) => getGroups(c)[0]) ?? [],
+				members: []
+			}
+		];
+	}
+	let tagsAsGroups = $tagManager
+		.entries()
+		.filter(([id, { parents }]) => parents?.includes('root'))
+		.map(([tag]) => getGroups(tag))
+		.flat();
 	onQueryChange(undefined);
 
 	const style = `
@@ -101,7 +94,7 @@
 	translate: 0 .1em;
 	color: white;
 	z-index: 1;
-	`
+	`;
 </script>
 
 <svelte:head>
@@ -109,29 +102,32 @@
 </svelte:head>
 <p class="callout building" style:--callout-color="var(--2-dark)" style:width="100%">
 	<Construction style={wip_style} />
-	&ThickSpace;
-	&ThickSpace;
-	En construcción
-	&ThickSpace;
-	&ThickSpace;
+	&ThickSpace; &ThickSpace; En construcción &ThickSpace; &ThickSpace;
 	<Construction style={wip_style} />
 </p>
 <article class="content">
 	<h1>Kinkipedia</h1>
-	<p class="callout" style:--callout-color="var(--1)">El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en una situación de violencia podés contactarte con nosotres o consultar <a target="_blank" href="https://recursero.info/violencia-sexual/">el recursero</a>.</p>
+	<p class="callout" style:--callout-color="var(--1)">
+		El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en
+		una situación de violencia podés contactarte con nosotres o consultar <a
+			target="_blank"
+			href="https://recursero.info/violencia-sexual/">el recursero</a
+		>.
+	</p>
 	<dl>
 		<div class="searchbox">
+			{'' + /**@ts-ignore*/ ''}
 			<Search {style} /><input
 				class="searchbox"
 				type="search"
-				on:input={(evt) => onQueryChange(evt.target.value)}
-				on:change={(evt) => onQueryChange(evt.target.value)}
+				on:input={(evt) => onQueryChange(evt?.target?.value ?? '')}
+				on:change={(evt) => onQueryChange(evt?.target?.value)}
 				bind:value={query}
 			/>
 		</div>
 		{#key query}
 			{#if query == '' || !query}
-				<GlosarioTree entries={data.entries} items={$tagsConfig.groups} {query} />
+				<GlosarioTree entries={data.entries} items={tagsAsGroups} {query} />
 			{:else}
 				<GlosarioTree
 					entries={data.entries}
@@ -141,34 +137,6 @@
 			{/if}
 		{/key}
 	</dl>
-
-	<!--
-	<dl>
-		{#each data.glosario.terminos as termino}
-			{@const description = termino.description ? parseDescription(termino.description) : ''}
-			{@const entry = data.entries.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'))}
-			<div class={'indent-' + 0}>
-				<dt>
-					{#if entry && entry.meta && entry.meta.wiki}
-						{getGroup(entry?.meta?.wiki)?.level}
-						<a href="/wiki/{entry.meta.wiki}">{entry.meta.title}</a>
-					{:else}
-						{termino.name}
-					{/if}
-				</dt>
-				<dd>
-					{#each description as { line, type }}
-						{@const entry = data.entries.find((e) => e.meta.wiki == line.replaceAll(' ', '-'))}
-						{#if type == 'text' || !entry}
-							{line}
-						{:else}
-							<a href="/wiki/{entry.meta.wiki}">{line}</a>
-						{/if}
-					{/each}
-				</dd>
-			</div>
-		{/each}
-	</dl> -->
 </article>
 
 <style lang="scss">
@@ -177,13 +145,13 @@
 		font-size: var(--step-0);
 		background: var(--callout-color);
 		color: white;
-		padding: .5em .76em;
+		padding: 0.5em 0.76em;
 		border-radius: 1rem;
 
 		&.building {
 			max-width: 100%;
 			text-align: center;
-			padding-block: .3em;
+			padding-block: 0.3em;
 			text-transform: uppercase;
 			margin-bottom: 2em;
 		}

@@ -1,4 +1,5 @@
 export const hardcodedTags = [
+	{ id: 'KinkyVibe', color: 'var(--1)' },
 	{
 		id: 'root',
 		children: [
@@ -10,46 +11,46 @@ export const hardcodedTags = [
 			'material',
 			'amigues',
 			'BDSM',
-			'cuerdas',
 			'prácticas',
-			'género y salud sexual'
+			'género y salud sexual',
+			'antipunitivismo',
+			'despatologización'
 		]
 	},
 	{ id: 'idioma', children: ['español', 'inglés'], color: 'darkblue' },
 	{
 		id: 'lugar',
-		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online'],
+		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online', 'Montevideo'],
 		color: 'darkblue'
 	},
 	{ id: 'precio', children: ['pago', 'a la gorra', 'gratis'], color: 'darkblue' },
-	{ id: 'calendario', children: ['tipo de evento', 'evento recurrente'], color: 'salmon' },
+	{ id: 'calendario', children: ['tipo de evento', 'evento recurrente'], color: 'var(--3-dark)' },
 	{
 		id: 'tipo de evento',
-		children: ['cine', 'taller', 'evento', 'charla debate', 'laboratorio', 'picnic', 'grupo']
+		children: [
+			'cine',
+			'taller',
+			'evento',
+			'charla debate',
+			'laboratorio',
+			'picnic',
+			'grupo',
+			'entrevista',
+			'perfo',
+			'jam de cuerdas'
+		]
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
 	{ id: 'material', color: 'var(--3-dark)', children: ['tipo de material', 'formato de material'] },
 	{ id: 'tipo de material', children: ['guía', 'artículo', 'libro', 'fanzine'] },
 	{ id: 'formato de material', children: ['online', 'descargable', 'interactivo'] },
-	{ id: 'amigues', children: ['tipo de perfil', 'servicio'], color: 'var(--2)' },
+	{ id: 'amigues', children: ['tipo de perfil', 'servicio'], color: 'var(--3-dark)' },
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },
 	{
 		id: 'servicio',
-		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos']
+		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos', 'comunidad']
 	},
-	{ id: 'KinkyVibe', color: 'var(--1)' },
-	{ id: 'queer', children: ['furry', 'género', 'asexualidad'] },
-	{
-		id: 'asexualidad',
-		aka: ['ace', 'espectro asexual'],
-		description:
-			'Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas.'
-	},
-	{
-		id: 'género y salud sexual',
-		children: ['queer', 'materiales', 'porno', 'squirt'],
-		color: 'var(--1-dark)'
-	},
+
 	{
 		id: 'BDSM',
 		description:
@@ -105,6 +106,7 @@ export const hardcodedTags = [
 		children: [
 			'top',
 			'bottom',
+			'cnc',
 			'pegging',
 			'hablar sucio',
 			'edad',
@@ -117,9 +119,27 @@ export const hardcodedTags = [
 			'electro',
 			'dolor',
 			'humillación',
-			'primal'
+			'primal',
+			'asfixia',
+			'fisting',
+			'miedo'
 		],
 		color: '#ff4444'
+	},
+	{
+		id: 'género y salud sexual',
+		children: ['queer', 'materiales', 'porno', 'squirt', 'feminismo', 'salud'],
+		color: '#ff4444'
+	},
+	{ id: 'antipunitivismo', color: 'var(--2)' },
+	{ id: 'despatologización', color: 'var(--2)' },
+	{ id: '', color: '#ff4444' },
+	{ id: 'queer', children: ['furry', 'género', 'asexualidad'] },
+	{
+		id: 'asexualidad',
+		aka: ['ace', 'espectro asexual'],
+		description:
+			'Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas.'
 	},
 	{ id: 'top', description: 'Comúnmente, la persona que "da" una [[práctica]].' },
 	{

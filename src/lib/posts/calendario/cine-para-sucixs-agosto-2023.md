@@ -16,27 +16,17 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: cine-para-sucixs-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-20T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-08-21T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-08-21T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/vp1d7Sn5bYoUkvwTA
 link_text: PRE-VENTA
 ---
-
-<script>
-    import pag1 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/1.jpg';
-    // import pag2 from '$lib/posts/calendario/media/cine-para-sucixs-julio-2023/2.jpg';
-</script>
-
-<!-- <div class="col-2"> -->
-<!-- <img src="{pag1}" alt="" /> -->
-<!-- <img src="{pag2}" alt="" /> -->
-<!-- </div> -->
 
 Vamos a estar proyectando cortos locales e internacionales, con mucho gemid0, enchastre, p4jas, fet1ches, putis hottt, fluidos y muchas magias.
 

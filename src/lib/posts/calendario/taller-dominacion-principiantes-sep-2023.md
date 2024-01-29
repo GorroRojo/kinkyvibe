@@ -22,7 +22,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-09-20T20:30-03:00
-end:   2023-09-21T23:00-03:00
+end: 2023-09-21T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
 link: https://forms.gle/tFdt8JD1WB4EmpY7A

@@ -1,66 +1,10 @@
 import '$lib/types.d.js';
+import tagsFactory from './tags';
 
 /**
  *
- * @returns {Promise<{tags:Record<string,*>, groups:Group[]}>}
+ * @returns {Promise<{terminos:(ProcessedTag&{name:string})[]}>}
  */
-export const fetchTags = async () => {
-	//@ts-expect-error
-	var { metadata: tagsConfig } =
-		/** @type {{metadata:{groups: Group[], tags:*}}} */ await Object.entries(
-			import.meta.glob('$lib/posts/_tags.md')
-		)[0][1]();
-	let alias = aliaserFactory(tagsConfig);
-	let aliasedGroups = tagsConfig.groups.map((/**@type Group*/ group) =>
-		groupMap(group, (g) => {
-			const name = alias(g.name);
-			const members = g.members?.map(alias);
-			if (members) return { ...g, name, members };
-			else return { ...g, name, members: [] };
-		})
-	);
-	/** @type {Record<string,Record<string,string>>} */
-	let coloredGroupedTags = {};
-	aliasedGroups.forEach((/**@type{Group}*/ group) =>
-		groupMap(group, (g) => {
-			if (g.sub) {
-				g.sub.forEach((s) => {
-					if (!s.color) {
-						s.color = g.color;
-					}
-					s.parent = g.parent ? g.parent + '/' + g.name : g.name;
-				});
-			}
-			if (g.color != undefined) {
-				if (g.members) {
-					[g.name, ...g.members].forEach((m) => {
-						if (coloredGroupedTags[m]) {
-							// @ts-ignore
-							coloredGroupedTags[m].color = g.color;
-							coloredGroupedTags[m].group = g.parent ? g.parent + '/' + g.name : g.name;
-						} else {
-							coloredGroupedTags[m] = {
-								// @ts-ignore
-								color: g.color,
-								group: g.parent ? g.parent + '/' + g.name : g.name
-							};
-						}
-					});
-				}
-			}
-			return g;
-		})
-	);
-	return {
-		...tagsConfig,
-		tags: Object.fromEntries([
-			...Object.entries(tagsConfig.tags),
-			...Object.entries(coloredGroupedTags)
-		]),
-		groups: aliasedGroups
-	};
-};
-
 export const fetchGlossary = async () => {
 	//@ts-expect-error
 	var { metadata: glossary } = /** @type {{terminos:string[]}} */ await Object.entries(
@@ -96,41 +40,38 @@ export function groupMap(group, fn) {
 /**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
- * @param {string | number} assetID
+ * @param {string} assetID
  */
 export const thumbURL = async (category, postID, assetID) => {
-	for (const format of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
+	//check if string is an integer
+	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
+	if (('' + assetID).match(/^\d+$/)) {
+		for (const format of formats) {
+			try {
+				let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
+				return thumb.default;
+			} catch (e) {
+				continue;
+			}
+		}
+		return undefined;
+	} else {
+		let [filename, format] = assetID.split('.');
 		try {
-			let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
+			let thumb = await import(`$lib/assets/${filename}.${format}`);
 			return thumb.default;
 		} catch (e) {
-			continue;
+			return undefined;
 		}
 	}
-	return undefined;
 };
 
 /**
- * @param {*} tagsConfig
+ * @param {TagManager} [tagManager=tagsFactory()]
  * @returns {(tag: string)=>string}
  */
-export function aliaserFactory(tagsConfig) {
-	return (tag) => {
-		let result = tag;
-		let max = 20;
-		while (
-			Object.keys(tagsConfig.tags).includes(result) &&
-			Object.keys(tagsConfig.tags[result]).includes('aliasOf')
-		) {
-			result = tagsConfig.tags[tag].aliasOf;
-			if (max-- < 0) {
-				console.error('too many aliases: ' + tag);
-				break;
-			}
-			max--;
-		}
-		return result;
-	};
+export function aliaserFactory(tagManager = tagsFactory()) {
+	return (tag) => tagManager.get(tag)?.id ?? tag;
 }
 
 /**
@@ -154,25 +95,15 @@ export const fetchPost = async (category, postID, shallow = false) => {
  * @param {string} postID - The ID of the post.
  * @param {AnyPostData} meta - The metadata associated with the post.
  * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
- * @param {{tags:Record<string,*>,groups:Group[]}} [tagsConfig=false] - The tags configuration.
- * @param {(tag:string)=>string} [alias] - The alias function.
+ * @param {TagManager} [tagManager=tagsFactory()] - The tag manager to use.
  * @return {Promise<ProcessedPost>} An object containing the processed post information.
  */
-async function processPost(
-	postContent,
-	postID,
-	meta,
-	shallow = false,
-	tagsConfig = { tags: [], groups: [] },
-	alias = aliaserFactory(tagsConfig)
-) {
-	if (tagsConfig.groups.length == 0) tagsConfig = await fetchTags();
+async function processPost(postContent, postID, meta, shallow = false, tagManager = tagsFactory()) {
 	let authorsProfiles = [];
 	/**@type {ProcessedPost[]} */
-	let relatedPosts = [];
 	if (!shallow) {
 		for (const author of meta?.authors ?? []) {
-			const authorID = author == 'KinkyVibe' ? 'nosotres' : author.replaceAll(' ', '-');
+			const authorID = author.replaceAll(' ', '-');
 			if (authorID !== postID) {
 				try {
 					const authorProfile = await fetchPost('amigues', authorID, true);
@@ -182,35 +113,49 @@ async function processPost(
 				}
 			}
 		}
-		relatedPosts = (await fetchMarkdownPosts()).filter(
-			(p) =>
-				meta.authors?.some(
-					(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
-				) ||
-				(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
-				(meta.category == 'wiki' && p.meta.tags.includes(postID)) ||
-				(meta.category == 'amigues' && p.meta.authors.includes(postID) && p.meta.postID != postID)
-		);
 	}
-	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
-	function getGroups(termino, groups = tagsConfig.groups) {
-		let matches = [];
-		for (let group of groups) {
-			if (group.name == termino) matches.push({ ...group });
-			else if (group.sub) {
-				const sub = getGroups(termino, group.sub);
-				if (sub) matches.push(...sub);
+
+	/**
+	 * @param {ProcessedTag} tag
+	 * @return {string[][]}
+	 */
+	const ancestry = (tag) => {
+		let branches = [];
+		let tagParents = tag.parents?.filter((p) => p != 'root') ?? [];
+		for (let p of tagParents) {
+			let subbranch = [];
+			let grandparents = ancestry(tagManager.get(p));
+			if (grandparents.length > 0) {
+				for (let g of grandparents) {
+					subbranch.push([...g, p]);
+				}
+			} else {
+				subbranch.push([p]);
 			}
+			branches.push(...subbranch);
 		}
-		return matches.filter((i) => i);
+		return branches;
+	};
+	/**
+	 * @param {ProcessedTag} a
+	 * @param {ProcessedTag} b
+	 * @returns {number}
+	 */
+	function sortTags(a, b) {
+		let aAncestry = ancestry(a).map((br) => [...br.flat(), a.id]);
+		let bAncestry = ancestry(b).map((br) => [...br.flat(), b.id]);
+		if (aAncestry.length == 0) aAncestry = [[a.id]];
+		if (bAncestry.length == 0) bAncestry = [[b.id]];
+		return (
+			tagManager.tagIDs().indexOf(aAncestry[0][0]) - tagManager.tagIDs().indexOf(bAncestry[0][0])
+		);
 	}
 	const processedMeta = {
 		...meta,
-		tags: Array.isArray(meta.tags)
-			? [...meta.tags]
-					.map(alias)
-					.sort((a, b) => getGroups(a)?.[0]?.name.localeCompare(getGroups(b)?.[0]?.name))
-			: [alias(meta.tags)],
+		tags: [...(meta.tags ?? [])]
+			.map((t) => tagManager.get(t))
+			.sort(sortTags)
+			.map((t) => t.id),
 		featured:
 			meta.featured !== undefined
 				? await thumbURL(meta.category, postID, meta.featured)
@@ -223,7 +168,6 @@ async function processPost(
 		content: shallow ? undefined : postContent,
 		meta: processedMeta,
 		authorsProfiles,
-		relatedPosts,
 		path: '/' + meta.category + '/' + postID
 	};
 	return processedPost;
@@ -246,18 +190,25 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/material/*.md')));
 	}
 	let processedPosts = [];
-	const tagsConfig = await fetchTags();
-	const alias = aliaserFactory(tagsConfig);
 	for (const [rawPath, constructor] of allPosts) {
 		const postID = rawPath.split('/').slice(-1)[0].split('.md')[0];
 		if (postID.startsWith('_')) continue;
 		const { metadata, default: postContent } = await constructor();
-		if (!metadata) continue;
-		if ((!unlisted && metadata.force_unlisted) || (unlisted && !metadata.force_unlisted)) continue;
-
-		processedPosts.push(await processPost(postContent, postID, metadata, true, tagsConfig, alias));
+		if (
+			!metadata ||
+			(!unlisted && metadata.force_unlisted) ||
+			(unlisted && !metadata.force_unlisted)
+		) {
+			continue;
+		}
+		const tagManager = tagsFactory();
+		processedPosts.push(await processPost(postContent, postID, metadata, true, tagManager));
 	}
-
+	processedPosts.sort((a,b)=> {
+		/** @param {ProcessedPost} x @returns number */
+		let f = (x) => (new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date)).getTime()
+		return f(b) - f(a)
+	})
 	return [...processedPosts];
 };
 
@@ -268,14 +219,13 @@ export const processContent = async (node) => {
 		let p = document.createElement('small');
 		let name = el.textContent?.slice(1);
 		if (name === undefined) return;
-		else if (name == 'KinkyVibe') name = 'nosotres';
 		let post;
 		try {
 			post = await fetchPost('amigues', name, true);
 		} catch (e) {
 			return;
 		}
-		if (post.meta.pronoun == "" || !post.meta.pronoun) return;
+		if (post.meta.pronoun == '' || !post.meta.pronoun) return;
 		p.className = 'p-pronoun';
 		p.textContent =
 			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';

@@ -8,7 +8,7 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - articulo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-#  - descargable # descargable | link #
+  #  - descargable # descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
   - intercambio de poder
@@ -72,4 +72,3 @@ Y eso es lo que me atrapa en todo esto, realmente. La sociedad que muchas person
 Esa es la cosa. Creo que las personas tienen cierta responsabilidad en lo que otras personas vean y emulen de su comportamiento, pero no creo que "piensen en las mujeres" es menos desagradable que el tipo de "¡piensa en los niñxs!" que olvida que los niñxs reflexivos, cuando se involucran en discusiones profundas y apropiadas para su edad sobre el mundo que les rodea, pueden, en realidad, entender muchas cosas.
 
 Además, soy una mujer cis. No quiero que las personas me protejan porque están "pensando en mí". No quiero que la gente proteja a mi pareja de mí sin, ya sabes, al menos decirle tres palabras a ella primero. **Quiero una vida plena con mi pareja que incluya los tipos de dinámicas que ella y yo elegimos para nosotras, gracias**.
-

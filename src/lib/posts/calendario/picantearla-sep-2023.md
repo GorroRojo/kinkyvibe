@@ -23,8 +23,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
-logo: 2
+featured: picantearla-miniatura.png
 #force_unlisted: false
 # force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
@@ -34,10 +33,10 @@ location: Av Maipú 2535, Olivos
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/r3XYkpsHU2SzgxmC9
 link_text: PRE-VENTA
-carrousel_background: "hsl(266, 80%, 28%)"
-carrousel_color: "hsl(59, 41%, 100%)"
+carrousel_background: 'hsl(266, 80%, 28%)'
+carrousel_color: 'hsl(59, 41%, 100%)'
 # carrousel_accent_text: ""
-carrousel_accent_bg: "#fd633a"
+carrousel_accent_bg: '#fd633a'
 ---
 
 > 📛 ESTA EDICIÓN NO ES PARA PRINCIPIANTES 📛
@@ -111,7 +110,6 @@ Entradas en Pre-Venta: $5.500
 > La inscripción sola sin el abono, no conserva el cupo.
 >
 > **_No hay venta en puerta._**
-
 
 <style>
   blockquote {

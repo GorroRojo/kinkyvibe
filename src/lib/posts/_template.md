@@ -160,4 +160,3 @@ _enfasis_ **otroenfasis** **_doble enfasis_** `código` ~~strikethrough~~
 | head1  | head2  |
 | ------ | ------ |
 | value1 | value2 |
-

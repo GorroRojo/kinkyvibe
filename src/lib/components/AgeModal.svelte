@@ -2,10 +2,10 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	let mayorDeEdad = true;
-    onMount(() => {
-        mayorDeEdad = localStorage.getItem('mayorDeEdad') === 'true'
-        localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
-    })
+	onMount(() => {
+		mayorDeEdad = localStorage.getItem('mayorDeEdad') === 'true';
+		localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
+	});
 </script>
 
 {#if !mayorDeEdad}
@@ -13,7 +13,13 @@
 		<div class="content box">
 			<h2>¿Sos mayor de 16 años?</h2>
 			<div class="button-group">
-				<button class="button" on:click={() => {mayorDeEdad = true;localStorage.setItem('mayorDeEdad', '' + mayorDeEdad)}}>Sí</button>
+				<button
+					class="button"
+					on:click={() => {
+						mayorDeEdad = true;
+						localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
+					}}>Sí</button
+				>
 				<a class="button" href="https://instagram.com/kinkyvibeargentina">No</a>
 			</div>
 		</div>

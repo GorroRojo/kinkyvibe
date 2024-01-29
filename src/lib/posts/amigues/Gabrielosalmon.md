@@ -31,8 +31,7 @@ gender_identity: No bianrie
 bday: 1995-06-17
 ---
 
-
-Hola mi nombre es Gabrielo Salmon, soy un artista patagonico independiente, hago fanzines a mano esto significa que cada uno es unico, los hago con recortes de papel, microfibra y marcadores que me dona la gente de aca. Tambien hago historietas y las diseño, edito, imprimo y encuaderno en casa. Escribo poesia y edito, imprimo y encuaderno en casa. Tengo publicado dos libros. 
+Hola mi nombre es Gabrielo Salmon, soy un artista patagonico independiente, hago fanzines a mano esto significa que cada uno es unico, los hago con recortes de papel, microfibra y marcadores que me dona la gente de aca. Tambien hago historietas y las diseño, edito, imprimo y encuaderno en casa. Escribo poesia y edito, imprimo y encuaderno en casa. Tengo publicado dos libros.
 
 Todo lo hago yo solo y con mi dinero. A pulmon. Mi arte es único porque siempre le doy un toque final con microfibra y colores a mano. Por más que imprima 30 copias no hay dos iguales. Me gusta eso. El rango de precios va desde 500 a 1500 pesos ya que hago arte accesible a todo publico. Diseño y creo juegos de mesa, cartas de tarot y naipes.
 

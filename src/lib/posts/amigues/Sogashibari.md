@@ -2,7 +2,7 @@
 published_date: 2023-06-15Z-03:00
 updated_date: 2023-08-04Z-03:00
 title: Soga Shibari
-summary: Soy Sogui. Atadorx, sádicx y dom. Talleres, cuerdas de yute, sesiones privadas y en vivo. Shibari y BDSM. 
+summary: Soy Sogui. Atadorx, sádicx y dom. Talleres, cuerdas de yute, sesiones privadas y en vivo. Shibari y BDSM.
 tags:
   - español
   - BDSM
@@ -30,4 +30,5 @@ email: sogashibari@gmail.com
 gender_identity: Fluidx
 bday: 1986-05-17
 ---
+
 https://instagram.com/sogashibari

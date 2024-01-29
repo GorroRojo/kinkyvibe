@@ -26,7 +26,7 @@ featured: 1
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-07-23T16:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-07-24T00:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-07-24T00:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/bn8RgaLhvJkxgcHT8
@@ -35,9 +35,6 @@ link_text: 'PRE-VENTA'
 
 <script>
     import flyer from '$lib/posts/calendario/media/festival-24-7-2023/1.jpg';
-    const style = `
- 
-    `
 </script>
 
 ![flyer]({flyer})
@@ -92,16 +89,6 @@ Les invitamos a celebrar con nosotres el orgullo de las prácticas sad\*masoquis
       top: -1em;
       font-size: var(--step-1);
       color: var(--2);
-  }
-  code{
-    background: var(--4-light);
-    color:var(--2-dark);
-    display:block;
-    margin-inline: 0em;
-    text-align: center;
-    padding: 1em;
-    font-weight: bold;
-    font-size: var(--step-1);
   }
   a {
     color: #222;

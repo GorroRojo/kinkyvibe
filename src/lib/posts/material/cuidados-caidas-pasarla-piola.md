@@ -1,9 +1,9 @@
 ---
 published_date: 2023-10-25Z-03:00
 updated_date: 2023-10-26Z-03:00
-title: Cuidados, caídas y pasarla piola 
+title: Cuidados, caídas y pasarla piola
 #wiki: material # para si es una entry de la wiki #
-summary: "Cómo reducir las chances de que tengas resaca emocional post orgía sadomasoquista."
+summary: 'Cómo reducir las chances de que tengas resaca emocional post orgía sadomasoquista.'
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #
@@ -20,7 +20,7 @@ authors:
   - DemonWeb
   - Gorro_Rojo
 featured: 1
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
@@ -39,17 +39,17 @@ force_unlisted: true
 
 ## Pero, ¿qué es un **drop**?
 
-**Es un "bajón" físico y/o psicoemocional en el cual estamos después de una experiencia intensa y disfrutada**. Puede aparecer después de unas horas, al otro día, o inclusive un par de días después. 
+**Es un "bajón" físico y/o psicoemocional en el cual estamos después de una experiencia intensa y disfrutada**. Puede aparecer después de unas horas, al otro día, o inclusive un par de días después.
 
-IMPORTANTE: También podemos dropear cuando tuvimos una mala experiencia, es común que suceda así, pero entonces ¿por qué hacemos énfasis en "*intensa y disfrutada*"? Socialmente tendemos a adjudicar el "bajón" a una experiencia negativa que hayamos tenido en los momentos previos: "_estoy mal porque me pasó algo malo_". En el caso de los "drops", no necesariamente es así. 
+IMPORTANTE: También podemos dropear cuando tuvimos una mala experiencia, es común que suceda así, pero entonces ¿por qué hacemos énfasis en "_intensa y disfrutada_"? Socialmente tendemos a adjudicar el "bajón" a una experiencia negativa que hayamos tenido en los momentos previos: "_estoy mal porque me pasó algo malo_". En el caso de los "drops", no necesariamente es así.
 
 **¡No tiene por qué haber pasado algo malo para tener una caída/drop!**
 
 Nosotres tendemos a pensarlo un poco **como una resaca de drogas o alcohol** <small>(o sea, desde la perspectiva de gestión de daños y placeres)</small>:
 
-La posibilidad de tener una caída al día siguiente de jugar es un *riesgo requerido* de la práctica. O sea, es una posibilidad que viene con el disfrute de la misma. Como cuando tomamos alcohol, que un riesgo requerido puede ser la posibilidad de tener resaca. Por esa misma razón nos parece importante generar estrategias para reducir las chances de tenerlo o mismo generar estrategias para transitarlo ♥️.
+La posibilidad de tener una caída al día siguiente de jugar es un _riesgo requerido_ de la práctica. O sea, es una posibilidad que viene con el disfrute de la misma. Como cuando tomamos alcohol, que un riesgo requerido puede ser la posibilidad de tener resaca. Por esa misma razón nos parece importante generar estrategias para reducir las chances de tenerlo o mismo generar estrategias para transitarlo ♥️.
 
-Lo que llamamos "caída" o "bajón" es encontrable en inglés como "*Sub drop*". Viene de la comunidad BDSM-kinky y solía usarse para referirse al bajón que les sumis podían experimentar post sesión, pero la realidad es que todes podemos experimentarlo!
+Lo que llamamos "caída" o "bajón" es encontrable en inglés como "_Sub drop_". Viene de la comunidad BDSM-kinky y solía usarse para referirse al bajón que les sumis podían experimentar post sesión, pero la realidad es que todes podemos experimentarlo!
 
 ## ¿Cómo sé si estoy teniendo una caída/drop?
 
@@ -95,14 +95,13 @@ Si pudiste identificar cómo te sentís: ¡qué bueno! Sabemos que es difícil. 
 
 ### Experiencias personales de une sub con experiencia dropeando (y teniendo problemas de salud mental)
 
-> @DemonWeb : 
+> @DemonWeb :
 
-> Por ejemplo, yo suelo tener distintos tipos de drops. Pero el más general suele ser resaca física (sueño, letargia) y vulnerabilidad emocional, como si tuviera todo a flor de piel. Cualquier cosa me hace llorar, me da miedo, me emociona. 
+> Por ejemplo, yo suelo tener distintos tipos de drops. Pero el más general suele ser resaca física (sueño, letargia) y vulnerabilidad emocional, como si tuviera todo a flor de piel. Cualquier cosa me hace llorar, me da miedo, me emociona.
 
-> Hoy en día sé que si estoy sintiendo eso es porque estoy dropeando. Es el “sabor” de mi drop generalmente. Lo abrazo como un efecto secundario hermoso de cómo jugué el día anterior, intento tomarme el día con calma si puedo, conectar con la gente con la que jugué para charlar de lo bien que la pasamos, o mismo pedirles mimos y cuidados (si pueden). 
+> Hoy en día sé que si estoy sintiendo eso es porque estoy dropeando. Es el “sabor” de mi drop generalmente. Lo abrazo como un efecto secundario hermoso de cómo jugué el día anterior, intento tomarme el día con calma si puedo, conectar con la gente con la que jugué para charlar de lo bien que la pasamos, o mismo pedirles mimos y cuidados (si pueden).
 
 > Sé que si la noche o día anterior juego duro, necesito tomarme el día siguiente con calma, así que ya previamente me preparo para eso (si puedo). Para mí eso suele ser: intentar no ponerme trabajo al otro día, dejarme el día más o menos libre, si tengo que trabajar o hacer algo específico intentar dejarme la comida lista, o pedirle ayuda a alguien para que me recuerde hacerla o comer.
-
 
 ## **Cuidados posteriores** ó ¿Qué puedo hacer con las caídas/drops?
 
@@ -122,35 +121,34 @@ Habiendo dicho eso, acá dejamos información sobre posibles prácticas de cuida
 
 Hay una retroalimentación entre el cerebro y el cuerpo, el cuerpo y el cerebro. Podemos darle señales al cerebro y al cuerpo de seguridad y calma usando nuestro sistema nervioso.
 
-Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte de nuestro sistema nervioso que nos puede ayudar a regularnos.
+Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte de nuestro sistema nervioso que puede ayudar a regularnos.
 
-- Cuidarnos los cuerpitos comiendo cosas ricas, tomando agua, asegurándonos de estar un momento calentites y cómodes. 
+- Cuidarnos los cuerpitos comiendo cosas ricas, tomando agua, asegurándonos de estar un momento calentites y cómodes.
 - Darte un bañito con sales o una ducha.
 - Hacer ejercicio físico leve como estiramiento o yoga.
 
 #### Con **comida**
 
-Podemos asegurarnos de alimentar bien al cuerpo para recuperarnos mejor. 
+Podemos asegurarnos de alimentar bien al cuerpo para recuperarnos mejor.
 
-- Carbohidratos, proteína, grasa, aminoácidos, vitaminas, electrolitos. 
+- Carbohidratos, proteína, grasa, aminoácidos, vitaminas, electrolitos.
 - Prepararnos algo por adelantado.
 
-Hay una retroalimentación entre el cerebro y el cuerpo, el cuerpo y el cerebro. Podemos darle señales al cerebro y al cuerpo de seguridad y calma usando nuestro sistema nervioso. Estimulando el diafragma podemos comunicarnos con el nervio vago, dandonos acceso directo a la parte parasintética de nuestro sistema nervioso, la parte que nos puede ayudar a regularnos.
+Podemos también ingerir comidas solubles con mucha fibra para ralentizar el sistema digestivo y comunicarnos con el nervio vago.
 
-Para hacer esto, podemos ingerir comidas solubles con mucha fibra para ralentizar el sistema digestivo y comunicarnos con el nervio vago.
+#### Para atender **moretones**
 
-#### Para atender **moretones** 
+Los cuidados básicos son:
 
-Los cuidados básicos son: 
-
-- **Hidratarte** la piel con crema hidratante. 
+- **Hidratarte** la piel con crema hidratante.
   - Si en general te gustan los juegos de impacto, super recomendamos que te hidrates la piel en general, antes y después.
 - Podés usar **hielo** si el moretón está muy hinchado y querés bajarlo. Ya sean paquetes de hielo o hielo envuelto en un repasador.
-- **Árnica**, nuestra mejor amiga para moretones que no tienen cortecitos. 
-  - Podés encontrarla en crema, en roll-on y en aceite. 
-  - A mí me gusta el *Roll On* de Artrosil. ( @DemonWeb )
+- **Árnica**, nuestra mejor amiga para moretones que no tienen cortecitos.
+  - Podés encontrarla en crema, en roll-on y en aceite.
+  - A mí me gusta el _Roll On_ de Artrosil. ( @DemonWeb )
 - Algún gel con **aloe vera** para moretones que _si_ tienen cortecitos.
-- 
+-
+
 ### Cuidados posteriores **emocionales**
 
 - Reconectar con quien jugamos y hablar de cómo la pasamos, comentar qué nos gustó, re-vincularnos después de la vulnerabilidad que pudo significar la escena.
@@ -165,7 +163,7 @@ Los cuidados básicos son:
 
 ### Cuidados posteriores **cuando estoy teniendo una caída/drop**
 
-**Primero: ¡felicitaciones! Pudiste darte cuenta que estás teniendo una caída o bajón y eso es muy importante ♥️**. Sabemos que no es fácil, mucho menos si estás haciendo algo nuevo o si anoche fue tu primer evento BDSM. 
+**Primero: ¡felicitaciones! Pudiste darte cuenta que estás teniendo una caída o bajón y eso es muy importante ♥️**. Sabemos que no es fácil, mucho menos si estás haciendo algo nuevo o si anoche fue tu primer evento BDSM.
 
 Identificar emociones
 

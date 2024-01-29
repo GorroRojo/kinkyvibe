@@ -145,7 +145,7 @@ export default function customRehype() {
 				/(?<![\w\d])(\\?)@(\S+)/g,
 				(_, escape, user) => {
 					if (escape) return '@' + user;
-					const href = '/amigues/' + (user == 'KinkyVibe' ? 'nosotres' : user);
+					const href = '/amigues/' + user;
 					return h('a.mention', { href }, '@' + user);
 				}
 			]

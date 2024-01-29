@@ -3,7 +3,7 @@
  */
 /**@typedef Group
  * @prop {string} name
- * @prop {string[]} members
+ * @prop {string[]} [members]
  * @prop {Group[]} sub
  * @prop {boolean} [noname]
  * @prop {string} [color]
@@ -13,6 +13,43 @@
 /** @typedef TagProps
  * @prop {string} [aliasOf]
  * @prop {string} [color]
+ */
+
+/** @typedef {string} TagID */
+/** @typedef {string} postID */
+
+/**
+ * @typedef {Object} RawTag
+ * @prop {TagID} id
+ * @prop {string} [visible_name]
+ * @prop {string} [color]
+ * @prop {string} [description]
+ * @prop {TagID[]} [related]
+ * @prop {string[]} [aka]
+ * @prop {TagID} [aliasOf]
+ * @prop {TagID[]} [children]
+ * @prop {postID} [entry]
+ * @prop {boolean} [noname]
+ * */
+
+/**
+ * @typedef {RawTag & {
+ *      getColor: ()=>(string|undefined),
+ *      getAllChildren: ()=>(string[]),
+ *      getAllParents: ()=>(string[]),
+ *      cleanDescription?: string,
+ *      parsedDescription?: Array<{line: string, type: "text"|"link"|"mark", href?: string}>,
+ *      parents?: TagID[],
+ *      orphan?: boolean
+ * }} ProcessedTag
+ */
+/**@typedef TagManager
+ * @prop {(tagID: string, fallbackData?: *)=>(ProcessedTag)} get
+ * @prop {()=>([TagID, ProcessedTag][])} entries
+ * @prop {()=>(TagID[])} tagIDs
+ * @prop {()=>(ProcessedTag[])} tagsData
+ * @prop {(tagID: string, value: RawTag)=>void} set
+ * @prop {string[]} missingTags
  */
 
 /**@typedef List
@@ -30,8 +67,8 @@
  * @prop {'material'|'calendario'|'amigues'} layout
  * @prop {string[]} authors
  * @prop {string} [featured]
- * @prop {Date} [published_date]
- * @prop {Date} [updated_date]
+ * @prop {string} [published_date]
+ * @prop {string} [updated_date]
  * @prop {boolean} [force_unlisted]
  * @prop {boolean} [force_unpublished]
  */
@@ -73,9 +110,9 @@
  * @typedef ProcessedPost
  * @prop {string} path
  * @prop {AnyPostData} meta
- * @prop {ConstructorOfATypedSvelteComponent|undefined} content
- * @prop {ProcessedPost[]} authorsProfiles
- * @prop {ProcessedPost[]} relatedPosts
+ * @prop {ConstructorOfATypedSvelteComponent|undefined} [content]
+ * @prop {ProcessedPost[]} [authorsProfiles]
+ * @prop {ProcessedPost[]} [relatedPosts]
  */
 /** @typedef {AmiguesPostData & MaterialPostData & CalendarioPostData} AnyPostData */
 

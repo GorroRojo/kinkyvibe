@@ -1,8 +1,8 @@
 ---
 published_date: 2023-06-15Z-03:00
-#updated_date: 2023-11-04Z-03:00
+updated_date: 2024-01-29Z-03:00
 title: XDoll
-summary: Lic. en Artes Visuales, me auto ato, soy bottom y rigger 
+summary: Lic. en Artes Visuales, me auto ato, soy bottom y rigger
 tags:
   - español
   - BDSM
@@ -30,4 +30,10 @@ gender_identity: Femenino
 bday: 2023-10-01Z-03:00
 ---
 
-Información para prácticas y experiencia con cuerdas 
+Estoy haciendo una encuesta de registro de daño con cuerdas.
+
+Va desde adormecimiento, hormigueo a lesión grave. La idea es poder tener un registro de qué arneses son los que más causan lesiones. <small>(siempre ví estadísticas de otros países)</small>
+
+Si conocen a alguien que tuvo daño o ustedes tuvieron, me pueden ayudar respondiendo!
+
+[Link a la encuesta de registro de daño de cuerdas](https://forms.gle/rXxDH9NfT7ymTbRPA)

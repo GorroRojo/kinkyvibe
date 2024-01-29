@@ -27,7 +27,8 @@
 		por Telegram. O directamente en
 		<a href="https://github.com/GorroRojo/kinkyvibe/issues/new">GitHub</a>.
 	</div>
-	Codigueado por<a href="/amigues/Gorro_Rojo">Gorro_Rojo</a>. Esta página es
+	Codigueado por
+	<a href="/amigues/Gorro_Rojo">Gorro_Rojo</a>. Esta página es
 	<a href="https://github.com/gorrorojo/kinkyvibe">código abierto</a>
 	y software libre.
 	<ul>
@@ -45,11 +46,12 @@
 		<li>
 			<h3>Sobre nosotres</h3>
 			<ul>
-				<li><a href="/nosotres"><ArrowRight {style} />Nosotres</a></li>
+				<li>
+					<a href="/amigues/KinkyVibe"><ArrowRight {style} />Nosotres y nuestros servicios</a>
+				</li>
 				<li>
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
 				</li>
-				<li><a href="/servicios"><Sparkles {style} />Servicios</a></li>
 				<li>
 					<a href="https://cafecito.app/kinkyvibe" target="_blank">
 						<SimpleIcon icon={siKofi} />CafecitoApp

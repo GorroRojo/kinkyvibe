@@ -23,4 +23,3 @@ authors:
 Entre esas se encuentran: esposas, cadenas, cuerdas, chokers/collares y correas, collares posturales, films, sillas restrictivas, [[shibari]], [[disciplina]], [[restricción mental]], [[momificación]], [[privación sensorial]] (tacto, escucha, vista, habla).
 
 Puede realizarse con múltiples fines: estético, relajante, [[objetificación : objetificante]], [[humillación : humillante]], entre otras.
-

@@ -16,6 +16,6 @@ category: wiki
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-Las mismas pueden usarse para generar [[dolor]], estimulación sensorial ([[sensaciones]]), [[calentamiento]], caricias, entre otros. 
+Las mismas pueden usarse para generar [[dolor]], estimulación sensorial ([[sensaciones]]), [[calentamiento]], caricias, entre otros.
 
-Un ejemplo son las nalgadas, producidas por impactar las nalgas con la mano. 
+Un ejemplo son las nalgadas, producidas por impactar las nalgas con la mano.

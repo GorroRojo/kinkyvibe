@@ -1,5 +1,5 @@
 <script>
-	import { alias, togglePositiveTagFilterFn, filteredTags } from '$lib/utils/stores';
+	import { togglePositiveTagFilterFn, filteredTags } from '$lib/utils/stores';
 	import Tag from '$lib/components/Tag.svelte';
 
 	/** @type string */
@@ -9,14 +9,14 @@
 	/** @type {(a:boolean,b:string)=>*}*/
 	let toggle = $togglePositiveTagFilterFn;
 	let checked = $filteredTags?.includes(tag) ?? false;
-	const aliasedTag = $alias(internalTag ?? tag);
+	const aliasedTag = internalTag ?? tag;
 
 	togglePositiveTagFilterFn.subscribe((f) => (toggle = f));
-	filteredTags.subscribe((f) => (checked = f.includes(aliasedTag ?? internalTag ?? tag)));
+	filteredTags.subscribe((f) => (checked = f.includes(aliasedTag)));
 </script>
 
 <Tag
-	onInput={(/**@type {*} */ evt) => toggle(evt.target?.checked, aliasedTag ?? internalTag ?? tag)}
+	onInput={(/**@type {*} */ evt) => toggle(evt.target?.checked, aliasedTag)}
 	{tag}
 	isCheckbox
 	{checked}

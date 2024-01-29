@@ -4,9 +4,9 @@
 	import { fly } from 'svelte/transition';
 	export let title = '';
 	export let items = [];
-	export let id;
-	export let href;
-	export let index;
+	export let id = undefined;
+	export let href = undefined;
+	export let index = undefined;
 	export let setId = true;
 </script>
 
@@ -119,7 +119,8 @@
 		text-decoration: none;
 		font-weight: normal;
 	}
-	.btn-more:hover, .btn-more:focus {
+	.btn-more:hover,
+	.btn-more:focus {
 		transform: scale(105%) translateX(-0.4em);
 	}
 	.btn-more:active {

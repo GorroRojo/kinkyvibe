@@ -16,17 +16,18 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: picantearla-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-08-11T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-08-12T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-08-12T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/d8WzK8nRPZz21UcGA
 link_text: 'PRE-VENTA'
 ---
+
 <!-- <img src={banner} alt="" /> -->
 
 <!-- <div class="col-2">
@@ -91,16 +92,6 @@ _Monitorean_
 🔥 _¿Quiénes vienen?_ 🔥
 
 <style>
-    code{
-      background: var(--4-light);
-      color:var(--2-dark);
-      display:block;
-      margin-inline: 0em;
-      text-align: center;
-      padding: 1em;
-      font-weight: bold;
-      font-size: var(--step-1);
-    }
     a {
       color: #222;
       /* text-decoration: none; */

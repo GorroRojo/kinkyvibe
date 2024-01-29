@@ -16,16 +16,16 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: cine-para-sucixs-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 start: 2023-09-30T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2023-10-01T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-carrousel_background: "#671e9f"
-carrousel_color: "white"
-carrousel_accent_text: "#ede843"
-carrousel_accent_bg: "#1b002e"
+end: 2023-10-01T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+carrousel_background: '#671e9f'
+carrousel_color: 'white'
+carrousel_accent_text: '#ede843'
+carrousel_accent_bg: '#1b002e'
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 link: https://forms.gle/PPyKWAwashBS6xhp7
@@ -37,22 +37,21 @@ link_text: PRE-VENTA
 <!-- <img src="{pag2}" alt="" /> -->
 <!-- </div> -->
 
-## Fecha, lugar y cronograma ##
+## Fecha, lugar y cronograma
 
 - Fecha: **SÁBADO 30 DE SEPTIEMBRE**
-- Hora de inicio:  **20:30 horas**
-- Dirección:  Thames 240, Villa Crespo, CABA. En **Cooperativa Cultural QI**.
+- Hora de inicio: **20:30 horas**
+- Dirección: Thames 240, Villa Crespo, CABA. En **Cooperativa Cultural QI**.
 
-## Cronograma de actividades ##
+## Cronograma de actividades
 
 - 20:30 horas. Comienza el evento. Va a estar ya la **feria** disponible.
 - 21:00 horas. **Entrevista** a @Sogashibari
 - 22:30 horas. **Sesión en vivo** con @Sogashibari
-- 23:00 horas. **Proyección** de cortos de Porno y Posporno 
+- 23:00 horas. **Proyección** de cortos de Porno y Posporno
 - 00:30 horas. **Charla-Debate**
 
-
-## Entradas en pre-venta y en puerta ##  
+## Entradas en pre-venta y en puerta
 
 Entradas **en Pre-Venta**: $2.000
 

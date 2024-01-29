@@ -16,6 +16,6 @@ category: wiki
 #original_published_date: 2010-04-03Z-03:00
 ---
 
-El paraguas también incluye: sentirla de manera poco intensa, poco frecuente, bajo circunstancias determinadas o, incluso, fluctuar entre sentirla y no sentirla. 
+El paraguas también incluye: sentirla de manera poco intensa, poco frecuente, bajo circunstancias determinadas o, incluso, fluctuar entre sentirla y no sentirla.
 
 Hablamos de un paraguas amplio donde habitan diferentes formas de experimentar la asexualidad, como son las personas grisexuales, las cuales no se sitúan en el extremo de no sentir atracción sexual y sentir atracción sexual.

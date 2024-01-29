@@ -1,7 +1,6 @@
 <script>
 	import '$lib/types.d.js';
-	import { filteredTags, visibleTags, tagsConfig, userConfig } from '$lib/utils/stores';
-	import { groupMap } from '$lib/utils/index.js';
+	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
@@ -9,14 +8,11 @@
 
 	export let event_toggle = true;
 
-	/**@type Group[] */
-	let filteredGroups = filterGroups($tagsConfig.groups, $visibleTags);
 	/**@type string[]*/
 	let orphanTags = [];
 	onMount(() => {
 		visibleTags.subscribe((v) => {
-			orphanTags = getOrphanTags(v);
-			filteredGroups = filterGroups($tagsConfig.groups, v);
+			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
 		});
 		// @ts-ignore
 		page.subscribe((p) => {
@@ -29,81 +25,7 @@
 		});
 	});
 
-	/**
-	 * @param {boolean} checked
-	 * @param {string} tag
-	 */
-	// function togglePositiveTagFilter(checked, tag) {
-	// 	if (checked) {
-	// 		filteredTags.update((fTags) => [...fTags, tag]);
-	// 	} else {
-	// 		filteredTags.update((fTags) => [
-	// 			...fTags.slice(0, fTags.indexOf(tag)),
-	// 			...fTags.slice(fTags.indexOf(tag) + 1)
-	// 		]);
-	// 	}
-	// 	$page.url.searchParams.set('tags', $filteredTags.join(','));
-	// 	goto(`?${$page.url.searchParams.toString()}`, { noScroll: true });
-	// }
-
-	/**
-	 * @param {string[]} tags
-	 * @returns string[]
-	 */
-	function getOrphanTags(tags) {
-		return tags.filter((v) => !getAllMembersAndNames($tagsConfig.groups).includes(v));
-	}
-
-	/** @param {Group[]|Group} groups
-	 * @returns {string[]}
-	 */
-	function getAllMembersAndNames(groups) {
-		if (Array.isArray(groups)) {
-			//@ts-ignore
-			return groups.reduce((prev, g) => [...prev, ...getAllMembersAndNames(g)], []);
-		} else {
-			let accumulated = [groups.name];
-			if (groups.members) {
-				accumulated.push(...groups.members);
-			}
-			if (groups.sub) {
-				accumulated.push(...getAllMembersAndNames(groups.sub));
-			}
-			return accumulated;
-		}
-	}
-
-	/**
-	 * @param {Group[]} groups
-	 * @param {string[]} tags
-	 * @returns Group[]
-	 */
-	function filterGroups(groups, tags) {
-		return groups
-			.map((group) =>
-				groupMap(group, (g) => {
-					if (g.members && g.members.length > 0) {
-						return { ...g, members: g.members.filter((t) => tags.includes(t)) };
-					} else if ((g.sub && g.sub.length > 0) || $visibleTags.includes(g.name)) {
-						return { ...g };
-					} else {
-						return false;
-					}
-				})
-			)
-			.filter(isVisible);
-	}
-
-	/** @param {Group} group @returns boolean */
-	function isVisible(group) {
-		return (
-			$visibleTags.includes(group.name) ||
-			(group.members && group.members.length > 0) ||
-			(group.sub && group.sub.length > 0 && group.sub.some(isVisible))
-		);
-	}
 	let view_filters = true;
-	// $: view_filters = $filteredTags.length > 0 || view_filters;
 </script>
 
 <div class="filterbar">
@@ -117,7 +39,7 @@
 					id="display-type-list"
 					bind:group={$userConfig.display_type}
 					value="list"
-				/>Lista
+				/>lista
 			</label>
 			<label>
 				<input
@@ -126,13 +48,12 @@
 					id="display-type-grid"
 					bind:group={$userConfig.display_type}
 					value="grid"
-				/>Grilla
+				/>grilla
 			</label>
 		</div>
 	</div>
 	{#if event_toggle}
 		<div class="option-group-wrapper">
-			<div class="option-group-title">Mostrar eventos pasados</div>
 			<div id="show-past-events" class="option-group">
 				<label>
 					<input
@@ -141,7 +62,7 @@
 						id="show-past-events-yes"
 						bind:group={$userConfig.show_past_events}
 						value={true}
-					/>Si
+					/>Mostrar
 				</label>
 				<label>
 					<input
@@ -150,19 +71,13 @@
 						id="show-past-events-no"
 						bind:group={$userConfig.show_past_events}
 						value={false}
-					/>No
+					/>Ocultar
 				</label>
 			</div>
+			<div class="option-group-title">eventos pasados</div>
 		</div>
 	{/if}
-	<!-- <label id="view_filters">
-		<input
-			type="checkbox"
-			name="view_filters"
-			disabled={$filteredTags.length > 0}
-			bind:checked={view_filters}
-		/> Ver filtros
-	</label> -->
+
 	{#if $filteredTags.length > 0}
 		<div class="tag-group-container">
 			<button
@@ -175,10 +90,26 @@
 		</div>
 	{/if}
 	{#if view_filters || $filteredTags.length > 0}
+		{@const tags = [
+			...$tagManager
+				.tagsData()
+				.filter(
+					(td) =>
+						td?.parents?.includes('root') &&
+						(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
+							$visibleTags.includes(td.id))
+				),
+			$tagManager.get('misc', {
+				children: $visibleTags
+					.filter((v) => $tagManager.get(v).orphan)
+					.sort((a, b) => a.localeCompare(b)),
+				noname: true
+			})
+		]}
 		<div class="tagfilters">
-			{#each [...filteredGroups, { sub: [], members: orphanTags, name: 'misc', noname: true }] as group (group.name)}
+			{#each tags as tag, i (tag.id)}
 				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-					<TagGroup {group} />
+					<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
 				</div>
 			{/each}
 		</div>
@@ -186,58 +117,42 @@
 </div>
 
 <style lang="scss">
-	#view_filters {
-		display: block;
-		width: 100%;
-		max-width: 50rem;
-		margin-inline: auto;
-		font-size: var(--step-0);
-		text-align: center;
-		margin-block: 0.4em;
-	}
 	.option-group-wrapper {
 		display: flex;
-		/* flex-direction: column; */
-
-		align-items: center;
-		gap: 0.6em;
+		align-items: baseline;
+		gap: 0.4em;
 		width: auto;
 		min-width: 0;
 		height: auto;
 		min-height: 0;
+		margin-bottom: 1em;
+		font-size: var(--step--1);
 	}
 	.option-group-title {
 		color: var(--1);
-		font-size: 1.1em;
 	}
 	.option-group {
 		display: flex;
-		gap: 0.2em;
-		align-items: center;
+		align-items: baseline;
 		justify-content: center;
-
 		width: auto;
 		min-width: 0;
 		height: auto;
 		min-height: 0;
-		/* margin-bottom: 1em; */
 		background: white;
 		border-radius: 0.5em;
-		outline: 2px solid var(--1);
+		outline: 1px solid var(--1);
 		label {
 			display: flex;
-			align-items: center;
-			gap: 0.5em;
+			align-items: baseline;
 			cursor: pointer;
 			color: var(--1);
-			padding: 0.5em;
+			padding: 0.2em 0.3em;
 			border-radius: 0.5em;
 			flex: 1 1;
 			transition: 200ms;
-			outline: 2px solid transparent;
 			&:has(input:checked) {
 				background: var(--1);
-				outline: 2px solid var(--1);
 				color: white;
 			}
 		}
@@ -251,7 +166,7 @@
 		/* flex-wrap: wrap; */
 		width: 100%;
 		/* height: 10rem; */
-		--gap: 1em;
+		--gap: 1px;
 		gap: var(--gap);
 		justify-content: center;
 		align-items: center;
@@ -283,6 +198,14 @@
 			width: 100%;
 		}
 	}
-	@media screen and (min-width: 1300px) {
+	button {
+		border: none;
+		outline: 2px solid var(--1);
+		border-radius: 0.5em;
+		padding: 0.3em 0.6em;
+		margin-bottom: 0.5em;
+		color: var(--1);
+		background: white;
+		font-size: var(--step--1);
 	}
 </style>

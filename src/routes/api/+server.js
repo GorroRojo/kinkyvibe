@@ -1,11 +1,12 @@
 import { error, json } from '@sveltejs/kit';
-import { fetchGlossary, fetchMarkdownPosts, fetchTags } from '$lib/utils';
+import { fetchGlossary, fetchMarkdownPosts } from '$lib/utils';
+import tagsFactory from '$lib/utils/tags.js';
 
 export async function GET({ url }) {
 	var allPosts;
 	const params = url.searchParams;
 	if (params.has('getTags')) {
-		return json(await fetchTags());
+		return json(await tagsFactory().entries());
 	} else if (params.has('getGlossary')) {
 		return json(await fetchGlossary());
 	} else {

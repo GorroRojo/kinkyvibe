@@ -17,6 +17,15 @@
 			return s + '';
 		}
 	};
+	let relatedPosts = data.allPosts.filter(
+		(p) =>
+			data.meta.authors?.some(
+				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== data.meta.title
+			) ||
+			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
+			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
+			(data.meta.category == 'amigues' && p.meta.authors.includes(data.meta.postID) && p.meta.postID != data.meta.postID)
+	)
 </script>
 
 <LDTag
@@ -105,7 +114,7 @@
 				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
 			{:then authorsProfiles}
 				{#each authors as author, i}
-					{@const profile = authorsProfiles.find(
+					{@const profile = authorsProfiles?.find(
 						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}
@@ -170,6 +179,12 @@
 					new Date(data.meta.end ?? data.meta.start + data.meta.duration),
 					'yyyy-MM-dd'
 				)}
+				status={{
+					abierto: 'CONFIRMED',
+					cancelado: 'CANCELLED',
+					anunciado: 'TENTATIVE',
+					lleno: 'CONFIRMED'
+				}[data.meta.status] ?? 'CONFIRMED'}
 				endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
 				timeZone="America/Buenos_Aires"
 				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
@@ -191,13 +206,13 @@
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />
 		{#if data.meta.link && data.meta.link_text}
-			<a href={data.meta.link} class="cta">{data.meta.link_text}</a>
+			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
 	</div>
 	{#if data.meta.tags.includes('KinkyVibe')}
 		<div id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/nosotres">nosotres</a> ✨. Si te
-			resultó valioso,
+			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
+			Si te resultó valioso,
 			<a href="https://cafecito.app/kinkyvibe" target="_blank"
 				>considerá apoyarnos con algún cafecito</a
 			>. 🤗
@@ -209,7 +224,7 @@
 
 {#if data.meta.authors.length > 0}
 	{#await data.authorsProfiles then authorsData}
-		{#each authorsData as { path, meta: author }}
+		{#each authorsData ?? [] as { path, meta: author }}
 			<a class="author-callout" rel="author" href={path}>
 				<img
 					class="author-image"
@@ -223,7 +238,7 @@
 	{/await}
 {/if}
 
-{#if data.relatedPosts.length > 0}
+{#if relatedPosts.length > 0}
 	<div class="content">
 		<h3>
 			Más cosas de
@@ -232,7 +247,7 @@
 				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
 		</h3>
 	</div>
-	<PostList posts={data.relatedPosts} />
+	<PostList posts={relatedPosts} />
 {/if}
 
 <style lang="scss">

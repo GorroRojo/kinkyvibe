@@ -18,11 +18,10 @@ category: wiki
 
 En este sentido, la disciplina es una forma de [[restricción mental]]. Ya sea por miedo al castigo o por el deseo de complacer, le Sub está “sujete” a la voluntad de le Dom.
 
-En la mayoría de los casos, la disciplina tiende a significar el uso del castigo  (físico o de otro tipo) y los premios para corregir la obediencia. 
+En la mayoría de los casos, la disciplina tiende a significar el uso del castigo (físico o de otro tipo) y los premios para corregir la obediencia.
 
 Es importante tener en cuenta que la disciplina no consensuada existe, que eso es violencia y que deja secuelas en la vida de las personas.
 
-El BDSM no es abuso inherentemente, pero sí puede usarse para ejercer violencia. Es importante que trabajemos en construir formas de vincularnos en donde no reproduzcamos esas estructuras. 
+El BDSM no es abuso inherentemente, pero sí puede usarse para ejercer violencia. Es importante que trabajemos en construir formas de vincularnos en donde no reproduzcamos esas estructuras.
 
-Por esa razón es muy importante que tengamos en cuenta las experiencias de trauma de las personas con las que jugamos y compartimos prácticas eróticas/afectivas. 
-
+Por esa razón es muy importante que tengamos en cuenta las experiencias de trauma de las personas con las que jugamos y compartimos prácticas eróticas/afectivas.

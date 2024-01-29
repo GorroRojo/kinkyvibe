@@ -1,7 +1,6 @@
 <script>
-	//@ts-nocheck
-	import { glosario } from "$lib/utils/stores";
-	/**@type {(description:string)=>Array<{type:string,line:string}>|undefined}*/
+	import { glosario } from '$lib/utils/stores';
+	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
 	function parseDescription(description, query) {
 		const regex = /\[\[([^\]]*)\]\]/g;
 		const nQuery = normalize(query);
@@ -58,6 +57,10 @@
 		return lines.length > 0 ? lines : undefined;
 	}
 
+	/**
+	 *
+	 * @param {string} s
+	 */
 	const normalize = (s) =>
 		(s + '')
 			.toLowerCase()
@@ -66,17 +69,21 @@
 			.replaceAll('í', 'i')
 			.replaceAll('ó', 'o')
 			.replaceAll('ú', 'u');
+	/**@param {string} a @param {string} [q=query] @returns {boolean}*/
 	function includesNormalized(a, q = query) {
 		return normalize(a).includes(normalize(q));
 	}
+	/**@type{*}*/
 	export let value = '';
 	export let query = '';
+	export let parsed = false;
+	/**@type {ProcessedPost[]}*/
 	export let entries;
 </script>
 
-{#each parseDescription(value, query) as { line, type, href }}
+{#each parsed ? value : parseDescription(value, query) as { line, type, href }}
 	{@const entry = entries.find((e) => e.meta.wiki == (href ?? line)?.replaceAll(' ', '-'))}
-	{@const termino = $glosario.terminos.find((t) => t.name == (href ?? line)?.replaceAll(' ','-'))}
+	{@const termino = $glosario.terminos.find((t) => t.name == (href ?? line)?.replaceAll(' ', '-'))}
 	{#if type == 'link' && entry}
 		<a href="/wiki/{entry.meta.wiki}">{line}</a>
 	{:else if type == 'link' && termino}

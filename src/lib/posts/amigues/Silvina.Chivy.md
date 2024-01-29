@@ -29,7 +29,7 @@ gender_identity: Género fluido
 bday: 1989-05-15
 ---
 
-- Organizo @la.colectiver 
-- Produzco [\@cabaret.astral](https://www.instagram.com/cabaret.astral/) 
+- Organizo @la.colectiver
+- Produzco [\@cabaret.astral](https://www.instagram.com/cabaret.astral/)
 - Perfomeo con @soleropebunny
 - Colaboro con @Vulvarnes , [\@lg.fotoerotica](https://www.instagram.com/lg.fotoerotica), @KinkyVibe y +++

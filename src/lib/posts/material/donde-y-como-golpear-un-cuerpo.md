@@ -12,7 +12,6 @@ tags:
   - online
   - interactivo
   - impacto
-  - prácticas
   - caning
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis

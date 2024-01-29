@@ -6,7 +6,7 @@
 		visibleTags,
 		allTags,
 		userConfig,
-		tagsConfig,
+		tagManager,
 		redundantTags
 	} from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
@@ -17,14 +17,17 @@
 	 */
 	/**@type ProcessedPost[]*/
 	export let posts = [];
-	/** @type {false|{prop: string, value: string}}*/
+	/** @type {false|{prop: string, value: *}}*/
 	export let filter = false;
 
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
-		// @ts-ignore
-		(/**@type {ProcessedPost}*/ p) => (!filter || (filter && p[filter.prop] == filter.value)) &&
-			($userConfig.show_past_events || (new Date(p.meta.start).getTime() > Date.now() || p.meta.category != "calendario"))
+		(/**@type {ProcessedPost}*/ p) =>
+			// @ts-ignore
+			(!filter || (filter && p[filter.prop] == filter.value)) &&
+			($userConfig.show_past_events ||
+				new Date(p.meta.start).getTime() > Date.now() ||
+				p.meta.category != 'calendario')
 	);
 
 	/**@type {<T>(arr: T[])=>T[]}*/
@@ -54,7 +57,7 @@
 					return true;
 				} else {
 					$redundantTags.add(tag);
-					const parents = getParents(tag);
+					const parents = $tagManager.get(tag)?.parents ?? [];
 					return filteredTags.some((ft) => parents.includes(ft));
 				}
 			})
@@ -62,118 +65,36 @@
 	}
 
 	$: visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
-	// $: tags = [...new Set(nonAliasTags)];
-	// /** @type {{[k: string]: Group | undefined}}*/
-	// $: groupByName = Object.fromEntries(
-	// 	getAllGroupNames($tagsConfig.groups).map((name) => [name, getGroupByName(name)])
-	// );
 	/**@type ProcessedPost[]*/
-	$: tagFilteredPosts = outerFilteredPosts.filter((post) =>
-		$filteredTags && $filteredTags.length == 0
-			? true
-			: $filteredTags.every(
-					(f) =>
-						post.meta.tags.includes(f) ||
-						post.meta.tags
-							.map((/**@type {string}*/ t) => {
-								let p = getParents(t);
-								return p;
-							})
-							.flat()
-							.includes(f)
-			  )
+	$: tagFilteredPosts = outerFilteredPosts.filter(
+		(post) =>
+			$filteredTags.length == 0 ||
+			$filteredTags.every((f) => {
+				return (
+					post.meta.tags.includes(f) ||
+					post.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
+				);
+			})
 	);
-
-	/**
-	for each post
-		are all the filtered tags or their parents
-
-	*/
-
-	/**@type {(tag:string)=>string[]}*/
-	function getParents(tag) {
-		/**@type {string[]}*/
-		let parents = [];
-		$tagsConfig.groups.forEach((g) => {
-			parents = [...parents, ...findTagAndReturnParents(tag, g)];
-		});
-		return parents;
-	}
-
-	/**
-	 * Finds a specific tag within a group and returns its parents.
-	 * @param {string} tag - The tag to search for.
-	 * @param {Group} group - The group object to search within.
-	 * @param {string[]} [parents=[]] - An array of parent names (optional, defaults to an empty array).
-	 * @returns {string[]} - An array containing the names of the parents of the tag.
-	 */
-	function findTagAndReturnParents(tag, group, parents = []) {
-		if (group.name == tag) return parents;
-		if (group.members.includes(tag)) return [...parents, group.name];
-		/**@type {string[]}*/
-		let deeper = [];
-		group.sub.forEach((sub) => {
-			deeper.push(...findTagAndReturnParents(tag, sub, ['sub', ...parents, group.name]));
-		});
-		return deeper;
-	}
-
-	/**@type {(groups: Group[]|Group|undefined)=>string[]}*/
-	function getAllChildren(groups = $tagsConfig.groups) {
-		if (!groups) return [];
-		if (!Array.isArray(groups)) groups = [groups];
-		/**@type {string[]}*/
-		let children = [];
-		[groups].flat().forEach((g) => {
-			children = [...children, g.name, ...g.members, ...getAllChildren(g.sub)];
-		});
-		return children;
-	}
-
-	/** @param {Group[]|Group} groups
-	 * @returns {string[]}
-	 */
-	function getAllGroupNames(groups) {
-		if (Array.isArray(groups)) {
-			//@ts-ignore
-			return groups.reduce((prev, g) => [...prev, ...getAllGroupNames(g)], []);
-		} else {
-			let accumulated = [groups.name];
-			if (groups.sub) {
-				accumulated.push(...getAllGroupNames(groups.sub));
-			}
-			return accumulated;
-		}
-	}
-
-	/** breadth-first search
-	 * @type {(name:string)=>Group|undefined}
-	 * */
-	function getGroupByName(name, groups = $tagsConfig.groups) {
-		for (let g of groups) {
-			if (g.name == name) return g;
-		}
-		for (let g of groups) {
-			let sub;
-			if (g.sub) sub = getGroupByName(g.sub);
-			if (sub) return sub;
-		}
-	}
 
 	$: allTags.set([
 		// @ts-ignore
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
-		...getAllGroupNames($tagsConfig.groups)
+		...$tagManager.tagIDs()
 	]);
 </script>
 
-{#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
-	{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
-	<div class="container">
-		<div class="postlist">
-			<div id="filterbar">
-				<FilterBar event_toggle={tagFilteredPosts.some(p=>p.meta.category == 'calendario')}/>
-			</div>
+<slot />
+<div class="container">
+	<div class="postlist">
+		<div id="filterbar">
+			<FilterBar
+				event_toggle={tagFilteredPosts.length == 0 ||
+					tagFilteredPosts.some((p) => p.meta.category == 'calendario')}
+			/>
+		</div>
+		{#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
+			{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
 
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
@@ -185,9 +106,9 @@
 					{/each}
 				</ul>
 			{/key}
-		</div>
+		{/if}
 	</div>
-{/if}
+</div>
 
 <style lang="scss">
 	#posts {

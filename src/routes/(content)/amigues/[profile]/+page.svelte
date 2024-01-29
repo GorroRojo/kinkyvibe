@@ -15,6 +15,15 @@
 			return s + '';
 		}
 	};
+	let relatedPosts = data.allPosts.filter(
+		(p) =>
+			data.meta.authors?.some(
+				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== data.meta.title
+			) ||
+			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
+			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
+			(data.meta.category == 'amigues' && p.meta.authors.includes(data.meta.postID) && p.meta.postID != data.meta.postID)
+	)
 </script>
 
 <LDTag
@@ -121,11 +130,13 @@
 	{/if}
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />
-		<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text ?? 'Ir a su página'}</a>
+		<a href={data.meta.link} target="_blank" class="cta"
+			>{data.meta.link_text ?? 'Ir a su página'}</a
+		>
 	</div>
 </article>
 
-{#if data.relatedPosts.length > 0}
+{#if relatedPosts.length > 0}
 	{@const relatedAuthors = [...new Set([data.meta.postID, ...data.meta.authors])]}
 	<div class="content">
 		<h3>
@@ -135,7 +146,7 @@
 				: [relatedAuthors.slice(0, -1).join(', '), relatedAuthors.slice(-1)[0]].join(' o ')}
 		</h3>
 	</div>
-	<PostList posts={data.relatedPosts} />
+	<PostList posts={relatedPosts} />
 {/if}
 
 <style lang="scss">
