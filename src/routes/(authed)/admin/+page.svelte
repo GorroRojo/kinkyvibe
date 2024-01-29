@@ -8,8 +8,6 @@
 	let value = form?.post?.raw ?? data?.contents.raw ?? '';
 </script>
 
-
-
 <article class="content">
 	<form method="POST" action="?/load">
 		<select name="category">
