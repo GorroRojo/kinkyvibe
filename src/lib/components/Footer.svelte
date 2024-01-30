@@ -3,7 +3,6 @@
 		ArrowRight,
 		BookOpen,
 		Heart,
-		Sparkles,
 		CalendarRange,
 		ShoppingCart,
 		Rss,
@@ -85,6 +84,17 @@
 				</li>
 				<li>
 					<a data-sveltekit-reload href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>
+				</li>
+			</ul>
+		</li>
+		<li>
+			<h3>Cuenta</h3>
+			<ul>
+				<li>
+					<a href="/login">Iniciar sesión</a>
+				</li>
+				<li>
+					<a href="/admin">Panel de admin</a>
 				</li>
 			</ul>
 		</li>

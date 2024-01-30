@@ -7,8 +7,28 @@
 	const {
 		elements: { trigger, menu, item },
 		states: { open }
-	} = createDropdownMenu();
+	} = createDropdownMenu({
+		preventScroll:false
+	});
 	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
+	/**
+	 *
+	 * @param {string} token
+	 * @param {string} username
+	 * @returns {boolean}
+	 */
+	function isAdmin(token, username) {
+		return ['GorroRojo', 'Tallarines333', 'VelvetVoid'].includes(username);
+		// TODO make it read it from github
+		// try {
+		// 	await ghGet(`repos/GorroRojo/kinkyvibe/collaborators/${username}}`, token)
+		// } catch (e) {
+		// 	console.log(e)
+		// 	return false
+		// }
+		// return true
+	}
+	let admin = isAdmin('', user.login);
 </script>
 
 <div class="profile-header" use:melt={$trigger}>
@@ -16,9 +36,9 @@
 	<span id="title" class="profile-name">
 		{user.name ?? user.login}
 	</span>
-</div>
-{#if $open}
+	{#if $open}
 	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
+		{#if admin}
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
@@ -26,9 +46,11 @@
 		{:else}
 			<span class="menuitem disabled" use:melt={$item}>Editar contenido</span>
 		{/if}
+		{/if}
 		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}>Cerrar sesión</a>
 	</div>
-{/if}
+	{/if}
+</div>
 
 <style lang="scss">
 	a {

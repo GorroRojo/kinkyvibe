@@ -66,7 +66,6 @@
 <AgeModal />
 
 <header>
-	
 	<div id="me">
 		<ul id="redes">
 			<li>
@@ -94,7 +93,11 @@
 			{#if data.user && data.user !== undefined && data.user.login !== ''}
 				<UserMenu user={data.user} />
 			{:else}
-				<a href="/login?redirectTo={$page.url}">Iniciar sesión</a>
+				<a href="/amigues/KinkyVibe">
+					Nuestros servicios
+					<ArrowRight size="18" />
+				</a>
+				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
 			{/if}
 		</div>
 	</div>
@@ -156,7 +159,7 @@
         justify-content: space-between;
         align-content: center;
 	} */
-	
+
 	#logo {
 		color: black;
 		display: block;

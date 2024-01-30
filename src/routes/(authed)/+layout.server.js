@@ -2,12 +2,12 @@ import { redirect } from '@sveltejs/kit';
 export async function load({ locals, url }) {
 	if (locals.user_token == undefined || locals.user_token == '') {
 		throw redirect(303, `/login?redirectTo=${url.pathname}`);
-	} else if (locals.user?.login && !isAdmin(locals.user_token, locals.user.login)) {
-		throw redirect(303, '/')
-	} else {
+	} else if (isAdmin(locals.user_token, locals.user.login)) {
 		return {
-			currentRoute: url.pathname,
+			currentRoute: url.pathname
 		};
+	} else {
+		throw redirect(303, '/')
 	}
 }
 /**
@@ -16,7 +16,7 @@ export async function load({ locals, url }) {
  * @param {string} username
  * @returns {Promise<*>}
  */
-async function isAdmin(token, username) {
+function isAdmin(token, username) {
 	return ["GorroRojo", "Tallarines333", "VelvetVoid"].includes(username)
 	// TODO make it read it from github
 	// try {
