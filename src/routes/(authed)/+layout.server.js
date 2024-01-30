@@ -1,5 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import ghGet from '$lib/external/github';
 export async function load({ locals, url }) {
 	if (locals.user_token == undefined || locals.user_token == '') {
 		throw redirect(303, `/login?redirectTo=${url.pathname}`);
