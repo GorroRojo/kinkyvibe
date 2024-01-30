@@ -21,8 +21,8 @@ featured: grupo-sumis-miniatura.png
 #force_unpublished: false
 status: anunciado # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
-start: 2024-02-20T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-02-20T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-02-23T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-02-23T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/44M3xoKvXBmgrzDw8
 link_text: 'INSCRIPCIÓN'
