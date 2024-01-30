@@ -48,7 +48,7 @@
 			$page.url.searchParams.delete('q');
 		} else {
 			$glosario.terminos = $glosario.terminos.map((termino) => {
-				let entry = data.entries.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'));
+				let entry = data.wiki.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'));
 				$page.url.searchParams.set('q', query);
 				if (
 					includesNormalized(termino.name) ||
@@ -127,10 +127,10 @@
 		</div>
 		{#key query}
 			{#if query == '' || !query}
-				<GlosarioTree entries={data.entries} items={tagsAsGroups} {query} />
+				<GlosarioTree entries={data.wiki} items={tagsAsGroups} {query} />
 			{:else}
 				<GlosarioTree
-					entries={data.entries}
+					entries={data.wiki}
 					items={$glosario.terminos.map((/** @type {{ name: string; }} */ t) => t.name)}
 					{query}
 				/>

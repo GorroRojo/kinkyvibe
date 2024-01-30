@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts, fetchPost } from '$lib/utils/index.js';
+import { fetchPost } from '$lib/utils/index.js';
 import tagsFactory from '$lib/utils/tags';
 export const prerender = 'auto';
 /** @type {import("./$types").PageLoad} */
@@ -11,7 +11,6 @@ export async function load({ params }) {
 		post = { tag: tagManager.get(params.term) };
 	}
 	return {
-		entries: await fetchMarkdownPosts(true),
 		...post
 	};
 }
