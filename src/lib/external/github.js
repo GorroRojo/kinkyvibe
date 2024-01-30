@@ -32,7 +32,7 @@ export async function ghGet(endpoint, token) {
  * @param {string} sha
  * @return {Promise<*>} - A promise that resolves to the response from the GitHub API.
  */
-export async function ghPut(endpoint, token, body, sha) {
+export async function ghPut(endpoint, token, body, sha, userName = 'admin', category = '', postID = '') {
 	let response = await fetch('https://api.github.com/' + endpoint, {
 		method: 'PUT',
 		headers: {
@@ -41,7 +41,7 @@ export async function ghPut(endpoint, token, body, sha) {
 			Authorization: `Bearer ${token}`
 		},
 		body: JSON.stringify({
-			message: 'admin: updated file',
+			message: `[admin] ${userName} updated ${category}/${postID}`,
 			content: Buffer.from(body, 'utf-8').toString('base64'),
 			sha: sha
 		})

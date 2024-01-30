@@ -13,12 +13,12 @@ export async function load({ locals, params }) {
 
 /** @type {import("./$types").Actions} */
 export const actions = {
-	save: async ({ cookies, request }) => {
+	save: async ({ params, cookies, request }) => {
 		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
 		const data = await request.formData();
 		const fileContent = data.get('content');
 		// @ts-ignore
-		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'));
+		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), cookies.get('userName'), params.category, params.postID);
 		return { save: 'Guardado' };
 	},
 	load: async ({ cookies, request }) => {
@@ -52,6 +52,6 @@ async function getFileContent(token, path) {
  * @param {string} sha - The file's original sha
  * @return {Promise<*>} A promise that resolves with the response from the GitHub API.
  */
-async function saveFileContent(token, path, content, sha) {
-	return await ghPut('repos/GorroRojo/kinkyvibe/contents/' + path, token, content, sha);
+async function saveFileContent(token, path, content, sha, userName, category, postID) {
+	return await ghPut('repos/GorroRojo/kinkyvibe/contents/' + path, token, content, sha, userName, category, postID);
 }
