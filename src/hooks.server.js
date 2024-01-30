@@ -5,6 +5,7 @@ export async function handle({ event: request, resolve }) {
 	//@ts-ignore
 	let prevToken = request.cookies.get('prevToken');
 	let token = request.cookies.get('userToken');
+	request.locals.user_token = token ?? '';
 	let user = EMPTY_USER;
 	if (token && token !== '' && token !== prevToken) {
 		user = (await getUser(token)) ?? EMPTY_USER;
@@ -18,6 +19,7 @@ export async function handle({ event: request, resolve }) {
 			name: request.cookies.get('userName') ?? '',
 			avatar_url: request.cookies.get('userAvatarUrl') ?? ''
 		};
+		request.locals.user = { login: user.login, name: user.name, avatar_url: user.avatar_url };
 	}
 	let { login, name, avatar_url } = user;
 	request.cookies.set('userLogin', login, { path: '/' });
