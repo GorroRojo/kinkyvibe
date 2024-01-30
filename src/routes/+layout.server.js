@@ -7,8 +7,8 @@ export const load = async ({fetch, url, locals }) => {
 	let t2 = Date.now();
 	console.log('calling time:', t2 - t1);
 	// t1 = Date.now();
-	// allPosts = await (await fetch('/api')).json()
-	// wiki = await (await fetch('/api?wiki')).json();
+	// allPosts = await (await fetch('/api/posts')).json()
+	// wiki = await (await fetch('/api/wiki')).json();
 	// t2 = Date.now();
 	// console.log('fetching time:', t2 - t1);
 	return {

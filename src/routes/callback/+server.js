@@ -6,8 +6,9 @@ const tokenURL = 'https://github.com/login/oauth/access_token';
 export async function GET(request) {
 	const code = request.url.searchParams.get('code') ?? '';
 	const token = await getToken(code);
-	// @ts-ignore
+	console.log("callback/token:",token)
 	request.locals.user_token = token;
+	request.cookies.set('prevToken', request.cookies.get('userToken') ?? '', { path: '/' });
 	request.cookies.set('userToken', token, { path: '/' });
 	throw redirect(302, '/');
 }

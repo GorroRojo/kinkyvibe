@@ -91,7 +91,7 @@
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="user">
-			{#if data.user}
+			{#if data.user && data.user !== undefined && data.user.login !== ''}
 				<UserMenu user={data.user} />
 			{:else}
 				<a href="/login?redirectTo={$page.url}">Iniciar sesión</a>

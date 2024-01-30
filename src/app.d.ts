@@ -3,7 +3,7 @@
 declare global {
 	namespace App {
 		interface Locals {
-			user: GHUser,
+			user: Partial<GHUser>|undefined,
 			user_token: string // Your type here
 		}
 		// interface Error {}
