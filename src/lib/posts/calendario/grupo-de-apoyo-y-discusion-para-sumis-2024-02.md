@@ -1,6 +1,6 @@
 ---
 published_date: 2024-01-24Z-03:00
-# updated_date: 2024-01-23Z-03:00
+updated_date: 2024-01-30Z-03:00
 title: Grupo de Apoyo y Discusion para sumis*
 summary: Para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
 tags:
@@ -24,8 +24,8 @@ status: anunciado # abierto | anunciado | lleno | cancelado
 start: 2024-02-20T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-02-20T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: https://forms.gle/FRk7uytQi9QiUPn86
-# link_text: 'INSCRIPCIÓN'
+link: https://forms.gle/44M3xoKvXBmgrzDw8
+link_text: 'INSCRIPCIÓN'
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.

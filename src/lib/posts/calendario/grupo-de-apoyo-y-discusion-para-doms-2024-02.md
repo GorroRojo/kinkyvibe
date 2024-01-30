@@ -1,6 +1,6 @@
 ---
 published_date: 2024-01-24Z-03:00
-# updated_date: 2023-11-04Z-03:00
+updated_date: 2024-01-30Z-03:00
 title: Grupo de Apoyo y Discusión para Doms*
 summary: 'Nos juntamos para charlar, discutir, dar información y compartir experiencias relacionadas a ser Dom (o roles similares).'
 tags:
@@ -18,14 +18,14 @@ authors:
 featured: grupo-doms-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2024-02-13T20:30-03:00
 end:   2024-02-13T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
-# link: [https://forms.gle/XxTTzD6SP1GRyaqd8](https://forms.gle/xGHYXsukdR6EjcXP6)
-# link_text: INSCRIBIRME
+link: https://forms.gle/xGHYXsukdR6EjcXP6
+link_text: INSCRIBIRME
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.

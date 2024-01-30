@@ -1,6 +1,6 @@
 ---
 published_date: 2024-01-24Z-03:00
-#updated_date: 2024-11-04Z-03:00
+updated_date: 2024-01-30Z-03:00
 title: Cine Para Sucixs (9ª Edición)
 summary: Ciclo de Porno Cuir. Perfos, entrevistas y proyección de cortos p0rno queer-lgtb. Venite a ver cine sucio y mojarte con nosotres.
 tags:
@@ -22,7 +22,7 @@ featured: cine-para-sucixs-miniatura.jpg
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: anunciado # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-03Z-03:00
 start: 2024-02-04T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-02-05T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
@@ -32,13 +32,13 @@ end:   2024-02-05T00:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # carrousel_accent_bg: '#1b002e'
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/5C6yMfn3hxWykTis7
-# link_text: PRE-VE NTA
+link: https://forms.gle/qNPwJu4SytEvbSQRA
+link_text: PRE-VENTA
 ---
 ## Cronograma
 - **19:00** Comienza el evento. Va a estar la feria disponible.
-- **20:00** Entrevista
-- **21:15** Sesion en Vivo 
+- **20:00** Entrevista a @FugasCriticas
+- **21:15** Sesion en Vivo de @Sogashibari y [René](https://www.instagram.com/_3n3r_/)
 - **22:00** Proyección de cortos de Porno y Posporno
 - **23:00** Charla-Debate
 - **00:00** Fin del Evento
