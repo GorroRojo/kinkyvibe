@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { ArrowRight } from 'lucide-svelte';
+	import { ArrowRight, Globe } from 'lucide-svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
