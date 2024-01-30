@@ -36,7 +36,7 @@ Colaboro con @KinkyVibe armando el sitio, organizando el grupo de sumis, monitor
 
 Por fuera de eso, hago arte 3D usando mi eterno amor [Blender](https://www.blender.org), y juego un poco con todos los tipos de arte con los que me cruzo. Actuación, canto, baile, escritura, animación, piano y cine.
 
-Soy arroase fetichista, agénero, neurodivergente, no-monógame, anticapacitista, y antiespecista vegane. Estoy en contra de la propiedad intelectual y amo el software libre. Me dan pánico los insectos. 
+Soy arro-ase fetichista, agénero, neurodivergente, no-monógame, anticapacitista, y antiespecista vegane. Estoy en contra de la propiedad intelectual y amo el software libre. Me dan pánico los insectos. 
 
 ## Contacto
 
