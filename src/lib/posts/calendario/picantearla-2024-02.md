@@ -25,8 +25,8 @@ start: 2024-02-16T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-02-17T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
-# link: https://forms.gle/3TCCcE9wDN9WwWtN7
-# link_text: 'PRE VENTA'
+link: https://forms.gle/4iWUGFypQTAwox9GA
+link_text: 'PRE VENTA'
 ---
 
 ## 🤩 LA IDEA DEL EVENTO
