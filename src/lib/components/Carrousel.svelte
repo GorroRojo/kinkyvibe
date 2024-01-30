@@ -1,7 +1,7 @@
 <script>
 	// @ts-nocheck
 	import { format } from 'date-fns';
-	import es from 'date-fns/locale/es';
+	import es from 'date-fns/locale/es/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	/**@type {{path: string, meta: AnyPostData}[]}*/

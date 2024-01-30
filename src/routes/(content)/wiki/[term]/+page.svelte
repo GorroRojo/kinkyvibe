@@ -7,7 +7,7 @@
 	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
-	let haswiki = (/**@type string*/ n) => true || data.entries?.some((e) => e.meta.wiki == n);
+	let haswiki = (/**@type string*/ n) => true || data.wiki?.some((e) => e.meta.wiki == n);
 	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
 	function getAscendance(termino) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
@@ -128,7 +128,7 @@
 			<svelte:component this={data.content} />
 		{:else if data.tag}
 			<p>
-				<MiniMarkup parsed value={data.tag.parsedDescription} entries={data.entries} />
+				<MiniMarkup parsed value={data.tag.parsedDescription} entries={data.wiki} />
 			</p>
 		{/if}
 	</div>

@@ -71,13 +71,13 @@ Existen varios tipos de monitoreos, los de cuerpo completo (sensibilidad, fuerza
 2. **Fuerza**<br />Apretamos con fuerza la mano y verificamos que no haya pérdida o disminución.
 3. **Motricidad**<br/>Hacemos el OK y "la garrita", llevamos las manos hacia atrás para determinar si podemos movernos correctamente.
 
-![]({chequeos})
+![ilustraciones de los chequeos]({chequeos})
 
 <small>\* También podemos realizar estos mismos chequeos en otras partes del cuerpo como nuestras piernas. Dado que las lesiones se pueden producir igual que en los brazos y es posible hacer el mismo monitoreo con ejercicios muy similares.</small>
 
 ## Zonas de mayor riesgo al atar
 
-![]({brazo})
+![diagrama de los nervios en el brazo]({brazo})
 
 🔵 Azul: Nervios
 🔴 Rojo: Zonas de riesgo

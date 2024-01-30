@@ -2,6 +2,10 @@
 // for information about these interfaces
 declare global {
 	namespace App {
+		interface Locals {
+			user: Partial<GHUser>|undefined,
+			user_token: string // Your type here
+		}
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
