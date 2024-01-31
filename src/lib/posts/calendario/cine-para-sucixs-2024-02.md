@@ -38,7 +38,7 @@ link_text: PRE-VENTA
 ## Cronograma
 - **20:00** Comienza el evento. Va a estar la feria disponible.
 - **21:00** Entrevista a @FugasCriticas
-- **22:15** Sesion en Vivo de @Sogashibari y [René](https://www.instagram.com/_3n3r_/)
-- **23:00** Proyección de cortos de Porno y Posporno
-- **00:00** Charla-Debate
+- **22:20** Sesion en Vivo de @Sogashibari y [René](https://www.instagram.com/_3n3r_/)
+- **23:30** Proyección de cortos de Porno y Posporno
+- **00:30** Charla-Debate
 
