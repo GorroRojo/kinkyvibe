@@ -20,8 +20,8 @@ featured: grupo-doms-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2024-02-13T20:30-03:00
-end:   2024-02-13T22:30-03:00
+start: 2024-02-19T21:00-03:00
+end:   2024-02-19T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
 link: https://forms.gle/xGHYXsukdR6EjcXP6
