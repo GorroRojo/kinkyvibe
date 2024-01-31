@@ -33,7 +33,7 @@ featured: 1
   import wheel from './media/cuidados-caidas-pasarla-piola/1.png';
 </script>
 
-## Me puse a llorar al día siguiente de un evento bdsm, ¿está algo mal conmigo?
+## Me puse a llorar al día siguiente de un evento bdsm, ¿hay algo mal conmigo?
 
 **NO!** Es muy común y le pasa a muchas personas, le solemos llamar "caída" o "drop" en inglés (podés encontrarlo como subdrop, topdrop, etc).
 
