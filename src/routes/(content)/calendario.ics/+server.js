@@ -15,9 +15,11 @@ function stringToDateArray(s) {
 export async function GET() {
 	/**@type ics.EventAttributes[] */
 	let events = [];
-	let eventPosts = (await fetchMarkdownPosts()).filter((p) => p.meta.category == 'calendario');
+	const allPosts = await fetchMarkdownPosts();
+	const eventPosts = allPosts.filter((p) => p.meta.category == 'calendario');
 	for (let post of eventPosts) {
-		let postPath = 'https://kinkyvibe.ar' + post.path;
+		const organizer = post.meta.tags.includes('KinkyVibe') ? 'KinkyVibe' : post.meta.authors[0];
+		const postPath = 'https://kinkyvibe.ar' + post.path;
 		/**@type ics.EventAttributes */
 		let event = {
 			start: stringToDateArray(post.meta.start),
@@ -28,7 +30,12 @@ export async function GET() {
 			htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
 			location: post.meta.location ?? postPath,
 			calName: 'KinkyVibe',
-			organizer: { name: 'KinkyVibe', email: 'kinkyvibe@gmail.com' },
+			organizer: {
+				name: organizer,
+				email:
+					allPosts.find((p) => p.meta.postID == organizer)?.meta?.email ??
+					'kinkyvibe@gmail.com'
+			},
 			// @ts-ignore
 			status:
 				// @ts-ignore
