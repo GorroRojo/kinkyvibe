@@ -2,7 +2,7 @@
 published_date: 2024-01-24Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Juegos de Impacto
-summary: ¡Volvió este taller que amamos! Un teórico-práctico sobre cómo impactamos / golpeamos / nalgueamos / azotamos / latigamos nuestro cuelpo o el de otres con fines eróticos, sensuales, sexuales, o terapéuticos.
+summary: ¡Volvió este taller que amamos! Un taller teórico-práctico en donde exploramos cómo azotar, golpear y nalguear por placer
 tags:
   - español
   - BDSM
