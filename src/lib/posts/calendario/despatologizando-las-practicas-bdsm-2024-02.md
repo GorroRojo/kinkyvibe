@@ -22,7 +22,7 @@ status: anunciado # anunciado | abierto | lleno | cancelado #
 start: 2024-02-22T19:00-03:00
 end:   2024-02-22T21:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: https://forms.gle/36pWMpc2bW2eB7356
+# link: https://forms.gle/5JpqwxnTGvuXdyEH6
 # link_text: Inscribirse
 ---
 
