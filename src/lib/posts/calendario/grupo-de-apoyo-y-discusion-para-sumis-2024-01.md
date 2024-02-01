@@ -44,4 +44,4 @@ Armamos esta propuesta con el fin de generar un espacio para todas aquellas pers
 
 Te invitamos a que vengas a charlar con nosotres 💞
 
-> El espacio va a estar coordinado por @DemonWeb
+> El espacio va a estar coordinado por @DemonWeb y @gorro_rojo

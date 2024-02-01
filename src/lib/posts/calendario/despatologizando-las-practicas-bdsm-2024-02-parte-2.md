@@ -2,7 +2,7 @@
 published_date: 2024-01-24Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Despatologizando las Prácticas BDSM (parte 2 de 2)
-summary: Invitamos a quienes trabajan en educación sexual y salud mental a analizar discursos que construyen una idea de sexualidad que destina a las personas fetichistas a esconderse, normalizarse, o excluirse.
+summary: Una formación orientada a trabajadores en salud que quieran tener un enfoque que incluya las prácticas eróticas no-normativas
 tags:
   - español
   - KinkyVibe # etiqueta especial #
