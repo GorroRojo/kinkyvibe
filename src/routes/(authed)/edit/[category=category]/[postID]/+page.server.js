@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { ghGet, ghPut } from '$lib/external/github';
+import { ghGet, ghPut } from '$lib/external/github.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ locals, params }) {
@@ -17,8 +17,10 @@ export const actions = {
 		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
 		const data = await request.formData();
 		const fileContent = data.get('content');
+		let userName = cookies.get('userName');
+		if (userName == "null") userName = cookies.get('userLogin')
 		// @ts-ignore
-		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), cookies.get('userName'), params.category, params.postID);
+		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), userName, params.category, params.postID);
 		return { save: 'Guardado' };
 	},
 	load: async ({ cookies, request }) => {
@@ -50,6 +52,9 @@ async function getFileContent(token, path) {
  * @param {string} path - The path to the file in the GitHub repository.
  * @param {string} content - The content to be saved in the file.
  * @param {string} sha - The file's original sha
+ * @param {string} userName - The user's name
+ * @param {string} category - The category of the post
+ * @param {string} postID - The post ID
  * @return {Promise<*>} A promise that resolves with the response from the GitHub API.
  */
 async function saveFileContent(token, path, content, sha, userName, category, postID) {
