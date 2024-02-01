@@ -135,7 +135,7 @@
 	.cardrow {
 		--scrollbar-width: calc(var(--step--1) * 0.6);
 		scrollbar-width: thin;
-		scrollbar-color: #ff00dd #ffffff;
+		scrollbar-color: var(--color-2, var(--1)) transparent;
 		margin-bottom: calc(var(--scrollbar-width) * -1);
 
 		/* Chrome, Edge and Safari */

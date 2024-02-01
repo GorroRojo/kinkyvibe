@@ -169,16 +169,17 @@
 		width: var(--card-width);
 		/* transition: 100ms; */
 		max-width: 100%;
+		scrollbar-width:none;
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
 		opacity: 0;
 		transition: 500ms;
 	}
-	.tagrow:hover {
+	.card:hover .tagrow {
 		--scrollbar-width: calc(var(--step--1) * 0.4);
 		scrollbar-width: thin;
-		scrollbar-color: #ff00dd #ffffff;
+		scrollbar-color: white transparent;
 		margin-bottom: calc(var(--scrollbar-width) * -1);
 
 		/* Chrome, Edge and Safari */
