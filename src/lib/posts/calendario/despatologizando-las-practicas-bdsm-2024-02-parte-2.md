@@ -22,8 +22,8 @@ status: anunciado # anunciado | abierto | lleno | cancelado #
 start: 2024-02-29T19:00-03:00
 end:   2024-02-29T21:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: /despatologizando-las-practicas-bdsm-2024-02
-# link_text: Inscribirse
+link: /despatologizando-las-practicas-bdsm-2024-02
+link_text: Inscribirse
 ---
 
 > Esta es la parte 2, [ver parte 1](/calendario/despatologizando-las-practicas-bdsm-2024-02)
