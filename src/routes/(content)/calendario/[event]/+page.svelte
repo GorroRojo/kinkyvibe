@@ -310,6 +310,7 @@
 			line-height: 1;
 		}
 		.author-summary {
+			grid-area: summary;
 			padding-right: 1em;
 		}
 	}
