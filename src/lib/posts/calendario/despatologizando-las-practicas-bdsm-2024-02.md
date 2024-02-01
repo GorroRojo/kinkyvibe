@@ -18,12 +18,12 @@ authors:
 featured: despatologizando-las-practicas-bdsm-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-02-22T19:00-03:00
 end:   2024-02-22T21:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: https://forms.gle/5JpqwxnTGvuXdyEH6
-# link_text: Inscribirse
+link: https://forms.gle/5JpqwxnTGvuXdyEH6
+link_text: Inscribirse
 ---
 
 > Esta es la parte 1, [ver parte 2](/calendario/despatologizando-las-practicas-bdsm-2024-02-parte-2)

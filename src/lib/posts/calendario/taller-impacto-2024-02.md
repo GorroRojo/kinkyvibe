@@ -18,13 +18,13 @@ authors:
 featured: taller-impacto-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-02-28T19:00-03:00
 end:   2024-02-28T22:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: https://docs.google.com/forms/d/e/1FAIpQLSet7KCsGE1vhHoZWBcdUrqWim_Xv5NbjS0TTPFK7MQ3wAn4Gw/viewform
-# link_text: PRE-VENTA
+link: https://forms.gle/vdB1TRtVfEQRLCeY8
+link_text: PRE-VENTA
 ---
 
 > ¡Volvió este taller que amamos!
