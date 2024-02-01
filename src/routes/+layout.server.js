@@ -1,6 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 /** @type {import("./$types").LayoutServerLoad} */
-export const load = async ({fetch, url, locals }) => {
+export const load = async ({ url, locals }) => {
 	let allPosts = await fetchMarkdownPosts();
 	let wiki = await fetchMarkdownPosts(true);
 	// let allPosts = await (await fetch('/api/posts')).json()
