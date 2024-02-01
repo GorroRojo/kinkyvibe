@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { isSameMonth, isSameYear, addMonths, isBefore } from 'date-fns';
+	import { isSameMonth, isSameYear, addMonths, isBefore, format } from 'date-fns';
 	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
 
@@ -9,6 +9,21 @@
 	// export let set_next_month;
 	// export let set_prev_month;
 	// export let set_today;
+	import { page } from '$app/stores';
+	page.subscribe((p) => {
+		if (p.url.searchParams.get('viewdate')) {
+			$view_date = addMonths(new Date($page.url.searchParams.get('viewdate')), 1);
+		}
+	});
+	let updateURL = () => {
+		if (isSameMonth($view_date, today_date)) {
+			$page.url.searchParams.delete('viewdate');
+			window.history.replaceState('', '', $page.url);
+		} else {
+			$page.url.searchParams.set('viewdate', format($view_date, 'yyyy-MM'));
+			window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
+		}
+	};
 
 	function capitalize(string) {
 		return string.charAt(0).toUpperCase() + string.slice(1);
@@ -16,14 +31,18 @@
 	const set_next_month = () => {
 		month_change_direction.update(() => 1);
 		view_date.update((d) => addMonths(d, $month_change_direction));
+		updateURL();
 	};
 	const set_prev_month = () => {
 		month_change_direction.update(() => -1);
 		view_date.update((d) => addMonths(d, $month_change_direction));
+		updateURL();
 	};
 	const set_today = () => {
 		month_change_direction.update(() => (isBefore($view_date, today_date) ? -1 : 1));
 		view_date.update(() => new Date(today_date));
+		$page.url.searchParams.delete('viewdate');
+		window.history.replaceState('', '', $page.url);
 	};
 
 	$: view_month_string = capitalize($view_date.toLocaleDateString('es-AR', { month: 'long' }));
