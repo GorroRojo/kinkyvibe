@@ -16,10 +16,10 @@
 		});
 		// @ts-ignore
 		page.subscribe((p) => {
-			if ($page.url.searchParams.has('tags')) {
-				if ($page.url.searchParams.get('tags') != '') {
+			if (p.url.searchParams.has('tags')) {
+				if (p.url.searchParams.get('tags') != '') {
 					//@ts-ignore
-					filteredTags.set($page.url.searchParams.get('tags')?.split(','));
+					filteredTags.set(p.url.searchParams.get('tags')?.split(','));
 				}
 			} else filteredTags.set([]);
 		});
