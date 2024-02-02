@@ -14,7 +14,8 @@ export const hardcodedTags = [
 			'prácticas',
 			'género y salud sexual',
 			'antipunitivismo',
-			'despatologización'
+			'despatologización',
+			'vincularidad'
 		]
 	},
 	{ id: 'idioma', children: ['español', 'inglés'], color: 'darkblue' },
@@ -133,6 +134,7 @@ export const hardcodedTags = [
 	},
 	{ id: 'antipunitivismo', color: 'var(--2)' },
 	{ id: 'despatologización', color: 'var(--2)' },
+	{ id: 'vincularidad', color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
 	{ id: 'queer', children: ['furry', 'género', 'asexualidad'] },
 	{
