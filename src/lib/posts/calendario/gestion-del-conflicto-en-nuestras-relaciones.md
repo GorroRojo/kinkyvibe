@@ -36,12 +36,12 @@ Construir modos de vida menos opresivos, menos crueles y menos punitivistas exig
 
 ¡Sumate a explorar y charlar sobre este tema, hacer preguntas y llevarte herramientas!
 
-Esta es una charla de la Comunidad Fugas Críticas, coordinada por ale dev, en la que vamos a contar con Mel Feld de Kinky Vibe como invitado.
+Esta es una charla de la Comunidad @FugasCríticas, coordinada por ale dev, en la que vamos a contar con @DemonWeb de @KinkyVibe como invitado.
 
-*CUPOS LIMITADOS*
+**CUPOS LIMITADOS**
 
-*¿Cómo inscribirte?*
+## ¿Cómo inscribirte?
 
-💫*Si ya sos sucriptorx de la Comunidad Fugas Críticas*, esta charla es gratuita y no es necesario que te anotes.
-💫*Si querés suscribirte* a la Comunidad Fugas Críticas y acceder a muchos más contenidos sobre vincularidad, disidencias y salud mental, hacelo acá: https://fugascriticas.com/suscripcion
-💫*Si querés solo participar de esta charla sin suscribirte*, anotate abonando un valor a la gorra en el botón a continuación.
+- 💫*Si ya sos sucriptorx de la Comunidad Fugas Críticas*, esta charla es gratuita y no es necesario que te anotes.
+- 💫*Si querés suscribirte* a la Comunidad Fugas Críticas y acceder a muchos más contenidos sobre vincularidad, disidencias y salud mental, hacelo acá: https://fugascriticas.com/suscripcion
+- 💫*Si querés solo participar de esta charla sin suscribirte*, anotate abonando un valor a la gorra en el botón a continuación.
