@@ -55,11 +55,11 @@ ESTA EDICIÓN ES PERREO INTENSO. El mismo Cabaret pero fusionado con una fiesta 
 ¿Es el perreo incomprendido porque sus padres son Uranianos? Es una hipótesis. 
 
 LINE UP:
-[\@cronopianotdead](https://instagram.com/cronopianotdead) ♒⭐The princess Tpk ❣️
-[\@andy.bst](https://instagram.com/andy.bst) Andy Bestia miamar 💥💅🏻
-[\@cuatik0](https://instagram.com/cuatik0) nos va a hacer mover el poto hasta abajo ↘️
-[\@venusinoo](https://instagram.com/venusinoo) dándolo todo para que siga ese perreito intenso y jot 🥵
-Astrologiza y hostea la noche [\@flor.sandulli](https://instagram.com/flor.sandulli) 🌠
+- [\@cronopianotdead](https://instagram.com/cronopianotdead) ♒⭐The princess Tpk ❣️
+- [\@andy.bst](https://instagram.com/andy.bst) Andy Bestia miamar 💥💅🏻
+- [\@cuatik0](https://instagram.com/cuatik0) nos va a hacer mover el poto hasta abajo ↘️
+- [\@venusinoo](https://instagram.com/venusinoo) dándolo todo para que siga ese perreito intenso y jot 🥵
+- Astrologiza y hostea la noche [\@flor.sandulli](https://instagram.com/flor.sandulli) 🌠
 
 Más info en : https://www.instagram.com/cabaret.astral/
 
