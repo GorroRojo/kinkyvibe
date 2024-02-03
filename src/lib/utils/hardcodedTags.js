@@ -32,6 +32,7 @@ export const hardcodedTags = [
 			'cine',
 			'taller',
 			'evento',
+			'fiesta',
 			'charla debate',
 			'laboratorio',
 			'picnic',
