@@ -22,7 +22,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-02-24T23:30-03:00
 end:   2024-02-25T05:00-03:00
-#location: Almagro, CABA
+location: Almagro, CABA
 #location_name: Cooperativa Cultural Qi
 link: 'https://fiestacolectiver.empretienda.com.ar/productos'
 link_text: PREVENTA
