@@ -1,7 +1,7 @@
 ---
 published_date: 2024-02-02Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: CABARET ASTRAL - Acuario
+title: Cabaret Astral - Acuario
 summary: 'Un cabaret queer, trolx, lesbianx, astral, no binarie. Una vez al mes en @maquinal.maquinal. Dirigido por @flor.sandulli y Producido por @silvina.chivy'
 tags:
   - español
