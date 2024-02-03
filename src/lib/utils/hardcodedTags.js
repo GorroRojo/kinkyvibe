@@ -29,17 +29,18 @@ export const hardcodedTags = [
 	{
 		id: 'tipo de evento',
 		children: [
+			'cabaret',
+			'charla debate',
 			'cine',
-			'taller',
+			'entrevista',
 			'evento',
 			'fiesta',
-			'charla debate',
-			'laboratorio',
-			'picnic',
 			'grupo',
-			'entrevista',
+			'jam de cuerdas',
+			'laboratorio',
 			'perfo',
-			'jam de cuerdas'
+			'rancheadita',
+			'taller',
 		]
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },

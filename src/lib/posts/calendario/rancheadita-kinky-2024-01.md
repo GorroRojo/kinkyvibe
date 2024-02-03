@@ -8,7 +8,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - a la gorra # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
-  - picnic
+  - rancheadita
   - shibari
   - jam de cuerdas
 layout: calendario

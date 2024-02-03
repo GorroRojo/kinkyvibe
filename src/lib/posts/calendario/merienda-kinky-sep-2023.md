@@ -9,7 +9,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - gratis # pago | gratis | a la gorra #
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
-  - picnic
+  - rancheadita
 layout: calendario
 category: calendario
 authors:
