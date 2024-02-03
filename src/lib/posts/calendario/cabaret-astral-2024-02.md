@@ -5,7 +5,7 @@ title: CABARET ASTRAL - Acuario
 summary: 'Un cabaret queer, trolx, lesbianx, astral, no binarie. Una vez al mes en @maquinal.maquinal. Dirigido por @flor.sandulli y Producido por @silvina.chivy'
 tags:
   - español
-  - KinkyVibe # etiqueta especial #
+ # - KinkyVibe # etiqueta especial #
   - a la gorra # pago | gratis | a la gorra #
   - cabaret
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
@@ -38,7 +38,7 @@ Este espectáculo fue creado y está dirigido por Flor Sandulli. Lic. en Actuaci
 
 Tiene la particularidad de ser una obra donde no se cobra entrada (a la gorra), y esto no significa que no tenga costo\* la producción del evento, pero es una decisión política que nadie se quede afuera si no posee los ingresos para costear una entrada. 
 
-<small>\* Lo que sugerimos es que cuando se pase la gorra (sobre) cada persona que pueda, aporte con lo que sería el valor de una entrada en cualquier espacio de teatro hoy, ya que esto luego se divide entre les artistes participantes.</small>
+<small>* Lo que sugerimos es que cuando se pase la gorra (sobre) cada persona que pueda, aporte con lo que sería el valor de una entrada en cualquier espacio de teatro hoy, ya que esto luego se divide entre les artistes participantes.</small>
 
 ## CABARET ASTRAL. VOL XI: ACUARIO ♒+ FIESTA 🎉:
 
