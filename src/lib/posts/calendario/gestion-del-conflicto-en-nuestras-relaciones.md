@@ -1,6 +1,6 @@
 ---
 published_date: 2024-02-02Z-03:00
-#updated_date:   2024-03-04Z-03:00
+updated_date:   2024-02-12Z-03:00
 title: Gestión del conflicto en nuestras relaciones
 summary: '¿Notás dificultades y desafíos al atravesar conflictos en tus relaciones y comunidades? ¿Necesitás herramientas para hacerlo de formas constructivas? Esta charla debate es para vos.'
 tags:
@@ -36,7 +36,7 @@ Construir modos de vida menos opresivos, menos crueles y menos punitivistas exig
 
 ¡Sumate a explorar y charlar sobre este tema, hacer preguntas y llevarte herramientas!
 
-Esta es una charla de la Comunidad @FugasCríticas, coordinada por ale dev, en la que vamos a contar con @DemonWeb de @KinkyVibe como invitado.
+Esta es una charla de la Comunidad @FugasCríticas, coordinada por ale dev.
 
 **CUPOS LIMITADOS**
 
