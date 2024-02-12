@@ -1,5 +1,7 @@
 <script>
-	import { glosario } from '$lib/utils/stores';
+	import { page } from "$app/stores";
+	import { tagManager, query } from "$lib/utils/stores";
+
 	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
 	function parseDescription(description, query) {
 		const regex = /\[\[([^\]]*)\]\]/g;
@@ -39,7 +41,6 @@
 						}
 						return line.slice(k - p.length, end);
 					});
-					// console.log({ nParts, parts });
 					return parts
 						.map((p, i) =>
 							i % 2 == 0
@@ -69,25 +70,21 @@
 			.replaceAll('í', 'i')
 			.replaceAll('ó', 'o')
 			.replaceAll('ú', 'u');
-	/**@param {string} a @param {string} [q=query] @returns {boolean}*/
-	function includesNormalized(a, q = query) {
-		return normalize(a).includes(normalize(q));
-	}
+
 	/**@type{*}*/
 	export let value = '';
-	export let query = '';
 	export let parsed = false;
 	/**@type {ProcessedPost[]}*/
-	export let entries;
+	let entries = $page.data.wiki;
 </script>
 
-{#each parsed ? value : parseDescription(value, query) as { line, type, href }}
+{#each parsed ? value : parseDescription(value, $query) as { line, type, href }}
 	{@const entry = entries.find((e) => e.meta.wiki == (href ?? line)?.replaceAll(' ', '-'))}
-	{@const termino = $glosario.terminos.find((t) => t.name == (href ?? line)?.replaceAll(' ', '-'))}
+	{@const tag = $tagManager.tagsData().find((t) => t.id == (href ?? line)?.replaceAll(' ', '-'))}
 	{#if type == 'link' && entry}
 		<a href="/wiki/{entry.meta.wiki}">{line}</a>
-	{:else if type == 'link' && termino}
-		<a href="/wiki#{termino.name}">{line}</a>
+	{:else if type == 'link' && tag}
+		<a href="/wiki#{tag?.visible_name ?? tag.id}">{line}</a>
 	{:else if type == 'mark'}
 		<mark>{line}</mark>
 	{:else}

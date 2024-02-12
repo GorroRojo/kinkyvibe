@@ -18,7 +18,6 @@
 				return -1;
 			} else return 0;
 		});
-	let glosario = fetchGlossary();
 	function parseDescription(description) {
 		const regex = /\[\[([^\]]*)\]\]/g;
 		return description

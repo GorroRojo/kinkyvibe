@@ -10,7 +10,6 @@
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
-	let glosario = fetchGlossary();
 
 	function parseDescription(description) {
 		const regex = /\[\[([^\]]*)\]\]/g;

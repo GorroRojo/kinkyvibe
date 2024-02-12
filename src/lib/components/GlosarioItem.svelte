@@ -1,119 +1,93 @@
 <script context="module">
 	import MiniMarkup from './MiniMarkup.svelte';
-	import { glosario } from '$lib/utils/stores';
 	import GlosarioTree from './GlosarioTree.svelte';
-	/**@type {ProcessedPost[]}*/
-	export let entries;
+	import { wikiTagManager } from '$lib/utils/stores';
+	import { page } from '$app/stores';
 </script>
 
 <script>
-	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
-	function parseDescription(description, query) {
-		const regex = /\[\[([^\]]*)\]\]/g;
-		const lines = description
-			.split(regex)
-			.map((line, index) => ({ line, type: index % 2 == 0 ? 'text' : 'link' }))
-			.map(({ line, type }) => {
-				if (query != '' && line.includes(query)) {
-					let parts = line.split(query);
-					return parts
-						.map((p, i) =>
-							i % 2 == 0
-								? [
-										{ line: p, type },
-										{ line: query, type: 'mark' }
-								  ]
-								: { line: p, type }
-						)
-						.flat();
-				} else return { line, type };
-			})
-			.flat()
-			.filter(({ line, type }) => line !== '');
-		return lines.length > 0 ? lines : undefined;
-	}
-	/**@type {{meta:AnyPostData,path:string}[]}*/
-	export let entries;
+	/**@type {TagID}*/
+	export let item = 'root';
 
-	/**@type {Group}*/
-	export let item;
+	/**@type {ProcessedTag}*/
+	let tag = $wikiTagManager.get(item);
 
-	export let query = '';
-
-	const name = item.name;
-	const rawdescription =
-		$glosario.terminos.find((/** @type {{ name: string; }} */ t) => t.name == name)?.description ??
-		'';
+	const name = tag?.visible_name ?? tag.id;
+	/** @type {ProcessedPost} */
+	const entry = $page.data.wiki.find(
+		(/**@type ProcessedPost */ e) => e.meta.wiki == name.replaceAll(' ', '-')
+	);
 	const description =
-		parseDescription(rawdescription, query) ??
+		tag.parsedDescription ??
 		[
 			{
 				type: 'text',
-				line:
-					entries.find((e) => e.meta.wiki == name.replaceAll(' ', '-'))?.meta?.summary ?? undefined
+				line: entry?.meta?.summary ?? undefined
 			}
 		].filter(({ line }) => line);
-	const entry = entries.find((e) => e.meta.wiki == name.replaceAll(' ', '-'));
-	const groupdata = item;
-	const termino = $glosario.terminos.find(/** @type {{ name: string; }} */ (t) => t.name == name);
-	let uniqueListing = false;
-	/**@ts-ignore*/
-	if (termino?.spare) {
-		uniqueListing = true;
-		/**@ts-ignore*/
-		termino.spare = false;
+	const hasDescription = description?.length > 0;
+	const hasSub = tag.children?.length ?? 0 > 0;
+	let isVisible = isVisibleFn(item);
+	/**
+	 * @param {TagID} tagID
+	 * @returns {boolean}
+	 */
+	function isVisibleFn(tagID) {
+		let t = $wikiTagManager.get(tagID);
+		if (
+			(t.description && t.description != '') ||
+			(t?.related?.length ?? 0) > 0 ||
+			(t?.aka?.length ?? 0) > 0
+		) {
+			return true;
+		} else {
+			if (t.children && t.children.length > 0) {
+				return t.children.some((s) => isVisibleFn(s));
+			} else {
+				return false;
+			}
+		}
 	}
-	$: hasDescription = description?.length > 0;
-	$: hasSub = groupdata.sub?.length > 0;
 </script>
 
-{'' /**@ts-ignore*/ + ''}
-{#if termino && ((query == '' && ((termino && termino?.visible) || entry?.meta?.wiki)) || termino?.visible) && (termino.spare || uniqueListing) && (hasDescription || hasSub || termino.related)}
+{#if isVisible}
 	<div>
-		<dt id={termino.name}>
+		<dt id={name}>
 			{#if entry && entry.meta && entry.meta.wiki}
-				<a href="/wiki/{entry.meta.wiki}"
-					><MiniMarkup value={entry.meta.title} {query} {entries} /></a
-				>
+				<a href="/wiki/{entry.meta.wiki}"><MiniMarkup value={entry.meta.title} /></a>
 			{:else}
-				<MiniMarkup value={name} {query} {entries} />
+				<MiniMarkup value={name} />
 			{/if}
-			{#if termino.aka}
-				{@const aka = [termino.aka].flat()}
+			{#if tag?.aka?.length ?? 0 > 0}
 				<small>
 					(
-					{#each aka as other, i}
-						{i == 0 ? '' : ', '}<MiniMarkup value={other} {query} {entries} />
+					{#each tag?.aka ?? [] as other, i}
+						{i == 0 ? '' : ', '}<MiniMarkup value={other} />
 					{/each}
 					)
 				</small>
 			{/if}
 		</dt>
-		{#if hasDescription || hasSub || termino.related}
+		{#if hasDescription || hasSub || tag.related}
 			<dd>
 				{#if hasDescription}
 					<span>
-						<MiniMarkup value={rawdescription} {query} {entries} />
+						<MiniMarkup value={tag.parsedDescription} parsed />
 					</span>
 				{/if}
-				{#if hasDescription && termino.related}<br />{/if}
-				{#if termino.related}
+				{#if hasDescription && tag.related}<br />{/if}
+				{#if tag.related}
 					<small
 						>Ver también:
 						<MiniMarkup
-							value={termino.related.map((t) => '[[' + t.replaceAll(' ', '-') + ']]').join(' | ')}
-							{query}
-							{entries}
+							value={tag.related.map((t) => '[[' + t.replaceAll(' ', '-') + ']]').join(' | ')}
 						/>
 					</small>
 				{/if}
 				{#if hasSub}
 					<dl>
 						{#if hasSub}
-							{'' /**@ts-ignore*/ + ''}
-							{#key termino?.visible}
-								<GlosarioTree {entries} items={groupdata.sub} {query} spare={false} />
-							{/key}
+							<GlosarioTree root={item} />
 						{/if}
 					</dl>
 				{/if}

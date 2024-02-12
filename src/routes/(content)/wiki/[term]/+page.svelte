@@ -1,6 +1,6 @@
 <script>
 	import PostList from '$lib/components/PostList.svelte';
-	import { tagManager, currentPostData, glosario } from '$lib/utils/stores.js';
+	import { tagManager, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';

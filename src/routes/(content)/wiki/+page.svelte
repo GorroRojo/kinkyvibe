@@ -1,30 +1,17 @@
 <script>
-	/**
-	 * TODO el codigo este y el de los componentes es feo feo feo
-	 * hay que unificar los datos de la entry, del termino, y del grupo **ANTES**
-	 * de filtrar y mostrarlos
-	 */
-
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { glosario, tagManager } from '$lib/utils/stores';
+	import { wikiTagManager, tagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { Search, Construction } from 'lucide-svelte';
+	import tagsFactory from '$lib/utils/tags';
 
-	/** @type {import('./$types').PageData} */
-	export let data;
-
-	$: glosario.set({
-		...data.glosario,
-		terminos: data.glosario.terminos.map((t) => ({ ...t, visible: true, spare: true }))
-	});
-
-	let query = '';
+	query.set('');
 
 	/**
 	 * @param {string | undefined} a
-	 * @param {string} [q=query]
+	 * @param {string} q
 	 */
-	function includesNormalized(a, q = query) {
+	function includesNormalized(a, q) {
 		if (a === undefined) {
 			return false;
 		}
@@ -38,49 +25,38 @@
 				.replaceAll('ú', 'u');
 		return normalize(a).includes(normalize(q));
 	}
-	function onQueryChange(query = '') {
-		if (query == undefined || query.trim() == '') {
-			$glosario.terminos = $glosario.terminos.map((termino) => ({
-				...termino,
-				visible: true,
-				spare: true
-			}));
+	query.subscribe((newQuery) => {
+		if (newQuery == undefined || newQuery.trim() == '') {
+			wikiTagManager.update(() => tagsFactory());
 			$page.url.searchParams.delete('q');
 		} else {
-			$glosario.terminos = $glosario.terminos.map((termino) => {
-				let entry = data.wiki.find((e) => e.meta.wiki == termino.name.replaceAll(' ', '-'));
-				$page.url.searchParams.set('q', query);
-				if (
-					includesNormalized(termino.name) ||
-					includesNormalized(termino.description) ||
-					includesNormalized(termino.related?.join(' ')) ||
-					includesNormalized(termino.aka?.join(' '))
-				) {
-					return { ...termino, visible: true, spare: true };
-				} else {
-					return { ...termino, visible: false, spare: true };
-				}
+			$page.url.searchParams.set('q', newQuery);
+			wikiTagManager.update((wtm) => {
+				/**@type {TagID[]}*/
+				let del = [];
+				wtm.tagsData().forEach((t) => {
+					console.log(t, newQuery);
+					if (
+						!includesNormalized(t.id, newQuery) &&
+						!includesNormalized(t.visible_name, newQuery) &&
+						!includesNormalized(t.description, newQuery) &&
+						!includesNormalized(t.aka?.join(' '), newQuery) &&
+						!includesNormalized(t.related?.join(' '), newQuery)
+					) {
+						console.log('i.n. ', includesNormalized(t.id, newQuery), t.id, newQuery);
+						console.log('deleting', t.id);
+						del.push(t.id);
+					}
+				});
+				if (del.length > 0) {
+					let temp = tagsFactory();
+					del.forEach((t) => temp.delete(t));
+					console.log(temp.entries().length);
+					return temp;
+				} else return wtm;
 			});
 		}
-	}
-
-	/** @type {(termino:string, groups?: Group[])=>Array<Group>}*/
-	function getGroups(termino) {
-		return [
-			{
-				name: termino,
-				sub: $tagManager.get(termino)?.children?.map((c) => getGroups(c)[0]) ?? [],
-				members: []
-			}
-		];
-	}
-	let tagsAsGroups = $tagManager
-		.entries()
-		.filter(([id, { parents }]) => parents?.includes('root'))
-		.map(([tag]) => getGroups(tag))
-		.flat();
-	onQueryChange(undefined);
-
+	});
 	const style = `
 	font-size: var(--step-1);
 	position:absolute;
@@ -116,25 +92,11 @@
 	</p>
 	<dl>
 		<div class="searchbox">
-			{'' + /**@ts-ignore*/ ''}
-			<Search {style} /><input
-				class="searchbox"
-				type="search"
-				on:input={(evt) => onQueryChange(evt?.target?.value ?? '')}
-				on:change={(evt) => onQueryChange(evt?.target?.value)}
-				bind:value={query}
-			/>
+			<Search {style} />
+			<input class="searchbox" type="search" bind:value={$query} />
 		</div>
-		{#key query}
-			{#if query == '' || !query}
-				<GlosarioTree entries={data.wiki} items={tagsAsGroups} {query} />
-			{:else}
-				<GlosarioTree
-					entries={data.wiki}
-					items={$glosario.terminos.map((/** @type {{ name: string; }} */ t) => t.name)}
-					{query}
-				/>
-			{/if}
+		{#key $wikiTagManager}
+			<GlosarioTree />
 		{/key}
 	</dl>
 </article>

@@ -71,6 +71,14 @@ export function tagsFactory(rawTags = hardcodedTags) {
 			// @ts-ignore
 			tagsMap.set(id, orphanTagFactory(id, value));
 			return;
+		},
+		/**
+		 * 
+		 * @param {TagID} id 
+		 * @returns boolean - true if it existed, else false
+		 */
+		delete(id) {
+			return tagsMap.delete(id)
 		}
 	};
 	for (let [id, tag] of tagManager) {

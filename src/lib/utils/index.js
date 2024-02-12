@@ -1,18 +1,6 @@
 import '$lib/types.d.js';
 import tagsFactory from './tags';
 
-/**
- *
- * @returns {Promise<{terminos:(ProcessedTag&{name:string})[]}>}
- */
-export const fetchGlossary = async () => {
-	//@ts-expect-error
-	var { metadata: glossary } = /** @type {{terminos:string[]}} */ await Object.entries(
-		import.meta.glob('$lib/posts/_glossary.md')
-	)[0][1]();
-	return glossary;
-};
-
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
  * @param {(group: Group)=>Group|false} fn
