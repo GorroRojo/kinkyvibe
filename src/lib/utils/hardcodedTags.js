@@ -40,7 +40,7 @@ export const hardcodedTags = [
 			'laboratorio',
 			'perfo',
 			'rancheadita',
-			'taller',
+			'taller'
 		]
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
@@ -51,7 +51,16 @@ export const hardcodedTags = [
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },
 	{
 		id: 'servicio',
-		children: ['sesiones', 'arte', 'clases', 'terapia', 'eventos', 'productos', 'comunidad']
+		children: [
+			'arte',
+			'clases',
+			'comida vegana',
+			'comunidad',
+			'eventos',
+			'productos',
+			'sesiones',
+			'terapia'
+		]
 	},
 
 	{
