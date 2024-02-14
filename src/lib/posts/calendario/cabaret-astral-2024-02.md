@@ -32,7 +32,7 @@ link_text: Reserva tu mesita
 ---
 ## ¿Qué es el CABARET ASTRAL?
 
-Cabaret Astral es un proyecto autogestivo que rescribe lo que conocíamos conceptualmente como un cabaret de los 1900 y le da una impronta **queer, trolx, lesbianx, astral, no binarie.**
+Cabaret Astral es un proyecto autogestivo que reescribe lo que conocíamos conceptualmente como un cabaret de los 1900 y le da una impronta **queer, trolx, lesbianx, astral, no binarie.**
 
 Este espectáculo fue creado y está dirigido por Flor Sandulli. Lic. en Actuación, Astróloga y Tarotista transfeminista; y convoca una vez al mes a un grupo de artistes de distintas disciplinas entorno al signo solar, para compartir una noche performática única e irrepetible junto a la audiencia y cuenta con la producción de @Silvina.Chivy
 
