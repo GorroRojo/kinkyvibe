@@ -69,7 +69,7 @@
 	class:mark
 	class:noimg={src == 'undefined' || !src}
 	id={path}
-	class:past={start ? isPast(new Date(start)) : false}
+	class:past={start ? isPast(new Date(start)) || status == 'cancelado' : false}
 	tabindex="0"
 	target={redirect || path.startsWith('https') ? '_blank' : undefined}
 >

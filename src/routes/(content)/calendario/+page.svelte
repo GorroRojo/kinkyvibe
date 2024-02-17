@@ -55,7 +55,7 @@
 				class:today
 				class:past
 				disabled={!events}
-				style={events && events?.length > 0 && events[0].meta.featured
+				style={events && events?.length > 0 && events[0].meta.status !== 'cancelado' && events[0].meta.featured
 					? `--event-image: url("${events[0].meta.featured}");`
 					: ''}
 			>
@@ -70,6 +70,7 @@
 						<a
 							href={'#' + event.path}
 							class="bar"
+							class:dim={event.meta.status == 'cancelado'}
 							style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
 						>
 							<span>
@@ -230,7 +231,12 @@
 			/* overflow: visible; */
 			background: var(--evt-color);
 			transition: 100ms;
+			
 		}
+		.dim {
+				opacity: 0.5;
+				pointer-events: none;
+			}
 
 		.date {
 			display: grid;

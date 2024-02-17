@@ -107,6 +107,7 @@
 <a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
+	
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
 		<address>
@@ -130,6 +131,10 @@
 			{/await}
 		</address>
 	{/if}
+
+	{#if data.meta.status == 'cancelado'}
+	<h1 id="title p-name"><u>CANCELADO</u></h1>
+	{:else}
 	<div class="event-header">
 		{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
 		<p class="event-times">
@@ -198,6 +203,7 @@
 			/>
 		</div>
 	</div>
+	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
 			<Tags tags={data.meta.tags} />
