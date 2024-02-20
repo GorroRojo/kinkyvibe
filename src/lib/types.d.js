@@ -35,8 +35,8 @@
 /**
  * @typedef {RawTag & {
  *      getColor: ()=>(string|undefined),
- *      getAllChildren: ()=>(string[]),
- *      getAllParents: ()=>(string[]),
+ *      getAllChildren: ()=>(TagID[]),
+ *      getAllParents: ()=>(TagID[]),
  *      cleanDescription?: string,
  *      parsedDescription?: Array<{line: string, type: "text"|"link"|"mark", href?: string}>,
  *      parents?: TagID[],
@@ -44,11 +44,12 @@
  * }} ProcessedTag
  */
 /**@typedef TagManager
- * @prop {(tagID: string, fallbackData?: *)=>(ProcessedTag)} get
+ * @prop {(tagID: TagID, fallbackData?: *)=>(ProcessedTag)} get
  * @prop {()=>([TagID, ProcessedTag][])} entries
  * @prop {()=>(TagID[])} tagIDs
  * @prop {()=>(ProcessedTag[])} tagsData
- * @prop {(tagID: string, value: RawTag)=>void} set
+ * @prop {(tagID: TagID, value: RawTag)=>void} set
+ * @prop {(tagID: TagID)=>void} delete
  * @prop {string[]} missingTags
  */
 

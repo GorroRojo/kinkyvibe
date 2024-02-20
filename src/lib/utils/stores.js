@@ -27,8 +27,11 @@ export const tagManager = writable(tagsFactory());
 /** @type import('svelte/store').Writable<{display_type: 'list'|'grid', show_past_events: boolean}> */
 export const userConfig = writable({ display_type: 'list', show_past_events: false });
 
-/** @type import('svelte/store').Writable<{terminos:(ProcessedTag&{name:string})[]}> */
-export const glosario = writable({ terminos: [] });
+/**@type {import('svelte/store').Writable<TagManager>} */
+export const wikiTagManager = writable(tagsFactory());
+
+/**@type {import('svelte/store').Writable<string>} */
+export const query = writable('');
 
 if (browser) {
 	try {

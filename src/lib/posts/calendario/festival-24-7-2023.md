@@ -20,7 +20,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-  - KinkyBunny ## TODO ## hacer página
+  - KinkyBunny
 featured: 1
 #force_unlisted: false
 #force_unpublished: false

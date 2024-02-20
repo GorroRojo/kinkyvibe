@@ -12,7 +12,6 @@ tags:
   - prácticas
   - pegging
   - fanzine
-  # TODO no sé qué etiquetas ponerle a eto asjaj es BDSM??
 layout: material
 category: material
 authors:
