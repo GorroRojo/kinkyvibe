@@ -18,6 +18,7 @@ export async function GET() {
 	const allPosts = await fetchMarkdownPosts();
 	const eventPosts = allPosts.filter((p) => p.meta.category == 'calendario');
 	for (let post of eventPosts) {
+		if (post.meta.status == 'cancelado') continue
 		const organizer = post.meta.tags.includes('KinkyVibe') ? 'KinkyVibe' : post.meta.authors[0];
 		const postPath = 'https://kinkyvibe.ar' + post.path;
 		/**@type ics.EventAttributes */
