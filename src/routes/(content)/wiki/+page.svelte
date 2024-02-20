@@ -102,7 +102,6 @@
 			<input class="searchbox" type="search" bind:value={$query} />
 		</div>
 		{#key $wikiTagManager}
-			{JSON.stringify($wikiTagManager.tagIDs())}
 			<GlosarioTree />
 		{/key}
 	</dl>
