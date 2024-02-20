@@ -11,6 +11,7 @@
 
 	/**@type {ProcessedTag}*/
 	let tag = $wikiTagManager.get(item);
+	wikiTagManager.subscribe(wtm=>tag = wtm.get(item))
 
 	const name = tag?.visible_name ?? tag.id;
 	/** @type {ProcessedPost} */
@@ -41,8 +42,9 @@
 		) {
 			return true;
 		} else {
-			if (t.children && t.children.length > 0) {
-				return t.children.some((s) => isVisibleFn(s));
+			let children = t.getAllChildren()
+			if (children.length > 0) {
+				return children.some((s) => isVisibleFn(s));
 			} else {
 				return false;
 			}
@@ -72,7 +74,7 @@
 			<dd>
 				{#if hasDescription}
 					<span>
-						<MiniMarkup value={tag.parsedDescription} parsed />
+						<MiniMarkup value={description} parsed />
 					</span>
 				{/if}
 				{#if hasDescription && tag.related}<br />{/if}

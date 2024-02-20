@@ -28,14 +28,18 @@
 	query.subscribe((newQuery) => {
 		if (newQuery == undefined || newQuery.trim() == '') {
 			wikiTagManager.update(() => tagsFactory());
-			$page.url.searchParams.delete('q');
+			// $page.url.searchParams.delete('q');
 		} else {
-			$page.url.searchParams.set('q', newQuery);
+			console.log(newQuery);
+			// $page.url.searchParams.set('q', newQuery);
 			wikiTagManager.update((wtm) => {
 				/**@type {TagID[]}*/
 				let del = [];
-				wtm.tagsData().forEach((t) => {
-					console.log(t, newQuery);
+				let temp = tagsFactory();
+				/**@type TagID[]*/
+				let include = [];
+				temp.tagsData().forEach((t) => {
+					// console.log(t, newQuery);
 					if (
 						!includesNormalized(t.id, newQuery) &&
 						!includesNormalized(t.visible_name, newQuery) &&
@@ -43,15 +47,17 @@
 						!includesNormalized(t.aka?.join(' '), newQuery) &&
 						!includesNormalized(t.related?.join(' '), newQuery)
 					) {
-						console.log('i.n. ', includesNormalized(t.id, newQuery), t.id, newQuery);
-						console.log('deleting', t.id);
+						// console.log('i.n. ', includesNormalized(t.id, newQuery), t.id, newQuery);
+						// console.log('deleting', t.id);
 						del.push(t.id);
+					} else {
+						include.push(...t.getAllParents());
 					}
 				});
 				if (del.length > 0) {
-					let temp = tagsFactory();
-					del.forEach((t) => temp.delete(t));
-					console.log(temp.entries().length);
+					// console.log(temp.entries().length);
+					del.forEach((t) => (!include.includes(t) ? temp.delete(t) : null));
+					// console.log(temp.entries().length);
 					return temp;
 				} else return wtm;
 			});
@@ -96,6 +102,7 @@
 			<input class="searchbox" type="search" bind:value={$query} />
 		</div>
 		{#key $wikiTagManager}
+			{JSON.stringify($wikiTagManager.tagIDs())}
 			<GlosarioTree />
 		{/key}
 	</dl>

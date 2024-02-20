@@ -5,11 +5,10 @@
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
-	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
+	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
-	import { fetchGlossary } from '$lib/utils/index.js';
 	let pinned = ['Gorro_Rojo', 'DemonWeb', 'TallarinesConTuco'];
 	let amiguesPosts = data.allPosts
 		.filter((p) => p.meta.layout == 'amigues')
@@ -43,77 +42,74 @@
 			internalTag="emprendimiento"
 		/>.
 	</p>
-	{#await glosario then { terminos }}
-		{@const terminosFiltrados = terminos.filter((t) => $filteredTags.includes(t.name))}
-		<dl>
-			{#each terminosFiltrados as termino (termino.name)}
-				{@const description = termino.description ? parseDescription(termino.description) : ''}
-				<div animate:flip in:fade>
-					<div>
-						<button on:click={() => $togglePositiveTagFilterFn(false, termino.name)}>x</button>
-						<dt>
-							{termino.name.charAt(0).toUpperCase() + termino.name.slice(1)}
-							{#if data.wiki.find((w) => w.meta.wiki == termino.name)}
-								<a href="/wiki/{termino.name}" class="gotowiki">
-									<span>
-										<Globe {style} />
-										Ver en la wiki
-										<ArrowRight {style} />
-									</span>
-								</a>
-							{/if}
-						</dt>
-						<dd>
-							{#if description}
-								{#each description as d}
-									{#if d.type == 'text'}
-										{d.content}
-									{:else if d.type == Tag}
-										<svelte:component
-											this={d.type}
-											tag={d.content}
-											onInput={(evt, tag) =>
-												$togglePositiveTagFilterFn(evt.target?.checked, d.content)}
-											isCheckbox
-											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(d.content)}
-											--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-											--font-size="1em"
-											--padding="0.1em 0.2em"
-											--border-radius=".3em"
-											noBorder
-										/>
-									{/if}
-								{/each}
-							{/if}
+	<dl>
+		{#each $filteredTags.map($tagManager.get) as termino (termino.id)}
+			{@const name = termino.visible_name ?? termino.id}
+			<div animate:flip in:fade>
+				<div>
+					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
+					<dt>
+						{name.charAt(0).toUpperCase() + name.slice(1)}
+						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+							<a href="/wiki/{termino.id}" class="gotowiki">
+								<span>
+									<Globe {style} />
+									Ver en la wiki
+									<ArrowRight {style} />
+								</span>
+							</a>
+						{/if}
+					</dt>
+					<dd>
+						{#if termino.description}
+							{#each termino.description as d}
+								{#if d.type == 'text'}
+									{d.content}
+								{:else if d.type == Tag}
+									<svelte:component
+										this={d.type}
+										tag={d.content}
+										onInput={(evt, tag) =>
+											$togglePositiveTagFilterFn(evt.target?.checked, d.content)}
+										isCheckbox
+										checked={$page.url.searchParams.has('tags') &&
+											$page.url.searchParams.get('tags')?.split(',').includes(d.content)}
+										--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+										--font-size="1em"
+										--padding="0.1em 0.2em"
+										--border-radius=".3em"
+										noBorder
+									/>
+								{/if}
+							{/each}
+						{/if}
 
-							{#if termino.related}
-								<small>
-									Ver también:
-									{#each termino.related as tag, i}
-										<Tag
-											{tag}
-											onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
-											isCheckbox
-											checked={$page.url.searchParams.has('tags') &&
-												$page.url.searchParams.get('tags')?.split(',').includes(tag)}
-											--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-											--font-size="1em"
-											--padding="0.1em 0.2em"
-											--border-radius=".3em"
-											noBorder
-										/>
-										{i < termino.related.length - 1 ? ', ' : ''}
-									{/each}
-									.
-								</small>
-							{/if}
-						</dd>
-					</div>
+						{#if termino.related}
+							<small>
+								Ver también:
+								{#each termino.related as tag, i}
+									<Tag
+										{tag}
+										onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
+										isCheckbox
+										checked={$page.url.searchParams.has('tags') &&
+											$page.url.searchParams.get('tags')?.split(',').includes(tag)}
+										--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+										--font-size="1em"
+										--padding="0.1em 0.2em"
+										--border-radius=".3em"
+										noBorder
+									/>
+									{i < termino.related.length - 1 ? ', ' : ''}
+								{/each}
+								.
+							</small>
+						{/if}
+					</dd>
 				</div>
-			{/each}
-		</dl>
-	{/await}
+			</div>
+		{/each}
+	</dl>
 </div>
 
 <PostList posts={amiguesPosts} />

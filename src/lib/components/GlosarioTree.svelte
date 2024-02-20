@@ -11,7 +11,6 @@
 		items = wtm.get(root).children ?? [];
 	});
 </script>
-
 {#each items as item}
 	{#if $wikiTagManager.get(item)?.children}
 		<GlosarioItem {item} />
