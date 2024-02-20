@@ -57,7 +57,7 @@
 	`;
 
 	const relatedPosts = data.allPosts.filter((p) => {
-			if (p.meta.tags.includes(data?.meta?.wiki ?? '')) return true;
+			if (p.meta.tags.includes(data?.meta?.wiki ?? data?.tag?.id ?? '')) return true;
 			let children = $tagManager.get(data?.meta?.wiki ?? '')?.getAllChildren() ?? [];
 			for (const c of children) {
 				if (p.meta.tags.includes(c)) return true;
@@ -128,7 +128,7 @@
 			<svelte:component this={data.content} />
 		{:else if data.tag}
 			<p>
-				<MiniMarkup parsed value={data.tag.parsedDescription} entries={data.wiki} />
+				<MiniMarkup parsed value={data.tag.parsedDescription} />
 			</p>
 		{/if}
 	</div>
