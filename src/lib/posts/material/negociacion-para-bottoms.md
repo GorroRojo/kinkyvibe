@@ -3,7 +3,6 @@ published_date: 2023-02-04Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Negociación rápida para bottoms
 summary: 'Un modelo para quienes que no quieren usar una checklist o tener una negociación larga, y quieren un modelo pre-hecho para establecer gustos, necesidades, intenciones, preferencias, límites, entre otros.'
-# TODO llenar el summary
 tags:
   - español
   - BDSM

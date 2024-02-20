@@ -12,7 +12,7 @@ layout: calendario
 category: calendario
 authors:
   - DemonWeb
-  - FugasCriticas ## TODO ## página para elle
+  - FugasCriticas
 featured: 1
 #force_unlisted: false
 #force_unpublished: false

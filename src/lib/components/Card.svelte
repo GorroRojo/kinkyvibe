@@ -22,7 +22,6 @@
 	}
 </script>
 
-<!-- TODO past no funciona? -->
 <a
 	{href}
 	class:past={isPast(new Date(start ?? ''))}
