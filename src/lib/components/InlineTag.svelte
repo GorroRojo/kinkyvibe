@@ -4,8 +4,8 @@
 
 	/** @type string */
 	export let tag;
-	/** @type string */
-	export let internalTag;
+	/** @type string|undefined */
+	export let internalTag = undefined;
 	/** @type {(a:boolean,b:string)=>*}*/
 	let toggle = $togglePositiveTagFilterFn;
 	let checked = $filteredTags?.includes(tag) ?? false;

@@ -94,69 +94,69 @@
 		p {
 			font-size: var(--step-0);
 		}
-	}
-	button {
-		position: absolute;
-		left: 0em;
-		padding: 0.2em;
-		font-size: var(--step-0);
-		cursor: pointer;
-		border: 0;
-		outline: 0;
-		background: transparent;
-		opacity: 0.3;
-		top: 0;
-		line-height: 0.6;
-		transition: 100ms;
-	}
-	button:hover {
-		opacity: 0.7;
-	}
-	dl {
-		width: 100%;
-		margin-inline: auto;
-		font-size: var(--step-0);
-		position: relative;
-	}
-	dl > div {
-		position: relative;
-		margin-top: 1em;
-		display: grid;
-		grid-template-columns: 1fr;
-		transition: 100ms;
-		gap: 0.8em;
-	}
-	dt {
-		font-weight: bold;
-		color: var(--color);
-		margin-left: 1em;
-	}
-	dd small:last-of-type {
-		display: inline-block;
-		margin-left: 0.3em;
-		opacity: 0.8;
-		text-align: right;
-	}
-	.gotowiki {
-		/* --color: var(--2); */
-		color: var(--color);
-		border: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
-		background: color-mix(in srgb, var(--color) 10%, transparent);
-		border-radius: 1em;
-		padding: 0.3em;
-		/* place-content: center; */
-		text-align: center;
-		text-decoration: none;
-		font-size: calc(0.85 * var(--step--1));
-		line-height: 1;
-		position: relative;
-		left: 0;
-		transition: 100ms;
-		margin-left: 0.5em;
-		bottom: 0.1em;
-		opacity: 0.8;
-		&:hover {
-			left: 0.3em;
+		button {
+			position: absolute;
+			left: 0em;
+			padding: 0.2em;
+			font-size: var(--step-0);
+			cursor: pointer;
+			border: 0;
+			outline: 0;
+			background: transparent;
+			opacity: 0.3;
+			top: 0;
+			line-height: 0.6;
+			transition: 100ms;
+		}
+		button:hover {
+			opacity: 0.7;
+		}
+		dl {
+			width: 100%;
+			margin-inline: auto;
+			font-size: var(--step-0);
+			position: relative;
+		}
+		dl > div {
+			position: relative;
+			margin-top: 1em;
+			display: grid;
+			grid-template-columns: 1fr;
+			transition: 100ms;
+			gap: 0.8em;
+		}
+		dt {
+			font-weight: bold;
+			color: var(--color);
+			margin-left: 1em;
+		}
+		dd small:last-of-type {
+			display: inline-block;
+			margin-left: 0.3em;
+			opacity: 0.8;
+			text-align: right;
+		}
+		.gotowiki {
+			/* --color: var(--2); */
+			color: var(--color);
+			border: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
+			background: color-mix(in srgb, var(--color) 10%, transparent);
+			border-radius: 1em;
+			padding: 0.3em;
+			/* place-content: center; */
+			text-align: center;
+			text-decoration: none;
+			font-size: calc(0.85 * var(--step--1));
+			line-height: 1;
+			position: relative;
+			left: 0;
+			transition: 100ms;
+			margin-left: 0.5em;
+			bottom: 0.1em;
+			opacity: 0.8;
+			&:hover {
+				left: 0.3em;
+			}
 		}
 	}
 </style>
