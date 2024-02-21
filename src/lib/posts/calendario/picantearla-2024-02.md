@@ -21,8 +21,8 @@ featured: picantearla-miniatura.png
 # force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-03-03T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-03-03T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-02-16T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-03-17T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://forms.gle/4iWUGFypQTAwox9GA
