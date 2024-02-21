@@ -32,8 +32,8 @@ end:   2024-03-03T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # carrousel_accent_bg: '#1b002e'
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
- link: https://forms.gle/vbJR44nH7jKnmpk2A
- link_text: PRE-VENTA
+link: https://forms.gle/vbJR44nH7jKnmpk2A
+link_text: PRE-VENTA
 ---
  Cronograma
 - **19:00** Comienza el evento. Va a estar la feria disponible.
