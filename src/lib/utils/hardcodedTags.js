@@ -121,17 +121,14 @@ export const hardcodedTags = [
 			'cnc',
 			'pegging',
 			'hablar sucio',
-			'edad',
+			'roles',
 			'impacto',
 			'sensaciones',
 			'bondage',
-			'mascota',
 			'intercambio de poder',
 			'cuchillos',
-			'electro',
 			'dolor',
 			'humillación',
-			'primal',
 			'asfixia',
 			'fisting',
 			'miedo'
@@ -165,8 +162,14 @@ export const hardcodedTags = [
 		description:
 			'Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis.'
 	},
-	{ id: 'primal', aka: ['juegos primales', 'primal play'], related: ['mascota'] },
-	{ id: 'mascota', aka: ['animal', 'pet'], related: ['primal'] },
+	{ id: 'roles', visible_name: 'Juegos de roles', children: ['edad', 'primal', 'mascota'] },
+	{
+		id: 'primal',
+		visible_name: 'Juegos primales',
+		aka: ['juegos primales', 'primal play'],
+		related: ['mascota']
+	},
+	{ id: 'mascota', visible_name: 'Juegos de mascotas', aka: ['pet'], related: ['primal'] },
 	{
 		id: 'edad',
 		children: ['pequeñe', 'middle', 'cuidadore', 'grande'],
@@ -199,6 +202,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'impacto',
+		visible_name: 'Juegos de Impacto',
 		children: ['caning', 'golpes', 'nalgueadas'],
 		description:
 			'[[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos.',
@@ -206,42 +210,47 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'sensaciones',
-		children: ['temperatura'],
-		aka: ['sensation play', 'juegos de sensaciones'],
+		visible_name: 'Juegos de sensaciones',
+		children: ['temperatura', 'electro'],
+		aka: ['sensation play'],
 		description:
-			'Cualquier [[práctica]] que involucre crear sensaciones placenteras o displacenteras sobre una persona. Se puede usar hielo, seda, cera caliente, texturas, etc. Se suele hacer con le [[bottom]] cegade.'
+			'Donde se busca crear sensaciones físicas placenteras o displacenteras sobre una persona. Se puede usar hielo, seda, [cera] caliente, texturas, etc. Se suele hacer con le [[bottom]] cegade.'
 	},
 	{
 		id: 'cuchillos',
-		aka: ['juego con cuchillos', 'knife play'],
+		visible_name: 'Juegos con cuchillos',
+		aka: ['knife play'],
 		description:
-			'[[prácticas]] que involucran el uso de cuchillos con o sin filo para generar [[sensaciones]], [[miedo]] (fear play), [[dolor]] (pain play) y [[cortes]] (blood play) como parte de un [[juego de roles]].'
+			'Donde se involucran el uso de cuchillos, con o sin filo, para generar [[sensaciones]], [[miedo]], [[dolor]] o [[cortes]] como parte de un juego de [[roles]].'
 	},
 	{
 		id: 'electro',
-		aka: ['juegos con electricidad', 'electroplay'],
+		visible_name: 'Juegos con electricidad',
+		aka: ['electro play'],
 		description:
 			'[[práctica]] que involucra el uso de electricidad para generar sensaciones en el cuerpo. Se considera un tipo de [[edge]] play.',
-		related: ['sensaciones', 'miedo', 'juego de roles']
+		related: ['sensaciones', 'miedo']
 	},
 	{
 		id: 'temperatura',
+		visible_name: 'Juegos con la temperatura',
 		children: ['fuego'],
-		aka: ['juegos con la temperatura', 'temperature play'],
+		aka: ['temperature play'],
 		description:
 			'Una forma de juego de [[sensaciones]] donde se usan objetos o sustancias que estimulan los neuroreceptores del cuerpo con calor y frío para generar placer.'
 	},
 	{
 		id: 'fuego',
+		visible_name: 'Juegos con fuego',
 		description:
 			'[[práctica]]s que involucran el uso de fuego o de llamas. Por ejemplo el uso de alcohol para generar una llama breve y rápidamente extinguirla. Considerado un tipo de [[edge]] play.',
-		aka: ['juego con el fuego', 'fire play']
+		aka: ['fire play']
 	},
 	{
 		id: 'bondage',
+		visible_name: 'Juegos con las restricciones',
 		children: ['cuerdas'],
 		description: 'Palabra que encapsula a las [[prácticas]] de restricción física.',
-		aka: ['juegos con la restricción'],
 		related: [
 			'humillación',
 			'objetificación',
@@ -252,13 +261,13 @@ export const hardcodedTags = [
 			'shibari'
 		]
 	},
-	{ id: 'cuerdas', children: ['shibari', 'kinbaku'], color: '#ff4444' },
+	{ id: 'cuerdas', children: ['shibari'], color: '#ff4444' },
 	{
 		id: 'shibari',
-		aka: ['bondage japonés', 'bondage con cuerdas', 'rope bondage'],
+		aka: ['bondage japonés', 'bondage con cuerdas', 'rope bondage', 'kinbaku'],
 		description:
 			'[[práctica]] erótica de origen japonés que consiste en restringir la movilidad de una persona usando cuerdas.',
-		related: ['kinbaku', 'bondage', 'atadore', 'conejite de cuerdas']
+		related: ['bondage', 'atadore', 'conejite de cuerdas']
 	},
 	{
 		id: 'dolor',
