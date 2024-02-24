@@ -21,11 +21,11 @@ force_unlisted: true
 #force_unpublished: false
 status: anunciado # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-03-22T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-03-22T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-03-22T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-03-22T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
-# link: https://forms.gle/4iWUGFypQTAwox9GA
+# link: 
 # link_text: 'PRE VENTA'
 ---
 
