@@ -28,16 +28,16 @@ authors:
   - KinkyVibe
 featured: picantearla-miniatura.png
 # logo: 2
-force_unlisted: true  
+force_unlisted: false
 #force_unpublished: false
 status: anunciado # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2024-03-08T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-03-09T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-# location_name: Qi Centro Cultural
-# link: https://forms.gle/FEidvP6PsebiiwqQ6
-# link_text: 'PRE-VENTA'
+location_name: Av. Maipu 2535
+link: https://forms.gle/FEidvP6PsebiiwqQ6
+link_text: 'PRE-VENTA'
 ---
 
 > 📛 ESTA EDICIÓN NO ES PARA PRINCIPIANTES 📛
@@ -95,6 +95,10 @@ Como siempre va a contar con:
 > ES UN ESPACIO DE EXPLORACIÓN GRUPAL DE PRÁCTICAS FETICHISTAS/BDSM
 
 > **_No hay venta en puerta._**
+> 
+> Este mes vamos a tener 2 eventos Picantearla, así que preparamos el Pase Pica-Pica para asisitir a ambos con precio promocional !
+>  Si te interesa asistir a las dos actividades, revisá el formulario y buscá el link de pago del pase :)
+
 
 <style>
     a {
