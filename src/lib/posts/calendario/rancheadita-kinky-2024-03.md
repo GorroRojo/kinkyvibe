@@ -1,7 +1,7 @@
 ---
 published_date: 2024-02-17Z-03:00
-#updated_date: 2023-11-04Z-03:00
-title: Rancheadita Kinky + Jam de Cuerdas
+updated_date: 2024-02-27Z-03:00
+title: Rancheadita Kinky
 summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar. Se suspende por lluvia.'
 tags:
   - español
@@ -9,20 +9,18 @@ tags:
   - a la gorra # pago | gratis | a la gorra #
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
-  - shibari
-  - jam de cuerdas
 layout: calendario
 category: calendario
 authors:
   - KinkyVibe
 featured: rancheadita-kinky-miniatura.jpg
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-03-23T17:00-03:00
-end:   2024-03-23T22:30-03:00
+end:   2024-03-23T20:00-03:00
 location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 #location_name: Cooperativa Cultural Qi
 # link: ''
@@ -44,7 +42,6 @@ Hay una estructura metálica en el parque con muchos puntos de suspensión.
 ## A HACER QUÉ COSA
 
 - **17hs a 20hs** - Rancheadita Kinky, merienda y cuidados posteriores del [picantearla](/calendario/picantearla-2024-02).
-- **20hs a 22:30hs** - Jam de Cuerdas (_sin monitoreo_)
 
 Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb.
 
