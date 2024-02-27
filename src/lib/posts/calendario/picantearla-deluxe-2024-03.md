@@ -1,6 +1,6 @@
 ---
 published_date: 2024-02-17Z-03:00
-# updated_date: 2023-11-30Z-03:00
+updated_date:   2024-02-27Z-03:00
 title: Picantearla Deluxe 🔥 (11° Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
 tags:
@@ -26,16 +26,16 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: picantearla-miniatura.png
+featured: picantearla-deluxe-miniatura.jpg
 # logo: 2
-force_unlisted: false
+# force_unlisted: false
 #force_unpublished: false
-status: anunciado # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2024-03-08T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-03-09T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-03-09T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: Av. Maipu 2535
+location_name: lo de gorrite
 link: https://forms.gle/FEidvP6PsebiiwqQ6
 link_text: 'PRE-VENTA'
 ---
@@ -50,7 +50,7 @@ Como siempre va a contar con:
 
 - 🧸 Monitores e intentaremos ofrecer el mayor cuidado posible.
 - 🪔 Un espacio sin juegos que sea de relajación.
-- 🍿 Cositas para picar
+- 🍿 Cositas para picar de parte de [Luzi](https://www.instagram.com/manos.magicas.luzi/)
 - 🥰 Espacio de negociación grupal y cuidados posteriores
 
 ## Prácticas
@@ -98,12 +98,3 @@ Como siempre va a contar con:
 > 
 > Este mes vamos a tener 2 eventos Picantearla, así que preparamos el Pase Pica-Pica para asisitir a ambos con precio promocional !
 >  Si te interesa asistir a las dos actividades, revisá el formulario y buscá el link de pago del pase :)
-
-
-<style>
-    a {
-      color: #222;
-      /* text-decoration: none; */
-      text-decoration-color: var(--1);
-    }
-</style>
