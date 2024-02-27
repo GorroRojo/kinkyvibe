@@ -1,7 +1,7 @@
 ---
 published_date: 2024-02-17Z-03:00
-#updated_date: 2023-11-04Z-03:00
-title: Aberraciones - ciclo de cine disidente.
+updated_date: 2024-02-27Z-03:00
+title: Aberraciones - ciclo de cine disidente
 summary: 'Un ciclo de cine disidente orientado a explorar los márgenes de aquellas sexualidades, modos de vida, cuerpos e identidades menos trabajadas en el cine.'
 tags:
   - español
@@ -14,7 +14,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-# featured: 1
+featured: aberraciones-miniatura.jpg
 # logo: 2
 force_unlisted: true
 # force_unpublished: false
