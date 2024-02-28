@@ -52,7 +52,7 @@
 		<Calendar let:date let:today let:past>
 			{@const events = days?.[date]}
 			{@const featuredEvent =
-				events?.filter((e) => e.meta.tags.includes('KinkyVibe') && e.meta.featured)?.[0] ??
+				events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
 				events?.filter((e) => e.meta.featured)?.[0]}
 			{@const background = featuredEvent?.meta?.featured}
 			<button
@@ -60,6 +60,9 @@
 				class:past
 				disabled={!events}
 				style={background ? `--event-image: url("${background}");` : ''}
+				style:--evt-color={featuredEvent?.meta?.tags?.includes('KinkyVibe')
+					? 'var(--1)'
+					: 'var(--2)'}
 			>
 				<div class="date" class:today>
 					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
