@@ -1,7 +1,7 @@
 ---
 published_date: 2024-02-17Z-03:00
 updated_date: 2024-02-27Z-03:00
-title: Aberraciones - ciclo de cine disidente
+title: Aberraciones - Kiki, el amor se hace
 summary: 'Un ciclo de cine disidente orientado a explorar los márgenes de aquellas sexualidades, modos de vida, cuerpos e identidades menos trabajadas en el cine.'
 tags:
   - español
@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
 featured: aberraciones-miniatura.jpg
 # logo: 2
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
 status: anunciado # anunciado | abierto | lleno | cancelado #
 # opening_date: 30-09-2023Z-03:00
@@ -39,6 +39,6 @@ Estamos queriendo hacer un ciclo de cine disidente orientado a explorar los már
 En esta edición vamos a tener:
 
 - UNA CHARLA,
-- UNA PROYECCIÓN
+- UNA PROYECCIÓN: Kiki, el amor se hace
 - ¡Y ESPACIO PARA DEBATE!
 

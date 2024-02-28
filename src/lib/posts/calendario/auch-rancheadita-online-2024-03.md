@@ -2,7 +2,7 @@
 published_date: 2024-02-17Z-03:00
 updated_date: 2024-02-27Z-03:00
 title: "AUCH: Rancheadita Online"
-summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar. Se suspende por lluvia.'
+summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkis y queer/lgtb.'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -15,9 +15,9 @@ authors:
   - AUCH
   - DemonWeb
   - Gorro_Rojo
-# featured: rancheadita-kinky-miniatura.jpg
+featured: auch-rancheadita-online-miniatura.jpg
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
@@ -33,7 +33,7 @@ end:   2024-03-26T22:00-03:00
 # carrousel_accent_bg: ""
 ---
 
-Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb.
+Espacio relajado para quienes quieran compartir con otras personas kinkis y queer/lgtb.
 
 Juntemonos a conocernos, compartir experiencias, y ranchear online 
 

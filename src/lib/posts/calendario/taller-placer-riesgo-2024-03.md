@@ -19,14 +19,14 @@ featured: taller-placer-riesgo-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 # force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-03-13T20:30-03:00
 end:   2024-03-13T22:30-03:00
 #location: Online
 #location_name: -
-# link: https://forms.gle/3my2vSWTB4QL41Qu6
-# link_text: INSCRIBIRME
+link: https://forms.gle/csHSTuUMzQP7btJW6
+link_text: INSCRIBIRME
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
