@@ -51,13 +51,15 @@
 		<CalendarHeader />
 		<Calendar let:date let:today let:past>
 			{@const events = days?.[date]}
+			{@const featuredEvent =
+				events?.filter((e) => e.meta.tags.includes('KinkyVibe') && e.meta.featured)?.[0] ??
+				events?.filter((e) => e.meta.featured)?.[0]}
+			{@const background = featuredEvent?.meta?.featured}
 			<button
 				class:today
 				class:past
 				disabled={!events}
-				style={events && events?.length > 0 && events[0].meta.status !== 'cancelado' && events[0].meta.featured
-					? `--event-image: url("${events[0].meta.featured}");`
-					: ''}
+				style={background ? `--event-image: url("${background}");` : ''}
 			>
 				<div class="date" class:today>
 					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
@@ -231,12 +233,11 @@
 			/* overflow: visible; */
 			background: var(--evt-color);
 			transition: 100ms;
-			
 		}
 		.dim {
-				opacity: 0.5;
-				pointer-events: none;
-			}
+			opacity: 0.5;
+			pointer-events: none;
+		}
 
 		.date {
 			display: grid;
