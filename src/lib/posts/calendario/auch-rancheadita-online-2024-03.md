@@ -25,13 +25,14 @@ start: 2024-03-26T20:00-03:00
 end:   2024-03-26T22:00-03:00
 # location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 #location_name: Cooperativa Cultural Qi
-# link: ''
-# link_text: Inscibirme
+link: 'https://kinkyvibe.ar/amigues/AUCH'
+link_text: Ver la comunidad
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
+Nos juntamos en comunidad en @AUCH online!
 
 Espacio relajado para quienes quieran compartir con otras personas kinkis y queer/lgtb.
 

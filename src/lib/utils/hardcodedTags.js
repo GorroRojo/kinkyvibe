@@ -18,7 +18,7 @@ export const hardcodedTags = [
 			'vincularidad'
 		]
 	},
-	{ id: 'idioma', children: ['español', 'inglés'], color: 'darkblue' },
+	{ id: 'idioma', children: ['español', 'LSA', 'inglés'], color: 'darkblue' },
 	{
 		id: 'lugar',
 		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online', 'Montevideo'],

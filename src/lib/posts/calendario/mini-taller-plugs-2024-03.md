@@ -5,6 +5,7 @@ title: "Mini Talleres Rapiditos: Plugs"
 summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre plugs'
 tags:
   - español
+  - LSA
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
@@ -31,4 +32,10 @@ link_text: INSCRIBIRME
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
-`Proximamente...`
+`Interpretación LSA disponible`
+## Temario:
+- Tipos de materiales y lubricante y cómo elegir el tuyo 
+- Tipos de plugs 
+- Formas de usarlos
+- Dudas y miedos 
+- Parte práctica en vivo: colocación y sensaciones
