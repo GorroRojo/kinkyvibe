@@ -1,7 +1,7 @@
 <script context="module">
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
-	import { wikiTagManager } from '$lib/utils/stores';
+	import { tagManager, wikiTagManager } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 </script>
 
@@ -11,7 +11,7 @@
 
 	/**@type {ProcessedTag}*/
 	let tag = $wikiTagManager.get(item);
-	wikiTagManager.subscribe(wtm=>tag = wtm.get(item))
+	wikiTagManager.subscribe((wtm) => (tag = wtm.get(item)));
 
 	const name = tag?.visible_name ?? tag.id;
 	/** @type {ProcessedPost} */
@@ -42,7 +42,7 @@
 		) {
 			return true;
 		} else {
-			let children = t.getAllChildren()
+			let children = t.getAllChildren();
 			if (children.length > 0) {
 				return children.some((s) => isVisibleFn(s));
 			} else {
@@ -79,12 +79,27 @@
 				{/if}
 				{#if hasDescription && tag.related}<br />{/if}
 				{#if tag.related}
-					<small
-						>Ver también:
-						<MiniMarkup
-							value={tag.related.map((t) => '[[' + t.replaceAll(' ', '-') + ']]').join(' | ')}
-						/>
-					</small>
+					{@const related = tag.related
+						.map(
+							(relatedTag) =>
+								$page.data.wiki.find(
+									(/** @type {ProcessedPost} */ e) => e.meta.wiki == relatedTag
+								) ?? $tagManager.tagsData().find((t) => t.id == relatedTag)
+						)
+						.filter((t) => t)}
+					{#if related.length > 0}
+						<small
+							>Ver también:
+							{#each related as relatedTag, i}
+								{#if relatedTag.meta}
+									<a href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
+								{:else}
+									<a href="/wiki#{relatedTag?.visible_name ?? tag.id}">{relatedTag.id}</a>
+								{/if}
+								{i < tag.related.length - 1 ? ' | ' : ''}
+							{/each}
+						</small>
+					{/if}
 				{/if}
 				{#if hasSub}
 					<dl>
