@@ -73,12 +73,12 @@ export function tagsFactory(rawTags = hardcodedTags) {
 			return;
 		},
 		/**
-		 * 
-		 * @param {TagID} id 
+		 *
+		 * @param {TagID} id
 		 * @returns boolean - true if it existed, else false
 		 */
 		delete(id) {
-			return tagsMap.delete(id)
+			return tagsMap.delete(id);
 		}
 	};
 	for (let [id, tag] of tagManager) {
@@ -99,10 +99,12 @@ export function tagsFactory(rawTags = hardcodedTags) {
 		// generate alias tags from "aka"
 		if (tag.aka && tag.aka.length > 0) {
 			for (let aliasOfThis of tag?.aka ?? []) {
-				tagManager.set(aliasOfThis, {
-					id: aliasOfThis,
-					aliasOf: id
-				});
+				if (aliasOfThis !== id) {
+					tagManager.set(aliasOfThis, {
+						id: aliasOfThis,
+						aliasOf: id
+					});
+				}
 			}
 		}
 		// backlink related tags
