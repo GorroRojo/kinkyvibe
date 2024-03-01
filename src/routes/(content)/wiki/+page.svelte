@@ -96,6 +96,7 @@
 			href="https://recursero.info/violencia-sexual/">el recursero</a
 		>.
 	</p>
+
 	<dl>
 		<div class="searchbox">
 			<Search {style} />
@@ -105,11 +106,22 @@
 			<GlosarioTree />
 		{/key}
 	</dl>
+	<p
+		class="callout"
+		style:--callout-color="var(--4)"
+		style:--callout-secondary="white"
+		style:color="var(--1)"
+	>
+		Esta kinkipedia está escrita, editada y organizada con sudor y posicionamiento político por <a
+			href="/amigues/DemonWeb">@DemonWeb <small class="p-pronoun">él</small></a
+		> <a href="/amigues/Gorro_Rojo">@Gorro_Rojo <small class="p-pronoun">eso/elle</small></a> y <a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
+	</p>
 </article>
 
 <style lang="scss">
 	.callout {
 		--callout-color: var(--1);
+		--callout-secondary: var(--2);
 		font-size: var(--step-0);
 		background: var(--callout-color);
 		color: white;
@@ -124,9 +136,9 @@
 			margin-bottom: 2em;
 		}
 		a {
-			text-decoration: underline var(--2);
+			text-decoration: underline var(--callout-secondary);
 			&:hover {
-				color: var(--2);
+				color: var(--callout-secondary);
 			}
 		}
 	}
