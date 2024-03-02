@@ -42,6 +42,6 @@ link_text: PRE-VENTA
 - **23:30** Proyecciones de [\@julipuch](https://instagram.com/julipuch/)
 - **23:45** Proyecciones de [\@ediydesviante](https://instagram.com/ediydesviante/)
 - **01:00** Perfo de [\@fennel.ttt](https://instagram.com/fennel.ttt/)
-- **02:00** Arranca DJ
+- **02:00** Arranca DJ [\@yosoylacandelaviva](https://instagram.com/yosoylacandelaviva/)
 - **03:00** Fin del Evento
 
