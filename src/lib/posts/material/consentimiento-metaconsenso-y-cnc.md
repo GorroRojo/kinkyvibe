@@ -3,7 +3,7 @@ published_date: 2024-03-02Z-03:00
 #updated_date: 2024-11-04Z-03:00
 title: Consentimiento, metaconsenso y CNC
 #wiki: material # para si es una entry de la wiki #
-summary: '¿Cómo definimos consentimiento y por qué? ¿Qué es el metaconsenso? ¿Qué es el CNC? ¿Importa acaso?'
+summary: '¿Cómo definimos consentimiento y por qué? ¿Qué es el metaconsenso? ¿Qué es el CNC? ¿Importa acaso? ¿Es todo lo mismo? ¿Es el consentimiento una obsesión con hacer un montón de preguntas todo el tiempo? ¿Cómo está el tiempo hoy? ¿Qué hora es?'
 tags:
   - español # español | inglés #
   - gratis # gratis | pago #
