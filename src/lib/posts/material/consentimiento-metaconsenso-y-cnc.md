@@ -72,7 +72,7 @@ Que el consentimiento deba ser **dado libremente**, significa que debe poder ser
 
 Si laburo en una empresa y mi jefe me pregunta si puede pispear el libro que dejé sobre mi escritorio, me parece muy lógico sentir presión a decir que sí. Cuando la otra persona tiene poder sobre mí, aumenta muchísimo mi miedo a que haya consecuencias no deseadas a que yo diga que "no".
 
-**Rechazar a alguien que tiene poder sobre nosotres significa _confiar_ en que no va a usar ese poder en nuestra contra si no hacemos lo que nos pide.** Y no hablo únicamente de las relaciones de poder más obvias o explícitas, como una relación laboral. Hablo también de posicionamientos sociales, de pertenecer a grupos marginalizados, de que yo sea trans y le otre cis, de que yo viva en la casa de la otra persona, de que le otre sea lider de mi comunidad, de yo ser emprendedore y le otre tenga un salario fijo. Son todas cosas que implican un diferencial de poder con el que sólo podemos aprender a convivir en paz si ambes somos conscientes que existe.
+**Rechazar a alguien que tiene poder sobre nosotres significa _confiar_ en que no va a usar ese poder para vengarse de nuestro rechazo.** Y no hablo únicamente de las relaciones de poder más obvias o explícitas, como una relación laboral. Hablo también de posicionamientos sociales, de pertenecer a grupos marginalizados, de que yo sea trans y le otre cis, de que yo viva en la casa de la otra persona, de que le otre sea lider de mi comunidad, de yo ser emprendedore y le otre tenga un salario fijo. Son todas cosas que implican un diferencial de poder con el que sólo podemos aprender a convivir en paz si ambes somos conscientes que existe.
 
 Entonces, ¿cómo hacemos para tener en cuenta estas cosas a la hora de establecer el consentimiento?
 
@@ -186,8 +186,8 @@ Yo explícitamente les pregunto a las personas:
 ¿Soy une robotite? Sí, un poco, pero les juro que la respuesta que recibo siempre es súper alegre y bienvenida. Darnos la tranquilidad de que está bien y de que estamos accediendo a eso, nos quita un montón de ansiedad sobretodo cuando estamos recién empezando a formar algún tipo de intimidad con alguien. Explicitarlo también invita a que la otra persona pueda decir que no. A que tenga el lenguaje para en algún momento _revocar_ ese metaconsenso si lo desea.
 
 Llevándolo al plano más sadomasoquista, establecer dinámicas de metaconsenso nos permite también hacer cosas muy hot, como:
-- Establecer que un vínculo puede libremente agarrarme y usarme sin preguntar. <small>(Llamado "free use")</small>
-- Establecer que me pueden sorprender con prácticas.
+- Establecer que un vínculo puede libremente agarrarme y usarme sin preguntar. <small>(llamado "free use")</small>
+- Establecer que me puede hacer cosas mientras estoy durmiendo. <small>(llamado "somno play")</small>
 - Hacer juegos de restricciones con abandono, donde hay una ventana de tiempo donde la reversibilidad del consentimiento no se cumple (porque no puedo safewordear y que me liberen) entonces no podemos llamarle consentimiento y se vuelve un acuerdo de metaconsenso.
 
 Ahora bien, todo suena muy lindo y divertido, pero la razón por la que no le llamamos consentimiento es clara: **el metaconsenso es una práctica riesgosa**. Si bien quizás no tanto con mimitos, sí es más riesgosa cuando la aplicamos a contextos fetichistas.
@@ -206,7 +206,7 @@ Consensual Non-Consent, o en criollo, no-consentimiento consensuado, es **un _ju
 
 Es decir, es un acting. Es una puesta en escena. No se trata de otro tipo de consentimiento, ni se trata necesariamente de que haya un metaconsenso de por medio, si no simplemente de actuar como si no hubiera consentiminento cuando sí lo hay.
 
-Significa armar acuerdos donde invitamos a la otra persona a _ignorar_ las señales típicas que podemos estar aondo de que no consentimos a lo que nos están haciendo. Significa comunicarle a la otra persona: yo voy a forcejear, voy a decir que no, voy a pedir basta, voy a parecer angustiade, pero es todo "falso". **Si realmente quiero que pares, voy a decir _(por ejemplo)_ "rojo"**.
+Significa armar acuerdos donde invitamos a la otra persona a _ignorar_ las señales típicas que podemos estar dando de que no consentimos a lo que nos están haciendo. Significa comunicarle a la otra persona: yo voy a forcejear, voy a decir que no, voy a pedir basta, voy a parecer angustiade, pero es todo "falso". **Si realmente quiero que pares, voy a decir _(por ejemplo)_ "rojo"**.
 
 Si bien esta es una práctica consensuada, también implica muchísima confianza de ambos lados. Yo como bottom confío en que le top va a prestar atención a las señales que acordamos, si bien esté ignorando que yo diga que "no", justamente porque eso es lo que acordamos. Y **le top confía en que si _realmente_ no quiero algo: _voy a comunicarlo con la señal de seguridad_**.
 
