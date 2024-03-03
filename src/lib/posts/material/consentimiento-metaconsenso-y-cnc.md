@@ -38,7 +38,7 @@ Pero creo que hay que tener cuidado con creernos correctes y buenes chiques sól
 
 Como cualquier persona con ansiedad social podría contarnos <small>(con suficiente espacio y sin presionarla)</small>, _no todes siempre decimos lo que queremos_. O, más doloroso todavía, muchas veces decimos que queremos cosas que en realidad _no_ queremos. Como cuando une familiar nos hace un regalo que no nos gusta pero igual ofrecemos el gentil "ay, gracias, me encanta". No, no me encanta, pero recibir este regalo de tu parte no me hiere lo suficiente como para querer herirte diciendote que no me gusta, así que pongo mi mejor cara de [Harold](https://en.wikipedia.org/wiki/Hide_the_Pain_Harold) y sigo como si nada. Después veré qué hago con esa remera que dice "**¡Bazinga!**" que me compraste porque sabés que me gusta la ciencia.
 
-Este es un ejemplo boludo, pero es para demostrar que aún cuando _no_ estamos en una situación de vulnerabilidad, aún cuando estamos en un contexto donde podemos sentirnos físicamente "segures", aún así puede que digamos que sí a algo que en realidad no nos gusta.
+Este es un ejemplo <abbr title="tonto">boludo</abbr>, pero es para demostrar que aún cuando _no_ estamos en una situación de vulnerabilidad, aún cuando estamos en un contexto donde podemos sentirnos físicamente "segures", aún así puede que digamos que sí a algo que en realidad no nos gusta.
 
 Así como en el cumpleaños cedemos a querer complacer a la otra persona por sobre nuestras verdaderas emociones, en una situación de vulnerabilidad puede ser muy fácil decir que sí sólo para complacer a le otre. Si estamos en medio de una sesión, estoy atade a la cama, y la otra persona me pregunta si me puede morder, por mi cabeza puede pasar la siguiente secuencia:
 
@@ -58,7 +58,7 @@ _Esta es una situación particular_. Esta es una persona que _pide_ que le insis
 
 Pero traigo este ejemplo a colación, porque si bien en la mayoría de los casos es verdad que "no" es no, construye un modelo del consentimiento que no se ajusta del todo a la realidad. Además, más adelante voy a hablar sobre CNC, donde activamente _consensuamos que la otra persona puede seguir, aún cuando decimos que no_. Así que esta parte de la definición original tampoco nos sirve.
 
-### Entonces ¿cómo corno definimos consentimiento?
+### Entonces ¿cómo <abbr title="carajos">corno</abbr> definimos consentimiento?
 
 ¿Qué es lo que buscamos con el consentimiento? **Buscamos que todas las partes tengan agencia sobre lo que sucede**. Darnos "permiso" a cochinadas (y no-cochinadas también) y asegurarnos de que es algo que queremos y estamos decidiendo conscientemente.
 
@@ -70,7 +70,7 @@ Me gusta entonces acudir a un modelo que me cruzo frecuentemente en redes, que e
 
 Que el consentimiento deba ser **dado libremente**, significa que debe poder ser dado _sin presión_. Ahora bien, esto es...bastante imposible. Quiero decir: casi siempre vamos a encontrar, en cualquier relación humana, _alguna_ relación de poder. Esa relación de poder va a hacer que la decisión sea, entonces, "menos libre".
 
-Si laburo en una empresa y mi jefe me pregunta si puede pispear el libro que dejé sobre mi escritorio, me parece muy lógico sentir presión a decir que sí. Cuando la otra persona tiene poder sobre mí, aumenta muchísimo mi miedo a que haya consecuencias no deseadas a que yo diga que "no".
+Si <abbr title="trabajo">laburo</abbr> en una empresa y mi jefe me pregunta si puede <abbr title="hojear">pispear</abbr> el libro que dejé sobre mi escritorio, me parece muy lógico sentir presión a decir que sí. Cuando la otra persona tiene poder sobre mí, aumenta muchísimo mi miedo a que haya consecuencias no deseadas a que yo diga que "no".
 
 **Rechazar a alguien que tiene poder sobre nosotres significa _confiar_ en que no va a usar ese poder para vengarse de nuestro rechazo.** Y no hablo únicamente de las relaciones de poder más obvias o explícitas, como una relación laboral. Hablo también de posicionamientos sociales, de pertenecer a grupos marginalizados, de que yo sea trans y le otre cis, de que yo viva en la casa de la otra persona, de que le otre sea lider de mi comunidad, de yo ser emprendedore y le otre tenga un salario fijo. Son todas cosas que implican un diferencial de poder con el que sólo podemos aprender a convivir en paz si ambes somos conscientes que existe.
 
