@@ -17,8 +17,8 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: 1
-force_unlisted: true
+featured: taller-dominacion-principiantes-miniatura.jpg
+# force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-04-19T20:00-03:00
