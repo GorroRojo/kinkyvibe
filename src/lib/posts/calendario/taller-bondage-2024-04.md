@@ -2,7 +2,7 @@
 published_date: 2024-03-26Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Taller de Bondage
-summary: ''
+summary: ''Un taller sobre inmovilización y el placer de sentirse libre estando restringide. Todo sobre esposas, cadenas y mordazas"
 tags:
   - español
   - KinkyVibe # etiqueta especial #
