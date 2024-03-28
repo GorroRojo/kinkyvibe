@@ -34,7 +34,7 @@ end:   2024-04-23T22:00-03:00
 ---
 `Interpretación LSA disponible`
 
-##Temario:##
+Temario:
 -Anatomía de pecho/pectorales y mamas*
 -Cuidados y especificaciones a la hora de jugar con el pecho
 -Tipos de prácticas iniciales: broches, impacto, cera, entre otros
