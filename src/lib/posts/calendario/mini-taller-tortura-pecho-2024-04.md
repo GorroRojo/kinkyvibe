@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
 featured: 1
 #logo: 2
-force_unlisted: true
+force_unlisted: false
 # force_unpublished: false
 status: anunciado # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
