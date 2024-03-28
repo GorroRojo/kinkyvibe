@@ -24,8 +24,8 @@ start: 2024-04-18T20:30-03:00
 end:   2024-04-18T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
-# link: https://forms.gle/AU9CywRpLXZbnaNE9
-# link_text: INSCRIBIRME
+link: https://forms.gle/wwtWq9NiFaZVnEAq9
+link_text: INSCRIBIRME
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
