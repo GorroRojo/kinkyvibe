@@ -23,9 +23,9 @@ status: anunciado # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
 start: 2024-04-16T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-04-16T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-# location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: https://forms.gle/kDZX3V6g3dnGD4vs9
-# link_text: 'INSCRIPCIÓN'
+# location: Online
+link: https://forms.gle/kDZX3V6g3dnGD4vs9
+link_text: 'INSCRIPCIÓN'
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
