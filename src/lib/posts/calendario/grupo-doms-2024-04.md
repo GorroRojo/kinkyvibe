@@ -23,7 +23,7 @@ status: anunciado # anunciado | abierto | lleno | cancelado #
 start: 2024-04-18T20:30-03:00
 end:   2024-04-18T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
-#location_name: QI Centro Cultural
+#location_name:  Online
 link: https://forms.gle/wwtWq9NiFaZVnEAq9
 link_text: INSCRIBIRME
 ---
