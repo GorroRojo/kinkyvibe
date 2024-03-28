@@ -1,8 +1,8 @@
 ---
 published_date: 2024-03-26Z-03:00
 # updated_date: 2024-11-04Z-03:00
-title: 'Mini Talleres Rapiditos: "Tortura" de Pecho'
-summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre plugs'
+title: 'Mini Talleres Rapiditos: Sadomasoquismo en Pecho'
+summary: 'Un mini taller para informarse sobre prácticas sadomasoquistas sobre pecho y cuidados '
 tags:
   - español
   - LSA
@@ -33,3 +33,9 @@ end:   2024-04-23T22:00-03:00
 # carrousel_accent_bg: ""
 ---
 `Interpretación LSA disponible`
+
+##Temario:##
+-Anatomía de pecho/pectorales y mamas*
+-Cuidados y especificaciones a la hora de jugar con el pecho
+-Tipos de prácticas iniciales: broches, impacto, cera, entre otros
+-Demostración en vivo de la técnica de cada práctica y sus cuidados
