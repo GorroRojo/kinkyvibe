@@ -24,7 +24,7 @@ status: anunciado # abierto | anunciado | lleno | cancelado
 start: 2024-04-16T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-04-16T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
-# link: https://forms.gle/qb1woJ66ULA7ZSNGA
+# link: https://forms.gle/kDZX3V6g3dnGD4vs9
 # link_text: 'INSCRIPCIÓN'
 ---
 
