@@ -21,7 +21,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-04-14T16:00-03:00
 end:   2024-04-14T22:00-03:00
-location: Adolfo Alsina 1475, CABA
+location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 #location_name: Cooperativa Cultural Qi
 # link: ''
 # link_text: Inscibirme
