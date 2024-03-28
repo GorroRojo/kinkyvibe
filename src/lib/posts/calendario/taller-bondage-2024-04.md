@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
 featured: taller-bondage-miniatura.jpg
 #logo: 2
-force_unlisted: true
+force_unlisted: false
 # force_unpublished: false
 status: anunciado # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
@@ -24,10 +24,34 @@ start: 2024-04-25T19:00-03:00
 end:   2024-04-25T21:30-03:00
 location: Medrano 627, CABA
 location_name: Batacazo Cultural
-# link: ''
-# link_text: Inscibirme
+link: https://forms.gle/77VYshCGwJh1Rgj59
+link_text: Inscibirme
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
+//TEMARIO//
+Introducción a la práctica general de bondage (qué es, de dónde viene, qué implica la restricción).
+
+Cuidados específicos y generales, modos de negociación, armado de una escena BDSM con bondage.
+
+Vamos a ver bondage con los siguientes fines:
+
+Restricción (inmovilizaciones varias).
+Sometimiento/Resistencia.
+Roleplay
+Privación/Sensación
+Humillación/Exposición
+Dominación/Sumisión
+Y aprender las siguientes técnicas:
+Momificación con film.
+Uso de pañuelos, esposas, arneses, telas, entre otras, para bondage rápido.
+Tipos de privación sensorial.
+Uso de mordazas e improvisación de las mismas.
+Posiciones posibles para bondage y sus adaptaciones 
+Al finalizar la parte teórica habrá una parte práctica para probar as técnicas ente nosotres (esto último no es obligatorio)
+
+No vamos a estar usando cuerdas, ya que la idea es centrarnos en todos los elementos que no son cuerdas y que tenemos a mano. La idea es aprender cómo improvisar distintos juegos de bondage. Además vamos a estar viendo privación sensorial. 
+
+Si tenés algún elemento que pueda usarse para bondage, podés traerlo! Cualquier cosa que te inspire o que sientas que pueda usarse con ese finde: antifaces, telas, esposas, film de cocina, corbatas, ¡entre otras!
