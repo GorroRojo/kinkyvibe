@@ -2,7 +2,7 @@
 published_date: 2024-03-26Z-03:00
 # updated_date: 2024-11-04Z-03:00
 title: 'Mini Talleres Rapiditos: Sadomasoquismo en Pecho'
-summary: 'Un mini taller para informarse sobre prácticas sadomasoquistas sobre pecho y cuidados '
+summary: 'Un taller en donde exploramos el dolor en las tetas y zona pectoral 🤭 cómo pegar, con qué y qué cuidados tener '
 tags:
   - español
   - LSA
