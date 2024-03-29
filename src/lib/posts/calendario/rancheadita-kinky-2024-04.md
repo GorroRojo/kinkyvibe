@@ -21,8 +21,8 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-04-14T16:00-03:00
 end:   2024-04-14T22:00-03:00
-location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
-#location_name: Cooperativa Cultural Qi
+location: Adolfo Alsina 1475, CABA
+location_name: Tacheles
 # link: ''
 # link_text: Inscibirme
 # carrousel_background: "#f2a68f"
@@ -33,7 +33,7 @@ location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 
 ## A HACER QUÉ COSA
 
-- **17hs a 20hs** - Rancheadita Kinky, merienda y cuidados posteriores del [picantearla](/calendario/picantearla-2024-04).
+- **16hs a 20hs** - Rancheadita Kinky, merienda y cuidados posteriores del [picantearla](/calendario/picantearla-2024-04).
 - **20hs a 22hs** - Jam de Cuerdas (_sin monitoreo_)
 
 Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb.
