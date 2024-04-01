@@ -131,7 +131,7 @@ export default function customRehype() {
 						return h(
 							'a.wikilink',
 							{
-								href: '/wiki/' + link.trim().replaceAll(' ', '-')
+								href: '/wiki/' + link.trim().replaceAll(' ', '-').toLowerCase()
 							},
 							lit ? lit.slice(3) : link
 						);
