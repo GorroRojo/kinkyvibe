@@ -25,10 +25,6 @@ location: Adolfo Alsina 1475, CABA
 location_name: Tacheles
 # link: ''
 # link_text: Inscibirme
-# carrousel_background: "#f2a68f"
-# carrousel_color: "white"
-# carrousel_accent_text: ""
-# carrousel_accent_bg: ""
 ---
 
 ## A HACER QUÉ COSA

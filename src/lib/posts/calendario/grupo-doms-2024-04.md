@@ -1,6 +1,6 @@
 ---
 published_date: 2024-03-26Z-03:00
-# updated_date: 2024-01-30Z-03:00
+updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusión para Doms*
 summary: 'Nos juntamos para charlar, discutir, dar información y compartir experiencias relacionadas a ser Dom (o roles similares).'
 tags:
@@ -18,7 +18,7 @@ authors:
 featured: grupo-doms-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2024-04-18T20:30-03:00
 end:   2024-04-18T22:30-03:00

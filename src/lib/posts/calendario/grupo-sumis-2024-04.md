@@ -1,6 +1,6 @@
 ---
 published_date: 2024-03-26Z-03:00
-# updated_date: 2024-01-30Z-03:00
+updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusion para sumis*
 summary: Para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
 tags:
@@ -19,7 +19,7 @@ authors:
 featured: grupo-sumis-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
 start: 2024-04-16T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-04-16T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
