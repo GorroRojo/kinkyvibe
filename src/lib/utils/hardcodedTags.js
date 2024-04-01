@@ -40,6 +40,7 @@ export const hardcodedTags = [
 			'jam de cuerdas',
 			'laboratorio',
 			'perfo',
+			'sesión en vivo',
 			'rancheadita',
 			'taller'
 		]

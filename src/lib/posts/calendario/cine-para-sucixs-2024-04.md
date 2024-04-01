@@ -11,7 +11,7 @@ tags:
   - pago
   - cine
   - entrevista
-  - perfo
+  - sesión en vivo
   - Cine para Sucixs
   - AMBA
 layout: calendario
