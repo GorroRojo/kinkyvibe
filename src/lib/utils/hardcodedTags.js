@@ -152,7 +152,8 @@ export const hardcodedTags = [
 			'edging',
 			'cera',
 			'lluvias',
-			'comida'
+			'comida',
+			'sadomasoquismo en pechos'
 		],
 		color: '#ff4444'
 	},
