@@ -19,7 +19,7 @@ authors:
   - Brenda
   - Kari
 featured: 1
-force_unlisted: true
+# force_unlisted: true
 # force_unpublished: false
 pronoun: https://pronombr.es/elles,les,les,unes,elles,les,unos,les,es,co,
 link: 'https://linktr.ee/canelaproducciones'
@@ -45,7 +45,7 @@ No estás solx en este viaje, vamos a marcar la diferencia construyendo equipos 
 
 Confía en nosotrxs para hacer que cada evento/proyecto sea impecable. Desde la planificación hasta la ejecución, estamos aquí para hacer que todo fluya sin problemas. Nuestro compromiso es ser compas y mentores en esta aventura, donde cada propuesta va a ser tratada de forma personalizada por profesionales.
 
-## 🪭Ofrecemos servicios 
+## Ofrecemos servicios 
 
 Tales como: planificación de redes sociales, armado de equipos a la medida de cada proyecto, búsqueda de locación, contratación de seguros, logística, difusión, búsqueda de financiamiento, armado de carpetas para convocatorias, gestión y venta de entradas, cierre de caja e informes de cierre para analizar juntxs todo el proceso. Y todo lo que necesites para **materializar tus ideas** .
 
