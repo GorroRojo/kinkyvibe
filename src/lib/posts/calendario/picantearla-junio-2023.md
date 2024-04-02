@@ -69,7 +69,7 @@ _Monitorean_
 - [\@cero.rigger](https://instagram.com/cero.rigger)
   <!-- - [\@gorro_rojo](https://instagram.com/gorro_rojo) -->
   <!-- - [\@gnosis.king](https://instagram.com/gnosis.king) -->
-- @Silvina.Chivy
+- @Chivy
 - [\@callianix](https://instagram.com/callianix)
 
 🔥 _¿Quiénes vienen?_ 🔥

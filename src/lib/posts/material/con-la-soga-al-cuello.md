@@ -100,7 +100,7 @@ El Estado no paga a instructores para que las personas que no tienen dinero apre
 
 En conclusión, me he parado en el Foro Azurduy y comparto con KinkyVibe, para convocar a lxs artistas de cuerdas a pensar maneras de incluir a nos, las personas pobres, mis raíces, mi identidad es ser pobre, porque aun teniendo empleo formal como empleada, mamé la pobreza desde que nací y nadie me saca los recursos aprendidos en la calle para defenderme, así como defiendo hoy este manifiesto artístico y llamó a que más voces se unan. Hay personas con grandes cualidades y dedicación, pero que no tienen el dinero para pagar las clases necesarias para atar con seguridad. Quisiera de corazón poder instruirme en lo que amo y tener la posibilidad de hacerlo más allá de mis recursos económicos o del tipo de arte alternativo que elijo.¿Quizás soy la única que encuentra desigualdad en no poder participar en este estilo cultural japonés?
 
-Gracias a mi abuelo que cuando cartoneaba libros en buen estado me los traía porque yo era el bicho raro de la casa. Gracias a la bendi, a Cachorro, @Silvina.Chivy , Eze, Guga, @KinkyVibe , La Negra, a mi Poder Superior y a mi vieja.
+Gracias a mi abuelo que cuando cartoneaba libros en buen estado me los traía porque yo era el bicho raro de la casa. Gracias a la bendi, a Cachorro, @Chivy , Eze, Guga, @KinkyVibe , La Negra, a mi Poder Superior y a mi vieja.
 
 <style>
   img,video{

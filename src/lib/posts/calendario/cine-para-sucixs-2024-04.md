@@ -33,7 +33,7 @@ link_text: PRE-VENTA
 ---
  Cronograma
 - **19:30** Comienza el evento. Va a estar la feria disponible.
-- **20:00** Entrevista a @Silvina.Chivy
+- **20:00** Entrevista a @Chivy
 - **21:15** Sesion en Vivo por @Sogashibari y [Super Cerdita](https://www.instagram.com/super.cerdita/)
 - **22:20** Proyección de cortos de Porno y Posporno
 - **23:30** Fin del Evento

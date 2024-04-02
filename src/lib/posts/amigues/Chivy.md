@@ -1,7 +1,7 @@
 ---
 published_date: 2023-09-08Z-03:00
-#updated_date: 2023-11-04Z-03:00
-title: Silvina (Chivy)
+updated_date: 2024-04-01Z-03:00
+title: Chivy
 summary: 🏳️‍🌈Educadorx y artista. Mecánica, Lic. en Educación y Lic en Gestión Educativa. Especialistx en Educación Sexual Integral y en Educación Técnico Profesional. Practico Shibari, bailo tango y salsa queer, performeo, educo, estudio y produzco eventos con Perspectiva de Género.
 tags:
   - español
@@ -13,7 +13,7 @@ tags:
 layout: amigues
 category: amigues
 authors:
-  - Silvina.Chivy
+  - Chivy
 featured: 1
 #force_unlisted: false
 #force_unpublished: false

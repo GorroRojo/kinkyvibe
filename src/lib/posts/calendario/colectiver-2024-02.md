@@ -13,7 +13,7 @@ layout: calendario
 category: calendario
 authors:
   - la.colectiver
-  - Silvina.Chivy
+  - Chivy
 featured: 1
 #logo: 2
 #force_unlisted: false
@@ -33,7 +33,7 @@ link_text: PREVENTA
 ---
 La Fiesta Colectiver es un espacio de encuentro para las comunidades No monógamas, Poliamorosas, Kinkys, LGBTIQ+ y toda persona que respete nuestras identidades.
 
-Hosteado por @Silvina.Chivy y [\@florcolectiver](https://instagram.com/florcolectiver) de la cuenta Seso Colectivo
+Hosteado por @Chivy y [\@florcolectiver](https://instagram.com/florcolectiver) de la cuenta Seso Colectivo
 
 Vamos a bailar al ritmo de nuestro DJ Residente Fede Rosbaco, y a jugar y disfrutar con @DemonWeb de @KinkyVibe y Eze en los espacios reservados.
 

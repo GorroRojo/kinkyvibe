@@ -2,7 +2,7 @@
 published_date: 2024-02-02Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Cabaret Astral - Acuario
-summary: 'Un cabaret queer, trolx, lesbianx, astral, no binarie. Una vez al mes en @maquinal.maquinal. Dirigido por @flor.sandulli y Producido por @silvina.chivy'
+summary: 'Un cabaret queer, trolx, lesbianx, astral, no binarie. Una vez al mes en @maquinal.maquinal. Dirigido por @flor.sandulli y Producido por @Chivy'
 tags:
   - español
  # - KinkyVibe # etiqueta especial #
@@ -12,7 +12,7 @@ tags:
 layout: calendario
 category: calendario
 authors:
-  - Silvina.Chivy
+  - Chivy
 featured: 1
 #logo: 2
 #force_unlisted: false
@@ -34,7 +34,7 @@ link_text: Reserva tu mesita
 
 Cabaret Astral es un proyecto autogestivo que reescribe lo que conocíamos conceptualmente como un cabaret de los 1900 y le da una impronta **queer, trolx, lesbianx, astral, no binarie.**
 
-Este espectáculo fue creado y está dirigido por Flor Sandulli. Lic. en Actuación, Astróloga y Tarotista transfeminista; y convoca una vez al mes a un grupo de artistes de distintas disciplinas entorno al signo solar, para compartir una noche performática única e irrepetible junto a la audiencia y cuenta con la producción de @Silvina.Chivy
+Este espectáculo fue creado y está dirigido por Flor Sandulli. Lic. en Actuación, Astróloga y Tarotista transfeminista; y convoca una vez al mes a un grupo de artistes de distintas disciplinas entorno al signo solar, para compartir una noche performática única e irrepetible junto a la audiencia y cuenta con la producción de @Chivy
 
 Tiene la particularidad de ser una obra donde no se cobra entrada (a la gorra), y esto no significa que no tenga costo\* la producción del evento, pero es una decisión política que nadie se quede afuera si no posee los ingresos para costear una entrada. 
 
