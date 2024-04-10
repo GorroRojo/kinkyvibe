@@ -1,7 +1,7 @@
 ---
 published_date: 2024-03-26Z-03:00
 updated_date:   2024-04-01Z-03:00
-title: Rancheadita Kinky + Jam de Cuerdas
+title: Rancheadita Kinky + Taller + Jam de Cuerdas
 summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar.'
 tags:
   - español
