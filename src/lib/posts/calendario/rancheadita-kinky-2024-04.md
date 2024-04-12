@@ -42,7 +42,7 @@ Además, vamos a mostrar como se hace una atadura simple de shibari para que pue
 Valor: $3.000
 
 - **18:30hs a 21hs** - Jam de Cuerdas (_sin monitoreo_)
-Un espacio para tener tus prácticas de shibari entre compañeres kinkies y cuir-lgttbiq! Aprender, jugar, intercambiar y charlar mucho <3 
+Un espacio para tener tus prácticas de shibari entre compañeres kinkies y cuir-lgttbiq! Aprender, jugar, intercambiar y charlar mucho ❤️
 
 Va a haber anillas para suspensión, monitores y materiales de cuidado y seguridad.
 
