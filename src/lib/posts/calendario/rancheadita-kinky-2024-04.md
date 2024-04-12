@@ -23,8 +23,9 @@ start: 2024-04-14T15:00-03:00
 end:   2024-04-14T21:00-03:00
 location: Adolfo Alsina 1475, CABA
 location_name: Tacheles
-# link: 'https://forms.gle/GTJNDQigrzS5bX1q6'
-# link_text: Inscibirme
+link: 'https://forms.gle/GTJNDQigrzS5bX1q6'
+link_text: Inscibirme
+
 ---
 
 ## A HACER QUÉ COSA
