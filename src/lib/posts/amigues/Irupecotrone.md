@@ -15,7 +15,7 @@ authors:
   - 'Irupecotrone'
 featured: 1
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 pronoun: https://pronombr.es/ella
 link: 'https://www.instagram.com/irupecotrone'
 #logo: 2

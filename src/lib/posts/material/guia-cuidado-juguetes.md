@@ -19,7 +19,7 @@ authors:
   - TallarinesConTuco
 #featured: 1
 force_unlisted: true
-# force_unpublished: false
+#force_unpublished: false
 link: 1
 ########### ----- Para tipo 'link' ----- ###########
 #redirect: false

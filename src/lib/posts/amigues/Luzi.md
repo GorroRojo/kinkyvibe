@@ -15,7 +15,7 @@ authors:
   - 'Luzi'
 featured: 1
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 pronoun: https://pronombr.es/cualquiera
 link: 'https://www.instagram.com/manos.magicas.luzi'
 #logo: 2

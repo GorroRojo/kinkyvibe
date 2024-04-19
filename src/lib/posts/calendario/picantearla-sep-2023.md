@@ -25,7 +25,7 @@ authors:
   - KinkyVibe
 featured: picantearla-miniatura.png
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2023-09-22T21:00-03:00
 end: 2023-09-23T02:00-03:00

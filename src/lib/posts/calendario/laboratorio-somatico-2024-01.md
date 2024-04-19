@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
 featured: laboratorio-somatico-miniatura.png
 # force_unlisted: true
-# force_unpublished: false
+#force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 22-09-2023Z-03:00
 start: 2024-01-10T19:00-03:00

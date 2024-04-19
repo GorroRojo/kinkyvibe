@@ -18,7 +18,7 @@ authors:
 featured: cabaret-astral-miniatura.png
 #logo: 2
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-04-19T21:00-03:00

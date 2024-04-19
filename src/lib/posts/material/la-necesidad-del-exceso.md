@@ -21,7 +21,7 @@ authors:
   - DemonWeb
 #featured: 1
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 link: https://www.poz.com/article/The-Necessity-of-Excess-12198-6713
 ########### ----- Para tipo 'link' ----- ###########
 #redirect: false

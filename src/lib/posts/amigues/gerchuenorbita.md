@@ -16,7 +16,7 @@ authors:
   - gerchuenorbita
 featured: 1
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 pronoun: https://pronombr.es/ella&él
 link: https://instagram.com/gerchuenorbita
 #logo: 2

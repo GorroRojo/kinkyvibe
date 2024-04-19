@@ -17,7 +17,7 @@ authors:
 featured: asfixia-erotica-miniatura.png
 #logo: 2
 #force_unlisted: false
-# force_unpublished: false
+#force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2023-12-01T18:00-03:00
