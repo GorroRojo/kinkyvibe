@@ -28,18 +28,26 @@ original_published_date: 2018-01-01Z-03:00
 ---
 ## Lo que podés hacer vos misme
 
-- Intentá buscar un espacio en el que te puedas sentir segure y cómode. 
-- Intentá relajarte y si podés, permití que otres te cuiden. 
-- A algunas personas ejercitarse físicamente les puede ayudar a liberar estrés. Caminar, correr o bailar puede ser más relajante que sentarse.
-- Si podés, evitá el aislamiento. Acercate a amigues o personas en las que confíes para que te apoyen.
-- Una reacción muy común es sentirnos mal cuando vemos que otras personas están teniendo más facilidad para lidiar con lo que les pasa. Tené en mente que cada persona reacciona diferente y que las formas que tienen de sanar y de sufrir pueden no ser visibles.
-- La severidad con la que reacciones puede estar conectada a una situación previa. Experimentar dolor emocional luego de salir lastimade no es una señal de debilidad.
- - Culparte por lo que pasó es una reacción común al trauma. Recordá que no es tu culpa haber sido atacade. <!-- Hay que culpar a les perpetradores y el sistema que les creó.  -->
-- Tanto tus amigues como tus familiares pueden no saber cómo apoyarte. Si su comportamiento no te está ayudando, probá hablar con elles y pedir lo que necesites.
-- Te merecés apoyo y acompañamiento. Tu sufrimiento es válido.
-- Recordá que tus reacciones son normales y que está bien buscar apoyo.
-- Tomate tu tiempo, sé paciente con vos misme e intentá no juzgarte por cómo te sentís. Las heridas emocionales necesitan tiempo y reposo para poder sanar, de la misma forma que las heridas físicas.
-- Aunque sea un momento dificil, va a pasar.
+
+Intentá buscar un espacio en el que te puedas sentir segure y cómode.  Intentá relajarte y si podés, permití que otres te cuiden. 
+
+A algunas personas ejercitarse físicamente les puede ayudar a liberar estrés. Caminar, correr o bailar puede ser más relajante que sentarse. Si podés, evitá el aislamiento. Acercate a amigues o personas en las que confíes para que te apoyen.
+
+Una reacción muy común es sentirnos mal cuando vemos que otras personas están teniendo más facilidad para lidiar con lo que les pasa. Tené en mente que cada persona reacciona diferente y que las formas que tienen de sanar y de sufrir pueden no ser visibles.
+
+La severidad con la que reacciones puede estar conectada a una situación previa. Experimentar dolor emocional luego de salir lastimade no es una señal de debilidad.
+
+Culparte por lo que pasó es una reacción común al trauma. Recordá que no es tu culpa haber sido atacade. <!-- Hay que culpar a les perpetradores y el sistema que les creó.  -->
+
+Tanto tus amigues como tus familiares pueden no saber cómo apoyarte. Si su comportamiento no te está ayudando, probá hablar con elles y pedir lo que necesites.
+
+Te merecés apoyo y acompañamiento. Tu sufrimiento es válido.
+
+Recordá que tus reacciones son normales y que está bien buscar apoyo.
+
+Tomate tu tiempo, sé paciente con vos misme e intentá no juzgarte por cómo te sentís. Las heridas emocionales necesitan tiempo y reposo para poder sanar, de la misma forma que las heridas físicas.
+
+Aunque sea un momento dificil, va a pasar.
 
 ### Ejercicios después de vivir una experiencia fuerte/traumática
 #### Escaneo corporal para orientarte en espacios estresantes
