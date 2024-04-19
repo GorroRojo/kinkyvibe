@@ -19,8 +19,8 @@ authors:
   - Power Makes Us Sick
   - DemonWeb
 #featured: 1
-force_unlisted: true
-# force_unpublished: false
+#force_unlisted: true
+#force_unpublished: false
 link: https://powermakesussick.noblogs.org/zines-and-resources/
 ########### ----- Para tipo 'link' ----- ###########
 #redirect: false
