@@ -1,6 +1,6 @@
 ---
-#published_date: 2023-05-16Z-03:00
-#updated_date: 2023-11-04Z-03:00
+#published_date: 2024-05-16Z-03:00
+#updated_date:   2024-11-04Z-03:00
 title: Material de ejemplo
 #wiki: material # para si es una entry de la wiki #
 summary: ''
@@ -8,7 +8,6 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - gratis # gratis | pago #
   - online # online | descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
