@@ -17,6 +17,7 @@ layout: material
 category: material
 authors:
   - Power Makes Us Sick
+  - DemonWeb
 #featured: 1
 force_unlisted: true
 # force_unpublished: false
@@ -37,7 +38,7 @@ Una reacción muy común es sentirnos mal cuando vemos que otras personas están
 
 La severidad con la que reacciones puede estar conectada a una situación previa. Experimentar dolor emocional luego de salir lastimade no es una señal de debilidad.
 
-Culparte por lo que pasó es una reacción común al trauma. Recordá que no es tu culpa haber sido atacade. <!-- Hay que culpar a les perpetradores y el sistema que les creó.  -->
+Culparte por lo que pasó es una reacción común al trauma. Recordá que no es tu culpa haber sido dañade. <!-- Hay que culpar a les perpetradores y el sistema que les creó.  -->
 
 Tanto tus amigues como tus familiares pueden no saber cómo apoyarte. Si su comportamiento no te está ayudando, probá hablar con elles y pedir lo que necesites.
 
@@ -121,6 +122,6 @@ Este flyer fue hecho por Power Makes Us Sick (PMS) con un montón de aportes de 
 
 **Anti-copyright 2020**
 
-Este flyer es una adaptación y traducción del flyer original hecho por PMS.
+Este flyer es una adaptación y traducción del flyer original hecho por PMS. Traducido por @DemonWeb + 1
 Alentamos su uso y distribución. La salud mental/emocional es un tema que nos
 atraviesa a todes.
