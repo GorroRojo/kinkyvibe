@@ -46,7 +46,7 @@ En este caso las dos personas están usando una sola palabra, lo cual nos da men
 
 ## ¿Qué es el monitoreo y cómo funciona con las palabras de seguridad?
 
-El monitoreo es un chequeo que sucede durante una sesión. Es una forma para le top y le bottom de confirmar que están jugando dentro de los límites que acordaron y medir la progresión de la escena, así como modificarla para mayor disfrute.
+El monitoreo es un chequeo que sucede durante una sesión. Es una forma para le Top y le bottom de confirmar que están jugando dentro de los límites que acordaron y medir la progresión de la escena, así como modificarla para mayor disfrute.
 
 El monitoreo es el momento de chequear, generalmente usando las palabras de seguridad acordadas combinadas con otras preguntas específicas.
 
@@ -69,7 +69,7 @@ El monitoreo también consiste en estar atente a la comunicación no verbal tant
 
 ## ¿Qué hacer después de que alguien diga su palabra de seguridad?
 
-Una palabra de seguridad debe ser **atendida, respetada y honrada**. si le bottomquiere seguir, se deben hacer los cambios marcados; si le bottom no quiere seguir se debe parar y dar los cuidados necesarios. Lo mismo aplica para el lado Top.
+Una palabra de seguridad debe ser **atendida, respetada y honrada**. si le bottom quiere seguir, se deben hacer los cambios marcados; si le bottom no quiere seguir se debe parar y dar los cuidados necesarios. Lo mismo aplica para el lado Top.
 
 Alguien que se siente cómode diciendo su palabra de seguridad genera un nivel de confianza tanto en la comunicación como en el juego, y esto tiene que ser respetado y agradecido.
 
@@ -85,11 +85,11 @@ Que alguien diga su palabra de seguridad no significa necesariamente que hayamos
 
 ### Se pueden usar palabras de seguridad por varias razones durante una escena
 
-Une top o bottom pueden usarlas porque necesitan descansar, ir al baño, les está costando enfocar, llegó a un límite mental/físico/emotivo, porque no desea hacer ciertas prácticas hoy, porque no les gusta algo, etc. **Todos los usos de una palabra de seguridad son válidos.**
+Une Top o bottom pueden usarlas porque necesitan descansar, ir al baño, les está costando enfocar, llegó a un límite mental/físico/emotivo, porque no desea hacer ciertas prácticas hoy, porque no les gusta algo, etc. **Todos los usos de una palabra de seguridad son válidos.**
 
 ### No escuché la palabra de seguridad jugando, ¿crucé los límites de alguien?
 
-Parte de nuestras responsabilidades creando una cultura del consentimiento es cuidarnos y comunicarnos lo mejor posible y aprender de las situaciones en donde eso no sucedió. Hay casos frecuentes donde le top no escucha la palabra de seguridad de le bottom por estar amordazade, o por estar en un evento con mucha música y poca luz. O múltiples casos en donde le bottom dijo su palabra de seguridad, la escena paró y le bottom quedó sintiéndose mal por algo no relacionado.
+Parte de nuestras responsabilidades creando una cultura del consentimiento es cuidarnos y comunicarnos lo mejor posible y aprender de las situaciones en donde eso no sucedió. Hay casos frecuentes donde le Top no escucha la palabra de seguridad de le bottom por estar amordazade, o por estar en un evento con mucha música y poca luz. O múltiples casos en donde le bottom dijo su palabra de seguridad, la escena paró y le bottom quedó sintiéndose mal por algo no relacionado.
 
 Estos son accidentes y parte de la realidad de jugar y compartir con otres. **Es importante que aprendamos de ellos y modifiquemos nuestro comportamiento para que no vuelvan a pasar**.
 
@@ -99,9 +99,9 @@ Tenemos que poner el cuidado de les otres por sobre nuestras propias expectativa
 
 > **Importante**: Si alguien siente que su límite fue cruzado, es importante levantarlo como parte de los cuidados posteriores para entender cómo se dió que no fue escuchado, pedir apoyo correpsondiente y hacer las modificaciones necesarias.
 
-Ya sea que uses métodos de comunnicación intra-escena, monitoreo o palabras de seguridad, lo importante es que negociemos cómo cuidarnos, inclusive si decidimos no usar ninguna de las tres: estamos consensuando y eso debe ser respetado.
+Ya sea que uses métodos de comunicación intra-escena, monitoreo o palabras de seguridad, lo importante es que negociemos cómo cuidarnos, inclusive si decidimos no usar ninguna de las tres: estamos consensuando y eso debe ser respetado.
 
-En casos en donde puede haber fallas de comunicación, es importante que le bottom repita el límite usando alguna señal de seguridad o señal de comunicación (verbal o no verbal) para pedir parar. Le top debería seguir monitoreando con más frecuencia para reducir las chances de perder señales de seguridad de su bottom.
+En casos en donde puede haber fallas de comunicación, es importante que le bottom repita el límite usando alguna señal de seguridad o señal de comunicación (verbal o no verbal) para pedir parar. Le Top debería seguir monitoreando con más frecuencia para reducir las chances de perder señales de seguridad de su bottom.
 
 ## Ejemplos de comunicación durante una sesión que no incluyan palabras
 
@@ -109,10 +109,10 @@ En casos en donde puede haber fallas de comunicación, es importante que le bott
   - Útil a rango medio de cercanía
   - No es útil si hay música fuerte
 - Parpadear muchas veces o sacudir la cabeza enfáticamente diciendo que "no"
-  - Útil si le top está cerca y tiene rango visual. 
+  - Útil si le Top está cerca y tiene rango visual. 
   - No es útil si la persona no puede ver
 - Tocar el suelo repetidas veces haciendo sonido (con una mano o un pie)
-  - Útil si le top está en mediano rango, no necesita visualidad. 
+  - Útil si le Top está en mediano rango, no necesita visualidad. 
   - No es útil si la persona está restringida.
 - Tararear algo o chasquear los dedos
   - Útil en rango cercano y medio, no necesita visibilidad.
@@ -126,31 +126,31 @@ Durante una escena de nalgueadas, le Top pregunta a le bottom: ¿en qué color e
 
 **Le Top usó la pregunta por el color como una forma de monitorear el estado de le bottom**, y aprender sobre qué coas le gustan y cómo se está sintiendo.
 
-> Como tops el verde en una sesión nos provee de información invaluable sobre gustos y comodidades. Aunque las mismas sean variables de día a día y de sesión a sesión.
+> Como Tops el verde en una sesión nos provee de información invaluable sobre gustos y comodidades. Aunque las mismas sean variables de día a día y de sesión a sesión.
 
 ### Ej 2: Amarillo y chequeo
 
 Durante una sesión con waxplay y [[bondage]], le bottom dice "amarillo", le Top responde "¿estás bien? ¿querés que cambie algo?" Entre elles fue negociado que amarillo es parar y chequear. Le bottom indica que quiere que le saque las esposas y seguir jugando, le Top agradece que le expresaran un límite y continúa la práctica.
 
-> En este caso le bottom no usó sólo una palabra, sino que agregó con precisión qué necesitaba que se cambiara y cómo. **Le top agradeció la comunicación activa de parte de su compañere**, lo cual nos permite construir confianza en que nuestres compas de juegos nos van a decir cuando algo no les está gustando.
+> En este caso le bottom no usó sólo una palabra, sino que agregó con precisión qué necesitaba que se cambiara y cómo. **Le Top agradeció la comunicación activa de parte de su compañere**, lo cual nos permite construir confianza en que nuestres compas de juegos nos van a decir cuando algo no les está gustando.
 
 ### Ej 3: Señas de seguridad
 
 Durante una práctica que incluye mordazas e impacto, le bottom chasquea los dedos tres veces, indicando que quiere parar la escena. Le Top acude a sacarle la mordaza y preguntarle qué necesita, le bottom comunica que el dolor ya no estaba siendo placentero y que desea parar.
 
-Le top le provee de agua, un chocolate y se abrazan charlando sobre qué pasó. Estaba siendo placentero hasta que le top sacó la fusta **(la cual habían querido incluir)** y fue demasiado para manejar. Ambes aprendieron que necesitan más calentamiento en la zona a impactar antes de pasar a otro elemento.
+Le Top le provee de agua, un chocolate y se abrazan charlando sobre qué pasó. Estaba siendo placentero hasta que le Top sacó la fusta **(la cual habían querido incluir)** y fue demasiado para manejar. Ambes aprendieron que necesitan más calentamiento en la zona a impactar antes de pasar a otro elemento.
 
 > En este caso, nadie hizo nada mal. Ambes pudieron comunicarse sobre sus desesos y necesidades, se llevaron del intercambio más información sobre cómo pasarla bien.
 
 ### Ej 4: Top dice rojo
 
-Durante una práctica de impacto le bottom empieza a pedirle más a le top, al ver que no aumenta la intensidad le dice "¿eso es todo? Sos re débil" juguetonamente. **Le Top dice rojo**. Le bottom para y le pregunta si está todo bien, le top le comprate que no se siente cómode con que le busque así, o le intentehacer enojar para que suba la intensidad. Le bottom le pide perdón y ambes charlan sobre con qué niveles de intensidad sí se sienten cómodes y cómo pedirse más durante una sesión.
+Durante una práctica de impacto le bottom empieza a pedirle más a le Top, al ver que no aumenta la intensidad le dice "¿eso es todo? Sos re débil" juguetonamente. **Le Top dice rojo**. Le bottom para y le pregunta si está todo bien, le Top le comprate que no se siente cómode con que le busque así, o le intente hacer enojar para que suba la intensidad. Le bottom le pide perdón y ambes charlan sobre con qué niveles de intensidad sí se sienten cómodes y cómo pedirse más durante una sesión.
 
 ## Entonces...¿qué son y qué no son las palabras de seguridad?
 
 - Son un método de comunicación
-- Deben ser respetadas y honradas: ho hacerlo es un acto de violencia.
-- Tanto les tops como les bottoms pueden usarlas.
+- Deben ser respetadas y honradas: no hacerlo es un acto de violencia.
+- Tanto les Tops como les bottoms pueden usarlas.
 - Son negociadas previamente.
 - No son sólo para emergencias.
 - Son útiles como forma de monitoreo.
