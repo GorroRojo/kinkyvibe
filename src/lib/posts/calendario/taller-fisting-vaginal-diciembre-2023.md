@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: taller-fisting-vaginal.png
+featured: taller-fisting-vaginal.jpg
 # logo: 1
 #force_unlisted: false
 #force_unpublished: false

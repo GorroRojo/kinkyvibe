@@ -1,6 +1,6 @@
 ---
 published_date: 2024-04-19Z-03:00
-#updated_date: 2023-11-04Z-03:00
+updated_date:   2023-04-21Z-03:00
 title: Taller de Asfixia Erótica ¡Edición Montevideo!
 summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'
 tags:
@@ -14,9 +14,9 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-# featured: asfixia-erotica-miniatura.png
+featured: 1
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00

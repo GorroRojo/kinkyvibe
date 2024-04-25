@@ -1,6 +1,6 @@
 ---
 published_date: 2024-04-18Z-03:00
-#updated_date: 2023-11-04Z-03:00
+updated_date:   2024-04-21Z-03:00
 title: ¿Qué son las palabras de seguridad?
 #wiki: material # para si es una entry de la wiki #
 summary: '¿Qué es el monitoreo? ¿Hay una diferencia?'
@@ -17,7 +17,7 @@ layout: material
 category: material
 authors:
   - DemonWeb
-#featured: 1
+featured: 1
 #force_unlisted: true
 #force_unpublished: false
 #link: https://www.altoporno.gay/edu

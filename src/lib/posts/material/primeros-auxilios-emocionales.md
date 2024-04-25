@@ -1,6 +1,6 @@
 ---
 published_date: 2024-04-19Z-03:00
-#updated_date:   2024-11-04Z-03:00
+updated_date:   2024-04-21Z-03:00
 title: Primeros auxilios emocionales
 #wiki: material # para si es una entry de la wiki #
 summary: 'Ejercicios que podés hacer vos misme y cómo ayudar a une amigue'
@@ -18,7 +18,7 @@ category: material
 authors:
   - Power Makes Us Sick
   - DemonWeb
-#featured: 1
+featured: 1
 #force_unlisted: true
 #force_unpublished: false
 link: https://powermakesussick.noblogs.org/zines-and-resources/
