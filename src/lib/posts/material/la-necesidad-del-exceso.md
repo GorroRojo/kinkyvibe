@@ -1,6 +1,6 @@
 ---
 published_date: 2023-12-07Z-03:00
-#updated_date: 2023-11-04Z-03:00
+updated_date:   2024-04-25Z-03:00
 title: La Necesidad del Exceso
 #wiki: material # para si es una entry de la wiki #
 summary: 'Traducción de un ensayo de Patrick Califia'
@@ -19,7 +19,7 @@ category: material
 authors:
   - Patrick Califia
   - DemonWeb
-#featured: 1
+featured: 1
 #force_unlisted: false
 #force_unpublished: false
 link: https://www.poz.com/article/The-Necessity-of-Excess-12198-6713
