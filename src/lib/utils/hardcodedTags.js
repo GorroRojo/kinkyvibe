@@ -47,7 +47,7 @@ export const hardcodedTags = [
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
 	{ id: 'material', color: 'var(--3-dark)', children: ['tipo de material', 'formato de material'] },
-	{ id: 'tipo de material', children: ['guía', 'artículo', 'libro', 'fanzine'] },
+	{ id: 'tipo de material', children: ['guía', 'artículo', 'libro', 'fanzine', 'checklist', 'video'] },
 	{ id: 'formato de material', children: ['online', 'descargable', 'interactivo'] },
 	{ id: 'amigues', children: ['tipo de perfil', 'servicio'], color: 'var(--3-dark)' },
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },

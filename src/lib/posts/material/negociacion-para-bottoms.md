@@ -7,6 +7,7 @@ tags:
   - español
   - BDSM
   - guía
+  - checklist
   - negociación
   - KinkyVibe
   - descargable
