@@ -1,6 +1,6 @@
 ---
 published_date: 2024-04-25Z-03:00
-title: Taller de Bondage
+title: "Taller de Bondage: Restricciones & Placer"
 summary: "Un taller sobre inmovilización y el placer de sentirse libre estando restringide. Todo sobre esposas, cadenas y mordazas"
 tags:
   - español
