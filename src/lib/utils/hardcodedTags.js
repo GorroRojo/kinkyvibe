@@ -35,13 +35,15 @@ export const hardcodedTags = [
 			'cine',
 			'entrevista',
 			'evento',
+			'exposición de arte',
+			'feria',
 			'fiesta',
 			'grupo',
 			'jam de cuerdas',
 			'laboratorio',
 			'perfo',
-			'sesión en vivo',
 			'rancheadita',
+			'sesión en vivo',
 			'taller'
 		]
 	},
