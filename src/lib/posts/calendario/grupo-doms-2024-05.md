@@ -24,8 +24,9 @@ start: 2024-05-14T20:00-03:00
 end:   2024-05-14T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
-# link: https://forms.gle/wwtWq9NiFaZVnEAq9
-# link_text: INSCRIBIRME
+link: https://forms.gle/a1TDnVMteit2Mj6i9
+link_text: INSCRIBIRME
+
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "Dominante/Dom/Top" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
