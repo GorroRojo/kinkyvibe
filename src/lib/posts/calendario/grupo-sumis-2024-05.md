@@ -24,8 +24,9 @@ status: abierto # abierto | anunciado | lleno | cancelado
 start: 2024-05-21T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-05-21T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-# link: https://forms.gle/kDZX3V6g3dnGD4vs9
-# link_text: 'INSCRIPCIÓN'
+link: https://forms.gle/moBm7kC3dH4fMa1g7
+link_text: 'INSCRIPCIÓN'
+
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
