@@ -28,8 +28,9 @@ start: 2024-05-26T19:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-05-26T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/Mz6h7dPkcnT922Eh9
-# link_text: PRE-VENTA
+link: https://forms.gle/YBhq4tRisnKwkSMP7
+link_text: PRE-VENTA
+
 ---
  Cronograma
 - **19:30** Comienza el evento. Va a estar la feria disponible.
