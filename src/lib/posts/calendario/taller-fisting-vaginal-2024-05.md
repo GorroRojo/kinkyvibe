@@ -25,12 +25,9 @@ start: 2024-05-22T20:00-03:00
 end:   2024-05-22T23:00-03:00
 # location: Chorroarin 1260, Ciudad Autónoma de Buenos Aires
 # location_name: La Pulpería Mutuálica
-# link: 'https://forms.gle/xkFpjfyyojWAnqie9'
-# link_text: PRE-VENTA
-# carrousel_background: "#f2a68f"
-# carrousel_color: "white"
-# carrousel_accent_text: ""
-# carrousel_accent_bg: ""
+link: https://forms.gle/qfVERY7Px6M8XNid7
+link_text: PRE-VENTA
+
 ---
 
 ## Temario
