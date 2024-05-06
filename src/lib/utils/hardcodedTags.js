@@ -49,7 +49,10 @@ export const hardcodedTags = [
 	},
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
 	{ id: 'material', color: 'var(--3-dark)', children: ['tipo de material', 'formato de material'] },
-	{ id: 'tipo de material', children: ['guía', 'artículo', 'libro', 'fanzine', 'checklist', 'video'] },
+	{
+		id: 'tipo de material',
+		children: ['guía', 'artículo', 'libro', 'fanzine', 'checklist', 'video']
+	},
 	{ id: 'formato de material', children: ['online', 'descargable', 'interactivo'] },
 	{ id: 'amigues', children: ['tipo de perfil', 'servicio'], color: 'var(--3-dark)' },
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },
@@ -88,7 +91,7 @@ export const hardcodedTags = [
 		description:
 			'Los momentos previos a la práctica [[bdsm]], donde buscamos compartir y discernir cuáles son nuestros intereses, intensiones, deseos, niveles de comodidad, y [[límites]], así como cuidados necesarios.'
 	},
-	{ id: 'consentimiento', children: ['RACK', 'SSC', 'CCCC'] },
+	{ id: 'consentimiento', icon: '✅', children: ['RACK', 'SSC', 'CCCC'] },
 	{
 		id: 'RACK',
 		aka: ['Risk-Aware Consensual Kink'],
@@ -136,8 +139,8 @@ export const hardcodedTags = [
 			'top',
 			'bottom',
 			'disciplina',
+			'protocolo',
 			'cnc',
-			'pegging',
 			'hablar sucio',
 			'roles',
 			'impacto',
@@ -148,19 +151,26 @@ export const hardcodedTags = [
 			'dolor',
 			'humillación',
 			'asfixia',
-			'fisting',
 			'miedo',
 			'adoración de pies',
 			'chemsex',
-			'edging',
 			'cera',
-			'lluvias',
 			'comida',
-			'sadomasoquismo en pechos'
+			'sadomasoquismo en pechos',
+			'lluvias',
+			'edging',
+			'pegging',
+			'fisting',
+			'rimming'
 		],
 		color: '#ff4444'
 	},
-	{ id: 'implementos', color: '#ff4444', children: ['paleta', 'palmeta', 'látigo', 'fusta'] },
+	{
+		id: 'implementos',
+		icon: '🛠️',
+		color: '#ff4444',
+		children: ['paleta', 'palmeta', 'látigo', 'fusta']
+	},
 	{
 		id: 'paleta',
 		description:
@@ -226,11 +236,25 @@ export const hardcodedTags = [
 			'Enseñarle a le [[bottom]] y/o [[sub]] a obedecer órdenes, o a seguir las reglas que le Dom establezca a través de premios y/o castigos. También puede incluir modificación del comportamiento.'
 	},
 	{
+		id: 'protocolo',
+		related: ['intercambio de poder'],
+		description:
+			'Serie de normas consensuadas, generalmente entre Doms y Subs que pautan comportamientos, reglas, simbolismos y valores dentro de una dinámica D/s'
+	},
+	{
 		id: 'pegging',
 		description:
 			'Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis.'
 	},
-	{ id: 'roles', visible_name: 'Juegos de roles', children: ['edad', 'primal', 'mascota'] },
+	{
+		id: 'roles',
+		icon: '🎭',
+		aka: ['role play', 'rolplay'],
+		visible_name: 'Juegos de roles',
+		children: ['edad', 'primal', 'mascota'],
+		description:
+			'Donde las partes acuerdan "actuar" roles (enfermera/médicx, profesore/alumne, Dueño/mascota, etc), algunas veces incluye [[intercambio de poder]].'
+	},
 	{
 		id: 'primal',
 		visible_name: 'Juegos primales',
@@ -240,6 +264,7 @@ export const hardcodedTags = [
 	{ id: 'mascota', visible_name: 'Juegos de mascotas', aka: ['pet'], related: ['primal'] },
 	{
 		id: 'edad',
+		icon: '🍭',
 		children: ['pequeñe', 'middle', 'cuidadore', 'grande', 'abdl'],
 		aka: ['age play'],
 		description:
@@ -277,6 +302,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'impacto',
+		icon: '💢',
 		visible_name: 'Juegos de Impacto',
 		children: ['caning', 'golpes', 'nalgueadas'],
 		description:
@@ -285,6 +311,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'sensaciones',
+		icon: '🪶',
 		visible_name: 'Juegos de sensaciones',
 		children: ['temperatura', 'electro'],
 		aka: ['sensation play'],
@@ -293,6 +320,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'cuchillos',
+		icon: '🗡️',
 		visible_name: 'Juegos con cuchillos',
 		aka: ['knife play'],
 		description:
@@ -300,6 +328,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'electro',
+		icon: '⚡️',
 		visible_name: 'Juegos con electricidad',
 		aka: ['electro play'],
 		description:
@@ -308,6 +337,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'temperatura',
+		icon: '🌡️',
 		visible_name: 'Juegos con la temperatura',
 		children: ['fuego'],
 		aka: ['temperature play'],
@@ -316,6 +346,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'fuego',
+		icon: '🔥',
 		visible_name: 'Juegos con fuego',
 		description:
 			'[[práctica]]s que involucran el uso de fuego o de llamas. Por ejemplo el uso de alcohol para generar una llama breve y rápidamente extinguirla. Considerado un tipo de [[edge]] play.',
@@ -323,20 +354,14 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'bondage',
-		visible_name: 'Restricciones',
-		children: ['cuerdas', 'momificación'],
-		aka: ['bondage'],
+		children: ['cuerdas', 'momificación', 'restricción mental'],
+		aka: ['juegos con restricciones'],
 		description: 'Las [[prácticas]] de restricción física.',
-		related: [
-			'humillación',
-			'objetificación',
-			'privación sensorial',
-			'restricción mental',
-			'disciplina'
-		]
+		related: ['humillación', 'objetificación', 'privación sensorial', 'disciplina']
 	},
 	{
 		id: 'cuerdas',
+		icon: '🪢',
 		children: ['shibari', 'atadore', 'bottom de cuerdas'],
 		description:
 			'Elemento compuesto de sogas trenzadas, por lo general de algodón o yute, utilizado en [[shibari]] y/o [[bondage]]',
@@ -355,14 +380,21 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'bottom de cuerdas',
+		icon: '🐇',
 		aka: ['conejite de cuerdas', 'rope bunny'],
 		description: 'La persona que es atada en el [[shibari]]'
 	},
 	{
 		id: 'momificación',
+		icon: '🧻',
 		aka: ['mummification'],
 		description:
 			'Restringir la movilidad de un cuerpo parcial o totalmente, típicamente utilizando film, tela o yeso.'
+	},
+	{
+		id: 'restricción mental',
+		description:
+			'Retringir el movimiento únicamente mediante órdenes y obediencia, en un [[intercambio de poder]]'
 	},
 	{
 		id: 'dolor',
@@ -389,6 +421,11 @@ export const hardcodedTags = [
 			'Meter 4 o más dedos en el canal vaginal/agujero frontal o en el ano, muchas veces llegando a meter la mano entera y cerrándola en un puño.'
 	},
 	{
+		id: 'rimming',
+		aka: ['anilingus'],
+		description: 'practicar sexo oral a un ano'
+	},
+	{
 		id: 'adoración de pies',
 		aka: ['feet worship', 'feet kink', 'feet fetish'],
 		description: 'Contemplar, acariciar, masajear, oler, lamer o besar pies, entre otras.'
@@ -401,9 +438,10 @@ export const hardcodedTags = [
 		description:
 			'Tomar acciones, objetos, palabras que en el "mundo exterior" (subjetivo de cada persona) parecerían "humillantes" y re contextualizarlas en un marco erótico a través de un lente de apreciación, cuidado, aceptación y disfrute.'
 	},
-	{ id: 'asfixia', children: ['respiración', 'estrangulación', 'headscissors'] },
+	{ id: 'asfixia', icon: '😶‍🌫️', children: ['respiración', 'estrangulación', 'headscissors'] },
 	{
 		id: 'respiración',
+		icon: '🫁',
 		visible_name: 'Juegos con la Respiración',
 		aka: ['breath play'],
 		description:
@@ -411,12 +449,14 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'estrangulación',
+		icon: '🫶',
 		aka: ['choking'],
 		description:
 			'Restricción del flujo normal de sangre al cerebro mediante la presión de las arterias carótidas del cuello.'
 	},
 	{
 		id: 'headscissors',
+		icon: '🦵',
 		description: '[[estrangulación]] generada rodeando el cuello con los muslos.'
 	},
 	{
@@ -435,18 +475,19 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'cera',
+		icon: '🕯️',
 		visible_name: 'Juegos con Cera',
 		aka: ['wax play', 'velas', 'juegos con velas'],
 		description:
 			'Verter cera caliente de velas sobre un cuerpo. Puede implicar dolor o [[sensaciones]] suaves dependiendo del material, la distancia, y la técnica.'
 	},
-	{ id: 'lluvias', children: ['lluvia dorada'] },
+	{ id: 'lluvias', icon: '🌧️', children: ['lluvia dorada'] },
 	{
 		id: 'lluvia dorada',
 		aka: ['golden shower', 'watersports', 'piss play', 'juegos con pis'],
 		description: 'Orinar sobre el cuerpo de le [[bottom]]'
 	},
-	{ id: 'comida', children: ['enchastre'] },
+	{ id: 'comida', icon: '🍑', children: ['enchastre'] },
 	{
 		id: 'enchastre',
 		aka: ['sploshing', 'wet and messy', 'WAM'],

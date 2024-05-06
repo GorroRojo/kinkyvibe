@@ -21,6 +21,7 @@
 /**
  * @typedef {Object} RawTag
  * @prop {TagID} id
+ * @prop {string} [icon]
  * @prop {string} [visible_name]
  * @prop {string} [color]
  * @prop {string} [description]

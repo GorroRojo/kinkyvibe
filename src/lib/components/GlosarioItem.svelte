@@ -55,8 +55,11 @@
 {#if isVisible}
 	<div>
 		<dt id={name}>
+			{tag?.icon ?? ''}
 			{#if entry && entry.meta && entry.meta.wiki}
-				<a href="/wiki/{entry.meta.wiki}"><MiniMarkup value={entry.meta.title} /></a>
+				<a href="/wiki/{entry.meta.wiki}">
+					<MiniMarkup value={entry.meta.title} />
+				</a>
 			{:else}
 				<MiniMarkup value={name} />
 			{/if}
