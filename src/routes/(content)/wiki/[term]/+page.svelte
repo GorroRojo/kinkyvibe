@@ -1,4 +1,5 @@
 <script>
+	import GlosarioItem from '$lib/components/GlosarioItem.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { tagManager, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -57,13 +58,13 @@
 	`;
 
 	const relatedPosts = data.allPosts.filter((p) => {
-			if (p.meta.tags.includes(data?.meta?.wiki ?? data?.tag?.id ?? '')) return true;
-			let children = $tagManager.get(data?.meta?.wiki ?? '')?.getAllChildren() ?? [];
-			for (const c of children) {
-				if (p.meta.tags.includes(c)) return true;
-			}
-			return false;
-		})
+		if (p.meta.tags.includes(data?.meta?.wiki ?? data?.tag?.id ?? '')) return true;
+		let children = $tagManager.get(data?.meta?.wiki ?? '')?.getAllChildren() ?? [];
+		for (const c of children) {
+			if (p.meta.tags.includes(c)) return true;
+		}
+		return false;
+	});
 </script>
 
 <svelte:head>
@@ -87,17 +88,28 @@
 </svelte:head>
 
 <article class="h-entry wiki" id="title">
-	<h1>{data?.meta?.title ?? guessedTitle}</h1>
+	<div class="content">
+		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
+		{#if data.content}
+			<svelte:component this={data.content} />
+		{/if}
+	</div>
+	<hr />
 	<div class="lineage">
 		<div class="ascendance">
 			{#each ascendance as line}
 				<div>
 					{#each line as { name, disabled = false }}
-						{#if disabled}
-							<span><ChevronLeft {style} />{name}</span>
+						<span class="line">
+							{#if disabled}
+							<ChevronLeft {style} /><span class="familiar-name">{name}</span>
 						{:else}
-							<a href={'/wiki/' + name.replaceAll(' ', '-')}><ChevronLeft {style} />{name}</a>
+							<ChevronLeft {style} /><a
+								class="familiar-name"
+								href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a
+							>
 						{/if}
+						</span>
 					{/each}
 				</div>
 			{/each}
@@ -106,31 +118,19 @@
 			{#each descendance as line}
 				<div>
 					{#each line as { name, disabled = false }}
-						{#if disabled}
-							<span>{name}<ChevronRight {style} /></span>
-						{:else}
-							<a href={'/wiki/' + name.replaceAll(' ', '-')}>{name}<ChevronRight {style} /></a>
-						{/if}
+						<span class="line">
+							{#if disabled}
+								<span class="familiar-name">{name}</span>
+								<ChevronRight {style} />
+							{:else}
+								<a class="familiar-name" href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a>
+								<ChevronRight {style} />
+							{/if}
+						</span>
 					{/each}
 				</div>
 			{/each}
 		</div>
-	</div>
-	{#if data?.meta?.summary}
-		<div class="content">
-			<p>
-				{data.meta.summary}
-			</p>
-		</div>
-	{/if}
-	<div class="content">
-		{#if data.content}
-			<svelte:component this={data.content} />
-		{:else if data.tag}
-			<p>
-				<MiniMarkup parsed value={data.tag.parsedDescription} />
-			</p>
-		{/if}
 	</div>
 </article>
 {#if relatedPosts.length > 0}
@@ -165,6 +165,12 @@
 	.ascendance div > *,
 	.descendance div > * {
 		position: relative;
+	}
+	.lineage a {
+		background: white;
+		padding: .2em .5em;
+		border-radius: var(--round);
+		text-decoration: none;
 	}
 	.ascendance div,
 	.descendance div {
