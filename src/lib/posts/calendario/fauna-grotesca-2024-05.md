@@ -1,5 +1,5 @@
 ---
-published_date: 2024-02-17Z-03:00
+published_date: 2024-05-06Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Fauna Grotesca
 summary: 'Les invita a presenciar una sesión íntima de shibari/BDSM y a degustar plato, postre y bebida.'
