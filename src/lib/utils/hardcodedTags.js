@@ -88,6 +88,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'negociación',
+		icon: '🤝',
 		description:
 			'Los momentos previos a la práctica [[bdsm]], donde buscamos compartir y discernir cuáles son nuestros intereses, intensiones, deseos, niveles de comodidad, y [[límites]], así como cuidados necesarios.'
 	},
@@ -106,6 +107,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'caída',
+		icon: '😭',
 		aka: ['drop', 'bajón'],
 		description:
 			'El estado mental físico psicoemocional en el cual estamos después de una experiencia intensa pero positiva.',
@@ -113,6 +115,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'cuidados posteriores',
+		icon: '🫂',
 		aka: ['aftercare'],
 		description:
 			'Prácticas de cuidado que suceden después de un intercambio fetichista o [[sesión]], con el fin de procesar la [[escena]] y transicionar hacia la cotidianeidad.',
@@ -146,6 +149,7 @@ export const hardcodedTags = [
 			'impacto',
 			'sensaciones',
 			'bondage',
+			'privación sensorial',
 			'intercambio de poder',
 			'cuchillos',
 			'dolor',
@@ -216,7 +220,7 @@ export const hardcodedTags = [
 	{ id: 'despatologización', color: 'var(--2)' },
 	{ id: 'vincularidad', children: ['no monogamia'], color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
-	{ id: 'queer', children: ['furry', 'género', 'asexualidad'] },
+	{ id: 'queer', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad'] },
 	{
 		id: 'asexualidad',
 		aka: ['ace', 'espectro asexual'],
@@ -231,6 +235,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'disciplina',
+		icon: '📏',
 		related: ['bondage'],
 		description:
 			'Enseñarle a le [[bottom]] y/o [[sub]] a obedecer órdenes, o a seguir las reglas que le Dom establezca a través de premios y/o castigos. También puede incluir modificación del comportamiento.'
@@ -295,6 +300,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'abdl',
+		icon: '🩲',
 		visible_name: 'Bebé Adulte Amante de los Pañales',
 		aka: ['ABDL', 'Adult Baby Diaper Lover'],
 		description:
@@ -309,6 +315,7 @@ export const hardcodedTags = [
 			'[[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos.',
 		related: ['sensaciones', 'juego de roles', 'miedo', 'dolor', 'calentamiento']
 	},
+	{ id: 'golpes', icon: '🤜' },
 	{
 		id: 'sensaciones',
 		icon: '🪶',
@@ -396,6 +403,7 @@ export const hardcodedTags = [
 		description:
 			'Retringir el movimiento únicamente mediante órdenes y obediencia, en un [[intercambio de poder]]'
 	},
+	{ id: 'privación sensorial', icon: '🥽' },
 	{
 		id: 'dolor',
 		aka: ['juegos con el dolor', 'pain play'],
