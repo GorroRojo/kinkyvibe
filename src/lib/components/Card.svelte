@@ -65,9 +65,6 @@
 </a>
 
 <style lang="scss">
-	:root {
-		--round: 1rem;
-	}
 	.card-img {
 		height: 15em;
 		width: 100%;

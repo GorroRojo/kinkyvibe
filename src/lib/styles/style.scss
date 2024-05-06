@@ -18,11 +18,15 @@
 	--step--2: clamp(0.78rem, calc(0.77rem + 0.03vw), 0.8rem);
 	--step--1: clamp(0.94rem, calc(0.92rem + 0.11vw), 1rem);
 	--step-0: clamp(1.13rem, calc(1.08rem + 0.22vw), 1.25rem);
+	--step-0-5: clamp(1.24rem, calc(1.18rem + 0.29vw), 1.40rem);
 	--step-1: clamp(1.35rem, calc(1.28rem + 0.37vw), 1.56rem);
 	--step-2: clamp(1.62rem, calc(1.5rem + 0.58vw), 1.95rem);
 	--step-3: clamp(1.94rem, calc(1.77rem + 0.87vw), 2.44rem);
 	--step-4: clamp(2.33rem, calc(2.08rem + 1.25vw), 3.05rem);
 	--step-5: clamp(2.8rem, calc(2.45rem + 1.77vw), 3.82rem);
+
+
+	--round: 1rem;
 }
 body {
 	scroll-behavior: smooth;
@@ -262,7 +266,7 @@ article.wiki {
 			}
 			dd {
 				position: relative;
-				border-left: 1px solid color-mix(in srgb, var(--1) 30%, transparent);
+				border-left: 1px solid color-mix(in srgb, var(--color,var(--1)) 30%, transparent);
 				padding-left: 0.7em;
 				translate: -0.7em;
 				dl {
