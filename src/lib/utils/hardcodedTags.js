@@ -1,5 +1,5 @@
 export const hardcodedTags = [
-	{ id: 'KinkyVibe', color: 'var(--1)' },
+	{ id: 'KinkyVibe', icon: '⚫︎ ', color: 'var(--1)' },
 	{
 		id: 'root',
 		children: [
@@ -19,14 +19,26 @@ export const hardcodedTags = [
 			'vincularidad'
 		]
 	},
-	{ id: 'idioma', children: ['español', 'LSA', 'inglés'], color: 'darkblue' },
+	{ id: 'idioma', icon: '🌐', children: ['español', 'LSA', 'inglés'], color: 'darkblue' },
+	{ id: 'español', icon: '🇪🇸' },
+	{ id: 'LSA', icon: '👉' },
+	{ id: 'inglés', icon: '🇬🇧' },
 	{
 		id: 'lugar',
-		children: ['Córdoba', 'AMBA', 'Santa Cruz', 'Chile', 'Online', 'Montevideo'],
+		icon: '📍',
+		children: ['Online', 'AMBA', 'Córdoba', 'Santa Cruz', 'Chile', 'Montevideo'],
 		color: 'darkblue'
 	},
-	{ id: 'precio', children: ['pago', 'a la gorra', 'gratis'], color: 'darkblue' },
-	{ id: 'calendario', children: ['tipo de evento', 'evento recurrente'], color: 'var(--3-dark)' },
+	{ id: 'precio', icon: '💸', children: ['pago', 'a la gorra', 'gratis'], color: 'darkblue' },
+	{ id: 'pago', icon: '💲' },
+	{ id: 'a la gorra', icon: '🧢' },
+	{ id: 'gratis', icon: '🆓' },
+	{
+		id: 'calendario',
+		icon: '📆',
+		children: ['tipo de evento', 'evento recurrente'],
+		color: 'var(--3-dark)'
+	},
 	{
 		id: 'tipo de evento',
 		children: [
@@ -47,15 +59,48 @@ export const hardcodedTags = [
 			'taller'
 		]
 	},
+	{ id: 'cabaret', icon: '🎀' },
+	{ id: 'charla debate', icon: '📢' },
+	{ id: 'cine', icon: '🍿' },
+	{ id: 'entrevista', icon: '🎙️' },
+	{ id: 'evento', icon: '🔥' },
+	{ id: 'exposición de arte', icon: '🖼️' },
+	{ id: 'feria', icon: '🏮' },
+	{ id: 'fiesta', icon: '🎉' },
+	{ id: 'grupo', icon: '🫂' },
+	{ id: 'jam de cuerdas', icon: '🪢' },
+	{ id: 'laboratorio', icon: '🧪' },
+	{ id: 'perfo', icon: '🤹‍♂️' },
+	{ id: 'rancheadita', icon: '🧺' },
+	{ id: 'sesión en vivo', icon: '🏇' },
+	{ id: 'taller', icon: '🎓' },
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
-	{ id: 'material', color: 'var(--3-dark)', children: ['tipo de material', 'formato de material'] },
+	{ id: 'Picantearla', icon: '🔥'},
+	{ id: 'Cine para Sucixs', icon: '🎞️'},
 	{
-		id: 'tipo de material',
+		id: 'material',
+		icon: '📖',
+		color: 'var(--3-dark)',
+		children: ['tipo de material', 'formato de material']
+	},
+	{ id: 'tipo de material', children: ['online', 'descargable', 'interactivo'] },
+	{ id: 'online', icon: '🛜' },
+	{ id: 'descargable', icon: '📥' },
+	{ id: 'interactivo', icon: '🖱️' },
+	{
+		id: 'formato de material',
 		children: ['guía', 'artículo', 'libro', 'fanzine', 'checklist', 'video']
 	},
-	{ id: 'formato de material', children: ['online', 'descargable', 'interactivo'] },
-	{ id: 'amigues', children: ['tipo de perfil', 'servicio'], color: 'var(--3-dark)' },
+	{ id: 'guía', icon: '🧭' },
+	{ id: 'artículo', icon: '📰' },
+	{ id: 'libro', icon: '📕' },
+	{ id: 'fanzine', icon: '📔' },
+	{ id: 'checklist', icon: '📋' },
+	{ id: 'video', icon: '▶️' },
+	{ id: 'amigues', icon: '❤️', children: ['tipo de perfil', 'servicio'], color: 'var(--3-dark)' },
 	{ id: 'tipo de perfil', children: ['emprendimiento', 'profesional'] },
+	{ id: 'emprendimiento', icon: '👥' },
+	{ id: 'profesional', icon: '👤' },
 	{
 		id: 'servicio',
 		children: [
@@ -69,7 +114,14 @@ export const hardcodedTags = [
 			'terapia'
 		]
 	},
-
+	{id: 'arte', icon: '🎨'},
+	{id: 'clases', icon: '👩‍🏫'},
+	{id: 'comida vegana', icon: '🥕'},
+{id: 'comunidad', icon: '👥'},
+{id: 'eventos', icon: '🗓️'},
+{id: 'productos', icon: '🛒'},
+{id: 'sesiones', icon: '🔥'},
+{id: 'terapia', icon: '🗨️'},
 	{
 		id: 'BDSM',
 		description:
@@ -413,6 +465,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'intercambio de poder',
+		icon: '🧎',
 		children: ['dominación', 'dominante', 'sumisión', 'sumise'],
 		description:
 			'Un acuerdo entre varias partes, comunmente alguna [[dominante]] y alguna [[sumisa]], donde la parte [[sumisa]] le entrega poder sobre aspectos de sí misma a la [[dominante]].',
@@ -425,6 +478,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'fisting',
+		icon: '🤌',
 		description:
 			'Meter 4 o más dedos en el canal vaginal/agujero frontal o en el ano, muchas veces llegando a meter la mano entera y cerrándola en un puño.'
 	},
@@ -435,6 +489,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'adoración de pies',
+		icon: '🦶',
 		aka: ['feet worship', 'feet kink', 'feet fetish'],
 		description: 'Contemplar, acariciar, masajear, oler, lamer o besar pies, entre otras.'
 	},
