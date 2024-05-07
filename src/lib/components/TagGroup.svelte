@@ -44,6 +44,7 @@
 		<span in:scale={{ duration: 500 }} class="groupname">
 			<Tag
 				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
+				icon={tag.icon ?? ''}
 				name={tag.id}
 				noBorder
 				isCheckbox
@@ -64,6 +65,7 @@
 								onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) =>
 									onInput(evt, subTag?.id ?? item)}
 								tag={item}
+								icon={subTag.icon ?? ''}
 								isCheckbox
 								checked={$page.url.searchParams.has('tags') &&
 									$page.url.searchParams.get('tags')?.split(',').includes(item)}
@@ -74,6 +76,7 @@
 						{:else}
 							<Tag
 								tag={item}
+								icon={subTag.icon ?? ''}
 								--filled-text-color="var(--text-color, var(--tag-color))"
 								--filled-outline="none"
 								--filled-outline-offset="0"
@@ -136,7 +139,7 @@
 	}
 	li {
 		list-style: none;
-		text-align: center;
+		/* text-align: center; */
 		display: flex;
 		align-items: stretch;
 		/* height: 0; */
@@ -150,7 +153,7 @@
 		display: flex;
 		justify-content: stretch;
 		flex: 1 1;
-		text-align: center;
+		/* text-align: center; */
 	}
 	:global(.groupname:has(:checked)) {
 		--border-radius: 0.3em 0.3em 0 0;

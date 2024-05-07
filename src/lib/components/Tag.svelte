@@ -3,6 +3,7 @@
 	export let isCheckbox = false;
 	export let isLink = false;
 	export let tag = '';
+	export let icon = '';
 	export let name = tag;
 	export let checked = false;
 	export let noBorder = false;
@@ -17,13 +18,13 @@
 {#if isCheckbox}
 	<label class="tag" class:checked class:noBorder>
 		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
-		{tag}
+		{icon} {tag}
 	</label>
 {:else if isLink}
-	<a class="tag" rel="tag" href="/todo?tags={tag}" class:noBorder>{tag}</a>
+	<a class="tag" rel="tag" href="/todo?tags={tag}" class:noBorder>{icon} {tag}</a>
 {:else}
 	<span class="tag" class:noBorder>
-		{tag}
+		{icon} {tag}
 	</span>
 {/if}
 
