@@ -62,7 +62,7 @@ ${posts
 		(post) =>
 			`<url>
     <loc>${siteURL}${post.path}</loc>
-    <lastmod>${date(post.meta.updated_date ?? post.meta.published_date).toISOString()}</lastmod>
+    <lastmod>${date(post.meta.updated_date ?? post.meta.published_date ?? '').toISOString()}</lastmod>
     <priority>0.6</priority>
 </url>`
 	)

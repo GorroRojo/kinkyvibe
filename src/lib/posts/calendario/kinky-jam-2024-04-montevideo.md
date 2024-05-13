@@ -1,5 +1,5 @@
 ---
-#published_date: 2024-02-16Z-03:00
+published_date: 2024-02-16Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Kinky Jam ¡Montevideo!
 summary: 'Proyección de un documental sobre BDSM, perfos y espacio para jammear shibari ❤'

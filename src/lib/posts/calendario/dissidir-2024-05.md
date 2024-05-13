@@ -1,5 +1,5 @@
 ---
-#published_date: 2024-02-16Z-03:00
+published_date: 2024-02-16Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Feria Dissidir
 summary: 'Evento artístico por y para kinky-queers! Vení a ver Shibari en vivo, escuchar lecturas y conocer espacios de resistencia. También vas a poder ver arte erótico, recorrer la feria y participar del taller de Mel. Traete un alimento no perecedero que vamos a hacer colecta para quienes lo necesitan :)'
