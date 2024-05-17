@@ -91,7 +91,7 @@ También compartimos casi todo lo que subimos acá por [instagram](https://www.i
 
 ### ¿Quiénes somos?
 
-Somos @DemonWeb y @TallarinesConTuco y este sitio web lo armó @Gorro_Rojo 🌈
+Somos @DemonWeb, @TallarinesConTuco y @Gorro_Rojo 🌈
 
 ### ¡Quiero ayudar!
 

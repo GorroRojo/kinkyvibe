@@ -9,6 +9,7 @@ tags:
   - arte
   - profesional
   - AMBA
+  - KinkyVibe
 layout: amigues
 category: amigues
 authors:
@@ -30,7 +31,7 @@ bday: 2000-08-04
 
 > Este perfil no es útil porque no estoy contratable para nada, pero como armé todo el sitio tenía que incluirme jsajss así que yafu. Lolamento (?
 
-Holi, soy gorrite <small>(así, en minúscula)</small>, soy une captive juguete de bondage; estoy autocollareade en una dinámica D/s 24/7 conmigo misme, con un comité de Doms y Tops, y con toda la comunidad; y programé todo este sitio web 🌈.
+Holi, soy gorrite <small>(así, en minúscula)</small>, soy une captive juguete de bondage; estoy autocollareade en una dinámica D/s 24/7 conmigo misme, con un comité de Doms y Tops, y con toda la comunidad; programé todo este sitio web y soy parte de @KinkyVibe 🌈.
 
 Colaboro con @KinkyVibe armando el sitio, organizando el grupo de sumis, monitoreando eventos, modelando talleres, y ayudando a gestionar la comunidad de @AUCH .
 
