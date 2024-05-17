@@ -23,7 +23,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-05-25T15:00-03:00
 end:   2024-05-25T19:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: Cooperativa Cultural Qi
+location_name: lo de gorrite
 link: "https://forms.gle/Ee11Xbirg5h2SFBr7"
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
