@@ -25,7 +25,13 @@ start: 2024-05-28T20:00-03:00
 end:   2024-05-28T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/X1tzLdARjha7saa79
-# link_text: INSCRIBIRME
+link: https://forms.gle/jaPadJhjDA3DbGPj9
+link_text: INSCRIBIRME
 ---
 `Interpretación LSA disponible`
+
+## TEMARIO
+- Historia de la eyaculación  
+- Cisexismo y corporalidad 
+- Anatomía Vulvovaginal relacionada a la eyaculación 
+- Propuestas exploratoria
