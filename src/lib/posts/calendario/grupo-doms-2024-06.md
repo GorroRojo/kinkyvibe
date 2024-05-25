@@ -24,8 +24,8 @@ start: 2024-06-20T20:00-03:00
 end:   2024-06-20T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
-# link: https://forms.gle/a1TDnVMteit2Mj6i9
-# link_text: INSCRIBIRME
+link: https://forms.gle/bgXVXD59oTJuKeND7
+link_text: INSCRIBIRME
 
 ---
 
