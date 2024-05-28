@@ -2,7 +2,7 @@
 published_date: 2024-04-19Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: 'Mini Talleres Rapiditos: Eyaculación y Squirt'
-summary: ''
+summary: Taller de introducción a la anatomía vulvovaginal y las partes responsables de la eyaculación en personas con vulva
 tags:
   - español
   - LSA
