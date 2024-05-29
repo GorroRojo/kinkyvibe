@@ -34,7 +34,7 @@ location_name: Cooperativa Cultural Qi
 ---
  Cronograma
 - **19:00** Comienza el evento. Va a estar la feria disponible.
-- **20:00** Entrevista a @TallarinesConTuco
+- **20:00** Entrevista
 - **21:15** Sesion en Vivo 
 - **22:20** Proyección de cortos de Porno y Posporno
 - **23:30** Fin del Evento

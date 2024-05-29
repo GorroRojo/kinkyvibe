@@ -15,10 +15,11 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - DemonWeb
 featured: grupo-doms-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2024-06-20T20:00-03:00
 end:   2024-06-20T22:00-03:00
