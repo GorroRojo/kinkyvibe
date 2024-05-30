@@ -2,7 +2,7 @@
 published_date: 2024-05-29Z-03:00
 # updated_date: 2024-11-04Z-03:00
 title: "Mini Talleres Rapiditos: Wax Play"
-summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre plugs'
+summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre juegos con cera'
 tags:
   - español
   - LSA
