@@ -23,8 +23,8 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-06-30T19:00-03:00
 end:   2024-06-30T22:00-03:00
 location: Medrano 627, Ciudad Autónoma de Buenos Aires
-location_name: Batacazo
-# link: https://forms.gle/vmid8uD2qAG1vZAfA
-# link_text: Inscribite
+location_name: Cultural Batacazo
+link: https://forms.gle/onN9bJrQMwJLEDb69
+link_text: Inscribite
 ---
 Taller orientado a explorar la dominación en su eje laboral. Vamos a aprender las prácticas básicas y cómo armar un perfil de Dom Profesional
