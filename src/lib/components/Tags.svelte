@@ -23,9 +23,10 @@
 	{#each [...new Set(localFilteredTags)] as tag (tag)}
 		{@const config = $tagManager.get(tag)}
 		{@const color = config?.getColor() ?? 'var(--color,var(--1))'}
+		{@const icon = config?.icon ?? ''}
 		<li style:--tag-color={color} class:invisible in:scale animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>
-				{tag}
+				{icon} {tag}
 			</a>
 		</li>
 	{/each}
