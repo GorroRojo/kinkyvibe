@@ -19,6 +19,7 @@ tags:
   - bondage
   - impacto
   - sensaciones
+  - editorial
 authors:
   - DemonWeb
   - TallarinesConTuco

@@ -111,7 +111,8 @@ export const hardcodedTags = [
 			'eventos',
 			'productos',
 			'sesiones',
-			'terapia'
+			'terapia',
+			'editorial'
 		]
 	},
 	{id: 'arte', icon: '🎨'},
@@ -122,6 +123,7 @@ export const hardcodedTags = [
 {id: 'productos', icon: '🛒'},
 {id: 'sesiones', icon: '🔥'},
 {id: 'terapia', icon: '🗨️'},
+{id: 'editorial', icon: '📚'},
 	{
 		id: 'BDSM',
 		description:
