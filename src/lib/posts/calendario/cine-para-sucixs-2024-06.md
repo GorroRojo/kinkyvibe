@@ -28,13 +28,13 @@ start: 2024-06-16T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-06-16T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/YBhq4tRisnKwkSMP7
-# link_text: PRE-VENTA
+link: https://forms.gle/5odJDbAz3KTd1PNq8
+link_text: PRE-VENTA
 
 ---
  Cronograma
 - **19:00** Comienza el evento. Va a estar la feria disponible.
-- **20:00** Entrevista
-- **21:15** Sesion en Vivo 
-- **22:20** Proyección de cortos de Porno y Posporno
+- **19:30** Entrevista
+- **20:45** Sesion en Vivo 
+- **22:00** Proyección de cortos de Porno y Posporno
 - **23:30** Fin del Evento
