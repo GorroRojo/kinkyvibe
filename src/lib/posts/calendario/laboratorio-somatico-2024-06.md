@@ -19,8 +19,8 @@ featured: laboratorio-somatico-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 22-09-2023Z-03:00
-start: 2024-06-29T17:00-03:00
-end:   2024-06-29T21:00-03:00
+start: 2024-06-28T17:00-03:00
+end:   2024-06-28T21:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: Cultural Batacazo
 link: "https://forms.gle/tn9oWc1ATuDP2S8X6"
