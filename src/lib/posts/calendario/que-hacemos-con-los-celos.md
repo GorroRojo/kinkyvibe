@@ -52,7 +52,7 @@ Podés hacer aportes, preguntas y llevarte herramientas!
 **Cupos limitados**
 
 - 💫*Si ya sos sucriptorx de la Comunidad Fugas Críticas*, este conversatorio es gratuito y no es necesario que te anotes.
-- 💫*Si querés sumarte a la Comunidad Fugas Críticas* y llevarte además un cuadernillo con ejercicios para la gestión de celos, acceso a nuestro grupo de telegram y más contenidos sobre vincularidad desde una perspectiva disidente, hacelo (EN ESTE LINK)[https://fugascriticas.com/suscripcion] 
+- 💫*Si querés sumarte a la Comunidad Fugas Críticas* y llevarte además un cuadernillo con ejercicios para la gestión de celos, acceso a nuestro grupo de telegram y más contenidos sobre vincularidad desde una perspectiva disidente, hacelo [EN ESTE LINK](https://fugascriticas.com/suscripcion) 
 - 💫*Si querés solo participar de esta charla sin suscribirte*, anotate abonando un valor a la gorra en el botón a continuación.
 
 Construir modos de vida menos opresivos, menos crueles y menos punitivistas exige detenernos a pensar qué hacemos con los conflictos, desacuerdos, daños y violencias que existen entre nosotres.
