@@ -272,7 +272,7 @@ export const hardcodedTags = [
 	},
 	{ id: 'antipunitivismo', color: 'var(--2)' },
 	{ id: 'despatologización', color: 'var(--2)' },
-	{ id: 'vincularidad', children: ['no monogamia'], color: 'var(--2)' },
+	{ id: 'vincularidad', children: ['no monogamia','celos'], color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
 	{ id: 'queer', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad'] },
 	{
