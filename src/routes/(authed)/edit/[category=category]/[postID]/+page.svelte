@@ -226,7 +226,7 @@
 <div class="content">
 	<div class="col-2s">
 		<form method="POST" action="?/save">
-			<textarea hidden name="content" value={'---' + doc.toString() + '---' + postContent} />
+			<textarea hidden name="content" value={'---\n' + doc.toString() + '\n---' + postContent} />
 			<input type="text" hidden name="sha" value={sha} />
 			<input type="text" hidden name="path" value={path} />
 			<input type="submit" value="Guardar" />
