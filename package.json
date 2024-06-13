@@ -58,6 +58,7 @@
 		"simple-icons": "^8.14.0",
 		"svelte-codemirror-editor": "^1.1.0",
 		"unist-util-visit": "^5.0.0",
-		"wrangler": "^3.3.0"
+		"wrangler": "^3.3.0",
+		"yaml": "^2.4.1"
 	}
 }
