@@ -5,13 +5,12 @@
 	import { markdown } from '@codemirror/lang-markdown';
 	import { page } from '$app/stores';
 	import { parseDocument, visit } from 'yaml';
-	let value = data?.post.raw ?? '';
+	import { format } from 'date-fns';
+	let postContent = data?.post.raw.split('---').slice(2).join('---');
 	const sha = data?.post.sha ?? '';
 	const path = data?.post.path ?? '';
-	let doc = parseDocument(value.split('---')[1], { strict: false });
-	/**
-	 * @param {string} uncommentKey
-	 */
+	let doc = parseDocument(data?.post.raw.split('---')[1], { strict: false });
+	/** @param {string} uncommentKey */
 	function uncomment(uncommentKey) {
 		let value = undefined;
 		let re = new RegExp('\\s*?' + uncommentKey + ': ?(.*)?\\n', 'g');
@@ -38,9 +37,7 @@
 		}
 		return value;
 	}
-	/**
-	 * @param {string} commentKey
-	 */
+	/** @param {string} commentKey */
 	function comment(commentKey) {
 		let value = doc.get(commentKey);
 		if (value) {
@@ -48,66 +45,188 @@
 			doc.comment = (doc.comment ? doc.comment + '\n' : '') + commentKey + ': ' + value + '\n';
 		}
 	}
-	/** @type {(key: string, comment: boolean) => void}*/
-	function setComment(key, active) {
-		active ? comment(key) : uncomment(key);
-	}
 	/** @type {(key: string, value: any) => void}*/
 	function setProperty(key, value) {
 		if (doc.has(key)) {
-			doc.set(key, value);
-		} else {
+			if (value == '' && !postPropByKey(key)?.required) {
+				comment(key);
+			} else {
+				doc.set(key, value);
+			}
+		} else if (value != '') {
 			let commentedValue = uncomment(key);
 			doc.set(key, value);
 		}
 		doc = doc;
-		value = value.replace(/---\n([\s\S]*\n)*?---/m, '---\n' + doc.toString() + '---\n');
 	}
-	value = value.replace(/---\n([\s\S]*\n)*?---/m, '---\n' + doc.toString() + '---\n');
+	/** @param {string} key */
+	function postPropByKey(key) {
+		return [...postProperties, ...Object.values(typedProperties).flat()].find((p) => p.key == key);
+	}
+	/**@typedef PostPropInput
+	 * @prop {string} label
+	 * @prop {string} key
+	 * @prop {'checkbox'|'date'|'text'|'email'|'url'|'tel'|'datetime-local'} type
+	 * @prop {string} [placeholder]
+	 * @prop {number} [width=2]
+	 * @prop {boolean} [required=false]
+	 */
+	/**@type {Array<PostPropInput>}*/
+	const postProperties = [
+		{ label: 'Publicado', key: 'published_date', type: 'date', width: 1, required: true },
+		{ label: 'Actualizado', key: 'updated_date', type: 'date', width: 1, required: true },
+		{
+			label: 'Título',
+			key: 'title',
+			type: 'text',
+			width: 2,
+			required: true,
+			placeholder: 'Mi gran título'
+		},
+		/** tags */
+		/** autores */
+		/** featured */
+		{
+			label: 'Descripción',
+			key: 'summary',
+			type: 'text',
+			width: 2,
+			required: true,
+			placeholder: 'Sobre tal cosa tal otro y tal acotra.'
+		},
+		{ label: 'Link', key: 'link', type: 'url', width: 1, placeholder: 'https://gorro.ar' },
+		{
+			label: 'Texto del link',
+			key: 'link_text',
+			type: 'text',
+			width: 1,
+			placeholder: 'Ir al sitio'
+		},
+		{ label: 'Publicación oculta', key: 'force_unlisted', type: 'checkbox', width: 2 }
+	];
+	/**@type {Record<'amigues'|'calendario'|'material'|'wiki'|string,Array<PostPropInput>>}*/
+	const typedProperties = {
+		amigues: [
+			{
+				label: 'Pronombres',
+				key: 'pronoun',
+				type: 'text',
+				width: 1,
+				placeholder: 'https://pronombr.es/elle&el',
+				required: true
+			},
+
+			{
+				label: 'Género',
+				key: 'gender_identity',
+				type: 'text',
+				width: 1,
+				placeholder: 'Perrito Travo Interdimensional'
+			},
+			{ label: 'Mail', key: 'email', type: 'email', width: 1, placeholder: 'gorro.rojo@gmail.com' },
+			{ label: 'Teléfono', key: 'tel', type: 'tel', width: 1, placeholder: '+54 11 1234 5678' },
+			{
+				label: 'Dirección',
+				key: 'location',
+				type: 'text',
+				width: 1,
+				placeholder: 'Calle 123, Ciudad'
+			},
+			{ label: 'Cumpleaños', key: 'bday', type: 'date', width: 1 }
+		],
+		calendario: [
+			/** status */
+			{ label: 'Comienza', key: 'start', type: 'datetime-local', width: 1, required: true },
+			{ label: 'Termina', key: 'end', type: 'datetime-local', width: 1, required: true },
+			{
+				label: 'Dirección',
+				key: 'location',
+				type: 'text',
+				width: 1,
+				placeholder: 'Calle 123, Ciudad'
+			},
+			{
+				label: 'Nombre de locación',
+				key: 'location_name',
+				type: 'text',
+				width: 1,
+				placeholder: 'Centro Cultural Carincio Cortillas'
+			}
+		],
+		material: [
+			{ label: 'Redireccionar', key: 'redirect', type: 'checkbox', width: 2 },
+			{ label: 'Última fecha de acceso', key: 'access_date', type: 'date', width: 1 },
+			{
+				label: 'Fecha de publicación original',
+				key: 'original_published_date',
+				type: 'date',
+				width: 1
+			}
+		],
+		wiki: []
+	};
+	setProperty('updated_date',format(new Date(), 'yyyy-MM-dd')+"Z-03:00");
 </script>
 
-<pre>{#key doc}{doc.toString()}{/key}</pre>
-<ul>
-	<li>
-		<label
-			>Título
-			<input
-				type="text"
-				name="title"
-				on:change={/** @param {Event & {target:HTMLInputElement}} e */ (e) =>
-					setProperty('title', e?.target?.value)}
-				value={doc.get('title')}
-			/>
-		</label>
-	</li>
-	<li>
-		<label
-			>Descripción<input
-				type="text"
-				name="summary"
-				on:change={(e) => setProperty('summary', e?.target?.value)}
-				value={doc.get('summary')}
-			/></label
-		>
-	</li>
-	<li>
-		<label
-			><input
-				type="checkbox"
-				on:input={(e) => setProperty('force_unlisted', e?.target?.checked)}
-				value={doc.get('force_unlisted')}
-			/>
-			Unlisted</label
-		>
-	</li>
-</ul>
 <div class="content">
 	<a href={'/' + $page.params.category + '/' + $page.params.postID}>Volver a la publicación</a>
 </div>
+<!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
+<ul class="proplist">
+	{#each [...postProperties, ...typedProperties[$page.params.category]] as postProp}
+		<li class={postProp.type} style:--width={postProp.width}>
+			<label>
+				{#if postProp.type != 'checkbox'}
+					<span>
+						{postProp.label}
+						{#if postProp.required}
+							<span class="required">*</span>
+						{/if}
+					</span>
+				{/if}
+				<input
+					required={postProp.required ?? false}
+					type={postProp.type}
+					name={postProp.key}
+					placeholder={postProp.placeholder}
+					on:input={(e) =>
+						setProperty(
+							postProp.key,
+							postProp.type == 'checkbox'
+								? e?.target?.checked
+								: postProp.type.startsWith('date')
+								? e?.target.value
+									? e?.target?.value + `${postProp.type == 'datetime-local' ? '' : 'Z'}-03:00`
+									: ''
+								: e?.target?.value
+						)}
+					min={postProp.type == 'datetime-local'
+						? postProp.key == 'end'
+							? doc.get('start')?.slice(0, -6)
+							: undefined
+						: postProp.type == 'date'
+						? postProp.key == 'updated_date'
+							? doc.get('published_date')?.split('Z')[0]
+							: undefined
+						: undefined}
+					value={postProp.type == 'date'
+						? doc.get(postProp.key)?.split('Z')?.[0]
+						: postProp.type == 'datetime-local'
+						? doc.get(postProp.key)?.slice(0, -6)
+						: doc.get(postProp.key) ?? ''}
+				/>
+				{#if postProp.type == 'checkbox'}
+					<span>{postProp.label}</span>
+				{/if}
+			</label>
+		</li>
+	{/each}
+</ul>
+
 <div class="content">
 	<div class="col-2s">
 		<form method="POST" action="?/save">
-			<textarea hidden name="content" {value} />
+			<textarea hidden name="content" value={'---' + doc.toString() + '---' + postContent} />
 			<input type="text" hidden name="sha" value={sha} />
 			<input type="text" hidden name="path" value={path} />
 			<input type="submit" value="Guardar" />
@@ -127,7 +246,7 @@
 <CodeMirror
 	lineWrapping
 	tabSize={4}
-	bind:value
+	bind:value={postContent}
 	lang={markdown()}
 	styles={{
 		'&': {
@@ -142,5 +261,65 @@
 <style>
 	form {
 		display: inline;
+	}
+	.proplist {
+		display: flex;
+		flex-wrap: wrap;
+		row-gap: 0.5em;
+		margin-inline: auto;
+		max-width: 40rem;
+	}
+	.proplist li {
+		list-style: none;
+		display: block;
+		flex-basis: calc((var(--width, 2) / 2) * 100%);
+	}
+	.proplist label {
+		display: flex;
+		flex-direction: column;
+	}
+	.proplist .checkbox label {
+		display: inline;
+	}
+	.proplist label span {
+		color: var(--1);
+		margin-bottom: 0.2em;
+	}
+	.proplist input,
+	.proplist .checkbox {
+		font-size: var(--step-0);
+		position: relative;
+		padding: 0.4em 0.8em;
+		margin-bottom: 0.5em;
+		accent-color: var(--1);
+		transition: 100ms;
+	}
+	.proplist .checkbox {
+		/* width: 100%; */
+		opacity: 0.5;
+		&:has(:checked) {
+			opacity: 1;
+		}
+	}
+	.proplist .text input,
+	.proplist .email input,
+	.proplist .url input,
+	.proplist .tel input,
+	.proplist .datetime-local input,
+	.proplist .date input {
+		border-radius: 10em;
+		border: 0;
+		outline: 1px solid var(--1-light);
+
+		&:focus {
+			outline-width: 3px;
+		}
+		&:invalid {
+			outline-color: red;
+			outline-width: 2px;
+		}
+		&:placeholder-shown {
+			opacity: 0.5;
+		}
 	}
 </style>
