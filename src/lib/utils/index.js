@@ -103,6 +103,31 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		}
 	}
 
+	const sortTags = tagSorter(tagManager);
+	const processedMeta = {
+		...meta,
+		tags: [...(meta.tags ?? [])]
+			.map((t) => tagManager.get(t))
+			.sort(sortTags)
+			.map((t) => t.id),
+		featured:
+			meta.featured !== undefined
+				? await thumbURL(meta.category, postID, meta.featured)
+				: undefined,
+		photo: meta.photo !== undefined ? await thumbURL(meta.category, postID, meta.photo) : undefined,
+		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined,
+		postID
+	};
+	const processedPost = {
+		content: shallow ? undefined : postContent,
+		meta: processedMeta,
+		authorsProfiles,
+		path: '/' + meta.category + '/' + postID
+	};
+	return processedPost;
+}
+
+export function tagSorter(tagManager) {
 	/**
 	 * @param {ProcessedTag} tag
 	 * @return {string[][]}
@@ -138,27 +163,7 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 			tagManager.tagIDs().indexOf(aAncestry[0][0]) - tagManager.tagIDs().indexOf(bAncestry[0][0])
 		);
 	}
-	const processedMeta = {
-		...meta,
-		tags: [...(meta.tags ?? [])]
-			.map((t) => tagManager.get(t))
-			.sort(sortTags)
-			.map((t) => t.id),
-		featured:
-			meta.featured !== undefined
-				? await thumbURL(meta.category, postID, meta.featured)
-				: undefined,
-		photo: meta.photo !== undefined ? await thumbURL(meta.category, postID, meta.photo) : undefined,
-		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined,
-		postID
-	};
-	const processedPost = {
-		content: shallow ? undefined : postContent,
-		meta: processedMeta,
-		authorsProfiles,
-		path: '/' + meta.category + '/' + postID
-	};
-	return processedPost;
+	return sortTags;
 }
 
 /**
@@ -192,11 +197,12 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		const tagManager = tagsFactory();
 		processedPosts.push(await processPost(postContent, postID, metadata, true, tagManager));
 	}
-	processedPosts.sort((a,b)=> {
+	processedPosts.sort((a, b) => {
 		/** @param {ProcessedPost} x @returns number */
-		let f = (x) => (new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date)).getTime()
-		return f(b) - f(a)
-	})
+		let f = (x) =>
+			new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date).getTime();
+		return f(b) - f(a);
+	});
 	return [...processedPosts];
 };
 

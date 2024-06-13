@@ -1,4 +1,5 @@
 <script>
+	import TagsInput from './../../../../../lib/components/TagsInput.svelte';
 	export let data;
 	export let form;
 	import CodeMirror from 'svelte-codemirror-editor';
@@ -14,13 +15,8 @@
 	function uncomment(uncommentKey) {
 		let value = undefined;
 		let re = new RegExp('\\s*?' + uncommentKey + ': ?(.*)?\\n', 'g');
-		console.log('uncommentKey:', uncommentKey);
 		let removeComment = (/** @type {string} */ comments) => {
 			let r = re.exec(comments || '');
-			if (comments) {
-				console.log('comments:', comments);
-				console.log('r:', r);
-			}
 			if (r) {
 				value = r[1];
 				comments = comments.replaceAll(re, '');
@@ -66,7 +62,8 @@
 	/**@typedef PostPropInput
 	 * @prop {string} label
 	 * @prop {string} key
-	 * @prop {'checkbox'|'date'|'text'|'textarea'|'email'|'url'|'tel'|'datetime-local'|'select'} type
+	 * @prop {'checkbox'|'date'|'text'|'textarea'|'email'|'url'|'tel'|'datetime-local'|'select'|'array'} type
+	 * @prop {'tag'} [subtype]
 	 * @prop {string} [placeholder]
 	 * @prop {number} [width=2]
 	 * @prop {boolean} [required=false]
@@ -84,9 +81,10 @@
 			required: true,
 			placeholder: 'Mi gran título'
 		},
-		/** tags */
-		/** autores */
-		/** featured */
+		/** TODO tags */
+		{ label: 'Etiquetas', key: 'tags', type: 'array', subtype: 'tag', width: 2 },
+		/** TODO autores */
+		/** TODO featured */
 		{
 			label: 'Descripción',
 			key: 'summary',
@@ -136,14 +134,13 @@
 			{ label: 'Cumpleaños', key: 'bday', type: 'date', width: 1 }
 		],
 		calendario: [
-			/** status */
 			{
 				label: 'Estado',
 				key: 'status',
 				type: 'select',
 				width: 2,
 				options: [
-					{ label: 'Anunciado (link oculto)', value: 'anunciado', default: true},
+					{ label: 'Anunciado (link oculto)', value: 'anunciado', default: true },
 					{ label: 'Abierto a inscripciones', value: 'abierto' },
 					{ label: 'Inscripciones agotadas', value: 'lleno' },
 					{ label: 'Cancelado', value: 'cancelado' }
@@ -185,11 +182,11 @@
 	<a href={'/' + $page.params.category + '/' + $page.params.postID}>Volver a la publicación</a>
 </div>
 <!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
-<!-- <pre>{doc.get('tags')}</pre> -->
+<pre>{doc.get('tags').items}</pre>
 <ul class="proplist">
 	{#each [...postProperties, ...typedProperties[$page.params.category]] as postProp}
 		<li class={postProp.type} style:--width={postProp.width}>
-			<label>
+			<label for={postProp.key + '-input'}>
 				{#if postProp.type != 'checkbox'}
 					<span>
 						{postProp.label}
@@ -200,6 +197,7 @@
 				{/if}
 				{#if postProp.type == 'textarea'}
 					<textarea
+						id="{postProp.key}-input"
 						required={postProp.required ?? false}
 						name={postProp.key}
 						on:input={(e) => setProperty(postProp.key, e?.target?.value.replaceAll(/\n/g, ' '))}
@@ -209,8 +207,15 @@
 							if (e.key == 'Enter') e.preventDefault();
 						}}
 					/>
+				{:else if postProp.type == 'array'}
+					<TagsInput
+						inputid="{postProp.key}-input"
+						initialTags={doc.get(postProp.key).items.map((t) => t.value)}
+						onUpdate={(tags)=>setProperty(postProp.key, {items:tags})}
+					/>
 				{:else if postProp.type == 'select'}
 					<select
+						id="{postProp.key}-input"
 						name={postProp.key}
 						on:change={(e) => setProperty(postProp.key, e?.target?.value)}
 						value={doc.get(postProp.key) ?? ''}
@@ -219,8 +224,9 @@
 							<option value={option.value}>{option.label}</option>
 						{/each}
 					</select>
-					{:else}
+				{:else}
 					<input
+						id="{postProp.key}-input"
 						type={postProp.type}
 						placeholder={postProp.placeholder}
 						on:input={(e) =>

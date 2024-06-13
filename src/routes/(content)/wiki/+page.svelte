@@ -30,7 +30,6 @@
 			wikiTagManager.update(() => tagsFactory());
 			// $page.url.searchParams.delete('q');
 		} else {
-			console.log(newQuery);
 			// $page.url.searchParams.set('q', newQuery);
 			wikiTagManager.update((wtm) => {
 				/**@type {TagID[]}*/
