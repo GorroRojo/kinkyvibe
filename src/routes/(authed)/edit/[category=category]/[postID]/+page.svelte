@@ -66,7 +66,7 @@
 	/**@typedef PostPropInput
 	 * @prop {string} label
 	 * @prop {string} key
-	 * @prop {'checkbox'|'date'|'text'|'email'|'url'|'tel'|'datetime-local'} type
+	 * @prop {'checkbox'|'date'|'text'|'textarea'|'email'|'url'|'tel'|'datetime-local'} type
 	 * @prop {string} [placeholder]
 	 * @prop {number} [width=2]
 	 * @prop {boolean} [required=false]
@@ -89,7 +89,7 @@
 		{
 			label: 'Descripción',
 			key: 'summary',
-			type: 'text',
+			type: 'textarea',
 			width: 2,
 			required: true,
 			placeholder: 'Sobre tal cosa tal otro y tal acotra.'
@@ -165,7 +165,7 @@
 		],
 		wiki: []
 	};
-	setProperty('updated_date',format(new Date(), 'yyyy-MM-dd')+"Z-03:00");
+	setProperty('updated_date', format(new Date(), 'yyyy-MM-dd') + 'Z-03:00');
 </script>
 
 <div class="content">
@@ -184,37 +184,48 @@
 						{/if}
 					</span>
 				{/if}
-				<input
-					required={postProp.required ?? false}
-					type={postProp.type}
-					name={postProp.key}
-					placeholder={postProp.placeholder}
-					on:input={(e) =>
-						setProperty(
-							postProp.key,
-							postProp.type == 'checkbox'
-								? e?.target?.checked
-								: postProp.type.startsWith('date')
-								? e?.target.value
-									? e?.target?.value + `${postProp.type == 'datetime-local' ? '' : 'Z'}-03:00`
-									: ''
-								: e?.target?.value
-						)}
-					min={postProp.type == 'datetime-local'
-						? postProp.key == 'end'
-							? doc.get('start')?.slice(0, -6)
-							: undefined
-						: postProp.type == 'date'
-						? postProp.key == 'updated_date'
-							? doc.get('published_date')?.split('Z')[0]
-							: undefined
-						: undefined}
-					value={postProp.type == 'date'
-						? doc.get(postProp.key)?.split('Z')?.[0]
-						: postProp.type == 'datetime-local'
-						? doc.get(postProp.key)?.slice(0, -6)
-						: doc.get(postProp.key) ?? ''}
-				/>
+				{#if postProp.type == 'textarea'}
+					<textarea
+						required={postProp.required ?? false}
+						name={postProp.key}
+						on:input={(e) => setProperty(postProp.key, e?.target?.value.replaceAll(/\n/g, ' '))}
+						value={doc.get(postProp.key) ?? ''}
+						maxlength="250"
+						on:keypress={function (e) {
+							if (e.key == 'Enter') e.preventDefault();
+						}}
+					/>
+				{:else}
+					<input
+						type={postProp.type}
+						placeholder={postProp.placeholder}
+						on:input={(e) =>
+							setProperty(
+								postProp.key,
+								postProp.type == 'checkbox'
+									? e?.target?.checked
+									: postProp.type.startsWith('date')
+									? e?.target.value
+										? e?.target?.value + `${postProp.type == 'datetime-local' ? '' : 'Z'}-03:00`
+										: ''
+									: e?.target?.value
+							)}
+						min={postProp.type == 'datetime-local'
+							? postProp.key == 'end'
+								? doc.get('start')?.slice(0, -6)
+								: undefined
+							: postProp.type == 'date'
+							? postProp.key == 'updated_date'
+								? doc.get('published_date')?.split('Z')[0]
+								: undefined
+							: undefined}
+						value={postProp.type == 'date'
+							? doc.get(postProp.key)?.split('Z')?.[0]
+							: postProp.type == 'datetime-local'
+							? doc.get(postProp.key)?.slice(0, -6)
+							: doc.get(postProp.key) ?? ''}
+					/>
+				{/if}
 				{#if postProp.type == 'checkbox'}
 					<span>{postProp.label}</span>
 				{/if}
@@ -268,6 +279,7 @@
 		row-gap: 0.5em;
 		margin-inline: auto;
 		max-width: 40rem;
+		padding-inline: 5px;
 	}
 	.proplist li {
 		list-style: none;
@@ -285,7 +297,12 @@
 		color: var(--1);
 		margin-bottom: 0.2em;
 	}
+	.proplist textarea {
+		resize: none;
+		height: 6em;
+	}
 	.proplist input,
+	.proplist textarea,
 	.proplist .checkbox {
 		font-size: var(--step-0);
 		position: relative;
@@ -301,13 +318,14 @@
 			opacity: 1;
 		}
 	}
+	.proplist .textarea textarea,
 	.proplist .text input,
 	.proplist .email input,
 	.proplist .url input,
 	.proplist .tel input,
 	.proplist .datetime-local input,
 	.proplist .date input {
-		border-radius: 10em;
+		border-radius: 1em;
 		border: 0;
 		outline: 1px solid var(--1-light);
 
