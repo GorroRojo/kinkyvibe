@@ -1,4 +1,5 @@
----published_date: 2024-05-22Z-03:00
+---
+published_date: 2024-05-22Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusion para sumis*
 summary: Para todas aquellas personas dentro del espectro "sub/sumi" que quieran
@@ -28,6 +29,7 @@ end: 2024-06-06T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 link: https://forms.gle/6pn5Vv8vX5HfLiG48
 link_text: 'INSCRIPCIÓN'
 updated_date: 2024-06-12Z-03:00
+
 ---
 
 Armamos esta propuesta con el fin de generar un espacio para todas aquellas personas dentro del espectro "sub/sumi" que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
