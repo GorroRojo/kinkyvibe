@@ -182,7 +182,7 @@
 	<a href={'/' + $page.params.category + '/' + $page.params.postID}>Volver a la publicación</a>
 </div>
 <!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
-<pre>{doc.get('tags').items}</pre>
+<!-- <pre>{doc.get('tags').items}</pre> -->
 <ul class="proplist">
 	{#each [...postProperties, ...typedProperties[$page.params.category]] as postProp}
 		<li class={postProp.type} style:--width={postProp.width}>
