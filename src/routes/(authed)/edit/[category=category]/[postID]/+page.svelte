@@ -66,10 +66,11 @@
 	/**@typedef PostPropInput
 	 * @prop {string} label
 	 * @prop {string} key
-	 * @prop {'checkbox'|'date'|'text'|'textarea'|'email'|'url'|'tel'|'datetime-local'} type
+	 * @prop {'checkbox'|'date'|'text'|'textarea'|'email'|'url'|'tel'|'datetime-local'|'select'} type
 	 * @prop {string} [placeholder]
 	 * @prop {number} [width=2]
 	 * @prop {boolean} [required=false]
+	 * @prop {Array<{label:string, value:string, default?:boolean}>} [options]
 	 */
 	/**@type {Array<PostPropInput>}*/
 	const postProperties = [
@@ -136,6 +137,18 @@
 		],
 		calendario: [
 			/** status */
+			{
+				label: 'Estado',
+				key: 'status',
+				type: 'select',
+				width: 2,
+				options: [
+					{ label: 'Anunciado (link oculto)', value: 'anunciado', default: true},
+					{ label: 'Abierto a inscripciones', value: 'abierto' },
+					{ label: 'Inscripciones agotadas', value: 'lleno' },
+					{ label: 'Cancelado', value: 'cancelado' }
+				]
+			},
 			{ label: 'Comienza', key: 'start', type: 'datetime-local', width: 1, required: true },
 			{ label: 'Termina', key: 'end', type: 'datetime-local', width: 1, required: true },
 			{
@@ -172,6 +185,7 @@
 	<a href={'/' + $page.params.category + '/' + $page.params.postID}>Volver a la publicación</a>
 </div>
 <!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
+<!-- <pre>{doc.get('tags')}</pre> -->
 <ul class="proplist">
 	{#each [...postProperties, ...typedProperties[$page.params.category]] as postProp}
 		<li class={postProp.type} style:--width={postProp.width}>
@@ -195,7 +209,17 @@
 							if (e.key == 'Enter') e.preventDefault();
 						}}
 					/>
-				{:else}
+				{:else if postProp.type == 'select'}
+					<select
+						name={postProp.key}
+						on:change={(e) => setProperty(postProp.key, e?.target?.value)}
+						value={doc.get(postProp.key) ?? ''}
+					>
+						{#each postProp.options as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+					{:else}
 					<input
 						type={postProp.type}
 						placeholder={postProp.placeholder}
@@ -302,6 +326,7 @@
 		height: 6em;
 	}
 	.proplist input,
+	.proplist select,
 	.proplist textarea,
 	.proplist .checkbox {
 		font-size: var(--step-0);
@@ -319,6 +344,7 @@
 		}
 	}
 	.proplist .textarea textarea,
+	.proplist .select select,
 	.proplist .text input,
 	.proplist .email input,
 	.proplist .url input,
