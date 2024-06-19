@@ -11,6 +11,8 @@ tags:
   - evento
   - BDSM
   - AMBA
+  - inicial
+  - prácticas
 layout: calendario
 category: calendario
 authors:
