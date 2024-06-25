@@ -82,7 +82,7 @@
 			placeholder: 'Mi gran título'
 		},
 		/** TODO tags */
-		{ label: 'Etiquetas', key: 'tags', type: 'array', subtype: 'tag', width: 2 },
+		// { label: 'Etiquetas', key: 'tags', type: 'array', subtype: 'tag', width: 2 },
 		/** TODO autores */
 		/** TODO featured */
 		{
@@ -211,7 +211,7 @@
 					<TagsInput
 						inputid="{postProp.key}-input"
 						initialTags={doc.get(postProp.key).items.map((t) => t.value)}
-						onUpdate={(tags)=>setProperty(postProp.key, {items:tags})}
+						onUpdate={(tags)=>setProperty(postProp.key, tags)}
 					/>
 				{:else if postProp.type == 'select'}
 					<select
