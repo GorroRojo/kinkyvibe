@@ -6,12 +6,11 @@ summary: 'Reducción de daño y gestión del placer. Riesgo, daño, placer y có
   gestionarlos en un contexto de BDSM. Cómo explorar nuestras necesidades y
   cuidados durante prácticas de riesgo.'
 tags:
-  items:
-    - español
-    - KinkyVibe
-    - pago
-    - Online
-    - perfil de riesgo
+  - español
+  - KinkyVibe
+  - pago
+  - Online
+  - perfil de riesgo
 layout: calendario
 category: calendario
 authors:
