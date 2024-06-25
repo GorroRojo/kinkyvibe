@@ -5,6 +5,12 @@ title: Taller de Perfil de Riesgo.
 summary: 'Reducción de daño y gestión del placer. Riesgo, daño, placer y cómo
   gestionarlos en un contexto de BDSM. Cómo explorar nuestras necesidades y
   cuidados durante prácticas de riesgo.'
+tags:
+  - español
+  - KinkyVibe
+  - pago
+  - Online
+  - perfil de riesgo
 layout: calendario
 category: calendario
 authors:
@@ -28,7 +34,6 @@ updated_date: 2024-06-25Z-03:00
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
-#tags: ["español","KinkyVibe","pago","Online","perfil de riesgo"]
 
 
 ---
