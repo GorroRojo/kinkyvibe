@@ -1,5 +1,5 @@
 ---
-published_date: 2024-05-22Z-03:00
+published_date: 2024-06-27Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusión para Doms*
 summary: 'Nos juntamos para charlar, discutir, dar información y compartir experiencias relacionadas a ser Dom (o roles similares).'

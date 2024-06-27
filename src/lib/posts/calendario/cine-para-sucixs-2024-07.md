@@ -1,7 +1,7 @@
 ---
-published_date: 2024-05-22Z-03:00
+published_date: 2024-06-27Z-03:00
 # updated_date:   2024-05-07Z-03:00
-title: Cine Para Sucixs (13ª Edición)
+title: Cine Para Sucixs (14ª Edición)
 summary: Ciclo de Porno Cuir. Perfos, entrevistas y proyección de cortos p0rno queer-lgtb. Venite a ver cine sucio y mojarte con nosotres.
 tags:
   - español
@@ -34,7 +34,7 @@ link_text: PRE-VENTA
 ---
  Cronograma
 - **19:00** Comienza el evento. Va a estar la feria disponible.
-- **19:30** Entrevista
+- **19:30** Entrevista a Juli Mor
 - **20:45** Sesion en Vivo 
 - **22:00** Proyección de cortos de Porno y Posporno
 - **23:30** Fin del Evento

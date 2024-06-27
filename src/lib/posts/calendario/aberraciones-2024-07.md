@@ -1,15 +1,15 @@
 ---
-published_date: 2024-02-17Z-03:00
-updated_date: 2024-02-27Z-03:00
-title: Aberraciones - Kiki, el amor se hace
+published_date: 2024-06-27Z-03:00
+# updated_date: 2024-02-27Z-03:00
+title: Aberraciones - The Secretary
 summary: 'Un ciclo de cine disidente orientado a explorar los márgenes de aquellas sexualidades, modos de vida, cuerpos e identidades menos trabajadas en el cine.'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - queer
+  - BDSM
   - cine
-  - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - Online # online | AMBA | Córdoba | Santa Cruz #
 layout: calendario
 category: calendario
 authors:
@@ -22,8 +22,8 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 30-09-2023Z-03:00
 start: 2024-03-17T21:00-03:00
 end:   2024-03-17T01:00-03:00
-location: Fitz Roy 1327, CABA
-location_name: Casa Sofía
+# location: Fitz Roy 1327, CABA
+# location_name: Casa Sofía
 link: https://forms.gle/Xq7iLUDrQVwA7GncA
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
@@ -38,7 +38,7 @@ Estamos queriendo hacer un ciclo de cine disidente orientado a explorar los már
 
 En esta edición vamos a tener:
 
-- UNA CHARLA,
-- UNA PROYECCIÓN: Kiki, el amor se hace
+- UNA PRESENTACIÓN,
+- UNA PROYECCIÓN: The Secretary
 - ¡Y ESPACIO PARA DEBATE!
 

@@ -1,6 +1,6 @@
 ---
-published_date: 2023-09-30Z-03:00
-updated_date: 2023-10-11Z-03:00
+published_date: 2024-06-27Z-03:00
+# updated_date: 2023-10-11Z-03:00
 title: Taller de Humillación
 summary: '¿Te intriga la idea de humillar eróticamente a alguien pero no sabés cómo? Este taller es para todes quienes se interesen en humillar y ser humillades'
 tags:
@@ -14,12 +14,13 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - DemonWeb
 featured: 1
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
-opening_date: 2023-09-30Z-03:00
+# opening_date: 2023-09-30Z-03:00
 start: 2023-10-31T20:30-03:00
 end: 2023-10-31T23:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires

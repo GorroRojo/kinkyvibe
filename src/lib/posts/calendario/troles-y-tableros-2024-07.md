@@ -1,17 +1,21 @@
 ---
-#published_date: 2024-02-16Z-03:00
+published_date: 2024-06-27Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: Evento de ejemplo
-summary: ''
+title: Troles & Tableros
+summary: 'Espacio de juegos de mesa hecho por troles neurodivergentes kinky para troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - Online # online | AMBA | Córdoba | Santa Cruz #
+  - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - queer
+  - neurodivergencia
+  - juegos de mesa
 layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - Gael
 #featured: 1
 #logo: 2
 #force_unlisted: false
@@ -29,3 +33,8 @@ link_text: Inscibirme
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
+Espacio de juegos de mesa hecho por troles neurodivergentes kinky para troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!
+
+También vamos a tener fidget toys y peluches a disposición de satisfacer todas nuestras necesidades sensoriales. ¡Llegá puntual para llegar a probar más juegos!
+
+Coordina nuestre experte y elfe de juegos [\@garden_elf_gael](https://instagram.com/garden_elf_gael)

@@ -1,7 +1,7 @@
 ---
-published_date: 2024-05-29Z-03:00
+published_date: 2024-06-27Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: "Laboratorio Somático de Prácticas Fetichistas: Dominación/sumisión"
+title: "Laboratorio Somático de Prácticas Fetichistas: Bondage"
 summary: 'Laboratorio de investigación erótico-afectiva, abierto a todes quienes quieran probar distintos usos de las prácticas fetichistas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer.'
 tags:
   - español
@@ -9,6 +9,7 @@ tags:
   - laboratorio
   - pago
   - BDSM
+  - bondage
   - AMBA
 layout: calendario
 category: calendario
@@ -22,7 +23,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-06-28T17:00-03:00
 end:   2024-06-28T21:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: Cultural Batacazo
+location_name: lo de gorrite
 link: "https://forms.gle/tn9oWc1ATuDP2S8X6"
 link_text: ENTRADAS
 # carrousel_background: "#f2a68f"
@@ -31,7 +32,7 @@ link_text: ENTRADAS
 # carrousel_accent_bg: ""
 ---
 
-Lanzamos esta nueva propuesta con el fin de invitar a todas las personas interesadas en usar las prácticas eróticas-afectivas no-normativas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer.
+Lanzamos esta propuesta con el fin de invitar a todas las personas interesadas en usar las prácticas eróticas-afectivas no-normativas con el fin de afectarse, arriesgarse y explorar nuevas formas de placer.
 
 ### ¿Qué vamos a hacer?
 

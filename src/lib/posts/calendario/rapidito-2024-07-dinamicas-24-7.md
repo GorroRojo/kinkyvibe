@@ -1,8 +1,8 @@
 ---
-published_date: 2024-05-29Z-03:00
+published_date: 2024-06-27Z-03:00
 # updated_date: 2024-11-04Z-03:00
-title: "Mini Talleres Rapiditos: Wax Play"
-summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre juegos con cera'
+title: "Mini Talleres Rapiditos: Dinámicas 24/7"
+summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre dinámicas 24/7'
 tags:
   - español
   - LSA
@@ -10,11 +10,13 @@ tags:
   - pago # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - taller
-  - cera
+  - dinámicas
+  - 24/7
 layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - DemonWeb
 featured: 1
 #logo: 2
 # force_unlisted: true
@@ -34,7 +36,8 @@ link_text: INSCRIBIRME
 ---
 `Interpretación LSA disponible`
 ## Temario
-- Introducción a los juegos con cera (waxplay)
+`Proximamente más info...`
+<!-- - Introducción a los juegos con cera (waxplay)
 - Cuidados generales y preparación
 - Tipos de cera de vela y sus usos 
-- Tipos de vertido y de formas de jugar con velas 
+- Tipos de vertido y de formas de jugar con velas  -->

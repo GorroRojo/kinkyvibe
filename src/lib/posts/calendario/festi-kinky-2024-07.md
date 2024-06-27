@@ -1,8 +1,8 @@
 ---
-published_date: 2023-11-30Z-03:00
+published_date: 2024-06-27Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Festi Kinky
-summary: 'Cerramos el año con mucho kink, talleres, tanda de perfos y sesiones en vivo, jam de shibari y proyecciones'
+title: Festi Kinky 24/7
+summary: 'Festejamos el día del BDSM con mucho kink, un taller, sesiones en vivo, y proyecciones'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -11,6 +11,8 @@ tags:
   - BDSM
   - taller
   - perfo
+  - sesión en vivo
+  - dominación
   - shibari
   - cine
 layout: calendario
@@ -25,8 +27,8 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2023-12-23T14:00-03:00
 end: 2023-12-24T01:00-03:00
-location: Thames 240, Ciudad Autónoma de Buenos Aires
-location_name: Cooperativa Cultural Qi
+location: Lezica 4266, Ciudad Autónoma de Buenos Aires
+location_name: Centro Cultural Lezica
 link: 'https://forms.gle/oaB9L1HRJUVoYQdC9'
 # link_text: Inscibirme
 # carrousel_background: "#f2a68f"
