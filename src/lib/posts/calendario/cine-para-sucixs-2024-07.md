@@ -24,11 +24,11 @@ featured: cine-para-sucixs-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-03Z-03:00
-start: 2024-06-16T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-06-16T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-07-28T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-07-28T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-link: https://forms.gle/5odJDbAz3KTd1PNq8
+link: https://forms.gle/nejesN4LaMUo2Jqe7
 link_text: PRE-VENTA
 
 ---

@@ -23,11 +23,11 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-06-21T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-06-22T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-07-19T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-07-20T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-link: https://forms.gle/Sw8gZehz25PiAsDx6
+link: https://forms.gle/Yajf4i5pxMx6Gh3A9
 link_text: 'PRE VENTA'
 
 ---

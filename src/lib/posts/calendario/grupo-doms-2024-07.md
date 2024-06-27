@@ -21,11 +21,11 @@ featured: grupo-doms-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2024-06-20T20:00-03:00
-end:   2024-06-20T22:00-03:00
+start: 2024-07-25T20:00-03:00
+end:   2024-07-25T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
-link: https://forms.gle/bgXVXD59oTJuKeND7
+link: https://forms.gle/FESYvigmc4AUcSEZ9
 link_text: INSCRIBIRME
 
 ---

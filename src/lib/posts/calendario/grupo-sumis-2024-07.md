@@ -23,10 +23,10 @@ featured: grupo-sumis-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 30-09-2023Z-03:00
-start: 2024-06-06T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2024-06-06T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-07-16T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2024-07-16T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-link: https://forms.gle/6pn5Vv8vX5HfLiG48
+link: https://forms.gle/TZhPTS6ZMyTcG1io8
 link_text: 'INSCRIPCIÓN'
 ---
 
@@ -47,4 +47,4 @@ Armamos esta propuesta con el fin de generar un espacio para todas aquellas pers
 
 Te invitamos a que vengas a charlar con nosotres 💞
 
-> El espacio va a estar coordinado por @DemonWeb y @Gorro_Rojo
+> El espacio va a estar coordinado por @Gorro_Rojo

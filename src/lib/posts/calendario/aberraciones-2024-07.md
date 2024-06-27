@@ -20,12 +20,12 @@ featured: aberraciones-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 30-09-2023Z-03:00
-start: 2024-03-17T21:00-03:00
-end:   2024-03-17T01:00-03:00
+start: 2024-07-02T20:00-03:00
+end:   2024-07-02T23:00-03:00
 # location: Fitz Roy 1327, CABA
 # location_name: Casa Sofía
-link: https://forms.gle/Xq7iLUDrQVwA7GncA
-link_text: PRE-VENTA
+link: https://forms.gle/GMG46v1xwEcReaNi9
+link_text: ENTRADAS
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""

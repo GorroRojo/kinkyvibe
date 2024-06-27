@@ -15,17 +15,17 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: 1
+featured: taller-humillacion-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2023-10-31T20:30-03:00
-end: 2023-10-31T23:00-03:00
+start: 2024-07-30T20:00-03:00
+end:   2024-07-30T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: 'https://forms.gle/ogR8NXcz25mAHRro6'
+link: 'https://forms.gle/heqpgxsSkFEyNMJT7'
 link_text: INSCRIPCIÓN
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
@@ -68,14 +68,3 @@ Hace 6 años que empecé a trabajar como Dominatrix Profesional y brindando dist
 Soy gestor comunitario de espacios y eventos de BDSM de la comunidad kinky-queer desde el 2019
 
 Para sesiones, clases privadas y consejerías podés escribirme a: kinkyvibeargentina@gmail.com
-
-## Valor del taller y becas
-
-- **Valor del Taller:**
-  - El taller tiene un valor sugerido ($4.500), pero este no es excluyente. La idea es que quienes no lleguen a contribuir con el valor mínimo, accedan abonando lo que esté en sus posibilidades, y que quienes puedan abonar más también lo hagan.
-- **Taller + Material Extra:**
-  - Al tomar el taller se llevan material de lectura, pero abonando este ticket (valor: $5.500) se llevan un PDF extra redactado por Mel que contiene una guía de negociación para prácticas de humillación .
-- **Becas:**
-  - Las becas no tienen ningún requisito. No hace falta que nos contactes para tomarlas.
-  - Podés elegir entre las siguientes becas: Beca Total (gratis), Beca Parcial ($2.250), Otros porcentajes(vos definís cuánto podés aportar). Más abajo vas a poder elegir la que más se ajuste a tu situación.
-  - Para cualquiera de las becas, pedimos que nos ayuden con la difusión del taller. Ya sea por redes, o mencionándolo a amigues y conocides.

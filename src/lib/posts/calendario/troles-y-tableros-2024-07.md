@@ -16,18 +16,18 @@ category: calendario
 authors:
   - KinkyVibe
   - Gael
-#featured: 1
+featured: troles-y-tableros-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-02-02T20:00-03:00
-end:   2024-02-02T23:00-03:00
-#location: Thames 240, Ciudad Autónoma de Buenos Aires
-#location_name: Cooperativa Cultural Qi
-link: ''
-link_text: Inscibirme
+start: 2024-07-11T20:00-03:00
+end:   2024-07-11T23:00-03:00
+location: Av. Córdoba 5217, Ciudad Autónoma de Buenos Aires
+location_name: La Casa del Arbol
+link: 'https://forms.gle/Net3hqi6RaTxtJMG8'
+link_text: Reservar lugar
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
