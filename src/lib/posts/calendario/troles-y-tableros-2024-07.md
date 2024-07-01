@@ -15,6 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - CanelaProducciones
   - Gael
 featured: troles-y-tableros-miniatura.jpg
 #logo: 2
