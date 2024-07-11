@@ -1,6 +1,6 @@
 ---
 published_date: 2024-03-02Z-03:00
-#updated_date: 2024-11-04Z-03:00
+updated_date: 2024-07-11Z-03:00
 title: Consentimiento, metaconsenso y CNC
 #wiki: material # para si es una entry de la wiki #
 summary: '¿Cómo definimos consentimiento y por qué? ¿Qué es el metaconsenso? ¿Qué es el CNC? ¿Importa acaso? ¿Es todo lo mismo? ¿Es el consentimiento una obsesión con hacer un montón de preguntas todo el tiempo? ¿Cómo está el tiempo hoy? ¿Qué hora es?'
@@ -15,7 +15,7 @@ layout: material
 category: material
 authors:
   - Gorro_Rojo
-#featured: 1
+featured: 1
 # force_unlisted: true
 #force_unpublished: false
 #link: https://www.altoporno.gay/edu
