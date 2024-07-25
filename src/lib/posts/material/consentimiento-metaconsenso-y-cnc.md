@@ -11,6 +11,7 @@ tags:
   - online # online | descargable | link #
   - consentimiento
   - cnc
+  - KinkyVibe
 layout: material
 category: material
 authors:

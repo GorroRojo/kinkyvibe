@@ -1,5 +1,5 @@
 ---
-published_date: 2024-07-24Z-03:00
+published_date: 2024-07-25Z-03:00
 #updated_date:   2024-11-04Z-03:00
 title: "BDSM y ansiedad: ¿asunto separado?"
 #wiki: material # para si es una entry de la wiki #
@@ -17,7 +17,7 @@ category: material
 authors:
   - Memi
 featured: 1
-force_unlisted: true
+# force_unlisted: false
 #force_unpublished: false
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
@@ -60,7 +60,7 @@ No hace falta estar "impecable" mentalmente <small>--¡Qué querrá decir eso, a
 
 Tal vez esto es más personal, pero conozco a otras personas que viven tener ansiedad de esta forma, y a veces es un garrón cuando estás montade _full corset látex lencería fuesta en la mano_. Mi ansiedad suele manifestarse gastrointestinalmente, si me pongo nervioso siento náuseas, o ganas de ir al baño, o me duele la panza.
 
-No tengo tantos consejos en esta, salvo que a veces las primeras citas no son las mejores y practicar BDSM solo en lugares donde haya baño cerca. Algunas recomendaciones más genéricas son comer liviano antes de sesionar, si vas a sesionar muchas horas tener algo para comer mientras y ya sé que me vas a odiar, pero si te es posible, decirle a tu compañere. Es medio vergonzoso y siempre que lo tengo que hacer un poquito quiero morir como si me estuvieran fajando y se me escapara un pedo, pero a la vez, en el fondo, es solo un poco gracioso y a nadie le molesta tanto. Compartir intimidad quiere decir a veces tener que decirle a alguien que re estás para hacer un _gang bang_ pero que te preocupa ponerte nervioso y comitarle a alguien en los genitales. Ni hablar de sexo anal y la vergüenza asociada a no saber cómo va a responder tu cuerpo.
+No tengo tantos consejos en esta, salvo que a veces las primeras citas no son las mejores y practicar BDSM solo en lugares donde haya baño cerca. Algunas recomendaciones más genéricas son comer liviano antes de sesionar, si vas a sesionar muchas horas tener algo para comer mientras y ya sé que me vas a odiar, pero si te es posible, decirle a tu compañere. Es medio vergonzoso y siempre que lo tengo que hacer un poquito quiero morir como si me estuvieran fajando y se me escapara un pedo, pero a la vez, en el fondo, es solo un poco gracioso y a nadie le molesta tanto. Compartir intimidad quiere decir a veces tener que decirle a alguien que re estás para hacer un _gang bang_ pero que te preocupa ponerte nervioso y vomitarle a alguien en los genitales. Ni hablar de sexo anal y la vergüenza asociada a no saber cómo va a responder tu cuerpo.
 
 > _gang bang_: sexo grupal donde una persona es el foco que recibe
 
