@@ -2,7 +2,7 @@
 published_date: 2024-07-31Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de sumisión para Principiantes
-summary: Armamos estas dos clases con el fin de brindar herramientas para todes aquelles que quieran adentrarse en la sumisión dentro de un marco BDSM.
+summary: ¿Te interesa la sumisión y no sabés por dónde empezar? Este taller busca darte herramientas para explorar tu lado sub y todas sus facetas
 tags:
   - español
   - BDSM
@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-#featured: 
+featured: taller-sumision-principiantes-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #

@@ -2,7 +2,7 @@
 published_date: 2024-07-31Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusion para age players*
-summary: ""
+summary: "Un espacio para toda persona que practica Age Play (juegos con la edad) y quiere venir a compartir con otres sobre estas vivencias."
 tags:
   - español
   - KinkyVibe
@@ -17,6 +17,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Andy
+featured: grupo-age-players-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
