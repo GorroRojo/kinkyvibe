@@ -2,7 +2,8 @@
 published_date: 2024-07-31Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de sumisión para Principiantes
-summary: ¿Te interesa la sumisión y no sabés por dónde empezar? Este taller busca darte herramientas para explorar tu lado sub y todas sus facetas
+summary: ¿Te interesa la sumisión y no sabés por dónde empezar? Este taller
+  busca darte herramientas para explorar tu lado sub y todas sus facetas
 tags:
   - español
   - BDSM
@@ -22,11 +23,13 @@ featured: taller-sumision-principiantes-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 start: 2024-08-29T19:00-03:00
-end:   2024-08-29T22:00-03:00
+end: 2024-08-29T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
 link: https://forms.gle/X1EBzFi74pkw3Hk28
 link_text: Inscribite
+updated_date: 2024-08-02Z-03:00
+
 ---
 
 Queremos poder responder: ¿cómo empezar? ¿Qué tengo que saber? ¿Qué cuidados necesito tener en cuenta? ¿Qué terminología tengo que saber? ¿cómo encuentro qué tipo de sumi\* soy? ¿Qué prácticas existen? ¿Cómo tengo una dinámica? ¿Qué tipo de sumis\* hay?
@@ -35,17 +38,13 @@ Y más!
 ¿Qué implica eso y qué vamos a estar viendo? Durante los dos días de taller vamos a ver las siguientes cosas:
 
 ## Temario
-
-- Introducción rápida al BDSM y sus mundos
-- ¿Qué es ser sumi? ¿Qué es la sumisión?
-- Qué tipos de sumisión hay y cuál es el tuyo
-- Qué es una sesión BDSM y cómo armarla
-- Qué son los cuidados posteriores
-- Qué es la negociación y qué tipos hay
-- Qué tipo de roles hay dentro del espectro sumi\*
-- Cuidados y formas de jugar que reduzcan los riesgos y daños
-- Tips y trucos para empezar
-- Y más! &gt;3
+-Intro a las dinámicas D/s 
+-Tipos de Subs y dinámicas 
+-Cómo acercarse al juego desde el rol de Sub
+-Cómo negociar una sesión desde el rol Sub
+-Cuáles son las responsabilidades de une sub y autocuidado
+-Qué es el subspace qué son las caídas (subdrop) 
+-Qué son los cuidados posteriores
 
 ## ¿A quién está dirigido?
 
