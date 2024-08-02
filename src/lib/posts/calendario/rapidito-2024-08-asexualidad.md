@@ -2,7 +2,8 @@
 published_date: 2024-06-27Z-03:00
 # updated_date: 2024-11-04Z-03:00
 title: "Mini Talleres Rapiditos: Asexualidad"
-summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre asexualidad'
+summary: 'Un mini taller para quienes quieren informarse en más profundidad
+  sobre asexualidad'
 tags:
   - español
   - LSA
@@ -23,19 +24,27 @@ featured: 1
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-08-23T20:00-03:00
-end:   2024-08-23T22:00-03:00
+end: 2024-08-23T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/pgmnro5AdSBRreUm8
 link_text: INSCRIBIRME
+updated_date: 2024-08-02Z-03:00
+
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+
 ---
 `Interpretación LSA disponible`
 ## Temario
-`Proximamente más info...`
+-Introducción a marcos de deseo, atracción, interés.
+-Diferenciando los distintos tipos de atracciones dentro
+de la sexualidad humana
+-Tipos de atracciones dentro del espectro asexual 
+-Exploración de distintos tipos de orientaciones 
+-Introducción a la alonormatividad y sus efectos
 <!-- - Introducción a los juegos con cera (waxplay)
 - Cuidados generales y preparación
 - Tipos de cera de vela y sus usos 
