@@ -76,8 +76,8 @@ export const hardcodedTags = [
 	{ id: 'sesión en vivo', icon: '🏇' },
 	{ id: 'taller', icon: '🎓' },
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
-	{ id: 'Picantearla', icon: '🔥'},
-	{ id: 'Cine para Sucixs', icon: '🎞️'},
+	{ id: 'Picantearla', icon: '🔥' },
+	{ id: 'Cine para Sucixs', icon: '🎞️' },
 	{
 		id: 'material',
 		icon: '📖',
@@ -116,15 +116,15 @@ export const hardcodedTags = [
 			'editorial'
 		]
 	},
-	{id: 'arte', icon: '🎨'},
-	{id: 'clases', icon: '👩‍🏫'},
-	{id: 'comida vegana', icon: '🥕'},
-{id: 'comunidad', icon: '👥'},
-{id: 'eventos', icon: '🗓️'},
-{id: 'productos', icon: '🛒'},
-{id: 'sesiones', icon: '🔥'},
-{id: 'terapia', icon: '🗨️'},
-{id: 'editorial', icon: '📚'},
+	{ id: 'arte', icon: '🎨' },
+	{ id: 'clases', icon: '👩‍🏫' },
+	{ id: 'comida vegana', icon: '🥕' },
+	{ id: 'comunidad', icon: '👥' },
+	{ id: 'eventos', icon: '🗓️' },
+	{ id: 'productos', icon: '🛒' },
+	{ id: 'sesiones', icon: '🔥' },
+	{ id: 'terapia', icon: '🗨️' },
+	{ id: 'editorial', icon: '📚' },
 	{
 		id: 'BDSM',
 		description:
@@ -243,7 +243,7 @@ export const hardcodedTags = [
 	{
 		id: 'látigo',
 		aka: ['whip'],
-		children: ['cola de dragón'],
+		children: ['cola de dragón', 'flogger'],
 		description:
 			'Implemento de [[impacto]] formado por un mango rígido, sumado a una o más tiras largas y flexibles llamadas colas. Existen muchas variantes que provocarán distintas sensaciones en le bottom dependiendo de su forma, peso y material.'
 	},
@@ -252,6 +252,17 @@ export const hardcodedTags = [
 		aka: ['dragon tail'],
 		description:
 			'Tipo de látigo compuesto por un mango rígido sumado a una pieza de cuero/ina, enrollada y con terminación en la punta.'
+	},
+	{
+		id: 'flogger',
+		children: ['florentino'],
+		description:
+			'Implemento de [[impacto]] y [[sensaciones]] formado por un mango y múltiples tiras/colas que impactan en la piel. Produce diferentes sensaciones según el grosor, cantidad de colas y material con el que esté confeccionado'
+	},
+	{
+		id: 'florentino',
+		description:
+			'Tipo específico de [[flogger]] articulado y sin mango rígido. Suelen venir en pares para utilizarse en, justamente, la técnica de azote florentina'
 	},
 	{
 		id: 'fusta',
@@ -274,7 +285,7 @@ export const hardcodedTags = [
 	{ id: 'antipunitivismo', color: 'var(--2)' },
 	{ id: 'despatologización', color: 'var(--2)' },
 	{ id: 'neurodivergencia', color: 'var(--2)' },
-	{ id: 'vincularidad', children: ['no monogamia','celos'], color: 'var(--2)' },
+	{ id: 'vincularidad', children: ['no monogamia', 'celos'], color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
 	{ id: 'queer', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad'] },
 	{
@@ -312,7 +323,7 @@ export const hardcodedTags = [
 		icon: '🎭',
 		aka: ['role play', 'rolplay'],
 		visible_name: 'Juegos de roles',
-		children: ['edad', 'primal', 'mascota'],
+		children: ['edad', 'primal', 'mascota', 'brat', 'cnc', 'cazadore-presa'],
 		description:
 			'Donde las partes acuerdan "actuar" roles (enfermera/médicx, profesore/alumne, Dueño/mascota, etc), algunas veces incluye [[intercambio de poder]].'
 	},
@@ -324,9 +335,31 @@ export const hardcodedTags = [
 	},
 	{ id: 'mascota', visible_name: 'Juegos de mascotas', aka: ['pet'], related: ['primal'] },
 	{
+		id: 'brat',
+		aka: ['malcriade'],
+		related: ['disciplina'],
+		description:
+			'Un rol donde se toma actitud rebelde y provocadora a través de acciones o palabras. En caso de ser sumi, usualmente es buscando un castigo como consecuencia.'
+	},
+	{
+		id: 'cnc',
+		visible_name: 'No-consenso consensuado',
+		aka: ['cnc', 'consensual non-consent'],
+		description:
+			'Juego de roles donde se forcejea y finge una falta de consentimiento. Puede encontrarse como parte de otros roles y dinámicas.'
+	},
+	{
+		id: 'cazadore-presa',
+		icon: '🏹',
+		visible_name: 'Cazadore / presa',
+		aka: ['Hunter/prey', 'H/p', 'C/p'],
+		related: ['primal'],
+		description: 'Donde las partes adoptan esos roles, que pueden ser tanto humanos como no-humanos'
+	},
+	{
 		id: 'edad',
 		icon: '🍭',
-		children: ['pequeñe', 'middle', 'cuidadore', 'grande', 'abdl'],
+		children: ['pequeñe', 'middle', 'cuidadore', 'grande', 'ddlg', 'abdl'],
 		aka: ['age play'],
 		description:
 			'Un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad.'
@@ -355,6 +388,13 @@ export const hardcodedTags = [
 			'En los juegos con la [[edad]], son personas que juegan a tener más edad que su edad cronológica y / o son les [[cuidadore]]s.'
 	},
 	{
+		id: 'ddlg',
+		visible_name: 'Papi Dom / niña pequeña',
+		aka: ['Daddy Dom/little girl', 'DD/lg'],
+		description:
+			'Es un tipo de dinámica relacional y juego con la edad en donde una persona toma el rol parental de "[[daddy]]" o "papi" y otre le de la "pequeña". En general es un vínculo masc/fem'
+	},
+	{
 		id: 'abdl',
 		icon: '🩲',
 		visible_name: 'Bebé Adulte Amante de los Pañales',
@@ -366,12 +406,27 @@ export const hardcodedTags = [
 		id: 'impacto',
 		icon: '💢',
 		visible_name: 'Juegos de Impacto',
-		children: ['caning', 'golpes', 'nalgueadas'],
+		children: ['calentamiento', 'nalgueadas', 'caning', 'golpes', 'bastinado'],
 		description:
 			'[[práctica]] variada que consiste en impactar físicamente sobre zonas del cuerpo con fines eróticos/sensuales/catárticos.',
 		related: ['sensaciones', 'juego de roles', 'miedo', 'dolor', 'calentamiento']
 	},
-	{ id: 'golpes', icon: '🤜' },
+	{
+		id: 'calentamiento',
+		description:
+			'Práctica de impacto de baja intensidad para preparar una zona del cuerpo a ser impactada con mayor fuerza. Típicamente se hace como comienzo de una sesión de impacto. Reduce las chances de generar moretones.'
+	},
+	{ id: 'golpes', icon: '🤜', description: 'Práctica de impacto utilizando los puños' },
+	{
+		id: 'nalgueadas',
+		aka: ['spanking'],
+		description: 'Práctica de impactar con las manos sobre las nalgas de une misme u otre'
+	},
+	{
+		id: 'bastinado',
+		description:
+			'Práctica de impacto realizada específicamente sobre la planta del pie, clásicamente con una varilla.'
+	},
 	{
 		id: 'sensaciones',
 		icon: '🪶',
