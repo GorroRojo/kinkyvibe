@@ -25,6 +25,6 @@ status: abierto # abierto | anunciado | lleno | cancelado
 start: 2024-08-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-08-20T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-link: https://forms.gle/pgmnro5AdSBRreUm8
+link: https://forms.gle/QZsHFs6EYU3U7jVn9
 link_text: 'INSCRIPCIÓN'
 ---
