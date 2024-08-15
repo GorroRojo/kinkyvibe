@@ -34,4 +34,8 @@ link: https://forms.gle/QwfLZbCMWaepVjrNA
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
-Nos encontramos para charlar y debatir en torno a las potencias radicales del kink y sus matices políticos. En esta oportunidad vamos a hablar de deseo y cuerpos gordes.
+Dentro del ciclo de Todo Kink es Político hemos charlado de las distintas maneras en que nuestras identidades y fetichismos/kink se encuentran. 
+
+En esta ocasión les invitamos a pensar sobre cuerpos: cuerpos que ocupan lugar, que desbordan los espacios que se les asignan, que tienen rollos, que son gordos. También sobre el deseo hacia y desde nosotres, gordofobia, fetiches con personas gordas, fetichización, gordes goloses y deseantes, porno gorde, y todo lo que existe cuando nos podemos correr de lo que el neoliberalismo magro espera que seamos.
+
+La idea es poder encontrarnos para compartir experiencias, algunos conceptos teóricos, opiniones y -con un poco de suerte- permitirnos pensar en otras formas de habitar el mundo que lo hagan más gordo
