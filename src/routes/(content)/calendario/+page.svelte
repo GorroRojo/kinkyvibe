@@ -108,46 +108,16 @@
 				}))
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		/>
-		<!-- style={`
-							--btn-text: white;
-							--keyboard-focus: var(--post-color, var(--2));
-							--btn-background: transparent;
-							--btn-shadow: none;
-							--btn-shadow-hover: none;
-							--list-background: white;
-							--list-background-hover: var(--1-light) ;
-							--list-text-hover: white;
-							--list-shadow: 0 0 1em 0 var(--1-light);
-							`} -->
 		<p class="subscribe">
-			También podés <add-to-calendar-button
-				style={`
-				--btn-background: var(--2);
-				--btn-border: var(--3);
-				--btn-text: white;
-				--btn-shadow: none;
-				--btn-background-hover: var(--2);
-				--btn-border-hover: white;
-				--btn-text-hover: white;
-				--btn-shadow-hover: 0 0 1em var(--3-light);
-				--font: 'Lato', sans-serif;
-				`}
-				startDate={format(new Date(), 'yyyy-MM-dd')}
-				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-				language="es"
-				listStyle="overlay"
-				buttonStyle="3d"
-				size="10"
-				inline
-				subscribe
-				trigger="click"
-				icsFile="https://kinkyvibe.ar/calendario.ics"
-				name="Calendario Kinky"
-				label="suscribirte a este calendario"
-			/> para nunca perderte de nada!
+			También podés
+			<a
+				href="https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2Fkinkyvibe.ar%2Fcalendario.ics"
+				target="_blank"
+			>
+				suscribirte a este calendario en google
+			</a>
+			para nunca perderte de nada!
 		</p>
-		<!-- lightMode="bodyScheme" -->
-		<!-- size="1" -->
 	</div>
 </div>
 
@@ -155,14 +125,26 @@
 	.subscribe {
 		font-size: var(--step-1);
 		text-align: center;
-		/* outline: 2px dashed var(--3); */
-		/* outline-offset: -4px; */
 		background: var(--1-dark);
 		color: white;
 		border-radius: 1em;
 		padding: 1em 1.5em;
 		/* max-width: max-content; */
 		margin: 2em auto;
+		a {
+			background: var(--2);
+			border: 1px solid var(--4);
+			color: white;
+			--font: 'Lato', sans-serif;
+			text-decoration: none;
+			padding: .3em;
+			border-radius: .3em;
+			&:hover {
+				border-color: white;
+				color: white;
+				box-shadow: 0 0 1em var(--4-light);
+			}
+		}
 	}
 	.cardrow {
 		max-width: 1200px;
@@ -174,14 +156,12 @@
 	#calendar {
 		max-width: 50rem;
 		margin-inline: auto;
-		/* max-height: 80vh; */
 		height: 40em;
 		margin-bottom: 3em;
 		padding-bottom: 3em;
 		width: 100%;
 		min-height: 0;
 		min-width: 0;
-		/* overflow: hidden; */
 	}
 	button.past {
 		opacity: 0.2 !important;
@@ -227,13 +207,11 @@
 			font-size: 1.3em;
 			overflow: hidden;
 			color: white;
-			/* word-break: break-all; */
 			text-align: left;
 			text-overflow: ellipsis;
 			text-transform: capitalize;
 			text-decoration: none !important;
 			white-space: nowrap;
-			/* overflow: visible; */
 			background: var(--evt-color);
 			transition: 100ms;
 		}
@@ -295,7 +273,6 @@
 		#calendar {
 			grid-area: calendar;
 			min-width: 0;
-			/* height: min(max(60vw, 30em), 60em); */
 			height: 90vh;
 			position: sticky;
 			top: 0;
