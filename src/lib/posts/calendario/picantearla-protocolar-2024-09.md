@@ -1,7 +1,7 @@
 ---
-published_date: 2023-12-30Z-03:00
+published_date: 2024-08-28Z-03:00
 #updated_date: 2023-11-17Z-03:00
-title: "Picantearla - Edición Protocolar"
+title: Picantearla Protocolar 📝 (19° Edición)
 summary: ¿Qué pasaría si mezcláramos un picantearla normal con un evento de juegos de roles? Pensamos averiguarlo <3 Sumate a nuestro evento de protocolo y Dominación/sumisión
 tags:
   - español
@@ -23,11 +23,11 @@ featured: picantearla-protocolar-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-01-20T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-01-21T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: Chorroarín 1260, Ciudad Autónoma de Buenos Aires
-location_name: Pulpería Mutuálica
-link: https://forms.gle/nk1zLgPwovyJ18os9
+start: 2024-09-13T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-09-14T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+location: Av Maipú 2535, Olivos, Buenos Aires
+location_name: la jaula de olivos
+# link: https://forms.gle/nk1zLgPwovyJ18os9
 link_text: 'PRE-VENTA'
 ---
 

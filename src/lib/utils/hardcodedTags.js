@@ -138,7 +138,8 @@ export const hardcodedTags = [
 			'dinámicas',
 			'caída',
 			'cuidados posteriores',
-			'sadomasoquismo'
+			'sadomasoquismo',
+			'24/7'
 		]
 	},
 	{
