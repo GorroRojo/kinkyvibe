@@ -12,6 +12,7 @@ tags:
   - bondage
   - impacto
   - sensaciones
+  - fusta
 layout: amigues
 category: amigues
 authors:

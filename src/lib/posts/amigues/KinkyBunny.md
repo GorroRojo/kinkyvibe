@@ -13,6 +13,8 @@ tags:
   - impacto
   - bondage
   - cuchillos
+  - flogger
+  - florentino
 layout: amigues
 category: amigues
 authors:

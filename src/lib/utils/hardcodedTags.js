@@ -239,7 +239,7 @@ export const hardcodedTags = [
 		id: 'implementos',
 		icon: '🛠️',
 		color: '#ff4444',
-		children: ['paleta', 'palmeta', 'látigo', 'fusta']
+		children: ['paleta', 'palmeta', 'látigo', 'fusta', 'cuerdas', 'cuchillos']
 	},
 	{
 		icon: '🏏',

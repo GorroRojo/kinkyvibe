@@ -12,6 +12,7 @@ tags:
   - AMBA
   - vincularidad
   - no-monogamia
+  - neurodivergencia
 layout: amigues
 category: amigues
 authors:

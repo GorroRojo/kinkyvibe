@@ -20,6 +20,12 @@ tags:
   - impacto
   - sensaciones
   - editorial
+  - flogger
+  - fusta
+  - florentino
+  - paleta
+  - palmeta
+  - cuerdas
 authors:
   - DemonWeb
   - TallarinesConTuco
