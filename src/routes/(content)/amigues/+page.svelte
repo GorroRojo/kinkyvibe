@@ -120,6 +120,7 @@
 		border-radius: 1em;
 		color: color-mix(in srgb, var(--color) 50%, black);
 		margin-bottom: 2em;
+		line-height: 1.5;
 		p {
 			font-size: var(--step-0);
 		}
@@ -134,7 +135,7 @@
 			background: transparent;
 			opacity: 0.3;
 			top: 0;
-			line-height: 0.6;
+			line-height: 1.4;
 			transition: 100ms;
 		}
 		button:hover {
