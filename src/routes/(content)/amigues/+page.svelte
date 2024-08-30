@@ -5,6 +5,7 @@
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
+	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
@@ -14,17 +15,9 @@
 		.filter((p) => p.meta.layout == 'amigues')
 		.sort((a, b) => {
 			if (pinned.includes(a.meta.postID) && !pinned.includes(b.meta.postID)) {
-				return -1;
+					return -1;
 			} else return 0;
 		});
-	function parseDescription(description) {
-		const regex = /\[\[([^\]]*)\]\]/g;
-		return description
-			.split(regex)
-			.map((piece, index) =>
-				index % 2 == 0 ? { type: 'text', content: piece } : { type: Tag, content: piece }
-			);
-	}
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
@@ -43,46 +36,44 @@
 		/>.
 	</p>
 	<dl>
-		{#each $filteredTags.map($tagManager.get) as termino (termino.id)}
+		{#each $filteredTags
+			.map($tagManager.get)
+			.filter((t) => t.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
-						{name.charAt(0).toUpperCase() + name.slice(1)}
+						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
-									Ver en la wiki
+									Es más complejo
 									<ArrowRight {style} />
 								</span>
 							</a>
 						{/if}
 					</dt>
 					<dd>
-						{#if termino.description}
-							{#each termino.description as d}
-								{#if d.type == 'text'}
-									{d.content}
-								{:else if d.type == Tag}
-									<svelte:component
-										this={d.type}
-										tag={d.content}
-										onInput={(evt, tag) =>
-											$togglePositiveTagFilterFn(evt.target?.checked, d.content)}
-										isCheckbox
-										checked={$page.url.searchParams.has('tags') &&
-											$page.url.searchParams.get('tags')?.split(',').includes(d.content)}
-										--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-										--font-size="1em"
-										--padding="0.1em 0.2em"
-										--border-radius=".3em"
-										noBorder
-									/>
-								{/if}
-							{/each}
-						{/if}
+						{#each termino.parsedDescription as d}
+							{#if d.type == 'link'}
+								<Tag
+									tag={d.line}
+									onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, d.line)}
+									isCheckbox
+									checked={$page.url.searchParams.has('tags') &&
+										$page.url.searchParams.get('tags')?.split(',').includes(d.line)}
+									--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+									--font-size="1em"
+									--padding="0.1em 0.2em"
+									--border-radius=".3em"
+									noBorder
+								/>
+							{:else}
+								{d.line}
+							{/if}
+						{/each}
 
 						{#if termino.related}
 							<small>

@@ -30,25 +30,42 @@
 		/>).
 	</p>
 	<dl>
-		{#each $filteredTags.map($tagManager.get) as termino (termino.id)}
+		{#each $filteredTags.map($tagManager.get).filter((t) => t.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
-						{name.charAt(0).toUpperCase() + name.slice(1)}
+						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
-									Ver en la wiki
+									Es más complejo
 									<ArrowRight {style} />
 								</span>
 							</a>
 						{/if}
 					</dt>
 					<dd>
-						<MiniMarkup parsed value={termino.parsedDescription} />
+						{#each termino.parsedDescription as d}
+							{#if d.type == 'link'}
+								<Tag
+									tag={d.line}
+									onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, d.line)}
+									isCheckbox
+									checked={$page.url.searchParams.has('tags') &&
+										$page.url.searchParams.get('tags')?.split(',').includes(d.line)}
+									--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+									--font-size="1em"
+									--padding="0.1em 0.2em"
+									--border-radius=".3em"
+									noBorder
+								/>
+							{:else}
+								{d.line}
+							{/if}
+						{/each}
 
 						{#if termino.related}
 							<small>

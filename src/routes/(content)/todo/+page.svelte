@@ -21,25 +21,42 @@
 		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag tag="calendario" />, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa, por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag tag="libros" internalTag="libro" /> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag tag="clases" /> u ofrecen <InlineTag tag="sesiones" />.
 	</p>
 	<dl>
-		{#each $filteredTags.map($tagManager.get).filter(i=>i.description) as termino (termino.id)}
+		{#each $filteredTags.map($tagManager.get).filter(i=>i.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
-						{name.charAt(0).toUpperCase() + name.slice(1)}
+						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
-									Ver en la wiki
+									Es más complejo
 									<ArrowRight {style} />
 								</span>
 							</a>
 						{/if}
 					</dt>
 					<dd>
-						<MiniMarkup parsed value={termino.parsedDescription} />
+						{#each termino.parsedDescription as d}
+							{#if d.type == 'link'}
+								<Tag
+									tag={d.line}
+									onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, d.line)}
+									isCheckbox
+									checked={$page.url.searchParams.has('tags') &&
+										$page.url.searchParams.get('tags')?.split(',').includes(d.line)}
+									--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
+									--font-size="1em"
+									--padding="0.1em 0.2em"
+									--border-radius=".3em"
+									noBorder
+								/>
+							{:else}
+								{d.line}
+							{/if}
+						{/each}
 
 						{#if termino.related}
 							<small>
@@ -81,6 +98,7 @@
 		border-radius: 1em;
 		color: color-mix(in srgb, var(--color) 50%, black);
 		margin-bottom: 2em;
+		line-height: 1.5;
 		p {
 			font-size: var(--step-0);
 		}
@@ -95,7 +113,7 @@
 			background: transparent;
 			opacity: 0.3;
 			top: 0;
-			line-height: 0.6;
+			line-height: 1.4;
 			transition: 100ms;
 		}
 		button:hover {
