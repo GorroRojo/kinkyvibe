@@ -10,12 +10,16 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
-	let pinned = ['Gorro_Rojo', 'DemonWeb', 'TallarinesConTuco'];
+	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
 	let amiguesPosts = data.allPosts
 		.filter((p) => p.meta.layout == 'amigues')
 		.sort((a, b) => {
-			if (pinned.includes(a.meta.postID) && !pinned.includes(b.meta.postID)) {
+			if (pinned.includes(a.meta.postID)) {
+				if (pinned.includes(b.meta.postID)) {
+					return pinned.indexOf(a.meta.postID) - pinned.indexOf(b.meta.postID);
+				} else {
 					return -1;
+				}
 			} else return 0;
 		});
 
