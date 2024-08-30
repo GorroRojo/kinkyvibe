@@ -81,11 +81,6 @@
 <svelte:head>
 	<title>Kinkipedia - Enciclopedia Fetichista</title>
 </svelte:head>
-<p class="callout building" style:--callout-color="var(--2-dark)" style:width="100%">
-	<Construction style={wip_style} />
-	&ThickSpace; &ThickSpace; En construcción &ThickSpace; &ThickSpace;
-	<Construction style={wip_style} />
-</p>
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<p class="callout" style:--callout-color="var(--1)">
@@ -127,13 +122,6 @@
 		padding: 0.5em 0.76em;
 		border-radius: 1rem;
 
-		&.building {
-			max-width: 100%;
-			text-align: center;
-			padding-block: 0.3em;
-			text-transform: uppercase;
-			margin-bottom: 2em;
-		}
 		a {
 			text-decoration: underline var(--callout-secondary);
 			&:hover {
