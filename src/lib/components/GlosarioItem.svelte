@@ -1,8 +1,11 @@
 <script context="module">
+	import { ChevronRight, ChevronDown } from 'lucide-svelte';
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
-	import { tagManager, wikiTagManager } from '$lib/utils/stores';
+	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import { createCollapsible, melt } from '@melt-ui/svelte';
+	import { slide } from 'svelte/transition';
 </script>
 
 <script>
@@ -10,7 +13,16 @@
 	export let item = 'root';
 	export let single = false;
 	export let title = false;
-
+	const {
+		elements: { root, content, trigger },
+		states: { open },
+		options
+	} = createCollapsible();
+	query.subscribe((q) => {
+		if (q != '') {
+			open.set(true);
+		}
+	});
 	/**@type {ProcessedTag}*/
 	let tag = $wikiTagManager.get(item);
 	wikiTagManager.subscribe((wtm) => (tag = wtm.get(item)));
@@ -30,6 +42,7 @@
 		].filter(({ line }) => line);
 	const hasDescription = description?.length > 0;
 	const hasSub = tag.children?.length ?? 0 > 0;
+	let expanded = false;
 	let isVisible = isVisibleFn(item);
 	/**
 	 * @param {TagID} tagID
@@ -52,16 +65,22 @@
 			}
 		}
 	}
+	const style = `
+	scale: .8;
+	translate: 0 .4em;
+	color: var(--1);
+	`
 </script>
 
 {#if isVisible}
 	<div
+		use:melt={$root}
 		class="all"
 		class:single
 		class:title
 		style:--color={'var(--1)' ?? tag.getColor() ?? 'var(--2)'}
 	>
-		<dt id={name}>
+		<dt id={name} class:onlyTitle={!(hasDescription || tag.related)}>
 			<div class="itemtitle">
 				{#if !title && entry && entry.meta && entry.meta.wiki}
 					{tag?.icon ?? ''}
@@ -124,11 +143,21 @@
 					</div>
 				{/if}
 				{#if hasSub && !single}
-					<dl>
-						{#if hasSub}
-							<GlosarioTree root={item} />
+					<button class:open={$open} use:melt={$trigger} class="expand">
+						{#if $open}
+							<ChevronDown {style} />
+						{:else}
+							<span>
+								<ChevronRight {style} />
+								{$wikiTagManager.get(item)?.children?.length} más...
+							</span>
 						{/if}
-					</dl>
+					</button>
+					{#if $open}
+						<dl use:melt={$content}>
+							<GlosarioTree root={item} />
+						</dl>
+					{:else}{/if}
 				{/if}
 			</dd>
 		{/if}
@@ -152,6 +181,10 @@
 		z-index: 1;
 		position: relative;
 		font-size: var(--step-0-5);
+	}
+	dt.onlyTitle {
+		translate: 0;
+		margin-top: 0.5em;
 	}
 	dt a {
 		text-decoration-thickness: 3px;
@@ -202,5 +235,23 @@
 		/* padding:0; */
 		margin-top: 0.5em;
 		border-left: 2px solid color-mix(in srgb, var(--color, var(--1)) 40%, transparent);
+	}
+	button {
+		font-size: var(--step--1);
+		border: none;
+		color: var(--1);
+		padding: 0.6em 1em;
+		border-radius: var(--round);
+		/* display: inline-grid; */
+		/* place-items: center; */
+		background: transparent;
+		margin-top: 0.1em;
+		transition: 100ms;
+		background: #eee;
+	}
+	button.open {
+		position:absolute;
+		/* padding: 0; */
+		translate: -1.65em 0;
 	}
 </style>

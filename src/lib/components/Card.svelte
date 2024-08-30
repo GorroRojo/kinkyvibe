@@ -57,7 +57,7 @@
 					style:white-space={'nowrap'}
 					style:--hover-text-decoration={'underline white'}
 				>
-					<Tag {tag} isLink={mounted} />
+					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
 				</li>
 			{/each}
 		</ul>

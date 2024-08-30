@@ -12,10 +12,5 @@
 	});
 </script>
 {#each items as item}
-	{#if $wikiTagManager.get(item)?.children}
-		<GlosarioItem {item} />
-		<!-- <svelte:self root={child} {query} /> -->
-	{:else}
-		<GlosarioItem {item} />
-	{/if}
+	<GlosarioItem {item} />
 {/each}

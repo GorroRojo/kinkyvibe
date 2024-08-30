@@ -28,7 +28,7 @@
 				} else return { line, type };
 			})
 			.map(({ line, type }) => {
-				const nLine = normalize(line);
+				const nLine = normalize(line+'');
 				if (query != '' && nLine.includes(nQuery)) {
 					let nParts = nLine.split(nQuery);
 					let k = 0;
