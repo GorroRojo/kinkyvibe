@@ -22,14 +22,22 @@ export const hardcodedTags = [
 	},
 	{ id: 'idioma', icon: '🌐', children: ['español', 'LSA', 'inglés'], color: 'darkblue' },
 	{ id: 'español', icon: '🇪🇸' },
-	{ id: 'LSA', icon: '👉' },
+	{ id: 'LSA', icon: '🇦🇷' },
 	{ id: 'inglés', icon: '🇬🇧' },
 	{
 		id: 'lugar',
 		icon: '📍',
-		children: ['Online', 'AMBA', 'Córdoba', 'Santa Cruz', 'Chile', 'Montevideo'],
+		children: ['Online', 'Presencial'],
 		color: 'darkblue'
 	},
+	{ id: 'Online', icon: '🖥️' },
+	{ id: 'Presencial', icon: '👥', children: ['Argentina', 'Uruguay', 'Chile'] },
+	{ id: 'Argentina', icon: '🇦🇷', children: ['AMBA', 'Córdoba', 'Santa Cruz'] },
+	{ id: 'AMBA', icon: '𓉶' },
+	{ id: 'Córdoba', icon: '♜'},
+	{ id: 'Santa Cruz', icon: '⛰️' },
+	{ id: 'Uruguay', icon: '🇺🇾', children: ['Montevideo'] },
+	{ id: 'Chile', icon: '🇨🇱' },
 	{ id: 'precio', icon: '💸', children: ['pago', 'a la gorra', 'gratis'], color: 'darkblue' },
 	{ id: 'pago', icon: '💲' },
 	{ id: 'a la gorra', icon: '🧢' },
@@ -126,6 +134,7 @@ export const hardcodedTags = [
 	{ id: 'terapia', icon: '🗨️' },
 	{ id: 'editorial', icon: '📚' },
 	{
+		icon: '❤️',
 		id: 'BDSM',
 		description:
 			'Una conjunción de [[bondage]] y [[disciplina]], [[dominación]] y [[sumisión]], y [[sadismo]] y [[masoquismo]].',
@@ -192,6 +201,7 @@ export const hardcodedTags = [
 		description:
 			'Excitación que algunas personas experimentan al recibir dolor y/o sufrir de forma consensuada.'
 	},
+	{ icon: '🕕', id: '24/7' },
 	{
 		id: 'prácticas',
 		children: [
@@ -232,11 +242,13 @@ export const hardcodedTags = [
 		children: ['paleta', 'palmeta', 'látigo', 'fusta']
 	},
 	{
+		icon: '🏏',
 		id: 'paleta',
 		description:
 			'Implemento de [[impacto]] generalmente plano y rectangular. Similar a las [[palmeta]]s pero con mayor peso y rigidez. Suele venir de madera, acrílico o plástico rígido, etc'
 	},
 	{
+		icon: '🥍',
 		id: 'palmeta',
 		description:
 			'Implemento de [[impacto]] generalmente plano y rectangular, comúnmente flexible y de cuero/ina. Pueden venir con calados, peluches o tachas para distintas [[sensaciones]].'
@@ -277,16 +289,17 @@ export const hardcodedTags = [
 		color: '#ff4444'
 	},
 	{
+		icon: '💦',
 		id: 'squirt',
 		visible_name: 'Eyaculación vaginal',
 		aka: ['squirt', 'eyaculación prostática'],
 		description:
 			'Expulsión de fluidos liberados por las glándulas de Anarcha (ex glándula de Skene) durante la estimulación genital de personas que nacieron con agujero frontal/canal vaginal.'
 	},
-	{ id: 'antipunitivismo', color: 'var(--2)' },
-	{ id: 'despatologización', color: 'var(--2)' },
-	{ id: 'neurodivergencia', color: 'var(--2)' },
-	{ id: 'vincularidad', children: ['no monogamia', 'celos'], color: 'var(--2)' },
+	{ icon: '⚖️', id: 'antipunitivismo', color: 'var(--2)' },
+	{ icon: '⚕️', id: 'despatologización', color: 'var(--2)' },
+	{ icon: '♾️', id: 'neurodivergencia', color: 'var(--2)' },
+	{ icon: '💞', id: 'vincularidad', children: ['no monogamia', 'celos'], color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
 	{ id: 'queer', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad'] },
 	{
@@ -295,8 +308,9 @@ export const hardcodedTags = [
 		description:
 			'Orientación sexual caracterizada por no sentir atracción sexual hacía otras personas.'
 	},
-	{ id: 'top', description: 'Comúnmente, la persona que "da" una [[práctica]].' },
+	{ icon: '⬆️', id: 'top', description: 'Comúnmente, la persona que "da" una [[práctica]].' },
 	{
+		icon: '⬇️',
 		id: 'bottom',
 		description:
 			'Comúnmente, la persona que "recibe" una [[práctica]]. Hay múltiples formas y sabores de bottom: [[conejite de cuerdas]], [[power bottom]], [[Dom]] bottom, [[brat]] bottom, etc...'
@@ -304,17 +318,19 @@ export const hardcodedTags = [
 	{
 		id: 'disciplina',
 		icon: '📏',
-		related: ['bondage'],
+		related: ['bondage', 'brat'],
 		description:
 			'Enseñarle a le [[bottom]] y/o [[sub]] a obedecer órdenes, o a seguir las reglas que le Dom establezca a través de premios y/o castigos. También puede incluir modificación del comportamiento.'
 	},
 	{
+		icon: '📝',
 		id: 'protocolo',
 		related: ['intercambio de poder'],
 		description:
 			'Serie de normas consensuadas, generalmente entre Doms y Subs que pautan comportamientos, reglas, simbolismos y valores dentro de una dinámica D/s'
 	},
 	{
+		icon: '🍆',
 		id: 'pegging',
 		description:
 			'Históricamente usado para referirse a el acto de que una mujer cis penetre analmente con un strap on/cinturonga a un hombre cis. Hoy en día es utilizado por algunas personas para referirse a cualquier persona que use un strap-on para sexo anal, aunque suele circular más con ese nombre cuando se usa sobre hombres cis.'
@@ -329,13 +345,21 @@ export const hardcodedTags = [
 			'Donde las partes acuerdan "actuar" roles (enfermera/médicx, profesore/alumne, Dueño/mascota, etc), algunas veces incluye [[intercambio de poder]].'
 	},
 	{
+		icon: '😤',
 		id: 'primal',
 		visible_name: 'Juegos primales',
 		aka: ['juegos primales', 'primal play'],
 		related: ['mascota']
 	},
-	{ id: 'mascota', visible_name: 'Juegos de mascotas', aka: ['pet'], related: ['primal'] },
 	{
+		icon: '🐕‍🦺',
+		id: 'mascota',
+		visible_name: 'Juegos de mascotas',
+		aka: ['pet'],
+		related: ['primal']
+	},
+	{
+		icon: '😈',
 		id: 'brat',
 		aka: ['malcriade'],
 		related: ['disciplina'],
@@ -343,12 +367,14 @@ export const hardcodedTags = [
 			'Un rol donde se toma actitud rebelde y provocadora a través de acciones o palabras. En caso de ser sumi, usualmente es buscando un castigo como consecuencia.'
 	},
 	{
+		icon: '🟢',
 		id: 'cnc',
 		visible_name: 'No-consenso consensuado',
 		aka: ['cnc', 'consensual non-consent'],
 		description:
 			'Juego de roles donde se forcejea y finge una falta de consentimiento. Puede encontrarse como parte de otros roles y dinámicas.'
 	},
+	{ icon: '🗣️', id: 'hablar sucio' },
 	{
 		id: 'cazadore-presa',
 		icon: '🏹',
@@ -366,29 +392,34 @@ export const hardcodedTags = [
 			'Un término paraguas para referirse a cualquier tipo de juego en donde alguna persona adulta pretenda tener una edad diferente a la que tiene en la actualidad.'
 	},
 	{
+		icon: '👶',
 		id: 'pequeñe',
 		aka: ['peque', 'little'],
 		description:
 			'Suele ser como se le llama a las personas adultas que juegan a tener menos edad que su edad cronológica en juegos con la [[edad]].'
 	},
 	{
+		icon: '🤟',
 		id: 'middle',
 		aka: ['lolite'],
 		description:
 			'Personas adultas que disfrutan de tomar roles relacionados a la adolescencia / pubertad en juegos con la [[edad]]. También "lolites".'
 	},
 	{
+		icon: '🧑‍🍼',
 		id: 'cuidadore',
 		aka: ['caregiver', 'caretaker'],
 		description:
 			'Refiere a personas que quieren jugar a cuidar / compartir con [[pequeñe]]s sin tomar algún rol especifico.'
 	},
 	{
+		icon: '💼',
 		id: 'grande',
 		description:
 			'En los juegos con la [[edad]], son personas que juegan a tener más edad que su edad cronológica y / o son les [[cuidadore]]s.'
 	},
 	{
+		icon: '👨‍👧',
 		id: 'ddlg',
 		visible_name: 'Papi Dom / niña pequeña',
 		aka: ['Daddy Dom/little girl', 'DD/lg'],
@@ -413,17 +444,20 @@ export const hardcodedTags = [
 		related: ['sensaciones', 'juego de roles', 'miedo', 'dolor', 'calentamiento']
 	},
 	{
+		icon: '♨️',
 		id: 'calentamiento',
 		description:
 			'Práctica de impacto de baja intensidad para preparar una zona del cuerpo a ser impactada con mayor fuerza. Típicamente se hace como comienzo de una sesión de impacto. Reduce las chances de generar moretones.'
 	},
 	{ id: 'golpes', icon: '🤜', description: 'Práctica de impacto utilizando los puños' },
 	{
+		icon: '🍑',
 		id: 'nalgueadas',
 		aka: ['spanking'],
 		description: 'Práctica de impactar con las manos sobre las nalgas de une misme u otre'
 	},
 	{
+		icon: '🦯',
 		id: 'bastinado',
 		description:
 			'Práctica de impacto realizada específicamente sobre la planta del pie, clásicamente con una varilla.'
@@ -472,6 +506,7 @@ export const hardcodedTags = [
 		aka: ['fire play']
 	},
 	{
+		icon: '⛓️',
 		id: 'bondage',
 		children: ['cuerdas', 'momificación', 'restricción mental'],
 		aka: ['juegos con restricciones'],
@@ -543,6 +578,7 @@ export const hardcodedTags = [
 			'Meter 4 o más dedos en el canal vaginal/agujero frontal o en el ano, muchas veces llegando a meter la mano entera y cerrándola en un puño.'
 	},
 	{
+		icon: '🛞',
 		id: 'rimming',
 		aka: ['anilingus'],
 		description: 'practicar sexo oral a un ano'
@@ -554,6 +590,7 @@ export const hardcodedTags = [
 		description: 'Contemplar, acariciar, masajear, oler, lamer o besar pies, entre otras.'
 	},
 	{
+		icon: '🫣',
 		id: 'humillación',
 		visible_name: 'Humillación erótica',
 		aka: ['erotic humilliation'],
@@ -562,6 +599,7 @@ export const hardcodedTags = [
 			'Tomar acciones, objetos, palabras que en el "mundo exterior" (subjetivo de cada persona) parecerían "humillantes" y re contextualizarlas en un marco erótico a través de un lente de apreciación, cuidado, aceptación y disfrute.'
 	},
 	{ id: 'asfixia', icon: '😶‍🌫️', children: ['respiración', 'estrangulación', 'headscissors'] },
+	{ icon: '😨', id: 'miedo' },
 	{
 		id: 'respiración',
 		icon: '🫁',
@@ -583,6 +621,7 @@ export const hardcodedTags = [
 		description: '[[estrangulación]] generada rodeando el cuello con los muslos.'
 	},
 	{
+		icon: '💊',
 		id: 'chemsex',
 		visible_name: 'Juego con drogas',
 		aka: ['PNP', 'Party and Play', 'chemsex'],
@@ -591,6 +630,7 @@ export const hardcodedTags = [
 			'Prácticas sexuales o [[sadomasoquista]]s hechas consicentemente bajo el uso de sustancias psicoactivas/drogas recreacionales. Usualmente en fiestas. Considerado un tipo de [[juego límite]]'
 	},
 	{
+		icon: '😫',
 		id: 'edging',
 		visible_name: 'Edgear',
 		aka: ['edging', 'tease and denial'],
@@ -610,7 +650,7 @@ export const hardcodedTags = [
 		aka: ['golden shower', 'watersports', 'piss play', 'juegos con pis'],
 		description: 'Orinar sobre el cuerpo de le [[bottom]]'
 	},
-	{ id: 'comida', icon: '🍑', children: ['enchastre'] },
+	{ id: 'comida', icon: '🍰', children: ['enchastre'] },
 	{
 		id: 'enchastre',
 		aka: ['sploshing', 'wet and messy', 'WAM'],
