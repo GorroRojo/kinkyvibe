@@ -13,6 +13,8 @@ tags:
   - AMBA
   - queer
   - shibari
+  - comunidad
+  - eventos
 layout: amigues
 category: amigues
 authors:
