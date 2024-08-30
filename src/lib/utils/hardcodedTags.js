@@ -34,7 +34,7 @@ export const hardcodedTags = [
 	{ id: 'Presencial', icon: '👥', children: ['Argentina', 'Uruguay', 'Chile'] },
 	{ id: 'Argentina', icon: '🇦🇷', children: ['AMBA', 'Córdoba', 'Santa Cruz'] },
 	{ id: 'AMBA', icon: '𓉶' },
-	{ id: 'Córdoba', icon: '♜'},
+	{ id: 'Córdoba', icon: '♜' },
 	{ id: 'Santa Cruz', icon: '⛰️' },
 	{ id: 'Uruguay', icon: '🇺🇾', children: ['Montevideo'] },
 	{ id: 'Chile', icon: '🇨🇱' },
@@ -598,7 +598,13 @@ export const hardcodedTags = [
 		description:
 			'Tomar acciones, objetos, palabras que en el "mundo exterior" (subjetivo de cada persona) parecerían "humillantes" y re contextualizarlas en un marco erótico a través de un lente de apreciación, cuidado, aceptación y disfrute.'
 	},
-	{ id: 'asfixia', icon: '😶‍🌫️', children: ['respiración', 'estrangulación', 'headscissors'] },
+	{
+		id: 'asfixia',
+		icon: '😶‍🌫️',
+		children: ['respiración', 'estrangulación', 'headscissors'],
+		description:
+			'Reducir la cantidad de oxígeno que llega al cerebro de le [[bottom]] para generar distintas [[sensaciones]] o como muestra de un [[intercambio de poder]] mediante [[estrangulación]] o juegos con la [[respiración]]'
+	},
 	{ icon: '😨', id: 'miedo' },
 	{
 		id: 'respiración',
@@ -606,7 +612,7 @@ export const hardcodedTags = [
 		visible_name: 'Juegos con la Respiración',
 		aka: ['breath play'],
 		description:
-			'Restricción intencional del oxígeno que llega al cerebro mediante [[control]], [[implementos]] o [[dominación]] física'
+			'Restricción intencional del aire que inspira mediante [[control]], [[implementos]] o [[dominación]] física'
 	},
 	{
 		id: 'estrangulación',
