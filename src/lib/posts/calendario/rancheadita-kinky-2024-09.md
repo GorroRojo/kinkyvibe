@@ -26,7 +26,7 @@ status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-09-22T18:30-03:00
 end:   2024-09-22T21:30-03:00
-location: San Telmo, Ciudad Autónoma de Buenos Aires
+location: Bolivar y Finochietto, San Telmo, Ciudad Autónoma de Buenos Aires
 location_name: Tacheles
 # link: 'https://forms.gle/wDdUJ8cHGu6271jc6'
 link_text: Inscibirme

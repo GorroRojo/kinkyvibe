@@ -24,7 +24,7 @@ start: 2024-09-12T20:00-03:00
 end:   2024-09-12T23:00-03:00
 # location: Fitz Roy 1327, CABA
 # location_name: Casa Sofía
-# link: https://forms.gle/xe35TDD855cfZWL38
+link: https://forms.gle/ZFxnSMbhmS9JvL7S7
 link_text: ENTRADAS
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

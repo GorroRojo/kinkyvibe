@@ -25,7 +25,7 @@ status: abierto # abierto | anunciado | lleno | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2024-09-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-09-21T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: San Telmo, Ciudad Autónoma de Buenos Aires
+location: Bolivar y Finochietto, San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Cooperativa Cultural Qi
 # link: https://forms.gle/Yajf4i5pxMx6Gh3A9
 link_text: 'PRE VENTA'
