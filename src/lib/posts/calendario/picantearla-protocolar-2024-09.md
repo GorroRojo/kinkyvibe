@@ -27,7 +27,7 @@ start: 2024-09-13T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-09-14T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: la jaula de olivos
-# link: https://forms.gle/nk1zLgPwovyJ18os9
+link: https://forms.gle/bnAWFew3TB37Tsat9
 link_text: 'PRE-VENTA'
 ---
 
@@ -35,7 +35,7 @@ link_text: 'PRE-VENTA'
 
 En este evento buscamos zambullirnos en las hermosas aguas de la **Dominación/sumisión** y proponer una juntada de juegos en **donde todes estemos en rol**.
 
-> O sea, **un juego de roles que durará varias horas**. Dirigido a personas que quieran estar en el rol de **Sub** <small>(esclaves, perrites, brats subs, gatites, subs de servicio, pets de todo tipo, y más)</small> y a personas que quieran estar en el rol de **Dom** <small>(dueñes, señores, cuidadores, domadores de brats, y más!)</small>
+> O sea, **un juego de roles que durará varias horas**. Dirigido a personas que quieran estar en el rol de **Sumi** <small>(esclaves, perrites, brats subs, gatites, subs de servicio, pets de todo tipo, y más)</small> y a personas que quieran estar en el rol de **Dom** <small>(dueñes, señores, cuidadores, domadores de brats, y más!)</small>
 
 Para eso vamos a estar implementando "**protocolos**" y stickers (que diferencien roles). Algunos protocolos van a ser la base del evento (aunque igual podés no realizarlos) y otros van a ser negociados.
 
