@@ -10,6 +10,9 @@ tags:
   - profesional
   - AMBA
   - KinkyVibe
+  - clases
+  - comunidad
+  - eventos
 layout: amigues
 category: amigues
 authors:

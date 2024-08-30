@@ -10,6 +10,8 @@ tags:
   - comunidad
   - terapia
   - AMBA
+  - vincularidad
+  - no-monogamia
 layout: amigues
 category: amigues
 authors:
