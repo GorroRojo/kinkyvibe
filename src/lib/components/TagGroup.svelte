@@ -99,7 +99,6 @@
 		flex-direction: column;
 		min-width: 0;
 		align-items: stretch;
-		font-family: sans-serif;
 		--border-radius: 0.3em;
 		transition: 100ms;
 		justify-content: center;
