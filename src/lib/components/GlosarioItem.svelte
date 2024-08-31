@@ -69,7 +69,7 @@
 	scale: .8;
 	translate: 0 .4em;
 	color: var(--1);
-	`
+	`;
 </script>
 
 {#if isVisible}
@@ -157,7 +157,7 @@
 						<dl use:melt={$content}>
 							<GlosarioTree root={item} />
 						</dl>
-					{:else}{/if}
+					{/if}
 				{/if}
 			</dd>
 		{/if}
@@ -250,7 +250,7 @@
 		background: #eee;
 	}
 	button.open {
-		position:absolute;
+		position: absolute;
 		/* padding: 0; */
 		translate: -1.65em 0;
 	}

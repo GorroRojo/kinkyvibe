@@ -127,6 +127,9 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 	return processedPost;
 }
 
+/**
+ * @param {TagManager} tagManager
+ */
 export function tagSorter(tagManager) {
 	/**
 	 * @param {ProcessedTag} tag
