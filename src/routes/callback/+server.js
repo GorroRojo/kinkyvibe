@@ -9,7 +9,7 @@ export async function GET(request) {
 	request.locals.user_token = token;
 	request.cookies.set('prevToken', request.cookies.get('userToken') ?? '', { path: '/' });
 	request.cookies.set('userToken', token, { path: '/' });
-	throw redirect(302, '/');
+	redirect(302, '/');
 }
 
 /**

@@ -24,7 +24,7 @@
 		{@const config = $tagManager.get(tag)}
 		{@const color = config?.getColor() ?? 'var(--color,var(--1))'}
 		{@const icon = config?.icon ?? ''}
-		<li style:--tag-color={color} class:invisible in:scale animate:flip>
+		<li style:--tag-color={color} class:invisible in:scale|global animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>
 				{icon} {tag}
 			</a>

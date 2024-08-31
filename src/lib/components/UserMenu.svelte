@@ -37,7 +37,7 @@
 		{user.name ?? user.login}
 	</span>
 	{#if $open}
-	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
+	<div class="menu" use:melt={$menu} transition:fly|global={{ duration: 150, y: -10 }}>
 		{#if admin}
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
 		{#if isPageEditable}

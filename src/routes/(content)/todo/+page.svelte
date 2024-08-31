@@ -23,7 +23,7 @@
 	<dl>
 		{#each $filteredTags.map($tagManager.get).filter(i=>i.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
-			<div animate:flip in:fade>
+			<div animate:flip in:fade|global>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>

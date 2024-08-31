@@ -108,7 +108,7 @@
 		]}
 		<div class="tagfilters">
 			{#each tags as tag, i (tag.id)}
-				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+				<div class="tag-group-container" in:scale|global={{ duration: 500 /*@ts-ignore*/ }}>
 					<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
 				</div>
 			{/each}

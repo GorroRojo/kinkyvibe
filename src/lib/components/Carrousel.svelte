@@ -67,7 +67,7 @@
 	style:--currColor={currColor}
 	style:--currAccent={currAccent}
 	style:--currAccentBg={currAccentBg}
-	out:fade
+	out:fade|global
 >
 	<button
 		on:click={() => {
@@ -79,13 +79,13 @@
 		<div class="slide">
 			<div class="img-wrapper">
 				<img
-					in:spin={{ duration: 1500 }}
-					out:spin={{ duration: 1500 }}
+					in:spin|global={{ duration: 1500 }}
+					out:spin|global={{ duration: 1500 }}
 					src={(post.meta.logo ?? post.meta.featured) + ''}
 					alt=""
 				/>
 			</div>
-			<div class="details" in:fade={{ delay: 1100 }} out:fade>
+			<div class="details" in:fade|global={{ delay: 1100 }} out:fade|global>
 				<h2>
 					{format(new Date(post.meta.start), 'EEEE dd', { locale: es })} - {@html (
 						post.meta.location_name ?? 'Online'

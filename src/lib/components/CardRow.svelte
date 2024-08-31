@@ -12,8 +12,8 @@
 
 <div
 	{id}
-	in:fly={{ y: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-	out:fly={{ y: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
+	in:fly|global={{ y: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
+	out:fly|global={{ y: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
 	class="cardrowcontainer"
 >
 	{#if title}

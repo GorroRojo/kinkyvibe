@@ -209,7 +209,7 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 	return [...processedPosts];
 };
 
-/** @type {import('svelte/action').Action}  */
+/** @type {import('svelte/action').Action<HTMLElement, any>}  */
 export const processContent = async (node) => {
 	// @ts-ignore
 	node.querySelectorAll('a.mention').forEach(async (/**@type {HTMLAnchorElement}*/ el) => {

@@ -9,7 +9,7 @@
 </script>
 
 {#if !mayorDeEdad}
-	<div class="background" transition:fade>
+	<div class="background" transition:fade|global>
 		<div class="content box">
 			<h2>¿Sos mayor de 16 años?</h2>
 			<div class="button-group">

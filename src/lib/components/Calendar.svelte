@@ -30,22 +30,20 @@
 
 {#key $view_date}
 	<div class="grid">
-		<!-- in:fly={{ x: 100 * $month_change_direction, duration: 300, delay: 300 }}
-	out:fly={{ x: -100 * $month_change_direction, duration: 300 }} -->
 		{#each WEEK_DAYS as day, i}
-			<div class="week-days" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
+			<div class="week-days" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }}>
 				{day}
 			</div>
 		{/each}
 		{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
-			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }} />
+			<div class="cell" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }} />
 		{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate($view_date, i + 1)}
 			{@const date = format(date_og, 'yyyy-MM-dd')}
 			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
 			{@const past = isPast(addDays(date_og, 1))}
-			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
+			<div class="cell" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }}>
 				<slot {date} {today} {past}>
 					{date_og.toLocaleDateString(undefined, { day: 'numeric' })}
 				</slot>

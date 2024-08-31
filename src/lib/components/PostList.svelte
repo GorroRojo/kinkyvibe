@@ -98,9 +98,9 @@
 
 			{#key $userConfig.display_type}
 				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
+				<ul id="posts" in:fade|global={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
 					{#each tagFilteredPosts as post, i (post.path)}
-						<li in:scale={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
+						<li in:scale|global={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
 							<svelte:component this={Item} {post} />
 						</li>
 					{/each}

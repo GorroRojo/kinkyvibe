@@ -138,7 +138,7 @@
 	</div>
 {/if}
 {#key data.currentRoute}
-	<main in:fade={{ duration: 300, delay: 300 }}>
+	<main in:fade|global={{ duration: 300, delay: 300 }}>
 		<slot />
 	</main>
 {/key}

@@ -33,7 +33,7 @@
 </script>
 
 <div
-	in:scale={{ duration: 500 }}
+	in:scale|global={{ duration: 500 }}
 	class="filtergroup"
 	style:--tag-color={tag.getColor() ?? 'inherit'}
 	class:noname
@@ -41,7 +41,7 @@
 	class:gap
 >
 	{#if tag.id && !noname}
-		<span in:scale={{ duration: 500 }} class="groupname">
+		<span in:scale|global={{ duration: 500 }} class="groupname">
 			<Tag
 				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
 				icon={tag.icon ?? ''}
@@ -55,10 +55,10 @@
 		</span>
 	{/if}
 	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
-		<ul class="groupitems" in:scale={{ duration: 500 }}>
+		<ul class="groupitems" in:scale|global={{ duration: 500 }}>
 			{#each tag.children.filter(isVisible) ?? [] as item (item)}
 				{@const subTag = $tagManager.get(item)}
-				<li in:scale={{ duration: 500 }}>
+				<li in:scale|global={{ duration: 500 }}>
 					{#if !subTag?.children || subTag.children.length == 0}
 						{#if mounted}
 							<Tag
