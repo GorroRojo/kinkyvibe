@@ -1,8 +1,10 @@
 ---
 published_date: 2024-08-28Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: Vínculos, neurodivergencias y salud mental
-summary: '¿Cómo nos acercamos a hacer acuerdos que funcionen en nuestras relaciones? ¿Siempre son necesarios o viables? ¿Por qué, a pesar de tenerlos, los conflictos pueden no desaparecer?'
+title: Construyendo acuerdos en nuestras relaciones
+summary: '¿Cómo nos acercamos a hacer acuerdos que funcionen en nuestras
+  relaciones? ¿Siempre son necesarios o viables? ¿Por qué, a pesar de tenerlos,
+  los conflictos pueden no desaparecer?'
 tags:
   - español
   - a la gorra # pago | gratis | a la gorra #
@@ -21,11 +23,13 @@ featured: 1
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2024-08-14Z-03:00
 start: 2024-09-26T19:00-03:00
-end:   2024-09-26T20:30-03:00
+end: 2024-09-26T20:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/YtJkWhWn5DrDXNUs5'
 link_text: A LA GORRA!
+updated_date: 2024-08-30Z-03:00
+
 ---
 ## ¿De qué se trata esta propuesta? #
 
