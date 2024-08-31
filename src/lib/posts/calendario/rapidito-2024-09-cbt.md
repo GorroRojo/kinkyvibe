@@ -8,7 +8,7 @@ tags:
   - LSA
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - Online # online | AMBA | Córdoba | Santa Cruz #
+  - Online # online | AMBA | Có}rdoba | Santa Cruz #
   - taller
   - cbt
 layout: calendario
@@ -18,7 +18,7 @@ authors:
   - DemonWeb
 featured: 1
 #logo: 2
-# force_unlisted: true
+force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00

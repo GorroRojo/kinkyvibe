@@ -27,7 +27,7 @@ status: abierto # abierto | anunciado | lleno | cancelado
 start: 2024-09-17T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-09-17T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-# link: https://forms.gle/6vyGbneV4wQ2QmS77
+link: https://forms.gle/RnU6PW9BqW6NQdRf9
 link_text: 'INSCRIPCIÓN'
 ---
 
