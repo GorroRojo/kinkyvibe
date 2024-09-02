@@ -25,7 +25,7 @@ start: 2024-09-26T20:30-03:00
 end: 2024-09-26T23:30-03:00
 # location: Medrano 627, Ciudad Autónoma de Buenos Aires
 # location_name: Cultural Batacazo
-# link: https://forms.gle/onN9bJrQMwJLEDb69
+link: https://forms.gle/idJi4gENpe9XeDmV8
 link_text: Inscribite
 updated_date: 2024-09-02Z-03:00
 

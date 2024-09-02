@@ -16,9 +16,9 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: 1
+# featured: 1
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
@@ -26,7 +26,7 @@ start: 2024-09-27T20:00-03:00
 end:   2024-09-27T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/pgmnro5AdSBRreUm8
+link: https://forms.gle/aRDe82WweAVgLzik9
 link_text: INSCRIBIRME
 # updated_date: 2024-08-28Z-03:00
 

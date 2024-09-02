@@ -30,7 +30,7 @@ start: 2024-09-28T20:00-03:00
 end: 2024-09-28T23:00-03:00
 location: Av. Córdoba 5217, Ciudad Autónoma de Buenos Aires
 location_name: La Casa del Arbol
-# link: 'https://forms.gle/Net3hqi6RaTxtJMG8'
+link: 'https://forms.gle/3vbHS8MX9fttMDPb7'
 link_text: Reservar lugar
 updated_date: 2024-09-02Z-03:00
 
