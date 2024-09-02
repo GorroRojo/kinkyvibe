@@ -2,7 +2,10 @@
 published_date: 2024-08-28Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Troles & Tableros
-summary: 'Espacio de juegos de mesa hecho por troles neurodivergentes kinky para troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!'
+summary: 'Espacio de juegos de mesa hecho por troles neurodivergentes kinky para
+  troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos
+  y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia
+  y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -24,15 +27,18 @@ featured: troles-y-tableros-miniatura.jpg
 status: abierto # anunciado | abierto | lleno | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-09-28T20:00-03:00
-end:   2024-09-28T23:00-03:00
+end: 2024-09-28T23:00-03:00
 location: Av. Córdoba 5217, Ciudad Autónoma de Buenos Aires
 location_name: La Casa del Arbol
 # link: 'https://forms.gle/Net3hqi6RaTxtJMG8'
 link_text: Reservar lugar
+updated_date: 2024-09-02Z-03:00
+
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+
 ---
 Espacio de juegos de mesa hecho por troles neurodivergentes kinky para troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!
 
