@@ -110,7 +110,7 @@
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
-				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && status && status == 'abierto' && !past}
+				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
 					<add-to-calendar-button
 						style={`
 							--btn-text: white;
@@ -147,7 +147,7 @@
 					<!-- location="World Wide Web" -->
 					<!-- trigger="hover" -->
 				{/if}
-				{#if (status && ['cancelado', 'lleno'].includes(status)) || past}
+				{#if (status && ['cancelado', 'agotadas'].includes(status)) || past}
 					<small class="status">
 						{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}
 					</small>

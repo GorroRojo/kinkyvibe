@@ -21,7 +21,7 @@ authors:
 featured: taller-sumision-principiantes-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2024-08-29T19:00-03:00
 end: 2024-08-29T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires

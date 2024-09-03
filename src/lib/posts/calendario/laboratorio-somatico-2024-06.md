@@ -17,7 +17,7 @@ authors:
 featured: laboratorio-somatico-miniatura.png
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 22-09-2023Z-03:00
 start: 2024-06-28T17:00-03:00
 end:   2024-06-28T21:00-03:00

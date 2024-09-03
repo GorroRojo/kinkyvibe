@@ -20,7 +20,7 @@ authors:
 featured: taller-dominacion-principiantes-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2024-04-12T20:00-03:00
 end:   2024-04-12T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires

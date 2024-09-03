@@ -16,7 +16,7 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2023-09-10T15:00-03:00
 end: 2023-09-10T18:30-03:00
 carrousel_background: 'var(--3)'

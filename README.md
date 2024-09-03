@@ -159,7 +159,7 @@ Los colores, alias, y grupos están en [\_tags.md](/src/lib/posts/_tags.md?plain
 - Calendario
   - etiquetas particulares de eventos:
     - feria, charla, debate?, picnic?, social?, juegos?, taller
-  - status\* (abierto | anunciado | lleno| terminado?pasado? no, se hace solo con la fecha eso.)
+  - status\* (abierto | anunciado | agotadas| terminado?pasado? no, se hace solo con la fecha eso.)
   - start\*
   - end / duration \*
   - location (si no hay, es online)

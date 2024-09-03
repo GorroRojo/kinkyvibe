@@ -19,7 +19,7 @@ featured: taller-bondage-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-05-04T18:30-03:00
 end:   2024-05-04T21:30-03:00

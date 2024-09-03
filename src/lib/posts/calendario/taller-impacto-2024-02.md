@@ -18,7 +18,7 @@ authors:
 featured: taller-impacto-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: cancelado # anunciado | abierto | lleno | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 start: 2024-02-28T19:00-03:00
 end:   2024-02-28T22:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires

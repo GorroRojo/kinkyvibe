@@ -21,7 +21,7 @@ featured: picantearla-protocolar-miniatura.png
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2024-01-20T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-01-21T01:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00

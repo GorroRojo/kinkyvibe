@@ -84,7 +84,7 @@
  * }} MaterialPostData
  */
 /** @typedef {PostData & {
- *		status: 'abierto' | 'anunciado' | 'lleno' | 'cancelado',
+ *		status: 'abierto' | 'anunciado' | 'agotadas' | 'cancelado',
  * 		start: string,
  * 		end?: string,
  * 		duration?: Date,

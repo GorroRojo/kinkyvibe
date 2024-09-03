@@ -26,7 +26,7 @@ authors:
 featured: picantearla-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2023-09-22T21:00-03:00
 end: 2023-09-23T02:00-03:00
 location: Av Maipú 2535, Olivos

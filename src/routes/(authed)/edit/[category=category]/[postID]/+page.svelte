@@ -142,7 +142,7 @@
 				options: [
 					{ label: 'Anunciado (link oculto)', value: 'anunciado', default: true },
 					{ label: 'Abierto a inscripciones', value: 'abierto' },
-					{ label: 'Inscripciones agotadas', value: 'lleno' },
+					{ label: 'Inscripciones agotadas', value: 'agotadas' },
 					{ label: 'Cancelado', value: 'cancelado' }
 				]
 			},

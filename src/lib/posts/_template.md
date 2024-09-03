@@ -65,7 +65,7 @@ authors:
 ## ------ Para publicaciónes de 'calendario' ------ ##
 ######################################################
 
-#status: abierto  # anunciado | abierto | lleno | cancelado #
+#status: abierto  # anunciado | abierto | agotadas | cancelado #
 # Una vez ya haya pasado, esto se vuelve irrelevante automáticamente
 
 #start: 2023-06-02T20:00-03:00

@@ -22,7 +22,7 @@ authors:
 featured: cine-para-sucixs-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 opening_date: 2023-09-03Z-03:00
 start: 2023-11-25T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2023-11-26T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
