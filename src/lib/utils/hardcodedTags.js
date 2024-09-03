@@ -215,6 +215,7 @@ export const hardcodedTags = [
 			'impacto',
 			'sensaciones',
 			'bondage',
+			'predicamento',
 			'privación sensorial',
 			'intercambio de poder',
 			'cuchillos',
@@ -348,8 +349,9 @@ export const hardcodedTags = [
 		icon: '😤',
 		id: 'primal',
 		visible_name: 'Juegos primales',
-		aka: ['juegos primales', 'primal play'],
-		related: ['mascota']
+		aka: ['primal play'],
+		related: ['mascota', 'cazadore-presa'],
+		description: 'Juego de roles en donde se toman características asociadas a lo animalístico no-humano. Algunos ejemplos serían: rasguñar, gruñir, morder, etc.'
 	},
 	{
 		icon: '🐕‍🦺',
@@ -444,6 +446,13 @@ export const hardcodedTags = [
 		related: ['sensaciones', 'juego de roles', 'miedo', 'dolor', 'calentamiento']
 	},
 	{
+		id: 'predicamento',
+		icon: '⚖️',
+		description:
+			'Colocar a le [[bottom]] en una situación donde tenga que elegir entre dos posiciones que son incómodas o dolorosas de distintas formas, frecuentemente hecho con [[bondage]].',
+		related: ['sadomasoquismo']
+	},
+	{
 		icon: '♨️',
 		id: 'calentamiento',
 		description:
@@ -511,7 +520,7 @@ export const hardcodedTags = [
 		children: ['cuerdas', 'momificación', 'restricción mental'],
 		aka: ['juegos con restricciones'],
 		description: 'Las [[prácticas]] de restricción física.',
-		related: ['humillación', 'objetificación', 'privación sensorial', 'disciplina']
+		related: ['humillación', 'objetificación', 'privación sensorial', 'disciplina', 'predicamento']
 	},
 	{
 		id: 'cuerdas',
@@ -601,7 +610,7 @@ export const hardcodedTags = [
 	{
 		id: 'asfixia',
 		icon: '😶‍🌫️',
-		children: ['respiración', 'estrangulación', 'headscissors'],
+		children: ['headscissors'],
 		description:
 			'Reducir la cantidad de oxígeno que llega al cerebro de le [[bottom]] para generar distintas [[sensaciones]] o como muestra de un [[intercambio de poder]] mediante [[estrangulación]] o juegos con la [[respiración]]'
 	},
