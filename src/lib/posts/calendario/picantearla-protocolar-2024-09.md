@@ -31,7 +31,7 @@ link: https://forms.gle/bnAWFew3TB37Tsat9
 link_text: 'PRE-VENTA'
 ---
 
-¡BIENVENIDE A LA PRIMERA EDICIÓN PROTOCOLAR DEL PICANTEARLA!
+¡BIENVENIDE A LA SEGUNDA EDICIÓN PROTOCOLAR DEL PICANTEARLA!
 
 En este evento buscamos zambullirnos en las hermosas aguas de la **Dominación/sumisión** y proponer una juntada de juegos en **donde todes estemos en rol**.
 
