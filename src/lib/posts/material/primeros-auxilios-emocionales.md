@@ -100,9 +100,9 @@ Hablar sobre lo que nos pasó nos ayuda a procesar. Luego de un acontecimiento f
 
 Especialmente luego de situaciones en las que pueden habernos afectado o robado nuestra autonomía corporal, que nos presionen o empujen a hablar sobre los hechos, o cómo nos sentimos puede llevar a que nos aislemos más, y pongamos distancia.
 
-Mientras procesamos eventos traumáticas lidiar o hacenros cargos de tareas del día a día como cocinar, limpiar o hacer las compras puede volverse abrumador. Ayudar a hacer los mandados, así como con el mantenimiento de la casa puede ser una gran forma de apoyar. Si llegás a elegir hacer esto porque tus posibilidades te lo permiten, prestá atención a no sobrepasarte y terminar pasando por encima de cómo tu amigue quiere vivir su día a día, así como de qué decisiones quiere tomar. Intentá no tomarte de forma personal si tu amigue está irritade o distanciade, y si te es posible, mientras que no signifique un sufrimiento para vos, intentá no distanciarte por esto. Estas son reacciones comunes cuando lidiamos con el después de una situación difícil.
+Mientras procesamos eventos traumáticas lidiar o hacernos cargos de tareas del día a día como cocinar, limpiar o hacer las compras puede volverse abrumador. Ayudar a hacer los mandados, así como con el mantenimiento de la casa puede ser una gran forma de apoyar. Si llegás a elegir hacer esto porque tus posibilidades te lo permiten, prestá atención a no sobrepasarte y terminar pasando por encima de cómo tu amigue quiere vivir su día a día, así como de qué decisiones quiere tomar. Intentá no tomarte de forma personal si tu amigue está irritade o distanciade, y si te es posible, mientras que no signifique un sufrimiento para vos, intentá no distanciarte por esto. Estas son reacciones comunes cuando lidiamos con el después de una situación difícil.
 
-Intentá ser paciente. Las personas responden al trauma de formas distitnas y a velocidades distitnas.
+Intentá ser paciente. Las personas responden al trauma de formas distintas y a velocidades distintas.
 Ayudar a alguien más con su sufrimiento puede ser una tarea muy muy difícil.
 Asegurate de generar redes de contención y tener a personas que te acompañen a vos a acompañar. Quienes cuidan también tienen que ser cuidades 
 
