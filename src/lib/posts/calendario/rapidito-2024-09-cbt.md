@@ -16,7 +16,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-# featured: 1
+featured: 1
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

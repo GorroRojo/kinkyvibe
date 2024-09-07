@@ -63,6 +63,7 @@ export const hardcodedTags = [
 			'jam de cuerdas',
 			'laboratorio',
 			'perfo',
+			'poesía',
 			'rancheadita',
 			'sesión en vivo',
 			'taller'
@@ -80,6 +81,7 @@ export const hardcodedTags = [
 	{ id: 'jam de cuerdas', icon: '🪢' },
 	{ id: 'laboratorio', icon: '🧪' },
 	{ id: 'perfo', icon: '🤹‍♂️' },
+	{ id: 'poesía', icon: '✍️'},
 	{ id: 'rancheadita', icon: '🧺' },
 	{ id: 'sesión en vivo', icon: '🏇' },
 	{ id: 'taller', icon: '🎓' },
