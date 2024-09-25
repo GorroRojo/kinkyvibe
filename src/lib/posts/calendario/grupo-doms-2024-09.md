@@ -2,7 +2,8 @@
 published_date: 2024-08-28Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusión para Doms*
-summary: 'Nos juntamos para charlar, discutir, dar información y compartir experiencias relacionadas a ser Dom (o roles similares).'
+summary: 'Nos juntamos para charlar, discutir, dar información y compartir
+  experiencias relacionadas a ser Dom (o roles similares).'
 tags:
   - español
   - BDSM
@@ -19,14 +20,15 @@ authors:
 featured: grupo-doms-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2024-09-19T20:00-03:00
-end:   2024-09-19T22:00-03:00
+end: 2024-09-19T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
 link: https://forms.gle/FDcUb1HBwVMdzZzs8
 link_text: INSCRIBIRME
+updated_date: 2024-09-19Z-03:00
 
 ---
 
