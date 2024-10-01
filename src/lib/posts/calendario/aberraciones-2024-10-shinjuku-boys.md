@@ -1,5 +1,5 @@
 ---
-published_date: 2024-08-28Z-03:00
+published_date: 2024-10-01Z-03:00
 # updated_date: 2024-02-27Z-03:00
 title: Aberraciones - 50 Sombras de Grey
 summary: 'Un ciclo de cine disidente orientado a explorar los márgenes de aquellas sexualidades, modos de vida, cuerpos e identidades menos trabajadas en el cine.'

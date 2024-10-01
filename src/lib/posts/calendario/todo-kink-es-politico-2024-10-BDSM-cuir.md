@@ -1,5 +1,5 @@
 ---
-published_date: 2024-08-28Z-03:00
+published_date: 2024-10-01Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: "Todo Kink es Político: D/s y no-monogamia"
 summary: 'Nos encontramos para charlar y debatir en torno a las potencias

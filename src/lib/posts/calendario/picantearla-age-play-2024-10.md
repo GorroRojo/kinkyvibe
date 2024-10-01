@@ -1,5 +1,5 @@
 ---
-published_date: 2024-08-28Z-03:00
+published_date: 2024-10-01Z-03:00
 #updated_date: 2023-11-17Z-03:00
 title: Picantearla Protocolar 📝 (19° Edición)
 summary: ¿Qué pasaría si mezcláramos un picantearla normal con un evento de juegos de roles? Pensamos averiguarlo <3 Sumate a nuestro evento de protocolo y Dominación/sumisión

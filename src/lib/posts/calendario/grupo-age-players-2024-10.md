@@ -1,5 +1,5 @@
 ---
-published_date: 2024-07-31Z-03:00
+published_date: 2024-10-01Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusion para age players*
 summary: "Un espacio para toda persona que practica Age Play (juegos con la edad) y quiere venir a compartir con otres sobre estas vivencias."

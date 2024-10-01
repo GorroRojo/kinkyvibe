@@ -1,5 +1,5 @@
 ---
-published_date: 2024-07-31Z-03:00
+published_date: 2024-10-01Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Asfixia Erótica
 summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'

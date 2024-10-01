@@ -1,5 +1,5 @@
 ---
-published_date: 2024-08-28Z-03:00
+published_date: 2024-10-01Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusion para sumis*
 summary: Para todas aquellas personas dentro del espectro "sub/sumi" que quieran
