@@ -1,12 +1,12 @@
 ---
 published_date: 2024-10-01Z-03:00
-title: "Taller de Bondage: Restricciones & Placer"
+title: "Taller de Bondage: Restricciones & Placer ¡en Córdoba!"
 summary: "Un taller sobre inmovilización y el placer de sentirse libre estando restringide. Todo sobre esposas, cadenas y mordazas"
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - Córdoba # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - bondage
 layout: calendario
@@ -15,17 +15,18 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Gorro_Rojo
+  - Drux
 featured: taller-bondage-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-05-04T18:30-03:00
-end:   2024-05-04T21:30-03:00
-location: Fitz Roy 1327, CABA
-location_name: Casa Sofía
-link: https://forms.gle/77VYshCGwJh1Rgj59
+start: 2024-10-12T19:00-03:00
+end:   2024-10-12T23:00-03:00
+location: Zona Kempes, Córdoba 
+# location_name: Panda Rojo
+link: https://docs.google.com/forms/d/e/1FAIpQLSeZvgJfu8khoU4PbqcA0Tiu1S0Egb-0pc7_9olSxtgQNATY4Q/viewform?usp=sf_link
 link_text: INSCRIBIRME
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

@@ -1,7 +1,7 @@
 ---
 published_date: 2024-10-01Z-03:00
 # updated_date: 2024-02-30Z-03:00
-title: Picantearla (20ª Edición)
+title: Picantearla (22ª Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
 tags:
   - español
@@ -23,11 +23,11 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-09-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-09-21T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: Bolivar y Finochietto, San Telmo, Ciudad Autónoma de Buenos Aires
-# location_name: Cooperativa Cultural Qi
-link: https://forms.gle/dk8Vv5YekEUtL3Kc6
+start: 2024-10-25T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-10-26T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+location: Thames 240, Ciudad Autónoma de Buenos Aires
+location_name: Cooperativa Cultural Qi
+link: https://docs.google.com/forms/d/e/1FAIpQLSc7CYROf7nawgVV_p6PKB3dEUaeIO-d5jhC0KpWXqDr1ToJ0g/viewform?usp=sf_link
 link_text: 'PRE VENTA'
 
 ---

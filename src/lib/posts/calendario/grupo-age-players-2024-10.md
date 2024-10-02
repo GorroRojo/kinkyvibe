@@ -22,9 +22,9 @@ featured: grupo-age-players-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 30-09-2023Z-03:00
-start: 2024-08-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-08-20T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2024-10-08T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2024-10-08T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-link: https://forms.gle/QZsHFs6EYU3U7jVn9
+link: https://docs.google.com/forms/d/e/1FAIpQLSdc-Ha3h0nlIlvoyrWOtqwTOFQT03Hz4svFx1DxtE2slPuusQ/viewform?usp=sf_link
 link_text: 'INSCRIPCIÓN'
 ---

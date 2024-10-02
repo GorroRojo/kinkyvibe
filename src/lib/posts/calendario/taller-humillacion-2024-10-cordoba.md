@@ -1,13 +1,13 @@
 ---
 published_date: 2024-10-01Z-03:00
 # updated_date: 2023-10-11Z-03:00
-title: Taller de Humillación
+title: Taller de Humillación ¡en Córdoba!
 summary: '¿Te intriga la idea de humillar eróticamente a alguien pero no sabés cómo? Este taller es para todes quienes se interesen en humillar y ser humillades'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - Online # online | AMBA | Córdoba | Santa Cruz #
+  - Córdoba # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - humillación
 layout: calendario
@@ -21,11 +21,11 @@ featured: taller-humillacion-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2024-07-30T20:00-03:00
-end:   2024-07-30T22:00-03:00
-#location: Thames 240, Ciudad Autónoma de Buenos Aires
-#location_name: Cooperativa Cultural Qi
-link: 'https://forms.gle/heqpgxsSkFEyNMJT7'
+start: 2024-10-12T14:00-03:00
+end:   2024-10-12T18:00-03:00
+location: Zona Kempes, Córdoba 
+# location_name: Panda Rojo
+link: https://docs.google.com/forms/d/e/1FAIpQLSeZvgJfu8khoU4PbqcA0Tiu1S0Egb-0pc7_9olSxtgQNATY4Q/viewform?usp=sf_link
 link_text: INSCRIPCIÓN
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

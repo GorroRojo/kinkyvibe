@@ -8,6 +8,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - gratis # pago | gratis | a la gorra #
   - pago
+  - gratis
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
   - jam de cuerdas
@@ -18,17 +19,18 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
+  - Chivy
 featured: rancheadita-kinky-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-09-14T17:00-03:00
-end:   2024-09-14T22:00-03:00
+start: 2024-10-26T17:00-03:00
+end:   2024-10-26T22:00-03:00
 location: Bolivar y Finochietto, San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Tacheles
-link: https://forms.gle/dM2A4Jz6b7ug82d27
+link: https://docs.google.com/forms/d/e/1FAIpQLSeXJT4C4-DuiA3jSJmWFIbxqzsq3tU4PHnpWWVq1hYgx1mKtA/viewform?usp=sf_link
 link_text: Inscibirme
 ---
 
@@ -53,13 +55,13 @@ Va a haber anillas para suspensión, monitores y materiales de cuidado y segurid
 
 Valor: $4.000 -->
 
----
+<!-- --- -->
 
 <!-- Va a estar [Luzi](https://www.instagram.com/manos.magicas.luzi/) alimentándonos vendiendo cositas muy ricas veganas 🔥 -->
 
-Podés llevar:
+  <!-- Podés llevar: -->
 <!-- - anillos/mosquetones para suspensión -->
-- colchoneta
+<!-- - colchoneta -->
 <!-- - cuerdas estructurales o cintas para llegar al punto -->
 <!-- - repelente -->
 <!-- - agua -->
