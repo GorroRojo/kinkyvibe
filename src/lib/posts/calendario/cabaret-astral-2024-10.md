@@ -21,8 +21,8 @@ featured: cabaret-astral-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-09-22T21:00-03:00
-end:   2024-09-22T23:59-03:00
+start: 2024-10-20T21:00-03:00
+end:   2024-10-20T23:59-03:00
 location:  Av. Córdoba 437, CABA
 location_name: Vuela el Pez
 link: https://www.instagram.com/cabaret.astral/
