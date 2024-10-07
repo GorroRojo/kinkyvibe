@@ -1,5 +1,5 @@
 ---
-published_date: 2024-10-02Z-03:00
+published_date: 2024-10-07Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Fauna Grotesca
 summary: 'Les invita a presenciar una sesión íntima de shibari/BDSM y a degustar plato, postre y bebida.'
@@ -21,8 +21,8 @@ authors:
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-08-04T20:00-03:00
-end:   2024-08-04T22:00-03:00
+start: 2024-10-12T20:00-03:00
+end:   2024-10-12T22:00-03:00
 location: Almagro, CABA
 location_name: Club Soguita Shibari
 link: 'https://forms.gle/5ydTbNPuWQP1vhTV8'
@@ -33,8 +33,6 @@ link_text: ENTRADAS
 # carrousel_accent_bg: ""
 ---
 **Qué**: una sesión íntima de shibari/BDSM a cargo de @Sogashibari y [Super Cerdita](https://www.instagram.com/super.cerdita/) y una cena.
-
-**Cuándo**: Domingo 4 de Agosto
 
 **Dónde**: Almagro, CABA.
 
