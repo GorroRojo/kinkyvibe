@@ -11,7 +11,7 @@
 {#if !mayorDeEdad}
 	<div class="background" transition:fade>
 		<div class="content box">
-			<h2>¿Sos mayor de 16 años?</h2>
+			<h2>¿Sos mayor de 18 años?</h2>
 			<div class="button-group">
 				<button
 					class="button"
