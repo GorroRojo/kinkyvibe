@@ -22,8 +22,10 @@
 			) ||
 			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
 			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
-			(data.meta.category == 'amigues' && p.meta.authors.includes(data.meta.postID) && p.meta.postID != data.meta.postID)
-	)
+			(data.meta.category == 'amigues' &&
+				p.meta.authors.includes(data.meta.postID) &&
+				p.meta.postID != data.meta.postID)
+	);
 </script>
 
 <LDTag
@@ -43,9 +45,14 @@
 />
 <svelte:head>
 	<title
-		>{data.meta.title} | {data.meta.pronoun.startsWith('https')
-			? (data.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/')
-			: data.meta.pronoun}
+		>{data.meta.title}
+		{data.meta.pronoun && (data.meta.pronoun + '').split('/').pop() != 'evitar'
+			? `| ${
+					data.meta.pronoun.startsWith('https')
+						? (data.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/')
+						: data.meta.pronoun
+			  }`
+			: ''}
 	</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
@@ -78,7 +85,7 @@
 		<img src={data.meta.featured + ''} class="profile-pic u-photo" alt="" />
 		<h1 id="title" class="profile-name p-name">
 			{data.meta.title}
-			{#if data.meta.pronoun}
+			{#if data.meta.pronoun && (data.meta.pronoun + '').split('/').pop() != 'evitar'}
 				{#if (data.meta.pronoun + '').startsWith('https')}
 					<a target="_blank" class="u-pronouns" href={data.meta.pronoun + ''}>
 						{@html (data.meta.pronoun + '')
@@ -100,7 +107,7 @@
 				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
 			{:then authorsProfiles}
 				{#each authors as author, i}
-					{@const profile = authorsProfiles.find(
+					{@const profile = authorsProfiles?.find(
 						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 					)}
 					{#if i == authors.length - 1 && i > 0}

@@ -160,7 +160,7 @@
 	{#if src}<img {src} alt="" />{/if}
 	<h3>
 		{title}
-		{#if pronoun}
+		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
 			<small class="p-pronouns">
 				{@html '&nbsp;' +
 					(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}

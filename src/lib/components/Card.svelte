@@ -40,7 +40,7 @@
 	<img class="card-img u-featured placeholder-gradient" {src} alt="" />
 	<h3 class="p-name">
 		{title}
-		{#if pronoun}
+		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
 			<br />
 			<small class="p-pronouns">
 				{@html (pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
