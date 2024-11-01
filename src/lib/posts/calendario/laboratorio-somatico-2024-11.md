@@ -21,8 +21,8 @@ featured: laboratorio-somatico-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 22-09-2023Z-03:00
-start: 2024-11-16T19:00-03:00
-end:   2024-11-16T23:00-03:00
+start: 2024-11-16T15:00-03:00
+end:   2024-11-16T19:00-03:00
 location: San Telmo, CABA
 # location_name: lo de gorrite
 link: https://forms.gle/yEvH8uodkEUGccg6A

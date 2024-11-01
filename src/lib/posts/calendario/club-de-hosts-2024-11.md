@@ -1,13 +1,13 @@
 ---
 published_date: 2024-10-31Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: Club de Hosts
+title: Club de Hosts - Noche de Juegos, Erotismo y Perfos
 summary: 'Noche de juegos, erotismo y perfos. Vení a ser seducide y disfrutar con todos tus sentidos de los juegos. (CUPOS LIMITADOS)'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - Online # online | AMBA | Córdoba | Santa Cruz #
+  - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - Club de Hosts
   - perfo
 layout: calendario
