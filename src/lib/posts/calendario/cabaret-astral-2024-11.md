@@ -17,12 +17,12 @@ authors:
   - Flor Sandulli
 featured: cabaret-astral-miniatura.png
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-11-10T21:00-03:00
-end:   2024-11-10T23:59-03:00
+start: 2024-11-15T20:00-03:00
+end:   2024-11-15T23:59-03:00
 location:  Av. Córdoba 437, CABA
 location_name: Vuela el Pez
 link: https://www.instagram.com/cabaret.astral/
