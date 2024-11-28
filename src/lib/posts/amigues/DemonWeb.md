@@ -34,7 +34,7 @@ job_title: Educador BDSM
 #bday: 1996-04-09
 ---
 
-Soy una trans masculinidad NB, cuir, neurodisidente, antipunitivista, trabajador sexual, Sub\*, Switch, fetichista y no-monógamx
+Soy una trans masculinidad NB, cuir, neurodisidente, trabajador sexual, Sub\*, Switch, fetichista y no-monógamx
 
 Me desempeño como Educador Sexual, Educador BDSM, Performer BDSM, Comunicador, Activista y Dominatrix Profesional (trabajador sexual).
 Soy el co-creador de Kinky Vibe Argentina.
