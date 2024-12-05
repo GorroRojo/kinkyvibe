@@ -23,8 +23,8 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-12-05T19:30-03:00
-end: 2024-12-05T21:30-03:00
+start: 2024-12-05T15:00-03:00
+end: 2024-12-05T17:00-03:00
 updated_date: 2024-11-01Z-03:00
 
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
