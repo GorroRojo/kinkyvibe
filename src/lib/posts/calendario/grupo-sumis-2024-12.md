@@ -27,7 +27,7 @@ status: abierto # abierto | anunciado | agotadas | cancelado
 start: 2024-12-10T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-12-10T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-# link: https://docs.google.com/forms/d/e/1FAIpQLSc6vf4bg6NoAJnyH6P2PJmmaRtNHBOTHX3p7yNIGI_S8KzBdw/viewform?usp=sf_link
+link: https://forms.gle/gP1S6pUGkzPrq85SA
 link_text: 'INSCRIPCIÓN'
 ---
 

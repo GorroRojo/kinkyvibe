@@ -27,7 +27,7 @@ start: 2024-12-11T20:00-03:00
 end:   2024-12-11T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: 'https://docs.google.com/forms/d/e/1FAIpQLSezfgKwX8Xupfbr2RED8dvuAuMiuftagtsc7mFkSz4_xvyYXg/viewform?usp=sf_link'
+link: 'https://forms.gle/GuZmGtPKu5MAVCd58'
 link_text: Más info
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

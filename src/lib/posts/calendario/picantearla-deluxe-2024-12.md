@@ -36,7 +36,7 @@ start: 2024-12-28T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-12-29T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: lo de gorrite
-# link: https://forms.gle/qyPPfbHxpvjc6stt6
+link: https://forms.gle/qyPPfbHxpvjc6stt6
 link_text: 'ENTRADAS'
 ---
 
