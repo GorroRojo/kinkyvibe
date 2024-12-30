@@ -1,7 +1,7 @@
 ---
 published_date: 2024-12-30Z-03:00
 # updated_date: 2024-02-30Z-03:00
-title: Picantearla (24ª Edición)
+title: Picantearla (27ª Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
 tags:
   - español

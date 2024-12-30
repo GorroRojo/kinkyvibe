@@ -1,7 +1,7 @@
 ---
-#published_date: 2024-12-30Z-03:00
+published_date: 2024-12-30Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: Evento de ejemplo
+title: Taller de Reducción de Daños de Sustancias con Perspectiva Disidente (parte 1 de 2)
 summary: ''
 tags:
   - español

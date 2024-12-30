@@ -1,7 +1,7 @@
 ---
 published_date: 2024-12-30Z-03:00
 updated_date: 2024-12-28Z-03:00
-title: "Mini Talleres Rapiditos: Privación Sensorial y Mordazas"
+title: "Mini Talleres Rapiditos: Errores primerizos en el bdsm y cómo evitarlos"
 summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre privación sensorial y el uso de mordazas'
 tags:
   - español
@@ -10,9 +10,7 @@ tags:
   - pago # pago | gratis | a la gorra #
   - Online # online | AMBA | Có}rdoba | Santa Cruz #
   - taller
-  - bondage
-  - privación sensorial
-  - mordazas
+  - inicial
 layout: calendario
 category: calendario
 authors:

@@ -1,7 +1,7 @@
 ---
 published_date: 2024-12-30Z-03:00
 # updated_date:   2024-04-01Z-03:00
-title: Rancheadita Kinky en el Parque
+title: Rancheadita Kinky en el Parque + Jam de Cuerdas
 summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar.'
 tags:
   - español
