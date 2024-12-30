@@ -1,5 +1,5 @@
 ---
-published_date: 2024-10-01Z-03:00
+published_date: 2024-12-30Z-03:00
 updated_date: 2024-12-28Z-03:00
 title: "Mini Talleres Rapiditos: Privación Sensorial y Mordazas"
 summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre privación sensorial y el uso de mordazas'

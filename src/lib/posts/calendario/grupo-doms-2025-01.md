@@ -1,5 +1,5 @@
 ---
-published_date: 2024-11-28Z-03:00
+published_date: 2024-12-30Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusión para Doms*
 summary: 'Nos juntamos para charlar, discutir, dar información y compartir
