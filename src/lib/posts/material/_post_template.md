@@ -1,6 +1,6 @@
 ---
-#published_date: 2024-05-16Z-03:00
-#updated_date:   2024-11-04Z-03:00
+#published_date: 2025-05-16Z-03:00
+#updated_date:   2025-11-04Z-03:00
 title: Material de ejemplo
 #wiki: material # para si es una entry de la wiki #
 summary: ''
@@ -23,6 +23,6 @@ authors:
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
 #redirect: false
-#access_date: 2023-11-21Z-03:00
+#access_date: 2025-11-21Z-03:00
 #original_published_date: 2010-04-03Z-03:00
 ---
