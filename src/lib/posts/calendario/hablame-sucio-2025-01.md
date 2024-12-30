@@ -30,5 +30,6 @@ location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 # link: 'https://forms.gle/pb6XTo2tAL5JTMhf8'
 link_text: PRE-VENTA
+updated_date: 2024-12-30Z-03:00
 
 ---
