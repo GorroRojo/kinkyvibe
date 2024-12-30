@@ -2,7 +2,7 @@
 published_date: 2024-12-30Z-03:00
 updated_date: 2024-12-28Z-03:00
 title: "Mini Talleres Rapiditos: Errores primerizos en el bdsm y cómo evitarlos"
-summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre privación sensorial y el uso de mordazas'
+summary: 'Un mini taller para quienes quieren evitar errores primerizos en el bdsm y informarse en más profundidad'
 tags:
   - español
   - LSA
@@ -22,8 +22,8 @@ featured: 1
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-12-12T20:30-03:00
-end:   2024-12-12T22:30-03:00
+start: 2025-01-23T20:30-03:00
+end:   2025-01-23T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://docs.google.com/forms/d/e/1FAIpQLSehEIO07VxTlKbS4yzq9QrsxvgyncJWLWe1ux6BGZ-1iUqiqw/viewform?usp=sf_link

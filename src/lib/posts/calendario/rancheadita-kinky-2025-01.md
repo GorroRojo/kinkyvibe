@@ -20,19 +20,28 @@ featured: rancheadita-kinky-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-12-29T16:00-03:00
-end:   2024-12-29T20:00-03:00
+start: 2025-01-26T16:00-03:00
+end:   2025-01-26T20:00-03:00
 location: Parque Centenario, Ciudad Autónoma de Buenos Aires
 # location_name: Tacheles
 # link: https://docs.google.com/forms/d/e/1FAIpQLSeXJT4C4-DuiA3jSJmWFIbxqzsq3tU4PHnpWWVq1hYgx1mKtA/viewform?usp=sf_link
 # link_text: Inscibirme
 ---
 
-<!-- ## 18:30 - 21:30 **Rancheadita Kinky**
+## **Rancheadita Kinky**
 Un espacio para conocer y charlar con personas que tienen prácticas BDSM/kinky o viven identidades aledañas. ¡Podés venir a comer algo y conocerte con otres pervertides! ❤️
 
-Actividad gratuita
+Podés llevar:
+- colchoneta
+- repelente
+- agua
+- algo para picar
+- cuerdas
+- anillos/mosquetones para suspensión si querés participar de la jam
+- cuerdas estructurales o cintas para llegar al punto
 
+La actividad es gratuita, pasaremos gorra para bancar la organización. 
+<!-- 
 ## 18:30 - 20:00 **Mini taller de seguridad en shibari y primera atadura**
 Previo a la jam ofrecemos los conocimientos mínimos para poder cuidarnos, saber un poco más sobre seguridad en cuerdas y sobre nuestros cuerpos.
   
@@ -52,12 +61,3 @@ Valor: $4.000 -->
 <!-- --- -->
 
 <!-- Va a estar [Luzi](https://www.instagram.com/manos.magicas.luzi/) alimentándonos vendiendo cositas muy ricas veganas 🔥 -->
-
-  <!-- Podés llevar: -->
-<!-- - anillos/mosquetones para suspensión -->
-<!-- - colchoneta -->
-<!-- - cuerdas estructurales o cintas para llegar al punto -->
-<!-- - repelente -->
-<!-- - agua -->
-
-<!-- La actividad es gratuita, pasaremos gorra para bancar la organización.  -->

@@ -24,8 +24,8 @@ featured: grupo-sumis-miniatura.png
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 30-09-2023Z-03:00
-start: 2024-12-10T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-12-10T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2025-01-09T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2025-01-09T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
 link: https://forms.gle/gP1S6pUGkzPrq85SA
 link_text: 'INSCRIPCIÓN'

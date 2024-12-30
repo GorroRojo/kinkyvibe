@@ -23,10 +23,10 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2024-12-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-12-21T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: San Telmo, Ciudad Autónoma de Buenos Aires
-# location_name: Cooperativa Cultural Qi
+start: 2025-01-25T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2025-01-26T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+location: Av. Medrano 627, Almagro, Ciudad Autónoma de Buenos Aires
+location_name: Batacazo Cultural
 link: https://docs.google.com/forms/d/e/1FAIpQLSc7CYROf7nawgVV_p6PKB3dEUaeIO-d5jhC0KpWXqDr1ToJ0g/viewform?usp=sf_link
 link_text: 'PRE VENTA'
 
