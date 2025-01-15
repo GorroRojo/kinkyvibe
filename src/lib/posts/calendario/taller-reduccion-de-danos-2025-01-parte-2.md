@@ -30,7 +30,7 @@ end:   2025-01-29T21:00-03:00
 link: 'https://docs.google.com/forms/d/e/1FAIpQLSdVKjbT5niGXe3p554h7lA-bMlljIFy_ch_mDHeMwK8nadzEw/viewform'
 link_text: Inscibirme
 ---
-> Esta es la parte 2, [ver parte 1](/calendario/taller-reduccion-de-danos-2024-01)
+> Esta es la parte 2, [ver parte 1](/calendario/taller-reduccion-de-danos-2025-01)
 
 En este espacio veremos prácticas para reducir daños en el consumo de sustancias psicoactivas y evitar riesgos asociados al consumo. Revisaremos el rol que tuvieron las disidencias en los comienzos de estas prácticas de cuidado, la relación de la comunidad con las drogas y los desafíos en los usos actuales en Argentina y Latinoamérica. Se darán pautas de cuidado generales, cómo ayudar (o ayudarse) ante un viaje difícil, primeros auxilios y derivaciones médicas, así como también efectos y cuidados específicos de las sustancias que circulan en la región y de mayor uso en la comunidad LGBT+.
 
