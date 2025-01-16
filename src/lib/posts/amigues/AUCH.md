@@ -1,6 +1,6 @@
 ---
 published_date: 2024-01-11Z-03:00
-#updated_date: 2023-11-04Z-03:00
+updated_date: 2025-01-15Z-03:00
 title: ¡AUCH!
 summary: 'Una comunidad coordinada por Kinky Vibe en Telegram sobre BDSM, fetichismo y prácticas disidentes. Reglas, información, y códigos de convivencia que manejamos.'
 tags:
@@ -15,7 +15,6 @@ layout: amigues
 category: amigues
 authors:
   - DemonWeb
-  - Ezequiel LH
   - Gorro_Rojo
 featured: 1
 # force_unlisted: true
@@ -88,9 +87,11 @@ Sólo hagámoslo:
 
 No compartamos por fuera del grupo capturas de pantalla de las conversaciones, o imágenes personales que se hayan compartido.
 
-### Asumir buena fe
+### Asumir buena fe, y no amontonarnos
 
 Si entramos en desacuerdo o conflicto con alguien, intentemos siempre asumir que la otra persona está hablando de buena fé, y no está intentando dañarnos intencionalmente. Muchas veces desescalar estas situaciones significa aclarar malentendidos, explicar puntos de vista. Si asumimos buena fe y no nos villanizamos entre nosotres, podemos formar una cultura del cuidado comunitario antipunitivo, que es la propuesta que ofrece este espacio.
+
+También, para dar lugar a los errores o los malentendidos como algo que no es castigado, intentemos no amontonarnos contra alguien cuando le pifia. Esto significa, si alguien dijo algo que me parece discriminatorio o en contra de los códigos de convivencia, me fijo si alguien ya lo marcó antes de yo escribir algo. Seamos conscientes del poder que tenemos al hablar. Seamos amistoses al desacuerdo y al error, aún mientras ponemos límites.
 
 ## Temática
 
@@ -98,7 +99,18 @@ Intentemos minimizar los temas offtopic (no dejemos de tenerlos, pero si son sol
 
 Este no es un grupo para pedir cosas no relacionadas. Entendemos si no tienen otro espacio, pero intentemos minimizar.
 
-[Avisar a Mel](http://t.me/DemonWeb) si quiero pasar publicidad, chivo, etc
+Avisar a [Mel](http://t.me/DemonWeb) o a [gorrite](https://t.me/Gorro_Rojo) si quiero pasar publicidad, chivo, etc de propuestas temáticas al grupo.
+
+### ¿Qué es temático al grupo?
+
+- Kink, BDSM, fetichismo, roles, prácticas, consentimiento
+- Sexualidad, erotismo, salud sexual
+- Neurodivergencia, neurodisidencia
+- No-monogamia
+- Cosas cuir: género, identidades, orientaciones, sexualidad, romanticisimo, trans-humanismo
+- Anti-punitivismo
+
+Si no conocés alguno de los términos, siempre podés preguntar! O buscar si alguien más ya lo preguntó antes.
 
 ## Introducciones y anuncios
 
@@ -133,12 +145,19 @@ Formas en las que podemos pedir/decir esto:
 
 ## Coordinación del grupo
 
-Este es un grupo vinculado a @KinkyVibe <small>(mayormente nos conocemos presencialmente en <a href="/calendario?tags=KinkyVibe">los eventos</a>)</small> y coordinado por @DemonWeb , Ezequiel LH y @Gorro_Rojo .
+Este es un grupo vinculado a @KinkyVibe <small>(mayormente nos conocemos presencialmente en <a href="/calendario?tags=KinkyVibe">los eventos</a>)</small> y administrado por @DemonWeb y @Gorro_Rojo .
 
 Es un proyecto voluntario autogestivo cuir al que le metemos tiempo y esfuerzo para brindar acceso a materiales ante necesidad y curiosidad, contención ante malestar y mediación ante conflictos.
 
 Pedimos entonces que quienes hagan uso del espacio y <small>(realmente)</small> puedan, [ayuden a que siga existiendo colaborando con cafecitos](https://cafecito.app/kinkyvibe).
 
 Alternativamente, pueden ayudar comprando juguetes o materiales en la [tienda](https://tienda.kinkyvibe.ar) o asistiendo a los [eventos](/calendario?tags=KinkyVibe).
+
+### Moderadores
+
+Además, nos ayudan a moderar: [Andy](https://t.me/Andy_Pandy_Ropes_and_Candy), [Memito](https://t.me/memit0s) y [pi](https://t.me/pi_314_uwu). Les moderadores están para:
+1. para guiarnos a mantener los códigos de convivencia
+2. para ayudarnos con las mediaciones de conflictos
+3. para que tengan otros contactos a quienes le puedan hablar en caso de que tengan un problema con [Mel](https://t.me/DemonWeb) o con [gorrite](https://t.me/Gorro_Rojo).
 
 <!-- - [Canal de télegram con eventos y materiales](https://t.me/BDSMtextos) -->
