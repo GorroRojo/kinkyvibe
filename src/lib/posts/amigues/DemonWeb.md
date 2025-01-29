@@ -37,6 +37,7 @@ job_title: Educador BDSM
 Soy una trans masculinidad NB, cuir, neurodisidente, trabajador sexual, Sub\*, Switch, fetichista y no-monógamx
 
 Me desempeño como Educador Sexual, Educador BDSM, Performer BDSM, Comunicador, Activista y Dominatrix Profesional (trabajador sexual).
+
 Soy el co-creador de Kinky Vibe Argentina.
 
 Colaboré y participé de múltiples espacios relacionados a salud sexual, abolicionismo penal, no-monogamia, salud y activismo trans\*, transfeminismo y BDSM (Amor Libre Argentina, Desde el Fuego, La marcha de las Putas, Acción Respeto, Recursero Trans\*, Asamblea Trans por la Salud Integral, La Bastardilla, entre otras).
@@ -48,13 +49,17 @@ Llevo más de 7 años educando sobre disidencias erótico-afectivas, salud sexua
 ## Mi experiencia en el BDSM
 
 Practico bdsm desde hace más de 10 años, soy Sub en un vínculo 24/7, y me identifico Switch (siendo Sub mi principal rol e identidad).
+
 Desde el 2017 me dedico a dar talleres teóricos y prácticos sobre BDSM y sus múltiples prácticas desde un marco teórico despatologizante, interseccional, decolonial y queer.
+
 Soy gestor comunitario de espacios y eventos de BDSM en la comunidad kinky-queer desde el 2019
 
 ## Mi experiencia en el Shibari
 
 Empecé mi carrera en el shibari como Modelo de Cuerdas hace 10 años, yendo a mis primeros talleres y modelando para distintas parejas. Eventualmente empecé a estudiar por mi cuenta e informar sobre bottoming activo, comunicanción, daños y riesgos.
+
 Escribí junto con Pasteldom uno de los primeros textos en español sobre Shibari desde una perspectiva interseccioanl y LGTTTBIQ. El mismo fue publicado por "Vibra Mutante" y se encuentra bajo Creative Commons.
+
 Brindo talleres de shibari inicial con Druxx desde el 2017.
 
 ## Mi experiencia como Dominatrix
