@@ -1,5 +1,5 @@
 ---
-published_date: 2024-05-17Z-03:00
+published_date: 2025-01-29Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Asfixia Erótica
 summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'
@@ -14,17 +14,18 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - DemonWeb
 featured: asfixia-erotica-miniatura.png
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-05-25T15:00-03:00
-end:   2024-05-25T19:00-03:00
+start: 2025-02-09T16:00-03:00
+end:   2025-02-09T20:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: la jaula de olivos
-link: "https://forms.gle/Ee11Xbirg5h2SFBr7"
+link: https://forms.gle/CoGiCia8ySyZwB1K8
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

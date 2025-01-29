@@ -1,7 +1,7 @@
 ---
-published_date: 2024-07-24Z-03:00
+published_date: 2025-01-29Z-03:00
 # updated_date:   2024-02-27Z-03:00
-title: Picantearla Deluxe 🔥 (18° Edición)
+title: Picantearla Deluxe 🔥 (28° Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
 tags:
   - español
@@ -32,8 +32,8 @@ featured: picantearla-deluxe-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
-start: 2024-08-03T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2024-08-04T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2025-02-08T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2025-02-09T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: la jaula de olivos
 link: https://forms.gle/qyPPfbHxpvjc6stt6

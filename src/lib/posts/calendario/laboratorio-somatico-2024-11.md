@@ -24,7 +24,7 @@ status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2024-11-16T15:00-03:00
 end:   2024-11-16T19:00-03:00
 location: San Telmo, CABA
-# location_name: lo de gorrite
+# location_name: la jaula de olivos
 link: https://forms.gle/yEvH8uodkEUGccg6A
 link_text: ENTRADAS
 # carrousel_background: "#f2a68f"

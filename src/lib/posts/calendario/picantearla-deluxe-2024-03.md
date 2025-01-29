@@ -35,7 +35,7 @@ status: abierto # abierto | anunciado | agotadas | cancelado
 start: 2024-03-08T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-03-09T03:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: lo de gorrite
+location_name: la jaula de olivos
 link: https://forms.gle/FEidvP6PsebiiwqQ6
 link_text: 'PRE-VENTA'
 ---
