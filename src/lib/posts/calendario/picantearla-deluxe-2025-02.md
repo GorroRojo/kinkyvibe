@@ -30,7 +30,7 @@ featured: picantearla-deluxe-miniatura.jpg
 # logo: 2
 # force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | agotadas | cancelado
+status: anunciado # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2025-02-08T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2025-02-09T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
