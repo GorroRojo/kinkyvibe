@@ -54,7 +54,7 @@ Soy gestor comunitario de espacios y eventos de BDSM en la comunidad kinky-queer
 ## Mi experiencia en el Shibari
 
 Empecé mi carrera en el shibari como Modelo de Cuerdas hace 10 años, yendo a mis primeros talleres y modelando para distintas parejas. Eventualmente empecé a estudiar por mi cuenta e informar sobre bottoming activo, comunicanción, daños y riesgos.
-Escribí junto con Pasteldom uno de los primeros textos en español sobre Shibari desde una perspectiva interseccioanl y LGTTTBIQ. El mismo fue publicado por "Vibra Mutante" y se encuentra bajo Creative Commons
+Escribí junto con Pasteldom uno de los primeros textos en español sobre Shibari desde una perspectiva interseccioanl y LGTTTBIQ. El mismo fue publicado por "Vibra Mutante" y se encuentra bajo Creative Commons.
 Brindo talleres de shibari inicial con Druxx desde el 2017.
 
 ## Mi experiencia como Dominatrix
@@ -69,19 +69,19 @@ Para sesiones, clases privadas y consejerías podés escribirme a:
 
 Educadores BDSM con quienes he tomado clases o talleres:
 
-- Karadahouse
+- Karada house
 - Lola Jean
 - Evie Lupine
 - Midori
 - Morgan Thorne
 
-También viajé a Londres, Berlin, Madrid y Barcelona y tomé clases con varies educadores
+También viajé a Londres, Berlin, Madrid y Barcelona y tomé clases con varies educadores presencialmente
 
 En shibari:
 
 - Karadahouse (Queerope)
 - Anatomie
-- Clases con educadores de acá.
+- Club Soguita
 
 Además de 7 años e experiencia como modelo y 5 años dando clases con personas hermosas como @XDoll y @Drux .
 
