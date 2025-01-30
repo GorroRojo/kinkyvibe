@@ -20,7 +20,7 @@ authors:
 featured: grupo-doms-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | agotadas | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2025-02-18T20:00-03:00
 end:   2025-02-18T22:00-03:00
