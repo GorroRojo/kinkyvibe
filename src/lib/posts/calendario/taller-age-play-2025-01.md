@@ -15,7 +15,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-#featured: 1
+featured: taller-age-play-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
