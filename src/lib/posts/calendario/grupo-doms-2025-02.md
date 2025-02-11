@@ -22,12 +22,13 @@ featured: grupo-doms-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2025-02-18T20:00-03:00
-end:   2025-02-18T22:00-03:00
+start: 2025-02-19T20:00-03:00
+end: 2025-02-19T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
 link: https://forms.gle/FDcUb1HBwVMdzZzs8
 link_text: INSCRIBIRME
+updated_date: 2025-02-11Z-03:00
 
 ---
 
