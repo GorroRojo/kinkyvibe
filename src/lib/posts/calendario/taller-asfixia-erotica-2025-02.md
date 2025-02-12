@@ -2,7 +2,9 @@
 published_date: 2025-01-29Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Asfixia Erótica
-summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'
+summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la
+  respiración y todo lo que lo atraviesa: ahorcamiento, control de la
+  respiración, asfixia, sofocación, ¡y mucho más!'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -21,16 +23,19 @@ featured: asfixia-erotica-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-02-09T16:00-03:00
-end:   2025-02-09T20:00-03:00
+start: 2025-02-09T15:00-03:00
+end: 2025-02-09T19:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: la jaula de olivos
 link: https://forms.gle/CoGiCia8ySyZwB1K8
 link_text: PRE-VENTA
+updated_date: 2025-02-06Z-03:00
+
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+
 ---
 
 Este taller está orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación y mucho más.
