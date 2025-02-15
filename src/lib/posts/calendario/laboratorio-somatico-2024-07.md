@@ -18,12 +18,12 @@ authors:
 featured: laboratorio-somatico-miniatura.png
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 22-09-2023Z-03:00
 start: 2024-07-21T17:00-03:00
 end:   2024-07-21T21:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: lo de gorrite
+location_name: la jaula de olivos
 link: https://forms.gle/ZQnNPnQoYocp756V7
 link_text: ENTRADAS
 # carrousel_background: "#f2a68f"

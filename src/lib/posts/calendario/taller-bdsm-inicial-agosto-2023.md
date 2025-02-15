@@ -19,7 +19,7 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2023-08-20T16:30-03:00
 end: 2023-08-20T18:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires

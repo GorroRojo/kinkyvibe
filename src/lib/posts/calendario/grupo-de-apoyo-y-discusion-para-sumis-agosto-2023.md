@@ -18,7 +18,7 @@ authors:
 featured: grupo-sumis-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 start: 2023-08-31T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2023-08-31T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires

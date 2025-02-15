@@ -18,12 +18,12 @@ featured: asfixia-erotica-miniatura.png
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2024-05-25T15:00-03:00
 end:   2024-05-25T19:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: lo de gorrite
+location_name: la jaula de olivos
 link: "https://forms.gle/Ee11Xbirg5h2SFBr7"
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"

@@ -44,7 +44,7 @@ export async function GET() {
 					abierto: 'CONFIRMED',
 					cancelado: 'CANCELLED',
 					anunciado: 'TENTATIVE',
-					lleno: 'CONFIRMED'
+					agotadas: 'CONFIRMED'
 				}[post.meta.status] ?? 'CONFIRMED' //TODO añadir email
 		};
 		events.push(event);

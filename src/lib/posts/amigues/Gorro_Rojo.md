@@ -1,6 +1,6 @@
 ---
 published_date: 2000-08-04Z-03:00
-updated_date: 2024-01-12Z-03:00
+updated_date: 2024-09-07Z-03:00
 title: gorrite
 summary: Programadore, artista, captive.
 tags:
@@ -30,13 +30,14 @@ email: gorro.rojo@gmail.com
 # job_title: Educador BDSM
 gender_identity: Agénero
 bday: 2000-08-04
+
 ---
 
 > Este perfil no es útil porque no estoy contratable para nada, pero como armé todo el sitio tenía que incluirme jsajss así que yafu. Lolamento (?
 
 Holi, soy gorrite <small>(así, en minúscula)</small>, soy une captive juguete de bondage; estoy autocollareade en una dinámica D/s 24/7 conmigo misme, con un comité de Doms y Tops, y con toda la comunidad; programé todo este sitio web y soy parte de @KinkyVibe 🌈.
 
-Colaboro con @KinkyVibe armando el sitio, organizando el grupo de sumis, monitoreando eventos, modelando talleres, y ayudando a gestionar la comunidad de @AUCH .
+Trabajo en @KinkyVibe armando el sitio web, organizando y monitoreando eventos, administrando la membresía, organizando el grupo de sumis, modelando talleres, ayudando a gestionar la comunidad de @AUCH , y otras tareas administrativas y financieras.
 
 Por fuera de eso, hago arte 3D usando mi eterno amor [Blender](https://www.blender.org), y juego un poco con todos los tipos de arte con los que me cruzo. Actuación, canto, baile, escritura, animación, piano y cine.
 

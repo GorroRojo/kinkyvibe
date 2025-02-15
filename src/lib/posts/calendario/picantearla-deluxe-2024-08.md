@@ -30,12 +30,12 @@ featured: picantearla-deluxe-miniatura.jpg
 # logo: 2
 # force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2024-08-03T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-08-04T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: lo de gorrite
+location_name: la jaula de olivos
 link: https://forms.gle/qyPPfbHxpvjc6stt6
 link_text: 'ENTRADAS'
 ---

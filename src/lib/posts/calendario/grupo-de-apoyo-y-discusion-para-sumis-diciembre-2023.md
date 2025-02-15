@@ -18,7 +18,7 @@ authors:
 featured: grupo-sumis-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 30-09-2023Z-03:00
 start: 2023-12-27T20:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2023-12-27T22:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00

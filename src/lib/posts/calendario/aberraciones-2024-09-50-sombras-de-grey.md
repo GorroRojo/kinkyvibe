@@ -18,7 +18,7 @@ featured: aberraciones-miniatura.jpg
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 30-09-2023Z-03:00
 start: 2024-09-12T20:00-03:00
 end:   2024-09-12T23:00-03:00

@@ -188,7 +188,7 @@
 					abierto: 'CONFIRMED',
 					cancelado: 'CANCELLED',
 					anunciado: 'TENTATIVE',
-					lleno: 'CONFIRMED'
+					agotadas: 'CONFIRMED'
 				}[data.meta.status] ?? 'CONFIRMED'}
 				endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
 				timeZone="America/Buenos_Aires"

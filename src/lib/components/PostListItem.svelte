@@ -110,7 +110,7 @@
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
-				{#if !((status && ['cancelado', 'lleno'].includes(status)) || past) && link && status && status == 'abierto' && !past}
+				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
 					<add-to-calendar-button
 						style={`
 							--btn-text: white;
@@ -147,7 +147,7 @@
 					<!-- location="World Wide Web" -->
 					<!-- trigger="hover" -->
 				{/if}
-				{#if (status && ['cancelado', 'lleno'].includes(status)) || past}
+				{#if (status && ['cancelado', 'agotadas'].includes(status)) || past}
 					<small class="status">
 						{past && !(status && status == 'cancelado') ? 'TERMINADO' : status.toUpperCase()}
 					</small>
@@ -160,7 +160,7 @@
 	{#if src}<img {src} alt="" />{/if}
 	<h3>
 		{title}
-		{#if pronoun}
+		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
 			<small class="p-pronouns">
 				{@html '&nbsp;' +
 					(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}

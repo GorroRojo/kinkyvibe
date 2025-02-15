@@ -1,6 +1,6 @@
 ---
 published_date: 2024-08-30Z-03:00
-# updated_date: 2024-11-04Z-03:00
+updated_date: 2024-10-31Z-03:00
 title: "Mini Talleres Rapiditos: CBT"
 summary: 'Un mini taller para quienes quieren informarse en más profundidad sobre CBT, una práctica de sadomasoquismo genital'
 tags:
@@ -18,15 +18,15 @@ authors:
   - DemonWeb
 featured: 1
 #logo: 2
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-09-27T20:00-03:00
-end:   2024-09-27T22:00-03:00
+start: 2024-11-08T20:00-03:00
+end:   2024-11-08T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: https://forms.gle/pgmnro5AdSBRreUm8
+link: https://forms.gle/aRDe82WweAVgLzik9
 link_text: INSCRIBIRME
 # updated_date: 2024-08-28Z-03:00
 

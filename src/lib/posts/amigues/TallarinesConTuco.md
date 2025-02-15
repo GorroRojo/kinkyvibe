@@ -48,7 +48,7 @@ En 2018 @DemonWeb me invitó a ilustrar lo que luego se convertiría en ["Asexua
 
 En el medio participé de la segunda edición del festival de historieta [Vamos las Pibas (Actualmente V.L.P.)](https://www.instagram.com/vamoslaspibasfestival/) organizado por [Agus Casot](https://www.instagram.com/agustinahistorietas/). Hacía un calor de morirse, pero yo estaba emocionadísima de compartir espacio con tanta gente increíble por conocer y muches otres que ya conocía y admiraba.
 
-Para finales de 2018 me incorporé oficialmente a @KinkyVibe . Inicié como ilustradora, pero luego me involucré de lleno en la edición, maquetado y armado de los fanzines. Y no mucho después, empecé a diseñar piezas digitales para redes.
+Para finales de 2018 me incorporé oficialmente a @KinkyVibe . Inicié como ilustradora, pero luego me involucré de agotadas en la edición, maquetado y armado de los fanzines. Y no mucho después, empecé a diseñar piezas digitales para redes.
 
 Al momento que escribo esto sigo haciendo todas esas cosas, pero también descubrí lo maravillosas que pueden ser las planillas de excel a la hora de organizar la tienda, los talleres, y la vida en general. Recomiendo el camino del dios excel, digo, recomiendo esta herramienta de trabajo…
 

@@ -18,7 +18,7 @@ authors:
 featured: picantearla-miniatura.png
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 opening_date: 2023-09-30Z-03:00
 start: 2023-11-17T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2023-11-18T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00

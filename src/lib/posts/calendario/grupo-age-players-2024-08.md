@@ -20,7 +20,7 @@ authors:
 featured: grupo-age-players-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 30-09-2023Z-03:00
 start: 2024-08-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-08-20T22:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00

@@ -19,7 +19,7 @@ authors:
 featured: taller-dominacion-ts-miniatura.png
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | lleno | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2024-06-30T19:00-03:00
 end:   2024-06-30T22:00-03:00
 location: Medrano 627, Ciudad Autónoma de Buenos Aires

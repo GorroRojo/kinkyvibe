@@ -21,7 +21,7 @@ featured: picantearla-protocolar-miniatura.png
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # abierto | anunciado | lleno | cancelado
+status: agotadas # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2024-09-13T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2024-09-14T02:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
@@ -31,7 +31,7 @@ link: https://forms.gle/bnAWFew3TB37Tsat9
 link_text: 'PRE-VENTA'
 ---
 
-¡BIENVENIDE A LA PRIMERA EDICIÓN PROTOCOLAR DEL PICANTEARLA!
+¡BIENVENIDE A LA SEGUNDA EDICIÓN PROTOCOLAR DEL PICANTEARLA!
 
 En este evento buscamos zambullirnos en las hermosas aguas de la **Dominación/sumisión** y proponer una juntada de juegos en **donde todes estemos en rol**.
 

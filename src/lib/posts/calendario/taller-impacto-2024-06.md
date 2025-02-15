@@ -19,7 +19,7 @@ authors:
 featured: 1
 #force_unlisted: false
 #force_unpublished: false
-status: cancelado # anunciado | abierto | lleno | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 start: 2024-06-01T17:00-03:00
 end:   2024-06-01T19:45-03:00
 location: Nicaragua 5539, Ciudad Autónoma de Buenos Aires
