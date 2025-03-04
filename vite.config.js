@@ -8,5 +8,15 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		exclude: ["codemirror", "@codemirror/lang-markdown"]
+	},
+	css: {
+		preprocessorOptions: {
+			sass: {
+				api: 'modern-compiler'
+			},
+			scss: {
+				api: 'modern-compiler'
+			}
+		}
 	}
 });

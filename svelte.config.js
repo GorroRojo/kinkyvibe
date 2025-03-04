@@ -17,7 +17,14 @@ const config = {
 	extensions: ['.svelte', '.md', '.svx'],
 	preprocess: sequence([
 		sveltePreprocess({
+			scss: {
+				api: 'modern-compiler'
+			},
+			sass: {
+				api: 'modern-compiler'
+			},
 			postcss: {
+				api:'modern-compiler',
 				plugins: [autoprefixer]
 			}
 		}),
