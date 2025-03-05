@@ -25,7 +25,7 @@ start: 2025-03-26T19:00-03:00
 end:   2025-03-26T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
-# link: https://forms.gle/vmid8uD2qAG1vZAfA
+link: https://forms.gle/8DnRKztRDG3UHRoU7
 link_text: Inscribite
 ---
 Queremos poder responder: ¿cómo empezar? ¿Qué tengo que saber? ¿Qué cuidados necesito tener en cuenta? ¿Qué terminología tengo que saber? ¿cómo encuentro qué tipo de Dom* soy? ¿Qué prácticas existen? ¿Cómo tengo una dinámica? ¿Qué tipo de Subs* hay?
