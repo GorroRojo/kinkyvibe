@@ -11,9 +11,6 @@ tags:
   - gratis # pago | gratis | a la gorra #
   - cine
   - Online # online | AMBA | Córdoba | Santa Cruz #
-  - BDSM
-  - trabajo sexual
-  - historia
 layout: calendario
 category: calendario
 authors:
