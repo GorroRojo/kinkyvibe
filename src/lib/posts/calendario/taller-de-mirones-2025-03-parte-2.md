@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Hedonistas
-featured: taller-de-mirones-miniatura
+featured: taller-de-mirones-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
@@ -27,12 +27,8 @@ start: 2025-04-20T16:00-03:00
 end:   2025-04-20T18:00-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: ''
-# link_text: Inscibirme
-# carrousel_background: "#f2a68f"
-# carrousel_color: "white"
-# carrousel_accent_text: ""
-# carrousel_accent_bg: ""
+link: 'https://forms.gle/VPhMxVmod1nF3KR36'
+link_text: Inscribirme
 ---
 > Esta es la parte 2, [ver parte 1](/calendario/taller-de-mirones-2025-03)
 
