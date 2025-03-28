@@ -5,6 +5,20 @@
 		togglePositiveTagFilterFn
 	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+
+	onMount(async () => {
+		if ('serviceWorker' in navigator) {
+		try {
+			console.log('Registrando Service Worker manualmente...');
+			const registration = await navigator.serviceWorker.register('/service-worker.js');
+			console.log('Service Worker registrado exitosamente:', registration);
+		} catch (error) {
+			console.error('Error al registrar Service Worker:', error);
+		}
+		}
+  	});
+
 	// onMount(() => {
 	filteredTags.set([]);
 	// });
@@ -28,6 +42,7 @@
 				}
 			}
 	);
+
 </script>
 
 <svelte:head>
