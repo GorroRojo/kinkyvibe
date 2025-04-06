@@ -11,6 +11,7 @@ tags:
   - pago
   - Online
   - perfil de riesgo
+  - negociación
 layout: calendario
 category: calendario
 authors:

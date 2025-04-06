@@ -2,7 +2,7 @@
 published_date: 2025-01-29Z-03:00
 # updated_date:   2025-01-31Z-03:00
 title: "Gestión del tiempo en las no-monogamias"
-summary: ''
+summary: '¿Cómo distribuimos el tiempo entre varios vínculos sin descuidar nuestros límites? ¿Es posible no reproducir jerarquías?'
 tags:
   - español
   # - KinkyVibe # etiqueta especial #
@@ -25,16 +25,24 @@ start: 2025-04-28T19:00-03:00
 end:   2025-04-28T20:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-# link: 'https://forms.gle/TNikf4LSLh9T54J79'
-# link_text: SUMATE!
-# carrousel_background: "#f2a68f"
-# carrousel_color: "white"
-# carrousel_accent_text: ""
-# carrousel_accent_bg: ""
+link: 'https://forms.gle/TNikf4LSLh9T54J79'
+link_text: SUMATE!
 ---
+## ¿De qué se trata esta propuesta? ##
+
+Sumate a un conversatorio en la Comunidad Fugas🌈 donde estaremos explorando la **gestión del tiempo en las no monogamias**:
+- 💫 **¿Cómo distribuimos el tiempo entre varios vínculos sin descuidar nuestros límites? ¿Es posible no reproducir jerarquías?**
+- 💫 ¿Cómo conocemos y sostenemos varias relaciones si sentimos que no tenemos tiempo?
+- 💫 ¿Qué hacemos cuando el **tiempo, la atención y las prioridades** que podemos ofrecer en nuestras relaciones no coinciden con las expectativas de nuestros vínculos?
+- 💫 ¿Es lo mismo cantidad que calidad de tiempo? 
+
+💬 Traé tus preguntas, experiencias y llevate herramientas!
+
 ## ¿Quiénessson? #
 
 **ale devenuta (él/elle)** es educador, comunicador y psicólogo. Creó Fugas Críticas, proyecto en el que brinda talleres, recursos pedagógicos y espacios de encuentro para construir modos de vida y relaciones menos opresivas, desde una perspectiva queer, neurodivergente, no monógama, kinky, disca y antipunitivista.
+
+**Alba Centauri (ella)** es psicóloga social, sexóloga y creadora de @poliactivismo: un espacio virtual desde el cual ofrece información, talleres y acompañamiento -con un enfoque afirmativo a toda forma de diversidad y sensible al trauma- para educar en la autonomía sentimental y afectiva e incrementar el bienestar en las relaciones interpersonales.
 
 ## ¿Cómo participo? ##
 Cupos limitados
