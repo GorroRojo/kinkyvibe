@@ -20,8 +20,8 @@ featured: rancheadita-kinky-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-04-12T16:00-03:00
-end:   2025-04-12T20:00-03:00
+start: 2025-04-12T15:00-03:00
+end:   2025-04-12T19:00-03:00
 location: Parque Centenario, Ciudad Autónoma de Buenos Aires
 # location_name: Tacheles
 # link: https://docs.google.com/forms/d/e/1FAIpQLSeXJT4C4-DuiA3jSJmWFIbxqzsq3tU4PHnpWWVq1hYgx1mKtA/viewform?usp=sf_link
