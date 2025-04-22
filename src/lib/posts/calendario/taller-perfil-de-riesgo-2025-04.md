@@ -23,8 +23,8 @@ featured: perfil-de-riesgo-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-04-22T20:30-03:00
-end:   2025-04-22T22:30-03:00
+start: 2025-04-22T19:30-03:00
+end:   2025-04-22T21:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/z7b6q4RG4VvgHKNz6
