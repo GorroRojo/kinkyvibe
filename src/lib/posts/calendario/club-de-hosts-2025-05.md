@@ -2,7 +2,8 @@
 published_date: 2024-10-31Z-03:00
 #updated_date:   2024-03-04Z-03:00
 title: Club de Hosts - Noche de Juegos, Erotismo y Perfos
-summary: 'Noche de juegos, erotismo y perfos. Vení a ser seducide y disfrutar con todos tus sentidos de los juegos. (CUPOS LIMITADOS)'
+summary: 'Noche de juegos, erotismo y perfos. Vení a ser seducide y disfrutar
+  con todos tus sentidos de los juegos. (CUPOS LIMITADOS)'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -15,21 +16,24 @@ category: calendario
 authors:
   - KinkyVibe
 featured: club-de-hosts-miniatura.jpg
-#logo: 2
-force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-05-11T19:00-03:00
-end:   2025-05-11T23:30-03:00
+end: 2025-05-11T23:30-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/CofvFHsSf4RryREV8'
 link_text: RESERVAR MESA
+updated_date: 2025-04-25Z-03:00
+
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+#force_unlisted: true
+
+
 ---
 Sumate y conocé a les anfitriones de la noche. Nuestre Maestre de Ceremonias @DemonWeb te ubicará en una mesa con une de nuestres hosts, quienes van a estar acompañandonos, sirviendonos, y anfitrionando los juegos y los shows a lo largo de la noche.
 
