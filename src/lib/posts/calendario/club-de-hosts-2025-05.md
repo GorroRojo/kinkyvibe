@@ -16,12 +16,12 @@ authors:
   - KinkyVibe
 featured: club-de-hosts-miniatura.jpg
 #logo: 2
-#force_unlisted: false
+force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-11-10T19:00-03:00
-end:   2024-11-10T23:30-03:00
+start: 2025-05-11T19:00-03:00
+end:   2025-05-11T23:30-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/CofvFHsSf4RryREV8'
@@ -33,7 +33,7 @@ link_text: RESERVAR MESA
 ---
 Sumate y conocé a les anfitriones de la noche. Nuestre Maestre de Ceremonias @DemonWeb te ubicará en una mesa con une de nuestres hosts, quienes van a estar acompañandonos, sirviendonos, y anfitrionando los juegos y los shows a lo largo de la noche.
 
-Durante evento podés usar fichines para contratarles servicios eróticos a cada anfitrione. Podés pedirle una foto a [la gatita](https://www.instagram.com/diariodeunaunicornia/), una nalgueada [al súcubo](https://www.instagram.com/juana.x.stoner/), que te peine [la payasita](https://www.instagram.com/princesa.fresitauwu/), que te dé un trago en la boca la maid, o te dé una cachetada [le Maestre de Ceremonias](https://www.instagram.com/xdemonwebx/) 🔥🔥🔥. 
+Durante evento podés usar fichines para contratarles servicios eróticos a cada anfitrione. Podés pedirle una foto a [la gatita](https://www.instagram.com/juana.x.stoner/), lamidas a la perrita, que te peine [la payasita](https://www.instagram.com/princesa.fresitauwu/), que te dé un trago en la boca la maid, o te dé una cachetada [le Maestre de Ceremonias](https://www.instagram.com/xdemonwebx/) 🔥🔥🔥. 
 
 Estos y muchos otros servicios vas a poder contratar usando los fichines incluídos con tu entrada, o que podés conseguir en el momento.
 
