@@ -26,14 +26,6 @@ location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/CofvFHsSf4RryREV8'
 link_text: RESERVAR MESA
 updated_date: 2025-04-25Z-03:00
-
-# carrousel_background: "#f2a68f"
-# carrousel_color: "white"
-# carrousel_accent_text: ""
-# carrousel_accent_bg: ""
-#force_unlisted: true
-
-
 ---
 Sumate y conocé a les anfitriones de la noche. Nuestre Maestre de Ceremonias @DemonWeb te ubicará en una mesa con une de nuestres hosts, quienes van a estar acompañandonos, sirviendonos, y anfitrionando los juegos y los shows a lo largo de la noche.
 
