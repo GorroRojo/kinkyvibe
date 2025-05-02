@@ -1,6 +1,6 @@
 ---
-#published_date: 2025-02-16Z-03:00
-#updated_date:   2025-03-04Z-03:00
+#published_date: 2025-06-16Z-03:00
+#updated_date:   2025-07-04Z-03:00
 title: Evento de ejemplo
 summary: ''
 tags:
