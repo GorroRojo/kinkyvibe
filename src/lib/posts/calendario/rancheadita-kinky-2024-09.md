@@ -29,7 +29,7 @@ end:   2024-09-14T22:00-03:00
 location: Bolivar y Finochietto, San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Tacheles
 link: https://forms.gle/dM2A4Jz6b7ug82d27
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 
 <!-- ## 18:30 - 21:30 **Rancheadita Kinky**

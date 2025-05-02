@@ -30,7 +30,7 @@ end:   2024-06-29T21:30-03:00
 location: Adolfo Alsina 1475, CABA
 location_name: Tacheles
 link: 'https://forms.gle/wDdUJ8cHGu6271jc6'
-link_text: Inscibirme
+link_text: Inscribirme
 
 ---
 

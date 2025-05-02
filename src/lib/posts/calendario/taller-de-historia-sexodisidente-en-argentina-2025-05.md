@@ -28,7 +28,7 @@ end:   2025-05-28T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/ijNnXUcntwMtgRYt7'
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 > Esta es la parte 1, [ver parte 2](/calendario/taller-de-historia-sexodisidente-en-argentina-202-05-parte-2)
 

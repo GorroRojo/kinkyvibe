@@ -26,7 +26,7 @@ end:   2024-02-17T22:30-03:00
 location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
 #location_name: Cooperativa Cultural Qi
 # link: ''
-# link_text: Inscibirme
+# link_text: Inscribirme
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""

@@ -27,7 +27,7 @@ carrousel_accent_bg: '#3a0eed'
 location: Parque Centenario (C.A.B.A)
 # location_name: Plaza Lavalle
 # link: https://forms.google.com/elmejoreventodelmundo
-# link_text: Inscibirme ➡️
+# link_text: Inscribirme ➡️
 ---
 
 Te invitamos especialmente si participaste de la última _Picantearla_ por si querés venir a compartir y escuchar cómo la pasaste en el evento 💞

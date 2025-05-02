@@ -28,7 +28,7 @@ end:   2025-04-22T21:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/z7b6q4RG4VvgHKNz6
-link_text: Inscibirme
+link_text: Inscribirme
 
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"

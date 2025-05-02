@@ -27,6 +27,6 @@ end:   2025-02-15T19:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/DnWPEqCXUg6nndTG7'
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 Si querés aprender a portate muy mal y pasarla muy bien, sumate a este taller. Vamos a estar pensando motivaciones y arquetipos del rol para bottoms y tops para que conozcas cómo te gustaría jugar, dar ideas para escenas y ofrecer preguntas prácticas para acompañar tus negociaciones y prácticas de cuidado.

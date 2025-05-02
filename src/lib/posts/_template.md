@@ -85,7 +85,7 @@ authors:
 # Ubicación física donde sucede. si no está se asume online
 
 #link: https://forms.google.com/elmejoreventodelmundo
-#link_text: Inscibirme ➡️
+#link_text: Inscribirme ➡️
 # Un link de acción en el evento, para inscribirse o para ir algun post original
 
 ###################################################

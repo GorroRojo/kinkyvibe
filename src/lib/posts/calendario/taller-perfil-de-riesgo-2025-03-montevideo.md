@@ -27,6 +27,6 @@ end:   2025-03-16T16:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: https://forms.gle/JJiNx4pn8YwMHzUV9
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 Riesgo, daño, placer y cómo gestionarlos en un contexto de BDSM. Cómo explorar nuestras necesidades y cuidados durante prácticas de riesgo.
