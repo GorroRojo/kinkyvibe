@@ -28,7 +28,7 @@ start: 2025-05-14T19:30-03:00
 end:   2025-05-14T21:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: ''
+link: 'https://forms.gle/RyFAeXrmsf2Xi1qC6'
 link_text: Inscribirme
 ---
 ¿Querés jugar con el roleplay pero te cuesta armar ideas? ¿Tenés ganas de flashearla pero tus escenas son muy complicadas y no sabés por dónde empezar? ¿Alguna vez dijiste "Y ahí estaba yo, regla en mano para fajarle el culo al colegialo... Y me quedé en blanco"? Entonces este taller es para vos. 
