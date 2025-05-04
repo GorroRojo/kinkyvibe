@@ -18,7 +18,7 @@ authors:
 featured: bdsm-inicial.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: anunciado # anunciado | abierto | agotadas | cancelado #
 start: 2025-05-17T15:00-03:00
 end:   2025-05-17T20:00-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
