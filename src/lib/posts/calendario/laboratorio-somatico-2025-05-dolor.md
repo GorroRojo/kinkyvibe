@@ -21,8 +21,8 @@ featured: laboratorio-somatico-miniatura.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 22-09-2023Z-03:00
-start: 2025-05-21T15:00-03:00
-end:   2025-05-21T19:00-03:00
+start: 2025-05-21T19:00-03:00
+end:   2025-05-21T22:00-03:00
 location: San Telmo, CABA
 # location_name: la jaula de olivos
 link: https://forms.gle/yEvH8uodkEUGccg6A
