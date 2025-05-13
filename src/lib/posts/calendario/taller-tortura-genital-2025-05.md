@@ -7,7 +7,7 @@ tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
-  - Online # online | AMBA | Córdoba | Santa Cruz #
+  - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - tortura genital
   - sadomasoquismo
   - bdsm
