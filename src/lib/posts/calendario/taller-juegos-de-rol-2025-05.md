@@ -1,7 +1,7 @@
 ---
 published_date: 2025-05-02Z-03:00
 #updated_date:   2025-03-04Z-03:00
-title: "Juegos de Roles: un taller sobre armar fantasías"
+title: "Juegos de Rol: un taller sobre armar fantasías"
 summary: '¿Querés jugar con el roleplay pero te cuesta armar ideas? ¿Tenés ganas de flashearla pero tus escenas son muy complicadas y no sabés por dónde empezar? ¿Alguna vez dijiste "Y ahí estaba yo, regla en mano para fajarle el culo al colegialo... Y me quedé en blanco"? Entonces este taller es para vos. Vamos a estar probando herramientas para crear, organizar y sostener una escena.'
 tags:
   - español
@@ -18,7 +18,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Pi
-#featured: 1
+featured: taller-juegos-de-rol-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

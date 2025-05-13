@@ -27,7 +27,7 @@ start: 2025-05-18T15:00-03:00
 end:   2025-05-18T18:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: ''
+link: 'https://forms.gle/9mMJZaZ9PwchMKNSA'
 link_text: Inscribirme
 ---
 > este es un taller experimental práctico, en el mismo se va a poder interactuar con nuestros (o les de otres) genitales para poder llevar a cabo los ejercicios y propuestas
