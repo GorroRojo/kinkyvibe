@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Lynx
-#featured: 1
+featured: taller-tortura-genital-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
