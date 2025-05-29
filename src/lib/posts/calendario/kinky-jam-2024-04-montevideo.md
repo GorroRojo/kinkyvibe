@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: 1
+featured: kinky-jam-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

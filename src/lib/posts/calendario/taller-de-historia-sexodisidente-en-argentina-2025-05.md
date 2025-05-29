@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Memi
-#featured: 1
+featured: taller-historia-sexodisidente-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

@@ -1,6 +1,6 @@
 ---
-published_date: 2024-04-19Z-03:00
-updated_date:   2023-04-21Z-03:00
+published_date: 2025-05-28Z-03:00
+# updated_date:   2023-04-21Z-03:00
 title: Taller de Asfixia Erótica ¡Edición Montevideo!
 summary: 'Orientado a personas que les interese, excite, e intrigue jugar con la respiración y todo lo que lo atraviesa: ahorcamiento, control de la respiración, asfixia, sofocación, ¡y mucho más!'
 tags:
@@ -14,17 +14,18 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
+  - Tumulto
 featured: taller-asfixia-erotica-montevideo-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2024-04-28T15:00-03:00
-end:   2024-04-28T19:00-03:00
+start: 2025-06-08T15:00-03:00
+end:   2025-06-08T19:00-03:00
 location: Montevideo, Uruguay
 # location_name: Cooperativa Cultural Qi
-link: "https://forms.gle/zYkdQfcTr1jfcyb3A"
+link: https://forms.gle/1V7j3qiNLu61S44W6
 link_text: PRE-VENTA
 ---
 
