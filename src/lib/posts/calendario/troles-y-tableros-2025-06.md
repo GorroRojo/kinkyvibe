@@ -21,9 +21,9 @@ authors:
   - Gael
 featured: troles-y-tableros-miniatura.jpg
 #logo: 2
-#force_unlisted: false
+force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-06-26T20:00-03:00
 end:   2025-06-26T23:00-03:00
