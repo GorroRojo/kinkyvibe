@@ -290,7 +290,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'género y salud sexual',
-		children: ['queer', 'materiales', 'porno', 'squirt', 'feminismo', 'salud'],
+		children: ['cuir', 'materiales', 'porno', 'squirt', 'feminismo', 'salud'],
 		color: '#ff4444'
 	},
 	{
@@ -306,7 +306,7 @@ export const hardcodedTags = [
 	{ icon: '♾️', id: 'neurodivergencia', color: 'var(--2)' },
 	{ icon: '💞', id: 'vincularidad', children: ['no monogamia', 'celos'], color: 'var(--2)' },
 	{ id: '', color: '#ff4444' },
-	{ id: 'queer', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad', 'drag'] },
+	{ id: 'cuir', icon: '🏳️‍🌈', children: ['furry', 'género', 'asexualidad', 'drag'] },
 	{
 		id: 'asexualidad',
 		aka: ['ace', 'espectro asexual'],
@@ -689,6 +689,7 @@ export const hardcodedTags = [
 	{ id: 'Shibari', aliasOf: 'shibari' },
 	{ id: 'Kinkyvibe', aliasOf: 'KinkyVibe' },
 	{ id: 'kinkyvibe', aliasOf: 'KinkyVibe' },
-	{ id: 'D/s', aliasOf: 'intercambio de poder' }
+	{ id: 'D/s', aliasOf: 'intercambio de poder' },
+	{ id: 'queer', aliasOf: 'cuir' }
 ];
 export default hardcodedTags;
