@@ -21,7 +21,7 @@ featured: taller-humillacion-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2025-06-11T10:00-03:00
+start: 2025-06-11T20:00-03:00
 end:   2025-06-11T23:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
