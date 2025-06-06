@@ -98,7 +98,20 @@ cuerdas.
 
 ## BLOQUE 3
 ### 🌈 AUTO-ATADURAS por Alita
-#### Alita \[ella\]
+En esta charla teórico-práctica abordaremos las autoataduras desde múltiples perspectivas: emocional, corporal, artística y técnica.
+
+¿Pueden las autoataduras ser un camino hacia el autoconocimiento, la presencia corporal y la expresión creativa?
+
+Más allá de una técnica, las autoataduras pueden convertirse en una práctica meditativa, un desafío físico y mental, una forma de arte corporal o una experiencia sensorial. Es un lugar donde el cuerpo y las cuerdas se encuentran en un espacio de exploración personal.
+
+Nos preguntaremos:
+- ¿Qué nos motiva a atarnos?
+- ¿Qué buscamos en esta experiencia?
+- ¿Qué emociones despierta en nosotros?
+- ¿Cómo podemos hacerlo de forma segura y consciente?
+También realizaremos ejercicios prácticos, compartiremos tips esenciales para tener una práctica lo más segura para todes.
+
+#### [Alita](https://instagram.com/margaret.p.a) \[ella\]
 Dedicada al aprendizaje y formación en práctica de Shibari desde el 2017. Rigger chilena autodidacta, su primer acercamiento a la disciplina fue con autoataduras en sus diferentes formas. Aprecia la práctica como un medio de conexión, comunicación y expresión, que se puede extender a otrxs cuerpxs.
 Abarca experiencia de ataduras en piso, semi suspensión y suspensión.
 Participa en la escena chilena como educadora y performista; realizando clases/talleres, y participando en eventos, exposiciones, entre otros.
