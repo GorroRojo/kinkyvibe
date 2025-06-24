@@ -15,7 +15,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Caro Meloni
-#featured: 1
+featured: 1
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
@@ -25,7 +25,7 @@ start: 2025-06-25T20:00-03:00
 end:   2025-06-25T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: ''
+link: 'https://forms.gle/BijEMRWzfP1bQMFb7'
 link_text: Inscribirme
 ---
 Dado por Caro Meloni: Sexóloga y divulgadora de contenido sexológico con perspectiva de derechos humanos. Creadora e impulsora del Proyecto Chornia y la Humping. Coordinadora y docente de la primera formación de sexología desde un posicionamiento político. Grisexual. Conurbana.
