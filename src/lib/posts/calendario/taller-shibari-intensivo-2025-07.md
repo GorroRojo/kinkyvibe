@@ -2,7 +2,7 @@
 published_date: 2025-07-01Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller introductorio intensivo de shibari (parte 1 de 2)
-summary: 'Este taller a cargo de Soga Shibari está pensado para personas que sienten curiosidad y no tienen contacto previo con Shibari. Un acercamiento a la técnica de ataduras de origen japonés de manera presencial y switch (aprendemos a atar y somos atadxs).'
+summary: 'CUPOS LIMITADOS - Este taller a cargo de Soga Shibari está pensado para personas que sienten curiosidad y no tienen contacto previo con Shibari. Un acercamiento a la técnica de ataduras de origen japonés de manera presencial y switch (aprendemos a atar y somos atadxs).'
 tags:
   - español
   # - KinkyVibe # etiqueta especial #
@@ -10,6 +10,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - shibari
+  - inicial
 layout: calendario
 category: calendario
 authors:

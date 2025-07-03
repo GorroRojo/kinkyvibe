@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
 featured: laboratorio-somatico-miniatura.png
-# force_unlisted: true
+force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 22-09-2023Z-03:00
