@@ -2,7 +2,8 @@
 published_date: 2025-07-03Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Festi Kinky 24/7
-summary: 'Festejamos el día del BDSM con mucho kink, un taller, sesiones en vivo, y proyecciones'
+summary: 'Festejamos el día del BDSM con mucho kink, un taller, sesiones en
+  vivo, y proyecciones'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -28,15 +29,19 @@ featured: festi-kinky-24-7-miniatura.jpg
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-07-25T18:30-03:00
-end:   2025-07-26T00:30-03:00
+end: 2025-07-26T00:30-03:00
 location: Lezica 4266, Ciudad Autónoma de Buenos Aires
 location_name: Centro Cultural Lezica
-link: https://forms.gle/9X2Y1N39ZteDcvgC9
 link_text: PRE-VENTA
+updated_date: 2025-07-05Z-03:00
+
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+#link: https://forms.gle/9X2Y1N39ZteDcvgC9
+
+
 ---
 ## CRONOGRAMA
 ### BLOQUE 1
