@@ -19,7 +19,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: 1
+featured: rapidito-miniatura.jpg
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

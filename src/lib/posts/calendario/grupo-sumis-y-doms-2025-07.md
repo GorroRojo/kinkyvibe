@@ -28,7 +28,7 @@ start: 2025-07-23T20:00-03:00
 end:   2025-07-23T22:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
-link: ''
+link: 'https://forms.gle/FwjVjvZwFhDVYACi9'
 link_text: INSCRIBIRME
 ---
 
