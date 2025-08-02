@@ -2,7 +2,7 @@
 published_date: 2025-08-01Z-03:00
 #updated_date:   2025-07-04Z-03:00
 title: Memoria Sucia
-summary: 'Conversatorio con Lucas Fauno, Mel Feld, Marcelo Ferrerya, Pablo Peréz y Memi Martinez sobre VIH, sida, leather/BDSM y goce gay. Mostraremos material de archivo y un corto'
+summary: 'Conversatorio con Lucas Fauno, Mel Feld, Marcelo Ferreyra, Pablo Peréz y Memi Martinez sobre VIH, sida, leather/BDSM y goce gay. Mostraremos material de archivo y un corto'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -33,4 +33,4 @@ link: 'https://forms.gle/azAZNZvo7KKVwoRbA'
 link_text: Inscribirme
 ---
 
-Conversatorio con Lucas Fauno, Mel Feld, Marcelo Ferrerya, Pablo Peréz y Memi Martinez sobre VIH, sida, leather/BDSM y goce gay. Mostraremos material de archivo y un corto
+Conversatorio con Lucas Fauno, Mel Feld, Marcelo Ferreyra, Pablo Peréz y Memi Martinez sobre VIH, sida, leather/BDSM y goce gay. Mostraremos material de archivo y un corto
