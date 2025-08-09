@@ -24,7 +24,7 @@ start: 2025-08-24T15:00-03:00
 end:   2025-08-24T19:00-03:00
 location: Av Maipú 2535, Olivos, Buenos Aires
 location_name: la jaula de olivos
-link: "https://forms.gle/Ee11Xbirg5h2SFBr7"
+link: "https://forms.gle/j4pg2fEk9gHwF6tBA"
 link_text: PRE-VENTA
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
