@@ -18,7 +18,7 @@ category: calendario
 authors:
   - DemonWeb
   - Gorro_Rojo
-featured: grupo-sumis-miniatura.png
+featured: grupo-sumis-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado

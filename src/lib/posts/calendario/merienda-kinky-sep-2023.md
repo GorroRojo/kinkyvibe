@@ -27,7 +27,7 @@ carrousel_accent_bg: '#3a0eed'
 location: Plaza Lavalle, Zona Tribunales (C.A.B.A)
 location_name: Plaza Lavalle
 # link: https://forms.google.com/elmejoreventodelmundo
-# link_text: Inscibirme ➡️
+# link_text: Inscribirme ➡️
 ---
 
 Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb

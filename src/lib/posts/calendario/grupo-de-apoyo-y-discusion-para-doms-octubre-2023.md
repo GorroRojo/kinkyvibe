@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: grupo-doms-miniatura.png
+featured: grupo-doms-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

@@ -2,7 +2,9 @@
 published_date: 2025-01-29Z-03:00
 # updated_date: 2024-02-30Z-03:00
 title: Picantearla (29ª Edición)
-summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
+summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+!
+  Pensado para todes quienes quieran sesionar, charlar y conocer gente en un
+  espacio tranqui y juguetón
 tags:
   - español
   - KinkyVibe
@@ -23,12 +25,13 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2025-02-21T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2025-02-22T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2025-02-28T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2025-03-01T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Batacazo Cultural
 link: https://docs.google.com/forms/d/e/1FAIpQLSc7CYROf7nawgVV_p6PKB3dEUaeIO-d5jhC0KpWXqDr1ToJ0g/viewform?usp=sf_link
 link_text: 'PRE VENTA'
+updated_date: 2025-02-18Z-03:00
 
 ---
 

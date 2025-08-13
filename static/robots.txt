@@ -2,3 +2,4 @@ User-agent: *
 Disallow: /_template
 Disallow: /_tags
 Disallow: /_glossary
+Disallow: /auch

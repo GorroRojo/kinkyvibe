@@ -27,7 +27,7 @@ end:   2024-11-30T18:00-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 # link: ''
-# link_text: Inscibirme
+# link_text: Inscribirme
 # carrousel_background: "#f2a68f"
 # carrousel_color: "white"
 # carrousel_accent_text: ""

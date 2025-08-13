@@ -23,7 +23,7 @@ end: 2023-06-25T18:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Qi Centro Cultural
 link: https://docs.google.com/forms/d/e/1FAIpQLSet7KCsGE1vhHoZWBcdUrqWim_Xv5NbjS0TTPFK7MQ3wAn4Gw/viewform?pli=1
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 
 <script>

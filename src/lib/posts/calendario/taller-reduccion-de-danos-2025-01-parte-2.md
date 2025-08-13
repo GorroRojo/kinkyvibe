@@ -28,7 +28,7 @@ end:   2025-01-29T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://docs.google.com/forms/d/e/1FAIpQLSdVKjbT5niGXe3p554h7lA-bMlljIFy_ch_mDHeMwK8nadzEw/viewform'
-link_text: Inscibirme
+link_text: Inscribirme
 ---
 > Esta es la parte 2, [ver parte 1](/calendario/taller-reduccion-de-danos-2025-01)
 

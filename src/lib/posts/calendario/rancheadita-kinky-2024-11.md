@@ -25,7 +25,7 @@ end:   2024-11-17T20:00-03:00
 location: Parque Centenario, Ciudad Autónoma de Buenos Aires
 # location_name: Tacheles
 # link: https://docs.google.com/forms/d/e/1FAIpQLSeXJT4C4-DuiA3jSJmWFIbxqzsq3tU4PHnpWWVq1hYgx1mKtA/viewform?usp=sf_link
-# link_text: Inscibirme
+# link_text: Inscribirme
 ---
 
 <!-- ## 18:30 - 21:30 **Rancheadita Kinky**

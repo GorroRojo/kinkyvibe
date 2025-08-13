@@ -41,8 +41,8 @@
 				}
 			}
 	);
-	/**@type {LD.BreadcrumbList & {"@context": string}}*/
-	let ldBreadcrumb = {
+	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
+	let ldBreadcrumb = (cat) => ({
 		'@context': 'https://schema.org',
 		'@type': 'BreadcrumbList',
 		itemListElement: [
@@ -50,11 +50,11 @@
 				'@type': 'ListItem',
 				position: 1,
 				name:
-					$currentPostData?.category == 'wiki' ? 'Kinkipedia' : $currentPostData?.category ?? '',
+					cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
 				item: 'https://example.com/books'
 			}
 		]
-	};
+	});
 </script>
 
 <svelte:head>
@@ -90,7 +90,7 @@
 			<img src={logo} alt="KinkyVibe" />
 		</a>
 		<div id="user">
-			{#if data.user && data.user !== undefined && data.user.login !== ''}
+			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
 				<UserMenu user={data.user} />
 			{:else}
 				<a href="/amigues/KinkyVibe">
@@ -129,7 +129,7 @@
 		</a>
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
-			<LDTag schema={ldBreadcrumb} />
+			<LDTag schema={ldBreadcrumb($currentPostData?.category)} />
 			<ChevronLeft size="20" style="translate: 0 .4em" />
 			<a href={'/' + $currentPostData.category}
 				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
