@@ -8,13 +8,15 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},
 	optimizeDeps: {
-		exclude: ["codemirror", "@codemirror/lang-markdown"]
+		exclude: ['codemirror', '@codemirror/lang-markdown']
 	},
 	css: {
 		preprocessorOptions: {
-			sass: {
-				api: 'modern-compiler'
+			scss: {
+				api: 'modern-compiler', // or "modern",
+				silenceDeprecations: ["legacy-js-api"]
 			}
 		}
-	}
+	},
+	
 });
