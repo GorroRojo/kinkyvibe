@@ -18,10 +18,8 @@ const config = {
 	preprocess: sequence([
 		sveltePreprocess({
 			scss: {
-				api: 'modern-compiler'
-			},
-			sass: {
-				api: 'modern-compiler'
+				api: 'modern-compiler',
+				silenceDeprecations: ["legacy-js-api"]
 			},
 			postcss: {
 				api:'modern-compiler',
