@@ -24,21 +24,24 @@
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
+				let pageurl = new URL(window.location.href);
+				let fltrdTags = pageurl.searchParams.get('tags')?.split(',') ?? [];
 				if (checked) {
-					filteredTags.update((fTags) => [...fTags, tag]);
+					if (!fltrdTags.includes(tag)) fltrdTags = [...fltrdTags, tag];
 				} else {
-					filteredTags.update((fTags) => [
-						...fTags.slice(0, fTags.indexOf(tag)),
-						...fTags.slice(fTags.indexOf(tag) + 1)
-					]);
+					fltrdTags = [
+						...fltrdTags.slice(0, fltrdTags.indexOf(tag)),
+						...fltrdTags.slice(fltrdTags.indexOf(tag) + 1)
+					];
 				}
-				$page.url.searchParams.set('tags', $filteredTags.join(','));
-				if ($filteredTags.length > 0) {
-					window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
+				pageurl.searchParams.set('tags', fltrdTags.join(','));
+				if (fltrdTags.length > 0) {
+					window.history.pushState('', '', `?${pageurl.searchParams.toString()}`);
 				} else {
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
+					pageurl.searchParams.delete('tags');
+					window.history.replaceState('', '', pageurl);
 				}
+				filteredTags.update((_)=>fltrdTags)
 			}
 	);
 	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
@@ -49,8 +52,7 @@
 			{
 				'@type': 'ListItem',
 				position: 1,
-				name:
-					cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
+				name: cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
 				item: 'https://example.com/books'
 			}
 		]
@@ -129,7 +131,7 @@
 		</a>
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
-			<LDTag schema={ldBreadcrumb($currentPostData?.category??'')} />
+			<LDTag schema={ldBreadcrumb($currentPostData?.category ?? '')} />
 			<ChevronLeft size="20" style="translate: 0 .4em" />
 			<a href={'/' + $currentPostData.category}
 				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
@@ -139,6 +141,7 @@
 {/if}
 {#key data.currentRoute}
 	<main in:fade|global={{ duration: 300, delay: 300 }}>
+		{$filteredTags}jajá
 		<slot />
 	</main>
 {/key}
