@@ -150,6 +150,7 @@
 				on:keydown={() => toggleBodyPart(name)}
 				on:click={() => toggleBodyPart(name)}
 				tabindex="0"
+				role="button"
 			/>
 		{/each}
 	</svg>

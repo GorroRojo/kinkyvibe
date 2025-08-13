@@ -129,7 +129,7 @@
 		</a>
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
-			<LDTag schema={ldBreadcrumb($currentPostData?.category)} />
+			<LDTag schema={ldBreadcrumb($currentPostData?.category??'')} />
 			<ChevronLeft size="20" style="translate: 0 .4em" />
 			<a href={'/' + $currentPostData.category}
 				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
@@ -146,20 +146,6 @@
 <Footer />
 
 <style>
-	#user {
-		/* position: absolute */
-	}
-	/* header {
-		display: grid;
-        grid-template-columns: 12em 1fr 10em 5em;
-		max-width: 50rem;
-		margin-inline: auto;
-		height: 3em;
-		align-items: center;
-        justify-content: space-between;
-        align-content: center;
-	} */
-
 	#logo {
 		color: black;
 		display: block;
@@ -173,7 +159,6 @@
 		width: 100%;
 		max-width: 50rem;
 		margin: 0 auto 1.4em;
-		/* padding-left: 1em; */
 		color: var(--2);
 		text-decoration: none;
 		align-items: baseline;
@@ -205,7 +190,6 @@
 		grid-area: redes;
 		list-style: none;
 		padding: 0;
-		/* padding-right: 1em; */
 		display: flex;
 		gap: 0.6em;
 		flex-direction: row-reverse;

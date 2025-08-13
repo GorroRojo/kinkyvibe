@@ -19,6 +19,8 @@
 		{@const group = colors.groups.find((g) => g.parts.some((p) => part.name.startsWith(p)))}
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<path
+			role="button"
+			tabindex="0"
 			id={part.name}
 			style:--color={group ? group.color : colors.default ?? '#888'}
 			d={part.path}

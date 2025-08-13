@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
 	import TagsInput from './../../../../../lib/components/TagsInput.svelte';
 	export let data;
 	export let form;
@@ -184,7 +186,7 @@
 <!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
 <!-- <pre>{doc.get('tags').items}</pre> -->
 <ul class="proplist">
-	{#each [...postProperties, ...typedProperties[$page.params.category]] as postProp}
+	{#each [...postProperties, ...typedProperties[$page.params.category ?? 0]] as postProp}
 		<li class={postProp.type} style:--width={postProp.width}>
 			<label for={postProp.key + '-input'}>
 				{#if postProp.type != 'checkbox'}
@@ -211,7 +213,7 @@
 					<TagsInput
 						inputid="{postProp.key}-input"
 						initialTags={doc.get(postProp.key).items.map((t) => t.value)}
-						onUpdate={(tags)=>setProperty(postProp.key, tags)}
+						onUpdate={(tags) => setProperty(postProp.key, tags)}
 					/>
 				{:else if postProp.type == 'select'}
 					<select

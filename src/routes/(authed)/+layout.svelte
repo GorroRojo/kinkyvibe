@@ -11,7 +11,9 @@
 <header>
 	<a href="/">⬅️ Inicio</a>
 	<span>Panel de administradore</span>
-	<UserMenu user={data.user} />
+	{#if data.user}
+		<UserMenu user={data.user} />
+	{/if}
 </header>
 
 <slot />

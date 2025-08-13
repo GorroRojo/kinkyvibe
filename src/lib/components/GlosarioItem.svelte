@@ -78,7 +78,7 @@
 		class="all"
 		class:single
 		class:title
-		style:--color={'var(--1)' ?? tag.getColor() ?? 'var(--2)'}
+		style:--color={tag.getColor() ?? 'var(--2)'}
 	>
 		<dt id={name} class:onlyTitle={!(hasDescription || tag.related)}>
 			<div class="itemtitle">

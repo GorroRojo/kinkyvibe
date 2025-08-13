@@ -2,7 +2,7 @@
 	import { createDropdownMenu, melt } from '@melt-ui/svelte';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
-	/** @type {GHUser} */
+	/** @type {Partial<GHUser>} */
 	export let user;
 	const {
 		elements: { trigger, menu, item },
@@ -28,7 +28,7 @@
 		// }
 		// return true
 	}
-	let admin = isAdmin('', user.login);
+	let admin = user.login ? isAdmin('', user.login) : false;
 </script>
 
 <div class="profile-header" use:melt={$trigger}>
