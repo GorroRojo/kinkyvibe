@@ -6,7 +6,8 @@
 	import { view_date } from '$lib/utils/stores.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
-	export let data;
+	/** @type {{data: any}} */
+	let { data } = $props();
 	let calendarioPosts = data.allPosts.filter((p) => p.meta.layout == 'calendario');
 	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
 	let days = calendarioPosts.reduce((dates, post, i) => {
@@ -49,50 +50,52 @@
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader />
-		<Calendar let:date let:today let:past>
-			{@const events = days?.[date]}
-			{@const featuredEvent =
-				events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
-				events?.filter((e) => e.meta.featured)?.[0]}
-			{@const background = featuredEvent?.meta?.featured}
-			<button
-				class:today
-				class:past
-				disabled={!events}
-				style={background ? `--event-image: url("${background}");` : ''}
-				style:--evt-color={featuredEvent?.meta?.tags?.includes('KinkyVibe')
-					? 'var(--1)'
-					: 'var(--2)'}
-			>
-				<div class="date" class:today>
-					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
-				</div>
-				{#if events}
-					<div class="dot" />
-					{#each events.sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
-						{@const start = new Date(event.meta.start)}
-						{@const minutes = format(start, 'mm')}
-						<a
-							href={'#' + event.path}
-							class="bar"
-							class:dim={event.meta.status == 'cancelado'}
-							style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
-						>
-							<span>
-								{event.meta.title ?? ' '}
-								&sdot;
-								<strong
-									>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
-										start,
-										'aaa'
-									)}</strong
-								>
-							</span>
-						</a>
-					{/each}
-				{/if}
-			</button>
-		</Calendar>
+		<Calendar   >
+			{#snippet children({ date, today, past })}
+						{@const events = days?.[date]}
+				{@const featuredEvent =
+					events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
+					events?.filter((e) => e.meta.featured)?.[0]}
+				{@const background = featuredEvent?.meta?.featured}
+				<button
+					class:today
+					class:past
+					disabled={!events}
+					style={background ? `--event-image: url("${background}");` : ''}
+					style:--evt-color={featuredEvent?.meta?.tags?.includes('KinkyVibe')
+						? 'var(--1)'
+						: 'var(--2)'}
+				>
+					<div class="date" class:today>
+						{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
+					</div>
+					{#if events}
+						<div class="dot"></div>
+						{#each events.sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+							{@const start = new Date(event.meta.start)}
+							{@const minutes = format(start, 'mm')}
+							<a
+								href={'#' + event.path}
+								class="bar"
+								class:dim={event.meta.status == 'cancelado'}
+								style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
+							>
+								<span>
+									{event.meta.title ?? ' '}
+									&sdot;
+									<strong
+										>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
+											start,
+											'aaa'
+										)}</strong
+									>
+								</span>
+							</a>
+						{/each}
+					{/if}
+				</button>
+								{/snippet}
+				</Calendar>
 	</div>
 	<div id="postlist">
 		<PostList

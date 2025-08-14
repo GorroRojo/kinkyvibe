@@ -1,23 +1,24 @@
 <script>
 	//@ts-nocheck
-	export let isCheckbox = false;
-	export let isLink = false;
-	export let tag = '';
-	export let icon = '';
-	export let name = tag;
-	export let checked = false;
-	export let noBorder = false;
-	/**
-	 * @type function
-	 */
-	export let onInput = () => {
+	
+	/** @type {{isCheckbox?: boolean, isLink?: boolean, tag?: string, icon?: string, name?: any, checked?: boolean, noBorder?: boolean, onInput?: any}} */
+	let {
+		isCheckbox = false,
+		isLink = false,
+		tag = '',
+		icon = '',
+		name = tag,
+		checked = $bindable(false),
+		noBorder = false,
+		onInput = () => {
 		return;
-	};
+	}
+	} = $props();
 </script>
 
 {#if isCheckbox}
 	<label class="tag" class:checked class:noBorder>
-		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
+		<input type="checkbox" oninput={onInput} {name} bind:checked tabindex="0" />
 		{icon} {tag}
 	</label>
 {:else if isLink}

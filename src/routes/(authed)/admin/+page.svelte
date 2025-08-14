@@ -1,6 +1,7 @@
 <script>
 	import PostList from '$lib/components/PostList.svelte';
-	export let data;
+	/** @type {{data: any}} */
+	let { data } = $props();
 </script>
 <div class="content">
 	<h2>Publicaciones no listadas</h2>

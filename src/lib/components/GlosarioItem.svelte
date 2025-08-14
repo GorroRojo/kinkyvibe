@@ -1,4 +1,4 @@
-<script context="module">
+<script module>
 	import { ChevronRight, ChevronDown } from 'lucide-svelte';
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
@@ -9,10 +9,9 @@
 </script>
 
 <script>
-	/**@type {TagID}*/
-	export let item = 'root';
-	export let single = false;
-	export let title = false;
+	
+	/** @type {{item?: TagID, single?: boolean, title?: boolean}} */
+	let { item = 'root', single = false, title = false } = $props();
 	const {
 		elements: { root, content, trigger },
 		states: { open },
@@ -24,7 +23,7 @@
 		}
 	});
 	/**@type {ProcessedTag}*/
-	let tag = $wikiTagManager.get(item);
+	let tag = $state($wikiTagManager.get(item));
 	wikiTagManager.subscribe((wtm) => (tag = wtm.get(item)));
 
 	const name = tag?.visible_name ?? tag.id;
@@ -164,7 +163,7 @@
 	</div>
 {/if}
 
-<mark hidden />
+<mark hidden></mark>
 
 <style>
 	mark {

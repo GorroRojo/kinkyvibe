@@ -5,7 +5,8 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
-	export let data;
+	/** @type {{data: any}} */
+	let { data } = $props();
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
@@ -126,7 +127,7 @@
 		</div>
 	{/if}
 	<div class="content" use:processContent>
-		<svelte:component this={data.content} />
+		<data.content />
 	</div>
 	{#if data.meta.tags?.includes('KinkyVibe')}
 		<div id="cafecito">

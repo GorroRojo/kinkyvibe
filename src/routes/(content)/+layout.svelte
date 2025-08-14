@@ -20,7 +20,8 @@
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
-	export let data;
+	/** @type {{data: any, children?: import('svelte').Snippet}} */
+	let { data, children } = $props();
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
@@ -142,7 +143,7 @@
 {#key data.currentRoute}
 	<main in:fade|global={{ duration: 300, delay: 300 }}>
 		{$filteredTags}jajá
-		<slot />
+		{@render children?.()}
 	</main>
 {/key}
 

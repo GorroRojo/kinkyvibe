@@ -71,9 +71,9 @@
 			.replaceAll('ó', 'o')
 			.replaceAll('ú', 'u');
 
-	/**@type{*}*/
-	export let value = '';
-	export let parsed = false;
+	
+	/** @type {{value?: string, parsed?: boolean}} */
+	let { value = '', parsed = false } = $props();
 	/**@type {ProcessedPost[]}*/
 	let entries = $page.data.wiki;
 </script>

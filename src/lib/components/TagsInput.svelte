@@ -2,11 +2,14 @@
 	import { createTagsInput, melt } from '@melt-ui/svelte';
 	import { tagManager } from '$lib/utils/stores';
 	import { tagSorter } from '$lib/utils';
-	export let placeholder = '';
-	/** @type {string[]}*/
-	export let initialTags = [];
-	export let inputid = undefined;
-	export let onUpdate = (/** @type any*/ arr) => {};
+	
+	/** @type {{placeholder?: string, initialTags?: string[], inputid?: any, onUpdate?: any}} */
+	let {
+		placeholder = '',
+		initialTags = [],
+		inputid = undefined,
+		onUpdate = (/** @type any*/ arr) => {}
+	} = $props();
 	const {
 		elements: { root, input, tag, deleteTrigger, edit },
 		states: { tags },

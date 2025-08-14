@@ -1,4 +1,5 @@
 <script>
+	import TagGroup from './TagGroup.svelte';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
@@ -6,13 +7,16 @@
 	import { onMount } from 'svelte/internal';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
-	/** @type ProcessedTag */
-	export let tag;
-	export let gap = false;
-	export let nested = true;
+	
 
-	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
-	export let onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t);
+	
+	/** @type {{tag: any, gap?: boolean, nested?: boolean, onInput?: any}} */
+	let {
+		tag,
+		gap = false,
+		nested = true,
+		onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t)
+	} = $props();
 
 	/** @param {string} tagID
 	 *  @return {boolean}
@@ -25,7 +29,7 @@
 			false
 		);
 	}
-	let mounted = false;
+	let mounted = $state(false);
 	onMount(() => (mounted = true));
 	let noname =
 		tag.noname ||
@@ -84,7 +88,7 @@
 							/>
 						{/if}
 					{:else if subTag}
-						<svelte:self tag={subTag} />
+						<TagGroup tag={subTag} />
 					{/if}
 				</li>
 			{/each}

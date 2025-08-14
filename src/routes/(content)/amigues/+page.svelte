@@ -3,13 +3,14 @@
 	import { ArrowRight, Globe } from 'lucide-svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import Tag from '$lib/components/Tag.svelte';
-	export let data;
 	import PostList from '$lib/components/PostList.svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
+	/** @type {{data: any}} */
+	let { data } = $props();
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
 	let amiguesPosts = data.allPosts
 		.filter((p) => p.meta.layout == 'amigues')
@@ -46,7 +47,7 @@
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade|global>
 				<div>
-					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
+					<button onclick={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}

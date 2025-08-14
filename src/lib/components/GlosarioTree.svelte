@@ -1,12 +1,13 @@
-<script context="module">
+<script module>
 	import { wikiTagManager } from '$lib/utils/stores';
 	import GlosarioItem from './GlosarioItem.svelte';
 </script>
 
 <script>
-	export let root = 'root';
+	/** @type {{root?: string}} */
+	let { root = 'root' } = $props();
 	/**@type TagID[]*/
-	let items = [];
+	let items = $state([]);
 	wikiTagManager.subscribe((wtm) => {
 		items = wtm.get(root).children ?? [];
 	});

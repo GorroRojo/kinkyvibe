@@ -7,7 +7,8 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
-	export let data;
+	/** @type {{data: any}} */
+	let { data } = $props();
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
@@ -200,7 +201,7 @@
 				buttonStyle="3d"
 				organizer="Mel|kinkyvibe@gmail.com"
 				size="8"
-			/>
+			></add-to-calendar-button>
 		</div>
 	</div>
 	{/if}
@@ -210,7 +211,7 @@
 		</div>
 	{/if}
 	<div class="content" use:processContent>
-		<svelte:component this={data.content} />
+		<data.content />
 		{#if data.meta.link && data.meta.link_text}
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}

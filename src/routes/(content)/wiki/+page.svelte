@@ -1,7 +1,7 @@
 <script>
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, tagManager, query } from '$lib/utils/stores';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Search, Construction } from 'lucide-svelte';
 	import tagsFactory from '$lib/utils/tags';
 
@@ -28,9 +28,9 @@
 	query.subscribe((newQuery) => {
 		if (newQuery == undefined || newQuery.trim() == '') {
 			wikiTagManager.update(() => tagsFactory());
-			// $page.url.searchParams.delete('q');
+			// page.url.searchParams.delete('q');
 		} else {
-			// $page.url.searchParams.set('q', newQuery);
+			// page.url.searchParams.set('q', newQuery);
 			wikiTagManager.update((wtm) => {
 				/**@type {TagID[]}*/
 				let del = [];

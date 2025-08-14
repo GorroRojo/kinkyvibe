@@ -1,4 +1,4 @@
-<script context="module">
+<script module>
 	import {
 		CalendarRange,
 		BookOpen,
@@ -16,7 +16,8 @@
 
 <script>
 	//@ts-nocheck
-	export let post;
+	/** @type {{post: any}} */
+	let { post } = $props();
 	let {
 		path,
 		meta: {
@@ -37,8 +38,8 @@
 			redirect,
 			pronoun
 		}
-	} = post;
-	var date = start ? addHours(new Date(start), 3) : published_date;
+	} = $state(post);
+	var date = $state(start ? addHours(new Date(start), 3) : published_date);
 	try {
 		format(new Date(date), 'yyyy-MM-dd');
 	} catch (e) {
@@ -50,7 +51,7 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
-	let mounted = false;
+	let mounted = $state(false);
 	onMount(() => (mounted = true));
 	let past = start ? isPast(new Date(start)) : false;
 	let style = `scale:var(--scale,1);
@@ -140,7 +141,7 @@
 						organizer="Mel|kinkyvibe@gmail.com"
 						size="1"
 						hideBackground
-					/>
+					></add-to-calendar-button>
 					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
 					<!-- buttonStyle="round" -->

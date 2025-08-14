@@ -4,17 +4,18 @@
 	import es from 'date-fns/locale/es/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
-	/**@type {{path: string, meta: AnyPostData}[]}*/
-	export let posts;
-	let index = 0;
-	$: post = posts[index];
+	
+	/** @type {{posts: {path: string, meta: AnyPostData}[]}} */
+	let { posts } = $props();
+	let index = $state(0);
+	let post = $derived(posts[index]);
 	const defaultCombos = [
 		['var(--1)', 'white'],
 		['var(--2)', 'white'],
 		['var(--3)', 'white']
 	];
-	let currDefaultCombo = 0;
-	$: slideColors = posts.map((p) => {
+	let currDefaultCombo = $state(0);
+	let slideColors = $derived(posts.map((p) => {
 		if (p.meta.carrousel_background) {
 			return [
 				p.meta.carrousel_background,
@@ -27,11 +28,11 @@
 			// alert(defaultCombos[currDefaultCombo])
 			return defaultCombos[currDefaultCombo];
 		}
-	});
-	$: currBackground = slideColors[index][0];
-	$: currColor = slideColors[index][1];
-	$: currAccent = slideColors[index]?.[2] ?? currColor ?? 'white';
-	$: currAccentBg = slideColors[index]?.[3] ?? currBackground;
+	}));
+	let currBackground = $derived(slideColors[index][0]);
+	let currColor = $derived(slideColors[index][1]);
+	let currAccent = $derived(slideColors[index]?.[2] ?? currColor ?? 'white');
+	let currAccentBg = $derived(slideColors[index]?.[3] ?? currBackground);
 	/**
 	 * @param {HTMLElement} node
 	 * @param {{ delay?: number, duration?: number, easing?: (t: number) => number }} params
@@ -51,7 +52,7 @@
 			`
 		};
 	}
-	let clicked = false;
+	let clicked = $state(false);
 	let autoslide = setInterval(() => {
 		if (clicked) {
 			clearInterval(autoslide);
@@ -70,7 +71,7 @@
 	out:fade|global
 >
 	<button
-		on:click={() => {
+		onclick={() => {
 			index != 0 ? index-- : (index = posts.length - 1);
 			clicked = true;
 		}}>&lt;</button
@@ -97,7 +98,7 @@
 		</div>
 	{/key}
 	<button
-		on:click={() => {
+		onclick={() => {
 			index != posts.length - 1 ? index++ : (index = 0);
 			clicked = true;
 		}}>&gt;</button

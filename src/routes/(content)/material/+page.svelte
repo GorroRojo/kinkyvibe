@@ -1,6 +1,5 @@
 <script>
 	//@ts-nocheck
-	export let data;
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -10,6 +9,8 @@
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
+	/** @type {{data: any}} */
+	let { data } = $props();
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
@@ -34,7 +35,7 @@
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade|global>
 				<div>
-					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
+					<button onclick={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}

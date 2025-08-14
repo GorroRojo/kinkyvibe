@@ -4,7 +4,9 @@
 		filteredTags,
 		togglePositiveTagFilterFn
 	} from '$lib/utils/stores';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	/** @type {{children?: import('svelte').Snippet}} */
+	let { children } = $props();
 	// onMount(() => {
 	filteredTags.set([]);
 	// });
@@ -19,12 +21,12 @@
 						...fTags.slice(fTags.indexOf(tag) + 1)
 					]);
 				}
-				$page.url.searchParams.set('tags', $filteredTags.join(','));
+				page.url.searchParams.set('tags', $filteredTags.join(','));
 				if ($filteredTags.length > 0) {
-					window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
+					window.history.pushState('', '', `?${page.url.searchParams.toString()}`);
 				} else {
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
+					page.url.searchParams.delete('tags');
+					window.history.replaceState('', '', page.url);
 				}
 			}
 	);
@@ -33,7 +35,7 @@
 <svelte:head>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:url" content={page.url.href} />
 </svelte:head>
 
-<slot></slot>
+{@render children?.()}

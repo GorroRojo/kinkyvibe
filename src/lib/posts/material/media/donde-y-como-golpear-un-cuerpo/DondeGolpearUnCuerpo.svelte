@@ -68,8 +68,8 @@
 			pantorrilla: 'good'
 		}
 	};
-	let implemento = 'palmeta';
-	let bodypart = '';
+	let implemento = $state('palmeta');
+	let bodypart = $state('');
 	('title,desc,tipo de dolor, dificultad, marcas');
 	/** @type Record<string,*>*/
 	const text = {
@@ -147,8 +147,8 @@
 			<path
 				{d}
 				class="{name} {seguridad[implemento][name]}"
-				on:keydown={() => toggleBodyPart(name)}
-				on:click={() => toggleBodyPart(name)}
+				onkeydown={() => toggleBodyPart(name)}
+				onclick={() => toggleBodyPart(name)}
 				tabindex="0"
 				role="button"
 			/>
@@ -162,7 +162,7 @@
 			<strong>Dificultad {text[implemento].dificultad.toLowerCase()}</strong>. {text[implemento]
 				.dificultad_det}
 		</p>
-		<p />
+		<p></p>
 		<p>Dolor: <strong>{text[implemento].dolor}</strong></p>
 		<p>Marcas: <strong>{text[implemento].marcas}</strong></p>
 	</div>

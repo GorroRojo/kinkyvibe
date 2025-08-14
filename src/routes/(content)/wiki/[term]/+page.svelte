@@ -5,7 +5,8 @@
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
-	export let data;
+	/** @type {{data: any}} */
+	let { data } = $props();
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
 	let haswiki = (/**@type string*/ n) => true || data.wiki?.some((e) => e.meta.wiki == n);
@@ -91,7 +92,7 @@
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if data.content}
-			<svelte:component this={data.content} />
+			<data.content />
 		{/if}
 	</div>
 	<hr />

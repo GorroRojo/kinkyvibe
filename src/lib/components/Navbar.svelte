@@ -2,12 +2,14 @@
 	//@ts-nocheck
 	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
-	export let links;
+	/** @type {{links: any}} */
+	let { links } = $props();
 </script>
 
 <nav>
 	<ul>
 		{#each links as { icon, name, sub, href, target = undefined }}
+			{@const SvelteComponent = icon}
 			<li
 				class:current={$page.url.pathname.includes(href) ||
 					($currentPostData &&
@@ -16,7 +18,7 @@
 			>
 				<a {href} {target} tabindex="0">
 					<span>
-						<span><svelte:component this={icon} size="1em" /></span>
+						<span><SvelteComponent size="1em" /></span>
 						{name}
 					</span>
 					<small>{sub}</small>

@@ -2,17 +2,17 @@
 // @ts-nocheck
 
 	import TagsInput from './../../../../../lib/components/TagsInput.svelte';
-	export let data;
-	export let form;
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
 	import { page } from '$app/stores';
 	import { parseDocument, visit } from 'yaml';
 	import { format } from 'date-fns';
-	let postContent = data?.post.raw.split('---').slice(2).join('---');
+	/** @type {{data: any, form: any}} */
+	let { data, form } = $props();
+	let postContent = $state(data?.post.raw.split('---').slice(2).join('---'));
 	const sha = data?.post.sha ?? '';
 	const path = data?.post.path ?? '';
-	let doc = parseDocument(data?.post.raw.split('---')[1], { strict: false });
+	let doc = $state(parseDocument(data?.post.raw.split('---')[1], { strict: false }));
 	/** @param {string} uncommentKey */
 	function uncomment(uncommentKey) {
 		let value = undefined;
@@ -202,13 +202,13 @@
 						id="{postProp.key}-input"
 						required={postProp.required ?? false}
 						name={postProp.key}
-						on:input={(e) => setProperty(postProp.key, e?.target?.value.replaceAll(/\n/g, ' '))}
+						oninput={(e) => setProperty(postProp.key, e?.target?.value.replaceAll(/\n/g, ' '))}
 						value={doc.get(postProp.key) ?? ''}
 						maxlength="250"
-						on:keypress={function (e) {
+						onkeypress={function (e) {
 							if (e.key == 'Enter') e.preventDefault();
 						}}
-					/>
+					></textarea>
 				{:else if postProp.type == 'array'}
 					<TagsInput
 						inputid="{postProp.key}-input"
@@ -219,7 +219,7 @@
 					<select
 						id="{postProp.key}-input"
 						name={postProp.key}
-						on:change={(e) => setProperty(postProp.key, e?.target?.value)}
+						onchange={(e) => setProperty(postProp.key, e?.target?.value)}
 						value={doc.get(postProp.key) ?? ''}
 					>
 						{#each postProp.options as option}
@@ -231,7 +231,7 @@
 						id="{postProp.key}-input"
 						type={postProp.type}
 						placeholder={postProp.placeholder}
-						on:input={(e) =>
+						oninput={(e) =>
 							setProperty(
 								postProp.key,
 								postProp.type == 'checkbox'
@@ -269,7 +269,7 @@
 <div class="content">
 	<div class="col-2s">
 		<form method="POST" action="?/save">
-			<textarea hidden name="content" value={'---\n' + doc.toString() + '\n---' + postContent} />
+			<textarea hidden name="content" value={'---\n' + doc.toString() + '\n---' + postContent}></textarea>
 			<input type="text" hidden name="sha" value={sha} />
 			<input type="text" hidden name="path" value={path} />
 			<input type="submit" value="Guardar" />

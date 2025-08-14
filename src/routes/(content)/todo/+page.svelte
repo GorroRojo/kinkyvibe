@@ -6,10 +6,11 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores';
-	export let data;
 	import PostList from '$lib/components/PostList.svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import { page } from '$app/stores';
+	/** @type {{data: any}} */
+	let { data } = $props();
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
 
@@ -25,7 +26,7 @@
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade|global>
 				<div>
-					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
+					<button onclick={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
 						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}

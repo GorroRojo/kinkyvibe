@@ -2,12 +2,15 @@
 	//@ts-nocheck
 	import Card from './Card.svelte';
 	import { fly } from 'svelte/transition';
-	export let title = '';
-	export let items = [];
-	export let id = undefined;
-	export let href = undefined;
-	export let index = undefined;
-	export let setId = true;
+	/** @type {{title?: string, items?: any, id?: any, href?: any, index?: any, setId?: boolean}} */
+	let {
+		title = '',
+		items = [],
+		id = undefined,
+		href = undefined,
+		index = undefined,
+		setId = true
+	} = $props();
 </script>
 
 <div

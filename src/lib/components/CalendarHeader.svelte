@@ -45,10 +45,10 @@
 		window.history.replaceState('', '', $page.url);
 	};
 
-	$: view_month_string = capitalize($view_date.toLocaleDateString('es-AR', { month: 'long' }));
-	$: view_year_string = $view_date.toLocaleDateString('es-AR', { year: 'numeric' });
-	$: view_is_different_year = !isSameYear($view_date, today_date);
-	$: view_is_same_month = isSameMonth($view_date, today_date);
+	let view_month_string = $derived(capitalize($view_date.toLocaleDateString('es-AR', { month: 'long' })));
+	let view_year_string = $derived($view_date.toLocaleDateString('es-AR', { year: 'numeric' }));
+	let view_is_different_year = $derived(!isSameYear($view_date, today_date));
+	let view_is_same_month = $derived(isSameMonth($view_date, today_date));
 </script>
 
 <div class="header">
@@ -60,11 +60,11 @@
 	</span>
 
 	<div>
-		<button on:click={set_prev_month} aria-label="Previous Month"> <ArrowLeft /> </button>
-		<button on:click={set_today} aria-label="today" disabled={view_is_same_month}>
+		<button onclick={set_prev_month} aria-label="Previous Month"> <ArrowLeft /> </button>
+		<button onclick={set_today} aria-label="today" disabled={view_is_same_month}>
 			<Home />
 		</button>
-		<button on:click={set_next_month} aria-label="Next Month"> <ArrowRight /> </button>
+		<button onclick={set_next_month} aria-label="Next Month"> <ArrowRight /> </button>
 	</div>
 </div>
 

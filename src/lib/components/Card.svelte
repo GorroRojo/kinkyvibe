@@ -1,18 +1,18 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
 	import { isPast } from 'date-fns';
-	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
 		path: href,
 		meta: { tags, featured: src, category, title, pronoun, start },
 		mark
-	} = post;
-	export let setId = true;
+	} = $state(post);
+	/** @type {{post: any, setId?: boolean}} */
+	let { post, setId = true } = $props();
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
-	let mounted = false;
+	let mounted = $state(false);
 	onMount(() => (mounted = true));
 
 	/**@type {(tag:string[])=>string[]}*/

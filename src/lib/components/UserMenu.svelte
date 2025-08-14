@@ -2,15 +2,16 @@
 	import { createDropdownMenu, melt } from '@melt-ui/svelte';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
-	/** @type {Partial<GHUser>} */
-	export let user;
+	
+	/** @type {{user: Partial<GHUser>}} */
+	let { user } = $props();
 	const {
 		elements: { trigger, menu, item },
 		states: { open }
 	} = createDropdownMenu({
 		preventScroll:false
 	});
-	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
+	let isPageEditable = $derived(/\/?(amigues|calendario|material)\/.*/.test($page.url.pathname));
 	/**
 	 *
 	 * @param {string} token

@@ -13,7 +13,8 @@
 	import { scale } from 'svelte/transition';
 	import { view_date } from '$lib/utils/stores';
 
-	export let start_on_sunday = true;
+	/** @type {{start_on_sunday?: boolean, children?: import('svelte').Snippet<[any]>}} */
+	let { start_on_sunday = true, children } = $props();
 	let today_date = new Date();
 	// export let view_date = today_date;
 	const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -21,9 +22,9 @@
 		const s = WEEK_DAYS.splice(WEEK_DAYS.length - 1, 1);
 		WEEK_DAYS.unshift(s[0]);
 	}
-	$: view_is_same_month = isSameMonth($view_date, today_date);
-	$: days_in_month = getDaysInMonth($view_date);
-	$: first_week_day = getDay(setDate($view_date, 1)) || (start_on_sunday ? 0 : 7);
+	let view_is_same_month = $derived(isSameMonth($view_date, today_date));
+	let days_in_month = $derived(getDaysInMonth($view_date));
+	let first_week_day = $derived(getDay(setDate($view_date, 1)) || (start_on_sunday ? 0 : 7));
 </script>
 
 <!-- <CalendarHeader /> -->
@@ -36,7 +37,7 @@
 			</div>
 		{/each}
 		{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
-			<div class="cell" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }} />
+			<div class="cell" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }}></div>
 		{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate($view_date, i + 1)}
@@ -44,9 +45,11 @@
 			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
 			{@const past = isPast(addDays(date_og, 1))}
 			<div class="cell" out:scale|global={{ duration: 300 }} in:scale|global={{ delay: 300 }}>
-				<slot {date} {today} {past}>
+				{#if children}
+					{@render children({ date, today, past, })}
+				{:else}
 					{date_og.toLocaleDateString(undefined, { day: 'numeric' })}
-				</slot>
+				{/if}
 			</div>
 		{/each}
 	</div>

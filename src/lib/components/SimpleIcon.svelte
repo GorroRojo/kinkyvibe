@@ -1,9 +1,8 @@
 <script>
 	// @ts-nocheck
-	/** Icon data from SimpleIcon's module import
-	 * @type {SimpleIcon}
-	 */
-	export let icon;
+	
+	/** @type {{icon: SimpleIcon}} */
+	let { icon } = $props();
 </script>
 
 <svg role="img" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

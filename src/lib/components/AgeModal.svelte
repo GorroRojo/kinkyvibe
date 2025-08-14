@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	let mayorDeEdad = true;
+	let mayorDeEdad = $state(true);
 	onMount(() => {
 		mayorDeEdad = localStorage.getItem('mayorDeEdad') === 'true';
 		localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
@@ -15,7 +15,7 @@
 			<div class="button-group">
 				<button
 					class="button"
-					on:click={() => {
+					onclick={() => {
 						mayorDeEdad = true;
 						localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
 					}}>Sí</button

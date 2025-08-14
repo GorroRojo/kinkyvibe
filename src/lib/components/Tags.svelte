@@ -4,16 +4,15 @@
 	import { onMount } from 'svelte/internal';
 	import { filteredTags, tagManager } from '$lib/utils/stores';
 
-	/**@type {string[]}*/
-	export let tags;
-	export let mark = '';
-	export let showFilteredTags = true;
-	$: localFilteredTags = (
+	
+	/** @type {{tags: string[], mark?: string, showFilteredTags?: boolean}} */
+	let { tags, mark = '', showFilteredTags = true } = $props();
+	let localFilteredTags = $derived((
 		mark
 			? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 			: tags
-	).filter((t) => showFilteredTags || !$filteredTags.includes(t));
-	let invisible = false;
+	).filter((t) => showFilteredTags || !$filteredTags.includes(t)));
+	let invisible = $state(false);
 	onMount(() => {
 		invisible = false;
 	});

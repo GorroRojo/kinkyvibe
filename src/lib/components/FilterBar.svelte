@@ -6,7 +6,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	export let event_toggle = true;
+	/** @type {{event_toggle?: boolean}} */
+	let { event_toggle = true } = $props();
 
 	/**@type string[]*/
 	let orphanTags = [];
@@ -81,7 +82,7 @@
 	{#if $filteredTags.length > 0}
 		<div class="tag-group-container">
 			<button
-				on:click={() => {
+				onclick={() => {
 					$filteredTags = [];
 					$page.url.searchParams.delete('tags');
 					window.history.replaceState('', '', $page.url);

@@ -4,7 +4,6 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
-	export let data;
 	let { allPosts } = data;
 
 	const title = 'KinkyVibe.ar';
@@ -22,6 +21,8 @@
 		logo: 'https://KinkyVibe.ar/favicon-32x32.png'
 	};
 	import kinkyProfilePic from '../logo.png';
+	/** @type {{data: any}} */
+	let { data } = $props();
 </script>
 
 <svelte:head>
@@ -126,7 +127,7 @@
 			href="/amigues"
 		/>
 	</div>
-	<div id="lista" />
+	<div id="lista"></div>
 	<PostList posts={allPosts} />
 </main>
 

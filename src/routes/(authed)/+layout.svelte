@@ -1,7 +1,8 @@
 <script>
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { filteredTags } from '$lib/utils/stores';
-	export let data;
+	/** @type {{data: any, children?: import('svelte').Snippet}} */
+	let { data, children } = $props();
 	filteredTags.set([]);
 </script>
 
@@ -16,7 +17,7 @@
 	{/if}
 </header>
 
-<slot />
+{@render children?.()}
 
 <style lang="scss">
 	header {

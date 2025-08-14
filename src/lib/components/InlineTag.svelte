@@ -2,13 +2,13 @@
 	import { togglePositiveTagFilterFn, filteredTags } from '$lib/utils/stores';
 	import Tag from '$lib/components/Tag.svelte';
 
-	/** @type string */
-	export let tag;
-	/** @type string|undefined */
-	export let internalTag = undefined;
+	
+	
+	/** @type {{tag: any, internalTag?: any}} */
+	let { tag, internalTag = undefined } = $props();
 	/** @type {(a:boolean,b:string)=>*}*/
-	let toggle = $togglePositiveTagFilterFn;
-	let checked = $filteredTags?.includes(tag) ?? false;
+	let toggle = $state($togglePositiveTagFilterFn);
+	let checked = $state($filteredTags?.includes(tag) ?? false);
 	const aliasedTag = internalTag ?? tag;
 
 	togglePositiveTagFilterFn.subscribe((f) => (toggle = f));

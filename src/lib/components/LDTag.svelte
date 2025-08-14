@@ -1,4 +1,4 @@
-<script context="module">
+<script module>
 	import '$lib/types.d.js';
 	let site = {
 		title: 'Navillus: Jamstack developers for hire',
@@ -43,8 +43,9 @@
 </script>
 
 <script>
-	/**@type LD.Schema*/
-	export let schema;
+	
+	/** @type {{schema: any}} */
+	let { schema } = $props();
 </script>
 
 <svelte:head>

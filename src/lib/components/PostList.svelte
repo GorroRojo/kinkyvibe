@@ -1,4 +1,6 @@
 <script>
+	import { run } from 'svelte/legacy';
+
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 	import {
@@ -15,20 +17,11 @@
 	/**
 	 * @type {Record<string,*>[]}
 	 */
-	/**@type ProcessedPost[]*/
-	export let posts = [];
-	/** @type {false|{prop: string, value: *}}*/
-	export let filter = false;
+	
+	
+	/** @type {{posts?: any, filter?: false|{prop: string, value: *}, children?: import('svelte').Snippet}} */
+	let { posts = [], filter = false, children } = $props();
 
-	/**@type ProcessedPost[]*/
-	$: outerFilteredPosts = posts.filter(
-		(/**@type {ProcessedPost}*/ p) =>
-			// @ts-ignore
-			(!filter || (filter && p[filter.prop] == filter.value)) &&
-			($userConfig.show_past_events ||
-				new Date(p.meta.start).getTime() > Date.now() ||
-				p.meta.category != 'calendario')
-	);
 
 	/**@type {<T>(arr: T[])=>T[]}*/
 	let uniq = (arr) => [...new Set(arr)];
@@ -64,9 +57,18 @@
 			.map((t) => t[0]);
 	}
 
-	$: visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
+
 	/**@type ProcessedPost[]*/
-	$: tagFilteredPosts = outerFilteredPosts.filter(
+	let outerFilteredPosts = $derived(posts.filter(
+		(/**@type {ProcessedPost}*/ p) =>
+			// @ts-ignore
+			(!filter || (filter && p[filter.prop] == filter.value)) &&
+			($userConfig.show_past_events ||
+				new Date(p.meta.start).getTime() > Date.now() ||
+				p.meta.category != 'calendario')
+	));
+	/**@type ProcessedPost[]*/
+	let tagFilteredPosts = $derived(outerFilteredPosts.filter(
 		(post) =>
 			$filteredTags.length == 0 ||
 			$filteredTags.every((f) => {
@@ -75,16 +77,20 @@
 					post.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
 				);
 			})
-	);
-
-	$: allTags.set([
-		// @ts-ignore
-		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
-		...$tagManager.tagIDs()
-	]);
+	));
+	run(() => {
+		visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
+	});
+	run(() => {
+		allTags.set([
+			// @ts-ignore
+			...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
+			...$tagManager.tagIDs()
+		]);
+	});
 </script>
 
-<slot />
+{@render children?.()}
 <div class="container">
 	<div class="postlist">
 		<div id="filterbar">
@@ -101,7 +107,7 @@
 				<ul id="posts" in:fade|global={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
 					{#each tagFilteredPosts as post, i (post.path)}
 						<li in:scale|global={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
-							<svelte:component this={Item} {post} />
+							<Item {post} />
 						</li>
 					{/each}
 				</ul>
