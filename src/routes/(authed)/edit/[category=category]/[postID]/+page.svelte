@@ -1,10 +1,10 @@
 <script>
 // @ts-nocheck
 
-	import TagsInput from './../../../../../lib/components/TagsInput.svelte';
+	import TagsInput from '$lib/components/TagsInput.svelte';
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { parseDocument, visit } from 'yaml';
 	import { format } from 'date-fns';
 	/** @type {{data: any, form: any}} */
@@ -181,12 +181,12 @@
 </script>
 
 <div class="content">
-	<a href={'/' + $page.params.category + '/' + $page.params.postID}>Volver a la publicación</a>
+	<a href={'/' + page.params.category + '/' + page.params.postID}>Volver a la publicación</a>
 </div>
 <!-- <pre>{#key doc}{'---\n' + doc.toString() + '---\n' + postContent}{/key}</pre> -->
 <!-- <pre>{doc.get('tags').items}</pre> -->
 <ul class="proplist">
-	{#each [...postProperties, ...typedProperties[$page.params.category ?? 0]] as postProp}
+	{#each [...postProperties, ...typedProperties[page.params.category ?? 0]] as postProp}
 		<li class={postProp.type} style:--width={postProp.width}>
 			<label for={postProp.key + '-input'}>
 				{#if postProp.type != 'checkbox'}

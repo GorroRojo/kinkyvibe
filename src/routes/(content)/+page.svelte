@@ -3,7 +3,9 @@
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	/** @type {{data: any}} */
+	let { data } = $props();
 	let { allPosts } = data;
 
 	const title = 'KinkyVibe.ar';
@@ -21,8 +23,7 @@
 		logo: 'https://KinkyVibe.ar/favicon-32x32.png'
 	};
 	import kinkyProfilePic from '../logo.png';
-	/** @type {{data: any}} */
-	let { data } = $props();
+	
 </script>
 
 <svelte:head>
@@ -74,7 +75,7 @@
 	</p>
 </div>
 <main>
-	{#if $page.url.searchParams.has('carrousel')}
+	{#if page.url.searchParams.has('carrousel')}
 		<Carrousel
 			posts={allPosts.filter(
 				(/** @type {{ meta: AnyPostData; }} */ p) =>

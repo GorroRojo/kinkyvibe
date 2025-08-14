@@ -17,7 +17,7 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from '../logo.png';
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	/** @type {{data: any, children?: import('svelte').Snippet}} */
@@ -63,7 +63,7 @@
 <svelte:head>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:url" content={page.url.href} />
 </svelte:head>
 
 <AgeModal />
@@ -100,7 +100,7 @@
 					Nuestros servicios
 					<ArrowRight size="18" />
 				</a>
-				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
+				<!-- <a href="/login?redirectTo={page.url}">Iniciar sesión</a> -->
 			{/if}
 		</div>
 	</div>
@@ -125,13 +125,13 @@
 {#if data.currentRoute != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
-			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
+			{#if !($currentPostData && $currentPostData.path == page.url.pathname)}
 				<ArrowLeft size="20" style="translate: 0 .4em" />
 			{/if}
 			Inicio
 		</a>
 
-		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
+		{#if $currentPostData && $currentPostData.path == page.url.pathname}
 			<LDTag schema={ldBreadcrumb($currentPostData?.category ?? '')} />
 			<ChevronLeft size="20" style="translate: 0 .4em" />
 			<a href={'/' + $currentPostData.category}
@@ -142,7 +142,6 @@
 {/if}
 {#key data.currentRoute}
 	<main in:fade|global={{ duration: 300, delay: 300 }}>
-		{$filteredTags}jajá
 		{@render children?.()}
 	</main>
 {/key}

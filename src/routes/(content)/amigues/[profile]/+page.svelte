@@ -3,11 +3,11 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { processContent } from '$lib/utils';
 	/** @type {{data: any}} */
 	let { data } = $props();
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
+	currentPostData.set({ category: data.meta.category, path: page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
@@ -58,7 +58,7 @@
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
-	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:url" content={page.url.href} />
 
 	<meta property="og:title" content={data.meta.title} />
 	<meta name="twitter:title" content={data.meta.title} />
@@ -80,7 +80,7 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+<a href={page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-resume">
 	<div class="profile-header h-card p-contact">
 		<img src={data.meta.featured + ''} class="profile-pic u-photo" alt="" />

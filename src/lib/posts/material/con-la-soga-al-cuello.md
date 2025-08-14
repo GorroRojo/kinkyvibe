@@ -87,7 +87,10 @@ Entendí al inscribirme en el Registro Federal de Cultura porque no podía decir
 Tenemos accesibilidad lxs artistas de cuerdas al aprendizaje del arte del Shibari/ Kinbaku? Actualmente NO.
 
 <div class="col-2">
-<video src={video} controls style="height: 30rem"/>
+<video src={video} controls style="height: 30rem">
+<track kind="captions">
+</video>
+
 <p>
 Algunxs de manera privada nos reunimos en espacios públicos (plazas, parques) a
 socializar y manifestar nuestro amor al arte de atarnos. Siempre y cuando no se acerque un vecinx a decirnos que no podemos atarnos (expresarnos corporalmente) y que llamará a la policía.

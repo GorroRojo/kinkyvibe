@@ -3,8 +3,8 @@
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
-	import { page } from '$app/stores';
-	import { onMount } from 'svelte/internal';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
 	
@@ -53,8 +53,8 @@
 				noBorder
 				isCheckbox
 				onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) => onInput(evt, tag.id)}
-				checked={$page.url.searchParams.has('tags') &&
-					$page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
+				checked={page.url.searchParams.has('tags') &&
+					page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
 			/>
 		</span>
 	{/if}
@@ -71,8 +71,8 @@
 								tag={item}
 								icon={subTag.icon ?? ''}
 								isCheckbox
-								checked={$page.url.searchParams.has('tags') &&
-									$page.url.searchParams.get('tags')?.split(',').includes(item)}
+								checked={page.url.searchParams.has('tags') &&
+									page.url.searchParams.get('tags')?.split(',').includes(item)}
 								noBorder
 								--off-background="color-mix(in srgb, white 35%, transparent)"
 								--text-color="color-mix(in srgb, black 15%, var(--tag-color)"
@@ -112,7 +112,7 @@
 		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
 		background: var(--faded-color);
 	}
-	.filtergroup:has(> .groupname :checked) {
+	.filtergroup:has(:global(> .groupname :checked)) {
 		outline: 3px solid var(--tag-color);
 		background: color-mix(in srgb, white 60%, transparent);
 	}

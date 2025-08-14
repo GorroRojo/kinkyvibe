@@ -1,8 +1,8 @@
 <script>
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 	import { tagManager, query } from "$lib/utils/stores";
 
-	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
+	/**@type {(description:string, query:string)=>ProcessedTag["parsedDescription"][]}*/
 	function parseDescription(description, query) {
 		const regex = /\[\[([^\]]*)\]\]/g;
 		const nQuery = normalize(query);
@@ -54,8 +54,10 @@
 				} else return { line, type };
 			})
 			.flat()
-			.filter(({ line, type }) => line !== '');
-		return lines.length > 0 ? lines : undefined;
+			.filter(({ line }) => line !== '');
+		
+		// @ts-ignore
+		return lines.length > 0 ? lines : [];
 	}
 
 	/**
@@ -72,13 +74,20 @@
 			.replaceAll('ú', 'u');
 
 	
-	/** @type {{value?: string, parsed?: boolean}} */
-	let { value = '', parsed = false } = $props();
+	/** @type {{value?: string, preParsedValue?: ProcessedTag["parsedDescription"][]}} */
+	let { value = '', preParsedValue = [] } = $props();
+	/** @type ProcessedTag["parsedDescription"][] */
+	// svelte-ignore non_reactive_update
+	let parsedValue
+	if (preParsedValue.length > 0) {
+		parsedValue = preParsedValue
+	} else {
+		parsedValue = parseDescription(value, $query)
+	}
 	/**@type {ProcessedPost[]}*/
-	let entries = $page.data.wiki;
+	let entries = page.data.wiki;
 </script>
-
-{#each parsed ? value : parseDescription(value, $query) as { line, type, href }}
+{#each parsedValue ?? [] as { line, type, href }}
 	{@const entry = entries.find((e) => e.meta.wiki == (href ?? line)?.replaceAll(' ', '-'))}
 	{@const tag = $tagManager.tagsData().find((t) => t.id == (href ?? line)?.replaceAll(' ', '-'))}
 	{#if type == 'link' && entry}

@@ -10,27 +10,25 @@
 	import 'add-to-calendar-button';
 	import { addHours, format, isPast } from 'date-fns';
 	import Tag from './Tag.svelte';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
 
 <script>
-	//@ts-nocheck
-	/** @type {{post: any}} */
+	/** @type {{post: ProcessedPost}} */
 	let { post } = $props();
 	let {
 		path,
 		meta: {
 			title,
 			summary,
-			tags,
+			tags: initialTags,
 			published_date,
 			authors,
 			start,
 			end,
 			status,
 			featured: src,
-			mark,
 			link,
 			link_text,
 			category,
@@ -38,22 +36,23 @@
 			redirect,
 			pronoun
 		}
-	} = $state(post);
-	var date = $state(start ? addHours(new Date(start), 3) : published_date);
-	try {
-		format(new Date(date), 'yyyy-MM-dd');
-	} catch (e) {
-		date = '';
-	}
-	if (tags.includes('KinkyVibe')) {
-		mark = mark ? mark : 'KinkyVibe';
-		let indexOfMark = tags.indexOf('KinkyVibe');
-		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
-	}
-	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	} = post;
+	let tags = $state(initialTags)
+	let mark = $state('');
+	let date = format(
+		new Date(start ? addHours(new Date(start), 3) : (published_date ?? '')),
+		'yyyy-MM-dd'
+	);
+	$effect(()=>{
+		if (tags.includes('KinkyVibe')) {
+			mark = 'KinkyVibe';
+			let indexOfMark = tags.indexOf('KinkyVibe');
+			tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
+		}
+	})
 	let mounted = $state(false);
 	onMount(() => (mounted = true));
-	let past = start ? isPast(new Date(start)) : false;
+	let past = start && isPast(new Date(start));
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);
 				 display: inline-block;
@@ -65,7 +64,8 @@
 	class="post {category} {{
 		amigues: 'h-card',
 		calendario: 'h-event',
-		material: 'h-entry'
+		material: 'h-entry',
+		wiki: 'h-entry'
 	}[category]} u-url"
 	class:mark
 	class:noimg={src == 'undefined' || !src}
@@ -107,7 +107,7 @@
 						{authors ? authors.join(', ') : ''}
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
-					<time class="dt-published" datetime={date}>
+					<time class="dt-published" datetime={date ? format(new Date(date), 'yyyy-MM-dd') : ''}>
 						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
@@ -129,8 +129,8 @@
 						description={summary}
 						startDate={format(new Date(start), 'yyyy-MM-dd')}
 						startTime={format(new Date(start), 'HH:mm')}
-						endDate={format(new Date(end), 'yyyy-MM-dd')}
-						endTime={format(new Date(end), 'HH:mm')}
+						endDate={format(new Date(end ?? ''), 'yyyy-MM-dd')}
+						endTime={format(new Date(end ?? ''), 'HH:mm')}
 						timeZone="America/Buenos_Aires"
 						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 						language="es"

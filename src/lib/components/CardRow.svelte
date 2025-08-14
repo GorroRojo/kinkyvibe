@@ -79,7 +79,7 @@
 		top: 0;
 		border-radius: 0 0.5em 0.5em 0;
 	}
-	.cardrowcontainer:has(+ a:hover)::after {
+	.cardrowcontainer:has(:global(+ a:hover))::after {
 		width: 40%;
 	}
 

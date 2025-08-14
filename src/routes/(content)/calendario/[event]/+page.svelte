@@ -5,11 +5,11 @@
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
 	import { currentPostData } from '$lib/utils/stores.js';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { processContent } from '$lib/utils';
 	/** @type {{data: any}} */
 	let { data } = $props();
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
+	currentPostData.set({ category: data.meta.category, path: page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
@@ -83,7 +83,7 @@
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
-	<meta property="og:url" content={$page.url.href} />
+	<meta property="og:url" content={page.url.href} />
 
 	<meta property="og:title" content={data.meta.title} />
 	<meta name="twitter:title" content={data.meta.title} />
@@ -105,7 +105,7 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+<a href={page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
 	

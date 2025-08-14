@@ -4,7 +4,7 @@
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	/** @type {{event_toggle?: boolean}} */
 	let { event_toggle = true } = $props();
@@ -84,8 +84,9 @@
 			<button
 				onclick={() => {
 					$filteredTags = [];
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
+					let np = page.url
+					np.searchParams.delete('tags');
+					window.history.replaceState('', '', np);
 				}}>Despejar filtros</button
 			>
 		</div>
@@ -152,7 +153,7 @@
 			border-radius: 0.5em;
 			flex: 1 1;
 			transition: 200ms;
-			&:has(input:checked) {
+			&:has(:global(input:checked)) {
 				background: var(--1);
 				color: white;
 			}
@@ -195,7 +196,7 @@
 			flex-direction: column;
 			max-width: 20rem;
 		}
-		.groupname {
+		:global(.groupname) {
 			width: 100%;
 		}
 	}

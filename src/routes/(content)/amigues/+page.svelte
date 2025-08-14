@@ -8,7 +8,7 @@
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	/** @type {{data: any}} */
 	let { data } = $props();
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
@@ -67,8 +67,8 @@
 									tag={d.line}
 									onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, d.line)}
 									isCheckbox
-									checked={$page.url.searchParams.has('tags') &&
-										$page.url.searchParams.get('tags')?.split(',').includes(d.line)}
+									checked={page.url.searchParams.has('tags') &&
+										page.url.searchParams.get('tags')?.split(',').includes(d.line)}
 									--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
 									--font-size="1em"
 									--padding="0.1em 0.2em"
@@ -88,8 +88,8 @@
 										{tag}
 										onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
 										isCheckbox
-										checked={$page.url.searchParams.has('tags') &&
-											$page.url.searchParams.get('tags')?.split(',').includes(tag)}
+										checked={page.url.searchParams.has('tags') &&
+											page.url.searchParams.get('tags')?.split(',').includes(tag)}
 										--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
 										--font-size="1em"
 										--padding="0.1em 0.2em"

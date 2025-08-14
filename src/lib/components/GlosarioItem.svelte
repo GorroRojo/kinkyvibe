@@ -3,13 +3,12 @@
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { createCollapsible, melt } from '@melt-ui/svelte';
 	import { slide } from 'svelte/transition';
 </script>
 
 <script>
-	
 	/** @type {{item?: TagID, single?: boolean, title?: boolean}} */
 	let { item = 'root', single = false, title = false } = $props();
 	const {
@@ -23,12 +22,10 @@
 		}
 	});
 	/**@type {ProcessedTag}*/
-	let tag = $state($wikiTagManager.get(item));
-	wikiTagManager.subscribe((wtm) => (tag = wtm.get(item)));
-
-	const name = tag?.visible_name ?? tag.id;
+	let tag = $wikiTagManager.get(item);
+	let name = tag?.visible_name ?? tag.id;
 	/** @type {ProcessedPost} */
-	const entry = $page.data.wiki.find(
+	const entry = page.data.wiki.find(
 		(/**@type ProcessedPost */ e) => e.meta.wiki == name.replaceAll(' ', '-')
 	);
 	const description =
@@ -112,7 +109,7 @@
 					<div class="self">
 						{#if hasDescription}
 							<span>
-								<MiniMarkup value={description} parsed />
+								<MiniMarkup preParsedValue={description} />
 							</span>
 						{/if}
 						{#if hasDescription && tag.related}<br />{/if}
@@ -120,7 +117,7 @@
 							{@const related = tag.related
 								.map(
 									(relatedTag) =>
-										$page.data.wiki.find(
+										page.data.wiki.find(
 											(/** @type {ProcessedPost} */ e) => e.meta.wiki == relatedTag
 										) ?? $tagManager.tagsData().find((t) => t.id == relatedTag)
 								)

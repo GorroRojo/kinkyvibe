@@ -3,14 +3,14 @@
 	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
 	import { isPast } from 'date-fns';
+	/** @type {{post: any, setId?: boolean}} */
+	let { post, setId = true } = $props();
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
 		path: href,
 		meta: { tags, featured: src, category, title, pronoun, start },
 		mark
 	} = $state(post);
-	/** @type {{post: any, setId?: boolean}} */
-	let { post, setId = true } = $props();
 	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = $state(false);
 	onMount(() => (mounted = true));

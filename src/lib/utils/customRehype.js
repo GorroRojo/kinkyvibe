@@ -140,15 +140,15 @@ export default function customRehype() {
 					}
 				}
 			],
-			[
-				// eslint-disable-next-line no-useless-escape
-				/(?<![\w\d])(\\?)@(\S+)/g,
-				(_, escape, user) => {
-					if (escape) return '@' + user;
-					const href = '/amigues/' + user;
-					return h('a.mention', { href }, '@' + user);
-				}
-			]
+			// [
+			// 	// eslint-disable-next-line no-useless-escape
+			// 	/(?<![\w\d])(\\?)@(\S+)/g,
+			// 	(_, escape, user) => {
+			// 		if (escape) return '@' + user;
+			// 		const href = '/amigues/' + user;
+			// 		return h('a.mention', { href }, '@' + user);
+			// 	}
+			// ]
 		]);
 	};
 }

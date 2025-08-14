@@ -1,7 +1,7 @@
 <script>
 	//@ts-nocheck
 	import { currentPostData } from './../utils/stores.js';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	/** @type {{links: any}} */
 	let { links } = $props();
 </script>
@@ -11,9 +11,9 @@
 		{#each links as { icon, name, sub, href, target = undefined }}
 			{@const SvelteComponent = icon}
 			<li
-				class:current={$page.url.pathname.includes(href) ||
+				class:current={page.url.pathname.includes(href) ||
 					($currentPostData &&
-						$currentPostData?.path == $page?.url?.pathname &&
+						$currentPostData?.path == page?.url?.pathname &&
 						$currentPostData?.category == href.slice(1))}
 			>
 				<a {href} {target} tabindex="0">

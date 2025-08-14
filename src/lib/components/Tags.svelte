@@ -1,7 +1,7 @@
 <script>
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { filteredTags, tagManager } from '$lib/utils/stores';
 
 	

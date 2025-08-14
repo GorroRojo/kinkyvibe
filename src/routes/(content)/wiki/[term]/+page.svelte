@@ -2,12 +2,12 @@
 	import GlosarioItem from '$lib/components/GlosarioItem.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { tagManager, currentPostData } from '$lib/utils/stores.js';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	/** @type {{data: any}} */
 	let { data } = $props();
-	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
+	currentPostData.set({ category: 'wiki', path: page.url.pathname });
 
 	let haswiki = (/**@type string*/ n) => true || data.wiki?.some((e) => e.meta.wiki == n);
 	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
@@ -47,7 +47,7 @@
 		}
 		return branches.filter((branch) => branch.some((i) => !i.disabled));
 	}
-	const guessedTitle = decodeURI($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	const guessedTitle = decodeURI(page.url.pathname.slice(6)).replaceAll('-', ' ');
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];

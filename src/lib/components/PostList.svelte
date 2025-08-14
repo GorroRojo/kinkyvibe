@@ -179,10 +179,8 @@
 			align-self: start;
 			min-width: 0;
 		}
-		#display-type {
+		:global(#display-type) {
 			margin-bottom: 1em;
 		}
-	}
-	@media screen and (min-width: 1300px) {
 	}
 </style>

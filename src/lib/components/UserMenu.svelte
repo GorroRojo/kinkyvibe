@@ -1,7 +1,7 @@
 <script>
 	import { createDropdownMenu, melt } from '@melt-ui/svelte';
 	import { fly } from 'svelte/transition';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	
 	/** @type {{user: Partial<GHUser>}} */
 	let { user } = $props();
@@ -11,7 +11,7 @@
 	} = createDropdownMenu({
 		preventScroll:false
 	});
-	let isPageEditable = $derived(/\/?(amigues|calendario|material)\/.*/.test($page.url.pathname));
+	let isPageEditable = $derived(/\/?(amigues|calendario|material)\/.*/.test(page.url.pathname));
 	/**
 	 *
 	 * @param {string} token
@@ -43,12 +43,12 @@
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
-			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>
+			<a href="/edit{page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>
 		{:else}
 			<span class="menuitem disabled" use:melt={$item}>Editar contenido</span>
 		{/if}
 		{/if}
-		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}>Cerrar sesión</a>
+		<a href="/logout?redirectTo={page.url}" class="menuitem" use:melt={$item}>Cerrar sesión</a>
 	</div>
 	{/if}
 </div>
