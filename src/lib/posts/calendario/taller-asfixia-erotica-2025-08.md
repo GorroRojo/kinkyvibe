@@ -24,8 +24,7 @@ status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-08-24T16:00-03:00
 end: 2025-08-24T20:00-03:00
-location: Av Maipú 2535, Olivos, Buenos Aires
-location_name: la jaula de olivos
+location: San Telmo
 link: "https://forms.gle/j4pg2fEk9gHwF6tBA"
 link_text: PRE-VENTA
 updated_date: 2025-08-16Z-03:00
@@ -34,6 +33,8 @@ updated_date: 2025-08-16Z-03:00
 # carrousel_color: "white"
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
+#location_name: la jaula de olivos
+
 
 ---
 
