@@ -1,7 +1,7 @@
 ---
 published_date: 2025-09-02Z-03:00
 # updated_date:   2025-01-31Z-03:00
-title: "¿Cómo construimos redes afectivas en tiempos de individualismo?"
+title: "Charla-debate de Fugas Críticas"
 summary: ''
 tags:
   - español
@@ -20,10 +20,10 @@ featured: 1
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: anunciado # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-07-16T19:00-03:00
-end:   2025-07-16T20:30-03:00
+start: 2025-09-24T19:00-03:00
+end:   2025-09-24T20:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/TNikf4LSLh9T54J79'
@@ -41,10 +41,6 @@ Vamos a compartir reflexiones sobre los desafíos y posibilidades de construir r
 **ale devenuta (él/elle)**
 
 ante todo ñoño curioso. Es educador, comunicador y psicólogo. Creó Fugas Críticas, proyecto y comunidad en los que facilita espacios grupales y recursos pedagógicos desde una perspectiva disidente para construir relaciones y modos de vida menos opresivos. Se desempeña como psicoterapeuta sistémico/conductual y como docente hace +10 años, en temas como educación sexual integral, salud colectiva, despatologización trans, género, no monogamias, sexualidad, BDSM salud mental. Integrante de PsicoDisidentes+ y Trabajadores Inesperadxs.
-
-**mel feld (él/elle)**
-
-Educador Sexual, Educador BDSM, Performer BDSM, Comunicador, Activista y Dominatrix Profesional (trabajador sexual).Trans masculinidad NB, cuir, neurodisidente, Sub*, Switch, fetichista y no-monógamx. Co-creador de Kinky Vibe Argentina. Colaboré y participé de múltiples espacios relacionados a salud sexual, abolicionismo penal, no-monogamia, salud y activismo trans*, transfeminismo y BDSM (Amor Libre Argentina, Desde el Fuego, La marcha de las Putas, Acción Respeto, Recursero Trans*, Asamblea Trans por la Salud Integral, La Bastardilla, entre otras).
 
 :::CUPOS LIMITADOS:::
 
