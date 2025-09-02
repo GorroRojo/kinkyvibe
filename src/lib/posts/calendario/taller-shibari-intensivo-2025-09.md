@@ -22,7 +22,7 @@ featured: taller-shibari-intensivo.png
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-09-13T11:00-03:00
-end:   2025-09-13T19:00-03:00
+end:   2025-09-13T18:00-03:00
 location: Almagro, CABA
 location_name: Club Soguita Shibari
 link: 'mailto:sogashibari@gmail.com'
