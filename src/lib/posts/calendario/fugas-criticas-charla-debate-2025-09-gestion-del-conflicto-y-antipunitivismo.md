@@ -1,6 +1,6 @@
 ---
 published_date: 2025-09-02Z-03:00
-# updated_date:   2025-01-31Z-03:00
+updated_date:   2025-09-06Z-03:00
 title: "Gestión del conflicto y antipunitivismo"
 summary: '¿Notás dificultades y desafíos al atravesar conflictos en tus relaciones y comunidades? ¿Necesitás herramientas para hacerlo de formas constructivas? Entonces esta charla va a nutrirte'
 tags:
@@ -17,7 +17,7 @@ featured: 1
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | agotadas | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
 start: 2025-09-24T19:00-03:00
 end:   2025-09-24T20:30-03:00
