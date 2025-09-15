@@ -3,27 +3,22 @@
 	import { isSameMonth, isSameYear, addMonths, isBefore, format } from 'date-fns';
 	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
-
-	const today_date = new Date();
-	// export let view_date = today_date;
-	// export let set_next_month;
-	// export let set_prev_month;
-	// export let set_today;
+	import { pushState, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
-	page.subscribe((p) => {
-		if (p.url.searchParams.get('viewdate')) {
-			$view_date = addMonths(new Date(page.url.searchParams.get('viewdate')), 1);
-		}
-	});
+	const today_date = new Date();
+	if (page.url.searchParams.get('viewdate')) {
+		$view_date = addMonths(new Date(page.url.searchParams.get('viewdate')), 1);
+	}
 	let updateURL = () => {
 		if (isSameMonth($view_date, today_date)) {
-			let np = page.url
+			let np = page.url;
 			np.searchParams.delete('viewdate');
-			window.history.replaceState('', '', np);
+			replaceState(np);
 		} else {
-			let np = page.url
+			let np = page.url;
 			np.searchParams.set('viewdate', format($view_date, 'yyyy-MM'));
-			window.history.pushState('', '', `?${np.searchParams.toString()}`);
+			
+			pushState(`?${np.searchParams.toString()}`)
 		}
 	};
 
@@ -43,12 +38,14 @@
 	const set_today = () => {
 		month_change_direction.update(() => (isBefore($view_date, today_date) ? -1 : 1));
 		view_date.update(() => new Date(today_date));
-		let np = page.url
+		let np = page.url;
 		np.searchParams.delete('viewdate');
-		window.history.replaceState('', '', np);
+		replaceState(np);
 	};
 
-	let view_month_string = $derived(capitalize($view_date.toLocaleDateString('es-AR', { month: 'long' })));
+	let view_month_string = $derived(
+		capitalize($view_date.toLocaleDateString('es-AR', { month: 'long' }))
+	);
 	let view_year_string = $derived($view_date.toLocaleDateString('es-AR', { year: 'numeric' }));
 	let view_is_different_year = $derived(!isSameYear($view_date, today_date));
 	let view_is_same_month = $derived(isSameMonth($view_date, today_date));
