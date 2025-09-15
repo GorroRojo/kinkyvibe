@@ -1,12 +1,11 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
+import devtoolsJson from 'vite-plugin-devtools-json';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [sveltekit(), devtoolsJson()],
 	assetsInclude: ['**/*.odt'],
-	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
-	},
+	test: { include: ['src/**/*.{test,spec}.{js,ts}'] },
 	optimizeDeps: {
 		exclude: ['codemirror', '@codemirror/lang-markdown']
 	},
@@ -14,9 +13,8 @@ export default defineConfig({
 		preprocessorOptions: {
 			scss: {
 				api: 'modern-compiler', // or "modern",
-				silenceDeprecations: ["legacy-js-api"]
+				silenceDeprecations: ['legacy-js-api']
 			}
 		}
-	},
-	
+	}
 });

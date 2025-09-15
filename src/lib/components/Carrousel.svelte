@@ -1,7 +1,8 @@
 <script>
 	// @ts-nocheck
+	// TODO o usar o eliminar
 	import { format } from 'date-fns';
-	import es from 'date-fns/locale/es/index.js';
+	import { es } from 'date-fns/locale/es';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	
