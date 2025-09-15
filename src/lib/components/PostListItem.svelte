@@ -73,7 +73,7 @@
 	class:past={start ? isPast(new Date(start)) || status == 'cancelado' : false}
 	tabindex="0"
 	target={redirect || path.startsWith('https') ? '_blank' : undefined}
->
+> <!-- TODO make this not an <a> tag -->
 	<div class="publication">
 		<div class="icon">
 			{#if category == 'calendario'}
