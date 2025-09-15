@@ -1,8 +1,9 @@
 ---
-published_date: 2025-09-16Z-03:00
+published_date: 2025-09-15Z-03:00
 # updated_date:   2025-11-04Z-03:00
 title: Mem
-summary: 'Soy Memi, switch y persona manija de la comunidad que disfruta de escribir y nerdear sobre BDSM.'
+summary: 'Soy Mem, switch y persona manija de la comunidad que disfruta de
+  escribir y nerdear sobre BDSM.'
 tags:
   - español # español | inglés #
   #   - KinkyVibe # etiqueta especial #
@@ -14,7 +15,6 @@ category: amigues
 authors:
   - 'Cuerdaestrello'
 featured: 1
-force_unlisted: true
 #force_unpublished: false
 pronoun: https://pronombr.es/él
 # link: ''
@@ -25,5 +25,10 @@ pronoun: https://pronombr.es/él
 #tel: +54 9 11 5555 3333
 #job_title: Educador BDSM - Dominatrix - Putito
 gender_identity: Masculinidad no binaria
+updated_date: 2025-09-15Z-03:00
+
 #bday: 1996-04-09
+#force_unlisted: true
+
+
 ---
