@@ -16,14 +16,13 @@
 			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
 		});
 		// @ts-ignore
-		page.subscribe((p) => {
-			if (p.url.searchParams.has('tags')) {
-				if (p.url.searchParams.get('tags') != '') {
-					//@ts-ignore
-					filteredTags.set(p.url.searchParams.get('tags')?.split(','));
-				}
-			} else filteredTags.set([]);
-		});
+		// TODO acá iba un page subscribe
+		// if (p.url.searchParams.has('tags')) {
+		// 	if (p.url.searchParams.get('tags') != '') {
+		// 		//@ts-ignore
+		// 		filteredTags.set(p.url.searchParams.get('tags')?.split(','));
+		// 	}
+		// } else filteredTags.set([]);
 	});
 
 	let view_filters = true;
