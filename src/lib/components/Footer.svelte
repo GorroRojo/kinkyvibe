@@ -103,11 +103,12 @@
 
 <style>
 	.wip {
-		background: var(--2-dark);
+		background: #3b0066;
 		color: white;
 		text-align: center;
 		padding-block: 0.5em;
 		margin-bottom: 1em;
+		/* TODO change to something more permanent */
 	}
 	.wip a:hover {
 		color: white;
