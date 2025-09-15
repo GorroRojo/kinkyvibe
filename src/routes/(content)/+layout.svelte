@@ -17,9 +17,10 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from '../logo.png';
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	/** @type {{data: any, children?: import('svelte').Snippet}} */
 	let { data, children } = $props();
 	togglePositiveTagFilterFn.update(
@@ -42,7 +43,7 @@
 					pageurl.searchParams.delete('tags');
 					window.history.replaceState('', '', pageurl);
 				}
-				filteredTags.update((_)=>fltrdTags)
+				filteredTags.update((_) => fltrdTags);
 			}
 	);
 	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
@@ -53,10 +54,28 @@
 			{
 				'@type': 'ListItem',
 				position: 1,
-				name: cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
+				name: cat == 'wiki' ? 'Kinkipedia' : (cat ?? ''),
 				item: 'https://example.com/books'
 			}
 		]
+	});
+	/** @type {number} */
+	let navigatingTimeout;
+	let navigationAnimation = $state(false);
+	beforeNavigate(() => {
+		navigationAnimation;
+		console.log('navigatin');
+		navigatingTimeout = setTimeout(() => {
+			console.log('time out!');
+			navigationAnimation = true;
+		}, 500);
+	});
+	// FIXME por alguna razon esto no funciona por ejemplo desde la home a uno de los tags, tarda en cargar pero no se activa la animación
+	afterNavigate(() => {
+		clearTimeout(navigatingTimeout);
+		navigatingTimeout = setTimeout(() => {
+			navigationAnimation = false;
+		}, 500);
 	});
 </script>
 
@@ -90,7 +109,7 @@
 			<!-- fanzines -->
 		</ul>
 		<a id="logo" rel="home" href="/">
-			<img src={logo} alt="KinkyVibe" />
+			<img src={logo} alt="KinkyVibe" class:navigating={navigationAnimation} />
 		</a>
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
@@ -157,6 +176,24 @@
 		max-height: 10rem;
 		text-decoration: none;
 	}
+	#logo img {
+		max-width: 6em;
+		min-width: 2em;
+	}
+	.navigating {
+		animation: pulsate-fwd 0.5s ease-in-out infinite both;
+	}
+	@keyframes pulsate-fwd {
+		0% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.1);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
 	.breadcrumbs {
 		display: flex;
 		width: 100%;
@@ -205,10 +242,7 @@
 		width: 24;
 		height: 24px;
 	}
-	#logo img {
-		max-width: 10vh;
-		min-width: 2em;
-	}
+
 	#user {
 		grid-area: user;
 		justify-self: left;
