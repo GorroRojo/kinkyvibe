@@ -10,7 +10,7 @@
 		Globe,
 		Home
 	} from 'lucide-svelte';
-	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
+	import { siInstagram, siKofi, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);`;
@@ -18,7 +18,7 @@
 
 <footer>
 	<div class="wip">
-		Este sitió esta en constante construcción. Reportar problemas a <a
+		Este sitio esta en constante construcción. Reportar problemas a <a
 			href="https://t.me/Gorro_Rojo"
 		>
 			@Gorro_Rojo
@@ -73,15 +73,15 @@
 						Instagram
 					</a>
 				</li>
-				<li>
+				<!-- <li>
 					<a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} />Twitter</a>
-				</li>
-				<li>
+				</li> -->
+				<!-- <li>
 					<a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} />Youtube</a>
-				</li>
-				<li>
+				</li> -->
+				<!-- <li>
 					<a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} />TikTok</a>
-				</li>
+				</li> -->
 				<li>
 					<a data-sveltekit-reload href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>
 				</li>
