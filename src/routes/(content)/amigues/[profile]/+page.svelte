@@ -137,9 +137,11 @@
 	{/if}
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />
+		{#if data.meta.link}
 		<a href={data.meta.link} target="_blank" class="cta"
 			>{data.meta.link_text ?? 'Ir a su página'}</a
 		>
+		{/if}
 	</div>
 </article>
 
