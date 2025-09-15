@@ -103,7 +103,8 @@
 			{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
 
 			{#key $userConfig.display_type}
-				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
+				<p class="post-amount">{tagFilteredPosts.length} resultados</p> 
+				<!-- FIXME resultados is way too high on display -->
 				<ul id="posts" in:fade|global={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
 					{#each tagFilteredPosts as post, i (post.path)}
 						<li in:scale|global={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
