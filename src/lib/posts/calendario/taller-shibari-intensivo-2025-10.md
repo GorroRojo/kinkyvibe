@@ -1,7 +1,7 @@
 ---
-published_date: 2025-09-02Z-03:00
+published_date: 2025-09-15Z-03:00
 #updated_date: 2023-11-04Z-03:00
-title: Taller introductorio intensivo de shibari
+title: Taller introductorio intensivo de shibari (parte 1 de 2)
 summary: 'CUPOS LIMITADOS - Este taller a cargo de Soga Shibari está pensado para personas que sienten curiosidad y no tienen contacto previo con Shibari. Un acercamiento a la técnica de ataduras de origen japonés de manera presencial y switch (aprendemos a atar y somos atadxs).'
 tags:
   - español
@@ -21,13 +21,15 @@ featured: taller-shibari-intensivo.png
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-09-13T11:00-03:00
-end:   2025-09-13T18:00-03:00
+start: 2025-10-25T11:00-03:00
+end:   2025-10-25T15:00-03:00
 location: Almagro, CABA
 location_name: Club Soguita Shibari
 link: 'mailto:sogashibari@gmail.com'
 link_text: Inscripción y consultas
 ---
+> Esta es la parte 1, [ver parte 2](/calendario/taller-shibari-intensivo-2025-10-parte-2)
+
 ## Taller Kaishi Intensivo introductorio
 
 Este taller a cargo de @Sogashibari está pensado para personas que sienten curiosidad y no tienen contacto previo con Shibari. Un acercamiento a la técnica de ataduras de origen japonés de manera presencial. 

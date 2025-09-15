@@ -32,7 +32,7 @@ export const hardcodedTags = [
 	},
 	{ id: 'Online', icon: '🖥️' },
 	{ id: 'Presencial', icon: '👥', children: ['Argentina', 'Uruguay', 'Chile'] },
-	{ id: 'Argentina', icon: '🇦🇷', children: ['AMBA', 'Córdoba', 'Santa Cruz'] },
+	{ id: 'Argentina', icon: '🇦🇷', children: ['AMBA', 'Córdoba', 'Santa Cruz', 'La Plata'] },
 	{ id: 'AMBA', icon: '𓉶' },
 	{ id: 'Córdoba', icon: '♜' },
 	{ id: 'Santa Cruz', icon: '⛰️' },
