@@ -45,6 +45,7 @@
 		date = '';
 	}
 	if (tags.includes('KinkyVibe')) {
+		// TODO añadir AUCH como etiqueta especial tmb? en todos lados
 		mark = mark ? mark : 'KinkyVibe';
 		let indexOfMark = tags.indexOf('KinkyVibe');
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
