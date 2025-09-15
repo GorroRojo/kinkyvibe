@@ -12,6 +12,7 @@ tags:
   - consentimiento
   - cnc
   - KinkyVibe
+  - inicial
 layout: material
 category: material
 authors:

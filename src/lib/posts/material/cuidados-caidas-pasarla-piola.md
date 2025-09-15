@@ -14,6 +14,7 @@ tags:
   - BDSM
   - cuidados posteriores
   - caída
+  - inicial
 layout: material
 category: material
 authors:
