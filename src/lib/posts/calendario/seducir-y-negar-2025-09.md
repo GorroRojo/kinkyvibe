@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-  - Memi
+  - Cuerdaestrello
 #featured: 1
 #logo: 2
 #force_unlisted: false

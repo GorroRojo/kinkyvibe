@@ -15,7 +15,7 @@ tags:
 layout: material
 category: material
 authors:
-  - Memi
+  - Cuerdaestrello
 featured: 1
 # force_unlisted: false
 #force_unpublished: false
@@ -144,7 +144,7 @@ A modo de cierre, te mando un abrazo y te recuerdo que explorarte, conocerte y d
 
 ### Créditos 
 
-- Escrito por [Memi](https://t.me/memit0s)
+- Escrito por @Cuerdaestrello
 - Editado por @DemonWeb y @Gorro_Rojo
 
 ### Licencia

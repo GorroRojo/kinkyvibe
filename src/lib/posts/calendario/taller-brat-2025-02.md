@@ -15,7 +15,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-  - Memi
+  - Cuerdaestrello
 featured: taller-brat-miniatura.jpg
 #logo: 2
 #force_unlisted: false

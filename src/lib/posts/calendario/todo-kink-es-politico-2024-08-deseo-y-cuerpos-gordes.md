@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-  - Memi
+  - Cuerdaestrello
   - Pi
 featured: todo-kink-es-politico-miniatura.png
 #logo: 2

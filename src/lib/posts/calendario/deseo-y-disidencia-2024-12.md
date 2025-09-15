@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-  - Memi
+  - Cuerdaestrello
 featured: deseo-y-disidencia-miniatura.jpg
 #logo: 2
 #force_unlisted: false

@@ -18,7 +18,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Lucas Fauno
-  - Memi
+  - Cuerdaestrello
 #featured: 1
 #logo: 2
 #force_unlisted: false

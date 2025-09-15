@@ -12,7 +12,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-  - Memi
+  - Cuerdaestrello
 featured: taller-historia-sexodisidente-miniatura.jpg
 #logo: 2
 #force_unlisted: false

@@ -51,7 +51,7 @@ Estarán leyéndonos sus poemas a las 22:30:
 - Irene
 - Jota
 - leoncito
-- Memi
+- Cuerdaestrello
 - Nyx 
 - Océano 
 - Sofi Collavino 
