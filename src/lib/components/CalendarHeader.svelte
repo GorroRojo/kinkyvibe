@@ -1,5 +1,4 @@
 <script>
-	//@ts-nocheck
 	import { isSameMonth, isSameYear, addMonths, isBefore, format } from 'date-fns';
 	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
@@ -11,14 +10,11 @@
 	}
 	let updateURL = () => {
 		if (isSameMonth($view_date, today_date)) {
-			let np = page.url;
-			np.searchParams.delete('viewdate');
-			replaceState(np);
+			page.url.searchParams.delete('viewdate');
+			replaceState(page.url, page.state);
 		} else {
-			let np = page.url;
-			np.searchParams.set('viewdate', format($view_date, 'yyyy-MM'));
-			
-			pushState(`?${np.searchParams.toString()}`)
+			page.url.searchParams.set('viewdate', format($view_date, 'yyyy-MM'));
+			pushState(page.url, page.state)
 		}
 	};
 
@@ -38,9 +34,8 @@
 	const set_today = () => {
 		month_change_direction.update(() => (isBefore($view_date, today_date) ? -1 : 1));
 		view_date.update(() => new Date(today_date));
-		let np = page.url;
-		np.searchParams.delete('viewdate');
-		replaceState(np);
+		page.url.searchParams.delete('viewdate');
+		replaceState(page.url, page.state);
 	};
 
 	let view_month_string = $derived(
