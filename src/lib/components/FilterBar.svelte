@@ -3,29 +3,37 @@
 	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 
 	/** @type {{event_toggle?: boolean}} */
 	let { event_toggle = true } = $props();
 
-	/**@type string[]*/
-	let orphanTags = [];
-	onMount(() => {
-		visibleTags.subscribe((v) => {
-			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
-		});
-		// @ts-ignore
-		// TODO acá iba un page subscribe
-		// if (p.url.searchParams.has('tags')) {
-		// 	if (p.url.searchParams.get('tags') != '') {
-		// 		//@ts-ignore
-		// 		filteredTags.set(p.url.searchParams.get('tags')?.split(','));
-		// 	}
-		// } else filteredTags.set([]);
-	});
-
-	let view_filters = true;
+	function clearTags() {
+		$filteredTags = [];
+		page.url.searchParams.delete('tags');
+		replaceState(page.url, page.state);
+	}
+	/**
+	 * Get processed tags
+	 * @param {TagID[]} vTags
+	 * @returns {ProcessedTag[]}
+	 */
+	function getRootProcessedTags(vTags) {
+		return [
+			...$tagManager
+				.tagsData()
+				.filter((td) => td?.parents?.includes('root'))
+				.filter(
+					(td) => vTags.includes(td.id) || td.getAllChildren().some((t) => vTags.includes(t))
+				),
+			$tagManager.get('misc', {
+				children: vTags.filter((v) => $tagManager.get(v).orphan).sort((a, b) => a.localeCompare(b)),
+				noname: true
+			})
+		];
+	}
+	let tags = $derived(getRootProcessedTags($visibleTags));
 </script>
 
 <div class="filterbar">
@@ -78,43 +86,18 @@
 		</div>
 	{/if}
 
-	{#if $filteredTags.length > 0}
+	{#if $filteredTags.length}
 		<div class="tag-group-container">
-			<button
-				onclick={() => {
-					$filteredTags = [];
-					let np = page.url
-					np.searchParams.delete('tags');
-					window.history.replaceState('', '', np);
-				}}>Despejar filtros</button
-			>
+			<button onclick={() => clearTags()}>Despejar filtros</button>
 		</div>
 	{/if}
-	{#if view_filters || $filteredTags.length > 0}
-		{@const tags = [
-			...$tagManager
-				.tagsData()
-				.filter(
-					(td) =>
-						td?.parents?.includes('root') &&
-						(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
-							$visibleTags.includes(td.id))
-				),
-			$tagManager.get('misc', {
-				children: $visibleTags
-					.filter((v) => $tagManager.get(v).orphan)
-					.sort((a, b) => a.localeCompare(b)),
-				noname: true
-			})
-		]}
-		<div class="tagfilters">
-			{#each tags as tag, i (tag.id)}
-				<div class="tag-group-container" in:scale|global={{ duration: 500 /*@ts-ignore*/ }}>
-					<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
-				</div>
-			{/each}
-		</div>
-	{/if}
+	<div class="tagfilters">
+		{#each tags as tag, i (tag.id)}
+			<div class="tag-group-container" in:scale|global={{ duration: 500 /*@ts-ignore*/ }}>
+				<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
+			</div>
+		{/each}
+	</div>
 </div>
 
 <style lang="scss">

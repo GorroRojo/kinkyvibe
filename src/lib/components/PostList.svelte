@@ -1,112 +1,104 @@
 <script>
-	import { run } from 'svelte/legacy';
-
 	import { scale, fade } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
-	import {
-		filteredTags,
-		visibleTags,
-		allTags,
-		userConfig,
-		tagManager,
-		redundantTags
-	} from '$lib/utils/stores';
+	import { filteredTags, visibleTags, parentsOfVisibleTags, userConfig, tagManager } from '$lib/utils/stores';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import Card from './Card.svelte';
+	/** @type {{posts?: ProcessedPost[], children?: import('svelte').Snippet}} */
+	let { posts = [] } = $props();
+
 	/**
-	 * @type {Record<string,*>[]}
+	 * @param {ProcessedPost[]} posts
+	 * @param {TagID[]} fTags
+	 * @param {{display_type: 'list'|'grid', show_past_events: boolean}} uConfig
 	 */
-	
-	
-	/** @type {{posts?: any, filter?: false|{prop: string, value: *}, children?: import('svelte').Snippet}} */
-	let { posts = [], filter = false, children } = $props();
-
-
-	/**@type {<T>(arr: T[])=>T[]}*/
-	let uniq = (arr) => [...new Set(arr)];
-
-	/**
+	function getFilteredPosts(posts, fTags, uConfig) {
+		return posts
+			.filter(
+				// filter by current date (if event)
+				(/**@type {ProcessedPost}*/ p) =>
+					p.meta.category != 'calendario' ||
+					uConfig.show_past_events ||
+					new Date(p.meta.start).getTime() > Date.now()
+			)
+			.filter(
+				// filter by tags
+				(/**@type {ProcessedPost}*/ p) =>
+					fTags.length == 0 ||
+					fTags.every((f) => {
+						return (
+							p.meta.tags.includes(f) || //all filtered tags are included or their descendants are
+							p.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
+						);
+					})
+			);
+	}
+	/** From a list of posts and tags returns the tags that should be visible in a FilterBar
 	 * @param {ProcessedPost[]} posts
 	 * @param {string[]} filteredTags
 	 * @returns {string[]}
 	 */
 	function getVisibleTags(posts, filteredTags) {
+		/** Histogram of tags in post list
+		 * @type Map<TagID,number>  */
 		let presentTags = new Map();
 		for (const post of posts) {
 			for (const tag of post.meta.tags) {
-				const present = presentTags.get(tag);
-				if (present === undefined) {
-					presentTags.set(tag, 1);
-				} else {
-					presentTags.set(tag, present + 1);
-				}
+				presentTags.set(tag, presentTags.get(tag) ?? 0 + 1);
 			}
 		}
+
 		return [...presentTags.entries()]
 			.filter(([tag, instances]) => {
-				if (instances < posts.length || filteredTags.includes(tag)) {
-					$redundantTags.delete(tag);
-					return true;
-				} else {
-					$redundantTags.add(tag);
-					const parents = $tagManager.get(tag)?.parents ?? [];
-					return filteredTags.some((ft) => parents.includes(ft));
-				}
+				return (
+					instances < posts.length || // if filtering the tag would actually do something
+					filteredTags.includes(tag) // or it's actively filtered already
+				);
 			})
 			.map((t) => t[0]);
 	}
-
-
+	/**
+	 * @type {ProcessedPost[]}
+	 */
+	let filteredPosts = $state([]);
+	/**
+	 *
+	 * @param {TagID[]} fTags
+	 * @param {{display_type: 'list'|'grid', show_past_events: boolean}} uConfig
+	 */
+	function updateFilteredPosts(fTags, uConfig) {
+		filteredPosts = getFilteredPosts(posts, fTags, uConfig);
+		$visibleTags = getVisibleTags(filteredPosts, fTags);
+		$parentsOfVisibleTags = [
+			...new Set($visibleTags.map((t) => $tagManager.get(t).getAllParents()).flat())
+		];
+	}
 	/**@type ProcessedPost[]*/
-	let outerFilteredPosts = $derived(posts.filter(
-		(/**@type {ProcessedPost}*/ p) =>
-			// @ts-ignore
-			(!filter || (filter && p[filter.prop] == filter.value)) &&
-			($userConfig.show_past_events ||
-				new Date(p.meta.start).getTime() > Date.now() ||
-				p.meta.category != 'calendario')
-	));
-	/**@type ProcessedPost[]*/
-	let tagFilteredPosts = $derived(outerFilteredPosts.filter(
-		(post) =>
-			$filteredTags.length == 0 ||
-			$filteredTags.every((f) => {
-				return (
-					post.meta.tags.includes(f) ||
-					post.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
-				);
-			})
-	));
-	run(() => {
-		visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
-	});
-	run(() => {
-		allTags.set([
-			// @ts-ignore
-			...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
-			...$tagManager.tagIDs()
-		]);
-	});
+	filteredTags.subscribe((ft) => updateFilteredPosts(ft, $userConfig));
+	userConfig.subscribe((uc) => updateFilteredPosts($filteredTags, uc));
 </script>
 
-{@render children?.()}
 <div class="container">
 	<div class="postlist">
 		<div id="filterbar">
 			<FilterBar
-				event_toggle={tagFilteredPosts.length == 0 ||
-					tagFilteredPosts.some((p) => p.meta.category == 'calendario')}
+				event_toggle={filteredPosts.length == 0 ||
+					filteredPosts.some((p) => p.meta.category == 'calendario')}
 			/>
 		</div>
-		{#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
+		{#if filteredPosts.length > 0 || $filteredTags.length > 0}
 			{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
 
 			{#key $userConfig.display_type}
-				<p class="post-amount">{tagFilteredPosts.length} resultados</p> 
+				<p class="post-amount">{filteredPosts.length} resultados</p>
 				<!-- FIXME resultados is way too high on display -->
-				<ul id="posts" in:fade|global={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
-					{#each tagFilteredPosts as post, i (post.path)}
+				<ul
+					id="posts"
+					in:fade|global={{ duration: 300 }}
+					class={$userConfig.display_type + ' h-feed'}
+				>
+					{#each filteredPosts as post, i (post.path)}
 						<li in:scale|global={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
 							<Item {post} />
 						</li>

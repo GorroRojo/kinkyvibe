@@ -50,9 +50,9 @@
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader />
-		<Calendar   >
+		<Calendar>
 			{#snippet children({ date, today, past })}
-						{@const events = days?.[date]}
+				{@const events = days?.[date]}
 				{@const featuredEvent =
 					events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
 					events?.filter((e) => e.meta.featured)?.[0]}
@@ -78,7 +78,9 @@
 								href={'#' + event.path}
 								class="bar"
 								class:dim={event.meta.status == 'cancelado'}
-								style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
+								style:--evt-color={event?.meta?.tags?.includes('KinkyVibe')
+									? 'var(--1)'
+									: 'var(--2)'}
 							>
 								<span>
 									{event.meta.title ?? ' '}
@@ -94,21 +96,20 @@
 						{/each}
 					{/if}
 				</button>
-								{/snippet}
-				</Calendar>
+			{/snippet}
+		</Calendar>
 	</div>
 	<div id="postlist">
 		<PostList
-			filter={{ prop: 'visible', value: true }}
 			posts={calendarioPosts
 				.map((p) => ({
 					meta: {
 						...p.meta,
 						published_date: p.meta.start
 					},
-					visible: isSameMonth(new Date(p.meta.start), $view_date),
 					path: p.path
 				}))
+				.filter((p) => isSameMonth(new Date(p.meta.start), $view_date))
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		/>
 		<p class="subscribe">
@@ -140,8 +141,8 @@
 			color: white;
 			--font: 'Lato', sans-serif;
 			text-decoration: none;
-			padding: .3em;
-			border-radius: .3em;
+			padding: 0.3em;
+			border-radius: 0.3em;
 			&:hover {
 				border-color: white;
 				color: white;

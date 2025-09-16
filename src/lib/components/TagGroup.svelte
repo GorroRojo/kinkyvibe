@@ -2,38 +2,29 @@
 	import TagGroup from './TagGroup.svelte';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
-	import { tagManager, visibleTags } from '$lib/utils/stores';
+	import { parentsOfVisibleTags, tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
-	
-
-	
-	/** @type {{tag: any, gap?: boolean, nested?: boolean, onInput?: any}} */
+	/** @type {{tag: ProcessedTag, gap?: boolean, nested?: boolean, onInput?: any}} */
 	let {
 		tag,
 		gap = false,
 		nested = true,
-		onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t)
+		onInput = (/** @type {{ target: { checked: boolean; }; }} */ evt, /** @type {string} */ t) =>
+			$togglePositiveTagFilterFn(evt.target?.checked, t)
 	} = $props();
 
 	/** @param {string} tagID
 	 *  @return {boolean}
 	 */
 	function isVisible(tagID) {
-		let t = $tagManager.get(tagID);
-		return (
-			($visibleTags.includes(tagID) ||
-				(t?.children && t.children.length > 0 && t.children.some((s) => isVisible(s)))) ??
-			false
-		);
+		return $visibleTags.includes(tagID) || $parentsOfVisibleTags.includes(tagID);
 	}
 	let mounted = $state(false);
 	onMount(() => (mounted = true));
-	let noname =
-		tag.noname ||
-		!($visibleTags.includes(tag.id) || tag.getAllChildren().some((t) => $visibleTags.includes(t)));
+	let noname = tag.noname;
 </script>
 
 <div
@@ -44,7 +35,7 @@
 	class:nested
 	class:gap
 >
-	{#if tag.id && !noname}
+	{#if !noname}
 		<span in:scale|global={{ duration: 500 }} class="groupname">
 			<Tag
 				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
@@ -58,7 +49,7 @@
 			/>
 		</span>
 	{/if}
-	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
+	{#if tag.children && tag.children.some(isVisible)}
 		<ul class="groupitems" in:scale|global={{ duration: 500 }}>
 			{#each tag.children.filter(isVisible) ?? [] as item (item)}
 				{@const subTag = $tagManager.get(item)}
@@ -71,8 +62,7 @@
 								tag={item}
 								icon={subTag.icon ?? ''}
 								isCheckbox
-								checked={page.url.searchParams.has('tags') &&
-									page.url.searchParams.get('tags')?.split(',').includes(item)}
+								checked={page.url.searchParams.get('tags')?.split(',')?.includes(item)}
 								noBorder
 								--off-background="color-mix(in srgb, white 35%, transparent)"
 								--text-color="color-mix(in srgb, black 15%, var(--tag-color)"
@@ -167,11 +157,11 @@
 		column-gap: 0.6em;
 		justify-content: stretch;
 	}
-	:global(.groupitems) {
+	.groupitems {
 		display: none;
 	}
-	.groupname:has(:checked) + .groupitems,
-	.groupname:has(span) + .groupitems,
+	:global(.groupname:has(:checked) + .groupitems),
+	:global(.groupname:has(span) + .groupitems),
 	:global(.groupitems:has(:checked)) {
 		display: flex;
 	}
