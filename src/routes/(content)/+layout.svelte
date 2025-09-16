@@ -23,29 +23,6 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	/** @type {{data: any, children?: import('svelte').Snippet}} */
 	let { data, children } = $props();
-	togglePositiveTagFilterFn.update(
-		() =>
-			function (checked, tag) {
-				let pageurl = new URL(window.location.href);
-				let fltrdTags = pageurl.searchParams.get('tags')?.split(',') ?? [];
-				if (checked) {
-					if (!fltrdTags.includes(tag)) fltrdTags = [...fltrdTags, tag];
-				} else {
-					fltrdTags = [
-						...fltrdTags.slice(0, fltrdTags.indexOf(tag)),
-						...fltrdTags.slice(fltrdTags.indexOf(tag) + 1)
-					];
-				}
-				pageurl.searchParams.set('tags', fltrdTags.join(','));
-				if (fltrdTags.length > 0) {
-					window.history.pushState('', '', `?${pageurl.searchParams.toString()}`);
-				} else {
-					pageurl.searchParams.delete('tags');
-					window.history.replaceState('', '', pageurl);
-				}
-				filteredTags.update((_) => fltrdTags);
-			}
-	);
 	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
 	let ldBreadcrumb = (cat) => ({
 		'@context': 'https://schema.org',

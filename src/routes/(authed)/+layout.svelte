@@ -1,9 +1,10 @@
 <script>
+	import { page } from '$app/state';
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { filteredTags } from '$lib/utils/stores';
 	/** @type {{data: any, children?: import('svelte').Snippet}} */
 	let { data, children } = $props();
-	filteredTags.set([]);
+	filteredTags.set(page.url.searchParams.get('tags')?.split(',') ?? []);
 </script>
 
 <svelte:head>

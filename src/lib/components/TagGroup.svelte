@@ -2,7 +2,7 @@
 	import TagGroup from './TagGroup.svelte';
 	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
-	import { parentsOfVisibleTags, tagManager, visibleTags } from '$lib/utils/stores';
+	import { filteredTags, parentsOfVisibleTags, tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
@@ -25,6 +25,7 @@
 	let mounted = $state(false);
 	onMount(() => (mounted = true));
 	let noname = tag.noname;
+	let checked = $derived($filteredTags.includes(tag.id));
 </script>
 
 <div
@@ -44,8 +45,7 @@
 				noBorder
 				isCheckbox
 				onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) => onInput(evt, tag.id)}
-				checked={page.url.searchParams.has('tags') &&
-					page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
+				{checked}
 			/>
 		</span>
 	{/if}

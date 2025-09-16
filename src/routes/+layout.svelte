@@ -1,32 +1,33 @@
 <script>
 	import '$lib/styles/style.scss';
-	import {
-		filteredTags,
-		togglePositiveTagFilterFn
-	} from '$lib/utils/stores';
+	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/state';
+	import { pushState, replaceState } from '$app/navigation';
 	/** @type {{children?: import('svelte').Snippet}} */
 	let { children } = $props();
-	// onMount(() => {
-	filteredTags.set([]);
-	// });
+	filteredTags.set(page.url.searchParams.get('tags')?.split(',') ?? []);
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
-				if (checked) {
-					filteredTags.update((fTags) => [...fTags, tag]);
-				} else {
-					filteredTags.update((fTags) => [
+				let fTags = $filteredTags;
+
+				if (checked && !fTags.includes(tag)) {
+					fTags.push(tag)
+				} else if (!checked && $filteredTags.includes(tag)) {
+					fTags = [
 						...fTags.slice(0, fTags.indexOf(tag)),
 						...fTags.slice(fTags.indexOf(tag) + 1)
-					]);
-				}
-				page.url.searchParams.set('tags', $filteredTags.join(','));
-				if ($filteredTags.length > 0) {
-					window.history.pushState('', '', `?${page.url.searchParams.toString()}`);
+					];
+				} else return;
+
+				page.url.searchParams.set('tags', fTags.join(','));
+				$filteredTags = fTags
+
+				if (fTags.length > 0) {
+					pushState(page.url, page.state);
 				} else {
 					page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', page.url);
+					replaceState(page.url, page.state);
 				}
 			}
 	);
