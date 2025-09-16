@@ -37,19 +37,19 @@
 			pronoun
 		}
 	} = post;
-	let tags = $state(initialTags)
+	let tags = $state(initialTags);
 	let mark = $state('');
 	let date = format(
 		new Date(start ? addHours(new Date(start), 3) : (published_date ?? '')),
 		'yyyy-MM-dd'
 	);
-	$effect(()=>{
+	$effect(() => {
 		if (tags.includes('KinkyVibe')) {
 			mark = 'KinkyVibe';
 			let indexOfMark = tags.indexOf('KinkyVibe');
 			tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 		}
-	})
+	});
 	let mounted = $state(false);
 	onMount(() => (mounted = true));
 	let past = start && isPast(new Date(start));
@@ -73,7 +73,8 @@
 	class:past={start ? isPast(new Date(start)) || status == 'cancelado' : false}
 	tabindex="0"
 	target={redirect || path.startsWith('https') ? '_blank' : undefined}
-> <!-- TODO make this not an <a> tag -->
+>
+	<!-- TODO make this not an <a> tag -->
 	<div class="publication">
 		<div class="icon">
 			{#if category == 'calendario'}
@@ -176,16 +177,18 @@
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t))] as tag}
 				{@const config = $tagManager.get(tag)}
 				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
-				<li
-					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
-					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
-					style:--filled-outline-offset={'-2px'}
-					style:--hover-text-decoration={'underline var(--tag-color)'}
-					style:white-space={'nowrap'}
-				>
-					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
+				<li style:white-space={'nowrap'}>
+					<Tag
+						{tag}
+						icon={config.icon ?? ''}
+						isLink={mounted}
+						--tag-color={color}
+						--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+						--filled-outline={'1px solid var(--tag-color)'}
+						--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
+						--filled-outline-offset={'-2px'}
+						--hover-text-decoration={'underline var(--tag-color)'}
+					/>
 				</li>
 			{/each}
 		</ul>
