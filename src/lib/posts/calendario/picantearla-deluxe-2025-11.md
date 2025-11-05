@@ -28,7 +28,7 @@ authors:
   - KinkyVibe
 featured: picantearla-deluxe-miniatura.jpg
 # logo: 2
-# force_unlisted: false
+force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
