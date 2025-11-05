@@ -2,7 +2,7 @@
 published_date: 2025-11-04Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Taller de Dominación para Principiantes
-summary: Armamos estas dos clases con el fin de brindar herramientas para todes aquelles que quieran adentrarse en la Dominación dentro de un marco BDSM.
+summary: DemonWeb arma esta clase con el fin de brindar herramientas para todes aquelles que quieran adentrarse en la Dominación dentro de un marco BDSM.
 tags:
   - español
   - BDSM
