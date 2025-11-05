@@ -7,19 +7,19 @@ tags:
   - español
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
+  - gratis
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - BDSM
-  - charla-debate
+  - taller
+  - inicial
   - queer
   - sesión en vivo
   - shibari
   - entrevista
-  - cine
 layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-  - CanelaProducciones
 # featured: 1
 #logo: 2
 #force_unlisted: false
