@@ -19,14 +19,17 @@ featured: jamarada-kinky-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2025-10-20Z-03:00
 start: 2025-11-11T18:30-03:00
-end:   2025-11-11T21:00-03:00
+end: 2025-11-11T21:00-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
+updated_date: 2025-11-07Z-03:00
+
 # link: ''
 # link_text: Inscribirme
+
 ---
 
 > ¡Estás en un evento kinky-lgbt! Armamos este evento para construir espacios cuidados (no por eso libres de conflicto y riesgo) en donde podamos explorar y llevar a cabo nuestras prácticas y sexualidades BDSM-kinky

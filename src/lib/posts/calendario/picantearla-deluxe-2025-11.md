@@ -2,7 +2,9 @@
 published_date: 2025-11-04Z-03:00
 # updated_date:   2024-02-27Z-03:00
 title: Picantearla Deluxe 🔥 (45° Edición)
-summary: CUPOS LIMITADOS - Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer gente en un espacio tranqui y juguetón
+summary: CUPOS LIMITADOS - Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm
+  queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer
+  gente en un espacio tranqui y juguetón
 tags:
   - español
   - KinkyVibe
@@ -28,16 +30,18 @@ authors:
   - KinkyVibe
 featured: picantearla-deluxe-miniatura.jpg
 # logo: 2
-force_unlisted: false
+force_unlisted: true
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
 start: 2025-11-08T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2025-11-08T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2025-11-09T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo
 # location_name: la jaula de olivos
 link: https://forms.gle/qyPPfbHxpvjc6stt6
 link_text: 'ENTRADAS'
+updated_date: 2025-11-06Z-03:00
+
 ---
 
 > 📛 ESTA EDICIÓN NO ES PARA PRINCIPIANTES NI PRIMERICES 📛
