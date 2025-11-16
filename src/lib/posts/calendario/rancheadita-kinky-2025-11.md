@@ -2,7 +2,8 @@
 published_date: 2025-11-04Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Rancheadita Kinky en el Parque + Jam de Cuerdas
-summary: 'Espacio relajado para quienes quieran compartir con otras personas kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar.'
+summary: 'Espacio relajado para quienes quieran compartir con otras personas
+  kinkies y queer/lgtb. Nos juntamos a conocernos, charlar, comer, y atar.'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -20,12 +21,15 @@ featured: rancheadita-kinky-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2025-11-16T15:00-03:00
-end:   2025-11-16T19:00-03:00
+start: 2025-11-23T15:00-03:00
+end: 2025-11-23T19:00-03:00
 location: Parque Centenario, entrada en Av Patricia Argentinas y Cangallo, CABA
+updated_date: 2025-11-16Z-03:00
+
 # location_name: Tacheles
 # link: https://docs.google.com/forms/d/e/1FAIpQLSeXJT4C4-DuiA3jSJmWFIbxqzsq3tU4PHnpWWVq1hYgx1mKtA/viewform?usp=sf_link
 # link_text: Inscribirme
+
 ---
 ## **Rancheadita Kinky**
 Un espacio para conocer y charlar con personas que tienen prácticas BDSM/kinky o viven identidades aledañas. ¡Podés venir a comer algo y conocerte con otres pervertides! ❤️
