@@ -2,7 +2,8 @@
 published_date: 2023-05-16Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Tallarines con Tuco
-summary: Soy ilustradora, aficionada al excel, coleccionista de hobbies y lo que haga falta
+summary: Soy ilustradora, aficionada al excel, coleccionista de hobbies y lo que
+  haga falta
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -16,8 +17,10 @@ authors:
 featured: 1
 # force_unlisted: true
 #force_unpublished: false
-pronoun: https://pronombr.es/ella
+pronoun: https://pronombr.es/ella&el
 link: https://instagram.com/tallarinescontuco
+updated_date: 2025-11-29Z-03:00
+
 #logo: 2
 #photo: 3
 #email: ayuda@kinkyvibe.ar
@@ -26,6 +29,7 @@ link: https://instagram.com/tallarinescontuco
 #job_title: Ilustradora
 #gender_identity: Kien Sabe - Yo no
 #bday: 1995-04-27
+
 ---
 
 Otras credenciales:
