@@ -37,4 +37,15 @@ link_text: PRE-VENTA
 # carrousel_accent_text: ""
 # carrousel_accent_bg: ""
 ---
+## Bloque 1
 
+14:00 a 18:30 horas
+
+Taller de BDSM Inicial Práctico
+
+## Bloque 2 - Entrada libre!
+
+- **19:00 - 19:30** : Kinktionary
+- **19:45 - 20:45** : Sesión en Vivo de Shibari por @Sogashibari
+- **21:00 - 22:00** : Entrevista a @DemonWeb
+- **22:10 - 22:45** : ¿Y si fuera todo gratis? El futuro de Kinky Vibe
