@@ -93,8 +93,8 @@
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
 				<UserMenu user={data.user} />
 			{:else}
-				<a href="/amigues/KinkyVibe">
-					Nuestros servicios
+				<a href="https://fondo.kinkyvibe.ar" target="_blank">
+					¿Todo gratis?
 					<ArrowRight size="18" />
 				</a>
 				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
