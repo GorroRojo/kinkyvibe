@@ -23,13 +23,13 @@ featured: picantearla-miniatura.jpg
 # logo: 2
 # force_unlisted: false
 #force_unpublished: false
-status: anunciado # abierto | anunciado | agotadas | cancelado
+status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2025-12-20T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2025-12-21T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Caballito, Ciudad Autónoma de Buenos Aires
 # location_name: Batacazo Cultural
-link: https://forms.gle/4wDH2ccL6P6ob588A
+link: https://forms.gle/EFiFidtbgobkVaci6
 link_text: 'PRE VENTA'
 ---
 
