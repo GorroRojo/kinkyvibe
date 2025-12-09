@@ -22,7 +22,7 @@ authors:
 featured: grupo-sumis-y-doms-miniatura.jpg
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | agotadas | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2025-12-10T19:00-03:00
 end:   2025-12-10T21:00-03:00
