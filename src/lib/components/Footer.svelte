@@ -46,7 +46,7 @@
 			<h3>Sobre nosotres</h3>
 			<ul>
 				<li>
-					<a href="/amigues/KinkyVibe"><ArrowRight {style} />Nosotres y nuestros servicios</a>
+					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo de Kinky Vibe</a>
 				</li>
 				<li>
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
