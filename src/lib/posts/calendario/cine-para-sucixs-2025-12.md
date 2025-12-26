@@ -25,8 +25,8 @@ status: anunciado # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-03Z-03:00
 start: 2025-12-21T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2025-12-21T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: Thames 240, Ciudad Autónoma de Buenos Aires
-location_name: Cooperativa Cultural Qi
+location: Caballito, Ciudad Autónoma de Buenos Aires
+# location_name: Cooperativa Cultural Qi
 link: https://forms.gle/6a8zsnXFGbC8mepeA
 link_text: PRE-VENTA
 # updated_date: 2024-08-02Z-03:00
