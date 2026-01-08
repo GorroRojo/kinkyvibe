@@ -29,7 +29,7 @@ start: 2026-01-11T18:00-03:00
 end:   2026-01-11T23:30-03:00
 location: Thames 240, Ciudad Autónoma de Buenos Aires
 location_name: Cooperativa Cultural Qi
-# link: 'https://forms.gle/pb6XTo2tAL5JTMhf8'
+link: 'https://forms.gle/Q2sKzXzq9TK58xGD8'
 link_text: PRE-VENTA
 ---
 <!-- ## FERIA

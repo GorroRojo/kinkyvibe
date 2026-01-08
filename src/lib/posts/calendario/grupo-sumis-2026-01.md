@@ -28,7 +28,7 @@ status: abierto # abierto | anunciado | agotadas | cancelado
 start: 2026-01-21T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-01-21T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-# link: https://forms.gle/gP1S6pUGkzPrq85SA
+link: https://forms.gle/gP1S6pUGkzPrq85SA
 link_text: 'INSCRIPCIÓN'
 ---
 

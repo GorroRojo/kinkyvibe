@@ -25,7 +25,7 @@ start: 2026-01-25T16:00-03:00
 end:   2026-01-25T20:00-03:00
 location: San Telmo, CABA
 # location_name: la jaula de olivos
-# link: https://forms.gle/yEvH8uodkEUGccg6A
+link: https://forms.gle/yEvH8uodkEUGccg6A
 link_text: ENTRADAS
 ---
 

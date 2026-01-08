@@ -29,6 +29,6 @@ start: 2026-01-14T18:30-03:00
 end:   2026-01-14T20:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
-link: ''
+link: 'https://forms.gle/LCXUuigDLyZJCHwD7'
 link_text: Inscribirme
 ---

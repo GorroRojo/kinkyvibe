@@ -29,7 +29,7 @@ start: 2026-01-17T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-01-18T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Batacazo Cultural
-# link: https://docs.google.com/forms/d/e/1FAIpQLSc7CYROf7nawgVV_p6PKB3dEUaeIO-d5jhC0KpWXqDr1ToJ0g/viewform?usp=sf_link
+link: https://forms.gle/EFiFidtbgobkVaci6
 link_text: 'PRE VENTA'
 ---
 

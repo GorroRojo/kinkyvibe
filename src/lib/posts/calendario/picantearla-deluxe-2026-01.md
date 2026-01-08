@@ -38,7 +38,7 @@ start: 2026-01-31T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-02-01T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo
 # location_name: la jaula de olivos
-# link: https://forms.gle/qyPPfbHxpvjc6stt6
+link: https://forms.gle/MfTDQ6e5FBUb5ziSA
 link_text: 'ENTRADAS'
 
 ---
