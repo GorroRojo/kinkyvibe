@@ -1,7 +1,7 @@
 ---
 published_date: 2026-01-31Z-03:00
 # updated_date:   2024-02-27Z-03:00
-title: Picantearla Deluxe 🔥 (51° Edición)
+title: Picantearla Deluxe 🔥 (52° Edición)
 summary: CUPOS LIMITADOS - Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm
   queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer
   gente en un espacio tranqui y juguetón
