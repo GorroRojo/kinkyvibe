@@ -1,5 +1,5 @@
 ---
-published_date: 2025-12-03Z-03:00
+published_date: 2026-01-31Z-03:00
 # updated_date:   2024-04-01Z-03:00
 title: Grupo de Apoyo y Discusión para sumis y Doms*
 summary: 'Nos juntamos para charlar, discutir, dar información y compartir
@@ -24,8 +24,8 @@ featured: grupo-sumis-y-doms-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2025-12-10T19:00-03:00
-end:   2025-12-10T21:00-03:00
+start: 2026-02-19T19:00-03:00
+end:   2026-02-19T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
 link: 'https://forms.gle/FwjVjvZwFhDVYACi9'

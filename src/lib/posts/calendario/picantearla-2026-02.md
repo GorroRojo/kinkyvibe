@@ -1,7 +1,7 @@
 ---
-published_date: 2025-12-26Z-03:00
+published_date: 2026-01-31Z-03:00
 # updated_date: 2024-02-30Z-03:00
-title: Picantearla (49ª Edición)
+title: Picantearla (51ª Edición)
 summary: Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm queer/LGBTTTB+!
   Pensado para todes quienes quieran sesionar, charlar y conocer gente en un
   espacio tranqui y juguetón
@@ -25,8 +25,8 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2026-01-17T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2026-01-18T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2026-02-13T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2026-02-14T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Batacazo Cultural
 link: https://forms.gle/EFiFidtbgobkVaci6

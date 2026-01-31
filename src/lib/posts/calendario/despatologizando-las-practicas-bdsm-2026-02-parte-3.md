@@ -1,5 +1,5 @@
 ---
-published_date: 2025-08-01Z-03:00
+published_date: 2026-01-31Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Despatologizando las Prácticas BDSM (parte 3 de 3)
 summary: Una formación orientada a trabajadores en salud que quieran tener un
@@ -20,16 +20,15 @@ featured: despatologizando-las-practicas-bdsm-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
-start: 2025-09-13T11:00-03:00
-end: 2025-09-13T12:30-03:00
+start: 2026-02-21T11:00-03:00
+end:   2026-02-21T12:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/5JpqwxnTGvuXdyEH6
 link_text: Inscribirse
-updated_date: 2025-08-27Z-03:00
 
 ---
 
-> [Parte 1](/calendario/despatologizando-las-practicas-bdsm-2025-08), [Parte 2](/calendario/despatologizando-las-practicas-bdsm-2025-08-parte-2), **Parte 3**
+> [Parte 1](/calendario/despatologizando-las-practicas-bdsm-2026-02), [Parte 2](/calendario/despatologizando-las-practicas-bdsm-2026-02-parte-2), **Parte 3**
 
 Armamos este taller con el fin de brindar herramientas a personas que acompañen procesos terapéuticos o divulguen en sexualidad, y quieran incorporar y profundizar en las **perspectivas de diversidad erótica**, más específicamente desde los aportes de los colectivos kinky/BDSM.
 

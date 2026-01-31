@@ -1,7 +1,7 @@
 ---
-published_date: 2025-12-26Z-03:00
+published_date: 2026-01-31Z-03:00
 # updated_date:   2024-02-27Z-03:00
-title: Picantearla Deluxe 🔥 (50° Edición)
+title: Picantearla Deluxe 🔥 (51° Edición)
 summary: CUPOS LIMITADOS - Espacio cuir de prácticas kinky. ¡Evento kinky-bdsm
   queer/LGBTTTB+! Pensado para todes quienes quieran sesionar, charlar y conocer
   gente en un espacio tranqui y juguetón
@@ -34,8 +34,8 @@ featured: picantearla-deluxe-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-11-23Z-03:00
-start: 2026-01-31T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2026-02-01T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2026-02-21T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end:   2026-02-22T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo
 # location_name: la jaula de olivos
 link: https://forms.gle/MfTDQ6e5FBUb5ziSA
