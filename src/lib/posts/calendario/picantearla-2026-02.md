@@ -25,12 +25,14 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2026-02-13T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2026-02-14T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2026-02-14T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2026-02-15T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: San Telmo, Ciudad Autónoma de Buenos Aires
 # location_name: Batacazo Cultural
 link: https://forms.gle/EFiFidtbgobkVaci6
 link_text: 'PRE VENTA'
+updated_date: 2026-02-04Z-03:00
+
 ---
 
 ## 🤩 LA IDEA DEL EVENTO
