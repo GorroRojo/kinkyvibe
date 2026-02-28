@@ -19,12 +19,13 @@ authors:
 featured: despatologizando-las-practicas-bdsm-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 start: 2026-03-21T11:00-03:00
-end:   2026-03-21T12:30-03:00
+end: 2026-03-21T12:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/5JpqwxnTGvuXdyEH6
 link_text: Inscribirse
+updated_date: 2026-02-28Z-03:00
 
 ---
 
