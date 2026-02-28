@@ -2,7 +2,8 @@
 published_date: 2026-01-31Z-03:00
 #updated_date: 2023-11-04Z-03:00
 title: Despatologizando las Prácticas BDSM (parte 2 de 3)
-summary: Una formación orientada a trabajadores en salud que quieran tener un enfoque que incluya las prácticas eróticas no-normativas
+summary: Una formación orientada a trabajadores en salud que quieran tener un
+  enfoque que incluya las prácticas eróticas no-normativas
 tags:
   - español
   - KinkyVibe # etiqueta especial #
@@ -18,12 +19,14 @@ authors:
 featured: despatologizando-las-practicas-bdsm-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
-status: abierto # anunciado | abierto | agotadas | cancelado #
+status: cancelado # anunciado | abierto | agotadas | cancelado #
 start: 2026-03-07T11:00-03:00
-end:   2026-03-07T13:30-03:00
+end: 2026-03-07T13:30-03:00
 # location: Thames 240, Ciudad Autónoma de Buenos Aires
 link: https://forms.gle/5JpqwxnTGvuXdyEH6
 link_text: Inscribirse
+updated_date: 2026-02-28Z-03:00
+
 ---
 
 > [Parte 1](/calendario/despatologizando-las-practicas-bdsm-2026-02), **Parte 2**, [Parte 3](/calendario/despatologizando-las-practicas-bdsm-2026-02-parte-3)
