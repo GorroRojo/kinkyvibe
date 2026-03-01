@@ -1,6 +1,6 @@
 ---
 published_date: 2025-09-15Z-03:00
-#updated_date:   2025-11-04Z-03:00
+updated_date:   2026-03-01Z-03:00
 title: Consejos para la manija en el BDSM
 #wiki: material # para si es una entry de la wiki #
 summary: 'Empezar una práctica o una relación implica mucha emoción: cosas con las que fantaseamos por años de pronto se hacen realidad, o una nueva sensación nos llama la atención lo suficiente como para dejarnos maquinando por semanas. Por esto quería dejar un breve texto con ideas, cosas para pensar y tips de cómo afrontarlo.'
@@ -18,7 +18,7 @@ category: material
 authors:
   - Cuerdaestrello
 #featured: 1
-force_unlisted: true
+# force_unlisted: true
 #force_unpublished: false
 #link: https://www.altoporno.gay/edu
 ########### ----- Para tipo 'link' ----- ###########
