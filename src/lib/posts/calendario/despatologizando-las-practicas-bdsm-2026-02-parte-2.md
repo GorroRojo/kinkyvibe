@@ -17,7 +17,7 @@ authors:
   - DemonWeb
   - FugasCriticas
 featured: despatologizando-las-practicas-bdsm-miniatura.jpg
-# force_unlisted: true
+force_unlisted: true
 #force_unpublished: false
 status: cancelado # anunciado | abierto | agotadas | cancelado #
 start: 2026-03-07T11:00-03:00
