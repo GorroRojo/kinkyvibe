@@ -24,8 +24,8 @@ featured: taller-juegos-de-rol-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2025-10-20Z-03:00
-start: 2026-03-18T19:00-03:00
-end:   2026-03-18T21:00-03:00
+start: 2026-03-25T19:00-03:00
+end:   2026-03-25T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: Cooperativa Cultural Qi
 link: 'https://forms.gle/RyFAeXrmsf2Xi1qC6'
