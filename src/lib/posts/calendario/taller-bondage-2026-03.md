@@ -1,5 +1,6 @@
 ---
 published_date: 2026-03-01Z-03:00
+updated_date: 2026-03-28Z-03:00
 title: "Taller de Bondage: Restricciones & Placer"
 summary: "Un taller sobre inmovilización y el placer de sentirse libre estando
   restringide. Todo sobre esposas, cadenas y mordazas"
@@ -22,8 +23,8 @@ featured: taller-bondage-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-10-20Z-03:00
-start: 2026-03-22T15:00-03:00
-end:   2026-03-22T19:00-03:00
+start: 2026-04-26T15:00-03:00
+end:   2026-04-26T19:00-03:00
 location: Sarmiento 3096, Ciudad Autónoma de Buenos Aires
 location_name: Panda Rojo
 link: https://forms.gle/77VYshCGwJh1Rgj59
