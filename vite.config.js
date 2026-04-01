@@ -9,5 +9,13 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		exclude: ["codemirror", "@codemirror/lang-markdown"]
-	}
+	},
+	resolve: {
+		alias: {
+		  'http': 'stream-http',
+		  'https': 'https-browserify',
+		  'net': 'sockjs-client/lib/transport/websocket'
+		}
+	  }
+	
 });
