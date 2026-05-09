@@ -17,7 +17,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-#featured: 1
+featured: variete-mutante-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

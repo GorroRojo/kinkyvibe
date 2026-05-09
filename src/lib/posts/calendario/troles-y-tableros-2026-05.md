@@ -29,7 +29,7 @@ start: 2026-05-24T15:00-03:00
 end:   2026-05-24T20:00-03:00
 location: Virrey Cevallos 172, Congreso. Deseo Cooperativa
 # location_name: Casa Queer
-# link: 'https://forms.gle/3vbHS8MX9fttMDPb7'
+link: 'https://forms.gle/3vbHS8MX9fttMDPb7'
 link_text: Reservar lugar
 ---
 Espacio de juegos de mesa hecho por troles neurodivergentes kinky para troles neurodivergentes kinky. Sumate en grupo o incorporate a los que armamos y descubrí juegos modernos de ingenio, cooperativos, nacionales, de estrategia y muchos más. ¡Nos comprometemos a que te vayas conociendo un juego nuevo!
