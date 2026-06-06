@@ -25,7 +25,7 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2026-06-28T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+start: 2026-06-27T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-06-28T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Villa Crespo, Ciudad Autónoma de Buenos Aires
 # location_name: Sigue la polilla
