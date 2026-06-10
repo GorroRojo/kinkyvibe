@@ -29,7 +29,7 @@ start: 2026-06-27T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-06-28T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 location: Villa Crespo, Ciudad Autónoma de Buenos Aires
 # location_name: Sigue la polilla
-# link: https://forms.gle/EFiFidtbgobkVaci6
+link: https://forms.gle/EFiFidtbgobkVaci6
 link_text: 'PRE VENTA'
 
 ---
