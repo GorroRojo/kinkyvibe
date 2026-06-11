@@ -1,0 +1,9 @@
+@font-face {
+    font-family: Retosta;
+    src: url('/fonts/Retosta.otf') format('opentype');
+}
+
+body {
+    font-family: 'Retosta', "NotoColorEmojiLimited", "Lato", sans-serif !important;
+    background:white !important;
+}
