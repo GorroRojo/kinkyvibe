@@ -97,7 +97,7 @@
 		* {
 			min-width: 0;
 			min-height: 0;
-			opacity: 0;
+			opacity: 1;
 		}
 		filter: grayscale(100%);
 		background: transparent;
