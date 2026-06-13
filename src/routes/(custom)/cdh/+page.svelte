@@ -7,6 +7,7 @@
 	import skull from './byn-skull-and-crossbones_2620-fe0f.png';
 	import hat from './galera-02.png';
 	import logo from './titulo copia.svg';
+	import rabbit from './rabbit_1f407.png'
 	/**
 	 * @type {Record<string, string>}
 	 */
@@ -35,7 +36,7 @@
 		c: crown,
 		f: fox,
 		m: star,
-		s: skull,
+		s: rabbit,
 		b: books
 	};
 
