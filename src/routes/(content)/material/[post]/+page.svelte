@@ -1,6 +1,7 @@
 <script>
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -22,8 +23,10 @@
 			) ||
 			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
 			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
-			(data.meta.category == 'amigues' && p.meta.authors.includes(data.meta.postID) && p.meta.postID != data.meta.postID)
-	)
+			(data.meta.category == 'amigues' &&
+				p.meta.authors.includes(data.meta.postID) &&
+				p.meta.postID != data.meta.postID)
+	);
 </script>
 
 <LDTag
@@ -100,6 +103,9 @@
 			</time>
 		</address>
 	{/if}
+	{#if data.meta.readingTime}
+		<div class="reading-time-row"><ReadingTime minutes={data.meta.readingTime} /></div>
+	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
 			<Tags tags={data.meta.tags} />
@@ -170,6 +176,10 @@
 {/if}
 
 <style lang="scss">
+	.reading-time-row {
+		text-align: center;
+		margin: 0.3em 0;
+	}
 	#cafecito,
 	#via {
 		max-width: 50rem;
