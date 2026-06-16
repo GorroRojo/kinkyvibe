@@ -3,7 +3,7 @@
 	"version": "1.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "vite dev --host",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
@@ -42,6 +42,7 @@
 	"dependencies": {
 		"@codemirror/lang-markdown": "^6.2.2",
 		"@octokit/core": "^4.2.0",
+		"@types/web-push": "^3.6.4",
 		"add-to-calendar-button": "^2.2.10",
 		"buffer": "^6.0.3",
 		"date-fns": "^2.30.0",
@@ -58,6 +59,7 @@
 		"simple-icons": "^8.14.0",
 		"svelte-codemirror-editor": "^1.1.0",
 		"unist-util-visit": "^5.0.0",
+		"web-push": "^3.6.7",
 		"wrangler": "^3.3.0",
 		"yaml": "^2.4.1"
 	}
