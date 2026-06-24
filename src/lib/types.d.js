@@ -73,6 +73,7 @@
  * @prop {string} [updated_date]
  * @prop {boolean} [force_unlisted]
  * @prop {boolean} [force_unpublished]
+ * @prop {number} [readingTime] - minutos estimados de lectura (solo material/wiki)
  */
 /** @typedef {PostData & {
  * 		type: 'descargable' | 'link' | 'contenido',
