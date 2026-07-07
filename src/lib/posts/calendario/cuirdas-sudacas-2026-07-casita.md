@@ -1,8 +1,8 @@
 ---
 published_date: 2026-07-07Z-03:00
 #updated_date:   2025-07-04Z-03:00
-title: 'La Deriva - Cuirdas Sudacas'
-summary: 'Una sesión sin plan. Tres personas que se miran y deciden adónde irá el juego; Un lugar que puede cambiar entre una sala en la capital de Buenos Aires y una casita en un bosque de la costa. Lo imprevisible como elemento, el caos como refugio y el afecto como motor.'
+title: 'La Casita del Bosque - Cuirdas Sudacas'
+summary: '6 personas y dos perros en un auto viajarán 500 km hacia la fría costa argentina sabiendo que el domingo mostrarán una sesión; Pero no hay plan, no conocen el lugar y ni siquiera saben quién atará a quién ¿Lograrán hacerlo? ¡No se pierdan el final de esta historia en otra edición de Cuirdas Sudakas!'
 tags:
   - español
   - KinkyVibe # etiqueta especial #
