@@ -37,7 +37,7 @@
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured placeholder-gradient" {src} alt="" />
+	<img class="card-img u-featured placeholder-gradient" {src} alt="" loading="lazy" />
 	<h3 class="p-name">
 		{title}
 		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
