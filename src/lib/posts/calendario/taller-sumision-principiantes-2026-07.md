@@ -22,8 +22,8 @@ featured: taller-sumision-principiantes-miniatura.jpg
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
-start: 2026-07-30T18:00-03:00
-end:   2026-07-30T21:00-03:00
+start: 2026-08-07T18:00-03:00
+end:   2026-08-07T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
 link: https://forms.gle/KoA7NZQymw26mriC9
