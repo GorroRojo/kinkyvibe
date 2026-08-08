@@ -25,6 +25,6 @@ status: abierto # abierto | anunciado | agotadas | cancelado
 start: 2026-08-12T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end:   2026-08-12T21:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 # location: Online
-# link: https://docs.google.com/forms/d/e/1FAIpQLSdc-Ha3h0nlIlvoyrWOtqwTOFQT03Hz4svFx1DxtE2slPuusQ/viewform?usp=sf_link
-# link_text: 'INSCRIPCIÓN'
+link: https://forms.gle/o73dD9K95XTDBkaN9
+link_text: 'INSCRIPCIÓN'
 ---
