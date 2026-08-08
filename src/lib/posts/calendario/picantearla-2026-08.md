@@ -27,7 +27,7 @@ status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
 start: 2026-08-16T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 end: 2026-08-17T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: Agrelo 3399, Boedo. CABA
+location: Agrelo 3399, Boedo.  Ciudad Autónoma de Buenos Aires
 updated_date: 2026-08-07Z-03:00
 
 # location_name: Sigue la polilla
