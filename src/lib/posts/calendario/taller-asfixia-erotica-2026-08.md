@@ -25,8 +25,8 @@ status: abierto # anunciado | abierto | agotadas | cancelado #
 start: 2026-08-16T15:00-03:00
 end:   2026-08-16T19:00-03:00
 location: Panda Rojo
-# link: "https://forms.gle/j4pg2fEk9gHwF6tBA"
-# link_text: PRE-VENTA
+link: "https://forms.gle/j4pg2fEk9gHwF6tBA"
+link_text: PRE-VENTA
 updated_date: 2025-08-16Z-03:00
 
 # carrousel_background: "#f2a68f"
