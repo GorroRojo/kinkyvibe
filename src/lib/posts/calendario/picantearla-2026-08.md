@@ -25,9 +25,11 @@ featured: picantearla-miniatura.jpg
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado
 # opening_date: 2023-09-30Z-03:00
-start: 2026-08-15T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end:   2026-08-16T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-location: San Telmo, Ciudad Autónoma de Buenos Aires
+start: 2026-08-16T20:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2026-08-17T01:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+location: Agrelo 3399, Boedo. CABA
+updated_date: 2026-08-07Z-03:00
+
 # location_name: Sigue la polilla
 # link: https://forms.gle/EFiFidtbgobkVaci6
 # link_text: 'PRE VENTA'
