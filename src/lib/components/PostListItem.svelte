@@ -158,7 +158,7 @@
 			<span class="job-title">{job_title}</span>
 		{/if}
 	</div>
-	{#if src}<img {src} alt="" />{/if}
+	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
 	<h3>
 		{title}
 		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
