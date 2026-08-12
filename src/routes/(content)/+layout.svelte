@@ -20,6 +20,8 @@
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
+	import PushNotificationSubscriber from '$lib/components/PushNotificationSubscriber.svelte';
+	
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
@@ -119,6 +121,9 @@
 		/>
 	</div>
 </header>
+<div class="notifications-container">
+	<PushNotificationSubscriber />
+</div>
 {#if data.currentRoute != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>

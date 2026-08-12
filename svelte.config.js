@@ -12,14 +12,18 @@ const config = {
 		alias: {
 			$lib: '/src/lib/'
 		},
-		adapter: adapter()
+		adapter: adapter(),
+    	serviceWorker: {
+			register: true
+		  }
 	},
 	extensions: ['.svelte', '.md', '.svx'],
 	preprocess: sequence([
 		sveltePreprocess({
 			postcss: {
 				plugins: [autoprefixer]
-			}
+			},
+			typescript: true
 		}),
 		mdsvex({
 			extensions: ['.md', '.svx'],
