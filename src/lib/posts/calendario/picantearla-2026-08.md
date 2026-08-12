@@ -31,8 +31,8 @@ location: Agrelo 3399, Boedo.  Ciudad Autónoma de Buenos Aires
 updated_date: 2026-08-07Z-03:00
 
 # location_name: Sigue la polilla
-# link: https://forms.gle/EFiFidtbgobkVaci6
-# link_text: 'PRE VENTA'
+link: https://forms.gle/EFiFidtbgobkVaci6
+link_text: 'PRE VENTA'
 
 ---
 <!-- hubo un pica deluxe extra en marzo por eso salta del 53 al 55 -->
