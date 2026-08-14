@@ -1,7 +1,7 @@
 ---
 published_date: 2026-08-14Z-03:00
 #updated_date:   2024-03-04Z-03:00
-title: Taller de Perfil de Riesgo
+title: Taller de Perfil de Riesgo en Shibari
 summary: 'Reducción de daño y gestión del placer. Riesgo, daño, placer y cómo
   gestionarlos en un contexto de BDSM. Cómo explorar nuestras necesidades y
   cuidados durante prácticas de riesgo.'
