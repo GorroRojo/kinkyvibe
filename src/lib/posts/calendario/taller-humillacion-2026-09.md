@@ -19,7 +19,7 @@ featured: taller-humillacion-miniatura.jpg
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
-status: anunciado # anunciado | abierto | agotadas | cancelado #
+status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
 start: 2026-09-30T19:00-03:00
 end:   2026-09-30T21:30-03:00
