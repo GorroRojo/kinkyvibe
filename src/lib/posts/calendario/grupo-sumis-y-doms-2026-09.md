@@ -23,12 +23,14 @@ featured: grupo-sumis-y-doms-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2026-09-10T19:00-03:00
-end:   2026-09-10T21:00-03:00
+start: 2026-09-22T19:00-03:00
+end: 2026-09-22T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
 link: 'https://forms.gle/FwjVjvZwFhDVYACi9'
 link_text: INSCRIBIRME
+updated_date: 2026-09-10Z-03:00
+
 ---
 
 Armamos esta propuesta con el fin de generar un espacio de intercambio entre personas dentro del espectro Dominante/Dom/Top y personas dentro del sumise/sumi/bottom que quieran venir a compartir sus experiencias, ser escuchades, escuchar a otres, compartir información y debatir.
