@@ -23,8 +23,8 @@ featured: grupo-sumis-y-doms-miniatura.jpg
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
 # opening_date: 2023-09-30Z-03:00
-start: 2026-09-10T19:00-03:00
-end:   2026-09-10T21:00-03:00
+start: 2026-09-22T19:00-03:00
+end:   2026-09-22T21:00-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name:  Online
 link: 'https://forms.gle/FwjVjvZwFhDVYACi9'
