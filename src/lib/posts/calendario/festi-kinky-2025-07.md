@@ -25,7 +25,7 @@ authors:
   - Ritual Kinbaku
   - CanelaProducciones
   - Gorro_Rojo
-featured: festi-kinky-24-7-miniatura.jpg
+featured: festi-kinky-24-7-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: cine-para-sucixs-miniatura.jpg
+featured: cine-para-sucixs-miniatura.webp
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado

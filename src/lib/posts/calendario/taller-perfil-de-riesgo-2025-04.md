@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: perfil-de-riesgo-miniatura.png
+featured: perfil-de-riesgo-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

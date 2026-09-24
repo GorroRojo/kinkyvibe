@@ -27,9 +27,9 @@ original_published_date: 2021-02-04Z-03:00
 ---
 
 <script>
-    import frente from '$lib/posts/material/media/collares-electricos/1.png'
-    import costado from '$lib/posts/material/media/collares-electricos/2.png'
-    import atras from '$lib/posts/material/media/collares-electricos/3.png'
+    import frente from '$lib/posts/material/media/collares-electricos/1.webp'
+    import costado from '$lib/posts/material/media/collares-electricos/2.webp'
+    import atras from '$lib/posts/material/media/collares-electricos/3.webp'
 </script>
 
 traducido _medio así nomás_ de una parte de [este artículo](https://www.domme-chronicles.com/2021-02/shock-collars-in-bdsm-play-are-they-safe)

@@ -18,7 +18,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: ilustres-criaturas-miniatura.jpg
+featured: ilustres-criaturas-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

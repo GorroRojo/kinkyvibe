@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - Mi Pieza Acción Gráfica
-featured: taller-fetichismo-escritura-miniatura.jpg
+featured: taller-fetichismo-escritura-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

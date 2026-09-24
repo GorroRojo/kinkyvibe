@@ -17,7 +17,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: tinta-corrida-miniatura.jpg
+featured: tinta-corrida-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

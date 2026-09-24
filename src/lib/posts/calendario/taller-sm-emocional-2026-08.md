@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Cuerdaestrello
-featured: taller-sm-emocional-miniatura.jpg
+featured: taller-sm-emocional-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

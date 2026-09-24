@@ -15,7 +15,7 @@ authors:
   - AUCH
   - DemonWeb
   - Gorro_Rojo
-featured: auch-rancheadita-online-miniatura.jpg
+featured: auch-rancheadita-online-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

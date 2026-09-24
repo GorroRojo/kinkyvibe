@@ -17,7 +17,7 @@ layout: calendario
 category: calendario
 authors:
   - Paula E
-featured: taller-reduccion-de-danos-miniatura.jpg
+featured: taller-reduccion-de-danos-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

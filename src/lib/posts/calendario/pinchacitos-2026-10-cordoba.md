@@ -15,7 +15,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: pinchacitos-miniatura.jpg
+featured: pinchacitos-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

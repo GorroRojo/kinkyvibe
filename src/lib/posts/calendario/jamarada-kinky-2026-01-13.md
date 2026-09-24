@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: jamarada-kinky-miniatura.jpg
+featured: jamarada-kinky-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

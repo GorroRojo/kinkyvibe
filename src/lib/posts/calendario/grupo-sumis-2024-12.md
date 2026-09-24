@@ -19,7 +19,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Gorro_Rojo
-featured: grupo-sumis-miniatura.jpg
+featured: grupo-sumis-miniatura.webp
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado

@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: taller-placer-riesgo-miniatura.jpg
+featured: taller-placer-riesgo-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

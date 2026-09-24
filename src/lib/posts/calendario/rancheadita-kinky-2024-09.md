@@ -18,7 +18,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: rancheadita-kinky-miniatura.jpg
+featured: rancheadita-kinky-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

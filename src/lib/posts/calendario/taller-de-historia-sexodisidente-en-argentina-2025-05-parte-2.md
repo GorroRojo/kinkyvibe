@@ -13,7 +13,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Cuerdaestrello
-featured: taller-historia-sexodisidente-miniatura.jpg
+featured: taller-historia-sexodisidente-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

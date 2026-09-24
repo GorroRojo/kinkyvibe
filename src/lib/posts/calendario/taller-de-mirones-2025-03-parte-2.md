@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Hedonistas
-featured: taller-de-mirones-miniatura.jpg
+featured: taller-de-mirones-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

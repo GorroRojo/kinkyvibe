@@ -30,7 +30,7 @@ link: https://www.instagram.com/soleropebunny/
 ---
 
 <script>
-  import foto from './media/soleropebunny/5.jpg'
+  import foto from './media/soleropebunny/5.webp'
 </script>
 
 <a href="/material/con-la-soga-al-cuello" style="text-align: center; margin-bottom: 2em; display: block; font-size: var(--step-1);">🔗 Mi manifiesto "Con la soga al cuello" </a>

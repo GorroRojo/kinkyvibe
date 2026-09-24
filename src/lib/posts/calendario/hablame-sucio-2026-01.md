@@ -19,7 +19,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: hablame-sucio-miniatura.jpg
+featured: hablame-sucio-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

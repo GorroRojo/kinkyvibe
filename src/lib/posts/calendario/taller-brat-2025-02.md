@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Cuerdaestrello
-featured: taller-brat-miniatura.jpg
+featured: taller-brat-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

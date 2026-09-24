@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: rancheadita-kinky-miniatura.jpg
+featured: rancheadita-kinky-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

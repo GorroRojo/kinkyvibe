@@ -31,7 +31,7 @@ featured: 1
 ---
 
 <script>
-  import wheel from './media/cuidados-caidas-pasarla-piola/1.png';
+  import wheel from './media/cuidados-caidas-pasarla-piola/1.webp';
 </script>
 
 ## Me puse a llorar al día siguiente de un evento bdsm, ¿hay algo mal conmigo?

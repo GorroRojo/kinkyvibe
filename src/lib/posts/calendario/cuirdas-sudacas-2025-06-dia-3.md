@@ -23,7 +23,7 @@ authors:
   - Drux
   - Nasty
   - Nat
-featured: cuirdas-sudacas-miniatura.jpg
+featured: cuirdas-sudacas-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

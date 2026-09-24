@@ -16,7 +16,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: bdsm-inicial-online.png
+featured: bdsm-inicial-online.webp
 # logo: 1
 force_unlisted: true
 #force_unpublished: false

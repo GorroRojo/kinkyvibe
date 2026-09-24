@@ -16,7 +16,7 @@ authors:
   - DemonWeb
   - Gorro_Rojo
   - Drux
-featured: taller-bondage-miniatura.jpg
+featured: taller-bondage-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

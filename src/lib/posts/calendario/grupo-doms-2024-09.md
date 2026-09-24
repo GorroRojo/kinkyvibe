@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: grupo-doms-miniatura.jpg
+featured: grupo-doms-miniatura.webp
 #force_unlisted: false
 #force_unpublished: false
 status: cancelado # anunciado | abierto | agotadas | cancelado #

@@ -14,7 +14,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: jam-de-bondage-miniatura.jpg
+featured: jam-de-bondage-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

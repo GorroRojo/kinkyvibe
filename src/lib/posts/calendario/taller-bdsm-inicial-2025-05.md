@@ -17,7 +17,7 @@ layout: calendario
 category: calendario
 authors:
   - DemonWeb
-featured: bdsm-inicial.jpg
+featured: bdsm-inicial.webp
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #
