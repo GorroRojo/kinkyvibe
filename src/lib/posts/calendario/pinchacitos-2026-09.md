@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Maru
-featured: pinchacitos-miniatura.jpg
+featured: pinchacitos-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

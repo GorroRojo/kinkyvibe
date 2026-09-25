@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Andy
-featured: grupo-age-players-miniatura.jpg
+featured: grupo-age-players-miniatura.webp
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # abierto | anunciado | agotadas | cancelado

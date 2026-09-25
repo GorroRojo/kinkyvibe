@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: club-de-hosts-halloween-miniatura.jpg
+featured: club-de-hosts-halloween-miniatura.webp
 force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

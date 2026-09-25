@@ -15,7 +15,7 @@ authors:
   - Chivy
   - CanelaProducciones
   - "@flor.sandulli"
-featured: cabaret-astral-miniatura.png
+featured: cabaret-astral-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

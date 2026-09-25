@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
   - CanelaProducciones
   - Gael
-featured: troles-y-tableros-miniatura.jpg
+featured: troles-y-tableros-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

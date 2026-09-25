@@ -17,7 +17,7 @@ authors:
   - KinkyVibe
   - Cuerdaestrello
   - Pi
-featured: todo-kink-es-politico-miniatura.png
+featured: todo-kink-es-politico-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

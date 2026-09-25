@@ -18,7 +18,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Drux
-featured: cine-para-sucixs-miniatura.jpg
+featured: cine-para-sucixs-miniatura.webp
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false

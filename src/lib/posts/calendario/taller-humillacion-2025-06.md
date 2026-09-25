@@ -15,7 +15,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: taller-humillacion-miniatura.jpg
+featured: taller-humillacion-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

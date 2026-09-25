@@ -19,7 +19,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Gael
-featured: troles-y-tableros-miniatura.jpg
+featured: troles-y-tableros-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

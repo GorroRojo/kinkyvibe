@@ -18,7 +18,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: taller-cera-miniatura.jpg
+featured: taller-cera-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

@@ -18,7 +18,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Tumulto
-featured: cine-para-sucixs-montevideo-miniatura.jpg
+featured: cine-para-sucixs-montevideo-miniatura.webp
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false

@@ -16,7 +16,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: laboratorio-somatico-miniatura.png
+featured: laboratorio-somatico-miniatura.webp
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

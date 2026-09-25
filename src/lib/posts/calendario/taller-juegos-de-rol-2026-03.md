@@ -18,7 +18,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Pi
-featured: taller-juegos-de-rol-miniatura.jpg
+featured: taller-juegos-de-rol-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

@@ -18,7 +18,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Tumulto
-featured: seducir-y-negar-miniatura.jpg
+featured: seducir-y-negar-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

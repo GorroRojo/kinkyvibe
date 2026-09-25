@@ -17,7 +17,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: picantearla-age-play-miniatura.png
+featured: picantearla-age-play-miniatura.webp
 # logo: 2
 # force_unlisted: true
 #force_unpublished: false

@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: taller-dominacion-principiantes-miniatura.jpg
+featured: taller-dominacion-principiantes-miniatura.webp
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

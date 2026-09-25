@@ -20,8 +20,8 @@ force_unlisted: true
 ---
 
 <script>
-  import imagen1 from './media/con-la-soga-al-cuello/2.jpeg'
-  import imagen2 from './media/con-la-soga-al-cuello/3.png'
+  import imagen1 from './media/con-la-soga-al-cuello/2.webp'
+  import imagen2 from './media/con-la-soga-al-cuello/3.webp'
   import video from './media/con-la-soga-al-cuello/4.mp4'
 </script>
 

@@ -14,7 +14,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: taller-asfixia-erotica-montevideo-miniatura.jpg
+featured: taller-asfixia-erotica-montevideo-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

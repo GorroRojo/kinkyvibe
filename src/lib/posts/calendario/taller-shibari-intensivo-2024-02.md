@@ -14,7 +14,7 @@
   category: calendario
   authors:
     - Sogashibari
-  featured: taller-shibari-intensivo.png
+  featured: taller-shibari-intensivo.webp
   #logo: 2
   #force_unlisted: false
   #force_unpublished: false

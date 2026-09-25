@@ -18,7 +18,7 @@ category: calendario
 authors:
   - Club de Cuerdas
   - KinkyVibe
-featured: matine-de-cuerdas-miniatura.jpg
+featured: matine-de-cuerdas-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

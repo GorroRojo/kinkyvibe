@@ -15,7 +15,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: taller-impacto-miniatura.jpg
+featured: taller-impacto-miniatura.webp
 #force_unlisted: false
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

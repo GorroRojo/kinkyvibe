@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Lynx
-featured: someter-miniatura.png
+featured: someter-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

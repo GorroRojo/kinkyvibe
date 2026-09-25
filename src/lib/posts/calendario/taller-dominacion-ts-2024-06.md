@@ -16,7 +16,7 @@ category: calendario
 authors:
   - KinkyVibe
   - DemonWeb
-featured: taller-dominacion-ts-miniatura.png
+featured: taller-dominacion-ts-miniatura.webp
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

@@ -16,7 +16,7 @@ category: calendario
 authors:
   - DemonWeb
   - FugasCriticas
-featured: despatologizando-las-practicas-bdsm-miniatura.jpg
+featured: despatologizando-las-practicas-bdsm-miniatura.webp
 # force_unlisted: true
 #force_unpublished: false
 status: abierto # anunciado | abierto | agotadas | cancelado #

@@ -17,7 +17,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Cuerdaestrello
-featured: deseo-y-disidencia-miniatura.jpg
+featured: deseo-y-disidencia-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

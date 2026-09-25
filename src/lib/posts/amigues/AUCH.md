@@ -33,7 +33,7 @@ link_text: Quiero unirme
 ---
 
 <script>
-  import spoiler from './media/AUCH/spoiler.png'
+  import spoiler from './media/AUCH/spoiler.webp'
 </script>
 
 ## ¿Qué es este grupo?

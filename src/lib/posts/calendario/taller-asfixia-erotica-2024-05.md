@@ -14,7 +14,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: asfixia-erotica-miniatura.png
+featured: asfixia-erotica-miniatura.webp
 #logo: 2
 # force_unlisted: true
 #force_unpublished: false

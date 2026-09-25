@@ -16,7 +16,7 @@ authors:
   - KinkyVibe
   - DemonWeb
   - Gorro_Rojo
-featured: taller-bondage-miniatura.jpg
+featured: taller-bondage-miniatura.webp
 #logo: 2
 force_unlisted: true
 #force_unpublished: false

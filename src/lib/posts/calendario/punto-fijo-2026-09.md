@@ -16,7 +16,7 @@ category: calendario
 authors:
   - KinkyVibe
   - Club de Cuerdas
-featured: punto-fijo-miniatura.jpg
+featured: punto-fijo-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false

@@ -14,7 +14,7 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-featured: club-de-hosts-miniatura.jpg
+featured: club-de-hosts-miniatura.webp
 #logo: 2
 #force_unlisted: false
 #force_unpublished: false
