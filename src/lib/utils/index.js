@@ -1,5 +1,18 @@
 import '$lib/types.d.js';
 import tagsFactory from './tags';
+import { estimateReadingTime } from './readingTime';
+
+/** Loaders perezosos del markdown CRUDO de cada post, para estimar el tiempo de
+ * lectura en build-time sin extraer texto del componente compilado. `eager: false`
+ * ⇒ cada detalle carga solo su propio `.md`, igual que el componente. */
+const rawPostLoaders = import.meta.glob('$lib/posts/*/*.md', { query: '?raw', import: 'default' });
+/** Índice O(1) `categoría/postID` → loader del .md crudo (la key del glob es el path). */
+const rawPostByKey = new Map(
+	Object.entries(rawPostLoaders).map(([path, load]) => {
+		const m = path.match(/\/posts\/([^/]+)\/([^/]+)\.md$/);
+		return [m ? `${m[1]}/${m[2]}` : path, load];
+	})
+);
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
@@ -73,6 +86,21 @@ export function aliaserFactory(tagManager = tagsFactory()) {
 export const fetchPost = async (category, postID, shallow = false) => {
 	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
 	if (meta?.force_unpublished) throw Error('Post is unpublished');
+	// Tiempo de lectura: solo en el contenido pensado para leerse (material/wiki) y
+	// solo en la carga completa (no en lookups shallow de perfiles de autories).
+	if (meta && !shallow && (category === 'material' || category === 'wiki')) {
+		const loadRaw = rawPostByKey.get(`${category}/${postID}`);
+		if (loadRaw) {
+			try {
+				meta = {
+					...meta,
+					readingTime: estimateReadingTime(/** @type {string} */ (await loadRaw()))
+				};
+			} catch (e) {
+				// si falla la lectura del crudo, omitimos readingTime sin tirar la página
+			}
+		}
+	}
 	return await processPost(postContent, postID, meta, shallow);
 };
 
@@ -222,7 +250,12 @@ export const processContent = async (node) => {
 		} catch (e) {
 			return;
 		}
-		if (post.meta.pronoun == '' || !post.meta.pronoun || (post.meta.pronoun + '').split('/').pop() == 'evitar') return;
+		if (
+			post.meta.pronoun == '' ||
+			!post.meta.pronoun ||
+			(post.meta.pronoun + '').split('/').pop() == 'evitar'
+		)
+			return;
 		p.className = 'p-pronoun';
 		p.textContent =
 			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';

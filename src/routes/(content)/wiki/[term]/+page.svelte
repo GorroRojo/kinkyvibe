@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
@@ -90,6 +91,9 @@
 <article class="h-entry wiki" id="title">
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
+		{#if data.meta?.readingTime}
+			<div class="wiki-reading-time"><ReadingTime minutes={data.meta.readingTime} /></div>
+		{/if}
 		{#if data.content}
 			<svelte:component this={data.content} />
 		{/if}
@@ -102,13 +106,13 @@
 					{#each line as { name, disabled = false }}
 						<span class="line">
 							{#if disabled}
-							<ChevronLeft {style} /><span class="familiar-name">{name}</span>
-						{:else}
-							<ChevronLeft {style} /><a
-								class="familiar-name"
-								href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a
-							>
-						{/if}
+								<ChevronLeft {style} /><span class="familiar-name">{name}</span>
+							{:else}
+								<ChevronLeft {style} /><a
+									class="familiar-name"
+									href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a
+								>
+							{/if}
 						</span>
 					{/each}
 				</div>
@@ -147,6 +151,10 @@
 		font-size: var(--step-3);
 	}
 
+	.wiki-reading-time {
+		margin: 0.1em auto 0.9em; /* alinea con la columna de prosa centrada */
+	}
+
 	.lineage {
 		max-width: 45rem;
 		width: 100%;
@@ -168,7 +176,7 @@
 	}
 	.lineage a {
 		background: white;
-		padding: .2em .5em;
+		padding: 0.2em 0.5em;
 		border-radius: var(--round);
 		text-decoration: none;
 	}
