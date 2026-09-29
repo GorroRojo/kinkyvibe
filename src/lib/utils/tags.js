@@ -242,7 +242,7 @@ function parseDescription(description, query) {
 				}
 			} else return { line, type };
 		})
-		.map(({ line, type }) => {
+		.map(({ line, type, href }) => {
 			const nLine = normalize(line);
 			if (query != '' && nLine.includes(nQuery)) {
 				let nParts = nLine.split(nQuery);
@@ -260,13 +260,13 @@ function parseDescription(description, query) {
 					.map((p, i) =>
 						i % 2 == 0
 							? [
-									{ line: p, type },
+									{ line: p, type, href },
 									{ line: query, type: 'mark' }
 							  ]
-							: { line: p, type }
+							: { line: p, type, href }
 					)
 					.flat();
-			} else return { line, type };
+			} else return { line, type, href };
 		})
 		.flat()
 		.filter(({ line }) => line !== '');

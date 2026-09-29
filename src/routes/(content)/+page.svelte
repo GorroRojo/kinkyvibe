@@ -5,7 +5,17 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
-	let { allPosts } = data;
+	import { userConfig } from '$lib/utils/stores';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	// the server only sends upcoming events; load the rest if past events are shown
+	let allPosts = data.posts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (allPosts = posts))
+			.catch(() => (loadedPast = false));
+	}
 
 	const title = 'KinkyVibe.ar';
 	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
@@ -126,7 +136,7 @@
 			href="/amigues"
 		/>
 	</div>
-	<div id="lista" />
+	<div id="lista"></div>
 	<PostList posts={allPosts} />
 </main>
 

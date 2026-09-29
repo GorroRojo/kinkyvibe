@@ -6,11 +6,11 @@
 		Download,
 		MousePointerClick,
 		Heart
-	} from 'lucide-svelte';
-	import 'add-to-calendar-button';
+	} from '@lucide/svelte';
 	import { addHours, format, isPast } from 'date-fns';
+	import { toArgentina, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
 
@@ -52,8 +52,12 @@
 	}
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
-	onMount(() => (mounted = true));
 	let past = start ? isPast(new Date(start)) : false;
+	onMount(() => {
+		mounted = true;
+		// the calendar button (~290 KB) is only loaded when this item shows one
+		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
+	});
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);
 				 display: inline-block;
@@ -91,16 +95,15 @@
 			{:else}
 				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
-			&ThickSpace;
 		</div>
 		{#if category != 'amigues'}
 			{#if date}
 				{#if start}
 					<time datetime={start} class="dt-start dt-end">
-						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
+						{@html format(toArgentina(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
-						) + format(new Date(end ?? ''), 'HH:mm')}
+						) + format(toArgentina(eventEnd(start, end)), 'HH:mm')}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -108,7 +111,7 @@
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={date}>
-						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
+						{date ? format(toArgentina(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
@@ -127,10 +130,10 @@
 							`}
 						name={title}
 						description={summary}
-						startDate={format(new Date(start), 'yyyy-MM-dd')}
-						startTime={format(new Date(start), 'HH:mm')}
-						endDate={format(new Date(end), 'yyyy-MM-dd')}
-						endTime={format(new Date(end), 'HH:mm')}
+						startDate={format(toArgentina(start), 'yyyy-MM-dd')}
+						startTime={format(toArgentina(start), 'HH:mm')}
+						endDate={format(toArgentina(eventEnd(start, end)), 'yyyy-MM-dd')}
+						endTime={format(toArgentina(eventEnd(start, end)), 'HH:mm')}
 						timeZone="America/Buenos_Aires"
 						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 						language="es"
@@ -141,7 +144,7 @@
 						organizer="Mel|kinkyvibe@gmail.com"
 						size="1"
 						hideBackground
-					/>
+					></add-to-calendar-button>
 					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
 					<!-- buttonStyle="round" -->
@@ -155,7 +158,7 @@
 				{/if}
 			{/if}
 		{:else}
-			<span class="job-title">{job_title}</span>
+			<span class="job-title">{job_title ?? ''}</span>
 		{/if}
 	</div>
 	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
@@ -178,9 +181,9 @@
 				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black)'}
 					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
+					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent)'}
 					style:--filled-outline-offset={'-2px'}
 					style:--hover-text-decoration={'underline var(--tag-color)'}
 					style:white-space={'nowrap'}
@@ -190,7 +193,10 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && status && status == 'abierto' && !past}
+	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
+	     restructure it if it were server-rendered, breaking hydration. -->
+	{#if mounted && link && status && status == 'abierto' && !past}
+		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
 	{/if}
 </a>

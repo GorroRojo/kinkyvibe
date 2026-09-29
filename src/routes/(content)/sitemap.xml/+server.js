@@ -1,5 +1,7 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 const siteURL = 'https://kinkyvibe.ar';
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
 // TODO add wiki entries to sitemap
 /**
  *
@@ -7,11 +9,9 @@ const siteURL = 'https://kinkyvibe.ar';
  * @returns
  */
 function date(d) {
-	try {
-		return new Date(d + '');
-	} catch (e) {
-		return new Date();
-	}
+	const parsed = new Date(d + '');
+	// new Date() never throws: it returns an Invalid Date for missing/bad values
+	return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
 /** @type {import('./$types').RequestHandler} */
@@ -56,7 +56,7 @@ ${pages.map(
     <priority>0.8</priority>
     <lastmod>${new Date().toISOString()}</lastmod>
 </url>`
-)}
+).join('')}
 ${posts
 	.map(
 		(post) =>
