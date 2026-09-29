@@ -1,34 +1,42 @@
 import { Buffer } from 'buffer';
 import { ghGet, ghPut } from '$lib/external/github.js';
+import { requireAdmin } from '$lib/server/auth';
+
+/**
+ * @param {{category: string, postID: string}} params
+ */
+function postPath(params) {
+	return `src/lib/posts/${params.category}/${params.postID}.md`;
+}
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ locals, params }) {
+export async function load({ locals, params, url }) {
+	// Server loads run in parallel with the layout load, so guard here too.
+	requireAdmin(locals, url);
 	return {
-		post: await getFileContent(
-			locals.user_token,
-			`src/lib/posts/${params.category}/${params.postID}.md`
-		)
+		post: await getFileContent(locals.user_token, postPath(params))
 	};
 }
 
 /** @type {import("./$types").Actions} */
 export const actions = {
-	save: async ({ params, cookies, locals, request }) => {
-		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
+	// Form actions do not run the (authed) layout load: each one must check auth.
+	save: async ({ params, locals, request, url }) => {
+		const user = requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = data.get('content');
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
-		const userName = locals.user?.name || locals.user?.login || 'admin';
+		const userName = user.name || user.login || 'admin';
 		// @ts-ignore
-		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), userName, params.category, params.postID);
+		saveFileContent(locals.user_token, postPath(params), fileContent, data.get('sha'), userName, params.category, params.postID);
 		return { save: 'Guardado' };
 	},
-	load: async ({ cookies, request }) => {
-		const token = cookies.get('userToken') || 'TOKEN NOT FOUND';
+	load: async ({ locals, request, url }) => {
+		requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = await getFileContent(
-			token,
+			locals.user_token,
 			'src/lib/posts/' + data.get('category') + '/' + data.get('path') + '.md'
 		);
 		return { post: fileContent };
