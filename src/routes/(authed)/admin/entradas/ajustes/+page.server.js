@@ -8,8 +8,17 @@ import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
+import { env as privateEnv } from '$env/dynamic/private';
 import { envMpFeeBasisPoints, envTransferInfo } from '$lib/server/tickets/index.js';
 import {
+	DEFAULT_REMINDERS,
+	MAX_REMINDERS,
+	describeReminder,
+	parseReminders
+} from '$lib/server/tickets/reminders.js';
+import {
+	DEFAULT_FROM_EMAIL,
+	DEFAULT_REPLY_TO,
 	TRANSFER_FIELDS,
 	getSalesSettings,
 	saveSalesSettings,
@@ -36,6 +45,20 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 		dbAvailable: Boolean(db && settings),
 		settings,
 		fields: TRANSFER_FIELDS.map((f) => ({ key: f.key, label: f.label, max: f.max })),
+		// Recordatorios configurados (vacío = los de por defecto) y cómo se leen.
+		reminders: parseReminders(settings?.reminders).map((r) => ({
+			...r,
+			text: describeReminder(r)
+		})),
+		remindersDefault: !settings?.reminders,
+		defaultReminders: DEFAULT_REMINDERS.map(describeReminder),
+		maxReminders: MAX_REMINDERS,
+		cronConfigured: Boolean(privateEnv.CRON_SECRET),
+		// Remitente y respuesta que se usan si los campos quedan vacíos.
+		emailDefaults: {
+			from: privateEnv.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
+			replyTo: privateEnv.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO
+		},
 		// Solo si hay algo configurado en las variables (no se muestra el valor).
 		env: {
 			transfer: Boolean(envTransferInfo()),

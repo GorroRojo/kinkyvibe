@@ -13,16 +13,23 @@ import {
 	parseFeePercent
 } from '$lib/utils/tickets.js';
 import {
+	buildReminderEmail,
 	buildStreamLinkEmail,
 	buildTicketEmail,
 	buildTransferEmail,
 	maskEmail,
 	sendWithResend
 } from './email.js';
-import { getEventTickets } from './events.js';
+import { getEventTickets, listTicketedEvents } from './events.js';
 import { createPreference, findPaymentByOrder, getPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
-import { getSalesSettings, transferInfoFromSettings } from './settings.js';
+import {
+	DEFAULT_FROM_EMAIL,
+	DEFAULT_REPLY_TO,
+	getSalesSettings,
+	transferInfoFromSettings
+} from './settings.js';
+import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -111,9 +118,34 @@ export function contactEmail() {
 	return env.TICKETS_CONTACT_EMAIL?.trim() || DEFAULT_CONTACT_EMAIL;
 }
 
-/** Dirección para responder los mails (y mandar comprobantes): TICKETS_REPLY_TO o el contacto. */
-export function replyToAddress() {
-	return env.TICKETS_REPLY_TO?.trim() || contactEmail();
+/**
+ * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
+ * /admin/entradas/ajustes o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
+ * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export async function emailSettings(db) {
+	/** @type {{ from_email?: string, reply_to_email?: string }} */
+	let s = {};
+	try {
+		s = await getSalesSettings(db);
+	} catch (error) {
+		console.error('[tickets] no se pudieron leer los ajustes de venta:', error);
+	}
+	return {
+		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
+		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO
+	};
+}
+
+/**
+ * Dirección para responder los mails y mandar comprobantes (ver `emailSettings`).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export async function replyToAddress(db) {
+	return (await emailSettings(db)).replyTo;
 }
 
 let warnedFee = false;
@@ -204,6 +236,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * en producción loguea un error (`failed`).
  *
  * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
  *   fetch: typeof fetch,
  *   to: string,
  *   message: { subject: string, html: string, text: string },
@@ -212,7 +245,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ fetch: fetchFn, to, message, idempotencyKey, log = '' }) {
+async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = '' }) {
 	const apiKey = env.RESEND_API_KEY;
 	if (!apiKey) {
 		if (dev) {
@@ -224,15 +257,8 @@ async function deliver({ fetch: fetchFn, to, message, idempotencyKey, log = '' }
 		console.error(`[tickets] falta RESEND_API_KEY: no se mandó "${message.subject}"`);
 		return 'failed';
 	}
-	await sendWithResend({
-		fetch: fetchFn,
-		apiKey,
-		from: env.TICKETS_FROM_EMAIL || 'KinkyVibe <entradas@kinkyvibe.ar>',
-		to,
-		replyTo: replyToAddress(),
-		message,
-		idempotencyKey
-	});
+	const { from, replyTo } = await emailSettings(db);
+	await sendWithResend({ fetch: fetchFn, apiKey, from, to, replyTo, message, idempotencyKey });
 	return 'sent';
 }
 
@@ -302,6 +328,7 @@ export async function sendOrderEmail({
 			contactEmail: contactEmail()
 		});
 		const result = await deliver({
+			db,
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
@@ -360,6 +387,7 @@ export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch:
 				contactEmail: contactEmail()
 			});
 			const result = await deliver({
+				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
@@ -391,11 +419,12 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			event: { title: config?.title || order.event_slug, start: config?.start },
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 			transferInfo: info,
-			replyTo: replyToAddress(),
+			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
 			origin
 		});
 		const result = await deliver({
+			db,
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
@@ -406,6 +435,71 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
 		return false;
 	}
+}
+
+/**
+ * Manda los recordatorios que tocan ahora (lo llama POST /api/cron/recordatorios). Ver
+ * reminders.js: idempotente, solo órdenes aprobadas de eventos que no empezaron.
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   origin: string,
+ *   fetch: typeof fetch,
+ *   now?: number
+ * }} input
+ */
+export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Date.now() }) {
+	const settings = await getSalesSettings(db);
+	const reminders = parseReminders(settings.reminders);
+	const ticketed = await listTicketedEvents();
+	const events = ticketed
+		.map(({ slug, config }) => ({
+			slug,
+			config,
+			start: config.start ? Date.parse(config.start) : NaN,
+			reminders: config.reminders,
+			cancelled: config.status === 'cancelado'
+		}))
+		.filter((e) => Number.isFinite(e.start));
+	const bySlug = new Map(events.map((e) => [e.slug, e]));
+	/** @type {Map<string, string | null>} */
+	const links = new Map();
+	return sendDueReminders(db, {
+		events,
+		reminders,
+		now,
+		send: async (order, reminder) => {
+			const e = bySlug.get(order.event_slug);
+			if (!e) return false;
+			const config = e.config;
+			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
+			const tickets = await getOrderTickets(db, order.id);
+			const message = buildReminderEmail({
+				order,
+				tickets,
+				reminder,
+				event: {
+					title: config.title || e.slug,
+					start: config.start,
+					location: config.location,
+					location_name: config.location_name,
+					online: config.online,
+					streamLink: config.online ? (links.get(e.slug) ?? null) : null
+				},
+				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
+				origin,
+				contactEmail: contactEmail()
+			});
+			const result = await deliver({
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey: `reminder-${order.id}-${reminderId(reminder)}`
+			});
+			return result !== 'failed';
+		}
+	});
 }
 
 /**

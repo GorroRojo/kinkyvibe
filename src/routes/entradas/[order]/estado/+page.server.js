@@ -101,7 +101,7 @@ export async function load({ params, url, platform, fetch, cookies }) {
 		// Datos para transferir: solo mientras se espera la transferencia.
 		transfer:
 			current.status === 'awaiting_transfer'
-				? { info: await transferInfo(db), replyTo: replyToAddress() ?? null }
+				? { info: await transferInfo(db), replyTo: await replyToAddress(db) }
 				: null
 	};
 }

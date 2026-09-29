@@ -252,6 +252,90 @@ export function buildStreamLinkEmail({ order, tickets, event, link, origin, cont
 }
 
 /**
+ * Recordatorio antes del evento: cuándo y dónde, y el link a cada entrada (con su código) o, en
+ * los eventos online, el link de la transmisión si ya está.
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   tickets: import('./orders.js').Ticket[],
+ *   reminder: import('./reminders.js').Reminder,
+ *   event: { title: string, start?: string, location?: string, location_name?: string,
+ *     online?: boolean, streamLink?: string | null },
+ *   typeName: string,
+ *   origin: string,
+ *   contactEmail: string
+ * }} input
+ */
+export function buildReminderEmail({
+	order,
+	tickets,
+	reminder,
+	event,
+	typeName,
+	origin,
+	contactEmail
+}) {
+	const when = formatEventDate(event.start);
+	const online = Boolean(event.online);
+	const where = online
+		? 'Online'
+		: [event.location_name, event.location].filter(Boolean).join(' · ');
+	const soon =
+		reminder.kind === 'day_at' && reminder.days === 0
+			? 'es hoy'
+			: reminder.kind === 'hours_before' && reminder.hours < 24
+				? 'es en unas horas'
+				: 'se acerca';
+	const subject = `Recordatorio: ${event.title} ${soon}`;
+	const policy = policyBlocks(contactEmail);
+	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
+	/** @param {import('./orders.js').Ticket} t */
+	const holder = (t) =>
+		t.holder_pronouns ? `${t.holder_name} (${t.holder_pronouns})` : t.holder_name;
+	const list = tickets
+		.map(
+			(t, i) =>
+				`<li><a href="${links[i]}">Entrada ${i + 1} · ${escapeHtml(holder(t))}</a>${!online && t.code ? ` · código <strong style="font-family:'Courier New',monospace">${escapeHtml(displayCode(t.code))}</strong>` : ''}</li>`
+		)
+		.join('');
+	const intro = online
+		? event.streamLink
+			? streamLinkBlock(event.streamLink)
+			: '<p>Es un evento online: te vamos a mandar el link de la transmisión por mail antes de que empiece.</p>'
+		: '<p>Llevá el QR de cada entrada (en el celu o impreso). Si no se puede escanear, alcanza con el código.</p>';
+	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
+		<h1 style="color:#b3127a;font-size:22px">¡${escapeHtml(event.title)} ${soon}!</h1>
+		<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>
+		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
+		${intro}
+		<ul>${list}</ul>
+		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		${policy.html}
+		</body></html>`;
+	const text = [
+		`${event.title} ${soon}`,
+		'',
+		`${event.title}`,
+		when,
+		where,
+		'',
+		online
+			? event.streamLink
+				? `Link de la transmisión (personal): ${event.streamLink}`
+				: 'Te vamos a mandar el link de la transmisión antes de que empiece.'
+			: 'Llevá el QR de cada entrada; si no se puede escanear, alcanza con el código.',
+		...links.map(
+			(l, i) =>
+				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
+		),
+		'',
+		`Número de orden: ${order.id}`,
+		policy.text
+	].join('\n');
+	return { subject, html, text };
+}
+
+/**
  * Email con los datos para transferir (orden `awaiting_transfer`). Sin DNI ni datos de otras
  * entradas: solo lo necesario para pagar.
  *

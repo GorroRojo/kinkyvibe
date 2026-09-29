@@ -67,9 +67,9 @@ describe('porcentaje automático del Fondo', () => {
 		expect(await f.getStoredPercent(t.db)).toEqual({ percent: 30, at: 1000 });
 		// Dentro de los 10 minutos no vuelve a pedir.
 		const fetch2 = fakeFetch({ percent: 40 });
-		expect(
-			(await f.resolveFondoPercent({ db: t.db, fetch: fetch2, now: 5 * 60000 })).percent
-		).toBe(30);
+		expect((await f.resolveFondoPercent({ db: t.db, fetch: fetch2, now: 5 * 60000 })).percent).toBe(
+			30
+		);
 		expect(fetch2).not.toHaveBeenCalled();
 		// Después sí.
 		expect(

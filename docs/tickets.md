@@ -136,6 +136,12 @@ El porcentaje del Fondo KinkyVibe se lee de `GET https://fondo.kinkyvibe.ar/api/
 
 `fondo = round(precio × porcentaje / 100)` por entrada, en todos los tipos con precio (no en los a la gorra). El precio que se muestra y el que se cobra se calculan en el servidor; el que se cobra, al crear la orden, que guarda el porcentaje usado en `orders.fondo_percent` (migración 0006; también en el CSV, `porcentaje_fondo`). Ajustes de venta muestra "Descuento del Fondo ahora: X %", de dónde sale y cuándo se actualizó.
 
+### Mails y recordatorios
+
+- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en Ajustes de venta; si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
+- **Recordatorios** (`src/lib/server/tickets/reminders.js`): lista configurable en Ajustes de venta (activado + cuándo: "N horas antes" del inicio, o "N días antes a las HH:MM" en hora de Argentina, UTC−3 fijo). Por defecto: **2 días antes** (48 h) y **el mismo día a las 9:00**. Un evento no los manda con `recordatorios: false` en el frontmatter. El mail lleva cuándo y dónde, el link y el código de cada entrada o, en eventos online, el link de la transmisión si ya está.
+- **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio, migración 0007) se reserva antes de mandar y se libera si falla. Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
+
 ### Ajustes de venta
 
 `/admin/entradas/ajustes` (link desde `/admin/entradas` y el panel `/admin`; `requireAdmin` en el `load` y en la action) guarda en D1 (`ticket_settings`, migración 0005):
@@ -143,6 +149,8 @@ El porcentaje del Fondo KinkyVibe se lee de `GET https://fondo.kinkyvibe.ar/api/
 - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
 - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
 - **Fondo KinkyVibe:** el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
+- **Mails:** remitente y dirección de respuesta.
+- **Recordatorios:** la lista (ver arriba).
 
 ### Transferencia
 
@@ -195,19 +203,20 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings → Variables and Secrets**, como _Secret_ las que lo son. En local, en un archivo `.env` (ignorado por git). Para probar entradas está `npm run dev:tickets` (ver abajo), que además lee `.env.tickets`.
 
-| Variable                      | Qué es                                                                                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MP_ACCESS_TOKEN`             | Secret. Access token de la aplicación de Mercado Pago (primero el de la **cuenta de prueba vendedora**).                                          |
-| `MP_WEBHOOK_SECRET`           | Secret. "Clave secreta" de la sección Webhooks de la aplicación de MP. Sin ella todos los webhooks se rechazan (503).                             |
-| `RESEND_API_KEY`              | Secret. API key de Resend con permiso de envío. Sin ella no se mandan mails (en producción se loguea un error).                                   |
-| `TICKETS_FROM_EMAIL`          | Remitente, p. ej. `KinkyVibe <entradas@kinkyvibe.ar>` (ese es el valor por defecto). El dominio tiene que estar verificado.                       |
-| `TICKETS_REPLY_TO`            | Opcional. Dirección para las respuestas a los mails (y los comprobantes). Por defecto, `TICKETS_CONTACT_EMAIL`.                                   |
-| `TICKETS_CONTACT_EMAIL`       | Opcional. Contacto público de la política de devoluciones y cambios de titular. Por defecto `kinkyvibe.talleres@gmail.com`.                       |
-| `TICKETS_TRANSFER_INFO`       | Respaldo de los datos para transferir si en Ajustes de venta están vacíos; texto libre, saltos de línea reales o escritos `\n`. **No commitear.** |
-| `TICKETS_TRANSFER_HOLD_HOURS` | Opcional. Horas de reserva esperando una transferencia (1 a 240; por defecto 48).                                                                 |
-| `TICKETS_MP_FEE_PERCENT`      | Opcional. Respaldo de la comisión de MP si en Ajustes de venta está vacía (sin ninguna: 2 %). `0` = sin recargo.                                  |
-| `FONDO_PERCENT_URL`           | Opcional. De dónde se lee el porcentaje del Fondo (por defecto `https://fondo.kinkyvibe.ar/api/porcentaje`).                                      |
-| `SITE_URL`                    | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.        |
+| Variable                      | Qué es                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MP_ACCESS_TOKEN`             | Secret. Access token de la aplicación de Mercado Pago (primero el de la **cuenta de prueba vendedora**).                                                     |
+| `MP_WEBHOOK_SECRET`           | Secret. "Clave secreta" de la sección Webhooks de la aplicación de MP. Sin ella todos los webhooks se rechazan (503).                                        |
+| `RESEND_API_KEY`              | Secret. API key de Resend con permiso de envío. Sin ella no se mandan mails (en producción se loguea un error).                                              |
+| `TICKETS_FROM_EMAIL`          | Respaldo del remitente si en Ajustes de venta está vacío (por defecto `KinkyVibe <entradas@kinkyvibe.ar>`). El dominio tiene que estar verificado en Resend. |
+| `CRON_SECRET`                 | Secret. Clave compartida con el Worker `workers/cron/` para `POST /api/cron/recordatorios` (16 caracteres o más). Sin ella no se mandan recordatorios.       |
+| `TICKETS_REPLY_TO`            | Opcional. Respaldo de la dirección de respuesta si en Ajustes de venta está vacía (por defecto `entradas@kinkyvibe.ar`).                                     |
+| `TICKETS_CONTACT_EMAIL`       | Opcional. Contacto público de la política de devoluciones y cambios de titular. Por defecto `kinkyvibe.talleres@gmail.com`.                                  |
+| `TICKETS_TRANSFER_INFO`       | Respaldo de los datos para transferir si en Ajustes de venta están vacíos; texto libre, saltos de línea reales o escritos `\n`. **No commitear.**            |
+| `TICKETS_TRANSFER_HOLD_HOURS` | Opcional. Horas de reserva esperando una transferencia (1 a 240; por defecto 48).                                                                            |
+| `TICKETS_MP_FEE_PERCENT`      | Opcional. Respaldo de la comisión de MP si en Ajustes de venta está vacía (sin ninguna: 2 %). `0` = sin recargo.                                             |
+| `FONDO_PERCENT_URL`           | Opcional. De dónde se lee el porcentaje del Fondo (por defecto `https://fondo.kinkyvibe.ar/api/porcentaje`).                                                 |
+| `SITE_URL`                    | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.                   |
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
 
@@ -367,5 +376,4 @@ Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cue
 - ¿Los aportes de las entradas solidarias / Sugar cuentan para el objetivo mensual del fondo (y para el % de descuento)? ¿Hay que mostrarlos en fondo.kinkyvibe.ar o registrar a esas personas como Mecenas?
 - Si alguien paga una entrada solidaria con un código de descuento, ¿el aporte al fondo es el nominal (lo que se guarda hoy: el código es un costo de la organización) o se reduce en proporción?
 - ¿La venta cierra al empezar el evento o antes? ¿Hay venta en puerta (que habría que restar del cupo)?
-- Email: se va a mandar desde `entradas@kinkyvibe.ar` (ya es el valor por defecto de `TICKETS_FROM_EMAIL`); falta decidir si las respuestas van a esa dirección (con Email Routing) o a `kinkyvibe.talleres@gmail.com` (hoy, `TICKETS_REPLY_TO` o, si falta, `TICKETS_CONTACT_EMAIL`).
 - A la gorra: ¿el tope de $ 500.000 por entrada está bien? ¿Los botones rápidos (mínimo, mitad, sugerido, doble) sirven?

@@ -158,6 +158,110 @@
 			</p>
 		</fieldset>
 
+		<fieldset>
+			<legend>Mails</legend>
+			<label class="field">
+				<span>Remitente</span>
+				<input
+					type="text"
+					name="from_email"
+					value={value('from_email')}
+					placeholder={data.emailDefaults.from}
+					maxlength="120"
+					autocomplete="off"
+					spellcheck="false"
+					aria-invalid={errors.from_email ? 'true' : undefined}
+				/>
+				{#if errors.from_email}<span class="field-error">{errors.from_email}</span>{/if}
+			</label>
+			<label class="field">
+				<span>Responder a (y adonde mandan los comprobantes)</span>
+				<input
+					type="email"
+					name="reply_to_email"
+					value={value('reply_to_email')}
+					placeholder={data.emailDefaults.replyTo}
+					maxlength="120"
+					autocomplete="off"
+					spellcheck="false"
+					aria-invalid={errors.reply_to_email ? 'true' : undefined}
+				/>
+				{#if errors.reply_to_email}<span class="field-error">{errors.reply_to_email}</span>{/if}
+			</label>
+			<p class="note">
+				Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>.
+				El dominio del remitente tiene que estar verificado en Resend.
+			</p>
+		</fieldset>
+
+		<fieldset>
+			<legend>Recordatorios</legend>
+			<p class="note">
+				Mails a quienes compraron, antes de cada evento (con sus entradas o el link de la
+				transmisión). Un evento puede no mandarlos con <code>recordatorios: false</code> en su
+				frontmatter.
+				{#if data.remindersDefault}Ahora: los de por defecto ({data.defaultReminders.join(
+						' y '
+					)}).{/if}
+				{#if !data.cronConfigured}
+					<strong
+						>Falta configurar el cron (CRON_SECRET y el Worker de <code>workers/cron/</code>): hasta
+						entonces no se manda ninguno.</strong
+					>
+				{/if}
+			</p>
+			{#each [...data.reminders, null] as r, i (i)}
+				{#if i < data.maxReminders}
+					<div class="reminder" class:new={!r}>
+						<label class="check">
+							<input
+								type="checkbox"
+								name="reminder_enabled_{i}"
+								checked={r ? r.enabled : true}
+								aria-label="Recordatorio {i + 1} activado"
+							/>
+							<span>{r ? r.text : 'Agregar otro'}</span>
+						</label>
+						<div class="reminder-row">
+							<select
+								name="reminder_kind_{i}"
+								aria-label="Tipo del recordatorio {i + 1}"
+								value={r?.kind ?? 'hours_before'}
+							>
+								<option value="hours_before">horas antes</option>
+								<option value="day_at">días antes, a la hora</option>
+							</select>
+							<input
+								type="number"
+								name="reminder_amount_{i}"
+								min="0"
+								max="336"
+								aria-label="Horas o días del recordatorio {i + 1}"
+								value={r ? (r.kind === 'hours_before' ? r.hours : r.days) : ''}
+							/>
+							<input
+								type="time"
+								name="reminder_time_{i}"
+								aria-label="Hora del recordatorio {i + 1} (solo días antes)"
+								value={r?.kind === 'day_at' ? r.time : '09:00'}
+							/>
+							{#if r}
+								<label class="check small">
+									<input type="checkbox" name="reminder_delete_{i}" /> borrar
+								</label>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			{/each}
+			{#if errors.reminders}<span class="field-error">{errors.reminders}</span>{/if}
+			<p class="note">
+				"Horas antes": desde la hora de inicio (48 = 2 días antes). "Días antes, a la hora": 0 = el
+				mismo día; hora de Argentina. Se mandan en la primera pasada del cron (cada 15 minutos)
+				después de esa hora, una sola vez por compra.
+			</p>
+		</fieldset>
+
 		<button type="submit">Guardar ajustes</button>
 		{#if data.settings?.updatedAt}
 			<p class="note">
@@ -239,6 +343,48 @@
 	}
 	.flash.error {
 		background: hsl(0, 90%, 90%);
+	}
+	.reminder {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3em;
+		padding: 0.5em 0.7em;
+		border-radius: 0.6em;
+		background: color-mix(in srgb, var(--2) 6%, white);
+	}
+	.reminder.new {
+		opacity: 0.85;
+	}
+	.reminder-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em;
+		align-items: center;
+	}
+	.reminder-row input[type='number'] {
+		width: 5em;
+	}
+	.reminder select {
+		font: inherit;
+		min-height: 2.8em;
+		border-radius: 0.5em;
+		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
+		background: white;
+	}
+	.check {
+		display: flex;
+		gap: 0.4em;
+		align-items: center;
+		font-weight: bold;
+	}
+	.check.small {
+		font-weight: normal;
+		font-size: var(--step--1);
+	}
+	.check input {
+		min-height: auto;
+		width: 1.2em;
+		height: 1.2em;
 	}
 	.fondo-now {
 		margin: 0;

@@ -49,6 +49,7 @@ const config = {
 			TICKETS_MP_FEE_PERCENT: MP_FEE_PERCENT,
 			// Descuento automático del Fondo sin red.
 			FONDO_PERCENT_OVERRIDE: '20',
+			CRON_SECRET: 'e2e-cron-secret-0123456789',
 			MP_ACCESS_TOKEN: '',
 			RESEND_API_KEY: ''
 		}

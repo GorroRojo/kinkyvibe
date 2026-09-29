@@ -700,3 +700,18 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });
+
+test('cron de recordatorios: solo con el secreto', async ({ request }) => {
+	const url = '/api/cron/recordatorios';
+	expect((await request.post(url)).status()).toBe(401);
+	expect(
+		(
+			await request.post(url, { headers: { 'x-cron-secret': 'otro-secreto-cualquiera-123' } })
+		).status()
+	).toBe(401);
+	const ok = await request.post(url, {
+		headers: { 'x-cron-secret': 'e2e-cron-secret-0123456789' }
+	});
+	expect(ok.status()).toBe(200);
+	expect(await ok.json()).toMatchObject({ sent: expect.any(Number), failed: 0 });
+});

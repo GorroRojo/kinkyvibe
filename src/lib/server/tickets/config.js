@@ -43,6 +43,7 @@
  *   mpFeeBasisPoints: number | null,
  *   closesAt: number | null,
  *   online: boolean,
+ *   reminders: boolean,
  *   status: string | undefined,
  *   title: string,
  *   start: string | undefined,
@@ -197,6 +198,8 @@ export function parseTicketConfig(meta, options = {}) {
 		mpFeeBasisPoints,
 		closesAt,
 		online: isOnlineEvent(meta),
+		// `recordatorios: false` en el frontmatter: este evento no manda recordatorios por mail.
+		reminders: meta.recordatorios !== false,
 		status: meta.status,
 		title: String(meta.title ?? ''),
 		start: meta.start instanceof Date ? meta.start.toISOString() : meta.start,

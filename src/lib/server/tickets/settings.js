@@ -6,6 +6,7 @@
  * admin funciona igual que antes.
  */
 import { parseFeePercent } from '$lib/utils/tickets.js';
+import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -21,8 +22,29 @@ export const SETTING_KEYS = /** @type {const} */ ([
 	...TRANSFER_FIELDS.map((f) => f.key),
 	'mp_fee_percent',
 	// Porcentaje del Fondo fijado a mano (vacío = automático, desde fondo.kinkyvibe.ar).
-	'fondo_percent_override'
+	'fondo_percent_override',
+	// Mails: remitente ("KinkyVibe <entradas@kinkyvibe.ar>") y respuesta (entradas@kinkyvibe.ar).
+	'from_email',
+	'reply_to_email',
+	// Recordatorios: JSON (ver reminders.js). Vacío = los de por defecto.
+	'reminders'
 ]);
+
+/** Remitente y dirección de respuesta por defecto de los mails de entradas. */
+export const DEFAULT_FROM_EMAIL = 'KinkyVibe <entradas@kinkyvibe.ar>';
+export const DEFAULT_REPLY_TO = 'entradas@kinkyvibe.ar';
+
+const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
+
+/**
+ * "Nombre <dir@dominio>" o "dir@dominio" (lo que acepta Resend en `from`).
+ *
+ * @param {string} v
+ */
+export function isValidFrom(v) {
+	const m = v.match(/^([^<>"]{1,60})\s*<([^<>]+)>$/);
+	return m ? EMAIL_RE.test(m[2].trim()) : EMAIL_RE.test(v);
+}
 
 /** @typedef {(typeof SETTING_KEYS)[number]} SettingKey */
 /** @typedef {Record<SettingKey, string>} SalesSettings */
@@ -94,6 +116,39 @@ export function validateSalesSettings(form) {
 			'Poné un número entero de 0 a 100, o dejalo vacío (automático).';
 	}
 	value.fondo_percent_override = fondo;
+	const from = clean(form.from_email);
+	if (from && (from.length > 120 || !isValidFrom(from))) {
+		errors.from_email = 'Poné una dirección (entradas@kinkyvibe.ar) o "Nombre <dirección>".';
+	}
+	value.from_email = from;
+	const replyTo = clean(form.reply_to_email).toLowerCase();
+	if (replyTo && (replyTo.length > 120 || !EMAIL_RE.test(replyTo))) {
+		errors.reply_to_email = 'Poné una dirección de email.';
+	}
+	value.reply_to_email = replyTo;
+	// Recordatorios: filas reminder_kind_<i>, reminder_amount_<i> (horas o días),
+	// reminder_time_<i>, reminder_enabled_<i>, reminder_delete_<i>. Solo si el form las trae.
+	if (form.reminder_kind_0 !== undefined) {
+		const list = [];
+		for (let i = 0; i < MAX_REMINDERS + 1; i++) {
+			const kind = clean(form[`reminder_kind_${i}`]);
+			const amount = clean(form[`reminder_amount_${i}`]);
+			if (!kind || form[`reminder_delete_${i}`] || !amount) continue;
+			const enabled = Boolean(form[`reminder_enabled_${i}`]);
+			const r = normalizeReminder(
+				kind === 'hours_before'
+					? { kind, hours: amount, enabled }
+					: { kind, days: amount, time: clean(form[`reminder_time_${i}`]), enabled }
+			);
+			if (!r) {
+				errors.reminders = `Revisá el recordatorio ${i + 1}: horas de 1 a 336, días de 0 a 14 y hora HH:MM.`;
+				continue;
+			}
+			list.push(r);
+		}
+		if (list.length > MAX_REMINDERS) errors.reminders = `Hasta ${MAX_REMINDERS} recordatorios.`;
+		value.reminders = JSON.stringify(list);
+	}
 	if (Object.keys(errors).length) return { ok: false, errors };
 	return { ok: true, value };
 }

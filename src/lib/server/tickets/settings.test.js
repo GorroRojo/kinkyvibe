@@ -39,7 +39,10 @@ describe('ajustes de venta', () => {
 				transfer_holder: 'Nombre de ejemplo',
 				transfer_bank: '',
 				mp_fee_percent: '7,73',
-				fondo_percent_override: ''
+				fondo_percent_override: '',
+				from_email: '',
+				reply_to_email: '',
+				reminders: ''
 			}
 		});
 		const bad = /** @type {any} */ (
