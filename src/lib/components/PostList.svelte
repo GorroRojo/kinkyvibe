@@ -13,6 +13,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { filterPosts, readSearchParams, writeSearchParams } from '$lib/utils/postSearch';
+	import { listMotion } from '$lib/utils/listMotion';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
 	import TagSearch from './TagSearch.svelte';
@@ -198,6 +199,7 @@
 	beforeUpdate(() => {
 		anchor = null;
 		if (!controls) return;
+		motion.before();
 		const active = document.activeElement;
 		const el =
 			touched && performance.now() - touchedAt < 1000
@@ -214,33 +216,23 @@
 	// changed; depending on it makes that update go through the anchoring above too.
 	$: $page.url.search, void 0;
 	afterUpdate(() => {
-		if (!anchor?.isConnected) return;
-		const dy = anchor.getBoundingClientRect().top - anchorTop;
+		if (anchor?.isConnected) {
+			const dy = anchor.getBoundingClientRect().top - anchorTop;
+			if (Math.abs(dy) > 1) window.scrollBy({ top: dy, behavior: 'instant' });
+		}
 		anchor = null;
-		if (Math.abs(dy) > 1) window.scrollBy({ top: dy, behavior: 'instant' });
+		// after the anchoring scroll, so items glide from where they were seen
+		motion.after();
 	});
 
 	/**
-	 * One short opacity blink of the whole list when its contents change, instead of
-	 * animating every item. Opacity runs on the compositor: no layout, no per-item cost.
-	 * Skipped for people who ask for reduced motion.
-	 * @param {HTMLElement} node
-	 * @param {[ProcessedPost[], string]} params shown posts and display type
+	 * Gentle list motion (see listMotion.js): items that stay glide to their new place,
+	 * new ones fade in, removed ones fade out; only near the viewport, capped, one read
+	 * and one write pass, nothing with prefers-reduced-motion. list <-> grid crossfades.
+	 * @type {HTMLElement|undefined}
 	 */
-	function settle(node, [shown, display]) {
-		const sig = (/**@type {ProcessedPost[]}*/ ps, /**@type string*/ d) =>
-			d + ps.map((p) => p.path).join('|');
-		let last = sig(shown, display);
-		return {
-			update(/**@type {[ProcessedPost[], string]}*/ [shown, display]) {
-				const next = sig(shown, display);
-				if (next == last) return;
-				last = next;
-				if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-				node.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' });
-			}
-		};
-	}
+	let listEl;
+	const motion = listMotion(() => listEl);
 
 	$: allTags.set([
 		// @ts-ignore
@@ -288,17 +280,12 @@
 						>
 					</div>
 				{/if}
-				<!-- No per-item transitions: every in:scale read getComputedStyle and every
-				animate:flip read getBoundingClientRect for each <li>, forcing a layout per item
-				and keeping the list moving for ~1s after each change. The whole list just
-				blinks once (see `settle`). -->
-				<ul
-					id="posts"
-					class={$userConfig.display_type + ' h-feed'}
-					use:settle={[tagFilteredPosts, $userConfig.display_type]}
-				>
+				<!-- No Svelte transitions here: in:scale read getComputedStyle and animate:flip read
+				getBoundingClientRect for every <li>, a forced layout per item, and kept the whole
+				list moving for ~1s. `motion` animates only what's on screen, in one pass. -->
+				<ul id="posts" class={$userConfig.display_type + ' h-feed'} bind:this={listEl}>
 					{#each shownPosts as post (post.path)}
-						<li>
+						<li data-key={post.path}>
 							<svelte:component this={Item} {post} />
 						</li>
 					{/each}
@@ -322,6 +309,10 @@
 	.results {
 		min-width: 0;
 		padding-inline: 1em;
+	}
+	.results {
+		/* removed items fade out here, absolutely positioned (listMotion.js) */
+		position: relative;
 	}
 	.post-amount {
 		text-align: right;
