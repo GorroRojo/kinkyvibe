@@ -9,7 +9,7 @@ tags:
   - gratis # gratis | pago #
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #
-  - descargable # online | descargable | link #
+  - descargable # web | descargable | link #
   - KinkyVibe # etiqueta especial #
   - género y salud sexual
 layout: material

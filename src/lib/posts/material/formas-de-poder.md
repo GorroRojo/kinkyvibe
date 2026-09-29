@@ -13,7 +13,7 @@ tags:
   - BDSM
   - intercambio de poder
   - feminismo
-  - online
+  - web
 layout: material
 category: material
 authors:

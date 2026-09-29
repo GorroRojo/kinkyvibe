@@ -8,7 +8,7 @@ tags:
   - ingles # español | inglés #
   - gratis # gratis | pago #
   - video # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - online # online | descargable | link #
+  - web # web | descargable | link #
   - cuerdas
   - antipunitivismo
   - seguridad
