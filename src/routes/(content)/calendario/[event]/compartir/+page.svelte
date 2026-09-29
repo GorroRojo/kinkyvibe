@@ -2,7 +2,7 @@
 	// Prototipo: generador de imágenes para compartir un evento en Instagram.
 	// Ruta pública pero sin links y con noindex; debería moverse a /admin cuando exista.
 	import { onMount } from 'svelte';
-	import { Download, Share2, Copy, Check } from 'lucide-svelte';
+	import { Download, Share2, Copy, Check } from '@lucide/svelte';
 	import logoURL from '../../../../logo.png';
 	import {
 		FORMATS,
@@ -56,10 +56,14 @@
 	function draw(layout, showStatus) {
 		for (const format of Object.keys(FORMATS)) {
 			if (!canvases[format]) continue;
+			// Casts in their own statements: Svelte 5 drops the key of a `key: /** cast */ (value)`
+			// object property when it rewrites this block, which breaks the build.
+			const formatKey = /** @type {keyof typeof FORMATS} */ (format);
+			const layoutKey = /** @type {keyof typeof LAYOUTS} */ (layout);
 			renderShareImage(canvases[format], {
 				meta: data.meta,
-				format: /** @type {keyof typeof FORMATS} */ (format),
-				layout: /** @type {keyof typeof LAYOUTS} */ (layout),
+				format: formatKey,
+				layout: layoutKey,
 				image,
 				logo,
 				showStatus
@@ -184,7 +188,7 @@
 
 	<section class="caption">
 		<h2>Texto sugerido</h2>
-		<textarea bind:this={captionEl} bind:value={caption} rows="18" />
+		<textarea bind:this={captionEl} bind:value={caption} rows="18"></textarea>
 		<div class="actions">
 			<button on:click={() => copyCaption()}>
 				{#if copied}<Check size="18" /> ¡Copiado!{:else}<Copy size="18" /> Copiar texto{/if}
