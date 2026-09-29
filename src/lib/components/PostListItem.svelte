@@ -155,7 +155,7 @@
 				{/if}
 			{/if}
 		{:else}
-			<span class="job-title">{job_title}</span>
+			<span class="job-title">{job_title ?? ''}</span>
 		{/if}
 	</div>
 	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
