@@ -12,18 +12,18 @@
 	const COPY = {
 		401: {
 			emoji: '🙈🗝️',
-			title: 'Primero, presentate',
-			body: 'Acá nadie entra con los ojos vendados: iniciá sesión, decinos quién sos y te abrimos la puerta.'
+			title: '...vos tenías la llave, ¿no?',
+			body: 'Espero que sí.'
 		},
 		403: {
 			emoji: '🔒⛓️',
-			title: 'Candado puesto, y la llave no es tuya',
-			body: 'Esta zona es solo para quienes organizan. Por más que tires, estas esposas no se abren sin la llave correcta.'
+			title: '¿Y la llave? ¿No la tenés vos?',
+			body: 'Al menos de este sitio parece que no.'
 		},
 		404: {
 			emoji: '🪢💨',
-			title: 'Esta página se nos soltó',
-			body: 'Se zafó de los nudos y no está atada a nada. Revisá la dirección o volvé a un lugar seguro.'
+			title: 'Esta página se escapó',
+			body: 'Ser brat tamer es muy difícil.'
 		},
 		'4xx': {
 			emoji: '🪢',
@@ -32,8 +32,8 @@
 		},
 		'5xx': {
 			emoji: '🪢😵‍💫',
-			title: 'Se nos enredaron las sogas',
-			body: 'Algo se trabó de nuestro lado y alguien se olvidó la palabra de seguridad. Ya estamos desatando el nudo: probá de nuevo en un ratito.'
+			title: 'Se nos enredaron las cuerdas',
+			body: 'Va a llevarme un tiempo desarmar pero decime si necesitás que use las tijeras de seguridad.'
 		}
 	};
 
@@ -54,9 +54,7 @@
 	// 4xx messages come from our own code; 5xx messages may be internals, so only in dev.
 	$: isDefault = DEFAULT_MESSAGES.has(rawMessage) || /^Error: \d+$/.test(rawMessage);
 	$: detail = rawMessage && !isDefault && (status < 500 || dev) ? rawMessage : '';
-	$: loginHref = `/login?redirectTo=${encodeURIComponent(
-		$page.url.pathname + $page.url.search
-	)}`;
+	$: loginHref = `/login?redirectTo=${encodeURIComponent($page.url.pathname + $page.url.search)}`;
 
 	let canGoBack = false;
 	onMount(() => {
