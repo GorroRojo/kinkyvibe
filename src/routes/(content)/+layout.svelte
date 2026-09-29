@@ -24,21 +24,10 @@
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
-				if (checked) {
-					filteredTags.update((fTags) => [...fTags, tag]);
-				} else {
-					filteredTags.update((fTags) => [
-						...fTags.slice(0, fTags.indexOf(tag)),
-						...fTags.slice(fTags.indexOf(tag) + 1)
-					]);
-				}
-				$page.url.searchParams.set('tags', $filteredTags.join(','));
-				if ($filteredTags.length > 0) {
-					window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
-				} else {
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
-				}
+				// PostList mirrors filteredTags into ?tags=
+				filteredTags.update((fTags) =>
+					checked ? [...fTags.filter((t) => t != tag), tag] : fTags.filter((t) => t != tag)
+				);
 			}
 	);
 	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
@@ -119,7 +108,7 @@
 		/>
 	</div>
 </header>
-{#if data.currentRoute != '/'}
+{#if $page.url.pathname != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
@@ -137,7 +126,7 @@
 		{/if}
 	</div>
 {/if}
-{#key data.currentRoute}
+{#key $page.url.pathname}
 	<main in:fade={{ duration: 300, delay: 300 }}>
 		<slot />
 	</main>
