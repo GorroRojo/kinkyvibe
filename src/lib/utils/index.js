@@ -200,6 +200,7 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		const { metadata, default: postContent } = await constructor();
 		if (
 			!metadata ||
+			metadata.force_unpublished ||
 			(!unlisted && metadata.force_unlisted) ||
 			(unlisted && !metadata.force_unlisted)
 		) {
