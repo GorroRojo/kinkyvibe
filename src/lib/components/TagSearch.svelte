@@ -56,7 +56,10 @@
 		const first = menuEl?.querySelector('[role=option]:not([data-disabled])');
 		if ($open && $inputValue.trim() != '' && first instanceof HTMLElement) {
 			highlightedItem.set(first);
-			first.scrollIntoView({ block: 'nearest' });
+			// the first option sits at the top of the menu: resetting the menu's own scroll is
+			// enough, and unlike scrollIntoView() it can't scroll the page or force a layout
+			// of the whole document on every keystroke
+			if (menuEl.scrollTop != 0) menuEl.scrollTop = 0;
 		} else highlightedItem.set(null);
 	}
 
@@ -126,7 +129,15 @@
 			>
 		{/if}
 	</div>
-	<ul class="menu" bind:this={menuEl} use:melt={$menu}>
+	<!-- Picking a suggestion with the mouse used to move focus to <body>; keep it in the
+	input so the next keystroke still searches. -->
+	<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+	<ul
+		class="menu"
+		bind:this={menuEl}
+		use:melt={$menu}
+		on:mousedown|preventDefault
+	>
 		{#each suggestions as s (s.id)}
 			{@const tag = $tagManager.get(s.id)}
 			<li
@@ -190,6 +201,13 @@
 			flex: none;
 		}
 	}
+	/* input, chips and the clear button share one height, so the field doesn't grow
+	   (and push the results down) when the first chip or the clear button appears */
+	input,
+	.chip,
+	.clear {
+		height: 2em;
+	}
 	input {
 		flex: 1 1 10em;
 		min-width: 6em;
@@ -224,10 +242,11 @@
 		button {
 			display: inline-flex;
 			align-items: center;
+			align-self: stretch;
 			border: 0;
 			background: transparent;
 			color: inherit;
-			padding: 0.3em 0.5em 0.3em 0.35em;
+			padding: 0 0.5em 0 0.35em;
 			border-radius: 0 2em 2em 0;
 			cursor: pointer;
 			&:hover,
@@ -239,10 +258,13 @@
 	}
 	.clear {
 		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		aspect-ratio: 1;
 		border: 0;
 		background: transparent;
 		color: var(--1);
-		padding: 0.3em;
+		padding: 0;
 		border-radius: 50%;
 		cursor: pointer;
 		margin-left: auto;

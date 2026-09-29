@@ -41,12 +41,69 @@ export function expandTags(tm, tags = []) {
 }
 
 /**
+ * Per-TagManager memo of what the search derives from each post, so typing or
+ * picking a tag doesn't re-expand every post's tag ancestry and re-normalize every
+ * title/summary on each keystroke. Keyed by the post's `meta` object (posts and tag
+ * managers are never mutated after they're built; new ones get new entries and the
+ * old ones are garbage collected with their keys).
+ * @type {WeakMap<object, {tags: WeakMap<object, Set<string>>, hay: WeakMap<object, string>, norm: Map<string, string>}>}
+ */
+const memo = new WeakMap();
+/** @param {TagManager} tm */
+function memoFor(tm) {
+	let m = memo.get(tm);
+	if (!m) memo.set(tm, (m = { tags: new WeakMap(), hay: new WeakMap(), norm: new Map() }));
+	return m;
+}
+
+/**
+ * `expandTags` of a post's tags, memoized.
+ * @param {TagManager} tm
+ * @param {*} post
+ * @returns {Set<string>}
+ */
+function postTags(tm, post) {
+	const meta = post?.meta;
+	if (!meta || typeof meta != 'object') return expandTags(tm, meta?.tags);
+	const m = memoFor(tm).tags;
+	let res = m.get(meta);
+	if (!res) m.set(meta, (res = expandTags(tm, meta.tags)));
+	return res;
+}
+
+/**
+ * `normalizeText` for tag names/aliases, memoized (a few hundred distinct strings).
+ * @param {TagManager} tm
+ * @param {string} s
+ */
+function normName(tm, s) {
+	const m = memoFor(tm).norm;
+	let res = m.get(s);
+	if (res === undefined) m.set(s, (res = normalizeText(s)));
+	return res;
+}
+
+/**
  * @param {TagManager} tm
  * @param {*} post
  * @returns {string}
  */
 function haystack(tm, post) {
-	const meta = post?.meta ?? {};
+	const meta = post?.meta;
+	if (!meta || typeof meta != 'object') return buildHaystack(tm, meta);
+	const m = memoFor(tm).hay;
+	let res = m.get(meta);
+	if (res === undefined) m.set(meta, (res = buildHaystack(tm, meta)));
+	return res;
+}
+
+/**
+ * @param {TagManager} tm
+ * @param {*} meta
+ * @returns {string}
+ */
+function buildHaystack(tm, meta = {}) {
+	meta = meta ?? {};
 	return normalizeText(
 		[
 			meta.title,
@@ -72,7 +129,7 @@ export function filterPosts(posts, { tags = [], text = '' }, tm) {
 	if (wanted.length == 0 && words.length == 0) return posts;
 	return posts.filter((post) => {
 		if (wanted.length > 0) {
-			const expanded = expandTags(tm, post.meta?.tags);
+			const expanded = postTags(tm, post);
 			if (!wanted.every((t) => expanded.has(t))) return false;
 		}
 		if (words.length > 0) {
@@ -126,7 +183,7 @@ export function suggestTags(posts, { selected = [], text = '', limit = 12, alias
 	/** @type {Map<string, number>} */
 	const counts = new Map();
 	for (const post of posts) {
-		for (const id of expandTags(tm, post.meta?.tags)) {
+		for (const id of postTags(tm, post)) {
 			counts.set(id, (counts.get(id) ?? 0) + 1);
 		}
 	}
@@ -151,7 +208,7 @@ export function suggestTags(posts, { selected = [], text = '', limit = 12, alias
 		/** @type {string|undefined} */
 		let alias;
 		for (const candidate of [name, id, ...(aliasMap.get(id) ?? [])]) {
-			const n = normalizeText(candidate);
+			const n = normName(tm, candidate);
 			let score = Infinity;
 			if (n == q) score = 0;
 			else if (n.startsWith(q)) score = 1;
