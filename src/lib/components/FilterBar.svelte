@@ -2,18 +2,10 @@
 	import '$lib/types.d.js';
 	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
 	import TagGroup from './TagGroup.svelte';
-	import { onMount } from 'svelte';
 
 	export let event_toggle = true;
 
-	/**@type string[]*/
-	let orphanTags = [];
-	onMount(() => {
-		visibleTags.subscribe((v) => {
-			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
-		});
-		// ?tags= is read and written by PostList, which owns the URL sync
-	});
+	// ?tags= is read and written by PostList, which owns the URL sync
 
 	// Tag tree open/closed on narrow screens (collapsed by default to keep the list close to the
 	// top on mobile). On wide layouts it's always shown, see the @container rule below.

@@ -12,7 +12,8 @@
 		"test:e2e": "playwright test",
 		"test:unit": "vitest run",
 		"test:unit:watch": "vitest",
-		"lint": "prettier --check . && eslint .",
+		"lint": "eslint .",
+		"format:check": "prettier --check .",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {

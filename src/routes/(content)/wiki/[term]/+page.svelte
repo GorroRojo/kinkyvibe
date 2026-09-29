@@ -5,7 +5,6 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 

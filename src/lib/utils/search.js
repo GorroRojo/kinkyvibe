@@ -54,6 +54,7 @@ function foldChar(c) {
  * @returns {string}
  */
 export function fold(s) {
+	// eslint-disable-next-line no-control-regex -- matches everything outside ASCII
 	return (s ?? '').toString().replace(/[A-Z]|[^\x00-\x7F]/gu, foldChar);
 }
 
@@ -92,7 +93,7 @@ export function stripMarkdown(md) {
 		(md ?? '')
 			.replace(/\r\n?/g, '\n')
 			// frontmatter
-			.replace(/^﻿?---\n[\s\S]*?\n---[^\n]*(\n|$)/, '')
+			.replace(/^\uFEFF?---\n[\s\S]*?\n---[^\n]*(\n|$)/, '')
 			// bloques que no son texto
 			.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
 			.replace(/<!--[\s\S]*?-->/g, ' ')

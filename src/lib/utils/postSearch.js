@@ -212,7 +212,7 @@ export function suggestTags(posts, { selected = [], text = '', limit = 12, alias
 			let score = Infinity;
 			if (n == q) score = 0;
 			else if (n.startsWith(q)) score = 1;
-			else if (n.split(/[\s/\-]+/).some((w) => w.startsWith(q))) score = 2;
+			else if (n.split(/[\s/-]+/).some((w) => w.startsWith(q))) score = 2;
 			else if (n.includes(q)) score = 3;
 			// aliases rank slightly below the tag's own name
 			if (candidate != name && candidate != id) score += 0.5;
