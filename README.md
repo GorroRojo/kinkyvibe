@@ -369,3 +369,28 @@ estandar de emoji por tipo de post
 
 - dt-anniversary
 - dt-bday
+
+## Tests
+
+Hay tres tipos de tests. Todos corren solos en GitHub Actions ([`.github/workflows/ci.yml`](/.github/workflows/ci.yml)) en cada pull request y en cada push a `main`.
+
+| Comando                   | Qué hace                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `npm run test:unit`       | Tests unitarios (vitest): etiquetas, orden de etiquetas, wikilinks/menciones y **contenido de los posts** |
+| `npm run test:unit:watch` | Lo mismo, re-ejecutando al guardar                                                                     |
+| `npm run test:e2e`        | Tests de humo (Playwright): compila la página, la levanta con `vite preview` y la recorre en Chromium  |
+| `npm test`                | Los dos anteriores                                                                                     |
+
+Antes de correr los tests de Playwright por primera vez: `npx playwright install --with-deps chromium`.
+
+Variables opcionales para `npm run test:e2e`: `PORT` (puerto del preview, por defecto `4173`), `PW_NO_BUILD=1` (no recompilar, usa el build existente) y `PW_CHROMIUM_PATH` (usar un Chromium ya instalado).
+
+### Chequeo del contenido
+
+[`src/tests/content.test.js`](/src/tests/content.test.js) revisa todas las publicaciones de `src/lib/posts` (menos las que empiezan con `_`): que las propiedades se puedan leer, que tengan `title`, `category` y `layout`, que la categoría coincida con la carpeta, que los eventos tengan `start` con zona horaria (ej. `2026-09-11T19:30-03:00`) y que `end` sea posterior, que `status` sea `anunciado`, `abierto`, `agotadas` o `cancelado`, que las imágenes de `featured`/`photo`/`logo` existan y que les autores tengan perfil en `amigues`.
+
+Los problemas que ya existían están anotados en [`src/tests/content-known-issues.json`](/src/tests/content-known-issues.json): el test sólo falla si aparece un problema **nuevo**. Si arreglaste algo de esa lista (o querés aceptar el estado actual), regenerala con:
+
+```sh
+UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js
+```
