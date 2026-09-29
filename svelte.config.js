@@ -12,7 +12,14 @@ const config = {
 		alias: {
 			$lib: '/src/lib/'
 		},
-		adapter: adapter()
+		adapter: adapter({
+			// En `vite dev`/`vite preview` simula los bindings de wrangler.toml (D1 incluido) con
+			// miniflare, guardando los datos en .wrangler/state. Nunca se conecta a Cloudflare.
+			platformProxy: {
+				persist: true,
+				remoteBindings: false
+			}
+		})
 	},
 	extensions: ['.svelte', '.md', '.svx'],
 	preprocess: sequence([

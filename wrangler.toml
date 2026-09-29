@@ -1,2 +1,15 @@
 compatibility_date = "2023-04-14"
 compatibility_flags = [ "nodejs_compat" ]
+
+# Base de datos D1 (SQLite de Cloudflare). Ver la sección "Base de datos" del README.
+# - En local (`npm run dev`, tests, `wrangler pages dev`) se usa una copia simulada por
+#   miniflare guardada en `.wrangler/state`; el `database_id` no importa.
+# - Para producción hay que crear la base una vez con `npx wrangler d1 create kinkyvibe`,
+#   pegar acá el `database_id` que devuelve y vincularla como `DB` en el proyecto de Pages.
+# Nota: este archivo NO tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo
+# ignora y la configuración de producción (bindings, variables) sigue viviendo en el panel.
+[[d1_databases]]
+binding = "DB"
+database_name = "kinkyvibe"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
