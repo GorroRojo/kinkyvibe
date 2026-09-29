@@ -38,9 +38,6 @@
 				p.meta.category != 'calendario')
 	);
 
-	/**@type {<T>(arr: T[])=>T[]}*/
-	let uniq = (arr) => [...new Set(arr)];
-
 	/**
 	 * @param {ProcessedPost[]} posts
 	 * @param {string[]} filteredTags

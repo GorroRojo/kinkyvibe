@@ -19,7 +19,8 @@
 		"db:migrate:remote": "wrangler d1 migrations apply kinkyvibe --remote",
 		"db:migrations:new": "wrangler d1 migrations create kinkyvibe",
 		"preview:worker": "wrangler pages dev .svelte-kit/cloudflare --port 8880",
-		"lint": "prettier --check . && eslint .",
+		"lint": "eslint .",
+		"format:check": "prettier --check .",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
