@@ -7,6 +7,6 @@ export async function load({ params, data }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
-	// `data` viene de +page.server.js (contador de "Me interesa", `null` si no hay base de datos).
-	return { ...post, interest: data?.interest ?? null };
+	// `data` viene de +page.server.js (posts relacionados y contador de "Me interesa", `null` si no hay base de datos).
+	return { ...data, ...post, interest: data?.interest ?? null };
 }

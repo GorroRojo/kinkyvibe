@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '$lib/utils';
 import { getDB, logDBError } from '$lib/server/db';
 import {
 	VISITOR_COOKIE,
@@ -33,17 +34,44 @@ function readVisitorId(cookies) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, cookies }) {
+	const [related, interest] = await Promise.all([
+		loadRelated(params.event),
+		loadInterest(params.event, platform, cookies)
+	]);
+	return { ...related, interest };
+}
+
+/** Related posts, computed on the server so the page doesn't need every post.
+ * @param {string} slug */
+async function loadRelated(slug) {
+	let post;
+	try {
+		post = await fetchPost('calendario', slug, true);
+	} catch (e) {
+		// missing/unpublished posts are handled by +page.js
+		return { relatedPosts: [], relatedPastCount: 0 };
+	}
+	return currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+}
+
+/**
+ * "Me interesa" count for this event; `null` hides the button (no DB binding or DB error).
+ * @param {string} slug
+ * @param {App.Platform|undefined} platform
+ * @param {import('@sveltejs/kit').Cookies} cookies
+ */
+async function loadInterest(slug, platform, cookies) {
 	const db = getDB(platform);
-	if (!db || !isValidEventSlug(params.event)) return { interest: null };
+	if (!db || !isValidEventSlug(slug)) return null;
 	try {
 		const visitorId = readVisitorId(cookies);
 		const visitorHash = visitorId
-			? await hashVisitor(params.event, visitorId, platform?.env?.INTEREST_SALT)
+			? await hashVisitor(slug, visitorId, platform?.env?.INTEREST_SALT)
 			: null;
-		return { interest: await getInterest(db, params.event, visitorHash) };
+		return await getInterest(db, slug, visitorHash);
 	} catch (error) {
 		logDBError('load interest', error);
-		return { interest: null };
+		return null;
 	}
 }
 

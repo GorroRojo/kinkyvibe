@@ -1,29 +1,8 @@
-import { redirect } from '@sveltejs/kit';
+import { requireAdmin } from '$lib/server/auth';
+/** @type {import('./$types').LayoutServerLoad} */
 export async function load({ locals, url }) {
-	if (locals.user_token == undefined || locals.user_token == '') {
-		redirect(303, `/login?redirectTo=${url.pathname}`);
-	} else if (isAdmin(locals.user_token, locals.user.login)) {
-		return {
-			currentRoute: url.pathname
-		};
-	} else {
-		redirect(303, '/')
-	}
-}
-/**
- *
- * @param {string} token
- * @param {string} username
- * @returns {Promise<*>}
- */
-function isAdmin(token, username) {
-	return ["GorroRojo", "Tallarines333", "VelvetVoid"].includes(username)
-	// TODO make it read it from github
-	// try {
-	// 	await ghGet(`repos/GorroRojo/kinkyvibe/collaborators/${username}}`, token)
-	// } catch (e) {
-	// 	console.log(e)
-	// 	return false
-	// }
-	// return true
+	requireAdmin(locals, url);
+	return {
+		currentRoute: url.pathname
+	};
 }
