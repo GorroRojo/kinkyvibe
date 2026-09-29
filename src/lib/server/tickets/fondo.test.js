@@ -136,23 +136,23 @@ describe('precedencia y redondeo en la configuración del evento', () => {
 		tickets: [
 			{ id: 'general', price: 10000, capacity: 5 },
 			{ id: 'impar', price: 4999, capacity: 5 },
-			{ id: 'fijo', price: 8000, fondo: 1000, capacity: 5 },
+			{ id: 'fijo', price: 8000, fondo: 1000, capacity: 5 }, // `fondo` en pesos: se ignora
 			{ id: 'gorra', a_la_gorra: { minimo: 0, sugerido: 3000 }, capacity: 5 }
 		]
 	};
 	it('automático: round(precio × % / 100) en todos los tipos con precio; no en la gorra', () => {
 		const c = parseTicketConfig(META, { fondoPercent: 15 });
 		// 4999 × 15 % = 749,85 → 750
-		expect(c?.types.map((x) => x.fondo)).toEqual([1500, 750, 1000, 0]);
+		expect(c?.types.map((x) => x.fondo)).toEqual([1500, 750, 1200, 0]);
 		expect(c).toMatchObject({ fondoEnabled: true, fondoPercent: 15 });
 	});
-	it('`fondo_percent` en el frontmatter se ignora: manda el porcentaje global', () => {
+	it('`fondo_percent` y `fondo` en el frontmatter se ignoran: manda el porcentaje global', () => {
 		const c = parseTicketConfig({ ...META, fondo_percent: 0 }, { fondoPercent: 40 });
-		expect(c?.types.map((x) => x.fondo)).toEqual([4000, 2000, 1000, 0]);
+		expect(c?.types.map((x) => x.fondo)).toEqual([4000, 2000, 3200, 0]);
 		expect(c?.fondoPercent).toBe(40);
 	});
 	it('sin nada: sin fondo', () => {
-		expect(parseTicketConfig(META)?.types.map((x) => x.fondo)).toEqual([0, 0, 1000, 0]);
+		expect(parseTicketConfig(META)?.types.map((x) => x.fondo)).toEqual([0, 0, 0, 0]);
 		expect(parseTicketConfig(META, { fondoPercent: 999 })?.fondoPercent).toBeNull();
 	});
 });

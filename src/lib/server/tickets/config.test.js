@@ -172,30 +172,7 @@ describe('validateHolder / validateBuyer', () => {
 });
 
 describe('fondo y mp_fee_percent', () => {
-	it('fondo opcional por tipo, entre 0 y el precio', () => {
-		const c = parseTicketConfig({
-			...META,
-			tickets: [{ id: 'general', price: 10000, fondo: 2000, capacity: 5 }]
-		});
-		expect(c?.types[0]).toMatchObject({ price: 10000, fondo: 2000 });
-		expect(parseTicketConfig(META)?.types[0].fondo).toBe(0);
-		// 100 %: la entrada queda gratis con el descuento del fondo.
-		expect(
-			parseTicketConfig({
-				...META,
-				tickets: [{ id: 'general', price: 10000, fondo: 10000, capacity: 5 }]
-			})?.types[0].fondo
-		).toBe(10000);
-		for (const fondo of [-1, 10001, 12000, 1.5, 'mucho']) {
-			expect(() =>
-				parseTicketConfig({
-					...META,
-					tickets: [{ id: 'general', price: 10000, fondo, capacity: 5 }]
-				})
-			).toThrow(/Fondo/);
-		}
-	});
-	it('el porcentaje del Fondo es el global (fondo.js): `fondo_percent` en el frontmatter no existe más', () => {
+	it('el fondo es siempre el porcentaje global (fondo.js): `fondo_percent` y `fondo` por tipo se ignoran', () => {
 		const c = parseTicketConfig(
 			{
 				...META,
@@ -204,16 +181,20 @@ describe('fondo y mp_fee_percent', () => {
 					{ id: 'general', price: 10000, capacity: 5 },
 					{ id: 'anticipada', price: 4999, capacity: 5 },
 					{ id: 'fija', price: 8000, fondo: 1000, capacity: 5 },
-					{ id: 'sin', price: 8000, fondo: 0, capacity: 5 }
+					{ id: 'sin', price: 8000, fondo: 0, capacity: 5 },
+					{ id: 'rara', price: 8000, fondo: 'mucho', capacity: 5 }
 				]
 			},
 			{ fondoPercent: 15 }
 		);
 		expect(c?.fondoPercent).toBe(15);
-		// 4999 × 15 % = 749,85 → 750; `fondo` en pesos de un tipo sigue pisando el porcentaje.
-		expect(c?.types.map((t) => t.fondo)).toEqual([1500, 750, 1000, 0]);
+		// 4999 × 15 % = 749,85 → 750
+		expect(c?.types.map((t) => t.fondo)).toEqual([1500, 750, 1200, 1200, 1200]);
 		expect(parseTicketConfig(META)?.fondoPercent).toBeNull();
-		// Un `fondo_percent` inválido tampoco rompe nada: se ignora.
+		expect(parseTicketConfig(META)?.types[0].fondo).toBe(0);
+		// 100 %: la entrada queda gratis con el descuento del fondo.
+		expect(parseTicketConfig(META, { fondoPercent: 100 })?.types[0].fondo).toBe(8000);
+		// Valores inválidos tampoco rompen nada: se ignoran.
 		expect(parseTicketConfig({ ...META, fondo_percent: 'mucho' })).not.toBeNull();
 	});
 
@@ -293,30 +274,28 @@ describe('validatePurchase', () => {
 		expect(Object.keys(r.errors).sort()).toEqual(['holder_name_1', 'holder_pronouns_2']);
 	});
 
-	it('opción del fondo: por defecto con fondo si el tipo tiene fondo; si no, precio completo', () => {
+	it('opción del fondo: por defecto con fondo si hay porcentaje; si no, precio completo', () => {
+		const tickets = [{ id: 'general', price: 10000, capacity: 5 }];
 		const withFondo = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
-			parseTicketConfig({
-				...META,
-				tickets: [
-					{ id: 'general', price: 10000, fondo: 2000, capacity: 5 },
-					{ id: 'sin-fondo', price: 5000, capacity: 5 }
-				]
-			})
+			parseTicketConfig({ ...META, tickets }, { fondoPercent: 20 })
 		);
-		const buy = (/** @type {Record<string, unknown>} */ o) =>
-			/** @type {any} */ (validatePurchase(withFondo, { ...ok, ...o }));
-		expect(buy({ type: 'general' }).option).toBe('fondo');
-		expect(buy({ type: 'general', option: '' }).option).toBe('fondo');
-		expect(buy({ type: 'sin-fondo' }).option).toBe('completo');
-		// "Con el descuento del fondo" en un tipo sin fondo = precio completo.
-		expect(buy({ type: 'sin-fondo', option: 'fondo' }).option).toBe('completo');
+		const noPercent = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+			parseTicketConfig({ ...META, tickets }, { fondoPercent: 0 })
+		);
+		/** @param {any} config @param {Record<string, unknown>} o */
+		const buyIn = (config, o) => /** @type {any} */ (validatePurchase(config, { ...ok, ...o }));
+		expect(buyIn(withFondo, { type: 'general' }).option).toBe('fondo');
+		expect(buyIn(withFondo, { type: 'general', option: '' }).option).toBe('fondo');
+		expect(buyIn(noPercent, { type: 'general' }).option).toBe('completo');
+		// "Con el descuento del fondo" con 0 % = precio completo.
+		expect(buyIn(noPercent, { type: 'general', option: 'fondo' }).option).toBe('completo');
 		for (const option of ['completo', 'solidaria', 'muy-solidaria', 'sugar']) {
-			expect(buy({ type: 'general', option }).option).toBe(option);
-			expect(buy({ type: 'sin-fondo', option }).option).toBe(option);
+			expect(buyIn(withFondo, { type: 'general', option }).option).toBe(option);
+			expect(buyIn(noPercent, { type: 'general', option }).option).toBe(option);
 		}
 		// "gorra" no es una opción de un tipo con precio.
-		expect(buy({ type: 'general', option: 'gorra' }).errors.option).toBeTruthy();
-		expect(buy({ type: 'general', option: 'mitad' }).errors.option).toBeTruthy();
+		expect(buyIn(withFondo, { type: 'general', option: 'gorra' }).errors.option).toBeTruthy();
+		expect(buyIn(withFondo, { type: 'general', option: 'mitad' }).errors.option).toBeTruthy();
 	});
 
 	it('medio de pago: solo los que habilita el evento', () => {
@@ -513,13 +492,14 @@ describe('el Fondo solo aplica a eventos con la etiqueta KinkyVibe', () => {
 	it('con la etiqueta: descuento del Fondo y las opciones', () => {
 		expect(tagged.fondoEnabled).toBe(true);
 		expect(tagged.fondoPercent).toBe(20);
-		expect(tagged.types.map((t) => t.fondo)).toEqual([2000, 2000]);
+		// El `fondo` en pesos de "Fija" se ignora: 20 % de 8000.
+		expect(tagged.types.map((t) => t.fondo)).toEqual([2000, 1600]);
 		const r = /** @type {any} */ (validatePurchase(tagged, { ...ok, option: 'sugar' }));
 		expect(r).toMatchObject({ ok: true, option: 'sugar' });
 		expect(/** @type {any} */ (validatePurchase(tagged, ok)).option).toBe('fondo');
 	});
 
-	it('sin la etiqueta: sin fondo (ni el porcentaje ni el `fondo` fijo de un tipo)', () => {
+	it('sin la etiqueta: sin fondo', () => {
 		expect(untagged.fondoEnabled).toBe(false);
 		expect(untagged.fondoPercent).toBeNull();
 		expect(untagged.types.map((t) => t.fondo)).toEqual([0, 0]);

@@ -10,7 +10,6 @@
  *   - id: general
  *     name: General
  *     price: 10000       # ARS, entero: precio completo de la entrada
- *     fondo: 2000        # opcional: $ que cubre el fondo en este tipo (pisa el % automático)
  *     capacity: 40
  *   - id: gorra
  *     name: A la gorra
@@ -108,8 +107,9 @@ export function toTime(value) {
  * Tira un error descriptivo si la configuración está mal (mejor que vender con un precio raro).
  *
  * `options.fondoPercent` es el porcentaje del Fondo KinkyVibe (ver fondo.js; el mismo para todos
- * los eventos, sigue a fondo.kinkyvibe.ar): se usa en los tipos que no fijan su `fondo`. Sin él,
- * sin descuento del fondo.
+ * los eventos, sigue a fondo.kinkyvibe.ar): se aplica a todos los tipos con precio. Sin él, sin
+ * descuento del fondo. No hay fondo por evento ni por tipo (`fondo_percent` o `fondo` en el
+ * frontmatter se ignoran).
  *
  * El Fondo (descuento, aportes y las opciones de "¿Cómo querés pagar tu entrada?") solo aplica a
  * eventos con la etiqueta KinkyVibe (`fondoEnabled`); en los demás, precio de lista y nada más.
@@ -169,20 +169,9 @@ export function parseTicketConfig(meta, options = {}) {
 		if (!Number.isSafeInteger(price) || price <= 0) {
 			throw new TypeError(`Precio inválido para "${id}": tiene que ser un entero mayor a 0`);
 		}
-		// El `fondo` del tipo (en pesos) pisa el porcentaje automático. Sin la etiqueta
-		// KinkyVibe no hay fondo (se valida igual, para no esconder un error del frontmatter).
-		const fixedFondo = raw.fondo !== undefined && raw.fondo !== null ? Number(raw.fondo) : null;
-		const fondo =
-			fixedFondo !== null
-				? fixedFondo
-				: fondoPercent !== null
-					? Math.round((price * fondoPercent) / 100)
-					: 0;
-		if (!Number.isSafeInteger(fondo) || fondo < 0 || fondo > price) {
-			throw new TypeError(
-				`Fondo inválido para "${id}": tiene que ser un entero entre 0 y el precio`
-			);
-		}
+		// El fondo es siempre el porcentaje vigente (sin la etiqueta KinkyVibe, `fondoPercent` es
+		// null: sin fondo). Un `fondo` en pesos en el tipo ya no existe y se ignora.
+		const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
 		types.push({ id, name, price, fondo, capacity, gorra: null });
 	}
 	/** @type {PaymentMethod[]} */
@@ -213,7 +202,7 @@ export function parseTicketConfig(meta, options = {}) {
 	}
 	const closesAt = toTime(meta.tickets_close) ?? toTime(meta.start);
 	return {
-		types: fondoEnabled ? types : types.map((t) => ({ ...t, fondo: 0 })),
+		types,
 		fondoEnabled,
 		fondoPercent,
 		paymentMethods,
