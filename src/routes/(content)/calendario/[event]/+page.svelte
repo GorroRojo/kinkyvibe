@@ -6,15 +6,12 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
-	import InterestButton from '$lib/components/InterestButton.svelte';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	export let data;
-	/** @type {{ error?: string } | null} */
-	export let form = null;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -215,7 +212,6 @@
 			></add-to-calendar-button>
 		</div>
 	</div>
-	<InterestButton interest={data.interest} error={form?.error} />
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">

@@ -370,23 +370,48 @@ estandar de emoji por tipo de post
 - dt-anniversary
 - dt-bday
 
+## Tests
+
+Hay tres tipos de tests. Todos corren solos en GitHub Actions ([`.github/workflows/ci.yml`](/.github/workflows/ci.yml)) en cada pull request y en cada push a `main`.
+
+| Comando                   | Qué hace                                                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`       | Tests unitarios (vitest): etiquetas, orden de etiquetas, wikilinks/menciones y **contenido de los posts** |
+| `npm run test:unit:watch` | Lo mismo, re-ejecutando al guardar                                                                        |
+| `npm run test:e2e`        | Tests de humo (Playwright): compila la página, la levanta con `vite preview` y la recorre en Chromium     |
+| `npm test`                | Los dos anteriores                                                                                        |
+
+Antes de correr los tests de Playwright por primera vez: `npx playwright install --with-deps chromium`.
+
+Variables opcionales para `npm run test:e2e`: `PORT` (puerto del preview, por defecto `4173`), `PW_NO_BUILD=1` (no recompilar, usa el build existente) y `PW_CHROMIUM_PATH` (usar un Chromium ya instalado).
+
+### Chequeo del contenido
+
+[`src/tests/content.test.js`](/src/tests/content.test.js) revisa todas las publicaciones de `src/lib/posts` (menos las que empiezan con `_`): que las propiedades se puedan leer, que tengan `title`, `category` y `layout`, que la categoría coincida con la carpeta, que los eventos tengan `start` con zona horaria (ej. `2026-09-11T19:30-03:00`) y que `end` sea posterior, que `status` sea `anunciado`, `abierto`, `agotadas` o `cancelado`, que las imágenes de `featured`/`photo`/`logo` existan y que les autores tengan perfil en `amigues`.
+
+Los problemas que ya existían están anotados en [`src/tests/content-known-issues.json`](/src/tests/content-known-issues.json): el test sólo falla si aparece un problema **nuevo**. Si arreglaste algo de esa lista (o querés aceptar el estado actual), regenerala con:
+
+```sh
+UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js
+```
+
 ## Base de datos
 
-El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. Es **opcional**: si no está disponible (durante el build, o si todavía no se vinculó en Cloudflare) el sitio anda igual y las funciones que la usan se ocultan. Por ahora la usa solamente el botón anónimo **"Me interesa"** de las páginas de eventos (`/calendario/...`).
+El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. Por ahora esto es solo la infraestructura: ninguna página la usa todavía. La primera en usarla va a ser la venta de entradas (#62).
+
+La base es **opcional**: si no está disponible (durante el build, o si todavía no se vinculó en Cloudflare) el sitio anda igual, y cada función que la use tiene que ocultarse o degradar sin romper la página.
 
 ### Cómo está armado
 
-| Qué                                                  | Dónde                                                                                    |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Configuración del binding `DB`                       | [`wrangler.toml`](/wrangler.toml)                                                        |
-| Migraciones SQL (el esquema)                         | [`/migrations`](/migrations)                                                             |
-| Acceso a datos (solo servidor, consultas preparadas) | [`/src/lib/server/db`](/src/lib/server/db)                                               |
-| Contador "Me interesa" (load + form action)          | `/src/routes/(content)/calendario/[event]/+page.server.js`                               |
-| Botón                                                | [`/src/lib/components/InterestButton.svelte`](/src/lib/components/InterestButton.svelte) |
+| Qué                                                   | Dónde                                                                |
+| ----------------------------------------------------- | -------------------------------------------------------------------- |
+| Configuración del binding `DB`                        | [`wrangler.toml`](/wrangler.toml)                                    |
+| Migraciones SQL (el esquema)                          | [`/migrations`](/migrations)                                         |
+| Acceso a datos (solo servidor): `getDB`, `logDBError` | [`/src/lib/server/db/index.js`](/src/lib/server/db/index.js)         |
+| Rate limiting guardado en D1 (tabla `rate_limits`)    | [`/src/lib/server/db/rateLimit.js`](/src/lib/server/db/rateLimit.js) |
+| Helpers para tests (`createTestDB`, `resetDB`)        | [`/src/lib/server/db/testing.js`](/src/lib/server/db/testing.js)     |
 
 En local nunca se toca Cloudflare: `npm run dev` simula D1 con miniflare (la opción `platformProxy` del adapter en `svelte.config.js`) y guarda los datos en `.wrangler/state/` (ignorado por git). Para empezar de cero alcanza con borrar esa carpeta.
-
-**Privacidad del "Me interesa":** no se guardan nombres, mails, IPs ni nada que identifique a nadie. El navegador recibe una cookie `kv_visitor` (httpOnly) con un número aleatorio y en la base solo queda `SHA-256(sal : evento : número)`, así que tampoco se puede saber a qué otros eventos marcó interés el mismo navegador. Hay un límite de intentos por navegador y por evento para evitar abusos.
 
 ### Correr en local
 
@@ -399,7 +424,7 @@ Otros comandos útiles:
 
 ```sh
 npm run db:migrate:local                                   # aplicar migraciones a mano
-npx wrangler d1 execute kinkyvibe --local --command "SELECT * FROM event_interest"
+npx wrangler d1 execute kinkyvibe --local --command "SELECT name FROM sqlite_master"
 npm run build && npm run preview:worker                    # build de producción en el runtime de Workers (puerto 8880)
 ```
 
@@ -411,36 +436,35 @@ Nunca se edita una migración que ya se aplicó en producción: siempre se agreg
 npm run db:migrations:new -- nombre_descriptivo   # crea migrations/000N_nombre_descriptivo.sql
 # escribir el SQL en ese archivo
 npm run db:migrate:local
-npm run test:unit -- run                          # los tests aplican todas las migraciones solos
+npm run test:unit                                 # los tests aplican todas las migraciones solos
 ```
 
-En el código, usar siempre consultas preparadas (`db.prepare('... WHERE x = ?1').bind(valor)`), nunca armar SQL concatenando texto, y obtener la base con `getDB(platform)` de `$lib/server/db`, que devuelve `null` si no hay base (y en ese caso la función tiene que degradar sin romper la página).
+En el código, usar siempre consultas preparadas (`db.prepare('... WHERE x = ?1').bind(valor)`), nunca armar SQL concatenando texto, y obtener la base con `getDB(platform)` de `$lib/server/db`, que devuelve `null` si no hay base (y en ese caso la función tiene que degradar sin romper la página). Para loguear errores de la base sin tirar excepción está `logDBError(contexto, error)`, que además avisa si faltan migraciones.
 
-### Tests
+### Tests con base de datos
 
-```sh
-npx vitest run
-```
-
-Los tests usan un D1 real (el mismo motor `workerd`/miniflare que usa wrangler) creado en memoria para cada archivo de test con `createTestDB()` de [`/src/lib/server/db/testing.js`](/src/lib/server/db/testing.js), que lee `wrangler.toml` y aplica todas las migraciones. No necesitan internet ni tocan los datos de `.wrangler/state` que usa `npm run dev`.
+Los tests usan un D1 real (el mismo motor `workerd`/miniflare que usa wrangler) creado en memoria con `createTestDB()` de [`/src/lib/server/db/testing.js`](/src/lib/server/db/testing.js), que lee `wrangler.toml` y aplica todas las migraciones. No necesitan internet ni tocan los datos de `.wrangler/state` que usa `npm run dev`. Ver [`/src/lib/server/db/db.test.js`](/src/lib/server/db/db.test.js) como ejemplo.
 
 ### Activarla en producción (una sola vez)
 
 Hace falta estar logueade en la cuenta de Cloudflare del proyecto (`npx wrangler login`).
 
-1. Crear la base:
+1. Crear la base (si todavía no existe):
    ```sh
    npx wrangler d1 create kinkyvibe
    ```
 2. Copiar el `database_id` que devuelve y reemplazar el `00000000-0000-0000-0000-000000000000` de [`wrangler.toml`](/wrangler.toml). Commitearlo (no es un secreto).
-3. Crear las tablas en la base remota:
-   ```sh
-   npm run db:migrate:remote
-   ```
-4. En el panel de Cloudflare: **Workers & Pages → (proyecto del sitio) → Settings → Bindings → Add → D1 database**, nombre de variable `DB`, base `kinkyvibe`. Hacerlo para **Production** y también para **Preview** si se quiere en los deploys de prueba (idealmente con otra base para preview).
-5. (Opcional, recomendado) Agregar una sal secreta para los hashes: en **Settings → Variables and Secrets** una variable de tipo _Secret_ llamada `INTEREST_SALT` con un texto largo al azar (por ejemplo la salida de `openssl rand -hex 32`). Si no está, se usa una sal fija del código. Si se cambia después, los "Me interesa" existentes quedan huérfanos (el contador se mantiene pero cada navegador podría volver a sumar).
-6. Volver a deployar (un push a la rama principal alcanza).
+3. En el panel de Cloudflare: **Workers & Pages → (proyecto del sitio) → Settings → Bindings → Add → D1 database**, nombre de variable `DB`, base `kinkyvibe`. Hacerlo para **Production** y también para **Preview** si se quiere en los deploys de prueba (idealmente con otra base para preview).
+4. Volver a deployar (un push a la rama principal alcanza).
 
-Cada vez que se agregue una migración nueva hay que correr `npm run db:migrate:remote` **antes** de que llegue a producción el código que la necesita.
+### Migraciones en producción
 
-`wrangler.toml` no tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo ignora al deployar y los bindings y variables siguen configurándose desde el panel (paso 4). Solo lo usan los comandos locales y `wrangler d1`.
+Las migraciones se aplican a la base remota a mano, con:
+
+```sh
+npm run db:migrate:remote
+```
+
+Hay que correrlo **antes** de deployar el código que necesita las tablas nuevas (wrangler solo aplica las que falten, así que se puede correr cuantas veces se quiera).
+
+`wrangler.toml` no tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo ignora al deployar y los bindings y variables siguen configurándose desde el panel (paso 3). Solo lo usan los comandos locales y `wrangler d1`.
