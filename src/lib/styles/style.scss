@@ -27,17 +27,12 @@
 
 	--round: 1rem;
 }
-@font-face {
-	font-family: NotoColorEmojiLimited;
-	unicode-range: U+1F1E6-1F1FF;
-	src: url(https://raw.githack.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf);
-}
 body {
 	scroll-behavior: smooth;
 	margin: 0;
 	background: #eee;
 	color: #333;
-	font-family: 'NotoColorEmojiLimited', 'Lato', sans-serif;
+	font-family: 'Lato', sans-serif;
 	// font-size: var(--step-0);
 	position: relative;
 	min-height: 99vh;
