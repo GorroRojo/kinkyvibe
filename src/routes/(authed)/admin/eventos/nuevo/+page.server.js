@@ -1,5 +1,4 @@
 import { error, fail } from '@sveltejs/kit';
-import { Buffer } from 'buffer';
 import { requireAdmin } from '$lib/server/auth';
 import {
 	POSTS_DIR,
@@ -9,7 +8,18 @@ import {
 	featuredURL,
 	takenSlugsInBundle
 } from '$lib/server/eventos';
-import { GitHubError, PathExistsError } from '$lib/server/eventos/github.js';
+import { FileChangedError, GitHubError, PathExistsError } from '$lib/server/eventos/github.js';
+import {
+	findAssetUsers,
+	readUploadedImage,
+	sharedAssetCommit
+} from '$lib/server/eventos/images.js';
+import {
+	isSafeAssetName,
+	isSharedAsset,
+	replacementAssetName,
+	uploadScope
+} from '$lib/utils/sharedImage.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
@@ -18,7 +28,6 @@ import {
 	MAX_IMAGE_BYTES,
 	NEW_EVENT_TEMPLATE,
 	applyFrontmatterChanges,
-	detectImageType,
 	isNumericFeatured,
 	joinMarkdown,
 	readEventFields,
@@ -132,12 +141,22 @@ export const actions = {
 	verificar: async ({ locals, request }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
-		const slug = String((await request.formData()).get('slug') ?? '').trim();
+		const data = await request.formData();
+		const slug = String(data.get('slug') ?? '').trim();
+		// Set when the new image replaces a shared one for every edition: the review step lists
+		// the events that will show it.
+		const sharedAsset = String(data.get('sharedAsset') ?? '').trim();
 		const invalid = validateSlug(slug);
 		if (invalid) return fail(400, { slugError: invalid });
 		const client = await getRepoClient();
 		try {
-			if (await slugIsFree(client, admin.token, slug)) return { slugOk: slug };
+			if (await slugIsFree(client, admin.token, slug)) {
+				const affected =
+					sharedAsset && isSafeAssetName(sharedAsset)
+						? await findAssetUsers(client, admin.token, sharedAsset)
+						: undefined;
+				return { slugOk: slug, affected };
+			}
 			return fail(409, {
 				slugError: 'Ya existe un evento con esa dirección.',
 				suggestion: await suggestFreeSlug(client, admin.token, slug)
@@ -160,6 +179,46 @@ export const actions = {
 		const slugError = validateSlug(slug);
 		if (slugError) return fail(400, { error: slugError, slugError });
 
+		const client = await getRepoClient();
+
+		/* The uploaded image, and where it goes (see $lib/utils/sharedImage.js). */
+		/** @type {null | {ext: 'jpg'|'png'|'webp', base64: string}} */
+		let upload = null;
+		/** @type {'todas'|'esta'} */
+		let scope = 'esta';
+		let sharedName = '';
+		if (featuredMode === 'upload') {
+			const read = await readUploadedImage(data.get('image'));
+			if ('error' in read) return fail(400, { error: read.error });
+			upload = read;
+			if (source) {
+				// What the source event uses right now on GitHub, not what the form says.
+				let sourceRaw;
+				try {
+					sourceRaw = await client.getFile(admin.token, eventPath(source));
+				} catch (e) {
+					return fail(502, { error: 'No pudimos leer el evento original: ' + describeError(e) });
+				}
+				const sourceFeatured = sourceRaw
+					? readEventFields(splitMarkdown(sourceRaw).frontmatter).featured
+					: '';
+				const asked = String(data.get('imageScope') ?? '');
+				if (isSharedAsset(sourceFeatured)) {
+					if (asked !== 'todas' && asked !== 'esta')
+						return fail(400, {
+							error:
+								'¿La imagen nueva es para todas las ediciones de este evento o solo para esta? Elegí una opción.'
+						});
+					if (asked === 'todas' && !isSafeAssetName(sourceFeatured))
+						return fail(400, {
+							error: `La imagen compartida «${sourceFeatured}» tiene un nombre raro y no se puede reemplazar desde acá. Elegí «Solo esta».`
+						});
+				}
+				scope = uploadScope(sourceFeatured, asked);
+				sharedName = scope === 'todas' ? sourceFeatured.trim() : '';
+			}
+		}
+
 		// Validate the generated file and apply the listed/unlisted choice.
 		let content;
 		let fields;
@@ -177,7 +236,8 @@ export const actions = {
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined
 			};
-			if (featuredMode === 'upload') changes.featured = 1;
+			if (upload)
+				changes.featured = scope === 'todas' ? replacementAssetName(sharedName, upload.ext) : 1;
 			content = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), body);
 		} catch (e) {
 			return fail(400, { error: describeError(e) });
@@ -187,26 +247,30 @@ export const actions = {
 		const files = [{ path: eventPath(slug), content }];
 		/** @type {string[]} */
 		const warnings = [];
-		const client = await getRepoClient();
+		/** @type {string[]} */
+		const mustNotExist = [eventPath(slug), mediaPath(slug)];
+		/** @type {Array<{path: string, sha: string}>} */
+		let unchanged = [];
+		/** @type {import('$lib/utils/sharedImage.js').AffectedEvent[]} */
+		let affected = [];
+		/** @type {string[]} */
+		let deleted = [];
 
 		try {
-			if (featuredMode === 'upload') {
-				const image = data.get('image');
-				if (!(image instanceof File) || image.size === 0) {
-					return fail(400, {
-						error: 'Elegiste subir una imagen pero no llegó ningún archivo. Volvé a elegirla.'
-					});
-				}
-				if (image.size > MAX_IMAGE_BYTES) {
-					return fail(400, { error: 'La imagen pesa más de 5 MB. Probá con una más liviana.' });
-				}
-				const bytes = new Uint8Array(await image.arrayBuffer());
-				const ext = detectImageType(bytes);
-				if (!ext) return fail(400, { error: 'La imagen tiene que ser JPG, PNG o WEBP.' });
-				files.push({
-					path: `${mediaPath(slug)}/1.${ext}`,
-					base64: Buffer.from(bytes).toString('base64')
+			if (upload && scope === 'todas') {
+				// Replace the shared image itself: every edition shows the new one.
+				const shared = await sharedAssetCommit(client, admin.token, {
+					oldName: sharedName,
+					ext: upload.ext,
+					base64: upload.base64
 				});
+				files.push(...shared.commitFiles);
+				deleted = shared.commitFiles.filter((f) => f.delete).map((f) => f.path);
+				mustNotExist.push(...shared.mustNotExist);
+				unchanged = shared.unchanged;
+				affected = shared.affected;
+			} else if (upload) {
+				files.push({ path: `${mediaPath(slug)}/1.${upload.ext}`, base64: upload.base64 });
 			} else if (featuredMode === 'keep' && source && isNumericFeatured(fields.featured)) {
 				// The image lives in the source event's media folder; copy it (GitHub reuses the
 				// existing blob, nothing is re-uploaded) so the new event is self-contained.
@@ -225,11 +289,15 @@ export const actions = {
 			const what = mode === 'borrador' ? 'cargó (no listado)' : 'publicó';
 			const message =
 				`[admin] ${admin.name} ${what} calendario/${slug}` +
-				(source ? ` (copia de ${source})` : '');
+				(source ? ` (copia de ${source})` : '') +
+				(scope === 'todas'
+					? ` y cambió la imagen compartida ${sharedName} para todas las ediciones (${affected.length} eventos más)`
+					: '');
 			const commit = await client.commitFiles(admin.token, {
 				files,
 				message,
-				mustNotExist: [eventPath(slug), mediaPath(slug)]
+				mustNotExist,
+				unchanged
 			});
 			return {
 				success: true,
@@ -237,12 +305,21 @@ export const actions = {
 				mode,
 				commitUrl: commit.url,
 				eventUrl: `/calendario/${slug}`,
-				files: files.map((f) => f.path),
+				files: files.filter((f) => !f.delete).map((f) => f.path),
+				deleted,
+				imageScope: upload ? scope : undefined,
+				affected,
 				content,
 				warnings,
 				mock: isMockMode()
 			};
 		} catch (e) {
+			if (e instanceof FileChangedError) {
+				return fail(409, {
+					error:
+						'Alguien cambió otro evento que usa esta imagen mientras tanto. Volvé a «Revisar» y probá de nuevo.'
+				});
+			}
 			if (e instanceof PathExistsError) {
 				return fail(409, {
 					error: 'Ya existe un evento con esa dirección. Elegí otra.',

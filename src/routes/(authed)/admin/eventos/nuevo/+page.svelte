@@ -4,6 +4,7 @@
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import DayPicker from '$lib/components/admin/DayPicker.svelte';
 	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
+	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import '$lib/components/admin/admin.scss';
@@ -16,6 +17,7 @@
 		validateEventTags
 	} from '$lib/utils/adminTags.js';
 	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
+	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import {
 		STATUS_OPTIONS,
 		addDays,
@@ -152,7 +154,22 @@
 	let fileInput;
 	let uploadURL = '';
 	let uploadName = '';
+	/** @type {'jpg'|'png'|'webp'|''} */
+	let uploadExt = '';
 	let uploadError = '';
+	/**
+	 * Only asked when the original uses a shared image (src/lib/assets): is the new image for every
+	 * edition (replace the shared file) or only for this one (the new event's own folder)?
+	 * @type {''|'todas'|'esta'}
+	 */
+	let imageScope = '';
+	$: askScope = sourceImageIsShared && featuredMode === 'upload';
+	$: scope = uploadScope(sourceFields.featured, askScope ? imageScope : '');
+	$: sharedNewName =
+		askScope && uploadExt ? replacementAssetName(sourceFields.featured, uploadExt) : '';
+	/** Events that show the shared image (from the server, when going to the review step). */
+	/** @type {Array<{slug: string, title: string, start: string}> | null} */
+	let affected = null;
 	/** @param {Event} e */
 	function onFileChange(e) {
 		// @ts-ignore
@@ -173,6 +190,7 @@
 		if (uploadURL) URL.revokeObjectURL(uploadURL);
 		uploadURL = URL.createObjectURL(file);
 		uploadName = file.name;
+		uploadExt = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
 		featuredMode = 'upload';
 	}
 	/** @param {'keep'|'none'} mode */
@@ -209,20 +227,27 @@
 			slugProblem,
 			serverSlugError,
 			uploadError,
+			askScope &&
+				!imageScope &&
+				'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
 			...tagErrors
 		].filter(Boolean)
 	);
 
-	$: generated = build(values, featuredMode, problems.length);
+	$: generated = build(values, featuredMode, scope === 'todas' ? sharedNewName : 1, problems.length);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'upload'|'none'} mode
+	 * @param {string|number} uploadFeatured
 	 * @param {number} nProblems
 	 */
-	function build(v, mode, nProblems) {
+	function build(v, mode, uploadFeatured, nProblems) {
 		if (nProblems) return { md: '', error: '' };
 		try {
-			return { md: buildEventMarkdown(sourceRaw, { ...v, featuredMode: mode }), error: '' };
+			return {
+				md: buildEventMarkdown(sourceRaw, { ...v, featuredMode: mode, uploadFeatured }),
+				error: ''
+			};
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
 		}
@@ -270,6 +295,7 @@
 		try {
 			const body = new FormData();
 			body.set('slug', slug);
+			if (scope === 'todas') body.set('sharedAsset', sourceFields.featured);
 			const response = await fetch('?/verificar', {
 				method: 'POST',
 				body,
@@ -278,6 +304,7 @@
 			/** @type {any} */
 			const result = deserialize(await response.text());
 			if (result.type === 'success') {
+				affected = result.data?.affected ?? null;
 				step = 'revisar';
 				confirming = false;
 				publishError = '';
@@ -377,6 +404,15 @@
 				al principio, esperá un poco y recargá. Si pasan más de 10 minutos, avisale a
 				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
 			</p>
+			{#if form.imageScope === 'todas'}
+				<p class="note">
+					🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
+						{' '}({form.affected.length} {form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+					{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron los eventos que la usaban.{/if}
+				</p>
+			{:else if form.imageScope === 'esta'}
+				<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
+			{/if}
 			{#each form.warnings ?? [] as warning}
 				<p class="warning">⚠️ {warning}</p>
 			{/each}
@@ -411,6 +447,7 @@
 			<input type="hidden" name="slug" value={slug} />
 			<input type="hidden" name="source" value={source?.slug ?? ''} />
 			<input type="hidden" name="featuredMode" value={featuredMode} />
+			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 			<textarea hidden name="content" value={generated.md}></textarea>
 
 			<!-- ======================= STEP 1 ======================= -->
@@ -625,6 +662,16 @@
 							{:else if featuredMode === 'upload'}
 								<p class="hint">Nueva imagen: {uploadName}</p>
 							{/if}
+							{#if askScope}
+								<ImageScopeChoice
+									bind:scope={imageScope}
+									assetName={sourceFields.featured}
+									newName={sharedNewName}
+									ownFolder={slug ? `calendario/media/${slug}/` : ''}
+									idPrefix="ev"
+									invalid={showProblems}
+								/>
+							{/if}
 							<label class="file">
 								<span>{featuredMode === 'upload' ? 'Elegir otra imagen' : 'Subir una imagen nueva'}</span>
 								<input
@@ -637,10 +684,12 @@
 								/>
 							</label>
 							<small>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small>
-							<p class="note" id="ev-image-where">
-								📁 La imagen se guarda solo para este evento{#if slug}
-									(en <code>calendario/media/{slug}/</code>){/if}; el evento original no cambia.
-							</p>
+							{#if !askScope}
+								<p class="note" id="ev-image-where">
+									📁 Una imagen nueva se guarda solo para este evento{#if slug}
+										{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no cambia.
+								</p>
+							{/if}
 							{#if featuredMode !== 'none'}
 								<button type="button" class="link" on:click={() => setImage('none')}>Quitar imagen</button>
 							{/if}
@@ -706,16 +755,50 @@
 					<dt>Etiquetas</dt>
 					<dd>{splitList(values.tags).join(', ')}</dd>
 					<dt>Imagen</dt>
-					<dd>
-						{featuredMode === 'upload'
-							? `Nueva: ${uploadName} (solo para este evento)`
-							: featuredMode === 'keep' && sourceImageIsShared
-							? 'La misma del evento original (imagen compartida del sitio)'
-							: featuredMode === 'keep'
-							? 'La misma del evento original (copiada a este evento)'
-							: 'Sin imagen'}
+					<dd id="review-image">
+						{#if featuredMode === 'upload' && scope === 'todas'}
+							<strong>Nueva para todas las ediciones:</strong> {uploadName} reemplaza la imagen
+							compartida <code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured}, que
+								pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan los eventos
+								que la usaban){/if}. Cambia también en los eventos pasados.
+						{:else if featuredMode === 'upload'}
+							<strong>Nueva, solo para este evento:</strong> {uploadName}, en
+							<code>calendario/media/{slug}/1.{uploadExt}</code>.{#if sourceImageIsShared}
+								{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no cambian.{/if}
+						{:else if featuredMode === 'keep' && sourceImageIsShared}
+							La misma del evento original: la imagen compartida <code>{sourceFields.featured}</code> (no se
+							copia ni se modifica).
+						{:else if featuredMode === 'keep'}
+							La misma del evento original (copiada a este evento)
+						{:else}
+							Sin imagen
+						{/if}
 					</dd>
 				</dl>
+				{#if featuredMode === 'upload' && scope === 'todas'}
+					<div class="affected" id="review-affected">
+						{#if affected}
+							<p>
+								<strong>
+									{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también van a
+									mostrar la imagen nueva{sharedNewName !== sourceFields.featured
+										? ' (se actualiza su archivo)'
+										: ''}:
+								</strong>
+							</p>
+							<ul>
+								{#each affected as ev}
+									<li>
+										<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer">{ev.title || ev.slug}</a>
+										<small>{ev.start.slice(0, 10)}</small>
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p>No pudimos listar los eventos que usan esta imagen.</p>
+						{/if}
+					</div>
+				{/if}
 				<details>
 					<summary>Ver el archivo que se va a guardar</summary>
 					<pre class="markdown">{generated.md}</pre>
@@ -896,6 +979,25 @@
 		overflow-wrap: anywhere;
 		max-height: 30em;
 		overflow: auto;
+	}
+	.affected {
+		margin-top: 0.8em;
+		background: #fff8e1;
+		border-radius: 1em;
+		padding: 0.6em 1em;
+		p {
+			margin: 0 0 0.3em;
+		}
+		ul {
+			margin: 0;
+			padding-left: 1.2em;
+			max-height: 16em;
+			overflow: auto;
+		}
+		small {
+			opacity: 0.7;
+			margin-left: 0.3em;
+		}
 	}
 	.confirm {
 		margin-top: 1em;

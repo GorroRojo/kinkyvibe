@@ -7,7 +7,9 @@ import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
 
-export const POSTS_DIR = 'src/lib/posts/calendario';
+import { POSTS_DIR } from './images.js';
+
+export { POSTS_DIR };
 
 /**
  * The verified admin (see $lib/server/auth), or null. Form actions are NOT protected by the

@@ -2,7 +2,10 @@
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
 	import { page } from '$app/stores';
+	import { deserialize } from '$app/forms';
+	import { onDestroy } from 'svelte';
 	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
+	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import '$lib/components/admin/admin.scss';
@@ -27,6 +30,7 @@
 		todayInArgentina,
 		validateSchedule
 	} from '$lib/utils/eventDraft.js';
+	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { parseDocument } from 'yaml';
 
 	/** @type {import('./$types').PageData} */
@@ -187,6 +191,7 @@
 	// Existing behavior: saving marks the post as updated today. Set in the initializer, not
 	// with a later `values.updated_date = …`: Svelte 5 (legacy mode) compiles that statement
 	// with a reference to the `f` of the `bind:value={values[f.key]}` loop below and crashes.
+	/** @type {Record<string, any>} */
 	let values = { ...initial, updated_date: todayInArgentina() };
 
 	/* ---------- tags & authors ---------- */
@@ -216,6 +221,77 @@
 	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
 	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
 
+	/* ---------- image (events only) ---------- */
+	const image = data.image;
+	/** @type {HTMLInputElement} */
+	let fileInput;
+	let uploadURL = '';
+	let uploadName = '';
+	/** @type {'jpg'|'png'|'webp'|''} */
+	let uploadExt = '';
+	let uploadError = '';
+	/** @type {''|'todas'|'esta'} */
+	let imageScope = '';
+	/** @type {Array<{slug: string, title: string, start: string}> | null} */
+	let affected = null;
+	let affectedError = '';
+	$: askScope = Boolean(image?.shared && uploadExt);
+	$: scope = uploadScope(image?.featured ?? '', askScope ? imageScope : '');
+	$: sharedNewName = askScope ? replacementAssetName(image?.featured ?? '', uploadExt) : '';
+	/** `featured` after saving with the new image ('' = unchanged) */
+	$: newFeatured = !uploadExt ? '' : scope === 'todas' ? sharedNewName : String(image?.nextNumber ?? 1);
+	$: if (askScope && scope === 'todas' && affected === null && !affectedError) loadAffected();
+
+	/** @param {Event} e */
+	function onFileChange(e) {
+		// @ts-ignore
+		const file = e.currentTarget.files?.[0];
+		uploadError = '';
+		if (!file) return;
+		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
+		} else if (file.size > data.maxImageBytes) {
+			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
+				data.maxImageBytes / 1024 / 1024
+			} MB.`;
+		}
+		if (uploadError) {
+			fileInput.value = '';
+			return;
+		}
+		if (uploadURL) URL.revokeObjectURL(uploadURL);
+		uploadURL = URL.createObjectURL(file);
+		uploadName = file.name;
+		uploadExt = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+	}
+	function clearUpload() {
+		if (fileInput) fileInput.value = '';
+		if (uploadURL) URL.revokeObjectURL(uploadURL);
+		uploadURL = '';
+		uploadName = '';
+		uploadExt = '';
+		imageScope = '';
+	}
+	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
+
+	async function loadAffected() {
+		try {
+			const body = new FormData();
+			body.set('asset', image?.featured ?? '');
+			const response = await fetch('?/afectados', {
+				method: 'POST',
+				body,
+				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+			});
+			/** @type {any} */
+			const result = deserialize(await response.text());
+			if (result.type === 'success') affected = result.data?.affected ?? [];
+			else affectedError = result.data?.error ?? 'No pudimos listar los eventos que usan esta imagen.';
+		} catch (e) {
+			affectedError = 'No pudimos listar los eventos que usan esta imagen.';
+		}
+	}
+
 	/* ---------- result ---------- */
 	/** @type {Field} */
 	const datetime = { key: '', label: '', type: 'datetime' };
@@ -229,18 +305,23 @@
 				[
 					...fields.filter((f) => f.required && !values[f.key]).map((f) => `Falta «${f.label}».`),
 					scheduleError,
+					uploadError,
+					askScope &&
+						!imageScope &&
+						'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
 					...tagErrors
 				].filter(Boolean)
 		  );
 
-	$: content = parseError ? rawText : build(values, tags, authors, body);
+	$: content = parseError ? rawText : build(values, tags, authors, body, newFeatured);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
 	 * @param {string[]} a
 	 * @param {string} b
+	 * @param {string} [featured] new `featured` ('' = unchanged); the server sets the final one
 	 */
-	function build(v, t, a, b) {
+	function build(v, t, a, b, featured = '') {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -249,6 +330,7 @@
 		}
 		if (t.join('\n') !== initialTags.join('\n')) changes.tags = t;
 		if (hasAuthors && a.join('\n') !== initialAuthors.join('\n')) changes.authors = a;
+		if (featured) changes.featured = /^\d+$/.test(featured) ? Number(featured) : featured;
 		try {
 			return joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
 		} catch (e) {
@@ -264,7 +346,7 @@
 				authors,
 				body
 		  );
-	$: changed = content !== unchanged;
+	$: changed = content !== unchanged || Boolean(uploadExt);
 </script>
 
 <svelte:head>
@@ -373,6 +455,105 @@
 			{/if}
 		</fieldset>
 
+		{#if image}
+			<fieldset class="card">
+				<legend>🖼️ Imagen</legend>
+				<div class="image-row">
+					{#if uploadURL || image.url}
+						<img src={uploadURL || image.url} alt="Imagen del evento" class="thumb" />
+					{:else}
+						<div class="thumb empty">Sin imagen</div>
+					{/if}
+					<div class="image-actions">
+						{#if uploadExt}
+							<p class="hint">Nueva imagen: {uploadName}</p>
+						{:else if image.shared}
+							<p class="hint">
+								Usa una imagen compartida con otras ediciones: <code>{image.featured}</code>.
+							</p>
+						{:else if image.featured}
+							<p class="hint">Usa una imagen propia (<code>{image.folder}</code>).</p>
+						{/if}
+						{#if askScope}
+							<ImageScopeChoice
+								bind:scope={imageScope}
+								assetName={image.featured}
+								newName={sharedNewName}
+								ownFolder={image.folder}
+								idPrefix="edit"
+								invalid={problems.length > 0}
+							/>
+						{/if}
+						<label class="file">
+							<span>{uploadExt ? 'Elegir otra imagen' : 'Subir una imagen nueva'}</span>
+							<input
+								bind:this={fileInput}
+								type="file"
+								name="image"
+								form="edit-form"
+								id="edit-image"
+								accept="image/jpeg,image/png,image/webp"
+								on:change={onFileChange}
+							/>
+						</label>
+						<small
+							>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
+						>
+						{#if uploadExt}
+							<p class="note" id="edit-image-case">
+								{#if scope === 'todas'}
+									🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
+									<code>{image.featured}</code>{#if sharedNewName !== image.featured}
+										{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se actualizan los
+										eventos que la usaban){/if}.
+								{:else if askScope && !imageScope}
+									Elegí arriba si es para todas las ediciones o solo para esta.
+								{:else}
+									📁 <strong>Solo este evento:</strong> se guarda como
+									<code>{image.folder}{image.nextNumber}.{uploadExt}</code>{#if image.shared}; la imagen
+										compartida y los otros eventos no cambian{/if}.
+								{/if}
+							</p>
+							{#if scope === 'todas'}
+								<div class="affected" id="edit-affected">
+									{#if affected}
+										<p>
+											<strong
+												>{affected.length === 1
+													? 'Este evento usa'
+													: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar la
+												nueva{sharedNewName !== image.featured ? ' (se actualiza su archivo)' : ''}:</strong
+											>
+										</p>
+										<ul>
+											{#each affected as ev}
+												<li>
+													{#if ev.slug === $page.params.postID}
+														<strong>{ev.title || ev.slug}</strong> (este)
+													{:else}
+														<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
+															>{ev.title || ev.slug}</a
+														>
+													{/if}
+													<small>{ev.start.slice(0, 10)}</small>
+												</li>
+											{/each}
+										</ul>
+									{:else if affectedError}
+										<p>{affectedError}</p>
+									{:else}
+										<p>Buscando los eventos que usan esta imagen…</p>
+									{/if}
+								</div>
+							{/if}
+							<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button>
+						{/if}
+						{#if uploadError}<p class="error">{uploadError}</p>{/if}
+					</div>
+				</div>
+			</fieldset>
+		{/if}
+
 		<fieldset class="card">
 			<legend>🏷️ Etiquetas</legend>
 			{#if isEvent}
@@ -423,7 +604,15 @@
 		<p class="error" role="alert">{form.error}</p>
 	{/if}
 	{#if form?.save}
-		<p class="note" role="status">✅ {form.save} {new Date().toLocaleString('es-AR')}</p>
+		<p class="note" role="status">
+			✅ {form.save} {new Date().toLocaleString('es-AR')}
+			{#if form.imageScope === 'todas'}
+				· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
+					{' '}({form.affected.length} {form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+			{:else if form.imageScope === 'esta'}
+				· La imagen nueva se guardó solo para este evento.
+			{/if}
+		</p>
 	{/if}
 
 	<details>
@@ -431,8 +620,9 @@
 		<pre class="markdown">{content}</pre>
 	</details>
 
-	<form method="POST" action="?/save" class="bar">
+	<form method="POST" action="?/save" class="bar" id="edit-form" enctype="multipart/form-data">
 		<textarea hidden name="content" value={content}></textarea>
+		<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 		<input type="hidden" name="sha" value={sha} />
 		<input type="hidden" name="path" value={path} />
 		<small class="later"
@@ -461,6 +651,58 @@
 		:global(.cm-editor) {
 			max-height: 40rem;
 			background: white;
+		}
+	}
+	.image-row {
+		display: flex;
+		gap: 1em;
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+	.thumb {
+		width: 8em;
+		height: 8em;
+		object-fit: cover;
+		border-radius: 1em;
+		&.empty {
+			display: grid;
+			place-items: center;
+			background: #f3eef6;
+			font-size: var(--step--1);
+		}
+	}
+	.image-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4em;
+		align-items: flex-start;
+		flex: 1 1 14em;
+		min-width: 0;
+		input[type='file'] {
+			max-width: 100%;
+			font-size: var(--step--1);
+		}
+		code {
+			overflow-wrap: anywhere;
+		}
+	}
+	.affected {
+		background: #fff8e1;
+		border-radius: 1em;
+		padding: 0.6em 1em;
+		align-self: stretch;
+		p {
+			margin: 0 0 0.3em;
+		}
+		ul {
+			margin: 0;
+			padding-left: 1.2em;
+			max-height: 16em;
+			overflow: auto;
+		}
+		small {
+			opacity: 0.7;
+			margin-left: 0.3em;
 		}
 	}
 	textarea.raw {

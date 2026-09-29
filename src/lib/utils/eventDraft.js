@@ -586,6 +586,8 @@ export function isNumericFeatured(featured) {
  * @prop {string|string[]} authors a list, or comma separated
  * @prop {'keep'|'upload'|'none'} featuredMode
  * @prop {string} [uploadExt] extension of the uploaded image, when featuredMode is 'upload'
+ * @prop {string|number} [uploadFeatured] `featured` for an uploaded image (default 1, the new
+ *   event's own folder; a file name when it replaces a shared image, see ./sharedImage.js)
  * @prop {string} body
  * @prop {string} publishedDate YYYY-MM-DD
  * @prop {boolean} [unlisted]
@@ -634,7 +636,7 @@ export function buildEventMarkdown(sourceRaw, form) {
 	if (tags.join('\n') !== source.tags.join('\n')) changes.tags = tags;
 	const authors = splitList(form.authors);
 	if (authors.join('\n') !== source.authors.join('\n')) changes.authors = authors;
-	if (form.featuredMode === 'upload') changes.featured = 1;
+	if (form.featuredMode === 'upload') changes.featured = form.uploadFeatured || 1;
 	else if (form.featuredMode === 'none') changes.featured = null;
 
 	const fm = applyFrontmatterChanges(frontmatter, changes);
