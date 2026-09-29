@@ -142,7 +142,7 @@ export default function customRehype() {
 			],
 			[
 				// eslint-disable-next-line no-useless-escape
-				/(?<![\w\d])(\\?)@(\S+)/g,
+				/(?<![\w\d])(\\?)@([\p{L}\p{N}_.-]*[\p{L}\p{N}_])/gu,
 				(_, escape, user) => {
 					if (escape) return '@' + user;
 					const href = '/amigues/' + user;
