@@ -1,10 +1,11 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import * as ics from 'ics';
+import { eventEnd } from '$lib/utils/dates.js';
 
 /**
  * Converts a string to an array representing the date and time.
  *
- * @param {string} s - The string to convert.
+ * @param {string|Date} s - The string to convert.
  * @return {import('ics').DateArray} An array representing the date and time with the following format: [year, month, day, hours, minutes].
  */
 function stringToDateArray(s) {
@@ -30,7 +31,7 @@ export async function GET() {
 			// stable UID so subscribed calendars update events instead of re-creating them
 			uid: post.meta.postID + '@kinkyvibe.ar',
 			start: stringToDateArray(post.meta.start),
-			end: stringToDateArray(post.meta.end ?? post.meta.start),
+			end: stringToDateArray(eventEnd(post.meta.start, post.meta.end)),
 			title: post.meta.title,
 			url: postPath,
 			description: postPath + ' \n' + post.meta.summary,

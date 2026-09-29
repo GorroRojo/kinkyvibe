@@ -23,3 +23,24 @@ export function toArgentina(d) {
 		shifted.getUTCSeconds()
 	);
 }
+
+/**
+ * The end of an event as a Date. Falls back to the start if there's no valid
+ * end, and fixes the common mistake of an end past midnight written with the
+ * start's date (e.g. 20:00 -> 01:30 on the same day) by moving it a day later.
+ * @param {string|Date} start
+ * @param {string|Date|undefined} end
+ * @returns {Date}
+ */
+export function eventEnd(start, end) {
+	const s = new Date(start);
+	const e = new Date(end ?? start);
+	if (isNaN(e.getTime())) return s;
+	if (
+		e.getTime() < s.getTime() &&
+		toArgentina(e).toDateString() == toArgentina(s).toDateString()
+	) {
+		return new Date(e.getTime() + 24 * 60 * 60 * 1000);
+	}
+	return e;
+}

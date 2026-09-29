@@ -9,7 +9,7 @@
 	} from 'lucide-svelte';
 	import 'add-to-calendar-button';
 	import { addHours, format, isPast } from 'date-fns';
-	import { toArgentina } from '$lib/utils/dates.js';
+	import { toArgentina, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
@@ -101,7 +101,7 @@
 						{@html format(toArgentina(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
-						) + format(toArgentina(end ?? ''), 'HH:mm')}
+						) + format(toArgentina(eventEnd(start, end)), 'HH:mm')}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -130,8 +130,8 @@
 						description={summary}
 						startDate={format(toArgentina(start), 'yyyy-MM-dd')}
 						startTime={format(toArgentina(start), 'HH:mm')}
-						endDate={format(toArgentina(end), 'yyyy-MM-dd')}
-						endTime={format(toArgentina(end), 'HH:mm')}
+						endDate={format(toArgentina(eventEnd(start, end)), 'yyyy-MM-dd')}
+						endTime={format(toArgentina(eventEnd(start, end)), 'HH:mm')}
 						timeZone="America/Buenos_Aires"
 						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 						language="es"
