@@ -1125,7 +1125,9 @@
 		max-width: 22em;
 	}
 	.pay button {
-		/* Alto para dos líneas: el texto cambia con el medio de pago y no debería mover nada. */
+		/* Alto para dos líneas y ancho que no depende del texto: el texto cambia con el medio de
+		   pago y no debería mover nada. */
+		flex: 1 1 16em;
 		min-height: 3.6em;
 		line-height: 1.2;
 	}
