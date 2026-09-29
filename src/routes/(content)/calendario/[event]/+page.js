@@ -7,6 +7,7 @@ export async function load({ params, data }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
-	// `data` viene de +page.server.js (contador de "Me interesa", `null` si no hay base de datos).
-	return { ...post, interest: data?.interest ?? null };
+	// `data` viene de +page.server.js (contador de "Me interesa", `null` si no hay base de datos,
+	// y el bloque de compra de entradas, `null` si el evento no vende entradas).
+	return { ...post, interest: data?.interest ?? null, tickets: data?.tickets ?? null };
 }

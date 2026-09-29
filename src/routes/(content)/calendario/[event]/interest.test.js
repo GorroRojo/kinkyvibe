@@ -66,7 +66,7 @@ describe('/calendario/[event] con base de datos', () => {
 
 	it('load muestra el contador en cero', async () => {
 		const data = await load(makeEvent({ platform: t.platform }));
-		expect(data).toEqual({ interest: { count: 0, interested: false } });
+		expect(data).toMatchObject({ interest: { count: 0, interested: false } });
 	});
 
 	it('la action crea la cookie anónima, cuenta y es idempotente', async () => {
@@ -84,13 +84,13 @@ describe('/calendario/[event] con base de datos', () => {
 
 		// Mismo navegador otra vez: no suma.
 		await runAction(makeEvent({ platform: t.platform, cookies }));
-		expect(await load(makeEvent({ platform: t.platform, cookies }))).toEqual({
+		expect(await load(makeEvent({ platform: t.platform, cookies }))).toMatchObject({
 			interest: { count: 1, interested: true }
 		});
 
 		// Otro navegador: suma.
 		await runAction(makeEvent({ platform: t.platform }));
-		expect(await load(makeEvent({ platform: t.platform }))).toEqual({
+		expect(await load(makeEvent({ platform: t.platform }))).toMatchObject({
 			interest: { count: 2, interested: false }
 		});
 
@@ -134,8 +134,8 @@ describe('/calendario/[event] con base de datos', () => {
 
 describe('/calendario/[event] sin base de datos', () => {
 	it('load devuelve interest: null (el botón se oculta)', async () => {
-		expect(await load(makeEvent({}))).toEqual({ interest: null });
-		expect(await load(makeEvent({ platform: /** @type {any} */ ({ env: {} }) }))).toEqual({
+		expect(await load(makeEvent({}))).toMatchObject({ interest: null });
+		expect(await load(makeEvent({ platform: /** @type {any} */ ({ env: {} }) }))).toMatchObject({
 			interest: null
 		});
 	});
@@ -149,7 +149,7 @@ describe('/calendario/[event] sin base de datos', () => {
 		const empty = await createTestDB({ migrate: false });
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		try {
-			expect(await load(makeEvent({ platform: empty.platform }))).toEqual({ interest: null });
+			expect(await load(makeEvent({ platform: empty.platform }))).toMatchObject({ interest: null });
 			const result = await runAction(makeEvent({ platform: empty.platform }));
 			expect(result.status).toBe(500);
 			expect(warn).toHaveBeenCalledWith(expect.stringContaining('db:migrate:local'));
