@@ -229,6 +229,18 @@
 			transition: none;
 		}
 	}
+	/* 681–1024px: menú más compacto para que ninguna etiqueta se parta en dos líneas */
+	@media screen and (min-width: 681px) and (max-width: 1024px) {
+		nav {
+			gap: 0.5em;
+			padding-inline: 0.5em;
+		}
+		nav a {
+			font-size: clamp(0.95em, 0.55em + 0.9vw, 1.2em);
+			max-width: none;
+			white-space: nowrap;
+		}
+	}
 	@media screen and (max-width: 680px) {
 		nav {
 			position: fixed;
