@@ -1,7 +1,8 @@
 /**
- * DEV-ONLY stand-in for ./github.js, used by the admin events page when running `vite dev` with
- * ADMIN_DEV_MOCK=1. Reads come from the local checkout; "commits" are written to a scratch
- * folder (ADMIN_DEV_MOCK_DIR, default <tmp>/kinkyvibe-admin-mock) instead of GitHub.
+ * DEV-ONLY stand-in for ./github.js, used by the admin pages when running `npm run dev:admin`
+ * (`vite dev --mode admin`, which loads ADMIN_DEV_MOCK=1 from the committed .env.admin; works the
+ * same on Windows, macOS and Linux). Reads come from the local checkout; "commits" are written to
+ * a scratch folder (ADMIN_DEV_MOCK_DIR, default <tmp>/kinkyvibe-admin-mock) instead of GitHub.
  *
  * This module is only ever loaded through a dynamic import guarded by `import.meta.env.DEV`
  * (see ./index.js), so it is not part of production builds.

@@ -20,9 +20,11 @@ import {
 	parseEventDate,
 	readEventFields,
 	slugify,
+	splitList,
 	splitMarkdown,
 	uniqueSlug
 } from './eventDraft.js';
+import { withEventTagDefaults } from './adminTags.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Text helpers                                                                               */
@@ -1035,6 +1037,14 @@ export function buildImportedEvent(sourceRaw, choice, { today, fromTemplate = fa
 		if (form.link)
 			notes.push('Sin link nuevo: queda “anunciado” (el link del evento anterior no se muestra).');
 	}
+	// Same tag rules as the admin form: one language (default español) and one place; an online
+	// row makes the place "Online". Other tags are left as they were.
+	const tagsBefore = splitList(form.tags);
+	form.tags = withEventTagDefaults(tagsBefore, {
+		place: place.changed && place.location === 'Online' ? 'Online' : undefined
+	});
+	if (!fromTemplate && form.tags.join('\n') !== tagsBefore.join('\n'))
+		notes.push('Se ajustaron las etiquetas de idioma/lugar: revisalas.');
 	form.unlisted = true;
 	if (fromTemplate) notes.push('Creado desde cero: falta el texto, la imagen y las etiquetas.');
 
