@@ -19,13 +19,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
 
       - run: npm ci
 
-      # Report-only: main currently has ~36 pre-existing svelte-check errors (types in
-      # edit/+page.svelte, TagsInput, rss, (authed) layout...). They're shown in the log and
+      # Report-only: main currently has ~25 pre-existing svelte-check errors (types in
+      # edit/+page.svelte, TagsInput, (content) layout, rss, (authed) layout...). They're shown in the log and
       # as annotations but don't block merges until they're cleaned up; then drop
       # continue-on-error.
       - name: svelte-check (report only)
