@@ -2,7 +2,7 @@
 	// Prototipo: generador de imágenes para compartir un evento en Instagram.
 	// Ruta pública pero sin links y con noindex; debería moverse a /admin cuando exista.
 	import { onMount } from 'svelte';
-	import { Download, Share2, Copy, Check } from 'lucide-svelte';
+	import { Download, Share2, Copy, Check } from '@lucide/svelte';
 	import logoURL from '../../../../logo.png';
 	import {
 		FORMATS,

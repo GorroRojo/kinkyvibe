@@ -184,9 +184,10 @@
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
-	let values = { ...initial };
-	// Existing behavior: saving marks the post as updated today.
-	values.updated_date = todayInArgentina();
+	// Existing behavior: saving marks the post as updated today. Set in the initializer, not
+	// with a later `values.updated_date = …`: Svelte 5 (legacy mode) compiles that statement
+	// with a reference to the `f` of the `bind:value={values[f.key]}` loop below and crashes.
+	let values = { ...initial, updated_date: todayInArgentina() };
 
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */

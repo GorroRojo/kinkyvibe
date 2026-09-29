@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import { Search, X, Loader2 } from 'lucide-svelte';
+	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
@@ -235,7 +235,7 @@
 			<div class="bar">
 				<span class="icon" aria-hidden="true">
 					{#if loadingIndex && !index && !error}
-						<span class="spin"><Loader2 size="1.2em" /></span>
+						<span class="spin"><LoaderCircle size="1.2em" /></span>
 					{:else}
 						<Search size="1.2em" />
 					{/if}
