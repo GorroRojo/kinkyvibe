@@ -1,8 +1,14 @@
 <script>
 	//@ts-nocheck
-	import { currentPostData } from './../utils/stores.js';
+	import { currentPostData, searchOpen } from './../utils/stores.js';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { Search } from 'lucide-svelte';
 	export let links;
+	let shortcut = 'Ctrl + K';
+	onMount(() => {
+		if (/Mac|iPhone|iPad/.test(navigator.platform)) shortcut = '⌘ K';
+	});
 </script>
 
 <nav>
@@ -23,6 +29,21 @@
 				</a>
 			</li>
 		{/each}
+		<li class="search">
+			<a
+				href="#buscar"
+				role="button"
+				aria-haspopup="dialog"
+				aria-keyshortcuts="Control+K Meta+K"
+				on:click|preventDefault={() => searchOpen.set(true)}
+			>
+				<span>
+					<span><Search size="1em" /></span>
+					Buscar
+				</span>
+				<small>{shortcut}</small>
+			</a>
+		</li>
 	</ul>
 </nav>
 
@@ -162,6 +183,30 @@
 						}
 						small {
 							display: none;
+						}
+					}
+					/* en celulares, "Buscar" es un botón flotante sobre la barra
+					(el texto queda para lectores de pantalla) */
+					&.search {
+						position: fixed;
+						right: 1em;
+						bottom: 5em;
+						width: 3.2em;
+						height: 3.2em;
+						a {
+							background: var(--1);
+							border-radius: 50%;
+							box-shadow: 0 0.2em 0.8em rgba(0, 0, 0, 0.3);
+							& > span,
+							&:hover > span {
+								font-size: 0;
+								translate: 0 0;
+								& > span {
+									font-size: 1rem;
+									top: 0;
+									color: white;
+								}
+							}
 						}
 					}
 				}

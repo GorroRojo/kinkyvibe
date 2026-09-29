@@ -20,6 +20,7 @@
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
+	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
@@ -64,6 +65,7 @@
 </svelte:head>
 
 <AgeModal />
+<SearchLauncher />
 
 <header>
 	<div id="me">
