@@ -499,6 +499,16 @@
 						<small
 							>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
 						>
+						{#if !uploadExt}
+							<p class="note" id="edit-image-where">
+								{#if image.shared}
+									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
+									este evento o solo para esta.
+								{:else}
+									📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code>).
+								{/if}
+							</p>
+						{/if}
 						{#if uploadExt}
 							<p class="note" id="edit-image-case">
 								{#if scope === 'todas'}

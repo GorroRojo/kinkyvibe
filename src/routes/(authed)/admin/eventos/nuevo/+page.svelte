@@ -684,7 +684,12 @@
 								/>
 							</label>
 							<small>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small>
-							{#if !askScope}
+							{#if sourceImageIsShared && !askScope}
+								<p class="note" id="ev-image-where">
+									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de este
+									evento o solo para esta.
+								</p>
+							{:else if !askScope}
 								<p class="note" id="ev-image-where">
 									📁 Una imagen nueva se guarda solo para este evento{#if slug}
 										{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no cambia.
