@@ -146,7 +146,7 @@ export default function customRehype() {
 			],
 			[
 				// eslint-disable-next-line no-useless-escape
-				/(?<![\w\d])(\\?)@(\S+)/g,
+				/(?<![\w\d])(\\?)@([\p{L}\p{N}_.-]*[\p{L}\p{N}_])/gu,
 				(_, escape, user, { stack }) => {
 					if (escape) return '@' + user;
 					// Don't nest a mention link inside an existing link: `<a>` inside `<a>` is invalid

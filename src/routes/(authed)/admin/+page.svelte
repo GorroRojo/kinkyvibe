@@ -4,6 +4,10 @@
 </script>
 
 <div class="content">
+	<p>
+		<a href="/admin/eventos">📅 Cargar un evento</a>
+		<small>(duplicar uno anterior o crear uno nuevo)</small>
+	</p>
 	<h2>Entradas</h2>
 	<p>
 		<a href="/admin/entradas">Venta de entradas</a>: ventas por evento, órdenes, transferencias

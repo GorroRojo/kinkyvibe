@@ -11,7 +11,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
-	let amiguesPosts = data.allPosts
+	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
 		.sort((a, b) => {
 			if (pinned.includes(a.meta.postID)) {

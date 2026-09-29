@@ -78,13 +78,12 @@ describe('entrada: el check-in es solo para admins', () => {
 		expect((await getTicketByToken(t.db, ticket.token))?.checked_in_at).toBeNull();
 	});
 
-	it('con sesión que no es admin: redirige a / (no marca nada)', async () => {
+	it('con sesión que no es admin: 403 (no marca nada)', async () => {
 		const ticket = await approvedTicket();
 		const e = await thrown(() =>
 			actions.checkin(event(ticket.token, { user: /** @type {any} */ (PERSON), user_token: 'x' }))
 		);
-		expect(e.status).toBe(303);
-		expect(e.location).toBe('/');
+		expect(e.status).toBe(403);
 		expect((await getTicketByToken(t.db, ticket.token))?.checked_in_at).toBeNull();
 	});
 

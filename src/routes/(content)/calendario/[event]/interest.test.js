@@ -4,6 +4,15 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { VISITOR_COOKIE } from '$lib/server/db/interest.js';
 import { actions, load } from './+page.server.js';
 
+// The page's load also computes related posts (from every post in the repo); that's covered
+// elsewhere and is slow under vitest, so stub it here and only assert on `interest`.
+vi.mock('$lib/utils', () => ({
+	fetchPost: vi.fn(async () => ({ meta: {} })),
+	fetchMarkdownPosts: vi.fn(async () => []),
+	relatedPostsFor: vi.fn(() => []),
+	currentRelated: vi.fn(() => ({ relatedPosts: [], relatedPastCount: 0 }))
+}));
+
 // Un evento publicado real del repo (el contenido cambia, así que lo buscamos).
 const EVENTS_DIR = 'src/lib/posts/calendario';
 const EVENT = /** @type {string} */ (

@@ -1,11 +1,15 @@
 <script>
+	import { userConfig } from '$lib/utils/stores.js';
+	import { relatedPostsFor } from '$lib/utils';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import { onMount } from 'svelte';
 	import InterestButton from '$lib/components/InterestButton.svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
+	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
@@ -13,6 +17,7 @@
 	/** @type {{ error?: string } | null} */
 	export let form = null;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
+	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
@@ -21,17 +26,17 @@
 			return s + '';
 		}
 	};
-	let relatedPosts = data.allPosts.filter(
-		(p) =>
-			data.meta.authors?.some(
-				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== data.meta.title
-			) ||
-			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
-			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
-			(data.meta.category == 'amigues' &&
-				p.meta.authors.includes(data.meta.postID) &&
-				p.meta.postID != data.meta.postID)
-	);
+	// the server sends no past events; fetch them when the viewer chooses to see them
+	let relatedPosts = data.relatedPosts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
+			.catch(() => (loadedPast = false));
+	}
+	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
+	onMount(() => import('add-to-calendar-button'));
 </script>
 
 <LDTag
@@ -40,7 +45,7 @@
 		'@type': 'Event',
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
-		endDate: toISO(data.meta.end ?? (data.meta.start ?? '') + (data.meta.duration ?? '')),
+		endDate: toISO(end),
 		eventAttendanceMode: data.meta.location
 			? 'https://schema.org/OnlineEventAttendanceMode'
 			: 'https://schema.org/OfflineEventAttendanceMode',
@@ -53,7 +58,7 @@
 					'@type': 'Place',
 					name: data.meta.location_name ?? data.meta.title,
 					address: { '@type': 'PostalAddress', name: data.meta.location }
-				}
+			  }
 			: { '@type': 'VirtualLocation', url: data.meta.link },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
@@ -61,12 +66,12 @@
 			'@type': data.meta.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
 			name: data.meta.tags?.includes('KinkyVibe')
 				? 'KinkyVibe'
-				: (data.meta.authors?.[0] ?? 'KinkyVibe'),
+				: data.meta.authors?.[0] ?? 'KinkyVibe',
 			url:
 				'https://kinkyvibe.ar/' +
 				(data.meta.tags?.includes('KinkyVibe')
 					? 'KinkyVibe'
-					: (data.meta.authors?.[0] ?? 'KinkyVibe'))
+					: data.meta.authors?.[0] ?? 'KinkyVibe')
 		}
 		//   "offers": {
 		//     "@type": "Offer",
@@ -113,7 +118,7 @@
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
-
+	
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
 		<address>
@@ -139,41 +144,40 @@
 	{/if}
 
 	{#if data.meta.status == 'cancelado'}
-		<h1 id="title p-name"><u>CANCELADO</u></h1>
+	<h1 id="title p-name"><u>CANCELADO</u></h1>
 	{:else}
-		<div class="event-header">
-			{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
-			<p class="event-times">
-				<small>desde</small><time class="dt-start" datetime={data.meta.start}
-					>{new Date(data.meta.start).toLocaleString('es-AR', {
-						dateStyle: 'long',
-						timeStyle: 'short'
-					})}hs</time
-				>
-				<small>hasta</small><time
-					class="dt-end"
-					datetime={data.meta.end ?? data.meta.start + data.meta.duration}
-					>{new Date(data.meta.end ?? data.meta.start + data.meta.duration).toLocaleString(
-						'es-AR',
-						{
-							dateStyle: 'long',
-							timeStyle: 'short'
-						}
-					)}hs</time
-				>
-				<small>en</small>
-				<span class="p-location">
-					{data.meta.location ?? 'Online'}
-				</span>
-			</p>
-			<div class="event-atcb">
-				{#if data.meta.link && !data.tickets}
-					<div class="event-link-wrapper">
-						<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
-					</div>
-				{/if}
-				<add-to-calendar-button
-					style={`
+	<div class="event-header">
+		{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
+		<p class="event-times">
+			<small>desde</small><time class="dt-start" datetime={data.meta.start}
+				>{new Date(data.meta.start).toLocaleString('es-AR', {
+					dateStyle: 'long',
+					timeStyle: 'short',
+					timeZone: TIMEZONE
+				})}hs</time
+			>
+			<small>hasta</small><time
+				class="dt-end"
+				datetime={toISO(end)}
+				>{end.toLocaleString('es-AR', {
+					dateStyle: 'long',
+					timeStyle: 'short',
+					timeZone: TIMEZONE
+				})}hs</time
+			>
+			<small>en</small>
+			<span class="p-location">
+				{data.meta.location ?? 'Online'}
+			</span>
+		</p>
+		<div class="event-atcb">
+			{#if data.meta.link && !data.tickets}
+				<div class="event-link-wrapper">
+					<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
+				</div>
+			{/if}
+			<add-to-calendar-button
+				style={`
 					--btn-background: var(--1);
 					--btn-border: var(--1);
 					--btn-text: white;
@@ -184,63 +188,63 @@
 					--btn-shadow-hover: 0 0 1em var(--1-light);
 					--font: 'Lato', sans-serif;
 					`}
-					trigger="click"
-					name={data.meta.title}
-					description={data.meta.summary}
-					startDate={format(new Date(data.meta.start), 'yyyy-MM-dd')}
-					startTime={format(new Date(data.meta.start), 'HH:mm')}
-					endDate={format(
-						new Date(data.meta.end ?? data.meta.start + data.meta.duration),
-						'yyyy-MM-dd'
-					)}
-					status={{
-						abierto: 'CONFIRMED',
-						cancelado: 'CANCELLED',
-						anunciado: 'TENTATIVE',
-						agotadas: 'CONFIRMED'
-					}[data.meta.status] ?? 'CONFIRMED'}
-					endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
-					timeZone="America/Buenos_Aires"
-					options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-					language="es"
-					iCalFileName="Sample Event"
-					listStyle="overlay"
-					label="Agregar a mi calendario"
-					buttonStyle="3d"
-					organizer="Mel|kinkyvibe@gmail.com"
-					size="8"
-				></add-to-calendar-button>
-			</div>
+				trigger="click"
+				name={data.meta.title}
+				description={data.meta.summary}
+				startDate={format(toArgentina(data.meta.start), 'yyyy-MM-dd')}
+				startTime={format(toArgentina(data.meta.start), 'HH:mm')}
+				endDate={format(
+					toArgentina(end),
+					'yyyy-MM-dd'
+				)}
+				status={{
+					abierto: 'CONFIRMED',
+					cancelado: 'CANCELLED',
+					anunciado: 'TENTATIVE',
+					agotadas: 'CONFIRMED'
+				}[data.meta.status] ?? 'CONFIRMED'}
+				endTime={format(toArgentina(end), 'HH:mm')}
+				timeZone="America/Buenos_Aires"
+				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
+				language="es"
+				iCalFileName="Sample Event"
+				listStyle="overlay"
+				label="Agregar a mi calendario"
+				buttonStyle="3d"
+				organizer="Mel|kinkyvibe@gmail.com"
+				size="8"
+			></add-to-calendar-button>
 		</div>
-		{#if data.tickets}
-			{@const t = data.tickets}
-			<section class="buy-cta" id="entradas" aria-label="Entradas">
-				{#if t.open}
-					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
-						<span class="buy-title">Comprar entradas</span>
-						<span class="buy-meta">
-							{#if t.priceFrom !== null}desde {formatARS(
-									t.priceFrom
-								)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
-								·
-							{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-								<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
-						</span>
-					</a>
-				{:else}
-					<p class="buy-closed">
-						{t.reason === 'soldout'
-							? 'Entradas agotadas.'
-							: t.reason === 'closed'
-								? 'La venta online de entradas ya cerró.'
-								: t.reason === 'cancelled'
-									? 'El evento se canceló: no hay venta de entradas.'
-									: 'La venta online de entradas no está disponible en este momento.'}
-					</p>
-				{/if}
-			</section>
-		{/if}
-		<InterestButton interest={data.interest} error={form?.error} />
+	</div>
+	{#if data.tickets}
+		{@const t = data.tickets}
+		<section class="buy-cta" id="entradas" aria-label="Entradas">
+			{#if t.open}
+				<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
+					<span class="buy-title">Comprar entradas</span>
+					<span class="buy-meta">
+						{#if t.priceFrom !== null}desde {formatARS(
+								t.priceFrom
+							)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
+							·
+						{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
+							<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
+					</span>
+				</a>
+			{:else}
+				<p class="buy-closed">
+					{t.reason === 'soldout'
+						? 'Entradas agotadas.'
+						: t.reason === 'closed'
+							? 'La venta online de entradas ya cerró.'
+							: t.reason === 'cancelled'
+								? 'El evento se canceló: no hay venta de entradas.'
+								: 'La venta online de entradas no está disponible en este momento.'}
+				</p>
+			{/if}
+		</section>
+	{/if}
+	<InterestButton interest={data.interest} error={form?.error} />
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
@@ -282,7 +286,7 @@
 	{/await}
 {/if}
 
-{#if relatedPosts.length > 0}
+{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">
 		<h3>
 			Más cosas de

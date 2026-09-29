@@ -19,7 +19,6 @@
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
-	import UserMenu from '$lib/components/UserMenu.svelte';
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
@@ -91,7 +90,10 @@
 		</a>
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
-				<UserMenu user={data.user} />
+				<!-- loaded on demand: only logged-in admins see it, and it pulls in melt-ui -->
+				{#await import('$lib/components/UserMenu.svelte') then { default: UserMenu }}
+					<svelte:component this={UserMenu} user={data.user} />
+				{/await}
 			{:else}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?
