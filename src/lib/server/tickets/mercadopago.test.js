@@ -14,7 +14,12 @@ const SECRET = 'secreto-de-prueba';
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 const TS = String(NOW / 1000);
 
-/** Firma calculada de forma independiente con node:crypto, siguiendo la doc de MP. */
+/**
+ * Firma calculada de forma independiente con node:crypto, siguiendo la doc de MP.
+ *
+ * @param {string} manifest
+ * @param {string} [secret]
+ */
 function nodeSign(manifest, secret = SECRET) {
 	return createHmac('sha256', secret).update(manifest).digest('hex');
 }

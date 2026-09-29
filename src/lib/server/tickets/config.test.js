@@ -80,7 +80,7 @@ describe('validatePurchase', () => {
 	};
 
 	it('calcula el total con el precio del servidor', () => {
-		const r = validatePurchase(c, { ...ok, price: 1 });
+		const r = validatePurchase(c, /** @type {any} */ ({ ...ok, price: 1 }));
 		expect(r).toMatchObject({
 			ok: true,
 			quantity: 3,
