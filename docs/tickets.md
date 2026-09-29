@@ -106,9 +106,9 @@ Para mirar la base local: `npx wrangler d1 execute kinkyvibe --local --command "
 1. Con la cuenta de MP de la organización, entrar a **Tus integraciones** en Mercado Pago Developers y **crear una aplicación** (producto: Checkout Pro / pagos online).
 2. En la aplicación, **Cuentas de prueba → crear** una cuenta **vendedora** y una **compradora** (país Argentina). Anotar usuarios y contraseñas en un gestor de contraseñas, no en el repo.
 3. Iniciar sesión (en una ventana de incógnito) con la **cuenta de prueba vendedora**, crear ahí una aplicación y copiar sus **credenciales de producción** (así las llama MP aunque sean de una cuenta de prueba): ese Access Token es el `MP_ACCESS_TOKEN` de prueba.
-4. En la aplicación: **Webhooks → Configurar notificaciones**: URL `https://<tu-deploy-de-preview>/api/mercadopago/webhook`, evento **Pagos**. Copiar la **clave secreta** que muestra → `MP_WEBHOOK_SECRET`. (Además, cada preferencia manda su propia `notification_url`, que apunta al mismo lugar.)
+4. En la aplicación: **Webhooks → Configurar notificaciones**: URL `https://<tu-deploy-de-preview>/api/mercadopago/webhook`, evento **Pagos**. Copiar la **clave secreta** que muestra → `MP_WEBHOOK_SECRET`. Esta URL es **la única** vía de notificaciones: las preferencias no mandan `notification_url` (tendría prioridad sobre esta URL, la doc no dice que venga firmada y con credenciales de prueba no envía nada). Con el botón **Simular** de esa pantalla se puede mandar una notificación de prueba firmada.
 5. Cargar las variables en un deploy de **Preview** de Cloudflare (con su propia base D1) y comprar con la **cuenta compradora de prueba** usando las tarjetas de prueba de la documentación (titular `APRO` = aprobado, `OTHE` = rechazado).
-6. MP no puede llegar a `localhost`: para probar el webhook desde la compu hace falta un túnel (p. ej. `cloudflared tunnel --url http://localhost:5371`) y `SITE_URL` con esa URL. Además MP puede rechazar `auto_return` con `back_urls` que no sean públicas.
+6. MP no puede llegar a `localhost`: para probar el webhook desde la compu hace falta un túnel (p. ej. `cloudflared tunnel --url http://localhost:5371`), cargar esa URL en **Webhooks → Configurar notificaciones** y `SITE_URL` con esa URL (para las `back_urls`: la doc pide no usar `localhost` ni `127.0.0.1` ahí, o el checkout termina en "Algo ha salido mal").
 7. Recién cuando todo eso funcione: credenciales de la cuenta real, en Production.
 
 ## Resend
@@ -142,15 +142,41 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **CSV:** celdas que empiezan con `= + - @` se escapan (inyección de fórmulas).
 - **Privacidad:** solo nombre y email. **TODO (no implementado):** anonimizar nombre/email y borrar tokens N días después del evento (p. ej. 90, por contracargos), dejando solo totales.
 
-## Qué no se pudo verificar contra la documentación en vivo
+## Verificación contra la documentación de Mercado Pago
 
-Todo lo de MP y Resend se escribió de memoria de su documentación pública, sin acceso a internet. Revisar:
+Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Developers (español, Argentina), vía su buscador de documentación. Páginas (todas bajo `https://www.mercadopago.com/developers/es/docs/`):
 
-- **Preferencia** (`POST /checkout/preferences`): `expires`, `expiration_date_from`, `expiration_date_to` (formato `2026-10-01T09:20:00.000-03:00`), `binary_mode`, `payment_methods.excluded_payment_types` con ids `ticket` y `atm`, `payment_methods.installments`, `statement_descriptor`, `payer.name`, y que el header `X-Idempotency-Key` se acepte (o se ignore) en este endpoint. Respuesta: `id` e `init_point`.
-- **Pago** (`GET /v1/payments/{id}`): campos `status` (`approved`, `rejected`, `cancelled`, `refunded`, `charged_back`, `pending`, `in_process`, `authorized`, `in_mediation`), `external_reference`, `transaction_amount`, `currency_id`.
-- **Búsqueda** (`GET /v1/payments/search?external_reference=…&sort=date_created&criteria=desc`) y su campo `results`.
-- **Firma del webhook:** formato `ts=…,v1=…`; manifiesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` con `data.id` tomado del **query string** y en minúsculas si es alfanumérico; si `ts` viene en segundos o milisegundos (se aceptan ambos); si los reintentos de MP conservan el `ts` original (si es así, un reintento de más de 15 minutos se rechazaría: el webhook se pierde pero la página de estado re-consulta); y si las notificaciones que llegan por la `notification_url` de la preferencia vienen firmadas con la clave de la sección Webhooks.
-- **Parámetros de las back_urls:** `payment_id`, `collection_id`, `status`, `external_reference`, `preference_id` (solo se usa `payment_id`/`collection_id`, y únicamente para saber qué pago consultar).
+- **[N]** `checkout-pro-preferences/payment-notifications` (Configurar notificaciones de pago)
+- **[V]** `checkout-pro-preferences/additional-settings/term-of-preference` (Definir vigencia de preferencia)
+- **[P]** `checkout-bricks/wallet-brick/advanced-features/preferences` (Configuraciones de preferencia: ejemplo completo, modo binario, vigencia, `statement_descriptor`, medios de pago)
+- **[C]** `checkout-pro-preferences/create-payment-preference` (Crear y configurar una preferencia de pago)
+- **[R]** `checkout-pro-preferences/configure-back-urls` (Configurar URLs de retorno)
+- **[A]** `checkout-pro-preferences/additional-settings/opening-schema` (redirección con `init_point`)
+- **[M]** `[[EXTEND]]/configure-payment-methods/checkout-pro` (tipos de pago en Argentina: `ticket` = Rapipago/Pago Fácil)
+- **[S]** `checkout-api-payments/response-handling/query-results` (valores de `status` y `status_detail`)
+- **[G]** `subscriptions/additional-content/payment-management` (`GET /v1/payments/{id}` y `/v1/payments/search`)
+- **[I]** `checkout-bricks/payment-brick/payment-submission/cards` (header `X-Idempotency-Key`)
+
+**Verificado (coincide con el código):**
+
+- **Firma del webhook [N]:** header `x-signature` con formato `ts=…,v1=…` (se separa por `,` y cada parte por `=`); manifiesto `id:[data.id_url];request-id:[x-request-id_header];ts:[ts_header];`, con `data.id` tomado de los **query params** de la URL; si `data.id` es alfanumérico en mayúsculas va en minúsculas; si falta `data.id` o `x-request-id` se quita esa parte del manifiesto; HMAC-SHA256 con la clave secreta, en hex. Query params de la notificación: `data.id` y `type` (`type=payment`); el body trae `action`, `data.id`, `type`, etc. Hay que responder 200/201 en menos de 22 s.
+- **`ts` [N]:** la doc dice "en milisegundos" y su ejemplo principal es `ts=1742505638683`, aunque otros ejemplos de la misma doc muestran `ts` en segundos (`1781009491`). El código acepta los dos; el checkout simulado ahora firma en milisegundos.
+- **Canal firmado [N]:** la firma se documenta para la URL configurada en **Tus integraciones → Webhooks** (la clave secreta sale de ahí). La `notification_url` de la preferencia "tiene prioridad" sobre esa URL, la doc no dice que venga firmada, y "los pagos de prueba, creados con credenciales de prueba, no enviarán notificaciones" por esa vía. **Corregido:** la preferencia ya no manda `notification_url`.
+- **Preferencia [P][C][V]:** `items[].id/title/quantity/unit_price/currency_id`; `payer.name` y `payer.email`; `external_reference`; `back_urls.success/failure/pending`; `auto_return: "approved"`; `expires: true` con `expiration_date_from`/`expiration_date_to` en ISO 8601 con milisegundos y huso (`2017-02-01T12:00:00.000-04:00`; usamos `-03:00`); `binary_mode: true` (solo aprobado o rechazado); `payment_methods.excluded_payment_types: [{ id: "ticket" }]` e `installments` (cuotas máximas); `statement_descriptor`. Para MLC la doc pide `unit_price` entero; nuestros precios ya son enteros.
+- **Respuesta de la preferencia [C][A]:** `id` (p. ej. `787997534-6dad21a1-…`) e `init_point`, que es la URL a la que se redirige al comprador.
+- **Pago [G][S]:** `GET /v1/payments/{id}` devuelve `status`, `status_detail`, `currency_id`, etc. Valores de `status`: `approved`, `authorized`, `in_process`, `pending`, `rejected`, `cancelled`, `refunded`, `charged_back`, `in_mediation` (todos mapeados en `mapPaymentStatus`).
+- **Búsqueda [G]:** `GET /v1/payments/search` con `external_reference`, `sort`, `criteria` (`asc`/`desc`) y `limit` (máx. 50); la respuesta trae `paging` y `results`.
+- **Parámetros de las back_urls [R]:** llegan por GET `collection_id`, `collection_status`, `payment_id`, `status`, `external_reference`, `payment_type`, `merchant_order_id`, `preference_id`, `site_id`… Usamos `payment_id` (o `collection_id`) solo para saber qué pago consultar, y comprobamos su `external_reference`.
+- **Idempotencia [I]:** el header se llama `X-Idempotency-Key` (documentado para `POST /v1/payments`).
+
+**Sigue sin verificar** (la doc consultada no lo dice):
+
+- Si `POST /checkout/preferences` usa o ignora `X-Idempotency-Key` (solo está documentado para pagos; mandarlo no hace daño).
+- Si `/v1/payments/search` acepta `sort=date_created` (la doc muestra `date_last_updated`, `id` y `external_reference`; igual se prioriza el pago aprobado entre los resultados).
+- El id de tipo de pago `atm` en Argentina (la doc lo muestra solo para México y Perú; en Argentina el efectivo es `ticket`). El largo máximo de `statement_descriptor`.
+- `sandbox_init_point`: la doc actual de Checkout Pro no lo menciona; se prueba con credenciales de producción de la cuenta de prueba vendedora y se usa `init_point`.
+- Si los reintentos de un webhook (a los 15 min, 30 min, 6 h…, según [N]) conservan el `ts` original. Si lo conservan, un reintento posterior a 15 minutos se rechaza por viejo: el webhook se pierde, pero la página de estado vuelve a consultar el pago. Revisarlo en el historial de notificaciones de la aplicación cuando se pruebe.
+- La API de pago en sí no se probó en vivo: los nombres de campos `external_reference` y `transaction_amount` en la respuesta de `GET /v1/payments/{id}` no aparecen en el extracto de la doc consultado (sí en la referencia de la API, que no se pudo abrir).
 - **Resend** (`POST https://api.resend.com/emails`): campos `from`, `to`, `subject`, `html`, `text`, `reply_to`, y el header `Idempotency-Key`.
 
 ## Pendientes antes de vender de verdad

@@ -2,12 +2,12 @@
  * Cliente mínimo de la API REST de Mercado Pago (Checkout Pro) con `fetch`, para que corra en
  * Cloudflare Workers sin el SDK de Node.
  *
- * Docs de referencia (no se pudieron consultar en vivo desde el sandbox; ver docs/tickets.md):
+ * Docs de referencia (contrastadas con la doc oficial de MP Argentina; ver docs/tickets.md):
  * - Crear preferencia: POST https://api.mercadopago.com/checkout/preferences
  * - Obtener pago:      GET  https://api.mercadopago.com/v1/payments/{id}
  * - Buscar pagos:      GET  https://api.mercadopago.com/v1/payments/search?external_reference=…
  * - Webhooks: header `x-signature: ts=…,v1=…` = HMAC-SHA256(secret,
- *   "id:{data.id};request-id:{x-request-id};ts:{ts};") en hex.
+ *   "id:{data.id};request-id:{x-request-id};ts:{ts};") en hex, con `data.id` del query string.
  */
 
 export const MP_API = 'https://api.mercadopago.com';
@@ -81,7 +81,10 @@ export function buildPreference({ order, eventTitle, typeName, origin }) {
 		external_reference: order.id,
 		back_urls: { success: status, failure: status, pending: status },
 		auto_return: 'approved',
-		notification_url: `${origin}/api/mercadopago/webhook`,
+		// Sin `notification_url`: los webhooks llegan a la URL configurada en Tus integraciones →
+		// Webhooks, que es el canal que la doc de MP documenta como firmado (x-signature). Una
+		// `notification_url` en la preferencia tiene prioridad sobre esa URL, su firma no está
+		// documentada y la doc aclara que con credenciales de prueba no envía notificaciones.
 		// La preferencia vence junto con la reserva de cupo.
 		expires: true,
 		expiration_date_from: mpDate(order.created_at),
@@ -218,7 +221,8 @@ export async function verifyWebhookSignature({
 	if (!ts || !v1 || !/^\d{1,16}$/.test(ts) || !/^[0-9a-f]{64}$/i.test(v1)) {
 		return { ok: false, reason: 'malformed' };
 	}
-	// La doc muestra `ts` en segundos; aceptamos milisegundos por las dudas.
+	// La doc dice que `ts` está en milisegundos (y así es su ejemplo principal), pero otros
+	// ejemplos de la misma doc lo muestran en segundos: aceptamos ambos.
 	const tsMs = ts.length > 11 ? Number(ts) : Number(ts) * 1000;
 	if (Math.abs(now - tsMs) > maxAgeMs) return { ok: false, reason: 'stale' };
 	const expected = await hmacSha256Hex(secret, signatureManifest({ dataId, requestId, ts }));
@@ -233,7 +237,8 @@ export async function verifyWebhookSignature({
  * @param {{ dataId: string, requestId: string, secret: string, now?: number }} input
  */
 export async function signWebhook({ dataId, requestId, secret, now = Date.now() }) {
-	const ts = String(Math.floor(now / 1000));
+	// En milisegundos, como dice la doc de MP.
+	const ts = String(Math.floor(now));
 	const v1 = await hmacSha256Hex(secret, signatureManifest({ dataId, requestId, ts }));
 	return `ts=${ts},v1=${v1}`;
 }

@@ -40,6 +40,23 @@ describe('verifyWebhookSignature', () => {
 		).toEqual({ ok: true });
 	});
 
+	it('acepta el ejemplo de la doc con ts en milisegundos', async () => {
+		const tsMs = String(NOW);
+		const manifest = `id:123456;request-id:bb56a2f1-6aae-46ac-982e-9dcd3581d08e;ts:${tsMs};`;
+		const signature = `ts=${tsMs},v1=${nodeSign(manifest)}`;
+		expect(
+			await verifyWebhookSignature({
+				...base,
+				dataId: '123456',
+				requestId: 'bb56a2f1-6aae-46ac-982e-9dcd3581d08e',
+				signature
+			})
+		).toEqual({ ok: true });
+		// Nuestra firma simulada usa el mismo formato (ms).
+		const own = await signWebhook({ dataId: '1', requestId: 'r', secret: SECRET, now: NOW });
+		expect(own.startsWith(`ts=${tsMs},v1=`)).toBe(true);
+	});
+
 	it('pasa a minúsculas los data.id alfanuméricos', async () => {
 		const signature = `ts=${TS},v1=${nodeSign(`id:abc123;request-id:req-abc-123;ts:${TS};`)}`;
 		expect(await verifyWebhookSignature({ ...base, dataId: 'ABC123', signature })).toEqual({
@@ -154,7 +171,8 @@ describe('preferencia', () => {
 			}
 		]);
 		expect(p.external_reference).toBe(order.id);
-		expect(p.notification_url).toBe('https://kinkyvibe.ar/api/mercadopago/webhook');
+		// Los webhooks van a la URL firmada de Tus integraciones, no a una notification_url.
+		expect(p).not.toHaveProperty('notification_url');
 		expect(p.back_urls.success).toBe(`https://kinkyvibe.ar/entradas/${order.id}/estado`);
 		expect(p.auto_return).toBe('approved');
 		expect(p.statement_descriptor).toBe('KINKYVIBE');

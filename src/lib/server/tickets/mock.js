@@ -58,7 +58,7 @@ export const mockGateway = {
 	async createPreference(preference) {
 		const id = `mock-pref-${crypto.randomUUID()}`;
 		store.preferences.set(preference.external_reference, { ...preference, id });
-		const origin = new URL(preference.notification_url).origin;
+		const origin = new URL(preference.back_urls.success).origin;
 		return { id, init_point: `${origin}/entradas/simular-pago/${preference.external_reference}` };
 	},
 	async getPayment(id) {
