@@ -277,6 +277,11 @@
 				{form?.save + ' ' + new Date().toLocaleString('es-AR')}
 			</small>
 		{/if}
+		{#if form?.error}
+			<small role="alert" style="font-size: var(--step--1); color: red">
+				{form.error}
+			</small>
+		{/if}
 	</div>
 	<small style="font-size: var(--step--1)">
 		Los cambios tardarán al menos 1m30s en verse después de guardar. Si pasan más de 5 minutos,
