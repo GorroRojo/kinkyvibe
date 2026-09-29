@@ -389,8 +389,12 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	const gratis = `E2EGRATIS${suffix}`;
 
 	await page.goto('/admin/entradas');
-	await page.getByRole('link', { name: /Códigos de descuento/ }).click();
-	await expect(page).toHaveURL(/\/admin\/entradas\/codigos$/);
+	await expect(page.getByRole('link', { name: /Códigos de descuento/ })).toHaveAttribute(
+		'href',
+		'/admin/entradas/codigos'
+	);
+	// Con la página ya hidratada (si no, a veces se envía el formulario sin los datos).
+	await page.goto('/admin/entradas/codigos', { waitUntil: 'networkidle' });
 	for (const [code, value, max] of [
 		[veinte, '20', '1'],
 		[gratis, '100', '']
