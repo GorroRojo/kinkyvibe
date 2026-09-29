@@ -8,11 +8,17 @@
  * - MP_MOCK=1: checkout simulado en /entradas/simular-pago/<orden>.
  * - ADMIN_DEV_MOCK=1: sesión de admin falsa (solo dev).
  * - TICKETS_DEV_FIXTURE=<slug>: agrega entradas de prueba a un evento real SIN tocar su archivo.
+ * - TICKETS_DEV_FIXTURE_GORRA=<slug>: lo mismo, con un evento online "a la gorra".
  * - TICKETS_TRANSFER_INFO / TICKETS_MP_FEE_PERCENT: datos de transferencia inventados y comisión.
  * - PW_CHROMIUM: ruta a un Chromium ya instalado (opcional).
  * - TICKETS_SHOTS_DIR: carpeta para guardar capturas (opcional).
  */
-import { MP_FEE_PERCENT, TRANSFER_INFO, ticketsE2EEvent } from './tests/tickets/event.js';
+import {
+	MP_FEE_PERCENT,
+	TRANSFER_INFO,
+	ticketsE2EEvent,
+	ticketsE2EGorraEvent
+} from './tests/tickets/event.js';
 
 const PORT = 5371;
 
@@ -38,6 +44,7 @@ const config = {
 			MP_MOCK: '1',
 			ADMIN_DEV_MOCK: '1',
 			TICKETS_DEV_FIXTURE: ticketsE2EEvent(),
+			TICKETS_DEV_FIXTURE_GORRA: ticketsE2EGorraEvent(),
 			TICKETS_TRANSFER_INFO: TRANSFER_INFO,
 			TICKETS_MP_FEE_PERCENT: MP_FEE_PERCENT,
 			MP_ACCESS_TOKEN: '',

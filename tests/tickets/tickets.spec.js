@@ -1,56 +1,20 @@
 import { expect, test } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
 import { computePrice } from '../../src/lib/utils/tickets.js';
 import { MP_FEE_PERCENT, TRANSFER_INFO, ticketsE2EEvent } from './event.js';
+import { AGE_OK, ars, dotted, fakeDni, shots } from './helpers.js';
 
 const EVENT = ticketsE2EEvent();
+const BUY_URL = `/calendario/${EVENT}/entradas`;
 const FEE_BP = Math.round(Number(MP_FEE_PERCENT) * 100);
+// Fixture (TICKETS_DEV_FIXTURE): fondo_percent 20 en todos los tipos.
 const TYPES = {
-	general: { label: /General/, price: 8000, fondo: 0 },
-	fondo: { label: /Con fondo/, price: 10000, fondo: 2000 }
+	general: { label: /General/, price: 10000, fondo: 2000 },
+	anticipada: { label: /Anticipada/, price: 8000, fondo: 1600 }
 };
-const SHOTS = process.env.TICKETS_SHOTS_DIR;
-if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
-// Sin esto el cartel "¿Sos mayor de 18 años?" tapa la página.
 test.beforeEach(async ({ page }) => {
-	await page.addInitScript(() => localStorage.setItem('mayorDeEdad', 'true'));
+	await page.addInitScript(AGE_OK);
 });
-
-/**
- * Captura en escritorio y a 390px de ancho (si TICKETS_SHOTS_DIR está definido).
- *
- * @param {import('@playwright/test').Page} page
- * @param {string} name
- * @param {import('@playwright/test').Locator} [locator] recorte opcional (si no, página completa)
- */
-async function shots(page, name, locator) {
-	if (!SHOTS) return;
-	const size = page.viewportSize();
-	await page.setViewportSize({ width: 1280, height: 900 });
-	if (locator) await locator.screenshot({ path: path.join(SHOTS, `${name}-desktop.png`) });
-	else await page.screenshot({ path: path.join(SHOTS, `${name}-desktop.png`), fullPage: true });
-	await page.setViewportSize({ width: 390, height: 844 });
-	if (locator) await locator.screenshot({ path: path.join(SHOTS, `${name}-390.png`) });
-	else await page.screenshot({ path: path.join(SHOTS, `${name}-390.png`), fullPage: true });
-	if (size) await page.setViewportSize(size);
-}
-
-/** DNI inventado de 8 dígitos (distinto en cada corrida). */
-function fakeDni() {
-	return String(10000000 + Math.floor(Math.random() * 89999999));
-}
-
-/** @param {number} n */
-function ars(n) {
-	return `$ ${n.toLocaleString('es-AR')}`;
-}
-
-/** @param {string} dni */
-function dotted(dni) {
-	return Number(dni).toLocaleString('es-AR');
-}
 
 /**
  * Total que tiene que calcular el servidor (misma función que usa el sitio).
@@ -95,25 +59,23 @@ async function buy(page, o = {}) {
 	const id = Math.random().toString(36).slice(2, 8);
 	const buyer = { name: `Persona E2E ${id}`, email: `e2e-${id}@example.com`, dni: fakeDni() };
 	// Esperamos la hidratación: si no, Svelte puede pisar lo que ya se completó.
-	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await expect(block.getByRole('heading', { name: 'Comprar entradas' })).toBeVisible();
 	await block.getByLabel(TYPES[type].label).check();
 	if (o.optionLabel) await block.getByLabel(o.optionLabel).check();
-	await block.getByLabel('Cantidad').selectOption(String(quantity));
+	await block.getByLabel('Cantidad').fill(String(quantity));
 	await block.getByLabel('Tu nombre').fill(buyer.name);
+	await block.getByLabel('Tus pronombres').fill('elle');
 	await block.getByLabel(/^Email/).fill(buyer.email);
 	// Con puntos, como lo escribiría una persona: el servidor guarda solo los dígitos.
 	await block.getByLabel(/^DNI/).fill(dotted(buyer.dni));
 	const holders = block.locator('fieldset.holder');
 	await expect(holders).toHaveCount(quantity);
-	// La entrada 1 viene con el nombre de quien compra.
+	// La entrada 1 viene con el nombre y los pronombres de quien compra.
 	await expect(holders.nth(0).getByLabel('Nombre', { exact: true })).toHaveValue(buyer.name);
+	await expect(holders.nth(0).getByLabel(/^Pronombres/)).toHaveValue('elle');
 	const people = [{ name: buyer.name, pronouns: 'elle' }];
-	await holders
-		.nth(0)
-		.getByLabel(/^Pronombres/)
-		.fill('elle');
 	for (let i = 1; i < quantity; i++) {
 		// Los pronombres son obligatorios en todas las entradas.
 		const person = { name: `Acompañante ${id}-${i + 1}`, pronouns: i === 1 ? 'ella' : 'él' };
@@ -131,9 +93,7 @@ async function buy(page, o = {}) {
 	}
 	const prices = expected(type, quantity, method, o.discount, o.option);
 	if (prices.subtotal - prices.discount > 0) {
-		await block
-			.getByLabel(method === 'transferencia' ? /Transferencia bancaria/ : /Mercado Pago/)
-			.check();
+		await block.getByLabel(method === 'transferencia' ? /Transferencia/ : /Mercado Pago/).check();
 	}
 	await block.getByLabel(/18 años/).check();
 	await expect(block.getByText(`Total: ${ars(prices.total)}`)).toBeVisible();
@@ -150,21 +110,25 @@ async function buy(page, o = {}) {
 test('compra de 3 con datos por entrada → pago aprobado → QR → admin con DNI → check-in', async ({
 	page
 }) => {
-	const { buyer, people, prices } = await buy(page, { quantity: 3, screenshot: '1-comprar' });
+	const { buyer, people, prices } = await buy(page, { quantity: 3 });
 	await expect(page.getByRole('heading', { name: `Pagar ${ars(prices.total)}` })).toBeVisible();
-	await shots(page, '2-checkout-simulado');
 	await page.getByRole('button', { name: 'Aprobar pago', exact: true }).click();
 
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado\?/);
 	await expect(page.getByRole('heading', { name: /ya tenés tus entradas/ })).toBeVisible();
 	await expect(page.getByRole('link', { name: /Ver entrada/ })).toHaveCount(3);
 	await expect(page.getByText(`+${ars(prices.surcharge)}`)).toBeVisible();
-	await shots(page, '3-compra-exitosa');
 
 	await page.getByRole('link', { name: 'Ver entrada 2 con su QR' }).click();
 	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
 	await expect(page.locator('.qr svg')).toBeVisible();
 	await expect(page.getByText('Válida')).toBeVisible();
+	// El código corto, grande, al lado del QR (para tipearlo si el QR no se puede escanear).
+	const shownCode = await page.locator('.code-value').innerText();
+	expect(shownCode.replace(/\s/g, '')).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/);
+	const qrBox = await page.locator('.qr').boundingBox();
+	const codeBox = await page.locator('.code').boundingBox();
+	expect(codeBox && qrBox && codeBox.x > qrBox.x + qrBox.width - 1).toBe(true);
 	// Nombre y pronombres de esa entrada; el DNI nunca en la página pública.
 	await expect(page.getByText(people[1].name)).toBeVisible();
 	await expect(page.getByText('ella', { exact: true })).toBeVisible();
@@ -172,7 +136,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	expect(html).not.toContain(buyer.dni);
 	expect(html).not.toContain(dotted(buyer.dni));
 	const ticketUrl = page.url();
-	await shots(page, '4-entrada');
+	await shots(page, '07-entrada-con-codigo', page.locator('article.ticket'));
 
 	// El GIF del QR para el email.
 	const gif = await page.request.get(`${ticketUrl}/qr.gif`);
@@ -184,7 +148,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await expect(card).toBeVisible();
 	await expect(card).toContainText('Fondo usado');
 	await expect(card).toContainText('Aportes al fondo');
-	await shots(page, '5-admin-lista');
+	await expect(card).toContainText('Neto del fondo');
+	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
+	await expect(card.locator('.fondo-net')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
 	// El admin del evento muestra cada entrada y el DNI de quien compró.
 	await page.goto(`/admin/entradas/${EVENT}`);
@@ -199,26 +165,48 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	for (const p of people) expect(csv).toContain(`"${p.name}"`);
 
 	await page.goto(`/admin/entradas/${EVENT}/ingreso`);
-	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
+	// El código corto (en minúsculas, con "KV-" y un espacio: se normaliza) sirve igual que el QR.
+	await page.getByLabel(/Código de la entrada/).fill(`kv-${shownCode.toLowerCase()}`);
 	await page.getByRole('button', { name: 'Validar' }).click();
 	await expect(page.getByText('✅ Adelante')).toBeVisible();
-	await expect(page.getByText(people[1].name)).toBeVisible();
+	await expect(page.locator('.result')).toContainText(people[1].name);
 	await expect(page.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
-	await shots(page, '6-checkin-ok');
 
 	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
 	await page.getByRole('button', { name: 'Validar' }).click();
 	await expect(page.getByText('⚠️ Ya ingresó')).toBeVisible();
-	await shots(page, '7-checkin-ya-ingreso');
 
 	await page.getByLabel(/Código de la entrada/).fill('A'.repeat(43));
 	await page.getByRole('button', { name: 'Validar' }).click();
 	await expect(page.getByText('❌ QR inválido')).toBeVisible();
 
 	// Búsqueda manual por DNI de quien compró: aparecen sus 3 entradas.
-	await page.getByLabel('Buscar entrada').fill(buyer.dni);
+	const search = page.getByRole('combobox', { name: 'Buscar entrada' });
+	await search.fill(buyer.dni);
 	await page.getByRole('button', { name: 'Buscar' }).click();
 	await expect(page.locator('.results li')).toHaveCount(3);
+
+	// Autocompletar: sin tildes ("acompanante" encuentra "Acompañante"), dice con qué coincidió,
+	// y se elige con el teclado.
+	await search.fill('');
+	await search.pressSequentially(`acompanante ${people[2].name.split(' ')[1].toLowerCase()}`, {
+		delay: 20
+	});
+	const listbox = page.getByRole('listbox', { name: 'Sugerencias' });
+	await expect(listbox).toBeVisible();
+	const option = listbox.getByRole('option', { name: new RegExp(people[2].name) });
+	await expect(option).toContainText('coincide con nombre de la entrada');
+	await shots(page, '08-checkin-autocompletar', undefined, { fullPage: false });
+	await search.press('ArrowDown');
+	await expect(search).toHaveAttribute('aria-activedescendant', 'sugerencia-0');
+	await search.press('Enter');
+	await expect(page).toHaveURL(/\?q=[A-Z0-9]{6}$/);
+	await expect(page.locator('.results li')).toHaveCount(1);
+	await expect(page.locator('.results li')).toContainText(people[2].name);
+	// Por email de quien compró (parte del medio) y por pronombres.
+	await search.fill('');
+	await search.pressSequentially(buyer.email.split('@')[0], { delay: 20 });
+	await expect(listbox.getByRole('option').first()).toContainText('coincide con email');
 
 	// La entrada ahora figura como usada.
 	await page.goto(ticketUrl);
@@ -233,6 +221,10 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await expect(
 		page.getByRole('link', { name: 'Códigos de descuento', exact: true })
 	).toHaveAttribute('href', '/admin/entradas/codigos');
+	await expect(page.getByRole('link', { name: 'Ajustes de venta', exact: true })).toHaveAttribute(
+		'href',
+		'/admin/entradas/ajustes'
+	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();
 	await expect(page.getByRole('menuitem', { name: 'Entradas de este evento' })).toHaveAttribute(
@@ -242,10 +234,10 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 });
 
 test('datos inválidos: se marcan y no se crea la orden', async ({ page }) => {
-	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await block.getByLabel(TYPES.general.label).check();
-	await block.getByLabel('Cantidad').selectOption('2');
+	await block.getByRole('button', { name: 'Una entrada más' }).click();
 	await block.getByLabel('Tu nombre').fill('Persona Uno');
 	await block.getByLabel(/^Email/).fill('e2e-invalido@example.com');
 	await block.getByLabel(/^DNI/).fill('12.345');
@@ -261,28 +253,132 @@ test('datos inválidos: se marcan y no se crea la orden', async ({ page }) => {
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(block.getByText('Revisá los datos marcados.')).toBeVisible();
 	await expect(block.getByText(/Revisá el DNI/)).toBeVisible();
+	// Tus pronombres vacíos (la entrada 1 los toma de ahí) y los de la entrada 2.
+	await expect(block.getByText('Poné tus pronombres.')).toHaveCount(1);
 	await expect(block.getByText('Poné los pronombres de esta persona.')).toHaveCount(2);
-	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}`));
+	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}/entradas`));
 });
 
 test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de pago', async ({
 	page
 }) => {
-	await buy(page, { type: 'fondo', quantity: 2, submit: false });
+	await buy(page, { type: 'general', quantity: 2, submit: false });
 	const block = page.locator('#entradas');
 	await expect(
 		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
 	).toBeVisible();
-	const mp = expected('fondo', 2, 'mercadopago');
-	const tr = expected('fondo', 2, 'transferencia');
+	const mp = expected('general', 2, 'mercadopago');
+	const tr = expected('general', 2, 'transferencia');
 	expect(mp.surcharge).toBeGreaterThan(0);
 	await expect(block.getByText('Recargo Mercado Pago')).toBeVisible();
 	await expect(block.getByText(`Total: ${ars(mp.total)}`)).toBeVisible();
-	await shots(page, '9-recargo-mp', block.locator('.pay'));
-	await block.getByLabel(/Transferencia bancaria/).check();
+	await block.getByLabel(/Transferencia/).check();
 	await expect(block.getByText('Recargo Mercado Pago')).toHaveCount(0);
 	await expect(block.getByText(`Total: ${ars(tr.total)}`)).toBeVisible();
 	expect(tr.total).toBe(16000);
+});
+
+test('medio de pago: elegir uno no mueve nada (sin saltos de layout)', async ({ page }) => {
+	for (const width of [390, 1280]) {
+		await page.setViewportSize({ width, height: 900 });
+		await buy(page, { type: 'general', quantity: 1, submit: false });
+		const block = page.locator('#entradas');
+		const methods = block.locator('fieldset.methods');
+		// Lo que se mide: las tarjetas, la explicación, el total, el botón y el formulario entero.
+		const measure = async () => ({
+			cards: await block.locator('.method-cards').boundingBox(),
+			notes: await block.locator('.method-notes').boundingBox(),
+			pay: await block.locator('.pay').boundingBox(),
+			button: await block.locator('.pay button[type="submit"]').boundingBox(),
+			form: await block.locator('form').boundingBox(),
+			scrollY: await page.evaluate(() => window.scrollY)
+		});
+		await methods.scrollIntoViewIfNeeded();
+		await block.getByLabel(/Mercado Pago/).check();
+		const before = await measure();
+		await block.getByLabel(/Transferencia/).check();
+		await expect(block.locator('.method-note.shown')).toContainText('Sin recargo');
+		expect(await measure()).toEqual(before);
+		await block.getByLabel(/Mercado Pago/).check();
+		await expect(block.locator('.method-note.shown')).toContainText('20 minutos');
+		expect(await measure()).toEqual(before);
+	}
+	// Capturas (cambiar el tamaño de la ventana mueve todo: por eso van al final).
+	const methods = page.locator('#entradas fieldset.methods');
+	await shots(page, '05-medio-de-pago-1-mercadopago', methods);
+	await page
+		.locator('#entradas')
+		.getByLabel(/Transferencia/)
+		.check();
+	await shots(page, '05-medio-de-pago-2-transferencia', methods);
+});
+
+test('cantidad: − / + y se puede tipear, entre 1 y las disponibles', async ({ page }) => {
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	await block.getByLabel(TYPES.anticipada.label).check();
+	const qty = block.getByLabel('Cantidad');
+	const minus = block.getByRole('button', { name: 'Una entrada menos' });
+	const plus = block.getByRole('button', { name: 'Una entrada más' });
+	await expect(qty).toHaveValue('1');
+	await expect(minus).toBeDisabled();
+	// Botones grandes para el dedo.
+	const box = await plus.boundingBox();
+	expect(box && box.width >= 44 && box.height >= 44).toBe(true);
+	await plus.click();
+	await plus.click();
+	await expect(qty).toHaveValue('3');
+	await expect(block.locator('fieldset.holder')).toHaveCount(3);
+	// Anticipada tiene cupo 3 (si en otra corrida se vendió alguna, el máximo es menor).
+	const max = Number(await qty.getAttribute('max'));
+	expect(max).toBeLessThanOrEqual(3);
+	if (max === 3) await expect(plus).toBeDisabled();
+	await shots(page, '06-cantidad', block.locator('.stepper').locator('..'));
+	await minus.click();
+	await expect(qty).toHaveValue('2');
+	await expect(block.locator('fieldset.holder')).toHaveCount(2);
+	// Tipear un número de más se corrige al máximo al salir del campo.
+	await qty.fill('50');
+	await qty.blur();
+	await expect(qty).toHaveValue(String(max));
+	await block.getByLabel(TYPES.general.label).check();
+	await qty.fill('7');
+	await expect(block.locator('fieldset.holder')).toHaveCount(7);
+	// Sin el texto "¿Necesitás más de 20?" ni el de privacidad.
+	await expect(block).not.toContainText('Necesitás más de');
+	await expect(block).not.toContainText('Guardamos tu nombre, email y DNI');
+});
+
+test('pronombres de quien compra: obligatorios y copiados a la entrada 1 hasta editarla', async ({
+	page
+}) => {
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	const mine = block.getByLabel('Tus pronombres');
+	await expect(mine).toHaveAttribute('required', '');
+	const first = block
+		.locator('fieldset.holder')
+		.nth(0)
+		.getByLabel(/^Pronombres/);
+	await mine.fill('ella');
+	await expect(first).toHaveValue('ella');
+	await first.fill('ella / elle');
+	await mine.fill('elle');
+	await expect(first).toHaveValue('ella / elle');
+	// El "?" de pronombres es discreto: texto chiquito y gris, sin fondo de color.
+	const help = block.getByRole('link', { name: /Qué son los pronombres/ }).first();
+	const style = await help.evaluate((el) => {
+		const cs = getComputedStyle(el);
+		return {
+			bg: cs.backgroundColor,
+			size: parseFloat(cs.fontSize),
+			label: parseFloat(
+				getComputedStyle(/** @type {HTMLElement} */ (el.previousElementSibling)).fontSize
+			)
+		};
+	});
+	expect(style.bg).toBe('rgba(0, 0, 0, 0)');
+	expect(style.size).toBeLessThan(style.label);
 });
 
 test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pago', async ({
@@ -311,19 +407,14 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 
 	// 20% sobre 2 × $ 8.000, y después el recargo de MP.
 	const discount = { kind: /** @type {const} */ ('percent'), value: 20 };
-	const { prices } = await buy(page, {
-		quantity: 2,
-		code: veinte,
-		discount,
-		screenshot: '8-comprar-con-codigo'
-	});
+	const { prices } = await buy(page, { quantity: 2, code: veinte, discount });
 	await expect(page.getByRole('heading', { name: `Pagar ${ars(prices.total)}` })).toBeVisible();
 	await page.getByRole('button', { name: 'Aprobar pago', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /ya tenés tus entradas/ })).toBeVisible();
 	await expect(page.getByText(`−${ars(prices.discount)} (código ${veinte})`)).toBeVisible();
 
 	// Ya se usó su único uso.
-	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await block.getByLabel(/Código de descuento/).fill(veinte);
 	await block.getByRole('button', { name: 'Aplicar' }).click();
@@ -347,17 +438,15 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	await page.goto('/admin/entradas/codigos');
 	await expect(page.locator('.code', { hasText: veinte })).toContainText('1 aprobados');
 	await expect(page.locator('.code', { hasText: veinte })).toContainText('Sin usos disponibles');
-	await shots(page, '10-admin-codigos');
 });
 
 test('transferencia (con fondo): datos para transferir → admin confirma → la entrada funciona', async ({
 	page
 }) => {
 	const { people, prices } = await buy(page, {
-		type: 'fondo',
+		type: 'general',
 		quantity: 2,
-		method: 'transferencia',
-		screenshot: '11-comprar-transferencia'
+		method: 'transferencia'
 	});
 	expect(prices).toMatchObject({ fondo: 4000, surcharge: 0, total: 16000 });
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
@@ -367,12 +456,10 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	const reference = await page.locator('.reference').innerText();
 	expect(reference).toMatch(/^KV-[0-9A-F]{8}$/);
 	const statusUrl = page.url();
-	await shots(page, '12-datos-transferencia');
 
 	await page.goto(`/admin/entradas/${EVENT}`);
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
-	await shots(page, '13-transferencias-pendientes', page.locator('.transfers'));
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
 	await expect(page.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
@@ -415,12 +502,13 @@ test('el webhook rechaza notificaciones sin firma válida', async ({ request }) 
 });
 
 test('el precio lo pone el servidor aunque el formulario mande otro', async ({ page }) => {
-	await page.goto(`/calendario/${EVENT}`);
-	const res = await page.request.post(`/calendario/${EVENT}?/buy`, {
+	await page.goto(BUY_URL);
+	const res = await page.request.post(`${BUY_URL}?/buy`, {
 		form: {
 			type: 'general',
 			quantity: '1',
 			name: 'Persona Tramposa',
+			pronouns: 'elle',
 			email: 'tramposa@example.com',
 			dni: '12345678',
 			holder_name_0: 'Persona Tramposa',
@@ -446,16 +534,33 @@ test('el precio lo pone el servidor aunque el formulario mande otro', async ({ p
 	await expect(page.getByRole('heading', { name: `Pagar ${ars(total)}` })).toBeVisible();
 });
 
-test('el evento de prueba muestra el aviso, el fondo y los dos medios de pago', async ({
+test('el evento de prueba: botón en la página del evento → página de compra con el fondo en todos los tipos', async ({
 	page
 }) => {
 	await page.goto('/calendario/prueba-entradas-2026-12', { waitUntil: 'networkidle' });
 	await expect(page.getByText(/BORRAR ANTES DE VENDER DE VERDAD/)).toBeVisible();
+	// El formulario ya no está en la página del evento: hay un botón con el precio "desde".
+	await expect(page.locator('form input[name="dni"]')).toHaveCount(0);
+	const cta = page.locator('.buy-button');
+	await expect(cta).toContainText('Comprar entradas');
+	await expect(cta).toContainText('desde $ 6.400');
+	await expect(cta).toHaveAttribute('href', '/calendario/prueba-entradas-2026-12/entradas');
+	await shots(page, '01-evento-boton', undefined, { fullPage: false, scrollTo: cta });
+	await cta.click();
+	await expect(page).toHaveURL(/\/calendario\/prueba-entradas-2026-12\/entradas$/);
+	// Encabezado compacto del evento arriba del formulario.
+	await expect(page.locator('.event-mini h1')).toHaveText('Evento de prueba: entradas');
+	await expect(page.locator('.event-mini')).toContainText('Lugar de prueba');
+	await expect(page.locator('.event-mini')).toContainText('2026');
+	await shots(page, '02-compra-arriba', undefined, { fullPage: false });
 	const block = page.locator('#entradas');
-	// fondo_percent: 20 → General $ 10.000 se ve a $ 8.000 (el completo, tachado).
+	// fondo_percent: 20 → General $ 10.000 se ve a $ 8.000 y Anticipada $ 8.000 a $ 6.400.
 	const general = block.locator('label.type', { hasText: 'General' });
 	await expect(general.locator('s')).toHaveText('$ 10.000');
 	await expect(general.locator('strong')).toHaveText('$ 8.000');
+	const anticipada = block.locator('label.type', { hasText: 'Anticipada' });
+	await expect(anticipada.locator('strong')).toHaveText('$ 6.400');
+	await expect(block).not.toContainText('Reducida');
 	await block.getByLabel(/General/).check();
 	const options = block.locator('fieldset.options');
 	await expect(options.getByRole('radio')).toHaveCount(5);
@@ -463,18 +568,25 @@ test('el evento de prueba muestra el aviso, el fondo y los dos medios de pago', 
 	await expect(options.locator('label.option', { hasText: 'Entrada Sugar' })).toContainText(
 		'$ 15.000'
 	);
-	// Reducida tiene `fondo: 0`: no se ofrece el descuento del fondo.
-	await block.getByLabel(/Reducida/).check();
-	await expect(options.getByRole('radio')).toHaveCount(4);
-	await expect(options.getByLabel(/Precio completo/)).toBeChecked();
-	await block.getByLabel(/General/).check();
-	await expect(block.getByLabel(/Transferencia bancaria/)).toBeVisible();
-	await expect(block.locator('label.method', { hasText: 'Transferencia' })).toContainText(
-		'te reservamos el lugar 48 horas mientras mandás el comprobante por mail'
+	// El fondo aplica también a Anticipada.
+	await block.getByLabel(/Anticipada/).check();
+	await expect(options.getByRole('radio')).toHaveCount(5);
+	await expect(options.getByLabel(/Con el descuento del fondo/)).toBeChecked();
+	await block.getByLabel(/Transferencia/).check();
+	await expect(block.locator('.method-note.shown')).toContainText(
+		'Te reservamos el lugar 48 horas mientras mandás el comprobante por mail'
 	);
+	// Condiciones: una sola lista con el mismo formato, devoluciones incluidas.
 	await block.getByText('Condiciones de compra y devoluciones').click();
-	await expect(block.getByText(/5 días hábiles previos al evento/)).toBeVisible();
-	await shots(page, '0-evento-de-prueba');
+	const conditions = block.locator('details.conditions > ul > li');
+	expect(await conditions.count()).toBeGreaterThanOrEqual(5);
+	await expect(block.locator('details.conditions')).toContainText(
+		'5 días hábiles antes del evento'
+	);
+	await expect(block.locator('details.conditions')).toContainText(
+		'escribinos a kinkyvibe.talleres@gmail.com con su nombre, sus pronombres y su email'
+	);
+	await expect(block.locator('details.conditions p')).toHaveCount(0);
 });
 
 test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo" del admin', async ({
@@ -491,7 +603,7 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 
 	// Con fondo ($ 10.000, fondo $ 2.000), 2 entradas solidarias: 2 × $ 11.000 + recargo MP.
 	const { prices } = await buy(page, {
-		type: 'fondo',
+		type: 'general',
 		quantity: 2,
 		option: 'solidaria',
 		optionLabel: /Entrada solidaria/,
@@ -503,7 +615,6 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	await expect(block.locator('fieldset.options')).toContainText(
 		'lo que pagás de más va entero al fondo'
 	);
-	await shots(page, '14-checkout-solidaria', block);
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page).toHaveURL(/\/entradas\/simular-pago\/[0-9a-f-]{36}$/);
 	await expect(page.getByRole('heading', { name: `Pagar ${ars(prices.total)}` })).toBeVisible();
@@ -513,28 +624,33 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 
 	expect(await contributions()).toBe(before + 2000);
 	await expect(card).toContainText('Fondo usado');
-	await shots(page, '15-admin-totales', card);
+	// Neto del fondo = aportes − fondo usado, con signo y color.
+	const net = card.locator('.fondo-net');
+	const netText = await net.innerText();
+	const netValue = Number(netText.replace(/[^0-9]/g, '')) * (netText.startsWith('−') ? -1 : 1);
+	await expect(net).toHaveClass(netValue < 0 ? /neg/ : netValue > 0 ? /pos/ : /fondo-net/);
+	await shots(page, '10-admin-fondo-neto-lista', card);
 	await page.goto(`/admin/entradas/${EVENT}`);
-	await expect(page.locator('table.summary')).toContainText('Aportes al fondo');
-	await shots(page, '16-admin-evento-totales', page.locator('table.summary'));
+	const summary = page.locator('table.summary');
+	await expect(summary).toContainText('Aportes al fondo');
+	await expect(summary.locator('thead')).toContainText('Neto del fondo');
+	await expect(summary.locator('tfoot .net')).toHaveText(netText);
+	await shots(page, '10-admin-fondo-neto-evento', summary);
 });
 
 test('el formulario sobrevive a una recarga (sessionStorage) y se borra al comprar', async ({
 	page
 }) => {
-	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
-	await block.getByLabel(TYPES.fondo.label).check();
+	await block.getByLabel(TYPES.general.label).check();
 	await block.getByLabel(/Entrada muy solidaria/).check();
-	await block.getByLabel('Cantidad').selectOption('2');
+	await block.getByRole('button', { name: 'Una entrada más' }).click();
 	await block.getByLabel('Tu nombre').fill('Persona Recarga');
+	await block.getByLabel('Tus pronombres').fill('elle');
 	await block.getByLabel(/^Email/).fill('e2e-recarga@example.com');
 	await block.getByLabel(/^DNI/).fill('22.333.444');
 	const holders = block.locator('fieldset.holder');
-	await holders
-		.nth(0)
-		.getByLabel(/^Pronombres/)
-		.fill('elle');
 	await holders.nth(1).getByLabel('Nombre', { exact: true }).fill('Acompañante Recarga');
 	await holders
 		.nth(1)
@@ -546,16 +662,16 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await expect(help).toHaveAttribute('href', 'https://pronombr.es');
 	await expect(help).toHaveAttribute('target', '_blank');
 	await expect(help).toHaveAttribute('rel', /noopener/);
-	await shots(page, '17-checkout-pronombres', block);
 
 	// Nunca en localStorage.
 	expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('22.333.444');
 
 	await page.reload({ waitUntil: 'networkidle' });
-	await expect(block.getByLabel(TYPES.fondo.label)).toBeChecked();
+	await expect(block.getByLabel(TYPES.general.label)).toBeChecked();
 	await expect(block.getByLabel(/Entrada muy solidaria/)).toBeChecked();
 	await expect(block.getByLabel('Cantidad')).toHaveValue('2');
 	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Recarga');
+	await expect(block.getByLabel('Tus pronombres')).toHaveValue('elle');
 	await expect(block.getByLabel(/^Email/)).toHaveValue('e2e-recarga@example.com');
 	await expect(block.getByLabel(/^DNI/)).toHaveValue('22.333.444');
 	await expect(holders.nth(0).getByLabel('Nombre', { exact: true })).toHaveValue('Persona Recarga');
@@ -568,15 +684,15 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await expect(block.getByLabel(/18 años/)).not.toBeChecked();
 
 	// Al comprar se borra el borrador.
-	await block.getByLabel(/Transferencia bancaria/).check();
+	await block.getByLabel(/Transferencia/).check();
 	await block.getByLabel(/18 años/).check();
-	const { total } = expected('fondo', 2, 'transferencia', null, 'muy-solidaria');
+	const { total } = expected('general', 2, 'transferencia', null, 'muy-solidaria');
 	expect(total).toBe(26000);
 	await expect(block.getByText(`Total: ${ars(total)}`)).toBeVisible();
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
 	await expect(page.locator('.amount')).toHaveText(ars(26000));
 	await expect(page.getByText(/te reservamos el lugar\s+48 horas/)).toBeVisible();
-	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });
