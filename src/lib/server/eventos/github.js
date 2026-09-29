@@ -112,6 +112,54 @@ export async function listDir(token, path) {
 }
 
 /**
+ * Entries of a directory at `ref`, through the Git Trees API (one request, and no 1000-entry
+ * limit like the contents API). With `recursive`, every file below it, with paths relative to
+ * `path`.
+ * @param {string} token
+ * @param {string} path directory
+ * @param {{ref?: string, recursive?: boolean}} [opts]
+ * @returns {Promise<Array<{path: string, sha: string, type: string}>>} [] if missing
+ */
+export async function listTree(token, path, { ref = BRANCH, recursive = false } = {}) {
+	try {
+		const tree = await gh(
+			token,
+			'GET',
+			`git/trees/${encodeURIComponent(ref)}:${encodePath(path)}${recursive ? '?recursive=1' : ''}`
+		);
+		return tree.tree ?? [];
+	} catch (e) {
+		if (e instanceof GitHubError && e.status === 404) return [];
+		throw e;
+	}
+}
+
+/**
+ * Which of `paths` exist at `ref`. One tree listing per parent directory instead of one request
+ * per path, so a batch of many files stays well within the Workers subrequest limit.
+ * @param {string} token
+ * @param {string[]} paths
+ * @param {string} [ref]
+ * @returns {Promise<string[]>}
+ */
+export async function existingPaths(token, paths, ref = BRANCH) {
+	/** @type {Map<string, string[]>} */
+	const byDir = new Map();
+	for (const path of paths) {
+		const i = path.lastIndexOf('/');
+		const dir = path.slice(0, i);
+		byDir.set(dir, [...(byDir.get(dir) ?? []), path.slice(i + 1)]);
+	}
+	const found = await Promise.all(
+		[...byDir].map(async ([dir, names]) => {
+			const entries = new Set((await listTree(token, dir, { ref })).map((e) => e.path));
+			return names.filter((n) => entries.has(n)).map((n) => `${dir}/${n}`);
+		})
+	);
+	return found.flat();
+}
+
+/**
  * @typedef {object} CommitFile
  * @prop {string} path
  * @prop {string} [content] utf-8 text
@@ -121,36 +169,32 @@ export async function listDir(token, path) {
 
 /**
  * Creates ONE commit on main with all the files (Git Data API: blobs → tree → commit → ref).
- * Retries if main moved in the meantime; never force-pushes.
+ * Text files go inline in the tree request and only binary files become blobs, so the number of
+ * requests doesn't grow with the number of events. `mustNotExist` is checked with one listing
+ * per directory. Retries if main moved in the meantime; never force-pushes.
  * @param {string} token
  * @param {{files: CommitFile[], message: string, mustNotExist?: string[]}} opts
  * @returns {Promise<{sha: string, url: string}>}
  */
 export async function commitFiles(token, { files, message, mustNotExist = [] }) {
-	const blobShas = await Promise.all(
+	const entries = await Promise.all(
 		files.map(async (f) => {
-			if (f.sha) return f.sha;
-			const blob = await gh(
-				token,
-				'POST',
-				'git/blobs',
-				f.base64 !== undefined
-					? { content: f.base64, encoding: 'base64' }
-					: { content: f.content ?? '', encoding: 'utf-8' }
-			);
-			return blob.sha;
+			const entry = { path: f.path, mode: '100644', type: 'blob' };
+			if (f.sha) return { ...entry, sha: f.sha };
+			if (f.base64 === undefined) return { ...entry, content: f.content ?? '' };
+			const blob = await gh(token, 'POST', 'git/blobs', { content: f.base64, encoding: 'base64' });
+			return { ...entry, sha: blob.sha };
 		})
 	);
 	for (let attempt = 0; ; attempt++) {
 		const ref = await gh(token, 'GET', `git/ref/heads/${BRANCH}`);
 		const head = ref.object.sha;
-		for (const path of mustNotExist) {
-			if (await pathExists(token, path, head)) throw new PathExistsError(path);
-		}
+		const existing = await existingPaths(token, mustNotExist, head);
+		if (existing.length) throw new PathExistsError(existing[0]);
 		const headCommit = await gh(token, 'GET', `git/commits/${head}`);
 		const tree = await gh(token, 'POST', 'git/trees', {
 			base_tree: headCommit.tree.sha,
-			tree: files.map((f, i) => ({ path: f.path, mode: '100644', type: 'blob', sha: blobShas[i] }))
+			tree: entries
 		});
 		const commit = await gh(token, 'POST', 'git/commits', {
 			message,
