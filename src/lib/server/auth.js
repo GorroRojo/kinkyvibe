@@ -47,6 +47,7 @@ export function safeRedirect(target, origin, fallback = '/') {
 	if (typeof target !== 'string' || target === '') return fallback;
 	// Control characters (tab, newline...) are stripped by browsers, which can
 	// turn "/\t/evil.com" into "//evil.com".
+	// eslint-disable-next-line no-control-regex -- matching control characters is the point
 	if (/[\u0000-\u001f\u007f]/.test(target)) return fallback;
 	/** @type {URL} */
 	let parsed;

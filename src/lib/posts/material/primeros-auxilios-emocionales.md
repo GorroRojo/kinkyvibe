@@ -8,7 +8,7 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - online # online | descargable | link #
+  - web # web | descargable | link #
   - inicial
   - cuidados posteriores
   # - KinkyVibe # etiqueta especial #

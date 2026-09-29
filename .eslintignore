@@ -2,10 +2,15 @@
 node_modules
 /build
 /.svelte-kit
+/.wrangler
 /package
 .env
 .env.*
 !.env.example
+.VSCodeCounter
+
+# Static assets are served verbatim
+/static
 
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml

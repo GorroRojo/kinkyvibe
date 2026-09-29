@@ -1,7 +1,6 @@
 <script>
 	//@ts-nocheck
 	export let data;
-	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
@@ -26,7 +25,7 @@
 		/>, <InlineTag tag="electro" /> play o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag
 			tag="inglés"
 		/> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag
-			tag="online"
+			tag="web"
 		/>).
 	</p>
 	<dl>
