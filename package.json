@@ -9,8 +9,10 @@
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
-		"test": "playwright test",
-		"test:unit": "vitest",
+		"test": "npm run test:unit && npm run test:e2e",
+		"test:e2e": "playwright test",
+		"test:unit": "vitest run",
+		"test:unit:watch": "vitest",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write ."
 	},
