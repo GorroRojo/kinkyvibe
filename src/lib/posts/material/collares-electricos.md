@@ -11,7 +11,7 @@ tags:
   - seguridad
   - articulo
   - gratis # gratis | pago #
-  - online
+  - web
 layout: material
 category: material
 authors:

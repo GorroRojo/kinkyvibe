@@ -11,7 +11,7 @@ tags:
   - guia
   - KinkyVibe
   - gratis
-  - online
+  - web
 layout: material
 category: material
 authors:

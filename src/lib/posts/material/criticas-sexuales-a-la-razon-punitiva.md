@@ -8,7 +8,7 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - libro # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - descargable # online | descargable | link #
+  - descargable # web | descargable | link #
   # - KinkyVibe # etiqueta especial #
   - antipunitivismo
 layout: material
