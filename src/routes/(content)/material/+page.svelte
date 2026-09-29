@@ -25,7 +25,7 @@
 		/>, <InlineTag tag="electro" /> play o <InlineTag tag="impacto" />), qué idioma preferís (<InlineTag
 			tag="inglés"
 		/> o <InlineTag tag="español" />) o en qué formato (<InlineTag tag="descargable" /> o <InlineTag
-			tag="online"
+			tag="web"
 		/>).
 	</p>
 	<dl>

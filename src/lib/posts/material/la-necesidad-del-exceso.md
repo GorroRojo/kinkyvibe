@@ -9,7 +9,7 @@ tags:
   - gratis # gratis | pago #
   - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #
-  - online # online | descargable | link #
+  - web # web | descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
   - historia

@@ -44,6 +44,7 @@
 	</p>
 	<p>
 		<a class="button secondary" href="/admin/eventos/nuevo">✨ Crear un evento desde cero</a>
+		<a class="button secondary" href="/admin/eventos/importar">📋 Importar desde la planilla</a>
 	</p>
 
 	<label class="search">

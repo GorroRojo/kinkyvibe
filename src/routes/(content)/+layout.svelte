@@ -10,8 +10,6 @@
 		ChevronLeft,
 		Globe
 	} from '@lucide/svelte';
-	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
-	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
@@ -19,25 +17,16 @@
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
+	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
+	import SearchButton from '$lib/components/SearchButton.svelte';
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
-				if (checked) {
-					filteredTags.update((fTags) => [...fTags, tag]);
-				} else {
-					filteredTags.update((fTags) => [
-						...fTags.slice(0, fTags.indexOf(tag)),
-						...fTags.slice(fTags.indexOf(tag) + 1)
-					]);
-				}
-				$page.url.searchParams.set('tags', $filteredTags.join(','));
-				if ($filteredTags.length > 0) {
-					window.history.pushState('', '', `?${$page.url.searchParams.toString()}`);
-				} else {
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
-				}
+				// PostList mirrors filteredTags into ?tags=
+				filteredTags.update((fTags) =>
+					checked ? [...fTags.filter((t) => t != tag), tag] : fTags.filter((t) => t != tag)
+				);
 			}
 	);
 	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
@@ -48,8 +37,7 @@
 			{
 				'@type': 'ListItem',
 				position: 1,
-				name:
-					cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
+				name: cat == 'wiki' ? 'Kinkipedia' : (cat ?? ''),
 				item: 'https://example.com/books'
 			}
 		]
@@ -63,24 +51,15 @@
 </svelte:head>
 
 <AgeModal />
+<SearchLauncher />
 
 <header>
 	<div id="me">
 		<ul id="redes">
-			<li>
-				<a href="https://cafecito.app/kinkyvibe" target="_blank">
-					<SimpleIcon icon={siKofi} />
-				</a>
-			</li>
-			<li>
-				<a href="https://t.me/BDSMtextos" target="_blank">
-					<SimpleIcon icon={siTelegram} />
-				</a>
-			</li>
-			<li>
-				<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank">
-					<SimpleIcon icon={siInstagram} />
-				</a>
+			<!-- el buscador global reemplaza acá al link de Cafecito y a los íconos de
+			     Telegram/Instagram (todos siguen en el footer) -->
+			<li class="search">
+				<SearchButton variant="icon" />
 			</li>
 			<!-- recursero -->
 			<!-- fanzines -->
@@ -121,7 +100,7 @@
 		/>
 	</div>
 </header>
-{#if data.currentRoute != '/'}
+{#if $page.url.pathname != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
@@ -139,7 +118,7 @@
 		{/if}
 	</div>
 {/if}
-{#key data.currentRoute}
+{#key $page.url.pathname}
 	<main in:fade={{ duration: 300, delay: 300 }}>
 		<slot />
 	</main>
@@ -290,6 +269,16 @@
 	}
 	#logo {
 		grid-area: logo;
+	}
+	#redes li.search {
+		display: grid;
+		place-items: center;
+	}
+	/* en celulares el buscador es el botón flotante (SearchButton variant="fab") */
+	@media (max-width: 680px) {
+		#redes li.search {
+			display: none;
+		}
 	}
 	@media (min-width: 1380px) {
 		header {

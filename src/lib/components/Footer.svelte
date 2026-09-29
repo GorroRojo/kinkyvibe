@@ -157,8 +157,11 @@
 		footer {
 			bottom: 6rem;
 		}
+		/* 6rem de la barra de navegación inferior + lugar para el botón flotante
+		de búsqueda (56px + 16px de margen arriba y abajo), así lo último de la
+		página se puede scrollear hasta quedar libre del FAB */
 		:global(body) {
-			padding-bottom: 6rem;
+			padding-bottom: calc(6rem + 88px);
 		}
 	}
 </style>

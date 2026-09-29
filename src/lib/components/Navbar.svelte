@@ -2,6 +2,7 @@
 	//@ts-nocheck
 	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
+	import SearchButton from './SearchButton.svelte';
 	export let links;
 </script>
 
@@ -24,15 +25,27 @@
 			</li>
 		{/each}
 	</ul>
+	<SearchButton variant="fab" />
 </nav>
 
 <style lang="scss">
+	nav {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1em;
+		margin-inline: auto;
+		padding-inline: 1em;
+		max-width: calc(1000px + 7em);
+	}
 	nav ul {
 		padding: 0;
 		display: flex;
 		row-gap: 0.4em;
 		justify-content: center;
-		margin-inline: auto;
+		margin-inline: 0;
+		flex: 1 1 auto;
+		min-width: 0;
 		max-width: 1000px;
 	}
 
@@ -78,7 +91,7 @@
 		background: white;
 		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
 	}
-	nav span {
+	nav a span {
 		--color: var(--1);
 		color: var(--color);
 		translate: 0 0.3em;
@@ -107,22 +120,38 @@
 	nav a:focus small {
 		scale: 1;
 	}
+	/* 681–1024px: menú más compacto para que ninguna etiqueta se parta en dos líneas */
+	@media screen and (min-width: 681px) and (max-width: 1024px) {
+		nav {
+			gap: 0.5em;
+			padding-inline: 0.5em;
+		}
+		nav a {
+			font-size: clamp(0.95em, 0.55em + 0.9vw, 1.2em);
+			max-width: none;
+			white-space: nowrap;
+		}
+	}
 	@media screen and (max-width: 680px) {
 		nav {
 			position: fixed;
 			bottom: 0;
 			left: 0;
 			right: 0;
-			padding-inline: 1em;
+			/* los 5 ítems reparten el ancho (el buscador es un FAB aparte, ver SearchButton) */
+			gap: 0.25em;
+			max-width: none;
+			padding-inline: 0.5em max(0.5em, env(safe-area-inset-right));
 			z-index: 2;
 			background: white;
 			font-size: 1em;
 			ul {
 				flex-wrap: nowrap;
-				gap: 1em;
-				/* width: 100%; */
+				gap: 0.25em;
 				li {
-					width: 15vw;
+					flex: 1 1 0;
+					min-width: 0;
+					width: auto;
 					height: 4em;
 					&:hover span,
 					a:hover span,
@@ -165,6 +194,16 @@
 						}
 					}
 				}
+			}
+		}
+	}
+	/* 341–400px: etiquetas un poco más chicas para que entren junto al botón de búsqueda */
+	@media screen and (max-width: 400px) {
+		nav ul li a > span {
+			font-size: 0.7em;
+			letter-spacing: -0.01em;
+			& > span {
+				font-size: 1.37em;
 			}
 		}
 	}

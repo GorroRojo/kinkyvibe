@@ -8,7 +8,7 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - artículo # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - online # online | descargable | link #
+  - web # web | descargable | link #
   - BDSM
   - edad
   - ddlg
