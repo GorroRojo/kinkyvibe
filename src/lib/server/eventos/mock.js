@@ -64,14 +64,27 @@ export async function listDir(_token, path) {
  * @returns {Promise<Array<{path: string, sha: string, type: string}>>}
  */
 export async function listTree(_token, path, { recursive = false } = {}) {
-	const full = safeRepoPath(path);
-	if (!(await exists(full))) return [];
-	const entries = await readdir(full, { withFileTypes: true, recursive });
-	return entries.map((e) => {
-		// @ts-ignore parentPath/path depending on the Node version
-		const rel = join(e.parentPath ?? e.path ?? full, e.name).slice(full.length + 1);
-		return { path: rel, sha: 'local:' + join(path, rel), type: e.isDirectory() ? 'tree' : 'blob' };
-	});
+	/** @type {Map<string, {path: string, sha: string, type: string}>} */
+	const out = new Map();
+	// The checkout, plus what earlier mock "commits" wrote (so a second run sees them as taken).
+	for (const [root, shaPrefix] of [
+		[safeRepoPath(path), 'local:' + path],
+		[join(outDir, 'files', path), '']
+	]) {
+		if (!(await exists(root))) continue;
+		const entries = await readdir(root, { withFileTypes: true, recursive });
+		for (const e of entries) {
+			// @ts-ignore parentPath/path depending on the Node version
+			const rel = join(e.parentPath ?? e.path ?? root, e.name).slice(root.length + 1);
+			if (!out.has(rel))
+				out.set(rel, {
+					path: rel,
+					sha: shaPrefix ? join(shaPrefix, rel) : 'mock-committed',
+					type: e.isDirectory() ? 'tree' : 'blob'
+				});
+		}
+	}
+	return [...out.values()];
 }
 
 /** @param {string} _token @param {string[]} paths */
