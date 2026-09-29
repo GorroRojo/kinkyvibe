@@ -1,8 +1,11 @@
 <script>
+	import { userConfig } from '$lib/utils/stores.js';
+	import { relatedPostsFor } from '$lib/utils';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import 'add-to-calendar-button';
+	import { onMount } from 'svelte';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
@@ -19,15 +22,17 @@
 			return s + '';
 		}
 	};
-	let relatedPosts = data.allPosts.filter(
-		(p) =>
-			data.meta.authors?.some(
-				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== data.meta.title
-			) ||
-			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
-			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
-			(data.meta.category == 'amigues' && p.meta.authors.includes(data.meta.postID) && p.meta.postID != data.meta.postID)
-	)
+	// the server sends no past events; fetch them when the viewer chooses to see them
+	let relatedPosts = data.relatedPosts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
+			.catch(() => (loadedPast = false));
+	}
+	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
+	onMount(() => import('add-to-calendar-button'));
 </script>
 
 <LDTag
@@ -248,7 +253,7 @@
 	{/await}
 {/if}
 
-{#if relatedPosts.length > 0}
+{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">
 		<h3>
 			Más cosas de

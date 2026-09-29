@@ -94,7 +94,7 @@
 	</dl>
 </div>
 
-<PostList posts={data.allPosts.filter((p) => p.meta.layout == 'material')} />
+<PostList posts={data.posts.filter((p) => p.meta.layout == 'material')} />
 
 <style lang="scss">
 	.glosario {

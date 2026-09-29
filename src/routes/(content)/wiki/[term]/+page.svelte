@@ -1,7 +1,8 @@
 <script>
 	import GlosarioItem from '$lib/components/GlosarioItem.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { tagManager, currentPostData } from '$lib/utils/stores.js';
+	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	export let data;
@@ -56,14 +57,24 @@
 	color: var(--1);
 	`;
 
-	const relatedPosts = data.allPosts.filter((p) => {
+	/** @param {ProcessedPost} p */
+	const isRelated = (p) => {
 		if (p.meta.tags.includes(data?.meta?.wiki ?? data?.tag?.id ?? '')) return true;
 		let children = $tagManager.get(data?.meta?.wiki ?? '')?.getAllChildren() ?? [];
 		for (const c of children) {
 			if (p.meta.tags.includes(c)) return true;
 		}
 		return false;
-	});
+	};
+	// the server sends no past events; fetch them when the viewer chooses to see them
+	let relatedPosts = data.relatedPosts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (relatedPosts = posts.filter(isRelated)))
+			.catch(() => (loadedPast = false));
+	}
 </script>
 
 <svelte:head>
@@ -132,7 +143,7 @@
 		</div>
 	</div>
 </article>
-{#if relatedPosts.length > 0}
+{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<PostList posts={relatedPosts}>
 		<hr />
 		<h2>Materiales, amigues y eventos relevantes</h2>

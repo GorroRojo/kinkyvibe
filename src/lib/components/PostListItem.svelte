@@ -7,7 +7,6 @@
 		MousePointerClick,
 		Heart
 	} from 'lucide-svelte';
-	import 'add-to-calendar-button';
 	import { addHours, format, isPast } from 'date-fns';
 	import { toArgentina, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
@@ -53,8 +52,12 @@
 	}
 	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
-	onMount(() => (mounted = true));
 	let past = start ? isPast(new Date(start)) : false;
+	onMount(() => {
+		mounted = true;
+		// the calendar button (~290 KB) is only loaded when this item shows one
+		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
+	});
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);
 				 display: inline-block;

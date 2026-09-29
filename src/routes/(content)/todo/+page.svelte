@@ -10,6 +10,17 @@
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import { page } from '$app/stores';
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
+	import { userConfig } from '$lib/utils/stores';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	// the server only sends upcoming events; load the rest if past events are shown
+	let allPosts = data.posts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (allPosts = posts))
+			.catch(() => (loadedPast = false));
+	}
 </script>
 
 <svelte:head>
@@ -84,7 +95,7 @@
 		{/each}
 	</dl>
 </div>
-<PostList posts={data.allPosts} />
+<PostList posts={allPosts} />
 
 	<style lang="scss">
 	.glosario {

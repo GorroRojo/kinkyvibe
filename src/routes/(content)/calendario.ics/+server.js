@@ -12,6 +12,9 @@ function stringToDateArray(s) {
 	let d = new Date(s);
 	return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()];
 }
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
+
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
 	/**@type ics.EventAttributes[] */
