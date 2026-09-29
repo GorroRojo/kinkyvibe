@@ -26,6 +26,8 @@ export async function GET() {
 		const postPath = 'https://kinkyvibe.ar' + post.path;
 		/**@type ics.EventAttributes */
 		let event = {
+			// stable id so calendar apps update events instead of seeing new ones each fetch
+			uid: post.meta.postID + '@kinkyvibe.ar',
 			start: stringToDateArray(post.meta.start),
 			end: stringToDateArray(post.meta.end ?? post.meta.start + post.meta.duration),
 			title: post.meta.title,
