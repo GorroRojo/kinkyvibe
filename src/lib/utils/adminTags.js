@@ -106,7 +106,7 @@ export function eventTagGroups(tm = siteTags()) {
 	return {
 		kinkyvibe: 'KinkyVibe',
 		languages,
-		defaultLanguage: languages.includes('español') ? 'español' : languages[0] ?? '',
+		defaultLanguage: languages.includes('español') ? 'español' : (languages[0] ?? ''),
 		signLanguage,
 		places: leavesOf(tm, 'lugar'),
 		prices: childrenOf(tm, 'precio')
@@ -246,7 +246,9 @@ export function validateEventTags(tags, tm = siteTags()) {
 export function withEventTagDefaults(tags, hints = {}, tm = siteTags()) {
 	const g = eventTagGroups(tm);
 	const s = splitEventTags(tags, tm);
-	const hintPlace = hints.place ? EVENT_ALIASES[hints.place] ?? canonicalTag(hints.place, tm) : '';
+	const hintPlace = hints.place
+		? (EVENT_ALIASES[hints.place] ?? canonicalTag(hints.place, tm))
+		: '';
 	const language = s.language || g.defaultLanguage;
 	const place = g.places.includes(hintPlace) ? hintPlace : s.place;
 	if (
@@ -451,4 +453,60 @@ export function cleanNewTag(text) {
 		.replace(/\s+/g, ' ')
 		.trim();
 	return t.length > 0 && t.length <= 40 ? t : '';
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Parent / child tags in the picker                                                          */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * Every ancestor of a tag in the tree (parents, grandparents…), without "root" or itself.
+ * Tags can have more than one parent ("cuerdas" is under "implementos" and "bondage").
+ * @param {string} id canonical id
+ * @param {Tags} [tm]
+ * @returns {Set<string>}
+ */
+export function ancestorsOf(id, tm = siteTags()) {
+	const out = new Set();
+	const queue = [...(tm.get(id)?.parents ?? [])];
+	while (queue.length) {
+		const t = /** @type {string} */ (queue.shift());
+		if (t === 'root' || t === id || out.has(t)) continue;
+		out.add(t);
+		queue.push(...(tm.get(t)?.parents ?? []));
+	}
+	return out;
+}
+
+/**
+ * The picked tag (as written) that makes `tag` redundant because it is more specific (a
+ * descendant of it), or undefined. `('cuerdas', ['shibari'])` → 'shibari'.
+ * @param {string} tag
+ * @param {string[]} picked tags as written
+ * @param {Tags} [tm]
+ */
+export function moreSpecificPicked(tag, picked, tm = siteTags()) {
+	const id = canonicalTag(tag, tm);
+	return picked.find((p) => ancestorsOf(canonicalTag(p, tm), tm).has(id));
+}
+
+/**
+ * Adds `tag` keeping only the most specific tags: a tag implies its ancestors (an event tagged
+ * "shibari" is already about "cuerdas"), so
+ * - picking a descendant of a picked tag replaces that ancestor (`replaced`);
+ * - picking an ancestor of a picked tag adds nothing (`impliedBy` is the more specific one).
+ * @param {string[]} picked tags as written
+ * @param {string} tag
+ * @param {Tags} [tm]
+ * @returns {{tags: string[], added: boolean, replaced: string[], impliedBy?: string}}
+ */
+export function addSpecificTag(picked, tag, tm = siteTags()) {
+	const id = canonicalTag(tag, tm);
+	if (picked.some((p) => canonicalTag(p, tm) === id))
+		return { tags: picked, added: false, replaced: [] };
+	const impliedBy = moreSpecificPicked(tag, picked, tm);
+	if (impliedBy) return { tags: picked, added: false, replaced: [], impliedBy };
+	const ancestors = ancestorsOf(id, tm);
+	const replaced = picked.filter((p) => ancestors.has(canonicalTag(p, tm)));
+	return { tags: [...picked.filter((p) => !replaced.includes(p)), tag], added: true, replaced };
 }

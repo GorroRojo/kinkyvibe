@@ -50,6 +50,11 @@
 	export let addedMessage = (value) => `Agregado: ${value}`;
 	/** @type {(values: string[]) => void} */
 	export let onChange = () => {};
+	/**
+	 * How a picked value joins the list. Returns the new list, or the same array to add nothing.
+	 * @type {(values: string[], value: string) => string[]}
+	 */
+	export let add = (values, value) => [...values, value];
 
 	const listId = `${id}-list`;
 	let query = '';
@@ -69,9 +74,12 @@
 	async function pick(item) {
 		if (!item || item.disabled) return;
 		if (!values.includes(item.value)) {
-			values = [...values, item.value];
-			onChange(values);
-			announcement = addedMessage(chip(item.value).label);
+			const next = add(values, item.value);
+			if (next !== values) {
+				values = next;
+				onChange(values);
+				announcement = addedMessage(chip(item.value).label);
+			}
 		}
 		query = '';
 		active = -1;
@@ -147,6 +155,8 @@
 			{/each}
 		</ul>
 	{/if}
+	<!-- Between the chips and the text field, so the suggestions list never covers it. -->
+	<slot name="after-chips" />
 	<div class="field">
 		<input
 			bind:this={input}

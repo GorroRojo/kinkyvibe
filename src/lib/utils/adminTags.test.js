@@ -12,7 +12,10 @@ import {
 	searchTagOptions,
 	exactTagOption,
 	excludedFromPicker,
-	cleanNewTag
+	cleanNewTag,
+	ancestorsOf,
+	addSpecificTag,
+	moreSpecificPicked
 } from './adminTags.js';
 
 describe('eventTagGroups (from the real tag tree)', () => {
@@ -182,5 +185,47 @@ describe('picker options', () => {
 	});
 	it('normalizeText', () => {
 		expect(normalizeText(' Córdoba  Capital ')).toBe('cordoba capital');
+	});
+});
+
+describe('parent / child tags in the picker', () => {
+	it('ancestorsOf follows every parent up to the root', () => {
+		const a = ancestorsOf('shibari');
+		expect(a.has('cuerdas')).toBe(true);
+		// "cuerdas" is under both "implementos" and "bondage" (which is under "prácticas")
+		expect(a.has('implementos')).toBe(true);
+		expect(a.has('bondage')).toBe(true);
+		expect(a.has('prácticas')).toBe(true);
+		expect(a.has('root')).toBe(false);
+		expect(a.has('shibari')).toBe(false);
+	});
+	it('picking a more specific tag replaces its ancestor', () => {
+		const r = addSpecificTag(['taller', 'cuerdas'], 'shibari');
+		expect(r).toEqual({ tags: ['taller', 'shibari'], added: true, replaced: ['cuerdas'] });
+	});
+	it('replaces every picked ancestor, not only the parent', () => {
+		const r = addSpecificTag(['bondage', 'cuerdas', 'cine'], 'shibari');
+		expect(r.tags).toEqual(['cine', 'shibari']);
+		expect(r.replaced).toEqual(['bondage', 'cuerdas']);
+	});
+	it('picking an ancestor of a picked tag keeps the child and adds nothing', () => {
+		const picked = ['shibari'];
+		const r = addSpecificTag(picked, 'cuerdas');
+		expect(r.added).toBe(false);
+		expect(r.tags).toBe(picked);
+		expect(r.impliedBy).toBe('shibari');
+		expect(moreSpecificPicked('bondage', picked)).toBe('shibari');
+		expect(moreSpecificPicked('cine', picked)).toBeUndefined();
+	});
+	it('unrelated tags and tags outside the tree are just added', () => {
+		expect(addSpecificTag(['shibari'], 'cine')).toEqual({
+			tags: ['shibari', 'cine'],
+			added: true,
+			replaced: []
+		});
+		expect(addSpecificTag(['shibari'], 'algo nuevo').tags).toEqual(['shibari', 'algo nuevo']);
+	});
+	it('compares canonical ids: aliases count as the same tag', () => {
+		expect(addSpecificTag(['BDSM'], 'bdsm').added).toBe(false);
 	});
 });

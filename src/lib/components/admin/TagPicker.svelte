@@ -4,11 +4,15 @@
 	"Crear etiqueta nueva" entry: the site shows unknown tags as tags without a category.
 -->
 <script>
+	import { onDestroy } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import ChipCombobox from './ChipCombobox.svelte';
 	import {
+		addSpecificTag,
 		canonicalTag,
 		cleanNewTag,
 		exactTagOption,
+		moreSpecificPicked,
 		normalizeText,
 		searchTagOptions,
 		siteTags
@@ -31,6 +35,29 @@
 
 	const tm = siteTags();
 	$: byId = new Map(options.map((o) => [o.id, o]));
+
+	/* A tag implies its ancestors ("shibari" is already "cuerdas"): keep only the most specific. */
+	/** @type {null | {gone: Array<{label: string, color?: string}>, by: string}} */
+	let replacedNote = null;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let noteTimer;
+	/**
+	 * @param {string[]} values
+	 * @param {string} value
+	 */
+	function addTag(values, value) {
+		const r = addSpecificTag(values, value, tm);
+		if (r.replaced.length) {
+			replacedNote = {
+				gone: r.replaced.map((t) => ({ label: chip(t).label, color: chip(t).color })),
+				by: chip(value).label
+			};
+			clearTimeout(noteTimer);
+			noteTimer = setTimeout(() => (replacedNote = null), 7000);
+		}
+		return r.added ? r.tags : values;
+	}
+	onDestroy(() => clearTimeout(noteTimer));
 
 	/** @param {string} value */
 	function chip(value) {
@@ -58,19 +85,26 @@
 	 * @param {string[]} values
 	 */
 	function search(q, values) {
-		return searchTagOptions(options, q, { selected: values, tm }).map((o) => ({
-			value: o.id,
-			label: o.name,
-			icon: o.icon,
-			color: o.color,
-			detail: [
-				o.matched ? `también «${o.matched}»` : '',
-				o.inTree ? o.group : 'sin categoría',
-				o.count ? `${o.count} ${o.count === 1 ? 'uso' : 'usos'}` : ''
-			]
-				.filter(Boolean)
-				.join(' · ')
-		}));
+		return searchTagOptions(options, q, { selected: values, tm }).map((o) => {
+			// An ancestor of a picked tag adds nothing: say why instead of offering it.
+			const specific = moreSpecificPicked(o.id, values, tm);
+			return {
+				value: o.id,
+				label: o.name,
+				icon: o.icon,
+				color: o.color,
+				disabled: Boolean(specific),
+				detail: specific
+					? `Ya está incluida: «${chip(specific).label}» es más específica y está dentro de «${o.name}».`
+					: [
+							o.matched ? `también «${o.matched}»` : '',
+							o.inTree ? o.group : 'sin categoría',
+							o.count ? `${o.count} ${o.count === 1 ? 'uso' : 'usos'}` : ''
+					  ]
+							.filter(Boolean)
+							.join(' · ')
+			};
+		});
 	}
 
 	/**
@@ -115,6 +149,45 @@
 	{extra}
 	{chip}
 	{onChange}
+	add={addTag}
 	removeLabel="Quitar etiqueta"
 	addedMessage={(label) => `Etiqueta agregada: ${label}`}
-/>
+>
+	<p class="replaced" role="status" slot="after-chips">
+		{#if replacedNote}
+			<span class="replaced-note" transition:fade={{ duration: 300 }}>
+				{#each replacedNote.gone as g}<s class="ghost" style:--chip-color={g.color}>{g.label}</s>{/each}
+				{replacedNote.gone.length === 1 ? 'ya incluye' : 'ya incluyen'} a «{replacedNote.by}»: se
+				{replacedNote.gone.length === 1 ? 'reemplazó' : 'reemplazaron'} por la más específica.
+			</span>
+		{/if}
+	</p>
+</ChipCombobox>
+
+<style lang="scss">
+	.replaced {
+		margin: 0;
+		font-size: var(--step--1);
+		/* empty (but kept, as a live region): no extra gap */
+		&:not(:has(.replaced-note)) {
+			margin-top: -0.4em;
+		}
+	}
+	.replaced-note {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.35em;
+		opacity: 0.85;
+	}
+	.ghost {
+		display: inline-block;
+		padding: 0.1em 0.7em;
+		border-radius: 2em;
+		background: var(--chip-color, var(--1));
+		color: white;
+		opacity: 0.45;
+		text-decoration: line-through;
+		text-decoration-thickness: 2px;
+	}
+</style>
