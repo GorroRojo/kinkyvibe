@@ -5,6 +5,8 @@
 	"scripts": {
 		"predev": "node scripts/db-migrate-local.js",
 		"dev": "vite dev",
+		"predev:tickets": "node scripts/db-migrate-local.js",
+		"dev:tickets": "vite dev --mode tickets",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",

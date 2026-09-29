@@ -3,6 +3,8 @@
  * GitHub reales):
  *   npx playwright test -c playwright.tickets.config.js
  *
+ * Levanta `npm run dev:tickets` (vite dev --mode tickets, que lee .env.tickets) en el puerto 5371.
+ *
  * - MP_MOCK=1: checkout simulado en /entradas/simular-pago/<orden>.
  * - ADMIN_DEV_MOCK=1: sesión de admin falsa (solo dev).
  * - TICKETS_DEV_FIXTURE=<slug>: agrega entradas de prueba a un evento real SIN tocar su archivo.
@@ -26,7 +28,9 @@ const config = {
 		launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {}
 	},
 	webServer: {
-		command: `npm run dev -- --port ${PORT} --strictPort`,
+		// Mismo modo que `npm run dev:tickets` (lee .env.tickets); las variables de abajo lo pisan
+		// para que las pruebas no dependan de lo que tenga cada compu.
+		command: `npm run dev:tickets -- --port ${PORT} --strictPort`,
 		port: PORT,
 		timeout: 180000,
 		reuseExistingServer: false,
