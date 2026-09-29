@@ -9,7 +9,8 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-	// DEV ONLY: fake admin session for exercising the admin pages without GitHub (see
+	// DEV ONLY: fake admin session for exercising the admin pages without GitHub. Enabled by
+	// `npm run dev:admin` (Vite mode "admin" loads ADMIN_DEV_MOCK=1 from .env.admin; see
 	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
 	// `vite build`, so this whole block is removed from production bundles.
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
