@@ -36,6 +36,10 @@ export const query = writable('');
 /** Si el buscador global (SearchPalette) está abierto. */
 export const searchOpen = writable(false);
 
+/** Free-text part of the PostList search (the tags part is `filteredTags`).
+ * @type {import('svelte/store').Writable<string>} */
+export const searchText = writable('');
+
 if (browser) {
 	try {
 		userConfig.set(
