@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import { error, fail } from '@sveltejs/kit';
 import { ghGet, ghPut } from '$lib/external/github.js';
 import { requireAdmin } from '$lib/server/auth';
 
@@ -25,11 +26,30 @@ export const actions = {
 		const user = requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = data.get('content');
+		const sha = data.get('sha');
+		if (typeof fileContent !== 'string' || typeof sha !== 'string' || sha === '') {
+			return fail(400, { error: 'Faltan datos para guardar. Recargá la página y volvé a intentar.' });
+		}
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
 		const userName = user.name || user.login || 'admin';
-		// @ts-ignore
-		saveFileContent(locals.user_token, postPath(params), fileContent, data.get('sha'), userName, params.category, params.postID);
+		try {
+			await saveFileContent(
+				locals.user_token,
+				postPath(params),
+				fileContent,
+				sha,
+				userName,
+				params.category,
+				params.postID
+			);
+		} catch (e) {
+			console.log(e);
+			return fail(502, {
+				error:
+					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
+			});
+		}
 		return { save: 'Guardado' };
 	},
 	load: async ({ locals, request, url }) => {
@@ -50,6 +70,7 @@ export const actions = {
  */
 async function getFileContent(token, path) {
 	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
+	if (!fileContent) throw error(404, 'No se encontró la publicación');
 	let raw = Buffer.from(fileContent.content, fileContent.encoding).toString();
 	return { raw, ...fileContent };
 }
