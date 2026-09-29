@@ -25,6 +25,17 @@ export function groupMap(group, fn) {
 	}
 }
 
+// Image URLs are resolved from eager globs (a plain path -> URL map) instead of
+// probing up to five `import()`s per image: no async round trips, and no
+// wrapper JS chunk per image in the client build.
+/** @type {Record<string, string>} */
+const mediaURLs = import.meta.glob('../posts/*/media/*/*.{jpeg,jfif,jpg,png,webp}', {
+	eager: true,
+	import: 'default'
+});
+/** @type {Record<string, string>} */
+const assetURLs = import.meta.glob('../assets/*.*', { eager: true, import: 'default' });
+
 /**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
@@ -35,22 +46,13 @@ export const thumbURL = async (category, postID, assetID) => {
 	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
 	if (('' + assetID).match(/^\d+$/)) {
 		for (const format of formats) {
-			try {
-				let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
-				return thumb.default;
-			} catch (e) {
-				continue;
-			}
+			const url = mediaURLs[`../posts/${category}/media/${postID}/${assetID}.${format}`];
+			if (url !== undefined) return url;
 		}
 		return undefined;
 	} else {
 		let [filename, format] = assetID.split('.');
-		try {
-			let thumb = await import(`$lib/assets/${filename}.${format}`);
-			return thumb.default;
-		} catch (e) {
-			return undefined;
-		}
+		return assetURLs[`../assets/${filename}.${format}`];
 	}
 };
 
