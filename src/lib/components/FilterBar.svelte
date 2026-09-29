@@ -4,7 +4,6 @@
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 
 	export let event_toggle = true;
 
@@ -14,15 +13,7 @@
 		visibleTags.subscribe((v) => {
 			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
 		});
-		// @ts-ignore
-		page.subscribe((p) => {
-			if (p.url.searchParams.has('tags')) {
-				if (p.url.searchParams.get('tags') != '') {
-					//@ts-ignore
-					filteredTags.set(p.url.searchParams.get('tags')?.split(','));
-				}
-			} else filteredTags.set([]);
-		});
+		// ?tags= is read and written by PostList, which owns the URL sync
 	});
 
 	let view_filters = true;
@@ -83,8 +74,6 @@
 			<button
 				on:click={() => {
 					$filteredTags = [];
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
 				}}>Despejar filtros</button
 			>
 		</div>
