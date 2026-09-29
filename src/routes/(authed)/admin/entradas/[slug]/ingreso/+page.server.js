@@ -2,7 +2,12 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { checkIn, searchTickets, undoCheckIn } from '$lib/server/tickets/orders.js';
+import {
+	checkIn,
+	getTicketByToken,
+	searchTickets,
+	undoCheckIn
+} from '$lib/server/tickets/orders.js';
 
 /**
  * Acepta el token solo, o la URL completa del QR (/entradas/t/<token>).
@@ -45,6 +50,9 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 				id: t.id,
 				token: t.token,
 				holder: t.holder_name,
+				pronouns: t.holder_pronouns ?? '',
+				buyer: t.buyer_name,
+				dni: t.buyer_dni ?? '',
 				email: t.buyer_email,
 				type: names[t.ticket_type] ?? t.ticket_type,
 				checkedInAt: t.checked_in_at,
@@ -70,6 +78,9 @@ export const actions = {
 				checkin: {
 					result: 'error',
 					holder: null,
+					pronouns: null,
+					buyer: null,
+					dni: null,
 					type: null,
 					at: null,
 					by: null,
@@ -81,6 +92,8 @@ export const actions = {
 		}
 		const token = extractToken((await request.formData()).get('token'));
 		const r = await checkIn(db, { token, eventSlug: params.slug, by: admin.login });
+		// Quién compró y su DNI (el UPDATE del check-in devuelve solo la entrada).
+		const full = r.ticket && r.result !== 'wrong-event' ? await getTicketByToken(db, token) : null;
 		let otherEvent = null;
 		if (r.result === 'wrong-event' && r.ticket) {
 			otherEvent = (await getEventTickets(r.ticket.event_slug))?.title ?? r.ticket.event_slug;
@@ -92,6 +105,10 @@ export const actions = {
 				result: r.result,
 				// Para "otro evento" no mostramos datos de la persona, solo de qué evento es.
 				holder: r.result === 'wrong-event' ? null : (r.ticket?.holder_name ?? null),
+				pronouns: r.result === 'wrong-event' ? null : (r.ticket?.holder_pronouns ?? null),
+				// Quién compró y su DNI, por si la puerta necesita chequearlo con el documento.
+				buyer: full?.buyer_name ?? null,
+				dni: full?.buyer_dni ?? null,
 				type: r.result === 'wrong-event' ? null : (type ?? null),
 				at: r.ticket?.checked_in_at ?? null,
 				by: r.ticket?.checked_in_by ?? null,

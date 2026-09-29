@@ -22,6 +22,7 @@
 
 <div class="admin-entradas">
 	<h1>Entradas</h1>
+	<p class="links"><a href="/admin/entradas/codigos">🏷️ Códigos de descuento</a></p>
 	{#if !data.dbAvailable}
 		<p class="warn">No hay base de datos disponible: no se pueden mostrar ventas.</p>
 	{/if}
@@ -39,12 +40,17 @@
 					<span class="date">{date(e.start)}{e.status ? ` · ${e.status}` : ''}</span>
 					<table>
 						<thead>
-							<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Bruto</th></tr>
+							<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Cobrado</th></tr>
 						</thead>
 						<tbody>
 							{#each e.types as t (t.id)}
 								<tr class:over={t.sold > t.capacity}>
-									<td>{t.name} <small>({formatARS(t.price)})</small></td>
+									<td>
+										{t.name}
+										<small
+											>({formatARS(t.price)}{t.fondo ? `, fondo ${formatARS(t.fondo)}` : ''})</small
+										>
+									</td>
 									<td>{t.sold}/{t.capacity}</td>
 									<td>{t.held}</td>
 									<td>{formatARS(t.revenue)}</td>
@@ -53,8 +59,12 @@
 						</tbody>
 						<tfoot>
 							<tr>
-								<td colspan="3">Total bruto (antes de comisiones de MP)</td>
+								<td colspan="3">Total cobrado (con descuentos, antes de comisiones de MP)</td>
 								<td>{formatARS(e.revenue)}</td>
+							</tr>
+							<tr>
+								<td colspan="3">💜 Fondo KinkyVibe usado</td>
+								<td>{formatARS(e.fondoUsed)}</td>
 							</tr>
 						</tfoot>
 					</table>

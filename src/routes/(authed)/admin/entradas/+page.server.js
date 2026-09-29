@@ -12,7 +12,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const events = await listTicketedEvents();
 	const rows = [];
 	for (const { slug, config } of events) {
-		/** @type {Map<string, { sold: number, held: number, revenue: number }>} */
+		/** @type {Awaited<ReturnType<typeof getCounts>>} */
 		let counts = new Map();
 		if (db) {
 			try {
@@ -28,7 +28,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 			capacity: t.capacity,
 			sold: counts.get(t.id)?.sold ?? 0,
 			held: counts.get(t.id)?.held ?? 0,
-			revenue: counts.get(t.id)?.revenue ?? 0
+			fondo: t.fondo,
+			revenue: counts.get(t.id)?.revenue ?? 0,
+			fondoUsed: counts.get(t.id)?.fondo ?? 0
 		}));
 		rows.push({
 			slug,
@@ -36,7 +38,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 			start: config.start ?? null,
 			status: config.status ?? null,
 			types,
-			revenue: types.reduce((s, t) => s + t.revenue, 0)
+			revenue: types.reduce((s, t) => s + t.revenue, 0),
+			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0)
 		});
 	}
 	return { events: rows, dbAvailable: Boolean(db) };

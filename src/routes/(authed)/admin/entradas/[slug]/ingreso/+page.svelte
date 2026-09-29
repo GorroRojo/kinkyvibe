@@ -21,6 +21,11 @@
 		checkinForm?.requestSubmit();
 	}
 
+	/** @param {string | null | undefined} dni */
+	function formatDni(dni) {
+		return dni ? `DNI ${Number(dni).toLocaleString('es-AR')}` : 'sin DNI';
+	}
+
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
 		return ms
@@ -50,7 +55,11 @@
 			<div class="result result-{r.result}" role="status" aria-live="assertive">
 				{#if r.result === 'ok'}
 					<p class="big">✅ Adelante</p>
-					<p>{r.holder} · {r.type}</p>
+					<p>
+						<strong>{r.holder}</strong>{#if r.pronouns}
+							({r.pronouns}){/if} · {r.type}
+					</p>
+					<p class="buyer">Compró: {r.buyer} · <span class="dni">{formatDni(r.dni)}</span></p>
 					{#if r.ticketId}
 						<form method="POST" action="?/undo" use:enhance>
 							<input type="hidden" name="ticket" value={r.ticketId} />
@@ -60,6 +69,7 @@
 				{:else if r.result === 'already'}
 					<p class="big">⚠️ Ya ingresó</p>
 					<p>{r.holder} · {r.type}</p>
+					<p class="buyer">Compró: {r.buyer} · <span class="dni">{formatDni(r.dni)}</span></p>
 					<p>A las {time(r.at)} (marcó {r.by})</p>
 				{:else if r.result === 'wrong-event'}
 					<p class="big">❌ Es de otro evento</p>
@@ -111,13 +121,13 @@
 		<button type="submit" disabled={busy}>Validar</button>
 	</form>
 
-	<h2>Buscar por nombre o email</h2>
+	<h2>Buscar por nombre, email o DNI de quien compró</h2>
 	<form method="GET" class="search" data-sveltekit-keepfocus>
 		<input
 			type="search"
 			name="q"
 			value={data.q}
-			placeholder="Nombre, email o comienzo del código"
+			placeholder="Nombre, email, DNI o comienzo del código"
 			aria-label="Buscar entrada"
 		/>
 		<button type="submit">Buscar</button>
@@ -131,8 +141,10 @@
 			{#each data.results as t (t.id)}
 				<li class:inside={t.checkedInAt}>
 					<div>
-						<strong>{t.holder}</strong> · {t.type}<br />
-						<small>{t.email}</small>
+						<strong>{t.holder}</strong>{#if t.pronouns}
+							({t.pronouns}){/if} · {t.type}<br />
+						<small>Compró {t.buyer} · <span class="dni">{formatDni(t.dni)}</span> · {t.email}</small
+						>
 					</div>
 					{#if t.checkedInAt}
 						<span class="done">Ingresó {time(t.checkedInAt)} ({t.checkedInBy})</span>
@@ -273,5 +285,9 @@
 	.done {
 		font-size: var(--step--1);
 		text-align: right;
+	}
+	.dni {
+		font-family: ui-monospace, monospace;
+		font-weight: bold;
 	}
 </style>

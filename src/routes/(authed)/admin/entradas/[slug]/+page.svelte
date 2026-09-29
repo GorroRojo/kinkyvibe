@@ -6,16 +6,26 @@
 
 	let filter = $state('approved');
 	let visible = $derived(
-		filter === 'all' ? data.orders : data.orders.filter((o) => o.status === filter)
+		filter === 'all'
+			? data.orders
+			: filter === 'pending'
+				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
+				: data.orders.filter((o) => o.status === filter)
 	);
 
 	const statusText = {
 		pending: 'Pendiente',
+		awaiting_transfer: 'Esperando transferencia',
 		approved: 'Aprobada',
 		rejected: 'Rechazada',
 		cancelled: 'Cancelada',
 		refunded: 'Reembolsada',
 		expired: 'Vencida'
+	};
+	const methodText = {
+		mercadopago: 'Mercado Pago',
+		transferencia: 'Transferencia',
+		gratis: 'Sin cargo'
 	};
 
 	/** @param {number} ms */
@@ -26,6 +36,11 @@
 			hourCycle: 'h23',
 			timeZone: 'America/Argentina/Buenos_Aires'
 		});
+	}
+
+	/** @param {string} dni */
+	function formatDni(dni) {
+		return dni ? Number(dni).toLocaleString('es-AR') : '—';
 	}
 </script>
 
@@ -46,7 +61,7 @@
 
 	<table class="summary">
 		<thead>
-			<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Bruto</th></tr>
+			<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th></tr>
 		</thead>
 		<tbody>
 			{#each data.types as t (t.id)}
@@ -59,10 +74,70 @@
 			{/each}
 		</tbody>
 	</table>
+	<p class="note">
+		"Reservadas" incluye pagos en curso y transferencias pendientes. "Recaudado" es lo cobrado (con
+		descuentos), antes de comisiones.
+	</p>
 
 	{#if form?.resend}
 		<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
 	{/if}
+
+	<section class="transfers" aria-labelledby="transferencias">
+		<h2 id="transferencias">Transferencias pendientes</h2>
+		{#if form?.transfer}
+			<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
+		{/if}
+		{#if data.transfers.length === 0}
+			<p>No hay transferencias esperando confirmación.</p>
+		{:else}
+			<p class="note">
+				Buscá la referencia en el concepto de la transferencia y el comprobante que mandó la
+				persona. Confirmá solo cuando la plata esté en la cuenta.
+			</p>
+			<ul class="orders">
+				{#each data.transfers as o (o.id)}
+					<li class="order status-{o.status}">
+						<div class="who">
+							<strong class="ref">{o.reference}</strong>
+							<strong>{o.name}</strong>
+							<span class="dni">DNI {formatDni(o.dni)}</span>
+							<a href="mailto:{o.email}">{o.email}</a>
+						</div>
+						<div class="what">
+							{o.quantity} × {o.type} · <strong>{formatARS(o.total)}</strong>
+							{#if o.discountCode}· código {o.discountCode}{/if}
+						</div>
+						<div class="meta">
+							Pedida {time(o.createdAt)} ·
+							{#if o.status === 'expired'}
+								<span class="late">reserva vencida el {time(o.expiresAt)}</span> (se confirma solo si
+								hay cupo)
+							{:else}
+								reservada hasta {time(o.expiresAt)}
+							{/if}
+						</div>
+						<div class="buttons">
+							<form method="POST" action="?/confirm" use:enhance>
+								<input type="hidden" name="order" value={o.id} />
+								<button type="submit" class="confirm">Confirmar pago</button>
+							</form>
+							<form
+								method="POST"
+								action="?/cancel"
+								use:enhance={({ cancel }) => {
+									if (!confirm(`¿Cancelar ${o.reference}? Se libera el cupo.`)) cancel();
+								}}
+							>
+								<input type="hidden" name="order" value={o.id} />
+								<button type="submit" class="cancel">Cancelar</button>
+							</form>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 
 	<h2>Órdenes</h2>
 	<label class="filter">
@@ -73,6 +148,7 @@
 			<option value="all">Todas</option>
 		</select>
 	</label>
+
 	{#if visible.length === 0}
 		<p>No hay órdenes para mostrar.</p>
 	{/if}
@@ -81,18 +157,44 @@
 			<li class="order status-{o.status}">
 				<div class="who">
 					<strong>{o.name}</strong>
+					<span class="dni">DNI {formatDni(o.dni)}</span>
 					<a href="mailto:{o.email}">{o.email}</a>
 				</div>
 				<div class="what">
-					{o.quantity} × {o.type} · {formatARS(o.total)} ·
+					{o.quantity} × {o.type} · {formatARS(o.total)}
+					{#if o.fondo}<small>(fondo −{formatARS(o.fondo)})</small>{/if}
+					{#if o.discountAmount}<small
+							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
+						>{/if}
+					{#if o.surcharge}<small>(recargo MP +{formatARS(o.surcharge)})</small>{/if}
+					· {methodText[o.method]} ·
 					<span class="status">{statusText[o.status]}</span>
 					{#if o.status === 'approved'}
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if o.holders.length}
+					<table class="holders">
+						<thead>
+							<tr><th>#</th><th>Entrada a nombre de</th><th>Pronombres</th></tr>
+						</thead>
+						<tbody>
+							{#each o.holders as h, i (i)}
+								<tr class:inside={h.checkedIn}>
+									<td>{i + 1}</td>
+									<td
+										>{h.name}{#if h.checkedIn}&nbsp;✅{/if}</td
+									>
+									<td>{h.pronouns || '—'}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
 				<div class="meta">
-					{time(o.createdAt)}{#if o.paymentId}
-						· pago MP {o.paymentId}{/if}
+					{o.reference} · {time(o.createdAt)}{#if o.paymentId}
+						· pago MP {o.paymentId}{/if}{#if o.confirmedBy}
+						· {o.status === 'cancelled' ? 'canceló' : 'confirmó'} {o.confirmedBy}{/if}
 					{#if o.status === 'approved'}
 						· {o.emailSent ? 'mail enviado' : 'mail NO enviado'}
 						<form method="POST" action="?/resend" use:enhance>
@@ -180,8 +282,68 @@
 	.status-approved {
 		outline-color: var(--3);
 	}
-	.status-pending {
+	.status-pending,
+	.status-awaiting_transfer {
 		outline-color: var(--4);
+	}
+	.note {
+		font-size: var(--step--1);
+		color: #555;
+	}
+	.transfers {
+		margin: 1.5em 0;
+		padding: 0.8em 1em 1em;
+		border-radius: 0.8em;
+		background: color-mix(in srgb, var(--4) 12%, white);
+	}
+	.transfers h2 {
+		margin-top: 0;
+	}
+	.ref {
+		font-family: ui-monospace, monospace;
+	}
+	.late {
+		color: hsl(0, 70%, 40%);
+		font-weight: bold;
+	}
+	.buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin-top: 0.5em;
+	}
+	.buttons button {
+		font: inherit;
+		font-weight: bold;
+		border: 0;
+		border-radius: 0.5em;
+		padding: 0.6em 1em;
+		min-height: 2.8em;
+		cursor: pointer;
+	}
+	.buttons .confirm {
+		background: var(--3-dark);
+		color: white;
+	}
+	.buttons .cancel {
+		background: white;
+		outline: 2px solid hsl(0, 70%, 45%);
+		color: hsl(0, 70%, 35%);
+	}
+	table.holders {
+		margin: 0.4em 0;
+		font-size: var(--step--1);
+	}
+	table.holders td,
+	table.holders th {
+		text-align: left;
+	}
+	.dni {
+		font-family: ui-monospace, monospace;
+		white-space: nowrap;
+	}
+	table.holders .inside {
+		background: color-mix(in srgb, var(--3) 12%, white);
 	}
 	.who {
 		display: flex;
