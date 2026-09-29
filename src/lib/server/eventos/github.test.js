@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { commitFiles, existingPaths, listTree, PathExistsError, GitHubError } from './github.js';
+import {
+	commitFiles,
+	existingPaths,
+	getDirTexts,
+	listTree,
+	FileChangedError,
+	PathExistsError,
+	GitHubError
+} from './github.js';
 
 /** @type {Array<{method: string, url: string, body: any}>} */
 let calls;
@@ -142,5 +150,91 @@ describe('commitFiles', () => {
 			PathExistsError
 		);
 		expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+	});
+	it('deletes files with a null sha in the same tree', async () => {
+		fakeRepo();
+		await commitFiles('t', {
+			files: [
+				{ path: 'src/lib/assets/x.png', base64: 'AAAA' },
+				{ path: 'src/lib/assets/x.webp', delete: true }
+			],
+			message: 'm'
+		});
+		const tree = calls.find((c) => c.method === 'POST' && c.url === 'git/trees')?.body;
+		expect(tree.tree).toContainEqual({
+			path: 'src/lib/assets/x.webp',
+			mode: '100644',
+			type: 'blob',
+			sha: null
+		});
+	});
+	it('refuses when a file in `unchanged` was modified meanwhile', async () => {
+		fakeRepo({ exists: ['a-2026-10.md'] });
+		// the fake tree listing has no sha for a-2026-10.md: it "changed"
+		await expect(
+			commitFiles('t', {
+				files: [{ path: `${DIR}/a-2026-10.md`, content: 'x' }],
+				message: 'm',
+				unchanged: [{ path: `${DIR}/a-2026-10.md`, sha: 'old' }]
+			})
+		).rejects.toBeInstanceOf(FileChangedError);
+		expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+	});
+	it('commits when the files in `unchanged` are still the ones read', async () => {
+		let patches = 0;
+		respond = (m, e) => {
+			if (m === 'GET' && e === 'git/ref/heads/main')
+				return { status: 200, json: { object: { sha: 'h' } } };
+			if (m === 'GET' && e.startsWith('git/trees/'))
+				return { status: 200, json: { tree: [{ path: 'a-2026-10.md', sha: 'same' }] } };
+			if (m === 'GET' && e.startsWith('git/commits/'))
+				return { status: 200, json: { tree: { sha: 't0' } } };
+			if (m === 'POST' && e === 'git/trees') return { status: 201, json: { sha: 't1' } };
+			if (m === 'POST' && e === 'git/commits') return { status: 201, json: { sha: 'c' } };
+			if (m === 'PATCH') return (patches++, { status: 200, json: {} });
+			return { status: 500 };
+		};
+		const r = await commitFiles('t', {
+			files: [{ path: `${DIR}/a-2026-10.md`, content: 'x' }],
+			message: 'm',
+			unchanged: [{ path: `${DIR}/a-2026-10.md`, sha: 'same' }]
+		});
+		expect(r.sha).toBe('c');
+		expect(patches).toBe(1);
+	});
+});
+
+describe('getDirTexts', () => {
+	it('reads every text file of a folder in one GraphQL request', async () => {
+		respond = (m, e, body) => {
+			expect(e).toBe('https://api.github.com/graphql');
+			expect(body.variables).toEqual({
+				owner: 'GorroRojo',
+				name: 'kinkyvibe',
+				expr: `main:${DIR}`
+			});
+			return {
+				status: 200,
+				json: {
+					data: {
+						repository: {
+							object: {
+								entries: [
+									{ name: 'a.md', type: 'blob', oid: 's1', object: { text: 'A', isBinary: false } },
+									{ name: 'media', type: 'tree', oid: 's2', object: {} },
+									{ name: 'b.png', type: 'blob', oid: 's3', object: { text: null, isBinary: true } }
+								]
+							}
+						}
+					}
+				}
+			};
+		};
+		expect(await getDirTexts('t', DIR)).toEqual([{ path: `${DIR}/a.md`, sha: 's1', text: 'A' }]);
+		expect(calls).toHaveLength(1);
+	});
+	it('turns GraphQL errors into a GitHubError', async () => {
+		respond = () => ({ status: 200, json: { errors: [{ message: 'nope' }] } });
+		await expect(getDirTexts('t', DIR)).rejects.toThrow(/nope/);
 	});
 });

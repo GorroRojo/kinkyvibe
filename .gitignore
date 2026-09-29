@@ -5,6 +5,7 @@ node_modules
 /package
 .env
 .env.*
+!.env.admin
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
@@ -12,3 +13,5 @@ vite.config.ts.timestamp-*
 src\lib\posts\material\media\donde-y-como-golpear-un-cuerpo\ensamblado.kra~
 .VSCodeCounter
 .wrangler
+/test-results
+/playwright-report
