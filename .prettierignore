@@ -2,12 +2,21 @@
 node_modules
 /build
 /.svelte-kit
+/.wrangler
 /package
 .env
 .env.*
 !.env.example
+.VSCodeCounter
 
 # Ignore files for PNPM, NPM and YARN
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+
+# Post content is edited by non-developers through the admin CMS (some files use CRLF).
+# Formatting it would rewrite markdown/YAML frontmatter and conflict with CMS commits.
+/src/lib/posts
+
+# Static assets are served verbatim
+/static
