@@ -20,8 +20,10 @@ export async function load({ params, platform, url, locals }) {
 	if (!ticket) error(404, 'Entrada no encontrada.');
 	const config = await getEventTickets(ticket.event_slug);
 	return {
+		// Nombre y pronombres, nunca el DNI (esta página la ve cualquiera que tenga el QR).
 		ticket: {
 			holder: ticket.holder_name,
+			pronouns: ticket.holder_pronouns ?? '',
 			type: config?.types.find((t) => t.id === ticket.ticket_type)?.name ?? ticket.ticket_type,
 			state: /** @type {'void' | 'used' | 'valid'} */ (
 				ticket.order_status !== 'approved' ? 'void' : ticket.checked_in_at ? 'used' : 'valid'

@@ -9,7 +9,7 @@ import {
 	isValidVisitorId,
 	setInterest
 } from '$lib/server/db/interest.js';
-import { buyAction, getTicketsView } from '$lib/server/tickets/checkout.js';
+import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
 
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
@@ -54,6 +54,7 @@ export async function load({ params, platform, cookies }) {
 export const actions = {
 	// Compra de entradas (solo eventos con `tickets` en el frontmatter).
 	buy: (event) => buyAction(event),
+	discount: (event) => discountAction(event),
 	interest: async ({ params, platform, cookies, request }) => {
 		const db = getDB(platform);
 		if (!db) return fail(503, { error: 'Esta función no está disponible ahora.' });

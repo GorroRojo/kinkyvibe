@@ -9,7 +9,14 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { rememberedOrders } from '$lib/server/tickets/checkout.js';
 import { maskEmail } from '$lib/server/tickets/email.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { getGateway, processPayment, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	getGateway,
+	processPayment,
+	replyToAddress,
+	siteOrigin,
+	transferInfo
+} from '$lib/server/tickets/index.js';
+import { orderReference } from '$lib/utils/tickets.js';
 import { getOrder, getOrderTickets, isValidOrderId } from '$lib/server/tickets/orders.js';
 
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
@@ -22,7 +29,12 @@ export async function load({ params, url, platform, fetch, cookies }) {
 	let order = await getOrder(db, params.order);
 	if (!order) error(404, 'No encontramos esa compra.');
 
-	if (order.status !== 'approved' && order.status !== 'refunded' && order.mp_preference_id) {
+	if (
+		order.payment_method === 'mercadopago' &&
+		order.status !== 'approved' &&
+		order.status !== 'refunded' &&
+		order.mp_preference_id
+	) {
 		try {
 			const limit = await hitRateLimit(db, `tickets:o:${order.id}`, RECHECK_LIMIT);
 			const gateway = limit.allowed ? await getGateway(fetch) : null;
@@ -62,7 +74,14 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			id: current.id,
 			status: current.status,
 			quantity: current.quantity,
+			list: current.unit_price * current.quantity,
+			fondo: current.fondo_amount,
+			discountCode: current.discount_code,
+			discountAmount: current.discount_amount,
+			surcharge: current.surcharge_amount,
 			total: current.total,
+			method: current.payment_method,
+			reference: orderReference(current.id),
 			typeName:
 				config?.types.find((t) => t.id === current.ticket_type)?.name ?? current.ticket_type,
 			// Sin la cookie de esta compra no mostramos el email completo.
@@ -73,6 +92,11 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			slug: current.event_slug,
 			title: config?.title ?? current.event_slug
 		},
-		tickets
+		tickets,
+		// Datos para transferir: solo mientras se espera la transferencia.
+		transfer:
+			current.status === 'awaiting_transfer'
+				? { info: transferInfo(), replyTo: replyToAddress() ?? null }
+				: null
 	};
 }

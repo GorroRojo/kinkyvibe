@@ -39,6 +39,10 @@
 	<dl>
 		<dt>Nombre</dt>
 		<dd>{data.ticket.holder}</dd>
+		{#if data.ticket.pronouns}
+			<dt>Pronombres</dt>
+			<dd>{data.ticket.pronouns}</dd>
+		{/if}
 		<dt>Entrada</dt>
 		<dd>{data.ticket.type}</dd>
 		<dt>Estado</dt>
