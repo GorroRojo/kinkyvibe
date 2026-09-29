@@ -9,7 +9,7 @@
 		ShoppingCart,
 		ChevronLeft,
 		Globe
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
@@ -216,8 +216,9 @@
 		justify-self: right;
 		--color: var(--1);
 	}
+	/* `width: 24` (no unit) was always invalid and ignored by browsers; Vite 8's CSS minifier
+	   would turn it into 24px and resize every icon, so it's dropped to keep the old rendering. */
 	:global(svg) {
-		width: 24;
 		height: 24px;
 	}
 	#logo img {

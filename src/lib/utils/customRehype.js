@@ -89,14 +89,18 @@ export default function customRehype() {
 				node.children.unshift({
 					type: 'element',
 					tagName: 'a',
-					properties: { href: '#' + node.properties?.id, class: 'linktothis' },
+					properties: {
+						href: '#' + node.properties?.id,
+						class: 'linktothis',
+						'aria-label': 'Enlace a esta sección'
+					},
 					// @ts-ignore
 					children: [linkIcon]
 				});
 				node.children.push({
 					type: 'element',
 					tagName: 'a',
-					properties: { href: '#title', class: 'backtotop' },
+					properties: { href: '#title', class: 'backtotop', 'aria-label': 'Volver arriba' },
 					// @ts-ignore
 					children: [cornerRightUpIcon]
 				});
@@ -143,8 +147,11 @@ export default function customRehype() {
 			[
 				// eslint-disable-next-line no-useless-escape
 				/(?<![\w\d])(\\?)@([\p{L}\p{N}_.-]*[\p{L}\p{N}_])/gu,
-				(_, escape, user) => {
+				(_, escape, user, { stack }) => {
 					if (escape) return '@' + user;
+					// Don't nest a mention link inside an existing link: `<a>` inside `<a>` is invalid
+					// HTML (Svelte 5 refuses to compile it) and browsers would split the outer link.
+					if (stack.some((/** @type {any} */ node) => node.tagName === 'a')) return false;
 					const href = '/amigues/' + user;
 					return h('a.mention', { href }, '@' + user);
 				}

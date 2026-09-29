@@ -1,6 +1,6 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
 	import { isPast } from 'date-fns';
 	export let post;

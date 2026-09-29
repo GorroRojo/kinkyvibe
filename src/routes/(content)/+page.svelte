@@ -136,7 +136,7 @@
 			href="/amigues"
 		/>
 	</div>
-	<div id="lista" />
+	<div id="lista"></div>
 	<PostList posts={allPosts} />
 </main>
 

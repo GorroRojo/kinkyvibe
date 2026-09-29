@@ -6,11 +6,11 @@
 		Download,
 		MousePointerClick,
 		Heart
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { addHours, format, isPast } from 'date-fns';
 	import { toArgentina, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
 
@@ -95,7 +95,6 @@
 			{:else}
 				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
-			&ThickSpace;
 		</div>
 		{#if category != 'amigues'}
 			{#if date}
@@ -145,7 +144,7 @@
 						organizer="Mel|kinkyvibe@gmail.com"
 						size="1"
 						hideBackground
-					/>
+					></add-to-calendar-button>
 					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
 					<!-- buttonStyle="round" -->
@@ -182,9 +181,9 @@
 				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black)'}
 					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
+					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent)'}
 					style:--filled-outline-offset={'-2px'}
 					style:--hover-text-decoration={'underline var(--tag-color)'}
 					style:white-space={'nowrap'}
@@ -194,7 +193,10 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && status && status == 'abierto' && !past}
+	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
+	     restructure it if it were server-rendered, breaking hydration. -->
+	{#if mounted && link && status && status == 'abierto' && !past}
+		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
 	{/if}
 </a>

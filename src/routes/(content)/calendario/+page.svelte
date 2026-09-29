@@ -87,8 +87,9 @@
 					{Number(date.slice(8))}
 				</div>
 				{#if events}
-					<div class="dot" />
-					{#each events.sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+					<div class="dot"></div>
+					<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
+					{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
 						{@const start = toArgentina(event.meta.start)}
 						{@const minutes = format(start, 'mm')}
 						<a

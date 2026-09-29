@@ -3,7 +3,7 @@
 	import Tag from './Tag.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
 	/** @type ProcessedTag */
@@ -71,7 +71,7 @@
 									$page.url.searchParams.get('tags')?.split(',').includes(item)}
 								noBorder
 								--off-background="color-mix(in srgb, white 35%, transparent)"
-								--text-color="color-mix(in srgb, black 15%, var(--tag-color)"
+								--text-color="color-mix(in srgb, black 15%, var(--tag-color))"
 							/>
 						{:else}
 							<Tag
@@ -108,7 +108,9 @@
 		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
 		background: var(--faded-color);
 	}
-	.filtergroup:has(> .groupname :checked) {
+	/* The checkbox lives in the child <Tag> component. Svelte 5 scopes selectors inside :has(),
+	   so the inner part has to be :global() to keep matching it (Svelte 4 left it unscoped). */
+	.filtergroup:has(> .groupname :global(:checked)) {
 		outline: 3px solid var(--tag-color);
 		background: color-mix(in srgb, white 60%, transparent);
 	}
@@ -166,8 +168,8 @@
 	:global(.groupitems) {
 		display: none;
 	}
-	.groupname:has(:checked) + .groupitems,
-	.groupname:has(span) + .groupitems,
+	.groupname:has(:global(:checked)) + .groupitems,
+	.groupname:has(:global(span)) + .groupitems,
 	:global(.groupitems:has(:checked)) {
 		display: flex;
 	}
