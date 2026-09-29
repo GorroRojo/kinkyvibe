@@ -1,7 +1,6 @@
 <script>
 	import '$lib/types.d.js';
 	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
-	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
 
@@ -87,29 +86,32 @@
 		</div>
 	{/if}
 
-	{#if $filteredTags.length > 0}
-		<div class="tag-group-container">
+	<!-- The toggle and "Despejar filtros" share a row, so picking the first tag (or clearing
+	the last one) doesn't push the results down/up by a whole button on narrow screens. -->
+	<div class="filter-actions">
+		<button
+			type="button"
+			class="filters-toggle"
+			aria-expanded={view_filters}
+			aria-controls="tagfilters"
+			on:click={() => (view_filters = !view_filters)}
+		>
+			{view_filters ? 'Ocultar etiquetas' : 'Filtrar por etiquetas'}
+			{#if $filteredTags.length > 0}<span class="active-count">{$filteredTags.length}</span>{/if}
+			<span class="chevron" class:open={view_filters} aria-hidden="true">▾</span>
+		</button>
+		{#if $filteredTags.length > 0}
 			<button
+				type="button"
 				on:click={() => {
 					$filteredTags = [];
 				}}>Despejar filtros</button
 			>
-		</div>
-	{/if}
-	<button
-		type="button"
-		class="filters-toggle"
-		aria-expanded={view_filters}
-		aria-controls="tagfilters"
-		on:click={() => (view_filters = !view_filters)}
-	>
-		{view_filters ? 'Ocultar etiquetas' : 'Filtrar por etiquetas'}
-		{#if $filteredTags.length > 0}<span class="active-count">{$filteredTags.length}</span>{/if}
-		<span class="chevron" class:open={view_filters} aria-hidden="true">▾</span>
-	</button>
+		{/if}
+	</div>
 	<div class="tagfilters" id="tagfilters" class:collapsed={!view_filters}>
 		{#each tags as tag, i (tag.id)}
-			<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+			<div class="tag-group-container">
 				<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
 			</div>
 		{/each}
@@ -182,6 +184,13 @@
 		flex-wrap: wrap;
 		justify-content: center;
 		max-width: min(100dvw, 100%);
+	}
+	.filter-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		align-items: center;
+		column-gap: 0.6em;
 	}
 	.filters-toggle {
 		display: flex;

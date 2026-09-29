@@ -1,5 +1,4 @@
 <script>
-	import { scale } from 'svelte/transition';
 	import Tag from './Tag.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
@@ -33,7 +32,6 @@
 </script>
 
 <div
-	in:scale={{ duration: 500 }}
 	class="filtergroup"
 	style:--tag-color={tag.getColor() ?? 'inherit'}
 	class:noname
@@ -41,7 +39,7 @@
 	class:gap
 >
 	{#if tag.id && !noname}
-		<span in:scale={{ duration: 500 }} class="groupname">
+		<span class="groupname">
 			<Tag
 				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
 				icon={tag.icon ?? ''}
@@ -55,10 +53,10 @@
 		</span>
 	{/if}
 	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
-		<ul class="groupitems" in:scale={{ duration: 500 }}>
+		<ul class="groupitems">
 			{#each tag.children.filter(isVisible) ?? [] as item (item)}
 				{@const subTag = $tagManager.get(item)}
-				<li in:scale={{ duration: 500 }}>
+				<li>
 					{#if !subTag?.children || subTag.children.length == 0}
 						{#if mounted}
 							<Tag
@@ -100,7 +98,10 @@
 		min-width: 0;
 		align-items: stretch;
 		--border-radius: 0.3em;
-		transition: 100ms;
+		/* colors only: animating everything also animated margins, so checking a tag
+		   made the tree (and the list's anchoring) drift for 100ms */
+		transition-property: background-color, outline-color, box-shadow;
+		transition-duration: 100ms;
 		justify-content: center;
 		flex-wrap: wrap;
 		width: 100%;

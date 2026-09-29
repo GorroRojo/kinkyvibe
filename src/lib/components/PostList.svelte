@@ -1,6 +1,4 @@
 <script>
-	import { scale, fade } from 'svelte/transition';
-	import { flip } from 'svelte/animate';
 	import {
 		filteredTags,
 		visibleTags,
@@ -10,7 +8,7 @@
 		redundantTags,
 		searchText
 	} from '$lib/utils/stores';
-	import { onMount } from 'svelte';
+	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -82,6 +80,51 @@
 	);
 	$: searching = $filteredTags.length > 0 || $searchText.trim() != '';
 
+	/**
+	 * Mount big batches of new items in two steps: the first few right away (they're what's
+	 * on screen), the rest once that frame has been painted. Clearing a search or switching
+	 * list/grid creates ~50 components at once; this way the list answers in one short
+	 * task and the remaining items (below the fold) arrive a frame later. Items that are
+	 * already on the page always stay, so nothing gets unmounted and remounted.
+	 */
+	const FIRST_BATCH = 10;
+	let mounted = false;
+	/** @type {ProcessedPost[]} */
+	let prevShown = [];
+	let prevDisplay = '';
+	/** @type {ReturnType<typeof setTimeout>|undefined} */
+	let releaseTimer;
+	let batch = 0;
+	/**
+	 * @param {ProcessedPost[]} posts
+	 * @param {string} display
+	 * @returns {Set<string>|null} paths allowed to render for now; null = all of them
+	 */
+	function planBatch(posts, display) {
+		clearTimeout(releaseTimer);
+		const current = ++batch;
+		if (!mounted) return null;
+		const had = new Set(display == prevDisplay ? prevShown.map((p) => p.path) : []);
+		const fresh = posts.filter((p) => !had.has(p.path));
+		if (fresh.length <= FIRST_BATCH + 5) return null;
+		for (const p of fresh.slice(0, FIRST_BATCH)) had.add(p.path);
+		requestAnimationFrame(() => {
+			if (current == batch) releaseTimer = setTimeout(() => (allowed = null), 0);
+		});
+		return had;
+	}
+	/** @type {Set<string>|null} */
+	let allowed = null;
+	$: allowed = planBatch(tagFilteredPosts, $userConfig.display_type);
+	$: shownPosts = allowed
+		? tagFilteredPosts.filter((p) => /**@type {Set<string>}*/ (allowed).has(p.path))
+		: tagFilteredPosts;
+	$: (prevShown = shownPosts), (prevDisplay = $userConfig.display_type);
+	onMount(() => {
+		mounted = true;
+		return () => clearTimeout(releaseTimer);
+	});
+
 	onMount(() => {
 		if (!syncUrl) return;
 		const pathname = location.pathname;
@@ -132,6 +175,73 @@
 		};
 	});
 
+	/**
+	 * Keep whatever the person just used (a tag in the tree, the search field, the
+	 * list/grid switch...) where it was on screen when the results change. Without this
+	 * the page height shrinks under the pointer (and the tag tree loses groups), so the
+	 * control jumps away from the cursor. Runs synchronously around Svelte's DOM update,
+	 * so there's no visible intermediate frame.
+	 * @type {HTMLElement}
+	 */
+	let controls;
+	/** @type {Element|null} */
+	let touched = null;
+	let touchedAt = 0;
+	/** @param {Event} e */
+	function remember(e) {
+		touched = /** @type {Element} */ (e.target);
+		touchedAt = performance.now();
+	}
+	/** @type {Element|null} */
+	let anchor = null;
+	let anchorTop = 0;
+	beforeUpdate(() => {
+		anchor = null;
+		if (!controls) return;
+		const active = document.activeElement;
+		const el =
+			touched && performance.now() - touchedAt < 1000
+				? touched
+				: active && active != document.body && controls.contains(active)
+				? active
+				: null;
+		// items of the list itself are what changes; don't anchor to them
+		if (!el?.isConnected || el.closest('#posts')) return;
+		anchor = el;
+		anchorTop = el.getBoundingClientRect().top;
+	});
+	// The tag tree marks tags as checked from the URL, one navigation after the filter
+	// changed; depending on it makes that update go through the anchoring above too.
+	$: $page.url.search, void 0;
+	afterUpdate(() => {
+		if (!anchor?.isConnected) return;
+		const dy = anchor.getBoundingClientRect().top - anchorTop;
+		anchor = null;
+		if (Math.abs(dy) > 1) window.scrollBy({ top: dy, behavior: 'instant' });
+	});
+
+	/**
+	 * One short opacity blink of the whole list when its contents change, instead of
+	 * animating every item. Opacity runs on the compositor: no layout, no per-item cost.
+	 * Skipped for people who ask for reduced motion.
+	 * @param {HTMLElement} node
+	 * @param {[ProcessedPost[], string]} params shown posts and display type
+	 */
+	function settle(node, [shown, display]) {
+		const sig = (/**@type {ProcessedPost[]}*/ ps, /**@type string*/ d) =>
+			d + ps.map((p) => p.path).join('|');
+		let last = sig(shown, display);
+		return {
+			update(/**@type {[ProcessedPost[], string]}*/ [shown, display]) {
+				const next = sig(shown, display);
+				if (next == last) return;
+				last = next;
+				if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+				node.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' });
+			}
+		};
+	}
+
 	$: allTags.set([
 		// @ts-ignore
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
@@ -141,7 +251,12 @@
 
 <slot />
 <div class="container">
-	<div class="postlist">
+	<div
+		class="postlist"
+		bind:this={controls}
+		on:pointerdown|capture={remember}
+		on:keydown|capture={remember}
+	>
 		{#if outerFilteredPosts.length > 0 || searching}
 			<div class="search">
 				<TagSearch posts={outerFilteredPosts} />
@@ -173,15 +288,21 @@
 						>
 					</div>
 				{/if}
-				{#key $userConfig.display_type}
-					<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
-						{#each tagFilteredPosts as post, i (post.path)}
-							<li in:scale={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
-								<svelte:component this={Item} {post} />
-							</li>
-						{/each}
-					</ul>
-				{/key}
+				<!-- No per-item transitions: every in:scale read getComputedStyle and every
+				animate:flip read getBoundingClientRect for each <li>, forcing a layout per item
+				and keeping the list moving for ~1s after each change. The whole list just
+				blinks once (see `settle`). -->
+				<ul
+					id="posts"
+					class={$userConfig.display_type + ' h-feed'}
+					use:settle={[tagFilteredPosts, $userConfig.display_type]}
+				>
+					{#each shownPosts as post (post.path)}
+						<li>
+							<svelte:component this={Item} {post} />
+						</li>
+					{/each}
+				</ul>
 			</div>
 		{/if}
 	</div>
@@ -232,6 +353,18 @@
 		list-style: none;
 		max-width: 100dvw;
 		min-width: 0;
+		/* Off-screen items skip style/layout/paint until they get close to the viewport.
+		   That containment also clips painting to the <li>, so it gets room around the
+		   item (cancelled by negative margins, the layout doesn't change) for the hover
+		   zoom, the shadows, the card marks and the tag row hanging below grid cards.
+		   The placeholder height is only used until an item has rendered once ("auto"). */
+		content-visibility: auto;
+		contain-intrinsic-size: auto 11.5em;
+		padding: 2em 1em;
+		margin: -2em -1em;
+	}
+	#posts.grid > li {
+		contain-intrinsic-size: auto 13rem auto 20em;
 	}
 
 	.postlist {
