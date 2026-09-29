@@ -300,6 +300,41 @@ export function todayInArgentina(now = new Date()) {
 }
 
 /**
+ * Year and month the date of a copied event starts on: this month while we're in its first
+ * half (day 1 to 15, Argentina time), next month from the 16th on. Only year-month: the day is
+ * always chosen by hand, so nobody publishes a copy with an old date by accident.
+ * @param {string} today YYYY-MM-DD (see todayInArgentina)
+ * @returns {string} YYYY-MM
+ */
+export function prefillMonth(today) {
+	if (Number(today.slice(8, 10)) <= 15) return today.slice(0, 7);
+	return shiftMonth(today.slice(0, 7), 1);
+}
+
+/**
+ * @param {string} ym YYYY-MM
+ * @param {number} n months (can be negative)
+ * @returns {string} YYYY-MM
+ */
+export function shiftMonth(ym, n) {
+	const [y, m] = ym.split('-').map(Number);
+	const total = y * 12 + (m - 1) + n;
+	return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Layout of a month for a calendar grid (weeks start on Monday, as in Argentina).
+ * @param {string} ym YYYY-MM
+ * @returns {{days: number, offset: number, label: string}} offset: empty cells before day 1
+ */
+export function monthGrid(ym) {
+	const [y, m] = ym.split('-').map(Number);
+	const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+	const offset = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+	return { days, offset, label: `${MONTH_NAMES[m - 1]} de ${y}` };
+}
+
+/**
  * @param {string} date YYYY-MM-DD
  * @param {number} days
  */
@@ -547,8 +582,8 @@ export function isNumericFeatured(featured) {
  * @prop {string} location_name
  * @prop {string} link
  * @prop {string} link_text
- * @prop {string} tags comma separated
- * @prop {string} authors comma separated
+ * @prop {string|string[]} tags a list, or comma separated
+ * @prop {string|string[]} authors a list, or comma separated
  * @prop {'keep'|'upload'|'none'} featuredMode
  * @prop {string} [uploadExt] extension of the uploaded image, when featuredMode is 'upload'
  * @prop {string} body
@@ -556,10 +591,9 @@ export function isNumericFeatured(featured) {
  * @prop {boolean} [unlisted]
  */
 
-/** @param {string} s */
+/** @param {string|string[]} s a list, or comma separated */
 export const splitList = (s) =>
-	String(s ?? '')
-		.split(',')
+	(Array.isArray(s) ? s.map(String) : String(s ?? '').split(','))
 		.map((x) => x.trim())
 		.filter(Boolean);
 
