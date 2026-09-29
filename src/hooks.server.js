@@ -14,7 +14,10 @@ export async function handle({ event, resolve }) {
 	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
 	// `vite build`, so this whole block is removed from production bundles.
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
-		event.locals.user = { login: env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo', name: null, avatar_url: '' };
+		const login = env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo';
+		// The real avatar, from the public github.com/<login>.png redirect, so the user menu looks
+		// like it does with a real login (which gets avatar_url from GitHub's /user answer).
+		event.locals.user = { login, name: null, avatar_url: `https://github.com/${login}.png` };
 		event.locals.user_token = 'dev-mock';
 		return await resolve(event);
 	}

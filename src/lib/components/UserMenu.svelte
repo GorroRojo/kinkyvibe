@@ -2,6 +2,14 @@
 	import { createDropdownMenu, melt } from '@melt-ui/svelte';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
+	import {
+		CalendarPlus,
+		Copy,
+		FileSpreadsheet,
+		LayoutDashboard,
+		LogOut,
+		SquarePen
+	} from '@lucide/svelte';
 	/** @type {GHUser} */
 	export let user;
 	const {
@@ -30,32 +38,49 @@
 		// return true
 	}
 	let admin = isAdmin('', user.login);
+	// GitHub serves every account's picture at github.com/<login>.png; used when the session has
+	// no avatar_url (e.g. the fake admin of `npm run dev:admin`).
+	$: avatar = user.avatar_url || `https://github.com/${encodeURIComponent(user.login)}.png`;
+	/** Same size and stroke for every menu icon. */
+	const icon = { size: 18, strokeWidth: 2, 'aria-hidden': true, class: 'icon' };
 </script>
 
 <div class="profile-header" use:melt={$trigger}>
-	<img src={user.avatar_url} class="profile-pic" alt="" />
+	<img src={avatar} class="profile-pic" alt="" width="24" height="24" />
 	<span id="title" class="profile-name">
 		{user.name || user.login}
 	</span>
 	{#if $open}
 	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
 		{#if admin}
-		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
-		<a href="/admin/eventos" class="menuitem" use:melt={$item}>Cargar evento</a>
-		<a href="/admin/eventos/importar" class="menuitem" use:melt={$item}>Importar planilla</a>
+		<a href="/admin" class="menuitem" use:melt={$item}
+			><LayoutDashboard {...icon} /><span>Panel de admin</span></a
+		>
+		<a href="/admin/eventos" class="menuitem" use:melt={$item}
+			><CalendarPlus {...icon} /><span>Cargar evento</span></a
+		>
+		<a href="/admin/eventos/importar" class="menuitem" use:melt={$item}
+			><FileSpreadsheet {...icon} /><span>Importar planilla</span></a
+		>
 		{#if eventSlug}
 			<a href="/admin/eventos/nuevo?desde={eventSlug}" class="menuitem" use:melt={$item}
-				>Duplicar este evento</a
+				><Copy {...icon} /><span>Duplicar este evento</span></a
 			>
 		{/if}
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
-			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>
+			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}
+				><SquarePen {...icon} /><span>Editar contenido</span></a
+			>
 		{:else}
-			<span class="menuitem disabled" use:melt={$item}>Editar contenido</span>
+			<span class="menuitem disabled" use:melt={$item}
+				><SquarePen {...icon} /><span>Editar contenido</span></span
+			>
 		{/if}
 		{/if}
-		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}>Cerrar sesión</a>
+		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}
+			><LogOut {...icon} /><span>Cerrar sesión</span></a
+		>
 	</div>
 	{/if}
 </div>
@@ -69,8 +94,16 @@
 		flex-direction: column;
 		background: #fff;
 		.menuitem {
+			display: flex;
+			align-items: center;
+			gap: 0.6em;
 			padding: 0.5em 1em;
 			width: 100%;
+			line-height: 1.2;
+			:global(.icon) {
+				flex: none;
+				opacity: 0.75;
+			}
 		}
 		.disabled {
 			opacity: 0.5;
