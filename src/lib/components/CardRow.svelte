@@ -8,12 +8,15 @@
 	export let href = undefined;
 	export let index = undefined;
 	export let setId = true;
+	// Without an index the old offset evaluated to NaN (i.e. no vertical movement); keep that
+	// explicitly, since Svelte 5's Web Animations based transitions warn about NaN keyframes.
+	$: flyY = index === undefined ? 0 : ((index % 2) - 0.5) * 2 * 200;
 </script>
 
 <div
 	{id}
-	in:fly={{ y: ((index % 2) - 0.5) * 2 * 200, duration: 300, delay: 300 }}
-	out:fly={{ y: ((index % 2) - 0.5) * 2 * -200, duration: 300 }}
+	in:fly={{ y: flyY, duration: 300, delay: 300 }}
+	out:fly={{ y: -flyY, duration: 300 }}
 	class="cardrowcontainer"
 >
 	{#if title}
