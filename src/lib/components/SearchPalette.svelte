@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import { Search, X, Loader2 } from 'lucide-svelte';
+	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
@@ -216,7 +216,7 @@
 <svelte:window on:keydown={onWindowKeydown} />
 
 {#if $searchOpen}
-	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
 		class="backdrop"
 		transition:fade={{ duration: 100 }}
@@ -225,6 +225,7 @@
 		<div
 			class="palette"
 			role="dialog"
+			tabindex="-1"
 			aria-modal="true"
 			aria-labelledby="search-title"
 			data-ready={index ? '' : undefined}
@@ -235,7 +236,7 @@
 			<div class="bar">
 				<span class="icon" aria-hidden="true">
 					{#if loadingIndex && !index && !error}
-						<span class="spin"><Loader2 size="1.2em" /></span>
+						<span class="spin"><LoaderCircle size="1.2em" /></span>
 					{:else}
 						<Search size="1.2em" />
 					{/if}

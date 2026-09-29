@@ -3,7 +3,7 @@
 	import { currentPostData, searchOpen } from './../utils/stores.js';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	export let links;
 	let shortcut = 'Ctrl + K';
 	onMount(() => {

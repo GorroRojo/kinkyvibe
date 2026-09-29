@@ -1,16 +1,32 @@
 <script>
-	import 'add-to-calendar-button';
+	import { userConfig } from '$lib/utils/stores.js';
+	import { fetchAllPostsClient, isCurrent } from '$lib/utils/allPosts';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { addDays, format, isSameMonth, isPast, addMonths, addHours } from 'date-fns';
+	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
 	import { view_date } from '$lib/utils/stores.js';
+	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	export let data;
-	let calendarioPosts = data.allPosts.filter((p) => p.meta.layout == 'calendario');
+	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
+	// past events come with just what the calendar grid needs; the list only gets
+	// them once they've been loaded in full
+	let loadedPast = false;
+	let fullPosts = false;
+	$: listPosts = fullPosts ? calendarioPosts : calendarioPosts.filter((p) => isCurrent(p));
+	$: if ($userConfig.show_past_events && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => {
+				calendarioPosts = posts.filter((p) => p.meta.layout == 'calendario');
+				fullPosts = true;
+			})
+			.catch(() => (loadedPast = false));
+	}
 	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
 	let days = calendarioPosts.reduce((dates, post, i) => {
-		let start_date = format(addDays(new Date(post.meta.start), 0), 'yyyy-MM-dd');
+		let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
 		// @ts-ignore
 		if (dates[start_date]) {
 			// @ts-ignore
@@ -25,7 +41,10 @@
 
 	Object.entries(days).forEach(([date, posts]) => {
 		// if all the posts this month are inthe past, set view_date to next month
-		if (isSameMonth(addHours(new Date(date), 3), $view_date) && !isPast(new Date(date))) {
+		if (
+			isSameMonth(new Date(date + 'T00:00'), $view_date) &&
+			posts.some((p) => !isPast(new Date(p.meta.start)))
+		) {
 			skip_month_flag = false;
 		}
 	});
@@ -65,12 +84,13 @@
 					: 'var(--2)'}
 			>
 				<div class="date" class:today>
-					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
+					{Number(date.slice(8))}
 				</div>
 				{#if events}
-					<div class="dot" />
-					{#each events.sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
-						{@const start = new Date(event.meta.start)}
+					<div class="dot"></div>
+					<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
+					{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+						{@const start = toArgentina(event.meta.start)}
 						{@const minutes = format(start, 'mm')}
 						<a
 							href={'#' + event.path}
@@ -97,13 +117,13 @@
 	<div id="postlist">
 		<PostList
 			filter={{ prop: 'visible', value: true }}
-			posts={calendarioPosts
+			posts={listPosts
 				.map((p) => ({
 					meta: {
 						...p.meta,
 						published_date: p.meta.start
 					},
-					visible: isSameMonth(new Date(p.meta.start), $view_date),
+					visible: isSameMonth(toArgentina(p.meta.start), $view_date),
 					path: p.path
 				}))
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
