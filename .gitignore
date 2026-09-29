@@ -10,4 +10,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 src\lib\posts\material\media\donde-y-como-golpear-un-cuerpo\ensamblado.kra~
-.VSCodeCounter.wrangler
+.VSCodeCounter
+.wrangler
