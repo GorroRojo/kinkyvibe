@@ -28,10 +28,11 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 /**
  * @typedef {{
  *   id: string, event_slug: string, ticket_type: string, quantity: number, unit_price: number,
- *   fondo_option: import('$lib/utils/tickets.js').FondoOption, fondo_amount: number,
+ *   fondo_option: import('$lib/utils/tickets.js').PriceOption, fondo_amount: number,
  *   fondo_contribution: number, subtotal: number, discount_code: string | null, discount_amount: number,
  *   surcharge_amount: number, total: number,
- *   payment_method: OrderPaymentMethod, buyer_name: string, buyer_email: string,
+ *   payment_method: OrderPaymentMethod, buyer_name: string, buyer_pronouns: string | null,
+ *   buyer_email: string,
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number
@@ -40,7 +41,7 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 /**
  * @typedef {{
  *   id: string, order_id: string, event_slug: string, ticket_type: string, holder_name: string,
- *   holder_pronouns: string | null,
+ *   holder_pronouns: string | null, code: string | null,
  *   token: string, checked_in_at: number | null, checked_in_by: string | null
  * }} Ticket
  */
@@ -64,6 +65,43 @@ export function isValidToken(token) {
 	return typeof token === 'string' && TOKEN_RE.test(token);
 }
 
+/**
+ * Letras y números del código corto de una entrada: sin 0/O, 1/I/L (se confunden al dictarlos o
+ * tipearlos en la puerta). 31 símbolos: 6 caracteres ≈ 887 millones de combinaciones.
+ */
+export const TICKET_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+export const TICKET_CODE_LENGTH = 6;
+
+/** Código corto aleatorio (sin sesgo: se descartan los bytes que no entran parejo). */
+export function newTicketCode() {
+	const n = TICKET_CODE_ALPHABET.length;
+	const limit = 256 - (256 % n);
+	let code = '';
+	while (code.length < TICKET_CODE_LENGTH) {
+		for (const b of crypto.getRandomValues(new Uint8Array(16))) {
+			if (b < limit && code.length < TICKET_CODE_LENGTH) code += TICKET_CODE_ALPHABET[b % n];
+		}
+	}
+	return code;
+}
+
+/**
+ * Normaliza un código tipeado en la puerta: sin espacios ni guiones, en mayúsculas, sin el
+ * prefijo opcional "KV", y O→0, I/L→1 (así también se encuentran los códigos hexadecimales que
+ * recibieron las entradas emitidas antes de la migración 0005). `null` si no tiene la forma.
+ *
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+export function normalizeTicketCode(raw) {
+	if (typeof raw !== 'string') return null;
+	let s = raw.toUpperCase().replace(/[\s\-_.]/g, '');
+	if (s.length === TICKET_CODE_LENGTH + 2 && s.startsWith('KV')) s = s.slice(2);
+	if (s.length !== TICKET_CODE_LENGTH) return null;
+	s = s.replaceAll('O', '0').replaceAll('I', '1').replaceAll('L', '1');
+	return /^[0-9A-Z]+$/.test(s) ? s : null;
+}
+
 /** Token aleatorio de 256 bits en base64url (43 caracteres). */
 export function newToken() {
 	const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -81,15 +119,19 @@ export function newToken() {
  *
  * El total lo calcula acá el servidor (`computePrice`): precio del frontmatter − fondo (o + aporte
  * al fondo, según `option`), menos el descuento, más el recargo de Mercado Pago si se paga con MP.
+ * En un tipo "a la gorra" el precio por entrada es `unitPrice` (el monto que eligió la persona,
+ * ya validado por `validatePurchase`), la opción es `gorra` y no se aplica ningún código.
  *
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
- *   type: { id: string, price: number, fondo?: number, capacity: number },
+ *   type: { id: string, price: number, fondo?: number, capacity: number,
+ *     gorra?: { min: number, suggested: number } | null },
  *   quantity: number,
- *   buyer: import('./config.js').Buyer,
+ *   buyer: import('./config.js').Buyer | Omit<import('./config.js').Buyer, 'pronouns'>,
  *   holders: Holder[],
- *   option?: import('$lib/utils/tickets.js').FondoOption,
+ *   option?: import('$lib/utils/tickets.js').PriceOption,
+ *   unitPrice?: number,
  *   feeBasisPoints?: number,
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
@@ -103,11 +145,20 @@ export function newToken() {
  */
 export async function reserveOrder(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, now = Date.now() } = input;
-	const discount = input.discount ?? null;
+	const gorra = Boolean(type.gorra);
+	if (gorra !== (input.option === 'gorra')) {
+		throw new Error('La opción "a la gorra" es solo para los tipos a la gorra');
+	}
+	const price = gorra ? Number(input.unitPrice) : type.price;
+	if (!Number.isSafeInteger(price) || price < (gorra ? (type.gorra?.min ?? 0) : 1)) {
+		throw new Error('Precio por entrada inválido');
+	}
+	// Los códigos de descuento no aplican a la gorra.
+	const discount = gorra ? null : (input.discount ?? null);
 	const method = input.method ?? 'mercadopago';
 	const prices = computePrice({
-		price: type.price,
-		fondo: type.fondo ?? 0,
+		price,
+		fondo: gorra ? 0 : (type.fondo ?? 0),
 		option: input.option,
 		quantity,
 		discount,
@@ -127,9 +178,9 @@ export async function reserveOrder(db, input) {
 				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
-					surcharge_amount, buyer_dni, fondo_option, fondo_contribution)
+					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22, ?23, ?24
+					?20, ?21, ?22, ?23, ?24, ?25
 				WHERE (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
@@ -143,7 +194,7 @@ export async function reserveOrder(db, input) {
 				eventSlug,
 				type.id,
 				quantity,
-				type.price,
+				price,
 				prices.subtotal,
 				buyer.name,
 				buyer.email,
@@ -162,7 +213,8 @@ export async function reserveOrder(db, input) {
 				prices.surcharge,
 				buyer.dni,
 				prices.option,
-				prices.contribution
+				prices.contribution,
+				'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null
 			)
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
@@ -216,16 +268,34 @@ export function orderHolders(order) {
  */
 function issueTicketsStatements(db, order) {
 	const holders = orderHolders(order);
+	// Código corto: el primero de tres candidatos al azar que no esté usado en el evento (una
+	// colisión no puede hacer fallar la aprobación de un pago; con tres, que choquen todos es
+	// prácticamente imposible, y en ese caso la entrada queda sin código y sigue valiendo el QR).
 	const inserts = holders.map((h, i) =>
 		db
 			.prepare(
 				`INSERT INTO tickets (id, order_id, event_slug, ticket_type, holder_name,
-					holder_pronouns, token)
-				SELECT ?1, o.id, o.event_slug, o.ticket_type, ?4, ?5, ?2 FROM orders o
+					holder_pronouns, token, code)
+				SELECT ?1, o.id, o.event_slug, o.ticket_type, ?4, ?5, ?2, (
+					SELECT c.column1 FROM (VALUES (?7), (?8), (?9)) c
+					WHERE c.column1 NOT IN (
+						SELECT code FROM tickets WHERE event_slug = o.event_slug AND code IS NOT NULL
+					) LIMIT 1
+				) FROM orders o
 				WHERE o.id = ?3 AND o.status = 'approved'
 					AND (SELECT COUNT(*) FROM tickets WHERE order_id = ?3) = ?6`
 			)
-			.bind(crypto.randomUUID(), newToken(), order.id, h.name, h.pronouns || null, i)
+			.bind(
+				crypto.randomUUID(),
+				newToken(),
+				order.id,
+				h.name,
+				h.pronouns || null,
+				i,
+				newTicketCode(),
+				newTicketCode(),
+				newTicketCode()
+			)
 	);
 	const clear = db
 		.prepare(
@@ -592,37 +662,135 @@ export async function listOrders(db, eventSlug) {
 }
 
 /**
- * Entradas válidas de un evento, con filtro opcional por nombre (de la entrada o de quien
- * compró), email, DNI de quien compró o comienzo del token.
+ * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose").
+ *
+ * @param {unknown} value
+ */
+export function foldText(value) {
+	return String(value ?? '')
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLowerCase()
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/** @typedef {'code' | 'holder' | 'pronouns' | 'buyer' | 'email' | 'dni'} SearchField */
+
+/** Nombre de cada campo para mostrar "coincide con …" en el buscador del control de ingreso. */
+export const SEARCH_FIELD_LABELS = /** @type {const} */ ({
+	code: 'código',
+	holder: 'nombre de la entrada',
+	pronouns: 'pronombres',
+	buyer: 'quien compró',
+	email: 'email',
+	dni: 'DNI'
+});
+
+/**
+ * @typedef {Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null }} SearchableTicket
+ * @typedef {SearchableTicket & { match: { field: SearchField, value: string } | null }} TicketSearchResult
+ */
+
+/**
+ * Busca entradas válidas (de órdenes aprobadas) de un evento por código, nombre y pronombres de
+ * la entrada, y nombre, email y DNI de quien compró. Sin distinguir mayúsculas ni tildes; el
+ * DNI y el código, sin puntos ni espacios. Cada resultado dice con qué campo coincidió (el
+ * primero en este orden: código, nombre, pronombres, quien compró, email, DNI). Primero las
+ * coincidencias al comienzo del campo o de una palabra.
+ *
+ * Se filtra en el servidor (SQLite no ignora tildes): un evento tiene a lo sumo unos miles de
+ * entradas, así que alcanza con traerlas y comparar acá. Solo lo usan admins.
  *
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {string} [query]
- * @returns {Promise<(Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null })[]>}
+ * @param {{ limit?: number }} [options]
+ * @returns {Promise<TicketSearchResult[]>}
  */
-export async function searchTickets(db, eventSlug, query = '') {
-	const q = query.trim().toLowerCase().slice(0, 80);
-	/** @param {string} v */
-	const esc = (v) => v.replace(/[\\%_]/g, (c) => '\\' + c);
-	const like = `%${esc(q)}%`;
-	// DNI de quien compró: solo si la búsqueda son números (con o sin puntos), por comienzo.
-	const dni = /^[0-9.\s]{3,}$/.test(q) ? `${q.replace(/[.\s]/g, '')}%` : null;
+export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = {}) {
+	const q = foldText(query.slice(0, 80));
+	if (!q) return [];
+	const digits = q.replace(/[.\s]/g, '');
+	const code = normalizeTicketCode(query);
+	// Comienzo de un código (desde 3 caracteres), con las mismas equivalencias que el código entero.
+	const codeish = q
+		.replace(/[\s\-_.]/g, '')
+		.toUpperCase()
+		.replace(/^KV(?=.{3})/, '')
+		.replaceAll('O', '0')
+		.replaceAll('I', '1')
+		.replaceAll('L', '1');
 	const { results } = await db
 		.prepare(
 			`SELECT t.*, o.buyer_email, o.buyer_name, o.buyer_dni FROM tickets t
 			JOIN orders o ON o.id = t.order_id
-			WHERE t.event_slug = ?1 AND o.status = 'approved'
-				AND (?2 = '' OR lower(t.holder_name) LIKE ?3 ESCAPE '\\'
-					OR lower(o.buyer_name) LIKE ?3 ESCAPE '\\'
-					OR lower(o.buyer_email) LIKE ?3 ESCAPE '\\' OR t.token LIKE ?4 ESCAPE '\\'
-					OR (?5 IS NOT NULL AND o.buyer_dni LIKE ?5))
-			ORDER BY t.holder_name COLLATE NOCASE LIMIT 50`
+			WHERE t.event_slug = ?1 AND o.status = 'approved'`
 		)
-		.bind(eventSlug, q, like, `${esc(query.trim())}%`, dni)
+		.bind(eventSlug)
 		.all();
-	return /** @type {(Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null })[]} */ (
-		results
+	/** @type {{ r: TicketSearchResult, rank: number }[]} */
+	const found = [];
+	for (const row of /** @type {SearchableTicket[]} */ (results)) {
+		/** @type {[SearchField, string, string][]} */
+		const fields = [
+			['holder', row.holder_name, foldText(row.holder_name)],
+			['pronouns', row.holder_pronouns ?? '', foldText(row.holder_pronouns)],
+			['buyer', row.buyer_name, foldText(row.buyer_name)],
+			['email', row.buyer_email, foldText(row.buyer_email)]
+		];
+		/** @type {{ field: SearchField, value: string } | null} */
+		let match = null;
+		let rank = 9;
+		const rowCode = row.code ?? '';
+		if (
+			rowCode &&
+			((code && rowCode === code) ||
+				(/^[0-9A-Z]{3,6}$/.test(codeish) && rowCode.startsWith(codeish)))
+		) {
+			match = { field: 'code', value: rowCode };
+			rank = rowCode === code ? 0 : 1;
+		} else if (query.trim().length >= 8 && row.token.startsWith(query.trim())) {
+			// Comienzo del token (el link del QR), por si alguien lo copia a mano.
+			match = { field: 'code', value: rowCode };
+			rank = 1;
+		} else {
+			for (const [field, value, folded] of fields) {
+				const at = folded.indexOf(q);
+				if (at === -1) continue;
+				const wordStart = at === 0 || /[\s@._-]/.test(folded[at - 1]);
+				match = { field, value };
+				rank = at === 0 ? 2 : wordStart ? 3 : 4;
+				break;
+			}
+			if (!match && digits.length >= 3 && /^\d+$/.test(digits) && row.buyer_dni?.includes(digits)) {
+				match = { field: 'dni', value: row.buyer_dni };
+				rank = row.buyer_dni.startsWith(digits) ? 2 : 4;
+			}
+		}
+		if (match) found.push({ r: { ...row, match }, rank });
+	}
+	found.sort(
+		(a, b) =>
+			a.rank - b.rank ||
+			a.r.holder_name.localeCompare(b.r.holder_name, 'es', { sensitivity: 'base' })
 	);
+	return found.slice(0, limit).map((f) => f.r);
+}
+
+/**
+ * Token de la entrada de un evento con ese código corto (o `null`).
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {string} code ya normalizado con `normalizeTicketCode`
+ */
+export async function tokenByCode(db, eventSlug, code) {
+	const row = await db
+		.prepare('SELECT token FROM tickets WHERE event_slug = ?1 AND code = ?2')
+		.bind(eventSlug, code)
+		.first();
+	return row ? String(row.token) : null;
 }
 
 /**

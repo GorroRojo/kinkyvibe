@@ -28,7 +28,9 @@ function policyBlocks(contactEmail) {
  */
 export function priceLines(order, typeName) {
 	const lines = [
-		`${order.quantity} × ${typeName}: ${formatARS(order.unit_price * order.quantity)}`
+		order.fondo_option === 'gorra'
+			? `${order.quantity} × ${typeName} (a la gorra, ${formatARS(order.unit_price)} c/u): ${formatARS(order.unit_price * order.quantity)}`
+			: `${order.quantity} × ${typeName}: ${formatARS(order.unit_price * order.quantity)}`
 	];
 	if (order.fondo_amount) lines.push(`Fondo KinkyVibe: −${formatARS(order.fondo_amount)}`);
 	if (order.fondo_contribution) {
@@ -83,10 +85,37 @@ export function maskEmail(email) {
 }
 
 /**
+ * Código corto para mostrar grande (con un espacio en el medio para leerlo mejor: "7HQ 4XM").
+ *
+ * @param {string | null | undefined} code
+ */
+export function displayCode(code) {
+	return code ? `${code.slice(0, 3)} ${code.slice(3)}` : '';
+}
+
+/**
+ * Bloque con el link de la transmisión (eventos online).
+ *
+ * @param {string} link
+ */
+function streamLinkBlock(link) {
+	return `<div style="background:#f6eef3;border-radius:12px;padding:12px 16px;margin:16px 0;text-align:center">
+		<p style="margin:0 0 8px;font-weight:bold">Link de la transmisión</p>
+		<p style="margin:0;font-size:18px"><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>
+		<p style="margin:8px 0 0;font-size:13px;color:#555">Es personal: no lo compartas.</p>
+	</div>`;
+}
+
+/**
+ * Mail con las entradas. En los eventos presenciales, un QR por entrada con su código corto en
+ * grande (para tipearlo en la puerta si el QR no se puede escanear). En los online, el link de
+ * la transmisión (si ya está cargado; si no, avisa que llega antes del evento).
+ *
  * @param {{
  *   order: import('./orders.js').Order,
  *   tickets: import('./orders.js').Ticket[],
- *   event: { title: string, start?: string, location?: string, location_name?: string },
+ *   event: { title: string, start?: string, location?: string, location_name?: string,
+ *     online?: boolean, streamLink?: string | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string
@@ -95,7 +124,10 @@ export function maskEmail(email) {
 export function buildTicketEmail({ order, tickets, event, typeName, origin, contactEmail }) {
 	const title = event.title;
 	const when = formatEventDate(event.start);
-	const where = [event.location_name, event.location].filter(Boolean).join(' · ');
+	const online = Boolean(event.online);
+	const where = online
+		? 'Online'
+		: [event.location_name, event.location].filter(Boolean).join(' · ');
 	const subject = `Tus entradas para ${title}`;
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 
@@ -107,22 +139,45 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
 	const policy = policyBlocks(contactEmail);
 
 	const ticketBlocks = tickets
-		.map(
-			(t, i) => `
-		<div style="border:2px dashed #b3127a;border-radius:12px;padding:16px;margin:16px 0;text-align:center">
-			<p style="margin:0 0 8px;font-weight:bold">Entrada ${i + 1} de ${tickets.length} · ${escapeHtml(typeName)}<br>${escapeHtml(holder(t))}</p>
-			<img src="${origin}/entradas/t/${t.token}/qr.gif" width="240" height="240" alt="Código QR de la entrada ${i + 1}" style="display:block;margin:0 auto">
-			<p style="margin:8px 0 0"><a href="${links[i]}">Ver la entrada en el navegador</a></p>
-		</div>`
-		)
+		.map((t, i) => {
+			const head = `<p style="margin:0 0 8px;font-weight:bold">Entrada ${i + 1} de ${tickets.length} · ${escapeHtml(typeName)}<br>${escapeHtml(holder(t))}</p>`;
+			if (online) {
+				return `<div style="border:2px dashed #b3127a;border-radius:12px;padding:16px;margin:16px 0;text-align:center">
+				${head}
+				<p style="margin:8px 0 0"><a href="${links[i]}">Ver la entrada</a></p>
+			</div>`;
+			}
+			const code = t.code
+				? `<td style="vertical-align:middle;padding:0 0 0 12px;text-align:center">
+					<div style="font-size:12px;color:#555">Código</div>
+					<div style="font-family:'Courier New',monospace;font-size:30px;font-weight:bold;letter-spacing:3px;white-space:nowrap">${escapeHtml(displayCode(t.code))}</div>
+				</td>`
+				: '';
+			return `
+			<div style="border:2px dashed #b3127a;border-radius:12px;padding:16px;margin:16px 0;text-align:center">
+				${head}
+				<table role="presentation" style="margin:0 auto;border-collapse:collapse"><tr>
+					<td style="vertical-align:middle"><img src="${origin}/entradas/t/${t.token}/qr.gif" width="200" height="200" alt="Código QR de la entrada ${i + 1}" style="display:block"></td>
+					${code}
+				</tr></table>
+				<p style="margin:8px 0 0"><a href="${links[i]}">Ver la entrada en el navegador</a></p>
+			</div>`;
+		})
 		.join('');
+
+	const intro = online
+		? event.streamLink
+			? '<p>Este es el link para entrar a la transmisión. Es personal: no lo compartas en redes.</p>'
+			: '<p>Es un evento online: <strong>te mandamos el link de la transmisión por mail antes del evento</strong>. También va a aparecer en la página de cada entrada.</p>'
+		: '<p>Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está al lado. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.</p>';
 
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
 		<h1 style="color:#b3127a;font-size:22px">¡Ya tenés tus entradas!</h1>
 		<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
-		<p>Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Cada QR sirve para una sola persona y una sola vez: no lo compartas en redes.</p>
+		${intro}
+		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}
 		${ticketBlocks}
 		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}
@@ -137,8 +192,15 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
 		'',
 		...prices,
 		'',
-		'Mostrá el QR de cada entrada en la puerta. Cada QR sirve una sola vez.',
-		...links.map((l, i) => `Entrada ${i + 1} (${holder(tickets[i])}): ${l}`),
+		online
+			? event.streamLink
+				? `Link de la transmisión (personal, no lo compartas): ${event.streamLink}`
+				: 'Es un evento online: te mandamos el link de la transmisión por mail antes del evento.'
+			: 'Mostrá el QR de cada entrada en la puerta; si no se puede escanear, dictá su código. Cada entrada sirve una sola vez.',
+		...links.map(
+			(l, i) =>
+				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
+		),
 		'',
 		`Número de orden: ${order.id}`,
 		policy.text
@@ -146,6 +208,46 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
 		.filter((l) => l !== undefined)
 		.join('\n');
 
+	return { subject, html, text };
+}
+
+/**
+ * Mail con el link de la transmisión de un evento online ("Enviar el link a todes").
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   tickets: import('./orders.js').Ticket[],
+ *   event: { title: string, start?: string },
+ *   link: string,
+ *   origin: string,
+ *   contactEmail: string
+ * }} input
+ */
+export function buildStreamLinkEmail({ order, tickets, event, link, origin, contactEmail }) {
+	const when = formatEventDate(event.start);
+	const subject = `Link de la transmisión: ${event.title}`;
+	const policy = policyBlocks(contactEmail);
+	const ticketLinks = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
+	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
+		<h1 style="color:#b3127a;font-size:22px">Ya está el link de la transmisión</h1>
+		<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>
+		${streamLinkBlock(link)}
+		${ticketLinks.length ? `<p>También está en la página de ${ticketLinks.length === 1 ? 'tu entrada' : 'cada entrada'}: ${ticketLinks.map((l, i) => `<a href="${l}">entrada ${i + 1}</a>`).join(', ')}.</p>` : ''}
+		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		${policy.html}
+		</body></html>`;
+	const text = [
+		'Ya está el link de la transmisión',
+		'',
+		`${event.title}${when ? ` (${when})` : ''}`,
+		'',
+		`Link (personal, no lo compartas): ${link}`,
+		'',
+		...ticketLinks.map((l, i) => `Entrada ${i + 1}: ${l}`),
+		'',
+		`Número de orden: ${order.id}`,
+		policy.text
+	].join('\n');
 	return { subject, html, text };
 }
 

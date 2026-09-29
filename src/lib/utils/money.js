@@ -10,3 +10,14 @@ export function formatARS(amount) {
 		maximumFractionDigits: 0
 	}).format(amount);
 }
+
+/**
+ * Pesos con signo explícito (`+$ 2.000`, `−$ 4.000`, `$ 0`), para saldos que pueden ser
+ * negativos (p. ej. el neto del Fondo KinkyVibe). Usa el signo menos tipográfico.
+ *
+ * @param {number} amount
+ */
+export function formatSignedARS(amount) {
+	if (amount === 0) return formatARS(0);
+	return `${amount > 0 ? '+' : '−'}${formatARS(Math.abs(amount))}`;
+}

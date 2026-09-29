@@ -9,26 +9,52 @@ import { parseTicketConfig } from './config.js';
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
 /**
- * DEV ONLY: `TICKETS_DEV_FIXTURE=slug1,slug2` agrega entradas de prueba (una con fondo, con
- * Mercado Pago y transferencia) a esos eventos sin tocar sus archivos (para probar la compra en
- * local y en Playwright). `dev` es `false` en el build, así que en producción esto no existe.
+ * DEV ONLY: agrega entradas de prueba a eventos reales sin tocar sus archivos (para probar la
+ * compra en local y en Playwright). `dev` es `false` en el build, así que en producción esto no
+ * existe.
+ *
+ * - `TICKETS_DEV_FIXTURE=slug1,slug2`: evento presencial con Fondo KinkyVibe del 20 % en todos
+ *   los tipos (General $ 10.000 y Anticipada $ 8.000 con cupo 3), Mercado Pago y transferencia.
+ * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online "a la gorra" (mínimo $ 1.000, sugerido
+ *   $ 5.000; y "Libre" con mínimo $ 0, sugerido $ 3.000), Mercado Pago y transferencia.
  *
  * @param {string} slug
  * @returns {Record<string, any> | null}
  */
 function devFixture(slug) {
 	if (!dev) return null;
-	const slugs = (env.TICKETS_DEV_FIXTURE ?? '').split(',').map((s) => s.trim());
-	if (!slugs.includes(slug)) return null;
-	return {
+	/** @param {string | undefined} v */
+	const list = (v) => (v ?? '').split(',').map((s) => s.trim());
+	const common = {
 		status: 'abierto',
-		tickets: [
-			{ id: 'general', name: 'General', price: 8000, capacity: 500 },
-			{ id: 'reducida', name: 'Reducida', price: 5000, capacity: 3 },
-			{ id: 'con-fondo', name: 'Con fondo', price: 10000, fondo: 2000, capacity: 500 }
-		],
 		payment_methods: ['mercadopago', 'transferencia'],
 		tickets_close: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+	};
+	if (list(env.TICKETS_DEV_FIXTURE_GORRA).includes(slug)) {
+		return {
+			...common,
+			modalidad: 'online',
+			fondo_percent: null,
+			tickets: [
+				{
+					id: 'gorra',
+					name: 'A la gorra',
+					a_la_gorra: { minimo: 1000, sugerido: 5000 },
+					capacity: 500
+				},
+				{ id: 'libre', name: 'Libre', a_la_gorra: { minimo: 0, sugerido: 3000 }, capacity: 500 }
+			]
+		};
+	}
+	if (!list(env.TICKETS_DEV_FIXTURE).includes(slug)) return null;
+	return {
+		...common,
+		modalidad: 'presencial',
+		fondo_percent: 20,
+		tickets: [
+			{ id: 'general', name: 'General', price: 10000, capacity: 500 },
+			{ id: 'anticipada', name: 'Anticipada', price: 8000, capacity: 3 }
+		]
 	};
 }
 

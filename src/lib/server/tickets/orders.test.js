@@ -3,7 +3,12 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { buildPreference } from './mercadopago.js';
 import {
 	HOLD_MS,
+	TICKET_CODE_ALPHABET,
 	applyPayment,
+	foldText,
+	newTicketCode,
+	normalizeTicketCode,
+	tokenByCode,
 	checkIn,
 	getCounts,
 	getOrder,
@@ -245,7 +250,7 @@ describe('reserva de cupo', () => {
 	it('cupos separados por tipo y por evento', async () => {
 		await reserve({ quantity: 4 });
 		await reserve({ quantity: 1 });
-		expect((await reserve({ type: { id: 'reducida', price: 5000, capacity: 1 } })).ok).toBe(true);
+		expect((await reserve({ type: { id: 'anticipada', price: 5000, capacity: 1 } })).ok).toBe(true);
 		expect((await reserve({ eventSlug: 'otro-evento' })).ok).toBe(true);
 	});
 
@@ -458,5 +463,179 @@ describe('check-in', () => {
 		expect(await searchTickets(t.db, 'otro-evento', '')).toHaveLength(0);
 		const orders = await listOrders(t.db, EVENT);
 		expect(orders[0]).toMatchObject({ status: 'approved', checked_in: 1 });
+	});
+});
+
+describe('código corto de cada entrada', () => {
+	it('se genera con el alfabeto sin ambiguos, 6 caracteres', () => {
+		for (let i = 0; i < 200; i++) {
+			const code = newTicketCode();
+			expect(code).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/);
+		}
+		expect(TICKET_CODE_ALPHABET).not.toMatch(/[01ILO]/);
+	});
+
+	it.each([
+		['7hq4xm', '7HQ4XM'],
+		[' 7HQ 4XM ', '7HQ4XM'],
+		['7HQ-4XM', '7HQ4XM'],
+		['KV-7HQ4XM', '7HQ4XM'],
+		['kv7hq4xm', '7HQ4XM'],
+		// Las entradas anteriores a 0005 tienen códigos hexadecimales: O → 0, I/L → 1.
+		['A0B1C2', 'A0B1C2'],
+		['AOBICL', 'A0B1C1']
+	])('normaliza %j → %s', (raw, code) => {
+		expect(normalizeTicketCode(raw)).toBe(code);
+	});
+
+	it.each(['', '7HQ4X', '7HQ4XMM', '7HQ4X!', null, 123456])('rechaza %j', (raw) => {
+		expect(normalizeTicketCode(raw)).toBeNull();
+	});
+
+	it('cada entrada emitida tiene un código único en el evento, y se encuentra por código', async () => {
+		const o = /** @type {any} */ (await reserve({ quantity: 3 })).order;
+		const { tickets } = await applyPayment(t.db, payment(o.id, { transaction_amount: 24000 }));
+		expect(tickets).toHaveLength(3);
+		const codes = tickets.map((x) => x.code);
+		expect(new Set(codes).size).toBe(3);
+		for (const tk of tickets) {
+			expect(tk.code).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/);
+			expect(await tokenByCode(t.db, EVENT, /** @type {string} */ (tk.code))).toBe(tk.token);
+			expect(await tokenByCode(t.db, 'otro-evento', /** @type {string} */ (tk.code))).toBeNull();
+		}
+		// El check-in por código usa el token de esa entrada.
+		const token = await tokenByCode(t.db, EVENT, /** @type {string} */ (codes[1]));
+		expect(
+			(await checkIn(t.db, { token: String(token), eventSlug: EVENT, by: 'puerta' })).result
+		).toBe('ok');
+	});
+});
+
+describe('buscador del control de ingreso', () => {
+	async function seed() {
+		const o = /** @type {any} */ (
+			await reserve({
+				quantity: 2,
+				buyer: {
+					name: 'Martín Núñez',
+					pronouns: 'él',
+					email: 'martin.nunez@example.com',
+					dni: '31222333'
+				},
+				holders: [
+					{ name: 'Martín Núñez', pronouns: 'él' },
+					{ name: 'Sofía Peña', pronouns: 'elle / ella' }
+				]
+			})
+		).order;
+		return (await applyPayment(t.db, payment(o.id, { transaction_amount: 16000 }))).tickets;
+	}
+
+	it('foldText: sin tildes ni mayúsculas', () => {
+		expect(foldText('  Sofía   PEÑA ')).toBe('sofia pena');
+	});
+
+	it('sin distinguir tildes, y dice con qué campo coincidió', async () => {
+		const tickets = await seed();
+		const byName = await searchTickets(t.db, EVENT, 'sofia pena');
+		expect(byName).toHaveLength(1);
+		expect(byName[0].match).toEqual({ field: 'holder', value: 'Sofía Peña' });
+		expect((await searchTickets(t.db, EVENT, 'NUÑEZ'))[0].match?.field).toBe('holder');
+		const pronouns = await searchTickets(t.db, EVENT, 'elle / ella');
+		expect(pronouns.map((r) => r.match)).toEqual([{ field: 'pronouns', value: 'elle / ella' }]);
+		const email = await searchTickets(t.db, EVENT, 'nunez@exa');
+		expect(email).toHaveLength(2);
+		expect(email.every((r) => r.match?.field === 'email')).toBe(true);
+		const dni = await searchTickets(t.db, EVENT, '31.222');
+		expect(dni.map((r) => r.match?.field)).toEqual(['dni', 'dni']);
+		const code = /** @type {string} */ (tickets[1].code);
+		const byCode = await searchTickets(t.db, EVENT, code.toLowerCase());
+		expect(byCode[0]).toMatchObject({ id: tickets[1].id, match: { field: 'code', value: code } });
+		// Comienzo del código (3 o más).
+		expect((await searchTickets(t.db, EVENT, code.slice(0, 3)))[0].match?.field).toBe('code');
+	});
+
+	it('pocos resultados con `limit`, y nada de órdenes no aprobadas', async () => {
+		await seed();
+		await reserve({ buyer: { name: 'Pendiente', email: 'pend@example.com', dni: '40111222' } });
+		expect(await searchTickets(t.db, EVENT, 'pendiente')).toHaveLength(0);
+		expect(await searchTickets(t.db, EVENT, 'example', { limit: 1 })).toHaveLength(1);
+	});
+});
+
+describe('a la gorra y pronombres de quien compra', () => {
+	const GORRA = {
+		id: 'gorra',
+		price: 5000,
+		fondo: 0,
+		capacity: 10,
+		gorra: { min: 1000, suggested: 5000 }
+	};
+	const buyer = { name: 'Ale', pronouns: 'elle', email: 'ale@example.com', dni: '30111222' };
+
+	it('guarda los pronombres de quien compra', async () => {
+		const r = /** @type {any} */ (await reserve({ buyer }));
+		expect(r.order.buyer_pronouns).toBe('elle');
+	});
+
+	it('el precio por entrada es el monto elegido; sin fondo, sin código; con recargo de MP', async () => {
+		const r = /** @type {any} */ (
+			await reserve({
+				type: GORRA,
+				option: 'gorra',
+				unitPrice: 7000,
+				quantity: 2,
+				buyer,
+				feeBasisPoints: 773,
+				// Aunque llegue un código, a la gorra no se aplica.
+				discount: { code: 'NADA', kind: 'percent', value: 50 }
+			})
+		);
+		expect(r.ok).toBe(true);
+		expect(r.order).toMatchObject({
+			fondo_option: 'gorra',
+			unit_price: 7000,
+			subtotal: 14000,
+			fondo_amount: 0,
+			fondo_contribution: 0,
+			discount_code: null,
+			discount_amount: 0,
+			surcharge_amount: 1173,
+			total: 15173
+		});
+	});
+
+	it('monto 0 → orden "gratis" (sin pago)', async () => {
+		const free = { ...GORRA, gorra: { min: 0, suggested: 3000 } };
+		const r = /** @type {any} */ (
+			await reserve({ type: free, option: 'gorra', unitPrice: 0, method: 'gratis', buyer })
+		);
+		expect(r.order).toMatchObject({ unit_price: 0, total: 0, payment_method: 'gratis' });
+		expect(
+			(await reserve({ type: free, option: 'gorra', unitPrice: 0, method: 'mercadopago', buyer }))
+				.ok
+		).toBe(false);
+	});
+
+	it('el servidor rechaza montos por debajo del mínimo o la opción equivocada', async () => {
+		await expect(reserve({ type: GORRA, option: 'gorra', unitPrice: 999, buyer })).rejects.toThrow(
+			/Precio/
+		);
+		await expect(
+			reserve({ type: GORRA, option: 'completo', unitPrice: 5000, buyer })
+		).rejects.toThrow(/gorra/);
+		await expect(reserve({ option: 'gorra', unitPrice: 1, buyer })).rejects.toThrow(/gorra/);
+	});
+
+	it('la base rechaza un unit_price 0 fuera de "gorra"', async () => {
+		await expect(
+			t.db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
+						buyer_name, buyer_email, created_at, updated_at, expires_at, payment_method)
+					VALUES ('x', 'e', 'g', 1, 0, 0, 0, 'A', 'a@example.com', 0, 0, 0, 'gratis')`
+				)
+				.run()
+		).rejects.toThrow(/CHECK/);
 	});
 });

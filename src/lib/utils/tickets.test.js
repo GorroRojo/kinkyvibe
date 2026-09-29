@@ -11,10 +11,13 @@ import {
 	normalizeCode,
 	normalizeDni,
 	orderReference,
+	parseAmount,
 	parseFeePercent,
+	purchaseConditions,
 	refundPolicy,
 	unitPrice
 } from './tickets.js';
+import { formatSignedARS } from './money.js';
 
 describe('applyDiscount', () => {
 	it('sin descuento', () => {
@@ -341,5 +344,96 @@ describe('política de devoluciones', () => {
 		expect(text).toContain('5 días hábiles');
 		expect(text).toContain('contacto@example.com');
 		expect(text).not.toMatch(/factura/i);
+	});
+});
+
+describe('a la gorra: precio', () => {
+	it('el monto elegido por entrada, sin fondo ni aporte ni código; con recargo de MP', () => {
+		const p = computePrice({
+			price: 7000,
+			fondo: 2000,
+			option: 'gorra',
+			quantity: 2,
+			discount: { kind: 'percent', value: 50 },
+			method: 'mercadopago',
+			feeBasisPoints: 773
+		});
+		expect(p).toEqual({
+			option: 'gorra',
+			unit: 7000,
+			list: 14000,
+			fondo: 0,
+			contribution: 0,
+			subtotal: 14000,
+			discount: 0,
+			surcharge: 1173,
+			total: 15173
+		});
+		expect(
+			computePrice({ price: 7000, option: 'gorra', quantity: 2, method: 'transferencia' }).total
+		).toBe(14000);
+	});
+
+	it('monto 0: total 0 aun con Mercado Pago (camino sin pago)', () => {
+		expect(
+			computePrice({
+				price: 0,
+				option: 'gorra',
+				quantity: 3,
+				method: 'mercadopago',
+				feeBasisPoints: 773
+			}).total
+		).toBe(0);
+	});
+
+	it.each([
+		['5000', 5000],
+		['5.000', 5000],
+		['$ 5.000', 5000],
+		['$5000', 5000],
+		['5000,00', 5000],
+		['0', 0],
+		[1200, 1200]
+	])('parseAmount(%j) = %i', (raw, n) => {
+		expect(parseAmount(raw)).toBe(n);
+	});
+
+	it.each(['', 'abc', '-1', '5,5', '5.00', '1e3', '50.00.0', null, 1.5, -3])(
+		'parseAmount(%j) = null',
+		(raw) => {
+			expect(parseAmount(raw)).toBeNull();
+		}
+	);
+});
+
+describe('condiciones de compra', () => {
+	it('una sola lista, con la política de devoluciones incluida', () => {
+		const list = purchaseConditions({
+			contactEmail: 'contacto@example.com',
+			transferHoldHours: 48,
+			methods: ['mercadopago', 'transferencia']
+		});
+		expect(list.join(' ')).toContain('18 años');
+		expect(list.join(' ')).toContain('20 minutos');
+		expect(list.join(' ')).toContain('48 horas');
+		expect(list.join(' ')).toContain('5 días hábiles antes del evento');
+		expect(list.join(' ')).toContain('taller grabado');
+		expect(list.at(-1)).toContain('contacto@example.com');
+		expect(list.at(-1)).toMatch(/nombre, sus pronombres y su email/);
+		const online = purchaseConditions({
+			contactEmail: 'c@example.com',
+			transferHoldHours: 48,
+			methods: ['mercadopago'],
+			online: true
+		});
+		expect(online.join(' ')).not.toMatch(/QR|puerta|transferencia/);
+	});
+});
+
+describe('formatSignedARS', () => {
+	it('muestra el signo', () => {
+		expect(formatSignedARS(2000)).toMatch(/^\+\$\s2\.000$/);
+		expect(formatSignedARS(-4000)).toMatch(/^−\$\s4\.000$/);
+		expect(formatSignedARS(0)).toMatch(/^\$\s0$/);
 	});
 });

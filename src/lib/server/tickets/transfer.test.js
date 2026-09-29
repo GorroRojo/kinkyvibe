@@ -28,7 +28,7 @@ beforeEach(async () => {
 });
 
 const EVENT = 'fiesta-de-prueba';
-const REDUCIDA = { id: 'reducida', price: 5000, capacity: 3 };
+const ANTICIPADA = { id: 'anticipada', price: 5000, capacity: 3 };
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 
 /** @param {number} n */
@@ -44,7 +44,7 @@ async function transfer(o = {}) {
 	const quantity = o.quantity ?? 2;
 	const r = await reserveOrder(t.db, {
 		eventSlug: EVENT,
-		type: REDUCIDA,
+		type: ANTICIPADA,
 		quantity,
 		holders: people(quantity),
 		buyer: { name: 'Persona 1', email: 'transfiere@example.com', dni: '25000000' },
@@ -60,7 +60,7 @@ function confirm(orderId, o = {}) {
 	return confirmTransfer(t.db, {
 		orderId,
 		eventSlug: EVENT,
-		capacity: REDUCIDA.capacity,
+		capacity: ANTICIPADA.capacity,
 		by: 'admin-prueba',
 		now: NOW + 1000,
 		...o
@@ -79,7 +79,10 @@ describe('transferencia', () => {
 			expires_at: NOW + TRANSFER_HOLD_MS
 		});
 		expect(TRANSFER_HOLD_MS).toBe(48 * 60 * 60 * 1000);
-		expect((await getCounts(t.db, EVENT, NOW)).get('reducida')).toMatchObject({ held: 2, sold: 0 });
+		expect((await getCounts(t.db, EVENT, NOW)).get('anticipada')).toMatchObject({
+			held: 2,
+			sold: 0
+		});
 		// Cupo 3: solo queda 1.
 		expect(await transfer()).toMatchObject({ ok: false, reason: 'soldout', available: 1 });
 	});
@@ -165,7 +168,7 @@ describe('transferencia', () => {
 		expect(await cancelTransfer(t.db, { orderId: order.id, eventSlug: EVENT, by: 'admin' })).toBe(
 			false
 		);
-		expect((await getCounts(t.db, EVENT, NOW)).get('reducida')?.held).toBe(0);
+		expect((await getCounts(t.db, EVENT, NOW)).get('anticipada')?.held).toBe(0);
 		expect((await confirm(order.id)).result).toBe('cancelled');
 		// Otro evento o id inválido: nada.
 		expect(await cancelTransfer(t.db, { orderId: 'x', eventSlug: EVENT, by: 'admin' })).toBe(false);
@@ -195,7 +198,7 @@ describe('transferencia', () => {
 		const mail = buildTransferEmail({
 			order,
 			event: { title: 'Fiesta', start: '2026-12-12T21:00-03:00' },
-			typeName: 'Reducida',
+			typeName: 'Anticipada',
 			transferInfo: 'Alias: EJEMPLO.ALIAS.PRUEBA\nTitular: Nombre de ejemplo',
 			replyTo: 'entradas@example.com',
 			contactEmail: 'contacto@example.com',
@@ -211,7 +214,7 @@ describe('transferencia', () => {
 			expect(part).not.toContain('25000000');
 			expect(part).not.toContain('25.000.000');
 			// Política de devoluciones al pie, con el contacto configurable.
-			expect(part).toContain('DEVOLUCIONES');
+			expect(part).toContain('Devoluciones y cambios');
 			expect(part).toContain('contacto@example.com');
 			expect(part).not.toMatch(/factura/i);
 		}
@@ -225,7 +228,7 @@ describe('transferencia', () => {
 			order: /** @type {any} */ (approved),
 			tickets,
 			event: { title: 'Fiesta' },
-			typeName: 'Reducida',
+			typeName: 'Anticipada',
 			origin: 'https://kinkyvibe.ar',
 			contactEmail: 'contacto@example.com'
 		});
@@ -238,5 +241,48 @@ describe('transferencia', () => {
 		}
 		expect(mail.text).toContain('5 días hábiles');
 		expect(mail.html).toContain('contacto@example.com');
+	});
+
+	it('el email de las entradas muestra el código corto de cada una al lado del QR', async () => {
+		const order = /** @type {any} */ (await transfer()).order;
+		const { tickets, order: approved } = await confirm(order.id);
+		const mail = buildTicketEmail({
+			order: /** @type {any} */ (approved),
+			tickets,
+			event: { title: 'Fiesta', location: 'Lugar' },
+			typeName: 'Anticipada',
+			origin: 'https://kinkyvibe.ar',
+			contactEmail: 'contacto@example.com'
+		});
+		for (const tk of tickets) {
+			const shown = `${tk.code?.slice(0, 3)} ${tk.code?.slice(3)}`;
+			expect(mail.html).toContain(shown);
+			expect(mail.text).toContain(`código ${shown}`);
+		}
+		expect(mail.html).toContain('qr.gif');
+	});
+
+	it('evento online: sin QR; con el link si ya está, o el aviso de que llega antes', async () => {
+		const order = /** @type {any} */ (await transfer()).order;
+		const { tickets, order: approved } = await confirm(order.id);
+		const input = {
+			order: /** @type {any} */ (approved),
+			tickets,
+			typeName: 'Anticipada',
+			origin: 'https://kinkyvibe.ar',
+			contactEmail: 'contacto@example.com'
+		};
+		const withLink = buildTicketEmail({
+			...input,
+			event: { title: 'Taller', online: true, streamLink: 'https://meet.example.com/abc' }
+		});
+		expect(withLink.html).not.toContain('qr.gif');
+		expect(withLink.html).toContain('https://meet.example.com/abc');
+		expect(withLink.text).toContain('https://meet.example.com/abc');
+		const without = buildTicketEmail({ ...input, event: { title: 'Taller', online: true } });
+		expect(without.html).not.toContain('qr.gif');
+		expect(without.text).toContain(
+			'te mandamos el link de la transmisión por mail antes del evento'
+		);
 	});
 });

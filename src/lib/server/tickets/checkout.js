@@ -1,6 +1,6 @@
 /**
- * Compra de entradas desde la página del evento: datos para el bloque "Comprar entradas", la
- * form action `?/discount` (botón "Aplicar" del código) y la form action `?/buy`, que reserva
+ * Compra de entradas en /calendario/<slug>/entradas: datos para el formulario, la form action
+ * `?/discount` (botón "Aplicar" del código) y la form action `?/buy`, que reserva
  * cupo y, según el medio de pago, redirige al checkout de Mercado Pago, a los datos para
  * transferir o (total 0) emite las entradas directamente.
  */
@@ -56,18 +56,25 @@ export const CHECKOUT_RATE_LIMITS = {
  *   transferHoldHours: number,
  *   feeBasisPoints: number,
  *   contactEmail: string,
- *   types: { id: string, name: string, price: number, fondo: number, available: number }[]
+ *   online: boolean,
+ *   types: { id: string, name: string, price: number, fondo: number, available: number,
+ *     gorra: { min: number, suggested: number } | null }[]
  * }} TicketsView
  */
 
 /**
- * Medios de pago del evento que además están configurados en este entorno.
+ * Medios de pago del evento que además están configurados en este entorno (transferencia, solo
+ * si hay datos para transferir: en /admin/entradas/ajustes o en TICKETS_TRANSFER_INFO).
  *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {import('./config.js').EventTickets} config
  */
-function availableMethods(config) {
+async function availableMethods(db, config) {
+	const transfer = config.paymentMethods.includes('transferencia')
+		? Boolean(await transferInfo(db))
+		: false;
 	return config.paymentMethods.filter((m) =>
-		m === 'mercadopago' ? Boolean(env.MP_ACCESS_TOKEN) || isMpMock() : Boolean(transferInfo())
+		m === 'mercadopago' ? Boolean(env.MP_ACCESS_TOKEN) || isMpMock() : transfer
 	);
 }
 
@@ -82,7 +89,7 @@ export async function getTicketsView(db, slug) {
 	const config = await getEventTickets(slug);
 	if (!config) return null;
 	const state = salesState(config);
-	const methods = availableMethods(config);
+	const methods = await availableMethods(db, config);
 	/** @type {TicketsView} */
 	const view = {
 		open: false,
@@ -92,13 +99,15 @@ export async function getTicketsView(db, slug) {
 		mock: isMpMock() && methods.includes('mercadopago'),
 		methods,
 		transferHoldHours: Math.round(transferHoldMs() / 3600000),
-		feeBasisPoints: mpFeeBasisPoints(config),
+		feeBasisPoints: await mpFeeBasisPoints(db, config),
 		contactEmail: contactEmail(),
+		online: config.online,
 		types: config.types.map((t) => ({
 			id: t.id,
 			name: t.name,
 			price: t.price,
 			fondo: t.fondo,
+			gorra: t.gorra,
 			available: 0
 		}))
 	};
@@ -117,6 +126,31 @@ export async function getTicketsView(db, slug) {
 	if (!state.open) return view;
 	const anyLeft = view.types.some((t) => t.available > 0);
 	return { ...view, open: anyLeft, reason: anyLeft ? null : 'soldout' };
+}
+
+/** Desde cuántas entradas disponibles (sumando los tipos) la página del evento dice "Quedan N". */
+export const LOW_STOCK = 10;
+
+/**
+ * Resumen para el botón "Comprar entradas" de la página del evento: si se puede comprar, el
+ * precio "desde" (con el fondo ya aplicado) y cuántas quedan si son pocas.
+ *
+ * @param {TicketsView} view
+ * @returns {{ open: boolean, reason: TicketsView['reason'], priceFrom: number | null,
+ *   gorraSuggested: number | null, left: number | null }}
+ */
+export function summarizeTickets(view) {
+	const candidates = view.open ? view.types.filter((t) => t.available > 0) : view.types;
+	const priced = candidates.filter((t) => !t.gorra).map((t) => t.price - t.fondo);
+	const gorra = candidates.filter((t) => t.gorra).map((t) => t.gorra?.suggested ?? 0);
+	const left = view.types.reduce((sum, t) => sum + t.available, 0);
+	return {
+		open: view.open,
+		reason: view.reason,
+		priceFrom: priced.length ? Math.min(...priced) : null,
+		gorraSuggested: gorra.length ? Math.min(...gorra) : null,
+		left: view.open && left <= LOW_STOCK ? left : null
+	};
 }
 
 /** @param {string} text */
@@ -152,8 +186,8 @@ function rememberOrder(cookies, url, orderId) {
 }
 
 /**
- * Lee el formulario de compra. Quien compra: `name`, `email`, `dni`. Los datos por entrada
- * vienen como `holder_<campo>_<n>`.
+ * Lee el formulario de compra. Quien compra: `name`, `pronouns`, `email`, `dni`. Los datos por
+ * entrada vienen como `holder_<campo>_<n>`. `amount`: monto por entrada "a la gorra".
  *
  * @param {FormData} form
  */
@@ -166,11 +200,13 @@ function readForm(form) {
 		type: str('type', 60),
 		quantity,
 		name: str('name', 200),
+		pronouns: str('pronouns', 100),
 		email: str('email', 300),
 		dni: str('dni', 40),
 		code: str('code', 60).trim(),
 		method: str('method', 30),
 		option: str('option', 30),
+		amount: str('amount', 30),
 		holders: Array.from({ length: n }, (_, i) => ({
 			name: str(`holder_name_${i}`, 200),
 			pronouns: str(`holder_pronouns_${i}`, 100)
@@ -251,7 +287,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			state.reason === 'closed' ? 'La venta online ya cerró.' : 'No hay entradas a la venta.'
 		);
 	}
-	const methods = availableMethods(config);
+	const methods = await availableMethods(db, config);
 	const valid = validatePurchase(
 		{ ...config, paymentMethods: methods.length ? methods : config.paymentMethods },
 		{
@@ -259,7 +295,13 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			quantity: values.quantity,
 			method: values.method,
 			option: values.option,
-			buyer: { name: values.name, email: values.email, dni: values.dni },
+			amount: values.amount,
+			buyer: {
+				name: values.name,
+				pronouns: values.pronouns,
+				email: values.email,
+				dni: values.dni
+			},
 			holders: values.holders,
 			accept: form.get('accept')
 		}
@@ -267,7 +309,9 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 
 	/** @type {import('./discounts.js').DiscountCode | null} */
 	let discount = null;
-	if (values.code) {
+	// Los códigos no aplican a los tipos "a la gorra" (el formulario ni muestra el campo).
+	const gorra = Boolean(config.types.find((t) => t.id === values.type)?.gorra);
+	if (values.code && !gorra) {
 		try {
 			const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
 			if (check.ok) {
@@ -287,7 +331,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 
 	// Total 0 (sin contar el recargo de MP, que sobre 0 es 0): se emite sin pasar por un pago.
 	const base = computePrice({
-		price: valid.type.price,
+		price: valid.unitPrice,
 		fondo: valid.type.fondo,
 		option: valid.option,
 		quantity: valid.quantity,
@@ -300,7 +344,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	if (method === 'mercadopago') {
 		gateway = await getGateway(fetch);
 		if (!gateway) return failWith(503, 'El pago con Mercado Pago no está disponible ahora.');
-	} else if (method === 'transferencia' && !transferInfo()) {
+	} else if (method === 'transferencia' && !(await transferInfo(db))) {
 		return failWith(503, 'El pago por transferencia no está disponible ahora.');
 	}
 
@@ -329,8 +373,9 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			buyer: valid.buyer,
 			holders: valid.holders,
 			option: valid.option,
+			unitPrice: valid.unitPrice,
 			method,
-			feeBasisPoints: mpFeeBasisPoints(config),
+			feeBasisPoints: await mpFeeBasisPoints(db, config),
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },
 			holdMs: method === 'transferencia' ? transferHoldMs() : undefined
 		});
@@ -375,7 +420,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	}
 
 	if (method === 'transferencia') {
-		await inBackground(sendTransferEmail({ order, origin, fetch }), platform);
+		await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		rememberOrder(cookies, url, order.id);
 		redirect(303, statusUrl);
 	}

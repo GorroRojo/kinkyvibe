@@ -56,6 +56,13 @@ export function mpSurcharge(base, feeBasisPoints) {
 }
 
 /**
+ * Comisión de Mercado Pago por defecto (%), si no hay ninguna configurada (ni en el evento, ni en
+ * /admin/entradas/ajustes, ni en TICKETS_MP_FEE_PERCENT). Decisión de la organización: 2 %; la
+ * real depende del plan de la cuenta y se ajusta en /admin/entradas/ajustes.
+ */
+export const DEFAULT_MP_FEE_PERCENT = 2;
+
+/**
  * "7.73" / "7,73" / 7.73 → 773 centésimos de punto. `null` si no es un porcentaje válido
  * (0 a 49,99 %).
  *
@@ -86,6 +93,12 @@ export const FONDO_OPTIONS = /** @type {const} */ ([
 ]);
 
 /** @typedef {(typeof FONDO_OPTIONS)[number]['id']} FondoOption */
+/**
+ * Opción de precio de una orden: una de las del fondo, o `gorra` para los tipos "a la gorra"
+ * (la persona elige el monto; sin fondo, sin aportes y sin códigos de descuento).
+ *
+ * @typedef {FondoOption | 'gorra'} PriceOption
+ */
 
 /**
  * Nombre de una opción para mostrar ("Entrada solidaria (+10 %)").
@@ -93,6 +106,7 @@ export const FONDO_OPTIONS = /** @type {const} */ ([
  * @param {string} id
  */
 export function fondoOptionLabel(id) {
+	if (id === 'gorra') return 'A la gorra';
 	const o = FONDO_OPTIONS.find((x) => x.id === id);
 	if (!o) return id;
 	return o.percent ? `${o.label} (+${o.percent} %)` : o.label;
@@ -163,10 +177,14 @@ export function unitPrice(price, fondo, option) {
  *
  * Sin `option`, se usa la opción por defecto (con fondo si hay fondo).
  *
+ * "A la gorra" (`option: 'gorra'`): `price` es el monto por entrada que eligió la persona (ya
+ * validado en el servidor); no hay fondo, ni aporte, ni código de descuento (se ignora). El
+ * recargo de Mercado Pago sí se suma.
+ *
  * @param {{
  *   price: number,
  *   fondo?: number,
- *   option?: FondoOption,
+ *   option?: PriceOption,
  *   quantity: number,
  *   discount?: { kind: DiscountKind, value: number } | null,
  *   method?: string,
@@ -182,12 +200,16 @@ export function computePrice({
 	method,
 	feeBasisPoints = 0
 }) {
-	const chosen = option ?? defaultFondoOption(fondo);
-	const unit = unitPrice(price, fondo, chosen);
+	const gorra = option === 'gorra';
+	/** @type {PriceOption} */
+	const chosen = gorra ? 'gorra' : (option ?? defaultFondoOption(fondo));
+	const unit = gorra
+		? { fondo: 0, contribution: 0, price }
+		: unitPrice(price, fondo, /** @type {FondoOption} */ (chosen));
 	const list = price * quantity;
 	const fondoAmount = unit.fondo * quantity;
 	const contribution = unit.contribution * quantity;
-	const d = applyDiscount(list - fondoAmount + contribution, discount);
+	const d = applyDiscount(list - fondoAmount + contribution, gorra ? null : discount);
 	const surcharge = method === 'mercadopago' ? mpSurcharge(d.total, feeBasisPoints) : 0;
 	return {
 		option: chosen,
@@ -243,16 +265,74 @@ export function orderReference(orderId) {
 export const DEFAULT_CONTACT_EMAIL = 'kinkyvibe.talleres@gmail.com';
 
 /**
- * Política de devoluciones de la organización (texto de ellos, tal cual), en párrafos.
+ * Política de devoluciones y cambios de titular de la organización, en párrafos (va en el
+ * formulario, como parte de las condiciones, y al pie de los mails). Reescrita para que se lea
+ * más clara, con el mismo sentido que el texto original de la organización.
  *
  * @param {string} contactEmail
  */
 export function refundPolicy(contactEmail) {
 	return {
-		title: '↩️ DEVOLUCIONES ↩️',
+		title: 'Devoluciones y cambios',
 		paragraphs: [
-			'En caso de sacar entrada y no poder asistir, tienen tiempo hasta 5 días hábiles previos al evento para avisarnos y así gestionar la devolución del dinero. También podemos ofrecerte a cambio algún taller grabado que tengamos disponible en la tienda en ese momento.',
-			`Si pasás tu entrada a alguien más, por favor envianos un mail a ${contactEmail} avisándonos esto y aclarando la siguiente información sobre la persona que va a ocupar tu entrada: nombre, pronombre y mail.`
+			'Si no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.',
+			`Si le pasás tu entrada a otra persona, escribinos a ${contactEmail} con su nombre, sus pronombres y su email.`
 		]
 	};
+}
+
+/**
+ * Todas las condiciones de compra, en una sola lista con el mismo formato (el formulario las
+ * muestra en "Condiciones de compra y devoluciones").
+ *
+ * @param {{ contactEmail: string, transferHoldHours: number, methods: readonly string[], online?: boolean }} input
+ * @returns {string[]}
+ */
+export function purchaseConditions({ contactEmail, transferHoldHours, methods, online = false }) {
+	const list = [
+		'Actividad solo para personas mayores de 18 años.' +
+			(online ? '' : ' Puede pedirse documento en la puerta.'),
+		online
+			? 'Cada entrada es para una persona. El link de la transmisión es personal: no lo compartas.'
+			: 'Cada entrada tiene un QR y un código que sirven para una sola persona y un solo ingreso.',
+		'Te mandamos las entradas por email apenas se acredita el pago.'
+	];
+	/** @type {string[]} */
+	const holds = [];
+	if (methods.includes('mercadopago')) {
+		holds.push('Con Mercado Pago te reservamos el lugar 20 minutos mientras pagás.');
+	}
+	if (methods.includes('transferencia')) {
+		holds.push(
+			`Con transferencia te reservamos el lugar ${transferHoldHours} horas mientras mandás el comprobante por mail.`
+		);
+	}
+	if (holds.length) list.push(`${holds.join(' ')} Si no se completa el pago, el lugar se libera.`);
+	return [...list, ...refundPolicy(contactEmail).paragraphs];
+}
+
+/**
+ * "A la gorra": tope por entrada del monto que elige la persona (evita errores de tipeo como
+ * 1000000 en lugar de 10000 y montos absurdos). También es el máximo de `sugerido`.
+ */
+export const GORRA_MAX_AMOUNT = 500000;
+
+/**
+ * Monto "a la gorra" escrito por la persona → pesos enteros, o `null` si no es un número válido.
+ * Acepta "5000", "5.000", "$ 5.000" y "5000,00"; no acepta centavos distintos de cero ni negativos.
+ *
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+export function parseAmount(raw) {
+	if (typeof raw === 'number') return Number.isSafeInteger(raw) && raw >= 0 ? raw : null;
+	if (typeof raw !== 'string') return null;
+	let s = raw
+		.trim()
+		.replace(/^\$\s*/, '')
+		.replace(/\s/g, '');
+	s = s.replace(/,0{1,2}$/, '');
+	if (!/^\d{1,3}(\.\d{3})*$|^\d+$/.test(s)) return null;
+	const n = Number(s.replaceAll('.', ''));
+	return Number.isSafeInteger(n) ? n : null;
 }
