@@ -4,6 +4,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
+	import { toArgentina, TIMEZONE } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
@@ -141,7 +142,8 @@
 			<small>desde</small><time class="dt-start" datetime={data.meta.start}
 				>{new Date(data.meta.start).toLocaleString('es-AR', {
 					dateStyle: 'long',
-					timeStyle: 'short'
+					timeStyle: 'short',
+					timeZone: TIMEZONE
 				})}hs</time
 			>
 			<small>hasta</small><time
@@ -149,7 +151,8 @@
 				datetime={data.meta.end ?? data.meta.start + data.meta.duration}
 				>{new Date(data.meta.end ?? data.meta.start + data.meta.duration).toLocaleString('es-AR', {
 					dateStyle: 'long',
-					timeStyle: 'short'
+					timeStyle: 'short',
+					timeZone: TIMEZONE
 				})}hs</time
 			>
 			<small>en</small>
@@ -178,10 +181,10 @@
 				trigger="click"
 				name={data.meta.title}
 				description={data.meta.summary}
-				startDate={format(new Date(data.meta.start), 'yyyy-MM-dd')}
-				startTime={format(new Date(data.meta.start), 'HH:mm')}
+				startDate={format(toArgentina(data.meta.start), 'yyyy-MM-dd')}
+				startTime={format(toArgentina(data.meta.start), 'HH:mm')}
 				endDate={format(
-					new Date(data.meta.end ?? data.meta.start + data.meta.duration),
+					toArgentina(data.meta.end ?? data.meta.start + data.meta.duration),
 					'yyyy-MM-dd'
 				)}
 				status={{
@@ -190,7 +193,7 @@
 					anunciado: 'TENTATIVE',
 					agotadas: 'CONFIRMED'
 				}[data.meta.status] ?? 'CONFIRMED'}
-				endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
+				endTime={format(toArgentina(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
 				timeZone="America/Buenos_Aires"
 				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 				language="es"

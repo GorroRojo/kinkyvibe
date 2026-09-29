@@ -9,6 +9,7 @@
 	} from 'lucide-svelte';
 	import 'add-to-calendar-button';
 	import { addHours, format, isPast } from 'date-fns';
+	import { toArgentina } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte/internal';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
@@ -97,10 +98,10 @@
 			{#if date}
 				{#if start}
 					<time datetime={start} class="dt-start dt-end">
-						{@html format(new Date(start), 'yyyy-MM-dd|HH:mm - ').replace(
+						{@html format(toArgentina(start), 'yyyy-MM-dd|HH:mm - ').replace(
 							'|',
 							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
-						) + format(new Date(end ?? ''), 'HH:mm')}
+						) + format(toArgentina(end ?? ''), 'HH:mm')}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -108,7 +109,7 @@
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={date}>
-						{date ? format(new Date(date), 'yyyy-MM-dd') : ''}
+						{date ? format(toArgentina(date), 'yyyy-MM-dd') : ''}
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
@@ -127,10 +128,10 @@
 							`}
 						name={title}
 						description={summary}
-						startDate={format(new Date(start), 'yyyy-MM-dd')}
-						startTime={format(new Date(start), 'HH:mm')}
-						endDate={format(new Date(end), 'yyyy-MM-dd')}
-						endTime={format(new Date(end), 'HH:mm')}
+						startDate={format(toArgentina(start), 'yyyy-MM-dd')}
+						startTime={format(toArgentina(start), 'HH:mm')}
+						endDate={format(toArgentina(end), 'yyyy-MM-dd')}
+						endTime={format(toArgentina(end), 'HH:mm')}
 						timeZone="America/Buenos_Aires"
 						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 						language="es"
