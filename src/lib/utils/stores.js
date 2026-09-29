@@ -33,6 +33,10 @@ export const wikiTagManager = writable(tagsFactory());
 /**@type {import('svelte/store').Writable<string>} */
 export const query = writable('');
 
+/** Free-text part of the PostList search (the tags part is `filteredTags`).
+ * @type {import('svelte/store').Writable<string>} */
+export const searchText = writable('');
+
 if (browser) {
 	try {
 		userConfig.set(
