@@ -11,6 +11,7 @@
 		preventScroll:false
 	});
 	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
+	$: eventSlug = $page.url.pathname.match(/^\/calendario\/([^/]+)\/?$/)?.[1];
 	/**
 	 *
 	 * @param {string} token
@@ -47,6 +48,12 @@
 			>
 		{/if}
 		<a href="/admin/eventos" class="menuitem" use:melt={$item}>Cargar evento</a>
+		<a href="/admin/eventos/importar" class="menuitem" use:melt={$item}>Importar planilla</a>
+		{#if eventSlug}
+			<a href="/admin/eventos/nuevo?desde={eventSlug}" class="menuitem" use:melt={$item}
+				>Duplicar este evento</a
+			>
+		{/if}
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
 			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>

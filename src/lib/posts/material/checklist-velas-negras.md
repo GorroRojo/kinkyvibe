@@ -8,7 +8,7 @@ tags:
   - español # español | inglés #
   - gratis # gratis | pago #
   - checklist # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
-  - descargable # online | descargable | link #
+  - descargable # web | descargable | link #
   - negociación
   - prácticas
   - BDSM

@@ -1,5 +1,5 @@
 /**
- * Códigos de descuento (tabla `discount_codes`, migrations/0003_tickets_v2.sql).
+ * Códigos de descuento (tabla `discount_codes`, migrations/0002_tickets.sql).
  *
  * - El código no distingue mayúsculas: se guarda y se compara en mayúsculas.
  * - Un "uso" es una orden con ese código que está aprobada o todavía tiene la reserva vigente

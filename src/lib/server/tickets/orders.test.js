@@ -481,7 +481,7 @@ describe('código corto de cada entrada', () => {
 		['7HQ-4XM', '7HQ4XM'],
 		['KV-7HQ4XM', '7HQ4XM'],
 		['kv7hq4xm', '7HQ4XM'],
-		// Las entradas anteriores a 0005 tienen códigos hexadecimales: O → 0, I/L → 1.
+		// O → 0 e I/L → 1 (letras que no usan los códigos).
 		['A0B1C2', 'A0B1C2'],
 		['AOBICL', 'A0B1C1']
 	])('normaliza %j → %s', (raw, code) => {

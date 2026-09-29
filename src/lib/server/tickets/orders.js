@@ -1,5 +1,5 @@
 /**
- * Órdenes y entradas en D1 (tablas de migrations/0002_tickets.sql y 0003_tickets_v2.sql).
+ * Órdenes y entradas en D1 (tablas de migrations/0002_tickets.sql).
  *
  * Reglas importantes:
  * - Cupo: cuentan las órdenes aprobadas y las que todavía tienen la reserva vigente
@@ -88,8 +88,8 @@ export function newTicketCode() {
 
 /**
  * Normaliza un código tipeado en la puerta: sin espacios ni guiones, en mayúsculas, sin el
- * prefijo opcional "KV", y O→0, I/L→1 (así también se encuentran los códigos hexadecimales que
- * recibieron las entradas emitidas antes de la migración 0005). `null` si no tiene la forma.
+ * prefijo opcional "KV", y O→0, I/L→1 (esas letras no se usan en los códigos: si alguien las
+ * tipea, casi seguro quiso decir el número). `null` si no tiene la forma.
  *
  * @param {unknown} raw
  * @returns {string | null}

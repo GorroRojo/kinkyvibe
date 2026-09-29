@@ -18,7 +18,11 @@ const MIGRATIONS_DIR = path.resolve('migrations');
  * @param {string} [dir]
  */
 export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
-	const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+	const entries = await readdir(dir).catch((error) => {
+		if (error?.code === 'ENOENT') return [];
+		throw error;
+	});
+	const files = entries.filter((f) => f.endsWith('.sql')).sort();
 	for (const file of files) {
 		const sql = await readFile(path.join(dir, file), 'utf8');
 		const statements = unstable_splitSqlQuery(sql).filter((s) => s.trim());

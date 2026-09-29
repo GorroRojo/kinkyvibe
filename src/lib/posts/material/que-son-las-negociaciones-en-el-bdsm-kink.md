@@ -10,7 +10,7 @@ tags:
   - negociación
   - gratis
   - artículo
-  - online
+  - web
 layout: material
 category: material
 authors:

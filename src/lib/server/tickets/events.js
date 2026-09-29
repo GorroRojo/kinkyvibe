@@ -3,10 +3,20 @@
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { isValidEventSlug } from '$lib/server/db/interest.js';
 import { parseTicketConfig } from './config.js';
 
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
+
+const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,199}$/i;
+
+/**
+ * ¿Tiene forma de slug de evento? (el nombre del archivo en src/lib/posts/calendario).
+ *
+ * @param {unknown} slug
+ */
+export function isValidEventSlug(slug) {
+	return typeof slug === 'string' && SLUG_RE.test(slug);
+}
 
 /**
  * DEV ONLY: agrega entradas de prueba a eventos reales sin tocar sus archivos (para probar la

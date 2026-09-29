@@ -4,10 +4,17 @@
 </script>
 
 <div class="content">
-	<p>
-		<a href="/admin/eventos">📅 Cargar un evento</a>
-		<small>(duplicar uno anterior o crear uno nuevo)</small>
-	</p>
+	<h2>Eventos</h2>
+	<ul class="actions">
+		<li>
+			<a href="/admin/eventos">📅 Cargar un evento</a>
+			<small>duplicar uno anterior o crear uno nuevo</small>
+		</li>
+		<li>
+			<a href="/admin/eventos/importar">📋 Importar desde la planilla</a>
+			<small>pegar filas de la planilla y crear varios borradores juntos</small>
+		</li>
+	</ul>
 	<h2>Entradas</h2>
 	<p>
 		<a href="/admin/entradas">Venta de entradas</a>: ventas por evento, órdenes, transferencias
@@ -27,3 +34,20 @@
 
 <!-- <textarea value={c}></textarea> -->
 <!-- <button on:click={save}>Save</button> -->
+
+<style>
+	.actions {
+		list-style: none;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75em;
+	}
+	.actions a {
+		font-weight: bold;
+	}
+	.actions small {
+		display: block;
+		opacity: 0.8;
+	}
+</style>

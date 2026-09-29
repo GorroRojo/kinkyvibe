@@ -8,7 +8,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { isValidEventSlug } from '$lib/server/db/interest.js';
+import { isValidEventSlug } from '$lib/server/tickets/events.js';
 import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
 
 /** @type {import('./$types').PageServerLoad} */
