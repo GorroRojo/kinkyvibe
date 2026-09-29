@@ -59,12 +59,14 @@ function dotted(dni) {
  * @param {number} quantity
  * @param {'mercadopago' | 'transferencia'} method
  * @param {{ kind: 'percent' | 'fixed', value: number } | null} [discount]
+ * @param {import('../../src/lib/utils/tickets.js').FondoOption} [option]
  */
-function expected(type, quantity, method, discount = null) {
+function expected(type, quantity, method, discount = null, option = undefined) {
 	const t = TYPES[type];
 	return computePrice({
 		price: t.price,
 		fondo: t.fondo,
+		option,
 		quantity,
 		discount,
 		method,
@@ -82,6 +84,8 @@ function expected(type, quantity, method, discount = null) {
  *   method?: 'mercadopago' | 'transferencia',
  *   code?: string,
  *   discount?: { kind: 'percent' | 'fixed', value: number },
+ *   option?: import('../../src/lib/utils/tickets.js').FondoOption,
+ *   optionLabel?: RegExp,
  *   screenshot?: string,
  *   submit?: boolean
  * }} [o]
@@ -95,6 +99,7 @@ async function buy(page, o = {}) {
 	const block = page.locator('#entradas');
 	await expect(block.getByRole('heading', { name: 'Comprar entradas' })).toBeVisible();
 	await block.getByLabel(TYPES[type].label).check();
+	if (o.optionLabel) await block.getByLabel(o.optionLabel).check();
 	await block.getByLabel('Cantidad').selectOption(String(quantity));
 	await block.getByLabel('Tu nombre').fill(buyer.name);
 	await block.getByLabel(/^Email/).fill(buyer.email);
@@ -110,21 +115,21 @@ async function buy(page, o = {}) {
 		.getByLabel(/^Pronombres/)
 		.fill('elle');
 	for (let i = 1; i < quantity; i++) {
-		const person = { name: `Acompañante ${id}-${i + 1}`, pronouns: i === 1 ? 'ella' : '' };
+		// Los pronombres son obligatorios en todas las entradas.
+		const person = { name: `Acompañante ${id}-${i + 1}`, pronouns: i === 1 ? 'ella' : 'él' };
 		people.push(person);
 		await holders.nth(i).getByLabel('Nombre', { exact: true }).fill(person.name);
-		if (person.pronouns)
-			await holders
-				.nth(i)
-				.getByLabel(/^Pronombres/)
-				.fill(person.pronouns);
+		await holders
+			.nth(i)
+			.getByLabel(/^Pronombres/)
+			.fill(person.pronouns);
 	}
 	if (o.code) {
 		await block.getByLabel(/Código de descuento/).fill(o.code.toLowerCase());
 		await block.getByRole('button', { name: 'Aplicar' }).click();
 		await expect(block.getByText(/✓ Código/)).toBeVisible();
 	}
-	const prices = expected(type, quantity, method, o.discount);
+	const prices = expected(type, quantity, method, o.discount, o.option);
 	if (prices.subtotal - prices.discount > 0) {
 		await block
 			.getByLabel(method === 'transferencia' ? /Transferencia bancaria/ : /Mercado Pago/)
@@ -177,7 +182,8 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await page.goto('/admin/entradas');
 	const card = page.locator('.event', { hasText: 'General' }).first();
 	await expect(card).toBeVisible();
-	await expect(card).toContainText('Fondo KinkyVibe usado');
+	await expect(card).toContainText('Fondo usado');
+	await expect(card).toContainText('Aportes al fondo');
 	await shots(page, '5-admin-lista');
 
 	// El admin del evento muestra cada entrada y el DNI de quien compró.
@@ -249,9 +255,13 @@ test('datos inválidos: se marcan y no se crea la orden', async ({ page }) => {
 		.getByLabel('Nombre', { exact: true })
 		.fill('Persona Dos');
 	await block.getByLabel(/18 años/).check();
+	// Sin JavaScript de por medio (el navegador frenaría el envío por los `required`): así se ve
+	// qué contesta el servidor con DNI inválido y pronombres vacíos.
+	await block.locator('form').evaluate((f) => f.setAttribute('novalidate', ''));
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(block.getByText('Revisá los datos marcados.')).toBeVisible();
 	await expect(block.getByText(/Revisá el DNI/)).toBeVisible();
+	await expect(block.getByText('Poné los pronombres de esta persona.')).toHaveCount(2);
 	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}`));
 });
 
@@ -260,7 +270,9 @@ test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de p
 }) => {
 	await buy(page, { type: 'fondo', quantity: 2, submit: false });
 	const block = page.locator('#entradas');
-	await expect(block.getByText('💜 El Fondo KinkyVibe cubre $ 2.000 de tu entrada')).toBeVisible();
+	await expect(
+		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
+	).toBeVisible();
 	const mp = expected('fondo', 2, 'mercadopago');
 	const tr = expected('fondo', 2, 'transferencia');
 	expect(mp.surcharge).toBeGreaterThan(0);
@@ -412,6 +424,7 @@ test('el precio lo pone el servidor aunque el formulario mande otro', async ({ p
 			email: 'tramposa@example.com',
 			dni: '12345678',
 			holder_name_0: 'Persona Tramposa',
+			holder_pronouns_0: 'elle',
 			method: 'mercadopago',
 			accept: 'on',
 			price: '1',
@@ -419,7 +432,8 @@ test('el precio lo pone el servidor aunque el formulario mande otro', async ({ p
 			total: '1',
 			discount_amount: '8000',
 			surcharge_amount: '0',
-			fondo_amount: '8000'
+			fondo_amount: '8000',
+			fondo_contribution: '-5000'
 		},
 		headers: { origin: 'http://localhost:5371' },
 		maxRedirects: 0
@@ -438,9 +452,131 @@ test('el evento de prueba muestra el aviso, el fondo y los dos medios de pago', 
 	await page.goto('/calendario/prueba-entradas-2026-12', { waitUntil: 'networkidle' });
 	await expect(page.getByText(/BORRAR ANTES DE VENDER DE VERDAD/)).toBeVisible();
 	const block = page.locator('#entradas');
-	await expect(block.getByText('💜 El Fondo KinkyVibe cubre $ 2.000 de tu entrada')).toBeVisible();
+	// fondo_percent: 20 → General $ 10.000 se ve a $ 8.000 (el completo, tachado).
+	const general = block.locator('label.type', { hasText: 'General' });
+	await expect(general.locator('s')).toHaveText('$ 10.000');
+	await expect(general.locator('strong')).toHaveText('$ 8.000');
+	await block.getByLabel(/General/).check();
+	const options = block.locator('fieldset.options');
+	await expect(options.getByRole('radio')).toHaveCount(5);
+	await expect(options.getByLabel(/Con el descuento del fondo/)).toBeChecked();
+	await expect(options.locator('label.option', { hasText: 'Entrada Sugar' })).toContainText(
+		'$ 15.000'
+	);
+	// Reducida tiene `fondo: 0`: no se ofrece el descuento del fondo.
+	await block.getByLabel(/Reducida/).check();
+	await expect(options.getByRole('radio')).toHaveCount(4);
+	await expect(options.getByLabel(/Precio completo/)).toBeChecked();
+	await block.getByLabel(/General/).check();
 	await expect(block.getByLabel(/Transferencia bancaria/)).toBeVisible();
+	await expect(block.locator('label.method', { hasText: 'Transferencia' })).toContainText(
+		'te reservamos el lugar 48 horas mientras mandás el comprobante por mail'
+	);
 	await block.getByText('Condiciones de compra y devoluciones').click();
 	await expect(block.getByText(/5 días hábiles previos al evento/)).toBeVisible();
 	await shots(page, '0-evento-de-prueba');
+});
+
+test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo" del admin', async ({
+	page
+}) => {
+	const card = page.locator(`a.event[href="/admin/entradas/${EVENT}"]`);
+	/** @returns {Promise<number>} */
+	const contributions = async () => {
+		await page.goto('/admin/entradas');
+		const text = await card.locator('.fondo-contribution').innerText();
+		return Number(text.replace(/[^0-9]/g, ''));
+	};
+	const before = await contributions();
+
+	// Con fondo ($ 10.000, fondo $ 2.000), 2 entradas solidarias: 2 × $ 11.000 + recargo MP.
+	const { prices } = await buy(page, {
+		type: 'fondo',
+		quantity: 2,
+		option: 'solidaria',
+		optionLabel: /Entrada solidaria/,
+		submit: false
+	});
+	expect(prices).toMatchObject({ fondo: 0, contribution: 2000, subtotal: 22000 });
+	const block = page.locator('#entradas');
+	await expect(block.getByText('💜 Incluye $ 2.000 de aporte al Fondo KinkyVibe')).toBeVisible();
+	await expect(block.locator('fieldset.options')).toContainText(
+		'lo que pagás de más va entero al fondo'
+	);
+	await shots(page, '14-checkout-solidaria', block);
+	await block.locator('.pay button[type="submit"]').click();
+	await expect(page).toHaveURL(/\/entradas\/simular-pago\/[0-9a-f-]{36}$/);
+	await expect(page.getByRole('heading', { name: `Pagar ${ars(prices.total)}` })).toBeVisible();
+	await page.getByRole('button', { name: 'Aprobar pago', exact: true }).click();
+	await expect(page.getByRole('heading', { name: /ya tenés tus entradas/ })).toBeVisible();
+	await expect(page.getByText('+$ 2.000 💜 · Entrada solidaria (+10 %)')).toBeVisible();
+
+	expect(await contributions()).toBe(before + 2000);
+	await expect(card).toContainText('Fondo usado');
+	await shots(page, '15-admin-totales', card);
+	await page.goto(`/admin/entradas/${EVENT}`);
+	await expect(page.locator('table.summary')).toContainText('Aportes al fondo');
+	await shots(page, '16-admin-evento-totales', page.locator('table.summary'));
+});
+
+test('el formulario sobrevive a una recarga (sessionStorage) y se borra al comprar', async ({
+	page
+}) => {
+	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	await block.getByLabel(TYPES.fondo.label).check();
+	await block.getByLabel(/Entrada muy solidaria/).check();
+	await block.getByLabel('Cantidad').selectOption('2');
+	await block.getByLabel('Tu nombre').fill('Persona Recarga');
+	await block.getByLabel(/^Email/).fill('e2e-recarga@example.com');
+	await block.getByLabel(/^DNI/).fill('22.333.444');
+	const holders = block.locator('fieldset.holder');
+	await holders
+		.nth(0)
+		.getByLabel(/^Pronombres/)
+		.fill('elle');
+	await holders.nth(1).getByLabel('Nombre', { exact: true }).fill('Acompañante Recarga');
+	await holders
+		.nth(1)
+		.getByLabel(/^Pronombres/)
+		.fill('ella');
+
+	// El "?" de pronombres abre pronombr.es en otra pestaña (no se pierde lo escrito).
+	const help = holders.nth(0).getByRole('link', { name: /Qué son los pronombres/ });
+	await expect(help).toHaveAttribute('href', 'https://pronombr.es');
+	await expect(help).toHaveAttribute('target', '_blank');
+	await expect(help).toHaveAttribute('rel', /noopener/);
+	await shots(page, '17-checkout-pronombres', block);
+
+	// Nunca en localStorage.
+	expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('22.333.444');
+
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(block.getByLabel(TYPES.fondo.label)).toBeChecked();
+	await expect(block.getByLabel(/Entrada muy solidaria/)).toBeChecked();
+	await expect(block.getByLabel('Cantidad')).toHaveValue('2');
+	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Recarga');
+	await expect(block.getByLabel(/^Email/)).toHaveValue('e2e-recarga@example.com');
+	await expect(block.getByLabel(/^DNI/)).toHaveValue('22.333.444');
+	await expect(holders.nth(0).getByLabel('Nombre', { exact: true })).toHaveValue('Persona Recarga');
+	await expect(holders.nth(0).getByLabel(/^Pronombres/)).toHaveValue('elle');
+	await expect(holders.nth(1).getByLabel('Nombre', { exact: true })).toHaveValue(
+		'Acompañante Recarga'
+	);
+	await expect(holders.nth(1).getByLabel(/^Pronombres/)).toHaveValue('ella');
+	// La casilla de +18 no se guarda.
+	await expect(block.getByLabel(/18 años/)).not.toBeChecked();
+
+	// Al comprar se borra el borrador.
+	await block.getByLabel(/Transferencia bancaria/).check();
+	await block.getByLabel(/18 años/).check();
+	const { total } = expected('fondo', 2, 'transferencia', null, 'muy-solidaria');
+	expect(total).toBe(26000);
+	await expect(block.getByText(`Total: ${ars(total)}`)).toBeVisible();
+	await block.locator('.pay button[type="submit"]').click();
+	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
+	await expect(page.locator('.amount')).toHaveText(ars(26000));
+	await expect(page.getByText(/te reservamos el lugar\s+48 horas/)).toBeVisible();
+	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });
