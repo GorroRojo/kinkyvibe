@@ -6,7 +6,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores';
-	import { ArrowRight, Globe } from 'lucide-svelte';
+	import { ArrowRight, Globe } from '@lucide/svelte';
 	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
@@ -95,7 +95,7 @@
 	</dl>
 </div>
 
-<PostList posts={data.allPosts.filter((p) => p.meta.layout == 'material')} />
+<PostList posts={data.posts.filter((p) => p.meta.layout == 'material')} />
 
 <style lang="scss">
 	.glosario {
