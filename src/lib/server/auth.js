@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
 /** GitHub logins allowed into the admin area. */
 export const ADMINS = ['GorroRojo', 'Tallarines333', 'VelvetVoid'];
@@ -17,8 +17,9 @@ export function isAdmin(user) {
 /**
  * Guard for server loads and form actions. Form actions do NOT run the
  * parent layout load, so every action must call this itself.
- * Throws a redirect to /login when there is no verified user, and to / when
- * the verified user is not an admin.
+ * Throws a redirect to /login when there is no verified user, and a 403
+ * error (rendered by the error page) when the verified user is not an admin,
+ * so they see why they can't get in instead of landing on the home page.
  * @param {App.Locals} locals
  * @param {URL} url
  * @returns {NonNullable<App.Locals['user']>} the verified admin user
@@ -28,7 +29,7 @@ export function requireAdmin(locals, url) {
 		redirect(303, '/login?redirectTo=' + encodeURIComponent(url.pathname));
 	}
 	if (!isAdmin(locals.user)) {
-		redirect(303, '/');
+		error(403, 'Tu cuenta no tiene permiso para entrar al panel de administración.');
 	}
 	return locals.user;
 }

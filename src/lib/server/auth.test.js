@@ -62,12 +62,13 @@ describe('requireAdmin', () => {
 		expect(e.status).toBe(303);
 		expect(e.location).toBe('/login?redirectTo=%2Fedit%2Fcalendario%2Fx');
 	});
-	it('redirects non-admins home', () => {
+	it('gives logged-in non-admins a 403 instead of redirecting', () => {
 		const e = thrown(() =>
 			requireAdmin({ user: { login: 'x', name: null, avatar_url: '' }, user_token: 't' }, url)
 		);
-		expect(e.status).toBe(303);
-		expect(e.location).toBe('/');
+		expect(e.status).toBe(403);
+		expect(e.location).toBeUndefined();
+		expect(e.body.message).toBeTruthy();
 	});
 	it('returns the admin user', () => {
 		const user = { login: 'GorroRojo', name: null, avatar_url: '' };
