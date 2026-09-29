@@ -2,7 +2,7 @@
 	import { createCombobox, melt } from '@melt-ui/svelte';
 	import { tick } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { Search, X } from 'lucide-svelte';
+	import { Search, X } from '@lucide/svelte';
 	import { filteredTags, searchText, tagManager } from '$lib/utils/stores';
 	import { filterPosts, suggestTags, aliasIndex, canonicalTag } from '$lib/utils/postSearch';
 

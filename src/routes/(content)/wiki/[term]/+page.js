@@ -2,7 +2,7 @@ import { fetchPost } from '$lib/utils/index.js';
 import tagsFactory from '$lib/utils/tags';
 export const prerender = 'auto';
 /** @type {import("./$types").PageLoad} */
-export async function load({ params }) {
+export async function load({ params, data }) {
 	let post;
 	let tagManager = tagsFactory();
 	try {
@@ -11,6 +11,7 @@ export async function load({ params }) {
 		post = { tag: tagManager.get(params.term) };
 	}
 	return {
+		...data,
 		...post
 	};
 }

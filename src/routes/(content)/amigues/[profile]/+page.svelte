@@ -2,9 +2,10 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { currentPostData } from '$lib/utils/stores.js';
+	import { currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { processContent } from '$lib/utils';
+	import { processContent, relatedPostsFor } from '$lib/utils';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -15,17 +16,15 @@
 			return s + '';
 		}
 	};
-	let relatedPosts = data.allPosts.filter(
-		(p) =>
-			data.meta.authors?.some(
-				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== data.meta.title
-			) ||
-			(data.meta.wiki && p.meta.tags.includes(data.meta.wiki)) ||
-			(data.meta.category == 'wiki' && p.meta.tags.includes(data.meta.postID)) ||
-			(data.meta.category == 'amigues' &&
-				p.meta.authors.includes(data.meta.postID) &&
-				p.meta.postID != data.meta.postID)
-	);
+	// the server sends no past events; fetch them when the viewer chooses to see them
+	let relatedPosts = data.relatedPosts;
+	let loadedPast = false;
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
+			.catch(() => (loadedPast = false));
+	}
 </script>
 
 <LDTag
@@ -79,7 +78,7 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-resume">
 	<div class="profile-header h-card p-contact">
 		<img src={data.meta.featured + ''} class="profile-pic u-photo" alt="" />
@@ -145,7 +144,7 @@
 	</div>
 </article>
 
-{#if relatedPosts.length > 0}
+{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	{@const relatedAuthors = [...new Set([data.meta.postID, ...data.meta.authors])]}
 	<div class="content">
 		<h3>
