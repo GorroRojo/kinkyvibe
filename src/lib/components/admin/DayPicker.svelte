@@ -133,7 +133,7 @@
 		{#each WEEK as [short, long], col}
 			<abbr class="wd" class:hint={col === hintCol} title={long}>{short}</abbr>
 		{/each}
-		{#each Array(grid.offset) as _}<span />{/each}
+		{#each Array(grid.offset) as _}<span></span>{/each}
 		{#each Array(grid.days) as _, i}
 			{@const d = i + 1}
 			{@const date = dateOf(d)}

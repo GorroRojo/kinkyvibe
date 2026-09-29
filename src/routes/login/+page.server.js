@@ -20,6 +20,6 @@ export const actions = {
 			state,
 			scope: 'repo'
 		});
-		throw redirect(302, `${target}?${params}`);
+		redirect(302, `${target}?${params}`);
 	}
 };

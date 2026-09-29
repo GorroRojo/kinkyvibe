@@ -367,7 +367,7 @@
 				rows="8"
 				spellcheck="false"
 				placeholder={'FALSE\t\tPicantearla\tviernes 16\t21 - 03 horas\t\tAgrelo 3399'}
-			/>
+			></textarea>
 			<p>
 				<button class="button" on:click={read} disabled={!text.trim()}>Leer filas</button>
 			</p>

@@ -411,7 +411,7 @@
 			<input type="hidden" name="slug" value={slug} />
 			<input type="hidden" name="source" value={source?.slug ?? ''} />
 			<input type="hidden" name="featuredMode" value={featuredMode} />
-			<textarea hidden name="content" value={generated.md} />
+			<textarea hidden name="content" value={generated.md}></textarea>
 
 			<!-- ======================= STEP 1 ======================= -->
 			<div class="step" hidden={step !== 'editar'}>
@@ -531,7 +531,7 @@
 							bind:value={values.summary}
 							rows="3"
 							placeholder="Aparece en la lista de eventos y cuando se comparte el link"
-						/>
+						></textarea>
 					</label>
 					<label class="field">
 						<span>Estado</span>
@@ -660,7 +660,7 @@
 						Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>, <code>- lista</code>,
 						<code>**negrita**</code>.
 					</p>
-					<textarea id="ev-body" class="body" bind:value={values.body} rows="12" />
+					<textarea id="ev-body" class="body" bind:value={values.body} rows="12"></textarea>
 				</fieldset>
 
 				{#if showProblems && (problems.length || generated.error)}

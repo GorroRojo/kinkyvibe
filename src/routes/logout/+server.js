@@ -8,5 +8,5 @@ export async function GET({ cookies, url, locals }) {
 	locals.user_token = '';
 	locals.user = undefined;
 	cookies.delete(TOKEN_COOKIE, authCookieOptions(url));
-	throw redirect(302, safeRedirect(url.searchParams.get('redirectTo'), url.origin, '/admin'));
+	redirect(302, safeRedirect(url.searchParams.get('redirectTo'), url.origin, '/admin'));
 }

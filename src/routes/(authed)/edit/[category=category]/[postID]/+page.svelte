@@ -184,9 +184,10 @@
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
-	let values = { ...initial };
-	// Existing behavior: saving marks the post as updated today.
-	values.updated_date = todayInArgentina();
+	// Existing behavior: saving marks the post as updated today. Set in the initializer, not
+	// with a later `values.updated_date = …`: Svelte 5 (legacy mode) compiles that statement
+	// with a reference to the `f` of the `bind:value={values[f.key]}` loop below and crashes.
+	let values = { ...initial, updated_date: todayInArgentina() };
 
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */
@@ -289,7 +290,7 @@
 			Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
 			como texto. Revisá las líneas entre los <code>---</code>.
 		</p>
-		<textarea class="raw" bind:value={rawText} rows="30" />
+		<textarea class="raw" bind:value={rawText} rows="30"></textarea>
 	{:else}
 		<fieldset class="card">
 			<legend>📝 Datos</legend>
@@ -311,8 +312,7 @@
 									id="{f.key}-input"
 									bind:value={values[f.key]}
 									rows="3"
-									placeholder={f.placeholder}
-								/>
+									placeholder={f.placeholder}></textarea>
 							{:else if f.type === 'select'}
 								<select id="{f.key}-input" bind:value={values[f.key]}>
 									{#each f.options ?? [] as o}<option value={o.value}>{o.label}</option>{/each}
@@ -432,7 +432,7 @@
 	</details>
 
 	<form method="POST" action="?/save" class="bar">
-		<textarea hidden name="content" value={content} />
+		<textarea hidden name="content" value={content}></textarea>
 		<input type="hidden" name="sha" value={sha} />
 		<input type="hidden" name="path" value={path} />
 		<small class="later"

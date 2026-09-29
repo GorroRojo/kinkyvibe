@@ -9,7 +9,7 @@
 		Layers,
 		Globe,
 		Home
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	let style = `scale:var(--scale,1);

@@ -1,5 +1,5 @@
 <script context="module">
-	import { ChevronRight, ChevronDown } from 'lucide-svelte';
+	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
@@ -164,7 +164,7 @@
 	</div>
 {/if}
 
-<mark hidden />
+<mark hidden></mark>
 
 <style>
 	mark {
@@ -228,7 +228,9 @@
 		/* z-index: -1; */
 		border-left: unset;
 	}
-	dd::before {
+	/* .all prefix: Svelte 5 no longer doubles the scoping class, so this needs extra specificity
+	   to beat the global `.content dl div dd::before` rule, as it did with Svelte 4. */
+	.all dd::before {
 		content: '';
 	}
 	dl {
