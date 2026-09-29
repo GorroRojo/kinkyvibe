@@ -63,8 +63,13 @@
 								<td>{formatARS(e.revenue)}</td>
 							</tr>
 							<tr>
-								<td colspan="3">💜 Fondo KinkyVibe usado</td>
-								<td>{formatARS(e.fondoUsed)}</td>
+								<td colspan="3">💜 Fondo usado <small>(descuentos del Fondo KinkyVibe)</small></td>
+								<td class="fondo-used">{formatARS(e.fondoUsed)}</td>
+							</tr>
+							<tr>
+								<td colspan="3">💜 Aportes al fondo <small>(entradas solidarias y Sugar)</small></td
+								>
+								<td class="fondo-contribution">{formatARS(e.contribution)}</td>
 							</tr>
 						</tfoot>
 					</table>

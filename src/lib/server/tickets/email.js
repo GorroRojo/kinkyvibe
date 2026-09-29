@@ -2,7 +2,7 @@
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
 import { formatARS } from '$lib/utils/money.js';
-import { orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
 
 /**
  * Política de devoluciones al pie de los mails.
@@ -31,6 +31,11 @@ export function priceLines(order, typeName) {
 		`${order.quantity} × ${typeName}: ${formatARS(order.unit_price * order.quantity)}`
 	];
 	if (order.fondo_amount) lines.push(`Fondo KinkyVibe: −${formatARS(order.fondo_amount)}`);
+	if (order.fondo_contribution) {
+		lines.push(
+			`${fondoOptionLabel(order.fondo_option)}, aporte al Fondo KinkyVibe: +${formatARS(order.fondo_contribution)}`
+		);
+	}
 	if (order.discount_amount) {
 		lines.push(`Código ${order.discount_code}: −${formatARS(order.discount_amount)}`);
 	}
@@ -171,12 +176,13 @@ export function buildTransferEmail({
 	const prices = priceLines(order, typeName);
 	const ref = orderReference(order.id);
 	const deadline = formatEventDate(new Date(order.expires_at).toISOString());
+	const hours = holdHours(order);
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
 	const subject = `Datos para transferir · ${event.title} (${ref})`;
 	const where = replyTo ? `respondé este mail o escribinos a ${replyTo}` : 'respondé este mail';
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
 		<h1 style="color:#b3127a;font-size:22px">Reservamos tus entradas</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong> antes del <strong>${escapeHtml(deadline)}</strong>.</p>
+		<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>
 		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="background:#f6eef3;border-radius:12px;padding:12px 16px;white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -190,7 +196,7 @@ export function buildTransferEmail({
 	const text = [
 		'Reservamos tus entradas',
 		'',
-		`Para confirmarlas transferí ${formatARS(order.total)} antes del ${deadline}.`,
+		`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
 		'',
 		`${event.title}`,
 		formatEventDate(event.start),

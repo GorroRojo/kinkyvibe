@@ -1,6 +1,7 @@
 <script>
 	import { invalidateAll } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
+	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 
 	let { data } = $props();
 
@@ -51,8 +52,9 @@
 	{:else if order.status === 'awaiting_transfer'}
 		<h1>Reservamos tus entradas: falta la transferencia</h1>
 		<p>
-			Transferí <strong class="amount">{formatARS(order.total)}</strong> antes del
-			<strong>{deadline(order.expiresAt)} hs</strong>. Si no llega a tiempo, la reserva se libera.
+			Transferí <strong class="amount">{formatARS(order.total)}</strong>: te reservamos el lugar
+			{order.holdHours} horas (hasta el <strong>{deadline(order.expiresAt)} hs</strong>) mientras
+			mandás el comprobante por mail. Si no llega a tiempo, la reserva se libera.
 		</p>
 		{#if data.transfer?.info}
 			<div class="transfer-info" aria-label="Datos para transferir">{data.transfer.info}</div>
@@ -104,13 +106,17 @@
 		<dd><a href="/calendario/{data.event.slug}">{data.event.title}</a></dd>
 		<dt>Entradas</dt>
 		<dd>{order.quantity} × {order.typeName}</dd>
-		{#if order.fondo || order.discountAmount || order.surcharge}
+		{#if order.fondo || order.contribution || order.discountAmount || order.surcharge}
 			<dt>Precio</dt>
 			<dd>{formatARS(order.list)}</dd>
 		{/if}
 		{#if order.fondo}
 			<dt>Fondo KinkyVibe</dt>
 			<dd>−{formatARS(order.fondo)} 💜</dd>
+		{/if}
+		{#if order.contribution}
+			<dt>Aporte al fondo</dt>
+			<dd>+{formatARS(order.contribution)} 💜 · {fondoOptionLabel(order.fondoOption)}</dd>
 		{/if}
 		{#if order.discountAmount}
 			<dt>Descuento</dt>

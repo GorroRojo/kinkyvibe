@@ -53,6 +53,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 		type: names[o.ticket_type] ?? o.ticket_type,
 		quantity: o.quantity,
 		fondo: o.fondo_amount,
+		fondoOption: o.fondo_option,
+		contribution: o.fondo_contribution,
 		surcharge: o.surcharge_amount,
 		subtotal: o.subtotal,
 		discountCode: o.discount_code,
@@ -84,6 +86,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 			held: counts.get(t.id)?.held ?? 0,
 			revenue: counts.get(t.id)?.revenue ?? 0,
 			fondoUsed: counts.get(t.id)?.fondo ?? 0,
+			contribution: counts.get(t.id)?.contribution ?? 0,
 			surcharge: counts.get(t.id)?.surcharge ?? 0
 		})),
 		transfers: rows.filter(

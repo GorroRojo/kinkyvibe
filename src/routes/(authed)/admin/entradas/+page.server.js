@@ -30,7 +30,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 			held: counts.get(t.id)?.held ?? 0,
 			fondo: t.fondo,
 			revenue: counts.get(t.id)?.revenue ?? 0,
-			fondoUsed: counts.get(t.id)?.fondo ?? 0
+			fondoUsed: counts.get(t.id)?.fondo ?? 0,
+			contribution: counts.get(t.id)?.contribution ?? 0
 		}));
 		rows.push({
 			slug,
@@ -39,7 +40,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 			status: config.status ?? null,
 			types,
 			revenue: types.reduce((s, t) => s + t.revenue, 0),
-			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0)
+			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0),
+			contribution: types.reduce((s, t) => s + t.contribution, 0)
 		});
 	}
 	return { events: rows, dbAvailable: Boolean(db) };

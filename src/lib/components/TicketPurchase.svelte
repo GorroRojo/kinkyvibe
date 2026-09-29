@@ -1,19 +1,32 @@
 <script>
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { formatARS } from '$lib/utils/money.js';
-	import { computePrice, refundPolicy } from '$lib/utils/tickets.js';
+	import {
+		computePrice,
+		defaultFondoOption,
+		fondoOptionsFor,
+		refundPolicy,
+		unitPrice
+	} from '$lib/utils/tickets.js';
 
 	/**
 	 * Bloque "Comprar entradas" de la página de un evento. Funciona sin JavaScript (form actions
 	 * `?/discount` y `?/buy`). Los precios, descuentos y recargos que se muestran son
 	 * informativos: el servidor recalcula todo con el frontmatter del evento y la base de datos.
 	 *
+	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se borra al
+	 * cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale bien.
+	 * Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni sobrevive a
+	 * cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca se usa
+	 * localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a marcarla).
+	 *
 	 * @type {{
 	 *   tickets: import('$lib/server/tickets/checkout.js').TicketsView,
 	 *   result?: {
 	 *     error?: string | null,
 	 *     errors?: Record<string, string>,
-	 *     values?: { type?: string, quantity?: string, name?: string, email?: string, dni?: string, code?: string, method?: string, holders?: HolderValues[] },
+	 *     values?: { type?: string, quantity?: string, name?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, holders?: HolderValues[] },
 	 *     discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 *   } | null
 	 * }}
@@ -35,6 +48,8 @@
 	let code = $state(initial.code ?? '');
 	// svelte-ignore state_referenced_locally
 	let method = $state(initial.method || tickets.methods[0] || 'mercadopago');
+	/** @type {string} */
+	let option = $state(initial.option ?? '');
 	/** @type {HolderValues[]} */
 	// svelte-ignore state_referenced_locally
 	let holders = $state(
@@ -52,6 +67,14 @@
 	let pending = $state(false);
 
 	let selected = $derived(tickets.types.find((t) => t.id === type));
+	// "¿Cómo querés pagar tu entrada?": sin fondo en este tipo, no se ofrece el descuento del
+	// fondo y la opción por defecto es precio completo.
+	let fondoOptions = $derived(fondoOptionsFor(selected?.fondo ?? 0));
+	let chosenOption = $derived(
+		fondoOptions.find((o) => o.id === option) ??
+			fondoOptions.find((o) => o.id === defaultFondoOption(selected?.fondo ?? 0)) ??
+			fondoOptions[0]
+	);
 	let maxQuantity = $derived(Math.max(1, Math.min(tickets.maxQuantity, selected?.available ?? 1)));
 	let count = $derived(Math.min(quantity, maxQuantity));
 	let errors = $derived(result?.errors ?? {});
@@ -63,6 +86,7 @@
 		computePrice({
 			price: selected?.price ?? 0,
 			fondo: selected?.fondo ?? 0,
+			option: chosenOption.id,
 			quantity: selected ? count : 0,
 			discount: applied,
 			method,
@@ -71,6 +95,76 @@
 	);
 	let free = $derived(Boolean(selected) && prices.subtotal - prices.discount === 0);
 	let policy = $derived(refundPolicy(tickets.contactEmail));
+
+	// --- Borrador en sessionStorage (ver arriba) ---
+	const DRAFT_VERSION = 1;
+	let draftKey = '';
+	let draftReady = $state(false);
+
+	function readDraft() {
+		try {
+			const raw = sessionStorage.getItem(draftKey);
+			const d = raw ? JSON.parse(raw) : null;
+			return d && d.v === DRAFT_VERSION ? d : null;
+		} catch {
+			return null;
+		}
+	}
+
+	function clearDraft() {
+		try {
+			sessionStorage.removeItem(draftKey);
+		} catch {
+			// sin sessionStorage (modo privado estricto): no hay nada que borrar
+		}
+	}
+
+	onMount(() => {
+		draftKey = `kv-entradas:${location.pathname}`;
+		// Si el servidor devolvió el formulario (con errores), eso manda.
+		const d = result?.values ? null : readDraft();
+		if (d) {
+			if (tickets.types.some((t) => t.id === d.type && t.available > 0)) type = d.type;
+			if (Number(d.quantity) >= 1) quantity = Number(d.quantity);
+			if (typeof d.option === 'string') option = d.option;
+			if (typeof d.method === 'string' && tickets.methods.includes(d.method)) method = d.method;
+			buyerName = String(d.name ?? '');
+			email = String(d.email ?? '');
+			dni = String(d.dni ?? '');
+			code = String(d.code ?? '');
+			firstHolderEdited = Boolean(d.firstHolderEdited);
+			if (Array.isArray(d.holders)) {
+				d.holders
+					.slice(0, holders.length)
+					.forEach((/** @type {any} */ h, /** @type {number} */ i) => {
+						holders[i] = { name: String(h?.name ?? ''), pronouns: String(h?.pronouns ?? '') };
+					});
+			}
+		}
+		draftReady = true;
+	});
+
+	$effect(() => {
+		if (!draftReady) return;
+		const draft = JSON.stringify({
+			v: DRAFT_VERSION,
+			type,
+			quantity,
+			option,
+			method,
+			name: buyerName,
+			email,
+			dni,
+			code,
+			firstHolderEdited,
+			holders: holders.slice(0, count).map((h) => ({ name: h.name, pronouns: h.pronouns }))
+		});
+		try {
+			sessionStorage.setItem(draftKey, draft);
+		} catch {
+			// sin sessionStorage: el formulario funciona igual, solo no sobrevive a una recarga
+		}
+	});
 
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
@@ -127,6 +221,9 @@
 				const applying = submitter?.getAttribute('formaction')?.includes('discount');
 				if (!applying) pending = true;
 				return async ({ result: res, update }) => {
+					// La compra salió bien (vamos a pagar, a los datos para transferir o a las
+					// entradas): ya no hace falta el borrador.
+					if (res.type === 'redirect') clearDraft();
 					if (res.type === 'redirect' && /^https?:/.test(res.location)) {
 						// El checkout de Mercado Pago es otro sitio: navegación completa.
 						window.location.href = res.location;
@@ -151,12 +248,14 @@
 						/>
 						<span class="type-name">{t.name}</span>
 						<span class="type-price">
-							{#if t.fondo}<s class="list-price">{formatARS(t.price)}</s>{/if}
+							{#if t.fondo}<s class="list-price" aria-label="precio completo {formatARS(t.price)}"
+									>{formatARS(t.price)}</s
+								>{/if}
 							<strong>{formatARS(t.price - t.fondo)}</strong>
 						</span>
 						{#if t.fondo}
 							<small class="type-fondo">
-								💜 El Fondo KinkyVibe cubre {formatARS(t.fondo)} de tu entrada
+								💜 Con el descuento del Fondo KinkyVibe ({formatARS(t.fondo)} menos)
 							</small>
 						{/if}
 						<small class="type-left">
@@ -166,6 +265,44 @@
 				{/each}
 				{#if errors.type}<p class="field-error">{errors.type}</p>{/if}
 			</fieldset>
+
+			{#if selected}
+				<fieldset class="options">
+					<legend>¿Cómo querés pagar tu entrada?</legend>
+					<small class="hint">
+						El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener"
+							>Fondo KinkyVibe</a
+						> baja el precio de todo lo que hacemos para todo el mundo. Si podés, sumá un aporte: lo que
+						pagás de más va entero al fondo.
+					</small>
+					{#each fondoOptions as o (o.id)}
+						{@const u = unitPrice(selected.price, selected.fondo, o.id)}
+						<label class="option">
+							<input
+								type="radio"
+								name="option"
+								value={o.id}
+								checked={chosenOption.id === o.id}
+								onchange={() => (option = o.id)}
+							/>
+							<span class="option-name">
+								{o.label}{#if o.percent}{' '}<small>(+{o.percent} %)</small>{/if}
+							</span>
+							<strong class="option-price">{formatARS(u.price)}</strong>
+							<small class="option-note">
+								{#if o.id === 'fondo'}
+									el fondo cubre {formatARS(u.fondo)} de cada entrada
+								{:else if o.id === 'completo'}
+									{selected.fondo ? 'sin usar el descuento del fondo' : 'precio de la entrada'}
+								{:else}
+									{formatARS(u.contribution)} por entrada van al Fondo KinkyVibe
+								{/if}
+							</small>
+						</label>
+					{/each}
+					{#if errors.option}<p class="field-error">{errors.option}</p>{/if}
+				</fieldset>
+			{/if}
 
 			<div class="field">
 				<label for="entradas-cantidad">Cantidad</label>
@@ -265,20 +402,33 @@
 									<span class="field-error">{errors[`holder_name_${i}`]}</span>
 								{/if}
 							</label>
-							<label class="field">
-								<span>Pronombres (opcional)</span>
+							<div class="field">
+								<span class="label-row">
+									<label for="entradas-pronombres-{i}">Pronombres</label>
+									<a
+										class="help"
+										href="https://pronombr.es"
+										target="_blank"
+										rel="noopener"
+										title="¿Qué son los pronombres? (se abre en otra pestaña)"
+										aria-label="¿Qué son los pronombres? (se abre en otra pestaña)">?</a
+									>
+								</span>
 								<input
+									id="entradas-pronombres-{i}"
 									type="text"
 									name="holder_pronouns_{i}"
-									maxlength="30"
+									maxlength="40"
 									placeholder="ella, él, elle…"
 									autocomplete="off"
+									required
 									bind:value={holders[i].pronouns}
+									aria-invalid={errors[`holder_pronouns_${i}`] ? 'true' : undefined}
 								/>
 								{#if errors[`holder_pronouns_${i}`]}
 									<span class="field-error">{errors[`holder_pronouns_${i}`]}</span>
 								{/if}
-							</label>
+							</div>
 						</div>
 					</fieldset>
 				{/each}
@@ -331,7 +481,8 @@
 								<span>
 									<strong>Transferencia bancaria</strong>
 									<small
-										>sin recargo · te reservamos el lugar {tickets.transferHoldHours} horas</small
+										>sin recargo · te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás
+										el comprobante por mail</small
 									>
 								</span>
 							{/if}
@@ -352,8 +503,9 @@
 					<li>Cada entrada tiene un QR que sirve para una sola persona y un solo ingreso.</li>
 					<li>Te mandamos las entradas por email apenas se acredita el pago.</li>
 					<li>
-						Con Mercado Pago reservamos tu lugar por 20 minutos mientras pagás; con transferencia,
-						{tickets.transferHoldHours} horas. Si no se completa el pago, el lugar se libera.
+						Con Mercado Pago reservamos tu lugar por 20 minutos mientras pagás. Con transferencia,
+						te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás el comprobante por
+						mail. Si no se completa el pago, el lugar se libera.
 					</li>
 				</ul>
 				<div class="policy">
@@ -378,12 +530,18 @@
 				<div class="breakdown" aria-live="polite">
 					{#if selected}
 						<p class="line">
-							<span>Entradas ({count} × {formatARS(selected.price - selected.fondo)})</span>
+							<span>Entradas ({count} × {formatARS(prices.unit)})</span>
 							<span>{formatARS(prices.subtotal)}</span>
 						</p>
 						{#if prices.fondo}
 							<p class="line note">
 								<span>💜 Ya descontado: el Fondo KinkyVibe cubre {formatARS(prices.fondo)}</span>
+							</p>
+						{/if}
+						{#if prices.contribution}
+							<p class="line note">
+								<span>💜 Incluye {formatARS(prices.contribution)} de aporte al Fondo KinkyVibe</span
+								>
 							</p>
 						{/if}
 						{#if prices.discount}
@@ -680,6 +838,64 @@
 		cursor: pointer;
 		flex-grow: 1;
 		max-width: 22em;
+	}
+	.option {
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		grid-template-areas: 'radio name price' 'radio note note';
+		align-items: center;
+		column-gap: 0.7em;
+		padding: 0.55em 0.9em;
+		border-radius: 0.7em;
+		background: white;
+		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
+		cursor: pointer;
+	}
+	.option:has(input:checked) {
+		outline: 3px solid var(--2);
+	}
+	.option input {
+		grid-area: radio;
+		width: 1.2em;
+		height: 1.2em;
+		accent-color: var(--2);
+	}
+	.option-name {
+		grid-area: name;
+		font-weight: bold;
+	}
+	.option-price {
+		grid-area: price;
+		text-align: right;
+		white-space: nowrap;
+	}
+	.option-note {
+		grid-area: note;
+		color: #555;
+		font-size: var(--step--1);
+	}
+	.label-row {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		font-weight: bold;
+		font-size: var(--step--1);
+	}
+	.help {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5em;
+		height: 1.5em;
+		border-radius: 50%;
+		background: var(--2);
+		color: white;
+		font-size: var(--step--1);
+		text-decoration: none;
+	}
+	.help:hover,
+	.help:focus-visible {
+		background: var(--2-dark);
 	}
 	button:hover:not(:disabled) {
 		background: var(--1-dark);

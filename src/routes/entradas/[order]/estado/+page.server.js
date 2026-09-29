@@ -16,7 +16,7 @@ import {
 	siteOrigin,
 	transferInfo
 } from '$lib/server/tickets/index.js';
-import { orderReference } from '$lib/utils/tickets.js';
+import { holdHours, orderReference } from '$lib/utils/tickets.js';
 import { getOrder, getOrderTickets, isValidOrderId } from '$lib/server/tickets/orders.js';
 
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
@@ -76,6 +76,9 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			quantity: current.quantity,
 			list: current.unit_price * current.quantity,
 			fondo: current.fondo_amount,
+			fondoOption: current.fondo_option,
+			contribution: current.fondo_contribution,
+			holdHours: holdHours(current),
 			discountCode: current.discount_code,
 			discountAmount: current.discount_amount,
 			surcharge: current.surcharge_amount,

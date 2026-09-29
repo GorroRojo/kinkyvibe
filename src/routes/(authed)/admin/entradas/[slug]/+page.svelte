@@ -1,6 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { formatARS } from '$lib/utils/money.js';
+	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 
 	let { data, form } = $props();
 
@@ -59,24 +60,42 @@
 		</a>
 	</div>
 
-	<table class="summary">
-		<thead>
-			<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th></tr>
-		</thead>
-		<tbody>
-			{#each data.types as t (t.id)}
-				<tr class:over={t.sold > t.capacity}>
-					<td>{t.name}</td>
-					<td>{t.sold}/{t.capacity}</td>
-					<td>{t.held}</td>
-					<td>{formatARS(t.revenue)}</td>
+	<div class="table-scroll">
+		<table class="summary">
+			<thead>
+				<tr>
+					<th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th><th>Fondo usado</th><th
+						>Aportes al fondo</th
+					>
 				</tr>
-			{/each}
-		</tbody>
-	</table>
+			</thead>
+			<tbody>
+				{#each data.types as t (t.id)}
+					<tr class:over={t.sold > t.capacity}>
+						<td>{t.name}</td>
+						<td>{t.sold}/{t.capacity}</td>
+						<td>{t.held}</td>
+						<td>{formatARS(t.revenue)}</td>
+						<td>{formatARS(t.fondoUsed)}</td>
+						<td>{formatARS(t.contribution)}</td>
+					</tr>
+				{/each}
+			</tbody>
+			<tfoot>
+				<tr>
+					<td colspan="3">Total</td>
+					<td>{formatARS(data.types.reduce((s, t) => s + t.revenue, 0))}</td>
+					<td>{formatARS(data.types.reduce((s, t) => s + t.fondoUsed, 0))}</td>
+					<td>{formatARS(data.types.reduce((s, t) => s + t.contribution, 0))}</td>
+				</tr>
+			</tfoot>
+		</table>
+	</div>
 	<p class="note">
 		"Reservadas" incluye pagos en curso y transferencias pendientes. "Recaudado" es lo cobrado (con
-		descuentos), antes de comisiones.
+		descuentos y aportes), antes de comisiones. "Fondo usado" es lo que cubrió el Fondo KinkyVibe
+		(entradas "con el descuento del fondo"); "Aportes al fondo", lo que se pagó de más para el fondo
+		(entradas solidaria, muy solidaria y Sugar). Solo cuentan las compras aprobadas.
 	</p>
 
 	{#if form?.resend}
@@ -163,6 +182,11 @@
 				<div class="what">
 					{o.quantity} × {o.type} · {formatARS(o.total)}
 					{#if o.fondo}<small>(fondo −{formatARS(o.fondo)})</small>{/if}
+					{#if o.contribution}<small
+							>({fondoOptionLabel(o.fondoOption)}: aporte al fondo +{formatARS(
+								o.contribution
+							)})</small
+						>{/if}
 					{#if o.discountAmount}<small
 							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
 						>{/if}
@@ -253,6 +277,15 @@
 	}
 	.over {
 		background: hsl(0, 90%, 92%);
+	}
+	.table-scroll {
+		overflow-x: auto;
+	}
+	.summary {
+		font-size: var(--step--1);
+	}
+	.summary tfoot td {
+		font-weight: bold;
 	}
 	.flash {
 		background: var(--3-light);
