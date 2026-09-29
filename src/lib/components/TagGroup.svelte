@@ -3,7 +3,7 @@
 	import Tag from './Tag.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { togglePositiveTagFilterFn } from '$lib/utils/stores';
 
 	/** @type ProcessedTag */

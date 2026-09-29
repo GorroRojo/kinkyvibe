@@ -79,7 +79,7 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-resume">
 	<div class="profile-header h-card p-contact">
 		<img src={data.meta.featured + ''} class="profile-pic u-photo" alt="" />

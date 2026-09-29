@@ -1,5 +1,5 @@
 <script context="module">
-	import { ChevronRight, ChevronDown } from 'lucide-svelte';
+	import { ChevronRight, ChevronDown } from '@lucide/svelte';
 	import MiniMarkup from './MiniMarkup.svelte';
 	import GlosarioTree from './GlosarioTree.svelte';
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
@@ -164,7 +164,7 @@
 	</div>
 {/if}
 
-<mark hidden />
+<mark hidden></mark>
 
 <style>
 	mark {

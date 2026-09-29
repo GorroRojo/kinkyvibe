@@ -3,7 +3,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { tagManager, currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	export let data;
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });

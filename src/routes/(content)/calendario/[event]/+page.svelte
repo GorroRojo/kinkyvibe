@@ -104,7 +104,7 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
 	
@@ -200,7 +200,7 @@
 				buttonStyle="3d"
 				organizer="Mel|kinkyvibe@gmail.com"
 				size="8"
-			/>
+			></add-to-calendar-button>
 		</div>
 	</div>
 	{/if}

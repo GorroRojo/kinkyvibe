@@ -6,11 +6,11 @@
 		Download,
 		MousePointerClick,
 		Heart
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import 'add-to-calendar-button';
 	import { addHours, format, isPast } from 'date-fns';
 	import Tag from './Tag.svelte';
-	import { onMount } from 'svelte/internal';
+	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
 
@@ -141,7 +141,7 @@
 						organizer="Mel|kinkyvibe@gmail.com"
 						size="1"
 						hideBackground
-					/>
+					></add-to-calendar-button>
 					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
 					<!-- buttonStyle="round" -->
@@ -190,7 +190,10 @@
 			{/each}
 		</ul>
 	</div>
-	{#if link && status && status == 'abierto' && !past}
+	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
+	     restructure it if it were server-rendered, breaking hydration. -->
+	{#if mounted && link && status && status == 'abierto' && !past}
+		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
 	{/if}
 </a>

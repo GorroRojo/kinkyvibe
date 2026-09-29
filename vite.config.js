@@ -8,6 +8,6 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},
 	optimizeDeps: {
-		exclude: ["codemirror", "@codemirror/lang-markdown"]
+		exclude: ["svelte-codemirror-editor", "codemirror", "@codemirror/lang-markdown"]
 	}
 });

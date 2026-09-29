@@ -68,7 +68,7 @@
 					{addDays(new Date(date), 1).toLocaleDateString('es-AR', { day: 'numeric' })}
 				</div>
 				{#if events}
-					<div class="dot" />
+					<div class="dot"></div>
 					{#each events.sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
 						{@const start = new Date(event.meta.start)}
 						{@const minutes = format(start, 'mm')}

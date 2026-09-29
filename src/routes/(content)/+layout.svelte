@@ -9,7 +9,7 @@
 		ShoppingCart,
 		ChevronLeft,
 		Globe
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';

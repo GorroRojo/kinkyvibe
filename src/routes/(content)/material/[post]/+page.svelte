@@ -69,7 +69,7 @@
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
 <article class="h-entry">
-	<a href={$page.url.href} hidden aria-hidden class="u-url">Link</a>
+	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<h1 id="title p-name">{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
