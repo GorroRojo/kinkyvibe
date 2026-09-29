@@ -38,7 +38,7 @@
 			</div>
 		{/each}
 		{#each Array(start_on_sunday ? first_week_day : first_week_day - 1) as _, i}
-			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }} />
+			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}></div>
 		{/each}
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate($view_date, i + 1)}

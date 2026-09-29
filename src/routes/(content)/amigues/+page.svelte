@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import { ArrowRight, Globe } from 'lucide-svelte';
+	import { ArrowRight, Globe } from '@lucide/svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
@@ -10,7 +10,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
-	let amiguesPosts = data.allPosts
+	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
 		.sort((a, b) => {
 			if (pinned.includes(a.meta.postID)) {

@@ -1,7 +1,7 @@
 <script>
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query } from '$lib/utils/stores';
-	import { Search } from 'lucide-svelte';
+	import { Search } from '@lucide/svelte';
 	import tagsFactory from '$lib/utils/tags';
 
 	query.set('');
