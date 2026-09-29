@@ -107,7 +107,8 @@ test.describe('calendario', () => {
 		await expect(start).toHaveAttribute('datetime', '2026-09-11T19:30-03:00');
 		await expect(start).toContainText('11 de septiembre de 2026');
 		// After hydration the time is shown in the visitor's timezone (19:30 in Buenos Aires).
-		await expect(start).toContainText('7:30');
+		// 12h vs 24h depends on the browser's ICU data ("7:30 p. m." locally, "19:30hs" in CI).
+		await expect(start).toContainText(/19:30|7:30\s*p/);
 		await context.close();
 	});
 
@@ -241,9 +242,15 @@ test.describe('experiencia', () => {
 		page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 		page.on('console', (msg) => {
 			if (msg.type() !== 'error') return;
-			// Third-party resources (fonts, embeds) may be blocked by the network in CI.
+			// Third-party resources (fonts, analytics, embeds) fail or are CORS-blocked depending
+			// on the network; the error is logged against the page URL, so check the message's
+			// resource URL instead (the first URL in the message, e.g. "Access to font at '<url>'
+			// from origin '<ours>'...") and skip it when that is on another origin.
 			const url = msg.location()?.url ?? '';
-			if (url && baseURL && !url.startsWith(baseURL)) return;
+			const resource = msg.text().match(/https?:\/\/[^\s'")]+/)?.[0];
+			const own = (/** @type {string} */ u) => !!baseURL && u.startsWith(baseURL);
+			if (url && !own(url)) return;
+			if (resource && !own(resource)) return;
 			errors.push(`console: ${msg.text()} (${url})`);
 		});
 		await acceptAgeGate(page);
