@@ -72,7 +72,7 @@
 
 	/* ---------- tags & organizers ---------- */
 	const tagOptions = buildTagOptions({ category: 'calendario', usage: data.tagUsage });
-	const reservedTags = new Set([...excludedFromPicker('calendario'), 'online', 'virtual']);
+	const reservedTags = new Set([...excludedFromPicker('calendario'), 'web', 'online', 'virtual']);
 	const initialTags = splitEventTags(splitList(values.tags));
 	let tagRules = {
 		kinkyvibe: initialTags.kinkyvibe,

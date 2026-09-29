@@ -114,8 +114,8 @@ export function eventTagGroups(tm = siteTags()) {
 }
 
 /**
- * Extra spellings accepted for rule tags in events only. "online" (lowercase) is the material
- * tag "tipo de material > online"; in an event it can only mean the place.
+ * Extra spellings accepted for rule tags in events only. "online" (lowercase) used to be the
+ * material tag now called "web" (still an alias of it); in an event it can only mean the place.
  * @type {Record<string, string>}
  */
 const EVENT_ALIASES = { online: 'Online', virtual: 'Online' };

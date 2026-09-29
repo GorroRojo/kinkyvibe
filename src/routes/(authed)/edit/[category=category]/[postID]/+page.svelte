@@ -201,7 +201,7 @@
 	const isEvent = category === 'calendario';
 	const tagOptions = buildTagOptions({ category, usage: data.tagUsage });
 	const reservedTags = isEvent
-		? new Set([...excludedFromPicker('calendario'), 'online', 'virtual'])
+		? new Set([...excludedFromPicker('calendario'), 'web', 'online', 'virtual'])
 		: new Set();
 	const split = splitEventTags(initialTags);
 	let tagRules = {
