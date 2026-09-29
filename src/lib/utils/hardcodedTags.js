@@ -98,8 +98,11 @@ export const hardcodedTags = [
 		color: 'var(--3-dark)',
 		children: ['tipo de material', 'formato de material']
 	},
-	{ id: 'tipo de material', children: ['online', 'descargable', 'interactivo'] },
-	{ id: 'online', icon: '🛜' },
+	{ id: 'tipo de material', children: ['web', 'descargable', 'interactivo'] },
+	// Material you read on the web (a page or external link), as opposed to a download.
+	// Was called 'online', which clashed with the 'Online' place tag for events; the alias
+	// keeps old ?tags=online links working.
+	{ id: 'web', icon: '🛜', aka: ['online'] },
 	{ id: 'descargable', icon: '📥' },
 	{ id: 'interactivo', icon: '🖱️' },
 	{

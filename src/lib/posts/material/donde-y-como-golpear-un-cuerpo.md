@@ -9,7 +9,7 @@ tags:
   - español
   - BDSM
   - KinkyVibe # etiqueta especial #
-  - online
+  - web
   - interactivo
   - impacto
   - caning

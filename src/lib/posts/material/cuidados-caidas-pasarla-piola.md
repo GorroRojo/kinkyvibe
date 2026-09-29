@@ -9,7 +9,7 @@ tags:
   - gratis # gratis | pago #
   - guía # guía | articulo | fanzine | libro (no son excluyentes, pueden haber varios) #
   - gratis # gratis | pago #
-  - online # online | descargable | link #
+  - web # web | descargable | link #
   - KinkyVibe # etiqueta especial #
   - BDSM
   - cuidados posteriores
