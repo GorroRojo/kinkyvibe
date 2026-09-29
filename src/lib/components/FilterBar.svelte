@@ -4,7 +4,6 @@
 	import { scale } from 'svelte/transition';
 	import TagGroup from './TagGroup.svelte';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 
 	export let event_toggle = true;
 
@@ -14,18 +13,28 @@
 		visibleTags.subscribe((v) => {
 			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
 		});
-		// @ts-ignore
-		page.subscribe((p) => {
-			if (p.url.searchParams.has('tags')) {
-				if (p.url.searchParams.get('tags') != '') {
-					//@ts-ignore
-					filteredTags.set(p.url.searchParams.get('tags')?.split(','));
-				}
-			} else filteredTags.set([]);
-		});
+		// ?tags= is read and written by PostList, which owns the URL sync
 	});
 
-	let view_filters = true;
+	// Tag tree open/closed on narrow screens (collapsed by default to keep the list close to the
+	// top on mobile). On wide layouts it's always shown, see the @container rule below.
+	let view_filters = false;
+	$: tags = [
+		...$tagManager
+			.tagsData()
+			.filter(
+				(td) =>
+					td?.parents?.includes('root') &&
+					(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
+						$visibleTags.includes(td.id))
+			),
+		$tagManager.get('misc', {
+			children: $visibleTags
+				.filter((v) => $tagManager.get(v).orphan)
+				.sort((a, b) => a.localeCompare(b)),
+			noname: true
+		})
+	];
 </script>
 
 <div class="filterbar">
@@ -83,37 +92,28 @@
 			<button
 				on:click={() => {
 					$filteredTags = [];
-					$page.url.searchParams.delete('tags');
-					window.history.replaceState('', '', $page.url);
 				}}>Despejar filtros</button
 			>
 		</div>
 	{/if}
-	{#if view_filters || $filteredTags.length > 0}
-		{@const tags = [
-			...$tagManager
-				.tagsData()
-				.filter(
-					(td) =>
-						td?.parents?.includes('root') &&
-						(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
-							$visibleTags.includes(td.id))
-				),
-			$tagManager.get('misc', {
-				children: $visibleTags
-					.filter((v) => $tagManager.get(v).orphan)
-					.sort((a, b) => a.localeCompare(b)),
-				noname: true
-			})
-		]}
-		<div class="tagfilters">
-			{#each tags as tag, i (tag.id)}
-				<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
-					<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
-				</div>
-			{/each}
-		</div>
-	{/if}
+	<button
+		type="button"
+		class="filters-toggle"
+		aria-expanded={view_filters}
+		aria-controls="tagfilters"
+		on:click={() => (view_filters = !view_filters)}
+	>
+		{view_filters ? 'Ocultar etiquetas' : 'Filtrar por etiquetas'}
+		{#if $filteredTags.length > 0}<span class="active-count">{$filteredTags.length}</span>{/if}
+		<span class="chevron" class:open={view_filters} aria-hidden="true">▾</span>
+	</button>
+	<div class="tagfilters" id="tagfilters" class:collapsed={!view_filters}>
+		{#each tags as tag, i (tag.id)}
+			<div class="tag-group-container" in:scale={{ duration: 500 /*@ts-ignore*/ }}>
+				<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
+			</div>
+		{/each}
+	</div>
 </div>
 
 <style lang="scss">
@@ -183,6 +183,35 @@
 		justify-content: center;
 		max-width: min(100dvw, 100%);
 	}
+	.filters-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		margin-bottom: 0.5em;
+		padding: 0.3em 0.8em;
+		font-size: var(--step--1);
+		color: var(--1);
+		background: white;
+		border: 1px solid var(--1);
+		border-radius: 1em;
+		cursor: pointer;
+		.active-count {
+			background: var(--1);
+			color: white;
+			border-radius: 1em;
+			padding: 0 0.45em;
+			font-size: 0.85em;
+		}
+		.chevron {
+			transition: transform 200ms;
+			&.open {
+				transform: rotate(180deg);
+			}
+		}
+	}
+	.tagfilters.collapsed {
+		display: none;
+	}
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
@@ -190,6 +219,13 @@
 		max-width: 100%;
 	}
 	@container (min-width: 1300px) {
+		/* wide layout: the tree sits in its own column, always visible */
+		.filters-toggle {
+			display: none;
+		}
+		.tagfilters.collapsed {
+			display: flex;
+		}
 		.tagfilters {
 			flex-direction: column;
 			max-width: 20rem;

@@ -1,11 +1,12 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 /** @type {import("./$types").LayoutServerLoad} */
-export const load = async ({ url, locals }) => {
+// Don't read `url` here: SvelteKit would then re-run this load whenever the query string
+// changes, e.g. on each PostList search update.
+export const load = async ({ locals }) => {
 	let wiki = await fetchMarkdownPosts(true);
 	// let allPosts = await (await fetch('/api/posts')).json()
 	// let wiki = await (await fetch('/api/wiki')).json();
 	return {
-		currentRoute: url.pathname,
 		wiki,
 		user: locals.user
 	};
