@@ -270,7 +270,18 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 		expect(m.featured).toBe(1);
 		expect(m.location).toBeUndefined();
 		expect(md).toContain('#location: Thames 240');
-		expect(m.status).toBe('cancelado');
+		// The source edition was cancelled; the copy starts as "anunciado".
+		expect(form.status).toBe('anunciado');
+		expect(m.status).toBe('anunciado');
+		expect(md).toContain('status: anunciado # anunciado | abierto | agotadas | cancelado #');
+	});
+
+	it('keeps "abierto" but resets "agotadas" when duplicating', () => {
+		const src = post('picantearla-2026-09');
+		const withStatus = (/** @type {string} */ st) =>
+			src.replace(/^status: .*$/m, `status: ${st} # anunciado | abierto | agotadas | cancelado #`);
+		expect(formFromSource(withStatus('abierto'), { today }).status).toBe('abierto');
+		expect(formFromSource(withStatus('agotadas'), { today }).status).toBe('anunciado');
 	});
 
 	it('handles CRLF sources and uploaded images', () => {

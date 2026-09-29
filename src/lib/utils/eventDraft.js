@@ -643,6 +643,9 @@ export function buildEventMarkdown(sourceRaw, form) {
 	return joinMarkdown(fm, body);
 }
 
+/** Statuses that belong to the edition being copied and must not carry over. */
+const STALE_STATUSES = ['cancelado', 'agotadas'];
+
 /**
  * Initial form values from a source file.
  * @param {string} sourceRaw
@@ -657,7 +660,8 @@ export function formFromSource(sourceRaw, { today, fromTemplate = false }) {
 	return {
 		title: fromTemplate ? '' : f.title,
 		summary: fromTemplate ? '' : f.summary,
-		status: f.status || 'anunciado',
+		// "cancelado" / "agotadas" describe the old edition, not the new one.
+		status: !f.status || STALE_STATUSES.includes(f.status) ? 'anunciado' : f.status,
 		startDate: fromTemplate ? '' : s.date,
 		startTime: s.time || '20:00',
 		hasEnd: fromTemplate || Boolean(e.date),
