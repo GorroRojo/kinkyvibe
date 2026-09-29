@@ -6,6 +6,8 @@
  * - Crear preferencia: POST https://api.mercadopago.com/checkout/preferences
  * - Obtener pago:      GET  https://api.mercadopago.com/v1/payments/{id}
  * - Buscar pagos:      GET  https://api.mercadopago.com/v1/payments/search?external_reference=…
+ * - Reembolsar:        POST https://api.mercadopago.com/v1/payments/{id}/refunds (sin body =
+ *   reembolso total; doc "Configurar reembolsos y cancelaciones" de Checkout Pro)
  * - Webhooks: header `x-signature: ts=…,v1=…` = HMAC-SHA256(secret,
  *   "id:{data.id};request-id:{x-request-id};ts:{ts};") en hex, con `data.id` del query string.
  */
@@ -42,6 +44,23 @@ async function mpFetch(client, path, init = {}) {
 		throw new Error(`Mercado Pago ${init.method ?? 'GET'} ${path} → ${res.status}: ${text}`);
 	}
 	return res.json();
+}
+
+/**
+ * Reembolso TOTAL de un pago (`POST /v1/payments/{id}/refunds` con el body vacío, según la doc de
+ * Checkout Pro). Con `X-Idempotency-Key`, así un doble click no reembolsa dos veces.
+ *
+ * @param {MPClient} client
+ * @param {string} paymentId
+ * @param {string} idempotencyKey
+ * @returns {Promise<{ id: number | string, status?: string, amount?: number }>}
+ */
+export async function refundPayment(client, paymentId, idempotencyKey) {
+	if (!/^\d{1,30}$/.test(paymentId)) throw new Error('id de pago inválido');
+	return mpFetch(client, `/v1/payments/${paymentId}/refunds`, {
+		method: 'POST',
+		headers: { 'X-Idempotency-Key': idempotencyKey }
+	});
 }
 
 /**

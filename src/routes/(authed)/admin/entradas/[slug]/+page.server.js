@@ -4,8 +4,10 @@ import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import {
+	getGateway,
 	inBackground,
 	sendOrderEmail,
+	sendRefundEmail,
 	sendStreamLinkEmails,
 	siteOrigin
 } from '$lib/server/tickets/index.js';
@@ -16,7 +18,8 @@ import {
 	getOrder,
 	listEventTickets,
 	listOrders,
-	orderHolders
+	orderHolders,
+	refundOrder
 } from '$lib/server/tickets/orders.js';
 import {
 	getStreamLink,
@@ -88,6 +91,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		expiresAt: o.expires_at,
 		paymentId: o.mp_payment_id,
 		confirmedBy: o.confirmed_by,
+		refundedAt: o.refunded_at ?? null,
+		refundedBy: o.refunded_by ?? null,
 		holders:
 			holdersByOrder.get(o.id) ??
 			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : [])
@@ -262,6 +267,71 @@ export const actions = {
 		return r.failed
 			? fail(502, { stream: { ok: false, message } })
 			: { stream: { ok: true, message } };
+	},
+
+	// "Reembolsar": Mercado Pago → reembolso total por la API de MP y después se marca la orden;
+	// transferencia o sin cargo → solo se marca (la plata se devuelve a mano). Idempotente: una
+	// orden ya reembolsada no se vuelve a reembolsar (y MP recibe la misma X-Idempotency-Key).
+	refund: async ({ locals, url, params, platform, request, fetch }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { refund: { ok: false, message: 'Sin base de datos.' } });
+		const orderId = String((await request.formData()).get('order') ?? '');
+		const order = await getOrder(db, orderId);
+		const ref = orderReference(orderId);
+		if (!order || order.event_slug !== params.slug) {
+			return fail(404, { refund: { ok: false, message: 'No encontramos esa orden.' } });
+		}
+		if (order.status === 'refunded') {
+			return {
+				refund: { ok: true, message: `${ref} ya estaba reembolsada (no se hizo nada de nuevo).` }
+			};
+		}
+		if (order.status !== 'approved') {
+			return fail(409, {
+				refund: { ok: false, message: `${ref} no está aprobada: no hay nada que reembolsar.` }
+			});
+		}
+		if (order.payment_method === 'mercadopago') {
+			const gateway = await getGateway(fetch);
+			if (!gateway || !order.mp_payment_id) {
+				return fail(503, {
+					refund: {
+						ok: false,
+						message: 'Mercado Pago no está disponible (o la orden no tiene pago).'
+					}
+				});
+			}
+			try {
+				await gateway.refundPayment(order.mp_payment_id, `refund-${order.id}`);
+			} catch (error) {
+				console.error(`[tickets] reembolso de ${order.id} rechazado por MP:`, error);
+				return fail(502, {
+					refund: {
+						ok: false,
+						message: `Mercado Pago no aceptó el reembolso de ${ref} (¿saldo insuficiente o más de 180 días?). No se cambió nada. Detalle en los logs.`
+					}
+				});
+			}
+		}
+		const r = await refundOrder(db, { orderId, eventSlug: params.slug, by: admin.login });
+		if (r.result === 'refunded' && r.order) {
+			await inBackground(sendRefundEmail({ db, order: r.order, fetch }), platform);
+			return {
+				refund: {
+					ok: true,
+					message: `${ref} reembolsada: se liberó el cupo, las entradas quedaron anuladas y le avisamos a ${r.order.buyer_email}.`
+				}
+			};
+		}
+		if (r.result === 'already') {
+			return {
+				refund: { ok: true, message: `${ref} ya estaba reembolsada (no se hizo nada de nuevo).` }
+			};
+		}
+		return fail(409, {
+			refund: { ok: false, message: `No se pudo marcar ${ref} como reembolsada.` }
+		});
 	},
 
 	cancel: async ({ locals, url, params, platform, request }) => {

@@ -176,6 +176,9 @@
 	{#if form?.resend}
 		<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
 	{/if}
+	{#if form?.refund}
+		<p class="flash" class:error={!form.refund.ok} role="status">{form.refund.message}</p>
+	{/if}
 
 	<section class="transfers" aria-labelledby="transferencias">
 		<h2 id="transferencias">Transferencias pendientes</h2>
@@ -302,7 +305,49 @@
 							<button type="submit">Reenviar mail</button>
 						</form>
 					{/if}
+					{#if o.status === 'refunded'}
+						· reembolsada {o.refundedAt ? time(o.refundedAt) : ''}{o.refundedBy
+							? ` por ${o.refundedBy}`
+							: ' (desde Mercado Pago)'}
+					{/if}
 				</div>
+				{#if o.status === 'approved'}
+					<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
+					<details class="refund">
+						<summary>Reembolsar…</summary>
+						<div class="refund-panel">
+							<p>
+								<strong>{formatARS(o.total)}</strong> a <strong>{o.name}</strong> ({o.email}) ·
+								{o.quantity}
+								{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
+									{o.holders.map((h) => h.name).join(', ')}{/if}.
+							</p>
+							<p class="note">
+								{#if o.method === 'mercadopago'}
+									Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber saldo
+									en la cuenta; hasta 180 días desde el pago).
+								{:else if o.method === 'transferencia'}
+									No hay devolución automática: primero devolvé la transferencia a mano, después
+									marcala acá.
+								{:else}
+									Compra sin cargo: solo se anulan las entradas.
+								{/if}
+								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
+								el uso del código, sale de los totales y le avisamos por mail.
+							</p>
+							<form method="POST" action="?/refund" use:enhance>
+								<input type="hidden" name="order" value={o.id} />
+								<button type="submit" class="refund-confirm">
+									{o.method === 'mercadopago'
+										? `Confirmar reembolso de ${formatARS(o.total)}`
+										: o.method === 'transferencia'
+											? 'Marcar como reembolsada (transferencia devuelta a mano)'
+											: 'Anular las entradas'}
+								</button>
+							</form>
+						</div>
+					</details>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -476,6 +521,35 @@
 	}
 	.net {
 		font-weight: bold;
+	}
+	.refund {
+		margin-top: 0.4em;
+		font-size: var(--step--1);
+	}
+	.refund summary {
+		cursor: pointer;
+		color: hsl(0, 70%, 35%);
+	}
+	.refund-panel {
+		margin-top: 0.4em;
+		padding: 0.6em 0.8em;
+		border-radius: 0.6em;
+		background: hsl(0, 90%, 97%);
+		outline: 2px solid hsl(0, 70%, 80%);
+	}
+	.refund-panel p {
+		margin: 0.2em 0 0.5em;
+	}
+	.refund-confirm {
+		font: inherit;
+		font-weight: bold;
+		border: 0;
+		border-radius: 0.5em;
+		padding: 0.6em 1em;
+		min-height: 2.8em;
+		cursor: pointer;
+		background: hsl(0, 70%, 42%);
+		color: white;
 	}
 	.pos {
 		color: hsl(145, 70%, 26%);

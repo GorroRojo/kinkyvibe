@@ -336,6 +336,45 @@ export function buildReminderEmail({
 }
 
 /**
+ * Aviso de reembolso: la compra se reembolsó y las entradas ya no valen.
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   event: { title: string, start?: string },
+ *   typeName: string,
+ *   contactEmail: string
+ * }} input
+ */
+export function buildRefundEmail({ order, event, typeName, contactEmail }) {
+	const subject = `Reembolso de tu compra · ${event.title}`;
+	const how =
+		order.payment_method === 'mercadopago'
+			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
+			: order.payment_method === 'transferencia'
+				? 'Te devolvimos el dinero por transferencia.'
+				: 'Era una compra sin cargo: no hay dinero para devolver.';
+	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
+	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
+		<h1 style="color:#b3127a;font-size:22px">Reembolsamos tu compra</h1>
+		<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>
+		<p>${escapeHtml(how)}</p>
+		<p>${order.quantity === 1 ? 'La entrada ya no es válida' : 'Las entradas ya no son válidas'} para ingresar.</p>
+		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>
+		</body></html>`;
+	const text = [
+		'Reembolsamos tu compra',
+		'',
+		`Hicimos el reembolso${amount} de tu compra de ${order.quantity} × ${typeName} para ${event.title}.`,
+		how,
+		order.quantity === 1 ? 'La entrada ya no es válida.' : 'Las entradas ya no son válidas.',
+		'',
+		`Número de orden: ${order.id}`,
+		`Dudas: respondé este mail o escribinos a ${contactEmail}.`
+	].join('\n');
+	return { subject, html, text };
+}
+
+/**
  * Email con los datos para transferir (orden `awaiting_transfer`). Sin DNI ni datos de otras
  * entradas: solo lo necesario para pagar.
  *

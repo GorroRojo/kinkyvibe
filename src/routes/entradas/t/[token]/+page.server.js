@@ -27,8 +27,14 @@ export async function load({ params, platform, url, locals }) {
 			holder: ticket.holder_name,
 			pronouns: ticket.holder_pronouns ?? '',
 			type: config?.types.find((t) => t.id === ticket.ticket_type)?.name ?? ticket.ticket_type,
-			state: /** @type {'void' | 'used' | 'valid'} */ (
-				ticket.order_status !== 'approved' ? 'void' : ticket.checked_in_at ? 'used' : 'valid'
+			state: /** @type {'void' | 'refunded' | 'used' | 'valid'} */ (
+				ticket.order_status === 'refunded'
+					? 'refunded'
+					: ticket.order_status !== 'approved'
+						? 'void'
+						: ticket.checked_in_at
+							? 'used'
+							: 'valid'
 			),
 			checkedInAt: ticket.checked_in_at,
 			code: ticket.code ?? null

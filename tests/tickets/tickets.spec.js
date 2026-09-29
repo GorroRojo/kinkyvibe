@@ -715,3 +715,38 @@ test('cron de recordatorios: solo con el secreto', async ({ request }) => {
 	expect(ok.status()).toBe(200);
 	expect(await ok.json()).toMatchObject({ sent: expect.any(Number), failed: 0 });
 });
+
+test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente', async ({
+	page
+}) => {
+	const { buyer } = await buy(page);
+	await page.getByRole('button', { name: 'Aprobar pago', exact: true }).click();
+	await expect(page.getByRole('heading', { name: /ya tenés tus entradas/ })).toBeVisible();
+	await page.getByRole('link', { name: 'Ver entrada 1 con su QR' }).click();
+	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
+	const ticketUrl = page.url();
+
+	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
+	const order = page.locator('.order', { hasText: buyer.email });
+	await order.getByText('Reembolsar…').click();
+	const panel = order.locator('.refund-panel');
+	await expect(panel).toContainText(buyer.name);
+	await shots(page, '13-reembolso-confirmar', order);
+	const orderId = await panel.locator('input[name="order"]').getAttribute('value');
+	await panel.getByRole('button', { name: /Confirmar reembolso de/ }).click();
+	await expect(page.getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
+
+	// Otra vez (otra pestaña): no hace nada.
+	const again = await page.request.post(`/admin/entradas/${EVENT}?/refund`, {
+		form: { order: orderId ?? '' },
+		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
+	});
+	expect(await again.text()).toContain('ya estaba reembolsada');
+
+	await page.goto(ticketUrl);
+	await expect(page.getByText('Reembolsada (ya no es válida)')).toBeVisible();
+	await page.goto(`/admin/entradas/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
+	await page.getByRole('button', { name: 'Validar' }).click();
+	await expect(page.getByText('❌ Entrada anulada')).toBeVisible();
+});

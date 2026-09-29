@@ -13,6 +13,7 @@ import {
 	parseFeePercent
 } from '$lib/utils/tickets.js';
 import {
+	buildRefundEmail,
 	buildReminderEmail,
 	buildStreamLinkEmail,
 	buildTicketEmail,
@@ -21,7 +22,7 @@ import {
 	sendWithResend
 } from './email.js';
 import { getEventTickets, listTicketedEvents } from './events.js';
-import { createPreference, findPaymentByOrder, getPayment } from './mercadopago.js';
+import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
@@ -45,7 +46,8 @@ const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
  *   mock: boolean,
  *   createPreference: (preference: ReturnType<typeof import('./mercadopago.js').buildPreference>, idempotencyKey: string) => Promise<{ id: string, init_point: string }>,
  *   getPayment: (id: string) => Promise<import('./orders.js').MPPayment>,
- *   findPaymentByOrder: (orderId: string) => Promise<import('./orders.js').MPPayment | null>
+ *   findPaymentByOrder: (orderId: string) => Promise<import('./orders.js').MPPayment | null>,
+ *   refundPayment: (paymentId: string, idempotencyKey: string) => Promise<{ id: number | string, status?: string }>
  * }} Gateway
  */
 
@@ -75,7 +77,8 @@ export async function getGateway(fetchFn) {
 		mock: false,
 		createPreference: (pref, key) => createPreference(client, pref, key),
 		getPayment: (id) => getPayment(client, id),
-		findPaymentByOrder: (orderId) => findPaymentByOrder(client, orderId)
+		findPaymentByOrder: (orderId) => findPaymentByOrder(client, orderId),
+		refundPayment: (id, key) => refundPayment(client, id, key)
 	};
 }
 
@@ -220,6 +223,11 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	const result = await applyPayment(db, payment);
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
+	}
+	if (result.outcome === 'updated' && result.order?.status === 'refunded') {
+		// Reembolso hecho desde el panel de MP (o contracargo): avisar una vez (solo quien cambió
+		// el estado llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
+		await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
 	}
 	if (result.newlyApproved && result.order) {
 		const order = result.order;
@@ -433,6 +441,34 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 		return result === 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
+		return false;
+	}
+}
+
+/**
+ * Avisa por mail que la compra se reembolsó (idempotente del lado de Resend por orden).
+ *
+ * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
+ */
+export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+	try {
+		const config = await getEventTickets(order.event_slug);
+		const message = buildRefundEmail({
+			order,
+			event: { title: config?.title || order.event_slug, start: config?.start },
+			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
+			contactEmail: contactEmail()
+		});
+		const result = await deliver({
+			db,
+			fetch: fetchFn,
+			to: order.buyer_email,
+			message,
+			idempotencyKey: `refund-${order.id}`
+		});
+		return result !== 'failed';
+	} catch (error) {
+		console.error(`[tickets] no se pudo mandar el aviso de reembolso de ${order.id}:`, error);
 		return false;
 	}
 }

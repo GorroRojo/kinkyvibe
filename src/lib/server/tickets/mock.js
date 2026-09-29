@@ -66,6 +66,13 @@ export const mockGateway = {
 		if (!payment) throw new Error(`Mercado Pago (simulado) GET /v1/payments/${id} → 404`);
 		return payment;
 	},
+	async refundPayment(id) {
+		const payment = store.payments.get(String(id));
+		if (!payment) throw new Error(`Mercado Pago (simulado) POST /v1/payments/${id}/refunds → 404`);
+		payment.status = 'refunded';
+		payment.status_detail = 'refunded';
+		return { id: `mock-refund-${id}`, status: 'approved', amount: payment.transaction_amount };
+	},
 	async findPaymentByOrder(orderId) {
 		const all = [...store.payments.values()].filter((p) => p.external_reference === orderId);
 		return all.find((p) => p.status === 'approved') ?? all.at(-1) ?? null;

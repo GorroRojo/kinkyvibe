@@ -6,7 +6,8 @@
 	const stateText = {
 		valid: 'Válida',
 		used: 'Ya se usó para ingresar',
-		void: 'Anulada'
+		void: 'Anulada',
+		refunded: 'Reembolsada (ya no es válida)'
 	};
 
 	/** @param {number | null | undefined} ms */
@@ -40,7 +41,7 @@
 				>
 				<p class="stream-url">{data.streamLink}</p>
 				<p class="hint">Es personal: no lo compartas.</p>
-			{:else if data.ticket.state !== 'void'}
+			{:else if data.ticket.state !== 'void' && data.ticket.state !== 'refunded'}
 				<p class="stream-title">Evento online</p>
 				<p>
 					Todavía no está el link de la transmisión. Te lo mandamos por mail antes del evento y
@@ -117,7 +118,8 @@
 		text-align: center;
 	}
 	.ticket-used,
-	.ticket-void {
+	.ticket-void,
+	.ticket-refunded {
 		outline-color: #888;
 	}
 	h1 {
@@ -213,6 +215,7 @@
 		display: block;
 	}
 	.ticket-void .qr-row,
+	.ticket-refunded .qr-row,
 	.ticket-used .qr-row {
 		opacity: 0.35;
 	}

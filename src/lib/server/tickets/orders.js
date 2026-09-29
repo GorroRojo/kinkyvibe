@@ -35,7 +35,8 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
  *   buyer_email: string,
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
- *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number
+ *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
+ *   refunded_at?: number | null, refunded_by?: string | null
  * }} Order
  */
 /**
@@ -522,7 +523,17 @@ export async function applyPayment(db, payment, { now = Date.now() } = {}) {
 			.bind(order.id, current.status, next, paymentId, now);
 
 		if (next !== 'approved') {
-			const res = await update.run();
+			// Un reembolso que llega por el webhook también registra cuándo (quién: NULL = MP).
+			const res = await (
+				next === 'refunded'
+					? db
+							.prepare(
+								`UPDATE orders SET status = ?3, mp_payment_id = ?4, updated_at = ?5,
+								refunded_at = COALESCE(refunded_at, ?5) WHERE id = ?1 AND status = ?2`
+							)
+							.bind(order.id, current.status, next, paymentId, now)
+					: update
+			).run();
 			if (res.meta.changes === 1) {
 				const updated = /** @type {Order} */ (await getOrder(db, order.id));
 				return { outcome: 'updated', order: updated, newlyApproved: false, tickets: [] };
@@ -879,6 +890,32 @@ export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, no
 	if (fresh?.status === 'approved') return { result: 'already', order: fresh, tickets: [] };
 	if (fresh?.status === 'cancelled') return { result: 'cancelled', order: fresh, tickets: [] };
 	return { result: 'no-capacity', order: fresh, tickets: [] };
+}
+
+/**
+ * Marca una orden aprobada como reembolsada (admin): la de Mercado Pago después de que MP
+ * aceptó el reembolso, o una transferencia / sin cargo devuelta a mano. Una sola sentencia
+ * condicional: dos clicks (o el webhook de MP llegando a la vez) la cambian una sola vez.
+ * Libera el cupo y el uso del código (solo cuentan aprobadas y reservas vigentes), sale de los
+ * totales del fondo y anula sus entradas en el control de ingreso.
+ *
+ * @param {D1Database} db
+ * @param {{ orderId: string, eventSlug: string, by: string, now?: number }} input
+ * @returns {Promise<{ result: 'refunded' | 'already' | 'not-approved' | 'not-found', order: Order | null }>}
+ */
+export async function refundOrder(db, { orderId, eventSlug, by, now = Date.now() }) {
+	const order = await getOrder(db, orderId);
+	if (!order || order.event_slug !== eventSlug) return { result: 'not-found', order: null };
+	const res = await db
+		.prepare(
+			`UPDATE orders SET status = 'refunded', refunded_at = ?2, refunded_by = ?3, updated_at = ?2
+			WHERE id = ?1 AND status = 'approved'`
+		)
+		.bind(orderId, now, by)
+		.run();
+	const fresh = await getOrder(db, orderId);
+	if (res.meta.changes === 1) return { result: 'refunded', order: fresh };
+	return { result: fresh?.status === 'refunded' ? 'already' : 'not-approved', order: fresh };
 }
 
 /**
