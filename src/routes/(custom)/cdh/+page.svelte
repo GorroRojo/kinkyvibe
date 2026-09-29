@@ -4,7 +4,6 @@
 	import crown from './byn-crown_1f451.png';
 	import fox from './byn-fox-face_1f98a.png';
 	import star from './byn-glowing-star_1f31f.png';
-	import skull from './byn-skull-and-crossbones_2620-fe0f.png';
 	import hat from './galera-02.png';
 	import logo from './titulo copia.svg';
 	import rabbit from './rabbit_1f407.png'
@@ -50,7 +49,6 @@
 
 	let msg_words = msg.split(' ');
 
-	let longest_word = msg_words.reduce((a, b) => (a.length > b.length ? a : b), '').length;
 
 	let msg_words_emoji = msg_words.map((w) =>
 		w

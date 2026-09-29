@@ -50,7 +50,7 @@
 				doc.set(key, value);
 			}
 		} else if (value != '') {
-			let commentedValue = uncomment(key);
+			uncomment(key);
 			doc.set(key, value);
 		}
 		doc = doc;

@@ -5,7 +5,6 @@
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
-	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';

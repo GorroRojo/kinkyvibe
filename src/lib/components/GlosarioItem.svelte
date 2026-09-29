@@ -5,7 +5,6 @@
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { createCollapsible, melt } from '@melt-ui/svelte';
-	import { slide } from 'svelte/transition';
 </script>
 
 <script>
@@ -15,8 +14,7 @@
 	export let title = false;
 	const {
 		elements: { root, content, trigger },
-		states: { open },
-		options
+		states: { open }
 	} = createCollapsible();
 	query.subscribe((q) => {
 		if (q != '') {
@@ -42,7 +40,6 @@
 		].filter(({ line }) => line);
 	const hasDescription = description?.length > 0;
 	const hasSub = tag.children?.length ?? 0 > 0;
-	let expanded = false;
 	let isVisible = isVisibleFn(item);
 	/**
 	 * @param {TagID} tagID
