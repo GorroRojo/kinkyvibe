@@ -70,32 +70,131 @@ export function parseFeePercent(raw) {
 }
 
 /**
+ * Cómo paga cada entrada la persona, respecto del Fondo KinkyVibe ("¿Cómo querés pagar tu
+ * entrada?"). `percent` es lo que se suma sobre el precio COMPLETO y va al Fondo KinkyVibe.
+ *
+ * - `fondo`: precio − lo que cubre el fondo (la opción por defecto; solo si el evento tiene fondo);
+ * - `completo`: precio completo (por defecto si el evento no tiene fondo);
+ * - `solidaria`, `muy-solidaria`, `sugar`: precio completo + 10 / 30 / 50 % para el fondo.
+ */
+export const FONDO_OPTIONS = /** @type {const} */ ([
+	{ id: 'fondo', label: 'Con el descuento del fondo', percent: 0 },
+	{ id: 'completo', label: 'Precio completo', percent: 0 },
+	{ id: 'solidaria', label: 'Entrada solidaria', percent: 10 },
+	{ id: 'muy-solidaria', label: 'Entrada muy solidaria', percent: 30 },
+	{ id: 'sugar', label: 'Entrada Sugar', percent: 50 }
+]);
+
+/** @typedef {(typeof FONDO_OPTIONS)[number]['id']} FondoOption */
+
+/**
+ * Nombre de una opción para mostrar ("Entrada solidaria (+10 %)").
+ *
+ * @param {string} id
+ */
+export function fondoOptionLabel(id) {
+	const o = FONDO_OPTIONS.find((x) => x.id === id);
+	if (!o) return id;
+	return o.percent ? `${o.label} (+${o.percent} %)` : o.label;
+}
+
+/**
+ * Horas de una reserva (para los textos "te reservamos el lugar N horas…").
+ *
+ * @param {{ created_at: number, expires_at: number }} order
+ */
+export function holdHours(order) {
+	return Math.max(1, Math.round((order.expires_at - order.created_at) / 3600000));
+}
+
+/** @param {unknown} id @returns {id is FondoOption} */
+export function isFondoOption(id) {
+	return FONDO_OPTIONS.some((o) => o.id === id);
+}
+
+/**
+ * Opción por defecto: con el descuento del fondo si el tipo de entrada tiene fondo; si no,
+ * precio completo.
+ *
+ * @param {number} fondo lo que cubre el fondo por entrada
+ * @returns {FondoOption}
+ */
+export function defaultFondoOption(fondo) {
+	return fondo > 0 ? 'fondo' : 'completo';
+}
+
+/**
+ * Opciones que se ofrecen para un tipo de entrada (sin fondo, no aparece "Con el descuento del
+ * fondo").
+ *
+ * @param {number} fondo
+ */
+export function fondoOptionsFor(fondo) {
+	return FONDO_OPTIONS.filter((o) => o.id !== 'fondo' || fondo > 0);
+}
+
+/**
+ * Precio de UNA entrada según la opción: `fondo` que se descuenta y `contribution` que se suma
+ * (porcentaje sobre el precio completo, redondeado al peso: 0,5 hacia arriba).
+ *
+ * @param {number} price precio completo
+ * @param {number} fondo lo que cubre el fondo por entrada
+ * @param {FondoOption} option
+ */
+export function unitPrice(price, fondo, option) {
+	const def = FONDO_OPTIONS.find((o) => o.id === option) ?? FONDO_OPTIONS[1];
+	const fondoUsed = def.id === 'fondo' ? Math.max(0, Math.min(fondo, price)) : 0;
+	const contribution = Math.round((price * def.percent) / 100);
+	return { fondo: fondoUsed, contribution, price: price - fondoUsed + contribution };
+}
+
+/**
  * Precio completo de una compra. Orden de las cuentas:
  *
- * 1. lista = precio × cantidad
- * 2. fondo = lo que cubre el Fondo KinkyVibe por entrada × cantidad
- * 3. subtotal = lista − fondo (lo que corresponde pagar)
+ * 1. lista = precio completo × cantidad
+ * 2. según la opción del fondo, por entrada (y × cantidad):
+ *    - `fondo`: se resta lo que cubre el Fondo KinkyVibe;
+ *    - `solidaria` / `muy-solidaria` / `sugar`: se suma el 10 / 30 / 50 % del precio completo,
+ *      redondeado al peso, como aporte al fondo;
+ * 3. subtotal = lista − fondo + aporte
  * 4. descuento (código) sobre el subtotal, redondeado al peso, nunca más que el subtotal
  * 5. recargo de Mercado Pago sobre lo que queda (solo con Mercado Pago y si queda algo)
  * 6. total = subtotal − descuento + recargo
  *
+ * Sin `option`, se usa la opción por defecto (con fondo si hay fondo).
+ *
  * @param {{
  *   price: number,
  *   fondo?: number,
+ *   option?: FondoOption,
  *   quantity: number,
  *   discount?: { kind: DiscountKind, value: number } | null,
  *   method?: string,
  *   feeBasisPoints?: number
  * }} input
  */
-export function computePrice({ price, fondo = 0, quantity, discount, method, feeBasisPoints = 0 }) {
+export function computePrice({
+	price,
+	fondo = 0,
+	option,
+	quantity,
+	discount,
+	method,
+	feeBasisPoints = 0
+}) {
+	const chosen = option ?? defaultFondoOption(fondo);
+	const unit = unitPrice(price, fondo, chosen);
 	const list = price * quantity;
-	const fondoAmount = Math.max(0, Math.min(fondo, price)) * quantity;
-	const d = applyDiscount(list - fondoAmount, discount);
+	const fondoAmount = unit.fondo * quantity;
+	const contribution = unit.contribution * quantity;
+	const d = applyDiscount(list - fondoAmount + contribution, discount);
 	const surcharge = method === 'mercadopago' ? mpSurcharge(d.total, feeBasisPoints) : 0;
 	return {
+		option: chosen,
+		unit: unit.price,
 		list,
 		fondo: fondoAmount,
+		contribution,
 		subtotal: d.subtotal,
 		discount: d.discount,
 		surcharge,

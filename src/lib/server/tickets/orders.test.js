@@ -124,6 +124,7 @@ describe('reserva de cupo', () => {
 			held: 2,
 			revenue: 24000,
 			fondo: 0,
+			contribution: 0,
 			surcharge: 0
 		});
 		// Vencida la reserva del rechazo, vuelve a haber lugar; la aprobada nunca vence.
@@ -171,6 +172,74 @@ describe('reserva de cupo', () => {
 			feeBasisPoints: 773
 		});
 		expect(/** @type {any} */ (transfer).order).toMatchObject({ surcharge_amount: 0, total: 8000 });
+	});
+
+	it('opción del fondo: guarda la opción, el fondo usado y el aporte, y los suma aprobados', async () => {
+		const type = { id: 'con-fondo', price: 10000, fondo: 2000, capacity: 50 };
+		/** @type {Record<string, [number, number, number]>} opción → fondo, aporte, subtotal (× 2) */
+		const expected = {
+			fondo: [4000, 0, 16000],
+			completo: [0, 0, 20000],
+			solidaria: [0, 2000, 22000],
+			'muy-solidaria': [0, 6000, 26000],
+			sugar: [0, 10000, 30000]
+		};
+		let paymentId = 500;
+		for (const [option, [fondo, contribution, subtotal]] of Object.entries(expected)) {
+			const r = await reserve({
+				quantity: 2,
+				type,
+				option: /** @type {any} */ (option)
+			});
+			const order = /** @type {any} */ (r).order;
+			expect(order).toMatchObject({
+				fondo_option: option,
+				fondo_amount: fondo,
+				fondo_contribution: contribution,
+				subtotal,
+				total: subtotal
+			});
+			await applyPayment(
+				t.db,
+				payment(order.id, { id: paymentId++, transaction_amount: subtotal }),
+				{ now: NOW }
+			);
+		}
+		// Sin opción: la de por defecto (con fondo si el tipo tiene fondo).
+		const def = /** @type {any} */ (await reserve({ type })).order;
+		expect(def).toMatchObject({ fondo_option: 'fondo', fondo_amount: 2000 });
+		const plain = /** @type {any} */ (await reserve()).order;
+		expect(plain).toMatchObject({ fondo_option: 'completo', fondo_amount: 0 });
+
+		expect((await getCounts(t.db, EVENT, NOW)).get('con-fondo')).toMatchObject({
+			sold: 10,
+			fondo: 4000,
+			contribution: 18000,
+			revenue: 16000 + 20000 + 22000 + 26000 + 30000
+		});
+	});
+
+	it('la base rechaza desgloses inconsistentes del fondo', async () => {
+		const insert = (
+			/** @type {string} */ option,
+			/** @type {number} */ fondo,
+			/** @type {number} */ contribution
+		) =>
+			t.db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, fondo_option,
+						fondo_amount, fondo_contribution, subtotal, total, buyer_name, buyer_email,
+						created_at, updated_at, expires_at)
+					VALUES (?1, 'e', 'g', 1, 10000, ?2, ?3, ?4, 10000 - ?3 + ?4, 10000 - ?3 + ?4, 'P',
+						'p@example.com', 1, 1, 2)`
+				)
+				.bind(crypto.randomUUID(), option, fondo, contribution)
+				.run();
+		await expect(insert('solidaria', 0, 1000)).resolves.toBeTruthy();
+		await expect(insert('fondo', 2000, 1000)).rejects.toThrow(/CHECK/);
+		await expect(insert('solidaria', 2000, 1000)).rejects.toThrow(/CHECK/);
+		await expect(insert('completo', 0, 1000)).rejects.toThrow(/CHECK/);
+		await expect(insert('mitad', 0, 0)).rejects.toThrow(/CHECK/);
 	});
 
 	it('cupos separados por tipo y por evento', async () => {

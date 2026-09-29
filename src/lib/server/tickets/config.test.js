@@ -131,29 +131,43 @@ describe('validateHolder / validateBuyer', () => {
 		).toEqual(['dni', 'email', 'name']);
 	});
 
-	it('cada entrada: nombre como le conocen (2–80), pronombres opcionales (hasta 30), sin DNI', () => {
+	it('cada entrada: nombre como le conocen (2–80), pronombres obligatorios (hasta 40), sin DNI', () => {
 		expect(validateHolder({ name: '  Ale   Prueba ', pronouns: ' elle ' })).toEqual({
 			ok: true,
 			holder: { name: 'Ale Prueba', pronouns: 'elle' }
 		});
-		expect(validateHolder({ name: 'A' }).ok).toBe(false);
-		expect(validateHolder({ name: 'Ale', pronouns: 'x'.repeat(31) }).ok).toBe(false);
-		expect(validateHolder({ name: 'Ale' })).toEqual({
-			ok: true,
-			holder: { name: 'Ale', pronouns: '' }
+		expect(validateHolder({ name: 'A', pronouns: 'ella' }).ok).toBe(false);
+		expect(validateHolder({ name: 'Ale', pronouns: 'x'.repeat(40) }).ok).toBe(true);
+		expect(validateHolder({ name: 'Ale', pronouns: 'x'.repeat(41) })).toEqual({
+			ok: false,
+			errors: { pronouns: 'Hasta 40 letras.' }
+		});
+	});
+
+	it.each([undefined, '', '   ', null])('pronombres obligatorios: %j no vale', (pronouns) => {
+		expect(validateHolder({ name: 'Ale', pronouns })).toEqual({
+			ok: false,
+			errors: { pronouns: 'Poné los pronombres de esta persona.' }
 		});
 	});
 });
 
 describe('fondo y mp_fee_percent', () => {
-	it('fondo opcional por tipo, entre 0 y menos que el precio', () => {
+	it('fondo opcional por tipo, entre 0 y el precio', () => {
 		const c = parseTicketConfig({
 			...META,
 			tickets: [{ id: 'general', price: 10000, fondo: 2000, capacity: 5 }]
 		});
 		expect(c?.types[0]).toMatchObject({ price: 10000, fondo: 2000 });
 		expect(parseTicketConfig(META)?.types[0].fondo).toBe(0);
-		for (const fondo of [-1, 10000, 12000, 1.5, 'mucho']) {
+		// 100 %: la entrada queda gratis con el descuento del fondo.
+		expect(
+			parseTicketConfig({
+				...META,
+				tickets: [{ id: 'general', price: 10000, fondo: 10000, capacity: 5 }]
+			})?.types[0].fondo
+		).toBe(10000);
+		for (const fondo of [-1, 10001, 12000, 1.5, 'mucho']) {
 			expect(() =>
 				parseTicketConfig({
 					...META,
@@ -162,6 +176,26 @@ describe('fondo y mp_fee_percent', () => {
 			).toThrow(/Fondo/);
 		}
 	});
+	it('fondo_percent por evento: vale para todos los tipos, redondeado al peso; `fondo` lo pisa', () => {
+		const c = parseTicketConfig({
+			...META,
+			fondo_percent: 15,
+			tickets: [
+				{ id: 'general', price: 10000, capacity: 5 },
+				{ id: 'reducida', price: 4999, capacity: 5 },
+				{ id: 'fija', price: 8000, fondo: 1000, capacity: 5 },
+				{ id: 'sin', price: 8000, fondo: 0, capacity: 5 }
+			]
+		});
+		expect(c?.fondoPercent).toBe(15);
+		// 4999 × 15 % = 749,85 → 750
+		expect(c?.types.map((t) => t.fondo)).toEqual([1500, 750, 1000, 0]);
+		expect(parseTicketConfig(META)?.fondoPercent).toBeNull();
+		for (const fondo_percent of [-1, 101, 12.5, 'mucho']) {
+			expect(() => parseTicketConfig({ ...META, fondo_percent })).toThrow(/fondo_percent/);
+		}
+	});
+
 	it('mp_fee_percent por evento', () => {
 		expect(parseTicketConfig(META)?.mpFeeBasisPoints).toBeNull();
 		expect(parseTicketConfig({ ...META, mp_fee_percent: 7.73 })?.mpFeeBasisPoints).toBe(773);
@@ -178,7 +212,7 @@ describe('validatePurchase', () => {
 	const people = (n) =>
 		Array.from({ length: n }, (_, i) => ({
 			name: `Persona ${i + 1}`,
-			pronouns: i === 0 ? 'elle' : ''
+			pronouns: i === 0 ? 'elle' : 'ella'
 		}));
 	const ok = {
 		type: 'reducida',
@@ -216,11 +250,35 @@ describe('validatePurchase', () => {
 
 	it('marca errores por entrada con el índice del formulario', () => {
 		const holders = people(3);
-		holders[1] = { name: 'B', pronouns: '' };
-		holders[2] = { name: 'Persona Tres', pronouns: 'x'.repeat(40) };
+		holders[1] = { name: 'B', pronouns: 'él' };
+		holders[2] = { name: 'Persona Tres', pronouns: 'x'.repeat(41) };
 		const r = /** @type {any} */ (validatePurchase(c, { ...ok, holders }));
 		expect(r.ok).toBe(false);
 		expect(Object.keys(r.errors).sort()).toEqual(['holder_name_1', 'holder_pronouns_2']);
+	});
+
+	it('opción del fondo: por defecto con fondo si el tipo tiene fondo; si no, precio completo', () => {
+		const withFondo = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+			parseTicketConfig({
+				...META,
+				tickets: [
+					{ id: 'general', price: 10000, fondo: 2000, capacity: 5 },
+					{ id: 'reducida', price: 5000, capacity: 5 }
+				]
+			})
+		);
+		const buy = (/** @type {Record<string, unknown>} */ o) =>
+			/** @type {any} */ (validatePurchase(withFondo, { ...ok, ...o }));
+		expect(buy({ type: 'general' }).option).toBe('fondo');
+		expect(buy({ type: 'general', option: '' }).option).toBe('fondo');
+		expect(buy({ type: 'reducida' }).option).toBe('completo');
+		// "Con el descuento del fondo" en un tipo sin fondo = precio completo.
+		expect(buy({ type: 'reducida', option: 'fondo' }).option).toBe('completo');
+		for (const option of ['completo', 'solidaria', 'muy-solidaria', 'sugar']) {
+			expect(buy({ type: 'general', option }).option).toBe(option);
+			expect(buy({ type: 'reducida', option }).option).toBe(option);
+		}
+		expect(buy({ type: 'general', option: 'mitad' }).errors.option).toBeTruthy();
 	});
 
 	it('medio de pago: solo los que habilita el evento', () => {
@@ -243,7 +301,9 @@ describe('validatePurchase', () => {
 		[{ buyer: { ...ok.buyer, dni: '123' } }, 'dni'],
 		[{ buyer: { ...ok.buyer, name: 'A' } }, 'name'],
 		[{ accept: null }, 'accept'],
-		[{ holders: people(2) }, 'holder_name_2']
+		[{ holders: people(2) }, 'holder_name_2'],
+		[{ holders: [...people(2), { name: 'Persona 3', pronouns: '' }] }, 'holder_pronouns_2'],
+		[{ option: 'gratis' }, 'option']
 	])('marca errores %#', (patch, field) => {
 		const r = validatePurchase(c, { ...ok, ...patch });
 		expect(r.ok).toBe(false);

@@ -170,6 +170,7 @@ function readForm(form) {
 		dni: str('dni', 40),
 		code: str('code', 60).trim(),
 		method: str('method', 30),
+		option: str('option', 30),
 		holders: Array.from({ length: n }, (_, i) => ({
 			name: str(`holder_name_${i}`, 200),
 			pronouns: str(`holder_pronouns_${i}`, 100)
@@ -257,6 +258,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			type: values.type,
 			quantity: values.quantity,
 			method: values.method,
+			option: values.option,
 			buyer: { name: values.name, email: values.email, dni: values.dni },
 			holders: values.holders,
 			accept: form.get('accept')
@@ -287,6 +289,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	const base = computePrice({
 		price: valid.type.price,
 		fondo: valid.type.fondo,
+		option: valid.option,
 		quantity: valid.quantity,
 		discount
 	});
@@ -325,6 +328,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			quantity: valid.quantity,
 			buyer: valid.buyer,
 			holders: valid.holders,
+			option: valid.option,
 			method,
 			feeBasisPoints: mpFeeBasisPoints(config),
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },

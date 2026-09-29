@@ -5,11 +5,12 @@
  * tipo de entrada y la cantidad, nunca un precio.
  *
  * ```yaml
+ * fondo_percent: 20      # opcional: % del precio que cubre el Fondo KinkyVibe en TODOS los tipos
  * tickets:
  *   - id: general
  *     name: General
- *     price: 10000       # ARS, entero: precio de la entrada
- *     fondo: 2000        # opcional: parte que cubre el Fondo KinkyVibe (se paga price − fondo)
+ *     price: 10000       # ARS, entero: precio completo de la entrada
+ *     fondo: 2000        # opcional: $ que cubre el fondo en este tipo (pisa fondo_percent)
  *     capacity: 40
  * tickets_close: 2026-10-16T18:00-03:00   # opcional; si falta, cierra al empezar el evento
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
@@ -24,6 +25,7 @@
 /**
  * @typedef {{
  *   types: TicketType[],
+ *   fondoPercent: number | null,
  *   paymentMethods: PaymentMethod[],
  *   mpFeeBasisPoints: number | null,
  *   closesAt: number | null,
@@ -38,6 +40,8 @@
 import {
 	MAX_TICKETS_PER_FORM,
 	PAYMENT_METHODS,
+	defaultFondoOption,
+	isFondoOption,
 	normalizeDni,
 	parseFeePercent
 } from '$lib/utils/tickets.js';
@@ -71,6 +75,13 @@ export function parseTicketConfig(meta) {
 	if (!Array.isArray(meta.tickets) || meta.tickets.length === 0) {
 		throw new TypeError('`tickets` tiene que ser una lista con al menos un tipo de entrada');
 	}
+	let fondoPercent = null;
+	if (meta.fondo_percent !== undefined && meta.fondo_percent !== null) {
+		fondoPercent = Number(meta.fondo_percent);
+		if (!Number.isInteger(fondoPercent) || fondoPercent < 0 || fondoPercent > 100) {
+			throw new TypeError('`fondo_percent` tiene que ser un entero entre 0 y 100');
+		}
+	}
 	/** @type {TicketType[]} */
 	const types = [];
 	for (const raw of meta.tickets) {
@@ -86,10 +97,16 @@ export function parseTicketConfig(meta) {
 		if (!Number.isSafeInteger(capacity) || capacity < 0) {
 			throw new TypeError(`Cupo inválido para "${id}": tiene que ser un entero`);
 		}
-		const fondo = raw.fondo === undefined || raw.fondo === null ? 0 : Number(raw.fondo);
-		if (!Number.isSafeInteger(fondo) || fondo < 0 || fondo >= price) {
+		// El `fondo` del tipo (en pesos) pisa el `fondo_percent` del evento.
+		const fondo =
+			raw.fondo !== undefined && raw.fondo !== null
+				? Number(raw.fondo)
+				: fondoPercent !== null
+					? Math.round((price * fondoPercent) / 100)
+					: 0;
+		if (!Number.isSafeInteger(fondo) || fondo < 0 || fondo > price) {
 			throw new TypeError(
-				`Fondo inválido para "${id}": tiene que ser un entero entre 0 y menos que el precio`
+				`Fondo inválido para "${id}": tiene que ser un entero entre 0 y el precio`
 			);
 		}
 		types.push({ id, name, price, fondo, capacity });
@@ -123,6 +140,7 @@ export function parseTicketConfig(meta) {
 	const closesAt = toTime(meta.tickets_close) ?? toTime(meta.start);
 	return {
 		types,
+		fondoPercent,
 		paymentMethods,
 		mpFeeBasisPoints,
 		closesAt,
@@ -157,7 +175,7 @@ function cleanText(raw) {
  * Valida los datos de una persona (una entrada): son para el evento.
  *
  * - nombre: como se conoce a la persona (no hace falta que sea el del documento), 2 a 80 letras;
- * - pronombres: opcionales, hasta 30 letras.
+ * - pronombres: obligatorios, hasta 40 letras (texto libre: "ella", "elle / él", "cualquiera"…).
  *
  * @param {{ name?: unknown, pronouns?: unknown }} raw
  * @returns {{ ok: true, holder: Holder } | { ok: false, errors: { name?: string, pronouns?: string } }}
@@ -168,7 +186,8 @@ export function validateHolder(raw) {
 	const name = cleanText(raw.name);
 	if (name.length < 2 || name.length > 80) errors.name = 'Poné un nombre (entre 2 y 80 letras).';
 	const pronouns = cleanText(raw.pronouns);
-	if (pronouns.length > 30) errors.pronouns = 'Hasta 30 letras.';
+	if (!pronouns) errors.pronouns = 'Poné los pronombres de esta persona.';
+	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
 	if (Object.keys(errors).length) return { ok: false, errors };
 	return { ok: true, holder: { name, pronouns } };
 }
@@ -207,10 +226,11 @@ export function validateBuyer(raw) {
  *   type: unknown, quantity: unknown, accept: unknown,
  *   buyer: { name?: unknown, email?: unknown, dni?: unknown },
  *   holders: { name?: unknown, pronouns?: unknown }[],
- *   method?: unknown
+ *   method?: unknown,
+ *   option?: unknown
  * }} input
  * @returns {{ ok: true, type: TicketType, quantity: number, buyer: Buyer, holders: Holder[],
- *     method: PaymentMethod }
+ *     method: PaymentMethod, option: import('$lib/utils/tickets.js').FondoOption }
  *   | { ok: false, errors: Record<string, string> }}
  */
 export function validatePurchase(config, input) {
@@ -242,6 +262,16 @@ export function validatePurchase(config, input) {
 	if (!config.paymentMethods.includes(/** @type {PaymentMethod} */ (method))) {
 		errors.method = 'Elegí un medio de pago.';
 	}
+	// Opción del fondo: vacía = la de por defecto. "Con el descuento del fondo" en un tipo sin
+	// fondo es lo mismo que precio completo, y se guarda así.
+	let option = input.option === undefined || input.option === '' ? null : input.option;
+	if (option !== null && !isFondoOption(option)) {
+		errors.option = 'Elegí cómo querés pagar tu entrada.';
+		option = null;
+	}
+	if (type && (option === null || (option === 'fondo' && !type.fondo))) {
+		option = defaultFondoOption(type.fondo);
+	}
 	if (input.accept !== 'on' && input.accept !== '1') {
 		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
 	}
@@ -252,6 +282,7 @@ export function validatePurchase(config, input) {
 		quantity,
 		buyer: b.buyer,
 		holders,
-		method: /** @type {PaymentMethod} */ (method)
+		method: /** @type {PaymentMethod} */ (method),
+		option: /** @type {import('$lib/utils/tickets.js').FondoOption} */ (option)
 	};
 }

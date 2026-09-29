@@ -28,7 +28,8 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 /**
  * @typedef {{
  *   id: string, event_slug: string, ticket_type: string, quantity: number, unit_price: number,
- *   fondo_amount: number, subtotal: number, discount_code: string | null, discount_amount: number,
+ *   fondo_option: import('$lib/utils/tickets.js').FondoOption, fondo_amount: number,
+ *   fondo_contribution: number, subtotal: number, discount_code: string | null, discount_amount: number,
  *   surcharge_amount: number, total: number,
  *   payment_method: OrderPaymentMethod, buyer_name: string, buyer_email: string,
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
@@ -78,8 +79,8 @@ export function newToken() {
  * - `mercadopago` y `gratis` → `pending` (la gratis se aprueba enseguida con `approveFreeOrder`).
  * - `transferencia` → `awaiting_transfer`, con la reserva más larga que se pase en `holdMs`.
  *
- * El total lo calcula acá el servidor (`computePrice`): precio del frontmatter − fondo, menos el
- * descuento, más el recargo de Mercado Pago si se paga con MP.
+ * El total lo calcula acá el servidor (`computePrice`): precio del frontmatter − fondo (o + aporte
+ * al fondo, según `option`), menos el descuento, más el recargo de Mercado Pago si se paga con MP.
  *
  * @param {D1Database} db
  * @param {{
@@ -88,6 +89,7 @@ export function newToken() {
  *   quantity: number,
  *   buyer: import('./config.js').Buyer,
  *   holders: Holder[],
+ *   option?: import('$lib/utils/tickets.js').FondoOption,
  *   feeBasisPoints?: number,
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
@@ -106,6 +108,7 @@ export async function reserveOrder(db, input) {
 	const prices = computePrice({
 		price: type.price,
 		fondo: type.fondo ?? 0,
+		option: input.option,
 		quantity,
 		discount,
 		method,
@@ -124,9 +127,9 @@ export async function reserveOrder(db, input) {
 				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
-					surcharge_amount, buyer_dni)
+					surcharge_amount, buyer_dni, fondo_option, fondo_contribution)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22
+					?20, ?21, ?22, ?23, ?24
 				WHERE (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
@@ -157,7 +160,9 @@ export async function reserveOrder(db, input) {
 				status,
 				prices.fondo,
 				prices.surcharge,
-				buyer.dni
+				buyer.dni,
+				prices.option,
+				prices.contribution
 			)
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
@@ -249,12 +254,13 @@ function expireStatement(db, eventSlug, now) {
 
 /**
  * Por tipo de entrada: vendidas, reservadas, lo cobrado (con descuentos y recargo de MP), lo
- * que cubrió el Fondo KinkyVibe y el recargo de MP (que se va en la comisión).
+ * que cubrió el Fondo KinkyVibe, lo que se aportó al fondo (entradas solidarias) y el recargo de
+ * MP (que se va en la comisión). Solo cuentan las órdenes aprobadas (salvo `held`).
  *
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {number} [now]
- * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, surcharge: number }>>}
+ * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, contribution: number, surcharge: number }>>}
  */
 export async function getCounts(db, eventSlug, now = Date.now()) {
 	const { results } = await db
@@ -264,6 +270,7 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 				SUM(CASE WHEN status IN ${HOLDING} AND expires_at > ?2 THEN quantity ELSE 0 END) AS held,
 				SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
 				SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
+				SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
 				SUM(CASE WHEN status = 'approved' THEN surcharge_amount ELSE 0 END) AS surcharge
 			FROM orders WHERE event_slug = ?1 GROUP BY ticket_type`
 		)
@@ -277,6 +284,7 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 				held: Number(r.held ?? 0),
 				revenue: Number(r.revenue ?? 0),
 				fondo: Number(r.fondo ?? 0),
+				contribution: Number(r.contribution ?? 0),
 				surcharge: Number(r.surcharge ?? 0)
 			}
 		])
