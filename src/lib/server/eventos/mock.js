@@ -57,6 +57,30 @@ export async function listDir(_token, path) {
 }
 
 /**
+ * Same shape as github.listTree, from the local checkout ("sha" is the local path, see listDir).
+ * @param {string} _token
+ * @param {string} path
+ * @param {{recursive?: boolean}} [opts]
+ * @returns {Promise<Array<{path: string, sha: string, type: string}>>}
+ */
+export async function listTree(_token, path, { recursive = false } = {}) {
+	const full = safeRepoPath(path);
+	if (!(await exists(full))) return [];
+	const entries = await readdir(full, { withFileTypes: true, recursive });
+	return entries.map((e) => {
+		// @ts-ignore parentPath/path depending on the Node version
+		const rel = join(e.parentPath ?? e.path ?? full, e.name).slice(full.length + 1);
+		return { path: rel, sha: 'local:' + join(path, rel), type: e.isDirectory() ? 'tree' : 'blob' };
+	});
+}
+
+/** @param {string} _token @param {string[]} paths */
+export async function existingPaths(_token, paths) {
+	const found = await Promise.all(paths.map((p) => pathExists(_token, p)));
+	return paths.filter((_, i) => found[i]);
+}
+
+/**
  * @param {string} _token
  * @param {{files: import('./github.js').CommitFile[], message: string, mustNotExist?: string[]}} opts
  */
