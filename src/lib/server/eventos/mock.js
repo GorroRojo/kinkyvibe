@@ -57,6 +57,43 @@ export async function listDir(_token, path) {
 }
 
 /**
+ * Same shape as github.listTree, from the local checkout ("sha" is the local path, see listDir).
+ * @param {string} _token
+ * @param {string} path
+ * @param {{recursive?: boolean}} [opts]
+ * @returns {Promise<Array<{path: string, sha: string, type: string}>>}
+ */
+export async function listTree(_token, path, { recursive = false } = {}) {
+	/** @type {Map<string, {path: string, sha: string, type: string}>} */
+	const out = new Map();
+	// The checkout, plus what earlier mock "commits" wrote (so a second run sees them as taken).
+	for (const [root, shaPrefix] of [
+		[safeRepoPath(path), 'local:' + path],
+		[join(outDir, 'files', path), '']
+	]) {
+		if (!(await exists(root))) continue;
+		const entries = await readdir(root, { withFileTypes: true, recursive });
+		for (const e of entries) {
+			// @ts-ignore parentPath/path depending on the Node version
+			const rel = join(e.parentPath ?? e.path ?? root, e.name).slice(root.length + 1);
+			if (!out.has(rel))
+				out.set(rel, {
+					path: rel,
+					sha: shaPrefix ? join(shaPrefix, rel) : 'mock-committed',
+					type: e.isDirectory() ? 'tree' : 'blob'
+				});
+		}
+	}
+	return [...out.values()];
+}
+
+/** @param {string} _token @param {string[]} paths */
+export async function existingPaths(_token, paths) {
+	const found = await Promise.all(paths.map((p) => pathExists(_token, p)));
+	return paths.filter((_, i) => found[i]);
+}
+
+/**
  * @param {string} _token
  * @param {{files: import('./github.js').CommitFile[], message: string, mustNotExist?: string[]}} opts
  */
