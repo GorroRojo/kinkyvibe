@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { parseTicketConfig, salesState, validatePurchase } from './config.js';
+import {
+	MAX_TICKETS_PER_FORM,
+	parseTicketConfig,
+	salesState,
+	validateBuyer,
+	validateHolder,
+	validatePurchase
+} from './config.js';
 
 const META = {
 	title: 'Fiesta de prueba',
@@ -21,7 +28,7 @@ describe('parseTicketConfig', () => {
 		const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
 			parseTicketConfig(META)
 		);
-		expect(c.types).toEqual(META.tickets);
+		expect(c.types).toEqual(META.tickets.map((t) => ({ ...t, fondo: 0 })));
 		expect(c.closesAt).toBe(new Date('2026-10-17T21:00-03:00').getTime());
 	});
 
@@ -67,37 +74,176 @@ describe('salesState', () => {
 	});
 });
 
+describe('payment_methods', () => {
+	it('por defecto solo Mercado Pago', () => {
+		expect(parseTicketConfig(META)?.paymentMethods).toEqual(['mercadopago']);
+	});
+	it('acepta la lista del frontmatter (sin repetidos, sin importar mayúsculas)', () => {
+		const c = parseTicketConfig({
+			...META,
+			payment_methods: ['mercadopago', 'Transferencia', 'transferencia']
+		});
+		expect(c?.paymentMethods).toEqual(['mercadopago', 'transferencia']);
+		expect(
+			parseTicketConfig({ ...META, payment_methods: 'transferencia' })?.paymentMethods
+		).toEqual(['transferencia']);
+	});
+	it('rechaza medios desconocidos o una lista vacía', () => {
+		expect(() => parseTicketConfig({ ...META, payment_methods: ['efectivo'] })).toThrow(
+			/Medio de pago/
+		);
+		expect(() => parseTicketConfig({ ...META, payment_methods: [] })).toThrow(/vacío/);
+	});
+});
+
+describe('validateHolder / validateBuyer', () => {
+	it.each([
+		['12345678', '12345678'],
+		['12.345.678', '12345678'],
+		[' 1.234.567 ', '1234567'],
+		['123456789', '123456789'],
+		['12 345 678', '12345678']
+	])('DNI de quien compra %s → %s', (raw, digits) => {
+		const r = validateBuyer({ name: 'Ale', email: 'a@example.com', dni: raw });
+		expect(r).toMatchObject({ ok: true, buyer: { dni: digits } });
+	});
+
+	it.each(['123456', '1234567890', '12-345-678', 'AB123456', '', '12.345.67a'])(
+		'DNI inválido: "%s"',
+		(raw) => {
+			const r = validateBuyer({ name: 'Ale', email: 'a@example.com', dni: raw });
+			expect(r.ok).toBe(false);
+			expect(/** @type {any} */ (r).errors.dni).toBeTruthy();
+		}
+	);
+
+	it('quien compra: nombre, email normalizado y DNI', () => {
+		expect(
+			validateBuyer({ name: '  Ale   Prueba ', email: ' Ale@Example.COM ', dni: '12.345.678' })
+		).toEqual({
+			ok: true,
+			buyer: { name: 'Ale Prueba', email: 'ale@example.com', dni: '12345678' }
+		});
+		expect(
+			Object.keys(
+				/** @type {any} */ (validateBuyer({ name: 'A', email: 'no', dni: '1' })).errors
+			).sort()
+		).toEqual(['dni', 'email', 'name']);
+	});
+
+	it('cada entrada: nombre como le conocen (2–80), pronombres opcionales (hasta 30), sin DNI', () => {
+		expect(validateHolder({ name: '  Ale   Prueba ', pronouns: ' elle ' })).toEqual({
+			ok: true,
+			holder: { name: 'Ale Prueba', pronouns: 'elle' }
+		});
+		expect(validateHolder({ name: 'A' }).ok).toBe(false);
+		expect(validateHolder({ name: 'Ale', pronouns: 'x'.repeat(31) }).ok).toBe(false);
+		expect(validateHolder({ name: 'Ale' })).toEqual({
+			ok: true,
+			holder: { name: 'Ale', pronouns: '' }
+		});
+	});
+});
+
+describe('fondo y mp_fee_percent', () => {
+	it('fondo opcional por tipo, entre 0 y menos que el precio', () => {
+		const c = parseTicketConfig({
+			...META,
+			tickets: [{ id: 'general', price: 10000, fondo: 2000, capacity: 5 }]
+		});
+		expect(c?.types[0]).toMatchObject({ price: 10000, fondo: 2000 });
+		expect(parseTicketConfig(META)?.types[0].fondo).toBe(0);
+		for (const fondo of [-1, 10000, 12000, 1.5, 'mucho']) {
+			expect(() =>
+				parseTicketConfig({
+					...META,
+					tickets: [{ id: 'general', price: 10000, fondo, capacity: 5 }]
+				})
+			).toThrow(/Fondo/);
+		}
+	});
+	it('mp_fee_percent por evento', () => {
+		expect(parseTicketConfig(META)?.mpFeeBasisPoints).toBeNull();
+		expect(parseTicketConfig({ ...META, mp_fee_percent: 7.73 })?.mpFeeBasisPoints).toBe(773);
+		expect(parseTicketConfig({ ...META, mp_fee_percent: '6,5' })?.mpFeeBasisPoints).toBe(650);
+		expect(() => parseTicketConfig({ ...META, mp_fee_percent: 80 })).toThrow(/mp_fee_percent/);
+	});
+});
+
 describe('validatePurchase', () => {
 	const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
-		parseTicketConfig(META)
+		parseTicketConfig({ ...META, payment_methods: ['mercadopago', 'transferencia'] })
 	);
+	/** @param {number} n */
+	const people = (n) =>
+		Array.from({ length: n }, (_, i) => ({
+			name: `Persona ${i + 1}`,
+			pronouns: i === 0 ? 'elle' : ''
+		}));
 	const ok = {
 		type: 'reducida',
 		quantity: '3',
-		name: '  Ale   Prueba ',
-		email: ' Ale@Example.COM ',
-		accept: 'on'
+		buyer: { name: 'Ale Prueba', email: ' Ale@Example.COM ', dni: '20.111.222' },
+		accept: 'on',
+		holders: people(3)
 	};
 
-	it('calcula el total con el precio del servidor', () => {
+	it('normaliza quien compra y cada entrada (sin precios del form)', () => {
 		const r = validatePurchase(c, /** @type {any} */ ({ ...ok, price: 1 }));
 		expect(r).toMatchObject({
 			ok: true,
 			quantity: 3,
-			name: 'Ale Prueba',
-			email: 'ale@example.com',
-			total: 15000
+			buyer: { name: 'Ale Prueba', email: 'ale@example.com', dni: '20111222' },
+			method: 'mercadopago'
 		});
+		expect(/** @type {any} */ (r).holders).toEqual(people(3));
+	});
+
+	it('la entrada 1 sin nombre usa el de quien compra (formulario sin JavaScript)', () => {
+		const holders = people(2);
+		holders[0] = { name: '', pronouns: 'ella' };
+		const r = validatePurchase(c, { ...ok, quantity: '2', holders });
+		expect(/** @type {any} */ (r).holders[0]).toEqual({ name: 'Ale Prueba', pronouns: 'ella' });
+	});
+
+	it('sin máximo fijo por compra: hasta el límite del formulario', () => {
+		expect(
+			validatePurchase(c, { ...ok, quantity: String(MAX_TICKETS_PER_FORM), holders: people(20) }).ok
+		).toBe(true);
+		const r = validatePurchase(c, { ...ok, quantity: '21', holders: people(21) });
+		expect(/** @type {any} */ (r).errors.quantity).toMatch(/escribinos/);
+	});
+
+	it('marca errores por entrada con el índice del formulario', () => {
+		const holders = people(3);
+		holders[1] = { name: 'B', pronouns: '' };
+		holders[2] = { name: 'Persona Tres', pronouns: 'x'.repeat(40) };
+		const r = /** @type {any} */ (validatePurchase(c, { ...ok, holders }));
+		expect(r.ok).toBe(false);
+		expect(Object.keys(r.errors).sort()).toEqual(['holder_name_1', 'holder_pronouns_2']);
+	});
+
+	it('medio de pago: solo los que habilita el evento', () => {
+		expect(validatePurchase(c, { ...ok, method: 'transferencia' })).toMatchObject({
+			ok: true,
+			method: 'transferencia'
+		});
+		const onlyMp = { ...c, paymentMethods: /** @type {any} */ (['mercadopago']) };
+		expect(
+			/** @type {any} */ (validatePurchase(onlyMp, { ...ok, method: 'transferencia' })).errors
+				.method
+		).toBeTruthy();
 	});
 
 	it.each([
 		[{ type: 'vip' }, 'type'],
 		[{ quantity: '0' }, 'quantity'],
-		[{ quantity: '5' }, 'quantity'],
 		[{ quantity: '1.5' }, 'quantity'],
-		[{ name: 'A' }, 'name'],
-		[{ email: 'no-es-mail' }, 'email'],
-		[{ accept: null }, 'accept']
+		[{ buyer: { ...ok.buyer, email: 'no-es-mail' } }, 'email'],
+		[{ buyer: { ...ok.buyer, dni: '123' } }, 'dni'],
+		[{ buyer: { ...ok.buyer, name: 'A' } }, 'name'],
+		[{ accept: null }, 'accept'],
+		[{ holders: people(2) }, 'holder_name_2']
 	])('marca errores %#', (patch, field) => {
 		const r = validatePurchase(c, { ...ok, ...patch });
 		expect(r.ok).toBe(false);

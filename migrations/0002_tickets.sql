@@ -1,13 +1,9 @@
 -- Migration number: 0002 	 Venta de entradas: órdenes (compras) y entradas individuales.
 --
--- Privacidad (minimización): de quien compra se guarda SOLO nombre y email, lo necesario para
--- mandar las entradas y reconocer a la persona en la puerta. Nada de DNI, teléfono, dirección
--- ni datos de pago (esos quedan en Mercado Pago; acá solo el id del pago).
---
--- TODO(retención, no implementado): N días después del evento (p. ej. 90, para cubrir
--- contracargos y reclamos) anonimizar buyer_name/buyer_email/holder_name
--- (p. ej. 'anonimizade' y NULL) y borrar los tokens, dejando solo los números agregados
--- (cantidades, montos, estados) para la contabilidad.
+-- Privacidad (minimización): de quien compra se guarda nombre y email, lo necesario para
+-- mandar las entradas y reconocer a la persona en la puerta (0003 agrega el DNI de quien
+-- compra y los pronombres). Nada de teléfono, dirección ni datos de pago (esos quedan en
+-- Mercado Pago; acá solo el id del pago).
 --
 -- Fechas: milisegundos desde epoch (INTEGER, UTC). Montos: pesos enteros (ARS).
 
