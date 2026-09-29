@@ -1,9 +1,8 @@
 <script>
-	// Botón "Compartir" de un evento.
-	// - Público: comparte el link del evento con la Web Share API (menú nativo del celu);
-	//   si el navegador no la tiene, ofrece copiar el link.
-	// - Admins: además ofrece "Imágenes para Instagram" (/calendario/<evento>/compartir).
-	import { Share2, Link, Images, Check } from '@lucide/svelte';
+	// Botón "Compartir" de un evento, para cualquier persona que quiera difundirlo:
+	// - compartir el link con la Web Share API (menú nativo del celu) o copiarlo;
+	// - "Compartir como imagen": generador de imágenes del evento (/calendario/<evento>/compartir).
+	import { Share2, Link, Image as ImageIcon, Check } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';
 
 	/** @type {string} */
@@ -12,10 +11,9 @@
 	export let title;
 	/** @type {string} */
 	export let text = '';
-	/** Ruta del generador de imágenes; solo se muestra si isAdmin. */
+	/** Ruta del generador de imágenes. */
 	/** @type {string} */
 	export let imagesHref;
-	export let isAdmin = false;
 
 	let open = false;
 	let copied = false;
@@ -48,12 +46,6 @@
 		setTimeout(() => (copied = false), 2000);
 	}
 
-	function onClick() {
-		// sin nada más que ofrecer y con menú nativo: directo al menú del sistema
-		if (!isAdmin && canShare()) return shareLink();
-		open = !open;
-	}
-
 	/** @param {MouseEvent} e */
 	function onWindowClick(e) {
 		if (open && root && !root.contains(/** @type {Node} */ (e.target))) open = false;
@@ -70,9 +62,9 @@
 	<button
 		type="button"
 		class="trigger"
-		on:click={onClick}
-		aria-haspopup={isAdmin || !canShare() ? 'menu' : undefined}
-		aria-expanded={isAdmin || !canShare() ? open : undefined}
+		on:click={() => (open = !open)}
+		aria-haspopup="menu"
+		aria-expanded={open}
 	>
 		<Share2 size="20" /> Compartir
 	</button>
@@ -82,15 +74,12 @@
 				{#if copied}<Check size="18" /> ¡Link copiado!{:else}<Link size="18" />
 					{canShare() ? 'Compartir link' : 'Copiar link'}{/if}
 			</button>
-			{#if isAdmin}
-				<a role="menuitem" href={imagesHref} data-sveltekit-preload-data="off">
-					<Images size="18" /> Imágenes para Instagram
-				</a>
-			{/if}
+			<a role="menuitem" href={imagesHref} data-sveltekit-preload-data="off">
+				<ImageIcon size="18" /> Compartir como imagen
+			</a>
 		</div>
 	{/if}
 </div>
-
 <style lang="scss">
 	.share {
 		position: relative;

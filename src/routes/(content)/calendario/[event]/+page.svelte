@@ -220,7 +220,6 @@
 			title={data.meta.title}
 			text={data.meta.summary}
 			imagesHref={'/calendario/' + data.meta.postID + '/compartir'}
-			isAdmin={!!data.isAdmin}
 		/>
 	</div>
 	{#if data.meta.tags}
