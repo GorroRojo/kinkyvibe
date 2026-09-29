@@ -1,9 +1,12 @@
 import { redirect } from '@sveltejs/kit';
+import { TOKEN_COOKIE, authCookieOptions, safeRedirect } from '$lib/server/auth';
+import { forgetUser } from '$lib/server/session';
 
-export async function GET(request) {
-	// @ts-ignore
-	request.locals.user_token = '';
-	request.cookies.set('prevToken', request.cookies.get('userToken') ?? '', { path: '/' });
-	request.cookies.set('userToken', '', { path: '/' });
-	redirect(302, request.url.searchParams.get('redirectTo') ?? '/admin');
+/** @type {import('./$types').RequestHandler} */
+export async function GET({ cookies, url, locals }) {
+	await forgetUser(cookies.get(TOKEN_COOKIE));
+	locals.user_token = '';
+	locals.user = undefined;
+	cookies.delete(TOKEN_COOKIE, authCookieOptions(url));
+	redirect(302, safeRedirect(url.searchParams.get('redirectTo'), url.origin, '/admin'));
 }
