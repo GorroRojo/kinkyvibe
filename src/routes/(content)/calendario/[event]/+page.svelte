@@ -4,11 +4,13 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
+	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
+	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
@@ -34,7 +36,7 @@
 		'@type': 'Event',
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
-		endDate: toISO(data.meta.end ?? (data.meta.start ?? '') + (data.meta.duration ?? '')),
+		endDate: toISO(end),
 		eventAttendanceMode: data.meta.location
 			? 'https://schema.org/OnlineEventAttendanceMode'
 			: 'https://schema.org/OfflineEventAttendanceMode',
@@ -141,15 +143,17 @@
 			<small>desde</small><time class="dt-start" datetime={data.meta.start}
 				>{new Date(data.meta.start).toLocaleString('es-AR', {
 					dateStyle: 'long',
-					timeStyle: 'short'
+					timeStyle: 'short',
+					timeZone: TIMEZONE
 				})}hs</time
 			>
 			<small>hasta</small><time
 				class="dt-end"
-				datetime={data.meta.end ?? data.meta.start + data.meta.duration}
-				>{new Date(data.meta.end ?? data.meta.start + data.meta.duration).toLocaleString('es-AR', {
+				datetime={toISO(end)}
+				>{end.toLocaleString('es-AR', {
 					dateStyle: 'long',
-					timeStyle: 'short'
+					timeStyle: 'short',
+					timeZone: TIMEZONE
 				})}hs</time
 			>
 			<small>en</small>
@@ -178,10 +182,10 @@
 				trigger="click"
 				name={data.meta.title}
 				description={data.meta.summary}
-				startDate={format(new Date(data.meta.start), 'yyyy-MM-dd')}
-				startTime={format(new Date(data.meta.start), 'HH:mm')}
+				startDate={format(toArgentina(data.meta.start), 'yyyy-MM-dd')}
+				startTime={format(toArgentina(data.meta.start), 'HH:mm')}
 				endDate={format(
-					new Date(data.meta.end ?? data.meta.start + data.meta.duration),
+					toArgentina(end),
 					'yyyy-MM-dd'
 				)}
 				status={{
@@ -190,7 +194,7 @@
 					anunciado: 'TENTATIVE',
 					agotadas: 'CONFIRMED'
 				}[data.meta.status] ?? 'CONFIRMED'}
-				endTime={format(new Date(data.meta.end ?? data.meta.start + data.meta.duration), 'HH:mm')}
+				endTime={format(toArgentina(end), 'HH:mm')}
 				timeZone="America/Buenos_Aires"
 				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 				language="es"

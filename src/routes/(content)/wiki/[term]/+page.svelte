@@ -45,7 +45,7 @@
 		}
 		return branches.filter((branch) => branch.some((i) => !i.disabled));
 	}
-	const guessedTitle = decodeURI($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	const guessedTitle = decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
@@ -105,7 +105,7 @@
 						{:else}
 							<ChevronLeft {style} /><a
 								class="familiar-name"
-								href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a
+								href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a
 							>
 						{/if}
 						</span>
@@ -122,7 +122,7 @@
 								<span class="familiar-name">{name}</span>
 								<ChevronRight {style} />
 							{:else}
-								<a class="familiar-name" href={'/wiki/' + name.replaceAll(' ', '-')}>{name}</a>
+								<a class="familiar-name" href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a>
 								<ChevronRight {style} />
 							{/if}
 						</span>

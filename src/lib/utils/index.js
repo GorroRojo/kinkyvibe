@@ -1,5 +1,6 @@
 import '$lib/types.d.js';
 import tagsFactory from './tags';
+import { error } from '@sveltejs/kit';
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
@@ -71,8 +72,15 @@ export function aliaserFactory(tagManager = tagsFactory()) {
  * @return {Promise<ProcessedPost>} - The content and metadata of the post.
  */
 export const fetchPost = async (category, postID, shallow = false) => {
-	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
-	if (meta?.force_unpublished) throw Error('Post is unpublished');
+	// templates (_*.md) are not posts
+	if (postID.startsWith('_')) throw error(404, 'Not found');
+	let postContent, meta;
+	try {
+		({ default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`));
+	} catch (e) {
+		throw error(404, 'Not found');
+	}
+	if (!meta || meta.force_unpublished) throw error(404, 'Not found');
 	return await processPost(postContent, postID, meta, shallow);
 };
 
@@ -192,6 +200,7 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		const { metadata, default: postContent } = await constructor();
 		if (
 			!metadata ||
+			metadata.force_unpublished ||
 			(!unlisted && metadata.force_unlisted) ||
 			(unlisted && !metadata.force_unlisted)
 		) {
