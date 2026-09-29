@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Report-only: main currently has ~36 pre-existing svelte-check errors (types in
+      # edit/+page.svelte, TagsInput, rss, (authed) layout...). They're shown in the log and
+      # as annotations but don't block merges until they're cleaned up; then drop
+      # continue-on-error.
+      - name: svelte-check (report only)
+        run: npm run check
+        continue-on-error: true
+
+      - name: Unit + content tests
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke tests
+        run: npx playwright test
+        env:
+          PW_NO_BUILD: '1'
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
