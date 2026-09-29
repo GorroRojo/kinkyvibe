@@ -38,6 +38,7 @@
  * @typedef {{
  *   types: TicketType[],
  *   fondoPercent: number | null,
+ *   fondoPercentSource: 'frontmatter' | 'auto' | null,
  *   paymentMethods: PaymentMethod[],
  *   mpFeeBasisPoints: number | null,
  *   closesAt: number | null,
@@ -82,20 +83,37 @@ export function toTime(value) {
  * Valida y normaliza `tickets` del frontmatter. Devuelve `null` si el evento no vende entradas.
  * Tira un error descriptivo si la configuración está mal (mejor que vender con un precio raro).
  *
+ * `options.fondoPercent` es el porcentaje automático del Fondo KinkyVibe (ver fondo.js): se usa
+ * si el evento no fija `fondo_percent` (ni el tipo su `fondo`). Sin él, sin fondo.
+ *
  * @param {Record<string, any> | undefined} meta
+ * @param {{ fondoPercent?: number | null }} [options]
  * @returns {EventTickets | null}
  */
-export function parseTicketConfig(meta) {
+export function parseTicketConfig(meta, options = {}) {
 	if (!meta || meta.tickets === undefined || meta.tickets === null) return null;
 	if (!Array.isArray(meta.tickets) || meta.tickets.length === 0) {
 		throw new TypeError('`tickets` tiene que ser una lista con al menos un tipo de entrada');
 	}
+	/** @type {number | null} */
 	let fondoPercent = null;
+	/** @type {'frontmatter' | 'auto' | null} */
+	let fondoPercentSource = null;
 	if (meta.fondo_percent !== undefined && meta.fondo_percent !== null) {
 		fondoPercent = Number(meta.fondo_percent);
 		if (!Number.isInteger(fondoPercent) || fondoPercent < 0 || fondoPercent > 100) {
 			throw new TypeError('`fondo_percent` tiene que ser un entero entre 0 y 100');
 		}
+		fondoPercentSource = 'frontmatter';
+	} else if (
+		options.fondoPercent !== undefined &&
+		options.fondoPercent !== null &&
+		Number.isInteger(options.fondoPercent) &&
+		options.fondoPercent >= 0 &&
+		options.fondoPercent <= 100
+	) {
+		fondoPercent = options.fondoPercent;
+		fondoPercentSource = 'auto';
 	}
 	/** @type {TicketType[]} */
 	const types = [];
@@ -174,6 +192,7 @@ export function parseTicketConfig(meta) {
 	return {
 		types,
 		fondoPercent,
+		fondoPercentSource,
 		paymentMethods,
 		mpFeeBasisPoints,
 		closesAt,

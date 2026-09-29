@@ -9,7 +9,7 @@ Permite que la gente compre entradas para un evento del calendario desde el siti
 Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.md`). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
 
 ```yaml
-fondo_percent: 20 # opcional: % del precio que cubre el Fondo KinkyVibe, en TODOS los tipos
+fondo_percent: 20 # opcional: fija el % del Fondo KinkyVibe para este evento (si falta: automático)
 tickets:
   - id: general # minúsculas, números, - o _ (va en la base de datos: no cambiarlo después de vender)
     name: General # lo que ve la gente
@@ -30,7 +30,7 @@ modalidad: online # opcional: online | presencial (ver "Eventos online")
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
-- **El fondo aplica a todos los tipos de entrada** (decisión de la organización): `fondo_percent` (entero de 0 a 100) aplica el descuento del fondo a todos los tipos del evento, redondeado al peso. `fondo` en un tipo (pesos, de 0 al precio) sigue existiendo para poner el "$ fondo" de la planilla como monto en un evento de un solo tipo, pero no hace falta ni se recomienda usarlo para dejar un tipo sin fondo. Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
+- **El fondo aplica a todos los tipos de entrada** (decisión de la organización) y **es automático**: el porcentaje del mes sale de fondo.kinkyvibe.ar (ver [Descuento automático del Fondo](#descuento-automático-del-fondo)) y se aplica a todos los tipos con precio, redondeado al peso. `fondo_percent` (entero de 0 a 100) en el frontmatter lo fija para ese evento. `fondo` en un tipo (pesos, de 0 al precio) sigue existiendo para poner el "$ fondo" de la planilla como monto en un evento de un solo tipo, pero no hace falta ni se recomienda usarlo para dejar un tipo sin fondo. Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un campo numérico con botones **−** y **+** (grandes, para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
 - `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev).
@@ -123,12 +123,26 @@ Admin en `/admin/entradas/codigos` (link desde `/admin/entradas` y el panel): li
 - "Aplicar" es informativo. Al crear la orden el código se **vuelve a validar dentro del mismo `INSERT`** que reserva el cupo (activo, vigente, del evento, mismo tipo/valor, usos < máximo), así que compras simultáneas no se pasan de `max_uses` (test con 25 compras concurrentes).
 - Un código de otro evento responde "Ese código no existe" (no confirma que exista). Los intentos de "Aplicar" tienen límite por IP (anónimo, con hash).
 
+### Descuento automático del Fondo
+
+El porcentaje del Fondo KinkyVibe se lee de `GET https://fondo.kinkyvibe.ar/api/porcentaje` (`{ percent, collected, goal, step, updatedAt }`, `percent` de 0 a 100 en pasos de 10; la URL se puede cambiar con `FONDO_PERCENT_URL`) en `src/lib/server/tickets/fondo.js`, con 3 s de timeout y memoria de 10 minutos en el isolate (un fallo se recuerda 1 minuto, para no insistir). Orden de precedencia:
+
+1. `fondo_percent` del evento (o `fondo` en pesos de un tipo), en el frontmatter;
+2. el porcentaje fijado a mano en **Ajustes de venta** ("vacío = automático");
+3. solo en `vite dev`: `FONDO_PERCENT_OVERRIDE` (en `.env.tickets`, 20), para probar sin red;
+4. el de la API;
+5. si la API no responde (o devuelve algo raro): el último valor que se obtuvo bien, guardado en D1 (`ticket_settings`, clave `fondo_percent_last`), con un aviso en el log;
+6. 0 (sin descuento). **Nunca frena la venta.**
+
+`fondo = round(precio × porcentaje / 100)` por entrada, en todos los tipos con precio (no en los a la gorra). El precio que se muestra y el que se cobra se calculan en el servidor; el que se cobra, al crear la orden, que guarda el porcentaje usado en `orders.fondo_percent` (migración 0006; también en el CSV, `porcentaje_fondo`). Ajustes de venta muestra "Descuento del Fondo ahora: X %", de dónde sale y cuándo se actualizó.
+
 ### Ajustes de venta
 
 `/admin/entradas/ajustes` (link desde `/admin/entradas` y el panel `/admin`; `requireAdmin` en el `load` y en la action) guarda en D1 (`ticket_settings`, migración 0005):
 
 - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
 - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
+- **Fondo KinkyVibe:** el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
 
 ### Transferencia
 
@@ -192,6 +206,7 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 | `TICKETS_TRANSFER_INFO`       | Respaldo de los datos para transferir si en Ajustes de venta están vacíos; texto libre, saltos de línea reales o escritos `\n`. **No commitear.** |
 | `TICKETS_TRANSFER_HOLD_HOURS` | Opcional. Horas de reserva esperando una transferencia (1 a 240; por defecto 48).                                                                 |
 | `TICKETS_MP_FEE_PERCENT`      | Opcional. Respaldo de la comisión de MP si en Ajustes de venta está vacía (sin ninguna: 2 %). `0` = sin recargo.                                  |
+| `FONDO_PERCENT_URL`           | Opcional. De dónde se lee el porcentaje del Fondo (por defecto `https://fondo.kinkyvibe.ar/api/porcentaje`).                                      |
 | `SITE_URL`                    | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.        |
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
@@ -201,6 +216,7 @@ Solo en desarrollo (`vite dev`; en el build de producción este código no exist
 | `MP_MOCK=1`                      | Usa el Mercado Pago simulado aunque haya `MP_ACCESS_TOKEN`. Sin `MP_ACCESS_TOKEN` también se simula.                                                                                           |
 | `TICKETS_DEV_FIXTURE=slug`       | Agrega entradas de prueba (fondo 20 % en todos los tipos: General $10000 cupo 500, Anticipada $8000 cupo 3; MP y transferencia) a esos eventos sin tocar su archivo. Separar varios con comas. |
 | `TICKETS_DEV_FIXTURE_GORRA=slug` | Lo mismo con un evento online a la gorra (A la gorra: mínimo $1000, sugerido $5000; Libre: mínimo $0, sugerido $3000).                                                                         |
+| `FONDO_PERCENT_OVERRIDE=20`      | Porcentaje del Fondo fijo, sin pedirlo a fondo.kinkyvibe.ar (está en `.env.tickets`).                                                                                                          |
 | `ADMIN_DEV_MOCK=1`               | Sesión de admin falsa (sin GitHub).                                                                                                                                                            |
 
 ## Probar en local (sin cuentas de nada)
@@ -210,7 +226,7 @@ npm install
 npm run dev:tickets
 ```
 
-`dev:tickets` es `vite dev --mode tickets`: Vite y SvelteKit (`$env/dynamic/private`) leen además el archivo **`.env.tickets`**, que está en el repo y tiene solo flags de desarrollo, nada secreto: `MP_MOCK=1`, `ADMIN_DEV_MOCK=1`, `TICKETS_MP_FEE_PERCENT=2` y un `TICKETS_TRANSFER_INFO` con un alias inventado. Funciona igual en Windows, Mac y Linux (no hace falta escribir variables delante del comando). Para cambiar algo solo en tu compu, creá `.env.tickets.local` (lo ignora git); las variables del entorno de la terminal pisan a las de los archivos. Como siempre en dev, antes aplica las migraciones locales de D1.
+`dev:tickets` es `vite dev --mode tickets`: Vite y SvelteKit (`$env/dynamic/private`) leen además el archivo **`.env.tickets`**, que está en el repo y tiene solo flags de desarrollo, nada secreto: `MP_MOCK=1`, `ADMIN_DEV_MOCK=1`, `TICKETS_MP_FEE_PERCENT=2`, `FONDO_PERCENT_OVERRIDE=20` y un `TICKETS_TRANSFER_INFO` con un alias inventado. Funciona igual en Windows, Mac y Linux (no hace falta escribir variables delante del comando). Para cambiar algo solo en tu compu, creá `.env.tickets.local` (lo ignora git); las variables del entorno de la terminal pisan a las de los archivos. Como siempre en dev, antes aplica las migraciones locales de D1.
 
 Con eso ya funciona el evento de prueba `http://localhost:5173/calendario/prueba-entradas-2026-12` (el puerto lo muestra la terminal; su página tiene la guía paso a paso). Para probar con otro evento sin tocar su archivo, agregar `TICKETS_DEV_FIXTURE=<slug>` a `.env.tickets.local`.
 
@@ -347,8 +363,7 @@ Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cue
 - ¿Qué pasa con las entradas si el evento se reprograma o se cancela? ¿Reembolso automático, crédito, o se decide caso por caso?
 - ¿Plazo de acreditación de MP (define la tasa del recargo)?
 - ¿El Fondo KinkyVibe tiene un tope por evento? (hoy no hay tope: cubre todas las entradas vendidas que elijan "con el descuento del fondo").
-- ¿El "$ fondo" de la planilla es el porcentaje del mes del fondo aplicado al precio? Si es así, conviene cargar `fondo_percent` (el mismo para todos los tipos) y actualizarlo cuando cambie el porcentaje recaudado; ¿quién lo actualiza y cada cuánto? ¿Se congela el precio para un evento ya anunciado?
-- ¿El porcentaje del fondo va en pasos de 10 % (como explica fondo.kinkyvibe.ar) o puede ser cualquier número? Hoy acepta cualquier entero de 0 a 100.
+- El porcentaje del Fondo ahora es automático (cambia cuando cambia lo recaudado): ¿se congela el precio para un evento ya anunciado? (Hoy no; se puede fijar con `fondo_percent` en ese evento.)
 - ¿Los aportes de las entradas solidarias / Sugar cuentan para el objetivo mensual del fondo (y para el % de descuento)? ¿Hay que mostrarlos en fondo.kinkyvibe.ar o registrar a esas personas como Mecenas?
 - Si alguien paga una entrada solidaria con un código de descuento, ¿el aporte al fondo es el nominal (lo que se guarda hoy: el código es un costo de la organización) o se reduce en proporción?
 - ¿La venta cierra al empezar el evento o antes? ¿Hay venta en puerta (que habría que restar del cupo)?

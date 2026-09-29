@@ -20,6 +20,7 @@ async function clearSettings(page) {
 	await page.goto('/admin/entradas/ajustes', { waitUntil: 'networkidle' });
 	for (const f of FIELDS) await page.getByLabel(f, { exact: true }).fill('');
 	await page.getByLabel(/Comisión/).fill('');
+	await page.getByLabel(/Fijar el porcentaje/).fill('');
 	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
 	await expect(page.getByText('Ajustes guardados.')).toBeVisible();
 }
@@ -39,6 +40,8 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	);
 	await page.goto('/admin/entradas/ajustes', { waitUntil: 'networkidle' });
 	await expect(page.getByText('se usan los datos de la variable')).toBeVisible();
+	// Porcentaje del Fondo de este momento (en las pruebas, FONDO_PERCENT_OVERRIDE=20).
+	await expect(page.locator('.fondo-now')).toContainText('Descuento del Fondo ahora: 20 %');
 
 	// Datos INVENTADOS (el repo es público).
 	await page.getByLabel('Alias', { exact: true }).fill('OTRO.ALIAS.PRUEBA');
@@ -85,4 +88,20 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	// Vacío otra vez: vuelven los de la variable de entorno.
 	await clearSettings(page);
 	await expect(page.getByText('se usan los datos de la variable')).toBeVisible();
+});
+
+test('porcentaje del Fondo fijado a mano: cambia el precio que se ve y se cobra', async ({
+	page
+}) => {
+	await clearSettings(page);
+	await page.getByLabel(/Fijar el porcentaje/).fill('50');
+	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
+	await expect(page.getByText('Ajustes guardados.')).toBeVisible();
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(page.locator('.fondo-now')).toContainText('50 %');
+	await expect(page.locator('.fondo-now')).toContainText('fijado a mano');
+	await page.goto(`/calendario/${EVENT}/entradas`, { waitUntil: 'networkidle' });
+	const general = page.locator('#entradas label.type', { hasText: 'General' });
+	await expect(general.locator('strong')).toHaveText('$ 5.000');
+	await expect(page.locator('#entradas')).toContainText('este mes, un 50 %');
 });

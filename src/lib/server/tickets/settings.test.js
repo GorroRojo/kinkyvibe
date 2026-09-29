@@ -38,7 +38,8 @@ describe('ajustes de venta', () => {
 				transfer_cbu: '0000000000000000000000',
 				transfer_holder: 'Nombre de ejemplo',
 				transfer_bank: '',
-				mp_fee_percent: '7,73'
+				mp_fee_percent: '7,73',
+				fondo_percent_override: ''
 			}
 		});
 		const bad = /** @type {any} */ (

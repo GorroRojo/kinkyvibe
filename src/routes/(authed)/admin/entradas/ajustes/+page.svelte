@@ -86,6 +86,52 @@
 		</fieldset>
 
 		<fieldset>
+			<legend>Fondo KinkyVibe</legend>
+			<p class="fondo-now">
+				Descuento del Fondo ahora: <strong>{data.fondo.percent} %</strong>
+				<small>
+					{#if data.fondo.source === 'admin'}
+						— fijado a mano acá abajo (vaciá el campo para que vuelva a ser automático).
+					{:else if data.fondo.source === 'live'}
+						— se actualiza solo desde
+						<a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener"
+							>fondo.kinkyvibe.ar</a
+						>{#if data.fondo.updatedAt}; último dato: {date(data.fondo.updatedAt)}{/if}.
+					{:else if data.fondo.source === 'stored'}
+						— fondo.kinkyvibe.ar no responde ahora: se usa el último dato ({date(
+							data.fondo.updatedAt
+						)}).
+					{:else if data.fondo.source === 'override'}
+						— valor de prueba (FONDO_PERCENT_OVERRIDE, solo en desarrollo).
+					{:else}
+						— no se pudo leer de fondo.kinkyvibe.ar y no hay un dato anterior: sin descuento.
+					{/if}
+				</small>
+			</p>
+			<label class="field">
+				<span>Fijar el porcentaje a mano (%)</span>
+				<input
+					type="text"
+					name="fondo_percent_override"
+					inputmode="numeric"
+					value={value('fondo_percent_override')}
+					placeholder="automático"
+					maxlength="4"
+					autocomplete="off"
+					aria-invalid={errors.fondo_percent_override ? 'true' : undefined}
+				/>
+				{#if errors.fondo_percent_override}<span class="field-error"
+						>{errors.fondo_percent_override}</span
+					>{/if}
+			</label>
+			<p class="note">
+				Vacío = automático: el porcentaje del mes de fondo.kinkyvibe.ar, en todos los tipos de
+				entrada con precio (no en los a la gorra). Un evento con <code>fondo_percent</code> en su frontmatter
+				usa ese. Cada compra guarda el porcentaje con el que se calculó.
+			</p>
+		</fieldset>
+
+		<fieldset>
 			<legend>Mercado Pago</legend>
 			<label class="field">
 				<span>Comisión que se suma como recargo (%)</span>
@@ -193,6 +239,12 @@
 	}
 	.flash.error {
 		background: hsl(0, 90%, 90%);
+	}
+	.fondo-now {
+		margin: 0;
+	}
+	.fondo-now strong {
+		font-size: var(--step-1);
 	}
 	.field-error {
 		color: hsl(0, 75%, 40%);

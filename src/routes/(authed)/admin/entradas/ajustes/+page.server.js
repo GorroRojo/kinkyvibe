@@ -7,6 +7,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
+import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { envMpFeeBasisPoints, envTransferInfo } from '$lib/server/tickets/index.js';
 import {
 	TRANSFER_FIELDS,
@@ -16,7 +17,7 @@ import {
 } from '$lib/server/tickets/settings.js';
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, platform, setHeaders }) {
+export async function load({ locals, url, platform, setHeaders, fetch }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
@@ -30,6 +31,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 		}
 	}
 	return {
+		// Porcentaje del Fondo que se está aplicando ahora y de dónde sale.
+		fondo: await resolveFondoPercent({ db, fetch }),
 		dbAvailable: Boolean(db && settings),
 		settings,
 		fields: TRANSFER_FIELDS.map((f) => ({ key: f.key, label: f.label, max: f.max })),

@@ -639,3 +639,20 @@ describe('a la gorra y pronombres de quien compra', () => {
 		).rejects.toThrow(/CHECK/);
 	});
 });
+
+describe('porcentaje del Fondo en la orden', () => {
+	it('guarda el porcentaje con el que se calculó (y NULL a la gorra)', async () => {
+		const withFondo = { id: 'general', price: 10000, fondo: 2000, capacity: 5 };
+		const r = /** @type {any} */ (await reserve({ type: withFondo, fondoPercent: 20 }));
+		expect(r.order).toMatchObject({ fondo_percent: 20, fondo_amount: 2000, total: 8000 });
+		const g = /** @type {any} */ (
+			await reserve({
+				type: { id: 'g', price: 1, fondo: 0, capacity: 5, gorra: { min: 0, suggested: 1 } },
+				option: 'gorra',
+				unitPrice: 500,
+				fondoPercent: 20
+			})
+		);
+		expect(g.order.fondo_percent).toBeNull();
+	});
+});

@@ -19,7 +19,9 @@ export const TRANSFER_FIELDS = /** @type {const} */ ([
 
 export const SETTING_KEYS = /** @type {const} */ ([
 	...TRANSFER_FIELDS.map((f) => f.key),
-	'mp_fee_percent'
+	'mp_fee_percent',
+	// Porcentaje del Fondo fijado a mano (vacío = automático, desde fondo.kinkyvibe.ar).
+	'fondo_percent_override'
 ]);
 
 /** @typedef {(typeof SETTING_KEYS)[number]} SettingKey */
@@ -86,6 +88,12 @@ export function validateSalesSettings(form) {
 			'Poné un porcentaje entre 0 y 49,99 (por ejemplo 2 o 6,29), o dejalo vacío.';
 	}
 	value.mp_fee_percent = fee;
+	const fondo = clean(form.fondo_percent_override).replace(/\s*%$/, '');
+	if (fondo && !/^(100|[1-9]?\d)$/.test(fondo)) {
+		errors.fondo_percent_override =
+			'Poné un número entero de 0 a 100, o dejalo vacío (automático).';
+	}
+	value.fondo_percent_override = fondo;
 	if (Object.keys(errors).length) return { ok: false, errors };
 	return { ok: true, value };
 }

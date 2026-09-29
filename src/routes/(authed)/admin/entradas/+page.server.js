@@ -1,15 +1,17 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts } from '$lib/server/tickets/orders.js';
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, platform, setHeaders }) {
+export async function load({ locals, url, platform, setHeaders, fetch }) {
 	// El load de la página corre en paralelo con el del layout: chequeamos acá también.
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
-	const events = await listTicketedEvents();
+	const fondo = await resolveFondoPercent({ db, fetch });
+	const events = await listTicketedEvents({ fondoPercent: fondo.percent });
 	const rows = [];
 	for (const { slug, config } of events) {
 		/** @type {Awaited<ReturnType<typeof getCounts>>} */

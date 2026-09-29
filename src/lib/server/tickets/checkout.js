@@ -12,6 +12,7 @@ import { MAX_TICKETS_PER_FORM, computePrice } from '$lib/utils/tickets.js';
 import { salesState, validatePurchase } from './config.js';
 import { checkDiscountCode } from './discounts.js';
 import { getEventTickets } from './events.js';
+import { resolveFondoPercent } from './fondo.js';
 import {
 	contactEmail,
 	getGateway,
@@ -57,6 +58,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   feeBasisPoints: number,
  *   contactEmail: string,
  *   online: boolean,
+ *   fondoPercent: number | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
  *     gorra: { min: number, suggested: number } | null }[]
  * }} TicketsView
@@ -83,10 +85,12 @@ async function availableMethods(db, config) {
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
+ * @param {typeof fetch} [fetchFn] para leer el porcentaje automático del Fondo
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
-export async function getTicketsView(db, slug) {
-	const config = await getEventTickets(slug);
+export async function getTicketsView(db, slug, fetchFn) {
+	const fondo = await resolveFondoPercent({ db, fetch: fetchFn });
+	const config = await getEventTickets(slug, { fondoPercent: fondo.percent });
 	if (!config) return null;
 	const state = salesState(config);
 	const methods = await availableMethods(db, config);
@@ -102,6 +106,7 @@ export async function getTicketsView(db, slug) {
 		feeBasisPoints: await mpFeeBasisPoints(db, config),
 		contactEmail: contactEmail(),
 		online: config.online,
+		fondoPercent: config.fondoPercent,
 		types: config.types.map((t) => ({
 			id: t.id,
 			name: t.name,
@@ -278,7 +283,9 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 		fail(status, { buy: { error, errors, values, discount: applied } });
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
-	const config = await getEventTickets(params.event);
+	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
+	const fondo = await resolveFondoPercent({ db, fetch });
+	const config = await getEventTickets(params.event, { fondoPercent: fondo.percent });
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
 	const state = salesState(config);
 	if (!state.open) {
@@ -374,6 +381,8 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			holders: valid.holders,
 			option: valid.option,
 			unitPrice: valid.unitPrice,
+			// Porcentaje del Fondo vigente al comprar (del frontmatter o el automático).
+			fondoPercent: config.fondoPercent,
 			method,
 			feeBasisPoints: await mpFeeBasisPoints(db, config),
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },

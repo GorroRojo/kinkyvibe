@@ -47,6 +47,8 @@ const config = {
 			TICKETS_DEV_FIXTURE_GORRA: ticketsE2EGorraEvent(),
 			TICKETS_TRANSFER_INFO: TRANSFER_INFO,
 			TICKETS_MP_FEE_PERCENT: MP_FEE_PERCENT,
+			// Descuento automático del Fondo sin red.
+			FONDO_PERCENT_OVERRIDE: '20',
 			MP_ACCESS_TOKEN: '',
 			RESEND_API_KEY: ''
 		}

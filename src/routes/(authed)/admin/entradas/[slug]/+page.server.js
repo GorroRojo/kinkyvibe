@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
+import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import {
 	inBackground,
 	sendOrderEmail,
@@ -29,12 +30,13 @@ import { orderReference } from '$lib/utils/tickets.js';
 const EXPIRED_TRANSFER_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, params, platform, setHeaders }) {
+export async function load({ locals, url, params, platform, setHeaders, fetch }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
-	const config = await getEventTickets(params.slug);
-	if (!config) error(404, 'Ese evento no vende entradas.');
 	const db = getDB(platform);
+	const fondo = await resolveFondoPercent({ db, fetch });
+	const config = await getEventTickets(params.slug, { fondoPercent: fondo.percent });
+	if (!config) error(404, 'Ese evento no vende entradas.');
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
 	const [orders, counts, tickets] = await Promise.all([

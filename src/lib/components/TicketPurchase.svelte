@@ -401,8 +401,9 @@
 					<small class="hint">
 						El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener"
 							>Fondo KinkyVibe</a
-						> baja el precio de todo lo que hacemos para todo el mundo. Si podés, sumá un aporte: lo que
-						pagás de más va entero al fondo.
+						> baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
+							mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más va
+						entero al fondo.
 					</small>
 					{#each fondoOptions as o (o.id)}
 						{@const u = unitPrice(selected.price, selected.fondo, o.id)}

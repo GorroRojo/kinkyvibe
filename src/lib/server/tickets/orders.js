@@ -30,7 +30,7 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
  *   id: string, event_slug: string, ticket_type: string, quantity: number, unit_price: number,
  *   fondo_option: import('$lib/utils/tickets.js').PriceOption, fondo_amount: number,
  *   fondo_contribution: number, subtotal: number, discount_code: string | null, discount_amount: number,
- *   surcharge_amount: number, total: number,
+ *   surcharge_amount: number, total: number, fondo_percent: number | null,
  *   payment_method: OrderPaymentMethod, buyer_name: string, buyer_pronouns: string | null,
  *   buyer_email: string,
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
@@ -132,6 +132,7 @@ export function newToken() {
  *   holders: Holder[],
  *   option?: import('$lib/utils/tickets.js').PriceOption,
  *   unitPrice?: number,
+ *   fondoPercent?: number | null,
  *   feeBasisPoints?: number,
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
@@ -178,9 +179,10 @@ export async function reserveOrder(db, input) {
 				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
-					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns)
+					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns,
+					fondo_percent)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22, ?23, ?24, ?25
+					?20, ?21, ?22, ?23, ?24, ?25, ?26
 				WHERE (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
@@ -214,7 +216,8 @@ export async function reserveOrder(db, input) {
 				buyer.dni,
 				prices.option,
 				prices.contribution,
-				'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null
+				'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null,
+				gorra ? null : (input.fondoPercent ?? null)
 			)
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);

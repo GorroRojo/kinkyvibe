@@ -20,7 +20,8 @@ start: 2026-12-12T21:00-03:00
 end: 2026-12-13T02:00-03:00
 location: Dirección de ejemplo 123, Ciudad de Buenos Aires
 location_name: Lugar de prueba
-fondo_percent: 20 # el Fondo KinkyVibe cubre el 20 % de cada entrada, en todos los tipos
+# Sin `fondo_percent`: el descuento del Fondo KinkyVibe es el automático del mes (de
+# fondo.kinkyvibe.ar; en `npm run dev:tickets`, el 20 % de FONDO_PERCENT_OVERRIDE), en todos los tipos.
 tickets:
   - id: general
     name: General
@@ -54,6 +55,7 @@ Eso levanta el sitio con la configuración de prueba del archivo `.env.tickets` 
 - `MP_MOCK=1`: Mercado Pago simulado (no se cobra nada).
 - `ADMIN_DEV_MOCK=1`: entrás al admin sin GitHub.
 - `TICKETS_TRANSFER_INFO`: datos de transferencia de ejemplo (inventados). Se usan mientras no cargues otros en **Ajustes de venta** (paso 8). Sin datos de transferencia no aparece la opción "Transferencia".
+- `FONDO_PERCENT_OVERRIDE=20`: el porcentaje del Fondo KinkyVibe que se usa en la prueba. En el sitio de verdad sale solo de fondo.kinkyvibe.ar (el porcentaje del mes); se puede fijar a mano en **Ajustes de venta**.
 - `TICKETS_MP_FEE_PERCENT=2`: la comisión de Mercado Pago que se suma como recargo al pagar con MP (2 % es el valor por defecto que eligió la organización; la real varía según la cuenta y se ajusta en **Ajustes de venta**, paso 8).
 - Los mails no se mandan: aparecen resumidos en la terminal.
 

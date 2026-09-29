@@ -34,11 +34,11 @@ function readVisitorId(cookies) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params, platform, cookies }) {
+export async function load({ params, platform, cookies, fetch }) {
 	const [related, interest, tickets] = await Promise.all([
 		loadRelated(params.event),
 		loadInterest(params.event, platform, cookies),
-		loadTickets(params.event, platform)
+		loadTickets(params.event, platform, fetch)
 	]);
 	return { ...related, interest, tickets };
 }
@@ -48,10 +48,11 @@ export async function load({ params, platform, cookies }) {
  * el evento no vende entradas.
  * @param {string} slug
  * @param {App.Platform|undefined} platform
+ * @param {typeof fetch} fetchFn
  */
-async function loadTickets(slug, platform) {
+async function loadTickets(slug, platform, fetchFn) {
 	if (!isValidEventSlug(slug)) return null;
-	const view = await getTicketsView(getDB(platform), slug);
+	const view = await getTicketsView(getDB(platform), slug, fetchFn);
 	return view ? summarizeTickets(view) : null;
 }
 
