@@ -61,7 +61,8 @@ const setFont = (ctx, family, size, weight = 400) => {
  * @param {number} maxWidth
  */
 export function wrapLines(ctx, text, maxWidth) {
-	const words = text.split(/\s+/).filter(Boolean);
+	// los espacios duros (\u00a0) no cortan: "20:30\u00a0HS" queda junto
+	const words = text.split(/[^\S\u00a0]+/).filter(Boolean);
 	/** @type {string[]} */
 	const lines = [];
 	let line = '';
@@ -852,7 +853,7 @@ function dateParts(o) {
 	const info = eventInfo(o.meta);
 	if (t.date !== def.date || info.multiDay) return [t.date];
 	const [weekday, ...rest] = info.day.replace(/ de \d{4}$/, '').split(' ');
-	return [weekday.toUpperCase(), rest.join(' ').replace(/ de /, ' de ').toUpperCase()];
+	return [weekday.toUpperCase(), rest.join(' ').toUpperCase()];
 }
 
 /* ------------------------------------------------------------------ */
@@ -1202,7 +1203,8 @@ function tplGrupo(ctx, o, f, p) {
 	if (imgTop < barsTop - 60 * s) {
 		ctx.save();
 		ctx.globalAlpha = 0.92;
-		badge(ctx, o.logo, 40 * s, imgTop - 70 * s, 160 * s, p, -0.12);
+		// abajo a la izquierda de la imagen: arriba pisaba el final del título
+		badge(ctx, o.logo, 40 * s, barsTop - 190 * s, 150 * s, p, -0.12);
 		ctx.restore();
 	}
 	statusSticker(ctx, o, p, w - 150 * s, imgTop + 120 * s, 110 * s, (imgTop + barsTop) / 2, w);
@@ -1233,7 +1235,8 @@ function tplCartel(ctx, o, f, p) {
 	grain(ctx, w, h, 0.1);
 	const barsTop = footerBars(ctx, t, f, p, { dry: true });
 	// recuadro con los datos (se mide primero para saber cuánto lugar queda)
-	const dateLine = [t.date, t.hours].filter(Boolean).join('  •  ');
+	// fecha y horario no se parten por dentro ("19 A 20:30" / "HS" quedaba feo)
+	const dateLine = [t.date, t.hours].filter(Boolean).map((x) => x.trim().replace(/ +/g, '\u00a0')).join('  •  ');
 	const placeLine = t.place;
 	// el detalle largo de la entrada va en la ficha; acá solo si es corto
 	const priceLine = [t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
@@ -1404,11 +1407,12 @@ function renderInfo(ctx, o, f, p) {
 		}
 		return { total, L };
 	};
-	let k = 1.2;
+	// con pocos datos la letra crece (hasta 1.5) en vez de dejar medio cartel vacío
+	let k = 1.5;
 	let m = measure(k);
 	while (m.total > avail && k > 0.6) m = measure((k -= 0.05));
 	const { L } = m;
-	if (m.total < avail) y += Math.min((avail - m.total) / 3, 40 * s);
+	if (m.total < avail) y += Math.min((avail - m.total) / 3, 120 * s);
 	if (L.sum) {
 		ctx.fillStyle = p.text;
 		setFont(ctx, ROUND, 36 * k * s, 500);

@@ -841,6 +841,11 @@
 			figure {
 				flex: 0 0 72%;
 				scroll-snap-align: center;
+				// la vertical, más angosta: así las tres miden lo mismo de alto y no queda un
+				// hueco grande debajo de las otras dos
+				&.story {
+					flex-basis: calc(72% * 1350 / 1920);
+				}
 			}
 			.note {
 				flex: 0 0 100%;

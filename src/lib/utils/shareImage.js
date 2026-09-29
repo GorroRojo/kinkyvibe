@@ -568,7 +568,7 @@ export const FIELDS = [
 	{ key: 'address', label: 'Dirección', where: 'ficha' },
 	{ key: 'price', label: 'Entrada', placeholder: 'GRATIS, A LA GORRA, $…', where: 'todas' },
 	{ key: 'priceInfo', label: 'Detalle de la entrada', placeholder: 'con posibilidad de beca, en puerta…', where: 'todas', long: true },
-	{ key: 'organizers', label: 'Organiza', where: 'ficha' },
+	{ key: 'organizers', label: 'Organiza / facilita', where: 'ficha' },
 	{ key: 'summary', label: 'Descripción corta', where: 'ficha', long: true },
 	{ key: 'audience', label: 'Para quién es', placeholder: 'para subs, doms, switches…', where: 'nota al pie y ficha', long: true },
 	{ key: 'dress', label: 'Dress code / qué traer', placeholder: 'Dress code, qué llevar…', where: 'ficha', long: true },
