@@ -13,12 +13,13 @@ export async function load({ locals, params }) {
 
 /** @type {import("./$types").Actions} */
 export const actions = {
-	save: async ({ params, cookies, request }) => {
+	save: async ({ params, cookies, locals, request }) => {
 		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
 		const data = await request.formData();
 		const fileContent = data.get('content');
-		let userName = cookies.get('userName');
-		if (userName == "null") userName = cookies.get('userLogin')
+		// Commit author label from the verified GitHub user; `name` is null for
+		// accounts without a display name, so fall back to the login.
+		const userName = locals.user?.name || locals.user?.login || 'admin';
 		// @ts-ignore
 		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), userName, params.category, params.postID);
 		return { save: 'Guardado' };
