@@ -5,7 +5,7 @@ import { redirect } from '@sveltejs/kit';
 export async function load({ params }) {
 	let post = await fetchPost('material', params.post);
 	if (post.meta?.redirect) {
-		throw redirect(307, post.meta.link);
+		redirect(307, post.meta.link);
 	}
 	return post;
 }

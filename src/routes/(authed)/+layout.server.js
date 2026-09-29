@@ -1,13 +1,13 @@
 import { redirect } from '@sveltejs/kit';
 export async function load({ locals, url }) {
 	if (locals.user_token == undefined || locals.user_token == '') {
-		throw redirect(303, `/login?redirectTo=${url.pathname}`);
+		redirect(303, `/login?redirectTo=${url.pathname}`);
 	} else if (isAdmin(locals.user_token, locals.user.login)) {
 		return {
 			currentRoute: url.pathname
 		};
 	} else {
-		throw redirect(303, '/')
+		redirect(303, '/')
 	}
 }
 /**

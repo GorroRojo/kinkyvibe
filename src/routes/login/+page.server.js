@@ -8,10 +8,10 @@ export const actions = {
 		const sessionId = '1234';
 		const data = await request.formData()
 		const redirectTo = data.get('redirectTo') ?? '/';
-		throw redirect(
+		redirect(
 			302,
 			`${target}?client_id=${clientId}&state=${sessionId}&scope=repo&redirectTo=${redirectTo}`
 		);
-		// 	throw redirect(303, url.searchParams.get('redirectTo') ?? '/');
+		// 	redirect(303, url.searchParams.get('redirectTo') ?? '/');
 	}
 };
