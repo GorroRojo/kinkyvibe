@@ -2,7 +2,20 @@
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { onDestroy, tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
+	import DayPicker from '$lib/components/admin/DayPicker.svelte';
+	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
+	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
+	import TagPicker from '$lib/components/admin/TagPicker.svelte';
+	import '$lib/components/admin/admin.scss';
 	import { tagManager } from '$lib/utils/stores';
+	import {
+		buildTagOptions,
+		excludedFromPicker,
+		joinEventTags,
+		splitEventTags,
+		validateEventTags
+	} from '$lib/utils/adminTags.js';
+	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
 	import {
 		STATUS_OPTIONS,
 		addDays,
@@ -12,10 +25,14 @@
 		describeSchedule,
 		formFromSource,
 		formatEventDate,
+		isNumericFeatured,
 		isValidDate,
 		isValidTime,
+		parseEventDate,
+		prefillMonth,
 		readEventFields,
 		slugify,
+		splitList,
 		splitMarkdown,
 		uniqueSlug,
 		validateSchedule,
@@ -44,6 +61,30 @@
 	}
 	values.startDate = '';
 	values.endDate = '';
+	// ...but the calendar opens on the month the copy most likely is: this month until the 15th,
+	// next month from the 16th (Argentina time). The day is always picked by hand.
+	let month = prefillMonth(data.today);
+	const sourceStart = parseEventDate(sourceFields.start).date;
+	const sourceWeekday =
+		source && isValidDate(sourceStart) ? new Date(sourceStart + 'T12:00:00Z').getUTCDay() : undefined;
+
+	/* ---------- tags & organizers ---------- */
+	const tagOptions = buildTagOptions({ category: 'calendario', usage: data.tagUsage });
+	const reservedTags = new Set([...excludedFromPicker('calendario'), 'online', 'virtual']);
+	const initialTags = splitEventTags(splitList(values.tags));
+	let tagRules = {
+		kinkyvibe: initialTags.kinkyvibe,
+		language: initialTags.language,
+		sign: initialTags.sign,
+		place: initialTags.place,
+		prices: initialTags.prices
+	};
+	let freeTags = initialTags.rest;
+	let authors = splitList(values.authors);
+	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
+	$: values.tags = joinEventTags({ ...tagRules, rest: freeTags });
+	$: values.authors = authors;
+	$: tagErrors = validateEventTags(splitList(values.tags));
 
 	function onStartDateChange() {
 		if (isValidDate(values.startDate)) values.endDate = addDays(values.startDate, span);
@@ -103,6 +144,8 @@
 
 	/* ---------- image ---------- */
 	const hasSourceImage = Boolean(sourceFields.featured && source);
+	// A non-numeric `featured` names a file in src/lib/assets shared by several posts.
+	const sourceImageIsShared = hasSourceImage && !isNumericFeatured(sourceFields.featured);
 	/** @type {'keep'|'upload'|'none'} */
 	let featuredMode = hasSourceImage ? 'keep' : 'none';
 	/** @type {HTMLInputElement} */
@@ -165,7 +208,8 @@
 			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
 			slugProblem,
 			serverSlugError,
-			uploadError
+			uploadError,
+			...tagErrors
 		].filter(Boolean)
 	);
 
@@ -303,7 +347,7 @@
 	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · KV Admin</title>
 </svelte:head>
 
-<main class="nuevo">
+<main class="nuevo kv-admin">
 	<p class="back"><a href="/admin/eventos">← Volver a la lista de eventos</a></p>
 
 	{#if data.mock}
@@ -379,27 +423,35 @@
 					</p>
 				{/if}
 
-				<fieldset>
+				<fieldset class="card">
 					<legend>📅 ¿Cuándo es?</legend>
 					{#if originalSchedule}
 						<p class="hint">El evento original fue el {originalSchedule}.</p>
 					{/if}
+					<div class="field-label">
+						<span id="ev-start-date-label">Día que empieza <span class="req">*</span></span>
+						<DayPicker
+							bind:value={values.startDate}
+							bind:month
+							today={data.today}
+							hintWeekday={sourceWeekday}
+							describedby="ev-start-date-help"
+						/>
+						<small id="ev-start-date-help">
+							Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
+							{#if sourceWeekday !== undefined}Resaltamos el mismo día de la semana que el original.{/if}
+						</small>
+						{#if values.startDate && values.startDate < data.today}
+							<p class="warning">⚠️ Esa fecha ya pasó.</p>
+						{/if}
+					</div>
 					<div class="grid">
-						<label>
-							<span>Día que empieza <span class="req">*</span></span>
-							<input
-								type="date"
-								id="ev-start-date"
-								bind:value={values.startDate}
-								required
-							/>
-						</label>
-						<label>
+						<label class="field">
 							<span>Hora que empieza <span class="req">*</span></span>
 							<input type="time" id="ev-start-time" bind:value={values.startTime} required />
 						</label>
 						{#if values.hasEnd}
-							<label>
+							<label class="field">
 								<span>Día que termina <span class="req">*</span></span>
 								<input
 									type="date"
@@ -409,7 +461,7 @@
 									required
 								/>
 							</label>
-							<label>
+							<label class="field">
 								<span>Hora que termina <span class="req">*</span></span>
 								<input type="time" id="ev-end-time" bind:value={values.endTime} required />
 							</label>
@@ -432,9 +484,9 @@
 					{/if}
 				</fieldset>
 
-				<fieldset>
+				<fieldset class="card">
 					<legend>🔗 Dirección de la página</legend>
-					<label>
+					<label class="field">
 						<span>Así va a quedar el link del evento</span>
 						<div class="slug">
 							<span class="prefix">kinkyvibe.ar/calendario/</span>
@@ -466,13 +518,13 @@
 					{/if}
 				</fieldset>
 
-				<fieldset>
+				<fieldset class="card">
 					<legend>📝 Datos del evento</legend>
-					<label>
+					<label class="field">
 						<span>Título <span class="req">*</span></span>
 						<input id="ev-title" bind:value={values.title} placeholder="Ej: Picantearla (62ª Edición)" />
 					</label>
-					<label>
+					<label class="field">
 						<span>Resumen corto</span>
 						<textarea
 							id="ev-summary"
@@ -481,7 +533,7 @@
 							placeholder="Aparece en la lista de eventos y cuando se comparte el link"
 						/>
 					</label>
-					<label>
+					<label class="field">
 						<span>Estado</span>
 						<select id="ev-status" bind:value={values.status}>
 							{#each STATUS_OPTIONS as option}
@@ -490,16 +542,16 @@
 						</select>
 					</label>
 					<div class="grid">
-						<label>
+						<label class="field">
 							<span>Dirección</span>
 							<input id="ev-location" bind:value={values.location} placeholder="Calle 123, Ciudad" />
 							<small>Dejalo vacío si es online.</small>
 						</label>
-						<label>
+						<label class="field">
 							<span>Nombre del lugar</span>
 							<input id="ev-location-name" bind:value={values.location_name} placeholder="Ej: El Surco" />
 						</label>
-						<label>
+						<label class="field">
 							<span>Link de inscripción / entradas</span>
 							<input
 								id="ev-link"
@@ -510,24 +562,48 @@
 							/>
 							<small>Solo se muestra cuando el estado es «Abierto».</small>
 						</label>
-						<label>
+						<label class="field">
 							<span>Texto del botón</span>
 							<input id="ev-link-text" bind:value={values.link_text} placeholder="Inscribirme" />
 						</label>
 					</div>
-					<label>
-						<span>Etiquetas</span>
-						<input id="ev-tags" bind:value={values.tags} placeholder="español, KinkyVibe, pago, AMBA, taller" />
-						<small>Separadas por comas. Ej: pago / gratis / a la gorra, y la zona (AMBA, Córdoba, online…).</small>
-					</label>
-					<label>
-						<span>Organizan</span>
-						<input id="ev-authors" bind:value={values.authors} placeholder="KinkyVibe, DemonWeb" />
-						<small>Separades por comas, como aparecen en amigues.</small>
-					</label>
+					<div class="field-label">
+						<label for="ev-authors">Organizan</label>
+						<OrganizerPicker
+							bind:authors
+							profiles={data.profiles}
+							options={organizerOptions}
+							id="ev-authors"
+							describedby="ev-authors-help"
+						/>
+						<small id="ev-authors-help"
+							>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden ser
+							varias personas o grupos.</small
+						>
+					</div>
 				</fieldset>
 
-				<fieldset>
+				<fieldset class="card">
+					<legend>🏷️ Etiquetas</legend>
+					<EventTagRules bind:state={tagRules} errors={showProblems ? tagErrors : []} />
+					<div class="field-label">
+						<label for="ev-tags">Otras etiquetas: tipo de evento, prácticas, temas…</label>
+						<TagPicker
+							bind:tags={freeTags}
+							options={tagOptions}
+							reserved={reservedTags}
+							reservedHint="se elige con los botones de arriba (idioma, lugar, precio o KinkyVibe)."
+							id="ev-tags"
+							describedby="ev-tags-help"
+						/>
+						<small id="ev-tags-help"
+							>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí las
+							que ya existen: son las que se usan para filtrar.</small
+						>
+					</div>
+				</fieldset>
+
+				<fieldset class="card">
 					<legend>🖼️ Imagen</legend>
 					<div class="image-row">
 						{#if previewImage}
@@ -536,8 +612,16 @@
 							<div class="thumb empty">Sin imagen</div>
 						{/if}
 						<div class="image-actions">
-							{#if featuredMode === 'keep'}
-								<p class="hint">Se usa la misma imagen que el evento original.</p>
+							{#if featuredMode === 'keep' && sourceImageIsShared}
+								<p class="hint">
+									Se usa la misma imagen que el evento original. Es una imagen compartida del sitio
+									(<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se modifica.
+								</p>
+							{:else if featuredMode === 'keep'}
+								<p class="hint">
+									Se usa la misma imagen que el evento original: se copia a la carpeta de este evento. El
+									evento original no cambia.
+								</p>
 							{:else if featuredMode === 'upload'}
 								<p class="hint">Nueva imagen: {uploadName}</p>
 							{/if}
@@ -553,6 +637,10 @@
 								/>
 							</label>
 							<small>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small>
+							<p class="note" id="ev-image-where">
+								📁 La imagen se guarda solo para este evento{#if slug}
+									(en <code>calendario/media/{slug}/</code>){/if}; el evento original no cambia.
+							</p>
 							{#if featuredMode !== 'none'}
 								<button type="button" class="link" on:click={() => setImage('none')}>Quitar imagen</button>
 							{/if}
@@ -566,7 +654,7 @@
 					</div>
 				</fieldset>
 
-				<fieldset>
+				<fieldset class="card">
 					<legend>📄 Texto largo de la página</legend>
 					<p class="hint">
 						Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>, <code>- lista</code>,
@@ -613,12 +701,18 @@
 					<dd>{STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}</dd>
 					<dt>Lugar</dt>
 					<dd>{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}</dd>
+					<dt>Organizan</dt>
+					<dd>{authors.join(', ') || '—'}</dd>
+					<dt>Etiquetas</dt>
+					<dd>{splitList(values.tags).join(', ')}</dd>
 					<dt>Imagen</dt>
 					<dd>
 						{featuredMode === 'upload'
-							? 'Nueva: ' + uploadName
+							? `Nueva: ${uploadName} (solo para este evento)`
+							: featuredMode === 'keep' && sourceImageIsShared
+							? 'La misma del evento original (imagen compartida del sitio)'
 							: featuredMode === 'keep'
-							? 'La misma del evento original'
+							? 'La misma del evento original (copiada a este evento)'
 							: 'Sin imagen'}
 					</dd>
 				</dl>
@@ -679,27 +773,7 @@
 </main>
 
 <style lang="scss">
-	.nuevo {
-		max-width: 44rem;
-		margin-inline: auto;
-		padding: 0 16px 5em;
-		font-size: var(--step-0);
-	}
-	h1 {
-		font-size: var(--step-2);
-		margin: 0.3em 0;
-		overflow-wrap: anywhere;
-	}
-	.back {
-		margin: 0.5em 0 0;
-		font-size: var(--step--1);
-	}
-	.mock {
-		background: var(--4-light);
-		border-radius: 1em;
-		padding: 0.5em 1em;
-		font-size: var(--step--1);
-	}
+	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). Page-specific below. */
 	.steps {
 		display: flex;
 		gap: 1em;
@@ -715,84 +789,9 @@
 			}
 		}
 	}
-	fieldset {
-		border: 0;
-		background: white;
-		border-radius: 1.2em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
-		padding: 0.8em 1em 1em;
-		margin: 0 0 1em;
-		display: flex;
-		flex-direction: column;
-		gap: 0.7em;
-		min-width: 0;
-	}
-	legend {
-		float: left;
-		font-weight: bold;
-		font-size: var(--step-0-5);
-		padding: 0;
-		margin-bottom: 0.2em;
-	}
-	legend + * {
-		clear: both;
-	}
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25em;
-		min-width: 0;
-		> span {
-			color: var(--1-dark);
-		}
-	}
-	label.check {
-		flex-direction: row;
-		align-items: center;
-		gap: 0.5em;
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.7em;
-	}
-	input:not([type='checkbox']):not([type='file']),
-	select,
-	textarea {
-		font: inherit;
-		font-size: var(--step-0);
-		padding: 0.45em 0.8em;
-		border-radius: 0.8em;
-		border: 0;
-		outline: 1px solid var(--1-light);
-		background: white;
-		min-width: 0;
-		width: 100%;
-		box-sizing: border-box;
-		&:focus {
-			outline-width: 3px;
-		}
-	}
-	input[type='checkbox'] {
-		accent-color: var(--1);
-		width: 1.2em;
-		height: 1.2em;
-	}
-	textarea {
-		resize: vertical;
-	}
 	textarea.body {
 		font-family: monospace;
 		font-size: var(--step--1);
-	}
-	small,
-	.hint {
-		font-size: var(--step--1);
-		opacity: 0.75;
-		margin: 0;
-	}
-	.req {
-		color: red;
 	}
 	.schedule {
 		margin: 0;
@@ -805,16 +804,6 @@
 				text-transform: uppercase;
 			}
 		}
-	}
-	.error {
-		color: #b00020;
-		margin: 0;
-		font-size: var(--step--1);
-	}
-	.warning {
-		background: var(--4-light);
-		border-radius: 0.8em;
-		padding: 0.4em 0.8em;
 	}
 	.slug {
 		display: flex;
@@ -854,57 +843,13 @@
 		gap: 0.4em;
 		align-items: flex-start;
 		flex: 1 1 14em;
+		min-width: 0;
 		input[type='file'] {
 			max-width: 100%;
 			font-size: var(--step--1);
 		}
-	}
-	.button {
-		display: inline-block;
-		background: var(--1);
-		color: white;
-		border: 0;
-		border-radius: 1em;
-		padding: 0.6em 1.1em;
-		font-size: var(--step-0);
-		text-decoration: none;
-		cursor: pointer;
-		&.secondary {
-			background: white;
-			color: var(--1-dark);
-			outline: 2px solid var(--1-light);
-			outline-offset: -2px;
-		}
-		&:disabled {
-			opacity: 0.6;
-			cursor: wait;
-		}
-	}
-	button.link {
-		background: none;
-		border: 0;
-		padding: 0;
-		color: var(--2-dark);
-		text-decoration: underline;
-		cursor: pointer;
-		font-size: var(--step--1);
-		text-align: left;
-	}
-	.bar {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.7em;
-		justify-content: flex-end;
-		margin-top: 1em;
-	}
-	.problems {
-		background: #fff0f3;
-		border-radius: 1em;
-		padding: 0.6em 1em;
-		color: #b00020;
-		ul {
-			margin: 0.3em 0 0;
-			padding-left: 1.2em;
+		code {
+			overflow-wrap: anywhere;
 		}
 	}
 	.card-preview {
@@ -968,11 +913,6 @@
 		padding: 1em 1.2em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
 		overflow-wrap: anywhere;
-		.note {
-			background: var(--3-light);
-			border-radius: 0.8em;
-			padding: 0.5em 0.8em;
-		}
 		.small {
 			font-size: var(--step--1);
 		}
@@ -980,17 +920,6 @@
 			display: flex;
 			flex-wrap: wrap;
 			gap: 0.7em;
-		}
-	}
-	@media (max-width: 540px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-		.bar {
-			justify-content: stretch;
-			.button {
-				flex: 1 1 100%;
-			}
 		}
 	}
 </style>

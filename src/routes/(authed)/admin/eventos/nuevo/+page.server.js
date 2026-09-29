@@ -10,6 +10,8 @@ import {
 	takenSlugsInBundle
 } from '$lib/server/eventos';
 import { GitHubError, PathExistsError } from '$lib/server/eventos/github.js';
+import { editorData } from '$lib/server/admin/content.js';
+import { validateEventTags } from '$lib/utils/adminTags.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
@@ -25,7 +27,8 @@ import {
 	validateSlug
 } from '$lib/utils/eventDraft.js';
 
-const NO_PERMISSION = 'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
+const NO_PERMISSION =
+	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
@@ -86,6 +89,8 @@ export async function load({ locals, url }) {
 	}
 	return {
 		source,
+		// Tag usage, amigues profiles and past organizers for the pickers.
+		...(await editorData('calendario')),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
 		takenSlugs: takenSlugsInBundle(),
@@ -161,9 +166,13 @@ export const actions = {
 		try {
 			const { frontmatter, body } = splitMarkdown(String(data.get('content') ?? ''));
 			fields = readEventFields(frontmatter);
-			if (fields.category !== 'calendario') throw new Error('El evento tiene que tener category: calendario.');
+			if (fields.category !== 'calendario')
+				throw new Error('El evento tiene que tener category: calendario.');
 			if (!fields.title) throw new Error('Falta el título.');
 			if (!fields.start) throw new Error('Falta la fecha de inicio.');
+			// Same rules as the form: one language, one place (see $lib/utils/adminTags.js).
+			const tagErrors = validateEventTags(fields.tags);
+			if (tagErrors.length) throw new Error(tagErrors.join(' '));
 			/** @type {Record<string, any>} */
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined
@@ -184,7 +193,9 @@ export const actions = {
 			if (featuredMode === 'upload') {
 				const image = data.get('image');
 				if (!(image instanceof File) || image.size === 0) {
-					return fail(400, { error: 'Elegiste subir una imagen pero no llegó ningún archivo. Volvé a elegirla.' });
+					return fail(400, {
+						error: 'Elegiste subir una imagen pero no llegó ningún archivo. Volvé a elegirla.'
+					});
 				}
 				if (image.size > MAX_IMAGE_BYTES) {
 					return fail(400, { error: 'La imagen pesa más de 5 MB. Probá con una más liviana.' });
@@ -205,12 +216,16 @@ export const actions = {
 					.map((f) => list.find((item) => item.name === `${id}.${f}`))
 					.find(Boolean);
 				if (hit) files.push({ path: `${mediaPath(slug)}/${hit.name}`, sha: hit.sha });
-				else warnings.push('No encontramos la imagen del evento original, así que el evento quedó sin imagen.');
+				else
+					warnings.push(
+						'No encontramos la imagen del evento original, así que el evento quedó sin imagen.'
+					);
 			}
 
 			const what = mode === 'borrador' ? 'cargó (no listado)' : 'publicó';
 			const message =
-				`[admin] ${admin.name} ${what} calendario/${slug}` + (source ? ` (copia de ${source})` : '');
+				`[admin] ${admin.name} ${what} calendario/${slug}` +
+				(source ? ` (copia de ${source})` : '');
 			const commit = await client.commitFiles(admin.token, {
 				files,
 				message,
