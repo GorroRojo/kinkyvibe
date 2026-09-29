@@ -2,6 +2,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	export let data;
 </script>
+
 <div class="content">
 	<h2>Entradas</h2>
 	<p>
@@ -11,6 +12,10 @@
 	<p>
 		<a href="/admin/entradas/codigos">Códigos de descuento</a>: crear, activar/desactivar y ver
 		cuántas veces se usó cada uno.
+	</p>
+	<p>
+		<a href="/admin/entradas/ajustes">Ajustes de venta</a>: datos para transferir (alias, CBU/CVU,
+		titular, banco) y comisión de Mercado Pago.
 	</p>
 	<h2>Publicaciones no listadas</h2>
 </div>

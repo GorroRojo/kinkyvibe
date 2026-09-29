@@ -1,9 +1,11 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 
 	let { data, form } = $props();
+
+	let fondoNet = $derived(data.types.reduce((s, t) => s + t.fondoNet, 0));
 
 	let filter = $state('approved');
 	let visible = $derived(
@@ -54,7 +56,9 @@
 	<h1>{data.title}</h1>
 
 	<div class="actions">
-		<a class="big" href="/admin/entradas/{data.slug}/ingreso">📷 Control de ingreso</a>
+		{#if !data.online}
+			<a class="big" href="/admin/entradas/{data.slug}/ingreso">📷 Control de ingreso</a>
+		{/if}
 		<a class="big secondary" href="/admin/entradas/{data.slug}/ordenes.csv" download>
 			⬇️ Exportar CSV
 		</a>
@@ -66,7 +70,7 @@
 				<tr>
 					<th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th><th>Fondo usado</th><th
 						>Aportes al fondo</th
-					>
+					><th>Neto del fondo</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -78,6 +82,9 @@
 						<td>{formatARS(t.revenue)}</td>
 						<td>{formatARS(t.fondoUsed)}</td>
 						<td>{formatARS(t.contribution)}</td>
+						<td class="net" class:pos={t.fondoNet > 0} class:neg={t.fondoNet < 0}
+							>{formatSignedARS(t.fondoNet)}</td
+						>
 					</tr>
 				{/each}
 			</tbody>
@@ -87,6 +94,9 @@
 					<td>{formatARS(data.types.reduce((s, t) => s + t.revenue, 0))}</td>
 					<td>{formatARS(data.types.reduce((s, t) => s + t.fondoUsed, 0))}</td>
 					<td>{formatARS(data.types.reduce((s, t) => s + t.contribution, 0))}</td>
+					<td class="net" class:pos={fondoNet > 0} class:neg={fondoNet < 0}
+						>{formatSignedARS(fondoNet)}</td
+					>
 				</tr>
 			</tfoot>
 		</table>
@@ -95,8 +105,73 @@
 		"Reservadas" incluye pagos en curso y transferencias pendientes. "Recaudado" es lo cobrado (con
 		descuentos y aportes), antes de comisiones. "Fondo usado" es lo que cubrió el Fondo KinkyVibe
 		(entradas "con el descuento del fondo"); "Aportes al fondo", lo que se pagó de más para el fondo
-		(entradas solidaria, muy solidaria y Sugar). Solo cuentan las compras aprobadas.
+		(entradas solidaria, muy solidaria y Sugar). "Neto del fondo" es aportes − fondo usado: en verde
+		(+) si entró más de lo que cubrió el fondo, en rojo (−) si el fondo puso más de lo que entró.
+		Solo cuentan las compras aprobadas.
 	</p>
+
+	{#if data.stream}
+		<section class="stream" aria-labelledby="transmision">
+			<h2 id="transmision">Link de la transmisión</h2>
+			<p class="note">
+				Evento online: las entradas llevan este link en lugar de un QR (no hay control de ingreso).
+				El link no está en el repo: se guarda solo acá. Si lo cargás antes de que alguien compre, le
+				llega en el mail de las entradas.
+			</p>
+			{#if form?.stream}
+				<p class="flash" class:error={!form.stream.ok} role="status">{form.stream.message}</p>
+			{/if}
+			<form method="POST" action="?/setLink" use:enhance class="stream-form">
+				<label>
+					<span>Link (https://…)</span>
+					<input
+						type="text"
+						inputmode="url"
+						name="link"
+						value={form?.stream && 'value' in form.stream
+							? form.stream.value
+							: (data.stream.link ?? '')}
+						placeholder="https://…"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+				</label>
+				<button type="submit">Guardar link</button>
+			</form>
+			{#if data.stream.link}
+				<p class="note">
+					Guardado {data.stream.updatedAt ? time(data.stream.updatedAt) : ''}{data.stream.updatedBy
+						? ` por ${data.stream.updatedBy}`
+						: ''}. Ya lo tienen {data.stream.approvedOrders - data.stream.pending} de {data.stream
+						.approvedOrders}
+					{data.stream.approvedOrders === 1 ? 'compra' : 'compras'}.
+				</p>
+				<form
+					method="POST"
+					action="?/sendLink"
+					use:enhance={({ cancel }) => {
+						if (
+							data.stream?.pending &&
+							!confirm(
+								`¿Mandar el link por mail a ${data.stream.pending} ${data.stream.pending === 1 ? 'persona' : 'personas'}?`
+							)
+						)
+							cancel();
+					}}
+				>
+					<button type="submit" class="send-link" disabled={!data.stream.pending}>
+						{data.stream.pending
+							? `📨 Enviar el link a todes (${data.stream.pending} ${data.stream.pending === 1 ? 'persona' : 'personas'})`
+							: '✓ Todes ya recibieron este link'}
+					</button>
+				</form>
+				<p class="note">
+					Solo le escribe a quien todavía no recibió este link (tocarlo dos veces no manda nada de
+					nuevo). Si cambiás el link, se puede mandar el nuevo a todes.
+				</p>
+			{/if}
+		</section>
+	{/if}
 
 	{#if form?.resend}
 		<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
@@ -175,12 +250,13 @@
 		{#each visible as o (o.id)}
 			<li class="order status-{o.status}">
 				<div class="who">
-					<strong>{o.name}</strong>
+					<strong>{o.name}</strong>{#if o.pronouns}<span class="pronouns">({o.pronouns})</span>{/if}
 					<span class="dni">DNI {formatDni(o.dni)}</span>
 					<a href="mailto:{o.email}">{o.email}</a>
 				</div>
 				<div class="what">
 					{o.quantity} × {o.type} · {formatARS(o.total)}
+					{#if o.gorra !== null}<small>(a la gorra, {formatARS(o.gorra)} c/u)</small>{/if}
 					{#if o.fondo}<small>(fondo −{formatARS(o.fondo)})</small>{/if}
 					{#if o.contribution}<small
 							>({fondoOptionLabel(o.fondoOption)}: aporte al fondo +{formatARS(
@@ -397,5 +473,66 @@
 	.meta button {
 		font: inherit;
 		cursor: pointer;
+	}
+	.net {
+		font-weight: bold;
+	}
+	.pos {
+		color: hsl(145, 70%, 26%);
+	}
+	.neg {
+		color: hsl(0, 75%, 40%);
+	}
+	.pronouns {
+		color: #555;
+	}
+	.stream {
+		margin: 1.5em 0;
+		padding: 0.8em 1em 1em;
+		border-radius: 0.8em;
+		background: color-mix(in srgb, var(--2) 10%, white);
+	}
+	.stream h2 {
+		margin-top: 0;
+	}
+	.stream-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		align-items: flex-end;
+	}
+	.stream-form label {
+		flex: 1 1 16em;
+		display: flex;
+		flex-direction: column;
+		font-size: var(--step--1);
+	}
+	.stream input {
+		font: inherit;
+		padding: 0.5em;
+		min-height: 2.8em;
+		border-radius: 0.5em;
+		border: 2px solid #bbb;
+		min-width: 0;
+	}
+	.stream button {
+		font: inherit;
+		font-weight: bold;
+		border: 0;
+		border-radius: 0.5em;
+		padding: 0.6em 1em;
+		min-height: 2.8em;
+		cursor: pointer;
+		background: var(--2);
+		color: white;
+	}
+	.stream .send-link {
+		background: var(--3-dark);
+		width: 100%;
+		margin-top: 0.3em;
+	}
+	.stream button:disabled {
+		opacity: 0.6;
+		cursor: default;
 	}
 </style>

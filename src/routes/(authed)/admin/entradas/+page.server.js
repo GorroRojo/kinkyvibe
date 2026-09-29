@@ -25,6 +25,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 			id: t.id,
 			name: t.name,
 			price: t.price,
+			gorra: t.gorra,
 			capacity: t.capacity,
 			sold: counts.get(t.id)?.sold ?? 0,
 			held: counts.get(t.id)?.held ?? 0,
@@ -41,7 +42,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 			types,
 			revenue: types.reduce((s, t) => s + t.revenue, 0),
 			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0),
-			contribution: types.reduce((s, t) => s + t.contribution, 0)
+			contribution: types.reduce((s, t) => s + t.contribution, 0),
+			// Neto del fondo: aportes − lo que cubrió (negativo = el fondo puso más de lo que entró).
+			fondoNet: types.reduce((s, t) => s + t.contribution - t.fondoUsed, 0)
 		});
 	}
 	return { events: rows, dbAvailable: Boolean(db) };

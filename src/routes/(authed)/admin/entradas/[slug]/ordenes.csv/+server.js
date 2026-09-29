@@ -48,9 +48,11 @@ export async function GET({ locals, url, params, platform }) {
 		'medio_pago',
 		'tipo',
 		'comprador',
+		'pronombres_comprador',
 		'email',
 		'dni_comprador',
 		'entrada',
+		'codigo',
 		'nombre',
 		'pronombres',
 		'ingreso',
@@ -74,9 +76,10 @@ export async function GET({ locals, url, params, platform }) {
 			? issued.map((t) => ({
 					name: t.holder_name,
 					pronouns: t.holder_pronouns ?? '',
-					checkedIn: t.checked_in_at ? new Date(t.checked_in_at).toISOString() : ''
+					checkedIn: t.checked_in_at ? new Date(t.checked_in_at).toISOString() : '',
+					code: t.code ?? ''
 				}))
-			: orderHolders(o).map((h) => ({ ...h, checkedIn: '' }));
+			: orderHolders(o).map((h) => ({ ...h, checkedIn: '', code: '' }));
 		people.forEach((p, i) => {
 			const first = i === 0;
 			lines.push(
@@ -88,9 +91,11 @@ export async function GET({ locals, url, params, platform }) {
 					o.payment_method,
 					names[o.ticket_type] ?? o.ticket_type,
 					o.buyer_name,
+					o.buyer_pronouns ?? '',
 					o.buyer_email,
 					o.buyer_dni ?? '',
 					`${i + 1}/${people.length}`,
+					p.code,
 					p.name,
 					p.pronouns,
 					p.checkedIn,

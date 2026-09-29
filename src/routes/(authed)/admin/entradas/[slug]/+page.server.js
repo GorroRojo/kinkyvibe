@@ -2,7 +2,12 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	inBackground,
+	sendOrderEmail,
+	sendStreamLinkEmails,
+	siteOrigin
+} from '$lib/server/tickets/index.js';
 import {
 	cancelTransfer,
 	confirmTransfer,
@@ -12,6 +17,12 @@ import {
 	listOrders,
 	orderHolders
 } from '$lib/server/tickets/orders.js';
+import {
+	getStreamLink,
+	normalizeStreamLink,
+	setStreamLink,
+	streamLinkRecipients
+} from '$lib/server/tickets/stream.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
 /** Transferencias vencidas que se siguen mostrando (por si el pago llega tarde). */
@@ -52,6 +63,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 		dni: o.buyer_dni ?? '',
 		type: names[o.ticket_type] ?? o.ticket_type,
 		quantity: o.quantity,
+		pronouns: o.buyer_pronouns ?? '',
+		gorra: o.fondo_option === 'gorra' ? o.unit_price : null,
 		fondo: o.fondo_amount,
 		fondoOption: o.fondo_option,
 		contribution: o.fondo_contribution,
@@ -77,9 +90,25 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 			holdersByOrder.get(o.id) ??
 			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : [])
 	}));
+	// Eventos online: link de la transmisión (en D1, nunca en el repo) y a cuántas personas les
+	// falta recibirlo.
+	/** @type {{ link: string | null, updatedAt: number | null, updatedBy: string | null, pending: number, approvedOrders: number } | null} */
+	let stream = null;
+	if (config.online) {
+		const current = await getStreamLink(db, params.slug);
+		stream = {
+			link: current?.link ?? null,
+			updatedAt: current?.updatedAt ?? null,
+			updatedBy: current?.updatedBy ?? null,
+			pending: current ? (await streamLinkRecipients(db, params.slug, current.link)).length : 0,
+			approvedOrders: orders.filter((o) => o.status === 'approved').length
+		};
+	}
 	return {
 		slug: params.slug,
 		title: config.title,
+		online: config.online,
+		stream,
 		types: config.types.map((t) => ({
 			...t,
 			sold: counts.get(t.id)?.sold ?? 0,
@@ -87,6 +116,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 			revenue: counts.get(t.id)?.revenue ?? 0,
 			fondoUsed: counts.get(t.id)?.fondo ?? 0,
 			contribution: counts.get(t.id)?.contribution ?? 0,
+			fondoNet: (counts.get(t.id)?.contribution ?? 0) - (counts.get(t.id)?.fondo ?? 0),
 			surcharge: counts.get(t.id)?.surcharge ?? 0
 		})),
 		transfers: rows.filter(
@@ -177,6 +207,59 @@ export const actions = {
 		};
 		if (r.result === 'already') return { transfer: { ok: true, message: messages.already } };
 		return fail(409, { transfer: { ok: false, message: messages[r.result] } });
+	},
+
+	// "Link de la transmisión" (eventos online): guardar o borrar.
+	setLink: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { stream: { ok: false, message: 'Sin base de datos.' } });
+		const config = await getEventTickets(params.slug);
+		if (!config?.online) {
+			return fail(400, { stream: { ok: false, message: 'Este evento no es online.' } });
+		}
+		const raw = String((await request.formData()).get('link') ?? '').slice(0, 1000);
+		const r = normalizeStreamLink(raw);
+		if (!r.ok) return fail(400, { stream: { ok: false, message: r.message, value: raw } });
+		await setStreamLink(db, { eventSlug: params.slug, link: r.link, by: admin.login });
+		return {
+			stream: {
+				ok: true,
+				message: r.link
+					? 'Link guardado. Las compras nuevas lo reciben en el mail de las entradas; para quienes ya compraron, tocá "Enviar el link a todes".'
+					: 'Link borrado.'
+			}
+		};
+	},
+
+	// "Enviar el link a todes": solo a las órdenes aprobadas que todavía no recibieron ESTE link.
+	sendLink: async ({ locals, url, params, platform, fetch }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { stream: { ok: false, message: 'Sin base de datos.' } });
+		const config = await getEventTickets(params.slug);
+		const current = config?.online ? await getStreamLink(db, params.slug) : null;
+		if (!current) {
+			return fail(400, { stream: { ok: false, message: 'Primero guardá el link.' } });
+		}
+		const r = await sendStreamLinkEmails({
+			db,
+			eventSlug: params.slug,
+			link: current.link,
+			origin: siteOrigin(url),
+			fetch
+		});
+		const who = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
+		const message =
+			r.sent === 0 && r.failed === 0
+				? 'Todes ya tenían este link: no se mandó nada.'
+				: `Link enviado a ${who(r.sent)}.` +
+					(r.failed
+						? ` No se pudo mandar a ${who(r.failed)} (ver logs; volvé a tocar el botón).`
+						: '');
+		return r.failed
+			? fail(502, { stream: { ok: false, message } })
+			: { stream: { ok: true, message } };
 	},
 
 	cancel: async ({ locals, url, params, platform, request }) => {

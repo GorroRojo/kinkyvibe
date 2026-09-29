@@ -2,23 +2,13 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
+import { extractToken, searchRows } from '$lib/server/tickets/checkin.js';
 import {
 	checkIn,
 	getTicketByToken,
 	searchTickets,
 	undoCheckIn
 } from '$lib/server/tickets/orders.js';
-
-/**
- * Acepta el token solo, o la URL completa del QR (/entradas/t/<token>).
- *
- * @param {unknown} raw
- */
-function extractToken(raw) {
-	const s = String(raw ?? '').trim();
-	const m = s.match(/\/entradas\/t\/([A-Za-z0-9_-]{43})(?:[/?#]|$)/);
-	return m ? m[1] : s;
-}
 
 /**
  * @param {import('@cloudflare/workers-types').D1Database} db
@@ -45,20 +35,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const q = url.searchParams.get('q')?.trim() ?? '';
 	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));
-	const results = q
-		? (await searchTickets(db, params.slug, q)).map((t) => ({
-				id: t.id,
-				token: t.token,
-				holder: t.holder_name,
-				pronouns: t.holder_pronouns ?? '',
-				buyer: t.buyer_name,
-				dni: t.buyer_dni ?? '',
-				email: t.buyer_email,
-				type: names[t.ticket_type] ?? t.ticket_type,
-				checkedInAt: t.checked_in_at,
-				checkedInBy: t.checked_in_by
-			}))
-		: [];
+	const results = q ? searchRows(await searchTickets(db, params.slug, q), names) : [];
 	return {
 		slug: params.slug,
 		title: config.title,
@@ -82,6 +59,7 @@ export const actions = {
 					buyer: null,
 					dni: null,
 					type: null,
+					code: null,
 					at: null,
 					by: null,
 					ticketId: null,
@@ -90,7 +68,7 @@ export const actions = {
 				}
 			});
 		}
-		const token = extractToken((await request.formData()).get('token'));
+		const token = await extractToken(db, params.slug, (await request.formData()).get('token'));
 		const r = await checkIn(db, { token, eventSlug: params.slug, by: admin.login });
 		// Quién compró y su DNI (el UPDATE del check-in devuelve solo la entrada).
 		const full = r.ticket && r.result !== 'wrong-event' ? await getTicketByToken(db, token) : null;
@@ -110,6 +88,7 @@ export const actions = {
 				buyer: full?.buyer_name ?? null,
 				dni: full?.buyer_dni ?? null,
 				type: r.result === 'wrong-event' ? null : (type ?? null),
+				code: r.result === 'wrong-event' ? null : (r.ticket?.code ?? null),
 				at: r.ticket?.checked_in_at ?? null,
 				by: r.ticket?.checked_in_by ?? null,
 				ticketId: r.result === 'ok' ? (r.ticket?.id ?? null) : null,

@@ -1,5 +1,5 @@
 <script>
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
 	let { data } = $props();
 
@@ -22,7 +22,10 @@
 
 <div class="admin-entradas">
 	<h1>Entradas</h1>
-	<p class="links"><a href="/admin/entradas/codigos">🏷️ Códigos de descuento</a></p>
+	<p class="links">
+		<a href="/admin/entradas/codigos">🏷️ Códigos de descuento</a>
+		<a href="/admin/entradas/ajustes">⚙️ Ajustes de venta</a>
+	</p>
 	{#if !data.dbAvailable}
 		<p class="warn">No hay base de datos disponible: no se pueden mostrar ventas.</p>
 	{/if}
@@ -48,7 +51,11 @@
 									<td>
 										{t.name}
 										<small
-											>({formatARS(t.price)}{t.fondo ? `, fondo ${formatARS(t.fondo)}` : ''})</small
+											>({t.gorra
+												? `a la gorra, sugerido ${formatARS(t.gorra.suggested)}`
+												: formatARS(t.price)}{t.fondo
+												? `, fondo ${formatARS(t.fondo)}`
+												: ''})</small
 										>
 									</td>
 									<td>{t.sold}/{t.capacity}</td>
@@ -70,6 +77,17 @@
 								<td colspan="3">💜 Aportes al fondo <small>(entradas solidarias y Sugar)</small></td
 								>
 								<td class="fondo-contribution">{formatARS(e.contribution)}</td>
+							</tr>
+							<tr>
+								<td colspan="3">💜 Neto del fondo <small>(aportes − fondo usado)</small></td>
+								<td
+									class="fondo-net"
+									class:pos={e.fondoNet > 0}
+									class:neg={e.fondoNet < 0}
+									title={e.fondoNet < 0
+										? 'El fondo cubrió más de lo que se aportó'
+										: 'Se aportó más de lo que cubrió el fondo'}>{formatSignedARS(e.fondoNet)}</td
+								>
 							</tr>
 						</tfoot>
 					</table>
@@ -143,5 +161,16 @@
 	}
 	.over {
 		background: hsl(0, 90%, 92%);
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em 1.2em;
+	}
+	.pos {
+		color: hsl(145, 70%, 26%);
+	}
+	.neg {
+		color: hsl(0, 75%, 40%);
 	}
 </style>
