@@ -1,9 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import * as ics from 'ics';
 
-// content only changes on deploy: build it once as a static file
-export const prerender = true;
-
 /**
  * Converts a string to an array representing the date and time.
  *
@@ -14,6 +11,9 @@ function stringToDateArray(s) {
 	let d = new Date(s);
 	return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()];
 }
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
+
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
 	/**@type ics.EventAttributes[] */
@@ -26,8 +26,6 @@ export async function GET() {
 		const postPath = 'https://kinkyvibe.ar' + post.path;
 		/**@type ics.EventAttributes */
 		let event = {
-			// stable id so calendar apps update events instead of seeing new ones each fetch
-			uid: post.meta.postID + '@kinkyvibe.ar',
 			start: stringToDateArray(post.meta.start),
 			end: stringToDateArray(post.meta.end ?? post.meta.start + post.meta.duration),
 			title: post.meta.title,

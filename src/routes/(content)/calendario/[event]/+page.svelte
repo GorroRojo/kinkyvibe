@@ -1,17 +1,17 @@
 <script>
+	import { userConfig } from '$lib/utils/stores.js';
+	import { relatedPostsFor } from '$lib/utils';
+	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
 	import { format } from 'date-fns';
-	import { currentPostData, userConfig } from '$lib/utils/stores.js';
+	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { processContent, relatedPostsFor } from '$lib/utils';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { processContent } from '$lib/utils';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
-	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
-	onMount(() => import('add-to-calendar-button'));
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {
@@ -29,6 +29,8 @@
 			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
 			.catch(() => (loadedPast = false));
 	}
+	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
+	onMount(() => import('add-to-calendar-button'));
 </script>
 
 <LDTag

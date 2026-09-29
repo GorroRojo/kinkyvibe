@@ -1,7 +1,7 @@
 import '$lib/types.d.js';
 import { dev } from '$app/environment';
-import tagsFactory from './tags';
 import { isCurrent } from './allPosts';
+import tagsFactory from './tags';
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
