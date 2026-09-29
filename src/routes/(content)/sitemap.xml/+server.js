@@ -7,12 +7,14 @@ const siteURL = 'https://kinkyvibe.ar';
  * @returns
  */
 function date(d) {
-	try {
-		return new Date(d + '');
-	} catch (e) {
-		return new Date();
-	}
+	// new Date() doesn't throw on bad input, it returns an Invalid Date that makes
+	// toISOString() throw (some events have no published_date)
+	const parsed = new Date(d + '');
+	return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
+
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
 
 /** @type {import('./$types').RequestHandler} */
 export const GET = async () => {
@@ -56,7 +58,7 @@ ${pages.map(
     <priority>0.8</priority>
     <lastmod>${new Date().toISOString()}</lastmod>
 </url>`
-)}
+).join('')}
 ${posts
 	.map(
 		(post) =>

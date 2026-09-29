@@ -1,6 +1,9 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import * as ics from 'ics';
 
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
+
 /**
  * Converts a string to an array representing the date and time.
  *
