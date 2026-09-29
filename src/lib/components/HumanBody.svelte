@@ -2,12 +2,6 @@
 	import parts from './body-parts.js';
 	import '$lib/types.d.js';
 	/**
-	 * @param {{ target: { id: any; }; }} e
-	 */
-	function click(e) {
-		alert(e.target.id);
-	}
-	/**
 	 * @type {{default: string, groups: Array<{name: string, color: string, parts: BodyPart[]}> }}
 	 */
 	export let colors = { default: '#888', groups: [] };

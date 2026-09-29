@@ -1,7 +1,6 @@
 <script>
 	//@ts-nocheck
 	import Tag from '$lib/components/Tag.svelte';
-	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import { Globe, ArrowRight } from 'lucide-svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
