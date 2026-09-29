@@ -34,12 +34,13 @@
 <div class="profile-header" use:melt={$trigger}>
 	<img src={user.avatar_url} class="profile-pic" alt="" />
 	<span id="title" class="profile-name">
-		{user.name ?? user.login}
+		{user.name || user.login}
 	</span>
 	{#if $open}
 	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
 		{#if admin}
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
+		<a href="/admin/eventos" class="menuitem" use:melt={$item}>Cargar evento</a>
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
 			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>

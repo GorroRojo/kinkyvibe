@@ -1,39 +1,41 @@
+import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
-const EMPTY_USER = { login: '', name: '', avatar_url: '' };
+import { TOKEN_COOKIE, authCookieOptions } from '$lib/server/auth';
+import { getVerifiedUser } from '$lib/server/session';
+
+// Cookies from the old login flow. They were client-writable and must never be
+// trusted; delete them if a browser still has them.
+const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
+
 /** @type {import('@sveltejs/kit').Handle} */
-export async function handle({ event: request, resolve }) {
-	//@ts-ignore
-	let prevToken = request.cookies.get('prevToken');
-	let token = request.cookies.get('userToken');
-	request.locals.user_token = token ?? '';
-	let user = EMPTY_USER;
-	if (token && token !== '' && token !== prevToken) {
-		user = (await getUser(token)) ?? EMPTY_USER;
-		request.locals.user = { login: user.login, name: user.name, avatar_url: user.avatar_url };
-	} else if (token === '') {
-		user = EMPTY_USER;
-		request.locals.user = undefined;
-	} else {
-		user = {
-			login: request.cookies.get('userLogin') ?? '',
-			name: request.cookies.get('userName') ?? '',
-			avatar_url: request.cookies.get('userAvatarUrl') ?? ''
-		};
-		request.locals.user = { login: user.login, name: user.name, avatar_url: user.avatar_url };
+export async function handle({ event, resolve }) {
+	// DEV ONLY: fake admin session for exercising the admin pages without GitHub (see
+	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
+	// `vite build`, so this whole block is removed from production bundles.
+	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
+		event.locals.user = { login: env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo', name: null, avatar_url: '' };
+		event.locals.user_token = 'dev-mock';
+		return await resolve(event);
 	}
-	let { login, name, avatar_url } = user;
-	request.cookies.set('userLogin', login, { path: '/' });
-	request.cookies.set('userName', name, { path: '/' });
-	request.cookies.set('userAvatarUrl', avatar_url, { path: '/' });
-	const response = await resolve(request);
-	return response;
+	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
+	// Identity comes only from GitHub's answer for this token (cached server-side).
+	const user = token ? await getVerifiedUser(token, getUser) : undefined;
+	event.locals.user = user;
+	event.locals.user_token = user ? token : '';
+
+	for (const name of LEGACY_COOKIES) {
+		if (event.cookies.get(name) !== undefined) {
+			event.cookies.delete(name, authCookieOptions(event.url));
+		}
+	}
+
+	return await resolve(event);
 }
 
 /**
  * @param {string} token
- * @return {Promise<GHUser>}
+ * @return {Promise<GHUser|undefined>}
  */
 async function getUser(token) {
-	// @ts-ignore
 	return await ghGet('user', token);
 }
