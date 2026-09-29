@@ -4,28 +4,22 @@
  */
 import { env } from '$env/dynamic/private';
 import * as github from './github.js';
+import { isAdmin } from '$lib/server/auth';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
 
 export const POSTS_DIR = 'src/lib/posts/calendario';
 
 /**
- * Same allowlist as src/routes/(authed)/+layout.server.js (and UserMenu.svelte).
- * Form actions are NOT protected by the layout's load, so every load/action here checks it again.
- * TODO: use the shared `requireAdmin` guard once it lands on main.
- */
-const ADMINS = ['GorroRojo', 'Tallarines333', 'VelvetVoid'];
-
-/**
+ * The verified admin (see $lib/server/auth), or null. Form actions are NOT protected by the
+ * layout's load, so every load/action on these pages calls this itself: loads use
+ * `requireAdmin` (redirects), actions answer 403 with `fail` when this returns null.
  * @param {App.Locals} locals
  * @returns {{login: string, name: string, token: string} | null}
  */
 export function getEventAdmin(locals) {
-	// @ts-ignore
 	const { user, user_token: token } = locals;
-	const login = user?.login;
-	if (!token || !login || !ADMINS.includes(login)) return null;
-	const name = user.name && user.name !== 'null' ? user.name : login;
-	return { login, name, token };
+	if (!user || !token || !isAdmin(user)) return null;
+	return { login: user.login, name: user.name || user.login, token };
 }
 
 /** True only under `vite dev` with ADMIN_DEV_MOCK=1. Always false in production builds. */

@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { Buffer } from 'buffer';
+import { requireAdmin } from '$lib/server/auth';
 import {
 	POSTS_DIR,
 	getEventAdmin,
@@ -48,6 +49,7 @@ function usableTemplate(raw) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url }) {
+	requireAdmin(locals, url);
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
 	const desde = url.searchParams.get('desde');

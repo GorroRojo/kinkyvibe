@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
@@ -8,6 +9,14 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
+	// DEV ONLY: fake admin session for exercising the admin pages without GitHub (see
+	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
+	// `vite build`, so this whole block is removed from production bundles.
+	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
+		event.locals.user = { login: env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo', name: null, avatar_url: '' };
+		event.locals.user_token = 'dev-mock';
+		return await resolve(event);
+	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
 	// Identity comes only from GitHub's answer for this token (cached server-side).
 	const user = token ? await getVerifiedUser(token, getUser) : undefined;
