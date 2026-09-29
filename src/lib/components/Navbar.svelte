@@ -5,9 +5,9 @@
 	import { onMount } from 'svelte';
 	import { Search } from '@lucide/svelte';
 	export let links;
-	let shortcut = 'Ctrl + K';
+	let shortcut = ['Ctrl', 'K'];
 	onMount(() => {
-		if (/Mac|iPhone|iPad/.test(navigator.platform)) shortcut = '⌘ K';
+		if (/Mac|iPhone|iPad/.test(navigator.platform)) shortcut = ['⌘', 'K'];
 	});
 </script>
 
@@ -29,31 +29,45 @@
 				</a>
 			</li>
 		{/each}
-		<li class="search">
-			<a
-				href="#buscar"
-				role="button"
-				aria-haspopup="dialog"
-				aria-keyshortcuts="Control+K Meta+K"
-				on:click|preventDefault={() => searchOpen.set(true)}
-			>
-				<span>
-					<span><Search size="1em" /></span>
-					Buscar
-				</span>
-				<small>{shortcut}</small>
-			</a>
-		</li>
 	</ul>
+	<!-- Buscador global: botón redondo aparte, no un ítem más del menú -->
+	<button
+		type="button"
+		class="search-btn"
+		data-search-trigger
+		aria-label="Buscar (Ctrl+K)"
+		aria-haspopup="dialog"
+		aria-keyshortcuts="Control+K Meta+K"
+		on:click={() => searchOpen.set(true)}
+	>
+		<Search size="1.35em" strokeWidth={2.5} aria-hidden="true" />
+		<span class="tip" aria-hidden="true">
+			Buscar en todo el sitio
+			<span class="keys">
+				{#each shortcut as key}<kbd>{key}</kbd>{/each}
+			</span>
+		</span>
+	</button>
 </nav>
 
 <style lang="scss">
+	nav {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1em;
+		margin-inline: auto;
+		padding-inline: 1em;
+		max-width: calc(1000px + 7em);
+	}
 	nav ul {
 		padding: 0;
 		display: flex;
 		row-gap: 0.4em;
 		justify-content: center;
-		margin-inline: auto;
+		margin-inline: 0;
+		flex: 1 1 auto;
+		min-width: 0;
 		max-width: 1000px;
 	}
 
@@ -99,7 +113,7 @@
 		background: white;
 		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
 	}
-	nav span {
+	nav a span {
 		--color: var(--1);
 		color: var(--color);
 		translate: 0 0.3em;
@@ -128,22 +142,127 @@
 	nav a:focus small {
 		scale: 1;
 	}
+	/* Botón del buscador global: círculo aparte, distinto de los ítems del menú */
+	.search-btn {
+		position: relative;
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 3.25rem;
+		height: 3.25rem;
+		padding: 0;
+		font: inherit;
+		border-radius: 50%;
+		border: 2px solid var(--1);
+		background: white;
+		color: var(--1);
+		box-shadow: 0 0.15em 0.6em rgba(0, 0, 0, 0.1);
+		transition:
+			background-color 150ms,
+			color 150ms,
+			scale 150ms;
+		&:hover {
+			background: var(--1);
+			color: white;
+			scale: 1.06;
+		}
+		&:active {
+			scale: 0.96;
+		}
+		&:focus-visible {
+			outline: 3px solid var(--2);
+			outline-offset: 3px;
+		}
+	}
+	.tip {
+		position: absolute;
+		top: calc(100% + 0.6rem);
+		/* alineado a la derecha del botón para no desbordar la pantalla */
+		right: -2px;
+		translate: 0 -0.25rem;
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		padding: 0.35em 0.6em;
+		border-radius: 0.5em;
+		background: var(--2-dark);
+		color: white;
+		font-size: 0.8rem;
+		font-weight: bold;
+		white-space: nowrap;
+		opacity: 0;
+		pointer-events: none;
+		transition:
+			opacity 120ms,
+			translate 120ms;
+		&::before {
+			content: '';
+			position: absolute;
+			bottom: 100%;
+			right: calc(1.625rem - 0.35rem);
+			border: 0.35rem solid transparent;
+			border-bottom-color: var(--2-dark);
+		}
+	}
+	.keys {
+		display: flex;
+		gap: 0.2em;
+	}
+	kbd {
+		font-family: inherit;
+		font-size: 0.9em;
+		line-height: 1.4;
+		padding: 0 0.4em;
+		border-radius: 0.3em;
+		background: rgba(255, 255, 255, 0.2);
+		border: 1px solid rgba(255, 255, 255, 0.35);
+	}
+	.search-btn:hover .tip,
+	.search-btn:focus-visible .tip {
+		opacity: 1;
+		translate: 0 0;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.search-btn,
+		.tip {
+			transition: none;
+		}
+	}
 	@media screen and (max-width: 680px) {
 		nav {
 			position: fixed;
 			bottom: 0;
 			left: 0;
 			right: 0;
-			padding-inline: 1em;
+			/* los 5 ítems reparten el ancho; el botón de búsqueda va aparte al final */
+			gap: 0.25em;
+			max-width: none;
+			padding-inline: 0.5em max(0.5em, env(safe-area-inset-right));
 			z-index: 2;
 			background: white;
 			font-size: 1em;
+			.search-btn {
+				width: 2.75rem;
+				height: 2.75rem;
+				border: 0;
+				background: var(--1);
+				color: white;
+				box-shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.2);
+				&:hover {
+					scale: 1;
+				}
+				.tip {
+					display: none;
+				}
+			}
 			ul {
 				flex-wrap: nowrap;
-				gap: 1em;
-				/* width: 100%; */
+				gap: 0.25em;
 				li {
-					width: 15vw;
+					flex: 1 1 0;
+					min-width: 0;
+					width: auto;
 					height: 4em;
 					&:hover span,
 					a:hover span,
@@ -185,31 +304,17 @@
 							display: none;
 						}
 					}
-					/* en celulares, "Buscar" es un botón flotante sobre la barra
-					(el texto queda para lectores de pantalla) */
-					&.search {
-						position: fixed;
-						right: 1em;
-						bottom: 5em;
-						width: 3.2em;
-						height: 3.2em;
-						a {
-							background: var(--1);
-							border-radius: 50%;
-							box-shadow: 0 0.2em 0.8em rgba(0, 0, 0, 0.3);
-							& > span,
-							&:hover > span {
-								font-size: 0;
-								translate: 0 0;
-								& > span {
-									font-size: 1rem;
-									top: 0;
-									color: white;
-								}
-							}
-						}
-					}
 				}
+			}
+		}
+	}
+	/* 341–400px: etiquetas un poco más chicas para que entren junto al botón de búsqueda */
+	@media screen and (max-width: 400px) {
+		nav ul li a > span {
+			font-size: 0.7em;
+			letter-spacing: -0.01em;
+			& > span {
+				font-size: 1.37em;
 			}
 		}
 	}
