@@ -1,5 +1,6 @@
 <script>
-	import 'add-to-calendar-button';
+	import { userConfig } from '$lib/utils/stores.js';
+	import { fetchAllPostsClient, isCurrent } from '$lib/utils/allPosts';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
@@ -8,7 +9,21 @@
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	export let data;
-	let calendarioPosts = data.allPosts.filter((p) => p.meta.layout == 'calendario');
+	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
+	// past events come with just what the calendar grid needs; the list only gets
+	// them once they've been loaded in full
+	let loadedPast = false;
+	let fullPosts = false;
+	$: listPosts = fullPosts ? calendarioPosts : calendarioPosts.filter((p) => isCurrent(p));
+	$: if ($userConfig.show_past_events && !loadedPast) {
+		loadedPast = true;
+		fetchAllPostsClient()
+			.then((posts) => {
+				calendarioPosts = posts.filter((p) => p.meta.layout == 'calendario');
+				fullPosts = true;
+			})
+			.catch(() => (loadedPast = false));
+	}
 	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
 	let days = calendarioPosts.reduce((dates, post, i) => {
 		let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
@@ -101,7 +116,7 @@
 	<div id="postlist">
 		<PostList
 			filter={{ prop: 'visible', value: true }}
-			posts={calendarioPosts
+			posts={listPosts
 				.map((p) => ({
 					meta: {
 						...p.meta,

@@ -1,5 +1,7 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 const siteURL = 'https://kinkyvibe.ar';
+// content only changes on deploy: build it once as a static file
+export const prerender = true;
 // TODO add wiki entries to sitemap
 /**
  *
