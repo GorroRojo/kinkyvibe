@@ -1,33 +1,62 @@
 import { Buffer } from 'buffer';
+import { error, fail } from '@sveltejs/kit';
 import { ghGet, ghPut } from '$lib/external/github.js';
+import { requireAdmin } from '$lib/server/auth';
+
+/**
+ * @param {{category: string, postID: string}} params
+ */
+function postPath(params) {
+	return `src/lib/posts/${params.category}/${params.postID}.md`;
+}
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ locals, params }) {
+export async function load({ locals, params, url }) {
+	// Server loads run in parallel with the layout load, so guard here too.
+	requireAdmin(locals, url);
 	return {
-		post: await getFileContent(
-			locals.user_token,
-			`src/lib/posts/${params.category}/${params.postID}.md`
-		)
+		post: await getFileContent(locals.user_token, postPath(params))
 	};
 }
 
 /** @type {import("./$types").Actions} */
 export const actions = {
-	save: async ({ params, cookies, request }) => {
-		const token = cookies.get('userToken') ?? 'TOKEN NOT FOUND';
+	// Form actions do not run the (authed) layout load: each one must check auth.
+	save: async ({ params, locals, request, url }) => {
+		const user = requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = data.get('content');
-		let userName = cookies.get('userName');
-		if (userName == "null") userName = cookies.get('userLogin')
-		// @ts-ignore
-		saveFileContent(token, data.get('path') ?? '', fileContent, data.get('sha'), userName, params.category, params.postID);
+		const sha = data.get('sha');
+		if (typeof fileContent !== 'string' || typeof sha !== 'string' || sha === '') {
+			return fail(400, { error: 'Faltan datos para guardar. Recargá la página y volvé a intentar.' });
+		}
+		// Commit author label from the verified GitHub user; `name` is null for
+		// accounts without a display name, so fall back to the login.
+		const userName = user.name || user.login || 'admin';
+		try {
+			await saveFileContent(
+				locals.user_token,
+				postPath(params),
+				fileContent,
+				sha,
+				userName,
+				params.category,
+				params.postID
+			);
+		} catch (e) {
+			console.log(e);
+			return fail(502, {
+				error:
+					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
+			});
+		}
 		return { save: 'Guardado' };
 	},
-	load: async ({ cookies, request }) => {
-		const token = cookies.get('userToken') || 'TOKEN NOT FOUND';
+	load: async ({ locals, request, url }) => {
+		requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = await getFileContent(
-			token,
+			locals.user_token,
 			'src/lib/posts/' + data.get('category') + '/' + data.get('path') + '.md'
 		);
 		return { post: fileContent };
@@ -41,6 +70,7 @@ export const actions = {
  */
 async function getFileContent(token, path) {
 	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
+	if (!fileContent) throw error(404, 'No se encontró la publicación');
 	let raw = Buffer.from(fileContent.content, fileContent.encoding).toString();
 	return { raw, ...fileContent };
 }

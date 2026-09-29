@@ -1,5 +1,8 @@
 import '$lib/types.d.js';
+import { dev } from '$app/environment';
+import { isCurrent } from './allPosts';
 import tagsFactory from './tags';
+import { error } from '@sveltejs/kit';
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
@@ -25,6 +28,17 @@ export function groupMap(group, fn) {
 	}
 }
 
+// Image URLs are resolved from eager globs (a plain path -> URL map) instead of
+// probing up to five `import()`s per image: no async round trips, and no
+// wrapper JS chunk per image in the client build.
+/** @type {Record<string, string>} */
+const mediaURLs = import.meta.glob('../posts/*/media/*/*.{jpeg,jfif,jpg,png,webp}', {
+	eager: true,
+	import: 'default'
+});
+/** @type {Record<string, string>} */
+const assetURLs = import.meta.glob('../assets/*.*', { eager: true, import: 'default' });
+
 /**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
@@ -35,22 +49,13 @@ export const thumbURL = async (category, postID, assetID) => {
 	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
 	if (('' + assetID).match(/^\d+$/)) {
 		for (const format of formats) {
-			try {
-				let thumb = await import(`$lib/posts/${category}/media/${postID}/${assetID}.${format}`);
-				return thumb.default;
-			} catch (e) {
-				continue;
-			}
+			const url = mediaURLs[`../posts/${category}/media/${postID}/${assetID}.${format}`];
+			if (url !== undefined) return url;
 		}
 		return undefined;
 	} else {
 		let [filename, format] = assetID.split('.');
-		try {
-			let thumb = await import(`$lib/assets/${filename}.${format}`);
-			return thumb.default;
-		} catch (e) {
-			return undefined;
-		}
+		return assetURLs[`../assets/${filename}.${format}`];
 	}
 };
 
@@ -71,8 +76,15 @@ export function aliaserFactory(tagManager = tagsFactory()) {
  * @return {Promise<ProcessedPost>} - The content and metadata of the post.
  */
 export const fetchPost = async (category, postID, shallow = false) => {
-	let { default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`);
-	if (meta?.force_unpublished) throw Error('Post is unpublished');
+	// templates (_*.md) are not posts
+	if (postID.startsWith('_')) throw error(404, 'Not found');
+	let postContent, meta;
+	try {
+		({ default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`));
+	} catch (e) {
+		throw error(404, 'Not found');
+	}
+	if (!meta || meta.force_unpublished) throw error(404, 'Not found');
 	return await processPost(postContent, postID, meta, shallow);
 };
 
@@ -83,10 +95,10 @@ export const fetchPost = async (category, postID, shallow = false) => {
  * @param {string} postID - The ID of the post.
  * @param {AnyPostData} meta - The metadata associated with the post.
  * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
- * @param {TagManager} [tagManager=tagsFactory()] - The tag manager to use.
+ * @param {TagManager} [tagManager] - The tag manager to use.
  * @return {Promise<ProcessedPost>} An object containing the processed post information.
  */
-async function processPost(postContent, postID, meta, shallow = false, tagManager = tagsFactory()) {
+async function processPost(postContent, postID, meta, shallow = false, tagManager = defaultTagManager()) {
 	let authorsProfiles = [];
 	/**@type {ProcessedPost[]} */
 	if (!shallow) {
@@ -103,7 +115,7 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		}
 	}
 
-	const sortTags = tagSorter(tagManager);
+	const sortTags = cachedTagSorter(tagManager);
 	const processedMeta = {
 		...meta,
 		tags: [...(meta.tags ?? [])]
@@ -127,15 +139,43 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 	return processedPost;
 }
 
+/** @type {TagManager|undefined} */
+let _defaultTagManager;
+/** Tag manager shared by processPost (it only reads from it), built once instead of once per post. */
+function defaultTagManager() {
+	return (_defaultTagManager ??= tagsFactory());
+}
+
+/** @type {WeakMap<TagManager, (a: ProcessedTag, b: ProcessedTag) => number>} */
+const tagSorterCache = new WeakMap();
+/** @param {TagManager} tagManager */
+function cachedTagSorter(tagManager) {
+	let sorter = tagSorterCache.get(tagManager);
+	if (!sorter) {
+		sorter = tagSorter(tagManager);
+		tagSorterCache.set(tagManager, sorter);
+	}
+	return sorter;
+}
+
 /**
  * @param {TagManager} tagManager
  */
 export function tagSorter(tagManager) {
+	/** @type {Map<string, string[][]>} */
+	const ancestryCache = new Map();
+	/** @type {Map<string, number>} */
+	const tagIndex = new Map();
+	tagManager.tagIDs().forEach((id, i) => {
+		if (!tagIndex.has(id)) tagIndex.set(id, i);
+	});
 	/**
 	 * @param {ProcessedTag} tag
 	 * @return {string[][]}
 	 */
 	const ancestry = (tag) => {
+		const cached = ancestryCache.get(tag.id);
+		if (cached) return cached;
 		let branches = [];
 		let tagParents = tag.parents?.filter((p) => p != 'root') ?? [];
 		for (let p of tagParents) {
@@ -150,6 +190,7 @@ export function tagSorter(tagManager) {
 			}
 			branches.push(...subbranch);
 		}
+		ancestryCache.set(tag.id, branches);
 		return branches;
 	};
 	/**
@@ -162,9 +203,7 @@ export function tagSorter(tagManager) {
 		let bAncestry = ancestry(b).map((br) => [...br.flat(), b.id]);
 		if (aAncestry.length == 0) aAncestry = [[a.id]];
 		if (bAncestry.length == 0) bAncestry = [[b.id]];
-		return (
-			tagManager.tagIDs().indexOf(aAncestry[0][0]) - tagManager.tagIDs().indexOf(bAncestry[0][0])
-		);
+		return (tagIndex.get(aAncestry[0][0]) ?? -1) - (tagIndex.get(bAncestry[0][0]) ?? -1);
 	}
 	return sortTags;
 }
@@ -176,6 +215,30 @@ export function tagSorter(tagManager) {
  * @return {Promise<ProcessedPost[]>} An array of validated and transformed posts.
  */
 export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
+	// Posts only change on deploy, so the processed list is computed once per
+	// server instance (not in dev, so edited posts show up without a restart).
+	// Callers get a fresh array and may sort it in place.
+	const key = `${wiki}-${unlisted}`;
+	let posts = dev ? undefined : postsCache.get(key);
+	if (!posts) {
+		posts = loadMarkdownPosts(wiki, unlisted);
+		if (!dev) {
+			postsCache.set(key, posts);
+			posts.catch(() => postsCache.delete(key));
+		}
+	}
+	return [...(await posts)];
+};
+
+/** @type {Map<string, Promise<ProcessedPost[]>>} */
+const postsCache = new Map();
+
+/**
+ * @param {boolean} wiki
+ * @param {boolean} unlisted
+ * @return {Promise<ProcessedPost[]>}
+ */
+async function loadMarkdownPosts(wiki, unlisted) {
 	/** @type {[string, (()=>Promise<any>)|any][]} */
 	var allPosts;
 	if (wiki) {
@@ -192,13 +255,13 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 		const { metadata, default: postContent } = await constructor();
 		if (
 			!metadata ||
+			metadata.force_unpublished ||
 			(!unlisted && metadata.force_unlisted) ||
 			(unlisted && !metadata.force_unlisted)
 		) {
 			continue;
 		}
-		const tagManager = tagsFactory();
-		processedPosts.push(await processPost(postContent, postID, metadata, true, tagManager));
+		processedPosts.push(await processPost(postContent, postID, metadata, true));
 	}
 	processedPosts.sort((a, b) => {
 		/** @param {ProcessedPost} x @returns number */
@@ -206,8 +269,49 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 			new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date).getTime();
 		return f(b) - f(a);
 	});
-	return [...processedPosts];
+	return processedPosts;
+}
+
+/**
+ * Listed posts minus calendar events that already started. PostList hides those
+ * unless the viewer turns on "show past events", in which case the page loads the
+ * full list with fetchAllPostsClient() from $lib/utils/allPosts.
+ * @return {Promise<ProcessedPost[]>}
+ */
+export const fetchCurrentPosts = async () => {
+	const now = Date.now();
+	return (await fetchMarkdownPosts()).filter((p) => isCurrent(p, now));
 };
+
+/**
+ * Splits related posts for a page load: the ones PostList shows by default are
+ * sent, past events are only counted (the page fetches them if they're shown).
+ * @param {ProcessedPost[]} related
+ */
+export const currentRelated = (related) => {
+	const now = Date.now();
+	const relatedPosts = related.filter((p) => isCurrent(p, now));
+	return { relatedPosts, relatedPastCount: related.length - relatedPosts.length };
+};
+
+/**
+ * Posts shown under "Más cosas de…" on calendario/material/amigues pages.
+ * @param {AnyPostData} meta - metadata of the post being viewed
+ * @param {ProcessedPost[]} posts
+ * @return {ProcessedPost[]}
+ */
+export const relatedPostsFor = (meta, posts) =>
+	posts.filter(
+		(p) =>
+			meta.authors?.some(
+				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
+			) ||
+			(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
+			(meta.category == 'wiki' && p.meta.tags.includes(meta.postID)) ||
+			(meta.category == 'amigues' &&
+				p.meta.authors.includes(meta.postID) &&
+				p.meta.postID != meta.postID)
+	);
 
 /** @type {import('svelte/action').Action}  */
 export const processContent = async (node) => {
