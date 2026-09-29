@@ -26,7 +26,9 @@ const config = {
 			? { executablePath: process.env.PW_CHROMIUM_PATH }
 			: {}
 	},
-	projects: [{ name: 'chromium', use: { browserName: 'chromium' } }]
+	projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+	// La venta de entradas tiene su propia configuración (dev + mocks): playwright.tickets.config.js
+	testIgnore: ['tickets/**']
 };
 
 export default config;

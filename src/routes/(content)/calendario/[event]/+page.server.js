@@ -10,6 +10,7 @@ import {
 	isValidVisitorId,
 	setInterest
 } from '$lib/server/db/interest.js';
+import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
 
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
@@ -34,11 +35,14 @@ function readVisitorId(cookies) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, cookies }) {
-	const [related, interest] = await Promise.all([
+	const db = getDB(platform);
+	const [related, interest, tickets] = await Promise.all([
 		loadRelated(params.event),
-		loadInterest(params.event, platform, cookies)
+		loadInterest(params.event, platform, cookies),
+		/** @type {Promise<import('$lib/server/tickets/checkout.js').TicketsView | null>} */
+		(isValidEventSlug(params.event) ? getTicketsView(db, params.event) : Promise.resolve(null))
 	]);
-	return { ...related, interest };
+	return { ...related, interest, tickets };
 }
 
 /** Related posts, computed on the server so the page doesn't need every post.
@@ -77,6 +81,9 @@ async function loadInterest(slug, platform, cookies) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+	// Compra de entradas (solo eventos con `tickets` en el frontmatter).
+	buy: (event) => buyAction(event),
+	discount: (event) => discountAction(event),
 	interest: async ({ params, platform, cookies, request }) => {
 		const db = getDB(platform);
 		if (!db) return fail(503, { error: 'Esta función no está disponible ahora.' });

@@ -43,9 +43,15 @@
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
 		<a href="/admin/eventos" class="menuitem" use:melt={$item}>Cargar evento</a>
 		<a href="/admin/eventos/importar" class="menuitem" use:melt={$item}>Importar planilla</a>
+		<a href="/admin/entradas" class="menuitem" use:melt={$item}>Entradas</a>
 		{#if eventSlug}
 			<a href="/admin/eventos/nuevo?desde={eventSlug}" class="menuitem" use:melt={$item}
 				>Duplicar este evento</a
+			>
+		{/if}
+		{#if $page.params.event && $page.data?.tickets}
+			<a href="/admin/entradas/{$page.params.event}" class="menuitem" use:melt={$item}
+				>Entradas de este evento</a
 			>
 		{/if}
 		{#if isPageEditable}

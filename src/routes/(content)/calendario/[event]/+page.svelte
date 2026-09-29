@@ -7,13 +7,14 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
 	import InterestButton from '$lib/components/InterestButton.svelte';
+	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	export let data;
-	/** @type {{ error?: string } | null} */
+	/** @type {{ error?: string, buy?: { error?: string, errors?: Record<string, string>, values?: Record<string, string> } } | null} */
 	export let form = null;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
@@ -170,7 +171,11 @@
 			</span>
 		</p>
 		<div class="event-atcb">
-			{#if data.meta.link}
+			{#if data.tickets?.open}
+				<div class="event-link-wrapper">
+					<a href="#entradas">Comprar entradas</a>
+				</div>
+			{:else if data.meta.link}
 				<div class="event-link-wrapper">
 					<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
 				</div>
@@ -216,6 +221,9 @@
 		</div>
 	</div>
 	<InterestButton interest={data.interest} error={form?.error} />
+	{#if data.tickets}
+		<TicketPurchase tickets={data.tickets} result={form?.buy} />
+	{/if}
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">

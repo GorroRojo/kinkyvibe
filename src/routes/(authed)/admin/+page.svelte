@@ -14,6 +14,15 @@
 			<small>pegar filas de la planilla y crear varios borradores juntos</small>
 		</li>
 	</ul>
+	<h2>Entradas</h2>
+	<p>
+		<a href="/admin/entradas">Venta de entradas</a>: ventas por evento, órdenes, transferencias
+		pendientes, exportar CSV y control de ingreso con QR.
+	</p>
+	<p>
+		<a href="/admin/entradas/codigos">Códigos de descuento</a>: crear, activar/desactivar y ver
+		cuántas veces se usó cada uno.
+	</p>
 	<h2>Publicaciones no listadas</h2>
 </div>
 <PostList posts={data.unlisted_posts} />
