@@ -1,6 +1,7 @@
 import '$lib/types.d.js';
 import { dev } from '$app/environment';
 import tagsFactory from './tags';
+import { isCurrent } from './allPosts';
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
@@ -261,6 +262,47 @@ async function loadMarkdownPosts(wiki, unlisted) {
 	});
 	return processedPosts;
 }
+
+/**
+ * Listed posts minus calendar events that already started. PostList hides those
+ * unless the viewer turns on "show past events", in which case the page loads the
+ * full list with fetchAllPostsClient() from $lib/utils/allPosts.
+ * @return {Promise<ProcessedPost[]>}
+ */
+export const fetchCurrentPosts = async () => {
+	const now = Date.now();
+	return (await fetchMarkdownPosts()).filter((p) => isCurrent(p, now));
+};
+
+/**
+ * Splits related posts for a page load: the ones PostList shows by default are
+ * sent, past events are only counted (the page fetches them if they're shown).
+ * @param {ProcessedPost[]} related
+ */
+export const currentRelated = (related) => {
+	const now = Date.now();
+	const relatedPosts = related.filter((p) => isCurrent(p, now));
+	return { relatedPosts, relatedPastCount: related.length - relatedPosts.length };
+};
+
+/**
+ * Posts shown under "Más cosas de…" on calendario/material/amigues pages.
+ * @param {AnyPostData} meta - metadata of the post being viewed
+ * @param {ProcessedPost[]} posts
+ * @return {ProcessedPost[]}
+ */
+export const relatedPostsFor = (meta, posts) =>
+	posts.filter(
+		(p) =>
+			meta.authors?.some(
+				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
+			) ||
+			(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
+			(meta.category == 'wiki' && p.meta.tags.includes(meta.postID)) ||
+			(meta.category == 'amigues' &&
+				p.meta.authors.includes(meta.postID) &&
+				p.meta.postID != meta.postID)
+	);
 
 /** @type {import('svelte/action').Action}  */
 export const processContent = async (node) => {

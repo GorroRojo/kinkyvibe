@@ -7,7 +7,7 @@
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	export let data;
-	let calendarioPosts = data.allPosts.filter((p) => p.meta.layout == 'calendario');
+	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
 	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
 	let days = calendarioPosts.reduce((dates, post, i) => {
 		let start_date = format(addDays(new Date(post.meta.start), 0), 'yyyy-MM-dd');
