@@ -25,8 +25,14 @@ import { buildImportedEvent } from '$lib/utils/sheetImport.js';
 
 const NO_PERMISSION =
 	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
-/** Keeps one import within the Workers subrequest limit (one GitHub read per source event). */
-const MAX_ROWS = 30;
+/**
+ * Rows per import. Each import makes one GitHub read per distinct source event plus a constant
+ * handful (two slug listings, one media listing, the commit's ~5 calls), so 200 rows stay far
+ * below the Workers Paid subrequest limit: 10,000 per request by default (Free: 50), per
+ * https://developers.cloudflare.com/workers/platform/limits/ (checked 2026-09-29). Text files go
+ * inline in the commit's tree and copied images reuse their blobs, so rows add no other calls.
+ */
+const MAX_ROWS = 200;
 const MEDIA_DIR = `${POSTS_DIR}/media`;
 
 /** @param {string} slug */
