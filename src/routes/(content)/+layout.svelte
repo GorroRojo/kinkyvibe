@@ -108,7 +108,7 @@
 		/>
 	</div>
 </header>
-{#if data.currentRoute != '/'}
+{#if $page.url.pathname != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
@@ -126,7 +126,7 @@
 		{/if}
 	</div>
 {/if}
-{#key data.currentRoute}
+{#key $page.url.pathname}
 	<main in:fade={{ duration: 300, delay: 300 }}>
 		<slot />
 	</main>
