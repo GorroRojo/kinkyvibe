@@ -7,10 +7,17 @@
 		allTags,
 		userConfig,
 		tagManager,
-		redundantTags
+		redundantTags,
+		searchText
 	} from '$lib/utils/stores';
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { filterPosts, readSearchParams, writeSearchParams } from '$lib/utils/postSearch';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
+	import TagSearch from './TagSearch.svelte';
 	import Card from './Card.svelte';
 	/**
 	 * @type {Record<string,*>[]}
@@ -19,6 +26,8 @@
 	export let posts = [];
 	/** @type {false|{prop: string, value: *}}*/
 	export let filter = false;
+	/** Keep the search in the URL (`?tags=a,b&q=texto`). Only one PostList per page should do this. */
+	export let syncUrl = true;
 
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
@@ -66,16 +75,62 @@
 
 	$: visibleTags.set(getVisibleTags(tagFilteredPosts, $filteredTags));
 	/**@type ProcessedPost[]*/
-	$: tagFilteredPosts = outerFilteredPosts.filter(
-		(post) =>
-			$filteredTags.length == 0 ||
-			$filteredTags.every((f) => {
-				return (
-					post.meta.tags.includes(f) ||
-					post.meta.tags.some((t) => $tagManager.get(t)?.getAllParents().includes(f))
-				);
-			})
+	$: tagFilteredPosts = filterPosts(
+		outerFilteredPosts,
+		{ tags: $filteredTags, text: $searchText },
+		$tagManager
 	);
+	$: searching = $filteredTags.length > 0 || $searchText.trim() != '';
+
+	onMount(() => {
+		if (!syncUrl) return;
+		const pathname = location.pathname;
+		/** search string we last wrote ourselves, so our own navigations don't echo back
+		 * @type {string|null} */
+		let written = null;
+		/** @type {ReturnType<typeof setTimeout>|undefined} */
+		let timer;
+
+		function writeUrl() {
+			clearTimeout(timer);
+			if (location.pathname != pathname) return;
+			const next = writeSearchParams(new URL(location.href), {
+				tags: get(filteredTags),
+				text: get(searchText)
+			});
+			if (next.search == location.search) return;
+			written = next.search;
+			goto(next.pathname + next.search + next.hash, {
+				replaceState: true,
+				keepFocus: true,
+				noScroll: true
+			});
+		}
+
+		const unsubPage = page.subscribe(($page) => {
+			if ($page.url.pathname != pathname || $page.url.search == written) return;
+			// initial load, back/forward or a link: the URL wins
+			clearTimeout(timer);
+			written = $page.url.search;
+			const { tags, text } = readSearchParams($page.url);
+			if (tags.join(',') != get(filteredTags).join(',')) filteredTags.set(tags);
+			if (text != get(searchText)) searchText.set(text);
+		});
+		const unsubTags = filteredTags.subscribe(() => {
+			clearTimeout(timer);
+			timer = setTimeout(writeUrl, 0);
+		});
+		const unsubText = searchText.subscribe(() => {
+			clearTimeout(timer);
+			timer = setTimeout(writeUrl, 400);
+		});
+		return () => {
+			clearTimeout(timer);
+			unsubPage();
+			unsubTags();
+			unsubText();
+		};
+	});
 
 	$: allTags.set([
 		// @ts-ignore
@@ -87,25 +142,47 @@
 <slot />
 <div class="container">
 	<div class="postlist">
+		{#if outerFilteredPosts.length > 0 || searching}
+			<div class="search">
+				<TagSearch posts={outerFilteredPosts} />
+			</div>
+		{/if}
 		<div id="filterbar">
 			<FilterBar
 				event_toggle={tagFilteredPosts.length == 0 ||
 					tagFilteredPosts.some((p) => p.meta.category == 'calendario')}
 			/>
 		</div>
-		{#if tagFilteredPosts.length > 0 || $filteredTags.length > 0}
+		{#if outerFilteredPosts.length > 0 || searching}
 			{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
-
-			{#key $userConfig.display_type}
-				<p class="post-amount">{tagFilteredPosts.length} resultados</p>
-				<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
-					{#each tagFilteredPosts as post, i (post.path)}
-						<li in:scale={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
-							<svelte:component this={Item} {post} />
-						</li>
-					{/each}
-				</ul>
-			{/key}
+			<div class="results">
+				<p class="post-amount" aria-live="polite">
+					{tagFilteredPosts.length}
+					{tagFilteredPosts.length == 1 ? 'resultado' : 'resultados'}
+				</p>
+				{#if tagFilteredPosts.length == 0}
+					<div class="empty-state">
+						<p>No encontramos nada con esa búsqueda.</p>
+						<p>Probá sacando alguna etiqueta o buscando con otras palabras.</p>
+						<button
+							type="button"
+							on:click={() => {
+								filteredTags.set([]);
+								searchText.set('');
+							}}>Despejar búsqueda</button
+						>
+					</div>
+				{/if}
+				{#key $userConfig.display_type}
+					<ul id="posts" in:fade={{ duration: 300 }} class={$userConfig.display_type + ' h-feed'}>
+						{#each tagFilteredPosts as post, i (post.path)}
+							<li in:scale={{ delay: i * 10 }} animate:flip={{ duration: 500 }}>
+								<svelte:component this={Item} {post} />
+							</li>
+						{/each}
+					</ul>
+				{/key}
+			</div>
 		{/if}
 	</div>
 </div>
@@ -120,16 +197,36 @@
 		max-width: 50rem;
 		margin-inline: auto;
 	}
+	.search,
+	.results {
+		min-width: 0;
+		padding-inline: 1em;
+	}
 	.post-amount {
-		position: absolute;
-		left: 0;
-		right: 0;
 		text-align: right;
-		top: -2em;
 		max-width: 50rem;
-		margin-inline: auto;
-		padding-left: 2em;
+		margin: 0 auto 1.5em;
 		opacity: 0.7;
+	}
+	.empty-state {
+		max-width: 50rem;
+		margin: 0 auto 2em;
+		text-align: center;
+		color: var(--1-dark);
+		p {
+			margin: 0.3em 0;
+		}
+		button {
+			margin-top: 0.8em;
+			border: none;
+			outline: 2px solid var(--1);
+			border-radius: 0.5em;
+			padding: 0.3em 0.6em;
+			color: var(--1);
+			background: white;
+			font-size: var(--step--1);
+			cursor: pointer;
+		}
 	}
 	li {
 		list-style: none;
@@ -175,6 +272,21 @@
 		}
 		#display-type {
 			margin-bottom: 1em;
+		}
+		/* search above the results, filters in the left column beside both */
+		.search {
+			grid-column: 2;
+			grid-row: 1;
+			padding-inline: 0;
+		}
+		#filterbar {
+			grid-column: 1;
+			grid-row: 1 / span 2;
+		}
+		.results {
+			grid-column: 2;
+			grid-row: 2;
+			padding-inline: 0;
 		}
 	}
 	@media screen and (min-width: 1300px) {
