@@ -444,3 +444,7 @@ Hace falta estar logueade en la cuenta de Cloudflare del proyecto (`npx wrangler
 Cada vez que se agregue una migración nueva hay que correr `npm run db:migrate:remote` **antes** de que llegue a producción el código que la necesita.
 
 `wrangler.toml` no tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo ignora al deployar y los bindings y variables siguen configurándose desde el panel (paso 4). Solo lo usan los comandos locales y `wrangler d1`.
+
+## Venta de entradas
+
+Los eventos pueden vender entradas desde el sitio (pago con Mercado Pago, QR por email, control de ingreso en `/admin/entradas`) agregando `tickets:` a su frontmatter. Usa la base de datos de arriba (tablas de `migrations/0002_tickets.sql`). Configuración, variables de entorno (`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `RESEND_API_KEY`, `TICKETS_FROM_EMAIL`), cómo probarlo en local con los mocks y lo que falta antes de vender de verdad: [`docs/tickets.md`](/docs/tickets.md).
