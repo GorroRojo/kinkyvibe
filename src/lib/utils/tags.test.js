@@ -123,10 +123,9 @@ describe('tagsFactory (src/lib/utils/tags.js)', () => {
 		]);
 	});
 
-	// BUG (reported, not fixed): parseDescription() computes `href` for [[destino:texto]] links
-	// but the next .map(({ line, type }) => ...) drops it, so the target tag is lost and the UI
-	// (material/+page.svelte) links to the display text instead. Flip to `it` once fixed.
-	it.fails('conserva el href de [[destino:texto]] en parsedDescription', () => {
+	// Regression test: parseDescription() used to drop the computed `href` of [[destino:texto]]
+	// links (fixed in the bug-hunt branch).
+	it('conserva el href de [[destino:texto]] en parsedDescription', () => {
 		const tm = tagsFactory(sample());
 		expect(tm.get('caída').parsedDescription).toContainEqual({
 			line: 'aftercare',

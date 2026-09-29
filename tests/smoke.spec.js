@@ -112,10 +112,9 @@ test.describe('calendario', () => {
 		await context.close();
 	});
 
-	// BUG (reported, not fixed): the event time is formatted during SSR in the *server's*
-	// timezone (UTC on Cloudflare), so the HTML says "10:30 p. m." for a 19:30 -03:00 event
-	// until JS hydrates (crawlers, link previews, no-JS users see the wrong time).
-	test.fixme('el HTML del servidor muestra la hora del evento en hora argentina', async ({
+	// Regression test: SSR used to format event times in the server's timezone (UTC on
+	// Cloudflare), so crawlers/link previews saw 22:30 for a 19:30 -03:00 event.
+	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({
 		request
 	}) => {
 		const html = await (await request.get('/calendario/someter-2026-09')).text();
@@ -141,12 +140,19 @@ test.describe('calendario', () => {
 		expect(events.some((e) => e.STATUS === 'CANCELLED')).toBe(false);
 	});
 
-	// Content bug (see src/tests/content-known-issues.json, code `end-before-start`): several
-	// past events have `end` before `start` (after-midnight end with the same date), which
-	// produces VEVENTs with DTEND < DTSTART. Enable once the content is fixed.
-	test.fixme('todos los VEVENT terminan después de empezar', async ({ request }) => {
+	// Ends past midnight written with the start's date are rolled forward by eventEnd(). The two
+	// events below have a genuinely wrong end *date* in their frontmatter (content typos for the
+	// organizers to fix); remove them from this list once fixed.
+	test('todos los VEVENT terminan después de empezar', async ({ request }) => {
+		const knownContentTypos = [
+			'https://kinkyvibe.ar/calendario/cine-para-sucixs-octubre-2023',
+			'https://kinkyvibe.ar/calendario/grupo-de-apoyo-y-discusion-para-doms-noviembre-2023'
+		];
 		const { events } = parseIcs(await (await request.get('/calendario.ics')).text());
-		const bad = events.filter((e) => icsDate(e.DTEND) < icsDate(e.DTSTART)).map((e) => e.URL);
+		const bad = events
+			.filter((e) => icsDate(e.DTEND) < icsDate(e.DTSTART))
+			.map((e) => e.URL)
+			.filter((url) => !knownContentTypos.includes(url));
 		expect(bad).toEqual([]);
 	});
 });
@@ -161,18 +167,14 @@ test.describe('feeds', () => {
 		expect((xml.match(/<item>/g) ?? []).length).toBeGreaterThan(10);
 	});
 
-	// BUG (reported, not fixed): rss/+server.js interpolates titles without XML-escaping, so a
-	// title like "Troles & Tableros" makes the whole feed invalid XML (feed readers reject it).
-	test.fixme('/rss es XML bien formado', async ({ page, request }) => {
+	// Regression test: titles like "Troles & Tableros" used to be interpolated unescaped.
+	test('/rss es XML bien formado', async ({ page, request }) => {
 		const xml = await (await request.get('/rss')).text();
 		expect(await xmlError(page, xml)).toBeNull();
 	});
 
-	// BUG (reported, not fixed): /sitemap.xml returns 500 (RangeError: Invalid time value)
-	// because some listed posts have neither published_date nor updated_date and
-	// `new Date('').toISOString()` throws. See code `listed-without-date` in
-	// src/tests/content-known-issues.json. Enable once code or content is fixed.
-	test.fixme('/sitemap.xml es XML bien formado', async ({ page, request }) => {
+	// Regression test: /sitemap.xml used to 500 on listed posts without a date.
+	test('/sitemap.xml es XML bien formado', async ({ page, request }) => {
 		const res = await request.get('/sitemap.xml');
 		expect(res.status()).toBe(200);
 		const xml = await res.text();
@@ -187,10 +189,9 @@ test.describe('errores', () => {
 		expect(res.status()).toBeLessThan(500);
 	});
 
-	// BUG (reported, not fixed): fetchPost() does a dynamic import of the .md file and the
-	// "Unknown variable dynamic import" error bubbles up as a 500 instead of a 404.
+	// Regression test: missing posts used to bubble up as a 500 instead of a 404.
 	for (const path of ['/calendario/no-existe', '/material/no-existe', '/amigues/no-existe']) {
-		test.fixme(`${path} devuelve 404`, async ({ request }) => {
+		test(`${path} devuelve 404`, async ({ request }) => {
 			const res = await request.get(path);
 			expect(res.status()).toBe(404);
 		});
@@ -201,7 +202,7 @@ test.describe('auth', () => {
 	test('/admin redirige a /login sin sesión', async ({ request }) => {
 		const res = await request.get('/admin', { maxRedirects: 0 });
 		expect([302, 303, 307]).toContain(res.status());
-		expect(res.headers()['location']).toMatch(/\/login\?redirectTo=\/admin$/);
+		expect(res.headers()['location']).toMatch(/\/login\?redirectTo=(\/|%2F)admin$/);
 	});
 
 	test('/edit redirige a /login sin sesión', async ({ request }) => {
@@ -210,12 +211,11 @@ test.describe('auth', () => {
 		expect(res.headers()['location']).toMatch(/\/login/);
 	});
 
-	// KNOWN AUTH BYPASS on main (fix in progress on another branch): hooks.server.js trusts the
-	// `userLogin` cookie whenever `userToken === prevToken`, so anyone can forge admin access.
-	// Marked test.fail(): when the fix merges this starts passing and Playwright reports it as
-	// "unexpectedly passed" — then remove the test.fail() line.
+	// Regression test for the cookie-trust auth bypass (fixed by the security PR): identity must
+	// come from GitHub's answer for the token, never from client-writable cookies.
+	// Note: in sandboxes whose egress proxy injects GitHub credentials, any token resolves to a
+	// real account, so this can only be trusted in CI / production-like networks.
 	test('cookies falsificadas NO dan acceso a /admin', async ({ request }) => {
-		test.fail();
 		const res = await request.get('/admin', {
 			maxRedirects: 0,
 			headers: { Cookie: 'userToken=x; prevToken=x; userLogin=GorroRojo' }

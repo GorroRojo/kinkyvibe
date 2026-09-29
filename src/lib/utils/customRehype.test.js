@@ -21,9 +21,9 @@ const md = async (/** @type {string} */ source) =>
 describe('customRehype', () => {
 	it('agrega el link "linktothis" y "backtotop" a los títulos con id', async () => {
 		const out = await run('<h2>Siglas y más</h2>');
-		expect(out).toMatch(/^<h2 id="siglas-y-más"><a href="#siglas-y-más" class="linktothis"><svg/);
+		expect(out).toMatch(/^<h2 id="siglas-y-más"><a href="#siglas-y-más" class="linktothis"[^>]*><svg/);
 		expect(out).toContain('class="lucide lucide-link"');
-		expect(out).toMatch(/<a href="#title" class="backtotop"><svg[^>]*lucide-corner-right-up/);
+		expect(out).toMatch(/<a href="#title" class="backtotop"[^>]*><svg[^>]*lucide-corner-right-up/);
 		expect(out).toContain('Siglas y más');
 	});
 
