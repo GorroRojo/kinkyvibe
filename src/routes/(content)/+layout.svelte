@@ -214,8 +214,9 @@
 		justify-self: right;
 		--color: var(--1);
 	}
+	/* `width: 24` (no unit) was always invalid and ignored by browsers; Vite 8's CSS minifier
+	   would turn it into 24px and resize every icon, so it's dropped to keep the old rendering. */
 	:global(svg) {
-		width: 24;
 		height: 24px;
 	}
 	#logo img {

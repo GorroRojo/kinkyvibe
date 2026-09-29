@@ -91,7 +91,6 @@
 			{:else}
 				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
-			&ThickSpace;
 		</div>
 		{#if category != 'amigues'}
 			{#if date}
@@ -178,9 +177,9 @@
 				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
 				<li
 					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black'}
+					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black)'}
 					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent'}
+					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent)'}
 					style:--filled-outline-offset={'-2px'}
 					style:--hover-text-decoration={'underline var(--tag-color)'}
 					style:white-space={'nowrap'}
