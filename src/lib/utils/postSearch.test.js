@@ -45,6 +45,21 @@ describe('filterPosts', () => {
 	it('returns every post with no search', () => {
 		expect(filterPosts(posts, {}, makeTM())).toBe(posts);
 	});
+	it('memoizes per tag manager, so another hierarchy is not served stale results', () => {
+		const tm = makeTM();
+		expect(titles(filterPosts(posts, { tags: ['Presencial'] }, tm))).toHaveLength(2);
+		// same posts, same manager again: same answer from the memo
+		expect(titles(filterPosts(posts, { tags: ['Presencial'] }, tm))).toHaveLength(2);
+		// a manager where Argentina is not under Presencial
+		const flat = tagsFactory(
+			/** @type {any} */ ([
+				{ id: 'root', children: ['Presencial', 'Argentina'] },
+				{ id: 'Presencial' },
+				{ id: 'Argentina', children: ['Córdoba', 'AMBA'] }
+			])
+		);
+		expect(titles(filterPosts(posts, { tags: ['Presencial'] }, flat))).toEqual([]);
+	});
 	it('combines tags with AND', () => {
 		const res = filterPosts(posts, { tags: ['bondage', 'impact play'] }, makeTM());
 		expect(titles(res)).toEqual(['Fiesta en AMBA']);
