@@ -58,15 +58,24 @@
 		outline-offset: 3px;
 	}
 
-	/* --- header: mismo tamaño que los íconos vecinos, un poco más grande --- */
+	/* --- header (escritorio): único botón junto al logo --- */
+	/* colores invertidos respecto del FAB (fondo blanco, lupa rosa) para que resalte
+	   como acción principal junto al logo */
 	.icon {
-		width: 1.6em;
-		height: 1.6em;
+		width: 1.9em;
+		height: 1.9em;
 		font-size: 1.2em;
+		background: white;
+		color: var(--1);
+		box-shadow:
+			inset 0 0 0 2px var(--1),
+			0 2px 6px rgba(0, 0, 0, 0.12);
 	}
 	.icon:hover {
 		scale: 1.1;
-		box-shadow: 0 0 0.4em rgba(1, 1, 1, 0.2);
+		box-shadow:
+			inset 0 0 0 2px var(--1),
+			0 0 0.4em rgba(1, 1, 1, 0.2);
 	}
 	.icon:active {
 		scale: 1;

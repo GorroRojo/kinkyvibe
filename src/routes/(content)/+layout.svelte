@@ -10,8 +10,6 @@
 		ChevronLeft,
 		Globe
 	} from '@lucide/svelte';
-	import { siInstagram, siTelegram } from 'simple-icons';
-	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
@@ -69,19 +67,10 @@
 <header>
 	<div id="me">
 		<ul id="redes">
-			<!-- el buscador global reemplaza acá al link de Cafecito (sigue en el footer) -->
+			<!-- el buscador global reemplaza acá al link de Cafecito y a los íconos de
+			     Telegram/Instagram (todos siguen en el footer) -->
 			<li class="search">
 				<SearchButton variant="icon" />
-			</li>
-			<li>
-				<a href="https://t.me/BDSMtextos" target="_blank">
-					<SimpleIcon icon={siTelegram} />
-				</a>
-			</li>
-			<li>
-				<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank">
-					<SimpleIcon icon={siInstagram} />
-				</a>
 			</li>
 			<!-- recursero -->
 			<!-- fanzines -->
