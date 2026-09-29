@@ -1,7 +1,7 @@
 <script>
 	//@ts-nocheck
 	import { isSameMonth, isSameYear, addMonths, isBefore, format } from 'date-fns';
-	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
+	import { ArrowLeft, Home, ArrowRight } from '@lucide/svelte';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
 
 	const today_date = new Date();
@@ -12,7 +12,9 @@
 	import { page } from '$app/stores';
 	page.subscribe((p) => {
 		if (p.url.searchParams.get('viewdate')) {
-			$view_date = addMonths(new Date($page.url.searchParams.get('viewdate')), 1);
+			// parse 'yyyy-MM' as a local date (new Date('yyyy-MM') would be UTC midnight)
+			const d = new Date(p.url.searchParams.get('viewdate') + '-01T00:00');
+			if (!isNaN(d.getTime())) $view_date = d;
 		}
 	});
 	let updateURL = () => {

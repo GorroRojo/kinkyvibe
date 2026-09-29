@@ -14,23 +14,23 @@ export async function GET({ url, cookies }) {
 
 	const state = url.searchParams.get('state');
 	if (!expectedState || !state || state !== expectedState) {
-		throw error(400, 'Inicio de sesión inválido o vencido. Volvé a intentar desde /login.');
+		error(400, 'Inicio de sesión inválido o vencido. Volvé a intentar desde /login.');
 	}
 	const code = url.searchParams.get('code');
 	if (!code) {
 		// e.g. the user cancelled the authorization on GitHub (?error=access_denied)
-		throw redirect(302, '/login?redirectTo=' + encodeURIComponent(redirectTo));
+		redirect(302, '/login?redirectTo=' + encodeURIComponent(redirectTo));
 	}
 	let token;
 	try {
 		token = await getToken(code);
 	} catch (e) {
 		console.log(e);
-		throw error(502, 'No se pudo iniciar sesión con GitHub. Volvé a intentar.');
+		error(502, 'No se pudo iniciar sesión con GitHub. Volvé a intentar.');
 	}
-	if (!token) throw error(502, 'No se pudo iniciar sesión con GitHub. Volvé a intentar.');
+	if (!token) error(502, 'No se pudo iniciar sesión con GitHub. Volvé a intentar.');
 	cookies.set(TOKEN_COOKIE, token, authCookieOptions(url));
-	throw redirect(302, redirectTo);
+	redirect(302, redirectTo);
 }
 
 /**
