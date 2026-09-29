@@ -5,6 +5,7 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
+	import { TIMEZONE } from '$lib/utils/dates.js';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -95,7 +96,8 @@
 			&ThickSpace;-&ThickSpace;
 			<time datetime={data.meta.published_date?.toString()} class="dt-published">
 				{new Date(data.meta.published_date?.toString() ?? '').toLocaleDateString('es-AR', {
-					dateStyle: 'long'
+					dateStyle: 'long',
+					timeZone: TIMEZONE
 				})}
 			</time>
 		</address>
@@ -117,7 +119,8 @@
 			Fecha de publicación original:
 			<span class="dt-published">
 				{new Date(data.meta.original_published_date?.toString() ?? '').toLocaleDateString('es-AR', {
-					dateStyle: 'long'
+					dateStyle: 'long',
+					timeZone: TIMEZONE
 				})}
 			</span><br />
 			{#if data.meta.link}
