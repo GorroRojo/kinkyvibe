@@ -138,7 +138,7 @@ describe('picker options', () => {
 	it('events: no rule groups, no other categories, no structural nodes', () => {
 		for (const t of ['español', 'AMBA', 'Online', 'pago', 'KinkyVibe', 'LSA'])
 			expect(ids).not.toContain(t);
-		for (const t of ['online', 'guía', 'emprendimiento', 'tipo de evento', 'calendario', 'root'])
+		for (const t of ['web', 'guía', 'emprendimiento', 'tipo de evento', 'calendario', 'root'])
 			expect(ids).not.toContain(t);
 		expect(ids).toContain('taller');
 		expect(ids).toContain('shibari');
@@ -152,7 +152,7 @@ describe('picker options', () => {
 	it('material keeps its own tags and the place tags', () => {
 		const m = buildTagOptions({ category: 'material' }).map((o) => o.id);
 		expect(m).toContain('guía');
-		expect(m).toContain('online');
+		expect(m).toContain('web');
 		expect(m).toContain('español');
 		expect(m).not.toContain('taller');
 		expect(excludedFromPicker('material').has('tipo de material')).toBe(true);

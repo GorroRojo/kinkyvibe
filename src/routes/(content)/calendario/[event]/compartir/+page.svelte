@@ -56,10 +56,14 @@
 	function draw(layout, showStatus) {
 		for (const format of Object.keys(FORMATS)) {
 			if (!canvases[format]) continue;
+			// Casts in their own statements: Svelte 5 drops the key of a `key: /** cast */ (value)`
+			// object property when it rewrites this block, which breaks the build.
+			const formatKey = /** @type {keyof typeof FORMATS} */ (format);
+			const layoutKey = /** @type {keyof typeof LAYOUTS} */ (layout);
 			renderShareImage(canvases[format], {
 				meta: data.meta,
-				format: /** @type {keyof typeof FORMATS} */ (format),
-				layout: /** @type {keyof typeof LAYOUTS} */ (layout),
+				format: formatKey,
+				layout: layoutKey,
 				image,
 				logo,
 				showStatus

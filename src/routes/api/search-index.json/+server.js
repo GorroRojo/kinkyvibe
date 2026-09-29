@@ -12,7 +12,10 @@ export const prerender = true;
 const BODY_MAX = { calendario: 400, material: 2500, amigues: 2500, wiki: 2500 };
 
 /** Markdown crudo de cada post, cargado sólo por este endpoint (en build). */
-const rawPosts = import.meta.glob('/src/lib/posts/*/*.md', { as: 'raw' });
+// `{ as: 'raw' }` is gone in Vite 8 (it returned the module instead of the text).
+const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
+	import.meta.glob('/src/lib/posts/*/*.md', { query: '?raw', import: 'default' })
+);
 
 /**
  * @param {string} category

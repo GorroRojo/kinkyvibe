@@ -114,8 +114,8 @@ export function eventTagGroups(tm = siteTags()) {
 }
 
 /**
- * Extra spellings accepted for rule tags in events only. "online" (lowercase) is the material
- * tag "tipo de material > online"; in an event it can only mean the place.
+ * Extra spellings accepted for rule tags in events only. "online" (lowercase) was the old name of the
+ * material tag "tipo de material > web" (still an alias of it); in an event it can only mean the place.
  * @type {Record<string, string>}
  */
 const EVENT_ALIASES = { online: 'Online', virtual: 'Online' };
@@ -281,7 +281,7 @@ const CATEGORY_ROOTS = ['calendario', 'material', 'amigues'];
 
 /**
  * Tags a post of `category` can pick in the free picker.
- * - Other categories' subtrees are left out ("tipo de material > online" is not for events).
+ * - Other categories' subtrees are left out ("tipo de material > web" is not for events).
  * - Category roots and their grouping nodes ("tipo de evento") are left out.
  * - For events, the rule groups (KinkyVibe, idioma, lugar, precio) are left out: they have their
  *   own controls.
