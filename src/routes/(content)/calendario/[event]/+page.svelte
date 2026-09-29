@@ -2,7 +2,7 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import 'add-to-calendar-button';
+	import { onMount } from 'svelte';
 	import { format } from 'date-fns';
 	import { currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -10,6 +10,8 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
+	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
+	onMount(() => import('add-to-calendar-button'));
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
 		try {

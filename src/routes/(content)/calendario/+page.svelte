@@ -1,5 +1,4 @@
 <script>
-	import 'add-to-calendar-button';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { addDays, format, isSameMonth, isPast, addMonths, addHours } from 'date-fns';
