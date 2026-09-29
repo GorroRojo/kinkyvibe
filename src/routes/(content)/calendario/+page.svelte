@@ -157,8 +157,8 @@
 			color: white;
 			--font: 'Lato', sans-serif;
 			text-decoration: none;
-			padding: 0.3em;
-			border-radius: 0.3em;
+			padding: .3em;
+			border-radius: .3em;
 			&:hover {
 				border-color: white;
 				color: white;
