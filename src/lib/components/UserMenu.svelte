@@ -40,6 +40,12 @@
 	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
 		{#if admin}
 		<a href="/admin" class="menuitem" use:melt={$item}>Panel de admin</a>
+		<a href="/admin/entradas" class="menuitem" use:melt={$item}>Entradas</a>
+		{#if $page.params.event && $page.data?.tickets}
+			<a href="/admin/entradas/{$page.params.event}" class="menuitem" use:melt={$item}
+				>Entradas de este evento</a
+			>
+		{/if}
 		{#if isPageEditable}
 			<!-- TODO handle wikiless wiki links -->
 			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}>Editar contenido</a>
