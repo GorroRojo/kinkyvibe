@@ -251,7 +251,14 @@ describe('parseSheet', () => {
 			end: '',
 			place: 'Plaza Lavalle'
 		});
-		expect(rows.every((r) => r.checked === false)).toBe(true);
+		// the "c" checkbox is ignored entirely
+		expect(rows.every((r) => !('checked' in r))).toBe(true);
+	});
+	it('ignores the "c" checkbox: TRUE and FALSE rows read the same', () => {
+		const row = '\tKinkyVibe\tPicantearla\tviernes 16\t21 - 03 horas\t\tAgrelo 3399';
+		const read = (/** @type {string} */ c) =>
+			parseSheet([HEADER_2026, 'OCTUBRE', c + row].join('\n'), { today: TODAY }).rows[0];
+		expect(read('TRUE')).toEqual(read('FALSE'));
 	});
 	it('parses 2026-style rows with a header, sections and every column', () => {
 		const text = [
@@ -272,7 +279,6 @@ describe('parseSheet', () => {
 		const [pica, bondage, cine, noche, merienda] = rows;
 		expect(pica).toMatchObject({
 			organiza: 'KinkyVibe',
-			checked: true,
 			start: '2026-10-16T21:00-03:00',
 			end: '2026-10-17T03:00-03:00',
 			price: '$8000',
@@ -545,6 +551,8 @@ describe('buildImportedEvent', () => {
 		expect(content).toMatch(/^#location: Sarmiento 3096/m);
 		expect(notes.join(' ')).toMatch(/lugar cambió/);
 		expect(notes.join(' ')).toMatch(/anunciado/);
+		// no link in the row: the previous edition's link stays in the file (hidden while anunciado)
+		expect(m.link).toBe(meta(post('taller-bondage-2026-03')).link);
 	});
 	it('keeps a numeric featured image so the page can copy it', () => {
 		const { featured, content } = buildImportedEvent(

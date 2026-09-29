@@ -235,6 +235,8 @@ export const COLUMNS_2026 = /** @type {Column[]} */ ([
 function headerColumn(cell) {
 	const h = fold(cell);
 	if (!h) return null;
+	// "c": a checkbox column nobody knows the meaning of. Recognized only so its TRUE/FALSE is
+	// not read as another column; its value is ignored.
 	if (h === 'c') return 'check';
 	if (h === 'fin') return 'done'; // leading checkbox column of the 2024 tab
 	if (h.startsWith('organiza')) return 'organiza';
@@ -531,7 +533,6 @@ export function parseTimeText(startText, endText = '') {
  * @prop {string} link a URL, or '' (see linkText)
  * @prop {string} linkText the "Link Inscripción" cell as written
  * @prop {string} comments
- * @prop {boolean} checked the "c" checkbox
  * @prop {number|undefined} sectionMonth
  * @prop {number|undefined} sectionYear
  * @prop {string} off "pospuesto", "cancelado"... when the row says the event isn't happening
@@ -664,7 +665,6 @@ export function parseSheet(text, { today }) {
 			link,
 			linkText: v.link ?? '',
 			comments: v.comments ?? '',
-			checked: /^(true|verdadero)$/i.test(v.check ?? ''),
 			sectionMonth: month,
 			sectionYear: month || yearExplicit ? year : undefined,
 			off,

@@ -130,7 +130,6 @@
 				notes.push(`Parece que ya está cargado: ${existing.map(eventLabel).join(', ')}.`);
 			const past = sheet.date && sheet.date < data.today;
 			if (past) notes.push('La fecha ya pasó.');
-			if (sheet.checked) notes.push('En la planilla tiene la casilla “c” marcada.');
 			/** @type {Item} */
 			const item = {
 				id: i,
@@ -441,6 +440,15 @@
 									{#if scheduleText(item)}📅 <span>{scheduleText(item)}</span>{:else}📅 Falta la
 										fecha y hora{/if}
 								</p>
+								<p class="link-state">
+									{#if item.link.trim()}
+										🔗 Con link de inscripción: queda «abierto».
+									{:else}
+										🔗 Sin link de inscripción: queda «anunciado»{item.source
+											? '. El link del evento anterior se conserva en el archivo, pero no se muestra'
+											: ''}.
+									{/if}
+								</p>
 								<div class="fields">
 									<label class="wide">
 										<span>Evento anterior (se copia)</span>
@@ -750,6 +758,11 @@
 		span::first-letter {
 			text-transform: uppercase;
 		}
+	}
+	.link-state {
+		margin: 0 0 0.4em;
+		font-size: var(--step--1);
+		opacity: 0.85;
 	}
 	.fields {
 		display: grid;
