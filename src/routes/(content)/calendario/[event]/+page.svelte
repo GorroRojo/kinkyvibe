@@ -2,12 +2,15 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import InterestButton from '$lib/components/InterestButton.svelte';
 	import 'add-to-calendar-button';
 	import { format } from 'date-fns';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	export let data;
+	/** @type {{ error?: string } | null} */
+	export let form = null;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
@@ -203,6 +206,7 @@
 			></add-to-calendar-button>
 		</div>
 	</div>
+	<InterestButton interest={data.interest} error={form?.error} />
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
