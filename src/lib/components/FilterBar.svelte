@@ -8,12 +8,7 @@
 
 	export let event_toggle = true;
 
-	/**@type string[]*/
-	let orphanTags = [];
 	onMount(() => {
-		visibleTags.subscribe((v) => {
-			orphanTags = v.filter((v) => $tagManager.get(v).orphan);
-		});
 		// @ts-ignore
 		page.subscribe((p) => {
 			if (p.url.searchParams.has('tags')) {
