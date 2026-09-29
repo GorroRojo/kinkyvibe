@@ -206,7 +206,7 @@
 						on:keypress={function (e) {
 							if (e.key == 'Enter') e.preventDefault();
 						}}
-					/>
+					></textarea>
 				{:else if postProp.type == 'array'}
 					<TagsInput
 						inputid="{postProp.key}-input"
@@ -267,7 +267,7 @@
 <div class="content">
 	<div class="col-2s">
 		<form method="POST" action="?/save">
-			<textarea hidden name="content" value={'---\n' + doc.toString() + '\n---' + postContent} />
+			<textarea hidden name="content" value={'---\n' + doc.toString() + '\n---' + postContent}></textarea>
 			<input type="text" hidden name="sha" value={sha} />
 			<input type="text" hidden name="path" value={path} />
 			<input type="submit" value="Guardar" />

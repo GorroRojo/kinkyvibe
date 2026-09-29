@@ -70,7 +70,7 @@ export const actions = {
  */
 async function getFileContent(token, path) {
 	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
-	if (!fileContent) throw error(404, 'No se encontró la publicación');
+	if (!fileContent) error(404, 'No se encontró la publicación');
 	let raw = Buffer.from(fileContent.content, fileContent.encoding).toString();
 	return { raw, ...fileContent };
 }

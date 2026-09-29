@@ -17,6 +17,10 @@ const config = {
 	extensions: ['.svelte', '.md', '.svx'],
 	preprocess: sequence([
 		sveltePreprocess({
+			// Svelte 5 strips TypeScript natively. Letting svelte-preprocess transpile TS without
+			// `verbatimModuleSyntax` drops imports that are only used in the markup (this broke
+			// the @lucide/svelte icons, which are written in TS).
+			typescript: false,
 			postcss: {
 				plugins: [autoprefixer]
 			}

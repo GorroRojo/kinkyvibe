@@ -77,14 +77,14 @@ export function aliaserFactory(tagManager = tagsFactory()) {
  */
 export const fetchPost = async (category, postID, shallow = false) => {
 	// templates (_*.md) are not posts
-	if (postID.startsWith('_')) throw error(404, 'Not found');
+	if (postID.startsWith('_')) error(404, 'Not found');
 	let postContent, meta;
 	try {
 		({ default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`));
 	} catch (e) {
-		throw error(404, 'Not found');
+		error(404, 'Not found');
 	}
-	if (!meta || meta.force_unpublished) throw error(404, 'Not found');
+	if (!meta || meta.force_unpublished) error(404, 'Not found');
 	return await processPost(postContent, postID, meta, shallow);
 };
 

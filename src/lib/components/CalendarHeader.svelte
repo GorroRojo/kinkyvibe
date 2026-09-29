@@ -1,7 +1,7 @@
 <script>
 	//@ts-nocheck
 	import { isSameMonth, isSameYear, addMonths, isBefore, format } from 'date-fns';
-	import { ArrowLeft, Home, ArrowRight } from 'lucide-svelte';
+	import { ArrowLeft, Home, ArrowRight } from '@lucide/svelte';
 	import { view_date, month_change_direction } from '$lib/utils/stores';
 
 	const today_date = new Date();

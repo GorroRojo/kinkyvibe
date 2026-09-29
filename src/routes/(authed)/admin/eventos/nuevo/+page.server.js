@@ -51,25 +51,25 @@ function usableTemplate(raw) {
 export async function load({ locals, url }) {
 	requireAdmin(locals, url);
 	const admin = getEventAdmin(locals);
-	if (!admin) throw error(403, NO_PERMISSION);
+	if (!admin) error(403, NO_PERMISSION);
 	const desde = url.searchParams.get('desde');
 	/** @type {null | {slug: string, raw: string, title: string, featured: string, featuredUrl?: string}} */
 	let source = null;
 	if (desde) {
-		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
+		if (validateSlug(desde)) error(400, 'Ese evento no existe.');
 		const client = await getRepoClient();
 		let raw;
 		try {
 			raw = await client.getFile(admin.token, eventPath(desde));
 		} catch (e) {
-			throw error(502, 'No pudimos leer el evento desde GitHub: ' + describeError(e));
+			error(502, 'No pudimos leer el evento desde GitHub: ' + describeError(e));
 		}
-		if (raw === null) throw error(404, `No encontramos el evento “${desde}”.`);
+		if (raw === null) error(404, `No encontramos el evento “${desde}”.`);
 		let fields;
 		try {
 			fields = readEventFields(splitMarkdown(raw).frontmatter);
 		} catch (e) {
-			throw error(
+			error(
 				422,
 				`El archivo de “${desde}” tiene un formato que esta página no entiende (${describeError(
 					e

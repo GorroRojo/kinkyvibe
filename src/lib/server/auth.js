@@ -25,10 +25,10 @@ export function isAdmin(user) {
  */
 export function requireAdmin(locals, url) {
 	if (!locals.user || !locals.user_token) {
-		throw redirect(303, '/login?redirectTo=' + encodeURIComponent(url.pathname));
+		redirect(303, '/login?redirectTo=' + encodeURIComponent(url.pathname));
 	}
 	if (!isAdmin(locals.user)) {
-		throw redirect(303, '/');
+		redirect(303, '/');
 	}
 	return locals.user;
 }

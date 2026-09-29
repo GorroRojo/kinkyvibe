@@ -1,7 +1,7 @@
 <script>
 	//@ts-nocheck
 	import Tag from '$lib/components/Tag.svelte';
-	import { Globe, ArrowRight } from 'lucide-svelte';
+	import { Globe, ArrowRight } from '@lucide/svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores';
