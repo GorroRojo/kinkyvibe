@@ -485,40 +485,6 @@
 				</fieldset>
 
 				<fieldset class="card">
-					<legend>🔗 Dirección de la página</legend>
-					<label class="field">
-						<span>Así va a quedar el link del evento</span>
-						<div class="slug">
-							<span class="prefix">kinkyvibe.ar/calendario/</span>
-							<input
-								id="ev-slug"
-								value={slug}
-								on:input={onSlugInput}
-								placeholder={isValidDate(values.startDate) ? '' : 'Elegí la fecha primero'}
-								autocomplete="off"
-								autocapitalize="off"
-								spellcheck="false"
-							/>
-						</div>
-					</label>
-					{#if slugEdited && proposedSlug}
-						<button type="button" class="link" on:click={resetSlug}>Usar la dirección sugerida</button>
-					{/if}
-					{#if slugProblem || serverSlugError}
-						<p class="error">
-							{slugProblem || serverSlugError}
-							{#if serverSlugError && serverSlug.suggestion}
-								<button type="button" class="link" on:click={() => useSuggestion(serverSlug.suggestion)}
-									>Usar «{serverSlug.suggestion}»</button
-								>
-							{/if}
-						</p>
-					{:else}
-						<p class="hint">Se completa sola con la fecha. Solo minúsculas, números y guiones.</p>
-					{/if}
-				</fieldset>
-
-				<fieldset class="card">
 					<legend>📝 Datos del evento</legend>
 					<label class="field">
 						<span>Título <span class="req">*</span></span>
@@ -581,6 +547,40 @@
 							varias personas o grupos.</small
 						>
 					</div>
+				</fieldset>
+
+				<fieldset class="card">
+					<legend>🔗 Dirección de la página</legend>
+					<label class="field">
+						<span>Así va a quedar el link del evento</span>
+						<div class="slug">
+							<span class="prefix">kinkyvibe.ar/calendario/</span>
+							<input
+								id="ev-slug"
+								value={slug}
+								on:input={onSlugInput}
+								placeholder={isValidDate(values.startDate) ? '' : 'Elegí la fecha primero'}
+								autocomplete="off"
+								autocapitalize="off"
+								spellcheck="false"
+							/>
+						</div>
+					</label>
+					{#if slugEdited && proposedSlug}
+						<button type="button" class="link" on:click={resetSlug}>Usar la dirección sugerida</button>
+					{/if}
+					{#if slugProblem || serverSlugError}
+						<p class="error">
+							{slugProblem || serverSlugError}
+							{#if serverSlugError && serverSlug.suggestion}
+								<button type="button" class="link" on:click={() => useSuggestion(serverSlug.suggestion)}
+									>Usar «{serverSlug.suggestion}»</button
+								>
+							{/if}
+						</p>
+					{:else}
+						<p class="hint">Se completa sola con la fecha. Solo minúsculas, números y guiones.</p>
+					{/if}
 				</fieldset>
 
 				<fieldset class="card">
