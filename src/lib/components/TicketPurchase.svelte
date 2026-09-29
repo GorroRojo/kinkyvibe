@@ -3,17 +3,20 @@
 	import { enhance } from '$app/forms';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
+		GORRA_MAX_AMOUNT,
 		computePrice,
 		defaultFondoOption,
 		fondoOptionsFor,
-		refundPolicy,
+		parseAmount,
+		purchaseConditions,
 		unitPrice
 	} from '$lib/utils/tickets.js';
 
 	/**
-	 * Bloque "Comprar entradas" de la página de un evento. Funciona sin JavaScript (form actions
-	 * `?/discount` y `?/buy`). Los precios, descuentos y recargos que se muestran son
-	 * informativos: el servidor recalcula todo con el frontmatter del evento y la base de datos.
+	 * Formulario de compra de entradas (página /calendario/<slug>/entradas). Funciona sin
+	 * JavaScript (form actions `?/discount` y `?/buy`). Los precios, descuentos y recargos que se
+	 * muestran son informativos: el servidor recalcula todo con el frontmatter del evento y la
+	 * base de datos.
 	 *
 	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se borra al
 	 * cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale bien.
@@ -26,7 +29,7 @@
 	 *   result?: {
 	 *     error?: string | null,
 	 *     errors?: Record<string, string>,
-	 *     values?: { type?: string, quantity?: string, name?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, holders?: HolderValues[] },
+	 *     values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[] },
 	 *     discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 *   } | null
 	 * }}
@@ -41,8 +44,11 @@
 	// svelte-ignore state_referenced_locally
 	const firstAvailable = tickets.types.find((t) => t.available > 0)?.id ?? '';
 	let type = $state(initial.type || firstAvailable);
-	let quantity = $state(Number(initial.quantity) || 1);
+	let quantity = $state(Math.max(1, Math.trunc(Number(initial.quantity)) || 1));
+	/** Lo que está escrito en el campo de cantidad (se puede tipear; se corrige al salir). */
+	let quantityText = $state(String(Math.max(1, Math.trunc(Number(initial.quantity)) || 1)));
 	let buyerName = $state(initial.name ?? '');
+	let buyerPronouns = $state(initial.pronouns ?? '');
 	let email = $state(initial.email ?? '');
 	let dni = $state(initial.dni ?? '');
 	let code = $state(initial.code ?? '');
@@ -50,6 +56,8 @@
 	let method = $state(initial.method || tickets.methods[0] || 'mercadopago');
 	/** @type {string} */
 	let option = $state(initial.option ?? '');
+	/** Monto "a la gorra" por entrada, como texto (vacío = el sugerido). */
+	let amount = $state(initial.amount ?? '');
 	/** @type {HolderValues[]} */
 	// svelte-ignore state_referenced_locally
 	let holders = $state(
@@ -58,17 +66,23 @@
 			pronouns: initial.holders?.[i]?.pronouns ?? ''
 		}))
 	);
-	// La entrada 1 copia el nombre de quien compra hasta que alguien la edite a mano.
+	// La entrada 1 copia el nombre y los pronombres de quien compra hasta que alguien los edite.
 	// svelte-ignore state_referenced_locally
 	let firstHolderEdited = $state(Boolean(initial.holders?.[0]?.name));
+	// svelte-ignore state_referenced_locally
+	let firstPronounsEdited = $state(Boolean(initial.holders?.[0]?.pronouns));
 	$effect(() => {
 		if (!firstHolderEdited) holders[0].name = buyerName;
+	});
+	$effect(() => {
+		if (!firstPronounsEdited) holders[0].pronouns = buyerPronouns;
 	});
 	let pending = $state(false);
 
 	let selected = $derived(tickets.types.find((t) => t.id === type));
+	let gorra = $derived(selected?.gorra ?? null);
 	// "¿Cómo querés pagar tu entrada?": sin fondo en este tipo, no se ofrece el descuento del
-	// fondo y la opción por defecto es precio completo.
+	// fondo y la opción por defecto es precio completo. No aplica a la gorra.
 	let fondoOptions = $derived(fondoOptionsFor(selected?.fondo ?? 0));
 	let chosenOption = $derived(
 		fondoOptions.find((o) => o.id === option) ??
@@ -76,28 +90,72 @@
 			fondoOptions[0]
 	);
 	let maxQuantity = $derived(Math.max(1, Math.min(tickets.maxQuantity, selected?.available ?? 1)));
-	let count = $derived(Math.min(quantity, maxQuantity));
+	let count = $derived(Math.max(1, Math.min(quantity, maxQuantity)));
 	let errors = $derived(result?.errors ?? {});
-	// El descuento aplicado vale mientras el código escrito sea el mismo.
+	// El descuento aplicado vale mientras el código escrito sea el mismo (y no a la gorra).
 	let applied = $derived(
-		result?.discount && result.discount.code === code.trim().toUpperCase() ? result.discount : null
+		!gorra && result?.discount && result.discount.code === code.trim().toUpperCase()
+			? result.discount
+			: null
 	);
+	/** Monto a la gorra por entrada que se va a cobrar (`null` si lo escrito no es válido). */
+	let gorraAmount = $derived.by(() => {
+		if (!gorra) return null;
+		if (!amount.trim()) return gorra.suggested;
+		const n = parseAmount(amount);
+		return n !== null && n >= gorra.min && n <= GORRA_MAX_AMOUNT ? n : null;
+	});
+	/** Montos rápidos: el mínimo, la mitad del sugerido, el sugerido y el doble. */
+	let gorraChips = $derived.by(() => {
+		if (!gorra) return [];
+		const { min, suggested } = gorra;
+		return [...new Set([min, Math.round(suggested / 2), suggested, suggested * 2])]
+			.filter((n) => n >= min && n <= GORRA_MAX_AMOUNT)
+			.sort((a, b) => a - b);
+	});
 	let prices = $derived(
 		computePrice({
-			price: selected?.price ?? 0,
+			price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
 			fondo: selected?.fondo ?? 0,
-			option: chosenOption.id,
+			option: gorra ? 'gorra' : chosenOption.id,
 			quantity: selected ? count : 0,
 			discount: applied,
 			method,
 			feeBasisPoints: tickets.feeBasisPoints
 		})
 	);
-	let free = $derived(Boolean(selected) && prices.subtotal - prices.discount === 0);
-	let policy = $derived(refundPolicy(tickets.contactEmail));
+	let free = $derived(
+		Boolean(selected) && (!gorra || gorraAmount !== null) && prices.subtotal - prices.discount === 0
+	);
+	let conditions = $derived(
+		purchaseConditions({
+			contactEmail: tickets.contactEmail,
+			transferHoldHours: tickets.transferHoldHours,
+			methods: tickets.methods,
+			online: tickets.online
+		})
+	);
+
+	/** @param {number} n */
+	function setQuantity(n) {
+		quantity = Math.max(1, Math.min(maxQuantity, n));
+		quantityText = String(quantity);
+	}
+
+	/** @param {Event & { currentTarget: HTMLInputElement }} e */
+	function typedQuantity(e) {
+		quantityText = e.currentTarget.value;
+		const n = Math.trunc(Number(quantityText));
+		if (quantityText.trim() && Number.isFinite(n) && n >= 1) quantity = Math.min(n, maxQuantity);
+	}
+
+	// Si cambia el tipo y hay menos disponibles, la cantidad baja al máximo nuevo.
+	$effect(() => {
+		if (quantity > maxQuantity) setQuantity(maxQuantity);
+	});
 
 	// --- Borrador en sessionStorage (ver arriba) ---
-	const DRAFT_VERSION = 1;
+	const DRAFT_VERSION = 2;
 	let draftKey = '';
 	let draftReady = $state(false);
 
@@ -125,14 +183,17 @@
 		const d = result?.values ? null : readDraft();
 		if (d) {
 			if (tickets.types.some((t) => t.id === d.type && t.available > 0)) type = d.type;
-			if (Number(d.quantity) >= 1) quantity = Number(d.quantity);
+			if (Number(d.quantity) >= 1) setQuantity(Number(d.quantity));
 			if (typeof d.option === 'string') option = d.option;
+			if (typeof d.amount === 'string') amount = d.amount;
 			if (typeof d.method === 'string' && tickets.methods.includes(d.method)) method = d.method;
 			buyerName = String(d.name ?? '');
+			buyerPronouns = String(d.pronouns ?? '');
 			email = String(d.email ?? '');
 			dni = String(d.dni ?? '');
 			code = String(d.code ?? '');
 			firstHolderEdited = Boolean(d.firstHolderEdited);
+			firstPronounsEdited = Boolean(d.firstPronounsEdited);
 			if (Array.isArray(d.holders)) {
 				d.holders
 					.slice(0, holders.length)
@@ -151,12 +212,15 @@
 			type,
 			quantity,
 			option,
+			amount,
 			method,
 			name: buyerName,
+			pronouns: buyerPronouns,
 			email,
 			dni,
 			code,
 			firstHolderEdited,
+			firstPronounsEdited,
 			holders: holders.slice(0, count).map((h) => ({ name: h.name, pronouns: h.pronouns }))
 		});
 		try {
@@ -179,7 +243,7 @@
 			: free
 				? 'Confirmar entradas sin cargo'
 				: method === 'transferencia'
-					? 'Reservar y ver los datos para transferir'
+					? 'Reservar y ver cómo transferir'
 					: 'Ir a pagar con Mercado Pago'
 	);
 
@@ -210,13 +274,20 @@
 		<p class="closed" role="status">{closedText[tickets.reason ?? 'unavailable']}</p>
 		<ul class="types readonly">
 			{#each tickets.types as t (t.id)}
-				<li><span>{t.name}</span> <strong>{formatARS(t.price - t.fondo)}</strong></li>
+				<li>
+					<span>{t.name}</span>
+					<strong
+						>{t.gorra
+							? `A la gorra (sugerido ${formatARS(t.gorra.suggested)})`
+							: formatARS(t.price - t.fondo)}</strong
+					>
+				</li>
 			{/each}
 		</ul>
 	{:else}
 		<form
 			method="POST"
-			action="?/buy#entradas"
+			action="?/buy"
 			use:enhance={({ submitter }) => {
 				const applying = submitter?.getAttribute('formaction')?.includes('discount');
 				if (!applying) pending = true;
@@ -248,12 +319,22 @@
 						/>
 						<span class="type-name">{t.name}</span>
 						<span class="type-price">
-							{#if t.fondo}<s class="list-price" aria-label="precio completo {formatARS(t.price)}"
-									>{formatARS(t.price)}</s
-								>{/if}
-							<strong>{formatARS(t.price - t.fondo)}</strong>
+							{#if t.gorra}
+								<strong>A la gorra</strong>
+							{:else}
+								{#if t.fondo}<s class="list-price" aria-label="precio completo {formatARS(t.price)}"
+										>{formatARS(t.price)}</s
+									>{/if}
+								<strong>{formatARS(t.price - t.fondo)}</strong>
+							{/if}
 						</span>
-						{#if t.fondo}
+						{#if t.gorra}
+							<small class="type-fondo">
+								Pagás lo que quieras: sugerido {formatARS(t.gorra.suggested)}{#if t.gorra.min},
+									mínimo
+									{formatARS(t.gorra.min)}{/if}
+							</small>
+						{:else if t.fondo}
 							<small class="type-fondo">
 								💜 Con el descuento del Fondo KinkyVibe ({formatARS(t.fondo)} menos)
 							</small>
@@ -266,7 +347,55 @@
 				{#if errors.type}<p class="field-error">{errors.type}</p>{/if}
 			</fieldset>
 
-			{#if selected}
+			{#if selected && gorra}
+				<div class="field gorra">
+					<label for="entradas-monto">¿Cuánto querés pagar por entrada?</label>
+					<div class="amount-row">
+						<span class="currency" aria-hidden="true">$</span>
+						<input
+							id="entradas-monto"
+							type="text"
+							name="amount"
+							inputmode="numeric"
+							autocomplete="off"
+							maxlength="12"
+							placeholder={String(gorra.suggested)}
+							bind:value={amount}
+							aria-describedby="entradas-monto-ayuda"
+							aria-invalid={errors.amount || (amount.trim() && gorraAmount === null)
+								? 'true'
+								: undefined}
+						/>
+					</div>
+					<div class="chips" role="group" aria-label="Montos rápidos">
+						{#each gorraChips as n (n)}
+							<button
+								type="button"
+								class="chip"
+								aria-pressed={gorraAmount === n}
+								onclick={() => (amount = String(n))}
+								>{n === 0 ? 'Sin cargo' : formatARS(n)}{#if n === gorra?.suggested}&nbsp;· sugerido{/if}</button
+							>
+						{/each}
+					</div>
+					<small class="hint" id="entradas-monto-ayuda">
+						Sugerido {formatARS(gorra.suggested)}{#if gorra.min}, mínimo {formatARS(
+								gorra.min
+							)}{:else}. Si no podés pagar, poné 0{/if}. En las entradas a la gorra no se aplican el
+						descuento del Fondo KinkyVibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
+							Mercado Pago se suma el recargo de la comisión){/if}.
+					</small>
+					{#if errors.amount}
+						<span class="field-error">{errors.amount}</span>
+					{:else if amount.trim() && gorraAmount === null}
+						<span class="field-error"
+							>Escribí un monto en pesos, desde {formatARS(gorra.min)} hasta {formatARS(
+								GORRA_MAX_AMOUNT
+							)}.</span
+						>
+					{/if}
+				</div>
+			{:else if selected}
 				<fieldset class="options">
 					<legend>¿Cómo querés pagar tu entrada?</legend>
 					<small class="hint">
@@ -306,36 +435,84 @@
 
 			<div class="field">
 				<label for="entradas-cantidad">Cantidad</label>
-				<select id="entradas-cantidad" name="quantity" bind:value={quantity}>
-					{#each Array.from({ length: maxQuantity }, (_, i) => i + 1) as n (n)}
-						<option value={n}>{n}</option>
-					{/each}
-				</select>
-				{#if (selected?.available ?? 0) > tickets.maxQuantity}
-					<small class="hint">
-						¿Necesitás más de {tickets.maxQuantity}? Escribinos a
-						<a href="mailto:{tickets.contactEmail}">{tickets.contactEmail}</a>.
-					</small>
-				{/if}
+				<div class="stepper">
+					<button
+						type="button"
+						class="step"
+						aria-label="Una entrada menos"
+						aria-controls="entradas-cantidad"
+						disabled={count <= 1}
+						onclick={() => setQuantity(count - 1)}>−</button
+					>
+					<input
+						id="entradas-cantidad"
+						type="number"
+						name="quantity"
+						inputmode="numeric"
+						min="1"
+						max={maxQuantity}
+						step="1"
+						required
+						value={quantityText}
+						oninput={typedQuantity}
+						onblur={() => setQuantity(count)}
+						aria-invalid={errors.quantity ? 'true' : undefined}
+					/>
+					<button
+						type="button"
+						class="step"
+						aria-label="Una entrada más"
+						aria-controls="entradas-cantidad"
+						disabled={count >= maxQuantity}
+						onclick={() => setQuantity(count + 1)}>+</button
+					>
+				</div>
 				{#if errors.quantity}<span class="field-error">{errors.quantity}</span>{/if}
 			</div>
 
 			<fieldset class="group">
 				<legend>Tus datos</legend>
-				<label class="field">
-					<span>Tu nombre</span>
-					<input
-						type="text"
-						name="name"
-						autocomplete="name"
-						minlength="2"
-						maxlength="80"
-						required
-						bind:value={buyerName}
-						aria-invalid={errors.name ? 'true' : undefined}
-					/>
-					{#if errors.name}<span class="field-error">{errors.name}</span>{/if}
-				</label>
+				<div class="row">
+					<label class="field">
+						<span>Tu nombre</span>
+						<input
+							type="text"
+							name="name"
+							autocomplete="name"
+							minlength="2"
+							maxlength="80"
+							required
+							bind:value={buyerName}
+							aria-invalid={errors.name ? 'true' : undefined}
+						/>
+						{#if errors.name}<span class="field-error">{errors.name}</span>{/if}
+					</label>
+					<div class="field">
+						<span class="label-row">
+							<label for="entradas-tus-pronombres">Tus pronombres</label>
+							<a
+								class="help"
+								href="https://pronombr.es"
+								target="_blank"
+								rel="noopener"
+								title="¿Qué son los pronombres? (se abre en otra pestaña)"
+								aria-label="¿Qué son los pronombres? (se abre en otra pestaña)">?</a
+							>
+						</span>
+						<input
+							id="entradas-tus-pronombres"
+							type="text"
+							name="pronouns"
+							maxlength="40"
+							placeholder="ella, él, elle…"
+							autocomplete="off"
+							required
+							bind:value={buyerPronouns}
+							aria-invalid={errors.pronouns ? 'true' : undefined}
+						/>
+						{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
+					</div>
+				</div>
 				<div class="row">
 					<label class="field">
 						<span>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</span>
@@ -421,8 +598,11 @@
 									maxlength="40"
 									placeholder="ella, él, elle…"
 									autocomplete="off"
-									required
+									required={i > 0}
 									bind:value={holders[i].pronouns}
+									oninput={() => {
+										if (i === 0) firstPronounsEdited = true;
+									}}
 									aria-invalid={errors[`holder_pronouns_${i}`] ? 'true' : undefined}
 								/>
 								{#if errors[`holder_pronouns_${i}`]}
@@ -434,60 +614,70 @@
 				{/each}
 			</fieldset>
 
-			<div class="field code">
-				<label for="entradas-codigo">Código de descuento (opcional)</label>
-				<div class="code-row">
-					<input
-						id="entradas-codigo"
-						type="text"
-						name="code"
-						maxlength="32"
-						autocomplete="off"
-						autocapitalize="characters"
-						spellcheck="false"
-						bind:value={code}
-						aria-invalid={errors.code ? 'true' : undefined}
-					/>
-					<button
-						type="submit"
-						class="secondary"
-						formaction="?/discount#entradas"
-						formnovalidate
-						disabled={!code.trim()}>Aplicar</button
-					>
+			{#if !gorra}
+				<div class="field code">
+					<label for="entradas-codigo">Código de descuento (opcional)</label>
+					<div class="code-row">
+						<input
+							id="entradas-codigo"
+							type="text"
+							name="code"
+							maxlength="32"
+							autocomplete="off"
+							autocapitalize="characters"
+							spellcheck="false"
+							bind:value={code}
+							aria-invalid={errors.code ? 'true' : undefined}
+						/>
+						<button
+							type="submit"
+							class="secondary"
+							formaction="?/discount"
+							formnovalidate
+							disabled={!code.trim()}>Aplicar</button
+						>
+					</div>
+					{#if errors.code}
+						<span class="field-error" role="alert">{errors.code}</span>
+					{:else if applied}
+						<span class="applied" role="status">✓ {applied.message}</span>
+					{/if}
 				</div>
-				{#if errors.code}
-					<span class="field-error" role="alert">{errors.code}</span>
-				{:else if applied}
-					<span class="applied" role="status">✓ {applied.message}</span>
-				{/if}
-			</div>
+			{/if}
 
 			{#if tickets.methods.length > 1 && !free}
 				<fieldset class="methods">
 					<legend>Medio de pago</legend>
-					{#each tickets.methods as m (m)}
-						<label class="method">
-							<input type="radio" name="method" value={m} bind:group={method} />
-							{#if m === 'mercadopago'}
+					<div class="method-cards">
+						{#each tickets.methods as m (m)}
+							<label class="method">
+								<input type="radio" name="method" value={m} bind:group={method} />
 								<span>
-									<strong>Mercado Pago</strong>
-									<small>
-										tarjeta o dinero en cuenta{#if tickets.feeBasisPoints}{' '}· suma el recargo de
-											la comisión ({feeText}){/if}
-									</small>
-								</span>
-							{:else}
-								<span>
-									<strong>Transferencia bancaria</strong>
+									<strong>{m === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}</strong>
 									<small
-										>sin recargo · te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás
-										el comprobante por mail</small
+										>{m === 'mercadopago'
+											? 'tarjeta o dinero en cuenta'
+											: 'bancaria, sin recargo'}</small
 									>
 								</span>
-							{/if}
-						</label>
-					{/each}
+							</label>
+						{/each}
+					</div>
+					<!-- Las dos explicaciones ocupan el mismo lugar (la más larga define el alto): al
+					     cambiar de medio no se mueve nada. -->
+					<div class="method-notes">
+						{#each tickets.methods as m (m)}
+							<p class="method-note" class:shown={method === m} aria-hidden={method !== m}>
+								{#if m === 'mercadopago'}
+									Pagás en Mercado Pago{#if tickets.feeBasisPoints}, con el recargo de la comisión ({feeText}){/if}.
+									Te reservamos el lugar 20 minutos mientras pagás.
+								{:else}
+									Sin recargo. Te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás
+									el comprobante por mail.
+								{/if}
+							</p>
+						{/each}
+					</div>
 					{#if errors.method}<p class="field-error">{errors.method}</p>{/if}
 				</fieldset>
 			{:else}
@@ -497,23 +687,10 @@
 			<details class="conditions">
 				<summary>Condiciones de compra y devoluciones</summary>
 				<ul>
-					<li>
-						Evento solo para personas mayores de 18 años. Puede pedirse documento en la puerta.
-					</li>
-					<li>Cada entrada tiene un QR que sirve para una sola persona y un solo ingreso.</li>
-					<li>Te mandamos las entradas por email apenas se acredita el pago.</li>
-					<li>
-						Con Mercado Pago reservamos tu lugar por 20 minutos mientras pagás. Con transferencia,
-						te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás el comprobante por
-						mail. Si no se completa el pago, el lugar se libera.
-					</li>
-				</ul>
-				<div class="policy">
-					<p><strong>{policy.title}</strong></p>
-					{#each policy.paragraphs as paragraph, i (i)}
-						<p>{paragraph}</p>
+					{#each conditions as c, i (i)}
+						<li>{c}</li>
 					{/each}
-				</div>
+				</ul>
 			</details>
 
 			<label class="accept">
@@ -530,7 +707,9 @@
 				<div class="breakdown" aria-live="polite">
 					{#if selected}
 						<p class="line">
-							<span>Entradas ({count} × {formatARS(prices.unit)})</span>
+							<span
+								>Entradas ({count} × {formatARS(prices.unit)}){#if gorra}&nbsp;a la gorra{/if}</span
+							>
 							<span>{formatARS(prices.subtotal)}</span>
 						</p>
 						{#if prices.fondo}
@@ -555,19 +734,22 @@
 								<span>Recargo Mercado Pago</span>
 								<span>+{formatARS(prices.surcharge)}</span>
 							</p>
+						{:else if tickets.feeBasisPoints && tickets.methods.includes('mercadopago') && !free}
+							<!-- Reserva el lugar de la línea del recargo para que el total no salte. -->
+							<p class="line placeholder" aria-hidden="true"><span>&nbsp;</span></p>
 						{/if}
 					{/if}
 					<p class="total">Total: <strong>{formatARS(prices.total)}</strong></p>
 				</div>
-				<button type="submit" disabled={pending || !selected}>{submitText}</button>
+				<button
+					type="submit"
+					disabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
+					>{submitText}</button
+				>
 			</div>
 			{#if tickets.closesAt}
 				<small class="closes">La venta online cierra el {formatClose(tickets.closesAt)} hs.</small>
 			{/if}
-			<small class="privacy">
-				Guardamos tu nombre, email y DNI, y el nombre y los pronombres de cada entrada, solo para
-				mandarte las entradas y controlar el ingreso.
-			</small>
 		</form>
 	{/if}
 </section>
@@ -606,6 +788,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5em;
+		min-width: 0;
 	}
 	legend {
 		font-weight: bold;
@@ -673,6 +856,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.25em;
+		min-width: 0;
 	}
 	.field > span:first-child,
 	.field > label {
@@ -697,15 +881,6 @@
 	.holder .row {
 		clear: both;
 	}
-	.policy {
-		margin-top: 0.6em;
-		padding: 0.6em 0.8em;
-		border-radius: 0.5em;
-		background: white;
-	}
-	.policy p {
-		margin: 0.3em 0;
-	}
 	.breakdown {
 		flex: 1 1 14em;
 		font-size: var(--step--1);
@@ -718,6 +893,9 @@
 	}
 	.breakdown .note {
 		color: var(--2-dark);
+	}
+	.breakdown .placeholder {
+		visibility: hidden;
 	}
 	.breakdown .total {
 		margin-top: 0.3em;
@@ -756,52 +934,159 @@
 		font-weight: bold;
 		font-size: var(--step--1);
 	}
+
+	/* Medio de pago: tarjetas del mismo alto, una al lado de la otra, y la explicación debajo en
+	   un lugar reservado (ver .method-notes). Elegir una no cambia el tamaño de nada. */
+	.method-cards {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.6em;
+	}
 	.method {
 		display: flex;
-		gap: 0.7em;
+		gap: 0.6em;
 		align-items: center;
-		padding: 0.6em 0.9em;
+		min-height: 3.6em;
+		padding: 0.55em 0.8em;
 		border-radius: 0.7em;
 		background: white;
-		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
 		cursor: pointer;
 	}
 	.method:has(input:checked) {
-		outline: 3px solid var(--2);
+		box-shadow: 0 0 0 3px var(--2);
+		background: color-mix(in srgb, var(--2) 6%, white);
 	}
 	.method input {
+		flex-shrink: 0;
 		width: 1.2em;
 		height: 1.2em;
+		margin: 0;
 		accent-color: var(--2);
 	}
 	.method small {
 		display: block;
 		color: #555;
+		font-size: var(--step--1);
+		line-height: 1.25;
+	}
+	.method-notes {
+		display: grid;
+	}
+	.method-note {
+		grid-area: 1 / 1;
+		margin: 0;
+		font-size: var(--step--1);
+		color: #444;
+		visibility: hidden;
+	}
+	.method-note.shown {
+		visibility: visible;
 	}
 
 	input[type='text'],
 	input[type='email'],
-	select {
+	input[type='number'] {
 		font: inherit;
 		padding: 0.55em 0.7em;
 		border-radius: 0.5em;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
 		background: white;
 		min-height: 2.8em;
+		min-width: 0;
 	}
-	select {
-		max-width: 7em;
-	}
-	input:focus-visible,
-	select:focus-visible {
+	input:focus-visible {
 		outline: 3px solid var(--2-light);
 	}
+
+	/* Cantidad: − [n] + con botones grandes para el dedo. */
+	.stepper {
+		display: flex;
+		align-items: stretch;
+		gap: 0.4em;
+	}
+	.stepper input {
+		width: 4.5em;
+		text-align: center;
+		font-size: var(--step-1);
+		font-weight: bold;
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+	.stepper input::-webkit-outer-spin-button,
+	.stepper input::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	button.step {
+		flex-grow: 0;
+		width: 3em;
+		min-width: 48px;
+		min-height: 48px;
+		padding: 0;
+		font-size: var(--step-2);
+		line-height: 1;
+		background: white;
+		color: var(--2-dark);
+		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 45%, transparent);
+	}
+	button.step:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--2) 10%, white);
+	}
+
+	/* A la gorra */
+	.amount-row {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+	}
+	.amount-row .currency {
+		font-size: var(--step-1);
+		font-weight: bold;
+	}
+	.amount-row input {
+		width: 9em;
+		font-size: var(--step-1);
+		font-weight: bold;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em;
+	}
+	button.chip {
+		flex-grow: 0;
+		min-height: 2.6em;
+		padding: 0.3em 0.8em;
+		font-weight: normal;
+		font-size: var(--step--1);
+		background: white;
+		color: var(--2-dark);
+		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
+	}
+	button.chip:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--2) 10%, white);
+	}
+	button.chip[aria-pressed='true'] {
+		box-shadow: inset 0 0 0 3px var(--2);
+		font-weight: bold;
+	}
+
 	.conditions {
 		font-size: var(--step--1);
 	}
 	.conditions summary {
 		cursor: pointer;
 		text-decoration: underline;
+	}
+	.conditions ul {
+		margin: 0.5em 0 0;
+		padding: 0.6em 0.8em 0.6em 2em;
+		border-radius: 0.5em;
+		background: white;
+	}
+	.conditions li {
+		margin: 0.25em 0;
 	}
 	.accept {
 		display: flex;
@@ -838,6 +1123,11 @@
 		cursor: pointer;
 		flex-grow: 1;
 		max-width: 22em;
+	}
+	.pay button {
+		/* Alto para dos líneas: el texto cambia con el medio de pago y no debería mover nada. */
+		min-height: 3.6em;
+		line-height: 1.2;
 	}
 	.option {
 		display: grid;
@@ -876,26 +1166,23 @@
 	}
 	.label-row {
 		display: flex;
-		align-items: center;
-		gap: 0.4em;
+		align-items: baseline;
+		gap: 0.3em;
 		font-weight: bold;
 		font-size: var(--step--1);
 	}
+	/* "?" de pronombres: discreto, está por las dudas. */
 	.help {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.5em;
-		height: 1.5em;
-		border-radius: 50%;
-		background: var(--2);
-		color: white;
-		font-size: var(--step--1);
-		text-decoration: none;
+		font-weight: normal;
+		font-size: var(--step--2);
+		color: #888;
+		text-decoration: underline dotted;
+		text-underline-offset: 2px;
+		padding: 0 0.3em;
 	}
 	.help:hover,
 	.help:focus-visible {
-		background: var(--2-dark);
+		color: var(--2-dark);
 	}
 	button:hover:not(:disabled) {
 		background: var(--1-dark);
@@ -916,8 +1203,7 @@
 	.closed {
 		font-weight: bold;
 	}
-	.closes,
-	.privacy {
+	.closes {
 		color: #555;
 		font-size: var(--step--2);
 	}

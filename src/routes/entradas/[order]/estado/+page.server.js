@@ -77,6 +77,7 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			list: current.unit_price * current.quantity,
 			fondo: current.fondo_amount,
 			fondoOption: current.fondo_option,
+			unitPrice: current.unit_price,
 			contribution: current.fondo_contribution,
 			holdHours: holdHours(current),
 			discountCode: current.discount_code,
@@ -93,13 +94,14 @@ export async function load({ params, url, platform, fetch, cookies }) {
 		},
 		event: {
 			slug: current.event_slug,
-			title: config?.title ?? current.event_slug
+			title: config?.title ?? current.event_slug,
+			online: Boolean(config?.online)
 		},
 		tickets,
 		// Datos para transferir: solo mientras se espera la transferencia.
 		transfer:
 			current.status === 'awaiting_transfer'
-				? { info: transferInfo(), replyTo: replyToAddress() ?? null }
+				? { info: await transferInfo(db), replyTo: replyToAddress() ?? null }
 				: null
 	};
 }

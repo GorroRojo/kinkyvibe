@@ -7,7 +7,7 @@ import { isAdmin, requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { formatEventDate } from '$lib/server/tickets/email.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { siteOrigin } from '$lib/server/tickets/index.js';
+import { siteOrigin, streamLinkFor } from '$lib/server/tickets/index.js';
 import { checkIn, getTicketByToken, isValidToken } from '$lib/server/tickets/orders.js';
 import { qrSvg } from '$lib/server/tickets/qr.js';
 
@@ -19,6 +19,8 @@ export async function load({ params, platform, url, locals }) {
 	const ticket = await getTicketByToken(db, params.token);
 	if (!ticket) error(404, 'Entrada no encontrada.');
 	const config = await getEventTickets(ticket.event_slug);
+	const online = Boolean(config?.online);
+	const valid = ticket.order_status === 'approved';
 	return {
 		// Nombre y pronombres, nunca el DNI (esta página la ve cualquiera que tenga el QR).
 		ticket: {
@@ -28,15 +30,21 @@ export async function load({ params, platform, url, locals }) {
 			state: /** @type {'void' | 'used' | 'valid'} */ (
 				ticket.order_status !== 'approved' ? 'void' : ticket.checked_in_at ? 'used' : 'valid'
 			),
-			checkedInAt: ticket.checked_in_at
+			checkedInAt: ticket.checked_in_at,
+			code: ticket.code ?? null
 		},
 		event: {
 			slug: ticket.event_slug,
 			title: config?.title ?? ticket.event_slug,
 			when: formatEventDate(config?.start),
-			where: [config?.location_name, config?.location].filter(Boolean).join(' · ')
+			where: online
+				? 'Online'
+				: [config?.location_name, config?.location].filter(Boolean).join(' · '),
+			online
 		},
-		qr: qrSvg(`${siteOrigin(url)}/entradas/t/${params.token}`),
+		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
+		streamLink: online && valid ? await streamLinkFor(db, ticket.event_slug) : null,
+		qr: online ? null : qrSvg(`${siteOrigin(url)}/entradas/t/${params.token}`),
 		isAdmin: isAdmin(locals.user)
 	};
 }

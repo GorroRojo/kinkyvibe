@@ -45,7 +45,11 @@
 		{#if data.tickets.length}
 			<ul class="ticket-links">
 				{#each data.tickets as t, i (t.token)}
-					<li><a href="/entradas/t/{t.token}">Ver entrada {i + 1} con su QR</a></li>
+					<li>
+						<a href="/entradas/t/{t.token}"
+							>Ver entrada {i + 1}{data.event.online ? '' : ' con su QR'}</a
+						>
+					</li>
 				{/each}
 			</ul>
 		{/if}
@@ -73,7 +77,9 @@
 					<a href="mailto:{data.transfer.replyTo}">{data.transfer.replyTo}</a>{/if}, con la
 				referencia {order.reference}.
 			</li>
-			<li>Cuando lo confirmemos, te llegan las entradas con su QR por email.</li>
+			<li>
+				Cuando lo confirmemos, te llegan las entradas{data.event.online ? '' : ' con su QR'} por email.
+			</li>
 		</ol>
 	{:else if order.status === 'pending'}
 		<h1>Estamos esperando la confirmación del pago…</h1>
@@ -106,6 +112,10 @@
 		<dd><a href="/calendario/{data.event.slug}">{data.event.title}</a></dd>
 		<dt>Entradas</dt>
 		<dd>{order.quantity} × {order.typeName}</dd>
+		{#if order.fondoOption === 'gorra'}
+			<dt>A la gorra</dt>
+			<dd>{formatARS(order.unitPrice)} por entrada</dd>
+		{/if}
 		{#if order.fondo || order.contribution || order.discountAmount || order.surcharge}
 			<dt>Precio</dt>
 			<dd>{formatARS(order.list)}</dd>
@@ -141,7 +151,7 @@
 	</dl>
 
 	{#if order.status !== 'approved' && order.status !== 'pending' && order.status !== 'awaiting_transfer'}
-		<a class="button" href="/calendario/{data.event.slug}#entradas">Volver al evento</a>
+		<a class="button" href="/calendario/{data.event.slug}/entradas">Volver a comprar</a>
 	{/if}
 </section>
 

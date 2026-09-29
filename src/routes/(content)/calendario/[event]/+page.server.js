@@ -9,7 +9,7 @@ import {
 	isValidVisitorId,
 	setInterest
 } from '$lib/server/db/interest.js';
-import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
+import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
@@ -35,8 +35,9 @@ function readVisitorId(cookies) {
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, cookies }) {
 	const db = getDB(platform);
-	/** @type {import('$lib/server/tickets/checkout.js').TicketsView | null} */
-	const tickets = isValidEventSlug(params.event) ? await getTicketsView(db, params.event) : null;
+	// Solo el resumen para el botón "Comprar entradas": el formulario está en /entradas.
+	const view = isValidEventSlug(params.event) ? await getTicketsView(db, params.event) : null;
+	const tickets = view ? summarizeTickets(view) : null;
 	if (!db || !isValidEventSlug(params.event)) return { interest: null, tickets };
 	try {
 		const visitorId = readVisitorId(cookies);
@@ -52,9 +53,6 @@ export async function load({ params, platform, cookies }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	// Compra de entradas (solo eventos con `tickets` en el frontmatter).
-	buy: (event) => buyAction(event),
-	discount: (event) => discountAction(event),
 	interest: async ({ params, platform, cookies, request }) => {
 		const db = getDB(platform);
 		if (!db) return fail(503, { error: 'Esta función no está disponible ahora.' });
