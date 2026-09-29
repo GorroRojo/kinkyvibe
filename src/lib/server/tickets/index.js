@@ -2,14 +2,16 @@
  * Pegamento entre las piezas de la venta de entradas y el entorno (variables, mocks de dev).
  *
  * Variables (ver docs/tickets.md): MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY,
- * TICKETS_FROM_EMAIL, TICKETS_REPLY_TO, SITE_URL. Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
+ * TICKETS_FROM_EMAIL, TICKETS_REPLY_TO, TICKETS_CONTACT_EMAIL, SITE_URL, TICKETS_TRANSFER_INFO,
+ * TICKETS_TRANSFER_HOLD_HOURS, TICKETS_MP_FEE_PERCENT. Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { buildTicketEmail, maskEmail, sendWithResend } from './email.js';
+import { DEFAULT_CONTACT_EMAIL, parseFeePercent } from '$lib/utils/tickets.js';
+import { buildTicketEmail, buildTransferEmail, maskEmail, sendWithResend } from './email.js';
 import { getEventTickets } from './events.js';
 import { createPreference, findPaymentByOrder, getPayment } from './mercadopago.js';
-import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -51,6 +53,54 @@ export async function getGateway(fetchFn) {
 		getPayment: (id) => getPayment(client, id),
 		findPaymentByOrder: (orderId) => findPaymentByOrder(client, orderId)
 	};
+}
+
+/**
+ * Datos de la cuenta para transferencias (alias, CBU/CVU, titular…), de TICKETS_TRANSFER_INFO.
+ * Se aceptan saltos de línea reales o escritos como `\n`. `null` si no está configurado: en ese
+ * caso la opción "Transferencia" no se ofrece aunque el evento la habilite.
+ */
+export function transferInfo() {
+	const raw = env.TICKETS_TRANSFER_INFO?.replaceAll('\\n', '\n').trim();
+	return raw ? raw : null;
+}
+
+/** Cuánto se reserva el cupo esperando una transferencia (TICKETS_TRANSFER_HOLD_HOURS, 1–240 h). */
+export function transferHoldMs() {
+	const hours = Number(env.TICKETS_TRANSFER_HOLD_HOURS);
+	if (!Number.isFinite(hours) || hours < 1 || hours > 240) return TRANSFER_HOLD_MS;
+	return Math.round(hours * 60 * 60 * 1000);
+}
+
+/** Contacto público de la organización (política de devoluciones, cambios de titular…). */
+export function contactEmail() {
+	return env.TICKETS_CONTACT_EMAIL?.trim() || DEFAULT_CONTACT_EMAIL;
+}
+
+/** Dirección para responder los mails (y mandar comprobantes): TICKETS_REPLY_TO o el contacto. */
+export function replyToAddress() {
+	return env.TICKETS_REPLY_TO?.trim() || contactEmail();
+}
+
+let warnedFee = false;
+
+/**
+ * Comisión de Mercado Pago que se suma como recargo, en centésimos de punto (773 = 7,73 %):
+ * la del evento (`mp_fee_percent`) o TICKETS_MP_FEE_PERCENT. 0 si no hay ninguna (sin recargo).
+ *
+ * @param {{ mpFeeBasisPoints: number | null } | null | undefined} config
+ */
+export function mpFeeBasisPoints(config) {
+	if (config?.mpFeeBasisPoints !== null && config?.mpFeeBasisPoints !== undefined) {
+		return config.mpFeeBasisPoints;
+	}
+	const raw = env.TICKETS_MP_FEE_PERCENT;
+	const parsed = parseFeePercent(raw);
+	if (parsed === null && raw && !warnedFee) {
+		warnedFee = true;
+		console.error(`[tickets] TICKETS_MP_FEE_PERCENT inválido ("${raw}"): no se cobra recargo`);
+	}
+	return parsed ?? 0;
 }
 
 /** Secreto para verificar webhooks, o `null` si no está configurado. */
@@ -133,7 +183,8 @@ export async function sendOrderEmail({
 				location_name: config?.location_name
 			},
 			typeName,
-			origin
+			origin,
+			contactEmail: contactEmail()
 		});
 		const apiKey = env.RESEND_API_KEY;
 		if (!apiKey) {
@@ -155,7 +206,7 @@ export async function sendOrderEmail({
 			apiKey,
 			from: env.TICKETS_FROM_EMAIL || 'KinkyVibe <entradas@kinkyvibe.ar>',
 			to: order.buyer_email,
-			replyTo: env.TICKETS_REPLY_TO || undefined,
+			replyTo: replyToAddress(),
 			message,
 			idempotencyKey: idempotent ? `tickets-${order.id}` : undefined
 		});
@@ -165,4 +216,69 @@ export async function sendOrderEmail({
 		console.error(`[tickets] no se pudo mandar el email de la orden ${order.id}:`, error);
 		return false;
 	}
+}
+
+/**
+ * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir.
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   origin: string,
+ *   fetch: typeof fetch
+ * }} input
+ * @returns {Promise<boolean>} si se envió
+ */
+export async function sendTransferEmail({ order, origin, fetch: fetchFn }) {
+	try {
+		const info = transferInfo();
+		if (!info) throw new Error('falta TICKETS_TRANSFER_INFO');
+		const config = await getEventTickets(order.event_slug);
+		const message = buildTransferEmail({
+			order,
+			event: { title: config?.title || order.event_slug, start: config?.start },
+			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
+			transferInfo: info,
+			replyTo: replyToAddress(),
+			contactEmail: contactEmail(),
+			origin
+		});
+		const apiKey = env.RESEND_API_KEY;
+		if (!apiKey) {
+			if (dev) {
+				console.log(
+					`[tickets:email simulado] para ${maskEmail(order.buyer_email)} · "${message.subject}"`
+				);
+			} else {
+				console.error(
+					`[tickets] falta RESEND_API_KEY: no se mandó el email de la orden ${order.id}`
+				);
+			}
+			return false;
+		}
+		await sendWithResend({
+			fetch: fetchFn,
+			apiKey,
+			from: env.TICKETS_FROM_EMAIL || 'KinkyVibe <entradas@kinkyvibe.ar>',
+			to: order.buyer_email,
+			replyTo: replyToAddress(),
+			message,
+			idempotencyKey: `transfer-${order.id}`
+		});
+		return true;
+	} catch (error) {
+		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
+		return false;
+	}
+}
+
+/**
+ * Manda el email de las entradas en segundo plano si la plataforma lo permite.
+ *
+ * @param {Promise<unknown>} task
+ * @param {App.Platform | undefined} platform
+ */
+export async function inBackground(task, platform) {
+	const ctx = platform?.ctx;
+	if (ctx?.waitUntil) ctx.waitUntil(task);
+	else await task;
 }

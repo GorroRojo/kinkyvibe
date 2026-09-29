@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { buildPreference } from './mercadopago.js';
 import {
 	HOLD_MS,
 	applyPayment,
@@ -33,14 +34,23 @@ const EVENT = 'fiesta-de-prueba';
 const GENERAL = { id: 'general', price: 8000, capacity: 5 };
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 
+/** @param {number} n */
+function people(n) {
+	return Array.from({ length: n }, (_, i) => ({
+		name: i === 0 ? 'Persona de Prueba' : `Acompañante ${i}`,
+		pronouns: i === 0 ? 'elle' : ''
+	}));
+}
+
 /** @param {Partial<Parameters<typeof reserveOrder>[1]>} [o] */
 function reserve(o = {}) {
+	const quantity = o.quantity ?? 1;
 	return reserveOrder(t.db, {
 		eventSlug: EVENT,
 		type: GENERAL,
-		quantity: 1,
-		name: 'Persona de Prueba',
-		email: 'prueba@example.com',
+		quantity,
+		holders: people(quantity),
+		buyer: { name: 'Persona de Prueba', email: 'prueba@example.com', dni: '30000000' },
 		now: NOW,
 		...o
 	});
@@ -67,9 +77,17 @@ describe('reserva de cupo', () => {
 			status: 'pending',
 			quantity: 2,
 			unit_price: 8000,
+			subtotal: 16000,
+			discount_amount: 0,
 			total: 16000,
+			payment_method: 'mercadopago',
+			buyer_name: 'Persona de Prueba',
+			buyer_dni: '30000000',
+			fondo_amount: 0,
+			surcharge_amount: 0,
 			expires_at: NOW + HOLD_MS
 		});
+		expect(JSON.parse(order.holders)).toEqual(people(2));
 		expect(order.id).toMatch(/^[0-9a-f-]{36}$/);
 	});
 
@@ -101,10 +119,58 @@ describe('reserva de cupo', () => {
 		);
 		expect((await reserve()).ok).toBe(false);
 		const counts = await getCounts(t.db, EVENT, NOW);
-		expect(counts.get('general')).toEqual({ sold: 3, held: 2, revenue: 24000 });
+		expect(counts.get('general')).toEqual({
+			sold: 3,
+			held: 2,
+			revenue: 24000,
+			fondo: 0,
+			surcharge: 0
+		});
 		// Vencida la reserva del rechazo, vuelve a haber lugar; la aprobada nunca vence.
 		expect((await reserve({ quantity: 2, now: NOW + HOLD_MS + 1 })).ok).toBe(true);
 		expect((await reserve({ now: NOW + HOLD_MS + 1 })).ok).toBe(false);
+	});
+
+	it('fondo y recargo de Mercado Pago: el servidor calcula y guarda el desglose', async () => {
+		const r = await reserve({
+			quantity: 2,
+			type: { id: 'con-fondo', price: 10000, fondo: 2000, capacity: 10 },
+			feeBasisPoints: 773
+		});
+		const order = /** @type {any} */ (r).order;
+		expect(order).toMatchObject({
+			unit_price: 10000,
+			fondo_amount: 4000,
+			subtotal: 16000,
+			discount_amount: 0,
+			surcharge_amount: 1341, // 16000 / 0,9227 = 17340,4 → 17341
+			total: 17341
+		});
+		// La preferencia cobra el total en un solo ítem, y el webhook compara contra ese total.
+		const pref = buildPreference({
+			order,
+			eventTitle: 'Fiesta',
+			typeName: 'Con fondo',
+			origin: 'x'
+		});
+		expect(pref.items).toMatchObject([{ quantity: 1, unit_price: 17341 }]);
+		const paid = await applyPayment(t.db, payment(order.id, { transaction_amount: 17341 }), {
+			now: NOW
+		});
+		expect(paid.newlyApproved).toBe(true);
+		expect((await getCounts(t.db, EVENT, NOW)).get('con-fondo')).toMatchObject({
+			sold: 2,
+			revenue: 17341,
+			fondo: 4000,
+			surcharge: 1341
+		});
+		// Por transferencia no hay recargo.
+		const transfer = await reserve({
+			type: { id: 'con-fondo', price: 10000, fondo: 2000, capacity: 10 },
+			method: 'transferencia',
+			feeBasisPoints: 773
+		});
+		expect(/** @type {any} */ (transfer).order).toMatchObject({ surcharge_amount: 0, total: 8000 });
 	});
 
 	it('cupos separados por tipo y por evento', async () => {
@@ -116,7 +182,10 @@ describe('reserva de cupo', () => {
 
 	it('carrera: muchas compras simultáneas nunca sobrevenden', async () => {
 		const attempts = Array.from({ length: 30 }, (_, i) =>
-			reserve({ quantity: 1 + (i % 3), email: `p${i}@example.com` })
+			reserve({
+				quantity: 1 + (i % 3),
+				buyer: { name: 'P', email: `p${i}@example.com`, dni: '30000000' }
+			})
 		);
 		const results = await Promise.all(attempts);
 		const sold = results
@@ -169,6 +238,13 @@ describe('applyPayment', () => {
 		expect(first.tickets).toHaveLength(3);
 		for (const tk of first.tickets) expect(isValidToken(tk.token)).toBe(true);
 		expect(new Set(first.tickets.map((tk) => tk.token)).size).toBe(3);
+		// Cada entrada con los datos de su persona, en orden; la orden ya no los guarda.
+		expect(first.tickets.map((tk) => [tk.holder_name, tk.holder_pronouns])).toEqual([
+			['Persona de Prueba', 'elle'],
+			['Acompañante 1', null],
+			['Acompañante 2', null]
+		]);
+		expect(first.order?.holders ?? (await getOrder(t.db, o.id))?.holders).toBeNull();
 
 		const again = await applyPayment(t.db, p);
 		expect(again).toMatchObject({ outcome: 'unchanged', newlyApproved: false });
@@ -305,6 +381,10 @@ describe('check-in', () => {
 		expect(await searchTickets(t.db, EVENT, 'persona')).toHaveLength(1);
 		expect(await searchTickets(t.db, EVENT, 'PRUEBA@example')).toHaveLength(1);
 		expect(await searchTickets(t.db, EVENT, a.token.slice(0, 8))).toHaveLength(1);
+		// Por DNI de quien compró (con o sin puntos, por comienzo).
+		expect(await searchTickets(t.db, EVENT, '30.000.000')).toHaveLength(1);
+		expect(await searchTickets(t.db, EVENT, '3000')).toHaveLength(1);
+		expect(await searchTickets(t.db, EVENT, '4000')).toHaveLength(0);
 		expect(await searchTickets(t.db, EVENT, '%')).toHaveLength(0);
 		expect(await searchTickets(t.db, 'otro-evento', '')).toHaveLength(0);
 		const orders = await listOrders(t.db, EVENT);

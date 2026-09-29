@@ -9,9 +9,9 @@ import { parseTicketConfig } from './config.js';
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
 /**
- * DEV ONLY: `TICKETS_DEV_FIXTURE=slug1,slug2` agrega entradas de prueba a esos eventos sin tocar
- * sus archivos (para probar la compra en local y en Playwright). `dev` es `false` en el build,
- * así que en producción esto no existe.
+ * DEV ONLY: `TICKETS_DEV_FIXTURE=slug1,slug2` agrega entradas de prueba (una con fondo, con
+ * Mercado Pago y transferencia) a esos eventos sin tocar sus archivos (para probar la compra en
+ * local y en Playwright). `dev` es `false` en el build, así que en producción esto no existe.
  *
  * @param {string} slug
  * @returns {Record<string, any> | null}
@@ -24,8 +24,10 @@ function devFixture(slug) {
 		status: 'abierto',
 		tickets: [
 			{ id: 'general', name: 'General', price: 8000, capacity: 500 },
-			{ id: 'reducida', name: 'Reducida', price: 5000, capacity: 3 }
+			{ id: 'reducida', name: 'Reducida', price: 5000, capacity: 3 },
+			{ id: 'con-fondo', name: 'Con fondo', price: 10000, fondo: 2000, capacity: 500 }
 		],
+		payment_methods: ['mercadopago', 'transferencia'],
 		tickets_close: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 	};
 }

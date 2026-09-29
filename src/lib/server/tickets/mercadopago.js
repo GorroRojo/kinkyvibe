@@ -59,7 +59,7 @@ export function mpDate(ms) {
  * Cuerpo de la preferencia de Checkout Pro para una orden.
  *
  * @param {{
- *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
+ *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, total?: number, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
  *   eventTitle: string,
  *   typeName: string,
  *   origin: string
@@ -67,13 +67,19 @@ export function mpDate(ms) {
  */
 export function buildPreference({ order, eventTitle, typeName, origin }) {
 	const status = `${origin}/entradas/${order.id}/estado`;
+	// Si el total no es precio × cantidad (fondo, código de descuento o recargo), un solo ítem
+	// por el total: MP no acepta ítems negativos y el webhook compara lo pagado con `orders.total`.
+	const single = order.total !== undefined && order.total !== order.unit_price * order.quantity;
+	const title = single
+		? `${order.quantity} × Entrada ${typeName} · ${eventTitle}`
+		: `Entrada ${typeName} · ${eventTitle}`;
 	return {
 		items: [
 			{
 				id: `${order.ticket_type}`,
-				title: `Entrada ${typeName} · ${eventTitle}`.slice(0, 250),
-				quantity: order.quantity,
-				unit_price: order.unit_price,
+				title: title.slice(0, 250),
+				quantity: single ? 1 : order.quantity,
+				unit_price: single ? /** @type {number} */ (order.total) : order.unit_price,
 				currency_id: 'ARS'
 			}
 		],
