@@ -1,5 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 
+/** Datos de transferencia INVENTADOS para las pruebas (nunca poner datos reales en el repo). */
+export const TRANSFER_INFO = 'Alias: EJEMPLO.ALIAS.PRUEBA\\nTitular: Nombre de ejemplo';
+
+/** Comisión de Mercado Pago que se simula en las pruebas (TICKETS_MP_FEE_PERCENT). */
+export const MP_FEE_PERCENT = '7.73';
+
 const EVENTS_DIR = 'src/lib/posts/calendario';
 
 /**

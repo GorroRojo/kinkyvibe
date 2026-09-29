@@ -1,6 +1,6 @@
 # Venta de entradas (fase 1, prototipo)
 
-Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** y reciba por email un **QR por entrada**. Les organizadores ven quién compró en `/admin/entradas` y controlan el ingreso en la puerta escaneando el QR con el celu.
+Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada) y un **recargo opcional por la comisión de Mercado Pago**. Les organizadores ven quién compró en `/admin/entradas`, confirman transferencias y controlan el ingreso en la puerta escaneando el QR con el celu.
 
 > Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
 
@@ -12,24 +12,34 @@ Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.
 tickets:
   - id: general # minúsculas, números, - o _ (va en la base de datos: no cambiarlo después de vender)
     name: General # lo que ve la gente
-    price: 8000 # pesos, entero
+    price: 10000 # pesos, entero: el "Valor" de la planilla
+    fondo: 2000 # opcional: el "$ fondo" que cubre el Fondo KinkyVibe; se paga price − fondo
     capacity: 40 # cupo de este tipo
   - id: reducida
     name: Reducida
     price: 5000
     capacity: 10
 tickets_close: 2026-10-16T18:00-03:00 # opcional; si falta, la venta cierra cuando empieza el evento
+payment_methods: [mercadopago, transferencia] # opcional; por defecto solo mercadopago
+mp_fee_percent: 7.73 # opcional; si falta se usa TICKETS_MP_FEE_PERCENT (y si tampoco, sin recargo)
 ```
 
-- El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo y la cantidad.
+- El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, el código y el medio de pago.
 - `status: cancelado` o `status: agotadas` cierran la venta.
-- Se pueden comprar de 1 a 4 entradas por compra. Cada entrada tiene su propio QR.
+- **No hay máximo fijo por compra:** lo limita el cupo disponible (la reserva atómica sigue igual). El formulario muestra hasta `min(disponibles, 20)` entradas, porque cada una lleva su bloque de datos; para más de 20 dice "escribinos" (con más bloques el formulario se vuelve inmanejable en el celu y un grupo así conviene resolverlo a mano). El servidor rechaza más de 20 con el mismo mensaje. Cada entrada tiene su propio QR.
+- `transferencia` solo aparece si además está configurada `TICKETS_TRANSFER_INFO`; `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev).
 - Si ya hay un `link` de inscripción, el botón del encabezado pasa a ser "Comprar entradas" (el link sigue en el cuerpo si tiene `link_text`).
 - Bajar el `capacity` por debajo de lo vendido no cancela nada: solo frena nuevas ventas.
 
 ## Cómo funciona
 
-1. **Compra** (página del evento, bloque "Comprar entradas"): nombre, email, tipo, cantidad y la casilla de +18/condiciones. El servidor valida, **reserva cupo por 20 minutos** creando una orden `pending` y crea una _preferencia_ de Checkout Pro. La persona va al checkout de Mercado Pago.
+1. **Compra** (página del evento, bloque "Comprar entradas"):
+   - **Quien compra** (datos administrativos, uno por compra): nombre, email (ahí van todas las entradas) y **DNI** (7 a 9 dígitos, se aceptan puntos; se guarda solo con dígitos).
+   - **Cada entrada** (datos para el evento): nombre (como le conocen, no el del documento) y pronombres (opcionales). La entrada 1 viene con el nombre de quien compra (sin JavaScript, si queda vacía se usa ese nombre).
+   - Tipo, cantidad, código de descuento opcional (botón **Aplicar**, que valida en el servidor y muestra el total), medio de pago y la casilla de +18/condiciones.
+   - Con **Mercado Pago**: el servidor valida, **reserva cupo por 20 minutos** creando una orden `pending` y crea una _preferencia_ de Checkout Pro. La persona va al checkout de Mercado Pago.
+   - Con **transferencia**: ver [Transferencia](#transferencia).
+   - Si el **total queda en $ 0** (código de 100 %): no pasa por Mercado Pago; se emiten las entradas en el momento (con los mismos límites de intentos).
 2. **Cupo sin sobreventa:** la reserva es una única sentencia `INSERT … SELECT … WHERE vendidas + reservadas + cantidad <= cupo`. D1 ejecuta cada sentencia de forma atómica y en serie, así que dos compras simultáneas no pueden pasarse. Cuentan las órdenes aprobadas y las reservas vigentes.
 3. **Webhook** `POST /api/mercadopago/webhook`: verifica la firma `x-signature` con `MP_WEBHOOK_SECRET`, y **no confía en el contenido**: pide el pago a la API de MP (`GET /v1/payments/<id>`), busca la orden por `external_reference`, compara monto y moneda (ARS) y actualiza el estado de forma idempotente (las notificaciones se repiten y llegan desordenadas). Al aprobarse se crean las entradas (una por unidad, con un token aleatorio de 256 bits) y se manda el email.
 4. **Vuelta de MP** (`/entradas/<orden>/estado`): si el webhook todavía no llegó, vuelve a consultar el pago a la API igual que el webhook. Muestra el estado y, en el mismo navegador de la compra, los links a las entradas.
@@ -37,57 +47,107 @@ tickets_close: 2026-10-16T18:00-03:00 # opcional; si falta, la venta cierra cuan
 6. **Entrada** (`/entradas/t/<token>`): QR, nombre, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas.
 7. **Admin** (`/admin/entradas`): vendidas/cupo, reservas y recaudación bruta por tipo; por evento, la lista de órdenes, exportar CSV, reenviar el mail y el **control de ingreso** (`/admin/entradas/<slug>/ingreso`): escanear el QR con la cámara (API `BarcodeDetector`: Chrome en Android, Edge) o buscar por nombre/email/código. Muestra en grande "Adelante", "Ya ingresó (hora y quién)", "Es de otro evento", "Anulada" o "QR inválido". En iPhone (Safari no tiene `BarcodeDetector`) se puede escanear con la cámara del sistema: abre la página de la entrada, que a les admins les muestra el botón "Marcar ingreso".
 
-Estados de una orden: `pending` → `approved` / `rejected` / `cancelled` / `expired`, y `approved` → `refunded`. Un pago aprobado gana siempre (aunque la reserva haya vencido: la plata entró; queda un aviso en el log por posible sobreventa), un rechazo o "pendiente" tardío nunca pisa una aprobación, y una orden aprobada solo pasa a `refunded` por el mismo pago que la aprobó. Un reembolso anula las entradas en el control de ingreso.
+Estados de una orden: `pending` / `awaiting_transfer` → `approved` / `rejected` / `cancelled` / `expired`, y `approved` → `refunded`. Un pago aprobado gana siempre (aunque la reserva haya vencido: la plata entró; queda un aviso en el log por posible sobreventa), un rechazo o "pendiente" tardío nunca pisa una aprobación, y una orden aprobada solo pasa a `refunded` por el mismo pago que la aprobó. Un reembolso anula las entradas en el control de ingreso.
+
+### Precio: fondo, código y recargo
+
+El servidor calcula todo (`computePrice` en `src/lib/utils/tickets.js`; el formulario usa la misma función solo para mostrar):
+
+1. **Fondo KinkyVibe:** cada tipo puede tener `fondo`; se paga `price − fondo`. En el formulario se ve el precio tachado, "💜 El Fondo KinkyVibe cubre $F de tu entrada" y el precio a pagar. Vale para todo el mundo (no solo suscriptores). La orden guarda `fondo_amount`; `/admin/entradas` muestra el fondo usado por evento. No hay tope de presupuesto del fondo (pregunta abierta).
+2. **Código de descuento** sobre lo que queda: porcentaje (redondeado al peso) o monto fijo en pesos **por compra**; nunca deja el total por debajo de 0.
+3. **Recargo de Mercado Pago** (solo si se paga con MP y queda algo por pagar): `bruto = ⌈base / (1 − tasa)⌉` en pesos enteros, para que después de la comisión quede la base. La tasa sale de `mp_fee_percent` del evento o de `TICKETS_MP_FEE_PERCENT` (p. ej. `7.73` = 6,39 % + IVA). **Las tasas no están verificadas: revisarlas contra el plan actual de la cuenta de MP** (dependen del plazo de acreditación y cambian). Sin tasa configurada, no hay recargo. Transferencia paga la base, sin recargo. El formulario muestra "Entradas $X · Código −$D · Recargo Mercado Pago $Y · Total $Z" y cambia en vivo al elegir el medio de pago.
+
+La orden guarda `unit_price` (precio de lista), `fondo_amount`, `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total`. Con fondo, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
+
+### Códigos de descuento
+
+Admin en `/admin/entradas/codigos` (link desde `/admin/entradas` y el panel): lista con usos, crear, activar/desactivar. Cada código: texto (sin distinguir mayúsculas), porcentaje o monto fijo, evento (o todos), vigencia opcional desde/hasta (hora de Argentina), usos máximos opcionales.
+
+- Un **uso** es una compra (no una entrada) aprobada o con la reserva vigente; si la reserva vence o se cancela, el uso se libera.
+- "Aplicar" es informativo. Al crear la orden el código se **vuelve a validar dentro del mismo `INSERT`** que reserva el cupo (activo, vigente, del evento, mismo tipo/valor, usos < máximo), así que compras simultáneas no se pasan de `max_uses` (test con 25 compras concurrentes).
+- Un código de otro evento responde "Ese código no existe" (no confirma que exista). Los intentos de "Aplicar" tienen límite por IP (anónimo, con hash).
+
+### Transferencia
+
+Opt-in por evento (`payment_methods`) y requiere `TICKETS_TRANSFER_INFO` (alias/CBU/titular, **nunca en el repo**).
+
+1. La orden queda `awaiting_transfer` con una reserva de **48 h** (`TICKETS_TRANSFER_HOLD_HOURS`). Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera.
+2. La persona ve (en `/entradas/<orden>/estado`) el monto, los datos para transferir, una **referencia** `KV-XXXXXXXX` para el concepto y cómo mandar el comprobante (respondiendo el mail o escribiendo a `TICKETS_REPLY_TO`/`TICKETS_CONTACT_EMAIL`). Se le manda un mail con lo mismo.
+3. En `/admin/entradas/<slug>`, **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
+4. **No hay verificación automática:** no existe una API confiable y accesible para enterarse de transferencias entrantes a una cuenta bancaria o CVU común (los bancos no ofrecen webhooks a particulares/pequeñas organizaciones, y leer extractos o mails del banco sería frágil e inseguro). Alguien tiene que mirar la cuenta y confirmar a mano.
+
+### Política de devoluciones
+
+Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de los mails (la dirección es `TICKETS_CONTACT_EMAIL`, por defecto `kinkyvibe.talleres@gmail.com`):
+
+> ↩️ DEVOLUCIONES ↩️
+> En caso de sacar entrada y no poder asistir, tienen tiempo hasta 5 días hábiles previos al evento para avisarnos y así gestionar la devolución del dinero. También podemos ofrecerte a cambio algún taller grabado que tengamos disponible en la tienda en ese momento.
+>
+> Si pasás tu entrada a alguien más, por favor envianos un mail a kinkyvibe.talleres@gmail.com avisándonos esto y aclarando la siguiente información sobre la persona que va a ocupar tu entrada: nombre, pronombre y mail.
+
+### Evento de prueba
+
+`src/lib/posts/calendario/prueba-entradas-2026-12.md` es un evento **oculto** (`force_unlisted`) con entradas, fondo y los dos medios de pago, y en el cuerpo las instrucciones paso a paso para probar todo. **Hay que borrarlo antes de vender de verdad.**
 
 ### Archivos
 
-| Qué                                              | Dónde                                                      |
-| ------------------------------------------------ | ---------------------------------------------------------- |
-| Tablas `orders` y `tickets`                      | `migrations/0002_tickets.sql`                              |
-| Configuración desde el frontmatter y validación  | `src/lib/server/tickets/config.js`, `events.js`            |
-| Órdenes, cupo, estados, check-in (SQL)           | `src/lib/server/tickets/orders.js`                         |
-| Cliente de Mercado Pago y firma del webhook      | `src/lib/server/tickets/mercadopago.js`                    |
-| Email (Resend) y QR                              | `src/lib/server/tickets/email.js`, `qr.js`                 |
-| Variables, mocks y envío del email               | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)    |
-| Form action de compra                            | `src/lib/server/tickets/checkout.js`                       |
-| Bloque de compra                                 | `src/lib/components/TicketPurchase.svelte`                 |
-| Webhook                                          | `src/routes/api/mercadopago/webhook/+server.js`            |
-| Páginas públicas (estado, entrada, QR, simulado) | `src/routes/entradas/`                                     |
-| Admin y control de ingreso                       | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`  |
-| Tests                                            | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E) |
+| Qué                                              | Dónde                                                           |
+| ------------------------------------------------ | --------------------------------------------------------------- |
+| Tablas `orders`, `tickets` y `discount_codes`    | `migrations/0002_tickets.sql`, `0003_tickets_v2.sql`            |
+| Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                      |
+| Códigos de descuento                             | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos` |
+| Configuración desde el frontmatter y validación  | `src/lib/server/tickets/config.js`, `events.js`                 |
+| Órdenes, cupo, estados, check-in (SQL)           | `src/lib/server/tickets/orders.js`                              |
+| Cliente de Mercado Pago y firma del webhook      | `src/lib/server/tickets/mercadopago.js`                         |
+| Email (Resend) y QR                              | `src/lib/server/tickets/email.js`, `qr.js`                      |
+| Variables, mocks y envío del email               | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)         |
+| Form action de compra                            | `src/lib/server/tickets/checkout.js`                            |
+| Bloque de compra                                 | `src/lib/components/TicketPurchase.svelte`                      |
+| Webhook                                          | `src/routes/api/mercadopago/webhook/+server.js`                 |
+| Páginas públicas (estado, entrada, QR, simulado) | `src/routes/entradas/`                                          |
+| Admin y control de ingreso                       | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`       |
+| Tests                                            | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)      |
 
 ## Variables de entorno
 
 En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings → Variables and Secrets**, como _Secret_ las que lo son. En local, en un archivo `.env` (ignorado por git) o en la línea de comando.
 
-| Variable             | Qué es                                                                                                                                     |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MP_ACCESS_TOKEN`    | Secret. Access token de la aplicación de Mercado Pago (primero el de la **cuenta de prueba vendedora**).                                   |
-| `MP_WEBHOOK_SECRET`  | Secret. "Clave secreta" de la sección Webhooks de la aplicación de MP. Sin ella todos los webhooks se rechazan (503).                      |
-| `RESEND_API_KEY`     | Secret. API key de Resend con permiso de envío. Sin ella no se mandan mails (en producción se loguea un error).                            |
-| `TICKETS_FROM_EMAIL` | Remitente, p. ej. `KinkyVibe <entradas@kinkyvibe.ar>` (ese es el valor por defecto). El dominio tiene que estar verificado.                |
-| `TICKETS_REPLY_TO`   | Opcional. Dirección para las respuestas al mail de entradas.                                                                               |
-| `SITE_URL`           | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido. |
+| Variable                      | Qué es                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MP_ACCESS_TOKEN`             | Secret. Access token de la aplicación de Mercado Pago (primero el de la **cuenta de prueba vendedora**).                                                     |
+| `MP_WEBHOOK_SECRET`           | Secret. "Clave secreta" de la sección Webhooks de la aplicación de MP. Sin ella todos los webhooks se rechazan (503).                                        |
+| `RESEND_API_KEY`              | Secret. API key de Resend con permiso de envío. Sin ella no se mandan mails (en producción se loguea un error).                                              |
+| `TICKETS_FROM_EMAIL`          | Remitente, p. ej. `KinkyVibe <entradas@kinkyvibe.ar>` (ese es el valor por defecto). El dominio tiene que estar verificado.                                  |
+| `TICKETS_REPLY_TO`            | Opcional. Dirección para las respuestas a los mails (y los comprobantes). Por defecto, `TICKETS_CONTACT_EMAIL`.                                              |
+| `TICKETS_CONTACT_EMAIL`       | Opcional. Contacto público de la política de devoluciones y cambios de titular. Por defecto `kinkyvibe.talleres@gmail.com`.                                  |
+| `TICKETS_TRANSFER_INFO`       | Datos para transferir (alias, CBU/CVU, titular), texto libre; saltos de línea reales o escritos `\n`. Sin esto no se ofrece transferencia. **No commitear.** |
+| `TICKETS_TRANSFER_HOLD_HOURS` | Opcional. Horas de reserva esperando una transferencia (1 a 240; por defecto 48).                                                                            |
+| `TICKETS_MP_FEE_PERCENT`      | Opcional. Comisión de MP que se suma como recargo, p. ej. `7.73`. Sin ella, no hay recargo. Verificarla contra el plan de la cuenta.                         |
+| `SITE_URL`                    | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.                   |
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
 
-| Variable                   | Qué hace                                                                                                                                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `MP_MOCK=1`                | Usa el Mercado Pago simulado aunque haya `MP_ACCESS_TOKEN`. Sin `MP_ACCESS_TOKEN` también se simula.                                     |
-| `TICKETS_DEV_FIXTURE=slug` | Agrega entradas de prueba (General $8000 cupo 500, Reducida $5000 cupo 3) a esos eventos sin tocar su archivo. Separar varios con comas. |
-| `ADMIN_DEV_MOCK=1`         | Sesión de admin falsa (sin GitHub).                                                                                                      |
+| Variable                   | Qué hace                                                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MP_MOCK=1`                | Usa el Mercado Pago simulado aunque haya `MP_ACCESS_TOKEN`. Sin `MP_ACCESS_TOKEN` también se simula.                                                                                            |
+| `TICKETS_DEV_FIXTURE=slug` | Agrega entradas de prueba (General $8000 cupo 500, Reducida $5000 cupo 3, Con fondo $10000 − $2000 cupo 500; MP y transferencia) a esos eventos sin tocar su archivo. Separar varios con comas. |
+| `ADMIN_DEV_MOCK=1`         | Sesión de admin falsa (sin GitHub).                                                                                                                                                             |
 
 ## Probar en local (sin cuentas de nada)
 
 ```sh
 npm install
-MP_MOCK=1 ADMIN_DEV_MOCK=1 TICKETS_DEV_FIXTURE=<slug-de-un-evento> npm run dev -- --port 5371 --strictPort
+MP_MOCK=1 ADMIN_DEV_MOCK=1 TICKETS_MP_FEE_PERCENT=7.73 \
+  TICKETS_TRANSFER_INFO='Alias: EJEMPLO.ALIAS.PRUEBA\nTitular: Nombre de ejemplo' \
+  npm run dev -- --port 5371 --strictPort
 ```
 
-1. Abrir `http://localhost:5371/calendario/<slug>#entradas`, completar y "Ir a pagar con Mercado Pago".
+Con eso ya funciona el evento de prueba `http://localhost:5371/calendario/prueba-entradas-2026-12` (su página tiene la guía paso a paso). Para probar con otro evento sin tocar su archivo, agregar `TICKETS_DEV_FIXTURE=<slug>`.
+
+1. Abrir la página del evento en `#entradas`, completar y "Ir a pagar con Mercado Pago" (o "Reservar y ver los datos para transferir").
 2. Se abre el **checkout simulado** (`/entradas/simular-pago/<orden>`): aprobar, rechazar, dejar pendiente o "aprobar sin webhook" (para ver que la página de estado re-consulta sola). Cada botón manda una notificación **firmada** al webhook igual que MP.
 3. Sin `RESEND_API_KEY` el mail no se manda: se loguea en la consola (con los tokens recortados).
-4. Admin: `http://localhost:5371/admin/entradas`.
+4. Admin: `http://localhost:5371/admin/entradas` (transferencias pendientes en la página de cada evento) y `http://localhost:5371/admin/entradas/codigos`.
 
 Tests:
 
@@ -140,7 +200,9 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
 - **CSV:** celdas que empiezan con `= + - @` se escapan (inyección de fórmulas).
-- **Privacidad:** solo nombre y email. **TODO (no implementado):** anonimizar nombre/email y borrar tokens N días después del evento (p. ej. 90, por contracargos), dejando solo totales.
+- **Privacidad:** de quien compra, nombre, email y DNI; de cada entrada, nombre y pronombres. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
+- **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos de "Aplicar".
+- **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.
 
 ## Verificación contra la documentación de Mercado Pago
 
@@ -185,17 +247,21 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 
 - **Defensa del Consumidor (Ley 24.240):** datos del proveedor visibles (razón social o nombre, CUIT, domicilio), precio final con impuestos, y el **botón de arrepentimiento** (Res. SCI 424/2020) en la home si se vende online, con su procedimiento. Revisar si aplica a entradas para eventos con fecha (hay excepciones discutidas).
 - **Términos y condiciones** de compra y **política de reembolsos/cambios** (cancelación del evento, reprogramación, no-show, cambio de titular), enlazados desde el bloque de compra. Las condiciones que muestra hoy son un borrador.
-- **Facturación (ARCA, ex AFIP):** quién factura (monotributo/responsable inscripte, la organización o cada productore), y cómo se emite la factura de cada venta (Mercado Pago no factura por vos).
-- **Datos personales (Ley 25.326):** aviso de privacidad (qué se guarda, para qué, por cuánto tiempo, cómo pedir la baja) e implementar la retención (TODO de arriba).
+- **Facturas:** facturas individuales solo a pedido, fuera del sitio (el sitio no emite ni promete facturas).
+- **Datos personales (Ley 25.326):** aviso de privacidad (qué se guarda, para qué, cómo pedir la baja). Ahora también se guarda el DNI de quien compra.
 - Verificación de edad: la casilla +18 es una declaración; el control real es en la puerta.
 
 **Mercado Pago:**
 
-- Elegir el **plazo de acreditación** (dinero disponible al instante con comisión más alta, o a 14/30 días con comisión menor) en la cuenta. Decidir si la comisión la absorbe la organización o se suma al precio (hoy el precio del frontmatter es lo que paga la persona).
+- Elegir el **plazo de acreditación** (dinero disponible al instante con comisión más alta, o a 14/30 días con comisión menor) en la cuenta, y **cargar esa tasa en `TICKETS_MP_FEE_PERCENT`** (recargo por la comisión, ya implementado; el valor `7.73` de los ejemplos no está verificado). Si la comisión real es distinta, la organización recibe un poco más o menos que la base.
+- Monto mínimo de un pago en MP: no verificado (afecta compras con descuentos grandes que dejan un total muy chico).
 - **Reembolsos:** hoy se hacen a mano desde el panel de MP; el webhook marca la orden `refunded` y anula las entradas. Falta: botón en el admin (vía `POST /v1/payments/{id}/refunds`), política de quién puede reembolsar, y avisar por mail.
 - Probar contracargos y pagos aprobados después de vencida la reserva (hoy se aceptan y se loguea un aviso).
 
 **Operación:**
+
+- **Transferencias:** alguien tiene que revisar la cuenta y confirmar a mano (no hay verificación automática). Una reserva por transferencia bloquea cupo 48 h: con muchos mails distintos alguien podría bloquear el cupo; si pasa, cancelar desde el admin y bajar `TICKETS_TRANSFER_HOLD_HOURS`.
+- **Borrar el evento de prueba** (`prueba-entradas-2026-12.md`) antes de vender de verdad.
 
 - Una persona "dueña" de las credenciales y de revisar los logs (Cloudflare → Workers & Pages → Logs) durante las ventas.
 - Probar el escaneo en la puerta con los celulares reales (Android/Chrome anda con la página; en iPhone, con la cámara del sistema) y con poca señal.
@@ -207,10 +273,7 @@ Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cue
 ## Preguntas abiertas para les organizadores
 
 - ¿Qué pasa con las entradas si el evento se reprograma o se cancela? ¿Reembolso automático, crédito, o se decide caso por caso?
-- ¿Precio con o sin comisión de MP? ¿Plazo de acreditación?
-- ¿Quién factura cada venta?
-- ¿Se pide un nombre por entrada (hoy todas van a nombre de quien compra) o alcanza con el de quien compra?
-- ¿Cuántas entradas máximo por compra (hoy 4)?
+- ¿Plazo de acreditación de MP (define la tasa del recargo)?
+- ¿El Fondo KinkyVibe tiene un tope por evento? (hoy no hay tope: cubre todas las entradas vendidas).
 - ¿La venta cierra al empezar el evento o antes? ¿Hay venta en puerta (que habría que restar del cupo)?
-- ¿Qué cuenta de email envía y a qué dirección responde la gente?
-- ¿Cuántos días después del evento se pueden borrar nombres y emails?
+- ¿Qué cuenta de email envía? (las respuestas van a `TICKETS_CONTACT_EMAIL` salvo que se configure `TICKETS_REPLY_TO`).
