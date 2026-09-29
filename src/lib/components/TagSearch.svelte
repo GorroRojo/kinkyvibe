@@ -1,5 +1,6 @@
 <script>
 	import { createCombobox, melt } from '@melt-ui/svelte';
+	import { tick } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { Search, X } from 'lucide-svelte';
 	import { filteredTags, searchText, tagManager } from '$lib/utils/stores';
@@ -43,7 +44,21 @@
 		$tagManager
 	);
 	// The list re-renders on every keystroke; never keep a highlight on a removed option.
-	$: suggestions, highlightedItem.set(null);
+	// Whenever the list changes or opens: with a query, highlight the top suggestion so
+	// Enter picks it; with an empty query, highlight nothing so Enter adds no tag.
+	// (Also avoids keeping a highlight on an option that was just removed.)
+	$: suggestions, $open, highlightFirst();
+
+	/** @type {HTMLElement} */
+	let menuEl;
+	async function highlightFirst() {
+		await tick();
+		const first = menuEl?.querySelector('[role=option]:not([data-disabled])');
+		if ($open && $inputValue.trim() != '' && first instanceof HTMLElement) {
+			highlightedItem.set(first);
+			first.scrollIntoView({ block: 'nearest' });
+		} else highlightedItem.set(null);
+	}
 
 	/** @param {string} id */
 	function removeTag(id) {
@@ -111,7 +126,7 @@
 			>
 		{/if}
 	</div>
-	<ul class="menu" use:melt={$menu}>
+	<ul class="menu" bind:this={menuEl} use:melt={$menu}>
 		{#each suggestions as s (s.id)}
 			{@const tag = $tagManager.get(s.id)}
 			<li
