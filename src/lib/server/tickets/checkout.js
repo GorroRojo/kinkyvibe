@@ -58,6 +58,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   feeBasisPoints: number,
  *   contactEmail: string,
  *   online: boolean,
+ *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
  *     gorra: { min: number, suggested: number } | null }[]
@@ -106,6 +107,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 		feeBasisPoints: await mpFeeBasisPoints(db, config),
 		contactEmail: contactEmail(),
 		online: config.online,
+		fondoEnabled: config.fondoEnabled,
 		fondoPercent: config.fondoPercent,
 		types: config.types.map((t) => ({
 			id: t.id,
@@ -381,7 +383,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			holders: valid.holders,
 			option: valid.option,
 			unitPrice: valid.unitPrice,
-			// Porcentaje del Fondo vigente al comprar (del frontmatter o el automático).
+			// Porcentaje del Fondo vigente al comprar (NULL si el evento no es de KinkyVibe).
 			fondoPercent: config.fondoPercent,
 			method,
 			feeBasisPoints: await mpFeeBasisPoints(db, config),

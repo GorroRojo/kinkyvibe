@@ -66,6 +66,10 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 		'aria-pressed',
 		'true'
 	);
+	// Botones rápidos: mínimo, sugerido, 1,5 × y 2 × el sugerido (sin "mitad").
+	await expect(block.getByRole('group', { name: 'Montos rápidos' }).getByRole('button')).toHaveText(
+		[/^\$\s1\.000$/, /^\$\s5\.000\s·\ssugerido$/, /^\$\s7\.500$/, /^\$\s10\.000$/]
+	);
 	await expect(block.getByText('Total:')).toContainText(
 		ars(
 			computePrice({
@@ -83,6 +87,13 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	await expect(block).toContainText(
 		'no se aplican el descuento del Fondo KinkyVibe ni los códigos de descuento'
 	);
+
+	// Sin monto máximo: solo el tope técnico de la orden ($ 100.000.000) contra errores de tipeo.
+	await amount.fill('2.000.000');
+	await expect(block.locator('.pay button[type="submit"]')).toBeEnabled();
+	await amount.fill('1000000000');
+	await expect(block.getByText(/parece un error de tipeo/)).toBeVisible();
+	await expect(block.locator('.pay button[type="submit"]')).toBeDisabled();
 
 	// Menos que el mínimo: se marca y no deja comprar.
 	await amount.fill('500');
@@ -147,7 +158,8 @@ test('el servidor valida el monto aunque el formulario mande otro', async ({ pag
 			headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' },
 			maxRedirects: 0
 		});
-	for (const amount of ['999', '-1', '9999999', 'mucho']) {
+	// 1.000.000.000 pasa el tope técnico de la orden ($ 100.000.000), no un máximo de producto.
+	for (const amount of ['999', '-1', '1000000000', 'mucho']) {
 		const body = await (await post({ amount })).text();
 		expect(body).toContain('Revisá los datos marcados');
 	}
@@ -164,9 +176,54 @@ test('el servidor valida el monto aunque el formulario mande otro', async ({ pag
 	await expect(page.getByRole('heading', { name: `Pagar ${ars(total)}` })).toBeVisible();
 });
 
+test('evento sin la etiqueta KinkyVibe: sin opciones del Fondo, y un POST armado no baja el precio', async ({
+	page
+}) => {
+	const { block } = await fill(page, { type: /^Precio fijo/ });
+	// Precio de lista, sin "¿Cómo querés pagar tu entrada?" ni textos del Fondo.
+	await expect(block.locator('fieldset.options')).toHaveCount(0);
+	await expect(block).not.toContainText('Fondo KinkyVibe');
+	const list = computePrice({
+		price: 6000,
+		option: 'completo',
+		quantity: 1,
+		method: 'mercadopago',
+		feeBasisPoints: FEE_BP
+	});
+	await expect(block.getByText('Total:')).toContainText(ars(list.total));
+
+	// Un POST con "con el descuento del fondo" (o una solidaria) se cobra al precio de lista.
+	for (const option of ['fondo', 'solidaria']) {
+		const id = Math.random().toString(36).slice(2, 8);
+		const res = await page.request.post(`${BUY_URL}?/buy`, {
+			form: {
+				type: 'fijo',
+				quantity: '1',
+				name: 'Persona Sin Fondo',
+				pronouns: 'elle',
+				email: `sin-fondo-${id}@example.com`,
+				dni: fakeDni(),
+				holder_name_0: 'Persona Sin Fondo',
+				holder_pronouns_0: 'elle',
+				method: 'mercadopago',
+				accept: 'on',
+				option
+			},
+			headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' },
+			maxRedirects: 0
+		});
+		const body = await res.json();
+		expect(body.type).toBe('redirect');
+		await page.goto(body.location);
+		await expect(page.getByRole('heading', { name: `Pagar ${ars(list.total)}` })).toBeVisible();
+	}
+});
+
 test('a la gorra con $ 0 (mínimo 0): se emite sin pagar', async ({ page }) => {
 	const { block } = await fill(page, { type: /^Libre/ });
-	await block.getByRole('button', { name: 'Sin cargo' }).click();
+	// Con mínimo 0 no hay botón del mínimo: se escribe 0.
+	await expect(block.getByRole('button', { name: 'Sin cargo' })).toHaveCount(0);
+	await block.getByLabel('¿Cuánto querés pagar por entrada?').fill('0');
 	const submit = block.locator('.pay button[type="submit"]');
 	await expect(submit).toHaveText('Confirmar entradas sin cargo');
 	await expect(block.locator('fieldset.methods')).toHaveCount(0);

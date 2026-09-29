@@ -6,6 +6,8 @@ import {
 	defaultFondoOption,
 	fondoOptionLabel,
 	fondoOptionsFor,
+	gorraQuickAmounts,
+	exceedsOrderMax,
 	holdHours,
 	mpSurcharge,
 	normalizeCode,
@@ -435,5 +437,32 @@ describe('formatSignedARS', () => {
 		expect(formatSignedARS(2000)).toMatch(/^\+\$\s2\.000$/);
 		expect(formatSignedARS(-4000)).toMatch(/^−\$\s4\.000$/);
 		expect(formatSignedARS(0)).toMatch(/^\$\s0$/);
+	});
+});
+
+describe('a la gorra: botones rápidos y tope técnico', () => {
+	it.each([
+		// mínimo, sugerido → botones
+		[1000, 5000, [1000, 5000, 7500, 10000]],
+		[0, 5000, [5000, 7500, 10000]], // el mínimo 0 no tiene botón
+		[0, 3333, [3333, 5000, 6666]], // 1,5 × 3333 = 4999,5 → $ 5.000
+		[0, 150, [150, 200, 300]], // 225 → 200 (a los $ 100 más cercanos)
+		[5000, 5000, [5000, 7500, 10000]], // mínimo = sugerido: una sola vez
+		[0, 100, [100, 200]], // 1,5 × 100 = 150 → 200 = el doble: sin repetir
+		[0, 0, [0]] // sugerido 0: solo "Sin cargo"
+	])('mínimo %i, sugerido %i → %j', (min, suggested, expected) => {
+		expect(gorraQuickAmounts(min, suggested)).toEqual(expected);
+	});
+
+	it('no hay botón "mitad"', () => {
+		expect(gorraQuickAmounts(0, 10000)).not.toContain(5000);
+	});
+
+	it('el tope es por orden (monto × cantidad), no por entrada', () => {
+		expect(exceedsOrderMax(100_000_000, 1)).toBe(false);
+		expect(exceedsOrderMax(100_000_001, 1)).toBe(true);
+		expect(exceedsOrderMax(50_000_000, 2)).toBe(false);
+		expect(exceedsOrderMax(50_000_001, 2)).toBe(true);
+		expect(exceedsOrderMax(1_000_000, 20)).toBe(false);
 	});
 });

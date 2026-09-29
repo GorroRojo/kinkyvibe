@@ -4,13 +4,17 @@
  * `percent` de 0 a 100 en pasos de 10) y se aplica a todos los tipos de entrada con precio
  * (fondo = round(precio × percent / 100), al peso).
  *
+ * Es el mismo para todos los eventos (solo los que tienen la etiqueta KinkyVibe usan el Fondo) y
+ * sigue a fondo.kinkyvibe.ar también durante una venta: no hay porcentaje fijo por evento. Cada
+ * orden guarda el porcentaje con el que se compró (`orders.fondo_percent`).
+ *
  * De dónde sale el porcentaje, en orden:
- * 1. `fondo_percent` (o `fondo` por tipo) en el frontmatter del evento (lo resuelve config.js);
- * 2. el que fija une admin en /admin/entradas/ajustes ("vacío = automático");
- * 3. (solo en `vite dev`) FONDO_PERCENT_OVERRIDE, para probar sin red;
- * 4. el de la API, con memoria de 10 minutos en el isolate y 3 s de timeout;
- * 5. el último que se obtuvo bien, guardado en D1 (`ticket_settings`) — si la API no responde;
- * 6. 0.
+ * 1. el que fija une admin en /admin/entradas/ajustes ("vacío = automático"; para emergencias,
+ *    si fondo.kinkyvibe.ar no anda);
+ * 2. (solo en `vite dev`) FONDO_PERCENT_OVERRIDE, para probar sin red;
+ * 3. el de la API, con memoria de 10 minutos en el isolate y 3 s de timeout;
+ * 4. el último que se obtuvo bien, guardado en D1 (`ticket_settings`) — si la API no responde;
+ * 5. 0.
  * Nunca frena la venta: si todo falla, se vende sin descuento del fondo y se loguea un aviso.
  */
 import { dev } from '$app/environment';
@@ -120,7 +124,7 @@ async function storePercent(db, percent, now) {
 }
 
 /**
- * Porcentaje del Fondo que se aplica a los eventos que no lo fijan en su frontmatter.
+ * Porcentaje del Fondo que se aplica ahora (a los eventos con la etiqueta KinkyVibe).
  *
  * @param {{ db?: D1Database | null, fetch?: typeof fetch, now?: number, url?: string }} [options]
  * @returns {Promise<FondoPercent>}

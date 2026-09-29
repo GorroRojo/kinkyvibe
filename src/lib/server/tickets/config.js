@@ -5,12 +5,12 @@
  * tipo de entrada y la cantidad, nunca un precio.
  *
  * ```yaml
- * fondo_percent: 20      # opcional: % del precio que cubre el Fondo KinkyVibe en TODOS los tipos
+ * tags: [KinkyVibe, ...]  # el Fondo KinkyVibe solo aplica a eventos con la etiqueta KinkyVibe
  * tickets:
  *   - id: general
  *     name: General
  *     price: 10000       # ARS, entero: precio completo de la entrada
- *     fondo: 2000        # opcional: $ que cubre el fondo en este tipo (pisa fondo_percent)
+ *     fondo: 2000        # opcional: $ que cubre el fondo en este tipo (pisa el % automático)
  *     capacity: 40
  *   - id: gorra
  *     name: A la gorra
@@ -37,8 +37,8 @@
 /**
  * @typedef {{
  *   types: TicketType[],
+ *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
- *   fondoPercentSource: 'frontmatter' | 'auto' | null,
  *   paymentMethods: PaymentMethod[],
  *   mpFeeBasisPoints: number | null,
  *   closesAt: number | null,
@@ -53,8 +53,10 @@
  */
 
 import {
-	GORRA_MAX_AMOUNT,
 	MAX_TICKETS_PER_FORM,
+	ORDER_MAX_MESSAGE,
+	ORDER_MAX_TOTAL,
+	exceedsOrderMax,
 	PAYMENT_METHODS,
 	defaultFondoOption,
 	isFondoOption,
@@ -62,6 +64,27 @@ import {
 	parseAmount,
 	parseFeePercent
 } from '$lib/utils/tickets.js';
+import tagsFactory from '$lib/utils/tags.js';
+
+/** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
+export const KINKYVIBE_TAG = 'KinkyVibe';
+
+/** @type {ReturnType<typeof tagsFactory> | undefined} */
+let tagManager;
+
+/**
+ * ¿El evento tiene la etiqueta KinkyVibe? Resuelve los alias con el tag manager (así "kinkyvibe"
+ * o "Kinkyvibe" también cuentan), no comparando texto.
+ *
+ * @param {Record<string, any> | undefined} meta
+ */
+export function isKinkyVibeEvent(meta) {
+	const tags = meta?.tags;
+	if (!Array.isArray(tags)) return false;
+	tagManager ??= tagsFactory();
+	const tm = tagManager;
+	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
+}
 
 export { formatARS } from '$lib/utils/money.js';
 export { MAX_TICKETS_PER_FORM };
@@ -84,8 +107,12 @@ export function toTime(value) {
  * Valida y normaliza `tickets` del frontmatter. Devuelve `null` si el evento no vende entradas.
  * Tira un error descriptivo si la configuración está mal (mejor que vender con un precio raro).
  *
- * `options.fondoPercent` es el porcentaje automático del Fondo KinkyVibe (ver fondo.js): se usa
- * si el evento no fija `fondo_percent` (ni el tipo su `fondo`). Sin él, sin fondo.
+ * `options.fondoPercent` es el porcentaje del Fondo KinkyVibe (ver fondo.js; el mismo para todos
+ * los eventos, sigue a fondo.kinkyvibe.ar): se usa en los tipos que no fijan su `fondo`. Sin él,
+ * sin descuento del fondo.
+ *
+ * El Fondo (descuento, aportes y las opciones de "¿Cómo querés pagar tu entrada?") solo aplica a
+ * eventos con la etiqueta KinkyVibe (`fondoEnabled`); en los demás, precio de lista y nada más.
  *
  * @param {Record<string, any> | undefined} meta
  * @param {{ fondoPercent?: number | null }} [options]
@@ -96,17 +123,11 @@ export function parseTicketConfig(meta, options = {}) {
 	if (!Array.isArray(meta.tickets) || meta.tickets.length === 0) {
 		throw new TypeError('`tickets` tiene que ser una lista con al menos un tipo de entrada');
 	}
+	const fondoEnabled = isKinkyVibeEvent(meta);
 	/** @type {number | null} */
 	let fondoPercent = null;
-	/** @type {'frontmatter' | 'auto' | null} */
-	let fondoPercentSource = null;
-	if (meta.fondo_percent !== undefined && meta.fondo_percent !== null) {
-		fondoPercent = Number(meta.fondo_percent);
-		if (!Number.isInteger(fondoPercent) || fondoPercent < 0 || fondoPercent > 100) {
-			throw new TypeError('`fondo_percent` tiene que ser un entero entre 0 y 100');
-		}
-		fondoPercentSource = 'frontmatter';
-	} else if (
+	if (
+		fondoEnabled &&
 		options.fondoPercent !== undefined &&
 		options.fondoPercent !== null &&
 		Number.isInteger(options.fondoPercent) &&
@@ -114,7 +135,6 @@ export function parseTicketConfig(meta, options = {}) {
 		options.fondoPercent <= 100
 	) {
 		fondoPercent = options.fondoPercent;
-		fondoPercentSource = 'auto';
 	}
 	/** @type {TicketType[]} */
 	const types = [];
@@ -136,9 +156,9 @@ export function parseTicketConfig(meta, options = {}) {
 			if (!Number.isSafeInteger(min) || min < 0) {
 				throw new TypeError(`\`a_la_gorra.minimo\` inválido para "${id}": un entero desde 0`);
 			}
-			if (!Number.isSafeInteger(suggested) || suggested < min || suggested > GORRA_MAX_AMOUNT) {
+			if (!Number.isSafeInteger(suggested) || suggested < min || suggested > ORDER_MAX_TOTAL) {
 				throw new TypeError(
-					`\`a_la_gorra.sugerido\` inválido para "${id}": un entero entre el mínimo y ${GORRA_MAX_AMOUNT}`
+					`\`a_la_gorra.sugerido\` inválido para "${id}": un entero entre el mínimo y ${ORDER_MAX_TOTAL}`
 				);
 			}
 			// Sin fondo: quien paga elige el monto (el fondo no aplica a la gorra).
@@ -149,10 +169,12 @@ export function parseTicketConfig(meta, options = {}) {
 		if (!Number.isSafeInteger(price) || price <= 0) {
 			throw new TypeError(`Precio inválido para "${id}": tiene que ser un entero mayor a 0`);
 		}
-		// El `fondo` del tipo (en pesos) pisa el `fondo_percent` del evento.
+		// El `fondo` del tipo (en pesos) pisa el porcentaje automático. Sin la etiqueta
+		// KinkyVibe no hay fondo (se valida igual, para no esconder un error del frontmatter).
+		const fixedFondo = raw.fondo !== undefined && raw.fondo !== null ? Number(raw.fondo) : null;
 		const fondo =
-			raw.fondo !== undefined && raw.fondo !== null
-				? Number(raw.fondo)
+			fixedFondo !== null
+				? fixedFondo
 				: fondoPercent !== null
 					? Math.round((price * fondoPercent) / 100)
 					: 0;
@@ -191,9 +213,9 @@ export function parseTicketConfig(meta, options = {}) {
 	}
 	const closesAt = toTime(meta.tickets_close) ?? toTime(meta.start);
 	return {
-		types,
+		types: fondoEnabled ? types : types.map((t) => ({ ...t, fondo: 0 })),
+		fondoEnabled,
 		fondoPercent,
-		fondoPercentSource,
 		paymentMethods,
 		mpFeeBasisPoints,
 		closesAt,
@@ -298,7 +320,8 @@ export function validateBuyer(raw) {
  * también sin JavaScript).
  *
  * "A la gorra": `amount` es el monto POR ENTRADA que eligió la persona (entero, desde el mínimo
- * del tipo hasta GORRA_MAX_AMOUNT); vacío = el sugerido. La opción queda `gorra` (sin fondo).
+ * del tipo; sin máximo de producto, solo el tope técnico ORDER_MAX_TOTAL para el total de la
+ * orden); vacío = el sugerido. La opción queda `gorra` (sin fondo).
  *
  * @param {EventTickets} config
  * @param {{
@@ -355,12 +378,16 @@ export function validatePurchase(config, input) {
 			errors.amount = 'Escribí cuánto querés pagar por entrada, en pesos (sin centavos).';
 		} else if (amount < type.gorra.min) {
 			errors.amount = `El mínimo es $ ${type.gorra.min.toLocaleString('es-AR')} por entrada.`;
-		} else if (amount > GORRA_MAX_AMOUNT) {
-			errors.amount = `El máximo es $ ${GORRA_MAX_AMOUNT.toLocaleString('es-AR')} por entrada.`;
+		} else if (exceedsOrderMax(amount, errors.quantity ? 1 : quantity)) {
+			errors.amount = ORDER_MAX_MESSAGE;
 		} else {
 			unitPrice = amount;
 		}
 		option = 'gorra';
+	} else if (!config.fondoEnabled) {
+		// Evento sin la etiqueta KinkyVibe: sin Fondo. Se ignora cualquier opción que llegue en el
+		// POST (aunque sea "fondo" o una solidaria): precio de lista.
+		option = 'completo';
 	} else {
 		// Opción del fondo: vacía = la de por defecto. "Con el descuento del fondo" en un tipo sin
 		// fondo es lo mismo que precio completo, y se guarda así.

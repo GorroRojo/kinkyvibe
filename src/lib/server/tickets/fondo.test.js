@@ -132,6 +132,7 @@ describe('precedencia y redondeo en la configuración del evento', () => {
 	const META = {
 		title: 'x',
 		start: '2026-10-17T21:00-03:00',
+		tags: ['kinkyvibe'], // alias de KinkyVibe: el Fondo aplica
 		tickets: [
 			{ id: 'general', price: 10000, capacity: 5 },
 			{ id: 'impar', price: 4999, capacity: 5 },
@@ -143,12 +144,12 @@ describe('precedencia y redondeo en la configuración del evento', () => {
 		const c = parseTicketConfig(META, { fondoPercent: 15 });
 		// 4999 × 15 % = 749,85 → 750
 		expect(c?.types.map((x) => x.fondo)).toEqual([1500, 750, 1000, 0]);
-		expect(c).toMatchObject({ fondoPercent: 15, fondoPercentSource: 'auto' });
+		expect(c).toMatchObject({ fondoEnabled: true, fondoPercent: 15 });
 	});
-	it('fondo_percent del frontmatter gana sobre el automático', () => {
+	it('`fondo_percent` en el frontmatter se ignora: manda el porcentaje global', () => {
 		const c = parseTicketConfig({ ...META, fondo_percent: 0 }, { fondoPercent: 40 });
-		expect(c?.types.map((x) => x.fondo)).toEqual([0, 0, 1000, 0]);
-		expect(c).toMatchObject({ fondoPercent: 0, fondoPercentSource: 'frontmatter' });
+		expect(c?.types.map((x) => x.fondo)).toEqual([4000, 2000, 1000, 0]);
+		expect(c?.fondoPercent).toBe(40);
 	});
 	it('sin nada: sin fondo', () => {
 		expect(parseTicketConfig(META)?.types.map((x) => x.fondo)).toEqual([0, 0, 1000, 0]);

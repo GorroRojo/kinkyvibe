@@ -312,10 +312,40 @@ export function purchaseConditions({ contactEmail, transferHoldHours, methods, o
 }
 
 /**
- * "A la gorra": tope por entrada del monto que elige la persona (evita errores de tipeo como
- * 1000000 en lugar de 10000 y montos absurdos). También es el máximo de `sugerido`.
+ * Tope técnico del total de una orden, en pesos: no es un precio máximo (a la gorra cada quien
+ * paga lo que quiere), solo una red contra errores de tipeo con muchos ceros y contra números
+ * que ya no son montos razonables. También es el máximo de `a_la_gorra.sugerido`.
  */
-export const GORRA_MAX_AMOUNT = 500000;
+export const ORDER_MAX_TOTAL = 100_000_000;
+
+/**
+ * "A la gorra": ¿el monto por entrada × cantidad pasa el tope técnico de la orden?
+ *
+ * @param {number} amount monto por entrada (pesos enteros)
+ * @param {number} quantity
+ */
+export function exceedsOrderMax(amount, quantity) {
+	return amount * Math.max(1, quantity) > ORDER_MAX_TOTAL;
+}
+
+/** Mensaje (para quien compra) cuando un monto a la gorra pasa el tope técnico. */
+export const ORDER_MAX_MESSAGE = `Ese monto parece un error de tipeo: el total de la compra no puede pasar de $ ${ORDER_MAX_TOTAL.toLocaleString('es-AR')}. Revisá que no sobre ningún cero.`;
+
+/**
+ * "A la gorra": montos de los botones rápidos, de menor a mayor y sin repetidos: el mínimo (solo
+ * si es mayor a 0), el sugerido, 1,5 × el sugerido (redondeado a los $ 100) y el doble.
+ *
+ * @param {number} min
+ * @param {number} suggested
+ * @returns {number[]}
+ */
+export function gorraQuickAmounts(min, suggested) {
+	const amounts = [suggested, Math.round((suggested * 1.5) / 100) * 100, suggested * 2];
+	if (min > 0) amounts.push(min);
+	return [...new Set(amounts)]
+		.filter((n) => n >= min && n <= ORDER_MAX_TOTAL)
+		.sort((a, b) => a - b);
+}
 
 /**
  * Monto "a la gorra" escrito por la persona → pesos enteros, o `null` si no es un número válido.

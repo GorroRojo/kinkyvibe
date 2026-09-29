@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { computePrice } from '$lib/utils/tickets.js';
 import {
 	MAX_TICKETS_PER_FORM,
+	isKinkyVibeEvent,
 	parseTicketConfig,
 	salesState,
 	validateBuyer,
@@ -12,6 +14,8 @@ const META = {
 	title: 'Fiesta de prueba',
 	start: '2026-10-17T21:00-03:00',
 	status: 'abierto',
+	// El Fondo solo aplica a eventos con la etiqueta KinkyVibe (ver "solo eventos KinkyVibe").
+	tags: ['KinkyVibe', 'AMBA'],
 	tickets: [
 		{ id: 'general', name: 'General', price: 8000, capacity: 40 },
 		{ id: 'anticipada', name: 'Anticipada', price: 5000, capacity: 10 }
@@ -191,24 +195,26 @@ describe('fondo y mp_fee_percent', () => {
 			).toThrow(/Fondo/);
 		}
 	});
-	it('fondo_percent por evento: vale para todos los tipos, redondeado al peso; `fondo` lo pisa', () => {
-		const c = parseTicketConfig({
-			...META,
-			fondo_percent: 15,
-			tickets: [
-				{ id: 'general', price: 10000, capacity: 5 },
-				{ id: 'anticipada', price: 4999, capacity: 5 },
-				{ id: 'fija', price: 8000, fondo: 1000, capacity: 5 },
-				{ id: 'sin', price: 8000, fondo: 0, capacity: 5 }
-			]
-		});
+	it('el porcentaje del Fondo es el global (fondo.js): `fondo_percent` en el frontmatter no existe más', () => {
+		const c = parseTicketConfig(
+			{
+				...META,
+				fondo_percent: 0,
+				tickets: [
+					{ id: 'general', price: 10000, capacity: 5 },
+					{ id: 'anticipada', price: 4999, capacity: 5 },
+					{ id: 'fija', price: 8000, fondo: 1000, capacity: 5 },
+					{ id: 'sin', price: 8000, fondo: 0, capacity: 5 }
+				]
+			},
+			{ fondoPercent: 15 }
+		);
 		expect(c?.fondoPercent).toBe(15);
-		// 4999 × 15 % = 749,85 → 750
+		// 4999 × 15 % = 749,85 → 750; `fondo` en pesos de un tipo sigue pisando el porcentaje.
 		expect(c?.types.map((t) => t.fondo)).toEqual([1500, 750, 1000, 0]);
 		expect(parseTicketConfig(META)?.fondoPercent).toBeNull();
-		for (const fondo_percent of [-1, 101, 12.5, 'mucho']) {
-			expect(() => parseTicketConfig({ ...META, fondo_percent })).toThrow(/fondo_percent/);
-		}
+		// Un `fondo_percent` inválido tampoco rompe nada: se ignora.
+		expect(parseTicketConfig({ ...META, fondo_percent: 'mucho' })).not.toBeNull();
 	});
 
 	it('mp_fee_percent por evento', () => {
@@ -360,7 +366,7 @@ describe('a la gorra', () => {
 		]
 	};
 	const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
-		parseTicketConfig({ ...GORRA, fondo_percent: 20 })
+		parseTicketConfig(GORRA, { fondoPercent: 20 })
 	);
 	const ok = {
 		type: 'gorra',
@@ -375,7 +381,7 @@ describe('a la gorra', () => {
 	/** @param {Record<string, unknown>} o */
 	const buy = (o) => /** @type {any} */ (validatePurchase(c, { ...ok, ...o }));
 
-	it('parsea mínimo y sugerido; sin fondo aunque el evento tenga fondo_percent', () => {
+	it('parsea mínimo y sugerido; sin fondo aunque haya porcentaje del Fondo', () => {
 		expect(c.types[1]).toEqual({
 			id: 'gorra',
 			name: 'A la gorra',
@@ -394,7 +400,7 @@ describe('a la gorra', () => {
 		[{ minimo: 'x', sugerido: 10 }, /minimo/],
 		[{ minimo: 5000, sugerido: 4000 }, /sugerido/],
 		[{ minimo: 0 }, /sugerido/],
-		[{ minimo: 0, sugerido: 999999999 }, /sugerido/]
+		[{ minimo: 0, sugerido: 100000001 }, /sugerido/]
 	])('rechaza a_la_gorra inválido %#', (a_la_gorra, error) => {
 		expect(() =>
 			parseTicketConfig({ ...META, tickets: [{ id: 'g', a_la_gorra, capacity: 5 }] })
@@ -427,8 +433,8 @@ describe('a la gorra', () => {
 		expect(buy({ amount })).toMatchObject({ ok: true, unitPrice });
 	});
 
-	it.each(['999', '-5', 'mucho', '10,5', '1.5', '500001', '1e5'])(
-		'rechaza el monto %j (mínimo 1000, máximo 500000, entero)',
+	it.each(['999', '-5', 'mucho', '10,5', '1.5', '1e5'])(
+		'rechaza el monto %j (mínimo 1000, entero)',
 		(amount) => {
 			const r = buy({ amount });
 			expect(r.ok).toBe(false);
@@ -438,6 +444,25 @@ describe('a la gorra', () => {
 
 	it('con mínimo 0 se puede pagar 0 (entrada sin cargo)', () => {
 		expect(buy({ type: 'libre', amount: '0' })).toMatchObject({ ok: true, unitPrice: 0 });
+	});
+
+	it('sin tope de producto: montos altos pasan (la gorra es lo que cada quien quiera)', () => {
+		expect(buy({ amount: '500001' })).toMatchObject({ ok: true, unitPrice: 500001 });
+		expect(buy({ amount: '2.500.000' })).toMatchObject({ ok: true, unitPrice: 2500000 });
+		// 2 entradas × 50.000.000 = justo el tope técnico de la orden.
+		expect(buy({ amount: '50000000' })).toMatchObject({ ok: true, unitPrice: 50000000 });
+	});
+
+	it('tope técnico: el total de la orden no pasa de $ 100.000.000 (error de tipeo)', () => {
+		const r = buy({ amount: '50000001' }); // × 2 entradas
+		expect(r.ok).toBe(false);
+		expect(r.errors.amount).toMatch(/error de tipeo.*100\.000\.000/);
+		expect(buy({ amount: '100000000000' }).errors.amount).toMatch(/error de tipeo/);
+		// Una sola entrada: hasta el tope.
+		expect(buy({ quantity: '1', holders: [ok.holders[0]], amount: '100000000' })).toMatchObject({
+			ok: true,
+			unitPrice: 100000000
+		});
 	});
 });
 
@@ -453,4 +478,69 @@ describe('eventos online', () => {
 		).toBe(false);
 		expect(parseTicketConfig({ ...META, tags: ['AMBA'] })?.online).toBe(false);
 	});
+});
+
+describe('el Fondo solo aplica a eventos con la etiqueta KinkyVibe', () => {
+	const tickets = [
+		{ id: 'general', name: 'General', price: 10000, capacity: 40 },
+		{ id: 'fija', name: 'Fija', price: 8000, fondo: 2000, capacity: 40 }
+	];
+	const tagged = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+		parseTicketConfig({ ...META, tags: ['KinkyVibe'], tickets }, { fondoPercent: 20 })
+	);
+	const untagged = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+		parseTicketConfig({ ...META, tags: ['AMBA', 'pago'], tickets }, { fondoPercent: 20 })
+	);
+	const ok = {
+		type: 'general',
+		quantity: '1',
+		buyer: { name: 'Ale Prueba', pronouns: 'elle', email: 'ale@example.com', dni: '20111222' },
+		accept: 'on',
+		holders: [{ name: 'Ale Prueba', pronouns: 'elle' }]
+	};
+
+	it.each([['KinkyVibe'], ['Kinkyvibe'], ['kinkyvibe']])('etiqueta %j (alias incluidos)', (tag) => {
+		expect(isKinkyVibeEvent({ tags: ['AMBA', tag] })).toBe(true);
+	});
+
+	it.each([[['AMBA']], [[]], [undefined], [['KinkyVibe-no']], [['Kinky Vibe']], ['KinkyVibe']])(
+		'sin la etiqueta: %j',
+		(tags) => {
+			expect(isKinkyVibeEvent({ tags })).toBe(false);
+		}
+	);
+
+	it('con la etiqueta: descuento del Fondo y las opciones', () => {
+		expect(tagged.fondoEnabled).toBe(true);
+		expect(tagged.fondoPercent).toBe(20);
+		expect(tagged.types.map((t) => t.fondo)).toEqual([2000, 2000]);
+		const r = /** @type {any} */ (validatePurchase(tagged, { ...ok, option: 'sugar' }));
+		expect(r).toMatchObject({ ok: true, option: 'sugar' });
+		expect(/** @type {any} */ (validatePurchase(tagged, ok)).option).toBe('fondo');
+	});
+
+	it('sin la etiqueta: sin fondo (ni el porcentaje ni el `fondo` fijo de un tipo)', () => {
+		expect(untagged.fondoEnabled).toBe(false);
+		expect(untagged.fondoPercent).toBeNull();
+		expect(untagged.types.map((t) => t.fondo)).toEqual([0, 0]);
+	});
+
+	it.each(['fondo', 'solidaria', 'muy-solidaria', 'sugar', 'completo', '', 'cualquiera'])(
+		'sin la etiqueta, un POST con option=%j queda en precio de lista',
+		(option) => {
+			for (const type of ['general', 'fija']) {
+				const r = /** @type {any} */ (validatePurchase(untagged, { ...ok, type, option }));
+				expect(r).toMatchObject({ ok: true, option: 'completo' });
+				const price = r.type.price;
+				const p = computePrice({
+					price,
+					fondo: r.type.fondo,
+					option: r.option,
+					quantity: 1,
+					method: 'transferencia'
+				});
+				expect(p).toMatchObject({ fondo: 0, contribution: 0, total: price });
+			}
+		}
+	);
 });

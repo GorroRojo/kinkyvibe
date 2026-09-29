@@ -115,6 +115,9 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		slug: params.slug,
 		title: config.title,
 		online: config.online,
+		// Solo los eventos con la etiqueta KinkyVibe usan el Fondo (las órdenes viejas se muestran
+		// igual si tienen montos del fondo).
+		fondoEnabled: config.fondoEnabled,
 		stream,
 		types: config.types.map((t) => ({
 			...t,

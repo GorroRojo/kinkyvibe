@@ -20,7 +20,7 @@ start: 2026-12-12T21:00-03:00
 end: 2026-12-13T02:00-03:00
 location: Dirección de ejemplo 123, Ciudad de Buenos Aires
 location_name: Lugar de prueba
-# Sin `fondo_percent`: el descuento del Fondo KinkyVibe es el automático del mes (de
+# Con la etiqueta KinkyVibe: el descuento del Fondo KinkyVibe es el automático del mes (de
 # fondo.kinkyvibe.ar; en `npm run dev:tickets`, el 20 % de FONDO_PERCENT_OVERRIDE), en todos los tipos.
 tickets:
   - id: general

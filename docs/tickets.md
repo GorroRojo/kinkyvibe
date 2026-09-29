@@ -9,7 +9,8 @@ Permite que la gente compre entradas para un evento del calendario desde el siti
 Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.md`). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
 
 ```yaml
-fondo_percent: 20 # opcional: fija el % del Fondo KinkyVibe para este evento (si falta: automático)
+tags:
+  - KinkyVibe # el Fondo KinkyVibe solo aplica a eventos con esta etiqueta (ver abajo)
 tickets:
   - id: general # minúsculas, números, - o _ (va en la base de datos: no cambiarlo después de vender)
     name: General # lo que ve la gente
@@ -17,7 +18,7 @@ tickets:
     capacity: 40 # cupo de este tipo
   - id: anticipada
     name: Anticipada
-    price: 8000 # el fondo aplica también acá (fondo_percent)
+    price: 8000 # el fondo aplica también acá
     capacity: 10
   - id: gorra
     name: A la gorra
@@ -30,7 +31,8 @@ modalidad: online # opcional: online | presencial (ver "Eventos online")
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
-- **El fondo aplica a todos los tipos de entrada** (decisión de la organización) y **es automático**: el porcentaje del mes sale de fondo.kinkyvibe.ar (ver [Descuento automático del Fondo](#descuento-automático-del-fondo)) y se aplica a todos los tipos con precio, redondeado al peso. `fondo_percent` (entero de 0 a 100) en el frontmatter lo fija para ese evento. `fondo` en un tipo (pesos, de 0 al precio) sigue existiendo para poner el "$ fondo" de la planilla como monto en un evento de un solo tipo, pero no hace falta ni se recomienda usarlo para dejar un tipo sin fondo. Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
+- **El Fondo KinkyVibe solo aplica a eventos con la etiqueta `KinkyVibe`** (decisión de la organización; también cuentan sus alias `Kinkyvibe` y `kinkyvibe`, que se resuelven con el tag manager de `src/lib/utils/hardcodedTags.js`, no comparando texto: `isKinkyVibeEvent` en `config.js`). En un evento **sin** la etiqueta: precio de lista y nada más: no se muestra "¿Cómo querés pagar tu entrada?" (ni descuento del fondo ni solidaria / muy solidaria / Sugar), ni textos del Fondo, no se guarda fondo usado ni aportes (y el admin no muestra las columnas del fondo para ese evento, salvo que tenga órdenes viejas con montos del fondo). El servidor lo hace cumplir: `validatePurchase` ignora cualquier `option` que llegue en el POST y la orden queda `completo`, con `fondo_percent` NULL (hay tests unitarios y E2E con un POST armado). Las órdenes ya hechas no cambian.
+- En los eventos KinkyVibe, **el fondo aplica a todos los tipos de entrada** y **es automático**: el porcentaje del mes sale de fondo.kinkyvibe.ar (ver [Descuento automático del Fondo](#descuento-automático-del-fondo)) y se aplica a todos los tipos con precio, redondeado al peso. **No hay porcentaje fijo por evento** (el `fondo_percent` del frontmatter ya no existe y se ignora): los precios siguen a fondo.kinkyvibe.ar también durante una venta; cada orden guarda el porcentaje con el que se compró. `fondo` en un tipo (pesos, de 0 al precio) sigue existiendo para poner el "$ fondo" de la planilla como monto en un evento de un solo tipo, pero no hace falta ni se recomienda usarlo para dejar un tipo sin fondo. Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un campo numérico con botones **−** y **+** (grandes, para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
 - `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev).
@@ -92,8 +94,9 @@ La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (
 
 Un tipo de entrada con `a_la_gorra: { minimo, sugerido }` en lugar de `price`:
 
-- `minimo` (entero, puede ser 0) es un mínimo duro; `sugerido` (entre el mínimo y $ 500.000) se muestra y es el valor por defecto (campo vacío = sugerido). Hay botones rápidos (mínimo, mitad del sugerido, sugerido, el doble). Tope por entrada: `GORRA_MAX_AMOUNT` = $ 500.000 (evita errores de tipeo).
-- La persona escribe el monto **por entrada** (se aceptan `5000`, `5.000`, `$ 5.000`). El servidor lo vuelve a validar (`validatePurchase`: entero, ≥ mínimo, ≤ tope) y es lo único del formulario que usa para el precio; `computePrice` recibe `option: 'gorra'` y ese monto como precio unitario.
+- `minimo` (entero, puede ser 0) es un mínimo duro; `sugerido` (entero, desde el mínimo) se muestra y es el valor por defecto (campo vacío = sugerido). Botones rápidos (`gorraQuickAmounts`): el mínimo (solo si es mayor a 0), el sugerido, 1,5 × el sugerido (redondeado a los $ 100) y el doble, sin repetidos.
+- **No hay monto máximo** (decisión de la organización: a la gorra cada quien paga lo que quiera). Solo hay un tope técnico contra errores de tipeo y números absurdos: el total de la orden (monto × cantidad) no puede pasar de `ORDER_MAX_TOTAL` = $ 100.000.000; si pasa, el formulario y el servidor dicen "Ese monto parece un error de tipeo…". La documentación de Mercado Pago consultada no indica un monto máximo por pago (puede depender de la cuenta y del medio de pago).
+- La persona escribe el monto **por entrada** (se aceptan `5000`, `5.000`, `$ 5.000`). El servidor lo vuelve a validar (`validatePurchase`: entero, ≥ mínimo, total de la orden ≤ tope técnico) y es lo único del formulario que usa para el precio; `computePrice` recibe `option: 'gorra'` y ese monto como precio unitario.
 - **No aplican** las opciones del Fondo (no se muestra "¿Cómo querés pagar tu entrada?") ni los **códigos de descuento** (no se muestra el campo, y el formulario explica por qué: pagás el monto que elijas; el servidor ignora un código que llegue igual). El **recargo de MP sí** se suma al pagar con Mercado Pago. Monto 0 (con mínimo 0) = camino sin pago ("Confirmar entradas sin cargo").
 - La orden guarda `fondo_option = 'gorra'` y `unit_price` = el monto elegido (la base permite `unit_price = 0` solo en ese caso, y un `CHECK` impide código de descuento en órdenes a la gorra).
 
@@ -111,7 +114,7 @@ Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tien
 Resumen de lo que explica <https://fondo.kinkyvibe.ar> (consultado el 2026-09-29):
 
 - Es un fondo de **Mecenas** (aportes mensuales o de una vez) para que KinkyVibe pueda sostener su trabajo (talleres de sexualidad, kink/BDSM, géneros, reducción de riesgos e historia cuir; fanzines y material digital; eventos con sesiones en vivo, performance, poesía, ferias y cine porno cuir; la comunidad ¡AUCH! con grupos de apoyo y equipo de moderación/monitores; y la tienda y ferias de emprendimientos disidentes) sin cobrarle todo a quien participa.
-- **Cómo baja los precios:** tiene un objetivo mensual (a diciembre de 2025, **$ 4.000.000 por mes**, que se actualiza cada 6 meses por inflación). **Por cada 10 % del objetivo que se recauda, baja un 10 % el precio de todos los talleres, eventos y materiales, para todo el mundo** (no solo para Mecenas). Con el 100 %, todo es gratis. Por eso el descuento del fondo es un porcentaje parejo sobre todo: acá `fondo_percent`.
+- **Cómo baja los precios:** tiene un objetivo mensual (a diciembre de 2025, **$ 4.000.000 por mes**, que se actualiza cada 6 meses por inflación). **Por cada 10 % del objetivo que se recauda, baja un 10 % el precio de todos los talleres, eventos y materiales, para todo el mundo** (no solo para Mecenas). Con el 100 %, todo es gratis. Por eso el descuento del fondo es un porcentaje parejo sobre todo (el mismo para todos los eventos KinkyVibe).
 - **Niveles de Mecenas** (mensual): Visitante $ 1.500, Casual $ 3.000, Regular $ 7.500 (nombre en el sitio), Sugar $ 15.000, Estrella $ 30.000 y Leyenda $ 45.000 (nombre con link); hay "Super Mecenas" y donaciones mayores aparte.
 - El sitio no habla de entradas solidarias: los aportes de las opciones solidaria / muy solidaria / Sugar son una forma más de sumar al fondo desde la compra (el nombre "Sugar" coincide con un nivel). Cómo se refleja ese aporte en el porcentaje del mes es una pregunta abierta.
 
@@ -127,14 +130,15 @@ Admin en `/admin/entradas/codigos` (link desde `/admin/entradas` y el panel): li
 
 El porcentaje del Fondo KinkyVibe se lee de `GET https://fondo.kinkyvibe.ar/api/porcentaje` (`{ percent, collected, goal, step, updatedAt }`, `percent` de 0 a 100 en pasos de 10; la URL se puede cambiar con `FONDO_PERCENT_URL`) en `src/lib/server/tickets/fondo.js`, con 3 s de timeout y memoria de 10 minutos en el isolate (un fallo se recuerda 1 minuto, para no insistir). Orden de precedencia:
 
-1. `fondo_percent` del evento (o `fondo` en pesos de un tipo), en el frontmatter;
-2. el porcentaje fijado a mano en **Ajustes de venta** ("vacío = automático");
-3. solo en `vite dev`: `FONDO_PERCENT_OVERRIDE` (en `.env.tickets`, 20), para probar sin red;
-4. el de la API;
-5. si la API no responde (o devuelve algo raro): el último valor que se obtuvo bien, guardado en D1 (`ticket_settings`, clave `fondo_percent_last`), con un aviso en el log;
-6. 0 (sin descuento). **Nunca frena la venta.**
+1. el porcentaje fijado a mano en **Ajustes de venta** ("vacío = automático"): es el recurso de emergencia si fondo.kinkyvibe.ar no anda;
+2. solo en `vite dev`: `FONDO_PERCENT_OVERRIDE` (en `.env.tickets`, 20), para probar sin red;
+3. el de la API (en vivo: si cambia durante una venta, cambian los precios);
+4. si la API no responde (o devuelve algo raro): el último valor que se obtuvo bien, guardado en D1 (`ticket_settings`, clave `fondo_percent_last`), con un aviso en el log;
+5. 0 (sin descuento). **Nunca frena la venta.**
 
-`fondo = round(precio × porcentaje / 100)` por entrada, en todos los tipos con precio (no en los a la gorra). El precio que se muestra y el que se cobra se calculan en el servidor; el que se cobra, al crear la orden, que guarda el porcentaje usado en `orders.fondo_percent` (columna `orders.fondo_percent`; también en el CSV, `porcentaje_fondo`). Ajustes de venta muestra "Descuento del Fondo ahora: X %", de dónde sale y cuándo se actualizó.
+No hay porcentaje por evento (`fondo_percent` en el frontmatter se ignora). Un tipo con `fondo` en pesos usa ese monto en lugar del porcentaje. Solo aplica a eventos con la etiqueta KinkyVibe.
+
+`fondo = round(precio × porcentaje / 100)` por entrada, en todos los tipos con precio (no en los a la gorra) de los eventos KinkyVibe. El precio que se muestra y el que se cobra se calculan en el servidor; el que se cobra, al crear la orden, que guarda el porcentaje usado en `orders.fondo_percent` (columna `orders.fondo_percent`; también en el CSV, `porcentaje_fondo`). Ajustes de venta muestra "Descuento del Fondo ahora: X %", de dónde sale y cuándo se actualizó.
 
 ### Reembolsos
 
@@ -383,8 +387,6 @@ Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cue
 - ¿Qué pasa con las entradas si el evento se reprograma o se cancela? ¿Reembolso automático, crédito, o se decide caso por caso?
 - ¿Plazo de acreditación de MP (define la tasa del recargo)?
 - ¿El Fondo KinkyVibe tiene un tope por evento? (hoy no hay tope: cubre todas las entradas vendidas que elijan "con el descuento del fondo").
-- El porcentaje del Fondo ahora es automático (cambia cuando cambia lo recaudado): ¿se congela el precio para un evento ya anunciado? (Hoy no; se puede fijar con `fondo_percent` en ese evento.)
 - ¿Los aportes de las entradas solidarias / Sugar cuentan para el objetivo mensual del fondo (y para el % de descuento)? ¿Hay que mostrarlos en fondo.kinkyvibe.ar o registrar a esas personas como Mecenas?
 - Si alguien paga una entrada solidaria con un código de descuento, ¿el aporte al fondo es el nominal (lo que se guarda hoy: el código es un costo de la organización) o se reduce en proporción?
 - ¿La venta cierra al empezar el evento o antes? ¿Hay venta en puerta (que habría que restar del cupo)?
-- A la gorra: ¿el tope de $ 500.000 por entrada está bien? ¿Los botones rápidos (mínimo, mitad, sugerido, doble) sirven?

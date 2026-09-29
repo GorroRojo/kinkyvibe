@@ -6,6 +6,9 @@
 	let { data, form } = $props();
 
 	let fondoNet = $derived(data.types.reduce((s, t) => s + t.fondoNet, 0));
+	let showFondo = $derived(
+		data.fondoEnabled || data.types.some((t) => t.fondoUsed || t.contribution)
+	);
 
 	let filter = $state('approved');
 	let visible = $derived(
@@ -68,9 +71,8 @@
 		<table class="summary">
 			<thead>
 				<tr>
-					<th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th><th>Fondo usado</th><th
-						>Aportes al fondo</th
-					><th>Neto del fondo</th>
+					<th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Recaudado</th>
+					{#if showFondo}<th>Fondo usado</th><th>Aportes al fondo</th><th>Neto del fondo</th>{/if}
 				</tr>
 			</thead>
 			<tbody>
@@ -80,11 +82,13 @@
 						<td>{t.sold}/{t.capacity}</td>
 						<td>{t.held}</td>
 						<td>{formatARS(t.revenue)}</td>
-						<td>{formatARS(t.fondoUsed)}</td>
-						<td>{formatARS(t.contribution)}</td>
-						<td class="net" class:pos={t.fondoNet > 0} class:neg={t.fondoNet < 0}
-							>{formatSignedARS(t.fondoNet)}</td
-						>
+						{#if showFondo}
+							<td>{formatARS(t.fondoUsed)}</td>
+							<td>{formatARS(t.contribution)}</td>
+							<td class="net" class:pos={t.fondoNet > 0} class:neg={t.fondoNet < 0}
+								>{formatSignedARS(t.fondoNet)}</td
+							>
+						{/if}
 					</tr>
 				{/each}
 			</tbody>
@@ -92,21 +96,25 @@
 				<tr>
 					<td colspan="3">Total</td>
 					<td>{formatARS(data.types.reduce((s, t) => s + t.revenue, 0))}</td>
-					<td>{formatARS(data.types.reduce((s, t) => s + t.fondoUsed, 0))}</td>
-					<td>{formatARS(data.types.reduce((s, t) => s + t.contribution, 0))}</td>
-					<td class="net" class:pos={fondoNet > 0} class:neg={fondoNet < 0}
-						>{formatSignedARS(fondoNet)}</td
-					>
+					{#if showFondo}
+						<td>{formatARS(data.types.reduce((s, t) => s + t.fondoUsed, 0))}</td>
+						<td>{formatARS(data.types.reduce((s, t) => s + t.contribution, 0))}</td>
+						<td class="net" class:pos={fondoNet > 0} class:neg={fondoNet < 0}
+							>{formatSignedARS(fondoNet)}</td
+						>
+					{/if}
 				</tr>
 			</tfoot>
 		</table>
 	</div>
 	<p class="note">
 		"Reservadas" incluye pagos en curso y transferencias pendientes. "Recaudado" es lo cobrado (con
-		descuentos y aportes), antes de comisiones. "Fondo usado" es lo que cubrió el Fondo KinkyVibe
-		(entradas "con el descuento del fondo"); "Aportes al fondo", lo que se pagó de más para el fondo
-		(entradas solidaria, muy solidaria y Sugar). "Neto del fondo" es aportes − fondo usado: en verde
-		(+) si entró más de lo que cubrió el fondo, en rojo (−) si el fondo puso más de lo que entró.
+		descuentos y aportes), antes de comisiones.{#if !showFondo}
+			Este evento no tiene la etiqueta KinkyVibe: no usa el Fondo KinkyVibe.{/if}
+		{#if showFondo}"Fondo usado" es lo que cubrió el Fondo KinkyVibe (entradas "con el descuento del
+			fondo"); "Aportes al fondo", lo que se pagó de más para el fondo (entradas solidaria, muy
+			solidaria y Sugar). "Neto del fondo" es aportes − fondo usado: en verde (+) si entró más de lo
+			que cubrió el fondo, en rojo (−) si el fondo puso más de lo que entró.{/if}
 		Solo cuentan las compras aprobadas.
 	</p>
 

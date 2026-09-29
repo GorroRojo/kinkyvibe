@@ -126,8 +126,9 @@
 			</label>
 			<p class="note">
 				Vacío = automático: el porcentaje del mes de fondo.kinkyvibe.ar, en todos los tipos de
-				entrada con precio (no en los a la gorra). Un evento con <code>fondo_percent</code> en su frontmatter
-				usa ese. Cada compra guarda el porcentaje con el que se calculó.
+				entrada con precio (no en los a la gorra) de los eventos con la etiqueta KinkyVibe (los
+				demás no usan el Fondo). Fijarlo a mano es para emergencias, si fondo.kinkyvibe.ar no anda.
+				Cada compra guarda el porcentaje con el que se calculó.
 			</p>
 		</fieldset>
 

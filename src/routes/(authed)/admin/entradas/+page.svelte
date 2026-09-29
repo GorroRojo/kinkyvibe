@@ -69,26 +69,30 @@
 								<td colspan="3">Total cobrado (con descuentos, antes de comisiones de MP)</td>
 								<td>{formatARS(e.revenue)}</td>
 							</tr>
-							<tr>
-								<td colspan="3">💜 Fondo usado <small>(descuentos del Fondo KinkyVibe)</small></td>
-								<td class="fondo-used">{formatARS(e.fondoUsed)}</td>
-							</tr>
-							<tr>
-								<td colspan="3">💜 Aportes al fondo <small>(entradas solidarias y Sugar)</small></td
-								>
-								<td class="fondo-contribution">{formatARS(e.contribution)}</td>
-							</tr>
-							<tr>
-								<td colspan="3">💜 Neto del fondo <small>(aportes − fondo usado)</small></td>
-								<td
-									class="fondo-net"
-									class:pos={e.fondoNet > 0}
-									class:neg={e.fondoNet < 0}
-									title={e.fondoNet < 0
-										? 'El fondo cubrió más de lo que se aportó'
-										: 'Se aportó más de lo que cubrió el fondo'}>{formatSignedARS(e.fondoNet)}</td
-								>
-							</tr>
+							{#if e.fondoEnabled || e.fondoUsed || e.contribution}
+								<tr>
+									<td colspan="3">💜 Fondo usado <small>(descuentos del Fondo KinkyVibe)</small></td
+									>
+									<td class="fondo-used">{formatARS(e.fondoUsed)}</td>
+								</tr>
+								<tr>
+									<td colspan="3"
+										>💜 Aportes al fondo <small>(entradas solidarias y Sugar)</small></td
+									>
+									<td class="fondo-contribution">{formatARS(e.contribution)}</td>
+								</tr>
+								<tr>
+									<td colspan="3">💜 Neto del fondo <small>(aportes − fondo usado)</small></td>
+									<td
+										class="fondo-net"
+										class:pos={e.fondoNet > 0}
+										class:neg={e.fondoNet < 0}
+										title={e.fondoNet < 0
+											? 'El fondo cubrió más de lo que se aportó'
+											: 'Se aportó más de lo que cubrió el fondo'}>{formatSignedARS(e.fondoNet)}</td
+									>
+								</tr>
+							{/if}
 						</tfoot>
 					</table>
 				</a>

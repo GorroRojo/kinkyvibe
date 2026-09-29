@@ -3,10 +3,12 @@
 	import { enhance } from '$app/forms';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
-		GORRA_MAX_AMOUNT,
+		ORDER_MAX_MESSAGE,
 		computePrice,
 		defaultFondoOption,
+		exceedsOrderMax,
 		fondoOptionsFor,
+		gorraQuickAmounts,
 		parseAmount,
 		purchaseConditions,
 		unitPrice
@@ -83,7 +85,12 @@
 	let gorra = $derived(selected?.gorra ?? null);
 	// "¿Cómo querés pagar tu entrada?": sin fondo en este tipo, no se ofrece el descuento del
 	// fondo y la opción por defecto es precio completo. No aplica a la gorra.
-	let fondoOptions = $derived(fondoOptionsFor(selected?.fondo ?? 0));
+	// Sin la etiqueta KinkyVibe no hay Fondo: solo el precio de lista (el servidor hace lo mismo).
+	let fondoOptions = $derived(
+		tickets.fondoEnabled
+			? fondoOptionsFor(selected?.fondo ?? 0)
+			: fondoOptionsFor(0).filter((o) => o.id === 'completo')
+	);
 	let chosenOption = $derived(
 		fondoOptions.find((o) => o.id === option) ??
 			fondoOptions.find((o) => o.id === defaultFondoOption(selected?.fondo ?? 0)) ??
@@ -103,16 +110,16 @@
 		if (!gorra) return null;
 		if (!amount.trim()) return gorra.suggested;
 		const n = parseAmount(amount);
-		return n !== null && n >= gorra.min && n <= GORRA_MAX_AMOUNT ? n : null;
+		return n !== null && n >= gorra.min && !exceedsOrderMax(n, count) ? n : null;
 	});
-	/** Montos rápidos: el mínimo, la mitad del sugerido, el sugerido y el doble. */
-	let gorraChips = $derived.by(() => {
-		if (!gorra) return [];
-		const { min, suggested } = gorra;
-		return [...new Set([min, Math.round(suggested / 2), suggested, suggested * 2])]
-			.filter((n) => n >= min && n <= GORRA_MAX_AMOUNT)
-			.sort((a, b) => a - b);
+	/** Lo escrito es un número válido pero pasa el tope técnico de la orden (¿un cero de más?). */
+	let gorraTooHigh = $derived.by(() => {
+		if (!gorra || !amount.trim()) return false;
+		const n = parseAmount(amount);
+		return n !== null && exceedsOrderMax(n, count);
 	});
+	/** Montos rápidos: el mínimo (si es mayor a 0), el sugerido, 1,5 × el sugerido y el doble. */
+	let gorraChips = $derived(gorra ? gorraQuickAmounts(gorra.min, gorra.suggested) : []);
 	let prices = $derived(
 		computePrice({
 			price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
@@ -387,23 +394,24 @@
 					</small>
 					{#if errors.amount}
 						<span class="field-error">{errors.amount}</span>
+					{:else if gorraTooHigh}
+						<span class="field-error">{ORDER_MAX_MESSAGE}</span>
 					{:else if amount.trim() && gorraAmount === null}
 						<span class="field-error"
-							>Escribí un monto en pesos, desde {formatARS(gorra.min)} hasta {formatARS(
-								GORRA_MAX_AMOUNT
-							)}.</span
+							>Escribí un monto en pesos (sin centavos), desde {formatARS(gorra.min)}.</span
 						>
 					{/if}
 				</div>
-			{:else if selected}
+			{:else if selected && tickets.fondoEnabled}
 				<fieldset class="options">
 					<legend>¿Cómo querés pagar tu entrada?</legend>
 					<small class="hint">
 						El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener"
 							>Fondo KinkyVibe</a
-						> baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
-							mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más va
-						entero al fondo.
+						>
+						baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
+							mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más
+						va entero al fondo.
 					</small>
 					{#each fondoOptions as o (o.id)}
 						{@const u = unitPrice(selected.price, selected.fondo, o.id)}

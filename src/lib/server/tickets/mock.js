@@ -1,4 +1,3 @@
-/* global globalThis */
 /**
  * DEV ONLY: Mercado Pago simulado. Solo se importa desde `getGateway` detrás de `dev`, así que
  * no llega al build de producción.
