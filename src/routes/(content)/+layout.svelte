@@ -10,7 +10,7 @@
 		ChevronLeft,
 		Globe
 	} from '@lucide/svelte';
-	import { siInstagram, siTelegram, siKofi } from 'simple-icons';
+	import { siInstagram, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -20,6 +20,7 @@
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
+	import SearchButton from '$lib/components/SearchButton.svelte';
 	export let data;
 	togglePositiveTagFilterFn.update(
 		() =>
@@ -49,8 +50,7 @@
 			{
 				'@type': 'ListItem',
 				position: 1,
-				name:
-					cat == 'wiki' ? 'Kinkipedia' : cat ?? '',
+				name: cat == 'wiki' ? 'Kinkipedia' : (cat ?? ''),
 				item: 'https://example.com/books'
 			}
 		]
@@ -69,10 +69,9 @@
 <header>
 	<div id="me">
 		<ul id="redes">
-			<li>
-				<a href="https://cafecito.app/kinkyvibe" target="_blank">
-					<SimpleIcon icon={siKofi} />
-				</a>
+			<!-- el buscador global reemplaza acá al link de Cafecito (sigue en el footer) -->
+			<li class="search">
+				<SearchButton variant="icon" />
 			</li>
 			<li>
 				<a href="https://t.me/BDSMtextos" target="_blank">
@@ -292,6 +291,16 @@
 	}
 	#logo {
 		grid-area: logo;
+	}
+	#redes li.search {
+		display: grid;
+		place-items: center;
+	}
+	/* en celulares el buscador es el botón flotante (SearchButton variant="fab") */
+	@media (max-width: 680px) {
+		#redes li.search {
+			display: none;
+		}
 	}
 	@media (min-width: 1380px) {
 		header {
