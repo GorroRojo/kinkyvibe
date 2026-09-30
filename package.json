@@ -7,6 +7,8 @@
 		"dev": "vite dev",
 		"predev:tickets": "node scripts/db-migrate-local.js",
 		"dev:tickets": "vite dev --mode tickets",
+		"predev:admin": "node scripts/db-migrate-local.js",
+		"dev:admin": "vite dev --mode admin",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",

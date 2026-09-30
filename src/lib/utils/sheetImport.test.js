@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parseDocument } from 'yaml';
 import { splitMarkdown, readEventFields } from './eventDraft.js';
+import { validateEventTags } from './adminTags.js';
 import {
 	parseTsv,
 	parseSheet,
@@ -608,5 +609,36 @@ describe('buildImportedEvent', () => {
 				{ today: TODAY }
 			)
 		).toThrow(/título/);
+	});
+});
+
+describe('imported drafts follow the event tag rules', () => {
+	const template = readFileSync(
+		new URL('../posts/calendario/_event_template.md', import.meta.url),
+		'utf8'
+	);
+	const choice = { title: 'Algo nuevo', date: '2026-10-10', startTime: '20:00', endTime: '22:00' };
+	it('an online row makes the place Online', () => {
+		const src = readFileSync(
+			new URL('../posts/calendario/taller-ecofetichismo-2026-09-cordoba.md', import.meta.url),
+			'utf8'
+		);
+		const { content, notes } = buildImportedEvent(
+			src,
+			{ ...choice, place: 'Zoom' },
+			{ today: '2026-09-29' }
+		);
+		const tags = parseDocument(splitMarkdown(content).frontmatter).toJS().tags;
+		expect(tags).toContain('Online');
+		expect(tags).not.toContain('Córdoba');
+		expect(notes.join(' ')).toMatch(/etiquetas de idioma\/lugar/);
+	});
+	it('a draft from the template keeps a valid language and place', () => {
+		const { content } = buildImportedEvent(template, choice, {
+			today: '2026-09-29',
+			fromTemplate: true
+		});
+		const tags = parseDocument(splitMarkdown(content).frontmatter).toJS().tags;
+		expect(validateEventTags(tags)).toEqual([]);
 	});
 });
