@@ -70,7 +70,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.3em;
-		border: 1px solid var(--line, #e4e0e8);
+		border: 1px solid var(--field, var(--1-light));
 		background: var(--surface, #fff);
 		color: var(--text, inherit);
 		border-radius: 2em;

@@ -184,7 +184,11 @@
 		featured: isNew ? null : undefined,
 		touchUpdated: isNew ? undefined : data.today,
 		forceKeys: isNew
-			? [...(data.fromTemplate ? fields.map((x) => x.key) : ['title', 'published_date']), 'tags', 'authors']
+			? [
+					...(data.fromTemplate ? fields.map((x) => x.key) : ['title', 'published_date']),
+					'tags',
+					'authors'
+				]
 			: []
 	};
 	$: content = parseError ? rawText : safeBuild(f, buildOpts);
@@ -666,7 +670,7 @@
 	.slug {
 		display: flex;
 		align-items: stretch;
-		border: 1px solid var(--line);
+		border: 1px solid var(--field);
 		border-radius: 0.8em;
 		overflow: hidden;
 		background: var(--surface);

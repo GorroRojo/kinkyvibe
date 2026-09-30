@@ -13,6 +13,7 @@
 		Pencil,
 		Plus,
 		Search,
+		SearchX,
 		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -245,7 +246,7 @@
 		</ul>
 	{:else}
 		<EmptyState
-			emoji="🔎"
+			icon={SearchX}
 			title="Nada con esos filtros"
 			text="Probá con otra búsqueda o limpiá los filtros."
 		/>
@@ -283,9 +284,9 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		background: var(--surface-2);
-		border: 1px solid var(--line);
-		border-radius: 2em;
+		background: var(--surface);
+		border: 1px solid var(--field);
+		border-radius: 3em;
 		padding: 0 0.9rem;
 		color: var(--muted);
 	}
@@ -310,7 +311,7 @@
 	}
 	.pill,
 	.chip {
-		border: 1px solid var(--line);
+		border: 1px solid var(--field);
 		background: var(--surface);
 		border-radius: 2em;
 		padding: 0.35rem 0.8rem;
