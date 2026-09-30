@@ -11,5 +11,5 @@ compatibility_flags = [ "nodejs_compat" ]
 [[d1_databases]]
 binding = "DB"
 database_name = "kinkyvibe"
-database_id = "e3fd96b8-ba13-4730-964f-0c2e085f7fa5"
+database_id = "e3fd96b8-5655-4eee-937e-3bf6785b8d38"
 migrations_dir = "migrations"
