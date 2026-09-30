@@ -153,3 +153,17 @@ export async function editorData(category) {
 	]);
 	return { tagUsage: usage, profiles, authorUsage: authors };
 }
+
+/**
+ * Metadata of every post of this deploy (templates left out), for the panel's content lists and
+ * the tag tree (./contentList.js, ./tagTree.js).
+ * @returns {Promise<PostMeta[]>}
+ */
+export const contentMetas = () => allMeta();
+
+/**
+ * Image URL (as bundled in this deploy) of an amigues profile's `featured` / `logo` / `photo`.
+ * @param {string} slug
+ * @param {any} id
+ */
+export const amiguesImageURL = (slug, id) => profileImage(slug, id);

@@ -191,7 +191,7 @@ export const NAV = Object.freeze([
 		emoji: '📚',
 		label: 'Material',
 		group: 'contenido',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'amigues',
@@ -200,7 +200,7 @@ export const NAV = Object.freeze([
 		emoji: '💞',
 		label: 'Amigues',
 		group: 'contenido',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'etiquetas',
@@ -209,7 +209,7 @@ export const NAV = Object.freeze([
 		emoji: '🔖',
 		label: 'Etiquetas',
 		group: 'contenido',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'no-listadas',
