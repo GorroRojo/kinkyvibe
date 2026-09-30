@@ -1,18 +1,23 @@
 <script>
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { filteredTags } from '$lib/utils/stores';
+	import { page } from '$app/stores';
 	export let data;
 	filteredTags.set([]);
+	// El panel (/admin/**) tiene su propio marco: ver admin/+layout.svelte.
+	$: inPanel = /^\/admin(\/|$)/.test($page.url.pathname);
 </script>
 
 <svelte:head>
-	<title>KV Admin</title>
+	{#if !inPanel}<title>KV Admin</title>{/if}
 </svelte:head>
-<header>
-	<a href="/">⬅️ Inicio</a>
-	<span>Panel de administradore</span>
-	<UserMenu user={data.user} />
-</header>
+{#if !inPanel}
+	<header>
+		<a href="/">⬅️ Inicio</a>
+		<a href="/admin">Panel de admin</a>
+		{#if data.user}<UserMenu user={data.user} />{/if}
+	</header>
+{/if}
 
 <slot />
 
@@ -28,7 +33,7 @@
 		justify-content: space-between;
 		align-content: center;
 	}
-	span {
+	header > a:nth-child(2) {
 		text-align: center;
 	}
 </style>

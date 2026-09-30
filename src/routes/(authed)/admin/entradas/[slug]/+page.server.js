@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
@@ -157,6 +158,15 @@ export const actions = {
 			return fail(400, { review: { ok: false, message: 'No encontramos esa orden.' } });
 		}
 		const done = await clearReview(db, order.id);
+		if (done) {
+			await logAdminAction(db, locals, {
+				action: 'order.reviewed',
+				targetType: 'order',
+				targetId: order.id,
+				summary: `Marcó como revisada la orden ${orderReference(order.id)}`,
+				detail: { event: params.slug }
+			});
+		}
 		return {
 			review: {
 				ok: done,
@@ -179,6 +189,15 @@ export const actions = {
 			origin: siteOrigin(url),
 			fetch,
 			idempotent: false
+		});
+		await logAdminAction(db, locals, {
+			action: 'order.resend',
+			targetType: 'order',
+			targetId: order.id,
+			summary: sent
+				? `Reenvió las entradas de ${orderReference(order.id)}`
+				: `Intentó reenviar las entradas de ${orderReference(order.id)} (el mail falló)`,
+			detail: { event: params.slug, sent }
 		});
 		return {
 			resend: {
@@ -213,6 +232,13 @@ export const actions = {
 		const ref = orderReference(orderId);
 		if (r.result === 'confirmed' && r.order) {
 			const confirmed = r.order;
+			await logAdminAction(db, locals, {
+				action: 'transfer.confirm',
+				targetType: 'order',
+				targetId: orderId,
+				summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
+				detail: { event: params.slug, tickets: r.tickets.length, total: confirmed.total }
+			});
 			await inBackground(
 				sendOrderEmail({
 					db,
@@ -255,6 +281,13 @@ export const actions = {
 		const r = normalizeStreamLink(raw);
 		if (!r.ok) return fail(400, { stream: { ok: false, message: r.message, value: raw } });
 		await setStreamLink(db, { eventSlug: params.slug, link: r.link, by: admin.login });
+		// El link no se guarda en el registro (da acceso a la transmisión).
+		await logAdminAction(db, locals, {
+			action: r.link ? 'stream.set' : 'stream.clear',
+			targetType: 'event',
+			targetId: params.slug,
+			summary: r.link ? 'Guardó el link de la transmisión' : 'Borró el link de la transmisión'
+		});
 		return {
 			stream: {
 				ok: true,
@@ -283,6 +316,15 @@ export const actions = {
 			fetch
 		});
 		const who = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
+		if (r.sent || r.failed) {
+			await logAdminAction(db, locals, {
+				action: 'stream.send',
+				targetType: 'event',
+				targetId: params.slug,
+				summary: `Mandó el link de la transmisión a ${who(r.sent)}`,
+				detail: { sent: r.sent, failed: r.failed }
+			});
+		}
 		const message =
 			r.sent === 0 && r.failed === 0
 				? 'Todes ya tenían este link: no se mandó nada.'
@@ -342,6 +384,17 @@ export const actions = {
 		}
 		const r = await refundOrder(db, { orderId, eventSlug: params.slug, by: admin.login });
 		if (r.result === 'refunded' && r.order) {
+			await logAdminAction(db, locals, {
+				action: 'order.refund',
+				targetType: 'order',
+				targetId: orderId,
+				summary: `Reembolsó ${ref}`,
+				detail: {
+					event: params.slug,
+					method: order.payment_method,
+					total: order.total
+				}
+			});
 			await inBackground(sendRefundEmail({ db, order: r.order, fetch }), platform);
 			return {
 				refund: {
@@ -367,6 +420,15 @@ export const actions = {
 		const orderId = String((await request.formData()).get('order') ?? '');
 		const ok = await cancelTransfer(db, { orderId, eventSlug: params.slug, by: admin.login });
 		const ref = orderReference(orderId);
+		if (ok) {
+			await logAdminAction(db, locals, {
+				action: 'transfer.cancel',
+				targetType: 'order',
+				targetId: orderId,
+				summary: `Canceló la transferencia ${ref}`,
+				detail: { event: params.slug }
+			});
+		}
 		return ok
 			? { transfer: { ok: true, message: `${ref} cancelada: se liberó el cupo.` } }
 			: fail(409, { transfer: { ok: false, message: `No se pudo cancelar ${ref}.` } });

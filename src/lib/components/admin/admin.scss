@@ -24,7 +24,7 @@
 	}
 	fieldset.card {
 		border: 0;
-		background: white;
+		background: var(--surface, white);
 		border-radius: 1.2em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
 		padding: 0.8em 1em 1em;
@@ -75,7 +75,7 @@
 		border-radius: 0.8em;
 		border: 0;
 		outline: 1px solid var(--1-light);
-		background: white;
+		background: var(--surface, white);
 		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
@@ -101,7 +101,7 @@
 		color: red;
 	}
 	.error {
-		color: #b00020;
+		color: var(--bad, #b00020);
 		margin: 0;
 		font-size: var(--step--1);
 	}
@@ -130,7 +130,7 @@
 		text-decoration: none;
 		cursor: pointer;
 		&.secondary {
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 2px solid var(--1-light);
 			outline-offset: -2px;
@@ -159,10 +159,10 @@
 		margin-top: 1em;
 	}
 	.problems {
-		background: #fff0f3;
+		background: var(--bad-bg, #fff0f3);
 		border-radius: 1em;
 		padding: 0.6em 1em;
-		color: #b00020;
+		color: var(--bad, #b00020);
 		ul {
 			margin: 0.3em 0 0;
 			padding-left: 1.2em;

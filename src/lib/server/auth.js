@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { isPreviewDeploy } from './deploy.js';
 import { isDemoUser } from './demo/identity.js';
+import { loginHref } from '$lib/utils/authLinks.js';
 
 /**
  * Accounts allowed into the admin area. Matched on the numeric GitHub user id, which never
@@ -85,7 +86,9 @@ export async function revokeToken(token, { clientId, clientSecret }, fetchFn = f
  */
 export function requireAdmin(locals, url) {
 	if (!locals.user || !locals.user_token) {
-		throw redirect(303, '/login?redirectTo=' + encodeURIComponent(url.pathname));
+		// Ruta + query (ej. /admin/entradas/codigos?evento=x), validada como en /login.
+		const back = safeRedirect(url.pathname + url.search, url.origin, '/admin');
+		throw redirect(303, loginHref(new URL(back, url.origin)));
 	}
 	if (!isAdmin(locals.user)) {
 		throw error(403, 'Tu cuenta no tiene permiso para entrar al panel de administración.');

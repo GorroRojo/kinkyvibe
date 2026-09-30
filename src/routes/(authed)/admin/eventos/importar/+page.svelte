@@ -621,7 +621,7 @@
 		font-size: var(--step--1);
 	}
 	.mock {
-		background: #fff6d6;
+		background: var(--warn-bg, #fff6d6);
 		border-radius: 1em;
 		padding: 0.5em 1em;
 		font-size: var(--step--1);
@@ -672,7 +672,7 @@
 		text-decoration: none;
 		cursor: pointer;
 		&.secondary {
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 2px solid var(--1-light);
 			outline-offset: -2px;
@@ -687,7 +687,7 @@
 		}
 	}
 	.summary {
-		background: white;
+		background: var(--surface, white);
 		border-radius: 1em;
 		padding: 0.6em 1em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
@@ -700,20 +700,20 @@
 		gap: 0.9em;
 	}
 	.item {
-		background: white;
+		background: var(--surface, white);
 		border-radius: 1.2em;
 		padding: 0.8em 1em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
 		border-left: 0.4em solid var(--3-light, #cdeccd);
 		&.off {
-			background: #f6f6f6;
-			border-left-color: #ccc;
+			background: var(--surface-2, #f6f6f6);
+			border-left-color: var(--line, #ccc);
 			.name strong {
 				opacity: 0.6;
 			}
 		}
 		&.bad {
-			border-left-color: #e05555;
+			border-left-color: var(--bad, #e05555);
 		}
 	}
 	header {
@@ -744,13 +744,13 @@
 		margin: 0.5em 0 0;
 		font-size: var(--step--1);
 		li {
-			background: #fff6d6;
+			background: var(--warn-bg, #fff6d6);
 			border-radius: 0.6em;
 			padding: 0.2em 0.6em;
 			margin-bottom: 0.25em;
 		}
 		.problem {
-			background: #fde2e2;
+			background: var(--bad-bg, #fde2e2);
 		}
 	}
 	.when {
@@ -786,11 +786,11 @@
 			font-size: var(--step-0);
 			padding: 0.35em 0.6em;
 			border-radius: 0.6em;
-			border: 1px solid #ccc;
+			border: 1px solid var(--line, #ccc);
 			min-width: 0;
 			width: 100%;
 			box-sizing: border-box;
-			background: white;
+			background: var(--surface, white);
 		}
 		small {
 			font-size: var(--step--2);
@@ -839,14 +839,14 @@
 	.create {
 		position: sticky;
 		bottom: 0;
-		background: white;
+		background: var(--surface, white);
 		box-shadow: 0 -0.3em 0.6em rgba(0, 0, 0, 0.08);
 		padding: 0.8em 0;
 		text-align: center;
-		border-top: 1px solid #eee;
+		border-top: 1px solid var(--line, #eee);
 	}
 	.global-error {
-		background: #fde2e2;
+		background: var(--bad-bg, #fde2e2);
 		border-radius: 1em;
 		padding: 0.5em 1em;
 	}
@@ -862,7 +862,7 @@
 		}
 	}
 	.result {
-		background: white;
+		background: var(--surface, white);
 		border-radius: 1.2em;
 		padding: 1em 1.2em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);

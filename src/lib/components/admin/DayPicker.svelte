@@ -174,7 +174,7 @@
 	}
 	.nav {
 		border: 0;
-		background: var(--3-light, #f3eef6);
+		background: var(--surface-2, #f3eef6);
 		border-radius: 50%;
 		width: 2em;
 		height: 2em;
@@ -203,15 +203,15 @@
 		min-height: 2.2em;
 		border: 0;
 		border-radius: 0.6em;
-		background: white;
-		outline: 1px solid #eee;
+		background: var(--surface, white);
+		outline: 1px solid var(--line, #eee);
 		outline-offset: -1px;
 		font: inherit;
 		font-size: var(--step--1);
 		cursor: pointer;
 		padding: 0;
 		&.hint {
-			background: #fff7fb;
+			background: var(--surface-2, #fff7fb);
 		}
 		&.past {
 			opacity: 0.45;

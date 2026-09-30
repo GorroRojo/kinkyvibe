@@ -129,7 +129,7 @@
 		cursor: pointer;
 		white-space: nowrap;
 		&.secondary {
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 2px solid var(--1-light);
 			outline-offset: -2px;
@@ -170,12 +170,12 @@
 		grid-template-columns: 4.5em 1fr auto;
 		gap: 0.8em;
 		align-items: center;
-		background: white;
+		background: var(--surface, white);
 		border-radius: 1.2em;
 		padding: 0.6em;
 		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
 		&.past {
-			background: #fbfbfb;
+			background: var(--surface-2, #fbfbfb);
 		}
 		&.empty {
 			display: block;
@@ -189,7 +189,7 @@
 		height: 4.5em;
 		object-fit: cover;
 		border-radius: 0.8em;
-		background: #f3eef6;
+		background: var(--surface-2, #f3eef6);
 		display: grid;
 		place-items: center;
 		font-size: 1.5em;
@@ -226,7 +226,7 @@
 	.badge {
 		border-radius: 1em;
 		padding: 0 0.6em;
-		background: #eee;
+		background: var(--surface-2, #eee);
 		&.abierto {
 			background: var(--3-light);
 		}
