@@ -12,9 +12,11 @@ import { orderReference } from '$lib/utils/tickets.js';
 import {
 	describeReminder,
 	dueReminderOrders,
+	failedReminderCounts,
 	reminderDueAt,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
+import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -282,6 +284,26 @@ export function failedReminders(db, { events, reminders, now }) {
 }
 
 /**
+ * Envíos masivos que se rindieron (fallaron todos sus intentos; ver tickets/sendState.js), por
+ * evento: recordatorios y link de la transmisión (el actual). No se reintentan solos.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string[]} slugs
+ * @returns {Promise<{ reminders: Map<string, number>, streamLinks: Map<string, number> }>}
+ */
+export function stuckSends(db, slugs) {
+	return safe(
+		db,
+		'envíos fallidos',
+		{ reminders: new Map(), streamLinks: new Map() },
+		async (db) => ({
+			reminders: await failedReminderCounts(db, slugs),
+			streamLinks: await failedStreamLinkCounts(db, slugs)
+		})
+	);
+}
+
+/**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
  * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo en entradas
  * (aportes − lo que cubrió).
@@ -490,6 +512,8 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review: number,
  *   missingStream: boolean,
  *   failedReminders: number,
+ *   stuckReminders: number,
+ *   stuckStreamLinks: number,
  *   checkedIn: number,
  *   issued: number
  * }} UpcomingEvent
@@ -509,6 +533,7 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review?: { slug: string }[],
  *   streamLinks?: Set<string>,
  *   reminders?: Map<string, number>,
+ *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
  *   now: number,
  *   skip?: (slug: string) => boolean
  * }} input
@@ -523,6 +548,7 @@ export function upcomingEvents({
 	review = [],
 	streamLinks = new Set(),
 	reminders = new Map(),
+	stuck = { reminders: new Map(), streamLinks: new Map() },
 	now,
 	skip = () => false
 }) {
@@ -587,6 +613,8 @@ export function upcomingEvents({
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
 			failedReminders: reminders.get(e.slug) ?? 0,
+			stuckReminders: stuck.reminders.get(e.slug) ?? 0,
+			stuckStreamLinks: stuck.streamLinks.get(e.slug) ?? 0,
 			checkedIn: ci?.checkedIn ?? 0,
 			issued: ci?.tickets ?? 0
 		});
@@ -604,7 +632,8 @@ export function upcomingEvents({
  *   text: string,
  *   action: string,
  *   href?: string,
- *   resend?: { orderId: string }
+ *   resend?: { orderId: string },
+ *   retryReminders?: { slug: string }
  * }} ReviewItem
  */
 
@@ -703,6 +732,28 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				text: `${plural(e.failedReminders, 'orden sin su recordatorio', 'órdenes sin su recordatorio')}; el próximo cron lo reintenta`,
 				action: 'Ver evento',
 				href: links.order(e.slug)
+			});
+		}
+		if (e.stuckReminders) {
+			items.push({
+				id: `reminder-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'bell',
+				title: `Recordatorios que fallaron: ${e.title}`,
+				text: `${plural(e.stuckReminders, 'orden', 'órdenes')} sin su recordatorio después de varios intentos (ver logs); ya no se reintenta solo`,
+				action: 'Reintentar',
+				retryReminders: { slug: e.slug }
+			});
+		}
+		if (e.stuckStreamLinks) {
+			items.push({
+				id: `stream-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'link',
+				title: `El link de la transmisión no le llegó a todes: ${e.title}`,
+				text: `${plural(e.stuckStreamLinks, 'orden', 'órdenes')} sin el link después de varios intentos (ver logs); "Enviar el link a todes" lo reintenta`,
+				action: 'Ver link',
+				href: links.stream(e.slug)
 			});
 		}
 	}

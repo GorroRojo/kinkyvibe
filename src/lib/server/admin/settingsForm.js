@@ -31,7 +31,12 @@ export const SECTIONS = Object.freeze({
 	fondo: { label: 'fondo', keys: /** @type {SettingKey[]} */ (['fondo_percent_override']) },
 	mails: {
 		label: 'mails',
-		keys: /** @type {SettingKey[]} */ (['from_email', 'reply_to_email', 'reminders'])
+		keys: /** @type {SettingKey[]} */ ([
+			'from_email',
+			'reply_to_email',
+			'reminders',
+			'mail_batch_size'
+		])
 	}
 });
 

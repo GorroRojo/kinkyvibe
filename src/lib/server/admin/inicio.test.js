@@ -20,6 +20,7 @@ import {
 	reviewOrders,
 	sinceLastVisit,
 	streamLinkSlugs,
+	stuckSends,
 	ticketTotals,
 	unsentEmails,
 	upcomingEvents
@@ -478,6 +479,46 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(items[0]).toMatchObject({ href: '/t/hoy', text: 'Hoy · la más vieja vence en 1 h' });
 		expect(items[2]).toMatchObject({ action: 'Reenviar', resend: { orderId: 'o1' } });
 		expect(items[1].title).toContain('duplicado');
+	});
+
+	it('envíos que fallaron todos sus intentos: recordatorios con "Reintentar", link al evento', async () => {
+		expect(await stuckSends(null, ['online'])).toEqual({
+			reminders: new Map(),
+			streamLinks: new Map()
+		});
+		const withStuck = upcomingEvents({
+			events,
+			ticketed,
+			totals,
+			streamLinks: new Set(['online']),
+			stuck: { reminders: new Map([['online', 2]]), streamLinks: new Map([['online', 1]]) },
+			now: NOW,
+			skip: (slug) => slug.startsWith('prueba-entradas')
+		});
+		expect(withStuck.find((e) => e.slug === 'online')).toMatchObject({
+			stuckReminders: 2,
+			stuckStreamLinks: 1
+		});
+		const items = reviewItems({
+			upcoming: withStuck,
+			transfers: [],
+			unsent: [],
+			review: [],
+			titles: new Map(),
+			links: {
+				transfers: (s) => `/t/${s}`,
+				order: (s, id) => `/o/${s}/${id ?? ''}`,
+				stream: (s) => `/s/${s}`,
+				edit: (s) => `/e/${s}`
+			},
+			formatWhen: () => ''
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')).toMatchObject({
+			action: 'Reintentar',
+			retryReminders: { slug: 'online' }
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')?.text).toMatch(/^2 órdenes/);
+		expect(items.find((i) => i.id === 'stream-failed-online')).toMatchObject({ href: '/s/online' });
 	});
 });
 
