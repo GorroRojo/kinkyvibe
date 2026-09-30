@@ -1287,7 +1287,9 @@ function tplCartel(ctx, o, f, p) {
 	const boxH = fits.length ? fits.reduce((a, x) => a + x.f.lines.length * x.f.lineHeight + 8 * s, 0) + 44 * s : 0;
 	const boxY = barsTop - 70 * s - boxH;
 	// imagen chica (si entra) entre el título y el recuadro
-	const titleTop = top + Math.max(70 * s, H * 0.08);
+	// el logo va fijo arriba a la izquierda y el título empieza debajo (antes se pisaban)
+	const badgeY = top + 36 * s;
+	const titleTop = Math.max(top + Math.max(70 * s, H * 0.08), badgeY + 110 * s + 20 * s);
 	const titleH = Math.min(H * 0.42, boxY - titleTop - 40 * s);
 	const tb = titleBlock(ctx, head, { x: 120 * s, y: titleTop, w: w - 240 * s, h: titleH }, { ...p, outline: p.outline ?? p.extrude }, {
 		align: 'center',
@@ -1333,7 +1335,7 @@ function tplCartel(ctx, o, f, p) {
 	sparkle(ctx, 80 * s, tb.y + tb.h * 0.7, 44 * s, p.accent);
 	sparkle(ctx, w - 90 * s, tb.y + 20 * s, 50 * s, p.accent);
 	sparkle(ctx, w - 150 * s, tb.y + 110 * s, 22 * s, p.accent);
-	badge(ctx, o.logo, 40 * s, tb.y - 30 * s, 110 * s, p, -0.12);
+	badge(ctx, o.logo, 40 * s, badgeY, 110 * s, p, -0.12);
 	if (fits.length) {
 		const bx = (w - bw) / 2;
 		ctx.fillStyle = p.bar;
