@@ -30,3 +30,38 @@ export function buildLoginCodeEmail({ code }) {
 	</div>`;
 	return { subject, html, text };
 }
+
+/** Qué se confirma, para el texto del mail. */
+const CONFIRM_WHAT = {
+	password: 'un cambio en la contraseña de tu cuenta',
+	delete: 'que querés borrar tu cuenta'
+};
+
+/**
+ * Mail con el código para confirmar una acción delicada en Mi rincón.
+ *
+ * @param {{ code: string, purpose: 'password' | 'delete' }} input
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+export function buildConfirmCodeEmail({ code, purpose }) {
+	const minutes = Math.round(CODE_TTL_MS / 60_000);
+	const what = CONFIRM_WHAT[purpose];
+	const subject = 'Tu código para confirmar en KinkyVibe';
+	const text = [
+		'Hola:',
+		'',
+		`Para confirmar ${what}, escribí este código en Mi rincón: ${code}`,
+		'',
+		`Vence en ${minutes} minutos y sirve una sola vez.`,
+		'',
+		'Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.'
+	].join('\n');
+	const html = `<div style="font-family:sans-serif;font-size:16px;color:#222;max-width:32rem">
+		<p>Hola:</p>
+		<p>Para confirmar ${escapeHtml(what)}, escribí este código en Mi rincón:</p>
+		<p style="font-size:32px;font-weight:bold;letter-spacing:0.2em;margin:16px 0">${escapeHtml(code)}</p>
+		<p>Vence en ${minutes} minutos y sirve una sola vez.</p>
+		<p style="font-size:13px;color:#555">Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.</p>
+	</div>`;
+	return { subject, html, text };
+}

@@ -5,7 +5,8 @@
 Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
-pone, cambia o saca la contraseña, cierra sesión o borra la cuenta.
+pone, cambia o saca la contraseña, cierra sesión o borra la cuenta. Tocar la contraseña y borrar la
+cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
 Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002). Los perfiles, las passkeys y la
 compra con cuenta vienen después. Les admins siguen entrando con GitHub en `/login`: son dos
@@ -53,7 +54,7 @@ Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingr
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
 | `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista                                    |
-| `login_codes`       | hash del mail, hash del código, intentos, vencimiento y cuándo se usó                                                                         |
+| `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` es el primero)                                                                                         |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
@@ -64,8 +65,11 @@ nada de estas tablas para sumarlas.
 ### Código por mail
 
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
-  otro anula el anterior.
-- Se guarda `SHA-256("<id de la fila>:<código>")`: el id, al azar, hace de sal.
+  otro anula el anterior del mismo `purpose`.
+- Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
+  contraseña) o `delete` (borrar la cuenta), y solo sirve para ese. Uno de ingreso no confirma
+  nada y uno de confirmación no sirve para ingresar.
+- Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
 - El mail sale por el mismo camino que los de entradas (`deliverEmail` →
@@ -114,7 +118,21 @@ el código por mail sigue andando.
 - `?next=` en `/ingresar` pasa por `safeRedirect`: solo rutas de este sitio.
 - `/ingresar` y `/mi-rincon` no se pueden mostrar dentro de un iframe
   (`src/lib/server/securityHeaders.js`), llevan `cache-control: private, no-store` y `noindex`.
-- Borrar la cuenta pide escribir «borrar» en la misma página.
+- Borrar la cuenta pide escribir «borrar» en la misma página, además del código (abajo).
+
+### Acciones delicadas: código fresco por mail
+
+Como la sesión dura para siempre, tenerla no alcanza para poner, cambiar o sacar la contraseña
+ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo sin el mail.
+
+- En Mi rincón, el botón manda un código (`?/confirmar`, con `para=password` o `para=delete`):
+  "Te mandamos un código a tu mail para confirmar", después el campo del código y después la
+  acción, todo en la misma página, sin ventanas de confirmación.
+- La acción verifica y gasta el código del `purpose` que corresponde. Antes chequea lo que no
+  gasta el código (que las contraseñas coincidan, «borrar»), así un error de tipeo no obliga a
+  pedir otro.
+- Los mismos límites que los códigos de ingreso, con los mismos contadores: los mails por
+  dirección y los intentos por conexión se suman entre ingresar y confirmar.
 
 ### Evento que pide cuenta (P7.1)
 
