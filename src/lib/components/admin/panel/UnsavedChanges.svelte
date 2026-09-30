@@ -10,6 +10,8 @@
 	 *   <UnsavedChanges draftKey={draftKey('evento', slug)} base={sha} dirty={changed}
 	 *     snapshot={{ values, body }} restore={(d) => ({ values, body } = d)}
 	 *     saved={Boolean(form?.save)} saveForm="edit-form" />
+	 *   (con un formulario con `use:enhance`, en vez de `saveForm` pasá `saving` mientras guarda y
+	 *   hasta que termina la redirección, si la hay).
 	 *
 	 * Props:
 	 * - `draftKey`: clave del borrador (ver `$lib/admin/draft.js`); vacía = sin borrador.
@@ -17,8 +19,9 @@
 	 * - `dirty`: hay cambios sin guardar.
 	 * - `snapshot`: lo que hay que guardar (datos planos, se pasa por JSON).
 	 * - `restore(data)`: vuelca un snapshot en el editor.
-	 * - `saved`: se acaba de guardar (borra el borrador).
-	 * - `saveForm`: id del formulario que guarda; enviarlo no pregunta nada.
+	 * - `saved`: se acaba de guardar (borra el borrador y no recupera nada al entrar).
+	 * - `saveForm`: id de un formulario sin `use:enhance` que guarda; enviarlo no pregunta nada.
+	 * - `saving`: se está guardando; navegar no pregunta nada.
 	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
@@ -33,6 +36,7 @@
 	export let restore = () => {};
 	export let saved = false;
 	export let saveForm = '';
+	export let saving = false;
 
 	/** @returns {Storage | null} */
 	function storage() {
@@ -80,8 +84,8 @@
 		const onSubmit = (e) => {
 			if (saveForm && e.target instanceof HTMLFormElement && e.target.id === saveForm) {
 				leaving = true;
-				// Si el envío no llega a salir de la página (validación del navegador), vuelve a cuidar.
-				setTimeout(() => (leaving = false), 3000);
+				// Si el envío no llega a salir de la página (se cortó la red), vuelve a cuidar.
+				setTimeout(() => (leaving = false), 30000);
 			}
 		};
 		document.addEventListener('submit', onSubmit);
@@ -99,19 +103,19 @@
 			else if (notice?.kind !== 'stale') clearDraft(storage(), draftKey);
 		}, 400);
 	}
-	$: if (ready && draftKey && !saved) schedule(snapshot, dirty);
+	$: if (ready && draftKey) schedule(snapshot, dirty);
 	// Al guardar, el borrador ya no hace falta.
 	$: if (ready && saved) clearDraft(storage(), draftKey);
 
 	onDestroy(() => {
-		// Lo último que se escribió, sin esperar al temporizador.
+		// Lo último que se escribió, sin esperar al temporizador (salvo al salir por guardar).
 		clearTimeout(timer);
-		if (ready && draftKey && dirty && !saved)
+		if (ready && draftKey && dirty && !saving && !leaving)
 			saveDraft(storage(), draftKey, plain(snapshot), { base });
 	});
 
 	beforeNavigate((nav) => {
-		if (!dirty || leaving) return;
+		if (!dirty || leaving || saving) return;
 		if (nav.type === 'leave') {
 			// Cerrar o recargar la pestaña: el navegador muestra su propio aviso.
 			saveDraft(storage(), draftKey, plain(snapshot), { base });
