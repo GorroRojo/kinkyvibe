@@ -6,7 +6,9 @@
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable, igual que el final de la URL (no cambiarlo).
  * - `href`: la URL definitiva de la sección. No se cambia sin avisar a los otros PRs.
- * - `emoji`, `label`: ícono y nombre en el menú.
+ * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
+ * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
+ * - `label`: nombre en el menú.
  * - `group`: `null` (Inicio) o el id de uno de los {@link NAV_GROUPS}.
  * - `soon`: `true` mientras la página no existe. En el menú se ve gris con "próximamente", salvo
  *   que tenga `fallback`: entonces el link va a la página vieja que hoy hace eso.
@@ -19,6 +21,7 @@
  * @typedef {{
  *   id: string,
  *   href: string,
+ *   icon?: import('svelte').Component<any> | (new (...args: any[]) => any),
  *   emoji: string,
  *   label: string,
  *   group: string | null,
@@ -29,6 +32,36 @@
  *   match?: 'exact'
  * }} NavItem
  */
+
+import {
+	ArrowRightLeft,
+	BookOpen,
+	CalendarDays,
+	CalendarPlus,
+	CalendarRange,
+	ChartLine,
+	EyeOff,
+	FileSpreadsheet,
+	HandHeart,
+	Heart,
+	House,
+	KeyRound,
+	Landmark,
+	Mail,
+	ScanLine,
+	ScrollText,
+	Tags,
+	Ticket,
+	TicketPercent,
+	Users
+} from '@lucide/svelte';
+
+/**
+ * Íconos del panel: 'lucide' (los del sitio, @lucide/svelte) o 'emoji'. Cambiar esta línea cambia
+ * todos los íconos del marco (barra lateral, barra de abajo, panel "Más"); ver `NavIcon.svelte`.
+ * @type {'lucide' | 'emoji'}
+ */
+export const ICON_MODE = 'lucide';
 
 /** Grupos de la barra lateral, en orden. */
 export const NAV_GROUPS = Object.freeze([
@@ -43,6 +76,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'inicio',
 		href: '/admin',
+		icon: House,
 		emoji: '🏠',
 		label: 'Inicio',
 		group: null,
@@ -54,6 +88,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'eventos',
 		href: '/admin/eventos',
+		icon: CalendarRange,
 		emoji: '🎟️',
 		label: 'Eventos',
 		group: 'eventos',
@@ -63,6 +98,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'eventos-nuevo',
 		href: '/admin/eventos/nuevo',
+		icon: CalendarPlus,
 		emoji: '＋',
 		label: 'Cargar evento',
 		group: 'eventos',
@@ -72,6 +108,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'eventos-importar',
 		href: '/admin/eventos/importar',
+		icon: FileSpreadsheet,
 		emoji: '📥',
 		label: 'Importar planilla',
 		group: 'eventos',
@@ -80,6 +117,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'eventos-agenda',
 		href: '/admin/eventos/agenda',
+		icon: CalendarDays,
 		emoji: '🗓️',
 		label: 'Agenda',
 		group: 'eventos',
@@ -88,6 +126,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'checkin',
 		href: '/admin/checkin',
+		icon: ScanLine,
 		emoji: '🚪',
 		label: 'Check-in',
 		group: 'eventos',
@@ -100,6 +139,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'entradas',
 		href: '/admin/entradas',
+		icon: Ticket,
 		emoji: '💰',
 		label: 'Ventas',
 		group: 'entradas',
@@ -109,6 +149,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'entradas-transferencias',
 		href: '/admin/entradas/transferencias',
+		icon: ArrowRightLeft,
 		emoji: '💸',
 		label: 'Transferencias',
 		group: 'entradas',
@@ -118,6 +159,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'entradas-codigos',
 		href: '/admin/entradas/codigos',
+		icon: TicketPercent,
 		emoji: '🏷️',
 		label: 'Códigos',
 		group: 'entradas',
@@ -126,6 +168,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'personas',
 		href: '/admin/personas',
+		icon: Users,
 		emoji: '🧑‍🤝‍🧑',
 		label: 'Personas',
 		group: 'entradas',
@@ -134,6 +177,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'estadisticas',
 		href: '/admin/estadisticas',
+		icon: ChartLine,
 		emoji: '📈',
 		label: 'Estadísticas',
 		group: 'entradas',
@@ -144,6 +188,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'material',
 		href: '/admin/material',
+		icon: BookOpen,
 		emoji: '📚',
 		label: 'Material',
 		group: 'contenido',
@@ -152,6 +197,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'amigues',
 		href: '/admin/amigues',
+		icon: Heart,
 		emoji: '💞',
 		label: 'Amigues',
 		group: 'contenido',
@@ -160,6 +206,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'etiquetas',
 		href: '/admin/etiquetas',
+		icon: Tags,
 		emoji: '🔖',
 		label: 'Etiquetas',
 		group: 'contenido',
@@ -168,6 +215,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'no-listadas',
 		href: '/admin/no-listadas',
+		icon: EyeOff,
 		emoji: '🙈',
 		label: 'No listadas',
 		group: 'contenido',
@@ -180,6 +228,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'ajustes-cobros',
 		href: '/admin/ajustes/cobros',
+		icon: Landmark,
 		emoji: '🏦',
 		label: 'Cobros',
 		group: 'ajustes',
@@ -188,6 +237,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'ajustes-fondo',
 		href: '/admin/ajustes/fondo',
+		icon: HandHeart,
 		emoji: '🫶',
 		label: 'Fondo',
 		group: 'ajustes',
@@ -196,6 +246,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'ajustes-mails',
 		href: '/admin/ajustes/mails',
+		icon: Mail,
 		emoji: '✉️',
 		label: 'Mails y plantillas',
 		group: 'ajustes',
@@ -204,6 +255,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'ajustes-admins',
 		href: '/admin/ajustes/admins',
+		icon: KeyRound,
 		emoji: '🔑',
 		label: 'Admins',
 		group: 'ajustes',
@@ -212,6 +264,7 @@ export const NAV = Object.freeze([
 	{
 		id: 'actividad',
 		href: '/admin/actividad',
+		icon: ScrollText,
 		emoji: '📜',
 		label: 'Actividad',
 		group: 'ajustes',
