@@ -439,6 +439,15 @@ const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
  *   cierres, compatible con cómo se usaba antes), o el principio (00:00) si no (la apertura).
  * - Un `Date` (algunos lectores de YAML convierten las fechas): si es medianoche UTC exacta se toma
  *   como "solo fecha".
+ * - Un texto de medianoche UTC exacta con `Z` (`2026-10-02T00:00:00.000Z`): también "solo fecha".
+ *   Es lo que queda de una fecha sola cuando el frontmatter pasa por JSON: mdsvex lee el YAML
+ *   (las fechas solas quedan como `Date` a medianoche UTC) y lo escribe con `JSON.stringify` en el
+ *   `metadata` del módulo, que es lo que lee `getEventTickets`. Sin esto, `close: 2026-10-03`
+ *   cerraba el 2/10 a las 21:00 de Argentina, más de un día antes de lo documentado.
+ *   Costo: alguien que quisiera cerrar justo a las 21:00 de Argentina del día anterior y lo
+ *   escribiera así, en UTC, obtiene el fin del día. Es muy improbable: el editor siempre guarda
+ *   con `-03:00` y nunca produce esta forma; quien quiera ese instante puede escribir
+ *   `2026-10-02T21:00-03:00`.
  *
  * @param {unknown} value
  * @param {{ endOfDay?: boolean }} [opts]
@@ -458,7 +467,8 @@ export function parseSaleTime(value, { endOfDay = false } = {}) {
 		return t;
 	}
 	const s = String(value).trim();
-	let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+	// Fecha sola, o fecha sola que pasó por JSON (medianoche UTC exacta con Z; ver arriba).
+	let m = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00(?::00(?:\.0+)?)?Z)?$/.exec(s);
 	if (m) {
 		const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
 		const check = new Date(Date.UTC(y, mo - 1, d));
