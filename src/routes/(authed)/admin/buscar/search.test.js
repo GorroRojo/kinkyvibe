@@ -114,8 +114,14 @@ describe('/admin/buscar', () => {
 	});
 
 	it('corta con 429 después de demasiadas búsquedas seguidas', async () => {
+		// Reloj fijo a mitad de una ventana: si no, las 121 llamadas pueden caer en dos minutos.
+		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 8, 30, 12, 0, 30));
 		let last;
-		for (let i = 0; i < 121; i++) last = await call(`zz${i}`);
+		try {
+			for (let i = 0; i < 121; i++) last = await call(`zz${i}`);
+		} finally {
+			now.mockRestore();
+		}
 		expect(last?.status).toBe(429);
 		expect(last?.headers.get('retry-after')).toBeTruthy();
 	}, 60_000);
