@@ -32,9 +32,7 @@ describe('parseTicketConfig', () => {
 		const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
 			parseTicketConfig(META)
 		);
-		expect(c.types).toEqual(
-			META.tickets.map((t) => ({ ...t, fondo: 0, gorra: null, closesAt: null }))
-		);
+		expect(c.types).toEqual(META.tickets.map((t) => ({ ...t, fondo: 0, gorra: null, closesAt: null })));
 		expect(c.closesAt).toBe(new Date('2026-10-17T21:00-03:00').getTime());
 	});
 
