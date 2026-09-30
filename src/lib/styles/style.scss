@@ -331,6 +331,8 @@ article.wiki {
 		border-radius: 0.4em;
 		font-family: 'Courier New', Courier, monospace !important;
 		font-size: var(--step-0);
+		/* long commands/paths wrap instead of pushing the page sideways on phones */
+		overflow-wrap: anywhere;
 		span.token {
 			font-family: 'Courier New', Courier, monospace !important;
 		}
