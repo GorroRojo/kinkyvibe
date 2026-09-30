@@ -35,6 +35,7 @@ import {
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
+import { getTemplateOverride } from './templates.js';
 import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import {
@@ -362,7 +363,8 @@ export async function sendOrderEmail({
 			},
 			typeName,
 			origin,
-			contactEmail: contactEmail()
+			contactEmail: contactEmail(),
+			template: await getTemplateOverride(db, 'tickets')
 		});
 		const result = await deliver({
 			db,
@@ -407,6 +409,7 @@ export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch:
 	const event = { title: config?.title || eventSlug, start: config?.start };
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
+	const template = await getTemplateOverride(db, 'stream');
 	return sendStreamLinkToAll(db, {
 		eventSlug,
 		link,
@@ -418,7 +421,8 @@ export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch:
 				event,
 				link,
 				origin,
-				contactEmail: contactEmail()
+				contactEmail: contactEmail(),
+				template
 			});
 			const result = await deliver({
 				db,
@@ -457,7 +461,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			contactEmail: contactEmail(),
 			origin,
 			confirmUrl: await confirmUrl(db, origin, order.id),
-			fullHoldHours: Math.round(transferHoldMs() / 3600000)
+			fullHoldHours: Math.round(transferHoldMs() / 3600000),
+			template: await getTemplateOverride(db, 'transfer')
 		});
 		const result = await deliver({
 			db,
@@ -487,7 +492,8 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			order,
 			event: { title: config?.title || order.event_slug, start: config?.start },
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
-			contactEmail: contactEmail()
+			contactEmail: contactEmail(),
+			template: await getTemplateOverride(db, 'refund')
 		});
 		const result = await deliver({
 			db,
@@ -530,6 +536,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
 	/** @type {Map<string, string | null>} */
 	const links = new Map();
+	const template = await getTemplateOverride(db, 'reminder');
 	return sendDueReminders(db, {
 		events,
 		reminders,
@@ -554,7 +561,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 				origin,
-				contactEmail: contactEmail()
+				contactEmail: contactEmail(),
+				template
 			});
 			const result = await deliver({
 				db,
@@ -611,6 +619,32 @@ export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit })
 			return result !== 'failed';
 		}
 	});
+}
+
+/**
+ * "Mandarme una prueba" (editor de plantillas): manda un mail armado con datos de ejemplo por el
+ * mismo camino que los de verdad (`deliver`: en un preview, solo a EMAIL_ALLOWLIST).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
+ *   fetch: typeof fetch,
+ *   to: string,
+ *   message: { subject: string, html: string, text: string }
+ * }} input
+ * @returns {Promise<'sent' | 'simulated' | 'failed'>}
+ */
+export async function sendTestEmail({ db, fetch: fetchFn, to, message }) {
+	try {
+		return await deliver({
+			db,
+			fetch: fetchFn,
+			to,
+			message: { ...message, subject: `[Prueba] ${message.subject}` }
+		});
+	} catch (error) {
+		console.error('[tickets] no se pudo mandar el mail de prueba:', error);
+		return 'failed';
+	}
 }
 
 /**
