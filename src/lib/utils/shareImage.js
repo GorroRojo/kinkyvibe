@@ -7,7 +7,8 @@
 // intercaladas ("GRUPO de APOYO y DISCUSIÓN"), textos inclinados como stickers, destellos
 // de 4 puntas, tramas de puntos y grano. El flyer del evento es la pieza principal.
 
-export const TZ = 'America/Argentina/Buenos_Aires';
+import { TIMEZONE as TZ } from './dates.js';
+
 export const SITE = 'kinkyvibe.ar';
 
 /**

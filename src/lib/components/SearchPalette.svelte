@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
+	import { TIMEZONE } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -207,7 +208,7 @@
 		year: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
-		timeZone: 'America/Argentina/Buenos_Aires'
+		timeZone: TIMEZONE
 	});
 	/** @param {string} d */
 	const formatDate = (d) => dateFormat.format(new Date(d));
