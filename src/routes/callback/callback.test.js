@@ -27,6 +27,7 @@ function fakeCookies(initial = {}) {
  * Runs GET and returns what it threw (SvelteKit's error()/redirect() throw).
  * @param {string} search
  * @param {ReturnType<typeof fakeCookies>} cookies
+ * @returns {Promise<any>}
  */
 async function run(search, cookies) {
 	const url = new URL('https://kinkyvibe.ar/callback' + search);
@@ -55,11 +56,13 @@ describe('/callback (GitHub OAuth)', () => {
 	it('rejects a missing or mismatched state with 400, and clears the state cookies', async () => {
 		const fetchMock = githubReplies({ access_token: 'x' });
 		vi.stubGlobal('fetch', fetchMock);
-		for (const [search, cookie] of [
+		/** @type {[string, string | undefined][]} */
+		const cases = [
 			['?code=c&state=abc', undefined],
 			['?code=c', 'abc'],
 			['?code=c&state=other', 'abc']
-		]) {
+		];
+		for (const [search, cookie] of cases) {
 			const cookies = fakeCookies(cookie ? { oauthState: cookie } : {});
 			const e = await run(search, cookies);
 			expect(isHttpError(e, 400)).toBe(true);
@@ -115,7 +118,7 @@ describe('/callback (GitHub OAuth)', () => {
 		expect(isRedirect(e)).toBe(true);
 		expect(e.location).toBe('/edit/calendario/x');
 		expect(cookies.jar.get(TOKEN_COOKIE)).toBe('gho_token');
-		const [, init] = fetchMock.mock.calls[0];
+		const init = /** @type {any[]} */ (fetchMock.mock.calls[0])[1];
 		expect(JSON.parse(init.body).code).toBe('the-code');
 	});
 
