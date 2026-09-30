@@ -437,7 +437,7 @@
 				</fieldset>
 			{/if}
 
-			<div class="field">
+			<div class="field qty">
 				<label for="entradas-cantidad">Cantidad</label>
 				<div class="stepper">
 					<button
@@ -1006,19 +1006,45 @@
 		outline: 3px solid var(--2-light);
 	}
 
-	/* Cantidad: − [n] + con botones grandes para el dedo. */
+	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto (botones de 42 px: siguen
+	   siendo cómodos para el dedo sin ocupar media pantalla). */
+	.field.qty {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4em 0.8em;
+	}
+	.field.qty > label {
+		font-size: var(--step-0);
+	}
 	.stepper {
-		display: flex;
+		display: inline-flex;
 		align-items: stretch;
-		gap: 0.4em;
+		height: 42px;
+		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
+		border-radius: 999px;
+		background: white;
+		overflow: hidden;
+	}
+	.stepper:focus-within {
+		border-color: var(--2);
 	}
 	.stepper input {
-		width: 4.5em;
+		width: 2.8em;
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
 		text-align: center;
-		font-size: var(--step-1);
+		font-size: var(--step-0);
 		font-weight: bold;
 		-moz-appearance: textfield;
 		appearance: textfield;
+	}
+	.stepper input:focus-visible {
+		outline: 2px solid var(--2-light);
+		outline-offset: -2px;
 	}
 	.stepper input::-webkit-outer-spin-button,
 	.stepper input::-webkit-inner-spin-button {
@@ -1026,19 +1052,28 @@
 		margin: 0;
 	}
 	button.step {
-		flex-grow: 0;
-		width: 3em;
-		min-width: 48px;
-		min-height: 48px;
+		flex: 0 0 42px;
+		width: 42px;
+		min-width: 42px;
+		min-height: 0;
+		height: auto;
+		margin: 0;
 		padding: 0;
-		font-size: var(--step-2);
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+		font-size: var(--step-1);
+		font-weight: bold;
 		line-height: 1;
-		background: white;
+		background: transparent;
 		color: var(--2-dark);
-		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 45%, transparent);
 	}
 	button.step:hover:not(:disabled) {
 		background: color-mix(in srgb, var(--2) 10%, white);
+	}
+	button.step:disabled {
+		color: color-mix(in srgb, var(--2-dark) 35%, transparent);
+		background: transparent;
 	}
 
 	/* A la gorra */
