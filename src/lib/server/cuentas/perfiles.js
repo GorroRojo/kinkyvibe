@@ -252,6 +252,23 @@ export async function getManagedProfile(db, accountId, slug) {
 }
 
 /**
+ * Cuántos perfiles vivos gestiona una cuenta (propios y de grupos).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ */
+async function countMyProfiles(db, accountId) {
+	const row = await db
+		.prepare(
+			`SELECT COUNT(*) AS n FROM profile_managers pm JOIN objects o ON o.id = pm.profile_id
+			WHERE pm.account_id = ?1 AND o.deleted_at IS NULL`
+		)
+		.bind(accountId)
+		.first();
+	return Number(row?.n ?? 0);
+}
+
+/**
  * Crea un perfil y deja a la cuenta como dueñe, en la misma tanda de saveObject(). Si la
  * dirección (sale del nombre) ya está usada, prueba con -2, -3…: así no se entera nadie de que
  * existe otro perfil (quizás oculto) con ese nombre.
@@ -267,14 +284,7 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 	if (!PROFILE_KINDS.includes(kind))
 		return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
 	if (!(await getAccount(db, accountId))) return failure(404, MESSAGES.notFound);
-	const count = await db
-		.prepare(
-			`SELECT COUNT(*) AS n FROM profile_managers pm JOIN objects o ON o.id = pm.profile_id
-			WHERE pm.account_id = ?1 AND o.deleted_at IS NULL`
-		)
-		.bind(accountId)
-		.first();
-	if (Number(count?.n ?? 0) >= MAX_PROFILES_PER_ACCOUNT) {
+	if ((await countMyProfiles(db, accountId)) >= MAX_PROFILES_PER_ACCOUNT) {
 		return failure(400, MESSAGES.tooManyProfiles);
 	}
 	const title = text(input.title).trim();
@@ -559,6 +569,10 @@ export async function answerInvite(db, accountId, inviteId, accept, { now = Date
 	if (!accept) {
 		await remove.run();
 		return { ok: true, slug: null };
+	}
+	// Aceptar suma un perfil a los que gestiona: el mismo tope que al crear.
+	if ((await countMyProfiles(db, accountId)) >= MAX_PROFILES_PER_ACCOUNT) {
+		return failure(400, MESSAGES.tooManyProfiles);
 	}
 	await db.batch([
 		db

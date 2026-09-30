@@ -10,6 +10,7 @@ import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/in
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import {
 	INVITE_TTL_MS,
+	MAX_PROFILES_PER_ACCOUNT,
 	MESSAGES,
 	accountActor,
 	answerInvite,
@@ -394,6 +395,24 @@ describe('invitaciones a gestionar', () => {
 		ok(await deleteProfile(t.db, a.id, g.slug, 1, opts));
 		expect(await myInvites(t.db, b.id, opts)).toEqual([]);
 		expect(await answerInvite(t.db, b.id, inv.id, true, opts)).toMatchObject({ ok: false });
+	});
+
+	it('aceptar respeta el tope de perfiles por cuenta', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		for (let i = 1; i <= MAX_PROFILES_PER_ACCOUNT; i++) {
+			await create(b.id, { kind: 'persona', title: `Persona Inventada ${i}` });
+		}
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		const [inv] = await myInvites(t.db, b.id, opts);
+		expect(await answerInvite(t.db, b.id, inv.id, true, opts)).toMatchObject({
+			ok: false,
+			message: MESSAGES.tooManyProfiles
+		});
+		expect(await getManagedProfile(t.db, b.id, g.slug)).toBeNull();
+		// La invitación sigue ahí: puede borrar un perfil y aceptarla después.
+		expect(await myInvites(t.db, b.id, opts)).toHaveLength(1);
 	});
 });
 
