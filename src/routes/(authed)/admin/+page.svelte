@@ -333,6 +333,23 @@
 														>{resending === t.id ? 'Enviando…' : t.action}</button
 													>
 												</form>
+											{:else if t.kind === 'item' && t.retryReminders}
+												<form
+													method="POST"
+													action="?/retryReminders"
+													use:enhance={() => {
+														resending = t.id;
+														return async ({ update }) => {
+															await update();
+															resending = '';
+														};
+													}}
+												>
+													<input type="hidden" name="slug" value={t.retryReminders.slug} />
+													<button class="kv-btn ghost sm" disabled={resending === t.id}
+														>{resending === t.id ? 'Un momento…' : t.action}</button
+													>
+												</form>
 											{:else if t.href}
 												<a class="kv-btn ghost sm" href={t.href}
 													>{t.action}{#if t.kind === 'group'}<ChevronRight

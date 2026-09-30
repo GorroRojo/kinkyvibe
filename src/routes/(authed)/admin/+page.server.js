@@ -22,6 +22,7 @@ import {
 	salesSummary,
 	sinceLastVisit,
 	streamLinkSlugs,
+	stuckSends,
 	ticketTotals,
 	unsentEmails,
 	upcomingEvents,
@@ -33,7 +34,7 @@ import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
-import { parseReminders } from '$lib/server/tickets/reminders.js';
+import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import {
@@ -85,7 +86,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		fondo,
 		seen,
 		settings,
-		expiring
+		expiring,
+		stuck
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
 		checkinTotals(
@@ -100,7 +102,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		resolveFondoMonth({ db, fetch, now }),
 		touchLastSeen(db, user.id, now),
 		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
-		expiringTransfers(db, now, agendaUntil)
+		expiringTransfers(db, now, agendaUntil),
+		stuckSends(db, soonTicketed)
 	]);
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
@@ -116,6 +119,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		review,
 		streamLinks,
 		reminders,
+		stuck,
 		now,
 		skip
 	});
@@ -208,6 +212,36 @@ export const actions = {
 				message: sent
 					? `Reenviamos las entradas de ${orderReference(order.id)}.`
 					: 'No se pudo mandar el mail (ver logs).'
+			}
+		};
+	},
+
+	// "Reintentar" desde "Para revisar": los recordatorios de un evento que fallaron todos sus
+	// intentos vuelven a la cola; los manda el próximo cron.
+	retryReminders: async ({ locals, url, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { resend: { ok: false, message: 'Sin base de datos.' } });
+		const slug = String((await request.formData()).get('slug') ?? '');
+		if (!/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(slug)) {
+			return fail(400, { resend: { ok: false, message: 'Evento inválido.' } });
+		}
+		const n = await retryFailedReminders(db, slug);
+		if (n) {
+			await logAdminAction(db, locals, {
+				action: 'reminders.retry',
+				targetType: 'event',
+				targetId: slug,
+				summary: `Volvió a poner en la cola ${n === 1 ? '1 recordatorio' : `${n} recordatorios`}`,
+				detail: { count: n }
+			});
+		}
+		return {
+			resend: {
+				ok: true,
+				message: n
+					? `Listo: ${n === 1 ? 'el recordatorio sale' : `los ${n} recordatorios salen`} en la próxima vuelta del cron (cada 15 minutos).`
+					: 'No había recordatorios fallidos para reintentar.'
 			}
 		};
 	},

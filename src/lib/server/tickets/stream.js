@@ -6,10 +6,14 @@
  * Envíos: `stream_link_sends` guarda a qué orden se le mandó qué link (por su SHA-256). El mail de
  * las entradas lo registra si ya había link al comprar, y "Enviar el link a todes" solo le escribe
  * a las órdenes aprobadas que todavía no recibieron ESE link: tocarlo dos veces no manda nada de
- * nuevo, y si el link cambia, se manda el nuevo a todes.
+ * nuevo, y si el link cambia, se manda el nuevo a todes. Se manda en tandas: el botón manda la
+ * primera y deja el pedido anotado (`event_ticket_settings.stream_send_hash`); el cron manda el
+ * resto (ver sendState.js para los reintentos).
  */
 
 import { sha256Hex } from '$lib/server/hash.js';
+import { DEFAULT_MAIL_BATCH_SIZE } from './batchSize.js';
+import { STALE_CLAIM_MS, expireStaleClaims, pendingSendSql, sendBatch } from './sendState.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -82,30 +86,38 @@ export async function setStreamLink(db, { eventSlug, link, by, now = Date.now() 
 }
 
 /**
- * Órdenes aprobadas del evento que todavía no recibieron este link.
+ * Órdenes aprobadas del evento que todavía no recibieron este link. Sin `includeFailed`, las
+ * que ya fallaron {@link import('./sendState.js').MAX_ATTEMPTS} veces no cuentan (el cron no las
+ * reintenta solo); con `includeFailed` sí (el botón "Enviar el link a todes" las reintenta).
  *
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {string} link
+ * @param {{ now?: number, includeFailed?: boolean }} [options]
  * @returns {Promise<import('./orders.js').Order[]>}
  */
-export async function streamLinkRecipients(db, eventSlug, link) {
+export async function streamLinkRecipients(
+	db,
+	eventSlug,
+	link,
+	{ now = Date.now(), includeFailed = false } = {}
+) {
 	const hash = await streamLinkHash(link);
 	const { results } = await db
 		.prepare(
 			`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND o.status = 'approved'
-				AND NOT EXISTS (SELECT 1 FROM stream_link_sends s WHERE s.order_id = o.id AND s.link_hash = ?2)
+				AND ${pendingSendSql('stream_link_sends', { key: 2, stale: 3, includeFailed })}
 			ORDER BY o.created_at`
 		)
-		.bind(eventSlug, hash)
+		.bind(eventSlug, hash, now - STALE_CLAIM_MS)
 		.all();
 	return /** @type {import('./orders.js').Order[]} */ (results);
 }
 
 /**
- * Registra que a una orden ya se le mandó este link. Devuelve `false` si ya estaba registrado
- * (otro envío ganó): sirve de "reserva" antes de mandar, para no mandar dos veces aunque dos
- * admins toquen el botón a la vez.
+ * Registra que a una orden ya se le mandó este link (lo usa el mail de las entradas, que lo
+ * lleva adentro). Devuelve `false` si ya estaba registrado o reservado: sirve de "reserva"
+ * antes de mandar, para no mandarlo dos veces.
  *
  * @param {D1Database} db
  * @param {{ orderId: string, link: string, now?: number }} input
@@ -121,7 +133,7 @@ export async function claimStreamLinkSend(db, { orderId, link, now = Date.now() 
 }
 
 /**
- * Deshace el registro de un envío que falló (así el próximo "Enviar el link a todes" lo reintenta).
+ * Deshace el registro de un mail de entradas que falló (así "Enviar el link a todes" lo manda).
  *
  * @param {D1Database} db
  * @param {{ orderId: string, link: string }} input
@@ -134,34 +146,143 @@ export async function releaseStreamLinkSend(db, { orderId, link }) {
 }
 
 /**
- * Manda el link a todas las órdenes aprobadas que todavía no lo recibieron. Idempotente por
- * valor del link: repetirlo no manda nada a quien ya lo tiene.
+ * "Enviar el link a todes": deja pedido el envío de este link (el cron sigue mandando tandas
+ * hasta terminar) y vuelve a la cola a quienes ya habían fallado todos sus intentos.
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, link: string, now?: number }} input
+ */
+export async function requestStreamLinkSend(db, { eventSlug, link, now = Date.now() }) {
+	const hash = await streamLinkHash(link);
+	await db.batch([
+		db
+			.prepare(
+				`UPDATE event_ticket_settings SET stream_send_hash = ?2, stream_send_requested_at = ?3
+				WHERE event_slug = ?1`
+			)
+			.bind(eventSlug, hash, now),
+		db
+			.prepare(
+				`UPDATE stream_link_sends SET status = 'retry', attempts = 0
+				WHERE link_hash = ?2 AND status = 'failed'
+					AND order_id IN (SELECT id FROM orders WHERE event_slug = ?1)`
+			)
+			.bind(eventSlug, hash)
+	]);
+}
+
+/**
+ * Eventos con un "Enviar el link a todes" sin terminar, con su link actual. Si el link cambió
+ * (o se borró) desde que se pidió, el pedido viejo se descarta.
+ *
+ * @param {D1Database} db
+ * @returns {Promise<{ eventSlug: string, link: string }[]>}
+ */
+export async function pendingStreamLinkRequests(db) {
+	const { results } = await db
+		.prepare(
+			`SELECT event_slug, stream_link, stream_send_hash FROM event_ticket_settings
+			WHERE stream_send_hash IS NOT NULL ORDER BY stream_send_requested_at`
+		)
+		.all();
+	const out = [];
+	for (const r of results) {
+		const eventSlug = String(r.event_slug);
+		const link = r.stream_link ? String(r.stream_link) : '';
+		if (link && (await streamLinkHash(link)) === r.stream_send_hash) {
+			out.push({ eventSlug, link });
+		} else {
+			await clearStreamLinkRequest(db, eventSlug, String(r.stream_send_hash));
+		}
+	}
+	return out;
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {string} hash solo si el pedido sigue siendo de este link
+ */
+async function clearStreamLinkRequest(db, eventSlug, hash) {
+	await db
+		.prepare(
+			`UPDATE event_ticket_settings SET stream_send_hash = NULL, stream_send_requested_at = NULL
+			WHERE event_slug = ?1 AND stream_send_hash = ?2`
+		)
+		.bind(eventSlug, hash)
+		.run();
+}
+
+/**
+ * Manda una tanda del link: como mucho `limit` mails a órdenes aprobadas que todavía no lo
+ * recibieron. Idempotente por valor del link (ver sendState.js). Cuando ya no queda nadie
+ * (salvo quienes fallaron todos sus intentos), el pedido del evento se da por terminado.
  *
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
  *   link: string,
  *   send: (order: import('./orders.js').Order) => Promise<boolean>,
+ *   limit?: number,
  *   now?: number
  * }} input
- * @returns {Promise<{ sent: number, failed: number }>}
+ * @returns {Promise<{ sent: number, failed: number, remaining: number, gaveUp: number }>}
+ *   `remaining`: quienes siguen en la cola (incluye los que fallaron y se reintentan);
+ *   `gaveUp`: quienes fallaron todos los intentos.
  */
-export async function sendStreamLinkToAll(db, { eventSlug, link, send, now = Date.now() }) {
-	let sent = 0;
-	let failed = 0;
-	for (const order of await streamLinkRecipients(db, eventSlug, link)) {
-		if (!(await claimStreamLinkSend(db, { orderId: order.id, link, now }))) continue;
-		let ok = false;
-		try {
-			ok = await send(order);
-		} catch (error) {
-			console.error(`[tickets] no se pudo mandar el link a la orden ${order.id}:`, error);
-		}
-		if (ok) sent++;
-		else {
-			failed++;
-			await releaseStreamLinkSend(db, { orderId: order.id, link });
-		}
+export async function sendStreamLinkBatch(
+	db,
+	{ eventSlug, link, send, limit = DEFAULT_MAIL_BATCH_SIZE, now = Date.now() }
+) {
+	await expireStaleClaims(db, 'stream_link_sends', now);
+	const hash = await streamLinkHash(link);
+	const items = await streamLinkRecipients(db, eventSlug, link, { now });
+	const r = await sendBatch(db, 'stream_link_sends', {
+		items,
+		limit,
+		now,
+		label: 'el link',
+		claim: (order) => ({ orderId: order.id, key: hash }),
+		send
+	});
+	const remaining = (await streamLinkRecipients(db, eventSlug, link, { now })).length;
+	if (remaining === 0) await clearStreamLinkRequest(db, eventSlug, hash);
+	const gaveUp =
+		(await streamLinkRecipients(db, eventSlug, link, { now, includeFailed: true })).length -
+		remaining;
+	return { sent: r.sent, failed: r.failed, remaining, gaveUp };
+}
+
+/**
+ * Órdenes aprobadas a las que el link ACTUAL de su evento no les llegó después de todos los
+ * intentos ('failed'), por evento.
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ * @returns {Promise<Map<string, number>>}
+ */
+export async function failedStreamLinkCounts(db, slugs) {
+	/** @type {Map<string, number>} */
+	const out = new Map();
+	if (!slugs.length) return out;
+	const { results } = await db
+		.prepare(
+			`SELECT event_slug, stream_link FROM event_ticket_settings
+			WHERE stream_link IS NOT NULL AND stream_link != ''
+				AND event_slug IN (${slugs.map((_, i) => `?${i + 1}`).join(', ')})`
+		)
+		.bind(...slugs)
+		.all();
+	for (const r of results) {
+		const row = await db
+			.prepare(
+				`SELECT COUNT(*) AS n FROM stream_link_sends s JOIN orders o ON o.id = s.order_id
+				WHERE s.link_hash = ?2 AND s.status = 'failed' AND o.event_slug = ?1 AND o.status = 'approved'`
+			)
+			.bind(String(r.event_slug), await streamLinkHash(String(r.stream_link)))
+			.first();
+		const n = Number(row?.n ?? 0);
+		if (n) out.set(String(r.event_slug), n);
 	}
-	return { sent, failed };
+	return out;
 }

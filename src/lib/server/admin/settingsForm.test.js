@@ -24,7 +24,7 @@ describe('pickSectionFields', () => {
 	it('entre las tres páginas cubren todas las claves editables', () => {
 		const keys = Object.values(SECTIONS).flatMap((s) => s.keys);
 		expect(new Set(keys).size).toBe(keys.length);
-		expect(keys).toHaveLength(9);
+		expect(keys).toHaveLength(10);
 	});
 });
 
