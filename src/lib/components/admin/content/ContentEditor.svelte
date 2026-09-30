@@ -25,6 +25,8 @@
 	} from '@lucide/svelte';
 	import '$lib/components/admin/admin.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import { clearDraft, draftKey } from '$lib/admin/draft.js';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -87,6 +89,9 @@
 		f.authors = [];
 		f.body = '';
 	}
+
+	// Para saber si un formulario nuevo ya tiene algo escrito.
+	const startForm = JSON.stringify(f);
 
 	const fields = fieldsFor(category);
 	const mainFields = fields.filter((x) => !x.section);
@@ -254,6 +259,8 @@
 
 	/* ---------- saving ---------- */
 	let saving = false;
+	/** Guardó bien y el servidor redirige a la publicación creada. */
+	let redirecting = false;
 	/** @type {null | {at: number, commit: string, imagePath: string | null}} */
 	let saved = null;
 	const justCreated = $page.url.searchParams.get('guardado');
@@ -267,6 +274,15 @@
 		}
 		saving = true;
 		return async ({ result, update }) => {
+			redirecting = result.type === 'redirect';
+			// Se creó la publicación: el borrador del formulario nuevo ya no hace falta.
+			if (redirecting) {
+				try {
+					clearDraft(localStorage, unsavedKey);
+				} catch {
+					// Sin storage no hay borrador.
+				}
+			}
 			saving = false;
 			if (result.type === 'success' && result.data?.saved) {
 				const s = result.data.saved;
@@ -284,6 +300,26 @@
 			}
 			await update({ reset: false, invalidateAll: false });
 		};
+	}
+
+	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
+	/** Borrador de un formulario nuevo (o de una copia de otra publicación). */
+	/** @param {string} from */
+	const newKey = (from) => draftKey(category, from ? `nuevo-desde-${from}` : 'nuevo');
+	const unsavedKey = isNew ? newKey(data.source?.slug ?? '') : draftKey(category, data.slug);
+	$: dirty = isNew
+		? JSON.stringify(f) !== startForm || Boolean(uploadName) || slugTouched
+		: changed;
+	$: draft = { f, slug, slugTouched, rawText };
+	/** @param {any} d */
+	function restoreDraft(d) {
+		if (!d || typeof d !== 'object') return;
+		if (d.f && typeof d.f === 'object') f = { ...f, ...d.f };
+		if (typeof d.rawText === 'string') rawText = d.rawText;
+		if (isNew && d.slugTouched && typeof d.slug === 'string') {
+			slug = d.slug;
+			slugTouched = true;
+		}
 	}
 
 	$: pageTitle = isNew
@@ -321,6 +357,16 @@
 			guardan en una carpeta temporal.
 		</p>
 	{/if}
+	<UnsavedChanges
+		draftKey={unsavedKey}
+		base={isNew ? '' : sha}
+		{dirty}
+		snapshot={draft}
+		restore={restoreDraft}
+		saved={Boolean(saved)}
+		saving={saving || redirecting}
+	/>
+
 	{#if justCreated && !saved}
 		<p class="banner ok" role="status">
 			<CircleCheck size={18} aria-hidden="true" />
