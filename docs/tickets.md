@@ -1,5 +1,7 @@
 # Venta de entradas (fase 1, prototipo)
 
+> Referencia completa. Para la versión corta (qué no se puede romper, cómo probar, tareas comunes) ver [entradas.md](entradas.md); los mails, en [mails.md](mails.md); la base, en [datos.md](datos.md).
+
 Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada, y al que se puede aportar pagando una entrada solidaria), un **recargo por la comisión de Mercado Pago** y entradas **"a la gorra"** (cada quien elige cuánto paga; en eventos online, con el link de la transmisión en lugar de QR). Les organizadores ven quién compró en `/admin/entradas`, confirman transferencias, cargan el alias para transferir y la comisión en **Ajustes de venta** y controlan el ingreso en la puerta escaneando el QR (o tipeando el código corto de la entrada) con el celu.
 
 > Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
@@ -210,7 +212,7 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 
 ### Mails y recordatorios
 
-- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en Ajustes de venta; si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
+- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Ajustes → Mails y plantillas** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
 - **Recordatorios** (`src/lib/server/tickets/reminders.js`): lista configurable en Ajustes de venta (activado + cuándo: "N horas antes" del inicio, o "N días antes a las HH:MM" en hora de Argentina, UTC−3 fijo). Por defecto: **2 días antes** (48 h) y **el mismo día a las 9:00**. Un evento no los manda con `recordatorios: false` en el frontmatter. El mail lleva cuándo y dónde, el link y el código de cada entrada o, en eventos online, el link de la transmisión si ya está.
 - **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar y se libera si falla. Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
 
@@ -222,7 +224,7 @@ Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y acti
   - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
   - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
 - **Fondo** (`/admin/ajustes/fondo`): el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
-- **Mails** (`/admin/ajustes/mails`): remitente, dirección de respuesta y los **recordatorios** (ver arriba).
+- **Mails y plantillas** (`/admin/ajustes/mails`): remitente, dirección de respuesta, los **recordatorios** (ver arriba) y, en `/admin/ajustes/mails/plantillas`, el texto de cada mail (tabla `email_templates`; ver [mails.md](mails.md)).
 
 Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
@@ -307,7 +309,7 @@ Solo en desarrollo (`vite dev`; en el build de producción este código no exist
 ## Probar en local (sin cuentas de nada)
 
 ```sh
-npm install
+npm ci
 npm run dev:tickets
 ```
 
@@ -350,15 +352,15 @@ Para mirar la base local: `npx wrangler d1 execute kinkyvibe --local --command "
 
 ## Producción: base de datos
 
-Requiere tener D1 activado (ver la sección "Base de datos" del README). Antes de deployar este código, correr **una vez**:
+Ver [datos.md](datos.md). Antes de deployar código que trae una migración nueva, correr:
 
 ```sh
 npm run db:migrate:remote        # = npx wrangler d1 migrations apply kinkyvibe --remote
 ```
 
-Aplica las migraciones que falten: `0001_rate_limits.sql` (de la base), `0002_tickets.sql` (todas las tablas de entradas en un solo archivo) y `0003_ticket_safeguards.sql` (columnas para los límites por cliente y las órdenes para revisar). Se puede correr cuantas veces se quiera. De acá en adelante, cada cambio de esquema va en una migración nueva.
+Aplica solo las migraciones que falten (se puede correr cuantas veces se quiera). En producción ya están aplicadas de `0001` a `0010` (30/9/2026). Cada cambio de esquema va en una migración nueva.
 
-(y lo mismo contra la base de preview si se usa otra). Consultas útiles:
+(y lo mismo contra la base de preview, `kinkyvibe-preview`). Consultas útiles (solo lectura; los datos de producción son de personas reales, no se copian a issues ni PRs):
 
 ```sh
 npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status, COUNT(*) FROM orders GROUP BY 1, 2"
@@ -438,8 +440,7 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 **Operación:**
 
 - **Transferencias:** alguien tiene que revisar la cuenta y confirmar a mano (no hay verificación automática). Una reserva por transferencia bloquea cupo 48 h: con muchos mails distintos alguien podría bloquear el cupo; si pasa, cancelar desde el admin y bajar `TICKETS_TRANSFER_HOLD_HOURS`.
-- **Borrar el evento de prueba** (`prueba-entradas-2026-12.md`) antes de vender de verdad.
-
+- **Borrar los eventos de prueba** (`prueba-entradas-2026-12.md` y `prueba-entradas-gorra-2026-12.md`) antes de vender de verdad.
 - Una persona "dueña" de las credenciales y de revisar los logs (Cloudflare → Workers & Pages → Logs) durante las ventas.
 - Probar el escaneo en la puerta con los celulares reales (Android/Chrome anda con la página; en iPhone, con la cámara del sistema) y con poca señal.
 
