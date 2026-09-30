@@ -104,7 +104,10 @@ describe('/admin/buscar', () => {
 		expect(body.groups[0].id).toBe('events');
 		expect(body.groups[0].items[0]).toMatchObject({
 			title: 'Fiesta Inventada',
-			href: '/admin/entradas/fiesta-inventada-2026-10'
+			// La ficha del evento (#106) o, antes de que exista, la página de entradas del evento.
+			href: expect.stringMatching(
+				/^\/admin\/(entradas\/fiesta-inventada-2026-10|eventos\/fiesta-inventada-2026-10\/ventas)$/
+			)
 		});
 	});
 
