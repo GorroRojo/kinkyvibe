@@ -21,7 +21,8 @@
 	const METHOD = /** @type {Record<string, string>} */ ({
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
-		gratis: 'Sin cargo'
+		gratis: 'Sin cargo',
+		efectivo: 'Efectivo (en la puerta)'
 	});
 
 	// Gráfico de barras: entradas por día (últimos 14 días).
@@ -471,6 +472,11 @@
 	.m-gratis {
 		background: var(--pay-free);
 	}
+	/* Otros medios (efectivo en la puerta): gris, siempre con su etiqueta al lado. */
+	.seg:not(.m-mercadopago, .m-transferencia, .m-gratis),
+	.dot:not(.m-mercadopago, .m-transferencia, .m-gratis) {
+		background: var(--muted);
+	}
 	.legend {
 		list-style: none;
 		margin: 0;
@@ -493,6 +499,9 @@
 		width: 0.8rem;
 		height: 0.8rem;
 		border-radius: 0.25rem;
+	}
+	.kv-table .num {
+		white-space: nowrap;
 	}
 	.net {
 		font-weight: 700;

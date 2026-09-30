@@ -220,140 +220,143 @@
 	</div>
 {/if}
 
-<Card padded={false}>
-	{#if data.rows.length === 0}
-		<EmptyState
-			icon={CalendarDays}
-			title="No hay eventos próximos"
-			text="Cargá uno o importá la planilla."
-		>
-			<a class="kv-btn" href="/admin/eventos/importar">Importar planilla</a>
-		</EmptyState>
-	{:else}
-		<div class="kv-table-wrap">
-			<table class="kv-table sheet">
-				<thead>
-					<tr>
-						<th>Fecha</th>
-						<th>Empieza</th>
-						<th>Termina</th>
-						<th>Evento</th>
-						<th>Lugar</th>
-						<th>Región</th>
-						<th>Estado</th>
-						<th><span class="sr-only">Acciones</span></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.rows as row (row.slug)}
-						{@const s = state[row.slug]}
-						{@const errs = { ...liveErrors(row.slug), ...s.errors }}
-						{@const changed = changedAgendaFields(s.saved, s.values)}
-						<tr class:dirty={changed.length} on:keydown={(e) => onKey(e, row.slug)}>
-							<td class:changed={changed.includes('date')} class:bad={errs.date}>
-								<input
-									type="date"
-									bind:value={state[row.slug].values.date}
-									aria-label="Fecha de {s.saved.title}"
-									aria-invalid={errs.date ? 'true' : undefined}
-									title={errs.date}
-								/>
-								<small class="hint left"
-									>{s.values.date ? dayLabel(s.values.date).split(' ')[0] : ''}</small
-								>
-							</td>
-							<td class:changed={changed.includes('startTime')} class:bad={errs.startTime}>
-								<input
-									type="time"
-									bind:value={state[row.slug].values.startTime}
-									aria-label="Hora de inicio de {s.saved.title}"
-									aria-invalid={errs.startTime ? 'true' : undefined}
-									title={errs.startTime}
-								/>
-							</td>
-							<td class:changed={changed.includes('endTime')} class:bad={errs.endTime}>
-								<input
-									type="time"
-									bind:value={state[row.slug].values.endTime}
-									aria-label="Hora de fin de {s.saved.title}"
-									aria-invalid={errs.endTime ? 'true' : undefined}
-									title={errs.endTime}
-								/>
-							</td>
-							<td class="title" class:changed={changed.includes('title')} class:bad={errs.title}>
-								<input
-									bind:value={state[row.slug].values.title}
-									maxlength="200"
-									aria-label="Título"
-									aria-invalid={errs.title ? 'true' : undefined}
-									title={errs.title}
-								/>
-								<a class="hint" href={eventPanelLink(row.slug, { tickets: row.sellsTickets })}
-									>ficha →</a
-								>
-							</td>
-							<td
-								class="place"
-								class:changed={changed.includes('locationName')}
-								class:bad={errs.locationName}
-							>
-								<input
-									bind:value={state[row.slug].values.locationName}
-									maxlength="200"
-									placeholder="—"
-									aria-label="Lugar de {s.saved.title}"
-									title={errs.locationName}
-								/>
-							</td>
-							<td class:changed={changed.includes('place')} class:bad={errs.place}>
-								<select
-									bind:value={state[row.slug].values.place}
-									aria-label="Región de {s.saved.title}"
-									aria-invalid={errs.place ? 'true' : undefined}
-									title={errs.place}
-								>
-									{#if s.saved.place === ''}<option value="">—</option>{/if}
-									{#each data.places as p}<option value={p}>{p}</option>{/each}
-								</select>
-							</td>
-							<td class:changed={changed.includes('state')}>
-								<select
-									bind:value={state[row.slug].values.state}
-									aria-label="Estado de {s.saved.title}"
-								>
-									{#each AGENDA_STATES as st}<option value={st.value} title={st.help}
-											>{st.label}</option
-										>{/each}
-								</select>
-							</td>
-							<td class="row-actions">
-								{#if changed.length || s.saving}
-									<button
-										class="kv-btn small"
-										on:click={() => save(row.slug)}
-										disabled={s.saving}
-										aria-label="Guardar {s.saved.title}">{s.saving ? '…' : 'Guardar'}</button
-									>
-									<button
-										class="icon"
-										on:click={() => revert(row.slug)}
-										disabled={s.saving}
-										title="Deshacer los cambios de esta fila"
-										aria-label="Deshacer los cambios de {s.saved.title}"
-										><RotateCcw size={16} aria-hidden="true" /></button
-									>
-								{/if}
-								{#if s.message}
-									<small class="msg" class:error={s.error} role="status">{s.message}</small>
-								{/if}
-							</td>
+<!-- La tabla es más ancha que la pantalla: se desliza adentro, sin mover la página. -->
+<div class="sheet-box">
+	<Card padded={false}>
+		{#if data.rows.length === 0}
+			<EmptyState
+				icon={CalendarDays}
+				title="No hay eventos próximos"
+				text="Cargá uno o importá la planilla."
+			>
+				<a class="kv-btn" href="/admin/eventos/importar">Importar planilla</a>
+			</EmptyState>
+		{:else}
+			<div class="kv-table-wrap">
+				<table class="kv-table sheet">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Empieza</th>
+							<th>Termina</th>
+							<th>Evento</th>
+							<th>Lugar</th>
+							<th>Región</th>
+							<th>Estado</th>
+							<th><span class="sr-only">Acciones</span></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	{/if}
-</Card>
+					</thead>
+					<tbody>
+						{#each data.rows as row (row.slug)}
+							{@const s = state[row.slug]}
+							{@const errs = { ...liveErrors(row.slug), ...s.errors }}
+							{@const changed = changedAgendaFields(s.saved, s.values)}
+							<tr class:dirty={changed.length} on:keydown={(e) => onKey(e, row.slug)}>
+								<td class:changed={changed.includes('date')} class:bad={errs.date}>
+									<input
+										type="date"
+										bind:value={state[row.slug].values.date}
+										aria-label="Fecha de {s.saved.title}"
+										aria-invalid={errs.date ? 'true' : undefined}
+										title={errs.date}
+									/>
+									<small class="hint left"
+										>{s.values.date ? dayLabel(s.values.date).split(' ')[0] : ''}</small
+									>
+								</td>
+								<td class:changed={changed.includes('startTime')} class:bad={errs.startTime}>
+									<input
+										type="time"
+										bind:value={state[row.slug].values.startTime}
+										aria-label="Hora de inicio de {s.saved.title}"
+										aria-invalid={errs.startTime ? 'true' : undefined}
+										title={errs.startTime}
+									/>
+								</td>
+								<td class:changed={changed.includes('endTime')} class:bad={errs.endTime}>
+									<input
+										type="time"
+										bind:value={state[row.slug].values.endTime}
+										aria-label="Hora de fin de {s.saved.title}"
+										aria-invalid={errs.endTime ? 'true' : undefined}
+										title={errs.endTime}
+									/>
+								</td>
+								<td class="title" class:changed={changed.includes('title')} class:bad={errs.title}>
+									<input
+										bind:value={state[row.slug].values.title}
+										maxlength="200"
+										aria-label="Título"
+										aria-invalid={errs.title ? 'true' : undefined}
+										title={errs.title}
+									/>
+									<a class="hint" href={eventPanelLink(row.slug, { tickets: row.sellsTickets })}
+										>ficha →</a
+									>
+								</td>
+								<td
+									class="place"
+									class:changed={changed.includes('locationName')}
+									class:bad={errs.locationName}
+								>
+									<input
+										bind:value={state[row.slug].values.locationName}
+										maxlength="200"
+										placeholder="—"
+										aria-label="Lugar de {s.saved.title}"
+										title={errs.locationName}
+									/>
+								</td>
+								<td class:changed={changed.includes('place')} class:bad={errs.place}>
+									<select
+										bind:value={state[row.slug].values.place}
+										aria-label="Región de {s.saved.title}"
+										aria-invalid={errs.place ? 'true' : undefined}
+										title={errs.place}
+									>
+										{#if s.saved.place === ''}<option value="">—</option>{/if}
+										{#each data.places as p}<option value={p}>{p}</option>{/each}
+									</select>
+								</td>
+								<td class:changed={changed.includes('state')}>
+									<select
+										bind:value={state[row.slug].values.state}
+										aria-label="Estado de {s.saved.title}"
+									>
+										{#each AGENDA_STATES as st}<option value={st.value} title={st.help}
+												>{st.label}</option
+											>{/each}
+									</select>
+								</td>
+								<td class="row-actions">
+									{#if changed.length || s.saving}
+										<button
+											class="kv-btn small"
+											on:click={() => save(row.slug)}
+											disabled={s.saving}
+											aria-label="Guardar {s.saved.title}">{s.saving ? '…' : 'Guardar'}</button
+										>
+										<button
+											class="icon"
+											on:click={() => revert(row.slug)}
+											disabled={s.saving}
+											title="Deshacer los cambios de esta fila"
+											aria-label="Deshacer los cambios de {s.saved.title}"
+											><RotateCcw size={16} aria-hidden="true" /></button
+										>
+									{/if}
+									{#if s.message}
+										<small class="msg" class:error={s.error} role="status">{s.message}</small>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</Card>
+</div>
 <p class="muted foot">
 	Cada fila se guarda con un cambio en GitHub (igual que el editor) y queda en el registro de
 	actividad. El sitio tarda unos minutos en mostrarlo. Para todo lo demás (texto, imagen, entradas),
@@ -377,6 +380,9 @@
 		padding: 0.5rem 0.6rem 0.5rem 1rem;
 		margin-bottom: 1rem;
 	}
+	.sheet-box {
+		contain: inline-size;
+	}
 	.sheet td {
 		padding: 0;
 		border-right: 1px solid var(--line);
@@ -388,6 +394,7 @@
 	}
 	.sheet th {
 		white-space: nowrap;
+		position: relative;
 	}
 	.sheet input,
 	.sheet select {

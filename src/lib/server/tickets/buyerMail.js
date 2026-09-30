@@ -3,7 +3,7 @@
  * horario, algo para llevar…) a todas las personas con una orden aprobada del evento.
  *
  * - Un envío tiene un id que genera la página al abrir el formulario (tablas de
- *   migrations/0005_event_mail.sql). El mismo id con el mismo texto es el mismo envío: un doble
+ *   migrations/0006_event_mail.sql). El mismo id con el mismo texto es el mismo envío: un doble
  *   click o un reintento no crea otro.
  * - Se manda en tandas de a `limit` (cada mail es un subrequest y un Worker tiene un límite por
  *   pedido): la página pide tandas hasta que no queda nadie, mostrando el progreso.

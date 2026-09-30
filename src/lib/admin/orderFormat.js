@@ -23,7 +23,9 @@ export const ORDER_STATUS_TONE = /** @type {Record<string, 'ok' | 'warn' | 'bad'
 export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago',
 	transferencia: 'Transferencia',
-	gratis: 'Sin cargo'
+	gratis: 'Sin cargo',
+	// Venta en la puerta (modo puerta).
+	efectivo: 'Efectivo (en la puerta)'
 });
 
 /**

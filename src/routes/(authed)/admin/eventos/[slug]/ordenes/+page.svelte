@@ -116,7 +116,7 @@
 	{/if}
 	<ul class="orders">
 		{#each visible as o (o.id)}
-			<li class="order status-{o.status}">
+			<li class="order status-{o.status}" id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
 					<span class="dni">DNI {formatDni(o.dni)}</span>
@@ -302,6 +302,12 @@
 	.search:focus-within {
 		outline: 2px solid var(--link);
 		outline-offset: 2px;
+	}
+	.order {
+		scroll-margin-top: 5rem;
+	}
+	.order:target {
+		box-shadow: 0 0 0 3px var(--link);
 	}
 	.orders {
 		list-style: none;

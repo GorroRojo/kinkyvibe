@@ -69,7 +69,7 @@ function event({ user = ADMIN, form = {} } = {}) {
 	});
 }
 
-/** @param {() => Promise<any>} fn */
+/** @param {() => any} fn */
 async function thrown(fn) {
 	try {
 		await fn();
