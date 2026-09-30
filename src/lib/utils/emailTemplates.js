@@ -260,11 +260,13 @@ export function renderInlineHtml(text, vars) {
 		values.push(v);
 		return `\u0000${values.length - 1}\u0000`;
 	});
-	return escapeHtml(marked)
-		.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-		.replace(/\n/g, '<br>')
-		// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
-		.replace(/\u0000(\d+)\u0000/g, (_, i) => escapeHtml(values[Number(i)]));
+	return (
+		escapeHtml(marked)
+			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+			.replace(/\n/g, '<br>')
+			// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
+			.replace(/\u0000(\d+)\u0000/g, (_, i) => escapeHtml(values[Number(i)]))
+	);
 }
 
 /**
