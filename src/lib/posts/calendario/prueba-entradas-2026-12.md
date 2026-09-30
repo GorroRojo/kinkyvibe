@@ -114,7 +114,7 @@ En el admin del evento tocá **Exportar CSV**: una fila por entrada, con su cód
 
 ### 8. Ajustes de venta (alias para transferir y comisión)
 
-1. Andá a `http://localhost:5173/admin/entradas/ajustes` (también está el link en `/admin/entradas` y en el panel `/admin`).
+1. Andá a `http://localhost:5173/admin/ajustes/cobros` (en el panel: **Ajustes → Cobros**).
 2. Completá **Alias**, **CBU/CVU**, **Titular** y **Banco** con datos **inventados** (por ejemplo `OTRO.ALIAS.PRUEBA`) y la **comisión** (por ejemplo `6,5`). Guardá.
 3. Hacé una compra por transferencia: los datos que aparecen son los que cargaste (ya no los de `.env.tickets`). Con Mercado Pago, el recargo usa la comisión nueva.
 4. Borrá todos los campos de transferencia y guardá: se vuelve a usar `TICKETS_TRANSFER_INFO`. (En un sitio sin esa variable, con los campos vacíos no se ofrece transferencia.)

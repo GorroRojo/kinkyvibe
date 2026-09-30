@@ -1,5 +1,5 @@
 /**
- * Ajustes de venta que se editan desde el admin (/admin/entradas/ajustes), guardados en D1
+ * Ajustes de venta que se editan desde el panel (/admin/ajustes/cobros, /fondo y /mails), en D1
  * (`ticket_settings`, migrations/0002_tickets.sql): datos para transferir y comisión de
  * Mercado Pago. Si un ajuste está vacío se usa la variable de entorno de siempre
  * (TICKETS_TRANSFER_INFO, TICKETS_MP_FEE_PERCENT), así que un deploy sin nada cargado en el

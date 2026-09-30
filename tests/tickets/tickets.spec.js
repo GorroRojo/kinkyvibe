@@ -414,7 +414,7 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	const gratis = `E2EGRATIS${suffix}`;
 
 	await page.goto('/admin/entradas');
-	await expect(page.getByRole('link', { name: /Códigos de descuento/ })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Códigos', exact: true }).last()).toHaveAttribute(
 		'href',
 		'/admin/entradas/codigos'
 	);

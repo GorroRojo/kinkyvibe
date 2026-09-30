@@ -90,7 +90,7 @@ export async function getGateway(fetchFn) {
 
 /**
  * Datos de la cuenta para transferencias de TICKETS_TRANSFER_INFO (la variable de entorno, que
- * se usa si no hay nada cargado en /admin/entradas/ajustes). Se aceptan saltos de línea reales
+ * se usa si no hay nada cargado en /admin/ajustes/cobros). Se aceptan saltos de línea reales
  * o escritos como `\n`. `null` si no está configurada.
  */
 export function envTransferInfo() {
@@ -99,7 +99,7 @@ export function envTransferInfo() {
 }
 
 /**
- * Datos para transferir (alias, CBU/CVU, titular, banco): los de /admin/entradas/ajustes o, si
+ * Datos para transferir (alias, CBU/CVU, titular, banco): los de /admin/ajustes/cobros o, si
  * no hay ninguno cargado, TICKETS_TRANSFER_INFO. `null` si no hay ninguno: en ese caso la opción
  * "Transferencia" no se ofrece aunque el evento la habilite.
  *
@@ -129,7 +129,7 @@ export function contactEmail() {
 
 /**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
- * /admin/entradas/ajustes o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
+ * /admin/ajustes/mails o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
@@ -161,7 +161,7 @@ let warnedFee = false;
 
 /**
  * Comisión de Mercado Pago que se suma como recargo, en centésimos de punto (773 = 7,73 %). En
- * orden: la del evento (`mp_fee_percent`), la de /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT
+ * orden: la del evento (`mp_fee_percent`), la de /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT
  * o, si no hay ninguna, DEFAULT_MP_FEE_PERCENT (2 %). Con `0` en cualquiera, sin recargo.
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
