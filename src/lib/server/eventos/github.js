@@ -555,7 +555,8 @@ export function autoMergeProblem(message) {
 
 /**
  * Turns on auto-merge (merge commit). When main requires no check at that moment GitHub refuses
- * ("clean status": there is nothing to wait for), so the PR is merged right away instead.
+ * ("clean status", or "does not have required protected branch rules" when main is protected
+ * without required checks: there is nothing to wait for), so the PR is merged right away instead.
  * @param {string} token
  * @param {{number: number, nodeId: string}} pull
  * @returns {Promise<{state: 'auto'|'merged'|'open', problem?: string}>}
@@ -579,7 +580,12 @@ export async function enableAutoMerge(token, pull) {
 		return { state: 'auto' };
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e);
-		if (/(clean|unstable|has_hooks) status/i.test(message)) {
+		// Nothing to wait for: no required check on main, in either of GitHub's wordings.
+		if (
+			/(clean|unstable|has_hooks) status|does not have required protected branch rules/i.test(
+				message
+			)
+		) {
 			try {
 				await gh(token, 'PUT', `pulls/${pull.number}/merge`, { merge_method: 'merge' });
 				return { state: 'merged' };
