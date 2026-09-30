@@ -5,7 +5,7 @@
  * non-2xx response throws a GitHubError with GitHub's own message, so the page can tell the
  * organizer what went wrong.
  */
-import { Buffer } from 'buffer';
+import { base64ToUtf8 } from '$lib/utils/base64.js';
 
 export const REPO = 'GorroRojo/kinkyvibe';
 export const BRANCH = 'main';
@@ -35,6 +35,18 @@ export class FileChangedError extends Error {
 	/** @param {string} path */
 	constructor(path) {
 		super(`${path} cambió en GitHub mientras tanto`);
+		this.path = path;
+	}
+}
+
+/** Thrown when GitHub sends a file without its content (files over 1 MB come as encoding "none"). */
+export class UnreadableFileError extends Error {
+	/**
+	 * @param {string} path
+	 * @param {string} encoding
+	 */
+	constructor(path, encoding) {
+		super(`${path}: encoding ${encoding} no soportado`);
 		this.path = path;
 	}
 }
@@ -235,7 +247,7 @@ async function changedPaths(token, expected, ref) {
  * auto-merge on: GitHub merges it by itself once CI passes. A second save of the same post while
  * its PR is still open goes on top of that PR's branch (and the editor reads the post from that
  * branch meanwhile), so quick consecutive saves don't produce conflicting PRs. See
- * docs/contenido.md.
+ * docs/publicar-contenido.md.
  */
 
 export const CONTENT_BRANCH_PREFIX = 'contenido/';
@@ -408,7 +420,9 @@ export async function readFile(token, path) {
 	const { found: file, ref } = await getLatestContents(token, path);
 	if (!file) return null;
 	if (Array.isArray(file) || file.type !== 'file') throw new Error(`${path} no es un archivo`);
-	return { raw: Buffer.from(file.content, file.encoding).toString('utf-8'), sha: file.sha, ref };
+	// Files over 1 MB come with encoding "none" and no content: fail instead of returning ''.
+	if (file.encoding !== 'base64') throw new UnreadableFileError(path, file.encoding);
+	return { raw: base64ToUtf8(file.content), sha: file.sha, ref };
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+import { utf8ToBase64 } from '$lib/utils/base64.js';
 
 /**
  * Throws unless `endpoint` is a plain API path: letters, digits, `.`, `_`, `-` and `/`, with no
@@ -43,7 +43,7 @@ export async function ghGet(endpoint, token) {
  * Sends a PUT request to the GitHub API with the specified endpoint, token, and body.
  *
  * @deprecated Writes straight to a branch, and main is protected: the panel publishes through
- * commitFiles in $lib/server/eventos/github.js (a PR that merges itself, see docs/contenido.md).
+ * commitFiles in $lib/server/eventos/github.js (a PR that merges itself, see docs/publicar-contenido.md).
  * @param {string} endpoint - The endpoint to send the PUT request to.
  * @param {string} token - The authentication token to include in the request header.
  * @param {string} body - The body of the PUT request.
@@ -61,7 +61,7 @@ export async function ghPut(endpoint, token, body, sha, userName = 'admin', cate
 		},
 		body: JSON.stringify({
 			message: `[admin] ${userName} updated ${category}/${postID}`,
-			content: Buffer.from(body, 'utf-8').toString('base64'),
+			content: utf8ToBase64(body),
 			sha: sha
 		})
 	});

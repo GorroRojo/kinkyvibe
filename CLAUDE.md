@@ -16,8 +16,8 @@ Claude sessions, so small, verified PRs matter more than speed.
 | What                  | Command                                                           |
 | --------------------- | ----------------------------------------------------------------- |
 | Dev server            | `npm run dev` (applies local D1 migrations first)                 |
-| Dev with fake admin   | `npm run dev:admin` (once the tickets PR adds it; `.env.admin`)   |
-| Dev with fake tickets | `npm run dev:tickets` (same; `.env.tickets`, Mercado Pago mocked) |
+| Dev with fake admin   | `npm run dev:admin` (`.env.admin`)                                |
+| Dev with fake tickets | `npm run dev:tickets` (`.env.tickets`, Mercado Pago mocked)       |
 | Unit tests            | `npm run test:unit` (= `npx vitest run`)                          |
 | E2E (Playwright)      | `npm run test:e2e` (builds first; `PW_NO_BUILD=1` reuses a build) |
 | Lint                  | `npm run lint`                                                    |
@@ -94,7 +94,7 @@ ratchet. The `ci-ok` job is the single required check; if you add a job, add it 
 - Routes: `src/routes/(content)` public pages, `src/routes/(authed)` admin and editor.
 - Server code: `src/lib/server/` (auth, session, D1 in `db/`). Shared helpers: `src/lib/utils/`.
 - Unit tests next to the code (`*.test.js`); E2E tests in `tests/`.
-- Ticket sales docs: `docs/tickets.md` (once the tickets PR is merged).
+- Docs per area (read the one you touch, update it in the same PR): `docs/README.md`.
 - D1 migrations: `migrations/NNNN_name.sql`, **append-only**. Never edit a migration that may
   have been applied; add a new numbered one instead.
 

@@ -8,12 +8,17 @@
  *   Por defecto: 48 h antes y el mismo día a las 9:00.
  * - Un evento puede no mandarlos con `recordatorios: false` en el frontmatter.
  * - Los manda POST /api/cron/recordatorios (lo llama cada 15 minutos el Worker de
- *   workers/cron/). Idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes
- *   de mandar; si el envío falla, se libera para reintentar en la próxima corrida.
+ *   workers/cron/), en tandas: cada corrida manda como mucho "de a cuántos" (Ajustes → Mails) y
+ *   la siguiente sigue. Idempotente: `reminder_sends` (orden + id del recordatorio) se reserva
+ *   antes de mandar; si el envío falla se reintenta en la próxima corrida, hasta 3 intentos, y
+ *   después queda 'failed' y aparece en "Para revisar" (ver sendState.js).
  * - Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que todavía no
  *   empezaron, y compradas antes de que el recordatorio "venciera" (quien compra una hora antes
  *   del evento ya tiene el mail de las entradas: no le llega el de "faltan 2 días").
  */
+
+import { DEFAULT_MAIL_BATCH_SIZE } from './batchSize.js';
+import { STALE_CLAIM_MS, expireStaleClaims, pendingSendSql, sendBatch } from './sendState.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -118,7 +123,8 @@ export function reminderDueAt(r, start) {
 }
 
 /**
- * Órdenes a las que les toca un recordatorio ahora.
+ * Órdenes a las que les toca un recordatorio ahora (y todavía no lo recibieron ni se agotaron
+ * sus intentos), del evento más cercano al más lejano.
  *
  * @param {D1Database} db
  * @param {{
@@ -130,7 +136,8 @@ export function reminderDueAt(r, start) {
  */
 export async function dueReminderOrders(db, { events, reminders, now }) {
 	const out = [];
-	for (const e of events) {
+	const sorted = [...events].sort((a, b) => a.start - b.start);
+	for (const e of sorted) {
 		if (!e.reminders || e.cancelled || !(e.start > now)) continue;
 		for (const r of reminders) {
 			if (!r.enabled) continue;
@@ -141,10 +148,10 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 				.prepare(
 					`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND o.status = 'approved'
 						AND o.created_at < ?2
-						AND NOT EXISTS (SELECT 1 FROM reminder_sends s WHERE s.order_id = o.id AND s.reminder_id = ?3)
+						AND ${pendingSendSql('reminder_sends', { key: 3, stale: 4 })}
 					ORDER BY o.created_at`
 				)
-				.bind(e.slug, due, id)
+				.bind(e.slug, due, id, now - STALE_CLAIM_MS)
 				.all();
 			for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
 				out.push({ order, reminder: r, id, slug: e.slug });
@@ -155,42 +162,76 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 }
 
 /**
- * Manda los recordatorios que tocan (idempotente: ver arriba).
+ * Manda una tanda de los recordatorios que tocan: como mucho `limit` mails (el resto, en la
+ * próxima corrida del cron). Idempotente: ver sendState.js.
  *
  * @param {D1Database} db
  * @param {{
  *   events: { slug: string, start: number, reminders: boolean, cancelled: boolean }[],
  *   reminders: Reminder[],
  *   now?: number,
+ *   limit?: number,
  *   send: (order: import('./orders.js').Order, reminder: Reminder) => Promise<boolean>
  * }} input
- * @returns {Promise<{ sent: number, failed: number }>}
+ * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
  */
-export async function sendDueReminders(db, { events, reminders, now = Date.now(), send }) {
-	let sent = 0;
-	let failed = 0;
-	for (const { order, reminder, id } of await dueReminderOrders(db, { events, reminders, now })) {
-		const claim = await db
-			.prepare(
-				'INSERT OR IGNORE INTO reminder_sends (order_id, reminder_id, sent_at) VALUES (?1, ?2, ?3)'
-			)
-			.bind(order.id, id, now)
-			.run();
-		if (claim.meta.changes !== 1) continue;
-		let ok = false;
-		try {
-			ok = await send(order, reminder);
-		} catch (error) {
-			console.error(`[tickets] no se pudo mandar el recordatorio ${id} de ${order.id}:`, error);
-		}
-		if (ok) sent++;
-		else {
-			failed++;
-			await db
-				.prepare('DELETE FROM reminder_sends WHERE order_id = ?1 AND reminder_id = ?2')
-				.bind(order.id, id)
-				.run();
-		}
-	}
-	return { sent, failed };
+export async function sendDueReminders(
+	db,
+	{ events, reminders, now = Date.now(), limit = DEFAULT_MAIL_BATCH_SIZE, send }
+) {
+	await expireStaleClaims(db, 'reminder_sends', now);
+	const items = await dueReminderOrders(db, { events, reminders, now });
+	return sendBatch(db, 'reminder_sends', {
+		items,
+		limit,
+		now,
+		label: 'el recordatorio',
+		claim: ({ order, id }) => ({ orderId: order.id, key: id }),
+		send: ({ order, reminder }) => send(order, reminder)
+	});
+}
+
+/**
+ * Recordatorios que se intentaron {@link import('./sendState.js').MAX_ATTEMPTS} veces sin
+ * éxito, por evento (solo órdenes aprobadas).
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ * @returns {Promise<Map<string, number>>}
+ */
+export async function failedReminderCounts(db, slugs) {
+	/** @type {Map<string, number>} */
+	const out = new Map();
+	if (!slugs.length) return out;
+	const { results } = await db
+		.prepare(
+			`SELECT o.event_slug AS slug, COUNT(*) AS n FROM reminder_sends s
+			JOIN orders o ON o.id = s.order_id
+			WHERE s.status = 'failed' AND o.status = 'approved'
+				AND o.event_slug IN (${slugs.map((_, i) => `?${i + 1}`).join(', ')})
+			GROUP BY o.event_slug`
+		)
+		.bind(...slugs)
+		.all();
+	for (const r of results) out.set(String(r.slug), Number(r.n));
+	return out;
+}
+
+/**
+ * "Reintentar" desde el panel: los recordatorios que fallaron de un evento vuelven a la cola
+ * (con sus intentos en cero). Devuelve cuántos.
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ */
+export async function retryFailedReminders(db, eventSlug) {
+	const res = await db
+		.prepare(
+			`UPDATE reminder_sends SET status = 'retry', attempts = 0
+			WHERE status = 'failed'
+				AND order_id IN (SELECT id FROM orders WHERE event_slug = ?1 AND status = 'approved')`
+		)
+		.bind(eventSlug)
+		.run();
+	return res.meta.changes ?? 0;
 }

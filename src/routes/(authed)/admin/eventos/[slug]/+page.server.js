@@ -93,7 +93,13 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 					link: current?.link ?? null,
 					updatedAt: current?.updatedAt ?? null,
 					updatedBy: current?.updatedBy ?? null,
-					pending: current ? (await streamLinkRecipients(db, params.slug, current.link)).length : 0,
+					pending: current
+						? (
+								await streamLinkRecipients(db, params.slug, current.link, {
+									includeFailed: true
+								})
+							).length
+						: 0,
 					approvedOrders: Number(approved?.n ?? 0)
 				};
 			} catch (e) {

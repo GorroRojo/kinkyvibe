@@ -4,7 +4,12 @@ import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
-import { FileChangedError, PendingChangeError, readFile } from '$lib/server/eventos/github.js';
+import {
+	FileChangedError,
+	PendingChangeError,
+	readFile,
+	UnreadableFileError
+} from '$lib/server/eventos/github.js';
 import {
 	findAssetUsers,
 	ownImageTarget,
@@ -182,14 +187,6 @@ export const _editActions = {
 		} catch (e) {
 			return fail(502, { error: 'No pudimos consultar GitHub.' });
 		}
-	},
-	load: async ({ locals, request, url }) => {
-		requireAdmin(locals, url);
-		const data = await request.formData();
-		const path = postFilePath(data.get('category'), data.get('path'));
-		if (!path) return fail(400, { error: 'Dirección de publicación inválida.' });
-		const fileContent = await getFileContent(locals.user_token, path);
-		return { post: fileContent };
 	}
 };
 /**
@@ -208,7 +205,11 @@ async function getFileContent(token, path) {
 	}
 	// Main, or the branch of this post's content PR that is still waiting to be published (so
 	// saving again builds on the last save; see commitFiles).
-	const file = await readFile(token, path);
+	const file = await readFile(token, path).catch((e) => {
+		if (e instanceof UnreadableFileError)
+			throw error(502, 'GitHub no devolvió el contenido de la publicación.');
+		throw e;
+	});
 	if (!file) throw error(404, 'No se encontró la publicación');
 	return { raw: file.raw, sha: file.sha, path };
 }

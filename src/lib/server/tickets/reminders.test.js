@@ -138,7 +138,7 @@ describe('envío de recordatorios', () => {
 		// Antes de tiempo: nada.
 		expect(
 			await sendDueReminders(t.db, { events: [EVENT], reminders, now: START - 49 * H, send })
-		).toEqual({ sent: 0, failed: 0 });
+		).toEqual({ sent: 0, failed: 0, remaining: 0 });
 		// A las 48 h: el primero.
 		await sendDueReminders(t.db, { events: [EVENT], reminders, now: START - 47 * H, send });
 		// Otra corrida del cron: no repite.
@@ -193,12 +193,14 @@ describe('envío de recordatorios', () => {
 		const now = START - 47 * H;
 		expect(await sendDueReminders(t.db, { events: [EVENT], reminders, now, send })).toEqual({
 			sent: 0,
-			failed: 1
+			failed: 1,
+			remaining: 0
 		});
 		ok = true;
 		expect(await sendDueReminders(t.db, { events: [EVENT], reminders, now, send })).toEqual({
 			sent: 1,
-			failed: 0
+			failed: 0,
+			remaining: 0
 		});
 	});
 });

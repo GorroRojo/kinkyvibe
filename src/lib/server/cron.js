@@ -1,5 +1,6 @@
 /**
- * Secreto compartido de los endpoints que llama el Worker de cron (workers/cron/).
+ * Secreto compartido de los endpoints de cron (`/api/cron/*`): los llama el cron del propio
+ * Worker (src/lib/server/scheduled.js) y, mientras el sitio siga en Pages, workers/cron/.
  */
 import { sha256Hex } from '$lib/server/hash.js';
 import { timingSafeEqual } from '$lib/server/tickets/mercadopago.js';

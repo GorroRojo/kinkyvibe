@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * En qué quedó un guardado del panel. Los cambios no van directo a main: se guardan en un PR
-	 * que se mergea solo cuando pasan las pruebas (ver docs/contenido.md). Mientras tanto consulta
+	 * que se mergea solo cuando pasan las pruebas (ver docs/publicar-contenido.md). Mientras tanto consulta
 	 * /admin/contenido/estado cada tanto y avisa si se publicó o si falló una prueba.
 	 * Sin `pr` (dev:admin o un preview, que no usan GitHub) muestra el link del commit, si hay.
 	 */

@@ -94,6 +94,7 @@ describe('findAssetUsers / ownImageTarget / readUploadedImage', () => {
 		);
 		const r = await readUploadedImage(png);
 		expect('ext' in r && r.ext).toBe('png');
+		expect('base64' in r && r.base64).toBe('iVBORw0KGgoAAA==');
 		const bad = await readUploadedImage(new File([new Uint8Array([1, 2, 3])], 'x.png'));
 		expect('error' in bad).toBe(true);
 		expect('error' in (await readUploadedImage(null))).toBe(true);

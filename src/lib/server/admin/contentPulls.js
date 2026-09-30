@@ -1,6 +1,6 @@
 /**
  * Estado de los PRs de contenido (ramas `contenido/*`, ver commitFiles en
- * $lib/server/eventos/github.js y docs/contenido.md): para el aviso «se publica cuando pasen las
+ * $lib/server/eventos/github.js y docs/publicar-contenido.md): para el aviso «se publica cuando pasen las
  * pruebas» del editor y para «Para revisar» en el Inicio del panel. Consultas por GraphQL con el
  * token de la persona logueada; sin SvelteKit, así se prueba con un fetch falso.
  */
