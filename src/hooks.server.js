@@ -9,11 +9,15 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-	// DEV ONLY: fake admin session for exercising the admin pages without GitHub (see
+	// DEV ONLY: fake admin session for exercising the admin pages without GitHub. Enabled by
+	// `npm run dev:admin` (Vite mode "admin" loads ADMIN_DEV_MOCK=1 from .env.admin; see
 	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
 	// `vite build`, so this whole block is removed from production bundles.
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
-		event.locals.user = { login: env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo', name: null, avatar_url: '' };
+		const login = env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo';
+		// The real avatar, from the public github.com/<login>.png redirect, so the user menu looks
+		// like it does with a real login (which gets avatar_url from GitHub's /user answer).
+		event.locals.user = { login, name: null, avatar_url: `https://github.com/${login}.png` };
 		event.locals.user_token = 'dev-mock';
 		// Admin checks match the numeric GitHub id: borrow the listed admin's (0 = not an admin).
 		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
