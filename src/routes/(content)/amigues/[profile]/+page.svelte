@@ -5,7 +5,7 @@
 	import { currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
-	import { addMentionPronouns } from '$lib/utils/mentions';
+	import { addMentionPronouns, pronounDisplay } from '$lib/utils/mentions';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -87,11 +87,7 @@
 			{#if data.meta.pronoun && (data.meta.pronoun + '').split('/').pop() != 'evitar'}
 				{#if (data.meta.pronoun + '').startsWith('https')}
 					<a target="_blank" class="u-pronouns" href={data.meta.pronoun + ''}>
-						{@html (data.meta.pronoun + '')
-							.split('/')
-							.pop()
-							?.split(',')[0]
-							.replaceAll('&', '&nbsp;/&nbsp;')}
+						{pronounDisplay(data.meta.pronoun)}
 					</a>
 				{:else}
 					<span class="u-pronouns">{data.meta.pronoun}</span>
