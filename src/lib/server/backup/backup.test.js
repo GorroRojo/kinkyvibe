@@ -73,6 +73,12 @@ afterAll(async () => {
 /**
  * Esquema (sin tablas internas) y todas las filas de todas las tablas, con su tipo exacto.
  *
+ * Las tablas sombra de FTS (`x_data`, `x_idx`…) se comparan por lo que indexan, no byte a byte:
+ * el backup no las copia (dump.js) y SQLite las regenera con una estructura interna que puede
+ * ser distinta (por ejemplo, un índice nunca escrito contra uno reconstruido con 'rebuild').
+ * Por eso se leen las filas de la tabla virtual (su contenido) y `assertFtsIntact` verifica el
+ * índice de la copia.
+ *
  * @param {D1Database} db
  */
 async function snapshot(db) {
@@ -83,7 +89,13 @@ async function snapshot(db) {
 		.all();
 	/** @type {Record<string, unknown[]>} */
 	const rows = {};
-	const tables = schema.filter((r) => r.type === 'table').map((r) => String(r.name));
+	const { results: tableList } = await db
+		.prepare("SELECT name FROM pragma_table_list WHERE schema = 'main' AND type = 'shadow'")
+		.all();
+	const shadows = new Set(tableList.map((r) => String(r.name)));
+	const tables = schema
+		.filter((r) => r.type === 'table' && !shadows.has(String(r.name)))
+		.map((r) => String(r.name));
 	for (const name of tables) {
 		const q = `"${name.replaceAll('"', '""')}"`;
 		const { results: cols } = await db.prepare(`PRAGMA table_xinfo(${q})`).all();
@@ -98,6 +110,24 @@ async function snapshot(db) {
 		rows[name] = results.map((r) => Object.values(r));
 	}
 	return { schema, rows };
+}
+
+/**
+ * Cada índice FTS5 de la base coincide con su contenido (si no, SQLite tira SQLITE_CORRUPT_VTAB).
+ *
+ * @param {D1Database} db
+ */
+async function assertFtsIntact(db) {
+	const { results } = await db
+		.prepare(
+			"SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%fts5%'"
+		)
+		.all();
+	expect(results.length).toBeGreaterThan(0);
+	for (const { name } of results) {
+		const q = `"${String(name).replaceAll('"', '""')}"`;
+		await db.prepare(`INSERT INTO ${q} (${q}, rank) VALUES ('integrity-check', 1)`).run();
+	}
 }
 
 /**
@@ -137,6 +167,7 @@ describe('dump → restore', () => {
 			const after = await snapshot(target.db);
 			expect(after.schema).toEqual(before.schema);
 			expect(after.rows).toEqual(before.rows);
+			await assertFtsIntact(target.db);
 
 			// Las búsquedas de texto completo andan en la copia.
 			const hit = await target.db
@@ -186,6 +217,7 @@ describe('backup en R2', () => {
 		try {
 			await restore(target.db, sql);
 			expect((await snapshot(target.db)).rows).toEqual((await snapshot(source.db)).rows);
+			await assertFtsIntact(target.db);
 		} finally {
 			await target.dispose();
 		}
