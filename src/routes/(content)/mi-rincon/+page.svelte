@@ -44,6 +44,12 @@
 		</form>
 	</section>
 
+	<section class="surface-card" aria-labelledby="perfiles-title">
+		<h2 id="perfiles-title">Tus perfiles</h2>
+		<p class="hint">Los tuyos y los de grupos que gestionás.</p>
+		<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+	</section>
+
 	<section class="surface-card" aria-labelledby="compras-title">
 		<h2 id="compras-title">Tus compras</h2>
 		{#if data.ordersError}
@@ -242,6 +248,9 @@
 	}
 	details p {
 		margin-bottom: 0.6em;
+	}
+	.start {
+		justify-self: start;
 	}
 	.danger {
 		border-top: 0.25rem solid var(--1-dark);
