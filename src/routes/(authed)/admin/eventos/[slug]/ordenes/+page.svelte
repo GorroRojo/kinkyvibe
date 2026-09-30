@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { CircleCheck, ReceiptText, Search, TriangleAlert } from '@lucide/svelte';
+	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -87,6 +87,10 @@
 
 <Card title="Órdenes">
 	<svelte:fragment slot="actions">
+		<!-- Invitaciones, cortesías o pagos por otro lado (la página es del modo puerta, #103). -->
+		<a class="kv-btn small" href="{eventHref(e.slug)}/ordenes/cargar"
+			><TicketPlus size={16} aria-hidden="true" /> Cargar entradas a mano</a
+		>
 		<CsvButton href="{eventHref(e.slug)}/ordenes.csv" label="CSV (una fila por entrada)" />
 	</svelte:fragment>
 	<div class="tools">

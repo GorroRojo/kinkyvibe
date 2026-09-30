@@ -16,8 +16,10 @@ import {
 	clearReview,
 	confirmTransfer,
 	getOrder,
-	refundOrder
+	refundOrder,
+	transferLimits
 } from '$lib/server/tickets/orders.js';
+import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import { getStreamLink, normalizeStreamLink, setStreamLink } from '$lib/server/tickets/stream.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
@@ -92,26 +94,44 @@ export const eventTicketActions = {
 	},
 
 	// "Confirmar pago" de una transferencia: aprueba, emite las entradas y manda el mail.
-	// Idempotente: un segundo click no emite ni manda nada de nuevo.
+	// Idempotente: un segundo click no emite ni manda nada de nuevo. Si llegó tarde y los lugares
+	// ya se ocuparon, pasa el cupo: contesta 409 con `needsConfirmation` y la página pregunta con
+	// un diálogo; si le admin confirma, reenvía con `override` (ver tickets/overrides.js).
 	confirm: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
 		const config = await getEventTickets(params.slug);
 		if (!config) return fail(404, { transfer: { ok: false, message: 'Evento no encontrado.' } });
-		const orderId = String((await request.formData()).get('order') ?? '');
+		const form = await request.formData();
+		const orderId = String(form.get('order') ?? '').slice(0, 60);
 		const order = await getOrder(db, orderId);
 		const type = config.types.find((t) => t.id === order?.ticket_type);
-		if (!order || !type) {
+		if (!order || !type || order.event_slug !== params.slug) {
 			return fail(404, { transfer: { ok: false, message: 'No encontramos esa orden.' } });
 		}
+		const ref = orderReference(orderId);
+		const now = Date.now();
+		/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
+		const ask = (needsConfirmation) =>
+			fail(409, {
+				transfer: {
+					ok: false,
+					message: `Para confirmar ${ref} hay que pasar el cupo: confirmalo en el aviso.`,
+					order: orderId,
+					needsConfirmation
+				}
+			});
+		const check = checkOverride(await transferLimits(db, { order, type, now }), readOverride(form));
+		if (!check.ok) return ask(check.needsConfirmation);
 		const r = await confirmTransfer(db, {
 			orderId,
 			eventSlug: params.slug,
 			capacity: type.capacity,
-			by: admin.login
+			by: admin.login,
+			override: check.override,
+			now
 		});
-		const ref = orderReference(orderId);
 		if (r.result === 'confirmed' && r.order) {
 			const confirmed = r.order;
 			await logAdminAction(db, locals, {
@@ -119,7 +139,18 @@ export const eventTicketActions = {
 				targetType: 'order',
 				targetId: orderId,
 				summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
-				detail: { event: params.slug, tickets: r.tickets.length, total: confirmed.total }
+				detail: {
+					event: params.slug,
+					tickets: r.tickets.length,
+					total: confirmed.total,
+					...(check.limits.length ? { overrides: check.limits } : {})
+				}
+			});
+			await logOverride(db, locals, {
+				event: params.slug,
+				what: 'confirmación de transferencia',
+				orderId,
+				limits: check.limits
 			});
 			await inBackground(
 				sendOrderEmail({
@@ -147,6 +178,11 @@ export const eventTicketActions = {
 			cancelled: `${ref} está cancelada: no se puede confirmar.`
 		};
 		if (r.result === 'already') return { transfer: { ok: true, message: messages.already } };
+		if (r.result === 'no-capacity') {
+			// Se ocupó el último lugar entre el control y la confirmación: se vuelve a preguntar.
+			const again = checkOverride(await transferLimits(db, { order, type, now }), '');
+			if (!again.ok) return ask(again.needsConfirmation);
+		}
 		return fail(409, { transfer: { ok: false, message: messages[r.result] } });
 	},
 

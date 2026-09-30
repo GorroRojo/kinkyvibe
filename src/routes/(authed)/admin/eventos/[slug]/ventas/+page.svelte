@@ -5,6 +5,7 @@
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import SalesThermometer from '$lib/components/admin/panel/SalesThermometer.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel, formatSaleTime } from '$lib/utils/tickets.js';
@@ -22,7 +23,8 @@
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
 		gratis: 'Sin cargo',
-		efectivo: 'Efectivo (en la puerta)'
+		efectivo: 'Efectivo',
+		otro: 'Otro medio'
 	});
 
 	// Gráfico de barras: entradas por día (últimos 14 días).
@@ -71,11 +73,21 @@
 
 <svelte:head><title>Ventas · {e.title} · Panel</title></svelte:head>
 
+<div class="thermo-card">
+	<Card title="Termómetro de ventas">
+		<SalesThermometer chart={data.chart} />
+	</Card>
+</div>
+
 <div class="stats">
 	<Stat
 		label="Vendidas"
 		value={t.capacity ? `${t.sold} / ${t.capacity}` : String(t.sold)}
-		sub={pct !== null ? `${pct} % del cupo` : ''}
+		sub={pct === null
+			? ''
+			: t.capacity !== null && t.sold > t.capacity
+				? `${pct} % del cupo · ${t.sold - t.capacity} de más`
+				: `${pct} % del cupo`}
 	>
 		<CapacityBar sold={t.sold} held={t.held.total} capacity={t.capacity} />
 	</Stat>
@@ -106,7 +118,11 @@
 					<div class="row">
 						<strong>{type.name}</strong>
 						<span class="num"
-							>{type.sold}{type.capacity == null ? ' · sin cupo' : ` / ${type.capacity}`}</span
+							>{type.sold}{type.capacity == null
+								? ' · sin cupo'
+								: ` / ${type.capacity}`}{#if type.capacity != null && type.sold > type.capacity}<b
+									class="over-txt">+{type.sold - type.capacity} de más</b
+								>{/if}</span
 						>
 					</div>
 					<CapacityBar sold={type.sold} held={type.held} capacity={type.capacity} />
@@ -333,6 +349,9 @@
 </div>
 
 <style>
+	.thermo-card {
+		margin-bottom: 1rem;
+	}
 	.stats {
 		display: grid;
 		gap: 0.8rem;
@@ -361,6 +380,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+	}
+	.over-txt {
+		margin-left: 0.35em;
+		color: var(--bad);
+		font-size: 0.85em;
 	}
 	.types .over strong::after {
 		content: ' · sobrevendido';
