@@ -1,13 +1,8 @@
 /**
  * Secreto compartido de los endpoints que llama el Worker de cron (workers/cron/).
  */
+import { sha256Hex } from '$lib/server/hash.js';
 import { timingSafeEqual } from '$lib/server/tickets/mercadopago.js';
-
-/** @param {string} s */
-async function sha256(s) {
-	const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-	return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 /** Largo mínimo de CRON_SECRET (más corto se considera no configurado). */
 export const MIN_CRON_SECRET_LENGTH = 16;
@@ -21,5 +16,5 @@ export const MIN_CRON_SECRET_LENGTH = 16;
  */
 export async function isValidCronSecret(given, expected) {
 	if (!expected || expected.length < MIN_CRON_SECRET_LENGTH || !given) return false;
-	return timingSafeEqual(await sha256(given), await sha256(expected));
+	return timingSafeEqual(await sha256Hex(given), await sha256Hex(expected));
 }
