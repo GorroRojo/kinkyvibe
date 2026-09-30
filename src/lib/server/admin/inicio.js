@@ -444,7 +444,7 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   online: boolean,
  *   fondoEnabled: boolean,
  *   salesNotYet: boolean,
- *   capacity: number,
+ *   capacity: number | null,
  *   sold: number,
  *   held: number,
  *   revenue: number,
@@ -503,6 +503,8 @@ export function upcomingEvents({
 		if (!day || day < today) continue;
 		const config = ticketed.get(e.slug);
 		const byType = totals.get(e.slug) ?? new Map();
+		// `null`: algún tipo no tiene cupo (sin límite), así que el evento tampoco.
+		/** @type {number | null} */
 		let capacity = 0;
 		let sold = 0;
 		let held = 0;
@@ -512,11 +514,13 @@ export function upcomingEvents({
 		const oversold = [];
 		for (const t of config?.types ?? []) {
 			const c = byType.get(t.id);
-			capacity += t.capacity;
+			/** @type {number | null} */
+			const cap = t.capacity ?? null;
+			capacity = capacity === null || cap === null ? null : capacity + cap;
 			sold += c?.sold ?? 0;
 			held += c?.held ?? 0;
-			if (c && c.sold > t.capacity)
-				oversold.push({ type: t.name, sold: c.sold, capacity: t.capacity });
+			if (c && cap !== null && c.sold > cap)
+				oversold.push({ type: t.name, sold: c.sold, capacity: cap });
 		}
 		for (const c of byType.values()) {
 			revenue += c.revenue;
