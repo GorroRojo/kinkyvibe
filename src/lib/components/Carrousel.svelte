@@ -1,8 +1,6 @@
 <script>
 	// @ts-nocheck
-	import { format } from 'date-fns';
-	import es from 'date-fns/locale/es/index.js';
-	import { toArgentina } from '$lib/utils/dates.js';
+	import { argWeekdayDay } from '$lib/utils/dates.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	/**@type {{path: string, meta: AnyPostData}[]}*/
@@ -88,7 +86,7 @@
 			</div>
 			<div class="details" in:fade={{ delay: 1100 }} out:fade>
 				<h2>
-					{format(toArgentina(post.meta.start), 'EEEE dd', { locale: es })} - {@html (
+					{argWeekdayDay(post.meta.start)} - {@html (
 						post.meta.location_name ?? 'Online'
 					).replaceAll(' ', '&nbsp;')}
 				</h2>
