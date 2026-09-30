@@ -24,6 +24,10 @@ arrancan todo al mismo tiempo y nada termina de usarse.
   - Paso 6: lo social, **algún día**.
   - Paso 7: videos.
   - Paso 8: tienda.
+- **Forma de trabajo para bloques grandes**: se construyen en ramas por parte, se integran y se
+  prueban juntas en una rama de integración, y entran a `main` como **un solo PR de integración**
+  (verificado que funciona una vez mergeado). No se apilan muchos PRs para mergear de a uno ("si
+  no, se pierde mucho"). Los arreglos chicos e independientes pueden seguir siendo su propio PR.
 - **Todo lo nuevo sale detrás de interruptores**, apagado hasta que se prenda desde el panel.
 - PRs abiertos: se mergean en bloques. Primero revisión y seguridad (sin cambios visuales); el
   panel, cuando termine el feedback. Se confirma la lista exacta antes de mergear.
@@ -36,6 +40,7 @@ arrancan todo al mismo tiempo y nada termina de usarse.
 ## Descartado
 
 - Construir varios bloques grandes en paralelo: más difícil de revisar y de usar de verdad.
+- Bloques grandes como pila de PRs mergeados de a uno.
 - Lo social pronto: moderar con tres personas no alcanza, y la comunidad ya tiene su lugar.
 
 ## Consecuencias

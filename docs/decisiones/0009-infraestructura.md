@@ -21,6 +21,8 @@ mismo código.
 - **Pagos**: un segundo proveedor configurado de reserva, que se cambia desde el panel. Lo
   explícito (por ejemplo, video) **nunca** se cobra por Mercado Pago. Las transferencias quedan
   siempre como plan B.
+- Migraciones de producción: las `0004` a `0010` se aplicaron el 30/9, antes de mergear el panel
+  (#115).
 - Datos de demo: fechas relativas y botón "Recargar datos de prueba" en el panel (solo en la rama
   demo).
 - Limpiezas después del merge, en PRs chicos: recordatorios en tandas con tamaño configurable,
