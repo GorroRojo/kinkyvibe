@@ -1,10 +1,16 @@
 <script>
 	import '$lib/styles/style.scss';
-	import {
-		filteredTags,
-		togglePositiveTagFilterFn
-	} from '$lib/utils/stores';
+	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
+
+	// Modo demo (docs/demo.md): constante de compilación, como PREVIEW_BUILD en el servidor. En
+	// el build de producción es `false` y el botón de recargar datos no entra en el bundle.
+	const PREVIEW = __DEPLOY_BRANCH__ !== '' && __DEPLOY_BRANCH__ !== 'main';
+	/** @type {any} */
+	let DemoReload = null;
+	if (PREVIEW) {
+		import('$lib/components/admin/DemoReload.svelte').then((m) => (DemoReload = m.default));
+	}
 	// onMount(() => {
 	filteredTags.set([]);
 	// });
@@ -29,6 +35,9 @@
 	<!-- Preview deploys only (docs/demo.md) -->
 	<p class="demo-banner" role="status">
 		🧪 <strong>Modo demo:</strong> los cambios se guardan solo en la base de prueba.
+		{#if DemoReload && $page.data.user?.admin && $page.url.pathname.startsWith('/admin')}
+			<svelte:component this={DemoReload} />
+		{/if}
 	</p>
 {/if}
 

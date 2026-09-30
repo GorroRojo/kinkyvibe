@@ -1,50 +1,39 @@
 /**
- * POST /api/preview-seed: vuelve a cargar los datos inventados del modo demo en la base del
- * preview (scripts/demo/generated/*.sql, generados con scripts/demo/seed.js). SOLO rama `demo`:
- * este archivo no se mergea. En producción (y fuera de Pages) responde 404; pide sesión de admin.
+ * POST /api/preview-seed: borra los datos de prueba del modo demo y los vuelve a cargar con
+ * fechas relativas a este momento (src/lib/server/demo/seed.js; lo usa el botón «Recargar datos
+ * de prueba» del aviso del modo demo). Solo en deploys de preview y para admins: en producción
+ * responde 404, y como el seed solo se importa dentro de `if (PREVIEW_BUILD)`, no está en el
+ * bundle.
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { isPreviewDeploy } from '$lib/server/deploy.js';
+import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
 import { isAdmin } from '$lib/server/auth.js';
-
-const FILES = import.meta.glob('/scripts/demo/generated/*.sql', {
-	query: '?raw',
-	import: 'default',
-	eager: true
-});
-
-/** @param {string} text */
-function statements(text) {
-	return text
-		.split('\n')
-		.filter((l) => !l.trim().startsWith('--'))
-		.join('\n')
-		.split(/;\s*\n/)
-		.map((s) => s.trim().replace(/;$/, ''))
-		.filter(Boolean);
-}
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ platform, locals }) {
-	if (!isPreviewDeploy()) error(404, 'Not found');
-	if (!isAdmin(locals.user)) error(403, 'Solo admins');
-	const db = getDB(platform);
-	if (!db) error(503, 'Sin base de datos');
-	const done = [];
-	for (const [path, text] of Object.entries(FILES).sort(([a], [b]) => a.localeCompare(b))) {
-		const list = statements(/** @type {string} */ (text));
-		for (let i = 0; i < list.length; i += 40) {
-			await db.batch(list.slice(i, i + 40).map((s) => db.prepare(s)));
+	if (PREVIEW_BUILD && isPreviewDeploy()) {
+		if (!isAdmin(locals.user)) error(403, 'Solo admins');
+		const db = getDB(platform);
+		if (!db) error(503, 'Sin base de datos');
+		const [{ reloadDemoData }, { bundle }] = await Promise.all([
+			import('$lib/server/demo/seed.js'),
+			import('$lib/server/demo/bundle.js')
+		]);
+		// Los eventos de prueba que trae el deploy (los de otra fecha se tapan en la capa demo).
+		const bundledSlugs = [...bundle.files].flatMap((path) => {
+			const m = path.match(/^src\/lib\/posts\/calendario\/(demo-[^/]+)\.md$/);
+			return m ? [m[1]] : [];
+		});
+		try {
+			return json(await reloadDemoData(db, { bundledSlugs }));
+		} catch (e) {
+			console.error('[demo] no se pudieron recargar los datos de prueba:', e);
+			error(
+				500,
+				`No se pudieron recargar los datos de prueba: ${/** @type {Error} */ (e).message}`
+			);
 		}
-		done.push({ file: path.split('/').pop(), statements: list.length });
 	}
-	const counts = await db
-		.prepare(
-			`SELECT (SELECT COUNT(*) FROM orders) orders, (SELECT COUNT(*) FROM tickets) tickets,
-			(SELECT COUNT(*) FROM tickets WHERE checked_in_at IS NOT NULL) checked_in,
-			(SELECT COUNT(*) FROM admin_audit) audit, (SELECT COUNT(*) FROM person_notes) notes`
-		)
-		.first();
-	return json({ done, counts });
+	error(404, 'Not found');
 }
