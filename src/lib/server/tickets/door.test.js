@@ -3,6 +3,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import {
 	applyQueuedCheckIns,
+	checkinGroup,
 	dniTail,
 	doorCounts,
 	offlineList,
@@ -332,5 +333,18 @@ describe('offlineList y purchaseDetails', () => {
 		expect(
 			await purchaseDetails(t.db, { slug: 'otro', ticketId: r.tickets[1].id, typeNames: names })
 		).toBeNull();
+	});
+});
+
+describe('checkinGroup', () => {
+	const now = Date.parse('2026-10-04T15:00:00-03:00');
+	it('hoy, próximos, recientes o nada', () => {
+		expect(checkinGroup(Date.parse('2026-10-04T21:00:00-03:00'), now)).toBe('hoy');
+		// Empezó ayer a la noche y sigue (pasó la medianoche).
+		expect(checkinGroup(Date.parse('2026-10-04T05:00:00-03:00') - 3 * 3600000, now)).toBe('hoy');
+		expect(checkinGroup(Date.parse('2026-10-05T00:30:00-03:00'), now)).toBe('proximos');
+		expect(checkinGroup(Date.parse('2026-09-01T20:00:00-03:00'), now)).toBe('recientes');
+		expect(checkinGroup(Date.parse('2026-06-01T20:00:00-03:00'), now)).toBeNull();
+		expect(checkinGroup(null, now)).toBeNull();
 	});
 });

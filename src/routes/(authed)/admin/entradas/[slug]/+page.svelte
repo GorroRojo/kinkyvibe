@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
+	import { eventHref } from '$lib/admin/nav.js';
 
 	let { data, form } = $props();
 
@@ -31,7 +32,8 @@
 	const methodText = {
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
-		gratis: 'Sin cargo'
+		gratis: 'Sin cargo',
+		efectivo: 'Efectivo (puerta)'
 	};
 
 	/** @param {number} ms */
@@ -60,7 +62,7 @@
 
 	<div class="actions">
 		{#if !data.online}
-			<a class="big" href="/admin/entradas/{data.slug}/ingreso">📷 Control de ingreso</a>
+			<a class="big" href={eventHref(data.slug, 'ingreso')}>📷 Modo puerta (check-in)</a>
 		{/if}
 		<a class="big secondary" href="/admin/entradas/{data.slug}/ordenes.csv" download>
 			⬇️ Exportar CSV

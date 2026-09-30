@@ -1,0 +1,145 @@
+<script>
+	/** Check-in: elegir el evento y abrir el modo puerta. */
+	import { DoorOpen } from '@lucide/svelte';
+	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import Card from '$lib/components/admin/panel/Card.svelte';
+	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import { eventHref } from '$lib/admin/nav.js';
+
+	export let data;
+
+	const TZ = 'America/Argentina/Buenos_Aires';
+	/** @param {number} ms */
+	const when = (ms) =>
+		new Date(ms).toLocaleString('es-AR', {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23',
+			timeZone: TZ
+		});
+
+	const SECTIONS = /** @type {const} */ ([
+		['hoy', 'Hoy'],
+		['proximos', 'Próximos'],
+		['recientes', 'Recientes']
+	]);
+	$: empty = SECTIONS.every(([id]) => data.groups[id].length === 0);
+	/** El primer evento (hoy o el próximo) lleva el botón rosa. */
+	$: firstSlug = SECTIONS.map(([id]) => data.groups[id][0]?.slug).find(Boolean) ?? null;
+</script>
+
+<PageHeader
+	title="Check-in"
+	subtitle="Elegí el evento para abrir el modo puerta: pantalla oscura, sin menús, que no se apaga y sigue andando sin conexión."
+/>
+
+{#if !data.hasDb}
+	<p class="note">No hay base de datos disponible: los conteos no se pueden mostrar.</p>
+{/if}
+
+{#if empty}
+	<Card>
+		<p class="empty">
+			No hay eventos presenciales con entradas hoy, próximos ni de los últimos 60 días.
+		</p>
+	</Card>
+{/if}
+
+{#each SECTIONS as [id, label] (id)}
+	{#if data.groups[id].length}
+		<section class="group" aria-labelledby="g-{id}">
+			<h2 id="g-{id}">{label}</h2>
+			<div class="list">
+				{#each data.groups[id] as e (e.slug)}
+					<Card tag="article">
+						<div class="event" class:today={id === 'hoy'}>
+							<div class="info">
+								<h3>{e.title}</h3>
+								<p class="muted">
+									{when(e.start)}{#if e.location}&nbsp;· {e.location}{/if}
+								</p>
+								<p class="count">
+									<b class="num">{e.inside}</b> de <span class="num">{e.total}</span> adentro
+								</p>
+								{#if e.total}<CapacityBar
+										sold={e.inside}
+										capacity={e.total}
+										label="{e.inside} de {e.total} adentro"
+									/>{/if}
+							</div>
+							<a
+								class="kv-btn"
+								class:ghost={e.slug !== firstSlug || id === 'recientes'}
+								href={eventHref(e.slug, 'ingreso')}
+							>
+								<DoorOpen size={18} /> Abrir modo puerta
+							</a>
+						</div>
+					</Card>
+				{/each}
+			</div>
+		</section>
+	{/if}
+{/each}
+
+<style>
+	.group {
+		margin-bottom: 1.4rem;
+	}
+	h2 {
+		font-size: 0.8rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--muted);
+		margin: 0 0 0.6rem;
+	}
+	.list {
+		display: grid;
+		gap: 0.8rem;
+	}
+	@media (min-width: 900px) {
+		.list {
+			grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+		}
+	}
+	.event {
+		display: flex;
+		flex-direction: column;
+		gap: 0.8rem;
+	}
+	.info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+	h3 {
+		margin: 0;
+		font-size: 1.1rem;
+	}
+	p {
+		margin: 0;
+	}
+	.count {
+		font-size: 1.05rem;
+	}
+	.count b {
+		font-size: 1.5rem;
+	}
+	.event .kv-btn {
+		align-self: flex-start;
+		min-height: 2.75rem;
+	}
+	.note {
+		background: var(--warn-bg);
+		color: var(--warn);
+		padding: 0.6rem 0.8rem;
+		border-radius: 0.8rem;
+	}
+	.empty {
+		margin: 0;
+		color: var(--muted);
+	}
+</style>

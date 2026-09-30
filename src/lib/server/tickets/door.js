@@ -469,3 +469,28 @@ export async function sellAtDoor(db, input) {
 		tickets: /** @type {Ticket[]} */ (results)
 	};
 }
+
+const TZ = 'America/Argentina/Buenos_Aires';
+/** Un evento de hasta hace 60 días sale en "Recientes" en /admin/checkin. */
+const RECENT_MS = 60 * 24 * 60 * 60 * 1000;
+/** Un evento que empezó hace menos de esto sigue siendo "hoy" (fiestas que pasan la medianoche). */
+const RUNNING_MS = 12 * 60 * 60 * 1000;
+
+/** @param {number} ms */
+const dayOf = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: TZ });
+
+/**
+ * En qué grupo de /admin/checkin va un evento según su comienzo: hoy (mismo día en Argentina o
+ * empezó hace menos de 12 horas), próximos, recientes (últimos 60 días) o ninguno.
+ *
+ * @param {number | null} start
+ * @param {number} now
+ * @returns {'hoy' | 'proximos' | 'recientes' | null}
+ */
+export function checkinGroup(start, now) {
+	if (start === null) return null;
+	if (dayOf(start) === dayOf(now) || (start <= now && now - start < RUNNING_MS)) return 'hoy';
+	if (start > now) return 'proximos';
+	if (now - start <= RECENT_MS) return 'recientes';
+	return null;
+}
