@@ -1,4 +1,19 @@
 import { Buffer } from 'buffer';
+
+/**
+ * Throws unless `endpoint` is a plain API path: letters, digits, `.`, `_`, `-` and `/`, with no
+ * empty, `.` or `..` segments (so no query string, encoding or path normalization tricks).
+ * @param {string} endpoint
+ */
+export function assertSafeEndpoint(endpoint) {
+	if (
+		typeof endpoint !== 'string' ||
+		!/^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/.test(endpoint) ||
+		endpoint.split('/').some((s) => s === '.' || s === '..')
+	) {
+		throw new Error('Invalid GitHub API endpoint');
+	}
+}
 /**
  * Sends a request to the GitHub API using the specified method and token.
  *
@@ -8,6 +23,7 @@ import { Buffer } from 'buffer';
  * @throws {Error} If the API request fails, an error is thrown with the corresponding status and status text.
  */
 export async function ghGet(endpoint, token) {
+	assertSafeEndpoint(endpoint);
 	let response = await fetch('https://api.github.com/' + endpoint, {
 		headers: {
 			'User-Agent': 'GorroRojo',
@@ -33,6 +49,7 @@ export async function ghGet(endpoint, token) {
  * @return {Promise<*>} - A promise that resolves to the response from the GitHub API.
  */
 export async function ghPut(endpoint, token, body, sha, userName = 'admin', category = '', postID = '') {
+	assertSafeEndpoint(endpoint);
 	let response = await fetch('https://api.github.com/' + endpoint, {
 		method: 'PUT',
 		headers: {

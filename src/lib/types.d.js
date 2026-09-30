@@ -138,6 +138,7 @@
 /**
  * @typedef {Object} GHUser
  * @property {string} login
+ * @property {boolean} [admin] set by the root layout load from $lib/server/auth.js
  * @property {number} id
  * @property {string} node_id
  * @property {string} avatar_url
