@@ -2,7 +2,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
-import { getCounts } from '$lib/server/tickets/orders.js';
+import { getCounts, ordersNeedingReview } from '$lib/server/tickets/orders.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders, fetch }) {
@@ -12,6 +12,16 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 	const db = getDB(platform);
 	const fondo = await resolveFondoPercent({ db, fetch });
 	const events = await listTicketedEvents({ fondoPercent: fondo.percent });
+	/** @type {Map<string, number>} */
+	const review = new Map();
+	if (db) {
+		try {
+			for (const o of await ordersNeedingReview(db))
+				review.set(o.event_slug, (review.get(o.event_slug) ?? 0) + 1);
+		} catch (error) {
+			logDBError('admin tickets review', error);
+		}
+	}
 	const rows = [];
 	for (const { slug, config } of events) {
 		/** @type {Awaited<ReturnType<typeof getCounts>>} */
@@ -44,6 +54,8 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 			types,
 			// Solo los eventos con la etiqueta KinkyVibe usan el Fondo.
 			fondoEnabled: config.fondoEnabled,
+			// Órdenes marcadas para revisar a mano (ver /admin/entradas/<slug>).
+			review: review.get(slug) ?? 0,
 			revenue: types.reduce((s, t) => s + t.revenue, 0),
 			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0),
 			contribution: types.reduce((s, t) => s + t.contribution, 0),

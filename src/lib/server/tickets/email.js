@@ -385,8 +385,12 @@ export function buildRefundEmail({ order, event, typeName, contactEmail }) {
  *   transferInfo: string,
  *   replyTo?: string,
  *   contactEmail: string,
- *   origin: string
+ *   origin: string,
+ *   confirmUrl?: string,
+ *   fullHoldHours?: number
  * }} input
+ * `confirmUrl`: link para confirmar la reserva, que la extiende a `fullHoldHours` horas desde
+ * que se hizo (sin él, el mail no pide confirmar).
  */
 export function buildTransferEmail({
 	order,
@@ -395,7 +399,9 @@ export function buildTransferEmail({
 	transferInfo,
 	replyTo,
 	contactEmail,
-	origin
+	origin,
+	confirmUrl,
+	fullHoldHours
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
@@ -405,9 +411,17 @@ export function buildTransferEmail({
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
 	const subject = `Datos para transferir · ${event.title} (${ref})`;
 	const where = replyTo ? `respondé este mail o escribinos a ${replyTo}` : 'respondé este mail';
+	const confirm =
+		confirmUrl && fullHoldHours && fullHoldHours > hours
+			? {
+					html: `<p style="background:#fff3c4;border-radius:12px;padding:12px 16px"><strong>Confirmá tu reserva</strong> para que te guardemos el lugar ${fullHoldHours} horas: <a href="${escapeHtml(confirmUrl)}">confirmar mi reserva</a>. Si no la confirmás, se libera a las ${hours} ${hours === 1 ? 'hora' : 'horas'}.</p>`,
+					text: `Confirmá tu reserva para que te guardemos el lugar ${fullHoldHours} horas: ${confirmUrl}\nSi no la confirmás, se libera a las ${hours} ${hours === 1 ? 'hora' : 'horas'}.`
+				}
+			: null;
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
 		<h1 style="color:#b3127a;font-size:22px">Reservamos tus entradas</h1>
 		<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>
+		${confirm?.html ?? ''}
 		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="background:#f6eef3;border-radius:12px;padding:12px 16px;white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -422,6 +436,7 @@ export function buildTransferEmail({
 		'Reservamos tus entradas',
 		'',
 		`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
+		...(confirm ? ['', confirm.text] : []),
 		'',
 		`${event.title}`,
 		formatEventDate(event.start),

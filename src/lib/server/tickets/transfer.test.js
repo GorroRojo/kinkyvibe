@@ -4,7 +4,9 @@ import { buildTicketEmail, buildTransferEmail } from './email.js';
 import { createDiscountCode, listDiscountCodes } from './discounts.js';
 import {
 	TRANSFER_HOLD_MS,
+	TRANSFER_INITIAL_HOLD_MS,
 	applyPayment,
+	extendTransferHold,
 	cancelTransfer,
 	checkIn,
 	confirmTransfer,
@@ -39,7 +41,7 @@ function people(n) {
 	}));
 }
 
-/** @param {{ quantity?: number, now?: number, discount?: any }} [o] */
+/** @param {{ quantity?: number, now?: number, discount?: any, holdMs?: number }} [o] */
 async function transfer(o = {}) {
 	const quantity = o.quantity ?? 2;
 	const r = await reserveOrder(t.db, {
@@ -50,7 +52,9 @@ async function transfer(o = {}) {
 		buyer: { name: 'Persona 1', email: 'transfiere@example.com', dni: '25000000' },
 		method: 'transferencia',
 		discount: o.discount,
-		now: o.now ?? NOW
+		now: o.now ?? NOW,
+		// La reserva completa (la que queda al confirmarla desde el mail); ver los tests de abajo.
+		holdMs: 'holdMs' in o ? o.holdMs : TRANSFER_HOLD_MS
 	});
 	return r;
 }
@@ -66,6 +70,67 @@ function confirm(orderId, o = {}) {
 		...o
 	});
 }
+
+describe('reserva inicial corta y confirmación desde el mail', () => {
+	it('sin holdMs la reserva es la inicial; confirmarla la extiende a la completa (una vez, si sigue vigente)', async () => {
+		const r = /** @type {any} */ (await transfer({ holdMs: undefined }));
+		expect(r.order.expires_at).toBe(NOW + TRANSFER_INITIAL_HOLD_MS);
+		expect(TRANSFER_INITIAL_HOLD_MS).toBeLessThan(TRANSFER_HOLD_MS);
+		const extended = await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + 1000);
+		expect(extended?.expires_at).toBe(NOW + TRANSFER_HOLD_MS);
+		// Repetir no la corre más.
+		expect(
+			(await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + 5000))?.expires_at
+		).toBe(NOW + TRANSFER_HOLD_MS);
+	});
+
+	it('una reserva ya vencida no se puede confirmar', async () => {
+		const r = /** @type {any} */ (await transfer({ holdMs: undefined }));
+		expect(
+			await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + TRANSFER_INITIAL_HOLD_MS)
+		).toBeNull();
+	});
+
+	it('el link de confirmación va firmado: otra orden u otra firma no sirven', async () => {
+		const { confirmToken, verifyConfirmToken, confirmUrl } = await import('./safeguards.js');
+		const a = /** @type {any} */ (await transfer({ holdMs: undefined })).order.id;
+		const b = crypto.randomUUID();
+		const tokenA = await confirmToken(t.db, a);
+		expect(tokenA).toMatch(/^[A-Za-z0-9_-]{32}$/);
+		expect(await confirmToken(t.db, a)).toBe(tokenA); // la clave se crea una vez
+		expect(await verifyConfirmToken(t.db, a, tokenA)).toBe(true);
+		expect(await verifyConfirmToken(t.db, b, tokenA)).toBe(false);
+		expect(
+			await verifyConfirmToken(
+				t.db,
+				a,
+				tokenA.replace(/.$/, (c) => (c === 'A' ? 'B' : 'A'))
+			)
+		).toBe(false);
+		expect(await verifyConfirmToken(t.db, a, '')).toBe(false);
+		expect(await confirmUrl(t.db, 'https://kinkyvibe.ar', a)).toBe(
+			`https://kinkyvibe.ar/entradas/${a}/confirmar?k=${tokenA}`
+		);
+	});
+
+	it('el mail pide confirmar la reserva, con el link', async () => {
+		const order = /** @type {any} */ (await transfer({ holdMs: undefined })).order;
+		const m = buildTransferEmail({
+			order,
+			event: { title: 'Fiesta', start: '2026-12-12T21:00-03:00' },
+			typeName: 'Anticipada',
+			transferInfo: 'Alias: EJEMPLO',
+			contactEmail: 'contacto@example.com',
+			origin: 'https://kinkyvibe.ar',
+			confirmUrl: 'https://kinkyvibe.ar/entradas/x/confirmar?k=abc',
+			fullHoldHours: 48
+		});
+		expect(m.html).toContain('Confirmá tu reserva');
+		expect(m.html).toContain('href="https://kinkyvibe.ar/entradas/x/confirmar?k=abc"');
+		expect(m.text).toContain('48 horas: https://kinkyvibe.ar/entradas/x/confirmar?k=abc');
+		expect(m.text).toContain('se libera a las 2 horas');
+	});
+});
 
 describe('transferencia', () => {
 	it('reserva cupo con estado awaiting_transfer y la reserva larga (48 h)', async () => {

@@ -397,7 +397,7 @@ UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js
 
 ## Base de datos
 
-El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. La usa la venta de entradas (ver [Venta de entradas](#venta-de-entradas)): hay dos migraciones, `0001_rate_limits.sql` y `0002_tickets.sql`.
+El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. La usa la venta de entradas (ver [Venta de entradas](#venta-de-entradas)): las migraciones son `0001_rate_limits.sql`, `0002_tickets.sql` y `0003_ticket_safeguards.sql`.
 
 La base es **opcional**: si no está disponible (durante el build, o si todavía no se vinculó en Cloudflare) el sitio anda igual, y cada función que la use tiene que ocultarse o degradar sin romper la página.
 

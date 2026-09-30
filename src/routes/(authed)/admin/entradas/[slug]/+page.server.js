@@ -13,6 +13,7 @@ import {
 } from '$lib/server/tickets/index.js';
 import {
 	cancelTransfer,
+	clearReview,
 	confirmTransfer,
 	getCounts,
 	getOrder,
@@ -93,6 +94,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		confirmedBy: o.confirmed_by,
 		refundedAt: o.refunded_at ?? null,
 		refundedBy: o.refunded_by ?? null,
+		needsReview: o.needs_review ?? null,
+		reviewDetail: o.review_detail ?? null,
 		holders:
 			holdersByOrder.get(o.id) ??
 			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : [])
@@ -118,6 +121,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		// Solo los eventos con la etiqueta KinkyVibe usan el Fondo (las órdenes viejas se muestran
 		// igual si tienen montos del fondo).
 		fondoEnabled: config.fondoEnabled,
+		// Órdenes para revisar a mano (pago tardío sin cupo, pago duplicado).
+		review: rows.filter((r) => r.needsReview),
 		stream,
 		types: config.types.map((t) => ({
 			...t,
@@ -141,6 +146,24 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+	/** Une admin ya revisó una orden marcada: se saca la marca. */
+	reviewed: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { review: { ok: false, message: 'Sin base de datos.' } });
+		const orderId = String((await request.formData()).get('order') ?? '');
+		const order = await getOrder(db, orderId);
+		if (!order || order.event_slug !== params.slug) {
+			return fail(400, { review: { ok: false, message: 'No encontramos esa orden.' } });
+		}
+		const done = await clearReview(db, order.id);
+		return {
+			review: {
+				ok: done,
+				message: done ? 'Marcada como revisada.' : 'Esa orden ya estaba revisada.'
+			}
+		};
+	},
 	resend: async ({ locals, url, params, platform, request, fetch }) => {
 		requireAdmin(locals, url);
 		const db = getDB(platform);

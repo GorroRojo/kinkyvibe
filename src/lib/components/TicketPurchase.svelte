@@ -681,7 +681,8 @@
 									Pagás en Mercado Pago{#if tickets.feeBasisPoints}, con el recargo de la comisión ({feeText}){/if}.
 									Te reservamos el lugar 20 minutos mientras pagás.
 								{:else}
-									Sin recargo. Te reservamos el lugar {tickets.transferHoldHours} horas mientras mandás
+									Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar {tickets.transferHoldHours}
+									horas mientras mandás
 									el comprobante por mail.
 								{/if}
 							</p>

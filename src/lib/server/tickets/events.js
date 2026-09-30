@@ -88,8 +88,19 @@ async function loadMeta(slug) {
 	const mod = /** @type {{ metadata?: Record<string, any> }} */ (await importer());
 	const meta = mod.metadata;
 	if (!meta || meta.force_unpublished) return null;
+	// Los eventos de prueba del repo solo venden en `vite dev` (nunca en el sitio publicado).
+	if (!dev && isTestEventSlug(slug)) return null;
 	const fixture = devFixture(slug, meta);
 	return fixture ? { ...meta, ...fixture } : meta;
+}
+
+/**
+ * Eventos de prueba de la venta de entradas (src/lib/posts/calendario/prueba-entradas-*.md):
+ * sirven para probar en local y no venden en producción.
+ * @param {string} slug
+ */
+export function isTestEventSlug(slug) {
+	return slug.startsWith('prueba-entradas');
 }
 
 /**

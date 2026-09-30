@@ -5,7 +5,9 @@ import {
 	HOLD_MS,
 	TICKET_CODE_ALPHABET,
 	applyPayment,
+	clearReview,
 	foldText,
+	ordersNeedingReview,
 	newTicketCode,
 	normalizeTicketCode,
 	tokenByCode,
@@ -248,9 +250,18 @@ describe('reserva de cupo', () => {
 	});
 
 	it('cupos separados por tipo y por evento', async () => {
-		await reserve({ quantity: 4 });
-		await reserve({ quantity: 1 });
-		expect((await reserve({ type: { id: 'anticipada', price: 5000, capacity: 1 } })).ok).toBe(true);
+		/** @param {string} email */
+		const buyer = (email) => ({ name: 'Persona de Prueba', email, dni: '30000000' });
+		await reserve({ quantity: 4, buyer: buyer('a@example.com') });
+		await reserve({ quantity: 1, buyer: buyer('b@example.com') });
+		expect(
+			(
+				await reserve({
+					type: { id: 'anticipada', price: 5000, capacity: 1 },
+					buyer: buyer('c@example.com')
+				})
+			).ok
+		).toBe(true);
 		expect((await reserve({ eventSlug: 'otro-evento' })).ok).toBe(true);
 	});
 
@@ -384,15 +395,73 @@ describe('applyPayment', () => {
 		expect((await applyPayment(t.db, payment('no-es-uuid'))).outcome).toBe('unknown-order');
 	});
 
-	it('aprobación con la reserva vencida se respeta (la plata entró) y avisa', async () => {
+	it('aprobación con la reserva vencida: se respeta (la plata entró); con cupo libre no se marca', async () => {
 		const o = /** @type {any} */ (await reserve()).order;
 		await reserve({ now: NOW + HOLD_MS + 1 }); // marca la primera como expired
 		expect((await getOrder(t.db, o.id))?.status).toBe('expired');
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		const r = await applyPayment(t.db, payment(o.id));
+		const r = await applyPayment(t.db, payment(o.id), {
+			now: NOW + HOLD_MS + 2,
+			capacityOf: async () => GENERAL.capacity
+		});
 		expect(r.newlyApproved).toBe(true);
-		expect(warn).toHaveBeenCalled();
-		warn.mockRestore();
+		expect(r.order).toMatchObject({ status: 'approved', needs_review: null });
+	});
+
+	it('aprobación con la reserva vencida y sin cupo: se aprueba pero queda para revisar', async () => {
+		const tiny = { ...GENERAL, capacity: 1 };
+		const o = /** @type {any} */ (await reserve({ type: tiny })).order;
+		// Vence y otra persona toma el lugar (y paga).
+		const other = /** @type {any} */ (
+			await reserve({
+				type: tiny,
+				now: NOW + HOLD_MS + 1,
+				buyer: { name: 'Otra Persona', email: 'otra@example.com', dni: '31000000' }
+			})
+		).order;
+		await applyPayment(t.db, payment(other.id, { id: 222 }), { now: NOW + HOLD_MS + 2 });
+		const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const r = await applyPayment(t.db, payment(o.id), {
+			now: NOW + HOLD_MS + 3,
+			capacityOf: async () => tiny.capacity
+		});
+		expect(err).toHaveBeenCalled();
+		err.mockRestore();
+		expect(r.newlyApproved).toBe(true);
+		expect(r.order).toMatchObject({
+			status: 'approved',
+			needs_review: 'late_payment',
+			review_detail: '111'
+		});
+		expect((await ordersNeedingReview(t.db, EVENT)).map((x) => x.id)).toEqual([o.id]);
+		expect(await clearReview(t.db, o.id)).toBe(true);
+		expect(await ordersNeedingReview(t.db)).toEqual([]);
+	});
+
+	it('aprobación tardía sin forma de saber el cupo: se marca para revisar', async () => {
+		const o = /** @type {any} */ (await reserve()).order;
+		const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const r = await applyPayment(t.db, payment(o.id), { now: NOW + HOLD_MS + 1 });
+		err.mockRestore();
+		expect(r.order?.needs_review).toBe('late_payment');
+	});
+
+	it('un segundo pago aprobado para una orden ya pagada queda marcado (posible cobro doble)', async () => {
+		const o = /** @type {any} */ (await reserve()).order;
+		expect((await applyPayment(t.db, payment(o.id))).newlyApproved).toBe(true);
+		// El mismo pago repetido no cambia nada.
+		expect((await applyPayment(t.db, payment(o.id))).outcome).toBe('unchanged');
+		const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const r = await applyPayment(t.db, payment(o.id, { id: 999 }));
+		expect(err).toHaveBeenCalled();
+		err.mockRestore();
+		expect(r).toMatchObject({ outcome: 'flagged', newlyApproved: false });
+		expect(r.order).toMatchObject({
+			status: 'approved',
+			mp_payment_id: '111',
+			needs_review: 'duplicate_payment',
+			review_detail: '999'
+		});
+		expect((await getOrderTickets(t.db, o.id)).length).toBe(1);
 	});
 });
 

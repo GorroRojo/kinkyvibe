@@ -41,6 +41,11 @@
 				<a class="event" href="/admin/entradas/{e.slug}">
 					<span class="title">{e.title}</span>
 					<span class="date">{date(e.start)}{e.status ? ` · ${e.status}` : ''}</span>
+					{#if e.review}
+						<span class="review-badge"
+							>⚠️ {e.review} {e.review === 1 ? 'orden' : 'órdenes'} para revisar</span
+						>
+					{/if}
 					<table>
 						<thead>
 							<tr><th>Tipo</th><th>Vendidas</th><th>Reservadas</th><th>Cobrado</th></tr>
@@ -102,6 +107,14 @@
 </div>
 
 <style>
+	.review-badge {
+		display: inline-block;
+		background: #fff3e0;
+		color: #8a3b00;
+		border-radius: 1em;
+		padding: 0.1em 0.7em;
+		font-weight: bold;
+	}
 	.admin-entradas {
 		max-width: 50rem;
 		margin: 0 auto;

@@ -146,7 +146,7 @@ test('el servidor valida el monto aunque el formulario mande otro', async ({ pag
 				quantity: '1',
 				name: 'Persona Tramposa',
 				pronouns: 'elle',
-				email: 'tramposa@example.com',
+				email: `tramposa-${Date.now()}@example.com`,
 				dni: '12345678',
 				holder_name_0: 'Persona Tramposa',
 				holder_pronouns_0: 'elle',

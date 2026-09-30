@@ -219,10 +219,27 @@ export function salesState(config, now = Date.now()) {
 	return { open: true };
 }
 
-/** @param {unknown} raw */
+/**
+ * Texto de una línea: sin caracteres de control ni de dirección (bidi, ancho cero), espacios
+ * colapsados.
+ * @param {unknown} raw
+ */
 function cleanText(raw) {
-	return typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
+	return typeof raw === 'string'
+		? raw
+				// eslint-disable-next-line no-control-regex -- se sacan a propósito
+				.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, ' ')
+				.trim()
+				.replace(/\s+/g, ' ')
+		: '';
 }
+
+/**
+ * Los nombres van en mails y en el admin: sin links ni etiquetas.
+ * @param {string} text
+ */
+const looksLikeLink = (text) =>
+	/https?:|www\.|[<>]|\b[a-z0-9-]+\.(com|net|org|ar|io|ly|me|xyz)\b/i.test(text);
 
 /**
  * Valida los datos de una persona (una entrada): son para el evento.
@@ -238,6 +255,7 @@ export function validateHolder(raw) {
 	const errors = {};
 	const name = cleanText(raw.name);
 	if (name.length < 2 || name.length > 80) errors.name = 'Poné un nombre (entre 2 y 80 letras).';
+	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
 	const pronouns = cleanText(raw.pronouns);
 	if (!pronouns) errors.pronouns = 'Poné los pronombres de esta persona.';
 	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
@@ -257,6 +275,7 @@ export function validateBuyer(raw) {
 	const errors = {};
 	const name = cleanText(raw.name);
 	if (name.length < 2 || name.length > 80) errors.name = 'Poné tu nombre (entre 2 y 80 letras).';
+	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
 	const pronouns = cleanText(raw.pronouns);
 	if (!pronouns) errors.pronouns = 'Poné tus pronombres.';
 	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';

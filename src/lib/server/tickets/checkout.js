@@ -5,6 +5,7 @@
  * transferir o (total 0) emite las entradas directamente.
  */
 import { fail, redirect } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
@@ -29,21 +30,34 @@ import { buildPreference } from './mercadopago.js';
 import {
 	approveFreeOrder,
 	cancelPendingOrder,
+	TRANSFER_INITIAL_HOLD_MS,
 	getCounts,
 	isValidOrderId,
 	reserveOrder,
 	setPreference
 } from './orders.js';
+import { clientAddress, clientHash } from './safeguards.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
 const MAX_REMEMBERED_ORDERS = 5;
 
-/** Límites anti-abuso para crear órdenes (cada una reserva cupo) y probar códigos. */
+/**
+ * Límites anti-abuso. Primero por cliente (hash de la conexión, ver safeguards.js), así nadie
+ * agota el límite de los demás; el del evento es un techo general holgado. Además de estos, las
+ * reservas abiertas tienen topes por email y por cliente (`HOLD_LIMITS` en orders.js).
+ */
 export const CHECKOUT_RATE_LIMITS = {
-	event: { limit: 30, windowSeconds: 60 },
+	/** Intentos de compra (`?/buy`) por cliente, válidos o no. */
+	client: { limit: 30, windowSeconds: 10 * 60 },
+	/** Techo general por evento (entre todes). */
+	event: { limit: 300, windowSeconds: 60 },
+	/** Órdenes por email de quien compra. */
 	email: { limit: 5, windowSeconds: 10 * 60 },
-	code: { limit: 20, windowSeconds: 10 * 60 }
+	/** Códigos de descuento probados por cliente y evento (en `?/discount` y en `?/buy`). */
+	code: { limit: 20, windowSeconds: 10 * 60 },
+	/** Mails de reserva o de entradas gratis a una misma dirección. */
+	mail: { limit: 3, windowSeconds: 60 * 60 }
 };
 
 /**
@@ -243,7 +257,8 @@ function describeDiscount(d) {
  *
  * @param {import('@sveltejs/kit').RequestEvent & { params: { event: string } }} event
  */
-export async function discountAction({ params, platform, request, getClientAddress }) {
+export async function discountAction(event) {
+	const { params, platform, request } = event;
 	const db = getDB(platform);
 	const values = readForm(await request.formData());
 	/** @param {number} status @param {string} message */
@@ -254,12 +269,9 @@ export async function discountAction({ params, platform, request, getClientAddre
 	const config = await getEventTickets(params.event);
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
 	try {
-		const limit = await hitRateLimit(
-			db,
-			`tickets:c:${await sha256Hex(`${params.event}:${getClientAddress()}`)}`,
-			CHECKOUT_RATE_LIMITS.code
-		);
-		if (!limit.allowed) return failWith(429, 'Demasiados intentos. Probá en unos minutos.');
+		const client = await clientHash(clientAddress(event));
+		if (!(await codeAttemptAllowed(db, params.event, client)))
+			return failWith(429, 'Demasiados intentos. Probá en unos minutos.');
 		const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
 		if (!check.ok) return failWith(400, check.message);
 		return { buy: { error: null, errors: {}, values, discount: describeDiscount(check.discount) } };
@@ -270,11 +282,50 @@ export async function discountAction({ params, platform, request, getClientAddre
 }
 
 /**
+ * Un intento más de código de descuento de este cliente en este evento: ¿está dentro del límite?
+ * Lo usan `?/discount` y `?/buy` (el mismo contador), antes de mirar el código.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {string} client hash de la conexión
+ */
+async function codeAttemptAllowed(db, slug, client) {
+	const limit = await hitRateLimit(
+		db,
+		`tickets:c:${await sha256Hex(`${slug}:${client}`)}`,
+		CHECKOUT_RATE_LIMITS.code
+	);
+	return limit.allowed;
+}
+
+/**
+ * ¿Se le puede mandar otro mail (reserva o entradas gratis) a esta dirección ahora?
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} email
+ */
+async function mailAllowed(db, email) {
+	try {
+		const limit = await hitRateLimit(
+			db,
+			`tickets:mail:${await sha256Hex(email)}`,
+			CHECKOUT_RATE_LIMITS.mail
+		);
+		if (!limit.allowed) console.warn('[tickets] límite de mails a una dirección: no se manda');
+		return limit.allowed;
+	} catch (error) {
+		logDBError('mail rate limit', error);
+		return true;
+	}
+}
+
+/**
  * Form action `?/buy`.
  *
  * @param {import('@sveltejs/kit').RequestEvent & { params: { event: string } }} event
  */
-export async function buyAction({ params, platform, request, url, fetch, cookies }) {
+export async function buyAction(event) {
+	const { params, platform, request, url, fetch, cookies } = event;
 	const db = getDB(platform);
 	const form = await request.formData();
 	const values = readForm(form);
@@ -285,6 +336,17 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 		fail(status, { buy: { error, errors, values, discount: applied } });
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
+	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
+	const relaxed = dev && env.TICKETS_DEV_RELAX_LIMITS === '1';
+	const client = relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event));
+	try {
+		const perClient = await hitRateLimit(db, `tickets:b:${client}`, CHECKOUT_RATE_LIMITS.client);
+		if (!perClient.allowed)
+			return failWith(429, 'Demasiados intentos seguidos. Probá de nuevo en unos minutos.');
+	} catch (error) {
+		logDBError('buy rate limit', error);
+		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
+	}
 	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
 	const fondo = await resolveFondoPercent({ db, fetch });
 	const config = await getEventTickets(params.event, { fondoPercent: fondo.percent });
@@ -322,6 +384,11 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	const gorra = Boolean(config.types.find((t) => t.id === values.type)?.gorra);
 	if (values.code && !gorra) {
 		try {
+			if (!(await codeAttemptAllowed(db, params.event, client))) {
+				return failWith(429, 'Demasiados intentos con códigos. Probá en unos minutos.', {
+					code: 'Demasiados intentos. Probá en unos minutos.'
+				});
+			}
 			const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
 			if (check.ok) {
 				discount = check.discount;
@@ -388,7 +455,12 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			method,
 			feeBasisPoints: await mpFeeBasisPoints(db, config),
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },
-			holdMs: method === 'transferencia' ? transferHoldMs() : undefined
+			// Transferencia: reserva inicial corta; se extiende al confirmar desde el mail.
+			holdMs:
+				method === 'transferencia'
+					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
+					: undefined,
+			clientHash: client
 		});
 	} catch (error) {
 		logDBError('reserve order', error);
@@ -400,6 +472,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 			return failWith(409, 'Revisá el código de descuento.', { code: reserved.message });
 		}
 		if (reserved.reason === 'method') return failWith(400, 'Elegí un medio de pago.');
+		if (reserved.reason === 'limit') return failWith(429, reserved.message);
 		return failWith(
 			409,
 			reserved.available > 0
@@ -415,7 +488,7 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	if (method === 'gratis') {
 		try {
 			const approved = await approveFreeOrder(db, order);
-			if (approved.newlyApproved && approved.order) {
+			if (approved.newlyApproved && approved.order && (await mailAllowed(db, order.buyer_email))) {
 				const approvedOrder = approved.order;
 				await inBackground(
 					sendOrderEmail({ db, order: approvedOrder, tickets: approved.tickets, origin, fetch }),
@@ -431,7 +504,8 @@ export async function buyAction({ params, platform, request, url, fetch, cookies
 	}
 
 	if (method === 'transferencia') {
-		await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
+		if (await mailAllowed(db, order.buyer_email))
+			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		rememberOrder(cookies, url, order.id);
 		redirect(303, statusUrl);
 	}

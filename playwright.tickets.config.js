@@ -44,6 +44,8 @@ const config = {
 		env: {
 			MP_MOCK: '1',
 			ADMIN_DEV_MOCK: '1',
+			// Todas las compras salen de localhost: sin los límites por cliente (hay tests unitarios).
+			TICKETS_DEV_RELAX_LIMITS: '1',
 			// Los "commits" del editor de eventos (tests/tickets/editor.spec.js).
 			ADMIN_DEV_MOCK_DIR: ADMIN_MOCK_DIR,
 			TICKETS_DEV_FIXTURE: ticketsE2EEvent(),

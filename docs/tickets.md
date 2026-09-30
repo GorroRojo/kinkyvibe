@@ -181,7 +181,7 @@ En `/admin/entradas/<slug>`, cada orden aprobada tiene **Reembolsar…**, que ab
 
 Opt-in por evento (`payment_methods`) y requiere datos para transferir (Ajustes de venta o `TICKETS_TRANSFER_INFO`; **nunca en el repo**).
 
-1. La orden queda `awaiting_transfer` con una reserva de **48 h** (`TICKETS_TRANSFER_HOLD_HOURS`). El formulario, la página de estado y el mail dicen "te reservamos el lugar 48 horas mientras mandás el comprobante por mail" (con las horas configuradas; en el estado y el mail, las de esa reserva). Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera.
+1. La orden queda `awaiting_transfer` con una **reserva inicial de 2 h**. El mail trae un link **"Confirmar mi reserva"** (`/entradas/<orden>/confirmar?k=…`, firmado con una clave al azar guardada en D1; abrirlo solo muestra el botón, confirmar es un POST) que la extiende a la reserva completa, **48 h** desde que se hizo (`TICKETS_TRANSFER_HOLD_HOURS`). Sin confirmar, se libera a las 2 h. El formulario, la página de estado y el mail lo explican. Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera.
 2. La persona ve (en `/entradas/<orden>/estado`) el monto, los datos para transferir, una **referencia** `KV-XXXXXXXX` para el concepto y cómo mandar el comprobante (respondiendo el mail o escribiendo a `TICKETS_REPLY_TO`/`TICKETS_CONTACT_EMAIL`). Se le manda un mail con lo mismo.
 3. En `/admin/entradas/<slug>`, **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
 4. **No hay verificación automática:** no existe una API confiable y accesible para enterarse de transferencias entrantes a una cuenta bancaria o CVU común (los bancos no ofrecen webhooks a particulares/pequeñas organizaciones, y leer extractos o mails del banco sería frágil e inseguro). Alguien tiene que mirar la cuenta y confirmar a mano.
@@ -203,26 +203,26 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 ### Archivos
 
-| Qué                                               | Dónde                                                                                              |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Todas las tablas de entradas (una sola migración) | `migrations/0002_tickets.sql`                                                                      |
-| Ajustes de venta                                  | `src/lib/server/tickets/settings.js`, `admin/entradas/ajustes`                                     |
-| Link de la transmisión (online)                   | `src/lib/server/tickets/stream.js`                                                                 |
-| Control de ingreso: código y sugerencias          | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
-| Cálculo de precio, DNI, política (compartido)     | `src/lib/utils/tickets.js`                                                                         |
-| Códigos de descuento                              | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos`                                    |
-| Configuración desde el frontmatter y validación   | `src/lib/server/tickets/config.js`, `events.js`                                                    |
-| Editor de eventos: sección Entradas               | `src/lib/utils/ticketsEditor.js`, `admin/TicketsEditor.svelte`, `src/lib/server/tickets/editor.js` |
-| Órdenes, cupo, estados, check-in (SQL)            | `src/lib/server/tickets/orders.js`                                                                 |
-| Cliente de Mercado Pago y firma del webhook       | `src/lib/server/tickets/mercadopago.js`                                                            |
-| Email (Resend) y QR                               | `src/lib/server/tickets/email.js`, `qr.js`                                                         |
-| Variables, mocks y envío del email                | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)                                            |
-| Form action de compra                             | `src/lib/server/tickets/checkout.js`                                                               |
-| Página y formulario de compra                     | `(content)/calendario/[event]/entradas/`, `TicketPurchase.svelte`                                  |
-| Webhook                                           | `src/routes/api/mercadopago/webhook/+server.js`                                                    |
-| Páginas públicas (estado, entrada, QR, simulado)  | `src/routes/entradas/`                                                                             |
-| Admin y control de ingreso                        | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`                                          |
-| Tests                                             | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)                                         |
+| Qué                                              | Dónde                                                                                              |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Tablas de entradas (y resguardos)                | `migrations/0002_tickets.sql`, `0003_ticket_safeguards.sql`                                        |
+| Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/entradas/ajustes`                                     |
+| Link de la transmisión (online)                  | `src/lib/server/tickets/stream.js`                                                                 |
+| Control de ingreso: código y sugerencias         | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
+| Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                                                         |
+| Códigos de descuento                             | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos`                                    |
+| Configuración desde el frontmatter y validación  | `src/lib/server/tickets/config.js`, `events.js`                                                    |
+| Editor de eventos: sección Entradas              | `src/lib/utils/ticketsEditor.js`, `admin/TicketsEditor.svelte`, `src/lib/server/tickets/editor.js` |
+| Órdenes, cupo, estados, check-in (SQL)           | `src/lib/server/tickets/orders.js`                                                                 |
+| Cliente de Mercado Pago y firma del webhook      | `src/lib/server/tickets/mercadopago.js`                                                            |
+| Email (Resend) y QR                              | `src/lib/server/tickets/email.js`, `qr.js`                                                         |
+| Variables, mocks y envío del email               | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)                                            |
+| Form action de compra                            | `src/lib/server/tickets/checkout.js`                                                               |
+| Página y formulario de compra                    | `(content)/calendario/[event]/entradas/`, `TicketPurchase.svelte`                                  |
+| Webhook                                          | `src/routes/api/mercadopago/webhook/+server.js`                                                    |
+| Páginas públicas (estado, entrada, QR, simulado) | `src/routes/entradas/`                                                                             |
+| Admin y control de ingreso                       | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`                                          |
+| Tests                                            | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)                                         |
 
 ## Variables de entorno
 
@@ -242,6 +242,7 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 | `TICKETS_MP_FEE_PERCENT`      | Opcional. Respaldo de la comisión de MP si en Ajustes de venta está vacía (sin ninguna: 2 %). `0` = sin recargo.                                             |
 | `FONDO_PERCENT_URL`           | Opcional. De dónde se lee el porcentaje del Fondo (por defecto `https://fondo.kinkyvibe.ar/api/porcentaje`).                                                 |
 | `SITE_URL`                    | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.                   |
+| `TICKETS_CLIENT_SALT`         | Opcional, Secret. Sal del hash de cliente de los límites anti-abuso (sin ella se usa una fija que igual rota cada día). Cualquier texto largo al azar.       |
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
 
@@ -305,7 +306,7 @@ Requiere tener D1 activado (ver la sección "Base de datos" del README). Antes d
 npm run db:migrate:remote        # = npx wrangler d1 migrations apply kinkyvibe --remote
 ```
 
-Aplica 2 migraciones: `0001_rate_limits.sql` (de la base) y `0002_tickets.sql` (todas las tablas de entradas en un solo archivo; como la base de producción no tenía tablas, no hay historial de migraciones intermedias). De acá en adelante, cada cambio de esquema va en una migración nueva.
+Aplica las migraciones que falten: `0001_rate_limits.sql` (de la base), `0002_tickets.sql` (todas las tablas de entradas en un solo archivo) y `0003_ticket_safeguards.sql` (columnas para los límites por cliente y las órdenes para revisar). Se puede correr cuantas veces se quiera. De acá en adelante, cada cambio de esquema va en una migración nueva.
 
 (y lo mismo contra la base de preview si se usa otra). Consultas útiles:
 
@@ -317,13 +318,15 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 
 - **Precio:** solo desde el frontmatter en el servidor; el webhook además compara el monto y la moneda del pago con el total guardado en la orden.
 - **Webhook:** firma HMAC-SHA256 con comparación de tiempo constante y `ts` de hasta 15 minutos; aun con firma válida, el estado se toma de la API de MP con nuestro token, nunca del body. Las notificaciones IPN viejas (`?topic=…`, sin firma) se ignoran.
-- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes.
+- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/entradas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
+- **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
+- **Eventos de prueba:** los `prueba-entradas-*` del repo solo venden en `vite dev` (`isTestEventSlug` en `events.js`); en el sitio publicado no tienen venta.
 - **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`.
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
 - **CSV:** celdas que empiezan con `= + - @` se escapan (inyección de fórmulas).
 - **Privacidad:** de quien compra, nombre, pronombres, email y DNI; de cada entrada, nombre y pronombres. En el navegador, el borrador del formulario (DNI incluido) vive solo en `sessionStorage` de esa pestaña y se borra al comprar; nunca en `localStorage`. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
-- **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos de "Aplicar".
+- **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos por cliente y evento, el mismo contador para "Aplicar" y para comprar con un código.
 - **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.
 - **Entradas:** quien tiene el link de una entrada no puede marcarse el ingreso (el form action `?/checkin` llama a `requireAdmin`: sin sesión redirige a `/login`, con sesión no admin a `/`; y la página no muestra el botón): tests en `src/routes/entradas/t/[token]/security.test.js`. El checkout simulado responde 404 fuera de `vite dev` con el mock (test en `simular-pago/[order]/gate.test.js`).
 - **Link de transmisión:** solo en D1, nunca en el repo; se muestra solo en entradas de compras aprobadas.

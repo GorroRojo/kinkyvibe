@@ -36,7 +36,9 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
- *   refunded_at?: number | null, refunded_by?: string | null
+ *   refunded_at?: number | null, refunded_by?: string | null,
+ *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
+ *   review_detail?: string | null
  * }} Order
  */
 /**
@@ -52,6 +54,25 @@ export const HOLD_MS = 20 * 60 * 1000;
 
 /** Reserva por defecto mientras se espera una transferencia (TICKETS_TRANSFER_HOLD_HOURS). */
 export const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Reserva inicial de una transferencia: se extiende a la completa cuando quien compra la confirma
+ * desde el link del mail (ver `extendTransferHold`).
+ */
+export const TRANSFER_INITIAL_HOLD_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Topes de reservas abiertas (pendientes de pago) por evento: por email de quien compra y por
+ * cliente (`client_hash`). Lo aprobado no cuenta. Un formulario completo entra holgado.
+ */
+export const HOLD_LIMITS = {
+	/** Entradas reservadas a la vez por email. */
+	perEmailQuantity: 20,
+	/** Reservas (órdenes) abiertas a la vez por email. */
+	perEmailOrders: 2,
+	/** Entradas reservadas a la vez por cliente. */
+	perClientQuantity: 40
+};
 
 const ORDER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -138,10 +159,13 @@ export function newToken() {
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
  *   now?: number,
- *   holdMs?: number
+ *   holdMs?: number,
+ *   clientHash?: string | null,
+ *   limits?: typeof HOLD_LIMITS
  * }} input
  * @returns {Promise<{ ok: true, order: Order }
  *   | { ok: false, reason: 'soldout', available: number }
+ *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'method' }>}
  */
@@ -170,7 +194,9 @@ export async function reserveOrder(db, input) {
 	// El medio "gratis" es solo para total 0, y un total 0 solo puede ser "gratis".
 	if ((method === 'gratis') !== (prices.total === 0)) return { ok: false, reason: 'method' };
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
-	const holdMs = input.holdMs ?? (method === 'transferencia' ? TRANSFER_HOLD_MS : HOLD_MS);
+	const holdMs = input.holdMs ?? (method === 'transferencia' ? TRANSFER_INITIAL_HOLD_MS : HOLD_MS);
+	const limits = input.limits ?? HOLD_LIMITS;
+	const clientHash = input.clientHash ?? null;
 	const status = method === 'transferencia' ? 'awaiting_transfer' : 'pending';
 	const id = crypto.randomUUID();
 	const [, inserted] = await db.batch([
@@ -181,10 +207,13 @@ export async function reserveOrder(db, input) {
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
 					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns,
-					fondo_percent)
+					fondo_percent, client_hash)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22, ?23, ?24, ?25, ?26
-				WHERE (
+					?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27
+				WHERE ${openHoldsSql('buyer_email = ?8', 'SUM(quantity)')} + ?4 <= ?28
+				AND ${openHoldsSql('buyer_email = ?8', 'COUNT(*)')} < ?29
+				AND (?27 IS NULL OR ${openHoldsSql('client_hash = ?27', 'SUM(quantity)')} + ?4 <= ?30)
+				AND (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
@@ -218,11 +247,24 @@ export async function reserveOrder(db, input) {
 				prices.option,
 				prices.contribution,
 				'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null,
-				gorra ? null : (input.fondoPercent ?? null)
+				gorra ? null : (input.fondoPercent ?? null),
+				clientHash,
+				limits.perEmailQuantity,
+				limits.perEmailOrders,
+				limits.perClientQuantity
 			)
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };
+	const limited = await holdLimitMessage(db, {
+		eventSlug,
+		email: buyer.email,
+		clientHash,
+		quantity,
+		limits,
+		now
+	});
+	if (limited) return { ok: false, reason: 'limit', message: limited };
 	if (discount) {
 		const check = await checkDiscountCode(db, { code: discount.code, eventSlug, now });
 		if (!check.ok) return { ok: false, reason: 'code', message: check.message };
@@ -237,6 +279,48 @@ export async function reserveOrder(db, input) {
 		reason: 'soldout',
 		available: Math.max(0, type.capacity - (c ? c.sold + c.held : 0))
 	};
+}
+
+/**
+ * Subconsulta: cantidad (o número) de reservas abiertas del evento `?2` que cumplen `where`.
+ * @param {string} where
+ * @param {'SUM(quantity)' | 'COUNT(*)'} what
+ */
+function openHoldsSql(where, what) {
+	return `(SELECT COALESCE(${what}, 0) FROM orders
+		WHERE event_slug = ?2 AND ${where} AND status IN ${HOLDING} AND expires_at > ?9)`;
+}
+
+/**
+ * Si una reserva no entró por los topes de `HOLD_LIMITS`, el mensaje para quien compra.
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, email: string, clientHash: string | null, quantity: number,
+ *   limits: typeof HOLD_LIMITS, now: number }} input
+ * @returns {Promise<string | null>}
+ */
+async function holdLimitMessage(db, { eventSlug, email, clientHash, quantity, limits, now }) {
+	const row = /** @type {{ q: number, n: number, c: number } | null} */ (
+		await db
+			.prepare(
+				`SELECT
+					COALESCE(SUM(CASE WHEN buyer_email = ?2 THEN quantity END), 0) AS q,
+					COUNT(CASE WHEN buyer_email = ?2 THEN 1 END) AS n,
+					COALESCE(SUM(CASE WHEN ?3 IS NOT NULL AND client_hash = ?3 THEN quantity END), 0) AS c
+				FROM orders
+				WHERE event_slug = ?1 AND status IN ${HOLDING} AND expires_at > ?4`
+			)
+			.bind(eventSlug, email, clientHash, now)
+			.first()
+	);
+	if (!row) return null;
+	const pending =
+		'Ya tenés reservas sin pagar para este evento: terminá esas compras (o esperá a que se liberen) antes de reservar más.';
+	if (Number(row.n) >= limits.perEmailOrders) return pending;
+	if (Number(row.q) + quantity > limits.perEmailQuantity) return pending;
+	if (clientHash && Number(row.c) + quantity > limits.perClientQuantity)
+		return 'Hay demasiadas entradas reservadas sin pagar desde esta conexión. Probá de nuevo más tarde.';
+	return null;
 }
 
 /**
@@ -478,17 +562,23 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
 /**
  * Aplica un pago (ya obtenido de la API de MP, nunca del body del webhook) a su orden.
  *
+ * Casos para revisar a mano (quedan marcados en `needs_review` y se ven en el admin):
+ * - un pago aprobado para una orden cuya reserva ya había vencido o se había cancelado se acepta
+ *   (la plata entró), pero si con eso el tipo de entrada pasa su cupo queda como `late_payment`
+ *   (`capacityOf` dice el cupo; si no se sabe, también se marca);
+ * - otro pago aprobado para una orden ya aprobada queda como `duplicate_payment`.
+ *
  * @param {D1Database} db
  * @param {MPPayment} payment
- * @param {{ now?: number }} [options]
+ * @param {{ now?: number, capacityOf?: (order: Order) => Promise<number | null> }} [options]
  * @returns {Promise<{
- *   outcome: 'unknown-order' | 'mismatch' | 'unchanged' | 'updated',
+ *   outcome: 'unknown-order' | 'mismatch' | 'unchanged' | 'updated' | 'flagged',
  *   order: Order | null,
  *   newlyApproved: boolean,
  *   tickets: Ticket[]
  * }>}
  */
-export async function applyPayment(db, payment, { now = Date.now() } = {}) {
+export async function applyPayment(db, payment, { now = Date.now(), capacityOf } = {}) {
 	const paymentId = String(payment.id);
 	const order = await getOrder(db, String(payment.external_reference ?? ''));
 	if (!order) return { outcome: 'unknown-order', order: null, newlyApproved: false, tickets: [] };
@@ -509,6 +599,24 @@ export async function applyPayment(db, payment, { now = Date.now() } = {}) {
 	}
 
 	const incoming = mapPaymentStatus(payment.status);
+	if (
+		incoming === 'approved' &&
+		order.status === 'approved' &&
+		order.mp_payment_id &&
+		order.mp_payment_id !== paymentId
+	) {
+		// Un segundo cobro para la misma orden: no se toca la orden, se marca para revisar.
+		console.error(
+			`[tickets] otro pago aprobado (${paymentId}) para la orden ${order.id}, ya pagada con ${order.mp_payment_id}: revisar posible cobro doble`
+		);
+		const flagged = await flagOrder(db, order.id, 'duplicate_payment', paymentId, now);
+		return {
+			outcome: flagged ? 'flagged' : 'unchanged',
+			order: (await getOrder(db, order.id)) ?? order,
+			newlyApproved: false,
+			tickets: []
+		};
+	}
 	let current = order;
 	// Reintento corto por si otra notificación del mismo pago cambia la orden en paralelo.
 	for (let attempt = 0; attempt < 3; attempt++) {
@@ -542,12 +650,17 @@ export async function applyPayment(db, payment, { now = Date.now() } = {}) {
 			// Aprobar y emitir las entradas en la misma transacción.
 			const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 			if (res.meta.changes === 1) {
-				const updated = /** @type {Order} */ (await getOrder(db, order.id));
-				if (current.status === 'expired' || current.status === 'cancelled') {
-					console.warn(
-						`[tickets] la orden ${order.id} se aprobó con la reserva vencida (${current.status}): ` +
-							'revisar cupo del evento por posible sobreventa.'
+				let updated = /** @type {Order} */ (await getOrder(db, order.id));
+				const late =
+					current.status === 'expired' ||
+					current.status === 'cancelled' ||
+					(current.status !== 'approved' && current.expires_at <= now);
+				if (late && (await overCapacity(db, updated, capacityOf, now))) {
+					console.error(
+						`[tickets] la orden ${order.id} se pagó con la reserva vencida y ya no había cupo: queda para revisar`
 					);
+					await flagOrder(db, order.id, 'late_payment', paymentId, now);
+					updated = /** @type {Order} */ (await getOrder(db, order.id));
 				}
 				return {
 					outcome: 'updated',
@@ -562,6 +675,107 @@ export async function applyPayment(db, payment, { now = Date.now() } = {}) {
 		current = fresh;
 	}
 	return { outcome: 'unchanged', order: current, newlyApproved: false, tickets: [] };
+}
+
+/**
+ * ¿Con esta orden (ya aprobada) su tipo de entrada pasa el cupo? Sin forma de saber el cupo,
+ * se toma como que sí (mejor revisar de más).
+ *
+ * @param {D1Database} db
+ * @param {Order} order
+ * @param {((order: Order) => Promise<number | null>) | undefined} capacityOf
+ * @param {number} now
+ */
+async function overCapacity(db, order, capacityOf, now) {
+	let capacity = null;
+	try {
+		capacity = capacityOf ? await capacityOf(order) : null;
+	} catch (error) {
+		console.error('[tickets] no se pudo leer el cupo del evento:', error);
+	}
+	if (capacity === null) return true;
+	const c = (await getCounts(db, order.event_slug, now)).get(order.ticket_type);
+	return (c ? c.sold + c.held : 0) > capacity;
+}
+
+/**
+ * Marca una orden para revisar a mano (no pisa una marca que ya tenga).
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {'late_payment' | 'duplicate_payment'} reason
+ * @param {string} detail id del pago
+ * @param {number} now
+ * @returns {Promise<boolean>} si se marcó ahora
+ */
+export async function flagOrder(db, orderId, reason, detail, now = Date.now()) {
+	const res = await db
+		.prepare(
+			`UPDATE orders SET needs_review = ?2, review_detail = ?3, updated_at = ?4
+			WHERE id = ?1 AND needs_review IS NULL`
+		)
+		.bind(orderId, reason, detail, now)
+		.run();
+	return res.meta.changes === 1;
+}
+
+/**
+ * Órdenes marcadas para revisar (todas o de un evento).
+ *
+ * @param {D1Database} db
+ * @param {string} [eventSlug]
+ * @returns {Promise<Order[]>}
+ */
+export async function ordersNeedingReview(db, eventSlug) {
+	const { results } = await (
+		eventSlug
+			? db
+					.prepare(
+						'SELECT * FROM orders WHERE needs_review IS NOT NULL AND event_slug = ?1 ORDER BY updated_at DESC'
+					)
+					.bind(eventSlug)
+			: db.prepare('SELECT * FROM orders WHERE needs_review IS NOT NULL ORDER BY updated_at DESC')
+	).all();
+	return /** @type {Order[]} */ (results);
+}
+
+/**
+ * Une admin ya revisó la orden: se saca la marca.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {number} [now]
+ */
+export async function clearReview(db, orderId, now = Date.now()) {
+	const res = await db
+		.prepare(
+			`UPDATE orders SET needs_review = NULL, review_detail = NULL, updated_at = ?2
+			WHERE id = ?1 AND needs_review IS NOT NULL`
+		)
+		.bind(orderId, now)
+		.run();
+	return res.meta.changes === 1;
+}
+
+/**
+ * Quien compró confirmó su reserva por transferencia desde el link del mail: la reserva pasa a
+ * durar `fullHoldMs` desde que se creó. Solo si todavía está vigente y esperando la transferencia.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {number} fullHoldMs
+ * @param {number} [now]
+ * @returns {Promise<Order | null>} la orden extendida, o null si no se pudo
+ */
+export async function extendTransferHold(db, orderId, fullHoldMs, now = Date.now()) {
+	const res = await db
+		.prepare(
+			`UPDATE orders SET expires_at = MAX(expires_at, created_at + ?2), updated_at = ?3
+			WHERE id = ?1 AND status = 'awaiting_transfer' AND expires_at > ?3`
+		)
+		.bind(orderId, fullHoldMs, now)
+		.run();
+	return res.meta.changes === 1 ? getOrder(db, orderId) : null;
 }
 
 /**

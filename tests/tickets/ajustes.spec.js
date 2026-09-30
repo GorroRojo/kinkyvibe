@@ -75,7 +75,7 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	await block.getByLabel(/Transferencia/).check();
 	await block.getByLabel('Tu nombre').fill('Persona Ajustes');
 	await block.getByLabel('Tus pronombres').fill('elle');
-	await block.getByLabel(/^Email/).fill('ajustes@example.com');
+	await block.getByLabel(/^Email/).fill(`ajustes-${Date.now()}@example.com`);
 	await block.getByLabel(/^DNI/).fill(fakeDni());
 	await block.getByLabel(/18 años/).check();
 	await block.locator('.pay button[type="submit"]').click();

@@ -513,7 +513,7 @@ test('el precio lo pone el servidor aunque el formulario mande otro', async ({ p
 			quantity: '1',
 			name: 'Persona Tramposa',
 			pronouns: 'elle',
-			email: 'tramposa@example.com',
+			email: `tramposa-${Date.now()}@example.com`,
 			dni: '12345678',
 			holder_name_0: 'Persona Tramposa',
 			holder_pronouns_0: 'elle',
@@ -578,7 +578,7 @@ test('el evento de prueba: botón en la página del evento → página de compra
 	await expect(options.getByLabel(/Con el descuento del fondo/)).toBeChecked();
 	await block.getByLabel(/Transferencia/).check();
 	await expect(block.locator('.method-note.shown')).toContainText(
-		'Te reservamos el lugar 48 horas mientras mandás el comprobante por mail'
+		'Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail'
 	);
 	// Condiciones: una sola lista con el mismo formato, devoluciones incluidas.
 	await block.getByText('Condiciones de compra y devoluciones').click();
@@ -652,7 +652,8 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await block.getByRole('button', { name: 'Una entrada más' }).click();
 	await block.getByLabel('Tu nombre').fill('Persona Recarga');
 	await block.getByLabel('Tus pronombres').fill('elle');
-	await block.getByLabel(/^Email/).fill('e2e-recarga@example.com');
+	const recargaEmail = `e2e-recarga-${Date.now()}@example.com`;
+	await block.getByLabel(/^Email/).fill(recargaEmail);
 	await block.getByLabel(/^DNI/).fill('22.333.444');
 	const holders = block.locator('fieldset.holder');
 	await holders.nth(1).getByLabel('Nombre', { exact: true }).fill('Acompañante Recarga');
@@ -676,7 +677,7 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await expect(block.getByLabel('Cantidad')).toHaveValue('2');
 	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Recarga');
 	await expect(block.getByLabel('Tus pronombres')).toHaveValue('elle');
-	await expect(block.getByLabel(/^Email/)).toHaveValue('e2e-recarga@example.com');
+	await expect(block.getByLabel(/^Email/)).toHaveValue(recargaEmail);
 	await expect(block.getByLabel(/^DNI/)).toHaveValue('22.333.444');
 	await expect(holders.nth(0).getByLabel('Nombre', { exact: true })).toHaveValue('Persona Recarga');
 	await expect(holders.nth(0).getByLabel(/^Pronombres/)).toHaveValue('elle');
@@ -696,7 +697,9 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
 	await expect(page.locator('.amount')).toHaveText(ars(26000));
-	await expect(page.getByText(/te reservamos el lugar\s+48 horas/)).toBeVisible();
+	// Reserva inicial corta: pide confirmarla desde el mail para guardarla 48 horas.
+	await expect(page.getByText(/te reservamos el lugar\s+2 horas/)).toBeVisible();
+	await expect(page.locator('.confirm-note')).toContainText('48 horas');
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });

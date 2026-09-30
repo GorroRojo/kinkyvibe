@@ -181,6 +181,33 @@
 		</section>
 	{/if}
 
+	{#if form?.review}
+		<p class="flash" class:error={!form.review.ok} role="status">{form.review.message}</p>
+	{/if}
+	{#if data.review.length}
+		<section class="review" aria-labelledby="revisar" id="revisar-ordenes">
+			<h2 id="revisar">⚠️ Para revisar</h2>
+			<ul>
+				{#each data.review as o (o.id)}
+					<li>
+						<strong>{o.reference}</strong> · {o.name} · {o.type} × {o.quantity} ·
+						{#if o.needsReview === 'late_payment'}
+							Pago aprobado con la reserva ya vencida y sin cupo libre: puede haber más entradas
+							vendidas que el cupo. Decidí si se acepta o se reembolsa.
+						{:else if o.needsReview === 'duplicate_payment'}
+							Llegó otro pago aprobado (Mercado Pago n.° {o.reviewDetail}) para esta orden, que ya
+							estaba pagada: posible cobro doble. Revisalo en Mercado Pago y reembolsá el que sobre.
+						{/if}
+						<form method="POST" action="?/reviewed" use:enhance>
+							<input type="hidden" name="order" value={o.id} />
+							<button type="submit" class="small">Marcar como revisada</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	{#if form?.resend}
 		<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
 	{/if}
@@ -451,6 +478,21 @@
 	.note {
 		font-size: var(--step--1);
 		color: #555;
+	}
+	.review {
+		background: #fff3e0;
+		border-radius: 1em;
+		padding: 0.6em 1em;
+		margin: 1em 0;
+		ul {
+			padding-left: 1.2em;
+		}
+		li {
+			margin-bottom: 0.6em;
+		}
+		form {
+			display: inline;
+		}
 	}
 	.transfers {
 		margin: 1.5em 0;

@@ -304,7 +304,7 @@ export function purchaseConditions({ contactEmail, transferHoldHours, methods, o
 	}
 	if (methods.includes('transferencia')) {
 		holds.push(
-			`Con transferencia te reservamos el lugar ${transferHoldHours} horas mientras mandás el comprobante por mail.`
+			`Con transferencia te reservamos el lugar ${transferHoldHours} horas mientras mandás el comprobante por mail (confirmando la reserva con el link que te llega por mail; si no, se libera a las 2 horas).`
 		);
 	}
 	if (holds.length) list.push(`${holds.join(' ')} Si no se completa el pago, el lugar se libera.`);

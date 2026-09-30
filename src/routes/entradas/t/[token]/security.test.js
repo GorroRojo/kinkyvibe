@@ -101,7 +101,12 @@ describe('entrada: el check-in es solo para admins', () => {
 		const admin = /** @type {any} */ (
 			await load(
 				event(ticket.token, {
-					user: /** @type {any} */ ({ login: 'GorroRojo', name: null, avatar_url: '' }),
+					user: /** @type {any} */ ({
+						id: 4594048,
+						login: 'GorroRojo',
+						name: null,
+						avatar_url: ''
+					}),
 					user_token: 'x'
 				})
 			)

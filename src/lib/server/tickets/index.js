@@ -31,6 +31,7 @@ import {
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
+import { confirmUrl } from './safeguards.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -220,7 +221,12 @@ export function siteOrigin(url) {
  * }} input
  */
 export async function processPayment({ db, payment, origin, fetch: fetchFn, platform }) {
-	const result = await applyPayment(db, payment);
+	const result = await applyPayment(db, payment, {
+		// Para marcar una aprobación tardía que pasa el cupo (ver applyPayment).
+		capacityOf: async (order) =>
+			(await getEventTickets(order.event_slug))?.types.find((t) => t.id === order.ticket_type)
+				?.capacity ?? null
+	});
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
 	}
@@ -429,7 +435,9 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			transferInfo: info,
 			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
-			origin
+			origin,
+			confirmUrl: await confirmUrl(db, origin, order.id),
+			fullHoldHours: Math.round(transferHoldMs() / 3600000)
 		});
 		const result = await deliver({
 			db,

@@ -60,6 +60,12 @@
 			{order.holdHours} horas (hasta el <strong>{deadline(order.expiresAt)} hs</strong>) mientras
 			mandás el comprobante por mail. Si no llega a tiempo, la reserva se libera.
 		</p>
+		{#if order.confirmPending}
+			<p class="confirm-note">
+				<strong>Confirmá tu reserva</strong> con el link del mail que te mandamos a
+				<strong>{order.email}</strong> para que te guardemos el lugar {order.fullHoldHours} horas.
+			</p>
+		{/if}
 		{#if data.transfer?.info}
 			<div class="transfer-info" aria-label="Datos para transferir">{data.transfer.info}</div>
 		{:else}
@@ -208,6 +214,11 @@
 	}
 	.estado-awaiting_transfer {
 		outline-color: var(--4-dark, var(--2));
+	}
+	.confirm-note {
+		background: #fff3c4;
+		border-radius: 0.8em;
+		padding: 0.6em 1em;
 	}
 	.transfer-info {
 		white-space: pre-line;
