@@ -12,6 +12,7 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
+	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
@@ -242,6 +243,14 @@
 		</section>
 	{/if}
 	{/if}
+	<div class="share-row">
+		<ShareEventButton
+			url={$page.url.origin + '/calendario/' + data.meta.postID}
+			title={data.meta.title}
+			text={data.meta.summary}
+			imagesHref={'/calendario/' + data.meta.postID + '/compartir'}
+		/>
+	</div>
 	{#if data.meta.tags}
 		<div id="tags">
 			<Tags tags={data.meta.tags} />
@@ -310,6 +319,11 @@
 		a {
 			--color: var(--4-light);
 		}
+	}
+	.share-row {
+		display: flex;
+		justify-content: center;
+		margin-top: 1.2em;
 	}
 	#tags {
 		margin-inline: auto;

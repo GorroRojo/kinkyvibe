@@ -449,13 +449,9 @@ Los tests usan un D1 real (el mismo motor `workerd`/miniflare que usa wrangler) 
 
 Hace falta estar logueade en la cuenta de Cloudflare del proyecto (`npx wrangler login`).
 
-1. Crear la base (si todavía no existe):
-   ```sh
-   npx wrangler d1 create kinkyvibe
-   ```
-2. Copiar el `database_id` que devuelve y reemplazar el `00000000-0000-0000-0000-000000000000` de [`wrangler.toml`](/wrangler.toml). Commitearlo (no es un secreto).
-3. En el panel de Cloudflare: **Workers & Pages → (proyecto del sitio) → Settings → Bindings → Add → D1 database**, nombre de variable `DB`, base `kinkyvibe`. Hacerlo para **Production** y también para **Preview** si se quiere en los deploys de prueba (idealmente con otra base para preview).
-4. Volver a deployar (un push a la rama principal alcanza).
+1. La base ya existe: es `kinkyvibe` en la cuenta de Cloudflare del proyecto, y su `database_id` ya está en [`wrangler.toml`](/wrangler.toml) (no es un secreto). Si alguna vez hay que recrearla: `npx wrangler d1 create kinkyvibe` y reemplazar el id.
+2. En el panel de Cloudflare: **Workers & Pages → (proyecto del sitio) → Settings → Bindings → Add → D1 database**, nombre de variable `DB`, base `kinkyvibe`. Hacerlo para **Production** y también para **Preview** si se quiere en los deploys de prueba (idealmente con otra base para preview).
+3. Volver a deployar (un push a la rama principal alcanza).
 
 ### Migraciones en producción
 
