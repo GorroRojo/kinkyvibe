@@ -20,6 +20,7 @@
 		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -185,7 +186,7 @@
 	let preview = null;
 	let busy = '';
 	let saveError = '';
-	/** @type {null | {commit: string, summary: string[], files: number}} */
+	/** @type {null | {commit: string, publish?: any, summary: string[], files: number}} */
 	let saved = null;
 	/**
 	 * @param {string} action
@@ -282,13 +283,15 @@
 {/if}
 {#if saved}
 	<p class="note ok" role="status">
-		<CircleCheck size={18} aria-hidden="true" /> Guardado en un commit ({saved.files} archivo{saved.files ===
-		1
+		<CircleCheck size={18} aria-hidden="true" /> Guardado ({saved.files} archivo{saved.files === 1
 			? ''
 			: 's'}):
 		{saved.summary.join('; ')}.
-		<a href={saved.commit} target="_blank" rel="noreferrer">Ver el commit</a>. El sitio se actualiza
-		en unos minutos.
+		{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
+				href={saved.commit}
+				target="_blank"
+				rel="noreferrer">Ver el commit</a
+			>. El sitio se actualiza en unos minutos.{/if}
 	</p>
 {/if}
 

@@ -16,6 +16,7 @@ import {
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
+	groupReviewItems,
 	reviewItems,
 	reviewOrders,
 	sinceLastVisit,
@@ -473,11 +474,108 @@ describe('upcomingEvents y reviewItems', () => {
 			'stream-online',
 			'reminder-online',
 			'image-online',
+			'image-borrador',
 			'draft-borrador'
 		]);
 		expect(items[0]).toMatchObject({ href: '/t/hoy', text: 'Hoy · la más vieja vence en 1 h' });
 		expect(items[2]).toMatchObject({ action: 'Reenviar', resend: { orderId: 'o1' } });
 		expect(items[1].title).toContain('duplicado');
+		// Los borradores sin imagen también cuentan como "sin imagen" (igual que el filtro de Eventos).
+		expect(items.find((i) => i.id === 'image-borrador')).toMatchObject({
+			group: 'image',
+			name: 'Borrador'
+		});
+		expect(items.find((i) => i.id === 'draft-borrador')).toMatchObject({ group: 'draft' });
+		expect(items.filter((i) => i.group).map((i) => i.id)).toEqual([
+			'image-online',
+			'image-borrador',
+			'draft-borrador'
+		]);
+	});
+});
+
+describe('groupReviewItems', () => {
+	/**
+	 * @param {string} id
+	 * @param {any} [o]
+	 * @returns {import('./inicio.js').ReviewItem}
+	 */
+	const item = (id, o = {}) => ({
+		id,
+		tone: 'bad',
+		icon: 'alert',
+		title: id,
+		text: '',
+		action: 'Ver',
+		href: `/${id}`,
+		...o
+	});
+	const links = { noImage: '/admin/eventos?filtro=sin-imagen' };
+	const image = (/** @type {string} */ s) =>
+		item(`image-${s}`, { tone: 'info', icon: 'image', group: 'image', name: s });
+	const draft = (/** @type {string} */ s) =>
+		item(`draft-${s}`, { tone: 'info', icon: 'draft', group: 'draft', name: s });
+
+	it('lo urgente queda de a uno; lo repetitivo, una fila por tipo con la cuenta', () => {
+		const items = [
+			item('transfer-a', { tone: 'warn' }),
+			item('mail-1', { resend: { orderId: '1' } }),
+			item('stream-b', { tone: 'warn' }),
+			image('a'),
+			image('b'),
+			image('c'),
+			draft('x'),
+			draft('y')
+		];
+		const rows = groupReviewItems(items, { links });
+		expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual([
+			'item:transfer-a',
+			'item:mail-1',
+			'item:stream-b',
+			'group:group-image',
+			'group:group-draft'
+		]);
+		expect(rows[1]).toMatchObject({ kind: 'item', resend: { orderId: '1' } });
+		const [img, dr] = rows.slice(3);
+		expect(img).toMatchObject({
+			kind: 'group',
+			title: '3 eventos próximos sin imagen',
+			action: 'Ver',
+			href: '/admin/eventos?filtro=sin-imagen'
+		});
+		expect(img.kind === 'group' && img.items.map((i) => i.id)).toEqual([
+			'image-a',
+			'image-b',
+			'image-c'
+		]);
+		// Sin una lista filtrada que muestre justo esos borradores: sin href (se despliega).
+		expect(dr).toMatchObject({ kind: 'group', title: '2 borradores sin publicar' });
+		expect(dr).not.toHaveProperty('href');
+		expect(dr.kind === 'group' && dr.items.map((i) => i.name)).toEqual(['x', 'y']);
+	});
+
+	it('un solo ítem de un tipo queda suelto, con su acción directa', () => {
+		const rows = groupReviewItems([image('a'), draft('x'), draft('y')], { links });
+		expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['item:image-a', 'group:group-draft']);
+		expect(rows[0]).toMatchObject({ href: '/image-a', action: 'Ver' });
+	});
+
+	it('los grupos van donde estaba su primer ítem y no pierden ninguno', () => {
+		const items = [image('a'), item('urgente'), image('b'), draft('x'), draft('y'), image('c')];
+		const rows = groupReviewItems(items, { links });
+		expect(rows.map((r) => r.id)).toEqual(['group-image', 'urgente', 'group-draft']);
+		const total = rows.reduce((n, r) => n + (r.kind === 'group' ? r.items.length : 1), 0);
+		expect(total).toBe(items.length);
+	});
+
+	it('min configurable; sin ítems, sin filas', () => {
+		expect(groupReviewItems([], { links })).toEqual([]);
+		const rows = groupReviewItems([image('a'), image('b')], { links, min: 3 });
+		expect(rows.map((r) => r.kind)).toEqual(['item', 'item']);
+		expect(groupReviewItems([image('a')], { links, min: 1 })[0]).toMatchObject({
+			kind: 'group',
+			title: '1 evento próximo sin imagen'
+		});
 	});
 });
 

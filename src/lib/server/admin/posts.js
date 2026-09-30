@@ -115,7 +115,7 @@ export function contentCommitMessage({ who, verb, category, slug, from, image })
  * Saves a post in one commit.
  * @param {PostClient} client
  * @param {string} token
- * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string}} opts
+ * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string, pr?: import('../eventos/github.js').PublishOptions}} opts
  */
 export async function saveContentPost(client, token, opts) {
 	const plan = await planContentSave(client, token, opts);
@@ -123,7 +123,8 @@ export async function saveContentPost(client, token, opts) {
 		files: plan.files,
 		message: opts.message,
 		mustNotExist: plan.mustNotExist,
-		unchanged: plan.unchanged
+		unchanged: plan.unchanged,
+		...(opts.pr ? { pr: opts.pr } : {})
 	});
 	return { ...plan, commit };
 }

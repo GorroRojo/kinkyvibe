@@ -8,6 +8,7 @@
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import '$lib/components/admin/admin.scss';
 	import '$lib/admin/panel-editor.scss';
 	import { tagManager } from '$lib/utils/stores';
@@ -429,19 +430,22 @@
 				{#if form.mode === 'borrador'}
 					El evento se guardó como <strong>no listado</strong>: no aparece en el calendario, pero se
 					puede ver con el link.
+				{:else if form.publish && form.publish.state !== 'merged'}
+					El evento se guardó y se <strong>publica</strong> solo cuando pasen las pruebas.
 				{:else}
 					El evento se <strong>publicó</strong>.
 				{/if}
 			</p>
 			<p>
-				Va a estar en
+				{form.publish ? 'Cuando se publique va a estar en' : 'Va a estar en'}
 				<a href={form.eventUrl} target="_blank" rel="noreferrer"
 					><strong>kinkyvibe.ar{form.eventUrl}</strong></a
 				>
 			</p>
 			<p class="note">
-				⏳ El sitio tarda unos minutos (normalmente entre 2 y 5) en actualizarse. Si el link da
-				error al principio, esperá un poco y recargá. Si pasan más de 10 minutos, avisale a
+				⏳ {#if form.publish}<PublishStatus pr={form.publish} />{:else}El sitio tarda unos minutos
+					(normalmente entre 2 y 5) en actualizarse.{/if} Si el link da error al principio, esperá un
+				poco y recargá. Si pasan más de 15 minutos, avisale a
 				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
 			</p>
 			{#if form.imageScope === 'todas'}
@@ -459,9 +463,13 @@
 				<p class="warning">⚠️ {warning}</p>
 			{/each}
 			<p class="small">
-				Cambio guardado en GitHub: <a href={form.commitUrl} target="_blank" rel="noreferrer"
-					>ver el commit</a
-				>
+				{#if form.publish}Guardado en el <a href={form.publish.url} target="_blank" rel="noreferrer"
+						>PR #{form.publish.number}</a
+					>{:else}Cambio guardado en GitHub: <a
+						href={form.commitUrl}
+						target="_blank"
+						rel="noreferrer">ver el commit</a
+					>{/if}
 				· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
 					(form.files?.length ?? 0) - 1
 						? ', '
