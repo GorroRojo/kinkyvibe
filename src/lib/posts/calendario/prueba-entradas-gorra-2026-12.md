@@ -40,7 +40,7 @@ Primero levantá el sitio en modo prueba como dice el paso 1 del [evento de prue
 3. Escribí **500**: se marca que el mínimo es $ 1.000 y no deja comprar. Escribí **7.000**, cantidad 2: el total es 2 × $ 7.000 (con Mercado Pago, más el recargo).
 4. Completá tus datos, pagá con Mercado Pago simulado y aprobá. La entrada **no tiene QR**: dice que el link de la transmisión llega por mail antes del evento.
 5. Elegí **Libre** y poné **0** (o tocá "Sin cargo"): el botón dice **Confirmar entradas sin cargo** y se emite sin pagar.
-6. En `http://localhost:5173/admin/entradas/prueba-entradas-gorra-2026-12` (no tiene "Control de ingreso": es online) pegá un link de prueba en **Link de la transmisión** (por ejemplo `https://meet.example.com/prueba`) y guardá. El botón dice **Enviar el link a todes (N personas)**: tocalo; en la terminal aparecen los mails simulados. Tocalo otra vez: dice que todes ya lo tenían, no manda nada.
+6. En `http://localhost:5173/admin/eventos/prueba-entradas-gorra-2026-12` (no tiene "Control de ingreso": es online) pegá un link de prueba en **Link de la transmisión** (por ejemplo `https://meet.example.com/prueba`) y guardá. El botón dice **Enviar el link a todes (N personas)**: tocalo; en la terminal aparecen los mails simulados. Tocalo otra vez: dice que todes ya lo tenían, no manda nada.
 7. Abrí una entrada: ahora muestra el link. Comprá otra entrada: el mail de las entradas ya trae el link.
 8. Cambiá el link y guardá: el botón vuelve a ofrecer mandárselo a todes.
 

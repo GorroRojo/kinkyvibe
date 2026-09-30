@@ -1,5 +1,5 @@
 /**
- * Venta de entradas en el editor de eventos (/admin/eventos/nuevo y /edit/calendario/<slug>):
+ * Venta de entradas en el editor de eventos (/admin/eventos/nuevo y /admin/eventos/<slug>/editar):
  * leer el frontmatter de entradas a un estado de formulario, validarlo y volver a escribirlo.
  *
  * Es código puro (sin red ni SvelteKit): corre igual en el navegador (validación en vivo), en el

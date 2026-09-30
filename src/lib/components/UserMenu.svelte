@@ -3,7 +3,7 @@
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
 	import { CalendarCog, LayoutDashboard, LogOut, SquarePen } from '@lucide/svelte';
-	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { contentEditLink, eventPanelLink } from '$lib/admin/nav.js';
 	import { logoutHref } from '$lib/utils/authLinks.js';
 	/**
 	 * `user.admin` viene del load del layout raíz (ADMINS en $lib/server/auth.js, la única lista).
@@ -17,7 +17,8 @@
 	} = createDropdownMenu({
 		preventScroll:false
 	});
-	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
+	// Los eventos se editan en la ficha del panel; lo demás en /edit (ver $lib/admin/nav.js).
+	$: editHref = contentEditLink($page.url.pathname);
 	$: eventSlug = $page.url.pathname.match(/^\/calendario\/([^/]+)\/?$/)?.[1];
 	$: admin = user.admin === true;
 	// GitHub serves every account's picture at github.com/<login>.png; used when the session has
@@ -43,9 +44,9 @@
 				><CalendarCog {...icon} /><span>Este evento en el panel</span></a
 			>
 		{/if}
-		{#if isPageEditable}
+		{#if editHref}
 			<!-- TODO handle wikiless wiki links -->
-			<a href="/edit{$page.url.pathname}" class="menuitem" use:melt={$item}
+			<a href={editHref} class="menuitem" use:melt={$item}
 				><SquarePen {...icon} /><span>Editar contenido</span></a
 			>
 		{:else}
