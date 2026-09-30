@@ -285,7 +285,9 @@
 
 	<Card title="Códigos usados">
 		<svelte:fragment slot="actions">
-			<a class="kv-btn ghost" href={eventHref(e.slug, 'codigos')}><Plus size={16} aria-hidden="true" /> Nuevo código</a>
+			<a class="kv-btn ghost" href={eventHref(e.slug, 'codigos')}
+				><Plus size={16} aria-hidden="true" /> Nuevo código</a
+			>
 		</svelte:fragment>
 		{#if data.codes.length}
 			<div class="kv-table-wrap">

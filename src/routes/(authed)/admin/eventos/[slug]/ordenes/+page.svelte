@@ -154,7 +154,11 @@
 									<tr class:inside={h.checkedIn}>
 										<td>{i + 1}</td>
 										<td
-											>{h.name}{#if h.checkedIn}&nbsp;✅{/if}</td
+											>{h.name}{#if h.checkedIn}&nbsp;<CircleCheck
+													size={15}
+													class="in"
+													aria-label="ingresó"
+												/>{/if}</td
 										>
 										<td>{h.pronouns || '—'}</td>
 									</tr>

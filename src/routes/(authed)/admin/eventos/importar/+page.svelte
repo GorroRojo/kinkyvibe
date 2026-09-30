@@ -309,8 +309,8 @@
 
 	{#if data.mock}
 		<p class="mock">
-			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos se guardan en
-			una carpeta temporal.
+			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos
+			se guardan en una carpeta temporal.
 		</p>
 	{/if}
 
@@ -365,8 +365,7 @@
 				bind:value={text}
 				rows="8"
 				spellcheck="false"
-				placeholder={'FALSE\t\tPicantearla\tviernes 16\t21 - 03 horas\t\tAgrelo 3399'}
-			></textarea>
+				placeholder={'FALSE\t\tPicantearla\tviernes 16\t21 - 03 horas\t\tAgrelo 3399'}></textarea>
 			<p>
 				<button class="button" on:click={read} disabled={!text.trim()}>Leer filas</button>
 			</p>

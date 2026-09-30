@@ -206,9 +206,8 @@ export const actions = {
 			rows.forEach((row, i) => {
 				const raw = row.source ? sourceRaw.get(row.source) : template();
 				if (!raw) {
-					rowErrors[
-						i
-					] = `No encontramos el evento “${row.source}” en GitHub. Elegí otro o “desde cero”.`;
+					rowErrors[i] =
+						`No encontramos el evento “${row.source}” en GitHub. Elegí otro o “desde cero”.`;
 					return;
 				}
 				try {

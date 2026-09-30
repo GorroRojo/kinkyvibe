@@ -121,8 +121,9 @@
 							}}
 						>
 							<button type="submit" class="kv-btn send-link" disabled={!data.stream.pending}>
+								{#if data.stream.pending}<Send size={16} aria-hidden="true" />{/if}
 								{data.stream.pending
-									? `📨 Enviar el link a todes (${people(data.stream.pending)})`
+									? `Enviar el link a todes (${people(data.stream.pending)})`
 									: '✓ Todes ya recibieron este link'}
 							</button>
 						</form>

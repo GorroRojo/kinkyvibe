@@ -6,6 +6,7 @@
 		ExternalLink,
 		FileSpreadsheet,
 		Search,
+		SearchX,
 		Table2
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';

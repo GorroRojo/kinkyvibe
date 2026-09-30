@@ -90,8 +90,8 @@
 				>{people(data.audience)}</strong
 			>; una sola vez aunque tenga varias compras). Sirve para avisos de último momento: cambio de
 			lugar, de horario, algo para llevar.
-			{#if data.preview}<br /><FlaskConical size={15} aria-hidden="true" /> En este preview solo llega a las direcciones de prueba
-				(EMAIL_ALLOWLIST).{/if}
+			{#if data.preview}<br /><FlaskConical size={15} aria-hidden="true" /> En este preview solo llega
+				a las direcciones de prueba (EMAIL_ALLOWLIST).{/if}
 		</p>
 		<form on:submit|preventDefault={send} class="compose">
 			<label class="field">
