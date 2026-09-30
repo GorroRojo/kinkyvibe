@@ -18,9 +18,16 @@ export const MP_API = 'https://api.mercadopago.com';
 export const SIGNATURE_MAX_AGE_MS = 15 * 60 * 1000;
 
 /**
+ * Cuánto se espera una respuesta de la API de MP. Sin límite, un MP colgado deja colgada la
+ * compra (con el cupo reservado), la página de estado o el webhook.
+ */
+export const MP_TIMEOUT_MS = 10_000;
+
+/**
  * @typedef {{
  *   fetch: typeof fetch,
- *   accessToken: string
+ *   accessToken: string,
+ *   timeoutMs?: number
  * }} MPClient
  */
 
@@ -32,6 +39,7 @@ export const SIGNATURE_MAX_AGE_MS = 15 * 60 * 1000;
 async function mpFetch(client, path, init = {}) {
 	const res = await client.fetch(MP_API + path, {
 		...init,
+		signal: AbortSignal.timeout(client.timeoutMs ?? MP_TIMEOUT_MS),
 		headers: {
 			Authorization: `Bearer ${client.accessToken}`,
 			'Content-Type': 'application/json',
