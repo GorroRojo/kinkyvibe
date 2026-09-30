@@ -103,3 +103,14 @@ BEGIN
 	INSERT INTO objects_fts (rowid, title, search_text)
 	VALUES (NEW.id, NEW.title, NEW.search_text);
 END;
+
+-- Resultado del chequeo nocturno de integridad (src/lib/server/objects/integrity.js), para
+-- mostrarlo en "Para revisar" del Inicio. El chequeo no hace fallar el cron: deja acá lo que
+-- encontró. Se guardan las últimas corridas (el código borra las viejas).
+CREATE TABLE IF NOT EXISTS integrity_runs (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	ran_at INTEGER NOT NULL, -- ms desde epoch
+	problem_count INTEGER NOT NULL CHECK (problem_count >= 0),
+	-- Los primeros problemas: [{ code, objectId?, edgeId?, type?, slug? }] (sin datos de personas).
+	problems TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(problems) AND json_type(problems) = 'array')
+);

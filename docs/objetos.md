@@ -54,12 +54,13 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
 
 ## El modelo
 
-| Tabla          | Qué guarda                                                                                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `object_types` | los tipos que existen: `core` (del código; `saveObject()` los da de alta solo) o `panel` (más adelante)                                                  |
-| `objects`      | un objeto: `type`, `slug` (único por tipo), `title`, `data` (JSON con los campos), `visibility`, `version`, quién y cuándo lo creó y editó, `deleted_at` |
-| `edges`        | una relación: `from_id` → `to_id`, con `kind` (`lugar`, `serie`…), `position` (orden) y `data` opcional (por ejemplo, el rol)                            |
-| `objects_fts`  | índice de búsqueda (FTS5, sin tildes) sobre `title` y `search_text`; lo mantienen triggers                                                               |
+| Tabla            | Qué guarda                                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `object_types`   | los tipos que existen: `core` (del código; `saveObject()` los da de alta solo) o `panel` (más adelante)                                                  |
+| `objects`        | un objeto: `type`, `slug` (único por tipo), `title`, `data` (JSON con los campos), `visibility`, `version`, quién y cuándo lo creó y editó, `deleted_at` |
+| `edges`          | una relación: `from_id` → `to_id`, con `kind` (`lugar`, `serie`…), `position` (orden) y `data` opcional (por ejemplo, el rol)                            |
+| `integrity_runs` | resultado de cada chequeo nocturno (ver abajo), para "Para revisar"                                                                                      |
+| `objects_fts`    | índice de búsqueda (FTS5, sin tildes) sobre `title` y `search_text`; lo mantienen triggers                                                               |
 
 - `data` es un JSON validado en código por el tipo. Las claves que el tipo no conoce se rechazan
   (así un campo que se deja de usar aparece en el chequeo nocturno en vez de quedar escondido).
@@ -70,17 +71,17 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
 
 ## Dónde está el código
 
-| Qué                                         | Dónde                                                                 |
-| ------------------------------------------- | --------------------------------------------------------------------- |
-| Esquema                                     | `migrations/0012_objetos.sql`                                         |
-| Guardar (crear, editar, borrar, relaciones) | `src/lib/server/objects/save.js` → `saveObject()`                     |
-| Leer y buscar                               | `src/lib/server/objects/read.js` → `getObject()`, `searchObjects()`   |
-| Relaciones                                  | `src/lib/server/objects/edges.js` → `getEdges()`                      |
-| Visibilidad                                 | `src/lib/server/objects/visibility.js`                                |
-| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `index.js`) |
-| Clases de campo (texto, fecha, link…)       | `src/lib/server/objects/fields.js`                                    |
-| Chequeo de integridad                       | `src/lib/server/objects/integrity.js`                                 |
-| Errores (`code`, `status`, mensaje)         | `src/lib/server/objects/errors.js`                                    |
+| Qué                                         | Dónde                                                                                               |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Esquema                                     | `migrations/0012_objetos.sql`                                                                       |
+| Guardar (crear, editar, borrar, relaciones) | `src/lib/server/objects/save.js` → `saveObject()`                                                   |
+| Leer y buscar                               | `src/lib/server/objects/read.js` → `getObject()`, `searchObjects()`                                 |
+| Relaciones                                  | `src/lib/server/objects/edges.js` → `getEdges()`                                                    |
+| Visibilidad                                 | `src/lib/server/objects/visibility.js`                                                              |
+| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `index.js`)                               |
+| Clases de campo (texto, fecha, link…)       | `src/lib/server/objects/fields.js`                                                                  |
+| Chequeo de integridad                       | `src/lib/server/objects/integrity.js`; fila del Inicio: `integrityReviewRow()` en `admin/inicio.js` |
+| Errores (`code`, `status`, mensaje)         | `src/lib/server/objects/errors.js`                                                                  |
 
 Todo usa imports relativos (sin `$lib`): el cron nocturno lo importa sin pasar por Vite.
 
@@ -103,9 +104,13 @@ pura (recibe filas, devuelve problemas) y se prueba sin base. Encuentra:
 | `orphan`               | un objeto vivo sin una relación obligatoria                                      |
 | `fts_out_of_sync`      | el índice de búsqueda no coincide con los objetos                                |
 
-Si encuentra algo, escribe en el log los códigos y los ids (sin datos de personas) y la corrida
-queda marcada como error en Cloudflare (el backup ya se hizo antes). Si la base todavía no tiene
-la migración 0012, no hace nada. Hoy carga todos los objetos en memoria: alcanza para miles; si
+**El chequeo nunca hace fallar el cron** (el backup queda como bueno igual). Guarda cada corrida
+en `integrity_runs` (las últimas 30; de cada una, el total y los primeros 50 problemas: código,
+ids, tipo y slug, sin datos de personas) y escribe en el log los códigos y los ids. Si la última
+corrida encontró algo, el Inicio del panel muestra en **Para revisar** una sola fila, "Chequeo
+nocturno: N problemas en los datos", que se despliega con cada código y slug. Si el chequeo mismo
+falla, queda en el log y el cron sigue. Si la base todavía no tiene la migración 0012, no hace nada
+(y el Inicio no muestra nada). Hoy carga todos los objetos en memoria: alcanza para miles; si
 pasan de ~20.000, hay que pasar los chequeos de relaciones a SQL.
 
 Arreglo del índice de búsqueda: `INSERT INTO objects_fts (objects_fts) VALUES ('rebuild');`

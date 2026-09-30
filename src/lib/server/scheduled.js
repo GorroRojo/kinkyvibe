@@ -6,7 +6,11 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
-import { checkObjectsIntegrity, hasObjectsSchema } from './objects/integrity.js';
+import {
+	checkObjectsIntegrity,
+	hasObjectsSchema,
+	recordIntegrityRun
+} from './objects/integrity.js';
 
 /** Recordatorios de entradas: cada 15 minutos (UTC). */
 export const REMINDERS_CRON = '*/15 * * * *';
@@ -83,30 +87,42 @@ const MAX_LOGGED_PROBLEMS = 50;
 
 /**
  * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js), después
- * del backup. Si encuentra problemas los escribe en el log (ids y códigos, sin datos) y falla,
- * para que la corrida quede marcada como error en Cloudflare. No arregla nada solo.
+ * del backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
+ * Inicio del panel lo muestra en "Para revisar") y escribe en el log los códigos e ids (sin
+ * datos). Si el chequeo mismo falla, lo escribe en el log y sigue. No arregla nada solo.
  *
  * @param {ScheduledEnv} env
+ * @param {Date} [now]
+ * @returns {Promise<{ count: number } | null>} null si no corrió
  */
-export async function runObjectsIntegrity(env) {
-	if (!env.DB) throw new Error('integridad: falta el binding DB');
-	if (!(await hasObjectsSchema(env.DB))) {
-		console.log(
-			'integridad de objetos: la base todavía no tiene la migración 0012; nada que revisar'
-		);
-		return [];
+export async function runObjectsIntegrity(env, now = new Date()) {
+	try {
+		if (!env.DB) {
+			console.error('integridad de objetos: falta el binding DB; no se revisó');
+			return null;
+		}
+		if (!(await hasObjectsSchema(env.DB))) {
+			console.log(
+				'integridad de objetos: la base todavía no tiene la migración 0012; nada que revisar'
+			);
+			return null;
+		}
+		const problems = await checkObjectsIntegrity(env.DB);
+		await recordIntegrityRun(env.DB, problems, now.getTime());
+		if (!problems.length) console.log('integridad de objetos: sin problemas');
+		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
+			console.error(`integridad de objetos: [${p.code}] ${p.message}`);
+		}
+		if (problems.length) {
+			console.error(
+				`integridad de objetos: ${problems.length} problema(s), guardados para "Para revisar"`
+			);
+		}
+		return { count: problems.length };
+	} catch (error) {
+		console.error('integridad de objetos: el chequeo falló (el backup ya se hizo)', error);
+		return null;
 	}
-	const problems = await checkObjectsIntegrity(env.DB);
-	if (!problems.length) {
-		console.log('integridad de objetos: sin problemas');
-		return problems;
-	}
-	for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
-		console.error(`integridad de objetos: [${p.code}] ${p.message}`);
-	}
-	throw new Error(
-		`integridad de objetos: ${problems.length} problema(s); el backup sí se hizo. Ver docs/objetos.md («Chequeo nocturno»).`
-	);
 }
 
 /**
@@ -122,9 +138,10 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
 		case BACKUP_CRON: {
-			// Primero el backup: si el chequeo encuentra problemas, el backup ya quedó guardado.
+			// Primero el backup (si falla, la corrida falla). El chequeo después, y nunca la hace
+			// fallar: lo que encuentra queda en "Para revisar".
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
-			await runObjectsIntegrity(env);
+			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
 			return backup;
 		}
 		default:

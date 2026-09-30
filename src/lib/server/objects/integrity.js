@@ -25,13 +25,13 @@ import { VISIBILITIES } from './visibility.js';
  */
 
 /**
- * @typedef {{ code: ProblemCode, message: string, objectId?: number, edgeId?: number, type?: string }} Problem
+ * @typedef {{ code: ProblemCode, message: string, objectId?: number, edgeId?: number, type?: string, slug?: string }} Problem
  */
 
 /**
  * @typedef {{
  *   types: { type: string, origin: string }[],
- *   objects: { id: number, type: string, data: string, visibility: string, deleted_at: number | null }[],
+ *   objects: { id: number, type: string, slug?: string, data: string, visibility: string, deleted_at: number | null }[],
  *   edges: { id: number, from_id: number, kind: string, to_id: number }[]
  * }} IntegritySnapshot
  */
@@ -173,6 +173,11 @@ export function findIntegrityProblems({ types, objects, edges }, registry = core
 			}
 		}
 	}
+	// El slug ayuda a encontrar el objeto desde el panel.
+	for (const p of problems) {
+		const slug = p.objectId === undefined ? undefined : byId.get(p.objectId)?.slug;
+		if (slug) p.slug = slug;
+	}
 	return problems;
 }
 
@@ -204,7 +209,7 @@ async function readAll(db, sql) {
 export async function checkObjectsIntegrity(db, { registry = coreTypes } = {}) {
 	const [types, objects, edges] = await Promise.all([
 		readAll(db, 'SELECT type, origin FROM object_types ORDER BY type'),
-		readAll(db, 'SELECT id, type, data, visibility, deleted_at FROM objects ORDER BY id'),
+		readAll(db, 'SELECT id, type, slug, data, visibility, deleted_at FROM objects ORDER BY id'),
 		readAll(db, 'SELECT id, from_id, kind, to_id FROM edges ORDER BY id')
 	]);
 	const problems = findIntegrityProblems(
@@ -231,9 +236,86 @@ export async function checkObjectsIntegrity(db, { registry = coreTypes } = {}) {
  *
  * @param {D1Database} db
  */
-export async function hasObjectsSchema(db) {
+export function hasObjectsSchema(db) {
+	return hasTable(db, 'objects');
+}
+
+/** Corridas que se guardan en `integrity_runs` (las más viejas se borran). */
+export const KEEP_RUNS = 30;
+/** Problemas que se guardan por corrida (el total va en `problem_count`). */
+export const STORED_PROBLEMS = 50;
+
+/**
+ * @typedef {{ code: ProblemCode, objectId?: number, edgeId?: number, type?: string, slug?: string }} StoredProblem
+ */
+
+/**
+ * @typedef {{ ranAt: number, count: number, problems: StoredProblem[] }} IntegrityRun
+ */
+
+/**
+ * @param {D1Database} db
+ * @param {string} name
+ */
+async function hasTable(db, name) {
 	const row = await db
-		.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'objects'")
+		.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ?1")
+		.bind(name)
 		.first();
 	return Boolean(row);
+}
+
+/**
+ * Guarda el resultado de una corrida (también si no hubo problemas: así el panel sabe que la
+ * última salió bien) y borra las viejas. Solo códigos, ids, tipo y slug: nada de datos.
+ *
+ * @param {D1Database} db
+ * @param {Problem[]} problems
+ * @param {number} [now]
+ */
+export async function recordIntegrityRun(db, problems, now = Date.now()) {
+	/** @type {StoredProblem[]} */
+	const stored = problems.slice(0, STORED_PROBLEMS).map((p) => {
+		/** @type {StoredProblem} */
+		const out = { code: p.code };
+		if (p.objectId !== undefined) out.objectId = p.objectId;
+		if (p.edgeId !== undefined) out.edgeId = p.edgeId;
+		if (p.type !== undefined) out.type = p.type;
+		if (p.slug !== undefined) out.slug = p.slug;
+		return out;
+	});
+	await db.batch([
+		db
+			.prepare('INSERT INTO integrity_runs (ran_at, problem_count, problems) VALUES (?1, ?2, ?3)')
+			.bind(now, problems.length, JSON.stringify(stored)),
+		db
+			.prepare(
+				'DELETE FROM integrity_runs WHERE id NOT IN (SELECT id FROM integrity_runs ORDER BY id DESC LIMIT ?1)'
+			)
+			.bind(KEEP_RUNS)
+	]);
+}
+
+/**
+ * La última corrida guardada, o null si no hay ninguna o la base todavía no tiene la migración
+ * 0012 (no tira error por la tabla que falta).
+ *
+ * @param {D1Database} db
+ * @returns {Promise<IntegrityRun | null>}
+ */
+export async function lastIntegrityRun(db) {
+	if (!(await hasTable(db, 'integrity_runs'))) return null;
+	const row = await db
+		.prepare('SELECT ran_at, problem_count, problems FROM integrity_runs ORDER BY id DESC LIMIT 1')
+		.first();
+	if (!row) return null;
+	/** @type {StoredProblem[]} */
+	let problems = [];
+	try {
+		const parsed = JSON.parse(String(row.problems));
+		if (Array.isArray(parsed)) problems = parsed;
+	} catch {
+		problems = [];
+	}
+	return { ranAt: Number(row.ran_at), count: Number(row.problem_count), problems };
 }

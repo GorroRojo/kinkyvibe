@@ -4,7 +4,15 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestDB } from '../db/testing.js';
-import { checkObjectsIntegrity, findIntegrityProblems, hasObjectsSchema } from './integrity.js';
+import {
+	KEEP_RUNS,
+	STORED_PROBLEMS,
+	checkObjectsIntegrity,
+	findIntegrityProblems,
+	hasObjectsSchema,
+	lastIntegrityRun,
+	recordIntegrityRun
+} from './integrity.js';
 import { saveObject } from './save.js';
 import { coreTypes, createRegistry } from './types/index.js';
 
@@ -196,5 +204,68 @@ describe('checkObjectsIntegrity (con base)', () => {
 			ctx
 		);
 		expect(codes(await checkObjectsIntegrity(t.db, { registry }))).toEqual(['invalid_data']);
+	});
+});
+
+describe('integrity_runs: el resultado queda guardado para el panel', () => {
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	beforeAll(async () => {
+		t = await createTestDB();
+	});
+	afterAll(async () => {
+		await t?.dispose();
+	});
+
+	it('sin corridas: null', async () => {
+		expect(await lastIntegrityRun(t.db)).toBeNull();
+	});
+
+	it('guarda código, ids, tipo y slug (no el mensaje) y devuelve la última', async () => {
+		const ctx = { actor: 'admin-inventade' };
+		const lugar = await saveObject(t.db, { type: 'lugar', title: 'Salón Inventado' }, ctx);
+		const problems = findIntegrityProblems({
+			types: CORE_ROWS,
+			objects: [{ ...place(lugar.id), slug: lugar.slug, visibility: 'secreto' }],
+			edges: [{ id: 9, from_id: lugar.id, kind: 'lugar', to_id: 999 }]
+		});
+		expect(problems.find((p) => p.code === 'invalid_visibility')?.slug).toBe('salon-inventado');
+
+		await recordIntegrityRun(t.db, [], 1000);
+		await recordIntegrityRun(t.db, problems, 2000);
+		expect(await lastIntegrityRun(t.db)).toEqual({
+			ranAt: 2000,
+			count: 2,
+			problems: [
+				{ code: 'invalid_visibility', objectId: lugar.id, slug: 'salon-inventado' },
+				{ code: 'dangling_edge', edgeId: 9 }
+			]
+		});
+	});
+
+	it(`guarda como mucho ${STORED_PROBLEMS} problemas (el total aparte) y las últimas ${KEEP_RUNS} corridas`, async () => {
+		const many = Array.from({ length: STORED_PROBLEMS + 7 }, (_, i) => ({
+			code: /** @type {const} */ ('orphan'),
+			message: 'x',
+			objectId: i + 1
+		}));
+		for (let i = 0; i < KEEP_RUNS + 5; i++) await recordIntegrityRun(t.db, many, 10_000 + i);
+		const last = await lastIntegrityRun(t.db);
+		expect(last?.count).toBe(STORED_PROBLEMS + 7);
+		expect(last?.problems.length).toBe(STORED_PROBLEMS);
+		expect(last?.ranAt).toBe(10_000 + KEEP_RUNS + 4);
+		expect(await t.db.prepare('SELECT count(*) AS n FROM integrity_runs').first()).toEqual({
+			n: KEEP_RUNS
+		});
+	});
+
+	it('sin la migración 0012 devuelve null en vez de tirar error', async () => {
+		const bare = await createTestDB({ migrate: false });
+		try {
+			expect(await lastIntegrityRun(bare.db)).toBeNull();
+			expect(await hasObjectsSchema(bare.db)).toBe(false);
+		} finally {
+			await bare.dispose();
+		}
 	});
 });

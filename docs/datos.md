@@ -54,6 +54,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `email_templates`                                 | 0008                     | textos de los mails cambiados desde el panel                                    | `src/lib/server/tickets/templates.js`                      |
 | `person_notes`                                    | 0009                     | notas internas sobre personas                                                   | `src/lib/server/admin/people.js`                           |
 | `object_types`, `objects`, `edges`, `objects_fts` | 0012                     | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md)) | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
+| `integrity_runs`                                  | 0012                     | resultado del chequeo nocturno de los objetos ("Para revisar")                  | `src/lib/server/objects/integrity.js`                      |
 | `demo_files`                                      | ninguna                  | solo en previews: los "commits" del modo demo                                   | `src/lib/server/demo/overlay.js`                           |
 
 `demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).

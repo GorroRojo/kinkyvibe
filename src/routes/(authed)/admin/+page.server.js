@@ -13,6 +13,8 @@ import {
 	expiringTransfers,
 	failedReminders,
 	groupReviewItems,
+	integrityReviewRow,
+	integrityRun,
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
@@ -89,6 +91,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		settings,
 		expiring,
 		stuck,
+		integrity,
 		contentPulls
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
@@ -106,6 +109,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
 		expiringTransfers(db, now, agendaUntil),
 		stuckSends(db, soonTicketed),
+		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
+		integrityRun(db),
 		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
 		usesLocalRepo() || !locals.user_token
 			? Promise.resolve([])
@@ -152,6 +157,9 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
 	);
+	// El chequeo nocturno de los datos, en una sola fila que se despliega (solo si encontró algo).
+	const integrityRow = integrityReviewRow(integrity, { formatWhen: (ms) => whenLabel(ms, now) });
+	if (integrityRow) todo.push(integrityRow);
 
 	const settingsItem = navItem('ajustes-cobros');
 	const agenda = agendaItems({
