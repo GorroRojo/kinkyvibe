@@ -95,6 +95,17 @@ async function loadMeta(slug) {
 }
 
 /**
+ * Frontmatter de un evento publicado (o `null`), para quien necesita más que la configuración de
+ * entradas (por ejemplo, la serie del evento en el modo puerta).
+ *
+ * @param {string} slug
+ * @returns {Promise<Record<string, any> | null>}
+ */
+export function getEventMeta(slug) {
+	return loadMeta(slug);
+}
+
+/**
  * Eventos de prueba de la venta de entradas (src/lib/posts/calendario/prueba-entradas-*.md):
  * sirven para probar en local y no venden en producción.
  * @param {string} slug

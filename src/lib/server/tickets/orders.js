@@ -23,7 +23,7 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -38,7 +38,7 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
- *   review_detail?: string | null
+ *   review_detail?: string | null, channel?: 'online' | 'puerta'
  * }} Order
  */
 /**
@@ -351,10 +351,12 @@ export function orderHolders(order) {
  * (webhooks duplicados, doble click en "Confirmar pago") nunca duplica. Al final se borran los
  * datos por entrada de la orden (ya quedaron en `tickets`).
  *
+ * Exportada para la venta en la puerta (door.js), que emite en el mismo batch que crea la orden.
+ *
  * @param {D1Database} db
- * @param {Order} order
+ * @param {Pick<Order, 'id' | 'holders' | 'buyer_name' | 'quantity'>} order
  */
-function issueTicketsStatements(db, order) {
+export function issueTicketsStatements(db, order) {
 	const holders = orderHolders(order);
 	// Código corto: el primero de tres candidatos al azar que no esté usado en el evento (una
 	// colisión no puede hacer fallar la aprobación de un pago; con tres, que choquen todos es

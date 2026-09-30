@@ -480,6 +480,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
  * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
  */
 export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+	// Una venta en la puerta puede no tener email.
+	if (!order.buyer_email) return false;
 	try {
 		const config = await getEventTickets(order.event_slug);
 		const message = buildRefundEmail({
