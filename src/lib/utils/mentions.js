@@ -16,6 +16,17 @@ export function pronounLabel(pronoun) {
 }
 
 /**
+ * `pronounLabel` for showing next to a name, with non-breaking spaces around each "/"
+ * ("elle / ella"), so the whole label wraps as one piece. Plain text: render it with `{...}`,
+ * never `{@html}` (it comes from frontmatter).
+ * @param {unknown} pronoun
+ * @returns {string|undefined}
+ */
+export function pronounDisplay(pronoun) {
+	return pronounLabel(pronoun)?.replaceAll('/', '\u00a0/\u00a0');
+}
+
+/**
  * Svelte action: appends `<small class="p-pronoun">` to each `a.mention` in `node`.
  * @param {HTMLElement} node
  * @param {(name: string) => string|undefined|Promise<string|undefined>} lookup

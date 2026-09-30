@@ -455,6 +455,9 @@ export function buildTransferEmail({
 	return { subject, html, text };
 }
 
+/** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
+export const RESEND_TIMEOUT_MS = 10_000;
+
 /**
  * @param {{
  *   fetch: typeof fetch,
@@ -463,7 +466,8 @@ export function buildTransferEmail({
  *   to: string,
  *   replyTo?: string,
  *   message: { subject: string, html: string, text: string },
- *   idempotencyKey?: string
+ *   idempotencyKey?: string,
+ *   timeoutMs?: number
  * }} input
  */
 export async function sendWithResend({
@@ -473,13 +477,15 @@ export async function sendWithResend({
 	to,
 	replyTo,
 	message,
-	idempotencyKey
+	idempotencyKey,
+	timeoutMs = RESEND_TIMEOUT_MS
 }) {
 	/** @type {Record<string, string>} */
 	const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 	if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
 	const res = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
+		signal: AbortSignal.timeout(timeoutMs),
 		headers,
 		body: JSON.stringify({
 			from,

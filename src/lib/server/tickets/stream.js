@@ -9,6 +9,8 @@
  * nuevo, y si el link cambia, se manda el nuevo a todes.
  */
 
+import { sha256Hex } from '$lib/server/hash.js';
+
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 const MAX_LINK_LENGTH = 500;
@@ -38,11 +40,8 @@ export function normalizeStreamLink(raw) {
 	return { ok: true, link: url.href };
 }
 
-/** @param {string} link */
-export async function streamLinkHash(link) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(link));
-	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
+/** Cómo se guarda un link en `stream_link_sends`. */
+export const streamLinkHash = sha256Hex;
 
 /**
  * @param {D1Database} db

@@ -86,9 +86,10 @@
 			</div>
 			<div class="details" in:fade={{ delay: 1100 }} out:fade>
 				<h2>
-					{argWeekdayDay(post.meta.start)} - {@html (
-						post.meta.location_name ?? 'Online'
-					).replaceAll(' ', '&nbsp;')}
+					{argWeekdayDay(post.meta.start)} - {(post.meta.location_name ?? 'Online').replaceAll(
+						' ',
+						'\u00a0'
+					)}
 				</h2>
 				<p>{post.meta.summary}</p>
 				<a href={post.path}>Saber más</a>

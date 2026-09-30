@@ -25,6 +25,7 @@ import {
 import { parseAllowlist, routeEmail } from './emailGuard.js';
 import { getEventTickets, listTicketedEvents } from './events.js';
 import { isPreviewDeploy } from '../deploy.js';
+import { sha256Hex } from '../hash.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
@@ -403,11 +404,8 @@ export async function sendOrderEmail({
 export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn }) {
 	const config = await getEventTickets(eventSlug);
 	const event = { title: config?.title || eventSlug, start: config?.start };
-	const linkKey = (await crypto.subtle.digest('SHA-256', new TextEncoder().encode(link))).slice(
-		0,
-		8
-	);
-	const key = Array.from(new Uint8Array(linkKey), (b) => b.toString(16).padStart(2, '0')).join('');
+	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
+	const key = (await sha256Hex(link)).slice(0, 16);
 	return sendStreamLinkToAll(db, {
 		eventSlug,
 		link,
