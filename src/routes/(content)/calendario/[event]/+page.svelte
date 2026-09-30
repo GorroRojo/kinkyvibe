@@ -6,6 +6,8 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
+	import { formatARS } from '$lib/utils/money.js';
+	import { saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
@@ -168,7 +170,7 @@
 			</span>
 		</p>
 		<div class="event-atcb">
-			{#if data.meta.link}
+			{#if data.meta.link && !data.tickets}
 				<div class="event-link-wrapper">
 					<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
 				</div>
@@ -213,6 +215,39 @@
 			></add-to-calendar-button>
 		</div>
 	</div>
+	{#if data.tickets}
+		{@const t = data.tickets}
+		<section class="buy-cta" id="entradas" aria-label="Entradas">
+			{#if t.open}
+				<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
+					<span class="buy-title">Comprar entradas</span>
+					<span class="buy-meta">
+						{#if t.priceFrom !== null}desde {formatARS(
+								t.priceFrom
+							)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
+							·
+						{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
+							<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
+					</span>
+				</a>
+				{#if t.closesAt}
+					<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
+				{/if}
+			{:else}
+				<p class="buy-closed">
+					{t.reason === 'soldout'
+						? 'Entradas agotadas.'
+						: t.reason === 'closed'
+							? 'Venta cerrada.'
+							: t.reason === 'notyet' && t.opensAt
+								? `Entradas: ${saleWindowText({ opensAt: t.opensAt })}.`
+								: t.reason === 'cancelled'
+									? 'El evento se canceló: no hay venta de entradas.'
+									: 'La venta online de entradas no está disponible en este momento.'}
+				</p>
+			{/if}
+		</section>
+	{/if}
 	{/if}
 	<div class="share-row">
 		<ShareEventButton
@@ -359,6 +394,52 @@
 				padding-top: 0;
 			}
 		}
+	}
+	/* Botón "Comprar entradas" (el formulario está en /calendario/<slug>/entradas). */
+	.buy-cta {
+		max-width: 40rem;
+		margin: 1.2em auto 0;
+		padding: 0 16px;
+	}
+	.buy-button {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.15em;
+		padding: 0.8em 1.2em;
+		border-radius: 0.8em;
+		background: var(--1);
+		color: white;
+		text-decoration: none;
+		text-align: center;
+		box-shadow: 0 0.2em 0.8em color-mix(in srgb, var(--1) 40%, transparent);
+		&:hover,
+		&:focus-visible {
+			background: var(--1-dark);
+			color: white;
+			text-decoration: none;
+		}
+	}
+	.buy-title {
+		font-size: var(--step-2);
+		font-weight: bold;
+		line-height: 1.2;
+	}
+	.buy-meta {
+		font-size: var(--step-0);
+	}
+	.buy-left {
+		white-space: nowrap;
+	}
+	.buy-when {
+		text-align: center;
+		margin: 0.4em 0 0;
+		font-size: var(--step--1);
+	}
+	.buy-closed {
+		text-align: center;
+		font-weight: bold;
+		margin: 0;
 	}
 	/* ------------------------------------- */
 	.event-header {
