@@ -64,7 +64,10 @@
 			clearDraft(s, draftKey);
 		} else {
 			const draft = loadDraft(s, draftKey, { base });
-			if (draft && draft.stale) {
+			if (draft && JSON.stringify(draft.data) === JSON.stringify(original)) {
+				// Es lo mismo que ya hay: no hay nada que recuperar.
+				clearDraft(s, draftKey);
+			} else if (draft && draft.stale) {
 				notice = { kind: 'stale', age: draftAge(draft.savedAt), data: draft.data };
 			} else if (draft) {
 				restore(draft.data);
