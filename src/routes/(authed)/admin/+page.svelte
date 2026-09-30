@@ -26,6 +26,7 @@
 		CalendarDays,
 		CalendarPlus,
 		Check,
+		ChevronDown,
 		ChevronRight,
 		FilePen,
 		FileSpreadsheet,
@@ -275,38 +276,75 @@
 						{#if data.todo.length}
 							<ul class="todo">
 								{#each data.todo as t (t.id)}
-									<li>
-										<span class="ico {t.tone}" aria-hidden="true"
-											><svelte:component
-												this={REVIEW_ICONS[t.icon] ?? TriangleAlert}
-												size={18}
-											/></span
-										>
-										<div class="grow">
-											<b>{t.title}</b>
-											<small class="muted">{t.text}</small>
-										</div>
-										{#if t.resend}
-											<form
-												method="POST"
-												action="?/resend"
-												use:enhance={() => {
-													resending = t.id;
-													return async ({ update }) => {
-														await update();
-														resending = '';
-													};
-												}}
+									{#if t.kind === 'group' && !t.href}
+										<li class="group">
+											<details>
+												<summary>
+													<span class="ico {t.tone}" aria-hidden="true"
+														><svelte:component
+															this={REVIEW_ICONS[t.icon] ?? TriangleAlert}
+															size={18}
+														/></span
+													>
+													<div class="grow">
+														<b>{t.title}</b>
+														<small class="muted">{t.text}</small>
+													</div>
+													<span class="kv-btn ghost sm toggle"
+														><span class="closed">{t.action}</span><span class="open">Ocultar</span
+														><ChevronDown size={16} aria-hidden="true" /></span
+													>
+												</summary>
+												<ul class="sub">
+													{#each t.items as i (i.id)}
+														<li>
+															<span class="grow"><b>{i.name ?? i.title}</b></span>
+															{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
+																>{/if}
+														</li>
+													{/each}
+												</ul>
+											</details>
+										</li>
+									{:else}
+										<li>
+											<span class="ico {t.tone}" aria-hidden="true"
+												><svelte:component
+													this={REVIEW_ICONS[t.icon] ?? TriangleAlert}
+													size={18}
+												/></span
 											>
-												<input type="hidden" name="order" value={t.resend.orderId} />
-												<button class="kv-btn ghost sm" disabled={resending === t.id}
-													>{resending === t.id ? 'Enviando…' : t.action}</button
+											<div class="grow">
+												<b>{t.title}</b>
+												<small class="muted">{t.text}</small>
+											</div>
+											{#if t.kind === 'item' && t.resend}
+												<form
+													method="POST"
+													action="?/resend"
+													use:enhance={() => {
+														resending = t.id;
+														return async ({ update }) => {
+															await update();
+															resending = '';
+														};
+													}}
 												>
-											</form>
-										{:else if t.href}
-											<a class="kv-btn ghost sm" href={t.href}>{t.action}</a>
-										{/if}
-									</li>
+													<input type="hidden" name="order" value={t.resend.orderId} />
+													<button class="kv-btn ghost sm" disabled={resending === t.id}
+														>{resending === t.id ? 'Enviando…' : t.action}</button
+													>
+												</form>
+											{:else if t.href}
+												<a class="kv-btn ghost sm" href={t.href}
+													>{t.action}{#if t.kind === 'group'}<ChevronRight
+															size={16}
+															aria-hidden="true"
+														/>{/if}</a
+												>
+											{/if}
+										</li>
+									{/if}
 								{/each}
 							</ul>
 						{:else}
@@ -693,6 +731,49 @@
 		border-top: 1px solid var(--line);
 		&:first-child {
 			border-top: 0;
+		}
+	}
+	.todo details {
+		flex: 1;
+		min-width: 0;
+	}
+	.todo summary {
+		display: flex;
+		gap: 0.7rem;
+		align-items: center;
+		cursor: pointer;
+		list-style: none;
+		&::-webkit-details-marker {
+			display: none;
+		}
+	}
+	.toggle {
+		gap: 0.25rem;
+		:global(svg) {
+			transition: transform 0.15s;
+		}
+		.open {
+			display: none;
+		}
+	}
+	details[open] .toggle {
+		.open {
+			display: inline;
+		}
+		.closed {
+			display: none;
+		}
+		:global(svg) {
+			transform: rotate(180deg);
+		}
+	}
+	.todo .sub {
+		list-style: none;
+		margin: 0.4rem 0 0 2.8rem;
+		padding: 0;
+		li {
+			padding: 0.35rem 0;
+			border-top: 1px dashed var(--line);
 		}
 	}
 	.grow {

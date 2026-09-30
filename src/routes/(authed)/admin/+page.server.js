@@ -12,6 +12,7 @@ import {
 	eventSalesTrend,
 	expiringTransfers,
 	failedReminders,
+	groupReviewItems,
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
@@ -128,7 +129,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		skip
 	});
 	const pullItems = contentPullItems(contentPulls);
-	const reviewList = reviewItems({
+	const todoItems = reviewItems({
 		upcoming,
 		transfers,
 		unsent,
@@ -137,12 +138,16 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
-	// Los que no se publicaron van primero; los que se están publicando, al final.
-	const todo = [
-		...pullItems.filter((i) => i.tone !== 'info'),
-		...reviewList,
-		...pullItems.filter((i) => i.tone === 'info')
-	];
+	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
+	// Lo repetitivo (sin imagen, borradores) va en una fila por tipo con la cuenta.
+	const todo = groupReviewItems(
+		[
+			...pullItems.filter((i) => i.tone !== 'info'),
+			...todoItems,
+			...pullItems.filter((i) => i.tone === 'info')
+		],
+		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
+	);
 
 	const settingsItem = navItem('ajustes-cobros');
 	const agenda = agendaItems({
