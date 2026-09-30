@@ -317,3 +317,36 @@ describe('edges y foreign keys', () => {
 		).rejects.toThrow(/FOREIGN KEY/);
 	});
 });
+
+describe('tablas de apoyo (`also`)', () => {
+	it('van en la misma tanda: si una falla, no se guarda el objeto', async () => {
+		const bad = await caught(() =>
+			saveObject(
+				t.db,
+				{ type: 'lugar', title: 'Salón Inventado' },
+				{ ...ctx, also: () => [t.db.prepare('INSERT INTO tabla_que_no_existe VALUES (1)')] }
+			)
+		);
+		expect(bad).toBeInstanceOf(Error);
+		expect(await t.db.prepare('SELECT count(*) AS n FROM objects').first()).toEqual({ n: 0 });
+	});
+
+	it('reciben cómo encontrar el objeto: por tipo y slug al crear, por id al editar', async () => {
+		/** @type {unknown[]} */
+		const refs = [];
+		const also = (/** @type {any} */ self) => {
+			refs.push(self);
+			return [];
+		};
+		const o = await saveObject(t.db, { type: 'lugar', title: 'Salón Inventado' }, { ...ctx, also });
+		await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 1, title: 'Otro' },
+			{ ...ctx, also }
+		);
+		expect(refs).toEqual([
+			{ id: null, type: 'lugar', slug: 'salon-inventado' },
+			{ id: o.id, type: 'lugar', slug: 'salon-inventado' }
+		]);
+	});
+});
