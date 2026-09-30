@@ -1,7 +1,6 @@
 <script>
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import { filteredTags, tagManager } from '$lib/utils/stores';
 
 	/**@type {string[]}*/
@@ -13,10 +12,6 @@
 			? [...tags.slice(0, tags.indexOf('KinkyVibe')), ...tags.slice(tags.indexOf('KinkyVibe') + 1)]
 			: tags
 	).filter((t) => showFilteredTags || !$filteredTags.includes(t));
-	let invisible = false;
-	onMount(() => {
-		invisible = false;
-	});
 </script>
 
 <ul>
@@ -24,7 +19,7 @@
 		{@const config = $tagManager.get(tag)}
 		{@const color = config?.getColor() ?? 'var(--color,var(--1))'}
 		{@const icon = config?.icon ?? ''}
-		<li style:--tag-color={color} class:invisible in:scale animate:flip>
+		<li style:--tag-color={color} in:scale animate:flip>
 			<a href="/todo?tags={tag}" class:card={false}>
 				{icon} {tag}
 			</a>
@@ -33,10 +28,6 @@
 </ul>
 
 <style>
-	.invisible {
-		opacity: 0;
-		transition: 300ms;
-	}
 	ul {
 		display: flex;
 		flex-wrap: wrap;

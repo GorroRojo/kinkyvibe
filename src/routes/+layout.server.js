@@ -4,8 +4,6 @@ import { fetchMarkdownPosts } from '$lib/utils';
 // changes, e.g. on each PostList search update.
 export const load = async ({ locals }) => {
 	let wiki = await fetchMarkdownPosts(true);
-	// let allPosts = await (await fetch('/api/posts')).json()
-	// let wiki = await (await fetch('/api/wiki')).json();
 	return {
 		wiki,
 		user: locals.user
