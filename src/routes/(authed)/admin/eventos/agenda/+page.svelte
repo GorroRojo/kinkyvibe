@@ -1,6 +1,14 @@
 <script>
 	import { deserialize } from '$app/forms';
-	import { CalendarDays, FlaskConical, Plus, RotateCcw, Save, Undo2 } from '@lucide/svelte';
+	import {
+		CalendarDays,
+		FileSpreadsheet,
+		FlaskConical,
+		Plus,
+		RotateCcw,
+		Save,
+		Undo2
+	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -194,6 +202,9 @@
 >
 	<svelte:fragment slot="actions">
 		<CsvButton rows={data.rows} {columns} filename="agenda.csv" />
+		<a class="kv-btn ghost" href="/admin/eventos/importar"
+			><FileSpreadsheet size={16} aria-hidden="true" /> Importar planilla</a
+		>
 		<a class="kv-btn ghost" href="/admin/eventos/nuevo"
 			><Plus size={16} aria-hidden="true" /> Evento</a
 		>
