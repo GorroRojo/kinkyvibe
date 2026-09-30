@@ -1,27 +1,13 @@
 import { fetchMarkdownPosts } from '$lib/utils';
-const siteURL = 'https://kinkyvibe.ar';
+import { render, sortByPublished } from './sitemap.js';
 // content only changes on deploy: build it once as a static file
 export const prerender = true;
-// TODO add wiki entries to sitemap
-/**
- *
- * @param {string|Date|undefined} d
- * @returns
- */
-function date(d) {
-	const parsed = new Date(d + '');
-	// new Date() never throws: it returns an Invalid Date for missing/bad values
-	return isNaN(parsed.getTime()) ? new Date() : parsed;
-}
 
 /** @type {import('./$types').RequestHandler} */
 export const GET = async () => {
-	const allPosts = await fetchMarkdownPosts();
-	const sortedPosts = allPosts.sort(
-		(a, b) => date(b.meta.published_date).getTime() - date(a.meta.published_date).getTime()
-	);
+	const [posts, wikiPosts] = await Promise.all([fetchMarkdownPosts(), fetchMarkdownPosts(true)]);
 	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
-	const body = render(pages, sortedPosts);
+	const body = render(pages, sortByPublished(posts), wikiPosts);
 	const options = {
 		headers: {
 			'Cache-Control': 'max-age=0, s-maxage=3600',
@@ -31,41 +17,3 @@ export const GET = async () => {
 
 	return new Response(body, options);
 };
-
-/**
- *
- * @param {string[]} pages
- * @param {ProcessedPost[]} posts
- * @returns
- */
-const render = (pages, posts) =>
-	`<?xml version="1.0" encoding="UTF-8" ?>
-<urlset
-      xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-<url>
-    <loc>${siteURL}</loc>
-    <priority>1</priority>
-    <lastmod>${new Date().toISOString()}</lastmod>
-</url>
-${pages.map(
-	(p) =>
-		`<url>
-    <loc>${siteURL}${p}</loc>
-    <priority>0.8</priority>
-    <lastmod>${new Date().toISOString()}</lastmod>
-</url>`
-).join('')}
-${posts
-	.map(
-		(post) =>
-			`<url>
-    <loc>${siteURL}${post.path}</loc>
-    <lastmod>${date(post.meta.updated_date ?? post.meta.published_date ?? '').toISOString()}</lastmod>
-    <priority>0.6</priority>
-</url>`
-	)
-	.join('')}
-</urlset>
-`;
