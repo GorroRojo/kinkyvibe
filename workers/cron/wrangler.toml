@@ -1,0 +1,13 @@
+# Worker aparte, solo para el cron de los recordatorios de entradas (ver README.md).
+# No es parte del sitio: se deploya a mano desde esta carpeta con `npx wrangler deploy`.
+name = "kinkyvibe-cron"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[triggers]
+# Cada 15 minutos (UTC). Los recordatorios se mandan en la primera corrida después de su hora.
+crons = ["*/15 * * * *"]
+
+[vars]
+# Adónde llama. El secreto va aparte: `npx wrangler secret put CRON_SECRET`.
+SITE_URL = "https://kinkyvibe.ar"
