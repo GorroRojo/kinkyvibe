@@ -1,4 +1,4 @@
--- Migration number: 0005 	 Panel de admin: "Desde tu última visita" en el Inicio.
+-- Migration number: 0007 	 Panel de admin: "Desde tu última visita" en el Inicio.
 --
 -- Una fila por admin (id numérico de GitHub). `seen_at` es desde cuándo se muestran las
 -- novedades; `last_at` es la última vez que abrió el Inicio. Una visita nueva (más de 30 minutos

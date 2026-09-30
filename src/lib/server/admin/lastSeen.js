@@ -1,6 +1,6 @@
 /**
  * "Desde tu última visita" (Inicio del panel): cuándo miró cada admin por última vez (tabla
- * `admin_last_seen`, migración 0005).
+ * `admin_last_seen`, migración 0007).
  *
  * - `touchLastSeen` se llama al abrir el Inicio: devuelve desde cuándo mostrar novedades y anota
  *   la visita. Recargar la página no borra las novedades: una visita nueva empieza recién después
