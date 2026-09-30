@@ -30,14 +30,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Report-only: main currently has ~24 pre-existing svelte-check errors (types in
-      # edit/+page.svelte, TagsInput, (content) layout, (authed) layout...). They're shown in the log and
-      # as annotations but don't block merges until they're cleaned up; then drop
-      # continue-on-error.
-      - name: svelte-check (report only)
-        run: npm run check
-        continue-on-error: true
-
       - name: Unit + content tests
         run: npx vitest run
 
@@ -60,7 +52,7 @@ jobs:
           retention-days: 7
 
   # Fails only if svelte-check reports MORE errors than scripts/svelte-check-baseline.json.
-  # (The report-only svelte-check step in `test` can go once this is in.)
+  # Its log lists every current error.
   typecheck:
     runs-on: ubuntu-22.04
     timeout-minutes: 10

@@ -6,6 +6,8 @@
  * ephemeral, so this is best-effort and a miss just means one extra call.
  */
 
+import { sha256Hex } from './hash.js';
+
 const TTL_MS = 5 * 60 * 1000;
 /** Tokens GitHub rejected are remembered this long, so a bad cookie costs one GitHub call. */
 export const FAILED_TTL_MS = 60 * 1000;
@@ -32,14 +34,8 @@ function makeRoom(map, max) {
 	}
 }
 
-/**
- * @param {string} token
- * @returns {Promise<string>}
- */
-async function hashToken(token) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
+/** Tokens are only kept in memory as their hash. */
+const hashToken = sha256Hex;
 
 /**
  * @param {string|undefined} token
