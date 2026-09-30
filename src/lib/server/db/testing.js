@@ -61,8 +61,10 @@ export async function resetDB(db) {
 		)
 		.all();
 	if (!results.length) return;
-	// Los nombres vienen de sqlite_master, no del usuario; igual los citamos.
-	await db.batch(
-		results.map((r) => db.prepare(`DELETE FROM "${String(r.name).replaceAll('"', '""')}"`))
-	);
+	// Los nombres vienen de sqlite_master, no del usuario; igual los citamos. D1 aplica las
+	// foreign keys: diferirlas al final del batch permite borrar en cualquier orden.
+	await db.batch([
+		db.prepare('PRAGMA defer_foreign_keys = on'),
+		...results.map((r) => db.prepare(`DELETE FROM "${String(r.name).replaceAll('"', '""')}"`))
+	]);
 }
