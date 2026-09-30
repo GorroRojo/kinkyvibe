@@ -17,6 +17,7 @@ import {
 	reminderId
 } from '$lib/server/tickets/reminders.js';
 import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
+import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -301,6 +302,17 @@ export function stuckSends(db, slugs) {
 			streamLinks: await failedStreamLinkCounts(db, slugs)
 		})
 	);
+}
+
+/**
+ * La última corrida del chequeo nocturno de integridad de los objetos (null si no hubo ninguna
+ * o si la base todavía no tiene la migración 0012).
+ *
+ * @param {D1Database | null | undefined} db
+ * @returns {Promise<import('$lib/server/objects/integrity.js').IntegrityRun | null>}
+ */
+export function integrityRun(db) {
+	return safe(db, 'chequeo nocturno', null, lastIntegrityRun);
 }
 
 /**
@@ -804,7 +816,7 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
  * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.
  * @typedef {{
  *   id: string,
- *   tone: 'info',
+ *   tone: 'info' | 'bad',
  *   icon: string,
  *   title: string,
  *   text: string,
@@ -871,6 +883,67 @@ export function groupReviewItems(items, { links, min = 2 }) {
 		}
 	}
 	return rows;
+}
+
+/**
+ * "Para revisar": una sola fila con lo que encontró el último chequeo nocturno de integridad de
+ * los objetos (se despliega con cada problema: código y slug). Nada si la última corrida salió
+ * bien o si no hubo ninguna.
+ *
+ * @param {import('$lib/server/objects/integrity.js').IntegrityRun | null} run
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewRow | null}
+ */
+export function integrityReviewRow(run, { formatWhen } = {}) {
+	if (!run || run.count <= 0) return null;
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** @type {Map<string, number>} */
+	const byCode = new Map();
+	for (const p of run.problems) byCode.set(p.code, (byCode.get(p.code) ?? 0) + 1);
+	const codes = [...byCode].map(([code, n]) => (n > 1 ? `${code} ×${n}` : code)).join(', ');
+	/** @type {ReviewItem[]} */
+	const items = run.problems.map((p, i) => {
+		const where =
+			p.slug ??
+			(p.objectId !== undefined
+				? `objeto ${p.objectId}`
+				: p.edgeId !== undefined
+					? `relación ${p.edgeId}`
+					: (p.type ?? ''));
+		return {
+			id: `integrity-${i}`,
+			tone: 'bad',
+			icon: 'alert',
+			title: p.code,
+			text: '',
+			action: '',
+			name: where ? `${p.code} · ${where}` : p.code
+		};
+	});
+	const hidden = run.count - run.problems.length;
+	if (hidden > 0) {
+		items.push({
+			id: 'integrity-more',
+			tone: 'bad',
+			icon: 'alert',
+			title: 'más',
+			text: '',
+			action: '',
+			name: `y ${plural(hidden, 'problema más', 'problemas más')} (ver los logs del cron)`
+		});
+	}
+	const when = formatWhen ? ` · revisado ${formatWhen(run.ranAt)}` : '';
+	return {
+		kind: 'group',
+		id: 'group-integrity',
+		tone: 'bad',
+		icon: 'alert',
+		title: `Chequeo nocturno: ${plural(run.count, 'problema', 'problemas')} en los datos`,
+		text: `${codes || 'sin detalle'}${when}. No se arregla solo.`,
+		action: 'Ver',
+		items
+	};
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';

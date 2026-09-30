@@ -17,6 +17,8 @@ import {
 	pendingTransfers,
 	recentActivity,
 	groupReviewItems,
+	integrityReviewRow,
+	integrityRun,
 	reviewItems,
 	reviewOrders,
 	sinceLastVisit,
@@ -891,5 +893,75 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 			}
 		]);
 		expect(items.at(-1)?.kind).toBe('order');
+	});
+});
+
+describe('chequeo nocturno de los datos en "Para revisar"', () => {
+	it('con problemas: una sola fila que se despliega con código y slug', () => {
+		const row = integrityReviewRow(
+			{
+				ranAt: 1000,
+				count: 3,
+				problems: [
+					{ code: 'invalid_data', objectId: 4, slug: 'salon-inventado', type: 'lugar' },
+					{ code: 'invalid_data', objectId: 5 },
+					{ code: 'dangling_edge', edgeId: 9 }
+				]
+			},
+			{ formatWhen: () => 'jue 1 oct, 03:00' }
+		);
+		expect(row).toMatchObject({
+			kind: 'group',
+			id: 'group-integrity',
+			tone: 'bad',
+			title: 'Chequeo nocturno: 3 problemas en los datos',
+			text: 'invalid_data ×2, dangling_edge · revisado jue 1 oct, 03:00. No se arregla solo.',
+			action: 'Ver'
+		});
+		expect(row && 'href' in row ? row.href : undefined).toBeUndefined();
+		expect(row?.kind === 'group' ? row.items.map((i) => i.name) : []).toEqual([
+			'invalid_data · salon-inventado',
+			'invalid_data · objeto 5',
+			'dangling_edge · relación 9'
+		]);
+	});
+
+	it('singular, y avisa si hay más problemas que los guardados', () => {
+		const one = integrityReviewRow({ ranAt: 0, count: 1, problems: [{ code: 'fts_out_of_sync' }] });
+		expect(one?.title).toBe('Chequeo nocturno: 1 problema en los datos');
+		const more = integrityReviewRow({
+			ranAt: 0,
+			count: 60,
+			problems: [{ code: 'orphan', objectId: 1 }]
+		});
+		expect(more?.kind === 'group' ? more.items.at(-1)?.name : '').toBe(
+			'y 59 problemas más (ver los logs del cron)'
+		);
+	});
+
+	it('sin problemas o sin corridas: nada', () => {
+		expect(integrityReviewRow({ ranAt: 0, count: 0, problems: [] })).toBeNull();
+		expect(integrityReviewRow(null)).toBeNull();
+	});
+
+	it('integrityRun: null sin base, sin corridas o sin la migración 0012 (no tira error)', async () => {
+		expect(await integrityRun(null)).toBeNull();
+		expect(await integrityRun(t.db)).toBeNull();
+		const bare = await createTestDB({ migrate: false });
+		try {
+			expect(await integrityRun(bare.db)).toBeNull();
+		} finally {
+			await bare.dispose();
+		}
+	}, 30_000);
+
+	it('integrityRun: la última corrida guardada', async () => {
+		const { recordIntegrityRun } = await import('$lib/server/objects/integrity.js');
+		await recordIntegrityRun(t.db, [{ code: 'orphan', message: 'x', objectId: 3 }], 5000);
+		expect(await integrityRun(t.db)).toEqual({
+			ranAt: 5000,
+			count: 1,
+			problems: [{ code: 'orphan', objectId: 3 }]
+		});
 	});
 });

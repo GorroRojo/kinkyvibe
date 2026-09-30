@@ -57,14 +57,30 @@ export async function createTestDB({ migrate = true } = {}) {
 export async function resetDB(db) {
 	const { results } = await db
 		.prepare(
-			"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name != 'd1_migrations'"
+			"SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name != 'd1_migrations'"
 		)
 		.all();
 	if (!results.length) return;
+	// Tablas sombra de FTS5 (`x_data`, `x_idx`…): no se tocan, las maneja SQLite; vaciarlas a mano
+	// rompe el índice. Las FTS con contenido externo (`content=otra`) se vacían solas por sus
+	// triggers al borrar la tabla de contenido, y al final se reconstruyen por las dudas.
+	const { results: tableList } = await db
+		.prepare("SELECT name, type FROM pragma_table_list WHERE schema = 'main'")
+		.all();
+	const shadows = new Set(tableList.filter((r) => r.type === 'shadow').map((r) => String(r.name)));
+	/** @param {unknown} name */
+	const q = (name) => `"${String(name).replaceAll('"', '""')}"`;
+	const isVirtual = (/** @type {unknown} */ sql) =>
+		/^\s*CREATE\s+VIRTUAL\s+TABLE/i.test(String(sql));
+	const external = (/** @type {unknown} */ sql) =>
+		isVirtual(sql) && /\bcontent\s*=\s*'[^']+'/i.test(String(sql));
+	const tables = results.filter((r) => !shadows.has(String(r.name)) && !external(r.sql));
+	const rebuild = results.filter((r) => external(r.sql));
 	// Los nombres vienen de sqlite_master, no del usuario; igual los citamos. D1 aplica las
 	// foreign keys: diferirlas al final del batch permite borrar en cualquier orden.
 	await db.batch([
 		db.prepare('PRAGMA defer_foreign_keys = on'),
-		...results.map((r) => db.prepare(`DELETE FROM "${String(r.name).replaceAll('"', '""')}"`))
+		...tables.map((r) => db.prepare(`DELETE FROM ${q(r.name)}`)),
+		...rebuild.map((r) => db.prepare(`INSERT INTO ${q(r.name)} (${q(r.name)}) VALUES ('rebuild')`))
 	]);
 }
