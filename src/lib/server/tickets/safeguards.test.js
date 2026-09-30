@@ -210,13 +210,20 @@ describe('?/buy', () => {
 		'límite de intentos por cliente, antes de validar nada; no afecta a otros clientes',
 		{ timeout: 60000 },
 		async () => {
-			const { limit } = CHECKOUT_RATE_LIMITS.client;
-			for (let i = 0; i < limit; i++) {
-				const r = await post(buyAction, order({ email: 'no-es-mail' }));
-				expect(r.status).toBe(400);
+			// Reloj fijo en la mitad de una ventana: si el loop cruzara un borde de la ventana
+			// (p. ej. las 02:00:00), el contador arrancaría de cero y nunca llegaría al 429.
+			const now = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 1, 12, 5, 0));
+			try {
+				const { limit } = CHECKOUT_RATE_LIMITS.client;
+				for (let i = 0; i < limit; i++) {
+					const r = await post(buyAction, order({ email: 'no-es-mail' }));
+					expect(r.status).toBe(400);
+				}
+				expect((await post(buyAction, order())).status).toBe(429);
+				expect((await post(buyAction, order(), '198.51.100.9')).redirect).toBeTruthy();
+			} finally {
+				now.mockRestore();
 			}
-			expect((await post(buyAction, order())).status).toBe(429);
-			expect((await post(buyAction, order(), '198.51.100.9')).redirect).toBeTruthy();
 		}
 	);
 
