@@ -30,6 +30,15 @@ export class PathExistsError extends Error {
 	}
 }
 
+/** Thrown by commitFiles when a file listed in `unchanged` was modified on the branch meanwhile. */
+export class FileChangedError extends Error {
+	/** @param {string} path */
+	constructor(path) {
+		super(`${path} cambió en GitHub mientras tanto`);
+		this.path = path;
+	}
+}
+
 /** @param {string} path */
 const encodePath = (path) => path.split('/').map(encodeURIComponent).join('/');
 
@@ -160,26 +169,108 @@ export async function existingPaths(token, paths, ref = BRANCH) {
 }
 
 /**
+ * Every file directly inside a directory of main, with its blob sha and (for text files) its
+ * content, in ONE GraphQL request (the REST API would need one request per file, and a Worker
+ * only gets a few dozen subrequests). Subdirectories and binary files are left out.
+ * @param {string} token
+ * @param {string} dir
+ * @returns {Promise<Array<{path: string, sha: string, text: string}>>} [] if missing
+ */
+export async function getDirTexts(token, dir) {
+	const [owner, name] = REPO.split('/');
+	const response = await fetch('https://api.github.com/graphql', {
+		method: 'POST',
+		headers: {
+			'User-Agent': 'kinkyvibe-admin',
+			Authorization: `Bearer ${token}`,
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			query: `query($owner: String!, $name: String!, $expr: String!) {
+				repository(owner: $owner, name: $name) {
+					object(expression: $expr) {
+						... on Tree { entries { name type oid object { ... on Blob { text isBinary } } } }
+					}
+				}
+			}`,
+			variables: { owner, name, expr: `${BRANCH}:${dir}` }
+		})
+	});
+	/** @type {any} */
+	let json = null;
+	try {
+		json = await response.json();
+	} catch (e) {
+		// not JSON
+	}
+	if (!response.ok || json?.errors?.length) {
+		const detail = json?.errors?.[0]?.message ?? json?.message ?? '';
+		throw new GitHubError(
+			response.ok ? 502 : response.status,
+			`GitHub respondió ${response.status} (graphql ${dir})${detail ? ': ' + detail : ''}`
+		);
+	}
+	const entries = json?.data?.repository?.object?.entries ?? [];
+	return entries
+		.filter(
+			(/** @type {any} */ e) =>
+				e.type === 'blob' && e.object && !e.object.isBinary && typeof e.object.text === 'string'
+		)
+		.map((/** @type {any} */ e) => ({ path: `${dir}/${e.name}`, sha: e.oid, text: e.object.text }));
+}
+
+/**
  * @typedef {object} CommitFile
  * @prop {string} path
  * @prop {string} [content] utf-8 text
  * @prop {string} [base64] binary content
  * @prop {string} [sha] sha of a blob that already exists in the repo (copy without re-uploading)
+ * @prop {boolean} [delete] remove this file in the commit
  */
+
+/**
+ * Paths of `expected` whose blob on `ref` is no longer the given sha (changed or deleted).
+ * One tree listing per directory.
+ * @param {string} token
+ * @param {Array<{path: string, sha: string}>} expected
+ * @param {string} ref
+ */
+async function changedPaths(token, expected, ref) {
+	/** @type {Map<string, Array<{name: string, path: string, sha: string}>>} */
+	const byDir = new Map();
+	for (const e of expected) {
+		const i = e.path.lastIndexOf('/');
+		const dir = e.path.slice(0, i);
+		byDir.set(dir, [
+			...(byDir.get(dir) ?? []),
+			{ name: e.path.slice(i + 1), path: e.path, sha: e.sha }
+		]);
+	}
+	const found = await Promise.all(
+		[...byDir].map(async ([dir, list]) => {
+			const shas = new Map((await listTree(token, dir, { ref })).map((e) => [e.path, e.sha]));
+			return list.filter((e) => shas.get(e.name) !== e.sha).map((e) => e.path);
+		})
+	);
+	return found.flat();
+}
 
 /**
  * Creates ONE commit on main with all the files (Git Data API: blobs → tree → commit → ref).
  * Text files go inline in the tree request and only binary files become blobs, so the number of
  * requests doesn't grow with the number of events. `mustNotExist` is checked with one listing
- * per directory. Retries if main moved in the meantime; never force-pushes.
+ * per directory. `unchanged` lists files (path + the blob sha they were read at) that must still
+ * be the same on main, so edits made from an older read never overwrite someone else's change.
+ * Retries if main moved in the meantime; never force-pushes.
  * @param {string} token
- * @param {{files: CommitFile[], message: string, mustNotExist?: string[]}} opts
+ * @param {{files: CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>}} opts
  * @returns {Promise<{sha: string, url: string}>}
  */
-export async function commitFiles(token, { files, message, mustNotExist = [] }) {
+export async function commitFiles(token, { files, message, mustNotExist = [], unchanged = [] }) {
 	const entries = await Promise.all(
 		files.map(async (f) => {
 			const entry = { path: f.path, mode: '100644', type: 'blob' };
+			if (f.delete) return { ...entry, sha: null };
 			if (f.sha) return { ...entry, sha: f.sha };
 			if (f.base64 === undefined) return { ...entry, content: f.content ?? '' };
 			const blob = await gh(token, 'POST', 'git/blobs', { content: f.base64, encoding: 'base64' });
@@ -191,6 +282,8 @@ export async function commitFiles(token, { files, message, mustNotExist = [] }) 
 		const head = ref.object.sha;
 		const existing = await existingPaths(token, mustNotExist, head);
 		if (existing.length) throw new PathExistsError(existing[0]);
+		const changed = unchanged.length ? await changedPaths(token, unchanged, head) : [];
+		if (changed.length) throw new FileChangedError(changed[0]);
 		const headCommit = await gh(token, 'GET', `git/commits/${head}`);
 		const tree = await gh(token, 'POST', 'git/trees', {
 			base_tree: headCommit.tree.sha,
