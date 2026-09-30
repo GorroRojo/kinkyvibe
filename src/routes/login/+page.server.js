@@ -18,7 +18,8 @@ export const actions = {
 		const params = new URLSearchParams({
 			client_id: env.GITHUB_CLIENT_ID ?? '',
 			state,
-			scope: 'repo'
+			// The site only reads and commits to the public GorroRojo/kinkyvibe repo.
+			scope: 'public_repo'
 		});
 		redirect(302, `${target}?${params}`);
 	}
