@@ -8,6 +8,7 @@
  * entry after the commit.
  */
 import { error, fail, isRedirect, redirect } from '@sveltejs/kit';
+import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from './audit.js';
@@ -272,7 +273,8 @@ export function editorActions(category) {
 			const data = await request.formData();
 			const mode = data.get('mode') === 'editar' ? 'editar' : 'nuevo';
 			const slug = String(data.get('slug') ?? '').trim();
-			const content = String(data.get('content') ?? '');
+			// Same line endings as the file that was opened (the textarea sends CRLF).
+			const content = withLineEnding(String(data.get('content') ?? ''), data.get('eol'));
 			const baseSha = String(data.get('sha') ?? '');
 			const from = String(data.get('desde') ?? '');
 			const isNew = mode === 'nuevo';

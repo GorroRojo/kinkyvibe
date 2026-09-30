@@ -40,6 +40,7 @@
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { parseDocument } from 'yaml';
+	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 
 	/**
 	 * Editor de publicaciones (datos + imagen + etiquetas + entradas + texto en markdown). Lo usan
@@ -722,6 +723,7 @@
 		<textarea hidden name="content" value={content}></textarea>
 		<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 		<input type="hidden" name="sha" value={sha} />
+		<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
 		<input type="hidden" name="path" value={path} />
 		<small class="later"
 			>Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos

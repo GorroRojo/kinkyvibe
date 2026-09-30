@@ -135,7 +135,7 @@ describe('commitFiles (publishes through a PR)', () => {
 	 *   exists?: string[],
 	 *   trees?: Record<string, Array<{path: string, sha?: string}>>,
 	 *   pulls?: any[],
-	 *   autoMerge?: 'ok' | 'off' | 'clean' | 'scope',
+	 *   autoMerge?: 'ok' | 'off' | 'clean' | 'unprotected' | 'scope',
 	 *   branchMoved?: number,
 	 *   stackedState?: string,
 	 *   refTaken?: number
@@ -160,6 +160,8 @@ describe('commitFiles (publishes through a PR)', () => {
 				const message = {
 					off: 'Auto merge is not allowed for this repository',
 					clean: 'Pull request Pull request is in clean status',
+					// What GitHub says when main has branch protection but no required check.
+					unprotected: 'Pull request Branch does not have required protected branch rules',
 					scope: 'Resource not accessible by integration'
 				}[autoMerge];
 				return { status: 200, json: { errors: [{ message }] } };
@@ -300,6 +302,13 @@ describe('commitFiles (publishes through a PR)', () => {
 			url: 'pulls/42/merge',
 			body: { merge_method: 'merge' }
 		});
+	});
+
+	it('merges right away when main has protection but no required check', async () => {
+		fakeRepo({ autoMerge: 'unprotected' });
+		const result = await commitFiles('t', { files: [files[0]], message: 'm' });
+		expect(result.pr?.state).toBe('merged');
+		expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ url: 'pulls/42/merge' });
 	});
 
 	it('picks another branch name if two saves share the same second', async () => {
