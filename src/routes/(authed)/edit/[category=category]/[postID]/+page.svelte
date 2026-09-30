@@ -8,6 +8,12 @@
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
+	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import {
+		applyTicketsToMarkdown,
+		readTicketsForm,
+		validateTicketsForm
+	} from '$lib/utils/ticketsEditor.js';
 	import '$lib/components/admin/admin.scss';
 	import {
 		buildTagOptions,
@@ -221,6 +227,21 @@
 	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
 	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
 
+	/* ---------- tickets (events only) ---------- */
+	const initialTickets = readTicketsForm(meta);
+	let tickets = readTicketsForm(meta);
+	$: ticketsCheck =
+		isEvent && !parseError
+			? validateTicketsForm(tickets, { sales: data.sales ?? undefined })
+			: { errors: [], warnings: [] };
+	// Lo que el archivo ya tenía mal (por ejemplo, cargado a mano) se muestra pero no bloquea
+	// guardar otros cambios; el servidor hace lo mismo.
+	const initialTicketErrors =
+		isEvent && !parseError
+			? validateTicketsForm(initialTickets, { sales: data.sales ?? undefined }).errors
+			: [];
+	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
+
 	/* ---------- image (events only) ---------- */
 	const image = data.image;
 	/** @type {HTMLInputElement} */
@@ -309,19 +330,21 @@
 					askScope &&
 						!imageScope &&
 						'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
-					...tagErrors
+					...tagErrors,
+					...newTicketErrors.map((e) => `Entradas: ${e}`)
 				].filter(Boolean)
 		  );
 
-	$: content = parseError ? rawText : build(values, tags, authors, body, newFeatured);
+	$: content = parseError ? rawText : build(values, tags, authors, body, newFeatured, tickets);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
 	 * @param {string[]} a
 	 * @param {string} b
 	 * @param {string} [featured] new `featured` ('' = unchanged); the server sets the final one
+	 * @param {typeof tickets} [tk] ticket sales form (events only)
 	 */
-	function build(v, t, a, b, featured = '') {
+	function build(v, t, a, b, featured = '', tk = initialTickets) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -332,7 +355,8 @@
 		if (hasAuthors && a.join('\n') !== initialAuthors.join('\n')) changes.authors = a;
 		if (featured) changes.featured = /^\d+$/.test(featured) ? Number(featured) : featured;
 		try {
-			return joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
+			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
+			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
 		} catch (e) {
 			return '';
 		}
@@ -590,6 +614,19 @@
 				>
 			</div>
 		</fieldset>
+
+		{#if isEvent}
+			<TicketsEditor
+				bind:state={tickets}
+				{tags}
+				location={values.location}
+				sales={data.sales}
+				salesUnavailable={data.salesUnavailable}
+				errors={ticketsCheck.errors}
+				warnings={ticketsCheck.warnings}
+				idPrefix="edit"
+			/>
+		{/if}
 
 		<fieldset class="card">
 			<legend>📄 Texto de la página</legend>

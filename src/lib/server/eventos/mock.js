@@ -39,6 +39,11 @@ function safeRepoPath(path) {
 /** @param {string} _token @param {string} path */
 export async function getFile(_token, path) {
 	const full = safeRepoPath(path);
+	// Like GitHub: what an earlier mock "commit" wrote wins over the checkout (so an event created
+	// with the mock can be opened in /edit, and a second edit sees the first one).
+	const committed = join(outDir, 'files', path);
+	if (resolve(committed).startsWith(outDir + '/') && (await exists(committed)))
+		return await readFile(committed, 'utf-8');
 	if (!(await exists(full))) return null;
 	return await readFile(full, 'utf-8');
 }

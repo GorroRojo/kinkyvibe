@@ -212,9 +212,21 @@ export function applyFrontmatterChanges(frontmatter, changes) {
 			}
 		}
 	}
-	let out = doc.toString();
+	let out = serializeFrontmatter(doc);
 	for (const key of toComment) out = commentOutKey(out, key);
 	return out.replace(/\s+$/, '') + '\n';
+}
+
+/**
+ * YAML → text in the style the posts use: flow lists without inner padding
+ * (`payment_methods: [mercadopago, transferencia]`) and one-line maps with it
+ * (`a_la_gorra: { minimo: 0, sugerido: 5000 }`). The yaml library has a single option for both.
+ * @param {import('yaml').Document} doc
+ */
+export function serializeFrontmatter(doc) {
+	return doc
+		.toString({ flowCollectionPadding: false })
+		.replace(/^(\s*(?:- )?[\w-]+: )\{([^{}'"\n]*)\}([ \t]*(?:#.*)?)$/gm, '$1{ $2 }$3');
 }
 
 /**

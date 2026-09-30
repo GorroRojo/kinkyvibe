@@ -8,6 +8,17 @@ Permite que la gente compre entradas para un evento del calendario desde el siti
 
 Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.md`). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
 
+**Desde el panel (lo normal):** la sección **🎟️ Entradas** del editor de eventos, al crear o duplicar (`/admin/eventos/nuevo`) y al editar (`/edit/calendario/<slug>`). Tiene:
+
+- el interruptor "Vender entradas por el sitio" (apagado = sin `tickets`, se usa el `link` del evento);
+- los tipos de entrada: nombre, cupo y **precio fijo** o **a la gorra** (mínimo y sugerido, con los botones rápidos que va a ver quien compra), para agregar, quitar y reordenar. El `id` de cada tipo sale del nombre al crearlo y **no cambia nunca** (las órdenes lo guardan), aunque se cambie el nombre;
+- medios de pago, cierre de la venta (por defecto, al empezar el evento), modalidad (automática, presencial u online), recordatorios por mail y, en "Avanzado", la comisión de Mercado Pago del evento;
+- **nada del Fondo**: es automático. Un aviso dice si el evento lo usa, según la etiqueta KinkyVibe, y cambia en vivo al prender o apagar "Lo organiza KinkyVibe".
+
+Se valida en el navegador y otra vez en el servidor con las mismas reglas (`validateTicketsForm` en `src/lib/utils/ticketsEditor.js`, más `parseTicketConfig` sobre el archivo final): pesos enteros, precio > 0, mínimo ≤ sugerido, cupo entero, al menos un tipo y un medio de pago. **Al editar un evento que ya vendió** (se consultan las ventas en D1): no deja borrar un tipo con entradas vendidas o reservadas, bajar el cupo por debajo de eso ni apagar la venta (para cortarla: estado "Agotadas" o una fecha de cierre); cambiar un precio solo avisa que las compras hechas mantienen el suyo. Si la base no responde, lo dice y el servidor vuelve a revisar al guardar. Solo se reescribe lo que cambió: comentarios, orden y claves que el editor no conoce se conservan (también dentro de cada tipo).
+
+**A mano**, en el archivo:
+
 ```yaml
 tags:
   - KinkyVibe # el Fondo KinkyVibe solo aplica a eventos con esta etiqueta (ver abajo)
@@ -192,25 +203,26 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 ### Archivos
 
-| Qué                                               | Dónde                                                             |
-| ------------------------------------------------- | ----------------------------------------------------------------- |
-| Todas las tablas de entradas (una sola migración) | `migrations/0002_tickets.sql`                                     |
-| Ajustes de venta                                  | `src/lib/server/tickets/settings.js`, `admin/entradas/ajustes`    |
-| Link de la transmisión (online)                   | `src/lib/server/tickets/stream.js`                                |
-| Control de ingreso: código y sugerencias          | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`             |
-| Cálculo de precio, DNI, política (compartido)     | `src/lib/utils/tickets.js`                                        |
-| Códigos de descuento                              | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos`   |
-| Configuración desde el frontmatter y validación   | `src/lib/server/tickets/config.js`, `events.js`                   |
-| Órdenes, cupo, estados, check-in (SQL)            | `src/lib/server/tickets/orders.js`                                |
-| Cliente de Mercado Pago y firma del webhook       | `src/lib/server/tickets/mercadopago.js`                           |
-| Email (Resend) y QR                               | `src/lib/server/tickets/email.js`, `qr.js`                        |
-| Variables, mocks y envío del email                | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)           |
-| Form action de compra                             | `src/lib/server/tickets/checkout.js`                              |
-| Página y formulario de compra                     | `(content)/calendario/[event]/entradas/`, `TicketPurchase.svelte` |
-| Webhook                                           | `src/routes/api/mercadopago/webhook/+server.js`                   |
-| Páginas públicas (estado, entrada, QR, simulado)  | `src/routes/entradas/`                                            |
-| Admin y control de ingreso                        | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`         |
-| Tests                                             | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)        |
+| Qué                                               | Dónde                                                                                              |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Todas las tablas de entradas (una sola migración) | `migrations/0002_tickets.sql`                                                                      |
+| Ajustes de venta                                  | `src/lib/server/tickets/settings.js`, `admin/entradas/ajustes`                                     |
+| Link de la transmisión (online)                   | `src/lib/server/tickets/stream.js`                                                                 |
+| Control de ingreso: código y sugerencias          | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
+| Cálculo de precio, DNI, política (compartido)     | `src/lib/utils/tickets.js`                                                                         |
+| Códigos de descuento                              | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos`                                    |
+| Configuración desde el frontmatter y validación   | `src/lib/server/tickets/config.js`, `events.js`                                                    |
+| Editor de eventos: sección Entradas               | `src/lib/utils/ticketsEditor.js`, `admin/TicketsEditor.svelte`, `src/lib/server/tickets/editor.js` |
+| Órdenes, cupo, estados, check-in (SQL)            | `src/lib/server/tickets/orders.js`                                                                 |
+| Cliente de Mercado Pago y firma del webhook       | `src/lib/server/tickets/mercadopago.js`                                                            |
+| Email (Resend) y QR                               | `src/lib/server/tickets/email.js`, `qr.js`                                                         |
+| Variables, mocks y envío del email                | `src/lib/server/tickets/index.js`, `mock.js` (solo dev)                                            |
+| Form action de compra                             | `src/lib/server/tickets/checkout.js`                                                               |
+| Página y formulario de compra                     | `(content)/calendario/[event]/entradas/`, `TicketPurchase.svelte`                                  |
+| Webhook                                           | `src/routes/api/mercadopago/webhook/+server.js`                                                    |
+| Páginas públicas (estado, entrada, QR, simulado)  | `src/routes/entradas/`                                                                             |
+| Admin y control de ingreso                        | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`                                          |
+| Tests                                             | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)                                         |
 
 ## Variables de entorno
 

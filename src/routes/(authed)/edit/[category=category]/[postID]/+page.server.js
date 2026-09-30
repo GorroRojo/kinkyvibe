@@ -12,6 +12,8 @@ import {
 	sharedAssetCommit
 } from '$lib/server/eventos/images.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
+import { getDB } from '$lib/server/db';
+import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import {
 	featuredOf,
@@ -30,15 +32,23 @@ function postPath(params) {
 }
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ locals, params, url }) {
+export async function load({ locals, params, url, platform }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
 	const post = await getFileContent(locals.user_token, postPath(params));
+	const isEvent = params.category === 'calendario';
+	// Entradas ya vendidas o reservadas por tipo: el editor no deja romper esas compras.
+	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
 	return {
+		sales,
+		salesUnavailable: isEvent && sales === null,
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
 		...(await editorData(params.category)),
-		image: params.category === 'calendario' ? await imageInfo(locals.user_token, params.postID, post.raw) : null,
+		image:
+			params.category === 'calendario'
+				? await imageInfo(locals.user_token, params.postID, post.raw)
+				: null,
 		maxImageBytes: MAX_IMAGE_BYTES,
 		mock: isMockMode()
 	};
@@ -74,7 +84,7 @@ const mediaDir = (slug) => `src/lib/posts/calendario/media/${slug}`;
 /** @type {import("./$types").Actions} */
 export const actions = {
 	// Form actions do not run the (authed) layout load: each one must check auth.
-	save: async ({ params, locals, request, url }) => {
+	save: async ({ params, locals, request, url, platform }) => {
 		const user = requireAdmin(locals, url);
 		const data = await request.formData();
 		const fileContent = data.get('content');
@@ -87,6 +97,15 @@ export const actions = {
 		// Events follow the same tag rules as /admin/eventos/nuevo (one language, one place).
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });
+		if (params.category === 'calendario') {
+			const ticketError = await newTicketsError(
+				locals.user_token,
+				params,
+				fileContent,
+				await salesByType(getDB(platform), params.postID)
+			);
+			if (ticketError) return fail(400, { error: ticketError });
+		}
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
 		const userName = user.name || user.login || 'admin';
@@ -211,6 +230,31 @@ function eventTagError(content) {
 }
 
 /**
+ * Problemas de la venta de entradas que agrega este guardado, o null. Los que el archivo ya tenía
+ * (por ejemplo, cargado a mano) no bloquean guardar otros cambios; los que rompen compras hechas
+ * (borrar un tipo con ventas, bajar el cupo por debajo de lo vendido, apagar la venta) sí, porque
+ * se comparan con las ventas de la base.
+ * @param {string} token
+ * @param {{category: string, postID: string}} params
+ * @param {string} content
+ * @param {import('$lib/utils/ticketsEditor.js').SalesByType | null} sales
+ */
+async function newTicketsError(token, params, content, sales) {
+	const errors = ticketsFileErrors(content, { sales });
+	if (!errors.length) return null;
+	/** @type {string[]} */
+	let before = [];
+	try {
+		const current = await getFileContent(token, postPath(params));
+		before = ticketsFileErrors(current.raw, { sales });
+	} catch (e) {
+		// Sin el archivo actual, todo cuenta como nuevo.
+	}
+	const added = errors.filter((e) => !before.includes(e));
+	return added.length ? added.join(' ') : null;
+}
+
+/**
  * Saves an event together with a new image, in one commit (see $lib/utils/sharedImage.js):
  * - "todas": replaces the shared image in src/lib/assets (renaming it and updating every event
  *   that uses it if the extension changes);
@@ -231,7 +275,8 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 	}
 	if (isSharedAsset(current) && asked !== 'todas' && asked !== 'esta') {
 		return fail(400, {
-			error: '¿La imagen nueva es para todas las ediciones de este evento o solo para esta? Elegí una opción.'
+			error:
+				'¿La imagen nueva es para todas las ediciones de este evento o solo para esta? Elegí una opción.'
 		});
 	}
 	const scope = uploadScope(current, asked);

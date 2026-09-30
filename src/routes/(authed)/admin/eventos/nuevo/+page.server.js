@@ -22,6 +22,7 @@ import {
 } from '$lib/utils/sharedImage.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
+import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
@@ -232,6 +233,9 @@ export const actions = {
 			// Same rules as the form: one language, one place (see $lib/utils/adminTags.js).
 			const tagErrors = validateEventTags(fields.tags);
 			if (tagErrors.length) throw new Error(tagErrors.join(' '));
+			// Venta de entradas: las mismas reglas que el formulario y que la venta.
+			const ticketErrors = ticketsFileErrors(String(data.get('content') ?? ''));
+			if (ticketErrors.length) throw new Error(ticketErrors.join(' '));
 			/** @type {Record<string, any>} */
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined

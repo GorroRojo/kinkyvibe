@@ -7,6 +7,7 @@
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
+	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import '$lib/components/admin/admin.scss';
 	import { tagManager } from '$lib/utils/stores';
 	import {
@@ -18,6 +19,14 @@
 	} from '$lib/utils/adminTags.js';
 	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
 	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
+	import { formatARS } from '$lib/utils/money.js';
+	import {
+		applyTicketsToMarkdown,
+		describeTicketsForm,
+		readTicketsForm,
+		validateTicketsForm
+	} from '$lib/utils/ticketsEditor.js';
+	import { parseDocument } from 'yaml';
 	import {
 		STATUS_OPTIONS,
 		addDays,
@@ -111,6 +120,14 @@
 		values.endDate = addDays(values.startDate, 1);
 		span = 1;
 	}
+
+	/* ---------- tickets ---------- */
+	// Se copian del evento original (un evento nuevo arranca sin venta). Sin ventas que cuidar:
+	// es un evento nuevo.
+	const sourceMeta = parseDocument(splitMarkdown(sourceRaw).frontmatter).toJS() ?? {};
+	const initialTickets = readTicketsForm(sourceMeta);
+	let tickets = readTicketsForm(sourceMeta);
+	$: ticketsCheck = validateTicketsForm(tickets);
 
 	/* ---------- slug ---------- */
 	const taken = new Set(data.takenSlugs);
@@ -230,24 +247,30 @@
 			askScope &&
 				!imageScope &&
 				'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
-			...tagErrors
+			...tagErrors,
+			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
 		].filter(Boolean)
 	);
 
-	$: generated = build(values, featuredMode, scope === 'todas' ? sharedNewName : 1, problems.length);
+	$: generated = build(
+		values,
+		featuredMode,
+		scope === 'todas' ? sharedNewName : 1,
+		problems.length,
+		tickets
+	);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'upload'|'none'} mode
 	 * @param {string|number} uploadFeatured
 	 * @param {number} nProblems
+	 * @param {typeof tickets} tk
 	 */
-	function build(v, mode, uploadFeatured, nProblems) {
+	function build(v, mode, uploadFeatured, nProblems, tk) {
 		if (nProblems) return { md: '', error: '' };
 		try {
-			return {
-				md: buildEventMarkdown(sourceRaw, { ...v, featuredMode: mode, uploadFeatured }),
-				error: ''
-			};
+			const md = buildEventMarkdown(sourceRaw, { ...v, featuredMode: mode, uploadFeatured });
+			return { md: applyTicketsToMarkdown(md, tk, initialTickets), error: '' };
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
 		}
@@ -640,6 +663,15 @@
 					</div>
 				</fieldset>
 
+				<TicketsEditor
+					bind:state={tickets}
+					tags={splitList(values.tags)}
+					location={values.location}
+					errors={showProblems ? ticketsCheck.errors : []}
+					warnings={ticketsCheck.warnings}
+					idPrefix="ev"
+				/>
+
 				<fieldset class="card">
 					<legend>🖼️ Imagen</legend>
 					<div class="image-row">
@@ -759,6 +791,8 @@
 					<dd>{authors.join(', ') || '—'}</dd>
 					<dt>Etiquetas</dt>
 					<dd>{splitList(values.tags).join(', ')}</dd>
+					<dt>Entradas</dt>
+					<dd id="review-tickets">{describeTicketsForm(tickets, formatARS)}</dd>
 					<dt>Imagen</dt>
 					<dd id="review-image">
 						{#if featuredMode === 'upload' && scope === 'todas'}

@@ -63,31 +63,17 @@ import {
 	parseAmount,
 	parseFeePercent
 } from '$lib/utils/tickets.js';
-import tagsFactory from '$lib/utils/tags.js';
+import {
+	KINKYVIBE_TAG,
+	TYPE_ID_RE,
+	isKinkyVibeEvent,
+	isOnlineEvent
+} from '$lib/utils/ticketsEditor.js';
 
-/** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
-export const KINKYVIBE_TAG = 'KinkyVibe';
-
-/** @type {ReturnType<typeof tagsFactory> | undefined} */
-let tagManager;
-
-/**
- * ¿El evento tiene la etiqueta KinkyVibe? Resuelve los alias con el tag manager (así "kinkyvibe"
- * o "Kinkyvibe" también cuentan), no comparando texto.
- *
- * @param {Record<string, any> | undefined} meta
- */
-export function isKinkyVibeEvent(meta) {
-	const tags = meta?.tags;
-	if (!Array.isArray(tags)) return false;
-	tagManager ??= tagsFactory();
-	const tm = tagManager;
-	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
-}
-
+// Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
+export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
 export { formatARS } from '$lib/utils/money.js';
 export { MAX_TICKETS_PER_FORM };
-const TYPE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 /**
  * Convierte una fecha del frontmatter (string ISO o Date de YAML) a milisegundos.
@@ -166,7 +152,7 @@ export function parseTicketConfig(meta, options = {}) {
 			continue;
 		}
 		const price = Number(raw.price);
-		if (!Number.isSafeInteger(price) || price <= 0) {
+		if (!Number.isSafeInteger(price) || price <= 0 || price > ORDER_MAX_TOTAL) {
 			throw new TypeError(`Precio inválido para "${id}": tiene que ser un entero mayor a 0`);
 		}
 		// El fondo es siempre el porcentaje vigente (sin la etiqueta KinkyVibe, `fondoPercent` es
@@ -217,22 +203,6 @@ export function parseTicketConfig(meta, options = {}) {
 		location: meta.location,
 		location_name: meta.location_name
 	};
-}
-
-/**
- * ¿El evento es online? `modalidad: online | presencial` en el frontmatter manda; si falta, es
- * online si tiene la etiqueta "Online" (la que ya usan los eventos del calendario) y no tiene
- * `location`. En los eventos online las entradas llevan el link de la transmisión en lugar de un
- * QR, y no hay control de ingreso.
- *
- * @param {Record<string, any>} meta
- */
-export function isOnlineEvent(meta) {
-	const modalidad = typeof meta.modalidad === 'string' ? meta.modalidad.trim().toLowerCase() : '';
-	if (modalidad === 'online' || modalidad === 'virtual') return true;
-	if (modalidad === 'presencial') return false;
-	const tags = Array.isArray(meta.tags) ? meta.tags : [];
-	return !meta.location && tags.some((t) => String(t).trim().toLowerCase() === 'online');
 }
 
 /**
