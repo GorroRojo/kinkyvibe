@@ -10,7 +10,9 @@
 		fondoOptionsFor,
 		gorraQuickAmounts,
 		parseAmount,
+		formatSaleTime,
 		purchaseConditions,
+		saleWindowText,
 		unitPrice
 	} from '$lib/utils/tickets.js';
 
@@ -44,7 +46,7 @@
 	// svelte-ignore state_referenced_locally
 	const initial = result?.values ?? {};
 	// svelte-ignore state_referenced_locally
-	const firstAvailable = tickets.types.find((t) => t.available > 0)?.id ?? '';
+	const firstAvailable = tickets.types.find((t) => t.available > 0 && !t.closed)?.id ?? '';
 	let type = $state(initial.type || firstAvailable);
 	let quantity = $state(Math.max(1, Math.trunc(Number(initial.quantity)) || 1));
 	/** Lo que está escrito en el campo de cantidad (se puede tipear; se corrige al salir). */
@@ -189,7 +191,7 @@
 		// Si el servidor devolvió el formulario (con errores), eso manda.
 		const d = result?.values ? null : readDraft();
 		if (d) {
-			if (tickets.types.some((t) => t.id === d.type && t.available > 0)) type = d.type;
+			if (tickets.types.some((t) => t.id === d.type && t.available > 0 && !t.closed)) type = d.type;
 			if (Number(d.quantity) >= 1) setQuantity(Number(d.quantity));
 			if (typeof d.option === 'string') option = d.option;
 			if (typeof d.amount === 'string') amount = d.amount;
@@ -240,7 +242,10 @@
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
 		soldout: 'Entradas agotadas.',
-		closed: 'La venta online ya cerró.',
+		closed: 'Venta cerrada.',
+		notyet: tickets.opensAt
+			? `${saleWindowText({ opensAt: tickets.opensAt })}.`
+			: 'La venta todavía no abrió.',
 		unavailable: 'La venta online no está disponible en este momento.'
 	};
 
@@ -253,17 +258,6 @@
 					? 'Reservar y ver cómo transferir'
 					: 'Ir a pagar con Mercado Pago'
 	);
-
-	/** @param {number | null} ms */
-	function formatClose(ms) {
-		if (!ms) return '';
-		return new Date(ms).toLocaleString('es-AR', {
-			dateStyle: 'long',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		});
-	}
 
 	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
 	let feeText = $derived(
@@ -315,13 +309,13 @@
 			<fieldset class="types">
 				<legend>Tipo de entrada</legend>
 				{#each tickets.types as t (t.id)}
-					<label class="type" class:soldout={t.available === 0}>
+					<label class="type" class:soldout={t.available === 0 || t.closed}>
 						<input
 							type="radio"
 							name="type"
 							value={t.id}
 							bind:group={type}
-							disabled={t.available === 0}
+							disabled={t.available === 0 || t.closed}
 							required
 						/>
 						<span class="type-name">{t.name}</span>
@@ -347,7 +341,8 @@
 							</small>
 						{/if}
 						<small class="type-left">
-							{#if t.available === 0}Agotada{:else if t.available <= 5}¡Quedan {t.available}!{/if}
+							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.available <= 5}¡Quedan
+								{t.available}!{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
 						</small>
 					</label>
 				{/each}
@@ -682,8 +677,7 @@
 									Te reservamos el lugar 20 minutos mientras pagás.
 								{:else}
 									Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar {tickets.transferHoldHours}
-									horas mientras mandás
-									el comprobante por mail.
+									horas mientras mandás el comprobante por mail.
 								{/if}
 							</p>
 						{/each}
@@ -758,7 +752,7 @@
 				>
 			</div>
 			{#if tickets.closesAt}
-				<small class="closes">La venta online cierra el {formatClose(tickets.closesAt)} hs.</small>
+				<small class="closes">{saleWindowText({ closesAt: tickets.closesAt })}.</small>
 			{/if}
 		</form>
 	{/if}

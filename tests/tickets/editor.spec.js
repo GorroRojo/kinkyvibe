@@ -58,6 +58,13 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	await card.locator('#ev-ticket-min-1').fill('1000');
 	await card.locator('#ev-ticket-suggested-1').fill('500');
 	await card.locator('#ev-pay-transferencia').check();
+	// Horario: abre y cierra en momentos exactos (hora de Argentina); la anticipada no.
+	await card.locator('#ev-open-custom').check();
+	await card.locator('#ev-open-at').fill('2026-12-01T12:00');
+	await expect(card).toContainText('Abre el martes 1/12 a las 12:00.');
+	await card.locator('#ev-close-custom').check();
+	await card.locator('#ev-close-at').fill('2026-12-18T20:00');
+	await expect(card).toContainText('La venta cierra el viernes 18/12 a las 20:00.');
 
 	// Validación en el navegador: sugerido < mínimo.
 	await page.locator('#to-preview').click();
@@ -89,6 +96,8 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 		}
 	]);
 	expect(created.meta.payment_methods).toEqual(['mercadopago', 'transferencia']);
+	expect(created.meta.tickets_open).toBe('2026-12-01T12:00-03:00');
+	expect(created.meta.tickets_close).toBe('2026-12-18T20:00-03:00');
 	expect(created.raw).toContain('a_la_gorra: { minimo: 1000, sugerido: 5000 }');
 
 	// Editar: cambiar el precio de General.

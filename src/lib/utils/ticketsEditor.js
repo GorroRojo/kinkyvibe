@@ -9,13 +9,23 @@
  *
  * Campos del frontmatter que maneja (ver docs/tickets.md):
  * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido }, capacity }`;
- * - `payment_methods`, `tickets_close`, `modalidad`, `recordatorios`, `mp_fee_percent`.
+ * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
+ *   `mp_fee_percent`; y `close` (cierre propio) en cada tipo.
+ * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
+ * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
  */
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
 import tagsFactory from './tags.js';
-import { ORDER_MAX_TOTAL, PAYMENT_METHODS, parseAmount, parseFeePercent } from './tickets.js';
+import {
+	ORDER_MAX_TOTAL,
+	PAYMENT_METHODS,
+	parseAmount,
+	parseFeePercent,
+	parseSaleTime,
+	toArgentinaLocalInput
+} from './tickets.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -27,6 +37,7 @@ export const TYPE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 export const TICKET_KEYS = [
 	'tickets',
 	'payment_methods',
+	'tickets_open',
 	'tickets_close',
 	'modalidad',
 	'recordatorios',
@@ -82,6 +93,7 @@ export function isOnlineEvent(meta) {
  * @prop {string} min
  * @prop {string} suggested
  * @prop {string} capacity
+ * @prop {string} close cierre propio (datetime-local, hora de Argentina); '' = cierra con el evento
  */
 
 /**
@@ -89,9 +101,10 @@ export function isOnlineEvent(meta) {
  * @prop {boolean} enabled
  * @prop {TicketTypeForm[]} types
  * @prop {{ mercadopago: boolean, transferencia: boolean }} methods
+ * @prop {boolean} customOpen
+ * @prop {string} openAt datetime-local (hora de Argentina)
  * @prop {boolean} customClose
- * @prop {string} closeDate YYYY-MM-DD
- * @prop {string} closeTime hh:mm
+ * @prop {string} closeAt datetime-local (hora de Argentina)
  * @prop {'' | 'online' | 'presencial'} modalidad '' = automático
  * @prop {boolean} reminders
  * @prop {string} mpFee '' = el de Ajustes de venta
@@ -102,22 +115,6 @@ const newKey = () => `t${++keyCounter}`;
 
 /** @param {unknown} v */
 const str = (v) => (v === undefined || v === null ? '' : String(v));
-
-/**
- * `2026-10-16T18:00-03:00` → fecha y hora tal como están escritas (hora de Argentina).
- * @param {unknown} value
- */
-function splitDateTime(value) {
-	if (value instanceof Date && !isNaN(value.getTime())) {
-		const local = new Date(value.getTime() - 3 * 3600 * 1000).toISOString();
-		return { date: local.slice(0, 10), time: local.slice(11, 16) };
-	}
-	const m = str(value)
-		.trim()
-		.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{1,2}):(\d{2}))?/);
-	if (!m) return { date: '', time: '' };
-	return { date: m[1], time: m[2] ? `${m[2].padStart(2, '0')}:${m[3]}` : '' };
-}
 
 /** Un tipo de entrada vacío (nuevo). */
 export function emptyTicketType() {
@@ -130,9 +127,31 @@ export function emptyTicketType() {
 		price: '',
 		min: '0',
 		suggested: '',
-		capacity: ''
+		capacity: '',
+		close: ''
 	});
 }
+
+/**
+ * Horario del frontmatter → valor de un datetime-local en hora de Argentina ('' si falta; el
+ * texto tal cual si no se entiende, para que la validación lo marque).
+ * @param {unknown} value
+ * @param {boolean} endOfDay
+ */
+function toLocalInput(value, endOfDay) {
+	try {
+		const ms = parseSaleTime(value, { endOfDay });
+		return ms === null ? '' : toArgentinaLocalInput(ms);
+	} catch {
+		return str(value);
+	}
+}
+
+const LOCAL_RE = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/;
+/** datetime-local → lo que se guarda (con la zona de Argentina). @param {string} v */
+const withZone = (v) => `${v}-03:00`;
+/** @param {string} v */
+const localMs = (v) => (LOCAL_RE.test(v) ? new Date(withZone(v)).getTime() : NaN);
 
 /**
  * Estado del formulario a partir del frontmatter (ya parseado). Tolera datos raros: los muestra
@@ -155,7 +174,8 @@ export function readTicketsForm(meta) {
 			price: gorra ? '' : str(raw?.price),
 			min: gorra ? str(raw.a_la_gorra?.minimo) : '0',
 			suggested: gorra ? str(raw.a_la_gorra?.sugerido) : '',
-			capacity: str(raw?.capacity)
+			capacity: str(raw?.capacity),
+			close: toLocalInput(raw?.close, true)
 		});
 	});
 	const methodList =
@@ -164,7 +184,8 @@ export function readTicketsForm(meta) {
 			: (Array.isArray(meta.payment_methods) ? meta.payment_methods : [meta.payment_methods]).map(
 					(m) => str(m).trim().toLowerCase()
 				);
-	const close = splitDateTime(meta?.tickets_close);
+	const openAt = toLocalInput(meta?.tickets_open, false);
+	const closeAt = toLocalInput(meta?.tickets_close, true);
 	const modalidad = str(meta?.modalidad).trim().toLowerCase();
 	return {
 		enabled: meta?.tickets !== undefined && meta?.tickets !== null,
@@ -173,9 +194,10 @@ export function readTicketsForm(meta) {
 			mercadopago: methodList.includes('mercadopago'),
 			transferencia: methodList.includes('transferencia')
 		},
-		customClose: Boolean(close.date),
-		closeDate: close.date,
-		closeTime: close.time || '18:00',
+		customOpen: Boolean(openAt),
+		openAt,
+		customClose: Boolean(closeAt),
+		closeAt,
 		modalidad:
 			modalidad === 'online' || modalidad === 'virtual'
 				? 'online'
@@ -313,13 +335,26 @@ export function validateTicketsForm(form, { sales } = {}) {
 	}
 	if (!form.methods.mercadopago && !form.methods.transferencia)
 		errors.push('Elegí al menos un medio de pago.');
-	if (form.customClose) {
-		if (
-			!/^\d{4}-\d{2}-\d{2}$/.test(form.closeDate) ||
-			!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.closeTime)
-		)
-			errors.push('Completá el día y la hora en que cierra la venta.');
-	}
+	const openMs = form.customOpen ? localMs(form.openAt) : null;
+	const closeMs = form.customClose ? localMs(form.closeAt) : null;
+	if (form.customOpen && Number.isNaN(openMs))
+		errors.push('Completá el día y la hora en que abre la venta.');
+	if (form.customClose && Number.isNaN(closeMs))
+		errors.push('Completá el día y la hora en que cierra la venta.');
+	if (
+		openMs !== null &&
+		closeMs !== null &&
+		!Number.isNaN(openMs) &&
+		openMs >= /** @type {number} */ (closeMs)
+	)
+		errors.push('La venta tiene que abrir antes de cerrar.');
+	types.forEach((t, i) => {
+		if (t.close.trim() && Number.isNaN(localMs(t.close.trim())))
+			errors.push(
+				`Entrada ${i + 1}: completá el día y la hora del cierre propio (o dejalo vacío).`
+			);
+	});
+
 	if (form.mpFee.trim() && parseFeePercent(form.mpFee) === null)
 		errors.push('La comisión de Mercado Pago tiene que ser un porcentaje entre 0 y 49,99.');
 	return { errors, warnings };
@@ -341,7 +376,8 @@ const normalizedType = (t) => ({
 	price: t.mode === 'price' ? (parseAmount(t.price) ?? t.price) : null,
 	min: t.mode === 'gorra' ? (parseAmount(t.min || '0') ?? t.min) : null,
 	suggested: t.mode === 'gorra' ? (parseAmount(t.suggested) ?? t.suggested) : null,
-	capacity: parseCount(t.capacity) ?? t.capacity
+	capacity: parseCount(t.capacity) ?? t.capacity,
+	close: t.close.trim()
 });
 
 /**
@@ -353,7 +389,8 @@ function normalized(f) {
 		enabled: f.enabled,
 		types: f.enabled ? withTypeIds(f.types).map(normalizedType) : [],
 		methods: f.enabled ? f.methods : null,
-		close: f.enabled && f.customClose ? `${f.closeDate}T${f.closeTime}` : '',
+		open: f.enabled && f.customOpen ? f.openAt : '',
+		close: f.enabled && f.customClose ? f.closeAt : '',
 		modalidad: f.enabled ? f.modalidad : '',
 		reminders: f.enabled ? f.reminders : true,
 		mpFee: f.enabled ? f.mpFee.trim() : ''
@@ -431,6 +468,9 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		// `capacity` después del precio, como en la documentación (en su lugar si ya estaba).
 		if (modeChanged || !node.has('capacity')) node.delete('capacity');
 		node.set('capacity', Number(t.capacity.trim()));
+		// Cierre propio del tipo (opcional).
+		if (t.close.trim()) node.set('close', withZone(t.close.trim()));
+		else node.delete('close');
 		return node;
 	});
 	if (isSeq(current)) current.items = items;
@@ -447,11 +487,15 @@ export function applyTicketsForm(frontmatter, form, initial) {
 			doc.set('payment_methods', node);
 		}
 	}
-	const close = form.customClose ? `${form.closeDate}T${form.closeTime}-03:00` : '';
-	const initialClose = initial.customClose ? `${initial.closeDate}T${initial.closeTime}-03:00` : '';
-	if (close !== initialClose) {
-		if (close) doc.set('tickets_close', close);
-		else doc.delete('tickets_close');
+	for (const [key, on, value, wasOn, was] of /** @type {const} */ ([
+		['tickets_open', form.customOpen, form.openAt, initial.customOpen, initial.openAt],
+		['tickets_close', form.customClose, form.closeAt, initial.customClose, initial.closeAt]
+	])) {
+		const next = on ? value : '';
+		if (next !== (wasOn ? was : '')) {
+			if (next) doc.set(key, withZone(next));
+			else doc.delete(key);
+		}
 	}
 	if (form.modalidad !== initial.modalidad) {
 		if (form.modalidad) doc.set('modalidad', form.modalidad);
@@ -468,7 +512,6 @@ export function applyTicketsForm(frontmatter, form, initial) {
 	}
 	return serializeFrontmatter(doc);
 }
-
 
 /**
  * Lo mismo que `applyTicketsForm`, sobre el archivo completo (frontmatter + texto).

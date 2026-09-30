@@ -9,8 +9,8 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { MAX_TICKETS_PER_FORM, computePrice } from '$lib/utils/tickets.js';
-import { salesState, validatePurchase } from './config.js';
+import { MAX_TICKETS_PER_FORM, computePrice, formatSaleTime } from '$lib/utils/tickets.js';
+import { salesState, typeClosesAt, typeOpen, validatePurchase } from './config.js';
 import { checkDiscountCode } from './discounts.js';
 import { getEventTickets } from './events.js';
 import { resolveFondoPercent } from './fondo.js';
@@ -63,7 +63,8 @@ export const CHECKOUT_RATE_LIMITS = {
 /**
  * @typedef {{
  *   open: boolean,
- *   reason: 'cancelled' | 'soldout' | 'closed' | 'unavailable' | null,
+ *   reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' | 'unavailable' | null,
+ *   opensAt: number | null,
  *   closesAt: number | null,
  *   maxQuantity: number,
  *   mock: boolean,
@@ -75,7 +76,8 @@ export const CHECKOUT_RATE_LIMITS = {
  *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
- *     gorra: { min: number, suggested: number } | null }[]
+ *     gorra: { min: number, suggested: number } | null, closesAt: number | null,
+ *     closed: boolean }[]
  * }} TicketsView
  */
 
@@ -113,6 +115,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 	const view = {
 		open: false,
 		reason: state.open ? null : state.reason,
+		opensAt: config.opensAt,
 		closesAt: config.closesAt,
 		maxQuantity: MAX_TICKETS_PER_FORM,
 		mock: isMpMock() && methods.includes('mercadopago'),
@@ -129,7 +132,10 @@ export async function getTicketsView(db, slug, fetchFn) {
 			price: t.price,
 			fondo: t.fondo,
 			gorra: t.gorra,
-			available: 0
+			available: 0,
+			// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
+			closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
+			closed: !typeOpen(config, t)
 		}))
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
@@ -145,7 +151,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 		return { ...view, reason: view.reason ?? 'unavailable' };
 	}
 	if (!state.open) return view;
-	const anyLeft = view.types.some((t) => t.available > 0);
+	const anyLeft = view.types.some((t) => t.available > 0 && !t.closed);
 	return { ...view, open: anyLeft, reason: anyLeft ? null : 'soldout' };
 }
 
@@ -158,10 +164,13 @@ export const LOW_STOCK = 10;
  *
  * @param {TicketsView} view
  * @returns {{ open: boolean, reason: TicketsView['reason'], priceFrom: number | null,
- *   gorraSuggested: number | null, left: number | null }}
+ *   gorraSuggested: number | null, left: number | null, opensAt: number | null,
+ *   closesAt: number | null }}
  */
 export function summarizeTickets(view) {
-	const candidates = view.open ? view.types.filter((t) => t.available > 0) : view.types;
+	const candidates = view.open
+		? view.types.filter((t) => t.available > 0 && !t.closed)
+		: view.types;
 	const priced = candidates.filter((t) => !t.gorra).map((t) => t.price - t.fondo);
 	const gorra = candidates.filter((t) => t.gorra).map((t) => t.gorra?.suggested ?? 0);
 	const left = view.types.reduce((sum, t) => sum + t.available, 0);
@@ -170,7 +179,9 @@ export function summarizeTickets(view) {
 		reason: view.reason,
 		priceFrom: priced.length ? Math.min(...priced) : null,
 		gorraSuggested: gorra.length ? Math.min(...gorra) : null,
-		left: view.open && left <= LOW_STOCK ? left : null
+		left: view.open && left <= LOW_STOCK ? left : null,
+		opensAt: view.opensAt,
+		closesAt: view.closesAt
 	};
 }
 
@@ -355,7 +366,11 @@ export async function buyAction(event) {
 	if (!state.open) {
 		return failWith(
 			409,
-			state.reason === 'closed' ? 'La venta online ya cerró.' : 'No hay entradas a la venta.'
+			state.reason === 'closed'
+				? 'La venta ya cerró.'
+				: state.reason === 'notyet' && config.opensAt
+					? `La venta todavía no abrió: abre el ${formatSaleTime(config.opensAt)}.`
+					: 'No hay entradas a la venta.'
 		);
 	}
 	const methods = await availableMethods(db, config);

@@ -267,6 +267,10 @@ test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de p
 	await expect(
 		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
 	).toBeVisible();
+	// Horario de la venta (el fixture cierra en 30 días), en hora de Argentina.
+	await expect(block.locator('.closes')).toHaveText(
+		/^La venta cierra el [a-záéíóúñ]+ \d{1,2}\/\d{1,2} a las \d{2}:\d{2}\.$/
+	);
 	const mp = expected('general', 2, 'mercadopago');
 	const tr = expected('general', 2, 'transferencia');
 	expect(mp.surcharge).toBeGreaterThan(0);

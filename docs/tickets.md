@@ -12,7 +12,7 @@ Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.
 
 - el interruptor "Vender entradas por el sitio" (apagado = sin `tickets`, se usa el `link` del evento);
 - los tipos de entrada: nombre, cupo y **precio fijo** o **a la gorra** (mínimo y sugerido, con los botones rápidos que va a ver quien compra), para agregar, quitar y reordenar. El `id` de cada tipo sale del nombre al crearlo y **no cambia nunca** (las órdenes lo guardan), aunque se cambie el nombre;
-- medios de pago, cierre de la venta (por defecto, al empezar el evento), modalidad (automática, presencial u online), recordatorios por mail y, en "Avanzado", la comisión de Mercado Pago del evento;
+- medios de pago, **horario de la venta** (apertura y cierre opcionales, con fecha y hora de Argentina; por defecto se puede comprar desde que se publica y hasta que empieza el evento) y el **cierre propio** opcional de cada tipo, modalidad (automática, presencial u online), recordatorios por mail y, en "Avanzado", la comisión de Mercado Pago del evento;
 - **nada del Fondo**: es automático. Un aviso dice si el evento lo usa, según la etiqueta KinkyVibe, y cambia en vivo al prender o apagar "Lo organiza KinkyVibe".
 
 Se valida en el navegador y otra vez en el servidor con las mismas reglas (`validateTicketsForm` en `src/lib/utils/ticketsEditor.js`, más `parseTicketConfig` sobre el archivo final): pesos enteros, precio > 0, mínimo ≤ sugerido, cupo entero, al menos un tipo y un medio de pago. **Al editar un evento que ya vendió** (se consultan las ventas en D1): no deja borrar un tipo con entradas vendidas o reservadas, bajar el cupo por debajo de eso ni apagar la venta (para cortarla: estado "Agotadas" o una fecha de cierre); cambiar un precio solo avisa que las compras hechas mantienen el suyo. Si la base no responde, lo dice y el servidor vuelve a revisar al guardar. Solo se reescribe lo que cambió: comentarios, orden y claves que el editor no conoce se conservan (también dentro de cada tipo).
@@ -31,10 +31,12 @@ tickets:
     name: Anticipada
     price: 8000 # el fondo aplica también acá
     capacity: 10
+    close: 2026-10-09T23:59-03:00 # opcional: este tipo deja de venderse antes que el resto
   - id: gorra
     name: A la gorra
     a_la_gorra: { minimo: 0, sugerido: 5000 } # en lugar de `price` (ver "A la gorra")
     capacity: 100
+tickets_open: 2026-10-01T12:00-03:00 # opcional; antes de eso: "Abre el jueves 1/10 a las 12:00"
 tickets_close: 2026-10-16T18:00-03:00 # opcional; si falta, la venta cierra cuando empieza el evento
 payment_methods: [mercadopago, transferencia] # opcional; por defecto solo mercadopago
 mp_fee_percent: 2 # opcional; si falta: Ajustes de venta, TICKETS_MP_FEE_PERCENT o 2 %
@@ -100,6 +102,14 @@ Ejemplo: $ 10.000 con 20 % de fondo, 2 entradas solidarias, código 20 %, Mercad
 El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre $F / 💜 Incluye $A de aporte al Fondo KinkyVibe · Código −$D · Recargo Mercado Pago $Y · Total $Z" y cambia en vivo.
 
 La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/entradas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; ver preguntas abiertas). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
+
+### Horario de la venta
+
+- `tickets_open` (opcional): antes de ese momento la venta no abrió; la página del evento y la de compra dicen "Abre el jueves 1/10 a las 12:00".
+- `tickets_close` (opcional; si falta, el inicio del evento): desde ese instante no se puede comprar. Mientras tanto se muestra "La venta cierra el viernes 2/10 a las 20:00"; después, "Venta cerrada".
+- `close` en un tipo (opcional): ese tipo deja de venderse antes (por ejemplo, la anticipada); nunca después del cierre del evento. Si todos los tipos cerraron, la venta está cerrada.
+- Formato: con zona (`2026-10-02T20:00-03:00`, lo que escribe el editor) o sin zona (se toma la hora de Argentina, `America/Argentina/Buenos_Aires`, UTC−3 sin horario de verano). **Una fecha sola** (`2026-10-02`, como se usaba antes) en un cierre significa **hasta el fin de ese día** en Argentina; en la apertura, desde el principio del día. Un valor que no se entiende deja al evento sin venta (y se loguea).
+- El servidor lo controla en cada compra (`salesState`, `typeOpen` y `validatePurchase` en `config.js`). Lo que ya estaba en curso al cerrar se completa: un pago de Mercado Pago que llega después, una transferencia reservada antes que se confirma o la confirmación de la reserva desde el mail.
 
 ### A la gorra
 

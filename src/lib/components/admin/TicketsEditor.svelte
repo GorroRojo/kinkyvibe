@@ -5,7 +5,7 @@
 -->
 <script>
 	import { formatARS } from '$lib/utils/money.js';
-	import { gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
+	import { formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		PAYMENT_METHOD_LABELS,
 		emptyTicketType,
@@ -63,6 +63,10 @@
 		state.enabled = on;
 		if (on && !state.types.length) state.types = [emptyTicketType()];
 	}
+	/** @param {string} v datetime-local */
+	const validLocal = (v) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v ?? '');
+	/** @param {string} v datetime-local, hora de Argentina */
+	const describe = (v) => formatSaleTime(new Date(`${v}-03:00`).getTime());
 	/** @param {string} v */
 	const money = (v) => {
 		const n = parseAmount(v);
@@ -242,6 +246,14 @@
 							>
 						</label>
 					{/if}
+					<label class="field when">
+						<span>Cierre propio (opcional)</span>
+						<input type="datetime-local" id="{idPrefix}-ticket-close-{i}" bind:value={t.close} />
+						<small
+							>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(t.close)}.{:else}Vacío
+								= cierra con la venta del evento (por ejemplo, para que la anticipada cierre antes).{/if}</small
+						>
+					</label>
 				</li>
 			{/each}
 		</ol>
@@ -265,25 +277,38 @@
 		</fieldset>
 
 		<fieldset class="group">
-			<legend>Cierre de la venta</legend>
+			<legend>Horario de la venta <small>(hora de Argentina)</small></legend>
+			<label class="check">
+				<input type="checkbox" id="{idPrefix}-open-custom" bind:checked={state.customOpen} />
+				Abrir la venta en un momento determinado
+			</label>
+			{#if state.customOpen}
+				<label class="field when">
+					<span>Abre</span>
+					<input type="datetime-local" id="{idPrefix}-open-at" bind:value={state.openAt} />
+					{#if validLocal(state.openAt)}<small>Abre el {describe(state.openAt)}.</small>{/if}
+				</label>
+			{:else}
+				<small>Se puede comprar desde que se publica (con el estado «Abierto»).</small>
+			{/if}
 			<label class="check">
 				<input type="checkbox" id="{idPrefix}-close-custom" bind:checked={state.customClose} />
 				Cerrar la venta antes de que empiece el evento
 			</label>
 			{#if state.customClose}
-				<div class="grid">
-					<label class="field">
-						<span>Día</span>
-						<input type="date" id="{idPrefix}-close-date" bind:value={state.closeDate} />
-					</label>
-					<label class="field">
-						<span>Hora</span>
-						<input type="time" id="{idPrefix}-close-time" bind:value={state.closeTime} />
-					</label>
-				</div>
+				<label class="field when">
+					<span>Cierra</span>
+					<input type="datetime-local" id="{idPrefix}-close-at" bind:value={state.closeAt} />
+					{#if validLocal(state.closeAt)}<small>La venta cierra el {describe(state.closeAt)}.</small
+						>{/if}
+				</label>
 			{:else}
 				<small>La venta cierra cuando empieza el evento.</small>
 			{/if}
+			<small
+				>Las compras que ya estaban en curso al cerrar (pagos o transferencias pendientes) se
+				completan igual.</small
+			>
 		</fieldset>
 
 		<label class="field">
@@ -405,6 +430,9 @@
 			margin-bottom: 0.3em;
 			color: var(--1-dark);
 		}
+	}
+	.when {
+		max-width: 20em;
 	}
 	.advanced summary {
 		cursor: pointer;

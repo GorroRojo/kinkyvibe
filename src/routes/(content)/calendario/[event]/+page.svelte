@@ -7,6 +7,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
+	import { saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
@@ -229,15 +230,20 @@
 							<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
 					</span>
 				</a>
+				{#if t.closesAt}
+					<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
+				{/if}
 			{:else}
 				<p class="buy-closed">
 					{t.reason === 'soldout'
 						? 'Entradas agotadas.'
 						: t.reason === 'closed'
-							? 'La venta online de entradas ya cerró.'
-							: t.reason === 'cancelled'
-								? 'El evento se canceló: no hay venta de entradas.'
-								: 'La venta online de entradas no está disponible en este momento.'}
+							? 'Venta cerrada.'
+							: t.reason === 'notyet' && t.opensAt
+								? `Entradas: ${saleWindowText({ opensAt: t.opensAt })}.`
+								: t.reason === 'cancelled'
+									? 'El evento se canceló: no hay venta de entradas.'
+									: 'La venta online de entradas no está disponible en este momento.'}
 				</p>
 			{/if}
 		</section>
@@ -424,6 +430,11 @@
 	}
 	.buy-left {
 		white-space: nowrap;
+	}
+	.buy-when {
+		text-align: center;
+		margin: 0.4em 0 0;
+		font-size: var(--step--1);
 	}
 	.buy-closed {
 		text-align: center;

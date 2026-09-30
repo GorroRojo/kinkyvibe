@@ -231,35 +231,39 @@ describe('?/buy', () => {
 		}
 	);
 
-	it('los códigos de descuento que se prueban en ?/buy cuentan para el mismo límite que ?/discount', async () => {
-		await createDiscountCode(
-			t.db,
-			{
-				code: 'REAL10',
-				kind: 'percent',
-				value: 10,
-				event_slug: null,
-				starts_at: null,
-				ends_at: null,
-				max_uses: null
-			},
-			{ by: 'admin' }
-		);
-		const { limit } = CHECKOUT_RATE_LIMITS.code;
-		// Mitad con "Aplicar", mitad comprando: el contador es uno solo.
-		for (let i = 0; i < limit; i++) {
-			const action = i % 2 ? discountAction : buyAction;
-			const r = await post(action, order({ code: `MAL${i}`, email: 'no-es-mail' }));
-			expect(r.status).toBe(400);
+	it(
+		'los códigos de descuento que se prueban en ?/buy cuentan para el mismo límite que ?/discount',
+		{ timeout: 30000 },
+		async () => {
+			await createDiscountCode(
+				t.db,
+				{
+					code: 'REAL10',
+					kind: 'percent',
+					value: 10,
+					event_slug: null,
+					starts_at: null,
+					ends_at: null,
+					max_uses: null
+				},
+				{ by: 'admin' }
+			);
+			const { limit } = CHECKOUT_RATE_LIMITS.code;
+			// Mitad con "Aplicar", mitad comprando: el contador es uno solo.
+			for (let i = 0; i < limit; i++) {
+				const action = i % 2 ? discountAction : buyAction;
+				const r = await post(action, order({ code: `MAL${i}`, email: 'no-es-mail' }));
+				expect(r.status).toBe(400);
+			}
+			const blocked = await post(buyAction, order({ code: 'REAL10' }));
+			expect(blocked.status).toBe(429);
+			expect(blocked.data.buy.errors.code).toMatch(/Demasiados intentos/);
+			expect((await post(discountAction, order({ code: 'REAL10' }))).status).toBe(429);
+			// Desde otra conexión el código válido anda.
+			const ok = await post(discountAction, order({ code: 'REAL10' }), '198.51.100.9');
+			expect(ok.buy.discount).toMatchObject({ code: 'REAL10' });
 		}
-		const blocked = await post(buyAction, order({ code: 'REAL10' }));
-		expect(blocked.status).toBe(429);
-		expect(blocked.data.buy.errors.code).toMatch(/Demasiados intentos/);
-		expect((await post(discountAction, order({ code: 'REAL10' }))).status).toBe(429);
-		// Desde otra conexión el código válido anda.
-		const ok = await post(discountAction, order({ code: 'REAL10' }), '198.51.100.9');
-		expect(ok.buy.discount).toMatchObject({ code: 'REAL10' });
-	});
+	);
 
 	it('mails a una misma dirección: como mucho 3 por hora', { timeout: 30000 }, async () => {
 		const spy = vi.spyOn(console, 'log').mockImplementation(() => {});

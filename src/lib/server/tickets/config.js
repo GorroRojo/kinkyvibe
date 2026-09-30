@@ -17,7 +17,10 @@
  *     capacity: 200
  * modalidad: online      # opcional: online | presencial (si falta: online si tiene la etiqueta
  *                        # "Online" y no tiene `location`). Online = link en lugar de QR.
+ * tickets_open: 2026-10-01T12:00-03:00    # opcional; antes de eso la venta no abrió
  * tickets_close: 2026-10-16T18:00-03:00   # opcional; si falta, cierra al empezar el evento
+ *                                         # (solo fecha = hasta el fin de ese día; hora de
+ *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
  * mp_fee_percent: 2      # opcional; si falta: /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT o 2 %
  * ```
@@ -27,8 +30,11 @@
  * Tipo de entrada. En los tipos "a la gorra" `gorra` tiene el mínimo y el sugerido, `price` es el
  * sugerido (solo para mostrar) y `fondo` es 0: el monto lo elige la persona al comprar.
  *
+ * `closesAt`: cierre propio del tipo (`close` en el frontmatter; por ejemplo, la anticipada cierra
+ * antes), o `null` si cierra con el evento.
+ *
  * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number,
- *   gorra: { min: number, suggested: number } | null }} TicketType
+ *   gorra: { min: number, suggested: number } | null, closesAt?: number | null }} TicketType
  */
 /** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
 /** @typedef {{ name: string, pronouns: string }} Holder */
@@ -40,6 +46,7 @@
  *   fondoPercent: number | null,
  *   paymentMethods: PaymentMethod[],
  *   mpFeeBasisPoints: number | null,
+ *   opensAt: number | null,
  *   closesAt: number | null,
  *   online: boolean,
  *   reminders: boolean,
@@ -61,7 +68,8 @@ import {
 	isFondoOption,
 	normalizeDni,
 	parseAmount,
-	parseFeePercent
+	parseFeePercent,
+	parseSaleTime
 } from '$lib/utils/tickets.js';
 import {
 	KINKYVIBE_TAG,
@@ -148,7 +156,15 @@ export function parseTicketConfig(meta, options = {}) {
 				);
 			}
 			// Sin fondo: quien paga elige el monto (el fondo no aplica a la gorra).
-			types.push({ id, name, price: suggested, fondo: 0, capacity, gorra: { min, suggested } });
+			types.push({
+				id,
+				name,
+				price: suggested,
+				fondo: 0,
+				capacity,
+				gorra: { min, suggested },
+				closesAt: typeClose(raw, id)
+			});
 			continue;
 		}
 		const price = Number(raw.price);
@@ -158,7 +174,7 @@ export function parseTicketConfig(meta, options = {}) {
 		// El fondo es siempre el porcentaje vigente (sin la etiqueta KinkyVibe, `fondoPercent` es
 		// null: sin fondo). Un `fondo` en pesos en el tipo ya no existe y se ignora.
 		const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
-		types.push({ id, name, price, fondo, capacity, gorra: null });
+		types.push({ id, name, price, fondo, capacity, gorra: null, closesAt: typeClose(raw, id) });
 	}
 	/** @type {PaymentMethod[]} */
 	let paymentMethods = ['mercadopago'];
@@ -186,13 +202,18 @@ export function parseTicketConfig(meta, options = {}) {
 			throw new TypeError('`mp_fee_percent` tiene que ser un porcentaje entre 0 y 49,99');
 		}
 	}
-	const closesAt = toTime(meta.tickets_close) ?? toTime(meta.start);
+	const opensAt = saleTime(meta.tickets_open, '`tickets_open`');
+	const closesAt = saleTime(meta.tickets_close, '`tickets_close`', true) ?? toTime(meta.start);
+	if (opensAt !== null && closesAt !== null && opensAt >= closesAt) {
+		throw new TypeError('La venta tiene que abrir (`tickets_open`) antes de cerrar');
+	}
 	return {
 		types,
 		fondoEnabled,
 		fondoPercent,
 		paymentMethods,
 		mpFeeBasisPoints,
+		opensAt,
 		closesAt,
 		online: isOnlineEvent(meta),
 		// `recordatorios: false` en el frontmatter: este evento no manda recordatorios por mail.
@@ -206,17 +227,60 @@ export function parseTicketConfig(meta, options = {}) {
 }
 
 /**
- * ¿Se pueden comprar entradas ahora? Devuelve el motivo si no.
+ * @param {unknown} value
+ * @param {string} what nombre del campo, para el error
+ * @param {boolean} [endOfDay] ver parseSaleTime
+ */
+function saleTime(value, what, endOfDay = false) {
+	try {
+		return parseSaleTime(value, { endOfDay });
+	} catch (error) {
+		throw new TypeError(`${what}: ${/** @type {Error} */ (error).message}`);
+	}
+}
+
+/** @param {any} raw @param {string} id */
+const typeClose = (raw, id) => saleTime(raw?.close, `\`close\` de "${id}"`, true);
+
+/**
+ * ¿Se pueden comprar entradas ahora? Devuelve el motivo si no. Los horarios son instantes
+ * (ms): abre en `opensAt` (inclusive) y cierra en `closesAt` (a partir de ese instante ya no).
+ * Si todos los tipos cerraron por su cuenta, la venta está cerrada.
  *
  * @param {EventTickets} config
  * @param {number} [now]
- * @returns {{ open: true } | { open: false, reason: 'cancelled' | 'soldout' | 'closed' }}
+ * @returns {{ open: true } | { open: false, reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' }}
  */
 export function salesState(config, now = Date.now()) {
 	if (config.status === 'cancelado') return { open: false, reason: 'cancelled' };
 	if (config.status === 'agotadas') return { open: false, reason: 'soldout' };
 	if (config.closesAt !== null && now >= config.closesAt) return { open: false, reason: 'closed' };
+	if (config.opensAt != null && now < config.opensAt) return { open: false, reason: 'notyet' };
+	if (config.types.length && config.types.every((t) => !typeOpen(config, t, now)))
+		return { open: false, reason: 'closed' };
 	return { open: true };
+}
+
+/**
+ * Cierre efectivo de un tipo: el propio si cierra antes que el evento.
+ * @param {EventTickets} config
+ * @param {TicketType} type
+ */
+export function typeClosesAt(config, type) {
+	const own = type.closesAt ?? null;
+	if (own === null) return config.closesAt;
+	return config.closesAt === null ? own : Math.min(own, config.closesAt);
+}
+
+/**
+ * ¿Este tipo se puede comprar ahora (por horario)?
+ * @param {EventTickets} config
+ * @param {TicketType} type
+ * @param {number} [now]
+ */
+export function typeOpen(config, type, now = Date.now()) {
+	const closes = typeClosesAt(config, type);
+	return closes === null || now < closes;
 }
 
 /**
@@ -308,7 +372,8 @@ export function validateBuyer(raw) {
  *   holders: { name?: unknown, pronouns?: unknown }[],
  *   method?: unknown,
  *   option?: unknown,
- *   amount?: unknown
+ *   amount?: unknown,
+ *   now?: number
  * }} input
  * @returns {{ ok: true, type: TicketType, quantity: number, buyer: Buyer, holders: Holder[],
  *     method: PaymentMethod, option: import('$lib/utils/tickets.js').PriceOption,
@@ -320,6 +385,8 @@ export function validatePurchase(config, input) {
 	const errors = {};
 	const type = config.types.find((t) => t.id === input.type);
 	if (!type) errors.type = 'Elegí un tipo de entrada.';
+	else if (!typeOpen(config, type, input.now ?? Date.now()))
+		errors.type = `La venta de «${type.name}» ya cerró.`;
 	const quantity = Number(input.quantity);
 	if (!Number.isInteger(quantity) || quantity < 1) {
 		errors.quantity = 'Elegí cuántas entradas querés.';

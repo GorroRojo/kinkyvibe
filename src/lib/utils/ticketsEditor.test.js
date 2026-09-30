@@ -100,8 +100,8 @@ mp_fee_percent: 7.5
 		expect(f.types[0]).toMatchObject({ mode: 'gorra', min: '0', suggested: '5000', price: '' });
 		expect(f).toMatchObject({
 			customClose: true,
-			closeDate: '2026-12-10',
-			closeTime: '18:30',
+			closeAt: '2026-12-10T18:30',
+			customOpen: false,
 			modalidad: 'online',
 			reminders: false,
 			mpFee: '7.5'
@@ -237,8 +237,9 @@ describe('applyTicketsForm: ida y vuelta', () => {
 		form.methods.transferencia = false;
 		Object.assign(form, {
 			customClose: true,
-			closeDate: '2026-12-11',
-			closeTime: '20:00',
+			closeAt: '2026-12-11T20:00',
+			customOpen: true,
+			openAt: '2026-12-01T12:00',
 			modalidad: 'presencial',
 			reminders: false,
 			mpFee: '7,73'
@@ -246,6 +247,7 @@ describe('applyTicketsForm: ida y vuelta', () => {
 		let out = applyTicketsForm(FM, form, initial);
 		expect(metaOf(out)).toMatchObject({
 			tickets_close: '2026-12-11T20:00-03:00',
+			tickets_open: '2026-12-01T12:00-03:00',
 			modalidad: 'presencial',
 			recordatorios: false,
 			mp_fee_percent: 7.73
@@ -261,11 +263,18 @@ describe('applyTicketsForm: ida y vuelta', () => {
 		});
 		// Y de vuelta a los valores por defecto: se borran las claves.
 		const back = formOf(out);
-		Object.assign(back, { customClose: false, modalidad: '', reminders: true, mpFee: '' });
+		Object.assign(back, {
+			customClose: false,
+			customOpen: false,
+			modalidad: '',
+			reminders: true,
+			mpFee: ''
+		});
 		back.methods.transferencia = true;
 		out = applyTicketsForm(out, back, formOf(out));
 		const m = metaOf(out);
 		expect(m.tickets_close).toBeUndefined();
+		expect(m.tickets_open).toBeUndefined();
 		expect(m.modalidad).toBeUndefined();
 		expect(m.recordatorios).toBeUndefined();
 		expect(m.mp_fee_percent).toBeUndefined();
@@ -333,7 +342,7 @@ describe('validateTicketsForm', () => {
 			/medio de pago/
 		],
 		[
-			(/** @type {any} */ f) => Object.assign(f, { customClose: true, closeDate: '' }),
+			(/** @type {any} */ f) => Object.assign(f, { customClose: true, closeAt: '' }),
 			/cierra la venta/
 		],
 		[(/** @type {any} */ f) => (f.mpFee = '60'), /comisión/]
@@ -403,5 +412,60 @@ describe('ticketsFileErrors (servidor)', () => {
 			/borrar el tipo «anticipada»/
 		);
 		expect(ticketsFileErrors(md('title: x\n'), { sales }).join(' ')).toMatch(/apagar la venta/);
+	});
+});
+
+describe('horarios de venta en el editor', () => {
+	it('una fecha sola (formato viejo) se lee como el fin de ese día en Argentina y no se reescribe', () => {
+		const fm = FM.replace('extra_key: se queda', 'tickets_close: 2026-12-10\nextra_key: se queda');
+		const f = formOf(fm);
+		expect(f).toMatchObject({ customClose: true, closeAt: '2026-12-10T23:59' });
+		// Tocar otra cosa no reescribe el cierre.
+		f.types[0].price = '11000';
+		expect(applyTicketsForm(fm, f, formOf(fm))).toContain('tickets_close: 2026-12-10\n');
+	});
+
+	it('los horarios se guardan con la zona de Argentina', () => {
+		const f = formOf(FM);
+		Object.assign(f, { customOpen: true, openAt: '2026-10-01T09:30' });
+		f.types[1].close = '2026-10-15T23:00';
+		const m = metaOf(applyTicketsForm(FM, f, formOf(FM)));
+		expect(m.tickets_open).toBe('2026-10-01T09:30-03:00');
+		expect(m.tickets[1].close).toBe('2026-10-15T23:00-03:00');
+		const cfg = /** @type {any} */ (parseTicketConfig(m));
+		expect(cfg.opensAt).toBe(Date.UTC(2026, 9, 1, 12, 30));
+		expect(cfg.types[1].closesAt).toBe(Date.UTC(2026, 9, 16, 2, 0));
+		// Y se vuelve a leer igual.
+		expect(formOf(applyTicketsForm(FM, f, formOf(FM))).types[1].close).toBe('2026-10-15T23:00');
+		// Vaciar el cierre propio lo borra.
+		const g = formOf(applyTicketsForm(FM, f, formOf(FM)));
+		g.types[1].close = '';
+		expect(
+			metaOf(
+				applyTicketsForm(
+					applyTicketsForm(FM, f, formOf(FM)),
+					g,
+					formOf(applyTicketsForm(FM, f, formOf(FM)))
+				)
+			).tickets[1].close
+		).toBeUndefined();
+	});
+
+	it('valida: abre antes de cerrar y horarios completos', () => {
+		const f = formOf(FM);
+		Object.assign(f, {
+			customOpen: true,
+			openAt: '2026-12-10T20:00',
+			customClose: true,
+			closeAt: '2026-12-10T20:00'
+		});
+		expect(validateTicketsForm(f).errors.join(' ')).toMatch(/abrir antes de cerrar/);
+		f.openAt = '2026-12-10T19:59';
+		expect(validateTicketsForm(f).errors).toEqual([]);
+		f.types[0].close = '2026-12-10';
+		expect(validateTicketsForm(f).errors.join(' ')).toMatch(/cierre propio/);
+		f.types[0].close = '';
+		f.openAt = '';
+		expect(validateTicketsForm(f).errors.join(' ')).toMatch(/abre la venta/);
 	});
 });

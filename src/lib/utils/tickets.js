@@ -366,3 +366,101 @@ export function parseAmount(raw) {
 	const n = Number(s.replaceAll('.', ''));
 	return Number.isSafeInteger(n) ? n : null;
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Horarios de venta (apertura y cierre), siempre en hora de Argentina                        */
+/* ------------------------------------------------------------------------------------------ */
+
+/** Zona horaria de todos los horarios de venta. Argentina no tiene horario de verano: UTC−3. */
+export const AR_TIMEZONE = 'America/Argentina/Buenos_Aires';
+const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Horario de venta del frontmatter (`tickets_open`, `tickets_close`, `close` de un tipo) →
+ * milisegundos, o `null` si falta. Tira un error si está pero no se entiende.
+ *
+ * - Con zona (`2026-10-02T20:00-03:00`, `…Z`): ese instante.
+ * - Sin zona (`2026-10-02T20:00`, `2026-10-02 20:00`): hora de Argentina.
+ * - Solo fecha (`2026-10-02`): el fin de ese día en Argentina (23:59:59.999) si `endOfDay` (los
+ *   cierres, compatible con cómo se usaba antes), o el principio (00:00) si no (la apertura).
+ * - Un `Date` (algunos lectores de YAML convierten las fechas): si es medianoche UTC exacta se toma
+ *   como "solo fecha".
+ *
+ * @param {unknown} value
+ * @param {{ endOfDay?: boolean }} [opts]
+ * @returns {number | null}
+ */
+export function parseSaleTime(value, { endOfDay = false } = {}) {
+	if (value === undefined || value === null || value === '') return null;
+	/** @param {number} y @param {number} m @param {number} d */
+	const dayBound = (y, m, d) =>
+		(endOfDay ? Date.UTC(y, m - 1, d, 23, 59, 59, 999) : Date.UTC(y, m - 1, d)) + AR_OFFSET_MS;
+	if (value instanceof Date) {
+		const t = value.getTime();
+		if (Number.isNaN(t)) throw new TypeError('Fecha inválida');
+		if (t % 86400000 === 0) {
+			return dayBound(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate());
+		}
+		return t;
+	}
+	const s = String(value).trim();
+	let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+	if (m) {
+		const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+		const check = new Date(Date.UTC(y, mo - 1, d));
+		if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d)
+			throw new TypeError(`Fecha inválida: "${s}"`);
+		return dayBound(y, mo, d);
+	}
+	m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+	const iso = m ? `${m[1]}T${m[2]}:${m[3]}:${m[4] ?? '00'}-03:00` : s;
+	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(iso))
+		throw new TypeError(`Fecha y hora inválida: "${s}" (usá 2026-10-02T20:00-03:00)`);
+	const t = new Date(iso).getTime();
+	if (Number.isNaN(t)) throw new TypeError(`Fecha y hora inválida: "${s}"`);
+	return t;
+}
+
+/**
+ * Milisegundos → "jueves 2/10 a las 20:00" (hora de Argentina).
+ * @param {number} ms
+ */
+export function formatSaleTime(ms) {
+	const parts = Object.fromEntries(
+		new Intl.DateTimeFormat('es-AR', {
+			timeZone: AR_TIMEZONE,
+			weekday: 'long',
+			day: 'numeric',
+			month: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		})
+			.formatToParts(new Date(ms))
+			.map((p) => [p.type, p.value])
+	);
+	return `${parts.weekday} ${parts.day}/${parts.month} a las ${parts.hour}:${parts.minute}`;
+}
+
+/**
+ * Milisegundos → valor de un `<input type="datetime-local">` en hora de Argentina.
+ * @param {number} ms
+ */
+export function toArgentinaLocalInput(ms) {
+	return new Date(ms - AR_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+/**
+ * Texto del horario de venta para el público: "Abre el jueves 2/10 a las 20:00", "La venta
+ * cierra el …" o "Venta cerrada".
+ *
+ * @param {{ opensAt?: number | null, closesAt?: number | null }} window
+ * @param {number} [now]
+ * @returns {string | null}
+ */
+export function saleWindowText({ opensAt, closesAt }, now = Date.now()) {
+	if (opensAt && now < opensAt) return `Abre el ${formatSaleTime(opensAt)}`;
+	if (closesAt && now >= closesAt) return 'Venta cerrada';
+	if (closesAt) return `La venta cierra el ${formatSaleTime(closesAt)}`;
+	return null;
+}
