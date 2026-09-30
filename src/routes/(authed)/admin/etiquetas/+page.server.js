@@ -10,7 +10,7 @@ import {
 	readTagSource
 } from '$lib/server/admin/tagEditor.js';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
-import { FileChangedError } from '$lib/server/eventos/github.js';
+import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
@@ -99,12 +99,20 @@ export const actions = {
 				summary: `Etiquetas: ${plan.summary.join('; ')}`,
 				detail: { commit: commit.url, files: plan.files.map((f) => f.path).slice(0, 30) }
 			});
-			return { saved: { commit: commit.url, summary: plan.summary, files: plan.files.length } };
+			return {
+				saved: {
+					commit: commit.url,
+					publish: commit.pr ?? null,
+					summary: plan.summary,
+					files: plan.files.length
+				}
+			};
 		} catch (e) {
 			if (e instanceof FileChangedError)
 				return fail(409, {
 					error: `${e.path} cambió en GitHub mientras tanto. Volvé a hacer la vista previa y guardá de nuevo.`
 				});
+			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			return fail(502, { error: 'No se pudo guardar: ' + describe(e) });
 		}
 	}

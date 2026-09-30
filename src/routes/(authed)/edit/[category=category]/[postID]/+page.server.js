@@ -1,11 +1,14 @@
-import { base64ToUtf8 } from '$lib/utils/base64.js';
 import { error, fail } from '@sveltejs/kit';
-import { ghGet, ghPut } from '$lib/external/github.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
-import { FileChangedError } from '$lib/server/eventos/github.js';
+import {
+	FileChangedError,
+	PendingChangeError,
+	readFile,
+	UnreadableFileError
+} from '$lib/server/eventos/github.js';
 import {
 	findAssetUsers,
 	ownImageTarget,
@@ -149,8 +152,9 @@ export const _editActions = {
 				asked: String(data.get('imageScope') ?? '')
 			});
 		}
+		let commit;
 		try {
-			await saveFileContent(
+			commit = await saveFileContent(
 				locals.user_token,
 				postPath(params),
 				fileContent,
@@ -161,12 +165,13 @@ export const _editActions = {
 			);
 		} catch (e) {
 			console.log(e);
+			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			return fail(502, {
 				error:
 					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
 			});
 		}
-		return { save: 'Guardado' };
+		return { save: 'Guardado', publish: commit.pr ?? null, commitUrl: commit.url };
 	},
 	/** Events that show a shared image, for the "todas las ediciones" option. */
 	afectados: async ({ locals, request, url }) => {
@@ -195,46 +200,37 @@ async function getFileContent(token, path) {
 		if (raw === null) throw error(404, 'No se encontró la publicación');
 		return { raw, sha: 'dev-mock', path };
 	}
-	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
-	if (!fileContent) throw error(404, 'No se encontró la publicación');
-	// Files over 1 MB come with encoding "none" and no content: fail instead of showing ''.
-	if (fileContent.encoding !== 'base64') {
-		throw error(502, 'GitHub no devolvió el contenido de la publicación.');
-	}
-	let raw = base64ToUtf8(fileContent.content);
-	return { raw, ...fileContent };
+	// Main, or the branch of this post's content PR that is still waiting to be published (so
+	// saving again builds on the last save; see commitFiles).
+	const file = await readFile(token, path).catch((e) => {
+		if (e instanceof UnreadableFileError)
+			throw error(502, 'GitHub no devolvió el contenido de la publicación.');
+		throw e;
+	});
+	if (!file) throw error(404, 'No se encontró la publicación');
+	return { raw: file.raw, sha: file.sha, path };
 }
 
 /**
- * Saves the content of a file to a specified path in a GitHub repository.
+ * Saves a post: a content PR on GitHub (see commitFiles), or the dev mock / demo layer.
  *
- * @param {string} token - The access token for the GitHub repository.
- * @param {string} path - The path to the file in the GitHub repository.
- * @param {string} content - The content to be saved in the file.
- * @param {string} sha - The file's original sha
+ * @param {string} token - The admin's GitHub token.
+ * @param {string} path - The path to the file in the repository.
+ * @param {string} content - The new content of the file.
+ * @param {string} sha - The blob sha the editor read (the save fails if it changed meanwhile).
  * @param {string} userName - The user's name
  * @param {string} category - The category of the post
  * @param {string} postID - The post ID
- * @return {Promise<*>} A promise that resolves with the response from the GitHub API.
  */
 async function saveFileContent(token, path, content, sha, userName, category, postID) {
-	if (usesLocalRepo()) {
-		// DEV ONLY / previews: "commit" to the mock's temp folder or the demo layer, not GitHub.
-		const client = await getRepoClient();
-		return await client.commitFiles(token, {
-			files: [{ path, content }],
-			message: `[admin] ${userName} updated ${category}/${postID}`
-		});
-	}
-	return await ghPut(
-		'repos/GorroRojo/kinkyvibe/contents/' + path,
-		token,
-		content,
-		sha,
-		userName,
-		category,
-		postID
-	);
+	const client = await getRepoClient();
+	// The mock's sha is not a blob sha; the mock and the demo layer ignore `unchanged` anyway.
+	return await client.commitFiles(token, {
+		files: [{ path, content }],
+		message: `[admin] ${userName} updated ${category}/${postID}`,
+		unchanged: usesLocalRepo() ? [] : [{ path, sha }],
+		pr: { action: 'edita', who: userName }
+	});
 }
 
 /**
@@ -344,9 +340,20 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 			message = `[admin] ${userName} updated ${params.category}/${params.postID} (imagen nueva)`;
 		}
 		// The mock's sha is not a blob sha; its commitFiles ignores `unchanged` anyway.
-		await client.commitFiles(token, { files, message, mustNotExist, unchanged });
+		const commit = await client.commitFiles(token, {
+			files,
+			message,
+			mustNotExist,
+			unchanged,
+			pr: {
+				action: scope === 'todas' ? 'edita (imagen de todas las ediciones)' : 'edita',
+				who: userName
+			}
+		});
 		return {
 			save: 'Guardado',
+			publish: commit.pr ?? null,
+			commitUrl: commit.url,
 			imageScope: scope,
 			affected,
 			files: files.filter((f) => !f.delete).map((f) => f.path),
@@ -354,6 +361,7 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 		};
 	} catch (e) {
 		console.log(e);
+		if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 		if (e instanceof FileChangedError) {
 			return fail(409, {
 				error:

@@ -37,6 +37,7 @@
 		todayInArgentina,
 		validateSchedule
 	} from '$lib/utils/eventDraft.js';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { parseDocument } from 'yaml';
 
@@ -708,6 +709,7 @@
 			{:else if form.imageScope === 'esta'}
 				· La imagen nueva se guardó solo para este evento.
 			{/if}
+			<br /><PublishStatus pr={form.publish} />
 		</p>
 	{/if}
 
@@ -722,8 +724,9 @@
 		<input type="hidden" name="sha" value={sha} />
 		<input type="hidden" name="path" value={path} />
 		<small class="later"
-			>Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse. Si pasan más de 10,
-			avisale a <a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.</small
+			>Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos
+			(normalmente menos de 15) en verse. Si pasa más tiempo, avisale a
+			<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.</small
 		>
 		<button
 			type="submit"

@@ -4,8 +4,9 @@
 
 Todo lo que se publica en el sitio (eventos del calendario, material, perfiles de amigues y
 términos de la wiki) es, **por ahora**, un archivo de texto `.md` en el repo. Les admins lo editan
-desde el panel sin ver código: al guardar, el panel hace un commit en `main` en GitHub a nombre de
-le admin y Cloudflare vuelve a publicar el sitio (tarda unos minutos en verse). El plan decidido
+desde el panel sin ver código: al guardar, el panel abre un PR en GitHub a nombre de le admin,
+GitHub lo mergea solo cuando pasan las pruebas y Cloudflare vuelve a publicar el sitio (tarda unos
+minutos en verse; ver [publicar-contenido.md](publicar-contenido.md)). El plan decidido
 (0004) es pasar todo esto a la base de datos, empezando por los eventos.
 
 ## Lo que nunca se tiene que romper
@@ -54,7 +55,7 @@ preview de PR, entrá como admin de prueba ([demo.md](demo.md)).
 **Cargar un evento.** Panel → Eventos → Cargar evento (o "Duplicar" uno anterior). Para muchos,
 Importar planilla (botón en Agenda). La Agenda permite editar los próximos como en una planilla.
 
-**Cambiar etiquetas.** Panel → Etiquetas: renombrar, mover o fusionar hace **un solo commit** que
+**Cambiar etiquetas.** Panel → Etiquetas: renombrar, mover o fusionar hace **un solo PR** que
 toca `hardcodedTags.js` y todos los posts afectados. Los renombres de etiquetas son cambios
 transversales: si lo hacés en código, va en su propio PR y se mergea primero.
 
