@@ -9,6 +9,7 @@
 		exceedsOrderMax,
 		fondoOptionsFor,
 		gorraQuickAmounts,
+		mpSurcharge,
 		parseAmount,
 		formatSaleTime,
 		leftText,
@@ -741,8 +742,14 @@
 								<span>+{formatARS(prices.surcharge)}</span>
 							</p>
 						{:else if tickets.feeBasisPoints && tickets.methods.includes('mercadopago') && !free}
-							<!-- Reserva el lugar de la línea del recargo para que el total no salte. -->
-							<p class="line placeholder" aria-hidden="true"><span>&nbsp;</span></p>
+							<!-- Reserva el lugar de la línea del recargo para que el total no salte. Lleva el mismo
+							     texto (invisible y fuera del DOM, en ::before) para que se corte en las mismas
+							     líneas que la real cuando la columna es angosta. -->
+							<p class="line placeholder" aria-hidden="true">
+								<span data-text="Recargo Mercado Pago"></span>
+								<span data-text="+{formatARS(mpSurcharge(prices.total, tickets.feeBasisPoints))}"
+								></span>
+							</p>
 						{/if}
 					{/if}
 					<p class="total">Total: <strong>{formatARS(prices.total)}</strong></p>
@@ -903,6 +910,9 @@
 	}
 	.breakdown .placeholder {
 		visibility: hidden;
+	}
+	.breakdown .placeholder span::before {
+		content: attr(data-text);
 	}
 	.breakdown .total {
 		margin-top: 0.3em;
