@@ -12,6 +12,7 @@ import {
 	eventSalesTrend,
 	expiringTransfers,
 	failedReminders,
+	groupReviewItems,
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
@@ -118,7 +119,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		skip
 	});
-	const todo = reviewItems({
+	const todoItems = reviewItems({
 		upcoming,
 		transfers,
 		unsent,
@@ -126,6 +127,10 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		titles,
 		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
 		formatWhen: (ms) => whenLabel(ms, now)
+	});
+	// Lo repetitivo (sin imagen, borradores) va en una fila por tipo con la cuenta.
+	const todo = groupReviewItems(todoItems, {
+		links: { noImage: '/admin/eventos?filtro=sin-imagen' }
 	});
 
 	const settingsItem = navItem('ajustes-cobros');
