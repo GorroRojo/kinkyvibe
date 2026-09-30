@@ -3,8 +3,6 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import '$lib/types.d.js';
 import tagsFactory from './tags';
-export const view_date = writable(new Date());
-export const month_change_direction = writable(1);
 
 /** @type {import('svelte/store').Writable<string[]>} */
 export const filteredTags = writable([]);

@@ -121,6 +121,45 @@ test.describe('calendario', () => {
 		expect(html).toMatch(/class="dt-start"[^>]*>[^<]*7:30/);
 	});
 
+	// Regression test: the viewed month used to live in a module-level store, so one
+	// request's ?viewdate leaked into the SSR of later requests served by the same isolate.
+	test('el mes de ?viewdate no se filtra a otros pedidos', async ({ browser }) => {
+		// Sin JavaScript: lo que se ve es exactamente el HTML que armó el servidor.
+		const context = await browser.newContext({ javaScriptEnabled: false });
+		const page = await context.newPage();
+		const month = async (/** @type {string} */ url) => {
+			await page.goto(url);
+			const text = await page.locator('.month').first().textContent();
+			return text?.replace(/\s+/g, ' ').trim();
+		};
+		expect(await month('/calendario?viewdate=2024-01')).toBe('Enero 2024');
+		const plain = await month('/calendario');
+		expect(plain).toBeTruthy();
+		expect(plain).not.toContain('2024');
+		await context.close();
+	});
+
+	test('los botones de mes cambian ?viewdate y el botón atrás vuelve', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.goto('/calendario');
+		const month = page.locator('.header .month');
+		const first = (await month.innerText()).trim();
+		// changing month is client-only: the loads don't read the query string
+		const dataRequests = [];
+		page.on('request', (r) => r.url().includes('__data.json') && dataRequests.push(r.url()));
+		await page.getByRole('button', { name: 'Next Month' }).click();
+		await expect(page).toHaveURL(/[?&]viewdate=\d{4}-\d{2}/);
+		await expect(month).not.toHaveText(first);
+		await page.getByRole('button', { name: 'Previous Month' }).click();
+		await expect(month).toHaveText(first);
+		await expect(page).not.toHaveURL(/viewdate/);
+		await page.goBack();
+		await expect(month).not.toHaveText(first);
+		await page.goBack();
+		await expect(month).toHaveText(first);
+		expect(dataRequests).toEqual([]);
+	});
+
 	test('/calendario.ics es un iCalendar válido con VEVENTs', async ({ request }) => {
 		const res = await request.get('/calendario.ics');
 		expect(res.status()).toBe(200);
