@@ -117,15 +117,24 @@ describe('/admin/buscar', () => {
 	});
 
 	it('corta con 429 después de demasiadas búsquedas seguidas', async () => {
-		// Reloj fijo a mitad de una ventana: si no, las 121 llamadas pueden caer en dos minutos.
-		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 8, 30, 12, 0, 30));
-		let last;
+		// Reloj fijo a mitad de una ventana de un minuto. En vez de hacer 119 búsquedas de verdad
+		// (tarda ~10 s), el contador de esa ventana arranca en 119: la 120 pasa y la 121 no.
+		const at = Date.UTC(2026, 8, 30, 12, 0, 30);
+		const windowStart = Math.floor(at / 1000) - 30;
+		await t.db
+			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, 119)')
+			.bind(`admin-search:${admin.id}`, windowStart)
+			.run();
+		const now = vi.spyOn(Date, 'now').mockReturnValue(at);
+		let ok, last;
 		try {
-			for (let i = 0; i < 121; i++) last = await call(`zz${i}`);
+			ok = await call('zz120');
+			last = await call('zz121');
 		} finally {
 			now.mockRestore();
 		}
+		expect(ok.status).toBe(200);
 		expect(last?.status).toBe(429);
-		expect(last?.headers.get('retry-after')).toBeTruthy();
-	}, 60_000);
+		expect(last?.headers.get('retry-after')).toBe('30');
+	});
 });

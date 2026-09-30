@@ -13,10 +13,10 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
+  # Lint + unit tests and build + E2E run in parallel (each on its own runner).
+  unit:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -33,11 +33,41 @@ jobs:
       - name: Unit + content tests
         run: npx vitest run
 
+  e2e:
+    # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
       - name: Build
         run: npm run build
 
+      # The browser only changes when @playwright/test does: keep it between runs.
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+
       - name: Install Chromium for Playwright
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium's system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: E2E smoke tests
         run: npx playwright test
@@ -74,7 +104,7 @@ jobs:
   # When you add a job above, add it to `needs` here too.
   ci-ok:
     if: always()
-    needs: [test, typecheck]
+    needs: [unit, e2e, typecheck]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs passed
