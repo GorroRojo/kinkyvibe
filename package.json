@@ -5,6 +5,10 @@
 	"scripts": {
 		"predev": "node scripts/db-migrate-local.js",
 		"dev": "vite dev",
+		"predev:tickets": "node scripts/db-migrate-local.js",
+		"dev:tickets": "vite dev --mode tickets",
+		"predev:admin": "node scripts/db-migrate-local.js",
+		"dev:admin": "vite dev --mode admin",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
@@ -61,6 +65,7 @@
 		"hast-util-to-string": "^2.0.0",
 		"hastscript": "^8.0.0",
 		"ics": "^3.2.0",
+		"qrcode-generator": "^2.0.4",
 		"rehype": "^12.0.1",
 		"rehype-autolink-headings": "^6.1.1",
 		"remark-gfm": "^3.0.1",
