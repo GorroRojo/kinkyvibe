@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
+import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
 // trusted; delete them if a browser still has them.
@@ -22,7 +23,7 @@ export async function handle({ event, resolve }) {
 		// Admin checks match the numeric GitHub id: borrow the listed admin's (0 = not an admin).
 		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
 		mockUser.id = adminByLogin(mockUser.login)?.id ?? 0;
-		return await resolve(event);
+		return withSecurityHeaders(event.url, await resolve(event));
 	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
 	// Identity comes only from GitHub's answer for this token (cached server-side).
@@ -36,7 +37,7 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
-	return await resolve(event);
+	return withSecurityHeaders(event.url, await resolve(event));
 }
 
 /**

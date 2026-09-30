@@ -8,6 +8,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
+import { sha256Hex } from '$lib/server/hash.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { MAX_TICKETS_PER_FORM, computePrice, formatSaleTime } from '$lib/utils/tickets.js';
 import { salesState, typeClosesAt, typeOpen, validatePurchase } from './config.js';
@@ -98,6 +99,22 @@ async function availableMethods(db, config) {
 }
 
 /**
+ * Configuración de entradas del evento con el porcentaje del Fondo vigente. El porcentaje (una
+ * lectura de D1 y, cada tanto, un pedido a fondo.kinkyvibe.ar con hasta 3 s de espera) se busca
+ * solo si el evento vende entradas y usa el Fondo: la página de cualquier evento pasa por acá.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @param {typeof fetch} [fetchFn]
+ */
+export async function eventTicketsWithFondo(db, slug, fetchFn) {
+	const base = await getEventTickets(slug);
+	if (!base?.fondoEnabled) return base;
+	const fondo = await resolveFondoPercent({ db, fetch: fetchFn });
+	return getEventTickets(slug, { fondoPercent: fondo.percent });
+}
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -106,8 +123,7 @@ async function availableMethods(db, config) {
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
 export async function getTicketsView(db, slug, fetchFn) {
-	const fondo = await resolveFondoPercent({ db, fetch: fetchFn });
-	const config = await getEventTickets(slug, { fondoPercent: fondo.percent });
+	const config = await eventTicketsWithFondo(db, slug, fetchFn);
 	if (!config) return null;
 	const state = salesState(config);
 	const methods = await availableMethods(db, config);
@@ -183,12 +199,6 @@ export function summarizeTickets(view) {
 		opensAt: view.opensAt,
 		closesAt: view.closesAt
 	};
-}
-
-/** @param {string} text */
-async function sha256Hex(text) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -359,8 +369,7 @@ export async function buyAction(event) {
 		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
 	}
 	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
-	const fondo = await resolveFondoPercent({ db, fetch });
-	const config = await getEventTickets(params.event, { fondoPercent: fondo.percent });
+	const config = await eventTicketsWithFondo(db, params.event, fetch);
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
 	const state = salesState(config);
 	if (!state.open) {
