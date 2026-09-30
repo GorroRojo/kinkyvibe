@@ -4,6 +4,7 @@
  * Read from the posts bundled in this deploy, like the rest of the site.
  */
 import { isNumericFeatured } from '$lib/utils/eventDraft.js';
+import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 
 const posts = import.meta.glob('/src/lib/posts/{calendario,material,amigues,wiki}/*.md', {
 	import: 'metadata'
@@ -30,9 +31,28 @@ const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}'
 let cache;
 
 /** @returns {Promise<PostMeta[]>} */
-function allMeta() {
+async function allMeta() {
 	if (!cache || import.meta.env.DEV) cache = loadAll();
+	if (PREVIEW_BUILD) return withDemoPosts(await cache);
 	return cache;
+}
+
+/**
+ * Demo mode (preview deploys, $lib/server/demo): the deployed posts plus what the demo layer
+ * created, edited or deleted.
+ * @param {PostMeta[]} posts
+ */
+async function withDemoPosts(posts) {
+	const { overlayPostMetas } = await import('../demo/index.js');
+	const changed = await overlayPostMetas();
+	if (!changed.length) return posts;
+	/** @type {Map<string, PostMeta>} */
+	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
+	for (const { category, slug, meta } of changed) {
+		if (meta) byKey.set(`${category}/${slug}`, { category, slug, meta });
+		else byKey.delete(`${category}/${slug}`);
+	}
+	return [...byKey.values()];
 }
 
 async function loadAll() {

@@ -1,4 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
+import { isPreviewDeploy } from './deploy.js';
+import { isDemoUser } from './demo/identity.js';
 
 /**
  * Accounts allowed into the admin area. Matched on the numeric GitHub user id, which never
@@ -16,10 +18,13 @@ export const ADMINS = Object.freeze([
 export const TOKEN_COOKIE = 'userToken';
 
 /**
- * @param {{ id?: number }|undefined|null} user
+ * @param {{ id?: number, login?: string }|undefined|null} user
+ * @param {boolean} [preview] whether this is a Cloudflare Pages preview deploy. The demo admin
+ *   (see $lib/server/demo/identity.js) is only accepted on previews, never in production.
  * @returns {boolean}
  */
-export function isAdmin(user) {
+export function isAdmin(user, preview = isPreviewDeploy()) {
+	if (isDemoUser(user)) return preview === true;
 	return (
 		!!user &&
 		typeof user.id === 'number' &&

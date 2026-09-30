@@ -4,7 +4,7 @@ import { ghGet, ghPut } from '$lib/external/github.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
-import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
+import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
 import { FileChangedError } from '$lib/server/eventos/github.js';
 import {
 	findAssetUsers,
@@ -171,8 +171,9 @@ export const actions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
-	if (isMockMode()) {
-		// DEV ONLY (`npm run dev:admin`): read the local checkout, see $lib/server/eventos/mock.js.
+	if (usesLocalRepo()) {
+		// `npm run dev:admin` (reads the local checkout, see $lib/server/eventos/mock.js) or a
+		// preview deploy (demo mode: the demo layer in D1, then the deployed files).
 		const raw = await (await getRepoClient()).getFile(token, path);
 		if (raw === null) throw error(404, 'No se encontró la publicación');
 		return { raw, sha: 'dev-mock', path };
@@ -196,8 +197,8 @@ async function getFileContent(token, path) {
  * @return {Promise<*>} A promise that resolves with the response from the GitHub API.
  */
 async function saveFileContent(token, path, content, sha, userName, category, postID) {
-	if (isMockMode()) {
-		// DEV ONLY: "commit" to the mock's temp folder instead of GitHub.
+	if (usesLocalRepo()) {
+		// DEV ONLY / previews: "commit" to the mock's temp folder or the demo layer, not GitHub.
 		const client = await getRepoClient();
 		return await client.commitFiles(token, {
 			files: [{ path, content }],
