@@ -27,7 +27,8 @@ import {
 	whenLabel
 } from '$lib/server/admin/inicio.js';
 import { markSeen, touchLastSeen } from '$lib/server/admin/lastSeen.js';
-import { listEvents } from '$lib/server/eventos/index.js';
+import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
+import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
@@ -84,7 +85,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		fondo,
 		seen,
 		settings,
-		expiring
+		expiring,
+		contentPulls
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
 		checkinTotals(
@@ -99,7 +101,14 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		resolveFondoMonth({ db, fetch, now }),
 		touchLastSeen(db, user.id, now),
 		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
-		expiringTransfers(db, now, agendaUntil)
+		expiringTransfers(db, now, agendaUntil),
+		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
+		usesLocalRepo() || !locals.user_token
+			? Promise.resolve([])
+			: openContentPullStatuses(locals.user_token).catch((e) => {
+					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
+					return [];
+				})
 	]);
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
@@ -118,7 +127,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		skip
 	});
-	const todo = reviewItems({
+	const pullItems = contentPullItems(contentPulls);
+	const reviewList = reviewItems({
 		upcoming,
 		transfers,
 		unsent,
@@ -127,6 +137,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
+	// Los que no se publicaron van primero; los que se están publicando, al final.
+	const todo = [
+		...pullItems.filter((i) => i.tone !== 'info'),
+		...reviewList,
+		...pullItems.filter((i) => i.tone === 'info')
+	];
 
 	const settingsItem = navItem('ajustes-cobros');
 	const agenda = agendaItems({

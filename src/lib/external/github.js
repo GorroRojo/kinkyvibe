@@ -42,6 +42,8 @@ export async function ghGet(endpoint, token) {
 /**
  * Sends a PUT request to the GitHub API with the specified endpoint, token, and body.
  *
+ * @deprecated Writes straight to a branch, and main is protected: the panel publishes through
+ * commitFiles in $lib/server/eventos/github.js (a PR that merges itself, see docs/contenido.md).
  * @param {string} endpoint - The endpoint to send the PUT request to.
  * @param {string} token - The authentication token to include in the request header.
  * @param {string} body - The body of the PUT request.

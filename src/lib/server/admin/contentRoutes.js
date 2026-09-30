@@ -22,7 +22,11 @@ import {
 	saveContentPost
 } from './posts.js';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
-import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
+import {
+	FileChangedError,
+	PathExistsError,
+	PendingChangeError
+} from '$lib/server/eventos/github.js';
 import { readUploadedImage } from '$lib/server/eventos/images.js';
 import {
 	contentProblems,
@@ -93,6 +97,8 @@ export function visibilityAction(category) {
 			return fail(400, { error: describe(e) });
 		}
 		if (content === post.raw) return { visibility: { slug, unlisted, unchanged: true } };
+		/** @type {import('$lib/server/eventos/github.js').PublishResult | null} */
+		let publish = null;
 		try {
 			const r = await saveContentPost(client, admin.token, {
 				category,
@@ -105,8 +111,10 @@ export function visibilityAction(category) {
 					verb: unlisted ? 'unlisted' : 'listed',
 					category,
 					slug
-				})
+				}),
+				pr: { action: unlisted ? 'oculta' : 'vuelve a listar', who: admin.name }
 			});
+			publish = r.commit.pr ?? null;
 			await logAdminAction(getDB(platform), locals, {
 				action: `${category}.${unlisted ? 'unlist' : 'list'}`,
 				targetType: 'post',
@@ -119,9 +127,10 @@ export function visibilityAction(category) {
 				return fail(409, {
 					error: 'La publicación cambió en GitHub mientras tanto. Recargá y probá de nuevo.'
 				});
+			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			return fail(502, { error: 'No se pudo guardar: ' + describe(e) });
 		}
-		return { visibility: { slug, unlisted } };
+		return { visibility: { slug, unlisted, publish } };
 	};
 }
 
@@ -309,7 +318,8 @@ export function editorActions(category) {
 						slug,
 						from: isNew && from ? from : undefined,
 						image: Boolean(image)
-					})
+					}),
+					pr: { action: !isNew ? 'edita' : from ? 'duplica' : 'crea', who: admin.name }
 				});
 				await logAdminAction(getDB(platform), locals, {
 					action: `${category}.${isNew ? (from ? 'duplicate' : 'create') : 'update'}`,
@@ -322,24 +332,28 @@ export function editorActions(category) {
 						(image ? ' con imagen nueva' : ''),
 					detail: { commit: r.commit.url, image: r.imagePath }
 				});
-				if (isNew)
+				if (isNew) {
+					const pr = r.commit.pr ? `&pr=${r.commit.pr.number}&estado=${r.commit.pr.state}` : '';
 					throw redirect(
 						303,
-						`/admin/${category}/${slug}?guardado=${from ? 'duplicado' : 'creado'}`
+						`/admin/${category}/${slug}?guardado=${from ? 'duplicado' : 'creado'}${pr}`
 					);
+				}
 				return {
 					saved: {
 						at: Date.now(),
 						sha: await gitBlobSha(r.content),
 						content: r.content,
 						imagePath: r.imagePath,
-						commit: r.commit.url
+						commit: r.commit.url,
+						publish: r.commit.pr ?? null
 					}
 				};
 			} catch (e) {
 				if (isRedirect(e)) throw e;
 				if (e instanceof PathExistsError)
 					return fail(409, { error: `Ya existe ${e.path} en GitHub. Elegí otra dirección.` });
+				if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 				if (e instanceof FileChangedError)
 					return fail(409, {
 						error:

@@ -37,9 +37,22 @@ export async function gitBlobSha(text) {
  *   errors?: Partial<Record<import('$lib/utils/agenda.js').AgendaField, string>>,
  *   current?: import('$lib/utils/agenda.js').AgendaRow,
  *   changed?: import('$lib/utils/agenda.js').AgendaField[],
- *   commitUrl?: string
+ *   commitUrl?: string,
+ *   publish?: import('./github.js').PublishResult | null
  * }} AgendaSaveResult
  */
+
+/**
+ * What happens next with a save that went to a content PR (nothing for the mock / demo modes).
+ * @param {import('./github.js').PublishResult | undefined} pr
+ */
+export function publishNote(pr) {
+	if (!pr) return '';
+	if (pr.state === 'merged') return ` Publicado (PR #${pr.number}).`;
+	if (pr.state === 'open')
+		return ` Quedó en el PR #${pr.number} sin publicarse solo${pr.problem ? `: ${pr.problem}` : ''}.`;
+	return ` Se publica cuando pasen las pruebas (PR #${pr.number}).`;
+}
 
 /**
  * @param {{
@@ -114,14 +127,16 @@ export async function saveAgendaRow({ client, token, author, slug, before, after
 		const commit = await client.commitFiles(token, {
 			files: [{ path, content: result.content }],
 			message: `[admin] ${author} editó calendario/${slug} desde la agenda (${labels})`,
-			unchanged: [{ path, sha: await gitBlobSha(raw) }]
+			unchanged: [{ path, sha: await gitBlobSha(raw) }],
+			pr: { action: 'edita desde la agenda', who: author }
 		});
 		return {
 			status: 200,
 			ok: true,
-			message: `Guardado (${labels}).`,
+			message: `Guardado (${labels}).${publishNote(commit.pr)}`,
 			changed: result.changed,
-			commitUrl: commit.url
+			commitUrl: commit.url,
+			publish: commit.pr ?? null
 		};
 	} catch (e) {
 		if (e instanceof FileChangedError) {

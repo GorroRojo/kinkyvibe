@@ -10,7 +10,12 @@ import {
 	featuredURL,
 	takenSlugsInBundle
 } from '$lib/server/eventos';
-import { FileChangedError, GitHubError, PathExistsError } from '$lib/server/eventos/github.js';
+import {
+	FileChangedError,
+	GitHubError,
+	PathExistsError,
+	PendingChangeError
+} from '$lib/server/eventos/github.js';
 import {
 	findAssetUsers,
 	readUploadedImage,
@@ -303,7 +308,11 @@ export const actions = {
 				files,
 				message,
 				mustNotExist,
-				unchanged
+				unchanged,
+				pr: {
+					action: mode === 'borrador' ? 'carga (no listado)' : source ? 'duplica' : 'publica',
+					who: admin.name
+				}
 			});
 			await logAdminAction(getDB(platform), locals, {
 				action: mode === 'borrador' ? 'event.draft' : 'event.publish',
@@ -320,6 +329,7 @@ export const actions = {
 				slug,
 				mode,
 				commitUrl: commit.url,
+				publish: commit.pr ?? null,
 				eventUrl: `/calendario/${slug}`,
 				files: files.filter((f) => !f.delete).map((f) => f.path),
 				deleted,
@@ -330,6 +340,7 @@ export const actions = {
 				mock: isMockMode()
 			};
 		} catch (e) {
+			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			if (e instanceof FileChangedError) {
 				return fail(409, {
 					error:

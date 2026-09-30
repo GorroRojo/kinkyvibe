@@ -1,6 +1,7 @@
 <script>
 	import { deserialize, applyAction } from '$app/forms';
 	import { tick } from 'svelte';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import {
 		describeSchedule,
 		isValidDate,
@@ -225,7 +226,7 @@
 	let confirming = false;
 	let submitting = false;
 	let globalError = '';
-	/** @type {null | {commitUrl: string, created: Array<{slug: string, title: string, url: string, notes: string[]}>, files: string[], mock: boolean}} */
+	/** @type {null | {commitUrl: string, publish?: any, created: Array<{slug: string, title: string, url: string, notes: string[]}>, files: string[], mock: boolean}} */
 	let sent = null;
 
 	async function create() {
@@ -336,13 +337,18 @@
 				{/each}
 			</ul>
 			<p class="hint">
-				⏳ El sitio tarda unos minutos (normalmente entre 2 y 5) en actualizarse. Después, para
-				publicar cada uno, revisalo y sacale el “no listado” (por ahora desde el editor del evento).
+				⏳ {#if sent.publish}<PublishStatus pr={sent.publish} />{:else}El sitio tarda unos minutos
+					(normalmente entre 2 y 5) en actualizarse.{/if} Después, para publicar cada uno, revisalo y
+				sacale el “no listado” (por ahora desde el editor del evento).
 			</p>
 			<p class="small">
-				Cambio guardado en GitHub: <a href={sent.commitUrl} target="_blank" rel="noreferrer"
-					>ver el commit</a
-				>
+				{#if sent.publish}Guardado en el <a href={sent.publish.url} target="_blank" rel="noreferrer"
+						>PR #{sent.publish.number}</a
+					>{:else}Cambio guardado en GitHub: <a
+						href={sent.commitUrl}
+						target="_blank"
+						rel="noreferrer">ver el commit</a
+					>{/if}
 				· {plural(sent.files.length, 'archivo', 'archivos')}
 			</p>
 			<p>
