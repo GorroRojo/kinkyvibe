@@ -5,6 +5,8 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import Note from '$lib/components/Note.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { TIMEZONE } from '$lib/utils/dates.js';
@@ -117,7 +119,7 @@
 		</div>
 	{/if}
 	{#if data.meta.original_published_date}
-		<div id="via" class="h-cite">
+		<Note id="via" className="h-cite">
 			Fecha de publicación original:
 			<span class="dt-published">
 				{new Date(data.meta.original_published_date?.toString() ?? '').toLocaleDateString('es-AR', {
@@ -128,19 +130,19 @@
 			{#if data.meta.link}
 				<a href={data.meta.link} target="_blank" class="u-url">Link al original</a>
 			{/if}
-		</div>
+		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<svelte:component this={data.content} />
 	</div>
 	{#if data.meta.tags?.includes('KinkyVibe')}
-		<div id="cafecito">
+		<Note id="cafecito">
 			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
 			Si te resultó valioso,
 			<a href="https://cafecito.app/kinkyvibe" target="_blank"
 				>considerá apoyarnos con algún cafecito</a
 			>. 🤗
-		</div>
+		</Note>
 	{/if}
 </article>
 
@@ -149,15 +151,12 @@
 {#if data.meta.authors.length > 0}
 	{#await data.authorsProfiles then authorsData}
 		{#each authorsData ?? [] as { path, meta: author }}
-			<a class="author-callout" rel="author" href={path}>
-				<img
-					class="author-image"
-					src={(author.logo ?? author.photo ?? author.featured) + ''}
-					alt=""
-				/>
-				<span class="author-title">{author.title}</span>
-				<span class="author-summary">{author.summary}</span>
-			</a>
+			<AuthorCallout
+				href={path}
+				image={(author.logo ?? author.photo ?? author.featured) + ''}
+				title={author.title}
+				summary={author.summary}
+			/>
 		{/each}
 	{/await}
 {/if}
@@ -175,92 +174,11 @@
 {/if}
 
 <style lang="scss">
-	#cafecito,
-	#via {
-		max-width: 50rem;
-		margin: 2em auto;
-		width: 100%;
-		padding: 1em;
-		color: white;
-		border-radius: 0.3em;
-	}
-	#via {
-		background: var(--2-light);
-		font-size: var(--step-0);
-		a {
-			--color: var(--4-light);
-		}
-	}
-	#cafecito {
-		margin-top: 1em;
-		font-size: var(--step-1);
-		background: var(--2-light);
-		a {
-			--color: var(--4-light);
-		}
-	}
 	#tags {
 		margin-inline: auto;
 		max-width: 70rem;
 		width: 100%;
 		margin-top: 2em;
 		justify-content: center;
-	}
-	.author-callout {
-		text-decoration: none;
-		font-style: italic;
-		font-size: 1.5em;
-		padding: 0.4rem;
-		border-radius: 999em;
-		background: color-mix(in srgb, var(--2) 10%, transparent);
-		outline: 2px solid var(--2);
-		color: var(--2);
-		display: grid;
-		grid-template-areas: 'img title' 'img summary';
-		grid-template-columns: 7rem 1fr;
-		align-items: center;
-		gap: 0.6rem;
-		max-width: 50rem;
-		margin: 1em auto;
-		& > * {
-			min-height: 0;
-			min-width: 0;
-		}
-		.author-image {
-			/* height: 1.5em; */
-			border-radius: 999em;
-			/* display: inline-block; */
-			grid-area: img;
-			max-height: 100%;
-			max-width: 100%;
-		}
-		.author-title {
-			grid-area: title;
-			font-size: 1.5em;
-			text-decoration: underline var(--1);
-			color: black;
-			line-height: 1;
-		}
-		.author-summary {
-			grid-area: summary;
-			padding-right: 1em;
-		}
-	}
-
-	@media (max-width: 500px) {
-		.author-callout {
-			grid-template-areas: 'img title' 'summary summary';
-			border-radius: 2.6em;
-			.author-image {
-				z-index: 1;
-			}
-			.author-title {
-				padding-right: 0.5em;
-			}
-			.author-summary {
-				padding: 2em;
-				padding-top: 0;
-			}
-		}
 	}
 </style>

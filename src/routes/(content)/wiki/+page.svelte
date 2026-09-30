@@ -76,7 +76,7 @@
 </svelte:head>
 <article class="content">
 	<h1>Kinkipedia</h1>
-	<p class="callout" style:--callout-color="var(--1)">
+	<p class="callout" style:--callout-color="var(--1-dark)">
 		El BDSM no es inherentemente abusivo, pero sí puede usarse para ejercer violencia. Si estás en
 		una situación de violencia podés contactarte con nosotres o consultar <a
 			target="_blank"
@@ -87,7 +87,12 @@
 	<dl>
 		<div class="searchbox">
 			<Search {style} />
-			<input class="searchbox" type="search" bind:value={$query} />
+			<input
+				class="searchbox"
+				type="search"
+				aria-label="Buscar en la kinkipedia"
+				bind:value={$query}
+			/>
 		</div>
 		{#key $wikiTagManager}
 			<GlosarioTree />
@@ -97,7 +102,7 @@
 		class="callout"
 		style:--callout-color="var(--4)"
 		style:--callout-secondary="white"
-		style:color="var(--1)"
+		style:color="var(--1-ink)"
 	>
 		Esta kinkipedia está escrita, editada y organizada con sudor y posicionamiento político por <a
 			href="/amigues/DemonWeb">@DemonWeb <small class="p-pronoun">él</small></a
@@ -112,8 +117,8 @@
 		font-size: var(--step-0);
 		background: var(--callout-color);
 		color: white;
-		padding: 0.5em 0.76em;
-		border-radius: 1rem;
+		padding: 0.6em 0.9em;
+		border-radius: var(--round);
 
 		a {
 			text-decoration: underline var(--callout-secondary);

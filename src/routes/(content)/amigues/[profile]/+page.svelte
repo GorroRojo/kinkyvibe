@@ -181,6 +181,7 @@
 		width: max-content;
 		margin-inline: auto;
 		max-width: 100%;
+		padding-inline: 16px;
 	}
 	.profile-pic {
 		display: block;

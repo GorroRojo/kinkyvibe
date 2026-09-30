@@ -214,7 +214,11 @@ article.wiki {
 	margin-inline: auto;
 	margin-top: 2em;
 	overflow-x: visible;
-	padding-inline: 5px;
+	/* 16px from the screen edge on phones (inside an <article>, which already has 10px) */
+	padding-inline: 16px;
+	article > & {
+		padding-inline: 6px;
+	}
 
 	& > * {
 		max-width: calc(var(--step-0) * 40);
@@ -291,7 +295,7 @@ article.wiki {
 
 	strong {
 		color: var(--2);
-		font-weight: black;
+		font-weight: 700;
 	}
 	h1 strong,
 	h2 strong,
