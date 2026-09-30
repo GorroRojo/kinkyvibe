@@ -40,20 +40,21 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 
 ## Las tablas y quién las usa
 
-| Tabla                                        | Migración                | Para qué                                                 | Código                                                     |
-| -------------------------------------------- | ------------------------ | -------------------------------------------------------- | ---------------------------------------------------------- |
-| `rate_limits`                                | 0001                     | límites de intentos (sin IPs)                            | `src/lib/server/db/rateLimit.js`                           |
-| `orders`, `tickets`                          | 0002 (+0003, 0005, 0010) | órdenes y entradas; canal `online` / `puerta` / `manual` | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
-| `discount_codes`                             | 0002                     | códigos de descuento                                     | `src/lib/server/tickets/discounts.js`                      |
-| `ticket_settings`                            | 0002                     | Ajustes de venta (cobros, Fondo, mails, recordatorios)   | `src/lib/server/tickets/settings.js`                       |
-| `event_ticket_settings`, `stream_link_sends` | 0002                     | link de transmisión por evento y a quién se le mandó     | `src/lib/server/tickets/stream.js`                         |
-| `reminder_sends`                             | 0002                     | recordatorios ya mandados (no repetir)                   | `src/lib/server/tickets/reminders.js`                      |
-| `admin_audit`                                | 0004                     | registro de actividad del panel                          | `src/lib/server/admin/audit.js`                            |
-| `event_mail_sends`, `event_mail_recipients`  | 0006                     | "Mail a compradores" de un evento, en tandas             | `src/lib/server/tickets/buyerMail.js`                      |
-| `admin_last_seen`                            | 0007                     | "Desde tu última visita" del Inicio                      | `src/lib/server/admin/lastSeen.js`                         |
-| `email_templates`                            | 0008                     | textos de los mails cambiados desde el panel             | `src/lib/server/tickets/templates.js`                      |
-| `person_notes`                               | 0009                     | notas internas sobre personas                            | `src/lib/server/admin/people.js`                           |
-| `demo_files`                                 | ninguna                  | solo en previews: los "commits" del modo demo            | `src/lib/server/demo/overlay.js`                           |
+| Tabla                                             | Migración                | Para qué                                                                        | Código                                                     |
+| ------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `rate_limits`                                     | 0001                     | límites de intentos (sin IPs)                                                   | `src/lib/server/db/rateLimit.js`                           |
+| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010) | órdenes y entradas; canal `online` / `puerta` / `manual`                        | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
+| `discount_codes`                                  | 0002                     | códigos de descuento                                                            | `src/lib/server/tickets/discounts.js`                      |
+| `ticket_settings`                                 | 0002                     | Ajustes de venta (cobros, Fondo, mails, recordatorios)                          | `src/lib/server/tickets/settings.js`                       |
+| `event_ticket_settings`, `stream_link_sends`      | 0002                     | link de transmisión por evento y a quién se le mandó                            | `src/lib/server/tickets/stream.js`                         |
+| `reminder_sends`                                  | 0002                     | recordatorios ya mandados (no repetir)                                          | `src/lib/server/tickets/reminders.js`                      |
+| `admin_audit`                                     | 0004                     | registro de actividad del panel                                                 | `src/lib/server/admin/audit.js`                            |
+| `event_mail_sends`, `event_mail_recipients`       | 0006                     | "Mail a compradores" de un evento, en tandas                                    | `src/lib/server/tickets/buyerMail.js`                      |
+| `admin_last_seen`                                 | 0007                     | "Desde tu última visita" del Inicio                                             | `src/lib/server/admin/lastSeen.js`                         |
+| `email_templates`                                 | 0008                     | textos de los mails cambiados desde el panel                                    | `src/lib/server/tickets/templates.js`                      |
+| `person_notes`                                    | 0009                     | notas internas sobre personas                                                   | `src/lib/server/admin/people.js`                           |
+| `object_types`, `objects`, `edges`, `objects_fts` | 0012                     | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md)) | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
+| `demo_files`                                      | ninguna                  | solo en previews: los "commits" del modo demo                                   | `src/lib/server/demo/overlay.js`                           |
 
 `demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).
 
