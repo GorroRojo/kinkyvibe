@@ -111,8 +111,8 @@ export function mpSurcharge(base, feeBasisPoints) {
 
 /**
  * Comisión de Mercado Pago por defecto (%), si no hay ninguna configurada (ni en el evento, ni en
- * /admin/entradas/ajustes, ni en TICKETS_MP_FEE_PERCENT). Decisión de la organización: 2 %; la
- * real depende del plan de la cuenta y se ajusta en /admin/entradas/ajustes.
+ * /admin/ajustes/cobros, ni en TICKETS_MP_FEE_PERCENT). Decisión de la organización: 2 %; la
+ * real depende del plan de la cuenta y se ajusta en /admin/ajustes/cobros.
  */
 export const DEFAULT_MP_FEE_PERCENT = 2;
 

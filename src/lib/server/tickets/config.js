@@ -22,7 +22,7 @@
  *                                         # (solo fecha = hasta el fin de ese día; hora de
  *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
- * mp_fee_percent: 2      # opcional; si falta: /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT o 2 %
+ * mp_fee_percent: 2      # opcional; si falta: /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT o 2 %
  * puerta: true           # opcional (eventos presenciales): true = también hay entradas en la
  *                        # puerta (la página lo dice); false = "Solo anticipadas" y el modo puerta
  *                        # no vende. Si falta: se vende en la puerta y la página no dice nada.
