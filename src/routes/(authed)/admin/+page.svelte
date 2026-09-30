@@ -402,7 +402,9 @@
 								<div class="cap">
 									<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
 									<small class="num"
-										>{e.sold} / {e.capacity}{e.held ? ` · ${e.held} reservadas` : ''}</small
+										>{e.sold}{e.capacity === null ? ' · sin cupo' : ` / ${e.capacity}`}{e.held
+											? ` · ${e.held} reservadas`
+											: ''}</small
 									>
 								</div>
 							{/if}

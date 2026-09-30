@@ -418,6 +418,28 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(upcoming[2]).toMatchObject({ draft: true, ticketed: false, capacity: 0 });
 	});
 
+	it('un tipo sin cupo (capacity null): el evento no tiene cupo total y ese tipo no se pasa', () => {
+		const [e] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([
+				[
+					'hoy',
+					config({
+						types: [
+							{ id: 'general', name: 'General', capacity: null },
+							{ id: 'anticipada', name: 'Anticipada', capacity: 2 }
+						]
+					})
+				]
+			]),
+			totals,
+			now: NOW
+		});
+		expect(e).toMatchObject({ capacity: null, sold: 11 });
+		// La anticipada sí tiene cupo: sigue marcada; la general (8 vendidas, sin cupo) no.
+		expect(e.oversold).toEqual([{ type: 'Anticipada', sold: 3, capacity: 2 }]);
+	});
+
 	it('reviewItems arma un ítem con acción por cada cosa para revisar', () => {
 		const items = reviewItems({
 			upcoming,
