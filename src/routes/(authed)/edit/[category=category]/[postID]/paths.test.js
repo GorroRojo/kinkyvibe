@@ -69,7 +69,7 @@ describe('post editor input validation', () => {
 		expect(r.post.raw).toBe(text);
 		expect(r.post.sha).toBe('s');
 		expect(fetchMock.mock.calls.map((c) => /** @type {any} */ (c)[0])).toContain(
-			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/calendario/fiesta.md?ref=main'
+			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/material/fiesta.md?ref=main'
 		);
 	});
 
