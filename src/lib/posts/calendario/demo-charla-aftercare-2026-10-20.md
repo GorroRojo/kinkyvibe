@@ -1,0 +1,32 @@
+---
+# generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
+title: 'Charla online: aftercare (demo)'
+summary: 'EVENTO INVENTADO para probar el panel. Charla online a la gorra.'
+tags:
+  - español
+  - KinkyVibe
+  - a la gorra
+  - Online
+  - charla
+layout: calendario
+category: calendario
+authors:
+  - KinkyVibe
+status: abierto
+start: 2026-10-20T20:00-03:00
+end: 2026-10-20T21:30-03:00
+modalidad: online
+tickets:
+  - id: gorra
+    name: A la gorra
+    a_la_gorra: { minimo: 1000, sugerido: 4000 }
+    capacity: 80
+  - id: libre
+    name: Libre
+    a_la_gorra: { minimo: 0, sugerido: 2000 }
+    capacity: 40
+payment_methods: [mercadopago, transferencia]
+---
+> **⚠️ Evento inventado (datos de prueba del modo demo).** No existe.
+
+Charla **inventada** sobre aftercare, para probar las entradas de eventos online.
