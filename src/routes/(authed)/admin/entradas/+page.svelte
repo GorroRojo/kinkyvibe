@@ -36,7 +36,7 @@
 		{ label: 'precio', value: (r) => r.t.price ?? '' },
 		{ label: 'a_la_gorra', value: (r) => (r.t.gorra ? 'sí' : '') },
 		{ label: 'vendidas', value: (r) => r.t.sold },
-		{ label: 'cupo', value: (r) => r.t.capacity },
+		{ label: 'cupo', value: (r) => r.t.capacity ?? '' },
 		{ label: 'reservadas', value: (r) => r.t.held },
 		{ label: 'cobrado', value: (r) => r.t.revenue },
 		{ label: 'fondo_usado', value: (r) => r.t.fondoUsed },
@@ -147,7 +147,9 @@
 									>
 								</td>
 								<td class="bar-col">
-									<span class="num">{t.sold}/{t.capacity}</span>
+									<span class="num"
+										>{t.sold}{t.capacity === null ? ' · sin cupo' : `/${t.capacity}`}</span
+									>
 									<CapacityBar sold={t.sold} held={t.held} capacity={t.capacity} />
 									{#if t.held}<small class="muted held-inline">{t.held} reservadas</small>{/if}
 								</td>
@@ -159,7 +161,7 @@
 					<tfoot>
 						<tr>
 							<td>Total</td>
-							<td class="bar-col num">{e.sold}/{e.capacity}</td>
+							<td class="bar-col num">{e.sold}{e.capacity === null ? '' : `/${e.capacity}`}</td>
 							<td class="r num held-col">{e.held}</td>
 							<td class="r num">{formatARS(e.revenue)}</td>
 						</tr>
