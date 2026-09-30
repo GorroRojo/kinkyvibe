@@ -68,7 +68,6 @@
 			<dt>Archivo</dt>
 			<dd><code>calendario/{e.slug}.md</code></dd>
 		</dl>
-		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
 	</Card>
 
 	{#if data.online && e.sellsTickets}
