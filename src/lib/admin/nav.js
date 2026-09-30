@@ -219,8 +219,7 @@ export const NAV = Object.freeze([
 		emoji: '🙈',
 		label: 'No listadas',
 		group: 'contenido',
-		soon: true,
-		fallback: '/admin',
+		soon: false,
 		counter: 'unlisted'
 	},
 
@@ -271,7 +270,7 @@ export const NAV = Object.freeze([
 		emoji: '📜',
 		label: 'Actividad',
 		group: 'ajustes',
-		soon: true
+		soon: false
 	}
 ]);
 
