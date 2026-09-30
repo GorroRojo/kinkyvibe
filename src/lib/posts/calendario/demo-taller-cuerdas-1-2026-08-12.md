@@ -1,5 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
+published_date: 2026-07-13Z-03:00
 title: 'Taller de cuerdas: nivel 1 (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Taller presencial de amarres.'
 tags:
@@ -12,7 +13,7 @@ tags:
 layout: calendario
 category: calendario
 authors:
-  - Nudos Imaginarios (demo)
+  - KinkyVibe
 status: abierto
 start: 2026-08-12T15:00-03:00
 end: 2026-08-12T18:00-03:00

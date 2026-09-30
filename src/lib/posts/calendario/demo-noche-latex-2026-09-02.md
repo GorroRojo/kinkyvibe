@@ -1,5 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
+published_date: 2026-08-03Z-03:00
 title: 'Noche Látex (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Fiesta mensual de una serie que no existe.'
 tags:

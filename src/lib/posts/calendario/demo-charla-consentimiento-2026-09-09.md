@@ -1,5 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
+published_date: 2026-08-10Z-03:00
 title: 'Charla online: consentimiento (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Charla online a la gorra.'
 tags:

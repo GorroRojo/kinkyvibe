@@ -371,7 +371,9 @@ export function events(today) {
 			kv: false,
 			online: false,
 			tags: ['español', 'pago', 'AMBA', 'taller', 'cuerdas', level === 1 ? 'inicial' : 'shibari'],
-			authors: ['Nudos Imaginarios (demo)'],
+			// Autore existente (la validación de contenido exige un perfil de amigues o KinkyVibe);
+			// sin la etiqueta KinkyVibe, así que es un evento sin Fondo.
+			authors: ['KinkyVibe'],
 			status: 'abierto',
 			location: 'Pasaje Ficticio 42, Ciudad de Buenos Aires',
 			locationName: 'Espacio de Ensayo',
@@ -425,6 +427,8 @@ export function eventMarkdown(e) {
 	const lines = [
 		'---',
 		EVENT_MARKER,
+		// Publicado un mes antes del evento (mismo formato que los eventos reales).
+		`published_date: ${new Date(e.start - 30 * DAY + AR).toISOString().slice(0, 10)}Z-03:00`,
 		`title: ${sql(e.title)}`,
 		`summary: ${sql(e.summary)}`,
 		'tags:',
@@ -622,8 +626,13 @@ export function buildData({ today, now }) {
 				: null,
 			method: o.method ?? pick(['mercadopago', 'mercadopago', 'transferencia'])
 		});
+		// Compras de 1 a 21 días antes del evento; en los eventos futuros, de los últimos 10 días.
 		const createdAt =
-			o.createdAt ?? Math.min(now - HOUR, ev.start - Math.floor((1 + r() * 20) * DAY));
+			o.createdAt ??
+			(() => {
+				const back = Math.floor((1 + r() * 20) * DAY);
+				return Math.min(now - HOUR, ev.offset > 0 ? now - Math.floor(back / 2) : ev.start - back);
+			})();
 		const status = o.status;
 		const id = uuid();
 		const issued = status === 'approved' || status === 'refunded';

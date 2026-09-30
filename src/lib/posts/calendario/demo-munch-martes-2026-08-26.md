@@ -1,5 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
+published_date: 2026-07-27Z-03:00
 title: 'Munch de los martes (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Encuentro social sin juego, a la gorra.'
 tags:
