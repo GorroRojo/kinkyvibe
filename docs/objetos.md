@@ -15,7 +15,8 @@ La decisión de gorrite (30/9) es **núcleo en código, extras desde el panel**:
   (texto, número, fecha, lista, link). Nada de dinero ni lógica desde el panel.
 
 **Hoy existe solo la base** (migración `0012_objetos.sql` y `src/lib/server/objects/`), con dos
-tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
+tipos de ejemplo, `evento` y `lugar`, y el primer tipo en uso: `perfil` (perfiles de las
+cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archivos `.md`
 ([contenido.md](contenido.md)); ninguna página pública usa objetos todavía.
 
 ## Lo que nunca se tiene que romper
@@ -23,7 +24,10 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
 1. **Un solo camino de escritura: `saveObject()`** (`src/lib/server/objects/save.js`). Nadie más
    hace `INSERT`, `UPDATE` o `DELETE` sobre `objects`, `edges` u `object_types`. El test
    `writePath.test.js` recorre el código y falla si aparece otro. Si necesitás escribir algo
-   nuevo (historial, auditoría, tablas de apoyo), va dentro de la misma tanda de `saveObject()`.
+   nuevo (historial, auditoría, tablas de apoyo), va dentro de la misma tanda de `saveObject()`:
+   la opción `also(self)` recibe cómo encontrar el objeto (`id` al editar; `type` y `slug` al
+   crear, porque el id todavía no existe) y devuelve sentencias sobre tablas de apoyo (nunca
+   sobre `objects`, `edges` u `object_types`). Si una falla, no se guarda nada.
 2. **Un solo lugar decide quién ve qué:** `src/lib/server/objects/visibility.js`. Toda lectura
    (página, listado, búsqueda, sitemap, RSS, imágenes para compartir, JSON…) usa `canSee()` o
    `visibleWhere()`, que salen de la misma tabla. Las reglas:
@@ -35,7 +39,11 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
    - ante la duda (rol o visibilidad desconocidos), no se muestra;
    - una relación solo se muestra si se pueden ver **los dos** extremos (`getEdges`);
    - `visibleWhere()` devuelve `{ sql, params }`: el id de quien mira va como parámetro (`?` sin
-     número), nunca pegado en el SQL.
+     número), nunca pegado en el SQL;
+   - `created_by` y `updated_by` solo los ven les admins: `getObject`, `searchObjects` y
+     `getEdges` los devuelven vacíos a cualquier otre (`forViewer()` en `read.js`), para que
+     nada vincule dos objetos por quién los creó (por ejemplo, dos perfiles de una misma cuenta).
+     La regla "quien lo creó ve su oculto" se aplica antes, con la fila completa.
 3. **Nunca se pisa un cambio en silencio.** Cada objeto tiene `version`. Para editar hay que
    mandar la versión que se abrió; si alguien guardó en el medio, `saveObject()` tira
    `VersionConflictError` (409: "Alguien más guardó cambios mientras editabas…") y no guarda
@@ -78,7 +86,7 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
 | Leer y buscar                               | `src/lib/server/objects/read.js` → `getObject()`, `searchObjects()`                                 |
 | Relaciones                                  | `src/lib/server/objects/edges.js` → `getEdges()`                                                    |
 | Visibilidad                                 | `src/lib/server/objects/visibility.js`                                                              |
-| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `index.js`)                               |
+| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `perfil.js`, `index.js`)                  |
 | Clases de campo (texto, fecha, link…)       | `src/lib/server/objects/fields.js`                                                                  |
 | Chequeo de integridad                       | `src/lib/server/objects/integrity.js`; fila del Inicio: `integrityReviewRow()` en `admin/inicio.js` |
 | Errores (`code`, `status`, mensaje)         | `src/lib/server/objects/errors.js`                                                                  |
@@ -135,6 +143,36 @@ npx wrangler d1 execute kinkyvibe --local --command "SELECT id, type, slug, vers
 
 La migración **no se aplica a mano** en preview ni en producción desde un PR: eso lo hace gorrite
 cuando corresponde ([datos.md](datos.md)).
+
+## Tipos núcleo
+
+### `perfil`
+
+Una persona o un grupo con cuenta (decisión A2). Archivo: `src/lib/server/objects/types/perfil.js`.
+Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
+[cuentas.md](cuentas.md) («Perfiles»).
+
+| Campo          | Clase      | Notas                                                                                          |
+| -------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                            |
+| `kind`         | `option`   | `persona` o `grupo`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)       |
+| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                            |
+| `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
+| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
+| `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
+| `show_members` | `boolean`  | solo grupos: mostrar integrantes aceptades                                                     |
+
+- Relación saliente `es_integrante_de` → `perfil`: de una persona a un grupo, con
+  `data.aceptado`. Que el origen sea persona y el destino grupo lo controla `perfiles.js` (el
+  registro solo sabe de tipos, no de `kind`).
+- Quién gestiona cada perfil NO está en el objeto: va en la tabla de apoyo `profile_managers`
+  (migración `0014_perfiles.sql`), porque las cuentas no son objetos. Esa tabla nunca se muestra
+  fuera de Mi rincón de quienes gestionan.
+- Las lecturas de gestión de `perfiles.js` (mis perfiles, un perfil que gestiono) leen `objects`
+  unidas a `profile_managers` sin `visibleWhere()`: la condición de acceso es esa unión (quien
+  gestiona un grupo oculto lo tiene que poder editar). Todo lo que ve el público u otra cuenta
+  pasa por `getObject`/`getEdges`.
+- Más adelante, los lugares (B3) pueden sumarse como otro `kind` con sus campos extra.
 
 ## Tareas comunes
 

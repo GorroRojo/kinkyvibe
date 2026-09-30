@@ -8,8 +8,8 @@ En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de ante
 pone, cambia o saca la contraseña, cierra sesión o borra la cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
-Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002). Los perfiles, las passkeys y la
-compra con cuenta vienen después. Les admins siguen entrando con GitHub en `/login`: son dos
+Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son los perfiles (ver
+"Perfiles" más abajo). Las passkeys y la compra con cuenta vienen después. Les admins siguen entrando con GitHub en `/login`: son dos
 cosas separadas (`locals.user` para admins, `locals.member` para cuentas) y una no toca a la otra.
 
 Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingresar` y
@@ -139,13 +139,102 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
 Por ahora solo el hook: `eventRequiresAccount(meta)` en `src/lib/server/cuentas/index.js` lee
 `requiere_cuenta: true` del frontmatter del evento. La compra todavía no lo usa.
 
+## Perfiles
+
+Parte 2 del bloque (decisiones A2, E1 y B3 de gorrite). Una cuenta puede tener **varios
+perfiles**, de dos tipos:
+
+- **Persona**: separados entre sí y **nunca vinculados de forma visible**. Nada de lo que ve el
+  público u otra cuenta dice que dos perfiles son de la misma cuenta.
+- **Grupo**: lo gestionan varias cuentas. Mostrar sus integrantes es opcional por grupo
+  (`show_members`). **Quienes gestionan no se muestran nunca**, ni en público ni a otras cuentas:
+  solo lo ven, en Mi rincón, las otras cuentas que gestionan ese mismo grupo (y les admins).
+
+No hay "nombre para mostrar" aparte (E1): el nombre del perfil es el `title` del objeto. Los
+lugares (B3) pueden sumarse más adelante como otro tipo de perfil; nada de esto lo impide.
+
+**Todavía no hay página pública de perfiles.** Los perfiles de amigues siguen siendo archivos
+`.md` y no se tocan. `getPublicProfile()` ya arma lo que mostraría esa página (lista blanca de
+campos), pero nadie la usa todavía.
+
+### Páginas (detrás del mismo interruptor `cuentas`)
+
+- `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona o grupo, nombre
+  y quién lo puede ver) y las invitaciones a gestionar grupos que le llegaron.
+- `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad.
+  - En un grupo: aceptar o sacar integrantes, ver quiénes lo gestionan, invitar, cambiar roles,
+    sacar gente, dejar de gestionar y borrar.
+  - En una persona: pedir sumarse a un grupo (con la dirección del grupo), salir o retirar el
+    pedido, y borrar.
+- Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
+  `/ingresar`. Con el interruptor apagado, todo da 404.
+- Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página.
+
+### Modelo
+
+- El perfil es un objeto de tipo núcleo `perfil` ([objetos.md](objetos.md)) y se escribe **solo
+  con `saveObject()`**. Visibilidad: la del modelo de objetos (`public`, `members`, `hidden`).
+  Oculto lo ven les admins y quien lo creó; quienes gestionan un grupo lo ven igual en Mi rincón,
+  porque esas lecturas pasan por `profile_managers` (ver abajo).
+- **Quién gestiona qué** va en `profile_managers` (migración `0014_perfiles.sql`): las cuentas no
+  son objetos, así que no puede ser un edge. Columnas: `profile_id` → `objects(id)` y
+  `account_id` → `accounts(id)`, las dos con `ON DELETE CASCADE`, y `role`:
+  - `owner` (dueñe): todo, incluso invitar, sacar gente, cambiar roles y borrar el perfil;
+  - `manager`: edita el perfil y acepta o saca integrantes.
+
+  Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
+  tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
+
+- **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
+  `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
+  cuenta que invitó.
+- **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, con
+  `data.aceptado`. La persona lo pide desde su perfil y el grupo lo acepta: nadie aparece en un
+  grupo sin haberlo pedido. Se escriben con `saveObject()` sobre el perfil de la persona.
+- `created_by` y `updated_by` de los objetos solo los ven les admins (`forViewer()` en
+  `src/lib/server/objects/read.js`): así ninguna lectura pública ni de cuentas vincula dos
+  perfiles por quién los creó. Una cuenta figura como autora con el prefijo `cuenta:<id>`.
+
+### Reglas (todas en `src/lib/server/cuentas/perfiles.js`; las páginas no deciden nada)
+
+- Solo quien gestiona un perfil lo ve en Mi rincón y lo edita.
+- Editar manda la `version` que se abrió. Si alguien guardó en el medio, no se guarda nada y
+  aparece "Alguien lo cambió mientras tanto…", con lo que la persona había escrito aparte para
+  que no lo pierda.
+- **Sumar gestión por mail, sin revelar si ese mail tiene cuenta.** Une dueñe escribe un mail y
+  la respuesta es siempre la misma (tenga cuenta, no la tenga, o ya gestione el grupo). No se
+  manda ningún mail (no es un canal para escribirle a cualquiera): quien invita le avisa. La
+  cuenta que entra con ese mail **verificado** ve la invitación en Mi rincón → Perfiles y la
+  acepta (queda como `manager`) o la rechaza.
+- **Siempre queda al menos une dueñe.** Le última dueñe no puede irse ni perder la propiedad:
+  primero hace dueñe a otra persona. La condición va en la misma sentencia SQL, así dos cambios a
+  la vez no pueden dejar al grupo sin dueñe. Una cuenta borrada no cuenta como dueñe.
+- Un perfil de persona no se "deja": se borra.
+- Borrar es suave (`deleted_at` vía `saveObject()`), solo dueñes. Las filas de gestión y los
+  edges quedan, para poder deshacerlo desde la base.
+- Tope de 20 perfiles vivos por cuenta (propios y de grupos, contando las invitaciones que
+  acepta) y de 20 invitaciones pendientes por grupo.
+- Si el nombre de un perfil nuevo ya está usado (aunque sea por un perfil oculto ajeno), la
+  dirección cambia sola (`-2`, `-3`…) en vez de avisar que existe otro. Cambiar el nombre después
+  no cambia la dirección.
+
+### Probarlo
+
+- `npx vitest run src/lib/server/cuentas/perfiles.test.js "src/routes/(content)/mi-rincon/perfiles"`:
+  migración y foreign keys, permisos, le última dueñe, el aviso de conflicto, invitaciones que no
+  revelan cuentas, integrantes, que ninguna lectura pública o de otra cuenta vincula perfiles ni
+  muestra quién gestiona, y las páginas con el interruptor apagado (404) y prendido.
+
 ## Dónde está el código
 
 - `src/lib/server/cuentas/`: `accounts.js` (cuentas, contraseña, borrado), `codes.js`,
   `session.js`, `orders.js` (compras de la cuenta), `password.js`, `crypto.js`, `email.js`,
   `index.js` (los pasos de ingresar con sus límites) y `web.js` (cookies, `locals.member`, mails).
 - `src/lib/server/flags.js`: interruptores. Panel: `src/routes/(authed)/admin/ajustes/interruptores/`.
-- Páginas: `src/routes/(content)/ingresar/` y `src/routes/(content)/mi-rincon/`.
+- Páginas: `src/routes/(content)/ingresar/` y `src/routes/(content)/mi-rincon/` (perfiles en
+  `mi-rincon/perfiles/`).
+- Perfiles: `src/lib/server/cuentas/perfiles.js` (reglas), `perfilesWeb.js` (formularios y
+  sesión), tipo `src/lib/server/objects/types/perfil.js`, textos en `src/lib/utils/perfiles.js`.
 - Link del encabezado: `accountLink` en `src/lib/utils/cuentas.js`, usado en
   `src/routes/(content)/+layout.svelte`.
 
@@ -161,6 +250,13 @@ Por ahora solo el hook: `eventRequiresAccount(meta)` en `src/lib/server/cuentas/
 
 ## Pendiente (partes siguientes)
 
-- Perfiles (personas y grupos, decisión 0002) y passkeys.
+- Passkeys.
+- Perfiles: página pública (con `getPublicProfile()`), subir imagen (el campo `avatar` ya existe,
+  solo acepta imágenes del sitio), lugares como tipo de perfil (B3), y llamar a
+  `releaseAccountProfiles()` desde el borrado de cuenta. Hasta entonces, al borrar una cuenta
+  sus perfiles de persona siguen vivos y, si era le única dueñe de un grupo, el grupo queda sin
+  dueñe activa (quienes lo gestionan pueden editarlo, pero no invitar ni cambiar roles). Esa
+  función ya borra sus personas y pasa cada grupo a quien lo gestiona hace más tiempo; falta
+  llamarla dentro del flujo de borrado (no se tocó en esta parte).
 - Compra con cuenta: guardar `orders.account_id`, "Recordar mi DNI" (en `preferences`) y los
   eventos con `requiere_cuenta`.
