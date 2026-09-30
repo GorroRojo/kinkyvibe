@@ -148,7 +148,8 @@
 								</td>
 								<td class="bar-col">
 									<span class="num"
-										>{t.sold}{t.capacity === null ? ' · sin cupo' : `/${t.capacity}`}</span
+										>{t.sold}{t.capacity === null ? ' · sin cupo' : `/${t.capacity}`}{#if t.over}
+											<b class="over-txt">+{t.sold - (t.capacity ?? 0)} de más</b>{/if}</span
 									>
 									<CapacityBar sold={t.sold} held={t.held} capacity={t.capacity} />
 									{#if t.held}<small class="muted held-inline">{t.held} reservadas</small>{/if}
@@ -242,6 +243,11 @@
 	}
 	tr.over {
 		background: var(--bad-bg);
+	}
+	.over-txt {
+		margin-left: 0.35em;
+		color: var(--bad);
+		font-size: 0.85em;
 	}
 	tfoot td {
 		font-weight: 700;
