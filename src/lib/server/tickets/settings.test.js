@@ -38,11 +38,8 @@ describe('ajustes de venta', () => {
 				transfer_cbu: '0000000000000000000000',
 				transfer_holder: 'Nombre de ejemplo',
 				transfer_bank: '',
-				mp_fee_percent: '7,73',
-				fondo_percent_override: '',
-				from_email: '',
-				reply_to_email: '',
-				reminders: ''
+				// Solo los campos que vinieron en el formulario (ver el test de abajo).
+				mp_fee_percent: '7,73'
 			}
 		});
 		const bad = /** @type {any} */ (
@@ -70,6 +67,45 @@ describe('ajustes de venta', () => {
 		expect(s2.transfer_cbu).toBe('');
 		expect(s2.mp_fee_percent).toBe('');
 		expect(s2.transfer_alias).toBe('EJEMPLO.ALIAS.PRUEBA');
+	});
+
+	it('un formulario con solo algunos ajustes no borra los demás', async () => {
+		const full = /** @type {any} */ (
+			validateSalesSettings({
+				...FORM,
+				fondo_percent_override: '40',
+				from_email: 'Ejemplo <entradas@example.com>',
+				reply_to_email: 'respuestas@example.com',
+				reminder_kind_0: 'hours_before',
+				reminder_amount_0: '24',
+				reminder_enabled_0: 'on'
+			})
+		).value;
+		await saveSalesSettings(t.db, full, { by: 'admin', now: 10 });
+		const before = await getSalesSettings(t.db);
+		expect(before.reminders).toBe('[{"kind":"hours_before","hours":24,"enabled":true}]');
+
+		// Otro formulario (p. ej. una sección del panel) que solo manda los datos de transferencia.
+		const partial = validateSalesSettings({
+			transfer_alias: 'OTRO.ALIAS.PRUEBA',
+			transfer_cbu: ''
+		});
+		expect(partial).toEqual({
+			ok: true,
+			value: { transfer_alias: 'OTRO.ALIAS.PRUEBA', transfer_cbu: '' }
+		});
+		await saveSalesSettings(t.db, /** @type {any} */ (partial).value, { by: 'otre', now: 20 });
+		const after = await getSalesSettings(t.db);
+		expect(after.transfer_alias).toBe('OTRO.ALIAS.PRUEBA');
+		expect(after.transfer_cbu).toBe('');
+		expect(after).toMatchObject({
+			transfer_holder: 'Nombre de ejemplo',
+			mp_fee_percent: '7,73',
+			fondo_percent_override: '40',
+			from_email: 'Ejemplo <entradas@example.com>',
+			reply_to_email: 'respuestas@example.com',
+			reminders: before.reminders
+		});
 	});
 
 	it('sin nada cargado no hay datos de transferencia (se usa la variable de entorno)', async () => {
