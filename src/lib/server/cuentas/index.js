@@ -12,7 +12,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { checkPassword, emailHash, normalizeEmail, upsertVerifiedAccount } from './accounts.js';
 import { createLoginCode, normalizeCode, verifyLoginCode } from './codes.js';
-import { buildLoginCodeEmail } from './email.js';
+import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {(to: string, message: { subject: string, html: string, text: string }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
@@ -64,7 +64,19 @@ const clientKey = (client) => sha256Hex(`cuentas:client:${client}`);
  * @param {{ db: D1Database, email: unknown, client: string, send: SendMail, now?: number }} input
  * @returns {Promise<{ ok: true, email: string } | { ok: false, status: number, message: string }>}
  */
-export async function requestCode({ db, email: rawEmail, client, send, now = Date.now() }) {
+export function requestCode({ db, email, client, send, now = Date.now() }) {
+	return sendCode({ db, email, client, send, now, purpose: 'login' });
+}
+
+/**
+ * Manda un código de este `purpose`, con los mismos límites para todos (los contadores son
+ * compartidos: confirmar una acción gasta del mismo cupo de mails que ingresar).
+ *
+ * @param {{ db: D1Database, email: unknown, client: string, send: SendMail, now: number,
+ *   purpose: import('./codes.js').CodePurpose }} input
+ * @returns {Promise<{ ok: true, email: string } | { ok: false, status: number, message: string }>}
+ */
+async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	const email = normalizeEmail(rawEmail);
 	if (!email) return { ok: false, status: 400, message: MESSAGES.badEmail };
 	const hash = await emailHash(email);
@@ -75,10 +87,12 @@ export async function requestCode({ db, email: rawEmail, client, send, now = Dat
 	const perEmail = await allowed(db, `cuentas:code:e:${hash}`, RATE_LIMITS.codeRequestEmail, now);
 	const perDay = await allowed(db, `cuentas:code:ed:${hash}`, RATE_LIMITS.codeRequestEmailDay, now);
 	if (!perEmail || !perDay) return { ok: false, status: 429, message: MESSAGES.tooManyCodes };
-	const { code } = await createLoginCode(db, hash, { now });
+	const { code } = await createLoginCode(db, hash, { now, purpose });
+	const message =
+		purpose === 'login' ? buildLoginCodeEmail({ code }) : buildConfirmCodeEmail({ code, purpose });
 	// `log` solo se muestra en `vite dev` sin RESEND_API_KEY (tickets/index.js): así se puede
 	// probar en local. Nunca se loguea en producción.
-	const result = await send(email, buildLoginCodeEmail({ code }), `Código: ${code}`);
+	const result = await send(email, message, `Código (${purpose}): ${code}`);
 	if (result === 'failed') return { ok: false, status: 502, message: MESSAGES.mailFailed };
 	return { ok: true, email };
 }
@@ -90,18 +104,65 @@ export async function requestCode({ db, email: rawEmail, client, send, now = Dat
  * @returns {Promise<{ ok: true, account: import('./accounts.js').Account }
  *   | { ok: false, status: number, message: string }>}
  */
-export async function verifyCode({ db, email: rawEmail, code: rawCode, client, now = Date.now() }) {
+export async function verifyCode({ db, email: rawEmail, code, client, now = Date.now() }) {
 	const email = normalizeEmail(rawEmail);
 	if (!email) return { ok: false, status: 400, message: MESSAGES.badEmail };
+	const checked = await checkCode({ db, email, code, client, now, purpose: 'login' });
+	if (!checked.ok) return checked;
+	return { ok: true, account: await upsertVerifiedAccount(db, email, { now }) };
+}
+
+/**
+ * Verifica un código de este `purpose` (con el límite de intentos por conexión, compartido).
+ *
+ * @param {{ db: D1Database, email: string, code: unknown, client: string, now: number,
+ *   purpose: import('./codes.js').CodePurpose }} input
+ * @returns {Promise<{ ok: true } | { ok: false, status: number, message: string }>}
+ */
+async function checkCode({ db, email, code: rawCode, client, now, purpose }) {
 	const code = normalizeCode(rawCode);
 	if (!code) return { ok: false, status: 400, message: MESSAGES.badCode };
 	const ck = await clientKey(client);
 	if (!(await allowed(db, `cuentas:verify:c:${ck}`, RATE_LIMITS.codeVerifyClient, now)))
 		return { ok: false, status: 429, message: MESSAGES.tooManyAttempts };
-	const result = await verifyLoginCode(db, await emailHash(email), code, { now });
+	const result = await verifyLoginCode(db, await emailHash(email), code, { now, purpose });
 	if (result === 'wrong') return { ok: false, status: 400, message: MESSAGES.wrongCode };
 	if (result === 'expired') return { ok: false, status: 400, message: MESSAGES.expiredCode };
-	return { ok: true, account: await upsertVerifiedAccount(db, email, { now }) };
+	return { ok: true };
+}
+
+/**
+ * Acciones delicadas de Mi rincón que piden un código fresco por mail, además de la sesión
+ * (la sesión dura para siempre: quien encuentre un navegador abierto no puede cambiar la
+ * contraseña ni borrar la cuenta sin acceso al mail).
+ * - 'password': poner, cambiar o sacar la contraseña.
+ * - 'delete': borrar la cuenta.
+ * @typedef {'password' | 'delete'} ConfirmPurpose
+ */
+
+/** @param {unknown} v @returns {v is ConfirmPurpose} */
+export function isConfirmPurpose(v) {
+	return v === 'password' || v === 'delete';
+}
+
+/**
+ * Manda un código para confirmar una acción delicada al mail de la cuenta.
+ *
+ * @param {{ db: D1Database, email: string, purpose: ConfirmPurpose, client: string,
+ *   send: SendMail, now?: number }} input
+ */
+export function requestConfirmCode({ db, email, purpose, client, send, now = Date.now() }) {
+	return sendCode({ db, email, client, send, now, purpose });
+}
+
+/**
+ * Verifica (y gasta) un código de confirmación. Uno de ingreso o de otra acción no sirve.
+ *
+ * @param {{ db: D1Database, email: string, purpose: ConfirmPurpose, code: unknown,
+ *   client: string, now?: number }} input
+ */
+export function checkConfirmCode({ db, email, purpose, code, client, now = Date.now() }) {
+	return checkCode({ db, email, code, client, now, purpose });
 }
 
 /**
