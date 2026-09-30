@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
-import { TOKEN_COOKIE, authCookieOptions } from '$lib/server/auth';
+import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -15,6 +15,9 @@ export async function handle({ event, resolve }) {
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
 		event.locals.user = { login: env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo', name: null, avatar_url: '' };
 		event.locals.user_token = 'dev-mock';
+		// Admin checks match the numeric GitHub id: borrow the listed admin's (0 = not an admin).
+		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
+		mockUser.id = adminByLogin(mockUser.login)?.id ?? 0;
 		return await resolve(event);
 	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
