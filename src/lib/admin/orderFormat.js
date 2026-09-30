@@ -24,8 +24,10 @@ export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago',
 	transferencia: 'Transferencia',
 	gratis: 'Sin cargo',
-	// Venta en la puerta (modo puerta).
-	efectivo: 'Efectivo (en la puerta)'
+	// Venta en la puerta (modo puerta) o carga a mano.
+	efectivo: 'Efectivo',
+	// Carga a mano ("Cargar entradas a mano"): otro medio.
+	otro: 'Otro medio'
 });
 
 /**

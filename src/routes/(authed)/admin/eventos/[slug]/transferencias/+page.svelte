@@ -4,6 +4,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import { ORDER_STATUS, formatDni, shortTime } from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 
@@ -13,6 +14,44 @@
 	export let form;
 
 	$: e = data.event;
+
+	/** @type {OverrideDialog} */
+	let overrideDialog;
+	/** @type {string | null} */
+	let busy = null;
+
+	/**
+	 * "Confirmar pago": si confirmar pasa el cupo (llegó tarde y los lugares ya se ocuparon), el
+	 * servidor contesta `needsConfirmation`; se pregunta en la página y, si le admin confirma, se
+	 * reenvía con la clave en `override`.
+	 * @param {string} id
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const confirmPayment =
+		(id) =>
+		({ formElement }) => {
+			busy = id;
+			return async ({ result, update }) => {
+				// La clave vale para un solo envío.
+				formElement.querySelector('input[name=override]')?.remove();
+				const needs =
+					result.type === 'failure'
+						? /** @type {any} */ (result.data)?.transfer?.needsConfirmation
+						: null;
+				busy = null;
+				if (!needs) return update();
+				const key = await overrideDialog.ask(needs, {
+					title: 'Confirmar esta transferencia pasa el cupo'
+				});
+				if (!key) return;
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = 'override';
+				input.value = key;
+				formElement.append(input);
+				formElement.requestSubmit();
+			};
+		};
 </script>
 
 <svelte:head><title>Transferencias · {e.title} · Panel</title></svelte:head>
@@ -22,6 +61,19 @@
 		<h2 id="transferencias">Transferencias pendientes</h2>
 		{#if form?.transfer}
 			<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
+			{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
+				<!-- Sin JavaScript: la confirmación en la página. -->
+				<form class="flash error" method="POST" action="?/confirm">
+					{#each form.transfer.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
+					<input type="hidden" name="order" value={form.transfer.order} />
+					<button
+						class="kv-btn small"
+						type="submit"
+						name="override"
+						value={form.transfer.needsConfirmation.key}>Sí, confirmar igual</button
+					>
+				</form>
+			{/if}
 		{/if}
 		{#if data.transfers.length === 0}
 			<EmptyState icon={CircleCheck} title="No hay transferencias esperando confirmación." />
@@ -46,16 +98,18 @@
 						<div class="meta">
 							Pedida {shortTime(o.createdAt)} ·
 							{#if o.status === 'expired'}
-								<span class="late">reserva vencida el {shortTime(o.expiresAt)}</span> (se confirma solo
-								si hay cupo)
+								<span class="late">reserva vencida el {shortTime(o.expiresAt)}</span> (si ya no hay cupo,
+								te avisamos y podés confirmarla igual)
 							{:else}
 								reservada hasta {shortTime(o.expiresAt)}
 							{/if}
 						</div>
 						<div class="buttons">
-							<form method="POST" action="?/confirm" use:enhance>
+							<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
 								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="kv-btn confirm">Confirmar pago</button>
+								<button type="submit" class="kv-btn confirm" disabled={busy === o.id}
+									>Confirmar pago</button
+								>
 							</form>
 							<form
 								method="POST"
@@ -89,6 +143,8 @@
 		</ul>
 	</Card>
 {/if}
+
+<OverrideDialog bind:this={overrideDialog} confirmLabel="Sí, confirmar igual" />
 
 <style>
 	.transfers {

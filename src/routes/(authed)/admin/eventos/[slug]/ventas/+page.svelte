@@ -22,7 +22,8 @@
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
 		gratis: 'Sin cargo',
-		efectivo: 'Efectivo (en la puerta)'
+		efectivo: 'Efectivo',
+		otro: 'Otro medio'
 	});
 
 	// Gráfico de barras: entradas por día (últimos 14 días).
@@ -75,7 +76,11 @@
 	<Stat
 		label="Vendidas"
 		value={t.capacity ? `${t.sold} / ${t.capacity}` : String(t.sold)}
-		sub={pct !== null ? `${pct} % del cupo` : ''}
+		sub={pct === null
+			? ''
+			: t.capacity !== null && t.sold > t.capacity
+				? `${pct} % del cupo · ${t.sold - t.capacity} de más`
+				: `${pct} % del cupo`}
 	>
 		<CapacityBar sold={t.sold} held={t.held.total} capacity={t.capacity} />
 	</Stat>
@@ -106,7 +111,11 @@
 					<div class="row">
 						<strong>{type.name}</strong>
 						<span class="num"
-							>{type.sold}{type.capacity == null ? ' · sin cupo' : ` / ${type.capacity}`}</span
+							>{type.sold}{type.capacity == null
+								? ' · sin cupo'
+								: ` / ${type.capacity}`}{#if type.capacity != null && type.sold > type.capacity}<b
+									class="over-txt">+{type.sold - type.capacity} de más</b
+								>{/if}</span
 						>
 					</div>
 					<CapacityBar sold={type.sold} held={type.held} capacity={type.capacity} />
@@ -361,6 +370,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+	}
+	.over-txt {
+		margin-left: 0.35em;
+		color: var(--bad);
+		font-size: 0.85em;
 	}
 	.types .over strong::after {
 		content: ' · sobrevendido';
