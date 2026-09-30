@@ -3,6 +3,9 @@
 	 * Barra de cupo: vendidas (violeta), reservadas (amarillo) y libres.
 	 * Props: `sold`, `held` (reservadas esperando el pago, default 0), `capacity` (0 o null = sin
 	 * cupo: la barra queda vacía), `label` (opcional: texto accesible; si no, lo arma solo).
+	 *
+	 * Si se vendió más que el cupo (une admin pasó el límite: ver tickets/overrides.js), la barra
+	 * queda llena con una marca roja al final y el texto dice "52 / 50, 2 de más".
 	 */
 	/** @type {number} */
 	export let sold = 0;
@@ -19,15 +22,21 @@
 	$: soldPct = pct(sold, cap);
 	$: heldPct = Math.min(100 - soldPct, pct(held, cap));
 	$: free = cap ? Math.max(0, cap - sold - held) : null;
+	$: over = cap ? Math.max(0, sold + held - cap) : 0;
 	$: text =
 		label ||
 		`${sold} vendidas` +
 			(held ? `, ${held} reservadas` : '') +
-			(free === null ? ', sin cupo' : `, ${free} libres de ${cap}`);
+			(free === null
+				? ', sin cupo'
+				: over
+					? `, ${sold + held} / ${cap}, ${over} de más`
+					: `, ${free} libres de ${cap}`);
 </script>
 
 <div
 	class="bar"
+	class:over={over > 0}
 	role="meter"
 	aria-valuemin={0}
 	aria-valuemax={cap || undefined}
@@ -49,6 +58,18 @@
 	}
 	i {
 		display: block;
+	}
+	/* Pasado del cupo: marca al final (no solo color: también el texto y el borde). */
+	.over {
+		position: relative;
+		outline: 1px solid var(--bad, #c0006a);
+	}
+	.over::after {
+		content: '';
+		position: absolute;
+		inset: 0 0 0 auto;
+		width: 0.45rem;
+		background: var(--bad, #c0006a);
 	}
 	.s {
 		background: var(--2);
