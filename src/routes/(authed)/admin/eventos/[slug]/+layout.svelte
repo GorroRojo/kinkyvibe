@@ -5,7 +5,7 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { Copy, ExternalLink, ImageDown, Pencil, ReceiptText } from '@lucide/svelte';
+	import { Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
@@ -72,7 +72,6 @@
 				><ExternalLink {...icon} /> Ver página
 				<span class="sr-only">(se abre en otra pestaña)</span></a
 			>
-			<a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}><Pencil {...icon} /> Editar</a>
 			<a class="kv-btn ghost" href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
 				><Copy {...icon} /> Duplicar</a
 			>

@@ -102,10 +102,12 @@
 	<Card title="Por tipo de entrada">
 		<ul class="types">
 			{#each data.types as type (type.id)}
-				<li class:over={type.sold > type.capacity}>
+				<li class:over={type.capacity != null && type.sold > type.capacity}>
 					<div class="row">
 						<strong>{type.name}</strong>
-						<span class="num">{type.sold} / {type.capacity}</span>
+						<span class="num"
+							>{type.sold}{type.capacity == null ? ' · sin cupo' : ` / ${type.capacity}`}</span
+						>
 					</div>
 					<CapacityBar sold={type.sold} held={type.held} capacity={type.capacity} />
 					<div class="row muted small">
@@ -377,7 +379,7 @@
 		--day: var(--2);
 	}
 	@media (prefers-color-scheme: dark) {
-		:global(:root:not([data-theme='light'])) .grid {
+		:global(:root[data-theme='auto']) .grid {
 			--pay-mp: #9d6cf7;
 			--pay-tr: #119a77;
 			--pay-free: #bb800a;
