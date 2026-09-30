@@ -60,19 +60,23 @@ CREATE TABLE IF NOT EXISTS account_sessions (
 
 CREATE INDEX IF NOT EXISTS account_sessions_account ON account_sessions (account_id);
 
--- Códigos de un solo uso que se mandan por mail para ingresar. Vida corta: se borran solos.
--- No guardan el mail: solo su hash (alcanza para buscar el código cuando la persona lo escribe).
+-- Códigos de un solo uso que se mandan por mail: para ingresar y para confirmar las acciones
+-- delicadas de Mi rincón (la sesión dura para siempre, así que no alcanza con tenerla). Cada
+-- código sirve solo para su `purpose`: uno de ingreso no confirma nada y uno de confirmación no
+-- sirve para ingresar. Vida corta: se borran solos. No guardan el mail: solo su hash.
 CREATE TABLE IF NOT EXISTS login_codes (
 	id TEXT PRIMARY KEY NOT NULL, -- UUID v4; también es la sal del hash del código
 	email_hash TEXT NOT NULL,
-	code_hash TEXT NOT NULL, -- SHA-256 de "<id>:<código>"
+	-- 'login': ingresar. 'password': poner, cambiar o sacar la contraseña. 'delete': borrar la cuenta.
+	purpose TEXT NOT NULL CHECK (purpose IN ('login', 'password', 'delete')),
+	code_hash TEXT NOT NULL, -- SHA-256 de "<id>:<purpose>:<código>"
 	attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
 	created_at INTEGER NOT NULL,
 	expires_at INTEGER NOT NULL,
 	used_at INTEGER
 );
 
-CREATE INDEX IF NOT EXISTS login_codes_email ON login_codes (email_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS login_codes_email ON login_codes (email_hash, purpose, created_at DESC);
 CREATE INDEX IF NOT EXISTS login_codes_expires ON login_codes (expires_at);
 
 -- Órdenes hechas con una cuenta (lo va a usar la compra con cuenta, más adelante). Al borrar la

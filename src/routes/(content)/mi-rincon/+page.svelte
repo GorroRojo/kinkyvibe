@@ -25,6 +25,13 @@
 				});
 
 	let confirmDelete = '';
+
+	/** Las respuestas de las actions quedan en `form` sin vaciar los otros campos. */
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const keep =
+		() =>
+		async ({ update }) =>
+			update({ reset: false });
 </script>
 
 <svelte:head>
@@ -95,39 +102,64 @@
 			{:else}
 				Es opcional: sin contraseña, entrás con un código que te mandamos por mail.
 			{/if}
+			Para tocarla te pedimos un código por mail, así nadie puede cambiarla con tu sesión abierta.
 		</p>
-		<form method="POST" action="?/contrasena" use:enhance>
-			<input type="text" name="username" value={data.email} autocomplete="username" hidden />
-			<label>
-				<span>{data.hasPassword ? 'Contraseña nueva' : 'Contraseña'}</span>
-				<input
-					name="password"
-					type="password"
-					autocomplete="new-password"
-					minlength="10"
-					maxlength="200"
-					required
-				/>
-			</label>
-			<label>
-				<span>Repetila</span>
-				<input
-					name="confirm"
-					type="password"
-					autocomplete="new-password"
-					minlength="10"
-					maxlength="200"
-					required
-				/>
-			</label>
-			<p class="hint">Al menos 10 caracteres. Una frase larga es más fácil de recordar.</p>
-			<button class="pill-btn" type="submit"
-				>{data.hasPassword ? 'Cambiar contraseña' : 'Poner contraseña'}</button
-			>
-		</form>
-		{#if data.hasPassword}
-			<form method="POST" action="?/sacarContrasena" use:enhance>
-				<button class="link" type="submit">Sacar la contraseña (entrar solo con código)</button>
+		{#if form?.codeSentFor === 'password'}
+			<form method="POST" action="?/contrasena" use:enhance={keep}>
+				<input type="text" name="username" value={data.email} autocomplete="username" hidden />
+				<label>
+					<span>Código que te llegó por mail</span>
+					<input
+						name="code"
+						type="text"
+						inputmode="numeric"
+						autocomplete="one-time-code"
+						maxlength="9"
+						required
+					/>
+				</label>
+				<label>
+					<span>{data.hasPassword ? 'Contraseña nueva' : 'Contraseña'}</span>
+					<input
+						name="password"
+						type="password"
+						autocomplete="new-password"
+						minlength="10"
+						maxlength="200"
+						required
+					/>
+				</label>
+				<label>
+					<span>Repetila</span>
+					<input
+						name="confirm"
+						type="password"
+						autocomplete="new-password"
+						minlength="10"
+						maxlength="200"
+						required
+					/>
+				</label>
+				<p class="hint">Al menos 10 caracteres. Una frase larga es más fácil de recordar.</p>
+				<button class="pill-btn" type="submit"
+					>{data.hasPassword ? 'Cambiar contraseña' : 'Poner contraseña'}</button
+				>
+				{#if data.hasPassword}
+					<button class="link" type="submit" formaction="?/sacarContrasena" formnovalidate
+						>Sacar la contraseña (entrar solo con código)</button
+					>
+				{/if}
+			</form>
+			<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<input type="hidden" name="para" value="password" />
+				<button class="link" type="submit">Mandame otro código</button>
+			</form>
+		{:else}
+			<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<input type="hidden" name="para" value="password" />
+				<button class="pill-btn ghost" type="submit"
+					>{data.hasPassword ? 'Cambiar o sacar la contraseña' : 'Poner contraseña'}</button
+				>
 			</form>
 		{/if}
 	</section>
@@ -136,6 +168,8 @@
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
 			<p class="error" role="alert">{form.error}</p>
+		{:else if form?.action === 'borrar' && form.message}
+			<p class="ok" role="status">{form.message}</p>
 		{/if}
 		<details open={form?.action === 'borrar'}>
 			<summary>Quiero borrar mi cuenta</summary>
@@ -143,17 +177,39 @@
 				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
 				y entradas siguen valiendo: quedan en el sistema, sin cuenta. No se puede deshacer.
 			</p>
-			<form method="POST" action="?/borrar">
-				<label>
-					<span>Para confirmar, escribí «borrar»</span>
-					<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
-				</label>
-				<button
-					class="pill-btn delete"
-					type="submit"
-					disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}>Borrar mi cuenta</button
-				>
-			</form>
+			{#if form?.codeSentFor === 'delete'}
+				<form method="POST" action="?/borrar" use:enhance={keep}>
+					<label>
+						<span>Código que te llegó por mail</span>
+						<input
+							name="code"
+							type="text"
+							inputmode="numeric"
+							autocomplete="one-time-code"
+							maxlength="9"
+							required
+						/>
+					</label>
+					<label>
+						<span>Para confirmar, escribí «borrar»</span>
+						<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
+					</label>
+					<button
+						class="pill-btn delete"
+						type="submit"
+						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}>Borrar mi cuenta</button
+					>
+				</form>
+				<form method="POST" action="?/confirmar" use:enhance={keep}>
+					<input type="hidden" name="para" value="delete" />
+					<button class="link" type="submit">Mandame otro código</button>
+				</form>
+			{:else}
+				<form method="POST" action="?/confirmar" use:enhance={keep}>
+					<input type="hidden" name="para" value="delete" />
+					<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
+				</form>
+			{/if}
 		</details>
 	</section>
 </div>

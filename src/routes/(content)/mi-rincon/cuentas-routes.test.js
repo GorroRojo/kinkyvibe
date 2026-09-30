@@ -35,7 +35,8 @@ async function modules(flag = '') {
 		web: await import('$lib/server/cuentas/web.js'),
 		accounts: await import('$lib/server/cuentas/accounts.js'),
 		session: await import('$lib/server/cuentas/session.js'),
-		flags: await import('$lib/server/flags.js')
+		flags: await import('$lib/server/flags.js'),
+		codes: await import('$lib/server/cuentas/codes.js')
 	};
 }
 
@@ -215,54 +216,164 @@ describe('interruptor prendido', () => {
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(1);
 	});
 
-	it('Mi rincón: compras, contraseña, cerrar sesión y borrar con confirmación', async () => {
-		const m = await modules('1');
+	/**
+	 * Cuenta con sesión, y ayudas para llamar a las actions de Mi rincón.
+	 * @param {Awaited<ReturnType<typeof modules>>} m
+	 */
+	async function signedIn(m) {
 		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
 		const token = await m.session.createSession(t.db, account.id, 'code');
 		const cookies = { [m.session.SESSION_COOKIE]: token };
 		const member = { id: account.id, email: EMAIL };
+		/** @param {Record<string, string>} [form] */
+		const ev = (form) => fakeEvent({ path: '/mi-rincon', member, cookies, form });
+		/**
+		 * Pide un código de confirmación y lo "lee del mail" (en dev sin Resend, sale en la consola).
+		 * @param {'password' | 'delete'} para
+		 */
+		const confirmCode = async (para) => {
+			/** @type {string[]} */
+			const logged = [];
+			const log = vi.spyOn(console, 'log').mockImplementation((...a) => {
+				logged.push(a.join(' '));
+			});
+			let res;
+			try {
+				res = await m.rincon.actions.confirmar(ev({ para }));
+			} finally {
+				log.mockRestore();
+			}
+			expect(res).toMatchObject({
+				codeSentFor: para,
+				message: 'Te mandamos un código a tu mail para confirmar.'
+			});
+			const code = logged.join('\n').match(new RegExp(`Código \\(${para}\\): (\\d{6})`))?.[1];
+			expect(code).toMatch(/^\d{6}$/);
+			return /** @type {string} */ (code);
+		};
+		return { account, token, cookies, member, ev, confirmCode };
+	}
 
-		const page = await m.rincon.load(fakeEvent({ path: '/mi-rincon', member, cookies }));
+	const PW = 'una frase bastante larga';
+
+	it('Mi rincón: datos y compras sin pedir código', async () => {
+		const m = await modules('1');
+		const { ev } = await signedIn(m);
+		const page = await m.rincon.load(ev());
 		expect(page).toMatchObject({
 			email: EMAIL,
 			hasPassword: false,
 			orders: [],
 			ordersError: false
 		});
+	});
 
-		const mismatch = await m.rincon.actions.contrasena(
-			fakeEvent({
-				path: '/mi-rincon',
-				member,
-				cookies,
-				form: { password: 'una frase bastante larga', confirm: 'otra' }
-			})
-		);
-		expect(mismatch).toMatchObject({ status: 400 });
-		const set = await m.rincon.actions.contrasena(
-			fakeEvent({
-				path: '/mi-rincon',
-				member,
-				cookies,
-				form: { password: 'una frase bastante larga', confirm: 'una frase bastante larga' }
-			})
-		);
-		expect(set).toMatchObject({ message: 'Contraseña guardada.' });
-		// La sesión actual sigue abierta.
-		expect(await m.session.getSessionAccount(t.db, token)).not.toBeNull();
+	it('contraseña: sin código fresco no se pone, cambia ni saca', async () => {
+		const m = await modules('1');
+		const { account, ev, confirmCode } = await signedIn(m);
+		const hasPw = async () => (await m.accounts.getAccount(t.db, account.id))?.has_password;
 
-		const noConfirm = await m.rincon.actions.borrar(
-			fakeEvent({ path: '/mi-rincon', member, cookies, form: { confirm: 'no' } })
+		// Sin código, con un código inventado, o con uno de ingreso: nada.
+		expect(await m.rincon.actions.contrasena(ev({ password: PW, confirm: PW }))).toMatchObject({
+			status: 400
+		});
+		expect(
+			await m.rincon.actions.contrasena(ev({ password: PW, confirm: PW, code: '123456' }))
+		).toMatchObject({ status: 400 });
+		const { code: loginCode } = await m.codes.createLoginCode(
+			t.db,
+			await m.accounts.emailHash(EMAIL),
+			{ purpose: 'login' }
 		);
-		expect(noConfirm).toMatchObject({ status: 400 });
-		expect(await m.accounts.getAccount(t.db, account.id)).not.toBeNull();
+		expect(
+			await m.rincon.actions.contrasena(ev({ password: PW, confirm: PW, code: loginCode }))
+		).toMatchObject({ status: 400 });
+		// El de ingreso sigue sirviendo para ingresar (no lo gastó el intento de arriba).
+		expect(await m.codes.verifyLoginCode(t.db, await m.accounts.emailHash(EMAIL), loginCode)).toBe(
+			'ok'
+		);
+		// Un código de borrar tampoco sirve para la contraseña.
+		const deleteCode = await confirmCode('delete');
+		expect(
+			await m.rincon.actions.contrasena(ev({ password: PW, confirm: PW, code: deleteCode }))
+		).toMatchObject({ status: 400 });
+		expect(await hasPw()).toBe(false);
 
-		const event = fakeEvent({ path: '/mi-rincon', member, cookies, form: { confirm: ' Borrar ' } });
+		// Con el código bueno: primero se valida lo demás (no gasta el código)…
+		const code = await confirmCode('password');
+		expect(
+			await m.rincon.actions.contrasena(ev({ password: PW, confirm: 'otra', code }))
+		).toMatchObject({ status: 400, data: { codeSentFor: 'password' } });
+		// …y después se guarda.
+		expect(await m.rincon.actions.contrasena(ev({ password: PW, confirm: PW, code }))).toEqual({
+			action: 'contrasena',
+			message: 'Contraseña guardada.'
+		});
+		expect(await hasPw()).toBe(true);
+
+		// Un solo uso: el mismo código no sirve otra vez, ni para sacarla.
+		expect(await m.rincon.actions.sacarContrasena(ev({ code }))).toMatchObject({ status: 400 });
+		expect(await hasPw()).toBe(true);
+		const again = await confirmCode('password');
+		expect(await m.rincon.actions.sacarContrasena(ev({ code: again }))).toMatchObject({
+			action: 'contrasena'
+		});
+		expect(await hasPw()).toBe(false);
+	});
+
+	it('borrar: pide «borrar» y un código fresco de borrar', async () => {
+		const m = await modules('1');
+		const { account, token, ev, confirmCode } = await signedIn(m);
+		const alive = async () => (await m.accounts.getAccount(t.db, account.id)) !== null;
+
+		expect(await m.rincon.actions.borrar(ev({ confirm: 'borrar' }))).toMatchObject({
+			status: 400
+		});
+		const pwCode = await confirmCode('password');
+		expect(await m.rincon.actions.borrar(ev({ confirm: 'borrar', code: pwCode }))).toMatchObject({
+			status: 400
+		});
+		const { code: loginCode } = await m.codes.createLoginCode(
+			t.db,
+			await m.accounts.emailHash(EMAIL),
+			{ purpose: 'login' }
+		);
+		expect(await m.rincon.actions.borrar(ev({ confirm: 'borrar', code: loginCode }))).toMatchObject(
+			{ status: 400 }
+		);
+		expect(await alive()).toBe(true);
+
+		const code = await confirmCode('delete');
+		// Sin «borrar» no se gasta el código.
+		expect(await m.rincon.actions.borrar(ev({ confirm: 'no', code }))).toMatchObject({
+			status: 400
+		});
+		expect(await alive()).toBe(true);
+
+		const event = ev({ confirm: ' Borrar ', code });
 		const r = await thrown(() => m.rincon.actions.borrar(event));
 		expect(r).toMatchObject({ status: 303, location: '/ingresar?borrada=1' });
-		expect(await m.accounts.getAccount(t.db, account.id)).toBeNull();
+		expect(await alive()).toBe(false);
 		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
 		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
+	});
+
+	it('pedir código para confirmar: solo purposes conocidos y con límite', async () => {
+		const m = await modules('1');
+		const { ev, confirmCode } = await signedIn(m);
+		expect(await m.rincon.actions.confirmar(ev({ para: 'login' }))).toMatchObject({
+			status: 400
+		});
+		const { RATE_LIMITS } = await import('$lib/server/cuentas/index.js');
+		for (let i = 0; i < RATE_LIMITS.codeRequestEmail.limit; i++) await confirmCode('password');
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		try {
+			expect(await m.rincon.actions.confirmar(ev({ para: 'delete' }))).toMatchObject({
+				status: 429
+			});
+		} finally {
+			log.mockRestore();
+		}
 	});
 
 	it('cerrar sesión borra la sesión y la cookie', async () => {

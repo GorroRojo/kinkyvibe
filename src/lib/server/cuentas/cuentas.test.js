@@ -24,6 +24,9 @@ import {
 } from './codes.js';
 import {
 	MESSAGES,
+	checkConfirmCode,
+	isConfirmPurpose,
+	requestConfirmCode,
 	RATE_LIMITS,
 	eventRequiresAccount,
 	passwordLogin,
@@ -309,6 +312,172 @@ describe('ingresar con código', () => {
 			expect(String(r.bucket)).not.toContain(EMAIL);
 			expect(String(r.bucket)).not.toContain(CLIENT);
 		}
+	});
+});
+
+describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
+	/** @param {string} code */
+	const other = (code) => (code === '000000' ? '111111' : '000000');
+
+	it('cada código sirve solo para su purpose', async () => {
+		const { sent, send } = fakeSender();
+		const r = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'password',
+			client: CLIENT,
+			send,
+			now: NOW
+		});
+		expect(r.ok).toBe(true);
+		expect(sent[0].subject).toBe('Tu código para confirmar en KinkyVibe');
+		const pwCode = sent[0].code;
+		// No sirve para ingresar ni para borrar.
+		expect(
+			await verifyCode({ db: t.db, email: EMAIL, code: pwCode, client: CLIENT, now: NOW })
+		).toMatchObject({ ok: false, message: MESSAGES.expiredCode });
+		expect(
+			await checkConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'delete',
+				code: pwCode,
+				client: CLIENT,
+				now: NOW
+			})
+		).toMatchObject({ ok: false, message: MESSAGES.expiredCode });
+		// Y sigue sirviendo para lo suyo (los intentos de arriba no lo tocaron).
+		expect(
+			await checkConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'password',
+				code: pwCode,
+				client: CLIENT,
+				now: NOW
+			})
+		).toEqual({ ok: true });
+
+		// Uno de ingreso no confirma nada.
+		await requestCode({ db: t.db, email: EMAIL, client: CLIENT, send, now: NOW });
+		const loginCode = sent[1].code;
+		for (const purpose of /** @type {const} */ (['password', 'delete'])) {
+			expect(
+				await checkConfirmCode({
+					db: t.db,
+					email: EMAIL,
+					purpose,
+					code: loginCode,
+					client: CLIENT,
+					now: NOW
+				})
+			).toMatchObject({ ok: false });
+		}
+		expect(
+			(await verifyCode({ db: t.db, email: EMAIL, code: loginCode, client: CLIENT, now: NOW })).ok
+		).toBe(true);
+	});
+
+	it('pedir uno de confirmación no anula el de ingreso (ni al revés)', async () => {
+		const hash = await emailHash(EMAIL);
+		const login = await createLoginCode(t.db, hash, { now: NOW });
+		const del = await createLoginCode(t.db, hash, { now: NOW, purpose: 'delete' });
+		expect(await verifyLoginCode(t.db, hash, login.code, { now: NOW })).toBe('ok');
+		expect(await verifyLoginCode(t.db, hash, del.code, { now: NOW, purpose: 'delete' })).toBe('ok');
+	});
+
+	it('vence, se usa una sola vez y tiene 5 intentos', async () => {
+		const { sent, send } = fakeSender();
+		const args = {
+			db: t.db,
+			email: EMAIL,
+			purpose: /** @type {const} */ ('delete'),
+			client: CLIENT
+		};
+		await requestConfirmCode({ ...args, send, now: NOW });
+		expect(
+			await checkConfirmCode({ ...args, code: sent[0].code, now: NOW + CODE_TTL_MS })
+		).toMatchObject({ ok: false, message: MESSAGES.expiredCode });
+
+		await requestConfirmCode({ ...args, send, now: NOW });
+		expect(await checkConfirmCode({ ...args, code: sent[1].code, now: NOW + 1 })).toEqual({
+			ok: true
+		});
+		expect(await checkConfirmCode({ ...args, code: sent[1].code, now: NOW + 2 })).toMatchObject({
+			ok: false,
+			message: MESSAGES.expiredCode
+		});
+
+		await requestConfirmCode({ ...args, send, now: NOW });
+		for (let i = 0; i < CODE_MAX_ATTEMPTS; i++) {
+			expect(
+				await checkConfirmCode({ ...args, code: other(sent[2].code), now: NOW })
+			).toMatchObject({ ok: false, message: MESSAGES.wrongCode });
+		}
+		expect(await checkConfirmCode({ ...args, code: sent[2].code, now: NOW })).toMatchObject({
+			ok: false,
+			message: MESSAGES.expiredCode
+		});
+	});
+
+	it('los mismos límites que los de ingreso (y el mismo cupo por mail)', async () => {
+		const { sent, send } = fakeSender();
+		const n = RATE_LIMITS.codeRequestEmail.limit;
+		await requestCode({ db: t.db, email: EMAIL, client: 'c-login', send, now: NOW });
+		for (let i = 1; i < n; i++) {
+			const r = await requestConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'password',
+				client: `c${i}`,
+				send,
+				now: NOW
+			});
+			expect(r.ok).toBe(true);
+		}
+		const r = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'delete',
+			client: 'otra',
+			send,
+			now: NOW
+		});
+		expect(r).toMatchObject({ ok: false, status: 429, message: MESSAGES.tooManyCodes });
+		expect(sent).toHaveLength(n);
+
+		// Intentos por conexión: compartidos con los de ingreso.
+		for (let i = 0; i < RATE_LIMITS.codeVerifyClient.limit; i++) {
+			await checkConfirmCode({
+				db: t.db,
+				email: `p${i}@example.com`,
+				purpose: 'password',
+				code: '123456',
+				client: 'x',
+				now: NOW
+			});
+		}
+		expect(
+			await checkConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'password',
+				code: sent[n - 1].code,
+				client: 'x',
+				now: NOW
+			})
+		).toMatchObject({ ok: false, status: 429 });
+		expect(
+			await verifyCode({ db: t.db, email: EMAIL, code: '123456', client: 'x', now: NOW })
+		).toMatchObject({ ok: false, status: 429 });
+	});
+
+	it('purpose desconocido: error', async () => {
+		await expect(
+			createLoginCode(t.db, 'x', { purpose: /** @type {any} */ ('otra') })
+		).rejects.toThrow(RangeError);
+		expect(isConfirmPurpose('login')).toBe(false);
+		expect(isConfirmPurpose('password')).toBe(true);
 	});
 });
 
