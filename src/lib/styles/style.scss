@@ -26,6 +26,31 @@
 	--step-5: clamp(2.8rem, calc(2.45rem + 1.77vw), 3.82rem);
 
 	--round: 1rem;
+
+	/** Shared UI tokens (same visual language as the approved admin panel mockup).
+	    Use these instead of hand-picked greys, shadows and radii. **/
+	/* pale tints, for chip/notice backgrounds (dark text on top) */
+	--1-tint: hsl(319, 100%, 95%);
+	--2-tint: hsl(262, 100%, 96%);
+	--3-tint: hsl(165, 70%, 92%);
+	--4-tint: hsl(50, 100%, 90%);
+	/* dark text that reads on the tints (and on white) with AA contrast; violet text uses --2-dark */
+	--1-ink: hsl(319, 100%, 36%);
+	--3-ink: hsl(165, 84%, 24%);
+	--4-ink: hsl(40, 90%, 26%);
+	--bg: #eee;
+	--surface: #fff;
+	--ink: #333;
+	--muted: #625b68;
+	--line: #e4e0e8;
+	--hover: #f6f3f9;
+	--shadow: 0 0.1em 0.35em rgba(40, 20, 50, 0.1);
+	--shadow-lift: 0 0.4em 1.2em rgba(40, 20, 50, 0.14);
+	--round-sm: 0.6rem;
+	--round-pill: 2em;
+	--focus-ring: 2px solid var(--2-dark);
+	/* minimum size of anything tappable on phones */
+	--tap: 2.75rem;
 }
 // Lato 400 (Google Fonts files via @fontsource/lato 5.3.0, SIL OFL 1.1), self-hosted
 // so pages don't wait on a render-blocking stylesheet from fonts.googleapis.com
@@ -51,8 +76,8 @@
 body {
 	scroll-behavior: smooth;
 	margin: 0;
-	background: #eee;
-	color: #333;
+	background: var(--bg);
+	color: var(--ink);
 	font-family: 'Lato', sans-serif;
 	// font-size: var(--step-0);
 	position: relative;
@@ -79,6 +104,78 @@ a {
 	&:hover {
 		color: var(--color, var(--1));
 	}
+}
+
+/* Browsers give form controls their own font (Arial on most systems): use Lato everywhere.
+   Only the family: sizes stay as each component sets them. */
+button,
+input,
+select,
+textarea {
+	font-family: inherit;
+}
+
+/* One visible keyboard focus style for the whole site (mouse clicks don't show it). */
+:focus-visible {
+	outline: var(--focus-ring);
+	outline-offset: 2px;
+}
+
+/** Buttons: pink pill (main action) and white pill (secondary), as in the admin panel.
+    Usable on <a> and <button>: <a class="pill-btn">, <button class="pill-btn ghost">. **/
+.pill-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4em;
+	min-height: var(--tap);
+	padding: 0.55em 1.2em;
+	border: 0;
+	border-radius: var(--round-pill);
+	background: var(--1);
+	color: white;
+	font-weight: 700;
+	line-height: 1.2;
+	text-align: center;
+	text-decoration: none;
+	box-shadow: 0 0.15em 0 var(--1-dark);
+	cursor: pointer;
+	transition:
+		background 150ms,
+		transform 100ms;
+	&:hover {
+		background: var(--1-dark);
+		color: white;
+	}
+	&:active {
+		transform: translateY(0.1em);
+		box-shadow: 0 0.05em 0 var(--1-dark);
+	}
+	&.ghost {
+		background: var(--surface);
+		color: var(--2-dark);
+		border: 1px solid var(--line);
+		box-shadow: var(--shadow);
+		&:hover {
+			background: var(--hover);
+			color: var(--2-dark);
+		}
+	}
+	&:disabled,
+	&[aria-disabled='true'] {
+		opacity: 0.55;
+		cursor: not-allowed;
+		transform: none;
+	}
+}
+
+/** White rounded card on the grey background. **/
+.surface-card {
+	background: var(--surface);
+	border-radius: var(--round);
+	box-shadow: var(--shadow);
+	padding: 1.1rem 1.2rem;
+	min-width: 0;
 }
 
 /** post formatting **/
@@ -365,25 +462,32 @@ article.wiki {
 		transform-origin: right;
 		scale: 0.7;
 	}
+	/* big call to action at the end of a post (same pink pill as .pill-btn). `fit-content` +
+	   `max-width` so a long label wraps instead of pushing the page sideways on phones. */
 	.cta {
 		background: var(--1);
-		padding: 0.5em 1em;
+		padding: 0.5em 1.2em;
 		color: white;
 		font-weight: bold;
-		border-radius: 0.3em;
+		border-radius: var(--round-pill);
 		margin-inline: auto;
 		display: block;
-		width: max-content;
+		width: fit-content;
+		max-width: 100%;
 		text-align: center;
-		/* translate: 6em; */
-		font-size: var(--step-3);
+		overflow-wrap: anywhere;
+		font-size: var(--step-2);
+		line-height: 1.2;
 		text-decoration: none;
 		margin-block: 2em;
 		transition: 200ms;
-		box-shadow: 0 0 0 0;
+		box-shadow: 0 0.15em 0 var(--1-dark);
 		&:hover {
-			scale: 1.1;
-			box-shadow: 0.6em 0.6em 1em rgba(0, 0, 0, 0.1);
+			scale: 1.05;
+			color: white;
+			box-shadow:
+				0 0.15em 0 var(--1-dark),
+				var(--shadow-lift);
 		}
 	}
 }
@@ -427,4 +531,16 @@ button {
 	overflow: hidden;
 	clip: rect(0 0 0 0);
 	white-space: nowrap;
+}
+
+/* People who ask their system for less motion: hover zooms, slides and fades happen at once. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }
