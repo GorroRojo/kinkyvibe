@@ -5,7 +5,7 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
+	import { Copy, ExternalLink, ImageDown, Pencil, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
@@ -84,10 +84,11 @@
 
 	{#if data.tabCounts.transfers && !$page.url.pathname.endsWith('/transferencias')}
 		<p class="alert" role="status">
-			🧾 {data.tabCounts.transfers === 1
+			<ReceiptText size={18} aria-hidden="true" />
+			{data.tabCounts.transfers === 1
 				? 'Hay 1 transferencia esperando confirmación.'
 				: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}
-			<a class="kv-btn" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
+			<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
 		</p>
 	{/if}
 
@@ -109,7 +110,7 @@
 		grid-area: cover;
 		width: 7rem;
 		height: 7rem;
-		border-radius: 1rem;
+		border-radius: var(--card-round);
 		object-fit: cover;
 		box-shadow: var(--shadow);
 	}
@@ -153,11 +154,11 @@
 	.tag {
 		font-size: 0.75rem;
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: 3em;
 		padding: 0.1em 0.6em;
 		background: var(--surface);
-		border: 1px solid var(--line);
-		color: var(--muted);
+		border: 1px solid var(--field);
+		color: var(--accent);
 	}
 	.actions {
 		grid-area: actions;
@@ -170,12 +171,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.6rem;
-		justify-content: space-between;
 		background: var(--warn-bg);
 		color: var(--text);
-		border-radius: 1rem;
+		border-radius: var(--card-round);
 		padding: 0.6rem 0.8rem 0.6rem 1rem;
 		margin: 0 0 1rem;
+	}
+	.push {
+		margin-left: auto;
 	}
 	.sr-only {
 		position: absolute;

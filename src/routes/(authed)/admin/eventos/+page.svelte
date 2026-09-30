@@ -144,7 +144,7 @@
 <Card padded={false}>
 	{#if visible.length === 0}
 		<EmptyState
-			emoji="🔎"
+			icon={SearchX}
 			title={words.length ? `No encontramos eventos con “${query}”` : 'No hay eventos acá'}
 			text={filter === 'sin-imagen' && !words.length
 				? 'Todos los próximos eventos tienen imagen.'
@@ -240,11 +240,11 @@
 		padding: 0.4rem 0.9rem;
 		min-height: 2.5rem;
 		box-sizing: border-box;
-		border-radius: 2em;
+		border-radius: 3em;
 		background: var(--surface);
-		border: 1px solid var(--line);
+		border: 1px solid var(--field);
 		font-weight: 700;
-		color: var(--text);
+		color: var(--accent);
 		text-decoration: none;
 		white-space: nowrap;
 	}
@@ -262,8 +262,8 @@
 		align-items: center;
 		gap: 0.4rem;
 		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: 2em;
+		border: 1px solid var(--field);
+		border-radius: 3em;
 		padding: 0 0.9rem;
 		flex: 1 1 16rem;
 		max-width: 24rem;
@@ -326,7 +326,7 @@
 	.thumb {
 		width: 3.2rem;
 		height: 3.2rem;
-		border-radius: 0.8rem;
+		border-radius: var(--round);
 		object-fit: cover;
 		background: var(--surface-2);
 	}

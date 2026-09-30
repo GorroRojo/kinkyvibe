@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { TicketPercent } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -60,7 +61,7 @@
 		</svelte:fragment>
 		{#if data.codes.length === 0}
 			<EmptyState
-				emoji="🏷️"
+				icon={TicketPercent}
 				title="Este evento no tiene códigos propios"
 				text="Creá uno acá al lado."
 			/>
@@ -248,8 +249,8 @@
 		padding: 0.55rem 0.8rem;
 		min-height: 2.75rem;
 		box-sizing: border-box;
-		border-radius: 0.8rem;
-		border: 1px solid var(--line);
+		border-radius: 3em;
+		border: 1px solid var(--field);
 		background: var(--surface);
 		min-width: 0;
 	}

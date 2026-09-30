@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { CircleCheck } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
@@ -23,7 +24,7 @@
 			<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
 		{/if}
 		{#if data.transfers.length === 0}
-			<EmptyState emoji="✅" title="No hay transferencias esperando confirmación." />
+			<EmptyState icon={CircleCheck} title="No hay transferencias esperando confirmación." />
 		{:else}
 			<p class="muted small">
 				Buscá la referencia en el concepto de la transferencia y el comprobante que mandó la
@@ -122,7 +123,7 @@
 	.order {
 		border: 1px solid var(--line);
 		border-left: 4px solid var(--4);
-		border-radius: 0.9rem;
+		border-radius: var(--card-round);
 		padding: 0.7rem 0.9rem;
 		display: flex;
 		flex-direction: column;

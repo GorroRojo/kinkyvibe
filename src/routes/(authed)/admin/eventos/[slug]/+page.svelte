@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Check, X } from '@lucide/svelte';
+	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
@@ -226,8 +226,8 @@
 		padding: 0.55rem 0.8rem;
 		min-height: 2.75rem;
 		box-sizing: border-box;
-		border-radius: 0.8rem;
-		border: 1px solid var(--line);
+		border-radius: 3em;
+		border: 1px solid var(--field);
 		background: var(--surface);
 		min-width: 0;
 	}

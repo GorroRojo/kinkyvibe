@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { Search } from '@lucide/svelte';
+	import { CircleCheck, ReceiptText, Search, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -56,7 +56,7 @@
 {/if}
 {#if data.review.length}
 	<section class="review" aria-labelledby="revisar" id="revisar-ordenes">
-		<h2 id="revisar">⚠️ Para revisar</h2>
+		<h2 id="revisar"><TriangleAlert size={18} aria-hidden="true" /> Para revisar</h2>
 		<ul>
 			{#each data.review as o (o.id)}
 				<li>
@@ -112,7 +112,7 @@
 	</div>
 
 	{#if visible.length === 0}
-		<EmptyState emoji="🧾" title="No hay órdenes para mostrar" />
+		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
 		{#each visible as o (o.id)}
@@ -239,6 +239,9 @@
 		margin: 0 0 1rem;
 	}
 	.review h2 {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
 		font-size: 1.05rem;
 		margin: 0.3rem 0;
 	}
@@ -265,16 +268,16 @@
 	.filter select {
 		padding: 0.45rem 0.7rem;
 		min-height: 2.5rem;
-		border-radius: 2em;
-		border: 1px solid var(--line);
+		border-radius: 3em;
+		border: 1px solid var(--field);
 		background: var(--surface);
 	}
 	.search {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		border: 1px solid var(--line);
-		border-radius: 2em;
+		border: 1px solid var(--field);
+		border-radius: 3em;
 		padding: 0 0.9rem;
 		flex: 1 1 14rem;
 		max-width: 22rem;
@@ -307,7 +310,7 @@
 	.order {
 		border: 1px solid var(--line);
 		border-left: 4px solid var(--line);
-		border-radius: 0.9rem;
+		border-radius: var(--card-round);
 		padding: 0.7rem 0.9rem;
 		display: flex;
 		flex-direction: column;
@@ -348,6 +351,10 @@
 	}
 	.holders {
 		font-size: 0.85rem;
+	}
+	.holders :global(.in) {
+		color: var(--ok);
+		vertical-align: -0.15em;
 	}
 	.holders .inside {
 		background: var(--ok-bg);

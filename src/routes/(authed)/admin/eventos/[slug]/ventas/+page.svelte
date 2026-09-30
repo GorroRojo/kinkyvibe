@@ -1,5 +1,5 @@
 <script>
-	import { Mail } from '@lucide/svelte';
+	import { Download, Mail, Plus, ReceiptText } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -87,7 +87,7 @@
 	<Stat label="Recaudado" value={formatARS(t.revenue)} sub="antes de la comisión de Mercado Pago" />
 	{#if showFondo}
 		<Stat
-			label="💜 Neto del fondo"
+			label="Neto del fondo"
 			value={formatSignedARS(data.fondo.net)}
 			tone={data.fondo.net > 0 ? 'ok' : data.fondo.net < 0 ? 'bad' : ''}
 			sub="aportes − fondo usado"
@@ -237,7 +237,7 @@
 				{/each}
 			</ul>
 		{:else}
-			<EmptyState emoji="🧾" title="Todavía no hay compras aprobadas" />
+			<EmptyState icon={ReceiptText} title="Todavía no hay compras aprobadas" />
 		{/if}
 	</Card>
 
@@ -285,7 +285,7 @@
 
 	<Card title="Códigos usados">
 		<svelte:fragment slot="actions">
-			<a class="kv-btn ghost" href={eventHref(e.slug, 'codigos')}>＋ Nuevo código</a>
+			<a class="kv-btn ghost" href={eventHref(e.slug, 'codigos')}><Plus size={16} aria-hidden="true" /> Nuevo código</a>
 		</svelte:fragment>
 		{#if data.codes.length}
 			<div class="kv-table-wrap">
@@ -320,7 +320,7 @@
 		class="kv-btn ghost"
 		href="{eventHref(e.slug, 'resumen')}/ordenes.csv"
 		download
-		data-sveltekit-reload>⬇ Exportar CSV de órdenes</a
+		data-sveltekit-reload><Download size={16} aria-hidden="true" /> Exportar CSV de órdenes</a
 	>
 	<a class="kv-btn ghost" href={eventHref(e.slug, 'mail')}
 		><Mail size={16} aria-hidden="true" /> Mandar mail a compradores…</a

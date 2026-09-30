@@ -1,6 +1,6 @@
 <script>
 	import { deserialize } from '$app/forms';
-	import { RotateCcw, Save, Undo2 } from '@lucide/svelte';
+	import { CalendarDays, FlaskConical, Plus, RotateCcw, Save, Undo2 } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -194,7 +194,7 @@
 >
 	<svelte:fragment slot="actions">
 		<CsvButton rows={data.rows} {columns} filename="agenda.csv" />
-		<a class="kv-btn ghost" href="/admin/eventos/nuevo">＋ Evento</a>
+		<a class="kv-btn ghost" href="/admin/eventos/nuevo"><Plus size={16} aria-hidden="true" /> Evento</a>
 		<button class="kv-btn" on:click={saveAll} disabled={!dirty.length}
 			><Save size={16} aria-hidden="true" /> Guardar {dirty.length || ''}
 			{dirty.length === 1 ? 'fila' : 'filas'}</button
@@ -203,7 +203,7 @@
 </PageHeader>
 
 {#if data.mock}
-	<p class="note">🧪 Modo de prueba: los cambios van a una carpeta temporal, no a GitHub.</p>
+	<p class="note"><FlaskConical size={15} aria-hidden="true" /> Modo de prueba: los cambios van a una carpeta temporal, no a GitHub.</p>
 {/if}
 
 {#if last}
@@ -217,7 +217,7 @@
 
 <Card padded={false}>
 	{#if data.rows.length === 0}
-		<EmptyState emoji="🗓️" title="No hay eventos próximos" text="Cargá uno o importá la planilla.">
+		<EmptyState icon={CalendarDays} title="No hay eventos próximos" text="Cargá uno o importá la planilla.">
 			<a class="kv-btn" href="/admin/eventos/importar">Importar planilla</a>
 		</EmptyState>
 	{:else}
@@ -364,7 +364,7 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 		background: var(--ok-bg);
-		border-radius: 1rem;
+		border-radius: var(--card-round);
 		padding: 0.5rem 0.6rem 0.5rem 1rem;
 		margin-bottom: 1rem;
 	}

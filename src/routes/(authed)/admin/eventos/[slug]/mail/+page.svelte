@@ -1,7 +1,7 @@
 <script>
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Send } from '@lucide/svelte';
+	import { FlaskConical, Mail, Send } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { shortTime } from '$lib/admin/orderFormat.js';
@@ -90,7 +90,7 @@
 				>{people(data.audience)}</strong
 			>; una sola vez aunque tenga varias compras). Sirve para avisos de último momento: cambio de
 			lugar, de horario, algo para llevar.
-			{#if data.preview}<br />🧪 En este preview solo llega a las direcciones de prueba
+			{#if data.preview}<br /><FlaskConical size={15} aria-hidden="true" /> En este preview solo llega a las direcciones de prueba
 				(EMAIL_ALLOWLIST).{/if}
 		</p>
 		<form on:submit|preventDefault={send} class="compose">
@@ -183,7 +183,7 @@
 
 <Card title="Avisos anteriores">
 	{#if data.sends.length === 0}
-		<EmptyState emoji="✉️" title="Todavía no se mandó ningún aviso para este evento" />
+		<EmptyState icon={Mail} title="Todavía no se mandó ningún aviso para este evento" />
 	{:else}
 		<div class="kv-table-wrap">
 			<table class="kv-table">
@@ -251,8 +251,8 @@
 		padding: 0.55rem 0.8rem;
 		min-height: 2.75rem;
 		box-sizing: border-box;
-		border-radius: 0.8rem;
-		border: 1px solid var(--line);
+		border-radius: var(--round);
+		border: 1px solid var(--field);
 		background: var(--surface);
 		min-width: 0;
 		width: 100%;
