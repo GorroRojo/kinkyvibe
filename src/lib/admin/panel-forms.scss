@@ -28,27 +28,37 @@
 			color: var(--bad);
 		}
 	}
-	.kv-input,
+	// Mismo aspecto que .kv-input (panel.scss): píldora con el borde rosa del buscador del sitio.
 	.kv-field input:not([type='checkbox'], [type='radio']),
 	.kv-field select,
-	.kv-field textarea {
+	.kv-field textarea,
+	.kv-input.block {
 		background: var(--surface);
 		color: var(--text);
-		border: 1px solid var(--line);
-		border-radius: 0.8em;
-		padding: 0.6rem 0.8rem;
+		border: 1px solid var(--field);
+		border-radius: 3em;
+		padding: 0.55em 1em;
 		min-height: 2.75rem;
 		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
-		&:focus-visible {
-			border-color: var(--link);
+		&::placeholder {
+			color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
+		}
+		&:focus {
+			outline: 2px solid var(--accent);
+			outline-offset: 0;
 		}
 		&[aria-invalid='true'] {
 			border-color: var(--bad);
+			border-width: 2px;
 		}
 	}
+	.kv-input {
+		min-height: 2.75rem;
+	}
 	.kv-field textarea {
+		border-radius: 1em;
 		resize: vertical;
 		line-height: 1.45;
 	}

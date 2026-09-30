@@ -4,6 +4,7 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { Plus, TicketPercent } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -63,7 +64,7 @@
 	back={{ href: '/admin/entradas', label: 'Ventas' }}
 >
 	<svelte:fragment slot="actions">
-		<a class="kv-btn" href="#nuevo">＋ Nuevo código</a>
+		<a class="kv-btn" href="#nuevo"><Plus size={16} aria-hidden="true" /> Nuevo código</a>
 		<CsvButton rows={data.codes} {columns} filename={csvFilename('codigos')} />
 	</svelte:fragment>
 </PageHeader>
@@ -78,7 +79,11 @@
 
 	<Card title="Códigos" padded={data.codes.length === 0}>
 		{#if data.codes.length === 0}
-			<EmptyState emoji="🏷️" title="Todavía no hay códigos" text="Creá el primero acá abajo." />
+			<EmptyState
+				icon={TicketPercent}
+				title="Todavía no hay códigos"
+				text="Creá el primero acá abajo."
+			/>
 		{:else}
 			<div class="kv-table-wrap">
 				<table class="kv-table">
@@ -89,7 +94,7 @@
 							<th>Vigencia</th>
 							<th class="r">Usos</th>
 							<th>Estado</th>
-							<th><span class="visually-hidden">Acción</span></th>
+							<th aria-label="Acción"></th>
 						</tr>
 					</thead>
 					<tbody>

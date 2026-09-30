@@ -5,7 +5,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { Check, Clock, X } from '@lucide/svelte';
+	import { Check, CheckCheck, Clock, X } from '@lucide/svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
@@ -89,7 +89,11 @@
 
 	<Card title="Esperan comprobante ({data.pending.length})">
 		{#if data.pending.length === 0}
-			<EmptyState emoji="✨" title="Nada pendiente" text="No hay transferencias esperando." />
+			<EmptyState
+				icon={CheckCheck}
+				title="Nada pendiente"
+				text="No hay transferencias esperando."
+			/>
 		{/if}
 		<ul class="list">
 			{#each data.pending as o (o.id)}

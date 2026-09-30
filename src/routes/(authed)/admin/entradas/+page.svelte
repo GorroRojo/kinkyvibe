@@ -5,7 +5,7 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { page } from '$app/stores';
-	import { ArrowLeftRight, TicketPercent, TriangleAlert } from '@lucide/svelte';
+	import { ArrowRightLeft, Ticket, TicketPercent, TriangleAlert } from '@lucide/svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { fmtDate } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
@@ -52,7 +52,7 @@
 <PageHeader title="Ventas" subtitle="Entradas de todos los eventos que venden por el sitio.">
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/admin/entradas/transferencias">
-			<ArrowLeftRight size={16} aria-hidden="true" /> Transferencias
+			<ArrowRightLeft size={16} aria-hidden="true" /> Transferencias
 			{#if transfers}<Badge tone="warn">{transfers}</Badge>{/if}
 		</a>
 		<a class="kv-btn ghost" href="/admin/entradas/codigos">
@@ -97,7 +97,7 @@
 {#if events.length === 0}
 	<Card>
 		<EmptyState
-			emoji="🎟️"
+			icon={Ticket}
 			title={showPast ? 'No hay eventos pasados con venta' : 'Ningún evento próximo vende entradas'}
 			text="Para vender, prendé “Vender entradas por el sitio” en la sección Entradas del evento."
 		>
@@ -133,7 +133,7 @@
 						<tr>
 							<th>Tipo</th>
 							<th class="bar-col">Vendidas / cupo</th>
-							<th class="r">Reservadas</th>
+							<th class="r held-col">Reservadas</th>
 							<th class="r">Cobrado</th>
 						</tr>
 					</thead>
@@ -149,8 +149,9 @@
 								<td class="bar-col">
 									<span class="num">{t.sold}/{t.capacity}</span>
 									<CapacityBar sold={t.sold} held={t.held} capacity={t.capacity} />
+									{#if t.held}<small class="muted held-inline">{t.held} reservadas</small>{/if}
 								</td>
-								<td class="r num">{t.held}</td>
+								<td class="r num held-col">{t.held}</td>
 								<td class="r num">{formatARS(t.revenue)}</td>
 							</tr>
 						{/each}
@@ -159,7 +160,7 @@
 						<tr>
 							<td>Total</td>
 							<td class="bar-col num">{e.sold}/{e.capacity}</td>
-							<td class="r num">{e.held}</td>
+							<td class="r num held-col">{e.held}</td>
 							<td class="r num">{formatARS(e.revenue)}</td>
 						</tr>
 					</tfoot>
@@ -216,7 +217,22 @@
 		display: block;
 	}
 	.bar-col {
-		min-width: 8rem;
+		min-width: 7rem;
+	}
+	.held-inline {
+		display: none;
+	}
+	@media (max-width: 600px) {
+		.held-col {
+			display: none;
+		}
+		.held-inline {
+			display: block;
+		}
+		.kv-table :global(th),
+		.kv-table :global(td) {
+			padding-inline: 0.35rem;
+		}
 	}
 	.bar-col .num {
 		display: block;
