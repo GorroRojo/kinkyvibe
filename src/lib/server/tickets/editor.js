@@ -1,6 +1,6 @@
 /**
  * Validación en el servidor de la venta de entradas que escribe el editor de eventos
- * (/admin/eventos/nuevo y /edit/calendario/<slug>): las mismas reglas que el formulario
+ * (/admin/eventos/nuevo y /admin/eventos/<slug>/editar): las mismas reglas que el formulario
  * (`validateTicketsForm`) y las de la venta (`parseTicketConfig`), más lo que rompería compras
  * ya hechas (con las ventas de la base).
  */

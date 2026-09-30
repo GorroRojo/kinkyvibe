@@ -34,8 +34,30 @@ function postPath(params) {
 	return path;
 }
 
+/**
+ * Los eventos se editan en el panel (/admin/eventos/<slug>/editar, que usa este mismo código con
+ * `_editLoad` y `_editActions`); acá quedan las demás categorías. Sin redirección: la página de
+ * los eventos se mudó.
+ * @param {{category: string, postID: string}} params
+ */
+function rejectEvents(params) {
+	if (params.category === 'calendario') {
+		throw error(404, `Los eventos se editan en el panel: /admin/eventos/${params.postID}/editar`);
+	}
+}
+
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ locals, params, url, platform }) {
+export async function load(event) {
+	postPath(event.params); // 400 para direcciones inválidas, antes que nada
+	rejectEvents(event.params);
+	return _editLoad(event);
+}
+
+/**
+ * El load del editor, para cualquier categoría (también la usa la pestaña Editar del panel).
+ * @param {{ locals: App.Locals, params: {category: string, postID: string}, url: URL, platform?: App.Platform }} event
+ */
+export async function _editLoad({ locals, params, url, platform }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
 	const post = await getFileContent(locals.user_token, postPath(params));
@@ -84,8 +106,11 @@ async function imageInfo(token, slug, raw) {
 /** @param {string} slug */
 const mediaDir = (slug) => `src/lib/posts/calendario/media/${slug}`;
 
-/** @type {import("./$types").Actions} */
-export const actions = {
+/**
+ * Las acciones del editor, para cualquier categoría (también las usa la pestaña Editar del panel).
+ * @type {Record<string, (event: any) => Promise<any>>}
+ */
+export const _editActions = {
 	// Form actions do not run the (authed) layout load: each one must check auth.
 	save: async ({ params, locals, request, url, platform }) => {
 		const user = requireAdmin(locals, url);
@@ -346,3 +371,17 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 		});
 	}
 }
+
+/** @type {import("./$types").Actions} */
+export const actions = {
+	..._editActions,
+	// Guardar un evento (o ver qué eventos usan su imagen) se hace desde el panel.
+	save: (event) => {
+		rejectEvents(event.params);
+		return _editActions.save(event);
+	},
+	afectados: (event) => {
+		rejectEvents(event.params);
+		return _editActions.afectados(event);
+	}
+};

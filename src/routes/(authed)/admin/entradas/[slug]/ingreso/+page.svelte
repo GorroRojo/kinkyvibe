@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { eventHref } from '$lib/admin/nav.js';
 	import { goto } from '$app/navigation';
 	import QrScanner from '$lib/components/QrScanner.svelte';
 	import { tick } from 'svelte';
@@ -125,7 +126,7 @@
 </svelte:head>
 
 <div class="ingreso">
-	<p class="back"><a href="/admin/entradas/{data.slug}">← {data.title}</a></p>
+	<p class="back"><a href={eventHref(data.slug, 'ventas')}>← {data.title}</a></p>
 	<h1>Control de ingreso</h1>
 	<p class="progress" aria-live="polite">
 		Ingresaron <strong>{data.progress.inside}</strong> de {data.progress.total}

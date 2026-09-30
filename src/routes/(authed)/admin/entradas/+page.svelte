@@ -1,5 +1,6 @@
 <script>
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { eventHref } from '$lib/admin/nav.js';
 
 	let { data } = $props();
 
@@ -38,7 +39,7 @@
 	<ul class="events">
 		{#each data.events as e (e.slug)}
 			<li>
-				<a class="event" href="/admin/entradas/{e.slug}">
+				<a class="event" href={eventHref(e.slug, 'ventas')}>
 					<span class="title">{e.title}</span>
 					<span class="date">{date(e.start)}{e.status ? ` · ${e.status}` : ''}</span>
 					{#if e.review}

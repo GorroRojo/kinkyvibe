@@ -6,6 +6,7 @@ import {
 	NAV_GROUPS,
 	activeNavItem,
 	eventHref,
+	contentEditLink,
 	eventPanelLink,
 	navItem,
 	navLink
@@ -96,13 +97,25 @@ describe('links a la ficha del evento', () => {
 		expect(eventHref('picantearla-2026-10')).toBe('/admin/eventos/picantearla-2026-10');
 		expect(eventHref('x', 'ordenes')).toBe('/admin/eventos/x/ordenes');
 	});
-	it('eventPanelLink usa la página vieja mientras la ficha no existe', () => {
-		const link = eventPanelLink('x', { tickets: true });
-		if (EVENT_TABS[0].soon) {
-			expect(link).toBe('/admin/entradas/x');
-			expect(eventPanelLink('x')).toBe('/admin/eventos/nuevo?desde=x');
-		} else {
-			expect(link).toBe('/admin/eventos/x');
-		}
+	it('eventPanelLink va a Ventas si el evento vende entradas, si no al Resumen', () => {
+		expect(EVENT_TABS[0].soon).toBe(false);
+		expect(eventPanelLink('x', { tickets: true })).toBe('/admin/eventos/x/ventas');
+		expect(eventPanelLink('x')).toBe('/admin/eventos/x');
+	});
+	it('contentEditLink: los eventos se editan en la ficha, lo demás en /edit', () => {
+		expect(contentEditLink('/calendario/picantearla-2026-10')).toBe(
+			'/admin/eventos/picantearla-2026-10/editar'
+		);
+		expect(contentEditLink('/calendario/picantearla-2026-10/')).toBe(
+			'/admin/eventos/picantearla-2026-10/editar'
+		);
+		expect(contentEditLink('/material/guia')).toBe('/edit/material/guia');
+		expect(contentEditLink('/amigues/alguien')).toBe('/edit/amigues/alguien');
+		expect(contentEditLink('/calendario')).toBeNull();
+		expect(contentEditLink('/calendario/x/compartir')).toBeNull();
+		expect(contentEditLink('/wiki/algo')).toBeNull();
+	});
+	it('la agenda tiene su ítem', () => {
+		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');
 	});
 });

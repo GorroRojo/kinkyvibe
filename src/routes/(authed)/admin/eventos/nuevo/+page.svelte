@@ -9,6 +9,7 @@
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import '$lib/components/admin/admin.scss';
+	import '$lib/admin/panel-editor.scss';
 	import { tagManager } from '$lib/utils/stores';
 	import {
 		buildTagOptions,
@@ -398,7 +399,7 @@
 </svelte:head>
 
 <main class="nuevo kv-admin">
-	<p class="back"><a href="/admin/eventos">← Volver a la lista de eventos</a></p>
+	<p class="back"><a href="/admin/eventos">← Eventos</a></p>
 
 	{#if data.mock}
 		<p class="mock">
@@ -444,7 +445,7 @@
 				· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i < (form.files?.length ?? 0) - 1 ? ', ' : ''}{/each}
 			</p>
 			<p class="buttons">
-				<a class="button" href="/admin/eventos">Cargar otro evento</a>
+				<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
 				<a class="button secondary" href="/admin/eventos/nuevo?desde={form.slug}" data-sveltekit-reload
 					>Duplicar este mismo</a
 				>
@@ -454,6 +455,12 @@
 		<h1>
 			{#if source}Duplicar «{source.title}»{:else}Nuevo evento{/if}
 		</h1>
+		{#if !source}
+			<p class="hint">
+				¿Es otra edición de un evento que ya existe? Es más fácil duplicarlo: buscalo en
+				<a href="/admin/eventos?filtro=pasados">Eventos</a> y tocá <em>Duplicar</em>.
+			</p>
+		{/if}
 		<ol class="steps" aria-label="Pasos">
 			<li class:current={step === 'editar'}>1. Completar datos</li>
 			<li class:current={step === 'revisar'}>2. Revisar y publicar</li>

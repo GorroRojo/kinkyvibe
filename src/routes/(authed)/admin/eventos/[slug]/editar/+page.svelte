@@ -1,6 +1,6 @@
 <script>
-	import { page } from '$app/stores';
 	import PostEditor from '$lib/components/admin/PostEditor.svelte';
+	import '$lib/admin/panel-editor.scss';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -8,9 +8,4 @@
 	export let form;
 </script>
 
-<PostEditor
-	{data}
-	{form}
-	category={$page.params.category ?? ''}
-	postID={$page.params.postID ?? ''}
-/>
+<PostEditor {data} {form} category="calendario" postID={data.event.slug} embedded />

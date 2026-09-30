@@ -12,21 +12,25 @@ import {
 const NOW = Date.parse('2026-09-30T18:00:00Z');
 const HOUR = 3600 * 1000;
 
-/** @param {Partial<import('./stats.js').StatsOrder>} o */
-const order = (o) => ({
-	status: 'approved',
-	quantity: 1,
-	total: 1000,
-	created_at: NOW,
-	payment_method: 'mercadopago',
-	fondo_option: 'completo',
-	fondo_amount: 0,
-	fondo_contribution: 0,
-	discount_code: null,
-	discount_amount: 0,
-	expires_at: NOW + HOUR,
-	...o
-});
+/**
+ * @param {Partial<import('./stats.js').StatsOrder>} o
+ * @returns {import('./stats.js').StatsOrder}
+ */
+const order = (o) =>
+	/** @type {import('./stats.js').StatsOrder} */ ({
+		status: 'approved',
+		quantity: 1,
+		total: 1000,
+		created_at: NOW,
+		payment_method: 'mercadopago',
+		fondo_option: 'completo',
+		fondo_amount: 0,
+		fondo_contribution: 0,
+		discount_code: null,
+		discount_amount: 0,
+		expires_at: NOW + HOUR,
+		...o
+	});
 
 describe('argentinaDay', () => {
 	it('usa la hora de Argentina (UTC−3)', () => {
