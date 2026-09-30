@@ -2,6 +2,7 @@
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
+	import { pronounDisplay } from '$lib/utils/mentions';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -39,10 +40,10 @@
 	<img class="card-img u-featured placeholder-gradient" {src} alt="" loading="lazy" />
 	<h3 class="p-name">
 		{title}
-		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
+		{#if pronounDisplay(pronoun)}
 			<br />
 			<small class="p-pronouns">
-				{@html (pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
+				{pronounDisplay(pronoun)}
 			</small>
 		{/if}
 	</h3>
