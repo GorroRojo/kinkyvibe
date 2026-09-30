@@ -17,6 +17,10 @@
  *   como contador amarillo cuando es > 0.
  * - `highlight` (opcional): se resalta en rosa en el panel "Más" (acciones principales).
  * - `match` (opcional): `'exact'` si solo se marca activo en su URL exacta (Inicio, /nuevo...).
+ * - `menu` (opcional): `false` si no se muestra en la barra lateral ni en el panel "Más" (se entra
+ *   desde otra página), pero sigue acá para que el buscador lo encuentre.
+ * - `parent` (opcional): id del ítem que se marca activo cuando se está en esta página (para los
+ *   que tienen `menu: false`).
  *
  * @typedef {{
  *   id: string,
@@ -29,7 +33,9 @@
  *   fallback?: string,
  *   counter?: string,
  *   highlight?: boolean,
- *   match?: 'exact'
+ *   match?: 'exact',
+ *   menu?: false,
+ *   parent?: string
  * }} NavItem
  */
 
@@ -112,7 +118,10 @@ export const NAV = Object.freeze([
 		emoji: '📥',
 		label: 'Importar planilla',
 		group: 'eventos',
-		soon: false
+		soon: false,
+		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
+		menu: false,
+		parent: 'eventos-agenda'
 	},
 	{
 		id: 'eventos-agenda',
@@ -356,6 +365,11 @@ export function activeNavItem(pathname) {
 		const hit = path === item.href || (item.match !== 'exact' && path.startsWith(item.href + '/'));
 		if (hit && (!best || item.href.length > best.href.length)) best = item;
 	}
+	// Páginas fuera del menú: se marca el ítem del que dependen, si ya tiene página.
+	if (best?.menu === false) {
+		const parent = best.parent ? navItem(best.parent) : undefined;
+		best = parent && !parent.soon ? parent : undefined;
+	}
 	// Páginas sin ítem propio: se marca la sección a la que pertenecen.
 	if (!best) {
 		if (path.startsWith('/admin/eventos/')) return navItem('eventos');
@@ -365,9 +379,10 @@ export function activeNavItem(pathname) {
 }
 
 /**
- * Ítems de un grupo, en orden.
+ * Ítems de un grupo que se muestran en el menú (barra lateral y panel "Más"), en orden. Los que
+ * tienen `menu: false` quedan afuera (siguen en `NAV` para el buscador).
  * @param {string | null} group
  */
 export function navGroupItems(group) {
-	return NAV.filter((i) => i.group === group);
+	return NAV.filter((i) => i.group === group && i.menu !== false);
 }

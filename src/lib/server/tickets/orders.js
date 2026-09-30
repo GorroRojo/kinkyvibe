@@ -20,6 +20,7 @@
 
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
+import { capacityLimit } from './overrides.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
@@ -27,7 +28,7 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo' | 'otro'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -42,7 +43,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
- *   review_detail?: string | null, channel?: 'online' | 'puerta'
+ *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
+ *   admin_note?: string | null
  * }} Order
  */
 /**
@@ -1055,17 +1057,24 @@ export async function approveFreeOrder(db, order, { now = Date.now() } = {}) {
  * sentencia), para no sobrevender. En ese caso no se vuelve a mirar `max_uses` del código:
  * quien confirma decide.
  *
+ * Con `override: true` (solo desde el panel, después de que une admin confirmó en el diálogo que
+ * se pasa del cupo; ver overrides.js y `transferLimits`) se confirma igual aunque no haya cupo.
+ *
  * @param {D1Database} db
  * `capacity` `null`: el tipo no tiene cupo (se confirma siempre).
  *
- * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string, now?: number }} input
+ * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string, now?: number,
+ *   override?: boolean }} input
  * @returns {Promise<{
  *   result: 'confirmed' | 'already' | 'no-capacity' | 'not-transfer' | 'not-found' | 'cancelled',
  *   order: Order | null,
  *   tickets: Ticket[]
  * }>}
  */
-export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, now = Date.now() }) {
+export async function confirmTransfer(
+	db,
+	{ orderId, eventSlug, capacity, by, now = Date.now(), override = false }
+) {
 	const order = await getOrder(db, orderId);
 	if (!order || order.event_slug !== eventSlug)
 		return { result: 'not-found', order: null, tickets: [] };
@@ -1075,7 +1084,8 @@ export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, no
 		.prepare(
 			`UPDATE orders SET status = 'approved', confirmed_by = ?3, updated_at = ?2
 			WHERE id = ?1 AND payment_method = 'transferencia' AND (
-				(status = 'awaiting_transfer' AND expires_at > ?2)
+				(?5 = 1 AND status IN ('awaiting_transfer', 'expired'))
+				OR (status = 'awaiting_transfer' AND expires_at > ?2)
 				OR (status IN ('awaiting_transfer', 'expired') AND (?4 IS NULL OR (
 					SELECT COALESCE(SUM(o2.quantity), 0) FROM orders o2
 					WHERE o2.event_slug = orders.event_slug AND o2.ticket_type = orders.ticket_type
@@ -1084,7 +1094,7 @@ export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, no
 				) + orders.quantity <= ?4))
 			)`
 		)
-		.bind(order.id, now, by, capacity);
+		.bind(order.id, now, by, capacity, override ? 1 : 0);
 	const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 	const fresh = await getOrder(db, order.id);
 	if (res.meta.changes === 1) {
@@ -1093,6 +1103,50 @@ export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, no
 	if (fresh?.status === 'approved') return { result: 'already', order: fresh, tickets: [] };
 	if (fresh?.status === 'cancelled') return { result: 'cancelled', order: fresh, tickets: [] };
 	return { result: 'no-capacity', order: fresh, tickets: [] };
+}
+
+/**
+ * Cuántas entradas del tipo cuentan para el cupo (aprobadas y reservas vigentes), sin contar
+ * la orden `exceptId` (la que se está por confirmar).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, typeId: string, exceptId?: string | null, now?: number }} input
+ */
+export async function takenPlaces(db, { eventSlug, typeId, exceptId = null, now = Date.now() }) {
+	const row = await db
+		.prepare(
+			`SELECT COALESCE(SUM(quantity), 0) AS n FROM orders
+			WHERE event_slug = ?1 AND ticket_type = ?2 AND (?4 IS NULL OR id != ?4)
+				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?3))`
+		)
+		.bind(eventSlug, typeId, now, exceptId)
+		.first();
+	return Number(row?.n ?? 0);
+}
+
+/**
+ * Qué límites se pasarían al confirmar esta transferencia. Una reserva vigente ya tiene su
+ * lugar (nada que pasar); una vencida (llegó tarde) solo entra si hay cupo: si no, se pasa del
+ * cupo del tipo. Las canceladas, aprobadas o que no son transferencias no se confirman (las
+ * rechaza `confirmTransfer`), así que acá dan `[]`.
+ *
+ * @param {D1Database} db
+ * @param {{ order: Order, type: { id: string, name: string, capacity: number | null },
+ *   now?: number }} input
+ * @returns {Promise<import('./overrides.js').ExceededLimit[]>}
+ */
+export async function transferLimits(db, { order, type, now = Date.now() }) {
+	if (order.payment_method !== 'transferencia') return [];
+	if (order.status !== 'awaiting_transfer' && order.status !== 'expired') return [];
+	if (order.status === 'awaiting_transfer' && order.expires_at > now) return [];
+	const taken = await takenPlaces(db, {
+		eventSlug: order.event_slug,
+		typeId: order.ticket_type,
+		exceptId: order.id,
+		now
+	});
+	const limit = capacityLimit(type, taken, order.quantity);
+	return limit ? [limit] : [];
 }
 
 /**
