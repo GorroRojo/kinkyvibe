@@ -92,8 +92,11 @@ function clean(raw) {
  * Valida el formulario de ajustes. Los campos de transferencia son texto libre (con un largo
  * máximo); la comisión, un porcentaje de 0 a 49,99 o vacío.
  *
+ * `value` trae solo los ajustes que vinieron en el formulario (un campo vacío sí viene: borra
+ * el ajuste). Así un formulario con una parte de los ajustes no borra los demás.
+ *
  * @param {Record<string, unknown>} form
- * @returns {{ ok: true, value: SalesSettings } | { ok: false, errors: Partial<Record<SettingKey, string>> }}
+ * @returns {{ ok: true, value: Partial<SalesSettings> } | { ok: false, errors: Partial<Record<SettingKey, string>> }}
  */
 export function validateSalesSettings(form) {
 	/** @type {Partial<Record<SettingKey, string>>} */
@@ -150,19 +153,28 @@ export function validateSalesSettings(form) {
 		value.reminders = JSON.stringify(list);
 	}
 	if (Object.keys(errors).length) return { ok: false, errors };
-	return { ok: true, value };
+	/** @type {Partial<SalesSettings>} */
+	const submitted = {};
+	for (const key of SETTING_KEYS) {
+		const sent = key === 'reminders' ? form.reminder_kind_0 !== undefined : form[key] !== undefined;
+		if (sent) submitted[key] = value[key];
+	}
+	return { ok: true, value: submitted };
 }
 
 /**
- * Guarda los ajustes (un valor vacío borra el ajuste: vuelve a usarse la variable de entorno).
+ * Guarda los ajustes que vienen en `value` (un valor vacío borra el ajuste: vuelve a usarse la
+ * variable de entorno). Los que no vienen quedan como estaban.
  *
  * @param {D1Database} db
- * @param {SalesSettings} value
+ * @param {Partial<SalesSettings>} value
  * @param {{ by: string, now?: number }} meta
  */
 export async function saveSalesSettings(db, value, { by, now = Date.now() }) {
+	const keys = SETTING_KEYS.filter((key) => value[key] !== undefined);
+	if (!keys.length) return;
 	await db.batch(
-		SETTING_KEYS.map((key) =>
+		keys.map((key) =>
 			value[key]
 				? db
 						.prepare(
