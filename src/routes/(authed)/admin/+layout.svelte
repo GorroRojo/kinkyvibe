@@ -16,6 +16,7 @@
 	import { page } from '$app/stores';
 	import { ExternalLink, LogOut, Menu, Moon, Plus, Sun, SunMoon, X } from '@lucide/svelte';
 	import logo from '../../logo.png';
+	import { logoutHref as logoutLink } from '$lib/utils/authLinks.js';
 	import SearchBox from '$lib/components/admin/panel/SearchBox.svelte';
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import {
@@ -55,7 +56,8 @@
 		: user?.avatar_url ||
 			(user?.login ? `https://github.com/${encodeURIComponent(user.login)}.png` : '');
 	$: initial = (user?.name || user?.login || '?').slice(0, 1).toUpperCase();
-	const logoutHref = '/logout?redirectTo=/';
+	// Al salir del panel se vuelve al inicio del sitio (el panel pide sesión).
+	const logoutHref = logoutLink({ pathname: '/', search: '' });
 
 	/** @param {import('$lib/admin/nav.js').NavItem | undefined} item */
 	const countOf = (item) => (item?.counter ? (counts[item.counter] ?? 0) : 0);
