@@ -21,8 +21,11 @@
 // Clases para las páginas: .kv-btn (píldora rosa), .kv-btn.ghost (borde rosa), .kv-btn.violet
 // (como "¿Todo gratis?"), .kv-input (input en píldora con borde rosa), .kv-table.
 //
-// Modo oscuro: sigue a `prefers-color-scheme`, salvo que la persona elija uno con el botón del
-// panel (localStorage `kv-panel-theme`, puesto como `data-theme` en <html> antes de pintar).
+// Tema: claro por defecto. Con el botón del panel se elige oscuro o automático (sigue a
+// `prefers-color-scheme`); la elección va en localStorage `kv-panel-theme` y se pone como
+// `data-theme` en <html> antes de pintar (ver theme.js). Para estilos propios del modo oscuro en
+// una página, usá los mismos dos selectores de abajo: `[data-theme='dark']` y `[data-theme='auto']`
+// dentro de `@media (prefers-color-scheme: dark)`.
 
 @mixin light {
 	color-scheme: light;
@@ -99,7 +102,7 @@
 	@include light;
 }
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme='light']) .kv-panel {
+	:root[data-theme='auto'] .kv-panel {
 		@include dark;
 	}
 }

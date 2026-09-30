@@ -28,6 +28,7 @@
 		navLink
 	} from '$lib/admin/nav.js';
 	import {
+		DEFAULT_THEME,
 		THEME_HEAD_SCRIPT,
 		THEME_LABELS,
 		nextTheme,
@@ -40,7 +41,7 @@
 	const THEME_ICONS = { auto: SunMoon, light: Sun, dark: Moon };
 
 	/** @type {import('$lib/admin/theme.js').Theme} */
-	let theme = 'auto';
+	let theme = DEFAULT_THEME;
 	let sheetOpen = false;
 	/** @type {HTMLDetailsElement | undefined} */
 	let userMenu;
