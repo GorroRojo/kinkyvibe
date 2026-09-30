@@ -111,47 +111,58 @@
 </div>
 
 <style lang="scss">
+	/* Segmented pills ("Ver como lista | grilla", "Mostrar | Ocultar eventos pasados") and the
+	   buttons below share one look: white pill, pink ink with AA contrast, pink when active. */
 	.option-group-wrapper {
 		display: flex;
-		align-items: baseline;
-		gap: 0.4em;
+		align-items: center;
+		gap: 0.5em;
 		width: auto;
 		min-width: 0;
 		height: auto;
 		min-height: 0;
-		margin-bottom: 1em;
+		margin-bottom: 0.7em;
 		font-size: var(--step--1);
 	}
 	.option-group-title {
-		color: var(--1);
+		color: var(--1-ink);
 	}
 	.option-group {
 		display: flex;
-		align-items: baseline;
+		align-items: stretch;
 		justify-content: center;
 		width: auto;
 		min-width: 0;
-		height: auto;
-		min-height: 0;
-		background: white;
-		border-radius: 0.5em;
-		outline: 1px solid var(--1);
+		padding: 0.15em;
+		background: var(--surface);
+		border-radius: var(--round-pill);
+		border: 1px solid var(--1);
 		label {
 			display: flex;
-			align-items: baseline;
+			align-items: center;
 			cursor: pointer;
-			color: var(--1);
-			padding: 0.2em 0.3em;
-			border-radius: 0.5em;
+			color: var(--1-ink);
+			padding: 0.2em 0.8em;
+			border-radius: var(--round-pill);
 			flex: 1 1;
 			transition: 200ms;
 			&:has(input:checked) {
 				background: var(--1);
 				color: white;
+				font-weight: 700;
+			}
+			&:has(input:focus-visible) {
+				outline: var(--focus-ring);
+				outline-offset: 2px;
 			}
 		}
+		/* visually hidden, but still focusable with the keyboard (display:none wasn't) */
 		input {
-			display: none;
+			position: absolute;
+			opacity: 0;
+			width: 1px;
+			height: 1px;
+			pointer-events: none;
 		}
 	}
 	.filterbar {
@@ -184,18 +195,24 @@
 		align-items: center;
 		column-gap: 0.6em;
 	}
-	.filters-toggle {
+	.filter-actions button {
 		display: flex;
 		align-items: center;
 		gap: 0.4em;
 		margin-bottom: 0.5em;
-		padding: 0.3em 0.8em;
+		padding: 0.35em 1em;
 		font-size: var(--step--1);
-		color: var(--1);
-		background: white;
+		color: var(--1-ink);
+		background: var(--surface);
 		border: 1px solid var(--1);
-		border-radius: 1em;
+		border-radius: var(--round-pill);
 		cursor: pointer;
+		&:hover {
+			background: var(--1-tint);
+		}
+	}
+	.filters-toggle {
+		font-weight: 700;
 		.active-count {
 			background: var(--1);
 			color: white;
@@ -210,6 +227,15 @@
 			}
 		}
 	}
+	/* 44 px de alto para el dedo */
+	@media (max-width: 680px) {
+		.option-group label {
+			min-height: calc(var(--tap) - 0.3em - 2px);
+		}
+		.filter-actions button {
+			min-height: var(--tap);
+		}
+	}
 	.tagfilters.collapsed {
 		display: none;
 	}
@@ -221,7 +247,7 @@
 	}
 	@container (min-width: 1300px) {
 		/* wide layout: the tree sits in its own column, always visible */
-		.filters-toggle {
+		.filter-actions .filters-toggle {
 			display: none;
 		}
 		.tagfilters.collapsed {
@@ -234,15 +260,5 @@
 		.groupname {
 			width: 100%;
 		}
-	}
-	button {
-		border: none;
-		outline: 2px solid var(--1);
-		border-radius: 0.5em;
-		padding: 0.3em 0.6em;
-		margin-bottom: 0.5em;
-		color: var(--1);
-		background: white;
-		font-size: var(--step--1);
 	}
 </style>

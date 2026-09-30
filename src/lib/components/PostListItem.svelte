@@ -46,8 +46,12 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	let mounted = false;
+	// on phones the colored header has no room for the date *and* "Añadir al Calendario":
+	// the button shows only its icon there
+	let narrow = false;
 	let past = start ? new Date(start).getTime() < Date.now() : false;
 	onMount(() => {
+		narrow = window.matchMedia('(max-width: 600px)').matches;
 		mounted = true;
 		// the calendar button (~290 KB) is only loaded when this item shows one
 		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
@@ -139,6 +143,7 @@
 						organizer="Mel|kinkyvibe@gmail.com"
 						size="1"
 						hideBackground
+						hideTextLabelButton={narrow ? true : undefined}
 					></add-to-calendar-button>
 					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
 					<!-- label="CUSTOM LABEL" -->
@@ -248,10 +253,15 @@
 		grid-area: cta;
 		background: var(--post-color);
 		color: white;
-		padding: 0.5em;
-		border-radius: 1em;
-		/* outline: 2px dashed var(--post-color);
-		outline-offset: 2px; */
+		padding: 0.35em 0.9em;
+		border-radius: var(--round-pill);
+		font-weight: 700;
+		white-space: nowrap;
+		box-shadow: 0 0.12em 0 color-mix(in srgb, var(--post-color) 70%, black);
+		&:hover {
+			color: white;
+			filter: brightness(0.92);
+		}
 	}
 	.post {
 		--post-color: var(--2);
@@ -271,9 +281,9 @@
 		padding-top: 1.7em;
 		padding-right: 1em;
 		list-style: none;
-		background: white;
-		border-radius: 2em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		background: var(--surface);
+		border-radius: calc(var(--round) * 1.5);
+		box-shadow: var(--shadow);
 		/* overflow: hidden; */
 		&.mark {
 			--post-color: var(--1);
@@ -356,7 +366,7 @@
 		align-items: center;
 		justify-content: start;
 		background: var(--post-color, var(--2));
-		color: whiite;
+		white-space: nowrap;
 		position: absolute;
 		right: 0;
 		left: 0;
@@ -365,11 +375,18 @@
 		padding-inline: 1.5em;
 		color: white;
 		font-size: var(--step--1);
-		border-radius: 2em 2em 0 0;
+		border-radius: calc(var(--round) * 1.5) calc(var(--round) * 1.5) 0 0;
 		--translate: 0 0.1em;
 		& > * {
 			min-height: 0;
 			min-width: 0;
+		}
+		/* one line, cut with "…" (long author lists or date + time used to wrap and get
+		   clipped by the strip) */
+		time,
+		address {
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 	}
 	.calendario .publication {
@@ -387,6 +404,9 @@
 	}
 
 	@container (max-width: 680px) {
+		.publication {
+			padding-inline: 1em;
+		}
 		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
 			grid-template-rows: auto 1fr 2em;
