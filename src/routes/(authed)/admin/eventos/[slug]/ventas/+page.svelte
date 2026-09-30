@@ -377,7 +377,7 @@
 		--day: var(--2);
 	}
 	@media (prefers-color-scheme: dark) {
-		:global(:root:not([data-theme='light'])) .grid {
+		:global(:root[data-theme='auto']) .grid {
 			--pay-mp: #9d6cf7;
 			--pay-tr: #119a77;
 			--pay-free: #bb800a;
