@@ -7,6 +7,7 @@ import {
 	activeNavItem,
 	eventHref,
 	eventPanelLink,
+	navGroupItems,
 	navItem,
 	navLink
 } from './nav.js';
@@ -51,6 +52,22 @@ describe('NAV', () => {
 	it('la barra del celu usa ítems que existen', () => {
 		for (const id of MOBILE_TABS) if (id !== 'mas') expect(navItem(id)).toBeTruthy();
 	});
+	it('"Importar planilla" no está en el menú pero sigue en NAV (buscador) con su página', () => {
+		const importar = navItem('eventos-importar');
+		expect(importar?.menu).toBe(false);
+		expect(importar && navLink(importar)).toBe('/admin/eventos/importar');
+		expect(navGroupItems('eventos').map((i) => i.id)).toEqual([
+			'eventos',
+			'eventos-nuevo',
+			'eventos-agenda',
+			'checkin'
+		]);
+		for (const g of [null, ...NAV_GROUPS.map((x) => x.id)])
+			for (const i of navGroupItems(g)) expect(i.menu).not.toBe(false);
+	});
+	it('los parent apuntan a ítems que existen y están en el menú', () => {
+		for (const i of NAV) if (i.parent) expect(navItem(i.parent)?.menu).not.toBe(false);
+	});
 });
 
 describe('navLink', () => {
@@ -85,6 +102,12 @@ describe('activeNavItem', () => {
 	it('páginas sin ítem propio marcan su sección', () => {
 		expect(activeNavItem('/admin/entradas/alguno')?.id).toBe('entradas');
 		expect(activeNavItem('/admin/eventos/alguno/ventas')?.id).toBe('eventos');
+	});
+	it('Importar planilla marca la Agenda (o Eventos mientras la Agenda no existe)', () => {
+		const agenda = navItem('eventos-agenda');
+		expect(activeNavItem('/admin/eventos/importar')?.id).toBe(
+			agenda && !agenda.soon ? 'eventos-agenda' : 'eventos'
+		);
 	});
 	it('Inicio no se marca en subpáginas', () => {
 		expect(activeNavItem('/admin/otra')).toBeUndefined();
