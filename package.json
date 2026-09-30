@@ -19,8 +19,10 @@
 		"test:unit:watch": "vitest",
 		"db:migrate:local": "wrangler d1 migrations apply kinkyvibe --local",
 		"db:migrate:remote": "wrangler d1 migrations apply kinkyvibe --remote",
+		"db:migrate:preview": "node scripts/db-migrate-preview.js",
 		"db:migrations:new": "wrangler d1 migrations create kinkyvibe",
-		"preview:worker": "wrangler pages dev .svelte-kit/cloudflare --port 8880",
+		"preview:worker": "wrangler dev --port 8880 --test-scheduled",
+		"db:restore": "node scripts/d1-restore.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."

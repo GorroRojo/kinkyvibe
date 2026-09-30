@@ -1,0 +1,13 @@
+# Solo para @sveltejs/adapter-cloudflare (svelte.config.js → `adapter({ config })`), no para
+# wrangler. Le dice al adapter dónde escribir el Worker de SvelteKit y los archivos estáticos al
+# compilar para Workers. No es el `main` de wrangler.toml porque ese es worker/index.js, que
+# envuelve a este `_worker.js` para sumar los crons (y el adapter pisaría el archivo que figure
+# como `main`). Ver docs/workers-migracion.md.
+#
+# En Cloudflare Pages (variable CF_PAGES) el adapter ignora esto y compila como siempre para
+# Pages, en .svelte-kit/cloudflare.
+main = ".svelte-kit/cloudflare/_worker.js"
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
