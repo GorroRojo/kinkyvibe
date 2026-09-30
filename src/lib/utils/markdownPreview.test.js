@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderPreviewHtml, wikiLinksToMarkdown } from './markdownPreview.js';
+import { renderPreviewHtml, stripScriptAndStyle, wikiLinksToMarkdown } from './markdownPreview.js';
 
 describe('wikiLinksToMarkdown', () => {
 	it('links terms like the site', () => {
@@ -28,5 +28,21 @@ describe('renderPreviewHtml', () => {
 		expect(html).not.toContain('import');
 		expect(html).not.toContain('style');
 		expect(html).toContain('Hola');
+	});
+});
+
+describe('stripScriptAndStyle', () => {
+	it('saca bloques script y style, también con espacios en el cierre', () => {
+		expect(stripScriptAndStyle('a<script>x()</script>b<style>p{}</style >c')).toBe('abc');
+		expect(stripScriptAndStyle('a<script type="module">x</script >b')).toBe('ab');
+	});
+	it('no deja que un script partido se rearme', () => {
+		const out = stripScriptAndStyle('<scr<script></script>ipt>alert(1)</script>');
+		expect(out.toLowerCase()).not.toContain('<script');
+	});
+	it('escapa un script sin cerrar', () => {
+		const out = stripScriptAndStyle('hola <script>alert(1)');
+		expect(out).toBe('hola &lt;script>alert(1)');
+		expect(renderPreviewHtml('hola <script>alert(1)').toLowerCase()).not.toContain('<script');
 	});
 });

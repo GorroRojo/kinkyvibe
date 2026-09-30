@@ -42,15 +42,32 @@ export function wikiLinksToMarkdown(md) {
 }
 
 /**
+ * Drops `<script>` / `<style>` blocks (mdsvex imports) for the preview. Repeats until nothing
+ * changes (so nested or split tags like `<scr<script></script>ipt>` can't reassemble), accepts end
+ * tags with spaces (`</script >`), and escapes any leftover opening `<script` / `<style` (e.g. an
+ * unclosed block) so it shows as text. This is only a first pass: the rendered HTML still goes
+ * through `sanitizePreview` before `{@html}`.
+ * @param {string} text
+ */
+export function stripScriptAndStyle(text) {
+	let out = text;
+	for (;;) {
+		const next = out
+			.replace(/<script\b[\s\S]*?<\/script\s*>/gi, '')
+			.replace(/<style\b[\s\S]*?<\/style\s*>/gi, '');
+		if (next === out) break;
+		out = next;
+	}
+	return out.replace(/<(\/?)(script|style)/gi, '&lt;$1$2');
+}
+
+/**
  * Markdown body → HTML for the preview (not sanitized yet, see sanitizePreview).
  * @param {string} body
  */
 export function renderPreviewHtml(body) {
 	const md = wikiLinksToMarkdown(
-		String(body ?? '')
-			.replace(/\r\n?/g, '\n')
-			.replace(/<script[\s\S]*?<\/script>/gi, '')
-			.replace(/<style[\s\S]*?<\/style>/gi, '')
+		stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n'))
 	);
 	return micromark(md, {
 		allowDangerousHtml: true,
