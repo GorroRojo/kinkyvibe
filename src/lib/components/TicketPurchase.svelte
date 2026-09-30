@@ -763,11 +763,9 @@
 		max-width: 40rem;
 		margin: 1.5em auto 0;
 		padding: 1em 1.2em 1.2em;
-		/* white card with a pink top edge, like the error pages */
 		border-radius: var(--round);
-		border-top: 0.35rem solid var(--1);
-		background: var(--surface);
-		box-shadow: var(--shadow);
+		outline: 3px solid var(--1);
+		background: color-mix(in srgb, var(--1) 6%, white);
 		font-size: var(--step-0);
 	}
 	h2 {
@@ -1127,7 +1125,6 @@
 		background: var(--1);
 		border: 0;
 		border-radius: var(--round-pill);
-		box-shadow: 0 0.15em 0 var(--1-dark);
 		padding: 0.8em 1.3em;
 		min-height: 3em;
 		cursor: pointer;

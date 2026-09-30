@@ -202,8 +202,7 @@
 		display: block;
 		padding: 0.8em 1em;
 		border-radius: var(--round-pill);
-		background: var(--1);
-		box-shadow: 0 0.15em 0 var(--1-dark);
+		background: var(--2);
 		color: white;
 		font-weight: bold;
 		text-decoration: none;

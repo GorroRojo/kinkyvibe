@@ -162,23 +162,20 @@
 </section>
 
 <style>
-	/* white card; the colored top edge says how the purchase is (green ok, yellow waiting,
-	   pink problem), like the admin panel chips */
 	.estado {
 		border-radius: var(--round);
 		padding: 1.2em;
 		background: var(--surface);
-		box-shadow: var(--shadow);
-		border-top: 0.35rem solid var(--2);
+		outline: 3px solid var(--2);
 	}
 	.estado-approved {
-		border-top-color: var(--3-dark);
+		outline-color: var(--3-dark);
 	}
 	.estado-rejected,
 	.estado-expired,
 	.estado-cancelled,
 	.estado-refunded {
-		border-top-color: var(--1-dark);
+		outline-color: var(--1-dark);
 	}
 	h1 {
 		font-size: var(--step-2);
@@ -197,15 +194,14 @@
 		text-align: center;
 		padding: 0.8em 1em;
 		border-radius: var(--round-pill);
-		background: var(--1);
-		box-shadow: 0 0.15em 0 var(--1-dark);
+		background: var(--2);
 		color: white;
 		font-weight: bold;
 		text-decoration: none;
 	}
 	.ticket-links a:hover,
 	.button:hover {
-		background: var(--1-dark);
+		background: var(--2-dark);
 		color: white;
 	}
 	dl {
@@ -222,7 +218,7 @@
 		overflow-wrap: anywhere;
 	}
 	.estado-awaiting_transfer {
-		border-top-color: var(--4-dark, var(--2));
+		outline-color: var(--4-dark, var(--2));
 	}
 	.confirm-note {
 		background: var(--4-tint);

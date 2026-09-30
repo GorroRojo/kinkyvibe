@@ -60,7 +60,6 @@
 		color: white;
 		border: 0;
 		border-radius: var(--round-pill);
-		box-shadow: 0 0.15em 0 var(--1-dark);
 		font-weight: bold;
 		min-height: var(--tap);
 		padding: 0.7em 1.2em;
