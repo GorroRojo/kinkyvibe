@@ -1,8 +1,7 @@
 <script>
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { wikiTagManager, tagManager, query } from '$lib/utils/stores';
-	import { page } from '$app/stores';
-	import { Search, Construction } from '@lucide/svelte';
+	import { wikiTagManager, query } from '$lib/utils/stores';
+	import { Search } from '@lucide/svelte';
 	import tagsFactory from '$lib/utils/tags';
 
 	query.set('');
@@ -68,12 +67,6 @@
 	left: .6em;
 	translate: 0 .5em;
 	color: var(--1);
-	z-index: 1;
-	`;
-	const wip_style = `
-	font-size: var(--step-1);
-	translate: 0 .1em;
-	color: white;
 	z-index: 1;
 	`;
 </script>

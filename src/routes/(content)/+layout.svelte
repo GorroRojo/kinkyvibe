@@ -11,7 +11,7 @@
 		Globe
 	} from '@lucide/svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from '../logo.png';
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';

@@ -1,7 +1,6 @@
 <script>
 	//@ts-nocheck
 	export let data;
-	import MiniMarkup from '$lib/components/MiniMarkup.svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import Tag from '$lib/components/Tag.svelte';
