@@ -10,6 +10,10 @@ module.exports = {
 		ecmaVersion: 2022,
 		extraFileExtensions: ['.svelte']
 	},
+	// Constantes que define vite.config.js al compilar.
+	globals: {
+		__DEPLOY_BRANCH__: 'readonly'
+	},
 	env: {
 		browser: true,
 		es2022: true,

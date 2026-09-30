@@ -1,6 +1,8 @@
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 declare global {
+	/** Rama del deploy de Cloudflare Pages ('' fuera de Pages). Ver src/lib/server/deploy.js. */
+	const __DEPLOY_BRANCH__: string;
 	namespace App {
 		interface Locals {
 			/** Verified against GitHub in hooks.server.js; never read from client cookies. */
