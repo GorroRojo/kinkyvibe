@@ -128,7 +128,7 @@ describe('interruptor apagado', () => {
 
 	it('el encabezado no muestra el link', async () => {
 		const m = await modules('');
-		const data = await m.root.load(/** @type {any} */ (fakeEvent()));
+		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
 		expect(data.cuentas).toBe(false);
 		expect(accountLink(data)).toBeNull();
 		expect(accountLink({ cuentas: false, member: true })).toBeNull();
@@ -152,7 +152,7 @@ describe('interruptor prendido', () => {
 			next: '/mi-rincon',
 			deleted: false
 		});
-		const data = await m.root.load(/** @type {any} */ (fakeEvent()));
+		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
 		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Ingresar' });
 	});
 
@@ -164,12 +164,14 @@ describe('interruptor prendido', () => {
 			'/\\evil.example',
 			'javascript:alert(1)'
 		]) {
-			const r = await m.ingresar.load(
-				fakeEvent({ path: `/ingresar?next=${encodeURIComponent(bad)}` })
+			const r = /** @type {any} */ (
+				await m.ingresar.load(fakeEvent({ path: `/ingresar?next=${encodeURIComponent(bad)}` }))
 			);
 			expect(r.next).toBe('/mi-rincon');
 		}
-		const ok = await m.ingresar.load(fakeEvent({ path: '/ingresar?next=%2Fcalendario%3Fx%3D1' }));
+		const ok = /** @type {any} */ (
+			await m.ingresar.load(fakeEvent({ path: '/ingresar?next=%2Fcalendario%3Fx%3D1' }))
+		);
 		expect(ok.next).toBe('/calendario?x=1');
 	});
 
@@ -185,7 +187,7 @@ describe('interruptor prendido', () => {
 		expect(event.locals.member).toEqual({ id: account.id, email: EMAIL });
 		// No toca la sesión de admins.
 		expect(event.locals.user).toBeUndefined();
-		const data = await m.root.load(event);
+		const data = /** @type {any} */ (await m.root.load(event));
 		expect(data.member).toBe(true);
 		expect(accountLink(data)).toEqual({ href: '/mi-rincon', label: 'Mi rincón' });
 		const r = await thrown(() => m.ingresar.load(event));
