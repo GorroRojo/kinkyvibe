@@ -5,8 +5,8 @@
 // palabras chicas intercaladas, franjas cruzadas con la fecha, estrellas con el precio,
 // barra al pie con dónde anotarse y una nota con asterisco para quién es el evento.
 
-import { FONTS, SITE, STATUS, eventInfo, shortPlace, defaultTexts } from './shareImage.js';
-import { hexToRgb, readableText, ensureContrast, mix, luminance, DARK_TEXT } from './palette.js';
+import { FONTS, SITE, STATUS, statusLines, eventInfo, shortPlace, defaultTexts } from './shareImage.js';
+import { hexToRgb, readableText, ensureContrast, mix, luminance, contrastRatio, DARK_TEXT } from './palette.js';
 
 /** @param {import('./shareImage.js').FontOption} f @param {string} second */
 const stack = (f, second) => `'${f.family}', '${second}', ${f.fallback}`;
@@ -380,7 +380,8 @@ const CONNECTORS = new Set(
  * @returns {TitleLayout}
  */
 export function layoutTitle(ctx, text, o) {
-	const words = text.split(/\s+/).filter(Boolean);
+	// como en wrapLines, el espacio duro no corta ("DOMINGO\u00a04")
+	const words = text.split(/[^\S\u00a0]+/).filter(Boolean);
 	const raw = words.map((w, i) => ({
 		text: w,
 		small: CONNECTORS.has(w.toLowerCase()) && i > 0 && i < words.length - 1
@@ -591,9 +592,10 @@ const upperFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
  * Título completo: antetítulo chico, título gordo, bajada. Mide y (si no es dry) dibuja
  * dentro de la caja.
  * @param {CanvasRenderingContext2D} ctx @param {Texts} t @param {Box} box @param {Palette} p
- * @param {{align:'left'|'center', maxSize:number, rot?:number, dry?:boolean, valign?:'top'|'center'|'bottom', minSize?:number}} o
+ * @param {{align:'left'|'center', maxSize:number, rot?:number, dry?:boolean, valign?:'top'|'center'|'bottom', minSize?:number, maxLines?:number}} o
  */
 function titleBlock(ctx, t, box, p, o) {
+	if (!t.title && !t.kicker && !t.sub) return { y: box.y, h: 0 };
 	const kickSize = Math.round(o.maxSize * 0.36);
 	const subMax = Math.round(o.maxSize * 0.42);
 	const kick = t.kicker
@@ -619,12 +621,16 @@ function titleBlock(ctx, t, box, p, o) {
 		: null;
 	const kickH = kick ? kick.lines.length * kick.lineHeight + 12 : 0;
 	const subH = sub ? sub.lines.length * sub.lineHeight + 14 : 0;
-	const title = layoutTitle(ctx, t.title || ' ', {
-		maxWidth: box.w - o.maxSize * 0.12,
-		maxHeight: Math.max(box.h - kickH - subH, 60),
-		maxSize: o.maxSize,
-		minSize: o.minSize ?? 40
-	});
+	/** @type {TitleLayout} */
+	const title = t.title
+		? layoutTitle(ctx, t.title, {
+				maxWidth: box.w - o.maxSize * 0.12,
+				maxHeight: Math.max(box.h - kickH - subH, 60),
+				maxSize: o.maxSize,
+				minSize: o.minSize ?? 40,
+				maxLines: o.maxLines
+		  })
+		: { size: 0, lineH: 0, lines: [], w: 0, h: 0 };
 	const h = kickH + title.h + subH;
 	let y = box.y;
 	if ((o.valign ?? 'center') === 'center') y = box.y + (box.h - h) / 2;
@@ -647,7 +653,7 @@ function titleBlock(ctx, t, box, p, o) {
 		yy += kickH;
 	}
 	drawTitle(ctx, title, cx, yy, o.align, p);
-	yy += title.h + 14;
+	if (title.h) yy += title.h + 14;
 	if (sub) {
 		ctx.fillStyle = p.sub;
 		setFont(ctx, ROUND, sub.size, 700);
@@ -822,10 +828,10 @@ function priceBurst(ctx, cx, cy, r, price, note, p) {
  * @param {number} x @param {number} y @param {number} r @param {number} tapeY @param {number} w
  */
 function statusSticker(ctx, o, p, x, y, r, tapeY, w) {
-	const st = o.status ? STATUS[o.status] : undefined;
-	if (!st) return;
-	if (st.tape) tape(ctx, w / 2, tapeY, w * 1.6, st.sticker[0], p.tape, p.tapeText, -0.07);
-	else starburst(ctx, x, y, r, st.sticker, stickerColor(p), p.bg, p.extrude);
+	if (!o.status) return;
+	const text = o.texts.status.trim();
+	if (STATUS[o.status]?.tape) tape(ctx, w / 2, tapeY, w * 1.6, text.toUpperCase(), p.tape, p.tapeText, -0.07);
+	else starburst(ctx, x, y, r, statusLines(text, o.status), stickerColor(p), p.bg, p.extrude);
 }
 
 /** Color de la estrella de estado: el de las palabras chicas, salvo que se confunda con el título. @param {Palette} p */
@@ -854,6 +860,21 @@ function dateParts(o) {
 	if (t.date !== def.date || info.multiDay) return [t.date];
 	const [weekday, ...rest] = info.day.replace(/ de \d{4}$/, '').split(' ');
 	return [weekday.toUpperCase(), rest.join(' ').toUpperCase()];
+}
+
+/**
+ * Lo que va en el lugar del título. Si se apagó el título (muchas veces ya está en la
+ * imagen), la fecha pasa a ser el texto grande y cada diseño reparte el resto.
+ * @param {RenderOpts} o
+ * @returns {{head:Texts, dateUsed:boolean}}
+ */
+function headline(o) {
+	const t = o.texts;
+	if (t.title) return { head: t, dateUsed: false };
+	// "DOMINGO 4" juntos y "de OCTUBRE" abajo (el número solo en un renglón quedaba raro)
+	const [a = '', b = ''] = dateParts(o);
+	const date = b ? a + '\u00a0' + b : a;
+	return { head: { ...t, title: date }, dateUsed: !!date };
 }
 
 /* ------------------------------------------------------------------ */
@@ -959,10 +980,12 @@ function tplFranja(ctx, o, f, p) {
 	// como en Picantearla: relleno de color, contorno oscuro y sombra clara
 	const titleFill = ensureContrast(p.title, p.bar, 3);
 	const titleP = { ...p, title: titleFill, extrude: mix(titleFill, '#ffffff', 0.65), outline: p.bar, sub: p.barText, small: p.barText };
-	titleBlock(ctx, t, { x: 64 * s, y: top + 34 * s, w: w - 128 * s, h: yR - top - 40 * s }, titleP, {
+	const { head, dateUsed } = headline(o);
+	titleBlock(ctx, head, { x: 64 * s, y: top + 34 * s, w: w - 128 * s, h: yR - top - 40 * s }, titleP, {
 		align: 'left',
 		maxSize: 150 * s,
-		rot: ang
+		rot: ang,
+		maxLines: dateUsed ? 2 : undefined
 	});
 	// franja clara con los datos
 	const sh = 84 * s;
@@ -972,7 +995,7 @@ function tplFranja(ctx, o, f, p) {
 	ctx.rotate(ang);
 	ctx.fillStyle = p.stripe;
 	ctx.fillRect(-w, -sh / 2, 2 * w, sh);
-	const line = [t.date, t.hours, t.place].filter(Boolean).join(' | ').toUpperCase();
+	const line = [dateUsed ? '' : t.date, t.hours, t.place].filter(Boolean).join(' | ').toUpperCase();
 	if (line) {
 		const fl = fitText(ctx, line, { maxWidth: w * 0.92, maxHeight: sh, maxSize: 46 * s, minSize: 22 * s, weight: 700, maxLines: 1 });
 		ctx.fillStyle = p.stripeText;
@@ -1087,19 +1110,24 @@ function tplFoto(ctx, o, f, p) {
 		}
 		y += bh + 14 * s;
 	};
-	const dp = dateParts(o);
-	if (dp.length || t.hours) box([...dp, t.hours].filter(Boolean), 56 * s);
-	if (t.place) box([t.place.toUpperCase()], 42 * s);
+	const { head, dateUsed } = headline(o);
+	if (!dateUsed) {
+		const dp = dateParts(o);
+		if (dp.length || t.hours) box([...dp, t.hours].filter(Boolean), 56 * s);
+		if (t.place) box([t.place.toUpperCase()], 42 * s);
+	}
 	badge(ctx, o.logo, w - 200 * s, top + 40 * s, 150 * s, p, 0.1);
-	// título abajo
+	// título abajo (sin título: la fecha, con horario y lugar debajo)
 	const titleTop = top + H * 0.56;
 	const titleP = { ...p, outline: p.outline ?? p.extrude };
-	titleBlock(ctx, t, { x: 60 * s, y: titleTop, w: w - 120 * s, h: barsTop - 40 * s - titleTop }, titleP, {
+	const bottomText = dateUsed ? { ...head, sub: [t.hours, t.place, t.sub].filter(Boolean).join(' · ') } : head;
+	titleBlock(ctx, bottomText, { x: 60 * s, y: titleTop, w: w - 120 * s, h: barsTop - 40 * s - titleTop }, titleP, {
 		align: 'center',
 		maxSize: 170 * s,
-		valign: 'bottom'
+		valign: 'bottom',
+		maxLines: dateUsed ? 2 : undefined
 	});
-	const st = o.status ? STATUS[o.status] : undefined;
+	const st = o.status ? STATUS[o.status] ?? { tape: false } : undefined;
 	if (t.price || t.priceInfo) {
 		const note = t.price && t.priceInfo.length <= 48 ? t.priceInfo : '';
 		const main = t.price || (t.priceInfo.length <= 16 ? t.priceInfo : '');
@@ -1124,6 +1152,8 @@ function tplGrupo(ctx, o, f, p) {
 	const barsTop = footerBars(ctx, t, f, p, { dry: true });
 	const headTop = top + 64 * s;
 	const headH = Math.min(H * (H / w < 1.1 ? 0.46 : 0.38), 560 * s);
+	// sin título, la fecha ocupa todo el encabezado
+	const noHead = !t.title;
 	const leftW = w * 0.5;
 	const divX = 60 * s + leftW + 26 * s;
 	// imagen / lomas abajo
@@ -1152,17 +1182,19 @@ function tplGrupo(ctx, o, f, p) {
 	}
 	grain(ctx, w, h, 0.12);
 	// título a la izquierda (con conectores chicos: GRUPO de APOYO y DISCUSIÓN)
-	titleBlock(ctx, t, { x: 60 * s, y: headTop, w: leftW, h: headH }, p, { align: 'left', maxSize: 118 * s, valign: 'center' });
-	// línea divisoria
-	ctx.fillStyle = p.title;
-	ctx.fillRect(divX, headTop, 8 * s, headH);
+	if (!noHead) {
+		titleBlock(ctx, t, { x: 60 * s, y: headTop, w: leftW, h: headH }, p, { align: 'left', maxSize: 118 * s, valign: 'center' });
+		// línea divisoria
+		ctx.fillStyle = p.title;
+		ctx.fillRect(divX, headTop, 8 * s, headH);
+	}
 	// fecha con contorno a la derecha
-	const rx = divX + 34 * s;
+	const rx = noHead ? 60 * s : divX + 34 * s;
 	const rw = w - rx - 50 * s;
 	let y = headTop + 4 * s;
 	const dp = [...dateParts(o), t.hours].filter(Boolean);
 	dp.forEach((l, i) => {
-		let size = (i === 0 && dp.length > 1 ? 100 : 62) * s;
+		let size = (i === 0 && dp.length > 1 ? 100 : 62) * (noHead ? 1.6 : 1) * s;
 		setFont(ctx, DISPLAY, size);
 		while (ctx.measureText(l).width > rw && size > 20) setFont(ctx, DISPLAY, (size -= 2));
 		ctx.save();
@@ -1180,15 +1212,16 @@ function tplGrupo(ctx, o, f, p) {
 	if (dp.length) {
 		y += 14 * s;
 		ctx.fillStyle = p.title;
-		ctx.fillRect(rx - 34 * s, y, rw + 34 * s + 20 * s, 7 * s);
+		const lx = noHead ? rx : rx - 34 * s;
+		ctx.fillRect(lx, y, w - lx - 30 * s, 7 * s);
 		y += 24 * s;
 	}
-	const details = [t.place ? lowerFirst(t.place === t.place.toUpperCase() ? t.place.toLowerCase() : t.place) : '', t.price ? t.price.toLowerCase() : '', t.priceInfo].filter(Boolean);
+	const details = [noHead ? t.kicker : '', noHead ? t.sub : '', t.place ? lowerFirst(t.place === t.place.toUpperCase() ? t.place.toLowerCase() : t.place) : '', t.price ? t.price.toLowerCase() : '', t.priceInfo].filter(Boolean);
 	if (details.length) {
 		const room = headTop + headH - y;
 		/** @type {string[]} */
 		let lines = [];
-		let size = 36 * s;
+		let size = (noHead ? 48 : 36) * s;
 		for (; size >= 22 * s; size -= 2 * s) {
 			setFont(ctx, ROUND, size, 600);
 			lines = details.flatMap((d) => wrapLines(ctx, d, rw));
@@ -1236,7 +1269,8 @@ function tplCartel(ctx, o, f, p) {
 	const barsTop = footerBars(ctx, t, f, p, { dry: true });
 	// recuadro con los datos (se mide primero para saber cuánto lugar queda)
 	// fecha y horario no se parten por dentro ("19 A 20:30" / "HS" quedaba feo)
-	const dateLine = [t.date, t.hours].filter(Boolean).map((x) => x.trim().replace(/ +/g, '\u00a0')).join('  •  ');
+	const { head, dateUsed } = headline(o);
+	const dateLine = [dateUsed ? '' : t.date, t.hours].filter(Boolean).map((x) => x.trim().replace(/ +/g, '\u00a0')).join('  •  ');
 	const placeLine = t.place;
 	// el detalle largo de la entrada va en la ficha; acá solo si es corto
 	const priceLine = [t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
@@ -1255,10 +1289,11 @@ function tplCartel(ctx, o, f, p) {
 	// imagen chica (si entra) entre el título y el recuadro
 	const titleTop = top + Math.max(70 * s, H * 0.08);
 	const titleH = Math.min(H * 0.42, boxY - titleTop - 40 * s);
-	const tb = titleBlock(ctx, t, { x: 120 * s, y: titleTop, w: w - 240 * s, h: titleH }, { ...p, outline: p.outline ?? p.extrude }, {
+	const tb = titleBlock(ctx, head, { x: 120 * s, y: titleTop, w: w - 240 * s, h: titleH }, { ...p, outline: p.outline ?? p.extrude }, {
 		align: 'center',
-		maxSize: 180 * s,
-		dry: true
+		maxSize: dateUsed ? 150 * s : 180 * s,
+		dry: true,
+		maxLines: dateUsed ? 2 : undefined
 	});
 	const freeTop = tb.y + tb.h + 40 * s;
 	const freeH = boxY - 40 * s - freeTop;
@@ -1288,9 +1323,10 @@ function tplCartel(ctx, o, f, p) {
 		ctx.filter = 'none';
 		ctx.restore();
 	}
-	const tb2 = titleBlock(ctx, t, titleBox, { ...p, outline: p.outline ?? p.extrude }, {
+	const tb2 = titleBlock(ctx, head, titleBox, { ...p, outline: p.outline ?? p.extrude }, {
 		align: 'center',
-		maxSize: withImage ? 180 * s : 200 * s
+		maxSize: dateUsed ? 150 * s : withImage ? 180 * s : 200 * s,
+		maxLines: dateUsed ? 2 : undefined
 	});
 	tb.y = tb2.y;
 	tb.h = tb2.h;
@@ -1321,6 +1357,73 @@ function tplCartel(ctx, o, f, p) {
 		}
 	}
 	statusSticker(ctx, o, p, w - 150 * s, boxY - 40 * s, 105 * s, (tb.y + tb.h + boxY) / 2, w);
+	footerBars(ctx, t, f, p);
+}
+
+/**
+ * "Solo texto" (el diseño tipográfico del principio, en el estilo de los flyers): sin
+ * imagen; título grande con destellos arriba, loma de otro color abajo con la fecha, el
+ * horario, el lugar y la entrada en pastillas, estrella con el estado y barra con el link.
+ * Sin título, la fecha pasa a ser el texto grande.
+ * @param {CanvasRenderingContext2D} ctx @param {RenderOpts} o @param {Frame} f @param {FullPalette} p
+ */
+function tplTexto(ctx, o, f, p) {
+	const { w, h, s, top } = f;
+	const t = o.texts;
+	const H = h - top - f.bottom;
+	ctx.fillStyle = p.bg;
+	ctx.fillRect(0, 0, w, h);
+	halftone(ctx, w * 0.92, top + 70 * s, 380 * s, p.dots, 30 * s);
+	const barsTop = footerBars(ctx, t, f, p, { dry: true });
+	const { head, dateUsed } = headline(o);
+	const wave = p.bg2;
+	// pastillas que se despeguen de la loma
+	const pBg = contrastRatio(p.pillBg, wave) >= 1.6 ? p.pillBg : p.stripe;
+	const pFg = readableText(pBg);
+	const sticker = !!o.status && !STATUS[o.status]?.tape;
+	const maxW = w - (sticker ? 330 : 120) * s;
+	const priceLine =
+		[t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
+	/** @type {{text:string, size:number, family:string, weight:number, bg:string, fg:string}[]} */
+	const items = [];
+	if (!dateUsed && t.date) items.push({ text: t.date, size: 70 * s, family: DISPLAY, weight: DISPLAY_WEIGHT, bg: pBg, fg: pFg });
+	if (t.hours) items.push({ text: t.hours, size: 46 * s, family: DISPLAY, weight: DISPLAY_WEIGHT, bg: pBg, fg: pFg });
+	if (t.place) items.push({ text: t.place, size: 40 * s, family: ROUND, weight: 700, bg: pBg, fg: pFg });
+	if (priceLine) items.push({ text: priceLine, size: 36 * s, family: ROUND, weight: 700, bg: p.bar, fg: p.barText });
+	const gap = 22 * s;
+	const sizes = items.map((it) => pill(ctx, it.text, 0, 0, { ...it, maxW, dry: true }));
+	const stackH = sizes.reduce((a, z) => a + z.h, 0) + gap * Math.max(0, items.length - 1);
+	const waveTop = Math.max(top + H * 0.4, Math.min(barsTop - stackH - 110 * s, top + H * 0.62));
+	grain(ctx, w, h, 0.12);
+	// loma
+	ctx.fillStyle = wave;
+	ctx.beginPath();
+	ctx.moveTo(0, barsTop + 2);
+	ctx.lineTo(0, waveTop + 40 * s);
+	ctx.bezierCurveTo(w * 0.25, waveTop - 30 * s, w * 0.55, waveTop + 60 * s, w * 0.78, waveTop + 5 * s);
+	ctx.bezierCurveTo(w * 0.88, waveTop - 20 * s, w * 0.95, waveTop - 10 * s, w, waveTop - 20 * s);
+	ctx.lineTo(w, barsTop + 2);
+	ctx.closePath();
+	ctx.fill();
+	// título arriba
+	const tTop = top + 170 * s;
+	const tb = titleBlock(ctx, head, { x: 100 * s, y: tTop, w: w - 200 * s, h: waveTop - 70 * s - tTop }, { ...p, outline: p.outline ?? p.extrude }, {
+		align: 'center',
+		maxSize: dateUsed ? 170 * s : 200 * s,
+		maxLines: dateUsed ? 2 : undefined
+	});
+	sparkle(ctx, 80 * s, Math.min(waveTop - 90 * s, tb.y + tb.h + 60 * s), 40 * s, p.accent);
+	sparkle(ctx, w - 130 * s, Math.min(waveTop - 100 * s, tb.y + tb.h + 50 * s), 34 * s, p.accent);
+	sparkle(ctx, w - 70 * s, Math.min(waveTop - 40 * s, tb.y + tb.h + 110 * s), 18 * s, p.accent);
+	badge(ctx, o.logo, 40 * s, top + 36 * s, 130 * s, p, -0.12);
+	// pastillas en la loma
+	const cx = sticker ? w / 2 - 90 * s : w / 2;
+	let y = waveTop + (barsTop - waveTop - stackH) / 2 + 20 * s;
+	items.forEach((it, i) => {
+		pill(ctx, it.text, cx, y, { ...it, maxW, align: 'center', shadow: p.extrude, rot: i % 2 ? 0.015 : -0.02 });
+		y += sizes[i].h + gap;
+	});
+	statusSticker(ctx, o, p, w - 165 * s, barsTop - 175 * s, 125 * s, (waveTop + barsTop) / 2, w);
 	footerBars(ctx, t, f, p);
 }
 
@@ -1446,14 +1549,14 @@ function renderInfo(ctx, o, f, p) {
 		ctx.textBaseline = 'bottom';
 		ctx.fillText(ft.lines[0], pad, barsTop - 26 * s);
 	}
-	if (o.status && STATUS[o.status]?.tape) tape(ctx, w / 2, barsTop - 110 * s, w * 1.6, 'CANCELADO', p.tape, p.tapeText, -0.04);
+	if (o.status && STATUS[o.status]?.tape) tape(ctx, w / 2, barsTop - 110 * s, w * 1.6, o.texts.status.trim().toUpperCase(), p.tape, p.tapeText, -0.04);
 }
 
 /* ------------------------------------------------------------------ */
 /* Entrada                                                             */
 /* ------------------------------------------------------------------ */
 
-const TEMPLATES = { flyer: tplFlyer, franja: tplFranja, foto: tplFoto, grupo: tplGrupo, cartel: tplCartel };
+const TEMPLATES = { flyer: tplFlyer, franja: tplFranja, foto: tplFoto, grupo: tplGrupo, cartel: tplCartel, texto: tplTexto };
 
 /**
  * Dibuja la imagen para compartir en el canvas dado.
@@ -1473,7 +1576,9 @@ export function renderShareImage(canvas, opts) {
 	DISPLAY = stack(fd, 'Lilita One');
 	DISPLAY_WEIGHT = fd.weight;
 	ROUND = stack(fb, 'Lato');
-	const status = opts.showStatus ?? true ? opts.meta.status : undefined;
+	// el estado sale del texto editable: vacío (o apagado) = sin sticker ni cinta
+	const stText = String(opts.texts.status ?? '').trim();
+	const status = (opts.showStatus ?? true) && stText ? (opts.meta.status in STATUS ? opts.meta.status : 'otro') : undefined;
 	let layout = opts.layout in TEMPLATES ? opts.layout : 'cartel';
 	if (layout === 'flyer' && !opts.image) layout = 'cartel';
 	/** @type {RenderOpts} */

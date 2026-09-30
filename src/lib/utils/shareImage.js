@@ -144,7 +144,8 @@ export const LAYOUTS = {
 	franja: { label: 'Franja cruzada', image: false },
 	foto: { label: 'Foto con título', image: false },
 	grupo: { label: 'Encabezado partido', image: false },
-	cartel: { label: 'Cartel centrado', image: false }
+	cartel: { label: 'Cartel centrado', image: false },
+	texto: { label: 'Solo texto', image: false }
 };
 
 /**
@@ -263,14 +264,50 @@ export const PALETTES = {
 	}
 };
 
-/** Stickers de estado. `tape` = cinta cruzada (cancelado); el resto va en una estrella. */
-/** @type {Record<string, {sticker:string[], tape?:boolean, caption:string}>} */
+/**
+ * Stickers de estado. `text` es el texto sugerido (se puede editar); `sticker`, cómo se
+ * parte en la estrella cuando no se lo cambió. `tape` = cinta cruzada (cancelado).
+ * @type {Record<string, {text:string, sticker:string[], tape?:boolean, caption:string}>}
+ */
 export const STATUS = {
-	anunciado: { sticker: ['¡SE', 'VIENE!'], caption: '📣 ¡Se viene!' },
-	abierto: { sticker: ['¡ANO-', 'TATE!'], caption: '' },
-	agotadas: { sticker: ['¡AGO-', 'TADO!'], caption: '🔥 ¡Cupos agotados! 🔥' },
-	cancelado: { sticker: ['CANCELADO'], tape: true, caption: '❌ EVENTO CANCELADO ❌' }
+	anunciado: { text: '¡SE VIENE!', sticker: ['¡SE', 'VIENE!'], caption: '📣 ¡Se viene!' },
+	abierto: { text: '¡ANOTATE!', sticker: ['¡ANO-', 'TATE!'], caption: '' },
+	agotadas: { text: '¡AGOTADO!', sticker: ['¡AGO-', 'TADO!'], caption: '🔥 ¡Cupos agotados! 🔥' },
+	cancelado: { text: 'CANCELADO', sticker: ['CANCELADO'], tape: true, caption: '❌ EVENTO CANCELADO ❌' }
 };
+
+/**
+ * Renglones del texto de estado para la estrella: el corte de la casa si es el sugerido;
+ * si no, palabras repartidas en hasta 3 renglones (una palabra larga sola se parte con guion).
+ * @param {string} text @param {string} [status]
+ * @returns {string[]}
+ */
+export function statusLines(text, status) {
+	const clean = String(text ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
+	if (!clean) return [];
+	const st = status ? STATUS[status] : undefined;
+	if (st && clean === st.text) return st.sticker;
+	const words = clean.split(' ');
+	if (words.length === 1) {
+		const w = words[0];
+		if (w.length <= 6) return [w];
+		const cut = Math.ceil(w.length / 2);
+		return [w.slice(0, cut) + '-', w.slice(cut)];
+	}
+	const n = Math.min(3, Math.max(2, Math.ceil(clean.length / 9)));
+	const target = clean.length / n;
+	/** @type {string[]} */
+	const lines = [];
+	let cur = '';
+	for (const w of words) {
+		if (cur && (cur + ' ' + w).length > target + 3 && lines.length < n - 1) {
+			lines.push(cur);
+			cur = w;
+		} else cur = cur ? cur + ' ' + w : w;
+	}
+	if (cur) lines.push(cur);
+	return lines;
+}
 
 /* ------------------------------------------------------------------ */
 /* Datos del evento                                                    */
@@ -559,9 +596,10 @@ export function sectionsFromHTML(html) {
  * @type {{key:keyof Texts, label:string, placeholder?:string, where:string, long?:boolean, on?:boolean, required?:boolean}[]}
  */
 export const FIELDS = [
-	{ key: 'title', label: 'Título', where: 'todas', required: true },
+	{ key: 'title', label: 'Título', placeholder: 'Apagalo si ya está en la imagen', where: 'todas' },
 	{ key: 'kicker', label: 'Antetítulo', placeholder: 'taller de…, con…', where: 'portada' },
 	{ key: 'sub', label: 'Bajada', placeholder: 'Debajo del título', where: 'portada' },
+	{ key: 'status', label: 'Estado', placeholder: '¡ANOTATE!, ¡SE VIENE!, CANCELADO…', where: 'portada' },
 	{ key: 'date', label: 'Fecha', where: 'todas' },
 	{ key: 'hours', label: 'Horario', where: 'todas' },
 	{ key: 'place', label: 'Lugar', where: 'todas' },
@@ -611,6 +649,7 @@ export function defaultTexts(meta, extras = {}) {
 		kicker: kicker || (info.by ? 'con ' + info.by : ''),
 		title,
 		sub,
+		status: STATUS[meta.status]?.text ?? '',
 		date: info.dayShort,
 		hours: info.hoursShort,
 		place: where,
@@ -630,16 +669,18 @@ export function defaultTexts(meta, extras = {}) {
 
 /**
  * Qué campos arrancan prendidos: los que tienen texto, salvo los largos que no entrarían.
- * @param {Texts} texts
+ * @param {Texts} texts @param {any} [meta] el evento (para apagar el estado si ya pasó)
  * @returns {Record<string, boolean>}
  */
-export function defaultEnabled(texts) {
+export function defaultEnabled(texts, meta) {
 	/** @type {Record<string, boolean>} */
 	const on = {};
 	for (const f of FIELDS) {
 		const v = String(texts[f.key] ?? '');
 		on[f.key] = f.required || (!!v && (!f.long || v.length <= 160));
 	}
+	// en un evento que ya pasó no tiene sentido "¡Anotate!" (cancelado sí se sigue mostrando)
+	if (meta && meta.status !== 'cancelado' && eventInfo(meta).ended) on.status = false;
 	return on;
 }
 

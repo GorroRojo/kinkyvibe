@@ -11,7 +11,8 @@ import {
 	firstSentences,
 	findAmount,
 	extrasFromSections,
-	censorText
+	censorText,
+	statusLines
 } from './shareImage.js';
 
 const NOW = new Date('2026-09-01T12:00:00-03:00');
@@ -166,14 +167,14 @@ describe('datos del texto del evento', () => {
 		expect(t.organizers).toBe('Ana B & Kinky Vibe');
 		expect(t.place).toBe('ONLINE');
 	});
-	it('los campos apagados no se dibujan (salvo el título)', () => {
+	it('los campos apagados no se dibujan (también el título)', () => {
 		const t = defaultTexts({ postID: 'x', title: 'Jam', summary: 'Hola', start: '2099-01-01T20:00-03:00' });
 		const on = defaultEnabled(t);
 		expect(on.summary).toBe(true);
 		expect(on.audience).toBe(false);
 		const v = visibleTexts(t, { ...on, summary: false, title: false });
 		expect(v.summary).toBe('');
-		expect(v.title).toBe('Jam');
+		expect(v.title).toBe('');
 		expect(v.date).toBe(t.date);
 	});
 });
@@ -188,5 +189,32 @@ describe('censorText', () => {
 		expect(c).not.toMatch(/tortura|genital/i);
 		expect(censorText('Noche de juegos')).toBe('Noche de juegos');
 		expect(censorText('')).toBe('');
+	});
+});
+
+describe('estado editable', () => {
+	it('statusLines usa el corte de la casa si no se cambió el texto', () => {
+		expect(statusLines('¡ANOTATE!', 'abierto')).toEqual(['¡ANO-', 'TATE!']);
+		expect(statusLines('¡anotate!', 'abierto')).toEqual(['¡ANO-', 'TATE!']);
+	});
+	it('statusLines reparte un texto propio', () => {
+		expect(statusLines('¡ÚLTIMOS CUPOS!', 'abierto')).toEqual(['¡ÚLTIMOS', 'CUPOS!']);
+		expect(statusLines('HOY', undefined)).toEqual(['HOY']);
+		expect(statusLines('¡Gratuito!').length).toBe(2);
+		expect(statusLines('')).toEqual([]);
+	});
+	it('el estado sugerido sale del evento y se apaga si ya pasó', () => {
+		const base = { postID: 'x', title: 'Jam', summary: 'Hola', status: 'abierto' };
+		const future = { ...base, start: '2099-01-01T20:00-03:00' };
+		const past = { ...base, start: '2020-01-01T20:00-03:00' };
+		expect(defaultTexts(future).status).toBe('¡ANOTATE!');
+		expect(defaultEnabled(defaultTexts(future), future).status).toBe(true);
+		expect(defaultEnabled(defaultTexts(past), past).status).toBe(false);
+		const cancelled = { ...past, status: 'cancelado' };
+		expect(defaultEnabled(defaultTexts(cancelled), cancelled).status).toBe(true);
+	});
+	it('el título se puede apagar', () => {
+		const t = defaultTexts({ postID: 'x', title: 'Jam', start: '2099-01-01T20:00-03:00' });
+		expect(visibleTexts(t, { ...defaultEnabled(t), title: false }).title).toBe('');
 	});
 });

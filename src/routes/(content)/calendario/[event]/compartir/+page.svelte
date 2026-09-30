@@ -33,9 +33,8 @@
 	const hasFeatured = !!data.meta.featured;
 	let layout = hasFeatured ? 'flyer' : 'cartel';
 	let ratio = 'portrait';
-	// en un evento que ya pasó no tiene sentido "¡Anotate!" (cancelado sí se sigue mostrando)
-	let showStatus = !info.ended || data.meta.status === 'cancelado';
-	let useQR = true;
+	// el QR arranca apagado: el link ya va escrito en la barra de abajo
+	let useQR = false;
 	let censor = false;
 	let ready = false;
 	let canShareFiles = false;
@@ -47,7 +46,7 @@
 	let canvases = {};
 	/** @type {import('$lib/utils/shareImage.js').Texts} */
 	let texts = defaultTexts(data.meta);
-	let enabled = defaultEnabled(texts);
+	let enabled = defaultEnabled(texts, data.meta);
 	/** campos que la persona tocó: no se pisan con lo que llegue después */
 	/** @type {Set<string>} */
 	const touched = new Set();
@@ -176,13 +175,13 @@
 		);
 	$: shown = visibleTexts(censor ? censored(texts) : texts, enabled);
 
-	$: if (ready) draw(layout, palette, ratio, showStatus, shown, fonts, useQR ? qr : null);
+	$: if (ready) draw(layout, palette, ratio, shown, fonts, useQR ? qr : null);
 
 	/**
-	 * @param {string} layout @param {any} palette @param {string} ratio @param {boolean} showStatus
+	 * @param {string} layout @param {any} palette @param {string} ratio
 	 * @param {typeof texts} texts @param {{display:string, body:string}} fonts @param {boolean[][]|null} qr
 	 */
-	function draw(layout, palette, ratio, showStatus, texts, fonts, qr) {
+	function draw(layout, palette, ratio, texts, fonts, qr) {
 		for (const format of /** @type {('post'|'info'|'story')[]} */ (Object.keys(FORMATS))) {
 			if (!canvases[format]) continue;
 			renderShareImage(canvases[format], {
@@ -194,7 +193,6 @@
 				texts,
 				image,
 				logo,
-				showStatus,
 				fonts,
 				qr
 			});
@@ -254,7 +252,7 @@
 	function resetTexts() {
 		touched.clear();
 		texts = defaultTexts(data.meta);
-		enabled = defaultEnabled(texts);
+		enabled = defaultEnabled(texts, data.meta);
 		loadExtras();
 	}
 </script>
@@ -415,12 +413,6 @@
 
 			<fieldset class="options">
 				<legend>Opciones</legend>
-				{#if data.meta.status}
-					<label class="toggle">
-						<input type="checkbox" bind:checked={showStatus} />
-						Mostrar el estado ({data.meta.status})
-					</label>
-				{/if}
 				<label class="toggle">
 					<input type="checkbox" bind:checked={useQR} disabled={!qr} />
 					Código QR al evento (en la ficha y la vertical)
@@ -433,7 +425,10 @@
 
 			<fieldset class="texts">
 				<legend>Datos en las imágenes</legend>
-				<p class="hint">Prendé o apagá cada dato y corregilo si hace falta. No se guarda nada.</p>
+				<p class="hint">
+					Prendé o apagá cada dato y corregilo si hace falta. No se guarda nada. Si el título ya
+					está en la imagen, apagalo: la fecha pasa a ser lo más grande.
+				</p>
 				{#each FIELDS as field}
 					<div class="field" class:off={!enabled[field.key]}>
 						<label class="check">
