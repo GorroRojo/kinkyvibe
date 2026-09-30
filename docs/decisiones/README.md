@@ -61,3 +61,4 @@ Una decisión puede agrupar varias respuestas del mismo tema.
 | [0008](0008-crm.md)                               | El panel como CRM                                | 2026-09-30 | Aceptada |
 | [0009](0009-infraestructura.md)                   | Infraestructura, backups, pagos y documentación  | 2026-09-30 | Aceptada |
 | [0010](0010-panel.md)                             | Panel: tema, formularios, Inicio y detalles      | 2026-09-30 | Aceptada |
+| [0011](0011-etiquetas.md)                         | Sistema de etiquetas                             | 2026-09-30 | Aceptada |

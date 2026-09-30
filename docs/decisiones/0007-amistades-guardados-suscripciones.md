@@ -20,6 +20,15 @@ enterarse.
   - Newsletter general.
   - Newsletter personalizado por **etiquetas o combinaciones de etiquetas** (por ejemplo,
     "shibari" → eventos, material y docentes nuevos; "cnc" + "articulo" → algo más específico).
+- **Calendario**: un botón **"Suscribirme a esto"** da un link de Google Calendar para
+  exactamente lo que la persona está mirando (una serie, una etiqueta o una combinación de
+  etiquetas), también en las páginas de serie y de etiqueta.
+  - Con cuenta, su calendario además se actualiza con lo de su cuenta: series y etiquetas que
+    sigue y eventos a los que compró entrada.
+  - Los calendarios respetan la privacidad de los lugares (0005): sin nombre ni dirección cuando
+    el nivel los oculta.
+  - Google actualiza los calendarios suscriptos solo cada ~12–24 h; los cambios no son
+    inmediatos.
 
 ## Descartado
 

@@ -14,7 +14,7 @@ inscribirse.
 - **Series**: una serie es una etiqueta con descripción e imagen (elegida de las imágenes ya
   subidas). Sin página nueva en la Kinkipedia: es parte de la estructura y lista sus eventos y
   talleres. En eventos pasados, botón "Avisame si se repite" (mail cuando se anuncia la próxima
-  edición).
+  edición). El sistema de etiquetas está en 0011.
 - **Lugares**: viven en amigues como tipo de perfil "Lugar", con campos extra (dirección, mapa OSM,
   accesibilidad, cómo llegar) y su lista de eventos.
   - Privacidad por lugar, con excepción por evento, en 4 niveles: **público / solo nombre / solo

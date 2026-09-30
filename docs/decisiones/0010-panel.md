@@ -18,6 +18,8 @@ todo sin código.
   - 3B, comprar: tres pasos (Entradas → Tus datos → Pagar), con el resumen siempre visible.
 - **Inicio en compu**: el espacio de la derecha muestra la agenda de 7 días, las ventas de esta
   noche y la actividad. Cuando exista la bandeja, también los mensajes sin responder.
+- **"Importar planilla"** sale del menú lateral y pasa a ser un botón en el encabezado de Agenda.
+  Sigue en las acciones rápidas de Inicio y en la paleta de comandos.
 - **Bandeja**: los mails a la organización entran al panel (con copia opcional a Gmail), se
   responde desde ahí y se envía a una persona o en masa.
 - **Gráficos**: primero el termómetro de ventas por evento. Después: ventas en el tiempo, mapa de
