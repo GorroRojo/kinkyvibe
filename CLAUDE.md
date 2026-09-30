@@ -95,6 +95,8 @@ ratchet. The `ci-ok` job is the single required check; if you add a job, add it 
 - Server code: `src/lib/server/` (auth, session, D1 in `db/`). Shared helpers: `src/lib/utils/`.
 - Unit tests next to the code (`*.test.js`); E2E tests in `tests/`.
 - Ticket sales docs: `docs/tickets.md` (once the tickets PR is merged).
+- Decisions: antes de tocar un área, leé `docs/decisiones/` (índice en su `README.md`); para
+  contradecir una, agregá una decisión nueva.
 - D1 migrations: `migrations/NNNN_name.sql`, **append-only**. Never edit a migration that may
   have been applied; add a new numbered one instead.
 
