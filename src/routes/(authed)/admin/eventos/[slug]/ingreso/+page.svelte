@@ -26,6 +26,7 @@
 	import DoorScanner from '$lib/components/admin/door/DoorScanner.svelte';
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
+	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
 	import { computePrice } from '$lib/utils/tickets.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -55,7 +56,8 @@
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
 		gratis: 'Sin cargo',
-		efectivo: 'Efectivo'
+		efectivo: 'Efectivo',
+		otro: 'Otro medio'
 	});
 	const STATUS_TEXT = /** @type {Record<string, string>} */ ({
 		pending: 'Pendiente',
@@ -618,7 +620,10 @@
 	}
 
 	// --- Vender en puerta ---
-	// `available` null: tipo sin cupo (sin límite).
+	// `available` null: tipo sin cupo (sin límite). Un tipo agotado se puede elegir igual: une
+	// admin puede pasar el cupo (el servidor pide confirmar con un diálogo).
+	/** @type {OverrideDialog} */
+	let overrideDialog;
 	let saleType =
 		data.types.find((t) => t.available === null || t.available > 0)?.id ?? data.types[0]?.id ?? '';
 	let saleQty = 1;
@@ -661,7 +666,18 @@
 		saleBusy = true;
 		saleError = '';
 		try {
-			const r = await postAction('sell', new FormData(formEl));
+			const fd = new FormData(formEl);
+			let r = await postAction('sell', fd);
+			// Se pasa algún límite: se pregunta en la página y, si confirma, se reenvía con la clave.
+			while (r.type === 'failure' && r.data?.sale?.needsConfirmation) {
+				const key = await overrideDialog.ask(r.data.sale.needsConfirmation);
+				if (!key) {
+					saleError = 'No se vendió.';
+					return;
+				}
+				fd.set('override', key);
+				r = await postAction('sell', fd);
+			}
 			if (r.type === 'success' && r.data?.sale?.ok) {
 				const sale = r.data.sale;
 				saleOpen = false;
@@ -790,14 +806,13 @@
 			<button type="button" class="tile" on:click={openSearch}>
 				<Search size={30} /> Buscar persona
 			</button>
-			{#if data.doorSales}
-				<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
-					<Store size={26} /> Vender en puerta
-				</button>
-			{:else}
+			<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
+				<Store size={26} /> Vender en puerta
+			</button>
+			{#if !data.doorSales}
 				<p class="no-door muted small">
-					Este evento dice «Solo anticipadas»: no hay entradas en la puerta (se cambia en el editor
-					del evento, en Entradas).
+					Este evento es solo anticipadas: si vendés igual, te vamos a pedir que confirmes (se
+					cambia en el editor del evento, en Entradas).
 				</p>
 			{/if}
 		</div>
@@ -916,17 +931,25 @@
 	<!-- Vender en puerta -->
 	<Sheet bind:open={saleOpen} title="Vender en puerta">
 		<form method="POST" action="?/sell" class="stack" on:submit|preventDefault={submitSale}>
+			{#if !data.doorSales}
+				<p class="warn-note" role="note">
+					<TriangleAlert size={18} aria-hidden="true" /> Este evento es solo anticipadas. Podés vender
+					igual: te vamos a pedir que confirmes y queda en el registro de actividad.
+				</p>
+			{/if}
 			{#if data.doorPrice}<p class="muted small">Precio en la puerta: {data.doorPrice}</p>{/if}
 			<label class="field">
 				<span>Tipo de entrada</span>
 				<select name="type" bind:value={saleType} required>
 					{#each data.types as t (t.id)}
-						<option value={t.id} disabled={t.available === 0}>
+						<option value={t.id}>
 							{t.name} · {t.gorra ? 'a la gorra' : formatARS(t.price)} · {t.available === null
 								? 'sin cupo'
-								: t.available === 0
-									? 'agotada'
-									: `quedan ${t.available}`}
+								: t.taken > (t.capacity ?? 0)
+									? `pasada del cupo (${t.taken} / ${t.capacity})`
+									: t.available === 0
+										? 'agotada'
+										: `quedan ${t.available}`}
 						</option>
 					{/each}
 				</select>
@@ -938,7 +961,7 @@
 						name="quantity"
 						type="number"
 						min="1"
-						max={Math.min(10, sType?.available ?? 10)}
+						max={data.maxOrder}
 						bind:value={saleQty}
 						required
 					/>
@@ -994,7 +1017,7 @@
 				<p class="muted small">
 					Nombres de las otras personas (si no, van a nombre de quien compra):
 				</p>
-				{#each Array.from({ length: Math.min(10, saleQty) - 1 }) as _, i (i)}
+				{#each Array.from({ length: Math.min(data.maxOrder, saleQty) - 1 }) as _, i (i)}
 					<input
 						name="holder_{i + 1}"
 						placeholder="Persona {i + 2}"
@@ -1057,7 +1080,9 @@
 					<dd>
 						{METHOD_TEXT[purchase.method] ?? purchase.method}{purchase.channel === 'puerta'
 							? ' · en la puerta'
-							: ''}{#if purchase.confirmedBy}&nbsp;· {purchase.confirmedBy}{/if}
+							: purchase.channel === 'manual'
+								? ' · cargada a mano'
+								: ''}{#if purchase.confirmedBy}&nbsp;· {purchase.confirmedBy}{/if}
 					</dd>
 					<dt>Entradas</dt>
 					<dd>{purchase.quantity} × {purchase.type} · {formatARS(purchase.unitPrice)}</dd>
@@ -1130,9 +1155,14 @@
 				pantalla siempre prendida mientras esta página está abierta.
 			</p>
 			<a class="link-btn" href={ordersHref}>Ver todas las órdenes del evento</a>
+			<a class="link-btn" href="/admin/eventos/{encodeURIComponent(data.slug)}/ordenes/cargar"
+				>Cargar entradas a mano (invitaciones, cortesías)</a
+			>
 			<a class="link-btn" href="/admin/checkin">Elegir otro evento</a>
 		</div>
 	</Sheet>
+
+	<OverrideDialog bind:this={overrideDialog} confirmLabel="Sí, vender igual" />
 </div>
 
 <style>
@@ -1152,6 +1182,8 @@
 		--warn: hsl(50, 100%, 70%);
 		--bad: hsl(330, 100%, 78%);
 		--bad-bg: hsl(325, 55%, 20%);
+		--warn-bg: hsl(45, 45%, 22%);
+		--accent-ink: white;
 		color-scheme: dark;
 		color: var(--text);
 		background: var(--bg);
@@ -1330,6 +1362,16 @@
 		grid-column: 1 / -1;
 		margin: 0;
 		text-align: center;
+	}
+	.warn-note {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-start;
+		margin: 0;
+		padding: 0.6rem 0.8rem;
+		border-radius: 0.8rem;
+		background: color-mix(in srgb, var(--warn) 18%, var(--surface));
+		color: var(--text);
 	}
 	.tile.wide {
 		grid-column: 1 / -1;
