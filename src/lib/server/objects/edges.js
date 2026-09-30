@@ -10,7 +10,7 @@
  * Solo usa imports relativos.
  */
 import { ObjectError } from './errors.js';
-import { OBJECT_COLUMNS, rowToObject } from './read.js';
+import { OBJECT_COLUMNS, forViewer, rowToObject } from './read.js';
 import { visibleWhere } from './visibility.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -189,7 +189,7 @@ export async function getEdges(db, id, viewer, { direction = 'out', kind } = {})
 			kind: String(r.e_kind),
 			position: Number(r.e_position),
 			data: r.e_data == null ? null : JSON.parse(String(r.e_data)),
-			object: rowToObject(row)
+			object: forViewer(rowToObject(row), viewer)
 		};
 	});
 }

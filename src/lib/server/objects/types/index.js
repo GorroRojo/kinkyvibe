@@ -7,6 +7,7 @@
 import { validateFields } from '../fields.js';
 import evento from './evento.js';
 import lugar from './lugar.js';
+import perfil from './perfil.js';
 
 /**
  * Una relación que un tipo puede tener hacia otros objetos (edge saliente).
@@ -65,7 +66,7 @@ export function createRegistry(list) {
 }
 
 /** Los tipos núcleo del sitio. */
-export const coreTypes = createRegistry([evento, lugar]);
+export const coreTypes = createRegistry([evento, lugar, perfil]);
 
 /**
  * Valida y normaliza los datos de un objeto según su tipo.

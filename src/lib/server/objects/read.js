@@ -4,7 +4,7 @@
  *
  * Solo usa imports relativos.
  */
-import { canSee, visibleWhere } from './visibility.js';
+import { canSee, isAdmin, visibleWhere } from './visibility.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./visibility.js').Viewer} Viewer */
@@ -52,6 +52,20 @@ export function rowToObject(row) {
 }
 
 /**
+ * Quién creó y quién editó un objeto (`created_by`, `updated_by`) es dato de admins: a cualquier
+ * otre se le devuelven vacíos. Así ninguna lectura pública o de cuentas puede vincular dos
+ * objetos por su autore (por ejemplo, dos perfiles de personas de una misma cuenta, decisión
+ * A2). La regla de "quien lo creó ve su oculto" se aplica antes, con la fila completa.
+ *
+ * @param {StoredObject} object
+ * @param {Viewer | null | undefined} viewer
+ * @returns {StoredObject}
+ */
+export function forViewer(object, viewer) {
+	return isAdmin(viewer) ? object : { ...object, created_by: '', updated_by: '' };
+}
+
+/**
  * Un objeto por id o por (tipo, slug), si quien mira lo puede ver.
  *
  * @param {D1Database} db
@@ -70,7 +84,7 @@ export async function getObject(db, ref, viewer, options = {}) {
 					.first();
 	if (!row) return null;
 	const object = rowToObject(row);
-	return canSee(object, viewer, options) ? object : null;
+	return canSee(object, viewer, options) ? forViewer(object, viewer) : null;
 }
 
 /**
@@ -111,5 +125,5 @@ export async function searchObjects(db, text, viewer, { type, limit = 20 } = {})
 			Math.min(Math.max(1, limit), 100)
 		)
 		.all();
-	return results.map(rowToObject);
+	return results.map((r) => forViewer(rowToObject(r), viewer));
 }

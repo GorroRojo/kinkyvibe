@@ -202,4 +202,18 @@ describe('en la base', () => {
 		// Otre con cuenta no ve ni el objeto de origen oculto ni sus edges.
 		expect(await getEdges(t.db, own, member, { direction: 'in' })).toEqual([]);
 	});
+
+	it('quién creó y quién editó solo lo ven les admins', async () => {
+		const own = ids['lugar-cuenta-autora-public-vivo'];
+		for (const viewer of [ANON, member, creator]) {
+			const o = await getObject(t.db, { id: own }, viewer);
+			expect([o?.created_by, o?.updated_by]).toEqual(['', '']);
+			for (const found of await searchObjects(t.db, 'zanahoria', viewer)) {
+				expect([found.created_by, found.updated_by]).toEqual(['', '']);
+			}
+		}
+		expect((await getObject(t.db, { id: own }, admin))?.created_by).toBe('cuenta-autora');
+		const [edge] = await getEdges(t.db, ids.evento, creator);
+		expect(edge.object.created_by).toBe('');
+	});
 });

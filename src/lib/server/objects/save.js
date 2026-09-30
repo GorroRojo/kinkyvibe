@@ -5,7 +5,9 @@
  * En un solo `db.batch` (una transacción de D1: o entra todo o nada):
  * 1. da de alta el tipo núcleo en `object_types` si hacía falta;
  * 2. inserta o actualiza el objeto, subiendo `version` en 1;
- * 3. reemplaza los edges salientes de los `kind` que se mandaron.
+ * 3. reemplaza los edges salientes de los `kind` que se mandaron;
+ * 4. escribe las tablas de apoyo del que llama (`also`), por ejemplo quién gestiona un perfil
+ *    (`profile_managers`, src/lib/server/cuentas/perfiles.js).
  *
  * Control de versión: para editar hay que mandar la `version` con la que se abrió el editor. Si
  * no coincide con la actual → VersionConflictError (409). Además, el trigger
@@ -68,6 +70,15 @@ export function slugify(text) {
  * @prop {string} actor quién guarda (hoy, el login de GitHub de le admin)
  * @prop {number} [now] ms desde epoch
  * @prop {import('./types/index.js').Registry} [registry] para tests; por defecto, los tipos núcleo
+ * @prop {(self: SavedRef) => D1PreparedStatement[]} [also] sentencias de tablas de apoyo que
+ *   van en la MISMA tanda (entra todo o nada). Nunca sobre objects, edges ni object_types.
+ */
+
+/**
+ * Cómo encontrar el objeto que se está guardando desde una sentencia de `also`: por `id` al
+ * editar; al crear el id todavía no existe y se busca por (`type`, `slug`), que es único.
+ *
+ * @typedef {{ id: number | null, type: string, slug: string }} SavedRef
  */
 
 /**
@@ -85,7 +96,11 @@ function errorText(error) {
  * @param {SaveContext} context
  * @returns {Promise<import('./read.js').StoredObject>}
  */
-export async function saveObject(db, input, { actor, now = Date.now(), registry = coreTypes }) {
+export async function saveObject(
+	db,
+	input,
+	{ actor, now = Date.now(), registry = coreTypes, also }
+) {
 	if (!actor || typeof actor !== 'string') throw new ObjectError('invalid', 'Falta quién guarda.');
 	const def = registry.get(input?.type);
 	if (!def) throw new ObjectError('unknown_type', `No existe el tipo de objeto «${input?.type}».`);
@@ -211,6 +226,8 @@ export async function saveObject(db, input, { actor, now = Date.now(), registry 
 			);
 		}
 	}
+
+	if (also) batch.push(...also({ id: current?.id ?? null, type: def.type, slug }));
 
 	let results;
 	try {

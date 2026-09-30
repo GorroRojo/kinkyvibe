@@ -4,11 +4,13 @@ import { coreTypes, createRegistry, validateData } from './index.js';
 
 const evento = /** @type {import('./index.js').CoreType} */ (coreTypes.get('evento'));
 const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar'));
+const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('arranca con evento y lugar; el evento puede apuntar a un lugar', () => {
-		expect([...coreTypes.types.keys()]).toEqual(['evento', 'lugar']);
+	it('tiene evento, lugar y perfil; el evento puede apuntar a un lugar', () => {
+		expect([...coreTypes.types.keys()]).toEqual(['evento', 'lugar', 'perfil']);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar'], max: 1 });
+		expect(perfil.edges?.es_integrante_de).toMatchObject({ to: ['perfil'] });
 	});
 
 	it('rechaza definiciones incoherentes al armarse', () => {
@@ -80,6 +82,63 @@ describe('lugar', () => {
 			ok: false,
 			errors: [{ path: 'map_url' }]
 		});
+	});
+});
+
+describe('perfil', () => {
+	it('solo el tipo es obligatorio; normaliza y saca vacíos', () => {
+		expect(validateData(perfil, {})).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
+		expect(
+			validateData(perfil, {
+				kind: 'grupo',
+				bio: 'Somos un grupo inventado',
+				pronouns: ' elles ',
+				links: ['https://ejemplo.test/a', '', 'https://ejemplo.test/a', 'http://ejemplo.test/b'],
+				show_members: false
+			})
+		).toEqual({
+			ok: true,
+			data: {
+				kind: 'grupo',
+				bio: 'Somos un grupo inventado',
+				pronouns: 'elles',
+				links: ['https://ejemplo.test/a', 'http://ejemplo.test/b'],
+				show_members: false
+			}
+		});
+	});
+
+	it('rechaza tipos inventados, links que no son web, imágenes de afuera y claves desconocidas', () => {
+		const paths = (/** @type {Record<string, unknown>} */ data) => {
+			const r = validateData(perfil, data);
+			return r.ok ? [] : r.errors.map((e) => e.path).sort();
+		};
+		expect(paths({ kind: 'lugar' })).toEqual(['kind']);
+		expect(paths({ kind: 'persona', display_name: 'X', email: 'x@example.com' })).toEqual([
+			'display_name',
+			'email'
+		]);
+		expect(paths({ kind: 'persona', links: ['javascript:alert(1)'] })).toEqual(['links']);
+		expect(paths({ kind: 'persona', links: ['https://usuario:clave@ejemplo.test'] })).toEqual([
+			'links'
+		]);
+		expect(
+			paths({ kind: 'persona', links: Array.from({ length: 9 }, (_, i) => `https://e.test/${i}`) })
+		).toEqual(['links']);
+		expect(paths({ kind: 'persona', avatar: 'https://otro-sitio.test/foto.jpg' })).toEqual([
+			'avatar'
+		]);
+		expect(paths({ kind: 'persona', avatar: 'perfiles/foto-inventada.webp' })).toEqual([]);
+		expect(paths({ kind: 'persona', pronouns: 'x'.repeat(41) })).toEqual(['pronouns']);
+		expect(paths({ kind: 'persona', bio: 'x'.repeat(1001) })).toEqual(['bio']);
+	});
+
+	it('"mostrar integrantes" es solo para grupos', () => {
+		expect(validateData(perfil, { kind: 'persona', show_members: false })).toMatchObject({
+			ok: false,
+			errors: [{ path: 'show_members' }]
+		});
+		expect(validateData(perfil, { kind: 'grupo', show_members: true })).toMatchObject({ ok: true });
 	});
 });
 
