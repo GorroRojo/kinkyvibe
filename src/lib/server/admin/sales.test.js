@@ -110,6 +110,17 @@ describe('summarizeEvent / salesTotals', () => {
 		expect(salesTotals([e, e])).toMatchObject({ events: 2, sold: 6, revenue: 48000, review: 4 });
 	});
 
+	it('un tipo sin cupo (capacity null) nunca está sobrevendido y el evento queda sin cupo total', () => {
+		const libre = {
+			...config,
+			types: [{ ...config.types[0], capacity: null }, config.types[1]]
+		};
+		const e = summarizeEvent({ slug: 'fiesta', config: libre }, counts, { now: NOW });
+		expect(e.types[0]).toMatchObject({ sold: 3, capacity: null, over: false });
+		expect(e.types[1]).toMatchObject({ capacity: 10, over: false });
+		expect(e).toMatchObject({ sold: 3, capacity: null });
+	});
+
 	it('un evento que ya pasó no es próximo; uno sin fecha sí', () => {
 		const past = summarizeEvent({ slug: 'x', config: { ...config, start: '2026-01-01' } }, counts, {
 			now: NOW

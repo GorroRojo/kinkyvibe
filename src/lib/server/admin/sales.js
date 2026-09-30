@@ -58,18 +58,22 @@ export async function getAllCounts(db, now = Date.now()) {
 /**
  * @typedef {{
  *   id: string, name: string, price: number | null, gorra: { min: number, suggested: number } | null,
- *   capacity: number, fondo: number, sold: number, held: number, revenue: number,
+ *   capacity: number | null, fondo: number, sold: number, held: number, revenue: number,
  *   fondoUsed: number, contribution: number, surcharge: number, over: boolean
  * }} TypeSales
+ *
+ * `capacity` `null`: el tipo no tiene cupo (sin límite); nunca está "pasado".
  */
 
 /**
  * @typedef {{
  *   slug: string, title: string, start: string | null, status: string | null,
  *   upcoming: boolean, fondoEnabled: boolean, online: boolean, review: number,
- *   types: TypeSales[], sold: number, held: number, capacity: number, revenue: number,
+ *   types: TypeSales[], sold: number, held: number, capacity: number | null, revenue: number,
  *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number
  * }} EventSales
+ *
+ * `capacity` del evento: la suma de los cupos, o `null` si algún tipo no tiene cupo.
  */
 
 /**
@@ -84,12 +88,14 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 	const types = config.types.map((t) => {
 		const c = counts?.get(t.id);
 		const sold = c?.sold ?? 0;
+		/** @type {number | null} */
+		const capacity = t.capacity ?? null;
 		return {
 			id: t.id,
 			name: t.name,
 			price: t.gorra ? null : t.price,
 			gorra: t.gorra ? { min: t.gorra.min, suggested: t.gorra.suggested } : null,
-			capacity: t.capacity,
+			capacity,
 			fondo: t.fondo ?? 0,
 			sold,
 			held: c?.held ?? 0,
@@ -97,7 +103,7 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 			fondoUsed: c?.fondo ?? 0,
 			contribution: c?.contribution ?? 0,
 			surcharge: c?.surcharge ?? 0,
-			over: sold > t.capacity
+			over: capacity !== null && sold > capacity
 		};
 	});
 	/** @param {(t: TypeSales) => number} f */
@@ -117,7 +123,7 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 		types,
 		sold: sum((t) => t.sold),
 		held: sum((t) => t.held),
-		capacity: sum((t) => t.capacity),
+		capacity: types.some((t) => t.capacity === null) ? null : sum((t) => t.capacity ?? 0),
 		revenue: sum((t) => t.revenue),
 		fondoUsed: sum((t) => t.fondoUsed),
 		contribution: sum((t) => t.contribution),
