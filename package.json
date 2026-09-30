@@ -3,6 +3,7 @@
 	"version": "1.1.0",
 	"private": true,
 	"scripts": {
+		"predev": "node scripts/db-migrate-local.js",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -12,11 +13,16 @@
 		"test:e2e": "playwright test",
 		"test:unit": "vitest run",
 		"test:unit:watch": "vitest",
+		"db:migrate:local": "wrangler d1 migrations apply kinkyvibe --local",
+		"db:migrate:remote": "wrangler d1 migrations apply kinkyvibe --remote",
+		"db:migrations:new": "wrangler d1 migrations create kinkyvibe",
+		"preview:worker": "wrangler pages dev .svelte-kit/cloudflare --port 8880",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20260929.1",
 		"@jsdevtools/rehype-toc": "^3.0.2",
 		"@melt-ui/pp": "^0.3.2",
 		"@melt-ui/svelte": "^0.86.6",

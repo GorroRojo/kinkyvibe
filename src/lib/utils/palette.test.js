@@ -53,7 +53,7 @@ describe('colores y contraste', () => {
 	it('ensureContrast ajusta la luminosidad manteniendo el color', () => {
 		const fg = ensureContrast('#f7a1dc', '#ffffff', 3);
 		expect(contrastRatio(fg, '#ffffff')).toBeGreaterThanOrEqual(3);
-		const [r, g, b] = hexToRgb(fg);
+		const [r, g] = hexToRgb(fg);
 		expect(r).toBeGreaterThan(g); // sigue siendo rosa, no gris
 		expect(ensureContrast('#ffffff', '#000000', 4.5)).toBe('#ffffff');
 		expect(contrastRatio(ensureContrast('#3a0d78', '#2b0f4e', 4.5), '#2b0f4e')).toBeGreaterThanOrEqual(4.5);

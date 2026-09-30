@@ -11,7 +11,15 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface Platform {}
+		interface Platform {
+			env: {
+				/** Base de datos D1. Puede faltar (build/prerender, o si no se vinculó en Cloudflare). */
+				DB?: import('@cloudflare/workers-types').D1Database;
+			};
+			ctx?: import('@cloudflare/workers-types').ExecutionContext;
+			caches?: import('@cloudflare/workers-types').CacheStorage;
+			cf?: import('@cloudflare/workers-types').IncomingRequestCfProperties;
+		}
 	}
 }
 
