@@ -10,7 +10,7 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
+		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js']
 	},
 	optimizeDeps: {
 		exclude: ["svelte-codemirror-editor", "codemirror", "@codemirror/lang-markdown"]

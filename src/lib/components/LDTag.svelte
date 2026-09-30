@@ -1,10 +1,11 @@
 <script context="module">
 	import '$lib/types.d.js';
+	import { jsonForScript } from '$lib/utils/escape.js';
 	/**
 	 * @param {LD.Schema} thing
 	 **/
 	function serializeSchema(thing) {
-		return `<script type="application/ld+json">${JSON.stringify(thing, null, 2)}</${''}script>`;
+		return `<script type="application/ld+json">${jsonForScript(thing, 2)}</${''}script>`;
 	}
 </script>
 
