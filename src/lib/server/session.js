@@ -7,12 +7,30 @@
  */
 
 const TTL_MS = 5 * 60 * 1000;
+/** Tokens GitHub rejected are remembered this long, so a bad cookie costs one GitHub call. */
+export const FAILED_TTL_MS = 60 * 1000;
 const MAX_ENTRIES = 200;
+const MAX_FAILED_ENTRIES = 500;
 
-/** @typedef {{ login: string, name: string|null, avatar_url: string }} SessionUser */
+/** @typedef {{ id: number, login: string, name: string|null, avatar_url: string }} SessionUser */
 
 /** @type {Map<string, { user: SessionUser, expires: number }>} */
 const cache = new Map();
+/** Hashes of tokens that failed verification, with their expiry. @type {Map<string, number>} */
+const failed = new Map();
+
+/**
+ * @template V
+ * @param {Map<string, V>} map
+ * @param {number} max
+ */
+function makeRoom(map, max) {
+	if (map.size >= max) {
+		// Drop the oldest entry (Map keeps insertion order).
+		const oldest = map.keys().next().value;
+		if (oldest !== undefined) map.delete(oldest);
+	}
+}
 
 /**
  * @param {string} token
@@ -35,27 +53,39 @@ export async function getVerifiedUser(token, fetchUser, now = Date.now()) {
 	const hit = cache.get(key);
 	if (hit && hit.expires > now) return hit.user;
 	if (hit) cache.delete(key);
+	const failedUntil = failed.get(key);
+	if (failedUntil !== undefined) {
+		if (failedUntil > now) return undefined;
+		failed.delete(key);
+	}
 
 	let ghUser;
 	try {
 		ghUser = await fetchUser(token);
 	} catch (e) {
+		// Network trouble, not a verdict on the token: don't remember it.
 		console.log('Error verifying GitHub token: ' + e);
 		return undefined;
 	}
-	if (!ghUser || typeof ghUser.login !== 'string' || ghUser.login === '') return undefined;
+	if (
+		!ghUser ||
+		typeof ghUser.login !== 'string' ||
+		ghUser.login === '' ||
+		!Number.isSafeInteger(ghUser.id)
+	) {
+		makeRoom(failed, MAX_FAILED_ENTRIES);
+		failed.set(key, now + FAILED_TTL_MS);
+		return undefined;
+	}
 
 	/** @type {SessionUser} */
 	const user = {
+		id: ghUser.id,
 		login: ghUser.login,
 		name: typeof ghUser.name === 'string' && ghUser.name !== '' ? ghUser.name : null,
 		avatar_url: typeof ghUser.avatar_url === 'string' ? ghUser.avatar_url : ''
 	};
-	if (cache.size >= MAX_ENTRIES) {
-		// Drop the oldest entry (Map keeps insertion order).
-		const oldest = cache.keys().next().value;
-		if (oldest !== undefined) cache.delete(oldest);
-	}
+	makeRoom(cache, MAX_ENTRIES);
 	cache.set(key, { user, expires: now + TTL_MS });
 	return user;
 }
@@ -71,4 +101,5 @@ export async function forgetUser(token) {
 /** For tests. */
 export function clearUserCache() {
 	cache.clear();
+	failed.clear();
 }

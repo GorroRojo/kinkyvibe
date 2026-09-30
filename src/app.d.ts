@@ -4,7 +4,13 @@ declare global {
 	namespace App {
 		interface Locals {
 			/** Verified against GitHub in hooks.server.js; never read from client cookies. */
-			user: { login: string, name: string | null, avatar_url: string } | undefined,
+			user: {
+				/** Numeric GitHub user id (what admin checks use). Always set for real sessions. */
+				id?: number,
+				login: string,
+				name: string | null,
+				avatar_url: string
+			} | undefined,
 			/** GitHub OAuth token (server-only, never return it from a load). '' when not logged in. */
 			user_token: string
 		}

@@ -1,6 +1,7 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import * as ics from 'ics';
 import { eventEnd } from '$lib/utils/dates.js';
+import { eventHtml } from './eventHtml.js';
 
 /**
  * Converts a string to an array representing the date and time.
@@ -38,7 +39,7 @@ export async function GET() {
 			title: post.meta.title,
 			url: postPath,
 			description: postPath + ' \n' + post.meta.summary,
-			htmlContent: `<!DOCTYPE html><html><body><p><a href="${postPath}">${postPath}</a></p><p>${post.meta.summary}</p></body></html>`,
+			htmlContent: eventHtml(postPath, post.meta.summary),
 			location: post.meta.location ?? postPath,
 			calName: 'KinkyVibe',
 			organizer: {
