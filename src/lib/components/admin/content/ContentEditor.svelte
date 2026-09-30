@@ -80,9 +80,8 @@
 	let f = structuredClone(initial);
 	if (isNew && data.source) f = duplicateContentForm(category, f, data.today);
 	else if (isNew) {
-		// From the template: its example values are only a guide.
-		f.values.title = '';
-		f.values.summary = '';
+		// From the template: its example values (pronouns, links, contact…) are only a guide.
+		for (const fd of fieldsFor(category)) f.values[fd.key] = fd.type === 'checkbox' ? false : '';
 		if ('published_date' in f.values) f.values.published_date = data.today;
 		f.tags = [];
 		f.authors = [];
@@ -181,9 +180,12 @@
 
 	/* ---------- result ---------- */
 	$: buildOpts = {
-		featured: isNew && data.source ? null : undefined,
+		// A new post has no image of its own until one is uploaded (the server sets `featured`).
+		featured: isNew ? null : undefined,
 		touchUpdated: isNew ? undefined : data.today,
-		forceKeys: isNew ? ['title', 'summary', 'published_date', 'tags', 'authors'] : []
+		forceKeys: isNew
+			? [...(data.fromTemplate ? fields.map((x) => x.key) : ['title', 'published_date']), 'tags', 'authors']
+			: []
 	};
 	$: content = parseError ? rawText : safeBuild(f, buildOpts);
 	/**
@@ -206,7 +208,10 @@
 				...contentProblems(category, f),
 				...(slugError ? [slugError] : []),
 				...(slugCheck && slugCheck.slug === slug && slugCheck.error ? [slugCheck.error] : []),
-				...(uploadError ? [uploadError] : [])
+				...(uploadError ? [uploadError] : []),
+				...(category === 'amigues' && isNew && !uploadName
+					? ['Subí una foto o un logo para el perfil.']
+					: [])
 			];
 	let showProblems = false;
 
@@ -784,7 +789,23 @@
 		gap: 0.4rem;
 		min-width: 0;
 	}
-	/* The public page's look (white card, site type), also in dark mode. */
+	/* The public site is light-only: its palette inside the previews, also in dark mode. */
+	.public-preview,
+	.card-preview {
+		color-scheme: light;
+		--1-light: hsl(319, 100%, 70%);
+		--2-light: hsl(262, 100%, 75%);
+		--3-light: hsl(165, 84%, 65%);
+		--4-light: hsl(50, 100%, 70%);
+		--1-dark: hsl(319, 100%, 40%);
+		--2-dark: hsl(262, 90%, 50%);
+		--3-dark: hsl(165, 84%, 30%);
+		--4-dark: hsl(50, 100%, 40%);
+		--surface: #fff;
+		--text: #2f2a33;
+		color: #2f2a33;
+	}
+	/* The public page's look (white card, site type). */
 	.public-preview {
 		background: #fff;
 		color: #2f2a33;

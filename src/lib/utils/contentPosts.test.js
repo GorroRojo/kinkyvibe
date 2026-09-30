@@ -197,6 +197,12 @@ describe('contentProblems', () => {
 		expect(p.some((x) => x.includes('mail'))).toBe(true);
 		expect(p).toContain('Poné al menos una etiqueta.');
 	});
+	it('material needs an author (its page lists them)', () => {
+		const f = readContentForm('material', MATERIAL);
+		expect(contentProblems('material', f)).toEqual([]);
+		f.authors = [];
+		expect(contentProblems('material', f)).toContain('Poné al menos une autore.');
+	});
 	it('redirect needs a link', () => {
 		const f = readContentForm('material', MATERIAL);
 		f.values.redirect = true;
@@ -219,13 +225,22 @@ describe('duplicateContentForm', () => {
 });
 
 describe('setUnlistedFlag', () => {
-	it('turns force_unlisted on and off touching nothing else', () => {
+	it('turns force_unlisted on and off changing only that line', () => {
 		const on = setUnlistedFlag(MATERIAL, true);
-		expect(on).toContain('force_unlisted: true');
-		expect(on.replace('force_unlisted: true', '#force_unlisted: false')).toBe(MATERIAL);
+		expect(on).toBe(MATERIAL.replace('#force_unlisted: false', 'force_unlisted: true'));
 		const off = setUnlistedFlag(on, false);
-		expect(off).toContain('#force_unlisted: true');
-		expect(off).not.toMatch(/^force_unlisted/m);
+		expect(off).toBe(MATERIAL.replace('#force_unlisted: false', '#force_unlisted: true'));
+		expect(setUnlistedFlag(on, true)).toBe(on);
+		expect(setUnlistedFlag(MATERIAL, false)).toBe(MATERIAL);
+	});
+	it('handles "# force_unlisted", a missing key and CRLF', () => {
+		expect(setUnlistedFlag('---\ntitle: a\n# force_unlisted: true # x #\n---\nb', true)).toBe(
+			'---\ntitle: a\nforce_unlisted: true # x #\n---\nb'
+		);
+		expect(setUnlistedFlag('---\r\ntitle: a\r\n---\r\nb', true)).toBe(
+			'---\r\ntitle: a\r\nforce_unlisted: true\r\n---\r\nb'
+		);
+		expect(() => setUnlistedFlag('sin propiedades', true)).toThrow();
 	});
 });
 

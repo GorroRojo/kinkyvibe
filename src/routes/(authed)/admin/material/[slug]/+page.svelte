@@ -7,6 +7,6 @@
 	export let form;
 </script>
 
-{#key data.slug + data.mode + (data.source?.slug ?? '')}
+{#key data.slug}
 	<ContentEditor {data} {form} />
 {/key}

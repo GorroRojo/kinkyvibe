@@ -202,7 +202,7 @@ const list = (v) =>
 
 /**
  * @typedef {object} ContentForm
- * @prop {Record<string, string|boolean>} values one per field of the category
+ * @prop {Record<string, any>} values one per field of the category (string, or boolean for checkboxes)
  * @prop {string[]} tags
  * @prop {string[]} authors
  * @prop {string} body
@@ -327,6 +327,9 @@ export function contentProblems(category, form) {
 			out.push(`«${f.label}» no parece un mail.`);
 	}
 	if (!form.tags.filter((t) => t.trim()).length) out.push('Poné al menos una etiqueta.');
+	// The material page lists its authors (and needs the list): every material post has one.
+	if (hasAuthors(category) && !form.authors.filter((x) => x.trim()).length)
+		out.push('Poné al menos une autore.');
 	if (
 		category === 'material' &&
 		form.values.redirect === true &&
@@ -357,16 +360,41 @@ export function duplicateContentForm(category, form, today) {
 }
 
 /**
- * Turns `force_unlisted` on or off in a post, touching nothing else.
+ * Turns `force_unlisted` on or off in a post changing only that line, so the commit is one line
+ * (`force_unlisted: true` <-> `#force_unlisted: true`). A post without the key gets it before the
+ * closing `---`.
  * @param {string} raw
  * @param {boolean} unlisted
  */
 export function setUnlistedFlag(raw, unlisted) {
-	const { frontmatter, body } = splitMarkdown(raw);
-	return joinMarkdown(
-		applyFrontmatterChanges(frontmatter, { force_unlisted: unlisted ? true : null }),
-		body
-	);
+	splitMarkdown(raw); // throws a readable error when there is no frontmatter
+	const lines = raw.split(/(?<=\n)/);
+	const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*(\r?\n)?$/.test(l));
+	const re = /^(#[ \t]*)?force_unlisted:[ \t]*([^#\r\n]*?)([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
+	let active = -1;
+	let commented = -1;
+	for (let i = 1; i < end; i++) {
+		const m = re.exec(lines[i]);
+		if (!m) continue;
+		if (m[1] === undefined) active = i;
+		else if (commented === -1) commented = i;
+	}
+	const eol = /\r\n$/.test(lines[0]) ? '\r\n' : '\n';
+	if (unlisted) {
+		if (active !== -1) {
+			const m = /** @type {RegExpExecArray} */ (re.exec(lines[active]));
+			if (m[2].trim() === 'true') return raw;
+			lines[active] = `force_unlisted: true${m[3] ?? ''}${m[4] ?? ''}`;
+		} else if (commented !== -1) {
+			const m = /** @type {RegExpExecArray} */ (re.exec(lines[commented]));
+			lines[commented] = `force_unlisted: true${m[3] ?? ''}${m[4] ?? ''}`;
+		} else {
+			lines.splice(end, 0, `force_unlisted: true${eol}`);
+		}
+	} else if (active !== -1) {
+		lines[active] = '#' + lines[active];
+	}
+	return lines.join('');
 }
 
 /* ------------------------------------------------------------------------------------------ */

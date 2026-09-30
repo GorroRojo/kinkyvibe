@@ -55,9 +55,9 @@ export const SECTION = Object.freeze({
 
 /**
  * @param {'material'|'amigues'} category
- * @returns {import('@sveltejs/kit').ServerLoad}
  */
 export function listLoad(category) {
+	/** @param {{locals: App.Locals, url: URL}} event */
 	return async ({ locals, url }) => {
 		requireAdmin(locals, url);
 		return { category, rows: await listContent(category), mock: isMockMode() };
@@ -132,9 +132,9 @@ export function visibilityAction(category) {
 /**
  * /admin/<category>/nuevo[?desde=slug]
  * @param {'material'|'amigues'} category
- * @returns {import('@sveltejs/kit').ServerLoad}
  */
 export function newLoad(category) {
+	/** @param {{locals: App.Locals, url: URL}} event */
 	return async ({ locals, url }) => {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
@@ -180,9 +180,9 @@ export function newLoad(category) {
 /**
  * /admin/<category>/[slug]
  * @param {'material'|'amigues'} category
- * @returns {import('@sveltejs/kit').ServerLoad}
  */
 export function editLoad(category) {
+	/** @param {{locals: App.Locals, url: URL, params: Record<string, string>}} event */
 	return async ({ locals, url, params }) => {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
