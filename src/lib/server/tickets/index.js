@@ -35,6 +35,7 @@ import {
 } from './settings.js';
 import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
 import { confirmUrl } from './safeguards.js';
+import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -561,6 +562,51 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				to: order.buyer_email,
 				message,
 				idempotencyKey: `reminder-${order.id}-${reminderId(reminder)}`
+			});
+			return result !== 'failed';
+		}
+	});
+}
+
+/**
+ * "Mail a compradores": manda una tanda de un envío (ver buyerMail.js) por `deliver()`, así que
+ * en un preview solo llega a EMAIL_ALLOWLIST. Idempotente por envío y por persona (también del
+ * lado de Resend, con una clave por envío y email).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   send: import('./buyerMail.js').BuyerMailSend,
+ *   fetch: typeof fetch,
+ *   limit?: number
+ * }} input
+ */
+export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit }) {
+	const config = await getEventTickets(send.event_slug);
+	const event = { title: config?.title || send.event_slug, start: config?.start };
+	return sendBuyerMailBatch(db, {
+		send,
+		limit,
+		deliver: async (recipient) => {
+			const message = buildBuyerMail({
+				subject: send.subject,
+				body: send.body,
+				buyerName: recipient.name,
+				event,
+				contactEmail: contactEmail()
+			});
+			const digest = await crypto.subtle.digest(
+				'SHA-256',
+				new TextEncoder().encode(recipient.email)
+			);
+			const who = Array.from(new Uint8Array(digest).slice(0, 8), (b) =>
+				b.toString(16).padStart(2, '0')
+			).join('');
+			const result = await deliver({
+				db,
+				fetch: fetchFn,
+				to: recipient.email,
+				message,
+				idempotencyKey: `buyer-mail-${send.id}-${who}`
 			});
 			return result !== 'failed';
 		}
