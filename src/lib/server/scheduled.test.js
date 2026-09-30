@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
-import { BACKUP_CRON, REMINDERS_CRON, handleScheduled, runReminders } from './scheduled.js';
+import { createTestDB } from './db/testing.js';
+import { saveObject } from './objects/save.js';
+import {
+	BACKUP_CRON,
+	REMINDERS_CRON,
+	handleScheduled,
+	runObjectsIntegrity,
+	runReminders
+} from './scheduled.js';
 
 const ctx = /** @type {any} */ ({ waitUntil() {}, passThroughOnException() {} });
 
@@ -66,6 +74,45 @@ describe('backup', () => {
 		).rejects.toThrow(/DB/);
 		expect(appFetch).not.toHaveBeenCalled();
 	});
+});
+
+describe('integridad de objetos (después del backup)', () => {
+	it('sin problemas: no falla; con problemas: falla con la cantidad, sin datos de nadie', async () => {
+		const t = await createTestDB();
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			await saveObject(
+				t.db,
+				{ type: 'lugar', title: 'Salón Inventado' },
+				{ actor: 'admin-inventade' }
+			);
+			expect(await runObjectsIntegrity({ DB: t.db })).toEqual([]);
+
+			// Un índice de búsqueda desincronizado (algo que escribió por fuera de saveObject).
+			await t.db
+				.prepare("INSERT INTO objects_fts (rowid, title, search_text) VALUES (777, 'x', '')")
+				.run();
+			await expect(runObjectsIntegrity({ DB: t.db })).rejects.toThrow(/1 problema/);
+			expect(error).toHaveBeenCalledWith(expect.stringContaining('[fts_out_of_sync]'));
+		} finally {
+			log.mockRestore();
+			error.mockRestore();
+			await t.dispose();
+		}
+	}, 30_000);
+
+	it('si la base todavía no tiene la migración 0012, no hace nada', async () => {
+		const t = await createTestDB({ migrate: false });
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		try {
+			expect(await runObjectsIntegrity({ DB: t.db })).toEqual([]);
+			expect(log).toHaveBeenCalledWith(expect.stringContaining('0012'));
+		} finally {
+			log.mockRestore();
+			await t.dispose();
+		}
+	}, 30_000);
 });
 
 describe('cron desconocido', () => {

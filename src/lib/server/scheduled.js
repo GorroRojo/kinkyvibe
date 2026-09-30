@@ -6,6 +6,7 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
+import { checkObjectsIntegrity, hasObjectsSchema } from './objects/integrity.js';
 
 /** Recordatorios de entradas: cada 15 minutos (UTC). */
 export const REMINDERS_CRON = '*/15 * * * *';
@@ -77,6 +78,37 @@ export async function runBackup(env, now) {
 	return result;
 }
 
+/** Cuántos problemas de integridad se escriben en el log, como mucho. */
+const MAX_LOGGED_PROBLEMS = 50;
+
+/**
+ * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js), después
+ * del backup. Si encuentra problemas los escribe en el log (ids y códigos, sin datos) y falla,
+ * para que la corrida quede marcada como error en Cloudflare. No arregla nada solo.
+ *
+ * @param {ScheduledEnv} env
+ */
+export async function runObjectsIntegrity(env) {
+	if (!env.DB) throw new Error('integridad: falta el binding DB');
+	if (!(await hasObjectsSchema(env.DB))) {
+		console.log(
+			'integridad de objetos: la base todavía no tiene la migración 0012; nada que revisar'
+		);
+		return [];
+	}
+	const problems = await checkObjectsIntegrity(env.DB);
+	if (!problems.length) {
+		console.log('integridad de objetos: sin problemas');
+		return problems;
+	}
+	for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
+		console.error(`integridad de objetos: [${p.code}] ${p.message}`);
+	}
+	throw new Error(
+		`integridad de objetos: ${problems.length} problema(s); el backup sí se hizo. Ver docs/objetos.md («Chequeo nocturno»).`
+	);
+}
+
 /**
  * El handler `scheduled()`: elige la tarea según el cron que disparó.
  *
@@ -89,8 +121,12 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 	switch (controller.cron) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
-		case BACKUP_CRON:
-			return runBackup(env, new Date(controller.scheduledTime));
+		case BACKUP_CRON: {
+			// Primero el backup: si el chequeo encuentra problemas, el backup ya quedó guardado.
+			const backup = await runBackup(env, new Date(controller.scheduledTime));
+			await runObjectsIntegrity(env);
+			return backup;
+		}
 		default:
 			throw new Error(`cron desconocido: ${controller.cron}`);
 	}
