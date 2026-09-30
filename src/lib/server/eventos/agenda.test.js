@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { gitBlobSha, saveAgendaRow } from './agenda.js';
+import { gitBlobSha, publishNote, saveAgendaRow } from './agenda.js';
 import { FileChangedError } from './github.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
 
@@ -148,5 +148,20 @@ describe('saveAgendaRow', () => {
 		expect(r.ok).toBe(true);
 		const bad = await save({ after: { ...BEFORE, place: '' } });
 		expect(bad.status).toBe(400);
+	});
+});
+
+describe('publishNote', () => {
+	const pr = { number: 7, url: 'u', branch: 'b', stacked: false };
+	it('avisa que se publica cuando pasen las pruebas', () => {
+		expect(publishNote({ ...pr, state: 'auto' })).toBe(
+			' Se publica cuando pasen las pruebas (PR #7).'
+		);
+		expect(publishNote({ ...pr, state: 'merged' })).toBe(' Publicado (PR #7).');
+		expect(publishNote({ ...pr, state: 'open', problem: 'sin permiso' })).toBe(
+			' Quedó en el PR #7 sin publicarse solo: sin permiso.'
+		);
+		// dev:admin / demo: sin PR
+		expect(publishNote(undefined)).toBe('');
 	});
 });

@@ -30,6 +30,7 @@
 		ChevronRight,
 		FilePen,
 		FileSpreadsheet,
+		GitPullRequest,
 		ImageOff,
 		Link,
 		Mail,
@@ -49,7 +50,8 @@
 		link: Link,
 		bell: Bell,
 		image: ImageOff,
-		draft: FilePen
+		draft: FilePen,
+		pr: GitPullRequest
 	});
 
 	$: user = data.user;

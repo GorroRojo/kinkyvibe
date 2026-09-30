@@ -62,9 +62,14 @@ describe('post editor input validation', () => {
 	});
 
 	it('a valid post is fetched from the site repo', async () => {
-		const fetchMock = vi.fn(
-			async () =>
-				new Response(JSON.stringify({ content: btoa('hola'), encoding: 'base64', sha: 's' }))
+		// The editor reads the newest saved version: first the open content PRs (none here), then
+		// the file on main.
+		const fetchMock = vi.fn(async (/** @type {string} */ u) =>
+			u.includes('/pulls?')
+				? new Response('[]')
+				: new Response(
+						JSON.stringify({ type: 'file', content: btoa('hola'), encoding: 'base64', sha: 's' })
+					)
 		);
 		vi.stubGlobal('fetch', fetchMock);
 		const body = new FormData();
@@ -78,8 +83,9 @@ describe('post editor input validation', () => {
 			await actions.load(/** @type {any} */ ({ locals, url, request }))
 		);
 		expect(r.post.raw).toBe('hola');
-		expect(/** @type {any} */ (fetchMock.mock.calls[0])[0]).toBe(
-			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/calendario/fiesta.md'
+		expect(r.post.sha).toBe('s');
+		expect(fetchMock.mock.calls.map((c) => /** @type {any} */ (c)[0])).toContain(
+			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/calendario/fiesta.md?ref=main'
 		);
 	});
 });
