@@ -257,7 +257,6 @@
 		border-radius: var(--round-pill);
 		font-weight: 700;
 		white-space: nowrap;
-		box-shadow: 0 0.12em 0 color-mix(in srgb, var(--post-color) 70%, black);
 		&:hover {
 			color: white;
 			filter: brightness(0.92);
@@ -282,7 +281,7 @@
 		padding-right: 1em;
 		list-style: none;
 		background: var(--surface);
-		border-radius: calc(var(--round) * 1.5);
+		border-radius: 2em;
 		box-shadow: var(--shadow);
 		/* overflow: hidden; */
 		&.mark {
@@ -375,7 +374,7 @@
 		padding-inline: 1.5em;
 		color: white;
 		font-size: var(--step--1);
-		border-radius: calc(var(--round) * 1.5) calc(var(--round) * 1.5) 0 0;
+		border-radius: 2em 2em 0 0;
 		--translate: 0 0.1em;
 		& > * {
 			min-height: 0;

@@ -27,8 +27,9 @@
 
 	--round: 1rem;
 
-	/** Shared UI tokens (same visual language as the approved admin panel mockup).
-	    Use these instead of hand-picked greys, shadows and radii. **/
+	/** Shared UI tokens, taken from what the public site already uses most (white rounded
+	    cards on #eee, pill buttons, soft shadow). Use these instead of hand-picked greys,
+	    shadows and radii. **/
 	/* pale tints, for chip/notice backgrounds (dark text on top) */
 	--1-tint: hsl(319, 100%, 95%);
 	--2-tint: hsl(262, 100%, 96%);
@@ -44,8 +45,8 @@
 	--muted: #625b68;
 	--line: #e4e0e8;
 	--hover: #f6f3f9;
-	--shadow: 0 0.1em 0.35em rgba(40, 20, 50, 0.1);
-	--shadow-lift: 0 0.4em 1.2em rgba(40, 20, 50, 0.14);
+	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+	--shadow-lift: 0.6em 0.6em 1em rgba(0, 0, 0, 0.1);
 	--round-sm: 0.6rem;
 	--round-pill: 2em;
 	--focus-ring: 2px solid var(--2-dark);
@@ -121,7 +122,8 @@ textarea {
 	outline-offset: 2px;
 }
 
-/** Buttons: pink pill (main action) and white pill (secondary), as in the admin panel.
+/** Buttons: pink pill (main action, like the post CTAs) and white pill with a violet border
+    (secondary, like "Compartir").
     Usable on <a> and <button>: <a class="pill-btn">, <button class="pill-btn ghost">. **/
 .pill-btn {
 	display: inline-flex;
@@ -134,30 +136,23 @@ textarea {
 	border-radius: var(--round-pill);
 	background: var(--1);
 	color: white;
+	font-size: inherit;
 	font-weight: 700;
 	line-height: 1.2;
 	text-align: center;
 	text-decoration: none;
-	box-shadow: 0 0.15em 0 var(--1-dark);
 	cursor: pointer;
-	transition:
-		background 150ms,
-		transform 100ms;
+	transition: background 150ms;
 	&:hover {
 		background: var(--1-dark);
 		color: white;
 	}
-	&:active {
-		transform: translateY(0.1em);
-		box-shadow: 0 0.05em 0 var(--1-dark);
-	}
 	&.ghost {
 		background: var(--surface);
 		color: var(--2-dark);
-		border: 1px solid var(--line);
-		box-shadow: var(--shadow);
+		border: 2px solid var(--2);
 		&:hover {
-			background: var(--hover);
+			background: var(--2-tint);
 			color: var(--2-dark);
 		}
 	}
@@ -165,7 +160,6 @@ textarea {
 	&[aria-disabled='true'] {
 		opacity: 0.55;
 		cursor: not-allowed;
-		transform: none;
 	}
 }
 
@@ -485,13 +479,11 @@ article.wiki {
 		text-decoration: none;
 		margin-block: 2em;
 		transition: 200ms;
-		box-shadow: 0 0.15em 0 var(--1-dark);
+		box-shadow: 0 0 0 0;
 		&:hover {
 			scale: 1.05;
 			color: white;
-			box-shadow:
-				0 0.15em 0 var(--1-dark),
-				var(--shadow-lift);
+			box-shadow: var(--shadow-lift);
 		}
 	}
 }
