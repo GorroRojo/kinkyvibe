@@ -2,7 +2,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	EMAIL_GRACE_MS,
+	agendaItems,
 	arDay,
+	arTime,
+	dayLabel,
+	eventSalesTrend,
+	expiringTransfers,
+	salesFocus,
+	salesSummary,
 	arMonthWindow,
 	checkinTotals,
 	failedReminders,
@@ -471,5 +478,280 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(items[0]).toMatchObject({ href: '/t/hoy', text: 'Hoy · la más vieja vence en 1 h' });
 		expect(items[2]).toMatchObject({ action: 'Reenviar', resend: { orderId: 'o1' } });
 		expect(items[1].title).toContain('duplicado');
+	});
+});
+
+describe('columna de la derecha: agenda, ventas y actividad', () => {
+	it('dayLabel y arTime (hora de Argentina)', () => {
+		expect(dayLabel('2026-09-30', '2026-09-30')).toBe('Hoy');
+		expect(dayLabel('2026-10-01', '2026-09-30')).toBe('Mañana');
+		expect(dayLabel('2026-09-29', '2026-09-30')).toBe('Ayer');
+		expect(dayLabel('2026-10-02', '2026-09-30')).toBe('vie 2/10');
+		expect(dayLabel('2026-10-04', '2026-09-30')).toBe('dom 4/10');
+		expect(arTime(ar('2026-09-30T21:05'))).toBe('21:05');
+		expect(arTime(ar('2026-10-01T00:00'))).toBe('0:00');
+	});
+
+	it('sin base: vacío', async () => {
+		expect(await expiringTransfers(null, NOW, NOW + HOUR)).toEqual([]);
+		expect(await eventSalesTrend(null, 'x', NOW)).toBe(null);
+	});
+
+	it('expiringTransfers agrupa por evento y día, solo las vigentes dentro de la ventana', async () => {
+		const transfer = { status: 'awaiting_transfer', method: 'transferencia', created: NOW - HOUR };
+		await insertOrder(t.db, { ...transfer, slug: 'a', expires: ar('2026-09-30T18:00') });
+		await insertOrder(t.db, { ...transfer, slug: 'a', expires: ar('2026-09-30T23:30') });
+		// 00:30 del 1/10 en Argentina (03:30 UTC): otro día.
+		await insertOrder(t.db, { ...transfer, slug: 'a', expires: ar('2026-10-01T00:30') });
+		await insertOrder(t.db, { ...transfer, slug: 'b', expires: ar('2026-09-30T20:00') });
+		await insertOrder(t.db, { ...transfer, slug: 'a', expires: NOW - 60_000 }); // vencida
+		await insertOrder(t.db, { ...transfer, slug: 'a', expires: ar('2026-10-09T12:00') }); // afuera
+		await insertOrder(t.db, { slug: 'a', expires: ar('2026-09-30T19:00') }); // aprobada
+		const rows = await expiringTransfers(t.db, NOW, ar('2026-10-07T00:00'));
+		expect(rows).toEqual([
+			{ slug: 'a', day: '2026-09-30', count: 2, first: ar('2026-09-30T18:00') },
+			{ slug: 'b', day: '2026-09-30', count: 1, first: ar('2026-09-30T20:00') },
+			{ slug: 'a', day: '2026-10-01', count: 1, first: ar('2026-10-01T00:30') }
+		]);
+	});
+
+	/** @type {any[]} */
+	const agendaEvents = [
+		{ slug: 'ayer', title: 'Ayer', start: '2026-09-29T21:00-03:00', status: 'abierto' },
+		{ slug: 'manana', title: 'Temprano', start: '2026-09-30T10:00-03:00', status: 'abierto' },
+		{
+			slug: 'noche',
+			title: 'Noche',
+			start: '2026-09-30T22:00-03:00',
+			location: 'Lugar',
+			status: 'abierto'
+		},
+		{ slug: 'viernes', title: 'Viernes', start: '2026-10-02T21:00-03:00', status: 'abierto' },
+		{ slug: 'cancelado', title: 'Cancelado', start: '2026-10-03T21:00-03:00', status: 'abierto' },
+		{ slug: 'lejos', title: 'Lejos', start: '2026-10-07T21:00-03:00', status: 'abierto' },
+		{ slug: 'oculto', title: 'Oculto', start: '2026-10-01T21:00-03:00', unpublished: true },
+		{ slug: 'prueba-x', title: 'Prueba', start: '2026-10-01T21:00-03:00', status: 'abierto' }
+	].map((e) => ({ location: '', unlisted: false, unpublished: false, ...e }));
+	/** @param {any} o @returns {any} */
+	const tconfig = (o) => ({
+		types: [],
+		opensAt: null,
+		closesAt: null,
+		online: false,
+		reminders: true,
+		status: 'abierto',
+		...o
+	});
+	const links = {
+		event: (/** @type {string} */ s) => `/ev/${s}`,
+		orders: (/** @type {string} */ s) => `/o/${s}`,
+		transfers: (/** @type {string} */ s) => `/t/${s}`,
+		reminders: '/ajustes'
+	};
+
+	it('agendaItems: 7 días desde hoy, por día, con cierres, transferencias y recordatorios', () => {
+		const days = agendaItems({
+			events: agendaEvents,
+			ticketed: new Map([
+				[
+					'noche',
+					tconfig({
+						closesAt: ar('2026-09-30T22:00'), // cierra al empezar: no se repite
+						types: [
+							{
+								id: 'anticipada',
+								name: 'Anticipada',
+								capacity: 10,
+								closesAt: ar('2026-09-30T18:00')
+							},
+							{ id: 'general', name: 'General', capacity: null, closesAt: null }
+						]
+					})
+				],
+				[
+					'viernes',
+					tconfig({
+						opensAt: ar('2026-10-01T12:00'),
+						closesAt: ar('2026-10-02T18:00'),
+						online: true
+					})
+				],
+				['cancelado', tconfig({ status: 'cancelado', closesAt: ar('2026-10-03T12:00') })]
+			]),
+			transfers: [
+				{ slug: 'noche', count: 2, first: ar('2026-09-30T15:00') },
+				{ slug: 'noche', count: 1, first: ar('2026-10-09T15:00') }
+			],
+			reminders: [
+				{ kind: 'hours_before', hours: 48, enabled: true },
+				{ kind: 'day_at', days: 0, time: '09:00', enabled: true },
+				{ kind: 'hours_before', hours: 3, enabled: false }
+			],
+			now: NOW,
+			skip: (s) => s.startsWith('prueba-'),
+			links
+		});
+		expect(days.map((d) => [d.label, d.items.map((i) => i.id)])).toEqual([
+			[
+				'Hoy',
+				[
+					'reminder-noche-d0-0900',
+					'event-manana',
+					'transfers-noche-2026-09-30',
+					'type-noche-anticipada',
+					// 48 h antes del viernes a las 21:00.
+					'reminder-viernes-h48',
+					'event-noche'
+				]
+			],
+			['Mañana', ['open-viernes']],
+			['vie 2/10', ['reminder-viernes-d0-0900', 'close-viernes', 'event-viernes']],
+			['sáb 3/10', ['event-cancelado']]
+		]);
+		const today = days[0].items;
+		// Lo de hoy que ya pasó queda marcado; el recordatorio de 48 h de "noche" salió antes de hoy.
+		expect(today.find((i) => i.id === 'event-manana')).toMatchObject({
+			past: true,
+			time: '10:00'
+		});
+		expect(today.find((i) => i.id === 'event-noche')).toMatchObject({
+			past: false,
+			time: '22:00',
+			text: 'Lugar',
+			href: '/ev/noche'
+		});
+		expect(today.find((i) => i.kind === 'transfers')).toMatchObject({
+			title: 'Vencen 2 transferencias',
+			text: 'Noche · sin confirmar',
+			href: '/t/noche'
+		});
+		expect(today.find((i) => i.kind === 'type-close')).toMatchObject({
+			title: 'Cierra «Anticipada»: Noche',
+			href: '/o/noche'
+		});
+		expect(days[2].items.find((i) => i.kind === 'event')?.text).toBe('Online');
+		expect(days[2].items[0]).toMatchObject({ href: '/ajustes', text: 'el mismo día a las 9:00' });
+		// Cancelado: aparece el evento (marcado) pero no su cierre de venta ni recordatorios.
+		expect(days[3].items[0].text).toBe('Cancelado');
+	});
+
+	it('agendaItems sin nada en la semana: vacío', () => {
+		expect(agendaItems({ events: [], ticketed: new Map(), now: NOW, links })).toEqual([]);
+	});
+
+	it('eventSalesTrend: entradas aprobadas por día (7 días hasta hoy) y online/puerta', async () => {
+		await insertOrder(t.db, { slug: 'a', quantity: 2, created: ar('2026-09-30T00:10') });
+		await insertOrder(t.db, { slug: 'a', quantity: 1, created: ar('2026-09-30T11:00') });
+		await insertOrder(t.db, { slug: 'a', quantity: 3, created: ar('2026-09-29T23:59') });
+		await insertOrder(t.db, { slug: 'a', quantity: 4, created: ar('2026-09-24T00:00') });
+		await insertOrder(t.db, { slug: 'a', quantity: 9, created: ar('2026-09-23T23:59') }); // antes
+		await insertOrder(t.db, { slug: 'a', status: 'pending', created: ar('2026-09-30T11:00') });
+		await insertOrder(t.db, { slug: 'b', quantity: 5, created: ar('2026-09-30T11:00') });
+		const trend = await eventSalesTrend(t.db, 'a', NOW);
+		expect(trend?.days).toEqual([
+			{ day: '2026-09-24', count: 4 },
+			{ day: '2026-09-25', count: 0 },
+			{ day: '2026-09-26', count: 0 },
+			{ day: '2026-09-27', count: 0 },
+			{ day: '2026-09-28', count: 0 },
+			{ day: '2026-09-29', count: 3 },
+			{ day: '2026-09-30', count: 3 }
+		]);
+		// Sin la columna `channel` (llega con el modo puerta) todo cuenta como online.
+		expect(trend).toMatchObject({ online: 19, door: 0 });
+	});
+
+	/** @param {any} o @returns {any} */
+	const up = (o) => ({
+		ticketed: true,
+		draft: false,
+		status: 'abierto',
+		today: false,
+		sold: 0,
+		day: '2026-10-02',
+		start: '2026-10-02T21:00-03:00',
+		...o
+	});
+
+	it('salesFocus: de hoy, el que más vendió; si no hay de hoy, el próximo con entradas', () => {
+		const a = up({ slug: 'a', title: 'A', today: true, sold: 2 });
+		const b = up({ slug: 'b', title: 'B', today: true, sold: 9 });
+		const c = up({ slug: 'c', title: 'C' });
+		expect(salesFocus([a, b, c])).toEqual({ event: b, others: [{ slug: 'a', title: 'A' }] });
+		const cancelled = up({ slug: 'x', today: true, sold: 50, status: 'cancelado' });
+		const draft = up({ slug: 'y', draft: true });
+		const free = up({ slug: 'z', ticketed: false });
+		expect(salesFocus([cancelled, draft, free, c])).toEqual({ event: c, others: [] });
+		expect(salesFocus([free])).toBe(null);
+	});
+
+	it('salesSummary: por tipo con cupo, sin cupo, sobrevendido y cerrado', () => {
+		const event = up({ slug: 'a', title: 'A', capacity: null, sold: 15 });
+		const s = salesSummary({
+			focus: { event, others: [] },
+			config: tconfig({
+				types: [
+					{ id: 'anticipada', name: 'Anticipada', capacity: 5, closesAt: NOW - HOUR },
+					{ id: 'general', name: 'General', capacity: null, closesAt: null },
+					{ id: 'vip', name: 'VIP', capacity: 0 }
+				]
+			}),
+			totals: new Map([
+				[
+					'a',
+					new Map([
+						['anticipada', { sold: 7, held: 0, revenue: 0, fondo: 0, contribution: 0 }],
+						['general', { sold: 8, held: 2, revenue: 0, fondo: 0, contribution: 0 }]
+					])
+				]
+			]),
+			trend: { days: [{ day: '2026-09-30', count: 3 }], online: 3, door: 0 },
+			now: NOW
+		});
+		expect(s.when).toBe('vie 2/10 · 21:00');
+		expect(s.types).toEqual([
+			{
+				id: 'anticipada',
+				name: 'Anticipada',
+				sold: 7,
+				held: 0,
+				capacity: 5,
+				over: 2,
+				closed: true
+			},
+			{ id: 'general', name: 'General', sold: 8, held: 2, capacity: null, over: 0, closed: false },
+			{ id: 'vip', name: 'VIP', sold: 0, held: 0, capacity: 0, over: 0, closed: false }
+		]);
+		expect(s.trend?.days).toEqual([{ day: '2026-09-30', count: 3, label: 'Hoy' }]);
+	});
+
+	it('recentActivity junta los ingresos en la puerta por evento y media hora', async () => {
+		const o = await insertOrder(t.db, { slug: 'a', quantity: 4, created: NOW - 5 * HOUR });
+		await insertTicket(t.db, { orderId: o, slug: 'a', checkedInAt: ar('2026-09-30T11:05') });
+		await insertTicket(t.db, { orderId: o, slug: 'a', checkedInAt: ar('2026-09-30T11:20') });
+		await insertTicket(t.db, { orderId: o, slug: 'a', checkedInAt: ar('2026-09-30T11:40') });
+		await insertTicket(t.db, { orderId: o, slug: 'a' }); // no entró
+		const items = await recentActivity(t.db, { titles: new Map([['a', 'Evento A']]) });
+		expect(items.filter((i) => i.kind === 'checkin')).toEqual([
+			{
+				at: ar('2026-09-30T11:40'),
+				kind: 'checkin',
+				title: '1 ingreso en la puerta',
+				who: 'Evento A',
+				detail: '11:40',
+				slug: 'a',
+				orderId: null
+			},
+			{
+				at: ar('2026-09-30T11:20'),
+				kind: 'checkin',
+				title: '2 ingresos en la puerta',
+				who: 'Evento A',
+				detail: '11:05 a 11:20',
+				slug: 'a',
+				orderId: null
+			}
+		]);
+		expect(items.at(-1)?.kind).toBe('order');
 	});
 });
