@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+import { base64ToUtf8 } from '$lib/utils/base64.js';
 import { error, fail } from '@sveltejs/kit';
 import { ghGet, ghPut } from '$lib/external/github.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
@@ -179,14 +179,6 @@ export const _editActions = {
 		} catch (e) {
 			return fail(502, { error: 'No pudimos consultar GitHub.' });
 		}
-	},
-	load: async ({ locals, request, url }) => {
-		requireAdmin(locals, url);
-		const data = await request.formData();
-		const path = postFilePath(data.get('category'), data.get('path'));
-		if (!path) return fail(400, { error: 'Dirección de publicación inválida.' });
-		const fileContent = await getFileContent(locals.user_token, path);
-		return { post: fileContent };
 	}
 };
 /**
@@ -205,7 +197,11 @@ async function getFileContent(token, path) {
 	}
 	let fileContent = await ghGet('repos/GorroRojo/kinkyvibe/contents/' + path, token);
 	if (!fileContent) throw error(404, 'No se encontró la publicación');
-	let raw = Buffer.from(fileContent.content, fileContent.encoding).toString();
+	// Files over 1 MB come with encoding "none" and no content: fail instead of showing ''.
+	if (fileContent.encoding !== 'base64') {
+		throw error(502, 'GitHub no devolvió el contenido de la publicación.');
+	}
+	let raw = base64ToUtf8(fileContent.content);
 	return { raw, ...fileContent };
 }
 
