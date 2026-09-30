@@ -1448,7 +1448,6 @@
 		background: var(--accent);
 		color: #fff;
 		cursor: pointer;
-		box-shadow: 0 0.15em 0 var(--accent-dark);
 	}
 	.primary:disabled {
 		opacity: 0.6;

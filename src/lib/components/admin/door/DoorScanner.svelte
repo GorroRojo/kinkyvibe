@@ -281,7 +281,6 @@
 		font-weight: 700;
 		font-size: 1.1rem;
 		cursor: pointer;
-		box-shadow: 0 0.15em 0 var(--accent-dark, hsl(319, 100%, 35%));
 	}
 	.problem {
 		position: relative;

@@ -164,49 +164,67 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	expect(csv).toContain(`"${buyer.dni}"`);
 	for (const p of people) expect(csv).toContain(`"${p.name}"`);
 
-	await page.goto(`/admin/entradas/${EVENT}/ingreso`);
+	// Modo puerta: "Escribir código" abre una hoja con el campo y "Validar".
+	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	/** @param {string} value */
+	const validate = async (value) => {
+		await page.getByRole('button', { name: 'Escribir código' }).click();
+		await page.getByLabel(/Código de la entrada/).fill(value);
+		await page.getByRole('button', { name: 'Validar' }).click();
+	};
+	const result = page.locator('.result');
 	// El código corto (en minúsculas, con "KV-" y un espacio: se normaliza) sirve igual que el QR.
-	await page.getByLabel(/Código de la entrada/).fill(`kv-${shownCode.toLowerCase()}`);
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('✅ Adelante')).toBeVisible();
-	await expect(page.locator('.result')).toContainText(people[1].name);
-	await expect(page.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
+	await validate(`kv-${shownCode.toLowerCase()}`);
+	await expect(result).toContainText('Adelante');
+	await expect(result).toContainText(people[1].name);
+	await expect(result).toContainText(buyer.email);
+	// DNI parcial (últimos 3); al tocarlo se ve completo (y queda en el registro de actividad).
+	await expect(result).toContainText(`DNI •••.${buyer.dni.slice(-3)}`);
+	await expect(result).not.toContainText(dotted(buyer.dni));
+	await result.getByRole('button', { name: /DNI •••/ }).click();
+	await expect(result).toContainText(`DNI ${dotted(buyer.dni)}`);
+	// Tocar el resultado abre la compra completa, con todas sus entradas.
+	await result.getByRole('button', { name: /Ver compra/ }).click();
+	const sheet = page.getByRole('dialog', { name: /Compra KV-/ });
+	for (const p of people) await expect(sheet).toContainText(p.name);
+	await sheet.getByRole('button', { name: 'Cerrar' }).click();
 
-	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('⚠️ Ya ingresó')).toBeVisible();
+	await validate(ticketUrl);
+	await expect(result).toContainText('Ya ingresó');
 
-	await page.getByLabel(/Código de la entrada/).fill('A'.repeat(43));
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('❌ QR inválido')).toBeVisible();
+	await validate('A'.repeat(43));
+	await expect(result).toContainText('QR inválido');
 
-	// Búsqueda manual por DNI de quien compró: aparecen sus 3 entradas.
+	// "Buscar persona": por DNI de quien compró aparecen sus 3 entradas (el DNI, parcial).
+	await page.getByRole('button', { name: 'Buscar persona' }).click();
 	const search = page.getByRole('combobox', { name: 'Buscar entrada' });
-	await search.fill(buyer.dni);
-	await page.getByRole('button', { name: 'Buscar' }).click();
-	await expect(page.locator('.results li')).toHaveCount(3);
+	const listbox = page.getByRole('listbox', { name: 'Sugerencias' });
+	await search.pressSequentially(buyer.dni, { delay: 20 });
+	await expect(listbox.getByRole('option')).toHaveCount(3);
+	await expect(listbox).not.toContainText(dotted(buyer.dni));
 
 	// Autocompletar: sin tildes ("acompanante" encuentra "Acompañante"), dice con qué coincidió,
-	// y se elige con el teclado.
+	// y se elige con el teclado: marca el ingreso de esa persona.
 	await search.fill('');
 	await search.pressSequentially(`acompanante ${people[2].name.split(' ')[1].toLowerCase()}`, {
 		delay: 20
 	});
-	const listbox = page.getByRole('listbox', { name: 'Sugerencias' });
-	await expect(listbox).toBeVisible();
 	const option = listbox.getByRole('option', { name: new RegExp(people[2].name) });
 	await expect(option).toContainText('coincide con nombre de la entrada');
 	await shots(page, '08-checkin-autocompletar', undefined, { fullPage: false });
 	await search.press('ArrowDown');
 	await expect(search).toHaveAttribute('aria-activedescendant', 'sugerencia-0');
 	await search.press('Enter');
-	await expect(page).toHaveURL(/\?q=[A-Z0-9]{6}$/);
-	await expect(page.locator('.results li')).toHaveCount(1);
-	await expect(page.locator('.results li')).toContainText(people[2].name);
-	// Por email de quien compró (parte del medio) y por pronombres.
-	await search.fill('');
+	await expect(result).toContainText('Adelante');
+	await expect(result).toContainText(people[2].name);
+	// Por email de quien compró (parte del medio).
+	await page.getByRole('button', { name: 'Buscar persona' }).click();
 	await search.pressSequentially(buyer.email.split('@')[0], { delay: 20 });
 	await expect(listbox.getByRole('option').first()).toContainText('coincide con email');
+	await page
+		.getByRole('dialog', { name: 'Buscar persona' })
+		.getByRole('button', { name: 'Cerrar' })
+		.click();
 
 	// La entrada ahora figura como usada.
 	await page.goto(ticketUrl);
@@ -752,8 +770,9 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 
 	await page.goto(ticketUrl);
 	await expect(page.getByText('Reembolsada (ya no es válida)')).toBeVisible();
-	await page.goto(`/admin/entradas/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	await page.getByRole('button', { name: 'Escribir código' }).click();
 	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
 	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('❌ Entrada anulada')).toBeVisible();
+	await expect(page.locator('.result')).toContainText('Anulada');
 });
