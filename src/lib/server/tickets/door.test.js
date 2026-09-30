@@ -5,6 +5,7 @@ import {
 	applyQueuedCheckIns,
 	checkinGroup,
 	dniTail,
+	doorSalesOpen,
 	doorCounts,
 	offlineList,
 	orderRef,
@@ -17,6 +18,7 @@ import {
 	ticketWithBuyer
 } from './door.js';
 import { checkIn, normalizeTicketCode, reserveOrder, tokenByCode } from './orders.js';
+import { parseTicketConfig } from './config.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -170,6 +172,38 @@ describe('sellAtDoor', () => {
 			fondo_option: 'gorra'
 		});
 		await expect(sell({ type: gorra, unitPrice: -1 })).rejects.toThrow(/Precio/);
+	});
+
+	it('puerta: sin la clave y con true vende; con false no (sin tocar la base)', async () => {
+		const door = (/** @type {Record<string, any>} */ meta) =>
+			/** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+				parseTicketConfig({ start: '2026-10-02T21:00-03:00', tickets: [GENERAL], ...meta })
+			).door;
+		// Sin `puerta` (eventos de antes) y con `puerta: true`: se vende.
+		expect(doorSalesOpen({ door: door({}) })).toBe(true);
+		expect(doorSalesOpen({ door: door({ puerta: true }) })).toBe(true);
+		expect((await sell({ door: door({}) })).ok).toBe(true);
+		expect((await sell({ door: door({ puerta: true }) })).ok).toBe(true);
+		// Sin `door` en la llamada: como sin la clave.
+		expect((await sell()).ok).toBe(true);
+		await resetDB(t.db);
+		// `puerta: false`: no.
+		expect(doorSalesOpen({ door: door({ puerta: false }) })).toBe(false);
+		expect(await sell({ door: door({ puerta: false }) })).toEqual({ ok: false, reason: 'no-door' });
+		// Sin tocar la base: ninguna orden ni entrada.
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first()).toMatchObject({ n: 0 });
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM tickets').first()).toMatchObject({ n: 0 });
+	});
+
+	it('un tipo sin cupo (capacity null) vende sin límite', async () => {
+		const libre = { ...GENERAL, id: 'libre', capacity: null };
+		for (let i = 0; i < 3; i++) expect((await sell({ type: libre, quantity: 5 })).ok).toBe(true);
+		const sold = await t.db
+			.prepare("SELECT COALESCE(SUM(quantity), 0) AS n FROM orders WHERE ticket_type = 'libre'")
+			.first();
+		expect(sold?.n).toBe(15);
+		// El cupo de otro tipo sigue valiendo.
+		expect(await sell({ quantity: 4 })).toEqual({ ok: false, reason: 'soldout', available: 3 });
 	});
 });
 

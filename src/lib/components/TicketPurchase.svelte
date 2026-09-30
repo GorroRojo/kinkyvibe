@@ -11,6 +11,7 @@
 		gorraQuickAmounts,
 		parseAmount,
 		formatSaleTime,
+		leftText,
 		purchaseConditions,
 		saleWindowText,
 		unitPrice
@@ -341,8 +342,9 @@
 							</small>
 						{/if}
 						<small class="type-left">
-							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.available <= 5}¡Quedan
-								{t.available}!{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
+							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+									t.left
+								)}{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
 						</small>
 					</label>
 				{/each}

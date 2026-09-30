@@ -6,7 +6,7 @@
  * - `checkin`: valida un QR / link / código y marca el ingreso.
  * - `undo`: deshace un ingreso.
  * - `reveal`: DNI completo de quien compró (queda en el registro de actividad).
- * - `sell`: "Vender en puerta".
+ * - `sell`: "Vender en puerta" (salvo en eventos con `puerta: false`; ver `doorSalesOpen`).
  * - `sync`: ingresos marcados sin conexión.
  */
 import { fail } from '@sveltejs/kit';
@@ -18,6 +18,7 @@ import { checkIn, getCounts, undoCheckIn } from '$lib/server/tickets/orders.js';
 import {
 	applyQueuedCheckIns,
 	doorCounts,
+	doorSalesOpen,
 	orderRef,
 	parseQueue,
 	revealDni,
@@ -30,7 +31,8 @@ import {
 	fondoOptionLabel,
 	fondoOptionsFor,
 	isFondoOption,
-	normalizeDni
+	normalizeDni,
+	remainingOf
 } from '$lib/utils/tickets.js';
 import { eventSeries } from '$lib/server/tickets/series.js';
 import { getEventMeta } from '$lib/server/tickets/events.js';
@@ -58,8 +60,10 @@ export async function load(event) {
 		login: admin.login,
 		counts,
 		fondoEnabled: config.fondoEnabled,
+		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`).
+		doorSales: doorSalesOpen(config),
+		doorPrice: config.door?.price ?? '',
 		types: config.types.map((t) => {
-			const c = sales.get(t.id);
 			return {
 				id: t.id,
 				name: t.name,
@@ -67,7 +71,8 @@ export async function load(event) {
 				fondo: t.fondo,
 				gorra: t.gorra,
 				capacity: t.capacity,
-				available: Math.max(0, t.capacity - (c ? c.sold + c.held : 0)),
+				// `null`: sin cupo (sin límite).
+				available: remainingOf(t, sales.get(t.id)),
 				options: t.gorra
 					? []
 					: fondoOptionsFor(t.fondo).map((o) => ({ id: o.id, label: fondoOptionLabel(o.id) }))
@@ -189,6 +194,16 @@ export const actions = {
 				.slice(0, max);
 		/** @param {string} message */
 		const bad = (message) => fail(400, { sale: { ok: false, message, tickets: [] } });
+		if (!doorSalesOpen(config)) {
+			return fail(403, {
+				sale: {
+					ok: false,
+					message:
+						'Este evento dice «Solo anticipadas»: no hay entradas en la puerta. Se cambia en el editor del evento, en Entradas.',
+					tickets: []
+				}
+			});
+		}
 
 		const type = config.types.find((t) => t.id === text('type', 64));
 		if (!type) return bad('Elegí un tipo de entrada.');
@@ -228,6 +243,7 @@ export const actions = {
 
 		const r = await sellAtDoor(db, {
 			eventSlug: slug,
+			door: config.door,
 			type,
 			quantity,
 			holders,
@@ -238,6 +254,7 @@ export const actions = {
 			fondoPercent: config.fondoPercent,
 			by: admin.login
 		});
+		if (!r.ok && r.reason === 'no-door') return bad('Este evento no tiene entradas en la puerta.');
 		if (!r.ok) {
 			return fail(409, {
 				sale: {

@@ -211,6 +211,15 @@ describe('transferencia', () => {
 		expect(ok.result).toBe('ok');
 	});
 
+	it('vencida en un tipo sin cupo (capacity null): se confirma igual', async () => {
+		const late = /** @type {any} */ (await transfer({ quantity: 2 })).order;
+		const after = NOW + TRANSFER_HOLD_MS + 1;
+		// Todo el cupo de la anticipada ya se ocupó; sin cupo no importa.
+		expect((await transfer({ quantity: ANTICIPADA.capacity, now: after })).ok).toBe(true);
+		expect((await confirm(late.id, { now: after, capacity: 1 })).result).toBe('no-capacity');
+		expect((await confirm(late.id, { now: after, capacity: null })).result).toBe('confirmed');
+	});
+
 	it('vencida: se puede confirmar si todavía hay cupo, y si no, no (sin sobreventa)', async () => {
 		const late = /** @type {any} */ (await transfer({ quantity: 2 })).order;
 		const after = NOW + TRANSFER_HOLD_MS + 1;

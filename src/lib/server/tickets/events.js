@@ -28,8 +28,9 @@ const tagsOf = (meta) => (Array.isArray(meta.tags) ? meta.tags : []);
  * existe.
  *
  * - `TICKETS_DEV_FIXTURE=slug1,slug2`: evento presencial de KinkyVibe (se le agrega la etiqueta)
- *   con el descuento automático del Fondo en todos los tipos (General $ 10.000 y Anticipada
- *   $ 8.000 con cupo 3), Mercado Pago y transferencia.
+ *   con el descuento automático del Fondo en todos los tipos (General $ 10.000 sin cupo y
+ *   Anticipada $ 8.000 con cupo 3), Mercado Pago y transferencia, y entradas en la puerta
+ *   ($ 12.000).
  * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online SIN la etiqueta KinkyVibe (se le saca si la
  *   tiene: sin Fondo), "a la gorra" (mínimo $ 1.000, sugerido $ 5.000; y "Libre" con mínimo $ 0,
  *   sugerido $ 3.000) y "Precio fijo" ($ 6.000), Mercado Pago y transferencia.
@@ -71,8 +72,10 @@ function devFixture(slug, meta) {
 		// Evento de KinkyVibe: el descuento del Fondo es el automático (en dev,
 		// FONDO_PERCENT_OVERRIDE=20 de .env.tickets).
 		tags: isKinkyVibeEvent(meta) ? tagsOf(meta) : [...tagsOf(meta), 'KinkyVibe'],
+		puerta: true,
+		puerta_precio: 12000,
 		tickets: [
-			{ id: 'general', name: 'General', price: 10000, capacity: 500 },
+			{ id: 'general', name: 'General', price: 10000 },
 			{ id: 'anticipada', name: 'Anticipada', price: 8000, capacity: 3 }
 		]
 	};

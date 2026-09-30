@@ -8,9 +8,10 @@
  * sobre el archivo final.
  *
  * Campos del frontmatter que maneja (ver docs/tickets.md):
- * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido }, capacity }`;
+ * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido }, capacity }`
+ *   (`capacity` es opcional: sin cupo = sin límite);
  * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
- *   `mp_fee_percent`; y `close` (cierre propio) en cada tipo.
+ *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
@@ -41,8 +42,16 @@ export const TICKET_KEYS = [
 	'tickets_close',
 	'modalidad',
 	'recordatorios',
-	'mp_fee_percent'
+	'mp_fee_percent',
+	'puerta',
+	'puerta_precio'
 ];
+
+/** Largo máximo del precio en la puerta (texto libre). Igual que en config.js. */
+export const DOOR_PRICE_MAX = 120;
+
+/** Nombre que se propone para el primer tipo de entrada. */
+export const FIRST_TYPE_NAME = 'General';
 
 export const PAYMENT_METHOD_LABELS = /** @type {const} */ ({
 	mercadopago: 'Mercado Pago',
@@ -92,7 +101,7 @@ export function isOnlineEvent(meta) {
  * @prop {string} price
  * @prop {string} min
  * @prop {string} suggested
- * @prop {string} capacity
+ * @prop {string} capacity '' = sin cupo (sin límite)
  * @prop {string} close cierre propio (datetime-local, hora de Argentina); '' = cierra con el evento
  */
 
@@ -108,6 +117,10 @@ export function isOnlineEvent(meta) {
  * @prop {'' | 'online' | 'presencial'} modalidad '' = automático
  * @prop {boolean} reminders
  * @prop {string} mpFee '' = el de Ajustes de venta
+ * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
+ *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
+ * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
+ * @prop {string} doorPrice precio en la puerta, texto libre ('' = no se muestra)
  */
 
 let keyCounter = 0;
@@ -116,13 +129,17 @@ const newKey = () => `t${++keyCounter}`;
 /** @param {unknown} v */
 const str = (v) => (v === undefined || v === null ? '' : String(v));
 
-/** Un tipo de entrada vacío (nuevo). */
-export function emptyTicketType() {
+/**
+ * Un tipo de entrada vacío (nuevo). El primero de un evento se propone como «General».
+ *
+ * @param {{ first?: boolean }} [opts]
+ */
+export function emptyTicketType({ first = false } = {}) {
 	return /** @type {TicketTypeForm} */ ({
 		key: newKey(),
 		origId: null,
 		id: '',
-		name: '',
+		name: first ? FIRST_TYPE_NAME : '',
 		mode: 'price',
 		price: '',
 		min: '0',
@@ -208,7 +225,10 @@ export function readTicketsForm(meta) {
 		mpFee:
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null
 				? ''
-				: str(meta.mp_fee_percent)
+				: str(meta.mp_fee_percent),
+		door: meta?.puerta !== false,
+		doorSet: typeof meta?.puerta === 'boolean',
+		doorPrice: str(meta?.puerta_precio)
 	};
 }
 
@@ -291,9 +311,12 @@ export function validateTicketsForm(form, { sales } = {}) {
 		if (!t.name.trim()) errors.push(`${label}: falta el nombre.`);
 		else if (t.name.trim().length > 60) errors.push(`${label}: el nombre es muy largo (hasta 60).`);
 		if (!TYPE_ID_RE.test(t.id)) errors.push(`${label}: el id «${t.id}» no es válido.`);
-		const capacity = parseCount(t.capacity);
-		if (capacity === null)
-			errors.push(`${label}: el cupo tiene que ser un número entero (0 o más).`);
+		// Cupo vacío = sin límite.
+		const capacity = t.capacity.trim() ? parseCount(t.capacity) : null;
+		if (t.capacity.trim() && capacity === null)
+			errors.push(
+				`${label}: el cupo tiene que ser un número entero (0 o más), o quedar vacío para no tener límite.`
+			);
 		const taken = salesOf(sales, t.origId);
 		if (capacity !== null && taken > capacity)
 			errors.push(
@@ -357,6 +380,8 @@ export function validateTicketsForm(form, { sales } = {}) {
 
 	if (form.mpFee.trim() && parseFeePercent(form.mpFee) === null)
 		errors.push('La comisión de Mercado Pago tiene que ser un porcentaje entre 0 y 49,99.');
+	if (form.door && form.doorPrice.trim().length > DOOR_PRICE_MAX)
+		errors.push(`El precio en la puerta es muy largo (hasta ${DOOR_PRICE_MAX} caracteres).`);
 	return { errors, warnings };
 }
 
@@ -376,7 +401,7 @@ const normalizedType = (t) => ({
 	price: t.mode === 'price' ? (parseAmount(t.price) ?? t.price) : null,
 	min: t.mode === 'gorra' ? (parseAmount(t.min || '0') ?? t.min) : null,
 	suggested: t.mode === 'gorra' ? (parseAmount(t.suggested) ?? t.suggested) : null,
-	capacity: parseCount(t.capacity) ?? t.capacity,
+	capacity: t.capacity.trim() ? (parseCount(t.capacity) ?? t.capacity) : null,
 	close: t.close.trim()
 });
 
@@ -393,7 +418,9 @@ function normalized(f) {
 		close: f.enabled && f.customClose ? f.closeAt : '',
 		modalidad: f.enabled ? f.modalidad : '',
 		reminders: f.enabled ? f.reminders : true,
-		mpFee: f.enabled ? f.mpFee.trim() : ''
+		mpFee: f.enabled ? f.mpFee.trim() : '',
+		door: f.enabled ? f.door : true,
+		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : ''
 	});
 }
 
@@ -420,7 +447,9 @@ const amount = (v) => /** @type {number} */ (parseAmount(v.trim() === '' ? '0' :
  * @returns {string}
  */
 export function applyTicketsForm(frontmatter, form, initial) {
-	if (!ticketsFormChanged(initial, form)) return frontmatter;
+	const formChanged = ticketsFormChanged(initial, form);
+	// Un evento con venta y sin `puerta` recibe la clave explícita al guardarlo (ver abajo).
+	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
 	const doc = parseDocument(frontmatter.replace(/\r\n?/g, '\n'));
 	if (doc.errors.length) throw new Error(doc.errors[0].message);
 	// @ts-ignore frontmatter vacío
@@ -465,9 +494,11 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		}
 		// El fondo en pesos por tipo ya no existe (el Fondo es automático).
 		node.delete('fondo');
-		// `capacity` después del precio, como en la documentación (en su lugar si ya estaba).
+		// `capacity` después del precio, como en la documentación (en su lugar si ya estaba). Sin
+		// cupo (vacío): sin `capacity`, sin límite.
 		if (modeChanged || !node.has('capacity')) node.delete('capacity');
-		node.set('capacity', Number(t.capacity.trim()));
+		if (t.capacity.trim()) node.set('capacity', Number(t.capacity.trim()));
+		else node.delete('capacity');
 		// Cierre propio del tipo (opcional).
 		if (t.close.trim()) node.set('close', withZone(t.close.trim()));
 		else node.delete('close');
@@ -510,7 +541,33 @@ export function applyTicketsForm(frontmatter, form, initial) {
 			doc.set('mp_fee_percent', Number(form.mpFee.trim().replace(',', '.').replace(/\s*%$/, '')));
 		else doc.delete('mp_fee_percent');
 	}
+	/* Entradas en la puerta (eventos presenciales): siempre `puerta: true | false` explícito al
+	   guardar (también en los eventos que no lo tenían), y el precio solo si está prendido. */
+	const doorPrice = form.door ? form.doorPrice.trim() : '';
+	const initialDoorPrice = initial.enabled && initial.door ? initial.doorPrice.trim() : '';
+	const setDoor =
+		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {})) &&
+		(!initial.enabled || !initial.doorSet || form.door !== initial.door);
+	if (setDoor) doc.set('puerta', form.door);
+	// Sin cambios en el formulario y evento online: no hay nada que escribir.
+	if (!formChanged && !setDoor) return frontmatter;
+	if (doorPrice !== initialDoorPrice) {
+		if (doorPrice) doc.set('puerta_precio', doorPrice);
+		else doc.delete('puerta_precio');
+	}
 	return serializeFrontmatter(doc);
+}
+
+/**
+ * ¿Hay que escribir `puerta` aunque el formulario no cambió? Sí si el evento vende y el archivo
+ * todavía no tiene `puerta: true | false` (así cada evento que se guarda queda con una elección
+ * explícita). En los online no se escribe (lo decide `applyTicketsForm`).
+ *
+ * @param {TicketsForm} form
+ * @param {TicketsForm} initial
+ */
+function needsDoorKey(form, initial) {
+	return form.enabled && initial.enabled && !initial.doorSet;
 }
 
 /**
@@ -521,7 +578,7 @@ export function applyTicketsForm(frontmatter, form, initial) {
  * @param {TicketsForm} initial
  */
 export function applyTicketsToMarkdown(raw, form, initial) {
-	if (!ticketsFormChanged(initial, form)) return raw;
+	if (!ticketsFormChanged(initial, form) && !needsDoorKey(form, initial)) return raw;
 	const { frontmatter, body } = splitMarkdown(raw);
 	return joinMarkdown(applyTicketsForm(frontmatter, form, initial), body);
 }
@@ -533,18 +590,28 @@ export function applyTicketsToMarkdown(raw, form, initial) {
  */
 export function describeTicketsForm(form, formatARS) {
 	if (!form.enabled) return 'Sin venta de entradas por el sitio';
-	return withTypeIds(form.types)
-		.map((t) => {
-			const cap = t.capacity.trim() ? `, cupo ${t.capacity.trim()}` : '';
-			if (t.mode === 'gorra') {
-				const s = parseAmount(t.suggested);
-				const m = parseAmount(t.min || '0');
-				return `${t.name.trim() || t.id}: a la gorra (sugerido ${s === null ? '?' : formatARS(s)}${
-					m ? `, mínimo ${formatARS(m)}` : ''
-				}${cap})`;
-			}
-			const p = parseAmount(t.price);
-			return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}`;
-		})
-		.join(' · ');
+	const door =
+		form.modalidad === 'online'
+			? ''
+			: !form.door
+				? ' · Solo anticipadas'
+				: form.doorPrice.trim()
+					? ` · También en la puerta (${form.doorPrice.trim()})`
+					: '';
+	return (
+		withTypeIds(form.types)
+			.map((t) => {
+				const cap = t.capacity.trim() ? `, cupo ${t.capacity.trim()}` : ', sin cupo';
+				if (t.mode === 'gorra') {
+					const s = parseAmount(t.suggested);
+					const m = parseAmount(t.min || '0');
+					return `${t.name.trim() || t.id}: a la gorra (sugerido ${s === null ? '?' : formatARS(s)}${
+						m ? `, mínimo ${formatARS(m)}` : ''
+					}${cap})`;
+				}
+				const p = parseAmount(t.price);
+				return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}`;
+			})
+			.join(' · ') + door
+	);
 }

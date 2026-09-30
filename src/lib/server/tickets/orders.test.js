@@ -98,6 +98,25 @@ describe('reserva de cupo', () => {
 		expect(order.id).toMatch(/^[0-9a-f-]{36}$/);
 	});
 
+	it('un tipo sin cupo (capacity null) reserva sin límite', async () => {
+		const libre = { ...GENERAL, id: 'libre', capacity: null };
+		for (let i = 0; i < 4; i++) {
+			const r = await reserve({
+				type: libre,
+				quantity: 5,
+				buyer: { name: 'Persona', email: `persona${i}@example.com`, dni: '30000000' }
+			});
+			expect(r.ok).toBe(true);
+		}
+		const n = await t.db
+			.prepare("SELECT SUM(quantity) AS n FROM orders WHERE ticket_type = 'libre'")
+			.first();
+		expect(n?.n).toBe(20);
+		// Y el cupo de otro tipo del mismo evento sigue valiendo.
+		expect((await reserve({ quantity: 5 })).ok).toBe(true);
+		expect(await reserve({ quantity: 1 })).toEqual({ ok: false, reason: 'soldout', available: 0 });
+	});
+
 	it('no deja pasarse del cupo y libera las reservas vencidas', async () => {
 		expect((await reserve({ quantity: 4 })).ok).toBe(true);
 		const full = await reserve({ quantity: 2 });
