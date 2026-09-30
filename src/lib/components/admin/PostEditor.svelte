@@ -8,6 +8,8 @@
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import { draftKey } from '$lib/admin/draft.js';
 	import {
 		applyTicketsToMarkdown,
 		readTicketsForm,
@@ -385,6 +387,21 @@
 				body
 			);
 	$: changed = content !== unchanged || Boolean(uploadExt);
+
+	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
+	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
+	$: draft = { values, tagRules, freeTags, authors, tickets, body, rawText };
+	/** @param {any} d */
+	function restoreDraft(d) {
+		if (!d || typeof d !== 'object') return;
+		if (d.values) values = { ...values, ...d.values };
+		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
+		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
+		if (Array.isArray(d.authors)) authors = d.authors;
+		if (d.tickets) tickets = d.tickets;
+		if (typeof d.body === 'string') body = d.body;
+		if (typeof d.rawText === 'string') rawText = d.rawText;
+	}
 </script>
 
 <svelte:head>
@@ -406,6 +423,16 @@
 	{/if}
 
 	{#if !embedded}<h1>Editar «{meta.title ?? postID}»</h1>{/if}
+
+	<UnsavedChanges
+		draftKey={draftKey(category, postID)}
+		base={sha}
+		dirty={changed}
+		snapshot={draft}
+		restore={restoreDraft}
+		saved={Boolean(form?.save)}
+		saveForm="edit-form"
+	/>
 
 	{#if parseError}
 		<p class="problems" role="alert">
