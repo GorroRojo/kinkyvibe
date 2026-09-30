@@ -212,9 +212,21 @@ export function applyFrontmatterChanges(frontmatter, changes) {
 			}
 		}
 	}
-	let out = doc.toString();
+	let out = serializeFrontmatter(doc);
 	for (const key of toComment) out = commentOutKey(out, key);
 	return out.replace(/\s+$/, '') + '\n';
+}
+
+/**
+ * YAML → text in the style the posts use: flow lists without inner padding
+ * (`payment_methods: [mercadopago, transferencia]`) and one-line maps with it
+ * (`a_la_gorra: { minimo: 0, sugerido: 5000 }`). The yaml library has a single option for both.
+ * @param {import('yaml').Document} doc
+ */
+export function serializeFrontmatter(doc) {
+	return doc
+		.toString({ flowCollectionPadding: false })
+		.replace(/^(\s*(?:- )?[\w-]+: )\{([^{}'"\n]*)\}([ \t]*(?:#.*)?)$/gm, '$1{ $2 }$3');
 }
 
 /**
@@ -297,6 +309,41 @@ export function formatPostDate(date) {
  */
 export function todayInArgentina(now = new Date()) {
 	return new Date(now.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Year and month the date of a copied event starts on: this month while we're in its first
+ * half (day 1 to 15, Argentina time), next month from the 16th on. Only year-month: the day is
+ * always chosen by hand, so nobody publishes a copy with an old date by accident.
+ * @param {string} today YYYY-MM-DD (see todayInArgentina)
+ * @returns {string} YYYY-MM
+ */
+export function prefillMonth(today) {
+	if (Number(today.slice(8, 10)) <= 15) return today.slice(0, 7);
+	return shiftMonth(today.slice(0, 7), 1);
+}
+
+/**
+ * @param {string} ym YYYY-MM
+ * @param {number} n months (can be negative)
+ * @returns {string} YYYY-MM
+ */
+export function shiftMonth(ym, n) {
+	const [y, m] = ym.split('-').map(Number);
+	const total = y * 12 + (m - 1) + n;
+	return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Layout of a month for a calendar grid (weeks start on Monday, as in Argentina).
+ * @param {string} ym YYYY-MM
+ * @returns {{days: number, offset: number, label: string}} offset: empty cells before day 1
+ */
+export function monthGrid(ym) {
+	const [y, m] = ym.split('-').map(Number);
+	const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+	const offset = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+	return { days, offset, label: `${MONTH_NAMES[m - 1]} de ${y}` };
 }
 
 /**
@@ -547,19 +594,20 @@ export function isNumericFeatured(featured) {
  * @prop {string} location_name
  * @prop {string} link
  * @prop {string} link_text
- * @prop {string} tags comma separated
- * @prop {string} authors comma separated
+ * @prop {string|string[]} tags a list, or comma separated
+ * @prop {string|string[]} authors a list, or comma separated
  * @prop {'keep'|'upload'|'none'} featuredMode
  * @prop {string} [uploadExt] extension of the uploaded image, when featuredMode is 'upload'
+ * @prop {string|number} [uploadFeatured] `featured` for an uploaded image (default 1, the new
+ *   event's own folder; a file name when it replaces a shared image, see ./sharedImage.js)
  * @prop {string} body
  * @prop {string} publishedDate YYYY-MM-DD
  * @prop {boolean} [unlisted]
  */
 
-/** @param {string} s */
+/** @param {string|string[]} s a list, or comma separated */
 export const splitList = (s) =>
-	String(s ?? '')
-		.split(',')
+	(Array.isArray(s) ? s.map(String) : String(s ?? '').split(','))
 		.map((x) => x.trim())
 		.filter(Boolean);
 
@@ -600,7 +648,7 @@ export function buildEventMarkdown(sourceRaw, form) {
 	if (tags.join('\n') !== source.tags.join('\n')) changes.tags = tags;
 	const authors = splitList(form.authors);
 	if (authors.join('\n') !== source.authors.join('\n')) changes.authors = authors;
-	if (form.featuredMode === 'upload') changes.featured = 1;
+	if (form.featuredMode === 'upload') changes.featured = form.uploadFeatured || 1;
 	else if (form.featuredMode === 'none') changes.featured = null;
 
 	const fm = applyFrontmatterChanges(frontmatter, changes);
@@ -608,6 +656,9 @@ export function buildEventMarkdown(sourceRaw, form) {
 	if (body.trim() && !body.endsWith('\n')) body += '\n';
 	return joinMarkdown(fm, body);
 }
+
+/** Statuses that belong to the edition being copied and must not carry over. */
+const STALE_STATUSES = ['cancelado', 'agotadas'];
 
 /**
  * Initial form values from a source file.
@@ -623,7 +674,8 @@ export function formFromSource(sourceRaw, { today, fromTemplate = false }) {
 	return {
 		title: fromTemplate ? '' : f.title,
 		summary: fromTemplate ? '' : f.summary,
-		status: f.status || 'anunciado',
+		// "cancelado" / "agotadas" describe the old edition, not the new one.
+		status: !f.status || STALE_STATUSES.includes(f.status) ? 'anunciado' : f.status,
 		startDate: fromTemplate ? '' : s.date,
 		startTime: s.time || '20:00',
 		hasEnd: fromTemplate || Boolean(e.date),

@@ -397,7 +397,7 @@ UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js
 
 ## Base de datos
 
-El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. Por ahora esto es solo la infraestructura: ninguna página la usa todavía. La primera en usarla va a ser la venta de entradas (#62).
+El sitio puede usar una base de datos [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite) vinculada como `DB`. La usa la venta de entradas (ver [Venta de entradas](#venta-de-entradas)): las migraciones son `0001_rate_limits.sql`, `0002_tickets.sql` y `0003_ticket_safeguards.sql`.
 
 La base es **opcional**: si no está disponible (durante el build, o si todavía no se vinculó en Cloudflare) el sitio anda igual, y cada función que la use tiene que ocultarse o degradar sin romper la página.
 
@@ -464,3 +464,7 @@ npm run db:migrate:remote
 Hay que correrlo **antes** de deployar el código que necesita las tablas nuevas (wrangler solo aplica las que falten, así que se puede correr cuantas veces se quiera).
 
 `wrangler.toml` no tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo ignora al deployar y los bindings y variables siguen configurándose desde el panel (paso 3). Solo lo usan los comandos locales y `wrangler d1`.
+
+## Venta de entradas
+
+Los eventos pueden vender entradas desde el sitio (pago con Mercado Pago o transferencia, QR por email, control de ingreso en `/admin/entradas`) agregando `tickets:` a su frontmatter. Usa la base de datos de arriba (tablas de `migrations/0002_tickets.sql`). Configuración, variables de entorno (`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`…), cómo probarlo en local con los mocks (`npm run dev:tickets`) y lo que falta antes de vender de verdad: [`docs/tickets.md`](/docs/tickets.md). Los recordatorios por mail los dispara el Worker de [`workers/cron/`](/workers/cron/README.md).

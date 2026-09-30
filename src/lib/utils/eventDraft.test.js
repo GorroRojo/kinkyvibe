@@ -11,6 +11,9 @@ import {
 	formatEventDate,
 	formatPostDate,
 	todayInArgentina,
+	prefillMonth,
+	shiftMonth,
+	monthGrid,
 	addDays,
 	daysBetween,
 	validateSchedule,
@@ -267,7 +270,18 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 		expect(m.featured).toBe(1);
 		expect(m.location).toBeUndefined();
 		expect(md).toContain('#location: Thames 240');
-		expect(m.status).toBe('cancelado');
+		// The source edition was cancelled; the copy starts as "anunciado".
+		expect(form.status).toBe('anunciado');
+		expect(m.status).toBe('anunciado');
+		expect(md).toContain('status: anunciado # anunciado | abierto | agotadas | cancelado #');
+	});
+
+	it('keeps "abierto" but resets "agotadas" when duplicating', () => {
+		const src = post('picantearla-2026-09');
+		const withStatus = (/** @type {string} */ st) =>
+			src.replace(/^status: .*$/m, `status: ${st} # anunciado | abierto | agotadas | cancelado #`);
+		expect(formFromSource(withStatus('abierto'), { today }).status).toBe('abierto');
+		expect(formFromSource(withStatus('agotadas'), { today }).status).toBe('anunciado');
 	});
 
 	it('handles CRLF sources and uploaded images', () => {
@@ -388,5 +402,42 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 		expect(m.location_name).toBeUndefined();
 		expect(md).toContain('  - KinkyVibe # etiqueta especial #');
 		expect(md).toContain("# !!  IMPORTANTE LA 'T' Y EL -03:00  !!");
+	});
+});
+
+describe('month prefill for copies', () => {
+	it('first half of the month → this month', () => {
+		expect(prefillMonth('2026-09-01')).toBe('2026-09');
+		expect(prefillMonth('2026-09-15')).toBe('2026-09');
+	});
+	it('from the 16th → next month', () => {
+		expect(prefillMonth('2026-09-16')).toBe('2026-10');
+		expect(prefillMonth('2026-09-30')).toBe('2026-10');
+		expect(prefillMonth('2026-02-28')).toBe('2026-03');
+	});
+	it('December → January of next year', () => {
+		expect(prefillMonth('2026-12-15')).toBe('2026-12');
+		expect(prefillMonth('2026-12-16')).toBe('2027-01');
+		expect(prefillMonth('2026-12-31')).toBe('2027-01');
+	});
+	it('uses Argentina time (UTC-3) at the day-15 boundary', () => {
+		// 16 Oct 02:00 UTC is still 15 Oct 23:00 in Buenos Aires
+		expect(prefillMonth(todayInArgentina(new Date('2026-10-16T02:00:00Z')))).toBe('2026-10');
+		// 16 Oct 03:00 UTC is 16 Oct 00:00 in Buenos Aires
+		expect(prefillMonth(todayInArgentina(new Date('2026-10-16T03:00:00Z')))).toBe('2026-11');
+		// 1 Jan 02:00 UTC is still 31 Dec in Buenos Aires
+		expect(prefillMonth(todayInArgentina(new Date('2027-01-01T02:00:00Z')))).toBe('2027-01');
+	});
+	it('shiftMonth', () => {
+		expect(shiftMonth('2026-12', 1)).toBe('2027-01');
+		expect(shiftMonth('2027-01', -1)).toBe('2026-12');
+		expect(shiftMonth('2026-05', 13)).toBe('2027-06');
+	});
+	it('monthGrid (weeks start on Monday)', () => {
+		// 1 Oct 2026 is a Thursday
+		expect(monthGrid('2026-10')).toEqual({ days: 31, offset: 3, label: 'octubre de 2026' });
+		expect(monthGrid('2028-02').days).toBe(29);
+		// 1 Feb 2027 is a Monday
+		expect(monthGrid('2027-02').offset).toBe(0);
 	});
 });
