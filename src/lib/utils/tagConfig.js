@@ -45,7 +45,11 @@ class Parser {
 		this.src = src;
 		this.pos = pos;
 	}
-	fail(/** @type {string} */ what) {
+	/**
+	 * @param {string} what
+	 * @returns {never}
+	 */
+	fail(what) {
 		const line = this.src.slice(0, this.pos).split('\n').length;
 		throw new Error(`No se pudo leer hardcodedTags.js (línea ${line}): ${what}`);
 	}
@@ -73,6 +77,7 @@ class Parser {
 		if (this.src[this.pos] !== ch) this.fail(`se esperaba «${ch}»`);
 		this.pos++;
 	}
+	/** @returns {string} */
 	string() {
 		const q = this.src[this.pos];
 		let out = '';
@@ -102,6 +107,7 @@ class Parser {
 			this.pos++;
 		}
 	}
+	/** @returns {any} */
 	value() {
 		this.skip();
 		const c = this.src[this.pos];
@@ -113,6 +119,7 @@ class Parser {
 		this.pos += m[0].length;
 		return JSON.parse(m[0]);
 	}
+	/** @returns {string} */
 	key() {
 		this.skip();
 		const c = this.src[this.pos];
@@ -122,6 +129,7 @@ class Parser {
 		this.pos += m[0].length;
 		return m[0];
 	}
+	/** @returns {Record<string, any>} */
 	object() {
 		this.expect('{');
 		/** @type {Record<string, any>} */
@@ -140,6 +148,7 @@ class Parser {
 			else if (this.src[this.pos] !== '}') this.fail('se esperaba «,» o «}»');
 		}
 	}
+	/** @returns {any[]} */
 	array() {
 		this.expect('[');
 		const out = [];
@@ -174,7 +183,13 @@ export function parseTagSource(src) {
 		const before = p.pos;
 		const leading = p.skip();
 		if (src[p.pos] === ']') {
-			return { prefix, items, trailing: src.slice(before, p.pos), trailingComma, suffix: src.slice(p.pos) };
+			return {
+				prefix,
+				items,
+				trailing: src.slice(before, p.pos),
+				trailingComma,
+				suffix: src.slice(p.pos)
+			};
 		}
 		if (src[p.pos] !== '{') p.fail('se esperaba una etiqueta «{ id: … }»');
 		const start = p.pos;
@@ -214,9 +229,13 @@ export function textWidth(/** @type {string} */ s) {
 	for (const g of graphemes) {
 		if (g === '\t') w += TAB;
 		else if (/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(g)) w += 2;
-		else if (/[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/.test(g))
+		else if (
+			/[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/.test(
+				g
+			)
+		)
 			w += 2;
-		else if (/^[̀-ͯ‍︎️]+$/.test(g)) w += 0;
+		else if (/^(?:[\u0300-\u036f]|\u200d|\ufe0e|\ufe0f)+$/.test(g)) w += 0;
 		else w += 1;
 	}
 	return w;
@@ -238,11 +257,15 @@ function quote(s) {
 /** @param {string} k */
 const printKey = (k) => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : quote(k));
 
-/** @param {any} v */
+/**
+ * @param {any} v
+ * @returns {string}
+ */
 function printInline(v) {
 	if (typeof v === 'string') return quote(v);
 	if (Array.isArray(v)) return v.length ? `[${v.map(printInline).join(', ')}]` : '[]';
 	if (v && typeof v === 'object') {
+		/** @type {string[]} */
 		const props = Object.entries(v).map(([k, x]) => `${printKey(k)}: ${printInline(x)}`);
 		return props.length ? `{ ${props.join(', ')} }` : '{}';
 	}
@@ -285,7 +308,17 @@ export function printEntry(entry, { level = 1, multiline = false } = {}) {
 }
 
 /** Key order for keys an entry didn't have before. */
-const KEY_ORDER = ['id', 'icon', 'visible_name', 'aka', 'aliasOf', 'color', 'description', 'related', 'children'];
+const KEY_ORDER = [
+	'id',
+	'icon',
+	'visible_name',
+	'aka',
+	'aliasOf',
+	'color',
+	'description',
+	'related',
+	'children'
+];
 
 /**
  * @param {TagEntry} a
@@ -333,10 +366,20 @@ export function emitTagSource(source, entries) {
  */
 
 /** Fields `update` may change. */
-export const EDITABLE_FIELDS = Object.freeze(['icon', 'visible_name', 'color', 'description', 'aka', 'related']);
+export const EDITABLE_FIELDS = Object.freeze([
+	'icon',
+	'visible_name',
+	'color',
+	'description',
+	'aka',
+	'related'
+]);
 
 /** @param {unknown} s */
-const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+const clean = (s) =>
+	String(s ?? '')
+		.replace(/\s+/g, ' ')
+		.trim();
 
 /**
  * Error message for a new tag name, or null.
@@ -365,12 +408,15 @@ class Model {
 	aliasTarget(id) {
 		const a = this.entries.find((e) => e.value.id === id && e.value.aliasOf !== undefined);
 		if (a) return a.value.aliasOf;
-		for (const e of this.entries) if ((e.value.aka ?? []).includes(id) && e.value.id !== id) return e.value.id;
+		for (const e of this.entries)
+			if ((e.value.aka ?? []).includes(id) && e.value.id !== id) return e.value.id;
 		return undefined;
 	}
 	/** Every name in use: declared ids, children references, aliases. */
 	nameTaken(/** @type {string} */ name) {
-		return Boolean(this.find(name)) || this.aliasTarget(name) !== undefined || this.isChildRef(name);
+		return (
+			Boolean(this.find(name)) || this.aliasTarget(name) !== undefined || this.isChildRef(name)
+		);
 	}
 	/** @param {string} id */
 	isChildRef(id) {
@@ -404,6 +450,7 @@ class Model {
 	ensure(id, after) {
 		const found = this.find(id);
 		if (found) return found;
+		/** @type {TagEntry} */
 		const value = { id };
 		this.insert(value, after);
 		return value;
@@ -444,7 +491,11 @@ class Model {
  * @param {any} value undefined/null/''/[] = delete the key
  */
 function setKey(entry, key, value) {
-	const empty = value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length);
+	const empty =
+		value === undefined ||
+		value === null ||
+		value === '' ||
+		(Array.isArray(value) && !value.length);
 	if (empty) {
 		delete entry[key];
 		return;
@@ -478,6 +529,7 @@ function setKey(entry, key, value) {
  */
 function replaceInList(list, from, to) {
 	if (!list?.includes(from)) return list;
+	/** @type {string[]} */
 	const out = [];
 	for (const x of list) {
 		const y = x === from ? to : x;
@@ -529,7 +581,8 @@ function applyOne(m, op) {
 			/** @type {TagEntry} */
 			const value = { id };
 			if (clean(op.icon)) value.icon = clean(op.icon);
-			if (clean(op.visible_name) && clean(op.visible_name) !== id) value.visible_name = clean(op.visible_name);
+			if (clean(op.visible_name) && clean(op.visible_name) !== id)
+				value.visible_name = clean(op.visible_name);
 			const aka = (op.aka ?? []).map(clean).filter(Boolean);
 			if (aka.length) value.aka = aka;
 			if (clean(op.description)) value.description = clean(op.description);
@@ -579,7 +632,11 @@ function applyOne(m, op) {
 				const p = m.find(from);
 				if (!p || !(p.children ?? []).includes(id))
 					throw new Error(`«${id}» no está adentro de «${from}».`);
-				setKey(p, 'children', p.children.filter((/** @type {string} */ c) => c !== id));
+				setKey(
+					p,
+					'children',
+					p.children.filter((/** @type {string} */ c) => c !== id)
+				);
 			}
 			if (to) {
 				const p = m.ensure(to);
@@ -600,14 +657,20 @@ function applyOne(m, op) {
 				// The new name was an alias of this tag: it stops being one.
 				m.remove((e) => e.id === to && e.aliasOf === from);
 				const self = m.find(from);
-				if (self?.aka) setKey(self, 'aka', self.aka.filter((/** @type {string} */ a) => a !== to));
+				if (self?.aka)
+					setKey(
+						self,
+						'aka',
+						self.aka.filter((/** @type {string} */ a) => a !== to)
+					);
 			}
 			for (const { value: e } of m.entries) {
 				if (e.id === from && e.aliasOf === undefined) e.id = to;
 				if (e.aliasOf === from) e.aliasOf = to;
 				if (e.children) e.children = replaceInList(e.children, from, to);
 				if (e.related) e.related = replaceInList(e.related, from, to);
-				if (typeof e.description === 'string') e.description = renameWikiLinks(e.description, from, to);
+				if (typeof e.description === 'string')
+					e.description = renameWikiLinks(e.description, from, to);
 			}
 			if (op.keepAlias !== false) m.addAliasEntry(from, to);
 			return;
@@ -624,23 +687,31 @@ function applyOne(m, op) {
 			if (src) {
 				const kids = (src.children ?? []).filter((/** @type {string} */ c) => c !== into);
 				if (kids.length) setKey(dst, 'children', [...new Set([...(dst.children ?? []), ...kids])]);
-				const aka = [...(dst.aka ?? []), ...(src.aka ?? [])].filter((a) => a !== into && a !== from);
+				const aka = [...(dst.aka ?? []), ...(src.aka ?? [])].filter(
+					(a) => a !== into && a !== from
+				);
 				if (aka.length) setKey(dst, 'aka', [...new Set(aka)]);
 				for (const k of ['icon', 'visible_name', 'description', 'color']) {
 					if (dst[k] === undefined && src[k] !== undefined) setKey(dst, k, src[k]);
 				}
-				const rel = [...(dst.related ?? []), ...(src.related ?? [])].filter((r) => r !== into && r !== from);
+				const rel = [...(dst.related ?? []), ...(src.related ?? [])].filter(
+					(r) => r !== into && r !== from
+				);
 				if (rel.length || dst.related) setKey(dst, 'related', [...new Set(rel)]);
 			}
 			m.remove((e) => e.id === from && e.aliasOf === undefined);
 			for (const { value: e } of m.entries) {
 				if (e.aliasOf === from) e.aliasOf = into;
 				if (e.children) {
-					e.children = replaceInList(e.children, from, into)?.filter((/** @type {string} */ c) => c !== e.id);
+					e.children = replaceInList(e.children, from, into)?.filter(
+						(/** @type {string} */ c) => c !== e.id
+					);
 					if (!e.children?.length) delete e.children;
 				}
 				if (e.related) {
-					e.related = replaceInList(e.related, from, into)?.filter((/** @type {string} */ r) => r !== e.id);
+					e.related = replaceInList(e.related, from, into)?.filter(
+						(/** @type {string} */ r) => r !== e.id
+					);
 					if (!e.related?.length) delete e.related;
 				}
 			}
@@ -655,7 +726,8 @@ function applyOne(m, op) {
 			const t = m.aliasTarget(alias);
 			if (t === op.id) return;
 			if (t !== undefined) throw new Error(`«${alias}» ya es alias de «${t}».`);
-			if (m.aliasTarget(op.id) !== undefined && !m.find(op.id)) throw new Error(`«${op.id}» es un alias.`);
+			if (m.aliasTarget(op.id) !== undefined && !m.find(op.id))
+				throw new Error(`«${op.id}» es un alias.`);
 			const entry = m.ensure(op.id);
 			setKey(entry, 'aka', [...(entry.aka ?? []), alias]);
 			return;
@@ -663,7 +735,11 @@ function applyOne(m, op) {
 		case 'removeAlias': {
 			const entry = m.find(op.id);
 			if (entry?.aka?.includes(op.alias)) {
-				setKey(entry, 'aka', entry.aka.filter((/** @type {string} */ a) => a !== op.alias));
+				setKey(
+					entry,
+					'aka',
+					entry.aka.filter((/** @type {string} */ a) => a !== op.alias)
+				);
 				return;
 			}
 			const before = m.entries.length;
@@ -682,7 +758,8 @@ function applyOne(m, op) {
 
 /** @param {string} v */
 function yamlScalar(v, preferQuote = '') {
-	const needs = /^[\s'"&*!|>%@`#,[\]{}?:-]|: |\s#|^(true|false|null|yes|no|~)$|^[\d.+-]+$|\s$/i.test(v);
+	const needs =
+		/^[\s'"&*!|>%@`#,[\]{}?:-]|: |\s#|^(true|false|null|yes|no|~)$|^[\d.+-]+$|\s$/i.test(v);
 	if (!needs && !preferQuote) return v;
 	const q = preferQuote || "'";
 	return q === "'" ? `'${v.replace(/'/g, "''")}'` : JSON.stringify(v);
@@ -702,19 +779,28 @@ export function replaceTagInPost(raw, from, to) {
 	if (!/^---[ \t]*\r?\n$/.test(lines[0] ?? '')) return raw;
 	let end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*(\r?\n)?$/.test(l));
 	if (end === -1) return raw;
-	const item = /^([ \t]*-[ \t]+)(?:'((?:[^']|'')*)'|"((?:[^"\\]|\\.)*)"|([^#\r\n]*?))([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
+	const item =
+		/^([ \t]*-[ \t]+)(?:'((?:[^']|'')*)'|"((?:[^"\\]|\\.)*)"|([^#\r\n]*?))([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
 	/** @param {RegExpExecArray} mm */
 	const itemValue = (mm) =>
-		mm[2] !== undefined ? mm[2].replace(/''/g, "'") : mm[3] !== undefined ? JSON.parse(`"${mm[3]}"`) : mm[4];
+		mm[2] !== undefined
+			? mm[2].replace(/''/g, "'")
+			: mm[3] !== undefined
+				? JSON.parse(`"${mm[3]}"`)
+				: mm[4];
 	let changed = false;
 	for (let i = 1; i < end; i++) {
 		const line = lines[i];
 		const flow = /^tags:[ \t]*\[(.*)\][ \t]*(#.*)?(\r?\n)?$/.exec(line);
 		if (flow) {
-			const vals = flow[1].split(',').map((s) => s.trim().replace(/^(['"])(.*)\1$/, '$2')).filter(Boolean);
+			const vals = flow[1]
+				.split(',')
+				.map((s) => s.trim().replace(/^(['"])(.*)\1$/, '$2'))
+				.filter(Boolean);
 			if (vals.includes(from)) {
 				const next = replaceInList(vals, from, to) ?? vals;
-				lines[i] = `tags: [${next.map((v) => yamlScalar(v)).join(', ')}]${flow[2] ? ' ' + flow[2] : ''}${flow[3] ?? ''}`;
+				lines[i] =
+					`tags: [${next.map((v) => yamlScalar(v)).join(', ')}]${flow[2] ? ' ' + flow[2] : ''}${flow[3] ?? ''}`;
 				changed = true;
 			}
 			continue;
@@ -745,7 +831,10 @@ export function replaceTagInPost(raw, from, to) {
 			i = j - 1;
 			continue;
 		}
-		const wiki = /^wiki:([ \t]*)(?:'([^']*)'|"([^"]*)"|([^#\r\n]*?))([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/.exec(line);
+		const wiki =
+			/^wiki:([ \t]*)(?:'([^']*)'|"([^"]*)"|([^#\r\n]*?))([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/.exec(
+				line
+			);
 		if (wiki) {
 			const v = (wiki[2] ?? wiki[3] ?? wiki[4] ?? '').trim();
 			if (v === from) {
@@ -790,12 +879,18 @@ export function planTagChange({ source, sourceSha, sourcePath, posts, ops }) {
 	/** @type {Map<string, {path: string, before: string, after: string, sha?: string}>} */
 	const touched = new Map();
 	for (const op of ops) {
-		const pair = op.type === 'rename' ? [op.from, clean(op.to)] : op.type === 'merge' ? [op.from, op.into] : null;
+		const pair =
+			op.type === 'rename'
+				? [op.from, clean(op.to)]
+				: op.type === 'merge'
+					? [op.from, op.into]
+					: null;
 		if (!pair) continue;
 		for (const p of posts) {
 			const cur = touched.get(p.path)?.after ?? p.text;
 			const next = replaceTagInPost(cur, pair[0], pair[1]);
-			if (next !== cur) touched.set(p.path, { path: p.path, before: p.text, after: next, sha: p.sha });
+			if (next !== cur)
+				touched.set(p.path, { path: p.path, before: p.text, after: next, sha: p.sha });
 		}
 	}
 	files.push(...[...touched.values()].sort((a, b) => a.path.localeCompare(b.path)));
@@ -837,7 +932,8 @@ export function describeOp(op) {
 export function readOps(input) {
 	if (!Array.isArray(input) || !input.length) throw new Error('No hay cambios.');
 	if (input.length > 30) throw new Error('Demasiados cambios juntos (máximo 30).');
-	const str = (/** @type {any} */ v) => (typeof v === 'string' ? v : v == null ? undefined : String(v));
+	const str = (/** @type {any} */ v) =>
+		typeof v === 'string' ? v : v == null ? undefined : String(v);
 	return input.map((raw) => {
 		if (!raw || typeof raw !== 'object') throw new Error('Cambio inválido.');
 		const o = /** @type {any} */ (raw);
@@ -856,9 +952,19 @@ export function readOps(input) {
 				if (!o.set || typeof o.set !== 'object') throw new Error('Cambio inválido.');
 				return { type: 'update', id: str(o.id) ?? '', set: o.set };
 			case 'move':
-				return { type: 'move', id: str(o.id) ?? '', from: str(o.from) ?? null, to: str(o.to) ?? null };
+				return {
+					type: 'move',
+					id: str(o.id) ?? '',
+					from: str(o.from) ?? null,
+					to: str(o.to) ?? null
+				};
 			case 'rename':
-				return { type: 'rename', from: str(o.from) ?? '', to: str(o.to) ?? '', keepAlias: o.keepAlias !== false };
+				return {
+					type: 'rename',
+					from: str(o.from) ?? '',
+					to: str(o.to) ?? '',
+					keepAlias: o.keepAlias !== false
+				};
 			case 'merge':
 				return { type: 'merge', from: str(o.from) ?? '', into: str(o.into) ?? '' };
 			case 'addAlias':
@@ -893,13 +999,21 @@ export function lineDiff(before, after, context = 3) {
 	let pre = 0;
 	while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
 	let suf = 0;
-	while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
+	while (
+		suf < a.length - pre &&
+		suf < b.length - pre &&
+		a[a.length - 1 - suf] === b[b.length - 1 - suf]
+	)
+		suf++;
 	const am = a.slice(pre, a.length - suf);
 	const bm = b.slice(pre, b.length - suf);
 	/** @type {DiffLine[]} */
 	let ops = [];
 	if (am.length * bm.length > 4_000_000) {
-		ops = [...am.map((s) => ({ t: /** @type {'-'} */ ('-'), s })), ...bm.map((s) => ({ t: /** @type {'+'} */ ('+'), s }))];
+		ops = [
+			...am.map((s) => ({ t: /** @type {'-'} */ ('-'), s })),
+			...bm.map((s) => ({ t: /** @type {'+'} */ ('+'), s }))
+		];
 	} else {
 		const n = am.length;
 		const mm = bm.length;
@@ -943,7 +1057,8 @@ export function lineDiff(before, after, context = 3) {
 	let g = 0;
 	while (g < changes.length) {
 		let last = g;
-		while (last + 1 < changes.length && changes[last + 1] - changes[last] <= context * 2 + 1) last++;
+		while (last + 1 < changes.length && changes[last + 1] - changes[last] <= context * 2 + 1)
+			last++;
 		const from = Math.max(0, changes[g] - context);
 		const to = Math.min(all.length - 1, changes[last] + context);
 		hunks.push({ oldStart: at[from].o, newStart: at[from].n, lines: all.slice(from, to + 1) });
@@ -987,7 +1102,8 @@ export function analyzeTags(entries, usage, wikiPosts = {}) {
 	/** @type {Map<string, string>} */
 	const alias = new Map();
 	for (const e of entries) if (e.aliasOf !== undefined) alias.set(e.id, e.aliasOf);
-	for (const e of entries) for (const a of e.aka ?? []) if (a !== e.id && !alias.has(a)) alias.set(a, e.id);
+	for (const e of entries)
+		for (const a of e.aka ?? []) if (a !== e.id && !alias.has(a)) alias.set(a, e.id);
 	/** @param {string} t */
 	const canon = (t) => alias.get(t) ?? t;
 
@@ -1109,9 +1225,13 @@ export function analyzeTags(entries, usage, wikiPosts = {}) {
 		/** Declared tags outside the tree (no parent), except root. */
 		orphans: all.filter((n) => n.id !== 'root' && !n.parents.length).map((n) => n.id),
 		/** In the tree, reachable from root? */
-		unreachable: all.filter((n) => n.id !== 'root' && n.parents.length && !reachable.has(n.id)).map((n) => n.id),
+		unreachable: all
+			.filter((n) => n.id !== 'root' && n.parents.length && !reachable.has(n.id))
+			.map((n) => n.id),
 		/** Leaves no post uses. */
-		unused: all.filter((n) => n.id !== 'root' && !n.children.length && n.total === 0).map((n) => n.id),
+		unused: all
+			.filter((n) => n.id !== 'root' && !n.children.length && n.total === 0)
+			.map((n) => n.id),
 		/** Tags posts use that aren't in the tree (not declared, not a child, not an alias). */
 		undeclared: [...used]
 			.filter(([id]) => !nodes.has(id))

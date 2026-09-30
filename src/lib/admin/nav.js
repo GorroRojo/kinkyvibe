@@ -211,7 +211,7 @@ export const NAV = Object.freeze([
 		emoji: '🔖',
 		label: 'Etiquetas',
 		group: 'contenido',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'no-listadas',

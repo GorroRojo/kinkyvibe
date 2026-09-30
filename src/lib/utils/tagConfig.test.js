@@ -53,17 +53,24 @@ describe('parseTagSource / emitTagSource', () => {
 		const parsed = parseTagSource(realSource);
 		expect(parsed.items.length).toBeGreaterThan(100);
 		expect(parsed.items.find((i) => i.value.id === 'BDSM')?.value.related).toContain('top');
-		expect(emitTagSource(parsed, parsed.items.map((it) => ({ value: it.value, orig: it })))).toBe(
-			realSource
-		);
+		expect(
+			emitTagSource(
+				parsed,
+				parsed.items.map((it) => ({ value: it.value, orig: it }))
+			)
+		).toBe(realSource);
 	});
 	it('prints almost every entry of the real file exactly as prettier left it', () => {
 		const items = parseTagSource(realSource).items;
-		const same = items.filter((it) => printEntry(it.value, { multiline: it.multiline }) === it.text);
+		const same = items.filter(
+			(it) => printEntry(it.value, { multiline: it.multiline }) === it.text
+		);
 		expect(same.length / items.length).toBeGreaterThan(0.95);
 	});
 	it('reports where the file is broken', () => {
-		expect(() => parseTagSource('export const hardcodedTags = [\n\t{ id: "x" \n];')).toThrow(/línea/);
+		expect(() => parseTagSource('export const hardcodedTags = [\n\t{ id: "x" \n];')).toThrow(
+			/línea/
+		);
 		expect(() => parseTagSource('const x = 1;')).toThrow(/hardcodedTags/);
 	});
 	it('handles escapes and quotes', () => {
@@ -77,20 +84,31 @@ describe('parseTagSource / emitTagSource', () => {
 describe('printEntry', () => {
 	it('one line when it fits, one prop per line otherwise, long strings on their own line', () => {
 		expect(printEntry({ id: 'a', icon: '🎉' })).toBe("{ id: 'a', icon: '🎉' }");
-		const long = printEntry({ id: 'x', description: 'palabra '.repeat(20).trim(), children: ['a'] });
+		const long = printEntry({
+			id: 'x',
+			description: 'palabra '.repeat(20).trim(),
+			children: ['a']
+		});
 		expect(long).toBe(
 			`{\n\t\tid: 'x',\n\t\tdescription:\n\t\t\t'${'palabra '.repeat(20).trim()}',\n\t\tchildren: ['a']\n\t}`
 		);
-		const kids = printEntry({ id: 'x', children: Array.from({ length: 12 }, (_, i) => 'etiqueta ' + i) });
+		const kids = printEntry({
+			id: 'x',
+			children: Array.from({ length: 12 }, (_, i) => 'etiqueta ' + i)
+		});
 		expect(kids).toContain("children: [\n\t\t\t'etiqueta 0',\n");
 	});
 });
 
 describe('applyTagOps', () => {
 	it('create: under a parent, placed after it, with fields', () => {
-		const out = run([{ type: 'create', id: 'spanking', parent: 'impacto', icon: '🍑', aka: ['nalgadas'] }]);
+		const out = run([
+			{ type: 'create', id: 'spanking', parent: 'impacto', icon: '🍑', aka: ['nalgadas'] }
+		]);
 		expect(entry(out, 'impacto')?.children).toEqual(['spanking']);
-		expect(out).toContain("\t{ id: 'impacto', icon: '👋', children: ['spanking'] },\n\t{ id: 'spanking', icon: '🍑', aka: ['nalgadas'] },");
+		expect(out).toContain(
+			"\t{ id: 'impacto', icon: '👋', children: ['spanking'] },\n\t{ id: 'spanking', icon: '🍑', aka: ['nalgadas'] },"
+		);
 		expect(() => run([{ type: 'create', id: 'ataduras' }])).toThrow(/Ya existe/);
 		expect(() => run([{ type: 'create', id: 'x', parent: 'nada' }])).toThrow(/No existe/);
 		expect(() => run([{ type: 'create', id: '  ' }])).toThrow(/Falta/);
@@ -101,28 +119,43 @@ describe('applyTagOps', () => {
 	});
 	it('update: sets and removes fields keeping key order, declares child-only tags', () => {
 		const out = run([
-			{ type: 'update', id: 'impacto', set: { icon: '', visible_name: 'Juegos de impacto', description: 'Golpes.' } },
+			{
+				type: 'update',
+				id: 'impacto',
+				set: { icon: '', visible_name: 'Juegos de impacto', description: 'Golpes.' }
+			},
 			{ type: 'update', id: 'shibari', set: { icon: '🪢' } }
 		]);
-		expect(entry(out, 'impacto')).toEqual({ id: 'impacto', visible_name: 'Juegos de impacto', description: 'Golpes.' });
+		expect(entry(out, 'impacto')).toEqual({
+			id: 'impacto',
+			visible_name: 'Juegos de impacto',
+			description: 'Golpes.'
+		});
 		expect(entry(out, 'shibari')).toEqual({ id: 'shibari', icon: '🪢' });
-		expect(() => run([{ type: 'update', id: 'impacto', set: { children: [] } }])).toThrow(/No se puede/);
+		expect(() => run([{ type: 'update', id: 'impacto', set: { children: [] } }])).toThrow(
+			/No se puede/
+		);
 		expect(() => run([{ type: 'update', id: 'bdsm', set: { icon: 'x' } }])).toThrow(/alias/);
-		expect(() => run([{ type: 'update', id: 'impacto', set: { aka: ['ataduras'] } }])).toThrow(/otra/);
+		expect(() => run([{ type: 'update', id: 'impacto', set: { aka: ['ataduras'] } }])).toThrow(
+			/otra/
+		);
 	});
 	it('move: reparent, refuse cycles, detach', () => {
 		const out = run([{ type: 'move', id: 'impacto', from: 'prácticas', to: 'BDSM' }]);
 		expect(entry(out, 'prácticas')?.children).toEqual(['bondage']);
 		expect(entry(out, 'BDSM')?.children).toEqual(['seguridad', 'impacto']);
-		expect(() => run([{ type: 'move', id: 'prácticas', from: 'root', to: 'bondage' }])).toThrow(/sí misma/);
-		expect(() => run([{ type: 'move', id: 'impacto', from: 'BDSM', to: 'root' }])).toThrow(/no está/);
+		expect(() => run([{ type: 'move', id: 'prácticas', from: 'root', to: 'bondage' }])).toThrow(
+			/sí misma/
+		);
+		expect(() => run([{ type: 'move', id: 'impacto', from: 'BDSM', to: 'root' }])).toThrow(
+			/no está/
+		);
 		const detached = run([{ type: 'move', id: 'impacto', from: 'prácticas', to: null }]);
 		expect(entry(detached, 'prácticas')?.children).toEqual(['bondage']);
 		// an orphan gets a parent
-		expect(entry(run([{ type: 'move', id: 'suelta', to: 'material' }]), 'material')?.children).toEqual([
-			'guía',
-			'suelta'
-		]);
+		expect(
+			entry(run([{ type: 'move', id: 'suelta', to: 'material' }]), 'material')?.children
+		).toEqual(['guía', 'suelta']);
 	});
 	it('rename: id, references, aliases, wiki links, old name kept as alias', () => {
 		const out = run([{ type: 'rename', from: 'bondage', to: 'ataduras y cuerdas' }]);
@@ -154,8 +187,12 @@ describe('applyTagOps', () => {
 	it('aliases: add to aka, remove from aka or aliasOf entries', () => {
 		const add = run([{ type: 'addAlias', id: 'impacto', alias: 'impact play' }]);
 		expect(entry(add, 'impacto')?.aka).toEqual(['impact play']);
-		expect(() => run([{ type: 'addAlias', id: 'impacto', alias: 'bdsm' }])).toThrow(/alias de «BDSM»/);
-		expect(() => run([{ type: 'addAlias', id: 'impacto', alias: 'top' }])).toThrow(/ya es una etiqueta/);
+		expect(() => run([{ type: 'addAlias', id: 'impacto', alias: 'bdsm' }])).toThrow(
+			/alias de «BDSM»/
+		);
+		expect(() => run([{ type: 'addAlias', id: 'impacto', alias: 'top' }])).toThrow(
+			/ya es una etiqueta/
+		);
 		const rm = run([{ type: 'removeAlias', id: 'bondage', alias: 'ataduras' }]);
 		expect(entry(rm, 'bondage')).toEqual({ id: 'bondage', children: ['shibari'] });
 		const rm2 = run([{ type: 'removeAlias', id: 'BDSM', alias: 'bdsm' }]);
@@ -201,13 +238,17 @@ Texto con bondage.
 	});
 	it('quotes values YAML would misread, handles flow lists, leaves others alone', () => {
 		expect(replaceTagInPost(post, 'bondage', '24/7: sí')).toContain("  - '24/7: sí'");
-		expect(replaceTagInPost('---\ntags: [a, bondage]\n---\n', 'bondage', 'b')).toBe('---\ntags: [a, b]\n---\n');
+		expect(replaceTagInPost('---\ntags: [a, bondage]\n---\n', 'bondage', 'b')).toBe(
+			'---\ntags: [a, b]\n---\n'
+		);
 		expect(replaceTagInPost(post, 'nada', 'x')).toBe(post);
 		expect(replaceTagInPost('sin frontmatter', 'a', 'b')).toBe('sin frontmatter');
 	});
 	it('keeps CRLF line endings', () => {
 		const crlf = '---\r\ntags:\r\n  - bondage\r\n---\r\n';
-		expect(replaceTagInPost(crlf, 'bondage', 'cuerdas')).toBe('---\r\ntags:\r\n  - cuerdas\r\n---\r\n');
+		expect(replaceTagInPost(crlf, 'bondage', 'cuerdas')).toBe(
+			'---\r\ntags:\r\n  - cuerdas\r\n---\r\n'
+		);
 	});
 });
 
@@ -258,7 +299,17 @@ describe('lineDiff', () => {
 		const h = lineDiff(a, b, 2);
 		expect(h).toHaveLength(2);
 		expect(h[0].oldStart).toBe(4);
-		expect(h[0].lines.map((l) => l.t + l.s)).toEqual([' l3', ' l4', '-l5', '+L5', ' l6', '-l7', '+L7', ' l8', ' l9']);
+		expect(h[0].lines.map((l) => l.t + l.s)).toEqual([
+			' l3',
+			' l4',
+			'-l5',
+			'+L5',
+			' l6',
+			'-l7',
+			'+L7',
+			' l8',
+			' l9'
+		]);
 		expect(lineDiff('igual', 'igual')).toEqual([]);
 	});
 });
@@ -292,7 +343,10 @@ describe('analyzeTags', () => {
 		expect(a.broken).toEqual([{ from: 'top', to: 'fantasma', kind: 'related' }]);
 	});
 	it('inherits colors from ancestors', () => {
-		const b = analyzeTags(parseTagSource(realSource).items.map((i) => i.value), {});
+		const b = analyzeTags(
+			parseTagSource(realSource).items.map((i) => i.value),
+			{}
+		);
 		expect(b.nodes.find((x) => x.id === 'cabaret')?.color).toBe('var(--3-dark)');
 	});
 });
@@ -304,7 +358,9 @@ describe('helpers', () => {
 		expect(validateTagName('root')).toMatch(/reservado/);
 	});
 	it('renameWikiLinks', () => {
-		expect(renameWikiLinks('[[a]] y [[a : texto]] y [[ab]]', 'a', 'b')).toBe('[[b]] y [[b : texto]] y [[ab]]');
+		expect(renameWikiLinks('[[a]] y [[a : texto]] y [[ab]]', 'a', 'b')).toBe(
+			'[[b]] y [[b : texto]] y [[ab]]'
+		);
 	});
 	it('readOps validates the JSON from the form', () => {
 		expect(readOps([{ type: 'rename', from: 'a', to: 'b' }])).toEqual([
@@ -312,9 +368,13 @@ describe('helpers', () => {
 		]);
 		expect(() => readOps([])).toThrow(/No hay/);
 		expect(() => readOps([{ type: 'delete' }])).toThrow(/desconocida/);
-		expect(() => readOps(Array(31).fill({ type: 'merge', from: 'a', into: 'b' }))).toThrow(/Demasiados/);
+		expect(() => readOps(Array(31).fill({ type: 'merge', from: 'a', into: 'b' }))).toThrow(
+			/Demasiados/
+		);
 	});
 	it('describeOp', () => {
-		expect(describeOp({ type: 'move', id: 'a', from: 'b', to: 'c' })).toBe('Mover «a» de «b» a «c»');
+		expect(describeOp({ type: 'move', id: 'a', from: 'b', to: 'c' })).toBe(
+			'Mover «a» de «b» a «c»'
+		);
 	});
 });
