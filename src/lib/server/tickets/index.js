@@ -226,10 +226,15 @@ export function siteOrigin(url) {
  */
 export async function processPayment({ db, payment, origin, fetch: fetchFn, platform }) {
 	const result = await applyPayment(db, payment, {
-		// Para marcar una aprobación tardía que pasa el cupo (ver applyPayment).
-		capacityOf: async (order) =>
-			(await getEventTickets(order.event_slug))?.types.find((t) => t.id === order.ticket_type)
-				?.capacity ?? null
+		// Para marcar una aprobación tardía que pasa el cupo (ver applyPayment). Tipo sin cupo:
+		// Infinity (nunca se pasa); tipo que ya no existe: null (se revisa).
+		capacityOf: async (order) => {
+			const type = (await getEventTickets(order.event_slug))?.types.find(
+				(t) => t.id === order.ticket_type
+			);
+			if (!type) return null;
+			return type.capacity ?? Number.POSITIVE_INFINITY;
+		}
 	});
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
@@ -478,6 +483,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
  * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
  */
 export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+	// Una venta en la puerta puede no tener email.
+	if (!order.buyer_email) return false;
 	try {
 		const config = await getEventTickets(order.event_slug);
 		const message = buildRefundEmail({

@@ -1,12 +1,14 @@
 <!--
 	"Entradas" del editor de eventos: prende/apaga la venta por el sitio y edita los tipos de
-	entrada, medios de pago, cierre, modalidad y recordatorios (ver $lib/utils/ticketsEditor.js,
+	entrada, medios de pago, cierre, modalidad, entradas en la puerta y recordatorios (ver
+	$lib/utils/ticketsEditor.js,
 	que lee y escribe el frontmatter). Nada del Fondo: es automático, solo avisa si aplica.
 -->
 <script>
 	import { formatARS } from '$lib/utils/money.js';
 	import { formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
+		DOOR_PRICE_MAX,
 		PAYMENT_METHOD_LABELS,
 		emptyTicketType,
 		isKinkyVibeEvent,
@@ -30,11 +32,14 @@
 	/** @type {string[]} */
 	export let warnings = [];
 	export let idPrefix = 'ev';
+	/** Dónde se cargan el alias y los datos para transferir. */
+	export let settingsHref = '/admin/entradas/ajustes';
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
 	$: fondo = isKinkyVibeEvent({ tags });
 	$: autoOnline = isOnlineEvent({ tags, location });
+	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -44,7 +49,7 @@
 	};
 
 	function addType() {
-		state.types = [...state.types, emptyTicketType()];
+		state.types = [...state.types, emptyTicketType({ first: !state.types.length })];
 	}
 	/** @param {number} i */
 	function removeType(i) {
@@ -61,7 +66,7 @@
 	/** @param {boolean} on */
 	function setEnabled(on) {
 		state.enabled = on;
-		if (on && !state.types.length) state.types = [emptyTicketType()];
+		if (on && !state.types.length) state.types = [emptyTicketType({ first: true })];
 	}
 	/** @param {string} v datetime-local */
 	const validLocal = (v) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v ?? '');
@@ -154,8 +159,8 @@
 							Ya vendidas: <strong>{s.sold}</strong>{#if s.held}{' '}· reservadas: {s.held}{/if}
 						</p>
 					{/if}
-					<div class="grid">
-						<label class="field">
+					<div class="type-fields" class:mode-gorra={t.mode === 'gorra'}>
+						<label class="field f-name">
 							<span>Nombre <span class="req">*</span></span>
 							<input
 								id="{idPrefix}-ticket-name-{i}"
@@ -164,44 +169,45 @@
 								maxlength="60"
 							/>
 						</label>
-						<label class="field">
-							<span>Cupo <span class="req">*</span></span>
+						<label class="field f-cap">
+							<span>Cupo <small>(opcional)</small></span>
 							<input
 								id="{idPrefix}-ticket-capacity-{i}"
 								bind:value={t.capacity}
 								inputmode="numeric"
-								placeholder="40"
+								placeholder="Sin límite"
+								aria-describedby="{idPrefix}-ticket-capacity-help-{i}"
 							/>
-							{#if taken}<small>Mínimo {taken} (lo ya vendido o reservado).</small>{/if}
+							<small id="{idPrefix}-ticket-capacity-help-{i}"
+								>{#if taken}Mínimo {taken} (lo ya vendido o reservado).{:else}Vacío = sin límite.{/if}</small
+							>
 						</label>
-					</div>
-					<div
-						class="pills"
-						role="radiogroup"
-						aria-label="Cómo se cobra «{t.name || `entrada ${i + 1}`}»"
-					>
-						<label class="pill">
-							<input
-								type="radio"
-								name="{idPrefix}-ticket-mode-{t.key}"
-								value="price"
-								bind:group={t.mode}
-							/>
-							<span>Precio fijo</span>
-						</label>
-						<label class="pill">
-							<input
-								type="radio"
-								name="{idPrefix}-ticket-mode-{t.key}"
-								value="gorra"
-								bind:group={t.mode}
-							/>
-							<span>A la gorra</span>
-						</label>
-					</div>
-					{#if t.mode === 'gorra'}
-						<div class="grid">
-							<label class="field">
+						<div
+							class="pills f-mode"
+							role="radiogroup"
+							aria-label="Cómo se cobra «{t.name || `entrada ${i + 1}`}»"
+						>
+							<label class="pill">
+								<input
+									type="radio"
+									name="{idPrefix}-ticket-mode-{t.key}"
+									value="price"
+									bind:group={t.mode}
+								/>
+								<span>Precio fijo</span>
+							</label>
+							<label class="pill">
+								<input
+									type="radio"
+									name="{idPrefix}-ticket-mode-{t.key}"
+									value="gorra"
+									bind:group={t.mode}
+								/>
+								<span>A la gorra</span>
+							</label>
+						</div>
+						{#if t.mode === 'gorra'}
+							<label class="field f-min">
 								<span>Mínimo ($)</span>
 								<input
 									id="{idPrefix}-ticket-min-{i}"
@@ -211,7 +217,7 @@
 								/>
 								<small>0 = quien no puede pagar, no paga.</small>
 							</label>
-							<label class="field">
+							<label class="field f-sug">
 								<span>Sugerido ($) <span class="req">*</span></span>
 								<input
 									id="{idPrefix}-ticket-suggested-{i}"
@@ -230,30 +236,34 @@
 									>
 								{/if}
 							</label>
-						</div>
-					{:else}
-						<label class="field price">
-							<span>Precio ($) <span class="req">*</span></span>
-							<input
-								id="{idPrefix}-ticket-price-{i}"
-								bind:value={t.price}
-								inputmode="numeric"
-								placeholder="10000"
-							/>
+						{:else}
+							<label class="field f-price">
+								<span>Precio ($) <span class="req">*</span></span>
+								<input
+									id="{idPrefix}-ticket-price-{i}"
+									bind:value={t.price}
+									inputmode="numeric"
+									placeholder="10000"
+								/>
+								<small
+									>{money(t.price)
+										? `${money(t.price)}.`
+										: 'Pesos, sin centavos.'}{#if fondo}{' '}Es el precio completo: el descuento del
+										Fondo se calcula solo.{/if}</small
+								>
+							</label>
+						{/if}
+						<label class="field f-close">
+							<span>Cierre propio <small>(opcional)</small></span>
+							<input type="datetime-local" id="{idPrefix}-ticket-close-{i}" bind:value={t.close} />
 							<small
-								>{money(t.price) ? `${money(t.price)}.` : 'Pesos, sin centavos.'}{#if fondo}{' '}Es
-									el precio completo: el descuento del Fondo se calcula solo.{/if}</small
+								>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(
+										t.close
+									)}.{:else}Vacío = cierra con la venta del evento (por ejemplo, para que la
+									anticipada cierre antes).{/if}</small
 							>
 						</label>
-					{/if}
-					<label class="field when">
-						<span>Cierre propio (opcional)</span>
-						<input type="datetime-local" id="{idPrefix}-ticket-close-{i}" bind:value={t.close} />
-						<small
-							>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(t.close)}.{:else}Vacío
-								= cierra con la venta del evento (por ejemplo, para que la anticipada cierre antes).{/if}</small
-						>
-					</label>
+					</div>
 				</li>
 			{/each}
 		</ol>
@@ -271,7 +281,11 @@
 			{/each}
 			{#if state.methods.transferencia}
 				<small
-					>Los datos para transferir se cargan en Ajustes de venta (no van en el archivo).</small
+					>El alias y los datos para transferir se configuran en <a
+						href={settingsHref}
+						target="_blank"
+						rel="noopener">Ajustes de venta</a
+					>.</small
 				>
 			{/if}
 		</fieldset>
@@ -323,6 +337,36 @@
 				transmisión se carga en el admin de entradas (nunca en el archivo).</small
 			>
 		</label>
+
+		{#if !online}
+			<fieldset class="group door">
+				<legend>Entradas en la puerta</legend>
+				<label class="check">
+					<input type="checkbox" id="{idPrefix}-door" bind:checked={state.door} />
+					Hay entradas en la puerta
+				</label>
+				{#if state.door}
+					<label class="field door-price">
+						<span>Precio en la puerta <small>(opcional)</small></span>
+						<input
+							id="{idPrefix}-door-price"
+							bind:value={state.doorPrice}
+							maxlength={DOOR_PRICE_MAX}
+							placeholder="$ 12.000, solo efectivo"
+						/>
+					</label>
+					<small
+						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
+						se puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
+							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
+					>
+				{:else}
+					<small
+						>La página del evento dice «Solo anticipadas» y el modo puerta no ofrece vender.</small
+					>
+				{/if}
+			</fieldset>
+		{/if}
 
 		<label class="check">
 			<input type="checkbox" id="{idPrefix}-reminders" bind:checked={state.reminders} />
@@ -410,8 +454,70 @@
 		margin: 0;
 		font-size: var(--step--1);
 	}
-	.price {
-		max-width: 20em;
+	/* Campos de un tipo: grilla compacta (nombre y cupo; cómo se cobra; montos y cierre). */
+	.type-fields {
+		display: grid;
+		gap: 0.6em 0.8em;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-areas:
+			'name name'
+			'cap mode'
+			'price close';
+		align-items: start;
+		&.mode-gorra {
+			grid-template-areas:
+				'name name'
+				'cap mode'
+				'min sug'
+				'close close';
+		}
+	}
+	.f-name {
+		grid-area: name;
+	}
+	.f-cap {
+		grid-area: cap;
+	}
+	.f-mode {
+		grid-area: mode;
+		align-self: center;
+	}
+	.f-price {
+		grid-area: price;
+	}
+	.f-min {
+		grid-area: min;
+	}
+	.f-sug {
+		grid-area: sug;
+	}
+	.f-close {
+		grid-area: close;
+	}
+	@media (max-width: 500px) {
+		.type-fields {
+			grid-template-areas:
+				'name name'
+				'cap mode'
+				'price price'
+				'close close';
+		}
+	}
+	@media (min-width: 900px) {
+		.type-fields {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-areas:
+				'name name cap mode'
+				'price close close .';
+			&.mode-gorra {
+				grid-template-areas:
+					'name name cap mode'
+					'min sug close close';
+			}
+		}
+	}
+	.door-price {
+		max-width: 24em;
 	}
 	.add {
 		align-self: flex-start;

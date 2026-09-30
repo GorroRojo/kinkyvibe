@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { eventHref } from '$lib/admin/nav.js';
 
 	let { data, form } = $props();
 
@@ -104,7 +105,7 @@
 					{:else}❌ Entrada inválida.{/if}
 				</p>
 			{/if}
-			<a href="/admin/entradas/{data.event.slug}/ingreso">Ir al control de ingreso</a>
+			<a href={eventHref(data.event.slug, 'ingreso')}>Ir al modo puerta</a>
 		</form>
 	{/if}
 </article>

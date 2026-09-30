@@ -32,7 +32,9 @@ describe('parseTicketConfig', () => {
 		const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
 			parseTicketConfig(META)
 		);
-		expect(c.types).toEqual(META.tickets.map((t) => ({ ...t, fondo: 0, gorra: null, closesAt: null })));
+		expect(c.types).toEqual(
+			META.tickets.map((t) => ({ ...t, fondo: 0, gorra: null, closesAt: null }))
+		);
 		expect(c.closesAt).toBe(new Date('2026-10-17T21:00-03:00').getTime());
 	});
 
@@ -58,6 +60,67 @@ describe('parseTicketConfig', () => {
 		[[{ id: 'a', price: '8000', capacity: 'x' }], /Cupo/]
 	])('rechaza configuraciones inválidas %#', (tickets, error) => {
 		expect(() => parseTicketConfig({ ...META, tickets })).toThrow(error);
+	});
+});
+
+describe('cupo opcional y entradas en la puerta', () => {
+	it('sin `capacity` (o vacío) el tipo no tiene cupo: capacity null', () => {
+		const config = parseTicketConfig({
+			...META,
+			tickets: [
+				{ id: 'general', price: 8000 },
+				{ id: 'vacio', price: 8000, capacity: '' },
+				{ id: 'nulo', price: 8000, capacity: null },
+				{ id: 'cero', price: 8000, capacity: 0 },
+				{ id: 'gorra', a_la_gorra: { minimo: 0, sugerido: 3000 } }
+			]
+		});
+		expect(config?.types.map((t) => [t.id, t.capacity])).toEqual([
+			['general', null],
+			['vacio', null],
+			['nulo', null],
+			['cero', 0],
+			['gorra', null]
+		]);
+		expect(() =>
+			parseTicketConfig({ ...META, tickets: [{ id: 'a', price: 1, capacity: -1 }] })
+		).toThrow(/Cupo/);
+		expect(() =>
+			parseTicketConfig({ ...META, tickets: [{ id: 'a', price: 1, capacity: 2.5 }] })
+		).toThrow(/Cupo/);
+	});
+
+	it('puerta: sin la clave se vende sin aviso; true avisa (con precio); false no vende', () => {
+		expect(parseTicketConfig(META)?.door).toEqual({ on: true, explicit: false, price: '' });
+		// El precio solo cuenta con `puerta: true`.
+		expect(parseTicketConfig({ ...META, puerta_precio: '$ 1' })?.door).toEqual({
+			on: true,
+			explicit: false,
+			price: ''
+		});
+		expect(parseTicketConfig({ ...META, puerta: true })?.door).toEqual({
+			on: true,
+			explicit: true,
+			price: ''
+		});
+		expect(
+			parseTicketConfig({ ...META, puerta: true, puerta_precio: ' $ 12.000, solo efectivo ' })?.door
+		).toEqual({ on: true, explicit: true, price: '$ 12.000, solo efectivo' });
+		expect(parseTicketConfig({ ...META, puerta: false, puerta_precio: '$ 1' })?.door).toEqual({
+			on: false,
+			explicit: true,
+			price: ''
+		});
+		// Solo un número: se muestra como plata.
+		const door = parseTicketConfig({ ...META, puerta: true, puerta_precio: 12000 })?.door;
+		expect(door?.price).toMatch(/^\$\s?12\.000$/);
+		// "no" como texto no cuenta: tiene que ser el booleano de YAML (si no, como si faltara).
+		expect(parseTicketConfig({ ...META, puerta: 'no' })?.door).toMatchObject({
+			on: true,
+			explicit: false
+		});
+		// Evento online: no hay puerta.
+		expect(parseTicketConfig({ ...META, puerta: true, modalidad: 'online' })?.door).toBeNull();
 	});
 });
 

@@ -18,13 +18,17 @@
  *   desordenadas (ver `nextStatus`).
  */
 
-import { computePrice } from '$lib/utils/tickets.js';
+import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 import { capacityLimit } from './overrides.js';
+import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
+
+// El código corto se normaliza también en el navegador (modo puerta sin conexión).
+export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo' | 'otro'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -39,7 +43,8 @@ import { capacityLimit } from './overrides.js';
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
- *   review_detail?: string | null
+ *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
+ *   admin_note?: string | null
  * }} Order
  */
 /**
@@ -93,7 +98,6 @@ export function isValidToken(token) {
  * tipearlos en la puerta). 31 símbolos: 6 caracteres ≈ 887 millones de combinaciones.
  */
 export const TICKET_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-export const TICKET_CODE_LENGTH = 6;
 
 /** Código corto aleatorio (sin sesgo: se descartan los bytes que no entran parejo). */
 export function newTicketCode() {
@@ -106,23 +110,6 @@ export function newTicketCode() {
 		}
 	}
 	return code;
-}
-
-/**
- * Normaliza un código tipeado en la puerta: sin espacios ni guiones, en mayúsculas, sin el
- * prefijo opcional "KV", y O→0, I/L→1 (esas letras no se usan en los códigos: si alguien las
- * tipea, casi seguro quiso decir el número). `null` si no tiene la forma.
- *
- * @param {unknown} raw
- * @returns {string | null}
- */
-export function normalizeTicketCode(raw) {
-	if (typeof raw !== 'string') return null;
-	let s = raw.toUpperCase().replace(/[\s\-_.]/g, '');
-	if (s.length === TICKET_CODE_LENGTH + 2 && s.startsWith('KV')) s = s.slice(2);
-	if (s.length !== TICKET_CODE_LENGTH) return null;
-	s = s.replaceAll('O', '0').replaceAll('I', '1').replaceAll('L', '1');
-	return /^[0-9A-Z]+$/.test(s) ? s : null;
 }
 
 /** Token aleatorio de 256 bits en base64url (43 caracteres). */
@@ -148,7 +135,7 @@ export function newToken() {
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
- *   type: { id: string, price: number, fondo?: number, capacity: number,
+ *   type: { id: string, price: number, fondo?: number, capacity: number | null,
  *     gorra?: { min: number, suggested: number } | null },
  *   quantity: number,
  *   buyer: import('./config.js').Buyer | Omit<import('./config.js').Buyer, 'pronouns'>,
@@ -164,8 +151,10 @@ export function newToken() {
  *   clientHash?: string | null,
  *   limits?: typeof HOLD_LIMITS
  * }} input
+ * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ *
  * @returns {Promise<{ ok: true, order: Order }
- *   | { ok: false, reason: 'soldout', available: number }
+ *   | { ok: false, reason: 'soldout', available: number | null }
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'method' }>}
@@ -214,11 +203,11 @@ export async function reserveOrder(db, input) {
 				WHERE ${openHoldsSql('buyer_email = ?8', 'SUM(quantity)')} + ?4 <= ?28
 				AND ${openHoldsSql('buyer_email = ?8', 'COUNT(*)')} < ?29
 				AND (?27 IS NULL OR ${openHoldsSql('client_hash = ?27', 'SUM(quantity)')} + ?4 <= ?30)
-				AND (
+				AND (?11 IS NULL OR (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
-				) + ?4 <= ?11
+				) + ?4 <= ?11)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
 				RETURNING *`
 			)
@@ -274,12 +263,8 @@ export async function reserveOrder(db, input) {
 		}
 	}
 	const counts = await getCounts(db, eventSlug, now);
-	const c = counts.get(type.id);
-	return {
-		ok: false,
-		reason: 'soldout',
-		available: Math.max(0, type.capacity - (c ? c.sold + c.held : 0))
-	};
+	// `null`: sin cupo (no se agotó; algo cambió en el medio, se puede reintentar).
+	return { ok: false, reason: 'soldout', available: remainingOf(type, counts.get(type.id)) };
 }
 
 /**
@@ -352,10 +337,12 @@ export function orderHolders(order) {
  * (webhooks duplicados, doble click en "Confirmar pago") nunca duplica. Al final se borran los
  * datos por entrada de la orden (ya quedaron en `tickets`).
  *
+ * Exportada para la venta en la puerta (door.js), que emite en el mismo batch que crea la orden.
+ *
  * @param {D1Database} db
- * @param {Order} order
+ * @param {Pick<Order, 'id' | 'holders' | 'buyer_name' | 'quantity'>} order
  */
-function issueTicketsStatements(db, order) {
+export function issueTicketsStatements(db, order) {
 	const holders = orderHolders(order);
 	// Código corto: el primero de tres candidatos al azar que no esté usado en el evento (una
 	// colisión no puede hacer fallar la aprobación de un pago; con tres, que choquen todos es
@@ -679,8 +666,9 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 }
 
 /**
- * ¿Con esta orden (ya aprobada) su tipo de entrada pasa el cupo? Sin forma de saber el cupo,
- * se toma como que sí (mejor revisar de más).
+ * ¿Con esta orden (ya aprobada) su tipo de entrada pasa el cupo? Sin forma de saber el cupo
+ * (`capacityOf` da `null`), se toma como que sí (mejor revisar de más). Un tipo sin cupo (sin
+ * límite) tiene que dar `Infinity`.
  *
  * @param {D1Database} db
  * @param {Order} order
@@ -1073,7 +1061,9 @@ export async function approveFreeOrder(db, order, { now = Date.now() } = {}) {
  * se pasa del cupo; ver overrides.js y `transferLimits`) se confirma igual aunque no haya cupo.
  *
  * @param {D1Database} db
- * @param {{ orderId: string, eventSlug: string, capacity: number, by: string, now?: number,
+ * `capacity` `null`: el tipo no tiene cupo (se confirma siempre).
+ *
+ * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string, now?: number,
  *   override?: boolean }} input
  * @returns {Promise<{
  *   result: 'confirmed' | 'already' | 'no-capacity' | 'not-transfer' | 'not-found' | 'cancelled',
@@ -1096,12 +1086,12 @@ export async function confirmTransfer(
 			WHERE id = ?1 AND payment_method = 'transferencia' AND (
 				(?5 = 1 AND status IN ('awaiting_transfer', 'expired'))
 				OR (status = 'awaiting_transfer' AND expires_at > ?2)
-				OR (status IN ('awaiting_transfer', 'expired') AND (
+				OR (status IN ('awaiting_transfer', 'expired') AND (?4 IS NULL OR (
 					SELECT COALESCE(SUM(o2.quantity), 0) FROM orders o2
 					WHERE o2.event_slug = orders.event_slug AND o2.ticket_type = orders.ticket_type
 						AND o2.id != orders.id
 						AND (o2.status = 'approved' OR (o2.status IN ${HOLDING} AND o2.expires_at > ?2))
-				) + orders.quantity <= ?4)
+				) + orders.quantity <= ?4))
 			)`
 		)
 		.bind(order.id, now, by, capacity, override ? 1 : 0);

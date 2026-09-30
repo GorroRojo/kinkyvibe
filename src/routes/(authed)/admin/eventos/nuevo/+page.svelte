@@ -77,7 +77,9 @@
 	let month = prefillMonth(data.today);
 	const sourceStart = parseEventDate(sourceFields.start).date;
 	const sourceWeekday =
-		source && isValidDate(sourceStart) ? new Date(sourceStart + 'T12:00:00Z').getUTCDay() : undefined;
+		source && isValidDate(sourceStart)
+			? new Date(sourceStart + 'T12:00:00Z').getUTCDay()
+			: undefined;
 
 	/* ---------- tags & organizers ---------- */
 	const tagOptions = buildTagOptions({ category: 'calendario', usage: data.tagUsage });
@@ -136,10 +138,10 @@
 	$: proposedSlug = !isValidDate(values.startDate)
 		? ''
 		: source
-		? deriveSlug(source.slug, values.startDate)
-		: values.title.trim()
-		? `${slugify(values.title)}-${values.startDate.slice(0, 7)}`
-		: '';
+			? deriveSlug(source.slug, values.startDate)
+			: values.title.trim()
+				? `${slugify(values.title)}-${values.startDate.slice(0, 7)}`
+				: '';
 	$: if (!slugEdited) slug = proposedSlug ? uniqueSlug(proposedSlug, taken) : '';
 	$: slugProblem = slug ? validateSlug(slug, taken) : null;
 	/** Result of the last server check: {slug, error, suggestion} */
@@ -218,7 +220,11 @@
 	}
 	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
 	$: previewImage =
-		featuredMode === 'upload' ? uploadURL : featuredMode === 'keep' ? source?.featuredUrl : undefined;
+		featuredMode === 'upload'
+			? uploadURL
+			: featuredMode === 'keep'
+				? source?.featuredUrl
+				: undefined;
 
 	/* ---------- validation & generated file ---------- */
 	$: startValue =
@@ -229,7 +235,8 @@
 		values.hasEnd && isValidDate(values.endDate) && isValidTime(values.endTime)
 			? formatEventDate(values.endDate, values.endTime)
 			: '';
-	$: scheduleError = startValue && (endValue || !values.hasEnd) ? validateSchedule(startValue, endValue) : null;
+	$: scheduleError =
+		startValue && (endValue || !values.hasEnd) ? validateSchedule(startValue, endValue) : null;
 	$: scheduleText = startValue ? describeSchedule(startValue, endValue) : '';
 
 	$: problems = /** @type {string[]} */ (
@@ -237,7 +244,10 @@
 			!values.title.trim() && 'Falta el título.',
 			!isValidDate(values.startDate) && 'Falta la fecha de inicio.',
 			!isValidTime(values.startTime) && 'Falta la hora de inicio.',
-			values.hasEnd && isValidDate(values.startDate) && !isValidDate(values.endDate) && 'Falta la fecha de fin.',
+			values.hasEnd &&
+				isValidDate(values.startDate) &&
+				!isValidDate(values.endDate) &&
+				'Falta la fecha de fin.',
 			values.hasEnd && !isValidTime(values.endTime) && 'Falta la hora de fin.',
 			scheduleError,
 			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
@@ -334,7 +344,11 @@
 				window.scrollTo({ top: 0 });
 			} else if (result.type === 'failure') {
 				if (result.data?.slugError)
-					serverSlug = { slug, error: result.data.slugError, suggestion: result.data.suggestion ?? '' };
+					serverSlug = {
+						slug,
+						error: result.data.slugError,
+						suggestion: result.data.suggestion ?? ''
+					};
 				checkError = result.data?.error ?? '';
 				await tick();
 				document.querySelector('.problems, .check-error')?.scrollIntoView({ block: 'center' });
@@ -402,8 +416,8 @@
 
 	{#if data.mock}
 		<p class="mock">
-			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos se guardan en una
-			carpeta temporal.
+			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos
+			se guardan en una carpeta temporal.
 		</p>
 	{/if}
 
@@ -420,18 +434,22 @@
 			</p>
 			<p>
 				Va a estar en
-				<a href={form.eventUrl} target="_blank" rel="noreferrer"><strong>kinkyvibe.ar{form.eventUrl}</strong></a>
+				<a href={form.eventUrl} target="_blank" rel="noreferrer"
+					><strong>kinkyvibe.ar{form.eventUrl}</strong></a
+				>
 			</p>
 			<p class="note">
-				⏳ El sitio tarda unos minutos (normalmente entre 2 y 5) en actualizarse. Si el link da error
-				al principio, esperá un poco y recargá. Si pasan más de 10 minutos, avisale a
+				⏳ El sitio tarda unos minutos (normalmente entre 2 y 5) en actualizarse. Si el link da
+				error al principio, esperá un poco y recargá. Si pasan más de 10 minutos, avisale a
 				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
 			</p>
 			{#if form.imageScope === 'todas'}
 				<p class="note">
 					🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-						{' '}({form.affected.length} {form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-					{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron los eventos que la usaban.{/if}
+						{' '}({form.affected.length}
+						{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+					{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron
+						los eventos que la usaban.{/if}
 				</p>
 			{:else if form.imageScope === 'esta'}
 				<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
@@ -440,13 +458,20 @@
 				<p class="warning">⚠️ {warning}</p>
 			{/each}
 			<p class="small">
-				Cambio guardado en GitHub: <a href={form.commitUrl} target="_blank" rel="noreferrer">ver el commit</a>
-				· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i < (form.files?.length ?? 0) - 1 ? ', ' : ''}{/each}
+				Cambio guardado en GitHub: <a href={form.commitUrl} target="_blank" rel="noreferrer"
+					>ver el commit</a
+				>
+				· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
+					(form.files?.length ?? 0) - 1
+						? ', '
+						: ''}{/each}
 			</p>
 			<p class="buttons">
 				<a class="button" href="/admin/eventos">Cargar otro evento</a>
-				<a class="button secondary" href="/admin/eventos/nuevo?desde={form.slug}" data-sveltekit-reload
-					>Duplicar este mismo</a
+				<a
+					class="button secondary"
+					href="/admin/eventos/nuevo?desde={form.slug}"
+					data-sveltekit-reload>Duplicar este mismo</a
 				>
 			</p>
 		</section>
@@ -477,8 +502,10 @@
 			<div class="step" hidden={step !== 'editar'}>
 				{#if source}
 					<p class="hint">
-						Copiamos todos los datos de <a href="/calendario/{source.slug}" target="_blank" rel="noreferrer"
-							>{source.title}</a
+						Copiamos todos los datos de <a
+							href="/calendario/{source.slug}"
+							target="_blank"
+							rel="noreferrer">{source.title}</a
 						>. Cambiá la fecha y revisá lo demás.
 					</p>
 				{/if}
@@ -538,7 +565,9 @@
 						<p class="error">
 							{scheduleError}
 							{#if values.startDate === values.endDate}
-								<button type="button" class="link" on:click={endsNextDay}>¿Termina al día siguiente?</button>
+								<button type="button" class="link" on:click={endsNextDay}
+									>¿Termina al día siguiente?</button
+								>
 							{/if}
 						</p>
 					{/if}
@@ -548,7 +577,11 @@
 					<legend>📝 Datos del evento</legend>
 					<label class="field">
 						<span>Título <span class="req">*</span></span>
-						<input id="ev-title" bind:value={values.title} placeholder="Ej: Picantearla (62ª Edición)" />
+						<input
+							id="ev-title"
+							bind:value={values.title}
+							placeholder="Ej: Picantearla (62ª Edición)"
+						/>
 					</label>
 					<label class="field">
 						<span>Resumen corto</span>
@@ -556,8 +589,7 @@
 							id="ev-summary"
 							bind:value={values.summary}
 							rows="3"
-							placeholder="Aparece en la lista de eventos y cuando se comparte el link"
-						></textarea>
+							placeholder="Aparece en la lista de eventos y cuando se comparte el link"></textarea>
 					</label>
 					<label class="field">
 						<span>Estado</span>
@@ -570,12 +602,20 @@
 					<div class="grid">
 						<label class="field">
 							<span>Dirección</span>
-							<input id="ev-location" bind:value={values.location} placeholder="Calle 123, Ciudad" />
+							<input
+								id="ev-location"
+								bind:value={values.location}
+								placeholder="Calle 123, Ciudad"
+							/>
 							<small>Dejalo vacío si es online.</small>
 						</label>
 						<label class="field">
 							<span>Nombre del lugar</span>
-							<input id="ev-location-name" bind:value={values.location_name} placeholder="Ej: El Surco" />
+							<input
+								id="ev-location-name"
+								bind:value={values.location_name}
+								placeholder="Ej: El Surco"
+							/>
 						</label>
 						<label class="field">
 							<span>Link de inscripción / entradas</span>
@@ -603,8 +643,8 @@
 							describedby="ev-authors-help"
 						/>
 						<small id="ev-authors-help"
-							>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden ser
-							varias personas o grupos.</small
+							>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden
+							ser varias personas o grupos.</small
 						>
 					</div>
 				</fieldset>
@@ -627,13 +667,18 @@
 						</div>
 					</label>
 					{#if slugEdited && proposedSlug}
-						<button type="button" class="link" on:click={resetSlug}>Usar la dirección sugerida</button>
+						<button type="button" class="link" on:click={resetSlug}
+							>Usar la dirección sugerida</button
+						>
 					{/if}
 					{#if slugProblem || serverSlugError}
 						<p class="error">
 							{slugProblem || serverSlugError}
 							{#if serverSlugError && serverSlug.suggestion}
-								<button type="button" class="link" on:click={() => useSuggestion(serverSlug.suggestion)}
+								<button
+									type="button"
+									class="link"
+									on:click={() => useSuggestion(serverSlug.suggestion)}
 									>Usar «{serverSlug.suggestion}»</button
 								>
 							{/if}
@@ -657,8 +702,8 @@
 							describedby="ev-tags-help"
 						/>
 						<small id="ev-tags-help"
-							>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí las
-							que ya existen: son las que se usan para filtrar.</small
+							>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí
+							las que ya existen: son las que se usan para filtrar.</small
 						>
 					</div>
 				</fieldset>
@@ -688,8 +733,8 @@
 								</p>
 							{:else if featuredMode === 'keep'}
 								<p class="hint">
-									Se usa la misma imagen que el evento original: se copia a la carpeta de este evento. El
-									evento original no cambia.
+									Se usa la misma imagen que el evento original: se copia a la carpeta de este
+									evento. El evento original no cambia.
 								</p>
 							{:else if featuredMode === 'upload'}
 								<p class="hint">Nueva imagen: {uploadName}</p>
@@ -705,7 +750,11 @@
 								/>
 							{/if}
 							<label class="file">
-								<span>{featuredMode === 'upload' ? 'Elegir otra imagen' : 'Subir una imagen nueva'}</span>
+								<span
+									>{featuredMode === 'upload'
+										? 'Elegir otra imagen'
+										: 'Subir una imagen nueva'}</span
+								>
 								<input
 									bind:this={fileInput}
 									type="file"
@@ -715,20 +764,25 @@
 									on:change={onFileChange}
 								/>
 							</label>
-							<small>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small>
+							<small
+								>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
+							>
 							{#if sourceImageIsShared && !askScope}
 								<p class="note" id="ev-image-where">
-									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de este
-									evento o solo para esta.
+									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones
+									de este evento o solo para esta.
 								</p>
 							{:else if !askScope}
 								<p class="note" id="ev-image-where">
 									📁 Una imagen nueva se guarda solo para este evento{#if slug}
-										{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no cambia.
+										{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
+									cambia.
 								</p>
 							{/if}
 							{#if featuredMode !== 'none'}
-								<button type="button" class="link" on:click={() => setImage('none')}>Quitar imagen</button>
+								<button type="button" class="link" on:click={() => setImage('none')}
+									>Quitar imagen</button
+								>
 							{/if}
 							{#if hasSourceImage && featuredMode !== 'keep'}
 								<button type="button" class="link" on:click={() => setImage('keep')}
@@ -743,7 +797,8 @@
 				<fieldset class="card">
 					<legend>📄 Texto largo de la página</legend>
 					<p class="hint">
-						Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>, <code>- lista</code>,
+						Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
+						<code>- lista</code>,
 						<code>**negrita**</code>.
 					</p>
 					<textarea id="ev-body" class="body" bind:value={values.body} rows="12"></textarea>
@@ -761,7 +816,13 @@
 				{#if checkError}<p class="error check-error">{checkError}</p>{/if}
 
 				<div class="bar">
-					<button type="button" class="button" id="to-preview" on:click={goToPreview} disabled={checking}>
+					<button
+						type="button"
+						class="button"
+						id="to-preview"
+						on:click={goToPreview}
+						disabled={checking}
+					>
 						{checking ? 'Revisando…' : 'Revisar antes de publicar →'}
 					</button>
 				</div>
@@ -796,17 +857,20 @@
 					<dt>Imagen</dt>
 					<dd id="review-image">
 						{#if featuredMode === 'upload' && scope === 'todas'}
-							<strong>Nueva para todas las ediciones:</strong> {uploadName} reemplaza la imagen
-							compartida <code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured}, que
+							<strong>Nueva para todas las ediciones:</strong>
+							{uploadName} reemplaza la imagen compartida
+							<code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured}, que
 								pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan los eventos
 								que la usaban){/if}. Cambia también en los eventos pasados.
 						{:else if featuredMode === 'upload'}
-							<strong>Nueva, solo para este evento:</strong> {uploadName}, en
+							<strong>Nueva, solo para este evento:</strong>
+							{uploadName}, en
 							<code>calendario/media/{slug}/1.{uploadExt}</code>.{#if sourceImageIsShared}
-								{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no cambian.{/if}
+								{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no
+								cambian.{/if}
 						{:else if featuredMode === 'keep' && sourceImageIsShared}
-							La misma del evento original: la imagen compartida <code>{sourceFields.featured}</code> (no se
-							copia ni se modifica).
+							La misma del evento original: la imagen compartida <code>{sourceFields.featured}</code
+							> (no se copia ni se modifica).
 						{:else if featuredMode === 'keep'}
 							La misma del evento original (copiada a este evento)
 						{:else}
@@ -819,8 +883,8 @@
 						{#if affected}
 							<p>
 								<strong>
-									{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también van a
-									mostrar la imagen nueva{sharedNewName !== sourceFields.featured
+									{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también
+									van a mostrar la imagen nueva{sharedNewName !== sourceFields.featured
 										? ' (se actualiza su archivo)'
 										: ''}:
 								</strong>
@@ -828,7 +892,9 @@
 							<ul>
 								{#each affected as ev}
 									<li>
-										<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer">{ev.title || ev.slug}</a>
+										<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
+											>{ev.title || ev.slug}</a
+										>
 										<small>{ev.start.slice(0, 10)}</small>
 									</li>
 								{/each}
@@ -874,8 +940,11 @@
 							minutos.
 						</p>
 						<div class="bar">
-							<button type="button" class="button secondary" on:click={() => (confirming = false)} disabled={submitting}
-								>Cancelar</button
+							<button
+								type="button"
+								class="button secondary"
+								on:click={() => (confirming = false)}
+								disabled={submitting}>Cancelar</button
 							>
 							<button
 								type="submit"

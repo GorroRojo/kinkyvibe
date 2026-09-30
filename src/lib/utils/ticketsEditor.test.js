@@ -34,8 +34,12 @@ tickets:
     price: 8000
     capacity: 3
 payment_methods: [mercadopago, transferencia]
+puerta: true
 extra_key: se queda
 `;
+
+/** Un evento de antes de `puerta` (sin la clave). */
+const FM_SIN_PUERTA = FM.replace('puerta: true\n', '');
 
 /** @param {string} fm */
 const metaOf = (fm) => parseDocument(fm).toJS();
@@ -106,6 +110,97 @@ mp_fee_percent: 7.5
 			reminders: false,
 			mpFee: '7.5'
 		});
+	});
+});
+
+describe('cupo opcional, «General» y entradas en la puerta', () => {
+	it('el primer tipo nuevo se llama «General»; los demás, vacíos', () => {
+		expect(emptyTicketType({ first: true }).name).toBe('General');
+		expect(emptyTicketType().name).toBe('');
+	});
+
+	it('cupo vacío = sin límite: valida, se guarda sin `capacity` y la venta lo lee como null', () => {
+		const initial = formOf(FM);
+		const form = formOf(FM);
+		form.types[0].capacity = '  ';
+		expect(validateTicketsForm(form).errors).toEqual([]);
+		const out = applyTicketsForm(FM, form, initial);
+		expect(metaOf(out).tickets[0]).not.toHaveProperty('capacity');
+		expect(metaOf(out).tickets[1].capacity).toBe(3);
+		expect(parseTicketConfig(metaOf(out))?.types.map((t) => t.capacity)).toEqual([null, 3]);
+		// Ida y vuelta: se lee vacío y sin cambios no toca nada.
+		expect(formOf(out).types[0].capacity).toBe('');
+		expect(applyTicketsForm(out, formOf(out), formOf(out))).toBe(out);
+		// Volver a ponerle cupo.
+		const again = formOf(out);
+		again.types[0].capacity = '25';
+		expect(metaOf(applyTicketsForm(out, again, formOf(out))).tickets[0].capacity).toBe(25);
+	});
+
+	it('cupo inválido sigue siendo error; con ventas, el mínimo solo aplica si hay cupo', () => {
+		const form = formOf(FM);
+		form.types[0].capacity = 'mucho';
+		expect(validateTicketsForm(form).errors.join()).toMatch(/cupo/);
+		form.types[0].capacity = '';
+		const sales = { general: { sold: 45, held: 2 } };
+		expect(validateTicketsForm(form, { sales }).errors).toEqual([]);
+		form.types[0].capacity = '10';
+		expect(validateTicketsForm(form, { sales }).errors.join()).toMatch(/no puede ser menor/);
+	});
+
+	it('puerta: sin la clave (eventos de antes) arranca prendido y se escribe explícita al guardar', () => {
+		const initial = formOf(FM_SIN_PUERTA);
+		expect(initial).toMatchObject({ door: true, doorSet: false, doorPrice: '' });
+		// Aunque no se toque nada de entradas, guardar deja `puerta: true` (la elección explícita).
+		const out = applyTicketsForm(FM_SIN_PUERTA, formOf(FM_SIN_PUERTA), initial);
+		expect(metaOf(out).puerta).toBe(true);
+		expect(out).toContain('extra_key: se queda');
+		expect(formOf(out)).toMatchObject({ door: true, doorSet: true });
+		const md = joinMarkdown(FM_SIN_PUERTA, 'Texto\n');
+		expect(applyTicketsToMarkdown(md, formOf(FM_SIN_PUERTA), initial)).toContain(
+			'\npuerta: true\n'
+		);
+		// Apagarlo escribe `puerta: false`.
+		const off = formOf(FM_SIN_PUERTA);
+		off.door = false;
+		expect(metaOf(applyTicketsForm(FM_SIN_PUERTA, off, initial)).puerta).toBe(false);
+		// Un evento online no recibe `puerta` (no hay puerta).
+		const online = `${FM_SIN_PUERTA}modalidad: online\n`;
+		expect(applyTicketsForm(online, formOf(online), formOf(online))).toBe(online);
+	});
+
+	it('puerta: true con precio, false sin precio, y apagar la venta borra todo', () => {
+		const initial = formOf(FM);
+		expect(initial).toMatchObject({ door: true, doorSet: true, doorPrice: '' });
+		const form = formOf(FM);
+		form.doorPrice = ' $ 12.000, solo efectivo ';
+		const out = applyTicketsForm(FM, form, initial);
+		expect(metaOf(out)).toMatchObject({ puerta: true, puerta_precio: '$ 12.000, solo efectivo' });
+		expect(parseTicketConfig(metaOf(out))?.door).toEqual({
+			on: true,
+			explicit: true,
+			price: '$ 12.000, solo efectivo'
+		});
+		expect(formOf(out)).toMatchObject({ door: true, doorPrice: '$ 12.000, solo efectivo' });
+		expect(describeTicketsForm(formOf(out), (n) => `$${n}`)).toMatch(
+			/También en la puerta \(\$ 12\.000, solo efectivo\)$/
+		);
+		const off = formOf(out);
+		off.door = false;
+		const back = applyTicketsForm(out, off, formOf(out));
+		expect(metaOf(back).puerta).toBe(false);
+		expect(metaOf(back)).not.toHaveProperty('puerta_precio');
+		expect(parseTicketConfig(metaOf(back))?.door).toEqual({ on: false, explicit: true, price: '' });
+		expect(describeTicketsForm(formOf(back), (n) => `$${n}`)).toMatch(/Solo anticipadas$/);
+		// Apagar la venta borra también lo de la puerta.
+		const disabled = formOf(out);
+		disabled.enabled = false;
+		const none = metaOf(applyTicketsForm(out, disabled, formOf(out)));
+		expect(none).not.toHaveProperty('puerta');
+		expect(none).not.toHaveProperty('puerta_precio');
+		// Precio muy largo.
+		form.doorPrice = 'x'.repeat(121);
+		expect(validateTicketsForm(form).errors.join()).toMatch(/puerta/);
 	});
 });
 
@@ -218,6 +313,8 @@ describe('applyTicketsForm: ida y vuelta', () => {
 		expect(metaOf(out)).toEqual({
 			title: 'Nuevo',
 			start: '2026-12-12T21:00-03:00',
+			// Evento presencial: la elección de la puerta siempre queda explícita (prendida por defecto).
+			puerta: true,
 			tickets: [
 				{ id: 'general', name: 'General', price: 10000, capacity: 40 },
 				{

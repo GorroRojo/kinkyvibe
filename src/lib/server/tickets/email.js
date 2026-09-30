@@ -352,7 +352,9 @@ export function buildRefundEmail({ order, event, typeName, contactEmail }) {
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
-				: 'Era una compra sin cargo: no hay dinero para devolver.';
+				: order.payment_method === 'efectivo'
+					? 'Te devolvimos el dinero en efectivo.'
+					: 'Era una compra sin cargo: no hay dinero para devolver.';
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
 		<h1 style="color:#b3127a;font-size:22px">Reembolsamos tu compra</h1>
