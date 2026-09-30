@@ -1,6 +1,6 @@
 /**
  * Control de ingreso: qué se acepta en el campo "Código de la entrada" y cómo se muestran los
- * resultados del buscador (página y sugerencias de /admin/entradas/<slug>/ingreso).
+ * resultados del buscador (sugerencias del modo puerta, /admin/eventos/<slug>/ingreso).
  */
 import { SEARCH_FIELD_LABELS, normalizeTicketCode, tokenByCode } from './orders.js';
 

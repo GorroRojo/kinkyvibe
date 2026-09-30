@@ -130,8 +130,7 @@ export const NAV = Object.freeze([
 		emoji: '🚪',
 		label: 'Check-in',
 		group: 'eventos',
-		soon: true,
-		fallback: '/admin/entradas',
+		soon: false,
 		highlight: true
 	},
 
@@ -285,7 +284,7 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: true },
 	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: true },
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: true },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: true },
+	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: true },
 	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: true }
 ]);

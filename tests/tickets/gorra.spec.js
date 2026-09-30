@@ -246,7 +246,7 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 
 	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
 	// Online: no hay control de ingreso.
-	await expect(page.getByRole('link', { name: /Control de ingreso/ })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: /Modo puerta/ })).toHaveCount(0);
 	const section = page.locator('section.stream');
 	const input = section.getByLabel(/Link \(https/);
 	await input.fill('meet.example.com/sin-https');

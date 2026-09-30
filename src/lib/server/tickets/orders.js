@@ -20,10 +20,14 @@
 
 import { computePrice } from '$lib/utils/tickets.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
+import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
+
+// El código corto se normaliza también en el navegador (modo puerta sin conexión).
+export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -38,7 +42,7 @@ import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
- *   review_detail?: string | null
+ *   review_detail?: string | null, channel?: 'online' | 'puerta'
  * }} Order
  */
 /**
@@ -92,7 +96,6 @@ export function isValidToken(token) {
  * tipearlos en la puerta). 31 símbolos: 6 caracteres ≈ 887 millones de combinaciones.
  */
 export const TICKET_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-export const TICKET_CODE_LENGTH = 6;
 
 /** Código corto aleatorio (sin sesgo: se descartan los bytes que no entran parejo). */
 export function newTicketCode() {
@@ -105,23 +108,6 @@ export function newTicketCode() {
 		}
 	}
 	return code;
-}
-
-/**
- * Normaliza un código tipeado en la puerta: sin espacios ni guiones, en mayúsculas, sin el
- * prefijo opcional "KV", y O→0, I/L→1 (esas letras no se usan en los códigos: si alguien las
- * tipea, casi seguro quiso decir el número). `null` si no tiene la forma.
- *
- * @param {unknown} raw
- * @returns {string | null}
- */
-export function normalizeTicketCode(raw) {
-	if (typeof raw !== 'string') return null;
-	let s = raw.toUpperCase().replace(/[\s\-_.]/g, '');
-	if (s.length === TICKET_CODE_LENGTH + 2 && s.startsWith('KV')) s = s.slice(2);
-	if (s.length !== TICKET_CODE_LENGTH) return null;
-	s = s.replaceAll('O', '0').replaceAll('I', '1').replaceAll('L', '1');
-	return /^[0-9A-Z]+$/.test(s) ? s : null;
 }
 
 /** Token aleatorio de 256 bits en base64url (43 caracteres). */
@@ -351,10 +337,12 @@ export function orderHolders(order) {
  * (webhooks duplicados, doble click en "Confirmar pago") nunca duplica. Al final se borran los
  * datos por entrada de la orden (ya quedaron en `tickets`).
  *
+ * Exportada para la venta en la puerta (door.js), que emite en el mismo batch que crea la orden.
+ *
  * @param {D1Database} db
- * @param {Order} order
+ * @param {Pick<Order, 'id' | 'holders' | 'buyer_name' | 'quantity'>} order
  */
-function issueTicketsStatements(db, order) {
+export function issueTicketsStatements(db, order) {
 	const holders = orderHolders(order);
 	// Código corto: el primero de tres candidatos al azar que no esté usado en el evento (una
 	// colisión no puede hacer fallar la aprobación de un pago; con tres, que choquen todos es

@@ -8,11 +8,7 @@
 	let shown = PAGE;
 
 	/** @param {string} s */
-	const normalize = (s) =>
-		s
-			.normalize('NFD')
-			.replace(/[̀-ͯ]/g, '')
-			.toLowerCase();
+	const normalize = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 	$: words = normalize(query).split(/\s+/).filter(Boolean);
 	$: filtered = data.events.filter((e) => {
@@ -20,7 +16,7 @@
 		const haystack = normalize(`${e.title} ${e.slug} ${e.location}`);
 		return words.every((w) => haystack.includes(w));
 	});
-	$: query, (shown = PAGE);
+	$: (query, (shown = PAGE));
 	$: now = new Date().toISOString();
 
 	const STATUS = /** @type {Record<string, string>} */ ({
@@ -58,7 +54,8 @@
 	</label>
 	<p class="count">
 		{filtered.length}
-		{filtered.length == 1 ? 'evento' : 'eventos'}{query ? ' encontrados' : ''}, del más nuevo al más viejo
+		{filtered.length == 1 ? 'evento' : 'eventos'}{query ? ' encontrados' : ''}, del más nuevo al más
+		viejo
 	</p>
 
 	<ul class="list">
@@ -73,7 +70,9 @@
 					<strong class="title">{event.title}</strong>
 					<span class="date">{describeSchedule(event.start, event.end) || 'Sin fecha'}</span>
 					<span class="meta">
-						{#if event.status}<span class="badge {event.status}">{STATUS[event.status] ?? event.status}</span>{/if}
+						{#if event.status}<span class="badge {event.status}"
+								>{STATUS[event.status] ?? event.status}</span
+							>{/if}
 						{#if event.unlisted}<span class="badge">No listado</span>{/if}
 						{#if event.unpublished}<span class="badge">Despublicado</span>{/if}
 						<code>{event.slug}</code>
