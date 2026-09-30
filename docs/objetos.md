@@ -27,12 +27,15 @@ tipos de ejemplo: `evento` y `lugar`. Los eventos siguen siendo archivos `.md`
 2. **Un solo lugar decide quién ve qué:** `src/lib/server/objects/visibility.js`. Toda lectura
    (página, listado, búsqueda, sitemap, RSS, imágenes para compartir, JSON…) usa `canSee()` o
    `visibleWhere()`, que salen de la misma tabla. Las reglas:
-   - **visible por defecto** (`public`), **oculto a pedido** (`hidden`: solo lo ven les admins);
+   - **visible por defecto** (`public`), **oculto a pedido** (`hidden`: lo ven les admins y quien
+     lo creó, `created_by`; nadie más, aunque tenga cuenta);
    - `members`: solo personas con cuenta (y admins);
-   - borrado: nadie, salvo admins que lo buscan para deshacer;
+   - borrado: nadie (tampoco quien lo creó), salvo admins que lo buscan para deshacer;
    - si algo no se puede ver, se responde como si no existiera (nunca "prohibido");
    - ante la duda (rol o visibilidad desconocidos), no se muestra;
-   - una relación solo se muestra si se pueden ver **los dos** extremos (`getEdges`).
+   - una relación solo se muestra si se pueden ver **los dos** extremos (`getEdges`);
+   - `visibleWhere()` devuelve `{ sql, params }`: el id de quien mira va como parámetro (`?` sin
+     número), nunca pegado en el SQL.
 3. **Nunca se pisa un cambio en silencio.** Cada objeto tiene `version`. Para editar hay que
    mandar la versión que se abrió; si alguien guardó en el medio, `saveObject()` tira
    `VersionConflictError` (409: "Alguien más guardó cambios mientras editabas…") y no guarda
@@ -161,7 +164,7 @@ cuando corresponde ([datos.md](datos.md)).
 ### Leer objetos en una página (cuando llegue)
 
 Siempre con un `viewer` (`ANON`, `{ role: 'member', id }` o `{ role: 'admin', id }`) y siempre
-con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en tu `WHERE`. Nunca
+con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en tu `WHERE` (con sus `params`). Nunca
 `SELECT … FROM objects` sin la condición de visibilidad.
 
 ## Pendiente (fase 2, en sus propios pasos)

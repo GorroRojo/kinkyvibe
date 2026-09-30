@@ -165,17 +165,20 @@ export async function getEdges(db, id, viewer, { direction = 'out', kind } = {})
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c} AS o_${c}`)
 		.join(', ');
+	const visibleSelf = visibleWhere(viewer, 's');
+	const visibleOther = visibleWhere(viewer, 'o');
+	// Solo `?` sin número: visibleWhere agrega los suyos en el medio.
 	const { results } = await db
 		.prepare(
 			`SELECT e.id AS e_id, e.kind AS e_kind, e.position AS e_position, e.data AS e_data, ${cols}
 			 FROM edges e
 			 JOIN objects s ON s.id = e.${self}
 			 JOIN objects o ON o.id = e.${other}
-			 WHERE e.${self} = ?1 AND (?2 IS NULL OR e.kind = ?2)
-			 AND ${visibleWhere(viewer, 's')} AND ${visibleWhere(viewer, 'o')}
+			 WHERE e.${self} = ? AND (? IS NULL OR e.kind = ?)
+			 AND ${visibleSelf.sql} AND ${visibleOther.sql}
 			 ORDER BY e.kind, e.position, e.id`
 		)
-		.bind(id, kind ?? null)
+		.bind(id, kind ?? null, kind ?? null, ...visibleSelf.params, ...visibleOther.params)
 		.all();
 	return results.map((r) => {
 		/** @type {Record<string, unknown>} */

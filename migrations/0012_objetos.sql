@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS objects (
 	data TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data) AND json_type(data) = 'object'),
 	-- Texto para la búsqueda, lo arma el tipo (searchText) al guardar.
 	search_text TEXT NOT NULL DEFAULT '',
-	-- Visible por defecto; 'hidden' a pedido (solo lo ven les admins). Lo decide
+	-- Visible por defecto; 'hidden' a pedido (lo ven les admins y quien lo creó). Lo decide
 	-- src/lib/server/objects/visibility.js, en ningún otro lado.
 	visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'members', 'hidden')),
 	version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),

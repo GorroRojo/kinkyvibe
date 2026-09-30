@@ -94,14 +94,22 @@ export async function searchObjects(db, text, viewer, { type, limit = 20 } = {})
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
+	const visible = visibleWhere(viewer, 'o');
+	// Solo `?` sin número: visibleWhere agrega los suyos en el medio.
 	const { results } = await db
 		.prepare(
 			`SELECT ${cols} FROM objects_fts f JOIN objects o ON o.id = f.rowid
-			 WHERE objects_fts MATCH ?1 AND ${visibleWhere(viewer, 'o')}
-			 AND (?2 IS NULL OR o.type = ?2)
-			 ORDER BY f.rank LIMIT ?3`
+			 WHERE objects_fts MATCH ? AND ${visible.sql}
+			 AND (? IS NULL OR o.type = ?)
+			 ORDER BY f.rank LIMIT ?`
 		)
-		.bind(terms.join(' '), type ?? null, Math.min(Math.max(1, limit), 100))
+		.bind(
+			terms.join(' '),
+			...visible.params,
+			type ?? null,
+			type ?? null,
+			Math.min(Math.max(1, limit), 100)
+		)
 		.all();
 	return results.map(rowToObject);
 }
