@@ -94,7 +94,7 @@ El servidor calcula todo (`computePrice`; el formulario usa la misma función so
 
 1. **Opción del fondo** por entrada × cantidad: `subtotal = precio × cant. − fondo usado + aporte`.
 2. **Código de descuento** sobre ese subtotal: porcentaje (redondeado al peso) o monto fijo en pesos **por compra**; nunca deja el total por debajo de 0.
-3. **Recargo de Mercado Pago** (solo si se paga con MP y queda algo por pagar): `bruto = ⌈base / (1 − tasa)⌉` en pesos enteros, para que después de la comisión quede la base. La tasa sale, en orden, de `mp_fee_percent` del evento, de **Ajustes de venta** (`/admin/entradas/ajustes`), de `TICKETS_MP_FEE_PERCENT` o, si no hay ninguna, **2 %** (valor por defecto que eligió la organización). **La comisión real varía** (depende del plan y del plazo de acreditación de la cuenta de MP): les organizadores la ajustan en Ajustes de venta; con `0`, sin recargo. Transferencia paga la base, sin recargo.
+3. **Recargo de Mercado Pago** (solo si se paga con MP y queda algo por pagar): `bruto = ⌈base / (1 − tasa)⌉` en pesos enteros, para que después de la comisión quede la base. La tasa sale, en orden, de `mp_fee_percent` del evento, de **Ajustes → Cobros** (`/admin/ajustes/cobros`), de `TICKETS_MP_FEE_PERCENT` o, si no hay ninguna, **2 %** (valor por defecto que eligió la organización). **La comisión real varía** (depende del plan y del plazo de acreditación de la cuenta de MP): les organizadores la ajustan en Ajustes de venta; con `0`, sin recargo. Transferencia paga la base, sin recargo.
 4. `total = subtotal − descuento + recargo`.
 
 Ejemplo: $ 10.000 con 20 % de fondo, 2 entradas solidarias, código 20 %, Mercado Pago 2 %: 2 × $ 11.000 = $ 22.000 (aporte $ 2.000) → −$ 4.400 = $ 17.600 → recargo $ 360 → **$ 17.960**.
@@ -179,13 +179,15 @@ En `/admin/entradas/<slug>`, cada orden aprobada tiene **Reembolsar…**, que ab
 
 ### Ajustes de venta
 
-`/admin/entradas/ajustes` (link desde `/admin/entradas` y el panel `/admin`; `requireAdmin` en el `load` y en la action) guarda en D1 (`ticket_settings`):
+Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y action) sobre la misma tabla de D1 (`ticket_settings`). Cada una guarda solo sus campos (no borra los de las otras):
 
-- **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
-- **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
-- **Fondo KinkyVibe:** el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
-- **Mails:** remitente y dirección de respuesta.
-- **Recordatorios:** la lista (ver arriba).
+- **Cobros** (`/admin/ajustes/cobros`):
+  - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
+  - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
+- **Fondo** (`/admin/ajustes/fondo`): el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
+- **Mails** (`/admin/ajustes/mails`): remitente, dirección de respuesta y los **recordatorios** (ver arriba).
+
+Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
 ### Transferencia
 
@@ -193,7 +195,7 @@ Opt-in por evento (`payment_methods`) y requiere datos para transferir (Ajustes 
 
 1. La orden queda `awaiting_transfer` con una **reserva inicial de 2 h**. El mail trae un link **"Confirmar mi reserva"** (`/entradas/<orden>/confirmar?k=…`, firmado con una clave al azar guardada en D1; abrirlo solo muestra el botón, confirmar es un POST) que la extiende a la reserva completa, **48 h** desde que se hizo (`TICKETS_TRANSFER_HOLD_HOURS`). Sin confirmar, se libera a las 2 h. El formulario, la página de estado y el mail lo explican. Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera.
 2. La persona ve (en `/entradas/<orden>/estado`) el monto, los datos para transferir, una **referencia** `KV-XXXXXXXX` para el concepto y cómo mandar el comprobante (respondiendo el mail o escribiendo a `TICKETS_REPLY_TO`/`TICKETS_CONTACT_EMAIL`). Se le manda un mail con lo mismo.
-3. En `/admin/entradas/<slug>`, **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
+3. En la bandeja **Entradas → Transferencias** (`/admin/entradas/transferencias`, las de todos los eventos, la que vence antes arriba, con filtro por evento) o en `/admin/entradas/<slug>`, **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
 4. **No hay verificación automática:** no existe una API confiable y accesible para enterarse de transferencias entrantes a una cuenta bancaria o CVU común (los bancos no ofrecen webhooks a particulares/pequeñas organizaciones, y leer extractos o mails del banco sería frágil e inseguro). Alguien tiene que mirar la cuenta y confirmar a mano.
 
 ### Política de devoluciones
@@ -216,7 +218,7 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 | Qué                                              | Dónde                                                                                              |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | Tablas de entradas (y resguardos)                | `migrations/0002_tickets.sql`, `0003_ticket_safeguards.sql`                                        |
-| Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/entradas/ajustes`                                     |
+| Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/ajustes/*`                                            |
 | Link de la transmisión (online)                  | `src/lib/server/tickets/stream.js`                                                                 |
 | Control de ingreso: código y sugerencias         | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
 | Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                                                         |
@@ -279,7 +281,7 @@ Con eso ya funciona el evento de prueba `http://localhost:5173/calendario/prueba
 1. Abrir la página del evento, tocar **Comprar entradas** (lleva a `/calendario/<slug>/entradas`), completar e "Ir a pagar con Mercado Pago" (o "Reservar y ver cómo transferir").
 2. Se abre el **checkout simulado** (`/entradas/simular-pago/<orden>`): aprobar, rechazar, dejar pendiente o "aprobar sin webhook" (para ver que la página de estado re-consulta sola). Cada botón manda una notificación **firmada** al webhook igual que MP.
 3. Sin `RESEND_API_KEY` el mail no se manda: se loguea en la consola (con los tokens recortados).
-4. Admin: `http://localhost:5173/admin/entradas` (transferencias pendientes en la página de cada evento), `http://localhost:5173/admin/entradas/codigos` y `http://localhost:5173/admin/entradas/ajustes`.
+4. Admin: `http://localhost:5173/admin/entradas` (ventas de todos los eventos), `http://localhost:5173/admin/entradas/transferencias` (transferencias pendientes de todos los eventos), `http://localhost:5173/admin/entradas/codigos` y `http://localhost:5173/admin/ajustes/cobros` (y `/fondo`, `/mails`).
 
 Tests:
 

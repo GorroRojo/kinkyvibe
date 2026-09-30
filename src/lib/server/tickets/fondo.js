@@ -9,7 +9,7 @@
  * orden guarda el porcentaje con el que se compró (`orders.fondo_percent`).
  *
  * De dónde sale el porcentaje, en orden:
- * 1. el que fija une admin en /admin/entradas/ajustes ("vacío = automático"; para emergencias,
+ * 1. el que fija une admin en /admin/ajustes/fondo ("vacío = automático"; para emergencias,
  *    si fondo.kinkyvibe.ar no anda);
  * 2. (solo en `vite dev`) FONDO_PERCENT_OVERRIDE, para probar sin red;
  * 3. el de la API, con memoria de 10 minutos en el isolate y 3 s de timeout;

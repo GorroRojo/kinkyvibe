@@ -25,7 +25,7 @@
 		cuántas veces se usó cada uno.
 	</p>
 	<p>
-		<a href="/admin/entradas/ajustes">Ajustes de venta</a>: datos para transferir (alias, CBU/CVU,
+		<a href="/admin/ajustes/cobros">Ajustes de venta</a>: datos para transferir (alias, CBU/CVU,
 		titular, banco) y comisión de Mercado Pago.
 	</p>
 	<h2>Publicaciones no listadas</h2>

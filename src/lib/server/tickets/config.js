@@ -22,7 +22,7 @@
  *                                         # (solo fecha = hasta el fin de ese día; hora de
  *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
- * mp_fee_percent: 2      # opcional; si falta: /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT o 2 %
+ * mp_fee_percent: 2      # opcional; si falta: /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT o 2 %
  * ```
  */
 

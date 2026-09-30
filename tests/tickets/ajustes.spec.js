@@ -1,5 +1,6 @@
 /**
- * Ajustes de venta (/admin/entradas/ajustes): datos para transferir y comisión de MP en D1, con
+ * Ajustes → Cobros y Fondo (/admin/ajustes/cobros, /fondo): datos para transferir, comisión de MP
+ * y porcentaje del Fondo en D1, con
  * las variables de entorno como respaldo. Deja todo vacío al terminar (las otras pruebas usan
  * TICKETS_TRANSFER_INFO y TICKETS_MP_FEE_PERCENT).
  */
@@ -17,10 +18,13 @@ test.beforeEach(async ({ page }) => {
 
 /** @param {import('@playwright/test').Page} page */
 async function clearSettings(page) {
-	await page.goto('/admin/entradas/ajustes', { waitUntil: 'networkidle' });
+	await page.goto('/admin/ajustes/fondo', { waitUntil: 'networkidle' });
+	await page.getByLabel(/Fijar el porcentaje/).fill('');
+	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
+	await expect(page.getByText('Ajustes guardados.')).toBeVisible();
+	await page.goto('/admin/ajustes/cobros', { waitUntil: 'networkidle' });
 	for (const f of FIELDS) await page.getByLabel(f, { exact: true }).fill('');
 	await page.getByLabel(/Comisión/).fill('');
-	await page.getByLabel(/Fijar el porcentaje/).fill('');
 	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
 	await expect(page.getByText('Ajustes guardados.')).toBeVisible();
 }
@@ -33,15 +37,16 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	page
 }) => {
 	await clearSettings(page);
-	await page.goto('/admin/entradas');
-	await expect(page.getByRole('link', { name: /Ajustes de venta/ })).toHaveAttribute(
+	// El menú del panel lleva a Ajustes → Cobros.
+	await expect(page.getByRole('link', { name: /Cobros/ }).first()).toHaveAttribute(
 		'href',
-		'/admin/entradas/ajustes'
+		'/admin/ajustes/cobros'
 	);
-	await page.goto('/admin/entradas/ajustes', { waitUntil: 'networkidle' });
 	await expect(page.getByText('se usan los datos de la variable')).toBeVisible();
 	// Porcentaje del Fondo de este momento (en las pruebas, FONDO_PERCENT_OVERRIDE=20).
-	await expect(page.locator('.fondo-now')).toContainText('Descuento del Fondo ahora: 20 %');
+	await page.goto('/admin/ajustes/fondo', { waitUntil: 'networkidle' });
+	await expect(page.locator('.fondo-now')).toContainText('20 %');
+	await page.goto('/admin/ajustes/cobros', { waitUntil: 'networkidle' });
 
 	// Datos INVENTADOS (el repo es público).
 	await page.getByLabel('Alias', { exact: true }).fill('OTRO.ALIAS.PRUEBA');
@@ -55,8 +60,8 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	await page.getByLabel(/Comisión/).fill('5');
 	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
 	await expect(page.getByText('Ajustes guardados.')).toBeVisible();
-	await expect(page.getByText(/Último cambio: .* por GorroRojo/)).toBeVisible();
-	await shots(page, '09-ajustes', page.locator('.settings-page'));
+	await expect(page.getByText(/Último cambio en ajustes: .* por GorroRojo/)).toBeVisible();
+	await shots(page, '09-ajustes', page.locator('form.settings'));
 
 	// La compra usa la comisión nueva (5 %) y, por transferencia, el alias nuevo.
 	await page.goto(`/calendario/${EVENT}/entradas`, { waitUntil: 'networkidle' });
@@ -94,6 +99,7 @@ test('porcentaje del Fondo fijado a mano: cambia el precio que se ve y se cobra'
 	page
 }) => {
 	await clearSettings(page);
+	await page.goto('/admin/ajustes/fondo', { waitUntil: 'networkidle' });
 	await page.getByLabel(/Fijar el porcentaje/).fill('50');
 	await page.getByRole('button', { name: 'Guardar ajustes' }).click();
 	await expect(page.getByText('Ajustes guardados.')).toBeVisible();

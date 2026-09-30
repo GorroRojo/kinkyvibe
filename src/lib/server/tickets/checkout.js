@@ -83,7 +83,7 @@ export const CHECKOUT_RATE_LIMITS = {
 
 /**
  * Medios de pago del evento que además están configurados en este entorno (transferencia, solo
- * si hay datos para transferir: en /admin/entradas/ajustes o en TICKETS_TRANSFER_INFO).
+ * si hay datos para transferir: en /admin/ajustes/cobros o en TICKETS_TRANSFER_INFO).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {import('./config.js').EventTickets} config

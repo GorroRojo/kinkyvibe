@@ -223,7 +223,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	).toHaveAttribute('href', '/admin/entradas/codigos');
 	await expect(page.getByRole('link', { name: 'Ajustes de venta', exact: true })).toHaveAttribute(
 		'href',
-		'/admin/entradas/ajustes'
+		'/admin/ajustes/cobros'
 	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();
@@ -393,7 +393,7 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	const gratis = `E2EGRATIS${suffix}`;
 
 	await page.goto('/admin/entradas');
-	await expect(page.getByRole('link', { name: /Códigos de descuento/ })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Códigos', exact: true }).last()).toHaveAttribute(
 		'href',
 		'/admin/entradas/codigos'
 	);

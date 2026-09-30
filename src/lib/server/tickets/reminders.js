@@ -1,7 +1,7 @@
 /**
  * Recordatorios por mail antes de cada evento con entradas.
  *
- * - Qué recordatorios hay se configura en /admin/entradas/ajustes (se guarda como JSON en
+ * - Qué recordatorios hay se configura en /admin/ajustes/mails (se guarda como JSON en
  *   `ticket_settings`, clave `reminders`). Cada uno: activado o no, y cuándo:
  *   - `hours_before`: N horas antes del comienzo ("2 días antes" = 48 h);
  *   - `day_at`: N días antes (0 = el mismo día) a una hora fija, en horario de Argentina.

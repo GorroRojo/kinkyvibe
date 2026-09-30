@@ -112,8 +112,7 @@ export const NAV = Object.freeze([
 		emoji: '💸',
 		label: 'Transferencias',
 		group: 'entradas',
-		soon: true,
-		fallback: '/admin/entradas',
+		soon: false,
 		counter: 'transfers'
 	},
 	{
@@ -184,8 +183,7 @@ export const NAV = Object.freeze([
 		emoji: '🏦',
 		label: 'Cobros',
 		group: 'ajustes',
-		soon: true,
-		fallback: '/admin/entradas/ajustes'
+		soon: false
 	},
 	{
 		id: 'ajustes-fondo',
@@ -193,8 +191,7 @@ export const NAV = Object.freeze([
 		emoji: '🫶',
 		label: 'Fondo',
 		group: 'ajustes',
-		soon: true,
-		fallback: '/admin/entradas/ajustes'
+		soon: false
 	},
 	{
 		id: 'ajustes-mails',
@@ -202,8 +199,7 @@ export const NAV = Object.freeze([
 		emoji: '✉️',
 		label: 'Mails y plantillas',
 		group: 'ajustes',
-		soon: true,
-		fallback: '/admin/entradas/ajustes'
+		soon: false
 	},
 	{
 		id: 'ajustes-admins',
@@ -211,7 +207,7 @@ export const NAV = Object.freeze([
 		emoji: '🔑',
 		label: 'Admins',
 		group: 'ajustes',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'actividad',
