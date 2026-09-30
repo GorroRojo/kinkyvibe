@@ -126,7 +126,7 @@
 		opacity: 0.75;
 	}
 	.error {
-		color: #b00020;
+		color: var(--bad, #b00020);
 		margin: 0;
 		font-size: var(--step--1);
 	}
@@ -150,7 +150,7 @@
 			display: inline-block;
 			padding: 0.35em 0.85em;
 			border-radius: 2em;
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 1px solid var(--1-light);
 			outline-offset: -1px;
@@ -201,7 +201,7 @@
 				width: 1.1em;
 				height: 1.1em;
 				border-radius: 50%;
-				background: white;
+				background: var(--surface, white);
 				transition: transform 150ms;
 			}
 		}

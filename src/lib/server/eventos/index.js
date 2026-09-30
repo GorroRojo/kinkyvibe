@@ -5,6 +5,7 @@
 import { env } from '$env/dynamic/private';
 import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
+import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
 
 import { POSTS_DIR } from './images.js';
@@ -33,15 +34,30 @@ export function isMockMode() {
 }
 
 /**
+ * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a Cloudflare
+ * Pages preview (demo mode, $lib/server/demo). Then post files are read and saved through
+ * getRepoClient() instead of the GitHub contents API.
+ */
+export function usesLocalRepo() {
+	return isMockMode() || PREVIEW_BUILD;
+}
+
+/**
  * The GitHub client. Under `npm run dev:admin` (vite dev + ADMIN_DEV_MOCK=1) it returns a mock
  * that reads the local checkout and writes "commits" to a temp folder. `import.meta.env.DEV` is replaced by the literal
  * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
+ * On a preview deploy (PREVIEW_BUILD, also a build-time constant) it returns the demo client:
+ * "commits" go to the preview's D1 (`demo_files`), never to GitHub, whoever is logged in.
  * @returns {Promise<typeof github>}
  */
 export async function getRepoClient() {
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
 		// @ts-ignore
 		return await import('./mock.js');
+	}
+	if (PREVIEW_BUILD) {
+		const { client } = await import('../demo/index.js');
+		return /** @type {typeof github} */ (/** @type {unknown} */ ({ ...github, ...client }));
 	}
 	return github;
 }
@@ -106,9 +122,45 @@ let cache;
  * Events included in this deploy, newest first.
  * @returns {Promise<EventSummary[]>}
  */
-export function listEvents() {
+export async function listEvents() {
 	if (!cache || import.meta.env.DEV) cache = loadEvents();
+	if (PREVIEW_BUILD) return withDemoEvents(await cache);
 	return cache;
+}
+
+/**
+ * Demo mode: the events of the deploy with what the demo layer created, edited or deleted.
+ * @param {EventSummary[]} events
+ */
+async function withDemoEvents(events) {
+	const { overlayPostMetas } = await import('../demo/index.js');
+	const changed = await overlayPostMetas('calendario');
+	if (!changed.length) return events;
+	const bySlug = new Map(events.map((e) => [e.slug, e]));
+	for (const { slug, meta } of changed) {
+		if (meta) bySlug.set(slug, summarize(slug, meta));
+		else bySlug.delete(slug);
+	}
+	return [...bySlug.values()].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+}
+
+/**
+ * @param {string} slug
+ * @param {any} meta
+ * @returns {EventSummary}
+ */
+function summarize(slug, meta) {
+	return {
+		slug,
+		title: String(meta.title ?? slug),
+		start: siteDate(meta.start),
+		end: siteDate(meta.end),
+		status: String(meta.status ?? ''),
+		location: String(meta.location ?? ''),
+		unlisted: meta.force_unlisted === true,
+		unpublished: meta.force_unpublished === true,
+		thumb: featuredURL(slug, meta.featured)
+	};
 }
 
 async function loadEvents() {
@@ -125,17 +177,7 @@ async function loadEvents() {
 			continue;
 		}
 		if (!meta) continue;
-		events.push({
-			slug,
-			title: String(meta.title ?? slug),
-			start: siteDate(meta.start),
-			end: siteDate(meta.end),
-			status: String(meta.status ?? ''),
-			location: String(meta.location ?? ''),
-			unlisted: meta.force_unlisted === true,
-			unpublished: meta.force_unpublished === true,
-			thumb: featuredURL(slug, meta.featured)
-		});
+		events.push(summarize(slug, meta));
 	}
 	events.sort((a, b) => (b.start || '').localeCompare(a.start || ''));
 	return events;

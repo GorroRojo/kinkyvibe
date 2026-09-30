@@ -152,84 +152,105 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
 	await expect(card.locator('.fondo-net')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
-	// El admin del evento muestra cada entrada y el DNI de quien compró.
-	await page.goto(`/admin/entradas/${EVENT}`);
+	// La pestaña Órdenes de la ficha muestra cada entrada y el DNI de quien compró.
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
 	const order = page.locator('.order', { hasText: buyer.email });
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
 	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
 	await expect(order).toContainText(`recargo MP +${ars(prices.surcharge)}`);
 
 	// El CSV tiene una fila por entrada, con el DNI de quien compró.
-	const csv = await (await page.request.get(`/admin/entradas/${EVENT}/ordenes.csv`)).text();
+	const csv = await (await page.request.get(`/admin/eventos/${EVENT}/ordenes.csv`)).text();
 	expect(csv).toContain(`"${buyer.dni}"`);
 	for (const p of people) expect(csv).toContain(`"${p.name}"`);
 
-	await page.goto(`/admin/entradas/${EVENT}/ingreso`);
+	// Modo puerta: "Escribir código" abre una hoja con el campo y "Validar".
+	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	/** @param {string} value */
+	const validate = async (value) => {
+		await page.getByRole('button', { name: 'Escribir código' }).click();
+		await page.getByLabel(/Código de la entrada/).fill(value);
+		await page.getByRole('button', { name: 'Validar' }).click();
+	};
+	const result = page.locator('.result');
 	// El código corto (en minúsculas, con "KV-" y un espacio: se normaliza) sirve igual que el QR.
-	await page.getByLabel(/Código de la entrada/).fill(`kv-${shownCode.toLowerCase()}`);
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('✅ Adelante')).toBeVisible();
-	await expect(page.locator('.result')).toContainText(people[1].name);
-	await expect(page.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
+	await validate(`kv-${shownCode.toLowerCase()}`);
+	await expect(result).toContainText('Adelante');
+	await expect(result).toContainText(people[1].name);
+	await expect(result).toContainText(buyer.email);
+	// DNI parcial (últimos 3); al tocarlo se ve completo (y queda en el registro de actividad).
+	await expect(result).toContainText(`DNI •••.${buyer.dni.slice(-3)}`);
+	await expect(result).not.toContainText(dotted(buyer.dni));
+	await result.getByRole('button', { name: /DNI •••/ }).click();
+	await expect(result).toContainText(`DNI ${dotted(buyer.dni)}`);
+	// Tocar el resultado abre la compra completa, con todas sus entradas.
+	await result.getByRole('button', { name: /Ver compra/ }).click();
+	const sheet = page.getByRole('dialog', { name: /Compra KV-/ });
+	for (const p of people) await expect(sheet).toContainText(p.name);
+	await sheet.getByRole('button', { name: 'Cerrar' }).click();
 
-	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('⚠️ Ya ingresó')).toBeVisible();
+	await validate(ticketUrl);
+	await expect(result).toContainText('Ya ingresó');
 
-	await page.getByLabel(/Código de la entrada/).fill('A'.repeat(43));
-	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('❌ QR inválido')).toBeVisible();
+	await validate('A'.repeat(43));
+	await expect(result).toContainText('QR inválido');
 
-	// Búsqueda manual por DNI de quien compró: aparecen sus 3 entradas.
+	// "Buscar persona": por DNI de quien compró aparecen sus 3 entradas (el DNI, parcial).
+	await page.getByRole('button', { name: 'Buscar persona' }).click();
 	const search = page.getByRole('combobox', { name: 'Buscar entrada' });
-	await search.fill(buyer.dni);
-	await page.getByRole('button', { name: 'Buscar' }).click();
-	await expect(page.locator('.results li')).toHaveCount(3);
+	const listbox = page.getByRole('listbox', { name: 'Sugerencias' });
+	await search.pressSequentially(buyer.dni, { delay: 20 });
+	await expect(listbox.getByRole('option')).toHaveCount(3);
+	await expect(listbox).not.toContainText(dotted(buyer.dni));
 
 	// Autocompletar: sin tildes ("acompanante" encuentra "Acompañante"), dice con qué coincidió,
-	// y se elige con el teclado.
+	// y se elige con el teclado: marca el ingreso de esa persona.
 	await search.fill('');
 	await search.pressSequentially(`acompanante ${people[2].name.split(' ')[1].toLowerCase()}`, {
 		delay: 20
 	});
-	const listbox = page.getByRole('listbox', { name: 'Sugerencias' });
-	await expect(listbox).toBeVisible();
 	const option = listbox.getByRole('option', { name: new RegExp(people[2].name) });
 	await expect(option).toContainText('coincide con nombre de la entrada');
 	await shots(page, '08-checkin-autocompletar', undefined, { fullPage: false });
 	await search.press('ArrowDown');
 	await expect(search).toHaveAttribute('aria-activedescendant', 'sugerencia-0');
 	await search.press('Enter');
-	await expect(page).toHaveURL(/\?q=[A-Z0-9]{6}$/);
-	await expect(page.locator('.results li')).toHaveCount(1);
-	await expect(page.locator('.results li')).toContainText(people[2].name);
-	// Por email de quien compró (parte del medio) y por pronombres.
-	await search.fill('');
+	await expect(result).toContainText('Adelante');
+	await expect(result).toContainText(people[2].name);
+	// Por email de quien compró (parte del medio).
+	await page.getByRole('button', { name: 'Buscar persona' }).click();
 	await search.pressSequentially(buyer.email.split('@')[0], { delay: 20 });
 	await expect(listbox.getByRole('option').first()).toContainText('coincide con email');
+	await page
+		.getByRole('dialog', { name: 'Buscar persona' })
+		.getByRole('button', { name: 'Cerrar' })
+		.click();
 
 	// La entrada ahora figura como usada.
 	await page.goto(ticketUrl);
 	await expect(page.getByText('Ya se usó para ingresar')).toBeVisible();
 
 	// Accesos de admin: panel y menú de usuario en la página del evento.
+	// El Inicio del panel: acciones rápidas y la plata del mes llevan a las páginas de entradas.
 	await page.goto('/admin');
-	await expect(page.getByRole('link', { name: 'Venta de entradas', exact: true })).toHaveAttribute(
+	const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });
+	await expect(quick.getByRole('link', { name: 'Nuevo código' })).toHaveAttribute(
+		'href',
+		'/admin/entradas/codigos'
+	);
+	await expect(quick.getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
+		'href',
+		'/admin/eventos/nuevo'
+	);
+	await expect(page.locator('a.stat', { hasText: 'Entradas este mes' })).toHaveAttribute(
 		'href',
 		'/admin/entradas'
 	);
-	await expect(
-		page.getByRole('link', { name: 'Códigos de descuento', exact: true })
-	).toHaveAttribute('href', '/admin/entradas/codigos');
-	await expect(page.getByRole('link', { name: 'Ajustes de venta', exact: true })).toHaveAttribute(
-		'href',
-		'/admin/entradas/ajustes'
-	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();
-	await expect(page.getByRole('menuitem', { name: 'Entradas de este evento' })).toHaveAttribute(
+	await expect(page.getByRole('menuitem', { name: 'Este evento en el panel' })).toHaveAttribute(
 		'href',
-		`/admin/entradas/${EVENT}`
+		`/admin/eventos/${EVENT}/ventas`
 	);
 });
 
@@ -393,7 +414,7 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	const gratis = `E2EGRATIS${suffix}`;
 
 	await page.goto('/admin/entradas');
-	await expect(page.getByRole('link', { name: /Códigos de descuento/ })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Códigos', exact: true }).last()).toHaveAttribute(
 		'href',
 		'/admin/entradas/codigos'
 	);
@@ -465,7 +486,7 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	expect(reference).toMatch(/^KV-[0-9A-F]{8}$/);
 	const statusUrl = page.url();
 
-	await page.goto(`/admin/entradas/${EVENT}`);
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`);
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
@@ -473,7 +494,7 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.
-	const res = await page.request.post(`/admin/entradas/${EVENT}?/confirm`, {
+	const res = await page.request.post(`/admin/eventos/${EVENT}/transferencias?/confirm`, {
 		form: { order: statusUrl.split('/').at(-2) ?? '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -600,7 +621,7 @@ test('el evento de prueba: botón en la página del evento → página de compra
 test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo" del admin', async ({
 	page
 }) => {
-	const card = page.locator(`a.event[href="/admin/entradas/${EVENT}"]`);
+	const card = page.locator(`a.event[href="/admin/eventos/${EVENT}/ventas"]`);
 	/** @returns {Promise<number>} */
 	const contributions = async () => {
 		await page.goto('/admin/entradas');
@@ -638,10 +659,11 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	const netValue = Number(netText.replace(/[^0-9]/g, '')) * (netText.startsWith('−') ? -1 : 1);
 	await expect(net).toHaveClass(netValue < 0 ? /neg/ : netValue > 0 ? /pos/ : /fondo-net/);
 	await shots(page, '10-admin-fondo-neto-lista', card);
-	await page.goto(`/admin/entradas/${EVENT}`);
+	// Pestaña Ventas de la ficha: la tabla del Fondo, con el neto en el pie.
+	await page.goto(`/admin/eventos/${EVENT}/ventas`);
 	const summary = page.locator('table.summary');
 	await expect(summary).toContainText('Aportes al fondo');
-	await expect(summary.locator('thead')).toContainText('Neto del fondo');
+	await expect(summary.locator('tfoot')).toContainText('Neto del fondo');
 	await expect(summary.locator('tfoot .net')).toHaveText(netText);
 	await shots(page, '10-admin-fondo-neto-evento', summary);
 });
@@ -733,7 +755,7 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
 	const ticketUrl = page.url();
 
-	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
 	const order = page.locator('.order', { hasText: buyer.email });
 	await order.getByText('Reembolsar…').click();
 	const panel = order.locator('.refund-panel');
@@ -744,7 +766,7 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await expect(page.getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
 
 	// Otra vez (otra pestaña): no hace nada.
-	const again = await page.request.post(`/admin/entradas/${EVENT}?/refund`, {
+	const again = await page.request.post(`/admin/eventos/${EVENT}/ordenes?/refund`, {
 		form: { order: orderId ?? '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -752,8 +774,9 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 
 	await page.goto(ticketUrl);
 	await expect(page.getByText('Reembolsada (ya no es válida)')).toBeVisible();
-	await page.goto(`/admin/entradas/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	await page.getByRole('button', { name: 'Escribir código' }).click();
 	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
 	await page.getByRole('button', { name: 'Validar' }).click();
-	await expect(page.getByText('❌ Entrada anulada')).toBeVisible();
+	await expect(page.locator('.result')).toContainText('Anulada');
 });

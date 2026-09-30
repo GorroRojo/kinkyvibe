@@ -86,7 +86,7 @@ La terminal muestra la dirección (normalmente `http://localhost:5173`). Abrí `
 
 1. Comprá 2 entradas **Anticipada** eligiendo **Transferencia**: abajo dice "Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail". Tocá **Reservar y ver cómo transferir**.
 2. Tiene que aparecer el monto, que te reservamos el lugar 2 horas y que la confirmes desde el mail para guardarla 48 (en la terminal está el link "confirmar" del mail simulado), los datos de la cuenta, una **referencia** (tipo `KV-1A2B3C4D`) y los pasos para mandar el comprobante. En la terminal aparece el mail simulado.
-3. Andá a `http://localhost:5173/admin/entradas/prueba-entradas-2026-12`. En **Transferencias pendientes** está la compra con su referencia.
+3. Andá a `http://localhost:5173/admin/eventos/prueba-entradas-2026-12/transferencias`. En **Transferencias pendientes** está la compra con su referencia.
 4. Tocá **Confirmar pago**: se emiten las entradas (la página de estado de la compra ahora muestra los links). Tocá **Confirmar pago** otra vez en otra pestaña vieja: tiene que decir que ya estaba confirmada, sin emitir de nuevo.
 5. Probá **Cancelar** con otra compra por transferencia: el lugar se libera (Anticipada tiene cupo 3).
 
@@ -114,7 +114,7 @@ En el admin del evento tocá **Exportar CSV**: una fila por entrada, con su cód
 
 ### 8. Ajustes de venta (alias para transferir y comisión)
 
-1. Andá a `http://localhost:5173/admin/entradas/ajustes` (también está el link en `/admin/entradas` y en el panel `/admin`).
+1. Andá a `http://localhost:5173/admin/ajustes/cobros` (en el panel: **Ajustes → Cobros**).
 2. Completá **Alias**, **CBU/CVU**, **Titular** y **Banco** con datos **inventados** (por ejemplo `OTRO.ALIAS.PRUEBA`) y la **comisión** (por ejemplo `6,5`). Guardá.
 3. Hacé una compra por transferencia: los datos que aparecen son los que cargaste (ya no los de `.env.tickets`). Con Mercado Pago, el recargo usa la comisión nueva.
 4. Borrá todos los campos de transferencia y guardá: se vuelve a usar `TICKETS_TRANSFER_INFO`. (En un sitio sin esa variable, con los campos vacíos no se ofrece transferencia.)

@@ -14,3 +14,11 @@ export const PRODUCTION_BRANCH = 'main';
 export function isPreviewDeploy(branch = __DEPLOY_BRANCH__) {
 	return branch !== '' && branch !== PRODUCTION_BRANCH;
 }
+
+/**
+ * Lo mismo que `isPreviewDeploy()`, pero como constante que el bundler resuelve al compilar:
+ * `__DEPLOY_BRANCH__` es un literal, así que en el build de producción (y en local) esto queda
+ * `false` y todo lo que va dentro de `if (PREVIEW_BUILD)` (el modo demo) se elimina del bundle.
+ * ('main' escrito literal a propósito, para que se pueda resolver sin mirar PRODUCTION_BRANCH.)
+ */
+export const PREVIEW_BUILD = __DEPLOY_BRANCH__ !== '' && __DEPLOY_BRANCH__ !== 'main';

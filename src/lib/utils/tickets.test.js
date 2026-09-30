@@ -3,22 +3,68 @@ import {
 	FONDO_OPTIONS,
 	applyDiscount,
 	computePrice,
+	LOW_STOCK,
 	defaultFondoOption,
+	doorText,
 	fondoOptionLabel,
 	fondoOptionsFor,
 	gorraQuickAmounts,
 	exceedsOrderMax,
 	holdHours,
+	leftText,
 	mpSurcharge,
 	normalizeCode,
 	normalizeDni,
 	orderReference,
 	parseAmount,
 	parseFeePercent,
+	publicLeft,
 	purchaseConditions,
 	refundPolicy,
+	remainingOf,
 	unitPrice
 } from './tickets.js';
+
+describe('cupo: lo que queda y lo que se muestra en público', () => {
+	it('remainingOf: null sin cupo; nunca negativo', () => {
+		expect(remainingOf({ capacity: null }, { sold: 50, held: 3 })).toBeNull();
+		expect(remainingOf({ capacity: 10 }, undefined)).toBe(10);
+		expect(remainingOf({ capacity: 10 }, { sold: 6, held: 1 })).toBe(3);
+		expect(remainingOf({ capacity: 2 }, { sold: 3, held: 0 })).toBe(0);
+	});
+
+	it('publicLeft: el número solo con cupo y menos de 10 (y alguna)', () => {
+		expect(LOW_STOCK).toBe(10);
+		expect(publicLeft(null)).toBeNull();
+		expect(publicLeft(0)).toBeNull();
+		expect(publicLeft(10)).toBeNull();
+		expect(publicLeft(200)).toBeNull();
+		expect(publicLeft(9)).toBe(9);
+		expect(publicLeft(1)).toBe(1);
+	});
+
+	it('leftText', () => {
+		expect(leftText(9)).toBe('Quedan 9');
+		expect(leftText(4)).toBe('Quedan 4');
+		expect(leftText(3)).toBe('¡Últimas 3!');
+		expect(leftText(1)).toBe('¡Última!');
+	});
+
+	it('doorText: true (con o sin precio), false = solo anticipadas; sin la clave u online, nada', () => {
+		expect(doorText({ on: true, explicit: true, price: '$ 12.000' })).toBe(
+			'También hay entradas en la puerta: $ 12.000.'
+		);
+		expect(doorText({ on: true, explicit: true, price: '' })).toBe(
+			'También hay entradas en la puerta.'
+		);
+		expect(doorText({ on: false, explicit: true, price: '' })).toBe(
+			'Solo anticipadas: no hay entradas en la puerta.'
+		);
+		// Sin `puerta` en el frontmatter (eventos de antes): no se dice nada.
+		expect(doorText({ on: true, explicit: false, price: '' })).toBeNull();
+		expect(doorText(null)).toBeNull();
+	});
+});
 import { formatSignedARS } from './money.js';
 
 describe('applyDiscount', () => {

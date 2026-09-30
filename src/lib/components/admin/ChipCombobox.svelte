@@ -235,7 +235,7 @@
 		font-size: var(--step--1);
 		line-height: 1.3;
 		&.unknown {
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 2px dashed var(--1-light);
 			outline-offset: -2px;
@@ -260,7 +260,7 @@
 			}
 		}
 		&.unknown button {
-			background: #f3eef6;
+			background: var(--surface-2, #f3eef6);
 		}
 	}
 	.chip .avatar {
@@ -272,7 +272,7 @@
 		border-radius: 50%;
 		object-fit: cover;
 		flex: none;
-		background: #f3eef6;
+		background: var(--surface-2, #f3eef6);
 	}
 	.field {
 		position: relative;
@@ -286,7 +286,7 @@
 		margin: 0;
 		padding: 0.3em;
 		list-style: none;
-		background: white;
+		background: var(--surface, white);
 		border-radius: 0.8em;
 		box-shadow: 0 0.2em 1em rgba(0, 0, 0, 0.18);
 		max-height: 18em;
@@ -300,10 +300,10 @@
 		border-radius: 0.6em;
 		cursor: pointer;
 		&.active {
-			background: var(--3-light, #f3eef6);
+			background: var(--surface-2, #f3eef6);
 		}
 		&.create {
-			border-top: 1px solid #eee;
+			border-top: 1px solid var(--line, #eee);
 			color: var(--1-dark);
 			font-weight: bold;
 		}

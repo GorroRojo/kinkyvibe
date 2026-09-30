@@ -1,4 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
+import { isPreviewDeploy } from './deploy.js';
+import { isDemoUser } from './demo/identity.js';
+import { loginHref } from '$lib/utils/authLinks.js';
 
 /**
  * Accounts allowed into the admin area. Matched on the numeric GitHub user id, which never
@@ -16,10 +19,13 @@ export const ADMINS = Object.freeze([
 export const TOKEN_COOKIE = 'userToken';
 
 /**
- * @param {{ id?: number }|undefined|null} user
+ * @param {{ id?: number, login?: string }|undefined|null} user
+ * @param {boolean} [preview] whether this is a Cloudflare Pages preview deploy. The demo admin
+ *   (see $lib/server/demo/identity.js) is only accepted on previews, never in production.
  * @returns {boolean}
  */
-export function isAdmin(user) {
+export function isAdmin(user, preview = isPreviewDeploy()) {
+	if (isDemoUser(user)) return preview === true;
 	return (
 		!!user &&
 		typeof user.id === 'number' &&
@@ -80,7 +86,9 @@ export async function revokeToken(token, { clientId, clientSecret }, fetchFn = f
  */
 export function requireAdmin(locals, url) {
 	if (!locals.user || !locals.user_token) {
-		throw redirect(303, '/login?redirectTo=' + encodeURIComponent(url.pathname));
+		// Ruta + query (ej. /admin/entradas/codigos?evento=x), validada como en /login.
+		const back = safeRedirect(url.pathname + url.search, url.origin, '/admin');
+		throw redirect(303, loginHref(new URL(back, url.origin)));
 	}
 	if (!isAdmin(locals.user)) {
 		throw error(403, 'Tu cuenta no tiene permiso para entrar al panel de administración.');

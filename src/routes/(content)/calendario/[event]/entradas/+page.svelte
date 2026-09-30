@@ -1,6 +1,7 @@
 <script>
 	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
+	import { doorText } from '$lib/utils/tickets.js';
 	import { page } from '$app/stores';
 
 	/**
@@ -49,6 +50,9 @@
 			{#if where}<p class="where">{where}</p>{/if}
 		</div>
 	</header>
+	{#if data.tickets.reason !== 'cancelled' && doorText(data.tickets.door)}
+		<p class="door">{doorText(data.tickets.door)}</p>
+	{/if}
 
 	<TicketPurchase tickets={data.tickets} result={form?.buy} />
 </div>
@@ -103,6 +107,12 @@
 	}
 	.when::first-letter {
 		text-transform: uppercase;
+	}
+	.door {
+		margin: 0.8em 0 0;
+		font-size: var(--step--1);
+		font-weight: bold;
+		color: var(--2-dark);
 	}
 	.purchase-page :global(.tickets) {
 		margin-top: 1em;

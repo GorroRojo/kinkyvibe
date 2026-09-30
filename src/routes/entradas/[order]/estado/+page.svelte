@@ -163,9 +163,9 @@
 
 <style>
 	.estado {
-		border-radius: 1em;
+		border-radius: var(--round);
 		padding: 1.2em;
-		background: white;
+		background: var(--surface);
 		outline: 3px solid var(--2);
 	}
 	.estado-approved {
@@ -193,11 +193,16 @@
 		display: block;
 		text-align: center;
 		padding: 0.8em 1em;
-		border-radius: 0.6em;
+		border-radius: var(--round-pill);
 		background: var(--2);
 		color: white;
 		font-weight: bold;
 		text-decoration: none;
+	}
+	.ticket-links a:hover,
+	.button:hover {
+		background: var(--2-dark);
+		color: white;
 	}
 	dl {
 		display: grid;
@@ -216,14 +221,14 @@
 		outline-color: var(--4-dark, var(--2));
 	}
 	.confirm-note {
-		background: #fff3c4;
-		border-radius: 0.8em;
+		background: var(--4-tint);
+		border-radius: var(--round-sm);
 		padding: 0.6em 1em;
 	}
 	.transfer-info {
 		white-space: pre-line;
-		background: color-mix(in srgb, var(--2) 8%, white);
-		border-radius: 0.6em;
+		background: var(--2-tint);
+		border-radius: var(--round-sm);
 		padding: 0.8em 1em;
 		font-family: ui-monospace, monospace;
 		font-size: var(--step--1);

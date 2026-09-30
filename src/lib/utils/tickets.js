@@ -10,6 +10,60 @@
  */
 export const MAX_TICKETS_PER_FORM = 20;
 
+/**
+ * Cuántas entradas quedan de un tipo, o `null` si el tipo no tiene cupo (sin límite).
+ *
+ * @param {{ capacity: number | null }} type
+ * @param {{ sold: number, held: number } | undefined} counts vendidas y reservadas vigentes
+ * @returns {number | null}
+ */
+export function remainingOf(type, counts) {
+	if (type.capacity === null || type.capacity === undefined) return null;
+	return Math.max(0, type.capacity - (counts ? counts.sold + counts.held : 0));
+}
+
+/** Por debajo de cuántas entradas disponibles la página pública dice cuántas quedan. */
+export const LOW_STOCK = 10;
+
+/**
+ * Lo que se muestra en público de lo que queda: el número solo si el tipo tiene cupo y quedan
+ * menos de `LOW_STOCK` (y alguna). Si no, `null` (no se muestran números: ni el cupo ni lo
+ * vendido). Agotado (0) se muestra aparte.
+ *
+ * @param {number | null} remaining lo que da `remainingOf`
+ * @returns {number | null}
+ */
+export function publicLeft(remaining) {
+	return remaining !== null && remaining > 0 && remaining < LOW_STOCK ? remaining : null;
+}
+
+/**
+ * "Quedan 7" / "¡Últimas 3!" / "¡Última!" para lo que da `publicLeft`.
+ *
+ * @param {number} n
+ */
+export function leftText(n) {
+	if (n === 1) return '¡Última!';
+	if (n <= 3) return `¡Últimas ${n}!`;
+	return `Quedan ${n}`;
+}
+
+/**
+ * Qué dice la página pública sobre las entradas en la puerta (`door` de la configuración:
+ * `puerta` / `puerta_precio`). `null` (nada) en los eventos online y en los que no tienen
+ * `puerta` en el frontmatter (los de antes: se sigue vendiendo en la puerta, sin aviso).
+ *
+ * @param {{ on: boolean, explicit?: boolean, price: string } | null | undefined} door
+ * @returns {string | null}
+ */
+export function doorText(door) {
+	if (!door || !door.explicit) return null;
+	if (!door.on) return 'Solo anticipadas: no hay entradas en la puerta.';
+	return door.price
+		? `También hay entradas en la puerta: ${door.price}.`
+		: 'También hay entradas en la puerta.';
+}
+
 /** Medios de pago que puede habilitar un evento en su frontmatter. */
 export const PAYMENT_METHODS = /** @type {const} */ (['mercadopago', 'transferencia']);
 
@@ -57,8 +111,8 @@ export function mpSurcharge(base, feeBasisPoints) {
 
 /**
  * Comisión de Mercado Pago por defecto (%), si no hay ninguna configurada (ni en el evento, ni en
- * /admin/entradas/ajustes, ni en TICKETS_MP_FEE_PERCENT). Decisión de la organización: 2 %; la
- * real depende del plan de la cuenta y se ajusta en /admin/entradas/ajustes.
+ * /admin/ajustes/cobros, ni en TICKETS_MP_FEE_PERCENT). Decisión de la organización: 2 %; la
+ * real depende del plan de la cuenta y se ajusta en /admin/ajustes/cobros.
  */
 export const DEFAULT_MP_FEE_PERCENT = 2;
 
