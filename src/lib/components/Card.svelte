@@ -88,7 +88,8 @@
 		border-radius: var(--round);
 		width: var(--card-width, 13rem);
 		height: 100%;
-		background: white;
+		background: var(--surface);
+		box-shadow: var(--shadow);
 		cursor: pointer;
 		padding-bottom: 1em;
 		transition: 100ms;
@@ -107,8 +108,9 @@
 		color: var(--post-color, var(--2));
 		text-decoration: none;
 	}
+	/* same fade as past items in the list view */
 	.card.past {
-		opacity: 0.3;
+		opacity: 0.5;
 	}
 	.card.mark {
 		--post-color: var(--1);

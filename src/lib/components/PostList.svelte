@@ -315,26 +315,30 @@
 		text-align: right;
 		max-width: 50rem;
 		margin: 0 auto 1.5em;
-		opacity: 0.7;
+		color: var(--muted);
 	}
 	.empty-state {
 		max-width: 50rem;
 		margin: 0 auto 2em;
 		text-align: center;
-		color: var(--1-dark);
+		color: var(--1-ink);
 		p {
 			margin: 0.3em 0;
 		}
 		button {
 			margin-top: 0.8em;
-			border: none;
-			outline: 2px solid var(--1);
-			border-radius: 0.5em;
-			padding: 0.3em 0.6em;
-			color: var(--1);
-			background: white;
+			min-height: var(--tap);
+			border: 1px solid var(--1);
+			border-radius: var(--round-pill);
+			padding: 0.3em 1em;
+			color: var(--1-ink);
+			background: var(--surface);
 			font-size: var(--step--1);
+			font-weight: 700;
 			cursor: pointer;
+			&:hover {
+				background: var(--1-tint);
+			}
 		}
 	}
 	li {

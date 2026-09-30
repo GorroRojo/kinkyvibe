@@ -41,7 +41,7 @@
 	.cardrowcontainer {
 		background: var(--color-1, var(--2));
 		padding: 1em;
-		border-radius: 0.5em;
+		border-radius: var(--round);
 		position: relative;
 		margin: 0em 0 1em 0;
 	}
@@ -77,7 +77,7 @@
 		pointer-events: none;
 		transition: 300ms;
 		top: 0;
-		border-radius: 0 0.5em 0.5em 0;
+		border-radius: 0 var(--round) var(--round) 0;
 	}
 	.cardrowcontainer:has(+ a:hover)::after {
 		width: 40%;
@@ -101,30 +101,38 @@
 		border: 3px var(--color-1, var(--2)) solid;
 		border-radius: 1rem;
 	}
+	/* same pill as the site's buttons; inside the row (a negative `right` used to push the
+	   page 8 px sideways on phones) */
 	.btn-more {
-		display: block;
+		display: flex;
+		align-items: center;
 		position: absolute;
-		right: -0.5rem;
-		top: calc(50% - 1.5em);
+		right: 0.5rem;
+		top: calc(50% - 1.4em);
+		min-height: var(--tap);
 
-		padding: 0.6em 1em;
+		padding: 0.5em 1.1em;
 		outline: 3px var(--color-1, var(--2)) solid;
 		outline-offset: 0;
 		border: 0;
-		border-radius: 0.3em;
+		border-radius: var(--round-pill);
 		background: var(--color-2, var(--1));
 		color: white;
-		font-weight: bold;
+		font-weight: 700;
 		font-size: 1.1em;
 		cursor: pointer;
 		transition: 100ms;
+		box-shadow: var(--shadow-lift);
 
 		text-decoration: none;
-		font-weight: normal;
 	}
 	.btn-more:hover,
-	.btn-more:focus {
-		transform: scale(105%) translateX(-0.4em);
+	.btn-more:focus-visible {
+		transform: scale(105%) translateX(-0.2em);
+		color: white;
+	}
+	.btn-more:focus-visible {
+		outline: 3px solid white;
 	}
 	.btn-more:active {
 		filter: brightness(90%);
