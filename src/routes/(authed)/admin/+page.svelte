@@ -1,22 +1,29 @@
 <script>
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
-	 * "para revisar", "desde tu última visita", todos los próximos eventos y la actividad.
-	 * Todo tiene estado vacío: sin base de datos se ve igual, con lo que sale del markdown.
+	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
+	 * derecha (en pantallas anchas; si no, abajo) las ventas de esta noche, la agenda de la semana
+	 * y la actividad. Todo tiene estado vacío: sin base de datos se ve igual, con lo que sale del
+	 * markdown.
 	 */
 	import { enhance } from '$app/forms';
 	import Card from '$lib/components/admin/panel/Card.svelte';
+	import ActivityFeed from '$lib/components/admin/inicio/ActivityFeed.svelte';
+	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
+	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import { navItem, navLink } from '$lib/admin/nav.js';
-	import { checkinHref, eventLink, orderHref } from '$lib/admin/links.js';
+	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
+		Activity,
 		ArrowLeftRight,
 		Bell,
+		CalendarDays,
 		CalendarPlus,
 		Check,
 		ChevronRight,
@@ -136,336 +143,348 @@
 		{ label: 'Neto del fondo', value: (e) => (e.fondoEnabled ? e.fondoNet : '') }
 	];
 
-	/** @param {import('$lib/server/admin/inicio.js').ActivityItem} a */
-	function activityHref(a) {
-		if (a.orderId && a.slug) return orderHref(a.slug, a.orderId);
-		if (a.slug) return eventLink(a.slug);
-		return null;
-	}
-
 	let resending = '';
 </script>
 
 <svelte:head><title>Inicio · Panel</title></svelte:head>
 
-<header class="hello">
-	<h1>¡Hola{firstName ? `, ${firstName}` : ''}!</h1>
-	<p class="muted">
-		<span>{todayLabel}</span>
-		·
-		{#if todoCount}
-			<a href="#para-revisar">{plural(todoCount, 'cosa para revisar', 'cosas para revisar')}</a>
-		{:else}
-			todo al día
-		{/if}
-		{#if data.todayEvents.length}
-			· hoy hay {data.todayEvents.map((e) => e.title).join(' y ')}
-		{/if}
-	</p>
-</header>
-
-{#each data.todayEvents as e (e.slug)}
-	<section class="today" aria-label="Hoy">
-		<div class="today-text">
-			<small class="kicker">Hoy · {timeFmt.format(new Date(e.start))}</small>
-			<h2>{e.title}</h2>
-			{#if e.location}<p class="place">{e.location}</p>{/if}
-			{#if e.ticketed}
-				<p class="today-nums">
-					<span><b class="num">{e.sold}</b>{e.capacity ? ` / ${e.capacity}` : ''} vendidas</span>
-					<span><b class="num">{e.checkedIn}</b> de {e.issued} ingresaron</span>
-				</p>
+<div class="inicio">
+	<header class="hello">
+		<h1>¡Hola{firstName ? `, ${firstName}` : ''}!</h1>
+		<p class="muted">
+			<span>{todayLabel}</span>
+			·
+			{#if todoCount}
+				<a href="#para-revisar">{plural(todoCount, 'cosa para revisar', 'cosas para revisar')}</a>
 			{:else}
-				<p class="today-nums">Este evento no vende entradas por la página.</p>
+				todo al día
 			{/if}
-		</div>
-		{#if e.ticketed}
-			<a class="checkin-big" href={checkinHref(e.slug)}>
-				<ScanLine size={28} aria-hidden="true" />
-				<span>Abrir check-in</span>
-			</a>
-		{/if}
-	</section>
-{/each}
-
-<nav class="quick" aria-label="Acciones rápidas">
-	<a class="kv-btn" href="/admin/eventos/nuevo"
-		><CalendarPlus size={18} aria-hidden="true" /> Cargar evento</a
-	>
-	<a class="kv-btn ghost" href="/admin/eventos/importar"
-		><FileSpreadsheet size={18} aria-hidden="true" /> Importar planilla</a
-	>
-	{#if checkinQuick}
-		<a class="kv-btn ghost" href={checkinQuick}
-			><ScanLine size={18} aria-hidden="true" /> Check-in</a
-		>
-	{/if}
-	<a class="kv-btn ghost" href="/admin/entradas/codigos"
-		><Tag size={18} aria-hidden="true" /> Nuevo código</a
-	>
-</nav>
-
-<div class="stats">
-	{#if data.money}
-		<Stat
-			label="Entradas este mes"
-			value={formatARS(data.money.total)}
-			sub="{plural(data.money.orders, 'compra', 'compras')} · {plural(
-				data.money.tickets,
-				'entrada',
-				'entradas'
-			)}"
-			href="/admin/entradas"
-		/>
-		<Stat
-			label="Neto del fondo en entradas"
-			value={formatSignedARS(data.money.fondoNet)}
-			tone={data.money.fondoNet < 0 ? 'bad' : data.money.fondoNet > 0 ? 'ok' : ''}
-			sub="aportes menos descuentos, este mes"
-		/>
-	{:else}
-		<Stat label="Entradas este mes" value="—" sub="sin base de datos en este entorno" />
-	{/if}
-	{#if fondo}
-		<Stat
-			label="Fondo KinkyVibe: suscripciones"
-			value={formatARS(fondo.collected)}
-			sub="{fondoPct} % de la meta ({formatARS(fondo.goal)}) · del {monthDay(
-				fondo.window.startDate
-			)} al {monthDay(fondo.window.endDate)}{fondo.stale ? ' · sin datos de este mes todavía' : ''}"
-		>
-			<CapacityBar
-				sold={fondo.collected}
-				capacity={fondo.goal}
-				label="{formatARS(fondo.collected)} de {formatARS(fondo.goal)}"
-			/>
-		</Stat>
-		<Stat
-			label="Descuento del Fondo"
-			value="{fondo.percent} %"
-			sub="en las entradas de eventos KinkyVibe este mes"
-		/>
-	{:else}
-		<Stat
-			label="Fondo KinkyVibe: suscripciones"
-			value="—"
-			sub="no pudimos leer fondo.kinkyvibe.ar"
-		/>
-	{/if}
-</div>
-
-<div class="cols">
-	<div id="para-revisar">
-		<Card title="Para revisar">
-			<svelte:fragment slot="actions">
-				{#if todoCount}<Badge tone="warn">{todoCount}</Badge>{/if}
-			</svelte:fragment>
-			{#if form?.resend}
-				<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
+			{#if data.todayEvents.length}
+				· hoy hay {data.todayEvents.map((e) => e.title).join(' y ')}
 			{/if}
-			{#if data.todo.length}
-				<ul class="todo">
-					{#each data.todo as t (t.id)}
-						<li>
-							<span class="ico {t.tone}" aria-hidden="true"
-								><svelte:component this={REVIEW_ICONS[t.icon] ?? TriangleAlert} size={18} /></span
-							>
-							<div class="grow">
-								<b>{t.title}</b>
-								<small class="muted">{t.text}</small>
-							</div>
-							{#if t.resend}
-								<form
-									method="POST"
-									action="?/resend"
-									use:enhance={() => {
-										resending = t.id;
-										return async ({ update }) => {
-											await update();
-											resending = '';
-										};
-									}}
-								>
-									<input type="hidden" name="order" value={t.resend.orderId} />
-									<button class="kv-btn ghost sm" disabled={resending === t.id}
-										>{resending === t.id ? 'Enviando…' : t.action}</button
-									>
-								</form>
-							{:else if t.href}
-								<a class="kv-btn ghost sm" href={t.href}>{t.action}</a>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<EmptyState emoji="✨" title="Nada para revisar" text="Todo al día. ¡Bien ahí!" />
-			{/if}
-		</Card>
-	</div>
+		</p>
+	</header>
 
-	<Card title="Desde tu última visita">
-		<svelte:fragment slot="actions">
-			{#if data.since && !data.since.first && data.since.items.length}
-				<form method="POST" action="?/seen" use:enhance>
-					<button class="kv-btn ghost sm"
-						><Check size={16} aria-hidden="true" /> Marcar como visto</button
-					>
-				</form>
-			{/if}
-		</svelte:fragment>
-		{#if !data.since}
-			<EmptyState
-				emoji="🕰️"
-				title="Sin datos"
-				text="Esta sección necesita la base de datos, que no está disponible en este entorno."
-			/>
-		{:else}
-			<p class="muted since-when">
-				{data.since.first
-					? 'Tu primera visita: lo de los últimos 7 días'
-					: `Desde ${ago(data.since.since)}`}
-			</p>
-			<div class="since-nums">
-				<span
-					><b class="num">{data.since.orders}</b>
-					{data.since.orders === 1 ? 'compra' : 'compras'}</span
-				>
-				<span><b class="num">{formatARS(data.since.money)}</b> cobrados</span>
-				<span
-					><b class="num">{data.since.transfers}</b>
-					{data.since.transfers === 1 ? 'transferencia nueva' : 'transferencias nuevas'}</span
-				>
-				<span
-					><b class="num">{data.since.audit}</b>
-					{data.since.audit === 1 ? 'cambio de otre admin' : 'cambios de otres admins'}</span
-				>
-			</div>
-			{#if data.since.items.length}
-				<ul class="feed">
-					{#each data.since.items.slice(0, 8) as a}
-						{@const href = activityHref(a)}
-						<li>
-							<span class="dot {a.kind}" aria-hidden="true"></span>
-							<div class="grow">
-								{#if href}<a {href}><b>{a.title}</b></a>{:else}<b>{a.title}</b>{/if}
-								<small class="muted">{a.who} · {a.detail}</small>
-							</div>
-							<time class="muted" datetime={new Date(a.at).toISOString()}>{ago(a.at)}</time>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="muted">No pasó nada nuevo. 🌙</p>
-			{/if}
-		{/if}
-	</Card>
-</div>
-
-<Card title="Próximos eventos">
-	<svelte:fragment slot="actions">
-		<CsvButton rows={data.upcoming} columns={eventColumns} filename="proximos-eventos.csv" />
-		<a class="kv-btn ghost sm" href="/admin/eventos"
-			>Ver todos <ChevronRight size={16} aria-hidden="true" /></a
-		>
-	</svelte:fragment>
-	{#if data.upcoming.length}
-		<ul class="events">
-			{#each data.upcoming as e (e.slug)}
-				{@const st = statusBadge(e)}
-				<li>
-					<div class="date" class:is-today={e.today}>
-						<small>{wdFmt.format(new Date(e.start))}</small>
-						<b>{dayFmt.format(new Date(e.start))}</b>
-						<small>{monFmt.format(new Date(e.start))}</small>
-					</div>
-					<div class="ev">
-						<div class="ev-head">
-							<a class="ev-title" href={eventLink(e.slug, { tickets: e.ticketed })}>{e.title}</a>
-							{#if e.today}<Badge tone="bad">Hoy</Badge>{/if}
-							<Badge tone={st.tone}>{st.text}</Badge>
-							{#if e.fondoEnabled}<Badge tone="info">Fondo</Badge>{/if}
-							{#if e.transfers}<Badge tone="warn">{plural(e.transfers, 'transf.', 'transf.')}</Badge
-								>{/if}
-							{#if e.review}<Badge tone="bad">{e.review} para revisar</Badge>{/if}
-							{#if e.missingStream}<Badge tone="warn">sin link</Badge>{/if}
-							{#if !e.hasImage}<Badge tone="neutral">sin imagen</Badge>{/if}
-						</div>
-						<small class="muted"
-							>{timeFmt.format(new Date(e.start))}{e.location ? ` · ${e.location}` : ''}{e.online
-								? ' · online'
-								: ''}</small
-						>
+	<div class="layout">
+		<div class="main-col">
+			{#each data.todayEvents as e (e.slug)}
+				<section class="today" aria-label="Hoy">
+					<div class="today-text">
+						<small class="kicker">Hoy · {timeFmt.format(new Date(e.start))}</small>
+						<h2>{e.title}</h2>
+						{#if e.location}<p class="place">{e.location}</p>{/if}
 						{#if e.ticketed}
-							{#if e.salesNotYet && !e.sold}
-								<small class="muted">La venta todavía no abrió.</small>
-							{:else}
-								<div class="cap">
-									<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
-									<small class="num"
-										>{e.sold}{e.capacity === null ? ' · sin cupo' : ` / ${e.capacity}`}{e.held
-											? ` · ${e.held} reservadas`
-											: ''}</small
-									>
-								</div>
-							{/if}
+							<p class="today-nums">
+								<span
+									><b class="num">{e.sold}</b>{e.capacity ? ` / ${e.capacity}` : ''} vendidas</span
+								>
+								<span><b class="num">{e.checkedIn}</b> de {e.issued} ingresaron</span>
+							</p>
+						{:else}
+							<p class="today-nums">Este evento no vende entradas por la página.</p>
 						{/if}
 					</div>
 					{#if e.ticketed}
-						<div class="money num">
-							<b>{formatARS(e.revenue)}</b>
-							{#if e.fondoEnabled}
-								<small class:neg={e.fondoNet < 0} title="Neto del fondo: aportes menos descuentos"
-									>💜 {formatSignedARS(e.fondoNet)}</small
-								>
-							{/if}
-						</div>
+						<a class="checkin-big" href={checkinHref(e.slug)}>
+							<ScanLine size={28} aria-hidden="true" />
+							<span>Abrir check-in</span>
+						</a>
 					{/if}
-				</li>
+				</section>
 			{/each}
-		</ul>
-	{:else}
-		<EmptyState
-			emoji="🗓️"
-			title="No hay eventos próximos cargados"
-			text="Cargá uno o importá la planilla."
-		>
-			<a class="kv-btn" href="/admin/eventos/nuevo">Cargar evento</a>
-		</EmptyState>
-	{/if}
-</Card>
 
-<div class="activity">
-	<Card title="Actividad reciente">
-		<svelte:fragment slot="actions">
-			<CsvButton rows={data.activity} columns={activityColumns} filename="actividad-reciente.csv" />
-			<a class="kv-btn ghost sm" href="/admin/actividad"
-				>Registro completo <ChevronRight size={16} aria-hidden="true" /></a
-			>
-		</svelte:fragment>
-		{#if data.activity.length}
-			<ul class="feed">
-				{#each data.activity as a}
-					{@const href = activityHref(a)}
-					<li>
-						<span class="dot {a.kind}" aria-hidden="true"></span>
-						<div class="grow">
-							{#if href}<a {href}><b>{a.title}</b></a>{:else}<b>{a.title}</b>{/if}
-							<small class="muted">{a.who} · {a.detail}</small>
+			<nav class="quick" aria-label="Acciones rápidas">
+				<a class="kv-btn" href="/admin/eventos/nuevo"
+					><CalendarPlus size={18} aria-hidden="true" /> Cargar evento</a
+				>
+				<a class="kv-btn ghost" href="/admin/eventos/importar"
+					><FileSpreadsheet size={18} aria-hidden="true" /> Importar planilla</a
+				>
+				{#if checkinQuick}
+					<a class="kv-btn ghost" href={checkinQuick}
+						><ScanLine size={18} aria-hidden="true" /> Check-in</a
+					>
+				{/if}
+				<a class="kv-btn ghost" href="/admin/entradas/codigos"
+					><Tag size={18} aria-hidden="true" /> Nuevo código</a
+				>
+			</nav>
+
+			<div class="stats">
+				{#if data.money}
+					<Stat
+						label="Entradas este mes"
+						value={formatARS(data.money.total)}
+						sub="{plural(data.money.orders, 'compra', 'compras')} · {plural(
+							data.money.tickets,
+							'entrada',
+							'entradas'
+						)}"
+						href="/admin/entradas"
+					/>
+					<Stat
+						label="Neto del fondo en entradas"
+						value={formatSignedARS(data.money.fondoNet)}
+						tone={data.money.fondoNet < 0 ? 'bad' : data.money.fondoNet > 0 ? 'ok' : ''}
+						sub="aportes menos descuentos, este mes"
+					/>
+				{:else}
+					<Stat label="Entradas este mes" value="—" sub="sin base de datos en este entorno" />
+				{/if}
+				{#if fondo}
+					<Stat
+						label="Fondo KinkyVibe: suscripciones"
+						value={formatARS(fondo.collected)}
+						sub="{fondoPct} % de la meta ({formatARS(fondo.goal)}) · del {monthDay(
+							fondo.window.startDate
+						)} al {monthDay(fondo.window.endDate)}{fondo.stale
+							? ' · sin datos de este mes todavía'
+							: ''}"
+					>
+						<CapacityBar
+							sold={fondo.collected}
+							capacity={fondo.goal}
+							label="{formatARS(fondo.collected)} de {formatARS(fondo.goal)}"
+						/>
+					</Stat>
+					<Stat
+						label="Descuento del Fondo"
+						value="{fondo.percent} %"
+						sub="en las entradas de eventos KinkyVibe este mes"
+					/>
+				{:else}
+					<Stat
+						label="Fondo KinkyVibe: suscripciones"
+						value="—"
+						sub="no pudimos leer fondo.kinkyvibe.ar"
+					/>
+				{/if}
+			</div>
+
+			<div class="cols">
+				<div id="para-revisar">
+					<Card title="Para revisar">
+						<svelte:fragment slot="actions">
+							{#if todoCount}<Badge tone="warn">{todoCount}</Badge>{/if}
+						</svelte:fragment>
+						{#if form?.resend}
+							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
+						{/if}
+						{#if data.todo.length}
+							<ul class="todo">
+								{#each data.todo as t (t.id)}
+									<li>
+										<span class="ico {t.tone}" aria-hidden="true"
+											><svelte:component
+												this={REVIEW_ICONS[t.icon] ?? TriangleAlert}
+												size={18}
+											/></span
+										>
+										<div class="grow">
+											<b>{t.title}</b>
+											<small class="muted">{t.text}</small>
+										</div>
+										{#if t.resend}
+											<form
+												method="POST"
+												action="?/resend"
+												use:enhance={() => {
+													resending = t.id;
+													return async ({ update }) => {
+														await update();
+														resending = '';
+													};
+												}}
+											>
+												<input type="hidden" name="order" value={t.resend.orderId} />
+												<button class="kv-btn ghost sm" disabled={resending === t.id}
+													>{resending === t.id ? 'Enviando…' : t.action}</button
+												>
+											</form>
+										{:else if t.href}
+											<a class="kv-btn ghost sm" href={t.href}>{t.action}</a>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<EmptyState emoji="✨" title="Nada para revisar" text="Todo al día. ¡Bien ahí!" />
+						{/if}
+					</Card>
+				</div>
+
+				<Card title="Desde tu última visita">
+					<svelte:fragment slot="actions">
+						{#if data.since && !data.since.first && data.since.items.length}
+							<form method="POST" action="?/seen" use:enhance>
+								<button class="kv-btn ghost sm"
+									><Check size={16} aria-hidden="true" /> Marcar como visto</button
+								>
+							</form>
+						{/if}
+					</svelte:fragment>
+					{#if !data.since}
+						<EmptyState
+							emoji="🕰️"
+							title="Sin datos"
+							text="Esta sección necesita la base de datos, que no está disponible en este entorno."
+						/>
+					{:else}
+						<p class="muted since-when">
+							{data.since.first
+								? 'Tu primera visita: lo de los últimos 7 días'
+								: `Desde ${ago(data.since.since)}`}
+						</p>
+						<div class="since-nums">
+							<span
+								><b class="num">{data.since.orders}</b>
+								{data.since.orders === 1 ? 'compra' : 'compras'}</span
+							>
+							<span><b class="num">{formatARS(data.since.money)}</b> cobrados</span>
+							<span
+								><b class="num">{data.since.transfers}</b>
+								{data.since.transfers === 1 ? 'transferencia nueva' : 'transferencias nuevas'}</span
+							>
+							<span
+								><b class="num">{data.since.audit}</b>
+								{data.since.audit === 1 ? 'cambio de otre admin' : 'cambios de otres admins'}</span
+							>
 						</div>
-						<time class="muted" datetime={new Date(a.at).toISOString()}>{ago(a.at)}</time>
-					</li>
-				{/each}
-			</ul>
-		{:else}
-			<EmptyState
-				emoji="📭"
-				title="Sin actividad todavía"
-				text={data.dbAvailable
-					? 'Acá van a aparecer las compras, transferencias y cambios de les admins.'
-					: 'La actividad necesita la base de datos, que no está disponible en este entorno.'}
-			/>
-		{/if}
-	</Card>
+						{#if data.since.items.length}
+							<ActivityFeed items={data.since.items} now={data.now} limit={8} />
+						{:else}
+							<p class="muted">No pasó nada nuevo. 🌙</p>
+						{/if}
+					{/if}
+				</Card>
+			</div>
+
+			<Card title="Próximos eventos">
+				<svelte:fragment slot="actions">
+					<CsvButton rows={data.upcoming} columns={eventColumns} filename="proximos-eventos.csv" />
+					<a class="kv-btn ghost sm" href="/admin/eventos"
+						>Ver todos <ChevronRight size={16} aria-hidden="true" /></a
+					>
+				</svelte:fragment>
+				{#if data.upcoming.length}
+					<ul class="events">
+						{#each data.upcoming as e (e.slug)}
+							{@const st = statusBadge(e)}
+							<li>
+								<div class="date" class:is-today={e.today}>
+									<small>{wdFmt.format(new Date(e.start))}</small>
+									<b>{dayFmt.format(new Date(e.start))}</b>
+									<small>{monFmt.format(new Date(e.start))}</small>
+								</div>
+								<div class="ev">
+									<div class="ev-head">
+										<a class="ev-title" href={eventLink(e.slug, { tickets: e.ticketed })}
+											>{e.title}</a
+										>
+										{#if e.today}<Badge tone="bad">Hoy</Badge>{/if}
+										<Badge tone={st.tone}>{st.text}</Badge>
+										{#if e.fondoEnabled}<Badge tone="info">Fondo</Badge>{/if}
+										{#if e.transfers}<Badge tone="warn"
+												>{plural(e.transfers, 'transf.', 'transf.')}</Badge
+											>{/if}
+										{#if e.review}<Badge tone="bad">{e.review} para revisar</Badge>{/if}
+										{#if e.missingStream}<Badge tone="warn">sin link</Badge>{/if}
+										{#if !e.hasImage}<Badge tone="neutral">sin imagen</Badge>{/if}
+									</div>
+									<small class="muted"
+										>{timeFmt.format(new Date(e.start))}{e.location
+											? ` · ${e.location}`
+											: ''}{e.online ? ' · online' : ''}</small
+									>
+									{#if e.ticketed}
+										{#if e.salesNotYet && !e.sold}
+											<small class="muted">La venta todavía no abrió.</small>
+										{:else}
+											<div class="cap">
+												<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
+												<small class="num"
+													>{e.sold}{e.capacity === null ? ' · sin cupo' : ` / ${e.capacity}`}{e.held
+														? ` · ${e.held} reservadas`
+														: ''}</small
+												>
+											</div>
+										{/if}
+									{/if}
+								</div>
+								{#if e.ticketed}
+									<div class="money num">
+										<b>{formatARS(e.revenue)}</b>
+										{#if e.fondoEnabled}
+											<small
+												class:neg={e.fondoNet < 0}
+												title="Neto del fondo: aportes menos descuentos"
+												>💜 {formatSignedARS(e.fondoNet)}</small
+											>
+										{/if}
+									</div>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<EmptyState
+						emoji="🗓️"
+						title="No hay eventos próximos cargados"
+						text="Cargá uno o importá la planilla."
+					>
+						<a class="kv-btn" href="/admin/eventos/nuevo">Cargar evento</a>
+					</EmptyState>
+				{/if}
+			</Card>
+		</div>
+
+		<aside class="side-col" aria-label="Ventas, agenda y actividad">
+			{#if data.sales}
+				<SalesCard sales={data.sales} />
+			{/if}
+
+			<Card title="Agenda" icon={CalendarDays}>
+				<svelte:fragment slot="actions">
+					<small class="muted">próximos 7 días</small>
+				</svelte:fragment>
+				{#if data.agenda.length}
+					<Agenda days={data.agenda} />
+				{:else}
+					<EmptyState
+						emoji="🗓️"
+						title="Semana tranquila"
+						text="No hay eventos, cierres de venta ni recordatorios en los próximos 7 días."
+					/>
+				{/if}
+			</Card>
+
+			<div class="activity">
+				<Card title="Actividad" icon={Activity}>
+					<svelte:fragment slot="actions">
+						<CsvButton
+							rows={data.activity}
+							columns={activityColumns}
+							filename="actividad-reciente.csv"
+						/>
+						<a class="kv-btn ghost sm" href="/admin/actividad"
+							>Ver todo <ChevronRight size={16} aria-hidden="true" /></a
+						>
+					</svelte:fragment>
+					{#if data.activity.length}
+						<ActivityFeed items={data.activity} now={data.now} />
+					{:else}
+						<EmptyState
+							emoji="📭"
+							title="Sin actividad todavía"
+							text={data.dbAvailable
+								? 'Acá van a aparecer las compras, transferencias, ingresos y cambios de les admins.'
+								: 'La actividad necesita la base de datos, que no está disponible en este entorno.'}
+						/>
+					{/if}
+				</Card>
+			</div>
+		</aside>
+	</div>
 </div>
 
 <style lang="scss">
@@ -542,18 +561,84 @@
 		flex-wrap: wrap;
 		margin-bottom: 1rem;
 	}
+	/* En pantallas muy anchas el Inicio usa más que el ancho máximo de las otras páginas. */
+	:global(main.page:has(> .inicio)) {
+		max-width: 110rem;
+	}
+	/*
+	 * Distribución: la columna principal y, a la derecha, ventas + agenda + actividad. Se decide
+	 * con container queries (el ancho real del contenido, sin la barra lateral):
+	 * - desde 58rem (~1280 px de pantalla): dos columnas;
+	 * - de 38 a 58rem (~1024 px): la columna de la derecha pasa abajo, en dos columnas;
+	 * - menos (celu): todo en una columna, la actividad más corta.
+	 */
+	.inicio {
+		container: inicio / inline-size;
+	}
+	.layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem;
+		align-items: start;
+	}
+	.main-col {
+		container: main-col / inline-size;
+		min-width: 0;
+	}
+	.side-col {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem;
+		align-items: start;
+		min-width: 0;
+	}
+	@container inicio (min-width: 38rem) and (max-width: 57.99rem) {
+		.side-col {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
+		/* Con ventas: ventas | agenda, y la actividad abajo a lo ancho. */
+		.side-col > .activity:nth-child(3) {
+			grid-column: 1 / -1;
+		}
+	}
+	@container inicio (min-width: 58rem) {
+		.layout {
+			grid-template-columns: minmax(0, 1fr) 20.5rem;
+		}
+	}
+	@container inicio (min-width: 76rem) {
+		.layout {
+			grid-template-columns: minmax(0, 1fr) 24rem;
+		}
+	}
+	@container inicio (max-width: 37.99rem) {
+		/* En el celu: la actividad, corta (el registro completo está en /admin/actividad). */
+		.activity :global(.feed li:nth-child(n + 6)) {
+			display: none;
+		}
+	}
 	.stats {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.8rem;
 		margin-bottom: 1rem;
 	}
+	@container main-col (min-width: 46rem) {
+		.stats {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
 	.cols {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr);
 		gap: 1rem;
 		margin-bottom: 1rem;
 		align-items: start;
+	}
+	@container main-col (min-width: 52rem) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
 	}
 	.sm {
 		padding: 0.35rem 0.8rem;
@@ -571,14 +656,12 @@
 		}
 	}
 	.todo,
-	.feed,
 	.events {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 	}
-	.todo li,
-	.feed li {
+	.todo li {
 		display: flex;
 		gap: 0.7rem;
 		align-items: center;
@@ -631,29 +714,6 @@
 		b {
 			font-size: 1.15rem;
 		}
-	}
-	.dot {
-		flex: none;
-		width: 0.6rem;
-		height: 0.6rem;
-		border-radius: 50%;
-		background: var(--muted);
-		&.order {
-			background: var(--ok);
-		}
-		&.transfer {
-			background: var(--warn);
-		}
-		&.refund {
-			background: var(--bad);
-		}
-		&.audit {
-			background: var(--info);
-		}
-	}
-	.feed time {
-		font-size: 0.8rem;
-		white-space: nowrap;
 	}
 	.events li {
 		display: grid;
@@ -732,17 +792,7 @@
 			color: var(--bad);
 		}
 	}
-	.activity {
-		margin-top: 1rem;
-	}
 	@media (max-width: 899.98px) {
-		/* En el celu la actividad completa queda en /admin/actividad (propuesta 4.1). */
-		.activity {
-			display: none;
-		}
-		.cols {
-			grid-template-columns: minmax(0, 1fr);
-		}
 		.quick {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));

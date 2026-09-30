@@ -4,14 +4,21 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import {
+	AGENDA_DAYS,
+	agendaItems,
 	arDay,
+	arDayStart,
 	checkinTotals,
+	eventSalesTrend,
+	expiringTransfers,
 	failedReminders,
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
 	reviewItems,
 	reviewOrders,
+	salesFocus,
+	salesSummary,
 	sinceLastVisit,
 	streamLinkSlugs,
 	ticketTotals,
@@ -28,7 +35,14 @@ import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders } from '$lib/server/tickets/reminders.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { editEventHref, orderHref, streamHref, transfersHref } from '$lib/admin/links.js';
+import {
+	editEventHref,
+	eventLink,
+	orderHref,
+	streamHref,
+	transfersHref
+} from '$lib/admin/links.js';
+import { navItem, navLink } from '$lib/admin/nav.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, fetch, setHeaders }) {
@@ -58,28 +72,38 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			: [];
 	});
 
-	const [totals, checkins, transfers, review, unsent, streamLinks, money, fondo, seen, settings] =
-		await Promise.all([
-			ticketTotals(db, soonTicketed, now),
-			checkinTotals(
-				db,
-				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
-			),
-			pendingTransfers(db, now),
-			reviewOrders(db),
-			unsentEmails(db, now),
-			streamLinkSlugs(db, soonTicketed),
-			monthMoney(db, now),
-			resolveFondoMonth({ db, fetch, now }),
-			touchLastSeen(db, user.id, now),
-			db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null)
-		]);
+	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
+	const [
+		totals,
+		checkins,
+		transfers,
+		review,
+		unsent,
+		streamLinks,
+		money,
+		fondo,
+		seen,
+		settings,
+		expiring
+	] = await Promise.all([
+		ticketTotals(db, soonTicketed, now),
+		checkinTotals(
+			db,
+			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
+		),
+		pendingTransfers(db, now),
+		reviewOrders(db),
+		unsentEmails(db, now),
+		streamLinkSlugs(db, soonTicketed),
+		monthMoney(db, now),
+		resolveFondoMonth({ db, fetch, now }),
+		touchLastSeen(db, user.id, now),
+		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
+		expiringTransfers(db, now, agendaUntil)
+	]);
+	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
-		? await failedReminders(db, {
-				events: reminderEvents,
-				reminders: parseReminders(settings.reminders),
-				now
-			})
+		? await failedReminders(db, { events: reminderEvents, reminders: reminderList, now })
 		: new Map();
 
 	const upcoming = upcomingEvents({
@@ -104,12 +128,35 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
 
-	const [activity, since] = await Promise.all([
-		recentActivity(db, { limit: 12, titles }),
-		seen ? sinceLastVisit(db, { since: seen.since, login: user.login, titles }) : null
+	const settingsItem = navItem('ajustes-cobros');
+	const agenda = agendaItems({
+		events,
+		ticketed,
+		transfers: expiring,
+		reminders: reminderList,
+		now,
+		skip,
+		links: {
+			event: eventLink,
+			orders: (slug) => orderHref(slug),
+			transfers: transfersHref,
+			reminders: (settingsItem && navLink(settingsItem)) || '/admin/entradas/ajustes'
+		}
+	});
+	const focus = salesFocus(upcoming);
+
+	const [activity, since, trend] = await Promise.all([
+		recentActivity(db, { limit: 10, titles }),
+		seen ? sinceLastVisit(db, { since: seen.since, login: user.login, titles }) : null,
+		focus ? eventSalesTrend(db, focus.event.slug, now) : null
 	]);
+	const sales = focus
+		? salesSummary({ focus, config: ticketed.get(focus.event.slug), totals, trend, now })
+		: null;
 
 	return {
+		agenda,
+		sales,
 		now,
 		dbAvailable: Boolean(db),
 		upcoming,

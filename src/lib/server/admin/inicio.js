@@ -9,7 +9,12 @@
  */
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
-import { dueReminderOrders } from '$lib/server/tickets/reminders.js';
+import {
+	describeReminder,
+	dueReminderOrders,
+	reminderDueAt,
+	reminderId
+} from '$lib/server/tickets/reminders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -310,7 +315,7 @@ export function monthMoney(db, now) {
 /**
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin',
  *   title: string,
  *   who: string,
  *   detail: string,
@@ -326,15 +331,17 @@ const ORDER_KIND = /** @type {const} */ ({
 });
 
 /**
- * Últimos movimientos: compras, transferencias, reembolsos y acciones de admins (registro de
- * actividad), de la más nueva a la más vieja. `since`: solo lo posterior a ese instante.
+ * Últimos movimientos: compras, transferencias, reembolsos, ingresos en la puerta (juntados por
+ * evento cada {@link CHECKIN_BUCKET_MS}, para que una noche de check-in no tape todo lo demás) y
+ * acciones de admins (registro de actividad), de la más nueva a la más vieja. `since`: solo lo
+ * posterior a ese instante.
  *
  * @param {D1Database | null | undefined} db
  * @param {{ limit?: number, since?: number, titles?: Map<string, string> }} [opts]
  * @returns {Promise<ActivityItem[]>}
  */
 export async function recentActivity(db, { limit = 12, since = 0, titles = new Map() } = {}) {
-	const [orders, audit] = await Promise.all([
+	const [orders, audit, checkins] = await Promise.all([
 		safe(db, 'actividad: órdenes', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
 			const { results } = await db
 				.prepare(
@@ -354,6 +361,17 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 					WHERE at > ? ORDER BY at DESC LIMIT ?`
 				)
 				.bind(since, limit)
+				.all();
+			return results;
+		}),
+		safe(db, 'actividad: ingresos', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
+			const { results } = await db
+				.prepare(
+					`SELECT event_slug, COUNT(*) AS n, MIN(checked_in_at) AS first, MAX(checked_in_at) AS last
+					FROM tickets WHERE checked_in_at > ?1
+					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`
+				)
+				.bind(since, limit, CHECKIN_BUCKET_MS)
 				.all();
 			return results;
 		})
@@ -391,6 +409,24 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 			who: String(a.actor_login),
 			detail: String(a.action),
 			slug: a.target_type === 'event' && a.target_id ? String(a.target_id) : null,
+			orderId: null
+		});
+	}
+	for (const c of checkins) {
+		const slug = String(c.event_slug);
+		const n = Number(c.n);
+		const first = Number(c.first);
+		const last = Number(c.last);
+		items.push({
+			at: last,
+			kind: 'checkin',
+			title: n === 1 ? '1 ingreso en la puerta' : `${n} ingresos en la puerta`,
+			who: titles.get(slug) ?? slug,
+			detail:
+				n === 1 || arTime(first) === arTime(last)
+					? arTime(last)
+					: `${arTime(first)} a ${arTime(last)}`,
+			slug,
 			orderId: null
 		});
 	}
@@ -720,4 +756,369 @@ export function whenLabel(ms, now) {
 		hour: '2-digit',
 		minute: '2-digit'
 	}).format(ms);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Días que cubre la agenda del Inicio (hoy incluido). */
+export const AGENDA_DAYS = 7;
+/** En la actividad, los ingresos en la puerta se juntan por evento y por esta ventana. */
+export const CHECKIN_BUCKET_MS = 30 * 60 * 1000;
+
+const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+/**
+ * "Hoy", "Mañana", "Ayer" o "vie 2/10" para un día `YYYY-MM-DD`.
+ * @param {string} day
+ * @param {string} today
+ */
+export function dayLabel(day, today) {
+	const d = new Date(`${day}T12:00:00Z`);
+	const diff = Math.round((d.getTime() - new Date(`${today}T12:00:00Z`).getTime()) / DAY_MS);
+	if (diff === 0) return 'Hoy';
+	if (diff === 1) return 'Mañana';
+	if (diff === -1) return 'Ayer';
+	return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+/**
+ * "21:30" en hora de Argentina.
+ * @param {number} ms
+ */
+export function arTime(ms) {
+	const d = new Date(ms + AR_OFFSET_MS);
+	return `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Transferencias esperando confirmación que vencen entre `now` y `until`, por evento y día
+ * (hora de Argentina): cuántas y la primera en vencer. Para la agenda.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {number} now
+ * @param {number} until
+ * @returns {Promise<{ slug: string, day: string, count: number, first: number }[]>}
+ */
+export function expiringTransfers(db, now, until) {
+	return safe(db, 'transferencias por vencer', [], async (db) => {
+		const { results } = await db
+			.prepare(
+				`SELECT event_slug, COUNT(*) AS n, MIN(expires_at) AS first FROM orders
+				WHERE status = 'awaiting_transfer' AND expires_at > ?1 AND expires_at < ?2
+				GROUP BY event_slug, CAST((expires_at + ?3) / ?4 AS INTEGER) ORDER BY first`
+			)
+			.bind(now, until, AR_OFFSET_MS, DAY_MS)
+			.all();
+		return results.map((r) => ({
+			slug: String(r.event_slug),
+			day: arDay(Number(r.first)),
+			count: Number(r.n),
+			first: Number(r.first)
+		}));
+	});
+}
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   at: number,
+ *   kind: 'event' | 'sales-open' | 'sales-close' | 'type-close' | 'transfers' | 'reminder',
+ *   title: string,
+ *   text: string,
+ *   href: string | null,
+ *   past: boolean,
+ *   time?: string
+ * }} AgendaItem
+ * @typedef {{ day: string, label: string, items: AgendaItem[] }} AgendaDay
+ */
+
+/**
+ * Agenda de los próximos {@link AGENDA_DAYS} días (desde la medianoche de hoy, hora de
+ * Argentina): eventos, aperturas y cierres de venta, cierres de un tipo de entrada (la
+ * anticipada), transferencias que vencen y recordatorios por mail programados. Agrupada por día
+ * (solo los días con algo), cada ítem con su link en el panel. Lo de hoy que ya pasó queda
+ * marcado con `past`.
+ *
+ * @param {{
+ *   events: EventSummary[],
+ *   ticketed: Map<string, EventTickets>,
+ *   transfers?: { slug: string, count: number, first: number }[],
+ *   reminders?: import('$lib/server/tickets/reminders.js').Reminder[],
+ *   now: number,
+ *   days?: number,
+ *   skip?: (slug: string) => boolean,
+ *   links: {
+ *     event: (slug: string, opts?: { tickets?: boolean }) => string,
+ *     orders: (slug: string) => string,
+ *     transfers: (slug: string) => string,
+ *     reminders: string
+ *   }
+ * }} input
+ * @returns {AgendaDay[]}
+ */
+export function agendaItems({
+	events,
+	ticketed,
+	transfers = [],
+	reminders = [],
+	now,
+	days = AGENDA_DAYS,
+	skip = () => false,
+	links
+}) {
+	const from = arDayStart(now);
+	const until = from + days * DAY_MS;
+	const today = arDay(now);
+	/** @param {number | null | undefined} t @returns {t is number} */
+	const inWindow = (t) => typeof t === 'number' && Number.isFinite(t) && t >= from && t < until;
+	/** @type {AgendaItem[]} */
+	const items = [];
+	/** @type {Map<string, string>} */
+	const titles = new Map();
+
+	for (const e of events) {
+		if (e.unpublished || !e.start || skip(e.slug)) continue;
+		titles.set(e.slug, e.title);
+		const config = ticketed.get(e.slug);
+		const start = Date.parse(e.start);
+		const cancelled = (config?.status ?? e.status) === 'cancelado';
+		if (inWindow(start)) {
+			items.push({
+				id: `event-${e.slug}`,
+				at: start,
+				kind: 'event',
+				title: e.title,
+				text: [
+					cancelled ? 'Cancelado' : '',
+					e.unlisted ? 'Borrador' : '',
+					config?.online ? 'Online' : e.location
+				]
+					.filter(Boolean)
+					.join(' · '),
+				href: links.event(e.slug, { tickets: Boolean(config) }),
+				past: start < now
+			});
+		}
+		if (!config || cancelled) continue;
+		if (inWindow(config.opensAt)) {
+			items.push({
+				id: `open-${e.slug}`,
+				at: config.opensAt,
+				kind: 'sales-open',
+				title: `Abre la venta: ${e.title}`,
+				text: '',
+				href: links.orders(e.slug),
+				past: config.opensAt < now
+			});
+		}
+		// Si la venta cierra al empezar el evento, ese cierre ya es el evento mismo.
+		if (inWindow(config.closesAt) && config.closesAt !== start) {
+			items.push({
+				id: `close-${e.slug}`,
+				at: config.closesAt,
+				kind: 'sales-close',
+				title: `Cierra la venta: ${e.title}`,
+				text: '',
+				href: links.orders(e.slug),
+				past: config.closesAt < now
+			});
+		}
+		for (const t of config.types) {
+			const at = t.closesAt;
+			if (!inWindow(at)) continue;
+			if (config.closesAt !== null && at >= config.closesAt) continue;
+			items.push({
+				id: `type-${e.slug}-${t.id}`,
+				at,
+				kind: 'type-close',
+				title: `Cierra «${t.name}»: ${e.title}`,
+				text: 'Los otros tipos siguen a la venta',
+				href: links.orders(e.slug),
+				past: at < now
+			});
+		}
+		if (config.reminders && Number.isFinite(start) && start > now) {
+			for (const r of reminders) {
+				if (!r.enabled) continue;
+				const at = reminderDueAt(r, start);
+				if (!inWindow(at)) continue;
+				items.push({
+					id: `reminder-${e.slug}-${reminderId(r)}`,
+					at,
+					kind: 'reminder',
+					title: `Recordatorio por mail: ${e.title}`,
+					text: describeReminder(r),
+					href: links.reminders,
+					past: at < now
+				});
+			}
+		}
+	}
+	for (const t of transfers) {
+		if (!inWindow(t.first) || skip(t.slug)) continue;
+		items.push({
+			id: `transfers-${t.slug}-${arDay(t.first)}`,
+			at: t.first,
+			kind: 'transfers',
+			title: t.count === 1 ? 'Vence 1 transferencia' : `Vencen ${t.count} transferencias`,
+			text: `${titles.get(t.slug) ?? t.slug} · sin confirmar`,
+			href: links.transfers(t.slug),
+			past: t.first < now
+		});
+	}
+	items.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+	/** @type {AgendaDay[]} */
+	const out = [];
+	for (const item of items) {
+		const day = arDay(item.at);
+		let group = out.at(-1);
+		if (!group || group.day !== day) {
+			group = { day, label: dayLabel(day, today), items: [] };
+			out.push(group);
+		}
+		group.items.push({ ...item, time: arTime(item.at) });
+	}
+	return out;
+}
+
+/**
+ * @typedef {{ days: { day: string, count: number }[], online: number, door: number }} SalesTrend
+ */
+
+/**
+ * Ventas de un evento por día (fecha de la compra, hora de Argentina) en los últimos `days` días
+ * hasta hoy inclusive, y cuántas entradas se vendieron online y en la puerta. La columna
+ * `channel` llega con la migración del modo puerta: sin ella todo cuenta como online.
+ * Una sola ida a la base (un batch).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} slug
+ * @param {number} now
+ * @param {number} [days]
+ * @returns {Promise<SalesTrend | null>}
+ */
+export function eventSalesTrend(db, slug, now, days = 7) {
+	return safe(db, 'ventas por día', null, async (db) => {
+		const from = arDayStart(now) - (days - 1) * DAY_MS;
+		const byDay = db
+			.prepare(
+				`SELECT CAST((created_at - ?1) / ?2 AS INTEGER) AS d, SUM(quantity) AS n FROM orders
+				WHERE event_slug = ?3 AND status = 'approved' AND created_at >= ?1
+				GROUP BY d`
+			)
+			.bind(from, DAY_MS, slug);
+		/** @param {boolean} withChannel */
+		const byChannel = (withChannel) =>
+			db
+				.prepare(
+					`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
+					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1`
+				)
+				.bind(slug);
+		let res;
+		try {
+			res = await db.batch([byDay, byChannel(true)]);
+		} catch (error) {
+			if (!/channel/i.test(String(/** @type {Error} */ (error)?.message ?? error))) throw error;
+			res = await db.batch([byDay, byChannel(false)]);
+		}
+		/** @type {Map<number, number>} */
+		const counts = new Map();
+		for (const r of /** @type {Record<string, unknown>[]} */ (res[0].results)) {
+			counts.set(Number(r.d), Number(r.n ?? 0));
+		}
+		let online = 0;
+		let door = 0;
+		for (const r of /** @type {Record<string, unknown>[]} */ (res[1].results)) {
+			if (r.channel === 'puerta') door += Number(r.n ?? 0);
+			else online += Number(r.n ?? 0);
+		}
+		return {
+			days: Array.from({ length: days }, (_, i) => ({
+				day: arDay(from + i * DAY_MS),
+				count: counts.get(i) ?? 0
+			})),
+			online,
+			door
+		};
+	});
+}
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   sold: number,
+ *   held: number,
+ *   capacity: number | null,
+ *   over: number,
+ *   closed: boolean
+ * }} SalesType
+ * @typedef {{
+ *   event: UpcomingEvent,
+ *   others: { slug: string, title: string }[],
+ *   when: string,
+ *   types: SalesType[],
+ *   trend: (Omit<SalesTrend, 'days'> & { days: { day: string, label: string, count: number }[] }) | null
+ * }} SalesSummary
+ */
+
+/**
+ * El evento del bloque de ventas: de los de hoy con entradas, el que más vendió; si no hay, el
+ * próximo con entradas. Cancelados y borradores no cuentan. `others`: los otros de hoy.
+ *
+ * @param {UpcomingEvent[]} upcoming
+ * @returns {{ event: UpcomingEvent, others: { slug: string, title: string }[] } | null}
+ */
+export function salesFocus(upcoming) {
+	const candidates = upcoming.filter((e) => e.ticketed && !e.draft && e.status !== 'cancelado');
+	const today = candidates.filter((e) => e.today);
+	if (today.length) {
+		const event = today.reduce((best, e) => (e.sold > best.sold ? e : best));
+		return {
+			event,
+			others: today.filter((e) => e !== event).map((e) => ({ slug: e.slug, title: e.title }))
+		};
+	}
+	return candidates.length ? { event: candidates[0], others: [] } : null;
+}
+
+/**
+ * Resumen de ventas del evento elegido: por tipo (vendidas, reservadas, cupo o `null` si no
+ * tiene, cuánto se pasó del cupo, si ese tipo ya cerró) y la tendencia por día.
+ *
+ * @param {{
+ *   focus: { event: UpcomingEvent, others: { slug: string, title: string }[] },
+ *   config: EventTickets | undefined,
+ *   totals: Map<string, Map<string, TypeTotals>>,
+ *   trend: SalesTrend | null,
+ *   now: number
+ * }} input
+ * @returns {SalesSummary}
+ */
+export function salesSummary({ focus, config, totals, trend, now }) {
+	const byType = totals.get(focus.event.slug) ?? new Map();
+	const today = arDay(now);
+	const start = Date.parse(focus.event.start);
+	return {
+		...focus,
+		when: `${dayLabel(focus.event.day, today)}${Number.isFinite(start) ? ` · ${arTime(start)}` : ''}`,
+		types: (config?.types ?? []).map((t) => {
+			const c = byType.get(t.id);
+			const sold = c?.sold ?? 0;
+			/** @type {number | null} */
+			const capacity = t.capacity ?? null;
+			return {
+				id: t.id,
+				name: t.name,
+				sold,
+				held: c?.held ?? 0,
+				capacity,
+				over: capacity !== null && sold > capacity ? sold - capacity : 0,
+				closed: t.closesAt != null && t.closesAt <= now
+			};
+		}),
+		trend: trend
+			? { ...trend, days: trend.days.map((d) => ({ ...d, label: dayLabel(d.day, today) })) }
+			: null
+	};
 }
