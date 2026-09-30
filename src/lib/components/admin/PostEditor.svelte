@@ -717,9 +717,11 @@
 		border-radius: 0.8em;
 		outline: 1px solid var(--1-light);
 		overflow: hidden;
+		/* Con fallback para /edit (fuera del panel); en el panel valen los tokens (claro y oscuro). */
 		:global(.cm-editor) {
 			max-height: 40rem;
-			background: white;
+			background: var(--surface, white);
+			color: var(--text, #333);
 		}
 	}
 	.image-row {
@@ -736,7 +738,7 @@
 		&.empty {
 			display: grid;
 			place-items: center;
-			background: #f3eef6;
+			background: var(--surface-2, #f3eef6);
 			font-size: var(--step--1);
 		}
 	}
@@ -756,7 +758,8 @@
 		}
 	}
 	.affected {
-		background: #fff8e1;
+		background: var(--warn-bg, #fff8e1);
+		color: var(--text, inherit);
 		border-radius: 1em;
 		padding: 0.6em 1em;
 		align-self: stretch;
