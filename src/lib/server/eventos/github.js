@@ -5,7 +5,7 @@
  * non-2xx response throws a GitHubError with GitHub's own message, so the page can tell the
  * organizer what went wrong.
  */
-import { Buffer } from 'buffer';
+import { base64ToUtf8 } from '$lib/utils/base64.js';
 
 export const REPO = 'GorroRojo/kinkyvibe';
 export const BRANCH = 'main';
@@ -98,7 +98,10 @@ export async function getFile(token, path) {
 	const file = await getContents(token, path);
 	if (!file) return null;
 	if (Array.isArray(file) || file.type !== 'file') throw new Error(`${path} no es un archivo`);
-	return Buffer.from(file.content, file.encoding).toString('utf-8');
+	// Files over 1 MB come with encoding "none" and no content: fail instead of returning ''.
+	if (file.encoding !== 'base64')
+		throw new Error(`${path}: encoding ${file.encoding} no soportado`);
+	return base64ToUtf8(file.content);
 }
 
 /**

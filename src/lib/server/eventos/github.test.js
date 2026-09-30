@@ -3,6 +3,7 @@ import {
 	commitFiles,
 	existingPaths,
 	getDirTexts,
+	getFile,
 	listTree,
 	FileChangedError,
 	PathExistsError,
@@ -236,5 +237,25 @@ describe('getDirTexts', () => {
 	it('turns GraphQL errors into a GitHubError', async () => {
 		respond = () => ({ status: 200, json: { errors: [{ message: 'nope' }] } });
 		await expect(getDirTexts('t', DIR)).rejects.toThrow(/nope/);
+	});
+});
+
+describe('getFile', () => {
+	it('decodes the base64 content (wrapped in lines, as GitHub sends it) as UTF-8', async () => {
+		const text = '---\ntitle: Año 🏙️\n---\n\n' + 'ñandú y amigues 🎉 '.repeat(20);
+		const content = btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(
+			/.{60}/g,
+			'$&\n'
+		);
+		respond = (m, e) =>
+			e === `contents/${DIR}/a.md?ref=main`
+				? { status: 200, json: { type: 'file', encoding: 'base64', content } }
+				: { status: 404, json: { message: 'Not Found' } };
+		expect(await getFile('t', `${DIR}/a.md`)).toBe(text);
+		expect(await getFile('t', `${DIR}/nope.md`)).toBeNull();
+	});
+	it('fails on a file GitHub sends without content (over 1 MB) instead of returning ""', async () => {
+		respond = () => ({ status: 200, json: { type: 'file', encoding: 'none', content: '' } });
+		await expect(getFile('t', `${DIR}/a.md`)).rejects.toThrow(/encoding none/);
 	});
 });

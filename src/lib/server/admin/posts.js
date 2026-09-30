@@ -6,7 +6,7 @@
  *
  * Takes the client as a parameter and has no SvelteKit imports, so it is tested with a fake.
  */
-import { Buffer } from 'buffer';
+import { toHex } from '$lib/utils/base64.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { nextMediaNumber, setFeatured } from '$lib/utils/sharedImage.js';
 import { CONTENT_CATEGORIES } from '$lib/utils/contentPosts.js';
@@ -21,13 +21,14 @@ import { CONTENT_CATEGORIES } from '$lib/utils/contentPosts.js';
  * @param {string} text
  */
 export async function gitBlobSha(text) {
-	const body = Buffer.from(text, 'utf-8');
-	const head = Buffer.from(`blob ${body.length}\0`, 'utf-8');
+	const encoder = new TextEncoder();
+	const body = encoder.encode(text);
+	const head = encoder.encode(`blob ${body.length}\0`);
 	const all = new Uint8Array(head.length + body.length);
 	all.set(head, 0);
 	all.set(body, head.length);
 	const digest = await crypto.subtle.digest('SHA-1', all);
-	return Buffer.from(digest).toString('hex');
+	return toHex(digest);
 }
 
 /**
