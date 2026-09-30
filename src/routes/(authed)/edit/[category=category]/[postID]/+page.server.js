@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { postFilePath } from '$lib/utils/postPaths.js';
+import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
@@ -113,13 +114,15 @@ export const _editActions = {
 	save: async ({ params, locals, request, url, platform }) => {
 		const user = requireAdmin(locals, url);
 		const data = await request.formData();
-		const fileContent = data.get('content');
+		const rawContent = data.get('content');
 		const sha = data.get('sha');
-		if (typeof fileContent !== 'string' || typeof sha !== 'string' || sha === '') {
+		if (typeof rawContent !== 'string' || typeof sha !== 'string' || sha === '') {
 			return fail(400, {
 				error: 'Faltan datos para guardar. Recargá la página y volvé a intentar.'
 			});
 		}
+		// Same line endings as the file that was opened (the textarea sends CRLF).
+		const fileContent = withLineEnding(rawContent, data.get('eol'));
 		// Events follow the same tag rules as /admin/eventos/nuevo (one language, one place).
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });

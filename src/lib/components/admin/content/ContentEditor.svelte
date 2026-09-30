@@ -8,6 +8,7 @@
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
 	import { onDestroy } from 'svelte';
+	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 	import { browser } from '$app/environment';
 	import { deserialize, enhance } from '$app/forms';
 	import { page } from '$app/stores';
@@ -679,6 +680,7 @@
 		<input type="hidden" name="mode" value={mode} />
 		<input type="hidden" name="slug" value={slug} />
 		<input type="hidden" name="sha" value={sha} />
+		<input type="hidden" name="eol" value={lineEndingOf(baseRaw)} />
 		<input type="hidden" name="desde" value={data.source?.slug ?? ''} />
 		<small class="later"
 			>Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.</small
