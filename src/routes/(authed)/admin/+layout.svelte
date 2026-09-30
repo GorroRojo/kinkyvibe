@@ -35,6 +35,7 @@
 		readTheme,
 		saveTheme
 	} from '$lib/admin/theme.js';
+	import { SHEET_TAP_SLOP, sheetDragOffset, shouldCloseSheet } from '$lib/admin/sheetDrag.js';
 
 	export let data;
 
@@ -80,6 +81,88 @@
 	function toggleTheme() {
 		theme = nextTheme(theme);
 		saveTheme(theme);
+	}
+
+	/*
+	 * Deslizar para cerrar el panel "Más": se arrastra desde la manija o el encabezado de la hoja
+	 * (el resto de la hoja scrollea normal). Si se suelta lejos o con un tirón rápido se cierra;
+	 * si no, vuelve a su lugar. Con movimiento reducido no hay animaciones.
+	 */
+	/** @type {HTMLDivElement | undefined} */
+	let sheetEl;
+	let dragY = 0;
+	let dragging = false;
+	let closing = false;
+	/** @type {{ id: number, startY: number, lastY: number, lastT: number, velocity: number } | null} */
+	let drag = null;
+
+	$: if (!sheetOpen) {
+		dragY = 0;
+		dragging = false;
+		closing = false;
+		drag = null;
+	}
+
+	const reducedMotion = () =>
+		typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	/** @param {PointerEvent} e */
+	function dragStart(e) {
+		if (closing || (e.pointerType === 'mouse' && e.button !== 0)) return;
+		// Los botones del encabezado (cerrar) siguen siendo botones.
+		if (e.target instanceof Element && e.target.closest('button, a')) return;
+		drag = {
+			id: e.pointerId,
+			startY: e.clientY,
+			lastY: e.clientY,
+			lastT: e.timeStamp,
+			velocity: 0
+		};
+	}
+
+	/** @param {PointerEvent} e */
+	function dragMove(e) {
+		if (!drag || e.pointerId !== drag.id) return;
+		const offset = sheetDragOffset(drag.startY, e.clientY);
+		if (!dragging) {
+			if (offset < SHEET_TAP_SLOP) return;
+			dragging = true;
+			/** @type {Element} */ (e.currentTarget).setPointerCapture?.(e.pointerId);
+		}
+		const dt = e.timeStamp - drag.lastT;
+		if (dt > 0) drag.velocity = (e.clientY - drag.lastY) / dt;
+		drag.lastY = e.clientY;
+		drag.lastT = e.timeStamp;
+		dragY = offset;
+	}
+
+	/** @param {PointerEvent} e */
+	function dragEnd(e) {
+		if (!drag || e.pointerId !== drag.id) return;
+		const { velocity } = drag;
+		drag = null;
+		if (!dragging) return;
+		dragging = false;
+		const height = sheetEl?.offsetHeight ?? 0;
+		if (e.type !== 'pointercancel' && shouldCloseSheet({ offset: dragY, velocity, height })) {
+			if (reducedMotion()) {
+				sheetOpen = false;
+				return;
+			}
+			// Termina de bajar y recién ahí se cierra (ver on:transitionend).
+			closing = true;
+			dragY = height + 16;
+			setTimeout(() => {
+				if (closing) sheetOpen = false;
+			}, 400);
+		} else {
+			dragY = 0;
+		}
+	}
+
+	/** @param {TransitionEvent} e */
+	function sheetTransitionEnd(e) {
+		if (closing && e.target === sheetEl && e.propertyName === 'transform') sheetOpen = false;
 	}
 
 	/** @param {KeyboardEvent} e */
@@ -269,25 +352,46 @@
 		{#if sheetOpen}
 			<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 			<div class="scrim" on:click|self={() => (sheetOpen = false)}>
-				<div class="sheet" id="kv-more" role="dialog" aria-label="Todas las secciones">
-					<div class="grab" aria-hidden="true"></div>
-					<div class="sheet-head">
-						<span class="mavatar"
-							>{#if avatar}<img
-									src={avatar}
-									alt=""
-									width="32"
-									height="32"
-								/>{:else}{initial}{/if}</span
-						>
-						<div>
-							<b>{user?.name || user?.login || ''}</b><br /><small class="muted"
-								>Panel de admin</small
+				<div
+					class="sheet"
+					class:dragging
+					id="kv-more"
+					role="dialog"
+					aria-label="Todas las secciones"
+					bind:this={sheetEl}
+					style:transform={dragY ? `translateY(${dragY}px)` : undefined}
+					on:transitionend={sheetTransitionEnd}
+				>
+					<div
+						class="drag"
+						title="Deslizá hacia abajo para cerrar"
+						on:pointerdown={dragStart}
+						on:pointermove={dragMove}
+						on:pointerup={dragEnd}
+						on:pointercancel={dragEnd}
+					>
+						<div class="grab" aria-hidden="true"></div>
+						<div class="sheet-head">
+							<span class="mavatar"
+								>{#if avatar}<img
+										src={avatar}
+										alt=""
+										width="32"
+										height="32"
+									/>{:else}{initial}{/if}</span
+							>
+							<div>
+								<b>{user?.name || user?.login || ''}</b><br /><small class="muted"
+									>Panel de admin</small
+								>
+							</div>
+							<button
+								type="button"
+								class="x"
+								aria-label="Cerrar"
+								on:click={() => (sheetOpen = false)}><X size={20} aria-hidden="true" /></button
 							>
 						</div>
-						<button type="button" class="x" aria-label="Cerrar" on:click={() => (sheetOpen = false)}
-							><X size={20} aria-hidden="true" /></button
-						>
 					</div>
 					{#each NAV_GROUPS as group (group.id)}
 						<div class="gl">{group.label}</div>
@@ -644,6 +748,22 @@
 		border-radius: var(--card-round) var(--card-round) 0 0;
 		padding: 0.5rem 16px calc(1rem + env(safe-area-inset-bottom, 0px));
 		box-shadow: 0 -0.5rem 2rem rgba(0, 0, 0, 0.2);
+		transition: transform 200ms ease-out;
+		animation: sheet-in 200ms ease-out;
+		&.dragging {
+			transition: none;
+		}
+		.drag {
+			// El gesto lo maneja el JS: el navegador no scrollea ni hace zoom desde acá.
+			touch-action: none;
+			cursor: grab;
+			user-select: none;
+			margin: -0.5rem -16px 0;
+			padding: 0.5rem 16px 0.2rem;
+		}
+		&.dragging .drag {
+			cursor: grabbing;
+		}
 		.grab {
 			width: 3rem;
 			height: 0.3rem;
@@ -653,6 +773,11 @@
 		}
 		.gl {
 			padding-inline: 0.2rem;
+		}
+	}
+	@keyframes sheet-in {
+		from {
+			transform: translateY(100%);
 		}
 	}
 	.mavatar {
