@@ -3,12 +3,15 @@
  */
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
-import { getDB } from '$lib/server/db';
+import { getDB, logDBError } from '$lib/server/db';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
-import { typeClosesAt } from '$lib/server/tickets/config.js';
+import { buildSalesChart } from '$lib/admin/salesChart.js';
+import { listEvents } from '$lib/server/eventos';
+import { toTime, typeClosesAt } from '$lib/server/tickets/config.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, listOrders } from '$lib/server/tickets/orders.js';
+import { previousEditionSales } from '$lib/server/tickets/salesHistory.js';
 import {
 	codesUsed,
 	fondoBreakdown,
@@ -27,9 +30,11 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
-	const [orders, counts] = await Promise.all([
+	const eventStart = toTime(config.start);
+	const [orders, counts, previous] = await Promise.all([
 		listOrders(db, params.slug),
-		getCounts(db, params.slug, now)
+		getCounts(db, params.slug, now),
+		previousSales(db, params.slug, eventStart)
 	]);
 	const types = config.types.map((t) => {
 		const c = counts.get(t.id);
@@ -55,7 +60,20 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	const closes = types
 		.filter((t) => t.closesAt && t.closesAt !== config.closesAt && t.closesAt <= now)
 		.map((t) => ({ name: t.name, at: /** @type {number} */ (t.closesAt) }));
+	const chart = buildSalesChart({
+		orders,
+		now,
+		opensAt: config.opensAt,
+		eventStart,
+		capacity,
+		// Todos los cierres propios de tipos (pasados y futuros): marcas verticales del termómetro.
+		closes: types
+			.filter((t) => t.closesAt && t.closesAt !== config.closesAt)
+			.map((t) => ({ name: t.name, at: /** @type {number} */ (t.closesAt) })),
+		previous
+	});
 	return {
+		chart,
 		types,
 		totals: {
 			sold,
@@ -72,4 +90,26 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		codes: codesUsed(orders),
 		now
 	};
+}
+
+/**
+ * Ventas de la edición anterior de la serie (para comparar en el termómetro), o null. Si falla,
+ * la página se ve igual, sin la comparación.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {number | null} start
+ */
+async function previousSales(db, slug, start) {
+	if (start === null) return null;
+	try {
+		const events = (await listEvents()).map((e) => ({
+			slug: e.slug,
+			title: e.title,
+			start: toTime(e.start)
+		}));
+		return await previousEditionSales(db, { slug, start, events });
+	} catch (e) {
+		logDBError('edición anterior para el termómetro de ventas', e);
+		return null;
+	}
 }

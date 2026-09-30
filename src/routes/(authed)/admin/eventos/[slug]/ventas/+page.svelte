@@ -5,6 +5,7 @@
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import SalesThermometer from '$lib/components/admin/panel/SalesThermometer.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel, formatSaleTime } from '$lib/utils/tickets.js';
@@ -71,6 +72,12 @@
 </script>
 
 <svelte:head><title>Ventas · {e.title} · Panel</title></svelte:head>
+
+<div class="thermo-card">
+	<Card title="Termómetro de ventas">
+		<SalesThermometer chart={data.chart} />
+	</Card>
+</div>
 
 <div class="stats">
 	<Stat
@@ -342,6 +349,9 @@
 </div>
 
 <style>
+	.thermo-card {
+		margin-bottom: 1rem;
+	}
 	.stats {
 		display: grid;
 		gap: 0.8rem;
