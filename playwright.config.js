@@ -17,6 +17,8 @@ const config = {
 		reuseExistingServer: !process.env.CI
 	},
 	testDir: 'tests',
+	// La venta de entradas tiene su propia configuración (dev + mocks): playwright.tickets.config.js
+	testIgnore: ['tickets/**'],
 	timeout: 30_000,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [['list'], ['github']] : 'list',

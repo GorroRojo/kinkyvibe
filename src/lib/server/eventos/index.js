@@ -7,7 +7,9 @@ import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
 
-export const POSTS_DIR = 'src/lib/posts/calendario';
+import { POSTS_DIR } from './images.js';
+
+export { POSTS_DIR };
 
 /**
  * The verified admin (see $lib/server/auth), or null. Form actions are NOT protected by the
@@ -22,14 +24,17 @@ export function getEventAdmin(locals) {
 	return { login: user.login, name: user.name || user.login, token };
 }
 
-/** True only under `vite dev` with ADMIN_DEV_MOCK=1. Always false in production builds. */
+/**
+ * True only under `vite dev` with ADMIN_DEV_MOCK=1, i.e. `npm run dev:admin` (Vite mode "admin"
+ * loads .env.admin). Always false in production builds.
+ */
 export function isMockMode() {
 	return import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1';
 }
 
 /**
- * The GitHub client. Under `vite dev` + ADMIN_DEV_MOCK=1 it returns a mock that reads the local
- * checkout and writes "commits" to a temp folder. `import.meta.env.DEV` is replaced by the literal
+ * The GitHub client. Under `npm run dev:admin` (vite dev + ADMIN_DEV_MOCK=1) it returns a mock
+ * that reads the local checkout and writes "commits" to a temp folder. `import.meta.env.DEV` is replaced by the literal
  * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
  * @returns {Promise<typeof github>}
  */
