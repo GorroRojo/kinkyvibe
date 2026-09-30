@@ -19,7 +19,8 @@ import { NAV, NAV_GROUPS, navItem, navLink } from './nav.js';
  *   href?: string,
  *   external?: boolean,
  *   run?: 'help',
- *   shortcut?: string
+ *   shortcut?: string,
+ *   navId?: string
  * }} Command
  */
 
@@ -157,7 +158,8 @@ export function buildCommands({ today = [] } = {}) {
 			keywords: `${NAV_KEYWORDS[item.id] ?? ''} ${item.group ?? ''}`,
 			icon: NAV_ICONS[item.id] ?? 'arrow',
 			href,
-			shortcut: shortcutOf(item.id) || undefined
+			shortcut: shortcutOf(item.id) || undefined,
+			navId: item.id
 		});
 	}
 

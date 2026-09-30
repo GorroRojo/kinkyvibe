@@ -489,7 +489,7 @@
 		flex-wrap: wrap;
 		background: linear-gradient(135deg, var(--1), var(--2));
 		color: var(--accent-ink);
-		border-radius: 1rem;
+		border-radius: var(--card-round, 1rem);
 		box-shadow: var(--shadow);
 		padding: 1.1rem 1.3rem;
 		margin-bottom: 1rem;
@@ -669,7 +669,7 @@
 		flex-direction: column;
 		align-items: center;
 		background: var(--surface-2);
-		border-radius: 0.8rem;
+		border-radius: var(--round, 0.8rem);
 		padding: 0.3rem 0;
 		line-height: 1.1;
 		b {

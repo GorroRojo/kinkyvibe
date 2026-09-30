@@ -183,7 +183,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	// Búsqueda manual por DNI de quien compró: aparecen sus 3 entradas.
 	const search = page.getByRole('combobox', { name: 'Buscar entrada' });
 	await search.fill(buyer.dni);
-	await page.getByRole('button', { name: 'Buscar' }).click();
+	await page.getByRole('button', { name: 'Buscar', exact: true }).click();
 	await expect(page.locator('.results li')).toHaveCount(3);
 
 	// Autocompletar: sin tildes ("acompanante" encuentra "Acompañante"), dice con qué coincidió,
@@ -213,17 +213,20 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await expect(page.getByText('Ya se usó para ingresar')).toBeVisible();
 
 	// Accesos de admin: panel y menú de usuario en la página del evento.
+	// El Inicio del panel: acciones rápidas y la plata del mes llevan a las páginas de entradas.
 	await page.goto('/admin');
-	await expect(page.getByRole('link', { name: 'Venta de entradas', exact: true })).toHaveAttribute(
+	const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });
+	await expect(quick.getByRole('link', { name: 'Nuevo código' })).toHaveAttribute(
+		'href',
+		'/admin/entradas/codigos'
+	);
+	await expect(quick.getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
+		'href',
+		'/admin/eventos/nuevo'
+	);
+	await expect(page.locator('a.stat', { hasText: 'Entradas este mes' })).toHaveAttribute(
 		'href',
 		'/admin/entradas'
-	);
-	await expect(
-		page.getByRole('link', { name: 'Códigos de descuento', exact: true })
-	).toHaveAttribute('href', '/admin/entradas/codigos');
-	await expect(page.getByRole('link', { name: 'Ajustes de venta', exact: true })).toHaveAttribute(
-		'href',
-		'/admin/entradas/ajustes'
 	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();

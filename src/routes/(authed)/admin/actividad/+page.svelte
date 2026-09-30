@@ -55,14 +55,14 @@
 	<form class="filters" method="GET" data-sveltekit-keepfocus>
 		<label>
 			<span>Admin</span>
-			<select name="admin" value={f.actor ?? ''}>
+			<select class="kv-input" name="admin" value={f.actor ?? ''}>
 				<option value="">Todes</option>
 				{#each data.facets.actors as a (a)}<option value={a}>{a}</option>{/each}
 			</select>
 		</label>
 		<label>
 			<span>Tipo</span>
-			<select name="tipo" value={f.type ?? ''}>
+			<select class="kv-input" name="tipo" value={f.type ?? ''}>
 				<option value="">Todos</option>
 				{#each families as fam (fam)}
 					<optgroup label={data.families[fam] ?? fam}>
@@ -76,7 +76,7 @@
 		</label>
 		<label>
 			<span>Objeto</span>
-			<select name="objeto" value={f.targetType ?? ''}>
+			<select class="kv-input" name="objeto" value={f.targetType ?? ''}>
 				<option value="">Cualquiera</option>
 				{#each data.facets.targetTypes as t (t)}
 					<option value={t}>{data.targetTypes[t] ?? t}</option>
@@ -86,6 +86,7 @@
 		<label class="grow">
 			<span>Id del objeto</span>
 			<input
+				class="kv-input"
 				name="id"
 				value={f.targetId ?? ''}
 				placeholder="slug del evento, código, id de orden…"
@@ -186,11 +187,7 @@
 		}
 		select,
 		input {
-			background: var(--surface);
-			border: 1px solid var(--line);
-			border-radius: 0.7em;
-			padding: 0.5rem 0.6rem;
-			min-height: 2.6rem;
+			min-height: 2.75rem;
 			width: 100%;
 		}
 		.buttons {

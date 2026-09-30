@@ -55,7 +55,7 @@ function call(q, o = {}) {
 	return GET(/** @type {any} */ ({ url, locals, platform: o.platform ?? t.platform }));
 }
 
-/** @param {() => Promise<unknown>} fn */
+/** @param {() => unknown} fn */
 async function thrown(fn) {
 	try {
 		await fn();

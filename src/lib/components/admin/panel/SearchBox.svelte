@@ -44,6 +44,8 @@
 		Wallet,
 		X
 	} from '@lucide/svelte';
+	import NavIcon from './NavIcon.svelte';
+	import { navItem } from '$lib/admin/nav.js';
 	import {
 		OTHER_SHORTCUTS,
 		buildCommands,
@@ -115,7 +117,7 @@
 
 	/**
 	 * @typedef {{ key: string, icon: string, title: string, sub: string, href?: string,
-	 *   external?: boolean, run?: 'help', shortcut?: string }} Row
+	 *   external?: boolean, run?: 'help', shortcut?: string, navId?: string }} Row
 	 */
 
 	$: commands = buildCommands({ today });
@@ -128,7 +130,8 @@
 			href: c.href,
 			external: c.external,
 			run: c.run,
-			shortcut: c.shortcut
+			shortcut: c.shortcut,
+			navId: c.navId
 		}))
 	);
 	$: sections = [
@@ -375,7 +378,13 @@
 							on:mousemove={() => (active = i)}
 						>
 							<span class="oi" aria-hidden="true"
-								><svelte:component this={ICONS[row.icon] ?? ArrowRight} size={18} /></span
+								>{#if row.navId && navItem(row.navId)}<NavIcon
+										item={navItem(row.navId) ?? {}}
+										size={18}
+									/>{:else}<svelte:component
+										this={ICONS[row.icon] ?? ArrowRight}
+										size={18}
+									/>{/if}</span
 							>
 							<span class="ot">
 								<b>{row.title}</b>
