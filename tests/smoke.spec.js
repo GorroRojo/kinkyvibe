@@ -123,18 +123,20 @@ test.describe('calendario', () => {
 
 	// Regression test: the viewed month used to live in a module-level store, so one
 	// request's ?viewdate leaked into the SSR of later requests served by the same isolate.
-	test('el mes de ?viewdate no se filtra a otros pedidos', async ({ request }) => {
-		const month = (/** @type {string} */ html) =>
-			html
-				.replace(/<!--.*?-->/g, '')
-				.match(/class="month[^"]*"[^>]*>([^<]*)</)?.[1]
-				.replace(/\s+/g, ' ')
-				.trim();
-		const withParam = await (await request.get('/calendario?viewdate=2024-01')).text();
-		expect(month(withParam)).toBe('Enero 2024');
-		const plain = await (await request.get('/calendario')).text();
-		expect(month(plain)).toBeTruthy();
-		expect(month(plain)).not.toContain('2024');
+	test('el mes de ?viewdate no se filtra a otros pedidos', async ({ browser }) => {
+		// Sin JavaScript: lo que se ve es exactamente el HTML que armó el servidor.
+		const context = await browser.newContext({ javaScriptEnabled: false });
+		const page = await context.newPage();
+		const month = async (/** @type {string} */ url) => {
+			await page.goto(url);
+			const text = await page.locator('.month').first().textContent();
+			return text?.replace(/\s+/g, ' ').trim();
+		};
+		expect(await month('/calendario?viewdate=2024-01')).toBe('Enero 2024');
+		const plain = await month('/calendario');
+		expect(plain).toBeTruthy();
+		expect(plain).not.toContain('2024');
+		await context.close();
 	});
 
 	test('los botones de mes cambian ?viewdate y el botón atrás vuelve', async ({ page }) => {
