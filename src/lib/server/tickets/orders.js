@@ -28,7 +28,7 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo' | 'otro'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -43,7 +43,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
- *   review_detail?: string | null, channel?: 'online' | 'puerta'
+ *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
+ *   admin_note?: string | null
  * }} Order
  */
 /**

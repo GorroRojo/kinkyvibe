@@ -14,6 +14,9 @@ import {
 	QUEUE_MAX_AGE_MS,
 	revealDni,
 	sellAtDoor,
+	MAX_DOOR_SALE,
+	PANEL_ORDER_HARD_MAX,
+	doorSaleLimits,
 	sha256Hex,
 	ticketWithBuyer
 } from './door.js';
@@ -204,6 +207,52 @@ describe('sellAtDoor', () => {
 		expect(sold?.n).toBe(15);
 		// El cupo de otro tipo sigue valiendo.
 		expect(await sell({ quantity: 4 })).toEqual({ ok: false, reason: 'soldout', available: 3 });
+	});
+});
+
+describe('pasar límites en la puerta (override)', () => {
+	it('doorSaleLimits: solo anticipadas, cancelado, máximo por venta y cupo con las reservas', async () => {
+		expect(
+			await doorSaleLimits(t.db, { eventSlug: EVENT, config: {}, type: GENERAL, quantity: 3 })
+		).toEqual([]);
+		const limits = await doorSaleLimits(t.db, {
+			eventSlug: EVENT,
+			config: { door: { on: false }, status: 'cancelado' },
+			type: GENERAL,
+			quantity: MAX_DOOR_SALE + 1,
+			now: NOW
+		});
+		expect(limits.map((l) => l.kind)).toEqual([
+			'no_door',
+			'closed',
+			'max_per_purchase',
+			'capacity'
+		]);
+		expect(limits[3]).toMatchObject({ capacity: 3, before: 0, after: 11, over: 8 });
+		// La venta online cerrada o "agotadas" no cuentan en la puerta.
+		expect(
+			await doorSaleLimits(t.db, {
+				eventSlug: EVENT,
+				config: { status: 'agotadas' },
+				type: GENERAL,
+				quantity: 1
+			})
+		).toEqual([]);
+	});
+
+	it('con override vende pasado del cupo y en un evento solo anticipadas; sin override no', async () => {
+		expect((await sell({ quantity: 3 })).ok).toBe(true);
+		expect(await sell()).toEqual({ ok: false, reason: 'soldout', available: 0 });
+		const r = await sell({ quantity: 2, override: true, door: { on: false } });
+		expect(r.ok && r.order).toMatchObject({ status: 'approved', channel: 'puerta', quantity: 2 });
+		expect(await doorCounts(t.db, EVENT)).toMatchObject({ total: 5, inside: 5 });
+		expect(await sell({ door: { on: false } })).toEqual({ ok: false, reason: 'no-door' });
+	});
+
+	it('insertApprovedOrder no pasa el tope técnico de una orden', async () => {
+		await expect(sell({ quantity: PANEL_ORDER_HARD_MAX + 1, override: true })).rejects.toThrow(
+			/Cantidad/
+		);
 	});
 });
 

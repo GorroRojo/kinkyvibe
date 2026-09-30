@@ -9,7 +9,9 @@
  * - `offlineList` / `applyQueuedCheckIns`: modo sin conexión (lista para validar en el celu y
  *   sincronización de los ingresos marcados sin conexión, idempotente y con conflictos).
  * - `sellAtDoor`: "Vender en puerta" (orden aprobada al toque, respeta el cupo, entra ya), salvo
- *   en eventos con `puerta: false` (ver `doorSalesOpen`).
+ *   en eventos con `puerta: false` (ver `doorSalesOpen`). Une admin puede pasar esos límites
+ *   con confirmación (`doorSaleLimits` + overrides.js).
+ * - `insertApprovedOrder`: la orden aprobada del panel (la usan la puerta y la carga a mano).
  *
  * Privacidad: el DNI completo nunca va en la lista sin conexión ni en el escaneo (solo los
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
@@ -17,6 +19,7 @@
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { HOLDING } from './discounts.js';
+import { capacityLimit, closedLimit, maxPerPurchaseLimit, noDoorLimit } from './overrides.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
 import { isFirstTime } from './series.js';
 
@@ -362,12 +365,158 @@ export function doorSalesOpen(config) {
 	return config?.door?.on !== false;
 }
 
+/** Máximo de entradas por venta en la puerta (une admin lo puede pasar, con confirmación). */
+export const MAX_DOOR_SALE = 10;
+
+/**
+ * Tope técnico de entradas en una sola orden hecha desde el panel (venta en la puerta o carga a
+ * mano). No es un límite de venta (ese se puede pasar): es para que una orden no sea un batch
+ * gigante por un error de tipeo. Para más, se hacen varias.
+ */
+export const PANEL_ORDER_HARD_MAX = 100;
+
+/**
+ * Qué límites pasaría esta venta en la puerta (ver overrides.js): evento solo anticipadas,
+ * evento cancelado, máximo por venta y cupo del tipo (con las reservas online vigentes). La
+ * ventana de venta (`tickets_close`) y "agotadas" no cuentan: la puerta abre cuando el evento
+ * empieza, justamente cuando cierra la venta online.
+ *
+ * @param {D1Database} db
+ * @param {{
+ *   eventSlug: string,
+ *   config: { door?: { on: boolean } | null, status?: string },
+ *   type: import('./config.js').TicketType,
+ *   quantity: number,
+ *   now?: number
+ * }} input
+ * @returns {Promise<import('./overrides.js').ExceededLimit[]>}
+ */
+export async function doorSaleLimits(db, { eventSlug, config, type, quantity, now = Date.now() }) {
+	const c = (await getCounts(db, eventSlug, now)).get(type.id);
+	return /** @type {import('./overrides.js').ExceededLimit[]} */ (
+		[
+			noDoorLimit(config),
+			config.status === 'cancelado' ? closedLimit({ open: false, reason: 'cancelled' }) : null,
+			maxPerPurchaseLimit(quantity, MAX_DOOR_SALE),
+			capacityLimit(type, c ? c.sold + c.held : 0, quantity)
+		].filter(Boolean)
+	);
+}
+
+/**
+ * Crea una orden YA aprobada desde el panel y emite sus entradas, todo en un batch (una
+ * transacción): la usan la venta en la puerta (`sellAtDoor`, canal `puerta`, entradas marcadas
+ * adentro) y la carga a mano (`createManualOrder` de manual.js, canal `manual`).
+ *
+ * El cupo se controla en la misma sentencia que crea la orden, igual que la compra online
+ * (`reserveOrder`): cuentan las aprobadas y las reservas vigentes, así que dos ventas a la vez
+ * (o una venta online en el mismo momento) no pueden pasarse. Con `override: true` (une admin
+ * confirmó en el diálogo que se pasa; ver overrides.js) no se controla el cupo.
+ *
+ * @param {D1Database} db
+ * @param {{
+ *   eventSlug: string,
+ *   type: { id: string, capacity: number | null },
+ *   quantity: number,
+ *   holders: import('./config.js').Holder[],
+ *   buyer: { name: string, pronouns?: string, email?: string, dni?: string | null },
+ *   method: import('./orders.js').OrderPaymentMethod,
+ *   unitPrice: number,
+ *   prices: ReturnType<typeof computePrice>,
+ *   fondoPercent?: number | null,
+ *   channel: 'puerta' | 'manual',
+ *   note?: string | null,
+ *   checkIn?: boolean,
+ *   override?: boolean,
+ *   by: string,
+ *   now: number
+ * }} input
+ * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] } | { ok: false }>}
+ */
+export async function insertApprovedOrder(db, input) {
+	const { eventSlug, type, quantity, holders, buyer, prices, by, now } = input;
+	if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > PANEL_ORDER_HARD_MAX) {
+		throw new Error('Cantidad inválida');
+	}
+	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
+	const id = crypto.randomUUID();
+	const [inserted] = await db.batch([
+		db
+			.prepare(
+				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
+					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
+					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
+					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
+					channel, admin_note)
+				SELECT ?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, ?10, ?11, 'approved', ?12, ?12, ?12,
+					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, ?21, ?22
+				WHERE ?23 = 1 OR ?20 IS NULL OR (
+					SELECT COALESCE(SUM(quantity), 0) FROM orders
+					WHERE event_slug = ?2 AND ticket_type = ?3
+						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?12))
+				) + ?4 <= ?20
+				RETURNING *`
+			)
+			.bind(
+				id,
+				eventSlug,
+				type.id,
+				quantity,
+				input.unitPrice,
+				prices.subtotal,
+				prices.total,
+				input.method,
+				buyer.name,
+				(buyer.email ?? '').trim().toLowerCase(),
+				JSON.stringify(holders),
+				now,
+				prices.fondo,
+				buyer.dni || null,
+				prices.option,
+				prices.contribution,
+				buyer.pronouns || null,
+				input.fondoPercent ?? null,
+				by,
+				type.capacity,
+				input.channel,
+				input.note || null,
+				input.override ? 1 : 0
+			),
+		...issueTicketsStatements(db, {
+			id,
+			holders: JSON.stringify(holders),
+			buyer_name: buyer.name,
+			quantity
+		}),
+		...(input.checkIn
+			? [
+					db
+						.prepare(
+							`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
+							WHERE order_id = ?1 AND checked_in_at IS NULL`
+						)
+						.bind(id, now, by)
+				]
+			: [])
+	]);
+	const order = /** @type {Order | undefined} */ (inserted.results[0]);
+	if (!order) return { ok: false };
+	const { results } = await db
+		.prepare('SELECT * FROM tickets WHERE order_id = ?1 ORDER BY rowid')
+		.bind(id)
+		.all();
+	return {
+		ok: true,
+		order: { ...order, holders: null },
+		tickets: /** @type {Ticket[]} */ (results)
+	};
+}
+
 /**
  * Vende entradas en la puerta: crea una orden YA aprobada (cobrada en efectivo o por
  * transferencia en el momento), emite las entradas y las marca como ingresadas, todo en un
- * batch (una transacción). El cupo se controla en la misma sentencia que crea la orden, igual
- * que la compra online (`reserveOrder`): cuentan las aprobadas y las reservas vigentes, así que
- * dos ventas a la vez (o una venta online en el mismo momento) no pueden pasarse.
+ * batch (una transacción; ver `insertApprovedOrder`). El cupo se controla en la misma sentencia
+ * que crea la orden.
  *
  * No aplica los topes por email ni la ventana de venta (`tickets_close`): la puerta abre cuando
  * el evento empieza y quien vende es admin. Tampoco códigos de descuento.
@@ -375,6 +524,9 @@ export function doorSalesOpen(config) {
  * No vende si el evento dice que no hay entradas en la puerta (`puerta: false` en el frontmatter,
  * `door.on` false en la configuración): `{ ok: false, reason: 'no-door' }` sin tocar la base. Un tipo sin
  * cupo (`capacity: null`) no tiene límite.
+ *
+ * Con `override: true` (solo desde el panel, después de confirmar en el diálogo los límites que
+ * da `doorSaleLimits`) vende igual aunque se pase del cupo o el evento sea solo anticipadas.
  *
  * @param {D1Database} db
  * @param {{
@@ -388,6 +540,7 @@ export function doorSalesOpen(config) {
  *   option?: import('$lib/utils/tickets.js').PriceOption,
  *   unitPrice?: number,
  *   fondoPercent?: number | null,
+ *   override?: boolean,
  *   by: string,
  *   now?: number
  * }} input
@@ -397,7 +550,7 @@ export function doorSalesOpen(config) {
  */
 export async function sellAtDoor(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, by, now = Date.now() } = input;
-	if (!doorSalesOpen(input)) return { ok: false, reason: 'no-door' };
+	if (!input.override && !doorSalesOpen(input)) return { ok: false, reason: 'no-door' };
 	if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error('Cantidad inválida');
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const gorra = Boolean(type.gorra);
@@ -415,73 +568,27 @@ export async function sellAtDoor(db, input) {
 	});
 	// Un total 0 (a la gorra con mínimo 0) queda "sin cargo", como en la compra online.
 	const method = prices.total === 0 ? 'gratis' : input.method;
-	const id = crypto.randomUUID();
-	const [inserted] = await db.batch([
-		db
-			.prepare(
-				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
-					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
-					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
-					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
-					channel)
-				SELECT ?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, ?10, ?11, 'approved', ?12, ?12, ?12,
-					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, 'puerta'
-				WHERE ?20 IS NULL OR (
-					SELECT COALESCE(SUM(quantity), 0) FROM orders
-					WHERE event_slug = ?2 AND ticket_type = ?3
-						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?12))
-				) + ?4 <= ?20
-				RETURNING *`
-			)
-			.bind(
-				id,
-				eventSlug,
-				type.id,
-				quantity,
-				price,
-				prices.subtotal,
-				prices.total,
-				method,
-				buyer.name,
-				(buyer.email ?? '').trim().toLowerCase(),
-				JSON.stringify(holders),
-				now,
-				prices.fondo,
-				buyer.dni || null,
-				prices.option,
-				prices.contribution,
-				buyer.pronouns || null,
-				gorra ? null : (input.fondoPercent ?? null),
-				by,
-				type.capacity
-			),
-		...issueTicketsStatements(db, {
-			id,
-			holders: JSON.stringify(holders),
-			buyer_name: buyer.name,
-			quantity
-		}),
-		db
-			.prepare(
-				`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
-				WHERE order_id = ?1 AND checked_in_at IS NULL`
-			)
-			.bind(id, now, by)
-	]);
-	const order = /** @type {Order | undefined} */ (inserted.results[0]);
-	if (!order) {
+	const r = await insertApprovedOrder(db, {
+		eventSlug,
+		type,
+		quantity,
+		holders,
+		buyer,
+		method,
+		unitPrice: price,
+		prices,
+		fondoPercent: gorra ? null : (input.fondoPercent ?? null),
+		channel: 'puerta',
+		checkIn: true,
+		override: input.override,
+		by,
+		now
+	});
+	if (!r.ok) {
 		const c = (await getCounts(db, eventSlug, now)).get(type.id);
 		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };
 	}
-	const { results } = await db
-		.prepare('SELECT * FROM tickets WHERE order_id = ?1 ORDER BY rowid')
-		.bind(id)
-		.all();
-	return {
-		ok: true,
-		order: { ...order, holders: null },
-		tickets: /** @type {Ticket[]} */ (results)
-	};
+	return r;
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';

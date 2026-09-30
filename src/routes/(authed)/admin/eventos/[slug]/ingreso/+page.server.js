@@ -6,7 +6,9 @@
  * - `checkin`: valida un QR / link / código y marca el ingreso.
  * - `undo`: deshace un ingreso.
  * - `reveal`: DNI completo de quien compró (queda en el registro de actividad).
- * - `sell`: "Vender en puerta" (salvo en eventos con `puerta: false`; ver `doorSalesOpen`).
+ * - `sell`: "Vender en puerta". Si se pasa algún límite (cupo, máximo por venta, evento solo
+ *   anticipadas) contesta 409 con `needsConfirmation`; la página pregunta con un diálogo y
+ *   reenvía con `override` (ver overrides.js). Pasar un límite queda en el registro.
  * - `sync`: ingresos marcados sin conexión.
  */
 import { fail } from '@sveltejs/kit';
@@ -16,8 +18,10 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn, getCounts, undoCheckIn } from '$lib/server/tickets/orders.js';
 import {
+	PANEL_ORDER_HARD_MAX,
 	applyQueuedCheckIns,
 	doorCounts,
+	doorSaleLimits,
 	doorSalesOpen,
 	orderRef,
 	parseQueue,
@@ -27,6 +31,7 @@ import {
 	ticketWithBuyer
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import {
 	fondoOptionLabel,
 	fondoOptionsFor,
@@ -37,9 +42,6 @@ import {
 import { eventSeries } from '$lib/server/tickets/series.js';
 import { getEventMeta } from '$lib/server/tickets/events.js';
 import { NO_STORE, cachedPrior, doorContext } from './context.server.js';
-
-/** Máximo de entradas por venta en la puerta. */
-const MAX_DOOR_SALE = 10;
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
@@ -63,6 +65,8 @@ export async function load(event) {
 		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`).
 		doorSales: doorSalesOpen(config),
 		doorPrice: config.door?.price ?? '',
+		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
+		maxOrder: PANEL_ORDER_HARD_MAX,
 		types: config.types.map((t) => {
 			return {
 				id: t.id,
@@ -73,6 +77,8 @@ export async function load(event) {
 				capacity: t.capacity,
 				// `null`: sin cupo (sin límite).
 				available: remainingOf(t, sales.get(t.id)),
+				// Aprobadas + reservas vigentes (puede pasar el cupo si une admin lo pasó).
+				taken: (sales.get(t.id)?.sold ?? 0) + (sales.get(t.id)?.held ?? 0),
 				options: t.gorra
 					? []
 					: fondoOptionsFor(t.fondo).map((o) => ({ id: o.id, label: fondoOptionLabel(o.id) }))
@@ -194,22 +200,17 @@ export const actions = {
 				.slice(0, max);
 		/** @param {string} message */
 		const bad = (message) => fail(400, { sale: { ok: false, message, tickets: [] } });
-		if (!doorSalesOpen(config)) {
-			return fail(403, {
-				sale: {
-					ok: false,
-					message:
-						'Este evento dice «Solo anticipadas»: no hay entradas en la puerta. Se cambia en el editor del evento, en Entradas.',
-					tickets: []
-				}
+		/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
+		const needsConfirmation = (needsConfirmation) =>
+			fail(409, {
+				sale: { ok: false, message: 'Hace falta confirmar.', needsConfirmation, tickets: [] }
 			});
-		}
 
 		const type = config.types.find((t) => t.id === text('type', 64));
 		if (!type) return bad('Elegí un tipo de entrada.');
 		const quantity = Number(text('quantity', 3));
-		if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_DOOR_SALE) {
-			return bad(`La cantidad tiene que ser de 1 a ${MAX_DOOR_SALE}.`);
+		if (!Number.isInteger(quantity) || quantity < 1 || quantity > PANEL_ORDER_HARD_MAX) {
+			return bad(`La cantidad tiene que ser de 1 a ${PANEL_ORDER_HARD_MAX}.`);
 		}
 		const method = text('method', 20);
 		if (method !== 'efectivo' && method !== 'transferencia') {
@@ -241,9 +242,16 @@ export const actions = {
 			pronouns: i === 0 ? text('pronouns', 40) : text(`pronouns_${i}`, 40)
 		}));
 
+		// Límites (solo anticipadas, cupo, máximo por venta): une admin los puede pasar si confirmó
+		// en el diálogo exactamente estos (la clave viene en `override`).
+		const limitsFor = () => doorSaleLimits(db, { eventSlug: slug, config, type, quantity });
+		const check = checkOverride(await limitsFor(), readOverride(form));
+		if (!check.ok) return needsConfirmation(check.needsConfirmation);
+
 		const r = await sellAtDoor(db, {
 			eventSlug: slug,
 			door: config.door,
+			override: check.override,
 			type,
 			quantity,
 			holders,
@@ -254,16 +262,13 @@ export const actions = {
 			fondoPercent: config.fondoPercent,
 			by: admin.login
 		});
-		if (!r.ok && r.reason === 'no-door') return bad('Este evento no tiene entradas en la puerta.');
 		if (!r.ok) {
+			// Algo cambió entre el control y la venta (otra venta al mismo tiempo): se vuelve a
+			// preguntar con los límites de ahora.
+			const again = checkOverride(await limitsFor(), '');
+			if (!again.ok) return needsConfirmation(again.needsConfirmation);
 			return fail(409, {
-				sale: {
-					ok: false,
-					message: r.available
-						? `No alcanza el cupo: quedan ${r.available} de ${type.name}.`
-						: `${type.name} está agotada.`,
-					tickets: []
-				}
+				sale: { ok: false, message: 'No se pudo vender: probá de nuevo.', tickets: [] }
 			});
 		}
 		await logAdminAction(db, event.locals, {
@@ -276,8 +281,15 @@ export const actions = {
 				type: type.id,
 				quantity,
 				method: r.order.payment_method,
-				total: r.order.total
+				total: r.order.total,
+				...(check.limits.length ? { overrides: check.limits } : {})
 			}
+		});
+		await logOverride(db, event.locals, {
+			event: slug,
+			what: 'venta en la puerta',
+			orderId: r.order.id,
+			limits: check.limits
 		});
 		if (email && form.get('send_email') === 'on') {
 			await inBackground(

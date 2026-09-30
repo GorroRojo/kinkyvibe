@@ -33,7 +33,8 @@
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
 		gratis: 'Sin cargo',
-		efectivo: 'Efectivo (puerta)'
+		efectivo: 'Efectivo',
+		otro: 'Otro medio'
 	};
 
 	/** @param {number} ms */
