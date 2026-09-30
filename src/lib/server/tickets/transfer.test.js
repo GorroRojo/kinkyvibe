@@ -13,7 +13,9 @@ import {
 	getCounts,
 	getOrder,
 	getOrderTickets,
-	reserveOrder
+	reserveOrder,
+	takenPlaces,
+	transferLimits
 } from './orders.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -223,6 +225,60 @@ describe('transferencia', () => {
 		const r = await confirm(late2.id, { now: expiredAt });
 		expect(r.result).toBe('no-capacity');
 		expect(await getOrderTickets(t.db, late2.id)).toHaveLength(0);
+	});
+
+	it('vencida y sin cupo: transferLimits dice cuánto se pasa y con override se confirma igual', async () => {
+		const TYPE = { ...ANTICIPADA, name: 'Anticipada' };
+		const late = /** @type {any} */ (await transfer({ quantity: 2 })).order;
+		// Vigente: tiene su lugar, no pasa nada.
+		expect(await transferLimits(t.db, { order: late, type: TYPE, now: NOW + 1000 })).toEqual([]);
+		const expiredAt = NOW + TRANSFER_HOLD_MS + 1;
+		// Mientras tanto se vendieron los 3 lugares.
+		expect((await transfer({ quantity: 3, now: expiredAt })).ok).toBe(true);
+		const fresh = /** @type {any} */ (await getOrder(t.db, late.id));
+		expect(await transferLimits(t.db, { order: fresh, type: TYPE, now: expiredAt })).toEqual([
+			{
+				kind: 'capacity',
+				type: 'anticipada',
+				typeName: 'Anticipada',
+				capacity: 3,
+				before: 3,
+				after: 5,
+				over: 2
+			}
+		]);
+		// Sin override: no.
+		expect((await confirm(late.id, { now: expiredAt })).result).toBe('no-capacity');
+		// Con override: sí, y quedan 5 de 3.
+		const r = await confirm(late.id, { now: expiredAt, override: true });
+		expect(r.result).toBe('confirmed');
+		expect(r.tickets).toHaveLength(2);
+		expect(
+			await takenPlaces(t.db, { eventSlug: EVENT, typeId: 'anticipada', now: expiredAt })
+		).toBe(5);
+		// Idempotente también con override.
+		expect((await confirm(late.id, { now: expiredAt, override: true })).result).toBe('already');
+		expect(await getOrderTickets(t.db, late.id)).toHaveLength(2);
+	});
+
+	it('override no confirma canceladas ni órdenes que no son transferencias', async () => {
+		const order = /** @type {any} */ (await transfer({ quantity: 1 })).order;
+		await cancelTransfer(t.db, { orderId: order.id, eventSlug: EVENT, by: 'admin' });
+		expect((await confirm(order.id, { override: true })).result).toBe('cancelled');
+		const mp = /** @type {any} */ (
+			await reserveOrder(t.db, {
+				eventSlug: EVENT,
+				type: ANTICIPADA,
+				quantity: 1,
+				holders: people(1),
+				buyer: { name: 'Persona 1', email: 'mp@example.com', dni: '25000001' },
+				now: NOW
+			})
+		).order;
+		expect((await confirm(mp.id, { override: true })).result).toBe('not-transfer');
+		expect(await transferLimits(t.db, { order: mp, type: { ...ANTICIPADA, name: 'A' } })).toEqual(
+			[]
+		);
 	});
 
 	it('"Cancelar" libera el cupo; una cancelada no se puede confirmar', async () => {
