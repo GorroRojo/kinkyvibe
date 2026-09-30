@@ -23,7 +23,9 @@ sin tocar el repo.
   deploy (los `.md` de `src/lib/posts` se empaquetan como texto en el Worker del preview, con
   `import.meta.glob`, ver `src/lib/server/demo/bundle.js`). La lista de eventos del panel y los
   datos de los selectores de etiquetas/organizadores también suman lo de `demo_files`.
-  Las páginas públicas y la venta de entradas siguen leyendo el contenido del deploy.
+  La configuración de entradas (`src/lib/server/tickets/events.js`: venta, puerta, panel de
+  entradas) también: un evento creado, editado o borrado en la demo vende (o deja de vender)
+  según `demo_files`. Las páginas públicas siguen leyendo el contenido del deploy.
 - **Aviso**: en `/admin` y `/edit` se ve «Modo demo: los cambios se guardan solo en la base de
   prueba».
 
