@@ -7,7 +7,16 @@
  * This module is only ever loaded through a dynamic import guarded by `import.meta.env.DEV`
  * (see ./index.js), so it is not part of production builds.
  */
-import { readFile, readdir, stat, mkdir, writeFile, copyFile, appendFile, rm } from 'node:fs/promises';
+import {
+	readFile,
+	readdir,
+	stat,
+	mkdir,
+	writeFile,
+	copyFile,
+	appendFile,
+	rm
+} from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -59,7 +68,12 @@ export async function listDir(_token, path) {
 	if (!(await exists(full))) return [];
 	const names = await readdir(full);
 	// "sha" is the local source path, so commitFiles can copy it like GitHub reuses a blob.
-	return names.map((name) => ({ name, path: `${path}/${name}`, sha: 'local:' + join(path, name), type: 'file' }));
+	return names.map((name) => ({
+		name,
+		path: `${path}/${name}`,
+		sha: 'local:' + join(path, name),
+		type: 'file'
+	}));
 }
 
 /**
@@ -128,7 +142,9 @@ export async function commitFiles(_token, { files, message, mustNotExist = [] })
 		if (await pathExists(_token, path)) throw new PathExistsError(path);
 	}
 	await new Promise((r) => setTimeout(r, 400)); // feel like a network call
-	const hash = createHash('sha1').update(message + Date.now()).digest('hex');
+	const hash = createHash('sha1')
+		.update(message + Date.now())
+		.digest('hex');
 	const deleted = [];
 	for (const f of files) {
 		const target = join(outDir, 'files', f.path);

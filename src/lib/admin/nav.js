@@ -172,7 +172,7 @@ export const NAV = Object.freeze([
 		emoji: '🧑‍🤝‍🧑',
 		label: 'Personas',
 		group: 'entradas',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'estadisticas',
@@ -181,7 +181,7 @@ export const NAV = Object.freeze([
 		emoji: '📈',
 		label: 'Estadísticas',
 		group: 'entradas',
-		soon: true
+		soon: false
 	},
 
 	// Contenido

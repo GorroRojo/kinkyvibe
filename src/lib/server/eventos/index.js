@@ -50,10 +50,13 @@ export async function getRepoClient() {
 
 const mdModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
 /** @type {Record<string, string>} */
-const mediaFiles = import.meta.glob('/src/lib/posts/calendario/media/*/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
+const mediaFiles = import.meta.glob(
+	'/src/lib/posts/calendario/media/*/*.{jpeg,jfif,jpg,png,webp}',
+	{
+		eager: true,
+		import: 'default'
+	}
+);
 /** @type {Record<string, string>} */
 const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}', {
 	eager: true,
