@@ -1,8 +1,11 @@
 import '$lib/types.d.js';
 import { dev } from '$app/environment';
-import { isCurrent } from './allPosts';
+import { isCurrent, relatedPostsFor } from './allPosts';
+import { addMentionPronouns, pronounLabel } from './mentions';
 import tagsFactory from './tags';
 import { error } from '@sveltejs/kit';
+
+export { relatedPostsFor };
 
 /**Calls fn for the group and every subgroup and returns the resulting group.
  * @param {Group} group
@@ -295,41 +298,12 @@ export const currentRelated = (related) => {
 };
 
 /**
- * Posts shown under "Más cosas de…" on calendario/material/amigues pages.
- * @param {AnyPostData} meta - metadata of the post being viewed
- * @param {ProcessedPost[]} posts
- * @return {ProcessedPost[]}
+ * Svelte action adding pronouns after @mentions, looking each profile up with fetchPost.
+ * Pages that get `pronouns` from their server load should use addMentionPronouns from
+ * $lib/utils/mentions instead, so they don't pull this module into the client.
+ * @param {HTMLElement} node
  */
-export const relatedPostsFor = (meta, posts) =>
-	posts.filter(
-		(p) =>
-			meta.authors?.some(
-				(/**@type string */ a) => p.meta.authors.includes(a) && p.meta.title !== meta.title
-			) ||
-			(meta.wiki && p.meta.tags.includes(meta.wiki)) ||
-			(meta.category == 'wiki' && p.meta.tags.includes(meta.postID)) ||
-			(meta.category == 'amigues' &&
-				p.meta.authors.includes(meta.postID) &&
-				p.meta.postID != meta.postID)
+export const processContent = (node) =>
+	addMentionPronouns(node, async (name) =>
+		pronounLabel((await fetchPost('amigues', name, true)).meta.pronoun)
 	);
-
-/** @type {import('svelte/action').Action}  */
-export const processContent = async (node) => {
-	// @ts-ignore
-	node.querySelectorAll('a.mention').forEach(async (/**@type {HTMLAnchorElement}*/ el) => {
-		let p = document.createElement('small');
-		let name = el.textContent?.slice(1);
-		if (name === undefined) return;
-		let post;
-		try {
-			post = await fetchPost('amigues', name, true);
-		} catch (e) {
-			return;
-		}
-		if (post.meta.pronoun == '' || !post.meta.pronoun || (post.meta.pronoun + '').split('/').pop() == 'evitar') return;
-		p.className = 'p-pronoun';
-		p.textContent =
-			' ' + (post?.meta.pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '/') + '';
-		el.appendChild(p);
-	});
-};

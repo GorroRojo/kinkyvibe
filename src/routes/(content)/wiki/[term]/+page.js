@@ -1,17 +1,18 @@
-import { fetchPost } from '$lib/utils/index.js';
 import tagsFactory from '$lib/utils/tags';
 export const prerender = 'auto';
+
+// Only wiki posts, and only the one being viewed is downloaded. Metadata comes from
+// +page.server.js, so this page doesn't import $lib/utils (which maps every post and
+// image of the site).
+const posts = import.meta.glob('/src/lib/posts/wiki/*.md', { import: 'default' });
+
 /** @type {import("./$types").PageLoad} */
 export async function load({ params, data }) {
-	let post;
-	let tagManager = tagsFactory();
-	try {
-		post = await fetchPost('wiki', params.term);
-	} catch (e) {
-		post = { tag: tagManager.get(params.term) };
+	if ('meta' in data) {
+		const content = await posts[`/src/lib/posts/wiki/${params.term}.md`]?.();
+		return { ...data, content };
 	}
-	return {
-		...data,
-		...post
-	};
+	// no wiki entry: show the tag of the same name. Tags have methods, so they can't come
+	// from the server load.
+	return { ...data, tag: tagsFactory().get(params.term) };
 }
