@@ -46,12 +46,13 @@
 
 	$: user = data.user;
 	$: firstName = String(user?.name || user?.login || '').split(/\s+/)[0];
-	$: todayLabel = new Intl.DateTimeFormat('es-AR', {
+	$: todayRaw = new Intl.DateTimeFormat('es-AR', {
 		timeZone: TZ,
 		weekday: 'long',
 		day: 'numeric',
 		month: 'long'
 	}).format(data.now);
+	$: todayLabel = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
 	$: todoCount = data.todo.length;
 	$: checkinItem = navItem('checkin');
 	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
@@ -150,7 +151,7 @@
 <header class="hello">
 	<h1>¡Hola{firstName ? `, ${firstName}` : ''}!</h1>
 	<p class="muted">
-		<span class="cap">{todayLabel}</span>
+		<span>{todayLabel}</span>
 		·
 		{#if todoCount}
 			<a href="#para-revisar">{plural(todoCount, 'cosa para revisar', 'cosas para revisar')}</a>
@@ -341,7 +342,7 @@
 			</div>
 			{#if data.since.items.length}
 				<ul class="feed">
-					{#each data.since.items as a}
+					{#each data.since.items.slice(0, 8) as a}
 						{@const href = activityHref(a)}
 						<li>
 							<span class="dot {a.kind}" aria-hidden="true"></span>
@@ -474,9 +475,6 @@
 		}
 		p {
 			margin: 0.2rem 0 0;
-		}
-		.cap {
-			text-transform: capitalize;
 		}
 		a {
 			color: var(--link);
@@ -736,6 +734,10 @@
 		margin-top: 1rem;
 	}
 	@media (max-width: 899.98px) {
+		/* En el celu la actividad completa queda en /admin/actividad (propuesta 4.1). */
+		.activity {
+			display: none;
+		}
 		.cols {
 			grid-template-columns: minmax(0, 1fr);
 		}
@@ -750,6 +752,10 @@
 		}
 	}
 	@media (max-width: 599.98px) {
+		.stats {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.6rem;
+		}
 		.events li {
 			grid-template-columns: 3rem minmax(0, 1fr);
 		}

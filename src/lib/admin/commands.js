@@ -226,7 +226,8 @@ export function matchCommands(commands, q, limit = Infinity) {
 		let rank = -1;
 		if (label.startsWith(f)) rank = 0;
 		else if (label.split(' ').some((w) => w.startsWith(f))) rank = 1;
-		else if (label.includes(f)) rank = 2;
+		// A la mitad de una palabra solo desde 4 letras ("fer" no tiene que traer "Transferencias").
+		else if (f.length >= 4 && label.includes(f)) rank = 2;
 		else if (words.every((w) => all.split(' ').some((x) => x.startsWith(w)))) rank = 3;
 		if (rank >= 0) found.push({ c, rank, i });
 	});

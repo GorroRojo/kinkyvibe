@@ -51,6 +51,12 @@ describe('matchCommands', () => {
 	it('vacío devuelve todo (con límite) y sin coincidencias, nada', () => {
 		expect(matchCommands(cmds, '', 3)).toHaveLength(3);
 		expect(matchCommands(cmds, 'zzzz')).toEqual([]);
+		expect(matchCommands(cmds, 'fer').map((c) => c.id)).not.toContain(
+			'nav:entradas-transferencias'
+		);
+		expect(matchCommands(cmds, 'ferencias').map((c) => c.id)).toContain(
+			'nav:entradas-transferencias'
+		);
 	});
 });
 

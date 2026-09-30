@@ -431,7 +431,7 @@
 									>{#each r.keys as k, ki (ki)}<kbd>{k}</kbd>{/each}</span
 								>
 								<span
-									>{r.label}{#if !r.available}<small> · próximamente</small>{/if}</span
+									>{r.label}{#if !r.available}<small>{' · próximamente'}</small>{/if}</span
 								>
 							</li>
 						{/each}
