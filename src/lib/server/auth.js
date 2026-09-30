@@ -1,17 +1,71 @@
 import { error, redirect } from '@sveltejs/kit';
 
-/** GitHub logins allowed into the admin area. */
-export const ADMINS = ['GorroRojo', 'Tallarines333', 'VelvetVoid'];
+/**
+ * Accounts allowed into the admin area. Matched on the numeric GitHub user id, which never
+ * changes; `login` is only a label for humans (usernames can be renamed and later taken by
+ * someone else). Look ids up at https://api.github.com/users/<login>.
+ * This is the single source of truth: pages get `user.admin` from the root layout load.
+ */
+export const ADMINS = Object.freeze([
+	{ id: 4594048, login: 'GorroRojo' },
+	{ id: 138258106, login: 'Tallarines333' },
+	{ id: 45673502, login: 'VelvetVoid' }
+]);
 
 /** Name of the httpOnly cookie holding the GitHub OAuth token. */
 export const TOKEN_COOKIE = 'userToken';
 
 /**
- * @param {{ login?: string }|undefined|null} user
+ * @param {{ id?: number }|undefined|null} user
  * @returns {boolean}
  */
 export function isAdmin(user) {
-	return !!user && typeof user.login === 'string' && ADMINS.includes(user.login);
+	return (
+		!!user &&
+		typeof user.id === 'number' &&
+		Number.isSafeInteger(user.id) &&
+		ADMINS.some((a) => a.id === user.id)
+	);
+}
+
+/**
+ * The admin entry for a login, for the dev-only fake session.
+ * @param {string} login
+ */
+export function adminByLogin(login) {
+	return ADMINS.find((a) => a.login === login);
+}
+
+/**
+ * Revokes a GitHub OAuth token (on logout). Best effort: a failure only means the token stays
+ * valid until the user revokes it on GitHub, the cookie is deleted either way.
+ * https://docs.github.com/en/rest/apps/oauth-applications#delete-an-app-token
+ * @param {string|undefined} token
+ * @param {{ clientId?: string, clientSecret?: string }} app
+ * @param {typeof fetch} [fetchFn]
+ * @returns {Promise<boolean>} whether GitHub confirmed the revocation
+ */
+export async function revokeToken(token, { clientId, clientSecret }, fetchFn = fetch) {
+	if (!token || !clientId || !clientSecret) return false;
+	try {
+		const res = await fetchFn(
+			`https://api.github.com/applications/${encodeURIComponent(clientId)}/token`,
+			{
+				method: 'DELETE',
+				headers: {
+					Accept: 'application/vnd.github+json',
+					'User-Agent': 'kinkyvibe',
+					Authorization: 'Basic ' + btoa(`${clientId}:${clientSecret}`),
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ access_token: token })
+			}
+		);
+		return res.status === 204;
+	} catch (e) {
+		console.log('Could not revoke GitHub token: ' + e);
+		return false;
+	}
 }
 
 /**

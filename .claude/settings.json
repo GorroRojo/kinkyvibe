@@ -1,0 +1,29 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"hooks": {
+		"SessionStart": [
+			{
+				"matcher": "startup|resume",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/session-start.sh\"",
+						"timeout": 300
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "^Bash$|^mcp__.+__merge_pull_request$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/check-merge.js\"",
+						"timeout": 60
+					}
+				]
+			}
+		]
+	}
+}
