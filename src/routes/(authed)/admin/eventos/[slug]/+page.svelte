@@ -1,0 +1,248 @@
+<script>
+	import { enhance } from '$app/forms';
+	import { Check, Send, X } from '@lucide/svelte';
+	import Card from '$lib/components/admin/panel/Card.svelte';
+	import { eventHref } from '$lib/admin/nav.js';
+	import { describeSchedule } from '$lib/utils/eventDraft.js';
+
+	/** @type {import('./$types').PageData} */
+	export let data;
+	/** @type {import('./$types').ActionData} */
+	export let form;
+
+	$: e = data.event;
+	$: done = data.checklist.filter((c) => c.ok).length;
+
+	/** @param {number} ms */
+	function time(ms) {
+		return new Date(ms).toLocaleString('es-AR', {
+			dateStyle: 'short',
+			timeStyle: 'short',
+			hourCycle: 'h23',
+			timeZone: 'America/Argentina/Buenos_Aires'
+		});
+	}
+	/** @param {number} n */
+	const people = (n) => (n === 1 ? '1 persona' : `${n} personas`);
+</script>
+
+<svelte:head><title>{e.title} · Panel</title></svelte:head>
+
+<div class="grid">
+	<Card title="Checklist">
+		<p class="muted small">{done} de {data.checklist.length} listos</p>
+		<ul class="checklist">
+			{#each data.checklist as c (c.id)}
+				<li class:ok={c.ok}>
+					<span class="mark" aria-hidden="true">
+						{#if c.ok}<Check size={16} strokeWidth={3} />{:else}<X size={16} strokeWidth={3} />{/if}
+					</span>
+					<div>
+						<strong>{c.label}</strong><span class="sr-only">: {c.ok ? 'listo' : 'falta'}</span>
+						<p>
+							{c.detail}
+							{#if c.href}<a href={eventHref(e.slug, c.href)}>Arreglarlo</a>{/if}
+						</p>
+					</div>
+				</li>
+			{/each}
+		</ul>
+	</Card>
+
+	<Card title="Datos">
+		<dl class="kv">
+			<dt>Cuándo</dt>
+			<dd class="first-up">{describeSchedule(e.start, e.end) || 'Sin fecha'}</dd>
+			<dt>Lugar</dt>
+			<dd>{e.locationName || '—'}</dd>
+			{#if e.location}<dt>Dirección</dt>
+				<dd>{e.location}</dd>{/if}
+			<dt>Región</dt>
+			<dd>{e.place || '—'}</dd>
+			<dt>Organizan</dt>
+			<dd>{e.authors.join(', ') || '—'}</dd>
+			{#if e.link}<dt>Link</dt>
+				<dd><a href={e.link} target="_blank" rel="noreferrer">{e.link}</a></dd>{/if}
+			{#if e.summary}<dt>Resumen</dt>
+				<dd>{e.summary}</dd>{/if}
+			<dt>Archivo</dt>
+			<dd><code>calendario/{e.slug}.md</code></dd>
+		</dl>
+		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
+	</Card>
+
+	{#if data.online && e.sellsTickets}
+		<section class="stream" aria-label="Link de la transmisión">
+			<Card title="Link de la transmisión" tag="div">
+				<p class="muted small">
+					Evento online: las entradas llevan este link en lugar de un QR (no hay control de
+					ingreso). El link no está en el repo: se guarda solo acá. Si lo cargás antes de que
+					alguien compre, le llega en el mail de las entradas.
+				</p>
+				{#if form?.stream}
+					<p class="flash" class:error={!form.stream.ok} role="status">{form.stream.message}</p>
+				{/if}
+				{#if data.stream}
+					<form method="POST" action="?/setLink" use:enhance class="stream-form">
+						<label>
+							<span>Link (https://…)</span>
+							<input
+								type="text"
+								inputmode="url"
+								name="link"
+								value={form?.stream && 'value' in form.stream
+									? form.stream.value
+									: (data.stream.link ?? '')}
+								placeholder="https://…"
+								autocomplete="off"
+								spellcheck="false"
+							/>
+						</label>
+						<button type="submit" class="kv-btn">Guardar link</button>
+					</form>
+					{#if data.stream.link}
+						<p class="muted small">
+							Guardado {data.stream.updatedAt ? time(data.stream.updatedAt) : ''}{data.stream
+								.updatedBy
+								? ` por ${data.stream.updatedBy}`
+								: ''}. Ya lo tienen {data.stream.approvedOrders - data.stream.pending} de {data
+								.stream.approvedOrders}
+							{data.stream.approvedOrders === 1 ? 'compra' : 'compras'}.
+						</p>
+						<form
+							method="POST"
+							action="?/sendLink"
+							use:enhance={({ cancel }) => {
+								if (
+									data.stream?.pending &&
+									!confirm(`¿Mandar el link por mail a ${people(data.stream.pending)}?`)
+								)
+									cancel();
+							}}
+						>
+							<button type="submit" class="kv-btn send-link" disabled={!data.stream.pending}>
+								{#if data.stream.pending}<Send size={16} aria-hidden="true" />{/if}
+								{data.stream.pending
+									? `Enviar el link a todes (${people(data.stream.pending)})`
+									: '✓ Todes ya recibieron este link'}
+							</button>
+						</form>
+						<p class="muted small">
+							Solo le escribe a quien todavía no recibió este link (tocarlo dos veces no manda nada
+							de nuevo). Si cambiás el link, se puede mandar el nuevo a todes.
+						</p>
+					{/if}
+				{:else}
+					<p class="flash error">No se pudo leer la base de datos.</p>
+				{/if}
+			</Card>
+		</section>
+	{/if}
+</div>
+
+<style>
+	.grid {
+		display: grid;
+		gap: 1rem;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+		align-items: start;
+	}
+	.small {
+		font-size: 0.85rem;
+		margin: 0;
+	}
+	.checklist {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+	}
+	.checklist li {
+		display: flex;
+		gap: 0.7rem;
+		align-items: flex-start;
+	}
+	.checklist p {
+		margin: 0.1rem 0 0;
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+	.mark {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border-radius: 50%;
+		background: var(--warn-bg);
+		color: var(--warn);
+	}
+	.ok .mark {
+		background: var(--ok-bg);
+		color: var(--ok);
+	}
+	.kv {
+		display: grid;
+		grid-template-columns: 6.5rem minmax(0, 1fr);
+		gap: 0.4rem 0.8rem;
+		margin: 0;
+	}
+	.kv dt {
+		color: var(--muted);
+	}
+	.kv dd {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.first-up::first-letter {
+		text-transform: uppercase;
+	}
+	.flash {
+		background: var(--ok-bg);
+		color: var(--text);
+		padding: 0.5rem 0.8rem;
+		border-radius: 0.8rem;
+		margin: 0;
+	}
+	.flash.error {
+		background: var(--bad-bg);
+	}
+	.stream-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: flex-end;
+	}
+	.stream-form label {
+		flex: 1 1 14rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+	.stream-form input {
+		padding: 0.55rem 0.8rem;
+		min-height: 2.75rem;
+		box-sizing: border-box;
+		border-radius: 3em;
+		border: 1px solid var(--field);
+		background: var(--surface);
+		min-width: 0;
+	}
+	.send-link {
+		width: 100%;
+		justify-content: center;
+		white-space: normal;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+</style>

@@ -48,8 +48,8 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	page
 }) => {
 	// Sin link de transmisión (la base local guarda el de corridas anteriores).
-	await page.goto(`/admin/entradas/${EVENT}`);
-	const cleared = await page.request.post(`/admin/entradas/${EVENT}?/setLink`, {
+	await page.goto(`/admin/eventos/${EVENT}`);
+	const cleared = await page.request.post(`/admin/eventos/${EVENT}?/setLink`, {
 		form: { link: '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -244,7 +244,8 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
 	const ticketUrl = page.url();
 
-	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
+	// Resumen de la ficha del evento (el link de la transmisión está ahí).
+	await page.goto(`/admin/eventos/${EVENT}`, { waitUntil: 'networkidle' });
 	// Online: no hay control de ingreso.
 	await expect(page.getByRole('link', { name: /Modo puerta/ })).toHaveCount(0);
 	const section = page.locator('section.stream');
@@ -270,7 +271,7 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 	).toBeDisabled();
 
 	// Otra vez (p. ej. desde otra pestaña): no manda nada.
-	const again = await page.request.post(`/admin/entradas/${EVENT}?/sendLink`, {
+	const again = await page.request.post(`/admin/eventos/${EVENT}?/sendLink`, {
 		form: {},
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -285,7 +286,7 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 	await shots(page, '12-gorra-entrada-con-link', page.locator('article.ticket'));
 
 	// Cambiar el link: se puede mandar el nuevo a todes.
-	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}`, { waitUntil: 'networkidle' });
 	await section.getByLabel(/Link \(https/).fill(`${link}-2`);
 	await section.getByRole('button', { name: 'Guardar link' }).click();
 	await expect(section.getByText('Link guardado.')).toBeVisible();

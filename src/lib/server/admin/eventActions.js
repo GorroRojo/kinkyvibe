@@ -1,9 +1,8 @@
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import {
 	getGateway,
 	inBackground,
@@ -16,137 +15,20 @@ import {
 	cancelTransfer,
 	clearReview,
 	confirmTransfer,
-	getCounts,
 	getOrder,
-	listEventTickets,
-	listOrders,
-	orderHolders,
 	refundOrder
 } from '$lib/server/tickets/orders.js';
-import {
-	getStreamLink,
-	normalizeStreamLink,
-	setStreamLink,
-	streamLinkRecipients
-} from '$lib/server/tickets/stream.js';
+import { getStreamLink, normalizeStreamLink, setStreamLink } from '$lib/server/tickets/stream.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
-/** Transferencias vencidas que se siguen mostrando (por si el pago llega tarde). */
-const EXPIRED_TRANSFER_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, params, platform, setHeaders, fetch }) {
-	requireAdmin(locals, url);
-	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
-	const db = getDB(platform);
-	const fondo = await resolveFondoPercent({ db, fetch });
-	const config = await getEventTickets(params.slug, { fondoPercent: fondo.percent });
-	if (!config) error(404, 'Ese evento no vende entradas.');
-	if (!db) error(503, 'No hay base de datos disponible.');
-	const now = Date.now();
-	const [orders, counts, tickets] = await Promise.all([
-		listOrders(db, params.slug),
-		getCounts(db, params.slug, now),
-		listEventTickets(db, params.slug)
-	]);
-	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));
-	/** @type {Map<string, { name: string, pronouns: string, checkedIn: boolean }[]>} */
-	const holdersByOrder = new Map();
-	for (const t of tickets) {
-		const list = holdersByOrder.get(t.order_id) ?? [];
-		list.push({
-			name: t.holder_name,
-			pronouns: t.holder_pronouns ?? '',
-			checkedIn: Boolean(t.checked_in_at)
-		});
-		holdersByOrder.set(t.order_id, list);
-	}
-	const rows = orders.map((o) => ({
-		id: o.id,
-		reference: orderReference(o.id),
-		name: o.buyer_name,
-		email: o.buyer_email,
-		// El DNI de quien compra: solo en el admin (para chequear en la puerta si hace falta).
-		dni: o.buyer_dni ?? '',
-		type: names[o.ticket_type] ?? o.ticket_type,
-		quantity: o.quantity,
-		pronouns: o.buyer_pronouns ?? '',
-		gorra: o.fondo_option === 'gorra' ? o.unit_price : null,
-		fondo: o.fondo_amount,
-		fondoOption: o.fondo_option,
-		contribution: o.fondo_contribution,
-		surcharge: o.surcharge_amount,
-		subtotal: o.subtotal,
-		discountCode: o.discount_code,
-		discountAmount: o.discount_amount,
-		total: o.total,
-		method: o.payment_method,
-		// Una reserva vencida que todavía no se marcó como tal se muestra como vencida.
-		status:
-			(o.status === 'pending' || o.status === 'awaiting_transfer' || o.status === 'rejected') &&
-			o.expires_at <= now
-				? /** @type {const} */ ('expired')
-				: o.status,
-		checkedIn: o.checked_in,
-		emailSent: Boolean(o.email_sent_at),
-		createdAt: o.created_at,
-		expiresAt: o.expires_at,
-		paymentId: o.mp_payment_id,
-		confirmedBy: o.confirmed_by,
-		refundedAt: o.refunded_at ?? null,
-		refundedBy: o.refunded_by ?? null,
-		needsReview: o.needs_review ?? null,
-		reviewDetail: o.review_detail ?? null,
-		holders:
-			holdersByOrder.get(o.id) ??
-			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : [])
-	}));
-	// Eventos online: link de la transmisión (en D1, nunca en el repo) y a cuántas personas les
-	// falta recibirlo.
-	/** @type {{ link: string | null, updatedAt: number | null, updatedBy: string | null, pending: number, approvedOrders: number } | null} */
-	let stream = null;
-	if (config.online) {
-		const current = await getStreamLink(db, params.slug);
-		stream = {
-			link: current?.link ?? null,
-			updatedAt: current?.updatedAt ?? null,
-			updatedBy: current?.updatedBy ?? null,
-			pending: current ? (await streamLinkRecipients(db, params.slug, current.link)).length : 0,
-			approvedOrders: orders.filter((o) => o.status === 'approved').length
-		};
-	}
-	return {
-		slug: params.slug,
-		title: config.title,
-		online: config.online,
-		// Solo los eventos con la etiqueta KinkyVibe usan el Fondo (las órdenes viejas se muestran
-		// igual si tienen montos del fondo).
-		fondoEnabled: config.fondoEnabled,
-		// Órdenes para revisar a mano (pago tardío sin cupo, pago duplicado).
-		review: rows.filter((r) => r.needsReview),
-		stream,
-		types: config.types.map((t) => ({
-			...t,
-			sold: counts.get(t.id)?.sold ?? 0,
-			held: counts.get(t.id)?.held ?? 0,
-			revenue: counts.get(t.id)?.revenue ?? 0,
-			fondoUsed: counts.get(t.id)?.fondo ?? 0,
-			contribution: counts.get(t.id)?.contribution ?? 0,
-			fondoNet: (counts.get(t.id)?.contribution ?? 0) - (counts.get(t.id)?.fondo ?? 0),
-			surcharge: counts.get(t.id)?.surcharge ?? 0
-		})),
-		transfers: rows.filter(
-			(o) =>
-				o.method === 'transferencia' &&
-				(o.status === 'awaiting_transfer' ||
-					(o.status === 'expired' && o.expiresAt > now - EXPIRED_TRANSFER_VISIBLE_MS))
-		),
-		orders: rows
-	};
-}
-
-/** @type {import('./$types').Actions} */
-export const actions = {
+/**
+ * Acciones de la venta de entradas de un evento (antes en /admin/entradas/<slug>). Cada pestaña de
+ * la ficha exporta las suyas: `export const actions = pickActions('confirm', 'cancel')`. Todas
+ * llaman a `requireAdmin` (las form actions no pasan por el layout) y dejan registro con
+ * `logAdminAction`.
+ * @type {Record<string, import('@sveltejs/kit').Action<{ slug: string }>>}
+ */
+export const eventTicketActions = {
 	/** Une admin ya revisó una orden marcada: se saca la marca. */
 	reviewed: async ({ locals, url, params, platform, request }) => {
 		requireAdmin(locals, url);
@@ -434,3 +316,11 @@ export const actions = {
 			: fail(409, { transfer: { ok: false, message: `No se pudo cancelar ${ref}.` } });
 	}
 };
+
+/**
+ * Las acciones de una pestaña.
+ * @param {...string} names
+ */
+export function pickActions(...names) {
+	return Object.fromEntries(names.map((n) => [n, eventTicketActions[n]]));
+}

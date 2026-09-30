@@ -86,7 +86,7 @@ La terminal muestra la dirección (normalmente `http://localhost:5173`). Abrí `
 
 1. Comprá 2 entradas **Anticipada** eligiendo **Transferencia**: abajo dice "Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail". Tocá **Reservar y ver cómo transferir**.
 2. Tiene que aparecer el monto, que te reservamos el lugar 2 horas y que la confirmes desde el mail para guardarla 48 (en la terminal está el link "confirmar" del mail simulado), los datos de la cuenta, una **referencia** (tipo `KV-1A2B3C4D`) y los pasos para mandar el comprobante. En la terminal aparece el mail simulado.
-3. Andá a `http://localhost:5173/admin/entradas/prueba-entradas-2026-12`. En **Transferencias pendientes** está la compra con su referencia.
+3. Andá a `http://localhost:5173/admin/eventos/prueba-entradas-2026-12/transferencias`. En **Transferencias pendientes** está la compra con su referencia.
 4. Tocá **Confirmar pago**: se emiten las entradas (la página de estado de la compra ahora muestra los links). Tocá **Confirmar pago** otra vez en otra pestaña vieja: tiene que decir que ya estaba confirmada, sin emitir de nuevo.
 5. Probá **Cancelar** con otra compra por transferencia: el lugar se libera (Anticipada tiene cupo 3).
 

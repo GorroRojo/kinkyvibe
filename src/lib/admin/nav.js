@@ -121,7 +121,7 @@ export const NAV = Object.freeze([
 		emoji: '🗓️',
 		label: 'Agenda',
 		group: 'eventos',
-		soon: true
+		soon: false
 	},
 	{
 		id: 'checkin',
@@ -279,13 +279,14 @@ export const NAV = Object.freeze([
  * @type {readonly { id: string, suffix: string, label: string, soon: boolean }[]}
  */
 export const EVENT_TABS = Object.freeze([
-	{ id: 'resumen', suffix: '', label: 'Resumen', soon: true },
-	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: true },
-	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: true },
-	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: true },
+	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
+	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
+	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
+	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
 	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
-	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: true },
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: true }
+	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
+	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
+	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
 ]);
 
 /**
@@ -299,16 +300,27 @@ export function eventHref(slug, tab = 'resumen') {
 }
 
 /**
- * Link "Este evento en el panel" (menú de usuario del sitio público). Va a la ficha del evento;
- * mientras la ficha no existe (`EVENT_TABS[0].soon`), a la página vieja: las entradas del evento
- * si vende entradas, o duplicarlo si no. El PR de la ficha solo cambia el `soon`.
+ * Link "Este evento en el panel" (menú de usuario del sitio público, listas del panel). Va a la
+ * ficha del evento: a Ventas si vende entradas (la pestaña que más se usa), si no al Resumen.
  * @param {string} slug
  * @param {{ tickets?: boolean }} [opts]
  */
 export function eventPanelLink(slug, { tickets = false } = {}) {
-	if (!EVENT_TABS[0].soon) return eventHref(slug);
-	const s = encodeURIComponent(slug);
-	return tickets ? `/admin/entradas/${s}` : `/admin/eventos/nuevo?desde=${s}`;
+	return eventHref(slug, tickets ? 'ventas' : 'resumen');
+}
+
+/**
+ * Link "Editar contenido" de una página pública. Los eventos se editan dentro del panel (pestaña
+ * Editar de la ficha); el resto de las publicaciones, en /edit/<categoría>/<slug>. `null` si la
+ * página no es una publicación editable.
+ * @param {string} pathname
+ * @returns {string | null}
+ */
+export function contentEditLink(pathname) {
+	const m = pathname.match(/^\/(amigues|calendario|material)\/([^/]+)\/?$/);
+	if (!m) return null;
+	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
+	return `/edit/${m[1]}/${m[2]}`;
 }
 
 /** Los 5 lugares de la barra de abajo en el celu (el del medio es el botón rosa). */

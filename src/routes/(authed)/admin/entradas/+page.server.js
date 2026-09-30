@@ -54,7 +54,7 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 			types,
 			// Solo los eventos con la etiqueta KinkyVibe usan el Fondo.
 			fondoEnabled: config.fondoEnabled,
-			// Órdenes marcadas para revisar a mano (ver /admin/entradas/<slug>).
+			// Órdenes marcadas para revisar a mano (ver /admin/eventos/<slug>/ordenes).
 			review: review.get(slug) ?? 0,
 			revenue: types.reduce((s, t) => s + t.revenue, 0),
 			fondoUsed: types.reduce((s, t) => s + t.fondoUsed, 0),

@@ -305,7 +305,7 @@
 </svelte:head>
 
 <main class="importar">
-	<p class="back"><a href="/admin/eventos">← Volver a la lista de eventos</a></p>
+	<p class="back"><a href="/admin/eventos">← Eventos</a></p>
 
 	{#if data.mock}
 		<p class="mock">

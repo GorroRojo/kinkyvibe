@@ -1,6 +1,6 @@
 /**
  * Server side of "¿Esta imagen es para todas las ediciones de este evento o solo para esta?"
- * (see $lib/utils/sharedImage.js). Shared by /admin/eventos/nuevo and /edit/calendario/...
+ * (see $lib/utils/sharedImage.js). Shared by /admin/eventos/nuevo and /admin/eventos/<slug>/editar
  *
  * Takes the GitHub client as a parameter (github.js, or mock.js under `npm run dev:admin`), so it
  * has no SvelteKit imports and can be tested with a fake client.

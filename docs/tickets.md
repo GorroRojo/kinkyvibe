@@ -8,7 +8,7 @@ Permite que la gente compre entradas para un evento del calendario desde el siti
 
 Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.md`). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
 
-**Desde el panel (lo normal):** la sección **🎟️ Entradas** del editor de eventos, al crear o duplicar (`/admin/eventos/nuevo`) y al editar (`/edit/calendario/<slug>`). Tiene:
+**Desde el panel (lo normal):** la sección **🎟️ Entradas** del editor de eventos, al crear o duplicar (`/admin/eventos/nuevo`) y al editar (pestaña **Editar** de la ficha del evento, `/admin/eventos/<slug>/editar`). Tiene:
 
 - el interruptor "Vender entradas por el sitio" (apagado = sin `tickets`, se usa el `link` del evento);
 - los tipos de entrada: nombre, cupo y **precio fijo** o **a la gorra** (mínimo y sugerido, con los botones rápidos que va a ver quien compra), para agregar, quitar y reordenar. El `id` de cada tipo sale del nombre al crearlo y **no cambia nunca** (las órdenes lo guardan), aunque se cambie el nombre;
@@ -70,7 +70,7 @@ modalidad: online # opcional: online | presencial (ver "Eventos online")
 5. **Email** (Resend): datos del evento y un QR por entrada (imagen GIF servida en `/entradas/t/<token>/qr.gif`, porque Gmail no muestra SVG) con su **código corto en grande al lado**, y link a `/entradas/t/<token>`. En eventos online, en lugar de QR: el link de la transmisión si ya está cargado, o el aviso de que llega antes del evento.
 6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada).
 7. **Código corto de cada entrada** (`tickets.code`): 6 caracteres de un alfabeto sin ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: sin 0/O, 1/I/L), único por evento (índice único en la base), al azar (31⁶ ≈ 887 millones). Se elige dentro del mismo `INSERT` que emite la entrada entre tres candidatos al azar no usados en el evento, así que un choque nunca hace fallar la aprobación de un pago. Sirve para tipearlo en la puerta si el QR no se puede escanear: el control de ingreso lo acepta con o sin "KV-", espacios o guiones, y lee O como 0 e I/L como 1 (letras que los códigos no usan). No reemplaza al token del QR para ver la entrada: solo lo usan les admins en el control de ingreso.
-8. **Admin** (`/admin/entradas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la lista de órdenes, exportar CSV y reenviar el mail.
+8. **Admin** (`/admin/entradas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Ventas con ventas por día y cómo pagaron, Órdenes, Transferencias, Códigos, Mail a compradores y Editar): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
 9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña).
    - **Contador** "18 de 31 adentro" con el detalle por tipo, y **escáner** de QR con la cámara (API `BarcodeDetector`: Chrome en Android, Edge), con linterna y cambio de cámara si el celu los tiene. En iPhone (Safari no tiene `BarcodeDetector`) se puede escanear con la cámara del sistema: abre la página de la entrada, que a les admins les muestra el botón "Marcar ingreso" (a quien no es admin no: el form action llama a `requireAdmin`, hay tests).
    - **Resultado** en grande con vibración (y sonido opcional, apagado por defecto): verde "Adelante", amarillo "Ya ingresó" (hora y quién), rosa "Anulada", "De otro evento" o "QR inválido". Muestra la persona, pronombres, tipo, quién compró y su **email**, el **DNI parcial** (últimos 3; al tocarlo se ve completo y queda en el registro de actividad como `order.reveal_dni`, sin el número), el código y **"Primera vez en <serie>"**. "Deshacer" (queda como `checkin.undo`). Tocar el resultado abre la **compra completa**: estado, medio de pago, montos, fondo, descuento, todas las entradas de la orden con su ingreso, fechas y link a la orden.
@@ -133,7 +133,7 @@ Un tipo de entrada con `a_la_gorra: { minimo, sugerido }` en lugar de `price`:
 Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tiene `modalidad`, la etiqueta **Online** (la que ya usan los eventos del calendario) y no tiene `location`. En esos eventos:
 
 - Las entradas llevan **el link de la transmisión en lugar de un QR**, y no hay control de ingreso.
-- El link **no va en el repo** (es público): une admin lo carga en `/admin/entradas/<slug>` → **Link de la transmisión** (se guarda en D1, `event_ticket_settings`; tiene que ser `https://`).
+- El link **no va en el repo** (es público): une admin lo carga en la ficha del evento (`/admin/eventos/<slug>`, pestaña Resumen) → **Link de la transmisión** (se guarda en D1, `event_ticket_settings`; tiene que ser `https://`).
 - Si el link ya está al aprobarse una compra, va en el mail de las entradas. Si se carga o cambia después, el botón **Enviar el link a todes (N personas)** lo manda por mail a cada compra aprobada que todavía no recibió **ese** link. Es idempotente por valor del link (`stream_link_sends`: orden + SHA-256 del link, reservado antes de mandar, así dos clicks o dos admins no duplican; si un envío falla se libera para reintentar). Si el link cambia, se puede mandar el nuevo a todes.
 - La página de la entrada muestra el link cuando existe (solo si la compra está aprobada).
 
@@ -170,7 +170,7 @@ No hay porcentaje por evento ni monto por tipo (`fondo_percent` y `fondo` en el 
 
 ### Reembolsos
 
-En `/admin/entradas/<slug>`, cada orden aprobada tiene **Reembolsar…**, que abre un paso de confirmación con el monto, quién compró y sus entradas:
+En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada orden aprobada tiene **Reembolsar…**, que abre un paso de confirmación con el monto, quién compró y sus entradas:
 
 - **Mercado Pago:** pide el reembolso **total** del pago con `POST /v1/payments/{id}/refunds` y el body vacío (doc de Checkout Pro "Configurar reembolsos y cancelaciones", consultada con la búsqueda de documentación de MP el 2026-09-29), con `X-Idempotency-Key: refund-<orden>` (doble click = el mismo reembolso). MP pide saldo suficiente en la cuenta y como máximo 180 días desde la aprobación; si lo rechaza, no se cambia nada y se muestra el aviso. En modo simulado, el mock marca el pago como reembolsado.
 - **Transferencia:** "Marcar como reembolsada (transferencia devuelta a mano)" hace la misma contabilidad sin llamar a MP. **Sin cargo:** "Anular las entradas".
@@ -200,7 +200,7 @@ Opt-in por evento (`payment_methods`) y requiere datos para transferir (Ajustes 
 
 1. La orden queda `awaiting_transfer` con una **reserva inicial de 2 h**. El mail trae un link **"Confirmar mi reserva"** (`/entradas/<orden>/confirmar?k=…`, firmado con una clave al azar guardada en D1; abrirlo solo muestra el botón, confirmar es un POST) que la extiende a la reserva completa, **48 h** desde que se hizo (`TICKETS_TRANSFER_HOLD_HOURS`). Sin confirmar, se libera a las 2 h. El formulario, la página de estado y el mail lo explican. Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera.
 2. La persona ve (en `/entradas/<orden>/estado`) el monto, los datos para transferir, una **referencia** `KV-XXXXXXXX` para el concepto y cómo mandar el comprobante (respondiendo el mail o escribiendo a `TICKETS_REPLY_TO`/`TICKETS_CONTACT_EMAIL`). Se le manda un mail con lo mismo.
-3. En `/admin/entradas/<slug>`, **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
+3. En la pestaña **Transferencias** de la ficha (`/admin/eventos/<slug>/transferencias`): **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código.
 4. **No hay verificación automática:** no existe una API confiable y accesible para enterarse de transferencias entrantes a una cuenta bancaria o CVU común (los bancos no ofrecen webhooks a particulares/pequeñas organizaciones, y leer extractos o mails del banco sería frágil e inseguro). Alguien tiene que mirar la cuenta y confirmar a mano.
 
 ### Política de devoluciones
@@ -238,7 +238,7 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 | Página y formulario de compra                    | `(content)/calendario/[event]/entradas/`, `TicketPurchase.svelte`                                  |
 | Webhook                                          | `src/routes/api/mercadopago/webhook/+server.js`                                                    |
 | Páginas públicas (estado, entrada, QR, simulado) | `src/routes/entradas/`                                                                             |
-| Admin y control de ingreso                       | `src/routes/(authed)/admin/entradas/`, `QrScanner.svelte`                                          |
+| Admin y control de ingreso                       | `src/routes/(authed)/admin/entradas/`, `admin/eventos/[slug]/`, `QrScanner.svelte`                 |
 | Tests                                            | `src/lib/server/tickets/*.test.js`, `tests/tickets/` (E2E)                                         |
 
 ## Variables de entorno
@@ -286,7 +286,7 @@ Con eso ya funciona el evento de prueba `http://localhost:5173/calendario/prueba
 1. Abrir la página del evento, tocar **Comprar entradas** (lleva a `/calendario/<slug>/entradas`), completar e "Ir a pagar con Mercado Pago" (o "Reservar y ver cómo transferir").
 2. Se abre el **checkout simulado** (`/entradas/simular-pago/<orden>`): aprobar, rechazar, dejar pendiente o "aprobar sin webhook" (para ver que la página de estado re-consulta sola). Cada botón manda una notificación **firmada** al webhook igual que MP.
 3. Sin `RESEND_API_KEY` el mail no se manda: se loguea en la consola (con los tokens recortados).
-4. Admin: `http://localhost:5173/admin/entradas` (transferencias pendientes en la página de cada evento), `http://localhost:5173/admin/entradas/codigos` y `http://localhost:5173/admin/entradas/ajustes`.
+4. Admin: `http://localhost:5173/admin/entradas` (transferencias pendientes en la ficha de cada evento, `/admin/eventos/<slug>/transferencias`), `http://localhost:5173/admin/entradas/codigos` y `http://localhost:5173/admin/entradas/ajustes`.
 
 Tests:
 

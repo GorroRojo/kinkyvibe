@@ -152,15 +152,15 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
 	await expect(card.locator('.fondo-net')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
-	// El admin del evento muestra cada entrada y el DNI de quien compró.
-	await page.goto(`/admin/entradas/${EVENT}`);
+	// La pestaña Órdenes de la ficha muestra cada entrada y el DNI de quien compró.
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
 	const order = page.locator('.order', { hasText: buyer.email });
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
 	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
 	await expect(order).toContainText(`recargo MP +${ars(prices.surcharge)}`);
 
 	// El CSV tiene una fila por entrada, con el DNI de quien compró.
-	const csv = await (await page.request.get(`/admin/entradas/${EVENT}/ordenes.csv`)).text();
+	const csv = await (await page.request.get(`/admin/eventos/${EVENT}/ordenes.csv`)).text();
 	expect(csv).toContain(`"${buyer.dni}"`);
 	for (const p of people) expect(csv).toContain(`"${p.name}"`);
 
@@ -248,9 +248,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();
-	await expect(page.getByRole('menuitem', { name: 'Entradas de este evento' })).toHaveAttribute(
+	await expect(page.getByRole('menuitem', { name: 'Este evento en el panel' })).toHaveAttribute(
 		'href',
-		`/admin/entradas/${EVENT}`
+		`/admin/eventos/${EVENT}/ventas`
 	);
 });
 
@@ -486,7 +486,7 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	expect(reference).toMatch(/^KV-[0-9A-F]{8}$/);
 	const statusUrl = page.url();
 
-	await page.goto(`/admin/entradas/${EVENT}`);
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`);
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
@@ -494,7 +494,7 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.
-	const res = await page.request.post(`/admin/entradas/${EVENT}?/confirm`, {
+	const res = await page.request.post(`/admin/eventos/${EVENT}/transferencias?/confirm`, {
 		form: { order: statusUrl.split('/').at(-2) ?? '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -621,7 +621,7 @@ test('el evento de prueba: botón en la página del evento → página de compra
 test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo" del admin', async ({
 	page
 }) => {
-	const card = page.locator(`a.event[href="/admin/entradas/${EVENT}"]`);
+	const card = page.locator(`a.event[href="/admin/eventos/${EVENT}/ventas"]`);
 	/** @returns {Promise<number>} */
 	const contributions = async () => {
 		await page.goto('/admin/entradas');
@@ -659,10 +659,11 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	const netValue = Number(netText.replace(/[^0-9]/g, '')) * (netText.startsWith('−') ? -1 : 1);
 	await expect(net).toHaveClass(netValue < 0 ? /neg/ : netValue > 0 ? /pos/ : /fondo-net/);
 	await shots(page, '10-admin-fondo-neto-lista', card);
-	await page.goto(`/admin/entradas/${EVENT}`);
+	// Pestaña Ventas de la ficha: la tabla del Fondo, con el neto en el pie.
+	await page.goto(`/admin/eventos/${EVENT}/ventas`);
 	const summary = page.locator('table.summary');
 	await expect(summary).toContainText('Aportes al fondo');
-	await expect(summary.locator('thead')).toContainText('Neto del fondo');
+	await expect(summary.locator('tfoot')).toContainText('Neto del fondo');
 	await expect(summary.locator('tfoot .net')).toHaveText(netText);
 	await shots(page, '10-admin-fondo-neto-evento', summary);
 });
@@ -754,7 +755,7 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
 	const ticketUrl = page.url();
 
-	await page.goto(`/admin/entradas/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
 	const order = page.locator('.order', { hasText: buyer.email });
 	await order.getByText('Reembolsar…').click();
 	const panel = order.locator('.refund-panel');
@@ -765,7 +766,7 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await expect(page.getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
 
 	// Otra vez (otra pestaña): no hace nada.
-	const again = await page.request.post(`/admin/entradas/${EVENT}?/refund`, {
+	const again = await page.request.post(`/admin/eventos/${EVENT}/ordenes?/refund`, {
 		form: { order: orderId ?? '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
