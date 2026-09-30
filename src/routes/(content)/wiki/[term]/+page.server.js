@@ -8,16 +8,27 @@ export async function load({ params }) {
 	let term = '';
 	/** @type {string[]} */
 	let children = [];
+	/** @type {Omit<ProcessedPost, 'content'>|{}} */
+	let post = {};
 	try {
-		const wiki = (await fetchPost('wiki', params.term, true)).meta.wiki;
+		// The content component can't be serialized, so +page.js loads it on its own.
+		// eslint-disable-next-line no-unused-vars
+		const { content, ...rest } = await fetchPost('wiki', params.term);
+		post = rest;
+		const wiki = rest.meta.wiki;
 		term = wiki ?? '';
 		children = tagManager.get(wiki ?? '')?.getAllChildren() ?? [];
 	} catch (e) {
-		// no wiki entry: the page falls back to the tag of the same name
+		// no wiki entry: the page falls back to the tag of the same name (see +page.js)
 		term = tagManager.get(params.term)?.id ?? '';
 	}
 	const posts = await fetchMarkdownPosts();
-	return currentRelated(
-		posts.filter((p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c)))
-	);
+	return {
+		...post,
+		...currentRelated(
+			posts.filter(
+				(p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c))
+			)
+		)
+	};
 }

@@ -4,8 +4,8 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { processContent, relatedPostsFor } from '$lib/utils';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { addMentionPronouns } from '$lib/utils/mentions';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -134,7 +134,7 @@
 			</p>
 		</div>
 	{/if}
-	<div class="content" use:processContent>
+	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<svelte:component this={data.content} />
 		{#if data.meta.link}
 		<a href={data.meta.link} target="_blank" class="cta"

@@ -1,13 +1,12 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { relatedPostsFor } from '$lib/utils';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { processContent } from '$lib/utils';
 	import { TIMEZONE } from '$lib/utils/dates.js';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
@@ -131,7 +130,7 @@
 			{/if}
 		</div>
 	{/if}
-	<div class="content" use:processContent>
+	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<svelte:component this={data.content} />
 	</div>
 	{#if data.meta.tags?.includes('KinkyVibe')}
