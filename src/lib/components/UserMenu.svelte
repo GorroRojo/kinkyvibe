@@ -13,21 +13,15 @@
 	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
 	$: eventSlug = $page.url.pathname.match(/^\/calendario\/([^/]+)\/?$/)?.[1];
 	/**
-	 *
+	 * `user.admin` comes from the root layout load (ADMINS in $lib/server/auth.js). It only
+	 * decides which links to show: every admin page and action checks on the server.
 	 * @param {string} token
 	 * @param {string} username
 	 * @returns {boolean}
 	 */
+	// eslint-disable-next-line no-unused-vars
 	function isAdmin(token, username) {
-		return ['GorroRojo', 'Tallarines333', 'VelvetVoid'].includes(username);
-		// TODO make it read it from github
-		// try {
-		// 	await ghGet(`repos/GorroRojo/kinkyvibe/collaborators/${username}}`, token)
-		// } catch (e) {
-		// 	console.log(e)
-		// 	return false
-		// }
-		// return true
+		return user.admin === true;
 	}
 	let admin = isAdmin('', user.login);
 </script>

@@ -1,0 +1,3 @@
+# Per-machine Claude Code files: agent worktrees and personal settings stay out of the repo.
+worktrees/
+settings.local.json
