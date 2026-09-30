@@ -1,11 +1,12 @@
 <script>
 	/**
-	 * Pestañas como links (cada una es una URL). En el celu se deslizan de costado.
-	 * Props: `tabs`: { href, label, count?, soon? }[]; `current` (opcional): el href activo. Si no se
-	 * pasa, se marca la que coincide con la URL actual.
+	 * Pestañas como links (cada una es una URL), con el estilo del menú del sitio: rosas en negrita
+	 * y la actual en una tarjeta blanca con texto violeta. En el celu se deslizan de costado.
+	 * Props: `tabs`: { href, label, count?, soon?, icon? }[] (`icon`: componente de Lucide,
+	 * opcional); `current` (opcional): el href activo. Si no se pasa, se usa la URL actual.
 	 */
 	import { page } from '$app/stores';
-	/** @type {{ href: string, label: string, count?: number, soon?: boolean }[]} */
+	/** @type {{ href: string, label: string, count?: number, soon?: boolean, icon?: any }[]} */
 	export let tabs = [];
 	/** @type {string | undefined} */
 	export let current = undefined;
@@ -15,14 +16,24 @@
 <nav class="tabs" aria-label="Pestañas">
 	{#each tabs as tab (tab.href)}
 		{#if tab.soon}
-			<span class="tab off" aria-disabled="true" title="Próximamente">{tab.label}</span>
+			<span class="tab off" aria-disabled="true" title="Próximamente"
+				>{#if tab.icon}<svelte:component
+						this={tab.icon}
+						size={16}
+						aria-hidden="true"
+					/>{/if}{tab.label}</span
+			>
 		{:else}
 			<a
 				class="tab"
 				class:on={active === tab.href}
 				href={tab.href}
 				aria-current={active === tab.href ? 'page' : undefined}
-				>{tab.label}{#if tab.count}<span class="count">{tab.count}</span>{/if}</a
+				>{#if tab.icon}<svelte:component
+						this={tab.icon}
+						size={16}
+						aria-hidden="true"
+					/>{/if}{tab.label}{#if tab.count}<span class="count">{tab.count}</span>{/if}</a
 			>
 		{/if}
 	{/each}
@@ -31,29 +42,34 @@
 <style>
 	.tabs {
 		display: flex;
-		gap: 0.3rem;
-		border-bottom: 1px solid var(--line);
+		gap: 0.2rem;
 		overflow-x: auto;
 		scrollbar-width: thin;
 		margin-bottom: 1rem;
+		padding: 0.3rem 0.1rem;
 	}
 	.tab {
-		padding: 0.6rem 0.9rem;
-		border-bottom: 3px solid transparent;
+		padding: 0.5rem 0.9rem;
+		border-radius: var(--round);
 		font-weight: 700;
-		color: var(--muted);
+		color: var(--accent);
 		white-space: nowrap;
 		text-decoration: none;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35em;
 	}
+	a.tab:hover {
+		color: var(--accent);
+		background: color-mix(in srgb, var(--surface) 55%, transparent);
+	}
 	.tab.on {
-		color: var(--text);
-		border-color: var(--accent);
+		color: var(--link);
+		background: var(--surface);
+		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
 	}
 	.tab.off {
-		opacity: 0.55;
+		color: var(--muted);
 		font-weight: 400;
 	}
 	.count {

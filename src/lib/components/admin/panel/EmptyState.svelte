@@ -1,9 +1,14 @@
 <script>
 	/**
-	 * Lista vacía, con un emoji, un título y un texto. Slot default: acciones (botones).
-	 * Props: `emoji` (default '🌱'), `title`, `text`.
+	 * Lista vacía: un ícono, un título y un texto. Slot default: acciones (botones).
+	 * Props: `icon` (componente de Lucide, default Inbox), `title`, `text`,
+	 * `emoji` (opcional: si se pasa, se muestra en vez del ícono).
 	 */
-	export let emoji = '🌱';
+	import { Inbox } from '@lucide/svelte';
+	/** @type {any} */
+	export let icon = Inbox;
+	/** @type {string} */
+	export let emoji = '';
 	/** @type {string} */
 	export let title;
 	/** @type {string} */
@@ -11,7 +16,13 @@
 </script>
 
 <div class="empty">
-	<span class="emoji" aria-hidden="true">{emoji}</span>
+	<span class="ico" aria-hidden="true"
+		>{#if emoji}{emoji}{:else}<svelte:component
+				this={icon}
+				size={36}
+				strokeWidth={1.75}
+			/>{/if}</span
+	>
 	<b>{title}</b>
 	{#if text}<p>{text}</p>{/if}
 	{#if $$slots.default}<div class="actions"><slot /></div>{/if}
@@ -27,8 +38,11 @@
 		padding: 1.5rem 1rem;
 		color: var(--text);
 	}
-	.emoji {
+	.ico {
 		font-size: 2rem;
+		color: var(--accent);
+		display: grid;
+		place-items: center;
 	}
 	p {
 		margin: 0;
