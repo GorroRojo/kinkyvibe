@@ -1,3 +1,4 @@
+import { isPreviewDeploy } from '$lib/server/deploy.js';
 import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
@@ -60,4 +61,16 @@ export async function handle({ event, resolve }) {
  */
 async function getUser(token) {
 	return await ghGet('user', token);
+}
+
+/**
+ * SOLO rama demo (no se mergea): en un preview, el mensaje del error llega a la página de error
+ * para poder diagnosticar sin acceso a los logs de Cloudflare. En producción, el mensaje genérico.
+ * @type {import('@sveltejs/kit').HandleServerError}
+ */
+export function handleError({ error, message }) {
+	console.error(error);
+	if (!isPreviewDeploy()) return { message };
+	const e = /** @type {any} */ (error);
+	return { message: `${message}: ${e?.message ?? e}`.slice(0, 500) };
 }
