@@ -42,15 +42,37 @@ export function wikiLinksToMarkdown(md) {
 }
 
 /**
+ * Drops `<script>` / `<style>` blocks (mdsvex imports) for the preview, without regular
+ * expressions: finds the opening tag (any case), then its closing tag and the `>` that ends it
+ * (so `</script >` or `</script\n foo>` count), and cuts that stretch; an unclosed block is cut
+ * to the end. Starts over after each cut, so pieces can't reassemble into a new tag
+ * (`<scr<script></script>ipt>`). Only a first pass: the rendered HTML still goes through
+ * `sanitizePreview` before `{@html}`.
+ * @param {string} text
+ */
+export function stripScriptAndStyle(text) {
+	let out = text;
+	for (;;) {
+		const lower = out.toLowerCase();
+		const starts = ['<script', '<style']
+			.map((tag) => ({ tag, at: lower.indexOf(tag) }))
+			.filter((s) => s.at >= 0)
+			.sort((a, b) => a.at - b.at);
+		if (!starts.length) return out;
+		const { tag, at } = starts[0];
+		const close = lower.indexOf('</' + tag.slice(1), at);
+		const gt = close < 0 ? -1 : lower.indexOf('>', close);
+		out = gt < 0 ? out.slice(0, at) : out.slice(0, at) + out.slice(gt + 1);
+	}
+}
+
+/**
  * Markdown body → HTML for the preview (not sanitized yet, see sanitizePreview).
  * @param {string} body
  */
 export function renderPreviewHtml(body) {
 	const md = wikiLinksToMarkdown(
-		String(body ?? '')
-			.replace(/\r\n?/g, '\n')
-			.replace(/<script[\s\S]*?<\/script>/gi, '')
-			.replace(/<style[\s\S]*?<\/style>/gi, '')
+		stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n'))
 	);
 	return micromark(md, {
 		allowDangerousHtml: true,
