@@ -1,6 +1,18 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { parseDate, render, sortByPublished } from './sitemap.js';
 import { GET } from './+server.js';
+
+// Compilar los ~600 posts reales tardaba ~20 s. Acá alcanzan unos de muestra; el sitemap real
+// (prerenderizado en el build) lo revisa tests/smoke.spec.js.
+vi.mock('$lib/utils', () => ({
+	fetchMarkdownPosts: async (/** @type {boolean} */ wiki) =>
+		wiki
+			? [{ path: '/wiki/BDSM', meta: {} }]
+			: [
+					{ path: '/calendario/fiesta', meta: { published_date: '2026-09-29Z-03:00' } },
+					{ path: '/material/sin-fecha', meta: {} }
+				]
+}));
 
 /** @param {string} path @param {Record<string, any>} meta */
 const post = (path, meta = {}) => /** @type {ProcessedPost} */ ({ path, meta });
@@ -41,13 +53,14 @@ describe('sitemap helpers', () => {
 });
 
 describe('GET /sitemap.xml', () => {
-	// compiles every markdown post, which takes a while the first time
-	test('lista los posts y las entradas de la Kinkipedia', { timeout: 120_000 }, async () => {
+	test('lista los posts y las entradas de la Kinkipedia', async () => {
 		const res = await GET(/** @type {any} */ ({}));
 		expect(res.headers.get('Content-Type')).toBe('application/xml');
 		const xml = await res.text();
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/calendario</loc>');
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/wiki/BDSM</loc>');
+		expect(xml).toContain('<loc>https://kinkyvibe.ar/calendario/fiesta</loc>');
+		expect(xml).toContain('<loc>https://kinkyvibe.ar/material/sin-fecha</loc>');
 		expect(xml).not.toContain('Invalid Date');
 		expect(xml.match(/<url>/g)?.length).toBe(xml.match(/<\/url>/g)?.length);
 	});
