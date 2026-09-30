@@ -15,12 +15,52 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 
 	export let data;
 	export let form;
 
 	/** @type {string | null} */
 	let busy = null;
+	/** @type {OverrideDialog} */
+	let overrideDialog;
+
+	/**
+	 * "Confirmar pago": si confirmar pasa el cupo (llegó tarde y los lugares ya se ocuparon), el
+	 * servidor contesta `needsConfirmation`; se pregunta en la página y, si le admin confirma, se
+	 * reenvía con la clave en `override`.
+	 * @param {string} id
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const confirmPayment =
+		(id) =>
+		({ formElement }) => {
+			busy = id;
+			return async ({ result, update }) => {
+				// La clave vale para un solo envío.
+				formElement.querySelector('input[name=override]')?.remove();
+				const needs =
+					result.type === 'failure'
+						? /** @type {any} */ (result.data)?.transfer?.needsConfirmation
+						: null;
+				if (needs) {
+					busy = null;
+					const key = await overrideDialog.ask(needs, {
+						title: 'Confirmar esta transferencia pasa el cupo'
+					});
+					if (!key) return;
+					const input = document.createElement('input');
+					input.type = 'hidden';
+					input.name = 'override';
+					input.value = key;
+					formElement.append(input);
+					formElement.requestSubmit();
+					return;
+				}
+				await update();
+				busy = null;
+			};
+		};
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<any>[]} */
 	const columns = [
@@ -85,6 +125,19 @@
 
 	{#if form?.transfer}
 		<p class="kv-flash" class:bad={!form.transfer.ok} role="status">{form.transfer.message}</p>
+		{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
+			<!-- Sin JavaScript: la confirmación en la página. -->
+			<form class="kv-flash bad" method="POST" action="?/confirm">
+				{#each form.transfer.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
+				<input type="hidden" name="order" value={form.transfer.order} />
+				<button
+					class="kv-btn small"
+					type="submit"
+					name="override"
+					value={form.transfer.needsConfirmation.key}>Sí, confirmar igual</button
+				>
+			</form>
+		{/if}
 	{/if}
 
 	<Card title="Esperan comprobante ({data.pending.length})">
@@ -119,17 +172,7 @@
 						</div>
 					</div>
 					<div class="buttons">
-						<form
-							method="POST"
-							action="?/confirm"
-							use:enhance={() => {
-								busy = o.id;
-								return async ({ update }) => {
-									await update();
-									busy = null;
-								};
-							}}
-						>
+						<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
 							<input type="hidden" name="order" value={o.id} />
 							<button class="kv-btn" type="submit" disabled={busy === o.id}>
 								<Check size={16} aria-hidden="true" /> Confirmar pago
@@ -161,7 +204,8 @@
 	{#if data.expired.length}
 		<Card title="Vencidas en los últimos 7 días ({data.expired.length})">
 			<p class="kv-note">
-				Si el pago llegó tarde, se puede confirmar igual mientras quede cupo. Si no va a llegar,
+				Si el pago llegó tarde, se puede confirmar igual. Si los lugares ya se ocuparon, te avisamos
+				cuánto se pasa del cupo y podés confirmarla igual (queda en el registro). Si no va a llegar,
 				cancelala para que no quede dando vueltas.
 			</p>
 			<ul class="list">
@@ -182,9 +226,11 @@
 							</div>
 						</div>
 						<div class="buttons">
-							<form method="POST" action="?/confirm" use:enhance>
+							<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
 								<input type="hidden" name="order" value={o.id} />
-								<button class="kv-btn ghost" type="submit">Confirmar si hay cupo</button>
+								<button class="kv-btn ghost" type="submit" disabled={busy === o.id}
+									>Confirmar pago</button
+								>
 							</form>
 							<form
 								method="POST"
@@ -203,6 +249,8 @@
 		</Card>
 	{/if}
 </div>
+
+<OverrideDialog bind:this={overrideDialog} confirmLabel="Sí, confirmar igual" />
 
 <style>
 	.filters {

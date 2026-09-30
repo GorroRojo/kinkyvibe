@@ -5,10 +5,21 @@
  * deja el mismo registro de actividad (`transfer.confirm` / `transfer.cancel`).
  *
  * Quien llama ya hizo `requireAdmin`: acá se recibe el login de le admin.
+ *
+ * Una transferencia que llegó tarde (reserva vencida) cuando los lugares ya se ocuparon pasa el
+ * cupo: le admin la puede confirmar igual, pero primero se contesta `needsConfirmation` (con
+ * cuánto se pasa) y la página pregunta con un diálogo; si confirma, reenvía con `override` (la
+ * clave de exactamente ese límite; ver tickets/overrides.js). Queda en el registro.
  */
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { cancelTransfer, confirmTransfer, getOrder } from '$lib/server/tickets/orders.js';
+import {
+	cancelTransfer,
+	confirmTransfer,
+	getOrder,
+	transferLimits
+} from '$lib/server/tickets/orders.js';
+import { checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -17,7 +28,9 @@ import { orderReference } from '$lib/utils/tickets.js';
 
 /**
  * @typedef {{ ok: boolean, status: number, message: string, order?: Order | null,
- *   tickets?: Ticket[], slug?: string }} TransferActionResult
+ *   tickets?: Ticket[], slug?: string,
+ *   needsConfirmation?: import('$lib/server/tickets/overrides.js').NeedsConfirmation
+ * }} TransferActionResult
  */
 
 /**
@@ -30,11 +43,20 @@ import { orderReference } from '$lib/utils/tickets.js';
  *   by: string,
  *   orderId: string,
  *   sendMail?: (order: Order, tickets: Ticket[]) => Promise<unknown>,
+ *   override?: string,
  *   now?: number
- * }} input
+ * }} input `override`: la clave que mandó el diálogo de confirmación (`readOverride`)
  * @returns {Promise<TransferActionResult>}
  */
-export async function confirmTransferFromPanel({ db, locals, by, orderId, sendMail, now }) {
+export async function confirmTransferFromPanel({
+	db,
+	locals,
+	by,
+	orderId,
+	sendMail,
+	override = '',
+	now
+}) {
 	const order = await getOrder(db, orderId);
 	if (!order || order.payment_method !== 'transferencia') {
 		return { ok: false, status: 404, message: 'No encontramos esa transferencia.' };
@@ -49,12 +71,23 @@ export async function confirmTransferFromPanel({ db, locals, by, orderId, sendMa
 			message: `No encontramos el tipo de entrada de ${ref} (¿el evento dejó de vender entradas?).`
 		};
 	}
+	const at = now ?? Date.now();
+	/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
+	const ask = (needsConfirmation) => ({
+		ok: false,
+		status: 409,
+		message: `Para confirmar ${ref} hay que pasar el cupo: confirmalo en el aviso.`,
+		needsConfirmation
+	});
+	const check = checkOverride(await transferLimits(db, { order, type, now: at }), override);
+	if (!check.ok) return ask(check.needsConfirmation);
 	const r = await confirmTransfer(db, {
 		orderId: order.id,
 		eventSlug: order.event_slug,
 		capacity: type.capacity,
 		by,
-		...(now ? { now } : {})
+		override: check.override,
+		now: at
 	});
 	if (r.result === 'confirmed' && r.order) {
 		await logAdminAction(db, locals, {
@@ -62,7 +95,18 @@ export async function confirmTransferFromPanel({ db, locals, by, orderId, sendMa
 			targetType: 'order',
 			targetId: order.id,
 			summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
-			detail: { event: order.event_slug, tickets: r.tickets.length, total: r.order.total }
+			detail: {
+				event: order.event_slug,
+				tickets: r.tickets.length,
+				total: r.order.total,
+				...(check.limits.length ? { overrides: check.limits } : {})
+			}
+		});
+		await logOverride(db, locals, {
+			event: order.event_slug,
+			what: 'confirmación de transferencia',
+			orderId: order.id,
+			limits: check.limits
 		});
 		if (sendMail) await sendMail(r.order, r.tickets);
 		return {
@@ -80,6 +124,11 @@ export async function confirmTransferFromPanel({ db, locals, by, orderId, sendMa
 			status: 200,
 			message: `${ref} ya estaba confirmada (no se emitió nada de nuevo).`
 		};
+	}
+	if (r.result === 'no-capacity') {
+		// Se ocupó el último lugar entre el control y la confirmación: se vuelve a preguntar.
+		const again = checkOverride(await transferLimits(db, { order, type, now: at }), '');
+		if (!again.ok) return ask(again.needsConfirmation);
 	}
 	/** @type {Record<string, string>} */
 	const messages = {

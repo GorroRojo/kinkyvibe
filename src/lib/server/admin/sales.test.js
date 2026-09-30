@@ -192,6 +192,58 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		expect(await audit()).toEqual([{ action: 'transfer.confirm', target_id: o.id }]);
 	});
 
+	it('vencida y sin cupo: pide confirmar con cuánto se pasa; con la clave confirma y lo anota', async () => {
+		const late = await reserve('fiesta-a', { method: 'transferencia', quantity: 2 });
+		const after = NOW + TRANSFER_HOLD_MS + 1;
+		// Mientras tanto se ocuparon los 3 lugares.
+		await approve((await reserve('fiesta-a', { quantity: 3, now: after })).id);
+		const sendMail = vi.fn(async () => {});
+		const base = { db: t.db, locals, by: 'admin-prueba', orderId: late.id, sendMail, now: after };
+		const first = await confirmTransferFromPanel(base);
+		expect(first).toMatchObject({ ok: false, status: 409 });
+		expect(first.needsConfirmation?.limits).toEqual([
+			expect.objectContaining({ kind: 'capacity', capacity: 3, before: 3, after: 5, over: 2 })
+		]);
+		expect(first.needsConfirmation?.limits[0].message).toContain('quedarían 5 / 3');
+		// Un "sí" cualquiera no alcanza.
+		expect((await confirmTransferFromPanel({ ...base, override: 'si' })).status).toBe(409);
+		expect(sendMail).not.toHaveBeenCalled();
+		expect(await audit()).toEqual([]);
+
+		const r = await confirmTransferFromPanel({
+			...base,
+			override: first.needsConfirmation?.key
+		});
+		expect(r).toMatchObject({ ok: true, slug: 'fiesta-a' });
+		expect(r.tickets).toHaveLength(2);
+		expect(sendMail).toHaveBeenCalledTimes(1);
+		expect((await getCounts(t.db, 'fiesta-a', after)).get('general')?.sold).toBe(5);
+		expect(await audit()).toEqual([
+			{ action: 'transfer.confirm', target_id: late.id },
+			{ action: 'tickets.override', target_id: late.id }
+		]);
+		const row = await t.db
+			.prepare("SELECT summary FROM admin_audit WHERE action = 'tickets.override'")
+			.first();
+		expect(row?.summary).toBe(
+			'Pasó límites de entradas (confirmación de transferencia): cupo de «General» +2 (5 / 3)'
+		);
+	});
+
+	it('vencida con cupo: se confirma sin preguntar (como antes)', async () => {
+		const late = await reserve('fiesta-b', { method: 'transferencia', quantity: 1 });
+		const r = await confirmTransferFromPanel({
+			db: t.db,
+			locals,
+			by: 'admin-prueba',
+			orderId: late.id,
+			now: NOW + TRANSFER_HOLD_MS + 1
+		});
+		expect(r).toMatchObject({ ok: true });
+		expect(r.needsConfirmation).toBeUndefined();
+		expect(await audit()).toEqual([{ action: 'transfer.confirm', target_id: late.id }]);
+	});
+
 	it('cancela; una orden de Mercado Pago o inexistente no', async () => {
 		const o = await reserve('fiesta-b', { method: 'transferencia' });
 		const r = await cancelTransferFromPanel({ db: t.db, locals, by: 'x', orderId: o.id });

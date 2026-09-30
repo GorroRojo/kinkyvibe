@@ -11,6 +11,7 @@ import { listTransferInbox } from '$lib/server/admin/sales.js';
 import { cancelTransferFromPanel, confirmTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -75,18 +76,28 @@ export const actions = {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
 		const r = await confirmTransferFromPanel({
 			db,
 			locals,
 			by: admin.login,
-			orderId: orderIdOf(await request.formData()),
+			orderId: orderIdOf(form),
+			// Clave del diálogo "Esto pasa el cupo" (solo si le admin confirmó; ver overrides.js).
+			override: readOverride(form),
 			sendMail: (order, tickets) =>
 				inBackground(
 					sendOrderEmail({ db, order, tickets, origin: siteOrigin(url), fetch }),
 					platform
 				)
 		});
-		const body = { transfer: { ok: r.ok, message: r.message } };
+		const body = {
+			transfer: {
+				ok: r.ok,
+				message: r.message,
+				order: orderIdOf(form),
+				needsConfirmation: r.needsConfirmation ?? null
+			}
+		};
 		return r.ok ? body : fail(r.status, body);
 	},
 
