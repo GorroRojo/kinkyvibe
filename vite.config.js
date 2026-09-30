@@ -3,6 +3,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [sveltekit()],
+	// Rama del deploy de Cloudflare Pages ('' fuera de Pages); ver src/lib/server/deploy.js.
+	define: {
+		__DEPLOY_BRANCH__: JSON.stringify(process.env.CF_PAGES_BRANCH ?? '')
+	},
 	assetsInclude: ['**/*.odt'],
 	build: {
 		// never inline images as base64: $lib/utils maps every post image to its URL,
@@ -13,7 +17,7 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js']
 	},
 	optimizeDeps: {
-		exclude: ["svelte-codemirror-editor", "codemirror", "@codemirror/lang-markdown"]
+		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']
 	},
 	ssr: {
 		optimizeDeps: {

@@ -3,7 +3,8 @@
  *
  * Variables (ver docs/tickets.md): MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY,
  * TICKETS_FROM_EMAIL, TICKETS_REPLY_TO, TICKETS_CONTACT_EMAIL, SITE_URL, TICKETS_TRANSFER_INFO,
- * TICKETS_TRANSFER_HOLD_HOURS, TICKETS_MP_FEE_PERCENT. Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
+ * TICKETS_TRANSFER_HOLD_HOURS, TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
+ * mails desde un preview; ver emailGuard.js). Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
@@ -21,7 +22,9 @@ import {
 	maskEmail,
 	sendWithResend
 } from './email.js';
+import { parseAllowlist, routeEmail } from './emailGuard.js';
 import { getEventTickets, listTicketedEvents } from './events.js';
+import { isPreviewDeploy } from '../deploy.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
@@ -247,7 +250,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
- * en producción loguea un error (`failed`).
+ * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -271,8 +274,26 @@ async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = 
 		console.error(`[tickets] falta RESEND_API_KEY: no se mandó "${message.subject}"`);
 		return 'failed';
 	}
+	const route = routeEmail({
+		to,
+		subject: message.subject,
+		preview: isPreviewDeploy(),
+		allowlist: parseAllowlist(env.EMAIL_ALLOWLIST)
+	});
+	if (!route) {
+		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
+		return 'simulated';
+	}
 	const { from, replyTo } = await emailSettings(db);
-	await sendWithResend({ fetch: fetchFn, apiKey, from, to, replyTo, message, idempotencyKey });
+	await sendWithResend({
+		fetch: fetchFn,
+		apiKey,
+		from,
+		to: route.to,
+		replyTo,
+		message: { ...message, subject: route.subject },
+		idempotencyKey
+	});
 	return 'sent';
 }
 
