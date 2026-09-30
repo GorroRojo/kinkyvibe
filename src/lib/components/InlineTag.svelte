@@ -6,17 +6,13 @@
 	export let tag;
 	/** @type string|undefined */
 	export let internalTag = undefined;
-	/** @type {(a:boolean,b:string)=>*}*/
-	let toggle = $togglePositiveTagFilterFn;
-	let checked = $filteredTags?.includes(tag) ?? false;
-	const aliasedTag = internalTag ?? tag;
-
-	togglePositiveTagFilterFn.subscribe((f) => (toggle = f));
-	filteredTags.subscribe((f) => (checked = f.includes(aliasedTag)));
+	$: aliasedTag = internalTag ?? tag;
+	// `$store` instead of manual .subscribe(): Svelte unsubscribes when the chip is destroyed
+	$: checked = $filteredTags?.includes(aliasedTag) ?? false;
 </script>
 
 <Tag
-	onInput={(/**@type {*} */ evt) => toggle(evt.target?.checked, aliasedTag)}
+	onInput={(/**@type {*} */ evt) => $togglePositiveTagFilterFn(evt.target?.checked, aliasedTag)}
 	{tag}
 	isCheckbox
 	{checked}

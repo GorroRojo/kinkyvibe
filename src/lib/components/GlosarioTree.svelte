@@ -6,10 +6,7 @@
 <script>
 	export let root = 'root';
 	/**@type TagID[]*/
-	let items = [];
-	wikiTagManager.subscribe((wtm) => {
-		items = wtm.get(root).children ?? [];
-	});
+	$: items = $wikiTagManager.get(root).children ?? [];
 </script>
 {#each items as item}
 	<GlosarioItem {item} />
