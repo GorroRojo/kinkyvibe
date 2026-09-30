@@ -464,10 +464,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: 2em;
-		padding: 0.55rem 1rem;
-		color: var(--muted);
+		border: 1px solid var(--field, var(--1-light));
+		border-radius: 3em;
+		padding: 0.5rem 1rem;
+		color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
 		text-align: left;
 		cursor: text;
 		&.compact {
@@ -475,6 +475,7 @@
 		}
 		:global(svg) {
 			flex: none;
+			color: var(--accent);
 		}
 	}
 	.label {
@@ -497,7 +498,7 @@
 	dialog {
 		border: 0;
 		padding: 0;
-		border-radius: 1rem;
+		border-radius: var(--card-round, 1.25rem);
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.25);
