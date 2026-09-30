@@ -309,7 +309,7 @@
 
 	{#if data.mock}
 		<p class="mock">
-			🧪 Modo de prueba (ADMIN_DEV_MOCK): no se escribe nada en GitHub, los archivos se guardan en
+			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos se guardan en
 			una carpeta temporal.
 		</p>
 	{/if}
