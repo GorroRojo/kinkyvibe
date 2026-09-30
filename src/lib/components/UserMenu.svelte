@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { CalendarCog, LayoutDashboard, LogOut, SquarePen } from '@lucide/svelte';
 	import { contentEditLink, eventPanelLink } from '$lib/admin/nav.js';
+	import { logoutHref } from '$lib/utils/authLinks.js';
 	/**
 	 * `user.admin` viene del load del layout raíz (ADMINS en $lib/server/auth.js, la única lista).
 	 * Solo decide qué links mostrar: cada página y acción de admin controla en el servidor.
@@ -54,7 +55,7 @@
 			>
 		{/if}
 		{/if}
-		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}
+		<a href={logoutHref($page.url)} class="menuitem" use:melt={$item}
 			><LogOut {...icon} /><span>Cerrar sesión</span></a
 		>
 	</div>

@@ -9,6 +9,7 @@
 	 * - `open()` exportada, para abrirlo desde afuera (bind:this).
 	 */
 	import { onMount } from 'svelte';
+	import { Search } from '@lucide/svelte';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
@@ -45,7 +46,7 @@
 </script>
 
 <button type="button" class="search" class:compact on:click={open} aria-haspopup="dialog">
-	<span aria-hidden="true">🔎</span>
+	<Search size={18} aria-hidden="true" />
 	<span class="label">{compact ? 'Buscar o hacer…' : 'Buscar personas, eventos o acciones…'}</span>
 	{#if !compact}<kbd>/</kbd>{/if}
 </button>
@@ -58,7 +59,7 @@
 >
 	{#if isOpen}
 		<div class="box">
-			<p><b>🔎 El buscador llega pronto.</b></p>
+			<p class="title"><Search size={20} aria-hidden="true" /><b>El buscador llega pronto.</b></p>
 			<p class="muted">
 				Vas a poder buscar eventos, personas, compras (KV-…) y acciones como "cargar evento" desde
 				acá.
@@ -77,10 +78,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: 2em;
-		padding: 0.55rem 1rem;
-		color: var(--muted);
+		border: 1px solid var(--field, var(--1-light));
+		border-radius: 3em;
+		padding: 0.5rem 1rem;
+		color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
 		text-align: left;
 		cursor: text;
 		&.compact {
@@ -104,7 +105,7 @@
 	dialog {
 		border: 0;
 		padding: 0;
-		border-radius: 1rem;
+		border-radius: var(--card-round, 1.25rem);
 		background: var(--surface);
 		color: var(--text);
 		width: min(36rem, calc(100% - 32px));
@@ -113,6 +114,18 @@
 		&::backdrop {
 			background: var(--scrim, rgba(30, 15, 40, 0.35));
 		}
+	}
+	.title {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		color: var(--accent);
+		b {
+			color: var(--text);
+		}
+	}
+	.search :global(svg) {
+		color: var(--accent);
 	}
 	.box {
 		padding: 1.1rem 1.2rem;
