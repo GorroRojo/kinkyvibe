@@ -210,7 +210,7 @@
 	}
 	.note,
 	small {
-		color: #555;
+		color: var(--muted, #555);
 		font-size: var(--step--1);
 	}
 	.flash {
@@ -219,7 +219,7 @@
 		border-radius: 0.5em;
 	}
 	.flash.error {
-		background: hsl(0, 90%, 90%);
+		background: var(--bad-bg, hsl(0, 90%, 90%));
 	}
 	.codes {
 		list-style: none;
@@ -229,14 +229,14 @@
 		gap: 0.6em;
 	}
 	.code {
-		background: white;
+		background: var(--surface, white);
 		border-radius: 0.7em;
 		padding: 0.7em 0.9em;
 		outline: 2px solid var(--3);
 	}
 	.code.inactive {
 		outline-color: #ccc;
-		background: #fafafa;
+		background: var(--surface-2, #fafafa);
 	}
 	.head {
 		display: flex;
@@ -270,7 +270,7 @@
 		margin-top: 2em;
 		padding: 0.8em 1em 1em;
 		border-radius: 0.8em;
-		background: color-mix(in srgb, var(--2) 6%, white);
+		background: color-mix(in srgb, var(--2) 6%, var(--surface, white));
 	}
 	.new form {
 		display: flex;
@@ -306,7 +306,7 @@
 		padding: 0.5em 0.7em;
 		border-radius: 0.5em;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
+		background: var(--surface, white);
 		min-height: 2.6em;
 	}
 	button {
@@ -321,12 +321,12 @@
 		cursor: pointer;
 	}
 	button.secondary {
-		background: white;
+		background: var(--surface, white);
 		color: var(--1-dark);
 		outline: 2px solid var(--1);
 	}
 	.error {
-		color: hsl(0, 75%, 40%);
+		color: var(--bad, hsl(0, 75%, 40%));
 	}
 	@media (max-width: 500px) {
 		.row {

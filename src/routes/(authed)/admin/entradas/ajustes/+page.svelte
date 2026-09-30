@@ -291,7 +291,7 @@
 		margin: 0;
 		padding: 0.8em 1em 1em;
 		border-radius: 0.8em;
-		background: white;
+		background: var(--surface, white);
 		outline: 2px solid color-mix(in srgb, var(--2) 30%, transparent);
 		display: flex;
 		flex-direction: column;
@@ -322,7 +322,7 @@
 	}
 	.note {
 		font-size: var(--step--1);
-		color: #555;
+		color: var(--muted, #555);
 		margin: 0;
 	}
 	button {
@@ -343,7 +343,7 @@
 		border-radius: 0.5em;
 	}
 	.flash.error {
-		background: hsl(0, 90%, 90%);
+		background: var(--bad-bg, hsl(0, 90%, 90%));
 	}
 	.reminder {
 		display: flex;
@@ -351,7 +351,7 @@
 		gap: 0.3em;
 		padding: 0.5em 0.7em;
 		border-radius: 0.6em;
-		background: color-mix(in srgb, var(--2) 6%, white);
+		background: color-mix(in srgb, var(--2) 6%, var(--surface, white));
 	}
 	.reminder.new {
 		opacity: 0.85;
@@ -370,7 +370,7 @@
 		min-height: 2.8em;
 		border-radius: 0.5em;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
+		background: var(--surface, white);
 	}
 	.check {
 		display: flex;
@@ -394,7 +394,7 @@
 		font-size: var(--step-1);
 	}
 	.field-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--bad, hsl(0, 75%, 40%));
 		font-size: var(--step--1);
 	}
 </style>

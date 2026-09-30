@@ -69,13 +69,13 @@
 		margin: 0.3em 0;
 		padding: 0.6em 0.8em;
 		border-radius: 0.8em;
-		background: var(--3-light, #f3eef6);
+		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
 		gap: 0.4em;
 		min-width: 0;
 		&.invalid {
-			outline: 2px solid #c62828;
+			outline: 2px solid var(--bad, #c62828);
 		}
 	}
 	legend {
@@ -91,7 +91,7 @@
 		align-items: flex-start;
 		padding: 0.4em 0.6em;
 		border-radius: 0.6em;
-		background: white;
+		background: var(--surface, white);
 		cursor: pointer;
 		outline: 2px solid transparent;
 		&.chosen {
@@ -116,6 +116,6 @@
 	}
 	.error {
 		margin: 0;
-		color: #c62828;
+		color: var(--bad, #c62828);
 	}
 </style>

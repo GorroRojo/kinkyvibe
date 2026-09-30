@@ -109,8 +109,8 @@
 <style>
 	.review-badge {
 		display: inline-block;
-		background: #fff3e0;
-		color: #8a3b00;
+		background: var(--warn-bg, #fff3e0);
+		color: var(--warn, #8a3b00);
 		border-radius: 1em;
 		padding: 0.1em 0.7em;
 		font-weight: bold;
@@ -142,7 +142,7 @@
 		outline: 2px solid var(--2);
 		color: inherit;
 		text-decoration: none;
-		background: white;
+		background: var(--surface, white);
 	}
 	.event:hover {
 		outline-width: 4px;
@@ -153,7 +153,7 @@
 		font-size: var(--step-1);
 	}
 	.date {
-		color: #555;
+		color: var(--muted, #555);
 		font-size: var(--step--1);
 	}
 	table {
@@ -166,7 +166,7 @@
 	td {
 		text-align: left;
 		padding: 0.3em 0.4em;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid var(--line, #eee);
 	}
 	td:not(:first-child),
 	th:not(:first-child) {
@@ -177,7 +177,7 @@
 		font-weight: bold;
 	}
 	.over {
-		background: hsl(0, 90%, 92%);
+		background: var(--bad-bg, hsl(0, 90%, 92%));
 	}
 	.links {
 		display: flex;
@@ -185,9 +185,9 @@
 		gap: 0.4em 1.2em;
 	}
 	.pos {
-		color: hsl(145, 70%, 26%);
+		color: var(--ok, hsl(145, 70%, 26%));
 	}
 	.neg {
-		color: hsl(0, 75%, 40%);
+		color: var(--bad, hsl(0, 75%, 40%));
 	}
 </style>

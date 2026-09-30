@@ -1,0 +1,210 @@
+// Tokens y estilos base del panel de admin (/admin/**). Lo importa
+// src/routes/(authed)/admin/+layout.svelte; todo está dentro de `.kv-panel`, así que no toca el
+// sitio público.
+//
+// Usá los alias semánticos en vez de colores sueltos, así las páginas se ven bien en claro y en
+// oscuro sin hacer nada más:
+//   --bg        fondo de la página            --surface   tarjetas, menús, inputs
+//   --surface-2 fondo de filas hover, chips   --line      bordes y separadores
+//   --text      texto                         --muted     texto secundario
+//   --accent    rosa (botones principales)    --accent-ink texto sobre --accent
+//   --link      links y ítem activo           --link-bg   fondo del ítem activo
+//   --ok / --ok-bg      bien (verde)          --warn / --warn-bg  pendiente (amarillo)
+//   --bad / --bad-bg    error (rosa oscuro)   --info / --info-bg  info (violeta)
+//   --counter / --counter-ink  contadores amarillos de la barra lateral
+//   --shadow    sombra de las tarjetas
+//
+// Modo oscuro: sigue a `prefers-color-scheme`, salvo que la persona elija uno con el botón del
+// panel (se guarda en localStorage `kv-panel-theme` y se pone como `data-theme` en <html> antes de
+// pintar, ver el layout).
+
+@mixin light {
+	color-scheme: light;
+	--bg: #eeecf0;
+	--surface: #fff;
+	--surface-2: #f6f3f9;
+	--line: #e4e0e8;
+	--text: #2f2a33;
+	--muted: #6b6470;
+	--accent: var(--1);
+	--accent-dark: var(--1-dark);
+	--accent-ink: #fff;
+	--link: hsl(262, 90%, 45%);
+	--link-bg: hsl(262, 100%, 95%);
+	--ok: hsl(165, 84%, 26%);
+	--ok-bg: hsl(165, 70%, 92%);
+	--warn: hsl(40, 90%, 28%);
+	--warn-bg: hsl(50, 100%, 90%);
+	--bad: hsl(319, 100%, 38%);
+	--bad-bg: hsl(319, 100%, 95%);
+	--info: hsl(262, 90%, 45%);
+	--info-bg: hsl(262, 100%, 95%);
+	--counter: var(--4);
+	--counter-ink: #3a3000;
+	--bar-track: #efedf2;
+	--shadow: 0 0.1em 0.35em rgba(40, 20, 50, 0.09);
+	--scrim: rgba(30, 15, 40, 0.35);
+}
+
+@mixin dark {
+	color-scheme: dark;
+	--bg: #16121a;
+	--surface: #221c28;
+	--surface-2: #2c2533;
+	--line: #3a3242;
+	--text: #f1ecf4;
+	--muted: #a9a0b0;
+	--accent: hsl(319, 90%, 60%);
+	--accent-dark: hsl(319, 100%, 35%);
+	--accent-ink: #fff;
+	--link: hsl(262, 100%, 82%);
+	--link-bg: hsl(262, 40%, 26%);
+	--ok: hsl(165, 70%, 62%);
+	--ok-bg: hsl(165, 60%, 16%);
+	--warn: hsl(50, 100%, 70%);
+	--warn-bg: hsl(45, 60%, 17%);
+	--bad: hsl(330, 100%, 78%);
+	--bad-bg: hsl(325, 55%, 20%);
+	--info: hsl(262, 100%, 82%);
+	--info-bg: hsl(262, 40%, 22%);
+	--counter: var(--4);
+	--counter-ink: #3a3000;
+	--bar-track: #332b3a;
+	--shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
+	--scrim: rgba(0, 0, 0, 0.55);
+	// Las páginas viejas usan los tonos claros de la paleta como fondo; en oscuro se apagan.
+	--1-light: hsl(319, 60%, 45%);
+	--2-light: hsl(262, 50%, 45%);
+	--3-light: hsl(165, 55%, 22%);
+	--4-light: hsl(45, 60%, 22%);
+	--1-dark: hsl(319, 100%, 78%);
+	--2-dark: hsl(262, 100%, 82%);
+	--3-dark: hsl(165, 70%, 62%);
+	--4-dark: hsl(50, 100%, 70%);
+}
+
+.kv-panel {
+	@include light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) .kv-panel {
+		@include dark;
+	}
+}
+:root[data-theme='dark'] .kv-panel {
+	@include dark;
+}
+
+.kv-panel {
+	background: var(--bg);
+	color: var(--text);
+	min-height: 100vh;
+	min-height: 100dvh;
+	font-size: 15px;
+	line-height: 1.4;
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+	:focus-visible {
+		outline: 2px solid var(--link);
+		outline-offset: 2px;
+	}
+	a {
+		color: inherit;
+		text-decoration-color: var(--accent);
+		&:hover {
+			color: var(--link);
+		}
+	}
+	h1,
+	h2,
+	h3 {
+		font-weight: 700;
+		text-wrap: balance;
+	}
+	.num {
+		font-variant-numeric: tabular-nums;
+	}
+	.muted {
+		color: var(--muted);
+	}
+
+	// Botones del panel: <a class="kv-btn"> o <button class="kv-btn">.
+	.kv-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35em;
+		background: var(--accent);
+		color: var(--accent-ink);
+		border: 0;
+		border-radius: 2em;
+		padding: 0.55rem 1.1rem;
+		font-weight: 700;
+		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
+		box-shadow: 0 0.15em 0 var(--accent-dark);
+		&:hover {
+			color: var(--accent-ink);
+			filter: brightness(1.05);
+		}
+		&:active {
+			transform: translateY(0.1em);
+			box-shadow: 0 0.05em 0 var(--accent-dark);
+		}
+		&.ghost {
+			background: var(--surface);
+			color: var(--text);
+			border: 1px solid var(--line);
+			box-shadow: none;
+			padding: 0.45rem 0.9rem;
+			&:hover {
+				background: var(--surface-2);
+			}
+		}
+		&:disabled {
+			opacity: 0.6;
+			cursor: wait;
+		}
+	}
+
+	// Tablas del panel: <div class="kv-table-wrap"><table class="kv-table">…
+	.kv-table-wrap {
+		overflow-x: auto;
+	}
+	.kv-table {
+		border-collapse: collapse;
+		width: 100%;
+		th,
+		td {
+			text-align: left;
+			padding: 0.5rem 0.6rem;
+			border-bottom: 1px solid var(--line);
+		}
+		th {
+			font-size: 0.72rem;
+			letter-spacing: 0.07em;
+			text-transform: uppercase;
+			color: var(--muted);
+			font-weight: 700;
+		}
+		tbody tr:hover {
+			background: var(--surface-2);
+		}
+		.r {
+			text-align: right;
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.kv-panel * {
+		transition: none !important;
+		animation: none !important;
+	}
+}
