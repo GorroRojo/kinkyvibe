@@ -65,6 +65,8 @@
 		"hast-util-heading-rank": "^2.1.1",
 		"hastscript": "^8.0.0",
 		"ics": "^3.2.0",
+		"micromark": "^3.2.0",
+		"micromark-extension-gfm": "^2.0.3",
 		"qrcode-generator": "^2.0.4",
 		"simple-icons": "^8.14.0",
 		"svelte-codemirror-editor": "^2.1.0",
