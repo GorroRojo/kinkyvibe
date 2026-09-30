@@ -357,7 +357,8 @@
 					</label>
 					<small
 						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
-						se puede «Vender en puerta».</small
+						se puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
+							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
 					>
 				{:else}
 					<small

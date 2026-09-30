@@ -18,6 +18,7 @@ import {
 	ticketWithBuyer
 } from './door.js';
 import { checkIn, normalizeTicketCode, reserveOrder, tokenByCode } from './orders.js';
+import { parseTicketConfig } from './config.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -44,7 +45,6 @@ function sell(o = {}) {
 	const quantity = o.quantity ?? 1;
 	return sellAtDoor(t.db, {
 		eventSlug: EVENT,
-		door: { on: true },
 		type: GENERAL,
 		quantity,
 		holders: Array.from({ length: quantity }, (_, i) => ({
@@ -174,15 +174,22 @@ describe('sellAtDoor', () => {
 		await expect(sell({ type: gorra, unitPrice: -1 })).rejects.toThrow(/Precio/);
 	});
 
-	it('solo vende si el evento tiene entradas en la puerta (puerta: true)', async () => {
-		expect(doorSalesOpen({ door: { on: true } })).toBe(true);
-		expect(doorSalesOpen({ door: { on: false } })).toBe(false);
-		// Evento online: no hay puerta.
-		expect(doorSalesOpen({ door: null })).toBe(false);
-		expect(doorSalesOpen(null)).toBe(false);
-		for (const door of [{ on: false }, null]) {
-			expect(await sell({ door })).toEqual({ ok: false, reason: 'no-door' });
-		}
+	it('puerta: sin la clave y con true vende; con false no (sin tocar la base)', async () => {
+		const door = (/** @type {Record<string, any>} */ meta) =>
+			/** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
+				parseTicketConfig({ start: '2026-10-02T21:00-03:00', tickets: [GENERAL], ...meta })
+			).door;
+		// Sin `puerta` (eventos de antes) y con `puerta: true`: se vende.
+		expect(doorSalesOpen({ door: door({}) })).toBe(true);
+		expect(doorSalesOpen({ door: door({ puerta: true }) })).toBe(true);
+		expect((await sell({ door: door({}) })).ok).toBe(true);
+		expect((await sell({ door: door({ puerta: true }) })).ok).toBe(true);
+		// Sin `door` en la llamada: como sin la clave.
+		expect((await sell()).ok).toBe(true);
+		await resetDB(t.db);
+		// `puerta: false`: no.
+		expect(doorSalesOpen({ door: door({ puerta: false }) })).toBe(false);
+		expect(await sell({ door: door({ puerta: false }) })).toEqual({ ok: false, reason: 'no-door' });
 		// Sin tocar la base: ninguna orden ni entrada.
 		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first()).toMatchObject({ n: 0 });
 		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM tickets').first()).toMatchObject({ n: 0 });
@@ -243,7 +250,6 @@ describe('applyQueuedCheckIns (sin conexión)', () => {
 		const ticket = await freshTicket();
 		const other = await sellAtDoor(t.db, {
 			eventSlug: 'otro-evento',
-			door: { on: true },
 			type: GENERAL,
 			quantity: 1,
 			holders: [{ name: 'Otra', pronouns: '' }],

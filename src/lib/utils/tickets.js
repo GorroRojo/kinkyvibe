@@ -50,13 +50,14 @@ export function leftText(n) {
 
 /**
  * Qué dice la página pública sobre las entradas en la puerta (`door` de la configuración:
- * `puerta` / `puerta_precio`). `null` en los eventos online (no hay puerta).
+ * `puerta` / `puerta_precio`). `null` (nada) en los eventos online y en los que no tienen
+ * `puerta` en el frontmatter (los de antes: se sigue vendiendo en la puerta, sin aviso).
  *
- * @param {{ on: boolean, price: string } | null | undefined} door
+ * @param {{ on: boolean, explicit?: boolean, price: string } | null | undefined} door
  * @returns {string | null}
  */
 export function doorText(door) {
-	if (!door) return null;
+	if (!door || !door.explicit) return null;
 	if (!door.on) return 'Solo anticipadas: no hay entradas en la puerta.';
 	return door.price
 		? `También hay entradas en la puerta: ${door.price}.`

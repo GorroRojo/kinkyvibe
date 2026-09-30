@@ -6,7 +6,7 @@
  * - `checkin`: valida un QR / link / código y marca el ingreso.
  * - `undo`: deshace un ingreso.
  * - `reveal`: DNI completo de quien compró (queda en el registro de actividad).
- * - `sell`: "Vender en puerta" (solo si el evento tiene `puerta: true`; ver `doorSalesOpen`).
+ * - `sell`: "Vender en puerta" (salvo en eventos con `puerta: false`; ver `doorSalesOpen`).
  * - `sync`: ingresos marcados sin conexión.
  */
 import { fail } from '@sveltejs/kit';
@@ -60,7 +60,7 @@ export async function load(event) {
 		login: admin.login,
 		counts,
 		fondoEnabled: config.fondoEnabled,
-		// "Vender en puerta" solo si el evento tiene entradas en la puerta (`puerta: true`).
+		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`).
 		doorSales: doorSalesOpen(config),
 		doorPrice: config.door?.price ?? '',
 		types: config.types.map((t) => {
@@ -199,7 +199,7 @@ export const actions = {
 				sale: {
 					ok: false,
 					message:
-						'Este evento no tiene entradas en la puerta. Se prende en el editor del evento, en Entradas.',
+						'Este evento dice «Solo anticipadas»: no hay entradas en la puerta. Se cambia en el editor del evento, en Entradas.',
 					tickets: []
 				}
 			});

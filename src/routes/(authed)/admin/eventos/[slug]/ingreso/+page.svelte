@@ -796,8 +796,8 @@
 				</button>
 			{:else}
 				<p class="no-door muted small">
-					Este evento no tiene entradas en la puerta (se prende en el editor del evento, en
-					Entradas).
+					Este evento dice «Solo anticipadas»: no hay entradas en la puerta (se cambia en el editor
+					del evento, en Entradas).
 				</p>
 			{/if}
 		</div>

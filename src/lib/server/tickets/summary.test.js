@@ -19,7 +19,7 @@ const view = (types) => ({
 	online: false,
 	fondoEnabled: false,
 	fondoPercent: null,
-	door: { on: true, price: '$ 12.000' },
+	door: { on: true, explicit: true, price: '$ 12.000' },
 	types: types.map((t, i) => ({
 		id: `t${i}`,
 		name: `Tipo ${i}`,
@@ -63,6 +63,10 @@ describe('summarizeTickets (botón "Comprar entradas")', () => {
 	});
 
 	it('pasa lo de la puerta', () => {
-		expect(summarizeTickets(view([{}])).door).toEqual({ on: true, price: '$ 12.000' });
+		expect(summarizeTickets(view([{}])).door).toEqual({
+			on: true,
+			explicit: true,
+			price: '$ 12.000'
+		});
 	});
 });

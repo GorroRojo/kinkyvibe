@@ -23,10 +23,10 @@
  *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
  * mp_fee_percent: 2      # opcional; si falta: /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT o 2 %
- * puerta: true           # opcional (eventos presenciales): también hay entradas en la puerta. Solo
- *                        # así el modo puerta del panel ofrece "Vender en puerta". Si falta o es
- *                        # false, la página del evento dice "Solo anticipadas".
- * puerta_precio: $ 12.000 en efectivo   # opcional: texto libre con el precio en la puerta
+ * puerta: true           # opcional (eventos presenciales): true = también hay entradas en la
+ *                        # puerta (la página lo dice); false = "Solo anticipadas" y el modo puerta
+ *                        # no vende. Si falta: se vende en la puerta y la página no dice nada.
+ * puerta_precio: $ 12.000 en efectivo   # opcional (con `puerta: true`): precio en la puerta
  * ```
  */
 
@@ -55,7 +55,7 @@
  *   opensAt: number | null,
  *   closesAt: number | null,
  *   online: boolean,
- *   door: { on: boolean, price: string } | null,
+ *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   reminders: boolean,
  *   status: string | undefined,
  *   title: string,
@@ -253,20 +253,26 @@ export function parseCapacity(raw, id) {
 export const DOOR_PRICE_MAX = 120;
 
 /**
- * `puerta` / `puerta_precio` del frontmatter.
+ * `puerta` / `puerta_precio` del frontmatter. Tres estados:
+ * - sin `puerta` (eventos de antes): se vende en la puerta (`on`) pero la página pública no dice
+ *   nada (`explicit: false`);
+ * - `puerta: true`: se vende y la página dice "También hay entradas en la puerta" (con el precio);
+ * - `puerta: false`: no se vende en la puerta y la página dice "Solo anticipadas".
+ * Cualquier otro valor cuenta como si faltara.
  *
  * @param {Record<string, any>} meta
- * @returns {{ on: boolean, price: string }}
+ * @returns {{ on: boolean, explicit: boolean, price: string }}
  */
 export function parseDoor(meta) {
-	const on = meta.puerta === true;
+	const explicit = typeof meta.puerta === 'boolean';
+	const on = meta.puerta !== false;
 	let price =
-		on && meta.puerta_precio !== undefined && meta.puerta_precio !== null
+		meta.puerta === true && meta.puerta_precio !== undefined && meta.puerta_precio !== null
 			? String(meta.puerta_precio).trim().slice(0, DOOR_PRICE_MAX)
 			: '';
 	// Solo un número ("12000"): se muestra como plata ("$ 12.000").
 	if (/^\d{1,9}$/.test(price)) price = formatARS(Number(price));
-	return { on, price };
+	return { on, explicit, price };
 }
 
 /**

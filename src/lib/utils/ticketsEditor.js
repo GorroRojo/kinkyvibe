@@ -117,7 +117,9 @@ export function isOnlineEvent(meta) {
  * @prop {'' | 'online' | 'presencial'} modalidad '' = automático
  * @prop {boolean} reminders
  * @prop {string} mpFee '' = el de Ajustes de venta
- * @prop {boolean} door hay entradas en la puerta (`puerta: true`; solo eventos presenciales)
+ * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
+ *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
+ * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
  * @prop {string} doorPrice precio en la puerta, texto libre ('' = no se muestra)
  */
 
@@ -224,7 +226,8 @@ export function readTicketsForm(meta) {
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null
 				? ''
 				: str(meta.mp_fee_percent),
-		door: meta?.puerta === true,
+		door: meta?.puerta !== false,
+		doorSet: typeof meta?.puerta === 'boolean',
 		doorPrice: str(meta?.puerta_precio)
 	};
 }
@@ -416,7 +419,7 @@ function normalized(f) {
 		modalidad: f.enabled ? f.modalidad : '',
 		reminders: f.enabled ? f.reminders : true,
 		mpFee: f.enabled ? f.mpFee.trim() : '',
-		door: f.enabled ? f.door : false,
+		door: f.enabled ? f.door : true,
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : ''
 	});
 }
@@ -444,7 +447,9 @@ const amount = (v) => /** @type {number} */ (parseAmount(v.trim() === '' ? '0' :
  * @returns {string}
  */
 export function applyTicketsForm(frontmatter, form, initial) {
-	if (!ticketsFormChanged(initial, form)) return frontmatter;
+	const formChanged = ticketsFormChanged(initial, form);
+	// Un evento con venta y sin `puerta` recibe la clave explícita al guardarlo (ver abajo).
+	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
 	const doc = parseDocument(frontmatter.replace(/\r\n?/g, '\n'));
 	if (doc.errors.length) throw new Error(doc.errors[0].message);
 	// @ts-ignore frontmatter vacío
@@ -536,18 +541,33 @@ export function applyTicketsForm(frontmatter, form, initial) {
 			doc.set('mp_fee_percent', Number(form.mpFee.trim().replace(',', '.').replace(/\s*%$/, '')));
 		else doc.delete('mp_fee_percent');
 	}
-	/* Entradas en la puerta: `puerta: true` y el precio (texto) solo si está prendido. */
+	/* Entradas en la puerta (eventos presenciales): siempre `puerta: true | false` explícito al
+	   guardar (también en los eventos que no lo tenían), y el precio solo si está prendido. */
 	const doorPrice = form.door ? form.doorPrice.trim() : '';
 	const initialDoorPrice = initial.enabled && initial.door ? initial.doorPrice.trim() : '';
-	if (form.door !== (initial.enabled && initial.door)) {
-		if (form.door) doc.set('puerta', true);
-		else doc.delete('puerta');
-	}
+	const setDoor =
+		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {})) &&
+		(!initial.enabled || !initial.doorSet || form.door !== initial.door);
+	if (setDoor) doc.set('puerta', form.door);
+	// Sin cambios en el formulario y evento online: no hay nada que escribir.
+	if (!formChanged && !setDoor) return frontmatter;
 	if (doorPrice !== initialDoorPrice) {
 		if (doorPrice) doc.set('puerta_precio', doorPrice);
 		else doc.delete('puerta_precio');
 	}
 	return serializeFrontmatter(doc);
+}
+
+/**
+ * ¿Hay que escribir `puerta` aunque el formulario no cambió? Sí si el evento vende y el archivo
+ * todavía no tiene `puerta: true | false` (así cada evento que se guarda queda con una elección
+ * explícita). En los online no se escribe (lo decide `applyTicketsForm`).
+ *
+ * @param {TicketsForm} form
+ * @param {TicketsForm} initial
+ */
+function needsDoorKey(form, initial) {
+	return form.enabled && initial.enabled && !initial.doorSet;
 }
 
 /**
@@ -558,7 +578,7 @@ export function applyTicketsForm(frontmatter, form, initial) {
  * @param {TicketsForm} initial
  */
 export function applyTicketsToMarkdown(raw, form, initial) {
-	if (!ticketsFormChanged(initial, form)) return raw;
+	if (!ticketsFormChanged(initial, form) && !needsDoorKey(form, initial)) return raw;
 	const { frontmatter, body } = splitMarkdown(raw);
 	return joinMarkdown(applyTicketsForm(frontmatter, form, initial), body);
 }
@@ -571,9 +591,13 @@ export function applyTicketsToMarkdown(raw, form, initial) {
 export function describeTicketsForm(form, formatARS) {
 	if (!form.enabled) return 'Sin venta de entradas por el sitio';
 	const door =
-		form.door && form.modalidad !== 'online'
-			? ` · También en la puerta${form.doorPrice.trim() ? ` (${form.doorPrice.trim()})` : ''}`
-			: '';
+		form.modalidad === 'online'
+			? ''
+			: !form.door
+				? ' · Solo anticipadas'
+				: form.doorPrice.trim()
+					? ` · También en la puerta (${form.doorPrice.trim()})`
+					: '';
 	return (
 		withTypeIds(form.types)
 			.map((t) => {

@@ -34,8 +34,12 @@ tickets:
     price: 8000
     capacity: 3
 payment_methods: [mercadopago, transferencia]
+puerta: true
 extra_key: se queda
 `;
+
+/** Un evento de antes de `puerta` (sin la clave). */
+const FM_SIN_PUERTA = FM.replace('puerta: true\n', '');
 
 /** @param {string} fm */
 const metaOf = (fm) => parseDocument(fm).toJS();
@@ -144,16 +148,37 @@ describe('cupo opcional, «General» y entradas en la puerta', () => {
 		expect(validateTicketsForm(form, { sales }).errors.join()).toMatch(/no puede ser menor/);
 	});
 
-	it('entradas en la puerta: `puerta: true` y `puerta_precio`, y se borran al apagarlo', () => {
+	it('puerta: sin la clave (eventos de antes) arranca prendido y se escribe explícita al guardar', () => {
+		const initial = formOf(FM_SIN_PUERTA);
+		expect(initial).toMatchObject({ door: true, doorSet: false, doorPrice: '' });
+		// Aunque no se toque nada de entradas, guardar deja `puerta: true` (la elección explícita).
+		const out = applyTicketsForm(FM_SIN_PUERTA, formOf(FM_SIN_PUERTA), initial);
+		expect(metaOf(out).puerta).toBe(true);
+		expect(out).toContain('extra_key: se queda');
+		expect(formOf(out)).toMatchObject({ door: true, doorSet: true });
+		const md = joinMarkdown(FM_SIN_PUERTA, 'Texto\n');
+		expect(applyTicketsToMarkdown(md, formOf(FM_SIN_PUERTA), initial)).toContain(
+			'\npuerta: true\n'
+		);
+		// Apagarlo escribe `puerta: false`.
+		const off = formOf(FM_SIN_PUERTA);
+		off.door = false;
+		expect(metaOf(applyTicketsForm(FM_SIN_PUERTA, off, initial)).puerta).toBe(false);
+		// Un evento online no recibe `puerta` (no hay puerta).
+		const online = `${FM_SIN_PUERTA}modalidad: online\n`;
+		expect(applyTicketsForm(online, formOf(online), formOf(online))).toBe(online);
+	});
+
+	it('puerta: true con precio, false sin precio, y apagar la venta borra todo', () => {
 		const initial = formOf(FM);
-		expect(initial).toMatchObject({ door: false, doorPrice: '' });
+		expect(initial).toMatchObject({ door: true, doorSet: true, doorPrice: '' });
 		const form = formOf(FM);
-		form.door = true;
 		form.doorPrice = ' $ 12.000, solo efectivo ';
 		const out = applyTicketsForm(FM, form, initial);
 		expect(metaOf(out)).toMatchObject({ puerta: true, puerta_precio: '$ 12.000, solo efectivo' });
 		expect(parseTicketConfig(metaOf(out))?.door).toEqual({
 			on: true,
+			explicit: true,
 			price: '$ 12.000, solo efectivo'
 		});
 		expect(formOf(out)).toMatchObject({ door: true, doorPrice: '$ 12.000, solo efectivo' });
@@ -163,12 +188,16 @@ describe('cupo opcional, «General» y entradas en la puerta', () => {
 		const off = formOf(out);
 		off.door = false;
 		const back = applyTicketsForm(out, off, formOf(out));
-		expect(metaOf(back)).not.toHaveProperty('puerta');
+		expect(metaOf(back).puerta).toBe(false);
 		expect(metaOf(back)).not.toHaveProperty('puerta_precio');
+		expect(parseTicketConfig(metaOf(back))?.door).toEqual({ on: false, explicit: true, price: '' });
+		expect(describeTicketsForm(formOf(back), (n) => `$${n}`)).toMatch(/Solo anticipadas$/);
 		// Apagar la venta borra también lo de la puerta.
 		const disabled = formOf(out);
 		disabled.enabled = false;
-		expect(metaOf(applyTicketsForm(out, disabled, formOf(out)))).not.toHaveProperty('puerta');
+		const none = metaOf(applyTicketsForm(out, disabled, formOf(out)));
+		expect(none).not.toHaveProperty('puerta');
+		expect(none).not.toHaveProperty('puerta_precio');
 		// Precio muy largo.
 		form.doorPrice = 'x'.repeat(121);
 		expect(validateTicketsForm(form).errors.join()).toMatch(/puerta/);
@@ -284,6 +313,8 @@ describe('applyTicketsForm: ida y vuelta', () => {
 		expect(metaOf(out)).toEqual({
 			title: 'Nuevo',
 			start: '2026-12-12T21:00-03:00',
+			// Evento presencial: la elección de la puerta siempre queda explícita (prendida por defecto).
+			puerta: true,
 			tickets: [
 				{ id: 'general', name: 'General', price: 10000, capacity: 40 },
 				{

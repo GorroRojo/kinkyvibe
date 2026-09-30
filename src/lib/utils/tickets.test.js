@@ -50,12 +50,18 @@ describe('cupo: lo que queda y lo que se muestra en público', () => {
 		expect(leftText(1)).toBe('¡Última!');
 	});
 
-	it('doorText: en la puerta (con o sin precio), solo anticipadas, online nada', () => {
-		expect(doorText({ on: true, price: '$ 12.000' })).toBe(
+	it('doorText: true (con o sin precio), false = solo anticipadas; sin la clave u online, nada', () => {
+		expect(doorText({ on: true, explicit: true, price: '$ 12.000' })).toBe(
 			'También hay entradas en la puerta: $ 12.000.'
 		);
-		expect(doorText({ on: true, price: '' })).toBe('También hay entradas en la puerta.');
-		expect(doorText({ on: false, price: '' })).toMatch(/^Solo anticipadas/);
+		expect(doorText({ on: true, explicit: true, price: '' })).toBe(
+			'También hay entradas en la puerta.'
+		);
+		expect(doorText({ on: false, explicit: true, price: '' })).toBe(
+			'Solo anticipadas: no hay entradas en la puerta.'
+		);
+		// Sin `puerta` en el frontmatter (eventos de antes): no se dice nada.
+		expect(doorText({ on: true, explicit: false, price: '' })).toBeNull();
 		expect(doorText(null)).toBeNull();
 	});
 });

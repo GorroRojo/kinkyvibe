@@ -90,22 +90,35 @@ describe('cupo opcional y entradas en la puerta', () => {
 		).toThrow(/Cupo/);
 	});
 
-	it('puerta / puerta_precio: apagado si falta; el precio solo si está prendido', () => {
-		expect(parseTicketConfig(META)?.door).toEqual({ on: false, price: '' });
+	it('puerta: sin la clave se vende sin aviso; true avisa (con precio); false no vende', () => {
+		expect(parseTicketConfig(META)?.door).toEqual({ on: true, explicit: false, price: '' });
+		// El precio solo cuenta con `puerta: true`.
 		expect(parseTicketConfig({ ...META, puerta_precio: '$ 1' })?.door).toEqual({
-			on: false,
+			on: true,
+			explicit: false,
 			price: ''
 		});
-		expect(parseTicketConfig({ ...META, puerta: true })?.door).toEqual({ on: true, price: '' });
+		expect(parseTicketConfig({ ...META, puerta: true })?.door).toEqual({
+			on: true,
+			explicit: true,
+			price: ''
+		});
 		expect(
 			parseTicketConfig({ ...META, puerta: true, puerta_precio: ' $ 12.000, solo efectivo ' })?.door
-		).toEqual({ on: true, price: '$ 12.000, solo efectivo' });
+		).toEqual({ on: true, explicit: true, price: '$ 12.000, solo efectivo' });
+		expect(parseTicketConfig({ ...META, puerta: false, puerta_precio: '$ 1' })?.door).toEqual({
+			on: false,
+			explicit: true,
+			price: ''
+		});
 		// Solo un número: se muestra como plata.
 		const door = parseTicketConfig({ ...META, puerta: true, puerta_precio: 12000 })?.door;
-		expect(door?.on).toBe(true);
 		expect(door?.price).toMatch(/^\$\s?12\.000$/);
-		// "true" como texto no cuenta: tiene que ser el booleano de YAML.
-		expect(parseTicketConfig({ ...META, puerta: 'si' })?.door?.on).toBe(false);
+		// "no" como texto no cuenta: tiene que ser el booleano de YAML (si no, como si faltara).
+		expect(parseTicketConfig({ ...META, puerta: 'no' })?.door).toMatchObject({
+			on: true,
+			explicit: false
+		});
 		// Evento online: no hay puerta.
 		expect(parseTicketConfig({ ...META, puerta: true, modalidad: 'online' })?.door).toBeNull();
 	});
