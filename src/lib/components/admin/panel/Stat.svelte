@@ -27,7 +27,7 @@
 <style>
 	.stat {
 		background: var(--surface);
-		border-radius: 1rem;
+		border-radius: var(--card-round);
 		box-shadow: var(--shadow);
 		padding: 1rem 1.1rem;
 		display: flex;

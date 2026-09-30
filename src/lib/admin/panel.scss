@@ -2,85 +2,97 @@
 // src/routes/(authed)/admin/+layout.svelte; todo está dentro de `.kv-panel`, así que no toca el
 // sitio público.
 //
-// Usá los alias semánticos en vez de colores sueltos, así las páginas se ven bien en claro y en
-// oscuro sin hacer nada más:
-//   --bg        fondo de la página            --surface   tarjetas, menús, inputs
-//   --surface-2 fondo de filas hover, chips   --line      bordes y separadores
-//   --text      texto                         --muted     texto secundario
-//   --accent    rosa (botones principales)    --accent-ink texto sobre --accent
-//   --link      links y ítem activo           --link-bg   fondo del ítem activo
-//   --ok / --ok-bg      bien (verde)          --warn / --warn-bg  pendiente (amarillo)
-//   --bad / --bad-bg    error (rosa oscuro)   --info / --info-bg  info (violeta)
-//   --counter / --counter-ink  contadores amarillos de la barra lateral
-//   --shadow    sombra de las tarjetas
+// El panel se ve como el sitio: sale de los tokens del sitio (`--1` rosa, `--2` violeta, `--3`
+// verde, `--4` amarillo, con `-light`/`-dark`, y `--round`, en src/lib/styles/style.scss), fondo
+// #eee, texto #333, tarjetas blancas redondeadas, botones en píldora sin sombra 3D, chips con
+// borde y Lato 400/700. No agregues colores nuevos: mezclá los del sitio con `color-mix`.
+//
+// Alias semánticos (usalos en vez de colores sueltos, así las páginas andan en claro y oscuro):
+//   --bg        fondo de la página (#eee)     --surface   tarjetas, menús, inputs (blanco)
+//   --surface-2 filas hover, cajas suaves     --line      bordes y separadores
+//   --text      texto (#333)                  --muted     texto secundario
+//   --accent    rosa del sitio (--1)          --accent-ink texto sobre --accent
+//   --link      violeta del sitio (--2)       --link-bg   fondo del ítem activo
+//   --ok / --ok-bg      verde (--3)           --warn / --warn-bg  amarillo (--4)
+//   --bad / --bad-bg    rosa oscuro (--1)     --info / --info-bg  violeta (--2)
+//   --counter / --counter-ink  contadores     --field     borde de los inputs
+//   --card-round radio de las tarjetas        --shadow    sombra de las tarjetas
+//
+// Clases para las páginas: .kv-btn (píldora rosa), .kv-btn.ghost (borde rosa), .kv-btn.violet
+// (como "¿Todo gratis?"), .kv-input (input en píldora con borde rosa), .kv-table.
 //
 // Modo oscuro: sigue a `prefers-color-scheme`, salvo que la persona elija uno con el botón del
-// panel (se guarda en localStorage `kv-panel-theme` y se pone como `data-theme` en <html> antes de
-// pintar, ver el layout).
+// panel (localStorage `kv-panel-theme`, puesto como `data-theme` en <html> antes de pintar).
 
 @mixin light {
 	color-scheme: light;
-	--bg: #eeecf0;
-	--surface: #fff;
-	--surface-2: #f6f3f9;
-	--line: #e4e0e8;
-	--text: #2f2a33;
-	--muted: #6b6470;
+	--bg: #eee;
+	--surface: white;
+	--surface-2: color-mix(in srgb, var(--2) 5%, white);
+	--line: color-mix(in srgb, var(--2) 10%, #e4e4e4);
+	--text: #333;
+	--muted: #6e6e6e;
 	--accent: var(--1);
 	--accent-dark: var(--1-dark);
-	--accent-ink: #fff;
-	--link: hsl(262, 90%, 45%);
-	--link-bg: hsl(262, 100%, 95%);
-	--ok: hsl(165, 84%, 26%);
-	--ok-bg: hsl(165, 70%, 92%);
-	--warn: hsl(40, 90%, 28%);
-	--warn-bg: hsl(50, 100%, 90%);
-	--bad: hsl(319, 100%, 38%);
-	--bad-bg: hsl(319, 100%, 95%);
-	--info: hsl(262, 90%, 45%);
-	--info-bg: hsl(262, 100%, 95%);
+	--accent-ink: white;
+	--link: var(--2);
+	--link-bg: color-mix(in srgb, var(--2) 10%, white);
+	--ok: var(--3-dark);
+	--ok-bg: color-mix(in srgb, var(--3) 14%, white);
+	--warn: color-mix(in srgb, var(--4-dark) 55%, #3a2a00);
+	--warn-bg: color-mix(in srgb, var(--4) 22%, white);
+	--bad: var(--1-dark);
+	--bad-bg: color-mix(in srgb, var(--1) 10%, white);
+	--info: var(--2-dark);
+	--info-bg: color-mix(in srgb, var(--2) 10%, white);
 	--counter: var(--4);
-	--counter-ink: #3a3000;
-	--bar-track: #efedf2;
-	--shadow: 0 0.1em 0.35em rgba(40, 20, 50, 0.09);
-	--scrim: rgba(30, 15, 40, 0.35);
+	--counter-ink: #333;
+	--field: var(--1-light);
+	--bar-track: color-mix(in srgb, var(--2) 8%, #eee);
+	--card-round: calc(var(--round) * 1.25);
+	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+	--scrim: color-mix(in srgb, var(--2-dark) 30%, transparent);
 }
 
+// Oscuro: los mismos tonos del sitio sobre un fondo violeta muy oscuro.
 @mixin dark {
 	color-scheme: dark;
-	--bg: #16121a;
-	--surface: #221c28;
-	--surface-2: #2c2533;
-	--line: #3a3242;
-	--text: #f1ecf4;
-	--muted: #a9a0b0;
-	--accent: hsl(319, 90%, 60%);
-	--accent-dark: hsl(319, 100%, 35%);
-	--accent-ink: #fff;
-	--link: hsl(262, 100%, 82%);
-	--link-bg: hsl(262, 40%, 26%);
-	--ok: hsl(165, 70%, 62%);
-	--ok-bg: hsl(165, 60%, 16%);
-	--warn: hsl(50, 100%, 70%);
-	--warn-bg: hsl(45, 60%, 17%);
-	--bad: hsl(330, 100%, 78%);
-	--bad-bg: hsl(325, 55%, 20%);
-	--info: hsl(262, 100%, 82%);
-	--info-bg: hsl(262, 40%, 22%);
+	--bg: color-mix(in srgb, var(--2) 11%, #0e0c11);
+	--surface: color-mix(in srgb, var(--2) 12%, #1a181d);
+	--surface-2: color-mix(in srgb, var(--2) 19%, #1f1d22);
+	--line: color-mix(in srgb, var(--2) 22%, #2e2c31);
+	--text: #eee;
+	--muted: #aaa;
+	--accent: var(--1);
+	--accent-dark: color-mix(in srgb, var(--1) 70%, black);
+	--accent-ink: white;
+	--link: color-mix(in srgb, var(--2) 55%, white);
+	--link-bg: color-mix(in srgb, var(--2) 28%, #1a181d);
+	--ok: color-mix(in srgb, var(--3) 75%, white);
+	--ok-bg: color-mix(in srgb, var(--3) 24%, #1a181d);
+	--warn: color-mix(in srgb, var(--4) 85%, white);
+	--warn-bg: color-mix(in srgb, var(--4) 22%, #1a181d);
+	--bad: color-mix(in srgb, var(--1) 60%, white);
+	--bad-bg: color-mix(in srgb, var(--1) 24%, #1a181d);
+	--info: color-mix(in srgb, var(--2) 55%, white);
+	--info-bg: color-mix(in srgb, var(--2) 25%, #1a181d);
 	--counter: var(--4);
-	--counter-ink: #3a3000;
-	--bar-track: #332b3a;
+	--counter-ink: #333;
+	--field: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--bar-track: color-mix(in srgb, var(--2) 18%, #2a282d);
+	--card-round: calc(var(--round) * 1.25);
 	--shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
 	--scrim: rgba(0, 0, 0, 0.55);
-	// Las páginas viejas usan los tonos claros de la paleta como fondo; en oscuro se apagan.
-	--1-light: hsl(319, 60%, 45%);
-	--2-light: hsl(262, 50%, 45%);
-	--3-light: hsl(165, 55%, 22%);
-	--4-light: hsl(45, 60%, 22%);
-	--1-dark: hsl(319, 100%, 78%);
-	--2-dark: hsl(262, 100%, 82%);
-	--3-dark: hsl(165, 70%, 62%);
-	--4-dark: hsl(50, 100%, 70%);
+	// Las páginas viejas usan los tonos -light como fondo y los -dark como texto: en oscuro se
+	// invierten (mezclas de los mismos colores base del sitio, que no se redefinen).
+	--1-light: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--2-light: color-mix(in srgb, var(--2) 45%, #1a181d);
+	--3-light: color-mix(in srgb, var(--3) 25%, #1a181d);
+	--4-light: color-mix(in srgb, var(--4) 22%, #1a181d);
+	--1-dark: color-mix(in srgb, var(--1) 60%, white);
+	--2-dark: color-mix(in srgb, var(--2) 55%, white);
+	--3-dark: color-mix(in srgb, var(--3) 75%, white);
+	--4-dark: color-mix(in srgb, var(--4) 85%, white);
 }
 
 .kv-panel {
@@ -100,7 +112,6 @@
 	color: var(--text);
 	min-height: 100vh;
 	min-height: 100dvh;
-	font-size: 15px;
 	line-height: 1.4;
 
 	button,
@@ -118,7 +129,7 @@
 		color: inherit;
 		text-decoration-color: var(--accent);
 		&:hover {
-			color: var(--link);
+			color: var(--accent);
 		}
 	}
 	h1,
@@ -127,6 +138,12 @@
 		font-weight: 700;
 		text-wrap: balance;
 	}
+	// El layout público fuerza `svg { height: 24px }` (global); en el panel los íconos de Lucide
+	// usan el tamaño que se les pasa.
+	svg.lucide-icon {
+		height: auto;
+		flex: none;
+	}
 	.num {
 		font-variant-numeric: tabular-nums;
 	}
@@ -134,46 +151,75 @@
 		color: var(--muted);
 	}
 
-	// Botones del panel: <a class="kv-btn"> o <button class="kv-btn">.
+	// Botones en píldora, como los del sitio (sin sombra 3D): <a class="kv-btn"> o <button>.
 	.kv-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35em;
+		gap: 0.4em;
 		background: var(--accent);
 		color: var(--accent-ink);
 		border: 0;
-		border-radius: 2em;
-		padding: 0.55rem 1.1rem;
+		border-radius: 3em;
+		padding: 0.5em 1.1em;
 		font-weight: 700;
 		white-space: nowrap;
 		text-decoration: none;
 		cursor: pointer;
-		box-shadow: 0 0.15em 0 var(--accent-dark);
+		transition:
+			scale 150ms,
+			box-shadow 150ms;
 		&:hover {
 			color: var(--accent-ink);
-			filter: brightness(1.05);
+			scale: 1.04;
+			box-shadow: 0.2em 0.2em 0.8em rgba(1, 1, 1, 0.15);
 		}
 		&:active {
-			transform: translateY(0.1em);
-			box-shadow: 0 0.05em 0 var(--accent-dark);
+			scale: 1.01;
+			box-shadow: none;
 		}
+		// Borde rosa sobre blanco ("Filtrar por etiquetas").
 		&.ghost {
 			background: var(--surface);
-			color: var(--text);
-			border: 1px solid var(--line);
-			box-shadow: none;
-			padding: 0.45rem 0.9rem;
+			color: var(--accent);
+			box-shadow: inset 0 0 0 2px var(--accent);
 			&:hover {
-				background: var(--surface-2);
+				color: var(--accent);
 			}
+		}
+		// Violeta ("¿Todo gratis?").
+		&.violet {
+			background: var(--2);
+			color: white;
+		}
+		&.small {
+			padding: 0.25em 0.8em;
+			font-size: 0.9em;
 		}
 		&:disabled {
 			opacity: 0.6;
 			cursor: wait;
+			scale: 1;
 		}
 	}
 
-	// Tablas del panel: <div class="kv-table-wrap"><table class="kv-table">…
+	// Input como el buscador del sitio: píldora blanca con borde rosa.
+	.kv-input {
+		background: var(--surface);
+		color: var(--text);
+		border: 1px solid var(--field);
+		border-radius: 3em;
+		padding: 0.5em 1em;
+		min-width: 0;
+		&::placeholder {
+			color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
+		}
+		&:focus {
+			outline: 2px solid var(--accent);
+			outline-offset: 0;
+		}
+	}
+
+	// Tablas: <div class="kv-table-wrap"><table class="kv-table">…
 	.kv-table-wrap {
 		overflow-x: auto;
 	}
@@ -187,10 +233,8 @@
 			border-bottom: 1px solid var(--line);
 		}
 		th {
-			font-size: 0.72rem;
-			letter-spacing: 0.07em;
-			text-transform: uppercase;
-			color: var(--muted);
+			font-size: 0.8rem;
+			color: var(--link);
 			font-weight: 700;
 		}
 		tbody tr:hover {
