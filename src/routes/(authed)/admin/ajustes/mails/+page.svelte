@@ -1,6 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { Mail } from '@lucide/svelte';
 	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -73,6 +74,18 @@
 			Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>. El
 			dominio del remitente tiene que estar verificado en Resend.
 		</p>
+	</Card>
+
+	<Card title="Plantillas">
+		<p class="kv-note">
+			El asunto, el título y el texto de arriba de cada mail (entradas, datos para transferir,
+			recordatorio, link de la transmisión y reembolso), con vista previa y prueba.
+		</p>
+		<div>
+			<a class="kv-btn ghost" href="/admin/ajustes/mails/plantillas">
+				<Mail size={16} aria-hidden="true" /> Editar las plantillas
+			</a>
+		</div>
 	</Card>
 
 	<Card title="Recordatorios">
