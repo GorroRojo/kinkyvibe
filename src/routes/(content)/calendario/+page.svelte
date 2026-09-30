@@ -4,7 +4,7 @@
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
-	import { view_date } from '$lib/utils/stores.js';
+	import { page } from '$app/stores';
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
@@ -37,18 +37,26 @@
 		}
 		return dates;
 	}, {});
-	let skip_month_flag = true;
 
-	Object.entries(days).forEach(([date, posts]) => {
-		// if all the posts this month are inthe past, set view_date to next month
-		if (
-			isSameMonth(new Date(date + 'T00:00'), $view_date) &&
+	// The viewed month lives in the URL (?viewdate=yyyy-MM), not in a module-level store:
+	// a store shared by every request would leak one visitor's month into the next SSR.
+	const now_date = new Date();
+	// if all of this month's events are in the past, open on next month
+	const skip_month = !Object.entries(days).some(
+		([date, posts]) =>
+			isSameMonth(new Date(date + 'T00:00'), now_date) &&
 			posts.some((p) => !isPast(new Date(p.meta.start)))
-		) {
-			skip_month_flag = false;
-		}
-	});
-	if (skip_month_flag) $view_date = addMonths(new Date(), 1);
+	);
+	const default_month = format(skip_month ? addMonths(now_date, 1) : now_date, 'yyyy-MM');
+	/** @param {string | null} m */
+	const validMonth = (m) =>
+		!!m && /^\d{4}-\d{2}$/.test(m) && !isNaN(new Date(m + '-01T00:00').getTime());
+	$: viewdate_param = $page.url.searchParams.get('viewdate');
+	$: view_month = validMonth(viewdate_param)
+		? /** @type {string} */ (viewdate_param)
+		: default_month;
+	// only recomputed when the month string changes, so the grid isn't re-keyed needlessly
+	$: view_date = new Date(view_month + '-01T00:00');
 </script>
 
 <svelte:head>
@@ -67,8 +75,8 @@
 
 <div id="container">
 	<div id="calendar">
-		<CalendarHeader />
-		<Calendar let:date let:today let:past>
+		<CalendarHeader {view_date} {default_month} />
+		<Calendar {view_date} let:date let:today let:past>
 			{@const events = days?.[date]}
 			{@const featuredEvent =
 				events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
@@ -123,7 +131,7 @@
 						...p.meta,
 						published_date: p.meta.start
 					},
-					visible: isSameMonth(toArgentina(p.meta.start), $view_date),
+					visible: isSameMonth(toArgentina(p.meta.start), view_date),
 					path: p.path
 				}))
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}

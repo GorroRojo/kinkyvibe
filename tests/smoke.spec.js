@@ -121,6 +121,43 @@ test.describe('calendario', () => {
 		expect(html).toMatch(/class="dt-start"[^>]*>[^<]*7:30/);
 	});
 
+	// Regression test: the viewed month used to live in a module-level store, so one
+	// request's ?viewdate leaked into the SSR of later requests served by the same isolate.
+	test('el mes de ?viewdate no se filtra a otros pedidos', async ({ request }) => {
+		const month = (/** @type {string} */ html) =>
+			html
+				.replace(/<!--.*?-->/g, '')
+				.match(/class="month[^"]*"[^>]*>([^<]*)</)?.[1]
+				.replace(/\s+/g, ' ')
+				.trim();
+		const withParam = await (await request.get('/calendario?viewdate=2024-01')).text();
+		expect(month(withParam)).toBe('Enero 2024');
+		const plain = await (await request.get('/calendario')).text();
+		expect(month(plain)).toBeTruthy();
+		expect(month(plain)).not.toContain('2024');
+	});
+
+	test('los botones de mes cambian ?viewdate y el botón atrás vuelve', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.goto('/calendario');
+		const month = page.locator('.header .month');
+		const first = (await month.innerText()).trim();
+		// changing month is client-only: the loads don't read the query string
+		const dataRequests = [];
+		page.on('request', (r) => r.url().includes('__data.json') && dataRequests.push(r.url()));
+		await page.getByRole('button', { name: 'Next Month' }).click();
+		await expect(page).toHaveURL(/[?&]viewdate=\d{4}-\d{2}/);
+		await expect(month).not.toHaveText(first);
+		await page.getByRole('button', { name: 'Previous Month' }).click();
+		await expect(month).toHaveText(first);
+		await expect(page).not.toHaveURL(/viewdate/);
+		await page.goBack();
+		await expect(month).not.toHaveText(first);
+		await page.goBack();
+		await expect(month).toHaveText(first);
+		expect(dataRequests).toEqual([]);
+	});
+
 	test('/calendario.ics es un iCalendar válido con VEVENTs', async ({ request }) => {
 		const res = await request.get('/calendario.ics');
 		expect(res.status()).toBe(200);
