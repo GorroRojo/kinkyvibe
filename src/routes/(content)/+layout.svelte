@@ -73,6 +73,9 @@
 				{#await import('$lib/components/UserMenu.svelte') then { default: UserMenu }}
 					<svelte:component this={UserMenu} user={data.user} />
 				{/await}
+			{:else if data.demoMode}
+				<!-- Preview deploys only (docs/demo.md) -->
+				<a href="/login?redirectTo=/admin">🧪 Entrar como admin de prueba</a>
 			{:else}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?

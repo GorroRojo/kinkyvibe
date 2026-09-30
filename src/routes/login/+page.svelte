@@ -1,6 +1,7 @@
 <script>
 	import { page } from '$app/stores';
 	import logo from '../logo.png';
+	$: redirectTo = $page.url.searchParams.get('redirectTo') ?? '/';
 </script>
 
 <svelte:head>
@@ -14,13 +15,16 @@
 		<p>Para quienes editan el sitio.</p>
 		<form method="POST">
 			<input class="pill-btn" type="submit" value="Iniciar sesión con GitHub" />
-			<input
-				hidden
-				type="text"
-				name="redirectTo"
-				value={$page.url.searchParams.get('redirectTo') ?? '/'}
-			/>
+			<input hidden type="text" name="redirectTo" value={redirectTo} />
 		</form>
+		{#if $page.data.demoMode}
+			<!-- Solo en deploys de preview (docs/demo.md) -->
+			<form method="POST" action="/login/demo" class="demo">
+				<button type="submit" class="pill-btn ghost">🧪 Entrar como admin de prueba</button>
+				<input type="hidden" name="redirectTo" value={redirectTo} />
+				<p>Deploy de prueba: los datos son inventados y los cambios se guardan solo en la base de prueba.</p>
+			</form>
+		{/if}
 		<a class="back" href="/">← Volver a la página</a>
 	</section>
 </main>
@@ -57,6 +61,13 @@
 	form .pill-btn {
 		width: 100%;
 		font-size: var(--step-0);
+	}
+	.demo {
+		display: grid;
+		gap: 0.5em;
+	}
+	.demo p {
+		font-size: var(--step--1);
 	}
 	.back {
 		display: inline-flex;
