@@ -120,8 +120,7 @@
 		margin: 0;
 		margin-top: 8em;
 		padding: 2em;
-		/* indigo, derived from the violet token */
-		background: color-mix(in srgb, var(--2-dark) 55%, black);
+		background: indigo;
 		color: white;
 		border-radius: 2em 2em 0 0;
 		box-sizing: border-box;

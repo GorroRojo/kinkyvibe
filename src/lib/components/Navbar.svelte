@@ -144,9 +144,7 @@
 			padding-inline: 0.5em max(0.5em, env(safe-area-inset-right));
 			z-index: 2;
 			background: var(--surface);
-			/* como la barra de pestañas del panel: sombra hacia arriba y lugar para la barra
-			   de gestos del celu */
-			box-shadow: 0 -0.1rem 0.6rem rgba(0, 0, 0, 0.08);
+			/* lugar para la barra de gestos del celu */
 			padding-bottom: env(safe-area-inset-bottom, 0px);
 			font-size: 1em;
 			ul {
