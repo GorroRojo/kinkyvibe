@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import { error, fail } from '@sveltejs/kit';
 import { ghGet, ghPut } from '$lib/external/github.js';
+import { postFilePath } from '$lib/utils/postPaths.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
@@ -28,7 +29,9 @@ import {
  * @param {{category: string, postID: string}} params
  */
 function postPath(params) {
-	return `src/lib/posts/${params.category}/${params.postID}.md`;
+	const path = postFilePath(params.category, params.postID);
+	if (!path) throw error(400, 'Dirección de publicación inválida.');
+	return path;
 }
 
 /** @type {import("./$types").PageServerLoad} */
@@ -155,10 +158,9 @@ export const actions = {
 	load: async ({ locals, request, url }) => {
 		requireAdmin(locals, url);
 		const data = await request.formData();
-		const fileContent = await getFileContent(
-			locals.user_token,
-			'src/lib/posts/' + data.get('category') + '/' + data.get('path') + '.md'
-		);
+		const path = postFilePath(data.get('category'), data.get('path'));
+		if (!path) return fail(400, { error: 'Dirección de publicación inválida.' });
+		const fileContent = await getFileContent(locals.user_token, path);
 		return { post: fileContent };
 	}
 };
