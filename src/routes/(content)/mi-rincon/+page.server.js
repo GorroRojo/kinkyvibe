@@ -9,17 +9,13 @@
  */
 import { fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
-import {
-	deleteAccount,
-	getAccount,
-	removePassword,
-	setPassword
-} from '$lib/server/cuentas/accounts.js';
+import { getAccount, removePassword, setPassword } from '$lib/server/cuentas/accounts.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
 import {
 	checkConfirmCode,
+	closeAccount,
 	isConfirmPurpose,
 	requestConfirmCode
 } from '$lib/server/cuentas/index.js';
@@ -205,7 +201,7 @@ export const actions = {
 		try {
 			const bad = await confirmed(event, db, member, 'delete', form, 'borrar');
 			if (bad) return bad;
-			await deleteAccount(db, member.id);
+			await closeAccount(db, member.id);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: borrar', e);

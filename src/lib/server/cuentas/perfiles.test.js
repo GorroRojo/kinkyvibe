@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/index.js';
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
+import { closeAccount } from './index.js';
 import {
 	INVITE_TTL_MS,
 	MAX_PROFILES_PER_ACCOUNT,
@@ -557,7 +558,7 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 	});
 });
 
-describe('al borrar una cuenta (todavía sin llamar desde el borrado)', () => {
+describe('al borrar una cuenta', () => {
 	it('borra sus personas, pasa los grupos a quien sigue y borra los que quedan sin nadie', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
@@ -573,5 +574,24 @@ describe('al borrar una cuenta (todavía sin llamar desde el borrado)', () => {
 		expect(await getPublicProfile(t.db, alone.slug)).toBeNull();
 		expect(await getPublicProfile(t.db, shared.slug)).not.toBeNull();
 		expect((await getManagedProfile(t.db, b.id, shared.slug))?.role).toBe('owner');
+	});
+
+	it('closeAccount (lo que usa "Mi rincón") suelta los perfiles y borra la cuenta', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
+		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
+		ok(await inviteManager(t.db, a.id, shared.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+
+		expect(await closeAccount(t.db, a.id, opts)).toBe(true);
+		expect(await getPublicProfile(t.db, p.slug)).toBeNull();
+		expect((await getManagedProfile(t.db, b.id, shared.slug))?.role).toBe('owner');
+		const row = await t.db
+			.prepare('SELECT email, deleted_at FROM accounts WHERE id = ?1')
+			.bind(a.id)
+			.first();
+		expect(row?.email).toBeNull();
+		expect(row?.deleted_at).not.toBeNull();
 	});
 });

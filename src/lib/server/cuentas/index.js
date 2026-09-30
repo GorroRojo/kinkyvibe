@@ -10,8 +10,15 @@
  */
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { checkPassword, emailHash, normalizeEmail, upsertVerifiedAccount } from './accounts.js';
+import {
+	checkPassword,
+	deleteAccount,
+	emailHash,
+	normalizeEmail,
+	upsertVerifiedAccount
+} from './accounts.js';
 import { createLoginCode, normalizeCode, verifyLoginCode } from './codes.js';
+import { releaseAccountProfiles } from './perfiles.js';
 import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -196,4 +203,18 @@ export async function passwordLogin({ db, email: rawEmail, password, client, now
  */
 export function eventRequiresAccount(meta) {
 	return meta?.requiere_cuenta === true;
+}
+
+/**
+ * Borra una cuenta desde "Mi rincón": primero suelta sus perfiles (las personas se borran, los
+ * grupos pasan a quien sigue gestionándolos o se borran si no queda nadie) y después borra la
+ * cuenta (docs/cuentas.md). Va acá y no en accounts.js porque perfiles.js ya importa accounts.js.
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<boolean>} false si la cuenta no existe
+ */
+export async function closeAccount(db, accountId, { now = Date.now() } = {}) {
+	await releaseAccountProfiles(db, accountId, { now });
+	return deleteAccount(db, accountId, { now });
 }

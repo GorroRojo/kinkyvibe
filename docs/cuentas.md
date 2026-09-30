@@ -41,6 +41,9 @@ Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingr
 - **Al borrar la cuenta, las órdenes quedan** (decisión P7.6), desvinculadas: `orders.account_id`
   pasa a `NULL`. Se borran las sesiones y los códigos pendientes, y la fila de `accounts` queda
   sin ningún dato (sin mail, sin contraseña, con `deleted_at`).
+  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js`): sus
+  personas se borran (borrado suave) y cada grupo pasa a quien lo gestiona hace más tiempo, o se
+  borra si no queda nadie.
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
@@ -252,11 +255,6 @@ campos), pero nadie la usa todavía.
 
 - Passkeys.
 - Perfiles: página pública (con `getPublicProfile()`), subir imagen (el campo `avatar` ya existe,
-  solo acepta imágenes del sitio), lugares como tipo de perfil (B3), y llamar a
-  `releaseAccountProfiles()` desde el borrado de cuenta. Hasta entonces, al borrar una cuenta
-  sus perfiles de persona siguen vivos y, si era le única dueñe de un grupo, el grupo queda sin
-  dueñe activa (quienes lo gestionan pueden editarlo, pero no invitar ni cambiar roles). Esa
-  función ya borra sus personas y pasa cada grupo a quien lo gestiona hace más tiempo; falta
-  llamarla dentro del flujo de borrado (no se tocó en esta parte).
+  solo acepta imágenes del sitio) y lugares como tipo de perfil (B3).
 - Compra con cuenta: guardar `orders.account_id`, "Recordar mi DNI" (en `preferences`) y los
   eventos con `requiere_cuenta`.
