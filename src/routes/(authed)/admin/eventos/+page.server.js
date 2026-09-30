@@ -1,6 +1,7 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { bundleMeta, listPanelEvents } from '$lib/server/eventos/panel.js';
+import { totalCapacity } from '$lib/admin/eventFormat.js';
 
 /**
  * Ventas por evento en una sola consulta: entradas vendidas y transferencias esperando
@@ -49,10 +50,10 @@ export async function load({ locals, url, platform, setHeaders }) {
 			let capacity = null;
 			if (e.sellsTickets) {
 				const meta = await bundleMeta(e.slug);
-				capacity = (meta?.tickets ?? []).reduce(
-					(/** @type {number} */ s, /** @type {any} */ t) => s + (Number(t?.capacity) || 0),
-					0
-				);
+				/** @type {any[]} */
+				const list = Array.isArray(meta?.tickets) ? meta.tickets : [];
+				// Un tipo sin `capacity` no tiene límite: entonces el evento tampoco (null).
+				capacity = totalCapacity(list.map((t) => t?.capacity));
 			}
 			return {
 				slug: e.slug,

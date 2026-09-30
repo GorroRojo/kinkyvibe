@@ -4,6 +4,7 @@
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
+import { totalCapacity } from '$lib/admin/eventFormat.js';
 import { typeClosesAt } from '$lib/server/tickets/config.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
@@ -47,7 +48,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			contribution: c?.contribution ?? 0
 		};
 	});
-	const capacity = types.reduce((s, t) => s + t.capacity, 0);
+	// Sin cupo total si algún tipo no tiene cupo (`capacity: null`, sin límite).
+	const capacity = totalCapacity(types.map((t) => t.capacity));
 	const sold = types.reduce((s, t) => s + t.sold, 0);
 	// Cierres de tipos (ej. la anticipada) dentro de los últimos 14 días: una línea en el gráfico.
 	const closes = types

@@ -53,7 +53,7 @@
 						</thead>
 						<tbody>
 							{#each e.types as t (t.id)}
-								<tr class:over={t.sold > t.capacity}>
+								<tr class:over={t.capacity != null && t.sold > t.capacity}>
 									<td>
 										{t.name}
 										<small
@@ -64,7 +64,7 @@
 												: ''})</small
 										>
 									</td>
-									<td>{t.sold}/{t.capacity}</td>
+									<td>{t.sold}{t.capacity == null ? ' (sin cupo)' : `/${t.capacity}`}</td>
 									<td>{t.held}</td>
 									<td>{formatARS(t.revenue)}</td>
 								</tr>

@@ -86,3 +86,19 @@ export function dayLabel(date, short = false) {
 	const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 	return `${WEEKDAYS[wd]} ${d} ${MONTHS[m - 1]}`;
 }
+
+/**
+ * Cupo total de un evento a partir de los cupos de sus tipos: la suma, o `null` (sin límite) si
+ * algún tipo no tiene cupo (`capacity` vacío o `null` en el frontmatter). `0` es un cupo.
+ *
+ * @param {unknown[]} capacities
+ * @returns {number | null}
+ */
+export function totalCapacity(capacities) {
+	let total = 0;
+	for (const c of capacities) {
+		if (c === undefined || c === null || c === '') return null;
+		total += Number(c) || 0;
+	}
+	return total;
+}
