@@ -117,10 +117,13 @@
 		outline: 3px dashed var(--1);
 		text-align: center;
 	}
+	.ticket {
+		box-shadow: var(--shadow);
+	}
 	.ticket-used,
 	.ticket-void,
 	.ticket-refunded {
-		outline-color: #888;
+		outline-color: var(--muted);
 	}
 	h1 {
 		font-size: var(--step-2);
@@ -150,7 +153,7 @@
 	}
 	.code-label {
 		font-size: var(--step--1);
-		color: #555;
+		color: var(--muted);
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
 	}
@@ -168,7 +171,7 @@
 	}
 	.code-hint {
 		font-size: var(--step--2);
-		color: #666;
+		color: var(--muted);
 		max-width: 8em;
 	}
 	@media (max-width: 420px) {
@@ -188,8 +191,8 @@
 	.stream {
 		margin: 1em 0;
 		padding: 1em;
-		border-radius: 0.8em;
-		background: color-mix(in srgb, var(--2) 8%, white);
+		border-radius: var(--round);
+		background: var(--2-tint);
 	}
 	.stream-title {
 		font-weight: bold;
@@ -198,8 +201,9 @@
 	.stream-link {
 		display: block;
 		padding: 0.8em 1em;
-		border-radius: 0.6em;
-		background: var(--2);
+		border-radius: var(--round-pill);
+		background: var(--1);
+		box-shadow: 0 0.15em 0 var(--1-dark);
 		color: white;
 		font-weight: bold;
 		text-decoration: none;
@@ -232,17 +236,17 @@
 		margin: 0;
 	}
 	.ticket-valid .state {
-		color: var(--3-dark);
+		color: var(--3-ink);
 		font-weight: bold;
 	}
 	.hint {
 		font-size: var(--step--1);
-		color: #555;
+		color: var(--muted);
 	}
 	.admin {
 		margin-top: 1em;
 		padding-top: 1em;
-		border-top: 2px solid #ddd;
+		border-top: 2px solid var(--line);
 	}
 	.admin button {
 		font: inherit;
@@ -250,8 +254,8 @@
 		width: 100%;
 		min-height: 3.5em;
 		border: 0;
-		border-radius: 0.6em;
-		background: var(--3-dark);
+		border-radius: var(--round-pill);
+		background: var(--3-ink);
 		color: white;
 		cursor: pointer;
 	}

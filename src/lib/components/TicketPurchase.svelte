@@ -763,20 +763,23 @@
 		max-width: 40rem;
 		margin: 1.5em auto 0;
 		padding: 1em 1.2em 1.2em;
-		border-radius: 1em;
-		outline: 3px solid var(--1);
-		background: color-mix(in srgb, var(--1) 6%, white);
+		/* white card with a pink top edge, like the error pages */
+		border-radius: var(--round);
+		border-top: 0.35rem solid var(--1);
+		background: var(--surface);
+		box-shadow: var(--shadow);
 		font-size: var(--step-0);
 	}
 	h2 {
 		margin: 0 0 0.5em;
 		font-size: var(--step-2);
-		color: var(--1-dark);
+		color: var(--1-ink);
 	}
 	.mock-note {
-		background: var(--4-light);
+		background: var(--4-tint);
+		color: var(--4-ink);
 		padding: 0.4em 0.7em;
-		border-radius: 0.5em;
+		border-radius: var(--round-sm);
 		margin: 0 0 0.8em;
 		font-size: var(--step--1);
 	}
@@ -832,7 +835,7 @@
 		text-align: right;
 	}
 	.list-price {
-		color: #777;
+		color: var(--muted);
 		font-size: var(--step--1);
 		margin-right: 0.3em;
 	}
@@ -842,7 +845,7 @@
 	}
 	.type-left {
 		grid-area: left;
-		color: var(--1-dark);
+		color: var(--1-ink);
 	}
 	.type-left:empty {
 		display: none;
@@ -910,7 +913,7 @@
 		gap: 0.6em;
 	}
 	.hint {
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--2);
 	}
 	.code-row {
@@ -926,8 +929,10 @@
 		flex-grow: 0;
 		background: white;
 		color: var(--1-dark);
-		outline: 2px solid var(--1);
-		padding: 0.5em 1em;
+		outline: 0;
+		border: 2px solid var(--1);
+		box-shadow: none;
+		padding: 0.5em 1.1em;
 		min-height: 2.8em;
 	}
 	button.secondary:hover:not(:disabled) {
@@ -970,7 +975,7 @@
 	}
 	.method small {
 		display: block;
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--1);
 		line-height: 1.25;
 	}
@@ -981,7 +986,7 @@
 		grid-area: 1 / 1;
 		margin: 0;
 		font-size: var(--step--1);
-		color: #444;
+		color: var(--muted);
 		visibility: hidden;
 	}
 	.method-note.shown {
@@ -1121,7 +1126,8 @@
 		color: white;
 		background: var(--1);
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--round-pill);
+		box-shadow: 0 0.15em 0 var(--1-dark);
 		padding: 0.8em 1.3em;
 		min-height: 3em;
 		cursor: pointer;
@@ -1167,7 +1173,7 @@
 	}
 	.option-note {
 		grid-area: note;
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--1);
 	}
 	.label-row {
@@ -1181,10 +1187,12 @@
 	.help {
 		font-weight: normal;
 		font-size: var(--step--2);
-		color: #888;
+		color: var(--muted);
 		text-decoration: underline dotted;
 		text-underline-offset: 2px;
-		padding: 0 0.3em;
+		/* bigger hit area without moving the label */
+		padding: 0.5em 0.6em;
+		margin: -0.5em -0.3em;
 	}
 	.help:hover,
 	.help:focus-visible {
@@ -1210,7 +1218,7 @@
 		font-weight: bold;
 	}
 	.closes {
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--2);
 	}
 	@media (max-width: 500px) {
