@@ -40,9 +40,14 @@ describe('stripScriptAndStyle', () => {
 		const out = stripScriptAndStyle('<scr<script></script>ipt>alert(1)</script>');
 		expect(out.toLowerCase()).not.toContain('<script');
 	});
-	it('escapa un script sin cerrar', () => {
-		const out = stripScriptAndStyle('hola <script>alert(1)');
-		expect(out).toBe('hola &lt;script>alert(1)');
+	it('corta un script sin cerrar hasta el final', () => {
+		expect(stripScriptAndStyle('hola <script>alert(1)')).toBe('hola ');
 		expect(renderPreviewHtml('hola <script>alert(1)').toLowerCase()).not.toContain('<script');
+	});
+	it('acepta cierres con espacios, saltos o atributos', () => {
+		expect(stripScriptAndStyle('a<SCRIPT>x</script\t\n bar>b')).toBe('ab');
+	});
+	it('no toca el resto del texto', () => {
+		expect(stripScriptAndStyle('<small>nota</small> y <b>más</b>')).toBe('<small>nota</small> y <b>más</b>');
 	});
 });
