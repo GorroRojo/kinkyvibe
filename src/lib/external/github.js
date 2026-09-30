@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+import { utf8ToBase64 } from '$lib/utils/base64.js';
 
 /**
  * Throws unless `endpoint` is a plain API path: letters, digits, `.`, `_`, `-` and `/`, with no
@@ -59,7 +59,7 @@ export async function ghPut(endpoint, token, body, sha, userName = 'admin', cate
 		},
 		body: JSON.stringify({
 			message: `[admin] ${userName} updated ${category}/${postID}`,
-			content: Buffer.from(body, 'utf-8').toString('base64'),
+			content: utf8ToBase64(body),
 			sha: sha
 		})
 	});

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assertSafeEndpoint, ghGet, ghPut } from './github.js';
+import { Buffer } from 'node:buffer';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -35,5 +36,15 @@ describe('assertSafeEndpoint', () => {
 		await expect(ghGet('repos/x/../../user', 't')).rejects.toThrow();
 		await expect(ghPut('repos/x/contents/a.md?y', 't', 'body', 'sha')).rejects.toThrow();
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+	it('ghPut sends the text as UTF-8 base64', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}'));
+		vi.stubGlobal('fetch', fetchMock);
+		const text = 'ñandú 🏙️\n';
+		await ghPut('repos/GorroRojo/kinkyvibe/contents/src/lib/posts/wiki/a.md', 't', text, 's');
+		const init = /** @type {any} */ (fetchMock.mock.calls[0])[1];
+		const sent = JSON.parse(init.body);
+		expect(sent.content).toBe(Buffer.from(text, 'utf-8').toString('base64'));
+		expect(sent.sha).toBe('s');
 	});
 });
