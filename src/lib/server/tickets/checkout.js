@@ -9,7 +9,14 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { MAX_TICKETS_PER_FORM, computePrice, formatSaleTime } from '$lib/utils/tickets.js';
+import {
+	LOW_STOCK,
+	MAX_TICKETS_PER_FORM,
+	computePrice,
+	formatSaleTime,
+	publicLeft,
+	remainingOf
+} from '$lib/utils/tickets.js';
 import { salesState, typeClosesAt, typeOpen, validatePurchase } from './config.js';
 import { checkDiscountCode } from './discounts.js';
 import { getEventTickets } from './events.js';
@@ -75,10 +82,16 @@ export const CHECKOUT_RATE_LIMITS = {
  *   online: boolean,
  *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
+ *   door: { on: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
- *     gorra: { min: number, suggested: number } | null, closesAt: number | null,
- *     closed: boolean }[]
+ *     left: number | null, gorra: { min: number, suggested: number } | null,
+ *     closesAt: number | null, closed: boolean }[]
  * }} TicketsView
+ *
+ * Por tipo, `available` es cuántas se pueden comprar ahora en UNA compra (acotado a
+ * `maxQuantity`, así la página no muestra ni manda el cupo real) y `left` es lo que se muestra
+ * en público: cuántas quedan solo si el tipo tiene cupo y quedan menos de `LOW_STOCK` (ver
+ * `publicLeft`). Un tipo sin cupo nunca se agota.
  */
 
 /**
@@ -126,6 +139,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 		online: config.online,
 		fondoEnabled: config.fondoEnabled,
 		fondoPercent: config.fondoPercent,
+		door: config.door,
 		types: config.types.map((t) => ({
 			id: t.id,
 			name: t.name,
@@ -133,6 +147,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 			fondo: t.fondo,
 			gorra: t.gorra,
 			available: 0,
+			left: null,
 			// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
 			closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
 			closed: !typeOpen(config, t)
@@ -142,9 +157,10 @@ export async function getTicketsView(db, slug, fetchFn) {
 	try {
 		const counts = await getCounts(db, slug);
 		for (const t of view.types) {
-			const c = counts.get(t.id);
-			const capacity = config.types.find((ct) => ct.id === t.id)?.capacity ?? 0;
-			t.available = Math.max(0, capacity - (c ? c.sold + c.held : 0));
+			const type = config.types.find((ct) => ct.id === t.id);
+			const remaining = type ? remainingOf(type, counts.get(t.id)) : 0;
+			t.available = Math.min(remaining ?? MAX_TICKETS_PER_FORM, MAX_TICKETS_PER_FORM);
+			t.left = publicLeft(remaining);
 		}
 	} catch (error) {
 		logDBError('tickets view', error);
@@ -155,17 +171,19 @@ export async function getTicketsView(db, slug, fetchFn) {
 	return { ...view, open: anyLeft, reason: anyLeft ? null : 'soldout' };
 }
 
-/** Desde cuántas entradas disponibles (sumando los tipos) la página del evento dice "Quedan N". */
-export const LOW_STOCK = 10;
+/** Por debajo de cuántas entradas disponibles la página del evento dice "Quedan N". */
+export { LOW_STOCK };
 
 /**
  * Resumen para el botón "Comprar entradas" de la página del evento: si se puede comprar, el
- * precio "desde" (con el fondo ya aplicado) y cuántas quedan si son pocas.
+ * precio "desde" (con el fondo ya aplicado) y cuántas quedan si son pocas: solo si todos los
+ * tipos que se pueden comprar tienen cupo y entre todos quedan menos de `LOW_STOCK` (con un tipo
+ * sin cupo o con muchas, no se muestra ningún número). También si hay entradas en la puerta.
  *
  * @param {TicketsView} view
  * @returns {{ open: boolean, reason: TicketsView['reason'], priceFrom: number | null,
  *   gorraSuggested: number | null, left: number | null, opensAt: number | null,
- *   closesAt: number | null }}
+ *   closesAt: number | null, door: TicketsView['door'] }}
  */
 export function summarizeTickets(view) {
 	const candidates = view.open
@@ -173,15 +191,20 @@ export function summarizeTickets(view) {
 		: view.types;
 	const priced = candidates.filter((t) => !t.gorra).map((t) => t.price - t.fondo);
 	const gorra = candidates.filter((t) => t.gorra).map((t) => t.gorra?.suggested ?? 0);
-	const left = view.types.reduce((sum, t) => sum + t.available, 0);
+	const open = view.types.filter((t) => t.available > 0 && !t.closed);
+	const left =
+		open.length && open.every((t) => t.left !== null)
+			? open.reduce((sum, t) => sum + /** @type {number} */ (t.left), 0)
+			: null;
 	return {
 		open: view.open,
 		reason: view.reason,
 		priceFrom: priced.length ? Math.min(...priced) : null,
 		gorraSuggested: gorra.length ? Math.min(...gorra) : null,
-		left: view.open && left <= LOW_STOCK ? left : null,
+		left: view.open && left !== null && left < LOW_STOCK ? left : null,
 		opensAt: view.opensAt,
-		closesAt: view.closesAt
+		closesAt: view.closesAt,
+		door: view.door
 	};
 }
 
@@ -490,9 +513,11 @@ export async function buyAction(event) {
 		if (reserved.reason === 'limit') return failWith(429, reserved.message);
 		return failWith(
 			409,
-			reserved.available > 0
-				? `Solo quedan ${reserved.available} entradas ${valid.type.name}.`
-				: `Se agotaron las entradas ${valid.type.name} (puede liberarse alguna reserva más tarde).`
+			reserved.available === null
+				? 'No pudimos reservar tus entradas. Probá de nuevo.'
+				: reserved.available > 0
+					? `Solo quedan ${reserved.available} entradas ${valid.type.name}.`
+					: `Se agotaron las entradas ${valid.type.name} (puede liberarse alguna reserva más tarde).`
 		);
 	}
 

@@ -618,7 +618,9 @@
 	}
 
 	// --- Vender en puerta ---
-	let saleType = data.types.find((t) => t.available > 0)?.id ?? data.types[0]?.id ?? '';
+	// `available` null: tipo sin cupo (sin límite).
+	let saleType =
+		data.types.find((t) => t.available === null || t.available > 0)?.id ?? data.types[0]?.id ?? '';
 	let saleQty = 1;
 	let saleMethod = 'efectivo';
 	let saleOption = '';
@@ -788,9 +790,16 @@
 			<button type="button" class="tile" on:click={openSearch}>
 				<Search size={30} /> Buscar persona
 			</button>
-			<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
-				<Store size={26} /> Vender en puerta
-			</button>
+			{#if data.doorSales}
+				<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
+					<Store size={26} /> Vender en puerta
+				</button>
+			{:else}
+				<p class="no-door muted small">
+					Este evento no tiene entradas en la puerta (se prende en el editor del evento, en
+					Entradas).
+				</p>
+			{/if}
 		</div>
 
 		<section class="recent" aria-labelledby="recent-title">
@@ -907,14 +916,17 @@
 	<!-- Vender en puerta -->
 	<Sheet bind:open={saleOpen} title="Vender en puerta">
 		<form method="POST" action="?/sell" class="stack" on:submit|preventDefault={submitSale}>
+			{#if data.doorPrice}<p class="muted small">Precio en la puerta: {data.doorPrice}</p>{/if}
 			<label class="field">
 				<span>Tipo de entrada</span>
 				<select name="type" bind:value={saleType} required>
 					{#each data.types as t (t.id)}
 						<option value={t.id} disabled={t.available === 0}>
-							{t.name} · {t.gorra ? 'a la gorra' : formatARS(t.price)} · {t.available === 0
-								? 'agotada'
-								: `quedan ${t.available}`}
+							{t.name} · {t.gorra ? 'a la gorra' : formatARS(t.price)} · {t.available === null
+								? 'sin cupo'
+								: t.available === 0
+									? 'agotada'
+									: `quedan ${t.available}`}
 						</option>
 					{/each}
 				</select>
@@ -1313,6 +1325,11 @@
 		font-weight: 700;
 		font-size: 1.1rem;
 		cursor: pointer;
+	}
+	.no-door {
+		grid-column: 1 / -1;
+		margin: 0;
+		text-align: center;
 	}
 	.tile.wide {
 		grid-column: 1 / -1;

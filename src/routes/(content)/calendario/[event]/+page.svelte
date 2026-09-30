@@ -7,7 +7,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { saleWindowText } from '$lib/utils/tickets.js';
+	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
@@ -227,7 +227,7 @@
 							)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
 							·
 						{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-							<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
+							<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
 					</span>
 				</a>
 				{#if t.closesAt}
@@ -245,6 +245,9 @@
 									? 'El evento se canceló: no hay venta de entradas.'
 									: 'La venta online de entradas no está disponible en este momento.'}
 				</p>
+			{/if}
+			{#if t.reason !== 'cancelled' && doorText(t.door)}
+				<p class="buy-when buy-door">{doorText(t.door)}</p>
 			{/if}
 		</section>
 	{/if}

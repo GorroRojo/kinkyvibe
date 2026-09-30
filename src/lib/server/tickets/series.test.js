@@ -115,6 +115,7 @@ describe('priorAttendance (D1)', () => {
 	async function sold(eventSlug, buyer, email, holders = [buyer]) {
 		const r = await sellAtDoor(t.db, {
 			eventSlug,
+			door: { on: true },
 			type,
 			quantity: holders.length,
 			holders: holders.map((name) => ({ name, pronouns: '' })),

@@ -5,6 +5,7 @@ import {
 	applyQueuedCheckIns,
 	checkinGroup,
 	dniTail,
+	doorSalesOpen,
 	doorCounts,
 	offlineList,
 	orderRef,
@@ -43,6 +44,7 @@ function sell(o = {}) {
 	const quantity = o.quantity ?? 1;
 	return sellAtDoor(t.db, {
 		eventSlug: EVENT,
+		door: { on: true },
 		type: GENERAL,
 		quantity,
 		holders: Array.from({ length: quantity }, (_, i) => ({
@@ -171,6 +173,31 @@ describe('sellAtDoor', () => {
 		});
 		await expect(sell({ type: gorra, unitPrice: -1 })).rejects.toThrow(/Precio/);
 	});
+
+	it('solo vende si el evento tiene entradas en la puerta (puerta: true)', async () => {
+		expect(doorSalesOpen({ door: { on: true } })).toBe(true);
+		expect(doorSalesOpen({ door: { on: false } })).toBe(false);
+		// Evento online: no hay puerta.
+		expect(doorSalesOpen({ door: null })).toBe(false);
+		expect(doorSalesOpen(null)).toBe(false);
+		for (const door of [{ on: false }, null]) {
+			expect(await sell({ door })).toEqual({ ok: false, reason: 'no-door' });
+		}
+		// Sin tocar la base: ninguna orden ni entrada.
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first()).toMatchObject({ n: 0 });
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM tickets').first()).toMatchObject({ n: 0 });
+	});
+
+	it('un tipo sin cupo (capacity null) vende sin límite', async () => {
+		const libre = { ...GENERAL, id: 'libre', capacity: null };
+		for (let i = 0; i < 3; i++) expect((await sell({ type: libre, quantity: 5 })).ok).toBe(true);
+		const sold = await t.db
+			.prepare("SELECT COALESCE(SUM(quantity), 0) AS n FROM orders WHERE ticket_type = 'libre'")
+			.first();
+		expect(sold?.n).toBe(15);
+		// El cupo de otro tipo sigue valiendo.
+		expect(await sell({ quantity: 4 })).toEqual({ ok: false, reason: 'soldout', available: 3 });
+	});
 });
 
 describe('applyQueuedCheckIns (sin conexión)', () => {
@@ -216,6 +243,7 @@ describe('applyQueuedCheckIns (sin conexión)', () => {
 		const ticket = await freshTicket();
 		const other = await sellAtDoor(t.db, {
 			eventSlug: 'otro-evento',
+			door: { on: true },
 			type: GENERAL,
 			quantity: 1,
 			holders: [{ name: 'Otra', pronouns: '' }],

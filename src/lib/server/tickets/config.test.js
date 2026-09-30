@@ -63,6 +63,54 @@ describe('parseTicketConfig', () => {
 	});
 });
 
+describe('cupo opcional y entradas en la puerta', () => {
+	it('sin `capacity` (o vacío) el tipo no tiene cupo: capacity null', () => {
+		const config = parseTicketConfig({
+			...META,
+			tickets: [
+				{ id: 'general', price: 8000 },
+				{ id: 'vacio', price: 8000, capacity: '' },
+				{ id: 'nulo', price: 8000, capacity: null },
+				{ id: 'cero', price: 8000, capacity: 0 },
+				{ id: 'gorra', a_la_gorra: { minimo: 0, sugerido: 3000 } }
+			]
+		});
+		expect(config?.types.map((t) => [t.id, t.capacity])).toEqual([
+			['general', null],
+			['vacio', null],
+			['nulo', null],
+			['cero', 0],
+			['gorra', null]
+		]);
+		expect(() =>
+			parseTicketConfig({ ...META, tickets: [{ id: 'a', price: 1, capacity: -1 }] })
+		).toThrow(/Cupo/);
+		expect(() =>
+			parseTicketConfig({ ...META, tickets: [{ id: 'a', price: 1, capacity: 2.5 }] })
+		).toThrow(/Cupo/);
+	});
+
+	it('puerta / puerta_precio: apagado si falta; el precio solo si está prendido', () => {
+		expect(parseTicketConfig(META)?.door).toEqual({ on: false, price: '' });
+		expect(parseTicketConfig({ ...META, puerta_precio: '$ 1' })?.door).toEqual({
+			on: false,
+			price: ''
+		});
+		expect(parseTicketConfig({ ...META, puerta: true })?.door).toEqual({ on: true, price: '' });
+		expect(
+			parseTicketConfig({ ...META, puerta: true, puerta_precio: ' $ 12.000, solo efectivo ' })?.door
+		).toEqual({ on: true, price: '$ 12.000, solo efectivo' });
+		// Solo un número: se muestra como plata.
+		const door = parseTicketConfig({ ...META, puerta: true, puerta_precio: 12000 })?.door;
+		expect(door?.on).toBe(true);
+		expect(door?.price).toMatch(/^\$\s?12\.000$/);
+		// "true" como texto no cuenta: tiene que ser el booleano de YAML.
+		expect(parseTicketConfig({ ...META, puerta: 'si' })?.door?.on).toBe(false);
+		// Evento online: no hay puerta.
+		expect(parseTicketConfig({ ...META, puerta: true, modalidad: 'online' })?.door).toBeNull();
+	});
+});
+
 describe('salesState', () => {
 	const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
 		parseTicketConfig(META)

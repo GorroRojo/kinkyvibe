@@ -18,7 +18,7 @@
  *   desordenadas (ver `nextStatus`).
  */
 
-import { computePrice } from '$lib/utils/tickets.js';
+import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
@@ -133,7 +133,7 @@ export function newToken() {
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
- *   type: { id: string, price: number, fondo?: number, capacity: number,
+ *   type: { id: string, price: number, fondo?: number, capacity: number | null,
  *     gorra?: { min: number, suggested: number } | null },
  *   quantity: number,
  *   buyer: import('./config.js').Buyer | Omit<import('./config.js').Buyer, 'pronouns'>,
@@ -149,8 +149,10 @@ export function newToken() {
  *   clientHash?: string | null,
  *   limits?: typeof HOLD_LIMITS
  * }} input
+ * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ *
  * @returns {Promise<{ ok: true, order: Order }
- *   | { ok: false, reason: 'soldout', available: number }
+ *   | { ok: false, reason: 'soldout', available: number | null }
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'method' }>}
@@ -199,11 +201,11 @@ export async function reserveOrder(db, input) {
 				WHERE ${openHoldsSql('buyer_email = ?8', 'SUM(quantity)')} + ?4 <= ?28
 				AND ${openHoldsSql('buyer_email = ?8', 'COUNT(*)')} < ?29
 				AND (?27 IS NULL OR ${openHoldsSql('client_hash = ?27', 'SUM(quantity)')} + ?4 <= ?30)
-				AND (
+				AND (?11 IS NULL OR (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
-				) + ?4 <= ?11
+				) + ?4 <= ?11)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
 				RETURNING *`
 			)
@@ -259,12 +261,8 @@ export async function reserveOrder(db, input) {
 		}
 	}
 	const counts = await getCounts(db, eventSlug, now);
-	const c = counts.get(type.id);
-	return {
-		ok: false,
-		reason: 'soldout',
-		available: Math.max(0, type.capacity - (c ? c.sold + c.held : 0))
-	};
+	// `null`: sin cupo (no se agotó; algo cambió en el medio, se puede reintentar).
+	return { ok: false, reason: 'soldout', available: remainingOf(type, counts.get(type.id)) };
 }
 
 /**
@@ -666,8 +664,9 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 }
 
 /**
- * ¿Con esta orden (ya aprobada) su tipo de entrada pasa el cupo? Sin forma de saber el cupo,
- * se toma como que sí (mejor revisar de más).
+ * ¿Con esta orden (ya aprobada) su tipo de entrada pasa el cupo? Sin forma de saber el cupo
+ * (`capacityOf` da `null`), se toma como que sí (mejor revisar de más). Un tipo sin cupo (sin
+ * límite) tiene que dar `Infinity`.
  *
  * @param {D1Database} db
  * @param {Order} order
@@ -1057,7 +1056,9 @@ export async function approveFreeOrder(db, order, { now = Date.now() } = {}) {
  * quien confirma decide.
  *
  * @param {D1Database} db
- * @param {{ orderId: string, eventSlug: string, capacity: number, by: string, now?: number }} input
+ * `capacity` `null`: el tipo no tiene cupo (se confirma siempre).
+ *
+ * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string, now?: number }} input
  * @returns {Promise<{
  *   result: 'confirmed' | 'already' | 'no-capacity' | 'not-transfer' | 'not-found' | 'cancelled',
  *   order: Order | null,
@@ -1075,12 +1076,12 @@ export async function confirmTransfer(db, { orderId, eventSlug, capacity, by, no
 			`UPDATE orders SET status = 'approved', confirmed_by = ?3, updated_at = ?2
 			WHERE id = ?1 AND payment_method = 'transferencia' AND (
 				(status = 'awaiting_transfer' AND expires_at > ?2)
-				OR (status IN ('awaiting_transfer', 'expired') AND (
+				OR (status IN ('awaiting_transfer', 'expired') AND (?4 IS NULL OR (
 					SELECT COALESCE(SUM(o2.quantity), 0) FROM orders o2
 					WHERE o2.event_slug = orders.event_slug AND o2.ticket_type = orders.ticket_type
 						AND o2.id != orders.id
 						AND (o2.status = 'approved' OR (o2.status IN ${HOLDING} AND o2.expires_at > ?2))
-				) + orders.quantity <= ?4)
+				) + orders.quantity <= ?4))
 			)`
 		)
 		.bind(order.id, now, by, capacity);

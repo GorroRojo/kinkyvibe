@@ -8,12 +8,13 @@
  * - `revealDni`: el DNI completo, que queda en el registro de actividad.
  * - `offlineList` / `applyQueuedCheckIns`: modo sin conexión (lista para validar en el celu y
  *   sincronización de los ingresos marcados sin conexión, idempotente y con conflictos).
- * - `sellAtDoor`: "Vender en puerta" (orden aprobada al toque, respeta el cupo, entra ya).
+ * - `sellAtDoor`: "Vender en puerta" (orden aprobada al toque, respeta el cupo, entra ya), solo
+ *   en eventos con `puerta: true` (ver `doorSalesOpen`).
  *
  * Privacidad: el DNI completo nunca va en la lista sin conexión ni en el escaneo (solo los
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
-import { computePrice } from '$lib/utils/tickets.js';
+import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { HOLDING } from './discounts.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
@@ -352,6 +353,15 @@ export async function applyQueuedCheckIns(db, { eventSlug, by, items, now = Date
 }
 
 /**
+ * ¿El evento vende entradas en la puerta? Solo los presenciales con `puerta: true`.
+ *
+ * @param {{ door: { on: boolean } | null } | null | undefined} config
+ */
+export function doorSalesOpen(config) {
+	return Boolean(config?.door?.on);
+}
+
+/**
  * Vende entradas en la puerta: crea una orden YA aprobada (cobrada en efectivo o por
  * transferencia en el momento), emite las entradas y las marca como ingresadas, todo en un
  * batch (una transacción). El cupo se controla en la misma sentencia que crea la orden, igual
@@ -361,9 +371,14 @@ export async function applyQueuedCheckIns(db, { eventSlug, by, items, now = Date
  * No aplica los topes por email ni la ventana de venta (`tickets_close`): la puerta abre cuando
  * el evento empieza y quien vende es admin. Tampoco códigos de descuento.
  *
+ * Solo vende si el evento tiene entradas en la puerta (`door` de la configuración, `puerta: true`
+ * en el frontmatter): si no, `{ ok: false, reason: 'no-door' }` sin tocar la base. Un tipo sin
+ * cupo (`capacity: null`) no tiene límite.
+ *
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
+ *   door: { on: boolean } | null,
  *   type: import('./config.js').TicketType,
  *   quantity: number,
  *   holders: import('./config.js').Holder[],
@@ -376,10 +391,12 @@ export async function applyQueuedCheckIns(db, { eventSlug, by, items, now = Date
  *   now?: number
  * }} input
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
- *   | { ok: false, reason: 'soldout', available: number }>}
+ *   | { ok: false, reason: 'soldout', available: number | null }
+ *   | { ok: false, reason: 'no-door' }>}
  */
 export async function sellAtDoor(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, by, now = Date.now() } = input;
+	if (!doorSalesOpen(input)) return { ok: false, reason: 'no-door' };
 	if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error('Cantidad inválida');
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const gorra = Boolean(type.gorra);
@@ -408,7 +425,7 @@ export async function sellAtDoor(db, input) {
 					channel)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, ?10, ?11, 'approved', ?12, ?12, ?12,
 					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, 'puerta'
-				WHERE (
+				WHERE ?20 IS NULL OR (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?12))
@@ -453,11 +470,7 @@ export async function sellAtDoor(db, input) {
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (!order) {
 		const c = (await getCounts(db, eventSlug, now)).get(type.id);
-		return {
-			ok: false,
-			reason: 'soldout',
-			available: Math.max(0, type.capacity - (c ? c.sold + c.held : 0))
-		};
+		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };
 	}
 	const { results } = await db
 		.prepare('SELECT * FROM tickets WHERE order_id = ?1 ORDER BY rowid')
