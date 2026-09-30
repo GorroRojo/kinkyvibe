@@ -30,14 +30,15 @@ prueba.
 
 ## Los mails
 
-| Mail                      | Cuándo sale                                                         | Plantilla  | Código                               |
-| ------------------------- | ------------------------------------------------------------------- | ---------- | ------------------------------------ |
-| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar" | `tickets`  | `buildTicketEmail` en `email.js`     |
-| Reserva por transferencia | al reservar pagando por transferencia                               | `transfer` | `buildTransferEmail`                 |
-| Link de la transmisión    | "Enviar el link a todes" en un evento online                        | `stream`   | `buildStreamLinkEmail`, `stream.js`  |
-| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                | `reminder` | `buildReminderEmail`, `reminders.js` |
-| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                 | `refund`   | `buildRefundEmail`                   |
-| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                  | —          | `buyerMail.js`                       |
+| Mail                      | Cuándo sale                                                             | Plantilla  | Código                               |
+| ------------------------- | ----------------------------------------------------------------------- | ---------- | ------------------------------------ |
+| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`  | `buildTicketEmail` en `email.js`     |
+| Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer` | `buildTransferEmail`                 |
+| Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`   | `buildStreamLinkEmail`, `stream.js`  |
+| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                    | `reminder` | `buildReminderEmail`, `reminders.js` |
+| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`   | `buildRefundEmail`                   |
+| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —          | `buyerMail.js`                       |
+| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —          | `src/lib/server/cuentas/email.js`    |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 (`email_templates`) en `templates.js`, el

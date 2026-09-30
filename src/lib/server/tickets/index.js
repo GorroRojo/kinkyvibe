@@ -308,6 +308,16 @@ async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = 
 }
 
 /**
+ * El mismo envío (Resend, filtro de los previews, remitente de los ajustes) para mails que no
+ * son de entradas, como el código para ingresar de las cuentas (src/lib/server/cuentas/).
+ *
+ * @param {Parameters<typeof deliver>[0]} input
+ */
+export function deliverEmail(input) {
+	return deliver(input);
+}
+
+/**
  * Link de la transmisión de un evento online (o `null`), sin romper si falta la tabla.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db

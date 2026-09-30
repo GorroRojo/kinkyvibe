@@ -14,7 +14,12 @@ declare global {
 				avatar_url: string
 			} | undefined,
 			/** GitHub OAuth token (server-only, never return it from a load). '' when not logged in. */
-			user_token: string
+			user_token: string,
+			/**
+			 * Cuenta del público con sesión abierta (src/lib/server/cuentas/web.js). Independiente de
+			 * `user` (admins): una persona puede tener las dos, una o ninguna.
+			 */
+			member?: { id: string, email: string }
 		}
 		// interface Error {}
 		// interface Locals {}
