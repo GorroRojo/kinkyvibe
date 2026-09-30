@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
@@ -52,3 +55,41 @@ jobs:
           name: playwright-results
           path: test-results/
           retention-days: 7
+
+  # Fails only if svelte-check reports MORE errors than scripts/svelte-check-baseline.json.
+  # (The report-only svelte-check step in `test` can go once this is in.)
+  typecheck:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: svelte-check ratchet
+        run: node scripts/svelte-check-ratchet.js
+
+  # The single check to require in branch protection. It passes only if every job it needs
+  # succeeded (or was skipped), so jobs can be added or renamed without touching the settings.
+  # When you add a job above, add it to `needs` here too.
+  ci-ok:
+    if: always()
+    needs: [test, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::A required job ended as '$r'."; exit 1 ;;
+            esac
+          done
