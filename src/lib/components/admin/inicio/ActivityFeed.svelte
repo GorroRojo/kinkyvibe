@@ -3,7 +3,7 @@
 	 * Lista de movimientos del Inicio (actividad reciente y "desde tu última visita"): un punto de
 	 * color por tipo, qué pasó (con link a donde se ve), quién/dónde y hace cuánto.
 	 * Props: `items` (ActivityItem[] de inicio.js), `now` (ms del servidor, para "hace 5 min"),
-	 * `limit` (opcional).
+	 * `limit` (opcional), `compact` (el detalle en dos líneas como mucho, para la columna angosta).
 	 */
 	import { checkinHref, eventLink, orderHref } from '$lib/admin/links.js';
 
@@ -13,6 +13,7 @@
 	export let now;
 	/** @type {number} */
 	export let limit = Infinity;
+	export let compact = false;
 
 	const whenFmt = new Intl.DateTimeFormat('es-AR', {
 		timeZone: 'America/Argentina/Buenos_Aires',
@@ -41,7 +42,7 @@
 	}
 </script>
 
-<ul class="feed">
+<ul class="feed" class:compact>
 	{#each items.slice(0, limit) as a}
 		{@const link = href(a)}
 		<li>
@@ -86,6 +87,13 @@
 	}
 	.grow small {
 		overflow-wrap: anywhere;
+	}
+	.compact .grow small {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow: hidden;
 	}
 	.dot {
 		flex: none;

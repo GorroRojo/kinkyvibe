@@ -32,12 +32,6 @@
 </script>
 
 <Card title={e.today ? 'Ventas de esta noche' : 'Ventas del próximo evento'} icon={ChartColumn}>
-	<svelte:fragment slot="actions">
-		<a class="kv-btn ghost sm" href={orderHref(e.slug)}
-			>Ver ventas <ChevronRight size={16} aria-hidden="true" /></a
-		>
-	</svelte:fragment>
-
 	<div class="event">
 		<a class="title" href={eventLink(e.slug, { tickets: true })}>{e.title}</a>
 		<small class="muted">{sales.when}{e.location ? ` · ${e.location}` : ''}</small>
@@ -66,7 +60,7 @@
 			{#each sales.types as t (t.id)}
 				<li>
 					<span class="tname"
-						>{t.name}{#if t.closed}<small class="muted"> · cerrada</small>{/if}</span
+						>{t.name}{#if t.closed}{' '}<small class="muted">· cerrada</small>{/if}</span
 					>
 					<span class="tnum num"
 						>{t.sold}{t.capacity === null ? '' : ` / ${t.capacity}`}{#if t.over}
@@ -140,6 +134,10 @@
 				>{/each}
 		</p>
 	{/if}
+
+	<a class="kv-btn ghost sm more" href={orderHref(e.slug)}
+		>Ver ventas y órdenes <ChevronRight size={16} aria-hidden="true" /></a
+	>
 </Card>
 
 <style lang="scss">
@@ -147,11 +145,13 @@
 		padding: 0.35rem 0.8rem;
 		font-size: 0.88rem;
 	}
+	.more {
+		align-self: flex-start;
+	}
 	.event {
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
-		margin-top: -0.3rem;
 	}
 	.title {
 		font-weight: 700;

@@ -358,7 +358,9 @@
 					{/if}
 				</Card>
 			</div>
+		</div>
 
+		<div class="main-bottom">
 			<Card title="Próximos eventos">
 				<svelte:fragment slot="actions">
 					<CsvButton rows={data.upcoming} columns={eventColumns} filename="proximos-eventos.csv" />
@@ -466,12 +468,12 @@
 							columns={activityColumns}
 							filename="actividad-reciente.csv"
 						/>
-						<a class="kv-btn ghost sm" href="/admin/actividad"
-							>Ver todo <ChevronRight size={16} aria-hidden="true" /></a
-						>
 					</svelte:fragment>
 					{#if data.activity.length}
-						<ActivityFeed items={data.activity} now={data.now} />
+						<ActivityFeed items={data.activity} now={data.now} compact />
+						<a class="kv-btn ghost sm more" href="/admin/actividad"
+							>Ver todo <ChevronRight size={16} aria-hidden="true" /></a
+						>
 					{:else}
 						<EmptyState
 							emoji="📭"
@@ -569,8 +571,9 @@
 	 * Distribución: la columna principal y, a la derecha, ventas + agenda + actividad. Se decide
 	 * con container queries (el ancho real del contenido, sin la barra lateral):
 	 * - desde 58rem (~1280 px de pantalla): dos columnas;
-	 * - de 38 a 58rem (~1024 px): la columna de la derecha pasa abajo, en dos columnas;
-	 * - menos (celu): todo en una columna, la actividad más corta.
+	 * - de 38 a 58rem (~1024 px): la columna de la derecha pasa arriba de "Próximos eventos", en
+	 *   dos columnas (ventas | agenda, y la actividad a lo ancho);
+	 * - menos (celu): todo en una columna; ventas, agenda y actividad (corta) al final.
 	 */
 	.inicio {
 		container: inicio / inline-size;
@@ -578,12 +581,26 @@
 	.layout {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'top' 'bottom' 'side';
 		gap: 1rem;
 		align-items: start;
 	}
 	.main-col {
+		grid-area: top;
 		container: main-col / inline-size;
 		min-width: 0;
+	}
+	.main-bottom {
+		grid-area: bottom;
+		min-width: 0;
+	}
+	.side-col {
+		grid-area: side;
+	}
+	@container inicio (min-width: 38rem) {
+		.layout {
+			grid-template-areas: 'top' 'side' 'bottom';
+		}
 	}
 	.side-col {
 		display: grid;
@@ -604,6 +621,9 @@
 	@container inicio (min-width: 58rem) {
 		.layout {
 			grid-template-columns: minmax(0, 1fr) 20.5rem;
+			/* Lo que sobre de alto va a la fila de abajo: sin huecos debajo de "Para revisar". */
+			grid-template-rows: auto 1fr;
+			grid-template-areas: 'top side' 'bottom side';
 		}
 	}
 	@container inicio (min-width: 76rem) {
@@ -632,7 +652,6 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: 1rem;
-		margin-bottom: 1rem;
 		align-items: start;
 	}
 	@container main-col (min-width: 52rem) {
@@ -643,6 +662,9 @@
 	.sm {
 		padding: 0.35rem 0.8rem;
 		font-size: 0.88rem;
+	}
+	.more {
+		align-self: flex-start;
 	}
 	.flash {
 		margin: 0;
