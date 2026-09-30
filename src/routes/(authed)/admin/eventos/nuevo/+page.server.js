@@ -1,5 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
+import { getDB } from '$lib/server/db';
 import {
 	POSTS_DIR,
 	getEventAdmin,
@@ -167,7 +169,7 @@ export const actions = {
 		}
 	},
 
-	publicar: async ({ locals, request }) => {
+	publicar: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const data = await request.formData();
@@ -302,6 +304,16 @@ export const actions = {
 				message,
 				mustNotExist,
 				unchanged
+			});
+			await logAdminAction(getDB(platform), locals, {
+				action: mode === 'borrador' ? 'event.draft' : 'event.publish',
+				targetType: 'event',
+				targetId: slug,
+				summary:
+					(mode === 'borrador' ? 'Cargó como no listado ' : 'Publicó ') +
+					`calendario/${slug}` +
+					(source ? ` (copia de ${source})` : ''),
+				detail: { source: source || null, commit: commit.url, imageScope: upload ? scope : null }
 			});
 			return {
 				success: true,

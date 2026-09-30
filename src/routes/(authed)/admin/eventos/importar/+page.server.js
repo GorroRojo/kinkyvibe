@@ -1,5 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
+import { getDB } from '$lib/server/db';
 import {
 	POSTS_DIR,
 	getEventAdmin,
@@ -120,7 +122,7 @@ function rowProblem(row) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	crear: async ({ locals, request }) => {
+	crear: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 
@@ -265,6 +267,13 @@ export const actions = {
 					n === 1 ? 'borrador' : 'borradores'
 				} desde la planilla`,
 				mustNotExist: rows.flatMap((r) => [eventPath(r.slug), mediaPath(r.slug)])
+			});
+			await logAdminAction(getDB(platform), locals, {
+				action: 'event.import',
+				targetType: 'event',
+				targetId: n === 1 ? created[0].slug : null,
+				summary: `Importó ${n} ${n === 1 ? 'borrador' : 'borradores'} desde la planilla`,
+				detail: { slugs: created.map((c) => c.slug), commit: commit.url }
 			});
 			return {
 				success: true,
