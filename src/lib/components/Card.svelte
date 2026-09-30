@@ -2,7 +2,6 @@
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
-	import { isPast } from 'date-fns';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -24,7 +23,7 @@
 
 <a
 	{href}
-	class:past={isPast(new Date(start ?? ''))}
+	class:past={new Date(start ?? '').getTime() < Date.now()}
 	class="card {mark ? 'mark' : ''} {category} {{
 		amigues: 'h-card',
 		calendario: 'h-event',

@@ -7,8 +7,7 @@
 		MousePointerClick,
 		Heart
 	} from '@lucide/svelte';
-	import { addHours, format, isPast } from 'date-fns';
-	import { toArgentina, eventEnd } from '$lib/utils/dates.js';
+	import { argDate, argTime, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
 	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
@@ -38,21 +37,16 @@
 			pronoun
 		}
 	} = post;
-	var date = start ? addHours(new Date(start), 3) : published_date;
-	try {
-		format(new Date(date), 'yyyy-MM-dd');
-	} catch (e) {
-		date = '';
-	}
+	var date = start ?? published_date;
+	if (isNaN(new Date(date ?? '').getTime())) date = '';
 	if (tags.includes('KinkyVibe')) {
 		// TODO añadir AUCH como etiqueta especial tmb? en todos lados
 		mark = mark ? mark : 'KinkyVibe';
 		let indexOfMark = tags.indexOf('KinkyVibe');
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
-	// mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
 	let mounted = false;
-	let past = start ? isPast(new Date(start)) : false;
+	let past = start ? new Date(start).getTime() < Date.now() : false;
 	onMount(() => {
 		mounted = true;
 		// the calendar button (~290 KB) is only loaded when this item shows one
@@ -74,7 +68,7 @@
 	class:mark
 	class:noimg={src == 'undefined' || !src}
 	id={path}
-	class:past={start ? isPast(new Date(start)) || status == 'cancelado' : false}
+	class:past={start ? past || status == 'cancelado' : false}
 	tabindex="0"
 	target={redirect || path.startsWith('https') ? '_blank' : undefined}
 >
@@ -100,10 +94,11 @@
 			{#if date}
 				{#if start}
 					<time datetime={start} class="dt-start dt-end">
-						{@html format(toArgentina(start), 'yyyy-MM-dd|HH:mm - ').replace(
-							'|',
-							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;'
-						) + format(toArgentina(eventEnd(start, end)), 'HH:mm')}
+						{@html argDate(start) +
+							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;' +
+							argTime(start) +
+							' - ' +
+							argTime(eventEnd(start, end))}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -111,7 +106,7 @@
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={date}>
-						{date ? format(toArgentina(date), 'yyyy-MM-dd') : ''}
+						{date ? argDate(date) : ''}
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
@@ -130,10 +125,10 @@
 							`}
 						name={title}
 						description={summary}
-						startDate={format(toArgentina(start), 'yyyy-MM-dd')}
-						startTime={format(toArgentina(start), 'HH:mm')}
-						endDate={format(toArgentina(eventEnd(start, end)), 'yyyy-MM-dd')}
-						endTime={format(toArgentina(eventEnd(start, end)), 'HH:mm')}
+						startDate={argDate(start)}
+						startTime={argTime(start)}
+						endDate={argDate(eventEnd(start, end))}
+						endTime={argTime(eventEnd(start, end))}
 						timeZone="America/Buenos_Aires"
 						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
 						language="es"

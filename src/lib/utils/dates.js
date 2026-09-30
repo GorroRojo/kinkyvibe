@@ -44,3 +44,38 @@ export function eventEnd(start, end) {
 	}
 	return e;
 }
+
+// Small formatters for list/card views, so those pages don't pull in date-fns.
+// They print the Argentina wall-clock time whatever the runtime timezone is.
+
+/** @param {number} n */
+const pad2 = (n) => String(n).padStart(2, '0');
+const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/**
+ * `yyyy-MM-dd` in Argentina time.
+ * @param {string|number|Date} d
+ */
+export function argDate(d) {
+	const a = toArgentina(d);
+	return `${a.getFullYear()}-${pad2(a.getMonth() + 1)}-${pad2(a.getDate())}`;
+}
+
+/**
+ * `HH:mm` (24h) in Argentina time.
+ * @param {string|number|Date} d
+ */
+export function argTime(d) {
+	const a = toArgentina(d);
+	return `${pad2(a.getHours())}:${pad2(a.getMinutes())}`;
+}
+
+/**
+ * Spanish weekday and zero-padded day of the month in Argentina time, e.g. `lunes 05`
+ * (what date-fns `format(d, 'EEEE dd', { locale: es })` printed).
+ * @param {string|number|Date} d
+ */
+export function argWeekdayDay(d) {
+	const a = toArgentina(d);
+	return `${WEEKDAYS_ES[a.getDay()]} ${pad2(a.getDate())}`;
+}
