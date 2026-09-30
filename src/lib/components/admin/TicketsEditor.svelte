@@ -367,7 +367,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5em;
-		background: #faf6fc;
+		background: var(--surface-2, #faf6fc);
 		border-radius: 1em;
 		padding: 0.6em 0.8em 0.8em;
 		min-width: 0;
@@ -393,7 +393,7 @@
 		height: 2.2em;
 		border-radius: 50%;
 		border: 0;
-		background: white;
+		background: var(--surface, white);
 		outline: 1px solid var(--1-light);
 		color: var(--1-dark);
 		cursor: pointer;
@@ -464,7 +464,7 @@
 			display: inline-block;
 			padding: 0.35em 0.85em;
 			border-radius: 2em;
-			background: white;
+			background: var(--surface, white);
 			color: var(--1-dark);
 			outline: 1px solid var(--1-light);
 			outline-offset: -1px;
@@ -511,7 +511,7 @@
 				width: 1.1em;
 				height: 1.1em;
 				border-radius: 50%;
-				background: white;
+				background: var(--surface, white);
 				transition: transform 150ms;
 			}
 		}

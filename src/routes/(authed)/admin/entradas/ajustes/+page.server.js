@@ -6,6 +6,7 @@
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { env as privateEnv } from '$env/dynamic/private';
@@ -87,6 +88,14 @@ export const actions = {
 			logDBError('save ticket settings', error);
 			return fail(500, { error: 'No se pudo guardar. Probá de nuevo.', errors: {}, values: form });
 		}
+		// Solo qué campos se guardaron, nunca los valores (hay datos bancarios).
+		await logAdminAction(db, locals, {
+			action: 'settings.save',
+			targetType: 'settings',
+			targetId: 'ticket_settings',
+			summary: 'Guardó los ajustes de venta',
+			detail: { fields: Object.keys(valid.value) }
+		});
 		return { ok: true, message: 'Ajustes guardados.' };
 	}
 };

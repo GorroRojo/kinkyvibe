@@ -2,16 +2,14 @@
 	import { createDropdownMenu, melt } from '@melt-ui/svelte';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
-	import {
-		CalendarPlus,
-		Copy,
-		FileSpreadsheet,
-		LayoutDashboard,
-		LogOut,
-		SquarePen,
-		Ticket
-	} from '@lucide/svelte';
-	/** @type {GHUser} */
+	import { CalendarCog, LayoutDashboard, LogOut, SquarePen } from '@lucide/svelte';
+	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { logoutHref } from '$lib/utils/authLinks.js';
+	/**
+	 * `user.admin` viene del load del layout raíz (ADMINS en $lib/server/auth.js, la única lista).
+	 * Solo decide qué links mostrar: cada página y acción de admin controla en el servidor.
+	 * @type {{ login: string, name?: string | null, avatar_url?: string, admin?: boolean }}
+	 */
 	export let user;
 	const {
 		elements: { trigger, menu, item },
@@ -21,18 +19,7 @@
 	});
 	$: isPageEditable = /\/?(amigues|calendario|material)\/.*/.test($page.url.pathname);
 	$: eventSlug = $page.url.pathname.match(/^\/calendario\/([^/]+)\/?$/)?.[1];
-	/**
-	 * `user.admin` comes from the root layout load (ADMINS in $lib/server/auth.js). It only
-	 * decides which links to show: every admin page and action checks on the server.
-	 * @param {string} token
-	 * @param {string} username
-	 * @returns {boolean}
-	 */
-	// eslint-disable-next-line no-unused-vars
-	function isAdmin(token, username) {
-		return user.admin === true;
-	}
-	let admin = isAdmin('', user.login);
+	$: admin = user.admin === true;
 	// GitHub serves every account's picture at github.com/<login>.png; used when the session has
 	// no avatar_url (e.g. the fake admin of `npm run dev:admin`).
 	$: avatar = user.avatar_url || `https://github.com/${encodeURIComponent(user.login)}.png`;
@@ -51,23 +38,9 @@
 		<a href="/admin" class="menuitem" use:melt={$item}
 			><LayoutDashboard {...icon} /><span>Panel de admin</span></a
 		>
-		<a href="/admin/entradas" class="menuitem" use:melt={$item}
-			><Ticket {...icon} /><span>Entradas</span></a
-		>
-		{#if $page.params.event && $page.data?.tickets}
-			<a href="/admin/entradas/{$page.params.event}" class="menuitem" use:melt={$item}
-				><Ticket {...icon} /><span>Entradas de este evento</span></a
-			>
-		{/if}
-		<a href="/admin/eventos" class="menuitem" use:melt={$item}
-			><CalendarPlus {...icon} /><span>Cargar evento</span></a
-		>
-		<a href="/admin/eventos/importar" class="menuitem" use:melt={$item}
-			><FileSpreadsheet {...icon} /><span>Importar planilla</span></a
-		>
 		{#if eventSlug}
-			<a href="/admin/eventos/nuevo?desde={eventSlug}" class="menuitem" use:melt={$item}
-				><Copy {...icon} /><span>Duplicar este evento</span></a
+			<a href={eventPanelLink(eventSlug, { tickets: !!$page.data?.tickets })} class="menuitem" use:melt={$item}
+				><CalendarCog {...icon} /><span>Este evento en el panel</span></a
 			>
 		{/if}
 		{#if isPageEditable}
@@ -81,7 +54,7 @@
 			>
 		{/if}
 		{/if}
-		<a href="/logout?redirectTo={$page.url}" class="menuitem" use:melt={$item}
+		<a href={logoutHref($page.url)} class="menuitem" use:melt={$item}
 			><LogOut {...icon} /><span>Cerrar sesión</span></a
 		>
 	</div>

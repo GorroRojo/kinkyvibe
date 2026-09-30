@@ -424,7 +424,7 @@
 	th,
 	td {
 		padding: 0.3em;
-		border-bottom: 1px solid #eee;
+		border-bottom: 1px solid var(--line, #eee);
 		text-align: left;
 	}
 	td:not(:first-child),
@@ -432,7 +432,7 @@
 		text-align: right;
 	}
 	.over {
-		background: hsl(0, 90%, 92%);
+		background: var(--bad-bg, hsl(0, 90%, 92%));
 	}
 	.table-scroll {
 		overflow-x: auto;
@@ -449,7 +449,7 @@
 		border-radius: 0.5em;
 	}
 	.flash.error {
-		background: hsl(0, 90%, 90%);
+		background: var(--bad-bg, hsl(0, 90%, 90%));
 	}
 	.filter select {
 		font: inherit;
@@ -463,10 +463,10 @@
 		gap: 0.6em;
 	}
 	.order {
-		background: white;
+		background: var(--surface, white);
 		border-radius: 0.7em;
 		padding: 0.7em 0.9em;
-		outline: 2px solid #ddd;
+		outline: 2px solid var(--line, #ddd);
 	}
 	.status-approved {
 		outline-color: var(--3);
@@ -477,10 +477,10 @@
 	}
 	.note {
 		font-size: var(--step--1);
-		color: #555;
+		color: var(--muted, #555);
 	}
 	.review {
-		background: #fff3e0;
+		background: var(--warn-bg, #fff3e0);
 		border-radius: 1em;
 		padding: 0.6em 1em;
 		margin: 1em 0;
@@ -498,7 +498,7 @@
 		margin: 1.5em 0;
 		padding: 0.8em 1em 1em;
 		border-radius: 0.8em;
-		background: color-mix(in srgb, var(--4) 12%, white);
+		background: color-mix(in srgb, var(--4) 12%, var(--surface, white));
 	}
 	.transfers h2 {
 		margin-top: 0;
@@ -507,7 +507,7 @@
 		font-family: ui-monospace, monospace;
 	}
 	.late {
-		color: hsl(0, 70%, 40%);
+		color: var(--bad, hsl(0, 70%, 40%));
 		font-weight: bold;
 	}
 	.buttons {
@@ -530,9 +530,9 @@
 		color: white;
 	}
 	.buttons .cancel {
-		background: white;
+		background: var(--surface, white);
 		outline: 2px solid hsl(0, 70%, 45%);
-		color: hsl(0, 70%, 35%);
+		color: var(--bad, hsl(0, 70%, 35%));
 	}
 	table.holders {
 		margin: 0.4em 0;
@@ -547,7 +547,7 @@
 		white-space: nowrap;
 	}
 	table.holders .inside {
-		background: color-mix(in srgb, var(--3) 12%, white);
+		background: color-mix(in srgb, var(--3) 12%, var(--surface, white));
 	}
 	.who {
 		display: flex;
@@ -560,7 +560,7 @@
 		font-size: var(--step--1);
 	}
 	.meta {
-		color: #555;
+		color: var(--muted, #555);
 	}
 	.meta form {
 		display: inline;
@@ -578,13 +578,13 @@
 	}
 	.refund summary {
 		cursor: pointer;
-		color: hsl(0, 70%, 35%);
+		color: var(--bad, hsl(0, 70%, 35%));
 	}
 	.refund-panel {
 		margin-top: 0.4em;
 		padding: 0.6em 0.8em;
 		border-radius: 0.6em;
-		background: hsl(0, 90%, 97%);
+		background: var(--bad-bg, hsl(0, 90%, 97%));
 		outline: 2px solid hsl(0, 70%, 80%);
 	}
 	.refund-panel p {
@@ -602,19 +602,19 @@
 		color: white;
 	}
 	.pos {
-		color: hsl(145, 70%, 26%);
+		color: var(--ok, hsl(145, 70%, 26%));
 	}
 	.neg {
-		color: hsl(0, 75%, 40%);
+		color: var(--bad, hsl(0, 75%, 40%));
 	}
 	.pronouns {
-		color: #555;
+		color: var(--muted, #555);
 	}
 	.stream {
 		margin: 1.5em 0;
 		padding: 0.8em 1em 1em;
 		border-radius: 0.8em;
-		background: color-mix(in srgb, var(--2) 10%, white);
+		background: color-mix(in srgb, var(--2) 10%, var(--surface, white));
 	}
 	.stream h2 {
 		margin-top: 0;
@@ -636,7 +636,7 @@
 		padding: 0.5em;
 		min-height: 2.8em;
 		border-radius: 0.5em;
-		border: 2px solid #bbb;
+		border: 2px solid var(--line, #bbb);
 		min-width: 0;
 	}
 	.stream button {
