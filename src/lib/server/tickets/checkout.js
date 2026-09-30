@@ -8,6 +8,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
+import { sha256Hex } from '$lib/server/hash.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { MAX_TICKETS_PER_FORM, computePrice, formatSaleTime } from '$lib/utils/tickets.js';
 import { salesState, typeClosesAt, typeOpen, validatePurchase } from './config.js';
@@ -198,12 +199,6 @@ export function summarizeTickets(view) {
 		opensAt: view.opensAt,
 		closesAt: view.closesAt
 	};
-}
-
-/** @param {string} text */
-async function sha256Hex(text) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
