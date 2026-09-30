@@ -29,7 +29,8 @@ export const prerender = true;
 
 export const GET = async () => {
 	const allPosts = await fetchMarkdownPosts();
-	const time = (/** @type {ProcessedPost} */ p) => new Date(p.meta.published_date).getTime() || 0;
+	const time = (/** @type {ProcessedPost} */ p) =>
+		new Date(p.meta.published_date ?? '').getTime() || 0;
 	const sortedPosts = allPosts.sort((a, b) => time(b) - time(a));
 
 	const body = render(sortedPosts.slice(0, FEED_LIMIT));
