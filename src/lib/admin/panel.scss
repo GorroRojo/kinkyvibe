@@ -96,6 +96,13 @@
 	--2-dark: color-mix(in srgb, var(--2) 55%, white);
 	--3-dark: color-mix(in srgb, var(--3) 75%, white);
 	--4-dark: color-mix(in srgb, var(--4) 85%, white);
+
+	// Los colores de sintaxis por defecto de CodeMirror (azules, violetas y grises oscuros) no se
+	// leen sobre fondo oscuro: en oscuro el texto del editor va en el color del texto (negritas,
+	// cursivas y subrayados de títulos, énfasis y links se mantienen).
+	.cm-editor .cm-line span {
+		color: inherit;
+	}
 }
 
 .kv-panel {
@@ -246,6 +253,42 @@
 		.r {
 			text-align: right;
 		}
+	}
+}
+
+// Editores de texto (CodeMirror) dentro del panel: fondo, bordes, cursor, selección y línea
+// actual con los tokens, así se leen en claro y en oscuro. Los selectores repiten clases para
+// ganarle al tema base que CodeMirror inyecta en la página.
+.kv-panel .cm-editor.cm-editor {
+	background: var(--surface);
+	color: var(--text);
+	.cm-gutters {
+		background: var(--surface-2);
+		color: var(--muted);
+		border-color: var(--line);
+	}
+	.cm-activeLine {
+		background: color-mix(in srgb, var(--link) 8%, transparent);
+	}
+	.cm-activeLineGutter {
+		background: color-mix(in srgb, var(--link) 16%, transparent);
+		color: var(--text);
+	}
+	.cm-cursor,
+	.cm-dropCursor {
+		border-left-color: var(--text);
+	}
+	.cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+	&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+		background: color-mix(in srgb, var(--link) 32%, transparent);
+	}
+	.cm-content ::selection {
+		background: color-mix(in srgb, var(--link) 32%, transparent);
+	}
+	.cm-foldPlaceholder {
+		background: var(--surface-2);
+		border-color: var(--line);
+		color: var(--muted);
 	}
 }
 
