@@ -7,16 +7,11 @@
  *   (`confirmUrl`) que extiende la reserva inicial corta a la completa.
  */
 import { env } from '$env/dynamic/private';
+import { sha256Hex } from '$lib/server/hash.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 const CONFIRM_KEY = 'hold_confirm_key';
-
-/** @param {string} text */
-async function sha256Hex(text) {
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 /**
  * Hash anónimo de la conexión para los límites por cliente. La sal cambia cada día (UTC), así

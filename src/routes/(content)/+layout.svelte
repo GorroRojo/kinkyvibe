@@ -29,7 +29,7 @@
 				);
 			}
 	);
-	/**@type (cat: string)=>(LD.BreadcrumbList & {"@context": string})*/
+	/** @type {(cat: string | undefined) => (LD.BreadcrumbList & {"@context": string})} */
 	let ldBreadcrumb = (cat) => ({
 		'@context': 'https://schema.org',
 		'@type': 'BreadcrumbList',

@@ -39,7 +39,6 @@ const config = {
 				ellipses: true,
 				dashes: 'oldschool'
 			},
-			// remarkPlugins: [remarkGfm],
 			rehypePlugins: [rehypeSlug, customRehype, toc]
 		}),
 		preprocessMeltUI()

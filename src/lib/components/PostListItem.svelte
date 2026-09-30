@@ -9,6 +9,7 @@
 	} from '@lucide/svelte';
 	import { argDate, argTime, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
+	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 </script>
@@ -159,10 +160,9 @@
 	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
 	<h3>
 		{title}
-		{#if pronoun && (pronoun + '').split('/').pop() != 'evitar'}
+		{#if pronounDisplay(pronoun)}
 			<small class="p-pronouns">
-				{@html '&nbsp;' +
-					(pronoun + '').split('/').pop()?.split(',')[0].replaceAll('&', '&nbsp;/&nbsp;')}
+				{'\u00a0' + pronounDisplay(pronoun)}
 			</small>
 		{/if}
 	</h3>
