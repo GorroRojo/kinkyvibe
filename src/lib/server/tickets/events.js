@@ -115,6 +115,23 @@ export function isTestEventSlug(slug) {
 }
 
 /**
+ * Título y fecha de un evento publicado, venda entradas hoy o no (para mostrar órdenes viejas:
+ * personas, estadísticas). `null` si no existe o no está publicado.
+ *
+ * @param {string} slug
+ * @returns {Promise<{ title: string, start: string | null } | null>}
+ */
+export async function getEventInfo(slug) {
+	const meta = await loadMeta(slug);
+	if (!meta) return null;
+	const start = meta.start instanceof Date ? meta.start.toISOString() : meta.start;
+	return {
+		title: typeof meta.title === 'string' && meta.title ? meta.title : slug,
+		start: start ? String(start) : null
+	};
+}
+
+/**
  * Configuración de entradas de un evento publicado, o `null` si no vende entradas (o si la
  * configuración es inválida, en cuyo caso se loguea el motivo).
  *
