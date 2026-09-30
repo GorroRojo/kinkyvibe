@@ -1,5 +1,11 @@
 # kinkyvibe-cron
 
+> **Se va con la migración a Workers.** Cuando el sitio corra como Worker (ver
+> [`docs/workers-migracion.md`](../../docs/workers-migracion.md)), los recordatorios los dispara el
+> cron del propio sitio (`wrangler.toml` → `worker/index.js`) y este Worker aparte se borra (paso
+> «Borrar el Worker viejo del cron» de esa guía), junto con esta carpeta. Hasta entonces sigue
+> funcionando igual que siempre: no tocarlo.
+
 Worker de Cloudflare que cada 15 minutos llama a `POST https://kinkyvibe.ar/api/cron/recordatorios`
 para que el sitio mande los recordatorios por mail de las entradas (ver `docs/tickets.md`,
 "Recordatorios"). No tiene lógica propia: el sitio decide qué mandar y no repite envíos.

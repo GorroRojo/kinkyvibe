@@ -1,15 +1,61 @@
-compatibility_date = "2023-04-14"
-compatibility_flags = [ "nodejs_compat" ]
+# Configuración del Worker `kinkyvibe` (Cloudflare Workers con archivos estáticos). La migración
+# desde Cloudflare Pages y los pasos en el panel están en docs/workers-migracion.md.
+#
+# Mientras el sitio siga en Pages, Pages ignora este archivo (no tiene `pages_build_output_dir`
+# a propósito) y sus bindings/variables siguen en el panel de Pages. Lo usan wrangler en local
+# (`npm run dev`, tests, `wrangler d1 …`) y, después de la migración, Workers Builds.
+#
+# Los ids de las bases D1 no son secretos. NUNCA escribirlos a mano: copiarlos de
+# `npx wrangler d1 list --json` y comparar (ver CLAUDE.md).
+name = "kinkyvibe"
+main = "worker/index.js"
+compatibility_date = "2026-09-25"
+compatibility_flags = ["nodejs_compat"]
 
-# Base de datos D1 (SQLite de Cloudflare). Ver la sección "Base de datos" del README.
-# - En local (`npm run dev`, tests, `wrangler pages dev`) se usa una copia simulada por
-#   miniflare guardada en `.wrangler/state`; el `database_id` no importa.
-# - En producción es la base `kinkyvibe` de la cuenta de Cloudflare (el id de abajo, que no es
-#   secreto), vinculada como `DB` en el proyecto de Pages (Settings → Bindings).
-# Nota: este archivo NO tiene `pages_build_output_dir` a propósito: así Cloudflare Pages lo
-# ignora y la configuración de producción (bindings, variables) sigue viviendo en el panel.
+# URL kinkyvibe.<subdominio>.workers.dev (para probar antes de mover el dominio) y URLs de los
+# Previews de cada rama.
+workers_dev = true
+preview_urls = true
+
+# Las variables de texto se cargan en el panel (Settings → Variables and Secrets). Sin esto,
+# cada deploy borraría las que no estén en este archivo. Los secrets nunca se borran.
+keep_vars = true
+
+# Los archivos que genera el adapter de SvelteKit (ver wrangler.adapter.toml).
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+# Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
+# - cada 15 minutos: recordatorios de entradas;
+# - 06:00 UTC (03:00 en Argentina): backup de la base a R2.
+# Solo corren en producción (los Previews no ejecutan crons).
+[triggers]
+crons = ["*/15 * * * *", "0 6 * * *"]
+
+# Base de datos D1 de producción. En local (`npm run dev`, tests) es una copia simulada por
+# miniflare en `.wrangler/state`: nunca se conecta a Cloudflare.
 [[d1_databases]]
 binding = "DB"
 database_name = "kinkyvibe"
 database_id = "e3fd96b8-5655-4eee-937e-3bf6785b8d38"
+migrations_dir = "migrations"
+
+# Backups nocturnos de la base (src/lib/server/backup/). El bucket se crea a mano una vez.
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "kinkyvibe-backups"
+
+# Previews (una por rama que no sea main): no heredan nada de producción. Usan la base de
+# prueba y no tienen bucket de backups. Sus variables y secrets se cargan en el panel, en
+# «Previews Base».
+[previews]
+
+[[previews.d1_databases]]
+binding = "DB"
+database_name = "kinkyvibe-preview"
+database_id = "c7513f19-d6a1-467c-b694-3c0559675b9d"
 migrations_dir = "migrations"
