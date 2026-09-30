@@ -1,7 +1,7 @@
 <script>
 	// Caja de aviso al pie de un post ("Este material fue proporcionado por…", "Fecha de
-	// publicación original…"). Antes eran texto blanco sobre violeta claro (contraste 2.9:1);
-	// ahora tinte violeta con texto oscuro, como los avisos del panel.
+	// publicación original…"). Violeta con texto blanco como antes, pero con el violeta
+	// principal (el claro daba contraste 2.9:1; este, 5.4:1).
 	/** @type {string | undefined} */
 	export let id = undefined;
 	/** Clases extra (p. ej. microformatos como `h-cite`). */
@@ -16,19 +16,21 @@
 		width: calc(100% - 32px);
 		margin: 1.5em auto;
 		padding: 1em 1.2em;
-		background: var(--2-tint);
-		color: var(--ink);
+		background: var(--2);
+		color: white;
 		border-radius: var(--round);
 		font-size: var(--step-0);
 		line-height: 1.5;
 	}
 	.note :global(a) {
-		color: var(--2-dark);
-		font-weight: 700;
-		text-decoration-color: var(--1);
+		color: white;
+		text-decoration-color: var(--4-light);
 		text-underline-offset: 0.15em;
 	}
 	.note :global(a:hover) {
-		color: var(--1-ink);
+		color: var(--4-light);
+	}
+	.note :global(a:focus-visible) {
+		outline-color: white;
 	}
 </style>

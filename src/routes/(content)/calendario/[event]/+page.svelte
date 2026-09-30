@@ -338,9 +338,7 @@
 		color: white;
 		text-decoration: none;
 		text-align: center;
-		box-shadow:
-			0 0.15em 0 var(--1-dark),
-			0 0.4em 1em color-mix(in srgb, var(--1) 35%, transparent);
+		box-shadow: 0 0.2em 0.8em color-mix(in srgb, var(--1) 40%, transparent);
 		&:hover,
 		&:focus-visible {
 			background: var(--1-dark);
@@ -439,7 +437,6 @@
 				background-color: var(--1);
 				border: 1px solid var(--1);
 				border-radius: var(--round-pill);
-				box-shadow: 0 0.15em 0 var(--1-dark);
 				color: white;
 				display: flex;
 				font-weight: bold;

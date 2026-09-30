@@ -1,6 +1,6 @@
 <script>
 	// Tarjeta de le autore al pie de un evento o un material (antes copiada igual en las dos
-	// páginas). Tarjeta blanca redondeada, foto redonda, nombre y resumen.
+	// páginas). Se ve como un perfil de la lista de amigues: pill blanca con borde violeta.
 	/** @type {string} */
 	export let href;
 	/** @type {string} */
@@ -18,6 +18,7 @@
 </a>
 
 <style>
+	/* same look as a profile in the amigues list: white pill with a violet outline */
 	.author-callout {
 		display: grid;
 		grid-template-areas: 'img title' 'img summary';
@@ -28,21 +29,18 @@
 		max-width: 50rem;
 		width: calc(100% - 32px);
 		margin: 1em auto;
-		padding: 1rem 1.2rem;
+		padding: 0.5rem 2.5rem 0.5rem 0.5rem;
 		background: var(--surface);
-		border-radius: var(--round);
+		border-radius: 999em;
+		outline: 2px solid var(--2);
 		box-shadow: var(--shadow);
-		border-left: 0.35rem solid var(--2);
 		color: var(--ink);
 		text-decoration: none;
-		transition:
-			box-shadow 150ms,
-			transform 150ms;
+		transition: scale 100ms;
 	}
 	.author-callout:hover {
 		color: var(--ink);
-		box-shadow: var(--shadow-lift);
-		transform: translateY(-0.1em);
+		scale: 1.02;
 	}
 	.author-image {
 		grid-area: img;
@@ -72,12 +70,17 @@
 			grid-template-areas: 'img title' 'summary summary';
 			grid-template-columns: 4rem minmax(0, 1fr);
 			row-gap: 0.7rem;
+			padding: 0.5rem 1.2rem 1.2rem 0.5rem;
+			border-radius: 2em;
 		}
 		.author-image {
 			width: 4rem;
 		}
 		.author-title {
 			align-self: center;
+		}
+		.author-summary {
+			padding-left: 0.7rem;
 		}
 	}
 </style>
