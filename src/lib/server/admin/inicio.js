@@ -604,8 +604,16 @@ export function upcomingEvents({
  *   text: string,
  *   action: string,
  *   href?: string,
- *   resend?: { orderId: string }
+ *   resend?: { orderId: string },
+ *   group?: ReviewGroupKind,
+ *   name?: string
  * }} ReviewItem
+ */
+
+/**
+ * Tipos de ítem de "Para revisar" que son higiene de contenido (no plata, entradas ni gente):
+ * si hay varios del mismo tipo se muestran en una sola fila (ver `groupReviewItems`).
+ * @typedef {'image' | 'draft'} ReviewGroupKind
  */
 
 /**
@@ -706,8 +714,9 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 			});
 		}
 	}
+	// Los borradores también: así la cuenta coincide con el filtro "Sin imagen" de Eventos.
 	for (const e of upcoming) {
-		if (!e.hasImage && !e.draft) {
+		if (!e.hasImage) {
 			items.push({
 				id: `image-${e.slug}`,
 				tone: 'info',
@@ -715,7 +724,9 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				title: `${e.title} no tiene imagen`,
 				text: 'Sin imagen no se ve bien en el calendario ni al compartir',
 				action: 'Agregar',
-				href: links.edit(e.slug)
+				href: links.edit(e.slug),
+				group: 'image',
+				name: e.title
 			});
 		}
 	}
@@ -726,15 +737,89 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				tone: 'info',
 				icon: 'draft',
 				title: `Borrador sin publicar: ${e.title}`,
-				text: e.hasImage
-					? 'No aparece en el calendario'
-					: 'No aparece en el calendario y no tiene imagen',
+				text: 'No aparece en el calendario',
 				action: 'Revisar',
-				href: links.edit(e.slug)
+				href: links.edit(e.slug),
+				group: 'draft',
+				name: e.title
 			});
 		}
 	}
 	return items;
+}
+
+/**
+ * Una fila de "Para revisar" que junta varios ítems del mismo tipo. Con `href` la fila lleva a
+ * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.
+ * @typedef {{
+ *   id: string,
+ *   tone: 'info',
+ *   icon: string,
+ *   title: string,
+ *   text: string,
+ *   action: string,
+ *   href?: string,
+ *   items: ReviewItem[]
+ * }} ReviewGroup
+ */
+
+/** @typedef {({ kind: 'item' } & ReviewItem) | ({ kind: 'group' } & ReviewGroup)} ReviewRow */
+
+/**
+ * Agrupa lo repetitivo de "Para revisar": lo urgente (plata, entradas, gente) queda de a uno,
+ * y cada tipo de higiene de contenido con `min` o más ítems pasa a ser una sola fila con la
+ * cuenta. Con menos, quedan de a uno (un solo ítem es más útil con su acción directa).
+ * Conserva el orden: los grupos van donde estaba su primer ítem.
+ *
+ * @param {ReviewItem[]} items
+ * @param {{ links: { noImage: string }, min?: number }} opts
+ * @returns {ReviewRow[]}
+ */
+export function groupReviewItems(items, { links, min = 2 }) {
+	/** @type {Map<ReviewGroupKind, ReviewItem[]>} */
+	const byKind = new Map();
+	for (const i of items) {
+		if (i.group) byKind.set(i.group, [...(byKind.get(i.group) ?? []), i]);
+	}
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** @type {Record<ReviewGroupKind, (list: ReviewItem[]) => ReviewGroup>} */
+	const make = {
+		image: (list) => ({
+			id: 'group-image',
+			tone: 'info',
+			icon: 'image',
+			title: plural(list.length, 'evento próximo sin imagen', 'eventos próximos sin imagen'),
+			text: 'Sin imagen no se ven bien en el calendario ni al compartir',
+			action: 'Ver',
+			href: links.noImage,
+			items: list
+		}),
+		// El filtro "Borradores" de Eventos incluye los de eventos pasados: se despliega acá.
+		draft: (list) => ({
+			id: 'group-draft',
+			tone: 'info',
+			icon: 'draft',
+			title: plural(list.length, 'borrador sin publicar', 'borradores sin publicar'),
+			text: 'Eventos próximos que no aparecen en el calendario',
+			action: 'Ver',
+			items: list
+		})
+	};
+	/** @type {ReviewRow[]} */
+	const rows = [];
+	/** @type {Set<ReviewGroupKind>} */
+	const placed = new Set();
+	for (const i of items) {
+		const list = i.group ? (byKind.get(i.group) ?? []) : [];
+		if (!i.group || list.length < min) {
+			rows.push({ kind: 'item', ...i });
+		} else if (!placed.has(i.group)) {
+			placed.add(i.group);
+			rows.push({ kind: 'group', ...make[i.group](list) });
+		}
+	}
+	return rows;
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';
