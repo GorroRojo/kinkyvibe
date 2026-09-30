@@ -66,21 +66,3 @@ function getToken(code) {
 			throw new Error('Error at getToken: ' + err);
 		});
 }
-
-
-// let i = {
-// 	login: 'GorroRojo',
-// 	id: 4594048,
-// 	node_id: 'MDQ6VXNlcjQ1OTQwNDg=',
-// 	avatar_url: 'https://avatars.githubusercontent.com/u/4594048?v=4',
-// 	gravatar_id: '',
-// 	url: 'https://api.github.com/users/GorroRojo',
-// 	html_url: 'https://github.com/GorroRojo',
-// 	organizations_url: 'https://api.github.com/users/GorroRojo/orgs',
-// 	repos_url: 'https://api.github.com/users/GorroRojo/repos',
-// 	type: 'User',
-// 	name: 'Gorro_Rojo',
-// 	company: null,
-// 	blog: 'https://gorro.ar',
-// 	email: 'gorro.rojo@gmail.com',
-// };

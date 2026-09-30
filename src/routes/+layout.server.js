@@ -5,8 +5,6 @@ import { isAdmin } from '$lib/server/auth';
 // changes, e.g. on each PostList search update.
 export const load = async ({ locals }) => {
 	let wiki = await fetchMarkdownPosts(true);
-	// let allPosts = await (await fetch('/api/posts')).json()
-	// let wiki = await (await fetch('/api/wiki')).json();
 	return {
 		wiki,
 		// `admin` only decides which menu links to show; every admin route checks on its own.
