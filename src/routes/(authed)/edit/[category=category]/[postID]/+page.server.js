@@ -4,7 +4,7 @@ import { ghGet, ghPut } from '$lib/external/github.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
-import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
+import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
 import { FileChangedError } from '$lib/server/eventos/github.js';
 import {
 	findAssetUsers,
@@ -34,8 +34,30 @@ function postPath(params) {
 	return path;
 }
 
+/**
+ * Los eventos se editan en el panel (/admin/eventos/<slug>/editar, que usa este mismo código con
+ * `_editLoad` y `_editActions`); acá quedan las demás categorías. Sin redirección: la página de
+ * los eventos se mudó.
+ * @param {{category: string, postID: string}} params
+ */
+function rejectEvents(params) {
+	if (params.category === 'calendario') {
+		throw error(404, `Los eventos se editan en el panel: /admin/eventos/${params.postID}/editar`);
+	}
+}
+
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ locals, params, url, platform }) {
+export async function load(event) {
+	postPath(event.params); // 400 para direcciones inválidas, antes que nada
+	rejectEvents(event.params);
+	return _editLoad(event);
+}
+
+/**
+ * El load del editor, para cualquier categoría (también la usa la pestaña Editar del panel).
+ * @param {{ locals: App.Locals, params: {category: string, postID: string}, url: URL, platform?: App.Platform }} event
+ */
+export async function _editLoad({ locals, params, url, platform }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
 	const post = await getFileContent(locals.user_token, postPath(params));
@@ -84,8 +106,11 @@ async function imageInfo(token, slug, raw) {
 /** @param {string} slug */
 const mediaDir = (slug) => `src/lib/posts/calendario/media/${slug}`;
 
-/** @type {import("./$types").Actions} */
-export const actions = {
+/**
+ * Las acciones del editor, para cualquier categoría (también las usa la pestaña Editar del panel).
+ * @type {Record<string, (event: any) => Promise<any>>}
+ */
+export const _editActions = {
 	// Form actions do not run the (authed) layout load: each one must check auth.
 	save: async ({ params, locals, request, url, platform }) => {
 		const user = requireAdmin(locals, url);
@@ -171,8 +196,9 @@ export const actions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
-	if (isMockMode()) {
-		// DEV ONLY (`npm run dev:admin`): read the local checkout, see $lib/server/eventos/mock.js.
+	if (usesLocalRepo()) {
+		// `npm run dev:admin` (reads the local checkout, see $lib/server/eventos/mock.js) or a
+		// preview deploy (demo mode: the demo layer in D1, then the deployed files).
 		const raw = await (await getRepoClient()).getFile(token, path);
 		if (raw === null) throw error(404, 'No se encontró la publicación');
 		return { raw, sha: 'dev-mock', path };
@@ -196,8 +222,8 @@ async function getFileContent(token, path) {
  * @return {Promise<*>} A promise that resolves with the response from the GitHub API.
  */
 async function saveFileContent(token, path, content, sha, userName, category, postID) {
-	if (isMockMode()) {
-		// DEV ONLY: "commit" to the mock's temp folder instead of GitHub.
+	if (usesLocalRepo()) {
+		// DEV ONLY / previews: "commit" to the mock's temp folder or the demo layer, not GitHub.
 		const client = await getRepoClient();
 		return await client.commitFiles(token, {
 			files: [{ path, content }],
@@ -346,3 +372,17 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 		});
 	}
 }
+
+/** @type {import("./$types").Actions} */
+export const actions = {
+	..._editActions,
+	// Guardar un evento (o ver qué eventos usan su imagen) se hace desde el panel.
+	save: (event) => {
+		rejectEvents(event.params);
+		return _editActions.save(event);
+	},
+	afectados: (event) => {
+		rejectEvents(event.params);
+		return _editActions.afectados(event);
+	}
+};

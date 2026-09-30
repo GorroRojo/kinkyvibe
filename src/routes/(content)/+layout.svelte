@@ -73,6 +73,9 @@
 				{#await import('$lib/components/UserMenu.svelte') then { default: UserMenu }}
 					<svelte:component this={UserMenu} user={data.user} />
 				{/await}
+			{:else if data.demoMode}
+				<!-- Preview deploys only (docs/demo.md) -->
+				<a href="/login?redirectTo=/admin">🧪 Entrar como admin de prueba</a>
 			{:else}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?
@@ -104,14 +107,14 @@
 	<div class="breadcrumbs">
 		<a href={'/'}>
 			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
-				<ArrowLeft size="20" style="translate: 0 .4em" />
+				<ArrowLeft size="20" aria-hidden="true" />
 			{/if}
 			Inicio
 		</a>
 
 		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
 			<LDTag schema={ldBreadcrumb($currentPostData?.category)} />
-			<ChevronLeft size="20" style="translate: 0 .4em" />
+			<ChevronLeft size="20" aria-hidden="true" />
 			<a href={'/' + $currentPostData.category}
 				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
 			>
@@ -154,17 +157,31 @@
 		width: 100%;
 		max-width: 50rem;
 		margin: 0 auto 1.4em;
-		/* padding-left: 1em; */
-		color: var(--2);
+		padding-inline: 16px;
+		color: var(--2-dark);
 		text-decoration: none;
-		align-items: baseline;
-		gap: 1em;
+		align-items: center;
+		gap: 0.6em;
 		justify-content: center;
 		margin-top: 1em;
 	}
 	.breadcrumbs a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3em;
+		min-height: 2em;
+		padding-inline: 0.4em;
+		border-radius: var(--round-pill);
 		text-decoration: none;
 		text-transform: capitalize;
+	}
+	.breadcrumbs a:hover {
+		background: var(--surface);
+		color: var(--2-dark);
+	}
+	.breadcrumbs :global(svg) {
+		height: 20px;
+		flex: none;
 	}
 	#me {
 		display: grid;
@@ -251,11 +268,13 @@
 		box-shadow: none;
 	}
 	#user a {
-		padding-inline: 0.6em;
+		padding: 0.3em 0.8em;
+		min-height: 2.25rem;
 		display: flex;
 		align-items: center;
 		gap: 0.5em;
-		border-radius: 3em;
+		border-radius: var(--round-pill);
+		font-weight: 700;
 		/* background: linear-gradient(125.13deg, #ff009f 6%, #4529ab 100%); */
 		background: var(--2);
 		max-width: 11em;
@@ -263,7 +282,7 @@
 
 	#me li a {
 		width: var(--size);
-		color: hotpink;
+		color: var(--1);
 		background: transparent;
 		border-radius: 3em;
 	}
@@ -315,6 +334,13 @@
 			justify-self: unset;
 		}
 	} */
+	@media (max-width: 680px) {
+		/* al menos 44 px de alto para el dedo */
+		.breadcrumbs a,
+		#user a {
+			min-height: var(--tap);
+		}
+	}
 	@media (max-width: 500px) {
 		#me {
 			grid-template-areas: 'logo user';

@@ -1,0 +1,300 @@
+// Tokens y estilos base del panel de admin (/admin/**). Lo importa
+// src/routes/(authed)/admin/+layout.svelte; todo está dentro de `.kv-panel`, así que no toca el
+// sitio público.
+//
+// El panel se ve como el sitio: sale de los tokens del sitio (`--1` rosa, `--2` violeta, `--3`
+// verde, `--4` amarillo, con `-light`/`-dark`, y `--round`, en src/lib/styles/style.scss), fondo
+// #eee, texto #333, tarjetas blancas redondeadas, botones en píldora sin sombra 3D, chips con
+// borde y Lato 400/700. No agregues colores nuevos: mezclá los del sitio con `color-mix`.
+//
+// Alias semánticos (usalos en vez de colores sueltos, así las páginas andan en claro y oscuro):
+//   --bg        fondo de la página (#eee)     --surface   tarjetas, menús, inputs (blanco)
+//   --surface-2 filas hover, cajas suaves     --line      bordes y separadores
+//   --text      texto (#333)                  --muted     texto secundario
+//   --accent    rosa del sitio (--1)          --accent-ink texto sobre --accent
+//   --link      violeta del sitio (--2)       --link-bg   fondo del ítem activo
+//   --ok / --ok-bg      verde (--3)           --warn / --warn-bg  amarillo (--4)
+//   --bad / --bad-bg    rosa oscuro (--1)     --info / --info-bg  violeta (--2)
+//   --counter / --counter-ink  contadores     --field     borde de los inputs
+//   --card-round radio de las tarjetas        --shadow    sombra de las tarjetas
+//
+// Clases para las páginas: .kv-btn (píldora rosa), .kv-btn.ghost (borde rosa), .kv-btn.violet
+// (como "¿Todo gratis?"), .kv-input (input en píldora con borde rosa), .kv-table.
+//
+// Tema: claro por defecto. Con el botón del panel se elige oscuro o automático (sigue a
+// `prefers-color-scheme`); la elección va en localStorage `kv-panel-theme` y se pone como
+// `data-theme` en <html> antes de pintar (ver theme.js). Para estilos propios del modo oscuro en
+// una página, usá los mismos dos selectores de abajo: `[data-theme='dark']` y `[data-theme='auto']`
+// dentro de `@media (prefers-color-scheme: dark)`.
+
+@mixin light {
+	color-scheme: light;
+	--bg: #eee;
+	--surface: white;
+	--surface-2: color-mix(in srgb, var(--2) 5%, white);
+	--line: color-mix(in srgb, var(--2) 10%, #e4e4e4);
+	--text: #333;
+	--muted: #6e6e6e;
+	--accent: var(--1);
+	--accent-dark: var(--1-dark);
+	--accent-ink: white;
+	--link: var(--2);
+	--link-bg: color-mix(in srgb, var(--2) 10%, white);
+	--ok: var(--3-dark);
+	--ok-bg: color-mix(in srgb, var(--3) 14%, white);
+	--warn: color-mix(in srgb, var(--4-dark) 55%, #3a2a00);
+	--warn-bg: color-mix(in srgb, var(--4) 22%, white);
+	--bad: var(--1-dark);
+	--bad-bg: color-mix(in srgb, var(--1) 10%, white);
+	--info: var(--2-dark);
+	--info-bg: color-mix(in srgb, var(--2) 10%, white);
+	--counter: var(--4);
+	--counter-ink: #333;
+	--field: var(--1-light);
+	--bar-track: color-mix(in srgb, var(--2) 8%, #eee);
+	--card-round: calc(var(--round) * 1.25);
+	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+	--scrim: color-mix(in srgb, var(--2-dark) 30%, transparent);
+}
+
+// Oscuro: los mismos tonos del sitio sobre un fondo violeta muy oscuro.
+@mixin dark {
+	color-scheme: dark;
+	--bg: color-mix(in srgb, var(--2) 11%, #0e0c11);
+	--surface: color-mix(in srgb, var(--2) 12%, #1a181d);
+	--surface-2: color-mix(in srgb, var(--2) 19%, #1f1d22);
+	--line: color-mix(in srgb, var(--2) 22%, #2e2c31);
+	--text: #eee;
+	--muted: #aaa;
+	--accent: var(--1);
+	--accent-dark: color-mix(in srgb, var(--1) 70%, black);
+	--accent-ink: white;
+	--link: color-mix(in srgb, var(--2) 55%, white);
+	--link-bg: color-mix(in srgb, var(--2) 28%, #1a181d);
+	--ok: color-mix(in srgb, var(--3) 75%, white);
+	--ok-bg: color-mix(in srgb, var(--3) 24%, #1a181d);
+	--warn: color-mix(in srgb, var(--4) 85%, white);
+	--warn-bg: color-mix(in srgb, var(--4) 22%, #1a181d);
+	--bad: color-mix(in srgb, var(--1) 60%, white);
+	--bad-bg: color-mix(in srgb, var(--1) 24%, #1a181d);
+	--info: color-mix(in srgb, var(--2) 55%, white);
+	--info-bg: color-mix(in srgb, var(--2) 25%, #1a181d);
+	--counter: var(--4);
+	--counter-ink: #333;
+	--field: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--bar-track: color-mix(in srgb, var(--2) 18%, #2a282d);
+	--card-round: calc(var(--round) * 1.25);
+	--shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
+	--scrim: rgba(0, 0, 0, 0.55);
+	// Las páginas viejas usan los tonos -light como fondo y los -dark como texto: en oscuro se
+	// invierten (mezclas de los mismos colores base del sitio, que no se redefinen).
+	--1-light: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--2-light: color-mix(in srgb, var(--2) 45%, #1a181d);
+	--3-light: color-mix(in srgb, var(--3) 25%, #1a181d);
+	--4-light: color-mix(in srgb, var(--4) 22%, #1a181d);
+	--1-dark: color-mix(in srgb, var(--1) 60%, white);
+	--2-dark: color-mix(in srgb, var(--2) 55%, white);
+	--3-dark: color-mix(in srgb, var(--3) 75%, white);
+	--4-dark: color-mix(in srgb, var(--4) 85%, white);
+
+	// Los colores de sintaxis por defecto de CodeMirror (azules, violetas y grises oscuros) no se
+	// leen sobre fondo oscuro: en oscuro el texto del editor va en el color del texto (negritas,
+	// cursivas y subrayados de títulos, énfasis y links se mantienen).
+	.cm-editor .cm-line span {
+		color: inherit;
+	}
+}
+
+.kv-panel {
+	@include light;
+}
+@media (prefers-color-scheme: dark) {
+	:root[data-theme='auto'] .kv-panel {
+		@include dark;
+	}
+}
+:root[data-theme='dark'] .kv-panel {
+	@include dark;
+}
+
+.kv-panel {
+	background: var(--bg);
+	color: var(--text);
+	min-height: 100vh;
+	min-height: 100dvh;
+	line-height: 1.4;
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+	:focus-visible {
+		outline: 2px solid var(--link);
+		outline-offset: 2px;
+	}
+	a {
+		color: inherit;
+		text-decoration-color: var(--accent);
+		&:hover {
+			color: var(--accent);
+		}
+	}
+	h1,
+	h2,
+	h3 {
+		font-weight: 700;
+		text-wrap: balance;
+	}
+	// El layout público fuerza `svg { height: 24px }` (global); en el panel los íconos de Lucide
+	// usan el tamaño que se les pasa.
+	svg.lucide-icon {
+		height: auto;
+		flex: none;
+	}
+	.num {
+		font-variant-numeric: tabular-nums;
+	}
+	.muted {
+		color: var(--muted);
+	}
+
+	// Botones en píldora, como los del sitio (sin sombra 3D): <a class="kv-btn"> o <button>.
+	.kv-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4em;
+		background: var(--accent);
+		color: var(--accent-ink);
+		border: 0;
+		border-radius: 3em;
+		padding: 0.5em 1.1em;
+		font-weight: 700;
+		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			scale 150ms,
+			box-shadow 150ms;
+		&:hover {
+			color: var(--accent-ink);
+			scale: 1.04;
+			box-shadow: 0.2em 0.2em 0.8em rgba(1, 1, 1, 0.15);
+		}
+		&:active {
+			scale: 1.01;
+			box-shadow: none;
+		}
+		// Borde rosa sobre blanco ("Filtrar por etiquetas").
+		&.ghost {
+			background: var(--surface);
+			color: var(--accent);
+			box-shadow: inset 0 0 0 2px var(--accent);
+			&:hover {
+				color: var(--accent);
+			}
+		}
+		// Violeta ("¿Todo gratis?").
+		&.violet {
+			background: var(--2);
+			color: white;
+		}
+		&.small {
+			padding: 0.25em 0.8em;
+			font-size: 0.9em;
+		}
+		&:disabled {
+			opacity: 0.6;
+			cursor: wait;
+			scale: 1;
+		}
+	}
+
+	// Input como el buscador del sitio: píldora blanca con borde rosa.
+	.kv-input {
+		background: var(--surface);
+		color: var(--text);
+		border: 1px solid var(--field);
+		border-radius: 3em;
+		padding: 0.5em 1em;
+		min-width: 0;
+		&::placeholder {
+			color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
+		}
+		&:focus {
+			outline: 2px solid var(--accent);
+			outline-offset: 0;
+		}
+	}
+
+	// Tablas: <div class="kv-table-wrap"><table class="kv-table">…
+	.kv-table-wrap {
+		overflow-x: auto;
+	}
+	.kv-table {
+		border-collapse: collapse;
+		width: 100%;
+		th,
+		td {
+			text-align: left;
+			padding: 0.5rem 0.6rem;
+			border-bottom: 1px solid var(--line);
+		}
+		th {
+			font-size: 0.8rem;
+			color: var(--link);
+			font-weight: 700;
+		}
+		tbody tr:hover {
+			background: var(--surface-2);
+		}
+		.r {
+			text-align: right;
+		}
+	}
+}
+
+// Editores de texto (CodeMirror) dentro del panel: fondo, bordes, cursor, selección y línea
+// actual con los tokens, así se leen en claro y en oscuro. Los selectores repiten clases para
+// ganarle al tema base que CodeMirror inyecta en la página.
+.kv-panel .cm-editor.cm-editor {
+	background: var(--surface);
+	color: var(--text);
+	.cm-gutters {
+		background: var(--surface-2);
+		color: var(--muted);
+		border-color: var(--line);
+	}
+	.cm-activeLine {
+		background: color-mix(in srgb, var(--link) 8%, transparent);
+	}
+	.cm-activeLineGutter {
+		background: color-mix(in srgb, var(--link) 16%, transparent);
+		color: var(--text);
+	}
+	.cm-cursor,
+	.cm-dropCursor {
+		border-left-color: var(--text);
+	}
+	.cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+	&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+		background: color-mix(in srgb, var(--link) 32%, transparent);
+	}
+	.cm-content ::selection {
+		background: color-mix(in srgb, var(--link) 32%, transparent);
+	}
+	.cm-foldPlaceholder {
+		background: var(--surface-2);
+		border-color: var(--line);
+		color: var(--muted);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.kv-panel * {
+		transition: none !important;
+		animation: none !important;
+	}
+}

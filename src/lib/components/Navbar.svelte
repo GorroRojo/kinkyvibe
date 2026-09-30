@@ -88,8 +88,8 @@
 		--color: var(--2);
 	}
 	.current a {
-		background: white;
-		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
+		background: var(--surface);
+		box-shadow: var(--shadow);
 	}
 	nav a span {
 		--color: var(--1);
@@ -143,7 +143,9 @@
 			max-width: none;
 			padding-inline: 0.5em max(0.5em, env(safe-area-inset-right));
 			z-index: 2;
-			background: white;
+			background: var(--surface);
+			/* lugar para la barra de gestos del celu */
+			padding-bottom: env(safe-area-inset-bottom, 0px);
 			font-size: 1em;
 			ul {
 				flex-wrap: nowrap;

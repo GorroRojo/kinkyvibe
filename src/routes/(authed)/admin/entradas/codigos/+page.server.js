@@ -4,6 +4,7 @@
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB, logDBError } from '$lib/server/db';
 import {
 	createDiscountCode,
@@ -61,6 +62,13 @@ export const actions = {
 				}
 			});
 		}
+		await logAdminAction(db, locals, {
+			action: 'discount.create',
+			targetType: 'discount',
+			targetId: valid.value.code,
+			summary: `Creó el código de descuento ${valid.value.code}`,
+			detail: valid.value
+		});
 		return { create: { ok: true, message: `Código ${valid.value.code} creado.` } };
 	},
 
@@ -72,6 +80,14 @@ export const actions = {
 		const code = String(form.get('code') ?? '').slice(0, 40);
 		const active = form.get('active') === '1';
 		const ok = await setDiscountCodeActive(db, code, active);
+		if (ok) {
+			await logAdminAction(db, locals, {
+				action: active ? 'discount.activate' : 'discount.deactivate',
+				targetType: 'discount',
+				targetId: code.toUpperCase(),
+				summary: `${active ? 'Activó' : 'Desactivó'} el código ${code.toUpperCase()}`
+			});
+		}
 		return ok
 			? {
 					toggle: {

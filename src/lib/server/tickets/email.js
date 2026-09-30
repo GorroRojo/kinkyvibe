@@ -3,6 +3,53 @@
  */
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import { renderBlockHtml, renderInlineHtml, renderPlain } from '$lib/utils/emailTemplates.js';
+
+/**
+ * Plantilla guardada en el panel (asunto, título y texto de arriba; ver emailTemplates.js), o
+ * `null`: entonces el mail sale exactamente como siempre.
+ * @typedef {import('$lib/utils/emailTemplates.js').TemplateText | null | undefined} Template
+ */
+
+/**
+ * Las partes editables ya armadas con las variables, o `null` sin plantilla.
+ *
+ * @param {Template} template
+ * @param {Record<string, string | number>} vars
+ */
+function applyTemplate(template, vars) {
+	if (!template) return null;
+	return {
+		subject: renderPlain(template.subject, vars).replace(/\s+/g, ' ').trim(),
+		headingHtml: renderInlineHtml(template.heading, vars),
+		headingText: renderPlain(template.heading, vars),
+		bodyHtml: renderBlockHtml(template.body, vars),
+		bodyText: renderPlain(template.body, vars)
+	};
+}
+
+/**
+ * Variables comunes de las plantillas.
+ *
+ * @param {import('./orders.js').Order} order
+ * @param {{ title: string, start?: string, location?: string, location_name?: string, online?: boolean }} event
+ * @param {string} typeName
+ */
+export function templateVars(order, event, typeName) {
+	return {
+		nombre: order.buyer_name,
+		evento: event.title,
+		fecha: formatEventDate(event.start),
+		lugar: event.online
+			? 'Online'
+			: [event.location_name, event.location].filter(Boolean).join(' · '),
+		tipo: typeName,
+		cantidad: order.quantity,
+		entradas: order.quantity === 1 ? 'una entrada' : `${order.quantity} entradas`,
+		total: formatARS(order.total),
+		referencia: orderReference(order.id)
+	};
+}
 
 /**
  * Política de devoluciones al pie de los mails.
@@ -118,17 +165,27 @@ function streamLinkBlock(link) {
  *     online?: boolean, streamLink?: string | null },
  *   typeName: string,
  *   origin: string,
- *   contactEmail: string
+ *   contactEmail: string,
+ *   template?: Template
  * }} input
  */
-export function buildTicketEmail({ order, tickets, event, typeName, origin, contactEmail }) {
+export function buildTicketEmail({
+	order,
+	tickets,
+	event,
+	typeName,
+	origin,
+	contactEmail,
+	template
+}) {
 	const title = event.title;
 	const when = formatEventDate(event.start);
 	const online = Boolean(event.online);
 	const where = online
 		? 'Online'
 		: [event.location_name, event.location].filter(Boolean).join(' · ');
-	const subject = `Tus entradas para ${title}`;
+	const custom = applyTemplate(template, templateVars(order, event, typeName));
+	const subject = custom ? custom.subject : `Tus entradas para ${title}`;
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 
 	// Nombre y pronombres de cada entrada (nunca el DNI: los mails se reenvían y quedan guardados).
@@ -172,8 +229,8 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
 		: '<p>Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está al lado. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.</p>';
 
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<h1 style="color:#b3127a;font-size:22px">¡Ya tenés tus entradas!</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>
+		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : '¡Ya tenés tus entradas!'}</h1>
+		${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${intro}
@@ -184,7 +241,7 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
 		</body></html>`;
 
 	const text = [
-		'¡Ya tenés tus entradas!',
+		...(custom ? [custom.headingText, '', custom.bodyText] : ['¡Ya tenés tus entradas!']),
 		'',
 		`${title}`,
 		when,
@@ -220,26 +277,40 @@ export function buildTicketEmail({ order, tickets, event, typeName, origin, cont
  *   event: { title: string, start?: string },
  *   link: string,
  *   origin: string,
- *   contactEmail: string
+ *   contactEmail: string,
+ *   template?: Template
  * }} input
  */
-export function buildStreamLinkEmail({ order, tickets, event, link, origin, contactEmail }) {
+export function buildStreamLinkEmail({
+	order,
+	tickets,
+	event,
+	link,
+	origin,
+	contactEmail,
+	template
+}) {
 	const when = formatEventDate(event.start);
-	const subject = `Link de la transmisión: ${event.title}`;
+	const custom = applyTemplate(template, {
+		nombre: order.buyer_name,
+		evento: event.title,
+		fecha: when
+	});
+	const subject = custom ? custom.subject : `Link de la transmisión: ${event.title}`;
 	const policy = policyBlocks(contactEmail);
 	const ticketLinks = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<h1 style="color:#b3127a;font-size:22px">Ya está el link de la transmisión</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>
+		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : 'Ya está el link de la transmisión'}</h1>
+		${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>`}
 		${streamLinkBlock(link)}
 		${ticketLinks.length ? `<p>También está en la página de ${ticketLinks.length === 1 ? 'tu entrada' : 'cada entrada'}: ${ticketLinks.map((l, i) => `<a href="${l}">entrada ${i + 1}</a>`).join(', ')}.</p>` : ''}
 		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}
 		</body></html>`;
 	const text = [
-		'Ya está el link de la transmisión',
-		'',
-		`${event.title}${when ? ` (${when})` : ''}`,
+		...(custom
+			? [custom.headingText, '', custom.bodyText]
+			: ['Ya está el link de la transmisión', '', `${event.title}${when ? ` (${when})` : ''}`]),
 		'',
 		`Link (personal, no lo compartas): ${link}`,
 		'',
@@ -263,7 +334,8 @@ export function buildStreamLinkEmail({ order, tickets, event, link, origin, cont
  *     online?: boolean, streamLink?: string | null },
  *   typeName: string,
  *   origin: string,
- *   contactEmail: string
+ *   contactEmail: string,
+ *   template?: Template
  * }} input
  */
 export function buildReminderEmail({
@@ -273,7 +345,8 @@ export function buildReminderEmail({
 	event,
 	typeName,
 	origin,
-	contactEmail
+	contactEmail,
+	template
 }) {
 	const when = formatEventDate(event.start);
 	const online = Boolean(event.online);
@@ -286,7 +359,11 @@ export function buildReminderEmail({
 			: reminder.kind === 'hours_before' && reminder.hours < 24
 				? 'es en unas horas'
 				: 'se acerca';
-	const subject = `Recordatorio: ${event.title} ${soon}`;
+	const custom = applyTemplate(template, {
+		...templateVars({ ...order, quantity: tickets.length }, event, typeName),
+		cuando: soon
+	});
+	const subject = custom ? custom.subject : `Recordatorio: ${event.title} ${soon}`;
 	const policy = policyBlocks(contactEmail);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
@@ -304,8 +381,8 @@ export function buildReminderEmail({
 			: '<p>Es un evento online: te vamos a mandar el link de la transmisión por mail antes de que empiece.</p>'
 		: '<p>Llevá el QR de cada entrada (en el celu o impreso). Si no se puede escanear, alcanza con el código.</p>';
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<h1 style="color:#b3127a;font-size:22px">¡${escapeHtml(event.title)} ${soon}!</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>
+		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : `¡${escapeHtml(event.title)} ${soon}!`}</h1>
+		${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
 		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
 		${intro}
 		<ul>${list}</ul>
@@ -313,7 +390,7 @@ export function buildReminderEmail({
 		${policy.html}
 		</body></html>`;
 	const text = [
-		`${event.title} ${soon}`,
+		...(custom ? [custom.headingText, '', custom.bodyText] : [`${event.title} ${soon}`]),
 		'',
 		`${event.title}`,
 		when,
@@ -342,29 +419,37 @@ export function buildReminderEmail({
  *   order: import('./orders.js').Order,
  *   event: { title: string, start?: string },
  *   typeName: string,
- *   contactEmail: string
+ *   contactEmail: string,
+ *   template?: Template
  * }} input
  */
-export function buildRefundEmail({ order, event, typeName, contactEmail }) {
-	const subject = `Reembolso de tu compra · ${event.title}`;
+export function buildRefundEmail({ order, event, typeName, contactEmail, template }) {
+	const custom = applyTemplate(template, templateVars(order, event, typeName));
+	const subject = custom ? custom.subject : `Reembolso de tu compra · ${event.title}`;
 	const how =
 		order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
-				: 'Era una compra sin cargo: no hay dinero para devolver.';
+				: order.payment_method === 'efectivo'
+					? 'Te devolvimos el dinero en efectivo.'
+					: 'Era una compra sin cargo: no hay dinero para devolver.';
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<h1 style="color:#b3127a;font-size:22px">Reembolsamos tu compra</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>
+		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : 'Reembolsamos tu compra'}</h1>
+		${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>`}
 		<p>${escapeHtml(how)}</p>
 		<p>${order.quantity === 1 ? 'La entrada ya no es válida' : 'Las entradas ya no son válidas'} para ingresar.</p>
 		<p style="font-size:13px;color:#666">Número de orden: ${order.id}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>
 		</body></html>`;
 	const text = [
-		'Reembolsamos tu compra',
-		'',
-		`Hicimos el reembolso${amount} de tu compra de ${order.quantity} × ${typeName} para ${event.title}.`,
+		...(custom
+			? [custom.headingText, '', custom.bodyText]
+			: [
+					'Reembolsamos tu compra',
+					'',
+					`Hicimos el reembolso${amount} de tu compra de ${order.quantity} × ${typeName} para ${event.title}.`
+				]),
 		how,
 		order.quantity === 1 ? 'La entrada ya no es válida.' : 'Las entradas ya no son válidas.',
 		'',
@@ -387,7 +472,8 @@ export function buildRefundEmail({ order, event, typeName, contactEmail }) {
  *   contactEmail: string,
  *   origin: string,
  *   confirmUrl?: string,
- *   fullHoldHours?: number
+ *   fullHoldHours?: number,
+ *   template?: Template
  * }} input
  * `confirmUrl`: link para confirmar la reserva, que la extiende a `fullHoldHours` horas desde
  * que se hizo (sin él, el mail no pide confirmar).
@@ -401,7 +487,8 @@ export function buildTransferEmail({
 	contactEmail,
 	origin,
 	confirmUrl,
-	fullHoldHours
+	fullHoldHours,
+	template
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
@@ -409,7 +496,13 @@ export function buildTransferEmail({
 	const deadline = formatEventDate(new Date(order.expires_at).toISOString());
 	const hours = holdHours(order);
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
-	const subject = `Datos para transferir · ${event.title} (${ref})`;
+	const custom = applyTemplate(template, {
+		...templateVars(order, event, typeName),
+		horas: hours,
+		vence: deadline,
+		link_estado: statusUrl
+	});
+	const subject = custom ? custom.subject : `Datos para transferir · ${event.title} (${ref})`;
 	const where = replyTo ? `respondé este mail o escribinos a ${replyTo}` : 'respondé este mail';
 	const confirm =
 		confirmUrl && fullHoldHours && fullHoldHours > hours
@@ -419,8 +512,8 @@ export function buildTransferEmail({
 				}
 			: null;
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<h1 style="color:#b3127a;font-size:22px">Reservamos tus entradas</h1>
-		<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>
+		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : 'Reservamos tus entradas'}</h1>
+		${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`}
 		${confirm?.html ?? ''}
 		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
@@ -433,9 +526,13 @@ export function buildTransferEmail({
 		${policy.html}
 		</body></html>`;
 	const text = [
-		'Reservamos tus entradas',
-		'',
-		`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
+		...(custom
+			? [custom.headingText, '', custom.bodyText]
+			: [
+					'Reservamos tus entradas',
+					'',
+					`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`
+				]),
 		...(confirm ? ['', confirm.text] : []),
 		'',
 		`${event.title}`,

@@ -1,7 +1,8 @@
 /**
  * Sección "Entradas" del editor de eventos, con el GitHub simulado (ADMIN_DEV_MOCK, el mismo
  * mock que `npm run dev:admin`): crear un evento con 2 tipos de entrada en /admin/eventos/nuevo y
- * después cambiarle un precio en /edit/calendario/<slug>. Los "commits" van a
+ * después cambiarle un precio en la pestaña Editar de su ficha (/admin/eventos/<slug>/editar).
+ * Los "commits" van a
  * ADMIN_DEV_MOCK_DIR (ver playwright.tickets.config.js).
  */
 import { readFileSync } from 'node:fs';
@@ -13,7 +14,7 @@ import { shots } from './helpers.js';
 
 /** @param {string} slug */
 function committed(slug) {
-	// /edit guarda con el form nativo: el navegador manda el textarea con CRLF (ya pasaba antes).
+	// El editor guarda con el form nativo: el navegador manda el textarea con CRLF (ya pasaba antes).
 	const raw = readFileSync(
 		join(ADMIN_MOCK_DIR, 'files', 'src/lib/posts/calendario', `${slug}.md`),
 		'utf8'
@@ -101,7 +102,8 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	expect(created.raw).toContain('a_la_gorra: { minimo: 1000, sugerido: 5000 }');
 
 	// Editar: cambiar el precio de General.
-	await page.goto(`/edit/calendario/${slug}`, { waitUntil: 'networkidle' });
+	// El evento todavía no está en el deploy (se creó recién): la ficha lo lee del repo.
+	await page.goto(`/admin/eventos/${slug}/editar`, { waitUntil: 'networkidle' });
 	const edit = page.locator('#edit-tickets');
 	await expect(edit.locator('#edit-ticket-price-0')).toHaveValue('10000');
 	await expect(edit).toContainText('id: general');

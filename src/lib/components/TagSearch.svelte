@@ -178,10 +178,12 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.3em;
-		background: white;
-		border-radius: 1.3em;
+		background: var(--surface);
+		border-radius: var(--round-pill);
 		outline: 1px solid var(--1-light);
-		padding: 0.3em 0.5em 0.3em 0.8em;
+		box-shadow: var(--shadow);
+		min-height: var(--tap);
+		padding: 0.3em 0.5em 0.3em 0.9em;
 		font-size: var(--step--1);
 		cursor: text;
 		transition: 100ms;
@@ -209,7 +211,7 @@
 		font: inherit;
 		background: transparent;
 		&::placeholder {
-			color: color-mix(in srgb, var(--1-dark) 55%, white);
+			color: color-mix(in srgb, var(--1-ink) 70%, white);
 		}
 	}
 	.chips {

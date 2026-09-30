@@ -59,7 +59,9 @@
 		background: var(--1);
 		color: white;
 		border: 0;
-		border-radius: 1em;
+		border-radius: var(--round-pill);
+		font-weight: bold;
+		min-height: var(--tap);
 		padding: 0.7em 1.2em;
 		cursor: pointer;
 	}

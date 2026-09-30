@@ -1,0 +1,190 @@
+<script>
+	import '$lib/admin/panel-forms.scss';
+	import { enhance } from '$app/forms';
+	import { Mail } from '@lucide/svelte';
+	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import Card from '$lib/components/admin/panel/Card.svelte';
+	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
+
+	export let data;
+	export let form;
+
+	$: errors = fieldErrors(form);
+	/** @type {(key: string) => string} */
+	$: value = (key) => fieldValue(form, data.settings, key);
+</script>
+
+<PageHeader title="Mails" subtitle="Remitente, respuesta y recordatorios antes de cada evento." />
+<Tabs tabs={[...AJUSTES_TABS]} />
+
+<form
+	class="kv-form settings"
+	method="POST"
+	action="?/save"
+	use:enhance={() =>
+		async ({ update }) =>
+			update({ reset: false })}
+>
+	{#if !data.dbAvailable}
+		<p class="kv-flash bad">
+			No hay base de datos disponible (o faltan las migraciones): se usan las variables de entorno.
+		</p>
+	{/if}
+	{#if form?.message}
+		<p class="kv-flash" role="status">{form.message}</p>
+	{:else if form?.error}
+		<p class="kv-flash bad" role="alert">{form.error}</p>
+	{/if}
+
+	<Card title="Remitente y respuesta">
+		<div class="kv-grid-2">
+			<label class="kv-field">
+				<span>Remitente</span>
+				<input
+					type="text"
+					name="from_email"
+					value={value('from_email')}
+					placeholder={data.emailDefaults.from}
+					maxlength="120"
+					autocomplete="off"
+					spellcheck="false"
+					aria-invalid={errors.from_email ? 'true' : undefined}
+				/>
+				{#if errors.from_email}<small class="kv-error field-error">{errors.from_email}</small>{/if}
+			</label>
+			<label class="kv-field">
+				<span>Responder a (y adonde mandan los comprobantes)</span>
+				<input
+					type="email"
+					name="reply_to_email"
+					value={value('reply_to_email')}
+					placeholder={data.emailDefaults.replyTo}
+					maxlength="120"
+					autocomplete="off"
+					spellcheck="false"
+					aria-invalid={errors.reply_to_email ? 'true' : undefined}
+				/>
+				{#if errors.reply_to_email}<small class="kv-error field-error"
+						>{errors.reply_to_email}</small
+					>{/if}
+			</label>
+		</div>
+		<p class="kv-note">
+			Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>. El
+			dominio del remitente tiene que estar verificado en Resend.
+		</p>
+	</Card>
+
+	<Card title="Plantillas">
+		<p class="kv-note">
+			El asunto, el título y el texto de arriba de cada mail (entradas, datos para transferir,
+			recordatorio, link de la transmisión y reembolso), con vista previa y prueba.
+		</p>
+		<div>
+			<a class="kv-btn ghost" href="/admin/ajustes/mails/plantillas">
+				<Mail size={16} aria-hidden="true" /> Editar las plantillas
+			</a>
+		</div>
+	</Card>
+
+	<Card title="Recordatorios">
+		<p class="kv-note">
+			Mails a quienes compraron, antes de cada evento (con sus entradas o el link de la
+			transmisión). Un evento puede no mandarlos con <code>recordatorios: false</code> en su
+			frontmatter.
+			{#if data.remindersDefault}Ahora: los de por defecto ({data.defaultReminders.join(
+					' y '
+				)}).{/if}
+		</p>
+		{#if !data.cronConfigured}
+			<p class="kv-flash warn">
+				Falta configurar el cron (CRON_SECRET y el Worker de <code>workers/cron/</code>): hasta
+				entonces no se manda ninguno.
+			</p>
+		{/if}
+		{#each [...data.reminders, null] as r, i (i)}
+			{#if i < data.maxReminders}
+				<div class="reminder" class:new={!r}>
+					<label class="kv-check">
+						<input
+							type="checkbox"
+							name="reminder_enabled_{i}"
+							checked={r ? r.enabled : true}
+							aria-label="Recordatorio {i + 1} activado"
+						/>
+						<b>{r ? r.text : 'Agregar otro'}</b>
+					</label>
+					<div class="kv-row">
+						<select
+							class="kv-input auto"
+							name="reminder_kind_{i}"
+							aria-label="Tipo del recordatorio {i + 1}"
+							value={r?.kind ?? 'hours_before'}
+						>
+							<option value="hours_before">horas antes</option>
+							<option value="day_at">días antes, a la hora</option>
+						</select>
+						<input
+							class="kv-input amount"
+							type="number"
+							name="reminder_amount_{i}"
+							min="0"
+							max="336"
+							aria-label="Horas o días del recordatorio {i + 1}"
+							value={r ? (r.kind === 'hours_before' ? r.hours : r.days) : ''}
+						/>
+						<input
+							class="kv-input auto"
+							type="time"
+							name="reminder_time_{i}"
+							aria-label="Hora del recordatorio {i + 1} (solo días antes)"
+							value={r?.kind === 'day_at' ? r.time : '09:00'}
+						/>
+						{#if r}
+							<label class="kv-check small">
+								<input type="checkbox" name="reminder_delete_{i}" /> borrar
+							</label>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		{/each}
+		{#if errors.reminders}<small class="kv-error field-error">{errors.reminders}</small>{/if}
+		<p class="kv-note">
+			"Horas antes": desde la hora de inicio (48 = 2 días antes). "Días antes, a la hora": 0 = el
+			mismo día; hora de Argentina. Se mandan en la primera pasada del cron (cada 15 minutos)
+			después de esa hora, una sola vez por compra.
+		</p>
+	</Card>
+
+	<div class="kv-row">
+		<button class="kv-btn" type="submit">Guardar ajustes</button>
+	</div>
+</form>
+
+<style>
+	.settings {
+		max-width: 48rem;
+	}
+	.reminder {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding: 0.6rem 0.8rem;
+		border-radius: 0.8rem;
+		background: var(--surface-2);
+	}
+	.reminder.new {
+		opacity: 0.85;
+	}
+	.reminder .auto {
+		width: auto;
+	}
+	.reminder .amount {
+		width: 5.5rem;
+	}
+	.small {
+		font-size: 0.88rem;
+	}
+</style>

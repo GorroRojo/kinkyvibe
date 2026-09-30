@@ -155,22 +155,23 @@
 		text-align: center;
 		background: var(--1-dark);
 		color: white;
-		border-radius: 1em;
+		border-radius: var(--round);
 		padding: 1em 1.5em;
-		/* max-width: max-content; */
 		margin: 2em auto;
+		max-width: min(50rem, calc(100% - 32px));
+		line-height: 1.6;
 		a {
-			background: var(--2);
-			border: 1px solid var(--4);
-			color: white;
-			--font: 'Lato', sans-serif;
+			background: var(--surface);
+			color: var(--1-ink);
+			font-weight: 700;
 			text-decoration: none;
-			padding: .3em;
-			border-radius: .3em;
+			padding: 0.1em 0.6em;
+			border-radius: var(--round-pill);
+			box-decoration-break: clone;
+			-webkit-box-decoration-break: clone;
 			&:hover {
-				border-color: white;
-				color: white;
-				box-shadow: 0 0 1em var(--4-light);
+				color: var(--1-ink);
+				background: var(--1-tint);
 			}
 		}
 	}
@@ -184,6 +185,7 @@
 	#calendar {
 		max-width: 50rem;
 		margin-inline: auto;
+		padding-inline: 16px;
 		height: 40em;
 		margin-bottom: 3em;
 		padding-bottom: 3em;
@@ -192,7 +194,7 @@
 		min-width: 0;
 	}
 	button.past {
-		opacity: 0.2 !important;
+		opacity: 0.35 !important;
 	}
 	button.today {
 		outline: 3px solid var(--1);

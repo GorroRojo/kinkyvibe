@@ -1,6 +1,6 @@
 /**
  * Link de la transmisión de los eventos online. El link NO va en el frontmatter (el repo es
- * público): lo carga une admin en /admin/entradas/<slug> y se guarda en D1
+ * público): lo carga une admin en /admin/eventos/<slug> (Resumen) y se guarda en D1
  * (`event_ticket_settings`). Cada entrada de un evento online lleva ese link en lugar de un QR.
  *
  * Envíos: `stream_link_sends` guarda a qué orden se le mandó qué link (por su SHA-256). El mail de

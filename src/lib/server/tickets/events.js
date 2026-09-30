@@ -3,6 +3,7 @@
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
+import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { isKinkyVibeEvent, parseTicketConfig } from './config.js';
 
 const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
@@ -27,8 +28,9 @@ const tagsOf = (meta) => (Array.isArray(meta.tags) ? meta.tags : []);
  * existe.
  *
  * - `TICKETS_DEV_FIXTURE=slug1,slug2`: evento presencial de KinkyVibe (se le agrega la etiqueta)
- *   con el descuento automático del Fondo en todos los tipos (General $ 10.000 y Anticipada
- *   $ 8.000 con cupo 3), Mercado Pago y transferencia.
+ *   con el descuento automático del Fondo en todos los tipos (General $ 10.000 sin cupo y
+ *   Anticipada $ 8.000 con cupo 3), Mercado Pago y transferencia, y entradas en la puerta
+ *   ($ 12.000).
  * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online SIN la etiqueta KinkyVibe (se le saca si la
  *   tiene: sin Fondo), "a la gorra" (mínimo $ 1.000, sugerido $ 5.000; y "Libre" con mínimo $ 0,
  *   sugerido $ 3.000) y "Precio fijo" ($ 6.000), Mercado Pago y transferencia.
@@ -70,28 +72,65 @@ function devFixture(slug, meta) {
 		// Evento de KinkyVibe: el descuento del Fondo es el automático (en dev,
 		// FONDO_PERCENT_OVERRIDE=20 de .env.tickets).
 		tags: isKinkyVibeEvent(meta) ? tagsOf(meta) : [...tagsOf(meta), 'KinkyVibe'],
+		puerta: true,
+		puerta_precio: 12000,
 		tickets: [
-			{ id: 'general', name: 'General', price: 10000, capacity: 500 },
+			{ id: 'general', name: 'General', price: 10000 },
 			{ id: 'anticipada', name: 'Anticipada', price: 8000, capacity: 3 }
 		]
 	};
 }
 
 /**
+ * Modo demo (deploys de preview, docs/demo.md): los eventos que la capa demo (`demo_files`)
+ * agregó, cambió o borró, por slug (`null` = borrado). Así la venta, la puerta y el panel usan
+ * los eventos del modo demo (por ejemplo, los datos de prueba con fechas relativas a hoy).
+ * `PREVIEW_BUILD` es una constante de compilación: en producción esto no existe.
+ *
+ * @typedef {Map<string, Record<string, any> | null>} DemoOverlay
+ * @returns {Promise<DemoOverlay | null>}
+ */
+async function demoOverlay() {
+	if (!PREVIEW_BUILD) return null;
+	const { overlayPostMetas } = await import('../demo/index.js');
+	const changed = await overlayPostMetas('calendario');
+	return new Map(changed.map(({ slug, meta }) => [slug, meta]));
+}
+
+/**
  * @param {string} slug
+ * @param {DemoOverlay | null} [overlay] ya leída (para no releerla por cada evento)
  * @returns {Promise<Record<string, any> | null>} frontmatter de un evento publicado
  */
-async function loadMeta(slug) {
+async function loadMeta(slug, overlay) {
 	if (!isValidEventSlug(slug) || slug.startsWith('_')) return null;
-	const importer = eventFiles[`/src/lib/posts/calendario/${slug}.md`];
-	if (!importer) return null;
-	const mod = /** @type {{ metadata?: Record<string, any> }} */ (await importer());
-	const meta = mod.metadata;
+	const layer = overlay === undefined ? await demoOverlay() : overlay;
+	/** @type {Record<string, any> | null | undefined} */
+	let meta;
+	if (layer?.has(slug)) {
+		meta = layer.get(slug);
+	} else {
+		const importer = eventFiles[`/src/lib/posts/calendario/${slug}.md`];
+		if (!importer) return null;
+		const mod = /** @type {{ metadata?: Record<string, any> }} */ (await importer());
+		meta = mod.metadata;
+	}
 	if (!meta || meta.force_unpublished) return null;
 	// Los eventos de prueba del repo solo venden en `vite dev` (nunca en el sitio publicado).
 	if (!dev && isTestEventSlug(slug)) return null;
 	const fixture = devFixture(slug, meta);
 	return fixture ? { ...meta, ...fixture } : meta;
+}
+
+/**
+ * Frontmatter de un evento publicado (o `null`), para quien necesita más que la configuración de
+ * entradas (por ejemplo, la serie del evento en el modo puerta).
+ *
+ * @param {string} slug
+ * @returns {Promise<Record<string, any> | null>}
+ */
+export function getEventMeta(slug) {
+	return loadMeta(slug);
 }
 
 /**
@@ -101,6 +140,23 @@ async function loadMeta(slug) {
  */
 export function isTestEventSlug(slug) {
 	return slug.startsWith('prueba-entradas');
+}
+
+/**
+ * Título y fecha de un evento publicado, venda entradas hoy o no (para mostrar órdenes viejas:
+ * personas, estadísticas). `null` si no existe o no está publicado.
+ *
+ * @param {string} slug
+ * @returns {Promise<{ title: string, start: string | null } | null>}
+ */
+export async function getEventInfo(slug) {
+	const meta = await loadMeta(slug);
+	if (!meta) return null;
+	const start = meta.start instanceof Date ? meta.start.toISOString() : meta.start;
+	return {
+		title: typeof meta.title === 'string' && meta.title ? meta.title : slug,
+		start: start ? String(start) : null
+	};
 }
 
 /**
@@ -115,7 +171,15 @@ export function isTestEventSlug(slug) {
  * @returns {Promise<import('./config.js').EventTickets | null>}
  */
 export async function getEventTickets(slug, options = {}) {
-	const meta = await loadMeta(slug);
+	return ticketsOf(slug, await loadMeta(slug), options);
+}
+
+/**
+ * @param {string} slug
+ * @param {Record<string, any> | null} meta
+ * @param {{ fondoPercent?: number | null }} options
+ */
+function ticketsOf(slug, meta, options) {
 	if (!meta) return null;
 	try {
 		return parseTicketConfig(meta, options);
@@ -136,9 +200,13 @@ export async function getEventTickets(slug, options = {}) {
  */
 export async function listTicketedEvents(options = {}) {
 	const out = [];
-	for (const path of Object.keys(eventFiles)) {
-		const slug = path.split('/').pop()?.replace(/\.md$/, '') ?? '';
-		const config = await getEventTickets(slug, options);
+	const overlay = await demoOverlay();
+	const slugs = new Set(
+		Object.keys(eventFiles).map((path) => path.split('/').pop()?.replace(/\.md$/, '') ?? '')
+	);
+	for (const slug of overlay?.keys() ?? []) slugs.add(slug);
+	for (const slug of slugs) {
+		const config = ticketsOf(slug, await loadMeta(slug, overlay), options);
 		if (config) out.push({ slug, config });
 	}
 	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));

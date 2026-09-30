@@ -1,0 +1,106 @@
+// Los editores de eventos (/admin/eventos/nuevo, /importar y la pestaña Editar de la ficha)
+// dentro del marco del panel: el mismo formulario de $lib/components/admin/admin.scss, con los
+// tokens del panel (claro y oscuro) y los botones y tarjetas del panel. Solo aplica dentro de
+// `.kv-panel`, así que /edit (fuera del panel) queda como estaba.
+.kv-panel .kv-admin {
+	max-width: 52rem;
+	margin: 0;
+	padding: 0 0 5em;
+	font-size: inherit;
+	color: var(--text);
+
+	&.embedded {
+		max-width: none;
+	}
+	h1 {
+		font-size: 1.6rem;
+	}
+	.back {
+		color: var(--muted);
+		font-size: 0.85rem;
+	}
+	.mock {
+		background: var(--warn-bg);
+		color: var(--text);
+	}
+	fieldset.card,
+	.card {
+		background: var(--surface);
+		color: var(--text);
+		box-shadow: var(--shadow);
+		border-radius: 1rem;
+	}
+	label.field,
+	.field-label {
+		> span:first-child,
+		> label:first-child {
+			color: var(--text);
+			font-weight: 700;
+		}
+	}
+	input:not([type='checkbox']):not([type='radio']):not([type='file']),
+	select,
+	textarea {
+		background: var(--surface);
+		color: var(--text);
+		outline: 0;
+		border: 1px solid var(--line);
+		border-radius: 0.8rem;
+		min-height: 2.75rem;
+		&:focus {
+			outline: 2px solid var(--link);
+			outline-offset: 1px;
+		}
+	}
+	input[type='checkbox'],
+	input[type='radio'] {
+		accent-color: var(--accent);
+	}
+	small,
+	.hint {
+		color: var(--muted);
+		opacity: 1;
+	}
+	.req,
+	.error {
+		color: var(--bad);
+	}
+	.warning {
+		background: var(--warn-bg);
+		color: var(--text);
+	}
+	.note {
+		background: var(--info-bg);
+		color: var(--text);
+	}
+	.problems {
+		background: var(--bad-bg);
+		color: var(--bad);
+	}
+	// Botones: los del panel (rosa, pill) y el secundario blanco con borde.
+	.button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35em;
+		background: var(--accent);
+		color: var(--accent-ink);
+		border-radius: 2em;
+		font-weight: 700;
+		padding: 0.55rem 1.2rem;
+		box-shadow: 0 0.15em 0 var(--accent-dark);
+		&.secondary {
+			background: var(--surface);
+			color: var(--text);
+			outline: 0;
+			border: 1px solid var(--line);
+			box-shadow: none;
+		}
+	}
+	button.link {
+		color: var(--link);
+	}
+	a {
+		color: var(--link);
+	}
+}

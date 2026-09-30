@@ -1,6 +1,6 @@
 /**
  * Pure helpers for replacing an event's image from the admin pages (/admin/eventos/nuevo and
- * /edit/calendario/...).
+ * /admin/eventos/<slug>/editar).
  *
  * An event's `featured` is either a number (an image in the event's own folder,
  * src/lib/posts/calendario/media/<slug>/<n>.<ext>) or a file name in src/lib/assets, shared by

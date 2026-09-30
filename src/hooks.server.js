@@ -2,6 +2,9 @@ import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
+import { getDB } from '$lib/server/db';
+import { PREVIEW_BUILD } from '$lib/server/deploy.js';
+import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -24,6 +27,18 @@ export async function handle({ event, resolve }) {
 		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
 		mockUser.id = adminByLogin(mockUser.login)?.id ?? 0;
 		return withSecurityHeaders(event.url, await resolve(event));
+	}
+	// PREVIEW DEPLOYS ONLY: demo mode (docs/demo.md). PREVIEW_BUILD is a build-time constant
+	// (false in the production build and locally), so this block is removed from production.
+	// isAdmin also refuses the demo identity outside previews.
+	if (PREVIEW_BUILD) {
+		const { setDemoDB } = await import('$lib/server/demo/index.js');
+		setDemoDB(getDB(event.platform));
+		if (event.cookies.get(DEMO_COOKIE) === '1') {
+			event.locals.user = demoUser();
+			event.locals.user_token = DEMO_TOKEN;
+			return withSecurityHeaders(event.url, await resolve(event));
+		}
 	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
 	// Identity comes only from GitHub's answer for this token (cached server-side).

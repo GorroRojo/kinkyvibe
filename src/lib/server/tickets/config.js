@@ -10,7 +10,7 @@
  *   - id: general
  *     name: General
  *     price: 10000       # ARS, entero: precio completo de la entrada
- *     capacity: 40
+ *     capacity: 40       # opcional: sin `capacity` (o vacío) = sin límite de entradas
  *   - id: gorra
  *     name: A la gorra
  *     a_la_gorra: { minimo: 0, sugerido: 5000 }   # en lugar de `price`: la persona elige el monto
@@ -22,7 +22,11 @@
  *                                         # (solo fecha = hasta el fin de ese día; hora de
  *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
- * mp_fee_percent: 2      # opcional; si falta: /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT o 2 %
+ * mp_fee_percent: 2      # opcional; si falta: /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT o 2 %
+ * puerta: true           # opcional (eventos presenciales): true = también hay entradas en la
+ *                        # puerta (la página lo dice); false = "Solo anticipadas" y el modo puerta
+ *                        # no vende. Si falta: se vende en la puerta y la página no dice nada.
+ * puerta_precio: $ 12.000 en efectivo   # opcional (con `puerta: true`): precio en la puerta
  * ```
  */
 
@@ -33,7 +37,9 @@
  * `closesAt`: cierre propio del tipo (`close` en el frontmatter; por ejemplo, la anticipada cierra
  * antes), o `null` si cierra con el evento.
  *
- * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number,
+ * `capacity`: cupo del tipo, o `null` si no tiene límite (sin `capacity` en el frontmatter).
+ *
+ * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number | null,
  *   gorra: { min: number, suggested: number } | null, closesAt?: number | null }} TicketType
  */
 /** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
@@ -49,6 +55,7 @@
  *   opensAt: number | null,
  *   closesAt: number | null,
  *   online: boolean,
+ *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   reminders: boolean,
  *   status: string | undefined,
  *   title: string,
@@ -80,7 +87,8 @@ import {
 
 // Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
 export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
-export { formatARS } from '$lib/utils/money.js';
+import { formatARS } from '$lib/utils/money.js';
+export { formatARS };
 export { MAX_TICKETS_PER_FORM };
 
 /**
@@ -137,10 +145,7 @@ export function parseTicketConfig(meta, options = {}) {
 		if (!TYPE_ID_RE.test(id)) throw new TypeError(`Id de entrada inválido: "${id}"`);
 		if (types.some((t) => t.id === id)) throw new TypeError(`Id de entrada repetido: "${id}"`);
 		const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id;
-		const capacity = Number(raw.capacity);
-		if (!Number.isSafeInteger(capacity) || capacity < 0) {
-			throw new TypeError(`Cupo inválido para "${id}": tiene que ser un entero`);
-		}
+		const capacity = parseCapacity(raw.capacity, id);
 		if (raw.a_la_gorra !== undefined && raw.a_la_gorra !== null) {
 			if (raw.price !== undefined && raw.price !== null) {
 				throw new TypeError(`"${id}" tiene \`price\` y \`a_la_gorra\`: usá uno de los dos`);
@@ -216,6 +221,8 @@ export function parseTicketConfig(meta, options = {}) {
 		opensAt,
 		closesAt,
 		online: isOnlineEvent(meta),
+		// Entradas en la puerta (solo eventos presenciales; en los online no hay puerta).
+		door: isOnlineEvent(meta) ? null : parseDoor(meta),
 		// `recordatorios: false` en el frontmatter: este evento no manda recordatorios por mail.
 		reminders: meta.recordatorios !== false,
 		status: meta.status,
@@ -224,6 +231,48 @@ export function parseTicketConfig(meta, options = {}) {
 		location: meta.location,
 		location_name: meta.location_name
 	};
+}
+
+/**
+ * Cupo de un tipo: entero desde 0, o `null` (sin límite) si falta o está vacío.
+ *
+ * @param {unknown} raw
+ * @param {string} id
+ * @returns {number | null}
+ */
+export function parseCapacity(raw, id) {
+	if (raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim())) return null;
+	const capacity = Number(raw);
+	if (!Number.isSafeInteger(capacity) || capacity < 0) {
+		throw new TypeError(`Cupo inválido para "${id}": tiene que ser un entero (o nada, sin límite)`);
+	}
+	return capacity;
+}
+
+/** Largo máximo del texto `puerta_precio`. */
+export const DOOR_PRICE_MAX = 120;
+
+/**
+ * `puerta` / `puerta_precio` del frontmatter. Tres estados:
+ * - sin `puerta` (eventos de antes): se vende en la puerta (`on`) pero la página pública no dice
+ *   nada (`explicit: false`);
+ * - `puerta: true`: se vende y la página dice "También hay entradas en la puerta" (con el precio);
+ * - `puerta: false`: no se vende en la puerta y la página dice "Solo anticipadas".
+ * Cualquier otro valor cuenta como si faltara.
+ *
+ * @param {Record<string, any>} meta
+ * @returns {{ on: boolean, explicit: boolean, price: string }}
+ */
+export function parseDoor(meta) {
+	const explicit = typeof meta.puerta === 'boolean';
+	const on = meta.puerta !== false;
+	let price =
+		meta.puerta === true && meta.puerta_precio !== undefined && meta.puerta_precio !== null
+			? String(meta.puerta_precio).trim().slice(0, DOOR_PRICE_MAX)
+			: '';
+	// Solo un número ("12000"): se muestra como plata ("$ 12.000").
+	if (/^\d{1,9}$/.test(price)) price = formatARS(Number(price));
+	return { on, explicit, price };
 }
 
 /**

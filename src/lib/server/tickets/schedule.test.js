@@ -41,6 +41,28 @@ describe('parseSaleTime', () => {
 		expect(parseSaleTime(new Date(CLOSE))).toBe(CLOSE);
 	});
 
+	it.each([
+		'2026-10-02T00:00:00.000Z',
+		'2026-10-02T00:00:00Z',
+		'2026-10-02T00:00Z'
+	])('%j (una fecha sola que pasó por JSON, como la deja mdsvex) = solo fecha', (value) => {
+		expect(parseSaleTime(value, { endOfDay: true })).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
+		expect(parseSaleTime(value)).toBe(Date.UTC(2026, 9, 2, 3, 0));
+	});
+
+	it('medianoche con otra zona u otra hora en UTC sigue siendo ese instante', () => {
+		expect(parseSaleTime('2026-10-02T00:00-03:00', { endOfDay: true })).toBe(
+			Date.UTC(2026, 9, 2, 3, 0)
+		);
+		expect(parseSaleTime('2026-10-02T00:00:01Z', { endOfDay: true })).toBe(
+			Date.UTC(2026, 9, 2, 0, 0, 1)
+		);
+		expect(parseSaleTime('2026-10-02T03:00:00.000Z', { endOfDay: true })).toBe(
+			Date.UTC(2026, 9, 2, 3, 0)
+		);
+		expect(() => parseSaleTime('2026-02-30T00:00:00.000Z')).toThrow();
+	});
+
 	it('vacío = null; inválido = error', () => {
 		expect(parseSaleTime(undefined)).toBeNull();
 		expect(parseSaleTime('')).toBeNull();
@@ -155,6 +177,35 @@ describe('salesState y cierres por tipo (bordes)', () => {
 		expect(old.closesAt).toBe(endOfDay);
 		expect(salesState(old, endOfDay - 1)).toEqual({ open: true });
 		expect(salesState(old, endOfDay)).toEqual({ open: false, reason: 'closed' });
+	});
+
+	it('fecha sola escrita en el .md: cierra al final de ese día (metadata compilada por mdsvex)', async () => {
+		// El camino real: getEventTickets lee `metadata` del módulo que genera mdsvex, que pasa el
+		// frontmatter por JSON.stringify (una fecha sola de YAML llega como "…T00:00:00.000Z").
+		const { compile } = await import('mdsvex');
+		const md = [
+			'---',
+			'title: Fiesta de prueba',
+			'start: 2026-10-10T21:00-03:00',
+			'tickets_close: 2026-10-03',
+			'tickets:',
+			'  - id: anticipada',
+			'    name: Anticipada',
+			'    price: 5000',
+			'    capacity: 10',
+			'    close: 2026-10-02',
+			'---',
+			'Hola'
+		].join('\n');
+		const code = (await compile(md))?.code ?? '';
+		const json = /export const metadata = (\{.*\});/.exec(code)?.[1];
+		expect(json).toBeTruthy();
+		const c = /** @type {any} */ (parseTicketConfig(JSON.parse(/** @type {string} */ (json))));
+		// 2/10 23:59:59.999 en Argentina, no 1/10 a las 21:00.
+		expect(c.types[0].closesAt).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
+		expect(typeOpen(c, c.types[0], Date.UTC(2026, 9, 2, 12, 0))).toBe(true);
+		// Y la venta del evento, hasta el final del 3/10.
+		expect(c.closesAt).toBe(Date.UTC(2026, 9, 4, 2, 59, 59, 999));
 	});
 
 	it('sin tickets_close, cierra al empezar el evento', () => {

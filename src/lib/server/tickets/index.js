@@ -35,7 +35,9 @@ import {
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
+import { getTemplateOverride } from './templates.js';
 import { confirmUrl } from './safeguards.js';
+import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -89,7 +91,7 @@ export async function getGateway(fetchFn) {
 
 /**
  * Datos de la cuenta para transferencias de TICKETS_TRANSFER_INFO (la variable de entorno, que
- * se usa si no hay nada cargado en /admin/entradas/ajustes). Se aceptan saltos de línea reales
+ * se usa si no hay nada cargado en /admin/ajustes/cobros). Se aceptan saltos de línea reales
  * o escritos como `\n`. `null` si no está configurada.
  */
 export function envTransferInfo() {
@@ -98,7 +100,7 @@ export function envTransferInfo() {
 }
 
 /**
- * Datos para transferir (alias, CBU/CVU, titular, banco): los de /admin/entradas/ajustes o, si
+ * Datos para transferir (alias, CBU/CVU, titular, banco): los de /admin/ajustes/cobros o, si
  * no hay ninguno cargado, TICKETS_TRANSFER_INFO. `null` si no hay ninguno: en ese caso la opción
  * "Transferencia" no se ofrece aunque el evento la habilite.
  *
@@ -128,7 +130,7 @@ export function contactEmail() {
 
 /**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
- * /admin/entradas/ajustes o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
+ * /admin/ajustes/mails o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
@@ -160,7 +162,7 @@ let warnedFee = false;
 
 /**
  * Comisión de Mercado Pago que se suma como recargo, en centésimos de punto (773 = 7,73 %). En
- * orden: la del evento (`mp_fee_percent`), la de /admin/entradas/ajustes, TICKETS_MP_FEE_PERCENT
+ * orden: la del evento (`mp_fee_percent`), la de /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT
  * o, si no hay ninguna, DEFAULT_MP_FEE_PERCENT (2 %). Con `0` en cualquiera, sin recargo.
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
@@ -226,10 +228,15 @@ export function siteOrigin(url) {
  */
 export async function processPayment({ db, payment, origin, fetch: fetchFn, platform }) {
 	const result = await applyPayment(db, payment, {
-		// Para marcar una aprobación tardía que pasa el cupo (ver applyPayment).
-		capacityOf: async (order) =>
-			(await getEventTickets(order.event_slug))?.types.find((t) => t.id === order.ticket_type)
-				?.capacity ?? null
+		// Para marcar una aprobación tardía que pasa el cupo (ver applyPayment). Tipo sin cupo:
+		// Infinity (nunca se pasa); tipo que ya no existe: null (se revisa).
+		capacityOf: async (order) => {
+			const type = (await getEventTickets(order.event_slug))?.types.find(
+				(t) => t.id === order.ticket_type
+			);
+			if (!type) return null;
+			return type.capacity ?? Number.POSITIVE_INFINITY;
+		}
 	});
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
@@ -361,7 +368,8 @@ export async function sendOrderEmail({
 			},
 			typeName,
 			origin,
-			contactEmail: contactEmail()
+			contactEmail: contactEmail(),
+			template: await getTemplateOverride(db, 'tickets')
 		});
 		const result = await deliver({
 			db,
@@ -406,6 +414,7 @@ export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch:
 	const event = { title: config?.title || eventSlug, start: config?.start };
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
+	const template = await getTemplateOverride(db, 'stream');
 	return sendStreamLinkToAll(db, {
 		eventSlug,
 		link,
@@ -417,7 +426,8 @@ export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch:
 				event,
 				link,
 				origin,
-				contactEmail: contactEmail()
+				contactEmail: contactEmail(),
+				template
 			});
 			const result = await deliver({
 				db,
@@ -456,7 +466,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			contactEmail: contactEmail(),
 			origin,
 			confirmUrl: await confirmUrl(db, origin, order.id),
-			fullHoldHours: Math.round(transferHoldMs() / 3600000)
+			fullHoldHours: Math.round(transferHoldMs() / 3600000),
+			template: await getTemplateOverride(db, 'transfer')
 		});
 		const result = await deliver({
 			db,
@@ -478,13 +489,16 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
  * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
  */
 export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+	// Una venta en la puerta puede no tener email.
+	if (!order.buyer_email) return false;
 	try {
 		const config = await getEventTickets(order.event_slug);
 		const message = buildRefundEmail({
 			order,
 			event: { title: config?.title || order.event_slug, start: config?.start },
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
-			contactEmail: contactEmail()
+			contactEmail: contactEmail(),
+			template: await getTemplateOverride(db, 'refund')
 		});
 		const result = await deliver({
 			db,
@@ -527,6 +541,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
 	/** @type {Map<string, string | null>} */
 	const links = new Map();
+	const template = await getTemplateOverride(db, 'reminder');
 	return sendDueReminders(db, {
 		events,
 		reminders,
@@ -551,7 +566,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 				origin,
-				contactEmail: contactEmail()
+				contactEmail: contactEmail(),
+				template
 			});
 			const result = await deliver({
 				db,
@@ -563,6 +579,77 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			return result !== 'failed';
 		}
 	});
+}
+
+/**
+ * "Mail a compradores": manda una tanda de un envío (ver buyerMail.js) por `deliver()`, así que
+ * en un preview solo llega a EMAIL_ALLOWLIST. Idempotente por envío y por persona (también del
+ * lado de Resend, con una clave por envío y email).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   send: import('./buyerMail.js').BuyerMailSend,
+ *   fetch: typeof fetch,
+ *   limit?: number
+ * }} input
+ */
+export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit }) {
+	const config = await getEventTickets(send.event_slug);
+	const event = { title: config?.title || send.event_slug, start: config?.start };
+	return sendBuyerMailBatch(db, {
+		send,
+		limit,
+		deliver: async (recipient) => {
+			const message = buildBuyerMail({
+				subject: send.subject,
+				body: send.body,
+				buyerName: recipient.name,
+				event,
+				contactEmail: contactEmail()
+			});
+			const digest = await crypto.subtle.digest(
+				'SHA-256',
+				new TextEncoder().encode(recipient.email)
+			);
+			const who = Array.from(new Uint8Array(digest).slice(0, 8), (b) =>
+				b.toString(16).padStart(2, '0')
+			).join('');
+			const result = await deliver({
+				db,
+				fetch: fetchFn,
+				to: recipient.email,
+				message,
+				idempotencyKey: `buyer-mail-${send.id}-${who}`
+			});
+			return result !== 'failed';
+		}
+	});
+}
+
+/**
+ * "Mandarme una prueba" (editor de plantillas): manda un mail armado con datos de ejemplo por el
+ * mismo camino que los de verdad (`deliver`: en un preview, solo a EMAIL_ALLOWLIST).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
+ *   fetch: typeof fetch,
+ *   to: string,
+ *   message: { subject: string, html: string, text: string }
+ * }} input
+ * @returns {Promise<'sent' | 'simulated' | 'failed'>}
+ */
+export async function sendTestEmail({ db, fetch: fetchFn, to, message }) {
+	try {
+		return await deliver({
+			db,
+			fetch: fetchFn,
+			to,
+			message: { ...message, subject: `[Prueba] ${message.subject}` }
+		});
+	} catch (error) {
+		console.error('[tickets] no se pudo mandar el mail de prueba:', error);
+		return 'failed';
+	}
 }
 
 /**

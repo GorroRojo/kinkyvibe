@@ -12,6 +12,7 @@
 		mpSurcharge,
 		parseAmount,
 		formatSaleTime,
+		leftText,
 		purchaseConditions,
 		saleWindowText,
 		unitPrice
@@ -342,8 +343,9 @@
 							</small>
 						{/if}
 						<small class="type-left">
-							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.available <= 5}¡Quedan
-								{t.available}!{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
+							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+									t.left
+								)}{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
 						</small>
 					</label>
 				{/each}
@@ -438,7 +440,7 @@
 				</fieldset>
 			{/if}
 
-			<div class="field">
+			<div class="field qty">
 				<label for="entradas-cantidad">Cantidad</label>
 				<div class="stepper">
 					<button
@@ -770,7 +772,7 @@
 		max-width: 40rem;
 		margin: 1.5em auto 0;
 		padding: 1em 1.2em 1.2em;
-		border-radius: 1em;
+		border-radius: var(--round);
 		outline: 3px solid var(--1);
 		background: color-mix(in srgb, var(--1) 6%, white);
 		font-size: var(--step-0);
@@ -778,12 +780,13 @@
 	h2 {
 		margin: 0 0 0.5em;
 		font-size: var(--step-2);
-		color: var(--1-dark);
+		color: var(--1-ink);
 	}
 	.mock-note {
-		background: var(--4-light);
+		background: var(--4-tint);
+		color: var(--4-ink);
 		padding: 0.4em 0.7em;
-		border-radius: 0.5em;
+		border-radius: var(--round-sm);
 		margin: 0 0 0.8em;
 		font-size: var(--step--1);
 	}
@@ -839,7 +842,7 @@
 		text-align: right;
 	}
 	.list-price {
-		color: #777;
+		color: var(--muted);
 		font-size: var(--step--1);
 		margin-right: 0.3em;
 	}
@@ -849,7 +852,7 @@
 	}
 	.type-left {
 		grid-area: left;
-		color: var(--1-dark);
+		color: var(--1-ink);
 	}
 	.type-left:empty {
 		display: none;
@@ -920,7 +923,7 @@
 		gap: 0.6em;
 	}
 	.hint {
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--2);
 	}
 	.code-row {
@@ -936,8 +939,10 @@
 		flex-grow: 0;
 		background: white;
 		color: var(--1-dark);
-		outline: 2px solid var(--1);
-		padding: 0.5em 1em;
+		outline: 0;
+		border: 2px solid var(--1);
+		box-shadow: none;
+		padding: 0.5em 1.1em;
 		min-height: 2.8em;
 	}
 	button.secondary:hover:not(:disabled) {
@@ -980,7 +985,7 @@
 	}
 	.method small {
 		display: block;
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--1);
 		line-height: 1.25;
 	}
@@ -991,7 +996,7 @@
 		grid-area: 1 / 1;
 		margin: 0;
 		font-size: var(--step--1);
-		color: #444;
+		color: var(--muted);
 		visibility: hidden;
 	}
 	.method-note.shown {
@@ -1013,19 +1018,45 @@
 		outline: 3px solid var(--2-light);
 	}
 
-	/* Cantidad: − [n] + con botones grandes para el dedo. */
+	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto (botones de 42 px: siguen
+	   siendo cómodos para el dedo sin ocupar media pantalla). */
+	.field.qty {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4em 0.8em;
+	}
+	.field.qty > label {
+		font-size: var(--step-0);
+	}
 	.stepper {
-		display: flex;
+		display: inline-flex;
 		align-items: stretch;
-		gap: 0.4em;
+		height: 42px;
+		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
+		border-radius: 999px;
+		background: white;
+		overflow: hidden;
+	}
+	.stepper:focus-within {
+		border-color: var(--2);
 	}
 	.stepper input {
-		width: 4.5em;
+		width: 2.8em;
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
 		text-align: center;
-		font-size: var(--step-1);
+		font-size: var(--step-0);
 		font-weight: bold;
 		-moz-appearance: textfield;
 		appearance: textfield;
+	}
+	.stepper input:focus-visible {
+		outline: 2px solid var(--2-light);
+		outline-offset: -2px;
 	}
 	.stepper input::-webkit-outer-spin-button,
 	.stepper input::-webkit-inner-spin-button {
@@ -1033,19 +1064,28 @@
 		margin: 0;
 	}
 	button.step {
-		flex-grow: 0;
-		width: 3em;
-		min-width: 48px;
-		min-height: 48px;
+		flex: 0 0 42px;
+		width: 42px;
+		min-width: 42px;
+		min-height: 0;
+		height: auto;
+		margin: 0;
 		padding: 0;
-		font-size: var(--step-2);
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+		font-size: var(--step-1);
+		font-weight: bold;
 		line-height: 1;
-		background: white;
+		background: transparent;
 		color: var(--2-dark);
-		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 45%, transparent);
 	}
 	button.step:hover:not(:disabled) {
 		background: color-mix(in srgb, var(--2) 10%, white);
+	}
+	button.step:disabled {
+		color: color-mix(in srgb, var(--2-dark) 35%, transparent);
+		background: transparent;
 	}
 
 	/* A la gorra */
@@ -1131,7 +1171,7 @@
 		color: white;
 		background: var(--1);
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--round-pill);
 		padding: 0.8em 1.3em;
 		min-height: 3em;
 		cursor: pointer;
@@ -1177,7 +1217,7 @@
 	}
 	.option-note {
 		grid-area: note;
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--1);
 	}
 	.label-row {
@@ -1191,10 +1231,12 @@
 	.help {
 		font-weight: normal;
 		font-size: var(--step--2);
-		color: #888;
+		color: var(--muted);
 		text-decoration: underline dotted;
 		text-underline-offset: 2px;
-		padding: 0 0.3em;
+		/* bigger hit area without moving the label */
+		padding: 0.5em 0.6em;
+		margin: -0.5em -0.3em;
 	}
 	.help:hover,
 	.help:focus-visible {
@@ -1220,7 +1262,7 @@
 		font-weight: bold;
 	}
 	.closes {
-		color: #555;
+		color: var(--muted);
 		font-size: var(--step--2);
 	}
 	@media (max-width: 500px) {

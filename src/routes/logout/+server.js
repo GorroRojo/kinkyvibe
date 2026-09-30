@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import { redirect } from '@sveltejs/kit';
 import { TOKEN_COOKIE, authCookieOptions, revokeToken, safeRedirect } from '$lib/server/auth';
 import { forgetUser } from '$lib/server/session';
+import { DEMO_COOKIE } from '$lib/server/demo/identity.js';
 import { confirmLogoutPage, isSameOriginNavigation, logoutRedirectTarget } from './logout.js';
 
 /**
@@ -48,4 +49,6 @@ async function logout(cookies, url, locals) {
 	locals.user_token = '';
 	locals.user = undefined;
 	cookies.delete(TOKEN_COOKIE, authCookieOptions(url));
+	// Demo session of preview deploys (harmless no-op elsewhere).
+	if (cookies.get(DEMO_COOKIE) !== undefined) cookies.delete(DEMO_COOKIE, authCookieOptions(url));
 }

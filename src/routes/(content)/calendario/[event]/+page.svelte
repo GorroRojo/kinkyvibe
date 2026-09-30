@@ -5,9 +5,11 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import Note from '$lib/components/Note.svelte';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { saleWindowText } from '$lib/utils/tickets.js';
+	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
 	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
@@ -181,10 +183,10 @@
 					--btn-border: var(--1);
 					--btn-text: white;
 					--btn-shadow: none;
-					--btn-background-hover: var(--1-light);
-					--btn-border-hover: white;
+					--btn-background-hover: var(--1-dark);
+					--btn-border-hover: var(--1-dark);
 					--btn-text-hover: white;
-					--btn-shadow-hover: 0 0 1em var(--1-light);
+					--btn-shadow-hover: none;
 					--font: 'Lato', sans-serif;
 					`}
 				trigger="click"
@@ -209,7 +211,7 @@
 				iCalFileName="Sample Event"
 				listStyle="overlay"
 				label="Agregar a mi calendario"
-				buttonStyle="3d"
+				buttonStyle="round"
 				organizer="Mel|kinkyvibe@gmail.com"
 				size="8"
 			></add-to-calendar-button>
@@ -227,7 +229,7 @@
 							)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
 							·
 						{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-							<strong class="buy-left">· ¡Quedan {t.left}!</strong>{/if}
+							<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
 					</span>
 				</a>
 				{#if t.closesAt}
@@ -245,6 +247,9 @@
 									? 'El evento se canceló: no hay venta de entradas.'
 									: 'La venta online de entradas no está disponible en este momento.'}
 				</p>
+			{/if}
+			{#if t.reason !== 'cancelled' && doorText(t.door)}
+				<p class="buy-when buy-door">{doorText(t.door)}</p>
 			{/if}
 		</section>
 	{/if}
@@ -269,13 +274,13 @@
 		{/if}
 	</div>
 	{#if data.meta.tags.includes('KinkyVibe')}
-		<div id="cafecito">
+		<Note id="cafecito">
 			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
 			Si te resultó valioso,
 			<a href="https://cafecito.app/kinkyvibe" target="_blank"
 				>considerá apoyarnos con algún cafecito</a
 			>. 🤗
-		</div>
+		</Note>
 	{/if}
 </article>
 
@@ -284,15 +289,12 @@
 {#if data.meta.authors.length > 0}
 	{#await data.authorsProfiles then authorsData}
 		{#each authorsData ?? [] as { path, meta: author }}
-			<a class="author-callout" rel="author" href={path}>
-				<img
-					class="author-image"
-					src={(author.logo ?? author.photo ?? author.featured) + ''}
-					alt=""
-				/>
-				<span class="author-title">{author.title}</span>
-				<span class="author-summary">{author.summary}</span>
-			</a>
+			<AuthorCallout
+				href={path}
+				image={(author.logo ?? author.photo ?? author.featured) + ''}
+				title={author.title}
+				summary={author.summary}
+			/>
 		{/each}
 	{/await}
 {/if}
@@ -310,22 +312,6 @@
 {/if}
 
 <style lang="scss">
-	#cafecito {
-		max-width: 50rem;
-		margin: 2em auto;
-		width: 100%;
-		padding: 1em;
-		color: white;
-		border-radius: 0.3em;
-	}
-	#cafecito {
-		margin-top: 1em;
-		font-size: var(--step-1);
-		background: var(--2-light);
-		a {
-			--color: var(--4-light);
-		}
-	}
 	.share-row {
 		display: flex;
 		justify-content: center;
@@ -337,63 +323,6 @@
 		width: 100%;
 		margin-top: 2em;
 		justify-content: center;
-	}
-	.author-callout {
-		text-decoration: none;
-		font-style: italic;
-		font-size: 1.5em;
-		padding: 0.4rem;
-		border-radius: 999em;
-		background: color-mix(in srgb, var(--2) 10%, transparent);
-		outline: 2px solid var(--2);
-		color: var(--2);
-		display: grid;
-		grid-template-areas: 'img title' 'img summary';
-		grid-template-columns: 7rem 1fr;
-		align-items: center;
-		gap: 0.6rem;
-		max-width: 50rem;
-		margin: 1em auto;
-		& > * {
-			min-height: 0;
-			min-width: 0;
-		}
-		.author-image {
-			/* height: 1.5em; */
-			border-radius: 999em;
-			/* display: inline-block; */
-			grid-area: img;
-			max-height: 100%;
-			max-width: 100%;
-		}
-		.author-title {
-			grid-area: title;
-			font-size: 1.5em;
-			text-decoration: underline var(--1);
-			color: black;
-			line-height: 1;
-		}
-		.author-summary {
-			grid-area: summary;
-			padding-right: 1em;
-		}
-	}
-
-	@media (max-width: 500px) {
-		.author-callout {
-			grid-template-areas: 'img title' 'summary summary';
-			border-radius: 2.6em;
-			.author-image {
-				z-index: 1;
-			}
-			.author-title {
-				padding-right: 0.5em;
-			}
-			.author-summary {
-				padding: 2em;
-				padding-top: 0;
-			}
-		}
 	}
 	/* Botón "Comprar entradas" (el formulario está en /calendario/<slug>/entradas). */
 	.buy-cta {
@@ -407,7 +336,7 @@
 		align-items: center;
 		gap: 0.15em;
 		padding: 0.8em 1.2em;
-		border-radius: 0.8em;
+		border-radius: var(--round);
 		background: var(--1);
 		color: white;
 		text-decoration: none;
@@ -456,9 +385,9 @@
 		font-size: var(--step-1);
 		margin-inline: auto;
 		margin-top: 1.4em;
-		max-width: 40rem;
-		outline: 3px solid var(--2-dark);
-		/* outline: 2px dotted var(--2); */
+		max-width: min(40rem, calc(100% - 32px));
+		overflow: hidden;
+		box-shadow: var(--shadow);
 		& > * {
 			min-width: 0;
 		}
@@ -493,9 +422,10 @@
 			display: flex;
 			flex-direction: row;
 			justify-content: center;
-			background: white;
+			background: var(--surface);
 			width: 100%;
 			flex-wrap: wrap;
+			padding: 0.4em;
 			.event-link-wrapper {
 				--base-font-size-l: 18px;
 				--base-font-size-m: 18px;
@@ -509,7 +439,8 @@
 				align-items: center;
 				background-color: var(--1);
 				border: 1px solid var(--1);
-				border-radius: 6px;
+				border-radius: var(--round-pill);
+				color: white;
 				display: flex;
 				font-weight: bold;
 				justify-content: center;
@@ -524,10 +455,9 @@
 				width: 100%;
 				z-index: 1;
 				&:hover {
-					background: var(--1-light);
-					color: unset;
+					background: var(--1-dark);
+					color: white;
 					text-decoration: unset;
-					box-shadow: 0 0 0.5em var(--1-light);
 				}
 			}
 		}
