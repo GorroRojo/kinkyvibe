@@ -1,18 +1,25 @@
 /**
  * Mapa del panel de admin: la ÚNICA lista de secciones. La usan la barra lateral (desktop), la
- * barra de abajo y el panel "Más" (celu), y puede usarla el buscador. Cada PR que construye una
- * sección cambia su `soon: true` por `soon: false` (y borra `fallback`) acá, en un solo lugar.
+ * barra de abajo y el panel "Más" (celu), el botón "Para revisar", la página "Próximamente" y el
+ * buscador (`commands.js`). Mapa aprobado por gorrite (decisión 0026, paso 2 del orden): 7 áreas
+ * ({@link NAV_AREAS}) más Inicio arriba y Ajustes al pie. Dentro de cada área, las secciones van
+ * por frecuencia de uso (lo de todos los días primero) y lo que viene, al final.
  *
  * Forma de cada ítem ({@link NavItem}):
- * - `id`: identificador estable, igual que el final de la URL (no cambiarlo).
- * - `href`: la URL definitiva de la sección. No se cambia sin avisar a los otros PRs.
+ * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
+ * - `href`: la URL de la sección. Este archivo no mueve URLs: eso es otro PR (paso 2 del mapa).
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
- * - `group`: `null` (Inicio) o el id de uno de los {@link NAV_GROUPS}.
- * - `soon`: `true` mientras la página no existe. En el menú se ve gris con "próximamente", salvo
- *   que tenga `fallback`: entonces el link va a la página vieja que hoy hace eso.
- * - `fallback` (opcional): URL existente a usar mientras `soon` es `true`.
+ * - `area`: `null` (Inicio) o el id de una de las {@link NAV_AREAS}.
+ * - `sub` (solo Ajustes): subgrupo de {@link AJUSTES_SUBGROUPS} (Plata, Comunicación…).
+ * - `soon`: `true` mientras la sección está aprobada pero no construida (ver "Ciclo de vida").
+ * - `phase`: fase del plan en la que llega (obligatoria con `soon: true`; el menú muestra
+ *   "fase N").
+ * - `soonText`: qué va a hacer la sección (lo muestra la página "Próximamente").
+ * - `flag` (opcional): interruptor (`src/lib/server/flags.js`) de la función. Apagado, la sección
+ *   está "en prueba" (ver abajo).
+ * - `hiddenWhenOff` (opcional): con `flag` apagado la página da 404, así que no se muestra.
  * - `counter` (opcional): clave de `data.panelCounts` (ver `+layout.server.js`) que se muestra
  *   como contador amarillo cuando es > 0.
  * - `highlight` (opcional): se resalta en rosa en el panel "Más" (acciones principales).
@@ -22,15 +29,31 @@
  * - `parent` (opcional): id del ítem que se marca activo cuando se está en esta página (para los
  *   que tienen `menu: false`).
  *
+ * Ciclo de vida de una sección (siempre en este archivo, sin moverla de lugar en el menú):
+ * 1. **Próximamente**: el plan está aprobado y tiene fase. `soon: true, phase: N, soonText`. Se ve
+ *    gris y punteada al final de su área, con "fase N"; su `href` queda reservado y abre la página
+ *    genérica "Próximamente" (`src/routes/(authed)/admin/[...section=soon]`). Cada persona puede
+ *    ocultarlas con "Ocultar lo que viene" (menú de usuario).
+ * 2. **En prueba**: la página existe pero su interruptor está apagado. `soon: false, flag: 'x'`.
+ *    Solo la ven les superadmins, con la etiqueta "prueba" (hoy todes les admins son superadmins,
+ *    así que la ven todes). Si con el interruptor apagado la página da 404, `hiddenWhenOff: true`.
+ * 3. **Lista**: se prende el interruptor y se ve normal. El PR que la construyó ya hizo el cambio;
+ *    prenderla no pide otro PR. Cuando el interruptor desaparece, se borra `flag`.
+ * 4. **Descartada**: si el plan se cae, se borra el ítem. No quedan secciones fantasma.
+ *
  * @typedef {{
  *   id: string,
  *   href: string,
  *   icon?: import('svelte').Component<any> | (new (...args: any[]) => any),
  *   emoji: string,
  *   label: string,
- *   group: string | null,
+ *   area: string | null,
+ *   sub?: string,
  *   soon: boolean,
- *   fallback?: string,
+ *   phase?: number,
+ *   soonText?: string,
+ *   flag?: string,
+ *   hiddenWhenOff?: boolean,
  *   counter?: string,
  *   highlight?: boolean,
  *   match?: 'exact',
@@ -48,23 +71,32 @@ import {
 	ChartLine,
 	EyeOff,
 	FileSpreadsheet,
+	FileText,
 	CircleUser,
 	HandCoins,
 	HandHeart,
 	Heart,
 	House,
 	IdCard,
+	Inbox,
 	KeyRound,
 	Landmark,
+	Library,
+	ListPlus,
 	Mail,
 	MapPin,
+	Repeat,
 	ScanLine,
 	ScrollText,
+	Settings,
+	ShoppingBag,
+	Sparkles,
 	Tags,
 	Ticket,
 	TicketPercent,
 	ToggleRight,
-	Users
+	Users,
+	Video
 } from '@lucide/svelte';
 
 /**
@@ -74,14 +106,38 @@ import {
  */
 export const ICON_MODE = 'lucide';
 
-/** Grupos de la barra lateral, en orden. */
-export const NAV_GROUPS = Object.freeze([
-	{ id: 'eventos', label: 'Eventos' },
-	{ id: 'entradas', label: 'Entradas' },
-	{ id: 'contenido', label: 'Contenido' },
-	{ id: 'cuentas', label: 'Cuentas' },
-	{ id: 'ajustes', label: 'Ajustes' }
+/**
+ * Áreas del menú, en orden. `foot: true` va al pie de la barra lateral (Ajustes, que se usa poco).
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, foot?: true }[]}
+ */
+export const NAV_AREAS = Object.freeze([
+	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️' },
+	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰' },
+	{ id: 'comunidad', label: 'Comunidad', icon: Users, emoji: '🧑‍🤝‍🧑' },
+	{ id: 'mensajes', label: 'Mensajes', icon: Inbox, emoji: '📨' },
+	{ id: 'etiquetas', label: 'Etiquetas', icon: Tags, emoji: '🔖' },
+	{ id: 'contenido', label: 'Contenido', icon: BookOpen, emoji: '📚' },
+	{ id: 'estadisticas', label: 'Estadísticas', icon: ChartLine, emoji: '📈' },
+	{ id: 'ajustes', label: 'Ajustes', icon: Settings, emoji: '⚙️', foot: true }
 ]);
+
+/** Subgrupos de Ajustes, en orden. */
+export const AJUSTES_SUBGROUPS = Object.freeze([
+	{ id: 'plata', label: 'Plata' },
+	{ id: 'comunicacion', label: 'Comunicación' },
+	{ id: 'equipo', label: 'Equipo' },
+	{ id: 'sistema', label: 'Sistema' }
+]);
+
+/**
+ * Botón global "Para revisar" (barra de arriba y header del celu). Por ahora lleva a la tarjeta
+ * "Para revisar" del Inicio; `counter` es la clave de `data.panelCounts`.
+ */
+export const REVIEW_LINK = Object.freeze({
+	href: '/admin#para-revisar',
+	label: 'Para revisar',
+	counter: 'review'
+});
 
 /** @type {readonly NavItem[]} */
 export const NAV = Object.freeze([
@@ -91,7 +147,7 @@ export const NAV = Object.freeze([
 		icon: House,
 		emoji: '🏠',
 		label: 'Inicio',
-		group: null,
+		area: null,
 		soon: false,
 		match: 'exact'
 	},
@@ -103,7 +159,7 @@ export const NAV = Object.freeze([
 		icon: CalendarRange,
 		emoji: '🎟️',
 		label: 'Eventos',
-		group: 'eventos',
+		area: 'eventos',
 		soon: false,
 		match: 'exact'
 	},
@@ -113,21 +169,9 @@ export const NAV = Object.freeze([
 		icon: CalendarPlus,
 		emoji: '＋',
 		label: 'Cargar evento',
-		group: 'eventos',
+		area: 'eventos',
 		soon: false,
 		highlight: true
-	},
-	{
-		id: 'eventos-importar',
-		href: '/admin/eventos/importar',
-		icon: FileSpreadsheet,
-		emoji: '📥',
-		label: 'Importar planilla',
-		group: 'eventos',
-		soon: false,
-		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
-		menu: false,
-		parent: 'eventos-agenda'
 	},
 	{
 		id: 'eventos-agenda',
@@ -135,19 +179,20 @@ export const NAV = Object.freeze([
 		icon: CalendarDays,
 		emoji: '🗓️',
 		label: 'Agenda',
-		group: 'eventos',
+		area: 'eventos',
 		soon: false
 	},
 	{
-		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md). Son los mismos
-		// datos que Contenido → Amigues con el filtro «Lugares».
-		id: 'eventos-lugares',
-		href: '/admin/eventos/lugares',
-		icon: MapPin,
-		emoji: '📍',
-		label: 'Lugares',
-		group: 'eventos',
-		soon: false
+		id: 'eventos-importar',
+		href: '/admin/eventos/importar',
+		icon: FileSpreadsheet,
+		emoji: '📥',
+		label: 'Importar planilla',
+		area: 'eventos',
+		soon: false,
+		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
+		menu: false,
+		parent: 'eventos-agenda'
 	},
 	{
 		id: 'checkin',
@@ -155,19 +200,56 @@ export const NAV = Object.freeze([
 		icon: ScanLine,
 		emoji: '🚪',
 		label: 'Check-in',
-		group: 'eventos',
+		area: 'eventos',
 		soon: false,
 		highlight: true
 	},
+	{
+		// Series de eventos (docs/decisiones/0005). Con el interruptor apagado la página da 404.
+		id: 'eventos-series',
+		href: '/admin/eventos/series',
+		icon: Repeat,
+		emoji: '🔁',
+		label: 'Series',
+		area: 'eventos',
+		soon: false,
+		flag: 'series',
+		hiddenWhenOff: true
+	},
+	{
+		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md), con las listas
+		// "Para aprobar" y "Rechazados". Son los mismos datos que Comunidad › Amigues con el filtro
+		// «Lugares».
+		id: 'eventos-lugares',
+		href: '/admin/eventos/lugares',
+		icon: MapPin,
+		emoji: '📍',
+		label: 'Lugares',
+		area: 'eventos',
+		soon: false
+	},
+	{
+		// Roles de personas en eventos y preguntas de inscripción (#139, docs/personas-eventos.md).
+		// La URL sigue en /admin/ajustes/personas hasta el paso 2.
+		id: 'ajustes-personas',
+		href: '/admin/ajustes/personas',
+		icon: ListPlus,
+		emoji: '🧩',
+		label: 'Personas y preguntas',
+		area: 'eventos',
+		soon: false,
+		flag: 'personas_eventos',
+		hiddenWhenOff: true
+	},
 
-	// Entradas
+	// Ventas
 	{
 		id: 'entradas',
 		href: '/admin/entradas',
 		icon: Ticket,
 		emoji: '💰',
-		label: 'Ventas',
-		group: 'entradas',
+		label: 'Todas las ventas',
+		area: 'ventas',
 		soon: false,
 		match: 'exact'
 	},
@@ -177,7 +259,7 @@ export const NAV = Object.freeze([
 		icon: ArrowRightLeft,
 		emoji: '💸',
 		label: 'Transferencias',
-		group: 'entradas',
+		area: 'ventas',
 		soon: false,
 		counter: 'transfers'
 	},
@@ -187,35 +269,111 @@ export const NAV = Object.freeze([
 		icon: TicketPercent,
 		emoji: '🏷️',
 		label: 'Códigos',
-		group: 'entradas',
+		area: 'ventas',
 		soon: false
 	},
+	{
+		id: 'tienda',
+		href: '/admin/ventas/tienda',
+		icon: ShoppingBag,
+		emoji: '🛍️',
+		label: 'Tienda',
+		area: 'ventas',
+		soon: true,
+		phase: 8,
+		soonText:
+			'Productos, precios y stock, y los pedidos con su envío. El cobro va con Mercado Pago o ' +
+			'Tiendanube, según qué se venda.'
+	},
+
+	// Comunidad
 	{
 		id: 'personas',
 		href: '/admin/personas',
 		icon: Users,
 		emoji: '🧑‍🤝‍🧑',
 		label: 'Personas',
-		group: 'entradas',
+		area: 'comunidad',
 		soon: false
 	},
 	{
-		id: 'estadisticas',
-		href: '/admin/estadisticas',
-		icon: ChartLine,
-		emoji: '📈',
-		label: 'Estadísticas',
-		group: 'entradas',
+		id: 'amigues',
+		href: '/admin/amigues',
+		icon: Heart,
+		emoji: '💞',
+		label: 'Amigues',
+		area: 'comunidad',
 		soon: false
 	},
 	{
-		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
-		id: 'propinas',
-		href: '/admin/propinas',
-		icon: HandCoins,
-		emoji: '🪙',
-		label: 'Propinas',
-		group: 'entradas',
+		// Cuentas del público y sus perfiles (docs/cuentas.md)
+		id: 'cuentas',
+		href: '/admin/cuentas',
+		icon: CircleUser,
+		emoji: '👤',
+		label: 'Cuentas',
+		area: 'comunidad',
+		soon: false,
+		flag: 'cuentas'
+	},
+	{
+		id: 'cuentas-perfiles',
+		href: '/admin/cuentas/perfiles',
+		icon: IdCard,
+		emoji: '🪪',
+		label: 'Perfiles',
+		area: 'comunidad',
+		soon: false,
+		flag: 'cuentas',
+		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
+		counter: 'profilesToReview'
+	},
+
+	// Mensajes
+	{
+		id: 'ajustes-plantillas',
+		href: '/admin/ajustes/mails/plantillas',
+		icon: FileText,
+		emoji: '📝',
+		label: 'Plantillas',
+		area: 'mensajes',
+		soon: false
+	},
+	{
+		id: 'lo-que-sigo',
+		href: '/admin/mensajes/lo-que-sigo',
+		icon: Sparkles,
+		emoji: '✨',
+		label: 'Lo que sigo',
+		area: 'mensajes',
+		soon: true,
+		phase: 2,
+		soonText:
+			'Qué etiquetas, perfiles y lugares sigue cada persona, para su calendario y sus mails ' +
+			'(anuncios y recordatorios). Incluye a quienes pidieron "Avisame si se repite".'
+	},
+	{
+		id: 'bandeja',
+		href: '/admin/mensajes',
+		icon: Inbox,
+		emoji: '📥',
+		label: 'Bandeja',
+		area: 'mensajes',
+		soon: true,
+		phase: 5,
+		soonText:
+			'Los mails que llegan a la organización entran al panel (con copia opcional a Gmail), y se ' +
+			'responden desde acá, a una persona o en masa. Lo sin responder también se ve en el Inicio.'
+	},
+
+	// Etiquetas
+	{
+		id: 'etiquetas',
+		href: '/admin/etiquetas',
+		icon: Tags,
+		emoji: '🔖',
+		label: 'Árbol de etiquetas',
+		area: 'etiquetas',
 		soon: false
 	},
 
@@ -226,25 +384,7 @@ export const NAV = Object.freeze([
 		icon: BookOpen,
 		emoji: '📚',
 		label: 'Material',
-		group: 'contenido',
-		soon: false
-	},
-	{
-		id: 'amigues',
-		href: '/admin/amigues',
-		icon: Heart,
-		emoji: '💞',
-		label: 'Amigues',
-		group: 'contenido',
-		soon: false
-	},
-	{
-		id: 'etiquetas',
-		href: '/admin/etiquetas',
-		icon: Tags,
-		emoji: '🔖',
-		label: 'Etiquetas',
-		group: 'contenido',
+		area: 'contenido',
 		soon: false
 	},
 	{
@@ -253,41 +393,57 @@ export const NAV = Object.freeze([
 		icon: EyeOff,
 		emoji: '🙈',
 		label: 'No listadas',
-		group: 'contenido',
+		area: 'contenido',
 		soon: false,
 		counter: 'unlisted'
 	},
-
-	// Cuentas del público y sus perfiles (docs/cuentas.md)
 	{
-		id: 'cuentas',
-		href: '/admin/cuentas',
-		icon: CircleUser,
-		emoji: '👤',
-		label: 'Cuentas',
-		group: 'cuentas',
+		id: 'colecciones',
+		href: '/admin/contenido/colecciones',
+		icon: Library,
+		emoji: '🗂️',
+		label: 'Colecciones',
+		area: 'contenido',
+		soon: true,
+		phase: 4,
+		soonText:
+			'Listas con nombre que arma la organización, y las que guarda cada persona (les ' +
+			'superadmins las pueden ver).'
+	},
+	{
+		id: 'videos',
+		href: '/admin/contenido/videos',
+		icon: Video,
+		emoji: '🎬',
+		label: 'Videos',
+		area: 'contenido',
+		soon: true,
+		phase: 7,
+		soonText:
+			'Videos gratis, talleres pagos y transmisiones en vivo, con links firmados. El cobro va ' +
+			'aparte de las entradas.'
+	},
+
+	// Estadísticas
+	{
+		id: 'estadisticas',
+		href: '/admin/estadisticas',
+		icon: ChartLine,
+		emoji: '📈',
+		label: 'Ventas en el tiempo',
+		area: 'estadisticas',
 		soon: false
 	},
-	{
-		id: 'cuentas-perfiles',
-		href: '/admin/cuentas/perfiles',
-		icon: IdCard,
-		emoji: '🪪',
-		label: 'Perfiles',
-		group: 'cuentas',
-		soon: false,
-		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
-		counter: 'profilesToReview'
-	},
 
-	// Ajustes
+	// Ajustes (al pie)
 	{
 		id: 'ajustes-cobros',
 		href: '/admin/ajustes/cobros',
 		icon: Landmark,
 		emoji: '🏦',
 		label: 'Cobros',
-		group: 'ajustes',
+		area: 'ajustes',
+		sub: 'plata',
 		soon: false
 	},
 	{
@@ -296,16 +452,30 @@ export const NAV = Object.freeze([
 		icon: HandHeart,
 		emoji: '🫶',
 		label: 'Fondo',
-		group: 'ajustes',
+		area: 'ajustes',
+		sub: 'plata',
 		soon: false
+	},
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		id: 'propinas',
+		href: '/admin/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
+		area: 'ajustes',
+		sub: 'plata',
+		soon: false,
+		flag: 'propinas'
 	},
 	{
 		id: 'ajustes-mails',
 		href: '/admin/ajustes/mails',
 		icon: Mail,
 		emoji: '✉️',
-		label: 'Mails y plantillas',
-		group: 'ajustes',
+		label: 'Mails y envíos',
+		area: 'ajustes',
+		sub: 'comunicacion',
 		soon: false
 	},
 	{
@@ -314,7 +484,8 @@ export const NAV = Object.freeze([
 		icon: KeyRound,
 		emoji: '🔑',
 		label: 'Admins',
-		group: 'ajustes',
+		area: 'ajustes',
+		sub: 'equipo',
 		soon: false
 	},
 	{
@@ -323,17 +494,19 @@ export const NAV = Object.freeze([
 		icon: ToggleRight,
 		emoji: '🎚️',
 		label: 'Interruptores',
-		group: 'ajustes',
+		area: 'ajustes',
+		sub: 'sistema',
 		soon: false
 	},
-
 	{
+		// También "Recuperar" lo borrado desde el panel (docs/panel.md).
 		id: 'actividad',
 		href: '/admin/actividad',
 		icon: ScrollText,
 		emoji: '📜',
 		label: 'Actividad',
-		group: 'ajustes',
+		area: 'ajustes',
+		sub: 'sistema',
 		soon: false
 	}
 ]);
@@ -389,7 +562,11 @@ export function contentEditLink(pathname) {
 	return `/edit/${m[1]}/${m[2]}`;
 }
 
-/** Los 5 lugares de la barra de abajo en el celu (el del medio es el botón rosa). */
+/**
+ * Los 5 lugares de la barra de abajo en el celu (el del medio es el botón rosa).
+ * Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a ser "Para revisar" (mapa del panel,
+ * respuesta de gorrite). No antes.
+ */
 export const MOBILE_TABS = Object.freeze(['inicio', 'eventos', 'checkin', 'entradas', 'mas']);
 
 /**
@@ -401,19 +578,49 @@ export function navItem(id) {
 }
 
 /**
- * La URL a la que lleva un ítem hoy: la suya, o la de `fallback` mientras no existe.
- * `null` si todavía no hay ninguna página (se muestra deshabilitado).
+ * @param {string | null | undefined} id
+ */
+export function navArea(id) {
+	return NAV_AREAS.find((a) => a.id === id);
+}
+
+/**
+ * La URL de una sección que ya existe, para el buscador y los atajos. `null` para las que vienen
+ * (`soon`): en el menú esas llevan a su página "Próximamente" (`item.href`).
  * @param {NavItem} item
  * @returns {string | null}
  */
 export function navLink(item) {
-	if (!item.soon) return item.href;
-	return item.fallback ?? null;
+	return item.soon ? null : item.href;
+}
+
+/**
+ * Estado de una sección para el menú (ver "Ciclo de vida" arriba):
+ * - `'soon'`: próximamente (gris y punteada, con la fase);
+ * - `'prueba'`: la página existe pero su interruptor está apagado;
+ * - `'hidden'`: interruptor apagado y la página da 404, así que no se muestra;
+ * - `'ready'`: lista.
+ *
+ * @param {NavItem} item
+ * @param {Record<string, boolean>} [flags] estado de los interruptores (`data.navFlags`). Si falta
+ *   un interruptor, se toma como prendido (no se esconde nada por no saber).
+ * @returns {'soon' | 'prueba' | 'hidden' | 'ready'}
+ */
+export function navState(item, flags = {}) {
+	if (item.soon) return 'soon';
+	if (item.flag && flags[item.flag] === false) return item.hiddenWhenOff ? 'hidden' : 'prueba';
+	return 'ready';
+}
+
+/** Interruptores que usa el menú (para leerlos una vez en el layout). */
+export function navFlagKeys() {
+	return [...new Set(NAV.flatMap((i) => (i.flag ? [i.flag] : [])))];
 }
 
 /**
  * El ítem activo para una ruta: el de `href` más largo que coincide (así
- * `/admin/entradas/codigos` marca Códigos y no Ventas). Los ítems `soon` sin página no cuentan.
+ * `/admin/entradas/codigos` marca Códigos y no Ventas). Los `soon` también cuentan: su URL abre
+ * la página "Próximamente".
  * @param {string} pathname
  * @returns {NavItem | undefined}
  */
@@ -422,15 +629,11 @@ export function activeNavItem(pathname) {
 	/** @type {NavItem | undefined} */
 	let best;
 	for (const item of NAV) {
-		if (item.soon) continue;
 		const hit = path === item.href || (item.match !== 'exact' && path.startsWith(item.href + '/'));
 		if (hit && (!best || item.href.length > best.href.length)) best = item;
 	}
-	// Páginas fuera del menú: se marca el ítem del que dependen, si ya tiene página.
-	if (best?.menu === false) {
-		const parent = best.parent ? navItem(best.parent) : undefined;
-		best = parent && !parent.soon ? parent : undefined;
-	}
+	// Páginas fuera del menú: se marca el ítem del que dependen.
+	if (best?.menu === false) best = best.parent ? navItem(best.parent) : undefined;
 	// Páginas sin ítem propio: se marca la sección a la que pertenecen.
 	if (!best) {
 		if (path.startsWith('/admin/eventos/')) return navItem('eventos');
@@ -440,10 +643,57 @@ export function activeNavItem(pathname) {
 }
 
 /**
- * Ítems de un grupo que se muestran en el menú (barra lateral y panel "Más"), en orden. Los que
- * tienen `menu: false` quedan afuera (siguen en `NAV` para el buscador).
- * @param {string | null} group
+ * Secciones de un área que se muestran en el menú (barra lateral y panel "Más"), en orden: las
+ * que existen primero y las que vienen (`soon`) al final. Quedan afuera las de `menu: false`
+ * (siguen en `NAV` para el buscador), las `hidden` y, con `hideSoon`, las que vienen.
+ *
+ * @param {string | null} area
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
  */
-export function navGroupItems(group) {
-	return NAV.filter((i) => i.group === group && i.menu !== false);
+export function navAreaItems(area, { flags = {}, hideSoon = false } = {}) {
+	const items = NAV.filter((i) => i.area === area && i.menu !== false).filter((i) => {
+		const state = navState(i, flags);
+		return state !== 'hidden' && !(hideSoon && state === 'soon');
+	});
+	return [...items.filter((i) => !i.soon), ...items.filter((i) => i.soon)];
+}
+
+/**
+ * Las secciones de Ajustes agrupadas por subgrupo (Plata, Comunicación, Equipo, Sistema), sin
+ * subgrupos vacíos. Las de otras áreas devuelven un solo grupo sin nombre.
+ *
+ * @param {string} area
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
+ * @returns {{ id: string, label: string, items: NavItem[] }[]}
+ */
+export function navAreaSections(area, opts) {
+	const items = navAreaItems(area, opts);
+	if (area !== 'ajustes') return items.length ? [{ id: '', label: '', items }] : [];
+	return AJUSTES_SUBGROUPS.map((g) => ({
+		...g,
+		items: items.filter((i) => i.sub === g.id)
+	})).filter((g) => g.items.length);
+}
+
+/**
+ * Suma de los contadores de un área (se muestra en el área cerrada).
+ * @param {string} area
+ * @param {Record<string, number>} counts
+ * @param {{ flags?: Record<string, boolean> }} [opts]
+ */
+export function areaCount(area, counts, opts) {
+	return navAreaItems(area, opts).reduce(
+		(n, i) => n + (i.counter ? Number(counts[i.counter] ?? 0) : 0),
+		0
+	);
+}
+
+/**
+ * La sección "Próximamente" de una URL, o `undefined`. La usa la ruta genérica
+ * `[...section=soon]` (y su matcher en `src/params/soon.js`).
+ * @param {string} pathname
+ */
+export function soonItemAt(pathname) {
+	const path = pathname.replace(/\/+$/, '');
+	return NAV.find((i) => i.soon && i.href === path);
 }
