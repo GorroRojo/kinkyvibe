@@ -66,6 +66,12 @@ const opts = { now: NOW };
 const account = (name) => upsertVerifiedAccount(t.db, `${name}@example.com`, opts);
 
 /**
+ * Como si se hubiera escrito un código fresco por mail correcto (las acciones de dueñes y borrar
+ * un grupo lo piden; ver el describe «código fresco para acciones de dueñes»).
+ */
+const withCode = { stepUp: async () => null };
+
+/**
  * @template T
  * @param {T} result
  * @returns {Exclude<T, { ok: false }>}
@@ -125,7 +131,7 @@ describe('migración 0014', () => {
 		ok(await inviteManager(t.db, a.id, group.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
 		ok(await answerInvite(t.db, b.id, inv.id, true, opts));
-		ok(await setManagerRole(t.db, a.id, group.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, group.slug, b.id, 'owner', withCode));
 		ok(await inviteManager(t.db, a.id, group.slug, 'invitade@example.com', opts));
 		await t.db.prepare('DELETE FROM accounts WHERE id = ?1').bind(a.id).run();
 		const row = await t.db.prepare('SELECT invited_by FROM profile_invites').first();
@@ -282,7 +288,7 @@ describe('permisos', () => {
 			status: 409,
 			message: MESSAGES.lastOwnerOther
 		});
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		ok(await leaveProfile(t.db, a.id, g.slug));
 		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
 		expect(await leaveProfile(t.db, b.id, g.slug)).toMatchObject({ message: MESSAGES.lastOwner });
@@ -295,7 +301,7 @@ describe('permisos', () => {
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		await deleteAccount(t.db, b.id, opts);
 		expect(await leaveProfile(t.db, a.id, g.slug)).toMatchObject({ message: MESSAGES.lastOwner });
 	});
@@ -410,7 +416,7 @@ describe('invitaciones a gestionar', () => {
 		});
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
-		ok(await deleteProfile(t.db, a.id, g.slug, 1, opts));
+		ok(await deleteProfile(t.db, a.id, g.slug, 1, { ...opts, ...withCode }));
 		expect(await myInvites(t.db, b.id, opts)).toEqual([]);
 		expect(await answerInvite(t.db, b.id, inv.id, true, opts)).toMatchObject({ ok: false });
 	});
@@ -596,6 +602,117 @@ describe('aviso por mail de las invitaciones', () => {
 	});
 });
 
+describe('código fresco para acciones de dueñes', () => {
+	/** Un `stepUp` que cuenta las veces que se lo llamó y responde lo que se le pida. */
+	function stepUp(
+		answer = /** @type {null | { ok: false, status: number, message: string }} */ (null)
+	) {
+		const fn = vi.fn(async () => answer);
+		return { fn, opts: { stepUp: fn } };
+	}
+	const wrong = {
+		ok: /** @type {const} */ (false),
+		status: 400,
+		message: 'código mal (de prueba)'
+	};
+
+	/** Grupo de `a` con `b` como manager. */
+	async function setup() {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		/** @param {string} id */
+		const role = async (id) => (await getManagedProfile(t.db, id, g.slug))?.role ?? null;
+		return { a, b, g, role };
+	}
+
+	it('hacer dueñe, sacar la propiedad o sacar a otre dueñe: sin código no se hace', async () => {
+		const { a, b, g, role } = await setup();
+		expect(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner')).toEqual({
+			ok: false,
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		const bad = stepUp(wrong);
+		expect(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', bad.opts)).toEqual(wrong);
+		expect(await role(b.id)).toBe('manager');
+
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		expect(await role(b.id)).toBe('owner');
+		// Ya dueñe: b no puede sacar a a ni sacarle la propiedad sin código.
+		expect(await removeManager(t.db, b.id, g.slug, a.id)).toMatchObject({
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		expect(await setManagerRole(t.db, b.id, g.slug, a.id, 'manager', bad.opts)).toEqual(wrong);
+		expect(await role(a.id)).toBe('owner');
+		ok(await removeManager(t.db, b.id, g.slug, a.id, withCode));
+		expect(await role(a.id)).toBeNull();
+	});
+
+	it('con solo una sesión ajena (sin el mail) no se puede quedar con un grupo', async () => {
+		const v = await account('victima-inventada');
+		const x = await account('otra-cuenta-inventada');
+		const g = await create(v.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		// Con la sesión de v: invita a x y x acepta…
+		ok(await inviteManager(t.db, v.id, g.slug, x.email, opts));
+		ok(await answerInvite(t.db, x.id, (await myInvites(t.db, x.id, opts))[0].id, true, opts));
+		// …pero hacerla dueñe pide el código que le llega a v.
+		const noMail = stepUp(wrong);
+		expect(await setManagerRole(t.db, v.id, g.slug, x.id, 'owner', noMail.opts)).toEqual(wrong);
+		expect(await removeManager(t.db, x.id, g.slug, v.id)).toMatchObject({ status: 403 });
+		expect((await getManagedProfile(t.db, v.id, g.slug))?.role).toBe('owner');
+	});
+
+	it('borrar un grupo pide código; borrar un perfil de persona, no', async () => {
+		const { a, g } = await setup();
+		expect(await deleteProfile(t.db, a.id, g.slug, g.version, opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		const bad = stepUp(wrong);
+		expect(await deleteProfile(t.db, a.id, g.slug, g.version, { ...opts, ...bad.opts })).toEqual(
+			wrong
+		);
+		// Con una versión vieja no se gasta el código.
+		const unused = stepUp();
+		expect(
+			await deleteProfile(t.db, a.id, g.slug, g.version + 5, { ...opts, ...unused.opts })
+		).toMatchObject({ status: 409 });
+		expect(unused.fn).not.toHaveBeenCalled();
+		expect(await getManagedProfile(t.db, a.id, g.slug)).not.toBeNull();
+		ok(await deleteProfile(t.db, a.id, g.slug, g.version, { ...opts, ...withCode }));
+		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
+
+		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
+		const notNeeded = stepUp();
+		ok(await deleteProfile(t.db, a.id, p.slug, p.version, { ...opts, ...notNeeded.opts }));
+		expect(notNeeded.fn).not.toHaveBeenCalled();
+	});
+
+	it('no pide código para lo demás, ni lo gasta si no hay permiso', async () => {
+		const { a, b, g, role } = await setup();
+		const asked = stepUp();
+		// Une manager sin permiso: 403 sin tocar el código.
+		expect(await setManagerRole(t.db, b.id, g.slug, b.id, 'owner', asked.opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.onlyOwner
+		});
+		expect(await removeManager(t.db, b.id, g.slug, a.id, asked.opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.onlyOwner
+		});
+		// Sacar a une manager o irse une misme: sin código.
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		ok(await setManagerRole(t.db, a.id, g.slug, a.id, 'manager', asked.opts));
+		ok(await removeManager(t.db, b.id, g.slug, a.id, asked.opts));
+		expect(await role(a.id)).toBeNull();
+		expect(asked.fn).not.toHaveBeenCalled();
+	});
+});
+
 describe('invitaciones de quien deja de ser dueñe', () => {
 	/**
 	 * Grupo de `a` con `b` como dueñe también, y una invitación pendiente de cada une.
@@ -606,7 +723,7 @@ describe('invitaciones de quien deja de ser dueñe', () => {
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		ok(await inviteManager(t.db, a.id, g.slug, 'de-a@example.com', opts));
 		ok(await inviteManager(t.db, b.id, g.slug, 'de-b@example.com', opts));
 		/** @param {string} id */
@@ -617,21 +734,21 @@ describe('invitaciones de quien deja de ser dueñe', () => {
 
 	it('sacarle la propiedad borra sus invitaciones; las de otres quedan', async () => {
 		const { a, b, g, pendingBy } = await setup();
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager', withCode));
 		expect(await pendingBy(b.id)).toBe(0);
 		expect(await pendingBy(a.id)).toBe(1);
 	});
 
 	it('sacarle de la gestión borra sus invitaciones', async () => {
 		const { a, b, g, pendingBy } = await setup();
-		ok(await removeManager(t.db, a.id, g.slug, b.id));
+		ok(await removeManager(t.db, a.id, g.slug, b.id, withCode));
 		expect(await pendingBy(b.id)).toBe(0);
 		expect(await pendingBy(a.id)).toBe(1);
 	});
 
 	it('si el cambio no se hace (le última dueñe), sus invitaciones quedan', async () => {
 		const { a, b, g, pendingBy } = await setup();
-		ok(await removeManager(t.db, a.id, g.slug, b.id));
+		ok(await removeManager(t.db, a.id, g.slug, b.id, withCode));
 		expect(await setManagerRole(t.db, a.id, g.slug, a.id, 'manager')).toMatchObject({
 			ok: false
 		});
@@ -642,7 +759,7 @@ describe('invitaciones de quien deja de ser dueñe', () => {
 		const { a, b, g } = await setup();
 		const list = ok(await listManagers(t.db, a.id, g.slug, opts));
 		expect(list.invites.map((i) => i.invitedBy).sort()).toEqual([a.email, b.email].sort());
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager', withCode));
 		expect(ok(await listManagers(t.db, b.id, g.slug, opts)).invites).toEqual([]);
 	});
 });
@@ -929,7 +1046,7 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Oculto', visibility: 'hidden' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		ok(await leaveProfile(t.db, a.id, g.slug));
 		expect(await getPublicProfile(t.db, g.slug, memberViewer(a.id))).toBeNull();
 		expect(await getObject(t.db, { type: 'perfil', slug: g.slug }, memberViewer(a.id))).toBeNull();

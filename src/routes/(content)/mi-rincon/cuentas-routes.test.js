@@ -393,6 +393,10 @@ describe('interruptor prendido', () => {
 		expect(await m.rincon.actions.confirmar(ev({ para: 'login' }))).toMatchObject({
 			status: 400
 		});
+		// Los de grupos se piden en la página del grupo, no acá.
+		expect(await m.rincon.actions.confirmar(ev({ para: 'grupo' }))).toMatchObject({
+			status: 400
+		});
 		const { RATE_LIMITS } = await import('$lib/server/cuentas/index.js');
 		for (let i = 0; i < RATE_LIMITS.codeRequestEmail.limit; i++) await confirmCode('password');
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});

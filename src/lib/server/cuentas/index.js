@@ -169,12 +169,14 @@ async function checkCode({ db, email, code: rawCode, client, now, purpose }) {
  * contraseña ni borrar la cuenta sin acceso al mail).
  * - 'password': poner, cambiar o sacar la contraseña.
  * - 'delete': borrar la cuenta.
- * @typedef {'password' | 'delete'} ConfirmPurpose
+ * - 'grupo': hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe de un grupo, y
+ *   borrar un grupo (Mi rincón → Perfiles; las reglas están en perfiles.js).
+ * @typedef {'password' | 'delete' | 'grupo'} ConfirmPurpose
  */
 
 /** @param {unknown} v @returns {v is ConfirmPurpose} */
 export function isConfirmPurpose(v) {
-	return v === 'password' || v === 'delete';
+	return v === 'password' || v === 'delete' || v === 'grupo';
 }
 
 /**

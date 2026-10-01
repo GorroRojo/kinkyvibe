@@ -86,8 +86,13 @@ nada de estas tablas para sumarlas.
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
   otro anula el anterior del mismo `purpose`.
 - Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
-  contraseña) o `delete` (borrar la cuenta), y solo sirve para ese. Uno de ingreso no confirma
-  nada y uno de confirmación no sirve para ingresar.
+  contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un grupo y borrarlo,
+  ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
+  no sirve para ingresar.
+- `grupo` se sumó sin cambiar el `CHECK` de `login_codes` (migración 0013, ya aplicada en los
+  previews): en la columna `purpose` va como `delete`, pero con otro hash de mail
+  (`SHA-256("cuentas:code:grupo:<hash del mail>")`), así nunca se cruza con los de `delete`, y el
+  `purpose` de verdad va en el hash del código (`storage()` en `codes.js`).
 - Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
@@ -173,6 +178,9 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
   pedir otro.
 - Los mismos límites que los códigos de ingreso, con los mismos contadores: los mails por
   dirección y los intentos por conexión se suman entre ingresar y confirmar.
+- En la página de un grupo pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
+  a otre dueñe, y borrar el grupo (`para` no existe ahí: `?/confirmar` manda siempre uno de
+  `grupo`; ver "Perfiles").
 
 ### Evento que pide cuenta (P7.1)
 
@@ -209,7 +217,8 @@ campos), pero nadie la usa todavía.
   persona ("Te sumaron a…"), cada uno con su botón para salir.
 - Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
   `/ingresar`. Con el interruptor apagado, todo da 404.
-- Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página.
+- Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página (y,
+  si es un grupo, el código por mail).
 
 ### Modelo
 
@@ -292,6 +301,14 @@ campos), pero nadie la usa todavía.
   - quienes gestionan no se muestran nunca, y nada vincula entre sí los perfiles de persona de
     una misma cuenta: cada uno es integrante por su lado. Solo la propia cuenta ve, en su Mi
     rincón, qué perfil suyo está en qué grupo.
+- **Acciones de dueñes con código fresco.** Hacer dueñe a alguien, sacarle la propiedad a otre
+  dueñe, sacar a otre dueñe de la gestión y borrar un grupo piden un código por mail (purpose
+  `grupo`), con el mismo patrón que la contraseña en Mi rincón: "Mandame un código para
+  confirmar", el campo del código y la acción, en la misma página. Así, con solo una sesión
+  abierta ajena no se puede quedar con un grupo. Lo decide `perfiles.js` (opción `stepUp` de
+  `setManagerRole`, `removeManager` y `deleteProfile`), después de chequear permisos: un pedido
+  sin permiso no gasta el código. Sacar a une manager, sacarse la propiedad a une misme, dejar de
+  gestionar y borrar un perfil de persona no lo piden.
 - **Siempre queda al menos une dueñe.** Le última dueñe no puede irse ni perder la propiedad:
   primero hace dueñe a otra persona. La condición va en la misma sentencia SQL, así dos cambios a
   la vez no pueden dejar al grupo sin dueñe. Una cuenta borrada no cuenta como dueñe.

@@ -642,6 +642,46 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 		).toMatchObject({ ok: false, status: 429 });
 	});
 
+	it("'grupo' es un purpose más: no se cruza con 'delete' aunque comparta la columna", async () => {
+		const hash = await emailHash(EMAIL);
+		const { code: deleteCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'delete' });
+		const { code: groupCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'grupo' });
+		// Pedir uno de 'grupo' no anuló el de 'delete' (y al revés, abajo).
+		const rows = await t.db.prepare('SELECT email_hash, purpose, used_at FROM login_codes').all();
+		expect(rows.results).toHaveLength(2);
+		expect(rows.results.every((r) => r.used_at === null)).toBe(true);
+		// Se guarda sin cambiar el CHECK de 0013, con otro hash de mail.
+		const group = rows.results.find((r) => r.email_hash !== hash);
+		expect(group?.purpose).toBe('delete');
+		// Ninguno sirve para lo del otro…
+		if (groupCode !== deleteCode) {
+			expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'delete' })).toBe(
+				'wrong'
+			);
+			expect(await verifyLoginCode(t.db, hash, deleteCode, { now: NOW, purpose: 'grupo' })).toBe(
+				'wrong'
+			);
+		}
+		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'login' })).toBe(
+			'expired'
+		);
+		// …y cada uno sí para lo suyo.
+		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'grupo' })).toBe('ok');
+		expect(await verifyLoginCode(t.db, hash, deleteCode, { now: NOW, purpose: 'delete' })).toBe(
+			'ok'
+		);
+		expect(isConfirmPurpose('grupo')).toBe(true);
+	});
+
+	it("borrar la cuenta borra también sus códigos de 'grupo'", async () => {
+		const a = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const hash = await emailHash(EMAIL);
+		await createLoginCode(t.db, hash, { now: NOW, purpose: 'grupo' });
+		await createLoginCode(t.db, hash, { now: NOW, purpose: 'login' });
+		await deleteAccount(t.db, a.id, { now: NOW });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(0);
+	});
+
 	it('purpose desconocido: error', async () => {
 		await expect(
 			createLoginCode(t.db, 'x', { purpose: /** @type {any} */ ('otra') })

@@ -117,7 +117,9 @@ export const actions = {
 		const { db, member } = await requireMember(event);
 		const form = await event.request.formData();
 		const purpose = field(form, 'para');
-		if (!isConfirmPurpose(purpose)) return fail(400, { error: 'No sabemos qué confirmar.' });
+		// Acá solo los de la cuenta; los de grupos se piden en la página del grupo.
+		if (!isConfirmPurpose(purpose) || purpose === 'grupo')
+			return fail(400, { error: 'No sabemos qué confirmar.' });
 		const action = purpose === 'delete' ? 'borrar' : 'contrasena';
 		try {
 			const result = await requestConfirmCode({

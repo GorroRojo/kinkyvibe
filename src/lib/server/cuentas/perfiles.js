@@ -56,6 +56,14 @@ import { accountMailAllowed } from './mailCap.js';
  * @typedef {{ ok: false, status: number, message: string, errors?: Record<string, string> }} Failure
  */
 
+/**
+ * Verifica (y gasta) el código fresco por mail de las acciones delicadas de un grupo (purpose
+ * 'grupo', ver cuentas/index.js). Devuelve `null` si está bien o el Failure que hay que mostrar.
+ * Las funciones de acá la llaman solo cuando la acción lo pide, después de chequear permisos (así
+ * un pedido sin permiso no gasta el código).
+ * @typedef {() => Promise<Failure | null>} StepUp
+ */
+
 export const PROFILE_TYPE = 'perfil';
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
@@ -105,6 +113,8 @@ export const MESSAGES = Object.freeze({
 	recentlyLeft:
 		'Esa persona dejó el grupo hace poco: por ahora no la pueden volver a sumar. Si quiere volver, que te avise.',
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
+	needsCode:
+		'Para esto te pedimos un código por mail: pedilo con «Mandame un código para confirmar» y escribilo antes de confirmar.',
 	invalid: 'Revisá los datos marcados.'
 });
 
@@ -399,19 +409,31 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 /**
  * Borra (suave, se puede deshacer desde la base) un perfil. Solo dueñes. Las filas de
  * `profile_managers` y los edges quedan, para poder deshacer; como el objeto está borrado, no
- * se ve en ningún lado.
+ * se ve en ningún lado. Borrar un grupo pide además un código fresco por mail (`stepUp`).
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {number} version
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function deleteProfile(db, accountId, slug, version, { now = Date.now() } = {}) {
+export async function deleteProfile(
+	db,
+	accountId,
+	slug,
+	version,
+	{ now = Date.now(), stepUp } = {}
+) {
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
+	if (managed.kind === 'grupo') {
+		// La versión se mira antes de gastar el código.
+		if (version !== managed.profile.version) return failure(409, MESSAGES.conflict);
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
 	try {
 		await saveObject(
 			db,
@@ -714,36 +736,50 @@ export async function answerInvite(db, accountId, inviteId, accept, { now = Date
  * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero. Si
  * deja de ser dueñe, sus invitaciones pendientes se borran en la misma tanda.
  *
+ * Hacer dueñe a alguien o sacarle la propiedad a otre dueñe pide además un código fresco por mail
+ * (`stepUp`): con solo una sesión abierta ajena no se puede quedar con el grupo. Sacarse la
+ * propiedad a une misme no lo pide.
+ *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {unknown} targetAccountId
  * @param {unknown} role
+ * @param {{ stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function setManagerRole(db, accountId, slug, targetAccountId, role) {
+export async function setManagerRole(db, accountId, slug, targetAccountId, role, { stepUp } = {}) {
 	if (role !== 'owner' && role !== 'manager') return failure(400, MESSAGES.invalid);
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
 	const target = text(targetAccountId);
+	const current = await managerRole(db, managed.profile.id, target);
+	if (!current) return failure(409, MESSAGES.notManager);
+	const self = target === accountId;
+	const sensitive = role === 'owner' ? current !== 'owner' : current === 'owner' && !self;
+	if (sensitive) {
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
+	// Sin código, la sentencia solo puede tocar a quien no es dueñe (o a une misme): si alguien
+	// lo hizo dueñe en el medio, no se hace nada.
+	const unconfirmedGuard = sensitive || self ? '' : "AND role = 'manager'";
 	const [res] = await db.batch([
 		db
 			.prepare(
 				`UPDATE profile_managers SET role = ?3 WHERE profile_id = ?1 AND account_id = ?2
-				AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
+				AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1) ${unconfirmedGuard}`
 			)
 			.bind(managed.profile.id, target, role),
 		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
 	]);
 	if (res.meta.changes) return { ok: true };
-	return failure(
-		409,
-		(await isManager(db, managed.profile.id, text(targetAccountId)))
-			? MESSAGES.lastOwnerOther
-			: MESSAGES.notManager
-	);
+	const after = await managerRole(db, managed.profile.id, target);
+	if (after === role) return { ok: true };
+	if (!after) return failure(409, MESSAGES.notManager);
+	return failure(409, sensitive || self ? MESSAGES.lastOwnerOther : MESSAGES.busy);
 }
 
 /**
@@ -752,11 +788,35 @@ export async function setManagerRole(db, accountId, slug, targetAccountId, role)
  * @param {string} accountId
  */
 async function isManager(db, profileId, accountId) {
+	return (await managerRole(db, profileId, accountId)) !== null;
+}
+
+/**
+ * El rol de una cuenta en un perfil, o `null` si no lo gestiona.
+ *
+ * @param {D1Database} db
+ * @param {number} profileId
+ * @param {string} accountId
+ * @returns {Promise<ManagerRole | null>}
+ */
+async function managerRole(db, profileId, accountId) {
 	const row = await db
-		.prepare('SELECT 1 AS x FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
+		.prepare('SELECT role FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
 		.bind(profileId, accountId)
 		.first();
-	return Boolean(row);
+	if (!row) return null;
+	return row.role === 'owner' ? 'owner' : 'manager';
+}
+
+/**
+ * Pide el código fresco (`stepUp`); sin `stepUp`, la acción no se hace.
+ *
+ * @param {StepUp | undefined} stepUp
+ * @returns {Promise<Failure | null>}
+ */
+async function confirmStep(stepUp) {
+	if (!stepUp) return failure(403, MESSAGES.needsCode);
+	return stepUp();
 }
 
 /**
@@ -764,13 +824,17 @@ async function isManager(db, profileId, accountId) {
  * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia). Las
  * invitaciones pendientes que mandó se borran en la misma tanda.
  *
+ * Sacar a otre dueñe pide además un código fresco por mail (`stepUp`); sacar a une manager o irse
+ * une misme, no.
+ *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {unknown} targetAccountId
+ * @param {{ stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function removeManager(db, accountId, slug, targetAccountId) {
+export async function removeManager(db, accountId, slug, targetAccountId, { stepUp } = {}) {
 	const target = text(targetAccountId);
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
@@ -778,17 +842,25 @@ export async function removeManager(db, accountId, slug, targetAccountId) {
 	if (managed.kind !== 'grupo')
 		return failure(400, self ? MESSAGES.personaLeave : MESSAGES.onlyGroups);
 	if (!self && managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
+	const sensitive = !self && (await managerRole(db, managed.profile.id, target)) === 'owner';
+	if (sensitive) {
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
+	// Sin código, solo se puede sacar a une manager (o irse une misme).
+	const unconfirmedGuard = sensitive || self ? '' : "AND role = 'manager'";
 	const [res] = await db.batch([
 		db
 			.prepare(
 				`DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2
-				AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
+				AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1) ${unconfirmedGuard}`
 			)
 			.bind(managed.profile.id, target),
 		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
 	]);
 	if (res.meta.changes) return { ok: true };
 	if (!(await isManager(db, managed.profile.id, target))) return failure(409, MESSAGES.notManager);
+	if (!sensitive && !self) return failure(409, MESSAGES.busy);
 	return failure(409, self ? MESSAGES.lastOwner : MESSAGES.lastOwnerOther);
 }
 
