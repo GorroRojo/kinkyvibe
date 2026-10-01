@@ -26,13 +26,28 @@ export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'area', 'hi
  */
 export const DEFAULT_VENUE_PRIVACY = 'public';
 
-/** Textos del panel y de las páginas. */
+/**
+ * Qué se muestra en cada nivel, como opción de un desplegable o columna del panel y de Mi rincón.
+ * Un solo mapa para que se lea igual en todos lados (decisión de gorrite: dicen qué se muestra,
+ * no "qué dirección").
+ */
 export const VENUE_PRIVACY_LABELS = Object.freeze({
-	public: 'Pública: nombre y dirección',
-	name: 'Solo el nombre',
-	area: 'Solo el barrio',
-	hidden: 'Oculta'
+	public: 'Mostrar la dirección completa',
+	name: 'Mostrar solo el nombre',
+	area: 'Mostrar solo el barrio',
+	hidden: 'No mostrar el lugar'
 });
+
+/** Lo mismo, corto y en minúscula, para ir entre paréntesis ("ahora: solo el nombre"). */
+export const VENUE_PRIVACY_SHORT = Object.freeze({
+	public: 'dirección completa',
+	name: 'solo el nombre',
+	area: 'solo el barrio',
+	hidden: 'lugar oculto'
+});
+
+/** La opción "sin elegir" del nivel de un lugar (vale el nivel por defecto). */
+export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_SHORT[DEFAULT_VENUE_PRIVACY]})`;
 
 /** Aviso para el público cuando la dirección no se muestra. */
 export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
@@ -59,6 +74,29 @@ export function effectivePrivacy(eventOverride, venueDefault) {
 	if (isVenuePrivacy(eventOverride)) return eventOverride;
 	if (isVenuePrivacy(venueDefault)) return venueDefault;
 	return DEFAULT_VENUE_PRIVACY;
+}
+
+/**
+ * La opción "igual que el lugar" del nivel de un evento, con el nivel que vale ahora: el del
+ * lugar elegido, o la dirección completa si el lugar no tiene uno.
+ *
+ * @param {unknown} venueDefault
+ */
+export function inheritPrivacyLabel(venueDefault) {
+	return `Igual que el lugar (ahora: ${VENUE_PRIVACY_SHORT[effectivePrivacy(null, venueDefault)]})`;
+}
+
+/**
+ * Qué se muestra de la dirección en un evento, en palabras: el nivel del evento si tiene uno,
+ * si no "igual que el lugar" con el nivel del lugar.
+ *
+ * @param {unknown} eventOverride
+ * @param {unknown} venueDefault
+ */
+export function eventPrivacyText(eventOverride, venueDefault) {
+	return isVenuePrivacy(eventOverride)
+		? VENUE_PRIVACY_LABELS[eventOverride]
+		: inheritPrivacyLabel(venueDefault);
 }
 
 /**
