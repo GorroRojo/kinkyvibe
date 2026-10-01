@@ -189,13 +189,14 @@
 				<label class="kv-field">
 					<span>Privacidad de la dirección (por defecto)</span>
 					<select name="venue_privacy" bind:value={values.venue_privacy}>
-						<option value="">Sin elegir (solo el nombre)</option>
+						<option value="">Sin elegir (dirección completa)</option>
 						{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
 							<option {value}>{label}</option>
 						{/each}
 					</select>
 					<small
-						>Cada evento la puede cambiar. Quien compra entrada recibe siempre la dirección.</small
+						>Si no elegís, se muestra la dirección completa. Cada evento la puede cambiar. Quien
+						compra entrada recibe siempre la dirección.</small
 					>
 				</label>
 				<label class="kv-field">

@@ -20,11 +20,11 @@ import { textOrNull } from './text.js';
 export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'area', 'hidden']);
 
 /**
- * Sin nivel elegido, un lugar muestra solo su nombre. DECIDIDO POR CLAUDE, A CONFIRMAR: ante la
- * duda, no se muestra la dirección (el lugar la puede hacer pública cuando quiera).
+ * Sin nivel elegido, un lugar muestra la dirección completa (decisión de gorrite): quien no la
+ * quiere pública elige otro nivel en el lugar o en el evento. Es el único lugar que lo decide.
  * @type {VenuePrivacy}
  */
-export const DEFAULT_VENUE_PRIVACY = 'name';
+export const DEFAULT_VENUE_PRIVACY = 'public';
 
 /** Textos del panel y de las páginas. */
 export const VENUE_PRIVACY_LABELS = Object.freeze({

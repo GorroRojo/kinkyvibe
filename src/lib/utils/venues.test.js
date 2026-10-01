@@ -28,12 +28,30 @@ const venue = {
 const href = '/amigues/galpon-inventado';
 
 describe('privacidad del lugar', () => {
-	it('el evento manda sobre el lugar; sin nada, solo el nombre', () => {
+	// gorrite cambió el valor por defecto: sin nivel elegido se muestra la dirección completa
+	// (antes, solo el nombre).
+	it('el evento manda sobre el lugar; sin nada, la dirección completa', () => {
 		expect(effectivePrivacy('hidden', 'public')).toBe('hidden');
 		expect(effectivePrivacy(null, 'area')).toBe('area');
 		expect(effectivePrivacy(undefined, undefined)).toBe(DEFAULT_VENUE_PRIVACY);
-		expect(DEFAULT_VENUE_PRIVACY).toBe('name');
-		expect(effectivePrivacy('cualquiera', 'otra')).toBe('name');
+		expect(DEFAULT_VENUE_PRIVACY).toBe('public');
+		expect(effectivePrivacy('cualquiera', 'otra')).toBe('public');
+	});
+
+	it('un lugar sin nivel (NULL o sin el campo) resuelve a público; los niveles elegidos no cambian', () => {
+		for (const unset of [null, undefined, '']) {
+			expect(effectivePrivacy(null, unset)).toBe('public');
+			expect(effectivePrivacy(undefined, unset)).toBe('public');
+		}
+		for (const level of /** @type {const} */ (['public', 'name', 'area', 'hidden'])) {
+			// el del lugar, si está elegido
+			expect(effectivePrivacy(null, level)).toBe(level);
+			// el del evento manda, también sobre un lugar sin nivel
+			expect(effectivePrivacy(level, null)).toBe(level);
+			for (const venueLevel of ['public', 'name', 'area', 'hidden']) {
+				expect(effectivePrivacy(level, venueLevel)).toBe(level);
+			}
+		}
 	});
 
 	it('el link al lugar se ve solo en los niveles 1 y 2', () => {

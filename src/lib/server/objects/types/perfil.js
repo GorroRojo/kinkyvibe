@@ -59,7 +59,8 @@ export const PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo', 'lugar']
 
 /**
  * Privacidad de la dirección de un lugar (decisión B3), de más a menos visible. El lugar tiene
- * una por defecto (`venue_privacy`) y cada evento la puede cambiar (tabla `event_venues`).
+ * una por defecto (`venue_privacy`; sin elegir: `public`, ver DEFAULT_VENUE_PRIVACY en
+ * src/lib/utils/venues.js) y cada evento la puede cambiar (tabla `event_venues`).
  * - public: nombre, dirección, barrio, ciudad y mapa;
  * - name: solo el nombre (con el link a su página);
  * - area: solo el barrio y la ciudad (ni el nombre: lo identificaría);

@@ -61,8 +61,12 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 
 ## Privacidad de los lugares
 
-Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **solo el nombre**) y cada
-evento lo puede cambiar (`event_venues.privacy`):
+Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **la dirección completa**,
+decisión de gorrite; también
+vale para los lugares ya guardados sin nivel) y cada evento lo puede cambiar
+(`event_venues.privacy`), y el del evento manda. Quien no quiera la dirección pública elige otro
+nivel; el valor por defecto se decide en un solo lugar, `DEFAULT_VENUE_PRIVACY` en
+`src/lib/utils/venues.js`:
 
 | Nivel        | En la página del evento              | ¿El lugar lista el evento? |
 | ------------ | ------------------------------------ | -------------------------- |
@@ -90,7 +94,8 @@ sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falt
 ## Del vínculo provisorio al edge
 
 Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**
-(`event_slug` → `venue_id`, con `privacy`). Se eligió una tabla y no `lugar:` en el frontmatter
+(`event_slug` → `venue_id`, con `privacy`; confirmado por gorrite, porque los eventos pasan a la
+base pronto). Se eligió una tabla y no `lugar:` en el frontmatter
 porque: la dirección y la privacidad quedan fuera del repo público; el cambio se ve al toque (sin
 PR ni deploy); `venue_id` tiene foreign key al objeto; y las salidas compiladas no pueden filtrar
 nada. Contra: si se cambia la dirección (slug) de un evento, hay que volver a vincularlo.

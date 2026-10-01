@@ -8,6 +8,7 @@
 	import { MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
+	import { DEFAULT_VENUE_PRIVACY } from '$lib/utils/venues.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -90,7 +91,7 @@
 											>{VISIBILITY_LABELS[v.visibility] ?? v.visibility}</Badge
 										>{/if}
 								</td>
-								<td class="small">{privacyText(v.privacy ?? 'name')}</td>
+								<td class="small">{privacyText(v.privacy ?? DEFAULT_VENUE_PRIVACY)}</td>
 								<td class="hide-sm small">{v.events}</td>
 							</tr>
 						{/each}
