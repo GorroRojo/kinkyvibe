@@ -45,6 +45,7 @@ describe('NAV', () => {
 			'/admin/ajustes/fondo',
 			'/admin/ajustes/mails',
 			'/admin/ajustes/admins',
+			'/admin/ajustes/interruptores',
 			'/admin/actividad',
 			'/admin/cuentas',
 			'/admin/cuentas/perfiles',

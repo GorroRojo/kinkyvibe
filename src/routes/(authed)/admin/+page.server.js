@@ -173,7 +173,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const integrityRow = integrityReviewRow(integrity, { formatWhen: (ms) => whenLabel(ms, now) });
 	if (integrityRow) todo.push(integrityRow);
 
-	const settingsItem = navItem('ajustes-cobros');
+	// Los recordatorios se configuran en Ajustes → Mails y plantillas.
+	const remindersItem = navItem('ajustes-mails');
 	const agenda = agendaItems({
 		events,
 		ticketed,
@@ -185,7 +186,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			event: eventLink,
 			orders: (slug) => orderHref(slug),
 			transfers: transfersHref,
-			reminders: (settingsItem && navLink(settingsItem)) || '/admin/entradas/ajustes'
+			reminders: (remindersItem && navLink(remindersItem)) || '/admin/ajustes/mails'
 		}
 	});
 	const focus = salesFocus(upcoming);
