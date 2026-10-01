@@ -9,7 +9,7 @@
 -- - `color` no lleva CHECK a propósito: la paleta vive en el código ($lib/utils/dayNotes.js) y un
 --   color que ya no existe se muestra con el de por defecto. Así cambiar la paleta no pide rehacer
 --   la tabla.
--- - 0028 y 0029 quedan para otros PRs abiertos.
+-- - 0028 no la usa ningún PR (0029 es de etiquetas): se toma 0030 para no chocar con nada.
 CREATE TABLE IF NOT EXISTS agenda_day_notes (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	date TEXT NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
