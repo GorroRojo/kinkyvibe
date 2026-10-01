@@ -17,6 +17,7 @@ import {
 	confirmTransfer,
 	getOrder,
 	refundOrder,
+	orderTier,
 	transferLimits
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
@@ -122,7 +123,7 @@ export const eventTicketActions = {
 			fail(409, {
 				transfer: {
 					ok: false,
-					message: `Para confirmar ${ref} hay que pasar el cupo: confirmalo en el aviso.`,
+					message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
 					order: orderId,
 					needsConfirmation
 				}
@@ -133,6 +134,7 @@ export const eventTicketActions = {
 			orderId,
 			eventSlug: params.slug,
 			capacity: type.capacity,
+			tierQuantity: orderTier(order, type)?.quantity ?? null,
 			by: admin.login,
 			override: check.override,
 			now
