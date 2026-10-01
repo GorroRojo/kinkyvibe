@@ -9,7 +9,8 @@ import { logDBError } from '$lib/server/db';
 import { splitMarkdown } from '$lib/utils/eventDraft.js';
 import { readTicketsForm, validateTicketsForm } from '$lib/utils/ticketsEditor.js';
 import { parseTicketConfig } from './config.js';
-import { getCounts } from './orders.js';
+import { getCounts, getTaken } from './orders.js';
+import { tierKey } from '$lib/utils/ticketTiers.js';
 
 /**
  * Vendidas y reservadas por tipo de un evento, o `null` si no hay base (o falla).
@@ -21,8 +22,25 @@ import { getCounts } from './orders.js';
 export async function salesByType(db, slug) {
 	if (!db) return null;
 	try {
-		const counts = await getCounts(db, slug);
-		return Object.fromEntries([...counts].map(([id, c]) => [id, { sold: c.sold, held: c.held }]));
+		const now = Date.now();
+		const counts = await getCounts(db, slug, now);
+		const taken = await getTaken(db, slug, now);
+		return Object.fromEntries(
+			[...counts].map(([id, c]) => {
+				// Lo tomado por tramo de preventa (para no dejar borrar un tramo vendido ni bajarle la
+				// cantidad por debajo de lo vendido).
+				/** @type {Record<string, number>} */
+				const tiers = {};
+				const prefix = tierKey(id, '');
+				for (const [key, n] of taken.tiers) {
+					if (key.startsWith(prefix)) tiers[key.slice(prefix.length)] = n;
+				}
+				return [
+					id,
+					{ sold: c.sold, held: c.held, ...(Object.keys(tiers).length ? { tiers } : {}) }
+				];
+			})
+		);
 	} catch (error) {
 		logDBError('editor: ventas del evento', error);
 		return null;

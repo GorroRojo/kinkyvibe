@@ -32,6 +32,7 @@ import {
 } from './inicio.js';
 import { logAdminAction } from './audit.js';
 import { insertOrder, insertTicket } from './testRows.js';
+import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -157,7 +158,56 @@ describe('totales', () => {
 			total: 10000 + 14400 + 12000,
 			orders: 3,
 			tickets: 4,
-			fondoNet: 2000 - 1600
+			fondoNet: 2000 - 1600,
+			fondoTips: 0
+		});
+	});
+
+	it('monthMoney suma a los aportes al fondo las propinas "Para el Fondo" aprobadas este mes (solo esas)', async () => {
+		await insertOrder(t.db, { contribution: 2000, created: ar('2026-09-15T10:00') });
+		await insertOrder(t.db, { fondoAmount: 500, created: ar('2026-09-16T10:00') });
+		let paymentId = 0;
+		/**
+		 * @param {number} amount
+		 * @param {'kinkyvibe' | 'fondo'} destination
+		 * @param {string[]} statuses estados de MP que se aplican en orden
+		 * @param {number} at
+		 */
+		async function tip(amount, destination, statuses, at) {
+			const tip = await createTip(
+				t.db,
+				{ amount, message: null, category: 'material', slug: 'guia', destination },
+				{ now: at }
+			);
+			const id = ++paymentId;
+			for (const status of statuses) {
+				await applyTipPayment(
+					t.db,
+					{
+						id,
+						status,
+						external_reference: tipReference(tip.id),
+						transaction_amount: amount,
+						currency_id: 'ARS'
+					},
+					{ now: at }
+				);
+			}
+		}
+		await tip(3000, 'fondo', ['approved'], ar('2026-09-10T10:00'));
+		await tip(1000, 'fondo', ['approved'], ar('2026-09-29T23:00'));
+		// No suman: pendiente, rechazada, reembolsada, de KinkyVibe o aprobada en otro mes.
+		await tip(7000, 'fondo', [], ar('2026-09-10T10:00'));
+		await tip(5000, 'fondo', ['rejected'], ar('2026-09-10T10:00'));
+		await tip(4000, 'fondo', ['approved', 'refunded'], ar('2026-09-10T10:00'));
+		await tip(9000, 'kinkyvibe', ['approved'], ar('2026-09-10T10:00'));
+		await tip(8000, 'fondo', ['approved'], ar('2026-08-31T23:00'));
+		const money = await monthMoney(t.db, NOW);
+		expect(money).toMatchObject({
+			orders: 2,
+			fondoTips: 4000,
+			// Aportes (entrada solidaria + propinas al Fondo) − lo que cubrió el fondo.
+			fondoNet: 2000 + 4000 - 500
 		});
 	});
 });

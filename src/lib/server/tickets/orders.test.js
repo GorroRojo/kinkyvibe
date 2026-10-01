@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { buildPreference } from './mercadopago.js';
 import {
@@ -33,13 +33,21 @@ beforeAll(async () => {
 afterAll(async () => {
 	await t?.dispose();
 });
-beforeEach(async () => {
-	await resetDB(t.db);
-});
-
 const EVENT = 'fiesta-de-prueba';
 const GENERAL = { id: 'general', price: 8000, capacity: 5 };
 const NOW = Date.parse('2026-10-01T12:00:00Z');
+
+beforeEach(async () => {
+	await resetDB(t.db);
+	// Las órdenes se crean con `now: NOW`; las llamadas que no pasan `now` usan el reloj. Lo fijamos
+	// en NOW (solo Date, los timers siguen reales) para que el archivo no dependa de la hora en que
+	// corre: desde las 12:00 UTC del 1/10 el primer pago de la prueba de cobro doble ya llegaba tarde.
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(NOW);
+});
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 /** @param {number} n */
 function people(n) {
