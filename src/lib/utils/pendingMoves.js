@@ -5,11 +5,13 @@
  *
  * - `pendingMovesReducer`: el estado de los cambios pendientes (mover, volver, descartar…);
  * - `pendingSavePayload`: los pendientes → lo que manda "Guardar cambios";
+ * - `pendingMovesSummary`: los pendientes en una frase, para confirmar antes de guardar;
  * - `withPendingMoves`: las filas como se ven con los pendientes aplicados;
  * - `restorePendingMoves`: los pendientes recuperados de un borrador, solo los que siguen valiendo.
  */
 import { agendaValues, changedAgendaFields, readAgendaValues } from './agenda.js';
 import { movedAgendaValues } from './calendario.js';
+import { dayLabel } from '$lib/admin/eventFormat.js';
 
 /** @typedef {import('./agenda.js').AgendaValues} Values */
 
@@ -98,6 +100,27 @@ export function pendingSavePayload(state) {
 	return Object.values(state)
 		.sort((a, b) => a.slug.localeCompare(b.slug))
 		.map(({ slug, before, after }) => ({ slug, before: { ...before }, after: { ...after } }));
+}
+
+/**
+ * Los cambios pendientes en una frase, para confirmar antes de guardar: "Vas a mover: «Fiesta» del
+ * sáb 12 dic al vie 18 dic; «Taller» del …". Mismo orden que `pendingSavePayload`. Si también
+ * cambió la hora de inicio (un borrador viejo, por ejemplo), la muestra de los dos lados. Sin
+ * pendientes: ''.
+ * @param {PendingMoves} state
+ * @returns {string}
+ */
+export function pendingMovesSummary(state) {
+	const moves = Object.values(state).sort((a, b) => a.slug.localeCompare(b.slug));
+	if (!moves.length) return '';
+	const items = moves.map(({ slug, title, before, after }) => {
+		const timeChanged = before.startTime !== after.startTime;
+		/** @param {Values} v */
+		const when = (v) =>
+			`${v.date ? dayLabel(v.date) : 'sin fecha'}${timeChanged && v.startTime ? ` ${v.startTime}` : ''}`;
+		return `«${title || slug}» del ${when(before)} al ${when(after)}`;
+	});
+	return `Vas a mover: ${items.join('; ')}.`;
 }
 
 /**

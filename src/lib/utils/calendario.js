@@ -6,13 +6,15 @@
  * - `CALENDAR_VIEWS` / `parseCalendarView` / `defaultCalendarView`: las vistas y la elegida;
  * - `calendarEvent` / `calendarEvents`: una fila → un evento en el formato de la librería
  *   (fechas "naive" en hora de Argentina, sin zona: la librería las muestra tal cual);
- * - `rescheduleProblem` / `movedAgendaValues`: si se puede mover un evento y cómo queda la fila al
- *   soltarlo en otro día (u hora, en la vista semana); se guarda por el mismo camino que la planilla;
- * - `newEventHref` / `readNewEventPrefill`: el link al formulario de evento nuevo con el día (y las
- *   horas) elegidos, y su lectura del lado del formulario.
+ * - `rescheduleProblem` / `dropTarget` / `movedAgendaValues`: si se puede mover un evento, adónde
+ *   va al soltarlo (en la vista semana solo cambia el día, nunca la hora) y cómo queda la fila; se
+ *   guarda por el mismo camino que la planilla;
+ * - `newEventQuestion` / `newEventHref` / `readNewEventPrefill`: la pregunta antes de cargar un
+ *   evento en un día vacío, el link al formulario de evento nuevo con el día (y las horas)
+ *   elegidos, y su lectura del lado del formulario.
  */
 import { endDaysFor, validateAgendaRow } from './agenda.js';
-import { addDays, isValidDate, isValidTime } from './eventDraft.js';
+import { addDays, describeDate, isValidDate, isValidTime } from './eventDraft.js';
 import { eventBadges } from '$lib/admin/eventFormat.js';
 
 /** Vistas de la agenda: las tres del calendario y la planilla editable de siempre. */
@@ -189,6 +191,37 @@ export function localDateParts(d) {
 		date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
 		time: `${p(d.getHours())}:${p(d.getMinutes())}`
 	};
+}
+
+/**
+ * Adónde va un evento que soltaron en el calendario. En la vista semana el arrastre cambia SOLO
+ * el día: aunque lo suelten en otra franja horaria (o en "Todo el día"), conserva su hora de
+ * inicio y de fin. En el mes (y la lista) la librería ya conserva la hora, así que va tal cual.
+ * `null` = no cambió nada (lo soltaron en el mismo día, o en la misma hora en el mes): quien llama
+ * deshace el arrastre en el calendario.
+ *
+ * @param {string} view vista de la librería (`dayGridMonth`, `timeGridWeek`, `listMonth`)
+ * @param {{ date: string, time: string }} from dónde estaba (día y hora "de pared")
+ * @param {{ date: string, time: string }} to dónde lo soltaron
+ * @returns {{ date: string, time?: string } | null}
+ */
+export function dropTarget(view, from, to) {
+	if (view === 'timeGridWeek') return to.date === from.date ? null : { date: to.date };
+	if (to.date === from.date && to.time === from.time) return null;
+	return { date: to.date, time: to.time };
+}
+
+/**
+ * La pregunta antes de cargar un evento nuevo al tocar un día vacío (o arrastrar un rango en la
+ * vista semana): "¿Cargar un evento el sábado 12 de diciembre de 2099?" (con "a las 21:00" si
+ * eligieron una hora).
+ * @param {{ date: string, startTime?: string }} prefill
+ */
+export function newEventQuestion({ date, startTime }) {
+	const day = describeDate(date);
+	if (!day) return '¿Cargar un evento nuevo?';
+	const at = startTime && isValidTime(startTime) ? ` a las ${startTime}` : '';
+	return `¿Cargar un evento el ${day}${at}?`;
 }
 
 /**

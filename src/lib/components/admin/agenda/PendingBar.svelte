@@ -3,19 +3,37 @@
 	 * Barra fija abajo con los eventos movidos en el calendario que todavía no se guardaron:
 	 * "N cambios sin guardar · Guardar cambios · Descartar", y abajo los que no se pudieron guardar
 	 * (con el motivo).
-	 * Props: `count`, `saving`, `problems` ({ slug, title, message }[]). Eventos: `save`, `discard`,
+	 * "Guardar cambios" no guarda enseguida: primero muestra la lista de lo que se va a mover
+	 * (`summary`, ver `pendingMovesSummary`) con Confirmar / Volver, y recién Confirmar guarda.
+	 * Props: `count`, `saving`, `problems` ({ slug, title, message }[]), `summary`, `confirming`
+	 * (bind: se está mostrando la confirmación). Eventos: `save` (confirmaron), `discard`,
 	 * `open` (slug: tocaron el nombre de un evento con problema), `dismiss` (cerrar los problemas
 	 * cuando ya no queda nada pendiente).
 	 */
 	import { createEventDispatcher } from 'svelte';
-	import { CircleAlert, Save, X } from '@lucide/svelte';
+	import { ArrowLeft, Check, CircleAlert, Save, X } from '@lucide/svelte';
 
 	export let count = 0;
 	export let saving = false;
 	/** @type {Array<{ slug: string, title: string, message: string }>} */
 	export let problems = [];
+	export let summary = '';
+	export let confirming = false;
 
 	const dispatch = createEventDispatcher();
+
+	// Sin pendientes (o guardando) no hay nada que confirmar.
+	$: if (confirming && (!count || saving)) confirming = false;
+
+	/** @param {HTMLElement} el */
+	function focusOnMount(el) {
+		el.focus();
+	}
+
+	function confirmSave() {
+		confirming = false;
+		dispatch('save');
+	}
 </script>
 
 <section class="pending-bar" aria-label="Cambios sin guardar">
@@ -34,7 +52,17 @@
 		</ul>
 	{/if}
 	<div class="row">
-		{#if count}
+		{#if count && confirming}
+			<p class="summary" role="status">{summary}</p>
+			<div class="btns">
+				<button class="kv-btn ghost" type="button" on:click={() => (confirming = false)}
+					><ArrowLeft size={16} aria-hidden="true" /> Volver</button
+				>
+				<button class="kv-btn" type="button" use:focusOnMount on:click={confirmSave}
+					><Check size={16} aria-hidden="true" /> Confirmar</button
+				>
+			</div>
+		{:else if count}
 			<p class="count" role="status">
 				<span class="dot" aria-hidden="true"></span>
 				<b>{count}</b>
@@ -47,7 +75,7 @@
 					on:click={() => dispatch('discard')}
 					disabled={saving}><X size={16} aria-hidden="true" /> Descartar</button
 				>
-				<button class="kv-btn" type="button" on:click={() => dispatch('save')} disabled={saving}
+				<button class="kv-btn" type="button" on:click={() => (confirming = true)} disabled={saving}
 					><Save size={16} aria-hidden="true" />
 					{saving ? 'Guardando…' : 'Guardar cambios'}</button
 				>
@@ -94,6 +122,11 @@
 		align-items: center;
 		gap: 0.4rem;
 		margin: 0;
+	}
+	.summary {
+		margin: 0;
+		flex: 1 1 20rem;
+		overflow-wrap: anywhere;
 	}
 	.dot {
 		width: 0.65rem;

@@ -6,6 +6,7 @@
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
 	import PendingBar from '$lib/components/admin/agenda/PendingBar.svelte';
+	import ConfirmPrompt from '$lib/components/admin/agenda/ConfirmPrompt.svelte';
 	import AgendaSheet from '$lib/components/admin/agenda/AgendaSheet.svelte';
 	import AgendaToolbar from '$lib/components/admin/agenda/AgendaToolbar.svelte';
 	import EventDetail from '$lib/components/admin/agenda/EventDetail.svelte';
@@ -19,11 +20,13 @@
 		calendarEvents,
 		defaultCalendarView,
 		newEventHref,
+		newEventQuestion,
 		parseCalendarView,
 		rescheduleProblem
 	} from '$lib/utils/calendario.js';
 	import {
 		pendingMovesReducer,
+		pendingMovesSummary,
 		pendingSavePayload,
 		restorePendingMoves,
 		withPendingMoves
@@ -76,6 +79,7 @@
 		)
 			return;
 		view = next;
+		newEventAsk = null;
 		try {
 			localStorage.setItem(CALENDAR_VIEW_KEY, next);
 		} catch (e) {
@@ -116,6 +120,7 @@
 	/** @type {import('$lib/utils/pendingMoves.js').PendingMoves} */
 	let pending = {};
 	$: pendingCount = Object.keys(pending).length;
+	$: pendingSummary = pendingMovesSummary(pending);
 	let saving = false;
 	/** Los que no se pudieron guardar la última vez, con el motivo. @type {Record<string, string>} */
 	let problems = {};
@@ -214,15 +219,24 @@
 		say('Descartaste los cambios: los eventos volvieron a sus días.');
 	}
 
-	/** @param {{ date: string, startTime?: string, endTime?: string }} prefill */
-	function create(prefill) {
-		goto(newEventHref(prefill));
+	/**
+	 * Tocaron un día vacío (o arrastraron un rango en la semana): primero se pregunta, en la página,
+	 * "¿Cargar un evento el …?"; con «Cargar» abre el formulario de evento nuevo con eso puesto.
+	 * @type {{ date: string, startTime?: string, endTime?: string } | null}
+	 */
+	let newEventAsk = null;
+
+	function create() {
+		if (!newEventAsk) return;
+		const href = newEventHref(newEventAsk);
+		newEventAsk = null;
+		goto(href);
 	}
 </script>
 
 <PageHeader
 	title="Agenda"
-	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (se guarda cuando tocás «Guardar cambios») o tocá un día vacío para cargar uno. En la planilla editás varios a la vez."
+	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (conserva su hora; se guarda cuando tocás «Guardar cambios» y confirmás) o tocá un día vacío para cargar uno. En la planilla editás varios a la vez."
 >
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
@@ -274,13 +288,23 @@
 			selected = e.detail.id;
 			detailOpen = true;
 		}}
-		on:pick={(e) => create(e.detail)}
+		on:pick={(e) => (newEventAsk = e.detail)}
 		on:move={(e) => reschedule(e.detail.id, e.detail, e.detail.revert)}
 	/>
+	{#if newEventAsk}
+		<ConfirmPrompt
+			message={newEventQuestion(newEventAsk)}
+			confirmLabel="Cargar"
+			cancelLabel="Cancelar"
+			on:confirm={create}
+			on:cancel={() => (newEventAsk = null)}
+		/>
+	{/if}
 	{#if pendingCount || problemList.length}
 		<PendingBar
 			count={pendingCount}
 			{saving}
+			summary={pendingSummary}
 			problems={problemList}
 			on:save={saveMoves}
 			on:discard={discardMoves}

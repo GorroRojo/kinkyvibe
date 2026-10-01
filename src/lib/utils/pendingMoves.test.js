@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	pendingMovesReducer,
+	pendingMovesSummary,
 	pendingSavePayload,
 	restorePendingMoves,
 	withPendingMoves
@@ -172,5 +173,34 @@ describe('restorePendingMoves', () => {
 		expect(restorePendingMoves([1, 2], [A])).toEqual({});
 		expect(restorePendingMoves({ 'evento-a': 3 }, [A])).toEqual({});
 		expect(restorePendingMoves({ 'evento-a': { before: agendaValues(A) } }, [A])).toEqual({});
+	});
+});
+
+describe('pendingMovesSummary', () => {
+	it('sin pendientes no dice nada', () => {
+		expect(pendingMovesSummary({})).toBe('');
+	});
+
+	it('un evento: nombre, día de antes y día de después', () => {
+		const s = move({}, A, { date: '2099-12-19' });
+		expect(pendingMovesSummary(s)).toBe(
+			'Vas a mover: «Evento evento-a» del sáb 12 dic al sáb 19 dic.'
+		);
+	});
+
+	it('varios, separados por «;» y en el mismo orden que se guardan', () => {
+		let s = move({}, B, { date: '2099-12-21' });
+		s = move(s, A, { date: '2099-12-13' });
+		expect(pendingMovesSummary(s)).toBe(
+			'Vas a mover: «Evento evento-a» del sáb 12 dic al dom 13 dic; «Evento evento-b» del dom 20 dic al lun 21 dic.'
+		);
+		expect(pendingSavePayload(s).map((c) => c.slug)).toEqual(['evento-a', 'evento-b']);
+	});
+
+	it('si también cambió la hora, la muestra de los dos lados', () => {
+		const s = move({}, A, { date: '2099-12-19', time: '23:00' });
+		expect(pendingMovesSummary(s)).toBe(
+			'Vas a mover: «Evento evento-a» del sáb 12 dic 21:00 al sáb 19 dic 23:00.'
+		);
 	});
 });

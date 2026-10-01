@@ -12,13 +12,14 @@
 	 * - `open` { id, el }: tocaron (o Enter en) un evento;
 	 * - `pick` { date, startTime?, endTime? }: tocaron un día vacío (o arrastraron un rango en la
 	 *   vista semana);
-	 * - `move` { id, date, time, revert }: soltaron un evento en otro día u hora. Quien escucha lo
-	 *   anota (o lo guarda) y llama a `revert()` si no se puede.
+	 * - `move` { id, date, time?, revert }: soltaron un evento en otro día. En la vista semana va
+	 *   solo el día (sin `time`: conserva su hora aunque lo suelten en otra franja; ver
+	 *   `dropTarget`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no se puede.
 	 * Los eventos con `extendedProps.pending` (movidos sin guardar) se ven con borde punteado y la
 	 * etiqueta "pendiente".
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { localDateParts } from '$lib/utils/calendario.js';
+	import { dropTarget, localDateParts } from '$lib/utils/calendario.js';
 
 	/** @type {import('$lib/utils/calendario.js').CalendarEventInput[]} */
 	export let events = [];
@@ -78,10 +79,17 @@
 
 	/** @param {any} info */
 	function onDrop(info) {
-		const { date, time } = localDateParts(info.event.start);
-		const before = localDateParts(info.oldEvent.start);
-		if (date === before.date && time === before.time) return;
-		dispatch('move', { id: String(info.event.id), date, time, revert: info.revert });
+		const to = dropTarget(
+			info.view?.type ?? view,
+			localDateParts(info.oldEvent.start),
+			localDateParts(info.event.start)
+		);
+		// Mismo día (en la semana, aunque sea otra hora): no cambia nada, vuelve a su lugar.
+		if (!to) {
+			info.revert?.();
+			return;
+		}
+		dispatch('move', { id: String(info.event.id), ...to, revert: info.revert });
 	}
 
 	/** @param {any} info */
