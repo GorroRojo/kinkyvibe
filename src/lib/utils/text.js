@@ -33,3 +33,12 @@ export function slugify(text) {
 		.slice(0, 80)
 		.replace(/-+$/, '');
 }
+
+/**
+ * Escapes every regular-expression metacharacter, so `text` matches literally inside a
+ * `new RegExp(...)` (also `/`, harmless and handy in literals): "a.b/c" → "a\\.b\\/c".
+ * @param {string} text
+ */
+export function escapeRegExp(text) {
+	return String(text).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}

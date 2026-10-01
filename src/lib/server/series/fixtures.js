@@ -3,6 +3,7 @@
  * Eventos de una serie de mentira con fechas relativas a `now`, con la forma de los posts
  * procesados (fetchMarkdownPosts), órdenes mínimas y un envío de mails de mentira.
  */
+import { escapeRegExp } from '$lib/utils/text.js';
 
 export const DAY = 24 * 60 * 60 * 1000;
 
@@ -103,7 +104,7 @@ export function fakeSend(result = 'sent') {
  * @param {string} path
  */
 export function linkIn(text, path) {
-	const m = text.match(new RegExp(`https?://[^\\s"]*${path.replace(/\//g, '\\/')}[^\\s"<]+`));
+	const m = text.match(new RegExp(`https?://[^\\s"]*${escapeRegExp(path)}[^\\s"<]+`));
 	return m ? m[0] : null;
 }
 

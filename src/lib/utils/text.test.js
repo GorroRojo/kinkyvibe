@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foldText, slugify } from './text.js';
+import { escapeRegExp, foldText, slugify } from './text.js';
 import { slugify as eventSlugify } from './eventDraft.js';
 import { normalizeText } from './adminTags.js';
 import { fold } from './sheetImport.js';
@@ -29,5 +29,13 @@ describe('slugify', () => {
 	it('events and objects use the same function', () => {
 		expect(eventSlugify).toBe(slugify);
 		expect(objectSlugify).toBe(slugify);
+	});
+});
+
+describe('escapeRegExp', () => {
+	it('escapes every metacharacter so the text matches literally', () => {
+		const tricky = 'a.b*c+d?e^f$g{h}i(j)k|l[m]n\\o/p';
+		expect(new RegExp(`^${escapeRegExp(tricky)}$`).test(tricky)).toBe(true);
+		expect(new RegExp(escapeRegExp('a.b')).test('axb')).toBe(false);
 	});
 });
