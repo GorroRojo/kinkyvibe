@@ -18,6 +18,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews        |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                      |
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo   |
+| [etiquetas.md](etiquetas.md)                   | Etiquetas como objetos en D1 (tipo `etiqueta`, wiki, series): el modelo y cómo va el paso a la base          |
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Ingresar" / "Mi rincón"): código por mail, contraseña, sesiones, interruptor           |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción (interruptor `personas_eventos`)          |
