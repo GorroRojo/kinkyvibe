@@ -2,8 +2,10 @@
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { onDestroy, tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
-	import DayPicker from '$lib/components/admin/DayPicker.svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
+	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
+	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
@@ -565,69 +567,16 @@
 						</p>
 					{/if}
 
-					<fieldset class="card" id="sec-cuando">
-						<legend>📅 ¿Cuándo es?</legend>
-						{#if originalSchedule}
-							<p class="hint">El evento original fue el {originalSchedule}.</p>
-						{/if}
-						<div class="field-label">
-							<span id="ev-start-date-label">Día que empieza <span class="req">*</span></span>
-							<DayPicker
-								bind:value={values.startDate}
-								bind:month
-								today={data.today}
-								hintWeekday={sourceWeekday}
-								describedby="ev-start-date-help"
-							/>
-							<small id="ev-start-date-help">
-								Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
-								{#if sourceWeekday !== undefined}Resaltamos el mismo día de la semana que el
-									original.{/if}
-							</small>
-							{#if values.startDate && values.startDate < data.today}
-								<p class="warning">⚠️ Esa fecha ya pasó.</p>
-							{/if}
-						</div>
-						<div class="grid">
-							<label class="field">
-								<span>Hora que empieza <span class="req">*</span></span>
-								<input type="time" id="ev-start-time" bind:value={values.startTime} required />
-							</label>
-							{#if values.hasEnd}
-								<label class="field">
-									<span>Día que termina <span class="req">*</span></span>
-									<input
-										type="date"
-										id="ev-end-date"
-										bind:value={values.endDate}
-										min={values.startDate}
-										required
-									/>
-								</label>
-								<label class="field">
-									<span>Hora que termina <span class="req">*</span></span>
-									<input type="time" id="ev-end-time" bind:value={values.endTime} required />
-								</label>
-							{/if}
-						</div>
-						<label class="check">
-							<input type="checkbox" id="ev-has-end" bind:checked={values.hasEnd} />
-							Tiene hora de finalización
-						</label>
-						{#if scheduleText && !scheduleError}
-							<p class="schedule">🗓️ <span>{scheduleText}</span></p>
-						{/if}
-						{#if scheduleError}
-							<p class="error">
-								{scheduleError}
-								{#if values.startDate === values.endDate}
-									<button type="button" class="link" on:click={endsNextDay}
-										>¿Termina al día siguiente?</button
-									>
-								{/if}
-							</p>
-						{/if}
-					</fieldset>
+					<ScheduleSection
+						bind:values
+						bind:month
+						today={data.today}
+						hintWeekday={sourceWeekday}
+						{originalSchedule}
+						{scheduleText}
+						{scheduleError}
+						onEndsNextDay={endsNextDay}
+					/>
 
 					<fieldset class="card" id="sec-datos">
 						<legend>📝 Datos del evento</legend>
@@ -758,83 +707,63 @@
 						idPrefix="ev"
 					/>
 
-					<fieldset class="card" id="sec-imagen">
-						<legend>🖼️ Imagen</legend>
-						<div class="image-row">
-							{#if previewImage}
-								<img src={previewImage} alt="Imagen del evento" class="thumb" />
-							{:else}
-								<div class="thumb empty">Sin imagen</div>
+					<ImageSection
+						src={previewImage}
+						inputId="ev-image"
+						buttonText={featuredMode === 'upload' ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
+						maxImageBytes={data.maxImageBytes}
+						error={uploadError}
+						bind:input={fileInput}
+						on:change={onFileChange}
+					>
+						<svelte:fragment slot="before">
+							{#if featuredMode === 'keep' && sourceImageIsShared}
+								<p class="hint">
+									Se usa la misma imagen que el evento original. Es una imagen compartida del sitio
+									(<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se modifica.
+								</p>
+							{:else if featuredMode === 'keep'}
+								<p class="hint">
+									Se usa la misma imagen que el evento original: se copia a la carpeta de este
+									evento. El evento original no cambia.
+								</p>
+							{:else if featuredMode === 'upload'}
+								<p class="hint">Nueva imagen: {uploadName}</p>
 							{/if}
-							<div class="image-actions">
-								{#if featuredMode === 'keep' && sourceImageIsShared}
-									<p class="hint">
-										Se usa la misma imagen que el evento original. Es una imagen compartida del
-										sitio (<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se
-										modifica.
-									</p>
-								{:else if featuredMode === 'keep'}
-									<p class="hint">
-										Se usa la misma imagen que el evento original: se copia a la carpeta de este
-										evento. El evento original no cambia.
-									</p>
-								{:else if featuredMode === 'upload'}
-									<p class="hint">Nueva imagen: {uploadName}</p>
-								{/if}
-								{#if askScope}
-									<ImageScopeChoice
-										bind:scope={imageScope}
-										assetName={sourceFields.featured}
-										newName={sharedNewName}
-										ownFolder={slug ? `calendario/media/${slug}/` : ''}
-										idPrefix="ev"
-										invalid={showProblems}
-									/>
-								{/if}
-								<label class="file">
-									<span
-										>{featuredMode === 'upload'
-											? 'Elegir otra imagen'
-											: 'Subir una imagen nueva'}</span
-									>
-									<input
-										bind:this={fileInput}
-										type="file"
-										name="image"
-										id="ev-image"
-										accept="image/jpeg,image/png,image/webp"
-										on:change={onFileChange}
-									/>
-								</label>
-								<small
-									>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
-								>
-								{#if sourceImageIsShared && !askScope}
-									<p class="note" id="ev-image-where">
-										📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las
-										ediciones de este evento o solo para esta.
-									</p>
-								{:else if !askScope}
-									<p class="note" id="ev-image-where">
-										📁 Una imagen nueva se guarda solo para este evento{#if slug}
-											{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
-										cambia.
-									</p>
-								{/if}
-								{#if featuredMode !== 'none'}
-									<button type="button" class="link" on:click={() => setImage('none')}
-										>Quitar imagen</button
-									>
-								{/if}
-								{#if hasSourceImage && featuredMode !== 'keep'}
-									<button type="button" class="link" on:click={() => setImage('keep')}
-										>Usar la imagen del evento original</button
-									>
-								{/if}
-								{#if uploadError}<p class="error">{uploadError}</p>{/if}
-							</div>
-						</div>
-					</fieldset>
+							{#if askScope}
+								<ImageScopeChoice
+									bind:scope={imageScope}
+									assetName={sourceFields.featured}
+									newName={sharedNewName}
+									ownFolder={slug ? `calendario/media/${slug}/` : ''}
+									idPrefix="ev"
+									invalid={showProblems}
+								/>
+							{/if}
+						</svelte:fragment>
+						{#if sourceImageIsShared && !askScope}
+							<p class="note" id="ev-image-where">
+								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
+								este evento o solo para esta.
+							</p>
+						{:else if !askScope}
+							<p class="note" id="ev-image-where">
+								📁 Una imagen nueva se guarda solo para este evento{#if slug}
+									{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
+								cambia.
+							</p>
+						{/if}
+						{#if featuredMode !== 'none'}
+							<button type="button" class="link" on:click={() => setImage('none')}
+								>Quitar imagen</button
+							>
+						{/if}
+						{#if hasSourceImage && featuredMode !== 'keep'}
+							<button type="button" class="link" on:click={() => setImage('keep')}
+								>Usar la imagen del evento original</button
+							>
+						{/if}
+					</ImageSection>
 
 					<fieldset class="card" id="sec-texto">
 						<legend>📄 Texto largo de la página</legend>
@@ -949,10 +878,7 @@
 							{/if}
 						</div>
 					{/if}
-					<details>
-						<summary>Ver el archivo que se va a guardar</summary>
-						<pre class="markdown">{generated.md}</pre>
-					</details>
+					<FilePreview content={generated.md} />
 
 					<div class="bar publish">
 						<button
@@ -1033,18 +959,6 @@
 		font-family: monospace;
 		font-size: var(--step--1);
 	}
-	.schedule {
-		margin: 0;
-		background: var(--3-light);
-		border-radius: 0.8em;
-		padding: 0.4em 0.8em;
-		span {
-			display: inline-block;
-			&::first-letter {
-				text-transform: uppercase;
-			}
-		}
-	}
 	.slug {
 		display: flex;
 		align-items: center;
@@ -1057,39 +971,6 @@
 		input {
 			flex: 1 1 12em;
 			font-family: monospace;
-		}
-	}
-	.image-row {
-		display: flex;
-		gap: 1em;
-		align-items: flex-start;
-		flex-wrap: wrap;
-	}
-	.thumb {
-		width: 8em;
-		height: 8em;
-		object-fit: cover;
-		border-radius: 1em;
-		&.empty {
-			display: grid;
-			place-items: center;
-			background: var(--surface-2, #f3eef6);
-			font-size: var(--step--1);
-		}
-	}
-	.image-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4em;
-		align-items: flex-start;
-		flex: 1 1 14em;
-		min-width: 0;
-		input[type='file'] {
-			max-width: 100%;
-			font-size: var(--step--1);
-		}
-		code {
-			overflow-wrap: anywhere;
 		}
 	}
 	.card-preview {
@@ -1118,24 +999,6 @@
 		.cap::first-letter {
 			text-transform: uppercase;
 		}
-	}
-	details {
-		margin-top: 1em;
-		summary {
-			cursor: pointer;
-			color: var(--2-dark);
-		}
-	}
-	.markdown {
-		background: #1e1e1e;
-		color: #eee;
-		border-radius: 1em;
-		padding: 1em;
-		font-size: var(--step--2);
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		max-height: 30em;
-		overflow: auto;
 	}
 	.affected {
 		margin-top: 0.8em;
