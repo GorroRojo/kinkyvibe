@@ -54,6 +54,12 @@ preview de PR, entrá como admin de prueba ([demo.md](demo.md)).
 
 **Cargar un evento.** Panel → Eventos → Cargar evento (o "Duplicar" uno anterior). Para muchos,
 Importar planilla (botón en Agenda). La Agenda permite editar los próximos como en una planilla.
+Al importar, una fila sin horario que repite un evento (otra fila del mismo evento en lo pegado, o
+el evento que se duplica) toma el mismo inicio y fin, en su día; «a definir» queda como aviso. Un
+«Valor» que es un solo precio General sin cupo («$8.000», «General $8.000») se carga como la
+entrada General a ese precio y sin cupo; cualquier otro valor (gorra, varios precios, cupo) se
+revisa a mano en Entradas (`parseGeneralPrice`, `generalTickets` e `inheritedTimes` en
+`src/lib/utils/sheetImport.js`).
 
 **Cambiar etiquetas.** Panel → Etiquetas: renombrar, mover o fusionar hace **un solo PR** que
 toca `hardcodedTags.js` y todos los posts afectados. Los renombres de etiquetas son cambios
