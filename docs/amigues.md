@@ -80,18 +80,30 @@ vale para los lugares ya guardados sin nivel) y cada evento lo puede cambiar
 nivel; el valor por defecto se decide en un solo lugar, `DEFAULT_VENUE_PRIVACY` en
 `src/lib/utils/venues.js`:
 
-| Nivel        | En la página del evento              | ¿El lugar lista el evento? |
-| ------------ | ------------------------------------ | -------------------------- |
-| 1 · `public` | nombre (link), dirección, mapa, etc. | sí                         |
-| 2 · `name`   | solo el nombre (link al lugar)       | sí                         |
-| 3 · `area`   | solo barrio y ciudad (sin nombre)    | no                         |
-| 4 · `hidden` | "Lugar a confirmar"                  | no                         |
+| Nivel     | En el panel                       | En la página del evento                          | ¿El lugar lista el evento? |
+| --------- | --------------------------------- | ------------------------------------------------ | -------------------------- |
+| `public`  | "Nombre + dirección"              | nombre (link), dirección, mapa, etc.             | sí                         |
+| `name`    | "Sólo Nombre"                     | solo el nombre (link al lugar)                   | sí                         |
+| `address` | "Sólo dirección"                  | dirección, barrio, ciudad y mapa (sin el nombre) | no                         |
+| `area`    | "Sólo dirección parcial (Barrio)" | solo barrio y ciudad (sin nombre)                | no                         |
+| `hidden`  | "Nada"                            | "Lugar a confirmar"                              | no                         |
 
-En los niveles 2 a 4 aparece "Te mandamos la dirección con tu entrada": **quien compró recibe la
-dirección completa** en el mail de confirmación, en los recordatorios y en la página de su
-entrada (con la compra aprobada), sea cual sea el nivel.
+Los textos del panel salen de un solo mapa, `VENUE_PRIVACY_LABELS` en `src/lib/utils/venues.js`
+(los eligió gorrite); en un evento, la opción de heredar dice "Igual que el Lugar (<nivel>)".
 
-La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo en el 1).
+**Sólo dirección** (`address`, gorrite en #153) es para un lugar cuyo nombre delataría a alguien
+(una casa particular): la página del evento y el `.ics` muestran la dirección y el mapa (decisión
+de gorrite), pero no el nombre, el link, "cómo llegar" ni "accesibilidad" (textos libres que
+pueden nombrarlo). Por lo mismo la página del lugar, que siempre muestra el nombre, no lista esos
+eventos, y si el nivel por defecto del lugar es este, su página se ve como "Sólo Nombre" (sin la
+dirección). La migración 0027 agrega `address` al CHECK de `event_venues.privacy`.
+
+En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada". En todos los
+niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
+en los recordatorios y en la página de su entrada (con la compra aprobada).
+
+La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
+"Nombre + dirección").
 
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts`, el índice del buscador y las
 imágenes para compartir se arman al compilar desde los `.md`, así que no pueden contener nada de
@@ -102,6 +114,11 @@ escrita, es pública (el repo es público): Eventos → Lugares avisa para sacar
 **Mapa**: baldosas de OpenStreetMap como imágenes comunes (sin librerías ni scripts de afuera; el
 sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falta tocar
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
+
+**"Ver en Google Maps"** (pedido de gorrite): un link común (sin mapa embebido) en la página del
+evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Busca el punto si el
+lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca lleva el nombre
+(`googleMapsLink` en `src/lib/utils/venues.js`).
 
 ## Del vínculo provisorio al edge
 

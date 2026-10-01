@@ -20,9 +20,11 @@ inscribirse.
 - **Lugares**: viven en amigues como tipo de perfil "Lugar", con campos extra (dirección, mapa OSM,
   accesibilidad, cómo llegar) y su lista de eventos.
   - Privacidad por lugar, con excepción por evento, en 4 niveles: **público / solo nombre / solo
-    barrio / oculto**. Sin nivel elegido, se muestra la dirección completa (0021).
-  - En los niveles 2 a 4, quien compra recibe los datos completos, y la página del lugar no lista
-    esos eventos.
+    barrio / oculto**. Sin nivel elegido, se muestra la dirección completa (0021). gorrite sumó un
+    quinto en #153, **sólo dirección** (la dirección y el mapa, sin el nombre: una casa particular,
+    por ejemplo).
+  - En los niveles que no son "público", quien compra recibe los datos completos. La página del
+    lugar no lista esos eventos, salvo los de "solo nombre".
 - **Roles**: lista fija, que les admins pueden ampliar: Autore, Traductore, Organiza, Produce,
   Facilita, Monitorea, Enseña, Fotografía, Diseño.
 - **Campos personalizados** al inscribirse: por evento + algunos generales (por ejemplo, primera
