@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { gitBlobSha, publishNote, saveAgendaRow } from './agenda.js';
+import {
+	AGENDA_BATCH_MAX,
+	gitBlobSha,
+	publishNote,
+	saveAgendaRow,
+	saveAgendaRows
+} from './agenda.js';
 import { FileChangedError } from './github.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
 
@@ -148,6 +154,164 @@ describe('saveAgendaRow', () => {
 		expect(r.ok).toBe(true);
 		const bad = await save({ after: { ...BEFORE, place: '' } });
 		expect(bad.status).toBe(400);
+	});
+});
+
+describe('saveAgendaRows (varias filas, un commit)', () => {
+	const PATH_B = 'src/lib/posts/calendario/otro.md';
+	const RAW_B = RAW.replace('Evento de ejemplo', 'Otro evento');
+	const BEFORE_B = { ...BEFORE, title: 'Otro evento' };
+	const files = () => ({ [PATH]: RAW, [PATH_B]: RAW_B });
+	const MOVE_A = { slug: 'ejemplo', before: BEFORE, after: { ...BEFORE, date: '2026-12-19' } };
+	const MOVE_B = { slug: 'otro', before: BEFORE_B, after: { ...BEFORE_B, date: '2026-12-20' } };
+
+	/** @param {Partial<Parameters<typeof saveAgendaRows>[0]>} over */
+	const saveMany = (over) =>
+		saveAgendaRows({
+			client: fakeClient(files()),
+			token: 't',
+			author: 'Admin',
+			rows: [],
+			places: PLACES,
+			...over
+		});
+
+	it('dos eventos movidos: un solo commit con los dos archivos, cada uno con su sha', async () => {
+		const client = fakeClient(files());
+		const r = await saveMany({ client, rows: [MOVE_A, MOVE_B] });
+		expect(r).toMatchObject({ ok: true, status: 200, commitUrl: 'https://example.com/commit/abc' });
+		expect(r.message).toBe('Se guardaron 2 cambios en un commit.');
+		expect(r.results.map((x) => [x.slug, x.ok, x.changed])).toEqual([
+			['ejemplo', true, ['date']],
+			['otro', true, ['date']]
+		]);
+		expect(client.commits).toHaveLength(1);
+		const c = client.commits[0];
+		expect(c.message).toBe(
+			'[admin] Admin editó 2 eventos desde la agenda (calendario/ejemplo, calendario/otro)'
+		);
+		expect(c.files.map((/** @type {any} */ f) => f.path)).toEqual([PATH, PATH_B]);
+		expect(c.files[0].content).toContain('start: 2026-12-19T21:00-03:00');
+		expect(c.files[0].content).toContain('end: 2026-12-20T02:00-03:00');
+		expect(c.files[1].content).toContain('start: 2026-12-20T21:00-03:00');
+		expect(c.files[1].content).toContain("title: 'Otro evento'");
+		expect(c.unchanged).toEqual([
+			{ path: PATH, sha: await gitBlobSha(RAW) },
+			{ path: PATH_B, sha: await gitBlobSha(RAW_B) }
+		]);
+		expect(c.pr).toEqual({ action: 'edita desde la agenda', who: 'Admin' });
+	});
+
+	it('con una sola fila, el mensaje del commit es el mismo que el de saveAgendaRow', async () => {
+		const client = fakeClient(files());
+		await saveMany({ client, rows: [MOVE_A] });
+		expect(client.commits[0].message).toBe(
+			'[admin] Admin editó calendario/ejemplo desde la agenda (fecha)'
+		);
+	});
+
+	it('un conflicto en una fila no frena a las demás: esa vuelve con lo último del archivo', async () => {
+		const client = fakeClient({
+			[PATH]: RAW.replace('2026-12-12T21:00', '2026-12-15T21:00').replace(
+				'2026-12-13T02:00',
+				'2026-12-16T02:00'
+			),
+			[PATH_B]: RAW_B
+		});
+		const r = await saveMany({ client, rows: [MOVE_A, MOVE_B] });
+		expect(r.ok).toBe(false);
+		expect(r.status).toBe(409);
+		expect(r.message).toBe('Se guardó 1 cambio. Uno no se pudo guardar: revisá los marcados.');
+		expect(r.results[0]).toMatchObject({ slug: 'ejemplo', ok: false, status: 409 });
+		expect(r.results[0].message).toMatch(/fecha/);
+		expect(r.results[0].current).toMatchObject({ date: '2026-12-15', slug: 'ejemplo' });
+		expect(r.results[1]).toMatchObject({ slug: 'otro', ok: true, changed: ['date'] });
+		expect(client.commits).toHaveLength(1);
+		expect(client.commits[0].files.map((/** @type {any} */ f) => f.path)).toEqual([PATH_B]);
+	});
+
+	it('valida cada fila igual que saveAgendaRow; si ninguna pasa, no hay commit', async () => {
+		const client = fakeClient(files());
+		const r = await saveMany({
+			client,
+			rows: [
+				{ ...MOVE_A, after: { ...BEFORE, date: '2026-02-30' } },
+				{ ...MOVE_A, slug: '../secreto' },
+				{ ...MOVE_A, slug: 'no-existe' }
+			]
+		});
+		expect(r.ok).toBe(false);
+		expect(r.results.map((x) => x.status)).toEqual([400, 400, 404]);
+		expect(r.results[0].errors).toEqual({ date: 'Fecha inválida.' });
+		expect(r.message).toBe('3 no se pudieron guardar: revisá los marcados.');
+		expect(r.commitUrl).toBeUndefined();
+		expect(client.commits).toHaveLength(0);
+	});
+
+	it('si un archivo cambia entre la lectura y el commit, no se guarda ninguno (y se dice cuál)', async () => {
+		const client = fakeClient(files(), { failWith: new FileChangedError(PATH_B) });
+		const r = await saveMany({ client, rows: [MOVE_A, MOVE_B] });
+		expect(r.ok).toBe(false);
+		expect(r.results.map((x) => [x.ok, x.status])).toEqual([
+			[false, 409],
+			[false, 409]
+		]);
+		expect(r.results[0].message).toMatch(/otro evento cambió/);
+		expect(r.results[1].message).toMatch(/cambió justo mientras guardabas/);
+	});
+
+	it('un error de GitHub en el commit: no queda ninguno guardado', async () => {
+		const client = fakeClient(files(), { failWith: new Error('se cayó') });
+		const r = await saveMany({ client, rows: [MOVE_A] });
+		expect(r.results[0]).toMatchObject({ ok: false, status: 502 });
+		expect(r.results[0].message).toMatch(/se cayó/);
+	});
+
+	it('el mismo evento dos veces: se guarda el primero y el segundo se rechaza', async () => {
+		const client = fakeClient(files());
+		const r = await saveMany({
+			client,
+			rows: [MOVE_A, { ...MOVE_A, after: { ...BEFORE, date: '2026-12-26' } }]
+		});
+		expect(r.results.map((x) => [x.ok, x.status])).toEqual([
+			[true, 200],
+			[false, 400]
+		]);
+		expect(client.commits[0].files).toHaveLength(1);
+		expect(client.commits[0].files[0].content).toContain('start: 2026-12-19T21:00-03:00');
+	});
+
+	it('sin filas o sin cambios no hace commit; demasiadas filas se rechazan', async () => {
+		const client = fakeClient(files());
+		expect(await saveMany({ client })).toMatchObject({ ok: true, results: [] });
+		const same = await saveMany({
+			client,
+			rows: [{ slug: 'ejemplo', before: BEFORE, after: BEFORE }]
+		});
+		expect(same).toMatchObject({ ok: true, message: 'No había cambios.' });
+		const many = Array.from({ length: AGENDA_BATCH_MAX + 1 }, (_, i) => ({
+			...MOVE_A,
+			slug: `e-${i}`
+		}));
+		expect(await saveMany({ client, rows: many })).toMatchObject({ ok: false, status: 400 });
+		expect(client.commits).toHaveLength(0);
+	});
+
+	it('avisa adónde fue el commit (PR de contenido)', async () => {
+		const client = fakeClient(files());
+		client.commitFiles = async (/** @type {string} */ _t, /** @type {any} */ opts) => {
+			client.commits.push(opts);
+			return {
+				sha: 'abc',
+				url: 'u',
+				pr: { number: 7, url: 'p', branch: 'b', stacked: false, state: 'auto' }
+			};
+		};
+		const r = await saveMany({ client, rows: [MOVE_A] });
+		expect(r.message).toBe(
+			'Se guardó 1 cambio en un commit. Se publica cuando pasen las pruebas (PR #7).'
+		);
+		expect(r.publish).toMatchObject({ number: 7 });
 	});
 });
 
