@@ -19,7 +19,8 @@ import { getEventInfo } from '$lib/server/tickets/events.js';
  *   id: string, event_slug: string, ticket_type: string, quantity: number, total: number,
  *   payment_method: string, fondo_option: string, fondo_amount: number,
  *   fondo_contribution: number, buyer_name: string, buyer_pronouns: string | null,
- *   buyer_email: string, status: string, created_at: number, checked: number
+ *   buyer_email: string, status: string, created_at: number, checked: number,
+ *   surcharge_amount?: number
  * }} PersonOrder
  * @typedef {{ title: string, start: string | null }} EventInfo
  */
@@ -65,7 +66,8 @@ export async function loadPeopleOrders(db) {
 	const { results } = await db
 		.prepare(
 			`SELECT o.id, o.event_slug, o.ticket_type, o.quantity, o.total, o.payment_method,
-				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.buyer_name, o.buyer_pronouns,
+				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.buyer_name,
+				o.buyer_pronouns,
 				o.buyer_email, o.status, o.created_at,
 				(SELECT COUNT(*) FROM tickets t WHERE t.order_id = o.id AND t.checked_in_at IS NOT NULL)
 					AS checked
