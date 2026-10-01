@@ -512,6 +512,24 @@
 		</section>
 	{/if}
 
+	{#if data.organizes?.length}
+		<section class="surface-card" aria-labelledby="answers-title">
+			<h2 id="answers-title">Respuestas de inscripción</h2>
+			<p class="hint">
+				Este perfil organiza estos eventos: podés ver lo que respondió cada persona que compró su
+				entrada. Son datos personales: usalos solo para el evento.
+			</p>
+			<ul class="list">
+				{#each data.organizes as ev (ev.slug)}
+					<li>
+						<a href="/mi-rincon/perfiles/{p.slug}/respuestas/{ev.slug}">{ev.title}</a>
+						{#if ev.start}<span class="hint">{fmtDate(Date.parse(ev.start))}</span>{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	<section class="surface-card danger" aria-labelledby="danger-title">
 		<h2 id="danger-title">{group ? 'Dejar o borrar' : 'Borrar este perfil'}</h2>
 		{#if group}

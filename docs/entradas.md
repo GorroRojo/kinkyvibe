@@ -26,8 +26,8 @@ invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el c
 - **El webhook de Mercado Pago no confía en lo que recibe:** verifica la firma y le pregunta el
   pago a la API de MP, compara monto y moneda y actualiza de forma idempotente.
 - **Les admins pueden pasar cualquier límite (decisión 0006), pero solo así:** en el servidor,
-  después de `requireAdmin`, con un aviso en la página que pide tildar "Entiendo…" (segundo paso)
-  y una clave (si algo cambió, vuelve a preguntar), y una fila en el registro de actividad
+  después de `requireAdmin`, con un aviso en la página que explica el límite y un botón para confirmar
+  (sin casilla extra) y una clave (si algo cambió, vuelve a preguntar), y una fila en el registro de actividad
   (`tickets.override`). Hoy: vender en puerta (también en eventos «Solo anticipadas», donde el
   modo puerta no lo ofrece salvo con "Vender igual"), confirmar una transferencia vencida (cupo y
   tramo) y cargar entradas a mano (cupo, máximo, venta cerrada, encadenado sin habilitar)

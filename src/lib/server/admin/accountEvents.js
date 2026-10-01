@@ -22,6 +22,7 @@ export const ACCOUNT_EVENT_ACTOR = 'cuentas (sitio)';
 export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
 	profileCreated: 'profile.create',
+	signupAnswersViewed: 'signup_answers.view',
 	venueResubmitted: 'profile.resubmit'
 });
 
@@ -72,8 +73,33 @@ export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
 }
 
 /**
- * "Volvieron a mandar un lugar rechazado" (lo editó quien lo cargó, desde Mi rincón): vuelve a
- * "Para aprobar" en Eventos → Lugares.
+ * "Une organizadore vio (o bajó en CSV) las respuestas de inscripción de un evento" (Mi rincón →
+ * el perfil → Respuestas de inscripción). Sin las respuestas ni datos de quien compra: el perfil,
+ * el evento y el id de la cuenta que miró.
+ *
+ * @param {D1Database} db
+ * @param {{ accountId: string, profile: { id: number, title: string }, eventSlug: string, eventTitle: string, csv: boolean }} entry
+ * @param {{ now?: number }} [opts]
+ */
+export function logSignupAnswersViewed(db, entry, { now = Date.now() } = {}) {
+	const what = entry.csv ? 'bajó en CSV' : 'vio';
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.signupAnswersViewed,
+			targetType: 'profile',
+			targetId: entry.profile.id,
+			summary: `«${entry.profile.title}» ${what} las respuestas de inscripción de «${entry.eventTitle}»`,
+			detail: { event: entry.eventSlug, account: entry.accountId, csv: entry.csv }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Volvieron a mandar un lugar rechazado" (quien lo gestiona tocó «Volver a mandar» en Mi
+ * rincón): vuelve a "Para aprobar" en Eventos → Lugares.
  *
  * @param {D1Database} db
  * @param {{ id: number, title: string }} profile

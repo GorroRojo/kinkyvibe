@@ -4,6 +4,7 @@
  */
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { answersByOrder } from '$lib/server/tickets/signupFields.js';
 
 /** Transferencias vencidas que se siguen mostrando (por si el pago llega tarde). */
 export const EXPIRED_TRANSFER_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -15,7 +16,12 @@ export const EXPIRED_TRANSFER_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
  * @param {number} [now]
  */
 export async function eventOrderRows(db, slug, config, now = Date.now()) {
-	const [orders, tickets] = await Promise.all([listOrders(db, slug), listEventTickets(db, slug)]);
+	const [orders, tickets, answers] = await Promise.all([
+		listOrders(db, slug),
+		listEventTickets(db, slug),
+		// Respuestas a las preguntas de inscripción (datos de quien compra; les organizadores ven una parte en Mi rincón).
+		answersByOrder(db, slug)
+	]);
 	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));
 	/** @type {Map<string, { name: string, pronouns: string, checkedIn: boolean }[]>} */
 	const holdersByOrder = new Map();
@@ -66,9 +72,10 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		reviewDetail: o.review_detail ?? null,
 		holders:
 			holdersByOrder.get(o.id) ??
-			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : [])
+			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : []),
+		answers: answers.get(o.id) ?? []
 	}));
-	return { orders, rows };
+	return { orders, rows, answers };
 }
 
 /**

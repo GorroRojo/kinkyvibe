@@ -5,6 +5,7 @@
 	import ProfileHeader from '$lib/components/amigues/ProfileHeader.svelte';
 	import RelatedPosts from '$lib/components/amigues/RelatedPosts.svelte';
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
+	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
@@ -48,6 +49,9 @@
 {#if data.mode === 'db'}
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
+	{#if data.participa}
+		<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
+	{/if}
 {:else}
 	<ProfileHead
 		title={meta.title}

@@ -500,6 +500,13 @@ describe('a la gorra: botones rápidos y tope técnico', () => {
 		expect(gorraQuickAmounts(min, suggested)).toEqual(expected);
 	});
 
+	it('el mínimo recomendado tiene su botón (si es mayor a 0 y no repite otro)', () => {
+		expect(gorraQuickAmounts(1000, 5000, 3000)).toEqual([1000, 3000, 5000, 7500, 10000]);
+		expect(gorraQuickAmounts(0, 5000, 5000)).toEqual([5000, 7500, 10000]);
+		expect(gorraQuickAmounts(0, 5000, null)).toEqual([5000, 7500, 10000]);
+		expect(gorraQuickAmounts(0, 5000, 0)).toEqual([5000, 7500, 10000]);
+	});
+
 	it('no hay botón "mitad"', () => {
 		expect(gorraQuickAmounts(0, 10000)).not.toContain(5000);
 	});

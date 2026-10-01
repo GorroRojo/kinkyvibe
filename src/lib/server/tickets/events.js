@@ -147,7 +147,7 @@ export function isTestEventSlug(slug) {
  * personas, estadísticas). `null` si no existe o no está publicado.
  *
  * @param {string} slug
- * @returns {Promise<{ title: string, start: string | null } | null>}
+ * @returns {Promise<{ title: string, start: string | null, tags: string[] } | null>}
  */
 export async function getEventInfo(slug) {
 	const meta = await loadMeta(slug);
@@ -155,7 +155,8 @@ export async function getEventInfo(slug) {
 	const start = meta.start instanceof Date ? meta.start.toISOString() : meta.start;
 	return {
 		title: typeof meta.title === 'string' && meta.title ? meta.title : slug,
-		start: start ? String(start) : null
+		start: start ? String(start) : null,
+		tags: Array.isArray(meta.tags) ? meta.tags.filter((t) => typeof t === 'string') : []
 	};
 }
 
@@ -200,15 +201,30 @@ function ticketsOf(slug, meta, options) {
  */
 export async function listTicketedEvents(options = {}) {
 	const out = [];
+	for (const { slug, meta } of await listEventMetas()) {
+		const config = ticketsOf(slug, meta, options);
+		if (config) out.push({ slug, config });
+	}
+	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));
+	return out;
+}
+
+/**
+ * El frontmatter de todos los eventos publicados (vendan entradas o no), con la capa del modo
+ * demo si la hay.
+ *
+ * @returns {Promise<{ slug: string, meta: Record<string, any> }[]>}
+ */
+export async function listEventMetas() {
+	const out = [];
 	const overlay = await demoOverlay();
 	const slugs = new Set(
 		Object.keys(eventFiles).map((path) => path.split('/').pop()?.replace(/\.md$/, '') ?? '')
 	);
 	for (const slug of overlay?.keys() ?? []) slugs.add(slug);
 	for (const slug of slugs) {
-		const config = ticketsOf(slug, await loadMeta(slug, overlay), options);
-		if (config) out.push({ slug, config });
+		const meta = await loadMeta(slug, overlay);
+		if (meta) out.push({ slug, meta });
 	}
-	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));
 	return out;
 }

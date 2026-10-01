@@ -42,6 +42,7 @@ import { approvalOf } from '$lib/server/amigues/approvals.js';
 import { rejectionOf } from '$lib/server/amigues/pendingVenues.js';
 import { coordinateText, reviewState } from '$lib/utils/venues.js';
 import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
+import { organizedEventsForPage } from '$lib/server/personas/organiza.js';
 
 /** Dónde se pidió el código (para mostrar el aviso en esa parte de la página). */
 const CONFIRM_PLACES = ['gestion', 'borrar'];
@@ -134,7 +135,10 @@ export async function load(event) {
 		invites: managers?.ok ? managers.invites : [],
 		members: group ? await listGroupMembers(db, member.id, slug) : [],
 		pendingMembers: group ? await listGroupMemberInvites(db, member.id, slug) : [],
-		memberships: group || kind === 'lugar' ? [] : await listMemberships(db, member.id, slug)
+		memberships: group || kind === 'lugar' ? [] : await listMemberships(db, member.id, slug),
+		// Eventos que este perfil organiza (rol «Organiza»), con link a sus respuestas de
+		// inscripción. Vacío con el interruptor `personas_eventos` apagado (y para los lugares).
+		organizes: kind === 'lugar' ? [] : await organizedEventsForPage(event.platform, profile.slug)
 	};
 }
 

@@ -14,14 +14,33 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
+	import { csvFilename } from '$lib/admin/csv.js';
 
 	export let data;
+
+	/** @param {number | null | undefined} ms */
+	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.accounts)[number]>[]} */
+	const columns = [
+		{ label: 'email', value: (a) => a.email ?? '' },
+		{ label: 'creada', value: (a) => day(a.createdAt) },
+		{ label: 'mail_verificado', value: (a) => (a.verified ? 'si' : 'no') },
+		{ label: 'contrasena', value: (a) => (a.hasPassword ? 'si' : 'no') },
+		{ label: 'perfiles', key: 'profiles' },
+		{ label: 'puede_tener_perfiles', value: (a) => (a.canHaveProfiles ? 'si' : 'no') },
+		{ label: 'borrada', value: (a) => day(a.deletedAt) }
+	];
 </script>
 
 <PageHeader
 	title="Cuentas"
 	subtitle="Las cuentas del público (Ingresar / Mi rincón). Solo lo ven les admins."
-/>
+>
+	<svelte:fragment slot="actions">
+		<CsvButton rows={data.accounts} {columns} filename={csvFilename('cuentas')} />
+	</svelte:fragment>
+</PageHeader>
 
 <Tabs tabs={[...CUENTAS_TABS]} />
 

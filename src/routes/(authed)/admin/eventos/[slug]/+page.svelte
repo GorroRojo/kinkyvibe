@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
+	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
 
@@ -141,6 +142,8 @@
 		</section>
 	{/if}
 </div>
+
+<DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
 	.grid {
