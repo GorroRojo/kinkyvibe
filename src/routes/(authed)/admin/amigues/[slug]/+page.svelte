@@ -1,12 +1,19 @@
 <script>
 	import ContentEditor from '$lib/components/admin/content/ContentEditor.svelte';
+	import ProfileDbEditor from '$lib/components/admin/amigues/ProfileDbEditor.svelte';
 
-	/** @type {import('./$types').PageData} */
+	/** @type {any} */
 	export let data;
-	/** @type {import('./$types').ActionData} */
+	/** @type {any} */
 	export let form;
 </script>
 
-{#key data.slug}
-	<ContentEditor {data} {form} />
-{/key}
+{#if data.editor === 'db'}
+	{#key data.profile.id}
+		<ProfileDbEditor {data} {form} />
+	{/key}
+{:else}
+	{#key data.slug}
+		<ContentEditor {data} {form} />
+	{/key}
+{/if}

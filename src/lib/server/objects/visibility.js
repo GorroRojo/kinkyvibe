@@ -71,7 +71,7 @@ const CREATOR_SEES = Object.freeze(['hidden']);
 
 /**
  * Tipos en los que haber creado el objeto no da acceso a lo oculto. En un perfil, quién lo
- * maneja cambia (un grupo pasa a otras personas, quien lo creó lo deja): quién lo ve en Mi rincón
+ * maneja cambia (un proyecto pasa a otras personas, quien lo creó lo deja): quién lo ve en Mi rincón
  * lo decide `profile_managers` (src/lib/server/cuentas/perfiles.js), nunca `created_by`.
  */
 export const NO_CREATOR_ACCESS = Object.freeze(['perfil']);

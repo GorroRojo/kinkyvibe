@@ -49,6 +49,7 @@ import {
 	EyeOff,
 	FileSpreadsheet,
 	CircleUser,
+	HandCoins,
 	HandHeart,
 	Heart,
 	House,
@@ -56,6 +57,7 @@ import {
 	KeyRound,
 	Landmark,
 	Mail,
+	MapPin,
 	ScanLine,
 	ScrollText,
 	Tags,
@@ -137,6 +139,17 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md). Son los mismos
+		// datos que Contenido → Amigues con el filtro «Lugares».
+		id: 'eventos-lugares',
+		href: '/admin/eventos/lugares',
+		icon: MapPin,
+		emoji: '📍',
+		label: 'Lugares',
+		group: 'eventos',
+		soon: false
+	},
+	{
 		id: 'checkin',
 		href: '/admin/checkin',
 		icon: ScanLine,
@@ -192,6 +205,16 @@ export const NAV = Object.freeze([
 		icon: ChartLine,
 		emoji: '📈',
 		label: 'Estadísticas',
+		group: 'entradas',
+		soon: false
+	},
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		id: 'propinas',
+		href: '/admin/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
 		group: 'entradas',
 		soon: false
 	},
@@ -253,6 +276,7 @@ export const NAV = Object.freeze([
 		label: 'Perfiles',
 		group: 'cuentas',
 		soon: false,
+		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
 		counter: 'profilesToReview'
 	},
 

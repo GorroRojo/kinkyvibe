@@ -38,6 +38,7 @@ import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
 import { getTemplateOverride } from './templates.js';
 import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
+import { buyerLocation } from '../amigues/venues.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -53,7 +54,7 @@ const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
 /**
  * @typedef {{
  *   mock: boolean,
- *   createPreference: (preference: ReturnType<typeof import('./mercadopago.js').buildPreference>, idempotencyKey: string) => Promise<{ id: string, init_point: string }>,
+ *   createPreference: (preference: ReturnType<typeof import('./mercadopago.js').checkoutProPreference>, idempotencyKey: string) => Promise<{ id: string, init_point: string }>,
  *   getPayment: (id: string) => Promise<import('./orders.js').MPPayment>,
  *   findPaymentByOrder: (orderId: string) => Promise<import('./orders.js').MPPayment | null>,
  *   refundPayment: (paymentId: string, idempotencyKey: string) => Promise<{ id: number | string, status?: string }>
@@ -367,14 +368,17 @@ export async function sendOrderEmail({
 		if (streamLink && (await claimStreamLinkSend(db, { orderId: order.id, link: streamLink }))) {
 			claimedLink = streamLink;
 		}
+		// Si el evento tiene lugar (interruptor `perfiles_publicos`), quien compró recibe la
+		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
+		const venue = await buyerLocation(db, order.event_slug);
 		const message = buildTicketEmail({
 			order,
 			tickets: list,
 			event: {
 				title: config?.title || order.event_slug,
 				start: config?.start,
-				location: config?.location,
-				location_name: config?.location_name,
+				location: venue ? venue.location : config?.location,
+				location_name: venue ? venue.location_name : config?.location_name,
 				online,
 				streamLink
 			},
@@ -569,6 +573,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
 	/** @type {Map<string, string | null>} */
 	const links = new Map();
+	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
+	const venues = new Map();
 	const template = await getTemplateOverride(db, 'reminder');
 	return sendDueReminders(db, {
 		events,
@@ -581,6 +587,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const config = e.config;
 			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
 			const tickets = await getOrderTickets(db, order.id);
+			if (!venues.has(e.slug)) venues.set(e.slug, await buyerLocation(db, e.slug));
+			const venue = venues.get(e.slug);
 			const message = buildReminderEmail({
 				order,
 				tickets,
@@ -588,8 +596,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				event: {
 					title: config.title || e.slug,
 					start: config.start,
-					location: config.location,
-					location_name: config.location_name,
+					location: venue ? venue.location : config.location,
+					location_name: venue ? venue.location_name : config.location_name,
 					online: config.online,
 					streamLink: config.online ? (links.get(e.slug) ?? null) : null
 				},

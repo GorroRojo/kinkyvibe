@@ -9,6 +9,8 @@
  */
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
+import { formatARS } from '$lib/utils/money.js';
+import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	describeReminder,
 	dueReminderOrders,
@@ -20,6 +22,7 @@ import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
 import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { fondoTipTotals } from '$lib/server/propinas/index.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -319,41 +322,50 @@ export function integrityRun(db) {
 
 /**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo en entradas
- * (aportes − lo que cubrió).
+ * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
+ * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
- * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number } | null>}
+ * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number } | null>}
  */
 export function monthMoney(db, now) {
 	return safe(db, 'plata del mes', null, async (db) => {
 		const { start, end } = arMonthWindow(now);
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
+		const [row, tips] = await Promise.all([
+			db
+				.prepare(
+					`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				)
+				.bind(start, end)
+				.first(),
+			// Sin las migraciones de propinas la consulta falla: 0, sin romper el resto.
+			safe(db, 'propinas al fondo del mes', { count: 0, total: 0 }, (db) =>
+				fondoTipTotals(db, { from: start, to: end })
 			)
-			.bind(start, end)
-			.first();
+		]);
 		return {
 			start,
 			total: Number(row?.total ?? 0),
 			orders: Number(row?.orders ?? 0),
 			tickets: Number(row?.tickets ?? 0),
-			fondoNet: Number(row?.fondo_net ?? 0)
+			fondoNet: Number(row?.fondo_net ?? 0) + tips.total,
+			fondoTips: tips.total
 		};
 	});
 }
 
 /**
  * `kind: 'account'`: una cuenta o un perfil nuevos (no lo hizo une admin; ver accountEvents.js).
+ * `kind: 'tip'`: una propina aprobada (docs/propinas.md).
  * `href`: a dónde lleva el ítem, si no sale de `slug`/`orderId` (cuentas y perfiles).
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account' | 'tip',
  *   title: string,
  *   who: string,
  *   detail: string,
@@ -398,7 +410,7 @@ const ORDER_KIND = /** @type {const} */ ({
  * @returns {Promise<ActivityItem[]>}
  */
 export async function recentActivity(db, { limit = 12, since = 0, titles = new Map() } = {}) {
-	const [orders, audit, checkins] = await Promise.all([
+	const [orders, audit, checkins, tips] = await Promise.all([
 		safe(db, 'actividad: órdenes', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
 			const { results } = await db
 				.prepare(
@@ -429,6 +441,17 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`
 				)
 				.bind(since, limit, CHECKIN_BUCKET_MS)
+				.all();
+			return results;
+		}),
+		// Sin la migración 0019 (propinas) la consulta falla y `safe` devuelve [].
+		safe(db, 'actividad: propinas', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
+			const { results } = await db
+				.prepare(
+					`SELECT id, amount, post_category, post_slug, approved_at FROM tips
+					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`
+				)
+				.bind(since, limit)
 				.all();
 			return results;
 		})
@@ -487,6 +510,18 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 					: `${arTime(first)} a ${arTime(last)}`,
 			slug,
 			orderId: null
+		});
+	}
+	for (const t of tips) {
+		items.push({
+			at: Number(t.approved_at),
+			kind: 'tip',
+			title: `Propina de ${formatARS(Number(t.amount))}`,
+			who: String(t.post_slug),
+			detail: String(t.post_category),
+			slug: null,
+			orderId: null,
+			href: '/admin/propinas'
 		});
 	}
 	items.sort((a, b) => b.at - a.at);
@@ -679,8 +714,9 @@ export function upcomingEvents({
 
 /**
  * Tipos de ítem de "Para revisar" que se juntan si hay varios: la higiene de contenido (sin
- * imagen, borradores) y los perfiles nuevos de cuentas (ver `groupReviewItems`).
- * @typedef {'image' | 'draft' | 'profile'} ReviewGroupKind
+ * imagen, borradores), los perfiles nuevos de cuentas y los pedidos "Es mi perfil" (ver
+ * `groupReviewItems`).
+ * @typedef {'image' | 'draft' | 'profile' | 'claim'} ReviewGroupKind
  */
 
 /**
@@ -689,7 +725,7 @@ export function upcomingEvents({
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
  * Cuentas → Perfiles filtrado.
  *
- * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
  * @returns {ReviewItem[]}
  */
@@ -699,11 +735,33 @@ export function profileReviewItems(profiles, { formatWhen } = {}) {
 		tone: 'info',
 		icon: 'profile',
 		title: `Perfil nuevo: ${p.title}`,
-		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		text: `${KIND_LABELS[p.kind] ?? 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
 		action: 'Revisar',
 		href: profileHref(p.id),
 		group: 'profile',
 		name: p.title
+	}));
+}
+
+/**
+ * "Para revisar": un ítem por cada pedido "Es mi perfil" pendiente (`listClaims` en
+ * src/lib/server/amigues/claims.js). Sin el mail de la cuenta: se ve en la ficha del perfil.
+ *
+ * @param {{ id: number, profileId: number, profileTitle: string, createdAt: number }[]} claims
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewItem[]}
+ */
+export function claimReviewItems(claims, { formatWhen } = {}) {
+	return claims.map((c) => ({
+		id: `claim-${c.id}`,
+		tone: 'info',
+		icon: 'profile',
+		title: `«Es mi perfil»: ${c.profileTitle}`,
+		text: `Una cuenta pide hacerse cargo${formatWhen ? ` · ${formatWhen(c.createdAt)}` : ''}`,
+		action: 'Revisar',
+		href: profileHref(c.profileId),
+		group: 'claim',
+		name: c.profileTitle
 	}));
 }
 
@@ -926,6 +984,16 @@ export function groupReviewItems(items, { links, min = 2 }) {
 			text: 'Creados desde Mi rincón; quedan acá hasta que los marques como revisados',
 			action: 'Ver',
 			href: links.profiles ?? PROFILES_TO_REVIEW_HREF,
+			items: list
+		}),
+		claim: (list) => ({
+			id: 'group-claim',
+			tone: 'info',
+			icon: 'profile',
+			title: plural(list.length, 'pedido «Es mi perfil»', 'pedidos «Es mi perfil»'),
+			text: 'Cuentas que piden hacerse cargo de un perfil que ya existe',
+			action: 'Ver',
+			href: '/admin/cuentas/perfiles',
 			items: list
 		})
 	};

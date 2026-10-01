@@ -137,7 +137,7 @@ describe('sin el permiso', () => {
 		const g = await createProfile(
 			t.db,
 			owner.id,
-			{ kind: 'grupo', title: 'Grupo Inventado' },
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
 			opts
 		);
 		if (!g.ok) throw new Error(g.message);
@@ -153,7 +153,7 @@ describe('sin el permiso', () => {
 		const answers = [];
 		for (const email of [withPermission.email, without.email, 'nadie-inventade@example.com']) {
 			answers.push(
-				await inviteManager(t.db, owner.id, 'grupo-inventado', email, { ...opts, notice })
+				await inviteManager(t.db, owner.id, 'proyecto-inventado', email, { ...opts, notice })
 			);
 		}
 		// Misma respuesta en los tres casos: no dice si hay cuenta ni si tiene el permiso.
@@ -188,7 +188,7 @@ describe('sin el permiso', () => {
 		// Con el permiso, la misma invitación aparece (estaba guardada, solo no se mostraba).
 		await setPermission(without.id, true);
 		expect((await myInvites(t.db, without.id, opts)).map((i) => i.title)).toEqual([
-			'Grupo Inventado'
+			'Proyecto Inventado'
 		]);
 	});
 
@@ -206,19 +206,19 @@ describe('sin el permiso', () => {
 		const g = await createProfile(
 			t.db,
 			owner.id,
-			{ kind: 'grupo', title: 'Grupo Inventado' },
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
 			opts
 		);
 		if (!g.ok) throw new Error(g.message);
 		await setPermission(loses.id, false);
 
-		const a = await inviteMember(t.db, owner.id, 'grupo-inventado', 'persona-que-sigue', opts);
-		const b = await inviteMember(t.db, owner.id, 'grupo-inventado', 'persona-que-pierde', opts);
+		const a = await inviteMember(t.db, owner.id, 'proyecto-inventado', 'persona-que-sigue', opts);
+		const b = await inviteMember(t.db, owner.id, 'proyecto-inventado', 'persona-que-pierde', opts);
 		expect(a).toEqual({ ok: true, message: MESSAGES.memberInvited });
 		expect(b).toEqual(a);
 
 		expect((await listMyMemberInvites(t.db, keeps.id, opts)).map((i) => i.groupTitle)).toEqual([
-			'Grupo Inventado'
+			'Proyecto Inventado'
 		]);
 		expect(await listMyMemberInvites(t.db, loses.id, opts)).toEqual([]);
 		const accept = await answerMemberInvite(
@@ -240,7 +240,7 @@ describe('sin el permiso', () => {
 		const g = await createProfile(
 			t.db,
 			owner.id,
-			{ kind: 'grupo', title: 'Grupo Inventado' },
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
 			opts
 		);
 		if (!g.ok) throw new Error(g.message);
@@ -282,7 +282,12 @@ describe('novedades para el panel', () => {
 
 	it('"perfil creado" se anota con el nombre y el tipo, sin datos de la cuenta', async () => {
 		const a = await permitted('dueñe-inventade');
-		const g = await createProfile(t.db, a.id, { kind: 'grupo', title: 'Grupo Inventado' }, opts);
+		const g = await createProfile(
+			t.db,
+			a.id,
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
+			opts
+		);
 		if (!g.ok) throw new Error(g.message);
 		const row = await t.db
 			.prepare("SELECT * FROM admin_audit WHERE action = 'profile.create'")
@@ -291,9 +296,9 @@ describe('novedades para el panel', () => {
 			actor_login: ACCOUNT_EVENT_ACTOR,
 			target_type: 'profile',
 			target_id: String(g.profile.id),
-			summary: 'Se creó el perfil «Grupo Inventado» (grupo)'
+			summary: 'Se creó el perfil «Proyecto Inventado» (proyecto)'
 		});
-		expect(JSON.parse(String(row?.detail))).toEqual({ kind: 'grupo', visibility: 'public' });
+		expect(JSON.parse(String(row?.detail))).toEqual({ kind: 'proyecto', visibility: 'public' });
 		expect(JSON.stringify(row)).not.toContain(a.id);
 		expect(JSON.stringify(row)).not.toContain('@example.com');
 	});

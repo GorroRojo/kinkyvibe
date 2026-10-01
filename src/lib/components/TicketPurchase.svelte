@@ -315,6 +315,9 @@
 		>
 			<fieldset class="types">
 				<legend>Tipo de entrada</legend>
+				<!-- Tramo de preventa que se está viendo: el servidor elige el precio, esto solo sirve
+				     para avisar si cambió antes de cobrar. -->
+				<input type="hidden" name="tier" value={selected?.tier?.id ?? ''} />
 				{#each tickets.types as t (t.id)}
 					<label class="type" class:soldout={t.available === 0 || t.closed}>
 						<input
@@ -325,7 +328,9 @@
 							disabled={t.available === 0 || t.closed}
 							required
 						/>
-						<span class="type-name">{t.name}</span>
+						<span class="type-name"
+							>{t.name}{#if t.tier}<span class="type-tier">{t.tier.name}</span>{/if}</span
+						>
 						<span class="type-price">
 							{#if t.gorra}
 								<strong>A la gorra</strong>
@@ -351,9 +356,12 @@
 							</small>
 						{/if}
 						<small class="type-left">
-							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+							{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
 									t.left
-								)}{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
+								)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
+								{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
+									t.closesAt
+								)}{/if}
 						</small>
 					</label>
 				{/each}
@@ -846,6 +854,18 @@
 	.type-name {
 		grid-area: name;
 		font-weight: bold;
+	}
+	/* Tramo vigente de una preventa ("Preventa 1"): una etiqueta chica al lado del nombre. */
+	.type-tier {
+		display: inline-block;
+		margin-left: 0.5em;
+		padding: 0.05em 0.6em;
+		border-radius: 1em;
+		background: color-mix(in srgb, var(--2) 15%, white);
+		color: var(--2-dark);
+		font-size: var(--step--1);
+		font-weight: normal;
+		white-space: nowrap;
 	}
 	.type-price {
 		grid-area: price;

@@ -6,7 +6,8 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
-	import Note from '$lib/components/Note.svelte';
+	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -16,7 +17,12 @@
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
+	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
+	import { venueLine, venueSchema } from '$lib/utils/venues.js';
 	export let data;
+	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
+	// sobre `location` del .md (docs/amigues.md).
+	$: where = data.venue ? venueLine(data.venue) : (data.meta.location ?? 'Online');
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -54,7 +60,9 @@
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'
 				: 'https://schema.org/EventScheduled',
-		location: data.meta.location
+		location: data.venue
+			? venueSchema(data.venue)
+			: data.meta.location
 			? {
 					'@type': 'Place',
 					name: data.meta.location_name ?? data.meta.title,
@@ -168,7 +176,7 @@
 			>
 			<small>en</small>
 			<span class="p-location">
-				{data.meta.location ?? 'Online'}
+				{where}
 			</span>
 		</p>
 		<div class="event-atcb">
@@ -217,6 +225,9 @@
 			></add-to-calendar-button>
 		</div>
 	</div>
+	{#if data.venue}
+		<VenueLocation view={data.venue} context="event" />
+	{/if}
 	{#if data.tickets}
 		{@const t = data.tickets}
 		<section class="buy-cta" id="entradas" aria-label="Entradas">
@@ -273,14 +284,12 @@
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
 	</div>
-	{#if data.meta.tags.includes('KinkyVibe')}
-		<Note id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
-			Si te resultó valioso,
-			<a href="https://cafecito.app/kinkyvibe" target="_blank"
-				>considerá apoyarnos con algún cafecito</a
-			>. 🤗
-		</Note>
+	{#if isKinkyVibePost(data.meta)}
+		<PostSupport
+			propinas={data.propinas}
+			category="calendario"
+			slug={$page.params.event ?? ''}
+		/>
 	{/if}
 </article>
 

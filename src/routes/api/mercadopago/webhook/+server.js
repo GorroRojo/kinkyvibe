@@ -3,7 +3,8 @@
  *
  * 1. Verifica `x-signature` (HMAC con MP_WEBHOOK_SECRET). Sin firma válida: 401.
  * 2. NUNCA confía en el body: con el id del pago pide el pago a la API de MP y lo aplica a la
- *    orden de su `external_reference` (chequeando monto y moneda), de forma idempotente.
+ *    orden de su `external_reference` (chequeando monto y moneda), de forma idempotente. Si el
+ *    `external_reference` es `propina:<id>`, lo aplica a esa propina (docs/propinas.md).
  * 3. Contesta 200 rápido; el email se manda en segundo plano (`waitUntil`).
  *
  * Errores transitorios (base, API de MP) devuelven 5xx para que MP reintente.
@@ -17,6 +18,7 @@ import {
 	webhookSecret
 } from '$lib/server/tickets/index.js';
 import { verifyWebhookSignature } from '$lib/server/tickets/mercadopago.js';
+import { applyTipPayment, isTipReference } from '$lib/server/propinas/index.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url, platform, fetch }) {
@@ -64,6 +66,20 @@ export async function POST({ request, url, platform, fetch }) {
 	} catch (error) {
 		console.error(`[tickets] no se pudo obtener el pago ${dataId}:`, error);
 		return text('upstream error', { status: 502 });
+	}
+
+	// Propinas (docs/propinas.md): misma cuenta, misma firma, se reconocen por `propina:<id>`.
+	if (isTipReference(payment.external_reference)) {
+		try {
+			const result = await applyTipPayment(db, payment);
+			if (result.outcome === 'unknown-tip') {
+				console.warn(`[propinas] pago ${payment.id} sin propina conocida`);
+			}
+			return json({ ok: true, outcome: result.outcome });
+		} catch (error) {
+			logDBError('webhook apply tip payment', error);
+			return text('error', { status: 500 });
+		}
 	}
 
 	try {
