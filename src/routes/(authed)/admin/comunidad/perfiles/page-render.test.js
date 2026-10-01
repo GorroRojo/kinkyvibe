@@ -8,8 +8,10 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
 
-const IMPORT_LINK = /<a[^>]*href="\/admin\/amigues\/importar"[^>]*>Importar y clasificar<\/a>/;
-const FICHAS_TAB = /<a[^>]*href="\/admin\/amigues\?vista=fichas"[^>]*>(?:<!--[^>]*-->)*Fichas \.md/;
+const IMPORT_LINK =
+	/<a[^>]*href="\/admin\/comunidad\/perfiles\/importar"[^>]*>Importar y clasificar<\/a>/;
+const FICHAS_TAB =
+	/<a[^>]*href="\/admin\/comunidad\/perfiles\?vista=fichas"[^>]*>(?:<!--[^>]*-->)*Fichas \.md/;
 const HINT = /antes de\s+prender «perfiles_publicos»/;
 
 /** Lo que devuelve el load con la base. @param {boolean} flagOn */

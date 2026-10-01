@@ -202,10 +202,17 @@ function textFiles() {
 	].filter((f) => f !== import.meta.filename);
 }
 
+/**
+ * Las barras escritas de otra forma pasan a `/`: escapadas en una regex (`\\/admin\\/…`) o
+ * codificadas en un `redirectTo` (`%2Fadmin%2F…`). La cantidad de líneas no cambia.
+ * @param {string} text
+ */
+const plainSlashes = (text) => text.replaceAll('\\/', '/').replace(/%2F/gi, '/');
+
 describe('direcciones borradas', () => {
 	const files = textFiles().map((f) => ({
 		name: relative(ROOT, f),
-		text: readFileSync(f, 'utf8')
+		text: plainSlashes(readFileSync(f, 'utf8'))
 	}));
 
 	it('nada apunta a una página borrada (código, pruebas, docs)', () => {
@@ -243,6 +250,8 @@ describe('direcciones borradas', () => {
 		expect(re.test("href='/admin/cuentas?x=1'")).toBe(true);
 		expect(re.test("import x from '$lib/server/admin/cuentas.js'")).toBe(false);
 		expect(re.test("'/admin/cuentas-viejas'")).toBe(false);
+		expect(re.test(plainSlashes('toMatch(/href="\\/admin\\/cuentas"/)'))).toBe(true);
+		expect(re.test(plainSlashes("'/login?redirectTo=%2Fadmin%2Fcuentas%2F3'"))).toBe(true);
 	});
 
 	it('ninguna ruta vieja sigue existiendo', () => {

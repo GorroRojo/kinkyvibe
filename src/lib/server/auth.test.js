@@ -123,7 +123,7 @@ describe('requireAdmin', () => {
 		const withQuery = new URL('https://kinkyvibe.ar/admin/ventas/codigos?evento=x&y=1');
 		const e = thrown(() => requireAdmin({ user: undefined, user_token: '' }, withQuery));
 		expect(e.status).toBe(303);
-		expect(e.location).toBe('/login?redirectTo=%2Fadmin%2Fentradas%2Fcodigos%3Fevento%3Dx%26y%3D1');
+		expect(e.location).toBe('/login?redirectTo=%2Fadmin%2Fventas%2Fcodigos%3Fevento%3Dx%26y%3D1');
 		expect(safeRedirect(new URL(e.location, origin).searchParams.get('redirectTo'), origin)).toBe(
 			'/admin/ventas/codigos?evento=x&y=1'
 		);

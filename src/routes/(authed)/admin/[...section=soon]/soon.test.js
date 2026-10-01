@@ -99,6 +99,6 @@ describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 		const body = render(SideNav, {
 			props: { active: navItem('cuentas'), counts: {}, flags: { cuentas: false } }
 		}).body;
-		expect(body).toMatch(/href="\/admin\/cuentas"[^>]*>.*?prueba/s);
+		expect(body).toMatch(/href="\/admin\/comunidad\/cuentas"[^>]*>.*?prueba/s);
 	});
 });
