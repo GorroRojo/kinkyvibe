@@ -28,6 +28,7 @@ async function modules(flag = '') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { CUENTAS_ENABLED: flag } }));
 	return {
+		rincon: await import('../+page.server.js'),
 		list: await import('./+page.server.js'),
 		edit: await import('./[slug]/+page.server.js'),
 		accounts: await import('$lib/server/cuentas/accounts.js'),
@@ -418,5 +419,175 @@ describe('interruptor prendido', () => {
 		);
 		expect(yes).toMatchObject({ status: 303, location: '/mi-rincon/perfiles' });
 		expect((await thrown(() => m.edit.load(fakeEvent({ member: me, params }))))?.status).toBe(404);
+	});
+});
+
+describe('sin el permiso "puede tener perfiles"', () => {
+	/** @param {string} id @param {boolean} on */
+	const setPermission = (id, on) =>
+		t.db
+			.prepare('UPDATE accounts SET can_have_profiles = ?2 WHERE id = ?1')
+			.bind(id, on ? 1 : 0)
+			.run();
+
+	it('Mi rincón no muestra perfiles; las páginas y todas sus actions dan 404 y no escriben nada', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'persona', title: 'Nombre Inventado' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const withIt = /** @type {any} */ (
+			await m.rincon.load(fakeEvent({ path: '/mi-rincon', member: me }))
+		);
+		expect(withIt.canHaveProfiles).toBe(true);
+
+		await setPermission(me.id, false);
+		const rincon = /** @type {any} */ (
+			await m.rincon.load(fakeEvent({ path: '/mi-rincon', member: me }))
+		);
+		expect(rincon.canHaveProfiles).toBe(false);
+
+		const before = await t.db
+			.prepare('SELECT id, title, version, visibility, deleted_at FROM objects ORDER BY id')
+			.all();
+		expect((await thrown(() => m.list.load(fakeEvent({ member: me }))))?.status).toBe(404);
+		const form = {
+			kind: 'persona',
+			title: 'Otro Nombre',
+			invite: crypto.randomUUID(),
+			persona: 'nombre-inventado',
+			group: '1',
+			recibir: 'no'
+		};
+		for (const [name, action] of Object.entries(m.list.actions)) {
+			const r = await thrown(() => action(fakeEvent({ member: me, form })));
+			expect(r?.status, `?/${name}`).toBe(404);
+		}
+		for (const slug of ['nombre-inventado', 'grupo-inventado']) {
+			const params = { slug };
+			const path = `/mi-rincon/perfiles/${slug}`;
+			expect(
+				(await thrown(() => m.edit.load(fakeEvent({ path, member: me, params }))))?.status
+			).toBe(404);
+			const editForm = {
+				title: 'Pisado',
+				version: '1',
+				confirm: slug === 'grupo-inventado' ? 'Grupo Inventado' : 'Nombre Inventado',
+				email: 'otra-persona@example.com',
+				persona: 'nombre-inventado',
+				account: me.id,
+				role: 'owner',
+				group: '1',
+				lugar: 'gestion'
+			};
+			for (const [name, action] of Object.entries(m.edit.actions)) {
+				const r = await thrown(() =>
+					action(fakeEvent({ path, member: me, params, form: editForm }))
+				);
+				expect(r?.status, `${slug} ?/${name}`).toBe(404);
+			}
+		}
+		const after = await t.db
+			.prepare('SELECT id, title, version, visibility, deleted_at FROM objects ORDER BY id')
+			.all();
+		expect(after.results).toEqual(before.results);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM profile_invites').first())?.n).toBe(0);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(0);
+	});
+
+	it('invitación a gestionar: quien invita recibe lo mismo; la cuenta sin permiso no la ve ni la acepta', async () => {
+		const m = await modules('1');
+		const owner = await member(m, 'dueñe-prueba');
+		const withIt = await member(m, 'con-permiso-prueba');
+		const without = await member(m, 'sin-permiso-prueba', { profiles: false });
+		await m.perfiles.createProfile(t.db, owner.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const params = { slug: 'grupo-inventado' };
+		/** @type {Promise<unknown>[]} */
+		const background = [];
+		const invite = (/** @type {string} */ email) => {
+			const event = fakeEvent({ member: owner, params, form: { email } });
+			event.platform = {
+				...t.platform,
+				ctx: { waitUntil: (/** @type {Promise<unknown>} */ p) => background.push(p) }
+			};
+			return m.edit.actions.invitar(event);
+		};
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const a = await invite(withIt.email);
+		const b = await invite(without.email);
+		const c = await invite('nadie-prueba@example.com');
+		expect(a).toEqual({ action: 'invitar', message: m.perfiles.MESSAGES.invited });
+		expect(b).toEqual(a);
+		expect(c).toEqual(a);
+		// Sin RESEND_API_KEY el mail se simula; a la cuenta sin permiso no se le manda.
+		expect(await Promise.all(background)).toEqual(['simulated', 'skipped', 'skipped']);
+		log.mockRestore();
+
+		// Quien gestiona ve las tres pendientes, igual que siempre.
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: owner, params })));
+		expect(page.invites).toHaveLength(3);
+
+		expect((await thrown(() => m.list.load(fakeEvent({ member: without }))))?.status).toBe(404);
+		const hash = await m.accounts.emailHash(without.email);
+		const row = await t.db
+			.prepare('SELECT id FROM profile_invites WHERE email_hash = ?1')
+			.bind(hash)
+			.first();
+		const accept = await thrown(() =>
+			m.list.actions.aceptar(fakeEvent({ member: without, form: { invite: String(row?.id) } }))
+		);
+		expect(accept?.status).toBe(404);
+		expect(
+			(
+				await t.db
+					.prepare('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1')
+					.bind(without.id)
+					.first()
+			)?.n
+		).toBe(0);
+	});
+
+	it('invitación a integrante: quien invita recibe lo mismo; sin permiso no se ve ni se acepta', async () => {
+		const m = await modules('1');
+		const owner = await member(m, 'dueñe-prueba');
+		const keeps = await member(m, 'sigue-prueba');
+		const loses = await member(m, 'pierde-prueba');
+		await m.perfiles.createProfile(t.db, owner.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, keeps.id, { kind: 'persona', title: 'Persona Sigue' });
+		await m.perfiles.createProfile(t.db, loses.id, { kind: 'persona', title: 'Persona Pierde' });
+		await setPermission(loses.id, false);
+		const params = { slug: 'grupo-inventado' };
+		const invite = (/** @type {string} */ persona) =>
+			m.edit.actions.invitarIntegrante(fakeEvent({ member: owner, params, form: { persona } }));
+		const a = await invite('persona-sigue');
+		const b = await invite('persona-pierde');
+		expect(a).toEqual({ action: 'integrantes', message: m.perfiles.MESSAGES.memberInvited });
+		expect(b).toEqual(a);
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: owner, params })));
+		expect(page.pendingMembers.map((/** @type {any} */ p) => p.slug).sort()).toEqual([
+			'persona-pierde',
+			'persona-sigue'
+		]);
+
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: keeps })));
+		expect(list.memberInvites.map((/** @type {any} */ i) => i.personaSlug)).toEqual([
+			'persona-sigue'
+		]);
+		expect((await thrown(() => m.list.load(fakeEvent({ member: loses }))))?.status).toBe(404);
+		const group = await t.db
+			.prepare("SELECT id FROM objects WHERE slug = 'grupo-inventado'")
+			.first();
+		const accept = await thrown(() =>
+			m.list.actions.aceptarGrupo(
+				fakeEvent({ member: loses, form: { persona: 'persona-pierde', group: String(group?.id) } })
+			)
+		);
+		expect(accept?.status).toBe(404);
+		expect(
+			(
+				await t.db
+					.prepare("SELECT COUNT(*) AS n FROM edges WHERE kind = 'es_integrante_de'")
+					.first()
+			)?.n
+		).toBe(0);
 	});
 });
