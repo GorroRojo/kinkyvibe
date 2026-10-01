@@ -75,7 +75,6 @@ import {
 	CircleUser,
 	HandCoins,
 	HandHeart,
-	Heart,
 	House,
 	IdCard,
 	Inbox,
@@ -218,7 +217,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md), con las listas
-		// "Para aprobar" y "Rechazados". Son los mismos datos que Comunidad › Amigues con el filtro
+		// "Para aprobar" y "Rechazados". Son los mismos datos que Comunidad › Perfiles con el filtro
 		// «Lugares».
 		id: 'eventos-lugares',
 		href: '/admin/eventos/lugares',
@@ -297,13 +296,18 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// La única lista de perfiles (decisión de gorrite del 1/10): reemplaza a "Amigues" y a
+		// "Cuentas › Perfiles". La URL y el id siguen siendo los de Amigues; "Amigues" queda como
+		// nombre del directorio público (/amigues).
 		id: 'amigues',
 		href: '/admin/amigues',
-		icon: Heart,
-		emoji: '💞',
-		label: 'Amigues',
+		icon: IdCard,
+		emoji: '🪪',
+		label: 'Perfiles',
 		area: 'comunidad',
-		soon: false
+		soon: false,
+		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
+		counter: 'profilesToReview'
 	},
 	{
 		// Cuentas del público y sus perfiles (docs/cuentas.md)
@@ -315,18 +319,6 @@ export const NAV = Object.freeze([
 		area: 'comunidad',
 		soon: false,
 		flag: 'cuentas'
-	},
-	{
-		id: 'cuentas-perfiles',
-		href: '/admin/cuentas/perfiles',
-		icon: IdCard,
-		emoji: '🪪',
-		label: 'Perfiles',
-		area: 'comunidad',
-		soon: false,
-		flag: 'cuentas',
-		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
-		counter: 'profilesToReview'
 	},
 
 	// Mensajes
@@ -634,6 +626,8 @@ export function activeNavItem(pathname) {
 	}
 	// Páginas fuera del menú: se marca el ítem del que dependen.
 	if (best?.menu === false) best = best.parent ? navItem(best.parent) : undefined;
+	// La ficha de un perfil (/admin/cuentas/perfiles/<id>) es parte de Perfiles, no de Cuentas.
+	if (path.startsWith('/admin/cuentas/perfiles/')) return navItem('amigues');
 	// Páginas sin ítem propio: se marca la sección a la que pertenecen.
 	if (!best) {
 		if (path.startsWith('/admin/eventos/')) return navItem('eventos');

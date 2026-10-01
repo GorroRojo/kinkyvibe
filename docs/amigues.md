@@ -22,9 +22,11 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
   importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
-- Panel: el editor de Amigues edita el perfil en la base (publica al guardar, con aviso de
-  conflicto), **Contenido → Amigues → Importar y clasificar**, **Eventos → Lugares** y, en
-  **Cuentas → Perfiles**, aprobar y los pedidos.
+- Panel: **Perfiles** (`/admin/amigues`) es la única lista de perfiles (decisión de gorrite del
+  1/10; "Amigues" queda solo como nombre del directorio público `/amigues`): filtros por tipo,
+  origen y estado, CSV, «Para aprobar», los pedidos "Es mi perfil" y, con el interruptor apagado,
+  la pestaña «Fichas .md». El editor edita el perfil en la base (publica al guardar, con aviso de
+  conflicto); también **Perfiles → Importar y clasificar** y **Eventos → Lugares**.
 
 ## Con el interruptor apagado
 
@@ -36,7 +38,7 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 
 1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
    (gorrite, como siempre: ver [datos.md](datos.md)).
-2. En el panel del entorno (primero preview): **Contenido → Amigues → Importar y clasificar →
+2. En el panel del entorno (primero preview): **Perfiles → Importar y clasificar →
    Importar las fichas**. Se puede repetir: es idempotente.
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
 4. Cargar los lugares en **Eventos → Lugares** y vincular los eventos.
@@ -134,7 +136,7 @@ la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues
   `sanitize.js` (texto en HTML), `review.js` (importar desde el panel y CSV).
 - Reglas puras de privacidad y mapa: `src/lib/utils/venues.js`.
 - Páginas: `src/routes/(content)/amigues/`; panel: `src/routes/(authed)/admin/amigues/`,
-  `admin/eventos/lugares/`, `admin/cuentas/perfiles/`. Componentes: `src/lib/components/amigues/`
+  `admin/eventos/lugares/`, `admin/cuentas/perfiles/[id]/` (ficha de un perfil). Componentes: `src/lib/components/amigues/`
   y `src/lib/components/admin/amigues/`.
 - Script: `scripts/import-amigues.js`; demo: `scripts/demo/n3-amigues.js`.
 

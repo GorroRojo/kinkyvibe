@@ -719,7 +719,7 @@ describe('perfiles nuevos en "Para revisar"', () => {
 			kind: 'group',
 			id: 'group-profile',
 			title: '3 perfiles nuevos para revisar',
-			href: '/admin/cuentas/perfiles?filtro=sin-revisar'
+			href: '/admin/amigues?estado=sin-revisar'
 		});
 	});
 });

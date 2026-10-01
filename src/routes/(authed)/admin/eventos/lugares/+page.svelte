@@ -49,7 +49,7 @@
 	subtitle="Dónde suceden los eventos: dirección, mapa, accesibilidad, cómo llegar y qué se muestra de la dirección."
 >
 	<svelte:fragment slot="actions">
-		<a class="kv-btn ghost" href="/admin/amigues?tipo=lugar">Ver en Amigues</a>
+		<a class="kv-btn ghost" href="/admin/amigues?tipo=lugar">Ver en Perfiles</a>
 	</svelte:fragment>
 </PageHeader>
 
