@@ -8,25 +8,35 @@
 	 * (+page.js o +page.server.js), por ejemplo `return { bare: true, ... }`. Entonces este layout
 	 * solo pone los tokens del panel (`.kv-panel`, con modo oscuro) y la página, sin menús.
 	 *
-	 * Las secciones y sus íconos salen de `$lib/admin/nav.js` (no agregar links a mano acá).
+	 * Las secciones y sus íconos salen de `$lib/admin/nav.js` (no agregar links a mano acá): la
+	 * barra lateral es `SideNav.svelte` (áreas que se abren de a una) y el panel "Más" del celu,
+	 * `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón global "Para revisar".
 	 */
 	import '$lib/admin/panel.scss';
 	import { onMount } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { ExternalLink, LogOut, Menu, Moon, Plus, Sun, SunMoon, X } from '@lucide/svelte';
+	import {
+		ClipboardCheck,
+		ExternalLink,
+		Eye,
+		EyeOff,
+		LogOut,
+		Menu,
+		Moon,
+		Plus,
+		Sun,
+		SunMoon,
+		X
+	} from '@lucide/svelte';
 	import logo from '../../logo.png';
 	import { logoutHref as logoutLink } from '$lib/utils/authLinks.js';
 	import SearchBox from '$lib/components/admin/panel/SearchBox.svelte';
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
-	import {
-		NAV_GROUPS,
-		MOBILE_TABS,
-		activeNavItem,
-		navGroupItems,
-		navItem,
-		navLink
-	} from '$lib/admin/nav.js';
+	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
+	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
+	import { MOBILE_TABS, REVIEW_LINK, activeNavItem, navItem } from '$lib/admin/nav.js';
+	import { readHideSoon, saveHideSoon } from '$lib/admin/navPrefs.js';
 	import {
 		DEFAULT_THEME,
 		THEME_HEAD_SCRIPT,
@@ -44,6 +54,8 @@
 	/** @type {import('$lib/admin/theme.js').Theme} */
 	let theme = DEFAULT_THEME;
 	let sheetOpen = false;
+	/** "Ocultar lo que viene" (menú de usuario): cada persona, en localStorage. */
+	let hideSoon = false;
 	/** @type {HTMLDetailsElement | undefined} */
 	let userMenu;
 
@@ -51,6 +63,9 @@
 	$: active = activeNavItem($page.url.pathname);
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
+	/** @type {Record<string, boolean>} */
+	$: flags = data.navFlags ?? {};
+	$: reviewCount = Number(counts[REVIEW_LINK.counter] ?? 0);
 	$: user = data.user;
 	let avatarFailed = false;
 	$: avatar = avatarFailed
@@ -71,6 +86,7 @@
 		if (avatarImg?.complete && avatarImg.naturalWidth === 0) avatarFailed = true;
 		theme = readTheme();
 		saveTheme(theme);
+		hideSoon = readHideSoon();
 		return () => document.documentElement.removeAttribute('data-theme');
 	});
 	afterNavigate(() => {
@@ -81,6 +97,11 @@
 	function toggleTheme() {
 		theme = nextTheme(theme);
 		saveTheme(theme);
+	}
+
+	function toggleHideSoon() {
+		hideSoon = !hideSoon;
+		saveHideSoon(hideSoon);
 	}
 
 	/*
@@ -174,7 +195,7 @@
 	}
 
 	/**
-	 * Barra de abajo del celu: `null` es el botón "Más". "Entradas" muestra el contador de
+	 * Barra de abajo del celu: `null` es el botón "Más". "Ventas" muestra el contador de
 	 * transferencias pendientes.
 	 * @type {({ item: import('$lib/admin/nav.js').NavItem, label: string, counterItem: import('$lib/admin/nav.js').NavItem } | null)[]}
 	 */
@@ -183,7 +204,7 @@
 		if (!item) return null;
 		if (id === 'entradas') {
 			const transfers = navItem('entradas-transferencias') ?? item;
-			return { item, label: 'Entradas', counterItem: transfers };
+			return { item, label: 'Ventas', counterItem: transfers };
 		}
 		return { item, label: item.label, counterItem: item };
 	});
@@ -208,38 +229,7 @@
 					<img src={logo} alt="KinkyVibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
-				<nav>
-					{#each navGroupItems(null) as item (item.id)}
-						<a
-							class="nav"
-							class:on={active?.id === item.id}
-							href={navLink(item)}
-							aria-current={active?.id === item.id ? 'page' : undefined}
-							><NavIcon {item} />{item.label}</a
-						>
-					{/each}
-					{#each NAV_GROUPS as group (group.id)}
-						<div class="gl">{group.label}</div>
-						{#each navGroupItems(group.id) as item (item.id)}
-							{@const href = navLink(item)}
-							{#if href}
-								<a
-									class="nav"
-									class:on={active?.id === item.id}
-									{href}
-									aria-current={active?.id === item.id ? 'page' : undefined}
-									><NavIcon {item} />{item.label}
-									{#if countOf(item)}<span class="count" title="Pendientes">{countOf(item)}</span
-										>{/if}</a
-								>
-							{:else}
-								<span class="nav off" aria-disabled="true"
-									><NavIcon {item} />{item.label}<span class="soon">pronto</span></span
-								>
-							{/if}
-						{/each}
-					{/each}
-				</nav>
+				<SideNav {active} {counts} {flags} {hideSoon} />
 				<div class="foot">
 					<button type="button" class="nav" on:click={toggleTheme}
 						><svelte:component
@@ -257,6 +247,13 @@
 			<div class="main">
 				<header class="top">
 					<SearchBox />
+					<a
+						class="review"
+						href={REVIEW_LINK.href}
+						title={reviewCount ? `${REVIEW_LINK.label}: ${reviewCount}` : REVIEW_LINK.label}
+						><ClipboardCheck size={18} aria-hidden="true" />{REVIEW_LINK.label}
+						{#if reviewCount}<span class="count">{reviewCount}</span>{/if}</a
+					>
 					<a class="kv-btn" href="/admin/eventos/nuevo"
 						><Plus size={18} strokeWidth={2.5} aria-hidden="true" />Cargar evento</a
 					>
@@ -283,6 +280,13 @@
 									aria-hidden="true"
 								/>{THEME_LABELS[theme].label}</button
 							>
+							<button type="button" aria-pressed={hideSoon} on:click={toggleHideSoon}
+								><svelte:component
+									this={hideSoon ? Eye : EyeOff}
+									size={18}
+									aria-hidden="true"
+								/>{hideSoon ? 'Mostrar lo que viene' : 'Ocultar lo que viene'}</button
+							>
 							<a href="/" target="_blank" rel="noopener"
 								><ExternalLink size={18} aria-hidden="true" />Ver el sitio</a
 							>
@@ -300,6 +304,14 @@
 					<SearchBox compact hotkeys={false} />
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"
 						>Sitio<ExternalLink size={14} aria-hidden="true" /></a
+					>
+					<a
+						class="mreview"
+						href={REVIEW_LINK.href}
+						aria-label={reviewCount ? `${REVIEW_LINK.label}: ${reviewCount}` : REVIEW_LINK.label}
+						><ClipboardCheck size={20} aria-hidden="true" />{#if reviewCount}<span class="count"
+								>{reviewCount}</span
+							>{/if}</a
 					>
 					<button
 						type="button"
@@ -324,9 +336,8 @@
 		<nav class="tabbar" aria-label="Secciones principales">
 			{#each mobileTabs as tab, i (i)}
 				{#if tab}
-					{@const href = navLink(tab.item)}
 					<a
-						href={href ?? '/admin'}
+						href={tab.item.href}
 						class:on={active?.id === tab.item.id}
 						class:door={tab.item.id === 'checkin'}
 						aria-current={active?.id === tab.item.id ? 'page' : undefined}
@@ -393,25 +404,19 @@
 							>
 						</div>
 					</div>
-					{#each NAV_GROUPS as group (group.id)}
-						<div class="gl">{group.label}</div>
-						<div class="cards">
-							{#each navGroupItems(group.id) as item (item.id)}
-								{@const href = navLink(item)}
-								{#if href}
-									<a {href} class="tile" class:hl={item.highlight} class:on={active?.id === item.id}
-										><NavIcon {item} />{item.label}
-										{#if countOf(item)}<span class="count">{countOf(item)}</span>{/if}</a
-									>
-								{:else}
-									<span class="tile off" aria-disabled="true"
-										><NavIcon {item} />{item.label}<small>pronto</small></span
-									>
-								{/if}
-							{/each}
-						</div>
-					{/each}
+					<MoreAreas {active} {counts} {flags} {hideSoon} />
 					<div class="sheet-foot">
+						<button
+							type="button"
+							class="kv-btn ghost small"
+							aria-pressed={hideSoon}
+							on:click={toggleHideSoon}
+							><svelte:component
+								this={hideSoon ? Eye : EyeOff}
+								size={16}
+								aria-hidden="true"
+							/>{hideSoon ? 'Mostrar lo que viene' : 'Ocultar lo que viene'}</button
+						>
 						<button type="button" class="kv-btn ghost small" on:click={toggleTheme}
 							><svelte:component
 								this={THEME_ICONS[theme]}
@@ -452,11 +457,6 @@
 		top: 0;
 		height: 100vh;
 		overflow: auto;
-		nav {
-			display: flex;
-			flex-direction: column;
-			gap: 0.1rem;
-		}
 	}
 	.brand {
 		display: flex;
@@ -478,12 +478,6 @@
 		padding: 0.1em 0.8em;
 		font-size: 0.85rem;
 	}
-	.gl {
-		font-size: 0.78rem;
-		font-weight: 700;
-		color: var(--muted);
-		padding: 0.9rem 0.8rem 0.2rem;
-	}
 	.nav {
 		display: flex;
 		align-items: center;
@@ -503,18 +497,6 @@
 			background: var(--surface-2);
 			color: var(--accent);
 		}
-		&.on {
-			background: var(--link-bg);
-			color: var(--link);
-		}
-		&.off {
-			color: var(--muted);
-			font-weight: 400;
-			cursor: default;
-			&:hover {
-				background: none;
-			}
-		}
 	}
 	.count {
 		margin-left: auto;
@@ -526,17 +508,29 @@
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 	}
-	.soon {
-		margin-left: auto;
-		font-size: 0.7rem;
-		border: 1px solid var(--line);
-		color: var(--muted);
-		border-radius: 2em;
-		padding: 0 0.5em;
+	/* Botón global "Para revisar": amarillo como los contadores. */
+	.review {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 		white-space: nowrap;
+		text-decoration: none;
+		font-weight: 700;
+		color: var(--text);
+		border: 2px solid var(--counter);
+		background: color-mix(in srgb, var(--counter) 18%, var(--surface));
+		border-radius: 3em;
+		padding: 0.3em 0.9em;
+		.count {
+			margin-left: 0.1rem;
+		}
+		&:hover {
+			color: var(--text);
+			background: color-mix(in srgb, var(--counter) 35%, var(--surface));
+		}
 	}
 	.foot {
-		margin-top: auto;
+		margin-top: 0.5rem;
 		border-top: 1px solid var(--line);
 		padding-top: 0.5rem;
 		.nav {
@@ -662,6 +656,23 @@
 				border-radius: 3em;
 				padding: 0.15em 0.6em;
 			}
+			.mreview {
+				position: relative;
+				flex: none;
+				width: 2.2rem;
+				height: 2.2rem;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				background: var(--surface);
+				color: var(--text);
+				.count {
+					position: absolute;
+					top: -0.25rem;
+					right: -0.35rem;
+					margin: 0;
+				}
+			}
 		}
 		.page {
 			padding: 0.2rem 16px calc(6.5rem + env(safe-area-inset-bottom, 0px));
@@ -771,9 +782,6 @@
 			background: var(--line);
 			margin: 0 auto 0.6rem;
 		}
-		.gl {
-			padding-inline: 0.2rem;
-		}
 	}
 	@keyframes sheet-in {
 		from {
@@ -815,43 +823,6 @@
 			display: grid;
 			place-items: center;
 			cursor: pointer;
-		}
-	}
-	.cards {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.5rem;
-	}
-	.tile {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		background: var(--surface);
-		color: var(--accent);
-		border-radius: var(--round);
-		box-shadow: var(--shadow);
-		padding: 0.75rem 0.8rem;
-		text-decoration: none;
-		font-weight: 700;
-		min-width: 0;
-		&.hl {
-			background: var(--accent);
-			color: var(--accent-ink);
-		}
-		&.on {
-			color: var(--link);
-			box-shadow: inset 0 0 0 2px var(--link);
-		}
-		&.off {
-			font-weight: 400;
-			color: var(--muted);
-			background: transparent;
-			box-shadow: inset 0 0 0 1px var(--line);
-			flex-wrap: wrap;
-			small {
-				margin-left: auto;
-				font-size: 0.7rem;
-			}
 		}
 	}
 	.sheet-foot {

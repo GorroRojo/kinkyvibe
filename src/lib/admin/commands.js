@@ -2,12 +2,13 @@
  * Acciones y atajos de teclado de la paleta de comandos del panel (SearchBox). Sin dependencias
  * del navegador: se testea en Node.
  *
- * - Acciones: todas las secciones del menú (`NAV`) que ya tienen página, más atajos como
+ * - Acciones: todas las secciones del menú (`NAV`) que ya tienen página (también las de
+ *   Ajustes, como Interruptores; las "Próximamente" no), más atajos como
  *   "Nuevo código" o "Abrir check-in de hoy".
  * - Atajos de dos teclas: `g` y después una letra (`g i` Inicio, `g e` Eventos…). `/` o
  *   Ctrl/⌘+K abren la paleta y `?` muestra la hoja de atajos.
  */
-import { NAV, NAV_GROUPS, navItem, navLink } from './nav.js';
+import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
 
 /**
  * @typedef {{
@@ -57,7 +58,9 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'eventos-nuevo': 'nuevo crear evento cargar duplicar',
 	'eventos-importar': 'importar planilla excel sheet',
 	'eventos-agenda': 'agenda planilla tabla',
-	'eventos-lugares': 'lugares direccion mapa venue espacio donde',
+	'eventos-lugares': 'lugares direccion mapa venue espacio donde aprobar rechazados',
+	'eventos-series': 'series ediciones recurrente repetir avisame',
+	'ajustes-personas': 'personas roles preguntas inscripcion organiza facilita campos',
 	checkin: 'check-in ingreso puerta qr escanear',
 	entradas: 'ventas entradas plata recaudado',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
@@ -68,7 +71,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'no-listadas': 'no listadas borradores ocultas',
 	'ajustes-cobros': 'ajustes cobros alias cbu mercado pago comision',
 	'ajustes-fondo': 'ajustes fondo porcentaje',
-	'ajustes-mails': 'ajustes de mails plantillas recordatorios remitente email',
+	'ajustes-mails': 'ajustes de mails plantillas recordatorios remitente email envios',
+	'ajustes-plantillas': 'plantillas textos mails email compra recordatorio mensajes',
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	cuentas: 'cuentas usuaries publico registradas',
@@ -84,6 +88,8 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'eventos-importar': 'sheet',
 	'eventos-agenda': 'calendar',
 	'eventos-lugares': 'map-pin',
+	'eventos-series': 'calendar',
+	'ajustes-personas': 'users',
 	checkin: 'scan',
 	entradas: 'wallet',
 	'entradas-transferencias': 'transfer',
@@ -98,11 +104,18 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
+	'ajustes-plantillas': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
 	cuentas: 'person',
 	'cuentas-perfiles': 'person',
-	actividad: 'history'
+	actividad: 'history',
+	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).
+	tienda: 'wallet',
+	bandeja: 'mail',
+	'lo-que-sigo': 'tag',
+	colecciones: 'book',
+	videos: 'book'
 });
 
 /**
@@ -124,7 +137,7 @@ export function shortcutOf(id) {
 export function buildCommands({ today = [] } = {}) {
 	/** @type {Command[]} */
 	const out = [];
-	const groupLabel = new Map(NAV_GROUPS.map((g) => [g.id, g.label]));
+	const areaLabel = new Map(NAV_AREAS.map((a) => [a.id, a.label]));
 	const checkin = navItem('checkin');
 	const checkinFallback = checkin ? navLink(checkin) : null;
 
@@ -164,8 +177,8 @@ export function buildCommands({ today = [] } = {}) {
 		out.push({
 			id: `nav:${item.id}`,
 			label: item.label,
-			hint: item.group ? (groupLabel.get(item.group) ?? '') : 'Panel',
-			keywords: `${NAV_KEYWORDS[item.id] ?? ''} ${item.group ?? ''}`,
+			hint: item.area ? (areaLabel.get(item.area) ?? '') : 'Panel',
+			keywords: `${NAV_KEYWORDS[item.id] ?? ''} ${item.area ?? ''}`,
 			icon: NAV_ICONS[item.id] ?? 'arrow',
 			href,
 			shortcut: shortcutOf(item.id) || undefined,

@@ -102,10 +102,12 @@ async function seedFondo() {
 }
 
 describe('/admin/propinas', () => {
-	it('está en el menú, en el grupo de Ventas', () => {
+	// Mapa del panel: pasó de Ventas a Ajustes › Plata, al lado de Cobros y Fondo (la URL no cambia).
+	it('está en el menú, en Ajustes › Plata', () => {
 		expect(navItem('propinas')).toMatchObject({
 			href: '/admin/propinas',
-			group: 'entradas',
+			area: 'ajustes',
+			sub: 'plata',
 			soon: false
 		});
 	});
