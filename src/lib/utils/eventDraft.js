@@ -6,6 +6,8 @@
  */
 import { parseDocument, isScalar, isSeq, Scalar } from 'yaml';
 
+export { slugify } from './text.js';
+
 /** Argentina's UTC offset. The site writes every event date with it. */
 export const AR_OFFSET = '-03:00';
 
@@ -494,20 +496,6 @@ export function deriveSlug(sourceSlug, startDate) {
 	);
 }
 
-/**
- * "¡Córdoba! Taller de Ecofetichismo" → "cordoba-taller-de-ecofetichismo"
- * @param {string} text
- */
-export function slugify(text) {
-	return String(text ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 80)
-		.replace(/-+$/, '');
-}
 
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
