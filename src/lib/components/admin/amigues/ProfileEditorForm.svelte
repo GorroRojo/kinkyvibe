@@ -12,6 +12,7 @@
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
 	export let values;
@@ -199,21 +200,16 @@
 						compra entrada recibe siempre la dirección.</small
 					>
 				</label>
-				<label class="kv-field">
-					<span>Latitud</span>
-					<input name="lat" inputmode="decimal" bind:value={values.lat} placeholder="-34.6037" />
-					{#if err('lat')}<small class="kv-error">{err('lat')}</small>{/if}
-				</label>
-				<label class="kv-field">
-					<span>Longitud</span>
-					<input name="lng" inputmode="decimal" bind:value={values.lng} placeholder="-58.3816" />
-					{#if err('lng')}<small class="kv-error">{err('lng')}</small>{/if}
-				</label>
 			</div>
-			<p class="kv-note">
-				La ubicación sale de openstreetmap.org: buscá el lugar, clic derecho → «Mostrar dirección» y
-				copiá los dos números. El mapa se ve solo si la dirección es pública.
-			</p>
+			<VenueCoordinates
+				bind:lat={values.lat}
+				bind:lng={values.lng}
+				{errors}
+				gridClass="kv-grid-2"
+				fieldClass="kv-field"
+				errorClass="kv-error"
+				noteClass="kv-note"
+			/>
 			<label class="kv-field">
 				<span>Cómo llegar</span>
 				<textarea name="how_to_get_there" rows="3" bind:value={values.text.how_to_get_there}

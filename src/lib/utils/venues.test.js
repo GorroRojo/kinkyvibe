@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_VENUE_PRIVACY,
+	REJECT_REASON_MAX,
+	cleanRejectReason,
+	coordinateText,
 	effectivePrivacy,
 	fullAddress,
 	osmLink,
 	osmTiles,
+	parseCoordinate,
+	reviewState,
 	showsVenueLink,
 	venueLine,
 	venueSchema,
@@ -132,5 +137,38 @@ describe('mapa de OpenStreetMap', () => {
 		expect(
 			tiles.some((t) => t.left <= 160 && t.left + 256 > 160 && t.top <= 100 && t.top + 256 > 100)
 		).toBe(true);
+	});
+});
+
+describe('ubicación en el mapa (panel y Mi rincón)', () => {
+	it('parseCoordinate acepta coma o punto, vacío es undefined y lo raro queda como texto', () => {
+		expect(parseCoordinate('-34,6037')).toBe(-34.6037);
+		expect(parseCoordinate(' -58.3816 ')).toBe(-58.3816);
+		expect(parseCoordinate('')).toBeUndefined();
+		expect(parseCoordinate('   ')).toBeUndefined();
+		expect(parseCoordinate('acá')).toBe('acá');
+	});
+
+	it('coordinateText muestra solo números guardados', () => {
+		expect(coordinateText(-34.6037)).toBe('-34.6037');
+		expect(coordinateText(undefined)).toBe('');
+		expect(coordinateText('-34')).toBe('');
+		expect(coordinateText(Number.NaN)).toBe('');
+	});
+});
+
+describe('rechazo de lugares que cargan las cuentas', () => {
+	it('cleanRejectReason junta espacios, recorta y corta al máximo', () => {
+		expect(cleanRejectReason('  falta   la\n dirección ')).toBe('falta la dirección');
+		expect(cleanRejectReason(undefined)).toBe('');
+		expect(cleanRejectReason(42)).toBe('');
+		expect(cleanRejectReason('x'.repeat(REJECT_REASON_MAX + 50))).toHaveLength(REJECT_REASON_MAX);
+	});
+
+	it('reviewState: aprobar gana; si no, rechazado o esperando', () => {
+		expect(reviewState(true, false)).toBe('approved');
+		expect(reviewState(true, true)).toBe('approved');
+		expect(reviewState(false, true)).toBe('rejected');
+		expect(reviewState(false, false)).toBe('pending');
 	});
 });

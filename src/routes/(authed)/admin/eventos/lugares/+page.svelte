@@ -5,10 +5,10 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { Clock, MapPin } from '@lucide/svelte';
+	import { Ban, Clock, MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
-	import { DEFAULT_VENUE_PRIVACY } from '$lib/utils/venues.js';
+	import { DEFAULT_VENUE_PRIVACY, REJECT_REASON_MAX } from '$lib/utils/venues.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -25,6 +25,23 @@
 	/** @type {Record<string, string>} */
 	$: labels = data.privacyLabels;
 	let newName = '';
+
+	/**
+	 * Columnas del CSV que comparten "Para aprobar" y "Rechazados".
+	 * @type {import('$lib/admin/csv.js').CsvColumn<any>[]}
+	 */
+	const VENUE_CSV_COLUMNS = [
+		{ label: 'Lugar', key: 'title' },
+		{ label: 'Dirección en el sitio', key: 'slug' },
+		{ label: 'Dirección', key: 'address' },
+		{ label: 'Barrio', key: 'area' },
+		{ label: 'Ciudad', key: 'city' },
+		{ label: 'Lo cargó', value: (v) => (v.byAccount ? 'una cuenta' : 'el panel') },
+		{ label: 'Creado', value: (v) => fmtDateTime(v.createdAt) }
+	];
+	/** @param {{ address: string, area: string, city: string }} v */
+	const addressLine = (v) =>
+		[v.address, v.area, v.city].filter(Boolean).join(', ') || 'sin dirección';
 </script>
 
 <PageHeader
@@ -59,20 +76,14 @@
 				<CsvButton
 					rows={data.pending}
 					filename="lugares-para-aprobar.csv"
-					columns={[
-						{ label: 'Lugar', key: 'title' },
-						{ label: 'Dirección en el sitio', key: 'slug' },
-						{ label: 'Dirección', key: 'address' },
-						{ label: 'Barrio', key: 'area' },
-						{ label: 'Ciudad', key: 'city' },
-						{ label: 'Lo cargó', value: (v) => (v.byAccount ? 'una cuenta' : 'el panel') },
-						{ label: 'Creado', value: (v) => fmtDateTime(v.createdAt) }
-					]}
+					columns={VENUE_CSV_COLUMNS}
 				/>
 			</svelte:fragment>
 			<p class="kv-note">
 				Lugares que cargaron las cuentas. No aparecen en el sitio (ni en los eventos) hasta que los
-				aprobás. Rechazar lo borra: deja de verse también en el Mi rincón de quien lo cargó.
+				aprobás. Si lo rechazás, sigue sin aparecer y sale de esta lista; quien lo cargó lo ve como
+				«Rechazado» en su Mi rincón, con el motivo si escribís uno, y pasa a "Rechazados". Cuando lo
+				vuelve a mandar, aparece acá otra vez.
 			</p>
 			<div class="kv-table-wrap">
 				<table class="kv-table">
@@ -94,20 +105,82 @@
 										)}</small
 									>
 								</td>
-								<td class="hide-sm small"
-									>{[v.address, v.area, v.city].filter(Boolean).join(', ') || 'sin dirección'}</td
-								>
+								<td class="hide-sm small">{addressLine(v)}</td>
 								<td>
 									<div class="kv-row">
 										<form method="POST" action="?/aprobarLugar" use:enhance>
 											<input type="hidden" name="lugar" value={v.id} />
 											<button class="kv-btn small" type="submit">Aprobar</button>
 										</form>
-										<form method="POST" action="?/rechazarLugar" use:enhance>
+										<form method="POST" action="?/rechazarLugar" class="kv-row" use:enhance>
 											<input type="hidden" name="lugar" value={v.id} />
+											<input
+												name="motivo"
+												class="kv-input reason"
+												maxlength={REJECT_REASON_MAX}
+												placeholder="Motivo (opcional)"
+												aria-label="Motivo del rechazo para «{v.title}» (opcional, lo ve quien lo cargó)"
+											/>
 											<button class="kv-btn ghost small" type="submit">Rechazar</button>
 										</form>
 									</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</Card>
+	{/if}
+
+	{#if data.rejected.length}
+		<Card title="Rechazados" icon={Ban}>
+			<svelte:fragment slot="actions">
+				<CsvButton
+					rows={data.rejected}
+					filename="lugares-rechazados.csv"
+					columns={[
+						...VENUE_CSV_COLUMNS,
+						{ label: 'Rechazado', value: (v) => fmtDateTime(v.rejectedAt) },
+						{ label: 'Lo rechazó', key: 'rejectedBy' },
+						{ label: 'Motivo', key: 'reason' }
+					]}
+				/>
+			</svelte:fragment>
+			<p class="kv-note">
+				No aparecen en el sitio. Quien los cargó los ve como «Rechazado» (con el motivo) y los puede
+				corregir y volver a mandar. Si cambiaste de idea, aprobalos acá.
+			</p>
+			<div class="kv-table-wrap">
+				<table class="kv-table">
+					<thead>
+						<tr>
+							<th>Lugar</th>
+							<th>Rechazo</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.rejected as v (v.id)}
+							<tr>
+								<td>
+									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<small class="muted block"
+										>{v.byAccount ? 'Lo cargó una cuenta' : 'Lo cargó el panel'}, {fmtDateTime(
+											v.createdAt
+										)}</small
+									>
+									<small class="muted block hide-sm">{addressLine(v)}</small>
+								</td>
+								<td class="small">
+									{fmtDateTime(v.rejectedAt)} · {v.rejectedBy}
+									{#if v.reason}<span class="block">Motivo: <q>{v.reason}</q></span>{/if}
+								</td>
+								<td>
+									<form method="POST" action="?/aprobarLugar" use:enhance>
+										<input type="hidden" name="lugar" value={v.id} />
+										<button class="kv-btn small" type="submit">Aprobar</button>
+									</form>
 								</td>
 							</tr>
 						{/each}
@@ -298,6 +371,11 @@
 	}
 	.grow {
 		flex: 1 1 16rem;
+	}
+	.reason {
+		min-width: 0;
+		width: 12rem;
+		max-width: 100%;
 	}
 	.new {
 		margin-top: 1rem;

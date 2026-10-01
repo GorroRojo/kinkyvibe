@@ -52,5 +52,12 @@
 		subtitle="Perfiles de personas y proyectos amigues (se usan en «Organizan» y «Autores»)."
 		newLabel="Nuevo perfil"
 		canDuplicate={false}
-	/>
+	>
+		<p class="kv-note">
+			Pasá las fichas a la base para revisarlas antes de prender «perfiles_publicos».
+		</p>
+		<svelte:fragment slot="actions">
+			<a class="kv-btn ghost" href="/admin/amigues/importar">Importar y clasificar</a>
+		</svelte:fragment>
+	</ContentList>
 {/if}

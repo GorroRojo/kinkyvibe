@@ -37,7 +37,10 @@ export async function load(event) {
 			title: p.title,
 			kind: p.kind,
 			visibility: p.visibility,
-			role: p.role
+			role: p.role,
+			// Si aparece en el sitio, espera a une admin o (solo lugares) une admin lo rechazó.
+			review: p.review,
+			rejectReason: p.rejectReason
 		})),
 		invites,
 		memberships,

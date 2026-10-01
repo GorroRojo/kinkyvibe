@@ -219,7 +219,10 @@ describe('crear y listar', () => {
 				kind: 'persona',
 				visibility: 'public',
 				version: 1,
-				role: 'owner'
+				role: 'owner',
+				// Recién creado por una cuenta: espera a une admin (sin motivo de rechazo).
+				review: 'pending',
+				rejectReason: ''
 			}
 		]);
 	});
@@ -1557,6 +1560,29 @@ describe('lugares desde las cuentas (decisión de gorrite, 0022)', () => {
 		expect(accountVenueData(undefined, current)).toEqual(current);
 		// Privacidad vacía = sin elegir (la dirección completa, decisión 0021).
 		expect(accountVenueData({ venue_privacy: '' }, { venue_privacy: 'hidden' })).toEqual({});
+	});
+
+	it('accountVenueData: la ubicación en el mapa se lee como en el editor del panel', () => {
+		const current = { kind: 'lugar', lat: -34.6, lng: -58.4 };
+		// Coma o punto: números.
+		expect(accountVenueData({ lat: '-34,61', lng: ' -58.39 ' }, current)).toMatchObject({
+			lat: -34.61,
+			lng: -58.39
+		});
+		// Vacías: se sacan.
+		const cleared = accountVenueData({ lat: '', lng: '' }, current);
+		expect(cleared).not.toHaveProperty('lat');
+		expect(cleared).not.toHaveProperty('lng');
+		// Lo que no es un número queda como texto, para que el tipo `perfil` lo marque.
+		expect(accountVenueData({ lat: 'cerca', lng: '-58' }, current)).toMatchObject({
+			lat: 'cerca',
+			lng: -58
+		});
+		// Si el formulario no las trae, quedan como estaban.
+		expect(accountVenueData({ address: 'Calle Inventada 1' }, current)).toMatchObject({
+			lat: -34.6,
+			lng: -58.4
+		});
 	});
 
 	it('una cuenta crea un lugar: no es público hasta que une admin lo aprueba', async () => {
