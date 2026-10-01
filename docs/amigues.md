@@ -123,7 +123,7 @@ la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues
 | `profile_sources`    | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
 | `profile_approvals`  | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
 | `profile_claims`     | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
-| `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; editarlo o aprobarlo borra la fila                                                                                                           |
+| `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
 | `event_venues`       | "sucede en" provisorio, con la privacidad del evento                                                                                                                                                                                |
 
 ## Dónde está el código

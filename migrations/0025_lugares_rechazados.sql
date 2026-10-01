@@ -3,8 +3,8 @@
 -- Hasta ahora, rechazar un lugar que cargó una cuenta (Panel → Eventos → Lugares, "Para aprobar")
 -- lo borraba (suave) y desaparecía también del Mi rincón de quien lo cargó. Decisión de gorrite:
 -- el lugar sigue existiendo (sin aparecer en el sitio) y quien lo cargó lo ve como «Rechazado»,
--- con el motivo si le admin escribió uno. Si lo edita, vuelve a esperar aprobación (se borra la
--- fila). Aprobarlo también la borra.
+-- con el motivo si le admin escribió uno. Editarlo no cambia eso: vuelve a esperar aprobación
+-- cuando toca «Volver a mandar» (se borra la fila). Aprobarlo también la borra.
 --
 -- - Una fila por perfil: el último rechazo. Sin fila = no está rechazado.
 -- - Solo agrega una tabla: no toca nada de lo que ya existe. El código que está en `main` no la

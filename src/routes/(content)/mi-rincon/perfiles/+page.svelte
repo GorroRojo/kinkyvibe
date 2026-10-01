@@ -168,8 +168,8 @@
 						</span>
 						{#if p.review === 'rejected'}
 							<span class="rejected"
-								><strong>Rechazado</strong>{#if p.rejectReason}: <q>{p.rejectReason}</q>{/if}. Si lo
-								corregís y guardás, vuelve a esperar aprobación.</span
+								><strong>Rechazado</strong>{#if p.rejectReason}: <q>{p.rejectReason}</q>{/if}. Entrá
+								para corregirlo y volver a mandarlo.</span
 							>
 						{/if}
 					</li>

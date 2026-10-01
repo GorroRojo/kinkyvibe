@@ -28,7 +28,11 @@ import {
 } from '$lib/server/amigues/venues.js';
 import { createProfileAction } from '$lib/server/admin/amiguesRoutes.js';
 import { approveProfile } from '$lib/server/amigues/approvals.js';
-import { listPendingVenues, rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
+import {
+	listPendingVenues,
+	listRejectedVenues,
+	rejectPendingVenue
+} from '$lib/server/amigues/pendingVenues.js';
 import { isVenuePrivacy, VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
@@ -56,16 +60,19 @@ export async function load({ locals, url, platform, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [venues, links, events, flagOn, pending] = await Promise.all([
+	const [venues, links, events, flagOn, pending, rejected] = await Promise.all([
 		listVenues(db),
 		listEventVenues(db),
 		eventChoices(),
 		perfilesPublicosEnabled(platform),
-		listPendingVenues(db)
+		listPendingVenues(db),
+		// "Rechazados" (decisión de gorrite): quién lo rechazó y el motivo; se pueden aprobar.
+		listRejectedVenues(db)
 	]);
 	return {
 		flagOn,
 		pending,
+		rejected,
 		venues: venues.map((v) => ({
 			id: v.id,
 			slug: v.slug,
@@ -92,7 +99,9 @@ export const actions = {
 		const db = getDB(platform);
 		if (!db) return fail(503, { pending: { ok: false, message: 'Sin base de datos.' } });
 		const id = Number((await request.formData()).get('lugar'));
-		const venue = (await listPendingVenues(db)).find((v) => v.id === id);
+		// Desde "Para aprobar" o desde "Rechazados" (aprobar borra el rechazo, ver approvals.js).
+		const [pending, rejected] = await Promise.all([listPendingVenues(db), listRejectedVenues(db)]);
+		const venue = [...pending, ...rejected].find((v) => v.id === id);
 		if (!venue) {
 			return fail(404, { pending: { ok: false, message: 'Ese lugar ya no está para aprobar.' } });
 		}

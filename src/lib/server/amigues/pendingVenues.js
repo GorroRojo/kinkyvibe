@@ -10,8 +10,9 @@
  * - Aprobar es {@link approveProfile}. Rechazar NO lo borra (decisión de gorrite): deja una fila
  *   en `profile_rejections` (migración 0025) con quién, cuándo y un motivo opcional. El lugar
  *   sigue sin aparecer en el sitio, sale de "Para aprobar" y quien lo cargó lo ve en Mi rincón
- *   como «Rechazado» (con el motivo). Si lo edita, vuelve a esperar: `updateProfile` borra la
- *   fila en la misma tanda (`clearRejectionStatement` en approvals.js).
+ *   como «Rechazado» (con el motivo). Editarlo no lo vuelve a mandar: lo hace «Volver a mandar»
+ *   (`resubmitVenue` en cuentas/perfiles.js), que borra la fila (`clearRejectionStatement` en
+ *   approvals.js). Los rechazados se listan en el panel con {@link listRejectedVenues}.
  */
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
@@ -34,6 +35,36 @@ import { approvalOf } from './approvals.js';
 const str = (v) => (typeof v === 'string' ? v : '');
 
 /**
+ * Una fila de objects (lugar) → lo que muestran "Para aprobar" y "Rechazados".
+ *
+ * @param {Record<string, unknown>} r
+ * @returns {PendingVenue}
+ */
+function toVenueRow(r) {
+	const o = rowToObject(r);
+	return {
+		id: o.id,
+		slug: o.slug,
+		title: o.title,
+		version: o.version,
+		visibility: o.visibility,
+		address: str(o.data.address),
+		area: str(o.data.area),
+		city: str(o.data.city),
+		createdAt: o.created_at,
+		byAccount: o.created_by.startsWith('cuenta:')
+	};
+}
+
+/** Condición SQL: `o` es un lugar vivo sin aprobar. */
+const UNAPPROVED_VENUE = `o.type = ?1 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'
+	AND NOT EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)`;
+
+const VENUE_COLUMNS = OBJECT_COLUMNS.split(', ')
+	.map((c) => `o.${c}`)
+	.join(', ');
+
+/**
  * Los lugares sin aprobar ni rechazar (no borrados), del más viejo al más nuevo (el que más
  * espera, primero).
  *
@@ -43,29 +74,41 @@ const str = (v) => (typeof v === 'string' ? v : '');
 export async function listPendingVenues(db) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${OBJECT_COLUMNS} FROM objects o
-			WHERE o.type = ?1 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'
-			AND NOT EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)
+			`SELECT ${VENUE_COLUMNS} FROM objects o
+			WHERE ${UNAPPROVED_VENUE}
 			AND NOT EXISTS (SELECT 1 FROM profile_rejections rj WHERE rj.profile_id = o.id)
 			ORDER BY o.created_at, o.id LIMIT 500`
 		)
 		.bind(PROFILE_TYPE)
 		.all();
-	return results.map((r) => {
-		const o = rowToObject(r);
-		return {
-			id: o.id,
-			slug: o.slug,
-			title: o.title,
-			version: o.version,
-			visibility: o.visibility,
-			address: str(o.data.address),
-			area: str(o.data.area),
-			city: str(o.data.city),
-			createdAt: o.created_at,
-			byAccount: o.created_by.startsWith('cuenta:')
-		};
-	});
+	return results.map(toVenueRow);
+}
+
+/**
+ * Los lugares rechazados (sin aprobar, no borrados), del rechazo más nuevo al más viejo, con
+ * cuándo, quién (login de le admin) y el motivo. Para la tarjeta "Rechazados" del panel (solo
+ * admins): desde ahí se pueden aprobar.
+ *
+ * @param {D1Database} db
+ * @returns {Promise<(PendingVenue & { rejectedAt: number, rejectedBy: string, reason: string })[]>}
+ */
+export async function listRejectedVenues(db) {
+	const { results } = await db
+		.prepare(
+			`SELECT ${VENUE_COLUMNS}, rj.rejected_at AS rejected_at, rj.rejected_by AS rejected_by,
+				rj.reason AS reason
+			FROM objects o JOIN profile_rejections rj ON rj.profile_id = o.id
+			WHERE ${UNAPPROVED_VENUE}
+			ORDER BY rj.rejected_at DESC, o.id LIMIT 500`
+		)
+		.bind(PROFILE_TYPE)
+		.all();
+	return results.map((r) => ({
+		...toVenueRow(r),
+		rejectedAt: Number(r.rejected_at),
+		rejectedBy: str(r.rejected_by),
+		reason: str(r.reason)
+	}));
 }
 
 /**

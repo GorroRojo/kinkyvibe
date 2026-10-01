@@ -26,6 +26,7 @@ import {
 	listManagers,
 	listMemberships,
 	removeManager,
+	resubmitVenue,
 	removeMember,
 	setManagerRole,
 	updateProfile,
@@ -125,7 +126,7 @@ export async function load(event) {
 		},
 		// Sin aprobar no aparece en el sitio (decisión de gorrite: los perfiles y lugares nuevos de
 		// las cuentas esperan a une admin). Un lugar rechazado tampoco, pero quien lo cargó lo sigue
-		// viendo, con el motivo; si lo edita, vuelve a esperar (perfiles.js, updateProfile).
+		// viendo, con el motivo, y lo vuelve a mandar con «Volver a mandar» (perfiles.js).
 		pending: review === 'pending',
 		rejection:
 			review === 'rejected' && rejection ? { at: rejection.at, reason: rejection.reason } : null,
@@ -204,12 +205,19 @@ export const actions = {
 			});
 		}
 		// El nombre no cambia la dirección (así los links que ya circulan siguen andando).
-		return {
-			action: 'guardar',
-			message: result.resubmitted
-				? 'Guardado. Lo volvimos a mandar para que une admin lo revise.'
-				: 'Guardado.'
-		};
+		return { action: 'guardar', message: 'Guardado.' };
+	},
+
+	// «Volver a mandar» un lugar rechazado (decisión de gorrite): editar no alcanza.
+	volverAMandar: async (event) => {
+		const { db, member, slug } = await managed(event);
+		return guarded('revision', async () =>
+			reply(
+				'revision',
+				await resubmitVenue(db, member.id, slug),
+				'Listo: lo volvimos a mandar. Une admin lo va a revisar.'
+			)
+		);
 	},
 
 	invitar: async (event) => {

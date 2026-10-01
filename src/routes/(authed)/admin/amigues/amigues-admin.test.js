@@ -400,17 +400,45 @@ describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)
 		);
 		expect(twice.status).toBe(409);
 		expect(await audit('profile.reject')).toHaveLength(1);
-		// Tampoco se aprueba desde "Para aprobar" (ya no está); desde su ficha sí, y el rechazo se va.
+		// Pasa a "Rechazados" (decisión de gorrite), con quién, cuándo y el motivo.
+		const withRejected = /** @type {any} */ (await m.lugares.load(fakeEvent()));
+		expect(withRejected.rejected).toEqual([
+			expect.objectContaining({
+				id: b.id,
+				title: 'Bar Pendiente Inventado',
+				byAccount: true,
+				rejectedBy: String(rejection?.rejected_by),
+				reason: 'Falta la dirección'
+			})
+		]);
+		expect(typeof withRejected.rejected[0].rejectedAt).toBe('number');
+		// "Aprobar" desde "Rechazados": lo publica, borra el rechazo y sale de la lista.
 		const lateApprove = /** @type {any} */ (
 			await m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: String(b.id) } }))
 		);
-		expect(lateApprove.status).toBe(404);
-		await approveProfile(t.db, b.id, 'admin-de-prueba');
+		expect(lateApprove.pending.ok).toBe(true);
 		expect(await isApproved(t.db, b.id)).toBe(true);
 		expect(
 			await t.db
 				.prepare('SELECT 1 FROM profile_rejections WHERE profile_id = ?1')
 				.bind(b.id)
+				.first()
+		).toBeNull();
+		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).rejected).toEqual([]);
+		expect(await audit('profile.approve')).toHaveLength(2);
+		// approveProfile (la ficha del lugar) también borra un rechazo.
+		const c = await makeProfile(t.db, {
+			title: 'Otro Bar Inventado',
+			kind: 'lugar',
+			approved: false,
+			actor: `cuenta:${cuenta.id}`
+		});
+		await m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: String(c.id) } }));
+		await approveProfile(t.db, c.id, 'admin-de-prueba');
+		expect(
+			await t.db
+				.prepare('SELECT 1 FROM profile_rejections WHERE profile_id = ?1')
+				.bind(c.id)
 				.first()
 		).toBeNull();
 
@@ -456,6 +484,39 @@ describe('Eventos → Lugares: rechazar es solo de admins', () => {
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM profile_rejections').first())?.n).toBe(0);
 		expect(await isApproved(t.db, v.id)).toBe(false);
 		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).pending).toHaveLength(1);
+	});
+
+	it('"Rechazados": sin sesión o sin ser admin, ni se ve ni se aprueba', async () => {
+		const m = await modules('1');
+		const cuenta = await makeAccount(t.db, 'carga-lugares');
+		const v = await makeProfile(t.db, {
+			title: 'Sala Rechazada Inventada',
+			kind: 'lugar',
+			approved: false,
+			actor: `cuenta:${cuenta.id}`
+		});
+		await m.lugares.actions.rechazarLugar(
+			fakeEvent({ form: { lugar: String(v.id), motivo: 'Motivo inventado' } })
+		);
+		const form = { lugar: String(v.id) };
+		const intruder = { id: 1, login: 'no-es-admin' };
+		expect(
+			(await thrown(() => m.lugares.load(fakeEvent({ user: null, token: null }))))?.status
+		).toBe(303);
+		expect((await thrown(() => m.lugares.load(fakeEvent({ user: intruder }))))?.status).toBe(403);
+		expect(
+			(
+				await thrown(() =>
+					m.lugares.actions.aprobarLugar(fakeEvent({ form, user: null, token: null }))
+				)
+			)?.status
+		).toBe(303);
+		expect(
+			(await thrown(() => m.lugares.actions.aprobarLugar(fakeEvent({ form, user: intruder }))))
+				?.status
+		).toBe(403);
+		expect(await isApproved(t.db, v.id)).toBe(false);
+		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).rejected).toHaveLength(1);
 	});
 });
 

@@ -798,7 +798,7 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 		expect(rejectedPage.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
 		expect(JSON.stringify(rejectedPage)).not.toContain('admin-de-prueba');
 
-		// Otra cuenta: ni el lugar ni el motivo existen para ella, y no lo puede volver a mandar.
+		// Otra cuenta: ni el lugar ni el motivo existen para ella, y no lo puede editar ni mandar.
 		expect((await thrown(() => m.edit.load(fakeEvent({ member: other, params }))))?.status).toBe(
 			404
 		);
@@ -808,21 +808,48 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 			)
 		);
 		expect(intruder?.status).toBe(404);
+		const intruderResubmit = await thrown(() =>
+			m.edit.actions.volverAMandar(fakeEvent({ member: other, params, form: {} }))
+		);
+		expect(intruderResubmit?.status).toBe(404);
+		// Una cuenta sin el permiso de perfiles, tampoco.
+		const noPerm = await member(m, 'sin-permiso', { profiles: false });
+		expect(
+			(
+				await thrown(() =>
+					m.edit.actions.volverAMandar(fakeEvent({ member: noPerm, params, form: {} }))
+				)
+			)?.status
+		).toBe(404);
 		const otherList = /** @type {any} */ (await m.list.load(fakeEvent({ member: other })));
 		expect(otherList.profiles).toEqual([]);
 		expect(JSON.stringify(otherList)).not.toContain('Falta la dirección');
 		expect(await listPendingVenues(t.db)).toEqual([]);
 
-		// Quien lo cargó lo corrige: vuelve a "Para aprobar" y queda en Actividad.
+		// Quien lo cargó lo corrige: se guarda, pero sigue rechazado (decisión de gorrite).
 		const saved = /** @type {any} */ (
 			await m.edit.actions.guardar(
 				fakeEvent({ member: me, params, form: venueForm(page.profile.version) })
 			)
 		);
-		expect(saved).toMatchObject({
-			action: 'guardar',
-			message: 'Guardado. Lo volvimos a mandar para que une admin lo revise.'
-		});
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		expect(await listPendingVenues(t.db)).toEqual([]);
+		const edited = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(edited.pending).toBe(false);
+		expect(edited.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
+		const countResubmits = async () =>
+			(
+				await t.db
+					.prepare("SELECT COUNT(*) AS n FROM admin_audit WHERE action = 'profile.resubmit'")
+					.first()
+			)?.n;
+		expect(await countResubmits()).toBe(0);
+
+		// «Volver a mandar»: vuelve a "Para aprobar" y queda en Actividad.
+		const resent = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(resent).toMatchObject({ action: 'revision' });
 		expect((await listPendingVenues(t.db)).map((v) => v.id)).toEqual([id]);
 		const again = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
 		expect(again.pending).toBe(true);
@@ -832,17 +859,28 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 			.all();
 		expect(audit.results).toEqual([{ target_id: String(id) }]);
 
-		// Guardar otra vez (ya esperando) no lo vuelve a anunciar.
-		const plain = /** @type {any} */ (
-			await m.edit.actions.guardar(
-				fakeEvent({ member: me, params, form: venueForm(again.profile.version) })
+		// Otra vez (ya no está rechazado): 409 y no se vuelve a anunciar.
+		const twice = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(twice.status).toBe(409);
+		expect(await countResubmits()).toBe(1);
+	});
+
+	it('«Volver a mandar» es solo para lugares', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } })
 			)
 		);
-		expect(plain).toMatchObject({ message: 'Guardado.' });
-		const audit2 = await t.db
-			.prepare("SELECT COUNT(*) AS n FROM admin_audit WHERE action = 'profile.resubmit'")
-			.first();
-		expect(audit2?.n).toBe(1);
+		const res = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(
+				fakeEvent({ member: me, params: { slug: 'nombre-inventado' }, form: {} })
+			)
+		);
+		expect(res.status).toBe(404);
 	});
 
 	it('el formulario de una persona no trae campos de lugar (no se guardan aunque se manden)', async () => {

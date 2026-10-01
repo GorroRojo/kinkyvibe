@@ -161,7 +161,9 @@ export const MESSAGES = Object.freeze({
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
 	needsCode:
 		'Para esto te pedimos un código por mail: pedilo con «Mandame un código para confirmar» y escribilo antes de confirmar.',
-	invalid: 'Revisá los datos marcados.'
+	invalid: 'Revisá los datos marcados.',
+	notRejected:
+		'Ese lugar ya no estaba rechazado: puede que ya lo hayas mandado o que lo hayan aprobado.'
 });
 
 /**
@@ -487,23 +489,14 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
  * @param {string} slug
  * @param {ProfileInput & { version: number }} input
  * @param {{ now?: number }} [opts]
- * @returns {Promise<{ ok: true, profile: StoredObject, resubmitted?: boolean } | Failure>}
- *   `resubmitted`: era un lugar rechazado y vuelve a esperar aprobación
+ * @returns {Promise<{ ok: true, profile: StoredObject } | Failure>}
  */
 export async function updateProfile(db, accountId, slug, input, { now = Date.now() } = {}) {
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	const { profile, kind } = managed;
-	// Un lugar rechazado que se edita vuelve a esperar aprobación (decisión de gorrite): el
-	// rechazo se borra en la misma tanda, solo si se guarda.
-	const resubmit =
-		kind === 'lugar' &&
-		Boolean(
-			await db
-				.prepare('SELECT 1 AS x FROM profile_rejections WHERE profile_id = ?1')
-				.bind(profile.id)
-				.first()
-		);
+	// Editar un lugar rechazado NO lo vuelve a mandar (decisión de gorrite): sigue rechazado hasta
+	// que quien lo gestiona toca «Volver a mandar» ({@link resubmitVenue}).
 	try {
 		const saved = await saveObject(
 			db,
@@ -515,18 +508,34 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 				data: profileData(kind, input, profile.data),
 				visibility: /** @type {Visibility} */ (input.visibility || profile.visibility)
 			},
-			{
-				actor: accountActor(accountId),
-				now,
-				...(resubmit ? { also: () => [clearRejectionStatement(db, profile.id)] } : {})
-			}
+			{ actor: accountActor(accountId), now }
 		);
-		// Novedad para el panel (vuelve a "Para aprobar"); nunca frena el guardado.
-		if (resubmit) await logVenueResubmitted(db, saved, { now });
-		return { ok: true, profile: saved, ...(resubmit ? { resubmitted: true } : {}) };
+		return { ok: true, profile: saved };
 	} catch (error) {
 		return saveFailure(error);
 	}
+}
+
+/**
+ * «Volver a mandar» un lugar rechazado (Mi rincón, decisión de gorrite): se borra el rechazo y
+ * vuelve a "Para aprobar" en Eventos → Lugares, con la novedad en Actividad. Solo quien gestiona
+ * el lugar (para cualquier otra cuenta, como si no existiera: 404). Si no estaba rechazado
+ * (ya lo mandaron o une admin lo aprobó), 409 y no cambia nada.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} slug
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function resubmitVenue(db, accountId, slug, { now = Date.now() } = {}) {
+	const managed = await getManagedProfile(db, accountId, slug);
+	if (!managed || managed.kind !== 'lugar') return failure(404, MESSAGES.notFound);
+	const r = await clearRejectionStatement(db, managed.profile.id).run();
+	if (r.meta.changes === 0) return failure(409, MESSAGES.notRejected);
+	// Novedad para el panel; nunca frena la acción.
+	await logVenueResubmitted(db, managed.profile, { now });
+	return { ok: true };
 }
 
 /**

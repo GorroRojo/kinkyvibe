@@ -85,8 +85,20 @@
 			{#if data.rejection.reason}
 				<p>Motivo: <q>{data.rejection.reason}</q></p>
 			{/if}
-			<p>Si lo corregís y guardás, vuelve a esperar que une admin lo apruebe.</p>
+			<p>
+				Podés corregirlo abajo (sigue rechazado) y, cuando esté listo, volver a mandarlo para que
+				une admin lo revise.
+			</p>
+			{#if msg('revision')?.error}
+				<p role="alert"><strong>{msg('revision')?.error}</strong></p>
+			{/if}
+			<form method="POST" action="?/volverAMandar" use:enhance={keep}>
+				<button class="pill-btn" type="submit">Volver a mandar</button>
+			</form>
 		</div>
+	{/if}
+	{#if msg('revision')?.message}
+		<p class="ok" role="status">{msg('revision')?.message}</p>
 	{/if}
 
 	<section class="surface-card" aria-labelledby="edit-title">
