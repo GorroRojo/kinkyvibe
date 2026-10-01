@@ -113,8 +113,10 @@ export const OVERNIGHT_UNTIL = '09:00';
  *   startEditable: boolean,
  *   durationEditable: false,
  *   classNames: string[],
- *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean }
+ *   styles?: string[],
+ *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean, note?: boolean }
  * }} CalendarEventInput
+ * `styles` y `extendedProps.note`: solo las notas de los días (ver dayNotes.js).
  */
 
 /**

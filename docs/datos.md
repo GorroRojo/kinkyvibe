@@ -57,6 +57,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                              | `src/lib/server/objects/integrity.js`                      |
 | `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                 | `src/lib/server/flags.js`                                  |
 | `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))             | `src/lib/server/cuentas/`                                  |
+| `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)  | `src/lib/server/admin/dayNotes.js`                         |
 | `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                               | `src/lib/server/demo/overlay.js`                           |
 
 `demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).

@@ -5,26 +5,42 @@
  * - action `save`: una fila (Enter en la planilla), un commit;
  * - action `saveMany`: varias filas en un commit ("Guardar N filas" de la planilla y "Guardar
  *   cambios" de los eventos movidos en el calendario), con la misma validación fila por fila.
+ * Las notas de los días (tabla `agenda_day_notes`, solo admins) van a D1, no a GitHub:
+ * - action `noteSave`: agrega una nota o cambia una (con `id`);
+ * - action `noteDelete`: borra una.
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import {
+	addDayNote,
+	deleteDayNote,
+	getDayNote,
+	listDayNotes,
+	updateDayNote
+} from '$lib/server/admin/dayNotes.js';
 import { getDB } from '$lib/server/db';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { saveAgendaRow, saveAgendaRows } from '$lib/server/eventos/agenda.js';
 import { agendaRows } from '$lib/server/eventos/panel.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
+import { validateDayNote } from '$lib/utils/dayNotes.js';
 import { shiftMonth, todayInArgentina } from '$lib/utils/eventDraft.js';
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, setHeaders }) {
+export async function load({ locals, url, setHeaders, platform }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const today = todayInArgentina();
+	// Desde el mes pasado, para que el calendario no arranque con el mes a medias. La planilla
+	// muestra solo desde hoy.
+	const from = `${shiftMonth(today.slice(0, 7), -1)}-01`;
+	const db = getDB(platform);
 	return {
-		// Desde el mes pasado, para que el calendario no arranque con el mes a medias. La planilla
-		// muestra solo desde hoy.
-		rows: await agendaRows({ today: `${shiftMonth(today.slice(0, 7), -1)}-01` }),
+		rows: await agendaRows({ today: from }),
+		notes: await listDayNotes(db, { from }),
+		// Sin base de datos (algunos previews) no se pueden cargar notas.
+		notesEnabled: Boolean(db),
 		today,
 		places: eventTagGroups().places,
 		// Lo mismo que pide la action `save` (sin esto el arrastre se muestra apagado).
@@ -130,5 +146,73 @@ export const actions = {
 		}
 		const payload = { saveMany: r };
 		return r.ok ? payload : fail(r.status, payload);
+	},
+
+	noteSave: async ({ locals, url, request, platform }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { note: { ok: false, message: 'Sin base de datos.' } });
+		const data = await request.formData();
+		const rawId = String(data.get('id') ?? '');
+		const id = rawId ? Number(rawId) : null;
+		if (id !== null && !(Number.isSafeInteger(id) && id > 0)) {
+			return fail(400, { note: { ok: false, message: 'Pedido inválido.' } });
+		}
+		const v = validateDayNote({
+			date: String(data.get('date') ?? '').slice(0, 20),
+			body: String(data.get('body') ?? '').slice(0, 1000),
+			color: String(data.get('color') ?? '').slice(0, 40)
+		});
+		if (!v.ok) {
+			return fail(400, {
+				note: { ok: false, message: 'Revisá los campos marcados.', errors: v.errors }
+			});
+		}
+		if (id === null) {
+			const note = await addDayNote(db, { ...v.value, by: admin.login });
+			await logAdminAction(db, locals, {
+				action: 'agenda.note.add',
+				targetType: 'agenda-day',
+				targetId: note.date,
+				summary: `Agregó una nota al ${note.date} en la agenda: «${note.body}»`,
+				detail: { id: note.id, date: note.date, body: note.body, color: note.color }
+			});
+			return { note: { ok: true, message: 'Nota guardada.', note } };
+		}
+		const before = await getDayNote(db, id);
+		const note = before && (await updateDayNote(db, { id, ...v.value, by: admin.login }));
+		if (!before || !note)
+			return fail(404, { note: { ok: false, message: 'Esa nota ya no está.' } });
+		await logAdminAction(db, locals, {
+			action: 'agenda.note.edit',
+			targetType: 'agenda-day',
+			targetId: note.date,
+			summary: `Cambió una nota del ${before.date} en la agenda: «${note.body}»`,
+			detail: {
+				id,
+				before: { date: before.date, body: before.body, color: before.color },
+				after: { date: note.date, body: note.body, color: note.color }
+			}
+		});
+		return { note: { ok: true, message: 'Nota guardada.', note } };
+	},
+
+	noteDelete: async ({ locals, url, request, platform }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { note: { ok: false, message: 'Sin base de datos.' } });
+		const id = Number((await request.formData()).get('id'));
+		const before = Number.isSafeInteger(id) && id > 0 ? await getDayNote(db, id) : null;
+		if (!before || !(await deleteDayNote(db, id))) {
+			return fail(404, { note: { ok: false, message: 'Esa nota ya no está.' } });
+		}
+		await logAdminAction(db, locals, {
+			action: 'agenda.note.delete',
+			targetType: 'agenda-day',
+			targetId: before.date,
+			summary: `Borró una nota del ${before.date} en la agenda: «${before.body}»`,
+			detail: { id, date: before.date, body: before.body, color: before.color }
+		});
+		return { note: { ok: true, message: 'Nota borrada.', id } };
 	}
 };
