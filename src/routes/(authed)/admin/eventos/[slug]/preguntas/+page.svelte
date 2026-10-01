@@ -7,6 +7,7 @@
 	import SignupFieldList from '$lib/components/admin/SignupFieldList.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { FIELD_KIND_LABELS } from '$lib/utils/signupFields.js';
+	import GeneralFieldScope from '$lib/components/admin/GeneralFieldScope.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -14,7 +15,7 @@
 	export let form;
 
 	$: e = data.event;
-	$: chosen = new Set(data.chosen);
+	$: chosen = new Map(data.chosen.map((c) => [c.id, c.ticketTypes]));
 </script>
 
 <svelte:head><title>Preguntas · {e.title} · Panel</title></svelte:head>
@@ -30,7 +31,8 @@
 	<Card title="Preguntas generales">
 		<p class="kv-note">
 			Las que se definen una vez en <a href="/admin/ajustes/personas">Eventos › Roles y preguntas</a
-			>. Marcá las que usa este evento.
+			>. Marcá las que usa este evento{#if data.types.length > 1}&nbsp;y, si querés, a qué entradas
+				aplica cada una{/if}.
 		</p>
 		{#if form?.general}
 			<p class="kv-flash" class:bad={!form.general.ok} role="status">{form.general.message}</p>
@@ -47,7 +49,15 @@
 								<span>{f.label}</span>
 								<Badge tone="neutral">{FIELD_KIND_LABELS[f.kind]}</Badge>
 								{#if f.required}<Badge tone="info">obligatoria</Badge>{/if}
+								{#if f.perTicket}<Badge tone="neutral">una vez por entrada</Badge>{/if}
 							</label>
+							{#if data.types.length > 1}
+								<GeneralFieldScope
+									id={f.id}
+									types={data.types}
+									ticketTypes={chosen.get(f.id) ?? []}
+								/>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -64,9 +74,12 @@
 			fields={data.own}
 			csvName={csvFilename(e.slug, 'preguntas')}
 			empty="Este evento no tiene preguntas propias."
+			{form}
+			types={data.types}
+			idPrefix="evento"
 		/>
 		<h3>Agregar una pregunta</h3>
-		<SignupFieldForm {form} idPrefix="evento" />
+		<SignupFieldForm {form} types={data.types} idPrefix="evento" />
 	</Card>
 </div>
 
