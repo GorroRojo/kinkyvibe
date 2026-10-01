@@ -295,10 +295,21 @@ async function countMyProfiles(db, accountId) {
 	return Number(row?.n ?? 0);
 }
 
+/** Largo del sufijo al azar que se suma a la dirección de un perfil si el nombre ya está usado. */
+export const SLUG_SUFFIX_LENGTH = 5;
+const SLUG_SUFFIX_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/** Un sufijo al azar para la dirección (letras minúsculas y números). */
+function slugSuffix() {
+	const bytes = crypto.getRandomValues(new Uint8Array(SLUG_SUFFIX_LENGTH));
+	// 256 no es múltiplo de 36: un sesgo mínimo que acá no importa (no es un secreto).
+	return Array.from(bytes, (b) => SLUG_SUFFIX_CHARS[b % SLUG_SUFFIX_CHARS.length]).join('');
+}
+
 /**
  * Crea un perfil y deja a la cuenta como dueñe, en la misma tanda de saveObject(). Si la
- * dirección (sale del nombre) ya está usada, prueba con -2, -3…: así no se entera nadie de que
- * existe otro perfil (quizás oculto) con ese nombre.
+ * dirección (sale del nombre) ya está usada, le suma un sufijo corto al azar (nunca -2, -3…, que
+ * dirían cuántos perfiles, quizás ocultos o borrados, tienen ese nombre).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -318,12 +329,7 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 	const base = slugify(title) || 'perfil';
 	const data = profileData(kind, input);
 	for (let attempt = 1; attempt <= 6; attempt++) {
-		const slug =
-			attempt === 1
-				? base
-				: attempt < 6
-					? `${base.slice(0, 90)}-${attempt}`
-					: `${base.slice(0, 80)}-${crypto.randomUUID().slice(0, 8)}`;
+		const slug = attempt === 1 ? base : `${base.slice(0, 80)}-${slugSuffix()}`;
 		try {
 			const profile = await saveObject(
 				db,

@@ -19,6 +19,7 @@ import {
 	MAX_PROFILES_PER_ACCOUNT,
 	MESSAGES,
 	LEAVE_BLOCK_MS,
+	SLUG_SUFFIX_LENGTH,
 	accountActor,
 	addMember,
 	answerInvite,
@@ -206,7 +207,13 @@ describe('crear y listar', () => {
 		const b = await account('otre-inventade');
 		await create(a.id, { kind: 'persona', title: 'Mismo Nombre', visibility: 'hidden' });
 		const second = await create(b.id, { kind: 'persona', title: 'Mismo Nombre' });
-		expect(second.slug).toBe('mismo-nombre-2');
+		const third = await create(b.id, { kind: 'persona', title: 'Mismo Nombre' });
+		// Un sufijo al azar, no -2, -3…: la dirección no dice cuántos perfiles hay con ese nombre.
+		for (const p of [second, third]) {
+			expect(p.slug).toMatch(new RegExp(`^mismo-nombre-[a-z0-9]{${SLUG_SUFFIX_LENGTH}}$`));
+			expect(p.slug).not.toMatch(/-\d$/);
+		}
+		expect(third.slug).not.toBe(second.slug);
 	});
 
 	it('mostrar integrantes es solo para grupos', async () => {

@@ -292,7 +292,8 @@ campos), pero nadie la usa todavía.
 - Tope de 20 perfiles vivos por cuenta (propios y de grupos, contando las invitaciones que
   acepta) y de 20 invitaciones pendientes por grupo.
 - Si el nombre de un perfil nuevo ya está usado (aunque sea por un perfil oculto ajeno), la
-  dirección cambia sola (`-2`, `-3`…) en vez de avisar que existe otro. Cambiar el nombre después
+  dirección suma sola un sufijo corto al azar (por ejemplo `nombre-k3x9q`) en vez de avisar que
+  existe otro. No es `-2`, `-3`…, que dirían cuántos perfiles hay con ese nombre. Cambiar el nombre después
   no cambia la dirección.
 
 ### Probarlo
