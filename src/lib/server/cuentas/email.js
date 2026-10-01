@@ -65,3 +65,31 @@ export function buildConfirmCodeEmail({ code, purpose }) {
 	</div>`;
 	return { subject, html, text };
 }
+
+/**
+ * Aviso de que te invitaron a gestionar un grupo. Solo le llega a una cuenta verificada con ese
+ * mail (src/lib/server/cuentas/perfiles.js, `sendInviteNotice`). Nombra al grupo, nunca a quien
+ * invitó, y lleva a Mi rincón → Perfiles, donde se acepta o se rechaza.
+ *
+ * @param {{ groupTitle: string, url: string }} input
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+export function buildProfileInviteEmail({ groupTitle, url }) {
+	const subject = 'Te invitaron a gestionar un perfil en KinkyVibe';
+	const text = [
+		'Hola:',
+		'',
+		`Te invitaron a gestionar el perfil del grupo «${groupTitle}» en KinkyVibe.`,
+		'',
+		`Para aceptar o rechazar la invitación, entrá a Mi rincón → Perfiles: ${url}`,
+		'',
+		'Si no te interesa, ignorá este mail: la invitación vence sola.'
+	].join('\n');
+	const html = `<div style="font-family:sans-serif;font-size:16px;color:#222;max-width:32rem">
+		<p>Hola:</p>
+		<p>Te invitaron a gestionar el perfil del grupo <strong>«${escapeHtml(groupTitle)}»</strong> en KinkyVibe.</p>
+		<p>Para aceptar o rechazar la invitación, entrá a <a href="${escapeHtml(url)}">Mi rincón → Perfiles</a>.</p>
+		<p style="font-size:13px;color:#555">Si no te interesa, ignorá este mail: la invitación vence sola.</p>
+	</div>`;
+	return { subject, html, text };
+}

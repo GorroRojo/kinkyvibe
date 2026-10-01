@@ -10,6 +10,7 @@ import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/in
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import { closeAccount } from './index.js';
 import {
+	INVITE_RATE_LIMITS,
 	INVITE_TTL_MS,
 	MAX_PROFILES_PER_ACCOUNT,
 	MESSAGES,
@@ -414,6 +415,154 @@ describe('invitaciones a gestionar', () => {
 		expect(await getManagedProfile(t.db, b.id, g.slug)).toBeNull();
 		// La invitación sigue ahí: puede borrar un perfil y aceptarla después.
 		expect(await myInvites(t.db, b.id, opts)).toHaveLength(1);
+	});
+});
+
+describe('aviso por mail de las invitaciones', () => {
+	/** Un `notice` de mentira: junta los mails y las tareas en segundo plano. */
+	function fakeNotice() {
+		/** @type {{ to: string, message: { subject: string, html: string, text: string } }[]} */
+		const sent = [];
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		return {
+			sent,
+			/** Espera las tareas en segundo plano y devuelve sus resultados. */
+			settle: () => Promise.all(tasks.splice(0)),
+			notice: {
+				origin: 'https://kinkyvibe.ar',
+				/** @type {import('./index.js').SendMail} */
+				send: async (to, message) => {
+					sent.push({ to, message });
+					return /** @type {const} */ ('sent');
+				},
+				/** @param {Promise<unknown>} task */
+				defer: (task) => {
+					tasks.push(task);
+				}
+			}
+		};
+	}
+
+	it('con cuenta verificada sale un aviso con el nombre del grupo y el link; sin el mail de quien invita', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo <Inventado>' });
+		const fake = fakeNotice();
+		const r = await inviteManager(t.db, a.id, g.slug, b.email.toUpperCase(), {
+			...opts,
+			notice: fake.notice
+		});
+		expect(r).toEqual({ ok: true, message: MESSAGES.invited });
+		expect(await fake.settle()).toEqual(['sent']);
+		expect(fake.sent).toHaveLength(1);
+		const [{ to, message }] = fake.sent;
+		expect(to).toBe(b.email);
+		expect(message.subject).toBe('Te invitaron a gestionar un perfil en KinkyVibe');
+		expect(message.text).toContain('«Grupo <Inventado>»');
+		expect(message.text).toContain('https://kinkyvibe.ar/mi-rincon/perfiles');
+		expect(message.html).toContain('Grupo &lt;Inventado&gt;');
+		expect(message.html).toContain('href="https://kinkyvibe.ar/mi-rincon/perfiles"');
+		expect(JSON.stringify(message)).not.toContain(a.email);
+		expect(JSON.stringify(message)).not.toContain(a.id);
+	});
+
+	it('sin cuenta, con la cuenta borrada o si ya gestiona: no sale ningún mail', async () => {
+		const a = await account('dueñe-inventade');
+		const gone = await account('borrade-inventade');
+		const goneEmail = gone.email;
+		await deleteAccount(t.db, gone.id, opts);
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const fake = fakeNotice();
+		for (const email of ['nadie@example.com', goneEmail, a.email]) {
+			ok(await inviteManager(t.db, a.id, g.slug, email, { ...opts, notice: fake.notice }));
+		}
+		expect(await fake.settle()).toEqual(['skipped', 'skipped', 'skipped']);
+		expect(fake.sent).toEqual([]);
+	});
+
+	it('quien invita ve exactamente la misma respuesta, y no espera al mail', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		/** @type {() => void} */
+		let release = () => {};
+		const gate = new Promise((resolve) => (release = () => resolve(undefined)));
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const sent = vi.fn(async () => {
+			await gate; // un mail que tarda "para siempre"
+			return /** @type {const} */ ('sent');
+		});
+		const notice = {
+			origin: 'https://kinkyvibe.ar',
+			send: sent,
+			defer: (/** @type {Promise<unknown>} */ task) => void tasks.push(task)
+		};
+		const withAccount = await inviteManager(t.db, a.id, g.slug, b.email, { ...opts, notice });
+		const without = await inviteManager(t.db, a.id, g.slug, 'nadie@example.com', {
+			...opts,
+			notice
+		});
+		// Las dos respuestas llegaron con el mail todavía sin salir: no dependen de él.
+		expect(without).toEqual(withAccount);
+		expect(withAccount).toEqual({ ok: true, message: MESSAGES.invited });
+		release();
+		expect(await Promise.all(tasks)).toEqual(['sent', 'skipped']);
+		expect(sent).toHaveBeenCalledTimes(1);
+	});
+
+	it('límite por hora por grupo y por cuenta que invita (se cuenta haya o no cuenta)', async () => {
+		const a = await account('dueñe-inventade');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const { limit } = INVITE_RATE_LIMITS.group;
+		for (let i = 1; i <= limit; i++) {
+			ok(await inviteManager(t.db, a.id, g.slug, `invitade-${i}@example.com`, opts));
+		}
+		const over = await inviteManager(t.db, a.id, g.slug, 'una-mas@example.com', opts);
+		expect(over).toEqual({ ok: false, status: 429, message: MESSAGES.tooManyInviteMails });
+		expect(await count('SELECT COUNT(*) AS n FROM profile_invites')).toBe(limit);
+		// A la hora siguiente se puede de nuevo.
+		ok(
+			await inviteManager(t.db, a.id, g.slug, 'una-mas@example.com', {
+				now: NOW + 60 * 60 * 1000
+			})
+		);
+
+		// Por cuenta: repartido entre varios grupos, igual se topea.
+		const b = await account('otre-dueñe-inventade');
+		const perAccount = INVITE_RATE_LIMITS.account.limit;
+		const groups = [];
+		for (let i = 0; i * limit < perAccount + 1; i++) {
+			groups.push(await create(b.id, { kind: 'grupo', title: `Otro Grupo ${i}` }));
+		}
+		let sentOk = 0;
+		/** @type {unknown} */
+		let last = null;
+		for (let i = 0; i <= perAccount; i++) {
+			const group = groups[Math.floor(i / limit)];
+			last = await inviteManager(t.db, b.id, group.slug, `persona-${i}@example.com`, opts);
+			if (/** @type {any} */ (last).ok) sentOk++;
+		}
+		expect(sentOk).toBe(perAccount);
+		expect(last).toMatchObject({ status: 429, message: MESSAGES.tooManyInviteMails });
+	});
+
+	it('límite de avisos por destinatarie: la invitación se crea igual y la respuesta no cambia', async () => {
+		const b = await account('gestora-inventada');
+		const fake = fakeNotice();
+		const { limit } = INVITE_RATE_LIMITS.recipient;
+		for (let i = 0; i <= limit; i++) {
+			const owner = await account(`dueñe-${i}`);
+			const g = await create(owner.id, { kind: 'grupo', title: `Grupo ${i}` });
+			expect(
+				await inviteManager(t.db, owner.id, g.slug, b.email, { ...opts, notice: fake.notice })
+			).toEqual({ ok: true, message: MESSAGES.invited });
+		}
+		const results = await fake.settle();
+		expect(results.filter((r) => r === 'sent')).toHaveLength(limit);
+		expect(results.at(-1)).toBe('limited');
+		expect(await myInvites(t.db, b.id, opts)).toHaveLength(limit + 1);
 	});
 });
 

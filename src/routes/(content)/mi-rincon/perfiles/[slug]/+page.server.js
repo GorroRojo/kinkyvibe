@@ -24,7 +24,12 @@ import {
 	setManagerRole,
 	updateProfile
 } from '$lib/server/cuentas/perfiles.js';
-import { field, profileForm, requireMember } from '$lib/server/cuentas/perfilesWeb.js';
+import {
+	field,
+	inviteNotice,
+	profileForm,
+	requireMember
+} from '$lib/server/cuentas/perfilesWeb.js';
 
 /**
  * @param {import('@sveltejs/kit').RequestEvent} event
@@ -126,7 +131,11 @@ export const actions = {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
 		return guarded('invitar', async () => {
-			const result = await inviteManager(db, member.id, slug, field(form, 'email', 300));
+			// El aviso por mail (si ese mail tiene cuenta) sale después de responder: la respuesta
+			// es la misma en los dos casos. Ver inviteManager en perfiles.js.
+			const result = await inviteManager(db, member.id, slug, field(form, 'email', 300), {
+				notice: inviteNotice(event, db)
+			});
 			return reply('invitar', result, result.ok ? result.message : '');
 		});
 	},

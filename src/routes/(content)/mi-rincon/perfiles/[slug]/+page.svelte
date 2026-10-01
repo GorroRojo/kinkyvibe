@@ -278,7 +278,8 @@
 						<input name="email" type="email" required autocomplete="off" maxlength="254" />
 					</label>
 					<p class="hint">
-						No le mandamos ningún mail: avisale vos. La ve cuando entre a Mi rincón con ese mail.
+						Si ese mail tiene cuenta, le mandamos un aviso corto con el nombre del grupo (sin tu
+						mail). La invitación la ve cuando entre a Mi rincón con ese mail.
 					</p>
 					<button class="pill-btn" type="submit">Invitar</button>
 				</form>

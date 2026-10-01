@@ -36,7 +36,10 @@ import {
 } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_KINDS } from '$lib/server/objects/types/perfil.js';
-import { emailHash, getAccount, normalizeEmail } from './accounts.js';
+import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import { sha256Hex } from '$lib/server/hash.js';
+import { emailHash, getAccount, getAccountByEmail, normalizeEmail } from './accounts.js';
+import { buildProfileInviteEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -58,6 +61,21 @@ export const MAX_PROFILES_PER_ACCOUNT = 20;
 export const MAX_PENDING_INVITES = 20;
 export const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
+/**
+ * Límites de invitaciones (tabla rate_limits, src/lib/server/db/rateLimit.js), además de las
+ * 20 pendientes por grupo. Cada invitación puede mandar un mail, así que:
+ * - `group` y `account`: invitaciones por hora por grupo y por cuenta que invita. Se cuentan
+ *   siempre, tenga o no cuenta el mail, así el aviso de "esperá" no revela nada;
+ * - `recipient`: avisos por mail que recibe un mismo mail por día, de cualquier grupo. Este no
+ *   se le muestra a quien invita (la invitación se crea igual, solo no sale el mail): si se
+ *   mostrara, diría que ese mail tiene cuenta.
+ */
+export const INVITE_RATE_LIMITS = Object.freeze({
+	group: { limit: 10, windowSeconds: 60 * 60 },
+	account: { limit: 20, windowSeconds: 60 * 60 },
+	recipient: { limit: 3, windowSeconds: 24 * 60 * 60 }
+});
+
 export const MESSAGES = Object.freeze({
 	notFound: 'No encontramos ese perfil.',
 	groupNotFound: 'No encontramos ese grupo. Revisá la dirección.',
@@ -75,7 +93,8 @@ export const MESSAGES = Object.freeze({
 	badKind: 'Elegí si el perfil es de una persona o de un grupo.',
 	badEmail: 'Revisá el mail: no parece una dirección válida.',
 	invited:
-		'Listo. Cuando esa persona entre a Mi rincón con ese mail, va a ver la invitación en Perfiles (vence en 14 días). Avisale.',
+		'Listo. Si ese mail tiene cuenta, le mandamos un aviso. La invitación aparece en Mi rincón → Perfiles cuando entre con ese mail (vence en 14 días).',
+	tooManyInviteMails: 'Mandaste muchas invitaciones seguidas. Esperá un rato y probá de nuevo.',
 	inviteGone: 'Esa invitación ya no está: puede que haya vencido o que la hayan cancelado.',
 	notManager: 'Esa persona ya no gestiona este perfil.',
 	invalid: 'Revisá los datos marcados.'
@@ -449,18 +468,40 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
 }
 
 /**
+ * Para mandar el aviso por mail de una invitación sin que la respuesta cambie.
+ *
+ * @typedef {object} InviteNotice
+ * @prop {import('./index.js').SendMail} send el camino de mails de siempre (`mailSender`)
+ * @prop {string} origin para armar el link a Mi rincón
+ * @prop {(task: Promise<unknown>) => void} defer corre la tarea DESPUÉS de responder, sin que
+ *   quien invita la espere (en Cloudflare, `ctx.waitUntil`; ver `inviteNotice` en perfilesWeb.js)
+ */
+
+/**
  * Invita a un mail a gestionar un grupo (solo dueñes). Responde lo mismo tenga o no cuenta ese
- * mail, y aunque ya lo gestione: no se puede usar para averiguar quién tiene cuenta. No manda
- * ningún mail (no es un canal para escribirle a cualquiera); quien invita le avisa.
+ * mail, y aunque ya lo gestione: no se puede usar para averiguar quién tiene cuenta.
+ *
+ * Además, si se pasa `notice`, deja programado un aviso por mail (`sendInviteNotice`) que sale
+ * solo si hay una cuenta verificada con ese mail. Para que ni el mensaje ni el tiempo de
+ * respuesta lo revelen, esta función NO busca la cuenta: todo lo que depende de que exista
+ * (buscarla, el límite por destinatarie, armar y mandar el mail) pasa dentro de la tarea que se
+ * le da a `notice.defer`, que corre después de responder. Lo que se hace antes de responder
+ * (permisos, límites por grupo y por cuenta, guardar la invitación) es igual en los dos casos.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {unknown} rawEmail
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, notice?: InviteNotice }} [opts]
  * @returns {Promise<{ ok: true, message: string } | Failure>}
  */
-export async function inviteManager(db, accountId, slug, rawEmail, { now = Date.now() } = {}) {
+export async function inviteManager(
+	db,
+	accountId,
+	slug,
+	rawEmail,
+	{ now = Date.now(), notice } = {}
+) {
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
@@ -476,6 +517,16 @@ export async function inviteManager(db, accountId, slug, rawEmail, { now = Date.
 		.bind(id, now, hash)
 		.first();
 	if (Number(pending?.n ?? 0) >= MAX_PENDING_INVITES) return failure(400, MESSAGES.tooManyInvites);
+	// Las claves de límite no llevan datos de nadie: el id del grupo (un objeto) y un hash de la
+	// cuenta.
+	const perGroup = await hitRateLimit(db, `perfiles:invite:g:${id}`, INVITE_RATE_LIMITS.group, now);
+	const perAccount = await hitRateLimit(
+		db,
+		`perfiles:invite:a:${await sha256Hex(`perfiles:account:${accountId}`)}`,
+		INVITE_RATE_LIMITS.account,
+		now
+	);
+	if (!perGroup.allowed || !perAccount.allowed) return failure(429, MESSAGES.tooManyInviteMails);
 	await db.batch([
 		db
 			.prepare('DELETE FROM profile_invites WHERE profile_id = ?1 AND expires_at <= ?2')
@@ -490,7 +541,47 @@ export async function inviteManager(db, accountId, slug, rawEmail, { now = Date.
 			)
 			.bind(crypto.randomUUID(), id, hash, accountId, now, now + INVITE_TTL_MS)
 	]);
+	if (notice) notice.defer(sendInviteNotice(db, { profileId: id, email, hash, notice, now }));
 	return { ok: true, message: MESSAGES.invited };
+}
+
+/**
+ * El aviso por mail de una invitación (corre en segundo plano, ver `inviteManager`). Sale solo
+ * si hay una cuenta activa con ese mail verificado que todavía no gestiona el grupo, y dentro
+ * del límite por destinatarie. Nombra al grupo (su nombre de ahora), nunca a quien invitó. Nunca
+ * tira: un error queda en el log y la invitación sigue en Mi rincón igual.
+ *
+ * @param {D1Database} db
+ * @param {{ profileId: number, email: string, hash: string, notice: InviteNotice, now: number }} input
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'skipped' | 'limited'>}
+ */
+export async function sendInviteNotice(db, { profileId, email, hash, notice, now }) {
+	try {
+		const account = await getAccountByEmail(db, email);
+		if (!account?.email_verified_at) return 'skipped';
+		if (await isManager(db, profileId, account.id)) return 'skipped';
+		const group = await db
+			.prepare('SELECT title FROM objects WHERE id = ?1 AND type = ?2 AND deleted_at IS NULL')
+			.bind(profileId, PROFILE_TYPE)
+			.first();
+		if (!group) return 'skipped';
+		const limit = await hitRateLimit(
+			db,
+			`perfiles:notice:e:${hash}`,
+			INVITE_RATE_LIMITS.recipient,
+			now
+		);
+		if (!limit.allowed) return 'limited';
+		const groupTitle = String(group.title);
+		const message = buildProfileInviteEmail({
+			groupTitle,
+			url: new URL('/mi-rincon/perfiles', notice.origin).href
+		});
+		return await notice.send(account.email, message, `Invitación a gestionar «${groupTitle}»`);
+	} catch (error) {
+		console.error('[perfiles] no se pudo mandar el aviso de invitación:', error);
+		return 'failed';
+	}
 }
 
 /**

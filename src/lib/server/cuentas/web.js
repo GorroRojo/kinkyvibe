@@ -103,7 +103,7 @@ export function mailSender(event, db) {
 		try {
 			return await deliverEmail({ db, fetch: event.fetch, to, message, log });
 		} catch (e) {
-			console.error('[cuentas] no se pudo mandar el código:', e);
+			console.error('[cuentas] no se pudo mandar el mail:', e);
 			return 'failed';
 		}
 	};

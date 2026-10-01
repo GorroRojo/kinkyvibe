@@ -188,6 +188,30 @@ describe('interruptor prendido', () => {
 		expect(page.profile).toMatchObject({ title: 'Primero', version: 2 });
 	});
 
+	it('invitar: la misma respuesta haya o no cuenta; el aviso va a waitUntil, después de responder', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'dueñe-prueba');
+		const other = await member(m, 'gestora-prueba');
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const params = { slug: 'grupo-inventado' };
+		/** @type {Promise<unknown>[]} */
+		const background = [];
+		const invite = async (/** @type {string} */ email) => {
+			const event = fakeEvent({ member: me, params, form: { email } });
+			event.platform = { ...t.platform, ctx: { waitUntil: (p) => background.push(p) } };
+			return m.edit.actions.invitar(event);
+		};
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const withAccount = await invite(other.email);
+		const without = await invite('nadie@example.com');
+		expect(withAccount).toEqual({ action: 'invitar', message: m.perfiles.MESSAGES.invited });
+		expect(without).toEqual(withAccount);
+		expect(background).toHaveLength(2);
+		// Sin RESEND_API_KEY (y en dev) el mail se simula; sin cuenta ni se intenta.
+		expect(await Promise.all(background)).toEqual(['simulated', 'skipped']);
+		log.mockRestore();
+	});
+
 	it('borrar pide escribir el nombre en la página', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'persona-prueba');
