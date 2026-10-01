@@ -114,3 +114,38 @@ export function draftAge(savedAt, now = Date.now()) {
 	const d = Math.floor(h / 24);
 	return d === 1 ? 'hace 1 día' : `hace ${d} días`;
 }
+
+/**
+ * Qué hacer al abrir un editor con el borrador que había guardado (ver `loadDraft`):
+ * - `clear`: se acaba de guardar, o el borrador es igual a lo que ya hay: se borra.
+ * - `none`: no hay borrador.
+ * - `stale`: el archivo cambió desde que se empezó el borrador: preguntar antes de recuperarlo.
+ * - `offer`: ofrecer recuperarlo (con `ask`, el formulario de eventos).
+ * - `restore`: recuperarlo directamente y avisar (los otros editores).
+ * @param {Draft | null} draft
+ * @param {{ current: unknown, saved?: boolean, ask?: boolean }} opts `current`: lo que ya hay
+ * @returns {'clear' | 'none' | 'stale' | 'offer' | 'restore'}
+ */
+export function draftAction(draft, { current, saved = false, ask = false }) {
+	if (saved) return 'clear';
+	if (!draft) return 'none';
+	if (JSON.stringify(draft.data) === JSON.stringify(current)) return 'clear';
+	if (draft.stale) return 'stale';
+	return ask ? 'offer' : 'restore';
+}
+
+/**
+ * Las claves de primer nivel en las que difieren dos snapshots (para decir qué partes del
+ * formulario tiene distintas un borrador). Compara por JSON, como se guardan.
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {string[]}
+ */
+export function changedKeys(a, b) {
+	/** @param {unknown} v @returns {Record<string, unknown>} */
+	const obj = (v) => (v && typeof v === 'object' ? /** @type {any} */ (v) : {});
+	const x = obj(a);
+	const y = obj(b);
+	const keys = [...new Set([...Object.keys(x), ...Object.keys(y)])];
+	return keys.filter((k) => JSON.stringify(x[k] ?? null) !== JSON.stringify(y[k] ?? null));
+}

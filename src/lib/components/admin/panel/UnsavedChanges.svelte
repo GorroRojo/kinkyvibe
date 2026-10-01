@@ -22,10 +22,14 @@
 	 * - `saved`: se acaba de guardar (borra el borrador y no recupera nada al entrar).
 	 * - `saveForm`: id de un formulario sin `use:enhance` que guarda; enviarlo no pregunta nada.
 	 * - `saving`: se está guardando; navegar no pregunta nada.
+	 * - `ask`: en vez de recuperar el borrador solo, ofrece «Recuperar / Descartar» (el formulario
+	 *   de eventos).
+	 * - `describe(draft, current)`: nombres de las partes en las que el borrador difiere de lo
+	 *   que hay (por ejemplo «Datos, Entradas»), para decidir con más datos.
 	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
-	import { clearDraft, draftAge, loadDraft, saveDraft } from '$lib/admin/draft.js';
+	import { clearDraft, draftAction, draftAge, loadDraft, saveDraft } from '$lib/admin/draft.js';
 
 	export let draftKey = '';
 	export let base = '';
@@ -37,6 +41,9 @@
 	export let saved = false;
 	export let saveForm = '';
 	export let saving = false;
+	export let ask = false;
+	/** @type {((draft: any, current: any) => string[]) | null} */
+	export let describe = null;
 
 	/** @returns {Storage | null} */
 	function storage() {
@@ -52,7 +59,7 @@
 	let ready = false;
 	/** @type {any} lo que había antes de recuperar el borrador, para «Descartarlos» */
 	let original = null;
-	/** @type {null | { kind: 'restored' | 'stale', age: string, data?: unknown }} */
+	/** @type {null | { kind: 'restored' | 'stale' | 'offer', age: string, data?: unknown, parts?: string[] }} */
 	let notice = null;
 	/** Se sale a propósito (guardar, o «Salir igual»): no preguntar. */
 	let leaving = false;
@@ -64,19 +71,16 @@
 	onMount(() => {
 		original = plain(snapshot);
 		const s = storage();
-		if (saved) {
-			clearDraft(s, draftKey);
-		} else {
-			const draft = loadDraft(s, draftKey, { base });
-			if (draft && JSON.stringify(draft.data) === JSON.stringify(original)) {
-				// Es lo mismo que ya hay: no hay nada que recuperar.
-				clearDraft(s, draftKey);
-			} else if (draft && draft.stale) {
-				notice = { kind: 'stale', age: draftAge(draft.savedAt), data: draft.data };
-			} else if (draft) {
-				restore(draft.data);
-				notice = { kind: 'restored', age: draftAge(draft.savedAt) };
-			}
+		const draft = saved ? null : loadDraft(s, draftKey, { base });
+		const action = draftAction(draft, { current: original, saved, ask });
+		// `clear`: se acaba de guardar, o el borrador es lo mismo que ya hay.
+		if (action === 'clear') clearDraft(s, draftKey);
+		else if (draft && action === 'restore') {
+			restore(draft.data);
+			notice = { kind: 'restored', age: draftAge(draft.savedAt) };
+		} else if (draft && (action === 'stale' || action === 'offer')) {
+			const parts = describe ? describe(draft.data, original) : [];
+			notice = { kind: action, age: draftAge(draft.savedAt), data: draft.data, parts };
 		}
 		ready = true;
 
@@ -100,12 +104,16 @@
 		timer = setTimeout(() => {
 			if (isDirty) saveDraft(storage(), draftKey, plain(snap), { base });
 			// Sin cambios no hay borrador; salvo uno viejo que todavía no se decidió qué hacer.
-			else if (notice?.kind !== 'stale') clearDraft(storage(), draftKey);
+			else if (notice?.kind !== 'stale' && notice?.kind !== 'offer')
+				clearDraft(storage(), draftKey);
 		}, 400);
 	}
 	$: if (ready && draftKey) schedule(snapshot, dirty);
 	// Al guardar, el borrador ya no hace falta.
-	$: if (ready && saved) clearDraft(storage(), draftKey);
+	$: if (ready && saved) {
+		clearDraft(storage(), draftKey);
+		notice = null;
+	}
 
 	onDestroy(() => {
 		// Lo último que se escribió, sin esperar al temporizador (salvo al salir por guardar).
@@ -146,7 +154,7 @@
 	}
 
 	function recoverStale() {
-		if (notice?.kind !== 'stale') return;
+		if (notice?.kind !== 'stale' && notice?.kind !== 'offer') return;
 		restore(notice.data);
 		notice = null;
 	}
@@ -169,10 +177,24 @@
 				<button type="button" class="btn" on:click={() => (notice = null)}>Entendido</button>
 				<button type="button" class="btn ghost" on:click={discard}>Descartarlos</button>
 			</div>
+		{:else if notice.kind === 'offer'}
+			<p>
+				<b>Tenés un borrador sin guardar</b> de {notice.age}{#if notice.parts?.length}
+					({notice.parts.join(', ')}){/if}. ¿Lo recuperás?
+			</p>
+			<div class="btns">
+				<button type="button" class="btn" id="draft-recover" on:click={recoverStale}
+					>Recuperar</button
+				>
+				<button type="button" class="btn ghost" id="draft-discard" on:click={discard}
+					>Descartar</button
+				>
+			</div>
 		{:else}
 			<p>
 				<b>Hay cambios sin guardar</b> de {notice.age}, pero el archivo cambió desde entonces
 				(alguien lo guardó). Si los recuperás, pisan esos cambios.
+				{#if notice.parts?.length}Tu borrador cambia: {notice.parts.join(', ')}.{/if}
 			</p>
 			<div class="btns">
 				<button type="button" class="btn" on:click={recoverStale}>Recuperarlos igual</button>

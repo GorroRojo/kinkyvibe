@@ -1,0 +1,114 @@
+import { describe, expect, it } from 'vitest';
+import { changedKeys, draftAction } from './draft.js';
+import { currentSection, draftSectionLabels, formSections } from './eventForm.js';
+
+const ids = (/** @type {Array<{id: string}>} */ list) => list.map((s) => s.id);
+
+describe('formSections', () => {
+	it('crear un evento: todas las secciones, Entradas con el id de TicketsEditor', () => {
+		expect(ids(formSections({ mode: 'nuevo' }))).toEqual([
+			'sec-cuando',
+			'sec-datos',
+			'sec-direccion',
+			'sec-etiquetas',
+			'ev-tickets',
+			'sec-imagen',
+			'sec-texto'
+		]);
+	});
+
+	it('editar un evento: con imagen y entradas', () => {
+		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([
+			'sec-datos',
+			'sec-imagen',
+			'sec-etiquetas',
+			'edit-tickets',
+			'sec-texto'
+		]);
+	});
+
+	it('editar otra publicación: sin entradas ni imagen', () => {
+		expect(ids(formSections({ mode: 'editar', category: 'material' }))).toEqual([
+			'sec-datos',
+			'sec-etiquetas',
+			'sec-texto'
+		]);
+	});
+
+	it('si el archivo se edita como texto no hay secciones', () => {
+		expect(formSections({ mode: 'editar', parseError: true })).toEqual([]);
+	});
+
+	it('cada sección tiene ícono y nombre', () => {
+		for (const s of formSections({ mode: 'nuevo' })) {
+			expect(s.icon).toBeTruthy();
+			expect(s.label).toBeTruthy();
+		}
+	});
+});
+
+describe('draftSectionLabels', () => {
+	it('nombra las secciones sin repetir y en orden', () => {
+		expect(draftSectionLabels(['values', 'authors', 'tickets', 'freeTags', 'tagRules'])).toEqual([
+			'Datos',
+			'Entradas',
+			'Etiquetas'
+		]);
+	});
+	it('ignora las partes que no conoce', () => {
+		expect(draftSectionLabels(['otraCosa', 'body'])).toEqual(['Texto']);
+	});
+});
+
+describe('currentSection', () => {
+	const tops = [
+		{ id: 'a', top: -400 },
+		{ id: 'b', top: 80 },
+		{ id: 'c', top: 700 }
+	];
+	it('la última que pasó la línea de lectura', () => {
+		expect(currentSection(tops, 120)).toBe('b');
+		expect(currentSection(tops, 50)).toBe('a');
+	});
+	it('la primera si ninguna pasó, y vacío sin secciones', () => {
+		expect(currentSection([{ id: 'x', top: 300 }], 100)).toBe('x');
+		expect(currentSection([], 100)).toBe('');
+	});
+});
+
+describe('borrador del formulario: decidir y comparar', () => {
+	const current = { values: { title: 'Fiesta de prueba' }, body: '' };
+	const draft = (/** @type {unknown} */ data, stale = false) => ({ data, savedAt: 0, stale });
+
+	it('recién guardado: se borra el borrador', () => {
+		expect(draftAction(draft({ x: 1 }), { current, saved: true })).toBe('clear');
+		expect(draftAction(null, { current, saved: true })).toBe('clear');
+	});
+	it('sin borrador no hay nada que hacer', () => {
+		expect(draftAction(null, { current })).toBe('none');
+	});
+	it('un borrador igual a lo que ya hay se borra', () => {
+		expect(draftAction(draft(structuredClone(current)), { current, ask: true })).toBe('clear');
+	});
+	it('con otro sha del archivo pregunta siempre (nunca recupera solo)', () => {
+		const d = draft({ ...current, body: 'otro' }, true);
+		expect(draftAction(d, { current })).toBe('stale');
+		expect(draftAction(d, { current, ask: true })).toBe('stale');
+	});
+	it('el formulario de eventos ofrece recuperar; los otros editores recuperan directo', () => {
+		const d = draft({ ...current, body: 'otro' });
+		expect(draftAction(d, { current, ask: true })).toBe('offer');
+		expect(draftAction(d, { current })).toBe('restore');
+	});
+
+	it('changedKeys: las partes distintas', () => {
+		expect(changedKeys(current, { ...current, body: 'otro', tickets: { on: true } })).toEqual([
+			'body',
+			'tickets'
+		]);
+		expect(changedKeys(current, structuredClone(current))).toEqual([]);
+		expect(changedKeys(null, { a: 1 })).toEqual(['a']);
+		// Faltar y valer null es lo mismo (pasa por JSON).
+		expect(changedKeys({ a: null }, {})).toEqual([]);
+	});
+});
