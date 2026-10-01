@@ -1122,8 +1122,7 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
  * (suave); de los grupos sale, y si era le última dueñe pasa la propiedad a quien gestiona hace
  * más tiempo o, si no queda nadie, borra el grupo (suave). Las invitaciones que mandó quedan.
  *
- * TODAVÍA NO SE LLAMA desde el borrado de cuenta (ese flujo está en otra rama): ver
- * docs/cuentas.md («Perfiles» → pendiente).
+ * La llama `closeAccount()` (cuentas/index.js) antes de borrar la cuenta.
  *
  * @param {D1Database} db
  * @param {string} accountId
