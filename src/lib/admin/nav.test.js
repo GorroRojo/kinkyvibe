@@ -48,7 +48,8 @@ describe('NAV', () => {
 			'/admin/ajustes/interruptores',
 			'/admin/actividad',
 			'/admin/cuentas',
-			'/admin/cuentas/perfiles'
+			'/admin/cuentas/perfiles',
+			'/admin/eventos/lugares'
 		]) {
 			expect(hrefs).toContain(h);
 		}
@@ -60,10 +61,12 @@ describe('NAV', () => {
 		const importar = navItem('eventos-importar');
 		expect(importar?.menu).toBe(false);
 		expect(importar && navLink(importar)).toBe('/admin/eventos/importar');
+		// Lugares (noche 3, bloque A) se sumó a Eventos, antes de Check-in (mapa del panel).
 		expect(navGroupItems('eventos').map((i) => i.id)).toEqual([
 			'eventos',
 			'eventos-nuevo',
 			'eventos-agenda',
+			'eventos-lugares',
 			'checkin'
 		]);
 		for (const g of [null, ...NAV_GROUPS.map((x) => x.id)])

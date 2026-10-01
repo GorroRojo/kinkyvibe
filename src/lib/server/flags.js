@@ -23,6 +23,16 @@ export const FLAGS = Object.freeze({
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
+	perfiles_publicos: {
+		label: 'Perfiles públicos (amigues y lugares)',
+		description:
+			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
+			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
+			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
+			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'clasificación.',
+		envVar: 'PERFILES_PUBLICOS_ENABLED'
+	},
 	propinas: {
 		label: 'Propinas',
 		description:
@@ -102,6 +112,15 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function cuentasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'cuentas');
+}
+
+/**
+ * Atajo para las rutas: ¿/amigues y los lugares leen los perfiles de la base? (docs/amigues.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function perfilesPublicosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'perfiles_publicos');
 }
 
 /**
