@@ -54,8 +54,8 @@
 	<Card title="Permiso para tener perfiles">
 		<p class="kv-note">
 			Apagado por defecto. Sin el permiso, la cuenta no ve nada de perfiles: ni la tarjeta en Mi
-			rincón, ni sus perfiles, ni invitaciones de grupos. Sus perfiles quedan guardados y vuelven a
-			aparecer si lo prendés de nuevo. Queda en Actividad.
+			rincón, ni sus perfiles, ni invitaciones de proyectos. Sus perfiles quedan guardados y vuelven
+			a aparecer si lo prendés de nuevo. Queda en Actividad.
 		</p>
 		{#if form?.permiso}
 			<p class="kv-flash" class:bad={!form.permiso.ok} role="status">{form.permiso.message}</p>

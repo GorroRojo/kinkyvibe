@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Cuentas → Perfiles: todos los perfiles (persona o grupo), con su visibilidad, cuándo se
+	 * Cuentas → Perfiles: todos los perfiles (persona o proyecto), con su visibilidad, cuándo se
 	 * crearon, quiénes los gestionan y si están borrados. Búsqueda y filtro en la URL (`?q=`,
 	 * `?filtro=`), resueltos en el servidor.
 	 */
@@ -22,7 +22,7 @@
 
 <PageHeader
 	title="Perfiles"
-	subtitle="Perfiles de persona y de grupo que crearon las cuentas. Les admins ven también los ocultos y los borrados."
+	subtitle="Perfiles de persona y de proyecto que crearon las cuentas. Les admins ven también los ocultos y los borrados."
 />
 
 <Tabs tabs={[...CUENTAS_TABS]} />

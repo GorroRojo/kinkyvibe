@@ -152,29 +152,32 @@ cuando corresponde ([datos.md](datos.md)).
 
 ### `perfil`
 
-Una persona o un grupo con cuenta (decisión A2). Archivo: `src/lib/server/objects/types/perfil.js`.
+Una persona o un proyecto con cuenta (decisión A2). Archivo: `src/lib/server/objects/types/perfil.js`.
 Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 [cuentas.md](cuentas.md) («Perfiles»).
 
 | Campo          | Clase      | Notas                                                                                          |
 | -------------- | ---------- | ---------------------------------------------------------------------------------------------- |
 | (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                            |
-| `kind`         | `option`   | `persona` o `grupo`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)       |
+| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)    |
 | `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                            |
 | `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
 | `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
 | `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
-| `show_members` | `boolean`  | solo grupos: mostrar integrantes (solo los perfiles que quien mira puede ver)                  |
+| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)               |
 
-- Relación saliente `es_integrante_de` → `perfil`: de una persona a un grupo, sin `data`. La
-  suma quien gestiona el grupo y la saca la persona (o el grupo). Que el origen sea persona y el
-  destino grupo lo controla `perfiles.js` (el registro solo sabe de tipos, no de `kind`).
+- `proyecto` antes se llamaba `grupo` (migración `0023_perfil_proyecto.sql`). El valor viejo se
+  sigue aceptando: se lee como `proyecto` (`normalizeProfileKind`/`profileKindOf`) y el
+  `normalize` del tipo lo corrige antes de validar, así una fila vieja se guarda ya como `proyecto`.
+- Relación saliente `es_integrante_de` → `perfil`: de una persona a un proyecto, sin `data`. La
+  suma quien gestiona el proyecto y la saca la persona (o el proyecto). Que el origen sea persona
+  y el destino proyecto lo controla `perfiles.js` (el registro solo sabe de tipos, no de `kind`).
 - Quién gestiona cada perfil NO está en el objeto: va en la tabla de apoyo `profile_managers`
   (migración `0014_perfiles.sql`), porque las cuentas no son objetos. Esa tabla nunca se muestra
   fuera de Mi rincón de quienes gestionan.
 - Las lecturas de gestión de `perfiles.js` (mis perfiles, un perfil que gestiono) leen `objects`
   unidas a `profile_managers` sin `visibleWhere()`: la condición de acceso es esa unión (quien
-  gestiona un grupo oculto lo tiene que poder editar). Todo lo que ve el público u otra cuenta
+  gestiona un proyecto oculto lo tiene que poder editar). Todo lo que ve el público u otra cuenta
   pasa por `getObject`/`getEdges`.
 - Más adelante, los lugares (B3) pueden sumarse como otro `kind` con sus campos extra.
 
@@ -187,7 +190,8 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
    sí.
 2. Declará los campos (`fields`) con las clases de `fields.js`, las relaciones salientes (`edges`:
    hacia qué tipos, `max`, `required`), reglas entre campos (`check`) si hacen falta y
-   `searchText`.
+   `searchText`. Si un valor de opción cambia de nombre, `normalize` traduce el viejo antes de
+   validar (como `grupo` → `proyecto` en `perfil.js`), además de la migración de los datos.
 3. Sumalo a `createRegistry([...])` en `types/index.js`. El registro verifica al importarse que
    las relaciones apunten a tipos que existen.
 4. Pruebas en `types/types.test.js`: datos válidos, inválidos y las reglas propias.

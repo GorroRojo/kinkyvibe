@@ -399,7 +399,7 @@ describe('interruptor prendido', () => {
 		expect(await m.rincon.actions.confirmar(ev({ para: 'login' }))).toMatchObject({
 			status: 400
 		});
-		// Los de grupos se piden en la página del grupo, no acá.
+		// Los de proyectos se piden en la página del proyecto, no acá.
 		expect(await m.rincon.actions.confirmar(ev({ para: 'grupo' }))).toMatchObject({
 			status: 400
 		});

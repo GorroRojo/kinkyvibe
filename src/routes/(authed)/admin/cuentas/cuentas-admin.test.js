@@ -84,7 +84,7 @@ async function account(name, { profiles: allowed = false } = {}) {
 	return a;
 }
 
-/** Une cuenta con permiso y un perfil suyo. @param {string} title @param {'persona' | 'grupo'} [kind] */
+/** Une cuenta con permiso y un perfil suyo. @param {string} title @param {'persona' | 'proyecto'} [kind] */
 async function profileOf(title, kind = 'persona') {
 	const a = await account(`cuenta-${title.toLowerCase().replace(/\W+/g, '-')}`, { profiles: true });
 	const r = await createProfile(t.db, a.id, { kind, title });
@@ -247,7 +247,7 @@ describe('Cuentas', () => {
 describe('Perfiles', () => {
 	it('lista todos (ocultos y borrados también) con quiénes los gestionan; filtros y búsqueda', async () => {
 		const { account: a, profile: p1 } = await profileOf('Persona Inventada');
-		const { profile: p2 } = await profileOf('Grupo Inventado', 'grupo');
+		const { profile: p2 } = await profileOf('Proyecto Inventado', 'proyecto');
 		const { profile: p3 } = await profileOf('Otra Persona');
 		await profile.actions.ocultar(
 			fakeEvent({ params: { id: String(p2.id) }, form: { version: '1' } })
@@ -277,7 +277,7 @@ describe('Perfiles', () => {
 		expect(await ids('filtro=sin-revisar')).toEqual([p1.id]);
 		expect(await ids('filtro=ocultos')).toEqual([p2.id]);
 		expect(await ids('filtro=borrados')).toEqual([p3.id]);
-		expect(await ids('q=grupo')).toEqual([p2.id]);
+		expect(await ids('q=proyecto')).toEqual([p2.id]);
 		expect(await ids('filtro=cualquiera')).toHaveLength(3);
 	});
 
@@ -319,7 +319,7 @@ describe('Perfiles', () => {
 	});
 
 	it('borrar va por saveObject (borrado suave, con la versión) y queda en Actividad', async () => {
-		const { account: a, profile: p } = await profileOf('Grupo Inventado', 'grupo');
+		const { account: a, profile: p } = await profileOf('Proyecto Inventado', 'proyecto');
 		const params = { id: String(p.id) };
 		expect(
 			/** @type {any} */ (
@@ -346,7 +346,7 @@ describe('Perfiles', () => {
 			)?.n
 		).toBe(1);
 		expect((await auditRows('profile.delete')).map((r) => r.summary)).toEqual([
-			'Borró el perfil «Grupo Inventado»'
+			'Borró el perfil «Proyecto Inventado»'
 		]);
 		const again = /** @type {any} */ (
 			await profile.actions.borrar(fakeEvent({ params, form: { version: '2' } }))
@@ -384,7 +384,7 @@ describe('Inicio: "Para revisar" y actividad', () => {
 		// Uno creado por une admin no es "de una cuenta": no va a revisar.
 		await saveObject(
 			t.db,
-			{ type: 'perfil', title: 'De Admin', data: { kind: 'grupo' } },
+			{ type: 'perfil', title: 'De Admin', data: { kind: 'proyecto' } },
 			{ actor: admin.login }
 		);
 		expect((await profilesToReview(t.db)).map((p) => p.id)).toEqual([a.id, b.id, c.id, d.id]);

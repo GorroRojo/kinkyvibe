@@ -3,7 +3,7 @@
  */
 
 /** @type {Record<string, string>} */
-export const KIND_LABELS = { persona: 'Persona', grupo: 'Grupo' };
+export const KIND_LABELS = { persona: 'Persona', proyecto: 'Proyecto' };
 
 /** @type {Record<string, string>} */
 export const ROLE_LABELS = { owner: 'Dueñe', manager: 'Gestiona' };

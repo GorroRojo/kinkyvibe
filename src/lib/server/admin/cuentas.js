@@ -16,6 +16,7 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { logDBError } from '$lib/server/db';
 
@@ -179,7 +180,7 @@ function profileSummary(o) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: o.data.kind === 'grupo' ? 'grupo' : 'persona',
+		kind: profileKindOf(o.data),
 		visibility: o.visibility,
 		createdAt: o.created_at,
 		deletedAt: o.deleted_at,
@@ -422,7 +423,7 @@ export function deleteProfileAsAdmin(db, id, version, user, { now = Date.now() }
  *
  * @param {D1Database | null | undefined} db
  * @param {{ limit?: number }} [opts]
- * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]>}
+ * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]>}
  */
 export async function profilesToReview(db, { limit = 50 } = {}) {
 	if (!db) return [];
@@ -437,9 +438,9 @@ export async function profilesToReview(db, { limit = 50 } = {}) {
 			.bind(PROFILE_TYPE, ...vis.params, limit)
 			.all();
 		return results.map((r) => {
-			let kind = /** @type {'persona' | 'grupo'} */ ('persona');
+			let kind = /** @type {'persona' | 'proyecto'} */ ('persona');
 			try {
-				if (JSON.parse(String(r.data)).kind === 'grupo') kind = 'grupo';
+				kind = profileKindOf(JSON.parse(String(r.data)));
 			} catch {
 				// datos rotos: el chequeo nocturno lo reporta
 			}

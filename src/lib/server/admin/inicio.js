@@ -723,7 +723,7 @@ export function upcomingEvents({
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
  * Cuentas → Perfiles filtrado.
  *
- * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
  * @returns {ReviewItem[]}
  */
@@ -733,7 +733,7 @@ export function profileReviewItems(profiles, { formatWhen } = {}) {
 		tone: 'info',
 		icon: 'profile',
 		title: `Perfil nuevo: ${p.title}`,
-		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		text: `${p.kind === 'proyecto' ? 'Proyecto' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
 		action: 'Revisar',
 		href: profileHref(p.id),
 		group: 'profile',
