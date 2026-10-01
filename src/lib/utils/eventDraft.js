@@ -6,6 +6,8 @@
  */
 import { parseDocument, isScalar, isSeq, Scalar } from 'yaml';
 
+export { slugify } from './text.js';
+
 /** Argentina's UTC offset. The site writes every event date with it. */
 export const AR_OFFSET = '-03:00';
 
@@ -494,20 +496,21 @@ export function deriveSlug(sourceSlug, startDate) {
 	);
 }
 
+
 /**
- * "¡Córdoba! Taller de Ecofetichismo" → "cordoba-taller-de-ecofetichismo"
- * @param {string} text
+ * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
+ * event with that name would be unreachable there. `nuevo`, `agenda` and `importar` exist today;
+ * `series`, `lugares` and `imagenes` are kept for upcoming panel sections. A test checks that every
+ * static page under /admin/eventos is listed here.
  */
-export function slugify(text) {
-	return String(text ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 80)
-		.replace(/-+$/, '');
-}
+export const RESERVED_EVENT_SLUGS = Object.freeze([
+	'nuevo',
+	'agenda',
+	'importar',
+	'series',
+	'lugares',
+	'imagenes'
+]);
 
 /**
  * Returns an error message in Spanish, or null if the slug is OK.
@@ -519,6 +522,8 @@ export function validateSlug(slug, taken) {
 	if (slug.length > 100) return 'La dirección es demasiado larga (máximo 100 caracteres).';
 	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
 		return 'La dirección solo puede tener letras minúsculas sin tildes, números y guiones (sin espacios ni guiones al principio o al final).';
+	if (RESERVED_EVENT_SLUGS.includes(slug))
+		return `«${slug}» está reservada para el panel. Elegí otra dirección.`;
 	if (taken && isTaken(slug, taken)) return 'Ya existe un evento con esa dirección.';
 	return null;
 }
@@ -534,15 +539,17 @@ function isTaken(slug, taken) {
 }
 
 /**
- * `slug` if free, else `slug-2`, `slug-3`...
+ * `slug` if free, else `slug-2`, `slug-3`... Reserved slugs count as taken.
  * @param {string} slug
  * @param {Iterable<string>|((slug: string) => boolean)} taken
  */
 export function uniqueSlug(slug, taken) {
-	if (!isTaken(slug, taken)) return slug;
+	/** @param {string} s */
+	const unavailable = (s) => RESERVED_EVENT_SLUGS.includes(s) || isTaken(s, taken);
+	if (!unavailable(slug)) return slug;
 	for (let i = 2; ; i++) {
 		const candidate = `${slug}-${i}`;
-		if (!isTaken(candidate, taken)) return candidate;
+		if (!unavailable(candidate)) return candidate;
 	}
 }
 

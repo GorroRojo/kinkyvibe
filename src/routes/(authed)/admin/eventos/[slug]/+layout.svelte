@@ -24,11 +24,7 @@
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
 		.map((t) => ({
-			// Mientras el modo puerta nuevo no existe, la pestaña lleva al control de ingreso de hoy.
-			href:
-				t.id === 'ingreso' && t.soon
-					? `/admin/entradas/${encodeURIComponent(e.slug)}/ingreso`
-					: eventHref(e.slug, t.id),
+			href: eventHref(e.slug, t.id),
 			label: t.label,
 			count:
 				t.id === 'ordenes'

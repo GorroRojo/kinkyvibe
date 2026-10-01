@@ -11,7 +11,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
-	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
+	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS } from '$lib/utils/money.js';
 
 	/** @type {import('./$types').PageData} */
@@ -19,10 +19,7 @@
 	/** @type {import('./$types').ActionData} */
 	export let form;
 
-	const tabSoon = (/** @type {string} */ id) => EVENT_TABS.find((t) => t.id === id)?.soon ?? true;
-	$: ordersHref = tabSoon('ordenes')
-		? `/admin/entradas/${encodeURIComponent(data.slug)}`
-		: eventHref(data.slug, 'ordenes');
+	$: ordersHref = eventHref(data.slug, 'ordenes');
 
 	/** @type {Record<string, string>} */
 	const v = /** @type {any} */ (form && 'values' in form ? form.values : {}) ?? {};

@@ -27,7 +27,7 @@
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
-	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
+	import { eventHref } from '$lib/admin/nav.js';
 	import { computePrice } from '$lib/utils/tickets.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
@@ -69,13 +69,10 @@
 		expired: 'Vencida'
 	});
 
-	// --- Links: la ficha del evento cuando exista; mientras, las páginas de hoy. ---
-	const tabSoon = (/** @type {string} */ id) => EVENT_TABS.find((t) => t.id === id)?.soon ?? true;
+	// --- Links a la ficha del evento ---
 	$: base = `/admin/eventos/${encodeURIComponent(data.slug)}/ingreso`;
-	$: backHref = tabSoon('resumen') ? '/admin/checkin' : eventHref(data.slug);
-	$: ordersHref = tabSoon('ordenes')
-		? `/admin/entradas/${encodeURIComponent(data.slug)}`
-		: eventHref(data.slug, 'ordenes');
+	$: backHref = eventHref(data.slug);
+	$: ordersHref = eventHref(data.slug, 'ordenes');
 
 	// --- Estado ---
 	let counts = data.counts;

@@ -20,6 +20,7 @@
 
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
+import { toBase64url } from '$lib/utils/base64.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 import { capacityLimit, tierLimit } from './overrides.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
@@ -115,10 +116,7 @@ export function newTicketCode() {
 
 /** Token aleatorio de 256 bits en base64url (43 caracteres). */
 export function newToken() {
-	const bytes = crypto.getRandomValues(new Uint8Array(32));
-	let bin = '';
-	for (const b of bytes) bin += String.fromCharCode(b);
-	return btoa(bin).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+	return toBase64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
 /**
