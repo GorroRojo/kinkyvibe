@@ -46,7 +46,9 @@ describe('parseProfileFilters', () => {
 describe('profilesHref', () => {
 	it('arma el link con los filtros puestos y vuelve a leerse igual', () => {
 		expect(profilesHref()).toBe(PROFILES_HREF);
-		expect(profilesHref({ state: 'para-aprobar' })).toBe('/admin/amigues?estado=para-aprobar');
+		expect(profilesHref({ state: 'para-aprobar' })).toBe(
+			'/admin/comunidad/perfiles?estado=para-aprobar'
+		);
 		const f = { q: 'casa y más', kind: 'lugar', origin: 'panel', state: 'oculto', view: '' };
 		const href = profilesHref(f);
 		expect(parse(href.split('?')[1])).toEqual(f);
@@ -86,11 +88,13 @@ describe('profileRowHref', () => {
 	it('abre el editor (con la dirección vieja si vino de una ficha); un borrado, su ficha', () => {
 		expect(
 			profileRowHref({ id: 3, slug: 'gorro-rojo', legacySlug: 'Gorro_Rojo', deletedAt: null })
-		).toBe('/admin/amigues/Gorro_Rojo');
+		).toBe('/admin/comunidad/perfiles/Gorro_Rojo');
 		expect(profileRowHref({ id: 4, slug: 'casa inventada', deletedAt: null })).toBe(
-			'/admin/amigues/casa%20inventada'
+			'/admin/comunidad/perfiles/casa%20inventada'
 		);
-		expect(profileRowHref({ id: 5, slug: 'x', deletedAt: 1 })).toBe('/admin/cuentas/perfiles/5');
+		expect(profileRowHref({ id: 5, slug: 'x', deletedAt: 1 })).toBe(
+			'/admin/comunidad/cuentas/perfiles/5'
+		);
 	});
 });
 

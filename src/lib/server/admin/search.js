@@ -201,7 +201,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 					r.event_slug ? title(String(r.event_slug)) : 'todos los eventos',
 					Number(r.active) ? 'activo' : 'desactivado'
 				].join(' · '),
-				href: '/admin/entradas/codigos'
+				href: '/admin/ventas/codigos'
 			}));
 		}),
 		safe(db, 'personas', async (db) => {

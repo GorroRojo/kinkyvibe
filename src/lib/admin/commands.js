@@ -168,7 +168,7 @@ export function buildCommands({ today = [] } = {}) {
 		hint: 'Códigos',
 		keywords: 'nuevo codigo descuento cupon crear',
 		icon: 'tag',
-		href: '/admin/entradas/codigos'
+		href: '/admin/ventas/codigos'
 	});
 
 	for (const item of NAV) {

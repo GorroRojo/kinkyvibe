@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the panel's content editors (/admin/material, /admin/amigues): which
+ * Pure helpers for the panel's content editors (/admin/contenido/material, /admin/comunidad/perfiles): which
  * frontmatter fields each kind of post uses, slugs, building the file from the form and the
  * list rows. No Svelte / SvelteKit imports: runs in the browser, on the server and in vitest.
  *

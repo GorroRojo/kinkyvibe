@@ -1,5 +1,5 @@
 /**
- * Comunidad › Perfiles (/admin/amigues): la única lista de perfiles del panel (decisión de
+ * Comunidad › Perfiles (/admin/comunidad/perfiles): la única lista de perfiles del panel (decisión de
  * gorrite del 1/10: "Amigues" y "Cuentas › Perfiles" pasan a ser una sola lista). Acá, lo puro:
  * los filtros de la URL, de dónde vino cada perfil (origen) y en qué estado está, y los links que
  * conservan los filtros. Lo usan el servidor (src/lib/server/admin/cuentas.js arma el SQL con las
@@ -10,7 +10,7 @@ import { VISIBILITY_LABELS } from './cuentas.js';
 import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
 
 /** La URL de la lista. */
-export const PROFILES_HREF = '/admin/amigues';
+export const PROFILES_HREF = '/admin/comunidad/perfiles';
 
 /** Tipo (`?tipo=`). */
 export const PROFILE_KIND_FILTERS = Object.freeze({
@@ -130,9 +130,9 @@ export function profileState({ deletedAt, visibility, approved, rejected }) {
 }
 
 /**
- * A dónde lleva cada fila: al editor del perfil (`/admin/amigues/<dirección>`, la vieja si vino
+ * A dónde lleva cada fila: al editor del perfil (`/admin/comunidad/perfiles/<dirección>`, la vieja si vino
  * de una ficha; con el interruptor apagado ese editor abre el .md). Un perfil borrado no se edita:
- * va a su ficha (`/admin/cuentas/perfiles/<id>`).
+ * va a su ficha (`/admin/comunidad/cuentas/perfiles/<id>`).
  *
  * @param {{ id: number, slug: string, legacySlug?: string | null, deletedAt: number | null }} p
  */

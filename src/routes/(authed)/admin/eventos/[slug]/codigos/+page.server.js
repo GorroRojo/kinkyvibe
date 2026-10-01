@@ -1,7 +1,7 @@
 /**
  * Ficha del evento, pestaña Códigos: los códigos de descuento de este evento (y los que valen
  * para todos), alta de un código para este evento y activar/desactivar. Misma lógica que
- * /admin/entradas/codigos, con el evento fijo.
+ * /admin/ventas/codigos, con el evento fijo.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';

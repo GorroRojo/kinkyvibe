@@ -2,7 +2,7 @@
  * Preguntas de inscripción (B8): funciones puras, sin base. Las usan el servidor (validar al
  * comprar, guardar las preguntas desde el panel), el formulario de compra y el panel.
  *
- * Una pregunta es de un evento (la pestaña Preguntas de su ficha) o general (Ajustes → Personas
+ * Una pregunta es de un evento (la pestaña Preguntas de su ficha) o general (Eventos › Roles
  * y preguntas: se define una vez y cada evento elige si la usa). Tipos: texto, opciones (una de
  * una lista) o casilla. Obligatoria u opcional.
  *

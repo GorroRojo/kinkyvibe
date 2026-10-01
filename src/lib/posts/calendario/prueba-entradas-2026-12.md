@@ -80,7 +80,7 @@ La terminal muestra la dirección (normalmente `http://localhost:5173`). Abrí `
 
 1. Comprá 1 **General** eligiendo **Entrada solidaria**: por transferencia el total es $ 11.000 (con Mercado Pago se suma el recargo) y el desglose dice "Incluye $ 1.000 de aporte al Fondo KinkyVibe".
 2. Pagala con Mercado Pago simulado (o por transferencia, y confirmala en el admin).
-3. En `http://localhost:5173/admin/entradas` el evento muestra **Fondo usado** (lo que cubrió el fondo en las compras "con el descuento del fondo"), **Aportes al fondo** (lo que se pagó de más en las entradas solidarias y Sugar) y **Neto del fondo** = aportes − fondo usado, en verde con + o en rojo con −. En la página del evento del admin está lo mismo por tipo de entrada.
+3. En `http://localhost:5173/admin/ventas` el evento muestra **Fondo usado** (lo que cubrió el fondo en las compras "con el descuento del fondo"), **Aportes al fondo** (lo que se pagó de más en las entradas solidarias y Sugar) y **Neto del fondo** = aportes − fondo usado, en verde con + o en rojo con −. En la página del evento del admin está lo mismo por tipo de entrada.
 
 ### 4. Comprar con transferencia
 
@@ -92,7 +92,7 @@ La terminal muestra la dirección (normalmente `http://localhost:5173`). Abrí `
 
 ### 5. Códigos de descuento
 
-1. Andá a `http://localhost:5173/admin/entradas/codigos`.
+1. Andá a `http://localhost:5173/admin/ventas/codigos`.
 2. Creá un código **GRATIS100**: porcentaje, valor 100, para este evento.
 3. Creá un código **VEINTE**: porcentaje, valor 20, usos máximos **1**.
 4. En la página de compra, escribí `veinte` en **Código de descuento** y tocá **Aplicar**: el total tiene que bajar un 20 % (el código se aplica sobre el precio que quedó después de elegir cómo pagar —con fondo, completo o solidario— y el recargo de MP va al final). Comprá con Mercado Pago simulado.

@@ -157,7 +157,7 @@ describe('slugs', () => {
 		expect(uniqueSlug('picantearla-2026-09', taken)).toBe('picantearla-2026-09-3');
 	});
 	it('reserves panel slugs (series, lugares, imagenes and the pages under /admin/eventos)', () => {
-		for (const s of ['series', 'lugares', 'imagenes', 'nuevo', 'agenda', 'importar'])
+		for (const s of ['series', 'lugares', 'imagenes', 'roles', 'nuevo', 'agenda', 'importar'])
 			expect(validateSlug(s)).toMatch(/reservada/);
 		expect(validateSlug('series-2026')).toBe(null);
 		expect(uniqueSlug('series', [])).toBe('series-2');
