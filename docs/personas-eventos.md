@@ -8,7 +8,7 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
 
 1. **Personas con rol (B7).** Un evento o una publicación de material lista personas con su rol
    («Organiza: Colectivo de Prueba»). Cada rol apunta a un **perfil** de persona o de proyecto
-   (Cuentas → Perfiles, los mismos de /amigues: [amigues.md](amigues.md)). La
+   (Perfiles del panel, los mismos de /amigues: [amigues.md](amigues.md)). La
    página del evento muestra los roles con link al perfil, y la página de un perfil lista sus
    eventos y publicaciones por rol («Participa en»).
 2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
@@ -91,7 +91,7 @@ solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de sie
 ### Respuestas para les organizadores
 
 Decisión de gorrite: además de les admins, ven las respuestas quienes **gestionan** (dueñes o
-gestores en `profile_managers`, Cuentas → Perfiles) un perfil que figura con el rol **Organiza**
+gestores en `profile_managers`, Perfiles del panel) un perfil que figura con el rol **Organiza**
 en el `personas:` de ese evento. Solo las de sus eventos.
 
 - **Dónde:** Mi rincón → Perfiles → el perfil → «Respuestas de inscripción» (la sección aparece si

@@ -6,7 +6,7 @@
 	 * Props: `view` (VenueView), `context` ('event' | 'venue').
 	 */
 	import { MapPin } from '@lucide/svelte';
-	import { ADDRESS_FOR_BUYERS } from '$lib/utils/venues.js';
+	import { ADDRESS_FOR_BUYERS, googleMapsLink, showsAddress } from '$lib/utils/venues.js';
 	import VenueMap from './VenueMap.svelte';
 
 	/** @type {import('$lib/utils/venues.js').VenueView} */
@@ -15,6 +15,8 @@
 	export let context = 'event';
 
 	$: place = [view.area, view.city].filter(Boolean).join(', ');
+	/* "Ver en Google Maps": solo en los niveles que muestran la dirección (pedido de gorrite). */
+	$: gmaps = googleMapsLink(view);
 </script>
 
 <section class="venue" aria-label={context === 'event' ? 'Dónde' : 'Ubicación'}>
@@ -26,6 +28,11 @@
 				>{#if view.level === 'public' && view.address}: <span class="address">{view.address}</span
 					>{/if}
 				{#if view.level === 'public' && place}<span class="place">({place})</span>{/if}
+			{:else if view.level === 'address' && (view.address || place)}
+				Sucede en <span class="p-location"
+					>{#if view.address}<span class="address">{view.address}</span>{/if}
+					{#if place}<span class="place">{view.address ? `(${place})` : place}</span>{/if}</span
+				>
 			{:else if view.level === 'area' && place}
 				Sucede en <span class="p-location">{place}</span>
 			{:else}
@@ -40,11 +47,17 @@
 			La dirección se comparte con quienes compran entrada para sus eventos.
 		{/if}
 	</p>
-	{#if context === 'event' && view.level !== 'public'}
+	{#if context === 'event' && !showsAddress(view.level)}
 		<p class="note">{ADDRESS_FOR_BUYERS}</p>
 	{/if}
-	{#if view.level === 'public' && view.lat !== undefined && view.lng !== undefined}
-		<VenueMap lat={view.lat} lng={view.lng} label={view.name ?? ''} />
+	{#if gmaps}
+		<p class="gmaps">
+			<a href={gmaps} target="_blank" rel="noopener noreferrer">Ver en Google Maps</a>
+		</p>
+	{/if}
+	<!-- El mapa, también en "Sólo dirección" (decisión de gorrite); ahí sin el nombre. -->
+	{#if showsAddress(view.level) && view.lat !== undefined && view.lng !== undefined}
+		<VenueMap lat={view.lat} lng={view.lng} label={view.name ?? view.address ?? ''} />
 	{/if}
 	{#if view.level === 'public' && view.howTo}
 		<h4>Cómo llegar</h4>
@@ -79,6 +92,17 @@
 	}
 	.text {
 		white-space: pre-line;
+	}
+	.gmaps {
+		margin: 0.4em 0;
+	}
+	.gmaps a {
+		display: inline-block;
+		padding: 0.3em 0.8em;
+		border: 1px solid currentColor;
+		border-radius: 999px;
+		font-size: var(--step--1);
+		text-decoration: none;
 	}
 	h4 {
 		margin: 1em 0 0.3em;
