@@ -8,13 +8,27 @@ import ConfirmPrompt from './ConfirmPrompt.svelte';
 import PendingBar from './PendingBar.svelte';
 import { newEventQuestion } from '$lib/utils/calendario.js';
 
-/** @param {string} html */
+/**
+ * El texto visible del HTML que devuelve `render`: saca cada etiqueta (y los comentarios que usa
+ * Svelte) desde un `<` hasta el `>` siguiente, de una pasada; el resultado nunca tiene un `<`.
+ * @param {string} html
+ */
 const text = (html) =>
 	html
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.replace(/<[^>]+>/g, ' ')
+		.split('<')
+		.map((part, i) => (i === 0 ? part : part.slice(part.indexOf('>') + 1 || part.length)))
+		.join(' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+
+describe('text (helper de estos tests)', () => {
+	it('saca etiquetas y comentarios, aunque vengan anidados o sin cerrar', () => {
+		expect(text('<p>Hola <!--[--><b>vos</b><!--]--></p>')).toBe('Hola vos');
+		const t = text('a<!--<!-- -->-->b<scr<script>ipt>c<img');
+		expect(t).not.toContain('<');
+		expect(t).toBe('a -->b ipt>c');
+	});
+});
 
 describe('ConfirmPrompt (día vacío)', () => {
 	it('pregunta por el día con Cargar / Cancelar', () => {
@@ -30,6 +44,14 @@ describe('ConfirmPrompt (día vacío)', () => {
 		expect(t).toContain('¿Cargar un evento el sábado 12 de diciembre de 2026?');
 		expect(t).toContain('Cargar');
 		expect(t).toContain('Cancelar');
+	});
+
+	it('muestra el mensaje como texto, nunca como HTML', () => {
+		const { body } = render(ConfirmPrompt, {
+			props: { message: '¿Cargar <img src=x onerror=alert(1)>?' }
+		});
+		expect(body).not.toContain('<img src=x');
+		expect(body).toContain('&lt;img src=x onerror=alert(1)>');
 	});
 });
 
