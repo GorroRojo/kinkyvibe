@@ -9,6 +9,8 @@
  * Pura (sin base ni Vite): la usan el importador, el script de Node y los tests.
  */
 
+import { asText as str, asTextList as list } from '../../utils/text.js';
+
 /** @typedef {'persona' | 'grupo' | 'lugar'} SuggestedKind */
 
 /**
@@ -45,12 +47,6 @@ const ADDRESS =
 	/\b(calle|av\.?|avenida|pasaje|ruta)\s+[\p{L} .]+\s\d{1,5}\b|\b[\p{Lu}][\p{L}]+\s\d{2,5}\b,/u;
 /** Pronombres en plural (el primer juego del link de pronombr.es, o el texto). */
 const PLURAL_PRONOUNS = new Set(['elles', 'ellos', 'ellas', 'ellxs', 'elloas', 'ellos/ellas']);
-
-/** @param {unknown} v */
-const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
-
-/** @param {unknown} v @returns {string[]} */
-const list = (v) => (Array.isArray(v) ? v.map(str).filter(Boolean) : str(v) ? [str(v)] : []);
 
 /**
  * Los pronombres principales de una ficha ("https://pronombr.es/elle&ella" → ["elle", "ella"]),

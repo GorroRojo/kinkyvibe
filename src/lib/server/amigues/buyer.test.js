@@ -84,7 +84,8 @@ async function approvedOrder() {
 		transaction_amount: 8000,
 		currency_id: 'ARS'
 	});
-	return { order, tickets };
+	// La orden recién aprobada existe (applyPayment la devuelve como `Order | null`).
+	return { order: /** @type {import('$lib/server/tickets/orders.js').Order} */ (order), tickets };
 }
 
 /** El mail que se le mandó a Resend. */

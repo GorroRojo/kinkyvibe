@@ -25,6 +25,7 @@ import {
 	profileKind
 } from '$lib/server/cuentas/perfiles.js';
 import { pronounLabel } from '$lib/utils/mentions';
+import { textOrNull as s } from '$lib/utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -244,8 +245,6 @@ export async function groupMembers(db, group, viewer) {
  */
 export function publicProfile(o, { legacySlug, image = null, tags }) {
 	const d = o.data;
-	/** @param {unknown} v */
-	const s = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 	/** @param {unknown} v */
 	const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
 	const pronoun = s(d.pronouns) ?? s(d.pronouns_url);

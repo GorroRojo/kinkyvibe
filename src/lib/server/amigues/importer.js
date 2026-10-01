@@ -24,6 +24,7 @@ import { ObjectError } from '../objects/errors.js';
 import { saveObject, slugify } from '../objects/save.js';
 import { approveNewStatement } from './approvals.js';
 import { classifyAmigue } from './classify.js';
+import { asText as str, asTextList as strList } from '../../utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./classify.js').SuggestedKind} SuggestedKind */
@@ -103,12 +104,6 @@ export function parseFrontmatter(frontmatter) {
 	const parsed = YAML.parse(frontmatter, { schema: 'failsafe' });
 	return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 }
-
-/** @param {unknown} v */
-const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
-
-/** @param {unknown} v @returns {string[]} */
-const strList = (v) => (Array.isArray(v) ? v.map(str).filter(Boolean) : str(v) ? [str(v)] : []);
 
 /** @param {unknown} v */
 const truthy = (v) => ['true', 'yes', '1', 'sí', 'si'].includes(str(v).toLowerCase());

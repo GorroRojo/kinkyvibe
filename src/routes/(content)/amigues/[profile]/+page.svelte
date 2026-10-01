@@ -1,6 +1,6 @@
 <script>
 	import LDTag from '$lib/components/LDTag.svelte';
-	import Tags from '$lib/components/Tags.svelte';
+	import ProfileTags from '$lib/components/amigues/ProfileTags.svelte';
 	import ProfileHead from '$lib/components/amigues/ProfileHead.svelte';
 	import ProfileHeader from '$lib/components/amigues/ProfileHeader.svelte';
 	import RelatedPosts from '$lib/components/amigues/RelatedPosts.svelte';
@@ -87,9 +87,7 @@
 			</address>
 		{/if}
 		{#if meta.tags}
-			<div id="tags">
-				<Tags tags={meta.tags} />
-			</div>
+			<ProfileTags tags={meta.tags} />
 		{/if}
 		{#if meta.summary}
 			<div class="content">
@@ -108,13 +106,3 @@
 
 	<RelatedPosts {meta} relatedPosts={data.relatedPosts} relatedPastCount={data.relatedPastCount} />
 {/if}
-
-<style lang="scss">
-	#tags {
-		margin-inline: auto;
-		max-width: 70rem;
-		width: 100%;
-		margin-top: 2em;
-		justify-content: center;
-	}
-</style>

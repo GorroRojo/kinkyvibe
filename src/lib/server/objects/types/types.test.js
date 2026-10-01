@@ -108,15 +108,43 @@ describe('perfil', () => {
 		});
 	});
 
+	it('lugar: sus campos solo valen para lugares; la ubicación va completa (noche 3)', () => {
+		const venue = {
+			kind: 'lugar',
+			address: 'Calle Inventada 1',
+			area: 'Barrio Inventado',
+			lat: -34.6,
+			lng: -58.4,
+			venue_privacy: 'area'
+		};
+		expect(validateData(perfil, venue)).toMatchObject({ ok: true });
+		const asPersona = validateData(perfil, { ...venue, kind: 'persona' });
+		expect(asPersona.ok ? [] : asPersona.errors.map((e) => e.path).sort()).toEqual([
+			'address',
+			'area',
+			'lat',
+			'lng',
+			'venue_privacy'
+		]);
+		const half = validateData(perfil, { kind: 'lugar', lat: -34.6 });
+		expect(half.ok ? [] : half.errors.map((e) => e.path)).toEqual(['lat']);
+		expect(validateData(perfil, { kind: 'lugar', venue_privacy: 'secreta' }).ok).toBe(false);
+		expect(validateData(perfil, { kind: 'persona', pronouns_url: 'javascript:alert(1)' }).ok).toBe(
+			false
+		);
+	});
+
 	it('rechaza tipos inventados, links que no son web, imágenes de afuera y claves desconocidas', () => {
 		const paths = (/** @type {Record<string, unknown>} */ data) => {
 			const r = validateData(perfil, data);
 			return r.ok ? [] : r.errors.map((e) => e.path).sort();
 		};
-		expect(paths({ kind: 'lugar' })).toEqual(['kind']);
-		expect(paths({ kind: 'persona', display_name: 'X', email: 'x@example.com' })).toEqual([
+		// Desde la noche 3 (bloque A) `lugar` es un tipo de perfil y `email` un campo (de las fichas
+		// de amigues importadas): la prueba usa otro tipo y otra clave inventados.
+		expect(paths({ kind: 'cualquiera' })).toEqual(['kind']);
+		expect(paths({ kind: 'persona', display_name: 'X', manager_email: 'x@example.com' })).toEqual([
 			'display_name',
-			'email'
+			'manager_email'
 		]);
 		expect(paths({ kind: 'persona', links: ['javascript:alert(1)'] })).toEqual(['links']);
 		expect(paths({ kind: 'persona', links: ['https://usuario:clave@ejemplo.test'] })).toEqual([

@@ -20,8 +20,9 @@
 	/** @type {Map<string, { slug: string, title: string, start: string, mdAddress: boolean }>} */
 	$: eventsBySlug = new Map(data.events.map((e) => [e.slug, e]));
 	/** @param {string | null} p */
-	const privacyText = (p) =>
-		p ? /** @type {Record<string, string>} */ ((data.privacyLabels)[p] ?? p) : 'la del lugar';
+	const privacyText = (p) => (p ? (labels[p] ?? p) : 'la del lugar');
+	/** @type {Record<string, string>} */
+	$: labels = data.privacyLabels;
 	let newName = '';
 </script>
 

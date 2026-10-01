@@ -407,9 +407,7 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 		outputs.sitemap = await text(
 			await (await import('../sitemap.xml/+server.js')).GET(/** @type {any} */ ({}))
 		);
-		outputs.rss = await text(
-			await (await import('../../rss/+server.js')).GET(/** @type {any} */ ({}))
-		);
+		outputs.rss = await text(await (await import('../../rss/+server.js')).GET());
 		outputs.ics = await text(
 			await (await import('../calendario.ics/+server.js')).GET(/** @type {any} */ ({}))
 		);

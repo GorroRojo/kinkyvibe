@@ -12,6 +12,8 @@
  * página de su entrada.
  */
 
+import { textOrNull } from './text.js';
+
 /** @typedef {'public' | 'name' | 'area' | 'hidden'} VenuePrivacy */
 
 /** @type {readonly VenuePrivacy[]} */
@@ -95,7 +97,7 @@ export function showsVenueLink(level) {
 export function venueView(venue, level, href) {
 	const d = venue.data ?? {};
 	/** @param {unknown} v */
-	const s = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+	const s = (v) => textOrNull(v) ?? undefined;
 	/** @param {unknown} v */
 	const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 	if (level === 'public') {

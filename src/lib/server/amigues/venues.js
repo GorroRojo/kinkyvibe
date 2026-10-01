@@ -27,6 +27,7 @@ import {
 } from '$lib/utils/venues.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { isApproved, urlSlugOf } from './profiles.js';
+import { textOrNull as s } from '$lib/utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -109,8 +110,6 @@ export async function buyerVenueForEvent(db, eventSlug) {
 	const link = await eventVenue(db, eventSlug);
 	if (!link) return null;
 	const d = link.venue.data;
-	/** @param {unknown} v */
-	const s = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 	return {
 		name: link.venue.title,
 		address: fullAddress(d),

@@ -100,7 +100,7 @@ describe('pedir un perfil', () => {
 			expect((await claim(a.id, p.id, 'misma-conexion')).ok).toBe(true);
 		}
 		const extra = await makeAccount(t.db, 'una-mas');
-		expect((await claim(extra.id, p.id, 'misma-conexion')).status).toBe(429);
+		expect(await claim(extra.id, p.id, 'misma-conexion')).toMatchObject({ status: 429 });
 	});
 });
 

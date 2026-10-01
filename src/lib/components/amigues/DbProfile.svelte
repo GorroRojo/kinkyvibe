@@ -5,7 +5,7 @@
 	 * lista blanca de campos, HTML del texto ya limpio, integrantes visibles, privacidad del lugar.
 	 * Props: `data` (lo que arma `profilePageData`), `claimResult` (la respuesta de "Es mi perfil").
 	 */
-	import Tags from '$lib/components/Tags.svelte';
+	import ProfileTags from '$lib/components/amigues/ProfileTags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ProfileHead from './ProfileHead.svelte';
@@ -71,9 +71,7 @@
 		</address>
 	{/if}
 	{#if p.tags.length}
-		<div id="tags">
-			<Tags tags={p.tags} />
-		</div>
+		<ProfileTags tags={p.tags} />
 	{/if}
 	{#if p.bio}
 		<div class="content">
@@ -124,13 +122,6 @@
 />
 
 <style lang="scss">
-	#tags {
-		margin-inline: auto;
-		max-width: 70rem;
-		width: 100%;
-		margin-top: 2em;
-		justify-content: center;
-	}
 	.kind {
 		text-align: center;
 		font-size: var(--step--1);
