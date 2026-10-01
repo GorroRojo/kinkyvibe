@@ -10,6 +10,7 @@
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
+import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	describeReminder,
 	dueReminderOrders,
@@ -724,7 +725,7 @@ export function upcomingEvents({
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
  * Cuentas → Perfiles filtrado.
  *
- * @param {{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]} profiles
+ * @param {{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
  * @returns {ReviewItem[]}
  */
@@ -734,7 +735,7 @@ export function profileReviewItems(profiles, { formatWhen } = {}) {
 		tone: 'info',
 		icon: 'profile',
 		title: `Perfil nuevo: ${p.title}`,
-		text: `${p.kind === 'proyecto' ? 'Proyecto' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		text: `${KIND_LABELS[p.kind] ?? 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
 		action: 'Revisar',
 		href: profileHref(p.id),
 		group: 'profile',

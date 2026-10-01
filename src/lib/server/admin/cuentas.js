@@ -466,7 +466,7 @@ export function deleteProfileAsAdmin(db, id, version, user, { now = Date.now() }
  *
  * @param {D1Database | null | undefined} db
  * @param {{ limit?: number }} [opts]
- * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]>}
+ * @returns {Promise<{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]>}
  */
 export async function profilesToReview(db, { limit = 50 } = {}) {
 	if (!db) return [];
@@ -481,7 +481,9 @@ export async function profilesToReview(db, { limit = 50 } = {}) {
 			.bind(PROFILE_TYPE, ...vis.params, limit)
 			.all();
 		return results.map((r) => {
-			let kind = /** @type {'persona' | 'proyecto'} */ ('persona');
+			let kind = /** @type {import('$lib/server/objects/types/perfil.js').ProfileKind} */ (
+				'persona'
+			);
 			try {
 				kind = profileKindOf(JSON.parse(String(r.data)));
 			} catch {
