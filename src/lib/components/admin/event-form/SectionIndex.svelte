@@ -24,7 +24,11 @@
 		return Math.min(top, window.innerHeight / 3);
 	}
 
+	/** Después de tocar una sección, la marcada es esa mientras dura el scroll hasta ella. */
+	let pinnedUntil = 0;
+
 	function update() {
+		if (Date.now() < pinnedUntil) return;
 		const tops = sections
 			.map((s) => ({ id: s.id, el: document.getElementById(s.id) }))
 			.filter((s) => s.el)
@@ -32,7 +36,9 @@
 				id: s.id,
 				top: /** @type {HTMLElement} */ (s.el).getBoundingClientRect().top
 			}));
-		const next = currentSection(tops, readingLine());
+		const root = document.documentElement;
+		const atEnd = window.innerHeight + window.scrollY >= root.scrollHeight - 4;
+		const next = currentSection(tops, readingLine(), atEnd && window.scrollY > 0);
 		if (next !== current) {
 			current = next;
 			// En el celu, que el botón de la sección actual quede a la vista en la fila.
@@ -76,6 +82,7 @@
 		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 		el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
 		current = id;
+		pinnedUntil = Date.now() + 1200;
 	}
 </script>
 

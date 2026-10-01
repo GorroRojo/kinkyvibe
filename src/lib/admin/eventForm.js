@@ -85,13 +85,16 @@ export function draftSectionLabels(keys, map = DRAFT_PART_SECTION) {
 
 /**
  * La sección visible para el índice: la última cuyo comienzo ya pasó la línea de lectura (o la
- * primera, si ninguna pasó todavía).
+ * primera, si ninguna pasó todavía). Al llegar al final de la página, la última: las secciones
+ * cortas del final nunca llegan a la línea de lectura.
  * @param {Array<{ id: string, top: number }>} tops posición de cada sección respecto de la
  *   pantalla (`getBoundingClientRect().top`), en orden
  * @param {number} line altura de la línea de lectura (px desde arriba de la pantalla)
+ * @param {boolean} [atEnd] la página está scrolleada hasta abajo de todo
  * @returns {string} id de la sección, o '' si no hay secciones
  */
-export function currentSection(tops, line) {
+export function currentSection(tops, line, atEnd = false) {
+	if (atEnd && tops.length) return tops[tops.length - 1].id;
 	let current = tops[0]?.id ?? '';
 	for (const t of tops) if (t.top <= line) current = t.id;
 	return current;

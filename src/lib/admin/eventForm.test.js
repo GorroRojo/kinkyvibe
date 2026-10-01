@@ -70,6 +70,10 @@ describe('currentSection', () => {
 		expect(currentSection(tops, 120)).toBe('b');
 		expect(currentSection(tops, 50)).toBe('a');
 	});
+	it('abajo de todo, la última aunque no haya llegado a la línea', () => {
+		expect(currentSection(tops, 120, true)).toBe('c');
+		expect(currentSection([], 120, true)).toBe('');
+	});
 	it('la primera si ninguna pasó, y vacío sin secciones', () => {
 		expect(currentSection([{ id: 'x', top: 300 }], 100)).toBe('x');
 		expect(currentSection([], 100)).toBe('');
