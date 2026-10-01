@@ -12,8 +12,8 @@
  * - Los límites por mail y por conexión (cuántos códigos se piden, cuántos intentos) van en
  *   index.js, con rate_limits.
  */
-import { sha256Hex } from '$lib/server/hash.js';
-import { randomDigits, timingSafeEqualText } from './crypto.js';
+import { sha256Hex, timingSafeEqual } from '$lib/server/hash.js';
+import { randomDigits } from './crypto.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -119,10 +119,7 @@ export async function verifyLoginCode(
 		.bind(emailHash, now, CODE_MAX_ATTEMPTS, purpose)
 		.first();
 	if (!row) return 'expired';
-	const ok = timingSafeEqualText(
-		await codeHash(String(row.id), purpose, code),
-		String(row.code_hash)
-	);
+	const ok = timingSafeEqual(await codeHash(String(row.id), purpose, code), String(row.code_hash));
 	if (!ok) return 'wrong';
 	const used = await db
 		.prepare('UPDATE login_codes SET used_at = ?2 WHERE id = ?1 AND used_at IS NULL')

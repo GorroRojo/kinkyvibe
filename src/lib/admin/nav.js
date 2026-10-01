@@ -62,6 +62,7 @@ import {
 	Tags,
 	Ticket,
 	TicketPercent,
+	ToggleRight,
 	Users
 } from '@lucide/svelte';
 
@@ -300,6 +301,15 @@ export const NAV = Object.freeze([
 		icon: KeyRound,
 		emoji: '🔑',
 		label: 'Admins',
+		group: 'ajustes',
+		soon: false
+	},
+	{
+		id: 'ajustes-interruptores',
+		href: '/admin/ajustes/interruptores',
+		icon: ToggleRight,
+		emoji: '🎚️',
+		label: 'Interruptores',
 		group: 'ajustes',
 		soon: false
 	},

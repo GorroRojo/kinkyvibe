@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { parseDocument } from 'yaml';
 import {
 	splitMarkdown,
@@ -21,6 +21,7 @@ import {
 	deriveSlug,
 	slugify,
 	validateSlug,
+	RESERVED_EVENT_SLUGS,
 	uniqueSlug,
 	detectImageType,
 	isNumericFeatured,
@@ -154,6 +155,28 @@ describe('slugs', () => {
 		const taken = new Set(['picantearla-2026-09', 'picantearla-2026-09-2']);
 		expect(uniqueSlug('picantearla-2026-10', taken)).toBe('picantearla-2026-10');
 		expect(uniqueSlug('picantearla-2026-09', taken)).toBe('picantearla-2026-09-3');
+	});
+	it('reserves panel slugs (series, lugares, imagenes and the pages under /admin/eventos)', () => {
+		for (const s of ['series', 'lugares', 'imagenes', 'nuevo', 'agenda', 'importar'])
+			expect(validateSlug(s)).toMatch(/reservada/);
+		expect(validateSlug('series-2026')).toBe(null);
+		expect(uniqueSlug('series', [])).toBe('series-2');
+		expect(uniqueSlug('lugares', ['lugares-2'])).toBe('lugares-3');
+	});
+	it('every static page under /admin/eventos is a reserved slug', () => {
+		const dir = new URL('../../routes/(authed)/admin/eventos/', import.meta.url);
+		const pages = readdirSync(dir, { withFileTypes: true })
+			.filter((d) => d.isDirectory() && !d.name.startsWith('['))
+			.map((d) => d.name);
+		expect(pages.length).toBeGreaterThan(0);
+		for (const p of pages) expect(RESERVED_EVENT_SLUGS).toContain(p);
+	});
+	it('no existing event uses a reserved slug', () => {
+		const dir = new URL('../posts/calendario/', import.meta.url);
+		const slugs = readdirSync(dir)
+			.filter((f) => f.endsWith('.md'))
+			.map((f) => f.slice(0, -3));
+		for (const s of RESERVED_EVENT_SLUGS) expect(slugs).not.toContain(s);
 	});
 });
 

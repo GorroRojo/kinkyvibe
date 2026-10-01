@@ -18,6 +18,7 @@
  */
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { sha256Hex } from '$lib/server/hash.js';
 import { HOLDING } from './discounts.js';
 import { capacityLimit, closedLimit, maxPerPurchaseLimit, noDoorLimit } from './overrides.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
@@ -39,15 +40,6 @@ export function dniTail(dni) {
 /** @param {string} id */
 export function orderRef(id) {
 	return `KV-${String(id).slice(0, 8).toUpperCase()}`;
-}
-
-/**
- * SHA-256 en hex (el celu guarda el hash del token, no el token, en la lista sin conexión).
- * @param {string} text
- */
-export async function sha256Hex(text) {
-	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
