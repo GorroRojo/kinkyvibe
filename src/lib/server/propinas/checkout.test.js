@@ -108,6 +108,27 @@ describe('startTip', () => {
 		expect((await allTips())[0].amount).toBe(1500);
 	});
 
+	it('destino: lo elige la persona ("Para el Fondo"), por defecto KinkyVibe; uno raro no crea nada', async () => {
+		const { fetch, gateway } = mpGateway();
+		const fondo = await run({ gateway, values: values({ destination: 'fondo' }) });
+		if (!fondo.ok) throw new Error('esperaba ok');
+		expect((await getTip(t.db, fondo.tipId))?.destination).toBe('fondo');
+		const body = JSON.parse(/** @type {any} */ (fetch.mock.calls[0])[1].body);
+		expect(body.items[0].title).toBe('Propina para el Fondo KinkyVibe · Guía de prueba');
+
+		const plain = await run({ values: values(), client: 'b' });
+		if (!plain.ok) throw new Error('esperaba ok');
+		expect((await getTip(t.db, plain.tipId))?.destination).toBe('kinkyvibe');
+
+		const bad = await run({ values: values({ destination: 'mi-bolsillo' }), client: 'c' });
+		expect(bad).toMatchObject({
+			ok: false,
+			status: 400,
+			errors: { destination: 'Elegí a dónde va tu propina.' }
+		});
+		expect(await allTips()).toHaveLength(2);
+	});
+
 	it('publicación inexistente o que no es de KinkyVibe: 400', async () => {
 		const res = await run({ findPost: async () => null });
 		expect(res).toMatchObject({ ok: false, status: 400, errors: { post: expect.any(String) } });
@@ -181,5 +202,10 @@ describe('readTipForm', () => {
 		const v = readTipForm(form);
 		expect(v).toMatchObject({ amount: 'otro', custom: '3000', category: '', slug: 'guia' });
 		expect(v.message.length).toBe(600);
+		expect(v.destination).toBe('');
+		form.set('destination', 'fondo' + 'x'.repeat(100));
+		expect(readTipForm(form).destination).toHaveLength(20);
+		form.set('destination', 'fondo');
+		expect(readTipForm(form).destination).toBe('fondo');
 	});
 });

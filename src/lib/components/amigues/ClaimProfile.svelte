@@ -39,8 +39,8 @@
 			}}
 		>
 			<p>
-				Si este perfil es tuyo (o de tu grupo o lugar), pedilo y une admin te lo pasa a tu cuenta.
-				Así lo vas a poder editar desde Mi rincón.
+				Si este perfil es tuyo (o de tu proyecto o lugar), pedilo y une admin te lo pasa a tu
+				cuenta. Así lo vas a poder editar desde Mi rincón.
 			</p>
 			<label>
 				<span>Contanos algo para confirmar que sos vos (opcional)</span>

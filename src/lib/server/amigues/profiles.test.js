@@ -1,6 +1,6 @@
 /**
  * Quién ve qué en /amigues: visibilidad (pública, solo con cuenta, oculta), aprobación de les
- * admins, "no listado", integrantes de grupos (solo si el grupo los muestra, solo aceptades y
+ * admins, "no listado", integrantes de grupos (solo si el proyecto los muestra, solo aceptades y
  * visibles) y que quienes gestionan no aparecen nunca. D1 de miniflare; datos inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -105,17 +105,17 @@ describe('visibilidad y aprobación', () => {
 
 	it('filtra por tipo', async () => {
 		await makeProfile(t.db, { title: 'Persona Inventada' });
-		await makeProfile(t.db, { title: 'Grupo Inventado', kind: 'grupo' });
+		await makeProfile(t.db, { title: 'Proyecto Inventado', kind: 'proyecto' });
 		await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const kinds = async (/** @type {any} */ kind) =>
 			(await listPublicProfiles(t.db, ANON, { kind })).map((p) => p.object.title);
-		expect(await kinds('grupo')).toEqual(['Grupo Inventado']);
+		expect(await kinds('proyecto')).toEqual(['Proyecto Inventado']);
 		expect(await kinds('lugar')).toEqual(['Lugar Inventado']);
 	});
 });
 
 describe('lo que llega a la página (lista blanca)', () => {
-	it('sin contacto, sin quién lo creó y sin campos de lugar', async () => {
+	it('con su contacto público; sin cumpleaños, identidad de género, quién lo creó ni campos de lugar', async () => {
 		const p = await makeProfile(t.db, {
 			title: 'Con Contacto',
 			data: {
@@ -131,12 +131,21 @@ describe('lo que llega a la página (lista blanca)', () => {
 		expect(found?.object.created_by).toBe('');
 		const view = publicProfile(/** @type {any} */ (found).object, { legacySlug: null });
 		const json = JSON.stringify(view);
-		expect(json).not.toMatch(/contacto@|0000|2000-01-01|inventada|admin-de-prueba/);
-		expect(view).toMatchObject({ bio: 'Presentación', pronounLabel: 'elle', kind: 'persona' });
+		expect(json).not.toMatch(/2000-01-01|inventada|admin-de-prueba/);
+		expect(view).toMatchObject({
+			bio: 'Presentación',
+			pronounLabel: 'elle',
+			kind: 'persona',
+			// Decisión de gorrite (docs/decisiones/0023-contacto-publico.md).
+			email: 'contacto@example.com',
+			tel: '+54 11 0000 0000'
+		});
+		expect(view).not.toHaveProperty('bday');
+		expect(view).not.toHaveProperty('gender_identity');
 	});
 });
 
-describe('integrantes de un grupo', () => {
+describe('integrantes de un proyecto', () => {
 	/** @param {number} personaId @param {number} groupId */
 	async function join(personaId, groupId) {
 		const row = await t.db
@@ -155,10 +164,10 @@ describe('integrantes de un grupo', () => {
 		);
 	}
 
-	it('solo si el grupo los muestra, solo personas aprobadas y visibles, nunca quienes gestionan', async () => {
+	it('solo si el proyecto los muestra, solo personas aprobadas y visibles, nunca quienes gestionan', async () => {
 		const group = await makeProfile(t.db, {
-			title: 'Grupo Inventado',
-			kind: 'grupo',
+			title: 'Proyecto Inventado',
+			kind: 'proyecto',
 			data: { show_members: true }
 		});
 		const a = await makeProfile(t.db, { title: 'Ana Inventada' });
@@ -191,7 +200,7 @@ describe('integrantes de un grupo', () => {
 				id: group.id,
 				type: 'perfil',
 				version: fresh.version,
-				data: { kind: 'grupo', show_members: false }
+				data: { kind: 'proyecto', show_members: false }
 			},
 			{ actor: 'admin-de-prueba' }
 		);

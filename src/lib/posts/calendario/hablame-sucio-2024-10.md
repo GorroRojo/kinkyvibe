@@ -14,6 +14,7 @@ tags:
   - BDSM
   - queer
   - taller
+  - ¡Hablame sucio!
 layout: calendario
 category: calendario
 authors:

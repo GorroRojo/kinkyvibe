@@ -15,6 +15,7 @@ tags:
   - intercambio de poder
   - 24/7
   - no-monogamia
+  - Todo Kink es Político
 layout: calendario
 category: calendario
 authors:

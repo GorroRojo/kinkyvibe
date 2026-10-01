@@ -13,6 +13,7 @@ tags:
   - bondage
   - privación sensorial
   - mordazas
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

@@ -9,6 +9,7 @@ tags:
   - pago # pago | gratis | a la gorra #
   - fiesta
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - Fiesta Colectiver
 layout: calendario
 category: calendario
 authors:

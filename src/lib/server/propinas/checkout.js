@@ -53,7 +53,8 @@ export function readTipForm(form) {
 		custom: get('custom', 20),
 		message: get('message', 600),
 		category: get('category', 20),
-		slug: get('slug', 160)
+		slug: get('slug', 160),
+		destination: get('destination', 20)
 	};
 }
 

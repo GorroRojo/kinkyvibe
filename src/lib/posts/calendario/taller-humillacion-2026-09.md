@@ -10,6 +10,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - humillación
+  - Taller de Humillación
 layout: calendario
 category: calendario
 authors:

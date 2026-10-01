@@ -13,6 +13,7 @@ tags:
   - BDSM
   - taller
   - fanzines
+  - Tinta Corrida
 layout: calendario
 category: calendario
 authors:

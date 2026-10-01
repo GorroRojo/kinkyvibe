@@ -79,7 +79,7 @@
 				<dt>Pronombres</dt>
 				<dd>{p.pronouns}</dd>
 			{/if}
-			{#if p.kind === 'grupo'}
+			{#if p.kind === 'proyecto'}
 				<dt>Integrantes</dt>
 				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
 			{/if}

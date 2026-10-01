@@ -1,12 +1,12 @@
 /**
  * Mi rincón → un perfil que gestiona la cuenta: editarlo (con aviso si alguien lo cambió
- * mientras tanto), y según el tipo, quiénes lo gestionan e integrantes (grupos) o los grupos de
+ * mientras tanto), y según el tipo, quiénes lo gestionan e integrantes (proyectos) o los proyectos de
  * los que es parte (personas). Dejar de gestionar y borrar, con la confirmación en la página.
  *
  * Todas las reglas están en src/lib/server/cuentas/perfiles.js. Si la cuenta no gestiona el
  * perfil, da 404 (como si no existiera).
  *
- * Hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe, y borrar el grupo piden un
+ * Hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe, y borrar el proyecto piden un
  * código fresco por mail (purpose 'grupo'), como la contraseña en Mi rincón: ?/confirmar lo manda
  * y la acción lo verifica y lo gasta (perfiles.js decide cuándo hace falta).
  */
@@ -38,7 +38,9 @@ import {
 	requireMember
 } from '$lib/server/cuentas/perfilesWeb.js';
 import { checkConfirmCode, requestConfirmCode } from '$lib/server/cuentas/index.js';
+import { approvalOf } from '$lib/server/amigues/approvals.js';
 import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
+import { organizedEventsForPage } from '$lib/server/personas/organiza.js';
 
 /** Dónde se pidió el código (para mostrar el aviso en esa parte de la página). */
 const CONFIRM_PLACES = ['gestion', 'borrar'];
@@ -83,8 +85,11 @@ export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member, slug, found } = await managed(event);
 	const { profile, kind, role } = found;
-	const group = kind === 'grupo';
+	const group = kind === 'proyecto';
 	const managers = group ? await listManagers(db, member.id, slug) : null;
+	/** @param {unknown} v */
+	const str = (v) => (typeof v === 'string' ? v : '');
+	const d = profile.data;
 	return {
 		profile: {
 			slug: profile.slug,
@@ -95,15 +100,32 @@ export async function load(event) {
 			bio: profile.data.bio ?? '',
 			pronouns: profile.data.pronouns ?? '',
 			links: (profile.data.links ?? []).join('\n'),
-			show_members: profile.data.show_members === true
+			show_members: profile.data.show_members === true,
+			venue:
+				kind === 'lugar'
+					? {
+							address: str(d.address),
+							area: str(d.area),
+							city: str(d.city),
+							accessibility: str(d.accessibility),
+							how_to_get_there: str(d.how_to_get_there),
+							venue_privacy: str(d.venue_privacy)
+						}
+					: null
 		},
+		// Sin aprobar no aparece en el sitio (decisión de gorrite: los perfiles y lugares nuevos de
+		// las cuentas esperan a une admin).
+		pending: !(await approvalOf(db, profile.id)),
 		role,
 		isNew: event.url.searchParams.get('nuevo') === '1',
 		managers: managers?.ok ? managers.managers : [],
 		invites: managers?.ok ? managers.invites : [],
 		members: group ? await listGroupMembers(db, member.id, slug) : [],
 		pendingMembers: group ? await listGroupMemberInvites(db, member.id, slug) : [],
-		memberships: group ? [] : await listMemberships(db, member.id, slug)
+		memberships: group || kind === 'lugar' ? [] : await listMemberships(db, member.id, slug),
+		// Eventos que este perfil organiza (rol «Organiza»), con link a sus respuestas de
+		// inscripción. Vacío con el interruptor `personas_eventos` apagado (y para los lugares).
+		organizes: kind === 'lugar' ? [] : await organizedEventsForPage(event.platform, profile.slug)
 	};
 }
 
@@ -197,15 +219,15 @@ export const actions = {
 		);
 	},
 
-	// Paso 1 de las acciones de dueñes y de borrar el grupo: manda el código para confirmar.
+	// Paso 1 de las acciones de dueñes y de borrar el proyecto: manda el código para confirmar.
 	confirmar: async (event) => {
 		const { db, member, found } = await managed(event);
 		const form = await event.request.formData();
 		const place = field(form, 'donde', 20);
 		const action = CONFIRM_PLACES.includes(place) ? place : 'gestion';
-		// Solo dueñes de un grupo (así nadie más la usa para mandar mails).
-		if (found.kind !== 'grupo' || found.role !== 'owner') {
-			return fail(403, { action, error: 'Eso lo puede hacer solo quien es dueñe del grupo.' });
+		// Solo dueñes de un proyecto (así nadie más la usa para mandar mails).
+		if (found.kind !== 'proyecto' || found.role !== 'owner') {
+			return fail(403, { action, error: 'Eso lo puede hacer solo quien es dueñe del proyecto.' });
 		}
 		try {
 			const result = await requestConfirmCode({
@@ -301,11 +323,11 @@ export const actions = {
 	salirGrupo: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
-		return guarded('grupos', async () =>
+		return guarded('proyectos', async () =>
 			reply(
-				'grupos',
+				'proyectos',
 				await leaveMembership(db, member.id, slug, field(form, 'group', 20)),
-				'Listo: ya no sos parte de ese grupo.'
+				'Listo: ya no sos parte de ese proyecto.'
 			)
 		);
 	},
@@ -338,7 +360,7 @@ export const actions = {
 			reply(
 				'integrantes',
 				await removeMember(db, member.id, slug, field(form, 'persona', 20)),
-				'Listo: ya no figura en el grupo.'
+				'Listo: ya no figura en el proyecto.'
 			)
 		);
 	}

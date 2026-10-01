@@ -1,7 +1,7 @@
 /**
  * Contenido → Amigues → Importar y clasificar: pasa las fichas .md de este deploy a perfiles en
  * la base de este entorno (preview o producción) y muestra la lista de revisión de la
- * clasificación (persona, grupo o lugar, "a confirmar"). Es la forma de correr la importación en
+ * clasificación (persona, proyecto o lugar, "a confirmar"). Es la forma de correr la importación en
  * las bases remotas: idempotente, se puede repetir (ver src/lib/server/amigues/importer.js).
  * Funciona con el interruptor `perfiles_publicos` apagado, para poder revisar antes de prenderlo.
  * Solo admins; queda en el registro.

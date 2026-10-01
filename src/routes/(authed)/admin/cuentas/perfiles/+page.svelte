@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Cuentas → Perfiles: todos los perfiles (persona, grupo o lugar), con su visibilidad, cuándo se
+	 * Cuentas → Perfiles: todos los perfiles (persona, proyecto o lugar), con su visibilidad, cuándo se
 	 * crearon, quiénes los gestionan y si están borrados. Búsqueda y filtro en la URL (`?q=`,
 	 * `?filtro=`, `?tipo=`), resueltos en el servidor, y los pedidos "Es mi perfil" pendientes.
 	 */
@@ -44,7 +44,7 @@
 
 <PageHeader
 	title="Perfiles"
-	subtitle="Personas, grupos y lugares: los que crearon las cuentas y las fichas de amigues. Les admins ven también los ocultos y los borrados."
+	subtitle="Personas, proyectos y lugares: los que crearon las cuentas y las fichas de amigues. Les admins ven también los ocultos y los borrados."
 >
 	<svelte:fragment slot="actions">
 		<CsvButton rows={data.profiles} {columns} filename={csvFilename('perfiles')} />

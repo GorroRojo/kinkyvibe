@@ -13,6 +13,7 @@ tags:
   - taller
   - brat
   - charla debate
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

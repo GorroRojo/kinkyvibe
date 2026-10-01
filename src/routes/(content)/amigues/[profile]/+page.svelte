@@ -5,8 +5,8 @@
 	import ProfileHeader from '$lib/components/amigues/ProfileHeader.svelte';
 	import RelatedPosts from '$lib/components/amigues/RelatedPosts.svelte';
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
+	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	/** @type {any} */
@@ -106,9 +106,6 @@
 				<a href={meta.link} target="_blank" class="cta">{meta.link_text ?? 'Ir a su página'}</a>
 			{/if}
 		</div>
-		{#if data.participa}
-			<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
-		{/if}
 	</article>
 
 	<RelatedPosts {meta} relatedPosts={data.relatedPosts} relatedPastCount={data.relatedPastCount} />

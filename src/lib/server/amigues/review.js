@@ -7,7 +7,8 @@
  * - {@link classificationRows}: la lista de revisión (lo que propuso la heurística, por qué, y si
  *   ya está confirmado), también en CSV.
  */
-import { PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
+import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -33,7 +34,7 @@ export async function bundledAmigueFiles() {
 /**
  * @typedef {{
  *   profileId: number, legacySlug: string, slug: string, title: string,
- *   kind: 'persona' | 'grupo' | 'lugar', suggested: string, reason: string,
+ *   kind: import('$lib/server/objects/types/perfil.js').ProfileKind, suggested: string, reason: string,
  *   confirmedAt: number | null, confirmedBy: string | null, deleted: boolean, visibility: string,
  *   version: number
  * }} ClassificationRow
@@ -68,7 +69,7 @@ export async function classificationRows(db) {
 			legacySlug: String(r.legacy_slug),
 			slug: String(r.slug),
 			title: String(r.title),
-			kind: profileKind(data),
+			kind: profileKindOf(data),
 			suggested: String(r.suggested_kind),
 			reason: String(r.kind_reason ?? ''),
 			confirmedAt: r.kind_confirmed_at == null ? null : Number(r.kind_confirmed_at),

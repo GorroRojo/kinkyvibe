@@ -12,6 +12,7 @@ tags:
   - escritura
   - taller
   - fisting
+  - Fetichismo y Escritura
 layout: calendario
 category: calendario
 authors:

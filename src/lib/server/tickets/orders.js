@@ -19,8 +19,8 @@
  */
 
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
-import { toBase64url } from '$lib/utils/base64.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
+import { toBase64url } from '$lib/utils/base64.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 import { capacityLimit, tierLimit } from './overrides.js';
 import { answersStatement } from './signupFields.js';

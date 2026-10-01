@@ -8,6 +8,7 @@ import { formatARS } from './money.js';
 import {
 	applyTicketsForm,
 	describeTicketsForm,
+	doorPricePreview,
 	emptyTicketType,
 	readTicketsForm,
 	tierPreview,
@@ -225,5 +226,82 @@ describe('textos de ayuda', () => {
 		expect(describeTicketsForm(formOf(FM), formatARS)).toBe(
 			`General: Preventa 1 ${formatARS(8000)} (5) → Preventa 2 ${formatARS(9000)} (hasta 01/12) → General ${formatARS(10000)}, cupo 40 · Última tanda: ${formatARS(12000)}, sin cupo (cuando se agote «General»)`
 		);
+	});
+});
+
+describe('editor: precio en puerta por tipo', () => {
+	const tiered = () => ({
+		...emptyTicketType({ first: true }),
+		mode: /** @type {const} */ ('tiers'),
+		tiers: [
+			{
+				key: 'a',
+				origId: null,
+				id: 'p1',
+				name: 'Preventa 1',
+				price: '8000',
+				quantity: '5',
+				until: ''
+			},
+			{
+				key: 'b',
+				origId: null,
+				id: 'general',
+				name: 'General',
+				price: '10.000',
+				quantity: '',
+				until: ''
+			}
+		]
+	});
+
+	it('vista previa: vacío = el último tramo o el precio fijo; con valor, ese; a la gorra, nada', () => {
+		expect(doorPricePreview(tiered())).toBe(
+			`En la puerta: ${formatARS(10000)} (el del último tramo).`
+		);
+		expect(doorPricePreview({ ...emptyTicketType(), price: '7000' })).toBe(
+			`En la puerta: ${formatARS(7000)} (el precio fijo).`
+		);
+		expect(doorPricePreview({ ...tiered(), doorPrice: '12.000' })).toBe(
+			`En la puerta: ${formatARS(12000)}.`
+		);
+		expect(doorPricePreview({ ...emptyTicketType(), mode: 'gorra', doorPrice: '5000' })).toBe('');
+	});
+
+	it('lee, valida y escribe `door_price` en cada tipo (y lo saca si se vacía)', () => {
+		const fm = `title: Fiesta de prueba
+start: 2026-12-12T21:00-03:00
+puerta: true
+tickets:
+  - id: general
+    name: General
+    price: 10000
+    door_price: 12000
+  - id: pareja
+    name: Pareja
+    price: 18000
+`;
+		const meta = /** @type {any} */ (parseDocument(fm).toJS());
+		const initial = readTicketsForm(meta);
+		expect(initial.types.map((t) => t.doorPrice)).toEqual(['12000', '']);
+		const form = readTicketsForm(meta);
+		form.types[0].doorPrice = '';
+		form.types[1].doorPrice = '20.000';
+		expect(validateTicketsForm(form).errors).toEqual([]);
+		const out = /** @type {any} */ (parseDocument(applyTicketsForm(fm, form, initial)).toJS());
+		expect(out.tickets[0].door_price).toBeUndefined();
+		expect(out.tickets[1].door_price).toBe(20000);
+		const config = parseTicketConfig(out);
+		expect(config?.types.map((t) => t.door?.price ?? null)).toEqual([null, 20000]);
+		// Sin cambios no toca el archivo.
+		expect(applyTicketsForm(fm, readTicketsForm(meta), initial)).toBe(fm);
+	});
+
+	it('un precio en puerta que no es un monto es un error', () => {
+		const form = readTicketsForm(
+			/** @type {any} */ ({ tickets: [{ id: 'general', name: 'General', price: 10000 }] })
+		);
+		form.types[0].doorPrice = 'doce mil';
+		expect(validateTicketsForm(form).errors.join(' ')).toContain('precio en puerta');
 	});
 });

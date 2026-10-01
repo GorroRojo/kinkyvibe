@@ -1,5 +1,5 @@
 /**
- * Clasificación automática de las fichas de amigues al importarlas: persona, grupo
+ * Clasificación automática de las fichas de amigues al importarlas: persona, proyecto
  * (organizaciones, colectivos, productoras, emprendimientos de varias personas) o lugar.
  *
  * Es una heurística con puntajes, a propósito simple y explicable: cada señal suma puntos y deja
@@ -11,7 +11,7 @@
 
 import { asText as str, asTextList as list } from '../../utils/text.js';
 
-/** @typedef {'persona' | 'grupo' | 'lugar'} SuggestedKind */
+/** @typedef {'persona' | 'proyecto' | 'lugar'} SuggestedKind */
 
 /**
  * @typedef {{
@@ -42,9 +42,13 @@ const VENUE_TAGS = [
 	'club',
 	'venue'
 ];
-/** Algo que parece una dirección: una calle con número. */
-const ADDRESS =
-	/\b(calle|av\.?|avenida|pasaje|ruta)\s+[\p{L} .]+\s\d{1,5}\b|\b[\p{Lu}][\p{L}]+\s\d{2,5}\b,/u;
+/**
+ * Algo que parece una dirección: una calle con número. Las palabras y los espacios van en grupos
+ * que no se pisan (`(?:\s+palabra)+`): con `\s+[\p{L} .]+\s` un texto largo de espacios hacía
+ * que la expresión tardara tiempo cuadrático (ReDoS).
+ */
+export const ADDRESS =
+	/\b(?:calle|av\.?|avenida|pasaje|ruta)(?:\s+[\p{L}.]+)+\s+\d{1,5}\b|\b\p{Lu}\p{L}+\s\d{2,5}\b,/u;
 /** Pronombres en plural (el primer juego del link de pronombr.es, o el texto). */
 const PLURAL_PRONOUNS = new Set(['elles', 'ellos', 'ellas', 'ellxs', 'elloas', 'ellos/ellas']);
 
@@ -75,9 +79,9 @@ export function mainPronouns(pronoun) {
  * @returns {{ kind: SuggestedKind, reasons: string[], scores: Record<SuggestedKind, number> }}
  */
 export function classifyAmigue(meta, slug) {
-	const scores = { persona: 0, grupo: 0, lugar: 0 };
+	const scores = { persona: 0, proyecto: 0, lugar: 0 };
 	/** @type {Record<SuggestedKind, string[]>} */
-	const why = { persona: [], grupo: [], lugar: [] };
+	const why = { persona: [], proyecto: [], lugar: [] };
 	/** @param {SuggestedKind} kind @param {number} points @param {string} reason */
 	const add = (kind, points, reason) => {
 		scores[kind] += points;
@@ -100,19 +104,19 @@ export function classifyAmigue(meta, slug) {
 	const venueWord = text.match(VENUE_WORDS)?.[0];
 	if (venueWord) add('lugar', 2, `habla de un espacio («${venueWord}»)`);
 
-	// Grupo
+	// Proyecto
 	const others = authors.filter((a) => a.replaceAll(' ', '-') !== slug);
-	if (authors.length > 1) add('grupo', 2, `la firman ${authors.length} personas (authors)`);
-	if (pronouns.some((p) => PLURAL_PRONOUNS.has(p))) add('grupo', 2, 'pronombres en plural');
+	if (authors.length > 1) add('proyecto', 2, `la firman ${authors.length} personas (authors)`);
+	if (pronouns.some((p) => PLURAL_PRONOUNS.has(p))) add('proyecto', 2, 'pronombres en plural');
 	const plural = summary.match(PLURAL_VERBS)?.[0];
-	if (plural) add('grupo', 3, `habla en plural («${plural}»)`);
+	if (plural) add('proyecto', 3, `habla en plural («${plural}»)`);
 	const org = text.match(ORG_WORDS)?.[0];
-	if (org) add('grupo', 1, `palabra de organización («${org}»)`);
+	if (org) add('proyecto', 1, `palabra de organización («${org}»)`);
 	if (str(meta.logo) && !str(meta.photo) && !hasGender) {
-		add('grupo', 1, 'tiene logo y no foto ni identidad de género');
+		add('proyecto', 1, 'tiene logo y no foto ni identidad de género');
 	}
 	if (!pronouns.length && !hasGender) {
-		add('grupo', 1, 'sin pronombres personales ni identidad de género');
+		add('proyecto', 1, 'sin pronombres personales ni identidad de género');
 	}
 
 	// Persona
@@ -127,10 +131,10 @@ export function classifyAmigue(meta, slug) {
 
 	/** @type {SuggestedKind} */
 	let kind = 'persona';
-	if (scores.lugar >= 3 && scores.lugar >= scores.grupo && scores.lugar >= scores.persona) {
+	if (scores.lugar >= 3 && scores.lugar >= scores.proyecto && scores.lugar >= scores.persona) {
 		kind = 'lugar';
-	} else if (scores.grupo > scores.persona) {
-		kind = 'grupo';
+	} else if (scores.proyecto > scores.persona) {
+		kind = 'proyecto';
 	}
 	const reasons = why[kind].length ? why[kind] : ['sin señales claras: queda como persona'];
 	return { kind, reasons, scores };

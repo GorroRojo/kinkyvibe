@@ -11,6 +11,7 @@ tags:
   - taller
   - BDSM
   - inicial
+  - Taller de BDSM Inicial
 layout: calendario
 category: calendario
 authors:

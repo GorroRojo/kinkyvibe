@@ -14,8 +14,12 @@ import {
 	saveObject,
 	slugify
 } from '$lib/server/objects/index.js';
-import { PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
-import perfilType, { PROFILE_KINDS, VENUE_FIELDS } from '$lib/server/objects/types/perfil.js';
+import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
+import perfilType, {
+	PROFILE_KINDS,
+	VENUE_FIELDS,
+	profileKindOf
+} from '$lib/server/objects/types/perfil.js';
 import { approveNewStatement, approvalOf } from './approvals.js';
 import { resolveProfileSlug } from './profiles.js';
 
@@ -113,7 +117,7 @@ export function profileFormValues(o) {
 	for (const key of EDITOR_LIST_FIELDS) lists[key] = Array.isArray(d[key]) ? d[key].join('\n') : '';
 	return {
 		title: o.title,
-		kind: profileKind(d),
+		kind: profileKindOf(d),
 		visibility: o.visibility,
 		version: o.version,
 		text,
@@ -197,7 +201,7 @@ export function formToData(values, current = {}) {
 		if (list.length) data[key] = list;
 	}
 	if (values.unlisted) data.unlisted = true;
-	if (kind === 'grupo') data.show_members = values.show_members;
+	if (kind === 'proyecto') data.show_members = values.show_members;
 	if (kind === 'lugar') {
 		const lat = parseCoordinate(values.lat);
 		const lng = parseCoordinate(values.lng);
@@ -350,7 +354,7 @@ export async function saveProfileFromPanel(db, current, values, { actor, now = D
 			ok: false,
 			status: 400,
 			message: 'Elegí el tipo de perfil.',
-			errors: { kind: 'Elegí persona, grupo o lugar.' }
+			errors: { kind: 'Elegí persona, proyecto o lugar.' }
 		};
 	}
 	try {

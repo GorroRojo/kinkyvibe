@@ -20,6 +20,35 @@ import { rehypeProfileHtml } from './sanitize.js';
 const IMPORT = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/g;
 
 /**
+ * El contenido de cada bloque `<script …>…</script>` del texto, buscado como texto y no con una
+ * expresión regular (así no hay variantes de la etiqueta de cierre que se escapen). Solo sirve para
+ * leer los imports de imágenes: el HTML que sale lo limpia igual `rehype-sanitize`.
+ *
+ * @param {string} body
+ * @returns {string[]}
+ */
+export function scriptBlocks(body) {
+	const lower = body.toLowerCase();
+	/** @type {string[]} */
+	const blocks = [];
+	let at = 0;
+	while ((at = lower.indexOf('<script', at)) !== -1) {
+		const next = lower[at + 7];
+		if (next !== undefined && !/[\s>/]/.test(next)) {
+			at += 7;
+			continue;
+		}
+		const open = lower.indexOf('>', at);
+		if (open === -1) break;
+		const close = lower.indexOf('</script', open);
+		if (close === -1) break;
+		blocks.push(body.slice(open + 1, close));
+		at = close + 8;
+	}
+	return blocks;
+}
+
+/**
  * Reemplaza `{nombre}` por la URL de la imagen que el bloque de mdsvex importa con ese nombre.
  * Las expresiones que no son una imagen importada quedan como estaban (se ven como texto).
  *
@@ -30,8 +59,8 @@ const IMPORT = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/g;
 export function resolveMediaImports(body, resolveMedia) {
 	/** @type {Map<string, string>} */
 	const names = new Map();
-	for (const block of body.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-		for (const m of block[1].matchAll(IMPORT)) {
+	for (const block of scriptBlocks(body)) {
+		for (const m of block.matchAll(IMPORT)) {
 			const file = m[2].split('/').pop() ?? '';
 			if (!/\/media\//.test(m[2])) continue;
 			const url = resolveMedia(file);

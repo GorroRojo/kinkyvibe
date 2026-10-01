@@ -6,13 +6,16 @@
  * - `CALENDAR_VIEWS` / `parseCalendarView` / `defaultCalendarView`: las vistas y la elegida;
  * - `calendarEvent` / `calendarEvents`: una fila → un evento en el formato de la librería
  *   (fechas "naive" en hora de Argentina, sin zona: la librería las muestra tal cual);
- * - `rescheduleProblem` / `movedAgendaValues`: si se puede mover un evento y cómo queda la fila al
- *   soltarlo en otro día (u hora, en la vista semana); se guarda por el mismo camino que la planilla;
- * - `newEventHref` / `readNewEventPrefill`: el link al formulario de evento nuevo con el día (y las
- *   horas) elegidos, y su lectura del lado del formulario.
+ * - `rescheduleProblem` / `dropTarget` / `movedAgendaValues`: si se puede mover un evento, adónde
+ *   va al soltarlo (en la vista semana solo cambia el día, nunca la hora) y cómo queda la fila; se
+ *   guarda por el mismo camino que la planilla; `dragSnapDuration`: el arrastre de la semana se
+ *   ve igual (la vista previa no cambia de hora);
+ * - `newEventQuestion` / `newEventHref` / `readNewEventPrefill`: la pregunta antes de cargar un
+ *   evento en un día vacío, el link al formulario de evento nuevo con el día (y las horas)
+ *   elegidos, y su lectura del lado del formulario.
  */
 import { endDaysFor, validateAgendaRow } from './agenda.js';
-import { addDays, isValidDate, isValidTime } from './eventDraft.js';
+import { addDays, describeDate, isValidDate, isValidTime } from './eventDraft.js';
 import { eventBadges } from '$lib/admin/eventFormat.js';
 
 /** Vistas de la agenda: las tres del calendario y la planilla editable de siempre. */
@@ -110,7 +113,7 @@ export const OVERNIGHT_UNTIL = '09:00';
  *   startEditable: boolean,
  *   durationEditable: false,
  *   classNames: string[],
- *   extendedProps: { slug: string, tone: string, time: string, problem: string | null }
+ *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean }
  * }} CalendarEventInput
  */
 
@@ -119,9 +122,10 @@ export const OVERNIGHT_UNTIL = '09:00';
  * ("2026-12-12T21:00"): la librería las toma como hora local y las muestra tal cual, así que se ve
  * la hora de Argentina en cualquier navegador. Solo para dibujarlo: sin hora de fin dura una hora,
  * y lo que termina a la madrugada (hasta `OVERNIGHT_UNTIL`) llega hasta las 23:59 de su día. La hora
- * real se muestra en el chip (`extendedProps.time`).
+ * real se muestra en el chip (`extendedProps.time`). Una fila con `pending` (movida y sin guardar,
+ * ver pendingMoves.js) lleva la clase `kv-ev-pendiente`.
  *
- * @param {import('./agenda.js').AgendaRow} row
+ * @param {import('./agenda.js').AgendaRow & { pending?: boolean }} row
  * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
  * @returns {CalendarEventInput}
  */
@@ -154,20 +158,22 @@ export function calendarEvent(row, { places, canEdit = true }) {
 		classNames: [
 			'kv-ev',
 			`kv-ev-${tone}`,
-			...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : [])
+			...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : []),
+			...(row.pending ? ['kv-ev-pendiente'] : [])
 		],
 		extendedProps: {
 			slug: row.slug,
 			tone,
 			time: timed ? (row.endTime ? `${row.startTime} – ${row.endTime}` : row.startTime) : '',
-			problem
+			problem,
+			pending: Boolean(row.pending)
 		}
 	};
 }
 
 /**
  * Las filas que tienen fecha → eventos del calendario.
- * @param {import('./agenda.js').AgendaRow[]} rows
+ * @param {Array<import('./agenda.js').AgendaRow & { pending?: boolean }>} rows
  * @param {{ places: string[], canEdit?: boolean }} options
  */
 export function calendarEvents(rows, options) {
@@ -186,6 +192,51 @@ export function localDateParts(d) {
 		date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
 		time: `${p(d.getHours())}:${p(d.getMinutes())}`
 	};
+}
+
+/**
+ * Adónde va un evento que soltaron en el calendario. En la vista semana el arrastre cambia SOLO
+ * el día: aunque lo suelten en otra franja horaria (o en "Todo el día"), conserva su hora de
+ * inicio y de fin. En el mes (y la lista) la librería ya conserva la hora, así que va tal cual.
+ * `null` = no cambió nada (lo soltaron en el mismo día, o en la misma hora en el mes): quien llama
+ * deshace el arrastre en el calendario.
+ *
+ * @param {string} view vista de la librería (`dayGridMonth`, `timeGridWeek`, `listMonth`)
+ * @param {{ date: string, time: string }} from dónde estaba (día y hora "de pared")
+ * @param {{ date: string, time: string }} to dónde lo soltaron
+ * @returns {{ date: string, time?: string } | null}
+ */
+export function dropTarget(view, from, to) {
+	if (view === 'timeGridWeek') return to.date === from.date ? null : { date: to.date };
+	if (to.date === from.date && to.time === from.time) return null;
+	return { date: to.date, time: to.time };
+}
+
+/**
+ * El paso (`snapDuration` de la librería) mientras arrastran un evento ya cargado. En la vista
+ * semana es un día entero: la franja donde está el puntero no cuenta, así que la vista previa del
+ * arrastre se queda en su hora y solo se corre de día en día (lo mismo que después hace
+ * `dropTarget` al soltarlo). Sin esto la vista previa seguía al puntero a otra hora y, al soltar,
+ * volvía a la hora original. `undefined` = el paso de siempre (una franja), que es el que usan
+ * tocar un día vacío y arrastrar un rango para cargar un evento nuevo.
+ * @param {string} view vista de la librería
+ * @returns {string | undefined}
+ */
+export function dragSnapDuration(view) {
+	return view === 'timeGridWeek' ? '24:00' : undefined;
+}
+
+/**
+ * La pregunta antes de cargar un evento nuevo al tocar un día vacío (o arrastrar un rango en la
+ * vista semana): "¿Cargar un evento el sábado 12 de diciembre de 2099?" (con "a las 21:00" si
+ * eligieron una hora).
+ * @param {{ date: string, startTime?: string }} prefill
+ */
+export function newEventQuestion({ date, startTime }) {
+	const day = describeDate(date);
+	if (!day) return '¿Cargar un evento nuevo?';
+	const at = startTime && isValidTime(startTime) ? ` a las ${startTime}` : '';
+	return `¿Cargar un evento el ${day}${at}?`;
 }
 
 /**

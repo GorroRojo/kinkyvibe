@@ -1,7 +1,7 @@
 <script>
 	import ContentEditor from '$lib/components/admin/content/ContentEditor.svelte';
-	import ProfileDbEditor from '$lib/components/admin/amigues/ProfileDbEditor.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
+	import ProfileDbEditor from '$lib/components/admin/amigues/ProfileDbEditor.svelte';
 
 	/** @type {any} */
 	export let data;
@@ -9,9 +9,9 @@
 	export let form;
 </script>
 
+<!-- Borrar desde el panel es para el .md (por PR). Los perfiles de la base todavía no se borran
+     desde acá: ver deleteBackend en src/lib/server/admin/deletions.js. -->
 {#if data.editor === 'db'}
-	<!-- Perfil de la base (#137): «Borrar desde el panel» (#142) todavía borra solo archivos .md
-	     (deleteBackend en $lib/server/admin/deletions.js), así que acá no se ofrece. -->
 	{#key data.profile.id}
 		<ProfileDbEditor {data} {form} />
 	{/key}

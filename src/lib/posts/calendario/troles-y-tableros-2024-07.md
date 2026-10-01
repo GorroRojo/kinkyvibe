@@ -11,6 +11,7 @@ tags:
   - queer
   - neurodivergencia
   - juegos de mesa
+  - Troles & Tableros
 layout: calendario
 category: calendario
 authors:

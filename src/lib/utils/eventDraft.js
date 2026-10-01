@@ -5,6 +5,7 @@
  * browser (live preview), on the server (validation before committing) and in vitest.
  */
 import { parseDocument, isScalar, isSeq, Scalar } from 'yaml';
+import { escapeRegExp } from './text.js';
 
 export { slugify } from './text.js';
 
@@ -125,7 +126,6 @@ export function readEventFields(frontmatter) {
 }
 
 /** @param {string} key */
-const escapeRe = (key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Turns `#key: value` / `# key: value` back into `key: value` (first top-level occurrence), so
@@ -135,7 +135,7 @@ const escapeRe = (key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * @param {string} key
  */
 function uncommentKey(text, key) {
-	const re = new RegExp(`^#[ \\t]?(${escapeRe(key)}:(?:[ \\t].*)?)$`, 'm');
+	const re = new RegExp(`^#[ \\t]?(${escapeRegExp(key)}:(?:[ \\t].*)?)$`, 'm');
 	if (!re.test(text)) return text;
 	const candidate = text.replace(re, '$1');
 	const doc = parseDocument(candidate);
@@ -495,7 +495,6 @@ export function deriveSlug(sourceSlug, startDate) {
 		`${sourceSlug}-${ym}`
 	);
 }
-
 
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an

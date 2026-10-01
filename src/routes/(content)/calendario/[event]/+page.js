@@ -14,7 +14,7 @@ export async function load({ params, data }) {
 		...data,
 		...post,
 		tickets: data?.tickets ?? null,
-		propinas: data?.propinas ?? false,
-		venue: data?.venue ?? null
+		venue: data?.venue ?? null,
+		propinas: data?.propinas ?? false
 	};
 }

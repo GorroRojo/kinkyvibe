@@ -13,6 +13,7 @@ tags:
   - cuerdas
   - jam de cuerdas
   - sesión en vivo
+  - Matiné de Cuerdas
 layout: calendario
 category: calendario
 authors:

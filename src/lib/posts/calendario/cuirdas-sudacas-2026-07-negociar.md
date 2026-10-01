@@ -12,6 +12,7 @@ tags:
   - cuir
   - taller
   - negociación
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

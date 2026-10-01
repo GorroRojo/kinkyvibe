@@ -25,6 +25,8 @@ beforeEach(async () => {
 });
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');
+	vi.doUnmock('$lib/utils');
+	vi.doUnmock('$lib/server/pronouns');
 	vi.resetModules();
 });
 
@@ -54,6 +56,15 @@ async function modules(flag = '1') {
 	vi.doMock('$env/dynamic/private', () => ({
 		env: { PROPINAS_ENABLED: flag, MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
 	}));
+	// El load de /material/<post> también arma las relacionadas y los pronombres de las menciones,
+	// que importan (y compilan con mdsvex) todas las publicaciones del repo: más de 15 s la primera
+	// vez, y con la máquina cargada pasaba los 30 s del test. Acá solo importa `propinas`, así que
+	// esas dos listas van vacías; la publicación misma se sigue cargando de verdad con `fetchPost`.
+	vi.doMock('$lib/utils', async (importOriginal) => ({
+		.../** @type {object} */ (await importOriginal()),
+		fetchMarkdownPosts: async () => []
+	}));
+	vi.doMock('$lib/server/pronouns', () => ({ mentionPronouns: async () => ({}) }));
 	return {
 		page: await import('./+page.server.js'),
 		gracias: await import('./[id]/gracias/+page.server.js'),
@@ -130,6 +141,9 @@ describe('interruptor apagado', () => {
 		expect(body).toContain('https://cafecito.app/kinkyvibe');
 		expect(body).toContain('considerá apoyarnos con algún cafecito');
 		expect(body).not.toContain('Dejá una propina');
+		// Ni rastro de la elección de destino de las propinas.
+		expect(body).not.toContain('name="destination"');
+		expect(body).not.toContain('Para el Fondo');
 	});
 });
 
@@ -147,6 +161,13 @@ describe('interruptor prendido', () => {
 		expect(body).toContain(formatARS(1000));
 		expect(body).toContain('Otro monto');
 		expect(body).not.toContain('cafecito.app');
+		// A dónde va: "Para KinkyVibe" elegido por defecto, o "Para el Fondo".
+		const radios = [...body.matchAll(/<input[^>]*name="destination"[^>]*>/g)].map((x) => x[0]);
+		expect(radios).toHaveLength(2);
+		expect(radios.find((r) => r.includes('value="kinkyvibe"'))).toContain('checked');
+		expect(radios.find((r) => r.includes('value="fondo"'))).not.toContain('checked');
+		expect(body).toContain('Para KinkyVibe');
+		expect(body).toContain('Para el Fondo');
 		// Una publicación que no es de KinkyVibe ni consulta el interruptor.
 		const other = /** @type {any} */ (
 			await m.material.load(fakeEvent({ params: { post: materialSlug(false) } }))
@@ -185,7 +206,34 @@ describe('interruptor prendido', () => {
 			location: 'https://www.mercadopago.com.ar/checkout?x=1'
 		});
 		const row = /** @type {any} */ (await t.db.prepare('SELECT * FROM tips').first());
-		expect(row).toMatchObject({ amount: 5000, status: 'pending', message: 'Hola' });
+		expect(row).toMatchObject({
+			amount: 5000,
+			status: 'pending',
+			message: 'Hola',
+			destination: 'kinkyvibe'
+		});
+
+		// "Para el Fondo" se guarda; un destino raro, 400 y nada nuevo.
+		await thrown(() =>
+			m.page.actions.default(
+				fakeEvent({
+					form: { amount: '1000', destination: 'fondo', category: 'material', slug },
+					mp
+				})
+			)
+		);
+		const fondo = /** @type {any} */ (
+			await t.db.prepare('SELECT * FROM tips WHERE amount = 1000').first()
+		);
+		expect(fondo).toMatchObject({ status: 'pending', destination: 'fondo' });
+		const odd = /** @type {any} */ (
+			await m.page.actions.default(
+				fakeEvent({ form: { amount: '1000', destination: 'nope', category: 'material', slug } })
+			)
+		);
+		expect(odd.status).toBe(400);
+		expect(odd.data.errors.destination).toBe('Elegí a dónde va tu propina.');
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(2);
 	});
 
 	it('webhook: con firma válida aprueba y después reembolsa; sin firma, 401 y nada cambia', async () => {
@@ -194,7 +242,8 @@ describe('interruptor prendido', () => {
 			amount: 2000,
 			message: null,
 			category: 'material',
-			slug: 'guia'
+			slug: 'guia',
+			destination: 'fondo'
 		});
 		let mpStatus = 'approved';
 		const mp = (/** @type {string} */ u) => {
@@ -244,10 +293,16 @@ describe('interruptor prendido', () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ ok: true, outcome: 'updated' });
 		expect((await m.propinas.getTip(t.db, tip.id))?.status).toBe('approved');
+		// El webhook no toca el destino: aprobada, cuenta como aporte al Fondo.
+		expect((await m.propinas.getTip(t.db, tip.id))?.destination).toBe('fondo');
+		expect(await m.propinas.fondoTipTotals(t.db)).toEqual({ count: 1, total: 2000 });
 
 		mpStatus = 'refunded';
 		await m.webhook.POST(await signed('r3'));
 		expect((await m.propinas.getTip(t.db, tip.id))?.status).toBe('refunded');
+		expect((await m.propinas.getTip(t.db, tip.id))?.destination).toBe('fondo');
+		// Reembolsada ya no suma.
+		expect(await m.propinas.fondoTipTotals(t.db)).toEqual({ count: 0, total: 0 });
 	});
 
 	it('gracias: muestra el estado de la base y arma el link de vuelta del lado del servidor', async () => {

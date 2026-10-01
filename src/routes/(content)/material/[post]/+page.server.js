@@ -18,9 +18,9 @@ export async function load({ params, platform }) {
 		...post,
 		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
 		pronouns: await mentionPronouns(),
-		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito.
-		propinas: isKinkyVibePost(post.meta) ? await propinasEnabled(platform) : false,
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
-		personas: await personasForPage(platform, post.meta)
+		personas: await personasForPage(platform, post.meta),
+		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito.
+		propinas: isKinkyVibePost(post.meta) ? await propinasEnabled(platform) : false
 	};
 }

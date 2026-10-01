@@ -16,7 +16,7 @@
 {#if data.editor === 'db'}
 	<PageHeader
 		title="Perfil nuevo"
-		subtitle="Persona, grupo o lugar. Se publica en Amigues al guardar."
+		subtitle="Persona, proyecto o lugar. Se publica en Amigues al guardar."
 		back={{ href: '/admin/amigues', label: 'Amigues' }}
 	/>
 	<Card>

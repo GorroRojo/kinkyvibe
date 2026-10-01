@@ -8,6 +8,7 @@
  * para contar quién vuelve y no salen).
  */
 import { dayNumber } from '$lib/admin/salesChart.js';
+import { eventSeriesTags, seriesTagIndex } from '$lib/utils/eventSeries.js';
 import { normalizeEmail } from './people.js';
 import { lastMonths, monthKey, monthLabel } from './stats.js';
 
@@ -62,10 +63,19 @@ export function salesEvents(days, events) {
  * y de quienes entraron, cuántes venían por primera vez a KinkyVibe (cualquier serie) y cuántes
  * ya habían venido a otro evento antes. Más el total: de todas las personas que entraron alguna
  * vez, cuántas volvieron a otro evento.
+ *
+ * Y lo mismo dentro de la serie: las series de un evento son sus etiquetas hijas o nietas de
+ * «evento recurrente» (`$lib/utils/eventSeries.js`). Por evento con serie, cuántes entraban por
+ * primera vez a esa serie y cuántes ya habían venido a un evento de la misma serie
+ * (`seriesNewcomers` / `seriesReturning`; `null` en eventos sin serie). Total: de quienes
+ * entraron a algún evento con serie, cuántes volvieron a la misma serie.
  * @param {PersonOrder[]} orders
  * @param {Stats['perEvent']} perEvent
+ * @param {Map<string, EventInfo>} [events] para las etiquetas de cada evento
+ * @param {Map<string, string>} [seriesIndex] de `seriesTagIndex`
  */
-export function attendanceReturn(orders, perEvent) {
+export function attendanceReturn(orders, perEvent, events = new Map(), seriesIndex) {
+	const index = seriesIndex ?? seriesTagIndex();
 	/** @type {Map<string, Set<string>>} quién entró a cada evento */
 	const bySlug = new Map();
 	for (const o of orders) {
@@ -82,10 +92,22 @@ export function attendanceReturn(orders, perEvent) {
 	);
 	/** @type {Map<string, number>} */
 	const visits = new Map();
+	/** @type {Map<string, Map<string, number>>} por serie: persona → eventos de la serie */
+	const seriesVisits = new Map();
 	const rows = chronological.map((e) => {
 		const people = [...(bySlug.get(e.slug) ?? [])];
 		const returning = people.filter((p) => visits.has(p)).length;
 		for (const p of people) visits.set(p, (visits.get(p) ?? 0) + 1);
+
+		const series = eventSeriesTags(events.get(e.slug)?.tags, index);
+		const maps = series.map((s) => seriesVisits.get(s) ?? new Map());
+		const seriesReturning = series.length
+			? people.filter((p) => maps.some((m) => m.has(p))).length
+			: null;
+		series.forEach((s, i) => {
+			for (const p of people) maps[i].set(p, (maps[i].get(p) ?? 0) + 1);
+			seriesVisits.set(s, maps[i]);
+		});
 		return {
 			slug: e.slug,
 			title: e.title,
@@ -94,14 +116,29 @@ export function attendanceReturn(orders, perEvent) {
 			checked: e.checked,
 			noShow: Math.max(0, e.sold - e.checked),
 			newcomers: people.length - returning,
-			returning
+			returning,
+			series: series.join(', '),
+			seriesNewcomers: seriesReturning === null ? null : people.length - seriesReturning,
+			seriesReturning
 		};
 	});
 	const counts = [...visits.values()];
+	/** @type {Set<string>} */
+	const seriesPeople = new Set();
+	/** @type {Set<string>} */
+	const seriesCameBack = new Set();
+	for (const m of seriesVisits.values()) {
+		for (const [p, n] of m) {
+			seriesPeople.add(p);
+			if (n >= 2) seriesCameBack.add(p);
+		}
+	}
 	return {
 		rows,
 		people: counts.length,
-		cameBack: counts.filter((n) => n >= 2).length
+		cameBack: counts.filter((n) => n >= 2).length,
+		seriesPeople: seriesPeople.size,
+		seriesCameBack: seriesCameBack.size
 	};
 }
 
@@ -152,7 +189,7 @@ export function computeCharts(orders, events, stats, { now = Date.now() } = {}) 
 	const days = salesByDay(orders);
 	return {
 		sales: { days, events: salesEvents(days, events), today: dayNumber(now) },
-		attendance: attendanceReturn(orders, stats.perEvent),
+		attendance: attendanceReturn(orders, stats.perEvent, events),
 		fondo: fondoByMonth(orders, { now })
 	};
 }

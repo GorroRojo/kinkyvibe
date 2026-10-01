@@ -28,7 +28,8 @@
  * puerta: true           # opcional (eventos presenciales): true = también hay entradas en la
  *                        # puerta (la página lo dice); false = "Solo anticipadas" y el modo puerta
  *                        # no vende. Si falta: se vende en la puerta y la página no dice nada.
- * puerta_precio: $ 12.000 en efectivo   # opcional (con `puerta: true`): precio en la puerta
+ * puerta_precio: $ 12.000 en efectivo   # opcional (con `puerta: true`): nota para la página
+ *                                       # (solo se muestra; lo que se cobra es `door_price`)
  * ```
  *
  * Preventas escalonadas y tipos encadenados (ver $lib/utils/ticketTiers.js):
@@ -46,6 +47,8 @@
  *     name: Última tanda
  *     price: 12000
  *     after: general            # se habilita cuando «general» se agota o cierra
+ *     door_price: 14000         # opcional: precio en la puerta y en la carga a mano. Si falta,
+ *                               # el del último tramo o el precio fijo (ver `doorPrice`)
  * ```
  */
 
@@ -65,12 +68,16 @@
  *
  * `after`: id del tipo que se tiene que agotar o cerrar para que este se habilite, o `null`.
  *
+ * `door` (solo si el tipo tiene `door_price`): precio en la puerta y en la carga a mano, con su
+ * Fondo. Sin `door`, en la puerta se cobra `price` (ver `doorPrice` en ticketTiers.js).
+ *
  * `tier` (solo en el tipo "efectivo" que arma la compra, ver `withTier`): el tramo con el que se
  * reserva, con su cantidad y su fecha para controlarlos en la misma sentencia.
  *
  * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number | null,
  *   gorra: Gorra | null, closesAt?: number | null,
  *   tiers?: import('$lib/utils/ticketTiers.js').Tier[] | null, after?: string | null,
+ *   door?: { price: number, fondo: number },
  *   tier?: { id: string, name: string, quantity: number | null, until: number | null } | null
  * }} TicketType
  */
@@ -185,6 +192,7 @@ export function parseTicketConfig(meta, options = {}) {
 		const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id;
 		const capacity = parseCapacity(raw.capacity, id);
 		const after = parseAfter(raw.after, id);
+		const door = parseDoorPrice(raw.door_price, id, fondoPercent);
 		const hasTiers = raw.tiers !== undefined && raw.tiers !== null;
 		if (raw.a_la_gorra !== undefined && raw.a_la_gorra !== null) {
 			if (raw.price !== undefined && raw.price !== null) {
@@ -192,6 +200,11 @@ export function parseTicketConfig(meta, options = {}) {
 			}
 			if (hasTiers) {
 				throw new TypeError(`"${id}" es a la gorra: no puede tener tramos (\`tiers\`)`);
+			}
+			if (raw.door_price !== undefined && raw.door_price !== null && raw.door_price !== '') {
+				throw new TypeError(
+					`"${id}" es a la gorra: no puede tener \`door_price\` (el monto lo elige quien paga)`
+				);
 			}
 			const min = Number(raw.a_la_gorra?.minimo);
 			const suggested = Number(raw.a_la_gorra?.sugerido);
@@ -242,7 +255,8 @@ export function parseTicketConfig(meta, options = {}) {
 				gorra: null,
 				closesAt: typeClose(raw, id),
 				tiers,
-				...(after ? { after } : {})
+				...(after ? { after } : {}),
+				...(door ? { door } : {})
 			});
 			continue;
 		}
@@ -261,7 +275,8 @@ export function parseTicketConfig(meta, options = {}) {
 			capacity,
 			gorra: null,
 			closesAt: typeClose(raw, id),
-			...(after ? { after } : {})
+			...(after ? { after } : {}),
+			...(door ? { door } : {})
 		});
 	}
 	for (const t of types) {
@@ -339,6 +354,28 @@ export function parseCapacity(raw, id) {
 		throw new TypeError(`Cupo inválido para "${id}": tiene que ser un entero (o nada, sin límite)`);
 	}
 	return capacity;
+}
+
+/**
+ * `door_price` de un tipo: precio en la puerta y en la carga a mano (entero desde 0, con el mismo
+ * tope que `price`), con el Fondo calculado como en un tipo con precio; `null` si falta (se cobra
+ * el del último tramo o el precio fijo).
+ *
+ * @param {unknown} raw
+ * @param {string} id
+ * @param {number | null} fondoPercent
+ * @returns {{ price: number, fondo: number } | null}
+ */
+export function parseDoorPrice(raw, id, fondoPercent) {
+	if (raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim())) return null;
+	const price = Number(raw);
+	if (!Number.isSafeInteger(price) || price < 0 || price > ORDER_MAX_TOTAL) {
+		throw new TypeError(
+			`\`door_price\` inválido para "${id}": un entero desde 0 (o nada, el precio de siempre)`
+		);
+	}
+	const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
+	return { price, fondo };
 }
 
 /**

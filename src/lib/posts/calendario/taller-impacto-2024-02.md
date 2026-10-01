@@ -11,6 +11,7 @@ tags:
   - practicas
   - impacto
   - AMBA
+  - Taller de Juegos de Impacto
 layout: calendario
 category: calendario
 authors:

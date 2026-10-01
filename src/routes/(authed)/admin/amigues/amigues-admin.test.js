@@ -145,6 +145,8 @@ describe('solo admins', () => {
 			() => m.csv.GET(fakeEvent({ user: null, token: null })),
 			() => m.lugares.load(fakeEvent({ user: null, token: null })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: null, token: null })),
+			() => m.lugares.actions.aprobarLugar(fakeEvent({ form: {}, user: null, token: null })),
+			() => m.lugares.actions.rechazarLugar(fakeEvent({ form: {}, user: null, token: null })),
 			() =>
 				m.profile.actions.aprobar(
 					fakeEvent({ params: { id: '1' }, form: {}, user: null, token: null })
@@ -159,6 +161,8 @@ describe('solo admins', () => {
 		for (const call of [
 			() => m.importar.actions.importar(fakeEvent({ form: {}, user: intruder })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: intruder })),
+			() => m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: '1' }, user: intruder })),
+			() => m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: '1' }, user: intruder })),
 			() =>
 				m.edit.actions.guardarPerfil(fakeEvent({ params: { slug: 'x' }, form: {}, user: intruder }))
 		]) {
@@ -181,7 +185,7 @@ describe('importar y clasificar desde el panel', () => {
 		expect(after.summary.unchanged).toBe(31);
 		expect(after.rows.length).toBe(31);
 		const kv = after.rows.find((/** @type {any} */ x) => x.legacySlug === 'KinkyVibe');
-		expect(kv).toMatchObject({ kind: 'grupo', confirmedAt: null });
+		expect(kv).toMatchObject({ kind: 'proyecto', confirmedAt: null });
 		// Confirmar como lugar (cambia el tipo con saveObject) y queda confirmado.
 		const c = /** @type {any} */ (
 			await m.importar.actions.confirmar(
@@ -315,6 +319,79 @@ describe('Eventos → Lugares', () => {
 		);
 		expect(removed.link.ok).toBe(true);
 		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).links).toEqual([]);
+	});
+});
+
+describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)', () => {
+	it('lista los lugares sin aprobar; aprobar los publica y rechazar los borra, con registro', async () => {
+		const m = await modules('1');
+		const cuenta = await makeAccount(t.db, 'carga-lugares');
+		const a = await makeProfile(t.db, {
+			title: 'Sala Pendiente Inventada',
+			kind: 'lugar',
+			approved: false,
+			actor: `cuenta:${cuenta.id}`,
+			data: { address: 'Calle Inventada 123', area: 'Barrio Inventado' }
+		});
+		const b = await makeProfile(t.db, {
+			title: 'Bar Pendiente Inventado',
+			kind: 'lugar',
+			approved: false,
+			actor: `cuenta:${cuenta.id}`
+		});
+		// Los aprobados (los del panel y los importados) y los que no son lugares no están.
+		await makeProfile(t.db, { title: 'Lugar Aprobado Inventado', kind: 'lugar' });
+		await makeProfile(t.db, { title: 'Persona Sin Aprobar', approved: false });
+
+		const data = /** @type {any} */ (await m.lugares.load(fakeEvent()));
+		expect(data.pending.map((/** @type {any} */ v) => v.title)).toEqual([
+			'Sala Pendiente Inventada',
+			'Bar Pendiente Inventado'
+		]);
+		expect(data.pending[0]).toMatchObject({
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			byAccount: true
+		});
+
+		const ok = /** @type {any} */ (
+			await m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: String(a.id) } }))
+		);
+		expect(ok.pending.ok).toBe(true);
+		expect(await isApproved(t.db, a.id)).toBe(true);
+		expect((await audit('profile.approve'))[0]).toMatchObject({ target_id: String(a.id) });
+		// Ya aprobado: no se aprueba de nuevo ni se puede rechazar desde acá.
+		const again = /** @type {any} */ (
+			await m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: String(a.id) } }))
+		);
+		expect(again.status).toBe(404);
+		const lateReject = /** @type {any} */ (
+			await m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: String(a.id) } }))
+		);
+		expect(lateReject.status).toBe(409);
+
+		const rejected = /** @type {any} */ (
+			await m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: String(b.id) } }))
+		);
+		expect(rejected.pending.ok).toBe(true);
+		const row = await t.db
+			.prepare('SELECT deleted_at FROM objects WHERE id = ?1')
+			.bind(b.id)
+			.first();
+		expect(row?.deleted_at).not.toBeNull();
+		expect(await isApproved(t.db, b.id)).toBe(false);
+		expect((await audit('profile.delete'))[0]).toMatchObject({ target_id: String(b.id) });
+		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).pending).toEqual([]);
+
+		// Algo que no es un lugar no se aprueba ni se rechaza desde acá.
+		const persona = await makeProfile(t.db, { title: 'Otra Persona', approved: false });
+		for (const action of [m.lugares.actions.aprobarLugar, m.lugares.actions.rechazarLugar]) {
+			const r = /** @type {any} */ (
+				await action(fakeEvent({ form: { lugar: String(persona.id) } }))
+			);
+			expect(r.status).toBe(404);
+		}
+		expect(await isApproved(t.db, persona.id)).toBe(false);
 	});
 });
 

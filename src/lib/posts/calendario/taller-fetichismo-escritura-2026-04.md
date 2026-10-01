@@ -12,6 +12,7 @@ tags:
   - escritura
   - bondage
   - taller
+  - Fetichismo y Escritura
 layout: calendario
 category: calendario
 authors:

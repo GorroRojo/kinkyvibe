@@ -4,6 +4,7 @@
  * guardar el token: la confirmación de una reserva por transferencia (tickets/safeguards.js) y
  * la baja de "Avisame si se repite" (series/subscriptions.js). Cada uso tiene su propia clave.
  */
+import { timingSafeEqual } from '$lib/server/hash.js';
 import { toBase64url } from '$lib/utils/base64.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -68,8 +69,5 @@ export async function signLink(db, keyName, message, length = 32) {
 export async function verifyLink(db, keyName, message, token, length = 32) {
 	if (typeof token !== 'string' || token.length !== length || !/^[A-Za-z0-9_-]+$/.test(token))
 		return false;
-	const expected = await signLink(db, keyName, message, length);
-	let diff = 0;
-	for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ token.charCodeAt(i);
-	return diff === 0;
+	return timingSafeEqual(await signLink(db, keyName, message, length), token);
 }

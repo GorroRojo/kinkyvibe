@@ -11,6 +11,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - dominación
+  - Taller de Dominación para Trabajadores Sexuales
 layout: calendario
 category: calendario
 authors:

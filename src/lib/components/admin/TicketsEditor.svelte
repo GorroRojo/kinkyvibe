@@ -14,6 +14,7 @@
 	import {
 		DOOR_PRICE_MAX,
 		PAYMENT_METHOD_LABELS,
+		doorPricePreview,
 		emptyTicketType,
 		isKinkyVibeEvent,
 		isOnlineEvent,
@@ -283,6 +284,23 @@
 								>
 							</label>
 						{/if}
+						{#if t.mode !== 'gorra'}
+							<label class="field f-door">
+								<span>Precio en puerta <small>(opcional)</small></span>
+								<input
+									id="{idPrefix}-ticket-door-price-{i}"
+									bind:value={t.doorPrice}
+									inputmode="numeric"
+									placeholder={t.mode === 'tiers' ? 'El del último tramo' : 'El mismo'}
+									aria-describedby="{idPrefix}-ticket-door-help-{i}"
+								/>
+								<small id="{idPrefix}-ticket-door-help-{i}"
+									>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
+										lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y la
+									carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
+								>
+							</label>
+						{/if}
 						<label class="field f-cap">
 							<span>Cupo <small>(opcional)</small></span>
 							<input
@@ -412,13 +430,18 @@
 				</label>
 				{#if state.door}
 					<label class="field door-price">
-						<span>Precio en la puerta <small>(opcional)</small></span>
+						<span>Nota sobre la puerta <small>(opcional)</small></span>
 						<input
 							id="{idPrefix}-door-price"
 							bind:value={state.doorPrice}
 							maxlength={DOOR_PRICE_MAX}
 							placeholder="$ 12.000, solo efectivo"
+							aria-describedby="{idPrefix}-door-price-hint"
 						/>
+						<small id="{idPrefix}-door-price-hint"
+							>Solo se muestra en la página del evento («También hay entradas en la puerta: …»). Lo
+							que se cobra es el «Precio en puerta» de cada tipo.</small
+						>
 					</label>
 					<small
 						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
@@ -529,33 +552,36 @@
 		display: grid;
 		gap: 0.7em 0.8em;
 		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas: 'name' 'mode' 'price' 'cap' 'close' 'after';
+		grid-template-areas: 'name' 'mode' 'price' 'door' 'cap' 'close' 'after';
 		align-items: start;
 		&.mode-gorra {
 			grid-template-areas: 'name' 'mode' 'min' 'rec' 'sug' 'cap' 'close' 'after';
 		}
 		&.mode-tiers {
-			grid-template-areas: 'name' 'mode' 'tiers' 'cap' 'close' 'after';
+			grid-template-areas: 'name' 'mode' 'tiers' 'door' 'cap' 'close' 'after';
 		}
 	}
-	/* Mediano: de a dos (precio y cupo juntos; cierre y "se habilita" juntos). */
+	/* Mediano: de a dos (precio y precio en puerta juntos; cupo y cierre juntos). */
 	@container (min-width: 30em) {
 		.type-fields {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			grid-template-areas: 'name name' 'mode mode' 'price cap' 'close after';
+			grid-template-areas: 'name name' 'mode mode' 'price door' 'cap close' 'after after';
 			&.mode-gorra {
-				grid-template-areas: 'name name' 'mode mode' 'min rec' 'sug cap' 'close after';
+				grid-template-areas:
+					'name name' 'mode mode' 'min rec' 'sug sug' 'cap close'
+					'after after';
 			}
 			&.mode-tiers {
-				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'cap close' 'after after';
+				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'door cap' 'close after';
 			}
 		}
 	}
-	/* Ancho (compu): nombre y cómo se cobra arriba; precio, cupo y cierre en una fila pareja. */
+	/* Ancho (compu): nombre y cómo se cobra arriba; precio, precio en puerta, cupo y cierre en una
+	   fila pareja. */
 	@container (min-width: 48em) {
 		.type-fields {
 			grid-template-columns: repeat(4, minmax(0, 1fr));
-			grid-template-areas: 'name name mode mode' 'price cap close close' 'after after after after';
+			grid-template-areas: 'name name mode mode' 'price door cap close' 'after after after after';
 			&.mode-gorra {
 				grid-template-areas:
 					'name name mode mode' 'min rec sug cap' 'close close . .'
@@ -563,7 +589,7 @@
 			}
 			&.mode-tiers {
 				grid-template-areas:
-					'name name mode mode' 'tiers tiers tiers tiers' 'cap close close .'
+					'name name mode mode' 'tiers tiers tiers tiers' 'door cap close close'
 					'after after after after';
 			}
 		}
@@ -592,6 +618,9 @@
 	.f-close {
 		grid-area: close;
 	}
+	.f-door {
+		grid-area: door;
+	}
 	.f-tiers {
 		grid-area: tiers;
 	}
@@ -607,7 +636,10 @@
 		max-width: 100%;
 	}
 	.door-price {
-		max-width: 24em;
+		max-width: 34em;
+		input {
+			max-width: 24em;
+		}
 	}
 	.add {
 		align-self: flex-start;

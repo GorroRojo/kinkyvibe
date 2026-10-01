@@ -13,6 +13,7 @@ tags:
   - taller
   - dinámicas
   - 24/7
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

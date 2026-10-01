@@ -3,10 +3,13 @@ import {
 	calendarEvent,
 	calendarEvents,
 	defaultCalendarView,
+	dragSnapDuration,
+	dropTarget,
 	eventTone,
 	localDateParts,
 	movedAgendaValues,
 	newEventHref,
+	newEventQuestion,
 	parseCalendarView,
 	readNewEventPrefill,
 	rescheduleProblem
@@ -59,7 +62,8 @@ describe('calendarEvent', () => {
 				slug: 'fiesta-de-prueba',
 				tone: 'ok',
 				time: '21:00 – 02:00',
-				problem: null
+				problem: null,
+				pending: false
 			}
 		});
 	});
@@ -104,6 +108,13 @@ describe('calendarEvent', () => {
 		expect(cancelled.classNames).toEqual(['kv-ev', 'kv-ev-bad', 'kv-ev-cancelado']);
 		const draft = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
 		expect(draft.classNames).toEqual(['kv-ev', 'kv-ev-warn']);
+	});
+
+	it('una fila movida sin guardar se marca como pendiente (y se puede volver a arrastrar)', () => {
+		const e = calendarEvent({ ...row(), pending: true }, { places: PLACES });
+		expect(e.classNames).toEqual(['kv-ev', 'kv-ev-ok', 'kv-ev-pendiente']);
+		expect(e.extendedProps.pending).toBe(true);
+		expect(e.startEditable).toBe(true);
 	});
 
 	it('sin permiso no se puede arrastrar', () => {
@@ -176,6 +187,87 @@ describe('movedAgendaValues', () => {
 
 	it('una hora inválida deja la hora como estaba', () => {
 		expect(movedAgendaValues(row(), { date: '2026-12-19', time: '25:00' }).startTime).toBe('21:00');
+	});
+});
+
+describe('dropTarget', () => {
+	const from = { date: '2026-12-12', time: '21:00' };
+
+	it('en la vista semana cambia solo el día: la hora de la franja donde lo sueltan no cuenta', () => {
+		expect(dropTarget('timeGridWeek', from, { date: '2026-12-15', time: '09:00' })).toEqual({
+			date: '2026-12-15'
+		});
+		// soltado en "Todo el día" (la librería lo da a las 00:00)
+		expect(dropTarget('timeGridWeek', from, { date: '2026-12-14', time: '00:00' })).toEqual({
+			date: '2026-12-14'
+		});
+	});
+
+	it('en la vista semana, soltarlo en el mismo día (aunque sea otra hora) no cambia nada', () => {
+		expect(dropTarget('timeGridWeek', from, { date: '2026-12-12', time: '18:00' })).toBeNull();
+		expect(dropTarget('timeGridWeek', from, from)).toBeNull();
+	});
+
+	it('en el mes queda como antes: día y hora tal cual los da la librería', () => {
+		expect(dropTarget('dayGridMonth', from, { date: '2026-12-19', time: '21:00' })).toEqual({
+			date: '2026-12-19',
+			time: '21:00'
+		});
+		expect(dropTarget('dayGridMonth', from, from)).toBeNull();
+	});
+
+	it('soltado en otra franja de la semana, la fila conserva sus horas de inicio y fin', () => {
+		const to = dropTarget('timeGridWeek', from, { date: '2026-12-16', time: '10:00' });
+		expect(to).not.toBeNull();
+		expect(movedAgendaValues(row(), /** @type {{ date: string }} */ (to))).toMatchObject({
+			date: '2026-12-16',
+			startTime: '21:00',
+			endTime: '02:00'
+		});
+	});
+});
+
+describe('dragSnapDuration', () => {
+	it('en la vista semana el arrastre va de a un día entero (la vista previa no cambia de hora)', () => {
+		expect(dragSnapDuration('timeGridWeek')).toBe('24:00');
+	});
+
+	it('en el mes y la lista queda el paso de siempre', () => {
+		expect(dragSnapDuration('dayGridMonth')).toBeUndefined();
+		expect(dragSnapDuration('listMonth')).toBeUndefined();
+	});
+
+	it('lo que se ve al arrastrar en la semana es lo que queda al soltar (y lo que lista el aviso)', () => {
+		// Con el paso de un día, la vista previa queda en el día de destino a la misma hora.
+		const from = { date: '2026-12-12', time: '21:00' };
+		const preview = { date: '2026-12-15', time: from.time };
+		const to = dropTarget('timeGridWeek', from, preview);
+		expect(to).toEqual({ date: '2026-12-15' });
+		expect(movedAgendaValues(row(), /** @type {{ date: string }} */ (to))).toMatchObject({
+			date: preview.date,
+			startTime: preview.time
+		});
+	});
+});
+
+describe('newEventQuestion', () => {
+	it('pregunta con el día escrito', () => {
+		expect(newEventQuestion({ date: '2026-12-12' })).toBe(
+			'¿Cargar un evento el sábado 12 de diciembre de 2026?'
+		);
+	});
+
+	it('con la hora si eligieron una (rango en la vista semana)', () => {
+		expect(newEventQuestion({ date: '2026-12-12', startTime: '20:00' })).toBe(
+			'¿Cargar un evento el sábado 12 de diciembre de 2026 a las 20:00?'
+		);
+		expect(newEventQuestion({ date: '2026-12-12', startTime: '8pm' })).toBe(
+			'¿Cargar un evento el sábado 12 de diciembre de 2026?'
+		);
+	});
+
+	it('sin un día válido, una pregunta genérica', () => {
+		expect(newEventQuestion({ date: 'mañana' })).toBe('¿Cargar un evento nuevo?');
 	});
 });
 

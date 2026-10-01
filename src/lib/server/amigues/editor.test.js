@@ -70,7 +70,10 @@ describe('del formulario a los datos', () => {
 			lat: -34
 		});
 		expect(formToData({ ...values, kind: 'persona' })).toEqual({ kind: 'persona' });
-		expect(formToData({ ...values, kind: 'grupo' })).toEqual({ kind: 'grupo', show_members: true });
+		expect(formToData({ ...values, kind: 'proyecto' })).toEqual({
+			kind: 'proyecto',
+			show_members: true
+		});
 	});
 
 	it('dice qué campos cambiaron', () => {

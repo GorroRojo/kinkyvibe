@@ -10,6 +10,7 @@
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
+import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	describeReminder,
 	dueReminderOrders,
@@ -21,6 +22,7 @@ import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
 import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { fondoTipTotals } from '$lib/server/propinas/index.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -320,31 +322,39 @@ export function integrityRun(db) {
 
 /**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo en entradas
- * (aportes − lo que cubrió).
+ * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
+ * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
- * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number } | null>}
+ * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number } | null>}
  */
 export function monthMoney(db, now) {
 	return safe(db, 'plata del mes', null, async (db) => {
 		const { start, end } = arMonthWindow(now);
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
+		const [row, tips] = await Promise.all([
+			db
+				.prepare(
+					`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				)
+				.bind(start, end)
+				.first(),
+			// Sin las migraciones de propinas la consulta falla: 0, sin romper el resto.
+			safe(db, 'propinas al fondo del mes', { count: 0, total: 0 }, (db) =>
+				fondoTipTotals(db, { from: start, to: end })
 			)
-			.bind(start, end)
-			.first();
+		]);
 		return {
 			start,
 			total: Number(row?.total ?? 0),
 			orders: Number(row?.orders ?? 0),
 			tickets: Number(row?.tickets ?? 0),
-			fondoNet: Number(row?.fondo_net ?? 0)
+			fondoNet: Number(row?.fondo_net ?? 0) + tips.total,
+			fondoTips: tips.total
 		};
 	});
 }
@@ -368,7 +378,8 @@ export function monthMoney(db, now) {
 /** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
 const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
-	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón'
+	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
 });
 
 /**
@@ -715,7 +726,7 @@ export function upcomingEvents({
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
  * Cuentas → Perfiles filtrado.
  *
- * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
  * @returns {ReviewItem[]}
  */
@@ -725,7 +736,7 @@ export function profileReviewItems(profiles, { formatWhen } = {}) {
 		tone: 'info',
 		icon: 'profile',
 		title: `Perfil nuevo: ${p.title}`,
-		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		text: `${KIND_LABELS[p.kind] ?? 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
 		action: 'Revisar',
 		href: profileHref(p.id),
 		group: 'profile',

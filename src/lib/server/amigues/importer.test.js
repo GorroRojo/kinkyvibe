@@ -73,7 +73,7 @@ describe('las fichas del repo', () => {
 });
 
 describe('clasificación', () => {
-	it('propone persona, grupo o lugar con razones legibles', () => {
+	it('propone persona, proyecto o lugar con razones legibles', () => {
 		expect(
 			classifyAmigue(
 				{
@@ -83,7 +83,7 @@ describe('clasificación', () => {
 				},
 				'X'
 			)
-		).toMatchObject({ kind: 'grupo' });
+		).toMatchObject({ kind: 'proyecto' });
 		expect(
 			classifyAmigue(
 				{ summary: 'Soy ilustradora', authors: ['Yo'], gender_identity: 'mujer', pronoun: 'ella' },
@@ -109,9 +109,9 @@ describe('clasificación', () => {
 
 	it('la tabla de las fichas reales (lo que se le muestra a gorrite para confirmar)', () => {
 		/** @type {Record<string, string[]>} */
-		const byKind = { persona: [], grupo: [], lugar: [] };
+		const byKind = { persona: [], proyecto: [], lugar: [] };
 		for (const f of real()) byKind[mdToProfile(f.legacySlug, f.raw).suggested].push(f.legacySlug);
-		expect(byKind.grupo.sort()).toEqual(
+		expect(byKind.proyecto.sort()).toEqual(
 			[
 				'AUCH',
 				'CanelaProducciones',
@@ -197,7 +197,7 @@ describe('importar las 31 fichas reales', () => {
 			// El cuerpo, tal cual (sin las líneas vacías del principio ni el espacio del final).
 			const body = normalizeBody(splitMarkdown(f.raw).body);
 			expect(data.body ?? '', `${ctx}: cuerpo`).toBe(body);
-			expect(['persona', 'grupo', 'lugar'], ctx).toContain(data.kind);
+			expect(['persona', 'proyecto', 'lugar'], ctx).toContain(data.kind);
 		}
 	});
 

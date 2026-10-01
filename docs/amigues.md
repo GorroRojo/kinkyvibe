@@ -6,7 +6,7 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
 ## Qué hace
 
 - Las fichas de amigues (`src/lib/posts/amigues/*.md`) pasan a ser **perfiles** (`perfil` en
-  [objetos.md](objetos.md)) de tipo **persona**, **grupo** o **lugar**, con **las mismas
+  [objetos.md](objetos.md)) de tipo **persona**, **proyecto** o **lugar**, con **las mismas
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). Los `.md` quedan en el repo hasta que
   gorrite confirme que todo coincide.
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
@@ -14,6 +14,12 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
+- **Lugares desde las cuentas** (decisión de gorrite,
+  [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
+  lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
+  ni en su página, ni en los eventos) hasta que une admin lo aprueba en **Eventos → Lugares →
+  "Para aprobar"** (lista con CSV; aprobar o rechazar, que lo borra). Los que crea une admin y los
+  importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: el editor de Amigues edita el perfil en la base (publica al guardar, con aviso de
@@ -28,7 +34,8 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 
 ## Prenderlo (orden recomendado)
 
-1. Aplicar la migración `0017_amigues_lugares.sql` (gorrite, como siempre: ver [datos.md](datos.md)).
+1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
+   (gorrite, como siempre: ver [datos.md](datos.md)).
 2. En el panel del entorno (primero preview): **Contenido → Amigues → Importar y clasificar →
    Importar las fichas**. Se puede repetir: es idempotente.
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
@@ -48,9 +55,12 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 - **Ocultar o borrar en la base gana sobre el `.md`**: si hay un perfil con esa dirección y quien
   mira no lo puede ver, 404, aunque el `.md` siga en el repo.
 - **Lista blanca**: las páginas reciben `publicProfile()` (src/lib/server/amigues/profiles.js),
-  nunca el objeto. El mail, teléfono, cumpleaños e identidad de género de las fichas se importan
-  (son públicos a propósito, están en el repo) pero la página no los muestra, como antes.
-- **Quienes gestionan no se muestran nunca**; integrantes de un grupo, solo con `show_members`,
+  nunca el objeto. **El contacto se muestra** (decisión de gorrite,
+  [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
+  (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
+  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+- **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
@@ -61,8 +71,12 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 
 ## Privacidad de los lugares
 
-Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **solo el nombre**) y cada
-evento lo puede cambiar (`event_venues.privacy`):
+Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **la dirección completa**,
+decisión de gorrite; también
+vale para los lugares ya guardados sin nivel) y cada evento lo puede cambiar
+(`event_venues.privacy`), y el del evento manda. Quien no quiera la dirección pública elige otro
+nivel; el valor por defecto se decide en un solo lugar, `DEFAULT_VENUE_PRIVACY` en
+`src/lib/utils/venues.js`:
 
 | Nivel        | En la página del evento              | ¿El lugar lista el evento? |
 | ------------ | ------------------------------------ | -------------------------- |
@@ -90,7 +104,8 @@ sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falt
 ## Del vínculo provisorio al edge
 
 Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**
-(`event_slug` → `venue_id`, con `privacy`). Se eligió una tabla y no `lugar:` en el frontmatter
+(`event_slug` → `venue_id`, con `privacy`; confirmado por gorrite, porque los eventos pasan a la
+base pronto). Se eligió una tabla y no `lugar:` en el frontmatter
 porque: la dirección y la privacidad quedan fuera del repo público; el cambio se ve al toque (sin
 PR ni deploy); `venue_id` tiene foreign key al objeto; y las salidas compiladas no pueden filtrar
 nada. Contra: si se cambia la dirección (slug) de un evento, hay que volver a vincularlo.
@@ -101,14 +116,14 @@ tiene el edge `lugar` hacia… `lugar`: hay que cambiar su destino a `perfil`), 
 la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues.js` pasan a
 `getEdges`.
 
-## Tablas (migración 0017)
+## Tablas (migraciones 0017 y 0024)
 
-| Tabla               | Qué guarda                                                                                                                      |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `profile_sources`   | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta, por qué, confirmada) |
-| `profile_approvals` | perfiles aprobados para `/amigues`                                                                                              |
-| `profile_claims`    | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                         |
-| `event_venues`      | "sucede en" provisorio, con la privacidad del evento                                                                            |
+| Tabla               | Qué guarda                                                                                                                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile_sources`   | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
+| `profile_approvals` | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
+| `profile_claims`    | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
+| `event_venues`      | "sucede en" provisorio, con la privacidad del evento                                                                                                                                                                                |
 
 ## Dónde está el código
 

@@ -27,10 +27,13 @@
 
 	$: c = data.charts;
 	// Los últimos 12 eventos pasados, con la fecha corta para el eje.
-	$: lastEvents = (c?.attendance.rows.slice(-12) ?? []).map((e) => ({
-		...e,
-		day: e.start ? fmtDate(e.start).split(' ').slice(0, 2).join(' ') : ''
-	}));
+	/** @param {{ start: string | null }} e */
+	const shortDay = (e) => (e.start ? fmtDate(e.start).split(' ').slice(0, 2).join(' ') : '');
+	$: lastEvents = (c?.attendance.rows.slice(-12) ?? []).map((e) => ({ ...e, day: shortDay(e) }));
+	// Los últimos 12 eventos pasados que son de una serie (etiqueta bajo «evento recurrente»).
+	$: lastSeriesEvents = (c?.attendance.rows.filter((e) => e.seriesReturning !== null) ?? [])
+		.slice(-12)
+		.map((e) => ({ ...e, day: shortDay(e) }));
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
@@ -204,6 +207,30 @@
 					</p>
 				</Card>
 			</div>
+
+			<Card title="Vuelven a la misma serie">
+				<Chart
+					title="Personas que entraron a un evento de una serie: primera vez en esa serie y que ya habían venido a la misma serie, últimos {lastSeriesEvents.length} eventos"
+					rows={lastSeriesEvents}
+					x={{ key: 'title', label: 'evento', tick: 'day' }}
+					series={[
+						{ key: 'seriesNewcomers', label: 'Primera vez en la serie' },
+						{ key: 'seriesReturning', label: 'Ya habían venido a la serie' }
+					]}
+					stacked
+					csv="vuelven-a-la-serie"
+					csvColumns={[col('slug', 'slug'), col('start', 'fecha'), col('series', 'serie')]}
+					empty="Todavía no hay check-ins en eventos de una serie."
+				/>
+				<p class="kv-note">
+					De {c.attendance.seriesPeople} personas que entraron a algún evento de una serie, {c
+						.attendance.seriesCameBack} volvieron a la misma serie ({pct(
+						c.attendance.seriesPeople ? c.attendance.seriesCameBack / c.attendance.seriesPeople : 0
+					)}). Las series son las etiquetas que cuelgan de «evento recurrente» (por ejemplo
+					Picantearla); los eventos sin esa etiqueta no cuentan acá. Cuenta por mail, sin mostrar a
+					nadie.
+				</p>
+			</Card>
 
 			<Card title="Fondo y finanzas">
 				<div class="kv-stats">

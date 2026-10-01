@@ -246,7 +246,7 @@
 	/* ---------- personas con rol (interruptor personas_eventos) ---------- */
 	// `data.personas` ({ roles, profiles }) llega solo con el interruptor prendido; apagado, el
 	// editor no muestra ni toca `personas:`.
-	/** @type {{ roles: string[], profiles: { slug: string, title: string, kind: 'persona' | 'grupo' | 'lugar' }[] } | null} */
+	/** @type {{ roles: string[], profiles: { slug: string, title: string, kind: 'persona' | 'proyecto' }[] } | null} */
 	const personasData = category !== 'amigues' ? (data.personas ?? null) : null;
 	/** @type {{ perfil: string, rol: string }[]} */
 	const initialPersonas = (Array.isArray(meta[PERSONAS_KEY]) ? meta[PERSONAS_KEY] : [])

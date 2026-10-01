@@ -130,10 +130,6 @@
 	let gorraChips = $derived(
 		gorra ? gorraQuickAmounts(gorra.min, gorra.suggested, gorra.recommended ?? null) : []
 	);
-	/** Eligió menos que el mínimo recomendado (se puede, pero se lo decimos con cariño). */
-	let gorraBelowRecommended = $derived(
-		Boolean(gorra?.recommended) && gorraAmount !== null && gorraAmount < (gorra?.recommended ?? 0)
-	);
 	let prices = $derived(
 		computePrice({
 			price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
@@ -420,11 +416,6 @@
 					{:else if amount.trim() && gorraAmount === null}
 						<span class="field-error"
 							>Escribí un monto en pesos (sin centavos), desde {formatARS(gorra.min)}.</span
-						>
-					{:else if gorraBelowRecommended}
-						<span class="hint soft" role="status"
-							>Está por debajo del mínimo recomendado ({formatARS(gorra.recommended ?? 0)}). Si
-							podés poner más, nos ayudás a sostener el espacio; si no, está bien así.</span
 						>
 					{/if}
 				</div>
@@ -972,11 +963,6 @@
 	.hint {
 		color: var(--muted);
 		font-size: var(--step--2);
-	}
-	/* Por debajo del mínimo recomendado de la gorra: aviso amable, no es un error. */
-	.hint.soft {
-		display: block;
-		color: var(--2-dark);
 	}
 	.code-row {
 		display: flex;

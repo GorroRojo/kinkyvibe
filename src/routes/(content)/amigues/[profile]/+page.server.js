@@ -9,9 +9,6 @@ import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
 
-/** Todos los posts (también los pasados), para lo que lista un perfil por rol. */
-const allPosts = async () => [...(await fetchMarkdownPosts()), ...(await fetchMarkdownPosts(true))];
-
 /**
  * La página de un perfil. Con el interruptor `perfiles_publicos` prendido, el perfil de la base
  * (con la misma dirección que la ficha .md: /amigues/<slug viejo>); si hay un perfil con esa
@@ -28,12 +25,14 @@ export async function load({ params, platform, locals, setHeaders }) {
 		});
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
-			// Eventos y publicaciones que nombran al perfil por rol (interruptor `personas_eventos`,
-			// solo si el perfil es público). El .md nombra al perfil por la dirección del objeto,
-			// no por la vieja de la ficha (`page.profile.slug`).
 			return {
 				...page,
-				participa: await contentForProfilePage(platform, page.objectSlug, allPosts)
+				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
+				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
+				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
+					...(await fetchMarkdownPosts()),
+					...(await fetchMarkdownPosts(true))
+				])
 			};
 		}
 		if (await profileSlugTaken(db, params.profile)) error(404, 'Not found');
@@ -46,10 +45,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		mode: /** @type {const} */ ('md'),
 		...post,
 		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
-		pronouns: await mentionPronouns(),
-		// Eventos y publicaciones que nombran al perfil con esta dirección, por rol (interruptor
-		// `personas_eventos`, solo si el perfil es público; si no, `null`).
-		participa: await contentForProfilePage(platform, params.profile, allPosts)
+		pronouns: await mentionPronouns()
 	};
 }
 

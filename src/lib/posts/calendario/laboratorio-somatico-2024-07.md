@@ -11,6 +11,7 @@ tags:
   - BDSM
   - bondage
   - AMBA
+  - Laboratorio fetichista
 layout: calendario
 category: calendario
 authors:

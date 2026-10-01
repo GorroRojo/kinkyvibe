@@ -11,6 +11,7 @@ tags:
   - cuerdas
   - cuir
   - perfo
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

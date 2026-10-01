@@ -3,6 +3,7 @@ import {
 	availabilityOf,
 	chainCycle,
 	currentTier,
+	doorPrice,
 	emptyTaken,
 	stockOf,
 	tierKey,
@@ -231,5 +232,55 @@ describe('validaciones de la forma', () => {
 
 	it('tierKey', () => {
 		expect(tierKey('general', 'p1')).toBe('general/p1');
+	});
+});
+
+describe('doorPrice: puerta y carga a mano (por tipo)', () => {
+	const fixed = { price: 10000, fondo: 2000 };
+	const tiered = {
+		price: 10000,
+		fondo: 2000,
+		tiers: [
+			{ price: 8000, fondo: 1600 },
+			{ price: 9000, fondo: 1800 },
+			{ price: 10000, fondo: 2000 }
+		]
+	};
+
+	it('sin tramos ni door_price: el precio fijo del tipo', () => {
+		expect(doorPrice(fixed)).toEqual({ price: 10000, fondo: 2000, source: 'type' });
+		expect(doorPrice({ ...fixed, door: null })).toMatchObject({ price: 10000, source: 'type' });
+	});
+
+	it('con tramos y sin door_price: el del último tramo (no el vigente)', () => {
+		expect(doorPrice({ ...tiered, price: 1 })).toEqual({
+			price: 10000,
+			fondo: 2000,
+			source: 'tier'
+		});
+	});
+
+	it('con door_price: ese, con o sin tramos', () => {
+		const door = { price: 12000, fondo: 2400 };
+		expect(doorPrice({ ...tiered, door })).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		expect(doorPrice({ ...fixed, door })).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		// Una entrada sin cargo en la puerta también es un precio.
+		expect(doorPrice({ ...fixed, door: { price: 0, fondo: 0 } })).toMatchObject({
+			price: 0,
+			source: 'door'
+		});
+	});
+
+	it('dos tipos del mismo evento, cada uno con su precio en la puerta', () => {
+		const general = { ...tiered, door: { price: 12000, fondo: 0 } };
+		const pareja = { price: 18000, fondo: 0, door: { price: 20000, fondo: 0 } };
+		const sinPuerta = { price: 7000, fondo: 0 };
+		expect([general, pareja, sinPuerta].map((t) => doorPrice(t)?.price)).toEqual([
+			12000, 20000, 7000
+		]);
+	});
+
+	it('a la gorra: null (el monto lo elige quien paga)', () => {
+		expect(doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } })).toBeNull();
 	});
 });

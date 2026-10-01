@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import realSource from './hardcodedTags.js?raw';
 import {
+	addTagToPost,
 	analyzeTags,
 	applyTagOps,
 	describeOp,
@@ -417,5 +418,48 @@ describe('image (imagen de una serie)', () => {
 		);
 		expect(a.nodes.find((x) => x.id === 'suelta')?.image).toBe('s.webp');
 		expect(a.nodes.find((x) => x.id === 'impacto')?.image).toBeUndefined();
+	});
+});
+
+describe('addTagToPost', () => {
+	const POST = [
+		'---',
+		'title: Fauna',
+		'tags:',
+		'  - español',
+		'  # - KinkyVibe # etiqueta especial #',
+		'  - pago # pago | gratis #',
+		'  - shibari',
+		'layout: calendario',
+		'---',
+		'Texto con tags: - nada',
+		''
+	].join('\n');
+
+	it('agrega un ítem después del último, con la misma sangría, sin tocar nada más', () => {
+		const out = addTagToPost(POST, 'Fauna Grotesca');
+		expect(out).toBe(POST.replace('  - shibari\n', '  - shibari\n  - Fauna Grotesca\n'));
+	});
+	it('no cambia nada si ya la tiene o si no hay `tags:`', () => {
+		expect(addTagToPost(POST, 'pago')).toBe(POST);
+		const sinTags = '---\ntitle: X\n---\nhola\n';
+		expect(addTagToPost(sinTags, 'Serie')).toBe(sinTags);
+		expect(addTagToPost('sin frontmatter', 'Serie')).toBe('sin frontmatter');
+	});
+	it('comillas cuando hacen falta y lista entre corchetes', () => {
+		expect(addTagToPost(POST, '¿Qué?: sí')).toContain("  - shibari\n  - '¿Qué?: sí'\n");
+		expect(addTagToPost('---\ntags: [a, b] # nota\n---\n', 'Serie A')).toBe(
+			'---\ntags: [a, b, Serie A] # nota\n---\n'
+		);
+	});
+	it('`tags:` vacío: el primer ítem', () => {
+		expect(addTagToPost('---\ntags:\nlayout: x\n---\n', 'Serie')).toBe(
+			'---\ntags:\n  - Serie\nlayout: x\n---\n'
+		);
+	});
+	it('respeta CRLF', () => {
+		expect(addTagToPost('---\r\ntags:\r\n  - a\r\n---\r\n', 'b')).toBe(
+			'---\r\ntags:\r\n  - a\r\n  - b\r\n---\r\n'
+		);
 	});
 });

@@ -2,9 +2,6 @@
  * Text helpers shared by the browser, the server and the Worker's cron. No imports on purpose:
  * src/lib/server/objects (which the nightly cron loads without Vite) can use them without
  * pulling YAML or anything else in.
- *
- * Also: lecturas cortas de valores que vienen de datos guardados (JSON de un objeto, frontmatter): el
- * texto recortado o nada. Puras, sin dependencias (las usan también los scripts de Node).
  */
 
 /**
@@ -36,6 +33,20 @@ export function slugify(text) {
 		.slice(0, 80)
 		.replace(/-+$/, '');
 }
+
+/**
+ * Escapes every regular-expression metacharacter, so `text` matches literally inside a
+ * `new RegExp(...)` (also `/`, harmless and handy in literals): "a.b/c" → "a\\.b\\/c".
+ * @param {string} text
+ */
+export function escapeRegExp(text) {
+	return String(text).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+/**
+ * Lecturas cortas de valores que vienen de datos guardados (JSON de un objeto, frontmatter): el
+ * texto recortado o nada.
+ */
 
 /**
  * El texto recortado, o `null` si no es texto o está vacío.

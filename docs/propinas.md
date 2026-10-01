@@ -4,11 +4,15 @@
 
 Al pie de las publicaciones con la etiqueta **KinkyVibe** (material y eventos), un bloque "¿Te
 sirvió? Dejá una propina" en lugar de la nota del cafecito. La persona elige $ 1.000, $ 2.000,
-$ 5.000 u "Otro monto" (entre $ 500 y $ 500.000), puede sumar un mensaje (hasta 280 caracteres,
-solo lo leen les admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias.
+$ 5.000 u "Otro monto" (entre $ 500 y $ 500.000), elige **para quién es** ("Para KinkyVibe", por
+defecto, o "Para el Fondo"), puede sumar un mensaje (hasta 280 caracteres, solo lo leen les
+admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias.
 
 - No hace falta cuenta y no pedimos datos: ni nombre ni mail (MP pide lo suyo en su checkout).
-- La plata entra a **la misma cuenta de MP que las entradas**. No va al Fondo KinkyVibe.
+- La plata entra siempre a **la misma cuenta de MP que las entradas**, elija lo que elija. El
+  destino solo cambia cómo se cuenta: las propinas "Para el Fondo" aprobadas suman a los
+  **aportes al Fondo KinkyVibe** del panel, igual que el aporte de una entrada solidaria (ver
+  "En el panel").
 - El link a Cafecito del pie de página (Footer) sigue igual.
 
 Está detrás del interruptor **Propinas** (Ajustes → Interruptores), apagado por defecto. Apagado,
@@ -19,6 +23,9 @@ las publicaciones muestran la nota del cafecito de siempre y `/propinas` da 404.
 
 - **El monto lo decide el servidor.** El formulario manda un monto sugerido u "otro" + el número;
   `validateTip` (`src/lib/utils/propinas.js`) lo valida en el servidor con el mínimo y el máximo.
+- **El destino también.** `destination` tiene que ser `kinkyvibe` o `fondo` (vacío = `kinkyvibe`;
+  cualquier otra cosa, error). La base lo vuelve a controlar con un `CHECK` (migración 0022). El
+  webhook nunca lo cambia: solo toca el estado.
 - **Nadie aprueba una propina desde el navegador.** El estado (`pending` → `approved` /
   `rejected` / `refunded`) lo cambia solo un pago pedido a la API de MP: el webhook firmado o el
   re-chequeo de la página de gracias (que pregunta a MP por la referencia, no lee la URL).
@@ -46,6 +53,7 @@ las publicaciones muestran la nota del cafecito de siempre y `/propinas` da 404.
 | Form action y gracias                   | `src/routes/(content)/propinas/`                                |
 | Panel (lista, CSV)                      | `src/routes/(authed)/admin/propinas/` (menú: Ventas → Propinas) |
 | Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                         |
+| Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                          |
 | Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                  |
 
 Reutiliza lo de las entradas: el cliente de MP y su gateway (`getGateway`), el cuerpo común de la
@@ -55,10 +63,22 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## En el panel
 
-- **Ventas → Propinas** (`/admin/propinas`): total recibido, por mes (hora de Argentina, por fecha
-  de aprobación), por publicación y las últimas propinas con su mensaje. "CSV" descarga todas
-  (también las pendientes que nunca se pagaron).
-- **Inicio**: las propinas aprobadas aparecen en la actividad reciente.
+- **Ventas → Propinas** (`/admin/propinas`): total recibido y separado por destino ("Para
+  KinkyVibe" / "Para el Fondo"), por mes (hora de Argentina, por fecha de aprobación), por
+  publicación y las últimas propinas con su destino y su mensaje. Las pestañas Todas / Para
+  KinkyVibe / Para el Fondo filtran la lista (`?destino=kinkyvibe|fondo`; los totales no se
+  filtran). "CSV" descarga todas (también las pendientes que nunca se pagaron), con la columna
+  `destino` al final.
+- **Inicio**: las propinas aprobadas aparecen en la actividad reciente. La tarjeta **Neto del
+  fondo** (del mes) suma como aportes, además de los de las entradas solidarias
+  (`orders.fondo_contribution`), las propinas "Para el Fondo" **aprobadas** en el mes (por fecha de
+  aprobación); el detalle dice cuánto es de propinas. Pendientes, rechazadas, reembolsadas y las
+  "Para KinkyVibe" no suman. Hay una sola definición de qué propina cuenta
+  (`FONDO_TIP_WHERE` / `fondoTipTotals` en `src/lib/server/propinas/index.js`), la misma que usa el
+  resumen de Propinas.
+- Los aportes por evento y por tipo de entrada (`/admin/entradas`, la página de ventas de cada
+  evento) siguen siendo solo los de las entradas: una propina no es de ningún evento ni tipo de
+  entrada, así que no se reparte ahí (y no se cuenta dos veces).
 - Los montos son lo que pagó la persona, antes de la comisión de MP.
 
 ## Probarlo
@@ -69,9 +89,21 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 - Datos de demo en la base local: `npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-propinas.sql`
   (nunca con `--remote`).
 
-## Decisiones para confirmar con gorrite
+## Antes de prender el interruptor
 
-Tomadas por Claude, a confirmar: montos ($ 1.000 / $ 2.000 / $ 5.000, otro entre $ 500 y
-$ 500.000), la plata a la cuenta de MP de las entradas (no al Fondo), sin cuenta ni datos, mensaje
-opcional de 280 caracteres solo para admins, página de gracias, y el Cafecito del pie de página
-sin cambios.
+Aplicar las migraciones **0019** y **0022** en la base (0022 agrega `destination`; sin ella no se
+pueden crear propinas). Con el interruptor apagado nada de esto se usa.
+
+## Decisiones
+
+Confirmadas por gorrite:
+
+- Montos: $ 1.000 / $ 2.000 / $ 5.000 ($ 2.000 elegido por defecto) y "otro monto" entre $ 500 y
+  $ 500.000.
+- Solo en las publicaciones con la etiqueta KinkyVibe.
+- **Destino** (cambiado por gorrite): quien deja la propina elige "Para KinkyVibe" (por defecto) o
+  "Para el Fondo". La plata va a la misma cuenta de MP; las del Fondo cuentan como aportes al
+  Fondo, igual que la entrada solidaria.
+
+Tomadas por Claude, a confirmar: sin cuenta ni datos, mensaje opcional de 280 caracteres solo
+para admins, página de gracias, y el Cafecito del pie de página sin cambios.

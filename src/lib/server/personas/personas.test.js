@@ -1,12 +1,8 @@
 /**
  * Personas en eventos (B7) contra un D1 de miniflare: la lista de roles, qué perfiles se
- * muestran (visibles para cualquiera y aprobados; ninguno oculto, "solo con cuenta", borrado,
- * sin revisar o fuera de /amigues aparece, ni su nombre ni su link), lo que lista un perfil, los
- * interruptores y la forma de los edges del futuro. Datos inventados.
- *
- * Con amigues como perfiles (#137) en la misma rama: un perfil se nombra solo si además está
- * aprobado para /amigues (`profile_approvals`). Como en el panel, los que carga une admin nacen
- * aprobados y los de una cuenta se aprueban a mano (`approved` en el helper).
+ * muestran (personas y proyectos visibles para cualquiera y aprobados para /amigues; ninguno
+ * oculto, "solo con cuenta", borrado, sin aprobar o lugar aparece, ni su nombre ni su link), lo
+ * que lista un perfil, los interruptores y la forma de los edges del futuro. Datos inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -22,7 +18,6 @@ import {
 	personasFileErrors,
 	personasForPage,
 	pickableProfiles,
-	profileHref,
 	publicProfilesBySlug,
 	resolvePersonas,
 	resolveProfileContent
@@ -47,15 +42,16 @@ const ADMIN_LOGIN = 'admin-de-prueba';
 const ACCOUNT = 'cuenta:00000000-0000-4000-8000-000000000001';
 
 /**
- * Un perfil guardado por saveObject (el único camino de escritura de los objetos).
+ * Un perfil guardado por saveObject (el único camino de escritura de los objetos). Como en el
+ * sitio, los que carga une admin nacen aprobados para /amigues y los de una cuenta no
+ * (`approved` lo cambia).
  * @param {string} slug
- * `approved`: aprobado para /amigues (por defecto, como en el panel: si lo cargó une admin).
- * @param {{ kind?: 'persona' | 'grupo' | 'lugar', visibility?: 'public' | 'members' | 'hidden', by?: string, deleted?: boolean, reviewed?: boolean, approved?: boolean }} [o]
+ * @param {{ kind?: 'persona' | 'proyecto' | 'lugar', visibility?: 'public' | 'members' | 'hidden', by?: string, deleted?: boolean, reviewed?: boolean, approved?: boolean }} [o]
  */
 async function profile(
 	slug,
 	{
-		kind = 'grupo',
+		kind = 'proyecto',
 		visibility = 'public',
 		by = ADMIN_LOGIN,
 		deleted = false,
@@ -72,7 +68,7 @@ async function profile(
 		{ type: 'perfil', slug, title, data: { kind }, visibility },
 		{ actor: by }
 	);
-	if (approved) await approveProfile(t.db, p.id, ADMIN_LOGIN);
+	if (approved) await approveProfile(t.db, p.id, ADMIN_LOGIN, { now: 1 });
 	if (deleted)
 		p = await saveObject(
 			t.db,
@@ -94,18 +90,38 @@ async function profile(
 	return p;
 }
 
+/** Dirección vieja (ficha .md importada) del colectivo de prueba. */
+const LEGACY_SLUG = 'Colectivo_de_Prueba';
+
 /** Los perfiles de prueba: uno público por cada caso que NO se tiene que ver. */
 async function seedProfiles() {
-	await profile('colectivo-de-prueba');
+	const colectivo = await profile('colectivo-de-prueba');
+	// Importado de una ficha .md: su página es /amigues/<dirección vieja> (migración 0017).
+	await t.db
+		.prepare(
+			`INSERT INTO profile_sources (profile_id, legacy_slug, source_hash, imported_version,
+			suggested_kind, imported_at, updated_at) VALUES (?1, ?2, ?3, 1, 'proyecto', 1, 1)`
+		)
+		.bind(colectivo.id, LEGACY_SLUG, 'a'.repeat(64))
+		.run();
 	await profile('persona-de-prueba', { kind: 'persona' });
 	await profile('perfil-oculto', { visibility: 'hidden' });
 	await profile('perfil-solo-cuentas', { visibility: 'members' });
 	await profile('perfil-borrado', { deleted: true });
 	await profile('perfil-sin-revisar', { by: ACCOUNT });
+	// Revisado («Para revisar») pero no aprobado para /amigues: tampoco aparece.
+	await profile('perfil-revisado-sin-aprobar', { by: ACCOUNT, reviewed: true });
+	await profile('perfil-admin-sin-aprobar', { approved: false });
 	await profile('perfil-revisado', { by: ACCOUNT, reviewed: true, approved: true });
-	// Revisado pero no aprobado para /amigues, y uno de admin que se sacó de /amigues.
-	await profile('perfil-revisado-fuera', { by: ACCOUNT, reviewed: true });
-	await profile('perfil-admin-fuera', { approved: false });
+	// Un lugar público y aprobado: va en «Sucede en», no como persona con rol.
+	await profile('lugar-de-prueba', { kind: 'lugar' });
+	// Una fila que quedó con el tipo viejo `grupo` (antes de 0023) se lee como proyecto.
+	await t.db
+		.prepare(
+			`UPDATE objects SET data = json_set(data, '$.kind', 'grupo'), version = version + 1
+			WHERE type = 'perfil' AND slug = 'perfil-revisado'`
+		)
+		.run();
 }
 
 const PERSONAS = [
@@ -115,15 +131,15 @@ const PERSONAS = [
 	{ perfil: 'perfil-solo-cuentas', rol: 'Facilita' },
 	{ perfil: 'perfil-borrado', rol: 'Enseña' },
 	{ perfil: 'perfil-sin-revisar', rol: 'Enseña' },
+	{ perfil: 'perfil-revisado-sin-aprobar', rol: 'Enseña' },
+	{ perfil: 'perfil-admin-sin-aprobar', rol: 'Enseña' },
 	{ perfil: 'perfil-revisado', rol: 'Fotografía' },
-	{ perfil: 'no-existe', rol: 'Diseño' },
-	{ perfil: 'perfil-revisado-fuera', rol: 'Diseño' },
-	{ perfil: 'perfil-admin-fuera', rol: 'Diseño' }
+	{ perfil: 'lugar-de-prueba', rol: 'Diseño' },
+	{ perfil: 'no-existe', rol: 'Diseño' }
 ];
 
 async function flagsOn() {
 	await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
-	await setFlag(t.db, 'cuentas', true, { by: ADMIN_LOGIN });
 	await setFlag(t.db, 'perfiles_publicos', true, { by: ADMIN_LOGIN });
 }
 
@@ -191,8 +207,8 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 					{
 						slug: 'colectivo-de-prueba',
 						title: 'Colectivo De Prueba',
-						kind: 'grupo',
-						href: profileHref('colectivo-de-prueba')
+						kind: 'proyecto',
+						href: '/amigues/Colectivo_de_Prueba'
 					}
 				]
 			},
@@ -213,7 +229,7 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 					{
 						slug: 'perfil-revisado',
 						title: 'Perfil Revisado',
-						kind: 'grupo',
+						kind: 'proyecto',
 						href: '/amigues/perfil-revisado'
 					}
 				]
@@ -227,10 +243,10 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 			'borrado',
 			'sin-revisar',
 			'Sin Revisar',
+			'sin-aprobar',
+			'lugar',
 			'Enseña',
-			'Diseño',
-			'fuera',
-			'Fuera'
+			'Diseño'
 		]) {
 			expect(text).not.toContain(hidden);
 		}
@@ -251,8 +267,9 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 			'perfil-solo-cuentas',
 			'perfil-borrado',
 			'perfil-sin-revisar',
-			'perfil-revisado-fuera',
-			'perfil-admin-fuera',
+			'perfil-revisado-sin-aprobar',
+			'perfil-admin-sin-aprobar',
+			'lugar-de-prueba',
 			'no-existe'
 		]) {
 			expect(await resolveProfileContent(t.db, slug, posts, mergeRoles())).toBeNull();
@@ -271,13 +288,11 @@ describe('interruptores', () => {
 		expect(await personasForPage(t.platform, meta)).toBeNull();
 		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
 		expect(await editorPersonas(t.platform)).toBeNull();
-		// Solo personas_eventos, sin el de perfiles: tampoco se muestran perfiles.
+		// Solo personas_eventos, sin `perfiles_publicos`: tampoco se muestran perfiles (sus links
+		// llevarían a /amigues, que sin ese interruptor no tiene la página del perfil). Las cuentas
+		// prendidas no alcanzan.
 		await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
-		expect(await personasForPage(t.platform, meta)).toBeNull();
-		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
-		// Con cuentas pero sin perfiles_publicos: /amigues muestra las fichas .md, así que tampoco.
 		await setFlag(t.db, 'cuentas', true, { by: ADMIN_LOGIN });
-		clearFlagCache();
 		expect(await personasForPage(t.platform, meta)).toBeNull();
 		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
 	});
@@ -310,52 +325,7 @@ describe('interruptores', () => {
 		const editor = await editorPersonas(t.platform);
 		expect(editor?.roles).toEqual([...FIXED_ROLES]);
 		expect(editor?.profiles.map((p) => p.slug)).not.toContain('perfil-oculto');
-	});
-});
-
-describe('con amigues (#137)', () => {
-	it('una ficha importada se linkea por su dirección vieja; un lugar es un lugar', async () => {
-		const p = await profile('ficha-de-prueba', { kind: 'persona' });
-		await profile('lugar-de-prueba', { kind: 'lugar' });
-		await t.db
-			.prepare(
-				`INSERT INTO profile_sources (profile_id, legacy_slug, source_hash, imported_version,
-				suggested_kind, imported_at, updated_at) VALUES (?1, ?2, ?3, 1, 'persona', 1, 1)`
-			)
-			.bind(p.id, 'Ficha_De_Prueba', 'a'.repeat(64))
-			.run();
-		const groups = await resolvePersonas(
-			t.db,
-			[
-				{ perfil: 'ficha-de-prueba', rol: 'Facilita' },
-				{ perfil: 'lugar-de-prueba', rol: 'Organiza' }
-			],
-			mergeRoles()
-		);
-		expect(groups).toEqual([
-			{
-				rol: 'Organiza',
-				items: [
-					{
-						slug: 'lugar-de-prueba',
-						title: 'Lugar De Prueba',
-						kind: 'lugar',
-						href: '/amigues/lugar-de-prueba'
-					}
-				]
-			},
-			{
-				rol: 'Facilita',
-				items: [
-					{
-						slug: 'ficha-de-prueba',
-						title: 'Ficha De Prueba',
-						kind: 'persona',
-						href: '/amigues/Ficha_De_Prueba'
-					}
-				]
-			}
-		]);
+		expect(editor?.profiles.map((p) => p.slug)).not.toContain('lugar-de-prueba');
 	});
 });
 

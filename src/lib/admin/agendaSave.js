@@ -1,13 +1,50 @@
 /**
- * Guardar un cambio de la agenda desde el navegador: la action `save` de
- * /admin/eventos/agenda (la que usan la planilla y el arrastre del calendario). Devuelve el
- * `AgendaSaveResult` del servidor (con `slug`), o null si la sesión venció y se fue a /login.
+ * Guardar cambios de la agenda desde el navegador, por las actions de /admin/eventos/agenda:
+ * - `postAgendaSave`: una fila (action `save`, Enter en la planilla);
+ * - `postAgendaSaveMany`: varias filas en un solo commit (action `saveMany`: "Guardar N filas" de
+ *   la planilla y "Guardar cambios" de los eventos movidos en el calendario).
+ * Devuelven lo que respondió el servidor, o null si la sesión venció y se fue a /login.
  */
 import { deserialize } from '$app/forms';
 
 /**
  * @typedef {import('$lib/server/eventos/agenda.js').AgendaSaveResult & { slug?: string }} AgendaSaveResponse
+ * @typedef {import('$lib/server/eventos/agenda.js').AgendaBatchResult} AgendaBatchResponse
+ * @typedef {{ slug: string, before: import('$lib/utils/agenda.js').AgendaValues, after: import('$lib/utils/agenda.js').AgendaValues }} AgendaChange
  */
+
+const OFFLINE = 'Sin conexión. Probá de nuevo.';
+const SERVER_ERROR = 'Error del servidor. Probá de nuevo.';
+
+/**
+ * @param {string} action
+ * @param {FormData} body
+ * @returns {Promise<{ status: number, data: any } | { status: 0, data: null } | null>}
+ */
+async function postAction(action, body) {
+	let res;
+	try {
+		res = await fetch(`/admin/eventos/agenda?/${action}`, {
+			method: 'POST',
+			body,
+			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+		});
+	} catch (e) {
+		return { status: 0, data: null };
+	}
+	/** @type {any} */
+	let r;
+	try {
+		r = deserialize(await res.text());
+	} catch (e) {
+		return { status: res.status, data: null };
+	}
+	if (r.type === 'redirect') {
+		location.href = r.location;
+		return null;
+	}
+	return { status: res.status, data: r.data ?? null };
+}
 
 /**
  * @param {string} slug
@@ -20,27 +57,32 @@ export async function postAgendaSave(slug, before, after) {
 	body.set('slug', slug);
 	body.set('before', JSON.stringify(before));
 	body.set('after', JSON.stringify(after));
-	let res;
-	try {
-		res = await fetch('/admin/eventos/agenda?/save', {
-			method: 'POST',
-			body,
-			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
-		});
-	} catch (e) {
-		return { status: 0, ok: false, message: 'Sin conexión. Probá de nuevo.' };
-	}
-	/** @type {any} */
-	const r = deserialize(await res.text());
-	if (r.type === 'redirect') {
-		location.href = r.location;
-		return null;
-	}
+	const r = await postAction('save', body);
+	if (!r) return null;
 	return (
 		r.data?.save ?? {
-			status: res.status,
+			status: r.status,
 			ok: false,
-			message: 'Error del servidor. Probá de nuevo.'
+			message: r.status ? SERVER_ERROR : OFFLINE
+		}
+	);
+}
+
+/**
+ * @param {AgendaChange[]} changes
+ * @returns {Promise<AgendaBatchResponse | null>} `results` vacío si no llegó al servidor
+ */
+export async function postAgendaSaveMany(changes) {
+	const body = new FormData();
+	body.set('rows', JSON.stringify(changes));
+	const r = await postAction('saveMany', body);
+	if (!r) return null;
+	return (
+		r.data?.saveMany ?? {
+			status: r.status,
+			ok: false,
+			message: r.status ? SERVER_ERROR : OFFLINE,
+			results: []
 		}
 	);
 }

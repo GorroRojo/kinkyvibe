@@ -7,6 +7,10 @@
  * mientras los eventos sigan siendo .md: ver docs/amigues.md. Funciona con el interruptor
  * `perfiles_publicos` apagado (para dejar todo listo); el sitio lo usa recién al prenderlo.
  * Solo admins; queda en el registro.
+ *
+ * "Para aprobar": los lugares que cargó una cuenta (decisión de gorrite, docs/decisiones/
+ * 0022-lugares-desde-cuentas.md) no aparecen en el sitio hasta que une admin los aprueba acá.
+ * Rechazar los borra (suave). Ver src/lib/server/amigues/pendingVenues.js.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -21,6 +25,8 @@ import {
 	setEventVenue
 } from '$lib/server/amigues/venues.js';
 import { createProfileAction } from '$lib/server/admin/amiguesRoutes.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
+import { listPendingVenues, rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
 import { isVenuePrivacy, VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
@@ -48,14 +54,16 @@ export async function load({ locals, url, platform, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [venues, links, events, flagOn] = await Promise.all([
+	const [venues, links, events, flagOn, pending] = await Promise.all([
 		listVenues(db),
 		listEventVenues(db),
 		eventChoices(),
-		perfilesPublicosEnabled(platform)
+		perfilesPublicosEnabled(platform),
+		listPendingVenues(db)
 	]);
 	return {
 		flagOn,
+		pending,
 		venues: venues.map((v) => ({
 			id: v.id,
 			slug: v.slug,
@@ -76,6 +84,41 @@ export async function load({ locals, url, platform, setHeaders }) {
 /** @type {import('./$types').Actions} */
 export const actions = {
 	crearPerfil: createProfileAction,
+
+	aprobarLugar: async ({ locals, url, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { pending: { ok: false, message: 'Sin base de datos.' } });
+		const id = Number((await request.formData()).get('lugar'));
+		const venue = (await listPendingVenues(db)).find((v) => v.id === id);
+		if (!venue) {
+			return fail(404, { pending: { ok: false, message: 'Ese lugar ya no está para aprobar.' } });
+		}
+		await approveProfile(db, id, admin.login);
+		await logAdminAction(db, locals, {
+			action: 'profile.approve',
+			targetType: 'profile',
+			targetId: id,
+			summary: `Aprobó el lugar «${venue.title}»`
+		});
+		return { pending: { ok: true, message: `Listo: «${venue.title}» ya aparece en el sitio.` } };
+	},
+
+	rechazarLugar: async ({ locals, url, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { pending: { ok: false, message: 'Sin base de datos.' } });
+		const id = Number((await request.formData()).get('lugar'));
+		const r = await rejectPendingVenue(db, id, { by: admin.login });
+		if (!r.ok) return fail(r.status, { pending: { ok: false, message: r.message } });
+		await logAdminAction(db, locals, {
+			action: 'profile.delete',
+			targetType: 'profile',
+			targetId: id,
+			summary: `Rechazó (borró) el lugar «${r.title}»`
+		});
+		return { pending: { ok: true, message: `Listo: rechazaste «${r.title}».` } };
+	},
 
 	vincular: async ({ locals, url, platform, request }) => {
 		const admin = requireAdmin(locals, url);

@@ -94,8 +94,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   fondoPercent: number | null,
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
- *     left: number | null, gorra: { min: number, recommended?: number | null,
- *       suggested: number } | null,
+ *     left: number | null, gorra: { min: number, recommended?: number | null, suggested: number } | null,
  *     closesAt: number | null, closed: boolean,
  *     tier?: { id: string, name: string, until: number | null } | null,
  *     tierLeft?: boolean, waitingFor?: string | null }[],
@@ -646,8 +645,8 @@ export async function buyAction(event) {
 					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
 					: undefined,
 			clientHash: client,
-			now,
-			answers: valid.answers
+			answers: valid.answers,
+			now
 		});
 	} catch (error) {
 		logDBError('reserve order', error);

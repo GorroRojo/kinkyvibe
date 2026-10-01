@@ -10,6 +10,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - shibari
+  - Taller introductorio intensivo de shibari
 layout: calendario
 category: calendario
 authors:

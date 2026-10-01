@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Importar las fichas de amigues a la base y revisar su clasificación (persona, grupo o lugar).
+	 * Importar las fichas de amigues a la base y revisar su clasificación (persona, proyecto o lugar).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -105,7 +105,7 @@
 			<CsvButton href="/admin/amigues/clasificacion.csv" />
 		</svelte:fragment>
 		<p class="kv-note">
-			Cada ficha quedó como persona, grupo o lugar según algunas señales (cómo se presenta, si la
+			Cada ficha quedó como persona, proyecto o lugar según algunas señales (cómo se presenta, si la
 			firman varias personas, sus pronombres…). Confirmá o cambiá cada una.
 			{#if data.rows.length}Faltan {pending}.{/if}
 		</p>

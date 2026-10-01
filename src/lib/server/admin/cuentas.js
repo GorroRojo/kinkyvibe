@@ -16,7 +16,8 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { DELETED_ACTOR, PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
+import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { logDBError } from '$lib/server/db';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -181,7 +182,7 @@ function profileSummary(o) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: profileKind(o.data),
+		kind: profileKindOf(o.data),
 		visibility: o.visibility,
 		createdAt: o.created_at,
 		deletedAt: o.deleted_at,
@@ -223,14 +224,6 @@ const REVIEWED = `EXISTS (SELECT 1 FROM admin_audit r WHERE r.target_type = 'pro
 /** Condición SQL: lo creó una cuenta (no une admin, no una cuenta ya borrada). */
 const BY_ACCOUNT = `o.created_by LIKE '${ACCOUNT_PREFIX}%' AND o.created_by != '${DELETED_ACTOR}'`;
 
-/**
- * Condición SQL (alias `o`): el perfil ya puede mostrarse fuera de Mi rincón, porque no lo creó
- * una cuenta (lo cargó une admin) o porque une admin lo revisó ({@link PROFILE_REVIEW_ACTIONS}).
- * Es la misma marca de "Para revisar", al revés. La usan los roles de personas en eventos
- * (src/lib/server/personas/), además de la visibilidad de los objetos.
- */
-export const PROFILE_APPROVED_SQL = `NOT (${BY_ACCOUNT} AND NOT ${REVIEWED})`;
-
 /** Filtros de la lista de perfiles (`?filtro=`). */
 export const PROFILE_FILTERS = Object.freeze({
 	'sin-revisar': 'Para revisar',
@@ -242,18 +235,18 @@ export const PROFILE_FILTERS = Object.freeze({
 /** Filtro por tipo (`?tipo=`). */
 export const PROFILE_KIND_FILTERS = Object.freeze({
 	persona: 'Personas',
-	grupo: 'Grupos',
+	proyecto: 'Proyectos',
 	lugar: 'Lugares'
 });
 
 /**
- * Condición SQL (alias `o`): el perfil `o` está aprobado para /amigues (migración 0017). La usan
- * también los roles de personas en eventos (src/lib/server/personas/): un perfil que no aparece
- * en /amigues no se nombra ni se linkea desde un evento.
+ * Condición SQL (alias `o`): el perfil está aprobado para /amigues (migración 0017). La usan
+ * también los roles de personas en eventos (src/lib/server/personas/), además de la visibilidad
+ * de los objetos: un perfil que no aparece en /amigues tampoco aparece en un evento.
  */
-export const PROFILE_IN_AMIGUES_SQL =
+export const PROFILE_APPROVED_SQL =
 	'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)';
-const APPROVED = PROFILE_IN_AMIGUES_SQL;
+const APPROVED = PROFILE_APPROVED_SQL;
 
 /**
  * @typedef {ReturnType<typeof profileSummary> & {
@@ -294,12 +287,12 @@ export async function listProfiles(
 	else if (filter === 'ocultos') where.push("o.deleted_at IS NULL AND o.visibility = 'hidden'");
 	else if (filter === 'borrados') where.push('o.deleted_at IS NOT NULL');
 	if (kind in PROFILE_KIND_FILTERS) {
-		where.push(
-			kind === 'persona'
-				? "COALESCE(json_extract(o.data, '$.kind'), 'persona') NOT IN ('grupo', 'lugar')"
-				: "json_extract(o.data, '$.kind') = ?"
-		);
-		if (kind !== 'persona') params.push(kind);
+		// Igual que profileKindOf(): lo desconocido es persona y el viejo `grupo` es proyecto.
+		const kindSql = "COALESCE(json_extract(o.data, '$.kind'), 'persona')";
+		if (kind === 'persona') where.push(`${kindSql} NOT IN ('proyecto', ?, 'lugar')`);
+		else if (kind === 'proyecto') where.push(`${kindSql} IN ('proyecto', ?)`);
+		else where.push(`${kindSql} = ?`);
+		params.push(kind === 'lugar' ? 'lugar' : LEGACY_PROJECT_KIND);
 	}
 	const { results } = await db
 		.prepare(
@@ -479,7 +472,7 @@ export function deleteProfileAsAdmin(db, id, version, user, { now = Date.now() }
  *
  * @param {D1Database | null | undefined} db
  * @param {{ limit?: number }} [opts]
- * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]>}
+ * @returns {Promise<{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]>}
  */
 export async function profilesToReview(db, { limit = 50 } = {}) {
 	if (!db) return [];
@@ -494,9 +487,11 @@ export async function profilesToReview(db, { limit = 50 } = {}) {
 			.bind(PROFILE_TYPE, ...vis.params, limit)
 			.all();
 		return results.map((r) => {
-			let kind = /** @type {'persona' | 'grupo'} */ ('persona');
+			let kind = /** @type {import('$lib/server/objects/types/perfil.js').ProfileKind} */ (
+				'persona'
+			);
 			try {
-				if (JSON.parse(String(r.data)).kind === 'grupo') kind = 'grupo';
+				kind = profileKindOf(JSON.parse(String(r.data)));
 			} catch {
 				// datos rotos: el chequeo nocturno lo reporta
 			}

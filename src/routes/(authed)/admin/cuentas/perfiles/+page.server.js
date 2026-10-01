@@ -1,7 +1,7 @@
 /**
  * Cuentas → Perfiles: todos los perfiles (también ocultos y borrados), con quiénes los gestionan,
  * búsqueda por nombre o dirección, filtros (para revisar, sin aprobar, ocultos, borrados) y por
- * tipo (persona, grupo, lugar), y los pedidos "Es mi perfil" pendientes. Solo admins.
+ * tipo (persona, proyecto, lugar), y los pedidos "Es mi perfil" pendientes. Solo admins.
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';

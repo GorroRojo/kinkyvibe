@@ -942,7 +942,9 @@
 					igual: te vamos a pedir que confirmes y queda en el registro de actividad.
 				</p>
 			{/if}
-			{#if data.doorPrice}<p class="muted small">Precio en la puerta: {data.doorPrice}</p>{/if}
+			{#if data.doorPrice}<p class="muted small">
+					Nota del evento sobre la puerta: {data.doorPrice}
+				</p>{/if}
 			<label class="field">
 				<span>Tipo de entrada</span>
 				<select name="type" bind:value={saleType} required>

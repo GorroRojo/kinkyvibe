@@ -19,9 +19,9 @@ import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import {
 	MAX_PROFILES_PER_ACCOUNT,
 	PROFILE_TYPE,
-	memberViewer,
-	profileKind
+	memberViewer
 } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { isApproved, managerRole } from './profiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -141,7 +141,7 @@ export async function createClaim(
 function toAdminClaim(r) {
 	let kind = 'persona';
 	try {
-		kind = profileKind(JSON.parse(String(r.data)));
+		kind = profileKindOf(JSON.parse(String(r.data)));
 	} catch {
 		// datos rotos: el chequeo nocturno lo reporta
 	}

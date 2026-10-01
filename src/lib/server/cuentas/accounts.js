@@ -214,7 +214,7 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 }
 
 /**
- * ¿La cuenta eligió "No recibir invitaciones de grupos"? (`preferences.noGroupInvites`)
+ * ¿La cuenta eligió "No recibir invitaciones de proyectos"? (`preferences.noGroupInvites`)
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -231,7 +231,7 @@ export async function getNoGroupInvites(db, accountId) {
 }
 
 /**
- * Prende o apaga "No recibir invitaciones de grupos". Apagado, la clave se saca (no queda nada).
+ * Prende o apaga "No recibir invitaciones de proyectos". Apagado, la clave se saca (no queda nada).
  *
  * @param {D1Database} db
  * @param {string} accountId

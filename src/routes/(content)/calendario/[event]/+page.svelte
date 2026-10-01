@@ -6,9 +6,9 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
-	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -18,9 +18,9 @@
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
+	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueLine, venueSchema } from '$lib/utils/venues.js';
-	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	export let data;
 	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
 	// sobre `location` del .md (docs/amigues.md).

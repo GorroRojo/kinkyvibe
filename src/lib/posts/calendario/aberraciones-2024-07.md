@@ -10,6 +10,7 @@ tags:
   - BDSM
   - cine
   - Online # online | AMBA | Córdoba | Santa Cruz #
+  - Aberraciones
 layout: calendario
 category: calendario
 authors:

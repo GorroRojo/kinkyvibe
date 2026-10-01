@@ -10,6 +10,7 @@ tags:
   - pago
   - BDSM
   - AMBA
+  - Laboratorio fetichista
 layout: calendario
 category: calendario
 authors:

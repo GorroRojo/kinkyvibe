@@ -25,6 +25,8 @@ import perfil from './perfil.js';
  * @prop {string} label nombre para mostrar
  * @prop {Record<string, import('../fields.js').FieldDef>} fields
  * @prop {Record<string, EdgeDef>} [edges] por `kind`
+ * @prop {(data: unknown) => unknown} [normalize] corrige valores viejos antes de validar (p. ej.
+ *   un valor de opción que cambió de nombre); devuelve los datos tal cual si no hay nada que hacer
  * @prop {(data: Record<string, any>) => import('../fields.js').FieldError[]} [check] reglas entre campos
  * @prop {(data: Record<string, any>) => string} [searchText] texto extra para la búsqueda
  */
@@ -76,7 +78,7 @@ export const coreTypes = createRegistry([evento, lugar, perfil]);
  * @returns {import('../fields.js').ValidationResult}
  */
 export function validateData(def, data) {
-	const result = validateFields(def.fields, data);
+	const result = validateFields(def.fields, def.normalize ? def.normalize(data) : data);
 	if (!result.ok) return result;
 	const extra = def.check?.(result.data) ?? [];
 	return extra.length ? { ok: false, errors: extra } : result;

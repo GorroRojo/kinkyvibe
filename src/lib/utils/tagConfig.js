@@ -861,6 +861,60 @@ export function replaceTagInPost(raw, from, to) {
 	return changed ? lines.join('') : raw;
 }
 
+/**
+ * Adds tag `tag` to a post's frontmatter `tags:`, touching only that list: a new `  - tag` item
+ * after the last one (same indentation), or one more value in a `tags: [a, b]` list. Comments and
+ * every other line stay as they are. Returns the text unchanged when the post already has the
+ * tag or has no `tags:` key.
+ * @param {string} raw
+ * @param {string} tag
+ */
+export function addTagToPost(raw, tag) {
+	const lines = raw.split(/(?<=\n)/);
+	if (!/^---[ \t]*\r?\n$/.test(lines[0] ?? '')) return raw;
+	const end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*(\r?\n)?$/.test(l));
+	if (end === -1) return raw;
+	const item =
+		/^([ \t]*-[ \t]+)(?:'((?:[^']|'')*)'|"((?:[^"\\]|\\.)*)"|([^#\r\n]*?))([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
+	for (let i = 1; i < end; i++) {
+		const line = lines[i];
+		const flow = /^tags:[ \t]*\[(.*)\][ \t]*(#.*)?(\r?\n)?$/.exec(line);
+		if (flow) {
+			const vals = flow[1]
+				.split(',')
+				.map((v) => v.trim().replace(/^(['"])(.*)\1$/, '$2'))
+				.filter(Boolean);
+			if (vals.includes(tag)) return raw;
+			lines[i] =
+				`tags: [${[...vals, tag].map((v) => yamlScalar(v)).join(', ')}]${flow[2] ? ' ' + flow[2] : ''}${flow[3] ?? ''}`;
+			return lines.join('');
+		}
+		if (!/^tags:[ \t]*(#.*)?\r?\n?$/.test(line)) continue;
+		let last = i;
+		let prefix = '  - ';
+		for (let j = i + 1; j < end; j++) {
+			const l = lines[j];
+			if (/^[ \t]*#/.test(l) || /^[ \t]*\r?\n?$/.test(l)) continue;
+			const mm = item.exec(l);
+			if (!mm) break;
+			const value =
+				mm[2] !== undefined
+					? mm[2].replace(/''/g, "'")
+					: mm[3] !== undefined
+						? JSON.parse(`"${mm[3]}"`)
+						: mm[4];
+			if (String(value).trim() === tag) return raw;
+			if (last === i) prefix = mm[1];
+			last = j;
+		}
+		const eol = /\r\n$/.test(lines[last]) ? '\r\n' : '\n';
+		if (!/\n$/.test(lines[last])) lines[last] += eol;
+		lines.splice(last + 1, 0, `${prefix}${yamlScalar(tag)}${eol}`);
+		return lines.join('');
+	}
+	return raw;
+}
+
 /* ------------------------------------------------------------------------------------------ */
 /*  Plan                                                                                       */
 /* ------------------------------------------------------------------------------------------ */

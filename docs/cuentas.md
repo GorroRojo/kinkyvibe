@@ -46,11 +46,11 @@ Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingr
   `releaseAccountProfiles()` en `perfiles.js`):
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
-    sin los grupos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
-    de grupos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
+    sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
+    de proyectos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
     todas las cuentas borradas, así nada los vincula entre sí). La fila queda, borrada (borrado
     suave), solo para que la dirección no la use otra persona;
-  - cada **grupo** pasa a quien lo gestiona hace más tiempo, con sus datos (son del grupo), o se
+  - cada **proyecto** pasa a quien lo gestiona hace más tiempo, con sus datos (son del proyecto), o se
     borra (suave, con sus datos) si no queda nadie;
   - se borran las invitaciones que mandó.
 
@@ -86,7 +86,7 @@ nada de estas tablas para sumarlas.
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
   otro anula el anterior del mismo `purpose`.
 - Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
-  contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un grupo y borrarlo,
+  contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un proyecto y borrarlo,
   ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
   no sirve para ingresar.
 - Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
@@ -174,8 +174,8 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
   pedir otro.
 - Los mismos límites que los códigos de ingreso, con los mismos contadores: los mails por
   dirección y los intentos por conexión se suman entre ingresar y confirmar.
-- En la página de un grupo pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
-  a otre dueñe, y borrar el grupo (`para` no existe ahí: `?/confirmar` manda siempre uno de
+- En la página de un proyecto pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
+  a otre dueñe, y borrar el proyecto (`para` no existe ahí: `?/confirmar` manda siempre uno de
   `grupo`; ver "Perfiles").
 
 ### Evento que pide cuenta (P7.1)
@@ -190,9 +190,18 @@ perfiles**, de dos tipos:
 
 - **Persona**: separados entre sí y **nunca vinculados de forma visible**. Nada de lo que ve el
   público u otra cuenta dice que dos perfiles son de la misma cuenta.
-- **Grupo**: lo gestionan varias cuentas. Mostrar sus integrantes es opcional por grupo
-  (`show_members`). **Quienes gestionan no se muestran nunca**, ni en público ni a otras cuentas:
-  solo lo ven, en Mi rincón, las otras cuentas que gestionan ese mismo grupo (y les admins).
+- **Proyecto**: todo lo que no es una persona (marcas, productoras, emprendimientos, colectivos,
+  fiestas), con une o varies integrantes. Lo gestionan varias cuentas. Mostrar sus integrantes es
+  opcional por proyecto (`show_members`). **Quienes gestionan no se muestran nunca**, ni en
+  público ni a otras cuentas: solo lo ven, en Mi rincón, las otras cuentas que gestionan ese mismo
+  proyecto (y les admins).
+
+Hasta la migración `0023_perfil_proyecto.sql` el proyecto se llamaba **grupo** (`kind: 'grupo'`).
+La migración pasa los perfiles guardados a `proyecto`, y el código igual acepta el valor viejo: lo
+lee como `proyecto` (`normalizeProfileKind` / `profileKindOf` en
+`src/lib/server/objects/types/perfil.js`, el único lugar que lo decide) y, si se guarda una fila
+vieja, se guarda ya como `proyecto` (`normalize` del tipo). El código por mail de las acciones de
+dueñes sigue teniendo purpose `grupo` (está en un CHECK de `login_codes`; no se ve en ningún lado).
 
 No hay "nombre para mostrar" aparte (E1): el nombre del perfil es el `title` del objeto. Los
 lugares (B3) pueden sumarse más adelante como otro tipo de perfil; nada de esto lo impide.
@@ -214,15 +223,15 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
 - además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
   acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
   antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
-- las **invitaciones** (a gestionar un grupo o a ser integrante) no se le muestran ni las puede
+- las **invitaciones** (a gestionar un proyecto o a ser integrante) no se le muestran ni las puede
   aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
   pendiente como cualquier otra: no se entera de si la cuenta tiene el permiso. La invitación
   queda guardada (y vence sola); si la cuenta recibe el permiso antes de que venza, la ve.
 
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
-Les admins los siguen viendo en el panel. Si une dueñe de un grupo pierde el permiso, sigue
-contando como dueñe (el grupo no queda sin dueñe en los datos), pero no lo puede gestionar.
+Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
+contando como dueñe (el proyecto no queda sin dueñe en los datos), pero no lo puede gestionar.
 Al borrar una cuenta el permiso vuelve a 0.
 
 **Datos que ya estaban:** al aplicar la migración, todas las cuentas quedan sin permiso (también
@@ -236,11 +245,11 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/cuentas/[id]`)
   muestra sus perfiles y el botón del permiso.
 - **Perfiles** (`/admin/cuentas/perfiles`): todos los perfiles, también ocultos y borrados (persona
-  o grupo, nombre, dirección, visibilidad, creado, quiénes lo gestionan), con búsqueda y filtros
+  o proyecto, nombre, dirección, visibilidad, creado, quiénes lo gestionan), con búsqueda y filtros
   (para revisar, ocultos, borrados). En la ficha (`/admin/cuentas/perfiles/[id]`): marcar como
   revisado, **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()`
   con la versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada).
-- **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/grupo)" aparecen en la
+- **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/proyecto)" aparecen en la
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
   (`src/lib/server/admin/accountEvents.js`), sin mails ni ids de cuenta en el texto.
@@ -252,35 +261,40 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
 
 **Página pública:** `/amigues`, detrás del interruptor `perfiles_publicos` (ver
 [amigues.md](amigues.md)): las fichas importadas, los perfiles aprobados por admins, "Es mi
-perfil" y los lugares. Una cuenta puede crear personas y grupos; los lugares los crean les admins.
+perfil" y los lugares. Una cuenta puede crear personas, proyectos y **lugares** (decisión de
+gorrite, [0022](decisiones/0022-lugares-desde-cuentas.md)); como todo perfil nuevo de una cuenta,
+aparece en el sitio recién cuando une admin lo aprueba (los lugares, en Eventos → Lugares → "Para
+aprobar").
 
 ### Páginas (detrás del mismo interruptor `cuentas`)
 
-- `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona o grupo, nombre
-  y quién lo puede ver) y las invitaciones a gestionar grupos que le llegaron.
-- `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad.
-  - En un grupo: invitar integrantes (con la dirección del perfil de la persona), ver las
+- `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona, proyecto o lugar,
+  nombre y quién lo puede ver) y las invitaciones a gestionar proyectos que le llegaron.
+- `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad (un
+  lugar, además: dirección, barrio, ciudad, accesibilidad, cómo llegar y qué se muestra de la
+  dirección; la ubicación en el mapa la carga une admin).
+  - En un proyecto: invitar integrantes (con la dirección del perfil de la persona), ver las
     invitaciones pendientes y retirarlas, sacar integrantes, ver quiénes lo gestionan, invitar a
     gestionar, cambiar roles, sacar gente, dejar de gestionar y borrar.
-  - En una persona: los grupos de los que es parte, salir de cada uno con un clic, y borrar.
+  - En una persona: los proyectos de los que es parte, salir de cada uno con un clic, y borrar.
 - En `/mi-rincon/perfiles` también están:
-  - las invitaciones de grupos a tus perfiles de persona ("<grupo> te invitó a sumarte"), con
+  - las invitaciones de proyectos a tus perfiles de persona ("<proyecto> te invitó a sumarte"), con
     Aceptar y Rechazar;
-  - todos los grupos de los que son parte tus perfiles de persona, cada uno con su botón para
+  - todos los proyectos de los que son parte tus perfiles de persona, cada uno con su botón para
     salir;
-  - la opción "No recibir invitaciones de grupos" (de la cuenta, para todos sus perfiles de
+  - la opción "No recibir invitaciones de proyectos" (de la cuenta, para todos sus perfiles de
     persona; va en `accounts.preferences`, `noGroupInvites`).
 - Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
   `/ingresar`. Con el interruptor apagado, todo da 404.
 - Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página (y,
-  si es un grupo, el código por mail).
+  si es un proyecto, el código por mail).
 
 ### Modelo
 
 - El perfil es un objeto de tipo núcleo `perfil` ([objetos.md](objetos.md)) y se escribe **solo
   con `saveObject()`**. Visibilidad: la del modelo de objetos (`public`, `members`, `hidden`).
   Un perfil oculto lo ven solo les admins: para los perfiles, haberlo creado no da acceso
-  (`NO_CREATOR_ACCESS` en `visibility.js`), porque quien creó un grupo puede dejar de
+  (`NO_CREATOR_ACCESS` en `visibility.js`), porque quien creó un proyecto puede dejar de
   gestionarlo. Quienes lo gestionan lo ven igual en Mi rincón, porque esas lecturas pasan por
   `profile_managers` (ver abajo).
 - **Quién gestiona qué** va en `profile_managers` (migración `0014_perfiles.sql`): las cuentas no
@@ -296,22 +310,22 @@ perfil" y los lugares. Una cuenta puede crear personas y grupos; los lugares los
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
   cuenta que invitó.
   - Les dueñes ven en la lista de pendientes quién mandó cada una (el mail de esa cuenta, que es
-    otre dueñe del grupo); nunca el mail invitado. Les `manager` no ven las invitaciones.
+    otre dueñe del proyecto); nunca el mail invitado. Les `manager` no ven las invitaciones.
   - Si alguien deja de ser dueñe (le sacan la propiedad, le sacan de la gestión o se va), sus
     invitaciones pendientes se borran en la misma tanda. Al borrar una cuenta, también.
-- **Invitaciones a ser integrante** en `profile_member_invites` (migración 0014): grupo, perfil
+- **Invitaciones a ser integrante** en `profile_member_invites` (migración 0014): proyecto, perfil
   de persona, si está silenciada, cuándo se creó y cuándo vence (30 días). No es un edge ni va en
-  el objeto de la persona: así la ven solo ella y quienes gestionan el grupo, e invitar o retirar
+  el objeto de la persona: así la ven solo ella y quienes gestionan el proyecto, e invitar o retirar
   no le cambia la `version` al perfil de la persona (no le hace fallar lo que esté editando).
-- **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, sin
+- **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del proyecto, sin
   datos extra. Existen recién cuando la persona acepta: se escriben con `saveObject()` sobre su
   perfil, con la versión que está guardada en ese momento (si otro guardado se cruza, se vuelve a
   leer y se reintenta), y la invitación se borra en la misma tanda.
 - **Bloqueo después de rechazar o irse** en `profile_member_blocks` (también en la migración
-  0014): grupo, perfil de persona y hasta cuándo, nada más. No es un edge porque los edges se leen
+  0014): proyecto, perfil de persona y hasta cuándo, nada más. No es un edge porque los edges se leen
   con `getEdges()` y cualquiera que viera los dos perfiles se enteraría de que esa persona estuvo
-  en el grupo; no entra en `rate_limits` porque ahí nada dura más de 24 horas. Solo la usa
-  `perfiles.js`, nunca se muestra, y las filas vencidas se borran al invitar desde ese grupo.
+  en el proyecto; no entra en `rate_limits` porque ahí nada dura más de 24 horas. Solo la usa
+  `perfiles.js`, nunca se muestra, y las filas vencidas se borran al invitar desde ese proyecto.
 - `created_by` y `updated_by` de los objetos solo los ven les admins (`forViewer()` en
   `src/lib/server/objects/read.js`): así ninguna lectura pública ni de cuentas vincula dos
   perfiles por quién los creó. Una cuenta figura como autora con el prefijo `cuenta:<id>`.
@@ -323,12 +337,12 @@ perfil" y los lugares. Una cuenta puede crear personas y grupos; los lugares los
   aparece "Alguien lo cambió mientras tanto…", con lo que la persona había escrito aparte para
   que no lo pierda.
 - **Sumar gestión por mail, sin revelar si ese mail tiene cuenta.** Une dueñe escribe un mail y
-  la respuesta es siempre la misma (tenga cuenta, no la tenga, o ya gestione el grupo). La
+  la respuesta es siempre la misma (tenga cuenta, no la tenga, o ya gestione el proyecto). La
   cuenta que entra con ese mail **verificado** ve la invitación en Mi rincón → Perfiles y la
   acepta (queda como `manager`) o la rechaza.
 - **Aviso por mail de la invitación.** Si hay una cuenta verificada y no borrada con ese mail (y
-  todavía no gestiona el grupo), le llega un aviso corto: "Te invitaron a gestionar un perfil en
-  KinkyVibe", con el nombre del grupo y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
+  todavía no gestiona el proyecto), le llega un aviso corto: "Te invitaron a gestionar un perfil en
+  KinkyVibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
   quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos de ingreso
   (`deliverEmail`, que en los previews respeta `EMAIL_ALLOWLIST`).
 
@@ -340,50 +354,50 @@ perfil" y los lugares. Una cuenta puede crear personas y grupos; los lugares los
   la invitación sigue en Mi rincón igual.
 
 - **Límites de invitaciones** (`INVITE_RATE_LIMITS`, tabla `rate_limits`), además de las 20
-  pendientes por grupo: 10 por hora por grupo y 20 por hora por cuenta que invita (se cuentan
+  pendientes por proyecto: 10 por hora por proyecto y 20 por hora por cuenta que invita (se cuentan
   siempre, así el "esperá un rato" no dice nada del mail), y 3 avisos por día a un mismo mail,
-  de cualquier grupo. Este último no se le muestra a quien invita: la invitación se crea igual y
+  de cualquier proyecto. Este último no se le muestra a quien invita: la invitación se crea igual y
   solo no sale el mail.
-- **Integrantes: el grupo invita y la persona acepta** (decisión de gorrite), con resguardos:
-  - quien gestiona el grupo (dueñe o manager) invita solo perfiles de persona que **puede ver**
+- **Integrantes: el proyecto invita y la persona acepta** (decisión de gorrite), con resguardos:
+  - quien gestiona el proyecto (dueñe o manager) invita solo perfiles de persona que **puede ver**
     (`getObject` con su visibilidad), por la dirección del perfil, y **nunca uno oculto**, aunque
-    sea propio. Para todo lo demás (oculto, de grupo, borrado, inexistente) la respuesta es la
+    sea propio. Para todo lo demás (oculto, de proyecto, borrado, inexistente) la respuesta es la
     misma: "No encontramos ese perfil de persona";
-  - límites (`MEMBER_INVITE_RATE_LIMITS`): 20 invitaciones por hora por grupo y 40 por hora por
+  - límites (`MEMBER_INVITE_RATE_LIMITS`): 20 invitaciones por hora por proyecto y 40 por hora por
     cuenta que invita, contadas antes de buscar el perfil;
-  - hasta que acepta, la invitación la ven **solo ella** (Mi rincón → Perfiles: "<grupo> te
-    invitó a sumarte") **y quienes gestionan el grupo** (como pendiente, y la pueden retirar).
-    No aparece en el perfil del grupo, ni en `getEdges`, ni en ningún lado más;
+  - hasta que acepta, la invitación la ven **solo ella** (Mi rincón → Perfiles: "<proyecto> te
+    invitó a sumarte") **y quienes gestionan el proyecto** (como pendiente, y la pueden retirar).
+    No aparece en el perfil del proyecto, ni en `getEdges`, ni en ningún lado más;
   - acepta o rechaza en Mi rincón; **se va con un clic cuando quiera**, sin aprobación de
-    nadie, aunque el grupo esté oculto o borrado;
-  - si rechaza o se va, **ese grupo no la puede volver a invitar por 30 días**
-    (`profile_member_blocks`). Si el grupo retira la invitación o la saca, no hay bloqueo;
-  - **"No recibir invitaciones de grupos"**: con la opción prendida, una invitación nueva se
+    nadie, aunque el proyecto esté oculto o borrado;
+  - si rechaza o se va, **ese proyecto no la puede volver a invitar por 30 días**
+    (`profile_member_blocks`). Si el proyecto retira la invitación o la saca, no hay bloqueo;
+  - **"No recibir invitaciones de proyectos"**: con la opción prendida, una invitación nueva se
     guarda silenciada (`silenced = 1`): ella nunca la ve ni la puede aceptar, y quien invita ve
     exactamente lo mismo que siempre (la misma respuesta y una pendiente que vence sola). Las
     invitaciones que ya tenía antes de prenderla siguen ahí para que las responda;
   - `show_members` muestra solo les integrantes que quien mira puede ver (`getEdges` pasa cada
     perfil por la visibilidad). Si une integrante pasa a oculto, deja de aparecer en todos lados,
-    también en la lista de quienes gestionan el grupo;
+    también en la lista de quienes gestionan el proyecto;
   - quienes gestionan no se muestran nunca, y nada vincula entre sí los perfiles de persona de
     una misma cuenta: cada uno es integrante por su lado. Solo la propia cuenta ve, en su Mi
-    rincón, qué perfil suyo está en qué grupo.
+    rincón, qué perfil suyo está en qué proyecto.
 - **Acciones de dueñes con código fresco.** Hacer dueñe a alguien, sacarle la propiedad a otre
-  dueñe, sacar a otre dueñe de la gestión y borrar un grupo piden un código por mail (purpose
+  dueñe, sacar a otre dueñe de la gestión y borrar un proyecto piden un código por mail (purpose
   `grupo`), con el mismo patrón que la contraseña en Mi rincón: "Mandame un código para
   confirmar", el campo del código y la acción, en la misma página. Así, con solo una sesión
-  abierta ajena no se puede quedar con un grupo. Lo decide `perfiles.js` (opción `stepUp` de
+  abierta ajena no se puede quedar con un proyecto. Lo decide `perfiles.js` (opción `stepUp` de
   `setManagerRole`, `removeManager` y `deleteProfile`), después de chequear permisos: un pedido
   sin permiso no gasta el código. Sacar a une manager, sacarse la propiedad a une misme, dejar de
   gestionar y borrar un perfil de persona no lo piden.
 - **Siempre queda al menos une dueñe.** Le última dueñe no puede irse ni perder la propiedad:
   primero hace dueñe a otra persona. La condición va en la misma sentencia SQL, así dos cambios a
-  la vez no pueden dejar al grupo sin dueñe. Una cuenta borrada no cuenta como dueñe.
+  la vez no pueden dejar al proyecto sin dueñe. Una cuenta borrada no cuenta como dueñe.
 - Un perfil de persona no se "deja": se borra.
 - Borrar es suave (`deleted_at` vía `saveObject()`), solo dueñes. Las filas de gestión y los
   edges quedan, para poder deshacerlo desde la base.
-- Tope de 20 perfiles vivos por cuenta (propios y de grupos, contando las invitaciones que
-  acepta) y de 20 invitaciones pendientes por grupo.
+- Tope de 20 perfiles vivos por cuenta (propios y de proyectos, contando las invitaciones que
+  acepta) y de 20 invitaciones pendientes por proyecto.
 - Si el nombre de un perfil nuevo ya está usado (aunque sea por un perfil oculto ajeno), la
   dirección suma sola un sufijo corto al azar (por ejemplo `nombre-k3x9q`) en vez de avisar que
   existe otro. No es `-2`, `-3`…, que dirían cuántos perfiles hay con ese nombre. Cambiar el nombre después
@@ -453,22 +467,22 @@ actualizá esta lista.
   un HMAC con una clave secreta del entorno.
 - **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Cerrar sesión en todos lados" o cambiar
   o sacar la contraseña.
-- **El nombre del grupo va en el aviso de invitación.** Lo escribe quien gestiona el grupo y llega
+- **El nombre del proyecto va en el aviso de invitación.** Lo escribe quien gestiona el proyecto y llega
   con el remitente del sitio. Va escapado, pero algunos programas de mail convierten en link un
   dominio escrito ahí. Como mucho salen 3 avisos por día a un mismo mail.
-- **Quienes gestionan un grupo ven el mail de les demás**, también les `manager`. Les dueñes ven,
+- **Quienes gestionan un proyecto ven el mail de les demás**, también les `manager`. Les dueñes ven,
   además, quién mandó cada invitación pendiente.
 - **Sufijo de dirección.** Si el nombre de un perfil nuevo ya está usado, el sufijo al azar no dice
   cuántos hay, pero que aparezca un sufijo sí dice que existe algún perfil (de cualquier
   visibilidad, también borrado) con esa dirección. Para que no diga nada habría que poner sufijo
   siempre, lo que cambia todas las direcciones.
-- **Ids correlativos.** Quienes gestionan un grupo ven el id de cada integrante (en el formulario
+- **Ids correlativos.** Quienes gestionan un proyecto ven el id de cada integrante (en el formulario
   para sacarle); dos perfiles creados seguidos por la misma cuenta tienen ids cercanos.
 - **"Solo con cuenta" es cualquiera que se haga una**, con cualquier mail. Los textos de la
   visibilidad lo tienen que dejar claro.
 - **Cookie sin prefijo `__Host-`.** Solo importaría si algún subdominio del sitio lo manejara otra
   gente.
-- **Al borrar una cuenta**, lo que queda de ella: los grupos que pasan a otra persona o que se
+- **Al borrar una cuenta**, lo que queda de ella: los proyectos que pasan a otra persona o que se
   borran por quedar sin nadie conservan sus datos y su `created_by`/`updated_by`; las invitaciones
   a gestionar para su mail vencen solas (solo guardan el hash). Las filas borradas (suave) siguen en los
   backups.

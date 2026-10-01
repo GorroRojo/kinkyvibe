@@ -12,11 +12,16 @@
 	 * - `open` { id, el }: tocaron (o Enter en) un evento;
 	 * - `pick` { date, startTime?, endTime? }: tocaron un día vacío (o arrastraron un rango en la
 	 *   vista semana);
-	 * - `move` { id, date, time, revert }: soltaron un evento en otro día u hora. Quien escucha guarda
-	 *   y llama a `revert()` si no se pudo.
+	 * - `move` { id, date, time?, revert }: soltaron un evento en otro día. En la vista semana va
+	 *   solo el día (sin `time`: conserva su hora aunque lo suelten en otra franja; ver
+	 *   `dropTarget`). Mientras lo arrastran, la vista previa tampoco cambia de hora: solo se corre de
+	 *   día (ver `dragSnapDuration`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no
+	 *   se puede.
+	 * Los eventos con `extendedProps.pending` (movidos sin guardar) se ven con borde punteado y la
+	 * etiqueta "pendiente".
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { localDateParts } from '$lib/utils/calendario.js';
+	import { dragSnapDuration, dropTarget, localDateParts } from '$lib/utils/calendario.js';
 
 	/** @type {import('$lib/utils/calendario.js').CalendarEventInput[]} */
 	export let events = [];
@@ -76,10 +81,38 @@
 
 	/** @param {any} info */
 	function onDrop(info) {
-		const { date, time } = localDateParts(info.event.start);
-		const before = localDateParts(info.oldEvent.start);
-		if (date === before.date && time === before.time) return;
-		dispatch('move', { id: String(info.event.id), date, time, revert: info.revert });
+		const to = dropTarget(
+			info.view?.type ?? view,
+			localDateParts(info.oldEvent.start),
+			localDateParts(info.event.start)
+		);
+		// Mismo día (en la semana, aunque sea otra hora): no cambia nada, vuelve a su lugar.
+		if (!to) {
+			info.revert?.();
+			return;
+		}
+		dispatch('move', { id: String(info.event.id), ...to, revert: info.revert });
+	}
+
+	/**
+	 * Al apoyar el puntero en un evento de la vista semana, el paso del arrastre pasa a ser un día
+	 * entero (`dragSnapDuration`), así la vista previa se queda en su hora; al soltar vuelve el paso
+	 * de siempre (lo usan tocar un día vacío y arrastrar un rango). Va en captura porque la librería
+	 * toma el paso en su propio pointerdown, y la vuelta espera a que la librería procese el soltar.
+	 * @param {PointerEvent} e
+	 */
+	function onPointerDownCapture(e) {
+		const snap = dragSnapDuration(ec?.getOption('view') ?? view);
+		if (!ec || !snap) return;
+		if (!(e.target instanceof Element) || !e.target.closest('.ec-event')) return;
+		ec.setOption('snapDuration', snap);
+		const reset = () => {
+			window.removeEventListener('pointerup', reset);
+			window.removeEventListener('pointercancel', reset);
+			setTimeout(() => ec?.setOption('snapDuration', undefined));
+		};
+		window.addEventListener('pointerup', reset);
+		window.addEventListener('pointercancel', reset);
 	}
 
 	/** @param {any} info */
@@ -90,7 +123,12 @@
 			day: 'numeric',
 			month: 'long'
 		}).format(info.event.start);
-		info.el.setAttribute('aria-label', [info.event.title, when, p.time].filter(Boolean).join(', '));
+		info.el.setAttribute(
+			'aria-label',
+			[info.event.title, when, p.time, p.pending ? 'cambio sin guardar' : '']
+				.filter(Boolean)
+				.join(', ')
+		);
 		if (p.problem) info.el.setAttribute('title', `No se puede arrastrar: ${p.problem}`);
 	}
 
@@ -151,7 +189,12 @@
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions (las flechas solo mueven el foco entre los eventos, que son botones) -->
-<div class="calendario" bind:this={root} on:keydown={onKeydown}>
+<div
+	class="calendario"
+	bind:this={root}
+	on:keydown={onKeydown}
+	on:pointerdown|capture={onPointerDownCapture}
+>
 	{#if Calendar}
 		<svelte:component this={Calendar} bind:this={ec} {plugins} {options} eventContent={chip} />
 	{:else if failed}
@@ -170,6 +213,7 @@
 				>{arg.view.type === 'listMonth' ? time : time.split(' ')[0]}</span
 			>{/if}
 		<span class="kv-chip-title">{arg.event.title}</span>
+		{#if arg.event.extendedProps.pending}<span class="kv-chip-pending">pendiente</span>{/if}
 	</span>
 {/snippet}
 
@@ -239,6 +283,27 @@
 	.calendario :global(.ec-event.kv-ev-info) {
 		--tone: var(--info);
 		--tone-bg: var(--info-bg);
+	}
+	/* Movido y sin guardar: borde punteado y la etiqueta "pendiente" (no solo color). */
+	.calendario :global(.ec-event.kv-ev-pendiente) {
+		outline: 2px dashed var(--warn);
+		outline-offset: -2px;
+		background: var(--warn-bg);
+	}
+	.calendario :global(.ec-list .ec-event.kv-ev-pendiente) {
+		background: var(--warn-bg);
+	}
+	.calendario :global(.kv-chip-pending) {
+		flex: none;
+		margin-left: auto;
+		padding: 0 0.4em;
+		border-radius: 1em;
+		background: var(--warn);
+		color: var(--surface);
+		font-size: 0.75em;
+		font-weight: 700;
+		line-height: 1.5;
+		align-self: center;
 	}
 	.calendario :global(.kv-ev-cancelado .kv-chip-title) {
 		text-decoration: line-through;

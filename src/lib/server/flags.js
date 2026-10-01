@@ -23,32 +23,6 @@ export const FLAGS = Object.freeze({
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
-	propinas: {
-		label: 'Propinas',
-		description:
-			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
-			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
-			've la nota del cafecito como siempre y /propinas da 404.',
-		envVar: 'PROPINAS_ENABLED'
-	},
-	perfiles_publicos: {
-		label: 'Perfiles públicos (amigues y lugares)',
-		description:
-			'/amigues lee los perfiles de la base (personas, grupos y lugares), con "Es mi perfil", ' +
-			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
-			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
-			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
-			'clasificación.',
-		envVar: 'PERFILES_PUBLICOS_ENABLED'
-	},
-	personas_eventos: {
-		label: 'Personas en eventos y preguntas de inscripción',
-		description:
-			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles, y preguntas ' +
-			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
-			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
-		envVar: 'PERSONAS_EVENTOS_ENABLED'
-	},
 	series: {
 		label: 'Series de eventos',
 		description:
@@ -65,6 +39,33 @@ export const FLAGS = Object.freeze({
 			'"Recuperar" desde Actividad. Los eventos con entradas vendidas no se pueden borrar. ' +
 			'Apagado, el botón no aparece y la página de borrar da 404.',
 		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
+	},
+	perfiles_publicos: {
+		label: 'Perfiles públicos (amigues y lugares)',
+		description:
+			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
+			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
+			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
+			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'clasificación.',
+		envVar: 'PERFILES_PUBLICOS_ENABLED'
+	},
+	personas_eventos: {
+		label: 'Personas en eventos y preguntas de inscripción',
+		description:
+			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
+			'«Perfiles públicos» prendido), y preguntas ' +
+			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
+		envVar: 'PERSONAS_EVENTOS_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -140,12 +141,21 @@ export function cuentasEnabled(platform) {
 }
 
 /**
- * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ * Atajo para las rutas: ¿están prendidas las series de eventos?
  *
  * @param {App.Platform | undefined} platform
  */
-export function propinasEnabled(platform) {
-	return isFlagOn(getDB(platform), 'propinas');
+export function seriesEnabled(platform) {
+	return isFlagOn(getDB(platform), 'series');
+}
+
+/**
+ * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function borrarDesdePanelEnabled(platform) {
+	return isFlagOn(getDB(platform), 'borrar_desde_panel');
 }
 
 /**
@@ -168,21 +178,12 @@ export function personasEventosEnabled(platform) {
 }
 
 /**
- * Atajo para las rutas: ¿están prendidas las series de eventos?
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
  *
  * @param {App.Platform | undefined} platform
  */
-export function seriesEnabled(platform) {
-	return isFlagOn(getDB(platform), 'series');
-}
-
-/**
- * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
- *
- * @param {App.Platform | undefined} platform
- */
-export function borrarDesdePanelEnabled(platform) {
-	return isFlagOn(getDB(platform), 'borrar_desde_panel');
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**

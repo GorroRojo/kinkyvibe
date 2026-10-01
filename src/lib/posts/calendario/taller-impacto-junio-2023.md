@@ -10,6 +10,7 @@ tags:
   - taller
   - practicas
   - impacto
+  - Taller de Juegos de Impacto
 layout: calendario
 category: calendario
 authors:

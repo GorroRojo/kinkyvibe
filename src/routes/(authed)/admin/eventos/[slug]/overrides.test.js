@@ -32,6 +32,15 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 	};
 });
 
+// El modo puerta busca la serie del evento ("primera vez en…") entre todas las publicaciones, y
+// leerlas compila con mdsvex todo el repo: más de 5 s por venta la primera vez. Acá solo importan
+// los límites, así que la lista va vacía (evento sin serie); la serie se prueba en
+// $lib/server/tickets/series.test.js.
+vi.mock('$lib/utils', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	fetchMarkdownPosts: async () => []
+}));
+
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
@@ -259,5 +268,85 @@ describe('compra pública', () => {
 		expect(await sold()).toBe(2);
 		const held = (await getCounts(t.db, SLUG)).get('general')?.held ?? 0;
 		expect(held).toBe(0);
+	});
+});
+
+describe('precio en la puerta y en la carga a mano, por tipo (decisión de gorrite)', () => {
+	/**
+	 * «General» con preventas (Preventa 1 a $ 8.000, el resto a $ 10.000) y «Pareja» a $ 18.000.
+	 * @param {{ general?: number, pareja?: number }} [door] `door_price` de cada uno
+	 */
+	function twoTypes(door = {}) {
+		meta.puerta = true;
+		meta.tickets = [
+			{
+				id: 'general',
+				name: 'General',
+				capacity: 10,
+				tiers: [
+					{ id: 'p1', name: 'Preventa 1', price: 8000, quantity: 5 },
+					{ id: 'general', name: 'General', price: 10000 }
+				],
+				...(door.general !== undefined ? { door_price: door.general } : {})
+			},
+			{
+				id: 'pareja',
+				name: 'Pareja',
+				price: 18000,
+				capacity: 10,
+				...(door.pareja !== undefined ? { door_price: door.pareja } : {})
+			}
+		];
+	}
+	/** Monto sugerido de cada tipo en la carga a mano (`load`, como SvelteKit). */
+	async function suggested() {
+		const r = await post(manual.load, {}, admin, `/admin/eventos/${SLUG}/ordenes/cargar`);
+		return Object.fromEntries(r.types.map((/** @type {any} */ x) => [x.id, x.price]));
+	}
+	/** Precio de cada tipo en la pantalla del modo puerta. */
+	async function doorScreen() {
+		const r = await post(door.load, {}, admin, `/admin/eventos/${SLUG}/ingreso`);
+		return Object.fromEntries(r.types.map((/** @type {any} */ x) => [x.id, x.price]));
+	}
+	const orders = async () =>
+		(
+			await t.db
+				.prepare(
+					'SELECT ticket_type, channel, unit_price, ticket_tier FROM orders ORDER BY created_at, rowid'
+				)
+				.all()
+		).results;
+
+	it('sin door_price: el último tramo o el precio fijo, sin gastar la preventa y contando para el cupo', async () => {
+		twoTypes();
+		expect(await doorScreen()).toEqual({ general: 10000, pareja: 18000 });
+		expect((await sell({ type: 'general' })).sale).toMatchObject({ ok: true });
+		expect((await sell({ type: 'pareja' })).sale).toMatchObject({ ok: true });
+		const amounts = await suggested();
+		expect(amounts).toEqual({ general: 10000, pareja: 18000 });
+		await load({ type: 'general', method: 'efectivo', amount: String(amounts.general) });
+		expect(await orders()).toEqual([
+			{ ticket_type: 'general', channel: 'puerta', unit_price: 10000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'puerta', unit_price: 18000, ticket_tier: null },
+			{ ticket_type: 'general', channel: 'manual', unit_price: 10000, ticket_tier: null }
+		]);
+		expect(await sold()).toBe(2);
+	});
+
+	it('cada tipo con su door_price: la puerta cobra ese, la pantalla lo muestra y la carga a mano lo sugiere', async () => {
+		twoTypes({ general: 12000, pareja: 20000 });
+		// La nota del evento no cambia lo que se cobra.
+		meta.puerta_precio = '$ 99.999, solo efectivo';
+		expect(await doorScreen()).toEqual({ general: 12000, pareja: 20000 });
+		expect((await sell({ type: 'general', quantity: '2' })).sale).toMatchObject({ ok: true });
+		expect((await sell({ type: 'pareja' })).sale).toMatchObject({ ok: true });
+		const amounts = await suggested();
+		expect(amounts).toEqual({ general: 12000, pareja: 20000 });
+		await load({ type: 'pareja', method: 'efectivo', amount: String(amounts.pareja) });
+		expect(await orders()).toEqual([
+			{ ticket_type: 'general', channel: 'puerta', unit_price: 12000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'puerta', unit_price: 20000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'manual', unit_price: 20000, ticket_tier: null }
+		]);
 	});
 });

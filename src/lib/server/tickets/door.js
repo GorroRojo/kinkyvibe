@@ -17,6 +17,7 @@
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
+import { doorPrice } from '$lib/utils/ticketTiers.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { HOLDING } from './discounts.js';
@@ -517,6 +518,10 @@ export async function insertApprovedOrder(db, input) {
  * `door.on` false en la configuración): `{ ok: false, reason: 'no-door' }` sin tocar la base. Un tipo sin
  * cupo (`capacity: null`) no tiene límite.
  *
+ * Precio (salvo a la gorra): el de `doorPrice` ($lib/utils/ticketTiers.js), o sea el precio en la
+ * puerta del tipo (`door_price`) si tiene uno y, si no, el del último tramo (o el precio fijo). No gasta
+ * lugares de los tramos (`ticket_tier` NULL), pero sí cuenta para el cupo.
+ *
  * Con `override: true` (solo desde el panel, después de confirmar en el diálogo los límites que
  * da `doorSaleLimits`) vende igual aunque se pase del cupo o el evento sea solo anticipadas.
  *
@@ -546,13 +551,16 @@ export async function sellAtDoor(db, input) {
 	if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error('Cantidad inválida');
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const gorra = Boolean(type.gorra);
-	const price = gorra ? Number(input.unitPrice) : type.price;
-	if (!Number.isSafeInteger(price) || price < (gorra ? (type.gorra?.min ?? 0) : 1)) {
+	const atDoor = doorPrice(type);
+	const price = gorra || !atDoor ? Number(input.unitPrice) : atDoor.price;
+	// Un `door_price: 0` (entrada sin cargo en la puerta) vale; un precio fijo es siempre ≥ 1.
+	const min = gorra ? (type.gorra?.min ?? 0) : atDoor?.source === 'door' ? 0 : 1;
+	if (!Number.isSafeInteger(price) || price < min) {
 		throw new Error('Precio por entrada inválido');
 	}
 	const prices = computePrice({
 		price,
-		fondo: gorra ? 0 : (type.fondo ?? 0),
+		fondo: gorra || !atDoor ? 0 : atDoor.fondo,
 		option: gorra ? 'gorra' : input.option,
 		quantity,
 		discount: null,
