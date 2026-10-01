@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { sha256Hex } from './hash.js';
+import { sha256Hex, timingSafeEqual } from './hash.js';
 
 describe('sha256Hex', () => {
 	it('matches the standard SHA-256 test vectors', async () => {
@@ -15,5 +15,14 @@ describe('sha256Hex', () => {
 	it('hashes the UTF-8 bytes of the text', async () => {
 		const text = 'Ñandú · persona@example.com';
 		expect(await sha256Hex(text)).toBe(createHash('sha256').update(text, 'utf8').digest('hex'));
+	});
+});
+
+describe('timingSafeEqual', () => {
+	it('compares texts (moved from cuentas/crypto.js timingSafeEqualText)', () => {
+		expect(timingSafeEqual('abc', 'abc')).toBe(true);
+		expect(timingSafeEqual('abc', 'abd')).toBe(false);
+		expect(timingSafeEqual('abc', 'abcd')).toBe(false);
+		expect(timingSafeEqual('', '')).toBe(true);
 	});
 });

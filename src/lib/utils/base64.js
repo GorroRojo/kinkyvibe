@@ -49,6 +49,31 @@ export function fromBase64(str) {
 }
 
 /**
+ * Base64url (RFC 4648 §5: `-` and `_`, no padding): tokens, salts and signatures that go in
+ * cookies or URLs.
+ * @param {Uint8Array | ArrayBuffer | string} input
+ * @returns {string}
+ */
+export function toBase64url(input) {
+	return toBase64(input).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Decodes base64url (with or without padding). `null` if it isn't valid base64url.
+ * @param {string} text
+ * @returns {Uint8Array | null}
+ */
+export function fromBase64url(text) {
+	if (typeof text !== 'string' || !/^[A-Za-z0-9_-]*$/.test(text)) return null;
+	try {
+		const b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+		return fromBase64(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Encodes a string as UTF-8 and then base64 (what the GitHub contents API wants as `content`).
  * @param {string} text
  * @returns {string}
