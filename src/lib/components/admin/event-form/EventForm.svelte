@@ -10,8 +10,9 @@
 	 * OrganizersField, FieldGrid; Entradas es TicketsEditor). La barra de guardar es el elemento
 	 * con la clase `bar sticky`.
 	 *
-	 * Borrador y aviso al salir: UnsavedChanges, ofreciendo «Recuperar / Descartar» en vez de
-	 * recuperarlo solo, y diciendo qué secciones tiene distintas.
+	 * Borrador y aviso al salir: UnsavedChanges, que (como en todos los editores) ofrece
+	 * «Recuperar / Descartar» en vez de recuperarlo solo; acá además dice qué secciones tiene
+	 * distintas.
 	 *
 	 * Props:
 	 * - `sections`: las del índice (`formSections` en `$lib/admin/eventForm.js`); con menos de dos,
@@ -57,7 +58,6 @@
 				{saveForm}
 				{saving}
 				{describe}
-				ask
 			/>
 			<slot />
 		</div>

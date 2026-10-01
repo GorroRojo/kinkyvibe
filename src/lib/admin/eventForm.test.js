@@ -92,17 +92,17 @@ describe('borrador del formulario: decidir y comparar', () => {
 		expect(draftAction(null, { current })).toBe('none');
 	});
 	it('un borrador igual a lo que ya hay se borra', () => {
-		expect(draftAction(draft(structuredClone(current)), { current, ask: true })).toBe('clear');
+		expect(draftAction(draft(structuredClone(current)), { current })).toBe('clear');
 	});
 	it('con otro sha del archivo pregunta siempre (nunca recupera solo)', () => {
 		const d = draft({ ...current, body: 'otro' }, true);
 		expect(draftAction(d, { current })).toBe('stale');
-		expect(draftAction(d, { current, ask: true })).toBe('stale');
 	});
-	it('el formulario de eventos ofrece recuperar; los otros editores recuperan directo', () => {
+	// Antes solo el formulario de eventos ofrecía (con `ask`) y los otros editores recuperaban
+	// directo ('restore'). gorrite pidió ofrecerlo en todos: ya no existe 'restore'.
+	it('todos los editores ofrecen recuperar; ninguno recupera directo', () => {
 		const d = draft({ ...current, body: 'otro' });
-		expect(draftAction(d, { current, ask: true })).toBe('offer');
-		expect(draftAction(d, { current })).toBe('restore');
+		expect(draftAction(d, { current })).toBe('offer');
 	});
 
 	it('changedKeys: las partes distintas', () => {

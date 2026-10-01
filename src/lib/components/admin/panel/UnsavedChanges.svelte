@@ -1,7 +1,8 @@
 <script>
 	/**
 	 * Cambios sin guardar en un editor: los guarda como borrador en este navegador mientras la
-	 * persona edita, los recupera al volver (con el aviso «Recuperamos cambios sin guardar») y,
+	 * persona edita, al volver ofrece recuperarlos («Tenés un borrador sin guardar de hace … ¿Lo
+	 * recuperás? Recuperar / Descartar»; nunca los recupera solo, en ningún editor) y,
 	 * si quiere irse con cambios pendientes (otra pestaña del objeto, otra sección, otro sitio),
 	 * pregunta con un diálogo en la página. Cerrar o recargar la pestaña del navegador muestra el
 	 * aviso propio del navegador (SvelteKit lo pasa por `beforeNavigate` como `leave`).
@@ -22,8 +23,6 @@
 	 * - `saved`: se acaba de guardar (borra el borrador y no recupera nada al entrar).
 	 * - `saveForm`: id de un formulario sin `use:enhance` que guarda; enviarlo no pregunta nada.
 	 * - `saving`: se está guardando; navegar no pregunta nada.
-	 * - `ask`: en vez de recuperar el borrador solo, ofrece «Recuperar / Descartar» (el formulario
-	 *   de eventos).
 	 * - `describe(draft, current)`: nombres de las partes en las que el borrador difiere de lo
 	 *   que hay (por ejemplo «Datos, Entradas»), para decidir con más datos.
 	 */
@@ -41,7 +40,6 @@
 	export let saved = false;
 	export let saveForm = '';
 	export let saving = false;
-	export let ask = false;
 	/** @type {((draft: any, current: any) => string[]) | null} */
 	export let describe = null;
 
@@ -57,9 +55,9 @@
 	const plain = (v) => JSON.parse(JSON.stringify(v ?? null));
 
 	let ready = false;
-	/** @type {any} lo que había antes de recuperar el borrador, para «Descartarlos» */
+	/** @type {any} lo que había al abrir el editor, para comparar con el borrador */
 	let original = null;
-	/** @type {null | { kind: 'restored' | 'stale' | 'offer', age: string, data?: unknown, parts?: string[] }} */
+	/** @type {null | { kind: 'stale' | 'offer', age: string, data?: unknown, parts?: string[] }} */
 	let notice = null;
 	/** Se sale a propósito (guardar, o «Salir igual»): no preguntar. */
 	let leaving = false;
@@ -72,13 +70,10 @@
 		original = plain(snapshot);
 		const s = storage();
 		const draft = saved ? null : loadDraft(s, draftKey, { base });
-		const action = draftAction(draft, { current: original, saved, ask });
+		const action = draftAction(draft, { current: original, saved });
 		// `clear`: se acaba de guardar, o el borrador es lo mismo que ya hay.
 		if (action === 'clear') clearDraft(s, draftKey);
-		else if (draft && action === 'restore') {
-			restore(draft.data);
-			notice = { kind: 'restored', age: draftAge(draft.savedAt) };
-		} else if (draft && (action === 'stale' || action === 'offer')) {
+		else if (draft && (action === 'stale' || action === 'offer')) {
 			const parts = describe ? describe(draft.data, original) : [];
 			notice = { kind: action, age: draftAge(draft.savedAt), data: draft.data, parts };
 		}
@@ -104,8 +99,7 @@
 		timer = setTimeout(() => {
 			if (isDirty) saveDraft(storage(), draftKey, plain(snap), { base });
 			// Sin cambios no hay borrador; salvo uno viejo que todavía no se decidió qué hacer.
-			else if (notice?.kind !== 'stale' && notice?.kind !== 'offer')
-				clearDraft(storage(), draftKey);
+			else if (!notice) clearDraft(storage(), draftKey);
 		}, 400);
 	}
 	$: if (ready && draftKey) schedule(snapshot, dirty);
@@ -154,30 +148,20 @@
 	}
 
 	function recoverStale() {
-		if (notice?.kind !== 'stale' && notice?.kind !== 'offer') return;
+		if (!notice) return;
 		restore(notice.data);
 		notice = null;
 	}
 
 	function discard() {
 		clearDraft(storage(), draftKey);
-		if (notice?.kind === 'restored') restore(plain(original));
 		notice = null;
 	}
 </script>
 
 {#if notice}
 	<div class="notice" class:stale={notice.kind === 'stale'} role="status">
-		{#if notice.kind === 'restored'}
-			<p>
-				<b>Recuperamos cambios sin guardar</b> ({notice.age}). Todavía no están publicados:
-				revisalos y tocá «Guardar».
-			</p>
-			<div class="btns">
-				<button type="button" class="btn" on:click={() => (notice = null)}>Entendido</button>
-				<button type="button" class="btn ghost" on:click={discard}>Descartarlos</button>
-			</div>
-		{:else if notice.kind === 'offer'}
+		{#if notice.kind === 'offer'}
 			<p>
 				<b>Tenés un borrador sin guardar</b> de {notice.age}{notice.parts?.length
 					? ` (${notice.parts.join(', ')})`
