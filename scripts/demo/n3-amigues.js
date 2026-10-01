@@ -1,7 +1,7 @@
 // Datos de demo (INVENTADOS) para probar amigues y lugares en la base D1 LOCAL:
 // - un lugar en cada nivel de privacidad (pública, solo el nombre, solo el barrio, oculta),
 //   cada uno vinculado a un evento .md del repo;
-// - un grupo con un integrante que se muestra;
+// - un proyecto con un integrante que se muestra;
 // - una cuenta con un pedido "Es mi perfil" pendiente;
 // - un perfil nuevo de una cuenta, esperando que une admin lo apruebe.
 //
@@ -145,11 +145,11 @@ try {
 		}
 	}
 
-	// Un grupo que muestra a su integrante.
+	// Un proyecto que muestra a su integrante.
 	const group = await ensureProfile(db, {
 		title: 'Colectivo Demo',
 		slug: 'colectivo-demo',
-		data: { kind: 'grupo', bio: 'Un colectivo inventado para la demo.', show_members: true }
+		data: { kind: 'proyecto', bio: 'Un colectivo inventado para la demo.', show_members: true }
 	});
 	const member = await ensureProfile(db, {
 		title: 'Persona Demo Integrante',
@@ -167,7 +167,7 @@ try {
 		},
 		{ actor: ACTOR }
 	);
-	console.log('grupo «Colectivo Demo» con «Persona Demo Integrante»');
+	console.log('proyecto «Colectivo Demo» con «Persona Demo Integrante»');
 
 	// Un pedido "Es mi perfil" pendiente.
 	const claimed = await ensureProfile(db, {

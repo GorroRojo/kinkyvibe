@@ -10,7 +10,7 @@ const mdLoad = listLoad('amigues');
 
 /**
  * Contenido → Amigues. Con el interruptor `perfiles_publicos` prendido, los perfiles de la base
- * (personas, grupos y lugares, con el filtro `?tipo=`; también ocultos y sin aprobar) y cuántas
+ * (personas, proyectos y lugares, con el filtro `?tipo=`; también ocultos y sin aprobar) y cuántas
  * fichas .md faltan importar. Apagado, la lista de fichas .md de siempre.
  *
  * @type {import('./$types').PageServerLoad}

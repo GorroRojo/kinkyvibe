@@ -12,7 +12,7 @@
  *   - si el perfil se borró en el panel, no lo revive.
  * - Fiel: cada campo del frontmatter va a un campo del perfil con el mismo nombre (ver
  *   {@link mdToProfile}); el resumen va a `bio` y el cuerpo a `body`, tal cual.
- * - Clasifica cada ficha como persona, grupo o lugar ("a confirmar", ver classify.js).
+ * - Clasifica cada ficha como persona, proyecto o lugar ("a confirmar", ver classify.js).
  * - Los perfiles importados nacen aprobados para /amigues (ya eran públicos).
  *
  * Corre en el Worker (Panel → Contenido → Amigues → Importar, para las bases remotas), en el
@@ -24,6 +24,7 @@ import { ObjectError } from '../objects/errors.js';
 import { saveObject, slugify } from '../objects/save.js';
 import { approveNewStatement } from './approvals.js';
 import { classifyAmigue } from './classify.js';
+import { normalizeProfileKind } from '../objects/types/perfil.js';
 import { asText as str, asTextList as strList } from '../../utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -310,11 +311,8 @@ function describeObjectError(error) {
 async function importOne(db, { legacySlug, raw }, { actor, now, dryRun }) {
 	const hash = await sha256(raw);
 	const source = await sourceOf(db, legacySlug);
-	const currentKind = /** @type {SuggestedKind | undefined} */ (
-		source && ['persona', 'grupo', 'lugar'].includes(String(source.data.kind))
-			? source.data.kind
-			: undefined
-	);
+	// El tipo que ya tiene (el viejo `grupo` se lee como `proyecto`).
+	const currentKind = (source && normalizeProfileKind(source.data.kind)) ?? undefined;
 	// Al actualizar se respeta el tipo que ya tiene (pudo confirmarlo o cambiarlo une admin).
 	const mapped = mdToProfile(legacySlug, raw, { kind: currentKind });
 	/** @type {Omit<ImportResult, 'action'>} */
@@ -364,7 +362,7 @@ async function importOne(db, { legacySlug, raw }, { actor, now, dryRun }) {
 }
 
 /**
- * Lo que tiene el perfil y la ficha no maneja (por ejemplo, `show_members` de un grupo o los
+ * Lo que tiene el perfil y la ficha no maneja (por ejemplo, `show_members` de un proyecto o los
  * campos de un lugar cargados en el panel) se conserva al actualizar.
  *
  * @param {Record<string, unknown>} fromFile

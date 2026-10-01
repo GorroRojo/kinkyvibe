@@ -15,7 +15,7 @@ import {
 } from '$lib/utils';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
-import { profileKind } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { claimState } from './claims.js';
 import {
 	findPublicProfile,
@@ -37,7 +37,7 @@ import { listedVenueEvents, venuePageLocation } from './venues.js';
 /** Filtros de tipo de /amigues (`?tipo=`). */
 export const KIND_FILTERS = Object.freeze({
 	persona: 'Personas',
-	grupo: 'Grupos',
+	proyecto: 'Proyectos',
 	lugar: 'Lugares'
 });
 
@@ -82,7 +82,7 @@ async function toPublic(o, legacySlug) {
  *
  * @param {D1Database} db
  * @param {App.Locals} locals
- * @param {{ kind?: 'persona' | 'grupo' | 'lugar' }} [opts]
+ * @param {{ kind?: import('$lib/server/objects/types/perfil.js').ProfileKind }} [opts]
  * @returns {Promise<ProcessedPost[]>}
  */
 export async function amiguesListPosts(db, locals, { kind } = {}) {
@@ -130,7 +130,7 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 	if (!found) return null;
 	const { object, legacySlug, approved } = found;
 	const profile = await toPublic(object, legacySlug);
-	const kind = profileKind(object.data);
+	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 
 	const posts = await fetchMarkdownPosts();

@@ -22,10 +22,11 @@ import {
 import { approveProfile, unapproveProfile } from '$lib/server/amigues/approvals.js';
 import { urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { decideClaim } from '$lib/server/amigues/claims.js';
-import { profileKind } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { KIND_LABELS } from '$lib/utils/perfiles.js';
 
 /** Tipos que se eligen en el editor. */
-export const EDITOR_KINDS = Object.freeze({ persona: 'Persona', grupo: 'Grupo', lugar: 'Lugar' });
+export const EDITOR_KINDS = Object.freeze({ ...KIND_LABELS });
 
 /**
  * ¿Las páginas de amigues del panel trabajan con la base? (interruptor prendido y base.)
@@ -80,7 +81,7 @@ export async function editorPageData(platform, urlSlug) {
 			id: object.id,
 			title: object.title,
 			urlSlug: urlSlugOf(object, legacySlug),
-			kind: profileKind(object.data),
+			kind: profileKindOf(object.data),
 			visibility: object.visibility,
 			version: object.version,
 			updatedAt: object.updated_at,
@@ -152,7 +153,7 @@ export async function createProfileAction({ locals, url, platform, request }) {
 		action: 'profile.create',
 		targetType: 'profile',
 		targetId: result.profile.id,
-		summary: `Creó el perfil «${result.profile.title}» (${profileKind(result.profile.data)})`
+		summary: `Creó el perfil «${result.profile.title}» (${profileKindOf(result.profile.data)})`
 	});
 	redirect(303, `/admin/amigues/${encodeURIComponent(result.profile.slug)}?guardado=creado`);
 }
@@ -174,7 +175,7 @@ export async function confirmKindAction({ locals, url, platform, params }) {
 		action: 'profile.kind_confirm',
 		targetType: 'profile',
 		targetId: found.object.id,
-		summary: `Confirmó que «${found.object.title}» es ${profileKind(found.object.data)}`
+		summary: `Confirmó que «${found.object.title}» es ${profileKindOf(found.object.data)}`
 	});
 	return { perfil: { ok: true, message: 'Listo: tipo confirmado.' } };
 }

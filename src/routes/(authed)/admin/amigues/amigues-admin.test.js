@@ -181,7 +181,7 @@ describe('importar y clasificar desde el panel', () => {
 		expect(after.summary.unchanged).toBe(31);
 		expect(after.rows.length).toBe(31);
 		const kv = after.rows.find((/** @type {any} */ x) => x.legacySlug === 'KinkyVibe');
-		expect(kv).toMatchObject({ kind: 'grupo', confirmedAt: null });
+		expect(kv).toMatchObject({ kind: 'proyecto', confirmedAt: null });
 		// Confirmar como lugar (cambia el tipo con saveObject) y queda confirmado.
 		const c = /** @type {any} */ (
 			await m.importar.actions.confirmar(

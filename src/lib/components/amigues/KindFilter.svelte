@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Filtro por tipo de perfil en /amigues (personas, grupos, lugares), con links `?tipo=`.
+	 * Filtro por tipo de perfil en /amigues (personas, proyectos, lugares), con links `?tipo=`.
 	 * Props: `kinds` ({ clave: etiqueta }) y `current` (la clave elegida, o '' para todes).
 	 */
 	/** @type {Record<string, string>} */

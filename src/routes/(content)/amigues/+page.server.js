@@ -5,7 +5,7 @@ import { KIND_FILTERS, amiguesListPosts } from '$lib/server/amigues/pages.js';
 
 /**
  * /amigues. Con el interruptor `perfiles_publicos` apagado (o sin base), las fichas .md como
- * siempre; prendido, los perfiles de la base (personas, grupos y lugares). El filtro `?tipo=` se
+ * siempre; prendido, los perfiles de la base (personas, proyectos y lugares). El filtro `?tipo=` se
  * aplica en la página: este load no lee `url`, para no volver a correr con cada cambio de los
  * filtros de PostList. Ver docs/amigues.md.
  *

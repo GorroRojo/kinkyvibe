@@ -26,12 +26,20 @@ export const FLAGS = Object.freeze({
 	perfiles_publicos: {
 		label: 'Perfiles públicos (amigues y lugares)',
 		description:
-			'/amigues lee los perfiles de la base (personas, grupos y lugares), con "Es mi perfil", ' +
+			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
 			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
 			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
 			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
 			'clasificación.',
 		envVar: 'PERFILES_PUBLICOS_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -113,6 +121,15 @@ export function cuentasEnabled(platform) {
  */
 export function perfilesPublicosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'perfiles_publicos');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**

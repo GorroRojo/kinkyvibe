@@ -1,12 +1,12 @@
 /**
  * Mi rincón → un perfil que gestiona la cuenta: editarlo (con aviso si alguien lo cambió
- * mientras tanto), y según el tipo, quiénes lo gestionan e integrantes (grupos) o los grupos de
+ * mientras tanto), y según el tipo, quiénes lo gestionan e integrantes (proyectos) o los proyectos de
  * los que es parte (personas). Dejar de gestionar y borrar, con la confirmación en la página.
  *
  * Todas las reglas están en src/lib/server/cuentas/perfiles.js. Si la cuenta no gestiona el
  * perfil, da 404 (como si no existiera).
  *
- * Hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe, y borrar el grupo piden un
+ * Hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe, y borrar el proyecto piden un
  * código fresco por mail (purpose 'grupo'), como la contraseña en Mi rincón: ?/confirmar lo manda
  * y la acción lo verifica y lo gasta (perfiles.js decide cuándo hace falta).
  */
@@ -83,7 +83,7 @@ export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member, slug, found } = await managed(event);
 	const { profile, kind, role } = found;
-	const group = kind === 'grupo';
+	const group = kind === 'proyecto';
 	const managers = group ? await listManagers(db, member.id, slug) : null;
 	return {
 		profile: {
@@ -197,15 +197,15 @@ export const actions = {
 		);
 	},
 
-	// Paso 1 de las acciones de dueñes y de borrar el grupo: manda el código para confirmar.
+	// Paso 1 de las acciones de dueñes y de borrar el proyecto: manda el código para confirmar.
 	confirmar: async (event) => {
 		const { db, member, found } = await managed(event);
 		const form = await event.request.formData();
 		const place = field(form, 'donde', 20);
 		const action = CONFIRM_PLACES.includes(place) ? place : 'gestion';
-		// Solo dueñes de un grupo (así nadie más la usa para mandar mails).
-		if (found.kind !== 'grupo' || found.role !== 'owner') {
-			return fail(403, { action, error: 'Eso lo puede hacer solo quien es dueñe del grupo.' });
+		// Solo dueñes de un proyecto (así nadie más la usa para mandar mails).
+		if (found.kind !== 'proyecto' || found.role !== 'owner') {
+			return fail(403, { action, error: 'Eso lo puede hacer solo quien es dueñe del proyecto.' });
 		}
 		try {
 			const result = await requestConfirmCode({
@@ -301,11 +301,11 @@ export const actions = {
 	salirGrupo: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
-		return guarded('grupos', async () =>
+		return guarded('proyectos', async () =>
 			reply(
-				'grupos',
+				'proyectos',
 				await leaveMembership(db, member.id, slug, field(form, 'group', 20)),
-				'Listo: ya no sos parte de ese grupo.'
+				'Listo: ya no sos parte de ese proyecto.'
 			)
 		);
 	},
@@ -338,7 +338,7 @@ export const actions = {
 			reply(
 				'integrantes',
 				await removeMember(db, member.id, slug, field(form, 'persona', 20)),
-				'Listo: ya no figura en el grupo.'
+				'Listo: ya no figura en el proyecto.'
 			)
 		);
 	}

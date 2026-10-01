@@ -9,7 +9,7 @@
  *   perfiles) y les admins; para el resto no existe (404, como cualquier cosa que no se puede ver);
  * - **listados**: solo aprobados, nunca ocultos (tampoco para admins: para eso está el panel) y
  *   nunca los marcados "no listado";
- * - **integrantes**: solo si el grupo eligió mostrarlos (`show_members`) y solo perfiles de persona
+ * - **integrantes**: solo si el proyecto eligió mostrarlos (`show_members`) y solo perfiles de persona
  *   aprobados que quien mira puede ver; quienes gestionan no se muestran nunca;
  * - **lista blanca de campos**: las páginas reciben {@link publicProfile}, nunca el objeto entero
  *   (ni `created_by`, ni el contacto, ni la dirección de un lugar más allá de su nivel).
@@ -18,12 +18,8 @@ import { getEdges, getObject, ANON } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { visibleWhere } from '$lib/server/objects/visibility.js';
 import { isAdmin } from '$lib/server/auth';
-import {
-	MEMBER_EDGE,
-	PROFILE_TYPE,
-	memberViewer,
-	profileKind
-} from '$lib/server/cuentas/perfiles.js';
+import { MEMBER_EDGE, PROFILE_TYPE, memberViewer } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { pronounLabel } from '$lib/utils/mentions';
 import { textOrNull as s } from '$lib/utils/text.js';
 
@@ -155,15 +151,18 @@ export async function listPublicProfiles(db, viewer, { kind } = {}) {
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
 			WHERE o.type = ? AND ${visible.sql} AND o.visibility != 'hidden'
 			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = 0
-			AND (? IS NULL OR json_extract(o.data, '$.kind') = ?)
 			ORDER BY o.title COLLATE NOCASE, o.id LIMIT 1000`
 		)
-		.bind(PROFILE_TYPE, ...visible.params, kind ?? null, kind ?? null)
+		.bind(PROFILE_TYPE, ...visible.params)
 		.all();
-	return results.map((r) => ({
-		object: forViewer(rowToObject(r), viewer),
-		legacySlug: r.legacy_slug == null ? null : String(r.legacy_slug)
-	}));
+	// El tipo se filtra con profileKindOf() (lee el viejo `grupo` como proyecto y lo desconocido
+	// como persona), no en el SQL.
+	return results
+		.map((r) => ({
+			object: forViewer(rowToObject(r), viewer),
+			legacySlug: r.legacy_slug == null ? null : String(r.legacy_slug)
+		}))
+		.filter((p) => !kind || profileKindOf(p.object.data) === kind);
 }
 
 /**
@@ -179,7 +178,7 @@ export async function importedLegacySlugs(db) {
 }
 
 /**
- * Integrantes de un grupo para su página: solo si el grupo los muestra, solo personas aprobadas
+ * Integrantes de un proyecto para su página: solo si el proyecto los muestra, solo personas aprobadas
  * y visibles para quien mira (nunca ocultas), con la dirección pública de cada una.
  *
  * @param {D1Database} db
@@ -188,11 +187,11 @@ export async function importedLegacySlugs(db) {
  * @returns {Promise<{ slug: string, title: string }[] | null>} `null` si no se muestran
  */
 export async function groupMembers(db, group, viewer) {
-	if (profileKind(group.data) !== 'grupo' || group.data.show_members !== true) return null;
+	if (profileKindOf(group.data) !== 'proyecto' || group.data.show_members !== true) return null;
 	const edges = await getEdges(db, group.id, viewer, { direction: 'in', kind: MEMBER_EDGE });
 	const people = edges
 		.map((e) => e.object)
-		.filter((o) => profileKind(o.data) === 'persona' && o.visibility !== 'hidden');
+		.filter((o) => profileKindOf(o.data) === 'persona' && o.visibility !== 'hidden');
 	if (!people.length) return [];
 	const ids = people.map((o) => o.id);
 	const { results } = await db
@@ -251,7 +250,7 @@ export function publicProfile(o, { legacySlug, image = null, tags }) {
 	return {
 		slug: urlSlugOf(o, legacySlug),
 		title: o.title,
-		kind: profileKind(d),
+		kind: profileKindOf(d),
 		bio: s(d.bio),
 		pronoun,
 		pronounLabel: pronounLabel(pronoun) ?? null,

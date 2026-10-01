@@ -21,7 +21,7 @@
 	$: input = f?.action === 'crear' ? f.input : null;
 	$: errors = /** @type {Record<string, string>} */ (f?.action === 'crear' ? (f.errors ?? {}) : {});
 	let kind = 'persona';
-	$: if (input?.kind === 'persona' || input?.kind === 'grupo') kind = input.kind;
+	$: if (input?.kind === 'persona' || input?.kind === 'proyecto') kind = input.kind;
 </script>
 
 <svelte:head>
@@ -34,8 +34,8 @@
 	<h1>Tus perfiles</h1>
 	<p class="hint">
 		Con una cuenta podés tener varios perfiles: los tuyos (nadie ve que son de la misma cuenta) y
-		los de grupos que gestionás con otras personas. Quiénes gestionan un grupo no se muestra nunca.
-		Por ahora los perfiles no tienen página pública; la vamos a sumar pronto.
+		los de proyectos que gestionás con otras personas. Quiénes gestionan un proyecto no se muestra
+		nunca. Por ahora los perfiles no tienen página pública; la vamos a sumar pronto.
 	</p>
 
 	{#if data.invites.length}
@@ -68,16 +68,16 @@
 
 	{#if data.memberInvites.length || data.memberships.length}
 		<section class="surface-card" aria-labelledby="groups-title">
-			<h2 id="groups-title">Grupos</h2>
-			{#if f?.action === 'grupos' && f.error}
+			<h2 id="groups-title">Proyectos</h2>
+			{#if f?.action === 'proyectos' && f.error}
 				<p class="error" role="alert">{f.error}</p>
-			{:else if f?.action === 'grupos' && f.message}
+			{:else if f?.action === 'proyectos' && f.message}
 				<p class="ok" role="status">{f.message}</p>
 			{/if}
 			<p class="hint">
-				Un grupo te puede invitar con la dirección de tu perfil de persona; no figurás en el grupo
-				hasta que aceptás. Salir es un clic y no le tenés que pedir nada a nadie. Si rechazás o te
-				vas, ese grupo no te puede volver a invitar por 30 días.
+				Un proyecto te puede invitar con la dirección de tu perfil de persona; no figurás en el
+				proyecto hasta que aceptás. Salir es un clic y no le tenés que pedir nada a nadie. Si
+				rechazás o te vas, ese proyecto no te puede volver a invitar por 30 días.
 			</p>
 			{#if data.memberInvites.length}
 				<h3>Invitaciones</h3>
@@ -113,18 +113,18 @@
 						<form method="POST" action="?/salirGrupo">
 							<input type="hidden" name="persona" value={m.personaSlug} />
 							<input type="hidden" name="group" value={m.groupId} />
-							<button class="pill-btn ghost" type="submit">Salir del grupo</button>
+							<button class="pill-btn ghost" type="submit">Salir del proyecto</button>
 						</form>
 					</li>
 				{/each}
 			</ul>
 		</section>
-	{:else if f?.action === 'grupos' && f.message}
+	{:else if f?.action === 'proyectos' && f.message}
 		<p class="ok" role="status">{f.message}</p>
 	{/if}
 
 	<section class="surface-card" aria-labelledby="optout-title">
-		<h2 id="optout-title">Invitaciones de grupos</h2>
+		<h2 id="optout-title">Invitaciones de proyectos</h2>
 		{#if f?.action === 'invitacionesGrupos' && f.error}
 			<p class="error" role="alert">{f.error}</p>
 		{:else if f?.action === 'invitacionesGrupos' && f.message}
@@ -132,7 +132,8 @@
 		{/if}
 		{#if data.noGroupInvites}
 			<p>
-				No recibís invitaciones de grupos: si alguien te invita, no te llega nada (y no se entera).
+				No recibís invitaciones de proyectos: si alguien te invita, no te llega nada (y no se
+				entera).
 			</p>
 			<form method="POST" action="?/invitacionesGrupos">
 				<input type="hidden" name="recibir" value="si" />
@@ -140,12 +141,12 @@
 			</form>
 		{:else}
 			<p class="hint">
-				Si no querés que los grupos te inviten, lo podés apagar. Vale para todos tus perfiles de
+				Si no querés que los proyectos te inviten, lo podés apagar. Vale para todos tus perfiles de
 				persona; quien invite no se entera.
 			</p>
 			<form method="POST" action="?/invitacionesGrupos">
 				<input type="hidden" name="recibir" value="no" />
-				<button class="pill-btn ghost" type="submit">No recibir invitaciones de grupos</button>
+				<button class="pill-btn ghost" type="submit">No recibir invitaciones de proyectos</button>
 			</form>
 		{/if}
 	</section>
@@ -161,7 +162,7 @@
 						<a href="/mi-rincon/perfiles/{p.slug}"><strong>{p.title}</strong></a>
 						<span class="hint">
 							{KIND_LABELS[p.kind]} · {VISIBILITY_SHORT[p.visibility] ?? p.visibility}
-							{#if p.kind === 'grupo'}· {ROLE_LABELS[p.role]}{/if}
+							{#if p.kind === 'proyecto'}· {ROLE_LABELS[p.role]}{/if}
 						</span>
 					</li>
 				{/each}
@@ -182,8 +183,13 @@
 					<span>De una persona <small class="hint">(vos, con el nombre que uses)</small></span>
 				</label>
 				<label class="choice">
-					<input type="radio" name="kind" value="grupo" bind:group={kind} />
-					<span>De un grupo <small class="hint">(lo pueden gestionar varias cuentas)</small></span>
+					<input type="radio" name="kind" value="proyecto" bind:group={kind} />
+					<span
+						>De un proyecto <small class="hint"
+							>(una marca, productora, emprendimiento, colectivo o fiesta; lo pueden gestionar
+							varias cuentas)</small
+						></span
+					>
 				</label>
 				{#if errors.kind}<p class="field-error">{errors.kind}</p>{/if}
 			</fieldset>

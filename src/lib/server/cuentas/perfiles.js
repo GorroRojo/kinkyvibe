@@ -3,23 +3,23 @@
  *
  * - Perfiles de **persona**: separados entre sí y NO vinculados de forma visible. Nada de lo
  *   público ni de lo que ve otra cuenta dice que dos perfiles son de la misma cuenta.
- * - Perfiles de **grupo**: los gestionan varias cuentas. Mostrar integrantes es opcional por
- *   grupo (`show_members`); quienes gestionan NUNCA se muestran.
+ * - Perfiles de **proyecto**: los gestionan varias cuentas. Mostrar integrantes es opcional por
+ *   proyecto (`show_members`); quienes gestionan NUNCA se muestran.
  *
  * Los perfiles son objetos `perfil` (src/lib/server/objects/types/perfil.js) y se escriben SOLO
  * con saveObject(). Quién gestiona qué va en `profile_managers` (migración 0014): las cuentas no
- * son objetos, así que no puede ser un edge. Integrantes de un grupo: edges `es_integrante_de`
- * desde el perfil de la persona hacia el del grupo.
+ * son objetos, así que no puede ser un edge. Integrantes de un proyecto: edges `es_integrante_de`
+ * desde el perfil de la persona hacia el del proyecto.
  *
  * Reglas que hace cumplir este archivo (las páginas no deciden nada):
  * - solo quien gestiona un perfil lo ve en Mi rincón y lo edita; para cualquier otra cuenta el
  *   perfil "no existe" (mismo mensaje que si no existiera);
- * - un perfil de persona tiene una sola cuenta (su dueñe); un grupo, al menos une dueñe: nadie
+ * - un perfil de persona tiene una sola cuenta (su dueñe); un proyecto, al menos une dueñe: nadie
  *   se va ni pierde la propiedad si es le última (sentencias condicionales, sin carreras);
  * - las invitaciones a gestionar van por mail y nunca dicen si ese mail tiene cuenta;
- * - el grupo invita a perfiles de persona que puede ver (nunca ocultos) y la persona acepta o
+ * - el proyecto invita a perfiles de persona que puede ver (nunca ocultos) y la persona acepta o
  *   rechaza en Mi rincón; hasta que acepta, la invitación la ven solo ella y quienes gestionan el
- *   grupo. Se va cuando quiere, sin pedirle nada a nadie. Si rechaza o se va, ese grupo no la
+ *   proyecto. Se va cuando quiere, sin pedirle nada a nadie. Si rechaza o se va, ese proyecto no la
  *   puede volver a invitar por 30 días.
  *
  * Permiso "puede tener perfiles" (`accounts.can_have_profiles`, migración 0015, apagado por
@@ -31,7 +31,7 @@
  *
  * Las lecturas de "gestión" (mis perfiles, un perfil que gestiono) leen `objects` unidas a
  * `profile_managers`: la condición de acceso es esa unión, no la visibilidad (quien gestiona
- * un grupo oculto lo tiene que poder editar). Todo lo demás (lo que ve el público u otra
+ * un proyecto oculto lo tiene que poder editar). Todo lo demás (lo que ve el público u otra
  * cuenta) pasa por el helper de visibilidad de los objetos.
  */
 import {
@@ -45,6 +45,7 @@ import {
 	slugify
 } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
+import { normalizeProfileKind, profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { logProfileCreated } from '$lib/server/admin/accountEvents.js';
@@ -64,14 +65,14 @@ import { accountMailAllowed } from './mailCap.js';
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
 /** @typedef {import('$lib/server/objects/visibility.js').Visibility} Visibility */
 /** @typedef {'owner' | 'manager'} ManagerRole */
-/** @typedef {'persona' | 'grupo' | 'lugar'} ProfileKind */
+/** @typedef {import('$lib/server/objects/types/perfil.js').ProfileKind} ProfileKind */
 
 /**
  * @typedef {{ ok: false, status: number, message: string, errors?: Record<string, string> }} Failure
  */
 
 /**
- * Verifica (y gasta) el código fresco por mail de las acciones delicadas de un grupo (purpose
+ * Verifica (y gasta) el código fresco por mail de las acciones delicadas de un proyecto (purpose
  * 'grupo', ver cuentas/index.js). Devuelve `null` si está bien o el Failure que hay que mostrar.
  * Las funciones de acá la llaman solo cuando la acción lo pide, después de chequear permisos (así
  * un pedido sin permiso no gasta el código).
@@ -84,18 +85,8 @@ export const PROFILE_TYPE = 'perfil';
  * Eventos → Lugares); una cuenta puede llegar a gestionar uno solo si une admin aprueba su
  * pedido "Es mi perfil" (src/lib/server/amigues/claims.js).
  */
-export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo']);
+export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto']);
 
-/**
- * El tipo de un perfil a partir de sus datos (lo desconocido cuenta como persona, lo más
- * restringido: una persona no tiene integrantes ni campos de lugar).
- *
- * @param {Record<string, unknown>} data
- * @returns {ProfileKind}
- */
-export function profileKind(data) {
-	return data?.kind === 'grupo' ? 'grupo' : data?.kind === 'lugar' ? 'lugar' : 'persona';
-}
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
 export const MAX_PROFILES_PER_ACCOUNT = 20;
@@ -105,10 +96,10 @@ export const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Límites de invitaciones (tabla rate_limits, src/lib/server/db/rateLimit.js), además de las
- * 20 pendientes por grupo. Cada invitación puede mandar un mail, así que:
- * - `group` y `account`: invitaciones por hora por grupo y por cuenta que invita. Se cuentan
+ * 20 pendientes por proyecto. Cada invitación puede mandar un mail, así que:
+ * - `group` y `account`: invitaciones por hora por proyecto y por cuenta que invita. Se cuentan
  *   siempre, tenga o no cuenta el mail, así el aviso de "esperá" no revela nada;
- * - `recipient`: avisos por mail que recibe un mismo mail por día, de cualquier grupo. Este no
+ * - `recipient`: avisos por mail que recibe un mismo mail por día, de cualquier proyecto. Este no
  *   se le muestra a quien invita (la invitación se crea igual, solo no sale el mail): si se
  *   mostrara, diría que ese mail tiene cuenta.
  */
@@ -123,7 +114,7 @@ export const MESSAGES = Object.freeze({
 	conflict:
 		'Alguien lo cambió mientras tanto, así que no guardamos tus cambios. Abajo está la versión nueva; revisala y volvé a guardar.',
 	onlyOwner: 'Eso lo puede hacer solo quien es dueñe del perfil.',
-	onlyGroups: 'Eso es solo para perfiles de grupo.',
+	onlyGroups: 'Eso es solo para perfiles de proyecto.',
 	onlyPersonas: 'Eso es solo para perfiles de persona.',
 	lastOwner:
 		'Sos la única persona dueña. Antes de irte, hacé dueñe a otra persona que lo gestione, o borrá el perfil.',
@@ -131,7 +122,7 @@ export const MESSAGES = Object.freeze({
 	personaLeave: 'Un perfil de persona no se deja: si no lo querés más, borralo.',
 	tooManyProfiles: `Llegaste al máximo de ${MAX_PROFILES_PER_ACCOUNT} perfiles.`,
 	tooManyInvites: `Hay demasiadas invitaciones pendientes (máximo ${MAX_PENDING_INVITES}). Cancelá alguna.`,
-	badKind: 'Elegí si el perfil es de una persona o de un grupo.',
+	badKind: 'Elegí si el perfil es de una persona o de un proyecto.',
 	badEmail: 'Revisá el mail: no parece una dirección válida.',
 	invited:
 		'Listo. Si ese mail tiene cuenta, le mandamos un aviso. La invitación aparece en Mi rincón → Perfiles cuando entre con ese mail (vence en 14 días).',
@@ -140,12 +131,12 @@ export const MESSAGES = Object.freeze({
 	notManager: 'Esa persona ya no gestiona este perfil.',
 	personaNotFound:
 		'No encontramos ese perfil de persona. Revisá la dirección (te la pasa la persona desde su perfil).',
-	notMember: 'Esa persona ya no está en el grupo.',
+	notMember: 'Esa persona ya no está en el proyecto.',
 	recentlyLeft:
-		'Esa persona no aceptó o dejó el grupo hace poco: por ahora no la pueden volver a invitar. Si quiere sumarse, que te avise.',
+		'Esa persona no aceptó o dejó el proyecto hace poco: por ahora no la pueden volver a invitar. Si quiere sumarse, que te avise.',
 	memberInvited:
 		'Listo: le llegó la invitación a su Mi rincón. Figura como pendiente hasta que la acepte.',
-	alreadyMember: 'Esa persona ya es integrante del grupo.',
+	alreadyMember: 'Esa persona ya es integrante del proyecto.',
 	tooManyMemberInvites: 'Mandaste muchas invitaciones seguidas. Esperá un rato y probá de nuevo.',
 	memberInviteGone: 'Esa invitación ya no está: puede que la hayan retirado o que haya vencido.',
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
@@ -224,7 +215,7 @@ function parseLinks(value) {
  * @prop {string} [pronouns]
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
- * @prop {boolean} [show_members] solo grupos
+ * @prop {boolean} [show_members] solo proyectos
  */
 
 /**
@@ -245,7 +236,7 @@ function profileData(kind, input, current = {}) {
 		pronouns: text(input.pronouns),
 		links: parseLinks(input.links)
 	};
-	if (kind === 'grupo') data.show_members = input.show_members === true;
+	if (kind === 'proyecto') data.show_members = input.show_members === true;
 	else delete data.show_members;
 	return data;
 }
@@ -267,7 +258,7 @@ function toMyProfile(row) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: profileKind(o.data),
+		kind: profileKindOf(o.data),
 		visibility: o.visibility,
 		version: o.version,
 		role: row.role === 'owner' ? 'owner' : 'manager'
@@ -330,13 +321,13 @@ export async function getManagedProfile(db, accountId, slug) {
 	const profile = rowToObject(row);
 	return {
 		profile,
-		kind: profileKind(profile.data),
+		kind: profileKindOf(profile.data),
 		role: row.role === 'owner' ? 'owner' : 'manager'
 	};
 }
 
 /**
- * Cuántos perfiles vivos gestiona una cuenta (propios y de grupos).
+ * Cuántos perfiles vivos gestiona una cuenta (propios y de proyectos).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -375,10 +366,11 @@ function slugSuffix() {
  * @returns {Promise<{ ok: true, profile: StoredObject } | Failure>}
  */
 export async function createProfile(db, accountId, input, { now = Date.now() } = {}) {
-	const kind = /** @type {ProfileKind} */ (input.kind);
+	// También acepta el valor viejo `grupo` (un formulario abierto antes del cambio).
+	const kind = normalizeProfileKind(input.kind);
 	// Sin el permiso de perfiles, como si no existiera nada (las páginas ya dan 404).
 	if (!(await canHaveProfiles(db, accountId))) return failure(404, MESSAGES.notFound);
-	if (!(/** @type {readonly string[]} */ (ACCOUNT_PROFILE_KINDS).includes(kind)))
+	if (!kind || !(/** @type {readonly string[]} */ (ACCOUNT_PROFILE_KINDS).includes(kind)))
 		return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
 	if (!(await getAccount(db, accountId))) return failure(404, MESSAGES.notFound);
 	if ((await countMyProfiles(db, accountId)) >= MAX_PROFILES_PER_ACCOUNT) {
@@ -460,7 +452,7 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 /**
  * Borra (suave, se puede deshacer desde la base) un perfil. Solo dueñes. Las filas de
  * `profile_managers` y los edges quedan, para poder deshacer; como el objeto está borrado, no
- * se ve en ningún lado. Borrar un grupo pide además un código fresco por mail (`stepUp`).
+ * se ve en ningún lado. Borrar un proyecto pide además un código fresco por mail (`stepUp`).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -479,7 +471,7 @@ export async function deleteProfile(
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
-	if (managed.kind === 'grupo') {
+	if (managed.kind === 'proyecto') {
 		// La versión se mira antes de gastar el código.
 		if (version !== managed.profile.version) return failure(409, MESSAGES.conflict);
 		const bad = await confirmStep(stepUp);
@@ -498,7 +490,7 @@ export async function deleteProfile(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Quiénes gestionan un grupo. Nunca se muestra fuera de Mi rincón de quienes lo gestionan.
+// Quiénes gestionan un proyecto. Nunca se muestra fuera de Mi rincón de quienes lo gestionan.
 // ---------------------------------------------------------------------------------------------
 
 /** Dueñes activos (cuenta no borrada) de un perfil, como subconsulta con el id en ?1. */
@@ -508,7 +500,7 @@ const ACTIVE_OWNERS = `(SELECT COUNT(*) FROM profile_managers p JOIN accounts a 
 /**
  * @typedef {{ accountId: string, email: string, role: ManagerRole, me: boolean }} ManagerRow
  * @typedef {{ id: string, createdAt: number, expiresAt: number, invitedBy: string | null }} InviteRow
- *   `invitedBy`: el mail de quien invitó (otre dueñe del grupo), o null si ya no está
+ *   `invitedBy`: el mail de quien invitó (otre dueñe del proyecto), o null si ya no está
  */
 
 /**
@@ -521,7 +513,7 @@ const DROP_INVITES_OF_NON_OWNER = `DELETE FROM profile_invites WHERE profile_id 
 		WHERE profile_id = ?1 AND account_id = ?2 AND role = 'owner')`;
 
 /**
- * Quiénes gestionan un grupo y las invitaciones pendientes. Solo para quienes lo gestionan; las
+ * Quiénes gestionan un proyecto y las invitaciones pendientes. Solo para quienes lo gestionan; las
  * invitaciones (con quién las mandó), solo para dueñes, que son quienes pueden cancelarlas.
  *
  * @param {D1Database} db
@@ -581,7 +573,7 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
  */
 
 /**
- * Invita a un mail a gestionar un grupo (solo dueñes). Responde lo mismo tenga o no cuenta ese
+ * Invita a un mail a gestionar un proyecto (solo dueñes). Responde lo mismo tenga o no cuenta ese
  * mail, y aunque ya lo gestione: no se puede usar para averiguar quién tiene cuenta.
  *
  * Además, si se pasa `notice`, deja programado un aviso por mail (`sendInviteNotice`) que sale
@@ -589,7 +581,7 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
  * respuesta lo revelen, esta función NO busca la cuenta: todo lo que depende de que exista
  * (buscarla, el límite por destinatarie, armar y mandar el mail) pasa dentro de la tarea que se
  * le da a `notice.defer`, que corre después de responder. Lo que se hace antes de responder
- * (permisos, límites por grupo y por cuenta, guardar la invitación) es igual en los dos casos.
+ * (permisos, límites por proyecto y por cuenta, guardar la invitación) es igual en los dos casos.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -607,7 +599,7 @@ export async function inviteManager(
 ) {
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	if (managed.kind !== 'proyecto') return failure(400, MESSAGES.onlyGroups);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
 	const email = normalizeEmail(rawEmail);
 	if (!email) return failure(400, MESSAGES.badEmail, { email: MESSAGES.badEmail });
@@ -620,7 +612,7 @@ export async function inviteManager(
 		.bind(id, now, hash)
 		.first();
 	if (Number(pending?.n ?? 0) >= MAX_PENDING_INVITES) return failure(400, MESSAGES.tooManyInvites);
-	// Las claves de límite no llevan datos de nadie: el id del grupo (un objeto) y un hash de la
+	// Las claves de límite no llevan datos de nadie: el id del proyecto (un objeto) y un hash de la
 	// cuenta.
 	const perGroup = await hitRateLimit(db, `perfiles:invite:g:${id}`, INVITE_RATE_LIMITS.group, now);
 	const perAccount = await hitRateLimit(
@@ -650,8 +642,8 @@ export async function inviteManager(
 
 /**
  * El aviso por mail de una invitación (corre en segundo plano, ver `inviteManager`). Sale solo
- * si hay una cuenta activa con ese mail verificado que todavía no gestiona el grupo, y dentro
- * del límite por destinatarie. Nombra al grupo (su nombre de ahora), nunca a quien invitó. Nunca
+ * si hay una cuenta activa con ese mail verificado que todavía no gestiona el proyecto, y dentro
+ * del límite por destinatarie. Nombra al proyecto (su nombre de ahora), nunca a quien invitó. Nunca
  * tira: un error queda en el log y la invitación sigue en Mi rincón igual.
  *
  * @param {D1Database} db
@@ -713,7 +705,7 @@ export async function cancelInvite(db, accountId, slug, inviteId) {
 }
 
 /**
- * Las invitaciones para el mail (verificado) de esta cuenta, con el nombre del grupo.
+ * Las invitaciones para el mail (verificado) de esta cuenta, con el nombre del proyecto.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -789,12 +781,12 @@ export async function answerInvite(db, accountId, inviteId, accept, { now = Date
 }
 
 /**
- * Cambia el rol de alguien que gestiona un grupo (solo dueñes). Nunca deja al grupo sin dueñe:
+ * Cambia el rol de alguien que gestiona un proyecto (solo dueñes). Nunca deja al proyecto sin dueñe:
  * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero. Si
  * deja de ser dueñe, sus invitaciones pendientes se borran en la misma tanda.
  *
  * Hacer dueñe a alguien o sacarle la propiedad a otre dueñe pide además un código fresco por mail
- * (`stepUp`): con solo una sesión abierta ajena no se puede quedar con el grupo. Sacarse la
+ * (`stepUp`): con solo una sesión abierta ajena no se puede quedar con el proyecto. Sacarse la
  * propiedad a une misme no lo pide.
  *
  * @param {D1Database} db
@@ -809,7 +801,7 @@ export async function setManagerRole(db, accountId, slug, targetAccountId, role,
 	if (role !== 'owner' && role !== 'manager') return failure(400, MESSAGES.invalid);
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	if (managed.kind !== 'proyecto') return failure(400, MESSAGES.onlyGroups);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
 	const target = text(targetAccountId);
 	const current = await managerRole(db, managed.profile.id, target);
@@ -877,7 +869,7 @@ async function confirmStep(stepUp) {
 }
 
 /**
- * Saca a alguien de la gestión de un grupo: une dueñe a cualquiera, cualquiera a sí misme
+ * Saca a alguien de la gestión de un proyecto: une dueñe a cualquiera, cualquiera a sí misme
  * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia). Las
  * invitaciones pendientes que mandó se borran en la misma tanda.
  *
@@ -896,7 +888,7 @@ export async function removeManager(db, accountId, slug, targetAccountId, { step
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	const self = target === accountId;
-	if (managed.kind !== 'grupo')
+	if (managed.kind !== 'proyecto')
 		return failure(400, self ? MESSAGES.personaLeave : MESSAGES.onlyGroups);
 	if (!self && managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
 	const sensitive = !self && (await managerRole(db, managed.profile.id, target)) === 'owner';
@@ -922,7 +914,7 @@ export async function removeManager(db, accountId, slug, targetAccountId, { step
 }
 
 /**
- * Dejar de gestionar un grupo.
+ * Dejar de gestionar un proyecto.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -933,19 +925,19 @@ export function leaveProfile(db, accountId, slug) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Integrantes: edges `es_integrante_de` (persona → grupo), escritos con saveObject() sobre el
+// Integrantes: edges `es_integrante_de` (persona → proyecto), escritos con saveObject() sobre el
 // perfil de la persona, solo cuando ella acepta. Mientras tanto, la invitación vive en la tabla
 // `profile_member_invites` (migración 0014), fuera del objeto de la persona: invitar o retirar
 // una invitación no le cambia la `version` (no le hace fallar lo que esté editando).
 // ---------------------------------------------------------------------------------------------
 
-/** Cuánto tiempo un grupo no puede volver a invitar a una persona que rechazó o se fue. */
+/** Cuánto tiempo un proyecto no puede volver a invitar a una persona que rechazó o se fue. */
 export const LEAVE_BLOCK_MS = 30 * 24 * 60 * 60 * 1000;
 /** Cuánto dura una invitación a ser integrante sin respuesta. */
 export const MEMBER_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * Invitaciones a ser integrante por hora (tabla rate_limits), por grupo y por cuenta que invita.
+ * Invitaciones a ser integrante por hora (tabla rate_limits), por proyecto y por cuenta que invita.
  * Se cuentan antes de buscar el perfil, así el "esperá" no dice nada de él.
  */
 export const MEMBER_INVITE_RATE_LIMITS = Object.freeze({
@@ -957,7 +949,7 @@ export const MEMBER_INVITE_RATE_LIMITS = Object.freeze({
 const MEMBER_SAVE_ATTEMPTS = 3;
 
 /**
- * Los grupos a los que apunta un perfil de persona (lectura de gestión), en orden.
+ * Los proyectos a los que apunta un perfil de persona (lectura de gestión), en orden.
  *
  * @param {D1Database} db
  * @param {number} personaId
@@ -990,11 +982,11 @@ async function readPersona(db, id) {
 }
 
 /**
- * Cambia los grupos de una persona con saveObject(). Lee el perfil y sus edges de nuevo en cada
+ * Cambia los proyectos de una persona con saveObject(). Lee el perfil y sus edges de nuevo en cada
  * intento y guarda con esa versión: si otro guardado se cruza (la persona editando su perfil, un
- * grupo sumándola), se vuelve a intentar con lo nuevo en vez de pisarlo o fallar.
+ * proyecto sumándola), se vuelve a intentar con lo nuevo en vez de pisarlo o fallar.
  *
- * `change` recibe la persona y sus grupos y devuelve los grupos nuevos, `null` (nada que hacer:
+ * `change` recibe la persona y sus proyectos y devuelve los proyectos nuevos, `null` (nada que hacer:
  * está bien así) o un Failure. `also` son las sentencias de apoyo que van en la misma tanda.
  *
  * @param {D1Database} db
@@ -1047,16 +1039,16 @@ function slugFromInput(value) {
 }
 
 /**
- * Quien gestiona un grupo invita a una persona a ser integrante, por la dirección de su perfil.
+ * Quien gestiona un proyecto invita a una persona a ser integrante, por la dirección de su perfil.
  * Queda pendiente (`profile_member_invites`) hasta que ella acepta en Mi rincón → Perfiles. Con
  * estos resguardos:
- * - límites por hora por grupo y por cuenta que invita (antes de buscar el perfil);
+ * - límites por hora por proyecto y por cuenta que invita (antes de buscar el perfil);
  * - solo perfiles de persona que esta cuenta puede VER (getObject con su visibilidad), y nunca
  *   uno oculto, aunque sea suyo: para todo lo demás la respuesta es "no lo encontramos", igual
  *   que si no existiera;
- * - si esa persona rechazó o dejó ESTE grupo hace menos de 30 días, no se la puede volver a
+ * - si esa persona rechazó o dejó ESTE proyecto hace menos de 30 días, no se la puede volver a
  *   invitar (`profile_member_blocks`);
- * - si la cuenta de la persona eligió "No recibir invitaciones de grupos", la invitación se guarda
+ * - si la cuenta de la persona eligió "No recibir invitaciones de proyectos", la invitación se guarda
  *   silenciada: ella nunca la ve, y quien invita ve exactamente lo mismo que siempre (la misma
  *   respuesta y una invitación pendiente que vence sola).
  *
@@ -1076,7 +1068,7 @@ export async function inviteMember(
 ) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
 	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	if (managed.kind !== 'proyecto') return failure(400, MESSAGES.onlyGroups);
 	const groupId = managed.profile.id;
 	const perGroup = await hitRateLimit(
 		db,
@@ -1137,7 +1129,7 @@ export async function inviteMember(
 }
 
 /**
- * Quien gestiona un grupo retira una invitación pendiente. No toca el perfil de la persona.
+ * Quien gestiona un proyecto retira una invitación pendiente. No toca el perfil de la persona.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1148,7 +1140,7 @@ export async function inviteMember(
 export async function withdrawMemberInvite(db, accountId, groupSlug, personaId) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
 	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	if (managed.kind !== 'proyecto') return failure(400, MESSAGES.onlyGroups);
 	await db
 		.prepare('DELETE FROM profile_member_invites WHERE group_id = ?1 AND persona_id = ?2')
 		.bind(managed.profile.id, Number(personaId))
@@ -1157,7 +1149,7 @@ export async function withdrawMemberInvite(db, accountId, groupSlug, personaId) 
 }
 
 /**
- * Las invitaciones pendientes de un grupo, para quienes lo gestionan (solo perfiles que esta
+ * Las invitaciones pendientes de un proyecto, para quienes lo gestionan (solo perfiles que esta
  * cuenta puede ver; las silenciadas también, para que se vean igual que las demás).
  *
  * @param {D1Database} db
@@ -1168,7 +1160,7 @@ export async function withdrawMemberInvite(db, accountId, groupSlug, personaId) 
  */
 export async function listGroupMemberInvites(db, accountId, groupSlug, { now = Date.now() } = {}) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
-	if (!managed || managed.kind !== 'grupo') return [];
+	if (!managed || managed.kind !== 'proyecto') return [];
 	const { results } = await db
 		.prepare(
 			`SELECT ${MANAGED_COLUMNS} FROM profile_member_invites i JOIN objects o ON o.id = i.persona_id
@@ -1185,8 +1177,8 @@ export async function listGroupMemberInvites(db, accountId, groupSlug, { now = D
 }
 
 /**
- * Las invitaciones de grupos a los perfiles de persona de esta cuenta, para Mi rincón → Perfiles
- * ("<grupo> te invitó a sumarte"). Nunca las silenciadas.
+ * Las invitaciones de proyectos a los perfiles de persona de esta cuenta, para Mi rincón → Perfiles
+ * ("<proyecto> te invitó a sumarte"). Nunca las silenciadas.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1218,9 +1210,9 @@ export async function listMyMemberInvites(db, accountId, { now = Date.now() } = 
 }
 
 /**
- * La persona acepta o rechaza la invitación de un grupo. Aceptar escribe el edge con
+ * La persona acepta o rechaza la invitación de un proyecto. Aceptar escribe el edge con
  * saveObject() y borra la invitación en la misma tanda. Rechazar borra la invitación y, en la
- * misma tanda, bloquea a ese grupo por 30 días.
+ * misma tanda, bloquea a ese proyecto por 30 días.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1289,7 +1281,7 @@ function blockStatement(db, group, personaId, now) {
 }
 
 /**
- * Quien gestiona un grupo saca a une integrante. No bloquea nada: el grupo la puede volver a
+ * Quien gestiona un proyecto saca a une integrante. No bloquea nada: el proyecto la puede volver a
  * invitar (el bloqueo de 30 días es solo cuando la persona rechaza o se va).
  *
  * @param {D1Database} db
@@ -1302,7 +1294,7 @@ function blockStatement(db, group, personaId, now) {
 export async function removeMember(db, accountId, groupSlug, personaId, { now = Date.now() } = {}) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
 	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	if (managed.kind !== 'proyecto') return failure(400, MESSAGES.onlyGroups);
 	const id = Number(personaId);
 	if (!Number.isSafeInteger(id)) return failure(404, MESSAGES.notMember);
 	const groupId = managed.profile.id;
@@ -1317,8 +1309,8 @@ export async function removeMember(db, accountId, groupSlug, personaId, { now = 
 }
 
 /**
- * La persona deja un grupo. Siempre se puede, sin aprobación de nadie, aunque el grupo esté
- * oculto o borrado. En la misma tanda queda el bloqueo: ese grupo no la puede volver a invitar
+ * La persona deja un proyecto. Siempre se puede, sin aprobación de nadie, aunque el proyecto esté
+ * oculto o borrado. En la misma tanda queda el bloqueo: ese proyecto no la puede volver a invitar
  * por 30 días. Si ya no estaba, no hace nada (y no bloquea).
  *
  * @param {D1Database} db
@@ -1352,7 +1344,7 @@ export async function leaveMembership(
 }
 
 /**
- * Los grupos de un perfil de persona, para su propia pantalla.
+ * Los proyectos de un perfil de persona, para su propia pantalla.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1374,9 +1366,9 @@ export async function listMemberships(db, accountId, personaSlug) {
 }
 
 /**
- * Todos los grupos de los que son parte los perfiles de persona de esta cuenta, para
+ * Todos los proyectos de los que son parte los perfiles de persona de esta cuenta, para
  * Mi rincón → Perfiles ("Sos parte de…"). Es la pantalla de la propia cuenta: ahí sí se ve qué
- * perfil suyo está en qué grupo (nadie más lo ve junto).
+ * perfil suyo está en qué proyecto (nadie más lo ve junto).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1405,7 +1397,7 @@ export async function listMyMemberships(db, accountId) {
 }
 
 /**
- * Integrantes de un grupo, para quienes lo gestionan: solo los perfiles que esta cuenta puede
+ * Integrantes de un proyecto, para quienes lo gestionan: solo los perfiles que esta cuenta puede
  * ver (si une integrante pasa a oculto, deja de aparecer también acá).
  *
  * @param {D1Database} db
@@ -1415,7 +1407,7 @@ export async function listMyMemberships(db, accountId) {
  */
 export async function listGroupMembers(db, accountId, groupSlug) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
-	if (!managed || managed.kind !== 'grupo') return [];
+	if (!managed || managed.kind !== 'proyecto') return [];
 	const { results } = await db
 		.prepare(
 			`SELECT ${MANAGED_COLUMNS} FROM edges e JOIN objects o ON o.id = e.from_id
@@ -1445,7 +1437,7 @@ export async function listGroupMembers(db, accountId, groupSlug) {
 /**
  * Un perfil como lo ve cualquiera que no lo gestiona (para la página pública que viene). Una
  * lista blanca de campos: sin ids, sin quién lo creó o editó, sin quiénes lo gestionan. Los
- * integrantes solo si el grupo eligió mostrarlos y solo los perfiles de persona que quien mira
+ * integrantes solo si el proyecto eligió mostrarlos y solo los perfiles de persona que quien mira
  * puede ver (getEdges pasa los dos extremos por el helper de visibilidad).
  *
  * @param {D1Database} db
@@ -1456,10 +1448,10 @@ export async function listGroupMembers(db, accountId, groupSlug) {
 export async function getPublicProfile(db, slug, viewer = ANON) {
 	const o = await getObject(db, { type: PROFILE_TYPE, slug }, viewer);
 	if (!o) return null;
-	const kind = profileKind(o.data);
+	const kind = profileKindOf(o.data);
 	/** @type {{ slug: string, title: string }[] | null} */
 	let members = null;
-	if (kind === 'grupo' && o.data.show_members === true) {
+	if (kind === 'proyecto' && o.data.show_members === true) {
 		const edges = await getEdges(db, o.id, viewer, { direction: 'in', kind: MEMBER_EDGE });
 		members = edges
 			.filter((e) => e.object.data.kind === 'persona')
@@ -1519,12 +1511,12 @@ async function saveFresh(db, id, input, context) {
  * Suelta los perfiles de una cuenta que se va a borrar:
  * - sus perfiles de persona (también los que ya había borrado) se vacían y se borran: sin
  *   presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
- *   sin los grupos de los que era parte y con `created_by`/`updated_by` neutros
+ *   sin los proyectos de los que era parte y con `created_by`/`updated_by` neutros
  *   (`DELETED_ACTOR`). La fila queda (borrado suave) para que la dirección no se reuse; se van
- *   también su fila de gestión y sus bloqueos de grupos;
- * - de los grupos sale: si era le última dueñe, pasa la propiedad a quien gestiona hace más
- *   tiempo (el grupo queda con sus datos) o, si no queda nadie, borra el grupo (suave, con sus
- *   datos: es de un grupo, no de la persona);
+ *   también su fila de gestión y sus bloqueos de proyectos;
+ * - de los proyectos sale: si era le última dueñe, pasa la propiedad a quien gestiona hace más
+ *   tiempo (el proyecto queda con sus datos) o, si no queda nadie, borra el proyecto (suave, con sus
+ *   datos: es de un proyecto, no de la persona);
  * - se borran las invitaciones que mandó.
  *
  * Se puede volver a correr sin problema: lo que ya se soltó no aparece de nuevo. Si algo falla a
@@ -1550,9 +1542,9 @@ export async function releaseAccountProfiles(db, accountId, { now = Date.now() }
 		.all();
 	for (const row of results) {
 		const p = rowToObject(row);
-		// Las personas se vacían y se borran; los grupos y los lugares quedan (pasan a otra cuenta
+		// Las personas se vacían y se borran; los proyectos y los lugares quedan (pasan a otra cuenta
 		// o se borran con sus datos, que no son de la persona).
-		if (profileKind(p.data) === 'persona') {
+		if (profileKindOf(p.data) === 'persona') {
 			await saveFresh(
 				db,
 				p.id,

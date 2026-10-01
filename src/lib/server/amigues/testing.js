@@ -13,7 +13,7 @@ export { AMIGUES_DIR, readAmigueFiles } from './files.js';
  * Un perfil de prueba con saveObject() (aprobado para /amigues salvo `approved: false`).
  *
  * @param {D1Database} db
- * @param {{ title: string, kind?: 'persona' | 'grupo' | 'lugar', visibility?: 'public' | 'members' | 'hidden', data?: Record<string, unknown>, approved?: boolean, actor?: string, slug?: string }} input
+ * @param {{ title: string, kind?: 'persona' | 'proyecto' | 'lugar', visibility?: 'public' | 'members' | 'hidden', data?: Record<string, unknown>, approved?: boolean, actor?: string, slug?: string }} input
  */
 export async function makeProfile(
 	db,

@@ -54,7 +54,7 @@ const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
 /**
  * @typedef {{
  *   mock: boolean,
- *   createPreference: (preference: ReturnType<typeof import('./mercadopago.js').buildPreference>, idempotencyKey: string) => Promise<{ id: string, init_point: string }>,
+ *   createPreference: (preference: ReturnType<typeof import('./mercadopago.js').checkoutProPreference>, idempotencyKey: string) => Promise<{ id: string, init_point: string }>,
  *   getPayment: (id: string) => Promise<import('./orders.js').MPPayment>,
  *   findPaymentByOrder: (orderId: string) => Promise<import('./orders.js').MPPayment | null>,
  *   refundPayment: (paymentId: string, idempotencyKey: string) => Promise<{ id: number | string, status?: string }>

@@ -17,7 +17,7 @@
 {#if data.editor === 'db'}
 	<PageHeader
 		title="Amigues"
-		subtitle="Personas, grupos y lugares de /amigues. Los cambios se publican al guardar."
+		subtitle="Personas, proyectos y lugares de /amigues. Los cambios se publican al guardar."
 	>
 		<svelte:fragment slot="actions">
 			<a class="kv-btn ghost" href="/admin/amigues/importar">Importar y clasificar</a>

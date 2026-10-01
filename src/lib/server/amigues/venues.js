@@ -17,7 +17,8 @@
  */
 import { getObject } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
+import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
 	effectivePrivacy,
 	fullAddress,
@@ -68,7 +69,7 @@ export async function eventVenue(db, eventSlug) {
 		.first();
 	if (!row) return null;
 	const venue = rowToObject(row);
-	if (profileKind(venue.data) !== 'lugar') return null;
+	if (profileKindOf(venue.data) !== 'lugar') return null;
 	return {
 		venue,
 		legacySlug: row.legacy_slug == null ? null : String(row.legacy_slug),

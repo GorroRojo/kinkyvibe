@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * La página de un perfil guardado en la base (interruptor `perfiles_publicos`): persona, grupo
+	 * La página de un perfil guardado en la base (interruptor `perfiles_publicos`): persona, proyecto
 	 * o lugar. Todo lo que llega ya pasó por las reglas del servidor (src/lib/server/amigues/):
 	 * lista blanca de campos, HTML del texto ya limpio, integrantes visibles, privacidad del lugar.
 	 * Props: `data` (lo que arma `profilePageData`), `claimResult` (la respuesta de "Es mi perfil").
@@ -13,6 +13,7 @@
 	import RelatedPosts from './RelatedPosts.svelte';
 	import VenueLocation from './VenueLocation.svelte';
 	import ClaimProfile from './ClaimProfile.svelte';
+	import { KIND_LABELS } from '$lib/utils/perfiles.js';
 
 	/** @type {any} */
 	export let data;
@@ -25,8 +26,6 @@
 	$: showAuthors =
 		p.authors.length > 1 ||
 		(p.authors.length === 1 && p.authors[0].replaceAll(' ', '-') !== p.slug);
-	/** @type {Record<string, string>} */
-	const KIND_LABELS = { persona: 'Persona', grupo: 'Grupo', lugar: 'Lugar' };
 </script>
 
 <ProfileHead

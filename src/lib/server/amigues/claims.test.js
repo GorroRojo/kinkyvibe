@@ -138,9 +138,9 @@ describe('resolver un pedido (admins)', () => {
 		expect(await claimState(t.db, a.id, p.id)).toBe('none');
 	});
 
-	it('una persona tiene una sola dueñe; un grupo puede sumar otra', async () => {
+	it('una persona tiene una sola dueñe; un proyecto puede sumar otra', async () => {
 		const persona = await makeProfile(t.db, { title: 'Persona Inventada' });
-		const grupo = await makeProfile(t.db, { title: 'Grupo Inventado', kind: 'grupo' });
+		const grupo = await makeProfile(t.db, { title: 'Proyecto Inventado', kind: 'proyecto' });
 		const first = await makeAccount(t.db, 'primera');
 		const second = await makeAccount(t.db, 'segunda');
 		await addManager(t.db, persona.id, first.id);

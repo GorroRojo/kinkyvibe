@@ -5,7 +5,7 @@ import { CLASSIFICATION_CSV, classificationRows } from '$lib/server/amigues/revi
 import { csvResponse, toCsv } from '$lib/admin/csv.js';
 
 /**
- * CSV de la lista de revisión de la clasificación de las fichas importadas (persona, grupo o
+ * CSV de la lista de revisión de la clasificación de las fichas importadas (persona, proyecto o
  * lugar, "a confirmar"). Solo admins.
  *
  * @type {import('./$types').RequestHandler}

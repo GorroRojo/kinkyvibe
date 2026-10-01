@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Formulario del panel para un perfil guardado en la base (persona, grupo o lugar). Guarda al
+	 * Formulario del panel para un perfil guardado en la base (persona, proyecto o lugar). Guarda al
 	 * toque (sin PRs). Si alguien guardó mientras se editaba, el servidor no guarda nada y devuelve
 	 * `conflict`: acá se muestra qué cambió, con lo escrito intacto en el formulario y la versión
 	 * nueva, para guardar encima a propósito.
@@ -10,7 +10,7 @@
 	 * `submitLabel`, `kinds` (tipos que se pueden elegir).
 	 */
 	import { enhance } from '$app/forms';
-	import { VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
+	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
@@ -22,7 +22,7 @@
 	export let action = '?/guardar';
 	export let submitLabel = 'Guardar';
 	/** @type {Record<string, string>} */
-	export let kinds = { persona: 'Persona', grupo: 'Grupo', lugar: 'Lugar' };
+	export let kinds = KIND_LABELS;
 
 	let busy = false;
 	$: kind = values.kind;
@@ -162,7 +162,7 @@
 		{#if err('body')}<small class="kv-error">{err('body')}</small>{/if}
 	</label>
 
-	{#if kind === 'grupo'}
+	{#if kind === 'proyecto'}
 		<label class="kv-check">
 			<input type="checkbox" name="show_members" bind:checked={values.show_members} />
 			Mostrar integrantes (solo los que aceptaron y se pueden ver)

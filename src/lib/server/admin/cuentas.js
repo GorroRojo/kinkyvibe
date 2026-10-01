@@ -16,7 +16,8 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { DELETED_ACTOR, PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
+import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { logDBError } from '$lib/server/db';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -181,7 +182,7 @@ function profileSummary(o) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: profileKind(o.data),
+		kind: profileKindOf(o.data),
 		visibility: o.visibility,
 		createdAt: o.created_at,
 		deletedAt: o.deleted_at,
@@ -234,7 +235,7 @@ export const PROFILE_FILTERS = Object.freeze({
 /** Filtro por tipo (`?tipo=`). */
 export const PROFILE_KIND_FILTERS = Object.freeze({
 	persona: 'Personas',
-	grupo: 'Grupos',
+	proyecto: 'Proyectos',
 	lugar: 'Lugares'
 });
 
@@ -280,12 +281,12 @@ export async function listProfiles(
 	else if (filter === 'ocultos') where.push("o.deleted_at IS NULL AND o.visibility = 'hidden'");
 	else if (filter === 'borrados') where.push('o.deleted_at IS NOT NULL');
 	if (kind in PROFILE_KIND_FILTERS) {
-		where.push(
-			kind === 'persona'
-				? "COALESCE(json_extract(o.data, '$.kind'), 'persona') NOT IN ('grupo', 'lugar')"
-				: "json_extract(o.data, '$.kind') = ?"
-		);
-		if (kind !== 'persona') params.push(kind);
+		// Igual que profileKindOf(): lo desconocido es persona y el viejo `grupo` es proyecto.
+		const kindSql = "COALESCE(json_extract(o.data, '$.kind'), 'persona')";
+		if (kind === 'persona') where.push(`${kindSql} NOT IN ('proyecto', ?, 'lugar')`);
+		else if (kind === 'proyecto') where.push(`${kindSql} IN ('proyecto', ?)`);
+		else where.push(`${kindSql} = ?`);
+		params.push(kind === 'lugar' ? 'lugar' : LEGACY_PROJECT_KIND);
 	}
 	const { results } = await db
 		.prepare(
@@ -465,7 +466,7 @@ export function deleteProfileAsAdmin(db, id, version, user, { now = Date.now() }
  *
  * @param {D1Database | null | undefined} db
  * @param {{ limit?: number }} [opts]
- * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]>}
+ * @returns {Promise<{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]>}
  */
 export async function profilesToReview(db, { limit = 50 } = {}) {
 	if (!db) return [];
@@ -480,9 +481,9 @@ export async function profilesToReview(db, { limit = 50 } = {}) {
 			.bind(PROFILE_TYPE, ...vis.params, limit)
 			.all();
 		return results.map((r) => {
-			let kind = /** @type {'persona' | 'grupo'} */ ('persona');
+			let kind = /** @type {'persona' | 'proyecto'} */ ('persona');
 			try {
-				if (JSON.parse(String(r.data)).kind === 'grupo') kind = 'grupo';
+				kind = profileKindOf(JSON.parse(String(r.data)));
 			} catch {
 				// datos rotos: el chequeo nocturno lo reporta
 			}
