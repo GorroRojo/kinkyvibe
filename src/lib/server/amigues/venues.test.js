@@ -239,3 +239,40 @@ describe('quien compró recibe la dirección completa', () => {
 		expect(await off.buyerLocation(t.db, 'apagado')).toBeNull();
 	});
 });
+
+describe('los .ics dinámicos (feedVenues)', () => {
+	it('solo los eventos pedidos que tienen lugar, como los ve cualquiera', async () => {
+		const m = await modules();
+		const { feedLocation } = await import('$lib/utils/icsFeed.js');
+		for (const privacy of ['public', 'name', 'area', 'hidden']) {
+			const v = await venue(privacy);
+			await m.setEventVenue(t.db, {
+				eventSlug: `ics-${privacy}`,
+				venueId: v.id,
+				privacy: null,
+				by: 'a'
+			});
+		}
+		const pedidos = ['ics-public', 'ics-name', 'ics-area', 'ics-hidden', 'ics-sin-lugar'];
+		const venues = await m.feedVenues(t.db, pedidos);
+		expect([...venues.keys()].sort()).toEqual(['ics-area', 'ics-hidden', 'ics-name', 'ics-public']);
+		const md = { location: 'Dirección del .md' };
+		expect(feedLocation(md, venues.get('ics-public'))).toContain(SECRET);
+		expect(feedLocation(md, venues.get('ics-name'))).toBe('Lugar name');
+		expect(feedLocation(md, venues.get('ics-area'))).toBe(`${AREA}, Ciudad Inventada`);
+		expect(feedLocation(md, venues.get('ics-hidden'))).toBeUndefined();
+		// sin lugar, lo del .md, como siempre
+		expect(feedLocation(md, venues.get('ics-sin-lugar'))).toBe('Dirección del .md');
+		// un evento que no se pidió no entra
+		expect((await m.feedVenues(t.db, ['ics-name'])).size).toBe(1);
+	});
+
+	it('con el interruptor apagado o sin base, vacío (se usa lo del .md)', async () => {
+		const on = await modules('1');
+		const v = await venue('hidden');
+		await on.setEventVenue(t.db, { eventSlug: 'ics-off', venueId: v.id, privacy: null, by: 'a' });
+		expect((await on.feedVenues(null, ['ics-off'])).size).toBe(0);
+		const off = await modules('0');
+		expect((await off.feedVenues(t.db, ['ics-off'])).size).toBe(0);
+	});
+});
