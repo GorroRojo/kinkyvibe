@@ -31,6 +31,14 @@ export const FLAGS = Object.freeze({
 			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
 			'eso se ve y las direcciones nuevas dan 404.',
 		envVar: 'SERIES_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -112,6 +120,15 @@ export function cuentasEnabled(platform) {
  */
 export function seriesEnabled(platform) {
 	return isFlagOn(getDB(platform), 'series');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**
