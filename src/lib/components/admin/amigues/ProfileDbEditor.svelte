@@ -31,7 +31,7 @@
 	title={p.title}
 	subtitle="/amigues/{p.urlSlug}"
 	back={{
-		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/amigues',
+		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/comunidad/perfiles',
 		label: p.kind === 'lugar' ? 'Lugares' : 'Perfiles'
 	}}
 >

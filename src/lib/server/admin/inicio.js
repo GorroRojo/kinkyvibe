@@ -528,7 +528,7 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 			detail: String(t.post_category),
 			slug: null,
 			orderId: null,
-			href: '/admin/propinas'
+			href: '/admin/ajustes/propinas'
 		});
 	}
 	items.sort((a, b) => b.at - a.at);
