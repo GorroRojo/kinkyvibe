@@ -31,6 +31,8 @@
 		<p class="error" role="alert">{form.error}</p>
 	{:else if data.deleted && !form}
 		<p class="ok" role="status">Borramos tu cuenta. Tus compras siguen valiendo.</p>
+	{:else if data.loggedOutEverywhere && !form}
+		<p class="ok" role="status">Listo: cerramos tu sesión en todos lados.</p>
 	{/if}
 
 	{#if step === 'code'}

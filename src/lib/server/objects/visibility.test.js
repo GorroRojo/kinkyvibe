@@ -156,6 +156,22 @@ describe('en la base', () => {
 		expect(await getObject(t.db, { id: own }, admin)).not.toBeNull();
 	});
 
+	it('en un perfil, haberlo creado no da acceso a lo oculto (canSee y visibleWhere)', async () => {
+		const by = 'cuenta-autora';
+		const creatorViewer = { role: /** @type {const} */ ('member'), id: by };
+		const hidden = { type: 'perfil', visibility: 'hidden', deleted_at: null, created_by: by };
+		expect(canSee(hidden, creatorViewer)).toBe(false);
+		expect(canSee({ ...hidden, type: 'lugar' }, creatorViewer)).toBe(true);
+		const where = visibleWhere(creatorViewer, 'objects');
+		const { results } = await t.db
+			.prepare(
+				`SELECT 1 AS x FROM (SELECT 'perfil' AS type, 'hidden' AS visibility, NULL AS deleted_at, ? AS created_by) AS objects WHERE ${where.sql}`
+			)
+			.bind(by, ...where.params)
+			.all();
+		expect(results).toEqual([]);
+	});
+
 	it('getObject devuelve null (no "prohibido") si no se puede ver', async () => {
 		const hidden = ids['lugar-admin-inventade-hidden-vivo'];
 		const gone = ids['lugar-admin-inventade-public-borrado'];

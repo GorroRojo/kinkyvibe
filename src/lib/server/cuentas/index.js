@@ -20,14 +20,23 @@ import {
 import { createLoginCode, normalizeCode, verifyLoginCode } from './codes.js';
 import { releaseAccountProfiles } from './perfiles.js';
 import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
+import { accountMailAllowed } from './mailCap.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {(to: string, message: { subject: string, html: string, text: string }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
 
 export const RATE_LIMITS = Object.freeze({
-	/** Códigos pedidos para un mismo mail: pocos seguidos y un tope por día (no llenar casillas). */
+	/**
+	 * Códigos pedidos para un mismo mail: pocos seguidos y un tope por día (no llenar casillas).
+	 * Solo cuentan los pedidos que pasaron los límites anteriores (ver `sendCode`).
+	 */
 	codeRequestEmail: { limit: 3, windowSeconds: 15 * 60 },
 	codeRequestEmailDay: { limit: 10, windowSeconds: 24 * 60 * 60 },
+	/**
+	 * Códigos pedidos para un mismo mail desde una misma conexión, por día: menos que el tope
+	 * diario del mail, así una sola conexión nunca gasta todo el cupo de otra persona.
+	 */
+	codeRequestEmailClientDay: { limit: 4, windowSeconds: 24 * 60 * 60 },
 	/** Códigos pedidos desde una misma conexión (para cualquier mail). */
 	codeRequestClient: { limit: 10, windowSeconds: 15 * 60 },
 	/** Intentos de código desde una misma conexión (además de los 5 por código). */
@@ -45,6 +54,8 @@ export const MESSAGES = Object.freeze({
 	tooManyCodes: 'Pediste varios códigos seguidos. Esperá unos minutos y probá de nuevo.',
 	tooManyAttempts: 'Demasiados intentos. Esperá unos minutos y probá de nuevo.',
 	mailFailed: 'No pudimos mandar el mail. Probá de nuevo en un rato.',
+	/** Tope global de mails (mailCap.js): el mismo texto para cualquier mail. */
+	mailBusy: 'Estamos mandando muchos mails en este momento. Probá en un rato.',
 	badLogin: 'El mail o la contraseña no coinciden.'
 });
 
@@ -57,6 +68,9 @@ export const MESSAGES = Object.freeze({
 async function allowed(db, bucket, rule, now) {
 	return (await hitRateLimit(db, bucket, rule, now)).allowed;
 }
+
+/** @returns {{ ok: false, status: number, message: string }} */
+const tooManyCodes = () => ({ ok: false, status: 429, message: MESSAGES.tooManyCodes });
 
 /**
  * Hash corto de la conexión para las claves de límite (ya viene con sal diaria).
@@ -88,12 +102,23 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	if (!email) return { ok: false, status: 400, message: MESSAGES.badEmail };
 	const hash = await emailHash(email);
 	const ck = await clientKey(client);
-	// Primero la conexión (así nadie gasta el cupo de un mail ajeno desde una sola conexión).
+	// En orden, y cada límite cuenta solo si pasó el anterior: un pedido rechazado no gasta el
+	// cupo del mail. Primero los de la conexión (para cualquier mail, y para este mail): así una
+	// sola conexión no puede gastar el cupo diario de otra persona.
 	if (!(await allowed(db, `cuentas:code:c:${ck}`, RATE_LIMITS.codeRequestClient, now)))
-		return { ok: false, status: 429, message: MESSAGES.tooManyCodes };
-	const perEmail = await allowed(db, `cuentas:code:e:${hash}`, RATE_LIMITS.codeRequestEmail, now);
-	const perDay = await allowed(db, `cuentas:code:ed:${hash}`, RATE_LIMITS.codeRequestEmailDay, now);
-	if (!perEmail || !perDay) return { ok: false, status: 429, message: MESSAGES.tooManyCodes };
+		return tooManyCodes();
+	const pairKey = await sha256Hex(`cuentas:pair:${hash}:${ck}`);
+	if (
+		!(await allowed(db, `cuentas:code:ec:${pairKey}`, RATE_LIMITS.codeRequestEmailClientDay, now))
+	)
+		return tooManyCodes();
+	if (!(await allowed(db, `cuentas:code:e:${hash}`, RATE_LIMITS.codeRequestEmail, now)))
+		return tooManyCodes();
+	if (!(await allowed(db, `cuentas:code:ed:${hash}`, RATE_LIMITS.codeRequestEmailDay, now)))
+		return tooManyCodes();
+	// Al final, el tope global (para cualquier mail igual: no dice nada de la dirección).
+	if (!(await accountMailAllowed(db, now)))
+		return { ok: false, status: 429, message: MESSAGES.mailBusy };
 	const { code } = await createLoginCode(db, hash, { now, purpose });
 	const message =
 		purpose === 'login' ? buildLoginCodeEmail({ code }) : buildConfirmCodeEmail({ code, purpose });
@@ -144,12 +169,14 @@ async function checkCode({ db, email, code: rawCode, client, now, purpose }) {
  * contraseña ni borrar la cuenta sin acceso al mail).
  * - 'password': poner, cambiar o sacar la contraseña.
  * - 'delete': borrar la cuenta.
- * @typedef {'password' | 'delete'} ConfirmPurpose
+ * - 'grupo': hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe de un grupo, y
+ *   borrar un grupo (Mi rincón → Perfiles; las reglas están en perfiles.js).
+ * @typedef {'password' | 'delete' | 'grupo'} ConfirmPurpose
  */
 
 /** @param {unknown} v @returns {v is ConfirmPurpose} */
 export function isConfirmPurpose(v) {
-	return v === 'password' || v === 'delete';
+	return v === 'password' || v === 'delete' || v === 'grupo';
 }
 
 /**
@@ -206,9 +233,11 @@ export function eventRequiresAccount(meta) {
 }
 
 /**
- * Borra una cuenta desde "Mi rincón": primero suelta sus perfiles (las personas se borran, los
- * grupos pasan a quien sigue gestionándolos o se borran si no queda nadie) y después borra la
- * cuenta (docs/cuentas.md). Va acá y no en accounts.js porque perfiles.js ya importa accounts.js.
+ * Borra una cuenta desde "Mi rincón" (con el código ya verificado): primero suelta sus perfiles
+ * (las personas se vacían y se borran, los grupos pasan a quien sigue gestionándolos o se borran
+ * si no queda nadie) y después borra la cuenta, en una tanda (docs/cuentas.md). Si algo falla a
+ * la mitad, la cuenta sigue viva y se puede volver a correr. Va acá y no en accounts.js porque
+ * perfiles.js ya importa accounts.js.
  * @param {D1Database} db
  * @param {string} accountId
  * @param {{ now?: number }} [opts]

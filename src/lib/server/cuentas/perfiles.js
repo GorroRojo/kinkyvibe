@@ -42,6 +42,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { emailHash, getAccount, getAccountByEmail, normalizeEmail } from './accounts.js';
 import { buildProfileInviteEmail } from './email.js';
+import { accountMailAllowed } from './mailCap.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -53,6 +54,14 @@ import { buildProfileInviteEmail } from './email.js';
 
 /**
  * @typedef {{ ok: false, status: number, message: string, errors?: Record<string, string> }} Failure
+ */
+
+/**
+ * Verifica (y gasta) el código fresco por mail de las acciones delicadas de un grupo (purpose
+ * 'grupo', ver cuentas/index.js). Devuelve `null` si está bien o el Failure que hay que mostrar.
+ * Las funciones de acá la llaman solo cuando la acción lo pide, después de chequear permisos (así
+ * un pedido sin permiso no gasta el código).
+ * @typedef {() => Promise<Failure | null>} StepUp
  */
 
 export const PROFILE_TYPE = 'perfil';
@@ -104,6 +113,8 @@ export const MESSAGES = Object.freeze({
 	recentlyLeft:
 		'Esa persona dejó el grupo hace poco: por ahora no la pueden volver a sumar. Si quiere volver, que te avise.',
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
+	needsCode:
+		'Para esto te pedimos un código por mail: pedilo con «Mandame un código para confirmar» y escribilo antes de confirmar.',
 	invalid: 'Revisá los datos marcados.'
 });
 
@@ -294,10 +305,21 @@ async function countMyProfiles(db, accountId) {
 	return Number(row?.n ?? 0);
 }
 
+/** Largo del sufijo al azar que se suma a la dirección de un perfil si el nombre ya está usado. */
+export const SLUG_SUFFIX_LENGTH = 5;
+const SLUG_SUFFIX_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/** Un sufijo al azar para la dirección (letras minúsculas y números). */
+function slugSuffix() {
+	const bytes = crypto.getRandomValues(new Uint8Array(SLUG_SUFFIX_LENGTH));
+	// 256 no es múltiplo de 36: un sesgo mínimo que acá no importa (no es un secreto).
+	return Array.from(bytes, (b) => SLUG_SUFFIX_CHARS[b % SLUG_SUFFIX_CHARS.length]).join('');
+}
+
 /**
  * Crea un perfil y deja a la cuenta como dueñe, en la misma tanda de saveObject(). Si la
- * dirección (sale del nombre) ya está usada, prueba con -2, -3…: así no se entera nadie de que
- * existe otro perfil (quizás oculto) con ese nombre.
+ * dirección (sale del nombre) ya está usada, le suma un sufijo corto al azar (nunca -2, -3…, que
+ * dirían cuántos perfiles, quizás ocultos o borrados, tienen ese nombre).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -317,12 +339,7 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 	const base = slugify(title) || 'perfil';
 	const data = profileData(kind, input);
 	for (let attempt = 1; attempt <= 6; attempt++) {
-		const slug =
-			attempt === 1
-				? base
-				: attempt < 6
-					? `${base.slice(0, 90)}-${attempt}`
-					: `${base.slice(0, 80)}-${crypto.randomUUID().slice(0, 8)}`;
+		const slug = attempt === 1 ? base : `${base.slice(0, 80)}-${slugSuffix()}`;
 		try {
 			const profile = await saveObject(
 				db,
@@ -392,19 +409,31 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 /**
  * Borra (suave, se puede deshacer desde la base) un perfil. Solo dueñes. Las filas de
  * `profile_managers` y los edges quedan, para poder deshacer; como el objeto está borrado, no
- * se ve en ningún lado.
+ * se ve en ningún lado. Borrar un grupo pide además un código fresco por mail (`stepUp`).
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {number} version
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function deleteProfile(db, accountId, slug, version, { now = Date.now() } = {}) {
+export async function deleteProfile(
+	db,
+	accountId,
+	slug,
+	version,
+	{ now = Date.now(), stepUp } = {}
+) {
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
+	if (managed.kind === 'grupo') {
+		// La versión se mira antes de gastar el código.
+		if (version !== managed.profile.version) return failure(409, MESSAGES.conflict);
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
 	try {
 		await saveObject(
 			db,
@@ -427,11 +456,22 @@ const ACTIVE_OWNERS = `(SELECT COUNT(*) FROM profile_managers p JOIN accounts a 
 
 /**
  * @typedef {{ accountId: string, email: string, role: ManagerRole, me: boolean }} ManagerRow
- * @typedef {{ id: string, createdAt: number, expiresAt: number }} InviteRow
+ * @typedef {{ id: string, createdAt: number, expiresAt: number, invitedBy: string | null }} InviteRow
+ *   `invitedBy`: el mail de quien invitó (otre dueñe del grupo), o null si ya no está
  */
 
 /**
- * Quiénes gestionan un grupo y las invitaciones pendientes. Solo para quienes lo gestionan.
+ * Invitaciones de alguien que ya no es dueñe de ese perfil (porque le sacaron la propiedad, salió
+ * de la gestión o lo sacaron): se borran en la misma tanda que el cambio. ?1 = perfil, ?2 = cuenta.
+ * Si el cambio no se hizo (por ejemplo, era le última dueñe), sigue siendo dueñe y no se borra nada.
+ */
+const DROP_INVITES_OF_NON_OWNER = `DELETE FROM profile_invites WHERE profile_id = ?1 AND invited_by = ?2
+	AND NOT EXISTS (SELECT 1 FROM profile_managers
+		WHERE profile_id = ?1 AND account_id = ?2 AND role = 'owner')`;
+
+/**
+ * Quiénes gestionan un grupo y las invitaciones pendientes. Solo para quienes lo gestionan; las
+ * invitaciones (con quién las mandó), solo para dueñes, que son quienes pueden cancelarlas.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -451,13 +491,17 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
 		)
 		.bind(managed.profile.id)
 		.all();
-	const { results: invites } = await db
-		.prepare(
-			`SELECT id, created_at, expires_at FROM profile_invites
-			WHERE profile_id = ?1 AND expires_at > ?2 ORDER BY created_at`
-		)
-		.bind(managed.profile.id, now)
-		.all();
+	const { results: invites } =
+		managed.role === 'owner'
+			? await db
+					.prepare(
+						`SELECT i.id, i.created_at, i.expires_at, a.email AS invited_by FROM profile_invites i
+						LEFT JOIN accounts a ON a.id = i.invited_by AND a.deleted_at IS NULL
+						WHERE i.profile_id = ?1 AND i.expires_at > ?2 ORDER BY i.created_at`
+					)
+					.bind(managed.profile.id, now)
+					.all()
+			: { results: [] };
 	return {
 		ok: true,
 		managers: results.map((r) => ({
@@ -469,7 +513,8 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
 		invites: invites.map((r) => ({
 			id: String(r.id),
 			createdAt: Number(r.created_at),
-			expiresAt: Number(r.expires_at)
+			expiresAt: Number(r.expires_at),
+			invitedBy: r.invited_by == null ? null : String(r.invited_by)
 		}))
 	};
 }
@@ -579,6 +624,8 @@ export async function sendInviteNotice(db, { profileId, email, hash, notice, now
 			now
 		);
 		if (!limit.allowed) return 'limited';
+		// El tope global de mails de cuentas: si se llegó, el aviso no sale (la invitación queda).
+		if (!(await accountMailAllowed(db, now))) return 'limited';
 		const groupTitle = String(group.title);
 		const message = buildProfileInviteEmail({
 			groupTitle,
@@ -686,35 +733,53 @@ export async function answerInvite(db, accountId, inviteId, accept, { now = Date
 
 /**
  * Cambia el rol de alguien que gestiona un grupo (solo dueñes). Nunca deja al grupo sin dueñe:
- * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero.
+ * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero. Si
+ * deja de ser dueñe, sus invitaciones pendientes se borran en la misma tanda.
+ *
+ * Hacer dueñe a alguien o sacarle la propiedad a otre dueñe pide además un código fresco por mail
+ * (`stepUp`): con solo una sesión abierta ajena no se puede quedar con el grupo. Sacarse la
+ * propiedad a une misme no lo pide.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {unknown} targetAccountId
  * @param {unknown} role
+ * @param {{ stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function setManagerRole(db, accountId, slug, targetAccountId, role) {
+export async function setManagerRole(db, accountId, slug, targetAccountId, role, { stepUp } = {}) {
 	if (role !== 'owner' && role !== 'manager') return failure(400, MESSAGES.invalid);
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
-	const res = await db
-		.prepare(
-			`UPDATE profile_managers SET role = ?3 WHERE profile_id = ?1 AND account_id = ?2
-			AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
-		)
-		.bind(managed.profile.id, text(targetAccountId), role)
-		.run();
+	const target = text(targetAccountId);
+	const current = await managerRole(db, managed.profile.id, target);
+	if (!current) return failure(409, MESSAGES.notManager);
+	const self = target === accountId;
+	const sensitive = role === 'owner' ? current !== 'owner' : current === 'owner' && !self;
+	if (sensitive) {
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
+	// Sin código, la sentencia solo puede tocar a quien no es dueñe (o a une misme): si alguien
+	// lo hizo dueñe en el medio, no se hace nada.
+	const unconfirmedGuard = sensitive || self ? '' : "AND role = 'manager'";
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`UPDATE profile_managers SET role = ?3 WHERE profile_id = ?1 AND account_id = ?2
+				AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1) ${unconfirmedGuard}`
+			)
+			.bind(managed.profile.id, target, role),
+		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
+	]);
 	if (res.meta.changes) return { ok: true };
-	return failure(
-		409,
-		(await isManager(db, managed.profile.id, text(targetAccountId)))
-			? MESSAGES.lastOwnerOther
-			: MESSAGES.notManager
-	);
+	const after = await managerRole(db, managed.profile.id, target);
+	if (after === role) return { ok: true };
+	if (!after) return failure(409, MESSAGES.notManager);
+	return failure(409, sensitive || self ? MESSAGES.lastOwnerOther : MESSAGES.busy);
 }
 
 /**
@@ -723,24 +788,53 @@ export async function setManagerRole(db, accountId, slug, targetAccountId, role)
  * @param {string} accountId
  */
 async function isManager(db, profileId, accountId) {
+	return (await managerRole(db, profileId, accountId)) !== null;
+}
+
+/**
+ * El rol de una cuenta en un perfil, o `null` si no lo gestiona.
+ *
+ * @param {D1Database} db
+ * @param {number} profileId
+ * @param {string} accountId
+ * @returns {Promise<ManagerRole | null>}
+ */
+async function managerRole(db, profileId, accountId) {
 	const row = await db
-		.prepare('SELECT 1 AS x FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
+		.prepare('SELECT role FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
 		.bind(profileId, accountId)
 		.first();
-	return Boolean(row);
+	if (!row) return null;
+	return row.role === 'owner' ? 'owner' : 'manager';
+}
+
+/**
+ * Pide el código fresco (`stepUp`); sin `stepUp`, la acción no se hace.
+ *
+ * @param {StepUp | undefined} stepUp
+ * @returns {Promise<Failure | null>}
+ */
+async function confirmStep(stepUp) {
+	if (!stepUp) return failure(403, MESSAGES.needsCode);
+	return stepUp();
 }
 
 /**
  * Saca a alguien de la gestión de un grupo: une dueñe a cualquiera, cualquiera a sí misme
- * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia).
+ * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia). Las
+ * invitaciones pendientes que mandó se borran en la misma tanda.
+ *
+ * Sacar a otre dueñe pide además un código fresco por mail (`stepUp`); sacar a une manager o irse
+ * une misme, no.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
  * @param {unknown} targetAccountId
+ * @param {{ stepUp?: StepUp }} [opts]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-export async function removeManager(db, accountId, slug, targetAccountId) {
+export async function removeManager(db, accountId, slug, targetAccountId, { stepUp } = {}) {
 	const target = text(targetAccountId);
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
@@ -748,15 +842,25 @@ export async function removeManager(db, accountId, slug, targetAccountId) {
 	if (managed.kind !== 'grupo')
 		return failure(400, self ? MESSAGES.personaLeave : MESSAGES.onlyGroups);
 	if (!self && managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
-	const res = await db
-		.prepare(
-			`DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2
-			AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
-		)
-		.bind(managed.profile.id, target)
-		.run();
+	const sensitive = !self && (await managerRole(db, managed.profile.id, target)) === 'owner';
+	if (sensitive) {
+		const bad = await confirmStep(stepUp);
+		if (bad) return bad;
+	}
+	// Sin código, solo se puede sacar a une manager (o irse une misme).
+	const unconfirmedGuard = sensitive || self ? '' : "AND role = 'manager'";
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2
+				AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1) ${unconfirmedGuard}`
+			)
+			.bind(managed.profile.id, target),
+		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
+	]);
 	if (res.meta.changes) return { ok: true };
 	if (!(await isManager(db, managed.profile.id, target))) return failure(409, MESSAGES.notManager);
+	if (!sensitive && !self) return failure(409, MESSAGES.busy);
 	return failure(409, self ? MESSAGES.lastOwner : MESSAGES.lastOwnerOther);
 }
 
@@ -1118,9 +1222,52 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Suelta los perfiles de una cuenta que se va a borrar: sus perfiles de persona se borran
- * (suave); de los grupos sale, y si era le última dueñe pasa la propiedad a quien gestiona hace
- * más tiempo o, si no queda nadie, borra el grupo (suave). Las invitaciones que mandó quedan.
+ * Quién figura como autore (`created_by`, `updated_by`) de los perfiles que deja una cuenta
+ * borrada: el mismo para todas, así nada vincula esos perfiles entre sí ni con la cuenta.
+ */
+export const DELETED_ACTOR = 'cuenta:borrada';
+/** El nombre que queda en un perfil de persona de una cuenta borrada. */
+export const DELETED_TITLE = 'Perfil borrado';
+/** Intentos por perfil si otro guardado se cruza mientras se suelta. */
+const RELEASE_ATTEMPTS = 3;
+
+/**
+ * Guarda un perfil con la versión que tiene AHORA (la vuelve a leer en cada intento), para que un
+ * guardado que se cruza no corte el borrado de la cuenta a la mitad.
+ *
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {(version: number) => Parameters<typeof saveObject>[1]} input
+ * @param {Parameters<typeof saveObject>[2]} context
+ */
+async function saveFresh(db, id, input, context) {
+	for (let attempt = 1; ; attempt++) {
+		const row = await db.prepare('SELECT version FROM objects WHERE id = ?1').bind(id).first();
+		if (!row) return;
+		try {
+			await saveObject(db, input(Number(row.version)), context);
+			return;
+		} catch (error) {
+			if (error instanceof VersionConflictError && attempt < RELEASE_ATTEMPTS) continue;
+			throw error;
+		}
+	}
+}
+
+/**
+ * Suelta los perfiles de una cuenta que se va a borrar:
+ * - sus perfiles de persona (también los que ya había borrado) se vacían y se borran: sin
+ *   presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
+ *   sin los grupos de los que era parte y con `created_by`/`updated_by` neutros
+ *   (`DELETED_ACTOR`). La fila queda (borrado suave) para que la dirección no se reuse; se van
+ *   también su fila de gestión y sus bloqueos de grupos;
+ * - de los grupos sale: si era le última dueñe, pasa la propiedad a quien gestiona hace más
+ *   tiempo (el grupo queda con sus datos) o, si no queda nadie, borra el grupo (suave, con sus
+ *   datos: es de un grupo, no de la persona);
+ * - se borran las invitaciones que mandó.
+ *
+ * Se puede volver a correr sin problema: lo que ya se soltó no aparece de nuevo. Si algo falla a
+ * la mitad, la cuenta sigue viva y el próximo intento termina el trabajo.
  *
  * La llama `closeAccount()` (cuentas/index.js) antes de borrar la cuenta.
  *
@@ -1129,39 +1276,72 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
  * @param {{ now?: number }} [opts]
  */
 export async function releaseAccountProfiles(db, accountId, { now = Date.now() } = {}) {
-	const actor = accountActor(accountId);
-	for (const p of await listMyProfiles(db, accountId)) {
-		if (p.kind === 'grupo') {
-			const others = await db
-				.prepare(
-					`SELECT p.account_id, p.role FROM profile_managers p JOIN accounts a ON a.id = p.account_id
-					WHERE p.profile_id = ?1 AND p.account_id != ?2 AND a.deleted_at IS NULL
-					ORDER BY p.role = 'owner' DESC, p.created_at`
-				)
-				.bind(p.id, accountId)
-				.all();
-			const heir = others.results[0];
-			if (heir) {
-				await db.batch([
-					db
-						.prepare(
-							"UPDATE profile_managers SET role = 'owner' WHERE profile_id = ?1 AND account_id = ?2"
-						)
-						.bind(p.id, heir.account_id),
-					db
-						.prepare('DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
-						.bind(p.id, accountId)
-				]);
-				continue;
-			}
+	const context = { actor: DELETED_ACTOR, now };
+	// Todas sus filas de gestión, también de perfiles ya borrados (una persona que borró antes
+	// tiene que quedar vacía igual).
+	const { results } = await db
+		.prepare(
+			`SELECT o.id, o.data, o.deleted_at FROM profile_managers pm
+			JOIN objects o ON o.id = pm.profile_id
+			WHERE pm.account_id = ?1 AND o.type = ?2 ORDER BY o.id`
+		)
+		.bind(accountId, PROFILE_TYPE)
+		.all();
+	for (const row of results) {
+		const p = rowToObject(row);
+		if (p.data.kind !== 'grupo') {
+			await saveFresh(
+				db,
+				p.id,
+				(version) => ({
+					id: p.id,
+					type: PROFILE_TYPE,
+					version,
+					title: DELETED_TITLE,
+					data: { kind: 'persona' },
+					edges: { [MEMBER_EDGE]: [] },
+					deleted: true
+				}),
+				{
+					...context,
+					createdBy: DELETED_ACTOR,
+					also: () => [
+						db.prepare('DELETE FROM profile_managers WHERE profile_id = ?1').bind(p.id),
+						db.prepare('DELETE FROM profile_member_blocks WHERE persona_id = ?1').bind(p.id)
+					]
+				}
+			);
+			continue;
 		}
-		await saveObject(
+		if (p.deleted_at !== null) continue;
+		const others = await db
+			.prepare(
+				`SELECT p.account_id, p.role FROM profile_managers p JOIN accounts a ON a.id = p.account_id
+				WHERE p.profile_id = ?1 AND p.account_id != ?2 AND a.deleted_at IS NULL
+				ORDER BY p.role = 'owner' DESC, p.created_at`
+			)
+			.bind(p.id, accountId)
+			.all();
+		const heir = others.results[0];
+		if (heir) {
+			await db.batch([
+				db
+					.prepare(
+						"UPDATE profile_managers SET role = 'owner' WHERE profile_id = ?1 AND account_id = ?2"
+					)
+					.bind(p.id, heir.account_id),
+				db
+					.prepare('DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
+					.bind(p.id, accountId)
+			]);
+			continue;
+		}
+		await saveFresh(
 			db,
-			{ id: p.id, type: PROFILE_TYPE, version: p.version, deleted: true },
-			{
-				actor,
-				now
-			}
+			p.id,
+			(version) => ({ id: p.id, type: PROFILE_TYPE, version, deleted: true }),
+			context
 		);
 	}
+	await db.prepare('DELETE FROM profile_invites WHERE invited_by = ?1').bind(accountId).run();
 }

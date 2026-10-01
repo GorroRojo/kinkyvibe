@@ -151,6 +151,30 @@ describe('crear y editar', () => {
 		expect(back).toMatchObject({ deleted_at: null, version: 3 });
 	});
 
+	it('created_by no cambia al editar, salvo con `createdBy` (y nunca al crear)', async () => {
+		const o = await newLugar();
+		const edited = await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 1, title: 'Otro Salón' },
+			{ ...ctx, actor: 'otre-admin' }
+		);
+		expect(edited).toMatchObject({ created_by: 'admin-inventade', updated_by: 'otre-admin' });
+		const anon = await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 2 },
+			{ ...ctx, actor: 'cuenta:borrada', createdBy: 'cuenta:borrada' }
+		);
+		expect(anon).toMatchObject({ created_by: 'cuenta:borrada', updated_by: 'cuenta:borrada' });
+		const onCreate = await caught(() =>
+			saveObject(t.db, { type: 'lugar', title: 'Nuevo' }, { ...ctx, createdBy: 'alguien' })
+		);
+		expect(onCreate).toBeInstanceOf(ObjectError);
+		const empty = await caught(() =>
+			saveObject(t.db, { id: o.id, type: 'lugar', version: 3 }, { ...ctx, createdBy: '' })
+		);
+		expect(empty).toBeInstanceOf(ObjectError);
+	});
+
 	it('slugify saca tildes y signos', () => {
 		expect(slugify('  ¡Ñandú  Picante! 2026 ')).toBe('nandu-picante-2026');
 	});

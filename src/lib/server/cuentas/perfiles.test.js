@@ -10,12 +10,16 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/index.js';
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import { closeAccount } from './index.js';
+import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
 import {
+	DELETED_ACTOR,
+	DELETED_TITLE,
 	INVITE_RATE_LIMITS,
 	INVITE_TTL_MS,
 	MAX_PROFILES_PER_ACCOUNT,
 	MESSAGES,
 	LEAVE_BLOCK_MS,
+	SLUG_SUFFIX_LENGTH,
 	accountActor,
 	addMember,
 	answerInvite,
@@ -60,6 +64,12 @@ const opts = { now: NOW };
 
 /** @param {string} name */
 const account = (name) => upsertVerifiedAccount(t.db, `${name}@example.com`, opts);
+
+/**
+ * Como si se hubiera escrito un código fresco por mail correcto (las acciones de dueñes y borrar
+ * un grupo lo piden; ver el describe «código fresco para acciones de dueñes»).
+ */
+const withCode = { stepUp: async () => null };
 
 /**
  * @template T
@@ -121,7 +131,7 @@ describe('migración 0014', () => {
 		ok(await inviteManager(t.db, a.id, group.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
 		ok(await answerInvite(t.db, b.id, inv.id, true, opts));
-		ok(await setManagerRole(t.db, a.id, group.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, group.slug, b.id, 'owner', withCode));
 		ok(await inviteManager(t.db, a.id, group.slug, 'invitade@example.com', opts));
 		await t.db.prepare('DELETE FROM accounts WHERE id = ?1').bind(a.id).run();
 		const row = await t.db.prepare('SELECT invited_by FROM profile_invites').first();
@@ -203,7 +213,13 @@ describe('crear y listar', () => {
 		const b = await account('otre-inventade');
 		await create(a.id, { kind: 'persona', title: 'Mismo Nombre', visibility: 'hidden' });
 		const second = await create(b.id, { kind: 'persona', title: 'Mismo Nombre' });
-		expect(second.slug).toBe('mismo-nombre-2');
+		const third = await create(b.id, { kind: 'persona', title: 'Mismo Nombre' });
+		// Un sufijo al azar, no -2, -3…: la dirección no dice cuántos perfiles hay con ese nombre.
+		for (const p of [second, third]) {
+			expect(p.slug).toMatch(new RegExp(`^mismo-nombre-[a-z0-9]{${SLUG_SUFFIX_LENGTH}}$`));
+			expect(p.slug).not.toMatch(/-\d$/);
+		}
+		expect(third.slug).not.toBe(second.slug);
 	});
 
 	it('mostrar integrantes es solo para grupos', async () => {
@@ -272,7 +288,7 @@ describe('permisos', () => {
 			status: 409,
 			message: MESSAGES.lastOwnerOther
 		});
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		ok(await leaveProfile(t.db, a.id, g.slug));
 		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
 		expect(await leaveProfile(t.db, b.id, g.slug)).toMatchObject({ message: MESSAGES.lastOwner });
@@ -285,7 +301,7 @@ describe('permisos', () => {
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
-		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
 		await deleteAccount(t.db, b.id, opts);
 		expect(await leaveProfile(t.db, a.id, g.slug)).toMatchObject({ message: MESSAGES.lastOwner });
 	});
@@ -351,10 +367,13 @@ describe('invitaciones a gestionar', () => {
 		expect(withAccount).toEqual({ ok: true, message: MESSAGES.invited });
 		expect(without).toEqual(withAccount);
 		expect(already).toEqual(withAccount);
-		// La lista de quien invita tampoco lo revela: tres invitaciones iguales, sin mail.
+		// La lista de quien invita tampoco lo revela: tres invitaciones iguales, sin el mail
+		// invitado (solo quién invitó, que es otre dueñe).
 		const list = ok(await listManagers(t.db, a.id, g.slug, opts));
 		expect(list.invites).toHaveLength(3);
-		expect(JSON.stringify(list.invites)).not.toMatch(/example\.com/);
+		expect(list.invites.map((i) => i.invitedBy)).toEqual([a.email, a.email, a.email]);
+		const listed = JSON.stringify(list.invites);
+		for (const email of [b.email, 'nadie@example.com']) expect(listed).not.toContain(email);
 
 		expect(await myInvites(t.db, c.id, opts)).toEqual([]);
 		const [inv] = await myInvites(t.db, b.id, opts);
@@ -397,7 +416,7 @@ describe('invitaciones a gestionar', () => {
 		});
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
-		ok(await deleteProfile(t.db, a.id, g.slug, 1, opts));
+		ok(await deleteProfile(t.db, a.id, g.slug, 1, { ...opts, ...withCode }));
 		expect(await myInvites(t.db, b.id, opts)).toEqual([]);
 		expect(await answerInvite(t.db, b.id, inv.id, true, opts)).toMatchObject({ ok: false });
 	});
@@ -566,6 +585,182 @@ describe('aviso por mail de las invitaciones', () => {
 		expect(results.filter((r) => r === 'sent')).toHaveLength(limit);
 		expect(results.at(-1)).toBe('limited');
 		expect(await myInvites(t.db, b.id, opts)).toHaveLength(limit + 1);
+	});
+
+	it('con el tope global de mails lleno, el aviso no sale y la invitación queda', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		const fake = fakeNotice();
+		expect(
+			await inviteManager(t.db, a.id, g.slug, b.email, { ...opts, notice: fake.notice })
+		).toEqual({ ok: true, message: MESSAGES.invited });
+		expect(await fake.settle()).toEqual(['limited']);
+		expect(fake.sent).toEqual([]);
+		expect(await myInvites(t.db, b.id, opts)).toHaveLength(1);
+	});
+});
+
+describe('código fresco para acciones de dueñes', () => {
+	/** Un `stepUp` que cuenta las veces que se lo llamó y responde lo que se le pida. */
+	function stepUp(
+		answer = /** @type {null | { ok: false, status: number, message: string }} */ (null)
+	) {
+		const fn = vi.fn(async () => answer);
+		return { fn, opts: { stepUp: fn } };
+	}
+	const wrong = {
+		ok: /** @type {const} */ (false),
+		status: 400,
+		message: 'código mal (de prueba)'
+	};
+
+	/** Grupo de `a` con `b` como manager. */
+	async function setup() {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		/** @param {string} id */
+		const role = async (id) => (await getManagedProfile(t.db, id, g.slug))?.role ?? null;
+		return { a, b, g, role };
+	}
+
+	it('hacer dueñe, sacar la propiedad o sacar a otre dueñe: sin código no se hace', async () => {
+		const { a, b, g, role } = await setup();
+		expect(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner')).toEqual({
+			ok: false,
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		const bad = stepUp(wrong);
+		expect(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', bad.opts)).toEqual(wrong);
+		expect(await role(b.id)).toBe('manager');
+
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		expect(await role(b.id)).toBe('owner');
+		// Ya dueñe: b no puede sacar a a ni sacarle la propiedad sin código.
+		expect(await removeManager(t.db, b.id, g.slug, a.id)).toMatchObject({
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		expect(await setManagerRole(t.db, b.id, g.slug, a.id, 'manager', bad.opts)).toEqual(wrong);
+		expect(await role(a.id)).toBe('owner');
+		ok(await removeManager(t.db, b.id, g.slug, a.id, withCode));
+		expect(await role(a.id)).toBeNull();
+	});
+
+	it('con solo una sesión ajena (sin el mail) no se puede quedar con un grupo', async () => {
+		const v = await account('victima-inventada');
+		const x = await account('otra-cuenta-inventada');
+		const g = await create(v.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		// Con la sesión de v: invita a x y x acepta…
+		ok(await inviteManager(t.db, v.id, g.slug, x.email, opts));
+		ok(await answerInvite(t.db, x.id, (await myInvites(t.db, x.id, opts))[0].id, true, opts));
+		// …pero hacerla dueñe pide el código que le llega a v.
+		const noMail = stepUp(wrong);
+		expect(await setManagerRole(t.db, v.id, g.slug, x.id, 'owner', noMail.opts)).toEqual(wrong);
+		expect(await removeManager(t.db, x.id, g.slug, v.id)).toMatchObject({ status: 403 });
+		expect((await getManagedProfile(t.db, v.id, g.slug))?.role).toBe('owner');
+	});
+
+	it('borrar un grupo pide código; borrar un perfil de persona, no', async () => {
+		const { a, g } = await setup();
+		expect(await deleteProfile(t.db, a.id, g.slug, g.version, opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.needsCode
+		});
+		const bad = stepUp(wrong);
+		expect(await deleteProfile(t.db, a.id, g.slug, g.version, { ...opts, ...bad.opts })).toEqual(
+			wrong
+		);
+		// Con una versión vieja no se gasta el código.
+		const unused = stepUp();
+		expect(
+			await deleteProfile(t.db, a.id, g.slug, g.version + 5, { ...opts, ...unused.opts })
+		).toMatchObject({ status: 409 });
+		expect(unused.fn).not.toHaveBeenCalled();
+		expect(await getManagedProfile(t.db, a.id, g.slug)).not.toBeNull();
+		ok(await deleteProfile(t.db, a.id, g.slug, g.version, { ...opts, ...withCode }));
+		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
+
+		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
+		const notNeeded = stepUp();
+		ok(await deleteProfile(t.db, a.id, p.slug, p.version, { ...opts, ...notNeeded.opts }));
+		expect(notNeeded.fn).not.toHaveBeenCalled();
+	});
+
+	it('no pide código para lo demás, ni lo gasta si no hay permiso', async () => {
+		const { a, b, g, role } = await setup();
+		const asked = stepUp();
+		// Une manager sin permiso: 403 sin tocar el código.
+		expect(await setManagerRole(t.db, b.id, g.slug, b.id, 'owner', asked.opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.onlyOwner
+		});
+		expect(await removeManager(t.db, b.id, g.slug, a.id, asked.opts)).toMatchObject({
+			status: 403,
+			message: MESSAGES.onlyOwner
+		});
+		// Sacar a une manager o irse une misme: sin código.
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		ok(await setManagerRole(t.db, a.id, g.slug, a.id, 'manager', asked.opts));
+		ok(await removeManager(t.db, b.id, g.slug, a.id, asked.opts));
+		expect(await role(a.id)).toBeNull();
+		expect(asked.fn).not.toHaveBeenCalled();
+	});
+});
+
+describe('invitaciones de quien deja de ser dueñe', () => {
+	/**
+	 * Grupo de `a` con `b` como dueñe también, y una invitación pendiente de cada une.
+	 */
+	async function setup() {
+		const a = await account('dueñe-inventade');
+		const b = await account('otre-dueñe-inventade');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		ok(await inviteManager(t.db, a.id, g.slug, 'de-a@example.com', opts));
+		ok(await inviteManager(t.db, b.id, g.slug, 'de-b@example.com', opts));
+		/** @param {string} id */
+		const pendingBy = (id) =>
+			count('SELECT COUNT(*) AS n FROM profile_invites WHERE invited_by = ?1', [id]);
+		return { a, b, g, pendingBy };
+	}
+
+	it('sacarle la propiedad borra sus invitaciones; las de otres quedan', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager', withCode));
+		expect(await pendingBy(b.id)).toBe(0);
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('sacarle de la gestión borra sus invitaciones', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await removeManager(t.db, a.id, g.slug, b.id, withCode));
+		expect(await pendingBy(b.id)).toBe(0);
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('si el cambio no se hace (le última dueñe), sus invitaciones quedan', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await removeManager(t.db, a.id, g.slug, b.id, withCode));
+		expect(await setManagerRole(t.db, a.id, g.slug, a.id, 'manager')).toMatchObject({
+			ok: false
+		});
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('les dueñes ven quién mandó cada invitación; les managers no ven las invitaciones', async () => {
+		const { a, b, g } = await setup();
+		const list = ok(await listManagers(t.db, a.id, g.slug, opts));
+		expect(list.invites.map((i) => i.invitedBy).sort()).toEqual([a.email, b.email].sort());
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager', withCode));
+		expect(ok(await listManagers(t.db, b.id, g.slug, opts)).invites).toEqual([]);
 	});
 });
 
@@ -832,13 +1027,31 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		expect(admin?.created_by).toBe(accountActor(a.id));
 	});
 
-	it('un perfil oculto lo ve quien lo creó; otra cuenta y anónimes no', async () => {
+	it('un perfil oculto no se ve fuera de Mi rincón (ni para quien lo creó); se gestiona igual', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('otre-inventade');
 		const p = await create(a.id, { kind: 'persona', title: 'Oculta', visibility: 'hidden' });
-		expect(await getPublicProfile(t.db, p.slug, memberViewer(a.id))).not.toBeNull();
+		expect(await getPublicProfile(t.db, p.slug, memberViewer(a.id))).toBeNull();
 		expect(await getPublicProfile(t.db, p.slug, memberViewer(b.id))).toBeNull();
 		expect(await getPublicProfile(t.db, p.slug, ANON)).toBeNull();
+		expect((await getManagedProfile(t.db, a.id, p.slug))?.profile.visibility).toBe('hidden');
+		expect(
+			await getPublicProfile(t.db, p.slug, { role: 'admin', id: 'admin-inventade' })
+		).not.toBeNull();
+	});
+
+	it('quien creó un grupo oculto y ya no lo gestiona deja de verlo', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Oculto', visibility: 'hidden' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
+		ok(await leaveProfile(t.db, a.id, g.slug));
+		expect(await getPublicProfile(t.db, g.slug, memberViewer(a.id))).toBeNull();
+		expect(await getObject(t.db, { type: 'perfil', slug: g.slug }, memberViewer(a.id))).toBeNull();
+		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
+		expect(await getManagedProfile(t.db, b.id, g.slug)).not.toBeNull();
 	});
 });
 
@@ -877,5 +1090,100 @@ describe('al borrar una cuenta', () => {
 			.first();
 		expect(row?.email).toBeNull();
 		expect(row?.deleted_at).not.toBeNull();
+	});
+
+	it('vacía los perfiles de persona (también los ya borrados) y los desvincula de la cuenta', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const p = await create(a.id, { kind: 'persona', title: 'Nombre Inventado' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				p.slug,
+				{
+					title: 'Nombre Inventado',
+					bio: 'presentación zanahoria',
+					pronouns: 'elle',
+					links: 'https://example.com/inventade',
+					version: p.version
+				},
+				opts
+			)
+		);
+		const before = await create(a.id, { kind: 'persona', title: 'Otro Nombre' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				before.slug,
+				{ title: 'Otro Nombre', bio: 'otra zanahoria', version: before.version },
+				opts
+			)
+		);
+		ok(await deleteProfile(t.db, a.id, before.slug, before.version + 1, opts));
+		// Un grupo de otra cuenta la sumó y otro grupo la tiene bloqueada.
+		const g = await create(b.id, { kind: 'grupo', title: 'Grupo Ajeno', bio: 'datos del grupo' });
+		ok(await addMember(t.db, b.id, g.slug, p.slug, opts));
+		const g2 = await create(b.id, { kind: 'grupo', title: 'Grupo Dos' });
+		ok(await addMember(t.db, b.id, g2.slug, p.slug, opts));
+		ok(await leaveMembership(t.db, a.id, p.slug, g2.id, opts));
+		// Un grupo propio que pasa a b: queda con sus datos.
+		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				shared.slug,
+				{ title: 'Grupo Compartido', bio: 'bio del grupo', version: shared.version },
+				opts
+			)
+		);
+		ok(await inviteManager(t.db, a.id, shared.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await inviteManager(t.db, a.id, shared.slug, 'pendiente@example.com', opts));
+
+		expect(await closeAccount(t.db, a.id, opts)).toBe(true);
+
+		for (const id of [p.id, before.id]) {
+			const row = await t.db
+				.prepare(
+					'SELECT slug, title, data, search_text, created_by, updated_by, deleted_at FROM objects WHERE id = ?1'
+				)
+				.bind(id)
+				.first();
+			expect(row?.deleted_at).not.toBeNull();
+			expect(row?.title).toBe(DELETED_TITLE);
+			expect(JSON.parse(String(row?.data))).toEqual({ kind: 'persona' });
+			expect(row?.search_text).toBe('');
+			expect(row?.created_by).toBe(DELETED_ACTOR);
+			expect(row?.updated_by).toBe(DELETED_ACTOR);
+			// La dirección queda reservada.
+			expect(row?.slug).toBe(id === p.id ? p.slug : before.slug);
+		}
+		expect(await count('SELECT COUNT(*) AS n FROM edges WHERE from_id = ?1', [p.id])).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1', [a.id])
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_member_blocks WHERE persona_id = ?1', [p.id])
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE invited_by = ?1', [a.id])
+		).toBe(0);
+		// Nada queda en la búsqueda, ni para admins.
+		expect(
+			await searchObjects(t.db, 'zanahoria', { role: 'admin', id: 'admin-inventade' })
+		).toEqual([]);
+		expect(
+			await count(`SELECT COUNT(*) AS n FROM objects_fts WHERE objects_fts MATCH '"zanahoria"'`)
+		).toBe(0);
+		// Los grupos quedan con sus datos.
+		expect((await getPublicProfile(t.db, shared.slug))?.bio).toBe('bio del grupo');
+		expect(await listGroupMembers(t.db, b.id, g.slug)).toEqual([]);
+
+		// Se puede volver a correr sin problema.
+		await releaseAccountProfiles(t.db, a.id, opts);
+		expect(await closeAccount(t.db, a.id, opts)).toBe(false);
 	});
 });

@@ -10,7 +10,8 @@
 	 * Lo que devuelven las actions (cada una usa una parte).
 	 * @typedef {{
 	 *   action?: string, error?: string, message?: string, errors?: Record<string, string>,
-	 *   draft?: Record<string, any>, conflict?: boolean, input?: Record<string, any>
+	 *   draft?: Record<string, any>, conflict?: boolean, input?: Record<string, any>,
+	 *   codeSentFor?: string
 	 * }} FormState
 	 */
 	/** @type {FormState | null | undefined} */
@@ -37,6 +38,19 @@
 		new Date(d).toLocaleDateString('es-AR', { timeZone: TIMEZONE, day: 'numeric', month: 'long' });
 
 	let confirmName = '';
+
+	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el grupo. */
+	$: codeSent = f?.codeSentFor === 'grupo';
+	/** El código que se escribió (uno solo para toda la página: sirve para una acción). */
+	let groupCode = '';
+	$: if (!codeSent) groupCode = '';
+
+	/** Sin vaciar los campos al responder (así un código mal escrito se corrige sin perder nada). */
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const keep =
+		() =>
+		async ({ update }) =>
+			update({ reset: false });
 </script>
 
 <svelte:head>
@@ -218,6 +232,35 @@
 			{:else if msg('gestion')?.message}
 				<p class="ok" role="status">{msg('gestion')?.message}</p>
 			{/if}
+			{#if owner}
+				<div class="stepup">
+					<p class="hint">
+						Para hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe te pedimos un
+						código por mail, así nadie puede hacerlo con tu sesión abierta.
+					</p>
+					{#if codeSent}
+						<label>
+							<span>Código que te llegó por mail</span>
+							<input
+								type="text"
+								inputmode="numeric"
+								autocomplete="one-time-code"
+								maxlength="9"
+								bind:value={groupCode}
+							/>
+						</label>
+						<form method="POST" action="?/confirmar" use:enhance>
+							<input type="hidden" name="donde" value="gestion" />
+							<button class="link" type="submit">Mandame otro código</button>
+						</form>
+					{:else}
+						<form method="POST" action="?/confirmar" use:enhance>
+							<input type="hidden" name="donde" value="gestion" />
+							<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
+						</form>
+					{/if}
+				</div>
+			{/if}
 			<ul class="list">
 				{#each data.managers as m (m.accountId)}
 					<li>
@@ -228,21 +271,36 @@
 									<span class="hint">{ROLE_LABELS[m.role]}</span>
 								</summary>
 								<div class="row">
-									<form method="POST" action="?/rol" use:enhance>
+									<form method="POST" action="?/rol" use:enhance={keep}>
 										<input type="hidden" name="account" value={m.accountId} />
 										<input
 											type="hidden"
 											name="role"
 											value={m.role === 'owner' ? 'manager' : 'owner'}
 										/>
-										<button class="pill-btn ghost" type="submit"
+										{#if codeSent}<input type="hidden" name="code" value={groupCode} />{/if}
+										<button class="pill-btn ghost" type="submit" disabled={!codeSent}
 											>{m.role === 'owner' ? 'Sacarle la propiedad' : 'Hacer dueñe'}</button
 										>
 									</form>
-									<form method="POST" action="?/sacar" use:enhance>
+									<form method="POST" action="?/sacar" use:enhance={keep}>
 										<input type="hidden" name="account" value={m.accountId} />
-										<button class="pill-btn delete" type="submit">Sacar de la gestión</button>
+										{#if codeSent && m.role === 'owner'}
+											<input type="hidden" name="code" value={groupCode} />
+										{/if}
+										<button
+											class="pill-btn delete"
+											type="submit"
+											disabled={m.role === 'owner' && !codeSent}>Sacar de la gestión</button
+										>
 									</form>
+									{#if !codeSent}
+										<p class="hint">
+											{m.role === 'owner'
+												? 'Primero pedí el código de arriba.'
+												: 'Para hacerle dueñe, primero pedí el código de arriba.'}
+										</p>
+									{/if}
 								</div>
 							</details>
 						{:else}
@@ -280,7 +338,9 @@
 						{#each data.invites as inv (inv.id)}
 							<li>
 								<span class="hint"
-									>Del {fmtDate(inv.createdAt)}; vence el {fmtDate(inv.expiresAt)}.</span
+									>{inv.invitedBy ? `La mandó ${inv.invitedBy}` : 'Invitación'} el {fmtDate(
+										inv.createdAt
+									)}; vence el {fmtDate(inv.expiresAt)}.</span
 								>
 								<form method="POST" action="?/cancelarInvitacion" use:enhance>
 									<input type="hidden" name="invite" value={inv.id} />
@@ -353,19 +413,52 @@
 						: 'Se borra este perfil. Tus otros perfiles y tu cuenta siguen igual.'}
 					Deja de verse en todos lados. Si fue un error, escribinos: les admins lo pueden recuperar.
 				</p>
-				<form method="POST" action="?/borrar" use:enhance>
-					<input type="hidden" name="version" value={p.version} />
-					<label>
-						<span>Para confirmar, escribí «{p.title}»</span>
-						<input name="confirm" type="text" autocomplete="off" bind:value={confirmName} />
-					</label>
-					<button
-						class="pill-btn delete"
-						type="submit"
-						disabled={confirmName.trim().toLowerCase() !== p.title.trim().toLowerCase()}
-						>Borrar</button
-					>
-				</form>
+				{#if group && !codeSent}
+					{#if msg('borrar')?.message}
+						<p class="ok" role="status">{msg('borrar')?.message}</p>
+					{/if}
+					<p class="hint">Para borrar el grupo te pedimos un código por mail.</p>
+					<form method="POST" action="?/confirmar" use:enhance>
+						<input type="hidden" name="donde" value="borrar" />
+						<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
+					</form>
+				{:else}
+					{#if group && msg('borrar')?.message}
+						<p class="ok" role="status">{msg('borrar')?.message}</p>
+					{/if}
+					<form method="POST" action="?/borrar" use:enhance={keep}>
+						<input type="hidden" name="version" value={p.version} />
+						{#if group}
+							<label>
+								<span>Código que te llegó por mail</span>
+								<input
+									type="text"
+									inputmode="numeric"
+									autocomplete="one-time-code"
+									maxlength="9"
+									bind:value={groupCode}
+								/>
+							</label>
+							<input type="hidden" name="code" value={groupCode} />
+						{/if}
+						<label>
+							<span>Para confirmar, escribí «{p.title}»</span>
+							<input name="confirm" type="text" autocomplete="off" bind:value={confirmName} />
+						</label>
+						<button
+							class="pill-btn delete"
+							type="submit"
+							disabled={confirmName.trim().toLowerCase() !== p.title.trim().toLowerCase()}
+							>Borrar</button
+						>
+					</form>
+					{#if group}
+						<form method="POST" action="?/confirmar" use:enhance>
+							<input type="hidden" name="donde" value="borrar" />
+							<button class="link" type="submit">Mandame otro código</button>
+						</form>
+					{/if}
+				{/if}
 			</details>
 		{/if}
 	</section>
@@ -520,6 +613,17 @@
 	}
 	.danger {
 		border-top: 0.25rem solid var(--1-dark);
+	}
+	.stepup {
+		display: grid;
+		gap: 0.5em;
+		padding: 0.6em 0.8em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+	}
+	button:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
 	}
 	.pill-btn.delete {
 		background: var(--1-dark);

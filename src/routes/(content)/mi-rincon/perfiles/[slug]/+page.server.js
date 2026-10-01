@@ -5,10 +5,15 @@
  *
  * Todas las reglas están en src/lib/server/cuentas/perfiles.js. Si la cuenta no gestiona el
  * perfil, da 404 (como si no existiera).
+ *
+ * Hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe, y borrar el grupo piden un
+ * código fresco por mail (purpose 'grupo'), como la contraseña en Mi rincón: ?/confirmar lo manda
+ * y la acción lo verifica y lo gasta (perfiles.js decide cuándo hace falta).
  */
 import { error, fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
 import {
+	MESSAGES,
 	addMember,
 	cancelInvite,
 	deleteProfile,
@@ -30,6 +35,35 @@ import {
 	profileForm,
 	requireMember
 } from '$lib/server/cuentas/perfilesWeb.js';
+import { checkConfirmCode, requestConfirmCode } from '$lib/server/cuentas/index.js';
+import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
+
+/** Dónde se pidió el código (para mostrar el aviso en esa parte de la página). */
+const CONFIRM_PLACES = ['gestion', 'borrar'];
+
+/**
+ * El código fresco que escribió la persona, para perfiles.js (que lo pide solo si hace falta).
+ *
+ * @param {import('@sveltejs/kit').RequestEvent} event
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ email: string }} member
+ * @param {FormData} form
+ * @returns {import('$lib/server/cuentas/perfiles.js').StepUp}
+ */
+function groupStepUp(event, db, member, form) {
+	return async () => {
+		// Sin el campo (todavía no pidió el código): lo mismo que si no hubiera `stepUp`.
+		if (!form.has('code')) return { ok: false, status: 403, message: MESSAGES.needsCode };
+		const result = await checkConfirmCode({
+			db,
+			email: member.email,
+			purpose: 'grupo',
+			code: field(form, 'code', 20),
+			client: await clientOf(event)
+		});
+		return result.ok ? null : result;
+	};
+}
 
 /**
  * @param {import('@sveltejs/kit').RequestEvent} event
@@ -71,15 +105,23 @@ export async function load(event) {
 }
 
 /**
- * Resultado de un helper → respuesta de la action.
+ * Resultado de un helper → respuesta de la action. Si el formulario traía un código y algo falló,
+ * el campo del código sigue abierto (`codeSentFor`) para corregirlo o pedir otro.
  *
  * @param {string} action
  * @param {{ ok: true } | { ok: false, status: number, message: string, errors?: Record<string, string> }} result
  * @param {string} message
+ * @param {FormData} [form]
  */
-function reply(action, result, message) {
+function reply(action, result, message, form) {
 	if (!result.ok) {
-		return fail(result.status, { action, error: result.message, errors: result.errors ?? {} });
+		const codeSentFor = form?.has('code') ? 'grupo' : undefined;
+		return fail(result.status, {
+			action,
+			error: result.message,
+			errors: result.errors ?? {},
+			...(codeSentFor ? { codeSentFor } : {})
+		});
 	}
 	return { action, message };
 }
@@ -152,6 +194,36 @@ export const actions = {
 		);
 	},
 
+	// Paso 1 de las acciones de dueñes y de borrar el grupo: manda el código para confirmar.
+	confirmar: async (event) => {
+		const { db, member, found } = await managed(event);
+		const form = await event.request.formData();
+		const place = field(form, 'donde', 20);
+		const action = CONFIRM_PLACES.includes(place) ? place : 'gestion';
+		// Solo dueñes de un grupo (así nadie más la usa para mandar mails).
+		if (found.kind !== 'grupo' || found.role !== 'owner') {
+			return fail(403, { action, error: 'Eso lo puede hacer solo quien es dueñe del grupo.' });
+		}
+		try {
+			const result = await requestConfirmCode({
+				db,
+				email: member.email,
+				purpose: 'grupo',
+				client: await clientOf(event),
+				send: mailSender(event, db)
+			});
+			if (!result.ok) return fail(result.status, { action, error: result.message, errors: {} });
+		} catch (e) {
+			logDBError('perfiles: código para confirmar', e);
+			return fail(500, { action, error: 'Algo falló. Probá de nuevo.', errors: {} });
+		}
+		return {
+			action,
+			codeSentFor: 'grupo',
+			message: 'Te mandamos un código a tu mail para confirmar.'
+		};
+	},
+
 	rol: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
@@ -163,9 +235,11 @@ export const actions = {
 					member.id,
 					slug,
 					field(form, 'account', 40),
-					field(form, 'role', 20)
+					field(form, 'role', 20),
+					{ stepUp: groupStepUp(event, db, member, form) }
 				),
-				'Listo.'
+				'Listo.',
+				form
 			)
 		);
 	},
@@ -176,8 +250,11 @@ export const actions = {
 		return guarded('gestion', async () =>
 			reply(
 				'gestion',
-				await removeManager(db, member.id, slug, field(form, 'account', 40)),
-				'Listo: ya no gestiona este perfil.'
+				await removeManager(db, member.id, slug, field(form, 'account', 40), {
+					stepUp: groupStepUp(event, db, member, form)
+				}),
+				'Listo: ya no gestiona este perfil.',
+				form
 			)
 		);
 	},
@@ -199,12 +276,20 @@ export const actions = {
 			return fail(400, {
 				action: 'borrar',
 				error: 'Para borrarlo, escribí el nombre del perfil tal como está.',
-				errors: {}
+				errors: {},
+				...(form.has('code') ? { codeSentFor: 'grupo' } : {})
 			});
 		}
 		const version = Number(field(form, 'version', 20));
 		const result = await guarded('borrar', async () =>
-			reply('borrar', await deleteProfile(db, member.id, slug, version), '')
+			reply(
+				'borrar',
+				await deleteProfile(db, member.id, slug, version, {
+					stepUp: groupStepUp(event, db, member, form)
+				}),
+				'',
+				form
+			)
 		);
 		if ('status' in result) return result;
 		redirect(303, '/mi-rincon/perfiles');

@@ -261,6 +261,83 @@ describe('interruptor prendido', () => {
 		expect(again.data).toMatchObject({ error: m.perfiles.MESSAGES.recentlyLeft });
 	});
 
+	it('acciones de dueñes y borrar un grupo: piden un código fresco de grupo', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'dueñe-prueba');
+		const other = await member(m, 'gestora-prueba');
+		const created = await m.perfiles.createProfile(t.db, me.id, {
+			kind: 'grupo',
+			title: 'Grupo Inventado'
+		});
+		if (!created.ok) throw new Error('no se creó');
+		const params = { slug: created.profile.slug };
+		await m.perfiles.inviteManager(t.db, me.id, params.slug, other.email);
+		const [inv] = await m.perfiles.myInvites(t.db, other.id);
+		await m.perfiles.answerInvite(t.db, other.id, inv.id, true);
+		/** @param {Record<string, string>} form @param {{ id: string, email: string }} [who] */
+		const ev = (form, who = me) => fakeEvent({ member: who, params, form });
+
+		/** Pide el código (en tests sale en la consola, como en `vite dev` sin Resend). */
+		const askCode = async (donde = 'gestion') => {
+			/** @type {string[]} */
+			const logged = [];
+			const log = vi.spyOn(console, 'log').mockImplementation((...a) => {
+				logged.push(a.join(' '));
+			});
+			let res;
+			try {
+				res = await m.edit.actions.confirmar(ev({ donde }));
+			} finally {
+				log.mockRestore();
+			}
+			expect(res).toEqual({
+				action: donde,
+				codeSentFor: 'grupo',
+				message: 'Te mandamos un código a tu mail para confirmar.'
+			});
+			return logged.join('\n').match(/Código \(grupo\): (\d{6})/)?.[1] ?? '';
+		};
+
+		const role = { account: other.id, role: 'owner' };
+		expect(/** @type {any} */ (await m.edit.actions.rol(ev(role))).data).toMatchObject({
+			error: m.perfiles.MESSAGES.needsCode
+		});
+		// Une manager no puede pedir el código.
+		expect(
+			/** @type {any} */ (await m.edit.actions.confirmar(ev({ donde: 'gestion' }, other))).status
+		).toBe(403);
+		const code = await askCode();
+		expect(code).toMatch(/^\d{6}$/);
+		const wrong = /** @type {any} */ (
+			await m.edit.actions.rol(ev({ ...role, code: code === '000000' ? '111111' : '000000' }))
+		);
+		expect(wrong.status).toBe(400);
+		expect(wrong.data).toMatchObject({ action: 'gestion', codeSentFor: 'grupo' });
+		expect(await m.edit.actions.rol(ev({ ...role, code }))).toEqual({
+			action: 'gestion',
+			message: 'Listo.'
+		});
+		expect((await m.perfiles.getManagedProfile(t.db, other.id, params.slug))?.role).toBe('owner');
+		// Un solo uso.
+		expect(
+			/** @type {any} */ (await m.edit.actions.sacar(ev({ account: other.id, code }))).status
+		).toBe(400);
+
+		// Borrar el grupo: nombre y código.
+		const version = String(
+			(await m.perfiles.getManagedProfile(t.db, me.id, params.slug))?.profile.version
+		);
+		const noCode = /** @type {any} */ (
+			await m.edit.actions.borrar(ev({ confirm: 'Grupo Inventado', version }))
+		);
+		expect(noCode.data).toMatchObject({ error: m.perfiles.MESSAGES.needsCode });
+		const deleteCode = await askCode('borrar');
+		const done = await thrown(() =>
+			m.edit.actions.borrar(ev({ confirm: 'grupo inventado', version, code: deleteCode }))
+		);
+		expect(done).toMatchObject({ status: 303, location: '/mi-rincon/perfiles' });
+	});
+
 	it('borrar pide escribir el nombre en la página', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'persona-prueba');

@@ -34,13 +34,14 @@ export function buildLoginCodeEmail({ code }) {
 /** Qué se confirma, para el texto del mail. */
 const CONFIRM_WHAT = {
 	password: 'un cambio en la contraseña de tu cuenta',
-	delete: 'que querés borrar tu cuenta'
+	delete: 'que querés borrar tu cuenta',
+	grupo: 'un cambio de dueñes o el borrado de un grupo que gestionás'
 };
 
 /**
  * Mail con el código para confirmar una acción delicada en Mi rincón.
  *
- * @param {{ code: string, purpose: 'password' | 'delete' }} input
+ * @param {{ code: string, purpose: 'password' | 'delete' | 'grupo' }} input
  * @returns {{ subject: string, html: string, text: string }}
  */
 export function buildConfirmCodeEmail({ code, purpose }) {

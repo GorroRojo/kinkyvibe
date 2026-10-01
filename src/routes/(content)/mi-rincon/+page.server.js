@@ -1,6 +1,7 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), cerrar sesión y borrar la cuenta. Con el
+ * sacar), compras de ese mail (solo lectura), cerrar sesión (acá o en todos lados) y borrar la
+ * cuenta. Con el
  * interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
@@ -116,7 +117,9 @@ export const actions = {
 		const { db, member } = await requireMember(event);
 		const form = await event.request.formData();
 		const purpose = field(form, 'para');
-		if (!isConfirmPurpose(purpose)) return fail(400, { error: 'No sabemos qué confirmar.' });
+		// Acá solo los de la cuenta; los de grupos se piden en la página del grupo.
+		if (!isConfirmPurpose(purpose) || purpose === 'grupo')
+			return fail(400, { error: 'No sabemos qué confirmar.' });
 		const action = purpose === 'delete' ? 'borrar' : 'contrasena';
 		try {
 			const result = await requestConfirmCode({
@@ -169,6 +172,8 @@ export const actions = {
 			const bad = await confirmed(event, db, member, 'password', form, 'contrasena');
 			if (bad) return bad;
 			await removePassword(db, member.id);
+			// Igual que al cambiarla: se cierran las otras sesiones (queda abierta esta).
+			await destroyOtherSessions(db, member.id, event.cookies.get(SESSION_COOKIE));
 		} catch (e) {
 			logDBError('cuentas: sacar contraseña', e);
 			return fail(500, { action: 'contrasena', error: 'No se pudo guardar. Probá de nuevo.' });
@@ -187,6 +192,19 @@ export const actions = {
 			logDBError('cuentas: cerrar sesión', e);
 		}
 		redirect(303, '/');
+	},
+
+	// Cierra todas las sesiones de la cuenta, también esta. No pide código: solo saca acceso.
+	salirTodos: async (event) => {
+		const { db, member } = await requireMember(event);
+		try {
+			await destroyOtherSessions(db, member.id, undefined);
+			await endSession(event, db);
+		} catch (e) {
+			logDBError('cuentas: cerrar todas las sesiones', e);
+			return fail(500, { action: 'sesiones', error: 'No se pudo. Probá de nuevo.' });
+		}
+		redirect(303, '/ingresar?salida=todas');
 	},
 
 	borrar: async (event) => {

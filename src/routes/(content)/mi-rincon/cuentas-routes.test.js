@@ -151,7 +151,8 @@ describe('interruptor prendido', () => {
 		await m.flags.setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
 		expect(await m.ingresar.load(fakeEvent({ path: '/ingresar' }))).toEqual({
 			next: '/mi-rincon',
-			deleted: false
+			deleted: false,
+			loggedOutEverywhere: false
 		});
 		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
 		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Ingresar' });
@@ -321,6 +322,34 @@ describe('interruptor prendido', () => {
 		expect(await hasPw()).toBe(false);
 	});
 
+	it('sacar la contraseña cierra las otras sesiones (queda esta)', async () => {
+		const m = await modules('1');
+		const { account, token, ev, confirmCode } = await signedIn(m);
+		await m.accounts.setPassword(t.db, account.id, PW, { iterations: 1000 });
+		const other = await m.session.createSession(t.db, account.id, 'password');
+		const code = await confirmCode('password');
+		expect(await m.rincon.actions.sacarContrasena(ev({ code }))).toMatchObject({
+			action: 'contrasena'
+		});
+		expect(await m.session.getSessionAccount(t.db, other)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, token)).not.toBeNull();
+	});
+
+	it('cerrar sesión en todos lados: se cierran todas, también esta', async () => {
+		const m = await modules('1');
+		const { account, token, ev } = await signedIn(m);
+		const other = await m.session.createSession(t.db, account.id, 'code');
+		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
+		const strangerToken = await m.session.createSession(t.db, stranger.id, 'code');
+		const event = ev({});
+		const r = await thrown(() => m.rincon.actions.salirTodos(event));
+		expect(r).toMatchObject({ status: 303, location: '/ingresar?salida=todas' });
+		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, other)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, strangerToken)).not.toBeNull();
+	});
+
 	it('borrar: pide «borrar» y un código fresco de borrar', async () => {
 		const m = await modules('1');
 		const { account, token, ev, confirmCode } = await signedIn(m);
@@ -362,6 +391,10 @@ describe('interruptor prendido', () => {
 		const m = await modules('1');
 		const { ev, confirmCode } = await signedIn(m);
 		expect(await m.rincon.actions.confirmar(ev({ para: 'login' }))).toMatchObject({
+			status: 400
+		});
+		// Los de grupos se piden en la página del grupo, no acá.
+		expect(await m.rincon.actions.confirmar(ev({ para: 'grupo' }))).toMatchObject({
 			status: 400
 		});
 		const { RATE_LIMITS } = await import('$lib/server/cuentas/index.js');

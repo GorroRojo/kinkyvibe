@@ -33,7 +33,9 @@ import {
 	requestCode,
 	verifyCode
 } from './index.js';
+import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
 import { ordersForAccount } from './orders.js';
+import { clientHash } from '$lib/server/tickets/safeguards.js';
 import {
 	LAST_SEEN_EVERY_MS,
 	SESSION_COOKIE_MAX_AGE,
@@ -315,6 +317,174 @@ describe('ingresar con código', () => {
 	});
 });
 
+describe('los límites por mail no los gasta otra conexión', () => {
+	const MIN = 60 * 1000;
+
+	it('los pedidos rechazados no cuentan para el tope diario del mail', async () => {
+		const { send } = fakeSender();
+		for (let i = 0; i < 10; i++) {
+			await requestCode({ db: t.db, email: EMAIL, client: 'otra-conexion', send, now: NOW + i });
+		}
+		// En la ventana siguiente de 15 minutos y horas después, desde su propia conexión, puede.
+		const later = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: CLIENT,
+			send,
+			now: NOW + 20 * MIN
+		});
+		expect(later.ok).toBe(true);
+		const muchLater = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: 'cliente-2',
+			send,
+			now: NOW + 6 * 60 * MIN
+		});
+		expect(muchLater.ok).toBe(true);
+	});
+
+	it('una sola conexión no llega al tope diario de un mail ajeno', async () => {
+		const { sent, send } = fakeSender();
+		// Durante 10 horas, 3 pedidos en cada ventana de 15 minutos desde la misma conexión.
+		for (let w = 0; w < 40; w++) {
+			for (let i = 0; i < 3; i++) {
+				await requestCode({
+					db: t.db,
+					email: EMAIL,
+					client: 'otra-conexion',
+					send,
+					now: NOW + w * 15 * MIN + i
+				});
+			}
+		}
+		expect(sent.length).toBe(RATE_LIMITS.codeRequestEmailClientDay.limit);
+		expect(RATE_LIMITS.codeRequestEmailClientDay.limit).toBeLessThan(
+			RATE_LIMITS.codeRequestEmailDay.limit
+		);
+		const own = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: CLIENT,
+			send,
+			now: NOW + 11 * 60 * MIN
+		});
+		expect(own.ok).toBe(true);
+	});
+
+	it('lo mismo con los códigos para confirmar (comparten el cupo)', async () => {
+		const { send } = fakeSender();
+		for (let i = 0; i < 10; i++) {
+			await requestConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'delete',
+				client: 'otra-conexion',
+				send,
+				now: NOW + i
+			});
+		}
+		const r = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'password',
+			client: CLIENT,
+			send,
+			now: NOW + 20 * MIN
+		});
+		expect(r.ok).toBe(true);
+	});
+
+	it('las contraseñas mal escritas desde otras conexiones no frenan el ingreso con código', async () => {
+		const a = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		await setPassword(t.db, a.id, PW, { iterations: 1000 });
+		for (let i = 0; i <= RATE_LIMITS.passwordEmail.limit; i++) {
+			await passwordLogin({
+				db: t.db,
+				email: EMAIL,
+				password: 'no es la contraseña',
+				client: `c${i}`,
+				now: NOW
+			});
+		}
+		const { sent, send } = fakeSender();
+		expect(
+			await requestCode({ db: t.db, email: EMAIL, client: CLIENT, send, now: NOW })
+		).toMatchObject({
+			ok: true
+		});
+		const r = await verifyCode({
+			db: t.db,
+			email: EMAIL,
+			code: sent[0].code,
+			client: CLIENT,
+			now: NOW
+		});
+		expect(r).toMatchObject({ ok: true, account: { id: a.id } });
+	});
+});
+
+describe('tope global de mails y conexiones IPv6', () => {
+	it('con el tope global lleno: el mismo aviso para cualquier mail, sin mandar nada', async () => {
+		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		const { sent, send } = fakeSender();
+		const a = await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW });
+		const b = await requestCode({
+			db: t.db,
+			email: 'otra.persona@example.com',
+			client: 'c2',
+			send,
+			now: NOW
+		});
+		expect(a).toEqual({ ok: false, status: 429, message: MESSAGES.mailBusy });
+		expect(b).toEqual(a);
+		const c = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'password',
+			client: 'c3',
+			send,
+			now: NOW
+		});
+		expect(c).toEqual(a);
+		expect(sent).toEqual([]);
+		// En la hora siguiente vuelve a andar.
+		const later = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: 'c1',
+			send,
+			now: NOW + 3600_000
+		});
+		expect(later.ok).toBe(true);
+	});
+
+	it('cada mail que sale suma al tope; los pedidos rechazados no', async () => {
+		const { send } = fakeSender();
+		await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW });
+		for (let i = 0; i < 5; i++) {
+			await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW + i });
+		}
+		const row = await t.db
+			.prepare("SELECT hits FROM rate_limits WHERE bucket = 'cuentas:mail:global'")
+			.first();
+		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmail.limit);
+	});
+
+	it('dos direcciones de la misma red IPv6 /64 comparten el límite por conexión', async () => {
+		const { send } = fakeSender();
+		const n = RATE_LIMITS.codeRequestClient.limit;
+		for (let i = 0; i < n; i++) {
+			const client = await clientHash(`2001:db8:1:2::${i + 1}`, NOW);
+			const r = await requestCode({ db: t.db, email: `p${i}@example.com`, client, send, now: NOW });
+			expect(r.ok).toBe(true);
+		}
+		const client = await clientHash('2001:db8:1:2:aaaa::1', NOW);
+		const r = await requestCode({ db: t.db, email: 'una.mas@example.com', client, send, now: NOW });
+		expect(r).toMatchObject({ ok: false, status: 429 });
+	});
+});
+
 describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 	/** @param {string} code */
 	const other = (code) => (code === '000000' ? '111111' : '000000');
@@ -470,6 +640,46 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 		expect(
 			await verifyCode({ db: t.db, email: EMAIL, code: '123456', client: 'x', now: NOW })
 		).toMatchObject({ ok: false, status: 429 });
+	});
+
+	it("'grupo' es un purpose más: no se cruza con 'delete' aunque comparta la columna", async () => {
+		const hash = await emailHash(EMAIL);
+		const { code: deleteCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'delete' });
+		const { code: groupCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'grupo' });
+		// Pedir uno de 'grupo' no anuló el de 'delete' (y al revés, abajo).
+		const rows = await t.db.prepare('SELECT email_hash, purpose, used_at FROM login_codes').all();
+		expect(rows.results).toHaveLength(2);
+		expect(rows.results.every((r) => r.used_at === null)).toBe(true);
+		// Se guarda sin cambiar el CHECK de 0013, con otro hash de mail.
+		const group = rows.results.find((r) => r.email_hash !== hash);
+		expect(group?.purpose).toBe('delete');
+		// Ninguno sirve para lo del otro…
+		if (groupCode !== deleteCode) {
+			expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'delete' })).toBe(
+				'wrong'
+			);
+			expect(await verifyLoginCode(t.db, hash, deleteCode, { now: NOW, purpose: 'grupo' })).toBe(
+				'wrong'
+			);
+		}
+		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'login' })).toBe(
+			'expired'
+		);
+		// …y cada uno sí para lo suyo.
+		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'grupo' })).toBe('ok');
+		expect(await verifyLoginCode(t.db, hash, deleteCode, { now: NOW, purpose: 'delete' })).toBe(
+			'ok'
+		);
+		expect(isConfirmPurpose('grupo')).toBe(true);
+	});
+
+	it("borrar la cuenta borra también sus códigos de 'grupo'", async () => {
+		const a = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const hash = await emailHash(EMAIL);
+		await createLoginCode(t.db, hash, { now: NOW, purpose: 'grupo' });
+		await createLoginCode(t.db, hash, { now: NOW, purpose: 'login' });
+		await deleteAccount(t.db, a.id, { now: NOW });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(0);
 	});
 
 	it('purpose desconocido: error', async () => {

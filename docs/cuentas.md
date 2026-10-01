@@ -5,7 +5,8 @@
 Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
-pone, cambia o saca la contraseña, cierra sesión o borra la cuenta. Tocar la contraseña y borrar la
+pone, cambia o saca la contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
 Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son los perfiles (ver
@@ -41,9 +42,24 @@ Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingr
 - **Al borrar la cuenta, las órdenes quedan** (decisión P7.6), desvinculadas: `orders.account_id`
   pasa a `NULL`. Se borran las sesiones y los códigos pendientes, y la fila de `accounts` queda
   sin ningún dato (sin mail, sin contraseña, con `deleted_at`).
-  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js`): sus
-  personas se borran (borrado suave) y cada grupo pasa a quien lo gestiona hace más tiempo, o se
-  borra si no queda nadie.
+  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js` →
+  `releaseAccountProfiles()` en `perfiles.js`):
+  - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
+    presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
+    sin los grupos de los que eran parte, sin su fila de gestión ni sus bloqueos, y con
+    `created_by` y `updated_by` = `cuenta:borrada` (el mismo para todas las cuentas borradas, así
+    nada los vincula entre sí). La fila queda, borrada (borrado suave), solo para que la dirección
+    no la use otra persona;
+  - cada **grupo** pasa a quien lo gestiona hace más tiempo, con sus datos (son del grupo), o se
+    borra (suave, con sus datos) si no queda nadie;
+  - se borran las invitaciones que mandó.
+
+  El código se verifica antes de empezar. Soltar los perfiles no entra en una sola tanda (cada
+  perfil se guarda con `saveObject()`), así que está hecho para poder correrse de nuevo: si algo
+  falla a la mitad, la cuenta sigue viva y el próximo intento termina; si otro guardado se cruza
+  con un perfil, se vuelve a leer y se reintenta. La cuenta se borra recién al final, en una
+  tanda.
+
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
@@ -70,8 +86,13 @@ nada de estas tablas para sumarlas.
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
   otro anula el anterior del mismo `purpose`.
 - Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
-  contraseña) o `delete` (borrar la cuenta), y solo sirve para ese. Uno de ingreso no confirma
-  nada y uno de confirmación no sirve para ingresar.
+  contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un grupo y borrarlo,
+  ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
+  no sirve para ingresar.
+- `grupo` se sumó sin cambiar el `CHECK` de `login_codes` (migración 0013, ya aplicada en los
+  previews): en la columna `purpose` va como `delete`, pero con otro hash de mail
+  (`SHA-256("cuentas:code:grupo:<hash del mail>")`), así nunca se cruza con los de `delete`, y el
+  `purpose` de verdad va en el hash del código (`storage()` en `codes.js`).
 - Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
@@ -84,12 +105,29 @@ nada de estas tablas para sumarlas.
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
 | Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 4 por día                                   |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
+| Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
+Una IPv6 cuenta por su red /64 entera (`clientNetwork` en `src/lib/server/tickets/safeguards.js`):
+a cada casa o servidor le toca por lo menos una /64, así que contar cada dirección por separado
+dejaría saltar los límites. Las IPv4 cuentan igual que antes.
+
+El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
+salen (códigos de ingreso, códigos para confirmar y avisos de invitación), de cualquier conexión
+y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
+nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
+texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
+(la invitación se crea igual y aparece en Mi rincón).
+Los límites se miran en orden (conexión, mail + conexión, mail cada 15 minutos, mail por día) y
+cada uno suma solo si pasó el anterior: un pedido rechazado no gasta el cupo del mail, y una sola
+conexión puede pedir como mucho 4 de los 10 códigos diarios de un mail, así no deja a otra persona
+sin poder entrar. Los códigos para confirmar comparten estos mismos contadores.
 Con 5 intentos por código y 10 códigos por día, adivinar un código tiene como mucho 50 chances
 en un millón por día y por mail. Si alguien bloquea la contraseña de otra persona a propósito,
 el código por mail sigue andando.
@@ -104,7 +142,8 @@ el código por mail sigue andando.
   en el próximo ingreso.
 - **Sal de 16 bytes** al azar por contraseña y **clave de 32 bytes**.
 - Contraseñas de **10 a 200 caracteres**, normalizadas a Unicode NFC.
-- Cambiar la contraseña cierra las otras sesiones de la cuenta (la actual sigue abierta).
+- Poner, cambiar o sacar la contraseña cierra las otras sesiones de la cuenta (la actual sigue
+  abierta).
 
 ### Sesiones (`src/lib/server/cuentas/session.js`)
 
@@ -112,6 +151,9 @@ el código por mail sigue andando.
 - Cookie `kvRincon`: token al azar de 256 bits, `HttpOnly`, `Secure` (salvo http://localhost),
   `SameSite=Lax`, 400 días (el máximo de los navegadores). `last_seen_at` se actualiza como
   mucho una vez por día y, cuando pasa, la cookie se vuelve a mandar con 400 días más.
+- En Mi rincón, "Cerrar sesión en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
+  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
+  saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie y el interruptor
   está prendido.
 
@@ -136,6 +178,9 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
   pedir otro.
 - Los mismos límites que los códigos de ingreso, con los mismos contadores: los mails por
   dirección y los intentos por conexión se suman entre ingresar y confirmar.
+- En la página de un grupo pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
+  a otre dueñe, y borrar el grupo (`para` no existe ahí: `?/confirmar` manda siempre uno de
+  `grupo`; ver "Perfiles").
 
 ### Evento que pide cuenta (P7.1)
 
@@ -172,14 +217,17 @@ campos), pero nadie la usa todavía.
   persona ("Te sumaron a…"), cada uno con su botón para salir.
 - Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
   `/ingresar`. Con el interruptor apagado, todo da 404.
-- Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página.
+- Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página (y,
+  si es un grupo, el código por mail).
 
 ### Modelo
 
 - El perfil es un objeto de tipo núcleo `perfil` ([objetos.md](objetos.md)) y se escribe **solo
   con `saveObject()`**. Visibilidad: la del modelo de objetos (`public`, `members`, `hidden`).
-  Oculto lo ven les admins y quien lo creó; quienes gestionan un grupo lo ven igual en Mi rincón,
-  porque esas lecturas pasan por `profile_managers` (ver abajo).
+  Un perfil oculto lo ven solo les admins: para los perfiles, haberlo creado no da acceso
+  (`NO_CREATOR_ACCESS` en `visibility.js`), porque quien creó un grupo puede dejar de
+  gestionarlo. Quienes lo gestionan lo ven igual en Mi rincón, porque esas lecturas pasan por
+  `profile_managers` (ver abajo).
 - **Quién gestiona qué** va en `profile_managers` (migración `0014_perfiles.sql`): las cuentas no
   son objetos, así que no puede ser un edge. Columnas: `profile_id` → `objects(id)` y
   `account_id` → `accounts(id)`, las dos con `ON DELETE CASCADE`, y `role`:
@@ -192,6 +240,10 @@ campos), pero nadie la usa todavía.
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
   cuenta que invitó.
+  - Les dueñes ven en la lista de pendientes quién mandó cada una (el mail de esa cuenta, que es
+    otre dueñe del grupo); nunca el mail invitado. Les `manager` no ven las invitaciones.
+  - Si alguien deja de ser dueñe (le sacan la propiedad, le sacan de la gestión o se va), sus
+    invitaciones pendientes se borran en la misma tanda. Al borrar una cuenta, también.
 - **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, sin
   datos extra. Los suma directamente quien gestiona el grupo (sin pedido ni aprobación) y se
   escriben con `saveObject()` sobre el perfil de la persona, con la versión que está guardada en
@@ -249,6 +301,14 @@ campos), pero nadie la usa todavía.
   - quienes gestionan no se muestran nunca, y nada vincula entre sí los perfiles de persona de
     una misma cuenta: cada uno es integrante por su lado. Solo la propia cuenta ve, en su Mi
     rincón, qué perfil suyo está en qué grupo.
+- **Acciones de dueñes con código fresco.** Hacer dueñe a alguien, sacarle la propiedad a otre
+  dueñe, sacar a otre dueñe de la gestión y borrar un grupo piden un código por mail (purpose
+  `grupo`), con el mismo patrón que la contraseña en Mi rincón: "Mandame un código para
+  confirmar", el campo del código y la acción, en la misma página. Así, con solo una sesión
+  abierta ajena no se puede quedar con un grupo. Lo decide `perfiles.js` (opción `stepUp` de
+  `setManagerRole`, `removeManager` y `deleteProfile`), después de chequear permisos: un pedido
+  sin permiso no gasta el código. Sacar a une manager, sacarse la propiedad a une misme, dejar de
+  gestionar y borrar un perfil de persona no lo piden.
 - **Siempre queda al menos une dueñe.** Le última dueñe no puede irse ni perder la propiedad:
   primero hace dueñe a otra persona. La condición va en la misma sentencia SQL, así dos cambios a
   la vez no pueden dejar al grupo sin dueñe. Una cuenta borrada no cuenta como dueñe.
@@ -258,7 +318,8 @@ campos), pero nadie la usa todavía.
 - Tope de 20 perfiles vivos por cuenta (propios y de grupos, contando las invitaciones que
   acepta) y de 20 invitaciones pendientes por grupo.
 - Si el nombre de un perfil nuevo ya está usado (aunque sea por un perfil oculto ajeno), la
-  dirección cambia sola (`-2`, `-3`…) en vez de avisar que existe otro. Cambiar el nombre después
+  dirección suma sola un sufijo corto al azar (por ejemplo `nombre-k3x9q`) en vez de avisar que
+  existe otro. No es `-2`, `-3`…, que dirían cuántos perfiles hay con ese nombre. Cambiar el nombre después
   no cambia la dirección.
 
 ### Probarlo
@@ -292,6 +353,58 @@ campos), pero nadie la usa todavía.
   `/ingresar` se ve y el encabezado lleva ahí.
 - A mano: `CUENTAS_ENABLED=1 npm run dev`, pedir un código en `/ingresar` y copiarlo de la
   consola.
+
+## Límites conocidos
+
+Cosas que se sabe que no están resueltas del todo, o que se aceptaron así. Si cambia alguna,
+actualizá esta lista.
+
+- **Integrantes sin consentimiento previo.** Un grupo suma a una persona sin pedirle nada (ella
+  lo ve en Mi rincón y se va con un clic), el bloqueo de 30 días es por grupo y sumar o sacar
+  integrantes no tiene límite propio (cada cambio sube la `version` del perfil de la persona, así
+  que puede chocar con lo que ella está editando). Está pendiente de una decisión de gorrite
+  (pedido y aceptación, aviso, bloqueo más amplio); no se cambió a propósito.
+- **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
+  El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
+  mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
+  ven afectadas.
+- **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
+  más adelante: necesita claves y configuración en el panel de Cloudflare.
+- **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
+  conexión, bloquean el ingreso con contraseña de ese mail por hasta 15 minutos. El ingreso con
+  código sigue andando.
+- **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
+  hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar
+  uno sigue siendo muy improbable.
+- **PBKDF2 con 100.000 iteraciones**, el máximo de Workers (OWASP pide 600.000). Ver "Contraseña".
+- **Hash del mail sin secreto.** En `login_codes`, `rate_limits` y `profile_invites` se guarda
+  `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail
+  adivinado está ahí. Para que "no se guarda el mail" valga también contra eso, habría que usar
+  un HMAC con una clave secreta del entorno.
+- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Cerrar sesión en todos lados" o cambiar
+  o sacar la contraseña.
+- **El nombre del grupo va en el aviso de invitación.** Lo escribe quien gestiona el grupo y llega
+  con el remitente del sitio. Va escapado, pero algunos programas de mail convierten en link un
+  dominio escrito ahí. Como mucho salen 3 avisos por día a un mismo mail.
+- **Quienes gestionan un grupo ven el mail de les demás**, también les `manager`. Les dueñes ven,
+  además, quién mandó cada invitación pendiente.
+- **Sufijo de dirección.** Si el nombre de un perfil nuevo ya está usado, el sufijo al azar no dice
+  cuántos hay, pero que aparezca un sufijo sí dice que existe algún perfil (de cualquier
+  visibilidad, también borrado) con esa dirección. Para que no diga nada habría que poner sufijo
+  siempre, lo que cambia todas las direcciones.
+- **Ids correlativos.** Quienes gestionan un grupo ven el id de cada integrante (en el formulario
+  para sacarle); dos perfiles creados seguidos por la misma cuenta tienen ids cercanos.
+- **"Solo con cuenta" es cualquiera que se haga una**, con cualquier mail. Los textos de la
+  visibilidad lo tienen que dejar claro.
+- **Cookie sin prefijo `__Host-`.** Solo importaría si algún subdominio del sitio lo manejara otra
+  gente.
+- **Al borrar una cuenta**, lo que queda de ella: los grupos que pasan a otra persona o que se
+  borran por quedar sin nadie conservan sus datos y su `created_by`/`updated_by`; los edges de
+  integrantes que esa cuenta sumó a perfiles ajenos conservan su `created_by`; las invitaciones
+  para su mail vencen solas (solo guardan el hash). Las filas borradas (suave) siguen en los
+  backups.
+- **Previews.** Cualquiera que entra a un preview es admin de demo y puede prender `cuentas` en la
+  base del preview (separada de producción, y los mails solo salen a `EMAIL_ALLOWLIST`).
 
 ## Pendiente (partes siguientes)
 

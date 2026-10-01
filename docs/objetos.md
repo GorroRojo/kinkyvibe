@@ -28,11 +28,15 @@ cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archiv
    la opción `also(self)` recibe cómo encontrar el objeto (`id` al editar; `type` y `slug` al
    crear, porque el id todavía no existe) y devuelve sentencias sobre tablas de apoyo (nunca
    sobre `objects`, `edges` u `object_types`). Si una falla, no se guarda nada.
+   `created_by` no cambia al editar; la única excepción es la opción `createdBy`, que usa el
+   borrado de una cuenta para dejar sus perfiles con un autore neutro (`cuenta:borrada`).
 2. **Un solo lugar decide quién ve qué:** `src/lib/server/objects/visibility.js`. Toda lectura
    (página, listado, búsqueda, sitemap, RSS, imágenes para compartir, JSON…) usa `canSee()` o
    `visibleWhere()`, que salen de la misma tabla. Las reglas:
    - **visible por defecto** (`public`), **oculto a pedido** (`hidden`: lo ven les admins y quien
-     lo creó, `created_by`; nadie más, aunque tenga cuenta);
+     lo creó, `created_by`; nadie más, aunque tenga cuenta). En los perfiles
+     (`NO_CREATOR_ACCESS`), haberlo creado no da acceso: quién lo gestiona cambia, y eso lo decide
+     `profile_managers` ([cuentas.md](cuentas.md));
    - `members`: solo personas con cuenta (y admins);
    - borrado: nadie (tampoco quien lo creó), salvo admins que lo buscan para deshacer;
    - si algo no se puede ver, se responde como si no existiera (nunca "prohibido");
