@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import {
 	AJUSTES_SUBGROUPS,
 	EVENT_TABS,
@@ -115,28 +115,43 @@ describe('NAV', () => {
 			'/admin/eventos/importar',
 			'/admin/eventos/agenda',
 			'/admin/checkin',
-			'/admin/entradas',
-			'/admin/entradas/transferencias',
-			'/admin/entradas/codigos',
-			'/admin/personas',
+			'/admin/ventas',
+			'/admin/ventas/transferencias',
+			'/admin/ventas/codigos',
+			'/admin/comunidad/personas',
 			'/admin/estadisticas',
-			'/admin/propinas',
-			'/admin/material',
-			'/admin/amigues',
+			'/admin/ajustes/propinas',
+			'/admin/contenido/material',
+			'/admin/comunidad/perfiles',
 			'/admin/etiquetas',
-			'/admin/no-listadas',
+			'/admin/contenido/no-listadas',
 			'/admin/ajustes/cobros',
 			'/admin/ajustes/fondo',
 			'/admin/ajustes/mails',
 			'/admin/ajustes/admins',
 			'/admin/ajustes/interruptores',
-			'/admin/actividad',
-			'/admin/cuentas',
-			'/admin/cuentas/perfiles',
+			'/admin/ajustes/actividad',
+			'/admin/comunidad/cuentas',
+			// La lista de Cuentas › Perfiles se unió a /admin/comunidad/perfiles (Perfiles, decisión de gorrite
+			// del 1/10): su página se borró, ver REMOVED en adminPaths.test.js.
 			'/admin/eventos/lugares'
 		]) {
 			expect(hrefs).toContain(h);
 		}
+	});
+	it('una sola sección «Perfiles» en Comunidad (decisión de gorrite): /admin/comunidad/perfiles', () => {
+		const perfiles = NAV.filter((i) => /perfil|amigue/i.test(`${i.id} ${i.label}`));
+		expect(perfiles).toHaveLength(1);
+		expect(perfiles[0]).toMatchObject({
+			id: 'amigues',
+			href: '/admin/comunidad/perfiles',
+			label: 'Perfiles',
+			area: 'comunidad',
+			counter: 'profilesToReview'
+		});
+		expect(
+			NAV.filter((i) => i.href.startsWith('/admin/comunidad/cuentas/')).map((i) => i.id)
+		).toEqual([]);
 	});
 	it('la barra del celu usa ítems que existen', () => {
 		for (const id of MOBILE_TABS) if (id !== 'mas') expect(navItem(id)).toBeTruthy();
@@ -170,7 +185,7 @@ describe('NAV', () => {
 			'entradas-codigos',
 			'tienda'
 		]);
-		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas', 'cuentas-perfiles']);
+		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
 		expect(ids('mensajes')).toEqual(['ajustes-plantillas', 'lo-que-sigo', 'bandeja']);
 		expect(ids('etiquetas')).toEqual(['etiquetas']);
 		expect(ids('contenido')).toEqual(['material', 'no-listadas', 'colecciones', 'videos']);
@@ -206,34 +221,38 @@ describe('NAV', () => {
 			hint: 'Ajustes'
 		});
 	});
-	it('Personas, Amigues y Cuentas en Comunidad; Plantillas en Mensajes; Actividad en Ajustes', () => {
-		for (const id of ['personas', 'amigues', 'cuentas', 'cuentas-perfiles'])
+	it('Personas, Perfiles y Cuentas en Comunidad; Plantillas en Mensajes; Actividad en Ajustes', () => {
+		for (const id of ['personas', 'amigues', 'cuentas'])
 			expect(navItem(id)?.area, id).toBe('comunidad');
 		expect(navItem('ajustes-plantillas')).toMatchObject({
 			area: 'mensajes',
-			href: '/admin/ajustes/mails/plantillas'
+			href: '/admin/mensajes/plantillas'
 		});
 		expect(navItem('actividad')).toMatchObject({ area: 'ajustes', sub: 'sistema' });
 		expect(navItem('etiquetas')?.area).toBe('etiquetas');
 		expect(navItem('estadisticas')?.area).toBe('estadisticas');
 		expect(navItem('eventos-lugares')?.area).toBe('eventos');
 	});
-	it('"Roles y preguntas" está en Eventos (la URL sigue bajo /admin/ajustes/)', () => {
+	it('"Roles y preguntas" está en Eventos, en /admin/eventos/roles', () => {
 		expect(navItem('ajustes-personas')).toMatchObject({
 			label: 'Roles y preguntas',
 			area: 'eventos',
-			href: '/admin/ajustes/personas'
+			href: '/admin/eventos/roles'
 		});
 	});
-	it('las páginas bajo /admin/ajustes/ que en el menú están en otra área no muestran las pestañas de Ajustes', () => {
-		const root = new URL('../../routes/(authed)/', import.meta.url);
-		const moved = NAV.filter((i) => i.area !== 'ajustes' && i.href.startsWith('/admin/ajustes/'));
-		expect(moved.map((i) => i.id).sort()).toEqual(['ajustes-personas', 'ajustes-plantillas']);
-		for (const page of adminPages()) {
-			if (!moved.some((i) => page === i.href || page.startsWith(i.href + '/'))) continue;
-			const src = readFileSync(new URL(`.${page}/+page.svelte`, root), 'utf8');
-			expect(src, page).not.toContain('AJUSTES_TABS');
-		}
+	it('cada sección vive bajo /admin/<área>/ (paso 2 del mapa)', () => {
+		// Inicio no tiene área, y Check-in queda en /admin/checkin porque su URL está guardada en
+		// los celus de la puerta.
+		const exceptions = ['inicio', 'checkin'];
+		const misplaced = NAV.filter((i) => !exceptions.includes(i.id))
+			.filter((i) => i.href !== `/admin/${i.area}` && !i.href.startsWith(`/admin/${i.area}/`))
+			.map((i) => `${i.id}: ${i.href}`);
+		expect(misplaced).toEqual([]);
+		expect(navItem('checkin')?.href).toBe('/admin/checkin');
+	});
+	it('bajo /admin/ajustes/ solo hay secciones de Ajustes', () => {
+		const outside = NAV.filter((i) => i.area !== 'ajustes' && i.href.startsWith('/admin/ajustes/'));
+		expect(outside).toEqual([]);
 	});
 	it('el botón "Para revisar" lleva a la tarjeta del Inicio', () => {
 		expect(REVIEW_LINK).toMatchObject({ href: '/admin#para-revisar', counter: 'review' });
@@ -288,7 +307,7 @@ describe('páginas "Próximamente"', () => {
 			expect(soonItemAt(i.href + '/')?.id).toBe(i.id);
 			expect(soonMatcher(i.href.slice('/admin/'.length))).toBe(true);
 		}
-		expect(soonItemAt('/admin/entradas')).toBeUndefined();
+		expect(soonItemAt('/admin/ventas')).toBeUndefined();
 		expect(soonMatcher('entradas')).toBe(false);
 		expect(soonMatcher('mensajes/otra')).toBe(false);
 		expect(soonMatcher('')).toBe(false);
@@ -303,21 +322,23 @@ describe('activeNavItem', () => {
 	it('marca el href más largo que coincide', () => {
 		expect(activeNavItem('/admin')?.id).toBe('inicio');
 		expect(activeNavItem('/admin/')?.id).toBe('inicio');
-		expect(activeNavItem('/admin/entradas/codigos')?.id).toBe('entradas-codigos');
+		expect(activeNavItem('/admin/ventas/codigos')?.id).toBe('entradas-codigos');
 		expect(activeNavItem('/admin/eventos/nuevo')?.id).toBe('eventos-nuevo');
-		expect(activeNavItem('/admin/cuentas')?.id).toBe('cuentas');
-		expect(activeNavItem('/admin/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
+		expect(activeNavItem('/admin/comunidad/cuentas')?.id).toBe('cuentas');
+		expect(activeNavItem('/admin/comunidad/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
 			'cuentas'
 		);
-		expect(activeNavItem('/admin/cuentas/perfiles')?.id).toBe('cuentas-perfiles');
-		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('cuentas-perfiles');
+		// La ficha de un perfil es parte de Perfiles (/admin/comunidad/perfiles), no de Cuentas.
+		expect(activeNavItem('/admin/comunidad/cuentas/perfiles/12')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/comunidad/perfiles')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/comunidad/perfiles/Gorro_Rojo')?.id).toBe('amigues');
 		expect(activeNavItem('/admin/ajustes/mails')?.id).toBe('ajustes-mails');
-		expect(activeNavItem('/admin/ajustes/mails/plantillas/compra')?.id).toBe('ajustes-plantillas');
-		expect(activeNavItem('/admin/ajustes/personas')?.id).toBe('ajustes-personas');
+		expect(activeNavItem('/admin/mensajes/plantillas/compra')?.id).toBe('ajustes-plantillas');
+		expect(activeNavItem('/admin/eventos/roles')?.id).toBe('ajustes-personas');
 		expect(activeNavItem('/admin/eventos/series')?.id).toBe('eventos-series');
 	});
 	it('páginas sin ítem propio marcan su sección', () => {
-		expect(activeNavItem('/admin/entradas/alguno')?.id).toBe('entradas');
+		expect(activeNavItem('/admin/ventas/alguno')?.id).toBe('entradas');
 		expect(activeNavItem('/admin/eventos/alguno/ventas')?.id).toBe('eventos');
 	});
 	it('Importar planilla marca la Agenda', () => {

@@ -1,5 +1,5 @@
 <!--
-	List of a content section of the panel (/admin/material, /admin/amigues): search, filters by
+	List of a content section of the panel (/admin/contenido/material, /admin/comunidad/perfiles): search, filters by
 	state and tag, CSV, and per-post actions (edit, duplicate, view, list/unlist).
 	Slots: `actions` (extra header buttons, before CSV/new), default (below the subtitle).
 -->
@@ -24,6 +24,7 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
+	import { contentAdminHref } from '$lib/admin/nav.js';
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import { filterContentRows, topTags } from '$lib/utils/contentPosts.js';
 
@@ -37,6 +38,8 @@
 	export let subtitle = '';
 	export let newLabel = 'Nuevo';
 	export let canDuplicate = false;
+
+	$: base = contentAdminHref(category);
 
 	const tm = siteTags();
 	/** @param {string} t */
@@ -104,9 +107,7 @@
 	<svelte:fragment slot="actions">
 		<slot name="actions" />
 		<CsvButton rows={shown} {columns} filename={csvFilename(category)} />
-		<a class="kv-btn" href="/admin/{category}/nuevo"
-			><Plus size={18} aria-hidden="true" /> {newLabel}</a
-		>
+		<a class="kv-btn" href="{base}/nuevo"><Plus size={18} aria-hidden="true" /> {newLabel}</a>
 	</svelte:fragment>
 </PageHeader>
 
@@ -175,14 +176,14 @@
 		<ul class="rows">
 			{#each shown as r (r.slug)}
 				<li class="row">
-					<a class="thumb" href="/admin/{category}/{r.slug}" tabindex="-1" aria-hidden="true">
+					<a class="thumb" href="{base}/{r.slug}" tabindex="-1" aria-hidden="true">
 						{#if r.thumb}<img src={r.thumb} alt="" loading="lazy" />{:else}<ImageOff
 								size={20}
 							/>{/if}
 					</a>
 					<div class="main">
 						<div class="line">
-							<a class="title" href="/admin/{category}/{r.slug}">{r.title}</a>
+							<a class="title" href="{base}/{r.slug}">{r.title}</a>
 							{#if r.unpublished}<Badge tone="bad">No publicada</Badge>
 							{:else if r.unlisted}<Badge tone="warn">No listada</Badge>{/if}
 						</div>
@@ -201,14 +202,14 @@
 					<div class="actions">
 						<a
 							class="kv-btn ghost icon"
-							href="/admin/{category}/{r.slug}"
+							href="{base}/{r.slug}"
 							title="Editar"
 							aria-label="Editar {r.title}"><Pencil size={16} /></a
 						>
 						{#if canDuplicate}
 							<a
 								class="kv-btn ghost icon"
-								href="/admin/{category}/nuevo?desde={encodeURIComponent(r.slug)}"
+								href="{base}/nuevo?desde={encodeURIComponent(r.slug)}"
 								title="Duplicar"
 								aria-label="Duplicar {r.title}"><Copy size={16} /></a
 							>

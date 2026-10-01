@@ -1,5 +1,5 @@
 /**
- * Saving material and amigues posts from the panel (/admin/material, /admin/amigues): one commit
+ * Saving material and amigues posts from the panel (/admin/contenido/material, /admin/comunidad/perfiles): one commit
  * with the post and, optionally, a new image in its media folder. Same commit path as the event
  * editor (the GitHub client of $lib/server/eventos, which is the dev mock under
  * `npm run dev:admin` and the demo layer on preview deploys).
