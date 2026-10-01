@@ -9,29 +9,82 @@
  *   grupo. Que el origen sea persona y el destino grupo lo controla perfiles.js (el registro solo
  *   sabe de tipos, no de `kind`).
  * - `kind` no se cambia después de crear el perfil (lo controla perfiles.js).
- * - Más adelante, los lugares (decisión B3) pueden sumarse como otro `kind` con sus campos extra;
- *   nada de acá lo impide.
+ * - Los lugares (decisión B3) son perfiles de `kind` 'lugar', con campos propios (dirección,
+ *   barrio, ciudad, ubicación, accesibilidad, cómo llegar y su privacidad por defecto). Esos
+ *   campos solo valen para lugares (`check`).
+ * - Las fichas de amigues (.md) se importan a perfiles (src/lib/server/amigues/importer.js): por
+ *   eso están también sus campos (resumen en `bio`, cuerpo, link, contacto, etiquetas, autores,
+ *   imágenes de la carpeta de medios y fechas), con los mismos nombres que en el frontmatter.
+ *   Ver docs/amigues.md.
  *
- * Todavía no hay página pública de perfiles: los de amigues siguen siendo archivos .md.
+ * La página pública es /amigues/<slug> (detrás del interruptor `perfiles_publicos`).
  */
 
 /**
  * @typedef {{
- *   kind: 'persona' | 'grupo',
+ *   kind: 'persona' | 'grupo' | 'lugar',
  *   bio?: string,
+ *   body?: string,
  *   pronouns?: string,
+ *   pronouns_url?: string,
  *   links?: string[],
+ *   link_text?: string,
  *   avatar?: string,
- *   show_members?: boolean
+ *   featured?: string,
+ *   photo?: string,
+ *   logo?: string,
+ *   email?: string,
+ *   tel?: string,
+ *   bday?: string,
+ *   gender_identity?: string,
+ *   job_title?: string,
+ *   tags?: string[],
+ *   authors?: string[],
+ *   published_date?: string,
+ *   updated_date?: string,
+ *   unlisted?: boolean,
+ *   show_members?: boolean,
+ *   address?: string,
+ *   area?: string,
+ *   city?: string,
+ *   lat?: number,
+ *   lng?: number,
+ *   accessibility?: string,
+ *   how_to_get_there?: string,
+ *   venue_privacy?: 'public' | 'name' | 'area' | 'hidden'
  * }} PerfilData
  */
 
-export const PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo']);
+export const PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo', 'lugar']);
+
+/**
+ * Privacidad de la dirección de un lugar (decisión B3), de más a menos visible. El lugar tiene
+ * una por defecto (`venue_privacy`) y cada evento la puede cambiar (tabla `event_venues`).
+ * - public: nombre, dirección, barrio, ciudad y mapa;
+ * - name: solo el nombre (con el link a su página);
+ * - area: solo el barrio y la ciudad (ni el nombre: lo identificaría);
+ * - hidden: nada (quien compra entrada recibe la dirección completa igual).
+ */
+export const VENUE_PRIVACY = /** @type {const} */ (['public', 'name', 'area', 'hidden']);
+
+/** Campos que solo tienen los lugares. */
+export const VENUE_FIELDS = Object.freeze([
+	'address',
+	'area',
+	'city',
+	'lat',
+	'lng',
+	'accessibility',
+	'how_to_get_there',
+	'venue_privacy'
+]);
 
 /** Cuántos links como mucho (web, redes…). */
 export const LINKS_MAX = 8;
 export const LINK_MAX_LENGTH = 300;
 export const BIO_MAX = 1000;
+export const BODY_MAX = 20_000;
+export const TAGS_MAX = 40;
 
 /**
  * Referencia a una imagen de NUESTRO almacenamiento de medios (clave del bucket, P6.3), nunca un
@@ -56,6 +109,11 @@ function linkProblem(text) {
 	return null;
 }
 
+/** @param {string} key */
+function venueLabel(key) {
+	return perfil.fields[key]?.label ?? key;
+}
+
 /** @type {import('./index.js').CoreType} */
 const perfil = {
 	type: 'perfil',
@@ -63,10 +121,44 @@ const perfil = {
 	fields: {
 		kind: { kind: 'option', label: 'Tipo de perfil', options: PROFILE_KINDS, required: true },
 		bio: { kind: 'longtext', label: 'Presentación', max: BIO_MAX },
+		body: { kind: 'longtext', label: 'Texto de la página', max: BODY_MAX },
 		pronouns: { kind: 'text', label: 'Pronombres', max: 40 },
+		pronouns_url: { kind: 'url', label: 'Link de pronombres', max: LINK_MAX_LENGTH },
 		links: { kind: 'list', label: 'Links', max: LINKS_MAX },
+		link_text: { kind: 'text', label: 'Texto del botón del link', max: 80 },
 		avatar: { kind: 'text', label: 'Imagen', max: 200 },
-		show_members: { kind: 'boolean', label: 'Mostrar integrantes' }
+		// Imágenes de la ficha importada: número (o nombre) de archivo en
+		// src/lib/posts/amigues/media/<dirección vieja>/, como en el frontmatter.
+		featured: { kind: 'text', label: 'Imagen principal (ficha vieja)', max: 40 },
+		photo: { kind: 'text', label: 'Foto (ficha vieja)', max: 40 },
+		logo: { kind: 'text', label: 'Logo (ficha vieja)', max: 40 },
+		// Datos de contacto que cada amigue cargó en su ficha pública (decisión de gorrite: son
+		// públicos a propósito). La página pública muestra lo mismo que antes (ver docs/amigues.md).
+		email: { kind: 'text', label: 'Mail', max: 254 },
+		tel: { kind: 'text', label: 'Teléfono', max: 40 },
+		bday: { kind: 'text', label: 'Cumpleaños', max: 40 },
+		gender_identity: { kind: 'text', label: 'Identidad de género', max: 100 },
+		job_title: { kind: 'text', label: 'Ocupación', max: 100 },
+		tags: { kind: 'list', label: 'Etiquetas', max: TAGS_MAX },
+		authors: { kind: 'list', label: 'Autores', max: 20 },
+		// Fechas como estaban escritas en la ficha (algunas no son fechas ISO válidas).
+		published_date: { kind: 'text', label: 'Publicado', max: 40 },
+		updated_date: { kind: 'text', label: 'Actualizado', max: 40 },
+		unlisted: { kind: 'boolean', label: 'No listado' },
+		show_members: { kind: 'boolean', label: 'Mostrar integrantes' },
+		// Solo lugares.
+		address: { kind: 'text', label: 'Dirección', max: 300 },
+		area: { kind: 'text', label: 'Barrio', max: 100 },
+		city: { kind: 'text', label: 'Ciudad', max: 100 },
+		lat: { kind: 'number', label: 'Latitud', min: -90, max: 90 },
+		lng: { kind: 'number', label: 'Longitud', min: -180, max: 180 },
+		accessibility: { kind: 'longtext', label: 'Accesibilidad', max: 2000 },
+		how_to_get_there: { kind: 'longtext', label: 'Cómo llegar', max: 2000 },
+		venue_privacy: {
+			kind: 'option',
+			label: 'Privacidad de la dirección',
+			options: VENUE_PRIVACY
+		}
 	},
 	edges: {
 		es_integrante_de: { label: 'Integrante de', to: ['perfil'] }
@@ -87,10 +179,28 @@ const perfil = {
 				message: 'Mostrar integrantes: solo para perfiles de grupo'
 			});
 		}
+		if (data.kind !== 'lugar') {
+			for (const key of VENUE_FIELDS) {
+				if (data[key] !== undefined) {
+					errors.push({ path: key, message: `${venueLabel(key)}: solo para lugares` });
+				}
+			}
+		}
+		if ((data.lat === undefined) !== (data.lng === undefined)) {
+			errors.push({ path: 'lat', message: 'Ubicación: hacen falta la latitud y la longitud' });
+		}
+		if (data.pronouns_url !== undefined) {
+			const problem = linkProblem(String(data.pronouns_url));
+			if (problem) errors.push({ path: 'pronouns_url', message: `Link de pronombres: ${problem}` });
+		}
 		return errors;
 	},
+	// Sin dirección, barrio ni ciudad (la privacidad de un lugar no puede depender de que nadie
+	// busque su calle) y sin datos de contacto: solo lo que se ve en cualquier listado.
 	searchText(data) {
-		return [data.pronouns, data.bio].filter(Boolean).join('\n');
+		return [data.pronouns, data.bio, ...(Array.isArray(data.tags) ? data.tags : [])]
+			.filter(Boolean)
+			.join('\n');
 	}
 };
 
