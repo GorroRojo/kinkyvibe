@@ -165,10 +165,11 @@ campos), pero nadie la usa todavía.
 - `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona o grupo, nombre
   y quién lo puede ver) y las invitaciones a gestionar grupos que le llegaron.
 - `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad.
-  - En un grupo: aceptar o sacar integrantes, ver quiénes lo gestionan, invitar, cambiar roles,
-    sacar gente, dejar de gestionar y borrar.
-  - En una persona: pedir sumarse a un grupo (con la dirección del grupo), salir o retirar el
-    pedido, y borrar.
+  - En un grupo: sumar integrantes (con la dirección del perfil de la persona) o sacarlos, ver
+    quiénes lo gestionan, invitar, cambiar roles, sacar gente, dejar de gestionar y borrar.
+  - En una persona: los grupos que la sumaron, salir de cada uno con un clic, y borrar.
+- En `/mi-rincon/perfiles` también están todos los grupos que sumaron a alguno de tus perfiles de
+  persona ("Te sumaron a…"), cada uno con su botón para salir.
 - Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
   `/ingresar`. Con el interruptor apagado, todo da 404.
 - Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página.
@@ -183,7 +184,7 @@ campos), pero nadie la usa todavía.
   son objetos, así que no puede ser un edge. Columnas: `profile_id` → `objects(id)` y
   `account_id` → `accounts(id)`, las dos con `ON DELETE CASCADE`, y `role`:
   - `owner` (dueñe): todo, incluso invitar, sacar gente, cambiar roles y borrar el perfil;
-  - `manager`: edita el perfil y acepta o saca integrantes.
+  - `manager`: edita el perfil y suma o saca integrantes.
 
   Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
   tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
@@ -191,9 +192,16 @@ campos), pero nadie la usa todavía.
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
   cuenta que invitó.
-- **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, con
-  `data.aceptado`. La persona lo pide desde su perfil y el grupo lo acepta: nadie aparece en un
-  grupo sin haberlo pedido. Se escriben con `saveObject()` sobre el perfil de la persona.
+- **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, sin
+  datos extra. Los suma directamente quien gestiona el grupo (sin pedido ni aprobación) y se
+  escriben con `saveObject()` sobre el perfil de la persona, con la versión que está guardada en
+  ese momento (si otro guardado se cruza, se vuelve a leer y se reintenta: nunca se pisa lo que la
+  persona editó).
+- **Bloqueo después de irse** en `profile_member_blocks` (también en la migración 0014): grupo,
+  perfil de persona y hasta cuándo, nada más. No es un edge porque los edges se leen con
+  `getEdges()` y cualquiera que viera los dos perfiles se enteraría de que esa persona estuvo en
+  el grupo; no entra en `rate_limits` porque ahí nada dura más de 24 horas. Solo la usa
+  `perfiles.js`, nunca se muestra, y las filas vencidas se borran al sumar a ese grupo.
 - `created_by` y `updated_by` de los objetos solo los ven les admins (`forViewer()` en
   `src/lib/server/objects/read.js`): así ninguna lectura pública ni de cuentas vincula dos
   perfiles por quién los creó. Una cuenta figura como autora con el prefijo `cuenta:<id>`.
@@ -205,10 +213,42 @@ campos), pero nadie la usa todavía.
   aparece "Alguien lo cambió mientras tanto…", con lo que la persona había escrito aparte para
   que no lo pierda.
 - **Sumar gestión por mail, sin revelar si ese mail tiene cuenta.** Une dueñe escribe un mail y
-  la respuesta es siempre la misma (tenga cuenta, no la tenga, o ya gestione el grupo). No se
-  manda ningún mail (no es un canal para escribirle a cualquiera): quien invita le avisa. La
+  la respuesta es siempre la misma (tenga cuenta, no la tenga, o ya gestione el grupo). La
   cuenta que entra con ese mail **verificado** ve la invitación en Mi rincón → Perfiles y la
   acepta (queda como `manager`) o la rechaza.
+- **Aviso por mail de la invitación.** Si hay una cuenta verificada y no borrada con ese mail (y
+  todavía no gestiona el grupo), le llega un aviso corto: "Te invitaron a gestionar un perfil en
+  KinkyVibe", con el nombre del grupo y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
+  quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos de ingreso
+  (`deliverEmail`, que en los previews respeta `EMAIL_ALLOWLIST`).
+
+  Cómo no revela nada: `inviteManager()` hace lo mismo antes de responder haya o no cuenta
+  (permisos, límites, guardar la invitación) y **no busca la cuenta**. Buscarla, el límite por
+  destinatarie y mandar el mail van en una tarea aparte (`sendInviteNotice()`) que se le pasa a
+  `ctx.waitUntil`: la respuesta sale sin esperarla (`inviteNotice()` en `perfilesWeb.js`; sin
+  `ctx`, como en `vite dev`, se la deja correr sin esperarla). Si el mail falla, queda en el log y
+  la invitación sigue en Mi rincón igual.
+
+- **Límites de invitaciones** (`INVITE_RATE_LIMITS`, tabla `rate_limits`), además de las 20
+  pendientes por grupo: 10 por hora por grupo y 20 por hora por cuenta que invita (se cuentan
+  siempre, así el "esperá un rato" no dice nada del mail), y 3 avisos por día a un mismo mail,
+  de cualquier grupo. Este último no se le muestra a quien invita: la invitación se crea igual y
+  solo no sale el mail.
+- **Integrantes: el grupo suma directamente**, con resguardos:
+  - solo perfiles de persona que la cuenta que suma **puede ver** (`getObject` con su
+    visibilidad), por la dirección del perfil, y **nunca uno oculto**, aunque sea propio. Para
+    todo lo demás (oculto, de grupo, borrado, inexistente) la respuesta es la misma: "No
+    encontramos ese perfil de persona";
+  - la persona lo ve en Mi rincón → Perfiles ("Te sumaron a…") y **se va con un clic cuando
+    quiera**, sin aprobación de nadie, aunque el grupo esté oculto o borrado;
+  - si se va, **ese grupo no la puede volver a sumar por 30 días** (`profile_member_blocks`).
+    Si el grupo la saca, no hay bloqueo;
+  - `show_members` muestra solo les integrantes que quien mira puede ver (`getEdges` pasa cada
+    perfil por la visibilidad). Si une integrante pasa a oculto, deja de aparecer en todos lados,
+    también en la lista de quienes gestionan el grupo;
+  - quienes gestionan no se muestran nunca, y nada vincula entre sí los perfiles de persona de
+    una misma cuenta: cada uno es integrante por su lado. Solo la propia cuenta ve, en su Mi
+    rincón, qué perfil suyo está en qué grupo.
 - **Siempre queda al menos une dueñe.** Le última dueñe no puede irse ni perder la propiedad:
   primero hace dueñe a otra persona. La condición va en la misma sentencia SQL, así dos cambios a
   la vez no pueden dejar al grupo sin dueñe. Una cuenta borrada no cuenta como dueñe.
@@ -225,8 +265,10 @@ campos), pero nadie la usa todavía.
 
 - `npx vitest run src/lib/server/cuentas/perfiles.test.js "src/routes/(content)/mi-rincon/perfiles"`:
   migración y foreign keys, permisos, le última dueñe, el aviso de conflicto, invitaciones que no
-  revelan cuentas, integrantes, que ninguna lectura pública o de otra cuenta vincula perfiles ni
-  muestra quién gestiona, y las páginas con el interruptor apagado (404) y prendido.
+  revelan cuentas (tampoco con el aviso por mail) y sus límites, integrantes (sumar, no poder
+  sumar ocultos, irse, el bloqueo de 30 días, visibilidad), que ninguna lectura pública o de otra
+  cuenta vincula perfiles ni muestra quién gestiona, y las páginas con el interruptor apagado
+  (404) y prendido.
 
 ## Dónde está el código
 
