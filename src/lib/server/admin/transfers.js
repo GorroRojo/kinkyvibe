@@ -10,6 +10,10 @@
  * cupo: le admin la puede confirmar igual, pero primero se contesta `needsConfirmation` (con
  * cuánto se pasa) y la página pregunta con un diálogo; si confirma, reenvía con `override` (la
  * clave de exactamente ese límite; ver tickets/overrides.js). Queda en el registro.
+ *
+ * Una transferencia rechazada (cancelada) se puede volver a "esperando comprobante" ("Deshacer
+ * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo, o pasando
+ * el límite con el mismo diálogo.
  */
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
@@ -18,6 +22,8 @@ import {
 	confirmTransfer,
 	getOrder,
 	orderTier,
+	reopenLimits,
+	reopenTransfer,
 	transferLimits
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
@@ -169,4 +175,123 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
 		detail: { event: order.event_slug }
 	});
 	return { ok: true, status: 200, message: `${ref} cancelada: se liberó el cupo.` };
+}
+
+/**
+ * "Deshacer rechazo": vuelve una transferencia cancelada a "esperando comprobante", con una
+ * reserva nueva completa (`holdMs`, la de TICKETS_TRANSFER_HOLD_HOURS) desde ahora. Solo si
+ * todavía hay lugar en su tipo de entrada y en su tramo de preventa; si no, contesta
+ * `needsConfirmation` (cuánto se pasa) para el mismo diálogo que confirmar una transferencia
+ * tardía. Registra `transfer.reopen` (y `tickets.override` si se pasó un límite). No le manda
+ * nada a quien compró.
+ *
+ * @param {{
+ *   db: D1Database,
+ *   locals: App.Locals,
+ *   by: string,
+ *   orderId: string,
+ *   holdMs: number,
+ *   eventSlug?: string,
+ *   override?: string,
+ *   now?: number
+ * }} input `eventSlug`: desde la ficha de un evento, la orden tiene que ser de ese evento
+ * @returns {Promise<TransferActionResult>}
+ */
+export async function reopenTransferFromPanel({
+	db,
+	locals,
+	by,
+	orderId,
+	holdMs,
+	eventSlug,
+	override = '',
+	now
+}) {
+	const order = await getOrder(db, orderId);
+	if (
+		!order ||
+		order.payment_method !== 'transferencia' ||
+		(eventSlug && order.event_slug !== eventSlug)
+	) {
+		return { ok: false, status: 404, message: 'No encontramos esa transferencia.' };
+	}
+	const ref = orderReference(order.id);
+	const config = await getEventTickets(order.event_slug);
+	const type = config?.types.find((t) => t.id === order.ticket_type);
+	if (!type) {
+		return {
+			ok: false,
+			status: 404,
+			message: `No encontramos el tipo de entrada de ${ref} (¿el evento dejó de vender entradas?).`
+		};
+	}
+	const at = now ?? Date.now();
+	/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
+	const ask = (needsConfirmation) => ({
+		ok: false,
+		status: 409,
+		message: `No hay lugar para volver a reservar ${ref}: ${needsConfirmation.limits
+			.map((l) => l.message)
+			.join(' ')} Podés deshacer el rechazo igual confirmándolo en el aviso.`,
+		needsConfirmation
+	});
+	const check = checkOverride(await reopenLimits(db, { order, type, now: at }), override);
+	if (!check.ok) return ask(check.needsConfirmation);
+	const r = await reopenTransfer(db, {
+		orderId: order.id,
+		eventSlug: order.event_slug,
+		capacity: type.capacity,
+		tierQuantity: orderTier(order, type)?.quantity ?? null,
+		by,
+		holdMs,
+		override: check.override,
+		now: at
+	});
+	if (r.result === 'reopened' && r.order) {
+		await logAdminAction(db, locals, {
+			action: 'transfer.reopen',
+			targetType: 'order',
+			targetId: order.id,
+			summary: `Deshizo el rechazo de la transferencia ${ref} (vuelve a esperar comprobante)`,
+			detail: {
+				event: order.event_slug,
+				quantity: order.quantity,
+				expiresAt: r.order.expires_at,
+				...(check.limits.length ? { overrides: check.limits } : {})
+			}
+		});
+		await logOverride(db, locals, {
+			event: order.event_slug,
+			what: 'deshacer el rechazo de una transferencia',
+			orderId: order.id,
+			limits: check.limits
+		});
+		return {
+			ok: true,
+			status: 200,
+			slug: order.event_slug,
+			order: r.order,
+			message: `${ref} vuelve a esperar el comprobante, con la reserva renovada.`
+		};
+	}
+	if (r.result === 'already') {
+		return { ok: true, status: 200, message: `${ref} ya estaba esperando el comprobante.` };
+	}
+	if (r.result === 'no-capacity') {
+		// Se ocupó el último lugar entre el control y el cambio: se vuelve a preguntar.
+		const again = checkOverride(await reopenLimits(db, { order, type, now: at }), '');
+		if (!again.ok) return ask(again.needsConfirmation);
+	}
+	/** @type {Record<string, string>} */
+	const messages = {
+		'no-capacity': `No se pudo deshacer el rechazo de ${ref}: ya no hay lugar para ${order.quantity} entradas ${type.name}.`,
+		'not-transfer': `${ref} no es una compra por transferencia.`,
+		'not-found': 'No encontramos esa orden.',
+		'not-cancelled': `${ref} no está rechazada: no hay nada que deshacer.`
+	};
+	return {
+		ok: false,
+		status: 409,
+		message: messages[r.result] ?? `No se pudo deshacer el rechazo de ${ref}.`
+	};
 }

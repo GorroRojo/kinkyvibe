@@ -1,6 +1,7 @@
 <script>
 	/**
-	 * Bandeja de transferencias de todos los eventos: confirmar o cancelar, filtrar por evento.
+	 * Bandeja de transferencias de todos los eventos: confirmar o cancelar, filtrar por evento, y
+	 * deshacer el rechazo de una cancelada en los últimos 7 días.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -16,6 +17,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
+	import ReopenTransferButton from '$lib/components/admin/panel/ReopenTransferButton.svelte';
 
 	export let data;
 	export let form;
@@ -75,7 +77,11 @@
 		{ label: 'codigo', value: (r) => r.discountCode ?? '' },
 		{ label: 'pedida', value: (r) => new Date(r.createdAt).toISOString() },
 		{ label: 'vence', value: (r) => new Date(r.expiresAt).toISOString() },
-		{ label: 'estado', value: (r) => (r.expiresAt > data.now ? 'pendiente' : 'vencida') }
+		{
+			label: 'estado',
+			value: (r) =>
+				r.rejectedBy !== '' ? 'rechazada' : r.expiresAt > data.now ? 'pendiente' : 'vencida'
+		}
 	];
 
 	/** @param {Event} e */
@@ -95,7 +101,7 @@
 >
 	<svelte:fragment slot="actions">
 		<CsvButton
-			rows={[...data.pending, ...data.expired]}
+			rows={[...data.pending, ...data.expired, ...data.rejected]}
 			{columns}
 			filename={csvFilename('transferencias', data.eventSlug || 'todas')}
 		/>
@@ -127,7 +133,13 @@
 		<p class="kv-flash" class:bad={!form.transfer.ok} role="status">{form.transfer.message}</p>
 		{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
 			<!-- Sin JavaScript: la confirmación en la página. -->
-			<form class="kv-flash bad" method="POST" action="?/confirm">
+			<form
+				class="kv-flash bad"
+				method="POST"
+				action={'action' in form.transfer && form.transfer.action === 'reopen'
+					? '?/reopen'
+					: '?/confirm'}
+			>
 				{#each form.transfer.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
 				<input type="hidden" name="order" value={form.transfer.order} />
 				<button
@@ -242,6 +254,40 @@
 								<input type="hidden" name="order" value={o.id} />
 								<button class="kv-btn ghost" type="submit">Cancelar</button>
 							</form>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		</Card>
+	{/if}
+
+	{#if data.rejected.length}
+		<Card title="Rechazadas en los últimos 7 días ({data.rejected.length})">
+			<p class="kv-note">
+				Si una se canceló por error (o el pago llegó después), deshacé el rechazo: vuelve a esperar
+				el comprobante con la reserva renovada. Solo si todavía hay lugar en su tipo de entrada; si
+				no, te avisamos cuánto se pasa y podés confirmarlo igual (queda en el registro).
+			</p>
+			<ul class="list">
+				{#each data.rejected as o (o.id)}
+					<li>
+						<div class="main">
+							<div class="kv-row">
+								<b class="ref num">{o.reference}</b>
+								<b class="num">{formatARS(o.total)}</b>
+								<Badge tone="neutral">rechazada {fmtRelative(o.updatedAt, data.now)}</Badge>
+							</div>
+							<div>
+								<b>{o.name}</b> · <a href="mailto:{o.email}">{o.email}</a>
+							</div>
+							<div class="muted small">
+								<a href={eventPanelLink(o.slug, { tickets: true })}>{o.event}</a>
+								· {o.quantity} × {o.type} · pedida {fmtDateTime(o.createdAt)}
+								{#if o.rejectedBy}· la rechazó {o.rejectedBy}{/if}
+							</div>
+						</div>
+						<div class="buttons">
+							<ReopenTransferButton id={o.id} reference={o.reference} dialog={overrideDialog} />
 						</div>
 					</li>
 				{/each}
