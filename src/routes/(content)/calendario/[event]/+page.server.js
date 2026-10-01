@@ -3,15 +3,19 @@ import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
 import { personasForPage } from '$lib/server/personas/index.js';
+import { propinasEnabled } from '$lib/server/flags.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch }) {
-	const [related, tickets, personas] = await Promise.all([
+	const [related, tickets, personas, propinas] = await Promise.all([
 		loadRelated(params.event),
 		loadTickets(params.event, platform, fetch),
-		loadPersonas(params.event, platform)
+		loadPersonas(params.event, platform),
+		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
+		// solo lo muestra en los eventos de KinkyVibe).
+		propinasEnabled(platform)
 	]);
-	return { ...related, tickets, personas };
+	return { ...related, tickets, personas, propinas };
 }
 
 /**

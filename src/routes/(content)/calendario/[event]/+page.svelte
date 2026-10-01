@@ -7,7 +7,8 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
-	import Note from '$lib/components/Note.svelte';
+	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -277,14 +278,12 @@
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
 	</div>
-	{#if data.meta.tags.includes('KinkyVibe')}
-		<Note id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
-			Si te resultó valioso,
-			<a href="https://cafecito.app/kinkyvibe" target="_blank"
-				>considerá apoyarnos con algún cafecito</a
-			>. 🤗
-		</Note>
+	{#if isKinkyVibePost(data.meta)}
+		<PostSupport
+			propinas={data.propinas}
+			category="calendario"
+			slug={$page.params.event ?? ''}
+		/>
 	{/if}
 </article>
 

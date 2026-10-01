@@ -228,10 +228,12 @@
 						href="/admin/entradas"
 					/>
 					<Stat
-						label="Neto del fondo en entradas"
+						label="Neto del fondo"
 						value={formatSignedARS(data.money.fondoNet)}
 						tone={data.money.fondoNet < 0 ? 'bad' : data.money.fondoNet > 0 ? 'ok' : ''}
-						sub="aportes menos descuentos, este mes"
+						sub={data.money.fondoTips
+							? `aportes menos descuentos, este mes · incluye ${formatARS(data.money.fondoTips)} de propinas`
+							: 'aportes menos descuentos, este mes'}
 					/>
 				{:else}
 					<Stat label="Entradas este mes" value="—" sub="sin base de datos en este entorno" />

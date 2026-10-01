@@ -8,6 +8,8 @@
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import Note from '$lib/components/Note.svelte';
+	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { TIMEZONE } from '$lib/utils/dates.js';
@@ -139,14 +141,8 @@
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<svelte:component this={data.content} />
 	</div>
-	{#if data.meta.tags?.includes('KinkyVibe')}
-		<Note id="cafecito">
-			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.
-			Si te resultó valioso,
-			<a href="https://cafecito.app/kinkyvibe" target="_blank"
-				>considerá apoyarnos con algún cafecito</a
-			>. 🤗
-		</Note>
+	{#if isKinkyVibePost(data.meta)}
+		<PostSupport propinas={data.propinas} category="material" slug={$page.params.post ?? ''} />
 	{/if}
 </article>
 

@@ -30,6 +30,14 @@ export const FLAGS = Object.freeze({
 			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
 			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
 		envVar: 'PERSONAS_EVENTOS_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -112,6 +120,15 @@ export function cuentasEnabled(platform) {
  */
 export function personasEventosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'personas_eventos');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**
