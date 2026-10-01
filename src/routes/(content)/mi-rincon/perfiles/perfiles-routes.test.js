@@ -215,7 +215,77 @@ describe('interruptor prendido', () => {
 		log.mockRestore();
 	});
 
-	it('integrantes: el grupo suma, la persona lo ve en Perfiles y sale con un clic; no la vuelven a sumar', async () => {
+	it('integrantes: el grupo invita, la persona acepta o rechaza en Perfiles y sale con un clic', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'dueñe-prueba');
+		const person = await member(m, 'persona-prueba');
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Otro Grupo' });
+		await m.perfiles.createProfile(t.db, person.id, {
+			kind: 'persona',
+			title: 'Persona Inventada'
+		});
+		const params = { slug: 'grupo-inventado' };
+		const invite = (slug = 'grupo-inventado') =>
+			m.edit.actions.invitarIntegrante(
+				fakeEvent({ member: me, params: { slug }, form: { persona: 'persona-inventada' } })
+			);
+		expect(await invite()).toEqual({
+			action: 'integrantes',
+			message: m.perfiles.MESSAGES.memberInvited
+		});
+		// Alguien que no gestiona el grupo: 404, como si no existiera.
+		const intruder = await thrown(() =>
+			m.edit.actions.invitarIntegrante(
+				fakeEvent({ member: person, params, form: { persona: 'persona-inventada' } })
+			)
+		);
+		expect(intruder?.status).toBe(404);
+		// Quien gestiona la ve pendiente; todavía no es integrante.
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(page.members).toEqual([]);
+		expect(page.pendingMembers.map((/** @type {any} */ p) => p.slug)).toEqual([
+			'persona-inventada'
+		]);
+
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		expect(list.memberships).toEqual([]);
+		expect(list.noGroupInvites).toBe(false);
+		expect(list.memberInvites).toEqual([
+			{
+				groupId: expect.any(Number),
+				groupTitle: 'Grupo Inventado',
+				personaSlug: 'persona-inventada',
+				personaTitle: 'Persona Inventada'
+			}
+		]);
+		const form = { persona: 'persona-inventada', group: String(list.memberInvites[0].groupId) };
+		expect(await m.list.actions.aceptarGrupo(fakeEvent({ member: person, form }))).toMatchObject({
+			action: 'grupos'
+		});
+		const joined = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		expect(joined.memberInvites).toEqual([]);
+		expect(joined.memberships).toHaveLength(1);
+		const left = await m.list.actions.salirGrupo(fakeEvent({ member: person, form }));
+		expect(left).toEqual({ action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' });
+		const again = /** @type {any} */ (await invite());
+		expect(again.status).toBe(409);
+		expect(again.data).toMatchObject({ error: m.perfiles.MESSAGES.recentlyLeft });
+
+		// Otro grupo: rechaza.
+		await invite('otro-grupo');
+		const other = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		const rejected = await m.list.actions.rechazarGrupo(
+			fakeEvent({
+				member: person,
+				form: { persona: 'persona-inventada', group: String(other.memberInvites[0].groupId) }
+			})
+		);
+		expect(rejected).toMatchObject({ action: 'grupos' });
+		expect(/** @type {any} */ (await invite('otro-grupo')).status).toBe(409);
+	});
+
+	it('"No recibir invitaciones de grupos" desde Perfiles', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'dueñe-prueba');
 		const person = await member(m, 'persona-prueba');
@@ -224,41 +294,24 @@ describe('interruptor prendido', () => {
 			kind: 'persona',
 			title: 'Persona Inventada'
 		});
-		const params = { slug: 'grupo-inventado' };
-		const add = () =>
-			m.edit.actions.sumarIntegrante(
-				fakeEvent({ member: me, params, form: { persona: 'persona-inventada' } })
-			);
-		expect(await add()).toMatchObject({ action: 'integrantes' });
-		// Alguien que no gestiona el grupo: 404, como si no existiera.
-		const intruder = await thrown(() =>
-			m.edit.actions.sumarIntegrante(
-				fakeEvent({ member: person, params, form: { persona: 'persona-inventada' } })
-			)
+		const off = await m.list.actions.invitacionesGrupos(
+			fakeEvent({ member: person, form: { recibir: 'no' } })
 		);
-		expect(intruder?.status).toBe(404);
-
-		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
-		expect(list.memberships).toEqual([
-			{
-				groupId: expect.any(Number),
-				groupTitle: 'Grupo Inventado',
-				personaSlug: 'persona-inventada',
-				personaTitle: 'Persona Inventada'
-			}
-		]);
-		const left = await m.list.actions.salirGrupo(
+		expect(off).toMatchObject({ action: 'invitacionesGrupos' });
+		const res = await m.edit.actions.invitarIntegrante(
 			fakeEvent({
-				member: person,
-				form: { persona: 'persona-inventada', group: String(list.memberships[0].groupId) }
+				member: me,
+				params: { slug: 'grupo-inventado' },
+				form: { persona: 'persona-inventada' }
 			})
 		);
-		expect(left).toEqual({ action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' });
-		const after = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
-		expect(after.memberships).toEqual([]);
-		const again = /** @type {any} */ (await add());
-		expect(again.status).toBe(409);
-		expect(again.data).toMatchObject({ error: m.perfiles.MESSAGES.recentlyLeft });
+		expect(res).toEqual({ action: 'integrantes', message: m.perfiles.MESSAGES.memberInvited });
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		expect(list).toMatchObject({ noGroupInvites: true, memberInvites: [] });
+		await m.list.actions.invitacionesGrupos(fakeEvent({ member: person, form: { recibir: 'si' } }));
+		expect(
+			/** @type {any} */ (await m.list.load(fakeEvent({ member: person }))).noGroupInvites
+		).toBe(false);
 	});
 
 	it('acciones de dueñes y borrar un grupo: piden un código fresco de grupo', async () => {

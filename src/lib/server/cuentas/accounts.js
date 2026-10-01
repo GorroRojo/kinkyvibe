@@ -8,7 +8,6 @@
  *   pendientes y todos los datos de la persona (la fila queda vacía, con `deleted_at`).
  */
 import { sha256Hex } from '$lib/server/hash.js';
-import { codeEmailHashes } from './codes.js';
 import { hashPassword, needsRehash, passwordProblem, verifyPassword } from './password.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -196,9 +195,7 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 	await db.batch([
 		db.prepare('UPDATE orders SET account_id = NULL WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM account_sessions WHERE account_id = ?1').bind(accountId),
-		db
-			.prepare('DELETE FROM login_codes WHERE email_hash IN (SELECT value FROM json_each(?1))')
-			.bind(JSON.stringify(await codeEmailHashes(hash))),
+		db.prepare('DELETE FROM login_codes WHERE email_hash = ?1').bind(hash),
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,
@@ -208,4 +205,41 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 			.bind(accountId, now)
 	]);
 	return true;
+}
+
+/**
+ * ¿La cuenta eligió "No recibir invitaciones de grupos"? (`preferences.noGroupInvites`)
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ */
+export async function getNoGroupInvites(db, accountId) {
+	const row = await db
+		.prepare(
+			`SELECT json_extract(preferences, '$.noGroupInvites') AS v FROM accounts
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId)
+		.first();
+	return Number(row?.v) === 1;
+}
+
+/**
+ * Prende o apaga "No recibir invitaciones de grupos". Apagado, la clave se saca (no queda nada).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {boolean} value
+ * @param {{ now?: number }} [opts]
+ */
+export async function setNoGroupInvites(db, accountId, value, { now = Date.now() } = {}) {
+	await db
+		.prepare(
+			`UPDATE accounts SET updated_at = ?2, preferences = CASE WHEN ?3
+				THEN json_set(preferences, '$.noGroupInvites', json('true'))
+				ELSE json_remove(preferences, '$.noGroupInvites') END
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId, now, value ? 1 : 0)
+		.run();
 }

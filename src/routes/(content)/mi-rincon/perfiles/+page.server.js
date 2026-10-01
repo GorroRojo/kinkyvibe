@@ -1,14 +1,19 @@
 /**
  * Mi rincón → Perfiles: los perfiles que gestiona la cuenta, crear uno nuevo, las invitaciones
- * a gestionar grupos y los grupos que sumaron a sus perfiles de persona (con "Salir" a un clic). Reglas en src/lib/server/cuentas/perfiles.js; docs/cuentas.md («Perfiles»).
+ * a gestionar grupos, las invitaciones de grupos a sus perfiles de persona (aceptar o rechazar,
+ * y la opción de no recibirlas) y los grupos de los que son parte (con "Salir" a un clic). Reglas
+ * en src/lib/server/cuentas/perfiles.js; docs/cuentas.md («Perfiles»).
  * Con el interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
+import { getNoGroupInvites, setNoGroupInvites } from '$lib/server/cuentas/accounts.js';
 import {
 	answerInvite,
+	answerMemberInvite,
 	createProfile,
 	leaveMembership,
+	listMyMemberInvites,
 	listMyMemberships,
 	listMyProfiles,
 	myInvites
@@ -19,10 +24,12 @@ import { field, requireMember } from '$lib/server/cuentas/perfilesWeb.js';
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const [profiles, invites, memberships] = await Promise.all([
+	const [profiles, invites, memberships, memberInvites, noGroupInvites] = await Promise.all([
 		listMyProfiles(db, member.id),
 		myInvites(db, member.id),
-		listMyMemberships(db, member.id)
+		listMyMemberships(db, member.id),
+		listMyMemberInvites(db, member.id),
+		getNoGroupInvites(db, member.id)
 	]);
 	return {
 		profiles: profiles.map((p) => ({
@@ -33,7 +40,40 @@ export async function load(event) {
 			role: p.role
 		})),
 		invites,
-		memberships
+		memberships,
+		memberInvites,
+		noGroupInvites
+	};
+}
+
+/**
+ * Aceptar o rechazar la invitación de un grupo a uno de tus perfiles de persona.
+ *
+ * @param {import('@sveltejs/kit').RequestEvent} event
+ * @param {boolean} accept
+ */
+async function answerGroup(event, accept) {
+	const { db, member } = await requireMember(event);
+	const form = await event.request.formData();
+	let result;
+	try {
+		result = await answerMemberInvite(
+			db,
+			member.id,
+			field(form, 'persona', 300),
+			field(form, 'group', 20),
+			accept
+		);
+	} catch (e) {
+		logDBError('perfiles: responder invitación de grupo', e);
+		return fail(500, { action: 'grupos', error: 'No se pudo guardar. Probá de nuevo.' });
+	}
+	if (!result.ok) return fail(result.status, { action: 'grupos', error: result.message });
+	return {
+		action: 'grupos',
+		message: accept
+			? 'Listo: ya sos parte del grupo. Te podés ir cuando quieras.'
+			: 'Listo: rechazaste la invitación. Ese grupo no te puede volver a invitar por 30 días.'
 	};
 }
 
@@ -90,6 +130,32 @@ export const actions = {
 		}
 		if (!result.ok) return fail(result.status, { action: 'grupos', error: result.message });
 		return { action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' };
+	},
+
+	aceptarGrupo: async (event) => answerGroup(event, true),
+
+	rechazarGrupo: async (event) => answerGroup(event, false),
+
+	// "No recibir invitaciones de grupos" (de la cuenta, para todos sus perfiles de persona).
+	invitacionesGrupos: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const off = form.get('recibir') === 'no';
+		try {
+			await setNoGroupInvites(db, member.id, off);
+		} catch (e) {
+			logDBError('perfiles: invitaciones de grupos', e);
+			return fail(500, {
+				action: 'invitacionesGrupos',
+				error: 'No se pudo guardar. Probá de nuevo.'
+			});
+		}
+		return {
+			action: 'invitacionesGrupos',
+			message: off
+				? 'Listo: no vas a recibir invitaciones de grupos.'
+				: 'Listo: vas a recibir invitaciones de grupos.'
+		};
 	},
 
 	rechazar: async (event) => {
