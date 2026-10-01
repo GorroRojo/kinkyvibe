@@ -10,7 +10,13 @@ import { accountLink } from '$lib/utils/cuentas.js';
 let t;
 beforeAll(async () => {
 	t = await createTestDB();
-});
+	// La primera importación de las páginas (y todo lo que arrastran: entradas, mails, cuentas,
+	// y los posts de la wiki que lee el layout) tarda unos segundos en transformarse; con la
+	// máquina cargada, la prueba que la pagaba se pasaba de los 5 s. Se paga acá, una vez, con un
+	// tiempo propio: después `modules()` solo vuelve a evaluar módulos ya transformados.
+	const warm = await modules('');
+	await warm.root.load(/** @type {any} */ (fakeEvent()));
+}, 60_000);
 afterAll(async () => {
 	await t?.dispose();
 });
