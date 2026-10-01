@@ -17,7 +17,12 @@
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
+	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
+	import { venueLine, venueSchema } from '$lib/utils/venues.js';
 	export let data;
+	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
+	// sobre `location` del .md (docs/amigues.md).
+	$: where = data.venue ? venueLine(data.venue) : (data.meta.location ?? 'Online');
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -55,7 +60,9 @@
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'
 				: 'https://schema.org/EventScheduled',
-		location: data.meta.location
+		location: data.venue
+			? venueSchema(data.venue)
+			: data.meta.location
 			? {
 					'@type': 'Place',
 					name: data.meta.location_name ?? data.meta.title,
@@ -169,7 +176,7 @@
 			>
 			<small>en</small>
 			<span class="p-location">
-				{data.meta.location ?? 'Online'}
+				{where}
 			</span>
 		</p>
 		<div class="event-atcb">
@@ -218,6 +225,9 @@
 			></add-to-calendar-button>
 		</div>
 	</div>
+	{#if data.venue}
+		<VenueLocation view={data.venue} context="event" />
+	{/if}
 	{#if data.tickets}
 		{@const t = data.tickets}
 		<section class="buy-cta" id="entradas" aria-label="Entradas">

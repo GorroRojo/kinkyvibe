@@ -31,6 +31,16 @@ export const FLAGS = Object.freeze({
 			'Apagado, el botón no aparece y la página de borrar da 404.',
 		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
 	},
+	perfiles_publicos: {
+		label: 'Perfiles públicos (amigues y lugares)',
+		description:
+			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
+			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
+			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
+			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'clasificación.',
+		envVar: 'PERFILES_PUBLICOS_ENABLED'
+	},
 	propinas: {
 		label: 'Propinas',
 		description:
@@ -119,6 +129,15 @@ export function cuentasEnabled(platform) {
  */
 export function borrarDesdePanelEnabled(platform) {
 	return isFlagOn(getDB(platform), 'borrar_desde_panel');
+}
+
+/**
+ * Atajo para las rutas: ¿/amigues y los lugares leen los perfiles de la base? (docs/amigues.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function perfilesPublicosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'perfiles_publicos');
 }
 
 /**

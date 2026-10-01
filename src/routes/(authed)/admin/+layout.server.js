@@ -1,6 +1,7 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { countProfilesToReview } from '$lib/server/admin/cuentas.js';
+import { countPendingClaims } from '$lib/server/amigues/claims.js';
 import { fetchMarkdownPosts } from '$lib/utils';
 import { borrarDesdePanelEnabled } from '$lib/server/flags.js';
 
@@ -35,7 +36,12 @@ async function panelCounts(platform) {
 		(async () => {
 			// Perfiles creados por cuentas que ninguna admin revisó (Cuentas → Perfiles). Sin la
 			// base o sin las migraciones de perfiles, 0 (no aparece).
-			counts.profilesToReview = await countProfilesToReview(db);
+			// Más los pedidos "Es mi perfil" pendientes (docs/amigues.md).
+			const [review, claims] = await Promise.all([
+				countProfilesToReview(db),
+				countPendingClaims(db)
+			]);
+			counts.profilesToReview = review + claims;
 		})(),
 		(async () => {
 			try {

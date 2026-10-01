@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { validateFields } from '../fields.js';
 import { coreTypes, createRegistry, validateData } from './index.js';
+import {
+	LEGACY_PROJECT_KIND,
+	PROFILE_KINDS,
+	normalizeProfileKind,
+	profileKindOf
+} from './perfil.js';
 
 const evento = /** @type {import('./index.js').CoreType} */ (coreTypes.get('evento'));
 const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar'));
@@ -90,8 +96,8 @@ describe('perfil', () => {
 		expect(validateData(perfil, {})).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
 		expect(
 			validateData(perfil, {
-				kind: 'grupo',
-				bio: 'Somos un grupo inventado',
+				kind: 'proyecto',
+				bio: 'Somos un proyecto inventado',
 				pronouns: ' elles ',
 				links: ['https://ejemplo.test/a', '', 'https://ejemplo.test/a', 'http://ejemplo.test/b'],
 				show_members: false
@@ -99,8 +105,8 @@ describe('perfil', () => {
 		).toEqual({
 			ok: true,
 			data: {
-				kind: 'grupo',
-				bio: 'Somos un grupo inventado',
+				kind: 'proyecto',
+				bio: 'Somos un proyecto inventado',
 				pronouns: 'elles',
 				links: ['https://ejemplo.test/a', 'http://ejemplo.test/b'],
 				show_members: false
@@ -108,15 +114,43 @@ describe('perfil', () => {
 		});
 	});
 
+	it('lugar: sus campos solo valen para lugares; la ubicación va completa (noche 3)', () => {
+		const venue = {
+			kind: 'lugar',
+			address: 'Calle Inventada 1',
+			area: 'Barrio Inventado',
+			lat: -34.6,
+			lng: -58.4,
+			venue_privacy: 'area'
+		};
+		expect(validateData(perfil, venue)).toMatchObject({ ok: true });
+		const asPersona = validateData(perfil, { ...venue, kind: 'persona' });
+		expect(asPersona.ok ? [] : asPersona.errors.map((e) => e.path).sort()).toEqual([
+			'address',
+			'area',
+			'lat',
+			'lng',
+			'venue_privacy'
+		]);
+		const half = validateData(perfil, { kind: 'lugar', lat: -34.6 });
+		expect(half.ok ? [] : half.errors.map((e) => e.path)).toEqual(['lat']);
+		expect(validateData(perfil, { kind: 'lugar', venue_privacy: 'secreta' }).ok).toBe(false);
+		expect(validateData(perfil, { kind: 'persona', pronouns_url: 'javascript:alert(1)' }).ok).toBe(
+			false
+		);
+	});
+
 	it('rechaza tipos inventados, links que no son web, imágenes de afuera y claves desconocidas', () => {
 		const paths = (/** @type {Record<string, unknown>} */ data) => {
 			const r = validateData(perfil, data);
 			return r.ok ? [] : r.errors.map((e) => e.path).sort();
 		};
-		expect(paths({ kind: 'lugar' })).toEqual(['kind']);
-		expect(paths({ kind: 'persona', display_name: 'X', email: 'x@example.com' })).toEqual([
+		// Desde la noche 3 (bloque A) `lugar` es un tipo de perfil y `email` un campo (de las fichas
+		// de amigues importadas): la prueba usa otro tipo y otra clave inventados.
+		expect(paths({ kind: 'cualquiera' })).toEqual(['kind']);
+		expect(paths({ kind: 'persona', display_name: 'X', manager_email: 'x@example.com' })).toEqual([
 			'display_name',
-			'email'
+			'manager_email'
 		]);
 		expect(paths({ kind: 'persona', links: ['javascript:alert(1)'] })).toEqual(['links']);
 		expect(paths({ kind: 'persona', links: ['https://usuario:clave@ejemplo.test'] })).toEqual([
@@ -133,12 +167,49 @@ describe('perfil', () => {
 		expect(paths({ kind: 'persona', bio: 'x'.repeat(1001) })).toEqual(['bio']);
 	});
 
-	it('"mostrar integrantes" es solo para grupos', () => {
+	it('"mostrar integrantes" es solo para proyectos', () => {
 		expect(validateData(perfil, { kind: 'persona', show_members: false })).toMatchObject({
 			ok: false,
 			errors: [{ path: 'show_members' }]
 		});
-		expect(validateData(perfil, { kind: 'grupo', show_members: true })).toMatchObject({ ok: true });
+		expect(validateData(perfil, { kind: 'proyecto', show_members: true })).toMatchObject({
+			ok: true
+		});
+	});
+
+	it('el valor viejo «grupo» se lee como «proyecto» (y nada más se normaliza)', () => {
+		expect(PROFILE_KINDS).toEqual(['persona', 'proyecto', 'lugar']);
+		expect(LEGACY_PROJECT_KIND).toBe('grupo');
+		expect(normalizeProfileKind('grupo')).toBe('proyecto');
+		expect(normalizeProfileKind('proyecto')).toBe('proyecto');
+		expect(normalizeProfileKind('persona')).toBe('persona');
+		expect(normalizeProfileKind('lugar')).toBe('lugar');
+		for (const v of ['Grupo', 'Lugar', '', null, undefined, 1]) {
+			expect(normalizeProfileKind(v)).toBeNull();
+		}
+		expect(profileKindOf({ kind: 'grupo' })).toBe('proyecto');
+		expect(profileKindOf({ kind: 'proyecto' })).toBe('proyecto');
+		expect(profileKindOf({ kind: 'persona' })).toBe('persona');
+		expect(profileKindOf({ kind: 'lugar' })).toBe('lugar');
+		// Lo que no se reconoce sigue contando como persona, como antes del cambio.
+		expect(profileKindOf({})).toBe('persona');
+		expect(profileKindOf(null)).toBe('persona');
+	});
+
+	it('una fila vieja con «grupo» valida y se guarda como «proyecto»; nunca queda «grupo»', () => {
+		expect(validateData(perfil, { kind: 'grupo', show_members: true })).toEqual({
+			ok: true,
+			data: { kind: 'proyecto', show_members: true }
+		});
+		// No muta lo que recibe.
+		const legacy = { kind: 'grupo' };
+		validateData(perfil, legacy);
+		expect(legacy).toEqual({ kind: 'grupo' });
+		// Otros valores siguen sin pasar.
+		expect(validateData(perfil, { kind: 'Grupo' })).toMatchObject({
+			ok: false,
+			errors: [{ path: 'kind' }]
+		});
 	});
 });
 
