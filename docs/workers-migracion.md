@@ -145,6 +145,12 @@ Los Previews **no heredan nada de producción**.
 
 ### 5. Probar en workers.dev (sin tocar el dominio)
 
+> Desde la noche del 1/10/2026 `wrangler.toml` tiene `workers_dev = false`: con el dominio ya en
+> el Worker, `kinkyvibe.<tu-subdominio>.workers.dev` era una segunda puerta pública a producción.
+> Si hubiera que repetir este paso (por ejemplo, después de un rollback), poné `workers_dev = true`
+> en una rama, probá y volvé a apagarlo. Los Previews de cada rama no dependen de esto: siguen
+> andando mientras `preview_urls = true`.
+
 Hacé un push cualquiera a `main` (o **Deployments → Retry build**) para que el Worker quede con
 todo cargado, y revisá en `https://kinkyvibe.<tu-subdominio>.workers.dev` la
 [lista de verificación](#lista-de-verificación) (menos el login de admin: GitHub solo acepta

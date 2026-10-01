@@ -12,9 +12,14 @@ main = "worker/index.js"
 compatibility_date = "2026-09-25"
 compatibility_flags = ["nodejs_compat"]
 
-# URL kinkyvibe.<subdominio>.workers.dev (para probar antes de mover el dominio) y URLs de los
-# Previews de cada rama.
-workers_dev = true
+# Producción se sirve solo en kinkyvibe.ar (Custom Domain del Worker). La URL
+# kinkyvibe.<subdominio>.workers.dev servía para probar antes de mover el dominio; abierta, era
+# una segunda puerta pública a producción (sin los ajustes de la zona kinkyvibe.ar), así que va
+# apagada. Apagarla NO apaga los Previews de cada rama (<rama>-kinkyvibe.<subdominio>.workers.dev)
+# ni las Version URLs: esas dependen de `preview_urls`, que tiene que quedar en `true` explícito
+# (si se borra, Wrangler ≥ 4.44 lo iguala a `workers_dev` y se apagarían también).
+# Docs: https://developers.cloudflare.com/workers/configuration/routing/workers-dev/
+workers_dev = false
 preview_urls = true
 
 # Las variables de texto se cargan en el panel (Settings → Variables and Secrets). Sin esto,
