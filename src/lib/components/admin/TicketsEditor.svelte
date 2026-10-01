@@ -53,7 +53,6 @@
 	$: fondo = isKinkyVibeEvent({ tags });
 	$: autoOnline = isOnlineEvent({ tags, location });
 	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
-	$: doorPreview = state.door ? doorPricePreview(state) : '';
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -274,6 +273,23 @@
 								>
 							</label>
 						{/if}
+						{#if t.mode !== 'gorra'}
+							<label class="field f-door">
+								<span>Precio en puerta <small>(opcional)</small></span>
+								<input
+									id="{idPrefix}-ticket-door-price-{i}"
+									bind:value={t.doorPrice}
+									inputmode="numeric"
+									placeholder={t.mode === 'tiers' ? 'El del último tramo' : 'El mismo'}
+									aria-describedby="{idPrefix}-ticket-door-help-{i}"
+								/>
+								<small id="{idPrefix}-ticket-door-help-{i}"
+									>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
+										lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y la
+									carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
+								>
+							</label>
+						{/if}
 						<label class="field f-cap">
 							<span>Cupo <small>(opcional)</small></span>
 							<input
@@ -403,7 +419,7 @@
 				</label>
 				{#if state.door}
 					<label class="field door-price">
-						<span>Precio en la puerta <small>(opcional)</small></span>
+						<span>Nota sobre la puerta <small>(opcional)</small></span>
 						<input
 							id="{idPrefix}-door-price"
 							bind:value={state.doorPrice}
@@ -412,10 +428,8 @@
 							aria-describedby="{idPrefix}-door-price-hint"
 						/>
 						<small id="{idPrefix}-door-price-hint"
-							>Se cobra en la puerta y es el monto sugerido al cargar entradas a mano. Si lo dejás
-							vacío, se cobra el precio del último tramo (o el precio fijo del tipo).{#if doorPreview}{' '}<span
-									aria-live="polite">{doorPreview}</span
-								>{/if}</small
+							>Solo se muestra en la página del evento («También hay entradas en la puerta: …»). Lo
+							que se cobra es el «Precio en puerta» de cada tipo.</small
 						>
 					</label>
 					<small
@@ -527,39 +541,40 @@
 		display: grid;
 		gap: 0.7em 0.8em;
 		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas: 'name' 'mode' 'price' 'cap' 'close' 'after';
+		grid-template-areas: 'name' 'mode' 'price' 'door' 'cap' 'close' 'after';
 		align-items: start;
 		&.mode-gorra {
 			grid-template-areas: 'name' 'mode' 'min' 'sug' 'cap' 'close' 'after';
 		}
 		&.mode-tiers {
-			grid-template-areas: 'name' 'mode' 'tiers' 'cap' 'close' 'after';
+			grid-template-areas: 'name' 'mode' 'tiers' 'door' 'cap' 'close' 'after';
 		}
 	}
-	/* Mediano: de a dos (precio y cupo juntos; cierre y "se habilita" juntos). */
+	/* Mediano: de a dos (precio y precio en puerta juntos; cupo y cierre juntos). */
 	@container (min-width: 30em) {
 		.type-fields {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			grid-template-areas: 'name name' 'mode mode' 'price cap' 'close after';
+			grid-template-areas: 'name name' 'mode mode' 'price door' 'cap close' 'after after';
 			&.mode-gorra {
 				grid-template-areas: 'name name' 'mode mode' 'min sug' 'cap close' 'after after';
 			}
 			&.mode-tiers {
-				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'cap close' 'after after';
+				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'door cap' 'close after';
 			}
 		}
 	}
-	/* Ancho (compu): nombre y cómo se cobra arriba; precio, cupo y cierre en una fila pareja. */
+	/* Ancho (compu): nombre y cómo se cobra arriba; precio, precio en puerta, cupo y cierre en una
+	   fila pareja. */
 	@container (min-width: 48em) {
 		.type-fields {
 			grid-template-columns: repeat(4, minmax(0, 1fr));
-			grid-template-areas: 'name name mode mode' 'price cap close close' 'after after after after';
+			grid-template-areas: 'name name mode mode' 'price door cap close' 'after after after after';
 			&.mode-gorra {
 				grid-template-areas: 'name name mode mode' 'min sug cap close' 'after after after after';
 			}
 			&.mode-tiers {
 				grid-template-areas:
-					'name name mode mode' 'tiers tiers tiers tiers' 'cap close close .'
+					'name name mode mode' 'tiers tiers tiers tiers' 'door cap close close'
 					'after after after after';
 			}
 		}
@@ -584,6 +599,9 @@
 	}
 	.f-close {
 		grid-area: close;
+	}
+	.f-door {
+		grid-area: door;
 	}
 	.f-tiers {
 		grid-area: tiers;

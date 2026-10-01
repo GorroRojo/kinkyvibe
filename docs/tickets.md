@@ -49,13 +49,14 @@ tickets:
     name: Última tanda
     price: 12000
     after: fiesta # se habilita cuando «fiesta» se agota o cierra
+    door_price: 14000 # opcional: precio en la puerta y en la carga a mano (si falta: el del último tramo o el fijo)
 tickets_open: 2026-10-01T12:00-03:00 # opcional; antes de eso: "Abre el jueves 1/10 a las 12:00"
 tickets_close: 2026-10-16T18:00-03:00 # opcional; si falta, la venta cierra cuando empieza el evento
 payment_methods: [mercadopago, transferencia] # opcional; por defecto solo mercadopago
 mp_fee_percent: 2 # opcional; si falta: Ajustes de venta, TICKETS_MP_FEE_PERCENT o 2 %
 modalidad: online # opcional: online | presencial (ver "Eventos online")
 puerta: true # opcional (presenciales): true = también en la puerta; false = "Solo anticipadas"; si falta, ver abajo
-puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: texto libre (un número solo se muestra como $); si empieza con un monto, es lo que se cobra en la puerta
+puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: nota de texto libre para la página (un número solo se muestra como $); lo que se cobra es el `door_price` de cada tipo
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
@@ -137,7 +138,7 @@ Decisión de gorrite (B6): las dos cosas. Lógica pura en `src/lib/utils/ticketT
 - El `capacity` del tipo sigue siendo el cupo total (opcional). Lo que se puede comprar es el menor entre lo que queda del cupo y lo que queda del tramo.
 - `id` de cada tramo: como el de los tipos, sale del nombre al crearlo en el editor y **no cambia nunca** (las órdenes lo guardan en `orders.ticket_tier`, migración `0016_preventas.sql`). Con ventas, el editor no deja borrar un tramo vendido ni bajarle la cantidad por debajo de lo vendido o reservado; cambiar precios solo afecta compras nuevas.
 - **Precio "pleno"**: en un tipo con tramos, `price` es el del **último** tramo. Lo usan las pantallas del panel. La venta en la puerta y la carga a mano **no gastan lugares de las preventas** (`ticket_tier` NULL), aunque sí cuentan para el cupo. _Confirmado por gorrite._
-- **Precio en la puerta y en la carga a mano** (decisión de gorrite): el `puerta_precio` del evento si se puede leer un monto; si no, el del último tramo; en un tipo sin tramos, su precio fijo. Una sola función pura, `doorPrice` en `ticketTiers.js`, que usan la venta en la puerta (`sellAtDoor` y la pantalla del modo puerta), el monto sugerido de la carga a mano y el editor (que muestra qué se va a cobrar). El monto se lee con `doorAmount`: un número al principio, con o sin "$" y puntos de miles, y después texto sin otros números ("$ 12.000", "$ 12.000, solo efectivo"). Si el texto tiene más de un número ("$ 10.000 efectivo / $ 12.000 MP") se muestra igual en la página pero se cobra el precio del último tramo (el editor lo avisa). El Fondo se calcula sobre el precio que se cobra.
+- **Precio en la puerta y en la carga a mano, por tipo** (decisión de gorrite: un evento puede tener varios precios en la puerta): cada tipo puede tener `door_price` (opcional, entero desde 0, mismo tope que `price`; a la gorra no). Se cobra `door_price` si está; si no, el del último tramo; en un tipo sin tramos, su precio fijo. Los eventos sin `door_price` siguen igual. Una sola función pura, `doorPrice(type)` en `ticketTiers.js`, que usan la venta en la puerta (`sellAtDoor` y la pantalla del modo puerta, que muestra el precio de cada tipo), el monto sugerido de la carga a mano y el editor («Precio en puerta» en cada tipo, con lo que se va a cobrar). El Fondo se calcula sobre el precio que se cobra (`parseDoorPrice` en `config.js`). El `puerta_precio` del evento es **solo una nota** para la página: no cambia lo que se cobra.
 - **El Fondo** se calcula sobre el precio de cada tramo (`round(precio × % / 100)`), y los códigos de descuento y el recargo de MP van sobre ese subtotal, como siempre. A la gorra no puede tener tramos.
 
 **Precio en el servidor, sin carreras:**

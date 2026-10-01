@@ -9,9 +9,10 @@
  *
  * Campos del frontmatter que maneja (ver docs/tickets.md):
  * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido } | tiers,
- *   capacity, after }` (`capacity` es opcional: sin cupo = sin límite; `tiers`: tramos de
+ *   capacity, after, door_price }` (`capacity` es opcional: sin cupo = sin límite; `tiers`: tramos de
  *   preventa `{ id, name, price, quantity?, until? }`; `after`: id del tipo que se tiene que agotar
- *   o cerrar para que este se habilite);
+ *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
+ *   opcional; si falta, el del último tramo o el precio fijo);
  * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
  *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
@@ -22,7 +23,7 @@ import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
 import tagsFactory from './tags.js';
 import { formatARS } from './money.js';
-import { chainCycle, doorAmount, doorPrice, unreachableAfter } from './ticketTiers.js';
+import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
 	PAYMENT_METHODS,
@@ -51,7 +52,7 @@ export const TICKET_KEYS = [
 	'puerta_precio'
 ];
 
-/** Largo máximo del precio en la puerta (texto libre). Igual que en config.js. */
+/** Largo máximo de la nota sobre la puerta (`puerta_precio`, texto libre). Igual que en config.js. */
 export const DOOR_PRICE_MAX = 120;
 
 /** Nombre que se propone para el primer tipo de entrada. */
@@ -114,6 +115,8 @@ export function isOnlineEvent(meta) {
  * @prop {string} after `key` del tipo que se tiene que agotar o cerrar para que este se habilite
  *   ('' = siempre a la venta). Es la `key` local (no el id) porque los tipos nuevos todavía no
  *   tienen id; al guardar se escribe el id.
+ * @prop {string} doorPrice precio en la puerta y en la carga a mano (`door_price`); '' = el del
+ *   último tramo o el precio fijo. No se usa a la gorra.
  */
 
 /**
@@ -145,7 +148,8 @@ export function isOnlineEvent(meta) {
  * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
  *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
  * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
- * @prop {string} doorPrice precio en la puerta, texto libre ('' = no se muestra)
+ * @prop {string} doorPrice nota sobre la puerta para la página (`puerta_precio`), texto libre
+ *   ('' = no se muestra). Solo se muestra: lo que se cobra es el `doorPrice` de cada tipo.
  */
 
 let keyCounter = 0;
@@ -172,7 +176,8 @@ export function emptyTicketType({ first = false } = {}) {
 		capacity: '',
 		close: '',
 		tiers: [],
-		after: ''
+		after: '',
+		doorPrice: ''
 	});
 }
 
@@ -234,32 +239,27 @@ export function tierPreview(tiers) {
 }
 
 /**
- * Qué se cobra en la puerta y en la carga a mano, para mostrar bajo «Precio en la puerta» (con la
- * misma regla que el servidor, `doorPrice`): "Se cobra en la puerta: General $ 10.000 · Pareja
- * $ 18.000". Si el texto no es un solo monto, lo avisa (se muestra en la página, pero se cobra el
- * precio del último tramo). Sin tipos con precio, ''.
+ * Qué se cobra en un tipo en la puerta y en la carga a mano, para mostrar junto a «Precio en
+ * puerta» (con la misma regla que el servidor, `doorPrice`): "En la puerta: $ 10.000 (el del
+ * último tramo)". '' a la gorra o si falta el precio.
  *
- * @param {Pick<TicketsForm, 'types' | 'doorPrice'>} form
+ * @param {TicketTypeForm} t
  */
-export function doorPricePreview(form) {
-	const text = form.doorPrice.trim();
-	const parts = form.types.flatMap((t) => {
-		if (t.mode === 'gorra') return [];
-		const tiers =
-			t.mode === 'tiers' ? t.tiers.map((tr) => ({ price: parseAmount(tr.price) })) : null;
-		const price = parseAmount(t.price);
-		const p = doorPrice(/** @type {any} */ ({ price, tiers: tiers?.length ? tiers : null }), {
-			door: { price: text }
-		});
-		if (!p || p.price === null) return [];
-		return [`${t.name.trim() || 'Sin nombre'} ${formatARS(p.price)}`];
-	});
-	if (!parts.length) return '';
-	const unread =
-		text && doorAmount(text) === null
-			? 'No es un solo monto: se muestra así en la página, pero se cobra el precio del último tramo. '
-			: '';
-	return `${unread}Se cobra en la puerta: ${parts.join(' · ')}.`;
+export function doorPricePreview(t) {
+	if (t.mode === 'gorra') return '';
+	const own = (t.doorPrice ?? '').trim() ? parseAmount(t.doorPrice) : null;
+	const tiers = t.mode === 'tiers' ? t.tiers.map((tr) => ({ price: parseAmount(tr.price) })) : null;
+	const p = doorPrice(
+		/** @type {any} */ ({
+			price: parseAmount(t.price),
+			tiers: tiers?.length ? tiers : null,
+			door: own === null ? null : { price: own }
+		})
+	);
+	if (!p || p.price === null) return '';
+	const why =
+		p.source === 'door' ? '' : p.source === 'tier' ? ' (el del último tramo)' : ' (el precio fijo)';
+	return `En la puerta: ${formatARS(p.price)}${why}.`;
 }
 
 /**
@@ -324,7 +324,8 @@ export function readTicketsForm(meta) {
 						};
 					})
 				: [],
-			after: ''
+			after: '',
+			doorPrice: gorra ? '' : str(raw?.door_price)
 		});
 	});
 	// `after` (id) → la key local del tipo al que apunta. Si no existe, queda el id tal cual (la
@@ -511,6 +512,16 @@ export function validateTicketsForm(form, { sales } = {}) {
 			else if (price > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el precio es demasiado alto (¿sobra un cero?).`);
 		}
+		const door = (t.doorPrice ?? '').trim();
+		if (t.mode !== 'gorra' && door) {
+			const p = parseAmount(door);
+			if (p === null)
+				errors.push(
+					`${label}: el precio en puerta tiene que ser en pesos enteros (0 o más), o quedar vacío.`
+				);
+			else if (p > ORDER_MAX_TOTAL)
+				errors.push(`${label}: el precio en puerta es demasiado alto (¿sobra un cero?).`);
+		}
 		if (t.mode !== 'tiers' && sales && t.origId) {
 			const tierSales = Object.values(sales[t.origId]?.tiers ?? {}).reduce((a, b) => a + b, 0);
 			if (tierSales > 0)
@@ -572,7 +583,7 @@ export function validateTicketsForm(form, { sales } = {}) {
 	if (form.mpFee.trim() && parseFeePercent(form.mpFee) === null)
 		errors.push('La comisión de Mercado Pago tiene que ser un porcentaje entre 0 y 49,99.');
 	if (form.door && form.doorPrice.trim().length > DOOR_PRICE_MAX)
-		errors.push(`El precio en la puerta es muy largo (hasta ${DOOR_PRICE_MAX} caracteres).`);
+		errors.push(`La nota sobre la puerta es muy larga (hasta ${DOOR_PRICE_MAX} caracteres).`);
 	return { errors, warnings };
 }
 
@@ -677,8 +688,13 @@ const normalizedType = (t, all) => ({
 	capacity: t.capacity.trim() ? (parseCount(t.capacity) ?? t.capacity) : null,
 	close: t.close.trim(),
 	tiers: t.mode === 'tiers' ? (t.tiers ?? []).map(normalizedTier) : null,
-	after: afterId(all, t.after ?? '')
+	after: afterId(all, t.after ?? ''),
+	doorPrice: t.mode !== 'gorra' && (t.doorPrice ?? '').trim() ? doorPriceOf(t) : null
 });
+
+/** `doorPrice` de un tipo del formulario en pesos (o el texto tal cual si no es un monto). */
+/** @param {TicketTypeForm} t */
+const doorPriceOf = (t) => parseAmount((t.doorPrice ?? '').trim()) ?? t.doorPrice;
 
 /** @param {TicketTypeForm[]} types */
 const normalizedTypes = (types) => {
@@ -802,6 +818,9 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		// Encadenado (opcional): el id del tipo que se tiene que agotar o cerrar.
 		if (norm.after) node.set('after', norm.after);
 		else node.delete('after');
+		// Precio en la puerta (opcional; a la gorra no tiene).
+		if (norm.doorPrice !== null) node.set('door_price', amount(String(t.doorPrice)));
+		else node.delete('door_price');
 		return node;
 	});
 	if (isSeq(current)) current.items = items;

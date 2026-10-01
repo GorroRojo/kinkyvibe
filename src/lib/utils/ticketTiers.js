@@ -17,9 +17,9 @@
  * cerrado (por horario) o agotado (sin cupo o sin tramos vigentes).
  *
  * Puerta y carga a mano (`doorPrice`): no gastan lugares de los tramos pero sí cuentan para el
- * cupo; se cobra el precio en la puerta si el evento tiene uno, y si no el del último tramo.
+ * cupo; se cobra el precio en la puerta del tipo (`door_price`) si tiene uno, y si no el del
+ * último tramo.
  */
-import { ORDER_MAX_TOTAL, parseAmount } from './tickets.js';
 
 /**
  * Un tramo ya leído del frontmatter. `fondo`: lo que cubre el Fondo por entrada (como en el tipo).
@@ -168,47 +168,22 @@ export function chainCycle(types) {
 }
 
 /**
- * El monto de `puerta_precio` (texto libre del evento), o `null` si no se puede leer UN monto.
- * Lo que se lee: un número al principio, con o sin "$" y con puntos de miles, y después texto sin
- * otros números ("$ 12.000", "12000", "$ 12.000, solo efectivo"). No se lee (queda solo como
- * texto en la página): "$ 10.000 efectivo / $ 12.000 MP", "12k", "15 mil", "Gratis".
- *
- * @param {string | null | undefined} text
- * @returns {number | null}
- */
-export function doorAmount(text) {
-	const m = /^\s*\$?\s*(\d[\d.]*(?:,\d+)?)(.*)$/s.exec(String(text ?? ''));
-	if (!m) return null;
-	const rest = m[2];
-	if (/\d/.test(rest) || /^\s*(?:k|mil)\b/i.test(rest)) return null;
-	const n = parseAmount(m[1].replace(/\.$/, ''));
-	return n !== null && n >= 1 && n <= ORDER_MAX_TOTAL ? n : null;
-}
-
-/**
- * Precio y Fondo por entrada en la venta en la puerta y en la carga a mano (el monto sugerido):
- * - el precio en la puerta del evento (`door.price`), si se puede leer un monto (`doorAmount`),
- *   con el Fondo calculado sobre ese precio (`fondoPercent`, como en config.js);
+ * Precio y Fondo por entrada en la venta en la puerta y en la carga a mano (el monto sugerido),
+ * por tipo (cada tipo puede tener el suyo):
+ * - el precio en la puerta del tipo (`door`, de `door_price` en el frontmatter), si tiene;
  * - si no, el del último tramo (el precio "pleno");
  * - si el tipo no tiene tramos, su precio fijo.
- * `null` en un tipo a la gorra (el monto lo elige quien paga).
+ * `null` en un tipo a la gorra (el monto lo elige quien paga). El `puerta_precio` del evento es
+ * solo una nota para la página: no cambia lo que se cobra.
  *
  * @param {{ price: number, fondo?: number, gorra?: unknown,
+ *   door?: { price: number, fondo?: number } | null,
  *   tiers?: { price: number, fondo?: number }[] | null }} type
- * @param {{ door?: { price?: string } | null, fondoPercent?: number | null }} config
  * @returns {{ price: number, fondo: number, source: 'door' | 'tier' | 'type' } | null}
  */
-export function doorPrice(type, config) {
+export function doorPrice(type) {
 	if (type.gorra) return null;
-	const amount = doorAmount(config.door?.price);
-	if (amount !== null) {
-		const pct = config.fondoPercent ?? null;
-		return {
-			price: amount,
-			fondo: pct === null ? 0 : Math.round((amount * pct) / 100),
-			source: 'door'
-		};
-	}
+	if (type.door) return { price: type.door.price, fondo: type.door.fondo ?? 0, source: 'door' };
 	const last = type.tiers?.length ? type.tiers[type.tiers.length - 1] : null;
 	if (last) return { price: last.price, fondo: last.fondo ?? 0, source: 'tier' };
 	return { price: type.price, fondo: type.fondo ?? 0, source: 'type' };

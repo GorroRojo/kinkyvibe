@@ -262,9 +262,13 @@ describe('compra pública', () => {
 	});
 });
 
-describe('precio en la puerta y en la carga a mano (decisión de gorrite)', () => {
-	/** Un tipo con preventas: «Preventa 1» a $ 8.000 y «General» (el resto) a $ 10.000. */
-	function tiered() {
+describe('precio en la puerta y en la carga a mano, por tipo (decisión de gorrite)', () => {
+	/**
+	 * «General» con preventas (Preventa 1 a $ 8.000, el resto a $ 10.000) y «Pareja» a $ 18.000.
+	 * @param {{ general?: number, pareja?: number }} [door] `door_price` de cada uno
+	 */
+	function twoTypes(door = {}) {
+		meta.puerta = true;
 		meta.tickets = [
 			{
 				id: 'general',
@@ -273,52 +277,67 @@ describe('precio en la puerta y en la carga a mano (decisión de gorrite)', () =
 				tiers: [
 					{ id: 'p1', name: 'Preventa 1', price: 8000, quantity: 5 },
 					{ id: 'general', name: 'General', price: 10000 }
-				]
+				],
+				...(door.general !== undefined ? { door_price: door.general } : {})
+			},
+			{
+				id: 'pareja',
+				name: 'Pareja',
+				price: 18000,
+				capacity: 10,
+				...(door.pareja !== undefined ? { door_price: door.pareja } : {})
 			}
 		];
 	}
-	/** `load` de la carga a mano, como SvelteKit. */
-	async function manualLoad() {
+	/** Monto sugerido de cada tipo en la carga a mano (`load`, como SvelteKit). */
+	async function suggested() {
 		const r = await post(manual.load, {}, admin, `/admin/eventos/${SLUG}/ordenes/cargar`);
-		return r.types.find((/** @type {any} */ x) => x.id === 'general');
+		return Object.fromEntries(r.types.map((/** @type {any} */ x) => [x.id, x.price]));
 	}
-	const unitPrices = async () =>
+	/** Precio de cada tipo en la pantalla del modo puerta. */
+	async function doorScreen() {
+		const r = await post(door.load, {}, admin, `/admin/eventos/${SLUG}/ingreso`);
+		return Object.fromEntries(r.types.map((/** @type {any} */ x) => [x.id, x.price]));
+	}
+	const orders = async () =>
 		(
 			await t.db
-				.prepare('SELECT channel, unit_price, ticket_tier FROM orders ORDER BY created_at, rowid')
+				.prepare(
+					'SELECT ticket_type, channel, unit_price, ticket_tier FROM orders ORDER BY created_at, rowid'
+				)
 				.all()
 		).results;
 
-	it('sin precio en la puerta: el del último tramo, sin gastar la preventa y contando para el cupo', async () => {
-		tiered();
-		meta.puerta = true;
-		expect((await sell({ method: 'efectivo' })).sale).toMatchObject({ ok: true });
-		const suggested = (await manualLoad()).price;
-		expect(suggested).toBe(10000);
-		expect((await load({ method: 'efectivo', amount: String(suggested) })).order).toMatchObject({
-			total: 10000
-		});
-		expect(await unitPrices()).toEqual([
-			{ channel: 'puerta', unit_price: 10000, ticket_tier: null },
-			{ channel: 'manual', unit_price: 10000, ticket_tier: null }
+	it('sin door_price: el último tramo o el precio fijo, sin gastar la preventa y contando para el cupo', async () => {
+		twoTypes();
+		expect(await doorScreen()).toEqual({ general: 10000, pareja: 18000 });
+		expect((await sell({ type: 'general' })).sale).toMatchObject({ ok: true });
+		expect((await sell({ type: 'pareja' })).sale).toMatchObject({ ok: true });
+		const amounts = await suggested();
+		expect(amounts).toEqual({ general: 10000, pareja: 18000 });
+		await load({ type: 'general', method: 'efectivo', amount: String(amounts.general) });
+		expect(await orders()).toEqual([
+			{ ticket_type: 'general', channel: 'puerta', unit_price: 10000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'puerta', unit_price: 18000, ticket_tier: null },
+			{ ticket_type: 'general', channel: 'manual', unit_price: 10000, ticket_tier: null }
 		]);
 		expect(await sold()).toBe(2);
 	});
 
-	it('con precio en la puerta: ese, aunque el tipo tenga preventas', async () => {
-		tiered();
-		meta.puerta = true;
-		meta.puerta_precio = '$ 12.000, solo efectivo';
-		expect((await sell({ method: 'efectivo', quantity: '2' })).sale).toMatchObject({ ok: true });
-		const suggested = (await manualLoad()).price;
-		expect(suggested).toBe(12000);
-		await load({ method: 'efectivo', amount: String(suggested) });
-		expect(await unitPrices()).toEqual([
-			{ channel: 'puerta', unit_price: 12000, ticket_tier: null },
-			{ channel: 'manual', unit_price: 12000, ticket_tier: null }
+	it('cada tipo con su door_price: la puerta cobra ese, la pantalla lo muestra y la carga a mano lo sugiere', async () => {
+		twoTypes({ general: 12000, pareja: 20000 });
+		// La nota del evento no cambia lo que se cobra.
+		meta.puerta_precio = '$ 99.999, solo efectivo';
+		expect(await doorScreen()).toEqual({ general: 12000, pareja: 20000 });
+		expect((await sell({ type: 'general', quantity: '2' })).sale).toMatchObject({ ok: true });
+		expect((await sell({ type: 'pareja' })).sale).toMatchObject({ ok: true });
+		const amounts = await suggested();
+		expect(amounts).toEqual({ general: 12000, pareja: 20000 });
+		await load({ type: 'pareja', method: 'efectivo', amount: String(amounts.pareja) });
+		expect(await orders()).toEqual([
+			{ ticket_type: 'general', channel: 'puerta', unit_price: 12000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'puerta', unit_price: 20000, ticket_tier: null },
+			{ ticket_type: 'pareja', channel: 'manual', unit_price: 20000, ticket_tier: null }
 		]);
-		// El modo puerta muestra el mismo precio que cobra.
-		const page = await post(door.load, {}, admin, `/admin/eventos/${SLUG}/ingreso`);
-		expect(page.types[0]).toMatchObject({ id: 'general', price: 12000 });
 	});
 });

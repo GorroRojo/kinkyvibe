@@ -69,8 +69,8 @@ export async function load(event) {
 		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
 		maxOrder: PANEL_ORDER_HARD_MAX,
 		types: config.types.map((t) => {
-			// En la puerta: el precio en la puerta del evento o, si no hay, el del último tramo.
-			const atDoor = doorPrice(t, config);
+			// En la puerta: el precio en la puerta del tipo o, si no tiene, el del último tramo.
+			const atDoor = doorPrice(t);
 			const fondo = atDoor ? atDoor.fondo : t.fondo;
 			return {
 				id: t.id,
@@ -239,7 +239,7 @@ export const actions = {
 		} else {
 			const o = text('option', 20);
 			option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;
-			if (option === 'fondo' && !((doorPrice(type, config)?.fondo ?? 0) > 0)) option = undefined;
+			if (option === 'fondo' && !((doorPrice(type)?.fondo ?? 0) > 0)) option = undefined;
 		}
 		const holders = Array.from({ length: quantity }, (_, i) => ({
 			name: text(`holder_${i}`) || name,

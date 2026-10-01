@@ -3,7 +3,6 @@ import {
 	availabilityOf,
 	chainCycle,
 	currentTier,
-	doorAmount,
 	doorPrice,
 	emptyTaken,
 	stockOf,
@@ -236,7 +235,7 @@ describe('validaciones de la forma', () => {
 	});
 });
 
-describe('doorPrice: puerta y carga a mano', () => {
+describe('doorPrice: puerta y carga a mano (por tipo)', () => {
 	const fixed = { price: 10000, fondo: 2000 };
 	const tiered = {
 		price: 10000,
@@ -248,77 +247,40 @@ describe('doorPrice: puerta y carga a mano', () => {
 		]
 	};
 
-	it('sin tramos ni precio en la puerta: el precio fijo del tipo', () => {
-		expect(doorPrice(fixed, { door: { price: '' } })).toEqual({
-			price: 10000,
-			fondo: 2000,
-			source: 'type'
-		});
-		expect(doorPrice(fixed, { door: null })).toMatchObject({ price: 10000, source: 'type' });
-		expect(doorPrice(fixed, {})).toMatchObject({ price: 10000, source: 'type' });
+	it('sin tramos ni door_price: el precio fijo del tipo', () => {
+		expect(doorPrice(fixed)).toEqual({ price: 10000, fondo: 2000, source: 'type' });
+		expect(doorPrice({ ...fixed, door: null })).toMatchObject({ price: 10000, source: 'type' });
 	});
 
-	it('con tramos y sin precio en la puerta: el del último tramo (no el vigente)', () => {
-		expect(doorPrice({ ...tiered, price: 1 }, { door: { price: '' } })).toEqual({
+	it('con tramos y sin door_price: el del último tramo (no el vigente)', () => {
+		expect(doorPrice({ ...tiered, price: 1 })).toEqual({
 			price: 10000,
 			fondo: 2000,
 			source: 'tier'
 		});
 	});
 
-	it('con precio en la puerta: ese, con o sin tramos, y el Fondo sobre ese precio', () => {
-		const config = { door: { price: '$ 12.000' }, fondoPercent: 20 };
-		expect(doorPrice(tiered, config)).toEqual({ price: 12000, fondo: 2400, source: 'door' });
-		expect(doorPrice(fixed, config)).toEqual({ price: 12000, fondo: 2400, source: 'door' });
-		expect(doorPrice(fixed, { door: { price: '12000' } })).toEqual({
-			price: 12000,
-			fondo: 0,
+	it('con door_price: ese, con o sin tramos', () => {
+		const door = { price: 12000, fondo: 2400 };
+		expect(doorPrice({ ...tiered, door })).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		expect(doorPrice({ ...fixed, door })).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		// Una entrada sin cargo en la puerta también es un precio.
+		expect(doorPrice({ ...fixed, door: { price: 0, fondo: 0 } })).toMatchObject({
+			price: 0,
 			source: 'door'
 		});
 	});
 
-	it('precio en la puerta vacío o que no es un monto: el del último tramo', () => {
-		for (const price of ['', '   ', 'Gratis', '$ 10.000 efectivo / $ 12.000 MP', '12k']) {
-			expect(doorPrice(tiered, { door: { price } })).toMatchObject({
-				price: 10000,
-				source: 'tier'
-			});
-		}
+	it('dos tipos del mismo evento, cada uno con su precio en la puerta', () => {
+		const general = { ...tiered, door: { price: 12000, fondo: 0 } };
+		const pareja = { price: 18000, fondo: 0, door: { price: 20000, fondo: 0 } };
+		const sinPuerta = { price: 7000, fondo: 0 };
+		expect([general, pareja, sinPuerta].map((t) => doorPrice(t)?.price)).toEqual([
+			12000, 20000, 7000
+		]);
 	});
 
 	it('a la gorra: null (el monto lo elige quien paga)', () => {
-		expect(doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } }, {})).toBeNull();
-		expect(
-			doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } }, { door: { price: '9000' } })
-		).toBeNull();
-	});
-});
-
-describe('doorAmount', () => {
-	it('lee un monto al principio, con texto sin otros números después', () => {
-		expect(doorAmount('$ 12.000')).toBe(12000);
-		expect(doorAmount('12000')).toBe(12000);
-		expect(doorAmount('$12.000')).toBe(12000);
-		expect(doorAmount(' $ 12.000, solo efectivo')).toBe(12000);
-		expect(doorAmount('$ 12.000 en efectivo.')).toBe(12000);
-		expect(doorAmount('12.000.')).toBe(12000);
-	});
-
-	it('no lee nada si hay más de un número, unidades o no empieza con un monto', () => {
-		for (const text of [
-			'',
-			null,
-			undefined,
-			'Gratis',
-			'$ 10.000 efectivo / $ 12.000 MP',
-			'15000 hasta la 1',
-			'12k',
-			'15 mil',
-			'Entrada $ 12.000',
-			'$ 0',
-			'$ 12.000,50'
-		]) {
-			expect(doorAmount(text)).toBeNull();
-		}
+		expect(doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } })).toBeNull();
 	});
 });

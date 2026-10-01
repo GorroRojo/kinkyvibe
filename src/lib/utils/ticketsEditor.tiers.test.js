@@ -229,52 +229,79 @@ describe('textos de ayuda', () => {
 	});
 });
 
-describe('editor: qué se cobra en la puerta', () => {
-	const types = () => {
-		const general = {
-			...emptyTicketType({ first: true }),
-			mode: /** @type {const} */ ('tiers'),
-			tiers: [
-				{
-					key: 'a',
-					origId: null,
-					id: '',
-					name: 'Preventa 1',
-					price: '8000',
-					quantity: '5',
-					until: ''
-				},
-				{
-					key: 'b',
-					origId: null,
-					id: '',
-					name: 'General',
-					price: '10.000',
-					quantity: '',
-					until: ''
-				}
-			]
-		};
-		const pareja = { ...emptyTicketType(), name: 'Pareja', price: '18000' };
-		const gorra = { ...emptyTicketType(), name: 'Gorra', mode: /** @type {const} */ ('gorra') };
-		return [general, pareja, gorra];
-	};
-
-	it('vacío: el último tramo o el precio fijo (la gorra no aparece)', () => {
-		expect(doorPricePreview({ types: types(), doorPrice: '' })).toBe(
-			`Se cobra en la puerta: General ${formatARS(10000)} · Pareja ${formatARS(18000)}.`
-		);
+describe('editor: precio en puerta por tipo', () => {
+	const tiered = () => ({
+		...emptyTicketType({ first: true }),
+		mode: /** @type {const} */ ('tiers'),
+		tiers: [
+			{
+				key: 'a',
+				origId: null,
+				id: 'p1',
+				name: 'Preventa 1',
+				price: '8000',
+				quantity: '5',
+				until: ''
+			},
+			{
+				key: 'b',
+				origId: null,
+				id: 'general',
+				name: 'General',
+				price: '10.000',
+				quantity: '',
+				until: ''
+			}
+		]
 	});
 
-	it('con un monto: ese para todos los tipos con precio', () => {
-		expect(doorPricePreview({ types: types(), doorPrice: '$ 12.000, solo efectivo' })).toBe(
-			`Se cobra en la puerta: General ${formatARS(12000)} · Pareja ${formatARS(12000)}.`
+	it('vista previa: vacío = el último tramo o el precio fijo; con valor, ese; a la gorra, nada', () => {
+		expect(doorPricePreview(tiered())).toBe(
+			`En la puerta: ${formatARS(10000)} (el del último tramo).`
 		);
+		expect(doorPricePreview({ ...emptyTicketType(), price: '7000' })).toBe(
+			`En la puerta: ${formatARS(7000)} (el precio fijo).`
+		);
+		expect(doorPricePreview({ ...tiered(), doorPrice: '12.000' })).toBe(
+			`En la puerta: ${formatARS(12000)}.`
+		);
+		expect(doorPricePreview({ ...emptyTicketType(), mode: 'gorra', doorPrice: '5000' })).toBe('');
 	});
 
-	it('un texto que no es un solo monto: lo avisa y cobra el último tramo', () => {
-		expect(doorPricePreview({ types: types(), doorPrice: '$ 10.000 o $ 12.000' })).toMatch(
-			/^No es un solo monto: .*Se cobra en la puerta: General \$\s?10\.000 · Pareja/
+	it('lee, valida y escribe `door_price` en cada tipo (y lo saca si se vacía)', () => {
+		const fm = `title: Fiesta de prueba
+start: 2026-12-12T21:00-03:00
+puerta: true
+tickets:
+  - id: general
+    name: General
+    price: 10000
+    door_price: 12000
+  - id: pareja
+    name: Pareja
+    price: 18000
+`;
+		const meta = /** @type {any} */ (parseDocument(fm).toJS());
+		const initial = readTicketsForm(meta);
+		expect(initial.types.map((t) => t.doorPrice)).toEqual(['12000', '']);
+		const form = readTicketsForm(meta);
+		form.types[0].doorPrice = '';
+		form.types[1].doorPrice = '20.000';
+		expect(validateTicketsForm(form).errors).toEqual([]);
+		const out = /** @type {any} */ (parseDocument(applyTicketsForm(fm, form, initial)).toJS());
+		expect(out.tickets[0].door_price).toBeUndefined();
+		expect(out.tickets[1].door_price).toBe(20000);
+		const config = parseTicketConfig(out);
+		expect(config?.types.map((t) => t.door?.price ?? null)).toEqual([null, 20000]);
+		// Sin cambios no toca el archivo.
+		expect(applyTicketsForm(fm, readTicketsForm(meta), initial)).toBe(fm);
+	});
+
+	it('un precio en puerta que no es un monto es un error', () => {
+		const form = readTicketsForm(
+			/** @type {any} */ ({ tickets: [{ id: 'general', name: 'General', price: 10000 }] })
 		);
+		form.types[0].doorPrice = 'doce mil';
+		expect(validateTicketsForm(form).errors.join(' ')).toContain('precio en puerta');
 	});
 });
