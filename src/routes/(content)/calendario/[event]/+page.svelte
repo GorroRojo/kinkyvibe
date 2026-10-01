@@ -20,11 +20,15 @@
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
-	import { venueLine, venueSchema } from '$lib/utils/venues.js';
+	import { venueSchema } from '$lib/utils/venues.js';
+	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
 	export let data;
 	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
-	// sobre `location` del .md (docs/amigues.md).
-	$: where = data.venue ? venueLine(data.venue) : (data.meta.location ?? 'Online');
+	// sobre el «Dónde» del .md (`location` y su link al mapa `location_map`; docs/amigues.md).
+	// Lo mismo que el .ics (eventPlace.js).
+	$: place = eventPlace(data.meta, data.venue);
+	$: where = place.text;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -181,6 +185,11 @@
 			<span class="p-location">
 				{where}
 			</span>
+			{#if place.mapUrl}
+				<a class="map-link" href={place.mapUrl} target="_blank" rel="noopener noreferrer"
+					>{MAP_LABEL}</a
+				>
+			{/if}
 		</p>
 		<div class="event-atcb">
 			{#if data.meta.link && !data.tickets}
@@ -431,6 +440,10 @@
 			flex-direction: column;
 			margin-block: 0;
 			padding-top: 0.2em;
+		}
+		.map-link {
+			font-size: 0.9em;
+			align-self: flex-start;
 		}
 		.event-atcb {
 			align-self: center;
