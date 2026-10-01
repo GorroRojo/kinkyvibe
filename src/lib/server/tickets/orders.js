@@ -19,9 +19,10 @@
  */
 
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
+import { tierKey } from '$lib/utils/ticketTiers.js';
 import { toBase64url } from '$lib/utils/base64.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
-import { capacityLimit } from './overrides.js';
+import { capacityLimit, tierLimit } from './overrides.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
@@ -45,7 +46,7 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
- *   admin_note?: string | null
+ *   admin_note?: string | null, ticket_tier?: string | null
  * }} Order
  */
 /**
@@ -130,11 +131,19 @@ export function newToken() {
  * En un tipo "a la gorra" el precio por entrada es `unitPrice` (el monto que eligió la persona,
  * ya validado por `validatePurchase`), la opción es `gorra` y no se aplica ningún código.
  *
+ * Preventas: con `type.tier` (el tramo vigente que eligió el servidor, ver `withTier` en
+ * config.js), `type.price` ya es el precio del tramo, la orden guarda `ticket_tier` y la MISMA
+ * sentencia controla que el tramo no se pase de su cantidad (aprobadas + reservas vigentes de ese
+ * tramo). Si el tramo se llenó en el medio (otra compra simultánea) o pasó su fecha, devuelve
+ * `reason: 'tier'` sin crear nada: quien llama vuelve a elegir el tramo y le avisa a la persona
+ * que cambió el precio (nunca se cobra un precio distinto del que vio).
+ *
  * @param {D1Database} db
  * @param {{
  *   eventSlug: string,
  *   type: { id: string, price: number, fondo?: number, capacity: number | null,
- *     gorra?: { min: number, suggested: number } | null },
+ *     gorra?: { min: number, suggested: number } | null,
+ *     tier?: { id: string, quantity: number | null, until: number | null } | null },
  *   quantity: number,
  *   buyer: import('./config.js').Buyer | Omit<import('./config.js').Buyer, 'pronouns'>,
  *   holders: Holder[],
@@ -155,6 +164,7 @@ export function newToken() {
  *   | { ok: false, reason: 'soldout', available: number | null }
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
+ *   | { ok: false, reason: 'tier' }
  *   | { ok: false, reason: 'method' }>}
  */
 export async function reserveOrder(db, input) {
@@ -186,6 +196,9 @@ export async function reserveOrder(db, input) {
 	const limits = input.limits ?? HOLD_LIMITS;
 	const clientHash = input.clientHash ?? null;
 	const status = method === 'transferencia' ? 'awaiting_transfer' : 'pending';
+	const tier = gorra ? null : (type.tier ?? null);
+	// La fecha del tramo se mira con el mismo `now` de la reserva (el que eligió el tramo).
+	if (tier && tier.until !== null && now >= tier.until) return { ok: false, reason: 'tier' };
 	const id = crypto.randomUUID();
 	const [, inserted] = await db.batch([
 		expireStatement(db, eventSlug, now),
@@ -195,9 +208,9 @@ export async function reserveOrder(db, input) {
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
 					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns,
-					fondo_percent, client_hash)
+					fondo_percent, client_hash, ticket_tier)
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27
+					?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?31
 				WHERE ${openHoldsSql('buyer_email = ?8', 'SUM(quantity)')} + ?4 <= ?28
 				AND ${openHoldsSql('buyer_email = ?8', 'COUNT(*)')} < ?29
 				AND (?27 IS NULL OR ${openHoldsSql('client_hash = ?27', 'SUM(quantity)')} + ?4 <= ?30)
@@ -206,6 +219,11 @@ export async function reserveOrder(db, input) {
 					WHERE event_slug = ?2 AND ticket_type = ?3
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?11)
+				AND (?32 IS NULL OR (
+					SELECT COALESCE(SUM(quantity), 0) FROM orders
+					WHERE event_slug = ?2 AND ticket_type = ?3 AND ticket_tier = ?31
+						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
+				) + ?4 <= ?32)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
 				RETURNING *`
 			)
@@ -239,7 +257,9 @@ export async function reserveOrder(db, input) {
 				clientHash,
 				limits.perEmailQuantity,
 				limits.perEmailOrders,
-				limits.perClientQuantity
+				limits.perClientQuantity,
+				tier?.id ?? null,
+				tier?.quantity ?? null
 			)
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
@@ -261,8 +281,57 @@ export async function reserveOrder(db, input) {
 		}
 	}
 	const counts = await getCounts(db, eventSlug, now);
+	const available = remainingOf(type, counts.get(type.id));
+	if (tier && tier.quantity !== null && available !== 0) {
+		// Hay cupo: lo que se llenó fue el tramo.
+		const taken = await tierTaken(db, { eventSlug, typeId: type.id, tierId: tier.id, now });
+		if (taken + quantity > tier.quantity) return { ok: false, reason: 'tier' };
+	}
 	// `null`: sin cupo (no se agotó; algo cambió en el medio, se puede reintentar).
-	return { ok: false, reason: 'soldout', available: remainingOf(type, counts.get(type.id)) };
+	return { ok: false, reason: 'soldout', available };
+}
+
+/**
+ * Entradas tomadas (aprobadas + reservas vigentes) de un tramo, sin contar la orden `exceptId`.
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, typeId: string, tierId: string, exceptId?: string | null,
+ *   now?: number }} input
+ */
+export function tierTaken(db, { eventSlug, typeId, tierId, exceptId = null, now = Date.now() }) {
+	return takenPlaces(db, { eventSlug, typeId, tierId, exceptId, now });
+}
+
+/**
+ * Lo tomado (aprobadas + reservas vigentes) por tipo y por tramo, para elegir el tramo vigente y
+ * saber si un tipo encadenado ya se habilitó (ver $lib/utils/ticketTiers.js).
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {number} [now]
+ * @returns {Promise<import('$lib/utils/ticketTiers.js').TakenCounts>}
+ */
+export async function getTaken(db, eventSlug, now = Date.now()) {
+	const { results } = await db
+		.prepare(
+			`SELECT ticket_type, ticket_tier, COALESCE(SUM(quantity), 0) AS n FROM orders
+			WHERE event_slug = ?1
+				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?2))
+			GROUP BY ticket_type, ticket_tier`
+		)
+		.bind(eventSlug, now)
+		.all();
+	/** @type {import('$lib/utils/ticketTiers.js').TakenCounts} */
+	const taken = { types: new Map(), tiers: new Map() };
+	for (const r of results) {
+		const type = String(r.ticket_type);
+		const n = Number(r.n ?? 0);
+		taken.types.set(type, (taken.types.get(type) ?? 0) + n);
+		if (r.ticket_tier !== null && r.ticket_tier !== undefined) {
+			taken.tiers.set(tierKey(type, String(r.ticket_tier)), n);
+		}
+	}
+	return taken;
 }
 
 /**
@@ -1061,8 +1130,11 @@ export async function approveFreeOrder(db, order, { now = Date.now() } = {}) {
  * @param {D1Database} db
  * `capacity` `null`: el tipo no tiene cupo (se confirma siempre).
  *
+ * Con preventas: si la orden es de un tramo con cantidad (`tierQuantity`) y la reserva venció,
+ * tampoco se confirma si el tramo ya se llenó (se puede pasar con `override`, igual que el cupo).
+ *
  * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string, now?: number,
- *   override?: boolean }} input
+ *   override?: boolean, tierQuantity?: number | null }} input
  * @returns {Promise<{
  *   result: 'confirmed' | 'already' | 'no-capacity' | 'not-transfer' | 'not-found' | 'cancelled',
  *   order: Order | null,
@@ -1071,7 +1143,7 @@ export async function approveFreeOrder(db, order, { now = Date.now() } = {}) {
  */
 export async function confirmTransfer(
 	db,
-	{ orderId, eventSlug, capacity, by, now = Date.now(), override = false }
+	{ orderId, eventSlug, capacity, by, now = Date.now(), override = false, tierQuantity = null }
 ) {
 	const order = await getOrder(db, orderId);
 	if (!order || order.event_slug !== eventSlug)
@@ -1089,10 +1161,15 @@ export async function confirmTransfer(
 					WHERE o2.event_slug = orders.event_slug AND o2.ticket_type = orders.ticket_type
 						AND o2.id != orders.id
 						AND (o2.status = 'approved' OR (o2.status IN ${HOLDING} AND o2.expires_at > ?2))
-				) + orders.quantity <= ?4))
+				) + orders.quantity <= ?4) AND (?6 IS NULL OR orders.ticket_tier IS NULL OR (
+					SELECT COALESCE(SUM(o3.quantity), 0) FROM orders o3
+					WHERE o3.event_slug = orders.event_slug AND o3.ticket_type = orders.ticket_type
+						AND o3.ticket_tier = orders.ticket_tier AND o3.id != orders.id
+						AND (o3.status = 'approved' OR (o3.status IN ${HOLDING} AND o3.expires_at > ?2))
+				) + orders.quantity <= ?6))
 			)`
 		)
-		.bind(order.id, now, by, capacity, override ? 1 : 0);
+		.bind(order.id, now, by, capacity, override ? 1 : 0, tierQuantity);
 	const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 	const fresh = await getOrder(db, order.id);
 	if (res.meta.changes === 1) {
@@ -1105,19 +1182,24 @@ export async function confirmTransfer(
 
 /**
  * Cuántas entradas del tipo cuentan para el cupo (aprobadas y reservas vigentes), sin contar
- * la orden `exceptId` (la que se está por confirmar).
+ * la orden `exceptId` (la que se está por confirmar). Con `tierId`, solo las de ese tramo.
  *
  * @param {D1Database} db
- * @param {{ eventSlug: string, typeId: string, exceptId?: string | null, now?: number }} input
+ * @param {{ eventSlug: string, typeId: string, tierId?: string | null, exceptId?: string | null,
+ *   now?: number }} input
  */
-export async function takenPlaces(db, { eventSlug, typeId, exceptId = null, now = Date.now() }) {
+export async function takenPlaces(
+	db,
+	{ eventSlug, typeId, tierId = null, exceptId = null, now = Date.now() }
+) {
 	const row = await db
 		.prepare(
 			`SELECT COALESCE(SUM(quantity), 0) AS n FROM orders
 			WHERE event_slug = ?1 AND ticket_type = ?2 AND (?4 IS NULL OR id != ?4)
+				AND (?5 IS NULL OR ticket_tier = ?5)
 				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?3))`
 		)
-		.bind(eventSlug, typeId, now, exceptId)
+		.bind(eventSlug, typeId, now, exceptId, tierId)
 		.first();
 	return Number(row?.n ?? 0);
 }
@@ -1128,9 +1210,12 @@ export async function takenPlaces(db, { eventSlug, typeId, exceptId = null, now 
  * cupo del tipo. Las canceladas, aprobadas o que no son transferencias no se confirman (las
  * rechaza `confirmTransfer`), así que acá dan `[]`.
  *
+ * Con preventas, además, el tramo de la orden: si se llenó mientras la reserva estaba vencida, se
+ * pasaría de su cantidad (el precio ya quedó fijo en la orden).
+ *
  * @param {D1Database} db
- * @param {{ order: Order, type: { id: string, name: string, capacity: number | null },
- *   now?: number }} input
+ * @param {{ order: Order, type: { id: string, name: string, capacity: number | null,
+ *   tiers?: import('$lib/utils/ticketTiers.js').Tier[] | null }, now?: number }} input
  * @returns {Promise<import('./overrides.js').ExceededLimit[]>}
  */
 export async function transferLimits(db, { order, type, now = Date.now() }) {
@@ -1143,8 +1228,30 @@ export async function transferLimits(db, { order, type, now = Date.now() }) {
 		exceptId: order.id,
 		now
 	});
-	const limit = capacityLimit(type, taken, order.quantity);
-	return limit ? [limit] : [];
+	const limits = [capacityLimit(type, taken, order.quantity)];
+	const tier = orderTier(order, type);
+	if (tier && tier.quantity !== null) {
+		const inTier = await tierTaken(db, {
+			eventSlug: order.event_slug,
+			typeId: order.ticket_type,
+			tierId: tier.id,
+			exceptId: order.id,
+			now
+		});
+		limits.push(tierLimit(type, tier, inTier, order.quantity));
+	}
+	return /** @type {import('./overrides.js').ExceededLimit[]} */ (limits.filter(Boolean));
+}
+
+/**
+ * El tramo (del frontmatter de hoy) con el que se compró una orden, o `null`.
+ *
+ * @param {Pick<Order, 'ticket_tier'>} order
+ * @param {{ tiers?: import('$lib/utils/ticketTiers.js').Tier[] | null }} type
+ */
+export function orderTier(order, type) {
+	if (!order.ticket_tier) return null;
+	return type.tiers?.find((t) => t.id === order.ticket_tier) ?? null;
 }
 
 /**

@@ -15,10 +15,18 @@ import {
 	MAX_TICKETS_PER_FORM,
 	computePrice,
 	formatSaleTime,
-	publicLeft,
-	remainingOf
+	publicLeft
 } from '$lib/utils/tickets.js';
-import { salesState, typeClosesAt, typeOpen, validatePurchase } from './config.js';
+import { formatARS } from '$lib/utils/money.js';
+import { emptyTaken, stockOf } from '$lib/utils/ticketTiers.js';
+import {
+	salesState,
+	typeAvailability,
+	typeClosesAt,
+	typeOpen,
+	validatePurchase,
+	withTier
+} from './config.js';
 import { checkDiscountCode } from './discounts.js';
 import { getEventTickets } from './events.js';
 import { resolveFondoPercent } from './fondo.js';
@@ -39,7 +47,7 @@ import {
 	approveFreeOrder,
 	cancelPendingOrder,
 	TRANSFER_INITIAL_HOLD_MS,
-	getCounts,
+	getTaken,
 	isValidOrderId,
 	reserveOrder,
 	setPreference
@@ -86,8 +94,16 @@ export const CHECKOUT_RATE_LIMITS = {
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
  *     left: number | null, gorra: { min: number, suggested: number } | null,
- *     closesAt: number | null, closed: boolean }[]
+ *     closesAt: number | null, closed: boolean,
+ *     tier?: { id: string, name: string, until: number | null } | null,
+ *     tierLeft?: boolean, waitingFor?: string | null }[]
  * }} TicketsView
+ *
+ * Preventas: en un tipo con tramos, `price` y `fondo` son los del tramo vigente, `tier` dice cuál
+ * es (la página muestra "Preventa 1" y manda su id, para avisar si cambió antes de cobrar) y
+ * `tierLeft` dice si el "Quedan N" es de ese tramo ("a este precio"). Un tipo encadenado que
+ * todavía no se habilitó tiene `waitingFor` (el nombre del tipo que se tiene que agotar o
+ * cerrar) y `available: 0`.
  *
  * Por tipo, `available` es cuántas se pueden comprar ahora en UNA compra (acotado a
  * `maxQuantity`, así la página no muestra ni manda el cupo real) y `left` es lo que se muestra
@@ -128,6 +144,15 @@ export async function eventTicketsWithFondo(db, slug, fetchFn) {
 }
 
 /**
+ * El tramo vigente tal como lo ve la página (sin la cantidad: en público solo "quedan N" cerca
+ * del final).
+ *
+ * @param {import('./config.js').TicketType} eff tipo efectivo (`withTier`)
+ */
+const tierView = (eff) =>
+	eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null;
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -138,8 +163,11 @@ export async function eventTicketsWithFondo(db, slug, fetchFn) {
 export async function getTicketsView(db, slug, fetchFn) {
 	const config = await eventTicketsWithFondo(db, slug, fetchFn);
 	if (!config) return null;
-	const state = salesState(config);
+	const now = Date.now();
+	const state = salesState(config, now);
 	const methods = await availableMethods(db, config);
+	// Sin la base todavía: el tramo vigente solo por fecha (para mostrar un precio).
+	const noSales = emptyTaken();
 	/** @type {TicketsView} */
 	const view = {
 		open: false,
@@ -156,27 +184,45 @@ export async function getTicketsView(db, slug, fetchFn) {
 		fondoEnabled: config.fondoEnabled,
 		fondoPercent: config.fondoPercent,
 		door: config.door,
-		types: config.types.map((t) => ({
-			id: t.id,
-			name: t.name,
-			price: t.price,
-			fondo: t.fondo,
-			gorra: t.gorra,
-			available: 0,
-			left: null,
-			// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
-			closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
-			closed: !typeOpen(config, t)
-		}))
+		types: config.types.map((t) => {
+			const a = typeAvailability(config, t, noSales, now);
+			const eff = withTier(t, a.tier?.tier);
+			return {
+				id: t.id,
+				name: t.name,
+				price: eff.price,
+				fondo: eff.fondo,
+				gorra: t.gorra,
+				available: 0,
+				left: null,
+				// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
+				closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
+				closed: !typeOpen(config, t, now),
+				tier: tierView(eff),
+				tierLeft: false,
+				waitingFor: null
+			};
+		})
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
 	try {
-		const counts = await getCounts(db, slug);
+		const taken = await getTaken(db, slug, now);
 		for (const t of view.types) {
 			const type = config.types.find((ct) => ct.id === t.id);
-			const remaining = type ? remainingOf(type, counts.get(t.id)) : 0;
+			if (!type) continue;
+			const a = typeAvailability(config, type, taken, now);
+			const eff = withTier(type, a.tier?.tier);
+			t.price = eff.price;
+			t.fondo = eff.fondo;
+			t.tier = tierView(eff);
+			t.waitingFor = a.waitingFor?.name ?? null;
+			// Lo que queda (cupo y tramo vigente); un encadenado que espera, 0. Un tipo cerrado por
+			// horario igual dice lo que quedaba (la página muestra "Venta cerrada").
+			const remaining =
+				a.state === 'waiting' ? 0 : a.state === 'closed' ? stockOf(type, taken, now) : a.remaining;
 			t.available = Math.min(remaining ?? MAX_TICKETS_PER_FORM, MAX_TICKETS_PER_FORM);
 			t.left = publicLeft(remaining);
+			t.tierLeft = t.left !== null && a.tier?.remaining === remaining;
 		}
 	} catch (error) {
 		logDBError('tickets view', error);
@@ -269,6 +315,9 @@ function readForm(form) {
 		email: str('email', 300),
 		dni: str('dni', 40),
 		code: str('code', 60).trim(),
+		// Tramo de preventa que vio la persona (solo para avisar si cambió: el precio lo elige el
+		// servidor, nunca este valor).
+		tier: str('tier', 60),
 		method: str('method', 30),
 		option: str('option', 30),
 		amount: str('amount', 30),
@@ -364,6 +413,30 @@ async function mailAllowed(db, email) {
 }
 
 /**
+ * "El precio cambió" (preventas): el tramo vigente no es el que vio la persona.
+ *
+ * @param {import('./config.js').TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').Tier} tier
+ */
+function priceChangedMessage(type, tier) {
+	const price = tier.fondo
+		? `${formatARS(tier.price - tier.fondo)} con el descuento del Fondo`
+		: formatARS(tier.price);
+	return `El precio cambió: «${type.name}» ahora está en «${tier.name}» (${price}). Revisá y confirmá de nuevo.`;
+}
+
+/**
+ * Pidió más de lo que queda en el tramo vigente.
+ *
+ * @param {string} tierName
+ * @param {number} n
+ */
+export function tierLeftMessage(tierName, n) {
+	const what = n === 1 ? 'queda 1 entrada' : `quedan ${n} entradas`;
+	return `En «${tierName}» ${what} a este precio: comprá ${n === 1 ? 'esa' : 'esas'} ahora y, si querés más, hacé otra compra.`;
+}
+
+/**
  * Form action `?/buy`.
  *
  * @param {import('@sveltejs/kit').RequestEvent & { params: { event: string } }} event
@@ -394,7 +467,10 @@ export async function buyAction(event) {
 	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
 	const config = await eventTicketsWithFondo(db, params.event, fetch);
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
-	const state = salesState(config);
+	// Un solo "ahora" para el horario, el tramo vigente y la reserva (los bordes de fecha de un
+	// tramo no pueden caer entre una cosa y la otra).
+	const now = Date.now();
+	const state = salesState(config, now);
 	if (!state.open) {
 		return failWith(
 			409,
@@ -406,8 +482,48 @@ export async function buyAction(event) {
 		);
 	}
 	const methods = await availableMethods(db, config);
+
+	// Preventas y tipos encadenados: el servidor elige el tramo vigente con lo vendido y reservado
+	// de ahora (el formulario solo dice qué tramo vio, para avisar si cambió el precio).
+	const chosen = config.types.find((t) => t.id === values.type) ?? null;
+	/** @type {import('./config.js').TicketType | null} */
+	let effective = chosen;
+	/** @type {number | null} */
+	let tierRemaining = null;
+	if (chosen) {
+		/** @type {import('$lib/utils/ticketTiers.js').TakenCounts} */
+		let taken;
+		try {
+			taken = await getTaken(db, params.event, now);
+		} catch (error) {
+			logDBError('tickets taken', error);
+			return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
+		}
+		const a = typeAvailability(config, chosen, taken, now);
+		if (a.state === 'waiting' && a.waitingFor) {
+			const message = `«${chosen.name}» todavía no está a la venta: se habilita cuando se agote «${a.waitingFor.name}».`;
+			return failWith(409, message, { type: message });
+		}
+		if (chosen.tiers?.length) {
+			if (!a.tier) {
+				const message = `Se agotaron las entradas ${chosen.name}.`;
+				return failWith(409, message, { type: message });
+			}
+			effective = withTier(chosen, a.tier.tier);
+			tierRemaining = a.tier.remaining;
+			if (values.tier !== a.tier.tier.id) {
+				const message = priceChangedMessage(chosen, a.tier.tier);
+				return failWith(409, message, { type: message });
+			}
+		}
+	}
+	const purchaseConfig =
+		effective && effective !== chosen
+			? { ...config, types: config.types.map((t) => (t.id === effective?.id ? effective : t)) }
+			: config;
+
 	const valid = validatePurchase(
-		{ ...config, paymentMethods: methods.length ? methods : config.paymentMethods },
+		{ ...purchaseConfig, paymentMethods: methods.length ? methods : config.paymentMethods },
 		{
 			type: values.type,
 			quantity: values.quantity,
@@ -421,7 +537,8 @@ export async function buyAction(event) {
 				dni: values.dni
 			},
 			holders: values.holders,
-			accept: form.get('accept')
+			accept: form.get('accept'),
+			now
 		}
 	);
 
@@ -451,6 +568,12 @@ export async function buyAction(event) {
 		}
 	}
 	if (!valid.ok) return failWith(400, 'Revisá los datos marcados.', valid.errors);
+	// Una compra entra entera en un tramo (un solo precio por orden): si pide más de lo que queda
+	// a este precio, compra lo que queda y el resto en otra compra (al precio del tramo siguiente).
+	if (tierRemaining !== null && valid.quantity > tierRemaining && valid.type.tier) {
+		const message = tierLeftMessage(valid.type.tier.name, tierRemaining);
+		return failWith(409, message, { quantity: message });
+	}
 
 	// Total 0 (sin contar el recargo de MP, que sobre 0 es 0): se emite sin pasar por un pago.
 	const base = computePrice({
@@ -507,7 +630,8 @@ export async function buyAction(event) {
 				method === 'transferencia'
 					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
 					: undefined,
-			clientHash: client
+			clientHash: client,
+			now
 		});
 	} catch (error) {
 		logDBError('reserve order', error);
@@ -520,6 +644,24 @@ export async function buyAction(event) {
 		}
 		if (reserved.reason === 'method') return failWith(400, 'Elegí un medio de pago.');
 		if (reserved.reason === 'limit') return failWith(429, reserved.message);
+		if (reserved.reason === 'tier') {
+			// Otra compra llenó el tramo (o pasó su fecha) en el medio: no se cobra otro precio sin
+			// avisar. Se vuelve a elegir el tramo con lo de ahora y se pide confirmar de nuevo.
+			const later = Date.now();
+			/** @type {ReturnType<typeof typeAvailability> | null} */
+			let again = null;
+			try {
+				if (chosen)
+					again = typeAvailability(config, chosen, await getTaken(db, params.event, later), later);
+			} catch (error) {
+				logDBError('tickets taken', error);
+			}
+			const message =
+				again?.tier && chosen
+					? `Se terminó «${valid.type.tier?.name ?? ''}» mientras comprabas. ${priceChangedMessage(chosen, again.tier.tier)}`
+					: `Se agotaron las entradas ${valid.type.name}.`;
+			return failWith(409, message, { type: message });
+		}
 		return failWith(
 			409,
 			reserved.available === null
