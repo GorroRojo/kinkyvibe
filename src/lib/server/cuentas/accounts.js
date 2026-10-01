@@ -8,7 +8,6 @@
  *   pendientes y todos los datos de la persona (la fila queda vacía, con `deleted_at`).
  */
 import { sha256Hex } from '$lib/server/hash.js';
-import { codeEmailHashes } from './codes.js';
 import { hashPassword, needsRehash, passwordProblem, verifyPassword } from './password.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -196,9 +195,7 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 	await db.batch([
 		db.prepare('UPDATE orders SET account_id = NULL WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM account_sessions WHERE account_id = ?1').bind(accountId),
-		db
-			.prepare('DELETE FROM login_codes WHERE email_hash IN (SELECT value FROM json_each(?1))')
-			.bind(JSON.stringify(await codeEmailHashes(hash))),
+		db.prepare('DELETE FROM login_codes WHERE email_hash = ?1').bind(hash),
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,

@@ -89,10 +89,6 @@ nada de estas tablas para sumarlas.
   contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un grupo y borrarlo,
   ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
   no sirve para ingresar.
-- `grupo` se sumó sin cambiar el `CHECK` de `login_codes` (migración 0013, ya aplicada en los
-  previews): en la columna `purpose` va como `delete`, pero con otro hash de mail
-  (`SHA-256("cuentas:code:grupo:<hash del mail>")`), así nunca se cruza con los de `delete`, y el
-  `purpose` de verdad va en el hash del código (`storage()` en `codes.js`).
 - Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.

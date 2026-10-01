@@ -642,18 +642,18 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 		).toMatchObject({ ok: false, status: 429 });
 	});
 
-	it("'grupo' es un purpose más: no se cruza con 'delete' aunque comparta la columna", async () => {
+	it("'grupo' es un purpose más: no se cruza con 'delete' ni con los demás", async () => {
 		const hash = await emailHash(EMAIL);
 		const { code: deleteCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'delete' });
 		const { code: groupCode } = await createLoginCode(t.db, hash, { now: NOW, purpose: 'grupo' });
-		// Pedir uno de 'grupo' no anuló el de 'delete' (y al revés, abajo).
-		const rows = await t.db.prepare('SELECT email_hash, purpose, used_at FROM login_codes').all();
-		expect(rows.results).toHaveLength(2);
-		expect(rows.results.every((r) => r.used_at === null)).toBe(true);
-		// Se guarda sin cambiar el CHECK de 0013, con otro hash de mail.
-		const group = rows.results.find((r) => r.email_hash !== hash);
-		expect(group?.purpose).toBe('delete');
-		// Ninguno sirve para lo del otro…
+		// Pedir uno de 'grupo' no anuló el de 'delete'.
+		const rows = await t.db
+			.prepare('SELECT purpose, used_at FROM login_codes ORDER BY purpose')
+			.all();
+		expect(rows.results).toEqual([
+			{ purpose: 'delete', used_at: null },
+			{ purpose: 'grupo', used_at: null }
+		]);
 		if (groupCode !== deleteCode) {
 			expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'delete' })).toBe(
 				'wrong'
@@ -665,7 +665,6 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'login' })).toBe(
 			'expired'
 		);
-		// …y cada uno sí para lo suyo.
 		expect(await verifyLoginCode(t.db, hash, groupCode, { now: NOW, purpose: 'grupo' })).toBe('ok');
 		expect(await verifyLoginCode(t.db, hash, deleteCode, { now: NOW, purpose: 'delete' })).toBe(
 			'ok'

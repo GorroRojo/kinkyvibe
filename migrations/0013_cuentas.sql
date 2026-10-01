@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS login_codes (
 	id TEXT PRIMARY KEY NOT NULL, -- UUID v4; también es la sal del hash del código
 	email_hash TEXT NOT NULL,
 	-- 'login': ingresar. 'password': poner, cambiar o sacar la contraseña. 'delete': borrar la cuenta.
-	purpose TEXT NOT NULL CHECK (purpose IN ('login', 'password', 'delete')),
+	-- 'grupo': cambiar dueñes de un grupo o borrarlo (Mi rincón → Perfiles).
+	purpose TEXT NOT NULL CHECK (purpose IN ('login', 'password', 'delete', 'grupo')),
 	code_hash TEXT NOT NULL, -- SHA-256 de "<id>:<purpose>:<código>"
 	attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
 	created_at INTEGER NOT NULL,
