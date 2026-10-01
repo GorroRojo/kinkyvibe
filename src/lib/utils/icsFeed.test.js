@@ -75,6 +75,30 @@ describe('feedLocation (el punto donde se enchufa la privacidad de lugares, #137
 		expect(feedLocation({ location: '' })).toBeUndefined();
 		expect(feedLocation({})).toBeUndefined();
 	});
+	it('con lugar (#137): manda su privacidad, no el location del .md', () => {
+		const meta = { location: 'Calle Falsa 123' };
+		expect(feedLocation(meta, { level: 'hidden' })).toBeUndefined();
+		expect(feedLocation(meta, { level: 'area', area: 'Palermo', city: 'CABA' })).toBe(
+			'Palermo, CABA'
+		);
+		expect(feedLocation(meta, { level: 'area' })).toBeUndefined();
+		expect(feedLocation(meta, { level: 'name', name: 'Lugar de Prueba', href: '/x' })).toBe(
+			'Lugar de Prueba'
+		);
+		expect(
+			feedLocation(meta, {
+				level: 'public',
+				name: 'Lugar de Prueba',
+				address: 'Calle Inventada 1',
+				href: '/x'
+			})
+		).toBe('Lugar de Prueba · Calle Inventada 1');
+		const ev = fakeEvent('a', NOW, ['x'], { location: 'Calle Falsa 123' });
+		const ics = unfold(
+			buildIcsFeed([ev], { venues: new Map([[String(ev.meta.postID), { level: 'hidden' }]]) })
+		);
+		expect(ics).not.toContain('Calle Falsa');
+	});
 	it('es lo único que pone LOCATION: sin dirección, el nombre del lugar tampoco aparece', () => {
 		const ics = unfold(
 			buildIcsFeed([fakeEvent('a', NOW, ['x'], { location: undefined, location_name: 'Lugar' })])

@@ -8,6 +8,7 @@
 import * as ics from 'ics';
 import { eventEnd } from './dates.js';
 import { escapeHtml } from './escape.js';
+import { venueLine } from './venues.js';
 
 /** Origen de los links de los calendarios (los clientes de calendario no conocen el sitio). */
 export const SITE_ORIGIN = 'https://kinkyvibe.ar';
@@ -34,18 +35,26 @@ function stringToDateArray(s) {
 }
 
 /**
- * La dirección que puede ir en un calendario, o `undefined`.
+ * La dirección que puede ir en un calendario, o `undefined`. Es el ÚNICO lugar por donde la
+ * dirección entra a un .ics.
  *
- * Hoy los eventos tienen la dirección en texto libre (`location`) y es pública en la página del
- * evento, así que va igual que siempre.
- * TODO(#137, privacidad de lugares): cuando los lugares tengan niveles de privacidad, devolver
- * `undefined` (o solo el barrio) si la dirección del lugar está oculta, y usar esto también en la
- * página del evento. Es el ÚNICO lugar por donde la dirección entra a un .ics.
+ * Si el evento tiene lugar (#137, interruptor `perfiles_publicos`), manda la privacidad del lugar,
+ * igual que en la página del evento: `venue` es lo que la página le muestra a cualquiera
+ * (`publicVenueForEvent` con ANON, ver `feedVenues` en $lib/server/amigues/venues.js), y el
+ * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay.
+ * Sin lugar, la dirección en texto libre del .md, que es pública en la página del evento.
  *
  * @param {{ location?: unknown }} meta
+ * @param {import('./venues.js').VenueView | null} [venue]
  * @returns {string | undefined}
  */
-export function feedLocation(meta) {
+export function feedLocation(meta, venue) {
+	if (venue) {
+		if (venue.level === 'hidden') return undefined;
+		if (venue.level === 'area')
+			return [venue.area, venue.city].filter(Boolean).join(', ') || undefined;
+		return venueLine(venue) || undefined;
+	}
 	const loc = typeof meta.location === 'string' ? meta.location.trim() : '';
 	return loc || undefined;
 }
@@ -66,6 +75,8 @@ const STATUS = /** @type {Record<string, import('ics').EventStatus>} */ ({
  *   organiza (los perfiles de amigues); por defecto, los mismos `posts`
  * @prop {boolean} [includeCancelled] incluir los cancelados como CANCELLED (por defecto se saltean,
  *   como el calendario general)
+ * @prop {ReadonlyMap<string, import('./venues.js').VenueView>} [venues] el lugar de cada evento
+ *   que tiene uno (por dirección), ya filtrado por su privacidad (ver `feedLocation`)
  */
 
 /**
@@ -99,7 +110,7 @@ export function buildIcsFeed(posts, opts = {}) {
 			url: postPath,
 			description: postPath + ' \n' + post.meta.summary,
 			htmlContent: eventHtml(postPath, post.meta.summary),
-			location: feedLocation(post.meta) ?? postPath,
+			location: feedLocation(post.meta, opts.venues?.get(String(post.meta.postID))) ?? postPath,
 			calName,
 			organizer: {
 				name: organizer,

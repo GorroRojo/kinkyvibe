@@ -14,6 +14,7 @@ import { cuentasEnabled } from '$lib/server/flags.js';
 import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
 import { accountForFeed, ticketedSlugs } from '$lib/server/series/feeds.js';
 import { requireSeries } from '$lib/server/series/web.js';
+import { feedVenues } from '$lib/server/amigues/venues.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform }) {
@@ -33,7 +34,12 @@ export async function GET({ params, platform }) {
 		buildIcsFeed(mine, {
 			calName: 'Lo tuyo · KinkyVibe',
 			profiles: listed,
-			includeCancelled: true
+			includeCancelled: true,
+			// Como la página pública del evento (#137): nunca más dirección que la que ve cualquiera.
+			venues: await feedVenues(
+				db,
+				mine.map((p) => String(p.meta.postID))
+			)
 		}),
 		{ private: true }
 	);
