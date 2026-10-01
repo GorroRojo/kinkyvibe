@@ -11,6 +11,7 @@ import {
 	applyTipPayment,
 	buildTipPreference,
 	createTip,
+	fondoTipTotals,
 	getTip,
 	isTipReference,
 	listTips,
@@ -35,7 +36,7 @@ beforeEach(async () => {
 
 const NOW = Date.parse('2026-10-01T15:00:00Z');
 
-/** @param {Partial<{ amount: number, slug: string, category: 'material' | 'calendario', message: string | null, now: number }>} [o] */
+/** @param {Partial<{ amount: number, slug: string, category: 'material' | 'calendario', message: string | null, now: number, destination: 'kinkyvibe' | 'fondo' }>} [o] */
 function newTip(o = {}) {
 	return createTip(
 		t.db,
@@ -43,7 +44,8 @@ function newTip(o = {}) {
 			amount: o.amount ?? 2000,
 			message: o.message ?? null,
 			category: o.category ?? 'material',
-			slug: o.slug ?? 'guia-de-prueba'
+			slug: o.slug ?? 'guia-de-prueba',
+			...(o.destination ? { destination: o.destination } : {})
 		},
 		{ now: o.now ?? NOW }
 	);
@@ -109,6 +111,99 @@ describe('buildTipPreference', () => {
 		expect(p.statement_descriptor).toBe('KINKYVIBE');
 		expect(p.expiration_date_from).toBe('2026-10-01T12:00:00.000-03:00');
 		expect(p.expiration_date_to).toBe('2026-10-02T12:00:00.000-03:00');
+	});
+});
+
+describe('destino (KinkyVibe o el Fondo)', () => {
+	it('se guarda; sin destino, "kinkyvibe"', async () => {
+		const plain = await newTip();
+		expect(plain.destination).toBe('kinkyvibe');
+		const fondo = await newTip({ destination: 'fondo' });
+		expect(fondo.destination).toBe('fondo');
+		const row = await t.db
+			.prepare('SELECT destination FROM tips WHERE id = ?1')
+			.bind(fondo.id)
+			.first();
+		expect(row?.destination).toBe('fondo');
+	});
+
+	it('la base rechaza un destino desconocido (el CHECK de la migración 0022)', async () => {
+		await expect(
+			t.db
+				.prepare(
+					`INSERT INTO tips (id, amount, status, post_category, post_slug, destination, created_at, updated_at)
+					VALUES ('11111111-1111-4111-8111-111111111111', 1000, 'pending', 'material', 'x', 'otro', 1, 1)`
+				)
+				.run()
+		).rejects.toThrow(/CHECK/);
+	});
+
+	it('el pago (webhook) no cambia el destino: aprobada y después reembolsada sigue siendo del Fondo', async () => {
+		const tip = await newTip({ destination: 'fondo' });
+		const approved = await applyTipPayment(t.db, payment(tip), { now: NOW + 1000 });
+		expect(approved.tip).toMatchObject({ status: 'approved', destination: 'fondo' });
+		const refunded = await applyTipPayment(t.db, payment(tip, { status: 'refunded' }));
+		expect(refunded.tip).toMatchObject({ status: 'refunded', destination: 'fondo' });
+		const other = await newTip();
+		expect((await applyTipPayment(t.db, payment(other, { id: 2 }))).tip?.destination).toBe(
+			'kinkyvibe'
+		);
+	});
+
+	it('la preferencia de MP dice para quién es', async () => {
+		const tip = await newTip({ destination: 'fondo' });
+		const p = buildTipPreference({ tip, postTitle: 'Guía', origin: 'https://kv.test' });
+		expect(p.items[0].title).toBe('Propina para el Fondo KinkyVibe · Guía');
+		expect(p.external_reference).toBe(`propina:${tip.id}`);
+	});
+
+	it('fondoTipTotals: solo las aprobadas "Para el Fondo" (ni pendientes, rechazadas, reembolsadas, ni de KinkyVibe)', async () => {
+		const approvedFondo = await newTip({ amount: 3000, destination: 'fondo' });
+		const approvedFondo2 = await newTip({ amount: 1000, destination: 'fondo' });
+		const pendingFondo = await newTip({ amount: 7000, destination: 'fondo' });
+		const rejectedFondo = await newTip({ amount: 5000, destination: 'fondo' });
+		const refundedFondo = await newTip({ amount: 4000, destination: 'fondo' });
+		const approvedKv = await newTip({ amount: 9000 });
+		await applyTipPayment(t.db, payment(approvedFondo, { id: 1, transaction_amount: 3000 }), {
+			now: NOW
+		});
+		await applyTipPayment(t.db, payment(approvedFondo2, { id: 2, transaction_amount: 1000 }), {
+			now: NOW + 10
+		});
+		await applyTipPayment(
+			t.db,
+			payment(rejectedFondo, { id: 3, status: 'rejected', transaction_amount: 5000 }),
+			{ now: NOW }
+		);
+		await applyTipPayment(t.db, payment(refundedFondo, { id: 4, transaction_amount: 4000 }), {
+			now: NOW
+		});
+		await applyTipPayment(
+			t.db,
+			payment(refundedFondo, { id: 4, status: 'refunded', transaction_amount: 4000 }),
+			{ now: NOW + 5 }
+		);
+		await applyTipPayment(t.db, payment(approvedKv, { id: 5, transaction_amount: 9000 }), {
+			now: NOW
+		});
+		expect((await getTip(t.db, pendingFondo.id))?.status).toBe('pending');
+
+		expect(await fondoTipTotals(t.db)).toEqual({ count: 2, total: 4000 });
+		// Por fecha de aprobación: desde (inclusive) hasta (exclusive).
+		expect(await fondoTipTotals(t.db, { from: NOW, to: NOW + 10 })).toEqual({
+			count: 1,
+			total: 3000
+		});
+		expect(await fondoTipTotals(t.db, { from: NOW + 10 })).toEqual({ count: 1, total: 1000 });
+		expect(await fondoTipTotals(t.db, { to: NOW })).toEqual({ count: 0, total: 0 });
+
+		// El resumen del panel separa por destino, con los mismos números.
+		const s = await tipSummary(t.db);
+		expect(s.byDestination).toEqual({
+			kinkyvibe: { count: 1, total: 9000 },
+			fondo: { count: 2, total: 4000 }
+		});
+		expect(s.total).toBe(13000);
 	});
 });
 
@@ -218,6 +313,12 @@ describe('datos de demo (scripts/demo/n3-propinas.sql)', () => {
 		expect(s.count).toBe(4);
 		expect(s.total).toBe(9500);
 		expect(s.counts).toEqual({ pending: 1, rejected: 1, refunded: 1 });
+		// Algunas van "Para el Fondo" (la reembolsada del Fondo no suma).
+		expect(s.byDestination).toEqual({
+			kinkyvibe: { count: 2, total: 3500 },
+			fondo: { count: 2, total: 6000 }
+		});
+		expect(await fondoTipTotals(t.db)).toEqual({ count: 2, total: 6000 });
 	});
 });
 
@@ -227,7 +328,12 @@ describe('panel: resumen, lista y CSV', () => {
 		const a = await newTip({ amount: 1000, slug: 'guia-a', now: NOW });
 		const b = await newTip({ amount: 5000, slug: 'guia-a', now: NOW + DAY });
 		const c = await newTip({ amount: 2000, slug: 'fiesta', category: 'calendario', now: NOW });
-		const d = await newTip({ amount: 3000, slug: 'guia-b', message: '=HYPERLINK("x")' });
+		const d = await newTip({
+			amount: 3000,
+			slug: 'guia-b',
+			message: '=HYPERLINK("x")',
+			destination: 'fondo'
+		});
 		await newTip({ amount: 700, slug: 'guia-b' }); // queda pendiente
 		// 31/10 23:30 en Argentina (en UTC ya sería noviembre): cuenta en octubre.
 		await applyTipPayment(t.db, payment(a, { id: 1, transaction_amount: 1000 }), {
@@ -271,12 +377,31 @@ describe('panel: resumen, lista y CSV', () => {
 		expect(all).toHaveLength(5);
 		const csv = toCsv(all, TIP_CSV_COLUMNS);
 		const lines = csv.replace('﻿', '').trim().split('\r\n');
-		expect(lines[0]).toBe('id,fecha,aprobada,estado,monto,categoria,publicacion,mensaje,pago_mp');
+		expect(lines[0]).toBe(
+			'id,fecha,aprobada,estado,monto,categoria,publicacion,mensaje,pago_mp,destino'
+		);
 		expect(lines).toHaveLength(6);
 		const row = lines.find((l) => l.startsWith(d.id));
 		expect(row).toContain(',Reembolsada,3000,material,guia-b,');
 		// El mensaje lo escribe la persona: no se ejecuta como fórmula en la planilla.
 		expect(row).toContain(`"'=HYPERLINK(""x"")"`);
 		expect(lines.some((l) => l.includes(',Pendiente,700,'))).toBe(true);
+		// Destino al final de cada fila.
+		expect(row?.endsWith(',4,Para el Fondo')).toBe(true);
+		expect(lines.filter((l) => l.endsWith(',Para KinkyVibe'))).toHaveLength(4);
+	});
+
+	it('la lista se filtra por destino', async () => {
+		const { d } = await seed();
+		const fondo = await listTips(t.db, { destination: 'fondo' });
+		expect(fondo.map((x) => x.id)).toEqual([d.id]);
+		const kv = await listTips(t.db, { destination: 'kinkyvibe' });
+		expect(kv).toHaveLength(3);
+		expect(kv.every((x) => x.destination === 'kinkyvibe' && x.status !== 'pending')).toBe(true);
+		expect(await listTips(t.db, { destination: 'kinkyvibe', includePending: true })).toHaveLength(
+			4
+		);
+		// La reembolsada del Fondo está en la lista pero no suma.
+		expect((await tipSummary(t.db)).byDestination.fondo).toEqual({ count: 0, total: 0 });
 	});
 });

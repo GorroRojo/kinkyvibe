@@ -10,7 +10,15 @@ export const KINKYVIBE_TAG = 'KinkyVibe';
 
 /**
  * Lo que manda el formulario de propina (todo texto; ver `validateTip`).
- * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string }} TipFormValues
+ * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string,
+ *   destination?: string }} TipFormValues
+ */
+
+/**
+ * A dónde va una propina (lo elige quien la deja; la plata entra igual a la cuenta de MP de las
+ * entradas, solo cambia cómo se cuenta en el panel). `fondo` suma a los aportes al Fondo
+ * KinkyVibe, como el aporte de una entrada solidaria.
+ * @typedef {'kinkyvibe' | 'fondo'} TipDestination
  */
 
 /** Montos sugeridos (botones), en pesos. */
@@ -23,6 +31,30 @@ export const TIP_MAX = 500_000;
 export const TIP_MESSAGE_MAX = 280;
 /** Categorías de publicación que pueden tener el bloque de propina. */
 export const TIP_CATEGORIES = Object.freeze(['material', 'calendario']);
+/** Destinos posibles de una propina (el primero es el de por defecto). */
+export const TIP_DESTINATIONS = Object.freeze(/** @type {const} */ (['kinkyvibe', 'fondo']));
+/** Destino por defecto: "Para KinkyVibe". */
+export const TIP_DEFAULT_DESTINATION = 'kinkyvibe';
+/** Nombre de cada destino (formulario, panel y CSV). */
+export const TIP_DESTINATION_LABELS = Object.freeze({
+	kinkyvibe: 'Para KinkyVibe',
+	fondo: 'Para el Fondo'
+});
+
+/**
+ * Destino de una propina. Vacío o ausente = el de por defecto (formularios viejos o sin elegir);
+ * cualquier otra cosa que no sea un destino conocido, `null` (error).
+ * @param {unknown} raw
+ * @returns {TipDestination | null}
+ */
+export function parseTipDestination(raw) {
+	const value = String(raw ?? '').trim();
+	if (!value) return TIP_DEFAULT_DESTINATION;
+	return /** @type {readonly string[]} */ (TIP_DESTINATIONS).includes(value)
+		? /** @type {TipDestination} */ (value)
+		: null;
+}
+
 /** Slug de una publicación (como los nombres de archivo de src/lib/posts). */
 export const TIP_SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,150}$/;
 
@@ -91,10 +123,10 @@ export function parseTipMessage(raw) {
 
 /**
  * Valida todo lo que manda el formulario. El monto sale de `amount` (un botón sugerido) o, si es
- * `otro`, de `custom`.
+ * `otro`, de `custom`. El destino (`destination`) es "Para KinkyVibe" si no viene.
  *
- * @param {{ amount?: unknown, custom?: unknown, message?: unknown, category?: unknown, slug?: unknown }} input
- * @returns {{ ok: true, amount: number, message: string | null, category: 'material' | 'calendario', slug: string }
+ * @param {{ amount?: unknown, custom?: unknown, message?: unknown, category?: unknown, slug?: unknown, destination?: unknown }} input
+ * @returns {{ ok: true, amount: number, message: string | null, category: 'material' | 'calendario', slug: string, destination: TipDestination }
  *   | { ok: false, errors: Record<string, string> }}
  */
 export function validateTip(input) {
@@ -107,8 +139,10 @@ export function validateTip(input) {
 	if (!message.ok) errors.message = message.error;
 	const post = tipPost(input.category, input.slug);
 	if (!post) errors.post = 'No sabemos desde qué publicación llegaste.';
-	if (!amount.ok || !message.ok || !post) return { ok: false, errors };
-	return { ok: true, amount: amount.amount, message: message.message, ...post };
+	const destination = parseTipDestination(input.destination);
+	if (!destination) errors.destination = 'Elegí a dónde va tu propina.';
+	if (!amount.ok || !message.ok || !post || !destination) return { ok: false, errors };
+	return { ok: true, amount: amount.amount, message: message.message, ...post, destination };
 }
 
 /** Nombre de cada estado de una propina (panel y CSV). */

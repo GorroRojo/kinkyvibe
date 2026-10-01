@@ -1,17 +1,24 @@
 <script>
 	/**
-	 * Propinas: total, por mes y por publicación (solo aprobadas) y la lista con CSV.
+	 * Propinas: total (y por destino: KinkyVibe o el Fondo), por mes y por publicación (solo
+	 * aprobadas) y la lista con CSV, filtrable por destino (`?destino=`).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { HandCoins } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIP_STATUS_LABELS, monthLabel, tipPostPath } from '$lib/utils/propinas.js';
+	import {
+		TIP_DESTINATION_LABELS,
+		TIP_STATUS_LABELS,
+		monthLabel,
+		tipPostPath
+	} from '$lib/utils/propinas.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import BarList from '$lib/components/admin/panel/BarList.svelte';
+	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 
@@ -31,6 +38,14 @@
 		sub: `${p.category} · ${p.count === 1 ? '1 propina' : `${p.count} propinas`}`,
 		href: tipPostPath(p.category, p.slug)
 	}));
+
+	$: kv = s?.byDestination.kinkyvibe ?? { count: 0, total: 0 };
+	$: fondo = s?.byDestination.fondo ?? { count: 0, total: 0 };
+	/** @param {number} n */
+	const tipsText = (n) => (n === 1 ? '1 propina' : `${n} propinas`);
+	$: filterHref = data.destination
+		? `/admin/propinas?destino=${data.destination}`
+		: '/admin/propinas';
 
 	/** @type {Record<string, 'ok' | 'warn' | 'bad' | 'neutral'>} */
 	const TONES = { approved: 'ok', pending: 'neutral', rejected: 'warn', refunded: 'bad' };
@@ -58,6 +73,16 @@
 
 	<div class="kv-stats">
 		<Stat label="Recibido" value={formatARS(s?.total ?? 0)} sub="propinas aprobadas" />
+		<Stat
+			label={TIP_DESTINATION_LABELS.kinkyvibe}
+			value={formatARS(kv.total)}
+			sub="{tipsText(kv.count)} aprobadas"
+		/>
+		<Stat
+			label={TIP_DESTINATION_LABELS.fondo}
+			value={formatARS(fondo.total)}
+			sub="{tipsText(fondo.count)} · suman a los aportes al fondo"
+		/>
 		<Stat label="Propinas" value={s?.count ?? 0} sub="aprobadas" />
 		<Stat
 			label="Reembolsadas"
@@ -85,8 +110,19 @@
 		</Card>
 	</div>
 
+	<Tabs
+		current={filterHref}
+		tabs={[
+			{ href: '/admin/propinas', label: 'Todas' },
+			{ href: '/admin/propinas?destino=kinkyvibe', label: TIP_DESTINATION_LABELS.kinkyvibe },
+			{ href: '/admin/propinas?destino=fondo', label: TIP_DESTINATION_LABELS.fondo }
+		]}
+	/>
+
 	<Card title="Últimas propinas" padded={data.tips.length === 0}>
-		{#if data.tips.length === 0}
+		{#if data.tips.length === 0 && data.destination}
+			<p class="kv-note">No hay propinas con este destino.</p>
+		{:else if data.tips.length === 0}
 			<EmptyState
 				icon={HandCoins}
 				title="Todavía no hay propinas"
@@ -100,6 +136,7 @@
 							<th>Fecha</th>
 							<th class="r">Monto</th>
 							<th>Publicación</th>
+							<th>Destino</th>
 							<th>Estado</th>
 							<th>Mensaje</th>
 						</tr>
@@ -111,6 +148,9 @@
 								<td class="r num">{formatARS(t.amount)}</td>
 								<td class="small">
 									<a href={tipPostPath(t.post_category, t.post_slug)}>{t.post_slug}</a>
+								</td>
+								<td class="small">
+									{TIP_DESTINATION_LABELS[t.destination] ?? t.destination}
 								</td>
 								<td><Badge tone={TONES[t.status]}>{TIP_STATUS_LABELS[t.status]}</Badge></td>
 								<td class="small msg">
@@ -126,7 +166,9 @@
 	<p class="kv-note">
 		Los montos son lo que pagó la persona, antes de la comisión de Mercado Pago. Los mensajes son
 		privados: solo los ven les admins. Para reembolsar una propina, buscá el pago en Mercado Pago
-		(el número está en el CSV, columna <code>pago_mp</code>); el estado se actualiza solo.
+		(el número está en el CSV, columna <code>pago_mp</code>); el estado se actualiza solo. Todas
+		entran a la misma cuenta de Mercado Pago; las "Para el Fondo" aprobadas suman a los aportes al
+		fondo (en el Inicio, "Neto del fondo"), igual que el aporte de una entrada solidaria.
 	</p>
 </div>
 

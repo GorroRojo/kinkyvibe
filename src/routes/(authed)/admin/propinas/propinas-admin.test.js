@@ -80,6 +80,27 @@ async function seed() {
 	return approved;
 }
 
+/** Una propina "Para el Fondo" aprobada (además de las de `seed`). */
+async function seedFondo() {
+	const tip = await createTip(
+		t.db,
+		{ amount: 5000, message: null, category: 'material', slug: 'guia', destination: 'fondo' },
+		{ now: NOW + 1000 }
+	);
+	await applyTipPayment(
+		t.db,
+		{
+			id: 2,
+			status: 'approved',
+			external_reference: tipReference(tip.id),
+			transaction_amount: 5000,
+			currency_id: 'ARS'
+		},
+		{ now: NOW + 120_000 }
+	);
+	return tip;
+}
+
 describe('/admin/propinas', () => {
 	it('está en el menú, en el grupo de Ventas', () => {
 		expect(navItem('propinas')).toMatchObject({
@@ -119,6 +140,57 @@ describe('/admin/propinas', () => {
 		expect(lines).toHaveLength(3);
 		expect(text).toContain(',Aprobada,2000,material,guia,Mensaje de prueba,1');
 		expect(text).toContain(',Pendiente,1000,calendario,fiesta,,');
+	});
+
+	it('destino: totales separados, columna en la lista y filtro `?destino=`', async () => {
+		await seed();
+		const fondo = await seedFondo();
+		const data = /** @type {any} */ (await page.load(fakeEvent()));
+		expect(data.destination).toBeNull();
+		expect(data.summary.total).toBe(7000);
+		expect(data.summary.byDestination).toEqual({
+			kinkyvibe: { count: 1, total: 2000 },
+			fondo: { count: 1, total: 5000 }
+		});
+		expect(data.tips.map((/** @type {any} */ x) => x.destination)).toEqual(['fondo', 'kinkyvibe']);
+
+		const onlyFondo = /** @type {any} */ (
+			await page.load(fakeEvent({ path: '/admin/propinas?destino=fondo' }))
+		);
+		expect(onlyFondo.destination).toBe('fondo');
+		expect(onlyFondo.tips.map((/** @type {any} */ x) => x.id)).toEqual([fondo.id]);
+		// Los totales no se filtran.
+		expect(onlyFondo.summary.total).toBe(7000);
+
+		const onlyKv = /** @type {any} */ (
+			await page.load(fakeEvent({ path: '/admin/propinas?destino=kinkyvibe' }))
+		);
+		expect(onlyKv.tips).toHaveLength(1);
+		expect(onlyKv.tips[0]).toMatchObject({
+			destination: 'kinkyvibe',
+			message: 'Mensaje de prueba'
+		});
+
+		// Un valor raro en la URL: sin filtro.
+		const odd = /** @type {any} */ (
+			await page.load(fakeEvent({ path: "/admin/propinas?destino=fondo' OR 1=1" }))
+		);
+		expect(odd.destination).toBeNull();
+		expect(odd.tips).toHaveLength(2);
+	});
+
+	it('CSV: columna destino', async () => {
+		await seed();
+		await seedFondo();
+		const res = await csv.GET(fakeEvent({ path: '/admin/propinas/propinas.csv' }));
+		const lines = (await res.text()).replace('\ufeff', '').trim().split('\r\n');
+		expect(lines[0].split(',').at(-1)).toBe('destino');
+		expect(lines).toHaveLength(4);
+		const fondoRows = lines.filter(
+			(l) => l.includes(',Aprobada,5000,') && l.endsWith(',2,Para el Fondo')
+		);
+		expect(fondoRows).toHaveLength(1);
+		expect(lines.filter((l) => l.endsWith(',Para KinkyVibe'))).toHaveLength(2);
 	});
 
 	it('las propinas aprobadas aparecen en la actividad del Inicio (las pendientes no)', async () => {
