@@ -174,7 +174,10 @@ describe('movedAgendaValues', () => {
 
 describe('localDateParts', () => {
 	it('lee día y hora locales del Date', () => {
-		expect(localDateParts(new Date(2026, 11, 5, 9, 7))).toEqual({ date: '2026-12-05', time: '09:07' });
+		expect(localDateParts(new Date(2026, 11, 5, 9, 7))).toEqual({
+			date: '2026-12-05',
+			time: '09:07'
+		});
 	});
 });
 

@@ -1,0 +1,146 @@
+<script>
+	/**
+	 * Lo principal de un evento de la agenda, en una hoja (abajo en el celu, centrada en desktop):
+	 * cuándo, dónde, estado, links a la ficha, al editor y al sitio, y "Mover a otro día" (lo mismo
+	 * que arrastrarlo en el calendario, para hacerlo con teclado).
+	 * Props: `row` (fila de la agenda o null), `open` (bind), `problem` (por qué no se puede mover;
+	 * null = se puede), `busy` (guardando). Evento `move` { date }.
+	 */
+	import { createEventDispatcher } from 'svelte';
+	import { CalendarClock, ExternalLink, Pencil, SquareArrowOutUpRight } from '@lucide/svelte';
+	import Sheet from '$lib/components/admin/door/Sheet.svelte';
+	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import { eventLink, editEventHref } from '$lib/admin/links.js';
+	import { dayLabel } from '$lib/admin/eventFormat.js';
+	import { rowBadges } from '$lib/utils/calendario.js';
+	import { isValidDate } from '$lib/utils/eventDraft.js';
+
+	/** @type {(import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean }) | null} */
+	export let row = null;
+	export let open = false;
+	/** @type {string | null} */
+	export let problem = null;
+	export let busy = false;
+
+	const dispatch = createEventDispatcher();
+	let moveTo = '';
+	let lastSlug = '';
+	$: if (row && row.slug !== lastSlug) {
+		lastSlug = row.slug;
+		moveTo = row.date;
+	}
+	$: badges = row ? rowBadges(row) : [];
+	$: time = row?.startTime ? [row.startTime, row.endTime].filter(Boolean).join(' – ') : '';
+</script>
+
+<Sheet bind:open title={row?.title ?? ''}>
+	{#if row}
+		<dl class="facts">
+			<dt>Cuándo</dt>
+			<dd>{row.date ? dayLabel(row.date) : '—'}{time ? ` · ${time}` : ''}</dd>
+			<dt>Lugar</dt>
+			<dd>{row.locationName || '—'}{row.place ? ` (${row.place})` : ''}</dd>
+			{#if badges.length}
+				<dt>Estado</dt>
+				<dd class="badges">
+					{#each badges as b}<Badge tone={b.tone}>{b.label}</Badge>{/each}
+				</dd>
+			{/if}
+		</dl>
+
+		<div class="links">
+			<a class="kv-btn" href={eventLink(row.slug, { tickets: row.sellsTickets })}
+				><SquareArrowOutUpRight size={16} aria-hidden="true" /> Ficha</a
+			>
+			<a class="kv-btn ghost" href={editEventHref(row.slug)}
+				><Pencil size={16} aria-hidden="true" /> Editar</a
+			>
+			<a class="kv-btn ghost" href="/calendario/{row.slug}" target="_blank" rel="noreferrer"
+				><ExternalLink size={16} aria-hidden="true" /> Ver en el sitio</a
+			>
+		</div>
+
+		<form
+			class="move"
+			on:submit|preventDefault={() => {
+				if (isValidDate(moveTo) && moveTo !== row?.date) dispatch('move', { date: moveTo });
+			}}
+		>
+			<label for="ev-move-date"
+				><CalendarClock size={16} aria-hidden="true" /> Mover a otro día</label
+			>
+			<div class="move-row">
+				<input
+					id="ev-move-date"
+					type="date"
+					bind:value={moveTo}
+					disabled={!!problem || busy}
+					aria-describedby={problem ? 'ev-move-problem' : undefined}
+				/>
+				<button
+					class="kv-btn ghost"
+					disabled={!!problem || busy || !isValidDate(moveTo) || moveTo === row.date}
+					>{busy ? 'Moviendo…' : 'Mover'}</button
+				>
+			</div>
+			{#if problem}
+				<small id="ev-move-problem" class="muted">{problem}</small>
+			{:else}
+				<small class="muted">Mantiene la hora. También podés arrastrarlo en el calendario.</small>
+			{/if}
+		</form>
+	{/if}
+</Sheet>
+
+<style>
+	.facts {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.4rem 1rem;
+		margin: 0;
+	}
+	dt {
+		color: var(--muted);
+		font-size: 0.85rem;
+	}
+	dd {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.move {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		border-top: 1px solid var(--line);
+		padding-top: 0.9rem;
+	}
+	.move label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-weight: 700;
+	}
+	.move-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+	.move input {
+		min-height: 2.6rem;
+		border: 1px solid var(--line);
+		border-radius: 0.6rem;
+		padding: 0 0.6rem;
+		background: var(--surface);
+		color: var(--text);
+	}
+</style>

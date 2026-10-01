@@ -47,7 +47,9 @@ export function defaultCalendarView(width) {
  * @returns {CalendarView}
  */
 export function parseCalendarView(value, fallback) {
-	return CALENDAR_VIEWS.some((v) => v.id === value) ? /** @type {CalendarView} */ (value) : fallback;
+	return CALENDAR_VIEWS.some((v) => v.id === value)
+		? /** @type {CalendarView} */ (value)
+		: fallback;
 }
 
 /** @param {string} time hh:mm @returns {number} */
@@ -59,17 +61,24 @@ const hhmm = (m) => {
 };
 
 /**
- * Tono del chip (los mismos colores que los chips de estado del panel, `eventBadges`): borrador,
- * cancelado, abierto, anunciado…
+ * Chips de estado de una fila (los de `eventBadges`, como en el resto del panel): borrador,
+ * cancelado, abierto, anunciado… `state` es lo último (la planilla puede haberlo cambiado);
+ * `status`, lo que decía el archivo.
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'>} row
+ */
+export function rowBadges(row) {
+	const status =
+		row.state === 'cancelado' ? 'cancelado' : row.status === 'cancelado' ? 'anunciado' : row.status;
+	return eventBadges({ status, unlisted: row.state === 'no-listado' });
+}
+
+/**
+ * Tono del chip en el calendario: el del primer chip de estado.
  * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'>} row
  * @returns {'ok' | 'warn' | 'bad' | 'info' | 'neutral'}
  */
 export function eventTone(row) {
-	// `state` es lo último (la planilla puede haberlo cambiado); `status`, lo que decía el archivo.
-	const status =
-		row.state === 'cancelado' ? 'cancelado' : row.status === 'cancelado' ? 'anunciado' : row.status;
-	const [first] = eventBadges({ status, unlisted: row.state === 'no-listado' });
-	return first?.tone ?? 'neutral';
+	return rowBadges(row)[0]?.tone ?? 'neutral';
 }
 
 /**
@@ -81,7 +90,8 @@ export function eventTone(row) {
  * @returns {string | null}
  */
 export function rescheduleProblem(row, places) {
-	if (!isValidTime(row.startTime)) return 'No tiene hora de inicio: cambiala desde la planilla o la ficha.';
+	if (!isValidTime(row.startTime))
+		return 'No tiene hora de inicio: cambiala desde la planilla o la ficha.';
 	const errors = validateAgendaRow(row, { places, allowEmptyPlace: row.place === '' });
 	const first = Object.values(errors)[0];
 	return first ? `Revisalo en la planilla o la ficha: ${first}` : null;
@@ -130,7 +140,11 @@ export function calendarEvent(row, { places, canEdit = true }) {
 		allDay: !timed,
 		startEditable: !problem,
 		durationEditable: false,
-		classNames: ['kv-ev', `kv-ev-${tone}`, ...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : [])],
+		classNames: [
+			'kv-ev',
+			`kv-ev-${tone}`,
+			...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : [])
+		],
 		extendedProps: {
 			slug: row.slug,
 			tone,

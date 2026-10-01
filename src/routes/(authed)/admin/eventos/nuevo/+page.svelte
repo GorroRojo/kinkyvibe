@@ -77,6 +77,17 @@
 	// ...but the calendar opens on the month the copy most likely is: this month until the 15th,
 	// next month from the 16th (Argentina time). The day is always picked by hand.
 	let month = prefillMonth(data.today);
+	// ...unless it comes from the agenda calendar (a day was clicked): then that day, and the
+	// times if a range was picked in the week view.
+	if (data.prefill.date) {
+		values.startDate = data.prefill.date;
+		month = data.prefill.date.slice(0, 7);
+	}
+	if (data.prefill.startTime) values.startTime = data.prefill.startTime;
+	if (data.prefill.endTime) {
+		values.endTime = data.prefill.endTime;
+		values.hasEnd = true;
+	}
 	const sourceStart = parseEventDate(sourceFields.start).date;
 	const sourceWeekday =
 		source && isValidDate(sourceStart)
