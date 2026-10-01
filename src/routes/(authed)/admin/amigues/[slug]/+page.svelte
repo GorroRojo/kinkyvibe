@@ -1,5 +1,6 @@
 <script>
 	import ContentEditor from '$lib/components/admin/content/ContentEditor.svelte';
+	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -10,3 +11,4 @@
 {#key data.slug}
 	<ContentEditor {data} {form} />
 {/key}
+<DeleteLink kind="amigues" slug={data.slug} />
