@@ -16,6 +16,7 @@ tags:
   - shibari
   - cine
   - poesía
+  - Festi Kinky
 layout: calendario
 category: calendario
 authors:

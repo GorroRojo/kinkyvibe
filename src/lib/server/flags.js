@@ -23,6 +23,15 @@ export const FLAGS = Object.freeze({
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
+	series: {
+		label: 'Series de eventos',
+		description:
+			'"Edición N de <serie>" con anterior y siguiente en los eventos, la imagen y las ediciones ' +
+			'en la página de cada serie, "Avisame si se repite" (mails con doble confirmación), ' +
+			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
+			'eso se ve y las direcciones nuevas dan 404.',
+		envVar: 'SERIES_ENABLED'
+	},
 	borrar_desde_panel: {
 		label: 'Borrar desde el panel',
 		description:
@@ -129,6 +138,15 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function cuentasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'cuentas');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las series de eventos?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function seriesEnabled(platform) {
+	return isFlagOn(getDB(platform), 'series');
 }
 
 /**

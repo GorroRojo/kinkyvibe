@@ -11,6 +11,7 @@ tags:
   - taller
   - historia
   - BDSM
+  - Taller de Placer y Riesgo
 layout: calendario
 category: calendario
 authors:

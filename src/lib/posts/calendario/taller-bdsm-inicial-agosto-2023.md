@@ -12,6 +12,7 @@ tags:
   - inicial
   - pago
   - AMBA
+  - Taller de BDSM Inicial
 layout: calendario
 category: calendario
 authors:

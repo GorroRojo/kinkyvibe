@@ -111,8 +111,8 @@
 
 	/* ---------- selection & detail form ---------- */
 	let selected = '';
-	/** @type {{icon: string, visible_name: string, color: string, description: string, related: string}} */
-	let fields = { icon: '', visible_name: '', color: '', description: '', related: '' };
+	/** @type {{icon: string, visible_name: string, color: string, image: string, description: string, related: string}} */
+	let fields = { icon: '', visible_name: '', color: '', image: '', description: '', related: '' };
 	let renameTo = '';
 	let keepAlias = true;
 	let mergeInto = '';
@@ -130,6 +130,7 @@
 			icon: n?.icon ?? '',
 			visible_name: n && n.name !== id ? n.name : '',
 			color: current.find((e) => e.id === id && !e.aliasOf)?.color ?? '',
+			image: current.find((e) => e.id === id && !e.aliasOf)?.image ?? '',
 			description: n?.description ?? '',
 			related: (current.find((e) => e.id === id && !e.aliasOf)?.related ?? []).join(', ')
 		};
@@ -167,6 +168,7 @@
 		if (fields.visible_name.trim() !== (entry.visible_name ?? ''))
 			set.visible_name = fields.visible_name;
 		if (fields.color.trim() !== (entry.color ?? '')) set.color = fields.color;
+		if (fields.image.trim() !== (entry.image ?? '')) set.image = fields.image;
 		if (fields.description.trim() !== (entry.description ?? ''))
 			set.description = fields.description;
 		const rel = fields.related
@@ -484,6 +486,15 @@
 							placeholder="(el de su madre)"
 						/></label
 					>
+					{#if data.seriesOn}
+						<label
+							>Imagen (series) <input
+								class="kv-input"
+								bind:value={fields.image}
+								placeholder="serie.webp (de src/lib/assets)"
+							/></label
+						>
+					{/if}
 					<label
 						>Relacionadas <input
 							class="kv-input"

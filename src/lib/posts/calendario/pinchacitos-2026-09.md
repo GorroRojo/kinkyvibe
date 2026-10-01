@@ -10,6 +10,7 @@ tags:
   - AMBA  # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - agujas
+  - Pinchacitos
 layout: calendario
 category: calendario
 authors:

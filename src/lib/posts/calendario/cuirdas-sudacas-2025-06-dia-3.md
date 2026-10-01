@@ -14,6 +14,7 @@ tags:
   - perfil de riesgo
   - gestion corporal
   - consentimiento
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

@@ -10,6 +10,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - bondage
   - cuerdas
+  - Jamarada Kinky
 layout: calendario
 category: calendario
 authors:

@@ -14,6 +14,7 @@ tags:
   - jam de cuerdas
   - cuerdas
   - inicial
+  - Rancheadita Kinky
 layout: calendario
 category: calendario
 authors:

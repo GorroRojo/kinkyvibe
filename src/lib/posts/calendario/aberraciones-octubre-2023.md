@@ -10,6 +10,7 @@ tags:
   - queer
   - cine
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - Aberraciones
 layout: calendario
 category: calendario
 authors:

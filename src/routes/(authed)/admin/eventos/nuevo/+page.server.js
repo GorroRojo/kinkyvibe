@@ -30,6 +30,15 @@ import {
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { seriesEnabled } from '$lib/server/flags.js';
+import { siteTags, tagExists } from '$lib/server/series/index.js';
+import { gitBlobSha } from '$lib/server/admin/posts.js';
+import { planTagEdit } from '$lib/server/admin/tagEditor.js';
+import { seriesTagIds } from '$lib/utils/series.js';
+import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
+import { addTagToPost } from '$lib/utils/tagConfig.js';
+// La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
+import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
@@ -69,13 +78,15 @@ function usableTemplate(raw) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url }) {
+export async function load({ locals, url, platform }) {
 	requireAdmin(locals, url);
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
 	const desde = url.searchParams.get('desde');
 	/** @type {null | {slug: string, raw: string, title: string, featured: string, featuredUrl?: string}} */
 	let source = null;
+	/** @type {ReturnType<typeof seriesPromptFor>} */
+	let seriesPrompt = null;
 	if (desde) {
 		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
 		const client = await getRepoClient();
@@ -104,9 +115,13 @@ export async function load({ locals, url }) {
 			featured: fields.featured,
 			featuredUrl: featuredURL(desde, fields.featured)
 		};
+		// Interruptor `series`: si el original no está en una serie, «¿Es parte de una serie?».
+		if (await seriesEnabled(platform))
+			seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
 	return {
 		source,
+		seriesPrompt,
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
@@ -257,6 +272,29 @@ export const actions = {
 			return fail(400, { error: describeError(e) });
 		}
 
+		// «¿Es parte de una serie?» (solo al duplicar y con el interruptor `series` prendido).
+		/** @type {import('$lib/utils/seriesAdmin.js').SeriesChoice} */
+		let seriesChoice = { type: 'none' };
+		if (source && data.has('seriesChoice') && (await seriesEnabled(platform))) {
+			const read = readSeriesChoice(
+				{
+					choice: data.get('seriesChoice'),
+					name: data.get('seriesName'),
+					existing: data.get('seriesExisting'),
+					markSource: data.get('seriesMarkSource')
+				},
+				{ seriesIds: seriesTagIds(siteTags()), exists: (n) => tagExists(n) }
+			);
+			if (!read.ok) return fail(400, { error: read.error });
+			seriesChoice = read.choice;
+			if (seriesChoice.type !== 'none') {
+				const tagged = addTagToPost(content, seriesChoice.name);
+				if (tagged === content && !(fields.tags ?? []).includes(seriesChoice.name))
+					return fail(400, { error: 'No se pudo agregar la etiqueta de la serie al evento.' });
+				content = tagged;
+			}
+		}
+
 		/** @type {import('$lib/server/eventos/github.js').CommitFile[]} */
 		const files = [{ path: eventPath(slug), content }];
 		/** @type {string[]} */
@@ -269,6 +307,31 @@ export const actions = {
 		let affected = [];
 		/** @type {string[]} */
 		let deleted = [];
+
+		/** @type {Array<{path: string, sha: string}>} */
+		const seriesUnchanged = [];
+		try {
+			if (seriesChoice.type === 'create') {
+				// La etiqueta nueva, por el mismo camino que /admin/etiquetas.
+				const planned = seriesCreateOps({ name: seriesChoice.name });
+				if (!planned.ok) return fail(400, { error: planned.error });
+				const plan = await planTagEdit(client, admin.token, planned.ops, bundledTags);
+				for (const f of plan.files) {
+					files.push({ path: f.path, content: f.after });
+					if (f.sha) seriesUnchanged.push({ path: f.path, sha: f.sha });
+				}
+			}
+			if (seriesChoice.type !== 'none' && seriesChoice.markSource) {
+				const sourceRaw = await client.getFile(admin.token, eventPath(source));
+				const marked = sourceRaw === null ? null : addTagToPost(sourceRaw, seriesChoice.name);
+				if (sourceRaw !== null && marked !== null && marked !== sourceRaw) {
+					files.push({ path: eventPath(source), content: marked });
+					seriesUnchanged.push({ path: eventPath(source), sha: await gitBlobSha(sourceRaw) });
+				}
+			}
+		} catch (e) {
+			return fail(400, { error: 'Serie: ' + describeError(e) });
+		}
 
 		try {
 			if (upload && scope === 'todas') {
@@ -311,7 +374,7 @@ export const actions = {
 				files,
 				message,
 				mustNotExist,
-				unchanged,
+				unchanged: [...unchanged, ...seriesUnchanged],
 				pr: {
 					action: mode === 'borrador' ? 'carga (no listado)' : source ? 'duplica' : 'publica',
 					who: admin.name
@@ -325,7 +388,12 @@ export const actions = {
 					(mode === 'borrador' ? 'Cargó como no listado ' : 'Publicó ') +
 					`calendario/${slug}` +
 					(source ? ` (copia de ${source})` : ''),
-				detail: { source: source || null, commit: commit.url, imageScope: upload ? scope : null }
+				detail: {
+					source: source || null,
+					commit: commit.url,
+					imageScope: upload ? scope : null,
+					series: seriesChoice.type === 'none' ? null : seriesChoice
+				}
 			});
 			return {
 				success: true,
@@ -338,6 +406,7 @@ export const actions = {
 				deleted,
 				imageScope: upload ? scope : undefined,
 				affected,
+				series: seriesChoice.type === 'none' ? null : seriesChoice,
 				content,
 				warnings,
 				mock: isMockMode()

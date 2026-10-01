@@ -8,6 +8,7 @@ tags:
   - KinkyVibe # etiqueta especial #
   - BDSM
   - despatologización
+  - Despatologizando las Prácticas BDSM
 layout: calendario
 category: calendario
 authors:

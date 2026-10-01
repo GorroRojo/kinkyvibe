@@ -9,6 +9,7 @@ tags:
   - a la gorra # pago | gratis | a la gorra #
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
+  - Rancheadita Kinky
 layout: calendario
 category: calendario
 authors:

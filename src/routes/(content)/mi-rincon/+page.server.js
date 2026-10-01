@@ -28,6 +28,7 @@ import {
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { seriesEnabled } from '$lib/server/flags.js';
 
 /** Lo que hay que escribir para confirmar el borrado. */
 const DELETE_CONFIRMATION = 'borrar';
@@ -74,6 +75,8 @@ export async function load(event) {
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
 		canHaveProfiles: await canHaveProfiles(db, account.id),
+		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series).
+		seriesOn: await seriesEnabled(event.platform),
 		ordersError,
 		orders: orders.map((o) => ({
 			id: o.id,

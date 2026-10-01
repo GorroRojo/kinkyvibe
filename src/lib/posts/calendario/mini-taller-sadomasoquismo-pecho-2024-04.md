@@ -11,6 +11,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - sadomasoquismo en pechos
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

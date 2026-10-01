@@ -10,6 +10,7 @@ tags:
   - a la gorra # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - BDSM
+  - Todo Kink es Político
 layout: calendario
 category: calendario
 authors:

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import realSource from './hardcodedTags.js?raw';
 import {
+	addTagToPost,
 	analyzeTags,
 	applyTagOps,
 	describeOp,
@@ -10,6 +11,7 @@ import {
 	planTagChange,
 	printEntry,
 	readOps,
+	isAssetFileName,
 	renameWikiLinks,
 	replaceTagInPost,
 	validateTagName
@@ -375,6 +377,89 @@ describe('helpers', () => {
 	it('describeOp', () => {
 		expect(describeOp({ type: 'move', id: 'a', from: 'b', to: 'c' })).toBe(
 			'Mover «a» de «b» a «c»'
+		);
+	});
+});
+
+describe('image (imagen de una serie)', () => {
+	it('update: pone la imagen después del color, y vacía la saca', () => {
+		const out = run([
+			{ type: 'update', id: 'impacto', set: { color: 'red', image: 'impacto-serie.webp' } }
+		]);
+		expect(entry(out, 'impacto')).toEqual({
+			id: 'impacto',
+			icon: '👋',
+			color: 'red',
+			image: 'impacto-serie.webp'
+		});
+		expect(Object.keys(entry(out, 'impacto') ?? {})).toEqual(['id', 'icon', 'color', 'image']);
+		const cleared = run([{ type: 'update', id: 'impacto', set: { image: '' } }], out);
+		expect(entry(cleared, 'impacto')).toEqual({ id: 'impacto', icon: '👋', color: 'red' });
+	});
+	it('solo acepta un archivo de src/lib/assets (sin carpetas ni otras extensiones)', () => {
+		for (const bad of ['../secreto.webp', 'carpeta/x.png', 'x.svg', 'javascript:alert(1)']) {
+			expect(() => run([{ type: 'update', id: 'impacto', set: { image: bad } }])).toThrow(
+				/src\/lib\/assets/
+			);
+		}
+		expect(isAssetFileName('picantearla-miniatura.webp')).toBe(true);
+		expect(isAssetFileName('foto.JPG')).toBe(true);
+	});
+	it('merge: la imagen pasa a la etiqueta que queda si no tenía', () => {
+		const src = SRC.replace("{ id: 'suelta' }", "{ id: 'suelta', image: 's.webp' }");
+		const out = run([{ type: 'merge', from: 'suelta', into: 'impacto' }], src);
+		expect(entry(out, 'impacto')?.image).toBe('s.webp');
+	});
+	it('analyzeTags expone la imagen propia', () => {
+		const src = SRC.replace("{ id: 'suelta' }", "{ id: 'suelta', image: 's.webp' }");
+		const a = analyzeTags(
+			parseTagSource(src).items.map((i) => i.value),
+			{}
+		);
+		expect(a.nodes.find((x) => x.id === 'suelta')?.image).toBe('s.webp');
+		expect(a.nodes.find((x) => x.id === 'impacto')?.image).toBeUndefined();
+	});
+});
+
+describe('addTagToPost', () => {
+	const POST = [
+		'---',
+		'title: Fauna',
+		'tags:',
+		'  - español',
+		'  # - KinkyVibe # etiqueta especial #',
+		'  - pago # pago | gratis #',
+		'  - shibari',
+		'layout: calendario',
+		'---',
+		'Texto con tags: - nada',
+		''
+	].join('\n');
+
+	it('agrega un ítem después del último, con la misma sangría, sin tocar nada más', () => {
+		const out = addTagToPost(POST, 'Fauna Grotesca');
+		expect(out).toBe(POST.replace('  - shibari\n', '  - shibari\n  - Fauna Grotesca\n'));
+	});
+	it('no cambia nada si ya la tiene o si no hay `tags:`', () => {
+		expect(addTagToPost(POST, 'pago')).toBe(POST);
+		const sinTags = '---\ntitle: X\n---\nhola\n';
+		expect(addTagToPost(sinTags, 'Serie')).toBe(sinTags);
+		expect(addTagToPost('sin frontmatter', 'Serie')).toBe('sin frontmatter');
+	});
+	it('comillas cuando hacen falta y lista entre corchetes', () => {
+		expect(addTagToPost(POST, '¿Qué?: sí')).toContain("  - shibari\n  - '¿Qué?: sí'\n");
+		expect(addTagToPost('---\ntags: [a, b] # nota\n---\n', 'Serie A')).toBe(
+			'---\ntags: [a, b, Serie A] # nota\n---\n'
+		);
+	});
+	it('`tags:` vacío: el primer ítem', () => {
+		expect(addTagToPost('---\ntags:\nlayout: x\n---\n', 'Serie')).toBe(
+			'---\ntags:\n  - Serie\nlayout: x\n---\n'
+		);
+	});
+	it('respeta CRLF', () => {
+		expect(addTagToPost('---\r\ntags:\r\n  - a\r\n---\r\n', 'b')).toBe(
+			'---\r\ntags:\r\n  - a\r\n  - b\r\n---\r\n'
 		);
 	});
 });

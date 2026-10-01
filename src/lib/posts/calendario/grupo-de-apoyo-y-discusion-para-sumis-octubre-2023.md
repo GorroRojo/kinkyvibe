@@ -11,6 +11,7 @@ tags:
   - sumisión
   - Online
   - grupo
+  - Grupo de Apoyo y Discusión para sumis
 layout: calendario
 category: calendario
 authors:

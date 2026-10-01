@@ -12,6 +12,7 @@ tags:
   - cuir
   - taller
   - bottom
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

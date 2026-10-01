@@ -15,6 +15,7 @@ tags:
   - queer
   - taller
   - cine
+  - ¡Hablame sucio!
 layout: calendario
 category: calendario
 authors:

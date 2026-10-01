@@ -11,6 +11,7 @@ tags:
   - taller
   - fisting
   - género y salud sexual
+  - Taller de Fisting Vaginal
 layout: calendario
 category: calendario
 authors:

@@ -13,6 +13,7 @@ tags:
   - cera
   - inicial
   - taller
+  - Taller de Juegos con Cera de Velas
 layout: calendario
 category: calendario
 authors:

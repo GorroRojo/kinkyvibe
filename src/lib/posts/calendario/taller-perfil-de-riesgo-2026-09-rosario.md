@@ -12,6 +12,7 @@ tags:
   - Rosario
   - perfil de riesgo
   - negociación
+  - Taller de Perfil de Riesgo
 layout: calendario
 category: calendario
 authors:

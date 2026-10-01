@@ -15,6 +15,7 @@ tags:
   - dominación
   - shibari
   - cine
+  - Festi Kinky
 layout: calendario
 category: calendario
 authors:

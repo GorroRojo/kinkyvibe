@@ -12,6 +12,7 @@ tags:
   - Online
   - dominación
   - grupo
+  - Grupo de Apoyo y Discusión para Doms
 layout: calendario
 category: calendario
 authors:

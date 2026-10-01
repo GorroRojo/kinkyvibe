@@ -12,6 +12,7 @@ tags:
   - cuir
   - taller
   - TS
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

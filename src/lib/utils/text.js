@@ -35,6 +35,15 @@ export function slugify(text) {
 }
 
 /**
+ * Escapes every regular-expression metacharacter, so `text` matches literally inside a
+ * `new RegExp(...)` (also `/`, harmless and handy in literals): "a.b/c" → "a\\.b\\/c".
+ * @param {string} text
+ */
+export function escapeRegExp(text) {
+	return String(text).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+/**
  * Lecturas cortas de valores que vienen de datos guardados (JSON de un objeto, frontmatter): el
  * texto recortado o nada.
  */

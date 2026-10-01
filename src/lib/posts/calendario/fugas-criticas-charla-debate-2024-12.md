@@ -11,6 +11,7 @@ tags:
   - vincularidad
   - queer
   - charla debate
+  - Charla debate de Fugas Críticas
 layout: calendario
 category: calendario
 authors:

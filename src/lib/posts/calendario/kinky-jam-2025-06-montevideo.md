@@ -12,6 +12,7 @@ tags:
   - BDSM
   - perfo
   - jam de cuerdas
+  - Kinky Jam
 layout: calendario
 category: calendario
 authors:

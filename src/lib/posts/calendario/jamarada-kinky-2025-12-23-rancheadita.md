@@ -13,6 +13,7 @@ tags:
   - jam de cuerdas
   - rancheadita
   - inicial
+  - Jamarada Kinky
 layout: calendario
 category: calendario
 authors:
