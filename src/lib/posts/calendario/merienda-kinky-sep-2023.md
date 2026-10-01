@@ -10,6 +10,7 @@ tags:
   - gratis # pago | gratis | a la gorra #
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
+  - Merienda Kinky
 layout: calendario
 category: calendario
 authors:

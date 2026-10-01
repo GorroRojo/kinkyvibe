@@ -10,6 +10,7 @@ tags:
   - Córdoba # online | AMBA | Córdoba | Santa Cruz #
   - dominación
   - taller
+  - Someter
 layout: calendario
 category: calendario
 authors:

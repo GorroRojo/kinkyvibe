@@ -10,6 +10,7 @@ tags:
   - Córdoba # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - asfixia
+  - Taller de Asfixia Erótica
 layout: calendario
 category: calendario
 authors:

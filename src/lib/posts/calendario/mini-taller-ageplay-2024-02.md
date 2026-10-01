@@ -10,6 +10,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - edad
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

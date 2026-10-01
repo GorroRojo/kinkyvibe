@@ -11,6 +11,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - BDSM
   - cuerpos gordes
+  - Todo Kink es Político
 layout: calendario
 category: calendario
 authors:

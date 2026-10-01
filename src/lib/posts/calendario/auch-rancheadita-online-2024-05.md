@@ -9,6 +9,7 @@ tags:
   - a la gorra # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
+  - AUCH Rancheadita Online
 layout: calendario
 category: calendario
 authors:

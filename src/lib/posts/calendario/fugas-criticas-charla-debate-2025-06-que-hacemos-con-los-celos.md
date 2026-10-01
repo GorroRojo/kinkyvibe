@@ -12,6 +12,7 @@ tags:
   - queer
   - charla debate
   - celos
+  - Charla debate de Fugas Críticas
 layout: calendario
 category: calendario
 authors:

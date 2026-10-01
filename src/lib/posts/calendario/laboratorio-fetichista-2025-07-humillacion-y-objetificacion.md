@@ -12,6 +12,7 @@ tags:
   - AMBA
   - pet
   - primal
+  - Laboratorio Fetichistas
 layout: calendario
 category: calendario
 authors:

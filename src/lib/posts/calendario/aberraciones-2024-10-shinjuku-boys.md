@@ -13,6 +13,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - BDSM
   - trabajo sexual
+  - Aberraciones
 layout: calendario
 category: calendario
 authors:

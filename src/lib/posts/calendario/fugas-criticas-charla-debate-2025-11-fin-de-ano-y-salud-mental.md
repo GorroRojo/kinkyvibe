@@ -10,6 +10,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - charla debate
   - salud
+  - Charla debate de Fugas Críticas
 layout: calendario
 category: calendario
 authors:

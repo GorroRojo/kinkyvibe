@@ -11,6 +11,7 @@ tags:
   - gratis # pago | gratis | a la gorra #
   - cine
   - Online # online | AMBA | Córdoba | Santa Cruz #
+  - Aberraciones
 layout: calendario
 category: calendario
 authors:

@@ -12,6 +12,7 @@ tags:
   - taller
   - dominación
   - inicial
+  - Taller de Dominación para Principiantes
 layout: calendario
 category: calendario
 authors:

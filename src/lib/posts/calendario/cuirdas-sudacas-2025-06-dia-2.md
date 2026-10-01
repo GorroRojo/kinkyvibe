@@ -14,6 +14,7 @@ tags:
   - implementos
   - sadismo
   - auto-ataduras
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

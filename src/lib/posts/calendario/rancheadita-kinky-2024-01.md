@@ -11,6 +11,7 @@ tags:
   - rancheadita
   - shibari
   - jam de cuerdas
+  - Rancheadita Kinky
 layout: calendario
 category: calendario
 authors:

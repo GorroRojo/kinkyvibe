@@ -11,6 +11,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - bondage
+  - Taller de Bondage
 layout: calendario
 category: calendario
 authors:

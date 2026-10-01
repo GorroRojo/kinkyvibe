@@ -11,6 +11,7 @@ tags:
   - drag
   - evento
   - concurso de drag
+  - Carrera de Reyes
 layout: calendario
 category: calendario
 authors:

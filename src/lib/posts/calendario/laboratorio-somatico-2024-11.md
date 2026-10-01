@@ -12,6 +12,7 @@ tags:
   - AMBA
   - pet
   - primal
+  - Laboratorio Somático de Prácticas Fetichistas
 layout: calendario
 category: calendario
 authors:

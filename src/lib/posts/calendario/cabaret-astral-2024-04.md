@@ -9,6 +9,7 @@ tags:
   - a la gorra # pago | gratis | a la gorra #
   - cabaret
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
+  - Cabaret Astral
 layout: calendario
 category: calendario
 authors:

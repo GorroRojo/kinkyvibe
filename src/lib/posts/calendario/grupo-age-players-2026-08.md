@@ -11,6 +11,7 @@ tags:
   - edad
   - Online
   - grupo
+  - Grupo de Apoyo y Discusión para age players
 layout: calendario
 category: calendario
 authors:

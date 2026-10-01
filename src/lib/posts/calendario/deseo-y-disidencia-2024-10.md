@@ -12,6 +12,7 @@ tags:
   - historia
   - queer
   - VIH/sida
+  - Deseo & Disidencia
 layout: calendario
 category: calendario
 authors:

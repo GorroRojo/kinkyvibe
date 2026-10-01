@@ -10,6 +10,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - perfo
   - shibari
+  - Fauna Grotesca
 layout: calendario
 category: calendario
 authors:

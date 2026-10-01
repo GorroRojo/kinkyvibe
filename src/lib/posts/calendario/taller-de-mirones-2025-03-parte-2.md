@@ -11,6 +11,7 @@ tags:
   - taller
   - cine
   - porno
+  - Taller de Mirones
 layout: calendario
 category: calendario
 authors:

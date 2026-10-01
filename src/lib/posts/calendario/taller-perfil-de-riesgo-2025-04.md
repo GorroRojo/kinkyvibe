@@ -12,6 +12,7 @@ tags:
   - Online
   - perfil de riesgo
   - negociación
+  - Taller de Perfil de Riesgo
 layout: calendario
 category: calendario
 authors:

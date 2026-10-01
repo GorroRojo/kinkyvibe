@@ -12,6 +12,7 @@ tags:
   - AMBA
   - humillación
   - objetificación
+  - Laboratorio Fetichistas
 layout: calendario
 category: calendario
 authors:

@@ -12,6 +12,7 @@ tags:
   - taller
   - edging
   - teasing
+  - Seducir y Negar
 layout: calendario
 category: calendario
 authors:

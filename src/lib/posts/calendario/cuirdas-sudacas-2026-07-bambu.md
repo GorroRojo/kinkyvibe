@@ -12,6 +12,7 @@ tags:
   - cuir
   - taller
   - bambú
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

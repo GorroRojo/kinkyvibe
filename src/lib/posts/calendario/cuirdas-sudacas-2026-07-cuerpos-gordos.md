@@ -12,6 +12,7 @@ tags:
   - cuir
   - taller
   - cuerpos gordos
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:
