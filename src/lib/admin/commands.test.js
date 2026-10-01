@@ -30,12 +30,12 @@ describe('buildCommands', () => {
 	it('con un evento hoy, "Abrir check-in de hoy" va directo a su modo puerta', () => {
 		const cmds = buildCommands({
 			today: [
-				{ slug: 'picantearla', title: 'Picantearla', href: '/admin/entradas/picantearla/ingreso' }
+				{ slug: 'picantearla', title: 'Picantearla', href: '/admin/ventas/picantearla/ingreso' }
 			]
 		});
 		const c = cmds.find((x) => x.id === 'checkin-today:picantearla');
 		expect(c).toMatchObject({ label: 'Abrir check-in de hoy: Picantearla' });
-		expect(c?.href).toBe('/admin/entradas/picantearla/ingreso');
+		expect(c?.href).toBe('/admin/ventas/picantearla/ingreso');
 	});
 });
 
@@ -45,7 +45,11 @@ describe('secciones de Ajustes y Cuentas', () => {
 	});
 	it('Interruptores está en el menú de Ajustes y se encuentra en la paleta', () => {
 		const item = navItem('ajustes-interruptores');
-		expect(item).toMatchObject({ href: '/admin/ajustes/interruptores', group: 'ajustes' });
+		expect(item).toMatchObject({
+			href: '/admin/ajustes/interruptores',
+			area: 'ajustes',
+			sub: 'sistema'
+		});
 		expect(item?.menu).not.toBe(false);
 		const cmds = buildCommands();
 		for (const q of ['interruptores', 'funciones nuevas', 'prender'])
@@ -84,7 +88,7 @@ describe('atajos g + letra', () => {
 	it('g i va al Inicio, g e a Eventos, g a a Actividad', () => {
 		expect(goShortcutHref('i')).toBe('/admin');
 		expect(goShortcutHref('e')).toBe('/admin/eventos');
-		expect(goShortcutHref('a')).toBe('/admin/actividad');
+		expect(goShortcutHref('a')).toBe('/admin/ajustes/actividad');
 		expect(goShortcutHref('I')).toBe('/admin');
 		expect(goShortcutHref('z')).toBe(null);
 		expect(shortcutOf('inicio')).toBe('g i');

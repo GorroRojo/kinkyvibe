@@ -75,6 +75,49 @@ describe('feedLocation (el punto donde se enchufa la privacidad de lugares, #137
 		expect(feedLocation({ location: '' })).toBeUndefined();
 		expect(feedLocation({})).toBeUndefined();
 	});
+	it('con lugar (#137): manda su privacidad, no el location del .md', () => {
+		const meta = { location: 'Calle Falsa 123' };
+		expect(feedLocation(meta, { level: 'hidden' })).toBeUndefined();
+		expect(feedLocation(meta, { level: 'area', area: 'Palermo', city: 'CABA' })).toBe(
+			'Palermo, CABA'
+		);
+		expect(feedLocation(meta, { level: 'area' })).toBeUndefined();
+		expect(feedLocation(meta, { level: 'name', name: 'Lugar de Prueba', href: '/x' })).toBe(
+			'Lugar de Prueba'
+		);
+		expect(
+			feedLocation(meta, {
+				level: 'public',
+				name: 'Lugar de Prueba',
+				address: 'Calle Inventada 1',
+				href: '/x'
+			})
+		).toBe('Lugar de Prueba · Calle Inventada 1');
+		const ev = fakeEvent('a', NOW, ['x'], { location: 'Calle Falsa 123' });
+		const ics = unfold(
+			buildIcsFeed([ev], { venues: new Map([[String(ev.meta.postID), { level: 'hidden' }]]) })
+		);
+		expect(ics).not.toContain('Calle Falsa');
+	});
+	it('«Sólo dirección»: la dirección sin el nombre del lugar, también en el .ics', () => {
+		const meta = { location: 'Calle Falsa 123' };
+		/** @type {import('./venues.js').VenueView} */
+		const view = {
+			level: 'address',
+			address: 'Calle Inventada 1',
+			area: 'Barrio Inventado',
+			city: 'CABA',
+			lat: -34.6,
+			lng: -58.4
+		};
+		expect(feedLocation(meta, view)).toBe('Calle Inventada 1, Barrio Inventado, CABA');
+		expect(feedLocation(meta, { level: 'address' })).toBeUndefined();
+		const ev = fakeEvent('a', NOW, ['x'], { location: 'Calle Falsa 123', location_name: 'Casa' });
+		const ics = unfold(buildIcsFeed([ev], { venues: new Map([[String(ev.meta.postID), view]]) }));
+		expect(ics).toContain('LOCATION:Calle Inventada 1\\, Barrio Inventado\\, CABA');
+		expect(ics).not.toContain('Calle Falsa');
+		expect(ics).not.toContain('Casa');
+	});
 	it('es lo único que pone LOCATION: sin dirección, el nombre del lugar tampoco aparece', () => {
 		const ics = unfold(
 			buildIcsFeed([fakeEvent('a', NOW, ['x'], { location: undefined, location_name: 'Lugar' })])
@@ -90,5 +133,48 @@ describe('icsResponse', () => {
 		expect(r.headers.get('cache-control')).toBe('private, no-store');
 		expect(r.headers.get('referrer-policy')).toBe('no-referrer');
 		expect(r.headers.get('content-type')).toBe('text/calendar; charset=utf-8');
+	});
+});
+
+describe('«Dónde» con link al mapa (lugar de una sola vez)', () => {
+	const post = {
+		path: '/calendario/plaza-de-prueba',
+		meta: {
+			category: 'calendario',
+			postID: 'plaza-de-prueba',
+			title: 'Merienda de prueba',
+			summary: 'Resumen inventado',
+			start: '2026-11-07T16:00-03:00',
+			status: 'abierto',
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: 'https://www.openstreetmap.org/node/1'
+		}
+	};
+	/** @param {string} text */
+	const unfold = (text) => text.replace(/\r?\n[ \t]/g, '');
+
+	it('sin lugar vinculado: LOCATION con el texto y el link al mapa en la descripción', () => {
+		const ics = unfold(buildIcsFeed([/** @type {any} */ (post)]));
+		expect(ics).toContain('LOCATION:Plaza de Prueba\\, frente a la fuente');
+		expect(ics).toContain('Ver en el mapa: https://www.openstreetmap.org/node/1');
+	});
+
+	it('con lugar vinculado, manda el lugar: sin el link del .md', () => {
+		const ics = unfold(
+			buildIcsFeed([/** @type {any} */ (post)], {
+				venues: new Map([
+					['plaza-de-prueba', /** @type {any} */ ({ level: 'name', name: 'Lugar de Prueba' })]
+				])
+			})
+		);
+		expect(ics).toContain('LOCATION:Lugar de Prueba');
+		expect(ics).not.toContain('openstreetmap');
+	});
+
+	it('un link que no sirve no entra al calendario', () => {
+		const bad = { ...post, meta: { ...post.meta, location_map: 'https://ejemplo.com/x' } };
+		const ics = unfold(buildIcsFeed([/** @type {any} */ (bad)]));
+		expect(ics).not.toContain('ejemplo.com');
+		expect(ics).not.toContain('Ver en el mapa');
 	});
 });

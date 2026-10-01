@@ -44,17 +44,17 @@ las publicaciones muestran la nota del cafecito de siempre y `/propinas` da 404.
 
 ## Dónde está el código
 
-| Qué                                     | Dónde                                                           |
-| --------------------------------------- | --------------------------------------------------------------- |
-| Montos, validación, helpers compartidos | `src/lib/utils/propinas.js`                                     |
-| Propinas en D1, webhook, panel          | `src/lib/server/propinas/index.js`                              |
-| Crear la propina y la preferencia de MP | `src/lib/server/propinas/checkout.js` (`startTip`)              |
-| Pie de las publicaciones                | `src/lib/components/propinas/` (`PostSupport`, `TipBlock`, …)   |
-| Form action y gracias                   | `src/routes/(content)/propinas/`                                |
-| Panel (lista, CSV)                      | `src/routes/(authed)/admin/propinas/` (menú: Ventas → Propinas) |
-| Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                         |
-| Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                          |
-| Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                  |
+| Qué                                     | Dónde                                                                            |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| Montos, validación, helpers compartidos | `src/lib/utils/propinas.js`                                                      |
+| Propinas en D1, webhook, panel          | `src/lib/server/propinas/index.js`                                               |
+| Crear la propina y la preferencia de MP | `src/lib/server/propinas/checkout.js` (`startTip`)                               |
+| Pie de las publicaciones                | `src/lib/components/propinas/` (`PostSupport`, `TipBlock`, …)                    |
+| Form action y gracias                   | `src/routes/(content)/propinas/`                                                 |
+| Panel (lista, CSV)                      | `src/routes/(authed)/admin/ajustes/propinas/` (menú: Ajustes › Plata › Propinas) |
+| Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                          |
+| Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                                           |
+| Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                                   |
 
 Reutiliza lo de las entradas: el cliente de MP y su gateway (`getGateway`), el cuerpo común de la
 preferencia (`checkoutProPreference` en `tickets/mercadopago.js`), la firma del webhook, la máquina
@@ -63,7 +63,7 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## En el panel
 
-- **Ventas → Propinas** (`/admin/propinas`): total recibido y separado por destino ("Para
+- **Ajustes › Plata › Propinas** (`/admin/ajustes/propinas`): total recibido y separado por destino ("Para
   KinkyVibe" / "Para el Fondo"), por mes (hora de Argentina, por fecha de aprobación), por
   publicación y las últimas propinas con su destino y su mensaje. Las pestañas Todas / Para
   KinkyVibe / Para el Fondo filtran la lista (`?destino=kinkyvibe|fondo`; los totales no se
@@ -76,14 +76,14 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
   "Para KinkyVibe" no suman. Hay una sola definición de qué propina cuenta
   (`FONDO_TIP_WHERE` / `fondoTipTotals` en `src/lib/server/propinas/index.js`), la misma que usa el
   resumen de Propinas.
-- Los aportes por evento y por tipo de entrada (`/admin/entradas`, la página de ventas de cada
+- Los aportes por evento y por tipo de entrada (`/admin/ventas`, la página de ventas de cada
   evento) siguen siendo solo los de las entradas: una propina no es de ningún evento ni tipo de
   entrada, así que no se reparte ahí (y no se cuenta dos veces).
 - Los montos son lo que pagó la persona, antes de la comisión de MP.
 
 ## Probarlo
 
-- `npx vitest run src/lib/utils/propinas.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/propinas`
+- `npx vitest run src/lib/utils/propinas.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/ajustes/propinas`
 - En local, con MP simulado: `PROPINAS_ENABLED=1 npm run dev:tickets`, entrá a un material de
   KinkyVibe, elegí un monto y aprobá el pago en el checkout simulado (`/propinas/simular-pago/…`).
 - Datos de demo en la base local: `npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-propinas.sql`

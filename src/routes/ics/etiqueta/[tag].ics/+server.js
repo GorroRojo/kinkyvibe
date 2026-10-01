@@ -9,15 +9,26 @@ import { fetchMarkdownPosts } from '$lib/utils';
 import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
 import { eventsForTag, siteTags } from '$lib/server/series/index.js';
 import { requireSeries } from '$lib/server/series/web.js';
+import { resolveTagSlug } from '$lib/utils/series.js';
+import { getDB } from '$lib/server/db';
+import { feedVenues } from '$lib/server/amigues/venues.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform }) {
 	await requireSeries(platform);
-	const tag = siteTags().get(params.tag);
+	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
+	const tag = resolveTagSlug(siteTags(), params.tag);
 	const id = tag?.id ?? params.tag;
 	const posts = await fetchMarkdownPosts();
 	const events = await eventsForTag(id, { posts });
 	if (!events.length) error(404, 'Not found');
 	const name = tag?.visible_name ?? id;
-	return icsResponse(buildIcsFeed(events, { calName: `${name} · KinkyVibe`, profiles: posts }));
+	// La privacidad de los lugares (#137) manda sobre `location` del .md, como en la página.
+	const venues = await feedVenues(
+		getDB(platform),
+		events.map((e) => String(e.meta.postID))
+	);
+	return icsResponse(
+		buildIcsFeed(events, { calName: `${name} · KinkyVibe`, profiles: posts, venues })
+	);
 }

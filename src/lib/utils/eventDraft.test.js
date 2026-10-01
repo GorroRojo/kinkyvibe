@@ -157,7 +157,7 @@ describe('slugs', () => {
 		expect(uniqueSlug('picantearla-2026-09', taken)).toBe('picantearla-2026-09-3');
 	});
 	it('reserves panel slugs (series, lugares, imagenes and the pages under /admin/eventos)', () => {
-		for (const s of ['series', 'lugares', 'imagenes', 'nuevo', 'agenda', 'importar'])
+		for (const s of ['series', 'lugares', 'imagenes', 'roles', 'nuevo', 'agenda', 'importar'])
 			expect(validateSlug(s)).toMatch(/reservada/);
 		expect(validateSlug('series-2026')).toBe(null);
 		expect(uniqueSlug('series', [])).toBe('series-2');
@@ -425,6 +425,34 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 		expect(m.location_name).toBeUndefined();
 		expect(md).toContain('  - KinkyVibe # etiqueta especial #');
 		expect(md).toContain("# !!  IMPORTANTE LA 'T' Y EL -03:00  !!");
+	});
+});
+
+describe('«Dónde» con link al mapa (location_map)', () => {
+	const today = '2026-09-29';
+	it('se escribe, se lee al duplicar y vaciarlo lo comenta', () => {
+		const src = post('picantearla-2026-09');
+		const form = formFromSource(src, { today });
+		expect(form.location_map).toBe('');
+		const md = buildEventMarkdown(src, {
+			...form,
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: ' https://www.openstreetmap.org/node/1 '
+		});
+		expect(meta(md)).toMatchObject({
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: 'https://www.openstreetmap.org/node/1'
+		});
+		expect(readEventFields(splitMarkdown(md).frontmatter).location_map).toBe(
+			'https://www.openstreetmap.org/node/1'
+		);
+		const copy = formFromSource(md, { today });
+		expect(copy.location_map).toBe('https://www.openstreetmap.org/node/1');
+		const cleared = buildEventMarkdown(md, { ...copy, location_map: '' });
+		expect(meta(cleared).location_map).toBeUndefined();
+		expect(cleared).toContain('#location_map: https://www.openstreetmap.org/node/1');
+		// Desde la plantilla, vacío.
+		expect(formFromSource(md, { today, fromTemplate: true }).location_map).toBe('');
 	});
 });
 

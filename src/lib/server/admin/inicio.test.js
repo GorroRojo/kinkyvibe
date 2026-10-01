@@ -699,7 +699,7 @@ describe('perfiles nuevos en "Para revisar"', () => {
 				title: 'Perfil nuevo: Perfil Inventado 7',
 				text: 'Proyecto · creado desde Mi rincón hace 1 h',
 				action: 'Revisar',
-				href: '/admin/cuentas/perfiles/7',
+				href: '/admin/comunidad/cuentas/perfiles/7',
 				group: 'profile',
 				name: 'Perfil Inventado 7'
 			}
@@ -719,7 +719,7 @@ describe('perfiles nuevos en "Para revisar"', () => {
 			kind: 'group',
 			id: 'group-profile',
 			title: '3 perfiles nuevos para revisar',
-			href: '/admin/cuentas/perfiles?filtro=sin-revisar'
+			href: '/admin/comunidad/perfiles?estado=sin-revisar'
 		});
 	});
 });

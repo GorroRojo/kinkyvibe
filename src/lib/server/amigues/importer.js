@@ -15,7 +15,7 @@
  * - Clasifica cada ficha como persona, proyecto o lugar ("a confirmar", ver classify.js).
  * - Los perfiles importados nacen aprobados para /amigues (ya eran públicos).
  *
- * Corre en el Worker (Panel → Contenido → Amigues → Importar, para las bases remotas), en el
+ * Corre en el Worker (Panel → Perfiles → Importar y clasificar, para las bases remotas), en el
  * script `scripts/import-amigues.js` (base local) y en los tests. Por eso usa solo imports
  * relativos y `yaml` (nada de `$lib` ni de Vite).
  */

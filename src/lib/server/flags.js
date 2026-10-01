@@ -46,7 +46,7 @@ export const FLAGS = Object.freeze({
 			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
 			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
 			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
-			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'prenderlo: importar las fichas (Perfiles → Importar y clasificar) y revisar la ' +
 			'clasificación.',
 		envVar: 'PERFILES_PUBLICOS_ENABLED'
 	},
@@ -55,7 +55,7 @@ export const FLAGS = Object.freeze({
 		description:
 			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
 			'«Perfiles públicos» prendido), y preguntas ' +
-			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'extra al comprar o inscribirse (Eventos → Roles y preguntas, y la pestaña Preguntas ' +
 			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
 		envVar: 'PERSONAS_EVENTOS_ENABLED'
 	},

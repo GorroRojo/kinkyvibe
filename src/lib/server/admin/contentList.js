@@ -1,5 +1,5 @@
 /**
- * Lists of the panel's content sections (/admin/material, /admin/amigues), from the posts bundled
+ * Lists of the panel's content sections (/admin/contenido/material, /admin/comunidad/perfiles), from the posts bundled
  * in this deploy (plus the demo layer on previews, through contentMetas).
  */
 import { amiguesImageURL, contentMetas } from './content.js';

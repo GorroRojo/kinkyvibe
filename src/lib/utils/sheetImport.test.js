@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parseDocument } from 'yaml';
-import { splitMarkdown, readEventFields } from './eventDraft.js';
+import { NEW_EVENT_TEMPLATE, splitMarkdown, readEventFields } from './eventDraft.js';
 import { validateEventTags } from './adminTags.js';
+import { readTicketsForm, validateTicketsForm } from './ticketsEditor.js';
 import {
 	parseTsv,
 	parseSheet,
@@ -21,6 +22,10 @@ import {
 	placeFields,
 	buildImportedEvent,
 	inferYear,
+	eventTimes,
+	inheritedTimes,
+	parseGeneralPrice,
+	generalTickets,
 	MATCH_THRESHOLD
 } from './sheetImport.js';
 
@@ -640,5 +645,191 @@ describe('imported drafts follow the event tag rules', () => {
 		});
 		const tags = parseDocument(splitMarkdown(content).frontmatter).toJS().tags;
 		expect(validateEventTags(tags)).toEqual([]);
+	});
+});
+
+describe('a repeated event without times takes the original ones', () => {
+	const row = (/** @type {Record<string, string>} */ o = {}) => ({
+		name: 'Picantearla',
+		startTime: '',
+		endTime: '',
+		timeText: '',
+		endText: '',
+		off: '',
+		...o
+	});
+	const source = { start: '2026-09-18T21:00-03:00', end: '2026-09-19T03:00-03:00' };
+
+	it('reads the times of an event', () => {
+		expect(eventTimes(source)).toEqual({ startTime: '21:00', endTime: '03:00' });
+		expect(eventTimes({ start: '2026-09-18T21:00-03:00' })).toEqual({
+			startTime: '21:00',
+			endTime: ''
+		});
+		expect(eventTimes(null)).toEqual({ startTime: '', endTime: '' });
+	});
+
+	it('from the event it duplicates (same start and end, on the new day)', () => {
+		expect(inheritedTimes(row(), { source })).toEqual({
+			startTime: '21:00',
+			endTime: '03:00',
+			from: 'source'
+		});
+	});
+
+	it('an earlier row of the paste with the same name wins over the old edition', () => {
+		const earlier = [
+			{ name: 'Taller de Bondage', startTime: '15:00', endTime: '18:00' },
+			{ name: 'PICANTEARLA', startTime: '22:00', endTime: '04:00' }
+		];
+		expect(inheritedTimes(row(), { source, earlier })).toEqual({
+			startTime: '22:00',
+			endTime: '04:00',
+			from: 'row'
+		});
+		// An earlier row without times doesn't count.
+		expect(
+			inheritedTimes(row(), {
+				source,
+				earlier: [{ name: 'Picantearla', startTime: '', endTime: '' }]
+			})
+		).toMatchObject({ from: 'source' });
+	});
+
+	it('nothing to inherit: own times, "a definir", off, or no original with times', () => {
+		expect(inheritedTimes(row({ startTime: '20:00', timeText: '20 hs' }), { source })).toBeNull();
+		expect(inheritedTimes(row({ timeText: 'a definir' }), { source })).toBeNull();
+		expect(inheritedTimes(row({ off: 'pospuesto' }), { source })).toBeNull();
+		expect(inheritedTimes(row(), { source: null })).toBeNull();
+		expect(inheritedTimes(row(), { source: { start: '2026-09-18' } })).toBeNull();
+	});
+
+	it('with fake rows from the spreadsheet: the second day of the same event', () => {
+		const text = [
+			HEADER_2026,
+			'OCTUBRE 2026',
+			'FALSE\tKinkyVibe\tPicantearla\tviernes 16\t21\t03\tAgrelo 3399\t$8000',
+			'FALSE\tKinkyVibe\tPicantearla\tsábado 31\t\t\tAgrelo 3399\t$8000'
+		].join('\n');
+		const { rows } = parseSheet(text, { today: TODAY });
+		expect(rows[1].startTime).toBe('');
+		expect(inheritedTimes(rows[1], { earlier: rows.slice(0, 1) })).toEqual({
+			startTime: '21:00',
+			endTime: '03:00',
+			from: 'row'
+		});
+	});
+});
+
+describe('General price without cupo', () => {
+	it('reads one plain General price', () => {
+		expect(parseGeneralPrice('$8000')).toBe(8000);
+		expect(parseGeneralPrice('$ 8.000')).toBe(8000);
+		expect(parseGeneralPrice('General $8.000')).toBe(8000);
+		expect(parseGeneralPrice('General: 12,000')).toBe(12000);
+		expect(parseGeneralPrice('Entrada general 5000 pesos')).toBe(5000);
+		expect(parseGeneralPrice('valor $ 3500')).toBe(3500);
+	});
+
+	it('anything else is not imported (loaded by hand in Entradas)', () => {
+		for (const text of [
+			'',
+			'a definir',
+			'gratis',
+			'A la gorra',
+			'$8000 / $6000 anticipada',
+			'$5000 y $3000',
+			'General $8000 (cupo 30)',
+			'$8000 cupos limitados',
+			'Socies $5000',
+			'desde $5000',
+			'$8000 + fondo',
+			'8.000,50',
+			'0',
+			'$'
+		]) {
+			expect(parseGeneralPrice(text), text).toBeNull();
+		}
+	});
+
+	it('builds the General ticket type: that price, no capacity', () => {
+		expect(generalTickets(undefined, 8000)).toMatchObject({
+			tickets: [{ id: 'general', name: 'General', price: 8000 }]
+		});
+		const copied = generalTickets(
+			[{ id: 'general', name: 'General', price: 6000, capacity: 40, door_price: 7000 }],
+			8000
+		);
+		expect(copied.tickets).toEqual([
+			{ id: 'general', name: 'General', price: 8000, door_price: 7000 }
+		]);
+		expect(copied.note).toMatch(/sin cupo \(antes tenía 40\)/);
+		const other = generalTickets(
+			[
+				{ id: 'general', name: 'General', price: 6000 },
+				{ id: 'vip', name: 'VIP', price: 9000 }
+			],
+			8000
+		);
+		expect(other.tickets).toBeNull();
+		expect(other.note).toMatch(/otras entradas/);
+		expect(
+			generalTickets([{ id: 'general', name: 'General', a_la_gorra: { minimo: 0 } }], 8000).tickets
+		).toBeNull();
+	});
+
+	it('buildImportedEvent writes it into the new event (valid for the ticket editor)', () => {
+		const choice = {
+			title: 'Taller de Bondage',
+			date: '2026-10-17',
+			startTime: '15:00',
+			endTime: '18:00',
+			price: 'General $8.000'
+		};
+		const { content, notes } = buildImportedEvent(post('taller-bondage-2026-03'), choice, {
+			today: TODAY
+		});
+		const m = meta(content);
+		expect(meta(post('taller-bondage-2026-03')).tickets).toBeUndefined();
+		expect(m.tickets).toEqual([{ id: 'general', name: 'General', price: 8000 }]);
+		const form = readTicketsForm(m);
+		expect(form.types[0]).toMatchObject({ name: 'General', price: '8000', capacity: '' });
+		expect(validateTicketsForm(form).errors).toEqual([]);
+		expect(m.title).toBe('Taller de Bondage');
+		// Only the tickets change: same body and everything else as without a price.
+		const plain = buildImportedEvent(
+			post('taller-bondage-2026-03'),
+			{ ...choice, price: '' },
+			{
+				today: TODAY
+			}
+		);
+		expect(splitMarkdown(content).body).toBe(splitMarkdown(plain.content).body);
+		const rest = { ...m };
+		delete rest.tickets;
+		expect(rest).toEqual(meta(plain.content));
+		expect(notes.join(' ')).toMatch(/entrada General a \$8\.000, sin cupo/);
+
+		// From scratch too.
+		const fresh = buildImportedEvent(
+			NEW_EVENT_TEMPLATE,
+			{ ...choice, price: '$5000' },
+			{
+				today: TODAY,
+				fromTemplate: true
+			}
+		);
+		expect(meta(fresh.content).tickets).toEqual([{ id: 'general', name: 'General', price: 5000 }]);
+
+		// A price that isn't a plain General: no tickets, no note.
+		const none = buildImportedEvent(
+			post('taller-bondage-2026-03'),
+			{ ...choice, price: 'a la gorra' },
+			{
+				today: TODAY
+			}
+		);
+		expect(meta(none.content).tickets).toBeUndefined();
+		expect(none.notes.join(' ')).not.toMatch(/General/);
 	});
 });

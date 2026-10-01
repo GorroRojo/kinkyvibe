@@ -8,7 +8,13 @@
 	import { Ban, Clock, MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
-	import { DEFAULT_VENUE_PRIVACY, REJECT_REASON_MAX } from '$lib/utils/venues.js';
+	import {
+		REJECT_REASON_MAX,
+		VENUE_PRIVACY_LABELS,
+		effectivePrivacy,
+		eventPrivacyText,
+		inheritPrivacyLabel
+	} from '$lib/utils/venues.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -20,10 +26,18 @@
 
 	/** @type {Map<string, { slug: string, title: string, start: string, mdAddress: boolean }>} */
 	$: eventsBySlug = new Map(data.events.map((e) => [e.slug, e]));
-	/** @param {string | null} p */
-	const privacyText = (p) => (p ? (labels[p] ?? p) : 'la del lugar');
-	/** @type {Record<string, string>} */
-	$: labels = data.privacyLabels;
+	/** @type {Map<number, string | null>} el nivel por defecto de cada lugar */
+	$: venuePrivacyById = new Map(data.venues.map((v) => [v.id, v.privacy]));
+	/**
+	 * Lo que se muestra de un lugar (sin nivel elegido, el por defecto).
+	 * @param {string | null} p
+	 */
+	const venuePrivacyText = (p) => VENUE_PRIVACY_LABELS[effectivePrivacy(null, p)];
+	/** @param {{ privacy: string | null, venueId: number }} l */
+	const linkPrivacyText = (l) => eventPrivacyText(l.privacy, venuePrivacyById.get(l.venueId));
+	/** @type {number | undefined} el lugar elegido en "Sucede en" */
+	let linkVenue = data.venues[0]?.id;
+	$: inheritLabel = inheritPrivacyLabel(venuePrivacyById.get(Number(linkVenue)));
 	let newName = '';
 
 	/**
@@ -49,7 +63,7 @@
 	subtitle="Dónde suceden los eventos: dirección, mapa, accesibilidad, cómo llegar y qué se muestra de la dirección."
 >
 	<svelte:fragment slot="actions">
-		<a class="kv-btn ghost" href="/admin/amigues?tipo=lugar">Ver en Amigues</a>
+		<a class="kv-btn ghost" href="/admin/comunidad/perfiles?tipo=lugar">Ver en Perfiles</a>
 	</svelte:fragment>
 </PageHeader>
 
@@ -98,7 +112,7 @@
 						{#each data.pending as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{v.byAccount ? 'Lo cargó una cuenta' : 'Sin aprobar'}, {fmtDateTime(
 											v.createdAt
@@ -164,7 +178,7 @@
 						{#each data.rejected as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{v.byAccount ? 'Lo cargó una cuenta' : 'Lo cargó el panel'}, {fmtDateTime(
 											v.createdAt
@@ -200,7 +214,7 @@
 					{ label: 'Dirección', key: 'slug' },
 					{ label: 'Barrio', key: 'area' },
 					{ label: 'Ciudad', key: 'city' },
-					{ label: 'Privacidad', value: (v) => privacyText(v.privacy) },
+					{ label: 'Qué se muestra', value: (v) => venuePrivacyText(v.privacy) },
 					{ label: 'Eventos', key: 'events' }
 				]}
 			/>
@@ -213,7 +227,7 @@
 					<thead>
 						<tr>
 							<th>Lugar</th>
-							<th>Dirección por defecto</th>
+							<th>Qué se muestra (por defecto)</th>
 							<th class="hide-sm">Eventos</th>
 						</tr>
 					</thead>
@@ -221,7 +235,7 @@
 						{#each data.venues as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{[v.area, v.city].filter(Boolean).join(', ') || 'sin barrio'}{v.hasMap
 											? ' · con mapa'
@@ -231,7 +245,7 @@
 											>{VISIBILITY_LABELS[v.visibility] ?? v.visibility}</Badge
 										>{/if}
 								</td>
-								<td class="small">{privacyText(v.privacy ?? DEFAULT_VENUE_PRIVACY)}</td>
+								<td class="small">{venuePrivacyText(v.privacy)}</td>
 								<td class="hide-sm small">{v.events}</td>
 							</tr>
 						{/each}
@@ -269,7 +283,7 @@
 				columns={[
 					{ label: 'Evento', key: 'eventSlug' },
 					{ label: 'Lugar', key: 'venueTitle' },
-					{ label: 'Dirección', value: (l) => privacyText(l.privacy) },
+					{ label: 'Qué se muestra', value: linkPrivacyText },
 					{ label: 'Cambió', key: 'updatedBy' }
 				]}
 			/>
@@ -286,7 +300,7 @@
 						<tr>
 							<th>Evento</th>
 							<th>Lugar</th>
-							<th>Dirección</th>
+							<th>Qué se muestra</th>
 							<th></th>
 						</tr>
 					</thead>
@@ -308,7 +322,7 @@
 									{l.venueTitle}
 									{#if l.venueDeleted}<Badge tone="bad">borrado</Badge>{/if}
 								</td>
-								<td class="small">{privacyText(l.privacy)}</td>
+								<td class="small">{linkPrivacyText(l)}</td>
 								<td>
 									<form method="POST" action="?/desvincular" use:enhance>
 										<input type="hidden" name="evento" value={l.eventSlug} />
@@ -335,17 +349,17 @@
 				</label>
 				<label class="kv-field">
 					<span>Sucede en</span>
-					<select name="lugar" required>
+					<select name="lugar" required bind:value={linkVenue}>
 						{#each data.venues as v (v.id)}
 							<option value={v.id}>{v.title}</option>
 						{/each}
 					</select>
 				</label>
 				<label class="kv-field">
-					<span>Dirección en este evento</span>
+					<span>Qué se muestra de la dirección en este evento</span>
 					<select name="privacidad">
-						<option value="">La del lugar</option>
-						{#each Object.entries(data.privacyLabels) as [value, label] (value)}
+						<option value="">{inheritLabel}</option>
+						{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
 							<option {value}>{label}</option>
 						{/each}
 					</select>

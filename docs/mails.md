@@ -42,7 +42,7 @@ prueba.
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 (`email_templates`) en `templates.js`, el
-editor en `/admin/ajustes/mails/plantillas`.
+editor en `/admin/mensajes/plantillas`.
 
 **Recordatorios:** un Worker aparte (`workers/cron/`, ver su README) llama cada 15 minutos a
 `POST /api/cron/recordatorios` con el header `x-cron-secret`. El sitio decide qué mandar. Por

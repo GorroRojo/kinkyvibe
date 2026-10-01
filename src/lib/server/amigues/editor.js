@@ -1,5 +1,5 @@
 /**
- * Editor de perfiles del panel (Contenido → Amigues, y Eventos → Lugares): edita el perfil en la
+ * Editor de perfiles del panel (Perfiles, y Eventos → Lugares): edita el perfil en la
  * base, con publicación inmediata (sin PRs) y control de versión: si alguien guardó mientras se
  * editaba, no se guarda nada y la página muestra qué cambió, con lo que se había escrito intacto.
  *

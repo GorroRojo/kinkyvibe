@@ -1,7 +1,7 @@
 /**
  * Lugares y eventos: lo que muestra un evento en cada nivel de privacidad (del lugar y del
  * evento), qué eventos lista la página del lugar, y que quien compró recibe la dirección completa
- * en los cuatro niveles. D1 de miniflare; lugares inventados.
+ * en todos los niveles. D1 de miniflare; lugares inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -55,11 +55,12 @@ async function venue(privacy, title = `Lugar ${privacy}`) {
 }
 
 describe('el evento muestra lo que su nivel deja', () => {
-	it('los cuatro niveles del lugar, sin cambio en el evento', async () => {
+	it('los cinco niveles del lugar, sin cambio en el evento', async () => {
 		const m = await modules();
 		for (const [privacy, expected] of /** @type {const} */ ([
 			['public', { level: 'public', address: SECRET, area: AREA }],
 			['name', { level: 'name', name: 'Lugar name' }],
+			['address', { level: 'address', address: SECRET, area: AREA, lat: -34.6, lng: -58.4 }],
 			['area', { level: 'area', area: AREA }],
 			['hidden', { level: 'hidden' }]
 		])) {
@@ -71,7 +72,9 @@ describe('el evento muestra lo que su nivel deja', () => {
 			const view = await m.publicVenueForEvent(t.db, slug, ANON);
 			expect(view).toMatchObject(expected);
 			const json = JSON.stringify(view);
-			if (privacy !== 'public') expect(json).not.toContain(SECRET);
+			if (privacy !== 'public' && privacy !== 'address') expect(json).not.toContain(SECRET);
+			// «Sólo dirección»: ni el nombre, ni el link, ni "cómo llegar" (puede nombrarlo).
+			if (privacy === 'address') expect(json).not.toMatch(/Lugar|amigues|puerta verde/);
 			if (privacy === 'name' || privacy === 'hidden') expect(json).not.toContain(AREA);
 			if (privacy === 'area' || privacy === 'hidden') expect(json).not.toContain('Lugar');
 		}
@@ -163,6 +166,7 @@ describe('la página del lugar', () => {
 		for (const [slug, privacy] of /** @type {const} */ ([
 			['con-direccion', 'public'],
 			['solo-nombre', 'name'],
+			['solo-direccion', 'address'],
 			['solo-barrio', 'area'],
 			['oculto', 'hidden'],
 			['como-el-lugar', null]
@@ -196,6 +200,10 @@ describe('la página del lugar', () => {
 			lat: -34.6
 		});
 		expect(JSON.stringify(m.venuePageLocation(await venue('name'), '/x'))).not.toContain(SECRET);
+		// La página muestra el nombre del lugar: en «Sólo dirección» no puede mostrar la dirección.
+		const address = m.venuePageLocation(await venue('address'), '/x');
+		expect(address).toEqual({ level: 'name', name: 'Lugar address', href: '/x' });
+		expect(JSON.stringify(address)).not.toContain(SECRET);
 		expect(m.venuePageLocation(await venue('area'), '/x')).toEqual({
 			level: 'area',
 			area: AREA,
@@ -205,9 +213,9 @@ describe('la página del lugar', () => {
 });
 
 describe('quien compró recibe la dirección completa', () => {
-	it('en los cuatro niveles (también si el evento la oculta)', async () => {
+	it('en los cinco niveles (también si el evento la oculta)', async () => {
 		const m = await modules();
-		for (const privacy of ['public', 'name', 'area', 'hidden']) {
+		for (const privacy of ['public', 'name', 'address', 'area', 'hidden']) {
 			const v = await venue(privacy);
 			await m.setEventVenue(t.db, {
 				eventSlug: `compra-${privacy}`,
@@ -237,5 +245,58 @@ describe('quien compró recibe la dirección completa', () => {
 		expect(await on.buyerLocation(t.db, 'sin-lugar')).toBeNull();
 		const off = await modules('0');
 		expect(await off.buyerLocation(t.db, 'apagado')).toBeNull();
+	});
+});
+
+describe('los .ics dinámicos (feedVenues)', () => {
+	it('solo los eventos pedidos que tienen lugar, como los ve cualquiera', async () => {
+		const m = await modules();
+		const { feedLocation } = await import('$lib/utils/icsFeed.js');
+		for (const privacy of ['public', 'name', 'address', 'area', 'hidden']) {
+			const v = await venue(privacy);
+			await m.setEventVenue(t.db, {
+				eventSlug: `ics-${privacy}`,
+				venueId: v.id,
+				privacy: null,
+				by: 'a'
+			});
+		}
+		const pedidos = [
+			'ics-public',
+			'ics-name',
+			'ics-address',
+			'ics-area',
+			'ics-hidden',
+			'ics-sin-lugar'
+		];
+		const venues = await m.feedVenues(t.db, pedidos);
+		expect([...venues.keys()].sort()).toEqual([
+			'ics-address',
+			'ics-area',
+			'ics-hidden',
+			'ics-name',
+			'ics-public'
+		]);
+		const md = { location: 'Dirección del .md' };
+		expect(feedLocation(md, venues.get('ics-public'))).toContain(SECRET);
+		expect(feedLocation(md, venues.get('ics-name'))).toBe('Lugar name');
+		expect(feedLocation(md, venues.get('ics-address'))).toBe(
+			`${SECRET}, ${AREA}, Ciudad Inventada`
+		);
+		expect(feedLocation(md, venues.get('ics-area'))).toBe(`${AREA}, Ciudad Inventada`);
+		expect(feedLocation(md, venues.get('ics-hidden'))).toBeUndefined();
+		// sin lugar, lo del .md, como siempre
+		expect(feedLocation(md, venues.get('ics-sin-lugar'))).toBe('Dirección del .md');
+		// un evento que no se pidió no entra
+		expect((await m.feedVenues(t.db, ['ics-name'])).size).toBe(1);
+	});
+
+	it('con el interruptor apagado o sin base, vacío (se usa lo del .md)', async () => {
+		const on = await modules('1');
+		const v = await venue('hidden');
+		await on.setEventVenue(t.db, { eventSlug: 'ics-off', venueId: v.id, privacy: null, by: 'a' });
+		expect((await on.feedVenues(null, ['ics-off'])).size).toBe(0);
+		const off = await modules('0');
+		expect((await off.feedVenues(t.db, ['ics-off'])).size).toBe(0);
 	});
 });

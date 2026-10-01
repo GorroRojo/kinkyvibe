@@ -47,7 +47,8 @@
 		}
 		return branches.filter((branch) => branch.some((i) => !i.disabled));
 	}
-	const guessedTitle = decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	const guessedTitle =
+		data?.tag?.id ?? decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];

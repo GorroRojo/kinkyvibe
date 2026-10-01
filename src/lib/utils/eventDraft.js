@@ -115,6 +115,7 @@ export function readEventFields(frontmatter) {
 		end: str(data.end),
 		location: str(data.location),
 		location_name: str(data.location_name),
+		location_map: str(data.location_map),
 		link: str(data.link),
 		link_text: str(data.link_text),
 		featured: str(data.featured),
@@ -498,9 +499,9 @@ export function deriveSlug(sourceSlug, startDate) {
 
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
- * event with that name would be unreachable there. `nuevo`, `agenda` and `importar` exist today;
- * `series`, `lugares` and `imagenes` are kept for upcoming panel sections. A test checks that every
- * static page under /admin/eventos is listed here.
+ * event with that name would be unreachable there. `nuevo`, `agenda`, `importar`, `series`,
+ * `lugares` and `roles` exist today; `imagenes` is kept for an upcoming panel section. A test
+ * checks that every static page under /admin/eventos is listed here.
  */
 export const RESERVED_EVENT_SLUGS = Object.freeze([
 	'nuevo',
@@ -508,7 +509,8 @@ export const RESERVED_EVENT_SLUGS = Object.freeze([
 	'importar',
 	'series',
 	'lugares',
-	'imagenes'
+	'imagenes',
+	'roles'
 ]);
 
 /**
@@ -598,6 +600,8 @@ export function isNumericFeatured(featured) {
  * @prop {string} endTime
  * @prop {string} location
  * @prop {string} location_name
+ * @prop {string} [location_map] link to OpenStreetMap / Google Maps for a one-off place (see
+ *   ./eventPlace.js); '' = none
  * @prop {string} link
  * @prop {string} link_text
  * @prop {string|string[]} tags a list, or comma separated
@@ -644,6 +648,7 @@ export function buildEventMarkdown(sourceRaw, form) {
 		end,
 		location: form.location.trim(),
 		location_name: form.location_name.trim(),
+		location_map: String(form.location_map ?? '').trim(),
 		link: form.link.trim(),
 		link_text: form.link_text.trim(),
 		category: 'calendario',
@@ -689,6 +694,7 @@ export function formFromSource(sourceRaw, { today, fromTemplate = false }) {
 		endTime: e.time || '23:00',
 		location: fromTemplate ? '' : f.location,
 		location_name: fromTemplate ? '' : f.location_name,
+		location_map: fromTemplate ? '' : f.location_map,
 		link: fromTemplate ? '' : f.link,
 		link_text: f.link_text || (fromTemplate ? 'Inscribirme' : ''),
 		tags: f.tags.join(', '),

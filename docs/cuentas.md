@@ -240,15 +240,21 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
 
 ### En el panel
 
-- **Cuentas** (`/admin/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
+- **Cuentas** (`/admin/comunidad/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
   crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
-  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/cuentas/[id]`)
+  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/comunidad/cuentas/[id]`)
   muestra sus perfiles y el botón del permiso.
-- **Perfiles** (`/admin/cuentas/perfiles`): todos los perfiles, también ocultos y borrados (persona
-  o proyecto, nombre, dirección, visibilidad, creado, quiénes lo gestionan), con búsqueda y filtros
-  (para revisar, ocultos, borrados). En la ficha (`/admin/cuentas/perfiles/[id]`): marcar como
-  revisado, **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()`
-  con la versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada).
+- **Perfiles** (`/admin/comunidad/perfiles`, Comunidad › Perfiles; decisión de gorrite del 1/10: es la
+  única lista de perfiles del panel, antes estaban "Amigues" y "Cuentas → Perfiles"): todos los
+  perfiles, también ocultos y borrados (nombre, dirección, tipo, origen, visibilidad, creado,
+  quiénes lo gestionan), con búsqueda, filtros por tipo (persona, proyecto, lugar), origen
+  (importado de ficha, creado por una cuenta, creado en el panel) y estado (aprobado, para aprobar,
+  rechazado, oculto, borrado, sin revisar), CSV de lo que se ve y las pestañas «Para aprobar» y
+  «Pedidos "Es mi perfil"». Cada fila abre el editor del perfil; el link «ficha» (y los borrados)
+  van a la ficha (`/admin/comunidad/cuentas/perfiles/[id]`): marcar como revisado, aprobar para /amigues,
+  **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()` con la
+  versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada). Los filtros y
+  el origen/estado de cada perfil son puros, en `src/lib/admin/perfiles.js`.
 - **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/proyecto)" aparecen en la
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
@@ -405,7 +411,7 @@ aprobar").
 
 ### Probarlo
 
-- `npx vitest run src/lib/server/cuentas/permisoPerfiles.test.js "src/routes/(authed)/admin/cuentas"`:
+- `npx vitest run src/lib/server/cuentas/permisoPerfiles.test.js "src/routes/(authed)/admin/comunidad/cuentas"`:
   el permiso apagado por defecto; sin él, 404 en todas las páginas y actions de perfiles, Mi rincón
   sin la tarjeta, invitaciones invisibles e inusables y la misma respuesta para quien invita; el
   panel (solo admins, el permiso y su registro, ocultar y borrar por `saveObject()`, "Para
@@ -428,7 +434,7 @@ aprobar").
   `mi-rincon/perfiles/`).
 - Perfiles: `src/lib/server/cuentas/perfiles.js` (reglas), `perfilesWeb.js` (formularios y
   sesión), tipo `src/lib/server/objects/types/perfil.js`, textos en `src/lib/utils/perfiles.js`.
-- Permiso: `canHaveProfiles()` en `accounts.js`. Panel: `src/routes/(authed)/admin/cuentas/`,
+- Permiso: `canHaveProfiles()` en `accounts.js`. Panel: `src/routes/(authed)/admin/comunidad/cuentas/`,
   lógica en `src/lib/server/admin/cuentas.js`, novedades en `src/lib/server/admin/accountEvents.js`.
 - Link del encabezado: `accountLink` en `src/lib/utils/cuentas.js`, usado en
   `src/routes/(content)/+layout.svelte`.

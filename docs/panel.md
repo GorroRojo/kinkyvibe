@@ -30,17 +30,69 @@ eventos, órdenes, entradas, códigos y personas.
 
 ## Secciones
 
-La lista única de secciones está en `src/lib/admin/nav.js` (menú lateral, barra del celu y
-buscador salen de ahí).
+La lista única de secciones está en `src/lib/admin/nav.js` (menú lateral, barra y panel "Más" del
+celu, botón "Para revisar", página "Próximamente" y buscador salen de ahí). Es el **mapa del panel**
+que aprobó gorrite: Inicio arriba, **7 áreas** que se abren de a una y **Ajustes al pie**. Dentro
+de cada área, las secciones van por frecuencia de uso (lo de todos los días primero) y lo que
+viene, al final.
 
-| Grupo     | Sección (URL)                                                  | Para qué                                                                                                                                                                           |
-| --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —         | Inicio (`/admin`)                                              | próximos eventos, para revisar (también perfiles nuevos de cuentas), plata del mes, actividad (también cuentas y perfiles nuevos), "desde tu última visita"                        |
-| Eventos   | Eventos, Cargar evento, Agenda (+ Importar planilla), Check-in | lista y ficha de cada evento (Resumen, Ventas, Órdenes, Transferencias, Códigos, Mail, Editar); modo puerta                                                                        |
-| Entradas  | Ventas, Transferencias, Códigos, Personas, Estadísticas        | ventas de todos los eventos, bandeja de transferencias, códigos de descuento, quienes compraron (con notas), gráficos                                                              |
-| Contenido | Material, Amigues, Etiquetas, No listadas                      | editores de contenido ([contenido.md](contenido.md))                                                                                                                               |
-| Cuentas   | Cuentas, Perfiles                                              | cuentas del público (búsqueda por mail, ficha con sus perfiles y el permiso "puede tener perfiles") y todos los perfiles (revisar, ocultar, borrar) ([cuentas.md](cuentas.md))     |
-| Ajustes   | Cobros, Fondo, Mails y plantillas, Admins, Actividad           | datos para transferir y comisión de MP, % del Fondo, remitente, recordatorios y plantillas ([mails.md](mails.md)), lista de admins (solo lectura), registro de actividad (con CSV) |
+Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Check-in
+(`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
+sección (Etiquetas, Estadísticas), que usan la URL del área.
+
+| Área         | Secciones (URL)                                                                                                                                                                                                                 | Para qué                                                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| —            | Inicio (`/admin`)                                                                                                                                                                                                               | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                             |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Check-in (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`), Roles y preguntas (`/roles`)               | lista y ficha de cada evento (`/admin/eventos/<slug>`, sus pestañas no cambian); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                         |
+| Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                         | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                   |
+| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`) | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md)) |
+| Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                             | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                     |
+| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`)                                                                                                                                                                                         | la taxonomía del sitio ([contenido.md](contenido.md))                                                                                                                                                                          |
+| Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                           | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                           |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas`)                                                                                                                                                                                     | gráficos                                                                                                                                                                                                                       |
+| Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Mails y envíos (`/mails`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Actividad (`/actividad`)  | datos para transferir y comisión de MP, % del Fondo, propinas, remitente y recordatorios, lista de admins, interruptores, registro (con CSV y "Recuperar" lo borrado)                                                          |
+
+**Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
+(un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
+Dos pruebas lo cuidan:
+
+- `src/lib/admin/adminPaths.test.js` junta cada `'/admin/…'` escrito en `src/` y verifica que
+  exista esa ruta (estática o dinámica); además, que ningún archivo de `src/`, `docs/`, `tests/` ni
+  `scripts/` nombre una URL vieja (lista `REMOVED_TREES`) o una página borrada (`REMOVED`). Al
+  mudar una sección, sumá su URL vieja a `REMOVED_TREES`.
+- `tests/tickets/menu.spec.js` (Playwright, con el admin falso) entra a cada link del menú y espera
+  que abra en su propia URL.
+
+Los links que se arman en varios lugares salen de `nav.js` (`navItem`, `eventHref`,
+`contentAdminHref`) o de `links.js`; no los escribas a mano. Las migraciones de D1 viejas nombran
+URLs de antes en sus comentarios: son append-only y no se tocan.
+
+**Para revisar**: botón global en la barra de arriba y en el header del celu, con un contador
+(transferencias pendientes + órdenes para revisar + perfiles y pedidos "Es mi perfil"). Por ahora
+lleva a la tarjeta "Para revisar" del Inicio.
+
+**Barra lateral**: las áreas se abren de a una. Se abre la de la página actual; en Inicio, la
+última que abriste (se recuerda en el navegador, `navPrefs.js`; sin storage anda igual). Un área
+cerrada muestra la suma de sus contadores.
+
+**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Check-in, Ventas, Más). "Más" muestra
+las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
+ser "Para revisar".
+
+**Lo que viene**: las secciones aprobadas que todavía no existen están en `nav.js` con
+`soon: true, phase: N` y un `soonText`. Se ven al final de su área, grises y punteadas, con "fase
+N", y su URL reservada abre una sola página genérica "Próximamente" (`[...section=soon]`, con el
+matcher `src/params/soon.js`) que dice qué va a hacer. Cada persona puede esconderlas con «Ocultar
+lo que viene» en su menú de usuario (en el navegador, con try/catch).
+
+**Ciclo de vida de una sección** (documentado también en `nav.js`):
+
+1. **Próximamente**: `soon: true, phase: N, soonText`.
+2. **En prueba**: la página existe pero su interruptor está apagado (`flag: 'clave'`). Solo la ven
+   les superadmins (hoy son todes les admins), con la etiqueta "prueba". Si con el interruptor
+   apagado la página da 404, `hiddenWhenOff: true` y no se muestra.
+3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
+4. **Descartada**: se borra el ítem.
 
 ## Dónde está el código
 
@@ -51,7 +103,7 @@ buscador salen de ahí).
 | Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)        |
 | Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`         |
 | Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                   |
-| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `commands.js`, `theme.js`, `draft.js`)                       |
+| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `theme.js`, `draft.js`)        |
 | Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss` |
 
 ## Cómo probar
@@ -67,23 +119,24 @@ En el preview de un PR: «🧪 Entrar como admin de prueba» en `/login` ([demo.
 
 ## Tareas comunes
 
-**Agregar una sección.** Sumá el ítem en `nav.js` (con `soon: true` mientras no existe la
-página), creá la ruta en `src/routes/(authed)/admin/…` con `requireAdmin` en el `load` y en cada
+**Agregar una sección.** Si está aprobada pero no se construye todavía, sumá el ítem en `nav.js`
+con `soon: true`, `phase` y `soonText`, al final de su área. Para construirla, cambiá `soon` por
+`false` (con `flag` si sale detrás de un interruptor), creá la ruta en `src/routes/(authed)/admin/…` con `requireAdmin` en el `load` y en cada
 action, registrá los cambios con `logAdminAction` y agregá una prueba de que sin sesión redirige y
 sin permiso da 403. Lo nuevo sale detrás de un interruptor, apagado (0001).
 
 **Agregar une admin.** Hoy es código: sumar `{ id, login }` en `ADMINS` de `auth.js`, con el id
-sacado de `https://api.github.com/users/<login>` (no tipeado a mano). Ajustes → Admins solo lo
+sacado de `https://api.github.com/users/<login>` (no tipeado a mano). Ajustes › Admins solo lo
 muestra.
 
-**Ver quién hizo algo.** Ajustes → Actividad (filtros y CSV).
+**Ver quién hizo algo.** Ajustes › Sistema › Actividad (filtros y CSV).
 
 **Algo "para revisar".** Aparece en Inicio, en Ventas y en la ficha del evento (pago tarde que
 pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Los perfiles
-nuevos de cuentas aparecen en Inicio y en el contador de Cuentas → Perfiles hasta que se marcan
+nuevos de cuentas aparecen en Inicio y en el contador de Comunidad › Perfiles hasta que se marcan
 como revisados (o se ocultan o borran) desde su ficha.
 
-**Dejar que una cuenta tenga perfiles.** Cuentas → buscar el mail → la ficha → "Darle el
+**Dejar que una cuenta tenga perfiles.** Comunidad › Cuentas → buscar el mail → la ficha → "Darle el
 permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 ([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
 
