@@ -17,6 +17,7 @@ import {
 	pendingTransfers,
 	recentActivity,
 	groupReviewItems,
+	profileReviewItems,
 	integrityReviewRow,
 	integrityRun,
 	reviewItems,
@@ -617,6 +618,52 @@ describe('groupReviewItems', () => {
 		expect(groupReviewItems([image('a')], { links, min: 1 })[0]).toMatchObject({
 			kind: 'group',
 			title: '1 evento próximo sin imagen'
+		});
+	});
+});
+
+describe('perfiles nuevos en "Para revisar"', () => {
+	const profile = (
+		/** @type {number} */ id,
+		kind = /** @type {'persona' | 'grupo'} */ ('persona')
+	) => ({
+		id,
+		title: `Perfil Inventado ${id}`,
+		kind,
+		createdAt: NOW - HOUR
+	});
+
+	it('un ítem por perfil, con link a su ficha', () => {
+		const items = profileReviewItems([profile(7, 'grupo')], { formatWhen: () => 'hace 1 h' });
+		expect(items).toEqual([
+			{
+				id: 'profile-7',
+				tone: 'info',
+				icon: 'profile',
+				title: 'Perfil nuevo: Perfil Inventado 7',
+				text: 'Grupo · creado desde Mi rincón hace 1 h',
+				action: 'Revisar',
+				href: '/admin/cuentas/perfiles/7',
+				group: 'profile',
+				name: 'Perfil Inventado 7'
+			}
+		]);
+		expect(profileReviewItems([])).toEqual([]);
+	});
+
+	it('uno solo queda de a uno; varios, una fila que lleva a Perfiles filtrado', () => {
+		const links = { noImage: '/admin/eventos?filtro=sin-imagen' };
+		const one = groupReviewItems(profileReviewItems([profile(1)]), { links });
+		expect(one.map((r) => `${r.kind}:${r.id}`)).toEqual(['item:profile-1']);
+		const many = groupReviewItems(profileReviewItems([profile(1), profile(2), profile(3)]), {
+			links
+		});
+		expect(many).toHaveLength(1);
+		expect(many[0]).toMatchObject({
+			kind: 'group',
+			id: 'group-profile',
+			title: '3 perfiles nuevos para revisar',
+			href: '/admin/cuentas/perfiles?filtro=sin-revisar'
 		});
 	});
 });
