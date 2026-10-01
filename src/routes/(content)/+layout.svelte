@@ -19,7 +19,9 @@
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
+	import { accountLink } from '$lib/utils/cuentas.js';
 	export let data;
+	$: cuentaLink = accountLink(data);
 	togglePositiveTagFilterFn.update(
 		() =>
 			function (checked, tag) {
@@ -82,6 +84,10 @@
 					<ArrowRight size="18" />
 				</a>
 				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
+			{/if}
+			{#if cuentaLink}
+				<!-- Cuentas del público (docs/cuentas.md): solo con el interruptor prendido -->
+				<a class="cuenta" href={cuentaLink.href}>{cuentaLink.label}</a>
 			{/if}
 		</div>
 	</div>
@@ -278,6 +284,18 @@
 		/* background: linear-gradient(125.13deg, #ff009f 6%, #4529ab 100%); */
 		background: var(--2);
 		max-width: 11em;
+	}
+
+	/* discreto: sin el fondo de los otros botones */
+	#user a.cuenta {
+		background: transparent;
+		color: var(--2);
+		font-weight: 600;
+		padding-inline: 0.4em;
+	}
+	#user a.cuenta:hover {
+		box-shadow: none;
+		text-decoration: underline;
 	}
 
 	#me li a {

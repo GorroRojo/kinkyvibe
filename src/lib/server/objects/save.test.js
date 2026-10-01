@@ -151,6 +151,30 @@ describe('crear y editar', () => {
 		expect(back).toMatchObject({ deleted_at: null, version: 3 });
 	});
 
+	it('created_by no cambia al editar, salvo con `createdBy` (y nunca al crear)', async () => {
+		const o = await newLugar();
+		const edited = await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 1, title: 'Otro Salón' },
+			{ ...ctx, actor: 'otre-admin' }
+		);
+		expect(edited).toMatchObject({ created_by: 'admin-inventade', updated_by: 'otre-admin' });
+		const anon = await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 2 },
+			{ ...ctx, actor: 'cuenta:borrada', createdBy: 'cuenta:borrada' }
+		);
+		expect(anon).toMatchObject({ created_by: 'cuenta:borrada', updated_by: 'cuenta:borrada' });
+		const onCreate = await caught(() =>
+			saveObject(t.db, { type: 'lugar', title: 'Nuevo' }, { ...ctx, createdBy: 'alguien' })
+		);
+		expect(onCreate).toBeInstanceOf(ObjectError);
+		const empty = await caught(() =>
+			saveObject(t.db, { id: o.id, type: 'lugar', version: 3 }, { ...ctx, createdBy: '' })
+		);
+		expect(empty).toBeInstanceOf(ObjectError);
+	});
+
 	it('slugify saca tildes y signos', () => {
 		expect(slugify('  ¡Ñandú  Picante! 2026 ')).toBe('nandu-picante-2026');
 	});
@@ -315,5 +339,38 @@ describe('edges y foreign keys', () => {
 		await expect(
 			t.db.prepare("DELETE FROM object_types WHERE type = 'evento'").run()
 		).rejects.toThrow(/FOREIGN KEY/);
+	});
+});
+
+describe('tablas de apoyo (`also`)', () => {
+	it('van en la misma tanda: si una falla, no se guarda el objeto', async () => {
+		const bad = await caught(() =>
+			saveObject(
+				t.db,
+				{ type: 'lugar', title: 'Salón Inventado' },
+				{ ...ctx, also: () => [t.db.prepare('INSERT INTO tabla_que_no_existe VALUES (1)')] }
+			)
+		);
+		expect(bad).toBeInstanceOf(Error);
+		expect(await t.db.prepare('SELECT count(*) AS n FROM objects').first()).toEqual({ n: 0 });
+	});
+
+	it('reciben cómo encontrar el objeto: por tipo y slug al crear, por id al editar', async () => {
+		/** @type {unknown[]} */
+		const refs = [];
+		const also = (/** @type {any} */ self) => {
+			refs.push(self);
+			return [];
+		};
+		const o = await saveObject(t.db, { type: 'lugar', title: 'Salón Inventado' }, { ...ctx, also });
+		await saveObject(
+			t.db,
+			{ id: o.id, type: 'lugar', version: 1, title: 'Otro' },
+			{ ...ctx, also }
+		);
+		expect(refs).toEqual([
+			{ id: null, type: 'lugar', slug: 'salon-inventado' },
+			{ id: o.id, type: 'lugar', slug: 'salon-inventado' }
+		]);
 	});
 });

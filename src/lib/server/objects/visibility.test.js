@@ -156,6 +156,22 @@ describe('en la base', () => {
 		expect(await getObject(t.db, { id: own }, admin)).not.toBeNull();
 	});
 
+	it('en un perfil, haberlo creado no da acceso a lo oculto (canSee y visibleWhere)', async () => {
+		const by = 'cuenta-autora';
+		const creatorViewer = { role: /** @type {const} */ ('member'), id: by };
+		const hidden = { type: 'perfil', visibility: 'hidden', deleted_at: null, created_by: by };
+		expect(canSee(hidden, creatorViewer)).toBe(false);
+		expect(canSee({ ...hidden, type: 'lugar' }, creatorViewer)).toBe(true);
+		const where = visibleWhere(creatorViewer, 'objects');
+		const { results } = await t.db
+			.prepare(
+				`SELECT 1 AS x FROM (SELECT 'perfil' AS type, 'hidden' AS visibility, NULL AS deleted_at, ? AS created_by) AS objects WHERE ${where.sql}`
+			)
+			.bind(by, ...where.params)
+			.all();
+		expect(results).toEqual([]);
+	});
+
 	it('getObject devuelve null (no "prohibido") si no se puede ver', async () => {
 		const hidden = ids['lugar-admin-inventade-hidden-vivo'];
 		const gone = ids['lugar-admin-inventade-public-borrado'];
@@ -201,5 +217,19 @@ describe('en la base', () => {
 		expect(incoming.map((e) => e.object.id)).toEqual([ids.evento]);
 		// Otre con cuenta no ve ni el objeto de origen oculto ni sus edges.
 		expect(await getEdges(t.db, own, member, { direction: 'in' })).toEqual([]);
+	});
+
+	it('quién creó y quién editó solo lo ven les admins', async () => {
+		const own = ids['lugar-cuenta-autora-public-vivo'];
+		for (const viewer of [ANON, member, creator]) {
+			const o = await getObject(t.db, { id: own }, viewer);
+			expect([o?.created_by, o?.updated_by]).toEqual(['', '']);
+			for (const found of await searchObjects(t.db, 'zanahoria', viewer)) {
+				expect([found.created_by, found.updated_by]).toEqual(['', '']);
+			}
+		}
+		expect((await getObject(t.db, { id: own }, admin))?.created_by).toBe('cuenta-autora');
+		const [edge] = await getEdges(t.db, ids.evento, creator);
+		expect(edge.object.created_by).toBe('');
 	});
 });
