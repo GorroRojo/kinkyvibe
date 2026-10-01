@@ -115,7 +115,7 @@ describe('visibilidad y aprobación', () => {
 });
 
 describe('lo que llega a la página (lista blanca)', () => {
-	it('sin contacto, sin quién lo creó y sin campos de lugar', async () => {
+	it('con su contacto público; sin cumpleaños, identidad de género, quién lo creó ni campos de lugar', async () => {
 		const p = await makeProfile(t.db, {
 			title: 'Con Contacto',
 			data: {
@@ -131,8 +131,17 @@ describe('lo que llega a la página (lista blanca)', () => {
 		expect(found?.object.created_by).toBe('');
 		const view = publicProfile(/** @type {any} */ (found).object, { legacySlug: null });
 		const json = JSON.stringify(view);
-		expect(json).not.toMatch(/contacto@|0000|2000-01-01|inventada|admin-de-prueba/);
-		expect(view).toMatchObject({ bio: 'Presentación', pronounLabel: 'elle', kind: 'persona' });
+		expect(json).not.toMatch(/2000-01-01|inventada|admin-de-prueba/);
+		expect(view).toMatchObject({
+			bio: 'Presentación',
+			pronounLabel: 'elle',
+			kind: 'persona',
+			// Decisión de gorrite (docs/decisiones/0023-contacto-publico.md).
+			email: 'contacto@example.com',
+			tel: '+54 11 0000 0000'
+		});
+		expect(view).not.toHaveProperty('bday');
+		expect(view).not.toHaveProperty('gender_identity');
 	});
 });
 

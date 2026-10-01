@@ -13,7 +13,7 @@
 	import RelatedPosts from './RelatedPosts.svelte';
 	import VenueLocation from './VenueLocation.svelte';
 	import ClaimProfile from './ClaimProfile.svelte';
-	import { KIND_LABELS } from '$lib/utils/perfiles.js';
+	import { KIND_LABELS, contactItems } from '$lib/utils/perfiles.js';
 
 	/** @type {any} */
 	export let data;
@@ -26,6 +26,8 @@
 	$: showAuthors =
 		p.authors.length > 1 ||
 		(p.authors.length === 1 && p.authors[0].replaceAll(' ', '-') !== p.slug);
+	// El primer link ya va como botón.
+	$: contact = contactItems(p, { skipFirstLink: true });
 </script>
 
 <ProfileHead
@@ -89,6 +91,24 @@
 			>
 		{/if}
 	</div>
+	{#if contact.length}
+		<section class="content contact">
+			<h3>Contacto</h3>
+			<ul>
+				{#each contact as c (c.href)}
+					<li>
+						{#if c.kind === 'link'}
+							<a class="u-url" href={c.href} target="_blank" rel="noopener noreferrer">{c.label}</a>
+						{:else if c.kind === 'email'}
+							<a class="u-email" href={c.href}>{c.label}</a>
+						{:else}
+							<a class="p-tel" href={c.href}>{c.label}</a>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 	{#if data.members}
 		<section class="content members">
 			<h3>Integrantes</h3>
@@ -142,5 +162,8 @@
 	}
 	.members ul {
 		columns: 2 12em;
+	}
+	.contact a {
+		overflow-wrap: anywhere;
 	}
 </style>

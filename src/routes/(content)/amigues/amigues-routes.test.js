@@ -9,7 +9,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { importAmigues } from '$lib/server/amigues/importer.js';
+import { importAmigues, mdToProfile } from '$lib/server/amigues/importer.js';
 import {
 	addManager,
 	makeAccount,
@@ -215,12 +215,21 @@ describe('interruptor prendido', () => {
 		});
 		expect(page.bodyHtml).toContain('gorrite');
 		expect(JSON.stringify(page)).not.toContain('admin-de-prueba');
-		// El contacto de la ficha no viaja a la página (la página vieja tampoco lo mostraba).
+		// El contacto de la ficha (mail y teléfono) se muestra: es público a propósito (decisión
+		// de gorrite, docs/decisiones/0023-contacto-publico.md). El cumpleaños y la identidad de
+		// género no viajan a la página (la página vieja tampoco los mostraba).
 		const luzi = await profilePage(m, 'Luzi');
 		expect(luzi.profile.title).toBe('Luzi');
-		expect(JSON.stringify(luzi)).not.toMatch(/luzgras@|2405 3932|1993-12-22|No binarie/);
-		for (const key of ['email', 'tel', 'bday', 'gender_identity'])
-			expect(luzi.profile).not.toHaveProperty(key);
+		const luziMeta = mdToProfile(
+			'Luzi',
+			files.find((f) => f.legacySlug === 'Luzi')?.raw ?? ''
+		).meta;
+		expect(
+			luziMeta.email && luziMeta.tel && luziMeta.bday && luziMeta.gender_identity
+		).toBeTruthy();
+		expect(luzi.profile).toMatchObject({ email: luziMeta.email, tel: luziMeta.tel });
+		expect(JSON.stringify(luzi)).not.toMatch(/1993-12-22|No binarie/);
+		for (const key of ['bday', 'gender_identity']) expect(luzi.profile).not.toHaveProperty(key);
 		// La dirección nueva del objeto también lleva, con la vieja como canónica.
 		expect((await profilePage(m, 'gorro-rojo')).canonical).toBe('/amigues/Gorro_Rojo');
 		// La no listada se abre con su link.
@@ -235,7 +244,9 @@ describe('interruptor prendido', () => {
 		expect(sole.bodyHtml).toMatch(/<img[^>]*\ssrc="[^"]+5\.webp/);
 		expect(sole.bodyHtml).not.toContain('<script');
 		const drux = await profilePage(m, 'Drux');
-		expect((drux.bodyHtml.match(/<img[^>]*\ssrc="[^"]+\.webp/g) ?? []).length).toBeGreaterThanOrEqual(20);
+		expect(
+			(drux.bodyHtml.match(/<img[^>]*\ssrc="[^"]+\.webp/g) ?? []).length
+		).toBeGreaterThanOrEqual(20);
 		expect(drux.bodyHtml).not.toMatch(/\{foto\d+\}/);
 	});
 

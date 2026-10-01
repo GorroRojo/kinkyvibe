@@ -222,6 +222,8 @@ export async function groupMembers(db, group, viewer) {
  *   pronounLabel: string | null,
  *   links: string[],
  *   linkText: string | null,
+ *   email: string | null,
+ *   tel: string | null,
  *   tags: string[],
  *   authors: string[],
  *   jobTitle: string | null,
@@ -233,10 +235,11 @@ export async function groupMembers(db, group, viewer) {
  */
 
 /**
- * Lo que una página pública puede saber de un perfil (lista blanca). Lo mismo que mostraba la
- * página de una ficha .md: nombre, pronombres, resumen, etiquetas, autores, link y su imagen.
- * Sin mail, teléfono, cumpleaños ni identidad de género (la página vieja tampoco los mostraba) y
- * sin nada de la dirección de un lugar (eso va aparte, según su privacidad).
+ * Lo que una página pública puede saber de un perfil (lista blanca): nombre, pronombres,
+ * resumen, etiquetas, autores, links, su imagen y el contacto (mail y teléfono: el de las fichas
+ * es público a propósito, decisión de gorrite, docs/decisiones/0023-contacto-publico.md). Sin
+ * cumpleaños ni identidad de género (la página vieja no los mostraba) y sin nada de la dirección
+ * de un lugar (eso va aparte, según su privacidad).
  *
  * @param {StoredObject} o
  * @param {{ legacySlug: string | null, image?: string | null, tags?: string[] }} extra
@@ -256,6 +259,8 @@ export function publicProfile(o, { legacySlug, image = null, tags }) {
 		pronounLabel: pronounLabel(pronoun) ?? null,
 		links: list(d.links),
 		linkText: s(d.link_text),
+		email: s(d.email),
+		tel: s(d.tel),
 		tags: tags ?? list(d.tags),
 		authors: list(d.authors),
 		jobTitle: s(d.job_title),

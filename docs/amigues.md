@@ -6,7 +6,7 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
 ## Qué hace
 
 - Las fichas de amigues (`src/lib/posts/amigues/*.md`) pasan a ser **perfiles** (`perfil` en
-  [objetos.md](objetos.md)) de tipo **persona**, **grupo** o **lugar**, con **las mismas
+  [objetos.md](objetos.md)) de tipo **persona**, **proyecto** o **lugar**, con **las mismas
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). Los `.md` quedan en el repo hasta que
   gorrite confirme que todo coincide.
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
@@ -48,9 +48,12 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 - **Ocultar o borrar en la base gana sobre el `.md`**: si hay un perfil con esa dirección y quien
   mira no lo puede ver, 404, aunque el `.md` siga en el repo.
 - **Lista blanca**: las páginas reciben `publicProfile()` (src/lib/server/amigues/profiles.js),
-  nunca el objeto. El mail, teléfono, cumpleaños e identidad de género de las fichas se importan
-  (son públicos a propósito, están en el repo) pero la página no los muestra, como antes.
-- **Quienes gestionan no se muestran nunca**; integrantes de un grupo, solo con `show_members`,
+  nunca el objeto. **El contacto se muestra** (decisión de gorrite,
+  [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
+  (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
+  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+- **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
