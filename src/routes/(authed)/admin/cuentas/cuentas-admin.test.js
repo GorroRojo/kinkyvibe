@@ -105,6 +105,7 @@ const auditRows = async (action) =>
 
 describe('solo admins', () => {
 	const id = '00000000-0000-4000-8000-000000000000';
+	/** @type {{ name: string, mod: any, params: Record<string, string> }[]} */
 	const routes = [
 		{ name: 'cuentas', mod: list, params: {} },
 		{ name: 'ficha de cuenta', mod: detail, params: { id } },
@@ -133,6 +134,7 @@ describe('solo admins', () => {
 		const { profile: p } = await profileOf('Perfil Inventado');
 		const nope = { id: 1, login: 'no-admin' };
 		for (const r of routes) {
+			/** @type {Record<string, string>} */
 			const params =
 				r.mod === detail ? { id: a.id } : r.mod === profile ? { id: String(p.id) } : r.params;
 			expect((await thrown(() => r.mod.load(fakeEvent({ params, user: nope }))))?.status).toBe(403);
