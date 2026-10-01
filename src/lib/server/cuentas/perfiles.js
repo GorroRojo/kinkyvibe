@@ -48,7 +48,9 @@ import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { normalizeProfileKind, profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { logProfileCreated } from '$lib/server/admin/accountEvents.js';
+import { logProfileCreated, logVenueResubmitted } from '$lib/server/admin/accountEvents.js';
+import { clearRejectionStatement } from '$lib/server/amigues/approvals.js';
+import { parseCoordinate, reviewState } from '$lib/utils/venues.js';
 import {
 	canHaveProfiles,
 	emailHash,
@@ -89,8 +91,9 @@ export const PROFILE_TYPE = 'perfil';
 export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto', 'lugar']);
 
 /**
- * Los campos de un lugar que se editan desde Mi rincón (la ubicación en el mapa, `lat`/`lng`, la
- * carga une admin).
+ * Los campos de texto de un lugar que se editan desde Mi rincón. La ubicación en el mapa
+ * (`lat`/`lng`) también (decisión de gorrite), pero va aparte porque se guarda como número: ver
+ * {@link ACCOUNT_VENUE_COORDINATES}.
  */
 export const ACCOUNT_VENUE_FIELDS = Object.freeze([
 	'address',
@@ -99,6 +102,9 @@ export const ACCOUNT_VENUE_FIELDS = Object.freeze([
 	'accessibility',
 	'how_to_get_there'
 ]);
+
+/** La ubicación en el mapa de un lugar: se escribe a mano y se guarda como número. */
+export const ACCOUNT_VENUE_COORDINATES = Object.freeze(['lat', 'lng']);
 
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
@@ -155,7 +161,9 @@ export const MESSAGES = Object.freeze({
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
 	needsCode:
 		'Para esto te pedimos un código por mail: pedilo con «Mandame un código para confirmar» y escribilo antes de confirmar.',
-	invalid: 'Revisá los datos marcados.'
+	invalid: 'Revisá los datos marcados.',
+	notRejected:
+		'Ese lugar ya no estaba rechazado: puede que ya lo hayas mandado o que lo hayan aprobado.'
 });
 
 /**
@@ -229,13 +237,16 @@ function parseLinks(value) {
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
  * @prop {boolean} [show_members] solo proyectos
- * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS} y
- *   `venue_privacy` ('' = sin elegir: la dirección completa)
+ * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS},
+ *   {@link ACCOUNT_VENUE_COORDINATES} y `venue_privacy` ('' = sin elegir: la dirección completa)
  */
 
 /**
  * Los campos de lugar de `data` a partir de lo que mandó Mi rincón: los vacíos se sacan; los
- * demás campos quedan como estaban. Pura (sin base).
+ * demás campos quedan como estaban. La latitud y la longitud se leen como en el editor del panel
+ * (`parseCoordinate`): un número, o el texto tal cual para que el tipo `perfil` lo marque (igual
+ * que los rangos y que falte una de las dos). Si no vienen (un formulario viejo), quedan como
+ * estaban. Pura (sin base).
  *
  * @param {Record<string, string> | undefined} venue
  * @param {Record<string, unknown>} current
@@ -249,6 +260,12 @@ export function accountVenueData(venue, current) {
 		const value = text(venue[key]).trim();
 		if (value) data[key] = value;
 		else delete data[key];
+	}
+	for (const key of ACCOUNT_VENUE_COORDINATES) {
+		if (!(key in venue)) continue;
+		const value = parseCoordinate(text(venue[key]));
+		if (value === undefined) delete data[key];
+		else data[key] = value;
 	}
 	return data;
 }
@@ -280,16 +297,26 @@ function profileData(kind, input, current = {}) {
 /**
  * @typedef {{
  *   id: number, slug: string, title: string, kind: ProfileKind, visibility: Visibility,
- *   version: number, role: ManagerRole
+ *   version: number, role: ManagerRole,
+ *   review: import('$lib/utils/venues.js').ReviewState, rejectReason: string
  * }} MyProfile
+ * `review`: si aparece en el sitio (aprobado), espera a une admin o une admin lo rechazó (solo
+ * lugares, pendingVenues.js); `rejectReason`: lo que escribió le admin al rechazarlo ('' si nada).
  */
 
 /**
- * @param {Record<string, unknown>} row fila de objects + `role`
+ * Columnas de aprobación y rechazo del perfil `o` (para {@link toMyProfile}).
+ */
+const REVIEW_COLUMNS = `EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id) AS approved,
+	(SELECT reason FROM profile_rejections rj WHERE rj.profile_id = o.id) AS reject_reason`;
+
+/**
+ * @param {Record<string, unknown>} row fila de objects + `role`, `approved`, `reject_reason`
  * @returns {MyProfile}
  */
 function toMyProfile(row) {
 	const o = rowToObject(row);
+	const review = reviewState(Number(row.approved) === 1, row.reject_reason != null);
 	return {
 		id: o.id,
 		slug: o.slug,
@@ -297,7 +324,9 @@ function toMyProfile(row) {
 		kind: profileKindOf(o.data),
 		visibility: o.visibility,
 		version: o.version,
-		role: row.role === 'owner' ? 'owner' : 'manager'
+		role: row.role === 'owner' ? 'owner' : 'manager',
+		review,
+		rejectReason: review === 'rejected' ? text(row.reject_reason) : ''
 	};
 }
 
@@ -321,7 +350,7 @@ const MANAGED_COLUMNS = OBJECT_COLUMNS.split(', ')
 export async function listMyProfiles(db, accountId) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${MANAGED_COLUMNS}, pm.role AS role FROM profile_managers pm
+			`SELECT ${MANAGED_COLUMNS}, pm.role AS role, ${REVIEW_COLUMNS} FROM profile_managers pm
 			JOIN objects o ON o.id = pm.profile_id
 			JOIN accounts pa ON pa.id = pm.account_id
 			WHERE pm.account_id = ?1 AND o.type = ?2 AND o.deleted_at IS NULL AND ${PERMITTED}
@@ -466,6 +495,8 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 	const managed = await getManagedProfile(db, accountId, slug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	const { profile, kind } = managed;
+	// Editar un lugar rechazado NO lo vuelve a mandar (decisión de gorrite): sigue rechazado hasta
+	// que quien lo gestiona toca «Volver a mandar» ({@link resubmitVenue}).
 	try {
 		const saved = await saveObject(
 			db,
@@ -483,6 +514,28 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 	} catch (error) {
 		return saveFailure(error);
 	}
+}
+
+/**
+ * «Volver a mandar» un lugar rechazado (Mi rincón, decisión de gorrite): se borra el rechazo y
+ * vuelve a "Para aprobar" en Eventos → Lugares, con la novedad en Actividad. Solo quien gestiona
+ * el lugar (para cualquier otra cuenta, como si no existiera: 404). Si no estaba rechazado
+ * (ya lo mandaron o une admin lo aprobó), 409 y no cambia nada.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} slug
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function resubmitVenue(db, accountId, slug, { now = Date.now() } = {}) {
+	const managed = await getManagedProfile(db, accountId, slug);
+	if (!managed || managed.kind !== 'lugar') return failure(404, MESSAGES.notFound);
+	const r = await clearRejectionStatement(db, managed.profile.id).run();
+	if (r.meta.changes === 0) return failure(409, MESSAGES.notRejected);
+	// Novedad para el panel; nunca frena la acción.
+	await logVenueResubmitted(db, managed.profile, { now });
+	return { ok: true };
 }
 
 /**

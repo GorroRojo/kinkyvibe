@@ -223,3 +223,59 @@ export function osmTiles(lat, lng, { zoom = 16, width = 320, height = 200 } = {}
 	}
 	return { tiles, zoom };
 }
+
+/**
+ * Un número escrito a mano ("-34,6037" o "-34.6037"), o `undefined` si está vacío. Lo que no es
+ * un número queda como texto para que la validación del tipo `perfil` lo marque. Lo usan el
+ * editor del panel y Mi rincón (la ubicación en el mapa de un lugar).
+ *
+ * @param {string} raw
+ * @returns {number | string | undefined}
+ */
+export function parseCoordinate(raw) {
+	const t = String(raw ?? '')
+		.trim()
+		.replace(',', '.');
+	if (!t) return undefined;
+	const n = Number(t);
+	return Number.isFinite(n) ? n : t;
+}
+
+/**
+ * Una coordenada guardada, como se muestra en el formulario ('' si no hay).
+ *
+ * @param {unknown} value
+ */
+export function coordinateText(value) {
+	return typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
+}
+
+/** Largo máximo del motivo de un rechazo (migración 0025, `profile_rejections.reason`). */
+export const REJECT_REASON_MAX = 300;
+
+/**
+ * El motivo de un rechazo como se guarda: sin espacios de más y cortado al máximo.
+ *
+ * @param {unknown} raw
+ */
+export function cleanRejectReason(raw) {
+	return (typeof raw === 'string' ? raw : '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, REJECT_REASON_MAX);
+}
+
+/** @typedef {'approved' | 'pending' | 'rejected'} ReviewState */
+
+/**
+ * En qué está un perfil que cargó una cuenta: aprobado (aparece en el sitio), esperando o
+ * rechazado. Aprobar gana (al aprobar se borra el rechazo, pero por las dudas).
+ *
+ * @param {boolean} approved
+ * @param {boolean} rejected
+ * @returns {ReviewState}
+ */
+export function reviewState(approved, rejected) {
+	if (approved) return 'approved';
+	return rejected ? 'rejected' : 'pending';
+}

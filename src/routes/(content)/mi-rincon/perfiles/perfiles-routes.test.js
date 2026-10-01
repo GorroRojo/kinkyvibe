@@ -140,7 +140,9 @@ describe('interruptor prendido', () => {
 				title: 'Nombre Inventado',
 				kind: 'persona',
 				visibility: 'public',
-				role: 'owner'
+				role: 'owner',
+				review: 'pending',
+				rejectReason: ''
 			}
 		]);
 		// Lo que va a la página no lleva ids de cuenta.
@@ -656,9 +658,229 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 			city: 'Ciudad Inventada',
 			accessibility: 'Sin escalones',
 			how_to_get_there: '',
-			venue_privacy: 'area'
+			venue_privacy: 'area',
+			// Sin ubicación en el mapa (el formulario no la mandó).
+			lat: '',
+			lng: ''
 		});
 		expect(after.pending).toBe(true);
+		expect(after.rejection).toBeNull();
+	});
+
+	/**
+	 * Crea un lugar desde Mi rincón y devuelve lo que hace falta para editarlo.
+	 * @param {Awaited<ReturnType<typeof modules>>} m
+	 * @param {{ id: string, email: string }} me
+	 */
+	async function createVenue(m, me) {
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'lugar', title: 'Sala Inventada' } })
+			)
+		);
+		const params = { slug: 'sala-inventada' };
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		return { params, page };
+	}
+
+	/**
+	 * El formulario de guardar un lugar, con lo que se pida encima.
+	 * @param {number} version
+	 * @param {Record<string, string>} [extra]
+	 */
+	const venueForm = (version, extra = {}) => ({
+		title: 'Sala Inventada',
+		version: String(version),
+		visibility: 'public',
+		bio: '',
+		links: '',
+		pronouns: '',
+		address: 'Calle Inventada 123',
+		area: '',
+		city: '',
+		accessibility: '',
+		how_to_get_there: '',
+		venue_privacy: '',
+		...extra
+	});
+
+	it('la cuenta carga la ubicación en el mapa, con la misma validación que el panel', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const { params, page } = await createVenue(m, me);
+		const ok = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: venueForm(page.profile.version, { lat: '-34,6037', lng: '-58.3816' })
+				})
+			)
+		);
+		expect(ok).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const row = await t.db
+			.prepare("SELECT data, version FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		// Se guardan como números (coma o punto), igual que desde el editor del panel.
+		expect(JSON.parse(String(row?.data))).toMatchObject({ lat: -34.6037, lng: -58.3816 });
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(after.profile.venue).toMatchObject({ lat: '-34.6037', lng: '-58.3816' });
+
+		// Fuera de rango, una sola, o algo que no es un número: no se guarda y se marca el campo.
+		for (const [lat, lng, field] of [
+			['-134', '-58.3816', 'lat'],
+			['-34.6', '', 'lat'],
+			['-34.6', 'lejos', 'lng']
+		]) {
+			const bad = /** @type {any} */ (
+				await m.edit.actions.guardar(
+					fakeEvent({ member: me, params, form: venueForm(Number(row?.version), { lat, lng }) })
+				)
+			);
+			expect(bad.status).toBe(400);
+			expect(Object.keys(bad.data.errors)).toContain(field);
+			// Lo escrito vuelve al formulario.
+			expect(bad.data.draft.venue).toMatchObject({ lat, lng });
+		}
+		const kept = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		expect(JSON.parse(String(kept?.data))).toMatchObject({ lat: -34.6037, lng: -58.3816 });
+
+		// Vacías: se saca la ubicación.
+		const cleared = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: venueForm(Number(row?.version), { lat: '', lng: '' })
+				})
+			)
+		);
+		expect(cleared).toMatchObject({ message: 'Guardado.' });
+		const empty = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		expect(JSON.parse(String(empty?.data))).not.toHaveProperty('lat');
+		expect(JSON.parse(String(empty?.data))).not.toHaveProperty('lng');
+	});
+
+	it('rechazado: quien lo cargó lo ve con el motivo y, si lo edita, vuelve a esperar', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const other = await member(m, 'otre-prueba');
+		const { params, page } = await createVenue(m, me);
+		const { rejectPendingVenue, listPendingVenues } =
+			await import('$lib/server/amigues/pendingVenues.js');
+		const id = Number(
+			(await t.db.prepare("SELECT id FROM objects WHERE slug = 'sala-inventada'").first())?.id
+		);
+		const r = await rejectPendingVenue(t.db, id, {
+			by: 'admin-de-prueba',
+			reason: 'Falta la dirección completa'
+		});
+		expect(r.ok).toBe(true);
+		expect(await listPendingVenues(t.db)).toEqual([]);
+
+		// En Mi rincón → Perfiles, con el motivo (no se borró).
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: me })));
+		expect(list.profiles).toEqual([
+			expect.objectContaining({
+				slug: 'sala-inventada',
+				review: 'rejected',
+				rejectReason: 'Falta la dirección completa'
+			})
+		]);
+		// Lo que va a la página no dice qué admin lo rechazó.
+		expect(JSON.stringify(list)).not.toContain('admin-de-prueba');
+		const rejectedPage = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(rejectedPage.pending).toBe(false);
+		expect(rejectedPage.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
+		expect(JSON.stringify(rejectedPage)).not.toContain('admin-de-prueba');
+
+		// Otra cuenta: ni el lugar ni el motivo existen para ella, y no lo puede editar ni mandar.
+		expect((await thrown(() => m.edit.load(fakeEvent({ member: other, params }))))?.status).toBe(
+			404
+		);
+		const intruder = await thrown(() =>
+			m.edit.actions.guardar(
+				fakeEvent({ member: other, params, form: venueForm(page.profile.version) })
+			)
+		);
+		expect(intruder?.status).toBe(404);
+		const intruderResubmit = await thrown(() =>
+			m.edit.actions.volverAMandar(fakeEvent({ member: other, params, form: {} }))
+		);
+		expect(intruderResubmit?.status).toBe(404);
+		// Una cuenta sin el permiso de perfiles, tampoco.
+		const noPerm = await member(m, 'sin-permiso', { profiles: false });
+		expect(
+			(
+				await thrown(() =>
+					m.edit.actions.volverAMandar(fakeEvent({ member: noPerm, params, form: {} }))
+				)
+			)?.status
+		).toBe(404);
+		const otherList = /** @type {any} */ (await m.list.load(fakeEvent({ member: other })));
+		expect(otherList.profiles).toEqual([]);
+		expect(JSON.stringify(otherList)).not.toContain('Falta la dirección');
+		expect(await listPendingVenues(t.db)).toEqual([]);
+
+		// Quien lo cargó lo corrige: se guarda, pero sigue rechazado (decisión de gorrite).
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({ member: me, params, form: venueForm(page.profile.version) })
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		expect(await listPendingVenues(t.db)).toEqual([]);
+		const edited = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(edited.pending).toBe(false);
+		expect(edited.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
+		const countResubmits = async () =>
+			(
+				await t.db
+					.prepare("SELECT COUNT(*) AS n FROM admin_audit WHERE action = 'profile.resubmit'")
+					.first()
+			)?.n;
+		expect(await countResubmits()).toBe(0);
+
+		// «Volver a mandar»: vuelve a "Para aprobar" y queda en Actividad.
+		const resent = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(resent).toMatchObject({ action: 'revision' });
+		expect((await listPendingVenues(t.db)).map((v) => v.id)).toEqual([id]);
+		const again = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(again.pending).toBe(true);
+		expect(again.rejection).toBeNull();
+		const audit = await t.db
+			.prepare("SELECT target_id FROM admin_audit WHERE action = 'profile.resubmit'")
+			.all();
+		expect(audit.results).toEqual([{ target_id: String(id) }]);
+
+		// Otra vez (ya no está rechazado): 409 y no se vuelve a anunciar.
+		const twice = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(twice.status).toBe(409);
+		expect(await countResubmits()).toBe(1);
+	});
+
+	it('«Volver a mandar» es solo para lugares', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } })
+			)
+		);
+		const res = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(
+				fakeEvent({ member: me, params: { slug: 'nombre-inventado' }, form: {} })
+			)
+		);
+		expect(res.status).toBe(404);
 	});
 
 	it('el formulario de una persona no trae campos de lugar (no se guardan aunque se manden)', async () => {

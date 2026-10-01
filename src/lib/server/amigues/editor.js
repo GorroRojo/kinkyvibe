@@ -20,6 +20,7 @@ import perfilType, {
 	VENUE_FIELDS,
 	profileKindOf
 } from '$lib/server/objects/types/perfil.js';
+import { parseCoordinate } from '$lib/utils/venues.js';
 import { approveNewStatement, approvalOf } from './approvals.js';
 import { resolveProfileSlug } from './profiles.js';
 
@@ -164,19 +165,9 @@ export function parseList(key, raw) {
 	return parts.map((p) => p.trim()).filter(Boolean);
 }
 
-/**
- * Un número escrito a mano ("-34,6037" o "-34.6037"), o `undefined` si está vacío. Lo que no es
- * un número queda como texto para que la validación del tipo lo marque.
- *
- * @param {string} raw
- * @returns {number | string | undefined}
- */
-export function parseCoordinate(raw) {
-	const t = raw.trim().replace(',', '.');
-	if (!t) return undefined;
-	const n = Number(t);
-	return Number.isFinite(n) ? n : t;
-}
+// La usan también los lugares que cargan las cuentas (Mi rincón): vive con las reglas puras de
+// lugares y se reexporta acá para el editor del panel.
+export { parseCoordinate };
 
 /**
  * `data` del perfil a partir del formulario. Lo que el editor no maneja queda como estaba; al

@@ -29,7 +29,8 @@ export function approveNewStatement(db, self, by, now) {
 }
 
 /**
- * Aprueba un perfil (si ya estaba aprobado, no cambia nada).
+ * Aprueba un perfil (si ya estaba aprobado, no cambia nada). Si estaba rechazado (un lugar de una
+ * cuenta, migración 0025), el rechazo se borra en la misma tanda.
  *
  * @param {D1Database} db
  * @param {number} profileId
@@ -38,14 +39,21 @@ export function approveNewStatement(db, self, by, now) {
  * @returns {Promise<boolean>} si cambió algo
  */
 export async function approveProfile(db, profileId, by, { now = Date.now() } = {}) {
-	const r = await db
-		.prepare(
-			`INSERT INTO profile_approvals (profile_id, approved_at, approved_by)
-			SELECT id, ?2, ?3 FROM objects WHERE id = ?1 AND type = 'perfil' AND deleted_at IS NULL
-			ON CONFLICT (profile_id) DO NOTHING`
-		)
-		.bind(profileId, now, by)
-		.run();
+	const [r] = await db.batch([
+		db
+			.prepare(
+				`INSERT INTO profile_approvals (profile_id, approved_at, approved_by)
+				SELECT id, ?2, ?3 FROM objects WHERE id = ?1 AND type = 'perfil' AND deleted_at IS NULL
+				ON CONFLICT (profile_id) DO NOTHING`
+			)
+			.bind(profileId, now, by),
+		db
+			.prepare(
+				`DELETE FROM profile_rejections WHERE profile_id = ?1
+				AND EXISTS (SELECT 1 FROM profile_approvals WHERE profile_id = ?1)`
+			)
+			.bind(profileId)
+	]);
 	return r.meta.changes > 0;
 }
 
@@ -77,4 +85,16 @@ export async function approvalOf(db, profileId) {
 		.bind(profileId)
 		.first();
 	return row ? { at: Number(row.approved_at), by: String(row.approved_by) } : null;
+}
+
+/**
+ * La sentencia que saca el rechazo de un perfil (el lugar vuelve a esperar aprobación). Para la
+ * opción `also` de saveObject(), así se borra solo si se guardó la edición.
+ *
+ * @param {D1Database} db
+ * @param {number} profileId
+ * @returns {D1PreparedStatement}
+ */
+export function clearRejectionStatement(db, profileId) {
+	return db.prepare('DELETE FROM profile_rejections WHERE profile_id = ?1').bind(profileId);
 }

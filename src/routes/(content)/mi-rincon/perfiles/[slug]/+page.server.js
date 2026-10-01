@@ -26,6 +26,7 @@ import {
 	listManagers,
 	listMemberships,
 	removeManager,
+	resubmitVenue,
 	removeMember,
 	setManagerRole,
 	updateProfile,
@@ -39,6 +40,8 @@ import {
 } from '$lib/server/cuentas/perfilesWeb.js';
 import { checkConfirmCode, requestConfirmCode } from '$lib/server/cuentas/index.js';
 import { approvalOf } from '$lib/server/amigues/approvals.js';
+import { rejectionOf } from '$lib/server/amigues/pendingVenues.js';
+import { coordinateText, reviewState } from '$lib/utils/venues.js';
 import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
 import { organizedEventsForPage } from '$lib/server/personas/organiza.js';
 
@@ -90,6 +93,12 @@ export async function load(event) {
 	/** @param {unknown} v */
 	const str = (v) => (typeof v === 'string' ? v : '');
 	const d = profile.data;
+	// Solo los lugares se rechazan (Panel → Eventos → Lugares); el rechazo lo ve quien lo cargó.
+	const [approval, rejection] = await Promise.all([
+		approvalOf(db, profile.id),
+		kind === 'lugar' ? rejectionOf(db, profile.id) : null
+	]);
+	const review = reviewState(Boolean(approval), Boolean(rejection));
 	return {
 		profile: {
 			slug: profile.slug,
@@ -109,13 +118,18 @@ export async function load(event) {
 							city: str(d.city),
 							accessibility: str(d.accessibility),
 							how_to_get_there: str(d.how_to_get_there),
-							venue_privacy: str(d.venue_privacy)
+							venue_privacy: str(d.venue_privacy),
+							lat: coordinateText(d.lat),
+							lng: coordinateText(d.lng)
 						}
 					: null
 		},
 		// Sin aprobar no aparece en el sitio (decisión de gorrite: los perfiles y lugares nuevos de
-		// las cuentas esperan a une admin).
-		pending: !(await approvalOf(db, profile.id)),
+		// las cuentas esperan a une admin). Un lugar rechazado tampoco, pero quien lo cargó lo sigue
+		// viendo, con el motivo, y lo vuelve a mandar con «Volver a mandar» (perfiles.js).
+		pending: review === 'pending',
+		rejection:
+			review === 'rejected' && rejection ? { at: rejection.at, reason: rejection.reason } : null,
 		role,
 		isNew: event.url.searchParams.get('nuevo') === '1',
 		managers: managers?.ok ? managers.managers : [],
@@ -192,6 +206,18 @@ export const actions = {
 		}
 		// El nombre no cambia la dirección (así los links que ya circulan siguen andando).
 		return { action: 'guardar', message: 'Guardado.' };
+	},
+
+	// «Volver a mandar» un lugar rechazado (decisión de gorrite): editar no alcanza.
+	volverAMandar: async (event) => {
+		const { db, member, slug } = await managed(event);
+		return guarded('revision', async () =>
+			reply(
+				'revision',
+				await resubmitVenue(db, member.id, slug),
+				'Listo: lo volvimos a mandar. Une admin lo va a revisar.'
+			)
+		);
 	},
 
 	invitar: async (event) => {
