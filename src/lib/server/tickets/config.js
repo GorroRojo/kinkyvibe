@@ -629,7 +629,8 @@ export function validateBuyer(raw) {
  * orden); vacío = el sugerido. La opción queda `gorra` (sin fondo).
  *
  * Preguntas de inscripción (`config.fields`, interruptor `personas_eventos`): las respuestas
- * llegan en `answers` (por `name` del campo) y sus errores van con ese mismo `name`.
+ * llegan en `answers` (por `name` del campo) y sus errores van con ese mismo `name`. Solo se
+ * piden las que aplican al tipo elegido; las de "una vez por entrada", una vez por entrada.
  *
  * @param {EventTickets} config
  * @param {{
@@ -716,7 +717,11 @@ export function validatePurchase(config, input) {
 	/** @type {import('$lib/utils/signupFields.js').Answer[]} */
 	let answers = [];
 	if (config.fields?.length) {
-		const a = validateAnswers(config.fields, input.answers ?? {});
+		// Solo las que aplican a este tipo; las de "una vez por entrada", una por entrada.
+		const a = validateAnswers(config.fields, input.answers ?? {}, {
+			typeId: type?.id,
+			quantity: errors.quantity ? 1 : quantity
+		});
 		if (a.ok) answers = a.answers;
 		else Object.assign(errors, a.errors);
 	}
