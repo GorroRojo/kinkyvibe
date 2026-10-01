@@ -18,6 +18,8 @@ import {
 } from '$lib/server/tickets/reminders.js';
 import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
+import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
+import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -347,16 +349,37 @@ export function monthMoney(db, now) {
 }
 
 /**
+ * `kind: 'account'`: una cuenta o un perfil nuevos (no lo hizo une admin; ver accountEvents.js).
+ * `href`: a dónde lleva el ítem, si no sale de `slug`/`orderId` (cuentas y perfiles).
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account',
  *   title: string,
  *   who: string,
  *   detail: string,
  *   slug: string | null,
- *   orderId: string | null
+ *   orderId: string | null,
+ *   href?: string | null
  * }} ActivityItem
  */
+
+/** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
+const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
+	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
+	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón'
+});
+
+/**
+ * A dónde lleva una entrada del registro que apunta a una cuenta o a un perfil.
+ * @param {unknown} type
+ * @param {unknown} id
+ */
+function auditTargetHref(type, id) {
+	if (!id) return null;
+	if (type === 'account') return accountHref(String(id));
+	if (type === 'profile') return profileHref(String(id));
+	return null;
+}
 
 const ORDER_KIND = /** @type {const} */ ({
 	approved: 'order',
@@ -436,14 +459,16 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 		});
 	}
 	for (const a of audit) {
+		const accountEvent = ACCOUNT_EVENT_WHO[String(a.action)];
 		items.push({
 			at: Number(a.at),
-			kind: 'audit',
+			kind: accountEvent ? 'account' : 'audit',
 			title: String(a.summary),
-			who: String(a.actor_login),
-			detail: String(a.action),
+			who: accountEvent ?? String(a.actor_login),
+			detail: accountEvent ? '' : String(a.action),
 			slug: a.target_type === 'event' && a.target_id ? String(a.target_id) : null,
-			orderId: null
+			orderId: null,
+			href: auditTargetHref(a.target_type, a.target_id)
 		});
 	}
 	for (const c of checkins) {
@@ -470,7 +495,8 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 
 /**
  * Resumen de "desde tu última visita": cuántas compras, transferencias nuevas y acciones de
- * otres admins hubo desde `since`, más la lista de movimientos.
+ * otres admins hubo desde `since`, más la lista de movimientos. Las cuentas y los perfiles nuevos
+ * van en la lista pero no cuentan como acciones de admins.
  *
  * @param {D1Database | null | undefined} db
  * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
@@ -483,9 +509,9 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
 					(SELECT COUNT(*) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS orders,
 					(SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS money,
 					(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND created_at > ?1) AS transfers,
-					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2) AS audit`
+					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit`
 			)
-			.bind(since, login)
+			.bind(since, login, ACCOUNT_EVENT_ACTOR)
 			.first();
 		return {
 			orders: Number(row?.orders ?? 0),
@@ -652,10 +678,34 @@ export function upcomingEvents({
  */
 
 /**
- * Tipos de ítem de "Para revisar" que son higiene de contenido (no plata, entradas ni gente):
- * si hay varios del mismo tipo se muestran en una sola fila (ver `groupReviewItems`).
- * @typedef {'image' | 'draft'} ReviewGroupKind
+ * Tipos de ítem de "Para revisar" que se juntan si hay varios: la higiene de contenido (sin
+ * imagen, borradores) y los perfiles nuevos de cuentas (ver `groupReviewItems`).
+ * @typedef {'image' | 'draft' | 'profile'} ReviewGroupKind
  */
+
+/**
+ * "Para revisar": un ítem por cada perfil creado por una cuenta que ninguna admin revisó todavía
+ * (`profilesToReview` en cuentas.js). Queda hasta que une admin lo marca como revisado, lo oculta
+ * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
+ * Cuentas → Perfiles filtrado.
+ *
+ * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewItem[]}
+ */
+export function profileReviewItems(profiles, { formatWhen } = {}) {
+	return profiles.map((p) => ({
+		id: `profile-${p.id}`,
+		tone: 'info',
+		icon: 'profile',
+		title: `Perfil nuevo: ${p.title}`,
+		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		action: 'Revisar',
+		href: profileHref(p.id),
+		group: 'profile',
+		name: p.title
+	}));
+}
 
 /**
  * "Para revisar" (Q14: todo lo de la propuesta): cada ítem con su acción.
@@ -835,7 +885,7 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
  * Conserva el orden: los grupos van donde estaba su primer ítem.
  *
  * @param {ReviewItem[]} items
- * @param {{ links: { noImage: string }, min?: number }} opts
+ * @param {{ links: { noImage: string, profiles?: string }, min?: number }} opts
  * @returns {ReviewRow[]}
  */
 export function groupReviewItems(items, { links, min = 2 }) {
@@ -866,6 +916,16 @@ export function groupReviewItems(items, { links, min = 2 }) {
 			title: plural(list.length, 'borrador sin publicar', 'borradores sin publicar'),
 			text: 'Eventos próximos que no aparecen en el calendario',
 			action: 'Ver',
+			items: list
+		}),
+		profile: (list) => ({
+			id: 'group-profile',
+			tone: 'info',
+			icon: 'profile',
+			title: plural(list.length, 'perfil nuevo para revisar', 'perfiles nuevos para revisar'),
+			text: 'Creados desde Mi rincón; quedan acá hasta que los marques como revisados',
+			action: 'Ver',
+			href: links.profiles ?? PROFILES_TO_REVIEW_HREF,
 			items: list
 		})
 	};

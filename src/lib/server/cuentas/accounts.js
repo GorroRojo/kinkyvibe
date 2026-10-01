@@ -8,6 +8,7 @@
  *   pendientes y todos los datos de la persona (la fila queda vacía, con `deleted_at`).
  */
 import { sha256Hex } from '$lib/server/hash.js';
+import { logAccountCreated } from '$lib/server/admin/accountEvents.js';
 import { hashPassword, needsRehash, passwordProblem, verifyPassword } from './password.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -105,7 +106,11 @@ export async function upsertVerifiedAccount(db, email, { now = Date.now() } = {}
 		.bind(crypto.randomUUID(), email, now)
 		.first();
 	if (!row) throw new Error('No se pudo crear la cuenta');
-	return toAccount(row);
+	const account = toAccount(row);
+	// Recién creada (y no una que ya existía): queda en la actividad del panel, sin el mail. Nunca
+	// frena el ingreso.
+	if (account.created_at === now) await logAccountCreated(db, account.id, { now });
+	return account;
 }
 
 /**
@@ -199,7 +204,8 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,
-					password_updated_at = NULL, preferences = '{}', updated_at = ?2, deleted_at = ?2
+					password_updated_at = NULL, preferences = '{}', can_have_profiles = 0, updated_at = ?2,
+					deleted_at = ?2
 				WHERE id = ?1 AND deleted_at IS NULL`
 			)
 			.bind(accountId, now)
@@ -242,4 +248,29 @@ export async function setNoGroupInvites(db, accountId, value, { now = Date.now()
 		)
 		.bind(accountId, now, value ? 1 : 0)
 		.run();
+}
+
+/**
+ * ¿La cuenta tiene el permiso "puede tener perfiles"? (`accounts.can_have_profiles`, migración
+ * 0015). Apagado por defecto: lo prende une admin desde el panel (Cuentas). Sin el permiso, la
+ * cuenta no ve nada de perfiles y toda acción de perfiles se rechaza (docs/cuentas.md).
+ *
+ * Ante cualquier error (por ejemplo, una base sin la migración 0015) responde `false`: sin
+ * permiso, que es lo seguro. Una cuenta borrada nunca lo tiene.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ */
+export async function canHaveProfiles(db, accountId) {
+	if (typeof accountId !== 'string' || !accountId) return false;
+	try {
+		const row = await db
+			.prepare('SELECT can_have_profiles AS v FROM accounts WHERE id = ?1 AND deleted_at IS NULL')
+			.bind(accountId)
+			.first();
+		return Number(row?.v) === 1;
+	} catch (error) {
+		console.error('[cuentas] no se pudo leer el permiso de perfiles:', error);
+		return false;
+	}
 }

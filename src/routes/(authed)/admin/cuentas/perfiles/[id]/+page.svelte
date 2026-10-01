@@ -1,0 +1,211 @@
+<script>
+	/**
+	 * Ficha de un perfil: datos (tipo, visibilidad, presentación, links), quiénes lo gestionan
+	 * (con link a cada cuenta) y las acciones de admins: marcar como revisado, ocultar y borrar.
+	 * Borrar se confirma en la misma página (sin ventanas de confirmación).
+	 */
+	import '$lib/admin/panel-forms.scss';
+	import { enhance } from '$app/forms';
+	import { fmtDateTime } from '$lib/admin/format.js';
+	import { accountHref } from '$lib/admin/links.js';
+	import { VISIBILITY_LABELS, actorLabel } from '$lib/admin/cuentas.js';
+	import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
+	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import Card from '$lib/components/admin/panel/Card.svelte';
+	import Badge from '$lib/components/admin/panel/Badge.svelte';
+
+	export let data;
+	export let form;
+
+	$: p = data.profile;
+	let busy = '';
+
+	/** @param {string} name */
+	const submit = (name) => () => {
+		busy = name;
+		return async (/** @type {{ update: () => Promise<void> }} */ { update }) => {
+			await update();
+			busy = '';
+		};
+	};
+
+	/** @type {Record<string, string>} */
+	const REVIEW_LABELS = {
+		'profile.review': 'Revisado',
+		'profile.hide': 'Ocultado',
+		'profile.delete': 'Borrado'
+	};
+</script>
+
+<PageHeader
+	title={p.title}
+	subtitle="/{p.slug}"
+	back={{ href: '/admin/cuentas/perfiles', label: 'Perfiles' }}
+>
+	<svelte:fragment slot="meta">
+		<Badge>{KIND_LABELS[p.kind] ?? p.kind}</Badge>
+		{#if p.deletedAt}<Badge tone="bad">borrado</Badge>{/if}
+		{#if p.visibility === 'hidden'}<Badge tone="info">oculto</Badge>{/if}
+		{#if p.byAccount && !p.deletedAt && !data.review}<Badge tone="warn">para revisar</Badge>{/if}
+	</svelte:fragment>
+</PageHeader>
+
+{#if form?.perfil}
+	<p class="kv-flash" class:bad={!form.perfil.ok} role="status">{form.perfil.message}</p>
+{/if}
+
+<div class="kv-grid-2 layout">
+	<Card title="Datos">
+		<dl class="facts">
+			<dt>Visibilidad</dt>
+			<dd>{VISIBILITY_LABELS[p.visibility] ?? p.visibility}</dd>
+			<dt>Creado</dt>
+			<dd>{fmtDateTime(p.createdAt)} por {actorLabel(p.createdBy)}</dd>
+			<dt>Última edición</dt>
+			<dd>{fmtDateTime(p.updatedAt)} por {actorLabel(p.updatedBy)}</dd>
+			{#if p.deletedAt}
+				<dt>Borrado</dt>
+				<dd>{fmtDateTime(p.deletedAt)}</dd>
+			{/if}
+			{#if p.pronouns}
+				<dt>Pronombres</dt>
+				<dd>{p.pronouns}</dd>
+			{/if}
+			{#if p.kind === 'grupo'}
+				<dt>Integrantes</dt>
+				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
+			{/if}
+			<dt>Revisión</dt>
+			<dd>
+				{#if data.review}
+					{REVIEW_LABELS[data.review.action] ?? 'Revisado'} por @{data.review.by}, {fmtDateTime(
+						data.review.at
+					)}
+				{:else if p.byAccount}
+					Sin revisar
+				{:else}
+					—
+				{/if}
+			</dd>
+		</dl>
+		{#if p.bio}
+			<h3 class="sub">Presentación</h3>
+			<p class="bio">{p.bio}</p>
+		{/if}
+		{#if p.links.length}
+			<h3 class="sub">Links</h3>
+			<ul class="links">
+				{#each p.links as l (l)}<li><code>{l}</code></li>{/each}
+			</ul>
+		{/if}
+	</Card>
+
+	<Card title="Lo gestionan">
+		<p class="kv-note">Nunca se muestra fuera del panel ni a otras cuentas.</p>
+		{#if data.managers.length}
+			<ul class="managers">
+				{#each data.managers as m (m.accountId)}
+					<li>
+						<a href={accountHref(m.accountId)}>{m.email ?? 'Cuenta borrada'}</a>
+						<Badge>{ROLE_LABELS[m.role] ?? m.role}</Badge>
+						{#if m.deleted}<Badge tone="bad">cuenta borrada</Badge>{/if}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="muted">Nadie.</p>
+		{/if}
+	</Card>
+</div>
+
+{#if !p.deletedAt}
+	<Card title="Acciones">
+		<div class="actions">
+			{#if !data.review}
+				<form method="POST" action="?/revisado" use:enhance={submit('revisado')}>
+					<input type="hidden" name="version" value={p.version} />
+					<button class="kv-btn" type="submit" disabled={busy !== ''}>Marcar como revisado</button>
+				</form>
+			{/if}
+			{#if p.visibility !== 'hidden'}
+				<form method="POST" action="?/ocultar" use:enhance={submit('ocultar')}>
+					<input type="hidden" name="version" value={p.version} />
+					<button class="kv-btn ghost" type="submit" disabled={busy !== ''}>Ocultar</button>
+				</form>
+			{/if}
+		</div>
+		<p class="kv-note">
+			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
+			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
+		</p>
+		<details class="danger">
+			<summary>Borrar el perfil</summary>
+			<p>
+				Deja de verse en todos lados, también para quienes lo gestionan. Es un borrado suave: se
+				puede deshacer desde la base, pero no desde el panel.
+			</p>
+			<form method="POST" action="?/borrar" use:enhance={submit('borrar')}>
+				<input type="hidden" name="version" value={p.version} />
+				<button class="kv-btn del" type="submit" disabled={busy !== ''}
+					>Sí, borrar «{p.title}»</button
+				>
+			</form>
+		</details>
+	</Card>
+{/if}
+
+<style>
+	.layout {
+		margin-bottom: 1rem;
+	}
+	.facts {
+		display: grid;
+		grid-template-columns: max-content 1fr;
+		gap: 0.4rem 1rem;
+		margin: 0;
+	}
+	.facts dt {
+		color: var(--muted);
+	}
+	.facts dd {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.sub {
+		font-size: 0.95rem;
+		margin: 1rem 0 0.3rem;
+	}
+	.bio {
+		white-space: pre-line;
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.links,
+	.managers {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.links li,
+	.managers li {
+		padding: 0.25rem 0;
+		overflow-wrap: anywhere;
+	}
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+	.danger {
+		margin-top: 0.8rem;
+	}
+	.del {
+		background: var(--bad);
+		color: white;
+	}
+	.danger summary {
+		cursor: pointer;
+		color: var(--bad);
+		font-weight: 600;
+	}
+</style>

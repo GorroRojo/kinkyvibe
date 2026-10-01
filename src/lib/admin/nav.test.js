@@ -45,7 +45,9 @@ describe('NAV', () => {
 			'/admin/ajustes/fondo',
 			'/admin/ajustes/mails',
 			'/admin/ajustes/admins',
-			'/admin/actividad'
+			'/admin/actividad',
+			'/admin/cuentas',
+			'/admin/cuentas/perfiles'
 		]) {
 			expect(hrefs).toContain(h);
 		}
@@ -99,6 +101,12 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin/')?.id).toBe('inicio');
 		expect(activeNavItem('/admin/entradas/codigos')?.id).toBe('entradas-codigos');
 		expect(activeNavItem('/admin/eventos/nuevo')?.id).toBe('eventos-nuevo');
+		expect(activeNavItem('/admin/cuentas')?.id).toBe('cuentas');
+		expect(activeNavItem('/admin/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
+			'cuentas'
+		);
+		expect(activeNavItem('/admin/cuentas/perfiles')?.id).toBe('cuentas-perfiles');
+		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('cuentas-perfiles');
 	});
 	it('páginas sin ítem propio marcan su sección', () => {
 		expect(activeNavItem('/admin/entradas/alguno')?.id).toBe('entradas');

@@ -22,6 +22,13 @@
  *   grupo. Se va cuando quiere, sin pedirle nada a nadie. Si rechaza o se va, ese grupo no la
  *   puede volver a invitar por 30 días.
  *
+ * Permiso "puede tener perfiles" (`accounts.can_have_profiles`, migración 0015, apagado por
+ * defecto; lo prenden les admins desde el panel): sin él, para la cuenta no existe ningún perfil.
+ * Las lecturas de gestión (`listMyProfiles`, `getManagedProfile`, que usan casi todas las
+ * acciones) piden el permiso en la misma consulta ({@link PERMITTED}), crear y responder
+ * invitaciones lo chequean antes, y sus invitaciones no se le muestran ni le llegan por mail.
+ * Quien invita ve siempre lo mismo: nada de esto cambia lo que se le responde.
+ *
  * Las lecturas de "gestión" (mis perfiles, un perfil que gestiono) leen `objects` unidas a
  * `profile_managers`: la condición de acceso es esa unión, no la visibilidad (quien gestiona
  * un grupo oculto lo tiene que poder editar). Todo lo demás (lo que ve el público u otra
@@ -41,7 +48,14 @@ import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_KINDS } from '$lib/server/objects/types/perfil.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { emailHash, getAccount, getAccountByEmail, normalizeEmail } from './accounts.js';
+import { logProfileCreated } from '$lib/server/admin/accountEvents.js';
+import {
+	canHaveProfiles,
+	emailHash,
+	getAccount,
+	getAccountByEmail,
+	normalizeEmail
+} from './accounts.js';
 import { buildProfileInviteEmail } from './email.js';
 import { accountMailAllowed } from './mailCap.js';
 
@@ -242,6 +256,12 @@ function toMyProfile(row) {
 	};
 }
 
+/**
+ * Condición SQL: la cuenta `pm.account_id` está viva y tiene el permiso de perfiles (va junto a
+ * un `JOIN accounts pa ON pa.id = pm.account_id`).
+ */
+const PERMITTED = 'pa.deleted_at IS NULL AND pa.can_have_profiles = 1';
+
 const MANAGED_COLUMNS = OBJECT_COLUMNS.split(', ')
 	.map((c) => `o.${c}`)
 	.join(', ');
@@ -258,7 +278,8 @@ export async function listMyProfiles(db, accountId) {
 		.prepare(
 			`SELECT ${MANAGED_COLUMNS}, pm.role AS role FROM profile_managers pm
 			JOIN objects o ON o.id = pm.profile_id
-			WHERE pm.account_id = ?1 AND o.type = ?2 AND o.deleted_at IS NULL
+			JOIN accounts pa ON pa.id = pm.account_id
+			WHERE pm.account_id = ?1 AND o.type = ?2 AND o.deleted_at IS NULL AND ${PERMITTED}
 			ORDER BY o.title COLLATE NOCASE, o.id`
 		)
 		.bind(accountId, PROFILE_TYPE)
@@ -267,8 +288,8 @@ export async function listMyProfiles(db, accountId) {
 }
 
 /**
- * Un perfil que la cuenta gestiona, con su rol, o `null` (no existe, está borrado o no lo
- * gestiona: para la página es lo mismo).
+ * Un perfil que la cuenta gestiona, con su rol, o `null` (no existe, está borrado, no lo
+ * gestiona o la cuenta no tiene el permiso de perfiles: para la página es lo mismo).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -281,7 +302,9 @@ export async function getManagedProfile(db, accountId, slug) {
 		.prepare(
 			`SELECT ${MANAGED_COLUMNS}, pm.role AS role FROM profile_managers pm
 			JOIN objects o ON o.id = pm.profile_id
-			WHERE pm.account_id = ?1 AND o.type = ?2 AND o.slug = ?3 AND o.deleted_at IS NULL`
+			JOIN accounts pa ON pa.id = pm.account_id
+			WHERE pm.account_id = ?1 AND o.type = ?2 AND o.slug = ?3 AND o.deleted_at IS NULL
+			AND ${PERMITTED}`
 		)
 		.bind(accountId, PROFILE_TYPE, slug)
 		.first();
@@ -335,6 +358,8 @@ function slugSuffix() {
  */
 export async function createProfile(db, accountId, input, { now = Date.now() } = {}) {
 	const kind = /** @type {ProfileKind} */ (input.kind);
+	// Sin el permiso de perfiles, como si no existiera nada (las páginas ya dan 404).
+	if (!(await canHaveProfiles(db, accountId))) return failure(404, MESSAGES.notFound);
 	if (!PROFILE_KINDS.includes(kind))
 		return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
 	if (!(await getAccount(db, accountId))) return failure(404, MESSAGES.notFound);
@@ -369,6 +394,8 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 					]
 				}
 			);
+			// Novedad para el panel (Inicio → actividad); nunca frena la creación.
+			await logProfileCreated(db, { ...profile, kind }, { now });
 			return { ok: true, profile };
 		} catch (error) {
 			if (error instanceof ObjectError && error.code === 'slug_taken') continue;
@@ -617,6 +644,9 @@ export async function sendInviteNotice(db, { profileId, email, hash, notice, now
 	try {
 		const account = await getAccountByEmail(db, email);
 		if (!account?.email_verified_at) return 'skipped';
+		// Sin el permiso de perfiles no ve invitaciones: tampoco le llega el aviso. Corre después
+		// de responder, así quien invita no se entera de nada.
+		if (!(await canHaveProfiles(db, account.id))) return 'skipped';
 		if (await isManager(db, profileId, account.id)) return 'skipped';
 		const group = await db
 			.prepare('SELECT title FROM objects WHERE id = ?1 AND type = ?2 AND deleted_at IS NULL')
@@ -673,6 +703,7 @@ export async function cancelInvite(db, accountId, slug, inviteId) {
  * @returns {Promise<{ id: string, title: string, expiresAt: number }[]>}
  */
 export async function myInvites(db, accountId, { now = Date.now() } = {}) {
+	if (!(await canHaveProfiles(db, accountId))) return [];
 	const account = await getAccount(db, accountId);
 	if (!account?.email_verified_at) return [];
 	const { results } = await db
@@ -703,6 +734,8 @@ export async function myInvites(db, accountId, { now = Date.now() } = {}) {
  * @returns {Promise<{ ok: true, slug: string | null } | Failure>}
  */
 export async function answerInvite(db, accountId, inviteId, accept, { now = Date.now() } = {}) {
+	// Sin el permiso de perfiles, la invitación "no está" (y queda como estaba).
+	if (!(await canHaveProfiles(db, accountId))) return failure(404, MESSAGES.inviteGone);
 	const account = await getAccount(db, accountId);
 	if (!account?.email_verified_at) return failure(404, MESSAGES.inviteGone);
 	const hash = await emailHash(account.email);
@@ -1147,10 +1180,12 @@ export async function listMyMemberInvites(db, accountId, { now = Date.now() } = 
 		.prepare(
 			`SELECT g.id AS group_id, g.title AS group_title, p.slug AS persona_slug, p.title AS persona_title
 			FROM profile_managers pm
+			JOIN accounts pa ON pa.id = pm.account_id
 			JOIN objects p ON p.id = pm.profile_id
 			JOIN profile_member_invites i ON i.persona_id = p.id
 			JOIN objects g ON g.id = i.group_id
-			WHERE pm.account_id = ?1 AND p.type = ?2 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
+			WHERE pm.account_id = ?1 AND ${PERMITTED}
+			AND p.type = ?2 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
 			AND i.silenced = 0 AND i.expires_at > ?3
 			ORDER BY i.created_at, g.title COLLATE NOCASE`
 		)
@@ -1334,10 +1369,11 @@ export async function listMyMemberships(db, accountId) {
 		.prepare(
 			`SELECT g.id AS group_id, g.title AS group_title, p.slug AS persona_slug, p.title AS persona_title
 			FROM profile_managers pm
+			JOIN accounts pa ON pa.id = pm.account_id
 			JOIN objects p ON p.id = pm.profile_id
 			JOIN edges e ON e.from_id = p.id AND e.kind = ?2
 			JOIN objects g ON g.id = e.to_id
-			WHERE pm.account_id = ?1 AND p.type = ?3 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
+			WHERE pm.account_id = ?1 AND ${PERMITTED} AND p.type = ?3 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
 			ORDER BY g.title COLLATE NOCASE, p.title COLLATE NOCASE`
 		)
 		.bind(accountId, MEMBER_EDGE, PROFILE_TYPE)
