@@ -58,6 +58,7 @@
 	"type": "module",
 	"dependencies": {
 		"@codemirror/lang-markdown": "^6.2.2",
+		"@event-calendar/core": "^5.15.0",
 		"@lucide/svelte": "^1.48.0",
 		"add-to-calendar-button": "^2.2.10",
 		"date-fns": "^2.30.0",

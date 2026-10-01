@@ -1,0 +1,212 @@
+/**
+ * Agenda del panel como calendario (/admin/eventos/agenda): funciones puras que conectan las filas
+ * de la agenda (`AgendaRow`, ver agenda.js) con el calendario (`Calendario.svelte`, que envuelve
+ * la librería @event-calendar/core) y con el formulario de evento nuevo.
+ *
+ * - `CALENDAR_VIEWS` / `parseCalendarView` / `defaultCalendarView`: las vistas y la elegida;
+ * - `calendarEvent` / `calendarEvents`: una fila → un evento en el formato de la librería
+ *   (fechas "naive" en hora de Argentina, sin zona: la librería las muestra tal cual);
+ * - `rescheduleProblem` / `movedAgendaValues`: si se puede mover un evento y cómo queda la fila al
+ *   soltarlo en otro día (u hora, en la vista semana); se guarda por el mismo camino que la planilla;
+ * - `newEventHref` / `readNewEventPrefill`: el link al formulario de evento nuevo con el día (y las
+ *   horas) elegidos, y su lectura del lado del formulario.
+ */
+import { endDaysFor, validateAgendaRow } from './agenda.js';
+import { addDays, isValidDate, isValidTime } from './eventDraft.js';
+import { eventBadges } from '$lib/admin/eventFormat.js';
+
+/** Vistas de la agenda: las tres del calendario y la planilla editable de siempre. */
+export const CALENDAR_VIEWS = /** @type {const} */ ([
+	{ id: 'mes', label: 'Mes', ec: 'dayGridMonth' },
+	{ id: 'semana', label: 'Semana', ec: 'timeGridWeek' },
+	{ id: 'lista', label: 'Lista', ec: 'listMonth' },
+	{ id: 'planilla', label: 'Planilla', ec: '' }
+]);
+
+/** @typedef {(typeof CALENDAR_VIEWS)[number]['id']} CalendarView */
+
+/** Clave de localStorage con la vista elegida (por navegador). */
+export const CALENDAR_VIEW_KEY = 'kv-agenda-vista';
+
+/** Hasta este ancho (px) la vista por defecto es la lista. */
+export const PHONE_MAX_WIDTH = 640;
+
+/**
+ * La vista por defecto según el ancho de la pantalla: lista en el celu, mes en desktop.
+ * @param {number} width
+ * @returns {CalendarView}
+ */
+export function defaultCalendarView(width) {
+	return width <= PHONE_MAX_WIDTH ? 'lista' : 'mes';
+}
+
+/**
+ * Una vista guardada (o cualquier cosa) → una vista válida, o `fallback`.
+ * @param {unknown} value
+ * @param {CalendarView} fallback
+ * @returns {CalendarView}
+ */
+export function parseCalendarView(value, fallback) {
+	return CALENDAR_VIEWS.some((v) => v.id === value) ? /** @type {CalendarView} */ (value) : fallback;
+}
+
+/** @param {string} time hh:mm @returns {number} */
+const minutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+/** @param {number} m @returns {string} hh:mm (da la vuelta a las 24 h) */
+const hhmm = (m) => {
+	const d = ((m % 1440) + 1440) % 1440;
+	return `${String(Math.floor(d / 60)).padStart(2, '0')}:${String(d % 60).padStart(2, '0')}`;
+};
+
+/**
+ * Tono del chip (los mismos colores que los chips de estado del panel, `eventBadges`): borrador,
+ * cancelado, abierto, anunciado…
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'>} row
+ * @returns {'ok' | 'warn' | 'bad' | 'info' | 'neutral'}
+ */
+export function eventTone(row) {
+	// `state` es lo último (la planilla puede haberlo cambiado); `status`, lo que decía el archivo.
+	const status =
+		row.state === 'cancelado' ? 'cancelado' : row.status === 'cancelado' ? 'anunciado' : row.status;
+	const [first] = eventBadges({ status, unlisted: row.state === 'no-listado' });
+	return first?.tone ?? 'neutral';
+}
+
+/**
+ * Por qué no se puede mover un evento arrastrándolo (null = se puede). Se mueve por el mismo
+ * camino que la planilla, que valida la fila entera: si la fila ya tiene algo que no pasa la
+ * validación (sin hora, una región que no existe más…), mejor no ofrecer el arrastre.
+ * @param {import('./agenda.js').AgendaValues} row
+ * @param {string[]} places
+ * @returns {string | null}
+ */
+export function rescheduleProblem(row, places) {
+	if (!isValidTime(row.startTime)) return 'No tiene hora de inicio: cambiala desde la planilla o la ficha.';
+	const errors = validateAgendaRow(row, { places, allowEmptyPlace: row.place === '' });
+	const first = Object.values(errors)[0];
+	return first ? `Revisalo en la planilla o la ficha: ${first}` : null;
+}
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   title: string,
+ *   start: string,
+ *   end: string,
+ *   allDay: boolean,
+ *   startEditable: boolean,
+ *   durationEditable: false,
+ *   classNames: string[],
+ *   extendedProps: { slug: string, tone: string, time: string, problem: string | null }
+ * }} CalendarEventInput
+ */
+
+/**
+ * Una fila de la agenda → un evento de @event-calendar/core. Las fechas van sin zona horaria
+ * ("2026-12-12T21:00"): la librería las toma como hora local y las muestra tal cual, así que se ve
+ * la hora de Argentina en cualquier navegador. Sin hora de fin, dura una hora (solo para dibujarlo).
+ *
+ * @param {import('./agenda.js').AgendaRow} row
+ * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
+ * @returns {CalendarEventInput}
+ */
+export function calendarEvent(row, { places, canEdit = true }) {
+	const timed = isValidTime(row.startTime);
+	const problem = canEdit ? rescheduleProblem(row, places) : 'No tenés permiso para moverlo.';
+	let start = row.date;
+	let end = addDays(row.date, 1);
+	if (timed) {
+		start = `${row.date}T${row.startTime}`;
+		end = isValidTime(row.endTime)
+			? `${addDays(row.date, endDaysFor(row))}T${row.endTime}`
+			: `${addDays(row.date, minutes(row.startTime) >= 23 * 60 ? 1 : 0)}T${hhmm(minutes(row.startTime) + 60)}`;
+	}
+	const tone = eventTone(row);
+	return {
+		id: row.slug,
+		title: row.title || row.slug,
+		start,
+		end,
+		allDay: !timed,
+		startEditable: !problem,
+		durationEditable: false,
+		classNames: ['kv-ev', `kv-ev-${tone}`, ...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : [])],
+		extendedProps: {
+			slug: row.slug,
+			tone,
+			time: timed ? (row.endTime ? `${row.startTime} – ${row.endTime}` : row.startTime) : '',
+			problem
+		}
+	};
+}
+
+/**
+ * Las filas que tienen fecha → eventos del calendario.
+ * @param {import('./agenda.js').AgendaRow[]} rows
+ * @param {{ places: string[], canEdit?: boolean }} options
+ */
+export function calendarEvents(rows, options) {
+	return rows.filter((r) => isValidDate(r.date)).map((r) => calendarEvent(r, options));
+}
+
+/**
+ * Día y hora "de pared" de un Date de la librería (que los devuelve en hora local del navegador,
+ * con los mismos números que le pasamos).
+ * @param {Date} d
+ * @returns {{ date: string, time: string }}
+ */
+export function localDateParts(d) {
+	const p = (/** @type {number} */ n) => String(n).padStart(2, '0');
+	return {
+		date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+		time: `${p(d.getHours())}:${p(d.getMinutes())}`
+	};
+}
+
+/**
+ * La fila después de soltar el evento en otro día (y hora, en la vista semana). La hora de fin se
+ * corre lo mismo que la de inicio, así el evento dura lo mismo; los de varios días conservan sus
+ * días al guardar (`endDays`, en el servidor).
+ *
+ * @param {import('./agenda.js').AgendaValues} values
+ * @param {{ date: string, time?: string }} to
+ * @returns {import('./agenda.js').AgendaValues}
+ */
+export function movedAgendaValues(values, { date, time }) {
+	const startTime = time && isValidTime(time) ? time : values.startTime;
+	let endTime = values.endTime;
+	if (endTime && isValidTime(endTime) && isValidTime(values.startTime)) {
+		endTime = hhmm(minutes(endTime) + minutes(startTime) - minutes(values.startTime));
+	}
+	return { ...values, date, startTime, endTime };
+}
+
+/**
+ * Link al formulario de evento nuevo con el día (y opcionalmente las horas) ya puestos.
+ * @param {{ date: string, startTime?: string, endTime?: string }} prefill
+ */
+export function newEventHref({ date, startTime, endTime }) {
+	const q = new URLSearchParams();
+	if (isValidDate(date)) q.set('fecha', date);
+	if (startTime && isValidTime(startTime)) q.set('hora', startTime);
+	if (endTime && isValidTime(endTime)) q.set('hasta', endTime);
+	const s = q.toString();
+	return s ? `/admin/eventos/nuevo?${s}` : '/admin/eventos/nuevo';
+}
+
+/**
+ * Lo que trae el link de `newEventHref`, validado (lo inválido queda vacío).
+ * @param {URLSearchParams} params
+ * @returns {{ date: string, startTime: string, endTime: string }}
+ */
+export function readNewEventPrefill(params) {
+	const date = String(params.get('fecha') ?? '');
+	const startTime = String(params.get('hora') ?? '');
+	const endTime = String(params.get('hasta') ?? '');
+	const ok = isValidDate(date);
+	return {
+		date: ok ? date : '',
+		startTime: ok && isValidTime(startTime) ? startTime : '',
+		endTime: ok && isValidTime(startTime) && isValidTime(endTime) ? endTime : ''
+	};
+}
