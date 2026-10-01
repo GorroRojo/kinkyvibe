@@ -58,7 +58,8 @@ function stringToDateArray(s) {
  * Si el evento tiene lugar (#137, interruptor `perfiles_publicos`), manda la privacidad del lugar,
  * igual que en la página del evento: `venue` es lo que la página le muestra a cualquiera
  * (`publicVenueForEvent` con ANON, ver `feedVenues` en $lib/server/amigues/venues.js), y el
- * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay.
+ * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay;
+ * "Sólo dirección" → la dirección, el barrio y la ciudad, sin el nombre.
  * Sin lugar, la dirección en texto libre del .md, que es pública en la página del evento.
  *
  * @param {{ location?: unknown }} meta
@@ -70,6 +71,8 @@ export function feedLocation(meta, venue) {
 		if (venue.level === 'hidden') return undefined;
 		if (venue.level === 'area')
 			return [venue.area, venue.city].filter(Boolean).join(', ') || undefined;
+		if (venue.level === 'address')
+			return [venue.address, venue.area, venue.city].filter(Boolean).join(', ') || undefined;
 		return venueLine(venue) || undefined;
 	}
 	const loc = typeof meta.location === 'string' ? meta.location.trim() : '';

@@ -7,7 +7,10 @@
  *
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
- * - `href`: la URL de la sección. Este archivo no mueve URLs: eso es otro PR (paso 2 del mapa).
+ * - `href`: la URL de la sección, siempre /admin/<área>/<sección> (paso 2 del mapa). Las
+ *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta),
+ *   Etiquetas y Estadísticas, que son su propia área. Sin redirecciones desde las URLs viejas:
+ *   si una cambia, `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
@@ -229,9 +232,9 @@ export const NAV = Object.freeze([
 	},
 	{
 		// Roles de personas en eventos y preguntas de inscripción (#139, docs/personas-eventos.md).
-		// La URL sigue en /admin/ajustes/personas hasta el paso 2.
+		// El id sigue siendo el de cuando estaba en Ajustes (lo usan los atajos).
 		id: 'ajustes-personas',
-		href: '/admin/ajustes/personas',
+		href: '/admin/eventos/roles',
 		icon: ListPlus,
 		emoji: '🧩',
 		label: 'Roles y preguntas',
@@ -244,7 +247,7 @@ export const NAV = Object.freeze([
 	// Ventas
 	{
 		id: 'entradas',
-		href: '/admin/entradas',
+		href: '/admin/ventas',
 		icon: Ticket,
 		emoji: '💰',
 		label: 'Todas las ventas',
@@ -254,7 +257,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		id: 'entradas-transferencias',
-		href: '/admin/entradas/transferencias',
+		href: '/admin/ventas/transferencias',
 		icon: ArrowRightLeft,
 		emoji: '💸',
 		label: 'Transferencias',
@@ -264,7 +267,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		id: 'entradas-codigos',
-		href: '/admin/entradas/codigos',
+		href: '/admin/ventas/codigos',
 		icon: TicketPercent,
 		emoji: '🏷️',
 		label: 'Códigos',
@@ -288,7 +291,7 @@ export const NAV = Object.freeze([
 	// Comunidad
 	{
 		id: 'personas',
-		href: '/admin/personas',
+		href: '/admin/comunidad/personas',
 		icon: Users,
 		emoji: '🧑‍🤝‍🧑',
 		label: 'Personas',
@@ -297,10 +300,10 @@ export const NAV = Object.freeze([
 	},
 	{
 		// La única lista de perfiles (decisión de gorrite del 1/10): reemplaza a "Amigues" y a
-		// "Cuentas › Perfiles". La URL y el id siguen siendo los de Amigues; "Amigues" queda como
-		// nombre del directorio público (/amigues).
+		// "Cuentas › Perfiles". El id sigue siendo el de Amigues (lo usan los atajos);
+		// "Amigues" queda como nombre del directorio público (/amigues).
 		id: 'amigues',
-		href: '/admin/amigues',
+		href: '/admin/comunidad/perfiles',
 		icon: IdCard,
 		emoji: '🪪',
 		label: 'Perfiles',
@@ -312,7 +315,7 @@ export const NAV = Object.freeze([
 	{
 		// Cuentas del público y sus perfiles (docs/cuentas.md)
 		id: 'cuentas',
-		href: '/admin/cuentas',
+		href: '/admin/comunidad/cuentas',
 		icon: CircleUser,
 		emoji: '👤',
 		label: 'Cuentas',
@@ -324,7 +327,7 @@ export const NAV = Object.freeze([
 	// Mensajes
 	{
 		id: 'ajustes-plantillas',
-		href: '/admin/ajustes/mails/plantillas',
+		href: '/admin/mensajes/plantillas',
 		icon: FileText,
 		emoji: '📝',
 		label: 'Plantillas',
@@ -372,7 +375,7 @@ export const NAV = Object.freeze([
 	// Contenido
 	{
 		id: 'material',
-		href: '/admin/material',
+		href: '/admin/contenido/material',
 		icon: BookOpen,
 		emoji: '📚',
 		label: 'Material',
@@ -381,7 +384,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		id: 'no-listadas',
-		href: '/admin/no-listadas',
+		href: '/admin/contenido/no-listadas',
 		icon: EyeOff,
 		emoji: '🙈',
 		label: 'No listadas',
@@ -451,7 +454,7 @@ export const NAV = Object.freeze([
 	{
 		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
 		id: 'propinas',
-		href: '/admin/propinas',
+		href: '/admin/ajustes/propinas',
 		icon: HandCoins,
 		emoji: '🪙',
 		label: 'Propinas',
@@ -493,7 +496,7 @@ export const NAV = Object.freeze([
 	{
 		// También "Recuperar" lo borrado desde el panel (docs/panel.md).
 		id: 'actividad',
-		href: '/admin/actividad',
+		href: '/admin/ajustes/actividad',
 		icon: ScrollText,
 		emoji: '📜',
 		label: 'Actividad',
@@ -611,7 +614,7 @@ export function navFlagKeys() {
 
 /**
  * El ítem activo para una ruta: el de `href` más largo que coincide (así
- * `/admin/entradas/codigos` marca Códigos y no Ventas). Los `soon` también cuentan: su URL abre
+ * `/admin/ventas/codigos` marca Códigos y no Ventas). Los `soon` también cuentan: su URL abre
  * la página "Próximamente".
  * @param {string} pathname
  * @returns {NavItem | undefined}
@@ -626,12 +629,12 @@ export function activeNavItem(pathname) {
 	}
 	// Páginas fuera del menú: se marca el ítem del que dependen.
 	if (best?.menu === false) best = best.parent ? navItem(best.parent) : undefined;
-	// La ficha de un perfil (/admin/cuentas/perfiles/<id>) es parte de Perfiles, no de Cuentas.
-	if (path.startsWith('/admin/cuentas/perfiles/')) return navItem('amigues');
+	// La ficha de un perfil (/admin/comunidad/cuentas/perfiles/<id>) es parte de Perfiles, no de Cuentas.
+	if (path.startsWith('/admin/comunidad/cuentas/perfiles/')) return navItem('amigues');
 	// Páginas sin ítem propio: se marca la sección a la que pertenecen.
 	if (!best) {
 		if (path.startsWith('/admin/eventos/')) return navItem('eventos');
-		if (path.startsWith('/admin/entradas/')) return navItem('entradas');
+		if (path.startsWith('/admin/ventas/')) return navItem('entradas');
 	}
 	return best;
 }
@@ -690,4 +693,32 @@ export function areaCount(area, counts, opts) {
 export function soonItemAt(pathname) {
 	const path = pathname.replace(/\/+$/, '');
 	return NAV.find((i) => i.soon && i.href === path);
+}
+
+/**
+ * Sección del panel con la lista y el editor de cada categoría de contenido (Material está en
+ * Contenido; los perfiles de /amigues, en Comunidad › Perfiles). `ContentList`, `ContentEditor` y
+ * `contentRoutes.js` arman sus links con esto, así no repiten la URL.
+ * @type {Readonly<Record<string, string>>}
+ */
+const CONTENT_SECTION = Object.freeze({ material: 'material', amigues: 'amigues' });
+
+/**
+ * URL de la lista de una categoría de contenido en el panel (`/admin/contenido/material`,
+ * `/admin/comunidad/perfiles`). Lo nuevo es `<esto>/nuevo` y cada publicación, `<esto>/<slug>`.
+ * @param {string} category 'material' o 'amigues'
+ * @returns {string}
+ */
+export function contentAdminHref(category) {
+	const item = navItem(CONTENT_SECTION[category] ?? '');
+	if (!item) throw new Error(`No hay sección del panel para «${category}»`);
+	return item.href;
+}
+
+/**
+ * Nombre en el menú de la sección de una categoría de contenido ("Material", "Perfiles").
+ * @param {string} category
+ */
+export function contentAdminLabel(category) {
+	return navItem(CONTENT_SECTION[category] ?? '')?.label ?? category;
 }

@@ -99,6 +99,25 @@ describe('feedLocation (el punto donde se enchufa la privacidad de lugares, #137
 		);
 		expect(ics).not.toContain('Calle Falsa');
 	});
+	it('«Sólo dirección»: la dirección sin el nombre del lugar, también en el .ics', () => {
+		const meta = { location: 'Calle Falsa 123' };
+		/** @type {import('./venues.js').VenueView} */
+		const view = {
+			level: 'address',
+			address: 'Calle Inventada 1',
+			area: 'Barrio Inventado',
+			city: 'CABA',
+			lat: -34.6,
+			lng: -58.4
+		};
+		expect(feedLocation(meta, view)).toBe('Calle Inventada 1, Barrio Inventado, CABA');
+		expect(feedLocation(meta, { level: 'address' })).toBeUndefined();
+		const ev = fakeEvent('a', NOW, ['x'], { location: 'Calle Falsa 123', location_name: 'Casa' });
+		const ics = unfold(buildIcsFeed([ev], { venues: new Map([[String(ev.meta.postID), view]]) }));
+		expect(ics).toContain('LOCATION:Calle Inventada 1\\, Barrio Inventado\\, CABA');
+		expect(ics).not.toContain('Calle Falsa');
+		expect(ics).not.toContain('Casa');
+	});
 	it('es lo único que pone LOCATION: sin dirección, el nombre del lugar tampoco aparece', () => {
 		const ics = unfold(
 			buildIcsFeed([fakeEvent('a', NOW, ['x'], { location: undefined, location_name: 'Lugar' })])

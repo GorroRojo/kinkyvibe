@@ -1,5 +1,5 @@
 /**
- * Textos compartidos de Cuentas (/admin/cuentas) y de Comunidad › Perfiles (/admin/amigues).
+ * Textos compartidos de Cuentas (/admin/comunidad/cuentas) y de Comunidad › Perfiles (/admin/comunidad/perfiles).
  */
 
 /** @type {Record<string, string>} */

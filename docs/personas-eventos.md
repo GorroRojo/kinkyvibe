@@ -140,7 +140,7 @@ en el `personas:` de ese evento. Solo las de sus eventos.
 ```sh
 npx vitest run src/lib/utils/personas.test.js src/lib/utils/signupFields.test.js \
   src/lib/server/personas src/lib/server/tickets/signupFields.test.js \
-  "src/routes/(authed)/admin/ajustes/personas" scripts/demo/n3-personas.test.js \
+  "src/routes/(authed)/admin/eventos/roles" scripts/demo/n3-personas.test.js \
   "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"
 ```
 
