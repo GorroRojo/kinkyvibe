@@ -83,6 +83,7 @@ export async function load({ locals, url }) {
  * @prop {string} endTime
  * @prop {string} place
  * @prop {string} link
+ * @prop {string} price the "Valor" cell (one General price becomes the General ticket type)
  * @prop {string} source slug of the event to duplicate, or '' to start from the template
  * @prop {string} slug
  */
@@ -103,6 +104,7 @@ function readRow(raw) {
 		endTime: s(r.endTime),
 		place: s(r.place),
 		link: s(r.link),
+		price: s(r.price).slice(0, 200),
 		source: s(r.source),
 		slug: s(r.slug)
 	};
