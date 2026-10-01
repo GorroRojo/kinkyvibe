@@ -9,6 +9,7 @@
 	import { markdown } from '@codemirror/lang-markdown';
 	import { onDestroy } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
+	import { checkImageFile } from '$lib/utils/imageUpload.js';
 	import { browser } from '$app/environment';
 	import { deserialize, enhance } from '$app/forms';
 	import { page } from '$app/stores';
@@ -161,13 +162,7 @@
 		const file = e.currentTarget.files?.[0];
 		uploadError = '';
 		if (!file) return;
-		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
-		} else if (file.size > data.maxImageBytes) {
-			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
-				data.maxImageBytes / 1024 / 1024
-			} MB.`;
-		}
+		uploadError = checkImageFile(file, data.maxImageBytes).error;
 		if (uploadError) {
 			fileInput.value = '';
 			return;

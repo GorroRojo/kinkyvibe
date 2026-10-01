@@ -310,6 +310,19 @@ function groupLabel(tm, id) {
 }
 
 /**
+ * Tags the free picker of `category` refuses with a hint ("se elige con los botones de arriba"):
+ * for events, the rule groups plus the online words (`web`, `online`, `virtual`), which are the
+ * "Online" place button. Other categories have no reserved tags.
+ * @param {string} category
+ * @param {Tags} [tm]
+ * @returns {Set<string>}
+ */
+export function reservedPickerTags(category, tm = siteTags()) {
+	if (category !== 'calendario') return new Set();
+	return new Set([...excludedFromPicker('calendario', tm), 'web', 'online', 'virtual']);
+}
+
+/**
  * Everything the picker can suggest for a kind of post: the tree's tags plus tags that only
  * exist because posts use them ("inicial", "historia"…), with how many posts of that kind use
  * each one.

@@ -3,39 +3,31 @@
 	import { markdown } from '@codemirror/lang-markdown';
 	import { deserialize } from '$app/forms';
 	import { onDestroy } from 'svelte';
-	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
-	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
+	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import PersonasEditor from '$lib/components/admin/PersonasEditor.svelte';
 	import { PERSONAS_KEY, validatePersonas } from '$lib/utils/personas.js';
-	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
-	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
+	import FieldGrid from '$lib/components/admin/event-form/FieldGrid.svelte';
+	import OrganizersField from '$lib/components/admin/event-form/OrganizersField.svelte';
+	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
+	import { formSections } from '$lib/admin/eventForm.js';
+	import { fromInput, postFields, toInput } from '$lib/admin/postFields.js';
+	import { checkImageFile } from '$lib/utils/imageUpload.js';
 	import {
 		applyTicketsToMarkdown,
 		readTicketsForm,
 		validateTicketsForm
 	} from '$lib/utils/ticketsEditor.js';
 	import '$lib/components/admin/admin.scss';
-	import {
-		buildTagOptions,
-		excludedFromPicker,
-		joinEventTags,
-		splitEventTags,
-		validateEventTags
-	} from '$lib/utils/adminTags.js';
-	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
+	import { joinEventTags, splitEventTags, validateEventTags } from '$lib/utils/adminTags.js';
 	import {
 		REMOVE,
-		STATUS_OPTIONS,
 		applyFrontmatterChanges,
-		formatEventDate,
-		formatPostDate,
-		isValidDate,
-		isValidTime,
 		joinMarkdown,
-		parseEventDate,
 		splitMarkdown,
 		todayInArgentina,
 		validateSchedule
@@ -82,131 +74,8 @@
 	// With properties that can't be read, the whole file is edited as text.
 	let rawText = data.post.raw;
 
-	/**
-	 * @typedef {object} Field
-	 * @prop {string} key
-	 * @prop {string} label
-	 * @prop {'text'|'textarea'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
-	 * @prop {string} [placeholder]
-	 * @prop {string} [help]
-	 * @prop {boolean} [required]
-	 * @prop {boolean} [wide]
-	 * @prop {Array<{value: string, label: string}>} [options]
-	 */
-
-	/** @type {Field[]} */
-	const common = [
-		{ key: 'title', label: 'Título', type: 'text', required: true, wide: true },
-		{
-			key: 'summary',
-			label: 'Resumen corto',
-			type: 'textarea',
-			wide: true,
-			placeholder: 'Aparece en las listas y cuando se comparte el link'
-		},
-		{ key: 'published_date', label: 'Publicado', type: 'date', required: true },
-		{
-			key: 'updated_date',
-			label: 'Actualizado',
-			type: 'date',
-			help: 'Se pone la fecha de hoy al guardar.'
-		}
-	];
-	/** @type {Record<string, Field[]>} */
-	const byCategory = {
-		calendario: [
-			{
-				key: 'status',
-				label: 'Estado',
-				type: 'select',
-				wide: true,
-				options: STATUS_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} — ${o.help}` }))
-			},
-			{ key: 'start', label: 'Empieza', type: 'datetime', required: true },
-			{ key: 'end', label: 'Termina', type: 'datetime' },
-			{
-				key: 'location',
-				label: 'Dirección',
-				type: 'text',
-				placeholder: 'Calle 123, Ciudad',
-				help: 'Dejalo vacío si es online.'
-			},
-			{
-				key: 'location_name',
-				label: 'Nombre del lugar',
-				type: 'text',
-				placeholder: 'Ej: El Surco'
-			},
-			{
-				key: 'link',
-				label: 'Link de inscripción / entradas',
-				type: 'url',
-				placeholder: 'https://forms.gle/...',
-				help: 'Solo se muestra cuando el estado es «Abierto».'
-			},
-			{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Inscribirme' }
-		],
-		amigues: [
-			{
-				key: 'pronoun',
-				label: 'Pronombres',
-				type: 'text',
-				placeholder: 'https://pronombr.es/elle&el'
-			},
-			{ key: 'gender_identity', label: 'Género', type: 'text' },
-			{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej: Educador BDSM' },
-			{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://instagram.com/...' },
-			{ key: 'email', label: 'Mail', type: 'email' },
-			{ key: 'tel', label: 'Teléfono', type: 'tel', placeholder: '+54 11 1234 5678' },
-			{ key: 'location', label: 'Dirección', type: 'text', placeholder: 'Calle 123, Ciudad' },
-			{ key: 'bday', label: 'Cumpleaños', type: 'date' }
-		],
-		material: [
-			{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://...' },
-			{ key: 'link_text', label: 'Texto del link', type: 'text', placeholder: 'Ir al sitio' },
-			{ key: 'redirect', label: 'Redireccionar directo al link', type: 'checkbox', wide: true },
-			{ key: 'access_date', label: 'Última fecha de acceso', type: 'date' },
-			{ key: 'original_published_date', label: 'Fecha de publicación original', type: 'date' }
-		],
-		wiki: []
-	};
-	/** @type {Field[]} */
-	const tail = [
-		{
-			key: 'force_unlisted',
-			label: 'No listado (no aparece en las listas, se ve con el link)',
-			type: 'checkbox',
-			wide: true
-		}
-	];
-	const fields = [...common, ...(byCategory[category] ?? []), ...tail];
-
-	/** @param {Field} f @param {any} v */
-	function toInput(f, v) {
-		if (f.type === 'checkbox') return v === true;
-		if (v === undefined || v === null) return '';
-		if (f.type === 'date') return String(v).slice(0, 10);
-		if (f.type === 'datetime') {
-			const { date, time } = parseEventDate(v);
-			return date ? `${date}T${time || '00:00'}` : '';
-		}
-		return String(v);
-	}
-	/** @param {Field} f @param {any} v @returns {any} value for applyFrontmatterChanges */
-	function fromInput(f, v) {
-		if (f.type === 'checkbox') return v ? true : null;
-		if (v === '' || v === undefined || v === null) return null;
-		if (f.type === 'date') return isValidDate(v) ? formatPostDate(v) : v;
-		if (f.type === 'datetime') {
-			const [date, time] = String(v).split('T');
-			return isValidDate(date) && isValidTime(time) ? formatEventDate(date, time) : v;
-		}
-		if (f.type === 'textarea')
-			return String(v)
-				.replace(/\s*\n\s*/g, ' ')
-				.trim();
-		return String(v).trim();
-	}
+	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
+	const fields = postFields(category);
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
@@ -221,10 +90,6 @@
 	const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
 	const initialTags = list(meta.tags);
 	const isEvent = category === 'calendario';
-	const tagOptions = buildTagOptions({ category, usage: data.tagUsage });
-	const reservedTags = isEvent
-		? new Set([...excludedFromPicker('calendario'), 'web', 'online', 'virtual'])
-		: new Set();
 	const split = splitEventTags(initialTags);
 	let tagRules = {
 		kinkyvibe: split.kinkyvibe,
@@ -240,7 +105,6 @@
 	const hasAuthors = category !== 'amigues';
 	const initialAuthors = list(meta.authors);
 	let authors = [...initialAuthors];
-	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
 	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
 
 	/* ---------- personas con rol (interruptor personas_eventos) ---------- */
@@ -309,21 +173,16 @@
 		const file = e.currentTarget.files?.[0];
 		uploadError = '';
 		if (!file) return;
-		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
-		} else if (file.size > data.maxImageBytes) {
-			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
-				data.maxImageBytes / 1024 / 1024
-			} MB.`;
-		}
-		if (uploadError) {
+		const check = checkImageFile(file, data.maxImageBytes);
+		if (check.error) {
+			uploadError = check.error;
 			fileInput.value = '';
 			return;
 		}
 		if (uploadURL) URL.revokeObjectURL(uploadURL);
 		uploadURL = URL.createObjectURL(file);
 		uploadName = file.name;
-		uploadExt = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+		uploadExt = check.ext;
 	}
 	function clearUpload() {
 		if (fileInput) fileInput.value = '';
@@ -457,7 +316,14 @@
 
 	{#if !embedded}<h1>Editar «{meta.title ?? postID}»</h1>{/if}
 
-	<UnsavedChanges
+	<EventForm
+		sections={formSections({
+			mode: 'editar',
+			category,
+			hasImage: Boolean(image),
+			hasPersonas: Boolean(personasData),
+			parseError: !!parseError
+		})}
 		draftKey={draftKey(category, postID)}
 		base={sha}
 		dirty={changed}
@@ -465,123 +331,57 @@
 		restore={restoreDraft}
 		saved={Boolean(form?.save)}
 		saveForm="edit-form"
-	/>
-
-	{#if parseError}
-		<p class="problems" role="alert">
-			Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
-			como texto. Revisá las líneas entre los <code>---</code>.
-		</p>
-		<textarea class="raw" bind:value={rawText} rows="30"></textarea>
-	{:else}
-		<fieldset class="card">
-			<legend>📝 Datos</legend>
-			<div class="grid">
-				{#each fields as f}
-					{#if f.type === 'checkbox'}
-						<label class="check" class:wide={f.wide}>
-							<input type="checkbox" id="{f.key}-input" bind:checked={values[f.key]} />
-							{f.label}
-						</label>
-					{:else}
-						<label class="field" class:wide={f.wide}>
-							<span
-								>{f.label}
-								{#if f.required}<span class="req">*</span>{/if}</span
-							>
-							{#if f.type === 'textarea'}
-								<textarea
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									rows="3"
-									placeholder={f.placeholder}></textarea>
-							{:else if f.type === 'select'}
-								<select id="{f.key}-input" bind:value={values[f.key]}>
-									{#each f.options ?? [] as o}<option value={o.value}>{o.label}</option>{/each}
-								</select>
-							{:else if f.type === 'date'}
-								<input type="date" id="{f.key}-input" bind:value={values[f.key]} />
-							{:else if f.type === 'datetime'}
-								<input
-									type="datetime-local"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									min={f.key === 'end' ? values.start : undefined}
-								/>
-							{:else if f.type === 'url'}
-								<input
-									type="url"
-									inputmode="url"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else if f.type === 'email'}
-								<input
-									type="email"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else if f.type === 'tel'}
-								<input
-									type="tel"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else}
-								<input id="{f.key}-input" bind:value={values[f.key]} placeholder={f.placeholder} />
-							{/if}
-							{#if f.help}<small>{f.help}</small>{/if}
-						</label>
-					{/if}
-				{/each}
-			</div>
-			{#if hasAuthors}
-				<div class="field-label">
-					<label for="authors-input">{authorsLabel}</label>
-					<OrganizerPicker
+	>
+		{#if parseError}
+			<p class="problems" role="alert">
+				Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
+				como texto. Revisá las líneas entre los <code>---</code>.
+			</p>
+			<textarea class="raw" bind:value={rawText} rows="30"></textarea>
+		{:else}
+			<fieldset class="card" id="sec-datos">
+				<legend>📝 Datos</legend>
+				<FieldGrid {fields} bind:values />
+				{#if hasAuthors}
+					<OrganizersField
 						bind:authors
 						profiles={data.profiles}
-						options={organizerOptions}
-						id="authors-input"
-						describedby="authors-help"
-					/>
-					<small id="authors-help"
-						>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar».</small
+						authorUsage={data.authorUsage}
+						label={authorsLabel}
+						>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar».</OrganizersField
 					>
-				</div>
-			{/if}
-		</fieldset>
-
-		{#if personasData}
-			<fieldset class="card">
-				<legend>👥 Personas</legend>
-				<p class="hint">
-					Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo los
-					perfiles públicos).
-				</p>
-				<PersonasEditor
-					bind:personas
-					roles={personasData.roles}
-					profiles={personasData.profiles}
-					errors={newPersonasErrors}
-					idPrefix="edit-personas"
-				/>
+				{/if}
 			</fieldset>
-		{/if}
 
-		{#if image}
-			<fieldset class="card">
-				<legend>🖼️ Imagen</legend>
-				<div class="image-row">
-					{#if uploadURL || image.url}
-						<img src={uploadURL || image.url} alt="Imagen del evento" class="thumb" />
-					{:else}
-						<div class="thumb empty">Sin imagen</div>
-					{/if}
-					<div class="image-actions">
+			{#if personasData}
+				<fieldset class="card" id="sec-personas">
+					<legend>👥 Personas</legend>
+					<p class="hint">
+						Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo
+						los perfiles públicos).
+					</p>
+					<PersonasEditor
+						bind:personas
+						roles={personasData.roles}
+						profiles={personasData.profiles}
+						errors={newPersonasErrors}
+						idPrefix="edit-personas"
+					/>
+				</fieldset>
+			{/if}
+
+			{#if image}
+				<ImageSection
+					src={uploadURL || image.url}
+					inputId="edit-image"
+					form="edit-form"
+					buttonText={uploadExt ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
+					maxImageBytes={data.maxImageBytes}
+					error={uploadError}
+					bind:input={fileInput}
+					on:change={onFileChange}
+				>
+					<svelte:fragment slot="before">
 						{#if uploadExt}
 							<p class="hint">Nueva imagen: {uploadName}</p>
 						{:else if image.shared}
@@ -601,198 +401,168 @@
 								invalid={problems.length > 0}
 							/>
 						{/if}
-						<label class="file">
-							<span>{uploadExt ? 'Elegir otra imagen' : 'Subir una imagen nueva'}</span>
-							<input
-								bind:this={fileInput}
-								type="file"
-								name="image"
-								form="edit-form"
-								id="edit-image"
-								accept="image/jpeg,image/png,image/webp"
-								on:change={onFileChange}
-							/>
-						</label>
-						<small
-							>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
-						>
-						{#if !uploadExt}
-							<p class="note" id="edit-image-where">
-								{#if image.shared}
-									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones
-									de este evento o solo para esta.
-								{:else}
-									📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code
-									>).
-								{/if}
-							</p>
-						{/if}
-						{#if uploadExt}
-							<p class="note" id="edit-image-case">
-								{#if scope === 'todas'}
-									🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
-									<code>{image.featured}</code>{#if sharedNewName !== image.featured}
-										{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se
-										actualizan los eventos que la usaban){/if}.
-								{:else if askScope && !imageScope}
-									Elegí arriba si es para todas las ediciones o solo para esta.
-								{:else}
-									📁 <strong>Solo este evento:</strong> se guarda como
-									<code>{image.folder}{image.nextNumber}.{uploadExt}</code>{#if image.shared}; la
-										imagen compartida y los otros eventos no cambian{/if}.
-								{/if}
-							</p>
-							{#if scope === 'todas'}
-								<div class="affected" id="edit-affected">
-									{#if affected}
-										<p>
-											<strong
-												>{affected.length === 1
-													? 'Este evento usa'
-													: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar
-												la nueva{sharedNewName !== image.featured
-													? ' (se actualiza su archivo)'
-													: ''}:</strong
-											>
-										</p>
-										<ul>
-											{#each affected as ev}
-												<li>
-													{#if ev.slug === postID}
-														<strong>{ev.title || ev.slug}</strong> (este)
-													{:else}
-														<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
-															>{ev.title || ev.slug}</a
-														>
-													{/if}
-													<small>{ev.start.slice(0, 10)}</small>
-												</li>
-											{/each}
-										</ul>
-									{:else if affectedError}
-										<p>{affectedError}</p>
-									{:else}
-										<p>Buscando los eventos que usan esta imagen…</p>
-									{/if}
-								</div>
+					</svelte:fragment>
+					{#if !uploadExt}
+						<p class="note" id="edit-image-where">
+							{#if image.shared}
+								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
+								este evento o solo para esta.
+							{:else}
+								📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code
+								>).
 							{/if}
-							<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button
-							>
+						</p>
+					{/if}
+					{#if uploadExt}
+						<p class="note" id="edit-image-case">
+							{#if scope === 'todas'}
+								🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
+								<code>{image.featured}</code>{#if sharedNewName !== image.featured}
+									{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se
+									actualizan los eventos que la usaban){/if}.
+							{:else if askScope && !imageScope}
+								Elegí arriba si es para todas las ediciones o solo para esta.
+							{:else}
+								📁 <strong>Solo este evento:</strong> se guarda como
+								<code>{image.folder}{image.nextNumber}.{uploadExt}</code>{#if image.shared}; la
+									imagen compartida y los otros eventos no cambian{/if}.
+							{/if}
+						</p>
+						{#if scope === 'todas'}
+							<div class="affected" id="edit-affected">
+								{#if affected}
+									<p>
+										<strong
+											>{affected.length === 1
+												? 'Este evento usa'
+												: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar
+											la nueva{sharedNewName !== image.featured
+												? ' (se actualiza su archivo)'
+												: ''}:</strong
+										>
+									</p>
+									<ul>
+										{#each affected as ev}
+											<li>
+												{#if ev.slug === postID}
+													<strong>{ev.title || ev.slug}</strong> (este)
+												{:else}
+													<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
+														>{ev.title || ev.slug}</a
+													>
+												{/if}
+												<small>{ev.start.slice(0, 10)}</small>
+											</li>
+										{/each}
+									</ul>
+								{:else if affectedError}
+									<p>{affectedError}</p>
+								{:else}
+									<p>Buscando los eventos que usan esta imagen…</p>
+								{/if}
+							</div>
 						{/if}
-						{#if uploadError}<p class="error">{uploadError}</p>{/if}
-					</div>
+						<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button>
+					{/if}
+				</ImageSection>
+			{/if}
+
+			<TagsSection
+				{category}
+				usage={data.tagUsage}
+				bind:tagRules
+				bind:freeTags
+				errors={tagErrors}
+				idPrefix="edit"
+				placeholder={isEvent
+					? 'Buscá una etiqueta: taller, shibari, cine…'
+					: 'Buscá una etiqueta: BDSM, shibari, guía…'}
+			/>
+
+			{#if isEvent}
+				<TicketsEditor
+					bind:state={tickets}
+					{tags}
+					location={values.location}
+					sales={data.sales}
+					salesUnavailable={data.salesUnavailable}
+					errors={ticketsCheck.errors}
+					warnings={ticketsCheck.warnings}
+					idPrefix="edit"
+				/>
+			{/if}
+
+			<fieldset class="card" id="sec-texto">
+				<legend>📄 Texto de la página</legend>
+				<p class="hint">
+					Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>.
+				</p>
+				<div class="editor">
+					<CodeMirror lineWrapping tabSize={4} bind:value={body} lang={markdown()} />
 				</div>
 			</fieldset>
 		{/if}
 
-		<fieldset class="card">
-			<legend>🏷️ Etiquetas</legend>
-			{#if isEvent}
-				<EventTagRules bind:state={tagRules} errors={tagErrors} idPrefix="edit" />
-			{/if}
-			<div class="field-label">
-				<label for="tags-input"
-					>{isEvent ? 'Otras etiquetas: tipo de evento, prácticas, temas…' : 'Etiquetas'}</label
-				>
-				<TagPicker
-					bind:tags={freeTags}
-					options={tagOptions}
-					reserved={reservedTags}
-					reservedHint="se elige con los botones de arriba (idioma, lugar, precio o KinkyVibe)."
-					id="tags-input"
-					placeholder={isEvent
-						? 'Buscá una etiqueta: taller, shibari, cine…'
-						: 'Buscá una etiqueta: BDSM, shibari, guía…'}
-					describedby="tags-help"
-				/>
-				<small id="tags-help"
-					>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí las
-					que ya existen: son las que se usan para filtrar.</small
-				>
+		{#if problems.length}
+			<div class="problems" role="alert">
+				<strong>Antes de guardar:</strong>
+				<ul>
+					{#each problems as p}<li>{p}</li>{/each}
+				</ul>
 			</div>
-		</fieldset>
-
-		{#if isEvent}
-			<TicketsEditor
-				bind:state={tickets}
-				{tags}
-				location={values.location}
-				sales={data.sales}
-				salesUnavailable={data.salesUnavailable}
-				errors={ticketsCheck.errors}
-				warnings={ticketsCheck.warnings}
-				idPrefix="edit"
-			/>
+		{/if}
+		{#if form?.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		{#if form?.save}
+			<p class="note" role="status">
+				✅ {form.save}
+				{new Date().toLocaleString('es-AR')}
+				{#if form.imageScope === 'todas'}
+					· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
+						{' '}({form.affected.length}
+						{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+				{:else if form.imageScope === 'esta'}
+					· La imagen nueva se guardó solo para este evento.
+				{/if}
+				<br /><PublishStatus pr={form.publish} />
+			</p>
 		{/if}
 
-		<fieldset class="card">
-			<legend>📄 Texto de la página</legend>
-			<p class="hint">
-				Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>.
-			</p>
-			<div class="editor">
-				<CodeMirror lineWrapping tabSize={4} bind:value={body} lang={markdown()} />
-			</div>
-		</fieldset>
-	{/if}
+		<FilePreview {content} />
 
-	{#if problems.length}
-		<div class="problems" role="alert">
-			<strong>Antes de guardar:</strong>
-			<ul>
-				{#each problems as p}<li>{p}</li>{/each}
-			</ul>
-		</div>
-	{/if}
-	{#if form?.error}
-		<p class="error" role="alert">{form.error}</p>
-	{/if}
-	{#if form?.save}
-		<p class="note" role="status">
-			✅ {form.save}
-			{new Date().toLocaleString('es-AR')}
-			{#if form.imageScope === 'todas'}
-				· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-					{' '}({form.affected.length}
-					{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-			{:else if form.imageScope === 'esta'}
-				· La imagen nueva se guardó solo para este evento.
-			{/if}
-			<br /><PublishStatus pr={form.publish} />
-		</p>
-	{/if}
-
-	<details>
-		<summary>Ver el archivo que se va a guardar</summary>
-		<pre class="markdown">{content}</pre>
-	</details>
-
-	<form method="POST" action="?/save" class="bar" id="edit-form" enctype="multipart/form-data">
-		<textarea hidden name="content" value={content}></textarea>
-		<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
-		<input type="hidden" name="sha" value={sha} />
-		<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
-		<input type="hidden" name="path" value={path} />
 		<small class="later"
 			>Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos
 			(normalmente menos de 15) en verse. Si pasa más tiempo, avisale a
 			<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.</small
 		>
-		<button
-			type="submit"
-			class="button"
-			id="save"
-			disabled={!content || problems.length > 0 || !changed}
-			title={!changed ? 'No hay cambios' : undefined}>Guardar</button
+		<form
+			method="POST"
+			action="?/save"
+			class="bar sticky"
+			id="edit-form"
+			enctype="multipart/form-data"
 		>
-	</form>
+			<textarea hidden name="content" value={content}></textarea>
+			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
+			<input type="hidden" name="sha" value={sha} />
+			<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
+			<input type="hidden" name="path" value={path} />
+			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
+				>{/if}
+			<button
+				type="submit"
+				class="button"
+				id="save"
+				disabled={!content || problems.length > 0 || !changed}
+				title={!changed ? 'No hay cambios' : undefined}>Guardar</button
+			>
+		</form>
+	</EventForm>
 </svelte:element>
 
 <style lang="scss">
 	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). */
-	.wide {
-		grid-column: 1 / -1;
-	}
 	.editor {
 		border-radius: 0.8em;
 		outline: 1px solid var(--1-light);
@@ -802,39 +572,6 @@
 			max-height: 40rem;
 			background: var(--surface, white);
 			color: var(--text, #333);
-		}
-	}
-	.image-row {
-		display: flex;
-		gap: 1em;
-		align-items: flex-start;
-		flex-wrap: wrap;
-	}
-	.thumb {
-		width: 8em;
-		height: 8em;
-		object-fit: cover;
-		border-radius: 1em;
-		&.empty {
-			display: grid;
-			place-items: center;
-			background: var(--surface-2, #f3eef6);
-			font-size: var(--step--1);
-		}
-	}
-	.image-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4em;
-		align-items: flex-start;
-		flex: 1 1 14em;
-		min-width: 0;
-		input[type='file'] {
-			max-width: 100%;
-			font-size: var(--step--1);
-		}
-		code {
-			overflow-wrap: anywhere;
 		}
 	}
 	.affected {
@@ -862,24 +599,11 @@
 		font-size: var(--step--1);
 	}
 	.later {
-		flex: 1 1 16em;
-	}
-	details {
+		display: block;
 		margin-top: 1em;
-		summary {
-			cursor: pointer;
-			color: var(--2-dark);
-		}
 	}
-	.markdown {
-		background: #1e1e1e;
-		color: #eee;
-		border-radius: 1em;
-		padding: 1em;
-		font-size: var(--step--2);
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		max-height: 30em;
-		overflow: auto;
+	.blocked {
+		flex: 1 1 12em;
+		color: var(--bad, #b00020);
 	}
 </style>
