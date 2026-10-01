@@ -10,7 +10,12 @@
  */
 import { fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
-import { getAccount, removePassword, setPassword } from '$lib/server/cuentas/accounts.js';
+import {
+	canHaveProfiles,
+	getAccount,
+	removePassword,
+	setPassword
+} from '$lib/server/cuentas/accounts.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
@@ -67,6 +72,8 @@ export async function load(event) {
 		email: account.email,
 		hasPassword: account.has_password,
 		createdAt: account.created_at,
+		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
+		canHaveProfiles: await canHaveProfiles(db, account.id),
 		ordersError,
 		orders: orders.map((o) => ({
 			id: o.id,

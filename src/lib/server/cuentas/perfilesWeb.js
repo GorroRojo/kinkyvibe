@@ -2,7 +2,8 @@
  * Pegamento de las páginas de perfiles (/mi-rincon/perfiles) con SvelteKit. Las reglas están en
  * perfiles.js; acá solo se lee el formulario y se exige sesión.
  */
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { canHaveProfiles } from './accounts.js';
 import { mailSender, requireCuentas } from './web.js';
 
 /**
@@ -31,7 +32,9 @@ export function inviteNotice(event, db) {
 }
 
 /**
- * La cuenta de la sesión, o redirect a /ingresar (y 404 con el interruptor apagado).
+ * La cuenta de la sesión, o redirect a /ingresar (y 404 con el interruptor apagado). Es la
+ * entrada de todas las páginas y actions de /mi-rincon/perfiles: si la cuenta no tiene el
+ * permiso "puede tener perfiles" (lo dan les admins), 404, como si las páginas no existieran.
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
  */
@@ -39,6 +42,7 @@ export async function requireMember(event) {
 	const db = await requireCuentas(event.platform);
 	const member = event.locals.member;
 	if (!member) redirect(303, `/ingresar?next=${encodeURIComponent(event.url.pathname)}`);
+	if (!(await canHaveProfiles(db, member.id))) error(404, 'Not found');
 	return { db, member };
 }
 

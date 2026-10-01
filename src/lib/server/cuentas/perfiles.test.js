@@ -72,8 +72,16 @@ beforeEach(async () => {
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 const opts = { now: NOW };
 
-/** @param {string} name */
-const account = (name) => upsertVerifiedAccount(t.db, `${name}@example.com`, opts);
+/**
+ * Una cuenta con el permiso "puede tener perfiles" (migración 0015; sin él no hay perfiles, ver
+ * el describe «permiso para tener perfiles»). Las pruebas de acá son de cuentas que lo tienen.
+ * @param {string} name
+ */
+const account = async (name) => {
+	const a = await upsertVerifiedAccount(t.db, `${name}@example.com`, opts);
+	await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
+	return a;
+};
 
 /**
  * Como si se hubiera escrito un código fresco por mail correcto (las acciones de dueñes y borrar

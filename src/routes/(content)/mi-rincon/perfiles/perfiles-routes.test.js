@@ -73,9 +73,18 @@ async function thrown(fn) {
 	}
 }
 
-/** @param {Awaited<ReturnType<typeof modules>>} m @param {string} name */
-async function member(m, name) {
+/**
+ * Una cuenta con sesión. Por defecto con el permiso "puede tener perfiles" (migración 0015);
+ * `{ profiles: false }` la deja como nace, sin permiso.
+ * @param {Awaited<ReturnType<typeof modules>>} m
+ * @param {string} name
+ * @param {{ profiles?: boolean }} [o]
+ */
+async function member(m, name, { profiles = true } = {}) {
 	const a = await m.accounts.upsertVerifiedAccount(t.db, `${name}@example.com`);
+	if (profiles) {
+		await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
+	}
 	return { id: a.id, email: a.email };
 }
 

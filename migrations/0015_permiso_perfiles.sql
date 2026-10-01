@@ -1,0 +1,11 @@
+-- Migration number: 0015 	 Permiso "puede tener perfiles" por cuenta.
+--
+-- Crear y gestionar perfiles (migración 0014) queda apagado por defecto: une admin elige a mano
+-- qué cuentas pueden, desde el panel (Cuentas → la ficha de la cuenta). Sin el permiso, la cuenta
+-- no ve nada de perfiles (ni la tarjeta en Mi rincón, ni /mi-rincon/perfiles, ni invitaciones) y
+-- el servidor rechaza toda acción de perfiles. Ver docs/cuentas.md («Permiso para tener perfiles»).
+--
+-- Va en una columna propia y no en `preferences`: lo que hay en `preferences` lo puede cambiar
+-- la persona desde Mi rincón; esto lo cambian solo les admins (y queda en admin_audit).
+-- Solo agrega: las cuentas que ya existen quedan con 0 (sin permiso).
+ALTER TABLE accounts ADD COLUMN can_have_profiles INTEGER NOT NULL DEFAULT 0 CHECK (can_have_profiles IN (0,1));
