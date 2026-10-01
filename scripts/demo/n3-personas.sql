@@ -17,8 +17,8 @@
 --    evento («¿Alguna restricción alimentaria?»), y una orden aprobada con sus respuestas, para
 --    ver la pestaña Órdenes y su CSV.
 --
--- Para verlo: Ajustes → Interruptores → prender «Personas en eventos…» (y «Cuentas del
--- público», que es el interruptor de los perfiles hoy).
+-- Para verlo: Ajustes → Interruptores → prender «Personas en eventos…» (y «Perfiles públicos»,
+-- que en la rama de la demo, con #137, es el interruptor de los perfiles).
 --
 -- Se puede correr más de una vez (ids fijos e `INSERT OR IGNORE` / `INSERT OR REPLACE` en lo
 -- que es solo de la demo). Requiere las migraciones hasta la 0018. Escribe `objects` con SQL
@@ -31,6 +31,12 @@ VALUES
 	('perfil', 'colectivo-de-prueba', 'Colectivo de Prueba', '{"kind":"grupo","bio":"Grupo inventado para la demo."}', 'public', 1790000000000, 'demo', 1790000000000, 'demo'),
 	('perfil', 'persona-de-prueba', 'Persona de Prueba', '{"kind":"persona","pronouns":"elle"}', 'public', 1790000000000, 'demo', 1790000000000, 'demo'),
 	('perfil', 'perfil-oculto-de-prueba', 'Perfil Oculto de Prueba', '{"kind":"persona"}', 'hidden', 1790000000000, 'demo', 1790000000000, 'demo');
+
+-- Con amigues como perfiles (#137, migración 0017) en la rama de la demo: los perfiles que carga
+-- une admin nacen aprobados para /amigues, y personas solo nombra a los aprobados.
+INSERT OR IGNORE INTO profile_approvals (profile_id, approved_at, approved_by)
+SELECT id, 1790000000000, 'demo' FROM objects
+WHERE type = 'perfil' AND slug IN ('colectivo-de-prueba', 'persona-de-prueba', 'perfil-oculto-de-prueba');
 
 INSERT OR IGNORE INTO persona_roles (name, created_at, created_by) VALUES ('Cuida la puerta', 1790000000000, 'demo');
 
