@@ -210,7 +210,7 @@
 						><ScanLine size={18} aria-hidden="true" /> Check-in</a
 					>
 				{/if}
-				<a class="kv-btn ghost" href="/admin/entradas/codigos"
+				<a class="kv-btn ghost" href="/admin/ventas/codigos"
 					><Tag size={18} aria-hidden="true" /> Nuevo código</a
 				>
 			</nav>
@@ -225,7 +225,7 @@
 							'entrada',
 							'entradas'
 						)}"
-						href="/admin/entradas"
+						href="/admin/ventas"
 					/>
 					<Stat
 						label="Neto del fondo"
@@ -532,7 +532,7 @@
 					</svelte:fragment>
 					{#if data.activity.length}
 						<ActivityFeed items={data.activity} now={data.now} compact />
-						<a class="kv-btn ghost sm more" href="/admin/actividad"
+						<a class="kv-btn ghost sm more" href="/admin/ajustes/actividad"
 							>Ver todo <ChevronRight size={16} aria-hidden="true" /></a
 						>
 					{:else}
@@ -693,7 +693,7 @@
 		}
 	}
 	@container inicio (max-width: 37.99rem) {
-		/* En el celu: la actividad, corta (el registro completo está en /admin/actividad). */
+		/* En el celu: la actividad, corta (el registro completo está en /admin/ajustes/actividad). */
 		.activity :global(.feed li:nth-child(n + 6)) {
 			display: none;
 		}

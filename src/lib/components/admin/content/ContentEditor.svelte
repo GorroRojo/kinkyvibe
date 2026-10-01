@@ -29,6 +29,7 @@
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
+	import { contentAdminHref, contentAdminLabel } from '$lib/admin/nav.js';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -63,6 +64,7 @@
 	export let form = null;
 
 	const { category, mode } = data;
+	const listHref = contentAdminHref(category);
 	const isNew = mode === 'nuevo';
 	const one = category === 'material' ? 'material' : 'perfil';
 	const tm = siteTags();
@@ -347,19 +349,15 @@
 </script>
 
 <div class="kv-admin content-editor">
-	<PageHeader
-		title={pageTitle}
-		back={{ href: `/admin/${category}`, label: category === 'material' ? 'Material' : 'Amigues' }}
-	>
+	<PageHeader title={pageTitle} back={{ href: listHref, label: contentAdminLabel(category) }}>
 		<svelte:fragment slot="actions">
 			{#if !isNew}
 				<a class="kv-btn ghost" href="/{category}/{data.slug}" target="_blank" rel="noreferrer"
 					><ExternalLink size={16} aria-hidden="true" /> Ver en el sitio</a
 				>
 				{#if category === 'material'}
-					<a
-						class="kv-btn ghost"
-						href="/admin/{category}/nuevo?desde={encodeURIComponent(data.slug)}">Duplicar</a
+					<a class="kv-btn ghost" href="{listHref}/nuevo?desde={encodeURIComponent(data.slug)}"
+						>Duplicar</a
 					>
 				{/if}
 			{/if}

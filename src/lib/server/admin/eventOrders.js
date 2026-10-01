@@ -1,6 +1,6 @@
 /**
  * Órdenes de un evento tal como las muestran las pestañas de la ficha del panel (Órdenes,
- * Transferencias, Ventas). Es lo que antes armaba /admin/entradas/<slug>, repartido.
+ * Transferencias, Ventas). Es lo que antes armaba la vieja página por evento de Entradas, repartido.
  */
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';

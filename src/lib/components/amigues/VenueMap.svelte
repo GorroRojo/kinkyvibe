@@ -2,8 +2,9 @@
 	/**
 	 * Mapa chico de un lugar con baldosas de OpenStreetMap (imágenes comunes, sin librerías ni
 	 * scripts de afuera) y el link para abrirlo en openstreetmap.org. Solo se muestra cuando la
-	 * dirección del lugar es pública.
-	 * Props: `lat`, `lng`, `label` (nombre del lugar, para el texto alternativo).
+	 * dirección del lugar se ve ("Nombre + dirección" o "Sólo dirección").
+	 * Props: `lat`, `lng`, `label` (nombre del lugar, o su dirección si el nombre no se muestra,
+	 * para el texto alternativo).
 	 */
 	import { osmLink, osmTiles } from '$lib/utils/venues.js';
 

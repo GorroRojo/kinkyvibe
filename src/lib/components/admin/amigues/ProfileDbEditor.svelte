@@ -1,7 +1,7 @@
 <script>
 	/**
-	 * Página del panel para editar un perfil de la base (Amigues con el interruptor
-	 * `perfiles_publicos`): encabezado con su estado (tipo a confirmar, oculto, sin aprobar),
+	 * Página del panel para editar un perfil de la base (Comunidad › Perfiles; las fichas importadas,
+	 * con el interruptor `perfiles_publicos`): encabezado con su estado (tipo a confirmar, oculto, sin aprobar),
 	 * el formulario y la clasificación de la importación.
 	 * Props: `data` (de `editorPageData` en src/lib/server/admin/amiguesRoutes.js) y `form`.
 	 */
@@ -31,8 +31,8 @@
 	title={p.title}
 	subtitle="/amigues/{p.urlSlug}"
 	back={{
-		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/amigues',
-		label: p.kind === 'lugar' ? 'Lugares' : 'Amigues'
+		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/comunidad/perfiles',
+		label: p.kind === 'lugar' ? 'Lugares' : 'Perfiles'
 	}}
 >
 	<svelte:fragment slot="meta">

@@ -1,5 +1,5 @@
 /**
- * Editor de plantillas de los mails (/admin/ajustes/mails/plantillas): a quién se le puede
+ * Editor de plantillas de los mails (/admin/mensajes/plantillas): a quién se le puede
  * mandar una prueba y cómo se arma la vista previa.
  */
 import { env } from '$env/dynamic/private';

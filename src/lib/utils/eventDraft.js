@@ -498,9 +498,9 @@ export function deriveSlug(sourceSlug, startDate) {
 
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
- * event with that name would be unreachable there. `nuevo`, `agenda` and `importar` exist today;
- * `series`, `lugares` and `imagenes` are kept for upcoming panel sections. A test checks that every
- * static page under /admin/eventos is listed here.
+ * event with that name would be unreachable there. `nuevo`, `agenda`, `importar`, `series`,
+ * `lugares` and `roles` exist today; `imagenes` is kept for an upcoming panel section. A test
+ * checks that every static page under /admin/eventos is listed here.
  */
 export const RESERVED_EVENT_SLUGS = Object.freeze([
 	'nuevo',
@@ -508,7 +508,8 @@ export const RESERVED_EVENT_SLUGS = Object.freeze([
 	'importar',
 	'series',
 	'lugares',
-	'imagenes'
+	'imagenes',
+	'roles'
 ]);
 
 /**

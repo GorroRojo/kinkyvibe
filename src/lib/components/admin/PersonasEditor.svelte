@@ -109,8 +109,8 @@
 	>
 	{#if !profiles.length}
 		<p class="hint">
-			No hay perfiles públicos todavía (Cuentas → Perfiles: tienen que estar aprobados para Amigues
-			y visibles para todes; los lugares van en «Sucede en»).
+			No hay perfiles públicos todavía (Perfiles: tienen que estar aprobados para Amigues y visibles
+			para todes; los lugares van en «Sucede en»).
 		</p>
 	{/if}
 	{#each errors as e (e)}<p class="error" role="alert">{e}</p>{/each}

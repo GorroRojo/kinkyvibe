@@ -608,7 +608,7 @@ describe('panel: transferencia vencida con el tramo lleno', () => {
 
 	it('logOverride sin sesión de admin anota igual, pero `requireAdmin` corta antes (solo admins)', async () => {
 		const { actions } =
-			await import('../../../routes/(authed)/admin/entradas/transferencias/+page.server.js');
+			await import('../../../routes/(authed)/admin/ventas/transferencias/+page.server.js');
 		const order = await preload('preventa', 'general', 'p1', 1, { approved: false });
 		const body = new FormData();
 		body.set('order', order.id);
@@ -618,7 +618,7 @@ describe('panel: transferencia vencida con el tramo lleno', () => {
 			actions.confirm(
 				/** @type {any} */ ({
 					locals,
-					url: new URL('http://localhost/admin/entradas/transferencias'),
+					url: new URL('http://localhost/admin/ventas/transferencias'),
 					platform: t.platform,
 					request: new Request('http://localhost/x', { method: 'POST', body }),
 					fetch: noFetch

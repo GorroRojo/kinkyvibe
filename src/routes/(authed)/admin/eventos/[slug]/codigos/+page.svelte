@@ -111,7 +111,7 @@
 				También valen acá los códigos para todos los eventos:
 				{data.global
 					.map((c) => `${c.code} (${discount(c)}, ${codeState(c).toLowerCase()})`)
-					.join(', ')}. Se manejan en <a href="/admin/entradas/codigos">Entradas → Códigos</a>.
+					.join(', ')}. Se manejan en <a href="/admin/ventas/codigos">Ventas › Códigos</a>.
 			</p>
 		{/if}
 	</Card>

@@ -62,8 +62,8 @@ describe('startDemoSession', () => {
 	});
 	it('on previews sets an httpOnly cookie and redirects same-origin only', () => {
 		const { jar, cookies } = fakeCookies();
-		expect(startDemoSession({ preview: true, cookies, url, redirectTo: '/admin/entradas' })).toBe(
-			'/admin/entradas'
+		expect(startDemoSession({ preview: true, cookies, url, redirectTo: '/admin/ventas' })).toBe(
+			'/admin/ventas'
 		);
 		expect(jar.get(DEMO_COOKIE)?.value).toBe('1');
 		expect(jar.get(DEMO_COOKIE)?.opts.httpOnly).toBe(true);
