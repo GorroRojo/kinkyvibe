@@ -132,11 +132,24 @@ describe('NAV', () => {
 			'/admin/ajustes/interruptores',
 			'/admin/actividad',
 			'/admin/cuentas',
-			'/admin/cuentas/perfiles',
+			// La lista de Cuentas › Perfiles se unió a /admin/amigues (Perfiles, decisión de gorrite
+			// del 1/10): su página se borró, ver REMOVED en adminPaths.test.js.
 			'/admin/eventos/lugares'
 		]) {
 			expect(hrefs).toContain(h);
 		}
+	});
+	it('una sola sección «Perfiles» en Comunidad (decisión de gorrite): /admin/amigues', () => {
+		const perfiles = NAV.filter((i) => /perfil|amigue/i.test(`${i.id} ${i.label}`));
+		expect(perfiles).toHaveLength(1);
+		expect(perfiles[0]).toMatchObject({
+			id: 'amigues',
+			href: '/admin/amigues',
+			label: 'Perfiles',
+			area: 'comunidad',
+			counter: 'profilesToReview'
+		});
+		expect(NAV.filter((i) => i.href.startsWith('/admin/cuentas/')).map((i) => i.id)).toEqual([]);
 	});
 	it('la barra del celu usa ítems que existen', () => {
 		for (const id of MOBILE_TABS) if (id !== 'mas') expect(navItem(id)).toBeTruthy();
@@ -170,7 +183,7 @@ describe('NAV', () => {
 			'entradas-codigos',
 			'tienda'
 		]);
-		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas', 'cuentas-perfiles']);
+		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
 		expect(ids('mensajes')).toEqual(['ajustes-plantillas', 'lo-que-sigo', 'bandeja']);
 		expect(ids('etiquetas')).toEqual(['etiquetas']);
 		expect(ids('contenido')).toEqual(['material', 'no-listadas', 'colecciones', 'videos']);
@@ -206,8 +219,8 @@ describe('NAV', () => {
 			hint: 'Ajustes'
 		});
 	});
-	it('Personas, Amigues y Cuentas en Comunidad; Plantillas en Mensajes; Actividad en Ajustes', () => {
-		for (const id of ['personas', 'amigues', 'cuentas', 'cuentas-perfiles'])
+	it('Personas, Perfiles y Cuentas en Comunidad; Plantillas en Mensajes; Actividad en Ajustes', () => {
+		for (const id of ['personas', 'amigues', 'cuentas'])
 			expect(navItem(id)?.area, id).toBe('comunidad');
 		expect(navItem('ajustes-plantillas')).toMatchObject({
 			area: 'mensajes',
@@ -309,8 +322,10 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
 			'cuentas'
 		);
-		expect(activeNavItem('/admin/cuentas/perfiles')?.id).toBe('cuentas-perfiles');
-		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('cuentas-perfiles');
+		// La ficha de un perfil es parte de Perfiles (/admin/amigues), no de Cuentas.
+		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/amigues')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/amigues/Gorro_Rojo')?.id).toBe('amigues');
 		expect(activeNavItem('/admin/ajustes/mails')?.id).toBe('ajustes-mails');
 		expect(activeNavItem('/admin/ajustes/mails/plantillas/compra')?.id).toBe('ajustes-plantillas');
 		expect(activeNavItem('/admin/ajustes/personas')?.id).toBe('ajustes-personas');

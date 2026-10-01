@@ -12,7 +12,21 @@ import { createClaim } from '$lib/server/amigues/claims.js';
 import { isApproved } from '$lib/server/amigues/profiles.js';
 import { approveProfile } from '$lib/server/amigues/approvals.js';
 import { getManagedProfile } from '$lib/server/cuentas/perfiles.js';
-import { makeAccount, makeProfile, readAmigueFiles } from '$lib/server/amigues/testing.js';
+import {
+	addManager,
+	makeAccount,
+	makeProfile,
+	readAmigueFiles
+} from '$lib/server/amigues/testing.js';
+import { rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
+import { deleteProfileAsAdmin } from '$lib/server/admin/cuentas.js';
+import { toCsv } from '$lib/admin/csv.js';
+import {
+	PROFILE_CSV_COLUMNS,
+	PROFILE_STATES,
+	profileRowHref,
+	profileState
+} from '$lib/admin/perfiles.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -63,6 +77,7 @@ async function modules(flag = '1') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: flag } }));
 	return {
+		list: await import('./+page.server.js'),
 		edit: await import('./[slug]/+page.server.js'),
 		importar: await import('./importar/+page.server.js'),
 		csv: await import('./clasificacion.csv/+server.js'),
@@ -520,7 +535,7 @@ describe('Eventos → Lugares: rechazar es solo de admins', () => {
 	});
 });
 
-describe('aprobar y pedidos "Es mi perfil" (Cuentas → Perfiles)', () => {
+describe('aprobar y pedidos "Es mi perfil" (ficha de un perfil)', () => {
 	it('aprobar y sacar de Amigues quedan en Actividad', async () => {
 		const m = await modules();
 		const p = await makeProfile(t.db, { title: 'Perfil De Cuenta', approved: false });
@@ -554,5 +569,158 @@ describe('aprobar y pedidos "Es mi perfil" (Cuentas → Perfiles)', () => {
 		const rows = await audit('profile.claim_approve');
 		expect(rows).toHaveLength(1);
 		expect(JSON.stringify(rows)).not.toContain('reclama@example.com');
+	});
+});
+
+describe('Comunidad › Perfiles (/admin/amigues): una sola lista (decisión de gorrite)', () => {
+	/** Un perfil de cada origen y de cada estado, más las 31 fichas importadas. */
+	async function seed() {
+		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
+		const a = await makeAccount(t.db, 'cuenta-inventada');
+		const actor = `cuenta:${a.id}`;
+		const panel = await makeProfile(t.db, { title: 'Lugar Del Panel', kind: 'lugar' });
+		const pending = await makeProfile(t.db, { title: 'Persona De Cuenta', actor, approved: false });
+		const rejected = await makeProfile(t.db, {
+			title: 'Lugar Rechazado',
+			kind: 'lugar',
+			actor,
+			approved: false
+		});
+		await rejectPendingVenue(t.db, rejected.id, { by: admin.login, reason: '' });
+		await addManager(t.db, pending.id, a.id);
+		await addManager(t.db, rejected.id, a.id);
+		const hidden = await makeProfile(t.db, { title: 'Perfil Oculto', visibility: 'hidden' });
+		const gone = await makeProfile(t.db, { title: 'Perfil Borrado' });
+		await deleteProfileAsAdmin(t.db, gone.id, gone.version, admin);
+		return { panel, pending, rejected, hidden, gone };
+	}
+
+	/** @param {any} m @param {string} [qs] */
+	const listed = async (m, qs = '') =>
+		/** @type {any} */ (
+			await m.list.load(fakeEvent({ path: `/admin/amigues${qs ? `?${qs}` : ''}` }))
+		);
+
+	it('sin sesión, al login; sin ser admin, 403 (load y actions)', async () => {
+		const m = await modules();
+		for (const user of [null, { id: 1, login: 'no-es-admin' }]) {
+			const status = user ? 403 : 303;
+			const token = user ? 'token-de-prueba' : null;
+			expect((await thrown(() => m.list.load(fakeEvent({ user, token }))))?.status).toBe(status);
+			for (const action of Object.values(m.list.actions)) {
+				const e = await thrown(() =>
+					/** @type {any} */ (action)(fakeEvent({ form: { claim: '1' }, user, token }))
+				);
+				expect(e?.status).toBe(status);
+			}
+		}
+	});
+
+	for (const flag of ['1', '0']) {
+		it(`une admin ve todos (ocultos y borrados también), con origen y estado (interruptor ${flag})`, async () => {
+			const s = await seed();
+			const m = await modules(flag);
+			const all = await listed(m);
+			expect(all).toMatchObject({ editor: 'db', flagOn: flag === '1', dbAvailable: true });
+			expect(all.notImported).toBe(0);
+			expect(all.profiles).toHaveLength(36);
+			expect(all.counts).toMatchObject({ total: 36, toApprove: 1, hidden: 1, deleted: 1 });
+			const byTitle = Object.fromEntries(all.profiles.map((/** @type {any} */ p) => [p.title, p]));
+			/** @param {string} title */
+			const summary = (title) => {
+				const p = byTitle[title];
+				return { origin: p.origin, state: profileState(p), href: profileRowHref(p) };
+			};
+			const yuyo = all.profiles.find((/** @type {any} */ p) => p.legacySlug === 'Yuyo');
+			expect(summary(yuyo.title)).toEqual({
+				origin: 'ficha',
+				state: 'aprobado',
+				href: '/admin/amigues/Yuyo'
+			});
+			expect(summary('Lugar Del Panel')).toMatchObject({ origin: 'panel', state: 'aprobado' });
+			expect(summary('Persona De Cuenta')).toMatchObject({
+				origin: 'cuenta',
+				state: 'para-aprobar'
+			});
+			expect(summary('Lugar Rechazado')).toMatchObject({ origin: 'cuenta', state: 'rechazado' });
+			expect(summary('Perfil Oculto')).toMatchObject({ origin: 'panel', state: 'oculto' });
+			expect(summary('Perfil Borrado')).toEqual({
+				origin: 'panel',
+				state: 'borrado',
+				href: `/admin/cuentas/perfiles/${s.gone.id}`
+			});
+		});
+	}
+
+	it('filtros: origen, estado (coinciden con profileState), tipo y búsqueda, combinados', async () => {
+		const s = await seed();
+		const m = await modules();
+		/** @param {string} qs */
+		const ids = async (qs) => (await listed(m, qs)).profiles.map((/** @type {any} */ p) => p.id);
+		expect(await ids('origen=ficha')).toHaveLength(31);
+		expect((await ids('origen=cuenta')).sort()).toEqual([s.pending.id, s.rejected.id].sort());
+		expect((await ids('origen=panel')).sort()).toEqual([s.panel.id, s.hidden.id, s.gone.id].sort());
+		expect(await ids('estado=rechazado')).toEqual([s.rejected.id]);
+		expect(await ids('estado=para-aprobar')).toEqual([s.pending.id]);
+		expect(await ids('estado=oculto')).toEqual([s.hidden.id]);
+		expect(await ids('estado=borrado')).toEqual([s.gone.id]);
+		// rejectPendingVenue() solo no escribe Actividad (la action de Eventos › Lugares sí), así que
+		// el rechazado también sigue «sin revisar».
+		expect((await ids('estado=sin-revisar')).sort()).toEqual([s.pending.id, s.rejected.id].sort());
+		expect(await ids('tipo=lugar&origen=cuenta')).toEqual([s.rejected.id]);
+		expect(await ids('q=rechaz&estado=rechazado&origen=cuenta&tipo=lugar')).toEqual([
+			s.rejected.id
+		]);
+		expect(await ids('q=rechaz&estado=aprobado')).toEqual([]);
+		// Los cinco estados excluyentes reparten todos los perfiles, y cada fila es de su estado.
+		let total = 0;
+		for (const state of ['aprobado', 'para-aprobar', 'rechazado', 'oculto', 'borrado']) {
+			const rows = (await listed(m, `estado=${state}`)).profiles;
+			for (const p of rows) expect(profileState(p), p.title).toBe(state);
+			total += rows.length;
+		}
+		expect(total).toBe(36);
+		expect(Object.keys(PROFILE_STATES)).toContain('sin-revisar');
+	});
+
+	it('el CSV es lo que se ve: con los filtros puestos, con origen y estado', async () => {
+		await seed();
+		const m = await modules();
+		const { profiles } = await listed(m, 'origen=cuenta');
+		const csv = toCsv(profiles, PROFILE_CSV_COLUMNS, { bom: false });
+		const lines = csv.trim().split('\r\n');
+		expect(lines).toHaveLength(3);
+		expect(lines[0]).toContain('origen,estado');
+		expect(csv).toContain('Lugar Rechazado');
+		expect(csv).toContain('Creado por una cuenta,Rechazado');
+		expect(csv).toContain('Creado por una cuenta,Para aprobar');
+		expect(csv).toContain('cuenta-inventada@example.com');
+		expect(csv).not.toContain('Lugar Del Panel');
+	});
+
+	it('pedidos «Es mi perfil»: su pestaña los lista y se aprueban desde la lista', async () => {
+		const m = await modules();
+		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
+		const a = await makeAccount(t.db, 'reclama-desde-la-lista');
+		await createClaim(t.db, { accountId: a.id, profileId: p.id, connection: 'c' });
+		const page = await listed(m, 'vista=pedidos');
+		expect(page.filters.view).toBe('pedidos');
+		expect(page.claims).toHaveLength(1);
+		const r = /** @type {any} */ (
+			await m.list.actions.pedido(
+				fakeEvent({ form: { claim: String(page.claims[0].id), decision: 'aprobar' } })
+			)
+		);
+		expect(r.claim.ok).toBe(true);
+		expect((await getManagedProfile(t.db, a.id, p.slug))?.role).toBe('owner');
+	});
+
+	it('«Fichas .md» solo con el interruptor apagado: la lista de .md de siempre', async () => {
+		const off = await modules('0');
+		expect((await listed(off, 'vista=fichas')).editor).toBe('md');
+		const on = await modules('1');
+		const page = await listed(on, 'vista=fichas');
+		expect(page.editor).toBe('db');
+		expect(page.filters.view).toBe('');
 	});
 });

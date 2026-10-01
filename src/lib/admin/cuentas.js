@@ -1,12 +1,6 @@
 /**
- * Textos y pestañas compartidos de la sección Cuentas del panel (/admin/cuentas).
+ * Textos compartidos de Cuentas (/admin/cuentas) y de Comunidad › Perfiles (/admin/amigues).
  */
-
-/** Pestañas de la sección: las cuentas y todos los perfiles. */
-export const CUENTAS_TABS = Object.freeze([
-	{ href: '/admin/cuentas', label: 'Cuentas' },
-	{ href: '/admin/cuentas/perfiles', label: 'Perfiles' }
-]);
 
 /** @type {Record<string, string>} */
 export const VISIBILITY_LABELS = {

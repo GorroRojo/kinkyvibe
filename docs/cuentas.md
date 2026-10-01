@@ -244,11 +244,17 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
   pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/cuentas/[id]`)
   muestra sus perfiles y el botón del permiso.
-- **Perfiles** (`/admin/cuentas/perfiles`): todos los perfiles, también ocultos y borrados (persona
-  o proyecto, nombre, dirección, visibilidad, creado, quiénes lo gestionan), con búsqueda y filtros
-  (para revisar, ocultos, borrados). En la ficha (`/admin/cuentas/perfiles/[id]`): marcar como
-  revisado, **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()`
-  con la versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada).
+- **Perfiles** (`/admin/amigues`, Comunidad › Perfiles; decisión de gorrite del 1/10: es la
+  única lista de perfiles del panel, antes estaban "Amigues" y "Cuentas → Perfiles"): todos los
+  perfiles, también ocultos y borrados (nombre, dirección, tipo, origen, visibilidad, creado,
+  quiénes lo gestionan), con búsqueda, filtros por tipo (persona, proyecto, lugar), origen
+  (importado de ficha, creado por una cuenta, creado en el panel) y estado (aprobado, para aprobar,
+  rechazado, oculto, borrado, sin revisar), CSV de lo que se ve y las pestañas «Para aprobar» y
+  «Pedidos "Es mi perfil"». Cada fila abre el editor del perfil; el link «ficha» (y los borrados)
+  van a la ficha (`/admin/cuentas/perfiles/[id]`): marcar como revisado, aprobar para /amigues,
+  **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()` con la
+  versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada). Los filtros y
+  el origen/estado de cada perfil son puros, en `src/lib/admin/perfiles.js`.
 - **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/proyecto)" aparecen en la
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`

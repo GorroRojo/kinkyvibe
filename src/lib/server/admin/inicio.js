@@ -20,7 +20,12 @@ import {
 } from '$lib/server/tickets/reminders.js';
 import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
-import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
+import {
+	accountHref,
+	profileHref,
+	PROFILE_CLAIMS_HREF,
+	PROFILES_TO_REVIEW_HREF
+} from '$lib/admin/links.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotals } from '$lib/server/propinas/index.js';
 
@@ -725,7 +730,7 @@ export function upcomingEvents({
  * "Para revisar": un ítem por cada perfil creado por una cuenta que ninguna admin revisó todavía
  * (`profilesToReview` en cuentas.js). Queda hasta que une admin lo marca como revisado, lo oculta
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
- * Cuentas → Perfiles filtrado.
+ * Perfiles filtrado.
  *
  * @param {{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
@@ -995,7 +1000,7 @@ export function groupReviewItems(items, { links, min = 2 }) {
 			title: plural(list.length, 'pedido «Es mi perfil»', 'pedidos «Es mi perfil»'),
 			text: 'Cuentas que piden hacerse cargo de un perfil que ya existe',
 			action: 'Ver',
-			href: '/admin/cuentas/perfiles',
+			href: PROFILE_CLAIMS_HREF,
 			items: list
 		})
 	};

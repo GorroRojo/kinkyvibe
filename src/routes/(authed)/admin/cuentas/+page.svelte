@@ -7,12 +7,11 @@
 	import { CircleUser } from '@lucide/svelte';
 	import { fmtDate } from '$lib/admin/format.js';
 	import { accountHref } from '$lib/admin/links.js';
-	import { CUENTAS_TABS } from '$lib/admin/cuentas.js';
+	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
@@ -38,11 +37,10 @@
 	subtitle="Las cuentas del público (Ingresar / Mi rincón). Solo lo ven les admins."
 >
 	<svelte:fragment slot="actions">
+		<a class="kv-btn ghost" href={PROFILES_HREF}>Perfiles</a>
 		<CsvButton rows={data.accounts} {columns} filename={csvFilename('cuentas')} />
 	</svelte:fragment>
 </PageHeader>
-
-<Tabs tabs={[...CUENTAS_TABS]} />
 
 {#if !data.dbAvailable}
 	<p class="kv-flash bad">No hay base de datos disponible.</p>

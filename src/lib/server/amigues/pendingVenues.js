@@ -5,7 +5,7 @@
  * - Una cuenta crea un lugar desde Mi rincón → Perfiles (como cualquier perfil suyo: nace sin
  *   aprobar, ver approvals.js). Hasta que une admin lo aprueba no aparece en el sitio: ni en
  *   /amigues, ni en su página para quien no lo gestiona, ni en los eventos.
- * - Los que crea une admin (Panel → Eventos → Lugares o Contenido → Amigues) y los importados
+ * - Los que crea une admin (Panel → Eventos → Lugares o Perfiles) y los importados
  *   nacen aprobados: nunca están en esta lista.
  * - Aprobar es {@link approveProfile}. Rechazar NO lo borra (decisión de gorrite): deja una fila
  *   en `profile_rejections` (migración 0025) con quién, cuándo y un motivo opcional. El lugar

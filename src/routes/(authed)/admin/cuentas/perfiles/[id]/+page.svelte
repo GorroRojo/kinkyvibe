@@ -8,6 +8,7 @@
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { accountHref } from '$lib/admin/links.js';
+	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import { VISIBILITY_LABELS, actorLabel } from '$lib/admin/cuentas.js';
 	import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -42,7 +43,7 @@
 <PageHeader
 	title={p.title}
 	subtitle="/amigues/{data.urlSlug}"
-	back={{ href: '/admin/cuentas/perfiles', label: 'Perfiles' }}
+	back={{ href: PROFILES_HREF, label: 'Perfiles' }}
 >
 	<svelte:fragment slot="meta">
 		<Badge>{KIND_LABELS[p.kind] ?? p.kind}</Badge>

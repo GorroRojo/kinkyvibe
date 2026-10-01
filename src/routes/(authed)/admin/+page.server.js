@@ -124,7 +124,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
 					return [];
 				}),
-		// Perfiles creados por cuentas que ninguna admin revisó todavía (Cuentas → Perfiles).
+		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
 		profilesToReview(db),
 		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
 		db ? listClaims(db).catch(() => []) : Promise.resolve([])

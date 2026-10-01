@@ -30,7 +30,7 @@
 <PageHeader
 	title="Importar y clasificar"
 	subtitle="Las fichas .md de amigues pasan a perfiles en la base, con la misma dirección."
-	back={{ href: '/admin/amigues', label: 'Amigues' }}
+	back={{ href: '/admin/amigues', label: 'Perfiles' }}
 />
 
 <div class="kv-stack">
