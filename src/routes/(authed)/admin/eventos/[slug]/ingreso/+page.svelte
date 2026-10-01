@@ -806,14 +806,22 @@
 			<button type="button" class="tile" on:click={openSearch}>
 				<Search size={30} /> Buscar persona
 			</button>
-			<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
-				<Store size={26} /> Vender en puerta
-			</button>
-			{#if !data.doorSales}
-				<p class="no-door muted small">
-					Este evento es solo anticipadas: si vendés igual, te vamos a pedir que confirmes (se
-					cambia en el editor del evento, en Entradas).
-				</p>
+			{#if data.doorSales}
+				<button type="button" class="tile wide" on:click={() => (saleOpen = true)}>
+					<Store size={26} /> Vender en puerta
+				</button>
+			{:else}
+				<!-- Solo anticipadas: no se ofrece vender. Une admin puede pasar ese límite en un paso
+				     aparte (y el servidor vuelve a pedir que lo confirme). -->
+				<div class="no-door wide" role="note">
+					<p>
+						<strong>Solo anticipadas:</strong> este evento no tiene entradas en la puerta (se cambia en
+						el editor del evento, en Entradas).
+					</p>
+					<button type="button" class="link-btn" on:click={() => (saleOpen = true)}>
+						Vender igual (pasa un límite)
+					</button>
+				</div>
 			{/if}
 		</div>
 
@@ -1360,8 +1368,25 @@
 	}
 	.no-door {
 		grid-column: 1 / -1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 		margin: 0;
+		padding: 0.8rem 0.9rem;
+		border-radius: 1.2rem;
+		border: 2px dashed var(--line);
+		color: var(--muted);
 		text-align: center;
+	}
+	.no-door p {
+		margin: 0;
+	}
+	.no-door .link-btn {
+		background: transparent;
+		font: inherit;
+		font-weight: 700;
+		padding: 0.5rem 0.8rem;
+		cursor: pointer;
 	}
 	.warn-note {
 		display: flex;
