@@ -8,19 +8,36 @@
 import * as ics from 'ics';
 import { eventEnd } from './dates.js';
 import { escapeHtml } from './escape.js';
+import { eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
 
 /** Origen de los links de los calendarios (los clientes de calendario no conocen el sitio). */
 export const SITE_ORIGIN = 'https://kinkyvibe.ar';
 
 /**
- * The HTML description of a calendar event.
+ * The HTML description of a calendar event (with the map link of a one-off place, if any).
  * @param {string} postPath absolute URL of the event page
  * @param {unknown} summary
+ * @param {string} [mapUrl] `eventPlace(...).mapUrl`
  */
-export function eventHtml(postPath, summary) {
+export function eventHtml(postPath, summary, mapUrl = '') {
 	const link = escapeHtml(postPath);
-	return `<!DOCTYPE html><html><body><p><a href="${link}">${link}</a></p><p>${escapeHtml(summary)}</p></body></html>`;
+	const map = mapUrl ? `<p><a href="${escapeHtml(mapUrl)}">${escapeHtml(MAP_LABEL)}</a></p>` : '';
+	return `<!DOCTYPE html><html><body><p><a href="${link}">${link}</a></p><p>${escapeHtml(summary)}</p>${map}</body></html>`;
+}
+
+/** Texto del link al mapa (página y .ics). */
+export const MAP_LABEL = 'Ver en el mapa';
+
+/**
+ * La descripción en texto de un evento: el link, el resumen y, si es un lugar de una sola vez con
+ * link al mapa (sin lugar vinculado, que manda), «Ver en el mapa: <link>».
+ * @param {string} postPath
+ * @param {unknown} summary
+ * @param {string} [mapUrl]
+ */
+export function eventDescription(postPath, summary, mapUrl = '') {
+	return postPath + ' \n' + summary + (mapUrl ? `\n${MAP_LABEL}: ${mapUrl}` : '');
 }
 
 /**
@@ -41,7 +58,8 @@ function stringToDateArray(s) {
  * Si el evento tiene lugar (#137, interruptor `perfiles_publicos`), manda la privacidad del lugar,
  * igual que en la página del evento: `venue` es lo que la página le muestra a cualquiera
  * (`publicVenueForEvent` con ANON, ver `feedVenues` en $lib/server/amigues/venues.js), y el
- * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay.
+ * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay;
+ * "Sólo dirección" → la dirección, el barrio y la ciudad, sin el nombre.
  * Sin lugar, la dirección en texto libre del .md, que es pública en la página del evento.
  *
  * @param {{ location?: unknown }} meta
@@ -53,6 +71,8 @@ export function feedLocation(meta, venue) {
 		if (venue.level === 'hidden') return undefined;
 		if (venue.level === 'area')
 			return [venue.area, venue.city].filter(Boolean).join(', ') || undefined;
+		if (venue.level === 'address')
+			return [venue.address, venue.area, venue.city].filter(Boolean).join(', ') || undefined;
 		return venueLine(venue) || undefined;
 	}
 	const loc = typeof meta.location === 'string' ? meta.location.trim() : '';
@@ -100,6 +120,9 @@ export function buildIcsFeed(posts, opts = {}) {
 			? 'KinkyVibe'
 			: (post.meta.authors?.[0] ?? 'KinkyVibe');
 		const postPath = origin + post.path;
+		const venue = opts.venues?.get(String(post.meta.postID));
+		// El link al mapa del «Dónde» del .md, solo sin lugar vinculado (ver eventPlace.js).
+		const { mapUrl } = eventPlace(post.meta, venue);
 		/** @type {ics.EventAttributes} */
 		const event = {
 			// stable UID so subscribed calendars update events instead of re-creating them
@@ -108,9 +131,9 @@ export function buildIcsFeed(posts, opts = {}) {
 			end: stringToDateArray(eventEnd(post.meta.start, post.meta.end)),
 			title: post.meta.title,
 			url: postPath,
-			description: postPath + ' \n' + post.meta.summary,
-			htmlContent: eventHtml(postPath, post.meta.summary),
-			location: feedLocation(post.meta, opts.venues?.get(String(post.meta.postID))) ?? postPath,
+			description: eventDescription(postPath, post.meta.summary, mapUrl),
+			htmlContent: eventHtml(postPath, post.meta.summary, mapUrl),
+			location: feedLocation(post.meta, venue) ?? postPath,
 			calName,
 			organizer: {
 				name: organizer,

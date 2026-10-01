@@ -1,5 +1,6 @@
 import { currentRelated, fetchMarkdownPosts, fetchPost } from '$lib/utils';
 import tagsFactory from '$lib/utils/tags';
+import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
 
 const tagManager = tagsFactory();
 
@@ -19,8 +20,9 @@ export async function load({ params }) {
 		term = wiki ?? '';
 		children = tagManager.get(wiki ?? '')?.getAllChildren() ?? [];
 	} catch (e) {
-		// no wiki entry: the page falls back to the tag of the same name (see +page.js)
-		term = tagManager.get(params.term)?.id ?? '';
+		// no wiki entry: the page falls back to the tag of the same name (see +page.js), resolved
+		// from the URL form ("Rancheadita-Kinky", aliases) like every other tag route.
+		term = tagIdFromSlug(tagManager, params.term) ?? params.term;
 	}
 	const posts = await fetchMarkdownPosts();
 	return {

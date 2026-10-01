@@ -171,7 +171,8 @@ export async function feedVenues(db, slugs) {
 
 /**
  * Los eventos que la página de un lugar puede listar: los que muestran el link al lugar (su nivel,
- * el del evento o el del lugar, es "pública" o "solo el nombre"). Los demás no aparecen nunca.
+ * el del evento o el del lugar, es "Nombre + dirección" o "Sólo Nombre"). Los demás no aparecen
+ * nunca; tampoco los de "Sólo dirección": listarlos juntaría el nombre con la dirección.
  *
  * @param {D1Database} db
  * @param {StoredObject} venue
@@ -188,14 +189,17 @@ export async function listedVenueEvents(db, venue) {
 }
 
 /**
- * La ubicación que muestra la página de un lugar, según su privacidad por defecto.
+ * La ubicación que muestra la página de un lugar, según su privacidad por defecto. La página
+ * muestra siempre el nombre del lugar, así que en "Sólo dirección" no puede mostrar también la
+ * dirección (juntaría las dos cosas): ahí se ve como "Sólo Nombre".
  *
  * @param {StoredObject} venue
  * @param {string} href
  * @returns {VenueView}
  */
 export function venuePageLocation(venue, href) {
-	return venueView(venue, effectivePrivacy(null, venue.data.venue_privacy), href);
+	const level = effectivePrivacy(null, venue.data.venue_privacy);
+	return venueView(venue, level === 'address' ? 'name' : level, href);
 }
 
 // ---------------------------------------------------------------------------------------------

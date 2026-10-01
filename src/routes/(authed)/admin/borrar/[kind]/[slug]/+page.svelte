@@ -59,14 +59,18 @@
 		<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
 		{#if problem}<p class="kv-flash bad" role="alert">{problem}</p>{/if}
 		<p class="kv-note">
-			Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/actividad">Actividad</a>.
+			Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"
+				>Actividad</a
+			>.
 		</p>
 		<p><a class="kv-btn ghost" href={data.info.list}>Volver a la lista</a></p>
 	{:else if !data.exists || !plan}
 		<Card>
 			<p>Esa publicación no existe (¿ya la borraron?).</p>
 			<p class="kv-note">
-				Los borrados recientes se pueden recuperar desde <a href="/admin/actividad">Actividad</a>.
+				Los borrados recientes se pueden recuperar desde <a href="/admin/ajustes/actividad"
+					>Actividad</a
+				>.
 			</p>
 		</Card>
 	{:else}

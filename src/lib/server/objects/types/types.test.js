@@ -4,17 +4,19 @@ import { coreTypes, createRegistry, validateData } from './index.js';
 import {
 	LEGACY_PROJECT_KIND,
 	PROFILE_KINDS,
+	VENUE_PRIVACY,
 	normalizeProfileKind,
 	profileKindOf
 } from './perfil.js';
+import { VENUE_PRIVACY_LEVELS } from '$lib/utils/venues.js';
 
 const evento = /** @type {import('./index.js').CoreType} */ (coreTypes.get('evento'));
 const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar'));
 const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('tiene evento, lugar y perfil; el evento puede apuntar a un lugar', () => {
-		expect([...coreTypes.types.keys()]).toEqual(['evento', 'lugar', 'perfil']);
+	it('tiene evento, lugar, perfil y etiqueta; el evento puede apuntar a un lugar', () => {
+		expect([...coreTypes.types.keys()]).toEqual(['evento', 'lugar', 'perfil', 'etiqueta']);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar'], max: 1 });
 		expect(perfil.edges?.es_integrante_de).toMatchObject({ to: ['perfil'] });
 	});
@@ -135,6 +137,10 @@ describe('perfil', () => {
 		const half = validateData(perfil, { kind: 'lugar', lat: -34.6 });
 		expect(half.ok ? [] : half.errors.map((e) => e.path)).toEqual(['lat']);
 		expect(validateData(perfil, { kind: 'lugar', venue_privacy: 'secreta' }).ok).toBe(false);
+		// «Sólo dirección» (address) es un nivel válido, y los del tipo son los mismos que los de
+		// src/lib/utils/venues.js.
+		expect(validateData(perfil, { kind: 'lugar', venue_privacy: 'address' }).ok).toBe(true);
+		expect([...VENUE_PRIVACY]).toEqual([...VENUE_PRIVACY_LEVELS]);
 		expect(validateData(perfil, { kind: 'persona', pronouns_url: 'javascript:alert(1)' }).ok).toBe(
 			false
 		);

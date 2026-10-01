@@ -30,7 +30,7 @@
 
 	<Card title="Preguntas generales">
 		<p class="kv-note">
-			Las que se definen una vez en <a href="/admin/ajustes/personas">Eventos › Roles y preguntas</a
+			Las que se definen una vez en <a href="/admin/eventos/roles">Eventos › Roles y preguntas</a
 			>. Marcá las que usa este evento{#if data.types.length > 1}&nbsp;y, si querés, a qué entradas
 				aplica cada una{/if}.
 		</p>

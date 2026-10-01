@@ -60,16 +60,20 @@ export function editEventHref(slug) {
  * @param {string} id
  */
 export function accountHref(id) {
-	return `/admin/cuentas/${encodeURIComponent(id)}`;
+	return `/admin/comunidad/cuentas/${encodeURIComponent(id)}`;
 }
 
 /**
- * Ficha de un perfil en Cuentas → Perfiles.
+ * Ficha de un perfil (moderación: quiénes lo gestionan, revisar, aprobar, ocultar, borrar). Se
+ * entra desde Comunidad › Perfiles (/admin/comunidad/perfiles).
  * @param {number | string} id
  */
 export function profileHref(id) {
-	return `/admin/cuentas/perfiles/${encodeURIComponent(String(id))}`;
+	return `/admin/comunidad/cuentas/perfiles/${encodeURIComponent(String(id))}`;
 }
 
-/** Cuentas → Perfiles, solo los que esperan revisión. */
-export const PROFILES_TO_REVIEW_HREF = '/admin/cuentas/perfiles?filtro=sin-revisar';
+/** Comunidad › Perfiles, solo los creados por cuentas que esperan revisión. */
+export const PROFILES_TO_REVIEW_HREF = '/admin/comunidad/perfiles?estado=sin-revisar';
+
+/** Comunidad › Perfiles, pestaña de los pedidos "Es mi perfil". */
+export const PROFILE_CLAIMS_HREF = '/admin/comunidad/perfiles?vista=pedidos';

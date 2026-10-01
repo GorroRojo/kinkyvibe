@@ -19,6 +19,7 @@ import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { logDBError } from '$lib/server/db';
+import { PROFILE_KIND_FILTERS, profileOrigin } from '$lib/admin/perfiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -226,20 +227,8 @@ const REVIEWED = `EXISTS (SELECT 1 FROM admin_audit r WHERE r.target_type = 'pro
 /** Condición SQL: lo creó una cuenta (no une admin, no una cuenta ya borrada). */
 const BY_ACCOUNT = `o.created_by LIKE '${ACCOUNT_PREFIX}%' AND o.created_by != '${DELETED_ACTOR}'`;
 
-/** Filtros de la lista de perfiles (`?filtro=`). */
-export const PROFILE_FILTERS = Object.freeze({
-	'sin-revisar': 'Para revisar',
-	'sin-aprobar': 'No aparecen en Amigues',
-	ocultos: 'Ocultos',
-	borrados: 'Borrados'
-});
-
-/** Filtro por tipo (`?tipo=`). */
-export const PROFILE_KIND_FILTERS = Object.freeze({
-	persona: 'Personas',
-	proyecto: 'Proyectos',
-	lugar: 'Lugares'
-});
+/** Filtro por tipo (`?tipo=`): las mismas claves que la página (src/lib/admin/perfiles.js). */
+export { PROFILE_KIND_FILTERS };
 
 /**
  * Condición SQL (alias `o`): el perfil está aprobado para /amigues (migración 0017). La usan
@@ -250,27 +239,60 @@ export const PROFILE_APPROVED_SQL =
 	'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)';
 const APPROVED = PROFILE_APPROVED_SQL;
 
+/** Condición SQL: un lugar de una cuenta que une admin rechazó (migración 0025). */
+const REJECTED = 'EXISTS (SELECT 1 FROM profile_rejections rj WHERE rj.profile_id = o.id)';
+
+/** Condición SQL: vino de una ficha .md (migración 0017). */
+const IMPORTED = 'EXISTS (SELECT 1 FROM profile_sources ps WHERE ps.profile_id = o.id)';
+
+/** Vivo y no oculto: los estados aprobado, rechazado y para aprobar. */
+const LIVE_SHOWN = "o.deleted_at IS NULL AND o.visibility != 'hidden'";
+
+/**
+ * Condición SQL de cada estado (`?estado=`, src/lib/admin/perfiles.js). Los cinco primeros son
+ * excluyentes y siguen el orden de `profileState()`: borrado, oculto, aprobado, rechazado, para
+ * aprobar.
+ * @type {Record<string, string>}
+ */
+const STATE_SQL = {
+	borrado: 'o.deleted_at IS NOT NULL',
+	oculto: "o.deleted_at IS NULL AND o.visibility = 'hidden'",
+	aprobado: `${LIVE_SHOWN} AND ${APPROVED}`,
+	rechazado: `${LIVE_SHOWN} AND NOT ${APPROVED} AND ${REJECTED}`,
+	'para-aprobar': `${LIVE_SHOWN} AND NOT ${APPROVED} AND NOT ${REJECTED}`,
+	'sin-revisar': `o.deleted_at IS NULL AND ${BY_ACCOUNT} AND NOT ${REVIEWED}`
+};
+
+/** Condición SQL de cada origen (`?origen=`), igual que `profileOrigin()`. */
+const ORIGIN_SQL = /** @type {Record<string, string>} */ ({
+	ficha: IMPORTED,
+	cuenta: `NOT ${IMPORTED} AND o.created_by LIKE '${ACCOUNT_PREFIX}%'`,
+	panel: `NOT ${IMPORTED} AND o.created_by NOT LIKE '${ACCOUNT_PREFIX}%'`
+});
+
 /**
  * @typedef {ReturnType<typeof profileSummary> & {
  *   reviewed: boolean,
  *   approved: boolean,
+ *   rejected: boolean,
+ *   legacySlug: string | null,
+ *   origin: 'ficha' | 'cuenta' | 'panel',
  *   managers: { accountId: string, email: string | null, role: 'owner' | 'manager', deleted: boolean }[]
  * }} AdminProfile
  */
 
 /**
  * Todos los perfiles (también ocultos y borrados), del más nuevo al más viejo, con quiénes los
- * gestionan y si ya se revisaron. `q` busca en el nombre y la dirección; `filter` es una clave de
- * {@link PROFILE_FILTERS}.
+ * gestionan, si ya se revisaron, su origen y su estado. `q` busca en el nombre y la dirección;
+ * `kind`, `origin` y `state` son claves de src/lib/admin/perfiles.js (lo desconocido no filtra).
  *
  * @param {D1Database} db
- * @param {{ q?: string, filter?: string, kind?: string, limit?: number }} [opts] `kind`: una
- *   clave de {@link PROFILE_KIND_FILTERS}
- * @returns {Promise<{ profiles: AdminProfile[], counts: { total: number, toReview: number, hidden: number, deleted: number } }>}
+ * @param {{ q?: string, kind?: string, origin?: string, state?: string, limit?: number }} [opts]
+ * @returns {Promise<{ profiles: AdminProfile[], counts: { total: number, toReview: number, toApprove: number, hidden: number, deleted: number } }>}
  */
 export async function listProfiles(
 	db,
-	{ q = '', filter = '', kind = '', limit = LIST_LIMIT } = {}
+	{ q = '', kind = '', origin = '', state = '', limit = LIST_LIMIT } = {}
 ) {
 	const vis = visibleWhere(ADMIN, 'o', { includeDeleted: true });
 	/** @type {string[]} */
@@ -283,12 +305,9 @@ export async function listProfiles(
 		const like = `%${likeEscape(needle)}%`;
 		params.push(like, like);
 	}
-	if (filter === 'sin-revisar')
-		where.push(`o.deleted_at IS NULL AND ${BY_ACCOUNT} AND NOT ${REVIEWED}`);
-	else if (filter === 'sin-aprobar') where.push(`o.deleted_at IS NULL AND NOT ${APPROVED}`);
-	else if (filter === 'ocultos') where.push("o.deleted_at IS NULL AND o.visibility = 'hidden'");
-	else if (filter === 'borrados') where.push('o.deleted_at IS NOT NULL');
-	if (kind in PROFILE_KIND_FILTERS) {
+	if (Object.hasOwn(STATE_SQL, state)) where.push(STATE_SQL[state]);
+	if (Object.hasOwn(ORIGIN_SQL, origin)) where.push(ORIGIN_SQL[origin]);
+	if (Object.hasOwn(PROFILE_KIND_FILTERS, kind)) {
 		// Igual que profileKindOf(): lo desconocido es persona y el viejo `grupo` es proyecto.
 		const kindSql = "COALESCE(json_extract(o.data, '$.kind'), 'persona')";
 		if (kind === 'persona') where.push(`${kindSql} NOT IN ('proyecto', ?, 'lugar')`);
@@ -298,18 +317,27 @@ export async function listProfiles(
 	}
 	const { results } = await db
 		.prepare(
-			`SELECT ${prefixed('o')}, ${REVIEWED} AS reviewed, ${APPROVED} AS approved FROM objects o
-			WHERE ${where.join(' AND ')} ORDER BY o.created_at DESC, o.id DESC LIMIT ?`
+			`SELECT ${prefixed('o')}, ${REVIEWED} AS reviewed, ${APPROVED} AS approved,
+				${REJECTED} AS rejected,
+				(SELECT ps.legacy_slug FROM profile_sources ps WHERE ps.profile_id = o.id) AS legacy_slug
+			FROM objects o WHERE ${where.join(' AND ')} ORDER BY o.created_at DESC, o.id DESC LIMIT ?`
 		)
 		.bind(...params, limit)
 		.all();
-	const profiles = results.map((r) => ({
-		...profileSummary(rowToObject(r)),
-		reviewed: Number(r.reviewed) === 1,
-		approved: Number(r.approved) === 1,
-		/** @type {AdminProfile['managers']} */
-		managers: []
-	}));
+	const profiles = results.map((r) => {
+		const o = rowToObject(r);
+		const legacySlug = r.legacy_slug == null ? null : String(r.legacy_slug);
+		return {
+			...profileSummary(o),
+			reviewed: Number(r.reviewed) === 1,
+			approved: Number(r.approved) === 1,
+			rejected: Number(r.rejected) === 1,
+			legacySlug,
+			origin: profileOrigin({ imported: legacySlug !== null, createdBy: o.created_by }),
+			/** @type {AdminProfile['managers']} */
+			managers: []
+		};
+	});
 	const managers = await managersOf(
 		db,
 		profiles.map((p) => p.id)
@@ -319,7 +347,8 @@ export async function listProfiles(
 	const counts = await db
 		.prepare(
 			`SELECT COUNT(*) AS total,
-				COALESCE(SUM(o.deleted_at IS NULL AND ${BY_ACCOUNT} AND NOT ${REVIEWED}), 0) AS to_review,
+				COALESCE(SUM(${STATE_SQL['sin-revisar']}), 0) AS to_review,
+				COALESCE(SUM(${STATE_SQL['para-aprobar']}), 0) AS to_approve,
 				COALESCE(SUM(o.deleted_at IS NULL AND o.visibility = 'hidden'), 0) AS hidden,
 				COALESCE(SUM(o.deleted_at IS NOT NULL), 0) AS deleted
 			FROM objects o WHERE o.type = ? AND ${all.sql}`
@@ -331,6 +360,7 @@ export async function listProfiles(
 		counts: {
 			total: Number(counts?.total ?? 0),
 			toReview: Number(counts?.to_review ?? 0),
+			toApprove: Number(counts?.to_approve ?? 0),
 			hidden: Number(counts?.hidden ?? 0),
 			deleted: Number(counts?.deleted ?? 0)
 		}

@@ -42,7 +42,7 @@ vi.mock('$lib/server/eventos', async (importOriginal) => {
 });
 
 const borrar = await import('./[kind]/[slug]/+page.server.js');
-const actividad = await import('../actividad/+page.server.js');
+const actividad = await import('../ajustes/actividad/+page.server.js');
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -166,20 +166,22 @@ describe('deleting', () => {
 	});
 	it('lists recoverable deletions in Actividad and recovers one, even with the switch off', async () => {
 		const r = /** @type {any} */ (await borrar.actions.borrar(fakeEvent({ form: {} })));
-		const page = /** @type {any} */ (await actividad.load(fakeEvent({ path: '/admin/actividad' })));
+		const page = /** @type {any} */ (
+			await actividad.load(fakeEvent({ path: '/admin/ajustes/actividad' }))
+		);
 		expect(page.deletions).toMatchObject([{ id: r.deleted.id, slug: SLUG }]);
 
 		await setFlag(t.db, 'borrar_desde_panel', false, { by: 'test' });
 		const back = /** @type {any} */ (
 			await actividad.actions.recuperar(
-				fakeEvent({ path: '/admin/actividad', form: { id: String(r.deleted.id) } })
+				fakeEvent({ path: '/admin/ajustes/actividad', form: { id: String(r.deleted.id) } })
 			)
 		);
 		expect(back.undone.mode).toBe('restored');
 		expect(repo.files.has(`src/lib/posts/calendario/${SLUG}.md`)).toBe(true);
 		const again = /** @type {any} */ (
 			await actividad.actions.recuperar(
-				fakeEvent({ path: '/admin/actividad', form: { id: String(r.deleted.id) } })
+				fakeEvent({ path: '/admin/ajustes/actividad', form: { id: String(r.deleted.id) } })
 			)
 		);
 		expect(again.status).toBe(409);
