@@ -729,3 +729,22 @@ export async function commitFiles(
 		pr: { number: pull.number, url: pull.url, branch, stacked: false, ...state }
 	};
 }
+
+/**
+ * Closes an open content PR without merging it and deletes its branch (undoing a save before it
+ * is published, e.g. "Deshacer" after deleting a post from the panel). Only `contenido/*`
+ * branches: anything else throws. Deleting the branch is best effort (it may be gone already).
+ * GitHub answers 422 if the PR was merged meanwhile; the caller re-reads its state then.
+ * @param {string} token
+ * @param {{number: number, branch: string}} pull
+ */
+export async function closeContentPull(token, { number, branch }) {
+	if (!branch.startsWith(CONTENT_BRANCH_PREFIX)) throw new Error(`${branch} no es de contenido`);
+	await gh(token, 'PATCH', `pulls/${number}`, { state: 'closed' });
+	clearPullsCache(token);
+	try {
+		await gh(token, 'DELETE', `git/refs/heads/${encodePath(branch)}`);
+	} catch (e) {
+		console.log(`No se pudo borrar la rama ${branch} (¿ya no existe?).`, e);
+	}
+}

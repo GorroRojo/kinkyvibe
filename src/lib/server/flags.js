@@ -57,6 +57,14 @@ export const FLAGS = Object.freeze({
 			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
 			'eso se ve y las direcciones nuevas dan 404.',
 		envVar: 'SERIES_ENABLED'
+	},
+	borrar_desde_panel: {
+		label: 'Borrar desde el panel',
+		description:
+			'Botón "Borrar" en eventos, material y amigues, con confirmación, "Deshacer" y ' +
+			'"Recuperar" desde Actividad. Los eventos con entradas vendidas no se pueden borrar. ' +
+			'Apagado, el botón no aparece y la página de borrar da 404.',
+		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
 	}
 });
 
@@ -166,6 +174,15 @@ export function personasEventosEnabled(platform) {
  */
 export function seriesEnabled(platform) {
 	return isFlagOn(getDB(platform), 'series');
+}
+
+/**
+ * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function borrarDesdePanelEnabled(platform) {
+	return isFlagOn(getDB(platform), 'borrar_desde_panel');
 }
 
 /**

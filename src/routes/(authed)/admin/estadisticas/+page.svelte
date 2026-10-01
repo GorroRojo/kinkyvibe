@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * Estadísticas y tendencias. Gráficos con SVG/CSS (sin librerías), un color por gráfico, y
-	 * cada uno con su CSV.
+	 * Estadísticas y tendencias. Los gráficos van por el wrapper único
+	 * $lib/components/admin/charts/Chart.svelte (tabla y CSV incluidos); las barras horizontales,
+	 * por BarList.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { ChartLine } from '@lucide/svelte';
@@ -15,6 +16,8 @@
 	import BarList from '$lib/components/admin/panel/BarList.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import Chart from '$lib/components/admin/charts/Chart.svelte';
+	import SalesOverTime from '$lib/components/admin/charts/SalesOverTime.svelte';
 
 	export let data;
 
@@ -22,21 +25,12 @@
 	/** @param {number} x */
 	const pct = (x) => `${Math.round(x * 100)} %`;
 
-	// Columnas por mes (SVG). Medida: entradas o plata.
-	/** @type {'tickets' | 'revenue'} */
-	let measure = 'tickets';
-	const W = 640;
-	const H = 220;
-	const PAD = { top: 22, bottom: 26, left: 8, right: 8 };
-	$: months = s?.byMonth ?? [];
-	$: maxM = Math.max(1, ...months.map((m) => m[measure]));
-	$: bw = (W - PAD.left - PAD.right) / Math.max(1, months.length);
-	/** @type {(v: number) => number} */
-	$: y = (v) => PAD.top + (H - PAD.top - PAD.bottom) * (1 - v / maxM);
-	/** @type {(v: number) => string} */
-	$: fmtM = (v) => (measure === 'tickets' ? String(v) : formatARS(v));
-	/** @type {number | null} */
-	let hover = null;
+	$: c = data.charts;
+	// Los últimos 12 eventos pasados, con la fecha corta para el eje.
+	$: lastEvents = (c?.attendance.rows.slice(-12) ?? []).map((e) => ({
+		...e,
+		day: e.start ? fmtDate(e.start).split(' ').slice(0, 2).join(' ') : ''
+	}));
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
@@ -69,83 +63,11 @@
 	</div>
 
 	<div class="kv-stack">
-		<Card title="Ventas por mes">
-			<svelte:fragment slot="actions">
-				<div class="seg" role="group" aria-label="Qué mostrar">
-					<button
-						type="button"
-						class:on={measure === 'tickets'}
-						on:click={() => (measure = 'tickets')}>Entradas</button
-					>
-					<button
-						type="button"
-						class:on={measure === 'revenue'}
-						on:click={() => (measure = 'revenue')}>Plata</button
-					>
-				</div>
-				<CsvButton
-					rows={months}
-					columns={[
-						col('month', 'mes'),
-						col('tickets', 'entradas'),
-						col('orders', 'compras'),
-						col('revenue', 'cobrado')
-					]}
-					filename={csvFilename('ventas-por-mes')}
-				/>
-			</svelte:fragment>
-			<svg
-				class="chart"
-				viewBox="0 0 {W} {H}"
-				role="img"
-				aria-label="{measure === 'tickets'
-					? 'Entradas vendidas'
-					: 'Plata cobrada'} por mes, últimos {months.length} meses"
-			>
-				<line x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} class="base" />
-				{#each months as m, i (m.month)}
-					{@const h = y(0) - y(m[measure])}
-					<g
-						role="presentation"
-						on:mouseenter={() => (hover = i)}
-						on:mouseleave={() => (hover = null)}
-					>
-						<rect
-							class="hit"
-							x={PAD.left + i * bw}
-							y={PAD.top}
-							width={bw}
-							height={H - PAD.top - PAD.bottom}
-						/>
-						{#if h > 0}
-							<path
-								class="bar"
-								class:dim={hover !== null && hover !== i}
-								d="M{PAD.left + i * bw + bw * 0.2},{y(0)} v{-(h - Math.min(4, h))} q0,-{Math.min(
-									4,
-									h
-								)} {Math.min(4, h)},-{Math.min(4, h)} h{bw * 0.6 - 2 * Math.min(4, h)} q{Math.min(
-									4,
-									h
-								)},0 {Math.min(4, h)},{Math.min(4, h)} v{h - Math.min(4, h)} z"
-							/>
-						{/if}
-						<title
-							>{m.label}: {m.tickets} entradas · {formatARS(m.revenue)} · {m.orders} compras</title
-						>
-						<text class="tick" x={PAD.left + i * bw + bw / 2} y={H - 8}
-							>{m.label.split(' ')[0]}</text
-						>
-						{#if hover === i || i === months.length - 1 || m[measure] === maxM}
-							<text class="val" x={PAD.left + i * bw + bw / 2} y={y(m[measure]) - 6}
-								>{fmtM(m[measure])}</text
-							>
-						{/if}
-					</g>
-				{/each}
-			</svg>
-			<p class="kv-note">Por fecha de compra. El mes actual va por la mitad.</p>
-		</Card>
+		{#if c}
+			<Card title="Ventas en el tiempo">
+				<SalesOverTime sales={c.sales} />
+			</Card>
+		{/if}
 
 		<div class="kv-grid-2">
 			<Card title="Por serie">
@@ -244,6 +166,103 @@
 			</Card>
 		</div>
 
+		{#if c}
+			<div class="kv-grid-2">
+				<Card title="Vendidas y entraron">
+					<Chart
+						title="Entradas vendidas y con check-in, últimos {lastEvents.length} eventos"
+						rows={lastEvents}
+						x={{ key: 'title', label: 'evento', tick: 'day' }}
+						series={[
+							{ key: 'sold', label: 'Vendidas' },
+							{ key: 'checked', label: 'Entraron' }
+						]}
+						csv="vendidas-y-entraron"
+						csvColumns={[col('slug', 'slug'), col('start', 'fecha'), col('noShow', 'no vinieron')]}
+						empty="Todavía no pasó ningún evento con venta."
+					/>
+				</Card>
+				<Card title="Primera vez y vuelven">
+					<Chart
+						title="Personas que entraron: primera vez y que ya habían venido, últimos {lastEvents.length} eventos"
+						rows={lastEvents}
+						x={{ key: 'title', label: 'evento', tick: 'day' }}
+						series={[
+							{ key: 'newcomers', label: 'Primera vez' },
+							{ key: 'returning', label: 'Ya habían venido' }
+						]}
+						stacked
+						csv="primera-vez-y-vuelven"
+						csvColumns={[col('slug', 'slug'), col('start', 'fecha')]}
+						empty="Todavía no hay check-ins."
+					/>
+					<p class="kv-note">
+						De {c.attendance.people} personas que entraron alguna vez, {c.attendance.cameBack} volvieron
+						a otro evento ({pct(
+							c.attendance.people ? c.attendance.cameBack / c.attendance.people : 0
+						)}). Cualquier serie; cuenta por mail, sin mostrar a nadie.
+					</p>
+				</Card>
+			</div>
+
+			<Card title="Fondo y finanzas">
+				<div class="kv-stats">
+					<Stat
+						label="Aportado al Fondo"
+						value={formatARS(c.fondo.totals.contributed)}
+						sub="últimos 12 meses"
+					/>
+					<Stat
+						label="Usado del Fondo"
+						value={formatARS(c.fondo.totals.used)}
+						sub="entradas con descuento"
+					/>
+					<Stat label="Neto" value={formatARS(c.fondo.totals.net)} sub="aportado − usado" />
+					<Stat
+						label="Recargo de Mercado Pago"
+						value={formatARS(c.fondo.totals.surcharge)}
+						sub="lo pagaron les compradores"
+					/>
+				</div>
+				<div class="kv-grid-2">
+					<div class="sub">
+						<h3>Fondo por mes</h3>
+						<Chart
+							title="Fondo por mes: aportado, usado y neto"
+							rows={c.fondo.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[
+								{ key: 'contributed', label: 'Aportado' },
+								{ key: 'used', label: 'Usado' },
+								{ key: 'net', label: 'Neto', mark: 'line' }
+							]}
+							format={formatARS}
+							csv="fondo-por-mes"
+							csvColumns={[col('month', 'clave'), col('surcharge', 'recargo MP')]}
+							empty="Sin movimientos del Fondo en el último año."
+						/>
+					</div>
+					<div class="sub">
+						<h3>Recargo de Mercado Pago por mes</h3>
+						<Chart
+							title="Recargo de Mercado Pago por mes"
+							rows={c.fondo.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[{ key: 'surcharge', label: 'Recargo MP' }]}
+							format={formatARS}
+							csv="recargo-mp-por-mes"
+							csvColumns={[col('month', 'clave')]}
+							empty="Sin recargos de Mercado Pago en el último año."
+						/>
+					</div>
+				</div>
+				<p class="kv-note">
+					Por fecha de compra, solo aprobadas. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no
+					entra acá: está en el Inicio.
+				</p>
+			</Card>
+		{/if}
+
 		<Card title="Asistencia por evento">
 			<svelte:fragment slot="actions">
 				<CsvButton
@@ -305,52 +324,15 @@
 {/if}
 
 <style>
-	.chart {
-		width: 100%;
-		height: auto;
-		display: block;
+	.sub {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		min-width: 0;
 	}
-	.base {
-		stroke: var(--line);
-		stroke-width: 1;
-	}
-	.hit {
-		fill: transparent;
-	}
-	.bar {
-		fill: var(--link);
-		transition: opacity 0.15s;
-	}
-	.bar.dim {
-		opacity: 0.45;
-	}
-	.tick,
-	.val {
-		text-anchor: middle;
-		font-size: 12px;
-		fill: var(--muted);
-	}
-	.val {
-		fill: var(--text);
-		font-weight: 700;
-	}
-	.seg {
-		display: inline-flex;
-		border: 1px solid var(--field);
-		border-radius: 2em;
-		overflow: hidden;
-	}
-	.seg button {
-		background: var(--surface);
-		border: 0;
-		padding: 0.3rem 0.8rem;
-		color: var(--accent);
-		font-weight: 700;
-		cursor: pointer;
-	}
-	.seg button.on {
-		background: var(--accent);
-		color: var(--accent-ink);
+	h3 {
+		margin: 0;
+		font-size: 1rem;
 	}
 	td small {
 		display: block;
