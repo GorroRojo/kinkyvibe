@@ -7,7 +7,9 @@
  * Reglas ("visible por defecto, oculto a pedido"):
  * - 'public': todes.
  * - 'members': personas con cuenta (y admins).
- * - 'hidden': admins y quien lo creó (`created_by`); alguien pidió que no se muestre.
+ * - 'hidden': admins y quien lo creó (`created_by`); alguien pidió que no se muestre. Salvo en
+ *   los tipos de `NO_CREATOR_ACCESS` (perfiles): ahí lo oculto lo ven solo admins.
+ *   Quienes gestionan un perfil lo ven en Mi rincón por `profile_managers`, no por acá.
  * - Borrado (`deleted_at`): nadie, salvo admins que lo piden explícitamente (para deshacer).
  * - Ante la duda (rol o visibilidad desconocidos) no se muestra.
  *
@@ -68,7 +70,14 @@ function creatorId(viewer) {
 const CREATOR_SEES = Object.freeze(['hidden']);
 
 /**
- * @param {{ visibility: string, deleted_at?: number | null, created_by?: string | null }} object
+ * Tipos en los que haber creado el objeto no da acceso a lo oculto. En un perfil, quién lo
+ * maneja cambia (un grupo pasa a otras personas, quien lo creó lo deja): quién lo ve en Mi rincón
+ * lo decide `profile_managers` (src/lib/server/cuentas/perfiles.js), nunca `created_by`.
+ */
+export const NO_CREATOR_ACCESS = Object.freeze(['perfil']);
+
+/**
+ * @param {{ type?: string, visibility: string, deleted_at?: number | null, created_by?: string | null }} object
  * @param {Viewer | null | undefined} viewer
  * @param {{ includeDeleted?: boolean }} [options] solo tiene efecto para admins
  */
@@ -76,7 +85,12 @@ export function canSee(object, viewer, { includeDeleted = false } = {}) {
 	if (object.deleted_at != null && !(includeDeleted && isAdmin(viewer))) return false;
 	if (allowedFor(viewer).includes(object.visibility)) return true;
 	const id = creatorId(viewer);
-	return id !== null && CREATOR_SEES.includes(object.visibility) && object.created_by === id;
+	return (
+		id !== null &&
+		CREATOR_SEES.includes(object.visibility) &&
+		object.created_by === id &&
+		!NO_CREATOR_ACCESS.includes(String(object.type))
+	);
 }
 
 /**
@@ -100,8 +114,9 @@ export function visibleWhere(viewer, alias = 'objects', { includeDeleted = false
 	const extra = id === null ? [] : CREATOR_SEES.filter((v) => !allowed.includes(v));
 	if (!extra.length) return { sql: `(${deleted}${alias}.visibility IN (${list}))`, params: [] };
 	const extraList = extra.map((v) => `'${v}'`).join(', ');
+	const noCreator = NO_CREATOR_ACCESS.map((v) => `'${v}'`).join(', ');
 	return {
-		sql: `(${deleted}(${alias}.visibility IN (${list}) OR (${alias}.visibility IN (${extraList}) AND ${alias}.created_by = ?)))`,
+		sql: `(${deleted}(${alias}.visibility IN (${list}) OR (${alias}.visibility IN (${extraList}) AND ${alias}.created_by = ? AND ${alias}.type NOT IN (${noCreator}))))`,
 		params: [/** @type {string} */ (id)]
 	};
 }

@@ -210,8 +210,10 @@ campos), pero nadie la usa todavía.
 
 - El perfil es un objeto de tipo núcleo `perfil` ([objetos.md](objetos.md)) y se escribe **solo
   con `saveObject()`**. Visibilidad: la del modelo de objetos (`public`, `members`, `hidden`).
-  Oculto lo ven les admins y quien lo creó; quienes gestionan un grupo lo ven igual en Mi rincón,
-  porque esas lecturas pasan por `profile_managers` (ver abajo).
+  Un perfil oculto lo ven solo les admins: para los perfiles, haberlo creado no da acceso
+  (`NO_CREATOR_ACCESS` en `visibility.js`), porque quien creó un grupo puede dejar de
+  gestionarlo. Quienes lo gestionan lo ven igual en Mi rincón, porque esas lecturas pasan por
+  `profile_managers` (ver abajo).
 - **Quién gestiona qué** va en `profile_managers` (migración `0014_perfiles.sql`): las cuentas no
   son objetos, así que no puede ser un edge. Columnas: `profile_id` → `objects(id)` y
   `account_id` → `accounts(id)`, las dos con `ON DELETE CASCADE`, y `role`:

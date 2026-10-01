@@ -849,13 +849,31 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		expect(admin?.created_by).toBe(accountActor(a.id));
 	});
 
-	it('un perfil oculto lo ve quien lo creó; otra cuenta y anónimes no', async () => {
+	it('un perfil oculto no se ve fuera de Mi rincón (ni para quien lo creó); se gestiona igual', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('otre-inventade');
 		const p = await create(a.id, { kind: 'persona', title: 'Oculta', visibility: 'hidden' });
-		expect(await getPublicProfile(t.db, p.slug, memberViewer(a.id))).not.toBeNull();
+		expect(await getPublicProfile(t.db, p.slug, memberViewer(a.id))).toBeNull();
 		expect(await getPublicProfile(t.db, p.slug, memberViewer(b.id))).toBeNull();
 		expect(await getPublicProfile(t.db, p.slug, ANON)).toBeNull();
+		expect((await getManagedProfile(t.db, a.id, p.slug))?.profile.visibility).toBe('hidden');
+		expect(
+			await getPublicProfile(t.db, p.slug, { role: 'admin', id: 'admin-inventade' })
+		).not.toBeNull();
+	});
+
+	it('quien creó un grupo oculto y ya no lo gestiona deja de verlo', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Oculto', visibility: 'hidden' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await leaveProfile(t.db, a.id, g.slug));
+		expect(await getPublicProfile(t.db, g.slug, memberViewer(a.id))).toBeNull();
+		expect(await getObject(t.db, { type: 'perfil', slug: g.slug }, memberViewer(a.id))).toBeNull();
+		expect(await getManagedProfile(t.db, a.id, g.slug)).toBeNull();
+		expect(await getManagedProfile(t.db, b.id, g.slug)).not.toBeNull();
 	});
 });
 
