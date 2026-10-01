@@ -7,20 +7,36 @@ import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
 import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
+import { personasForPage } from '$lib/server/personas/index.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals }) {
 	const post = await fetchPost('calendario', params.event, true).catch(() => null);
-	const [related, tickets, series, venue, propinas] = await Promise.all([
+	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
 		loadRelated(post),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals),
 		loadVenue(params.event, platform, locals),
+		loadPersonas(post, platform),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
 		// solo lo muestra en los eventos de KinkyVibe).
 		propinasEnabled(platform)
 	]);
-	return { ...related, tickets, series, venue, propinas };
+	return { ...related, tickets, series, venue, personas, propinas };
+}
+
+/**
+ * Personas con su rol (interruptor `personas_eventos`; apagado, `null` y la página queda igual).
+ * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {App.Platform|undefined} platform
+ */
+async function loadPersonas(post, platform) {
+	if (!post) return null;
+	try {
+		return await personasForPage(platform, post.meta);
+	} catch (e) {
+		return null;
+	}
 }
 
 /**

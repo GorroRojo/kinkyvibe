@@ -7,6 +7,7 @@ import { profilePageData, profileSlugTaken } from '$lib/server/amigues/pages.js'
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
+import { contentForProfilePage } from '$lib/server/personas/index.js';
 
 /**
  * La página de un perfil. Con el interruptor `perfiles_publicos` prendido, el perfil de la base
@@ -24,7 +25,15 @@ export async function load({ params, platform, locals, setHeaders }) {
 		});
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
-			return page;
+			return {
+				...page,
+				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
+				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
+				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
+					...(await fetchMarkdownPosts()),
+					...(await fetchMarkdownPosts(true))
+				])
+			};
 		}
 		if (await profileSlugTaken(db, params.profile)) error(404, 'Not found');
 	}

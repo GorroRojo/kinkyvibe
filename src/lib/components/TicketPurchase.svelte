@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
+	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
 		ORDER_MAX_MESSAGE,
@@ -35,7 +36,7 @@
 	 *   result?: {
 	 *     error?: string | null,
 	 *     errors?: Record<string, string>,
-	 *     values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[] },
+	 *     values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string> },
 	 *     discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 *   } | null
 	 * }}
@@ -628,6 +629,13 @@
 					</fieldset>
 				{/each}
 			</fieldset>
+
+			<!-- Preguntas de inscripción del evento (interruptor personas_eventos; si no hay, nada). -->
+			<SignupFieldInputs
+				fields={tickets.fields ?? []}
+				values={result?.values?.answers ?? {}}
+				{errors}
+			/>
 
 			{#if !gorra}
 				<div class="field code">

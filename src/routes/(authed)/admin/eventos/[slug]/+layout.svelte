@@ -21,6 +21,8 @@
 	$: bare = $page.data?.bare === true;
 	$: e = data.event;
 	$: tabs = EVENT_TABS.filter((t) => e.sellsTickets || !SALES_TABS.includes(t.id))
+		// Preguntas de inscripción: solo con el interruptor `personas_eventos` prendido.
+		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
 		.map((t) => ({

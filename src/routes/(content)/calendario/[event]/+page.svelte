@@ -6,6 +6,7 @@
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { onMount } from 'svelte';
@@ -279,6 +280,9 @@
 		<div id="tags">
 			<Tags tags={data.meta.tags} />
 		</div>
+	{/if}
+	{#if data.personas}
+		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />
