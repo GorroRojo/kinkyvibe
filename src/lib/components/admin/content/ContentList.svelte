@@ -1,6 +1,7 @@
 <!--
 	List of a content section of the panel (/admin/material, /admin/amigues): search, filters by
 	state and tag, CSV, and per-post actions (edit, duplicate, view, list/unlist).
+	Slots: `actions` (extra header buttons, before CSV/new), default (below the subtitle).
 -->
 <script>
 	import { enhance } from '$app/forms';
@@ -99,7 +100,9 @@
 </script>
 
 <PageHeader {title} {subtitle}>
+	<slot />
 	<svelte:fragment slot="actions">
+		<slot name="actions" />
 		<CsvButton rows={shown} {columns} filename={csvFilename(category)} />
 		<a class="kv-btn" href="/admin/{category}/nuevo"
 			><Plus size={18} aria-hidden="true" /> {newLabel}</a
