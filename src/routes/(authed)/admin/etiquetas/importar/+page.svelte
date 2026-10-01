@@ -7,6 +7,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
+	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 
 	export let data;
 	export let form;
@@ -32,13 +33,27 @@
 	/** @type {{ key: string, action: string, message: string }[]} */
 	let problems = [];
 	let done = false;
+
+	/** @type {import('$lib/admin/csv.js').CsvColumn<any>[]} */
+	const csvColumns = [
+		{ key: 'key', label: 'Etiqueta' },
+		{ label: 'Alias', value: (p) => (p.alias ? 'sí' : '') },
+		{ label: 'Qué pasa', value: (p) => ACTIONS[p.action] ?? p.action },
+		{ key: 'message', label: 'Detalle' }
+	];
 </script>
 
 <PageHeader
 	title="Importar etiquetas"
 	subtitle="El árbol de etiquetas y los textos de la Kinkipedia pasan a la base, con los mismos nombres."
 	back={{ href: '/admin/etiquetas', label: 'Etiquetas' }}
-/>
+>
+	<svelte:fragment slot="actions">
+		{#if !data.missing}
+			<CsvButton rows={data.preview} columns={csvColumns} filename="etiquetas-importar.csv" />
+		{/if}
+	</svelte:fragment>
+</PageHeader>
 
 <div class="kv-stack">
 	{#if data.missing}

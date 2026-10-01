@@ -26,7 +26,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 	try {
 		preview = await importTags(db, bundledTagSource(), { actor: admin.login, dryRun: true });
 	} catch (e) {
-		// Sin la migración 0029 todavía.
+		// Sin la migración 0029 todavía (no existe `tag_sources`); cualquier otro error, sigue.
+		if (!/no such table/i.test(String(e instanceof Error ? e.message : e))) throw e;
 		return { missing: true, preview: [], warnings: [], summary: summarizeTagImport([]) };
 	}
 	return {
