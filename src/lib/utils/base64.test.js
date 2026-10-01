@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 // Node's Buffer only as the reference implementation; the code under test must not use it.
 import { Buffer } from 'node:buffer';
-import { base64ToUtf8, fromBase64, toBase64, toHex, utf8ToBase64 } from './base64.js';
+import {
+	base64ToUtf8,
+	fromBase64,
+	fromBase64url,
+	toBase64,
+	toBase64url,
+	toHex,
+	utf8ToBase64
+} from './base64.js';
 
 const TEXTS = [
 	'',
@@ -116,5 +124,29 @@ describe('toHex', () => {
 		expect(toHex(bytes)).toBe(Buffer.from(bytes).toString('hex'));
 		expect(toHex(bytes.buffer)).toBe(Buffer.from(bytes).toString('hex'));
 		expect(toHex(new Uint8Array(0))).toBe('');
+	});
+});
+
+describe('toBase64url / fromBase64url', () => {
+	it('matches Buffer base64url for every length and byte', () => {
+		const all = Uint8Array.from({ length: 256 }, (_, i) => i);
+		for (let n = 0; n <= 40; n++) {
+			const bytes = all.subarray(256 - n);
+			const expected = Buffer.from(bytes).toString('base64url');
+			expect(toBase64url(bytes)).toBe(expected);
+			expect(Array.from(fromBase64url(expected) ?? [])).toEqual(Array.from(bytes));
+		}
+		expect(toBase64url(all)).toBe(Buffer.from(all).toString('base64url'));
+	});
+	it('a 32-byte token is 43 characters, URL-safe', () => {
+		const token = toBase64url(new Uint8Array(32).fill(0xfb));
+		expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+	});
+	it('fromBase64url rejects what is not base64url', () => {
+		expect(fromBase64url('ab+c')).toBe(null);
+		expect(fromBase64url('ab/c')).toBe(null);
+		expect(fromBase64url('abc=')).toBe(null);
+		expect(fromBase64url('a')).toBe(null);
+		expect(fromBase64url(/** @type {any} */ (null))).toBe(null);
 	});
 });

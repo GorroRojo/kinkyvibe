@@ -27,6 +27,10 @@ import { checkEdgeTargets, normalizeEdges } from './edges.js';
 import { OBJECT_COLUMNS, rowToObject } from './read.js';
 import { coreTypes, validateData } from './types/index.js';
 import { DEFAULT_VISIBILITY, VISIBILITIES } from './visibility.js';
+// Relativo y sin dependencias: el cron nocturno carga objects/ sin Vite.
+import { slugify } from '../../utils/text.js';
+
+export { slugify };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -34,23 +38,6 @@ import { DEFAULT_VISIBILITY, VISIBILITIES } from './visibility.js';
 export const TITLE_MAX = 200;
 export const SLUG_MAX = 100;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-/**
- * "¡Córdoba! Taller de Ecofetichismo" → "cordoba-taller-de-ecofetichismo" (igual que
- * src/lib/utils/eventDraft.js, que no se importa acá para no sumar YAML al cron).
- *
- * @param {string} text
- */
-export function slugify(text) {
-	return String(text ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '')
-		.slice(0, 80)
-		.replace(/-+$/, '');
-}
 
 /**
  * @typedef {object} SaveInput

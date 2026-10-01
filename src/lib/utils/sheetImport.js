@@ -25,23 +25,14 @@ import {
 	uniqueSlug
 } from './eventDraft.js';
 import { withEventTagDefaults } from './adminTags.js';
+import { foldText as fold } from './text.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Text helpers                                                                               */
 /* ------------------------------------------------------------------------------------------ */
 
-/**
- * Lowercase, without accents, trimmed, single spaces.
- * @param {string} s
- */
-export function fold(s) {
-	return String(s ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+/** Lowercase, without accents, trimmed, single spaces (foldText in text.js). */
+export { fold };
 
 export const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 const WEEKDAY_LABELS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
