@@ -47,7 +47,7 @@
 >
 	<svelte:fragment slot="controls">
 		<label class="pick">
-			<span class="sr">Evento</span>
+			<span class="visually-hidden">Evento</span>
 			<select class="kv-input" bind:value={slug}>
 				<option value="">Todos los eventos</option>
 				{#each sales.events as e (e.slug)}<option value={e.slug}>{e.title}</option>{/each}
@@ -87,13 +87,5 @@
 	.pick select {
 		width: 100%;
 		min-height: 2.5rem;
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
 	}
 </style>

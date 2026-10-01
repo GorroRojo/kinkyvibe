@@ -198,7 +198,7 @@
 	{:else}
 		<div class="kv-table-wrap">
 			<table class="kv-table">
-				<caption class="sr">{title}</caption>
+				<caption class="visually-hidden">{title}</caption>
 				<thead>
 					<tr>
 						{#each table as c, i (c.key)}<th class:r={i > 0}>{c.label}</th>{/each}
@@ -357,13 +357,5 @@
 		margin: 0;
 		padding: 1.5rem 0;
 		text-align: center;
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
 	}
 </style>

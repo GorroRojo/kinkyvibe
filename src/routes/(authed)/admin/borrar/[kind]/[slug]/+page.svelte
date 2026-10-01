@@ -7,6 +7,7 @@
 	import { enhance } from '$app/forms';
 	import { Ban, Trash2, TriangleAlert } from '@lucide/svelte';
 	import { eventHref } from '$lib/admin/nav.js';
+	import { undoneMessage } from '$lib/admin/deleteText.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
@@ -46,12 +47,7 @@
 
 <div class="kv-stack narrow">
 	{#if undone}
-		<UndoToast
-			canUndo={false}
-			message={undone.mode === 'cancelled'
-				? `Listo: «${undone.title}» no se borró (se canceló el cambio antes de publicarse).`
-				: `Listo: «${undone.title}» vuelve a estar. Se publica en unos minutos.`}
-		/>
+		<UndoToast canUndo={false} message={undoneMessage(undone)} />
 		{#if undone.publish}<PublishStatus pr={undone.publish} />{/if}
 		<p><a href={editHref}>Abrir {data.info.the}</a></p>
 	{:else if deleted}

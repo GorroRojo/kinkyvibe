@@ -8,6 +8,7 @@
 	import { enhance } from '$app/forms';
 	import { RotateCcw } from '@lucide/svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
+	import { undoneMessage } from '$lib/admin/deleteText.js';
 	import Card from './Card.svelte';
 	import CsvButton from './CsvButton.svelte';
 	import UndoToast from './UndoToast.svelte';
@@ -37,12 +38,7 @@
 
 {#if rows.length || result?.undone || result?.error}<div class="recover">
 		{#if result?.undone}
-			<UndoToast
-				canUndo={false}
-				message={result.undone.mode === 'cancelled'
-					? `Listo: «${result.undone.title}» no se borró (se canceló antes de publicarse).`
-					: `Listo: «${result.undone.title}» vuelve a estar. Se publica en unos minutos.`}
-			/>
+			<UndoToast canUndo={false} message={undoneMessage(result.undone)} />
 			{#if result.undone.publish}<PublishStatus pr={result.undone.publish} />{/if}
 		{:else if result?.error}
 			<p class="kv-flash bad" role="alert">{result.error}</p>
