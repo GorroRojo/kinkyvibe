@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 	export let data;
 	export let form;
@@ -20,6 +21,7 @@
 
 	$: p = data.profile;
 	$: group = p.kind === 'proyecto';
+	$: venue = p.kind === 'lugar';
 	$: owner = data.role === 'owner';
 
 	/** Lo que se escribió y no se guardó por un error de datos (no por un conflicto). */
@@ -68,6 +70,12 @@
 	{#if data.isNew && !f}
 		<p class="ok" role="status">Listo, creaste el perfil. Completá lo que quieras y guardá.</p>
 	{/if}
+	{#if data.pending}
+		<p class="hint" role="status">
+			Todavía no aparece en el sitio: une admin lo tiene que aprobar. Mientras tanto lo ves vos (y
+			quienes lo gestionan).
+		</p>
+	{/if}
 
 	<section class="surface-card" aria-labelledby="edit-title">
 		<h2 id="edit-title">Datos del perfil</h2>
@@ -107,17 +115,21 @@
 				/>
 				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
 			</label>
-			<label>
-				<span>Pronombres <small class="hint">(opcional)</small></span>
-				<input
-					name="pronouns"
-					type="text"
-					maxlength="40"
-					value={values.pronouns}
-					aria-invalid={errors.pronouns ? 'true' : undefined}
-				/>
-				{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
-			</label>
+			{#if venue}
+				<input type="hidden" name="pronouns" value={values.pronouns} />
+			{:else}
+				<label>
+					<span>Pronombres <small class="hint">(opcional)</small></span>
+					<input
+						name="pronouns"
+						type="text"
+						maxlength="40"
+						value={values.pronouns}
+						aria-invalid={errors.pronouns ? 'true' : undefined}
+					/>
+					{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
+				</label>
+			{/if}
 			<label>
 				<span>Presentación <small class="hint">(opcional, hasta 1000 caracteres)</small></span>
 				<textarea
@@ -153,6 +165,86 @@
 					</label>
 				{/each}
 			</fieldset>
+			{#if venue}
+				<fieldset>
+					<legend>El lugar</legend>
+					<label>
+						<span>Dirección <small class="hint">(calle y número)</small></span>
+						<input
+							name="address"
+							type="text"
+							maxlength="300"
+							autocomplete="off"
+							value={values.venue?.address ?? ''}
+							aria-invalid={errors.address ? 'true' : undefined}
+						/>
+						{#if errors.address}<span class="field-error">{errors.address}</span>{/if}
+					</label>
+					<label>
+						<span>Barrio</span>
+						<input
+							name="area"
+							type="text"
+							maxlength="100"
+							value={values.venue?.area ?? ''}
+							aria-invalid={errors.area ? 'true' : undefined}
+						/>
+						{#if errors.area}<span class="field-error">{errors.area}</span>{/if}
+					</label>
+					<label>
+						<span>Ciudad</span>
+						<input
+							name="city"
+							type="text"
+							maxlength="100"
+							value={values.venue?.city ?? ''}
+							aria-invalid={errors.city ? 'true' : undefined}
+						/>
+						{#if errors.city}<span class="field-error">{errors.city}</span>{/if}
+					</label>
+					<label>
+						<span>Accesibilidad <small class="hint">(escaleras, baño accesible…)</small></span>
+						<textarea
+							name="accessibility"
+							rows="3"
+							maxlength="2000"
+							aria-invalid={errors.accessibility ? 'true' : undefined}
+							>{values.venue?.accessibility ?? ''}</textarea
+						>
+						{#if errors.accessibility}<span class="field-error">{errors.accessibility}</span>{/if}
+					</label>
+					<label>
+						<span>Cómo llegar</span>
+						<textarea
+							name="how_to_get_there"
+							rows="3"
+							maxlength="2000"
+							aria-invalid={errors.how_to_get_there ? 'true' : undefined}
+							>{values.venue?.how_to_get_there ?? ''}</textarea
+						>
+						{#if errors.how_to_get_there}<span class="field-error">{errors.how_to_get_there}</span
+							>{/if}
+					</label>
+					<label>
+						<span>¿Qué se muestra de la dirección?</span>
+						<select
+							name="venue_privacy"
+							value={values.venue?.venue_privacy ?? ''}
+							aria-invalid={errors.venue_privacy ? 'true' : undefined}
+						>
+							<option value="">Sin elegir: la dirección completa</option>
+							{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
+								<option {value}>{label}</option>
+							{/each}
+						</select>
+						{#if errors.venue_privacy}<span class="field-error">{errors.venue_privacy}</span>{/if}
+					</label>
+					<p class="hint">
+						Cada evento puede mostrar menos. Quien compra una entrada recibe siempre la dirección
+						completa.
+					</p>
+				</fieldset>
+			{/if}
 			{#if group}
 				<label class="choice">
 					<input type="checkbox" name="show_members" checked={values.show_members} />
@@ -368,7 +460,7 @@
 				{/if}
 			{/if}
 		</section>
-	{:else}
+	{:else if !venue}
 		<section class="surface-card" aria-labelledby="groups-title">
 			<h2 id="groups-title">Proyectos</h2>
 			{#if msg('proyectos')?.error}

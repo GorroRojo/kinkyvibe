@@ -600,3 +600,95 @@ describe('sin el permiso "puede tener perfiles"', () => {
 		).toBe(0);
 	});
 });
+
+describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
+	it('crear un lugar, completar la dirección y ver que espera la aprobación', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const r = await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({
+					member: me,
+					form: { kind: 'lugar', title: 'Sala Inventada', visibility: 'public' }
+				})
+			)
+		);
+		expect(r).toMatchObject({
+			status: 303,
+			location: '/mi-rincon/perfiles/sala-inventada?nuevo=1'
+		});
+		const params = { slug: 'sala-inventada' };
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(page.pending).toBe(true);
+		expect(page.profile).toMatchObject({
+			kind: 'lugar',
+			venue: { address: '', venue_privacy: '' }
+		});
+		expect(page.memberships).toEqual([]);
+
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: {
+						title: 'Sala Inventada',
+						version: String(page.profile.version),
+						visibility: 'public',
+						bio: 'Un espacio inventado.',
+						links: '',
+						pronouns: '',
+						address: 'Calle Inventada 123',
+						area: 'Barrio Inventado',
+						city: 'Ciudad Inventada',
+						accessibility: 'Sin escalones',
+						how_to_get_there: '',
+						venue_privacy: 'area'
+					}
+				})
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(after.profile.venue).toEqual({
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			city: 'Ciudad Inventada',
+			accessibility: 'Sin escalones',
+			how_to_get_there: '',
+			venue_privacy: 'area'
+		});
+		expect(after.pending).toBe(true);
+	});
+
+	it('el formulario de una persona no trae campos de lugar (no se guardan aunque se manden)', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } })
+			)
+		);
+		const params = { slug: 'nombre-inventado' };
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: {
+						title: 'Nombre Inventado',
+						version: '1',
+						visibility: 'public',
+						address: 'Calle Inventada 123',
+						venue_privacy: 'public'
+					}
+				})
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const row = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'nombre-inventado'")
+			.first();
+		expect(JSON.parse(String(row?.data))).not.toHaveProperty('address');
+	});
+});

@@ -81,11 +81,24 @@ import { accountMailAllowed } from './mailCap.js';
 
 export const PROFILE_TYPE = 'perfil';
 /**
- * Los tipos de perfil que puede crear una cuenta. Los lugares los crean les admins (Panel →
- * Eventos → Lugares); una cuenta puede llegar a gestionar uno solo si une admin aprueba su
- * pedido "Es mi perfil" (src/lib/server/amigues/claims.js).
+ * Los tipos de perfil que puede crear una cuenta. También lugares (decisión de gorrite,
+ * docs/decisiones/0022-lugares-desde-cuentas.md): como todo perfil que crea una cuenta, no
+ * aparece en el sitio hasta que une admin lo aprueba (Panel → Eventos → Lugares, "Para aprobar";
+ * src/lib/server/amigues/pendingVenues.js).
  */
-export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto']);
+export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto', 'lugar']);
+
+/**
+ * Los campos de un lugar que se editan desde Mi rincón (la ubicación en el mapa, `lat`/`lng`, la
+ * carga une admin).
+ */
+export const ACCOUNT_VENUE_FIELDS = Object.freeze([
+	'address',
+	'area',
+	'city',
+	'accessibility',
+	'how_to_get_there'
+]);
 
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
@@ -122,7 +135,7 @@ export const MESSAGES = Object.freeze({
 	personaLeave: 'Un perfil de persona no se deja: si no lo querés más, borralo.',
 	tooManyProfiles: `Llegaste al máximo de ${MAX_PROFILES_PER_ACCOUNT} perfiles.`,
 	tooManyInvites: `Hay demasiadas invitaciones pendientes (máximo ${MAX_PENDING_INVITES}). Cancelá alguna.`,
-	badKind: 'Elegí si el perfil es de una persona o de un proyecto.',
+	badKind: 'Elegí si el perfil es de una persona, de un proyecto o de un lugar.',
 	badEmail: 'Revisá el mail: no parece una dirección válida.',
 	invited:
 		'Listo. Si ese mail tiene cuenta, le mandamos un aviso. La invitación aparece en Mi rincón → Perfiles cuando entre con ese mail (vence en 14 días).',
@@ -216,7 +229,29 @@ function parseLinks(value) {
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
  * @prop {boolean} [show_members] solo proyectos
+ * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS} y
+ *   `venue_privacy` ('' = sin elegir: la dirección completa)
  */
+
+/**
+ * Los campos de lugar de `data` a partir de lo que mandó Mi rincón: los vacíos se sacan; los
+ * demás campos quedan como estaban. Pura (sin base).
+ *
+ * @param {Record<string, string> | undefined} venue
+ * @param {Record<string, unknown>} current
+ * @returns {Record<string, unknown>}
+ */
+export function accountVenueData(venue, current) {
+	/** @type {Record<string, unknown>} */
+	const data = { ...current };
+	if (!venue) return data;
+	for (const key of [...ACCOUNT_VENUE_FIELDS, 'venue_privacy']) {
+		const value = text(venue[key]).trim();
+		if (value) data[key] = value;
+		else delete data[key];
+	}
+	return data;
+}
 
 /**
  * `data` de un perfil a partir de lo que se editó. Lo que no se edita desde Mi rincón (`kind`,
@@ -238,6 +273,7 @@ function profileData(kind, input, current = {}) {
 	};
 	if (kind === 'proyecto') data.show_members = input.show_members === true;
 	else delete data.show_members;
+	if (kind === 'lugar') return accountVenueData(input.venue, data);
 	return data;
 }
 

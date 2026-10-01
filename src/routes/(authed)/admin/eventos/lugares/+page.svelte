@@ -5,7 +5,7 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { MapPin } from '@lucide/svelte';
+	import { Clock, MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
 	import { DEFAULT_VENUE_PRIVACY } from '$lib/utils/venues.js';
@@ -48,6 +48,73 @@
 	{/if}
 	{#if form?.perfil && !form.perfil.ok}
 		<p class="kv-flash bad" role="alert">{form.perfil.message}</p>
+	{/if}
+	{#if form?.pending}
+		<p class="kv-flash" class:bad={!form.pending.ok} role="status">{form.pending.message}</p>
+	{/if}
+
+	{#if data.pending.length}
+		<Card title="Para aprobar" icon={Clock}>
+			<svelte:fragment slot="actions">
+				<CsvButton
+					rows={data.pending}
+					filename="lugares-para-aprobar.csv"
+					columns={[
+						{ label: 'Lugar', key: 'title' },
+						{ label: 'Dirección en el sitio', key: 'slug' },
+						{ label: 'Dirección', key: 'address' },
+						{ label: 'Barrio', key: 'area' },
+						{ label: 'Ciudad', key: 'city' },
+						{ label: 'Lo cargó', value: (v) => (v.byAccount ? 'una cuenta' : 'el panel') },
+						{ label: 'Creado', value: (v) => fmtDateTime(v.createdAt) }
+					]}
+				/>
+			</svelte:fragment>
+			<p class="kv-note">
+				Lugares que cargaron las cuentas. No aparecen en el sitio (ni en los eventos) hasta que los
+				aprobás. Rechazar lo borra: deja de verse también en el Mi rincón de quien lo cargó.
+			</p>
+			<div class="kv-table-wrap">
+				<table class="kv-table">
+					<thead>
+						<tr>
+							<th>Lugar</th>
+							<th class="hide-sm">Dirección</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.pending as v (v.id)}
+							<tr>
+								<td>
+									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<small class="muted block"
+										>{v.byAccount ? 'Lo cargó una cuenta' : 'Sin aprobar'}, {fmtDateTime(
+											v.createdAt
+										)}</small
+									>
+								</td>
+								<td class="hide-sm small"
+									>{[v.address, v.area, v.city].filter(Boolean).join(', ') || 'sin dirección'}</td
+								>
+								<td>
+									<div class="kv-row">
+										<form method="POST" action="?/aprobarLugar" use:enhance>
+											<input type="hidden" name="lugar" value={v.id} />
+											<button class="kv-btn small" type="submit">Aprobar</button>
+										</form>
+										<form method="POST" action="?/rechazarLugar" use:enhance>
+											<input type="hidden" name="lugar" value={v.id} />
+											<button class="kv-btn ghost small" type="submit">Rechazar</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</Card>
 	{/if}
 
 	<Card title="Lugares" icon={MapPin}>
@@ -116,7 +183,8 @@
 			<button class="kv-btn" type="submit" disabled={!newName.trim()}>Crear y completar</button>
 		</form>
 		<p class="kv-note">
-			Se crea con la dirección "solo el nombre" y después completás el resto en su página.
+			Se crea aprobado. Sin elegir qué se muestra, se ve la dirección completa; el resto lo
+			completás en su página.
 		</p>
 	</Card>
 

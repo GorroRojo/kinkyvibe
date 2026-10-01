@@ -21,7 +21,8 @@
 	$: input = f?.action === 'crear' ? f.input : null;
 	$: errors = /** @type {Record<string, string>} */ (f?.action === 'crear' ? (f.errors ?? {}) : {});
 	let kind = 'persona';
-	$: if (input?.kind === 'persona' || input?.kind === 'proyecto') kind = input.kind;
+	$: if (input?.kind === 'persona' || input?.kind === 'proyecto' || input?.kind === 'lugar')
+		kind = input.kind;
 </script>
 
 <svelte:head>
@@ -191,6 +192,14 @@
 						></span
 					>
 				</label>
+				<label class="choice">
+					<input type="radio" name="kind" value="lugar" bind:group={kind} />
+					<span
+						>De un lugar <small class="hint"
+							>(un espacio donde pasan cosas: un bar, un centro cultural, una sala)</small
+						></span
+					>
+				</label>
 				{#if errors.kind}<p class="field-error">{errors.kind}</p>{/if}
 			</fieldset>
 			<label>
@@ -220,7 +229,14 @@
 					</label>
 				{/each}
 			</fieldset>
-			<p class="hint">Después de crearlo completás el resto (presentación, pronombres, links).</p>
+			{#if kind === 'lugar'}
+				<p class="hint">
+					Después de crearlo completás la dirección y lo demás. Aparece en el sitio recién cuando
+					une admin lo aprueba.
+				</p>
+			{:else}
+				<p class="hint">Después de crearlo completás el resto (presentación, pronombres, links).</p>
+			{/if}
 			<button class="pill-btn" type="submit">Crear perfil</button>
 		</form>
 	</section>

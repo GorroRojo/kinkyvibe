@@ -14,6 +14,12 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
+- **Lugares desde las cuentas** (decisión de gorrite,
+  [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
+  lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
+  ni en su página, ni en los eventos) hasta que une admin lo aprueba en **Eventos → Lugares →
+  "Para aprobar"** (lista con CSV; aprobar o rechazar, que lo borra). Los que crea une admin y los
+  importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: el editor de Amigues edita el perfil en la base (publica al guardar, con aviso de
@@ -28,7 +34,8 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 
 ## Prenderlo (orden recomendado)
 
-1. Aplicar la migración `0017_amigues_lugares.sql` (gorrite, como siempre: ver [datos.md](datos.md)).
+1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
+   (gorrite, como siempre: ver [datos.md](datos.md)).
 2. En el panel del entorno (primero preview): **Contenido → Amigues → Importar y clasificar →
    Importar las fichas**. Se puede repetir: es idempotente.
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
@@ -109,14 +116,14 @@ tiene el edge `lugar` hacia… `lugar`: hay que cambiar su destino a `perfil`), 
 la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues.js` pasan a
 `getEdges`.
 
-## Tablas (migración 0017)
+## Tablas (migraciones 0017 y 0024)
 
-| Tabla               | Qué guarda                                                                                                                      |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `profile_sources`   | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta, por qué, confirmada) |
-| `profile_approvals` | perfiles aprobados para `/amigues`                                                                                              |
-| `profile_claims`    | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                         |
-| `event_venues`      | "sucede en" provisorio, con la privacidad del evento                                                                            |
+| Tabla               | Qué guarda                                                                                                                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile_sources`   | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
+| `profile_approvals` | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
+| `profile_claims`    | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
+| `event_venues`      | "sucede en" provisorio, con la privacidad del evento                                                                                                                                                                                |
 
 ## Dónde está el código
 
