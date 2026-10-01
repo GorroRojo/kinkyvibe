@@ -556,6 +556,7 @@ describe('aviso por mail de las invitaciones', () => {
 		expect(sent).toHaveBeenCalledTimes(1);
 	});
 
+	// Recorre el flujo entero hasta el tope: en la CI tarda más que los 5 s de un test común.
 	it('límite por hora por grupo y por cuenta que invita (se cuenta haya o no cuenta)', async () => {
 		const a = await account('dueñe-inventade');
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
@@ -590,7 +591,7 @@ describe('aviso por mail de las invitaciones', () => {
 		}
 		expect(sentOk).toBe(perAccount);
 		expect(last).toMatchObject({ status: 429, message: MESSAGES.tooManyInviteMails });
-	});
+	}, 20_000);
 
 	it('límite de avisos por destinatarie: la invitación se crea igual y la respuesta no cambia', async () => {
 		const b = await account('gestora-inventada');
@@ -613,7 +614,15 @@ describe('aviso por mail de las invitaciones', () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
-		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		// El contador global de esta hora arranca lleno (300 llamadas tardan más que el tiempo
+		// de un test en la CI). Misma ventana que calcula hitRateLimit.
+		const nowSeconds = Math.floor(NOW / 1000);
+		const windowStart = nowSeconds - (nowSeconds % ACCOUNT_MAIL_CAP.windowSeconds);
+		await t.db
+			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)')
+			.bind('cuentas:mail:global', windowStart, ACCOUNT_MAIL_CAP.limit)
+			.run();
+		expect(await accountMailAllowed(t.db, NOW)).toBe(false);
 		const fake = fakeNotice();
 		expect(
 			await inviteManager(t.db, a.id, g.slug, b.email, { ...opts, notice: fake.notice })
@@ -1075,6 +1084,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		);
 	});
 
+	// Recorre el flujo entero hasta el tope: en la CI tarda más que los 5 s de un test común.
 	it('límite de invitaciones por hora por grupo y por cuenta (se cuenta aunque el perfil no exista)', async () => {
 		const a = await account('dueñe-inventade');
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
@@ -1114,7 +1124,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 			last = await inviteMember(t.db, b.id, groups[Math.floor(i / limit)].slug, `x-${i}`, opts);
 		}
 		expect(last).toMatchObject({ status: 429 });
-	});
+	}, 20_000);
 
 	it('aceptar e irse guardan sobre la versión de ahora: no fallan ni pisan lo que la persona editó', async () => {
 		const a = await account('dueñe-inventade');

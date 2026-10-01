@@ -346,8 +346,9 @@ describe('los límites por mail no los gasta otra conexión', () => {
 
 	it('una sola conexión no llega al tope diario de un mail ajeno', async () => {
 		const { sent, send } = fakeSender();
-		// Durante 10 horas, 3 pedidos en cada ventana de 15 minutos desde la misma conexión.
-		for (let w = 0; w < 40; w++) {
+		// Durante hora y media, 3 pedidos en cada ventana de 15 minutos desde la misma conexión
+		// (18 pedidos: más que el tope por mail y conexión, y que el diario por mail).
+		for (let w = 0; w < 6; w++) {
 			for (let i = 0; i < 3; i++) {
 				await requestCode({
 					db: t.db,
@@ -426,7 +427,15 @@ describe('los límites por mail no los gasta otra conexión', () => {
 
 describe('tope global de mails y conexiones IPv6', () => {
 	it('con el tope global lleno: el mismo aviso para cualquier mail, sin mandar nada', async () => {
-		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		// El contador global de esta hora arranca lleno (hacer 300 llamadas tarda más que el
+		// tiempo de un test en la CI). Misma ventana que calcula hitRateLimit.
+		const nowSeconds = Math.floor(NOW / 1000);
+		const windowStart = nowSeconds - (nowSeconds % ACCOUNT_MAIL_CAP.windowSeconds);
+		await t.db
+			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)')
+			.bind('cuentas:mail:global', windowStart, ACCOUNT_MAIL_CAP.limit)
+			.run();
+		expect(await accountMailAllowed(t.db, NOW)).toBe(false);
 		const { sent, send } = fakeSender();
 		const a = await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW });
 		const b = await requestCode({
