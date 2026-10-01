@@ -8,6 +8,7 @@
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
+	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -277,6 +278,9 @@
 		<div id="tags">
 			<Tags tags={data.meta.tags} />
 		</div>
+	{/if}
+	{#if data.personas}
+		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
 	<div class="content" use:processContent>
 		<svelte:component this={data.content} />

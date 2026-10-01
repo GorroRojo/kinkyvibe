@@ -3,6 +3,7 @@ import { mentionPronouns } from '$lib/server/pronouns';
 import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { redirect } from '@sveltejs/kit';
+import { personasForPage } from '$lib/server/personas/index.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
@@ -18,6 +19,8 @@ export async function load({ params, platform }) {
 		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
 		pronouns: await mentionPronouns(),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito.
-		propinas: isKinkyVibePost(post.meta) ? await propinasEnabled(platform) : false
+		propinas: isKinkyVibePost(post.meta) ? await propinasEnabled(platform) : false,
+		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
+		personas: await personasForPage(platform, post.meta)
 	};
 }

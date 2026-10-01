@@ -23,6 +23,7 @@ import { toBase64url } from '$lib/utils/base64.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
 import { HOLDING, checkDiscountCode, discountGuardSql } from './discounts.js';
 import { capacityLimit, tierLimit } from './overrides.js';
+import { answersStatement } from './signupFields.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
@@ -156,9 +157,11 @@ export function newToken() {
  *   now?: number,
  *   holdMs?: number,
  *   clientHash?: string | null,
- *   limits?: typeof HOLD_LIMITS
+ *   limits?: typeof HOLD_LIMITS,
+ *   answers?: import('$lib/utils/signupFields.js').Answer[]
  * }} input
  * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ * `answers`: respuestas a las preguntas de inscripción (ya validadas), en la misma tanda.
  *
  * @returns {Promise<{ ok: true, order: Order }
  *   | { ok: false, reason: 'soldout', available: number | null }
@@ -200,6 +203,8 @@ export async function reserveOrder(db, input) {
 	// La fecha del tramo se mira con el mismo `now` de la reserva (el que eligió el tramo).
 	if (tier && tier.until !== null && now >= tier.until) return { ok: false, reason: 'tier' };
 	const id = crypto.randomUUID();
+	// Respuestas a las preguntas de inscripción: en la misma tanda, solo si la orden entró.
+	const answers = input.answers?.length ? [answersStatement(db, id, input.answers, now)] : [];
 	const [, inserted] = await db.batch([
 		expireStatement(db, eventSlug, now),
 		db
@@ -260,7 +265,8 @@ export async function reserveOrder(db, input) {
 				limits.perClientQuantity,
 				tier?.id ?? null,
 				tier?.quantity ?? null
-			)
+			),
+		...answers
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };

@@ -177,6 +177,9 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 	return {
 		mode: /** @type {const} */ ('db'),
 		profile,
+		// La dirección del objeto (la que usan otros archivos para nombrarlo, por ejemplo
+		// `personas:` en un evento); `profile.slug` es la de la URL, que puede ser la vieja.
+		objectSlug: object.slug,
 		canonical: href,
 		bodyHtml: await renderProfileBody(/** @type {string | undefined} */ (object.data.body), {
 			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined)

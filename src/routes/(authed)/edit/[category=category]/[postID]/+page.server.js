@@ -19,6 +19,7 @@ import {
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import {
 	featuredOf,
@@ -74,6 +75,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
 		...(await editorData(params.category)),
+		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		personas: params.category === 'amigues' ? null : await editorPersonas(platform),
 		image:
 			params.category === 'calendario'
 				? await imageInfo(locals.user_token, params.postID, post.raw)
@@ -131,6 +134,14 @@ export const _editActions = {
 		// Events follow the same tag rules as /admin/eventos/nuevo (one language, one place).
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });
+		// Personas con rol (interruptor personas_eventos): perfiles y roles válidos.
+		const roles = params.category === 'amigues' ? null : await activeRoles(platform);
+		if (roles) {
+			const personasError = await newFileErrors(locals.user_token, params, fileContent, (c) =>
+				personasFileErrors(c, roles)
+			);
+			if (personasError) return fail(400, { error: personasError });
+		}
 		if (params.category === 'calendario') {
 			const ticketError = await newTicketsError(
 				locals.user_token,
@@ -263,13 +274,25 @@ function eventTagError(content) {
  * @param {import('$lib/utils/ticketsEditor.js').SalesByType | null} sales
  */
 async function newTicketsError(token, params, content, sales) {
-	const errors = ticketsFileErrors(content, { sales });
+	return newFileErrors(token, params, content, (c) => ticketsFileErrors(c, { sales }));
+}
+
+/**
+ * Los problemas que agrega este guardado (según `errorsOf`), o null. Los que el archivo ya tenía
+ * no bloquean guardar otros cambios; para saberlo se lee el archivo actual solo si hay alguno.
+ * @param {string} token
+ * @param {{category: string, postID: string}} params
+ * @param {string} content
+ * @param {(content: string) => string[]} errorsOf
+ */
+async function newFileErrors(token, params, content, errorsOf) {
+	const errors = errorsOf(content);
 	if (!errors.length) return null;
 	/** @type {string[]} */
 	let before = [];
 	try {
 		const current = await getFileContent(token, postPath(params));
-		before = ticketsFileErrors(current.raw, { sales });
+		before = errorsOf(current.raw);
 	} catch (e) {
 		// Sin el archivo actual, todo cuenta como nuevo.
 	}
