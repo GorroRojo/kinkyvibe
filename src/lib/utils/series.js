@@ -9,6 +9,9 @@
  */
 
 import { TIMEZONE } from './dates.js';
+import { tagSlug } from './tagSlug.js';
+
+export { resolveTagSlug, tagIdFromSlug, tagSlug } from './tagSlug.js';
 
 /** La etiqueta madre de las series. */
 export const SERIES_PARENT = 'evento recurrente';
@@ -184,11 +187,12 @@ export function seriesImage(tag) {
 
 /**
  * Dirección de la página de una etiqueta (la Kinkipedia muestra la etiqueta si no hay entrada).
+ * Con la forma slug (`tagSlug`), como los demás links a una etiqueta.
  *
  * @param {string} id
  */
 export function tagPagePath(id) {
-	return '/wiki/' + encodeURIComponent(id.replaceAll(' ', '-'));
+	return '/wiki/' + encodeURIComponent(tagSlug(id));
 }
 
 /**
@@ -211,12 +215,24 @@ export function editionDateLabel(start) {
 }
 
 /**
- * Dirección del calendario .ics de una etiqueta o serie (src/routes/ics/etiqueta/).
+ * Dirección del calendario .ics de una etiqueta o serie (src/routes/ics/etiqueta/), con la misma
+ * forma slug que la página (`tagPagePath`). La ruta la resuelve con `resolveTagSlug`, así que los
+ * links viejos con espacios (%20) siguen andando.
  *
  * @param {string} id
  */
 export function tagFeedPath(id) {
-	return `/ics/etiqueta/${encodeURIComponent(id)}.ics`;
+	return `/ics/etiqueta/${encodeURIComponent(tagSlug(id))}.ics`;
+}
+
+/**
+ * Dirección de /api/series para una etiqueta (lo que pide la página de la etiqueta), con la
+ * misma forma slug.
+ *
+ * @param {string} id
+ */
+export function seriesApiPath(id) {
+	return `/api/series/${encodeURIComponent(tagSlug(id))}`;
 }
 
 /**
