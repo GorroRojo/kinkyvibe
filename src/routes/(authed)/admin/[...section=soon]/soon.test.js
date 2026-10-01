@@ -83,7 +83,7 @@ describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 		}).body;
 		expect(hidden).not.toContain('href="/admin/mensajes"');
 		expect(hidden).not.toMatch(/fase \d/);
-		expect(hidden).toContain('href="/admin/ajustes/mails/plantillas"');
+		expect(hidden).toContain('href="/admin/mensajes/plantillas"');
 	});
 
 	it('el panel "Más" lista las áreas con sus próximamente, y sin ellas si se ocultan', () => {

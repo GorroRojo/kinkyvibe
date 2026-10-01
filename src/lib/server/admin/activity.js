@@ -1,5 +1,5 @@
 /**
- * Consultas del visor del registro de actividad (/admin/actividad): filtros por admin, tipo de
+ * Consultas del visor del registro de actividad (/admin/ajustes/actividad): filtros por admin, tipo de
  * acción y objetivo, paginado por `id` y los valores posibles de cada filtro.
  *
  * `listAudit` (audit.js) filtra por admin y objetivo; acá se suma el filtro por tipo de acción

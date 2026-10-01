@@ -1,6 +1,7 @@
 /**
- * Loads and form actions shared by /admin/material/** and /admin/amigues/** (list, nuevo,
- * [slug]). Each route file is a thin wrapper that picks the category.
+ * Loads and form actions shared by /admin/contenido/material/** and /admin/comunidad/perfiles/**
+ * (list, nuevo, [slug]; URLs from `contentAdminHref` in nav.js). Each route file is a thin wrapper
+ * that picks the category.
  *
  * Every load calls requireAdmin (loads run in parallel with the layout's) and every action checks
  * the admin itself (actions don't run the layout load). Writes go through the same GitHub commit
@@ -36,6 +37,7 @@ import {
 	validateContentSlug
 } from '$lib/utils/contentPosts.js';
 import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
+import { contentAdminHref } from '$lib/admin/nav.js';
 import materialTemplate from '$lib/posts/material/_post_template.md?raw';
 import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 
@@ -140,7 +142,7 @@ export function visibilityAction(category) {
 /* ------------------------------------------------------------------------------------------ */
 
 /**
- * /admin/<category>/nuevo[?desde=slug]
+ * <contentAdminHref(category)>/nuevo[?desde=slug]
  * @param {'material'|'amigues'} category
  */
 export function newLoad(category) {
@@ -188,7 +190,7 @@ export function newLoad(category) {
 }
 
 /**
- * /admin/<category>/[slug]
+ * <contentAdminHref(category)>/[slug]
  * @param {'material'|'amigues'} category
  */
 export function editLoad(category) {
@@ -338,7 +340,7 @@ export function editorActions(category) {
 					const pr = r.commit.pr ? `&pr=${r.commit.pr.number}&estado=${r.commit.pr.state}` : '';
 					throw redirect(
 						303,
-						`/admin/${category}/${slug}?guardado=${from ? 'duplicado' : 'creado'}${pr}`
+						`${contentAdminHref(category)}/${slug}?guardado=${from ? 'duplicado' : 'creado'}${pr}`
 					);
 				}
 				return {

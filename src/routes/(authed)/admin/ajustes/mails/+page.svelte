@@ -85,7 +85,7 @@
 			recordatorio, link de la transmisión y reembolso), con vista previa y prueba.
 		</p>
 		<div>
-			<a class="kv-btn ghost" href="/admin/ajustes/mails/plantillas">
+			<a class="kv-btn ghost" href="/admin/mensajes/plantillas">
 				<Mail size={16} aria-hidden="true" /> Editar las plantillas
 			</a>
 		</div>

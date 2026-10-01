@@ -49,7 +49,7 @@
 	subtitle="Dónde suceden los eventos: dirección, mapa, accesibilidad, cómo llegar y qué se muestra de la dirección."
 >
 	<svelte:fragment slot="actions">
-		<a class="kv-btn ghost" href="/admin/amigues?tipo=lugar">Ver en Perfiles</a>
+		<a class="kv-btn ghost" href="/admin/comunidad/perfiles?tipo=lugar">Ver en Perfiles</a>
 	</svelte:fragment>
 </PageHeader>
 
@@ -98,7 +98,7 @@
 						{#each data.pending as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{v.byAccount ? 'Lo cargó una cuenta' : 'Sin aprobar'}, {fmtDateTime(
 											v.createdAt
@@ -164,7 +164,7 @@
 						{#each data.rejected as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{v.byAccount ? 'Lo cargó una cuenta' : 'Lo cargó el panel'}, {fmtDateTime(
 											v.createdAt
@@ -221,7 +221,7 @@
 						{#each data.venues as v (v.id)}
 							<tr>
 								<td>
-									<a href="/admin/amigues/{v.slug}"><strong>{v.title}</strong></a>
+									<a href="/admin/comunidad/perfiles/{v.slug}"><strong>{v.title}</strong></a>
 									<small class="muted block"
 										>{[v.area, v.city].filter(Boolean).join(', ') || 'sin barrio'}{v.hasMap
 											? ' · con mapa'

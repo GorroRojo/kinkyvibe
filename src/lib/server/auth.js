@@ -86,7 +86,7 @@ export async function revokeToken(token, { clientId, clientSecret }, fetchFn = f
  */
 export function requireAdmin(locals, url) {
 	if (!locals.user || !locals.user_token) {
-		// Ruta + query (ej. /admin/entradas/codigos?evento=x), validada como en /login.
+		// Ruta + query (ej. /admin/ventas/codigos?evento=x), validada como en /login.
 		const back = safeRedirect(url.pathname + url.search, url.origin, '/admin');
 		throw redirect(303, loginHref(new URL(back, url.origin)));
 	}

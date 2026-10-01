@@ -48,7 +48,7 @@
 			</p>
 			<p class="kv-note">{f.description}</p>
 			{#if f.key === 'personas_eventos' && (f.forced ?? f.enabled)}
-				<p><a href="/admin/ajustes/personas">Configurar roles y preguntas →</a></p>
+				<p><a href="/admin/eventos/roles">Configurar roles y preguntas →</a></p>
 			{/if}
 			{#if f.forced !== null}
 				<p class="kv-note">

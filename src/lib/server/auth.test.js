@@ -120,12 +120,12 @@ describe('requireAdmin', () => {
 		expect(e.location).toBe('/login?redirectTo=%2Fedit%2Fcalendario%2Fx');
 	});
 	it('keeps the query string when redirecting to login', () => {
-		const withQuery = new URL('https://kinkyvibe.ar/admin/entradas/codigos?evento=x&y=1');
+		const withQuery = new URL('https://kinkyvibe.ar/admin/ventas/codigos?evento=x&y=1');
 		const e = thrown(() => requireAdmin({ user: undefined, user_token: '' }, withQuery));
 		expect(e.status).toBe(303);
 		expect(e.location).toBe('/login?redirectTo=%2Fadmin%2Fentradas%2Fcodigos%3Fevento%3Dx%26y%3D1');
 		expect(safeRedirect(new URL(e.location, origin).searchParams.get('redirectTo'), origin)).toBe(
-			'/admin/entradas/codigos?evento=x&y=1'
+			'/admin/ventas/codigos?evento=x&y=1'
 		);
 	});
 	it('gives logged-in non-admins a 403 instead of redirecting', () => {
