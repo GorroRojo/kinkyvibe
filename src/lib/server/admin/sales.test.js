@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { TRANSFER_HOLD_MS, getCounts, reserveOrder } from '$lib/server/tickets/orders.js';
+import { TRANSFER_HOLD_MS, getCounts, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
 import {
 	EXPIRED_TRANSFER_VISIBLE_MS,
 	getAllCounts,
@@ -152,11 +152,29 @@ describe('listTransferInbox', () => {
 		const onlyB = await listTransferInbox(t.db, { now: NOW, eventSlug: 'fiesta-b' });
 		expect(onlyB.pending.map((o) => o.id)).toEqual([early.id]);
 		expect(onlyB.expired).toEqual([]);
+		expect(inbox.rejected).toEqual([]);
+	});
+
+	it('las rechazadas de los últimos 7 días van aparte (y no en las vencidas)', async () => {
+		const rejected = await reserve('fiesta-a', { method: 'transferencia' });
+		const old = await reserve('fiesta-b', { method: 'transferencia' });
+		const cancel = (/** @type {string} */ id, /** @type {number} */ at) =>
+			t.db
+				.prepare("UPDATE orders SET status = 'cancelled', updated_at = ?2 WHERE id = ?1")
+				.bind(id, at)
+				.run();
+		await cancel(rejected.id, NOW);
+		await cancel(old.id, NOW - EXPIRED_TRANSFER_VISIBLE_MS - 1000);
+		const inbox = await listTransferInbox(t.db, { now: NOW + 1000 });
+		expect(inbox.rejected.map((o) => o.id)).toEqual([rejected.id]);
+		expect(inbox.pending).toEqual([]);
+		expect(inbox.expired).toEqual([]);
 	});
 });
 
 describe('confirmar y cancelar desde la bandeja', async () => {
-	const { cancelTransferFromPanel, confirmTransferFromPanel } = await import('./transfers.js');
+	const { cancelTransferFromPanel, confirmTransferFromPanel, reopenTransferFromPanel } =
+		await import('./transfers.js');
 	const locals = /** @type {any} */ ({ user: { id: 1, login: 'admin-prueba' } });
 
 	async function audit() {
@@ -258,5 +276,111 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 			await confirmTransferFromPanel({ db: t.db, locals, by: 'x', orderId: 'no-es-un-id' })
 		).toMatchObject({ ok: false, status: 404 });
 		expect(await audit()).toEqual([{ action: 'transfer.cancel', target_id: o.id }]);
+	});
+
+	describe('deshacer rechazo', () => {
+		const HOLD = 48 * 3600_000;
+		/** @param {string} id @param {number} [at] */
+		const reject = (id, at = NOW + 1000) =>
+			cancelTransferFromPanel({ db: t.db, locals, by: 'admin-prueba', orderId: id, now: at });
+
+		it('con lugar: vuelve a esperar comprobante con la reserva renovada y queda en el registro', async () => {
+			const o = await reserve('fiesta-a', { method: 'transferencia', quantity: 2 });
+			await reject(o.id);
+			const later = NOW + 5 * 24 * 3600_000; // la reserva original ya venció
+			const r = await reopenTransferFromPanel({
+				db: t.db,
+				locals,
+				by: 'admin-prueba',
+				orderId: o.id,
+				holdMs: HOLD,
+				now: later
+			});
+			expect(r).toMatchObject({ ok: true, slug: 'fiesta-a' });
+			expect(r.order).toMatchObject({
+				status: 'awaiting_transfer',
+				expires_at: later + HOLD,
+				confirmed_by: null
+			});
+			// Vuelve a ocupar su lugar y aparece en la bandeja.
+			expect((await getCounts(t.db, 'fiesta-a', later)).get('general')?.held).toBe(2);
+			const inbox = await listTransferInbox(t.db, { now: later + 1 });
+			expect(inbox.pending.map((x) => x.id)).toEqual([o.id]);
+			expect(inbox.rejected).toEqual([]);
+			expect(await audit()).toEqual([
+				{ action: 'transfer.cancel', target_id: o.id },
+				{ action: 'transfer.reopen', target_id: o.id }
+			]);
+			// Un segundo click no hace nada nuevo.
+			const again = await reopenTransferFromPanel({
+				db: t.db,
+				locals,
+				by: 'admin-prueba',
+				orderId: o.id,
+				holdMs: HOLD,
+				now: later + 5
+			});
+			expect(again).toMatchObject({ ok: true });
+			expect(again.message).toMatch(/ya estaba esperando/);
+			expect(await audit()).toHaveLength(2);
+		});
+
+		it('sin lugar: no la reabre y explica por qué; con la clave del aviso sí, y lo anota', async () => {
+			const o = await reserve('fiesta-a', { method: 'transferencia', quantity: 2 });
+			await reject(o.id);
+			// Mientras estuvo rechazada se vendieron 2 de los 3 lugares.
+			await approve((await reserve('fiesta-a', { quantity: 2, now: NOW + 2000 })).id);
+			const base = {
+				db: t.db,
+				locals,
+				by: 'admin-prueba',
+				orderId: o.id,
+				holdMs: HOLD,
+				now: NOW + 3000
+			};
+			const first = await reopenTransferFromPanel(base);
+			expect(first).toMatchObject({ ok: false, status: 409 });
+			expect(first.message).toMatch(/No hay lugar/);
+			expect(first.needsConfirmation?.limits).toEqual([
+				expect.objectContaining({ kind: 'capacity', capacity: 3, before: 2, after: 4, over: 1 })
+			]);
+			expect((await getOrder(t.db, o.id))?.status).toBe('cancelled');
+			expect((await reopenTransferFromPanel({ ...base, override: 'si' })).status).toBe(409);
+			expect(await audit()).toEqual([{ action: 'transfer.cancel', target_id: o.id }]);
+
+			const r = await reopenTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+			expect(r).toMatchObject({ ok: true });
+			expect((await getOrder(t.db, o.id))?.status).toBe('awaiting_transfer');
+			expect(await audit()).toEqual([
+				{ action: 'transfer.cancel', target_id: o.id },
+				{ action: 'transfer.reopen', target_id: o.id },
+				{ action: 'tickets.override', target_id: o.id }
+			]);
+		});
+
+		it('solo transferencias rechazadas, y del evento pedido', async () => {
+			const pending = await reserve('fiesta-a', { method: 'transferencia' });
+			const base = { db: t.db, locals, by: 'x', holdMs: HOLD, now: NOW + 1000 };
+			expect(await reopenTransferFromPanel({ ...base, orderId: pending.id })).toMatchObject({
+				ok: true // ya estaba esperando: nada que hacer
+			});
+			const approved = await reserve('fiesta-a', { method: 'transferencia' });
+			await approve(approved.id);
+			expect(await reopenTransferFromPanel({ ...base, orderId: approved.id })).toMatchObject({
+				ok: false,
+				status: 409
+			});
+			const mp = await reserve('fiesta-a');
+			expect(await reopenTransferFromPanel({ ...base, orderId: mp.id })).toMatchObject({
+				status: 404
+			});
+			const other = await reserve('fiesta-b', { method: 'transferencia' });
+			await reject(other.id);
+			expect(
+				await reopenTransferFromPanel({ ...base, orderId: other.id, eventSlug: 'fiesta-a' })
+			).toMatchObject({ status: 404 });
+			expect((await getOrder(t.db, other.id))?.status).toBe('cancelled');
+			expect((await audit()).map((a) => a.action)).toEqual(['transfer.cancel']);
+		});
 	});
 });

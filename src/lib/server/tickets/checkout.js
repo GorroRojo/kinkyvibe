@@ -530,7 +530,7 @@ export async function buyAction(event) {
 
 	// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
 	const fields = await eventSignupFields(db, params.event);
-	values.answers = readAnswers(form, fields);
+	values.answers = readAnswers(form, fields, values.quantity);
 	const valid = validatePurchase(
 		{
 			...purchaseConfig,
