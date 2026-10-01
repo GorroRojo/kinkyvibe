@@ -2,6 +2,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { bundleMeta, listPanelEvents } from '$lib/server/eventos/panel.js';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
+import { seriesEnabled } from '$lib/server/flags.js';
 
 /**
  * Ventas por evento en una sola consulta: entradas vendidas y transferencias esperando
@@ -75,5 +76,6 @@ export async function load({ locals, url, platform, setHeaders }) {
 			};
 		})
 	);
-	return { events: rows, now };
+	// Interruptor `series`: botón a Eventos → Series.
+	return { events: rows, now, seriesOn: await seriesEnabled(platform) };
 }

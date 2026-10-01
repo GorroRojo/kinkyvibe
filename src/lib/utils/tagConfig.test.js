@@ -10,6 +10,7 @@ import {
 	planTagChange,
 	printEntry,
 	readOps,
+	isAssetFileName,
 	renameWikiLinks,
 	replaceTagInPost,
 	validateTagName
@@ -376,5 +377,45 @@ describe('helpers', () => {
 		expect(describeOp({ type: 'move', id: 'a', from: 'b', to: 'c' })).toBe(
 			'Mover «a» de «b» a «c»'
 		);
+	});
+});
+
+describe('image (imagen de una serie)', () => {
+	it('update: pone la imagen después del color, y vacía la saca', () => {
+		const out = run([
+			{ type: 'update', id: 'impacto', set: { color: 'red', image: 'impacto-serie.webp' } }
+		]);
+		expect(entry(out, 'impacto')).toEqual({
+			id: 'impacto',
+			icon: '👋',
+			color: 'red',
+			image: 'impacto-serie.webp'
+		});
+		expect(Object.keys(entry(out, 'impacto') ?? {})).toEqual(['id', 'icon', 'color', 'image']);
+		const cleared = run([{ type: 'update', id: 'impacto', set: { image: '' } }], out);
+		expect(entry(cleared, 'impacto')).toEqual({ id: 'impacto', icon: '👋', color: 'red' });
+	});
+	it('solo acepta un archivo de src/lib/assets (sin carpetas ni otras extensiones)', () => {
+		for (const bad of ['../secreto.webp', 'carpeta/x.png', 'x.svg', 'javascript:alert(1)']) {
+			expect(() => run([{ type: 'update', id: 'impacto', set: { image: bad } }])).toThrow(
+				/src\/lib\/assets/
+			);
+		}
+		expect(isAssetFileName('picantearla-miniatura.webp')).toBe(true);
+		expect(isAssetFileName('foto.JPG')).toBe(true);
+	});
+	it('merge: la imagen pasa a la etiqueta que queda si no tenía', () => {
+		const src = SRC.replace("{ id: 'suelta' }", "{ id: 'suelta', image: 's.webp' }");
+		const out = run([{ type: 'merge', from: 'suelta', into: 'impacto' }], src);
+		expect(entry(out, 'impacto')?.image).toBe('s.webp');
+	});
+	it('analyzeTags expone la imagen propia', () => {
+		const src = SRC.replace("{ id: 'suelta' }", "{ id: 'suelta', image: 's.webp' }");
+		const a = analyzeTags(
+			parseTagSource(src).items.map((i) => i.value),
+			{}
+		);
+		expect(a.nodes.find((x) => x.id === 'suelta')?.image).toBe('s.webp');
+		expect(a.nodes.find((x) => x.id === 'impacto')?.image).toBeUndefined();
 	});
 });

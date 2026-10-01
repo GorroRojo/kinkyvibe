@@ -12,6 +12,7 @@ import {
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
+import { seriesEnabled } from '$lib/server/flags.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -21,8 +22,8 @@ const NO_PERMISSION =
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
 
-/** @param {{locals: App.Locals, url: URL}} event */
-export async function load({ locals, url }) {
+/** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
+export async function load({ locals, url, platform }) {
 	requireAdmin(locals, url);
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
@@ -48,7 +49,9 @@ export async function load({ locals, url }) {
 	for (const p of await contentMetas()) {
 		if (p.category === 'wiki' && p.meta?.wiki) wikiPosts[String(p.meta.wiki)] = p.slug;
 	}
-	return { entries, usage, wikiPosts, fromRepo, mock: isMockMode() };
+	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
+	const seriesOn = await seriesEnabled(platform);
+	return { entries, usage, wikiPosts, fromRepo, mock: isMockMode(), seriesOn };
 }
 
 /**

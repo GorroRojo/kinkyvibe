@@ -48,6 +48,15 @@ export const FLAGS = Object.freeze({
 			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
 			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
 		envVar: 'PERSONAS_EVENTOS_ENABLED'
+	},
+	series: {
+		label: 'Series de eventos',
+		description:
+			'"Edición N de <serie>" con anterior y siguiente en los eventos, la imagen y las ediciones ' +
+			'en la página de cada serie, "Avisame si se repite" (mails con doble confirmación), ' +
+			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
+			'eso se ve y las direcciones nuevas dan 404.',
+		envVar: 'SERIES_ENABLED'
 	}
 });
 
@@ -148,6 +157,15 @@ export function perfilesPublicosEnabled(platform) {
  */
 export function personasEventosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'personas_eventos');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las series de eventos?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function seriesEnabled(platform) {
+	return isFlagOn(getDB(platform), 'series');
 }
 
 /**
