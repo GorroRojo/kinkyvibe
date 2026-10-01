@@ -6,7 +6,8 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { IdCard } from '@lucide/svelte';
-	import { CUENTAS_TABS } from '$lib/admin/cuentas.js';
+	import { CUENTAS_TABS, VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
+	import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
 	import ProfilesTable from '$lib/components/admin/amigues/ProfilesTable.svelte';
 	import ProfileFilters from '$lib/components/admin/amigues/ProfileFilters.svelte';
 	import ClaimsCard from '$lib/components/admin/amigues/ClaimsCard.svelte';
@@ -15,15 +16,40 @@
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
+	import { csvFilename } from '$lib/admin/csv.js';
 
 	export let data;
 	export let form;
+
+	/** @param {number | null | undefined} ms */
+	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.profiles)[number]>[]} */
+	const columns = [
+		{ label: 'nombre', key: 'title' },
+		{ label: 'direccion', key: 'slug' },
+		{ label: 'tipo', value: (p) => KIND_LABELS[p.kind] ?? p.kind },
+		{ label: 'visibilidad', value: (p) => VISIBILITY_LABELS[p.visibility] ?? p.visibility },
+		{ label: 'creado', value: (p) => day(p.createdAt) },
+		{
+			label: 'lo_gestionan',
+			value: (p) =>
+				p.managers
+					.map((m) => `${m.email ?? 'cuenta borrada'} (${ROLE_LABELS[m.role] ?? m.role})`)
+					.join(' / ')
+		},
+		{ label: 'borrado', value: (p) => day(p.deletedAt) }
+	];
 </script>
 
 <PageHeader
 	title="Perfiles"
 	subtitle="Personas, grupos y lugares: los que crearon las cuentas y las fichas de amigues. Les admins ven también los ocultos y los borrados."
-/>
+>
+	<svelte:fragment slot="actions">
+		<CsvButton rows={data.profiles} {columns} filename={csvFilename('perfiles')} />
+	</svelte:fragment>
+</PageHeader>
 
 <Tabs tabs={[...CUENTAS_TABS]} />
 

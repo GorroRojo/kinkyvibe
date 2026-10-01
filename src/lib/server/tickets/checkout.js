@@ -93,7 +93,8 @@ export const CHECKOUT_RATE_LIMITS = {
  *   fondoPercent: number | null,
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
- *     left: number | null, gorra: { min: number, suggested: number } | null,
+ *     left: number | null, gorra: { min: number, recommended?: number | null,
+ *       suggested: number } | null,
  *     closesAt: number | null, closed: boolean,
  *     tier?: { id: string, name: string, until: number | null } | null,
  *     tierLeft?: boolean, waitingFor?: string | null }[]
