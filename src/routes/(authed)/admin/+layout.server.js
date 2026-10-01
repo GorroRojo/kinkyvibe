@@ -1,7 +1,9 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { countProfilesToReview } from '$lib/server/admin/cuentas.js';
+import { countPendingClaims } from '$lib/server/amigues/claims.js';
 import { fetchMarkdownPosts } from '$lib/utils';
+import { borrarDesdePanelEnabled } from '$lib/server/flags.js';
 
 /**
  * Contadores del menú del panel (`data.panelCounts`, las claves que usa `counter` en
@@ -34,7 +36,12 @@ async function panelCounts(platform) {
 		(async () => {
 			// Perfiles creados por cuentas que ninguna admin revisó (Cuentas → Perfiles). Sin la
 			// base o sin las migraciones de perfiles, 0 (no aparece).
-			counts.profilesToReview = await countProfilesToReview(db);
+			// Más los pedidos "Es mi perfil" pendientes (docs/amigues.md).
+			const [review, claims] = await Promise.all([
+				countProfilesToReview(db),
+				countPendingClaims(db)
+			]);
+			counts.profilesToReview = review + claims;
 		})(),
 		(async () => {
 			try {
@@ -54,7 +61,10 @@ export async function load({ locals, url, platform, untrack }) {
 	// El layout de (authed) ya controla, pero los loads corren en paralelo: se controla acá también.
 	// `untrack` para que los contadores no se recalculen en cada cambio de página.
 	untrack(() => requireAdmin(locals, url));
-	return {
-		panelCounts: await panelCounts(platform)
-	};
+	const [counts, borrar] = await Promise.all([
+		panelCounts(platform),
+		borrarDesdePanelEnabled(platform)
+	]);
+	// `borrarDesdePanel`: interruptor del botón "Borrar" (DeleteLink.svelte lo lee de acá).
+	return { panelCounts: counts, borrarDesdePanel: borrar };
 }

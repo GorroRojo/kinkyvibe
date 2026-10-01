@@ -11,7 +11,7 @@ import { normalizeEmail, seriesLabel } from './people.js';
 /** @typedef {import('./people.js').EventInfo} EventInfo */
 
 /** "2026-09" en hora de Argentina. @param {number} ms */
-function monthKey(ms) {
+export function monthKey(ms) {
 	return new Date(ms).toLocaleDateString('en-CA', { timeZone: TIMEZONE }).slice(0, 7);
 }
 
@@ -23,6 +23,20 @@ export function monthLabel(key) {
 		timeZone: 'UTC'
 	});
 	return `${name.replace('.', '')} ${String(y).slice(2)}`;
+}
+
+/**
+ * Claves de los últimos `months` meses hasta el de `now`, de la más vieja a la más nueva.
+ * @param {number} now
+ * @param {number} months
+ */
+export function lastMonths(now, months) {
+	const keys = [];
+	const d = new Date(now);
+	for (let i = months - 1; i >= 0; i--) {
+		keys.push(monthKey(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 15)));
+	}
+	return keys;
 }
 
 const METHOD_LABELS = /** @type {Record<string, string>} */ ({
@@ -45,11 +59,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 	};
 
 	// Ventas por mes (fecha de compra), los últimos `months` meses, con los vacíos en 0.
-	const keys = [];
-	const d = new Date(now);
-	for (let i = months - 1; i >= 0; i--) {
-		keys.push(monthKey(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 15)));
-	}
+	const keys = lastMonths(now, months);
 	const byMonth = new Map(keys.map((k) => [k, { month: k, tickets: 0, revenue: 0, orders: 0 }]));
 	for (const o of orders) {
 		const m = byMonth.get(monthKey(o.created_at));

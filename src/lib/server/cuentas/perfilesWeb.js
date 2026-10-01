@@ -4,6 +4,7 @@
  */
 import { error, redirect } from '@sveltejs/kit';
 import { canHaveProfiles } from './accounts.js';
+import { ACCOUNT_VENUE_COORDINATES, ACCOUNT_VENUE_FIELDS } from './perfiles.js';
 import { mailSender, requireCuentas } from './web.js';
 
 /**
@@ -71,6 +72,18 @@ export function profileForm(form) {
 		pronouns: field(form, 'pronouns', 100),
 		links: field(form, 'links', 4000),
 		visibility: field(form, 'visibility', 20),
-		show_members: form.get('show_members') === 'on'
+		show_members: form.get('show_members') === 'on',
+		// Solo el formulario de un lugar trae sus campos (sin ellos, quedan como estaban).
+		...(form.has('venue_privacy') ? { venue: venueForm(form) } : {})
 	};
+}
+
+/** @param {FormData} form */
+function venueForm(form) {
+	/** @type {Record<string, string>} */
+	const venue = { venue_privacy: field(form, 'venue_privacy', 20) };
+	for (const key of ACCOUNT_VENUE_FIELDS) venue[key] = field(form, key, 2000);
+	// La ubicación en el mapa: solo si el formulario la trae (si no, queda como estaba).
+	for (const key of ACCOUNT_VENUE_COORDINATES) if (form.has(key)) venue[key] = field(form, key, 40);
+	return venue;
 }

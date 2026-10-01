@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	agendaRowFromMeta,
 	agendaSchedule,
+	agendaValues,
 	applyAgendaChange,
 	changedAgendaFields,
 	readAgendaValues,
@@ -237,5 +238,13 @@ describe('applyAgendaChange', () => {
 		expect(r.conflicts).toEqual([]);
 		expect(r.changed).toEqual([]);
 		expect(r.content).toBe(RAW);
+	});
+});
+
+describe('agendaValues', () => {
+	it('deja solo los campos editables', () => {
+		const r = row('');
+		expect(agendaValues(r)).toEqual(values(r));
+		expect(Object.keys(agendaValues(r))).not.toContain('slug');
 	});
 });

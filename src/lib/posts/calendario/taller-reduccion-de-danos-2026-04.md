@@ -13,6 +13,7 @@ tags:
   - historia
   - cuidados posteriores
   - taller
+  - Reducción de Daños de Sustancias con Perspectiva Disidente
 layout: calendario
 category: calendario
 authors:

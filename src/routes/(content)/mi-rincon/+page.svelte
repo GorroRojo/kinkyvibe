@@ -66,8 +66,16 @@
 	{#if data.canHaveProfiles}
 		<section class="surface-card" aria-labelledby="perfiles-title">
 			<h2 id="perfiles-title">Tus perfiles</h2>
-			<p class="hint">Los tuyos y los de grupos que gestionás.</p>
+			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+		</section>
+	{/if}
+
+	{#if data.seriesOn}
+		<section class="surface-card" aria-labelledby="calendario-title">
+			<h2 id="calendario-title">Tu calendario</h2>
+			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
 		</section>
 	{/if}
 
@@ -190,8 +198,8 @@
 			<p>
 				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
 				y entradas siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
-					Tus perfiles de persona se vacían y se borran; los grupos que gestionás con otras personas
-					quedan para elles.{/if} No se puede deshacer.
+					Tus perfiles de persona se vacían y se borran; los proyectos que gestionás con otras
+					personas quedan para elles.{/if} No se puede deshacer.
 			</p>
 			{#if form?.codeSentFor === 'delete'}
 				<form method="POST" action="?/borrar" use:enhance={keep}>

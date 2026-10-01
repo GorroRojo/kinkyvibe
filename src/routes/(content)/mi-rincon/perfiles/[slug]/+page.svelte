@@ -2,6 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 
 	export let data;
 	export let form;
@@ -19,7 +21,8 @@
 	$: f = form;
 
 	$: p = data.profile;
-	$: group = p.kind === 'grupo';
+	$: group = p.kind === 'proyecto';
+	$: venue = p.kind === 'lugar';
 	$: owner = data.role === 'owner';
 
 	/** Lo que se escribió y no se guardó por un error de datos (no por un conflicto). */
@@ -39,7 +42,7 @@
 
 	let confirmName = '';
 
-	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el grupo. */
+	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el proyecto. */
 	$: codeSent = f?.codeSentFor === 'grupo';
 	/** El código que se escribió (uno solo para toda la página: sirve para una acción). */
 	let groupCode = '';
@@ -67,6 +70,35 @@
 	</p>
 	{#if data.isNew && !f}
 		<p class="ok" role="status">Listo, creaste el perfil. Completá lo que quieras y guardá.</p>
+	{/if}
+	{#if data.pending}
+		<p class="hint" role="status">
+			Todavía no aparece en el sitio: une admin lo tiene que aprobar. Mientras tanto lo ves vos (y
+			quienes lo gestionan).
+		</p>
+	{:else if data.rejection}
+		<div class="error rejected" role="status">
+			<p>
+				<strong>Rechazado.</strong> Une admin no lo aprobó ({fmtDate(data.rejection.at)}), así que
+				no aparece en el sitio. Lo seguís viendo vos (y quienes lo gestionan).
+			</p>
+			{#if data.rejection.reason}
+				<p>Motivo: <q>{data.rejection.reason}</q></p>
+			{/if}
+			<p>
+				Podés corregirlo abajo (sigue rechazado) y, cuando esté listo, volver a mandarlo para que
+				une admin lo revise.
+			</p>
+			{#if msg('revision')?.error}
+				<p role="alert"><strong>{msg('revision')?.error}</strong></p>
+			{/if}
+			<form method="POST" action="?/volverAMandar" use:enhance={keep}>
+				<button class="pill-btn" type="submit">Volver a mandar</button>
+			</form>
+		</div>
+	{/if}
+	{#if msg('revision')?.message}
+		<p class="ok" role="status">{msg('revision')?.message}</p>
 	{/if}
 
 	<section class="surface-card" aria-labelledby="edit-title">
@@ -107,17 +139,21 @@
 				/>
 				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
 			</label>
-			<label>
-				<span>Pronombres <small class="hint">(opcional)</small></span>
-				<input
-					name="pronouns"
-					type="text"
-					maxlength="40"
-					value={values.pronouns}
-					aria-invalid={errors.pronouns ? 'true' : undefined}
-				/>
-				{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
-			</label>
+			{#if venue}
+				<input type="hidden" name="pronouns" value={values.pronouns} />
+			{:else}
+				<label>
+					<span>Pronombres <small class="hint">(opcional)</small></span>
+					<input
+						name="pronouns"
+						type="text"
+						maxlength="40"
+						value={values.pronouns}
+						aria-invalid={errors.pronouns ? 'true' : undefined}
+					/>
+					{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
+				</label>
+			{/if}
 			<label>
 				<span>Presentación <small class="hint">(opcional, hasta 1000 caracteres)</small></span>
 				<textarea
@@ -153,6 +189,94 @@
 					</label>
 				{/each}
 			</fieldset>
+			{#if venue}
+				<fieldset>
+					<legend>El lugar</legend>
+					<label>
+						<span>Dirección <small class="hint">(calle y número)</small></span>
+						<input
+							name="address"
+							type="text"
+							maxlength="300"
+							autocomplete="off"
+							value={values.venue?.address ?? ''}
+							aria-invalid={errors.address ? 'true' : undefined}
+						/>
+						{#if errors.address}<span class="field-error">{errors.address}</span>{/if}
+					</label>
+					<label>
+						<span>Barrio</span>
+						<input
+							name="area"
+							type="text"
+							maxlength="100"
+							value={values.venue?.area ?? ''}
+							aria-invalid={errors.area ? 'true' : undefined}
+						/>
+						{#if errors.area}<span class="field-error">{errors.area}</span>{/if}
+					</label>
+					<label>
+						<span>Ciudad</span>
+						<input
+							name="city"
+							type="text"
+							maxlength="100"
+							value={values.venue?.city ?? ''}
+							aria-invalid={errors.city ? 'true' : undefined}
+						/>
+						{#if errors.city}<span class="field-error">{errors.city}</span>{/if}
+					</label>
+					<div class="coords">
+						<VenueCoordinates
+							lat={values.venue?.lat ?? ''}
+							lng={values.venue?.lng ?? ''}
+							{errors}
+							gridClass="coords-grid"
+						/>
+					</div>
+					<label>
+						<span>Accesibilidad <small class="hint">(escaleras, baño accesible…)</small></span>
+						<textarea
+							name="accessibility"
+							rows="3"
+							maxlength="2000"
+							aria-invalid={errors.accessibility ? 'true' : undefined}
+							>{values.venue?.accessibility ?? ''}</textarea
+						>
+						{#if errors.accessibility}<span class="field-error">{errors.accessibility}</span>{/if}
+					</label>
+					<label>
+						<span>Cómo llegar</span>
+						<textarea
+							name="how_to_get_there"
+							rows="3"
+							maxlength="2000"
+							aria-invalid={errors.how_to_get_there ? 'true' : undefined}
+							>{values.venue?.how_to_get_there ?? ''}</textarea
+						>
+						{#if errors.how_to_get_there}<span class="field-error">{errors.how_to_get_there}</span
+							>{/if}
+					</label>
+					<label>
+						<span>¿Qué se muestra de la dirección?</span>
+						<select
+							name="venue_privacy"
+							value={values.venue?.venue_privacy ?? ''}
+							aria-invalid={errors.venue_privacy ? 'true' : undefined}
+						>
+							<option value="">Sin elegir: la dirección completa</option>
+							{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
+								<option {value}>{label}</option>
+							{/each}
+						</select>
+						{#if errors.venue_privacy}<span class="field-error">{errors.venue_privacy}</span>{/if}
+					</label>
+					<p class="hint">
+						Cada evento puede mostrar menos. Quien compra una entrada recibe siempre la dirección
+						completa.
+					</p>
+				</fieldset>
+			{/if}
 			{#if group}
 				<label class="choice">
 					<input type="checkbox" name="show_members" checked={values.show_members} />
@@ -181,7 +305,7 @@
 				recién cuando acepta; se puede ir cuando quiera. Si rechaza o se va, no la pueden volver a
 				invitar por 30 días.
 				{p.show_members
-					? 'Les integrantes se muestran en el perfil del grupo, a quien pueda ver cada perfil.'
+					? 'Les integrantes se muestran en el perfil del proyecto, a quien pueda ver cada perfil.'
 					: 'Por ahora no se muestran: lo elegís arriba.'}
 			</p>
 			{#if data.members.length}
@@ -195,7 +319,7 @@
 								</summary>
 								<form method="POST" action="?/sacarIntegrante" use:enhance>
 									<input type="hidden" name="persona" value={m.id} />
-									<button class="pill-btn ghost" type="submit">Sacar del grupo</button>
+									<button class="pill-btn ghost" type="submit">Sacar del proyecto</button>
 								</form>
 							</details>
 						</li>
@@ -206,7 +330,7 @@
 			{/if}
 			{#if data.pendingMembers.length}
 				<h3>Invitaciones pendientes</h3>
-				<p class="hint">Las ven solo quienes gestionan el grupo y la persona invitada.</p>
+				<p class="hint">Las ven solo quienes gestionan el proyecto y la persona invitada.</p>
 				<ul class="list">
 					{#each data.pendingMembers as m (m.id)}
 						<li>
@@ -238,7 +362,7 @@
 		<section class="surface-card" aria-labelledby="managers-title">
 			<h2 id="managers-title">Quiénes lo gestionan</h2>
 			<p class="hint">
-				Esto lo ven solo quienes gestionan el grupo: nunca se muestra en público.
+				Esto lo ven solo quienes gestionan el proyecto: nunca se muestra en público.
 				{owner
 					? 'Como dueñe, podés sumar gente, sacarla y pasar la propiedad.'
 					: 'Les dueñes pueden sumar gente, sacarla y pasar la propiedad.'}
@@ -343,7 +467,7 @@
 						<input name="email" type="email" required autocomplete="off" maxlength="254" />
 					</label>
 					<p class="hint">
-						Si ese mail tiene cuenta, le mandamos un aviso corto con el nombre del grupo (sin tu
+						Si ese mail tiene cuenta, le mandamos un aviso corto con el nombre del proyecto (sin tu
 						mail). La invitación la ve cuando entre a Mi rincón con ese mail.
 					</p>
 					<button class="pill-btn" type="submit">Invitar</button>
@@ -368,13 +492,13 @@
 				{/if}
 			{/if}
 		</section>
-	{:else}
+	{:else if !venue}
 		<section class="surface-card" aria-labelledby="groups-title">
-			<h2 id="groups-title">Grupos</h2>
-			{#if msg('grupos')?.error}
-				<p class="error" role="alert">{msg('grupos')?.error}</p>
-			{:else if msg('grupos')?.message}
-				<p class="ok" role="status">{msg('grupos')?.message}</p>
+			<h2 id="groups-title">Proyectos</h2>
+			{#if msg('proyectos')?.error}
+				<p class="error" role="alert">{msg('proyectos')?.error}</p>
+			{:else if msg('proyectos')?.message}
+				<p class="ok" role="status">{msg('proyectos')?.message}</p>
 			{/if}
 			{#if data.memberships.length}
 				<ul class="list">
@@ -383,20 +507,38 @@
 							<span>Sos parte de <strong>{g.title}</strong></span>
 							<form method="POST" action="?/salirGrupo" use:enhance>
 								<input type="hidden" name="group" value={g.id} />
-								<button class="pill-btn ghost" type="submit">Salir del grupo</button>
+								<button class="pill-btn ghost" type="submit">Salir del proyecto</button>
 							</form>
 						</li>
 					{/each}
 				</ul>
 			{:else}
-				<p class="hint">Este perfil no es parte de ningún grupo.</p>
+				<p class="hint">Este perfil no es parte de ningún proyecto.</p>
 			{/if}
 			<p class="hint">
-				Un grupo te invita con la dirección de este perfil (<code>{p.slug}</code>): pasásela a
+				Un proyecto te invita con la dirección de este perfil (<code>{p.slug}</code>): pasásela a
 				quienes lo gestionan. Las invitaciones aparecen en Mi rincón → Perfiles y figurás recién
 				cuando aceptás. Salir es un clic y no le tenés que pedir nada a nadie; si rechazás o te vas,
-				ese grupo no te puede volver a invitar por 30 días.
+				ese proyecto no te puede volver a invitar por 30 días.
 			</p>
+		</section>
+	{/if}
+
+	{#if data.organizes?.length}
+		<section class="surface-card" aria-labelledby="answers-title">
+			<h2 id="answers-title">Respuestas de inscripción</h2>
+			<p class="hint">
+				Este perfil organiza estos eventos: podés ver lo que respondió cada persona que compró su
+				entrada. Son datos personales: usalos solo para el evento.
+			</p>
+			<ul class="list">
+				{#each data.organizes as ev (ev.slug)}
+					<li>
+						<a href="/mi-rincon/perfiles/{p.slug}/respuestas/{ev.slug}">{ev.title}</a>
+						{#if ev.start}<span class="hint">{fmtDate(Date.parse(ev.start))}</span>{/if}
+					</li>
+				{/each}
+			</ul>
 		</section>
 	{/if}
 
@@ -407,9 +549,9 @@
 				<p class="error" role="alert">{msg('dejar')?.error}</p>
 			{/if}
 			<details open={f?.action === 'dejar'}>
-				<summary>Dejar de gestionar este grupo</summary>
+				<summary>Dejar de gestionar este proyecto</summary>
 				<p>
-					El grupo sigue igual; vos ya no lo vas a ver en Mi rincón. Para volver, alguien que es
+					El proyecto sigue igual; vos ya no lo vas a ver en Mi rincón. Para volver, alguien que es
 					dueñe te tiene que invitar de nuevo.
 					{#if owner}Si sos la única persona dueña, antes hacé dueñe a otra.{/if}
 				</p>
@@ -423,10 +565,10 @@
 				<p class="error" role="alert">{msg('borrar')?.error}</p>
 			{/if}
 			<details open={f?.action === 'borrar'}>
-				<summary>Borrar {group ? 'el grupo' : 'el perfil'}</summary>
+				<summary>Borrar {group ? 'el proyecto' : 'el perfil'}</summary>
 				<p>
 					{group
-						? 'Se borra el perfil del grupo para todes, también para quienes lo gestionan con vos.'
+						? 'Se borra el perfil del proyecto para todes, también para quienes lo gestionan con vos.'
 						: 'Se borra este perfil. Tus otros perfiles y tu cuenta siguen igual.'}
 					Deja de verse en todos lados. Si fue un error, escribinos: les admins lo pueden recuperar.
 				</p>
@@ -434,7 +576,7 @@
 					{#if msg('borrar')?.message}
 						<p class="ok" role="status">{msg('borrar')?.message}</p>
 					{/if}
-					<p class="hint">Para borrar el grupo te pedimos un código por mail.</p>
+					<p class="hint">Para borrar el proyecto te pedimos un código por mail.</p>
 					<form method="POST" action="?/confirmar" use:enhance>
 						<input type="hidden" name="donde" value="borrar" />
 						<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
@@ -657,8 +799,46 @@
 		padding: 0.5em 0.8em;
 		border-radius: var(--round-sm);
 	}
-	.field-error {
+	.field-error,
+	.coords :global(.field-error) {
 		color: var(--1-ink);
 		font-size: var(--step--1);
+	}
+	.rejected {
+		display: grid;
+		gap: 0.4em;
+	}
+	/* La ubicación en el mapa (componente compartido con el panel): mismos estilos que los demás campos. */
+	.coords {
+		display: grid;
+		gap: 0.4em;
+		width: 100%;
+	}
+	.coords :global(.coords-grid) {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+		gap: 0.4em 0.8em;
+	}
+	.coords :global(label) {
+		display: grid;
+		gap: 0.25em;
+	}
+	.coords :global(label > span:first-child) {
+		font-weight: 600;
+	}
+	.coords :global(input) {
+		font: inherit;
+		font-size: var(--step-0);
+		padding: 0.5em 0.7em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+		min-height: var(--tap);
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.coords :global(.hint) {
+		color: var(--muted);
+		font-size: var(--step--1);
+		margin: 0;
 	}
 </style>

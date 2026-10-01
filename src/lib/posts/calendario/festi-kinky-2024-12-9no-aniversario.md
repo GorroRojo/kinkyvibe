@@ -15,6 +15,7 @@ tags:
   - shibari
   - entrevista
   - cine
+  - Festi Kinky
 layout: calendario
 category: calendario
 authors:

@@ -9,6 +9,7 @@ tags:
   - pago # pago | gratis | a la gorra #
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - charla debate
+  - Charla debate de Fugas Críticas
 layout: calendario
 category: calendario
 authors:

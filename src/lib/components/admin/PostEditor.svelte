@@ -6,6 +6,8 @@
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
+	import PersonasEditor from '$lib/components/admin/PersonasEditor.svelte';
+	import { PERSONAS_KEY, validatePersonas } from '$lib/utils/personas.js';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
 	import FieldGrid from '$lib/components/admin/event-form/FieldGrid.svelte';
@@ -23,6 +25,7 @@
 	import '$lib/components/admin/admin.scss';
 	import { joinEventTags, splitEventTags, validateEventTags } from '$lib/utils/adminTags.js';
 	import {
+		REMOVE,
 		applyFrontmatterChanges,
 		joinMarkdown,
 		splitMarkdown,
@@ -103,6 +106,26 @@
 	const initialAuthors = list(meta.authors);
 	let authors = [...initialAuthors];
 	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
+
+	/* ---------- personas con rol (interruptor personas_eventos) ---------- */
+	// `data.personas` ({ roles, profiles }) llega solo con el interruptor prendido; apagado, el
+	// editor no muestra ni toca `personas:`.
+	/** @type {{ roles: string[], profiles: { slug: string, title: string, kind: 'persona' | 'proyecto' }[] } | null} */
+	const personasData = category !== 'amigues' ? (data.personas ?? null) : null;
+	/** @type {{ perfil: string, rol: string }[]} */
+	const initialPersonas = (Array.isArray(meta[PERSONAS_KEY]) ? meta[PERSONAS_KEY] : [])
+		.filter((/** @type {any} */ e) => e && typeof e === 'object')
+		.map((/** @type {any} */ e) => ({ perfil: String(e.perfil ?? ''), rol: String(e.rol ?? '') }));
+	let personas = initialPersonas.map((e) => ({ ...e }));
+	/** @param {{ perfil: string, rol: string }[]} list */
+	const personasErrors = (list) => {
+		if (!personasData || parseError) return [];
+		const r = validatePersonas(list, personasData.roles);
+		return r.ok ? [] : r.errors;
+	};
+	// Como con las entradas: lo que el archivo ya tenía mal no bloquea guardar otros cambios.
+	const initialPersonasErrors = personasErrors(initialPersonas);
+	$: newPersonasErrors = personasErrors(personas).filter((e) => !initialPersonasErrors.includes(e));
 
 	/* ---------- tickets (events only) ---------- */
 	const initialTickets = readTicketsForm(meta);
@@ -208,11 +231,14 @@
 						!imageScope &&
 						'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
 					...tagErrors,
-					...newTicketErrors.map((e) => `Entradas: ${e}`)
+					...newTicketErrors.map((e) => `Entradas: ${e}`),
+					...newPersonasErrors
 				].filter(Boolean)
 			);
 
-	$: content = parseError ? rawText : build(values, tags, authors, body, newFeatured, tickets);
+	$: content = parseError
+		? rawText
+		: build(values, tags, authors, body, newFeatured, tickets, personas);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
@@ -220,8 +246,9 @@
 	 * @param {string} b
 	 * @param {string} [featured] new `featured` ('' = unchanged); the server sets the final one
 	 * @param {typeof tickets} [tk] ticket sales form (events only)
+	 * @param {typeof personas} [ps] personas con rol (solo con el interruptor prendido)
 	 */
-	function build(v, t, a, b, featured = '', tk = initialTickets) {
+	function build(v, t, a, b, featured = '', tk = initialTickets, ps = initialPersonas) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -231,6 +258,9 @@
 		if (t.join('\n') !== initialTags.join('\n')) changes.tags = t;
 		if (hasAuthors && a.join('\n') !== initialAuthors.join('\n')) changes.authors = a;
 		if (featured) changes.featured = /^\d+$/.test(featured) ? Number(featured) : featured;
+		if (personasData && JSON.stringify(ps) !== JSON.stringify(initialPersonas)) {
+			changes[PERSONAS_KEY] = ps.length ? ps.map(({ perfil, rol }) => ({ perfil, rol })) : REMOVE;
+		}
 		try {
 			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
 			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
@@ -251,7 +281,7 @@
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
-	$: draft = { values, tagRules, freeTags, authors, tickets, body, rawText };
+	$: draft = { values, tagRules, freeTags, authors, tickets, personas, body, rawText };
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
@@ -260,6 +290,7 @@
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		if (Array.isArray(d.authors)) authors = d.authors;
 		if (d.tickets) tickets = d.tickets;
+		if (personasData && Array.isArray(d.personas)) personas = d.personas;
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 	}
@@ -290,6 +321,7 @@
 			mode: 'editar',
 			category,
 			hasImage: Boolean(image),
+			hasPersonas: Boolean(personasData),
 			parseError: !!parseError
 		})}
 		draftKey={draftKey(category, postID)}
@@ -320,6 +352,23 @@
 					>
 				{/if}
 			</fieldset>
+
+			{#if personasData}
+				<fieldset class="card" id="sec-personas">
+					<legend>👥 Personas</legend>
+					<p class="hint">
+						Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo
+						los perfiles públicos).
+					</p>
+					<PersonasEditor
+						bind:personas
+						roles={personasData.roles}
+						profiles={personasData.profiles}
+						errors={newPersonasErrors}
+						idPrefix="edit-personas"
+					/>
+				</fieldset>
+			{/if}
 
 			{#if image}
 				<ImageSection

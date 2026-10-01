@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { escapeHtml, jsonForScript } from './escape.js';
-import { eventHtml } from '../../routes/(content)/calendario.ics/eventHtml.js';
+import { eventHtml } from './icsFeed.js';
 
 describe('escapeHtml', () => {
 	it('escapes markup characters', () => {

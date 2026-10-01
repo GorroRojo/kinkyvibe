@@ -11,6 +11,7 @@ tags:
   - bondage
   - cuerdas
   - jam de cuerdas
+  - Jamarada Kinky
 layout: calendario
 category: calendario
 authors:

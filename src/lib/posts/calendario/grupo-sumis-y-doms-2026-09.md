@@ -13,6 +13,7 @@ tags:
   - dominación
   - sumisión
   - grupo
+  - Grupo de Apoyo y Discusión para sumis y Doms
 layout: calendario
 category: calendario
 authors:

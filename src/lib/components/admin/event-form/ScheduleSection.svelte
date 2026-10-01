@@ -12,6 +12,7 @@
 	 * - `originalSchedule`: cuándo fue el original, en palabras (duplicar).
 	 * - `scheduleText`, `scheduleError`: el horario en palabras o lo que tiene mal.
 	 * - `onEndsNextDay()`: el botón «¿Termina al día siguiente?».
+	 * - `fromAgenda`: el día vino de la agenda (se tocó un día), así que no arranca vacío.
 	 */
 	import DayPicker from '$lib/components/admin/DayPicker.svelte';
 
@@ -26,6 +27,7 @@
 	/** @type {string | null} */
 	export let scheduleError = null;
 	export let onEndsNextDay = () => {};
+	export let fromAgenda = false;
 </script>
 
 <fieldset class="card" id="sec-cuando">
@@ -43,7 +45,8 @@
 			describedby="ev-start-date-help"
 		/>
 		<small id="ev-start-date-help">
-			Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
+			{#if fromAgenda}Es el día que tocaste en la agenda: cambialo si hace falta.{:else}Elegí el
+				día: arranca vacío a propósito para que nadie publique la fecha vieja.{/if}
 			{#if hintWeekday !== undefined}Resaltamos el mismo día de la semana que el original.{/if}
 		</small>
 		{#if values.startDate && values.startDate < today}

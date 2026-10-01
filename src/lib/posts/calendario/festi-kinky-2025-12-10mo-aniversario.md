@@ -16,6 +16,7 @@ tags:
   - sesión en vivo
   - shibari
   - entrevista
+  - Festi Kinky
 layout: calendario
 category: calendario
 authors:

@@ -23,6 +23,42 @@ export const FLAGS = Object.freeze({
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
+	series: {
+		label: 'Series de eventos',
+		description:
+			'"Edición N de <serie>" con anterior y siguiente en los eventos, la imagen y las ediciones ' +
+			'en la página de cada serie, "Avisame si se repite" (mails con doble confirmación), ' +
+			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
+			'eso se ve y las direcciones nuevas dan 404.',
+		envVar: 'SERIES_ENABLED'
+	},
+	borrar_desde_panel: {
+		label: 'Borrar desde el panel',
+		description:
+			'Botón "Borrar" en eventos, material y amigues, con confirmación, "Deshacer" y ' +
+			'"Recuperar" desde Actividad. Los eventos con entradas vendidas no se pueden borrar. ' +
+			'Apagado, el botón no aparece y la página de borrar da 404.',
+		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
+	},
+	perfiles_publicos: {
+		label: 'Perfiles públicos (amigues y lugares)',
+		description:
+			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
+			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
+			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
+			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'clasificación.',
+		envVar: 'PERFILES_PUBLICOS_ENABLED'
+	},
+	personas_eventos: {
+		label: 'Personas en eventos y preguntas de inscripción',
+		description:
+			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
+			'«Perfiles públicos» prendido), y preguntas ' +
+			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
+		envVar: 'PERSONAS_EVENTOS_ENABLED'
+	},
 	propinas: {
 		label: 'Propinas',
 		description:
@@ -102,6 +138,43 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function cuentasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'cuentas');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las series de eventos?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function seriesEnabled(platform) {
+	return isFlagOn(getDB(platform), 'series');
+}
+
+/**
+ * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function borrarDesdePanelEnabled(platform) {
+	return isFlagOn(getDB(platform), 'borrar_desde_panel');
+}
+
+/**
+ * Atajo para las rutas: ¿/amigues y los lugares leen los perfiles de la base? (docs/amigues.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function perfilesPublicosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'perfiles_publicos');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los roles y las preguntas de inscripción?
+ * (docs/personas-eventos.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function personasEventosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'personas_eventos');
 }
 
 /**

@@ -20,6 +20,7 @@
  * @param {string} [o.category] la categoría (editar); los eventos son `calendario`
  * @param {string} [o.idPrefix] el de TicketsEditor (`ev` al crear, `edit` al editar)
  * @param {boolean} [o.hasImage] editar: la publicación tiene sección de imagen (los eventos)
+ * @param {boolean} [o.hasPersonas] editar: sección de personas (interruptor personas_eventos)
  * @param {boolean} [o.parseError] editar: el archivo se edita como texto (sin secciones)
  * @returns {FormSection[]}
  */
@@ -28,6 +29,7 @@ export function formSections({
 	category = 'calendario',
 	idPrefix = mode === 'nuevo' ? 'ev' : 'edit',
 	hasImage = false,
+	hasPersonas = false,
 	parseError = false
 }) {
 	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
@@ -46,6 +48,7 @@ export function formSections({
 	return /** @type {FormSection[]} */ (
 		[
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+			hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' },
 			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
 			isEvent && tickets,

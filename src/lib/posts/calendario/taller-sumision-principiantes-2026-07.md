@@ -13,6 +13,7 @@ tags:
   - taller
   - sumisión
   - inicial
+  - Taller de sumisión para Principiantes
 layout: calendario
 category: calendario
 authors:

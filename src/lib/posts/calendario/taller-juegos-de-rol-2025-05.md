@@ -12,6 +12,7 @@ tags:
   - bdsm
   - inicial
   - taller
+  - Juegos de Rol
 layout: calendario
 category: calendario
 authors:

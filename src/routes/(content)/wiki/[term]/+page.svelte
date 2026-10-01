@@ -1,6 +1,7 @@
 <script>
 	import GlosarioItem from '$lib/components/GlosarioItem.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import SeriesTagBlock from '$lib/components/series/SeriesTagBlock.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
@@ -104,6 +105,8 @@
 			<svelte:component this={data.content} />
 		{/if}
 	</div>
+	<!-- interruptor `series`: apagado, /api/series da 404 y no se muestra nada -->
+	<SeriesTagBlock tag={data?.tag?.id ?? data?.meta?.wiki ?? ''} />
 	<hr />
 	<div class="lineage">
 		<div class="ascendance">

@@ -10,6 +10,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - edad
   - taller
+  - Taller de Age Play
 layout: calendario
 category: calendario
 authors:

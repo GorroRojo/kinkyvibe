@@ -14,6 +14,8 @@
  *   - id: gorra
  *     name: A la gorra
  *     a_la_gorra: { minimo: 0, sugerido: 5000 }   # en lugar de `price`: la persona elige el monto
+ *     # opcional: `minimo_recomendado: 3000` (se muestra y se sugiere, pero se puede pagar menos,
+ *     # hasta `minimo`, que es el piso que se exige)
  *     capacity: 200
  * modalidad: online      # opcional: online | presencial (si falta: online si tiene la etiqueta
  *                        # "Online" y no tiene `location`). Online = link en lugar de QR.
@@ -51,7 +53,8 @@
  */
 
 /**
- * Tipo de entrada. En los tipos "a la gorra" `gorra` tiene el mínimo y el sugerido, `price` es el
+ * Tipo de entrada. En los tipos "a la gorra" `gorra` tiene el mínimo (exigido), el mínimo
+ * recomendado (`recommended`, solo se muestra; `null` si no hay) y el sugerido, `price` es el
  * sugerido (solo para mostrar) y `fondo` es 0: el monto lo elige la persona al comprar.
  *
  * `closesAt`: cierre propio del tipo (`close` en el frontmatter; por ejemplo, la anticipada cierra
@@ -72,11 +75,14 @@
  * reserva, con su cantidad y su fecha para controlarlos en la misma sentencia.
  *
  * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number | null,
- *   gorra: { min: number, suggested: number } | null, closesAt?: number | null,
+ *   gorra: Gorra | null, closesAt?: number | null,
  *   tiers?: import('$lib/utils/ticketTiers.js').Tier[] | null, after?: string | null,
  *   door?: { price: number, fondo: number },
  *   tier?: { id: string, name: string, quantity: number | null, until: number | null } | null
  * }} TicketType
+ */
+/**
+ * @typedef {{ min: number, recommended?: number | null, suggested: number }} Gorra
  */
 /** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
 /** @typedef {{ name: string, pronouns: string }} Holder */
@@ -97,7 +103,8 @@
  *   title: string,
  *   start: string | undefined,
  *   location: string | undefined,
- *   location_name: string | undefined
+ *   location_name: string | undefined,
+ *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} EventTickets
  */
 
@@ -120,6 +127,7 @@ import {
 	isKinkyVibeEvent,
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
+import { validateAnswers } from '$lib/utils/signupFields.js';
 
 // Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
 export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
@@ -208,6 +216,17 @@ export function parseTicketConfig(meta, options = {}) {
 					`\`a_la_gorra.sugerido\` inválido para "${id}": un entero entre el mínimo y ${ORDER_MAX_TOTAL}`
 				);
 			}
+			const rawRec = raw.a_la_gorra?.minimo_recomendado;
+			const recommended =
+				rawRec === undefined || rawRec === null || rawRec === '' ? null : Number(rawRec);
+			if (
+				recommended !== null &&
+				(!Number.isSafeInteger(recommended) || recommended < min || recommended > suggested)
+			) {
+				throw new TypeError(
+					`\`a_la_gorra.minimo_recomendado\` inválido para "${id}": un entero entre el mínimo y el sugerido`
+				);
+			}
 			// Sin fondo: quien paga elige el monto (el fondo no aplica a la gorra).
 			types.push({
 				id,
@@ -215,7 +234,7 @@ export function parseTicketConfig(meta, options = {}) {
 				price: suggested,
 				fondo: 0,
 				capacity,
-				gorra: { min, suggested },
+				gorra: { min, recommended: recommended === min ? null : recommended, suggested },
 				closesAt: typeClose(raw, id),
 				...(after ? { after } : {})
 			});
@@ -623,6 +642,9 @@ export function validateBuyer(raw) {
  * del tipo; sin máximo de producto, solo el tope técnico ORDER_MAX_TOTAL para el total de la
  * orden); vacío = el sugerido. La opción queda `gorra` (sin fondo).
  *
+ * Preguntas de inscripción (`config.fields`, interruptor `personas_eventos`): las respuestas
+ * llegan en `answers` (por `name` del campo) y sus errores van con ese mismo `name`.
+ *
  * @param {EventTickets} config
  * @param {{
  *   type: unknown, quantity: unknown, accept: unknown,
@@ -631,11 +653,12 @@ export function validateBuyer(raw) {
  *   method?: unknown,
  *   option?: unknown,
  *   amount?: unknown,
+ *   answers?: Record<string, unknown>,
  *   now?: number
  * }} input
  * @returns {{ ok: true, type: TicketType, quantity: number, buyer: Buyer, holders: Holder[],
  *     method: PaymentMethod, option: import('$lib/utils/tickets.js').PriceOption,
- *     unitPrice: number }
+ *     unitPrice: number, answers: import('$lib/utils/signupFields.js').Answer[] }
  *   | { ok: false, errors: Record<string, string> }}
  */
 export function validatePurchase(config, input) {
@@ -704,6 +727,13 @@ export function validatePurchase(config, input) {
 		}
 		option = /** @type {import('$lib/utils/tickets.js').FondoOption | null} */ (chosen);
 	}
+	/** @type {import('$lib/utils/signupFields.js').Answer[]} */
+	let answers = [];
+	if (config.fields?.length) {
+		const a = validateAnswers(config.fields, input.answers ?? {});
+		if (a.ok) answers = a.answers;
+		else Object.assign(errors, a.errors);
+	}
 	if (input.accept !== 'on' && input.accept !== '1') {
 		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
 	}
@@ -716,6 +746,7 @@ export function validatePurchase(config, input) {
 		holders,
 		method: /** @type {PaymentMethod} */ (method),
 		option,
-		unitPrice
+		unitPrice,
+		answers
 	};
 }

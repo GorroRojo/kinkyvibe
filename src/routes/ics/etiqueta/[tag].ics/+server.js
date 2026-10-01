@@ -1,0 +1,23 @@
+/**
+ * GET /ics/etiqueta/<etiqueta>.ics: calendario para suscribirse a una etiqueta o serie (los
+ * eventos listados con esa etiqueta o una de sus hijas, como su página). Interruptor `series`:
+ * apagado, 404. Mismo armado que /calendario.ics ($lib/utils/icsFeed.js, que decide qué dirección
+ * puede ir: ver `feedLocation`).
+ */
+import { error } from '@sveltejs/kit';
+import { fetchMarkdownPosts } from '$lib/utils';
+import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
+import { eventsForTag, siteTags } from '$lib/server/series/index.js';
+import { requireSeries } from '$lib/server/series/web.js';
+
+/** @type {import('./$types').RequestHandler} */
+export async function GET({ params, platform }) {
+	await requireSeries(platform);
+	const tag = siteTags().get(params.tag);
+	const id = tag?.id ?? params.tag;
+	const posts = await fetchMarkdownPosts();
+	const events = await eventsForTag(id, { posts });
+	if (!events.length) error(404, 'Not found');
+	const name = tag?.visible_name ?? id;
+	return icsResponse(buildIcsFeed(events, { calName: `${name} · KinkyVibe`, profiles: posts }));
+}

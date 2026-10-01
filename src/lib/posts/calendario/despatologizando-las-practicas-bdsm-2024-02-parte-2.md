@@ -10,6 +10,7 @@ tags:
   - Online
   - taller
   - despatologización
+  - Despatologizando las Prácticas BDSM
 layout: calendario
 category: calendario
 authors:

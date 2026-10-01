@@ -194,9 +194,11 @@ describe('checkObjectsIntegrity (con base)', () => {
 		// Simula un cambio de código: el registro de hoy no conoce `summary` de evento.
 		const evento = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('evento'));
 		const lugar = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('lugar'));
+		// El evento tiene edges `persona` hacia perfiles: el registro tiene que conocer ese tipo.
+		const perfil = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('perfil'));
 		const fields = { ...evento.fields };
 		delete fields.summary;
-		const registry = createRegistry([{ ...evento, fields }, lugar]);
+		const registry = createRegistry([{ ...evento, fields }, lugar, perfil]);
 		const ctx = { actor: 'admin-inventade' };
 		await saveObject(
 			t.db,

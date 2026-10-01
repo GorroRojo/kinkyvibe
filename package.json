@@ -23,6 +23,7 @@
 		"db:migrations:new": "wrangler d1 migrations create kinkyvibe",
 		"preview:worker": "wrangler dev --port 8880 --test-scheduled",
 		"db:restore": "node scripts/d1-restore.js",
+		"amigues:import": "node scripts/import-amigues.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."
@@ -58,6 +59,7 @@
 	"type": "module",
 	"dependencies": {
 		"@codemirror/lang-markdown": "^6.2.2",
+		"@event-calendar/core": "^5.15.0",
 		"@lucide/svelte": "^1.48.0",
 		"add-to-calendar-button": "^2.2.10",
 		"date-fns": "^2.30.0",
@@ -69,6 +71,7 @@
 		"micromark": "^3.2.0",
 		"micromark-extension-gfm": "^2.0.3",
 		"qrcode-generator": "^2.0.4",
+		"rehype-sanitize": "^5.0.1",
 		"simple-icons": "^8.14.0",
 		"svelte-codemirror-editor": "^2.1.0",
 		"unist-util-visit": "^5.0.0",

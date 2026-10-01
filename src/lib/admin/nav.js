@@ -57,6 +57,7 @@ import {
 	KeyRound,
 	Landmark,
 	Mail,
+	MapPin,
 	ScanLine,
 	ScrollText,
 	Tags,
@@ -134,6 +135,17 @@ export const NAV = Object.freeze([
 		icon: CalendarDays,
 		emoji: '🗓️',
 		label: 'Agenda',
+		group: 'eventos',
+		soon: false
+	},
+	{
+		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md). Son los mismos
+		// datos que Contenido → Amigues con el filtro «Lugares».
+		id: 'eventos-lugares',
+		href: '/admin/eventos/lugares',
+		icon: MapPin,
+		emoji: '📍',
+		label: 'Lugares',
 		group: 'eventos',
 		soon: false
 	},
@@ -264,6 +276,7 @@ export const NAV = Object.freeze([
 		label: 'Perfiles',
 		group: 'cuentas',
 		soon: false,
+		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
 		counter: 'profilesToReview'
 	},
 
@@ -313,6 +326,7 @@ export const NAV = Object.freeze([
 		group: 'ajustes',
 		soon: false
 	},
+
 	{
 		id: 'actividad',
 		href: '/admin/actividad',
@@ -336,6 +350,8 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
+	// Interruptor `personas_eventos`: la ficha la muestra solo prendido.
+	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
 	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
 ]);
 

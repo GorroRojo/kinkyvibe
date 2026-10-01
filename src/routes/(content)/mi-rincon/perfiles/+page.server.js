@@ -1,7 +1,7 @@
 /**
  * Mi rincón → Perfiles: los perfiles que gestiona la cuenta, crear uno nuevo, las invitaciones
- * a gestionar grupos, las invitaciones de grupos a sus perfiles de persona (aceptar o rechazar,
- * y la opción de no recibirlas) y los grupos de los que son parte (con "Salir" a un clic). Reglas
+ * a gestionar proyectos, las invitaciones de proyectos a sus perfiles de persona (aceptar o rechazar,
+ * y la opción de no recibirlas) y los proyectos de los que son parte (con "Salir" a un clic). Reglas
  * en src/lib/server/cuentas/perfiles.js; docs/cuentas.md («Perfiles»).
  * Con el interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
  */
@@ -37,7 +37,10 @@ export async function load(event) {
 			title: p.title,
 			kind: p.kind,
 			visibility: p.visibility,
-			role: p.role
+			role: p.role,
+			// Si aparece en el sitio, espera a une admin o (solo lugares) une admin lo rechazó.
+			review: p.review,
+			rejectReason: p.rejectReason
 		})),
 		invites,
 		memberships,
@@ -47,7 +50,7 @@ export async function load(event) {
 }
 
 /**
- * Aceptar o rechazar la invitación de un grupo a uno de tus perfiles de persona.
+ * Aceptar o rechazar la invitación de un proyecto a uno de tus perfiles de persona.
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
  * @param {boolean} accept
@@ -65,15 +68,15 @@ async function answerGroup(event, accept) {
 			accept
 		);
 	} catch (e) {
-		logDBError('perfiles: responder invitación de grupo', e);
-		return fail(500, { action: 'grupos', error: 'No se pudo guardar. Probá de nuevo.' });
+		logDBError('perfiles: responder invitación de proyecto', e);
+		return fail(500, { action: 'proyectos', error: 'No se pudo guardar. Probá de nuevo.' });
 	}
-	if (!result.ok) return fail(result.status, { action: 'grupos', error: result.message });
+	if (!result.ok) return fail(result.status, { action: 'proyectos', error: result.message });
 	return {
-		action: 'grupos',
+		action: 'proyectos',
 		message: accept
-			? 'Listo: ya sos parte del grupo. Te podés ir cuando quieras.'
-			: 'Listo: rechazaste la invitación. Ese grupo no te puede volver a invitar por 30 días.'
+			? 'Listo: ya sos parte del proyecto. Te podés ir cuando quieras.'
+			: 'Listo: rechazaste la invitación. Ese proyecto no te puede volver a invitar por 30 días.'
 	};
 }
 
@@ -125,18 +128,18 @@ export const actions = {
 				field(form, 'group', 20)
 			);
 		} catch (e) {
-			logDBError('perfiles: salir de un grupo', e);
-			return fail(500, { action: 'grupos', error: 'No se pudo guardar. Probá de nuevo.' });
+			logDBError('perfiles: salir de un proyecto', e);
+			return fail(500, { action: 'proyectos', error: 'No se pudo guardar. Probá de nuevo.' });
 		}
-		if (!result.ok) return fail(result.status, { action: 'grupos', error: result.message });
-		return { action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' };
+		if (!result.ok) return fail(result.status, { action: 'proyectos', error: result.message });
+		return { action: 'proyectos', message: 'Listo: ya no sos parte de ese proyecto.' };
 	},
 
 	aceptarGrupo: async (event) => answerGroup(event, true),
 
 	rechazarGrupo: async (event) => answerGroup(event, false),
 
-	// "No recibir invitaciones de grupos" (de la cuenta, para todos sus perfiles de persona).
+	// "No recibir invitaciones de proyectos" (de la cuenta, para todos sus perfiles de persona).
 	invitacionesGrupos: async (event) => {
 		const { db, member } = await requireMember(event);
 		const form = await event.request.formData();
@@ -144,7 +147,7 @@ export const actions = {
 		try {
 			await setNoGroupInvites(db, member.id, off);
 		} catch (e) {
-			logDBError('perfiles: invitaciones de grupos', e);
+			logDBError('perfiles: invitaciones de proyectos', e);
 			return fail(500, {
 				action: 'invitacionesGrupos',
 				error: 'No se pudo guardar. Probá de nuevo.'
@@ -153,8 +156,8 @@ export const actions = {
 		return {
 			action: 'invitacionesGrupos',
 			message: off
-				? 'Listo: no vas a recibir invitaciones de grupos.'
-				: 'Listo: vas a recibir invitaciones de grupos.'
+				? 'Listo: no vas a recibir invitaciones de proyectos.'
+				: 'Listo: vas a recibir invitaciones de proyectos.'
 		};
 	},
 

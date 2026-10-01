@@ -10,6 +10,7 @@
  *
  * Nunca tira ni frena lo que la llama (como `logAdminAction`).
  */
+import { profileKindOf } from '../objects/types/perfil.js';
 import { logAdminAction } from './audit.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -20,7 +21,9 @@ export const ACCOUNT_EVENT_ACTOR = 'cuentas (sitio)';
 /** Acciones del registro que son novedades de cuentas y perfiles (no de admins). */
 export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
-	profileCreated: 'profile.create'
+	profileCreated: 'profile.create',
+	signupAnswersViewed: 'signup_answers.view',
+	venueResubmitted: 'profile.resubmit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -54,7 +57,7 @@ export function logAccountCreated(db, accountId, { now = Date.now() } = {}) {
  * @param {{ now?: number }} [opts]
  */
 export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
-	const kind = profile.kind === 'grupo' ? 'grupo' : 'persona';
+	const kind = profileKindOf(profile);
 	return logAdminAction(
 		db,
 		actor,
@@ -64,6 +67,53 @@ export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
 			targetId: profile.id,
 			summary: `Se creó el perfil «${profile.title}» (${kind})`,
 			detail: { kind, visibility: profile.visibility }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Une organizadore vio (o bajó en CSV) las respuestas de inscripción de un evento" (Mi rincón →
+ * el perfil → Respuestas de inscripción). Sin las respuestas ni datos de quien compra: el perfil,
+ * el evento y el id de la cuenta que miró.
+ *
+ * @param {D1Database} db
+ * @param {{ accountId: string, profile: { id: number, title: string }, eventSlug: string, eventTitle: string, csv: boolean }} entry
+ * @param {{ now?: number }} [opts]
+ */
+export function logSignupAnswersViewed(db, entry, { now = Date.now() } = {}) {
+	const what = entry.csv ? 'bajó en CSV' : 'vio';
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.signupAnswersViewed,
+			targetType: 'profile',
+			targetId: entry.profile.id,
+			summary: `«${entry.profile.title}» ${what} las respuestas de inscripción de «${entry.eventTitle}»`,
+			detail: { event: entry.eventSlug, account: entry.accountId, csv: entry.csv }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Volvieron a mandar un lugar rechazado" (quien lo gestiona tocó «Volver a mandar» en Mi
+ * rincón): vuelve a "Para aprobar" en Eventos → Lugares.
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, title: string }} profile
+ * @param {{ now?: number }} [opts]
+ */
+export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.venueResubmitted,
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
 		},
 		{ now }
 	);

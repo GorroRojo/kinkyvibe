@@ -12,6 +12,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - historia
   - BDSM
+  - Aberraciones
 layout: calendario
 category: calendario
 authors:

@@ -14,6 +14,7 @@ tags:
   - negociación
   - impacto
   - nalgueadas
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

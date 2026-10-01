@@ -140,7 +140,9 @@ describe('interruptor prendido', () => {
 				title: 'Nombre Inventado',
 				kind: 'persona',
 				visibility: 'public',
-				role: 'owner'
+				role: 'owner',
+				review: 'pending',
+				rejectReason: ''
 			}
 		]);
 		// Lo que va a la página no lleva ids de cuenta.
@@ -169,11 +171,11 @@ describe('interruptor prendido', () => {
 		const m = await modules('1');
 		const me = await member(m, 'persona-prueba');
 		const created = await m.perfiles.createProfile(t.db, me.id, {
-			kind: 'grupo',
-			title: 'Grupo Inventado'
+			kind: 'proyecto',
+			title: 'Proyecto Inventado'
 		});
 		expect(created.ok).toBe(true);
-		const params = { slug: 'grupo-inventado' };
+		const params = { slug: 'proyecto-inventado' };
 		await m.edit.actions.guardar(
 			fakeEvent({ member: me, params, form: { title: 'Primero', version: '1' } })
 		);
@@ -202,8 +204,8 @@ describe('interruptor prendido', () => {
 		const m = await modules('1');
 		const me = await member(m, 'dueñe-prueba');
 		const other = await member(m, 'gestora-prueba');
-		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
-		const params = { slug: 'grupo-inventado' };
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
+		const params = { slug: 'proyecto-inventado' };
 		/** @type {Promise<unknown>[]} */
 		const background = [];
 		const invite = async (/** @type {string} */ email) => {
@@ -225,18 +227,18 @@ describe('interruptor prendido', () => {
 		log.mockRestore();
 	});
 
-	it('integrantes: el grupo invita, la persona acepta o rechaza en Perfiles y sale con un clic', async () => {
+	it('integrantes: el proyecto invita, la persona acepta o rechaza en Perfiles y sale con un clic', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'dueñe-prueba');
 		const person = await member(m, 'persona-prueba');
-		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
-		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Otro Grupo' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Otro Proyecto' });
 		await m.perfiles.createProfile(t.db, person.id, {
 			kind: 'persona',
 			title: 'Persona Inventada'
 		});
-		const params = { slug: 'grupo-inventado' };
-		const invite = (slug = 'grupo-inventado') =>
+		const params = { slug: 'proyecto-inventado' };
+		const invite = (slug = 'proyecto-inventado') =>
 			m.edit.actions.invitarIntegrante(
 				fakeEvent({ member: me, params: { slug }, form: { persona: 'persona-inventada' } })
 			);
@@ -244,7 +246,7 @@ describe('interruptor prendido', () => {
 			action: 'integrantes',
 			message: m.perfiles.MESSAGES.memberInvited
 		});
-		// Alguien que no gestiona el grupo: 404, como si no existiera.
+		// Alguien que no gestiona el proyecto: 404, como si no existiera.
 		const intruder = await thrown(() =>
 			m.edit.actions.invitarIntegrante(
 				fakeEvent({ member: person, params, form: { persona: 'persona-inventada' } })
@@ -264,26 +266,29 @@ describe('interruptor prendido', () => {
 		expect(list.memberInvites).toEqual([
 			{
 				groupId: expect.any(Number),
-				groupTitle: 'Grupo Inventado',
+				groupTitle: 'Proyecto Inventado',
 				personaSlug: 'persona-inventada',
 				personaTitle: 'Persona Inventada'
 			}
 		]);
 		const form = { persona: 'persona-inventada', group: String(list.memberInvites[0].groupId) };
 		expect(await m.list.actions.aceptarGrupo(fakeEvent({ member: person, form }))).toMatchObject({
-			action: 'grupos'
+			action: 'proyectos'
 		});
 		const joined = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
 		expect(joined.memberInvites).toEqual([]);
 		expect(joined.memberships).toHaveLength(1);
 		const left = await m.list.actions.salirGrupo(fakeEvent({ member: person, form }));
-		expect(left).toEqual({ action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' });
+		expect(left).toEqual({
+			action: 'proyectos',
+			message: 'Listo: ya no sos parte de ese proyecto.'
+		});
 		const again = /** @type {any} */ (await invite());
 		expect(again.status).toBe(409);
 		expect(again.data).toMatchObject({ error: m.perfiles.MESSAGES.recentlyLeft });
 
-		// Otro grupo: rechaza.
-		await invite('otro-grupo');
+		// Otro proyecto: rechaza.
+		await invite('otro-proyecto');
 		const other = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
 		const rejected = await m.list.actions.rechazarGrupo(
 			fakeEvent({
@@ -291,15 +296,15 @@ describe('interruptor prendido', () => {
 				form: { persona: 'persona-inventada', group: String(other.memberInvites[0].groupId) }
 			})
 		);
-		expect(rejected).toMatchObject({ action: 'grupos' });
-		expect(/** @type {any} */ (await invite('otro-grupo')).status).toBe(409);
+		expect(rejected).toMatchObject({ action: 'proyectos' });
+		expect(/** @type {any} */ (await invite('otro-proyecto')).status).toBe(409);
 	});
 
-	it('"No recibir invitaciones de grupos" desde Perfiles', async () => {
+	it('"No recibir invitaciones de proyectos" desde Perfiles', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'dueñe-prueba');
 		const person = await member(m, 'persona-prueba');
-		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		await m.perfiles.createProfile(t.db, person.id, {
 			kind: 'persona',
 			title: 'Persona Inventada'
@@ -311,7 +316,7 @@ describe('interruptor prendido', () => {
 		const res = await m.edit.actions.invitarIntegrante(
 			fakeEvent({
 				member: me,
-				params: { slug: 'grupo-inventado' },
+				params: { slug: 'proyecto-inventado' },
 				form: { persona: 'persona-inventada' }
 			})
 		);
@@ -324,13 +329,13 @@ describe('interruptor prendido', () => {
 		).toBe(false);
 	});
 
-	it('acciones de dueñes y borrar un grupo: piden un código fresco de grupo', async () => {
+	it('acciones de dueñes y borrar un proyecto: piden un código fresco de proyecto', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'dueñe-prueba');
 		const other = await member(m, 'gestora-prueba');
 		const created = await m.perfiles.createProfile(t.db, me.id, {
-			kind: 'grupo',
-			title: 'Grupo Inventado'
+			kind: 'proyecto',
+			title: 'Proyecto Inventado'
 		});
 		if (!created.ok) throw new Error('no se creó');
 		const params = { slug: created.profile.slug };
@@ -386,17 +391,17 @@ describe('interruptor prendido', () => {
 			/** @type {any} */ (await m.edit.actions.sacar(ev({ account: other.id, code }))).status
 		).toBe(400);
 
-		// Borrar el grupo: nombre y código.
+		// Borrar el proyecto: nombre y código.
 		const version = String(
 			(await m.perfiles.getManagedProfile(t.db, me.id, params.slug))?.profile.version
 		);
 		const noCode = /** @type {any} */ (
-			await m.edit.actions.borrar(ev({ confirm: 'Grupo Inventado', version }))
+			await m.edit.actions.borrar(ev({ confirm: 'Proyecto Inventado', version }))
 		);
 		expect(noCode.data).toMatchObject({ error: m.perfiles.MESSAGES.needsCode });
 		const deleteCode = await askCode('borrar');
 		const done = await thrown(() =>
-			m.edit.actions.borrar(ev({ confirm: 'grupo inventado', version, code: deleteCode }))
+			m.edit.actions.borrar(ev({ confirm: 'proyecto inventado', version, code: deleteCode }))
 		);
 		expect(done).toMatchObject({ status: 303, location: '/mi-rincon/perfiles' });
 	});
@@ -434,7 +439,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 		const m = await modules('1');
 		const me = await member(m, 'persona-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'persona', title: 'Nombre Inventado' });
-		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const withIt = /** @type {any} */ (
 			await m.rincon.load(fakeEvent({ path: '/mi-rincon', member: me }))
 		);
@@ -462,7 +467,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 			const r = await thrown(() => action(fakeEvent({ member: me, form })));
 			expect(r?.status, `?/${name}`).toBe(404);
 		}
-		for (const slug of ['nombre-inventado', 'grupo-inventado']) {
+		for (const slug of ['nombre-inventado', 'proyecto-inventado']) {
 			const params = { slug };
 			const path = `/mi-rincon/perfiles/${slug}`;
 			expect(
@@ -471,7 +476,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 			const editForm = {
 				title: 'Pisado',
 				version: '1',
-				confirm: slug === 'grupo-inventado' ? 'Grupo Inventado' : 'Nombre Inventado',
+				confirm: slug === 'proyecto-inventado' ? 'Proyecto Inventado' : 'Nombre Inventado',
 				email: 'otra-persona@example.com',
 				persona: 'nombre-inventado',
 				account: me.id,
@@ -499,8 +504,11 @@ describe('sin el permiso "puede tener perfiles"', () => {
 		const owner = await member(m, 'dueñe-prueba');
 		const withIt = await member(m, 'con-permiso-prueba');
 		const without = await member(m, 'sin-permiso-prueba', { profiles: false });
-		await m.perfiles.createProfile(t.db, owner.id, { kind: 'grupo', title: 'Grupo Inventado' });
-		const params = { slug: 'grupo-inventado' };
+		await m.perfiles.createProfile(t.db, owner.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Inventado'
+		});
+		const params = { slug: 'proyecto-inventado' };
 		/** @type {Promise<unknown>[]} */
 		const background = [];
 		const invite = (/** @type {string} */ email) => {
@@ -551,11 +559,14 @@ describe('sin el permiso "puede tener perfiles"', () => {
 		const owner = await member(m, 'dueñe-prueba');
 		const keeps = await member(m, 'sigue-prueba');
 		const loses = await member(m, 'pierde-prueba');
-		await m.perfiles.createProfile(t.db, owner.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, owner.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Inventado'
+		});
 		await m.perfiles.createProfile(t.db, keeps.id, { kind: 'persona', title: 'Persona Sigue' });
 		await m.perfiles.createProfile(t.db, loses.id, { kind: 'persona', title: 'Persona Pierde' });
 		await setPermission(loses.id, false);
-		const params = { slug: 'grupo-inventado' };
+		const params = { slug: 'proyecto-inventado' };
 		const invite = (/** @type {string} */ persona) =>
 			m.edit.actions.invitarIntegrante(fakeEvent({ member: owner, params, form: { persona } }));
 		const a = await invite('persona-sigue');
@@ -574,7 +585,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 		]);
 		expect((await thrown(() => m.list.load(fakeEvent({ member: loses }))))?.status).toBe(404);
 		const group = await t.db
-			.prepare("SELECT id FROM objects WHERE slug = 'grupo-inventado'")
+			.prepare("SELECT id FROM objects WHERE slug = 'proyecto-inventado'")
 			.first();
 		const accept = await thrown(() =>
 			m.list.actions.aceptarGrupo(
@@ -589,5 +600,317 @@ describe('sin el permiso "puede tener perfiles"', () => {
 					.first()
 			)?.n
 		).toBe(0);
+	});
+});
+
+describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
+	it('crear un lugar, completar la dirección y ver que espera la aprobación', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const r = await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({
+					member: me,
+					form: { kind: 'lugar', title: 'Sala Inventada', visibility: 'public' }
+				})
+			)
+		);
+		expect(r).toMatchObject({
+			status: 303,
+			location: '/mi-rincon/perfiles/sala-inventada?nuevo=1'
+		});
+		const params = { slug: 'sala-inventada' };
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(page.pending).toBe(true);
+		expect(page.profile).toMatchObject({
+			kind: 'lugar',
+			venue: { address: '', venue_privacy: '' }
+		});
+		expect(page.memberships).toEqual([]);
+
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: {
+						title: 'Sala Inventada',
+						version: String(page.profile.version),
+						visibility: 'public',
+						bio: 'Un espacio inventado.',
+						links: '',
+						pronouns: '',
+						address: 'Calle Inventada 123',
+						area: 'Barrio Inventado',
+						city: 'Ciudad Inventada',
+						accessibility: 'Sin escalones',
+						how_to_get_there: '',
+						venue_privacy: 'area'
+					}
+				})
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(after.profile.venue).toEqual({
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			city: 'Ciudad Inventada',
+			accessibility: 'Sin escalones',
+			how_to_get_there: '',
+			venue_privacy: 'area',
+			// Sin ubicación en el mapa (el formulario no la mandó).
+			lat: '',
+			lng: ''
+		});
+		expect(after.pending).toBe(true);
+		expect(after.rejection).toBeNull();
+	});
+
+	/**
+	 * Crea un lugar desde Mi rincón y devuelve lo que hace falta para editarlo.
+	 * @param {Awaited<ReturnType<typeof modules>>} m
+	 * @param {{ id: string, email: string }} me
+	 */
+	async function createVenue(m, me) {
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'lugar', title: 'Sala Inventada' } })
+			)
+		);
+		const params = { slug: 'sala-inventada' };
+		const page = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		return { params, page };
+	}
+
+	/**
+	 * El formulario de guardar un lugar, con lo que se pida encima.
+	 * @param {number} version
+	 * @param {Record<string, string>} [extra]
+	 */
+	const venueForm = (version, extra = {}) => ({
+		title: 'Sala Inventada',
+		version: String(version),
+		visibility: 'public',
+		bio: '',
+		links: '',
+		pronouns: '',
+		address: 'Calle Inventada 123',
+		area: '',
+		city: '',
+		accessibility: '',
+		how_to_get_there: '',
+		venue_privacy: '',
+		...extra
+	});
+
+	it('la cuenta carga la ubicación en el mapa, con la misma validación que el panel', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const { params, page } = await createVenue(m, me);
+		const ok = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: venueForm(page.profile.version, { lat: '-34,6037', lng: '-58.3816' })
+				})
+			)
+		);
+		expect(ok).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const row = await t.db
+			.prepare("SELECT data, version FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		// Se guardan como números (coma o punto), igual que desde el editor del panel.
+		expect(JSON.parse(String(row?.data))).toMatchObject({ lat: -34.6037, lng: -58.3816 });
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(after.profile.venue).toMatchObject({ lat: '-34.6037', lng: '-58.3816' });
+
+		// Fuera de rango, una sola, o algo que no es un número: no se guarda y se marca el campo.
+		for (const [lat, lng, field] of [
+			['-134', '-58.3816', 'lat'],
+			['-34.6', '', 'lat'],
+			['-34.6', 'lejos', 'lng']
+		]) {
+			const bad = /** @type {any} */ (
+				await m.edit.actions.guardar(
+					fakeEvent({ member: me, params, form: venueForm(Number(row?.version), { lat, lng }) })
+				)
+			);
+			expect(bad.status).toBe(400);
+			expect(Object.keys(bad.data.errors)).toContain(field);
+			// Lo escrito vuelve al formulario.
+			expect(bad.data.draft.venue).toMatchObject({ lat, lng });
+		}
+		const kept = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		expect(JSON.parse(String(kept?.data))).toMatchObject({ lat: -34.6037, lng: -58.3816 });
+
+		// Vacías: se saca la ubicación.
+		const cleared = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: venueForm(Number(row?.version), { lat: '', lng: '' })
+				})
+			)
+		);
+		expect(cleared).toMatchObject({ message: 'Guardado.' });
+		const empty = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'sala-inventada'")
+			.first();
+		expect(JSON.parse(String(empty?.data))).not.toHaveProperty('lat');
+		expect(JSON.parse(String(empty?.data))).not.toHaveProperty('lng');
+	});
+
+	it('rechazado: quien lo cargó lo ve con el motivo y, si lo edita, vuelve a esperar', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'carga-lugar');
+		const other = await member(m, 'otre-prueba');
+		const { params, page } = await createVenue(m, me);
+		const { rejectPendingVenue, listPendingVenues } =
+			await import('$lib/server/amigues/pendingVenues.js');
+		const id = Number(
+			(await t.db.prepare("SELECT id FROM objects WHERE slug = 'sala-inventada'").first())?.id
+		);
+		const r = await rejectPendingVenue(t.db, id, {
+			by: 'admin-de-prueba',
+			reason: 'Falta la dirección completa'
+		});
+		expect(r.ok).toBe(true);
+		expect(await listPendingVenues(t.db)).toEqual([]);
+
+		// En Mi rincón → Perfiles, con el motivo (no se borró).
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: me })));
+		expect(list.profiles).toEqual([
+			expect.objectContaining({
+				slug: 'sala-inventada',
+				review: 'rejected',
+				rejectReason: 'Falta la dirección completa'
+			})
+		]);
+		// Lo que va a la página no dice qué admin lo rechazó.
+		expect(JSON.stringify(list)).not.toContain('admin-de-prueba');
+		const rejectedPage = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(rejectedPage.pending).toBe(false);
+		expect(rejectedPage.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
+		expect(JSON.stringify(rejectedPage)).not.toContain('admin-de-prueba');
+
+		// Otra cuenta: ni el lugar ni el motivo existen para ella, y no lo puede editar ni mandar.
+		expect((await thrown(() => m.edit.load(fakeEvent({ member: other, params }))))?.status).toBe(
+			404
+		);
+		const intruder = await thrown(() =>
+			m.edit.actions.guardar(
+				fakeEvent({ member: other, params, form: venueForm(page.profile.version) })
+			)
+		);
+		expect(intruder?.status).toBe(404);
+		const intruderResubmit = await thrown(() =>
+			m.edit.actions.volverAMandar(fakeEvent({ member: other, params, form: {} }))
+		);
+		expect(intruderResubmit?.status).toBe(404);
+		// Una cuenta sin el permiso de perfiles, tampoco.
+		const noPerm = await member(m, 'sin-permiso', { profiles: false });
+		expect(
+			(
+				await thrown(() =>
+					m.edit.actions.volverAMandar(fakeEvent({ member: noPerm, params, form: {} }))
+				)
+			)?.status
+		).toBe(404);
+		const otherList = /** @type {any} */ (await m.list.load(fakeEvent({ member: other })));
+		expect(otherList.profiles).toEqual([]);
+		expect(JSON.stringify(otherList)).not.toContain('Falta la dirección');
+		expect(await listPendingVenues(t.db)).toEqual([]);
+
+		// Quien lo cargó lo corrige: se guarda, pero sigue rechazado (decisión de gorrite).
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({ member: me, params, form: venueForm(page.profile.version) })
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		expect(await listPendingVenues(t.db)).toEqual([]);
+		const edited = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(edited.pending).toBe(false);
+		expect(edited.rejection).toMatchObject({ reason: 'Falta la dirección completa' });
+		const countResubmits = async () =>
+			(
+				await t.db
+					.prepare("SELECT COUNT(*) AS n FROM admin_audit WHERE action = 'profile.resubmit'")
+					.first()
+			)?.n;
+		expect(await countResubmits()).toBe(0);
+
+		// «Volver a mandar»: vuelve a "Para aprobar" y queda en Actividad.
+		const resent = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(resent).toMatchObject({ action: 'revision' });
+		expect((await listPendingVenues(t.db)).map((v) => v.id)).toEqual([id]);
+		const again = /** @type {any} */ (await m.edit.load(fakeEvent({ member: me, params })));
+		expect(again.pending).toBe(true);
+		expect(again.rejection).toBeNull();
+		const audit = await t.db
+			.prepare("SELECT target_id FROM admin_audit WHERE action = 'profile.resubmit'")
+			.all();
+		expect(audit.results).toEqual([{ target_id: String(id) }]);
+
+		// Otra vez (ya no está rechazado): 409 y no se vuelve a anunciar.
+		const twice = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(fakeEvent({ member: me, params, form: {} }))
+		);
+		expect(twice.status).toBe(409);
+		expect(await countResubmits()).toBe(1);
+	});
+
+	it('«Volver a mandar» es solo para lugares', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } })
+			)
+		);
+		const res = /** @type {any} */ (
+			await m.edit.actions.volverAMandar(
+				fakeEvent({ member: me, params: { slug: 'nombre-inventado' }, form: {} })
+			)
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it('el formulario de una persona no trae campos de lugar (no se guardan aunque se manden)', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'persona-prueba');
+		await thrown(() =>
+			m.list.actions.crear(
+				fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } })
+			)
+		);
+		const params = { slug: 'nombre-inventado' };
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardar(
+				fakeEvent({
+					member: me,
+					params,
+					form: {
+						title: 'Nombre Inventado',
+						version: '1',
+						visibility: 'public',
+						address: 'Calle Inventada 123',
+						venue_privacy: 'public'
+					}
+				})
+			)
+		);
+		expect(saved).toMatchObject({ action: 'guardar', message: 'Guardado.' });
+		const row = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'nombre-inventado'")
+			.first();
+		expect(JSON.parse(String(row?.data))).not.toHaveProperty('address');
 	});
 });

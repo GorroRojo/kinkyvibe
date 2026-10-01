@@ -1,7 +1,7 @@
 /**
  * Perfiles contra un D1 de miniflare: la migración 0014 y sus foreign keys, permisos (quién
  * edita, le última dueñe), el aviso de conflicto de versión, invitaciones que no revelan si un
- * mail tiene cuenta (tampoco con el aviso por mail), integrantes que suma el grupo y que la
+ * mail tiene cuenta (tampoco con el aviso por mail), integrantes que suma el proyecto y que la
  * persona deja cuando quiere, y que nada de lo público o de otras cuentas vincula perfiles
  * de una misma cuenta ni muestra quién gestiona. Datos inventados (dominio example.com).
  */
@@ -52,8 +52,12 @@ import {
 	removeManager,
 	removeMember,
 	setManagerRole,
-	updateProfile
+	updateProfile,
+	accountVenueData
 } from './perfiles.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
+import { findPublicProfile, listPublicProfiles } from '$lib/server/amigues/profiles.js';
+import { listPendingVenues } from '$lib/server/amigues/pendingVenues.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -85,12 +89,12 @@ const account = async (name) => {
 
 /**
  * Como si se hubiera escrito un código fresco por mail correcto (las acciones de dueñes y borrar
- * un grupo lo piden; ver el describe «código fresco para acciones de dueñes»).
+ * un proyecto lo piden; ver el describe «código fresco para acciones de dueñes»).
  */
 const withCode = { stepUp: async () => null };
 
 /**
- * Le grupo invita a la persona y ella acepta (lo que antes era "sumar").
+ * El proyecto invita a la persona y ella acepta (lo que antes era "sumar").
  * @param {string} managerId
  * @param {{ id: number, slug: string }} group
  * @param {{ slug: string }} persona
@@ -135,7 +139,7 @@ describe('migración 0014', () => {
 	it('crea las tablas y las foreign keys se llevan las filas al borrar de verdad', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('otre-inventade');
-		const group = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const group = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, group.slug, 'invitade@example.com', opts));
 		ok(await inviteManager(t.db, a.id, group.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
@@ -157,7 +161,7 @@ describe('migración 0014', () => {
 	it('invited_by queda en NULL si se borra de verdad la cuenta que invitó', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('otre-inventade');
-		const group = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const group = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, group.slug, b.email, opts));
 		const [inv] = await myInvites(t.db, b.id, opts);
 		ok(await answerInvite(t.db, b.id, inv.id, true, opts));
@@ -215,14 +219,18 @@ describe('crear y listar', () => {
 				kind: 'persona',
 				visibility: 'public',
 				version: 1,
-				role: 'owner'
+				role: 'owner',
+				// Recién creado por una cuenta: espera a une admin (sin motivo de rechazo).
+				review: 'pending',
+				rejectReason: ''
 			}
 		]);
 	});
 
 	it('datos inválidos: no se crea nada (ni el perfil ni la fila de gestión)', async () => {
 		const a = await account('dueñe-inventade');
-		expect(await createProfile(t.db, a.id, { kind: 'lugar', title: 'X' })).toMatchObject({
+		// Un tipo inventado (desde #137 una cuenta también puede crear lugares, decisión 0022).
+		expect(await createProfile(t.db, a.id, { kind: 'cualquiera', title: 'X' })).toMatchObject({
 			ok: false,
 			status: 400,
 			message: MESSAGES.badKind
@@ -252,9 +260,9 @@ describe('crear y listar', () => {
 		expect(third.slug).not.toBe(second.slug);
 	});
 
-	it('mostrar integrantes es solo para grupos', async () => {
+	it('mostrar integrantes es solo para proyectos', async () => {
 		const a = await account('dueñe-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo', show_members: true });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto', show_members: true });
 		expect(g.data.show_members).toBe(true);
 		const p = await create(a.id, { kind: 'persona', title: 'Persona', show_members: true });
 		expect(p.data.show_members).toBeUndefined();
@@ -281,13 +289,13 @@ describe('permisos', () => {
 	it('quien gestiona sin ser dueñe edita, pero no borra, no invita ni cambia roles', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		const edited = ok(
-			await updateProfile(t.db, b.id, g.slug, { version: 1, title: 'Grupo Renombrado' }, opts)
+			await updateProfile(t.db, b.id, g.slug, { version: 1, title: 'Proyecto Renombrado' }, opts)
 		);
-		expect(edited.profile).toMatchObject({ title: 'Grupo Renombrado', version: 2 });
+		expect(edited.profile).toMatchObject({ title: 'Proyecto Renombrado', version: 2 });
 		expect(await deleteProfile(t.db, b.id, g.slug, 2, opts)).toMatchObject({
 			status: 403,
 			message: MESSAGES.onlyOwner
@@ -304,7 +312,7 @@ describe('permisos', () => {
 	it('le última dueñe no se puede ir ni perder la propiedad; después de pasarla, sí', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		expect(await leaveProfile(t.db, a.id, g.slug)).toEqual({
 			ok: false,
 			status: 409,
@@ -328,7 +336,7 @@ describe('permisos', () => {
 	it('una cuenta borrada no cuenta como dueñe', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
@@ -377,7 +385,7 @@ describe('conflicto de versión', () => {
 				t.db,
 				a.id,
 				p.slug,
-				/** @type {any} */ ({ version: 1, title: 'X', kind: 'grupo', show_members: true }),
+				/** @type {any} */ ({ version: 1, title: 'X', kind: 'proyecto', show_members: true }),
 				opts
 			)
 		);
@@ -390,7 +398,7 @@ describe('invitaciones a gestionar', () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
 		const c = await account('curiose-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const withAccount = await inviteManager(t.db, a.id, g.slug, ` ${b.email.toUpperCase()} `, opts);
 		const without = await inviteManager(t.db, a.id, g.slug, 'nadie@example.com', opts);
 		const already = await inviteManager(t.db, a.id, g.slug, a.email, opts);
@@ -407,11 +415,11 @@ describe('invitaciones a gestionar', () => {
 
 		expect(await myInvites(t.db, c.id, opts)).toEqual([]);
 		const [inv] = await myInvites(t.db, b.id, opts);
-		expect(inv).toMatchObject({ title: 'Grupo Inventado' });
+		expect(inv).toMatchObject({ title: 'Proyecto Inventado' });
 		expect(await answerInvite(t.db, c.id, inv.id, true, opts)).toMatchObject({
 			message: MESSAGES.inviteGone
 		});
-		// Une dueñe no ve su propia invitación (ya gestiona el grupo).
+		// Une dueñe no ve su propia invitación (ya gestiona el proyecto).
 		expect(await myInvites(t.db, a.id, opts)).toEqual([]);
 		expect(await answerInvite(t.db, b.id, inv.id, true, opts)).toEqual({ ok: true, slug: g.slug });
 		expect((await getManagedProfile(t.db, b.id, g.slug))?.role).toBe('manager');
@@ -421,7 +429,7 @@ describe('invitaciones a gestionar', () => {
 	it('vencen, se rechazan y se cancelan', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		const later = { now: NOW + INVITE_TTL_MS + 1 };
 		expect(await myInvites(t.db, b.id, later)).toEqual([]);
@@ -436,10 +444,10 @@ describe('invitaciones a gestionar', () => {
 		expect(await myInvites(t.db, b.id, opts)).toEqual([]);
 	});
 
-	it('un mail inválido se marca; un grupo borrado no se puede aceptar', async () => {
+	it('un mail inválido se marca; un proyecto borrado no se puede aceptar', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		expect(await inviteManager(t.db, a.id, g.slug, 'no-es-un-mail', opts)).toMatchObject({
 			status: 400,
 			errors: { email: MESSAGES.badEmail }
@@ -454,7 +462,7 @@ describe('invitaciones a gestionar', () => {
 	it('aceptar respeta el tope de perfiles por cuenta', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		for (let i = 1; i <= MAX_PROFILES_PER_ACCOUNT; i++) {
 			await create(b.id, { kind: 'persona', title: `Persona Inventada ${i}` });
 		}
@@ -496,10 +504,10 @@ describe('aviso por mail de las invitaciones', () => {
 		};
 	}
 
-	it('con cuenta verificada sale un aviso con el nombre del grupo y el link; sin el mail de quien invita', async () => {
+	it('con cuenta verificada sale un aviso con el nombre del proyecto y el link; sin el mail de quien invita', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo <Inventado>' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto <Inventado>' });
 		const fake = fakeNotice();
 		const r = await inviteManager(t.db, a.id, g.slug, b.email.toUpperCase(), {
 			...opts,
@@ -511,9 +519,9 @@ describe('aviso por mail de las invitaciones', () => {
 		const [{ to, message }] = fake.sent;
 		expect(to).toBe(b.email);
 		expect(message.subject).toBe('Te invitaron a gestionar un perfil en KinkyVibe');
-		expect(message.text).toContain('«Grupo <Inventado>»');
+		expect(message.text).toContain('«Proyecto <Inventado>»');
 		expect(message.text).toContain('https://kinkyvibe.ar/mi-rincon/perfiles');
-		expect(message.html).toContain('Grupo &lt;Inventado&gt;');
+		expect(message.html).toContain('Proyecto &lt;Inventado&gt;');
 		expect(message.html).toContain('href="https://kinkyvibe.ar/mi-rincon/perfiles"');
 		expect(JSON.stringify(message)).not.toContain(a.email);
 		expect(JSON.stringify(message)).not.toContain(a.id);
@@ -524,7 +532,7 @@ describe('aviso por mail de las invitaciones', () => {
 		const gone = await account('borrade-inventade');
 		const goneEmail = gone.email;
 		await deleteAccount(t.db, gone.id, opts);
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const fake = fakeNotice();
 		for (const email of ['nadie@example.com', goneEmail, a.email]) {
 			ok(await inviteManager(t.db, a.id, g.slug, email, { ...opts, notice: fake.notice }));
@@ -536,7 +544,7 @@ describe('aviso por mail de las invitaciones', () => {
 	it('quien invita ve exactamente la misma respuesta, y no espera al mail', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		/** @type {() => void} */
 		let release = () => {};
 		const gate = new Promise((resolve) => (release = () => resolve(undefined)));
@@ -565,9 +573,9 @@ describe('aviso por mail de las invitaciones', () => {
 	});
 
 	// Recorre el flujo entero hasta el tope: en la CI tarda más que los 5 s de un test común.
-	it('límite por hora por grupo y por cuenta que invita (se cuenta haya o no cuenta)', async () => {
+	it('límite por hora por proyecto y por cuenta que invita (se cuenta haya o no cuenta)', async () => {
 		const a = await account('dueñe-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const { limit } = INVITE_RATE_LIMITS.group;
 		for (let i = 1; i <= limit; i++) {
 			ok(await inviteManager(t.db, a.id, g.slug, `invitade-${i}@example.com`, opts));
@@ -582,12 +590,12 @@ describe('aviso por mail de las invitaciones', () => {
 			})
 		);
 
-		// Por cuenta: repartido entre varios grupos, igual se topea.
+		// Por cuenta: repartido entre varios proyectos, igual se topea.
 		const b = await account('otre-dueñe-inventade');
 		const perAccount = INVITE_RATE_LIMITS.account.limit;
 		const groups = [];
 		for (let i = 0; i * limit < perAccount + 1; i++) {
-			groups.push(await create(b.id, { kind: 'grupo', title: `Otro Grupo ${i}` }));
+			groups.push(await create(b.id, { kind: 'proyecto', title: `Otro Proyecto ${i}` }));
 		}
 		let sentOk = 0;
 		/** @type {unknown} */
@@ -607,7 +615,7 @@ describe('aviso por mail de las invitaciones', () => {
 		const { limit } = INVITE_RATE_LIMITS.recipient;
 		for (let i = 0; i <= limit; i++) {
 			const owner = await account(`dueñe-${i}`);
-			const g = await create(owner.id, { kind: 'grupo', title: `Grupo ${i}` });
+			const g = await create(owner.id, { kind: 'proyecto', title: `Proyecto ${i}` });
 			expect(
 				await inviteManager(t.db, owner.id, g.slug, b.email, { ...opts, notice: fake.notice })
 			).toEqual({ ok: true, message: MESSAGES.invited });
@@ -621,7 +629,7 @@ describe('aviso por mail de las invitaciones', () => {
 	it('con el tope global de mails lleno, el aviso no sale y la invitación queda', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		// El contador global de esta hora arranca lleno (300 llamadas tardan más que el tiempo
 		// de un test en la CI). Misma ventana que calcula hitRateLimit.
 		const nowSeconds = Math.floor(NOW / 1000);
@@ -655,11 +663,11 @@ describe('código fresco para acciones de dueñes', () => {
 		message: 'código mal (de prueba)'
 	};
 
-	/** Grupo de `a` con `b` como manager. */
+	/** Proyecto de `a` con `b` como manager. */
 	async function setup() {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		/** @param {string} id */
@@ -691,10 +699,10 @@ describe('código fresco para acciones de dueñes', () => {
 		expect(await role(a.id)).toBeNull();
 	});
 
-	it('con solo una sesión ajena (sin el mail) no se puede quedar con un grupo', async () => {
+	it('con solo una sesión ajena (sin el mail) no se puede quedar con un proyecto', async () => {
 		const v = await account('victima-inventada');
 		const x = await account('otra-cuenta-inventada');
-		const g = await create(v.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(v.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		// Con la sesión de v: invita a x y x acepta…
 		ok(await inviteManager(t.db, v.id, g.slug, x.email, opts));
 		ok(await answerInvite(t.db, x.id, (await myInvites(t.db, x.id, opts))[0].id, true, opts));
@@ -705,7 +713,7 @@ describe('código fresco para acciones de dueñes', () => {
 		expect((await getManagedProfile(t.db, v.id, g.slug))?.role).toBe('owner');
 	});
 
-	it('borrar un grupo pide código; borrar un perfil de persona, no', async () => {
+	it('borrar un proyecto pide código; borrar un perfil de persona, no', async () => {
 		const { a, g } = await setup();
 		expect(await deleteProfile(t.db, a.id, g.slug, g.version, opts)).toMatchObject({
 			status: 403,
@@ -754,12 +762,12 @@ describe('código fresco para acciones de dueñes', () => {
 
 describe('invitaciones de quien deja de ser dueñe', () => {
 	/**
-	 * Grupo de `a` con `b` como dueñe también, y una invitación pendiente de cada une.
+	 * Proyecto de `a` con `b` como dueñe también, y una invitación pendiente de cada une.
 	 */
 	async function setup() {
 		const a = await account('dueñe-inventade');
 		const b = await account('otre-dueñe-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
@@ -803,9 +811,9 @@ describe('invitaciones de quien deja de ser dueñe', () => {
 	});
 });
 
-describe('integrantes (el grupo invita, la persona acepta)', () => {
+describe('integrantes (el proyecto invita, la persona acepta)', () => {
 	/**
-	 * Une gestora (no dueñe) del grupo `g` de `owner`.
+	 * Une gestora (no dueñe) del proyecto `g` de `owner`.
 	 * @param {{ id: string, email: string }} owner
 	 * @param {{ slug: string }} g
 	 * @param {string} name
@@ -827,7 +835,11 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
 		const d = await account('mirone-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado', show_members: true });
+		const g = await create(a.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Inventado',
+			show_members: true
+		});
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		const q = await create(b.id, { kind: 'persona', title: 'Persona Dos', visibility: 'members' });
 		expect(
@@ -856,13 +868,13 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		expect(await listMyMemberInvites(t.db, b.id, opts)).toEqual([
 			{
 				groupId: g.id,
-				groupTitle: 'Grupo Inventado',
+				groupTitle: 'Proyecto Inventado',
 				personaSlug: p.slug,
 				personaTitle: 'Persona Inventada'
 			},
 			{
 				groupId: g.id,
-				groupTitle: 'Grupo Inventado',
+				groupTitle: 'Proyecto Inventado',
 				personaSlug: q.slug,
 				personaTitle: 'Persona Dos'
 			}
@@ -875,18 +887,18 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		expect(await count('SELECT COUNT(*) AS n FROM profile_member_invites')).toBe(0);
 		expect(await listMyMemberInvites(t.db, b.id, opts)).toEqual([]);
 		expect(await listMemberships(t.db, b.id, p.slug)).toEqual([
-			{ id: g.id, title: 'Grupo Inventado' }
+			{ id: g.id, title: 'Proyecto Inventado' }
 		]);
 		expect(await listMyMemberships(t.db, b.id)).toEqual([
 			{
 				groupId: g.id,
-				groupTitle: 'Grupo Inventado',
+				groupTitle: 'Proyecto Inventado',
 				personaSlug: q.slug,
 				personaTitle: 'Persona Dos'
 			},
 			{
 				groupId: g.id,
-				groupTitle: 'Grupo Inventado',
+				groupTitle: 'Proyecto Inventado',
 				personaSlug: p.slug,
 				personaTitle: 'Persona Inventada'
 			}
@@ -905,18 +917,18 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 			status: 409,
 			message: MESSAGES.alreadyMember
 		});
-		// Si el grupo no elige mostrarlos, no aparece nadie.
+		// Si el proyecto no elige mostrarlos, no aparece nadie.
 		ok(
 			await updateProfile(t.db, a.id, g.slug, { version: 1, title: g.title, show_members: false })
 		);
 		expect((await getPublicProfile(t.db, g.slug))?.members).toBeNull();
 	});
 
-	it('quien no gestiona el grupo no invita ni saca; nadie más responde por la persona', async () => {
+	it('quien no gestiona el proyecto no invita ni saca; nadie más responde por la persona', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
 		const x = await account('otre-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		const other = await create(a.id, { kind: 'persona', title: 'Otra Persona' });
 		expect(await inviteMember(t.db, b.id, g.slug, p.slug, opts)).toEqual({
@@ -947,10 +959,10 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		expect(await listMemberships(t.db, b.id, p.slug)).toHaveLength(1);
 	});
 
-	it('no se puede invitar un perfil oculto (ni propio), uno de grupo, uno borrado o uno que no existe', async () => {
+	it('no se puede invitar un perfil oculto (ni propio), uno de proyecto, uno borrado o uno que no existe', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const hidden = await create(b.id, {
 			kind: 'persona',
 			title: 'Persona Oculta',
@@ -961,7 +973,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 			title: 'Mía Oculta',
 			visibility: 'hidden'
 		});
-		const otherGroup = await create(b.id, { kind: 'grupo', title: 'Otro Grupo' });
+		const otherGroup = await create(b.id, { kind: 'proyecto', title: 'Otro Proyecto' });
 		const gone = await create(b.id, { kind: 'persona', title: 'Persona Borrada' });
 		ok(await deleteProfile(t.db, b.id, gone.slug, 1, opts));
 		const missing = await inviteMember(t.db, a.id, g.slug, 'no-existe', opts);
@@ -979,14 +991,14 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		expect(await count('SELECT COUNT(*) AS n FROM edges')).toBe(0);
 	});
 
-	it('rechazar o irse bloquea a ese grupo 30 días; retirar o sacarla, no', async () => {
+	it('rechazar o irse bloquea a ese proyecto 30 días; retirar o sacarla, no', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
-		const g2 = await create(a.id, { kind: 'grupo', title: 'Otro Grupo' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
+		const g2 = await create(a.id, { kind: 'proyecto', title: 'Otro Proyecto' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 
-		// Rechaza: ese grupo no la puede volver a invitar por 30 días; otro grupo sí.
+		// Rechaza: ese proyecto no la puede volver a invitar por 30 días; otro proyecto sí.
 		ok(await inviteMember(t.db, a.id, g.slug, p.slug, opts));
 		ok(await answerMemberInvite(t.db, b.id, p.slug, g.id, false, opts));
 		expect(await listMyMemberInvites(t.db, b.id, opts)).toEqual([]);
@@ -996,7 +1008,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		expect(
 			await inviteMember(t.db, a.id, g.slug, p.slug, { now: NOW + LEAVE_BLOCK_MS - 1 })
 		).toMatchObject({ message: MESSAGES.recentlyLeft });
-		// Lo que se guarda es mínimo: grupo, persona y hasta cuándo.
+		// Lo que se guarda es mínimo: proyecto, persona y hasta cuándo.
 		expect(await t.db.prepare('SELECT * FROM profile_member_blocks').all()).toMatchObject({
 			results: [{ group_id: g.id, persona_id: p.id, until: NOW + LEAVE_BLOCK_MS }]
 		});
@@ -1013,7 +1025,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		ok(await inviteMember(t.db, a.id, g2.slug, p.slug, opts));
 		ok(await answerMemberInvite(t.db, b.id, p.slug, g2.id, true, opts));
 
-		// Se va (aunque el grupo pase a oculto): bloqueo de 30 días.
+		// Se va (aunque el proyecto pase a oculto): bloqueo de 30 días.
 		ok(
 			await updateProfile(t.db, a.id, g2.slug, {
 				version: 1,
@@ -1028,18 +1040,18 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 			message: MESSAGES.recentlyLeft
 		});
 
-		// Si el grupo la saca (no se fue ella), la puede volver a invitar enseguida.
-		const g3 = await create(a.id, { kind: 'grupo', title: 'Tercer Grupo' });
+		// Si el proyecto la saca (no se fue ella), la puede volver a invitar enseguida.
+		const g3 = await create(a.id, { kind: 'proyecto', title: 'Tercer Proyecto' });
 		ok(await inviteMember(t.db, a.id, g3.slug, p.slug, opts));
 		ok(await answerMemberInvite(t.db, b.id, p.slug, g3.id, true, opts));
 		ok(await removeMember(t.db, a.id, g3.slug, p.id, opts));
 		ok(await inviteMember(t.db, a.id, g3.slug, p.slug, opts));
 	});
 
-	it('"No recibir invitaciones de grupos": no le llega nada y quien invita ve lo mismo de siempre', async () => {
+	it('"No recibir invitaciones de proyectos": no le llega nada y quien invita ve lo mismo de siempre', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		const q = await create(b.id, { kind: 'persona', title: 'Persona Dos' });
 		expect(await getNoGroupInvites(t.db, b.id)).toBe(false);
@@ -1074,7 +1086,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 	it('invitar y retirar muchas veces no cambia la versión de la persona (no le hace fallar lo que edita)', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		for (let i = 0; i < 10; i++) {
 			ok(await inviteMember(t.db, a.id, g.slug, p.slug, opts));
@@ -1093,9 +1105,9 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 	});
 
 	// Recorre el flujo entero hasta el tope: en la CI tarda más que los 5 s de un test común.
-	it('límite de invitaciones por hora por grupo y por cuenta (se cuenta aunque el perfil no exista)', async () => {
+	it('límite de invitaciones por hora por proyecto y por cuenta (se cuenta aunque el perfil no exista)', async () => {
 		const a = await account('dueñe-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const { limit } = MEMBER_INVITE_RATE_LIMITS.group;
 		for (let i = 0; i < limit; i++) {
 			expect(await inviteMember(t.db, a.id, g.slug, `no-existe-${i}`, opts)).toMatchObject({
@@ -1119,12 +1131,12 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 			)
 		);
 
-		// Por cuenta: repartido entre grupos, igual se topea.
+		// Por cuenta: repartido entre proyectos, igual se topea.
 		const b = await account('otre-dueñe-inventade');
 		const perAccount = MEMBER_INVITE_RATE_LIMITS.account.limit;
 		const groups = [];
 		for (let i = 0; i * limit < perAccount + 1; i++) {
-			groups.push(await create(b.id, { kind: 'grupo', title: `Otro Grupo ${i}` }));
+			groups.push(await create(b.id, { kind: 'proyecto', title: `Otro Proyecto ${i}` }));
 		}
 		/** @type {any} */
 		let last = null;
@@ -1137,7 +1149,7 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 	it('aceptar e irse guardan sobre la versión de ahora: no fallan ni pisan lo que la persona editó', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g = await create(a.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		ok(await inviteMember(t.db, a.id, g.slug, p.slug, opts));
 		ok(await updateProfile(t.db, b.id, p.slug, { version: 1, title: 'Nombre Nuevo', bio: 'hola' }));
@@ -1152,7 +1164,11 @@ describe('integrantes (el grupo invita, la persona acepta)', () => {
 		const b = await account('persona-inventada');
 		const c = await account('otre-inventade');
 		const d = await account('mirone-inventade');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado', show_members: true });
+		const g = await create(a.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Inventado',
+			show_members: true
+		});
 		const pub = await create(b.id, { kind: 'persona', title: 'Persona Pública' });
 		const mem = await create(c.id, {
 			kind: 'persona',
@@ -1205,7 +1221,11 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 			bio: 'zanahoria',
 			visibility: 'members'
 		});
-		const g = await create(a.id, { kind: 'grupo', title: 'Zanahoria Grupo', show_members: true });
+		const g = await create(a.id, {
+			kind: 'proyecto',
+			title: 'Zanahoria Proyecto',
+			show_members: true
+		});
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		for (const p of [one, two]) await join(b.id, g, p, a.id);
@@ -1236,7 +1256,7 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		expect(Object.keys(pub ?? {}).sort()).toEqual(
 			['avatar', 'bio', 'kind', 'links', 'members', 'pronouns', 'slug', 'title'].sort()
 		);
-		// El grupo muestra integrantes (lo eligió), nunca a quienes lo gestionan.
+		// El proyecto muestra integrantes (lo eligió), nunca a quienes lo gestionan.
 		const group = await getPublicProfile(t.db, g.slug, viewerB);
 		expect(group?.members?.map((m) => m.slug).sort()).toEqual([one.slug, two.slug].sort());
 		expect(leaks(group)).toEqual([]);
@@ -1262,10 +1282,14 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		).not.toBeNull();
 	});
 
-	it('quien creó un grupo oculto y ya no lo gestiona deja de verlo', async () => {
+	it('quien creó un proyecto oculto y ya no lo gestiona deja de verlo', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Oculto', visibility: 'hidden' });
+		const g = await create(a.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Oculto',
+			visibility: 'hidden'
+		});
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner', withCode));
@@ -1278,12 +1302,12 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 });
 
 describe('al borrar una cuenta', () => {
-	it('borra sus personas, pasa los grupos a quien sigue y borra los que quedan sin nadie', async () => {
+	it('borra sus personas, pasa los proyectos a quien sigue y borra los que quedan sin nadie', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
 		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
-		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
-		const alone = await create(a.id, { kind: 'grupo', title: 'Grupo Solo' });
+		const shared = await create(a.id, { kind: 'proyecto', title: 'Proyecto Compartido' });
+		const alone = await create(a.id, { kind: 'proyecto', title: 'Proyecto Solo' });
 		ok(await inviteManager(t.db, a.id, shared.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 
@@ -1299,7 +1323,7 @@ describe('al borrar una cuenta', () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('gestora-inventada');
 		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
-		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
+		const shared = await create(a.id, { kind: 'proyecto', title: 'Proyecto Compartido' });
 		ok(await inviteManager(t.db, a.id, shared.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
 
@@ -1344,23 +1368,27 @@ describe('al borrar una cuenta', () => {
 			)
 		);
 		ok(await deleteProfile(t.db, a.id, before.slug, before.version + 1, opts));
-		// Un grupo de otra cuenta la sumó y otro grupo la tiene bloqueada.
-		const g = await create(b.id, { kind: 'grupo', title: 'Grupo Ajeno', bio: 'datos del grupo' });
+		// Un proyecto de otra cuenta la sumó y otro proyecto la tiene bloqueada.
+		const g = await create(b.id, {
+			kind: 'proyecto',
+			title: 'Proyecto Ajeno',
+			bio: 'datos del proyecto'
+		});
 		await join(b.id, g, p, a.id);
-		const g2 = await create(b.id, { kind: 'grupo', title: 'Grupo Dos' });
+		const g2 = await create(b.id, { kind: 'proyecto', title: 'Proyecto Dos' });
 		await join(b.id, g2, p, a.id);
 		ok(await leaveMembership(t.db, a.id, p.slug, g2.id, opts));
-		// Y una invitación pendiente de un tercer grupo.
-		const g3 = await create(b.id, { kind: 'grupo', title: 'Grupo Tres' });
+		// Y una invitación pendiente de un tercer proyecto.
+		const g3 = await create(b.id, { kind: 'proyecto', title: 'Proyecto Tres' });
 		ok(await inviteMember(t.db, b.id, g3.slug, p.slug, opts));
-		// Un grupo propio que pasa a b: queda con sus datos.
-		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
+		// Un proyecto propio que pasa a b: queda con sus datos.
+		const shared = await create(a.id, { kind: 'proyecto', title: 'Proyecto Compartido' });
 		ok(
 			await updateProfile(
 				t.db,
 				a.id,
 				shared.slug,
-				{ title: 'Grupo Compartido', bio: 'bio del grupo', version: shared.version },
+				{ title: 'Proyecto Compartido', bio: 'bio del proyecto', version: shared.version },
 				opts
 			)
 		);
@@ -1406,12 +1434,219 @@ describe('al borrar una cuenta', () => {
 		expect(
 			await count(`SELECT COUNT(*) AS n FROM objects_fts WHERE objects_fts MATCH '"zanahoria"'`)
 		).toBe(0);
-		// Los grupos quedan con sus datos.
-		expect((await getPublicProfile(t.db, shared.slug))?.bio).toBe('bio del grupo');
+		// Los proyectos quedan con sus datos.
+		expect((await getPublicProfile(t.db, shared.slug))?.bio).toBe('bio del proyecto');
 		expect(await listGroupMembers(t.db, b.id, g.slug)).toEqual([]);
 
 		// Se puede volver a correr sin problema.
 		await releaseAccountProfiles(t.db, a.id, opts);
 		expect(await closeAccount(t.db, a.id, opts)).toBe(false);
+	});
+});
+
+describe('valor viejo «grupo» (antes de la migración 0023)', () => {
+	/**
+	 * Un proyecto guardado como antes del cambio de nombre: `kind: 'grupo'` en la fila.
+	 * @param {string} accountId
+	 * @param {Record<string, unknown>} [input]
+	 */
+	async function legacyProject(accountId, input = {}) {
+		const p = await create(accountId, { kind: 'proyecto', title: 'Proyecto Viejo', ...input });
+		await t.db
+			.prepare(
+				"UPDATE objects SET data = json_set(data, '$.kind', 'grupo'), version = version + 1 WHERE id = ?1"
+			)
+			.bind(p.id)
+			.run();
+		return { ...p, version: p.version + 1 };
+	}
+
+	/** @param {number} id */
+	async function storedKind(id) {
+		const row = await t.db
+			.prepare("SELECT json_extract(data, '$.kind') AS kind FROM objects WHERE id = ?1")
+			.bind(id)
+			.first();
+		return row?.kind;
+	}
+
+	it('se lee como proyecto en Mi rincón, en público y en las acciones de proyecto', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('persona-inventada');
+		const g = await legacyProject(a.id, { show_members: true });
+		const persona = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
+		expect(await storedKind(g.id)).toBe('grupo');
+
+		expect((await listMyProfiles(t.db, a.id)).map((p) => p.kind)).toEqual(['proyecto']);
+		expect((await getManagedProfile(t.db, a.id, g.slug))?.kind).toBe('proyecto');
+		await join(a.id, g, persona, b.id);
+		expect(await getPublicProfile(t.db, g.slug)).toMatchObject({
+			kind: 'proyecto',
+			members: [{ slug: persona.slug, title: 'Persona Inventada' }]
+		});
+		ok(await inviteManager(t.db, a.id, g.slug, 'invitade@example.com', opts));
+	});
+
+	it('editarlo lo guarda como proyecto; borrarlo también funciona', async () => {
+		const a = await account('dueñe-inventade');
+		const g = await legacyProject(a.id);
+		const edited = ok(
+			await updateProfile(t.db, a.id, g.slug, { version: g.version, title: 'Proyecto Viejo' }, opts)
+		);
+		expect(edited.profile.data.kind).toBe('proyecto');
+		expect(await storedKind(g.id)).toBe('proyecto');
+
+		const other = await legacyProject(a.id, { title: 'Otro Proyecto Viejo' });
+		ok(await deleteProfile(t.db, a.id, other.slug, other.version, { ...opts, ...withCode }));
+		expect(await getPublicProfile(t.db, other.slug)).toBeNull();
+	});
+
+	it('al borrar la cuenta no se vacía como si fuera una persona: pasa a quien sigue', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await legacyProject(a.id, { bio: 'bio del proyecto' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+
+		await releaseAccountProfiles(t.db, a.id, opts);
+		expect(await getPublicProfile(t.db, g.slug)).toMatchObject({
+			title: 'Proyecto Viejo',
+			kind: 'proyecto',
+			bio: 'bio del proyecto'
+		});
+		expect((await getManagedProfile(t.db, b.id, g.slug))?.role).toBe('owner');
+	});
+
+	it('crear con «grupo» (un formulario viejo) crea un proyecto; un tipo inventado no', async () => {
+		const a = await account('dueñe-inventade');
+		const p = await create(a.id, { kind: 'grupo', title: 'Proyecto Nuevo' });
+		expect(p.data.kind).toBe('proyecto');
+		expect(await storedKind(p.id)).toBe('proyecto');
+		expect(
+			await createProfile(t.db, a.id, /** @type {any} */ ({ kind: 'Grupo', title: 'X' }), opts)
+		).toMatchObject({ ok: false, status: 400, message: MESSAGES.badKind });
+	});
+});
+
+describe('lugares desde las cuentas (decisión de gorrite, 0022)', () => {
+	it('accountVenueData: pone lo escrito, saca lo vacío y deja lo demás como estaba', () => {
+		const current = {
+			kind: 'lugar',
+			address: 'Calle Vieja 1',
+			lat: -34.6,
+			lng: -58.4,
+			bio: 'Hola'
+		};
+		expect(
+			accountVenueData(
+				{
+					address: ' Calle Inventada 123 ',
+					area: 'Barrio Inventado',
+					city: '',
+					venue_privacy: 'area'
+				},
+				current
+			)
+		).toEqual({
+			kind: 'lugar',
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			venue_privacy: 'area',
+			lat: -34.6,
+			lng: -58.4,
+			bio: 'Hola'
+		});
+		// Sin los campos del formulario de lugar, no toca nada.
+		expect(accountVenueData(undefined, current)).toEqual(current);
+		// Privacidad vacía = sin elegir (la dirección completa, decisión 0021).
+		expect(accountVenueData({ venue_privacy: '' }, { venue_privacy: 'hidden' })).toEqual({});
+	});
+
+	it('accountVenueData: la ubicación en el mapa se lee como en el editor del panel', () => {
+		const current = { kind: 'lugar', lat: -34.6, lng: -58.4 };
+		// Coma o punto: números.
+		expect(accountVenueData({ lat: '-34,61', lng: ' -58.39 ' }, current)).toMatchObject({
+			lat: -34.61,
+			lng: -58.39
+		});
+		// Vacías: se sacan.
+		const cleared = accountVenueData({ lat: '', lng: '' }, current);
+		expect(cleared).not.toHaveProperty('lat');
+		expect(cleared).not.toHaveProperty('lng');
+		// Lo que no es un número queda como texto, para que el tipo `perfil` lo marque.
+		expect(accountVenueData({ lat: 'cerca', lng: '-58' }, current)).toMatchObject({
+			lat: 'cerca',
+			lng: -58
+		});
+		// Si el formulario no las trae, quedan como estaban.
+		expect(accountVenueData({ address: 'Calle Inventada 1' }, current)).toMatchObject({
+			lat: -34.6,
+			lng: -58.4
+		});
+	});
+
+	it('una cuenta crea un lugar: no es público hasta que une admin lo aprueba', async () => {
+		const a = await account('carga-lugar');
+		const created = await createProfile(
+			t.db,
+			a.id,
+			{ kind: 'lugar', title: 'Sala Inventada', visibility: 'public' },
+			opts
+		);
+		if (!created.ok) throw new Error(created.message);
+		const venue = created.profile;
+		expect(venue.data.kind).toBe('lugar');
+		const saved = await updateProfile(
+			t.db,
+			a.id,
+			venue.slug,
+			{
+				title: 'Sala Inventada',
+				version: venue.version,
+				venue: {
+					address: 'Calle Inventada 123',
+					area: 'Barrio Inventado',
+					city: 'Ciudad Inventada',
+					accessibility: '',
+					how_to_get_there: '',
+					venue_privacy: 'name'
+				}
+			},
+			opts
+		);
+		expect(saved).toMatchObject({ ok: true });
+		expect((await getManagedProfile(t.db, a.id, venue.slug))?.profile.data).toMatchObject({
+			kind: 'lugar',
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			venue_privacy: 'name'
+		});
+		// Sin aprobar: no está en /amigues ni se abre para quien no lo gestiona.
+		expect(await findPublicProfile(t.db, venue.slug, ANON)).toBeNull();
+		expect(await listPublicProfiles(t.db, ANON, { kind: 'lugar' })).toEqual([]);
+		expect((await listPendingVenues(t.db)).map((v) => v.title)).toEqual(['Sala Inventada']);
+		// Quien lo cargó lo sigue viendo.
+		expect(
+			await findPublicProfile(t.db, venue.slug, memberViewer(a.id), { accountId: a.id })
+		).not.toBeNull();
+
+		await approveProfile(t.db, venue.id, 'admin-de-prueba');
+		expect(await findPublicProfile(t.db, venue.slug, ANON)).not.toBeNull();
+		expect(await listPendingVenues(t.db)).toEqual([]);
+	});
+
+	it('una privacidad inventada no se guarda', async () => {
+		const a = await account('carga-lugar');
+		const created = await createProfile(t.db, a.id, { kind: 'lugar', title: 'Otro Lugar' }, opts);
+		if (!created.ok) throw new Error(created.message);
+		const bad = await updateProfile(
+			t.db,
+			a.id,
+			created.profile.slug,
+			{ title: 'Otro Lugar', version: 1, venue: { venue_privacy: 'secreta' } },
+			opts
+		);
+		expect(bad).toMatchObject({ ok: false, status: 400 });
+		expect(bad.ok === false && Object.keys(bad.errors ?? {})).toContain('venue_privacy');
 	});
 });

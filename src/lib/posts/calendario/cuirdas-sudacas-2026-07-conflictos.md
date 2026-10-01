@@ -11,6 +11,7 @@ tags:
   - cuerdas
   - cuir
   - charla debate
+  - Cuirdas Sudacas
 layout: calendario
 category: calendario
 authors:

@@ -35,6 +35,24 @@ describe('formSections', () => {
 		]);
 	});
 
+	it('con el interruptor personas_eventos: Personas después de Datos', () => {
+		const sections = formSections({
+			mode: 'editar',
+			category: 'calendario',
+			hasImage: true,
+			hasPersonas: true
+		});
+		expect(ids(sections)).toEqual([
+			'sec-datos',
+			'sec-personas',
+			'sec-imagen',
+			'sec-etiquetas',
+			'edit-tickets',
+			'sec-texto'
+		]);
+		expect(ids(formSections({ mode: 'editar', hasPersonas: true, parseError: true }))).toEqual([]);
+	});
+
 	it('si el archivo se edita como texto no hay secciones', () => {
 		expect(formSections({ mode: 'editar', parseError: true })).toEqual([]);
 	});

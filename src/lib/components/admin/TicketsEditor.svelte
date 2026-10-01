@@ -222,7 +222,17 @@
 									inputmode="numeric"
 									placeholder="0"
 								/>
-								<small>0 = quien no puede pagar, no paga.</small>
+								<small>Se exige. 0 = quien no puede pagar, no paga.</small>
+							</label>
+							<label class="field f-rec">
+								<span>Mínimo recomendado ($)</span>
+								<input
+									id="{idPrefix}-ticket-recommended-{i}"
+									bind:value={t.recommended}
+									inputmode="numeric"
+									placeholder="opcional"
+								/>
+								<small>Se muestra, pero se puede pagar menos (hasta el mínimo).</small>
 							</label>
 							<label class="field f-sug">
 								<span>Sugerido ($) <span class="req">*</span></span>
@@ -236,7 +246,8 @@
 									<small
 										>Botones: {gorraQuickAmounts(
 											parseAmount(t.min || '0') ?? 0,
-											parseAmount(t.suggested) ?? 0
+											parseAmount(t.suggested) ?? 0,
+											t.recommended.trim() ? parseAmount(t.recommended) : null
 										)
 											.map((n) => (n === 0 ? 'Sin cargo' : formatARS(n)))
 											.join(' · ')}</small
@@ -544,7 +555,7 @@
 		grid-template-areas: 'name' 'mode' 'price' 'door' 'cap' 'close' 'after';
 		align-items: start;
 		&.mode-gorra {
-			grid-template-areas: 'name' 'mode' 'min' 'sug' 'cap' 'close' 'after';
+			grid-template-areas: 'name' 'mode' 'min' 'rec' 'sug' 'cap' 'close' 'after';
 		}
 		&.mode-tiers {
 			grid-template-areas: 'name' 'mode' 'tiers' 'door' 'cap' 'close' 'after';
@@ -556,7 +567,9 @@
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 			grid-template-areas: 'name name' 'mode mode' 'price door' 'cap close' 'after after';
 			&.mode-gorra {
-				grid-template-areas: 'name name' 'mode mode' 'min sug' 'cap close' 'after after';
+				grid-template-areas:
+					'name name' 'mode mode' 'min rec' 'sug sug' 'cap close'
+					'after after';
 			}
 			&.mode-tiers {
 				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'door cap' 'close after';
@@ -570,7 +583,9 @@
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 			grid-template-areas: 'name name mode mode' 'price door cap close' 'after after after after';
 			&.mode-gorra {
-				grid-template-areas: 'name name mode mode' 'min sug cap close' 'after after after after';
+				grid-template-areas:
+					'name name mode mode' 'min rec sug cap' 'close close . .'
+					'after after after after';
 			}
 			&.mode-tiers {
 				grid-template-areas:
@@ -593,6 +608,9 @@
 	}
 	.f-min {
 		grid-area: min;
+	}
+	.f-rec {
+		grid-area: rec;
 	}
 	.f-sug {
 		grid-area: sug;

@@ -12,6 +12,7 @@ tags:
   - taller
   - inicial
   - negociación
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:

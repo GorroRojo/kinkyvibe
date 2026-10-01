@@ -11,6 +11,7 @@ tags:
   - taller
   - shibari
   - inicial
+  - Taller introductorio intensivo de shibari
 layout: calendario
 category: calendario
 authors:

@@ -53,6 +53,7 @@ import {
 	setPreference
 } from './orders.js';
 import { clientAddress, clientHash } from './safeguards.js';
+import { eventSignupFields, readAnswers } from './signupFields.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -93,10 +94,11 @@ export const CHECKOUT_RATE_LIMITS = {
  *   fondoPercent: number | null,
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
- *     left: number | null, gorra: { min: number, suggested: number } | null,
+ *     left: number | null, gorra: { min: number, recommended?: number | null, suggested: number } | null,
  *     closesAt: number | null, closed: boolean,
  *     tier?: { id: string, name: string, until: number | null } | null,
- *     tierLeft?: boolean, waitingFor?: string | null }[]
+ *     tierLeft?: boolean, waitingFor?: string | null }[],
+ *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} TicketsView
  *
  * Preventas: en un tipo con tramos, `price` y `fondo` son los del tramo vigente, `tier` dice cuál
@@ -202,7 +204,9 @@ export async function getTicketsView(db, slug, fetchFn) {
 				tierLeft: false,
 				waitingFor: null
 			};
-		})
+		}),
+		// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+		fields: await eventSignupFields(db, slug)
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
 	try {
@@ -324,7 +328,9 @@ function readForm(form) {
 		holders: Array.from({ length: n }, (_, i) => ({
 			name: str(`holder_name_${i}`, 200),
 			pronouns: str(`holder_pronouns_${i}`, 100)
-		}))
+		})),
+		// Respuestas a las preguntas de inscripción: las lee buyAction, que sabe cuáles hay.
+		answers: /** @type {Record<string, string>} */ ({})
 	};
 }
 
@@ -522,8 +528,15 @@ export async function buyAction(event) {
 			? { ...config, types: config.types.map((t) => (t.id === effective?.id ? effective : t)) }
 			: config;
 
+	// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+	const fields = await eventSignupFields(db, params.event);
+	values.answers = readAnswers(form, fields);
 	const valid = validatePurchase(
-		{ ...purchaseConfig, paymentMethods: methods.length ? methods : config.paymentMethods },
+		{
+			...purchaseConfig,
+			paymentMethods: methods.length ? methods : config.paymentMethods,
+			fields
+		},
 		{
 			type: values.type,
 			quantity: values.quantity,
@@ -537,6 +550,7 @@ export async function buyAction(event) {
 				dni: values.dni
 			},
 			holders: values.holders,
+			answers: values.answers,
 			accept: form.get('accept'),
 			now
 		}
@@ -631,6 +645,7 @@ export async function buyAction(event) {
 					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
 					: undefined,
 			clientHash: client,
+			answers: valid.answers,
 			now
 		});
 	} catch (error) {

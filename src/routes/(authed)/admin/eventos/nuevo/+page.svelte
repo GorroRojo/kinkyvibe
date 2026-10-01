@@ -55,6 +55,15 @@
 	/** @type {import('./$types').ActionData} */
 	export let form;
 
+	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna (interruptor
+	// `series`): crear una serie nueva con el nombre sugerido, agregarlo a una que existe o no.
+	const seriesPrompt = data.seriesPrompt;
+	/** @type {'' | 'crear' | 'agregar' | 'no'} */
+	let seriesChoice = '';
+	let seriesName = seriesPrompt?.suggested ?? '';
+	let seriesExisting = '';
+	let seriesMarkSource = true;
+
 	const source = data.source;
 	const sourceRaw = source?.raw ?? data.template;
 	const sourceFields = readEventFields(splitMarkdown(sourceRaw).frontmatter);
@@ -75,6 +84,17 @@
 	// ...but the calendar opens on the month the copy most likely is: this month until the 15th,
 	// next month from the 16th (Argentina time). The day is always picked by hand.
 	let month = prefillMonth(data.today);
+	// ...unless it comes from the agenda calendar (a day was clicked): then that day, and the
+	// times if a range was picked in the week view.
+	if (data.prefill.date) {
+		values.startDate = data.prefill.date;
+		month = data.prefill.date.slice(0, 7);
+	}
+	if (data.prefill.startTime) values.startTime = data.prefill.startTime;
+	if (data.prefill.endTime) {
+		values.endTime = data.prefill.endTime;
+		values.hasEnd = true;
+	}
 	const sourceStart = parseEventDate(sourceFields.start).date;
 	const sourceWeekday =
 		source && isValidDate(sourceStart)
@@ -567,6 +587,56 @@
 						</p>
 					{/if}
 
+					{#if seriesPrompt}
+						<input type="hidden" name="seriesChoice" value={seriesChoice} />
+						<fieldset class="card series-prompt">
+							<legend>🔁 ¿Es parte de una serie?</legend>
+							<p class="hint">
+								El evento original no está en ninguna serie. Si se repite, ponelo en una: así se
+								numeran las ediciones y la gente puede pedir aviso.
+							</p>
+							<div class="choices">
+								<label class="check">
+									<input type="radio" bind:group={seriesChoice} value="crear" />
+									Crear «{seriesName.trim() || 'serie nueva'}»
+								</label>
+								{#if seriesChoice === 'crear'}
+									<label class="field sub">
+										<span>Nombre de la serie</span>
+										<input name="seriesName" bind:value={seriesName} maxlength="60" />
+									</label>
+								{/if}
+								{#if seriesPrompt.existing.length}
+									<label class="check">
+										<input type="radio" bind:group={seriesChoice} value="agregar" />
+										Agregar a una existente
+									</label>
+									{#if seriesChoice === 'agregar'}
+										<label class="field sub">
+											<span>Serie</span>
+											<select name="seriesExisting" bind:value={seriesExisting}>
+												<option value="" disabled>Elegí una</option>
+												{#each seriesPrompt.existing as id (id)}<option value={id}>{id}</option
+													>{/each}
+											</select>
+										</label>
+									{/if}
+								{/if}
+								<label class="check">
+									<input type="radio" bind:group={seriesChoice} value="no" />
+									No
+								</label>
+							</div>
+							{#if seriesChoice === 'crear' || seriesChoice === 'agregar'}
+								<label class="check">
+									<input type="checkbox" name="seriesMarkSource" bind:checked={seriesMarkSource} />
+									También marcar el evento original
+								</label>
+								<p class="hint">La etiqueta de la serie se agrega al publicar.</p>
+							{/if}
+						</fieldset>
+					{/if}
+
 					<ScheduleSection
 						bind:values
 						bind:month
@@ -576,6 +646,7 @@
 						{scheduleText}
 						{scheduleError}
 						onEndsNextDay={endsNextDay}
+						fromAgenda={Boolean(data.prefill.date)}
 					/>
 
 					<fieldset class="card" id="sec-datos">
@@ -825,6 +896,14 @@
 						<dd>{authors.join(', ') || '—'}</dd>
 						<dt>Etiquetas</dt>
 						<dd>{splitList(values.tags).join(', ')}</dd>
+						{#if seriesPrompt && (seriesChoice === 'crear' || seriesChoice === 'agregar')}
+							<dt>Serie</dt>
+							<dd id="review-series">
+								{seriesChoice === 'crear' ? 'Nueva: ' : ''}«{seriesChoice === 'crear'
+									? seriesName.trim()
+									: seriesExisting}»{seriesMarkSource ? ' (también el evento original)' : ''}
+							</dd>
+						{/if}
 						<dt>Entradas</dt>
 						<dd id="review-tickets">{describeTicketsForm(tickets, formatARS)}</dd>
 						<dt>Imagen</dt>
@@ -939,6 +1018,14 @@
 </main>
 
 <style lang="scss">
+	.series-prompt .choices {
+		display: grid;
+		gap: 0.4rem;
+		margin-bottom: 0.6rem;
+	}
+	.series-prompt .sub {
+		margin-left: 1.8rem;
+	}
 	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). Page-specific below. */
 	.steps {
 		display: flex;

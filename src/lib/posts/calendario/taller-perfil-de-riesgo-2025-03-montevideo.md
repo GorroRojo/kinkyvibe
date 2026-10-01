@@ -11,6 +11,7 @@ tags:
   - pago
   - Montevideo
   - perfil de riesgo
+  - Taller de Perfil de Riesgo
 layout: calendario
 category: calendario
 authors:

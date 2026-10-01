@@ -10,6 +10,7 @@ tags:
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
   - rancheadita
   - inicial
+  - Rancheadita Kinky
 layout: calendario
 category: calendario
 authors:

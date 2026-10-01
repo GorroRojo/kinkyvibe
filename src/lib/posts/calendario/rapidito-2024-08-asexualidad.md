@@ -12,6 +12,7 @@ tags:
   - Online # online | AMBA | Córdoba | Santa Cruz #
   - taller
   - asexualidad
+  - Mini Talleres Rapiditos
 layout: calendario
 category: calendario
 authors:
