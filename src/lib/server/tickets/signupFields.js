@@ -4,7 +4,8 @@
  *
  * - `signup_fields`: cada pregunta; `event_slug` NULL = general.
  * - `event_signup_general`: qué generales usa cada evento.
- * - `order_answers`: las respuestas de cada orden (datos de quien compra: solo admins). Se
+ * - `order_answers`: las respuestas de cada orden (datos de quien compra: admins y, de su evento,
+ *   les organizadores; ver src/lib/server/personas/organiza.js). Se
  *   escriben en la MISMA tanda que la orden (reserveOrder, `answersStatement`).
  *
  * Todo detrás del interruptor `personas_eventos`: apagado, {@link eventSignupFields} devuelve

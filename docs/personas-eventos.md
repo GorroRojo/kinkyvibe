@@ -30,8 +30,9 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
 
 - **El frontmatter es público** (el repo es público): la dirección del perfil queda en el `.md`.
   Por eso el editor solo ofrece perfiles públicos y aprobados.
-- **Las respuestas son datos de quien compra:** solo admins (Órdenes y su CSV). Nunca van a una
-  página pública, a un mail ni al registro de actividad.
+- **Las respuestas son datos de quien compra:** las ven les admins (Órdenes y su CSV) y les
+  organizadores de ESE evento (ver «Respuestas para les organizadores»). Nunca van a una página
+  pública ni a un mail, y el registro de actividad anota quién las miró, nunca qué dicen.
 - **La compra es una sola:** las preguntas pasan por `validatePurchase` (validación en el
   servidor, con largos máximos) y las respuestas se guardan en la **misma tanda** que la orden
   (`reserveOrder` → `answersStatement`): si la reserva no entra, no queda nada.
@@ -79,6 +80,37 @@ Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 
 pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
+### Respuestas para les organizadores
+
+Decisión de gorrite: además de les admins, ven las respuestas quienes **gestionan** (dueñes o
+gestores en `profile_managers`, Cuentas → Perfiles) un perfil que figura con el rol **Organiza**
+en el `personas:` de ese evento. Solo las de sus eventos.
+
+- **Dónde:** Mi rincón → Perfiles → el perfil → «Respuestas de inscripción» (la sección aparece si
+  el perfil organiza algún evento publicado) → `/mi-rincon/perfiles/<perfil>/respuestas/<evento>`
+  y su CSV (`…/respuestas.csv`).
+- **Qué se ve:** cada pregunta y, por cada orden **confirmada** (`approved`) con respuestas, el
+  nombre de quien compró y lo que respondió. Ni mail, ni teléfono, ni DNI, ni montos. Las reservas
+  sin pagar, vencidas o reembolsadas no aparecen (les admins las siguen viendo en Órdenes).
+- **Quién entra (todo en el servidor, `requireOrganizer` en `src/lib/server/personas/organiza.js`):**
+  1. interruptor `cuentas` prendido, sesión de cuenta (si no, a `/ingresar?next=…`) y el permiso
+     «puede tener perfiles»: lo mismo que el resto de Mi rincón (`requireMember`);
+  2. interruptor `personas_eventos` prendido;
+  3. la cuenta gestiona el perfil (`getManagedProfile`);
+  4. el evento está publicado y lista ese perfil con el rol Organiza (sin importar mayúsculas).
+
+  Si algo no se cumple: **404, no 403**, así no se sabe si el evento existe o tiene respuestas.
+  Gestionar un perfil con otro rol en el evento (por ejemplo Facilita) no alcanza.
+
+- **Perfiles ocultos o sin aprobar:** quienes los gestionan **entran igual**. Organizar es un
+  hecho del evento, no de la visibilidad del perfil, y la página es privada: no le muestra el
+  perfil a nadie más. Lo que sí esconde un perfil oculto o sin aprobar es su nombre en las páginas
+  públicas (arriba). Si une admin borra el perfil, se pierde el acceso.
+- **Registro:** cada vista y cada CSV quedan en el registro de actividad (`signup_answers.view`,
+  autor «cuentas (sitio)»): perfil, evento, id de la cuenta y si fue CSV. Sin respuestas.
+- **Límite:** 10 CSV por hora por cuenta (`ORGANIZER_CSV_RATE_LIMIT`, tabla `rate_limits`); pasado
+  eso, 429.
+
 ## Dónde está el código
 
 | Qué                              | Dónde                                                                                                    |
@@ -86,6 +118,7 @@ solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de sie
 | Reglas puras de roles            | `src/lib/utils/personas.js`                                                                              |
 | Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                       |
 | Lista de roles                   | `src/lib/server/personas/roles.js`                                                                       |
+| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`      |
 | Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                       |
 | Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                          |
 | Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                 |
@@ -99,7 +132,8 @@ solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de sie
 ```sh
 npx vitest run src/lib/utils/personas.test.js src/lib/utils/signupFields.test.js \
   src/lib/server/personas src/lib/server/tickets/signupFields.test.js \
-  "src/routes/(authed)/admin/ajustes/personas" scripts/demo/n3-personas.test.js
+  "src/routes/(authed)/admin/ajustes/personas" scripts/demo/n3-personas.test.js \
+  "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"
 ```
 
 A mano: `PERSONAS_EVENTOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev`, cargar

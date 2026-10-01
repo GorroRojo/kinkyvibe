@@ -20,7 +20,8 @@ export const ACCOUNT_EVENT_ACTOR = 'cuentas (sitio)';
 /** Acciones del registro que son novedades de cuentas y perfiles (no de admins). */
 export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
-	profileCreated: 'profile.create'
+	profileCreated: 'profile.create',
+	signupAnswersViewed: 'signup_answers.view'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -64,6 +65,31 @@ export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
 			targetId: profile.id,
 			summary: `Se creó el perfil «${profile.title}» (${kind})`,
 			detail: { kind, visibility: profile.visibility }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Une organizadore vio (o bajó en CSV) las respuestas de inscripción de un evento" (Mi rincón →
+ * el perfil → Respuestas de inscripción). Sin las respuestas ni datos de quien compra: el perfil,
+ * el evento y el id de la cuenta que miró.
+ *
+ * @param {D1Database} db
+ * @param {{ accountId: string, profile: { id: number, title: string }, eventSlug: string, eventTitle: string, csv: boolean }} entry
+ * @param {{ now?: number }} [opts]
+ */
+export function logSignupAnswersViewed(db, entry, { now = Date.now() } = {}) {
+	const what = entry.csv ? 'bajó en CSV' : 'vio';
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.signupAnswersViewed,
+			targetType: 'profile',
+			targetId: entry.profile.id,
+			summary: `«${entry.profile.title}» ${what} las respuestas de inscripción de «${entry.eventTitle}»`,
+			detail: { event: entry.eventSlug, account: entry.accountId, csv: entry.csv }
 		},
 		{ now }
 	);

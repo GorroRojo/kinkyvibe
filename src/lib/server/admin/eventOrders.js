@@ -19,7 +19,7 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 	const [orders, tickets, answers] = await Promise.all([
 		listOrders(db, slug),
 		listEventTickets(db, slug),
-		// Respuestas a las preguntas de inscripción (datos de quien compra: solo el panel).
+		// Respuestas a las preguntas de inscripción (datos de quien compra; les organizadores ven una parte en Mi rincón).
 		answersByOrder(db, slug)
 	]);
 	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));

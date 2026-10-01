@@ -366,7 +366,8 @@ export function monthMoney(db, now) {
 /** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
 const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
-	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón'
+	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
 });
 
 /**
