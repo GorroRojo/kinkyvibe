@@ -135,3 +135,46 @@ describe('icsResponse', () => {
 		expect(r.headers.get('content-type')).toBe('text/calendar; charset=utf-8');
 	});
 });
+
+describe('«Dónde» con link al mapa (lugar de una sola vez)', () => {
+	const post = {
+		path: '/calendario/plaza-de-prueba',
+		meta: {
+			category: 'calendario',
+			postID: 'plaza-de-prueba',
+			title: 'Merienda de prueba',
+			summary: 'Resumen inventado',
+			start: '2026-11-07T16:00-03:00',
+			status: 'abierto',
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: 'https://www.openstreetmap.org/node/1'
+		}
+	};
+	/** @param {string} text */
+	const unfold = (text) => text.replace(/\r?\n[ \t]/g, '');
+
+	it('sin lugar vinculado: LOCATION con el texto y el link al mapa en la descripción', () => {
+		const ics = unfold(buildIcsFeed([/** @type {any} */ (post)]));
+		expect(ics).toContain('LOCATION:Plaza de Prueba\\, frente a la fuente');
+		expect(ics).toContain('Ver en el mapa: https://www.openstreetmap.org/node/1');
+	});
+
+	it('con lugar vinculado, manda el lugar: sin el link del .md', () => {
+		const ics = unfold(
+			buildIcsFeed([/** @type {any} */ (post)], {
+				venues: new Map([
+					['plaza-de-prueba', /** @type {any} */ ({ level: 'name', name: 'Lugar de Prueba' })]
+				])
+			})
+		);
+		expect(ics).toContain('LOCATION:Lugar de Prueba');
+		expect(ics).not.toContain('openstreetmap');
+	});
+
+	it('un link que no sirve no entra al calendario', () => {
+		const bad = { ...post, meta: { ...post.meta, location_map: 'https://ejemplo.com/x' } };
+		const ics = unfold(buildIcsFeed([/** @type {any} */ (bad)]));
+		expect(ics).not.toContain('ejemplo.com');
+		expect(ics).not.toContain('Ver en el mapa');
+	});
+});
