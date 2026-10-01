@@ -5,18 +5,25 @@
  * - parseSheet(): pasted TSV → rows with a parsed date/time and Spanish warnings.
  * - matchSeries(): finds the most recent existing event of the same series, to duplicate it.
  * - proposeTitle() / proposeSlug() / scheduleFor(): what the review screen pre-fills.
+ * - inheritedTimes(): a row without times takes them from the same event (an earlier row of the
+ *   paste, or the event it duplicates).
+ * - parseGeneralPrice() / generalTickets(): a "Valor" with one General price and no cupo becomes
+ *   the General ticket type (unlimited capacity).
  * - buildImportedEvent(): the markdown of the new (unlisted) event.
  *
  * Like eventDraft.js, nothing here touches the network, the filesystem or SvelteKit: it runs in
  * the browser (the review screen), on the server (building the files to commit) and in vitest.
  */
+import { parseDocument } from 'yaml';
 import {
 	addDays,
+	applyFrontmatterChanges,
 	buildEventMarkdown,
 	deriveSlug,
 	formFromSource,
 	isValidDate,
 	isValidTime,
+	joinMarkdown,
 	parseEventDate,
 	readEventFields,
 	slugify,
@@ -939,6 +946,117 @@ export function scheduleFor(row, source) {
 	};
 }
 
+/**
+ * Start and end times (hh:mm) of an event, from its `start`/`end` ('' when missing).
+ * @param {{start?: string, end?: string}|null|undefined} event
+ * @returns {{startTime: string, endTime: string}}
+ */
+export function eventTimes(event) {
+	const s = parseEventDate(event?.start);
+	if (!s.time) return { startTime: '', endTime: '' };
+	const e = parseEventDate(event?.end);
+	return { startTime: s.time, endTime: e.time && e.time !== s.time ? e.time : '' };
+}
+
+/**
+ * A row that repeats an event on another day and has no times in the spreadsheet takes the
+ * times of the original, on its own day: first an earlier row of the same paste with the same
+ * name (and times), else the event it duplicates (`source`). Rows that say "a definir" (or are
+ * off) keep their warning: the organizers said the time is not decided yet.
+ *
+ * @param {Pick<SheetRow, 'name'|'startTime'|'timeText'|'endText'|'off'>} row
+ * @param {{source?: {start?: string, end?: string}|null,
+ *   earlier?: Pick<SheetRow, 'name'|'startTime'|'endTime'>[]}} from
+ * @returns {{startTime: string, endTime: string, from: 'row'|'source'}|null} null = nothing to
+ *   inherit (the row has times, says "a definir", or there is no original with times)
+ */
+export function inheritedTimes(row, { source = null, earlier = [] } = {}) {
+	if (row.startTime || row.off || String(row.timeText ?? '').trim()) return null;
+	if (String(row.endText ?? '').trim()) return null;
+	const name = fold(row.name);
+	const twin = name
+		? [...earlier].reverse().find((r) => r.startTime && fold(r.name) === name)
+		: undefined;
+	if (twin) return { startTime: twin.startTime, endTime: twin.endTime, from: 'row' };
+	const times = eventTimes(source);
+	return times.startTime ? { ...times, from: 'source' } : null;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Price → General ticket                                                                     */
+/* ------------------------------------------------------------------------------------------ */
+
+/** Words that mean the "Valor" cell is more than one plain General price. */
+const NOT_PLAIN_PRICE =
+	/\b(cupos?|capacidad|lugares|limitad[oa]s?|gorra|gratis|gratuit[oa]|libre|colaboracion|anticipad[oa]s?|preventa|puerta|socies?|parejas?|2x1|desde|hasta|o)\b|%|\+/;
+
+/**
+ * The price of a "Valor" cell that is just one General price ("$8000", "$ 8.000",
+ * "General $8.000", "8000 pesos"), or null: empty, free, "a la gorra", several prices, other
+ * ticket types or a cupo (those are loaded by hand in Entradas).
+ * @param {string} text
+ * @returns {number|null}
+ */
+export function parseGeneralPrice(text) {
+	const t = fold(String(text ?? ''));
+	if (!t || NOT_PLAIN_PRICE.test(t)) return null;
+	// Only "general", "entrada(s)", "valor", "precio", "pesos", "ars" and "$" around one amount.
+	const rest = t
+		.replace(/\b(entrada|entradas|general|valor|precio|pesos|ars|cada una?)\b/g, ' ')
+		.replace(/[$:.,\s-]/g, ' ')
+		.trim();
+	const amounts = t.match(/\d[\d.,]*/g) ?? [];
+	if (amounts.length !== 1 || !/^\d+$/.test(rest.replace(/\s+/g, ''))) return null;
+	const raw = amounts[0];
+	// "8.000" / "8,000" are thousands; "8.000,50" has cents (not used: whole pesos).
+	if (/[.,]\d{1,2}$/.test(raw) && !/^\d{1,3}([.,]\d{3})+$/.test(raw)) return null;
+	const n = Number(raw.replace(/[.,]/g, ''));
+	return Number.isSafeInteger(n) && n > 0 && n <= 10_000_000 ? n : null;
+}
+
+/**
+ * The `tickets` of the new event for a General price from the spreadsheet: one "General" type
+ * with that price and no `capacity` (no cupo = unlimited). A copied event that already sells a
+ * single fixed-price General keeps its id and other fields, with the new price and no cupo. Any
+ * other ticket setup (several types, tiers, "a la gorra") is left alone.
+ *
+ * @param {unknown} sourceTickets the `tickets` of the copied event (or undefined)
+ * @param {number} price
+ * @returns {{tickets: Record<string, any>[], note: string}|{tickets: null, note: string}}
+ */
+export function generalTickets(sourceTickets, price) {
+	const list = Array.isArray(sourceTickets) ? sourceTickets : [];
+	const label = `$${price.toLocaleString('es-AR')}`;
+	if (!list.length) {
+		return {
+			tickets: [{ id: 'general', name: 'General', price }],
+			note: `Se cargó la entrada General a ${label}, sin cupo: revisala en Entradas (y los medios de pago).`
+		};
+	}
+	const [only] = list;
+	const isGeneral =
+		list.length === 1 &&
+		only &&
+		typeof only === 'object' &&
+		(fold(String(only.id ?? '')) === 'general' || fold(String(only.name ?? '')) === 'general') &&
+		!only.tiers &&
+		!only.a_la_gorra;
+	if (!isGeneral) {
+		return {
+			tickets: null,
+			note: `La planilla dice ${label} pero el evento anterior tiene otras entradas: no se tocaron, revisalas.`
+		};
+	}
+	const { capacity, ...rest } = only;
+	return {
+		tickets: [{ ...rest, price }],
+		note:
+			capacity !== undefined && capacity !== null
+				? `La entrada General quedó a ${label} y sin cupo (antes tenía ${capacity}): si tiene cupo, cargalo en Entradas.`
+				: `La entrada General quedó a ${label}.`
+	};
+}
+
 /* ------------------------------------------------------------------------------------------ */
 /*  The new event file                                                                         */
 /* ------------------------------------------------------------------------------------------ */
@@ -951,6 +1069,7 @@ export function scheduleFor(row, source) {
  * @prop {string} [endTime] hh:mm ('' = no end); earlier than startTime = the next day
  * @prop {string} [place]
  * @prop {string} [link]
+ * @prop {string} [price] the "Valor" cell: one General price becomes the General ticket type
  */
 
 const ONLINE = /^(online|virtual|zoom|meet|google meet|jitsi|por zoom|por meet)$/i;
@@ -1039,5 +1158,20 @@ export function buildImportedEvent(sourceRaw, choice, { today, fromTemplate = fa
 	form.unlisted = true;
 	if (fromTemplate) notes.push('Creado desde cero: falta el texto, la imagen y las etiquetas.');
 
-	return { content: buildEventMarkdown(sourceRaw, form), notes, featured: source.featured };
+	let content = buildEventMarkdown(sourceRaw, form);
+	const price = parseGeneralPrice(choice.price ?? '');
+	if (price !== null) {
+		const fm = splitMarkdown(content);
+		const current = parseDocument(fm.frontmatter).toJS()?.tickets;
+		const general = generalTickets(fromTemplate ? undefined : current, price);
+		if (general.tickets) {
+			content = joinMarkdown(
+				applyFrontmatterChanges(fm.frontmatter, { tickets: general.tickets }),
+				fm.body
+			);
+		}
+		notes.push(general.note);
+	}
+
+	return { content, notes, featured: source.featured };
 }

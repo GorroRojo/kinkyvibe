@@ -12,7 +12,9 @@
 		buildMatchIndex,
 		composeSchedule,
 		findExisting,
+		inheritedTimes,
 		longDate,
+		parseGeneralPrice,
 		matchSeries,
 		parseSheet,
 		proposeSlug,
@@ -38,6 +40,8 @@
 	 * @prop {string} startTime
 	 * @prop {string} endTime
 	 * @prop {boolean} endEstimated
+	 * @prop {'' | 'row' | 'source'} timesFrom the row had no times: copied from an earlier row of
+	 *   the same event ('row') or from the event it duplicates ('source')
 	 * @prop {string} source '' = desde cero
 	 * @prop {import('$lib/utils/sheetImport.js').Candidate[]} suggestions
 	 * @prop {boolean} matched
@@ -90,12 +94,38 @@
 	}
 
 	/**
-	 * Recomputes what depends on the chosen source (title, end time, slug), unless edited by hand.
+	 * A row without times in the spreadsheet that repeats an event (an earlier row of the same
+	 * event, or the event it duplicates) gets the same start and end, on its own day. Not once the
+	 * start was edited by hand.
+	 * @param {Item} item
+	 */
+	function inheritTimes(item) {
+		if (item.startTime && !item.timesFrom) return;
+		const t = inheritedTimes(item.sheet, {
+			source: item.source ? bySlug.get(item.source) : null,
+			earlier: items.filter((i) => i.id < item.id).map((i) => i.sheet)
+		});
+		if (t) {
+			item.startTime = t.startTime;
+			item.endTime = t.endTime;
+			item.endEstimated = false;
+			item.timesFrom = t.from;
+		} else if (item.timesFrom) {
+			item.startTime = item.sheet.startTime;
+			item.endTime = item.sheet.endTime;
+			item.timesFrom = '';
+		}
+	}
+
+	/**
+	 * Recomputes what depends on the chosen source (title, times, end time, slug), unless edited
+	 * by hand.
 	 * @param {Item} item
 	 */
 	function applySource(item) {
 		const source = item.source ? bySlug.get(item.source) : null;
 		refreshTitles();
+		inheritTimes(item);
 		if (!item.sheet.endTime && (item.endEstimated || !item.endTime)) {
 			const s = scheduleFor(
 				{ date: item.date, startTime: item.startTime, endTime: '' },
@@ -142,6 +172,7 @@
 				startTime: sheet.startTime,
 				endTime: sheet.endTime,
 				endEstimated: false,
+				timesFrom: '',
 				source: best?.slug ?? '',
 				suggestions: best ? [best, ...alternatives] : alternatives,
 				matched: Boolean(best),
@@ -170,6 +201,7 @@
 	/** @param {Item} item @param {Event} e */
 	function onStartChange(item, e) {
 		item.startTime = /** @type {HTMLInputElement} */ (e.currentTarget).value;
+		item.timesFrom = '';
 		applySource(item);
 		items = items;
 	}
@@ -240,6 +272,7 @@
 			endTime: i.endTime,
 			place: i.place,
 			link: i.link.trim(),
+			price: i.sheet.price,
 			source: i.source,
 			slug: i.slug.trim()
 		}));
@@ -435,7 +468,10 @@
 							{#if item.sheet.warnings.length || item.notes.length || itemProblems.length}
 								<ul class="warnings">
 									{#each itemProblems as p}<li class="problem">⛔ {p}</li>{/each}
-									{#each item.sheet.warnings as w}<li>⚠️ {w}</li>{/each}
+									{#each item.sheet.warnings as w}{#if !(item.timesFrom && w === 'Falta el horario.')}<li
+											>
+												⚠️ {w}
+											</li>{/if}{/each}
 									{#each item.notes as w}<li>⚠️ {w}</li>{/each}
 								</ul>
 							{/if}
@@ -505,6 +541,11 @@
 											bind:value={item.startTime}
 											on:change={(e) => onStartChange(item, e)}
 										/>
+										{#if item.timesFrom}<small
+												>Sin horario en la planilla: el mismo que {item.timesFrom === 'row'
+													? 'la fila anterior de este evento'
+													: 'el evento anterior'}.</small
+											>{/if}
 									</label>
 									<label>
 										<span>Termina</span>
@@ -559,7 +600,12 @@
 										</dd>
 										<dt>Valor</dt>
 										<dd>
-											{item.sheet.price || '—'} <small>(no se copia: revisalo en el texto)</small>
+											{item.sheet.price || '—'}
+											{#if parseGeneralPrice(item.sheet.price) !== null}<small
+													>(se carga como entrada General sin cupo: revisala en Entradas)</small
+												>{:else if item.sheet.price}<small
+													>(no se copia: revisalo en el texto y en Entradas)</small
+												>{/if}
 										</dd>
 										{#if item.sheet.comments}<dt>Comentarios</dt>
 											<dd>{item.sheet.comments} <small>(no se publican)</small></dd>{/if}

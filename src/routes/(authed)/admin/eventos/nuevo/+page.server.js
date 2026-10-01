@@ -30,6 +30,7 @@ import {
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
@@ -261,6 +262,9 @@ export const actions = {
 			// Venta de entradas: las mismas reglas que el formulario y que la venta.
 			const ticketErrors = ticketsFileErrors(String(data.get('content') ?? ''));
 			if (ticketErrors.length) throw new Error(ticketErrors.join(' '));
+			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
+			const placeErrors = placeFileErrors(String(data.get('content') ?? ''));
+			if (placeErrors.length) throw new Error(placeErrors.join(' '));
 			/** @type {Record<string, any>} */
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined

@@ -428,6 +428,34 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 	});
 });
 
+describe('«Dónde» con link al mapa (location_map)', () => {
+	const today = '2026-09-29';
+	it('se escribe, se lee al duplicar y vaciarlo lo comenta', () => {
+		const src = post('picantearla-2026-09');
+		const form = formFromSource(src, { today });
+		expect(form.location_map).toBe('');
+		const md = buildEventMarkdown(src, {
+			...form,
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: ' https://www.openstreetmap.org/node/1 '
+		});
+		expect(meta(md)).toMatchObject({
+			location: 'Plaza de Prueba, frente a la fuente',
+			location_map: 'https://www.openstreetmap.org/node/1'
+		});
+		expect(readEventFields(splitMarkdown(md).frontmatter).location_map).toBe(
+			'https://www.openstreetmap.org/node/1'
+		);
+		const copy = formFromSource(md, { today });
+		expect(copy.location_map).toBe('https://www.openstreetmap.org/node/1');
+		const cleared = buildEventMarkdown(md, { ...copy, location_map: '' });
+		expect(meta(cleared).location_map).toBeUndefined();
+		expect(cleared).toContain('#location_map: https://www.openstreetmap.org/node/1');
+		// Desde la plantilla, vacío.
+		expect(formFromSource(md, { today, fromTemplate: true }).location_map).toBe('');
+	});
+});
+
 describe('month prefill for copies', () => {
 	it('first half of the month → this month', () => {
 		expect(prefillMonth('2026-09-01')).toBe('2026-09');
