@@ -1,6 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
-published_date: 2026-06-08Z-03:00
+published_date: 2026-10-27Z-03:00
 title: 'Noche Látex (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Fiesta mensual de una serie que no existe.'
 tags:
@@ -14,11 +14,16 @@ layout: calendario
 category: calendario
 authors:
   - KinkyVibe
-status: abierto
-start: 2026-07-08T22:00-03:00
-end: 2026-07-09T04:00-03:00
+status: anunciado
+start: 2026-11-26T22:00-03:00
+end: 2026-11-27T04:00-03:00
 location: Calle Inventada 1234, Ciudad de Buenos Aires
 location_name: Galpón de Prueba
+personas:
+  - perfil: colectivo-demo
+    rol: Organiza
+  - perfil: persona-demo-integrante
+    rol: Cuida la puerta
 tickets:
   - id: general
     name: General
@@ -28,7 +33,8 @@ tickets:
     name: Anticipada
     price: 9000
     capacity: 15
-    close: 2026-07-05T22:00-03:00
+    close: 2026-11-23T22:00-03:00
+tickets_open: 2026-10-31T12:00-03:00
 payment_methods: [mercadopago, transferencia]
 ---
 > **⚠️ Evento inventado (datos de prueba del modo demo).** No existe.

@@ -1,7 +1,7 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
-published_date: 2026-08-10Z-03:00
-title: 'Charla online: consentimiento (demo)'
+published_date: 2026-09-21Z-03:00
+title: 'Charla online: aftercare (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Charla online a la gorra.'
 tags:
   - español
@@ -14,13 +14,13 @@ category: calendario
 authors:
   - KinkyVibe
 status: abierto
-start: 2026-09-09T20:00-03:00
-end: 2026-09-09T21:30-03:00
+start: 2026-10-21T20:00-03:00
+end: 2026-10-21T21:30-03:00
 modalidad: online
 tickets:
   - id: gorra
     name: A la gorra
-    a_la_gorra: { minimo: 1000, sugerido: 4000 }
+    a_la_gorra: { minimo: 1000, minimo_recomendado: 3000, sugerido: 4000 }
     capacity: 80
   - id: libre
     name: Libre
@@ -30,4 +30,4 @@ payment_methods: [mercadopago, transferencia]
 ---
 > **⚠️ Evento inventado (datos de prueba del modo demo).** No existe.
 
-Charla **inventada** sobre consentimiento, para probar las entradas de eventos online.
+Charla **inventada** sobre aftercare, para probar las entradas de eventos online.

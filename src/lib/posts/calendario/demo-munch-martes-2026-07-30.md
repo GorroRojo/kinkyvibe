@@ -1,6 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
-published_date: 2026-08-24Z-03:00
+published_date: 2026-06-30Z-03:00
 title: 'Munch de los martes (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Encuentro social sin juego, a la gorra.'
 tags:
@@ -14,8 +14,8 @@ category: calendario
 authors:
   - KinkyVibe
 status: abierto
-start: 2026-09-23T19:30-03:00
-end: 2026-09-23T22:00-03:00
+start: 2026-07-30T19:30-03:00
+end: 2026-07-30T22:00-03:00
 location: Avenida de Ejemplo 500, Ciudad de Buenos Aires
 location_name: Bar Imaginario
 tickets:

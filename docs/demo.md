@@ -75,6 +75,30 @@ Las tablas de migraciones del panel que la base no tenga se saltean. Todo es inv
 `@example.invalid`, DNIs 99.xxx.xxx). `node scripts/demo/seed.js` genera el mismo SQL a un
 archivo, para aplicarlo a mano.
 
+## Noche 3 (rama `claude/n3-demo`, no se mergea)
+
+La rama junta main con los PR de la Noche 3 (#131 agenda, #133 propinas, #134 preventas, #137
+amigues y lugares, #135 pendientes, #139 personas, #141 series, #142 panel). «Recargar datos de
+prueba» además:
+
+- **Prende los interruptores** `cuentas`, `propinas`, `perfiles_publicos`, `personas_eventos`,
+  `series` y `borrar_desde_panel` (filas de `feature_flags` en la base del preview; los valores
+  por defecto del código no cambian). Se pueden apagar a mano hasta la próxima recarga.
+- **Importa las fichas de amigues** del deploy (lo mismo que Contenido → Amigues → Importar) y
+  crea perfiles inventados con saveObject() (`src/lib/server/demo/seedProfiles.js`): un lugar
+  por nivel de privacidad (vinculados a la Noche Látex de hoy, el próximo munch, el próximo
+  taller y la fiesta con preventas), un grupo con su integrante, una ficha con un pedido «Es mi
+  perfil» pendiente y un perfil de una cuenta esperando aprobación.
+- Carga **preventas** («Fiesta con preventas (demo)»: Preventa 1 llena, Preventa 2 vigente,
+  Última tanda encadenada, entradas en la puerta), **gorra con mínimo recomendado** (las charlas),
+  **propinas** inventadas, **personas con rol** (Noche Látex y talleres, con el rol propio «Cuida
+  la puerta»), **preguntas de inscripción** con respuestas (próximo taller) y **suscripciones a
+  series** (Picantearla, Cine para Sucixs).
+
+Cada parte se saltea si la base no tiene su migración (0016 a 0021). Los .md de los eventos de
+prueba se regeneraron para el 1/10 (`node scripts/demo/seed.js --today=2026-10-01
+--write-events`), con `personas:` y las preventas, para que las páginas públicas los muestren.
+
 ## Lo que no hace
 
 - No sube imágenes de verdad: el panel sigue mostrando las del deploy.

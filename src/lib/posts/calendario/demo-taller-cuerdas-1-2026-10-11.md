@@ -1,6 +1,6 @@
 ---
 # generado por scripts/demo/seed.js (datos de prueba, no es un evento real)
-published_date: 2026-09-10Z-03:00
+published_date: 2026-09-11Z-03:00
 title: 'Taller de cuerdas: nivel 1 (demo)'
 summary: 'EVENTO INVENTADO para probar el panel. Taller presencial de amarres.'
 tags:
@@ -15,10 +15,15 @@ category: calendario
 authors:
   - KinkyVibe
 status: abierto
-start: 2026-10-10T15:00-03:00
-end: 2026-10-10T18:00-03:00
+start: 2026-10-11T15:00-03:00
+end: 2026-10-11T18:00-03:00
 location: Pasaje Ficticio 42, Ciudad de Buenos Aires
 location_name: Espacio de Ensayo
+personas:
+  - perfil: persona-demo-integrante
+    rol: Enseña
+  - perfil: colectivo-demo
+    rol: Organiza
 tickets:
   - id: general
     name: General
@@ -28,7 +33,7 @@ tickets:
     name: Anticipada
     price: 12000
     capacity: 6
-    close: 2026-10-05T15:00-03:00
+    close: 2026-10-06T15:00-03:00
 payment_methods: [mercadopago, transferencia]
 ---
 > **⚠️ Evento inventado (datos de prueba del modo demo).** No existe.

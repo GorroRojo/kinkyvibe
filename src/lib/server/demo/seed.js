@@ -19,12 +19,19 @@
  * filas marcadas como del seed (`SEED_BY`, `SEED_DETAIL`) y la "última visita" del admin de
  * prueba.
  *
- * Sin imports de Node ni de `$lib`: corre en el Worker y en Node.
+ * Sin imports de Node ni de `$lib`: corre en el Worker y en Node (los perfiles de prueba van con
+ * saveObject(), en ./seedProfiles.js, que solo usa imports relativos).
+ *
+ * Noche 3 (rama de demo `claude/n3-demo`): además prende los interruptores nuevos
+ * (`N3_FLAGS`), y carga preventas escalonadas, gorra con mínimo recomendado, propinas, personas
+ * con rol y preguntas de inscripción, lugares con su privacidad, un pedido «Es mi perfil» y
+ * suscripciones a series. Cada cosa en su sección, salteada si la base no tiene su migración.
  *
  * Para agregar una tabla: sumar una sección a SECTIONS (reset = cómo borrar SOLO lo del seed,
  * rows = los INSERT; `optional` = la tabla viene de una migración que puede no estar).
  */
 import { DEMO_FILES_SQL } from './overlay.js';
+import { DEMO_ACCOUNTS, DEMO_VENUES, ensureDemoProfiles } from './seedProfiles.js';
 
 /** Quién "hizo" lo que inserta el seed: sirve para borrarlo en la próxima corrida. */
 export const SEED_BY = 'seed-demo';
@@ -35,6 +42,26 @@ export const EVENT_MARKER =
 	'# generado por scripts/demo/seed.js (datos de prueba, no es un evento real)';
 /** Carpeta de los eventos (paths de la capa demo, relativos a la raíz del repo). */
 export const EVENTS_PATH = 'src/lib/posts/calendario';
+/**
+ * Noche 3: los interruptores que la demo prende en cada recarga (src/lib/server/flags.js). En la
+ * base del preview, nunca en producción; los valores por defecto del código no cambian.
+ */
+export const N3_FLAGS = Object.freeze([
+	'cuentas',
+	'propinas',
+	'perfiles_publicos',
+	'personas_eventos',
+	'series',
+	'borrar_desde_panel'
+]);
+/** Rol agregado "desde el panel" (#139), además de los fijos. */
+export const N3_CUSTOM_ROLE = 'Cuida la puerta';
+/** Mails de las suscripciones de prueba a series (#141); el hash se calcula al cargar. */
+export const N3_SERIES_SUBSCRIBERS = Object.freeze([
+	{ tag: 'Picantearla', email: 'demo.aviso.uno@example.invalid', daysAgo: 30 },
+	{ tag: 'Picantearla', email: 'demo.aviso.dos@example.invalid', daysAgo: 12 },
+	{ tag: 'Cine para Sucixs', email: 'demo.aviso.tres@example.invalid', daysAgo: 5 }
+]);
 /** Id y login del admin de prueba (src/lib/server/demo/identity.js). */
 const DEMO_ADMIN_ID = -1;
 const DEMO_ADMIN_LOGIN = 'demo';
@@ -275,9 +302,11 @@ export function people() {
  * @prop {string} id
  * @prop {string} name
  * @prop {number} [price]
- * @prop {{minimo: number, sugerido: number}} [gorra]
+ * @prop {{minimo: number, sugerido: number, recomendado?: number}} [gorra]
  * @prop {number} capacity
  * @prop {number} [closeDaysBefore]
+ * @prop {{id: string, name: string, price: number, quantity?: number}[]} [tiers] preventas
+ * @prop {string} [after] se habilita cuando se agota este tipo
  */
 
 /**
@@ -298,6 +327,9 @@ export function people() {
  * @prop {boolean} [draft]
  * @prop {number} [opensInDays] la venta abre en N días (a las 12:00)
  * @prop {TicketType[]} tickets
+ * @prop {{perfil: string, rol: string}[]} [personas] personas con rol (#139)
+ * @prop {string} [puertaPrecio] hay entradas en la puerta, a este precio
+ * @prop {boolean} [tiered] tiene tipos con preventas (sus órdenes van aparte: `ticket_tier`)
  * @prop {string} [streamLink]
  * @prop {string} [location]
  * @prop {string} [locationName]
@@ -334,6 +366,10 @@ export function events(today) {
 				{ id: 'anticipada', name: 'Anticipada', price: 9000, capacity: 15, closeDaysBefore: 3 }
 			],
 			body: 'Fiesta **inventada** de la serie Noche Látex (demo), para probar el panel de admin.',
+			personas: [
+				{ perfil: 'colectivo-demo', rol: 'Organiza' },
+				{ perfil: 'persona-demo-integrante', rol: N3_CUSTOM_ROLE }
+			],
 			...extra
 		});
 	for (const o of [-84, -56, -28, 0]) party(o);
@@ -390,6 +426,10 @@ export function events(today) {
 				{ id: 'anticipada', name: 'Anticipada', price: 12000, capacity: 6, closeDaysBefore: 5 }
 			],
 			body: 'Taller **inventado** para probar el panel. No existe: no vengas 🙂',
+			personas: [
+				{ perfil: 'persona-demo-integrante', rol: 'Enseña' },
+				{ perfil: 'colectivo-demo', rol: 'Organiza' }
+			],
 			...extra
 		});
 	workshop(-49);
@@ -410,7 +450,12 @@ export function events(today) {
 			authors: ['KinkyVibe'],
 			status: 'abierto',
 			tickets: [
-				{ id: 'gorra', name: 'A la gorra', gorra: { minimo: 1000, sugerido: 4000 }, capacity: 80 },
+				{
+					id: 'gorra',
+					name: 'A la gorra',
+					gorra: { minimo: 1000, recomendado: 3000, sugerido: 4000 },
+					capacity: 80
+				},
 				{ id: 'libre', name: 'Libre', gorra: { minimo: 0, sugerido: 2000 }, capacity: 40 }
 			],
 			streamLink: link
@@ -421,6 +466,40 @@ export function events(today) {
 	talk(-21);
 	talk(5);
 	talk(20, 'aftercare', false);
+
+	// Noche 3 · C (#134): preventas escalonadas, un tipo encadenado y entradas en la puerta.
+	list.push({
+		series: 'fiesta-preventas',
+		title: 'Fiesta con preventas (demo)',
+		summary: 'EVENTO INVENTADO para probar las preventas escalonadas y la «Última tanda».',
+		offset: 18,
+		startTime: '22:00',
+		endTime: '04:00',
+		endNextDay: 1,
+		kv: true,
+		online: false,
+		tags: ['español', 'KinkyVibe', 'pago', 'AMBA', 'evento', 'queer'],
+		authors: ['KinkyVibe'],
+		status: 'abierto',
+		location: 'Calle Inventada 400, Ciudad de Buenos Aires',
+		locationName: 'Lugar de Prueba',
+		tiered: true,
+		puertaPrecio: '$ 13.000, solo efectivo',
+		tickets: [
+			{
+				id: 'general',
+				name: 'General',
+				capacity: 25,
+				tiers: [
+					{ id: 'preventa-1', name: 'Preventa 1', price: 8000, quantity: 5 },
+					{ id: 'preventa-2', name: 'Preventa 2', price: 9000, quantity: 10 },
+					{ id: 'general', name: 'General', price: 10000 }
+				]
+			},
+			{ id: 'ultima-tanda', name: 'Última tanda', price: 12000, capacity: 10, after: 'general' }
+		],
+		body: 'Fiesta **inventada**: los primeros 5 a $ 8.000, los 10 siguientes a $ 9.000 y el resto a $ 10.000. Cuando se agota General, se habilita la Última tanda.'
+	});
 
 	return list.map((e) => {
 		const start = arInstant(today, e.offset, e.startTime);
@@ -454,15 +533,34 @@ export function eventMarkdown(e) {
 	];
 	if (e.location) lines.push(`location: ${e.location}`, `location_name: ${e.locationName}`);
 	if (e.online) lines.push('modalidad: online');
+	if (e.personas?.length) {
+		lines.push('personas:');
+		for (const p of e.personas) lines.push(`  - perfil: ${p.perfil}`, `    rol: ${p.rol}`);
+	}
 	lines.push('tickets:');
 	for (const t of e.tickets) {
 		lines.push(`  - id: ${t.id}`, `    name: ${t.name}`);
-		if (t.gorra)
-			lines.push(`    a_la_gorra: { minimo: ${t.gorra.minimo}, sugerido: ${t.gorra.sugerido} }`);
-		else lines.push(`    price: ${t.price}`);
+		if (t.gorra) {
+			const rec = t.gorra.recomendado ? `, minimo_recomendado: ${t.gorra.recomendado}` : '';
+			lines.push(
+				`    a_la_gorra: { minimo: ${t.gorra.minimo}${rec}, sugerido: ${t.gorra.sugerido} }`
+			);
+		} else if (t.tiers) {
+			lines.push('    tiers:');
+			for (const tr of t.tiers) {
+				lines.push(
+					`      - id: ${tr.id}`,
+					`        name: ${tr.name}`,
+					`        price: ${tr.price}`
+				);
+				if (tr.quantity) lines.push(`        quantity: ${tr.quantity}`);
+			}
+		} else lines.push(`    price: ${t.price}`);
 		lines.push(`    capacity: ${t.capacity}`);
+		if (t.after) lines.push(`    after: ${t.after}`);
 		if (t.closeDaysBefore) lines.push(`    close: ${arIso(e.start - t.closeDaysBefore * DAY)}`);
 	}
+	if (e.puertaPrecio) lines.push('puerta: true', `puerta_precio: ${e.puertaPrecio}`);
 	if (e.opensInDays) {
 		const [y, m, d] = new Date(e.start + AR).toISOString().slice(0, 10).split('-').map(Number);
 		const open = Date.UTC(y, m - 1, d - (e.offset - e.opensInDays), 12, 0) - AR;
@@ -776,7 +874,7 @@ export function buildData({ today, now, bundledSlugs = [] }) {
 	/** @type {{confirmedTransfer?: Record<string, unknown>, cancelledTransfer?: Record<string, unknown>}} */
 	const story = {};
 	for (const ev of evs) {
-		if (ev.draft || ev.opensInDays) continue;
+		if (ev.draft || ev.opensInDays || ev.tiered) continue;
 		if (ev.offset < 0) {
 			fillApproved(ev, ev.series === 'noche-latex' ? 0.5 : ev.online ? 0.2 : 0.5, {
 				checkIn: !ev.online,
@@ -897,11 +995,48 @@ export function buildData({ today, now, bundledSlugs = [] }) {
 		}
 	}
 
+	// Preventas (#134): «Preventa 1» llena (5) y 4 de «Preventa 2»; en la venta se ve «Preventa 2».
+	// Van aparte (con `ticket_tier`, migración 0016), en la sección `orders_tiers`.
+	/** @type {Record<string, unknown>[]} */
+	const tierOrders = [];
+	/** @type {Record<string, unknown>[]} */
+	const tierTickets = [];
+	for (const ev of evs.filter((e) => e.tiered)) {
+		const general = ev.tickets[0];
+		for (const [tier, quantity] of /** @type {[string, number][]} */ ([
+			['preventa-1', 2],
+			['preventa-1', 2],
+			['preventa-1', 1],
+			['preventa-2', 2],
+			['preventa-2', 2]
+		])) {
+			const unit = general.tiers?.find((x) => x.id === tier)?.price ?? 0;
+			const before = orders.length;
+			const row = order(ev, {
+				type: { id: general.id, name: general.name, price: unit, capacity: general.capacity },
+				quantity,
+				status: 'approved'
+			});
+			row.ticket_tier = tier;
+			orders.splice(before, 1);
+			tierOrders.push(row);
+			for (let i = tickets.length - 1; i >= 0; i--) {
+				if (tickets[i].order_id === row.id) tierTickets.unshift(...tickets.splice(i, 1));
+			}
+		}
+	}
+
 	return {
 		persons,
 		events: evs,
 		orders,
 		tickets,
+		tierOrders,
+		tierTickets,
+		/** Ids de los perfiles de prueba por dirección (los pone reloadDemoData). */
+		profiles: /** @type {Map<string, number>} */ (new Map()),
+		/** `subscriber_key` de cada mail de N3_SERIES_SUBSCRIBERS (los pone reloadDemoData). */
+		seriesKeys: /** @type {Map<string, string>} */ (new Map()),
 		reminderSends,
 		streamSends,
 		discountCodes,
@@ -994,6 +1129,17 @@ export function auditEntries(d) {
 		}
 	);
 	return out.filter((e) => e.at <= d.now).sort((a, b) => a.at - b.at);
+}
+
+/**
+ * La fecha de hoy o la próxima de una serie de eventos de prueba (o `undefined`).
+ * @param {SeedData} d
+ * @param {string} series
+ */
+function nextOf(d, series) {
+	return d.events
+		.filter((e) => e.series === series && e.offset >= 0 && !e.draft)
+		.sort((a, b) => a.offset - b.offset)[0];
 }
 
 /**
@@ -1208,6 +1354,199 @@ export const SECTIONS = [
 				updated_by: SEED_BY
 			}).replace('INSERT INTO', 'INSERT OR IGNORE INTO')
 		]
+	},
+	// Noche 3 (rama de demo): cada sección se saltea si la base no tiene su migración.
+	{
+		// Preventas (#134, migración 0016: `orders.ticket_tier` y su índice). Lo viejo se borra
+		// con las órdenes y entradas de los eventos `demo-*` (secciones de arriba).
+		table: 'orders',
+		requires: ['orders', 'tickets', 'orders_event_type_tier'],
+		optional: true,
+		reset: [],
+		rows: (d) => [...insertMany('orders', d.tierOrders), ...insertMany('tickets', d.tierTickets)]
+	},
+	{
+		table: 'feature_flags',
+		optional: true,
+		// Prende los interruptores de la Noche 3 en cada recarga (es lo que la demo quiere
+		// mostrar); se pueden apagar a mano desde el panel hasta la próxima recarga.
+		reset: [],
+		rows: (d) =>
+			N3_FLAGS.map(
+				(key) =>
+					`INSERT INTO feature_flags (key, enabled, updated_at, updated_by) VALUES (${sql(key)}, 1, ${d.now}, ${sql(SEED_BY)}) ON CONFLICT (key) DO UPDATE SET enabled = 1, updated_at = excluded.updated_at, updated_by = excluded.updated_by;`
+			)
+	},
+	{
+		table: 'tips',
+		optional: true,
+		// Propinas (#133) inventadas: aprobadas, una reembolsada, una rechazada y una en curso.
+		reset: [`DELETE FROM tips WHERE mp_preference_id = ${sql(SEED_BY)};`],
+		rows: (d) => {
+			const tonight = d.events.find((e) => e.offset === 0) ?? d.events[0];
+			/** @type {[number, string, string, string, string | null, number][]} */
+			const list = [
+				[
+					2000,
+					'approved',
+					'material',
+					'6-tips-para-tops',
+					'¡Gracias por la guía! (mensaje de prueba)',
+					20
+				],
+				[5000, 'approved', 'material', 'BDSM-una-introduccion-amorosa', null, 9],
+				[1000, 'approved', 'calendario', tonight.slug, 'Mensaje inventado para la demo ✨', 2],
+				[1500, 'approved', 'material', '6-tips-para-tops', null, 1],
+				[3000, 'refunded', 'material', 'BDSM-una-introduccion-amorosa', null, 15],
+				[1000, 'rejected', 'material', '6-tips-para-tops', null, 0.2],
+				[2000, 'pending', 'calendario', tonight.slug, null, 0.05]
+			];
+			return list.map(([amount, status, category, slug, message, daysAgo], i) => {
+				const at = d.now - Math.round(daysAgo * DAY);
+				const paid = status === 'approved' || status === 'refunded';
+				return insert('tips', {
+					id: `5eed${String(i + 1).padStart(4, '0')}-0000-4000-8000-00000000716${i}`,
+					amount,
+					status,
+					post_category: category,
+					post_slug: slug,
+					message,
+					mp_preference_id: SEED_BY,
+					mp_payment_id: status === 'pending' ? null : String(990000000 + i),
+					created_at: at,
+					updated_at: status === 'refunded' ? at + DAY : at + 2 * MIN,
+					approved_at: paid ? at + 2 * MIN : null
+				});
+			});
+		}
+	},
+	{
+		table: 'persona_roles',
+		optional: true,
+		reset: [`DELETE FROM persona_roles WHERE created_by = ${sql(SEED_BY)};`],
+		rows: (d) => [
+			`INSERT OR IGNORE INTO persona_roles (name, created_at, created_by) VALUES (${sql(N3_CUSTOM_ROLE)}, ${d.now - 10 * DAY}, ${sql(SEED_BY)});`
+		]
+	},
+	{
+		table: 'signup_fields',
+		requires: ['signup_fields', 'event_signup_general', 'order_answers'],
+		optional: true,
+		// Preguntas de inscripción (#139): una general elegida por el próximo taller, una propia
+		// del taller, y respuestas en dos de sus órdenes.
+		reset: [
+			`DELETE FROM order_answers WHERE order_id IN ${DEMO_ORDERS};`,
+			"DELETE FROM event_signup_general WHERE event_slug LIKE 'demo-%';",
+			`DELETE FROM signup_fields WHERE updated_by = ${sql(SEED_BY)};`
+		],
+		rows: (d) => {
+			const taller = nextOf(d, 'taller-cuerdas-1');
+			if (!taller) return [];
+			const at = d.now - 20 * DAY;
+			const answered = d.orders
+				.filter((o) => o.event_slug === taller.slug && o.status === 'approved')
+				.slice(0, 2);
+			const values = [
+				['Una amistad', 'Sin gluten'],
+				['Instagram', '']
+			];
+			return [
+				insert('signup_fields', {
+					id: 910001,
+					event_slug: null,
+					label: '¿Cómo te enteraste?',
+					kind: 'choice',
+					required: 1,
+					options: '["Instagram","Una amistad","Otro"]',
+					position: 0,
+					created_at: at,
+					updated_at: at,
+					updated_by: SEED_BY
+				}),
+				insert('signup_fields', {
+					id: 910002,
+					event_slug: taller.slug,
+					label: '¿Alguna restricción alimentaria?',
+					kind: 'text',
+					required: 0,
+					options: '[]',
+					position: 0,
+					created_at: at,
+					updated_at: at,
+					updated_by: SEED_BY
+				}),
+				insert('event_signup_general', { event_slug: taller.slug, field_id: 910001, position: 0 }),
+				...answered.map((o, i) =>
+					insert('order_answers', {
+						order_id: o.id,
+						answers: JSON.stringify([
+							{ id: 910001, label: '¿Cómo te enteraste?', value: values[i][0] },
+							...(values[i][1]
+								? [{ id: 910002, label: '¿Alguna restricción alimentaria?', value: values[i][1] }]
+								: [])
+						]),
+						created_at: Number(o.created_at)
+					})
+				)
+			];
+		}
+	},
+	{
+		table: 'event_venues',
+		optional: true,
+		// "Sucede en" (#137): un lugar por nivel de privacidad, en la próxima fecha de cada serie
+		// (la Noche Látex de hoy). Los perfiles los crea ./seedProfiles.js.
+		reset: [`DELETE FROM event_venues WHERE created_by = ${sql(SEED_BY)};`],
+		rows: (d) =>
+			DEMO_VENUES.flatMap((v) => {
+				const id = d.profiles.get(v.slug);
+				const ev = nextOf(d, v.event);
+				if (!id || !ev) return [];
+				return [
+					`INSERT OR IGNORE INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by) VALUES (${sql(ev.slug)}, ${id}, NULL, ${d.now - 7 * DAY}, ${sql(SEED_BY)}, ${d.now - 7 * DAY}, ${sql(SEED_BY)});`
+				];
+			})
+	},
+	{
+		table: 'profile_claims',
+		optional: true,
+		// Un pedido «Es mi perfil» pendiente (#137), de una cuenta inventada.
+		reset: [`DELETE FROM profile_claims WHERE account_id = ${sql(DEMO_ACCOUNTS.claimer.id)};`],
+		rows: (d) => {
+			const id = d.profiles.get('ficha-demo-sin-duene');
+			if (!id) return [];
+			return [
+				insert('profile_claims', {
+					profile_id: id,
+					account_id: DEMO_ACCOUNTS.claimer.id,
+					message: 'Soy yo (pedido de prueba)',
+					status: 'pending',
+					created_at: d.now - 6 * HOUR
+				})
+			];
+		}
+	},
+	{
+		table: 'series_subscriptions',
+		optional: true,
+		// "Avisame si se repite" (#141): suscripciones confirmadas a series reales del sitio.
+		reset: ["DELETE FROM series_subscriptions WHERE email LIKE 'demo.aviso.%@example.invalid';"],
+		rows: (d) =>
+			N3_SERIES_SUBSCRIBERS.flatMap((x, i) => {
+				const key = d.seriesKeys.get(x.email);
+				if (!key) return [];
+				const at = d.now - x.daysAgo * DAY;
+				return [
+					insert('series_subscriptions', {
+						id: `5eed${String(i + 1).padStart(4, '0')}-0000-4000-8000-0000000005e${i}`,
+						series_tag: x.tag,
+						email: x.email,
+						subscriber_key: key,
+						created_at: at,
+						confirmed_at: at + HOUR
+					})
+				];
+			})
 	}
 ];
 
@@ -1275,6 +1614,15 @@ export function chunkSql(text, max = 18000) {
 }
 
 /**
+ * SHA-256 en hexadecimal (Web Crypto: anda en el Worker y en Node).
+ * @param {string} text
+ */
+async function sha256Hex(text) {
+	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+	return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
  * Borra los datos de prueba y los vuelve a cargar relativos a `now`, en un solo batch (atómico
  * en D1: si algo falla, quedan los de antes). Para la base de un preview, nunca producción.
  *
@@ -1282,10 +1630,19 @@ export function chunkSql(text, max = 18000) {
  * @param {{now?: number, bundledSlugs?: string[]}} [opts] `bundledSlugs`: ver buildData
  */
 export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] } = {}) {
-	const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
+	// Tablas e índices (un índice dice si está una migración que solo agrega columnas, ver la
+	// sección de preventas).
+	const { results } = await db
+		.prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'index')")
+		.all();
 	const tables = new Set(/** @type {any[]} */ (results).map((r) => String(r.name)));
 	const today = todayInArgentina(now);
 	const data = buildData({ today, now, bundledSlugs });
+	// Noche 3: los perfiles (con saveObject, antes del batch) y los hashes de las suscripciones.
+	data.profiles = await ensureDemoProfiles(db, { now, tables });
+	for (const x of N3_SERIES_SUBSCRIBERS) {
+		data.seriesKeys.set(x.email, `e:${await sha256Hex(`cuentas:email:${x.email}`)}`);
+	}
 	const statements = seedStatements(data, { tables });
 	await db.batch(statements.map((s) => db.prepare(s)));
 	const counts = /** @type {Record<string, number>} */ (

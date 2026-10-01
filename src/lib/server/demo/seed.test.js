@@ -5,7 +5,16 @@ import { createTestDB } from '../db/testing.js';
 import { parseTicketConfig } from '../tickets/config.js';
 import { validateEventTags } from '../../utils/adminTags.js';
 import { splitMarkdown } from '../../utils/eventDraft.js';
+import { getTaken } from '../tickets/orders.js';
+import { typeAvailability } from '../tickets/config.js';
+import { listRoles } from '../personas/roles.js';
+import { resolvePersonas } from '../personas/index.js';
+import { publicVenueForEvent } from '../amigues/venues.js';
+import { ANON } from '../objects/index.js';
+import { DEMO_ACCOUNTS, DEMO_VENUES } from './seedProfiles.js';
 import {
+	N3_CUSTOM_ROLE,
+	N3_FLAGS,
 	SEED_BY,
 	auditEntries,
 	buildData,
@@ -274,7 +283,22 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		'person_notes',
 		'email_templates',
 		'event_mail_sends',
-		'event_mail_recipients'
+		'event_mail_recipients',
+		// Noche 3.
+		'feature_flags',
+		'tips',
+		'persona_roles',
+		'signup_fields',
+		'event_signup_general',
+		'order_answers',
+		'event_venues',
+		'profile_claims',
+		'series_subscriptions',
+		'objects',
+		'edges',
+		'profile_approvals',
+		'profile_managers',
+		'accounts'
 	];
 	async function snapshot() {
 		/** @type {Record<string, number>} */
@@ -384,7 +408,8 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		const r1 = await reloadDemoData(t.db, { now: day1, bundledSlugs });
 		const first = await snapshot();
 		expect(r1.skipped).toEqual([]);
-		expect(r1.events).toBe(17);
+		// 17 + «Fiesta con preventas (demo)» (Noche 3 · C, #134).
+		expect(r1.events).toBe(18);
 		expect(r1.tonight?.slug).toBe('demo-noche-latex-2026-10-01');
 		expect(r1.orders).toBe(first.orders - 1); // all but the real one
 		expect(r1.pendingTransfers).toBeGreaterThan(0);
@@ -435,6 +460,145 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		// The seed's own rows, once.
 		expect(await count(`person_notes WHERE created_by = '${SEED_BY}'`)).toBe(2);
 		expect(await count('admin_last_seen WHERE admin_id = -1')).toBe(1);
+	}, 60000);
+
+	it('Noche 3: switches, presales, tips, venues, personas, questions and series', async () => {
+		const day1 = Date.parse('2026-10-01T15:00:00Z');
+		// Not demo data: survives.
+		await t.db.batch([
+			insertRow('tips', {
+				id: '00000000-0000-4000-8000-00000000aaaa',
+				amount: 777,
+				status: 'approved',
+				post_category: 'material',
+				post_slug: 'otra-publicacion',
+				mp_preference_id: 'pref-real',
+				created_at: 1,
+				updated_at: 1
+			}),
+			insertRow('signup_fields', {
+				id: 5,
+				event_slug: null,
+				label: 'Pregunta real',
+				kind: 'text',
+				required: 0,
+				options: '[]',
+				position: 1,
+				created_at: 1,
+				updated_at: 1,
+				updated_by: 'GorroRojo'
+			})
+		]);
+		const r = await reloadDemoData(t.db, { now: day1 });
+		expect(r.skipped).toEqual([]);
+		const again = await snapshot();
+		await reloadDemoData(t.db, { now: day1 });
+		expect(await snapshot()).toEqual(again);
+		expect(await count("tips WHERE mp_preference_id = 'pref-real'")).toBe(1);
+		expect(await count("signup_fields WHERE label = 'Pregunta real'")).toBe(1);
+
+		// Switches on.
+		for (const key of N3_FLAGS)
+			expect(await count(`feature_flags WHERE key = '${key}' AND enabled = 1`)).toBe(1);
+
+		// Presales: «Preventa 1» full, «Preventa 2» current, «Última tanda» waiting.
+		const file = /** @type {any} */ (
+			await t.db
+				.prepare("SELECT path, content FROM demo_files WHERE path LIKE '%demo-fiesta-preventas-%'")
+				.first()
+		);
+		const slug = String(file.path).replace(/^.*\/(demo-[^/]+)\.md$/, '$1');
+		const config = /** @type {any} */ (
+			parseTicketConfig(parse(splitMarkdown(String(file.content)).frontmatter), {
+				fondoPercent: 20
+			})
+		);
+		const taken = await getTaken(t.db, slug, day1);
+		expect(taken.types.get('general')).toBe(9);
+		const general = typeAvailability(config, config.types[0], taken, day1);
+		expect(general.tier?.tier.name).toBe('Preventa 2');
+		expect(typeAvailability(config, config.types[1], taken, day1).state).toBe('waiting');
+		expect(config.door?.on).toBe(true);
+		expect(await count(`orders WHERE event_slug = '${slug}' AND ticket_tier = 'preventa-1'`)).toBe(
+			3
+		);
+
+		// Pay what you want with a recommended minimum (#135).
+		const talk = data.events.find((e) => e.series === 'charla-consentimiento');
+		const talkConfig = /** @type {any} */ (
+			parseTicketConfig(parse(splitMarkdown(eventMarkdown(/** @type {any} */ (talk))).frontmatter))
+		);
+		expect(talkConfig.types[0].gorra).toEqual({ min: 1000, recommended: 3000, suggested: 4000 });
+
+		// Tips: invented, on real posts and tonight's party.
+		expect(await count(`tips WHERE mp_preference_id = '${SEED_BY}'`)).toBe(7);
+		expect(await count(`tips WHERE mp_preference_id = '${SEED_BY}' AND status = 'approved'`)).toBe(
+			4
+		);
+
+		// Venues: one per privacy level, each on a demo event; the hidden one shows nothing.
+		expect(await count(`event_venues WHERE created_by = '${SEED_BY}'`)).toBe(DEMO_VENUES.length);
+		const hidden = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT ev.event_slug FROM event_venues ev JOIN objects o ON o.id = ev.venue_id
+					WHERE o.slug = 'refugio-demo-oculto'`
+				)
+				.first()
+		);
+		expect(hidden.event_slug).toBe(slug);
+		expect(await publicVenueForEvent(t.db, slug, ANON)).toEqual({ level: 'hidden' });
+		const tonight = String(r.tonight?.slug);
+		const open = await publicVenueForEvent(t.db, tonight, ANON);
+		expect(open).toMatchObject({ level: 'public', name: 'Casa Demo Pública' });
+
+		// «Es mi perfil» pending, and the account-made profile waits for approval.
+		expect(
+			await count(
+				`profile_claims WHERE account_id = '${DEMO_ACCOUNTS.claimer.id}' AND status = 'pending'`
+			)
+		).toBe(1);
+		expect(
+			await count(
+				"profile_approvals WHERE profile_id = (SELECT id FROM objects WHERE slug = 'perfil-demo-nuevo')"
+			)
+		).toBe(0);
+
+		// Personas: the party's people, with the custom role; both profiles are public.
+		const roles = await listRoles(t.db);
+		expect(roles).toContain(N3_CUSTOM_ROLE);
+		const party = parse(
+			splitMarkdown(
+				String(
+					/** @type {any} */ (
+						await t.db
+							.prepare('SELECT content FROM demo_files WHERE path = ?1')
+							.bind(`src/lib/posts/calendario/${tonight}.md`)
+							.first()
+					).content
+				)
+			).frontmatter
+		);
+		const groups = await resolvePersonas(t.db, party.personas, roles);
+		expect(groups.map((g) => [g.rol, g.items.map((i) => i.slug)])).toEqual([
+			['Organiza', ['colectivo-demo']],
+			[N3_CUSTOM_ROLE, ['persona-demo-integrante']]
+		]);
+
+		// Questions: a general one chosen by the next workshop, with two answered orders.
+		expect(await count(`signup_fields WHERE updated_by = '${SEED_BY}'`)).toBe(2);
+		expect(await count('order_answers')).toBe(2);
+
+		// Series: confirmed subscriptions with the app's key format.
+		const subs = /** @type {any[]} */ (
+			(await t.db.prepare('SELECT subscriber_key, confirmed_at FROM series_subscriptions').all())
+				.results
+		);
+		expect(subs).toHaveLength(3);
+		for (const x of subs) {
+			expect(x.subscriber_key).toMatch(/^e:[0-9a-f]{64}$/);
+			expect(x.confirmed_at).toBeTruthy();
+		}
 	}, 60000);
 
 	it('skips the tables of migrations the database does not have', async () => {
