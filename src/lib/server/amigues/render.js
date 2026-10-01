@@ -39,7 +39,12 @@ export function resolveMediaImports(body, resolveMedia) {
 		}
 	}
 	if (!names.size) return body;
-	return body.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (all, name) => names.get(name) ?? all);
+	// Como atributo (`src={foto}`) va entre comillas, para que el markdown lo lea como HTML.
+	return body
+		.replace(/=\s*\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (all, name) =>
+			names.has(name) ? `="${names.get(name)}"` : all
+		)
+		.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (all, name) => names.get(name) ?? all);
 }
 
 /** El procesador (se arma una vez). */
