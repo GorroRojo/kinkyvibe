@@ -274,6 +274,7 @@
 	subtitle="El árbol de etiquetas del sitio, cuánto se usa cada una y la Kinkipedia. Arrastrá una etiqueta sobre otra para moverla."
 >
 	<svelte:fragment slot="actions">
+		<a class="kv-btn ghost" href="/admin/etiquetas/importar">Importar a la base</a>
 		<CsvButton rows={csvRows} columns={csvColumns} filename="etiquetas.csv" />
 	</svelte:fragment>
 </PageHeader>

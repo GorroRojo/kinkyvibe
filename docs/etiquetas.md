@@ -71,10 +71,43 @@ Visibilidad: como todo objeto, `public` por defecto. Una etiqueta `hidden` no se
 `tag_sources` (migración 0029) es la tabla de apoyo del importador (paso 2): de qué entrada del
 archivo salió cada etiqueta, con qué hash y en qué versión, para no pisar lo editado en el panel.
 
+## Importar (paso 2)
+
+`src/lib/server/etiquetas/importer.js` pasa el archivo (`hardcodedTags.js`) y los textos de la
+wiki (`src/lib/posts/wiki/*.md`, el cuerpo de la etiqueta de su `wiki:`) a objetos. Mismo patrón
+que amigues:
+
+- **Idempotente**, por `tag_sources.source_key`: sin cambios no hace nada; si la etiqueta se
+  editó en el panel (otra `version`), no la pisa; si se borró, no la revive; si ya había una
+  etiqueta viva con ese nombre creada en el panel, la deja y la usa para las relaciones.
+- Lee el archivo como `tagsFactory` (`model.js`, `tagsToRecords`): las hijas no declaradas existen
+  igual y `aka`/`aliasOf` son alias. `model.test.js` verifica, sobre el archivo real, que
+  importar y volver a leer (`recordsToRawTags`) da el mismo árbol. Diferencias a propósito:
+  - una relacionada con una etiqueta que no existe («cosquillas») no se importa (hoy es texto sin
+    página); se avisa;
+  - la etiqueta sin nombre del archivo (`{ id: '' }`) y los alias de etiquetas que no existen
+    («Dominatrix») no se importan;
+  - las relacionadas se ven en los dos sentidos también con las hijas no declaradas («sumise»);
+  - ícono, color e imagen sin espacios en las puntas.
+- En dos pasos: primero crea las que faltan (solo con su nombre), después datos y relaciones.
+- **Por tandas** (`budget`): el panel hace 120 escrituras por pedido y vuelve a pedir solo hasta
+  terminar; una etiqueta cuya madre todavía no se creó espera a la tanda siguiente.
+
+Cómo correrlo:
+
+- **Panel**: Etiquetas → «Importar a la base» (`/admin/etiquetas/importar`). Anda con el
+  interruptor apagado; muestra antes qué va a pasar con cada etiqueta. Queda en Actividad.
+- **Local**: `npm run tags:import` (o `-- --dry` para ver sin escribir), contra la base de
+  `npm run dev`.
+
+La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
+público) con sus relaciones, ambas puntas con `visibleWhere()`.
+
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/objects/types
+npx vitest run src/lib/server/objects/types src/lib/server/etiquetas
+npm run db:migrate:local && npm run tags:import -- --dry
 ```
 
 La migración no se aplica a mano en preview ni en producción desde un PR
