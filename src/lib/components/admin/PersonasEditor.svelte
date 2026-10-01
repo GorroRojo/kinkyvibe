@@ -14,7 +14,7 @@
 	export let personas = [];
 	/** @type {string[]} */
 	export let roles = [];
-	/** @type {{ slug: string, title: string, kind: 'persona' | 'grupo' }[]} */
+	/** @type {{ slug: string, title: string, kind: 'persona' | 'grupo' | 'lugar' }[]} */
 	export let profiles = [];
 	/** @type {string[]} */
 	export let errors = [];
@@ -22,7 +22,8 @@
 
 	$: known = new Set(profiles.map((p) => p.slug));
 	$: groups = profiles.filter((p) => p.kind === 'grupo');
-	$: people = profiles.filter((p) => p.kind !== 'grupo');
+	$: places = profiles.filter((p) => p.kind === 'lugar');
+	$: people = profiles.filter((p) => p.kind !== 'grupo' && p.kind !== 'lugar');
 
 	function add() {
 		personas = [...personas, { perfil: '', rol: roles[0] ?? '' }];
@@ -63,6 +64,11 @@
 						{#if people.length}
 							<optgroup label="Personas">
 								{#each people as g (g.slug)}<option value={g.slug}>{g.title}</option>{/each}
+							</optgroup>
+						{/if}
+						{#if places.length}
+							<optgroup label="Lugares">
+								{#each places as g (g.slug)}<option value={g.slug}>{g.title}</option>{/each}
 							</optgroup>
 						{/if}
 					</select>

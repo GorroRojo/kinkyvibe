@@ -10,11 +10,14 @@
  *
  * Quién se muestra (nada de esto inventa reglas nuevas):
  * - el interruptor `personas_eventos` prendido; si no, nada (las páginas quedan como siempre);
- * - el interruptor de perfiles prendido ({@link profilesSwitchOn});
+ * - el interruptor de perfiles públicos prendido ({@link profilesSwitchOn}: `perfiles_publicos`,
+ *   el que hace que /amigues lea los perfiles de la base);
  * - el perfil visible para cualquiera: `visibleWhere(ANON)` de los objetos (ni ocultos, ni
  *   "solo con cuenta", ni borrados). Se mira como anónime a propósito: así la página es igual
  *   para todes y se puede guardar en caché sin filtrar nada de una sesión;
- * - el perfil aprobado por une admin (`PROFILE_APPROVED_SQL`, la marca de "Para revisar").
+ * - el perfil aprobado por une admin (`PROFILE_APPROVED_SQL`, la marca de "Para revisar") y
+ *   aprobado para /amigues (`PROFILE_IN_AMIGUES_SQL`, tabla `profile_approvals`): si no, su link
+ *   daría 404 para quien no lo gestiona.
  *
  * Un perfil que no cumple todo eso no aparece: ni su nombre, ni su link, ni un "perfil oculto".
  * La dirección (slug) sí está en el .md, que es público en el repo: el editor solo ofrece
@@ -22,9 +25,9 @@
  */
 import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
-import { PROFILE_APPROVED_SQL } from '$lib/server/admin/cuentas.js';
+import { PROFILE_APPROVED_SQL, PROFILE_IN_AMIGUES_SQL } from '$lib/server/admin/cuentas.js';
 import { getDB, logDBError } from '$lib/server/db';
-import { cuentasEnabled, personasEventosEnabled } from '$lib/server/flags.js';
+import { perfilesPublicosEnabled, personasEventosEnabled } from '$lib/server/flags.js';
 import {
 	PERSONAS_KEY,
 	contentByRole,
@@ -39,7 +42,7 @@ import { parseDocument } from 'yaml';
 import { splitMarkdown } from '$lib/utils/eventDraft.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {{ slug: string, title: string, kind: 'persona' | 'grupo' }} PublicProfileRef */
+/** @typedef {{ slug: string, title: string, kind: 'persona' | 'grupo' | 'lugar' }} PublicProfileRef */
 /** @typedef {{ rol: string, items: (PublicProfileRef & { href: string })[] }} PersonasGroup */
 
 /** Cuántas direcciones por consulta (D1 acepta hasta 100 parámetros por sentencia). */
@@ -48,8 +51,8 @@ const CHUNK = 90;
 export const PICKER_LIMIT = 500;
 
 /**
- * La página pública de un perfil. Un solo lugar: si cambia (por ejemplo, con las direcciones
- * viejas de amigues), cambia acá.
+ * La página pública de un perfil. Un solo lugar: si cambia, cambia acá. Para un perfil importado
+ * de una ficha de amigues, pasale la dirección vieja (la de la URL, `profile_sources.legacy_slug`).
  * @param {string} slug
  */
 export function profileHref(slug) {
@@ -57,12 +60,12 @@ export function profileHref(slug) {
 }
 
 /**
- * ¿Están prendidos los perfiles para el público? Hoy los perfiles viven detrás de `cuentas`;
- * cuando exista el interruptor de perfiles públicos, se cambia solo acá.
+ * ¿Están prendidos los perfiles para el público? Es `perfiles_publicos` (docs/amigues.md): con
+ * él apagado, /amigues/<dirección> muestra la ficha .md y no el perfil de la base.
  * @param {App.Platform | undefined} platform
  */
 export function profilesSwitchOn(platform) {
-	return cuentasEnabled(platform);
+	return perfilesPublicosEnabled(platform);
 }
 
 /**
@@ -78,24 +81,31 @@ async function enabledDB(platform) {
 	return db;
 }
 
-/** @param {unknown} data */
+/**
+ * @param {unknown} data
+ * @returns {PublicProfileRef['kind']}
+ */
 function kindOf(data) {
 	try {
-		return JSON.parse(String(data))?.kind === 'grupo' ? 'grupo' : 'persona';
+		const kind = JSON.parse(String(data))?.kind;
+		return kind === 'grupo' || kind === 'lugar' ? kind : 'persona';
 	} catch {
 		return 'persona';
 	}
 }
+
+/** Condición SQL (alias `o`): visible en /amigues (además de la visibilidad del objeto). */
+const LISTED_SQL = `${PROFILE_APPROVED_SQL} AND ${PROFILE_IN_AMIGUES_SQL}`;
 
 /**
  * Los perfiles públicos (visibles para cualquiera y aprobados) entre estas direcciones.
  *
  * @param {D1Database} db
  * @param {readonly string[]} slugs
- * @returns {Promise<Map<string, PublicProfileRef>>}
+ * @returns {Promise<Map<string, PublicProfileRef & { urlSlug: string }>>}
  */
 export async function publicProfilesBySlug(db, slugs) {
-	/** @type {Map<string, PublicProfileRef>} */
+	/** @type {Map<string, PublicProfileRef & { urlSlug: string }>} */
 	const out = new Map();
 	const valid = [...new Set(slugs.filter(isProfileSlug))];
 	for (let i = 0; i < valid.length; i += CHUNK) {
@@ -103,15 +113,18 @@ export async function publicProfilesBySlug(db, slugs) {
 		const vis = visibleWhere(ANON, 'o');
 		const { results } = await db
 			.prepare(
-				`SELECT o.slug, o.title, o.data FROM objects o
+				`SELECT o.slug, o.title, o.data, s.legacy_slug FROM objects o
+				LEFT JOIN profile_sources s ON s.profile_id = o.id
 				WHERE o.type = ? AND o.slug IN (${chunk.map(() => '?').join(', ')})
-				AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}`
+				AND ${vis.sql} AND ${LISTED_SQL}`
 			)
 			.bind(PROFILE_TYPE, ...chunk, ...vis.params)
 			.all();
 		for (const r of results) {
 			const slug = String(r.slug);
-			out.set(slug, { slug, title: String(r.title), kind: kindOf(r.data) });
+			// La URL del perfil: la dirección vieja si es una ficha importada (docs/amigues.md).
+			const urlSlug = r.legacy_slug == null ? slug : String(r.legacy_slug);
+			out.set(slug, { slug, title: String(r.title), kind: kindOf(r.data), urlSlug });
 		}
 	}
 	return out;
@@ -128,7 +141,7 @@ export async function pickableProfiles(db) {
 	const { results } = await db
 		.prepare(
 			`SELECT o.slug, o.title, o.data FROM objects o
-			WHERE o.type = ? AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}
+			WHERE o.type = ? AND ${vis.sql} AND ${LISTED_SQL}
 			ORDER BY o.title COLLATE NOCASE LIMIT ?`
 		)
 		.bind(PROFILE_TYPE, ...vis.params, PICKER_LIMIT)
@@ -155,7 +168,7 @@ export async function resolvePersonas(db, raw, roles) {
 	const profiles = await publicProfilesBySlug(db, profileSlugsOf(entries));
 	const items = entries.flatMap((e) => {
 		const p = profiles.get(e.perfil);
-		return p ? [{ rol: e.rol, ...p, href: profileHref(p.slug) }] : [];
+		return p ? [{ rol: e.rol, ...p, href: profileHref(p.urlSlug) }] : [];
 	});
 	return groupByRole(items, roles).map((g) => ({
 		rol: g.rol,

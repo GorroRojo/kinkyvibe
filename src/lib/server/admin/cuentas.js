@@ -246,8 +246,14 @@ export const PROFILE_KIND_FILTERS = Object.freeze({
 	lugar: 'Lugares'
 });
 
-/** Condición SQL: el perfil `o` está aprobado para /amigues (migración 0017). */
-const APPROVED = 'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)';
+/**
+ * Condición SQL (alias `o`): el perfil `o` está aprobado para /amigues (migración 0017). La usan
+ * también los roles de personas en eventos (src/lib/server/personas/): un perfil que no aparece
+ * en /amigues no se nombra ni se linkea desde un evento.
+ */
+export const PROFILE_IN_AMIGUES_SQL =
+	'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)';
+const APPROVED = PROFILE_IN_AMIGUES_SQL;
 
 /**
  * @typedef {ReturnType<typeof profileSummary> & {

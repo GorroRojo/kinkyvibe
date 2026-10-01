@@ -1,13 +1,18 @@
 /**
  * Personas en eventos (B7) contra un D1 de miniflare: la lista de roles, qué perfiles se
- * muestran (visibles para cualquiera y aprobados; ninguno oculto, "solo con cuenta", borrado o
- * sin revisar aparece, ni su nombre ni su link), lo que lista un perfil, los interruptores y la
- * forma de los edges del futuro. Datos inventados.
+ * muestran (visibles para cualquiera y aprobados; ninguno oculto, "solo con cuenta", borrado,
+ * sin revisar o fuera de /amigues aparece, ni su nombre ni su link), lo que lista un perfil, los
+ * interruptores y la forma de los edges del futuro. Datos inventados.
+ *
+ * Con amigues como perfiles (#137) en la misma rama: un perfil se nombra solo si además está
+ * aprobado para /amigues (`profile_approvals`). Como en el panel, los que carga une admin nacen
+ * aprobados y los de una cuenta se aprueban a mano (`approved` en el helper).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { getEdges, saveObject } from '$lib/server/objects/index.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
 import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { FIXED_ROLES, mergeRoles, personasToEdges } from '$lib/utils/personas.js';
 import { addRole, listCustomRoles, listRoles, removeRole } from './roles.js';
@@ -44,7 +49,8 @@ const ACCOUNT = 'cuenta:00000000-0000-4000-8000-000000000001';
 /**
  * Un perfil guardado por saveObject (el único camino de escritura de los objetos).
  * @param {string} slug
- * @param {{ kind?: 'persona' | 'grupo', visibility?: 'public' | 'members' | 'hidden', by?: string, deleted?: boolean, reviewed?: boolean }} [o]
+ * `approved`: aprobado para /amigues (por defecto, como en el panel: si lo cargó une admin).
+ * @param {{ kind?: 'persona' | 'grupo' | 'lugar', visibility?: 'public' | 'members' | 'hidden', by?: string, deleted?: boolean, reviewed?: boolean, approved?: boolean }} [o]
  */
 async function profile(
 	slug,
@@ -53,7 +59,8 @@ async function profile(
 		visibility = 'public',
 		by = ADMIN_LOGIN,
 		deleted = false,
-		reviewed = false
+		reviewed = false,
+		approved = by === ADMIN_LOGIN
 	} = {}
 ) {
 	const title = slug
@@ -65,6 +72,7 @@ async function profile(
 		{ type: 'perfil', slug, title, data: { kind }, visibility },
 		{ actor: by }
 	);
+	if (approved) await approveProfile(t.db, p.id, ADMIN_LOGIN);
 	if (deleted)
 		p = await saveObject(
 			t.db,
@@ -94,7 +102,10 @@ async function seedProfiles() {
 	await profile('perfil-solo-cuentas', { visibility: 'members' });
 	await profile('perfil-borrado', { deleted: true });
 	await profile('perfil-sin-revisar', { by: ACCOUNT });
-	await profile('perfil-revisado', { by: ACCOUNT, reviewed: true });
+	await profile('perfil-revisado', { by: ACCOUNT, reviewed: true, approved: true });
+	// Revisado pero no aprobado para /amigues, y uno de admin que se sacó de /amigues.
+	await profile('perfil-revisado-fuera', { by: ACCOUNT, reviewed: true });
+	await profile('perfil-admin-fuera', { approved: false });
 }
 
 const PERSONAS = [
@@ -105,12 +116,15 @@ const PERSONAS = [
 	{ perfil: 'perfil-borrado', rol: 'Enseña' },
 	{ perfil: 'perfil-sin-revisar', rol: 'Enseña' },
 	{ perfil: 'perfil-revisado', rol: 'Fotografía' },
-	{ perfil: 'no-existe', rol: 'Diseño' }
+	{ perfil: 'no-existe', rol: 'Diseño' },
+	{ perfil: 'perfil-revisado-fuera', rol: 'Diseño' },
+	{ perfil: 'perfil-admin-fuera', rol: 'Diseño' }
 ];
 
 async function flagsOn() {
 	await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
 	await setFlag(t.db, 'cuentas', true, { by: ADMIN_LOGIN });
+	await setFlag(t.db, 'perfiles_publicos', true, { by: ADMIN_LOGIN });
 }
 
 describe('roles', () => {
@@ -214,7 +228,9 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 			'sin-revisar',
 			'Sin Revisar',
 			'Enseña',
-			'Diseño'
+			'Diseño',
+			'fuera',
+			'Fuera'
 		]) {
 			expect(text).not.toContain(hidden);
 		}
@@ -235,6 +251,8 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 			'perfil-solo-cuentas',
 			'perfil-borrado',
 			'perfil-sin-revisar',
+			'perfil-revisado-fuera',
+			'perfil-admin-fuera',
 			'no-existe'
 		]) {
 			expect(await resolveProfileContent(t.db, slug, posts, mergeRoles())).toBeNull();
@@ -255,6 +273,11 @@ describe('interruptores', () => {
 		expect(await editorPersonas(t.platform)).toBeNull();
 		// Solo personas_eventos, sin el de perfiles: tampoco se muestran perfiles.
 		await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
+		expect(await personasForPage(t.platform, meta)).toBeNull();
+		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
+		// Con cuentas pero sin perfiles_publicos: /amigues muestra las fichas .md, así que tampoco.
+		await setFlag(t.db, 'cuentas', true, { by: ADMIN_LOGIN });
+		clearFlagCache();
 		expect(await personasForPage(t.platform, meta)).toBeNull();
 		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
 	});
@@ -287,6 +310,52 @@ describe('interruptores', () => {
 		const editor = await editorPersonas(t.platform);
 		expect(editor?.roles).toEqual([...FIXED_ROLES]);
 		expect(editor?.profiles.map((p) => p.slug)).not.toContain('perfil-oculto');
+	});
+});
+
+describe('con amigues (#137)', () => {
+	it('una ficha importada se linkea por su dirección vieja; un lugar es un lugar', async () => {
+		const p = await profile('ficha-de-prueba', { kind: 'persona' });
+		await profile('lugar-de-prueba', { kind: 'lugar' });
+		await t.db
+			.prepare(
+				`INSERT INTO profile_sources (profile_id, legacy_slug, source_hash, imported_version,
+				suggested_kind, imported_at, updated_at) VALUES (?1, ?2, ?3, 1, 'persona', 1, 1)`
+			)
+			.bind(p.id, 'Ficha_De_Prueba', 'a'.repeat(64))
+			.run();
+		const groups = await resolvePersonas(
+			t.db,
+			[
+				{ perfil: 'ficha-de-prueba', rol: 'Facilita' },
+				{ perfil: 'lugar-de-prueba', rol: 'Organiza' }
+			],
+			mergeRoles()
+		);
+		expect(groups).toEqual([
+			{
+				rol: 'Organiza',
+				items: [
+					{
+						slug: 'lugar-de-prueba',
+						title: 'Lugar De Prueba',
+						kind: 'lugar',
+						href: '/amigues/lugar-de-prueba'
+					}
+				]
+			},
+			{
+				rol: 'Facilita',
+				items: [
+					{
+						slug: 'ficha-de-prueba',
+						title: 'Ficha De Prueba',
+						kind: 'persona',
+						href: '/amigues/Ficha_De_Prueba'
+					}
+				]
+			}
+		]);
 	});
 });
 
