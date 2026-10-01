@@ -387,18 +387,15 @@ export const ORDER_MAX_MESSAGE = `Ese monto parece un error de tipeo: el total d
 
 /**
  * "A la gorra": montos de los botones rápidos, de menor a mayor y sin repetidos: el mínimo (solo
- * si es mayor a 0), el mínimo recomendado (si hay), el sugerido, 1,5 × el sugerido (redondeado a
- * los $ 100) y el doble.
+ * si es mayor a 0), el sugerido, 1,5 × el sugerido (redondeado a los $ 100) y el doble.
  *
  * @param {number} min
  * @param {number} suggested
- * @param {number | null} [recommended]
  * @returns {number[]}
  */
-export function gorraQuickAmounts(min, suggested, recommended = null) {
+export function gorraQuickAmounts(min, suggested) {
 	const amounts = [suggested, Math.round((suggested * 1.5) / 100) * 100, suggested * 2];
 	if (min > 0) amounts.push(min);
-	if (recommended !== null && recommended > 0) amounts.push(recommended);
 	return [...new Set(amounts)]
 		.filter((n) => n >= min && n <= ORDER_MAX_TOTAL)
 		.sort((a, b) => a - b);
