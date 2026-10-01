@@ -22,7 +22,8 @@ export const ACCOUNT_EVENT_ACTOR = 'cuentas (sitio)';
 export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
 	profileCreated: 'profile.create',
-	signupAnswersViewed: 'signup_answers.view'
+	signupAnswersViewed: 'signup_answers.view',
+	venueResubmitted: 'profile.resubmit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -91,6 +92,28 @@ export function logSignupAnswersViewed(db, entry, { now = Date.now() } = {}) {
 			targetId: entry.profile.id,
 			summary: `«${entry.profile.title}» ${what} las respuestas de inscripción de «${entry.eventTitle}»`,
 			detail: { event: entry.eventSlug, account: entry.accountId, csv: entry.csv }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Volvieron a mandar un lugar rechazado" (quien lo gestiona tocó «Volver a mandar» en Mi
+ * rincón): vuelve a "Para aprobar" en Eventos → Lugares.
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, title: string }} profile
+ * @param {{ now?: number }} [opts]
+ */
+export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.venueResubmitted,
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
 		},
 		{ now }
 	);
