@@ -5,7 +5,7 @@
  * - `renderPreviewHtml` (src/lib/utils/markdownPreview.js): el mismo markdown + GFM y los links
  *   `[[término]]` de la wiki que la vista previa del editor; saca los bloques `<script>`/`<style>`;
  * - `customRehype` (el mismo plugin que usa mdsvex): las menciones `@alguien` → link a su perfil;
- * - `rehypeAllowlist` (./sanitize.js): la lista corta de HTML, en el servidor.
+ * - `rehypeProfileHtml` (./sanitize.js): `rehype-sanitize` con la lista corta de HTML, en el servidor.
  *
  * Las fichas viejas importan imágenes de su carpeta de medios con un bloque de mdsvex
  * (`<script>import foto from './media/<ficha>/5.webp'</script>` y después `src={foto}`): eso se
@@ -14,7 +14,7 @@
 import { rehype } from 'rehype';
 import customRehype from '$lib/utils/customRehype.js';
 import { renderPreviewHtml } from '$lib/utils/markdownPreview.js';
-import { rehypeAllowlist } from './sanitize.js';
+import { rehypeProfileHtml } from './sanitize.js';
 
 /** `import foto from './media/Drux/1.webp'` (también con `$lib/posts/amigues/media/...`). */
 const IMPORT = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/g;
@@ -50,7 +50,7 @@ export function resolveMediaImports(body, resolveMedia) {
 /** El procesador (se arma una vez). */
 const processor = rehype()
 	.data('settings', { fragment: true })
-	.use(rehypeAllowlist)
+	.use(rehypeProfileHtml)
 	// El plugin de mdsvex está tipado para otra versión de unified: es el mismo árbol hast.
 	.use(/** @type {any} */ (customRehype))
 	.freeze();

@@ -1,111 +1,47 @@
 /**
  * Limpieza del HTML de los textos de perfiles guardados en la base (el cuerpo de una ficha de
- * amigues), en el servidor, antes de `{@html}`. Una lista corta de etiquetas y atributos
- * (decisión P6.6: "lista corta de HTML para todes"); todo lo demás se saca.
+ * amigues), en el servidor, antes de `{@html}`. Es el ÚNICO lugar que decide qué HTML pasa: si
+ * cambia la librería, cambia acá y nada más.
  *
- * - Se sacan con su contenido: script, style, iframe, object, embed, form y parecidos, svg, math.
- * - Etiquetas desconocidas: se saca la etiqueta y queda su contenido.
- * - Atributos: solo los de {@link ALLOWED_ATTRS}; nada de `style`, `on…` ni `srcdoc`.
- * - Links e imágenes: solo http(s), mailto, tel, rutas del sitio y anclas (nada de
- *   `javascript:` ni `data:`). Los links a otros sitios abren en otra pestaña, sin `opener` ni
- *   `referrer` y con `nofollow`.
- * - Los comentarios HTML se sacan.
- * - Un `h1` pasa a `h2` (el `h1` de la página es el nombre del perfil).
+ * La limpieza la hace `rehype-sanitize` (hast-util-sanitize, el mismo esquema que usa GitHub para
+ * el markdown), partiendo de su `defaultSchema`, con estos cambios para lo que usan las fichas
+ * (decisión P6.6: "lista corta de HTML para todes"):
+ * - se suman `<u>` y los links `tel:`; las clases permitidas son solo las que usa el sitio
+ *   (`wikilink` y `mention` en links, `p-pronouns` en `<small>`);
+ * - se sacan CON su contenido: script, style, template, noscript, iframe, object, svg y math;
+ * - todo lo demás que no está en el esquema se saca (las etiquetas desconocidas dejan su texto).
+ *   Nada de `style`, `on…`, `srcdoc`, `javascript:` ni `data:`.
  *
- * Es un plugin de unified/rehype ({@link rehypeAllowlist}), en un solo lugar: si más adelante se
- * suma `rehype-sanitize` como dependencia, se reemplaza acá sin tocar nada más.
+ * Después de limpiar, {@link rehypeProfileLinks} ajusta lo que el sitio quiere en todos los textos:
+ * los links a otros sitios abren aparte sin `opener`/`referrer` y con `nofollow`, las imágenes cargan
+ * de a poco y un `<h1>` pasa a `<h2>` (el `<h1>` de la página es el nombre del perfil).
  */
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 
-/** Se sacan con todo su contenido. */
-const DROP = new Set([
-	'script',
-	'style',
-	'iframe',
-	'object',
-	'embed',
-	'link',
-	'meta',
-	'base',
-	'form',
-	'input',
-	'button',
-	'textarea',
-	'select',
-	'option',
-	'svg',
-	'math',
-	'template',
-	'noscript',
-	'frame',
-	'frameset',
-	'applet',
-	'video',
-	'audio',
-	'source',
-	'track',
-	'canvas',
-	'dialog',
-	'portal'
-]);
+const STRIP = ['script', 'style', 'template', 'noscript', 'iframe', 'object', 'svg', 'math'];
 
-/** Etiquetas permitidas y sus atributos (nombres de propiedad de hast). */
-const ALLOWED_ATTRS = /** @type {Record<string, readonly string[]>} */ ({
-	a: ['href', 'title'],
-	abbr: ['title'],
-	b: [],
-	blockquote: [],
-	br: [],
-	cite: [],
-	code: [],
-	dd: [],
-	del: [],
-	details: [],
-	div: [],
-	dl: [],
-	dt: [],
-	em: [],
-	figcaption: [],
-	figure: [],
-	h2: [],
-	h3: [],
-	h4: [],
-	h5: [],
-	h6: [],
-	hr: [],
-	i: [],
-	img: ['src', 'alt', 'title', 'width', 'height'],
-	kbd: [],
-	li: [],
-	mark: [],
-	ol: ['start'],
-	p: [],
-	pre: [],
-	q: [],
-	s: [],
-	small: [],
-	span: [],
-	strong: [],
-	sub: [],
-	summary: [],
-	sup: [],
-	table: [],
-	tbody: [],
-	td: ['colSpan', 'rowSpan'],
-	th: ['colSpan', 'rowSpan'],
-	thead: [],
-	tr: [],
-	u: [],
-	ul: []
+/** El esquema de los textos de perfiles. */
+export const PROFILE_SCHEMA = Object.freeze({
+	...defaultSchema,
+	tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
+	strip: [...new Set([...(defaultSchema.strip ?? []), ...STRIP])],
+	attributes: {
+		...defaultSchema.attributes,
+		a: [...(defaultSchema.attributes?.a ?? []), ['className', 'wikilink', 'mention']],
+		small: [['className', 'p-pronouns']]
+	},
+	protocols: {
+		...defaultSchema.protocols,
+		href: [...(defaultSchema.protocols?.href ?? []), 'tel']
+	}
 });
-
-/** Clases que se dejan (las que usan los textos del sitio); el resto se saca. */
-const CLASS = /^[a-z][a-z0-9_-]{0,40}$/i;
 
 /** Origen ficticio para entender rutas relativas. */
 const BASE = 'https://kinkyvibe.invalid';
 
 /**
- * ¿Es un link o una imagen que se puede dejar? Devuelve el valor limpio o `null`.
+ * ¿Es un link o una imagen que se puede dejar? Devuelve el valor limpio o `null`. (El esquema ya
+ * decide los protocolos; esto lo usa el sitio para sus propias reglas, como los links externos.)
  *
  * @param {unknown} value
  * @param {{ image?: boolean }} [opts]
@@ -113,8 +49,8 @@ const BASE = 'https://kinkyvibe.invalid';
  */
 export function safeUrl(value, { image = false } = {}) {
 	if (typeof value !== 'string') return null;
-	// Los navegadores ignoran espacios y controles dentro del esquema ("java\tscript:").
 	const trimmed = value.trim();
+	// Los navegadores ignoran espacios y controles dentro del esquema ("java\tscript:").
 	if (!trimmed || [...trimmed].some((c) => c.charCodeAt(0) < 0x20)) return null;
 	if (trimmed.startsWith('#')) return image ? null : trimmed;
 	let url;
@@ -123,87 +59,51 @@ export function safeUrl(value, { image = false } = {}) {
 	} catch {
 		return null;
 	}
-	if (url.origin === BASE) {
-		// Ruta del sitio: tiene que empezar con "/" (o ser relativa sin esquema).
-		return /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? null : trimmed;
-	}
+	if (url.origin === BASE) return /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? null : trimmed;
 	const allowed = image ? ['https:', 'http:'] : ['https:', 'http:', 'mailto:', 'tel:'];
 	return allowed.includes(url.protocol) ? trimmed : null;
 }
 
 /**
- * @param {any} node elemento de hast
+ * @param {any} node
+ * @param {(el: any) => void} fn
  */
-function cleanElement(node) {
-	if (node.tagName === 'h1') node.tagName = 'h2';
-	const allowed = ALLOWED_ATTRS[node.tagName] ?? [];
-	/** @type {Record<string, unknown>} */
-	const props = {};
-	const input = node.properties ?? {};
-	for (const name of allowed) {
-		const value = input[name];
-		if (value === undefined || value === null || value === false) continue;
-		if (name === 'href') {
-			const url = safeUrl(value);
-			if (url) props.href = url;
-		} else if (name === 'src') {
-			const url = safeUrl(value, { image: true });
-			if (url) props.src = url;
-		} else if (typeof value === 'string' || typeof value === 'number') {
-			props[name] = String(value).slice(0, 300);
+function eachElement(node, fn) {
+	for (const child of node.children ?? []) {
+		if (child.type === 'element') {
+			fn(child);
+			eachElement(child, fn);
 		}
 	}
-	const classes = Array.isArray(input.className)
-		? input.className.filter((/** @type {unknown} */ c) => typeof c === 'string' && CLASS.test(c))
-		: [];
-	if (classes.length) props.className = classes.slice(0, 5);
-	if (
-		node.tagName === 'a' &&
-		typeof props.href === 'string' &&
-		/^(https?:)?\/\//i.test(props.href)
-	) {
-		props.target = '_blank';
-		props.rel = ['noopener', 'noreferrer', 'nofollow'];
-	}
-	if (node.tagName === 'img') props.loading = 'lazy';
-	node.properties = props;
 }
 
 /**
- * Limpia los hijos de un nodo (recursivo). Devuelve la lista nueva de hijos.
- *
- * @param {any[]} children
- * @returns {any[]}
- */
-function cleanChildren(children) {
-	/** @type {any[]} */
-	const out = [];
-	for (const child of children ?? []) {
-		if (child.type === 'text') out.push(child);
-		else if (child.type === 'element') {
-			const tag = String(child.tagName).toLowerCase();
-			child.tagName = tag;
-			if (DROP.has(tag)) continue;
-			child.children = cleanChildren(child.children);
-			if (tag in ALLOWED_ATTRS || tag === 'h1') {
-				cleanElement(child);
-				out.push(child);
-			} else {
-				out.push(...child.children);
-			}
-		}
-		// comentarios, doctype, raw: afuera
-	}
-	return out;
-}
-
-/**
- * Plugin de unified: deja solo la lista corta de HTML.
+ * Plugin de unified que va DESPUÉS de limpiar: links externos, imágenes y títulos.
  *
  * @returns {(tree: any) => void}
  */
-export function rehypeAllowlist() {
-	return (tree) => {
-		tree.children = cleanChildren(tree.children);
-	};
+export function rehypeProfileLinks() {
+	return (tree) =>
+		eachElement(tree, (el) => {
+			const props = (el.properties ??= {});
+			if (el.tagName === 'h1') el.tagName = 'h2';
+			if (el.tagName === 'a') {
+				const href = typeof props.href === 'string' ? props.href : '';
+				delete props.target;
+				delete props.rel;
+				if (/^(https?:)?\/\//i.test(href)) {
+					props.target = '_blank';
+					props.rel = ['noopener', 'noreferrer', 'nofollow'];
+				}
+			}
+			if (el.tagName === 'img') props.loading = 'lazy';
+		});
 }
+
+/**
+ * Los dos pasos juntos, como preset de unified: `processor.use(rehypeProfileHtml)`.
+ * @type {import('unified').Preset}
+ */
+export const rehypeProfileHtml = {
+	plugins: [[rehypeSanitize, PROFILE_SCHEMA], rehypeProfileLinks]
+};

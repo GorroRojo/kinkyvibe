@@ -54,8 +54,9 @@ inventados: `node scripts/demo/n3-amigues.js` y después
   solo aceptades, aprobades y visibles para quien mira.
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
-- **El HTML del texto se limpia en el servidor** (`src/lib/server/amigues/sanitize.js`, lista corta
-  de etiquetas; sin scripts, estilos, `on…`, `javascript:` ni `data:`).
+- **El HTML del texto se limpia en el servidor** con `rehype-sanitize` (el esquema de GitHub,
+  ajustado en `src/lib/server/amigues/sanitize.js`, el único lugar que lo decide): lista corta de
+  etiquetas; sin scripts, estilos, `on…`, `javascript:` ni `data:`; `id`/`name` con prefijo.
 - **La dirección de un lugar nunca sale de su nivel** (abajo).
 
 ## Privacidad de los lugares

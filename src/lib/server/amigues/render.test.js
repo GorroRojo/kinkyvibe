@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { renderProfileBody, resolveMediaImports } from './render.js';
+import { rehype } from 'rehype';
 import { safeUrl } from './sanitize.js';
 
 /** @param {string} body */
@@ -66,7 +67,15 @@ describe('nada activo pasa', () => {
 		'<a href="vbscript:msgbox(1)">x</a>',
 		'<math><mtext><img src=x onerror=alert(1)></mtext></math>',
 		'<template><img src=x onerror=alert(1)></template>',
-		'<scr<script></script>ipt>alert(1)</script>'
+		'<scr<script></script>ipt>alert(1)</script>',
+		// Bypasses clásicos que señalan las docs de hast-util-sanitize / DOMPurify:
+		'<a href="&#106;avascript:alert(1)">x</a>',
+		'<a href="&#x6A;avascript&colon;alert(1)">x</a>',
+		'<a href=" javascript:alert(1)">x</a>',
+		'<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>',
+		'<form><math><mtext></form><form><mglyph><style></math><img src onerror=alert(1)>',
+		'<img src="javascript:alert(1)">',
+		'<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>'
 	];
 	for (const a of attacks) {
 		it(a, async () => {
@@ -79,6 +88,38 @@ describe('nada activo pasa', () => {
 			expect(html).not.toMatch(/style=/i);
 		});
 	}
+});
+
+describe('mXSS con <noscript>', () => {
+	it('lo que parece etiqueta dentro de un atributo queda como texto del atributo', async () => {
+		const html = await render(
+			'<noscript><p title="</noscript><img src=x onerror=alert(1)>"></noscript>'
+		);
+		// Se vuelve a leer como lo leería el navegador: ningún elemento activo ni atributo on….
+		const tree = rehype().data('settings', { fragment: true }).parse(html);
+		/** @type {string[]} */
+		const found = [];
+		/** @param {any} node */
+		const walk = (node) => {
+			for (const c of node.children ?? []) {
+				if (c.type !== 'element') continue;
+				found.push(c.tagName, ...Object.keys(c.properties ?? {}).filter((k) => /^on/i.test(k)));
+				walk(c);
+			}
+		};
+		walk(tree);
+		expect(found).not.toContain('img');
+		expect(found).not.toContain('noscript');
+		expect(found.filter((x) => /^on/i.test(x))).toEqual([]);
+	});
+});
+
+describe('DOM clobbering', () => {
+	it('los id y name llevan prefijo (no pisan variables globales de la página)', async () => {
+		const html = await render('<span id="location" name="cookie">x</span>');
+		expect(html).toContain('id="user-content-location"');
+		expect(html).not.toMatch(/id="location"/);
+	});
 });
 
 describe('safeUrl', () => {

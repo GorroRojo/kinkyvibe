@@ -70,6 +70,7 @@
 		"micromark": "^3.2.0",
 		"micromark-extension-gfm": "^2.0.3",
 		"qrcode-generator": "^2.0.4",
+		"rehype-sanitize": "^5.0.1",
 		"simple-icons": "^8.14.0",
 		"svelte-codemirror-editor": "^2.1.0",
 		"unist-util-visit": "^5.0.0",

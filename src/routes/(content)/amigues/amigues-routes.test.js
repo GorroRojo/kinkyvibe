@@ -232,10 +232,10 @@ describe('interruptor prendido', () => {
 		const m = await modules();
 		const sole = await profilePage(m, 'soleropebunny');
 		expect(sole.bodyHtml).toContain('href="/material/con-la-soga-al-cuello"');
-		expect(sole.bodyHtml).toMatch(/<img src="[^"]+5\.webp/);
+		expect(sole.bodyHtml).toMatch(/<img[^>]*\ssrc="[^"]+5\.webp/);
 		expect(sole.bodyHtml).not.toContain('<script');
 		const drux = await profilePage(m, 'Drux');
-		expect((drux.bodyHtml.match(/<img src="[^"]+\.webp/g) ?? []).length).toBeGreaterThanOrEqual(20);
+		expect((drux.bodyHtml.match(/<img[^>]*\ssrc="[^"]+\.webp/g) ?? []).length).toBeGreaterThanOrEqual(20);
 		expect(drux.bodyHtml).not.toMatch(/\{foto\d+\}/);
 	});
 
