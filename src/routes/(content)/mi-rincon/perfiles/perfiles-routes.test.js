@@ -188,6 +188,79 @@ describe('interruptor prendido', () => {
 		expect(page.profile).toMatchObject({ title: 'Primero', version: 2 });
 	});
 
+	it('invitar: la misma respuesta haya o no cuenta; el aviso va a waitUntil, después de responder', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'dueñe-prueba');
+		const other = await member(m, 'gestora-prueba');
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const params = { slug: 'grupo-inventado' };
+		/** @type {Promise<unknown>[]} */
+		const background = [];
+		const invite = async (/** @type {string} */ email) => {
+			const event = fakeEvent({ member: me, params, form: { email } });
+			event.platform = {
+				...t.platform,
+				ctx: { waitUntil: (/** @type {Promise<unknown>} */ p) => background.push(p) }
+			};
+			return m.edit.actions.invitar(event);
+		};
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const withAccount = await invite(other.email);
+		const without = await invite('nadie@example.com');
+		expect(withAccount).toEqual({ action: 'invitar', message: m.perfiles.MESSAGES.invited });
+		expect(without).toEqual(withAccount);
+		expect(background).toHaveLength(2);
+		// Sin RESEND_API_KEY (y en dev) el mail se simula; sin cuenta ni se intenta.
+		expect(await Promise.all(background)).toEqual(['simulated', 'skipped']);
+		log.mockRestore();
+	});
+
+	it('integrantes: el grupo suma, la persona lo ve en Perfiles y sale con un clic; no la vuelven a sumar', async () => {
+		const m = await modules('1');
+		const me = await member(m, 'dueñe-prueba');
+		const person = await member(m, 'persona-prueba');
+		await m.perfiles.createProfile(t.db, me.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		await m.perfiles.createProfile(t.db, person.id, {
+			kind: 'persona',
+			title: 'Persona Inventada'
+		});
+		const params = { slug: 'grupo-inventado' };
+		const add = () =>
+			m.edit.actions.sumarIntegrante(
+				fakeEvent({ member: me, params, form: { persona: 'persona-inventada' } })
+			);
+		expect(await add()).toMatchObject({ action: 'integrantes' });
+		// Alguien que no gestiona el grupo: 404, como si no existiera.
+		const intruder = await thrown(() =>
+			m.edit.actions.sumarIntegrante(
+				fakeEvent({ member: person, params, form: { persona: 'persona-inventada' } })
+			)
+		);
+		expect(intruder?.status).toBe(404);
+
+		const list = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		expect(list.memberships).toEqual([
+			{
+				groupId: expect.any(Number),
+				groupTitle: 'Grupo Inventado',
+				personaSlug: 'persona-inventada',
+				personaTitle: 'Persona Inventada'
+			}
+		]);
+		const left = await m.list.actions.salirGrupo(
+			fakeEvent({
+				member: person,
+				form: { persona: 'persona-inventada', group: String(list.memberships[0].groupId) }
+			})
+		);
+		expect(left).toEqual({ action: 'grupos', message: 'Listo: ya no sos parte de ese grupo.' });
+		const after = /** @type {any} */ (await m.list.load(fakeEvent({ member: person })));
+		expect(after.memberships).toEqual([]);
+		const again = /** @type {any} */ (await add());
+		expect(again.status).toBe(409);
+		expect(again.data).toMatchObject({ error: m.perfiles.MESSAGES.recentlyLeft });
+	});
+
 	it('borrar pide escribir el nombre en la página', async () => {
 		const m = await modules('1');
 		const me = await member(m, 'persona-prueba');

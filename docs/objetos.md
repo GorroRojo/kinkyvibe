@@ -160,11 +160,11 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 | `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
 | `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
 | `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
-| `show_members` | `boolean`  | solo grupos: mostrar integrantes aceptades                                                     |
+| `show_members` | `boolean`  | solo grupos: mostrar integrantes (solo los perfiles que quien mira puede ver)                  |
 
-- Relación saliente `es_integrante_de` → `perfil`: de una persona a un grupo, con
-  `data.aceptado`. Que el origen sea persona y el destino grupo lo controla `perfiles.js` (el
-  registro solo sabe de tipos, no de `kind`).
+- Relación saliente `es_integrante_de` → `perfil`: de una persona a un grupo, sin `data`. La
+  suma quien gestiona el grupo y la saca la persona (o el grupo). Que el origen sea persona y el
+  destino grupo lo controla `perfiles.js` (el registro solo sabe de tipos, no de `kind`).
 - Quién gestiona cada perfil NO está en el objeto: va en la tabla de apoyo `profile_managers`
   (migración `0014_perfiles.sql`), porque las cuentas no son objetos. Esa tabla nunca se muestra
   fuera de Mi rincón de quienes gestionan.

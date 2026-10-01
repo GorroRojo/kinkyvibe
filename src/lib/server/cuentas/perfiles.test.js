@@ -1,7 +1,8 @@
 /**
  * Perfiles contra un D1 de miniflare: la migración 0014 y sus foreign keys, permisos (quién
  * edita, le última dueñe), el aviso de conflicto de versión, invitaciones que no revelan si un
- * mail tiene cuenta, integrantes, y que nada de lo público o de otras cuentas vincula perfiles
+ * mail tiene cuenta (tampoco con el aviso por mail), integrantes que suma el grupo y que la
+ * persona deja cuando quiere, y que nada de lo público o de otras cuentas vincula perfiles
  * de una misma cuenta ni muestra quién gestiona. Datos inventados (dominio example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,12 +11,14 @@ import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/in
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import { closeAccount } from './index.js';
 import {
+	INVITE_RATE_LIMITS,
 	INVITE_TTL_MS,
 	MAX_PROFILES_PER_ACCOUNT,
 	MESSAGES,
+	LEAVE_BLOCK_MS,
 	accountActor,
+	addMember,
 	answerInvite,
-	answerMember,
 	cancelInvite,
 	createProfile,
 	deleteProfile,
@@ -27,12 +30,13 @@ import {
 	listGroupMembers,
 	listManagers,
 	listMemberships,
+	listMyMemberships,
 	listMyProfiles,
 	memberViewer,
 	myInvites,
 	releaseAccountProfiles,
 	removeManager,
-	requestMembership,
+	removeMember,
 	setManagerRole,
 	updateProfile
 } from './perfiles.js';
@@ -417,75 +421,358 @@ describe('invitaciones a gestionar', () => {
 	});
 });
 
+describe('aviso por mail de las invitaciones', () => {
+	/** Un `notice` de mentira: junta los mails y las tareas en segundo plano. */
+	function fakeNotice() {
+		/** @type {{ to: string, message: { subject: string, html: string, text: string } }[]} */
+		const sent = [];
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		return {
+			sent,
+			/** Espera las tareas en segundo plano y devuelve sus resultados. */
+			settle: () => Promise.all(tasks.splice(0)),
+			notice: {
+				origin: 'https://kinkyvibe.ar',
+				/** @type {import('./index.js').SendMail} */
+				send: async (to, message) => {
+					sent.push({ to, message });
+					return /** @type {const} */ ('sent');
+				},
+				/** @param {Promise<unknown>} task */
+				defer: (task) => {
+					tasks.push(task);
+				}
+			}
+		};
+	}
+
+	it('con cuenta verificada sale un aviso con el nombre del grupo y el link; sin el mail de quien invita', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo <Inventado>' });
+		const fake = fakeNotice();
+		const r = await inviteManager(t.db, a.id, g.slug, b.email.toUpperCase(), {
+			...opts,
+			notice: fake.notice
+		});
+		expect(r).toEqual({ ok: true, message: MESSAGES.invited });
+		expect(await fake.settle()).toEqual(['sent']);
+		expect(fake.sent).toHaveLength(1);
+		const [{ to, message }] = fake.sent;
+		expect(to).toBe(b.email);
+		expect(message.subject).toBe('Te invitaron a gestionar un perfil en KinkyVibe');
+		expect(message.text).toContain('«Grupo <Inventado>»');
+		expect(message.text).toContain('https://kinkyvibe.ar/mi-rincon/perfiles');
+		expect(message.html).toContain('Grupo &lt;Inventado&gt;');
+		expect(message.html).toContain('href="https://kinkyvibe.ar/mi-rincon/perfiles"');
+		expect(JSON.stringify(message)).not.toContain(a.email);
+		expect(JSON.stringify(message)).not.toContain(a.id);
+	});
+
+	it('sin cuenta, con la cuenta borrada o si ya gestiona: no sale ningún mail', async () => {
+		const a = await account('dueñe-inventade');
+		const gone = await account('borrade-inventade');
+		const goneEmail = gone.email;
+		await deleteAccount(t.db, gone.id, opts);
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const fake = fakeNotice();
+		for (const email of ['nadie@example.com', goneEmail, a.email]) {
+			ok(await inviteManager(t.db, a.id, g.slug, email, { ...opts, notice: fake.notice }));
+		}
+		expect(await fake.settle()).toEqual(['skipped', 'skipped', 'skipped']);
+		expect(fake.sent).toEqual([]);
+	});
+
+	it('quien invita ve exactamente la misma respuesta, y no espera al mail', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		/** @type {() => void} */
+		let release = () => {};
+		const gate = new Promise((resolve) => (release = () => resolve(undefined)));
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const sent = vi.fn(async () => {
+			await gate; // un mail que tarda "para siempre"
+			return /** @type {const} */ ('sent');
+		});
+		const notice = {
+			origin: 'https://kinkyvibe.ar',
+			send: sent,
+			defer: (/** @type {Promise<unknown>} */ task) => void tasks.push(task)
+		};
+		const withAccount = await inviteManager(t.db, a.id, g.slug, b.email, { ...opts, notice });
+		const without = await inviteManager(t.db, a.id, g.slug, 'nadie@example.com', {
+			...opts,
+			notice
+		});
+		// Las dos respuestas llegaron con el mail todavía sin salir: no dependen de él.
+		expect(without).toEqual(withAccount);
+		expect(withAccount).toEqual({ ok: true, message: MESSAGES.invited });
+		release();
+		expect(await Promise.all(tasks)).toEqual(['sent', 'skipped']);
+		expect(sent).toHaveBeenCalledTimes(1);
+	});
+
+	it('límite por hora por grupo y por cuenta que invita (se cuenta haya o no cuenta)', async () => {
+		const a = await account('dueñe-inventade');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const { limit } = INVITE_RATE_LIMITS.group;
+		for (let i = 1; i <= limit; i++) {
+			ok(await inviteManager(t.db, a.id, g.slug, `invitade-${i}@example.com`, opts));
+		}
+		const over = await inviteManager(t.db, a.id, g.slug, 'una-mas@example.com', opts);
+		expect(over).toEqual({ ok: false, status: 429, message: MESSAGES.tooManyInviteMails });
+		expect(await count('SELECT COUNT(*) AS n FROM profile_invites')).toBe(limit);
+		// A la hora siguiente se puede de nuevo.
+		ok(
+			await inviteManager(t.db, a.id, g.slug, 'una-mas@example.com', {
+				now: NOW + 60 * 60 * 1000
+			})
+		);
+
+		// Por cuenta: repartido entre varios grupos, igual se topea.
+		const b = await account('otre-dueñe-inventade');
+		const perAccount = INVITE_RATE_LIMITS.account.limit;
+		const groups = [];
+		for (let i = 0; i * limit < perAccount + 1; i++) {
+			groups.push(await create(b.id, { kind: 'grupo', title: `Otro Grupo ${i}` }));
+		}
+		let sentOk = 0;
+		/** @type {unknown} */
+		let last = null;
+		for (let i = 0; i <= perAccount; i++) {
+			const group = groups[Math.floor(i / limit)];
+			last = await inviteManager(t.db, b.id, group.slug, `persona-${i}@example.com`, opts);
+			if (/** @type {any} */ (last).ok) sentOk++;
+		}
+		expect(sentOk).toBe(perAccount);
+		expect(last).toMatchObject({ status: 429, message: MESSAGES.tooManyInviteMails });
+	});
+
+	it('límite de avisos por destinatarie: la invitación se crea igual y la respuesta no cambia', async () => {
+		const b = await account('gestora-inventada');
+		const fake = fakeNotice();
+		const { limit } = INVITE_RATE_LIMITS.recipient;
+		for (let i = 0; i <= limit; i++) {
+			const owner = await account(`dueñe-${i}`);
+			const g = await create(owner.id, { kind: 'grupo', title: `Grupo ${i}` });
+			expect(
+				await inviteManager(t.db, owner.id, g.slug, b.email, { ...opts, notice: fake.notice })
+			).toEqual({ ok: true, message: MESSAGES.invited });
+		}
+		const results = await fake.settle();
+		expect(results.filter((r) => r === 'sent')).toHaveLength(limit);
+		expect(results.at(-1)).toBe('limited');
+		expect(await myInvites(t.db, b.id, opts)).toHaveLength(limit + 1);
+	});
+});
+
 describe('integrantes', () => {
-	it('la persona pide, el grupo acepta; solo se muestra si el grupo lo elige', async () => {
+	/**
+	 * Une gestora (no dueñe) del grupo `g` de `owner`.
+	 * @param {{ id: string, email: string }} owner
+	 * @param {{ slug: string }} g
+	 * @param {string} name
+	 */
+	async function manager(owner, g, name) {
+		const c = await account(name);
+		ok(await inviteManager(t.db, owner.id, g.slug, c.email, opts));
+		ok(await answerInvite(t.db, c.id, (await myInvites(t.db, c.id, opts))[0].id, true, opts));
+		return c;
+	}
+
+	it('quien gestiona suma directamente; la persona lo ve en Mi rincón; se muestra solo si el grupo lo elige', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
 		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
-		ok(
-			await requestMembership(t.db, b.id, p.slug, `https://kinkyvibe.ar/amigues/${g.slug}/`, opts)
-		);
+		const q = await create(b.id, { kind: 'persona', title: 'Persona Dos', visibility: 'members' });
+		ok(await addMember(t.db, a.id, g.slug, `https://kinkyvibe.ar/amigues/${p.slug}/`, opts));
+		// Une gestora que no es dueñe también suma.
+		const c = await manager(a, g, 'gestora-inventada');
+		ok(await addMember(t.db, c.id, g.slug, q.slug, opts));
+		// Sumar de nuevo no duplica nada.
+		ok(await addMember(t.db, a.id, g.slug, p.slug, opts));
+		expect(
+			await count('SELECT COUNT(*) AS n FROM edges WHERE kind = ?1 AND data IS NULL', [
+				'es_integrante_de'
+			])
+		).toBe(2);
+
 		expect(await listMemberships(t.db, b.id, p.slug)).toEqual([
-			{ id: g.id, title: 'Grupo Inventado', accepted: false }
+			{ id: g.id, title: 'Grupo Inventado' }
 		]);
+		expect(await listMyMemberships(t.db, b.id)).toEqual([
+			{
+				groupId: g.id,
+				groupTitle: 'Grupo Inventado',
+				personaSlug: q.slug,
+				personaTitle: 'Persona Dos'
+			},
+			{
+				groupId: g.id,
+				groupTitle: 'Grupo Inventado',
+				personaSlug: p.slug,
+				personaTitle: 'Persona Inventada'
+			}
+		]);
+		expect(await listMyMemberships(t.db, a.id)).toEqual([]);
 		expect(await listGroupMembers(t.db, a.id, g.slug)).toEqual([
-			{ id: p.id, title: 'Persona Inventada', accepted: false }
+			{ id: q.id, slug: q.slug, title: 'Persona Dos' },
+			{ id: p.id, slug: p.slug, title: 'Persona Inventada' }
 		]);
 		// Otra cuenta no ve los integrantes de un grupo que no gestiona.
 		expect(await listGroupMembers(t.db, b.id, g.slug)).toEqual([]);
 
+		// El grupo no eligió mostrarlos: no aparece nadie.
+		expect((await getPublicProfile(t.db, g.slug))?.members).toBeNull();
 		ok(await updateProfile(t.db, a.id, g.slug, { version: 1, title: g.title, show_members: true }));
-		// Pendiente: no aparece.
-		expect((await getPublicProfile(t.db, g.slug))?.members).toEqual([]);
-		ok(await answerMember(t.db, a.id, g.slug, p.id, 'accept', opts));
-		expect((await getPublicProfile(t.db, g.slug))?.members).toEqual([
+		expect((await getPublicProfile(t.db, g.slug, memberViewer(c.id)))?.members).toEqual([
+			{ slug: q.slug, title: 'Persona Dos' },
 			{ slug: p.slug, title: 'Persona Inventada' }
 		]);
-		// El grupo elige no mostrar: no aparece nadie.
-		const current = await getManagedProfile(t.db, a.id, g.slug);
-		ok(
-			await updateProfile(t.db, a.id, g.slug, {
-				version: /** @type {number} */ (current?.profile.version),
-				title: g.title,
-				show_members: false
-			})
-		);
-		expect((await getPublicProfile(t.db, g.slug))?.members).toBeNull();
-
-		ok(await leaveMembership(t.db, b.id, p.slug, g.id, opts));
-		expect(await listGroupMembers(t.db, a.id, g.slug)).toEqual([]);
 	});
 
-	it('un grupo oculto "no existe" para pedir; un perfil de grupo no pide; el grupo puede sacar', async () => {
+	it('quien no gestiona el grupo no puede sumar ni sacar; un perfil de persona no suma', async () => {
 		const a = await account('dueñe-inventade');
 		const b = await account('persona-inventada');
-		const hidden = await create(a.id, {
-			kind: 'grupo',
-			title: 'Grupo Oculto',
-			visibility: 'hidden'
-		});
-		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Visible' });
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
 		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
 		const other = await create(a.id, { kind: 'persona', title: 'Otra Persona' });
-		expect(await requestMembership(t.db, b.id, p.slug, hidden.slug, opts)).toMatchObject({
+		expect(await addMember(t.db, b.id, g.slug, p.slug, opts)).toEqual({
+			ok: false,
 			status: 404,
-			message: MESSAGES.groupNotFound
+			message: MESSAGES.notFound
 		});
-		expect(await requestMembership(t.db, b.id, p.slug, other.slug, opts)).toMatchObject({
-			message: MESSAGES.groupNotFound
+		expect(await addMember(t.db, a.id, other.slug, p.slug, opts)).toMatchObject({
+			status: 400,
+			message: MESSAGES.onlyGroups
 		});
-		expect(await requestMembership(t.db, a.id, g.slug, g.slug, opts)).toMatchObject({
-			message: MESSAGES.onlyPersonas
-		});
-		ok(await requestMembership(t.db, b.id, p.slug, g.slug, opts));
-		ok(await answerMember(t.db, a.id, g.slug, p.id, 'remove', opts));
 		expect(await listMemberships(t.db, b.id, p.slug)).toEqual([]);
-		// Quien no gestiona el grupo no puede aceptar ni sacar.
-		ok(await requestMembership(t.db, b.id, p.slug, g.slug, opts));
-		expect(await answerMember(t.db, b.id, g.slug, p.id, 'accept', opts)).toMatchObject({
-			status: 404
+		ok(await addMember(t.db, a.id, g.slug, p.slug, opts));
+		expect(await removeMember(t.db, b.id, g.slug, p.id, opts)).toMatchObject({ status: 404 });
+		expect(await listMemberships(t.db, b.id, p.slug)).toHaveLength(1);
+	});
+
+	it('no se puede sumar un perfil oculto (ni propio), uno de grupo, uno borrado o uno que no existe', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('persona-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const hidden = await create(b.id, {
+			kind: 'persona',
+			title: 'Persona Oculta',
+			visibility: 'hidden'
 		});
+		const ownHidden = await create(a.id, {
+			kind: 'persona',
+			title: 'Mía Oculta',
+			visibility: 'hidden'
+		});
+		const otherGroup = await create(b.id, { kind: 'grupo', title: 'Otro Grupo' });
+		const gone = await create(b.id, { kind: 'persona', title: 'Persona Borrada' });
+		ok(await deleteProfile(t.db, b.id, gone.slug, 1, opts));
+		const missing = await addMember(t.db, a.id, g.slug, 'no-existe', opts);
+		expect(missing).toEqual({
+			ok: false,
+			status: 404,
+			message: MESSAGES.personaNotFound,
+			errors: { persona: MESSAGES.personaNotFound }
+		});
+		for (const slug of [hidden.slug, ownHidden.slug, otherGroup.slug, gone.slug, g.slug, '']) {
+			// La misma respuesta que si no existiera: no revela nada.
+			expect(await addMember(t.db, a.id, g.slug, slug, opts)).toEqual(missing);
+		}
+		expect(await count('SELECT COUNT(*) AS n FROM edges')).toBe(0);
+	});
+
+	it('la persona se va cuando quiere (aunque el grupo sea oculto) y ese grupo no la vuelve a sumar por 30 días', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('persona-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const g2 = await create(a.id, { kind: 'grupo', title: 'Otro Grupo' });
+		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
+		ok(await addMember(t.db, a.id, g.slug, p.slug, opts));
+		ok(await addMember(t.db, a.id, g2.slug, p.slug, opts));
+		// El grupo pasa a oculto: igual se puede ir, sin pedirle nada a nadie.
+		ok(
+			await updateProfile(t.db, a.id, g.slug, { version: 1, title: g.title, visibility: 'hidden' })
+		);
+		ok(await leaveMembership(t.db, b.id, p.slug, g.id, opts));
+		expect(await listMemberships(t.db, b.id, p.slug)).toEqual([{ id: g2.id, title: 'Otro Grupo' }]);
+		expect(await listGroupMembers(t.db, a.id, g.slug)).toEqual([]);
+		// Irse de nuevo no rompe nada.
+		ok(await leaveMembership(t.db, b.id, p.slug, g.id, opts));
+
+		const blocked = await addMember(t.db, a.id, g.slug, p.slug, { now: NOW + 1000 });
+		expect(blocked).toMatchObject({ ok: false, status: 409, message: MESSAGES.recentlyLeft });
+		const almost = await addMember(t.db, a.id, g.slug, p.slug, {
+			now: NOW + LEAVE_BLOCK_MS - 1
+		});
+		expect(almost).toMatchObject({ message: MESSAGES.recentlyLeft });
+		// Lo que se guarda es mínimo: grupo, persona y hasta cuándo.
+		expect(await t.db.prepare('SELECT * FROM profile_member_blocks').all()).toMatchObject({
+			results: [{ group_id: g.id, persona_id: p.id, until: NOW + LEAVE_BLOCK_MS }]
+		});
+		ok(await addMember(t.db, a.id, g.slug, p.slug, { now: NOW + LEAVE_BLOCK_MS }));
+		expect(await listMemberships(t.db, b.id, p.slug)).toHaveLength(2);
+		// La fila vencida se borró al sumar.
+		expect(await count('SELECT COUNT(*) AS n FROM profile_member_blocks')).toBe(0);
+
+		// Si el grupo la saca (no se fue ella), la puede volver a sumar enseguida.
+		ok(await removeMember(t.db, a.id, g2.slug, p.id, opts));
+		ok(await addMember(t.db, a.id, g2.slug, p.slug, opts));
+	});
+
+	it('sumar e irse guardan sobre la versión de ahora: no fallan ni pisan lo que la persona editó', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('persona-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		const p = await create(b.id, { kind: 'persona', title: 'Persona Inventada' });
+		ok(await updateProfile(t.db, b.id, p.slug, { version: 1, title: 'Nombre Nuevo', bio: 'hola' }));
+		ok(await addMember(t.db, a.id, g.slug, p.slug, opts));
+		ok(await leaveMembership(t.db, b.id, p.slug, g.id, opts));
+		const now = await getManagedProfile(t.db, b.id, p.slug);
+		expect(now?.profile).toMatchObject({ title: 'Nombre Nuevo', data: { bio: 'hola' } });
+	});
+
+	it('los integrantes que se muestran respetan la visibilidad de cada perfil', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('persona-inventada');
+		const c = await account('otre-inventade');
+		const d = await account('mirone-inventade');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado', show_members: true });
+		const pub = await create(b.id, { kind: 'persona', title: 'Persona Pública' });
+		const mem = await create(c.id, {
+			kind: 'persona',
+			title: 'Persona Con Cuenta',
+			visibility: 'members'
+		});
+		ok(await addMember(t.db, a.id, g.slug, pub.slug, opts));
+		ok(await addMember(t.db, a.id, g.slug, mem.slug, opts));
+		expect((await getPublicProfile(t.db, g.slug, ANON))?.members).toEqual([
+			{ slug: pub.slug, title: 'Persona Pública' }
+		]);
+		expect(
+			(await getPublicProfile(t.db, g.slug, memberViewer(d.id)))?.members?.map((m) => m.slug)
+		).toEqual([mem.slug, pub.slug]);
+		// La persona pasa a oculta: deja de aparecer para todes (también para quien gestiona).
+		ok(
+			await updateProfile(t.db, b.id, pub.slug, {
+				version: 2,
+				title: pub.title,
+				visibility: 'hidden'
+			})
+		);
+		expect((await getPublicProfile(t.db, g.slug, ANON))?.members).toEqual([]);
+		expect((await getPublicProfile(t.db, g.slug, memberViewer(d.id)))?.members).toEqual([
+			{ slug: mem.slug, title: 'Persona Con Cuenta' }
+		]);
+		expect((await listGroupMembers(t.db, a.id, g.slug)).map((m) => m.slug)).toEqual([mem.slug]);
+		// Ella lo sigue viendo en su Mi rincón y se puede ir.
+		expect(await listMemberships(t.db, b.id, pub.slug)).toHaveLength(1);
+		ok(await leaveMembership(t.db, b.id, pub.slug, g.id, opts));
 	});
 });
 
@@ -504,10 +791,7 @@ describe('privacidad: nada vincula perfiles de una cuenta ni muestra quién gest
 		const g = await create(a.id, { kind: 'grupo', title: 'Zanahoria Grupo', show_members: true });
 		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
 		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
-		for (const p of [one, two]) {
-			ok(await requestMembership(t.db, a.id, p.slug, g.slug, opts));
-			ok(await answerMember(t.db, a.id, g.slug, p.id, 'accept', opts));
-		}
+		for (const p of [one, two]) ok(await addMember(t.db, b.id, g.slug, p.slug, opts));
 
 		const secrets = [a.id, b.id, a.email, b.email, 'cuenta:'];
 		/** @param {unknown} value */

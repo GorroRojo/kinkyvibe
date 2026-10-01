@@ -9,7 +9,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
 import {
-	answerMember,
+	addMember,
 	cancelInvite,
 	deleteProfile,
 	getManagedProfile,
@@ -20,11 +20,16 @@ import {
 	listManagers,
 	listMemberships,
 	removeManager,
-	requestMembership,
+	removeMember,
 	setManagerRole,
 	updateProfile
 } from '$lib/server/cuentas/perfiles.js';
-import { field, profileForm, requireMember } from '$lib/server/cuentas/perfilesWeb.js';
+import {
+	field,
+	inviteNotice,
+	profileForm,
+	requireMember
+} from '$lib/server/cuentas/perfilesWeb.js';
 
 /**
  * @param {import('@sveltejs/kit').RequestEvent} event
@@ -126,7 +131,11 @@ export const actions = {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
 		return guarded('invitar', async () => {
-			const result = await inviteManager(db, member.id, slug, field(form, 'email', 300));
+			// El aviso por mail (si ese mail tiene cuenta) sale después de responder: la respuesta
+			// es la misma en los dos casos. Ver inviteManager en perfiles.js.
+			const result = await inviteManager(db, member.id, slug, field(form, 'email', 300), {
+				notice: inviteNotice(event, db)
+			});
 			return reply('invitar', result, result.ok ? result.message : '');
 		});
 	},
@@ -201,18 +210,6 @@ export const actions = {
 		redirect(303, '/mi-rincon/perfiles');
 	},
 
-	sumarme: async (event) => {
-		const { db, member, slug } = await managed(event);
-		const form = await event.request.formData();
-		return guarded('grupos', async () =>
-			reply(
-				'grupos',
-				await requestMembership(db, member.id, slug, field(form, 'group', 300)),
-				'Listo: le pediste al grupo sumarte. Aparece como integrante cuando lo acepten.'
-			)
-		);
-	},
-
 	salirGrupo: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
@@ -225,21 +222,26 @@ export const actions = {
 		);
 	},
 
-	integrante: async (event) => {
+	sumarIntegrante: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
-		const accept = field(form, 'do', 10) === 'accept';
 		return guarded('integrantes', async () =>
 			reply(
 				'integrantes',
-				await answerMember(
-					db,
-					member.id,
-					slug,
-					field(form, 'persona', 20),
-					accept ? 'accept' : 'remove'
-				),
-				accept ? 'Listo: ya es integrante.' : 'Listo: ya no figura en el grupo.'
+				await addMember(db, member.id, slug, field(form, 'persona', 300)),
+				'Listo: ya es integrante. Le aparece en su Mi rincón y se puede ir cuando quiera.'
+			)
+		);
+	},
+
+	sacarIntegrante: async (event) => {
+		const { db, member, slug } = await managed(event);
+		const form = await event.request.formData();
+		return guarded('integrantes', async () =>
+			reply(
+				'integrantes',
+				await removeMember(db, member.id, slug, field(form, 'persona', 20)),
+				'Listo: ya no figura en el grupo.'
 			)
 		);
 	}
