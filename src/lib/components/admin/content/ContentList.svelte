@@ -21,6 +21,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import { filterContentRows, topTags } from '$lib/utils/contentPosts.js';
@@ -109,9 +110,11 @@
 {#if form?.error}<p class="msg bad" role="alert">{form.error}</p>{/if}
 {#if form?.visibility && !form.visibility.unchanged}
 	<p class="msg ok" role="status">
-		Listo: «{form.visibility.slug}» {form.visibility.unlisted
-			? 'ya no aparece en las listas'
-			: 'vuelve a aparecer en las listas'}. El sitio se actualiza en unos minutos.
+		«{form.visibility.slug}» {form.visibility.unlisted
+			? 'deja de aparecer en las listas'
+			: 'vuelve a aparecer en las listas'}.
+		{#if form.visibility.publish}<PublishStatus pr={form.visibility.publish} />{:else}El sitio se
+			actualiza en unos minutos.{/if}
 	</p>
 {/if}
 

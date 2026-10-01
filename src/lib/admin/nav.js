@@ -48,9 +48,12 @@ import {
 	ChartLine,
 	EyeOff,
 	FileSpreadsheet,
+	CircleUser,
+	HandCoins,
 	HandHeart,
 	Heart,
 	House,
+	IdCard,
 	KeyRound,
 	Landmark,
 	Mail,
@@ -59,6 +62,7 @@ import {
 	Tags,
 	Ticket,
 	TicketPercent,
+	ToggleRight,
 	Users
 } from '@lucide/svelte';
 
@@ -74,6 +78,7 @@ export const NAV_GROUPS = Object.freeze([
 	{ id: 'eventos', label: 'Eventos' },
 	{ id: 'entradas', label: 'Entradas' },
 	{ id: 'contenido', label: 'Contenido' },
+	{ id: 'cuentas', label: 'Cuentas' },
 	{ id: 'ajustes', label: 'Ajustes' }
 ]);
 
@@ -191,6 +196,16 @@ export const NAV = Object.freeze([
 		group: 'entradas',
 		soon: false
 	},
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		id: 'propinas',
+		href: '/admin/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
+		group: 'entradas',
+		soon: false
+	},
 
 	// Contenido
 	{
@@ -231,6 +246,27 @@ export const NAV = Object.freeze([
 		counter: 'unlisted'
 	},
 
+	// Cuentas del público y sus perfiles (docs/cuentas.md)
+	{
+		id: 'cuentas',
+		href: '/admin/cuentas',
+		icon: CircleUser,
+		emoji: '👤',
+		label: 'Cuentas',
+		group: 'cuentas',
+		soon: false
+	},
+	{
+		id: 'cuentas-perfiles',
+		href: '/admin/cuentas/perfiles',
+		icon: IdCard,
+		emoji: '🪪',
+		label: 'Perfiles',
+		group: 'cuentas',
+		soon: false,
+		counter: 'profilesToReview'
+	},
+
 	// Ajustes
 	{
 		id: 'ajustes-cobros',
@@ -265,6 +301,15 @@ export const NAV = Object.freeze([
 		icon: KeyRound,
 		emoji: '🔑',
 		label: 'Admins',
+		group: 'ajustes',
+		soon: false
+	},
+	{
+		id: 'ajustes-interruptores',
+		href: '/admin/ajustes/interruptores',
+		icon: ToggleRight,
+		emoji: '🎚️',
+		label: 'Interruptores',
 		group: 'ajustes',
 		soon: false
 	},

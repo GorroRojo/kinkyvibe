@@ -265,7 +265,14 @@ export const actions = {
 				message: `[admin] ${admin.name} importó ${n} ${
 					n === 1 ? 'borrador' : 'borradores'
 				} desde la planilla`,
-				mustNotExist: rows.flatMap((r) => [eventPath(r.slug), mediaPath(r.slug)])
+				mustNotExist: rows.flatMap((r) => [eventPath(r.slug), mediaPath(r.slug)]),
+				pr: {
+					action: 'importa',
+					title: `${n} ${n === 1 ? 'borrador' : 'borradores'} de eventos desde la planilla`,
+					who: admin.name,
+					kind: 'importar',
+					slug: n === 1 ? created[0].slug : `${n}-eventos`
+				}
 			});
 			await logAdminAction(getDB(platform), locals, {
 				action: 'event.import',
@@ -277,6 +284,7 @@ export const actions = {
 			return {
 				success: true,
 				commitUrl: commit.url,
+				publish: commit.pr ?? null,
 				created: created.map((c) => ({ ...c, url: `/calendario/${c.slug}` })),
 				files: files.map((f) => f.path),
 				mock: isMockMode()

@@ -95,6 +95,13 @@ export async function commitTagEdit(client, token, plan, who) {
 	return await client.commitFiles(token, {
 		files: plan.files.map((f) => ({ path: f.path, content: f.after })),
 		message: tagCommitMessage(who, plan.summary, plan.files.length),
-		unchanged: plan.files.flatMap((f) => (f.sha ? [{ path: f.path, sha: f.sha }] : []))
+		unchanged: plan.files.flatMap((f) => (f.sha ? [{ path: f.path, sha: f.sha }] : [])),
+		pr: {
+			action: 'cambia etiquetas:',
+			title: `${plan.summary[0] ?? 'cambios'}${plan.summary.length > 1 ? ` (+${plan.summary.length - 1})` : ''}`,
+			who,
+			kind: 'etiquetas',
+			slug: plan.summary[0] ?? 'cambios'
+		}
 	});
 }

@@ -5,7 +5,7 @@ import {
 	claimStreamLinkSend,
 	getStreamLink,
 	normalizeStreamLink,
-	sendStreamLinkToAll,
+	sendStreamLinkBatch,
 	setStreamLink,
 	streamLinkRecipients
 } from './stream.js';
@@ -87,26 +87,30 @@ describe('link de la transmisión', () => {
 			return true;
 		};
 		expect(await streamLinkRecipients(t.db, EVENT, LINK)).toHaveLength(2);
-		expect(await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
+		expect(await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
 			sent: 2,
-			failed: 0
+			failed: 0,
+			remaining: 0,
+			gaveUp: 0
 		});
 		expect(sentTo.sort()).toEqual(['p1@example.com', 'p2@example.com']);
 		// Segundo click: nadie.
 		expect(await streamLinkRecipients(t.db, EVENT, LINK)).toHaveLength(0);
-		expect(await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
+		expect(await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
 			sent: 0,
-			failed: 0
+			failed: 0,
+			remaining: 0,
+			gaveUp: 0
 		});
 		expect(sentTo).toHaveLength(2);
 		// Alguien compra después: solo esa persona.
 		await order(4);
-		await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send });
+		await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send });
 		expect(sentTo.slice(2)).toEqual(['p4@example.com']);
 		// Link nuevo: a todes otra vez.
 		const other = 'https://meet.example.com/nuevo';
 		expect(await streamLinkRecipients(t.db, EVENT, other)).toHaveLength(3);
-		expect((await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: other, send })).sent).toBe(3);
+		expect((await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: other, send })).sent).toBe(3);
 	});
 
 	it('si un envío falla, queda pendiente para el próximo intento', async () => {
@@ -114,14 +118,19 @@ describe('link de la transmisión', () => {
 		await order(2);
 		let fail = true;
 		const send = async (/** @type {any} */ o) => !(fail && o.buyer_email === 'p2@example.com');
-		expect(await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
+		expect(await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
 			sent: 1,
-			failed: 1
+			failed: 1,
+			// La que falló sigue en la cola (se reintenta).
+			remaining: 1,
+			gaveUp: 0
 		});
 		fail = false;
-		expect(await sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
+		expect(await sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send })).toEqual({
 			sent: 1,
-			failed: 0
+			failed: 0,
+			remaining: 0,
+			gaveUp: 0
 		});
 	});
 
@@ -141,8 +150,8 @@ describe('link de la transmisión', () => {
 			return true;
 		};
 		await Promise.all([
-			sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send }),
-			sendStreamLinkToAll(t.db, { eventSlug: EVENT, link: LINK, send })
+			sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send }),
+			sendStreamLinkBatch(t.db, { eventSlug: EVENT, link: LINK, send })
 		]);
 		expect(count).toBe(2);
 	});

@@ -17,6 +17,34 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
+ * Tarjeta del evento de prueba en Ventas (/admin/entradas): la que linkea a su pestaña Ventas.
+ * @param {import('@playwright/test').Page} page
+ */
+const salesCard = (page) =>
+	page.locator('.card', { has: page.locator(`a.name[href="/admin/eventos/${EVENT}/ventas"]`) });
+
+/**
+ * Abre Ventas donde está el evento de prueba: en «Próximos» o, si su fecha real ya pasó (el
+ * fixture solo le agrega la venta, no le cambia la fecha), en «Pasados».
+ * @param {import('@playwright/test').Page} page
+ */
+async function gotoSalesCard(page) {
+	await page.goto('/admin/entradas');
+	if ((await salesCard(page).count()) === 0) await page.goto('/admin/entradas?ver=pasados');
+	return salesCard(page);
+}
+
+/**
+ * Un número del resumen del Fondo de esa tarjeta ("Fondo usado", "Aportes al fondo", "Neto…").
+ * @param {import('@playwright/test').Locator} card
+ * @param {string} label
+ */
+const fondoValue = (card, label) =>
+	card
+		.locator('dl.fondo > div', { has: card.page().getByText(label, { exact: true }) })
+		.locator('dd');
+
+/**
  * Total que tiene que calcular el servidor (misma función que usa el sitio).
  *
  * @param {keyof typeof TYPES} type
@@ -143,14 +171,14 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	expect(gif.status()).toBe(200);
 	expect(gif.headers()['content-type']).toBe('image/gif');
 
-	await page.goto('/admin/entradas');
-	const card = page.locator('.event', { hasText: 'General' }).first();
+	const card = await gotoSalesCard(page);
 	await expect(card).toBeVisible();
+	await expect(card).toContainText('General');
 	await expect(card).toContainText('Fondo usado');
 	await expect(card).toContainText('Aportes al fondo');
 	await expect(card).toContainText('Neto del fondo');
 	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
-	await expect(card.locator('.fondo-net')).toHaveText(/^[−+]?\$\s[\d.]+$/);
+	await expect(fondoValue(card, 'Neto del fondo')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
 	// La pestaña Órdenes de la ficha muestra cada entrada y el DNI de quien compró.
 	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
@@ -621,11 +649,11 @@ test('el evento de prueba: botón en la página del evento → página de compra
 test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo" del admin', async ({
 	page
 }) => {
-	const card = page.locator(`a.event[href="/admin/eventos/${EVENT}/ventas"]`);
+	const card = salesCard(page);
 	/** @returns {Promise<number>} */
 	const contributions = async () => {
-		await page.goto('/admin/entradas');
-		const text = await card.locator('.fondo-contribution').innerText();
+		await gotoSalesCard(page);
+		const text = await fondoValue(card, 'Aportes al fondo').innerText();
 		return Number(text.replace(/[^0-9]/g, ''));
 	};
 	const before = await contributions();
@@ -654,10 +682,12 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	expect(await contributions()).toBe(before + 2000);
 	await expect(card).toContainText('Fondo usado');
 	// Neto del fondo = aportes − fondo usado, con signo y color.
-	const net = card.locator('.fondo-net');
-	const netText = await net.innerText();
+	const net = fondoValue(card, 'Neto del fondo');
+	const netText = (await net.innerText()).trim();
 	const netValue = Number(netText.replace(/[^0-9]/g, '')) * (netText.startsWith('−') ? -1 : 1);
-	await expect(net).toHaveClass(netValue < 0 ? /neg/ : netValue > 0 ? /pos/ : /fondo-net/);
+	if (netValue < 0) await expect(net).toHaveClass(/neg/);
+	else if (netValue > 0) await expect(net).toHaveClass(/pos/);
+	else await expect(net).not.toHaveClass(/pos|neg/);
 	await shots(page, '10-admin-fondo-neto-lista', card);
 	// Pestaña Ventas de la ficha: la tabla del Fondo, con el neto en el pie.
 	await page.goto(`/admin/eventos/${EVENT}/ventas`);
@@ -742,7 +772,12 @@ test('cron de recordatorios: solo con el secreto', async ({ request }) => {
 		headers: { 'x-cron-secret': 'e2e-cron-secret-0123456789' }
 	});
 	expect(ok.status()).toBe(200);
-	expect(await ok.json()).toMatchObject({ sent: expect.any(Number), failed: 0 });
+	// La cola de mails (recordatorios y links de transmisión, en tandas) informa cada parte.
+	expect(await ok.json()).toMatchObject({
+		limit: expect.any(Number),
+		reminders: { sent: expect.any(Number), failed: 0, remaining: expect.any(Number) },
+		streamLinks: { sent: expect.any(Number), failed: 0, remaining: expect.any(Number) }
+	});
 });
 
 test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente', async ({

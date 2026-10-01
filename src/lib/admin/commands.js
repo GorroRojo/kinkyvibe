@@ -61,6 +61,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	entradas: 'ventas entradas plata recaudado',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
+	propinas: 'propinas cafecito aportes donaciones',
 	personas: 'personas clientes compradores gente',
 	estadisticas: 'estadisticas graficos tendencias analytics',
 	'no-listadas': 'no listadas borradores ocultas',
@@ -68,6 +69,9 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'ajustes fondo porcentaje',
 	'ajustes-mails': 'ajustes de mails plantillas recordatorios remitente email',
 	'ajustes-admins': 'admins permisos',
+	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
+	cuentas: 'cuentas usuaries publico registradas',
+	'cuentas-perfiles': 'perfiles cuentas revisar grupos',
 	actividad: 'actividad registro auditoria historial quien cambio'
 });
 
@@ -82,6 +86,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	entradas: 'wallet',
 	'entradas-transferencias': 'transfer',
 	'entradas-codigos': 'tag',
+	propinas: 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
 	material: 'book',
@@ -92,6 +97,9 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-admins': 'key',
+	'ajustes-interruptores': 'settings',
+	cuentas: 'person',
+	'cuentas-perfiles': 'person',
 	actividad: 'history'
 });
 

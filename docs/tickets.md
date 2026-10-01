@@ -1,5 +1,7 @@
 # Venta de entradas (fase 1, prototipo)
 
+> Referencia completa. Para la versión corta (qué no se puede romper, cómo probar, tareas comunes) ver [entradas.md](entradas.md); los mails, en [mails.md](mails.md); la base, en [datos.md](datos.md).
+
 Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada, y al que se puede aportar pagando una entrada solidaria), un **recargo por la comisión de Mercado Pago** y entradas **"a la gorra"** (cada quien elige cuánto paga; en eventos online, con el link de la transmisión en lugar de QR). Les organizadores ven quién compró en `/admin/entradas`, confirman transferencias, cargan el alias para transferir y la comisión en **Ajustes de venta** y controlan el ingreso en la puerta escaneando el QR (o tipeando el código corto de la entrada) con el celu.
 
 > Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
@@ -11,7 +13,7 @@ Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.
 **Desde el panel (lo normal):** la sección **🎟️ Entradas** del editor de eventos, al crear o duplicar (`/admin/eventos/nuevo`) y al editar (pestaña **Editar** de la ficha del evento, `/admin/eventos/<slug>/editar`). Tiene:
 
 - el interruptor "Vender entradas por el sitio" (apagado = sin `tickets`, se usa el `link` del evento);
-- los tipos de entrada: nombre (el primero se propone como «General»), cupo **opcional** (vacío = sin límite) y **precio fijo** o **a la gorra** (mínimo y sugerido, con los botones rápidos que va a ver quien compra), para agregar, quitar y reordenar. El `id` de cada tipo sale del nombre al crearlo y **no cambia nunca** (las órdenes lo guardan), aunque se cambie el nombre;
+- los tipos de entrada: nombre (el primero se propone como «General»), cupo **opcional** (vacío = sin límite) y **precio fijo**, **preventas** (tramos de precio: ver [Preventas escalonadas y tipos encadenados](#preventas-escalonadas-y-tipos-encadenados)) o **a la gorra** (mínimo y sugerido, con los botones rápidos que va a ver quien compra), y **«Se habilita»** (desde que abre la venta, o cuando se agote o cierre otro tipo), para agregar, quitar y reordenar. El diseño es primero para el celu (una columna) y se acomoda según el ancho del editor (container queries): en la compu, nombre y «Cómo se cobra» arriba, y precio, cupo y cierre propio en una fila pareja; los tramos se editan en `TicketTiersEditor.svelte`, uno por fila en pantallas anchas. El `id` de cada tipo sale del nombre al crearlo y **no cambia nunca** (las órdenes lo guardan), aunque se cambie el nombre;
 - medios de pago, **horario de la venta** (apertura y cierre opcionales, con fecha y hora de Argentina; por defecto se puede comprar desde que se publica y hasta que empieza el evento) y el **cierre propio** opcional de cada tipo, modalidad (automática, presencial u online), **entradas en la puerta** (solo presenciales; ver abajo), recordatorios por mail y, en "Avanzado", la comisión de Mercado Pago del evento;
 - **nada del Fondo**: es automático. Un aviso dice si el evento lo usa, según la etiqueta KinkyVibe, y cambia en vivo al prender o apagar "Lo organiza KinkyVibe".
 
@@ -36,13 +38,25 @@ tickets:
     name: A la gorra
     a_la_gorra: { minimo: 0, sugerido: 5000 } # en lugar de `price` (ver "A la gorra")
     capacity: 100
+  - id: fiesta
+    name: Fiesta
+    capacity: 25 # opcional, como siempre
+    tiers: # en lugar de `price`: preventas (ver "Preventas escalonadas")
+      - { id: preventa-1, name: Preventa 1, price: 8000, quantity: 5 } # los primeros 5
+      - { id: preventa-2, name: Preventa 2, price: 9000, until: 2026-10-09T23:59-03:00 }
+      - { id: fiesta, name: General, price: 10000 } # sin cantidad ni fecha: el resto
+  - id: ultima-tanda
+    name: Última tanda
+    price: 12000
+    after: fiesta # se habilita cuando «fiesta» se agota o cierra
+    door_price: 14000 # opcional: precio en la puerta y en la carga a mano (si falta: el del último tramo o el fijo)
 tickets_open: 2026-10-01T12:00-03:00 # opcional; antes de eso: "Abre el jueves 1/10 a las 12:00"
 tickets_close: 2026-10-16T18:00-03:00 # opcional; si falta, la venta cierra cuando empieza el evento
 payment_methods: [mercadopago, transferencia] # opcional; por defecto solo mercadopago
 mp_fee_percent: 2 # opcional; si falta: Ajustes de venta, TICKETS_MP_FEE_PERCENT o 2 %
 modalidad: online # opcional: online | presencial (ver "Eventos online")
 puerta: true # opcional (presenciales): true = también en la puerta; false = "Solo anticipadas"; si falta, ver abajo
-puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: texto libre (un número solo se muestra como $)
+puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: nota de texto libre para la página (un número solo se muestra como $); lo que se cobra es el `door_price` de cada tipo
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
@@ -57,7 +71,7 @@ puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: texto lib
 - **Entradas en la puerta** (`puerta` / `puerta_precio`, eventos presenciales; en los online se ignora), tres estados (`parseDoor` en `config.js`, `doorText` en `src/lib/utils/tickets.js`, `doorSalesOpen` en `door.js`):
   - **sin `puerta`** (los eventos de antes): todo sigue como siempre: el modo puerta ofrece **Vender en puerta** y la página pública **no dice nada** sobre la puerta;
   - **`puerta: true`**: se vende en la puerta y la página del evento y la de compra dicen "También hay entradas en la puerta" (con `puerta_precio`, si está);
-  - **`puerta: false`**: la página dice "Solo anticipadas: no hay entradas en la puerta." y el modo puerta avisa "Este evento es solo anticipadas": une admin puede vender igual, confirmando en un diálogo (ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)); sin esa confirmación `sellAtDoor` devuelve `no-door`.
+  - **`puerta: false`**: la página dice "Solo anticipadas: no hay entradas en la puerta." y el modo puerta **no ofrece** "Vender en puerta": en su lugar muestra "Solo anticipadas" y un botón secundario "Vender igual (pasa un límite)" (paso aparte); une admin puede vender igual confirmando el aviso (ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)); sin esa confirmación `sellAtDoor` devuelve `no-door`.
   - En el editor es la casilla "Hay entradas en la puerta", **prendida por defecto** (eventos nuevos y los que no tenían la clave). Al guardar un evento presencial con venta, siempre se escribe `puerta: true | false` explícito, así los eventos que se editan desde ahora quedan con una elección.
 - Bajar el `capacity` por debajo de lo vendido no cancela nada: solo frena nuevas ventas.
 
@@ -95,20 +109,49 @@ puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: texto lib
 
 Decisión de gorrite: la producción de un evento es caótica y el sistema tiene que ser versátil. Une admin puede pasar **cualquier límite de venta** en tres lugares, siempre con aviso y confirmación explícita, y queda en el registro de actividad:
 
-| Dónde                                                             | Qué se puede pasar                                                                          |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **Vender en puerta** (modo puerta)                                | cupo del tipo, 10 por venta, evento cancelado, evento solo anticipadas (`puerta: false`)    |
-| **Confirmar una transferencia** que llegó tarde (reserva vencida) | cupo del tipo (los lugares ya se ocuparon)                                                  |
-| **Cargar entradas a mano**                                        | cupo del tipo, 20 por compra, venta cerrada (horario, cierre del tipo, agotadas, cancelado) |
+| Dónde                                                             | Qué se puede pasar                                                                                                                      |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vender en puerta** (modo puerta)                                | cupo del tipo, 10 por venta, evento cancelado, evento solo anticipadas (`puerta: false`)                                                |
+| **Confirmar una transferencia** que llegó tarde (reserva vencida) | cupo del tipo (los lugares ya se ocuparon)                                                                                              |
+| **Cargar entradas a mano**                                        | cupo del tipo, 20 por compra, venta cerrada (horario, cierre del tipo, agotadas, cancelado), tipo encadenado que todavía no se habilitó |
+| **Confirmar una transferencia** de un tramo de preventa           | cantidad del tramo (si se llenó mientras la reserva estaba vencida; el precio ya quedó fijo)                                            |
+
+Los topes por email y por conexión de la compra pública (`HOLD_LIMITS`, límites por cliente) no existen en estas acciones del panel: no hay nada que pasar.
 
 Cómo funciona (`src/lib/server/tickets/overrides.js`):
 
 1. El servidor calcula qué límites se pasarían (`doorSaleLimits`, `transferLimits`, `manualOrderLimits`).
 2. Si se pasa alguno y el pedido no trae la confirmación, la acción contesta **409 con `needsConfirmation`**: la lista de límites con un mensaje ("El cupo de «General» ya está completo (50 / 50): quedarían 52 / 50, 2 entradas de más.") y una **clave** que describe exactamente esos límites.
-3. La página muestra un **diálogo en la página** (`OverrideDialog`, nunca `window.confirm`) y, si le admin confirma, reenvía el formulario con `override=<clave>`. Si algo cambió entre el diálogo y la confirmación (otra venta), la clave ya no coincide y vuelve a preguntar.
+3. La página muestra un **aviso en la página** (`OverrideDialog`, nunca `window.confirm`) con la lista de límites; el botón que confirma queda deshabilitado hasta tildar **"Entiendo que esto pasa el límite y lo hago igual"** (segundo paso explícito). Si le admin confirma, reenvía el formulario con `override=<clave>`. Si algo cambió entre el diálogo y la confirmación (otra venta), la clave ya no coincide y vuelve a preguntar.
 4. Con la clave correcta, la función pasa `override: true` y la sentencia no controla el cupo. Se anota la acción de siempre (con `overrides` en el detalle) y una fila aparte `tickets.override`: "Pasó límites de entradas (venta en la puerta): cupo de «General» +2 (52 / 50)".
 
 La **compra pública no cambia**: `override` solo lo leen acciones del panel después de `requireAdmin`; `reserveOrder` no tiene override, y mandar `override` en `?/buy` no hace nada (hay tests). Con más vendidas que cupo, el panel muestra "52 / 50" con una marca (`CapacityBar`) y "quedan" nunca es negativo.
+
+### Preventas escalonadas y tipos encadenados
+
+Decisión de gorrite (B6): las dos cosas. Lógica pura en `src/lib/utils/ticketTiers.js` (servidor y navegador), lectura del frontmatter en `config.js` (`parseTiers`, `withTier`, `typeAvailability`), reserva en `orders.js`.
+
+**Tramos dentro de un tipo** (`tiers`, en lugar de `price`): una lista ordenada de 1 a 10 tramos `{ id, name, price, quantity?, until? }`.
+
+- **El tramo vigente es el primero que todavía no llegó a su cantidad ni a su fecha.** Por cantidad ("los primeros 5 a $ 8.000"), por fecha ("hasta el 9/10 a $ 8.000") o las dos (lo que llegue primero). Un tramo sin cantidad ni fecha es "el resto" y tiene que ir último (si no, el editor y `parseTicketConfig` lo rechazan: los que siguen nunca se venderían). Si no queda ningún tramo vigente, el tipo está agotado.
+- Cuentan las entradas **aprobadas y las reservas vigentes de ese tramo**, igual que el cupo. Si una reserva vence, su lugar vuelve a su tramo (puede volver a verse "Preventa 1" un rato).
+- El `capacity` del tipo sigue siendo el cupo total (opcional). Lo que se puede comprar es el menor entre lo que queda del cupo y lo que queda del tramo.
+- `id` de cada tramo: como el de los tipos, sale del nombre al crearlo en el editor y **no cambia nunca** (las órdenes lo guardan en `orders.ticket_tier`, migración `0016_preventas.sql`). Con ventas, el editor no deja borrar un tramo vendido ni bajarle la cantidad por debajo de lo vendido o reservado; cambiar precios solo afecta compras nuevas.
+- **Precio "pleno"**: en un tipo con tramos, `price` es el del **último** tramo. Lo usan las pantallas del panel. La venta en la puerta y la carga a mano **no gastan lugares de las preventas** (`ticket_tier` NULL), aunque sí cuentan para el cupo. _Confirmado por gorrite._
+- **Precio en la puerta y en la carga a mano, por tipo** (decisión de gorrite: un evento puede tener varios precios en la puerta): cada tipo puede tener `door_price` (opcional, entero desde 0, mismo tope que `price`; a la gorra no). Se cobra `door_price` si está; si no, el del último tramo; en un tipo sin tramos, su precio fijo. Los eventos sin `door_price` siguen igual. Una sola función pura, `doorPrice(type)` en `ticketTiers.js`, que usan la venta en la puerta (`sellAtDoor` y la pantalla del modo puerta, que muestra el precio de cada tipo), el monto sugerido de la carga a mano y el editor («Precio en puerta» en cada tipo, con lo que se va a cobrar). El Fondo se calcula sobre el precio que se cobra (`parseDoorPrice` en `config.js`). El `puerta_precio` del evento es **solo una nota** para la página: no cambia lo que se cobra.
+- **El Fondo** se calcula sobre el precio de cada tramo (`round(precio × % / 100)`), y los códigos de descuento y el recargo de MP van sobre ese subtotal, como siempre. A la gorra no puede tener tramos.
+
+**Precio en el servidor, sin carreras:**
+
+1. `?/buy` toma un solo "ahora" y lee lo tomado por tipo y por tramo (`getTaken`); elige el tramo vigente (`typeAvailability`) y arma el tipo "efectivo" (`withTier`: precio y fondo del tramo).
+2. El formulario manda el id del tramo que vio la persona (`tier`, campo oculto) **solo para avisar**: si no coincide con el vigente, no se reserva y se contesta "El precio cambió: «General» ahora está en «Preventa 2» ($ 9.000). Revisá y confirmá de nuevo." Nunca se cobra otro precio sin que la persona lo vea. Un `tier` inventado o el de un tramo más barato no sirve de nada (el precio lo elige el servidor).
+3. **Una compra entra entera en un tramo** (un solo precio por orden, que es lo que guardan `unit_price` y sus `CHECK`): si pide más de lo que queda a ese precio, contesta "En «Preventa 1» quedan 2 entradas a este precio: comprá esas ahora y, si querés más, hacé otra compra." La página ya limita la cantidad a lo que queda en el tramo. _Confirmado por gorrite_ (la alternativa, partir una compra en dos precios, cambia el esquema de órdenes).
+4. `reserveOrder` controla **en la misma sentencia** `INSERT … SELECT … WHERE` el cupo del tipo y la cantidad del tramo (aprobadas + reservas vigentes con ese `ticket_tier`), así que dos compras simultáneas no pueden pasarse de un tramo. La fecha del tramo se mira con el mismo "ahora". Si el tramo se llenó en el medio devuelve `reason: 'tier'` y `?/buy` vuelve a elegir y avisa del precio nuevo.
+5. Un pago de Mercado Pago que llega tarde se acepta como siempre (con el precio de su orden); solo se marca para revisar si pasa el cupo del tipo, no por el tramo. Una **transferencia vencida** cuyo tramo se llenó mientras tanto pide pasar ese límite al confirmarla (ver arriba).
+
+**Lo que ve quien compra** (sin complicarse): el nombre del tipo, una etiqueta con el tramo vigente ("Preventa 2"), su precio y, si quedan menos de 10 en el tramo, "¡Últimas 3! a este precio"; si el tramo es por fecha y hay muchas, "Preventa 1 hasta el viernes 9/10 a las 23:59". No se muestran los tramos que vienen.
+
+**Tipos encadenados** (`after: <id de otro tipo>`): el tipo se puede comprar recién cuando el otro está **agotado** (sin cupo o sin tramos vigentes) o **cerrado** (por horario). Mientras tanto la página lo muestra deshabilitado con "Se habilita cuando se agote «General»" y `?/buy` lo rechaza. No puede apuntarse a sí mismo ni formar círculos (lo rechazan el editor y `parseTicketConfig`); el editor avisa si el tipo del que depende no tiene cupo, ni último tramo con cantidad, ni cierre propio (puede no habilitarse nunca). La habilitación se decide al comprar con lo vendido y reservado de ese momento: si entre la lectura y la reserva vence una reserva del tipo anterior, lo peor que pasa es que alguien compre el encadenado al precio que vio (no hay sobreventa: el cupo de cada tipo sigue en la sentencia). La carga a mano de un encadenado que no se habilitó pide pasar ese límite (`not_active`).
 
 Estados de una orden: `pending` / `awaiting_transfer` → `approved` / `rejected` / `cancelled` / `expired`, y `approved` → `refunded`. Un pago aprobado gana siempre (aunque la reserva haya vencido: la plata entró; queda un aviso en el log por posible sobreventa), un rechazo o "pendiente" tardío nunca pisa una aprobación, y una orden aprobada solo pasa a `refunded` por el mismo pago que la aprobó. Un reembolso anula las entradas en el control de ingreso.
 
@@ -164,7 +207,7 @@ Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tien
 
 - Las entradas llevan **el link de la transmisión en lugar de un QR**, y no hay control de ingreso.
 - El link **no va en el repo** (es público): une admin lo carga en la ficha del evento (`/admin/eventos/<slug>`, pestaña Resumen) → **Link de la transmisión** (se guarda en D1, `event_ticket_settings`; tiene que ser `https://`).
-- Si el link ya está al aprobarse una compra, va en el mail de las entradas. Si se carga o cambia después, el botón **Enviar el link a todes (N personas)** lo manda por mail a cada compra aprobada que todavía no recibió **ese** link. Es idempotente por valor del link (`stream_link_sends`: orden + SHA-256 del link, reservado antes de mandar, así dos clicks o dos admins no duplican; si un envío falla se libera para reintentar). Si el link cambia, se puede mandar el nuevo a todes.
+- Si el link ya está al aprobarse una compra, va en el mail de las entradas. Si se carga o cambia después, el botón **Enviar el link a todes (N personas)** lo manda por mail a cada compra aprobada que todavía no recibió **ese** link. Es idempotente por valor del link (`stream_link_sends`: orden + SHA-256 del link, reservado antes de mandar, así dos clicks o dos admins no duplican). Si el link cambia, se puede mandar el nuevo a todes. Manda **en tandas** (ver "Envíos en tandas" abajo): el botón manda la primera y deja el envío pedido (`event_ticket_settings.stream_send_hash`); el resto lo manda el cron en las próximas vueltas (o otro toque del botón). El botón también reintenta a quienes habían fallado todos sus intentos.
 - La página de la entrada muestra el link cuando existe (solo si la compra está aprobada).
 
 ### El Fondo KinkyVibe
@@ -210,9 +253,10 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 
 ### Mails y recordatorios
 
-- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en Ajustes de venta; si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
+- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Ajustes → Mails y plantillas** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
 - **Recordatorios** (`src/lib/server/tickets/reminders.js`): lista configurable en Ajustes de venta (activado + cuándo: "N horas antes" del inicio, o "N días antes a las HH:MM" en hora de Argentina, UTC−3 fijo). Por defecto: **2 días antes** (48 h) y **el mismo día a las 9:00**. Un evento no los manda con `recordatorios: false` en el frontmatter. El mail lleva cuándo y dónde, el link y el código de cada entrada o, en eventos online, el link de la transmisión si ya está.
-- **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar y se libera si falla. Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
+- **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar (ver "Envíos en tandas"). Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
+- **Envíos en tandas** (`src/lib/server/tickets/sendState.js`, `mailQueue.js`, migración `0011_send_batches.sql`): cada corrida del cron manda como mucho **"Mails por tanda"** (Ajustes → Mails; de 5 a 200, vacío = 40): primero los recordatorios que tocan (del evento más cercano al más lejano) y, con lo que sobre, lo que quede de cada "Enviar el link a todes". Lo demás sigue en la próxima corrida, así un evento grande no se corta por los límites de un pedido del Worker. Cada fila de `reminder_sends` / `stream_link_sends` tiene un estado: `sending` (reservada; si queda así más de 10 minutos, el Worker se cortó y se retoma), `sent`, `retry` (falló: se reintenta en la próxima corrida) o `failed` (falló 3 veces: no se reintenta solo). Dos corridas a la vez no duplican nada (la reserva es atómica) y cada mail lleva además una clave de idempotencia de Resend. Los `failed` aparecen en **Para revisar** del Inicio: los recordatorios con **Reintentar** (vuelven a la cola), el link con un acceso al evento (el botón los reintenta).
 
 ### Ajustes de venta
 
@@ -222,7 +266,7 @@ Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y acti
   - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
   - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
 - **Fondo** (`/admin/ajustes/fondo`): el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
-- **Mails** (`/admin/ajustes/mails`): remitente, dirección de respuesta y los **recordatorios** (ver arriba).
+- **Mails y plantillas** (`/admin/ajustes/mails`): remitente, dirección de respuesta, los **recordatorios**, **Mails por tanda** (ver arriba) y, en `/admin/ajustes/mails/plantillas`, el texto de cada mail (tabla `email_templates`; ver [mails.md](mails.md)).
 
 Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
@@ -254,11 +298,12 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 | Qué                                              | Dónde                                                                                              |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Tablas de entradas (y resguardos)                | `migrations/0002_tickets.sql`, `0003_ticket_safeguards.sql`                                        |
+| Tablas de entradas (y resguardos)                | `migrations/0002_tickets.sql`, `0003_ticket_safeguards.sql`, `0016_preventas.sql` (tramo)          |
 | Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/ajustes/*`                                            |
 | Link de la transmisión (online)                  | `src/lib/server/tickets/stream.js`                                                                 |
 | Control de ingreso: código y sugerencias         | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
 | Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                                                         |
+| Preventas (tramos) y tipos encadenados           | `src/lib/utils/ticketTiers.js`, `config.js` (`parseTiers`, `withTier`), `TicketTiersEditor.svelte` |
 | Códigos de descuento                             | `src/lib/server/tickets/discounts.js`, `admin/entradas/codigos`                                    |
 | Configuración desde el frontmatter y validación  | `src/lib/server/tickets/config.js`, `events.js`                                                    |
 | Editor de eventos: sección Entradas              | `src/lib/utils/ticketsEditor.js`, `admin/TicketsEditor.svelte`, `src/lib/server/tickets/editor.js` |
@@ -307,7 +352,7 @@ Solo en desarrollo (`vite dev`; en el build de producción este código no exist
 ## Probar en local (sin cuentas de nada)
 
 ```sh
-npm install
+npm ci
 npm run dev:tickets
 ```
 
@@ -350,15 +395,15 @@ Para mirar la base local: `npx wrangler d1 execute kinkyvibe --local --command "
 
 ## Producción: base de datos
 
-Requiere tener D1 activado (ver la sección "Base de datos" del README). Antes de deployar este código, correr **una vez**:
+Ver [datos.md](datos.md). Antes de deployar código que trae una migración nueva, correr:
 
 ```sh
 npm run db:migrate:remote        # = npx wrangler d1 migrations apply kinkyvibe --remote
 ```
 
-Aplica las migraciones que falten: `0001_rate_limits.sql` (de la base), `0002_tickets.sql` (todas las tablas de entradas en un solo archivo) y `0003_ticket_safeguards.sql` (columnas para los límites por cliente y las órdenes para revisar). Se puede correr cuantas veces se quiera. De acá en adelante, cada cambio de esquema va en una migración nueva.
+Aplica solo las migraciones que falten (se puede correr cuantas veces se quiera). En producción ya están aplicadas de `0001` a `0010` (30/9/2026). Cada cambio de esquema va en una migración nueva.
 
-(y lo mismo contra la base de preview si se usa otra). Consultas útiles:
+(y lo mismo contra la base de preview, `kinkyvibe-preview`). Consultas útiles (solo lectura; los datos de producción son de personas reales, no se copian a issues ni PRs):
 
 ```sh
 npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status, COUNT(*) FROM orders GROUP BY 1, 2"
@@ -368,8 +413,8 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 
 - **Precio:** solo desde el frontmatter en el servidor; el webhook además compara el monto y la moneda del pago con el total guardado en la orden.
 - **Webhook:** firma HMAC-SHA256 con comparación de tiempo constante y `ts` de hasta 15 minutos; aun con firma válida, el estado se toma de la API de MP con nuestro token, nunca del body. Las notificaciones IPN viejas (`?topic=…`, sin firma) se ignoran.
-- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/entradas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
-- **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
+- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Los tramos de preventa se controlan en la misma sentencia (tests de carrera con filas precargadas en `tiers.test.js`). Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/entradas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
+- **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda; una IPv6 cuenta por su red /64), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
 - **Eventos de prueba:** los `prueba-entradas-*` del repo solo venden en `vite dev` (`isTestEventSlug` en `events.js`); en el sitio publicado no tienen venta.
 - **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`.
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
@@ -438,8 +483,7 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 **Operación:**
 
 - **Transferencias:** alguien tiene que revisar la cuenta y confirmar a mano (no hay verificación automática). Una reserva por transferencia bloquea cupo 48 h: con muchos mails distintos alguien podría bloquear el cupo; si pasa, cancelar desde el admin y bajar `TICKETS_TRANSFER_HOLD_HOURS`.
-- **Borrar el evento de prueba** (`prueba-entradas-2026-12.md`) antes de vender de verdad.
-
+- **Borrar los eventos de prueba** (`prueba-entradas-2026-12.md` y `prueba-entradas-gorra-2026-12.md`) antes de vender de verdad.
 - Una persona "dueña" de las credenciales y de revisar los logs (Cloudflare → Workers & Pages → Logs) durante las ventas.
 - Probar el escaneo en la puerta con los celulares reales (Android/Chrome anda con la página; en iPhone, con la cámara del sistema) y con poca señal.
 

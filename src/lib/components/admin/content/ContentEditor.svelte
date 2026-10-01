@@ -8,6 +8,7 @@
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
 	import { onDestroy } from 'svelte';
+	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 	import { browser } from '$app/environment';
 	import { deserialize, enhance } from '$app/forms';
 	import { page } from '$app/stores';
@@ -25,6 +26,7 @@
 	} from '@lucide/svelte';
 	import '$lib/components/admin/admin.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
 	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
@@ -261,9 +263,22 @@
 	let saving = false;
 	/** Guardó bien y el servidor redirige a la publicación creada. */
 	let redirecting = false;
-	/** @type {null | {at: number, commit: string, imagePath: string | null}} */
+	/** @type {null | {at: number, commit: string, imagePath: string | null, publish: any}} */
 	let saved = null;
 	const justCreated = $page.url.searchParams.get('guardado');
+	/** El PR con el que se publica lo recién creado (viene en la dirección tras redirigir). */
+	const createdPr = (() => {
+		const n = Number($page.url.searchParams.get('pr'));
+		const state = $page.url.searchParams.get('estado');
+		if (!Number.isInteger(n) || n <= 0) return null;
+		return {
+			number: n,
+			url: `https://github.com/GorroRojo/kinkyvibe/pull/${n}`,
+			state: /** @type {'auto'|'merged'|'open'} */ (
+				state === 'merged' || state === 'open' ? state : 'auto'
+			)
+		};
+	})();
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submit({ cancel }) {
@@ -286,7 +301,7 @@
 			saving = false;
 			if (result.type === 'success' && result.data?.saved) {
 				const s = result.data.saved;
-				saved = { at: s.at, commit: s.commit, imagePath: s.imagePath };
+				saved = { at: s.at, commit: s.commit, imagePath: s.imagePath, publish: s.publish };
 				baseRaw = s.content;
 				sha = s.sha;
 				try {
@@ -370,8 +385,12 @@
 	{#if justCreated && !saved}
 		<p class="banner ok" role="status">
 			<CircleCheck size={18} aria-hidden="true" />
-			{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}. Se ve en el sitio (y en
-			la lista) cuando termina el deploy, en unos minutos. Podés seguir editándola acá.
+			<span>
+				{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}.
+				{#if createdPr}<PublishStatus pr={createdPr} />{:else}Se ve en el sitio (y en la lista)
+					cuando termina el deploy, en unos minutos.{/if}
+				Podés seguir editándola acá.
+			</span>
 		</p>
 	{/if}
 
@@ -635,9 +654,12 @@
 		</p>{/if}
 	{#if saved}
 		<p class="banner ok" role="status">
-			<CircleCheck size={18} aria-hidden="true" /> Guardado {new Date(saved.at).toLocaleTimeString(
-				'es-AR'
-			)}. El sitio se actualiza en unos minutos.
+			<CircleCheck size={18} aria-hidden="true" />
+			<span>
+				{new Date(saved.at).toLocaleTimeString('es-AR')} ·
+				{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}Guardado. El sitio se
+					actualiza en unos minutos.{/if}
+			</span>
 		</p>
 	{/if}
 
@@ -658,6 +680,7 @@
 		<input type="hidden" name="mode" value={mode} />
 		<input type="hidden" name="slug" value={slug} />
 		<input type="hidden" name="sha" value={sha} />
+		<input type="hidden" name="eol" value={lineEndingOf(baseRaw)} />
 		<input type="hidden" name="desde" value={data.source?.slug ?? ''} />
 		<small class="later"
 			>Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.</small

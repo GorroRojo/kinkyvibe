@@ -9,12 +9,19 @@
  */
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
+import { formatARS } from '$lib/utils/money.js';
 import {
 	describeReminder,
 	dueReminderOrders,
+	failedReminderCounts,
 	reminderDueAt,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
+import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
+import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
+import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
+import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { fondoTipTotals } from '$lib/server/propinas/index.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -282,47 +289,108 @@ export function failedReminders(db, { events, reminders, now }) {
 }
 
 /**
+ * Envíos masivos que se rindieron (fallaron todos sus intentos; ver tickets/sendState.js), por
+ * evento: recordatorios y link de la transmisión (el actual). No se reintentan solos.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string[]} slugs
+ * @returns {Promise<{ reminders: Map<string, number>, streamLinks: Map<string, number> }>}
+ */
+export function stuckSends(db, slugs) {
+	return safe(
+		db,
+		'envíos fallidos',
+		{ reminders: new Map(), streamLinks: new Map() },
+		async (db) => ({
+			reminders: await failedReminderCounts(db, slugs),
+			streamLinks: await failedStreamLinkCounts(db, slugs)
+		})
+	);
+}
+
+/**
+ * La última corrida del chequeo nocturno de integridad de los objetos (null si no hubo ninguna
+ * o si la base todavía no tiene la migración 0012).
+ *
+ * @param {D1Database | null | undefined} db
+ * @returns {Promise<import('$lib/server/objects/integrity.js').IntegrityRun | null>}
+ */
+export function integrityRun(db) {
+	return safe(db, 'chequeo nocturno', null, lastIntegrityRun);
+}
+
+/**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo en entradas
- * (aportes − lo que cubrió).
+ * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
+ * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
- * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number } | null>}
+ * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number } | null>}
  */
 export function monthMoney(db, now) {
 	return safe(db, 'plata del mes', null, async (db) => {
 		const { start, end } = arMonthWindow(now);
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
+		const [row, tips] = await Promise.all([
+			db
+				.prepare(
+					`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				)
+				.bind(start, end)
+				.first(),
+			// Sin las migraciones de propinas la consulta falla: 0, sin romper el resto.
+			safe(db, 'propinas al fondo del mes', { count: 0, total: 0 }, (db) =>
+				fondoTipTotals(db, { from: start, to: end })
 			)
-			.bind(start, end)
-			.first();
+		]);
 		return {
 			start,
 			total: Number(row?.total ?? 0),
 			orders: Number(row?.orders ?? 0),
 			tickets: Number(row?.tickets ?? 0),
-			fondoNet: Number(row?.fondo_net ?? 0)
+			fondoNet: Number(row?.fondo_net ?? 0) + tips.total,
+			fondoTips: tips.total
 		};
 	});
 }
 
 /**
+ * `kind: 'account'`: una cuenta o un perfil nuevos (no lo hizo une admin; ver accountEvents.js).
+ * `kind: 'tip'`: una propina aprobada (docs/propinas.md).
+ * `href`: a dónde lleva el ítem, si no sale de `slug`/`orderId` (cuentas y perfiles).
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account' | 'tip',
  *   title: string,
  *   who: string,
  *   detail: string,
  *   slug: string | null,
- *   orderId: string | null
+ *   orderId: string | null,
+ *   href?: string | null
  * }} ActivityItem
  */
+
+/** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
+const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
+	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
+	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón'
+});
+
+/**
+ * A dónde lleva una entrada del registro que apunta a una cuenta o a un perfil.
+ * @param {unknown} type
+ * @param {unknown} id
+ */
+function auditTargetHref(type, id) {
+	if (!id) return null;
+	if (type === 'account') return accountHref(String(id));
+	if (type === 'profile') return profileHref(String(id));
+	return null;
+}
 
 const ORDER_KIND = /** @type {const} */ ({
 	approved: 'order',
@@ -341,7 +409,7 @@ const ORDER_KIND = /** @type {const} */ ({
  * @returns {Promise<ActivityItem[]>}
  */
 export async function recentActivity(db, { limit = 12, since = 0, titles = new Map() } = {}) {
-	const [orders, audit, checkins] = await Promise.all([
+	const [orders, audit, checkins, tips] = await Promise.all([
 		safe(db, 'actividad: órdenes', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
 			const { results } = await db
 				.prepare(
@@ -374,6 +442,17 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 				.bind(since, limit, CHECKIN_BUCKET_MS)
 				.all();
 			return results;
+		}),
+		// Sin la migración 0019 (propinas) la consulta falla y `safe` devuelve [].
+		safe(db, 'actividad: propinas', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
+			const { results } = await db
+				.prepare(
+					`SELECT id, amount, post_category, post_slug, approved_at FROM tips
+					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`
+				)
+				.bind(since, limit)
+				.all();
+			return results;
 		})
 	]);
 	/** @type {ActivityItem[]} */
@@ -402,14 +481,16 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 		});
 	}
 	for (const a of audit) {
+		const accountEvent = ACCOUNT_EVENT_WHO[String(a.action)];
 		items.push({
 			at: Number(a.at),
-			kind: 'audit',
+			kind: accountEvent ? 'account' : 'audit',
 			title: String(a.summary),
-			who: String(a.actor_login),
-			detail: String(a.action),
+			who: accountEvent ?? String(a.actor_login),
+			detail: accountEvent ? '' : String(a.action),
 			slug: a.target_type === 'event' && a.target_id ? String(a.target_id) : null,
-			orderId: null
+			orderId: null,
+			href: auditTargetHref(a.target_type, a.target_id)
 		});
 	}
 	for (const c of checkins) {
@@ -430,13 +511,26 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 			orderId: null
 		});
 	}
+	for (const t of tips) {
+		items.push({
+			at: Number(t.approved_at),
+			kind: 'tip',
+			title: `Propina de ${formatARS(Number(t.amount))}`,
+			who: String(t.post_slug),
+			detail: String(t.post_category),
+			slug: null,
+			orderId: null,
+			href: '/admin/propinas'
+		});
+	}
 	items.sort((a, b) => b.at - a.at);
 	return items.slice(0, limit);
 }
 
 /**
  * Resumen de "desde tu última visita": cuántas compras, transferencias nuevas y acciones de
- * otres admins hubo desde `since`, más la lista de movimientos.
+ * otres admins hubo desde `since`, más la lista de movimientos. Las cuentas y los perfiles nuevos
+ * van en la lista pero no cuentan como acciones de admins.
  *
  * @param {D1Database | null | undefined} db
  * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
@@ -449,9 +543,9 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
 					(SELECT COUNT(*) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS orders,
 					(SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS money,
 					(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND created_at > ?1) AS transfers,
-					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2) AS audit`
+					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit`
 			)
-			.bind(since, login)
+			.bind(since, login, ACCOUNT_EVENT_ACTOR)
 			.first();
 		return {
 			orders: Number(row?.orders ?? 0),
@@ -490,6 +584,8 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review: number,
  *   missingStream: boolean,
  *   failedReminders: number,
+ *   stuckReminders: number,
+ *   stuckStreamLinks: number,
  *   checkedIn: number,
  *   issued: number
  * }} UpcomingEvent
@@ -509,6 +605,7 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review?: { slug: string }[],
  *   streamLinks?: Set<string>,
  *   reminders?: Map<string, number>,
+ *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
  *   now: number,
  *   skip?: (slug: string) => boolean
  * }} input
@@ -523,6 +620,7 @@ export function upcomingEvents({
 	review = [],
 	streamLinks = new Set(),
 	reminders = new Map(),
+	stuck = { reminders: new Map(), streamLinks: new Map() },
 	now,
 	skip = () => false
 }) {
@@ -587,6 +685,8 @@ export function upcomingEvents({
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
 			failedReminders: reminders.get(e.slug) ?? 0,
+			stuckReminders: stuck.reminders.get(e.slug) ?? 0,
+			stuckStreamLinks: stuck.streamLinks.get(e.slug) ?? 0,
 			checkedIn: ci?.checkedIn ?? 0,
 			issued: ci?.tickets ?? 0
 		});
@@ -604,9 +704,42 @@ export function upcomingEvents({
  *   text: string,
  *   action: string,
  *   href?: string,
- *   resend?: { orderId: string }
+ *   resend?: { orderId: string },
+ *   group?: ReviewGroupKind,
+ *   name?: string,
+ *   retryReminders?: { slug: string }
  * }} ReviewItem
  */
+
+/**
+ * Tipos de ítem de "Para revisar" que se juntan si hay varios: la higiene de contenido (sin
+ * imagen, borradores) y los perfiles nuevos de cuentas (ver `groupReviewItems`).
+ * @typedef {'image' | 'draft' | 'profile'} ReviewGroupKind
+ */
+
+/**
+ * "Para revisar": un ítem por cada perfil creado por una cuenta que ninguna admin revisó todavía
+ * (`profilesToReview` en cuentas.js). Queda hasta que une admin lo marca como revisado, lo oculta
+ * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
+ * Cuentas → Perfiles filtrado.
+ *
+ * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewItem[]}
+ */
+export function profileReviewItems(profiles, { formatWhen } = {}) {
+	return profiles.map((p) => ({
+		id: `profile-${p.id}`,
+		tone: 'info',
+		icon: 'profile',
+		title: `Perfil nuevo: ${p.title}`,
+		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		action: 'Revisar',
+		href: profileHref(p.id),
+		group: 'profile',
+		name: p.title
+	}));
+}
 
 /**
  * "Para revisar" (Q14: todo lo de la propuesta): cada ítem con su acción.
@@ -705,9 +838,32 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				href: links.order(e.slug)
 			});
 		}
+		if (e.stuckReminders) {
+			items.push({
+				id: `reminder-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'bell',
+				title: `Recordatorios que fallaron: ${e.title}`,
+				text: `${plural(e.stuckReminders, 'orden', 'órdenes')} sin su recordatorio después de varios intentos (ver logs); ya no se reintenta solo`,
+				action: 'Reintentar',
+				retryReminders: { slug: e.slug }
+			});
+		}
+		if (e.stuckStreamLinks) {
+			items.push({
+				id: `stream-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'link',
+				title: `El link de la transmisión no le llegó a todes: ${e.title}`,
+				text: `${plural(e.stuckStreamLinks, 'orden', 'órdenes')} sin el link después de varios intentos (ver logs); "Enviar el link a todes" lo reintenta`,
+				action: 'Ver link',
+				href: links.stream(e.slug)
+			});
+		}
 	}
+	// Los borradores también: así la cuenta coincide con el filtro "Sin imagen" de Eventos.
 	for (const e of upcoming) {
-		if (!e.hasImage && !e.draft) {
+		if (!e.hasImage) {
 			items.push({
 				id: `image-${e.slug}`,
 				tone: 'info',
@@ -715,7 +871,9 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				title: `${e.title} no tiene imagen`,
 				text: 'Sin imagen no se ve bien en el calendario ni al compartir',
 				action: 'Agregar',
-				href: links.edit(e.slug)
+				href: links.edit(e.slug),
+				group: 'image',
+				name: e.title
 			});
 		}
 	}
@@ -726,15 +884,160 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				tone: 'info',
 				icon: 'draft',
 				title: `Borrador sin publicar: ${e.title}`,
-				text: e.hasImage
-					? 'No aparece en el calendario'
-					: 'No aparece en el calendario y no tiene imagen',
+				text: 'No aparece en el calendario',
 				action: 'Revisar',
-				href: links.edit(e.slug)
+				href: links.edit(e.slug),
+				group: 'draft',
+				name: e.title
 			});
 		}
 	}
 	return items;
+}
+
+/**
+ * Una fila de "Para revisar" que junta varios ítems del mismo tipo. Con `href` la fila lleva a
+ * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.
+ * @typedef {{
+ *   id: string,
+ *   tone: 'info' | 'bad',
+ *   icon: string,
+ *   title: string,
+ *   text: string,
+ *   action: string,
+ *   href?: string,
+ *   items: ReviewItem[]
+ * }} ReviewGroup
+ */
+
+/** @typedef {({ kind: 'item' } & ReviewItem) | ({ kind: 'group' } & ReviewGroup)} ReviewRow */
+
+/**
+ * Agrupa lo repetitivo de "Para revisar": lo urgente (plata, entradas, gente) queda de a uno,
+ * y cada tipo de higiene de contenido con `min` o más ítems pasa a ser una sola fila con la
+ * cuenta. Con menos, quedan de a uno (un solo ítem es más útil con su acción directa).
+ * Conserva el orden: los grupos van donde estaba su primer ítem.
+ *
+ * @param {ReviewItem[]} items
+ * @param {{ links: { noImage: string, profiles?: string }, min?: number }} opts
+ * @returns {ReviewRow[]}
+ */
+export function groupReviewItems(items, { links, min = 2 }) {
+	/** @type {Map<ReviewGroupKind, ReviewItem[]>} */
+	const byKind = new Map();
+	for (const i of items) {
+		if (i.group) byKind.set(i.group, [...(byKind.get(i.group) ?? []), i]);
+	}
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** @type {Record<ReviewGroupKind, (list: ReviewItem[]) => ReviewGroup>} */
+	const make = {
+		image: (list) => ({
+			id: 'group-image',
+			tone: 'info',
+			icon: 'image',
+			title: plural(list.length, 'evento próximo sin imagen', 'eventos próximos sin imagen'),
+			text: 'Sin imagen no se ven bien en el calendario ni al compartir',
+			action: 'Ver',
+			href: links.noImage,
+			items: list
+		}),
+		// El filtro "Borradores" de Eventos incluye los de eventos pasados: se despliega acá.
+		draft: (list) => ({
+			id: 'group-draft',
+			tone: 'info',
+			icon: 'draft',
+			title: plural(list.length, 'borrador sin publicar', 'borradores sin publicar'),
+			text: 'Eventos próximos que no aparecen en el calendario',
+			action: 'Ver',
+			items: list
+		}),
+		profile: (list) => ({
+			id: 'group-profile',
+			tone: 'info',
+			icon: 'profile',
+			title: plural(list.length, 'perfil nuevo para revisar', 'perfiles nuevos para revisar'),
+			text: 'Creados desde Mi rincón; quedan acá hasta que los marques como revisados',
+			action: 'Ver',
+			href: links.profiles ?? PROFILES_TO_REVIEW_HREF,
+			items: list
+		})
+	};
+	/** @type {ReviewRow[]} */
+	const rows = [];
+	/** @type {Set<ReviewGroupKind>} */
+	const placed = new Set();
+	for (const i of items) {
+		const list = i.group ? (byKind.get(i.group) ?? []) : [];
+		if (!i.group || list.length < min) {
+			rows.push({ kind: 'item', ...i });
+		} else if (!placed.has(i.group)) {
+			placed.add(i.group);
+			rows.push({ kind: 'group', ...make[i.group](list) });
+		}
+	}
+	return rows;
+}
+
+/**
+ * "Para revisar": una sola fila con lo que encontró el último chequeo nocturno de integridad de
+ * los objetos (se despliega con cada problema: código y slug). Nada si la última corrida salió
+ * bien o si no hubo ninguna.
+ *
+ * @param {import('$lib/server/objects/integrity.js').IntegrityRun | null} run
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewRow | null}
+ */
+export function integrityReviewRow(run, { formatWhen } = {}) {
+	if (!run || run.count <= 0) return null;
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** @type {Map<string, number>} */
+	const byCode = new Map();
+	for (const p of run.problems) byCode.set(p.code, (byCode.get(p.code) ?? 0) + 1);
+	const codes = [...byCode].map(([code, n]) => (n > 1 ? `${code} ×${n}` : code)).join(', ');
+	/** @type {ReviewItem[]} */
+	const items = run.problems.map((p, i) => {
+		const where =
+			p.slug ??
+			(p.objectId !== undefined
+				? `objeto ${p.objectId}`
+				: p.edgeId !== undefined
+					? `relación ${p.edgeId}`
+					: (p.type ?? ''));
+		return {
+			id: `integrity-${i}`,
+			tone: 'bad',
+			icon: 'alert',
+			title: p.code,
+			text: '',
+			action: '',
+			name: where ? `${p.code} · ${where}` : p.code
+		};
+	});
+	const hidden = run.count - run.problems.length;
+	if (hidden > 0) {
+		items.push({
+			id: 'integrity-more',
+			tone: 'bad',
+			icon: 'alert',
+			title: 'más',
+			text: '',
+			action: '',
+			name: `y ${plural(hidden, 'problema más', 'problemas más')} (ver los logs del cron)`
+		});
+	}
+	const when = formatWhen ? ` · revisado ${formatWhen(run.ranAt)}` : '';
+	return {
+		kind: 'group',
+		id: 'group-integrity',
+		tone: 'bad',
+		icon: 'alert',
+		title: `Chequeo nocturno: ${plural(run.count, 'problema', 'problemas')} en los datos`,
+		text: `${codes || 'sin detalle'}${when}. No se arregla solo.`,
+		action: 'Ver',
+		items
+	};
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';

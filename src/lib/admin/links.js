@@ -1,15 +1,11 @@
 /**
- * Links a páginas del panel que todavía se están mudando (la ficha del evento y el modo puerta).
- * Siguen solos a `EVENT_TABS` de nav.js: cuando el PR de cada pestaña pone `soon: false`, estos
- * links pasan a la página nueva sin tocar nada acá.
+ * Links a páginas del panel que se arman desde varios lugares (Inicio, buscador, Cuentas). Todas
+ * las pestañas de la ficha del evento ya existen (`EVENT_TABS` de nav.js).
  */
-import { EVENT_TABS, eventHref, eventPanelLink } from './nav.js';
-
-/** @param {string} id */
-const tabReady = (id) => EVENT_TABS.find((t) => t.id === id)?.soon === false;
+import { eventHref, eventPanelLink } from './nav.js';
 
 /**
- * Ficha de un evento en el panel (o lo que haga sus veces hoy).
+ * Ficha de un evento en el panel.
  * @param {string} slug
  * @param {{ tickets?: boolean }} [opts] `tickets`: si el evento vende entradas
  */
@@ -22,19 +18,16 @@ export function eventLink(slug, { tickets = false } = {}) {
  * @param {string} slug
  */
 export function checkinHref(slug) {
-	if (tabReady('ingreso')) return eventHref(slug, 'ingreso');
-	return `/admin/entradas/${encodeURIComponent(slug)}/ingreso`;
+	return eventHref(slug, 'ingreso');
 }
 
 /**
- * Dónde se ve una orden: la pestaña Órdenes de la ficha (o la página de entradas del evento).
+ * Dónde se ve una orden: la pestaña Órdenes de la ficha, filtrada por la orden si se pasa.
  * @param {string} slug
  * @param {string} [orderId]
  */
 export function orderHref(slug, orderId) {
-	const base = tabReady('ordenes')
-		? eventHref(slug, 'ordenes')
-		: `/admin/entradas/${encodeURIComponent(slug)}`;
+	const base = eventHref(slug, 'ordenes');
 	return orderId ? `${base}?orden=${encodeURIComponent(orderId.slice(0, 8))}` : base;
 }
 
@@ -43,24 +36,40 @@ export function orderHref(slug, orderId) {
  * @param {string} slug
  */
 export function transfersHref(slug) {
-	if (tabReady('transferencias')) return eventHref(slug, 'transferencias');
-	return `/admin/entradas/${encodeURIComponent(slug)}#transferencias`;
+	return eventHref(slug, 'transferencias');
 }
 
 /**
- * Link de la transmisión de un evento online.
+ * Link de la transmisión de un evento online (está en el Resumen de la ficha).
  * @param {string} slug
  */
 export function streamHref(slug) {
-	if (tabReady('resumen')) return eventHref(slug);
-	return `/admin/entradas/${encodeURIComponent(slug)}#transmision`;
+	return eventHref(slug);
 }
 
 /**
- * Editar un evento (la pestaña Editar, o el editor de markdown de hoy).
+ * Editar un evento (la pestaña Editar de la ficha).
  * @param {string} slug
  */
 export function editEventHref(slug) {
-	if (tabReady('editar')) return eventHref(slug, 'editar');
-	return `/edit/calendario/${encodeURIComponent(slug)}`;
+	return eventHref(slug, 'editar');
 }
+
+/**
+ * Ficha de una cuenta del público en Cuentas.
+ * @param {string} id
+ */
+export function accountHref(id) {
+	return `/admin/cuentas/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Ficha de un perfil en Cuentas → Perfiles.
+ * @param {number | string} id
+ */
+export function profileHref(id) {
+	return `/admin/cuentas/perfiles/${encodeURIComponent(String(id))}`;
+}
+
+/** Cuentas → Perfiles, solo los que esperan revisión. */
+export const PROFILES_TO_REVIEW_HREF = '/admin/cuentas/perfiles?filtro=sin-revisar';

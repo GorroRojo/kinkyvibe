@@ -6,6 +6,7 @@
  * admin funciona igual que antes.
  */
 import { parseFeePercent } from '$lib/utils/tickets.js';
+import { MAX_MAIL_BATCH_SIZE, MIN_MAIL_BATCH_SIZE, parseMailBatchSize } from './batchSize.js';
 import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -27,7 +28,9 @@ export const SETTING_KEYS = /** @type {const} */ ([
 	'from_email',
 	'reply_to_email',
 	// Recordatorios: JSON (ver reminders.js). Vacío = los de por defecto.
-	'reminders'
+	'reminders',
+	// Mails por tanda en los envíos masivos (ver batchSize.js). Vacío = el de por defecto.
+	'mail_batch_size'
 ]);
 
 /** Remitente y dirección de respuesta por defecto de los mails de entradas. */
@@ -129,6 +132,11 @@ export function validateSalesSettings(form) {
 		errors.reply_to_email = 'Poné una dirección de email.';
 	}
 	value.reply_to_email = replyTo;
+	const batch = parseMailBatchSize(clean(form.mail_batch_size));
+	if (batch === null) {
+		errors.mail_batch_size = `Poné un número entero de ${MIN_MAIL_BATCH_SIZE} a ${MAX_MAIL_BATCH_SIZE}, o dejalo vacío.`;
+	}
+	value.mail_batch_size = batch === null ? '' : String(batch);
 	// Recordatorios: filas reminder_kind_<i>, reminder_amount_<i> (horas o días),
 	// reminder_time_<i>, reminder_enabled_<i>, reminder_delete_<i>. Solo si el form las trae.
 	if (form.reminder_kind_0 !== undefined) {

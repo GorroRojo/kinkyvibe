@@ -6,7 +6,7 @@
  *
  * Takes the client as a parameter and has no SvelteKit imports, so it is tested with a fake.
  */
-import { Buffer } from 'buffer';
+import { toHex } from '$lib/utils/base64.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { nextMediaNumber, setFeatured } from '$lib/utils/sharedImage.js';
 import { CONTENT_CATEGORIES } from '$lib/utils/contentPosts.js';
@@ -21,13 +21,14 @@ import { CONTENT_CATEGORIES } from '$lib/utils/contentPosts.js';
  * @param {string} text
  */
 export async function gitBlobSha(text) {
-	const body = Buffer.from(text, 'utf-8');
-	const head = Buffer.from(`blob ${body.length}\0`, 'utf-8');
+	const encoder = new TextEncoder();
+	const body = encoder.encode(text);
+	const head = encoder.encode(`blob ${body.length}\0`);
 	const all = new Uint8Array(head.length + body.length);
 	all.set(head, 0);
 	all.set(body, head.length);
 	const digest = await crypto.subtle.digest('SHA-1', all);
-	return Buffer.from(digest).toString('hex');
+	return toHex(digest);
 }
 
 /**
@@ -115,7 +116,7 @@ export function contentCommitMessage({ who, verb, category, slug, from, image })
  * Saves a post in one commit.
  * @param {PostClient} client
  * @param {string} token
- * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string}} opts
+ * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string, pr?: import('../eventos/github.js').PublishOptions}} opts
  */
 export async function saveContentPost(client, token, opts) {
 	const plan = await planContentSave(client, token, opts);
@@ -123,7 +124,8 @@ export async function saveContentPost(client, token, opts) {
 		files: plan.files,
 		message: opts.message,
 		mustNotExist: plan.mustNotExist,
-		unchanged: plan.unchanged
+		unchanged: plan.unchanged,
+		...(opts.pr ? { pr: opts.pr } : {})
 	});
 	return { ...plan, commit };
 }

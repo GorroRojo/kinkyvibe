@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { logAccountCreated } from './accountEvents.js';
 import {
 	EMAIL_GRACE_MS,
 	agendaItems,
@@ -16,16 +17,22 @@ import {
 	monthMoney,
 	pendingTransfers,
 	recentActivity,
+	groupReviewItems,
+	profileReviewItems,
+	integrityReviewRow,
+	integrityRun,
 	reviewItems,
 	reviewOrders,
 	sinceLastVisit,
 	streamLinkSlugs,
+	stuckSends,
 	ticketTotals,
 	unsentEmails,
 	upcomingEvents
 } from './inicio.js';
 import { logAdminAction } from './audit.js';
 import { insertOrder, insertTicket } from './testRows.js';
+import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -151,7 +158,56 @@ describe('totales', () => {
 			total: 10000 + 14400 + 12000,
 			orders: 3,
 			tickets: 4,
-			fondoNet: 2000 - 1600
+			fondoNet: 2000 - 1600,
+			fondoTips: 0
+		});
+	});
+
+	it('monthMoney suma a los aportes al fondo las propinas "Para el Fondo" aprobadas este mes (solo esas)', async () => {
+		await insertOrder(t.db, { contribution: 2000, created: ar('2026-09-15T10:00') });
+		await insertOrder(t.db, { fondoAmount: 500, created: ar('2026-09-16T10:00') });
+		let paymentId = 0;
+		/**
+		 * @param {number} amount
+		 * @param {'kinkyvibe' | 'fondo'} destination
+		 * @param {string[]} statuses estados de MP que se aplican en orden
+		 * @param {number} at
+		 */
+		async function tip(amount, destination, statuses, at) {
+			const tip = await createTip(
+				t.db,
+				{ amount, message: null, category: 'material', slug: 'guia', destination },
+				{ now: at }
+			);
+			const id = ++paymentId;
+			for (const status of statuses) {
+				await applyTipPayment(
+					t.db,
+					{
+						id,
+						status,
+						external_reference: tipReference(tip.id),
+						transaction_amount: amount,
+						currency_id: 'ARS'
+					},
+					{ now: at }
+				);
+			}
+		}
+		await tip(3000, 'fondo', ['approved'], ar('2026-09-10T10:00'));
+		await tip(1000, 'fondo', ['approved'], ar('2026-09-29T23:00'));
+		// No suman: pendiente, rechazada, reembolsada, de KinkyVibe o aprobada en otro mes.
+		await tip(7000, 'fondo', [], ar('2026-09-10T10:00'));
+		await tip(5000, 'fondo', ['rejected'], ar('2026-09-10T10:00'));
+		await tip(4000, 'fondo', ['approved', 'refunded'], ar('2026-09-10T10:00'));
+		await tip(9000, 'kinkyvibe', ['approved'], ar('2026-09-10T10:00'));
+		await tip(8000, 'fondo', ['approved'], ar('2026-08-31T23:00'));
+		const money = await monthMoney(t.db, NOW);
+		expect(money).toMatchObject({
+			orders: 2,
+			fondoTips: 4000,
+			// Aportes (entrada solidaria + propinas al Fondo) − lo que cubrió el fondo.
+			fondoNet: 2000 + 4000 - 500
 		});
 	});
 });
@@ -289,9 +345,14 @@ describe('actividad', () => {
 			{ action: 'x.y', summary: 'de otre' },
 			{ now: NOW - HOUR }
 		);
+		// Una cuenta nueva va en la lista, pero no es un cambio de otre admin.
+		await logAccountCreated(t.db, '00000000-0000-4000-8000-000000000000', { now: NOW - HOUR });
 		const s = await sinceLastVisit(t.db, { since: NOW - 2 * HOUR, login: 'yo' });
 		expect(s).toMatchObject({ orders: 1, money: 7000, transfers: 1, audit: 1 });
-		expect(s?.items.length).toBe(4);
+		expect(s?.items.length).toBe(5);
+		expect(s?.items.filter((i) => i.kind === 'account').map((i) => i.title)).toEqual([
+			'Se creó una cuenta nueva'
+		]);
 	});
 });
 
@@ -473,11 +534,193 @@ describe('upcomingEvents y reviewItems', () => {
 			'stream-online',
 			'reminder-online',
 			'image-online',
+			'image-borrador',
 			'draft-borrador'
 		]);
 		expect(items[0]).toMatchObject({ href: '/t/hoy', text: 'Hoy · la más vieja vence en 1 h' });
 		expect(items[2]).toMatchObject({ action: 'Reenviar', resend: { orderId: 'o1' } });
 		expect(items[1].title).toContain('duplicado');
+		// Los borradores sin imagen también cuentan como "sin imagen" (igual que el filtro de Eventos).
+		expect(items.find((i) => i.id === 'image-borrador')).toMatchObject({
+			group: 'image',
+			name: 'Borrador'
+		});
+		expect(items.find((i) => i.id === 'draft-borrador')).toMatchObject({ group: 'draft' });
+		expect(items.filter((i) => i.group).map((i) => i.id)).toEqual([
+			'image-online',
+			'image-borrador',
+			'draft-borrador'
+		]);
+	});
+	it('envíos que fallaron todos sus intentos: recordatorios con "Reintentar", link al evento', async () => {
+		expect(await stuckSends(null, ['online'])).toEqual({
+			reminders: new Map(),
+			streamLinks: new Map()
+		});
+		const withStuck = upcomingEvents({
+			events,
+			ticketed,
+			totals,
+			streamLinks: new Set(['online']),
+			stuck: { reminders: new Map([['online', 2]]), streamLinks: new Map([['online', 1]]) },
+			now: NOW,
+			skip: (slug) => slug.startsWith('prueba-entradas')
+		});
+		expect(withStuck.find((e) => e.slug === 'online')).toMatchObject({
+			stuckReminders: 2,
+			stuckStreamLinks: 1
+		});
+		const items = reviewItems({
+			upcoming: withStuck,
+			transfers: [],
+			unsent: [],
+			review: [],
+			titles: new Map(),
+			links: {
+				transfers: (s) => `/t/${s}`,
+				order: (s, id) => `/o/${s}/${id ?? ''}`,
+				stream: (s) => `/s/${s}`,
+				edit: (s) => `/e/${s}`
+			},
+			formatWhen: () => ''
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')).toMatchObject({
+			action: 'Reintentar',
+			retryReminders: { slug: 'online' }
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')?.text).toMatch(/^2 órdenes/);
+		expect(items.find((i) => i.id === 'stream-failed-online')).toMatchObject({ href: '/s/online' });
+	});
+});
+
+describe('groupReviewItems', () => {
+	/**
+	 * @param {string} id
+	 * @param {any} [o]
+	 * @returns {import('./inicio.js').ReviewItem}
+	 */
+	const item = (id, o = {}) => ({
+		id,
+		tone: 'bad',
+		icon: 'alert',
+		title: id,
+		text: '',
+		action: 'Ver',
+		href: `/${id}`,
+		...o
+	});
+	const links = { noImage: '/admin/eventos?filtro=sin-imagen' };
+	const image = (/** @type {string} */ s) =>
+		item(`image-${s}`, { tone: 'info', icon: 'image', group: 'image', name: s });
+	const draft = (/** @type {string} */ s) =>
+		item(`draft-${s}`, { tone: 'info', icon: 'draft', group: 'draft', name: s });
+
+	it('lo urgente queda de a uno; lo repetitivo, una fila por tipo con la cuenta', () => {
+		const items = [
+			item('transfer-a', { tone: 'warn' }),
+			item('mail-1', { resend: { orderId: '1' } }),
+			item('stream-b', { tone: 'warn' }),
+			image('a'),
+			image('b'),
+			image('c'),
+			draft('x'),
+			draft('y')
+		];
+		const rows = groupReviewItems(items, { links });
+		expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual([
+			'item:transfer-a',
+			'item:mail-1',
+			'item:stream-b',
+			'group:group-image',
+			'group:group-draft'
+		]);
+		expect(rows[1]).toMatchObject({ kind: 'item', resend: { orderId: '1' } });
+		const [img, dr] = rows.slice(3);
+		expect(img).toMatchObject({
+			kind: 'group',
+			title: '3 eventos próximos sin imagen',
+			action: 'Ver',
+			href: '/admin/eventos?filtro=sin-imagen'
+		});
+		expect(img.kind === 'group' && img.items.map((i) => i.id)).toEqual([
+			'image-a',
+			'image-b',
+			'image-c'
+		]);
+		// Sin una lista filtrada que muestre justo esos borradores: sin href (se despliega).
+		expect(dr).toMatchObject({ kind: 'group', title: '2 borradores sin publicar' });
+		expect(dr).not.toHaveProperty('href');
+		expect(dr.kind === 'group' && dr.items.map((i) => i.name)).toEqual(['x', 'y']);
+	});
+
+	it('un solo ítem de un tipo queda suelto, con su acción directa', () => {
+		const rows = groupReviewItems([image('a'), draft('x'), draft('y')], { links });
+		expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(['item:image-a', 'group:group-draft']);
+		expect(rows[0]).toMatchObject({ href: '/image-a', action: 'Ver' });
+	});
+
+	it('los grupos van donde estaba su primer ítem y no pierden ninguno', () => {
+		const items = [image('a'), item('urgente'), image('b'), draft('x'), draft('y'), image('c')];
+		const rows = groupReviewItems(items, { links });
+		expect(rows.map((r) => r.id)).toEqual(['group-image', 'urgente', 'group-draft']);
+		const total = rows.reduce((n, r) => n + (r.kind === 'group' ? r.items.length : 1), 0);
+		expect(total).toBe(items.length);
+	});
+
+	it('min configurable; sin ítems, sin filas', () => {
+		expect(groupReviewItems([], { links })).toEqual([]);
+		const rows = groupReviewItems([image('a'), image('b')], { links, min: 3 });
+		expect(rows.map((r) => r.kind)).toEqual(['item', 'item']);
+		expect(groupReviewItems([image('a')], { links, min: 1 })[0]).toMatchObject({
+			kind: 'group',
+			title: '1 evento próximo sin imagen'
+		});
+	});
+});
+
+describe('perfiles nuevos en "Para revisar"', () => {
+	const profile = (
+		/** @type {number} */ id,
+		kind = /** @type {'persona' | 'grupo'} */ ('persona')
+	) => ({
+		id,
+		title: `Perfil Inventado ${id}`,
+		kind,
+		createdAt: NOW - HOUR
+	});
+
+	it('un ítem por perfil, con link a su ficha', () => {
+		const items = profileReviewItems([profile(7, 'grupo')], { formatWhen: () => 'hace 1 h' });
+		expect(items).toEqual([
+			{
+				id: 'profile-7',
+				tone: 'info',
+				icon: 'profile',
+				title: 'Perfil nuevo: Perfil Inventado 7',
+				text: 'Grupo · creado desde Mi rincón hace 1 h',
+				action: 'Revisar',
+				href: '/admin/cuentas/perfiles/7',
+				group: 'profile',
+				name: 'Perfil Inventado 7'
+			}
+		]);
+		expect(profileReviewItems([])).toEqual([]);
+	});
+
+	it('uno solo queda de a uno; varios, una fila que lleva a Perfiles filtrado', () => {
+		const links = { noImage: '/admin/eventos?filtro=sin-imagen' };
+		const one = groupReviewItems(profileReviewItems([profile(1)]), { links });
+		expect(one.map((r) => `${r.kind}:${r.id}`)).toEqual(['item:profile-1']);
+		const many = groupReviewItems(profileReviewItems([profile(1), profile(2), profile(3)]), {
+			links
+		});
+		expect(many).toHaveLength(1);
+		expect(many[0]).toMatchObject({
+			kind: 'group',
+			id: 'group-profile',
+			title: '3 perfiles nuevos para revisar',
+			href: '/admin/cuentas/perfiles?filtro=sin-revisar'
+		});
 	});
 });
 
@@ -753,5 +996,75 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 			}
 		]);
 		expect(items.at(-1)?.kind).toBe('order');
+	});
+});
+
+describe('chequeo nocturno de los datos en "Para revisar"', () => {
+	it('con problemas: una sola fila que se despliega con código y slug', () => {
+		const row = integrityReviewRow(
+			{
+				ranAt: 1000,
+				count: 3,
+				problems: [
+					{ code: 'invalid_data', objectId: 4, slug: 'salon-inventado', type: 'lugar' },
+					{ code: 'invalid_data', objectId: 5 },
+					{ code: 'dangling_edge', edgeId: 9 }
+				]
+			},
+			{ formatWhen: () => 'jue 1 oct, 03:00' }
+		);
+		expect(row).toMatchObject({
+			kind: 'group',
+			id: 'group-integrity',
+			tone: 'bad',
+			title: 'Chequeo nocturno: 3 problemas en los datos',
+			text: 'invalid_data ×2, dangling_edge · revisado jue 1 oct, 03:00. No se arregla solo.',
+			action: 'Ver'
+		});
+		expect(row && 'href' in row ? row.href : undefined).toBeUndefined();
+		expect(row?.kind === 'group' ? row.items.map((i) => i.name) : []).toEqual([
+			'invalid_data · salon-inventado',
+			'invalid_data · objeto 5',
+			'dangling_edge · relación 9'
+		]);
+	});
+
+	it('singular, y avisa si hay más problemas que los guardados', () => {
+		const one = integrityReviewRow({ ranAt: 0, count: 1, problems: [{ code: 'fts_out_of_sync' }] });
+		expect(one?.title).toBe('Chequeo nocturno: 1 problema en los datos');
+		const more = integrityReviewRow({
+			ranAt: 0,
+			count: 60,
+			problems: [{ code: 'orphan', objectId: 1 }]
+		});
+		expect(more?.kind === 'group' ? more.items.at(-1)?.name : '').toBe(
+			'y 59 problemas más (ver los logs del cron)'
+		);
+	});
+
+	it('sin problemas o sin corridas: nada', () => {
+		expect(integrityReviewRow({ ranAt: 0, count: 0, problems: [] })).toBeNull();
+		expect(integrityReviewRow(null)).toBeNull();
+	});
+
+	it('integrityRun: null sin base, sin corridas o sin la migración 0012 (no tira error)', async () => {
+		expect(await integrityRun(null)).toBeNull();
+		expect(await integrityRun(t.db)).toBeNull();
+		const bare = await createTestDB({ migrate: false });
+		try {
+			expect(await integrityRun(bare.db)).toBeNull();
+		} finally {
+			await bare.dispose();
+		}
+	}, 30_000);
+
+	it('integrityRun: la última corrida guardada', async () => {
+		const { recordIntegrityRun } = await import('$lib/server/objects/integrity.js');
+		await recordIntegrityRun(t.db, [{ code: 'orphan', message: 'x', objectId: 3 }], 5000);
+		expect(await integrityRun(t.db)).toEqual({
+			ranAt: 5000,
+			count: 1,
+			problems: [{ code: 'orphan', objectId: 3 }]
+		});
 	});
 });

@@ -31,13 +31,20 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
  * - `closed`: la venta está cerrada (`reason`: `closed` por horario, `type_closed` si cerró el
  *   tipo, `soldout` si el evento está marcado como agotado, `cancelled` si está cancelado).
  * - `no_door`: el evento es "Solo anticipadas" (`puerta: false`).
+ * - `tier`: cantidad de un tramo de preventa (al confirmar una transferencia vencida cuyo tramo se
+ *   llenó mientras tanto). Mismos campos que `capacity`, más el tramo.
+ * - `not_active`: el tipo está encadenado y todavía no se habilitó (`after`: se habilita cuando se
+ *   agote o cierre `afterName`).
  *
  * @typedef {{ kind: 'capacity', type: string, typeName: string, capacity: number,
  *     before: number, after: number, over: number }
  *   | { kind: 'max_per_purchase', max: number, quantity: number, over: number }
  *   | { kind: 'closed', reason: 'closed' | 'type_closed' | 'soldout' | 'cancelled',
  *     typeName?: string }
- *   | { kind: 'no_door' }} ExceededLimit
+ *   | { kind: 'no_door' }
+ *   | { kind: 'tier', type: string, typeName: string, tier: string, tierName: string,
+ *     quantity: number, before: number, after: number, over: number }
+ *   | { kind: 'not_active', type: string, typeName: string, afterName: string }} ExceededLimit
  */
 
 /**
@@ -61,6 +68,45 @@ export function capacityLimit(type, taken, quantity) {
 		after,
 		over: after - type.capacity
 	};
+}
+
+/**
+ * ¿Se pasa la cantidad de un tramo de preventa? `null` si no (o si el tramo no tiene cantidad).
+ *
+ * @param {{ id: string, name: string }} type
+ * @param {{ id: string, name: string, quantity: number | null }} tier
+ * @param {number} taken entradas del tramo que ya cuentan (aprobadas + reservas vigentes)
+ * @param {number} quantity las de esta operación
+ * @returns {ExceededLimit | null}
+ */
+export function tierLimit(type, tier, taken, quantity) {
+	if (tier.quantity === null || tier.quantity === undefined) return null;
+	const after = taken + quantity;
+	if (after <= tier.quantity) return null;
+	return {
+		kind: 'tier',
+		type: type.id,
+		typeName: type.name,
+		tier: tier.id,
+		tierName: tier.name,
+		quantity: tier.quantity,
+		before: taken,
+		after,
+		over: after - tier.quantity
+	};
+}
+
+/**
+ * Tipo encadenado que todavía no se habilitó (el anterior sigue a la venta).
+ *
+ * @param {{ id: string, name: string }} type
+ * @param {{ name: string } | null | undefined} waitingFor el tipo anterior, si todavía se vende
+ * @returns {ExceededLimit | null}
+ */
+export function notActiveLimit(type, waitingFor) {
+	return waitingFor
+		? { kind: 'not_active', type: type.id, typeName: type.name, afterName: waitingFor.name }
+		: null;
 }
 
 /**
@@ -122,6 +168,12 @@ export function limitMessage(limit) {
 			return 'La venta de entradas ya cerró.';
 		case 'no_door':
 			return 'Este evento es solo anticipadas: no tiene entradas en la puerta.';
+		case 'tier':
+			return limit.before >= limit.quantity
+				? `El tramo «${limit.tierName}» de «${limit.typeName}» ya está completo (${limit.before} / ${limit.quantity}): quedarían ${limit.after} / ${limit.quantity}, ${plural(limit.over)} de más a ese precio.`
+				: `Se pasa del tramo «${limit.tierName}» de «${limit.typeName}»: quedarían ${limit.after} / ${limit.quantity}, ${plural(limit.over)} de más a ese precio.`;
+		case 'not_active':
+			return `«${limit.typeName}» todavía no se habilitó: se habilita cuando se agote o cierre «${limit.afterName}».`;
 	}
 }
 
@@ -142,6 +194,10 @@ export function limitSummary(limit) {
 			return 'venta cerrada';
 		case 'no_door':
 			return 'evento solo anticipadas';
+		case 'tier':
+			return `tramo «${limit.tierName}» de «${limit.typeName}» +${limit.over} (${limit.after} / ${limit.quantity})`;
+		case 'not_active':
+			return `«${limit.typeName}» antes de habilitarse`;
 	}
 }
 
@@ -161,6 +217,10 @@ export function overrideKey(limits) {
 					return `closed:${l.reason}`;
 				case 'no_door':
 					return 'no_door';
+				case 'tier':
+					return `tier:${l.type}:${l.tier}:${l.after}/${l.quantity}`;
+				case 'not_active':
+					return `not_active:${l.type}`;
 			}
 		})
 		.sort()

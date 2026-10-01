@@ -24,7 +24,10 @@ async function xmlError(page, xml) {
 
 /** Minimal RFC 5545 reader: unfolds lines and returns the VEVENTs as property maps. */
 function parseIcs(text) {
-	const lines = text.replace(/\r?\n[ \t]/g, '').split(/\r?\n/).filter(Boolean);
+	const lines = text
+		.replace(/\r?\n[ \t]/g, '')
+		.split(/\r?\n/)
+		.filter(Boolean);
 	const events = [];
 	let current = null;
 	const stack = [];
@@ -38,7 +41,7 @@ function parseIcs(text) {
 			if (value === 'VEVENT') current = {};
 		} else if (name === 'END') {
 			if (stack.pop() !== value) throw new Error(`Unbalanced END:${value}`);
-			if (value === 'VEVENT') events.push(current), (current = null);
+			if (value === 'VEVENT') (events.push(current), (current = null));
 		} else if (current) {
 			current[name] = value;
 		}
@@ -114,9 +117,7 @@ test.describe('calendario', () => {
 
 	// Regression test: SSR used to format event times in the server's timezone (UTC on
 	// Cloudflare), so crawlers/link previews saw 22:30 for a 19:30 -03:00 event.
-	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({
-		request
-	}) => {
+	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({ request }) => {
 		const html = await (await request.get('/calendario/someter-2026-09')).text();
 		expect(html).toMatch(/class="dt-start"[^>]*>[^<]*7:30/);
 	});
@@ -219,6 +220,9 @@ test.describe('feeds', () => {
 		const xml = await res.text();
 		expect(await xmlError(page, xml)).toBeNull();
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/calendario</loc>');
+		expect(xml).toContain('<loc>https://kinkyvibe.ar/wiki/BDSM</loc>');
+		expect(xml).not.toContain('Invalid Date');
+		expect(xml.match(/<url>/g)?.length).toBe(xml.match(/<\/url>/g)?.length);
 	});
 });
 

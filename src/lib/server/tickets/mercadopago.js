@@ -11,6 +11,8 @@
  * - Webhooks: header `x-signature: ts=…,v1=…` = HMAC-SHA256(secret,
  *   "id:{data.id};request-id:{x-request-id};ts:{ts};") en hex, con `data.id` del query string.
  */
+import { timingSafeEqual } from '$lib/server/hash.js';
+import { toHex } from '$lib/utils/base64.js';
 
 export const MP_API = 'https://api.mercadopago.com';
 
@@ -83,45 +85,32 @@ export function mpDate(ms) {
 }
 
 /**
- * Cuerpo de la preferencia de Checkout Pro para una orden.
+ * Cuerpo común de una preferencia de Checkout Pro (entradas y propinas): un solo link de vuelta
+ * para los tres resultados, vencimiento, solo aprobado o rechazado y sin pagos en efectivo.
  *
  * @param {{
- *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, total?: number, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
- *   eventTitle: string,
- *   typeName: string,
- *   origin: string
+ *   items: { id: string, title: string, quantity: number, unit_price: number, currency_id: 'ARS' }[],
+ *   externalReference: string,
+ *   backUrl: string,
+ *   from: number,
+ *   to: number,
+ *   payer?: { email: string, name: string }
  * }} input
  */
-export function buildPreference({ order, eventTitle, typeName, origin }) {
-	const status = `${origin}/entradas/${order.id}/estado`;
-	// Si el total no es precio × cantidad (fondo, código de descuento o recargo), un solo ítem
-	// por el total: MP no acepta ítems negativos y el webhook compara lo pagado con `orders.total`.
-	const single = order.total !== undefined && order.total !== order.unit_price * order.quantity;
-	const title = single
-		? `${order.quantity} × Entrada ${typeName} · ${eventTitle}`
-		: `Entrada ${typeName} · ${eventTitle}`;
+export function checkoutProPreference({ items, externalReference, backUrl, from, to, payer }) {
 	return {
-		items: [
-			{
-				id: `${order.ticket_type}`,
-				title: title.slice(0, 250),
-				quantity: single ? 1 : order.quantity,
-				unit_price: single ? /** @type {number} */ (order.total) : order.unit_price,
-				currency_id: 'ARS'
-			}
-		],
-		payer: { email: order.buyer_email, name: order.buyer_name },
-		external_reference: order.id,
-		back_urls: { success: status, failure: status, pending: status },
-		auto_return: 'approved',
+		items: items.map((i) => ({ ...i, title: i.title.slice(0, 250) })),
+		...(payer ? { payer } : {}),
+		external_reference: externalReference,
+		back_urls: { success: backUrl, failure: backUrl, pending: backUrl },
+		auto_return: /** @type {const} */ ('approved'),
 		// Sin `notification_url`: los webhooks llegan a la URL configurada en Tus integraciones →
 		// Webhooks, que es el canal que la doc de MP documenta como firmado (x-signature). Una
 		// `notification_url` en la preferencia tiene prioridad sobre esa URL, su firma no está
 		// documentada y la doc aclara que con credenciales de prueba no envía notificaciones.
-		// La preferencia vence junto con la reserva de cupo.
 		expires: true,
-		expiration_date_from: mpDate(order.created_at),
-		expiration_date_to: mpDate(order.expires_at),
+		expiration_date_from: mpDate(from),
+		expiration_date_to: mpDate(to),
 		// Solo aprobado o rechazado, sin "pendiente": la reserva de cupo es corta.
 		binary_mode: true,
 		// Sin pagos en efectivo (Rapipago/Pago Fácil), que se acreditan días después.
@@ -134,8 +123,44 @@ export function buildPreference({ order, eventTitle, typeName, origin }) {
 }
 
 /**
+ * Cuerpo de la preferencia de Checkout Pro para una orden.
+ *
+ * @param {{
+ *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, total?: number, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
+ *   eventTitle: string,
+ *   typeName: string,
+ *   origin: string
+ * }} input
+ */
+export function buildPreference({ order, eventTitle, typeName, origin }) {
+	// Si el total no es precio × cantidad (fondo, código de descuento o recargo), un solo ítem
+	// por el total: MP no acepta ítems negativos y el webhook compara lo pagado con `orders.total`.
+	const single = order.total !== undefined && order.total !== order.unit_price * order.quantity;
+	const title = single
+		? `${order.quantity} × Entrada ${typeName} · ${eventTitle}`
+		: `Entrada ${typeName} · ${eventTitle}`;
+	return checkoutProPreference({
+		items: [
+			{
+				id: `${order.ticket_type}`,
+				title,
+				quantity: single ? 1 : order.quantity,
+				unit_price: single ? /** @type {number} */ (order.total) : order.unit_price,
+				currency_id: 'ARS'
+			}
+		],
+		payer: { email: order.buyer_email, name: order.buyer_name },
+		externalReference: order.id,
+		backUrl: `${origin}/entradas/${order.id}/estado`,
+		// La preferencia vence junto con la reserva de cupo.
+		from: order.created_at,
+		to: order.expires_at
+	});
+}
+
+/**
  * @param {MPClient} client
- * @param {ReturnType<typeof buildPreference>} preference
+ * @param {ReturnType<typeof checkoutProPreference>} preference
  * @param {string} idempotencyKey
  * @returns {Promise<{ id: string, init_point: string, sandbox_init_point?: string }>}
  */
@@ -192,20 +217,7 @@ export async function hmacSha256Hex(secret, message) {
 		['sign']
 	);
 	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-	return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * Comparación en tiempo constante (respecto del contenido) de dos strings hex.
- *
- * @param {string} a
- * @param {string} b
- */
-export function timingSafeEqual(a, b) {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	return diff === 0;
+	return toHex(sig);
 }
 
 /**

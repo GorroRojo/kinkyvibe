@@ -8,8 +8,11 @@
  * sobre el archivo final.
  *
  * Campos del frontmatter que maneja (ver docs/tickets.md):
- * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido }, capacity }`
- *   (`capacity` es opcional: sin cupo = sin límite);
+ * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido } | tiers,
+ *   capacity, after, door_price }` (`capacity` es opcional: sin cupo = sin límite; `tiers`: tramos de
+ *   preventa `{ id, name, price, quantity?, until? }`; `after`: id del tipo que se tiene que agotar
+ *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
+ *   opcional; si falta, el del último tramo o el precio fijo);
  * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
  *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
@@ -19,6 +22,8 @@
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
 import tagsFactory from './tags.js';
+import { formatARS } from './money.js';
+import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
 	PAYMENT_METHODS,
@@ -47,11 +52,14 @@ export const TICKET_KEYS = [
 	'puerta_precio'
 ];
 
-/** Largo máximo del precio en la puerta (texto libre). Igual que en config.js. */
+/** Largo máximo de la nota sobre la puerta (`puerta_precio`, texto libre). Igual que en config.js. */
 export const DOOR_PRICE_MAX = 120;
 
 /** Nombre que se propone para el primer tipo de entrada. */
 export const FIRST_TYPE_NAME = 'General';
+
+/** Máximo de tramos por tipo (igual que `MAX_TIERS` de config.js). */
+export const MAX_TIERS = 10;
 
 export const PAYMENT_METHOD_LABELS = /** @type {const} */ ({
 	mercadopago: 'Mercado Pago',
@@ -97,12 +105,32 @@ export function isOnlineEvent(meta) {
  *   cambia: las órdenes guardan el id del tipo.
  * @prop {string} id
  * @prop {string} name
- * @prop {'price' | 'gorra'} mode
+ * @prop {'price' | 'gorra' | 'tiers'} mode precio fijo, a la gorra o preventas (tramos)
  * @prop {string} price
  * @prop {string} min
  * @prop {string} suggested
  * @prop {string} capacity '' = sin cupo (sin límite)
  * @prop {string} close cierre propio (datetime-local, hora de Argentina); '' = cierra con el evento
+ * @prop {TierForm[]} tiers tramos de preventa (con `mode: 'tiers'`)
+ * @prop {string} after `key` del tipo que se tiene que agotar o cerrar para que este se habilite
+ *   ('' = siempre a la venta). Es la `key` local (no el id) porque los tipos nuevos todavía no
+ *   tienen id; al guardar se escribe el id.
+ * @prop {string} doorPrice precio en la puerta y en la carga a mano (`door_price`); '' = el del
+ *   último tramo o el precio fijo. No se usa a la gorra.
+ */
+
+/**
+ * Un tramo de preventa en el formulario. Como los tipos, el `id` sale del nombre al crearlo y no
+ * cambia nunca (las órdenes guardan el tramo).
+ *
+ * @typedef {object} TierForm
+ * @prop {string} key
+ * @prop {string | null} origId
+ * @prop {string} id
+ * @prop {string} name
+ * @prop {string} price
+ * @prop {string} quantity '' = sin cantidad (el resto, o hasta la fecha)
+ * @prop {string} until datetime-local (hora de Argentina); '' = sin fecha
  */
 
 /**
@@ -120,7 +148,8 @@ export function isOnlineEvent(meta) {
  * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
  *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
  * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
- * @prop {string} doorPrice precio en la puerta, texto libre ('' = no se muestra)
+ * @prop {string} doorPrice nota sobre la puerta para la página (`puerta_precio`), texto libre
+ *   ('' = no se muestra). Solo se muestra: lo que se cobra es el `doorPrice` de cada tipo.
  */
 
 let keyCounter = 0;
@@ -145,8 +174,92 @@ export function emptyTicketType({ first = false } = {}) {
 		min: '0',
 		suggested: '',
 		capacity: '',
-		close: ''
+		close: '',
+		tiers: [],
+		after: '',
+		doorPrice: ''
 	});
+}
+
+/**
+ * Un tramo vacío. Se propone "Preventa N" (el último, "General": ver el componente).
+ *
+ * @param {number} index posición (desde 0)
+ * @returns {TierForm}
+ */
+export function emptyTier(index) {
+	return {
+		key: newKey(),
+		origId: null,
+		id: '',
+		name: `Preventa ${index + 1}`,
+		price: '',
+		quantity: '',
+		until: ''
+	};
+}
+
+/**
+ * Tramos para un tipo que recién pasa a "Preventas": si ya tenía tramos, esos; si no, dos para
+ * empezar: «Preventa 1» y «General» (el resto), con el precio que tenía el tipo en el último.
+ *
+ * @param {Pick<TicketTypeForm, 'tiers' | 'price'>} t
+ * @returns {TierForm[]}
+ */
+export function tiersForMode(t) {
+	if (t.tiers?.length) return t.tiers;
+	return [emptyTier(0), { ...emptyTier(1), name: FIRST_TYPE_NAME, price: t.price ?? '' }];
+}
+
+/**
+ * Una línea que explica cómo van a verse los tramos: "Preventa 1 ($ 8.000, las primeras 5) →
+ * Preventa 2 ($ 9.000, hasta el 9/10) → General ($ 10.000, el resto)". Quien compra ve solo el
+ * tramo vigente.
+ *
+ * @param {TierForm[]} tiers
+ */
+export function tierPreview(tiers) {
+	if (!tiers.length) return '';
+	const steps = tiers.map((tr, j) => {
+		const p = parseAmount(tr.price);
+		const q = tr.quantity.trim() && /^\d+$/.test(tr.quantity.trim()) ? Number(tr.quantity) : null;
+		const until = LOCAL_RE.test(tr.until.trim())
+			? `hasta el ${Number(tr.until.slice(8, 10))}/${Number(tr.until.slice(5, 7))}`
+			: '';
+		const first = j === 0 ? 'primeras' : 'siguientes';
+		const parts = [
+			p === null ? '$ ?' : formatARS(p),
+			q !== null ? (q === 1 ? (j === 0 ? 'la primera' : 'la siguiente') : `las ${first} ${q}`) : '',
+			until,
+			q === null && !until ? 'el resto' : ''
+		].filter(Boolean);
+		return `${tr.name.trim() || `Tramo ${j + 1}`} (${parts.join(', ')})`;
+	});
+	return `Quien compra ve solo el tramo vigente: ${steps.join(' → ')}.`;
+}
+
+/**
+ * Qué se cobra en un tipo en la puerta y en la carga a mano, para mostrar junto a «Precio en
+ * puerta» (con la misma regla que el servidor, `doorPrice`): "En la puerta: $ 10.000 (el del
+ * último tramo)". '' a la gorra o si falta el precio.
+ *
+ * @param {TicketTypeForm} t
+ */
+export function doorPricePreview(t) {
+	if (t.mode === 'gorra') return '';
+	const own = (t.doorPrice ?? '').trim() ? parseAmount(t.doorPrice) : null;
+	const tiers = t.mode === 'tiers' ? t.tiers.map((tr) => ({ price: parseAmount(tr.price) })) : null;
+	const p = doorPrice(
+		/** @type {any} */ ({
+			price: parseAmount(t.price),
+			tiers: tiers?.length ? tiers : null,
+			door: own === null ? null : { price: own }
+		})
+	);
+	if (!p || p.price === null) return '';
+	const why =
+		p.source === 'door' ? '' : p.source === 'tier' ? ' (el del último tramo)' : ' (el precio fijo)';
+	return `En la puerta: ${formatARS(p.price)}${why}.`;
 }
 
 /**
@@ -179,21 +292,48 @@ const localMs = (v) => (LOCAL_RE.test(v) ? new Date(withZone(v)).getTime() : NaN
  */
 export function readTicketsForm(meta) {
 	const list = Array.isArray(meta?.tickets) ? meta.tickets : [];
+	/** @type {string[]} */
+	const afterIds = [];
 	const types = list.map((raw) => {
 		const gorra = raw?.a_la_gorra !== undefined && raw?.a_la_gorra !== null;
+		const tiered = !gorra && Array.isArray(raw?.tiers);
 		const id = str(raw?.id);
+		afterIds.push(str(raw?.after).trim());
 		return /** @type {TicketTypeForm} */ ({
 			key: newKey(),
 			origId: id || null,
 			id,
 			name: str(raw?.name),
-			mode: gorra ? 'gorra' : 'price',
-			price: gorra ? '' : str(raw?.price),
+			mode: gorra ? 'gorra' : tiered ? 'tiers' : 'price',
+			price: gorra || tiered ? '' : str(raw?.price),
 			min: gorra ? str(raw.a_la_gorra?.minimo) : '0',
 			suggested: gorra ? str(raw.a_la_gorra?.sugerido) : '',
 			capacity: str(raw?.capacity),
-			close: toLocalInput(raw?.close, true)
+			close: toLocalInput(raw?.close, true),
+			tiers: tiered
+				? raw.tiers.map((/** @type {any} */ tr) => {
+						const tid = str(tr?.id);
+						return {
+							key: newKey(),
+							origId: tid || null,
+							id: tid,
+							name: str(tr?.name),
+							price: str(tr?.price),
+							quantity: str(tr?.quantity),
+							until: toLocalInput(tr?.until, true)
+						};
+					})
+				: [],
+			after: '',
+			doorPrice: gorra ? '' : str(raw?.door_price)
 		});
+	});
+	// `after` (id) → la key local del tipo al que apunta. Si no existe, queda el id tal cual (la
+	// validación dice que no existe).
+	types.forEach((t, i) => {
+		const target = afterIds[i];
+		if (!target) return;
+		t.after = types.find((o) => o.origId === target)?.key ?? `missing:${target}`;
 	});
 	const methodList =
 		meta?.payment_methods === undefined || meta?.payment_methods === null
@@ -264,6 +404,23 @@ export function withTypeIds(types) {
 	const fixed = types.filter((t) => t.origId).map((t) => /** @type {string} */ (t.origId));
 	const taken = new Set(fixed);
 	return types.map((t) => {
+		const tiers = withTierIds(t.tiers ?? []);
+		if (t.origId) return { ...t, id: t.origId, tiers };
+		const id = typeIdFor(t.name, taken);
+		taken.add(id);
+		return { ...t, id, tiers };
+	});
+}
+
+/**
+ * Lo mismo para los tramos de un tipo: los que ya existían no cambian de id.
+ *
+ * @param {TierForm[]} tiers
+ * @returns {TierForm[]}
+ */
+export function withTierIds(tiers) {
+	const taken = new Set(tiers.filter((t) => t.origId).map((t) => /** @type {string} */ (t.origId)));
+	return tiers.map((t) => {
 		if (t.origId) return { ...t, id: t.origId };
 		const id = typeIdFor(t.name, taken);
 		taken.add(id);
@@ -272,8 +429,21 @@ export function withTypeIds(types) {
 }
 
 /**
- * @typedef {Record<string, { sold: number, held: number }>} SalesByType vendidas y reservadas
- *   por id de tipo (lo que ya hay en la base)
+ * Id del tipo al que apunta `after` (con los ids ya calculados), o '' si no apunta a ninguno.
+ *
+ * @param {TicketTypeForm[]} types con ids (`withTypeIds`)
+ * @param {string} after
+ */
+function afterId(types, after) {
+	if (!after) return '';
+	if (after.startsWith('missing:')) return after.slice('missing:'.length);
+	return types.find((t) => t.key === after)?.id ?? '';
+}
+
+/**
+ * @typedef {Record<string, { sold: number, held: number, tiers?: Record<string, number> }>}
+ *   SalesByType vendidas y reservadas por id de tipo (lo que ya hay en la base); `tiers`: lo
+ *   tomado (vendidas + reservadas) por id de tramo
  */
 
 /** @param {SalesByType | undefined} sales @param {string | null} id */
@@ -333,6 +503,8 @@ export function validateTicketsForm(form, { sales } = {}) {
 				errors.push(`${label}: el sugerido no puede ser menor que el mínimo.`);
 			else if (suggested > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el sugerido es demasiado alto (¿sobra un cero?).`);
+		} else if (t.mode === 'tiers') {
+			validateTiers(t, label, sales, errors);
 		} else {
 			const price = parseAmount(t.price);
 			if (price === null || price <= 0)
@@ -340,7 +512,37 @@ export function validateTicketsForm(form, { sales } = {}) {
 			else if (price > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el precio es demasiado alto (¿sobra un cero?).`);
 		}
+		const door = (t.doorPrice ?? '').trim();
+		if (t.mode !== 'gorra' && door) {
+			const p = parseAmount(door);
+			if (p === null)
+				errors.push(
+					`${label}: el precio en puerta tiene que ser en pesos enteros (0 o más), o quedar vacío.`
+				);
+			else if (p > ORDER_MAX_TOTAL)
+				errors.push(`${label}: el precio en puerta es demasiado alto (¿sobra un cero?).`);
+		}
+		if (t.mode !== 'tiers' && sales && t.origId) {
+			const tierSales = Object.values(sales[t.origId]?.tiers ?? {}).reduce((a, b) => a + b, 0);
+			if (tierSales > 0)
+				warnings.push(
+					`${label}: ya se vendieron entradas en preventa. Sin tramos, las compras nuevas pagan el precio fijo; las hechas no cambian.`
+				);
+		}
+		/* Encadenado: se habilita cuando otro tipo se agota o cierra. */
+		if (t.after) {
+			const target = types.find((o) => o.key === t.after);
+			if (!target) errors.push(`${label}: el tipo del que depende ya no existe.`);
+			else if (target.key === t.key)
+				errors.push(`${label}: no puede habilitarse después de sí mismo.`);
+			else if (neverEnds(target))
+				warnings.push(
+					`${label}: se habilita cuando se agote o cierre «${target.name.trim() || target.id}», pero ese tipo no tiene cupo, ni tramos con cantidad, ni cierre propio: puede que no se habilite nunca antes del evento.`
+				);
+		}
 	});
+	if (chainCycle(types.map((t) => ({ id: t.key, after: t.after || null }))))
+		errors.push('Los tipos encadenados forman un círculo: revisá «Se habilita cuando…».');
 	const ids = types.map((t) => t.id);
 	if (new Set(ids).size !== ids.length) errors.push('Hay dos tipos de entrada con el mismo id.');
 	if (sales) {
@@ -381,8 +583,78 @@ export function validateTicketsForm(form, { sales } = {}) {
 	if (form.mpFee.trim() && parseFeePercent(form.mpFee) === null)
 		errors.push('La comisión de Mercado Pago tiene que ser un porcentaje entre 0 y 49,99.');
 	if (form.door && form.doorPrice.trim().length > DOOR_PRICE_MAX)
-		errors.push(`El precio en la puerta es muy largo (hasta ${DOOR_PRICE_MAX} caracteres).`);
+		errors.push(`La nota sobre la puerta es muy larga (hasta ${DOOR_PRICE_MAX} caracteres).`);
 	return { errors, warnings };
+}
+
+/**
+ * Valida los tramos de un tipo (preventas).
+ *
+ * @param {TicketTypeForm} t con ids (`withTypeIds`)
+ * @param {string} label
+ * @param {SalesByType | undefined} sales
+ * @param {string[]} errors
+ */
+function validateTiers(t, label, sales, errors) {
+	if (!t.tiers.length) {
+		errors.push(`${label}: agregá al menos un tramo de preventa (o elegí precio fijo).`);
+		return;
+	}
+	if (t.tiers.length > MAX_TIERS) errors.push(`${label}: hasta ${MAX_TIERS} tramos.`);
+	const tierSales = (t.origId && sales?.[t.origId]?.tiers) || {};
+	/** @type {{ quantity: number | null, until: number | null }[]} */
+	const shape = [];
+	t.tiers.forEach((tr, j) => {
+		const tl = `${label}, tramo ${j + 1}${tr.name.trim() ? ` («${tr.name.trim()}»)` : ''}`;
+		if (!tr.name.trim()) errors.push(`${tl}: falta el nombre.`);
+		else if (tr.name.trim().length > 60) errors.push(`${tl}: el nombre es muy largo (hasta 60).`);
+		if (!TYPE_ID_RE.test(tr.id)) errors.push(`${tl}: el id «${tr.id}» no es válido.`);
+		const price = parseAmount(tr.price);
+		if (price === null || price <= 0)
+			errors.push(`${tl}: el precio tiene que ser en pesos enteros, mayor a 0.`);
+		else if (price > ORDER_MAX_TOTAL)
+			errors.push(`${tl}: el precio es demasiado alto (¿sobra un cero?).`);
+		const quantity = tr.quantity.trim() ? parseCount(tr.quantity) : null;
+		if (tr.quantity.trim() && (quantity === null || quantity < 1))
+			errors.push(`${tl}: la cantidad tiene que ser un número entero desde 1, o quedar vacía.`);
+		const taken = tr.origId ? (tierSales[tr.origId] ?? 0) : 0;
+		if (quantity !== null && taken > quantity)
+			errors.push(
+				`${tl}: ya hay ${taken} entradas vendidas o reservadas en este tramo, la cantidad no puede ser menor.`
+			);
+		const until = tr.until.trim() ? localMs(tr.until.trim()) : null;
+		if (until !== null && Number.isNaN(until))
+			errors.push(`${tl}: completá el día y la hora (o dejalo vacío).`);
+		shape.push({ quantity, until: until !== null && !Number.isNaN(until) ? until : null });
+	});
+	const stuck = unreachableAfter(shape);
+	if (stuck !== -1)
+		errors.push(
+			`${label}: el tramo ${stuck + 1} no tiene cantidad ni fecha, así que los que siguen nunca se venderían. Poné una cantidad o una fecha, o movelo al final.`
+		);
+	const ids = t.tiers.map((tr) => tr.id);
+	if (new Set(ids).size !== ids.length) errors.push(`${label}: hay dos tramos con el mismo id.`);
+	for (const [id, n] of Object.entries(tierSales)) {
+		if (n > 0 && !t.tiers.some((tr) => tr.origId === id))
+			errors.push(
+				`${label}: no se puede borrar el tramo «${id}»: ya tiene ${n} entradas vendidas o reservadas.`
+			);
+	}
+}
+
+/**
+ * ¿Un tipo puede no agotarse ni cerrar nunca antes del evento? (sin cupo, sin cierre propio y sin
+ * un último tramo con cantidad). Solo para avisar en los encadenados.
+ *
+ * @param {TicketTypeForm} t
+ */
+function neverEnds(t) {
+	if (t.capacity.trim() || t.close.trim()) return false;
+	if (t.mode === 'tiers') {
+		const last = t.tiers[t.tiers.length - 1];
+		return !last || !last.quantity.trim();
+	}
+	return true;
 }
 
 /** @param {string} raw @returns {number | null} */
@@ -393,8 +665,20 @@ function parseCount(raw) {
 	return Number.isSafeInteger(n) ? n : null;
 }
 
-/** @param {TicketTypeForm} t */
-const normalizedType = (t) => ({
+/** @param {TierForm} tr */
+const normalizedTier = (tr) => ({
+	id: tr.id,
+	name: tr.name.trim(),
+	price: parseAmount(tr.price) ?? tr.price,
+	quantity: tr.quantity.trim() ? (parseCount(tr.quantity) ?? tr.quantity) : null,
+	until: tr.until.trim()
+});
+
+/**
+ * @param {TicketTypeForm} t con ids (`withTypeIds`)
+ * @param {TicketTypeForm[]} all todos los tipos, con ids (para escribir `after` como id)
+ */
+const normalizedType = (t, all) => ({
 	id: t.id,
 	name: t.name.trim(),
 	mode: t.mode,
@@ -402,8 +686,21 @@ const normalizedType = (t) => ({
 	min: t.mode === 'gorra' ? (parseAmount(t.min || '0') ?? t.min) : null,
 	suggested: t.mode === 'gorra' ? (parseAmount(t.suggested) ?? t.suggested) : null,
 	capacity: t.capacity.trim() ? (parseCount(t.capacity) ?? t.capacity) : null,
-	close: t.close.trim()
+	close: t.close.trim(),
+	tiers: t.mode === 'tiers' ? (t.tiers ?? []).map(normalizedTier) : null,
+	after: afterId(all, t.after ?? ''),
+	doorPrice: t.mode !== 'gorra' && (t.doorPrice ?? '').trim() ? doorPriceOf(t) : null
 });
+
+/** `doorPrice` de un tipo del formulario en pesos (o el texto tal cual si no es un monto). */
+/** @param {TicketTypeForm} t */
+const doorPriceOf = (t) => parseAmount((t.doorPrice ?? '').trim()) ?? t.doorPrice;
+
+/** @param {TicketTypeForm[]} types */
+const normalizedTypes = (types) => {
+	const all = withTypeIds(types);
+	return all.map((t) => normalizedType(t, all));
+};
 
 /**
  * Forma "normalizada" del formulario, para saber si algo cambió.
@@ -412,7 +709,7 @@ const normalizedType = (t) => ({
 function normalized(f) {
 	return JSON.stringify({
 		enabled: f.enabled,
-		types: f.enabled ? withTypeIds(f.types).map(normalizedType) : [],
+		types: f.enabled ? normalizedTypes(f.types) : [],
 		methods: f.enabled ? f.methods : null,
 		open: f.enabled && f.customOpen ? f.openAt : '',
 		close: f.enabled && f.customClose ? f.closeAt : '',
@@ -471,25 +768,41 @@ export function applyTicketsForm(frontmatter, form, initial) {
 	}
 	/** @type {Map<string, string>} */
 	const initialTypes = new Map(
-		withTypeIds(initial.enabled ? initial.types : []).map((t) => [
-			t.id,
-			JSON.stringify(normalizedType(t))
-		])
+		normalizedTypes(initial.enabled ? initial.types : []).map((n) => [n.id, JSON.stringify(n)])
 	);
 	const items = types.map((t) => {
 		const existing = t.origId ? byId.get(t.origId) : undefined;
+		const norm = normalizedType(t, types);
 		// Un tipo que no cambió queda tal cual (con sus comentarios y claves viejas).
-		if (existing && initialTypes.get(t.id) === JSON.stringify(normalizedType(t))) return existing;
+		if (existing && initialTypes.get(t.id) === JSON.stringify(norm)) return existing;
 		const node = existing ?? doc.createNode({ id: t.id });
 		node.set('name', t.name.trim());
-		const modeChanged = t.mode === 'gorra' ? node.has('price') : node.has('a_la_gorra');
+		const nodeMode = node.has('tiers') ? 'tiers' : node.has('a_la_gorra') ? 'gorra' : 'price';
+		const modeChanged = existing ? nodeMode !== t.mode : false;
 		if (t.mode === 'gorra') {
 			node.delete('price');
+			node.delete('tiers');
 			const gorra = doc.createNode({ minimo: amount(t.min), sugerido: amount(t.suggested) });
 			gorra.flow = true;
 			node.set('a_la_gorra', gorra);
+		} else if (t.mode === 'tiers') {
+			node.delete('price');
+			node.delete('a_la_gorra');
+			node.set(
+				'tiers',
+				doc.createNode(
+					t.tiers.map((tr) => {
+						/** @type {Record<string, string | number>} */
+						const out = { id: tr.id, name: tr.name.trim(), price: amount(tr.price) };
+						if (tr.quantity.trim()) out.quantity = Number(tr.quantity.trim());
+						if (tr.until.trim()) out.until = withZone(tr.until.trim());
+						return out;
+					})
+				)
+			);
 		} else {
 			node.delete('a_la_gorra');
+			node.delete('tiers');
 			node.set('price', amount(t.price));
 		}
 		// El fondo en pesos por tipo ya no existe (el Fondo es automático).
@@ -502,6 +815,12 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		// Cierre propio del tipo (opcional).
 		if (t.close.trim()) node.set('close', withZone(t.close.trim()));
 		else node.delete('close');
+		// Encadenado (opcional): el id del tipo que se tiene que agotar o cerrar.
+		if (norm.after) node.set('after', norm.after);
+		else node.delete('after');
+		// Precio en la puerta (opcional; a la gorra no tiene).
+		if (norm.doorPrice !== null) node.set('door_price', amount(String(t.doorPrice)));
+		else node.delete('door_price');
 		return node;
 	});
 	if (isSeq(current)) current.items = items;
@@ -598,10 +917,31 @@ export function describeTicketsForm(form, formatARS) {
 				: form.doorPrice.trim()
 					? ` · También en la puerta (${form.doorPrice.trim()})`
 					: '';
+	const all = withTypeIds(form.types);
 	return (
-		withTypeIds(form.types)
+		all
 			.map((t) => {
 				const cap = t.capacity.trim() ? `, cupo ${t.capacity.trim()}` : ', sin cupo';
+				const after = t.after
+					? ` (cuando se agote «${all.find((o) => o.key === t.after)?.name.trim() ?? '?'}»)`
+					: '';
+				if (t.mode === 'tiers') {
+					const steps = t.tiers
+						.map((tr) => {
+							const p = parseAmount(tr.price);
+							const extra = [
+								tr.quantity.trim() ? `${tr.quantity.trim()}` : '',
+								tr.until.trim() && LOCAL_RE.test(tr.until.trim())
+									? `hasta ${tr.until.trim().slice(8, 10)}/${tr.until.trim().slice(5, 7)}`
+									: ''
+							]
+								.filter(Boolean)
+								.join(', ');
+							return `${tr.name.trim() || '?'} ${p === null ? '?' : formatARS(p)}${extra ? ` (${extra})` : ''}`;
+						})
+						.join(' → ');
+					return `${t.name.trim() || t.id}: ${steps}${cap}${after}`;
+				}
 				if (t.mode === 'gorra') {
 					const s = parseAmount(t.suggested);
 					const m = parseAmount(t.min || '0');
@@ -610,7 +950,7 @@ export function describeTicketsForm(form, formatARS) {
 					}${cap})`;
 				}
 				const p = parseAmount(t.price);
-				return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}`;
+				return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}${after}`;
 			})
 			.join(' · ') + door
 	);

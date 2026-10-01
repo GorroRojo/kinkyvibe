@@ -1,19 +1,26 @@
 <!--
 	"Entradas" del editor de eventos: prende/apaga la venta por el sitio y edita los tipos de
-	entrada, medios de pago, cierre, modalidad, entradas en la puerta y recordatorios (ver
-	$lib/utils/ticketsEditor.js,
-	que lee y escribe el frontmatter). Nada del Fondo: es automático, solo avisa si aplica.
+	entrada (precio fijo, preventas por tramos o a la gorra; cupo opcional; cierre propio; tipos
+	encadenados), medios de pago, cierre, modalidad, entradas en la puerta y recordatorios (ver
+	$lib/utils/ticketsEditor.js, que lee y escribe el frontmatter). Los tramos se editan en
+	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica.
+
+	Diseño: primero el celu (una columna); en pantallas anchas los campos de cada tipo se acomodan
+	en una grilla según el ancho del editor (container queries), no de la ventana.
 -->
 <script>
 	import { formatARS } from '$lib/utils/money.js';
-	import { formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
+	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		DOOR_PRICE_MAX,
 		PAYMENT_METHOD_LABELS,
+		doorPricePreview,
 		emptyTicketType,
 		isKinkyVibeEvent,
-		isOnlineEvent
+		isOnlineEvent,
+		tiersForMode
 	} from '$lib/utils/ticketsEditor.js';
+	import TicketTiersEditor from './TicketTiersEditor.svelte';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -33,10 +40,16 @@
 	export let warnings = [];
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
-	export let settingsHref = '/admin/entradas/ajustes';
+	export let settingsHref = '/admin/ajustes/cobros';
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
+	/** Cómo se cobra un tipo. */
+	const MODES = /** @type {const} */ ([
+		{ id: 'price', label: 'Precio fijo' },
+		{ id: 'tiers', label: 'Preventas' },
+		{ id: 'gorra', label: 'A la gorra' }
+	]);
 	$: fondo = isKinkyVibeEvent({ tags });
 	$: autoOnline = isOnlineEvent({ tags, location });
 	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
@@ -53,7 +66,17 @@
 	}
 	/** @param {number} i */
 	function removeType(i) {
-		state.types = state.types.filter((_, j) => j !== i);
+		const gone = state.types[i]?.key;
+		// Los que se habilitaban después de este pasan a estar a la venta desde el principio.
+		state.types = state.types
+			.filter((_, j) => j !== i)
+			.map((t) => (t.after === gone ? { ...t, after: '' } : t));
+	}
+	/** Al pasar a "Preventas", arranca con dos tramos (ver `tiersForMode`). @param {number} i */
+	function modeChanged(i) {
+		const t = state.types[i];
+		if (t.mode === 'tiers') t.tiers = tiersForMode(t);
+		state.types = state.types;
 	}
 	/** @param {number} i @param {number} delta */
 	function move(i, delta) {
@@ -159,7 +182,7 @@
 							Ya vendidas: <strong>{s.sold}</strong>{#if s.held}{' '}· reservadas: {s.held}{/if}
 						</p>
 					{/if}
-					<div class="type-fields" class:mode-gorra={t.mode === 'gorra'}>
+					<div class="type-fields mode-{t.mode}">
 						<label class="field f-name">
 							<span>Nombre <span class="req">*</span></span>
 							<input
@@ -169,42 +192,26 @@
 								maxlength="60"
 							/>
 						</label>
-						<label class="field f-cap">
-							<span>Cupo <small>(opcional)</small></span>
-							<input
-								id="{idPrefix}-ticket-capacity-{i}"
-								bind:value={t.capacity}
-								inputmode="numeric"
-								placeholder="Sin límite"
-								aria-describedby="{idPrefix}-ticket-capacity-help-{i}"
-							/>
-							<small id="{idPrefix}-ticket-capacity-help-{i}"
-								>{#if taken}Mínimo {taken} (lo ya vendido o reservado).{:else}Vacío = sin límite.{/if}</small
+						<div class="field f-mode">
+							<span id="{idPrefix}-ticket-mode-label-{i}">Cómo se cobra</span>
+							<div
+								class="pills"
+								role="radiogroup"
+								aria-labelledby="{idPrefix}-ticket-mode-label-{i}"
 							>
-						</label>
-						<div
-							class="pills f-mode"
-							role="radiogroup"
-							aria-label="Cómo se cobra «{t.name || `entrada ${i + 1}`}»"
-						>
-							<label class="pill">
-								<input
-									type="radio"
-									name="{idPrefix}-ticket-mode-{t.key}"
-									value="price"
-									bind:group={t.mode}
-								/>
-								<span>Precio fijo</span>
-							</label>
-							<label class="pill">
-								<input
-									type="radio"
-									name="{idPrefix}-ticket-mode-{t.key}"
-									value="gorra"
-									bind:group={t.mode}
-								/>
-								<span>A la gorra</span>
-							</label>
+								{#each MODES as m}
+									<label class="pill">
+										<input
+											type="radio"
+											name="{idPrefix}-ticket-mode-{t.key}"
+											value={m.id}
+											bind:group={t.mode}
+											on:change={() => modeChanged(i)}
+										/>
+										<span>{m.label}</span>
+									</label>
+								{/each}
+							</div>
 						</div>
 						{#if t.mode === 'gorra'}
 							<label class="field f-min">
@@ -236,6 +243,19 @@
 									>
 								{/if}
 							</label>
+						{:else if t.mode === 'tiers'}
+							<div class="field f-tiers">
+								<span
+									>Tramos de preventa <small
+										>(en orden: pasa al siguiente cuando se vende la cantidad o llega la fecha)</small
+									></span
+								>
+								<TicketTiersEditor
+									bind:tiers={t.tiers}
+									taken={s?.tiers ?? {}}
+									idPrefix="{idPrefix}-tier-{i}"
+								/>
+							</div>
 						{:else}
 							<label class="field f-price">
 								<span>Precio ($) <span class="req">*</span></span>
@@ -253,16 +273,68 @@
 								>
 							</label>
 						{/if}
+						{#if t.mode !== 'gorra'}
+							<label class="field f-door">
+								<span>Precio en puerta <small>(opcional)</small></span>
+								<input
+									id="{idPrefix}-ticket-door-price-{i}"
+									bind:value={t.doorPrice}
+									inputmode="numeric"
+									placeholder={t.mode === 'tiers' ? 'El del último tramo' : 'El mismo'}
+									aria-describedby="{idPrefix}-ticket-door-help-{i}"
+								/>
+								<small id="{idPrefix}-ticket-door-help-{i}"
+									>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
+										lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y la
+									carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
+								>
+							</label>
+						{/if}
+						<label class="field f-cap">
+							<span>Cupo <small>(opcional)</small></span>
+							<input
+								id="{idPrefix}-ticket-capacity-{i}"
+								bind:value={t.capacity}
+								inputmode="numeric"
+								placeholder="Sin límite"
+								aria-describedby="{idPrefix}-ticket-capacity-help-{i}"
+							/>
+							<small id="{idPrefix}-ticket-capacity-help-{i}"
+								>{#if taken}Mínimo {taken} (lo ya vendido o reservado).{:else}Vacío = sin límite. En
+									público solo se ve «quedan N» cuando quedan menos de {LOW_STOCK}.{/if}</small
+							>
+						</label>
 						<label class="field f-close">
 							<span>Cierre propio <small>(opcional)</small></span>
 							<input type="datetime-local" id="{idPrefix}-ticket-close-{i}" bind:value={t.close} />
 							<small
 								>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(
 										t.close
-									)}.{:else}Vacío = cierra con la venta del evento (por ejemplo, para que la
-									anticipada cierre antes).{/if}</small
+									)}.{:else}Vacío = cierra con la venta del evento.{/if}</small
 							>
 						</label>
+						{#if state.types.length > 1}
+							<label class="field f-after">
+								<span>Se habilita</span>
+								<select id="{idPrefix}-ticket-after-{i}" bind:value={t.after}>
+									<option value="">Desde que abre la venta</option>
+									{#each state.types as o, k (o.key)}
+										{#if o.key !== t.key}
+											<option value={o.key}
+												>Cuando se agote o cierre «{o.name.trim() || `Entrada ${k + 1}`}»</option
+											>
+										{/if}
+									{/each}
+									{#if t.after.startsWith('missing:')}
+										<option value={t.after}>Cuando se agote «{t.after.slice(8)}» (no existe)</option
+										>
+									{/if}
+								</select>
+								<small
+									>Por ejemplo, una «Última tanda» que sale a la venta cuando se agota la anterior.</small
+								>
+							</label>
+						{/if}
 					</div>
 				</li>
 			{/each}
@@ -347,13 +419,18 @@
 				</label>
 				{#if state.door}
 					<label class="field door-price">
-						<span>Precio en la puerta <small>(opcional)</small></span>
+						<span>Nota sobre la puerta <small>(opcional)</small></span>
 						<input
 							id="{idPrefix}-door-price"
 							bind:value={state.doorPrice}
 							maxlength={DOOR_PRICE_MAX}
 							placeholder="$ 12.000, solo efectivo"
+							aria-describedby="{idPrefix}-door-price-hint"
 						/>
+						<small id="{idPrefix}-door-price-hint"
+							>Solo se muestra en la página del evento («También hay entradas en la puerta: …»). Lo
+							que se cobra es el «Precio en puerta» de cada tipo.</small
+						>
 					</label>
 					<small
 						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
@@ -454,22 +531,52 @@
 		margin: 0;
 		font-size: var(--step--1);
 	}
-	/* Campos de un tipo: grilla compacta (nombre y cupo; cómo se cobra; montos y cierre). */
+	/* Campos de un tipo. Celu: una columna (nombre, cómo se cobra, precio, cupo, cierre…). Se
+	   acomoda por el ancho del editor (container query), así funciona igual en una columna angosta
+	   de la compu. */
+	.type {
+		container-type: inline-size;
+	}
 	.type-fields {
 		display: grid;
-		gap: 0.6em 0.8em;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		grid-template-areas:
-			'name name'
-			'cap mode'
-			'price close';
+		gap: 0.7em 0.8em;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'name' 'mode' 'price' 'door' 'cap' 'close' 'after';
 		align-items: start;
 		&.mode-gorra {
-			grid-template-areas:
-				'name name'
-				'cap mode'
-				'min sug'
-				'close close';
+			grid-template-areas: 'name' 'mode' 'min' 'sug' 'cap' 'close' 'after';
+		}
+		&.mode-tiers {
+			grid-template-areas: 'name' 'mode' 'tiers' 'door' 'cap' 'close' 'after';
+		}
+	}
+	/* Mediano: de a dos (precio y precio en puerta juntos; cupo y cierre juntos). */
+	@container (min-width: 30em) {
+		.type-fields {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-areas: 'name name' 'mode mode' 'price door' 'cap close' 'after after';
+			&.mode-gorra {
+				grid-template-areas: 'name name' 'mode mode' 'min sug' 'cap close' 'after after';
+			}
+			&.mode-tiers {
+				grid-template-areas: 'name name' 'mode mode' 'tiers tiers' 'door cap' 'close after';
+			}
+		}
+	}
+	/* Ancho (compu): nombre y cómo se cobra arriba; precio, precio en puerta, cupo y cierre en una
+	   fila pareja. */
+	@container (min-width: 48em) {
+		.type-fields {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-areas: 'name name mode mode' 'price door cap close' 'after after after after';
+			&.mode-gorra {
+				grid-template-areas: 'name name mode mode' 'min sug cap close' 'after after after after';
+			}
+			&.mode-tiers {
+				grid-template-areas:
+					'name name mode mode' 'tiers tiers tiers tiers' 'door cap close close'
+					'after after after after';
+			}
 		}
 	}
 	.f-name {
@@ -480,7 +587,6 @@
 	}
 	.f-mode {
 		grid-area: mode;
-		align-self: center;
 	}
 	.f-price {
 		grid-area: price;
@@ -494,30 +600,28 @@
 	.f-close {
 		grid-area: close;
 	}
-	@media (max-width: 500px) {
-		.type-fields {
-			grid-template-areas:
-				'name name'
-				'cap mode'
-				'price price'
-				'close close';
-		}
+	.f-door {
+		grid-area: door;
 	}
-	@media (min-width: 900px) {
-		.type-fields {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-			grid-template-areas:
-				'name name cap mode'
-				'price close close .';
-			&.mode-gorra {
-				grid-template-areas:
-					'name name cap mode'
-					'min sug close close';
-			}
-		}
+	.f-tiers {
+		grid-area: tiers;
+	}
+	.f-after {
+		grid-area: after;
+		max-width: 34em;
+	}
+	.type-fields .field {
+		min-width: 0;
+	}
+	.type-fields input,
+	.type-fields select {
+		max-width: 100%;
 	}
 	.door-price {
-		max-width: 24em;
+		max-width: 34em;
+		input {
+			max-width: 24em;
+		}
 	}
 	.add {
 		align-self: flex-start;

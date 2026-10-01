@@ -17,10 +17,16 @@ import {
 	confirmTransfer,
 	getOrder,
 	refundOrder,
+	orderTier,
 	transferLimits
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
-import { getStreamLink, normalizeStreamLink, setStreamLink } from '$lib/server/tickets/stream.js';
+import {
+	getStreamLink,
+	normalizeStreamLink,
+	requestStreamLinkSend,
+	setStreamLink
+} from '$lib/server/tickets/stream.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
 /**
@@ -117,7 +123,7 @@ export const eventTicketActions = {
 			fail(409, {
 				transfer: {
 					ok: false,
-					message: `Para confirmar ${ref} hay que pasar el cupo: confirmalo en el aviso.`,
+					message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
 					order: orderId,
 					needsConfirmation
 				}
@@ -128,6 +134,7 @@ export const eventTicketActions = {
 			orderId,
 			eventSlug: params.slug,
 			capacity: type.capacity,
+			tierQuantity: orderTier(order, type)?.quantity ?? null,
 			by: admin.login,
 			override: check.override,
 			now
@@ -217,6 +224,9 @@ export const eventTicketActions = {
 	},
 
 	// "Enviar el link a todes": solo a las órdenes aprobadas que todavía no recibieron ESTE link.
+	// Manda una tanda ("de a cuántos" de Ajustes → Mails) y deja el envío pedido: el resto lo
+	// manda el cron en las próximas vueltas (o otro toque del botón). También reintenta a quienes
+	// habían fallado todos sus intentos.
 	sendLink: async ({ locals, url, params, platform, fetch }) => {
 		requireAdmin(locals, url);
 		const db = getDB(platform);
@@ -226,6 +236,7 @@ export const eventTicketActions = {
 		if (!current) {
 			return fail(400, { stream: { ok: false, message: 'Primero guardá el link.' } });
 		}
+		await requestStreamLinkSend(db, { eventSlug: params.slug, link: current.link });
 		const r = await sendStreamLinkEmails({
 			db,
 			eventSlug: params.slug,
@@ -240,17 +251,11 @@ export const eventTicketActions = {
 				targetType: 'event',
 				targetId: params.slug,
 				summary: `Mandó el link de la transmisión a ${who(r.sent)}`,
-				detail: { sent: r.sent, failed: r.failed }
+				detail: { sent: r.sent, failed: r.failed, remaining: r.remaining }
 			});
 		}
-		const message =
-			r.sent === 0 && r.failed === 0
-				? 'Todes ya tenían este link: no se mandó nada.'
-				: `Link enviado a ${who(r.sent)}.` +
-					(r.failed
-						? ` No se pudo mandar a ${who(r.failed)} (ver logs; volvé a tocar el botón).`
-						: '');
-		return r.failed
+		const message = streamSendMessage(r, who);
+		return r.failed || r.gaveUp
 			? fail(502, { stream: { ok: false, message } })
 			: { stream: { ok: true, message } };
 	},
@@ -359,4 +364,30 @@ export const eventTicketActions = {
  */
 export function pickActions(...names) {
 	return Object.fromEntries(names.map((n) => [n, eventTicketActions[n]]));
+}
+
+/**
+ * Qué pasó con una tanda de "Enviar el link a todes", para le admin.
+ *
+ * @param {{ sent: number, failed: number, remaining: number, gaveUp: number }} r
+ * @param {(n: number) => string} who
+ */
+export function streamSendMessage(r, who) {
+	if (!r.sent && !r.failed && !r.remaining && !r.gaveUp) {
+		return 'Todes ya tenían este link: no se mandó nada.';
+	}
+	const parts = [];
+	if (r.sent || r.failed) parts.push(`Link enviado a ${who(r.sent)}.`);
+	if (r.failed) parts.push(`No se pudo mandar a ${who(r.failed)}: se reintenta solo.`);
+	if (r.remaining) {
+		parts.push(
+			`Faltan ${who(r.remaining)}: siguen solas en las próximas vueltas del cron (cada 15 minutos), o tocá el botón de nuevo para mandar otra tanda.`
+		);
+	}
+	if (r.gaveUp) {
+		parts.push(
+			`A ${who(r.gaveUp)} no le llegó después de varios intentos (ver logs; tocá el botón para reintentar).`
+		);
+	}
+	return parts.join(' ');
 }

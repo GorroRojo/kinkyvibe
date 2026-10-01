@@ -310,6 +310,9 @@
 		>
 			<fieldset class="types">
 				<legend>Tipo de entrada</legend>
+				<!-- Tramo de preventa que se está viendo: el servidor elige el precio, esto solo sirve
+				     para avisar si cambió antes de cobrar. -->
+				<input type="hidden" name="tier" value={selected?.tier?.id ?? ''} />
 				{#each tickets.types as t (t.id)}
 					<label class="type" class:soldout={t.available === 0 || t.closed}>
 						<input
@@ -320,7 +323,9 @@
 							disabled={t.available === 0 || t.closed}
 							required
 						/>
-						<span class="type-name">{t.name}</span>
+						<span class="type-name"
+							>{t.name}{#if t.tier}<span class="type-tier">{t.tier.name}</span>{/if}</span
+						>
 						<span class="type-price">
 							{#if t.gorra}
 								<strong>A la gorra</strong>
@@ -343,9 +348,12 @@
 							</small>
 						{/if}
 						<small class="type-left">
-							{#if t.closed}Venta cerrada{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+							{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
 									t.left
-								)}{:else if t.closesAt}Hasta el {formatSaleTime(t.closesAt)}{/if}
+								)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
+								{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
+									t.closesAt
+								)}{/if}
 						</small>
 					</label>
 				{/each}
@@ -837,6 +845,18 @@
 		grid-area: name;
 		font-weight: bold;
 	}
+	/* Tramo vigente de una preventa ("Preventa 1"): una etiqueta chica al lado del nombre. */
+	.type-tier {
+		display: inline-block;
+		margin-left: 0.5em;
+		padding: 0.05em 0.6em;
+		border-radius: 1em;
+		background: color-mix(in srgb, var(--2) 15%, white);
+		color: var(--2-dark);
+		font-size: var(--step--1);
+		font-weight: normal;
+		white-space: nowrap;
+	}
 	.type-price {
 		grid-area: price;
 		text-align: right;
@@ -1018,8 +1038,8 @@
 		outline: 3px solid var(--2-light);
 	}
 
-	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto (botones de 42 px: siguen
-	   siendo cómodos para el dedo sin ocupar media pantalla). */
+	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto. Los botones miden 44 × 44
+	   por dentro del borde (el mínimo para el dedo que usa todo el sitio). */
 	.field.qty {
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -1032,7 +1052,8 @@
 	.stepper {
 		display: inline-flex;
 		align-items: stretch;
-		height: 42px;
+		/* 44 px de botón + 2 px de borde arriba y abajo. */
+		height: 48px;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
 		border-radius: 999px;
 		background: white;
@@ -1064,9 +1085,9 @@
 		margin: 0;
 	}
 	button.step {
-		flex: 0 0 42px;
-		width: 42px;
-		min-width: 42px;
+		flex: 0 0 44px;
+		width: 44px;
+		min-width: 44px;
 		min-height: 0;
 		height: auto;
 		margin: 0;
@@ -1180,9 +1201,11 @@
 	}
 	.pay button {
 		/* Alto para dos líneas y ancho que no depende del texto: el texto cambia con el medio de
-		   pago y no debería mover nada. */
+		   pago y no debería mover nada. Dos líneas = 2 × 1,2em de texto + 2 × 0,8em de padding
+		   (el botón cuenta el padding en su alto): 4em. Con 3,6em, «Reservar y ver cómo
+		   transferir» en dos líneas lo estiraba 8 px al elegir Transferencia. */
 		flex: 1 1 16em;
-		min-height: 3.6em;
+		min-height: calc(2 * 1.2em + 2 * 0.8em);
 		line-height: 1.2;
 	}
 	.option {

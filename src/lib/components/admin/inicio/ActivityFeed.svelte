@@ -35,6 +35,7 @@
 
 	/** @param {import('$lib/server/admin/inicio.js').ActivityItem} a */
 	function href(a) {
+		if (a.href) return a.href;
 		if (a.orderId && a.slug) return orderHref(a.slug, a.orderId);
 		if (a.kind === 'checkin' && a.slug) return checkinHref(a.slug);
 		if (a.slug) return eventLink(a.slug);
@@ -116,6 +117,13 @@
 	}
 	.dot.checkin {
 		background: var(--accent);
+	}
+	.dot.account {
+		background: var(--link);
+	}
+	.dot.tip {
+		background: var(--accent);
+		box-shadow: inset 0 0 0 2px var(--ok);
 	}
 	time {
 		font-size: 0.8rem;
