@@ -30,7 +30,13 @@
 	}
 </script>
 
-<div class="confirm-prompt" role="alertdialog" aria-labelledby={id} on:keydown={onKeydown}>
+<div
+	class="confirm-prompt"
+	role="alertdialog"
+	tabindex="-1"
+	aria-labelledby={id}
+	on:keydown={onKeydown}
+>
 	<p {id} class="question">{message}</p>
 	<div class="btns">
 		<button class="kv-btn ghost" type="button" on:click={() => dispatch('cancel')}
