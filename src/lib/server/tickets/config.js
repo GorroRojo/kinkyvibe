@@ -97,7 +97,8 @@
  *   title: string,
  *   start: string | undefined,
  *   location: string | undefined,
- *   location_name: string | undefined
+ *   location_name: string | undefined,
+ *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} EventTickets
  */
 
@@ -120,6 +121,7 @@ import {
 	isKinkyVibeEvent,
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
+import { validateAnswers } from '$lib/utils/signupFields.js';
 
 // Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
 export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
@@ -623,6 +625,9 @@ export function validateBuyer(raw) {
  * del tipo; sin máximo de producto, solo el tope técnico ORDER_MAX_TOTAL para el total de la
  * orden); vacío = el sugerido. La opción queda `gorra` (sin fondo).
  *
+ * Preguntas de inscripción (`config.fields`, interruptor `personas_eventos`): las respuestas
+ * llegan en `answers` (por `name` del campo) y sus errores van con ese mismo `name`.
+ *
  * @param {EventTickets} config
  * @param {{
  *   type: unknown, quantity: unknown, accept: unknown,
@@ -631,11 +636,12 @@ export function validateBuyer(raw) {
  *   method?: unknown,
  *   option?: unknown,
  *   amount?: unknown,
+ *   answers?: Record<string, unknown>,
  *   now?: number
  * }} input
  * @returns {{ ok: true, type: TicketType, quantity: number, buyer: Buyer, holders: Holder[],
  *     method: PaymentMethod, option: import('$lib/utils/tickets.js').PriceOption,
- *     unitPrice: number }
+ *     unitPrice: number, answers: import('$lib/utils/signupFields.js').Answer[] }
  *   | { ok: false, errors: Record<string, string> }}
  */
 export function validatePurchase(config, input) {
@@ -704,6 +710,13 @@ export function validatePurchase(config, input) {
 		}
 		option = /** @type {import('$lib/utils/tickets.js').FondoOption | null} */ (chosen);
 	}
+	/** @type {import('$lib/utils/signupFields.js').Answer[]} */
+	let answers = [];
+	if (config.fields?.length) {
+		const a = validateAnswers(config.fields, input.answers ?? {});
+		if (a.ok) answers = a.answers;
+		else Object.assign(errors, a.errors);
+	}
 	if (input.accept !== 'on' && input.accept !== '1') {
 		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
 	}
@@ -716,6 +729,7 @@ export function validatePurchase(config, input) {
 		holders,
 		method: /** @type {PaymentMethod} */ (method),
 		option,
-		unitPrice
+		unitPrice,
+		answers
 	};
 }

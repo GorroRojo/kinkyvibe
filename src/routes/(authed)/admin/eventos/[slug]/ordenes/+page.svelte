@@ -5,6 +5,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
@@ -171,6 +172,7 @@
 						</table>
 					</div>
 				{/if}
+				<OrderAnswers answers={o.answers} />
 				<div class="meta">
 					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}
 						· pago MP {o.paymentId}{/if}{#if o.confirmedBy}

@@ -39,7 +39,11 @@ const evento = {
 		body: { kind: 'longtext', label: 'Descripción' }
 	},
 	edges: {
-		lugar: { label: 'Lugar', to: ['lugar'], max: 1 }
+		lugar: { label: 'Lugar', to: ['lugar'], max: 1 },
+		// Personas con rol (B7): un edge por perfil, `data: { roles: ['Organiza', …] }`. Hoy los
+		// roles viven en el frontmatter de los .md (`personas:`); personasToEdges() de
+		// src/lib/utils/personas.js arma estos edges cuando el evento pase a la base.
+		persona: { label: 'Personas con rol', to: ['perfil'] }
 	},
 	check(data) {
 		const start = Date.parse(String(data.start));

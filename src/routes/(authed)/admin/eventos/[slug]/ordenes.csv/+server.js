@@ -9,6 +9,9 @@ import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { personasEventosEnabled } from '$lib/server/flags.js';
+import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
+import { answerColumns, answerFor } from '$lib/utils/signupFields.js';
 
 /**
  * Celda CSV segura: comillas escapadas y sin fórmulas (una celda que empieza con = + - @ se
@@ -29,10 +32,15 @@ export async function GET({ locals, url, params, platform }) {
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [orders, tickets] = await Promise.all([
+	const [orders, tickets, answers, fields] = await Promise.all([
 		listOrders(db, params.slug),
-		listEventTickets(db, params.slug)
+		listEventTickets(db, params.slug),
+		answersByOrder(db, params.slug),
+		eventFieldsForCsv(db, params.slug, platform)
 	]);
+	// Una columna por pregunta de inscripción (las de hoy y las que solo tienen respuestas viejas).
+	// Sin preguntas ni respuestas, el CSV queda como siempre.
+	const extra = answerColumns([...answers.values()], fields);
 	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));
 	/** @type {Map<string, import('$lib/server/tickets/orders.js').Ticket[]>} */
 	const byOrder = new Map();
@@ -68,7 +76,8 @@ export async function GET({ locals, url, params, platform }) {
 		'recargo_mp',
 		'total',
 		'pago_mp',
-		'confirmo'
+		'confirmo',
+		...extra.map((c) => c.label)
 	];
 	const lines = [header.map(csvCell).join(',')];
 	for (const o of orders) {
@@ -112,7 +121,8 @@ export async function GET({ locals, url, params, platform }) {
 					first ? o.surcharge_amount : '',
 					first ? o.total : '',
 					o.mp_payment_id,
-					o.confirmed_by
+					o.confirmed_by,
+					...extra.map((c) => answerFor(answers.get(o.id), c.id))
 				]
 					.map(csvCell)
 					.join(',')
@@ -127,4 +137,20 @@ export async function GET({ locals, url, params, platform }) {
 			'cache-control': 'private, no-store'
 		}
 	});
+}
+
+/**
+ * Las preguntas de hoy del evento (para que tengan columna aunque nadie las haya respondido),
+ * solo con el interruptor `personas_eventos` prendido. Con un error, ninguna.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {App.Platform | undefined} platform
+ */
+async function eventFieldsForCsv(db, slug, platform) {
+	if (!(await personasEventosEnabled(platform))) return [];
+	try {
+		return await fieldsForEvent(db, slug);
+	} catch (e) {
+		return [];
+	}
 }

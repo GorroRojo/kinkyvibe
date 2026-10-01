@@ -33,6 +33,15 @@ export const FLAGS = Object.freeze({
 			'clasificación.',
 		envVar: 'PERFILES_PUBLICOS_ENABLED'
 	},
+	personas_eventos: {
+		label: 'Personas en eventos y preguntas de inscripción',
+		description:
+			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
+			'«Perfiles públicos» prendido), y preguntas ' +
+			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
+		envVar: 'PERSONAS_EVENTOS_ENABLED'
+	},
 	propinas: {
 		label: 'Propinas',
 		description:
@@ -121,6 +130,16 @@ export function cuentasEnabled(platform) {
  */
 export function perfilesPublicosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'perfiles_publicos');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los roles y las preguntas de inscripción?
+ * (docs/personas-eventos.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function personasEventosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'personas_eventos');
 }
 
 /**
