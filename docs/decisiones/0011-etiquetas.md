@@ -17,7 +17,7 @@ Las etiquetas ya ordenan el contenido y ahora también van a definir series (000
   - etiquetas que funcionan como categorías;
   - color por etiqueta;
   - campos en los ítems.
-- El detalle se revisa cuando empiece ese bloque (paso 3 de 0001).
+- El detalle se revisa cuando empiece ese bloque: "etiquetas a objetos", paso 3 del orden de 0026.
 
 ## Descartado
 

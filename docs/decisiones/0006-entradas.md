@@ -1,7 +1,8 @@
 # 0006. Entradas: cupo, puerta, preventas y límites
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. Los detalles de preventas y puerta del 1/10 están en
+  [0012](0012-precio-de-puerta-por-tipo.md) a [0016](0016-pago-tardio.md).
 
 ## Contexto
 
@@ -35,3 +36,11 @@ la compra, y más flexibilidad para les admins el día del evento.
 - La matemática de precios y preventas necesita buenas pruebas (incluidas pruebas con números al
   azar).
 - Las migraciones tienen que dar valores por defecto que mantengan el comportamiento actual.
+
+## Cómo va (1/10)
+
+- En `main` (#134, migración `0016` aplicada en producción antes del merge): tramos por cantidad
+  y por fecha, tipos encadenados, cupo opcional, interruptor de puerta, precio de puerta por tipo
+  y pases de límite de admins. Guías: [`docs/entradas.md`](../entradas.md) y
+  [`docs/tickets.md`](../tickets.md).
+- Pendiente: el pase de límite queda solo con el botón, sin casilla (PR chico aparte).

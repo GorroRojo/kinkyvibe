@@ -1,7 +1,7 @@
 # 0001. Ritmo y orden del plan
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. El orden de lo que sigue lo reemplaza [0026](0026-orden-1-10.md) (1/10).
 
 ## Contexto
 
@@ -47,3 +47,14 @@ arrancan todo al mismo tiempo y nada termina de usarse.
 
 - Un agente no arranca un bloque que no es el actual sin que gorrite lo pida.
 - Todo PR de algo nuevo trae su interruptor y sale apagado.
+
+## Cómo va (1/10)
+
+- Paso 0: arreglos del panel y de entradas mergeados (#115, #116, #134).
+- Paso 1: hecho. Documentación y preparación de Workers y backups (#122), sitio en Workers y
+  backups nocturnos andando (ver 0009), este registro (#113).
+- Paso 2: bases de objetos (#124) y cuentas y perfiles (#125, #126) en `main`, detrás de
+  interruptores.
+- Paso 3: preventas en `main` (#134); lugares, personas en eventos, series y formularios en PRs
+  abiertos (#137, #139, #141, #143).
+- Aparte: propinas en lugar del cafecito (#133), en `main` y apagadas.

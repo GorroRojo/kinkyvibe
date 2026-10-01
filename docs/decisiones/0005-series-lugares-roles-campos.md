@@ -1,7 +1,9 @@
 # 0005. Series, lugares, roles y campos personalizados
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. Lo completan, del 1/10: [0020](0020-evento-lugar-en-la-base.md) a
+  [0024](0024-organizadores-ven-respuestas.md) (lugares, contacto, respuestas) y
+  [0025](0025-lo-que-sigo.md) ("Avisame si se repite").
 
 ## Contexto
 
@@ -18,7 +20,7 @@ inscribirse.
 - **Lugares**: viven en amigues como tipo de perfil "Lugar", con campos extra (dirección, mapa OSM,
   accesibilidad, cómo llegar) y su lista de eventos.
   - Privacidad por lugar, con excepción por evento, en 4 niveles: **público / solo nombre / solo
-    barrio / oculto**.
+    barrio / oculto**. Sin nivel elegido, se muestra la dirección completa (0021).
   - En los niveles 2 a 4, quien compra recibe los datos completos, y la página del lugar no lista
     esos eventos.
 - **Roles**: lista fija, que les admins pueden ampliar: Autore, Traductore, Organiza, Produce,

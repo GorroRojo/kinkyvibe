@@ -1,7 +1,8 @@
 # 0009. Infraestructura, backups, pagos y documentación
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. Workers y backups ya están hechos (ver "Cómo va"); las migraciones siguen
+  [0028](0028-migraciones-antes-del-merge.md).
 
 ## Contexto
 
@@ -42,3 +43,18 @@ mismo código.
   dashboard con una guía.
 - Los términos de Mercado Pago limitan cierto contenido para adultos: lo que se cobre de ese tipo
   va por otro proveedor, para no arriesgar la venta de entradas.
+
+## Cómo va (1/10)
+
+- **Workers: hecho.** Código y guía en #122 ([`docs/workers-migracion.md`](../workers-migracion.md));
+  `kinkyvibe.ar` ya lo sirve el Worker, y sus crons mandan los recordatorios. Falta la limpieza:
+  borrar `workers/cron/` y el proyecto de Pages.
+- **`workers.dev` de producción apagado** (#130): era una segunda puerta pública a producción.
+  Los previews por rama siguen andando.
+- **Backups: andando.** Copia de toda la base cada noche (03:00 de Argentina) en R2: las de los
+  últimos 30 días, una por mes durante 12 meses y una por año para siempre. Simulacros y
+  restauración con `npm run db:restore`.
+- **CI más rápida** (#121): `unit` (lint y vitest) y `e2e` (build y Playwright) corren en
+  paralelo, con Chromium en caché. `ci-ok` sigue siendo el único chequeo obligatorio.
+- Limpiezas hechas en #122: recordatorios en tandas, sin `buffer` y sin la action `load`. Falta
+  prettier con chequeo en CI.

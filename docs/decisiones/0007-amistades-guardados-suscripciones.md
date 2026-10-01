@@ -1,7 +1,8 @@
 # 0007. Amistades, asistencia, guardados y suscripciones
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. Suscripciones y calendario personal se unifican en "Lo que sigo"
+  ([0025](0025-lo-que-sigo.md)).
 
 ## Contexto
 

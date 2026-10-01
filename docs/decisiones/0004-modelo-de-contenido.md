@@ -1,7 +1,8 @@
 # 0004. Modelo de contenido (propuesta 6)
 
 - Fecha: 2026-09-30
-- Estado: Aceptada
+- Estado: Aceptada. El orden de migración lo actualiza [0026](0026-orden-1-10.md): etiquetas
+  antes que eventos.
 
 ## Contexto
 
@@ -57,3 +58,10 @@ relaciones) que después sirve para todo lo demás.
 - Toda URL vieja tiene que seguir funcionando (redirecciones).
 - Guardar contenido escribe siempre una versión nueva; nunca pisa.
 - Un componente interactivo nuevo necesita un PR; no se carga desde el panel.
+
+## Cómo va (1/10)
+
+- Las bases están en `main` (#124, migración `0012`): tablas de objetos y relaciones,
+  `saveObject()` como única vía de escritura, un solo helper de visibilidad, versiones y chequeo
+  nocturno. El primer tipo en uso es `perfil` (#125). Guía: [`docs/objetos.md`](../objetos.md).
+- Los eventos siguen en `.md`. Amigues pasan a perfiles en la base en #137 (abierto).
