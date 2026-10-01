@@ -361,7 +361,7 @@ describe('interruptor prendido', () => {
 				codeSentFor: 'grupo',
 				message: 'Te mandamos un código a tu mail para confirmar.'
 			});
-			return logged.join('\n').match(/Código \(proyecto\): (\d{6})/)?.[1] ?? '';
+			return logged.join('\n').match(/Código \(grupo\): (\d{6})/)?.[1] ?? '';
 		};
 
 		const role = { account: other.id, role: 'owner' };
