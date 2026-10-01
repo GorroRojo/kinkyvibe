@@ -15,6 +15,9 @@ import {
 	hideProfile
 } from '$lib/server/admin/cuentas.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/index.js';
+import { listClaims } from '$lib/server/amigues/claims.js';
+import { approvalAction, claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
+import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 
 /** @param {string | undefined} raw */
 function profileId(raw) {
@@ -31,7 +34,13 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	const id = profileId(params.id);
 	const detail = id ? await getProfileDetail(db, id, adminViewer(user)) : null;
 	if (!detail) error(404, 'No encontramos ese perfil.');
-	return detail;
+	return {
+		...detail,
+		// Pedidos "Es mi perfil" de este perfil (también los resueltos) y si el editor de la base
+		// está prendido (interruptor `perfiles_publicos`).
+		claims: await listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => []),
+		dbEditor: await perfilesPublicosEnabled(platform)
+	};
 }
 
 /**
@@ -115,6 +124,12 @@ export const actions = {
 		});
 		return { perfil: { ok: true, message: 'Listo: el perfil quedó oculto.' } };
 	},
+
+	// Aparece (o deja de aparecer) en /amigues. No cambia el perfil.
+	aprobar: approvalAction(true),
+	desaprobar: approvalAction(false),
+	// Aprobar o rechazar un pedido "Es mi perfil".
+	pedido: claimDecisionAction,
 
 	// Borrar (suave): no se ve en ningún lado; se puede deshacer desde la base.
 	borrar: async (event) => {

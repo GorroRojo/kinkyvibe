@@ -15,7 +15,7 @@ import {
 	slugify
 } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
-import { PROFILE_KINDS, VENUE_FIELDS } from '$lib/server/objects/types/perfil.js';
+import perfilType, { PROFILE_KINDS, VENUE_FIELDS } from '$lib/server/objects/types/perfil.js';
 import { approveNewStatement, approvalOf } from './approvals.js';
 import { resolveProfileSlug } from './profiles.js';
 
@@ -127,6 +127,28 @@ export function profileFormValues(o) {
 }
 
 /**
+ * Un formulario vacío (perfil nuevo).
+ *
+ * @param {string} [kind]
+ * @returns {ProfileFormValues}
+ */
+export function emptyFormValues(kind = 'persona') {
+	return {
+		title: '',
+		kind,
+		visibility: 'public',
+		version: 0,
+		text: Object.fromEntries(EDITOR_TEXT_FIELDS.map((k) => [k, ''])),
+		lists: Object.fromEntries(EDITOR_LIST_FIELDS.map((k) => [k, ''])),
+		unlisted: false,
+		show_members: false,
+		lat: '',
+		lng: '',
+		venue_privacy: ''
+	};
+}
+
+/**
  * Lista escrita una por línea (y, para etiquetas y autores, también con comas).
  *
  * @param {string} key
@@ -213,6 +235,41 @@ export function changedFields(a, b) {
 	return out;
 }
 
+/**
+ * El nombre para mostrar de un campo del editor (los del tipo `perfil`, más nombre y visibilidad).
+ *
+ * @param {string} key
+ */
+export function fieldLabel(key) {
+	if (key === 'title') return 'Nombre';
+	if (key === 'visibility') return 'Visibilidad';
+	return perfilType.fields[key]?.label ?? key;
+}
+
+/**
+ * Lo que cambió otra persona, para el aviso de conflicto: campo, nombre y lo que quedó guardado.
+ *
+ * @param {ProfileFormValues} yours
+ * @param {ProfileFormValues} theirs
+ * @returns {{ field: string, label: string, theirs: string }[]}
+ */
+export function conflictChanges(yours, theirs) {
+	return changedFields(yours, theirs).map((field) => {
+		const t = /** @type {any} */ (theirs);
+		const value =
+			field in theirs.text
+				? theirs.text[field]
+				: field in theirs.lists
+					? theirs.lists[field]
+					: typeof t[field] === 'boolean'
+						? t[field]
+							? 'sí'
+							: 'no'
+						: String(t[field] ?? '');
+		return { field, label: fieldLabel(field), theirs: value };
+	});
+}
+
 /** Admin que mira (las lecturas del panel ven también lo oculto). */
 const ADMIN_VIEWER = /** @type {const} */ ({ role: 'admin', id: 'panel' });
 
@@ -255,7 +312,7 @@ export async function loadEditableProfile(db, urlSlug) {
 /**
  * @typedef {{ ok: true, profile: StoredObject }
  *   | { ok: false, status: number, message: string, errors?: Record<string, string>,
- *       conflict?: { theirs: ProfileFormValues, changed: string[] } }} EditorSaveResult
+ *       conflict?: { version: number, changes: { field: string, label: string, theirs: string }[] } }} EditorSaveResult
  */
 
 /**
@@ -316,7 +373,7 @@ export async function saveProfileFromPanel(db, current, values, { actor, now = D
 				status: 409,
 				message:
 					'Alguien más guardó cambios en este perfil mientras lo editabas, así que no guardamos los tuyos. Tus cambios siguen en el formulario; abajo ves qué cambió.',
-				conflict: { theirs, changed: changedFields(values, theirs) }
+				conflict: { version: latest.version, changes: conflictChanges(values, theirs) }
 			};
 		}
 		return saveFailure(e);

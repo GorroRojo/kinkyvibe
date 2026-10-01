@@ -56,6 +56,7 @@ import {
 	KeyRound,
 	Landmark,
 	Mail,
+	MapPin,
 	ScanLine,
 	ScrollText,
 	Tags,
@@ -132,6 +133,17 @@ export const NAV = Object.freeze([
 		icon: CalendarDays,
 		emoji: '🗓️',
 		label: 'Agenda',
+		group: 'eventos',
+		soon: false
+	},
+	{
+		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md). Son los mismos
+		// datos que Contenido → Amigues con el filtro «Lugares».
+		id: 'eventos-lugares',
+		href: '/admin/eventos/lugares',
+		icon: MapPin,
+		emoji: '📍',
+		label: 'Lugares',
 		group: 'eventos',
 		soon: false
 	},
@@ -252,6 +264,7 @@ export const NAV = Object.freeze([
 		label: 'Perfiles',
 		group: 'cuentas',
 		soon: false,
+		// Perfiles nuevos de cuentas sin revisar + pedidos "Es mi perfil" pendientes.
 		counter: 'profilesToReview'
 	},
 

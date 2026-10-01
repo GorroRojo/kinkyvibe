@@ -34,7 +34,8 @@ export async function bundledAmigueFiles() {
  * @typedef {{
  *   profileId: number, legacySlug: string, slug: string, title: string,
  *   kind: 'persona' | 'grupo' | 'lugar', suggested: string, reason: string,
- *   confirmedAt: number | null, confirmedBy: string | null, deleted: boolean, visibility: string
+ *   confirmedAt: number | null, confirmedBy: string | null, deleted: boolean, visibility: string,
+ *   version: number
  * }} ClassificationRow
  */
 
@@ -48,13 +49,14 @@ export async function classificationRows(db) {
 	const { results } = await db
 		.prepare(
 			`SELECT s.profile_id, s.legacy_slug, s.suggested_kind, s.kind_reason, s.kind_confirmed_at,
-				s.kind_confirmed_by, o.slug, o.title, o.data, o.deleted_at, o.visibility
+				s.kind_confirmed_by, o.slug, o.title, o.data, o.deleted_at, o.visibility, o.version
 			FROM profile_sources s JOIN objects o ON o.id = s.profile_id
 			WHERE o.type = ?1 ORDER BY s.kind_confirmed_at IS NOT NULL, o.title COLLATE NOCASE`
 		)
 		.bind(PROFILE_TYPE)
 		.all();
 	return results.map((r) => {
+		/** @type {Record<string, unknown>} */
 		let data = {};
 		try {
 			data = JSON.parse(String(r.data));
@@ -72,7 +74,8 @@ export async function classificationRows(db) {
 			confirmedAt: r.kind_confirmed_at == null ? null : Number(r.kind_confirmed_at),
 			confirmedBy: r.kind_confirmed_by == null ? null : String(r.kind_confirmed_by),
 			deleted: r.deleted_at != null,
-			visibility: String(r.visibility)
+			visibility: String(r.visibility),
+			version: Number(r.version)
 		};
 	});
 }

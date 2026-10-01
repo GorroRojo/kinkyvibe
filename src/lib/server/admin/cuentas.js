@@ -16,7 +16,7 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
+import { DELETED_ACTOR, PROFILE_TYPE, profileKind } from '$lib/server/cuentas/perfiles.js';
 import { logDBError } from '$lib/server/db';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -27,7 +27,9 @@ import { logDBError } from '$lib/server/db';
 export const PROFILE_REVIEW_ACTIONS = Object.freeze([
 	'profile.review',
 	'profile.hide',
-	'profile.delete'
+	'profile.delete',
+	// Aprobar para /amigues también es haberlo revisado (docs/amigues.md).
+	'profile.approve'
 ]);
 
 /** Cuántas filas muestran las listas (el buscador encuentra el resto). */
@@ -179,7 +181,7 @@ function profileSummary(o) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: o.data.kind === 'grupo' ? 'grupo' : 'persona',
+		kind: profileKind(o.data),
 		visibility: o.visibility,
 		createdAt: o.created_at,
 		deletedAt: o.deleted_at,
@@ -224,13 +226,25 @@ const BY_ACCOUNT = `o.created_by LIKE '${ACCOUNT_PREFIX}%' AND o.created_by != '
 /** Filtros de la lista de perfiles (`?filtro=`). */
 export const PROFILE_FILTERS = Object.freeze({
 	'sin-revisar': 'Para revisar',
+	'sin-aprobar': 'No aparecen en Amigues',
 	ocultos: 'Ocultos',
 	borrados: 'Borrados'
 });
 
+/** Filtro por tipo (`?tipo=`). */
+export const PROFILE_KIND_FILTERS = Object.freeze({
+	persona: 'Personas',
+	grupo: 'Grupos',
+	lugar: 'Lugares'
+});
+
+/** Condición SQL: el perfil `o` está aprobado para /amigues (migración 0017). */
+const APPROVED = 'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)';
+
 /**
  * @typedef {ReturnType<typeof profileSummary> & {
  *   reviewed: boolean,
+ *   approved: boolean,
  *   managers: { accountId: string, email: string | null, role: 'owner' | 'manager', deleted: boolean }[]
  * }} AdminProfile
  */
@@ -241,10 +255,11 @@ export const PROFILE_FILTERS = Object.freeze({
  * {@link PROFILE_FILTERS}.
  *
  * @param {D1Database} db
- * @param {{ q?: string, filter?: string, limit?: number }} [opts]
+ * @param {{ q?: string, filter?: string, kind?: string, limit?: number }} [opts] `kind`: una
+ *   clave de {@link PROFILE_KIND_FILTERS}
  * @returns {Promise<{ profiles: AdminProfile[], counts: { total: number, toReview: number, hidden: number, deleted: number } }>}
  */
-export async function listProfiles(db, { q = '', filter = '', limit = LIST_LIMIT } = {}) {
+export async function listProfiles(db, { q = '', filter = '', kind = '', limit = LIST_LIMIT } = {}) {
 	const vis = visibleWhere(ADMIN, 'o', { includeDeleted: true });
 	/** @type {string[]} */
 	const where = ['o.type = ?', vis.sql];
@@ -258,11 +273,20 @@ export async function listProfiles(db, { q = '', filter = '', limit = LIST_LIMIT
 	}
 	if (filter === 'sin-revisar')
 		where.push(`o.deleted_at IS NULL AND ${BY_ACCOUNT} AND NOT ${REVIEWED}`);
+	else if (filter === 'sin-aprobar') where.push(`o.deleted_at IS NULL AND NOT ${APPROVED}`);
 	else if (filter === 'ocultos') where.push("o.deleted_at IS NULL AND o.visibility = 'hidden'");
 	else if (filter === 'borrados') where.push('o.deleted_at IS NOT NULL');
+	if (kind in PROFILE_KIND_FILTERS) {
+		where.push(
+			kind === 'persona'
+				? "COALESCE(json_extract(o.data, '$.kind'), 'persona') NOT IN ('grupo', 'lugar')"
+				: "json_extract(o.data, '$.kind') = ?"
+		);
+		if (kind !== 'persona') params.push(kind);
+	}
 	const { results } = await db
 		.prepare(
-			`SELECT ${prefixed('o')}, ${REVIEWED} AS reviewed FROM objects o
+			`SELECT ${prefixed('o')}, ${REVIEWED} AS reviewed, ${APPROVED} AS approved FROM objects o
 			WHERE ${where.join(' AND ')} ORDER BY o.created_at DESC, o.id DESC LIMIT ?`
 		)
 		.bind(...params, limit)
@@ -270,6 +294,7 @@ export async function listProfiles(db, { q = '', filter = '', limit = LIST_LIMIT
 	const profiles = results.map((r) => ({
 		...profileSummary(rowToObject(r)),
 		reviewed: Number(r.reviewed) === 1,
+		approved: Number(r.approved) === 1,
 		/** @type {AdminProfile['managers']} */
 		managers: []
 	}));
@@ -356,7 +381,22 @@ export async function getProfileDetail(db, id, viewer) {
 		.bind(String(o.id), ...PROFILE_REVIEW_ACTIONS)
 		.first();
 	const managers = (await managersOf(db, [o.id])).get(o.id) ?? [];
+	// Aprobación para /amigues y dirección vieja de una ficha importada (migración 0017).
+	const extra = await db
+		.prepare(
+			`SELECT (SELECT approved_at FROM profile_approvals WHERE profile_id = ?1) AS approved_at,
+				(SELECT approved_by FROM profile_approvals WHERE profile_id = ?1) AS approved_by,
+				(SELECT legacy_slug FROM profile_sources WHERE profile_id = ?1) AS legacy_slug`
+		)
+		.bind(o.id)
+		.first()
+		.catch(() => null);
 	return {
+		approval:
+			extra?.approved_at != null
+				? { at: Number(extra.approved_at), by: String(extra.approved_by) }
+				: null,
+		urlSlug: extra?.legacy_slug != null ? String(extra.legacy_slug) : o.slug,
 		profile: {
 			...profileSummary(o),
 			version: o.version,

@@ -510,6 +510,12 @@ export function slugify(text) {
 }
 
 /**
+ * Slugs an event can't use: they are pages of the panel's Eventos section (/admin/eventos/<slug>
+ * would open that page instead of the event's).
+ */
+export const RESERVED_EVENT_SLUGS = Object.freeze(['nuevo', 'agenda', 'importar', 'lugares']);
+
+/**
  * Returns an error message in Spanish, or null if the slug is OK.
  * @param {string} slug
  * @param {Iterable<string>|((slug: string) => boolean)} [taken]
@@ -519,6 +525,8 @@ export function validateSlug(slug, taken) {
 	if (slug.length > 100) return 'La dirección es demasiado larga (máximo 100 caracteres).';
 	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
 		return 'La dirección solo puede tener letras minúsculas sin tildes, números y guiones (sin espacios ni guiones al principio o al final).';
+	if (RESERVED_EVENT_SLUGS.includes(slug))
+		return 'Esa dirección la usa una sección del panel. Elegí otra.';
 	if (taken && isTaken(slug, taken)) return 'Ya existe un evento con esa dirección.';
 	return null;
 }

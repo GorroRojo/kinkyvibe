@@ -46,7 +46,8 @@ export function resolveMediaImports(body, resolveMedia) {
 const processor = rehype()
 	.data('settings', { fragment: true })
 	.use(rehypeAllowlist)
-	.use(customRehype)
+	// El plugin de mdsvex está tipado para otra versión de unified: es el mismo árbol hast.
+	.use(/** @type {any} */ (customRehype))
 	.freeze();
 
 /**

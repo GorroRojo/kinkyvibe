@@ -18,6 +18,7 @@ import {
 	monthMoney,
 	pendingTransfers,
 	profileReviewItems,
+	claimReviewItems,
 	recentActivity,
 	reviewItems,
 	reviewOrders,
@@ -33,6 +34,7 @@ import {
 } from '$lib/server/admin/inicio.js';
 import { markSeen, touchLastSeen } from '$lib/server/admin/lastSeen.js';
 import { profilesToReview } from '$lib/server/admin/cuentas.js';
+import { listClaims } from '$lib/server/amigues/claims.js';
 import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
 import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
@@ -95,7 +97,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		stuck,
 		integrity,
 		contentPulls,
-		newProfiles
+		newProfiles,
+		claims
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
 		checkinTotals(
@@ -122,7 +125,9 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 					return [];
 				}),
 		// Perfiles creados por cuentas que ninguna admin revisó todavía (Cuentas → Perfiles).
-		profilesToReview(db)
+		profilesToReview(db),
+		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
+		db ? listClaims(db).catch(() => []) : Promise.resolve([])
 	]);
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
@@ -159,6 +164,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
+			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...pullItems.filter((i) => i.tone === 'info')
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }

@@ -13,6 +13,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import ClaimsCard from '$lib/components/admin/amigues/ClaimsCard.svelte';
 
 	export let data;
 	export let form;
@@ -33,13 +34,14 @@
 	const REVIEW_LABELS = {
 		'profile.review': 'Revisado',
 		'profile.hide': 'Ocultado',
-		'profile.delete': 'Borrado'
+		'profile.delete': 'Borrado',
+		'profile.approve': 'Aprobado para Amigues'
 	};
 </script>
 
 <PageHeader
 	title={p.title}
-	subtitle="/{p.slug}"
+	subtitle="/amigues/{data.urlSlug}"
 	back={{ href: '/admin/cuentas/perfiles', label: 'Perfiles' }}
 >
 	<svelte:fragment slot="meta">
@@ -47,6 +49,12 @@
 		{#if p.deletedAt}<Badge tone="bad">borrado</Badge>{/if}
 		{#if p.visibility === 'hidden'}<Badge tone="info">oculto</Badge>{/if}
 		{#if p.byAccount && !p.deletedAt && !data.review}<Badge tone="warn">para revisar</Badge>{/if}
+		{#if !data.approval && !p.deletedAt}<Badge tone="info">no aparece en Amigues</Badge>{/if}
+	</svelte:fragment>
+	<svelte:fragment slot="actions">
+		{#if data.dbEditor && !p.deletedAt}
+			<a class="kv-btn" href="/admin/amigues/{data.urlSlug}">Editar</a>
+		{/if}
 	</svelte:fragment>
 </PageHeader>
 
@@ -75,6 +83,16 @@
 				<dt>Integrantes</dt>
 				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
 			{/if}
+			<dt>Amigues</dt>
+			<dd>
+				{#if data.approval}
+					Aparece (aprobado por {data.approval.by === 'importacion'
+						? 'la importación'
+						: `@${data.approval.by}`}, {fmtDateTime(data.approval.at)})
+				{:else}
+					No aparece: falta que une admin lo apruebe
+				{/if}
+			</dd>
 			<dt>Revisión</dt>
 			<dd>
 				{#if data.review}
@@ -118,9 +136,24 @@
 	</Card>
 </div>
 
+{#if data.claims.length || form?.claim}
+	<div class="layout">
+		<ClaimsCard claims={data.claims} result={form?.claim} title="Pedidos «Es mi perfil» de este perfil" />
+	</div>
+{/if}
+
 {#if !p.deletedAt}
 	<Card title="Acciones">
 		<div class="actions">
+			{#if !data.approval}
+				<form method="POST" action="?/aprobar" use:enhance={submit('aprobar')}>
+					<button class="kv-btn" type="submit" disabled={busy !== ''}>Aprobar para Amigues</button>
+				</form>
+			{:else}
+				<form method="POST" action="?/desaprobar" use:enhance={submit('desaprobar')}>
+					<button class="kv-btn ghost" type="submit" disabled={busy !== ''}>Sacar de Amigues</button>
+				</form>
+			{/if}
 			{#if !data.review}
 				<form method="POST" action="?/revisado" use:enhance={submit('revisado')}>
 					<input type="hidden" name="version" value={p.version} />
@@ -135,7 +168,8 @@
 			{/if}
 		</div>
 		<p class="kv-note">
-			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
+			Aprobar lo muestra en /amigues (si su visibilidad lo deja) y lo saca de "Para revisar". Ocultar
+			o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
 			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
 		</p>
 		<details class="danger">
