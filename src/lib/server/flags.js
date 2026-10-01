@@ -46,7 +46,7 @@ export const FLAGS = Object.freeze({
 			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
 			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
 			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
-			'prenderlo: importar las fichas (Contenido → Amigues → Importar) y revisar la ' +
+			'prenderlo: importar las fichas (Perfiles → Importar y clasificar) y revisar la ' +
 			'clasificación.',
 		envVar: 'PERFILES_PUBLICOS_ENABLED'
 	},

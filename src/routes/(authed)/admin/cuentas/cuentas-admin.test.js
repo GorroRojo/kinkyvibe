@@ -1,5 +1,6 @@
 /**
- * Panel → Cuentas (/admin/cuentas, su ficha y Cuentas → Perfiles): solo admins (sin sesión,
+ * Panel → Cuentas (/admin/cuentas, su ficha, Comunidad › Perfiles en /admin/amigues y la ficha de
+ * cada perfil): solo admins (sin sesión,
  * redirect al login; sin permiso, 403), la búsqueda por mail, el permiso "puede tener perfiles"
  * (cambia y queda en Actividad), ocultar y borrar perfiles por saveObject() (con la versión) y
  * "Para revisar" / la actividad del Inicio. D1 de miniflare; datos inventados (example.com).
@@ -18,7 +19,7 @@ import { countProfilesToReview, profilesToReview } from '$lib/server/admin/cuent
 import { recentActivity } from '$lib/server/admin/inicio.js';
 import * as list from './+page.server.js';
 import * as detail from './[id]/+page.server.js';
-import * as profiles from './perfiles/+page.server.js';
+import * as profiles from '../amigues/+page.server.js';
 import * as profile from './perfiles/[id]/+page.server.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
@@ -109,7 +110,7 @@ describe('solo admins', () => {
 	const routes = [
 		{ name: 'cuentas', mod: list, params: {} },
 		{ name: 'ficha de cuenta', mod: detail, params: { id } },
-		{ name: 'perfiles', mod: profiles, params: {} },
+		{ name: 'perfiles (/admin/amigues)', mod: profiles, params: {} },
 		{ name: 'ficha de perfil', mod: profile, params: { id: '1' } }
 	];
 
@@ -244,7 +245,7 @@ describe('Cuentas', () => {
 	});
 });
 
-describe('Perfiles', () => {
+describe('Perfiles (Comunidad › Perfiles, /admin/amigues)', () => {
 	it('lista todos (ocultos y borrados también) con quiénes los gestionan; filtros y búsqueda', async () => {
 		const { account: a, profile: p1 } = await profileOf('Persona Inventada');
 		const { profile: p2 } = await profileOf('Proyecto Inventado', 'proyecto');
@@ -256,10 +257,9 @@ describe('Perfiles', () => {
 			fakeEvent({ params: { id: String(p3.id) }, form: { version: '1' } })
 		);
 
-		const all = /** @type {any} */ (
-			await profiles.load(fakeEvent({ path: '/admin/cuentas/perfiles' }))
-		);
-		expect(all.counts).toEqual({ total: 3, toReview: 1, hidden: 1, deleted: 1 });
+		const all = /** @type {any} */ (await profiles.load(fakeEvent({ path: '/admin/amigues' })));
+		expect(all.editor).toBe('db');
+		expect(all.counts).toEqual({ total: 3, toReview: 1, toApprove: 1, hidden: 1, deleted: 1 });
 		const first = all.profiles.find((/** @type {any} */ p) => p.id === p1.id);
 		expect(first).toMatchObject({
 			title: 'Persona Inventada',
@@ -272,13 +272,19 @@ describe('Perfiles', () => {
 		});
 		const ids = async (/** @type {string} */ qs) =>
 			/** @type {any} */ (
-				await profiles.load(fakeEvent({ path: `/admin/cuentas/perfiles?${qs}` }))
+				await profiles.load(fakeEvent({ path: `/admin/amigues?${qs}` }))
 			).profiles.map((/** @type {any} */ p) => p.id);
+		// El viejo `?filtro=` de Cuentas › Perfiles sigue filtrando igual.
 		expect(await ids('filtro=sin-revisar')).toEqual([p1.id]);
 		expect(await ids('filtro=ocultos')).toEqual([p2.id]);
 		expect(await ids('filtro=borrados')).toEqual([p3.id]);
 		expect(await ids('q=proyecto')).toEqual([p2.id]);
 		expect(await ids('filtro=cualquiera')).toHaveLength(3);
+		expect(await ids('estado=sin-revisar')).toEqual([p1.id]);
+		expect(await ids('estado=oculto')).toEqual([p2.id]);
+		expect(await ids('estado=borrado')).toEqual([p3.id]);
+		expect(await ids('estado=para-aprobar')).toEqual([p1.id]);
+		expect(await ids('estado=cualquiera')).toHaveLength(3);
 	});
 
 	it('ocultar va por saveObject: pide la versión que se abrió, sube la versión y queda en Actividad', async () => {

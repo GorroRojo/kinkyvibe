@@ -1,7 +1,7 @@
 /**
  * Eventos → Lugares (mapa del panel): los perfiles de tipo lugar y en qué lugar sucede cada
  * evento ("sucede en", con la privacidad de la dirección de ese evento). Son los mismos perfiles
- * de Contenido → Amigues (filtro «Lugares»); se editan con el mismo editor.
+ * de Perfiles (filtro «Lugares»); se editan con el mismo editor.
  *
  * El vínculo evento → lugar es provisorio (tabla `event_venues`, por dirección del evento)
  * mientras los eventos sigan siendo .md: ver docs/amigues.md. Funciona con el interruptor

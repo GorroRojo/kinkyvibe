@@ -48,7 +48,6 @@ describe('NAV', () => {
 			'/admin/ajustes/interruptores',
 			'/admin/actividad',
 			'/admin/cuentas',
-			'/admin/cuentas/perfiles',
 			'/admin/eventos/lugares'
 		]) {
 			expect(hrefs).toContain(h);
@@ -71,6 +70,17 @@ describe('NAV', () => {
 		]);
 		for (const g of [null, ...NAV_GROUPS.map((x) => x.id)])
 			for (const i of navGroupItems(g)) expect(i.menu).not.toBe(false);
+	});
+	it('una sola sección «Perfiles» (decisión de gorrite): /admin/amigues, con el contador', () => {
+		const perfiles = NAV.filter((i) => /perfil|amigue/i.test(`${i.id} ${i.label}`));
+		expect(perfiles).toHaveLength(1);
+		expect(perfiles[0]).toMatchObject({
+			id: 'amigues',
+			href: '/admin/amigues',
+			label: 'Perfiles',
+			counter: 'profilesToReview'
+		});
+		expect(NAV.filter((i) => i.href.startsWith('/admin/cuentas/')).map((i) => i.id)).toEqual([]);
 	});
 	it('los parent apuntan a ítems que existen y están en el menú', () => {
 		for (const i of NAV) if (i.parent) expect(navItem(i.parent)?.menu).not.toBe(false);
@@ -109,8 +119,10 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
 			'cuentas'
 		);
-		expect(activeNavItem('/admin/cuentas/perfiles')?.id).toBe('cuentas-perfiles');
-		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('cuentas-perfiles');
+		// La ficha de un perfil es parte de Perfiles (/admin/amigues), no de Cuentas.
+		expect(activeNavItem('/admin/cuentas/perfiles/12')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/amigues')?.id).toBe('amigues');
+		expect(activeNavItem('/admin/amigues/Gorro_Rojo')?.id).toBe('amigues');
 	});
 	it('páginas sin ítem propio marcan su sección', () => {
 		expect(activeNavItem('/admin/entradas/alguno')?.id).toBe('entradas');

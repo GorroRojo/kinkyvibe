@@ -133,3 +133,37 @@ describe('direcciones /admin escritas en el código', () => {
 		expect(broken).toEqual([]);
 	});
 });
+
+/**
+ * Páginas borradas cuya dirección igual "existe" porque la toma una ruta dinámica vecina (por
+ * ejemplo `/admin/cuentas/perfiles` cae en `/admin/cuentas/[id]` y da 404), así que la prueba de
+ * arriba no las ve. Ningún link, mail, documento ni prueba puede apuntar a ellas (regla del mapa
+ * del panel: los favoritos se pueden romper, lo nuestro no).
+ */
+const REMOVED = [
+	// La lista de perfiles de Cuentas: ahora es Comunidad › Perfiles (/admin/amigues). La ficha de
+	// cada perfil (/admin/cuentas/perfiles/<id>) sigue.
+	'/admin/cuentas/perfiles'
+];
+
+describe('direcciones borradas', () => {
+	it('nada apunta a una página borrada (código, pruebas, docs)', () => {
+		const files = [
+			...walk(SRC).filter((f) => /\.(js|svelte|md)$/.test(f)),
+			...walk(join(ROOT, 'docs')).filter((f) => f.endsWith('.md')),
+			...walk(join(ROOT, 'tests')).filter((f) => /\.(js|ts)$/.test(f)),
+			...walk(join(ROOT, 'scripts')).filter((f) => f.endsWith('.js'))
+		].filter((f) => f !== import.meta.filename);
+		/** @type {string[]} */
+		const hits = [];
+		for (const file of files) {
+			const text = readFileSync(file, 'utf8');
+			for (const path of REMOVED) {
+				// La dirección sola (con o sin `?…`), no una subpágina suya.
+				const re = new RegExp(`${path.replaceAll('/', '\\/')}(?![/\\w-])`, 'g');
+				if (re.test(text)) hits.push(`${relative(ROOT, file)}: ${path}`);
+			}
+		}
+		expect(hits).toEqual([]);
+	});
+});

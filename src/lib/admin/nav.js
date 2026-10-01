@@ -51,7 +51,6 @@ import {
 	CircleUser,
 	HandCoins,
 	HandHeart,
-	Heart,
 	House,
 	IdCard,
 	KeyRound,
@@ -140,7 +139,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md). Son los mismos
-		// datos que Contenido → Amigues con el filtro «Lugares».
+		// datos que Perfiles con el filtro «Lugares».
 		id: 'eventos-lugares',
 		href: '/admin/eventos/lugares',
 		icon: MapPin,
@@ -230,15 +229,6 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		id: 'amigues',
-		href: '/admin/amigues',
-		icon: Heart,
-		emoji: '💞',
-		label: 'Amigues',
-		group: 'contenido',
-		soon: false
-	},
-	{
 		id: 'etiquetas',
 		href: '/admin/etiquetas',
 		icon: Tags,
@@ -269,8 +259,11 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		id: 'cuentas-perfiles',
-		href: '/admin/cuentas/perfiles',
+		// La única lista de perfiles (decisión de gorrite del 1/10): antes "Amigues" y "Cuentas →
+		// Perfiles". Con el mapa del panel (#151) va en Comunidad. La URL sigue siendo la de Amigues
+		// (el id no cambia); /amigues es el directorio público.
+		id: 'amigues',
+		href: '/admin/amigues',
 		icon: IdCard,
 		emoji: '🪪',
 		label: 'Perfiles',
@@ -431,6 +424,8 @@ export function activeNavItem(pathname) {
 		const parent = best.parent ? navItem(best.parent) : undefined;
 		best = parent && !parent.soon ? parent : undefined;
 	}
+	// La ficha de un perfil (/admin/cuentas/perfiles/<id>) es parte de Perfiles, no de Cuentas.
+	if (path.startsWith('/admin/cuentas/perfiles/')) return navItem('amigues');
 	// Páginas sin ítem propio: se marca la sección a la que pertenecen.
 	if (!best) {
 		if (path.startsWith('/admin/eventos/')) return navItem('eventos');

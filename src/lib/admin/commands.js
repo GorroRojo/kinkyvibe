@@ -72,7 +72,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	cuentas: 'cuentas usuaries publico registradas',
-	'cuentas-perfiles': 'perfiles cuentas revisar proyectos',
+	amigues:
+		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
 	actividad: 'actividad registro auditoria historial quien cambio'
 });
 
@@ -92,7 +93,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	personas: 'users',
 	estadisticas: 'chart',
 	material: 'book',
-	amigues: 'heart',
+	amigues: 'person',
 	etiquetas: 'tag',
 	'no-listadas': 'eye-off',
 	'ajustes-cobros': 'settings',
@@ -101,7 +102,6 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
 	cuentas: 'person',
-	'cuentas-perfiles': 'person',
 	actividad: 'history'
 });
 

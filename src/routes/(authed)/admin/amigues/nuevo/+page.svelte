@@ -17,7 +17,7 @@
 	<PageHeader
 		title="Perfil nuevo"
 		subtitle="Persona, proyecto o lugar. Se publica en Amigues al guardar."
-		back={{ href: '/admin/amigues', label: 'Amigues' }}
+		back={{ href: '/admin/amigues', label: 'Perfiles' }}
 	/>
 	<Card>
 		{#if form?.perfil && !form.perfil.ok}
