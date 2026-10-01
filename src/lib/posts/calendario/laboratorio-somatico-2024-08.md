@@ -11,7 +11,7 @@ tags:
   - BDSM
   - impacto
   - AMBA
-  - Laboratorio Somático de Prácticas Fetichistas
+  - Laboratorio fetichista
 layout: calendario
 category: calendario
 authors:

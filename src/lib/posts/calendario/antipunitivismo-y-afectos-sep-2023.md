@@ -9,7 +9,6 @@ tags:
   - KinkyVibe # etiqueta especial #
   - pago # pago | gratis | a la gorra #
   - AMBA # online | AMBA | Córdoba | Santa Cruz #
-  - Antipunitivismo y Afectos
 layout: calendario
 category: calendario
 authors:
