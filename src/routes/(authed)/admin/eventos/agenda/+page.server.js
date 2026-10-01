@@ -1,7 +1,8 @@
 /**
- * Agenda: los eventos próximos en una tabla editable como la planilla de planificación. Cada fila
- * se guarda sola, con un commit por el mismo camino que el editor de eventos (`getRepoClient()`:
- * GitHub, el mock de `npm run dev:admin` o la capa demo de los previews).
+ * Agenda: los eventos en un calendario (mes, semana, lista) y en una tabla editable como la
+ * planilla de planificación. Cada fila (o cada evento arrastrado a otro día) se guarda sola, con un
+ * commit por el mismo camino que el editor de eventos (`getRepoClient()`: GitHub, el mock de
+ * `npm run dev:admin` o la capa demo de los previews), con la action `save`.
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -11,12 +12,23 @@ import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { saveAgendaRow } from '$lib/server/eventos/agenda.js';
 import { agendaRows } from '$lib/server/eventos/panel.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
+import { shiftMonth, todayInArgentina } from '$lib/utils/eventDraft.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
-	return { rows: await agendaRows(), places: eventTagGroups().places, mock: isMockMode() };
+	const today = todayInArgentina();
+	return {
+		// Desde el mes pasado, para que el calendario no arranque con el mes a medias. La planilla
+		// muestra solo desde hoy.
+		rows: await agendaRows({ today: `${shiftMonth(today.slice(0, 7), -1)}-01` }),
+		today,
+		places: eventTagGroups().places,
+		// Lo mismo que pide la action `save` (sin esto el arrastre se muestra apagado).
+		canEdit: Boolean(getEventAdmin(locals)),
+		mock: isMockMode()
+	};
 }
 
 /** @param {FormDataEntryValue | null} v */

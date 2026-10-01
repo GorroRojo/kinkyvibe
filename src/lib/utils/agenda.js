@@ -200,6 +200,16 @@ export function readAgendaValues(raw) {
 }
 
 /**
+ * Solo los campos editables de una fila (sin slug, estado de venta, etc.).
+ *
+ * @param {AgendaValues} row
+ * @returns {AgendaValues}
+ */
+export function agendaValues(row) {
+	return /** @type {AgendaValues} */ (Object.fromEntries(AGENDA_FIELDS.map((f) => [f, row[f]])));
+}
+
+/**
  * Campos que cambian entre `a` y `b`.
  *
  * @param {Partial<AgendaValues>} a

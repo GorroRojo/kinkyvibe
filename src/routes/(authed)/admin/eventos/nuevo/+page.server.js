@@ -30,6 +30,7 @@ import {
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { readNewEventPrefill } from '$lib/utils/calendario.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
@@ -110,6 +111,8 @@ export async function load({ locals, url }) {
 		...(await editorData('calendario')),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
+		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
+		prefill: readNewEventPrefill(url.searchParams),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		mock: isMockMode()
