@@ -14,6 +14,7 @@
 	import {
 		DOOR_PRICE_MAX,
 		PAYMENT_METHOD_LABELS,
+		doorPricePreview,
 		emptyTicketType,
 		isKinkyVibeEvent,
 		isOnlineEvent,
@@ -52,6 +53,7 @@
 	$: fondo = isKinkyVibeEvent({ tags });
 	$: autoOnline = isOnlineEvent({ tags, location });
 	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
+	$: doorPreview = state.door ? doorPricePreview(state) : '';
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -407,7 +409,14 @@
 							bind:value={state.doorPrice}
 							maxlength={DOOR_PRICE_MAX}
 							placeholder="$ 12.000, solo efectivo"
+							aria-describedby="{idPrefix}-door-price-hint"
 						/>
+						<small id="{idPrefix}-door-price-hint"
+							>Se cobra en la puerta y es el monto sugerido al cargar entradas a mano. Si lo dejás
+							vacío, se cobra el precio del último tramo (o el precio fijo del tipo).{#if doorPreview}{' '}<span
+									aria-live="polite">{doorPreview}</span
+								>{/if}</small
+						>
 					</label>
 					<small
 						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
@@ -591,7 +600,10 @@
 		max-width: 100%;
 	}
 	.door-price {
-		max-width: 24em;
+		max-width: 34em;
+		input {
+			max-width: 24em;
+		}
 	}
 	.add {
 		align-self: flex-start;

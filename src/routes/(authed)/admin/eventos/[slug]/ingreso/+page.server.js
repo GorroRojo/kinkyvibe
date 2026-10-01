@@ -39,6 +39,7 @@ import {
 	normalizeDni,
 	remainingOf
 } from '$lib/utils/tickets.js';
+import { doorPrice } from '$lib/utils/ticketTiers.js';
 import { eventSeries } from '$lib/server/tickets/series.js';
 import { getEventMeta } from '$lib/server/tickets/events.js';
 import { NO_STORE, cachedPrior, doorContext } from './context.server.js';
@@ -68,11 +69,14 @@ export async function load(event) {
 		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
 		maxOrder: PANEL_ORDER_HARD_MAX,
 		types: config.types.map((t) => {
+			// En la puerta: el precio en la puerta del evento o, si no hay, el del último tramo.
+			const atDoor = doorPrice(t, config);
+			const fondo = atDoor ? atDoor.fondo : t.fondo;
 			return {
 				id: t.id,
 				name: t.name,
-				price: t.price,
-				fondo: t.fondo,
+				price: atDoor ? atDoor.price : t.price,
+				fondo,
 				gorra: t.gorra,
 				capacity: t.capacity,
 				// `null`: sin cupo (sin límite).
@@ -81,7 +85,7 @@ export async function load(event) {
 				taken: (sales.get(t.id)?.sold ?? 0) + (sales.get(t.id)?.held ?? 0),
 				options: t.gorra
 					? []
-					: fondoOptionsFor(t.fondo).map((o) => ({ id: o.id, label: fondoOptionLabel(o.id) }))
+					: fondoOptionsFor(fondo).map((o) => ({ id: o.id, label: fondoOptionLabel(o.id) }))
 			};
 		})
 	};
@@ -235,7 +239,7 @@ export const actions = {
 		} else {
 			const o = text('option', 20);
 			option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;
-			if (option === 'fondo' && !(type.fondo > 0)) option = undefined;
+			if (option === 'fondo' && !((doorPrice(type, config)?.fondo ?? 0) > 0)) option = undefined;
 		}
 		const holders = Array.from({ length: quantity }, (_, i) => ({
 			name: text(`holder_${i}`) || name,

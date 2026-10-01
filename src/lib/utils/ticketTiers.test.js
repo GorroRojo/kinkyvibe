@@ -3,6 +3,8 @@ import {
 	availabilityOf,
 	chainCycle,
 	currentTier,
+	doorAmount,
+	doorPrice,
 	emptyTaken,
 	stockOf,
 	tierKey,
@@ -231,5 +233,92 @@ describe('validaciones de la forma', () => {
 
 	it('tierKey', () => {
 		expect(tierKey('general', 'p1')).toBe('general/p1');
+	});
+});
+
+describe('doorPrice: puerta y carga a mano', () => {
+	const fixed = { price: 10000, fondo: 2000 };
+	const tiered = {
+		price: 10000,
+		fondo: 2000,
+		tiers: [
+			{ price: 8000, fondo: 1600 },
+			{ price: 9000, fondo: 1800 },
+			{ price: 10000, fondo: 2000 }
+		]
+	};
+
+	it('sin tramos ni precio en la puerta: el precio fijo del tipo', () => {
+		expect(doorPrice(fixed, { door: { price: '' } })).toEqual({
+			price: 10000,
+			fondo: 2000,
+			source: 'type'
+		});
+		expect(doorPrice(fixed, { door: null })).toMatchObject({ price: 10000, source: 'type' });
+		expect(doorPrice(fixed, {})).toMatchObject({ price: 10000, source: 'type' });
+	});
+
+	it('con tramos y sin precio en la puerta: el del último tramo (no el vigente)', () => {
+		expect(doorPrice({ ...tiered, price: 1 }, { door: { price: '' } })).toEqual({
+			price: 10000,
+			fondo: 2000,
+			source: 'tier'
+		});
+	});
+
+	it('con precio en la puerta: ese, con o sin tramos, y el Fondo sobre ese precio', () => {
+		const config = { door: { price: '$ 12.000' }, fondoPercent: 20 };
+		expect(doorPrice(tiered, config)).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		expect(doorPrice(fixed, config)).toEqual({ price: 12000, fondo: 2400, source: 'door' });
+		expect(doorPrice(fixed, { door: { price: '12000' } })).toEqual({
+			price: 12000,
+			fondo: 0,
+			source: 'door'
+		});
+	});
+
+	it('precio en la puerta vacío o que no es un monto: el del último tramo', () => {
+		for (const price of ['', '   ', 'Gratis', '$ 10.000 efectivo / $ 12.000 MP', '12k']) {
+			expect(doorPrice(tiered, { door: { price } })).toMatchObject({
+				price: 10000,
+				source: 'tier'
+			});
+		}
+	});
+
+	it('a la gorra: null (el monto lo elige quien paga)', () => {
+		expect(doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } }, {})).toBeNull();
+		expect(
+			doorPrice({ price: 0, gorra: { min: 0, suggested: 5000 } }, { door: { price: '9000' } })
+		).toBeNull();
+	});
+});
+
+describe('doorAmount', () => {
+	it('lee un monto al principio, con texto sin otros números después', () => {
+		expect(doorAmount('$ 12.000')).toBe(12000);
+		expect(doorAmount('12000')).toBe(12000);
+		expect(doorAmount('$12.000')).toBe(12000);
+		expect(doorAmount(' $ 12.000, solo efectivo')).toBe(12000);
+		expect(doorAmount('$ 12.000 en efectivo.')).toBe(12000);
+		expect(doorAmount('12.000.')).toBe(12000);
+	});
+
+	it('no lee nada si hay más de un número, unidades o no empieza con un monto', () => {
+		for (const text of [
+			'',
+			null,
+			undefined,
+			'Gratis',
+			'$ 10.000 efectivo / $ 12.000 MP',
+			'15000 hasta la 1',
+			'12k',
+			'15 mil',
+			'Entrada $ 12.000',
+			'$ 0',
+			'$ 12.000,50'
+		]) {
+			expect(doorAmount(text)).toBeNull();
+		}
 	});
 });

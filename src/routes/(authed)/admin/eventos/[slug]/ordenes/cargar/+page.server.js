@@ -24,6 +24,7 @@ import { getCounts } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { MAX_TICKETS_PER_FORM, remainingOf } from '$lib/utils/tickets.js';
+import { doorPrice } from '$lib/utils/ticketTiers.js';
 
 const METHOD_TEXT = /** @type {Record<string, string>} */ ({
 	efectivo: 'efectivo',
@@ -65,7 +66,8 @@ export async function load(event) {
 			return {
 				id: t.id,
 				name: t.name,
-				price: t.price,
+				// Monto sugerido: el mismo que en la puerta (precio en la puerta o el del último tramo).
+				price: doorPrice(t, config)?.price ?? t.price,
 				gorra: t.gorra,
 				capacity: t.capacity,
 				taken: c ? c.sold + c.held : 0,

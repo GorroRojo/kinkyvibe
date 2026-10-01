@@ -8,6 +8,7 @@ import { formatARS } from './money.js';
 import {
 	applyTicketsForm,
 	describeTicketsForm,
+	doorPricePreview,
 	emptyTicketType,
 	readTicketsForm,
 	tierPreview,
@@ -224,6 +225,56 @@ describe('textos de ayuda', () => {
 	it('describeTicketsForm resume los tramos y el encadenado', () => {
 		expect(describeTicketsForm(formOf(FM), formatARS)).toBe(
 			`General: Preventa 1 ${formatARS(8000)} (5) → Preventa 2 ${formatARS(9000)} (hasta 01/12) → General ${formatARS(10000)}, cupo 40 · Última tanda: ${formatARS(12000)}, sin cupo (cuando se agote «General»)`
+		);
+	});
+});
+
+describe('editor: qué se cobra en la puerta', () => {
+	const types = () => {
+		const general = {
+			...emptyTicketType({ first: true }),
+			mode: /** @type {const} */ ('tiers'),
+			tiers: [
+				{
+					key: 'a',
+					origId: null,
+					id: '',
+					name: 'Preventa 1',
+					price: '8000',
+					quantity: '5',
+					until: ''
+				},
+				{
+					key: 'b',
+					origId: null,
+					id: '',
+					name: 'General',
+					price: '10.000',
+					quantity: '',
+					until: ''
+				}
+			]
+		};
+		const pareja = { ...emptyTicketType(), name: 'Pareja', price: '18000' };
+		const gorra = { ...emptyTicketType(), name: 'Gorra', mode: /** @type {const} */ ('gorra') };
+		return [general, pareja, gorra];
+	};
+
+	it('vacío: el último tramo o el precio fijo (la gorra no aparece)', () => {
+		expect(doorPricePreview({ types: types(), doorPrice: '' })).toBe(
+			`Se cobra en la puerta: General ${formatARS(10000)} · Pareja ${formatARS(18000)}.`
+		);
+	});
+
+	it('con un monto: ese para todos los tipos con precio', () => {
+		expect(doorPricePreview({ types: types(), doorPrice: '$ 12.000, solo efectivo' })).toBe(
+			`Se cobra en la puerta: General ${formatARS(12000)} · Pareja ${formatARS(12000)}.`
+		);
+	});
+
+	it('un texto que no es un solo monto: lo avisa y cobra el último tramo', () => {
+		expect(doorPricePreview({ types: types(), doorPrice: '$ 10.000 o $ 12.000' })).toMatch(
+			/^No es un solo monto: .*Se cobra en la puerta: General \$\s?10\.000 · Pareja/
 		);
 	});
 });

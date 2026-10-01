@@ -22,7 +22,7 @@ import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
 import tagsFactory from './tags.js';
 import { formatARS } from './money.js';
-import { chainCycle, unreachableAfter } from './ticketTiers.js';
+import { chainCycle, doorAmount, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
 	PAYMENT_METHODS,
@@ -231,6 +231,35 @@ export function tierPreview(tiers) {
 		return `${tr.name.trim() || `Tramo ${j + 1}`} (${parts.join(', ')})`;
 	});
 	return `Quien compra ve solo el tramo vigente: ${steps.join(' → ')}.`;
+}
+
+/**
+ * Qué se cobra en la puerta y en la carga a mano, para mostrar bajo «Precio en la puerta» (con la
+ * misma regla que el servidor, `doorPrice`): "Se cobra en la puerta: General $ 10.000 · Pareja
+ * $ 18.000". Si el texto no es un solo monto, lo avisa (se muestra en la página, pero se cobra el
+ * precio del último tramo). Sin tipos con precio, ''.
+ *
+ * @param {Pick<TicketsForm, 'types' | 'doorPrice'>} form
+ */
+export function doorPricePreview(form) {
+	const text = form.doorPrice.trim();
+	const parts = form.types.flatMap((t) => {
+		if (t.mode === 'gorra') return [];
+		const tiers =
+			t.mode === 'tiers' ? t.tiers.map((tr) => ({ price: parseAmount(tr.price) })) : null;
+		const price = parseAmount(t.price);
+		const p = doorPrice(/** @type {any} */ ({ price, tiers: tiers?.length ? tiers : null }), {
+			door: { price: text }
+		});
+		if (!p || p.price === null) return [];
+		return [`${t.name.trim() || 'Sin nombre'} ${formatARS(p.price)}`];
+	});
+	if (!parts.length) return '';
+	const unread =
+		text && doorAmount(text) === null
+			? 'No es un solo monto: se muestra así en la página, pero se cobra el precio del último tramo. '
+			: '';
+	return `${unread}Se cobra en la puerta: ${parts.join(' · ')}.`;
 }
 
 /**

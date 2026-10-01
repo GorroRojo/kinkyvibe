@@ -261,3 +261,64 @@ describe('compra pública', () => {
 		expect(held).toBe(0);
 	});
 });
+
+describe('precio en la puerta y en la carga a mano (decisión de gorrite)', () => {
+	/** Un tipo con preventas: «Preventa 1» a $ 8.000 y «General» (el resto) a $ 10.000. */
+	function tiered() {
+		meta.tickets = [
+			{
+				id: 'general',
+				name: 'General',
+				capacity: 10,
+				tiers: [
+					{ id: 'p1', name: 'Preventa 1', price: 8000, quantity: 5 },
+					{ id: 'general', name: 'General', price: 10000 }
+				]
+			}
+		];
+	}
+	/** `load` de la carga a mano, como SvelteKit. */
+	async function manualLoad() {
+		const r = await post(manual.load, {}, admin, `/admin/eventos/${SLUG}/ordenes/cargar`);
+		return r.types.find((/** @type {any} */ x) => x.id === 'general');
+	}
+	const unitPrices = async () =>
+		(
+			await t.db
+				.prepare('SELECT channel, unit_price, ticket_tier FROM orders ORDER BY created_at, rowid')
+				.all()
+		).results;
+
+	it('sin precio en la puerta: el del último tramo, sin gastar la preventa y contando para el cupo', async () => {
+		tiered();
+		meta.puerta = true;
+		expect((await sell({ method: 'efectivo' })).sale).toMatchObject({ ok: true });
+		const suggested = (await manualLoad()).price;
+		expect(suggested).toBe(10000);
+		expect((await load({ method: 'efectivo', amount: String(suggested) })).order).toMatchObject({
+			total: 10000
+		});
+		expect(await unitPrices()).toEqual([
+			{ channel: 'puerta', unit_price: 10000, ticket_tier: null },
+			{ channel: 'manual', unit_price: 10000, ticket_tier: null }
+		]);
+		expect(await sold()).toBe(2);
+	});
+
+	it('con precio en la puerta: ese, aunque el tipo tenga preventas', async () => {
+		tiered();
+		meta.puerta = true;
+		meta.puerta_precio = '$ 12.000, solo efectivo';
+		expect((await sell({ method: 'efectivo', quantity: '2' })).sale).toMatchObject({ ok: true });
+		const suggested = (await manualLoad()).price;
+		expect(suggested).toBe(12000);
+		await load({ method: 'efectivo', amount: String(suggested) });
+		expect(await unitPrices()).toEqual([
+			{ channel: 'puerta', unit_price: 12000, ticket_tier: null },
+			{ channel: 'manual', unit_price: 12000, ticket_tier: null }
+		]);
+		// El modo puerta muestra el mismo precio que cobra.
+		const page = await post(door.load, {}, admin, `/admin/eventos/${SLUG}/ingreso`);
+		expect(page.types[0]).toMatchObject({ id: 'general', price: 12000 });
+	});
+});
