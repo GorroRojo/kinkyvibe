@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	GO_SHORTCUTS,
+	NAV_ICONS,
 	buildCommands,
 	goShortcutHref,
 	goShortcutRows,
@@ -35,6 +36,20 @@ describe('buildCommands', () => {
 		const c = cmds.find((x) => x.id === 'checkin-today:picantearla');
 		expect(c).toMatchObject({ label: 'Abrir check-in de hoy: Picantearla' });
 		expect(c?.href).toBe('/admin/entradas/picantearla/ingreso');
+	});
+});
+
+describe('secciones de Ajustes y Cuentas', () => {
+	it('cada sección del menú tiene su ícono en la paleta', () => {
+		for (const item of NAV) expect(NAV_ICONS[item.id], item.id).toBeTruthy();
+	});
+	it('Interruptores está en el menú de Ajustes y se encuentra en la paleta', () => {
+		const item = navItem('ajustes-interruptores');
+		expect(item).toMatchObject({ href: '/admin/ajustes/interruptores', group: 'ajustes' });
+		expect(item?.menu).not.toBe(false);
+		const cmds = buildCommands();
+		for (const q of ['interruptores', 'funciones nuevas', 'prender'])
+			expect(matchCommands(cmds, q).map((c) => c.id)).toContain('nav:ajustes-interruptores');
 	});
 });
 
