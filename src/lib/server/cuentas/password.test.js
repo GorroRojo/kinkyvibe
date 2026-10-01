@@ -9,7 +9,8 @@ import {
 	passwordProblem,
 	verifyPassword
 } from './password.js';
-import { fromBase64url, randomDigits, timingSafeEqualText } from './crypto.js';
+import { fromBase64url } from '$lib/utils/base64.js';
+import { randomDigits } from './crypto.js';
 
 describe('contraseñas (PBKDF2)', () => {
 	it('parámetros: dentro del máximo de Workers, sal de 16 bytes, clave de 32', () => {
@@ -70,11 +71,5 @@ describe('contraseñas (PBKDF2)', () => {
 describe('crypto', () => {
 	it('randomDigits: siempre 6 cifras', () => {
 		for (let i = 0; i < 200; i++) expect(randomDigits(6)).toMatch(/^\d{6}$/);
-	});
-
-	it('timingSafeEqualText', () => {
-		expect(timingSafeEqualText('abc', 'abc')).toBe(true);
-		expect(timingSafeEqualText('abc', 'abd')).toBe(false);
-		expect(timingSafeEqualText('abc', 'abcd')).toBe(false);
 	});
 });

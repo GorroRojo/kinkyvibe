@@ -15,7 +15,8 @@
  * - **Clave derivada de 32 bytes** (el tamaño de salida de SHA-256; más no suma seguridad).
  * - Formato: `pbkdf2-sha256$<iteraciones>$<sal base64url>$<hash base64url>`.
  */
-import { fromBase64url, randomBytes, timingSafeEqualBytes, toBase64url } from './crypto.js';
+import { fromBase64url, toBase64url } from '$lib/utils/base64.js';
+import { randomBytes, timingSafeEqualBytes } from './crypto.js';
 
 export const PBKDF2_ITERATIONS = 100_000;
 /** El máximo de iteraciones que acepta workerd; un test verifica que no lo pasemos. */

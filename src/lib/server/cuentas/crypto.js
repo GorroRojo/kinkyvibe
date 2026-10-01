@@ -1,32 +1,9 @@
 /**
  * Piezas de criptografía de las cuentas, solo con Web Crypto (andan igual en Workers, Node y el
- * navegador; nada de módulos nativos).
+ * navegador; nada de módulos nativos). Base64url está en $lib/utils/base64.js y la comparación de
+ * textos en tiempo constante, en $lib/server/hash.js.
  */
-
-/**
- * @param {Uint8Array} bytes
- * @returns {string}
- */
-export function toBase64url(bytes) {
-	let s = '';
-	for (const b of bytes) s += String.fromCharCode(b);
-	return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-/**
- * @param {string} text
- * @returns {Uint8Array | null} `null` si no es base64url válido
- */
-export function fromBase64url(text) {
-	if (typeof text !== 'string' || !/^[A-Za-z0-9_-]*$/.test(text)) return null;
-	try {
-		const b64 = text.replace(/-/g, '+').replace(/_/g, '/');
-		const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
-		return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-	} catch {
-		return null;
-	}
-}
+import { toBase64url } from '$lib/utils/base64.js';
 
 /**
  * `n` bytes al azar (CSPRNG).
@@ -70,15 +47,4 @@ export function timingSafeEqualBytes(a, b) {
 	let diff = 0;
 	for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
 	return diff === 0;
-}
-
-/**
- * Lo mismo para textos (p. ej. dos hashes en hex).
- *
- * @param {string} a
- * @param {string} b
- */
-export function timingSafeEqualText(a, b) {
-	const enc = new TextEncoder();
-	return timingSafeEqualBytes(enc.encode(a), enc.encode(b));
 }

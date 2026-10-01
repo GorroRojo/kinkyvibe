@@ -33,7 +33,7 @@
 	export let warnings = [];
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
-	export let settingsHref = '/admin/entradas/ajustes';
+	export let settingsHref = '/admin/ajustes/cobros';
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
