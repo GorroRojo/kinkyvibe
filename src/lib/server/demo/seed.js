@@ -1017,9 +1017,8 @@ export function buildData({ today, now, bundledSlugs = [] }) {
 				quantity,
 				status: 'approved'
 			});
-			row.ticket_tier = tier;
 			orders.splice(before, 1);
-			tierOrders.push(row);
+			tierOrders.push({ ...row, ticket_tier: tier });
 			for (let i = tickets.length - 1; i >= 0; i--) {
 				if (tickets[i].order_id === row.id) tierTickets.unshift(...tickets.splice(i, 1));
 			}
