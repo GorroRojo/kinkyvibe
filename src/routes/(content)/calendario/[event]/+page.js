@@ -9,5 +9,12 @@ export async function load({ params, data }) {
 	}
 	// `data` viene de +page.server.js (posts relacionados y el resumen de la venta de entradas
 	// para el botón, `null` si el evento no vende entradas).
-	return { ...data, ...post, tickets: data?.tickets ?? null, propinas: data?.propinas ?? false };
+	// `venue`: el lugar según su privacidad (o `null`); si hay, manda sobre `location` del .md.
+	return {
+		...data,
+		...post,
+		tickets: data?.tickets ?? null,
+		propinas: data?.propinas ?? false,
+		venue: data?.venue ?? null
+	};
 }

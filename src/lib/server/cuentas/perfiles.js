@@ -45,7 +45,6 @@ import {
 	slugify
 } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { PROFILE_KINDS } from '$lib/server/objects/types/perfil.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { logProfileCreated } from '$lib/server/admin/accountEvents.js';
@@ -65,7 +64,7 @@ import { accountMailAllowed } from './mailCap.js';
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
 /** @typedef {import('$lib/server/objects/visibility.js').Visibility} Visibility */
 /** @typedef {'owner' | 'manager'} ManagerRole */
-/** @typedef {'persona' | 'grupo'} ProfileKind */
+/** @typedef {'persona' | 'grupo' | 'lugar'} ProfileKind */
 
 /**
  * @typedef {{ ok: false, status: number, message: string, errors?: Record<string, string> }} Failure
@@ -80,6 +79,23 @@ import { accountMailAllowed } from './mailCap.js';
  */
 
 export const PROFILE_TYPE = 'perfil';
+/**
+ * Los tipos de perfil que puede crear una cuenta. Los lugares los crean les admins (Panel →
+ * Eventos → Lugares); una cuenta puede llegar a gestionar uno solo si une admin aprueba su
+ * pedido "Es mi perfil" (src/lib/server/amigues/claims.js).
+ */
+export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo']);
+
+/**
+ * El tipo de un perfil a partir de sus datos (lo desconocido cuenta como persona, lo más
+ * restringido: una persona no tiene integrantes ni campos de lugar).
+ *
+ * @param {Record<string, unknown>} data
+ * @returns {ProfileKind}
+ */
+export function profileKind(data) {
+	return data?.kind === 'grupo' ? 'grupo' : data?.kind === 'lugar' ? 'lugar' : 'persona';
+}
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
 export const MAX_PROFILES_PER_ACCOUNT = 20;
@@ -212,8 +228,9 @@ function parseLinks(value) {
  */
 
 /**
- * `data` de un perfil a partir de lo que se editó. `kind` y `avatar` no se editan acá: quedan
- * como estaban.
+ * `data` de un perfil a partir de lo que se editó. Lo que no se edita desde Mi rincón (`kind`,
+ * `avatar` y los demás campos, por ejemplo los de una ficha de amigues importada o los de un
+ * lugar) queda como estaba.
  *
  * @param {ProfileKind} kind
  * @param {ProfileInput} input
@@ -222,13 +239,14 @@ function parseLinks(value) {
 function profileData(kind, input, current = {}) {
 	/** @type {Record<string, unknown>} */
 	const data = {
+		...current,
 		kind,
 		bio: text(input.bio),
 		pronouns: text(input.pronouns),
 		links: parseLinks(input.links)
 	};
-	if (current.avatar !== undefined) data.avatar = current.avatar;
 	if (kind === 'grupo') data.show_members = input.show_members === true;
+	else delete data.show_members;
 	return data;
 }
 
@@ -249,7 +267,7 @@ function toMyProfile(row) {
 		id: o.id,
 		slug: o.slug,
 		title: o.title,
-		kind: o.data.kind === 'grupo' ? 'grupo' : 'persona',
+		kind: profileKind(o.data),
 		visibility: o.visibility,
 		version: o.version,
 		role: row.role === 'owner' ? 'owner' : 'manager'
@@ -312,7 +330,7 @@ export async function getManagedProfile(db, accountId, slug) {
 	const profile = rowToObject(row);
 	return {
 		profile,
-		kind: profile.data.kind === 'grupo' ? 'grupo' : 'persona',
+		kind: profileKind(profile.data),
 		role: row.role === 'owner' ? 'owner' : 'manager'
 	};
 }
@@ -360,7 +378,7 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 	const kind = /** @type {ProfileKind} */ (input.kind);
 	// Sin el permiso de perfiles, como si no existiera nada (las páginas ya dan 404).
 	if (!(await canHaveProfiles(db, accountId))) return failure(404, MESSAGES.notFound);
-	if (!PROFILE_KINDS.includes(kind))
+	if (!(/** @type {readonly string[]} */ (ACCOUNT_PROFILE_KINDS).includes(kind)))
 		return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
 	if (!(await getAccount(db, accountId))) return failure(404, MESSAGES.notFound);
 	if ((await countMyProfiles(db, accountId)) >= MAX_PROFILES_PER_ACCOUNT) {
@@ -1438,7 +1456,7 @@ export async function listGroupMembers(db, accountId, groupSlug) {
 export async function getPublicProfile(db, slug, viewer = ANON) {
 	const o = await getObject(db, { type: PROFILE_TYPE, slug }, viewer);
 	if (!o) return null;
-	const kind = o.data.kind === 'grupo' ? 'grupo' : 'persona';
+	const kind = profileKind(o.data);
 	/** @type {{ slug: string, title: string }[] | null} */
 	let members = null;
 	if (kind === 'grupo' && o.data.show_members === true) {
@@ -1532,7 +1550,9 @@ export async function releaseAccountProfiles(db, accountId, { now = Date.now() }
 		.all();
 	for (const row of results) {
 		const p = rowToObject(row);
-		if (p.data.kind !== 'grupo') {
+		// Las personas se vacían y se borran; los grupos y los lugares quedan (pasan a otra cuenta
+		// o se borran con sus datos, que no son de la persona).
+		if (profileKind(p.data) === 'persona') {
 			await saveFresh(
 				db,
 				p.id,
