@@ -66,22 +66,49 @@
 		<p class="ok" role="status">{f.message}</p>
 	{/if}
 
-	{#if data.memberships.length}
+	{#if data.memberInvites.length || data.memberships.length}
 		<section class="surface-card" aria-labelledby="groups-title">
-			<h2 id="groups-title">Grupos en los que estás</h2>
+			<h2 id="groups-title">Grupos</h2>
 			{#if f?.action === 'grupos' && f.error}
 				<p class="error" role="alert">{f.error}</p>
 			{:else if f?.action === 'grupos' && f.message}
 				<p class="ok" role="status">{f.message}</p>
 			{/if}
 			<p class="hint">
-				Los grupos te pueden sumar con la dirección de tu perfil. Salir es un clic y no le tenés que
-				pedir nada a nadie; después, ese grupo no te puede volver a sumar por 30 días.
+				Un grupo te puede invitar con la dirección de tu perfil de persona; no figurás en el grupo
+				hasta que aceptás. Salir es un clic y no le tenés que pedir nada a nadie. Si rechazás o te
+				vas, ese grupo no te puede volver a invitar por 30 días.
 			</p>
+			{#if data.memberInvites.length}
+				<h3>Invitaciones</h3>
+				<ul class="list">
+					{#each data.memberInvites as inv (`${inv.groupId}:${inv.personaSlug}`)}
+						<li>
+							<span><strong>{inv.groupTitle}</strong> te invitó a sumarte</span>
+							<span class="hint">con tu perfil {inv.personaTitle}</span>
+							<div class="row">
+								<form method="POST" action="?/aceptarGrupo">
+									<input type="hidden" name="persona" value={inv.personaSlug} />
+									<input type="hidden" name="group" value={inv.groupId} />
+									<button class="pill-btn" type="submit">Aceptar</button>
+								</form>
+								<form method="POST" action="?/rechazarGrupo">
+									<input type="hidden" name="persona" value={inv.personaSlug} />
+									<input type="hidden" name="group" value={inv.groupId} />
+									<button class="pill-btn ghost" type="submit">Rechazar</button>
+								</form>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if data.memberships.length}
+				<h3>En los que estás</h3>
+			{/if}
 			<ul class="list">
 				{#each data.memberships as m (`${m.groupId}:${m.personaSlug}`)}
 					<li>
-						<span>Te sumaron a <strong>{m.groupTitle}</strong></span>
+						<span>Sos parte de <strong>{m.groupTitle}</strong></span>
 						<span class="hint">con tu perfil {m.personaTitle}</span>
 						<form method="POST" action="?/salirGrupo">
 							<input type="hidden" name="persona" value={m.personaSlug} />
@@ -95,6 +122,33 @@
 	{:else if f?.action === 'grupos' && f.message}
 		<p class="ok" role="status">{f.message}</p>
 	{/if}
+
+	<section class="surface-card" aria-labelledby="optout-title">
+		<h2 id="optout-title">Invitaciones de grupos</h2>
+		{#if f?.action === 'invitacionesGrupos' && f.error}
+			<p class="error" role="alert">{f.error}</p>
+		{:else if f?.action === 'invitacionesGrupos' && f.message}
+			<p class="ok" role="status">{f.message}</p>
+		{/if}
+		{#if data.noGroupInvites}
+			<p>
+				No recibís invitaciones de grupos: si alguien te invita, no te llega nada (y no se entera).
+			</p>
+			<form method="POST" action="?/invitacionesGrupos">
+				<input type="hidden" name="recibir" value="si" />
+				<button class="pill-btn ghost" type="submit">Volver a recibir invitaciones</button>
+			</form>
+		{:else}
+			<p class="hint">
+				Si no querés que los grupos te inviten, lo podés apagar. Vale para todos tus perfiles de
+				persona; quien invite no se entera.
+			</p>
+			<form method="POST" action="?/invitacionesGrupos">
+				<input type="hidden" name="recibir" value="no" />
+				<button class="pill-btn ghost" type="submit">No recibir invitaciones de grupos</button>
+			</form>
+		{/if}
+	</section>
 
 	<section class="surface-card" aria-labelledby="mine-title">
 		<h2 id="mine-title">Los que gestionás</h2>
@@ -176,6 +230,10 @@
 	h1 {
 		margin: 0;
 		font-size: var(--step-3);
+	}
+	h3 {
+		margin: 0.5em 0 0;
+		font-size: var(--step-0);
 	}
 	h2 {
 		margin: 0 0 0.5em;

@@ -158,7 +158,7 @@
 					<input type="checkbox" name="show_members" checked={values.show_members} />
 					<span
 						>Mostrar integrantes <small class="hint"
-							>(las personas que aceptaste; quienes gestionan no se muestran nunca)</small
+							>(las personas que aceptaron la invitación; quienes gestionan no se muestran nunca)</small
 						></span
 					>
 				</label>
@@ -176,9 +176,10 @@
 				<p class="ok" role="status">{msg('integrantes')?.message}</p>
 			{/if}
 			<p class="hint">
-				Sumás a una persona con la dirección de su perfil (te la pasa ella). Solo perfiles de
-				persona que podés ver, nunca ocultos. Le aparece en su Mi rincón y se puede ir cuando
-				quiera; si se va, no la pueden volver a sumar por 30 días.
+				Invitás a una persona con la dirección de su perfil (te la pasa ella). Solo perfiles de
+				persona que podés ver, nunca ocultos. Le llega a su Mi rincón y figura como integrante
+				recién cuando acepta; se puede ir cuando quiera. Si rechaza o se va, no la pueden volver a
+				invitar por 30 días.
 				{p.show_members
 					? 'Les integrantes se muestran en el perfil del grupo, a quien pueda ver cada perfil.'
 					: 'Por ahora no se muestran: lo elegís arriba.'}
@@ -203,9 +204,24 @@
 			{:else}
 				<p class="hint">Todavía no hay integrantes.</p>
 			{/if}
-			<form method="POST" action="?/sumarIntegrante" use:enhance>
+			{#if data.pendingMembers.length}
+				<h3>Invitaciones pendientes</h3>
+				<p class="hint">Las ven solo quienes gestionan el grupo y la persona invitada.</p>
+				<ul class="list">
+					{#each data.pendingMembers as m (m.id)}
+						<li>
+							<span>{m.title} <small class="hint">(pendiente)</small></span>
+							<form method="POST" action="?/retirarInvitacionIntegrante" use:enhance>
+								<input type="hidden" name="persona" value={m.id} />
+								<button class="link" type="submit">Retirar la invitación</button>
+							</form>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<form method="POST" action="?/invitarIntegrante" use:enhance>
 				<label>
-					<span>Sumar a una persona</span>
+					<span>Invitar a una persona</span>
 					<input
 						name="persona"
 						type="text"
@@ -215,7 +231,7 @@
 						aria-invalid={msg('integrantes')?.errors?.persona ? 'true' : undefined}
 					/>
 				</label>
-				<button class="pill-btn" type="submit">Sumar</button>
+				<button class="pill-btn" type="submit">Invitar</button>
 			</form>
 		</section>
 
@@ -364,7 +380,7 @@
 				<ul class="list">
 					{#each data.memberships as g (g.id)}
 						<li>
-							<span>Te sumaron a <strong>{g.title}</strong></span>
+							<span>Sos parte de <strong>{g.title}</strong></span>
 							<form method="POST" action="?/salirGrupo" use:enhance>
 								<input type="hidden" name="group" value={g.id} />
 								<button class="pill-btn ghost" type="submit">Salir del grupo</button>
@@ -376,9 +392,10 @@
 				<p class="hint">Este perfil no es parte de ningún grupo.</p>
 			{/if}
 			<p class="hint">
-				Un grupo te suma con la dirección de este perfil (<code>{p.slug}</code>): pasásela a quienes
-				lo gestionan. Salir es un clic y no le tenés que pedir nada a nadie; después, ese grupo no
-				te puede volver a sumar por 30 días.
+				Un grupo te invita con la dirección de este perfil (<code>{p.slug}</code>): pasásela a
+				quienes lo gestionan. Las invitaciones aparecen en Mi rincón → Perfiles y figurás recién
+				cuando aceptás. Salir es un clic y no le tenés que pedir nada a nadie; si rechazás o te vas,
+				ese grupo no te puede volver a invitar por 30 días.
 			</p>
 		</section>
 	{/if}

@@ -206,3 +206,40 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 	]);
 	return true;
 }
+
+/**
+ * ¿La cuenta eligió "No recibir invitaciones de grupos"? (`preferences.noGroupInvites`)
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ */
+export async function getNoGroupInvites(db, accountId) {
+	const row = await db
+		.prepare(
+			`SELECT json_extract(preferences, '$.noGroupInvites') AS v FROM accounts
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId)
+		.first();
+	return Number(row?.v) === 1;
+}
+
+/**
+ * Prende o apaga "No recibir invitaciones de grupos". Apagado, la clave se saca (no queda nada).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {boolean} value
+ * @param {{ now?: number }} [opts]
+ */
+export async function setNoGroupInvites(db, accountId, value, { now = Date.now() } = {}) {
+	await db
+		.prepare(
+			`UPDATE accounts SET updated_at = ?2, preferences = CASE WHEN ?3
+				THEN json_set(preferences, '$.noGroupInvites', json('true'))
+				ELSE json_remove(preferences, '$.noGroupInvites') END
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId, now, value ? 1 : 0)
+		.run();
+}

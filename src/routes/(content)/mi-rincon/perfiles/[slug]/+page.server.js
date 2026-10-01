@@ -14,11 +14,12 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';
 import {
 	MESSAGES,
-	addMember,
 	cancelInvite,
 	deleteProfile,
 	getManagedProfile,
 	inviteManager,
+	inviteMember,
+	listGroupMemberInvites,
 	leaveMembership,
 	leaveProfile,
 	listGroupMembers,
@@ -27,7 +28,8 @@ import {
 	removeManager,
 	removeMember,
 	setManagerRole,
-	updateProfile
+	updateProfile,
+	withdrawMemberInvite
 } from '$lib/server/cuentas/perfiles.js';
 import {
 	field,
@@ -100,6 +102,7 @@ export async function load(event) {
 		managers: managers?.ok ? managers.managers : [],
 		invites: managers?.ok ? managers.invites : [],
 		members: group ? await listGroupMembers(db, member.id, slug) : [],
+		pendingMembers: group ? await listGroupMemberInvites(db, member.id, slug) : [],
 		memberships: group ? [] : await listMemberships(db, member.id, slug)
 	};
 }
@@ -307,14 +310,23 @@ export const actions = {
 		);
 	},
 
-	sumarIntegrante: async (event) => {
+	invitarIntegrante: async (event) => {
+		const { db, member, slug } = await managed(event);
+		const form = await event.request.formData();
+		return guarded('integrantes', async () => {
+			const result = await inviteMember(db, member.id, slug, field(form, 'persona', 300));
+			return reply('integrantes', result, result.ok ? result.message : '');
+		});
+	},
+
+	retirarInvitacionIntegrante: async (event) => {
 		const { db, member, slug } = await managed(event);
 		const form = await event.request.formData();
 		return guarded('integrantes', async () =>
 			reply(
 				'integrantes',
-				await addMember(db, member.id, slug, field(form, 'persona', 300)),
-				'Listo: ya es integrante. Le aparece en su Mi rincón y se puede ir cuando quiera.'
+				await withdrawMemberInvite(db, member.id, slug, field(form, 'persona', 20)),
+				'Listo: retiraste la invitación.'
 			)
 		);
 	},

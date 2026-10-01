@@ -17,9 +17,10 @@
  * - un perfil de persona tiene una sola cuenta (su dueñe); un grupo, al menos une dueñe: nadie
  *   se va ni pierde la propiedad si es le última (sentencias condicionales, sin carreras);
  * - las invitaciones a gestionar van por mail y nunca dicen si ese mail tiene cuenta;
- * - el grupo suma integrantes directamente, solo perfiles de persona que puede ver (nunca
- *   ocultos); la persona lo ve en Mi rincón y se va cuando quiere, sin pedirle nada a nadie, y
- *   ese grupo no la puede volver a sumar por 30 días.
+ * - el grupo invita a perfiles de persona que puede ver (nunca ocultos) y la persona acepta o
+ *   rechaza en Mi rincón; hasta que acepta, la invitación la ven solo ella y quienes gestionan el
+ *   grupo. Se va cuando quiere, sin pedirle nada a nadie. Si rechaza o se va, ese grupo no la
+ *   puede volver a invitar por 30 días.
  *
  * Las lecturas de "gestión" (mis perfiles, un perfil que gestiono) leen `objects` unidas a
  * `profile_managers`: la condición de acceso es esa unión, no la visibilidad (quien gestiona
@@ -111,7 +112,12 @@ export const MESSAGES = Object.freeze({
 		'No encontramos ese perfil de persona. Revisá la dirección (te la pasa la persona desde su perfil).',
 	notMember: 'Esa persona ya no está en el grupo.',
 	recentlyLeft:
-		'Esa persona dejó el grupo hace poco: por ahora no la pueden volver a sumar. Si quiere volver, que te avise.',
+		'Esa persona no aceptó o dejó el grupo hace poco: por ahora no la pueden volver a invitar. Si quiere sumarse, que te avise.',
+	memberInvited:
+		'Listo: le llegó la invitación a su Mi rincón. Figura como pendiente hasta que la acepte.',
+	alreadyMember: 'Esa persona ya es integrante del grupo.',
+	tooManyMemberInvites: 'Mandaste muchas invitaciones seguidas. Esperá un rato y probá de nuevo.',
+	memberInviteGone: 'Esa invitación ya no está: puede que la hayan retirado o que haya vencido.',
 	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
 	needsCode:
 		'Para esto te pedimos un código por mail: pedilo con «Mandame un código para confirmar» y escribilo antes de confirmar.',
@@ -877,11 +883,24 @@ export function leaveProfile(db, accountId, slug) {
 
 // ---------------------------------------------------------------------------------------------
 // Integrantes: edges `es_integrante_de` (persona → grupo), escritos con saveObject() sobre el
-// perfil de la persona. El grupo suma directamente; la persona se va cuando quiere.
+// perfil de la persona, solo cuando ella acepta. Mientras tanto, la invitación vive en la tabla
+// `profile_member_invites` (migración 0014), fuera del objeto de la persona: invitar o retirar
+// una invitación no le cambia la `version` (no le hace fallar lo que esté editando).
 // ---------------------------------------------------------------------------------------------
 
-/** Cuánto tiempo un grupo no puede volver a sumar a una persona que se fue. */
+/** Cuánto tiempo un grupo no puede volver a invitar a una persona que rechazó o se fue. */
 export const LEAVE_BLOCK_MS = 30 * 24 * 60 * 60 * 1000;
+/** Cuánto dura una invitación a ser integrante sin respuesta. */
+export const MEMBER_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Invitaciones a ser integrante por hora (tabla rate_limits), por grupo y por cuenta que invita.
+ * Se cuentan antes de buscar el perfil, así el "esperá" no dice nada de él.
+ */
+export const MEMBER_INVITE_RATE_LIMITS = Object.freeze({
+	group: { limit: 20, windowSeconds: 60 * 60 },
+	account: { limit: 40, windowSeconds: 60 * 60 }
+});
 
 /** Intentos al guardar los edges de una persona si otro guardado se cruza. */
 const MEMBER_SAVE_ATTEMPTS = 3;
@@ -977,55 +996,248 @@ function slugFromInput(value) {
 }
 
 /**
- * Quien gestiona un grupo suma a una persona como integrante, por la dirección de su perfil. Sin
- * pedido ni aprobación, con estos resguardos:
+ * Quien gestiona un grupo invita a una persona a ser integrante, por la dirección de su perfil.
+ * Queda pendiente (`profile_member_invites`) hasta que ella acepta en Mi rincón → Perfiles. Con
+ * estos resguardos:
+ * - límites por hora por grupo y por cuenta que invita (antes de buscar el perfil);
  * - solo perfiles de persona que esta cuenta puede VER (getObject con su visibilidad), y nunca
  *   uno oculto, aunque sea suyo: para todo lo demás la respuesta es "no lo encontramos", igual
  *   que si no existiera;
- * - si esa persona dejó ESTE grupo hace menos de 30 días, no se la puede volver a sumar
- *   (`profile_member_blocks`, migración 0014);
- * - la persona lo ve en Mi rincón → Perfiles y se puede ir cuando quiera (`leaveMembership`).
+ * - si esa persona rechazó o dejó ESTE grupo hace menos de 30 días, no se la puede volver a
+ *   invitar (`profile_member_blocks`);
+ * - si la cuenta de la persona eligió "No recibir invitaciones de grupos", la invitación se guarda
+ *   silenciada: ella nunca la ve, y quien invita ve exactamente lo mismo que siempre (la misma
+ *   respuesta y una invitación pendiente que vence sola).
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} groupSlug
  * @param {unknown} personaSlug
  * @param {{ now?: number }} [opts]
- * @returns {Promise<{ ok: true } | Failure>}
+ * @returns {Promise<{ ok: true, message: string } | Failure>}
  */
-export async function addMember(db, accountId, groupSlug, personaSlug, { now = Date.now() } = {}) {
+export async function inviteMember(
+	db,
+	accountId,
+	groupSlug,
+	personaSlug,
+	{ now = Date.now() } = {}
+) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
 	const groupId = managed.profile.id;
+	const perGroup = await hitRateLimit(
+		db,
+		`perfiles:minv:g:${groupId}`,
+		MEMBER_INVITE_RATE_LIMITS.group,
+		now
+	);
+	const perAccount = await hitRateLimit(
+		db,
+		`perfiles:minv:a:${await sha256Hex(`perfiles:account:${accountId}`)}`,
+		MEMBER_INVITE_RATE_LIMITS.account,
+		now
+	);
+	if (!perGroup.allowed || !perAccount.allowed) {
+		return failure(429, MESSAGES.tooManyMemberInvites);
+	}
 	const notFound = failure(404, MESSAGES.personaNotFound, { persona: MESSAGES.personaNotFound });
 	const slug = slugFromInput(personaSlug);
 	const seen = slug
 		? await getObject(db, { type: PROFILE_TYPE, slug }, memberViewer(accountId))
 		: null;
 	if (!seen || seen.data.kind !== 'persona' || seen.visibility === 'hidden') return notFound;
+	if ((await memberEdges(db, seen.id)).includes(groupId)) {
+		return failure(409, MESSAGES.alreadyMember, { persona: MESSAGES.alreadyMember });
+	}
+	await db.batch([
+		db
+			.prepare('DELETE FROM profile_member_blocks WHERE group_id = ?1 AND until <= ?2')
+			.bind(groupId, now),
+		db
+			.prepare('DELETE FROM profile_member_invites WHERE group_id = ?1 AND expires_at <= ?2')
+			.bind(groupId, now)
+	]);
+	const blocked = await db
+		.prepare(
+			'SELECT 1 AS x FROM profile_member_blocks WHERE group_id = ?1 AND persona_id = ?2 AND until > ?3'
+		)
+		.bind(groupId, seen.id, now)
+		.first();
+	if (blocked) return failure(409, MESSAGES.recentlyLeft, { persona: MESSAGES.recentlyLeft });
+	const optedOut = await db
+		.prepare(
+			`SELECT 1 AS x FROM profile_managers pm JOIN accounts a ON a.id = pm.account_id
+			WHERE pm.profile_id = ?1 AND pm.role = 'owner' AND a.deleted_at IS NULL
+			AND json_extract(a.preferences, '$.noGroupInvites') = 1`
+		)
+		.bind(seen.id)
+		.first();
+	// Si ya estaba pendiente, queda como estaba (misma respuesta).
 	await db
-		.prepare('DELETE FROM profile_member_blocks WHERE group_id = ?1 AND until <= ?2')
-		.bind(groupId, now)
+		.prepare(
+			`INSERT INTO profile_member_invites (group_id, persona_id, silenced, created_at, expires_at)
+			VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (group_id, persona_id) DO NOTHING`
+		)
+		.bind(groupId, seen.id, optedOut ? 1 : 0, now, now + MEMBER_INVITE_TTL_MS)
 		.run();
-	return changeMemberships(db, seen.id, accountId, now, async (persona, groups) => {
-		// Se vuelve a mirar en cada intento: pudo pasar a oculto mientras tanto.
-		if (persona.visibility === 'hidden') return notFound;
-		if (groups.includes(groupId)) return null;
-		const blocked = await db
-			.prepare(
-				'SELECT 1 AS x FROM profile_member_blocks WHERE group_id = ?1 AND persona_id = ?2 AND until > ?3'
-			)
-			.bind(groupId, persona.id, now)
-			.first();
-		if (blocked) return failure(409, MESSAGES.recentlyLeft, { persona: MESSAGES.recentlyLeft });
-		return [...groups, groupId];
-	});
+	return { ok: true, message: MESSAGES.memberInvited };
+}
+
+/**
+ * Quien gestiona un grupo retira una invitación pendiente. No toca el perfil de la persona.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} groupSlug
+ * @param {unknown} personaId
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function withdrawMemberInvite(db, accountId, groupSlug, personaId) {
+	const managed = await getManagedProfile(db, accountId, groupSlug);
+	if (!managed) return failure(404, MESSAGES.notFound);
+	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	await db
+		.prepare('DELETE FROM profile_member_invites WHERE group_id = ?1 AND persona_id = ?2')
+		.bind(managed.profile.id, Number(personaId))
+		.run();
+	return { ok: true };
+}
+
+/**
+ * Las invitaciones pendientes de un grupo, para quienes lo gestionan (solo perfiles que esta
+ * cuenta puede ver; las silenciadas también, para que se vean igual que las demás).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} groupSlug
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ id: number, slug: string, title: string }[]>}
+ */
+export async function listGroupMemberInvites(db, accountId, groupSlug, { now = Date.now() } = {}) {
+	const managed = await getManagedProfile(db, accountId, groupSlug);
+	if (!managed || managed.kind !== 'grupo') return [];
+	const { results } = await db
+		.prepare(
+			`SELECT ${MANAGED_COLUMNS} FROM profile_member_invites i JOIN objects o ON o.id = i.persona_id
+			WHERE i.group_id = ?1 AND i.expires_at > ?2 AND o.type = ?3 AND o.deleted_at IS NULL
+			ORDER BY o.title COLLATE NOCASE`
+		)
+		.bind(managed.profile.id, now, PROFILE_TYPE)
+		.all();
+	const viewer = memberViewer(accountId);
+	return results
+		.map(rowToObject)
+		.filter((o) => o.data.kind === 'persona' && canSee(o, viewer))
+		.map((o) => ({ id: o.id, slug: o.slug, title: o.title }));
+}
+
+/**
+ * Las invitaciones de grupos a los perfiles de persona de esta cuenta, para Mi rincón → Perfiles
+ * ("<grupo> te invitó a sumarte"). Nunca las silenciadas.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ groupId: number, groupTitle: string, personaSlug: string, personaTitle: string }[]>}
+ */
+export async function listMyMemberInvites(db, accountId, { now = Date.now() } = {}) {
+	const { results } = await db
+		.prepare(
+			`SELECT g.id AS group_id, g.title AS group_title, p.slug AS persona_slug, p.title AS persona_title
+			FROM profile_managers pm
+			JOIN objects p ON p.id = pm.profile_id
+			JOIN profile_member_invites i ON i.persona_id = p.id
+			JOIN objects g ON g.id = i.group_id
+			WHERE pm.account_id = ?1 AND p.type = ?2 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
+			AND i.silenced = 0 AND i.expires_at > ?3
+			ORDER BY i.created_at, g.title COLLATE NOCASE`
+		)
+		.bind(accountId, PROFILE_TYPE, now)
+		.all();
+	return results.map((r) => ({
+		groupId: Number(r.group_id),
+		groupTitle: String(r.group_title),
+		personaSlug: String(r.persona_slug),
+		personaTitle: String(r.persona_title)
+	}));
+}
+
+/**
+ * La persona acepta o rechaza la invitación de un grupo. Aceptar escribe el edge con
+ * saveObject() y borra la invitación en la misma tanda. Rechazar borra la invitación y, en la
+ * misma tanda, bloquea a ese grupo por 30 días.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} personaSlug
+ * @param {unknown} groupId
+ * @param {boolean} accept
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function answerMemberInvite(
+	db,
+	accountId,
+	personaSlug,
+	groupId,
+	accept,
+	{ now = Date.now() } = {}
+) {
+	const managed = await getManagedProfile(db, accountId, personaSlug);
+	if (!managed) return failure(404, MESSAGES.notFound);
+	if (managed.kind !== 'persona') return failure(400, MESSAGES.onlyPersonas);
+	const group = Number(groupId);
+	const personaId = managed.profile.id;
+	const invite = Number.isSafeInteger(group)
+		? await db
+				.prepare(
+					`SELECT 1 AS x FROM profile_member_invites i JOIN objects g ON g.id = i.group_id
+					WHERE i.group_id = ?1 AND i.persona_id = ?2 AND i.silenced = 0 AND i.expires_at > ?3
+					AND g.deleted_at IS NULL AND g.type = ?4`
+				)
+				.bind(group, personaId, now, PROFILE_TYPE)
+				.first()
+		: null;
+	if (!invite) return failure(404, MESSAGES.memberInviteGone);
+	const remove = db
+		.prepare('DELETE FROM profile_member_invites WHERE group_id = ?1 AND persona_id = ?2')
+		.bind(group, personaId);
+	if (!accept) {
+		await db.batch([remove, blockStatement(db, group, personaId, now)]);
+		return { ok: true };
+	}
+	return changeMemberships(
+		db,
+		personaId,
+		accountId,
+		now,
+		async (_, groups) => (groups.includes(group) ? groups : [...groups, group]),
+		[remove]
+	);
+}
+
+/**
+ * El bloqueo de 30 días para que `group` no vuelva a invitar a `personaId`.
+ *
+ * @param {D1Database} db
+ * @param {number} group
+ * @param {number} personaId
+ * @param {number} now
+ */
+function blockStatement(db, group, personaId, now) {
+	return db
+		.prepare(
+			`INSERT INTO profile_member_blocks (group_id, persona_id, until) VALUES (?1, ?2, ?3)
+			ON CONFLICT (group_id, persona_id) DO UPDATE SET until = excluded.until`
+		)
+		.bind(group, personaId, now + LEAVE_BLOCK_MS);
 }
 
 /**
  * Quien gestiona un grupo saca a une integrante. No bloquea nada: el grupo la puede volver a
- * sumar (el bloqueo de 30 días es solo cuando la persona se va).
+ * invitar (el bloqueo de 30 días es solo cuando la persona rechaza o se va).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1053,8 +1265,8 @@ export async function removeMember(db, accountId, groupSlug, personaId, { now = 
 
 /**
  * La persona deja un grupo. Siempre se puede, sin aprobación de nadie, aunque el grupo esté
- * oculto o borrado. En la misma tanda queda el bloqueo: ese grupo no la puede volver a sumar por
- * 30 días. Si ya no estaba, no hace nada (y no bloquea).
+ * oculto o borrado. En la misma tanda queda el bloqueo: ese grupo no la puede volver a invitar
+ * por 30 días. Si ya no estaba, no hace nada (y no bloquea).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -1075,12 +1287,7 @@ export async function leaveMembership(
 	if (managed.kind !== 'persona') return failure(400, MESSAGES.onlyPersonas);
 	const group = Number(groupId);
 	if (!Number.isSafeInteger(group)) return { ok: true };
-	const block = db
-		.prepare(
-			`INSERT INTO profile_member_blocks (group_id, persona_id, until) VALUES (?1, ?2, ?3)
-			ON CONFLICT (group_id, persona_id) DO UPDATE SET until = excluded.until`
-		)
-		.bind(group, managed.profile.id, now + LEAVE_BLOCK_MS);
+	const block = blockStatement(db, group, managed.profile.id, now);
 	return changeMemberships(
 		db,
 		managed.profile.id,
@@ -1114,8 +1321,8 @@ export async function listMemberships(db, accountId, personaSlug) {
 }
 
 /**
- * Todos los grupos que sumaron a alguno de los perfiles de persona de esta cuenta, para
- * Mi rincón → Perfiles ("Te sumaron a…"). Es la pantalla de la propia cuenta: ahí sí se ve qué
+ * Todos los grupos de los que son parte los perfiles de persona de esta cuenta, para
+ * Mi rincón → Perfiles ("Sos parte de…"). Es la pantalla de la propia cuenta: ahí sí se ve qué
  * perfil suyo está en qué grupo (nadie más lo ve junto).
  *
  * @param {D1Database} db
@@ -1307,7 +1514,8 @@ export async function releaseAccountProfiles(db, accountId, { now = Date.now() }
 					createdBy: DELETED_ACTOR,
 					also: () => [
 						db.prepare('DELETE FROM profile_managers WHERE profile_id = ?1').bind(p.id),
-						db.prepare('DELETE FROM profile_member_blocks WHERE persona_id = ?1').bind(p.id)
+						db.prepare('DELETE FROM profile_member_blocks WHERE persona_id = ?1').bind(p.id),
+						db.prepare('DELETE FROM profile_member_invites WHERE persona_id = ?1').bind(p.id)
 					]
 				}
 			);
