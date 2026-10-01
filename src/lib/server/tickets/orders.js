@@ -300,20 +300,8 @@ export async function reserveOrder(db, input) {
  * @param {{ eventSlug: string, typeId: string, tierId: string, exceptId?: string | null,
  *   now?: number }} input
  */
-export async function tierTaken(
-	db,
-	{ eventSlug, typeId, tierId, exceptId = null, now = Date.now() }
-) {
-	const row = await db
-		.prepare(
-			`SELECT COALESCE(SUM(quantity), 0) AS n FROM orders
-			WHERE event_slug = ?1 AND ticket_type = ?2 AND ticket_tier = ?3
-				AND (?5 IS NULL OR id != ?5)
-				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?4))`
-		)
-		.bind(eventSlug, typeId, tierId, now, exceptId)
-		.first();
-	return Number(row?.n ?? 0);
+export function tierTaken(db, { eventSlug, typeId, tierId, exceptId = null, now = Date.now() }) {
+	return takenPlaces(db, { eventSlug, typeId, tierId, exceptId, now });
 }
 
 /**
@@ -1196,19 +1184,24 @@ export async function confirmTransfer(
 
 /**
  * Cuántas entradas del tipo cuentan para el cupo (aprobadas y reservas vigentes), sin contar
- * la orden `exceptId` (la que se está por confirmar).
+ * la orden `exceptId` (la que se está por confirmar). Con `tierId`, solo las de ese tramo.
  *
  * @param {D1Database} db
- * @param {{ eventSlug: string, typeId: string, exceptId?: string | null, now?: number }} input
+ * @param {{ eventSlug: string, typeId: string, tierId?: string | null, exceptId?: string | null,
+ *   now?: number }} input
  */
-export async function takenPlaces(db, { eventSlug, typeId, exceptId = null, now = Date.now() }) {
+export async function takenPlaces(
+	db,
+	{ eventSlug, typeId, tierId = null, exceptId = null, now = Date.now() }
+) {
 	const row = await db
 		.prepare(
 			`SELECT COALESCE(SUM(quantity), 0) AS n FROM orders
 			WHERE event_slug = ?1 AND ticket_type = ?2 AND (?4 IS NULL OR id != ?4)
+				AND (?5 IS NULL OR ticket_tier = ?5)
 				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?3))`
 		)
-		.bind(eventSlug, typeId, now, exceptId)
+		.bind(eventSlug, typeId, now, exceptId, tierId)
 		.first();
 	return Number(row?.n ?? 0);
 }

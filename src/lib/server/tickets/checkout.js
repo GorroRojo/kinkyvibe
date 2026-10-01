@@ -144,6 +144,15 @@ export async function eventTicketsWithFondo(db, slug, fetchFn) {
 }
 
 /**
+ * El tramo vigente tal como lo ve la página (sin la cantidad: en público solo "quedan N" cerca
+ * del final).
+ *
+ * @param {import('./config.js').TicketType} eff tipo efectivo (`withTier`)
+ */
+const tierView = (eff) =>
+	eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null;
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -189,7 +198,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 				// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
 				closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
 				closed: !typeOpen(config, t, now),
-				tier: eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null,
+				tier: tierView(eff),
 				tierLeft: false,
 				waitingFor: null
 			};
@@ -205,7 +214,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 			const eff = withTier(type, a.tier?.tier);
 			t.price = eff.price;
 			t.fondo = eff.fondo;
-			t.tier = eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null;
+			t.tier = tierView(eff);
 			t.waitingFor = a.waitingFor?.name ?? null;
 			// Lo que queda (cupo y tramo vigente); un encadenado que espera, 0. Un tipo cerrado por
 			// horario igual dice lo que quedaba (la página muestra "Venta cerrada").

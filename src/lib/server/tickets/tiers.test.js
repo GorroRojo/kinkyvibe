@@ -121,7 +121,9 @@ beforeEach(async () => {
 });
 
 const noFetch = /** @type {any} */ (async () => new Response('{}', { status: 503 }));
-const ADMIN = { user: { id: 1, login: 'admin-de-prueba' } };
+const ADMIN = /** @type {App.Locals} */ (
+	/** @type {unknown} */ ({ user: { id: 1, login: 'admin-de-prueba' } })
+);
 const BIG = { perEmailQuantity: 1000, perEmailOrders: 1000, perClientQuantity: 1000 };
 
 let n = 0;
