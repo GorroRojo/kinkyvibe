@@ -37,14 +37,18 @@ async function modules() {
 
 /**
  * Lo que recibe la página para `term`: los posts relacionados (server) y la etiqueta (+page.js).
+ * `siteTags` es lo que manda el layout raíz: null (el archivo) o el árbol de la base (interruptor
+ * `etiquetas_db`).
  *
  * @param {Awaited<ReturnType<typeof modules>>} m
  * @param {string} term
+ * @param {Record<string, unknown>[] | null} [siteTags]
  */
-async function pageData(m, term) {
+async function pageData(m, term, siteTags = null) {
 	const data = /** @type {any} */ (await m.server.load(/** @type {any} */ ({ params: { term } })));
+	const parent = async () => ({ siteTags });
 	const page = /** @type {any} */ (
-		await m.universal.load(/** @type {any} */ ({ params: { term }, data }))
+		await m.universal.load(/** @type {any} */ ({ params: { term }, data, parent }))
 	);
 	return { slugs: data.relatedPosts.map((/** @type {any} */ p) => p.meta.postID), tag: page.tag };
 }
@@ -79,5 +83,20 @@ describe('/wiki/<término> → etiqueta', () => {
 		const { slugs, tag } = await pageData(m, 'Rancheadita-Inventada');
 		expect(tag.orphan).toBe(true);
 		expect(slugs).toEqual([]);
+	});
+
+	it('con el árbol de la base (interruptor `etiquetas_db`), usa ese', async () => {
+		const m = await modules();
+		const siteTags = [
+			{ id: 'root', children: ['evento recurrente'] },
+			{ id: 'evento recurrente', children: ['Serie Inventada'] },
+			{ id: 'Serie Inventada', visible_name: 'Una Serie Inventada' }
+		];
+		const { tag } = await pageData(m, 'Serie-Inventada', siteTags);
+		expect(tag.id).toBe('Serie Inventada');
+		expect(tag.orphan).toBeFalsy();
+		expect(tag.visible_name).toBe('Una Serie Inventada');
+		// La lista del layout no se toca (sigue siendo datos).
+		expect(() => structuredClone(siteTags)).not.toThrow();
 	});
 });

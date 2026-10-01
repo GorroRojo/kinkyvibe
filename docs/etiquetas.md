@@ -23,9 +23,9 @@ Se hace en PRs chicos, uno arriba del otro:
 
 1. **El tipo `etiqueta`** (este documento, migración `0029_etiquetas.sql`). Nada lo usa todavía.
 2. Importar el archivo y los textos de la wiki a la base (panel y `npm run tags:import`).
-3. Leer las etiquetas de la base detrás del interruptor `etiquetas_db`.
-4. Editar etiquetas en el panel guardando en la base.
-5. Arreglos de series (editar, imagen, páginas y listado en la Kinkipedia).
+3. Leer las etiquetas de la base detrás del interruptor `etiquetas_db`, y editarlas en el panel
+   guardando en la base.
+4. Arreglos de series (editar, imagen, páginas y listado en la Kinkipedia).
 
 ## Lo que nunca se tiene que romper
 
@@ -102,6 +102,36 @@ Cómo correrlo:
 
 La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
 público) con sus relaciones, ambas puntas con `visibleWhere()`.
+
+## Leer y editar desde la base (paso 3)
+
+Interruptor **«Etiquetas desde la base»** (`etiquetas_db`, variable `ETIQUETAS_DB_ENABLED`),
+apagado por defecto. Antes de prenderlo: importar (paso 2).
+
+- **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
+  `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
+  archivo, como siempre. Lo leído se recuerda 30 s por isolate; el editor lo olvida al guardar.
+- **Qué lo usa ya**:
+  - el layout raíz manda el árbol de la base (`data.siteTags`, solo prendido) y
+    `src/lib/utils/siteTags.js` lo pone en los stores `tagManager` y `wikiTagManager`: los chips,
+    filtros, colores, la Kinkipedia (`/wiki`, con su buscador) y todo lo que lee esos stores;
+  - `/wiki/<etiqueta>` (hijas y la etiqueta sin entrada propia).
+- **Qué sigue leyendo el archivo** (pasos siguientes): lo prerenderizado en el build (RSS,
+  `/api/posts`, el índice del buscador, el sitemap), la limpieza de etiquetas de cada post
+  (`canonicalTags`/`processPost`), las series (paso 4) y el editor de eventos. Los textos de la
+  Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
+- **Editor** (`/admin/etiquetas`): con el interruptor prendido y etiquetas en la base, la misma
+  página guarda en la base al momento, sin commits (`src/lib/server/etiquetas/editor.js`). Usa
+  las mismas operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después
+  compara objeto por objeto y escribe solo lo que cambió. Diferencias:
+  - renombrar siempre deja el nombre viejo como alias (las publicaciones no se tocan, se
+    resuelven por el alias); la etiqueta renombrada sigue siendo el mismo objeto;
+  - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
+    con texto pasa a ser alias (fusionar), la vista previa avisa;
+  - sacar un alias lo borra (suave, recuperable desde el historial del objeto);
+  - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
+    («recargá»); lo anterior queda guardado.
+- Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
 
 ## Cómo probar
 

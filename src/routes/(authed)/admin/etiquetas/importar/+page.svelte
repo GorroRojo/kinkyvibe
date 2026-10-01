@@ -64,7 +64,10 @@
 	{:else}
 		<p class="kv-flash warn">
 			Importar no cambia nada del sitio: las páginas siguen leyendo el archivo hasta que se prenda
-			el interruptor «Etiquetas desde la base» (cuando exista, en Ajustes → Interruptores).
+			el interruptor «Etiquetas desde la base» (<a href="/admin/ajustes/interruptores"
+				>Ajustes → Interruptores</a
+			>). Con el interruptor prendido, lo que edites en Etiquetas se guarda en la base y reimportar
+			no lo pisa.
 		</p>
 
 		<Card title="Importar">

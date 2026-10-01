@@ -12,11 +12,10 @@ import {
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
-import { etiquetasDbEnabled, seriesEnabled } from '$lib/server/flags.js';
+import { seriesEnabled } from '$lib/server/flags.js';
 import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
-import { loadTagRecords } from '$lib/server/etiquetas/read.js';
-import { applyDbTagPlan, dbPreviewOf, planDbTagEdit } from '$lib/server/etiquetas/editor.js';
-import { clearTagSourceCache } from '$lib/server/etiquetas/source.js';
+import { dbPreviewOf, planDbTagEdit } from '$lib/server/etiquetas/editor.js';
+import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -26,32 +25,13 @@ const NO_PERMISSION =
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
 
-/**
- * Interruptor `etiquetas_db` prendido y la base con etiquetas: el editor trabaja sobre la base
- * (src/lib/server/etiquetas/editor.js). Si no, sobre el archivo, con commits como siempre.
- * Devuelve las etiquetas de la base (TODAS: también las ocultas) o `null`.
- *
- * @param {App.Platform | undefined} platform
- * @param {string} login
- */
-async function dbTags(platform, login) {
-	const db = getDB(platform);
-	if (!db || !(await etiquetasDbEnabled(platform))) return null;
-	try {
-		const records = await loadTagRecords(db, { role: 'admin', id: login });
-		return records.length ? { db, records } : null;
-	} catch {
-		return null; // sin la migración 0029: el archivo
-	}
-}
-
 /** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
 export async function load({ locals, url, platform }) {
 	const login = requireAdmin(locals, url).login;
 	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
 	const seriesOn = await seriesEnabled(platform);
 	const counts = await usageAndWiki();
-	const fromDb = await dbTags(platform, login);
+	const fromDb = await dbTagsForAdmin(platform, login);
 	if (fromDb) {
 		return {
 			entries: recordsToRawTags(fromDb.records),
@@ -111,7 +91,7 @@ export const actions = {
 		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
-		const fromDb = await dbTags(platform, login);
+		const fromDb = await dbTagsForAdmin(platform, login);
 		if (fromDb) {
 			try {
 				return { preview: dbPreviewOf(planDbTagEdit(fromDb.records, r.ops)) };
@@ -132,8 +112,15 @@ export const actions = {
 		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
-		const fromDb = await dbTags(platform, login);
-		if (fromDb) return saveToDb(fromDb.db, fromDb.records, r.ops, locals, login);
+		const fromDb = await dbTagsForAdmin(platform, login);
+		if (fromDb) {
+			// Interruptor `etiquetas_db`: al momento en la base, sin commit.
+			const res = await saveTagOpsToDb(fromDb, r.ops, { locals, login });
+			if (!res.ok) return fail(res.status, { error: res.error });
+			return {
+				saved: { db: true, commit: '', publish: null, summary: res.summary, files: res.written }
+			};
+		}
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const client = await getRepoClient();
@@ -170,42 +157,3 @@ export const actions = {
 		}
 	}
 };
-
-/**
- * Guardar en la base (interruptor `etiquetas_db`): al momento, sin commit.
- *
- * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {import('$lib/server/etiquetas/editor.js').StoredTag[]} records
- * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
- * @param {App.Locals} locals
- * @param {string} login
- */
-async function saveToDb(db, records, ops, locals, login) {
-	let plan;
-	try {
-		plan = planDbTagEdit(records, ops);
-	} catch (e) {
-		return fail(400, { error: describe(e) });
-	}
-	const { written, errors } = await applyDbTagPlan(db, plan, { actor: login });
-	clearTagSourceCache();
-	if (written) {
-		await logAdminAction(db, locals, {
-			action: 'tags.edit',
-			targetType: 'tags',
-			targetId: plan.summary.length === 1 ? plan.summary[0].slice(0, 120) : null,
-			summary: `Etiquetas (base): ${plan.summary.join('; ')}`,
-			detail: {
-				written,
-				errors: errors.slice(0, 10),
-				tags: plan.changes.map((c) => c.key).slice(0, 30)
-			}
-		});
-	}
-	if (errors.length) {
-		return fail(409, {
-			error: `${written ? 'Se guardó una parte. ' : ''}No se pudo guardar: ${errors.join('; ')}.`
-		});
-	}
-	return { saved: { db: true, commit: '', publish: null, summary: plan.summary, files: written } };
-}
