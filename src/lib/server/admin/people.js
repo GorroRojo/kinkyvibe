@@ -22,7 +22,7 @@ import { getEventInfo } from '$lib/server/tickets/events.js';
  *   buyer_email: string, status: string, created_at: number, checked: number,
  *   surcharge_amount?: number
  * }} PersonOrder
- * @typedef {{ title: string, start: string | null }} EventInfo
+ * @typedef {{ title: string, start: string | null, tags?: string[] }} EventInfo
  */
 
 /**
@@ -85,7 +85,7 @@ export async function loadPeopleOrders(db) {
 export async function loadEventInfo(orders) {
 	const slugs = [...new Set(orders.map((o) => o.event_slug))];
 	const infos = await Promise.all(slugs.map((s) => getEventInfo(s)));
-	return new Map(slugs.map((s, i) => [s, infos[i] ?? { title: s, start: null }]));
+	return new Map(slugs.map((s, i) => [s, infos[i] ?? { title: s, start: null, tags: [] }]));
 }
 
 /** @param {EventInfo | undefined} info */

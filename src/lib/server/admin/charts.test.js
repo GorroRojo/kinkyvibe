@@ -90,6 +90,61 @@ describe('attendanceReturn', () => {
 		expect(r).toMatchObject({ people: 3, cameBack: 2 });
 		expect(JSON.stringify(r)).not.toContain('example.com');
 	});
+
+	it('also counts who came back to the SAME series (tags under "evento recurrente")', () => {
+		const tagged = new Map([
+			[
+				'fiesta-2026-08',
+				{ title: 'Fiesta de agosto', start: '2026-08-20T22:00-03:00', tags: ['Serie Uno'] }
+			],
+			[
+				'taller-2026-09',
+				{ title: 'Taller inventado', start: '2026-09-05T18:00-03:00', tags: ['taller'] }
+			],
+			[
+				'fiesta-2026-09',
+				{ title: 'Fiesta de septiembre', start: '2026-09-20T22:00-03:00', tags: ['serie uno'] }
+			],
+			[
+				'otra-2026-09',
+				{ title: 'Otra serie', start: '2026-09-25T22:00-03:00', tags: ['Serie Dos'] }
+			]
+		]);
+		const index = new Map([
+			['serie uno', 'Serie Uno'],
+			['serie dos', 'Serie Dos']
+		]);
+		const orders = [
+			order({ buyer_email: 'a@example.com', checked: 1 }),
+			order({ buyer_email: 'b@example.com', checked: 1 }),
+			order({ event_slug: 'taller-2026-09', buyer_email: 'c@example.com', checked: 1 }),
+			order({ event_slug: 'fiesta-2026-09', buyer_email: 'a@example.com', checked: 1 }),
+			order({ event_slug: 'fiesta-2026-09', buyer_email: 'c@example.com', checked: 1 }),
+			order({ event_slug: 'otra-2026-09', buyer_email: 'b@example.com', checked: 1 })
+		];
+		const stats = computeStats(orders, tagged, { now: at('2026-10-01') });
+		const r = attendanceReturn(orders, stats.perEvent, tagged, index);
+		expect(
+			r.rows.map((e) => [
+				e.slug,
+				e.series,
+				e.newcomers,
+				e.returning,
+				e.seriesNewcomers,
+				e.seriesReturning
+			])
+		).toEqual([
+			['fiesta-2026-08', 'Serie Uno', 2, 0, 2, 0],
+			// Sin serie: no cuenta para la vuelta a la serie.
+			['taller-2026-09', '', 1, 0, null, null],
+			// c ya había venido (al taller), pero es su primera vez en Serie Uno.
+			['fiesta-2026-09', 'Serie Uno', 0, 2, 1, 1],
+			// b volvió a KinkyVibe, pero a otra serie.
+			['otra-2026-09', 'Serie Dos', 0, 1, 1, 0]
+		]);
+		expect(r).toMatchObject({ people: 3, cameBack: 3, seriesPeople: 3, seriesCameBack: 1 });
+		expect(JSON.stringify(r)).not.toContain('example.com');
+	});
 });
 
 describe('fondoByMonth', () => {
