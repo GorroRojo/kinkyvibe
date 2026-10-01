@@ -22,6 +22,14 @@ export const FLAGS = Object.freeze({
 			'"Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
+	},
+	personas_eventos: {
+		label: 'Personas en eventos y preguntas de inscripción',
+		description:
+			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles, y preguntas ' +
+			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
+		envVar: 'PERSONAS_EVENTOS_ENABLED'
 	}
 });
 
@@ -94,6 +102,16 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function cuentasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'cuentas');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los roles y las preguntas de inscripción?
+ * (docs/personas-eventos.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function personasEventosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'personas_eventos');
 }
 
 /**

@@ -2,6 +2,7 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import PostList from '$lib/components/PostList.svelte';
+	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
 	import { currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
@@ -138,6 +139,9 @@
 		>
 		{/if}
 	</div>
+	{#if data.participa}
+		<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
+	{/if}
 </article>
 
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}

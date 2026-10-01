@@ -2,14 +2,29 @@ import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
+import { personasForPage } from '$lib/server/personas/index.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch }) {
-	const [related, tickets] = await Promise.all([
+	const [related, tickets, personas] = await Promise.all([
 		loadRelated(params.event),
-		loadTickets(params.event, platform, fetch)
+		loadTickets(params.event, platform, fetch),
+		loadPersonas(params.event, platform)
 	]);
-	return { ...related, tickets };
+	return { ...related, tickets, personas };
+}
+
+/**
+ * Personas con su rol (interruptor `personas_eventos`; apagado, `null` y la página queda igual).
+ * @param {string} slug
+ * @param {App.Platform|undefined} platform
+ */
+async function loadPersonas(slug, platform) {
+	try {
+		return await personasForPage(platform, (await fetchPost('calendario', slug, true)).meta);
+	} catch (e) {
+		return null; // missing/unpublished posts are handled by +page.js
+	}
 }
 
 /** Related posts, computed on the server so the page doesn't need every post.

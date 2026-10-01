@@ -45,6 +45,7 @@ import {
 	setPreference
 } from './orders.js';
 import { clientAddress, clientHash } from './safeguards.js';
+import { eventSignupFields, readAnswers } from './signupFields.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -86,7 +87,8 @@ export const CHECKOUT_RATE_LIMITS = {
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
  *     left: number | null, gorra: { min: number, suggested: number } | null,
- *     closesAt: number | null, closed: boolean }[]
+ *     closesAt: number | null, closed: boolean }[],
+ *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} TicketsView
  *
  * Por tipo, `available` es cuántas se pueden comprar ahora en UNA compra (acotado a
@@ -167,7 +169,9 @@ export async function getTicketsView(db, slug, fetchFn) {
 			// Cierre propio del tipo (si cierra antes que el evento) y si ya cerró.
 			closesAt: t.closesAt != null ? typeClosesAt(config, t) : null,
 			closed: !typeOpen(config, t)
-		}))
+		})),
+		// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+		fields: await eventSignupFields(db, slug)
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
 	try {
@@ -275,7 +279,9 @@ function readForm(form) {
 		holders: Array.from({ length: n }, (_, i) => ({
 			name: str(`holder_name_${i}`, 200),
 			pronouns: str(`holder_pronouns_${i}`, 100)
-		}))
+		})),
+		// Respuestas a las preguntas de inscripción: las lee buyAction, que sabe cuáles hay.
+		answers: /** @type {Record<string, string>} */ ({})
 	};
 }
 
@@ -406,8 +412,11 @@ export async function buyAction(event) {
 		);
 	}
 	const methods = await availableMethods(db, config);
+	// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+	const fields = await eventSignupFields(db, params.event);
+	values.answers = readAnswers(form, fields);
 	const valid = validatePurchase(
-		{ ...config, paymentMethods: methods.length ? methods : config.paymentMethods },
+		{ ...config, paymentMethods: methods.length ? methods : config.paymentMethods, fields },
 		{
 			type: values.type,
 			quantity: values.quantity,
@@ -421,6 +430,7 @@ export async function buyAction(event) {
 				dni: values.dni
 			},
 			holders: values.holders,
+			answers: values.answers,
 			accept: form.get('accept')
 		}
 	);
@@ -507,7 +517,8 @@ export async function buyAction(event) {
 				method === 'transferencia'
 					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
 					: undefined,
-			clientHash: client
+			clientHash: client,
+			answers: valid.answers
 		});
 	} catch (error) {
 		logDBError('reserve order', error);

@@ -221,6 +221,14 @@ const REVIEWED = `EXISTS (SELECT 1 FROM admin_audit r WHERE r.target_type = 'pro
 /** Condición SQL: lo creó una cuenta (no une admin, no una cuenta ya borrada). */
 const BY_ACCOUNT = `o.created_by LIKE '${ACCOUNT_PREFIX}%' AND o.created_by != '${DELETED_ACTOR}'`;
 
+/**
+ * Condición SQL (alias `o`): el perfil ya puede mostrarse fuera de Mi rincón, porque no lo creó
+ * una cuenta (lo cargó une admin) o porque une admin lo revisó ({@link PROFILE_REVIEW_ACTIONS}).
+ * Es la misma marca de "Para revisar", al revés. La usan los roles de personas en eventos
+ * (src/lib/server/personas/), además de la visibilidad de los objetos.
+ */
+export const PROFILE_APPROVED_SQL = `NOT (${BY_ACCOUNT} AND NOT ${REVIEWED})`;
+
 /** Filtros de la lista de perfiles (`?filtro=`). */
 export const PROFILE_FILTERS = Object.freeze({
 	'sin-revisar': 'Para revisar',
