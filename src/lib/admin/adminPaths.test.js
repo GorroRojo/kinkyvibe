@@ -9,11 +9,18 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { match as soonMatcher } from '../../params/soon.js';
 
 const ROOT = join(import.meta.dirname, '..', '..', '..');
 const SRC = join(ROOT, 'src');
 const ROUTES = join(SRC, 'routes');
 const ROUTE_FILES = ['+page.svelte', '+page.server.js', '+page.js', '+server.js'];
+/**
+ * Matchers de `src/params` que usan las rutas del panel: un `[...x=matcher]` solo toma lo que el
+ * matcher acepta (si no, una ruta así coincidiría con cualquier dirección).
+ * @type {Record<string, (param: string) => boolean>}
+ */
+const MATCHERS = { soon: soonMatcher };
 /** Un segmento armado en el momento (`${…}` o `{…}`): coincide con cualquiera. */
 const ANY = '\u0000';
 
@@ -93,7 +100,13 @@ function matchesRoute(path, routes) {
 	return routes.some((route) => {
 		for (let i = 0; i < route.length; i++) {
 			const r = route[i];
-			if (/^\[\.\.\..+\]$/.test(r)) return true;
+			const rest = r.match(/^\[\.\.\.[^=\]]+(?:=([^\]]+))?\]$/);
+			if (rest) {
+				if (!rest[1]) return true;
+				const matcher = MATCHERS[rest[1]];
+				if (!matcher) throw new Error(`Falta el matcher «${rest[1]}» en adminPaths.test.js`);
+				return matcher(segs.slice(i).join('/'));
+			}
 			const s = segs[i];
 			if (s === undefined) return false;
 			if (s.includes(ANY) || /^\[.+\]$/.test(r)) continue;
@@ -110,6 +123,9 @@ describe('direcciones /admin escritas en el código', () => {
 		expect(routes.length).toBeGreaterThan(20);
 		expect(matchesRoute('/admin/eventos/x/ordenes', routes)).toBe(true);
 		expect(matchesRoute('/admin/entradas/x/ingreso', routes)).toBe(false);
+		// La página "Próximamente" solo toma las direcciones reservadas.
+		expect(matchesRoute('/admin/mensajes', routes)).toBe(true);
+		expect(matchesRoute('/admin/mensajes/inventada', routes)).toBe(false);
 	});
 
 	it('lee las partes dinámicas de JS y de Svelte', () => {

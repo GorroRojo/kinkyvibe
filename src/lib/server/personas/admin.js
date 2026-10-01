@@ -1,5 +1,5 @@
 /**
- * Panel: roles de personas y preguntas de inscripción (Ajustes → Personas y preguntas, y la
+ * Panel: roles de personas y preguntas de inscripción (Eventos › Roles y preguntas, y la
  * pestaña Preguntas de cada evento). Lo común a esas páginas: la entrada (solo admins y con el
  * interruptor prendido) y las acciones de preguntas, que son las mismas para las generales
  * (`eventSlug` null) y las de un evento.

@@ -13,7 +13,7 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
    eventos y publicaciones por rol («Participa en»).
 2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
    o casilla; obligatorias u opcionales): propias de un evento (pestaña **Preguntas** de su
-   ficha) y generales, que se definen una vez (Ajustes → **Personas y preguntas**) y cada evento
+   ficha) y generales, que se definen una vez (Eventos → **Roles y preguntas**) y cada evento
    elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** y en su CSV.
 
 ## Lo que nunca se tiene que romper
@@ -59,8 +59,8 @@ personas:
 ```
 
 - Roles fijos (código, `FIXED_ROLES` en `src/lib/utils/personas.js`): Autore, Traductore, Organiza,
-  Produce, Facilita, Monitorea, Enseña, Fotografía, Diseño. Les admins suman más en Ajustes →
-  Personas y preguntas (tabla `persona_roles`). Sacar uno no toca los `.md`: se sigue mostrando
+  Produce, Facilita, Monitorea, Enseña, Fotografía, Diseño. Les admins suman más en Eventos →
+  Roles y preguntas (tabla `persona_roles`). Sacar uno no toca los `.md`: se sigue mostrando
   como está escrito, y el editor avisa al guardar.
 - El editor de publicaciones (eventos, material y wiki) tiene la sección «Personas». Guardar valida
   forma, perfil y rol (`validatePersonas`); como con las entradas, lo que el archivo ya tenía mal no
