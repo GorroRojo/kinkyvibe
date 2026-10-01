@@ -110,7 +110,7 @@ export const OVERNIGHT_UNTIL = '09:00';
  *   startEditable: boolean,
  *   durationEditable: false,
  *   classNames: string[],
- *   extendedProps: { slug: string, tone: string, time: string, problem: string | null }
+ *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean }
  * }} CalendarEventInput
  */
 
@@ -119,9 +119,10 @@ export const OVERNIGHT_UNTIL = '09:00';
  * ("2026-12-12T21:00"): la librería las toma como hora local y las muestra tal cual, así que se ve
  * la hora de Argentina en cualquier navegador. Solo para dibujarlo: sin hora de fin dura una hora,
  * y lo que termina a la madrugada (hasta `OVERNIGHT_UNTIL`) llega hasta las 23:59 de su día. La hora
- * real se muestra en el chip (`extendedProps.time`).
+ * real se muestra en el chip (`extendedProps.time`). Una fila con `pending` (movida y sin guardar,
+ * ver pendingMoves.js) lleva la clase `kv-ev-pendiente`.
  *
- * @param {import('./agenda.js').AgendaRow} row
+ * @param {import('./agenda.js').AgendaRow & { pending?: boolean }} row
  * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
  * @returns {CalendarEventInput}
  */
@@ -154,20 +155,22 @@ export function calendarEvent(row, { places, canEdit = true }) {
 		classNames: [
 			'kv-ev',
 			`kv-ev-${tone}`,
-			...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : [])
+			...(row.state === 'cancelado' ? ['kv-ev-cancelado'] : []),
+			...(row.pending ? ['kv-ev-pendiente'] : [])
 		],
 		extendedProps: {
 			slug: row.slug,
 			tone,
 			time: timed ? (row.endTime ? `${row.startTime} – ${row.endTime}` : row.startTime) : '',
-			problem
+			problem,
+			pending: Boolean(row.pending)
 		}
 	};
 }
 
 /**
  * Las filas que tienen fecha → eventos del calendario.
- * @param {import('./agenda.js').AgendaRow[]} rows
+ * @param {Array<import('./agenda.js').AgendaRow & { pending?: boolean }>} rows
  * @param {{ places: string[], canEdit?: boolean }} options
  */
 export function calendarEvents(rows, options) {

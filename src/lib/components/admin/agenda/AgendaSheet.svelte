@@ -1,7 +1,8 @@
 <script>
 	/**
 	 * La agenda como planilla: los eventos próximos en una tabla editable. Cada fila se guarda sola
-	 * (Enter) por la action `save` de /admin/eventos/agenda; Escape deshace lo que no se guardó.
+	 * (Enter) por la action `save` de /admin/eventos/agenda, y "Guardar N filas" las guarda todas en
+	 * un commit por la action `saveMany`; Escape deshace lo que no se guardó.
 	 * Props: `rows` (filas de `agendaRows()`, se leen al montar), `places` (regiones válidas),
 	 * `dirtyCount` (bind: filas con cambios sin guardar). Evento `saved`: { slug, values } cada vez
 	 * que se guarda (o se deshace) una fila, para que la página actualice el calendario.
@@ -12,7 +13,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
-	import { postAgendaSave } from '$lib/admin/agendaSave.js';
+	import { postAgendaSave, postAgendaSaveMany } from '$lib/admin/agendaSave.js';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { dayLabel } from '$lib/admin/eventFormat.js';
 	import {
@@ -87,6 +88,17 @@
 		state[slug] = { ...s, saving: true, message: 'Guardando…', error: false, errors: {} };
 		const r = await post(slug, before, after);
 		if (!r) return;
+		applyResult(slug, before, after, r);
+	}
+
+	/**
+	 * Lo que respondió el servidor para una fila (sola o dentro de "Guardar N filas").
+	 * @param {string} slug
+	 * @param {Values} before
+	 * @param {Values} after
+	 * @param {import('$lib/admin/agendaSave.js').AgendaSaveResponse} r
+	 */
+	function applyResult(slug, before, after, r) {
 		const cur = state[slug];
 		if (r.ok) {
 			state[slug] = { ...cur, saving: false, saved: after, message: r.message, error: false };
@@ -119,8 +131,42 @@
 		}
 	}
 
+	let savingAll = false;
+
+	/**
+	 * "Guardar N filas": todas juntas en un commit (action `saveMany`, la misma de "Guardar cambios"
+	 * del calendario). Las que no pasan la validación en vivo no se mandan; el servidor valida de
+	 * nuevo cada una y devuelve un resultado por fila.
+	 */
 	async function saveAll() {
-		for (const r of dirty) await save(r.slug);
+		if (savingAll) return;
+		/** @type {import('$lib/admin/agendaSave.js').AgendaChange[]} */
+		const changes = [];
+		for (const row of dirty) {
+			const s = state[row.slug];
+			if (s.saving) continue;
+			const errors = liveErrors(row.slug);
+			if (Object.keys(errors).length) {
+				state[row.slug] = { ...s, errors, message: 'Revisá los campos marcados.', error: true };
+				continue;
+			}
+			changes.push({ slug: row.slug, before: { ...s.saved }, after: { ...s.values } });
+			state[row.slug] = { ...s, saving: true, message: 'Guardando…', error: false, errors: {} };
+		}
+		if (!changes.length) return;
+		savingAll = true;
+		const r = await postAgendaSaveMany(changes);
+		savingAll = false;
+		if (!r) return;
+		const bySlug = new Map(r.results.map((x) => [x.slug, x]));
+		for (const c of changes) {
+			applyResult(
+				c.slug,
+				c.before,
+				c.after,
+				bySlug.get(c.slug) ?? { status: r.status, ok: false, message: r.message }
+			);
+		}
 	}
 
 	/** @param {string} slug */
@@ -186,7 +232,7 @@
 
 <div class="sheet-actions">
 	<CsvButton rows={data.rows} {columns} filename="agenda.csv" />
-	<button class="kv-btn" on:click={saveAll} disabled={!dirty.length}
+	<button class="kv-btn" on:click={saveAll} disabled={!dirty.length || savingAll}
 		><Save size={16} aria-hidden="true" /> Guardar {dirty.length || ''}
 		{dirty.length === 1 ? 'fila' : 'filas'}</button
 	>

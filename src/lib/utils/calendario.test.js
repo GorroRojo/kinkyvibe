@@ -59,7 +59,8 @@ describe('calendarEvent', () => {
 				slug: 'fiesta-de-prueba',
 				tone: 'ok',
 				time: '21:00 – 02:00',
-				problem: null
+				problem: null,
+				pending: false
 			}
 		});
 	});
@@ -104,6 +105,13 @@ describe('calendarEvent', () => {
 		expect(cancelled.classNames).toEqual(['kv-ev', 'kv-ev-bad', 'kv-ev-cancelado']);
 		const draft = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
 		expect(draft.classNames).toEqual(['kv-ev', 'kv-ev-warn']);
+	});
+
+	it('una fila movida sin guardar se marca como pendiente (y se puede volver a arrastrar)', () => {
+		const e = calendarEvent({ ...row(), pending: true }, { places: PLACES });
+		expect(e.classNames).toEqual(['kv-ev', 'kv-ev-ok', 'kv-ev-pendiente']);
+		expect(e.extendedProps.pending).toBe(true);
+		expect(e.startEditable).toBe(true);
 	});
 
 	it('sin permiso no se puede arrastrar', () => {

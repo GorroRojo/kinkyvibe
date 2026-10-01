@@ -3,11 +3,19 @@
 	 * Lo principal de un evento de la agenda, en una hoja (abajo en el celu, centrada en desktop):
 	 * cuándo, dónde, estado, links a la ficha, al editor y al sitio, y "Mover a otro día" (lo mismo
 	 * que arrastrarlo en el calendario, para hacerlo con teclado).
-	 * Props: `row` (fila de la agenda o null), `open` (bind), `problem` (por qué no se puede mover;
-	 * null = se puede), `busy` (guardando). Evento `move` { date }.
+	 * Mover no guarda: queda pendiente hasta "Guardar cambios" (ver pendingMoves.js).
+	 * Props: `row` (fila de la agenda como se ve, con lo pendiente aplicado, o null), `open` (bind),
+	 * `problem` (por qué no se puede mover; null = se puede), `busy` (guardando), `pending` (el cambio
+	 * sin guardar de este evento, o null). Eventos: `move` { date }, `revert` (volver a lo guardado).
 	 */
 	import { createEventDispatcher } from 'svelte';
-	import { CalendarClock, ExternalLink, Pencil, SquareArrowOutUpRight } from '@lucide/svelte';
+	import {
+		CalendarClock,
+		ExternalLink,
+		Pencil,
+		SquareArrowOutUpRight,
+		Undo2
+	} from '@lucide/svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { eventLink, editEventHref } from '$lib/admin/links.js';
@@ -21,6 +29,8 @@
 	/** @type {string | null} */
 	export let problem = null;
 	export let busy = false;
+	/** @type {import('$lib/utils/pendingMoves.js').PendingMove | null} */
+	export let pending = null;
 
 	const dispatch = createEventDispatcher();
 	let moveTo = '';
@@ -31,10 +41,23 @@
 	}
 	$: badges = row ? rowBadges(row) : [];
 	$: time = row?.startTime ? [row.startTime, row.endTime].filter(Boolean).join(' – ') : '';
+	$: savedWhen = pending
+		? `${dayLabel(pending.before.date)}${pending.before.startTime ? ` · ${pending.before.startTime}` : ''}`
+		: '';
 </script>
 
 <Sheet bind:open title={row?.title ?? ''}>
 	{#if row}
+		{#if pending}
+			<div class="pending" role="status">
+				<p>
+					<b>Cambio sin guardar.</b> Estaba el {savedWhen}. Se guarda con «Guardar cambios».
+				</p>
+				<button class="kv-btn ghost small" type="button" on:click={() => dispatch('revert')}
+					><Undo2 size={16} aria-hidden="true" /> Volver a su día</button
+				>
+			</div>
+		{/if}
 		<dl class="facts">
 			<dt>Cuándo</dt>
 			<dd>{row.date ? dayLabel(row.date) : '—'}{time ? ` · ${time}` : ''}</dd>
@@ -79,20 +102,36 @@
 				/>
 				<button
 					class="kv-btn ghost"
-					disabled={!!problem || busy || !isValidDate(moveTo) || moveTo === row.date}
-					>{busy ? 'Moviendo…' : 'Mover'}</button
+					disabled={!!problem || busy || !isValidDate(moveTo) || moveTo === row.date}>Mover</button
 				>
 			</div>
 			{#if problem}
 				<small id="ev-move-problem" class="muted">{problem}</small>
 			{:else}
-				<small class="muted">Mantiene la hora. También podés arrastrarlo en el calendario.</small>
+				<small class="muted"
+					>Mantiene la hora y queda pendiente hasta que toques «Guardar cambios». También podés
+					arrastrarlo en el calendario.</small
+				>
 			{/if}
 		</form>
 	{/if}
 </Sheet>
 
 <style>
+	.pending {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.8rem;
+		background: var(--warn-bg);
+		border: 1px dashed var(--warn);
+		border-radius: 0.8rem;
+		padding: 0.55rem 0.8rem;
+	}
+	.pending p {
+		margin: 0;
+		flex: 1 1 14rem;
+	}
 	.facts {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);

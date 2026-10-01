@@ -1,7 +1,8 @@
 /**
- * Mover un evento a otro día desde el calendario de la agenda: va por la misma action `save` de
- * la planilla, con los mismos permisos, la misma validación y la misma detección de conflictos.
- * Acá se prueba esa action con un cambio de solo fecha (lo que manda el arrastre).
+ * Mover eventos a otro día desde el calendario de la agenda: arrastrar no guarda; "Guardar
+ * cambios" manda todos los movidos por la action `saveMany` (un commit), la misma de "Guardar N
+ * filas" de la planilla, con los mismos permisos, la misma validación y la misma detección de
+ * conflictos que la action `save` de una fila. Acá se prueban las dos con cambios de fecha.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +49,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import { movedAgendaValues } from '$lib/utils/calendario.js';
+import { pendingMovesReducer, pendingSavePayload } from '$lib/utils/pendingMoves.js';
 import { actions } from './+page.server.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -177,5 +179,136 @@ describe('mover un evento a otro día (action save de la agenda)', () => {
 		expect(r.save).toMatchObject({ ok: true, changed: ['date'] });
 		expect(repo.files[PATH]).toContain('start: 2099-12-12T21:00-03:00');
 		expect(repo.commits).toHaveLength(2);
+	});
+});
+
+/* ---------- "Guardar cambios": varios eventos movidos, un commit (action saveMany) ---------- */
+
+const PATH_B = 'src/lib/posts/calendario/otra-fiesta.md';
+const RAW_B = RAW.replace("'Fiesta de prueba'", "'Otra fiesta'");
+/** @type {import('$lib/utils/agenda.js').AgendaValues} */
+const BEFORE_B = { ...BEFORE, title: 'Otra fiesta' };
+
+/**
+ * Llama a la action `saveMany` como SvelteKit; si tira (redirect / error), devuelve `{ thrown }`.
+ * @param {any} locals
+ * @param {unknown} rows lo que manda "Guardar cambios" (ver pendingSavePayload)
+ */
+async function saveMany(locals, rows) {
+	const body = new FormData();
+	body.set('rows', typeof rows === 'string' ? rows : JSON.stringify(rows));
+	/** @type {any} */
+	const event = {
+		platform: t.platform,
+		locals,
+		request: new Request('http://localhost/admin/eventos/agenda?/saveMany', {
+			method: 'POST',
+			body
+		}),
+		url: new URL('http://localhost/admin/eventos/agenda?/saveMany'),
+		setHeaders: () => {}
+	};
+	try {
+		return /** @type {any} */ (await actions.saveMany(event));
+	} catch (e) {
+		return { thrown: /** @type {any} */ (e).status };
+	}
+}
+
+/** Lo que arma la página con dos eventos movidos sin guardar. */
+function twoMoves() {
+	/** @type {import('$lib/utils/pendingMoves.js').PendingMoves} */
+	let s = {};
+	s = pendingMovesReducer(s, {
+		type: 'move',
+		slug: 'fiesta-de-prueba',
+		title: 'Fiesta de prueba',
+		saved: BEFORE,
+		to: { date: '2099-12-19' }
+	});
+	s = pendingMovesReducer(s, {
+		type: 'move',
+		slug: 'otra-fiesta',
+		title: 'Otra fiesta',
+		saved: BEFORE_B,
+		to: { date: '2099-12-26', time: '22:00' }
+	});
+	return pendingSavePayload(s);
+}
+
+describe('guardar varios eventos movidos (action saveMany)', () => {
+	beforeEach(() => {
+		repo.files[PATH_B] = RAW_B;
+	});
+
+	it('admin: los dos en un solo commit, y cada uno queda en el registro', async () => {
+		const r = await saveMany(admin, twoMoves());
+		expect(r.saveMany).toMatchObject({ ok: true });
+		expect(r.saveMany.results.map((/** @type {any} */ x) => [x.slug, x.ok])).toEqual([
+			['fiesta-de-prueba', true],
+			['otra-fiesta', true]
+		]);
+		expect(repo.commits).toHaveLength(1);
+		expect(repo.commits[0].files).toHaveLength(2);
+		expect(repo.files[PATH]).toContain('start: 2099-12-19T21:00-03:00');
+		expect(repo.files[PATH]).toContain('end: 2099-12-20T02:00-03:00');
+		expect(repo.files[PATH_B]).toContain('start: 2099-12-26T22:00-03:00');
+		expect(repo.files[PATH_B]).toContain('end: 2099-12-27T03:00-03:00');
+		const audit = (await listAudit(t.db)).filter((e) => e.action === 'event.agenda');
+		expect(audit.map((e) => e.targetId).sort()).toEqual(['fiesta-de-prueba', 'otra-fiesta']);
+	});
+
+	it('sin sesión va al login y no toca el repo', async () => {
+		expect(await saveMany({}, twoMoves())).toEqual({ thrown: 303 });
+		expect(repo.commits).toHaveLength(0);
+	});
+
+	it('una cuenta que no es admin: 403 y no toca el repo', async () => {
+		expect(await saveMany(notAdmin, twoMoves())).toEqual({ thrown: 403 });
+		expect(repo.commits).toHaveLength(0);
+	});
+
+	it('admin sin token de GitHub: vuelve a iniciar sesión y no toca el repo', async () => {
+		expect(await saveMany(adminWithoutToken, twoMoves())).toEqual({ thrown: 303 });
+		expect(repo.commits).toHaveLength(0);
+	});
+
+	it('si alguien movió uno mientras tanto: ese da conflicto con lo último, el otro se guarda', async () => {
+		repo.files[PATH] = RAW.replace('2099-12-12T21:00', '2099-12-15T21:00').replace(
+			'2099-12-13T02:00',
+			'2099-12-16T02:00'
+		);
+		const r = await saveMany(admin, twoMoves());
+		expect(r.status).toBe(409);
+		const [a, b] = r.data.saveMany.results;
+		expect(a).toMatchObject({ slug: 'fiesta-de-prueba', ok: false, status: 409 });
+		expect(a.current).toMatchObject({ date: '2099-12-15', slug: 'fiesta-de-prueba' });
+		expect(b).toMatchObject({ slug: 'otra-fiesta', ok: true });
+		expect(repo.commits).toHaveLength(1);
+		expect(repo.commits[0].files.map((/** @type {any} */ f) => f.path)).toEqual([PATH_B]);
+		expect(repo.files[PATH]).toContain('start: 2099-12-15T21:00-03:00');
+		const audit = (await listAudit(t.db)).filter((e) => e.action === 'event.agenda');
+		expect(audit.map((e) => e.targetId)).toEqual(['otra-fiesta']);
+	});
+
+	it('una fecha inválida no se guarda (misma validación que la planilla)', async () => {
+		const r = await saveMany(admin, [
+			{ slug: 'fiesta-de-prueba', before: BEFORE, after: { ...BEFORE, date: '2099-02-30' } }
+		]);
+		expect(r.status).toBe(400);
+		expect(r.data.saveMany.results[0]).toMatchObject({
+			ok: false,
+			errors: { date: 'Fecha inválida.' }
+		});
+		expect(repo.commits).toHaveLength(0);
+	});
+
+	it('un pedido roto: 400 sin tocar el repo', async () => {
+		const r = await saveMany(admin, 'esto no es JSON');
+		expect(r.status).toBe(400);
+		expect(r.data.saveMany).toMatchObject({ ok: false, results: [] });
+		const notArray = await saveMany(admin, { slug: 'fiesta-de-prueba' });
+		expect(notArray.status).toBe(400);
+		expect(repo.commits).toHaveLength(0);
 	});
 });
