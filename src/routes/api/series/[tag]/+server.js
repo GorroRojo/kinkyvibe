@@ -9,12 +9,13 @@
 import { error, json } from '@sveltejs/kit';
 import { eventsForTag, seriesPage, siteTags } from '$lib/server/series/index.js';
 import { requireSeries, seriesAccountState } from '$lib/server/series/web.js';
-import { tagFeedPath } from '$lib/utils/series.js';
+import { tagFeedPath, tagIdFromSlug } from '$lib/utils/series.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform, locals }) {
 	await requireSeries(platform);
-	const id = siteTags().get(params.tag)?.id ?? params.tag;
+	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
+	const id = tagIdFromSlug(siteTags(), params.tag) ?? params.tag;
 	const [series, events] = await Promise.all([seriesPage(id), eventsForTag(id)]);
 	if (!series && !events.length) error(404, 'Not found');
 	const account = series
