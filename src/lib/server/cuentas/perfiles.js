@@ -1121,9 +1121,52 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Suelta los perfiles de una cuenta que se va a borrar: sus perfiles de persona se borran
- * (suave); de los grupos sale, y si era le última dueñe pasa la propiedad a quien gestiona hace
- * más tiempo o, si no queda nadie, borra el grupo (suave). Las invitaciones que mandó quedan.
+ * Quién figura como autore (`created_by`, `updated_by`) de los perfiles que deja una cuenta
+ * borrada: el mismo para todas, así nada vincula esos perfiles entre sí ni con la cuenta.
+ */
+export const DELETED_ACTOR = 'cuenta:borrada';
+/** El nombre que queda en un perfil de persona de una cuenta borrada. */
+export const DELETED_TITLE = 'Perfil borrado';
+/** Intentos por perfil si otro guardado se cruza mientras se suelta. */
+const RELEASE_ATTEMPTS = 3;
+
+/**
+ * Guarda un perfil con la versión que tiene AHORA (la vuelve a leer en cada intento), para que un
+ * guardado que se cruza no corte el borrado de la cuenta a la mitad.
+ *
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {(version: number) => Parameters<typeof saveObject>[1]} input
+ * @param {Parameters<typeof saveObject>[2]} context
+ */
+async function saveFresh(db, id, input, context) {
+	for (let attempt = 1; ; attempt++) {
+		const row = await db.prepare('SELECT version FROM objects WHERE id = ?1').bind(id).first();
+		if (!row) return;
+		try {
+			await saveObject(db, input(Number(row.version)), context);
+			return;
+		} catch (error) {
+			if (error instanceof VersionConflictError && attempt < RELEASE_ATTEMPTS) continue;
+			throw error;
+		}
+	}
+}
+
+/**
+ * Suelta los perfiles de una cuenta que se va a borrar:
+ * - sus perfiles de persona (también los que ya había borrado) se vacían y se borran: sin
+ *   presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
+ *   sin los grupos de los que era parte y con `created_by`/`updated_by` neutros
+ *   (`DELETED_ACTOR`). La fila queda (borrado suave) para que la dirección no se reuse; se van
+ *   también su fila de gestión y sus bloqueos de grupos;
+ * - de los grupos sale: si era le última dueñe, pasa la propiedad a quien gestiona hace más
+ *   tiempo (el grupo queda con sus datos) o, si no queda nadie, borra el grupo (suave, con sus
+ *   datos: es de un grupo, no de la persona);
+ * - se borran las invitaciones que mandó.
+ *
+ * Se puede volver a correr sin problema: lo que ya se soltó no aparece de nuevo. Si algo falla a
+ * la mitad, la cuenta sigue viva y el próximo intento termina el trabajo.
  *
  * La llama `closeAccount()` (cuentas/index.js) antes de borrar la cuenta.
  *
@@ -1132,39 +1175,72 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
  * @param {{ now?: number }} [opts]
  */
 export async function releaseAccountProfiles(db, accountId, { now = Date.now() } = {}) {
-	const actor = accountActor(accountId);
-	for (const p of await listMyProfiles(db, accountId)) {
-		if (p.kind === 'grupo') {
-			const others = await db
-				.prepare(
-					`SELECT p.account_id, p.role FROM profile_managers p JOIN accounts a ON a.id = p.account_id
-					WHERE p.profile_id = ?1 AND p.account_id != ?2 AND a.deleted_at IS NULL
-					ORDER BY p.role = 'owner' DESC, p.created_at`
-				)
-				.bind(p.id, accountId)
-				.all();
-			const heir = others.results[0];
-			if (heir) {
-				await db.batch([
-					db
-						.prepare(
-							"UPDATE profile_managers SET role = 'owner' WHERE profile_id = ?1 AND account_id = ?2"
-						)
-						.bind(p.id, heir.account_id),
-					db
-						.prepare('DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
-						.bind(p.id, accountId)
-				]);
-				continue;
-			}
+	const context = { actor: DELETED_ACTOR, now };
+	// Todas sus filas de gestión, también de perfiles ya borrados (una persona que borró antes
+	// tiene que quedar vacía igual).
+	const { results } = await db
+		.prepare(
+			`SELECT o.id, o.data, o.deleted_at FROM profile_managers pm
+			JOIN objects o ON o.id = pm.profile_id
+			WHERE pm.account_id = ?1 AND o.type = ?2 ORDER BY o.id`
+		)
+		.bind(accountId, PROFILE_TYPE)
+		.all();
+	for (const row of results) {
+		const p = rowToObject(row);
+		if (p.data.kind !== 'grupo') {
+			await saveFresh(
+				db,
+				p.id,
+				(version) => ({
+					id: p.id,
+					type: PROFILE_TYPE,
+					version,
+					title: DELETED_TITLE,
+					data: { kind: 'persona' },
+					edges: { [MEMBER_EDGE]: [] },
+					deleted: true
+				}),
+				{
+					...context,
+					createdBy: DELETED_ACTOR,
+					also: () => [
+						db.prepare('DELETE FROM profile_managers WHERE profile_id = ?1').bind(p.id),
+						db.prepare('DELETE FROM profile_member_blocks WHERE persona_id = ?1').bind(p.id)
+					]
+				}
+			);
+			continue;
 		}
-		await saveObject(
+		if (p.deleted_at !== null) continue;
+		const others = await db
+			.prepare(
+				`SELECT p.account_id, p.role FROM profile_managers p JOIN accounts a ON a.id = p.account_id
+				WHERE p.profile_id = ?1 AND p.account_id != ?2 AND a.deleted_at IS NULL
+				ORDER BY p.role = 'owner' DESC, p.created_at`
+			)
+			.bind(p.id, accountId)
+			.all();
+		const heir = others.results[0];
+		if (heir) {
+			await db.batch([
+				db
+					.prepare(
+						"UPDATE profile_managers SET role = 'owner' WHERE profile_id = ?1 AND account_id = ?2"
+					)
+					.bind(p.id, heir.account_id),
+				db
+					.prepare('DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
+					.bind(p.id, accountId)
+			]);
+			continue;
+		}
+		await saveFresh(
 			db,
-			{ id: p.id, type: PROFILE_TYPE, version: p.version, deleted: true },
-			{
-				actor,
-				now
-			}
+			p.id,
+			(version) => ({ id: p.id, type: PROFILE_TYPE, version, deleted: true }),
+			context
 		);
 	}
+	await db.prepare('DELETE FROM profile_invites WHERE invited_by = ?1').bind(accountId).run();
 }

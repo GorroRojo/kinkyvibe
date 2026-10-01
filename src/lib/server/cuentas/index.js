@@ -231,9 +231,11 @@ export function eventRequiresAccount(meta) {
 }
 
 /**
- * Borra una cuenta desde "Mi rincón": primero suelta sus perfiles (las personas se borran, los
- * grupos pasan a quien sigue gestionándolos o se borran si no queda nadie) y después borra la
- * cuenta (docs/cuentas.md). Va acá y no en accounts.js porque perfiles.js ya importa accounts.js.
+ * Borra una cuenta desde "Mi rincón" (con el código ya verificado): primero suelta sus perfiles
+ * (las personas se vacían y se borran, los grupos pasan a quien sigue gestionándolos o se borran
+ * si no queda nadie) y después borra la cuenta, en una tanda (docs/cuentas.md). Si algo falla a
+ * la mitad, la cuenta sigue viva y se puede volver a correr. Va acá y no en accounts.js porque
+ * perfiles.js ya importa accounts.js.
  * @param {D1Database} db
  * @param {string} accountId
  * @param {{ now?: number }} [opts]

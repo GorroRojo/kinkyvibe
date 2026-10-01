@@ -12,6 +12,8 @@ import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import { closeAccount } from './index.js';
 import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
 import {
+	DELETED_ACTOR,
+	DELETED_TITLE,
 	INVITE_RATE_LIMITS,
 	INVITE_TTL_MS,
 	MAX_PROFILES_PER_ACCOUNT,
@@ -892,5 +894,100 @@ describe('al borrar una cuenta', () => {
 			.first();
 		expect(row?.email).toBeNull();
 		expect(row?.deleted_at).not.toBeNull();
+	});
+
+	it('vacía los perfiles de persona (también los ya borrados) y los desvincula de la cuenta', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const p = await create(a.id, { kind: 'persona', title: 'Nombre Inventado' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				p.slug,
+				{
+					title: 'Nombre Inventado',
+					bio: 'presentación zanahoria',
+					pronouns: 'elle',
+					links: 'https://example.com/inventade',
+					version: p.version
+				},
+				opts
+			)
+		);
+		const before = await create(a.id, { kind: 'persona', title: 'Otro Nombre' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				before.slug,
+				{ title: 'Otro Nombre', bio: 'otra zanahoria', version: before.version },
+				opts
+			)
+		);
+		ok(await deleteProfile(t.db, a.id, before.slug, before.version + 1, opts));
+		// Un grupo de otra cuenta la sumó y otro grupo la tiene bloqueada.
+		const g = await create(b.id, { kind: 'grupo', title: 'Grupo Ajeno', bio: 'datos del grupo' });
+		ok(await addMember(t.db, b.id, g.slug, p.slug, opts));
+		const g2 = await create(b.id, { kind: 'grupo', title: 'Grupo Dos' });
+		ok(await addMember(t.db, b.id, g2.slug, p.slug, opts));
+		ok(await leaveMembership(t.db, a.id, p.slug, g2.id, opts));
+		// Un grupo propio que pasa a b: queda con sus datos.
+		const shared = await create(a.id, { kind: 'grupo', title: 'Grupo Compartido' });
+		ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				shared.slug,
+				{ title: 'Grupo Compartido', bio: 'bio del grupo', version: shared.version },
+				opts
+			)
+		);
+		ok(await inviteManager(t.db, a.id, shared.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await inviteManager(t.db, a.id, shared.slug, 'pendiente@example.com', opts));
+
+		expect(await closeAccount(t.db, a.id, opts)).toBe(true);
+
+		for (const id of [p.id, before.id]) {
+			const row = await t.db
+				.prepare(
+					'SELECT slug, title, data, search_text, created_by, updated_by, deleted_at FROM objects WHERE id = ?1'
+				)
+				.bind(id)
+				.first();
+			expect(row?.deleted_at).not.toBeNull();
+			expect(row?.title).toBe(DELETED_TITLE);
+			expect(JSON.parse(String(row?.data))).toEqual({ kind: 'persona' });
+			expect(row?.search_text).toBe('');
+			expect(row?.created_by).toBe(DELETED_ACTOR);
+			expect(row?.updated_by).toBe(DELETED_ACTOR);
+			// La dirección queda reservada.
+			expect(row?.slug).toBe(id === p.id ? p.slug : before.slug);
+		}
+		expect(await count('SELECT COUNT(*) AS n FROM edges WHERE from_id = ?1', [p.id])).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1', [a.id])
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_member_blocks WHERE persona_id = ?1', [p.id])
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE invited_by = ?1', [a.id])
+		).toBe(0);
+		// Nada queda en la búsqueda, ni para admins.
+		expect(
+			await searchObjects(t.db, 'zanahoria', { role: 'admin', id: 'admin-inventade' })
+		).toEqual([]);
+		expect(
+			await count(`SELECT COUNT(*) AS n FROM objects_fts WHERE objects_fts MATCH '"zanahoria"'`)
+		).toBe(0);
+		// Los grupos quedan con sus datos.
+		expect((await getPublicProfile(t.db, shared.slug))?.bio).toBe('bio del grupo');
+		expect(await listGroupMembers(t.db, b.id, g.slug)).toEqual([]);
+
+		// Se puede volver a correr sin problema.
+		await releaseAccountProfiles(t.db, a.id, opts);
+		expect(await closeAccount(t.db, a.id, opts)).toBe(false);
 	});
 });

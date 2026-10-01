@@ -175,7 +175,9 @@
 			<summary>Quiero borrar mi cuenta</summary>
 			<p>
 				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
-				y entradas siguen valiendo: quedan en el sistema, sin cuenta. No se puede deshacer.
+				y entradas siguen valiendo: quedan en el sistema, sin cuenta. Tus perfiles de persona se
+				vacían y se borran; los grupos que gestionás con otras personas quedan para elles. No se
+				puede deshacer.
 			</p>
 			{#if form?.codeSentFor === 'delete'}
 				<form method="POST" action="?/borrar" use:enhance={keep}>

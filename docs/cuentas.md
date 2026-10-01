@@ -41,9 +41,24 @@ Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingr
 - **Al borrar la cuenta, las órdenes quedan** (decisión P7.6), desvinculadas: `orders.account_id`
   pasa a `NULL`. Se borran las sesiones y los códigos pendientes, y la fila de `accounts` queda
   sin ningún dato (sin mail, sin contraseña, con `deleted_at`).
-  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js`): sus
-  personas se borran (borrado suave) y cada grupo pasa a quien lo gestiona hace más tiempo, o se
-  borra si no queda nadie.
+  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js` →
+  `releaseAccountProfiles()` en `perfiles.js`):
+  - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
+    presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
+    sin los grupos de los que eran parte, sin su fila de gestión ni sus bloqueos, y con
+    `created_by` y `updated_by` = `cuenta:borrada` (el mismo para todas las cuentas borradas, así
+    nada los vincula entre sí). La fila queda, borrada (borrado suave), solo para que la dirección
+    no la use otra persona;
+  - cada **grupo** pasa a quien lo gestiona hace más tiempo, con sus datos (son del grupo), o se
+    borra (suave, con sus datos) si no queda nadie;
+  - se borran las invitaciones que mandó.
+
+  El código se verifica antes de empezar. Soltar los perfiles no entra en una sola tanda (cada
+  perfil se guarda con `saveObject()`), así que está hecho para poder correrse de nuevo: si algo
+  falla a la mitad, la cuenta sigue viva y el próximo intento termina; si otro guardado se cruza
+  con un perfil, se vuelve a leer y se reintenta. La cuenta se borra recién al final, en una
+  tanda.
+
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la

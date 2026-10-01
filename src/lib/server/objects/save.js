@@ -72,6 +72,9 @@ export function slugify(text) {
  * @prop {import('./types/index.js').Registry} [registry] para tests; por defecto, los tipos núcleo
  * @prop {(self: SavedRef) => D1PreparedStatement[]} [also] sentencias de tablas de apoyo que
  *   van en la MISMA tanda (entra todo o nada). Nunca sobre objects, edges ni object_types.
+ * @prop {string} [createdBy] solo al editar: reemplaza `created_by`. Es para desvincular los
+ *   objetos de una cuenta que se borra (src/lib/server/cuentas/perfiles.js,
+ *   `releaseAccountProfiles`); en un guardado normal, `created_by` no cambia nunca.
  */
 
 /**
@@ -99,9 +102,11 @@ function errorText(error) {
 export async function saveObject(
 	db,
 	input,
-	{ actor, now = Date.now(), registry = coreTypes, also }
+	{ actor, now = Date.now(), registry = coreTypes, also, createdBy }
 ) {
 	if (!actor || typeof actor !== 'string') throw new ObjectError('invalid', 'Falta quién guarda.');
+	if (createdBy !== undefined && (typeof createdBy !== 'string' || !createdBy))
+		throw new ObjectError('invalid', 'Autoría inválida.');
 	const def = registry.get(input?.type);
 	if (!def) throw new ObjectError('unknown_type', `No existe el tipo de objeto «${input?.type}».`);
 
@@ -169,6 +174,9 @@ export async function saveObject(
 				? (current?.deleted_at ?? now)
 				: null;
 	if (isNew && deletedAt !== null) throw new ObjectError('invalid', 'No se crea algo borrado.');
+	if (isNew && createdBy !== undefined) {
+		throw new ObjectError('invalid', 'Al crear, la autoría es quien guarda.');
+	}
 
 	/** @type {D1PreparedStatement[]} */
 	const batch = [
@@ -196,9 +204,22 @@ export async function saveObject(
 			db
 				.prepare(
 					`UPDATE objects SET slug = ?2, title = ?3, data = ?4, search_text = ?5, visibility = ?6,
-					 version = ?7, updated_at = ?8, updated_by = ?9, deleted_at = ?10 WHERE id = ?1 RETURNING id`
+					 version = ?7, updated_at = ?8, updated_by = ?9, deleted_at = ?10,
+					 created_by = COALESCE(?11, created_by) WHERE id = ?1 RETURNING id`
 				)
-				.bind(c.id, slug, title, data, searchText, visibility, c.version + 1, now, actor, deletedAt)
+				.bind(
+					c.id,
+					slug,
+					title,
+					data,
+					searchText,
+					visibility,
+					c.version + 1,
+					now,
+					actor,
+					deletedAt,
+					createdBy ?? null
+				)
 		);
 	}
 
