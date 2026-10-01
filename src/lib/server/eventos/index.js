@@ -76,6 +76,13 @@ const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}'
 	import: 'default'
 });
 
+/** Los archivos de src/lib/assets de este deploy («serie.webp»), ordenados. */
+export function assetNames() {
+	return Object.keys(assetFiles)
+		.map((p) => p.slice(p.lastIndexOf('/') + 1))
+		.sort((a, b) => a.localeCompare(b));
+}
+
 /** Same lookup order as thumbURL in $lib/utils. */
 const FORMATS = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
 
