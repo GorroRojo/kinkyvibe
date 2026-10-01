@@ -2,20 +2,23 @@ import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
+import { perfilesPublicosEnabled, propinasEnabled } from '$lib/server/flags.js';
+import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
+import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
-import { propinasEnabled } from '$lib/server/flags.js';
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ params, platform, fetch }) {
-	const [related, tickets, personas, propinas] = await Promise.all([
+export async function load({ params, platform, fetch, locals }) {
+	const [related, tickets, venue, personas, propinas] = await Promise.all([
 		loadRelated(params.event),
 		loadTickets(params.event, platform, fetch),
+		loadVenue(params.event, platform, locals),
 		loadPersonas(params.event, platform),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
 		// solo lo muestra en los eventos de KinkyVibe).
 		propinasEnabled(platform)
 	]);
-	return { ...related, tickets, personas, propinas };
+	return { ...related, tickets, venue, personas, propinas };
 }
 
 /**
@@ -28,6 +31,24 @@ async function loadPersonas(slug, platform) {
 		return await personasForPage(platform, (await fetchPost('calendario', slug, true)).meta);
 	} catch (e) {
 		return null; // missing/unpublished posts are handled by +page.js
+	}
+}
+
+/**
+ * "Sucede en": el lugar del evento según su privacidad (docs/amigues.md), solo con el interruptor
+ * `perfiles_publicos` prendido. `null` si no tiene lugar: la página muestra lo de su .md.
+ * @param {string} slug
+ * @param {App.Platform|undefined} platform
+ * @param {App.Locals} locals
+ */
+async function loadVenue(slug, platform, locals) {
+	const db = getDB(platform);
+	if (!db || !(await perfilesPublicosEnabled(platform))) return null;
+	try {
+		return await publicVenueForEvent(db, slug, viewerFor(locals));
+	} catch (e) {
+		console.error('[calendario] no se pudo leer el lugar del evento', e);
+		return null;
 	}
 }
 

@@ -6,9 +6,10 @@
 --   (o --local para probar en la compu)
 --
 -- Qué carga:
--- 1. Tres perfiles de ejemplo (objetos `perfil`, creados "por une admin": cuentan como
---    aprobados): «Colectivo de Prueba» (grupo), «Persona de Prueba» (persona) y «Perfil Oculto
---    de Prueba» (oculto: no tiene que aparecer en ningún lado público).
+-- 1. Tres perfiles de ejemplo (objetos `perfil`, creados "por une admin" y aprobados para
+--    /amigues en `profile_approvals`, como los que carga une admin): «Colectivo de Prueba»
+--    (proyecto), «Persona de Prueba» (persona) y «Perfil Oculto de Prueba» (oculto: no tiene que
+--    aparecer en ningún lado público).
 -- 2. Un rol agregado desde el panel: «Cuida la puerta».
 -- 3. `demo_files`: un evento que solo existe en la demo, `demo-personas-2026-12`, con
 --    `personas:` (los tres perfiles) y venta de entradas por transferencia. El editor y el panel
@@ -17,20 +18,24 @@
 --    evento («¿Alguna restricción alimentaria?»), y una orden aprobada con sus respuestas, para
 --    ver la pestaña Órdenes y su CSV.
 --
--- Para verlo: Ajustes → Interruptores → prender «Personas en eventos…» (y «Cuentas del
--- público», que es el interruptor de los perfiles hoy).
+-- Para verlo: Ajustes → Interruptores → prender «Personas en eventos…» y «Perfiles públicos»
+-- (los links de las personas llevan a su página en /amigues).
 --
 -- Se puede correr más de una vez (ids fijos e `INSERT OR IGNORE` / `INSERT OR REPLACE` en lo
--- que es solo de la demo). Requiere las migraciones hasta la 0018. Escribe `objects` con SQL
+-- que es solo de la demo). Requiere las migraciones hasta la 0018 (con la 0017). Escribe `objects` con SQL
 -- solo porque es una demo: en el código, el único camino es saveObject().
 
 INSERT OR IGNORE INTO object_types (type, origin, created_at) VALUES ('perfil', 'core', 1790000000000);
 
 INSERT OR IGNORE INTO objects (type, slug, title, data, visibility, created_at, created_by, updated_at, updated_by)
 VALUES
-	('perfil', 'colectivo-de-prueba', 'Colectivo de Prueba', '{"kind":"grupo","bio":"Grupo inventado para la demo."}', 'public', 1790000000000, 'demo', 1790000000000, 'demo'),
+	('perfil', 'colectivo-de-prueba', 'Colectivo de Prueba', '{"kind":"proyecto","bio":"Proyecto inventado para la demo."}', 'public', 1790000000000, 'demo', 1790000000000, 'demo'),
 	('perfil', 'persona-de-prueba', 'Persona de Prueba', '{"kind":"persona","pronouns":"elle"}', 'public', 1790000000000, 'demo', 1790000000000, 'demo'),
 	('perfil', 'perfil-oculto-de-prueba', 'Perfil Oculto de Prueba', '{"kind":"persona"}', 'hidden', 1790000000000, 'demo', 1790000000000, 'demo');
+
+INSERT OR IGNORE INTO profile_approvals (profile_id, approved_at, approved_by)
+SELECT id, 1790000000000, 'demo' FROM objects
+WHERE type = 'perfil' AND slug IN ('colectivo-de-prueba', 'persona-de-prueba', 'perfil-oculto-de-prueba');
 
 INSERT OR IGNORE INTO persona_roles (name, created_at, created_by) VALUES ('Cuida la puerta', 1790000000000, 'demo');
 

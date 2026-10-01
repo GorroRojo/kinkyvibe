@@ -681,7 +681,7 @@ describe('groupReviewItems', () => {
 describe('perfiles nuevos en "Para revisar"', () => {
 	const profile = (
 		/** @type {number} */ id,
-		kind = /** @type {'persona' | 'grupo'} */ ('persona')
+		kind = /** @type {'persona' | 'proyecto'} */ ('persona')
 	) => ({
 		id,
 		title: `Perfil Inventado ${id}`,
@@ -690,14 +690,14 @@ describe('perfiles nuevos en "Para revisar"', () => {
 	});
 
 	it('un ítem por perfil, con link a su ficha', () => {
-		const items = profileReviewItems([profile(7, 'grupo')], { formatWhen: () => 'hace 1 h' });
+		const items = profileReviewItems([profile(7, 'proyecto')], { formatWhen: () => 'hace 1 h' });
 		expect(items).toEqual([
 			{
 				id: 'profile-7',
 				tone: 'info',
 				icon: 'profile',
 				title: 'Perfil nuevo: Perfil Inventado 7',
-				text: 'Grupo · creado desde Mi rincón hace 1 h',
+				text: 'Proyecto · creado desde Mi rincón hace 1 h',
 				action: 'Revisar',
 				href: '/admin/cuentas/perfiles/7',
 				group: 'profile',

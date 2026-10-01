@@ -17,6 +17,7 @@ import {
 	cancelTransfer,
 	confirmTransfer,
 	getOrder,
+	orderTier,
 	transferLimits
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
@@ -76,7 +77,7 @@ export async function confirmTransferFromPanel({
 	const ask = (needsConfirmation) => ({
 		ok: false,
 		status: 409,
-		message: `Para confirmar ${ref} hay que pasar el cupo: confirmalo en el aviso.`,
+		message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
 		needsConfirmation
 	});
 	const check = checkOverride(await transferLimits(db, { order, type, now: at }), override);
@@ -85,6 +86,7 @@ export async function confirmTransferFromPanel({
 		orderId: order.id,
 		eventSlug: order.event_slug,
 		capacity: type.capacity,
+		tierQuantity: orderTier(order, type)?.quantity ?? null,
 		by,
 		override: check.override,
 		now: at

@@ -14,15 +14,15 @@
 	export let personas = [];
 	/** @type {string[]} */
 	export let roles = [];
-	/** @type {{ slug: string, title: string, kind: 'persona' | 'grupo' }[]} */
+	/** @type {{ slug: string, title: string, kind: 'persona' | 'proyecto' }[]} */
 	export let profiles = [];
 	/** @type {string[]} */
 	export let errors = [];
 	export let idPrefix = 'personas';
 
 	$: known = new Set(profiles.map((p) => p.slug));
-	$: groups = profiles.filter((p) => p.kind === 'grupo');
-	$: people = profiles.filter((p) => p.kind !== 'grupo');
+	$: projects = profiles.filter((p) => p.kind === 'proyecto');
+	$: people = profiles.filter((p) => p.kind !== 'proyecto');
 
 	function add() {
 		personas = [...personas, { perfil: '', rol: roles[0] ?? '' }];
@@ -55,9 +55,9 @@
 						{#if p.perfil && !known.has(p.perfil)}
 							<option value={p.perfil}>{p.perfil} (no público)</option>
 						{/if}
-						{#if groups.length}
-							<optgroup label="Grupos">
-								{#each groups as g (g.slug)}<option value={g.slug}>{g.title}</option>{/each}
+						{#if projects.length}
+							<optgroup label="Proyectos">
+								{#each projects as g (g.slug)}<option value={g.slug}>{g.title}</option>{/each}
 							</optgroup>
 						{/if}
 						{#if people.length}
@@ -109,8 +109,8 @@
 	>
 	{#if !profiles.length}
 		<p class="hint">
-			No hay perfiles públicos todavía (Cuentas → Perfiles: tienen que estar revisados y visibles
-			para todes).
+			No hay perfiles públicos todavía (Cuentas → Perfiles: tienen que estar aprobados para Amigues
+			y visibles para todes; los lugares van en «Sucede en»).
 		</p>
 	{/if}
 	{#each errors as e (e)}<p class="error" role="alert">{e}</p>{/each}

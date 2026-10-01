@@ -7,7 +7,8 @@ apagado por defecto; variable `PERSONAS_EVENTOS_ENABLED`: `1` lo fuerza prendido
 Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cambian.
 
 1. **Personas con rol (B7).** Un evento o una publicación de material lista personas con su rol
-   («Organiza: Colectivo de Prueba»). Cada rol apunta a un **perfil** (Cuentas → Perfiles). La
+   («Organiza: Colectivo de Prueba»). Cada rol apunta a un **perfil** de persona o de proyecto
+   (Cuentas → Perfiles, los mismos de /amigues: [amigues.md](amigues.md)). La
    página del evento muestra los roles con link al perfil, y la página de un perfil lista sus
    eventos y publicaciones por rol («Participa en»).
 2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
@@ -21,14 +22,20 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
   1. el perfil es visible para cualquiera (`visibleWhere(ANON)` de los objetos: ni oculto, ni
      «solo con cuenta», ni borrado). Se mira como anónime a propósito: la página es igual para
      todes y se puede cachear;
-  2. une admin lo aprobó: `PROFILE_APPROVED_SQL` de `src/lib/server/admin/cuentas.js`, la misma
-     marca de «Para revisar» (lo creó une admin, o une admin lo revisó/ocultó/borró);
-  3. el interruptor de perfiles está prendido (`profilesSwitchOn()`: hoy `cuentas`).
+  2. está aprobado para /amigues (`PROFILE_APPROVED_SQL` de `src/lib/server/admin/cuentas.js`:
+     fila en `profile_approvals`, migración 0017), la misma regla que la lista de amigues. Los
+     que carga une admin y los importados nacen aprobados; los de una cuenta esperan a une admin;
+  3. es una persona o un proyecto (`profileKindOf()` de
+     `src/lib/server/objects/types/perfil.js`, que lee el viejo `grupo` como proyecto). Los
+     lugares no van como personas: van en «Sucede en» (`event_venues`, ver amigues.md);
+  4. el interruptor `perfiles_publicos` está prendido (`profilesSwitchOn()`): sin él, /amigues
+     muestra las fichas `.md` y el link no tendría a dónde ir.
 
   Si no, ese perfil no aparece en absoluto (ni «perfil oculto»). Todo eso vive en un solo lugar:
   `src/lib/server/personas/index.js`.
 
-- **El frontmatter es público** (el repo es público): la dirección del perfil queda en el `.md`.
+- **El frontmatter es público** (el repo es público): la dirección del perfil (la del objeto, en
+  minúsculas y guiones) queda en el `.md`.
   Por eso el editor solo ofrece perfiles públicos y aprobados.
 - **Las respuestas son datos de quien compra:** las ven les admins (Órdenes y su CSV) y les
   organizadores de ESE evento (ver «Respuestas para les organizadores»). Nunca van a una página
@@ -64,9 +71,10 @@ personas:
   con `saveObject()` y estas lecturas pasan a `getEdges()`.
 - La wiki se prerenderiza (sin base al compilar): ahí el frontmatter se guarda pero la página no
   muestra personas.
-- Links: `profileHref()` → `/amigues/<slug>`. La página pública de los perfiles de la base llega con
-  el trabajo de amigues; mientras tanto, la lista «Participa en» aparece en la ficha de amigues cuya
-  dirección coincide con la del perfil.
+- Links: `profileHref()` → `/amigues/<dirección>`: la vieja si el perfil se importó de una ficha
+  `.md` (`profile_sources.legacy_slug`, como `urlSlugOf()` de amigues), si no la del objeto. La
+  lista «Participa en» aparece en la página del perfil de la base (`perfiles_publicos`), buscada
+  por la dirección del objeto (`objectSlug` de `profilePageData`).
 
 ### Preguntas
 
@@ -136,6 +144,7 @@ npx vitest run src/lib/utils/personas.test.js src/lib/utils/signupFields.test.js
   "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"
 ```
 
-A mano: `PERSONAS_EVENTOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev`, cargar
+A mano: `PERSONAS_EVENTOS_ENABLED=1 PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev`,
+cargar
 `scripts/demo/n3-personas.sql` en la base local
 (`npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-personas.sql`).

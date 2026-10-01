@@ -496,7 +496,6 @@ export function deriveSlug(sourceSlug, startDate) {
 	);
 }
 
-
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
  * event with that name would be unreachable there. `nuevo`, `agenda` and `importar` exist today;

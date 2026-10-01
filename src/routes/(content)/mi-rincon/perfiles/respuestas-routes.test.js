@@ -133,9 +133,9 @@ async function member(m, name) {
  * @param {Awaited<ReturnType<typeof modules>>} m
  * @param {{ id: string }} who
  * @param {string} title
- * @param {'persona' | 'grupo'} kind
+ * @param {'persona' | 'proyecto'} kind
  */
-async function profile(m, who, title, kind = 'grupo') {
+async function profile(m, who, title, kind = 'proyecto') {
 	const r = /** @type {any} */ (
 		await m.perfiles.createProfile(t.db, who.id, { kind, title }, { now: NOW })
 	);

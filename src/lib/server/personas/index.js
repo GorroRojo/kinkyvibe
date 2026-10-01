@@ -10,11 +10,15 @@
  *
  * Quién se muestra (nada de esto inventa reglas nuevas):
  * - el interruptor `personas_eventos` prendido; si no, nada (las páginas quedan como siempre);
- * - el interruptor de perfiles prendido ({@link profilesSwitchOn});
+ * - el interruptor `perfiles_publicos` prendido ({@link profilesSwitchOn}): los links llevan a
+ *   la página del perfil en /amigues (docs/amigues.md), que solo existe con ese interruptor;
  * - el perfil visible para cualquiera: `visibleWhere(ANON)` de los objetos (ni ocultos, ni
  *   "solo con cuenta", ni borrados). Se mira como anónime a propósito: así la página es igual
  *   para todes y se puede guardar en caché sin filtrar nada de una sesión;
- * - el perfil aprobado por une admin (`PROFILE_APPROVED_SQL`, la marca de "Para revisar").
+ * - el perfil aprobado para /amigues (`PROFILE_APPROVED_SQL`: fila en `profile_approvals`,
+ *   migración 0017), la misma regla que la lista de amigues;
+ * - el perfil es una persona o un proyecto (`profileKindOf`, que lee el viejo `grupo` como
+ *   proyecto): los lugares van aparte, en "Sucede en" (`event_venues`, docs/amigues.md).
  *
  * Un perfil que no cumple todo eso no aparece: ni su nombre, ni su link, ni un "perfil oculto".
  * La dirección (slug) sí está en el .md, que es público en el repo: el editor solo ofrece
@@ -24,7 +28,8 @@ import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { PROFILE_APPROVED_SQL } from '$lib/server/admin/cuentas.js';
 import { getDB, logDBError } from '$lib/server/db';
-import { cuentasEnabled, personasEventosEnabled } from '$lib/server/flags.js';
+import { perfilesPublicosEnabled, personasEventosEnabled } from '$lib/server/flags.js';
+import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
 	PERSONAS_KEY,
 	contentByRole,
@@ -39,8 +44,13 @@ import { parseDocument } from 'yaml';
 import { splitMarkdown } from '$lib/utils/eventDraft.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {{ slug: string, title: string, kind: 'persona' | 'grupo' }} PublicProfileRef */
-/** @typedef {{ rol: string, items: (PublicProfileRef & { href: string })[] }} PersonasGroup */
+/**
+ * `slug`: la dirección del objeto (la que va en el `personas:` del .md). `href`: su página en
+ * /amigues (con la dirección vieja si es una ficha importada).
+ * @typedef {{ slug: string, title: string, kind: PersonaKind, href: string }} PublicProfileRef
+ */
+/** @typedef {'persona' | 'proyecto'} PersonaKind */
+/** @typedef {{ rol: string, items: PublicProfileRef[] }} PersonasGroup */
 
 /** Cuántas direcciones por consulta (D1 acepta hasta 100 parámetros por sentencia). */
 const CHUNK = 90;
@@ -48,21 +58,23 @@ const CHUNK = 90;
 export const PICKER_LIMIT = 500;
 
 /**
- * La página pública de un perfil. Un solo lugar: si cambia (por ejemplo, con las direcciones
- * viejas de amigues), cambia acá.
- * @param {string} slug
+ * La página pública de un perfil: /amigues/<dirección vieja de la ficha importada, o la del
+ * objeto> (como `urlSlugOf` de src/lib/server/amigues/profiles.js). Un solo lugar: si cambia,
+ * cambia acá.
+ * @param {string} slug la dirección del objeto
+ * @param {string | null} [legacySlug] la de la ficha .md importada, si hay
  */
-export function profileHref(slug) {
-	return `/amigues/${encodeURIComponent(slug)}`;
+export function profileHref(slug, legacySlug = null) {
+	return `/amigues/${encodeURIComponent(legacySlug || slug)}`;
 }
 
 /**
- * ¿Están prendidos los perfiles para el público? Hoy los perfiles viven detrás de `cuentas`;
- * cuando exista el interruptor de perfiles públicos, se cambia solo acá.
+ * ¿Están prendidos los perfiles para el público? Es el interruptor `perfiles_publicos`: sin él,
+ * /amigues muestra las fichas .md y un link a un perfil de la base no tendría página.
  * @param {App.Platform | undefined} platform
  */
 export function profilesSwitchOn(platform) {
-	return cuentasEnabled(platform);
+	return perfilesPublicosEnabled(platform);
 }
 
 /**
@@ -78,14 +90,40 @@ async function enabledDB(platform) {
 	return db;
 }
 
-/** @param {unknown} data */
-function kindOf(data) {
+/**
+ * El tipo de un perfil para los roles, con el normalizador compartido (`grupo` → `proyecto`), o
+ * `null` si es un lugar (no se lista como persona).
+ * @param {unknown} data la columna `data` (JSON)
+ * @returns {PersonaKind | null}
+ */
+function personaKindOf(data) {
+	let parsed = null;
 	try {
-		return JSON.parse(String(data))?.kind === 'grupo' ? 'grupo' : 'persona';
+		parsed = JSON.parse(String(data));
 	} catch {
-		return 'persona';
+		// datos ilegibles: cuenta como persona, como en profileKindOf
 	}
+	const kind = profileKindOf(parsed && typeof parsed === 'object' ? parsed : null);
+	return kind === 'lugar' ? null : kind;
 }
+
+/**
+ * Una fila de perfil (`slug`, `title`, `data`, `legacy_slug`) como {@link PublicProfileRef}, o
+ * `null` si es un lugar.
+ * @param {Record<string, unknown>} r
+ * @returns {PublicProfileRef | null}
+ */
+function rowToRef(r) {
+	const kind = personaKindOf(r.data);
+	if (!kind) return null;
+	const slug = String(r.slug);
+	const legacy = r.legacy_slug == null ? null : String(r.legacy_slug);
+	return { slug, title: String(r.title), kind, href: profileHref(slug, legacy) };
+}
+
+/** Columnas y tablas de las consultas de perfiles públicos (alias `o`). */
+const PROFILE_SELECT = `SELECT o.slug, o.title, o.data, s.legacy_slug FROM objects o
+	LEFT JOIN profile_sources s ON s.profile_id = o.id`;
 
 /**
  * Los perfiles públicos (visibles para cualquiera y aprobados) entre estas direcciones.
@@ -103,15 +141,15 @@ export async function publicProfilesBySlug(db, slugs) {
 		const vis = visibleWhere(ANON, 'o');
 		const { results } = await db
 			.prepare(
-				`SELECT o.slug, o.title, o.data FROM objects o
+				`${PROFILE_SELECT}
 				WHERE o.type = ? AND o.slug IN (${chunk.map(() => '?').join(', ')})
 				AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}`
 			)
 			.bind(PROFILE_TYPE, ...chunk, ...vis.params)
 			.all();
 		for (const r of results) {
-			const slug = String(r.slug);
-			out.set(slug, { slug, title: String(r.title), kind: kindOf(r.data) });
+			const ref = rowToRef(r);
+			if (ref) out.set(ref.slug, ref);
 		}
 	}
 	return out;
@@ -127,17 +165,15 @@ export async function pickableProfiles(db) {
 	const vis = visibleWhere(ANON, 'o');
 	const { results } = await db
 		.prepare(
-			`SELECT o.slug, o.title, o.data FROM objects o
+			`${PROFILE_SELECT}
 			WHERE o.type = ? AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}
 			ORDER BY o.title COLLATE NOCASE LIMIT ?`
 		)
 		.bind(PROFILE_TYPE, ...vis.params, PICKER_LIMIT)
 		.all();
-	return results.map((r) => ({
-		slug: String(r.slug),
-		title: String(r.title),
-		kind: kindOf(r.data)
-	}));
+	// Los lugares se filtran con profileKindOf() (no en el SQL), así que el límite cuenta también
+	// los lugares: PICKER_LIMIT sobra para lo que hay.
+	return results.flatMap((r) => rowToRef(r) ?? []);
 }
 
 /**
@@ -155,7 +191,7 @@ export async function resolvePersonas(db, raw, roles) {
 	const profiles = await publicProfilesBySlug(db, profileSlugsOf(entries));
 	const items = entries.flatMap((e) => {
 		const p = profiles.get(e.perfil);
-		return p ? [{ rol: e.rol, ...p, href: profileHref(p.slug) }] : [];
+		return p ? [{ rol: e.rol, ...p }] : [];
 	});
 	return groupByRole(items, roles).map((g) => ({
 		rol: g.rol,
