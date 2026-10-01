@@ -64,3 +64,22 @@ export function editEventHref(slug) {
 	if (tabReady('editar')) return eventHref(slug, 'editar');
 	return `/edit/calendario/${encodeURIComponent(slug)}`;
 }
+
+/**
+ * Ficha de una cuenta del público en Cuentas.
+ * @param {string} id
+ */
+export function accountHref(id) {
+	return `/admin/cuentas/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Ficha de un perfil en Cuentas → Perfiles.
+ * @param {number | string} id
+ */
+export function profileHref(id) {
+	return `/admin/cuentas/perfiles/${encodeURIComponent(String(id))}`;
+}
+
+/** Cuentas → Perfiles, solo los que esperan revisión. */
+export const PROFILES_TO_REVIEW_HREF = '/admin/cuentas/perfiles?filtro=sin-revisar';

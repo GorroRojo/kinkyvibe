@@ -31,6 +31,7 @@
 		FilePen,
 		FileSpreadsheet,
 		GitPullRequest,
+		IdCard,
 		ImageOff,
 		Link,
 		Mail,
@@ -51,7 +52,8 @@
 		bell: Bell,
 		image: ImageOff,
 		draft: FilePen,
-		pr: GitPullRequest
+		pr: GitPullRequest,
+		profile: IdCard
 	});
 
 	$: user = data.user;

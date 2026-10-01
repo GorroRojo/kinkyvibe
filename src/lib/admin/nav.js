@@ -48,9 +48,11 @@ import {
 	ChartLine,
 	EyeOff,
 	FileSpreadsheet,
+	CircleUser,
 	HandHeart,
 	Heart,
 	House,
+	IdCard,
 	KeyRound,
 	Landmark,
 	Mail,
@@ -74,6 +76,7 @@ export const NAV_GROUPS = Object.freeze([
 	{ id: 'eventos', label: 'Eventos' },
 	{ id: 'entradas', label: 'Entradas' },
 	{ id: 'contenido', label: 'Contenido' },
+	{ id: 'cuentas', label: 'Cuentas' },
 	{ id: 'ajustes', label: 'Ajustes' }
 ]);
 
@@ -229,6 +232,27 @@ export const NAV = Object.freeze([
 		group: 'contenido',
 		soon: false,
 		counter: 'unlisted'
+	},
+
+	// Cuentas del público y sus perfiles (docs/cuentas.md)
+	{
+		id: 'cuentas',
+		href: '/admin/cuentas',
+		icon: CircleUser,
+		emoji: '👤',
+		label: 'Cuentas',
+		group: 'cuentas',
+		soon: false
+	},
+	{
+		id: 'cuentas-perfiles',
+		href: '/admin/cuentas/perfiles',
+		icon: IdCard,
+		emoji: '🪪',
+		label: 'Perfiles',
+		group: 'cuentas',
+		soon: false,
+		counter: 'profilesToReview'
 	},
 
 	// Ajustes

@@ -265,9 +265,7 @@ export async function canHaveProfiles(db, accountId) {
 	if (typeof accountId !== 'string' || !accountId) return false;
 	try {
 		const row = await db
-			.prepare(
-				'SELECT can_have_profiles AS v FROM accounts WHERE id = ?1 AND deleted_at IS NULL'
-			)
+			.prepare('SELECT can_have_profiles AS v FROM accounts WHERE id = ?1 AND deleted_at IS NULL')
 			.bind(accountId)
 			.first();
 		return Number(row?.v) === 1;

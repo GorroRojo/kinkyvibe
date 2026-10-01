@@ -17,6 +17,7 @@ import {
 	integrityRun,
 	monthMoney,
 	pendingTransfers,
+	profileReviewItems,
 	recentActivity,
 	reviewItems,
 	reviewOrders,
@@ -31,6 +32,7 @@ import {
 	whenLabel
 } from '$lib/server/admin/inicio.js';
 import { markSeen, touchLastSeen } from '$lib/server/admin/lastSeen.js';
+import { profilesToReview } from '$lib/server/admin/cuentas.js';
 import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
 import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
@@ -92,7 +94,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		expiring,
 		stuck,
 		integrity,
-		contentPulls
+		contentPulls,
+		newProfiles
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
 		checkinTotals(
@@ -117,7 +120,9 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			: openContentPullStatuses(locals.user_token).catch((e) => {
 					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
 					return [];
-				})
+				}),
+		// Perfiles creados por cuentas que ninguna admin revisó todavía (Cuentas → Perfiles).
+		profilesToReview(db)
 	]);
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
@@ -148,11 +153,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
 	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
-	// Lo repetitivo (sin imagen, borradores) va en una fila por tipo con la cuenta.
+	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const todo = groupReviewItems(
 		[
 			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
+			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...pullItems.filter((i) => i.tone === 'info')
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
