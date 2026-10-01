@@ -55,7 +55,7 @@ export const FLAGS = Object.freeze({
 		description:
 			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
 			'«Perfiles públicos» prendido), y preguntas ' +
-			'extra al comprar o inscribirse (Ajustes → Personas y preguntas, y la pestaña Preguntas ' +
+			'extra al comprar o inscribirse (Eventos → Roles y preguntas, y la pestaña Preguntas ' +
 			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
 		envVar: 'PERSONAS_EVENTOS_ENABLED'
 	},

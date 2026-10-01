@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * Formulario "Agregar pregunta" (texto, opciones o casilla; obligatoria u opcional). Lo usan
-	 * Ajustes → Personas y preguntas (generales) y la pestaña Preguntas de un evento. Manda a la
+	 * Eventos › Roles y preguntas (generales) y la pestaña Preguntas de un evento. Manda a la
 	 * acción `?/createField` (src/lib/server/personas/admin.js).
 	 *
 	 * Props: `form` (lo que devolvió la acción, para errores y valores), `idPrefix`.

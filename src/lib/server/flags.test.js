@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { navFlagKeys } from '$lib/admin/nav.js';
 import {
+	FLAGS,
 	FLAG_CACHE_MS,
 	clearFlagCache,
 	envOverride,
@@ -74,5 +76,9 @@ describe('interruptores', () => {
 		await expect(
 			setFlag(t.db, /** @type {any} */ ('inventado'), true, { by: 'admin-de-prueba' })
 		).rejects.toThrow(RangeError);
+	});
+
+	it('los interruptores del menú del panel (flag en nav.js) existen', () => {
+		for (const key of navFlagKeys()) expect(Object.keys(FLAGS), key).toContain(key);
 	});
 });

@@ -7,12 +7,10 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { RotateCcw, Save, Send } from '@lucide/svelte';
-	import { AJUSTES_TABS } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { unknownVariables } from '$lib/utils/emailTemplates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 
 	export let data;
@@ -120,7 +118,6 @@
 		{#if data.saved}<Badge tone="info">texto propio</Badge>{:else}<Badge>original</Badge>{/if}
 	</svelte:fragment>
 </PageHeader>
-<Tabs tabs={[...AJUSTES_TABS]} current="/admin/ajustes/mails" />
 
 {#if form?.message}
 	<p class="kv-flash" role="status">{form.message}</p>
