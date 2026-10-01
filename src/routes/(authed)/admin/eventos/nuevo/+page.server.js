@@ -39,6 +39,7 @@ import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/s
 import { addTagToPost } from '$lib/utils/tagConfig.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
 import bundledTags from '$lib/utils/hardcodedTags.js?raw';
+import { readNewEventPrefill } from '$lib/utils/calendario.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
@@ -125,6 +126,8 @@ export async function load({ locals, url, platform }) {
 		...(await editorData('calendario')),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
+		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
+		prefill: readNewEventPrefill(url.searchParams),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		mock: isMockMode()
