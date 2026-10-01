@@ -62,7 +62,9 @@
 		<Stat
 			label="Reembolsadas"
 			value={s?.counts.refunded ?? 0}
-			sub="{s?.counts.rejected ?? 0} rechazadas"
+			sub={(s?.counts.rejected ?? 0) === 1
+				? '1 rechazada'
+				: `${s?.counts.rejected ?? 0} rechazadas`}
 		/>
 	</div>
 
@@ -130,6 +132,7 @@
 
 <style>
 	.msg {
+		min-width: 14rem;
 		max-width: 22rem;
 		overflow-wrap: anywhere;
 		white-space: pre-line;
