@@ -9,5 +9,5 @@ export async function load({ params, data }) {
 	}
 	// `data` viene de +page.server.js (posts relacionados y el resumen de la venta de entradas
 	// para el botón, `null` si el evento no vende entradas).
-	return { ...data, ...post, tickets: data?.tickets ?? null };
+	return { ...data, ...post, tickets: data?.tickets ?? null, propinas: data?.propinas ?? false };
 }

@@ -588,3 +588,56 @@ describe('el Fondo solo aplica a eventos con la etiqueta KinkyVibe', () => {
 		}
 	);
 });
+
+describe('door_price por tipo', () => {
+	/** @param {Record<string, any>[]} tickets */
+	const meta = (tickets) => ({ ...META, tickets });
+
+	it('opcional: sin `door_price` el tipo no cambia (sin `door`)', () => {
+		const config = parseTicketConfig(META, { fondoPercent: 20 });
+		expect(config?.types.every((t) => !('door' in t))).toBe(true);
+	});
+
+	it('con `door_price`: precio y Fondo sobre ese precio, también con tramos', () => {
+		const config = parseTicketConfig(
+			meta([
+				{ id: 'general', name: 'General', price: 8000, door_price: 10000 },
+				{
+					id: 'fiesta',
+					name: 'Fiesta',
+					tiers: [{ id: 'resto', name: 'General', price: 9000 }],
+					door_price: '12000'
+				},
+				{ id: 'invitade', name: 'Invitade', price: 5000, door_price: 0 }
+			]),
+			{ fondoPercent: 20 }
+		);
+		expect(config?.types.map((t) => t.door)).toEqual([
+			{ price: 10000, fondo: 2000 },
+			{ price: 12000, fondo: 2400 },
+			{ price: 0, fondo: 0 }
+		]);
+		// El precio online no cambia.
+		expect(config?.types.map((t) => t.price)).toEqual([8000, 9000, 5000]);
+	});
+
+	it('inválido o a la gorra: error', () => {
+		for (const door_price of [-1, 1.5, 'mucho', 200_000_000]) {
+			expect(() =>
+				parseTicketConfig(meta([{ id: 'general', name: 'General', price: 8000, door_price }]))
+			).toThrow(/door_price/);
+		}
+		expect(() =>
+			parseTicketConfig(
+				meta([
+					{
+						id: 'gorra',
+						name: 'Gorra',
+						a_la_gorra: { minimo: 0, sugerido: 5000 },
+						door_price: 5000
+					}
+				])
+			)
+		).toThrow(/door_price/);
+	});
+});

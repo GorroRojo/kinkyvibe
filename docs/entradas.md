@@ -14,17 +14,24 @@ invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el c
 
 ## Lo que nunca se tiene que romper
 
-- **La venta online nunca pasa el cupo.** La reserva es una sola sentencia
-  `INSERT … SELECT … WHERE vendidas + reservadas + cantidad <= cupo`, atómica en D1. No se
-  reemplaza por "leer y después escribir". Sin cupo (`capacity` vacío) = sin límite.
+- **La venta online nunca pasa el cupo ni un tramo de preventa.** La reserva es una sola sentencia
+  `INSERT … SELECT … WHERE vendidas + reservadas + cantidad <= cupo` (y lo mismo con la cantidad
+  del tramo), atómica en D1. No se reemplaza por "leer y después escribir". Sin cupo (`capacity`
+  vacío) = sin límite.
+- **Preventas: el tramo (y su precio) lo elige el servidor al reservar.** El formulario manda el
+  tramo que vio solo para avisar "El precio cambió" si ya no es el vigente; una compra entra entera
+  en un tramo. Ver [Preventas escalonadas](tickets.md#preventas-escalonadas-y-tipos-encadenados).
 - **El precio lo calcula siempre el servidor** a partir del frontmatter del evento y los ajustes.
   El formulario solo manda qué eligió la persona.
 - **El webhook de Mercado Pago no confía en lo que recibe:** verifica la firma y le pregunta el
   pago a la API de MP, compara monto y moneda y actualiza de forma idempotente.
 - **Les admins pueden pasar cualquier límite (decisión 0006), pero solo así:** en el servidor,
-  después de `requireAdmin`, con un diálogo de confirmación con clave (si algo cambió, vuelve a
-  preguntar) y una fila en el registro de actividad (`tickets.override`). Hoy: vender en puerta,
-  confirmar una transferencia vencida y cargar entradas a mano (`src/lib/server/tickets/overrides.js`).
+  después de `requireAdmin`, con un aviso en la página que pide tildar "Entiendo…" (segundo paso)
+  y una clave (si algo cambió, vuelve a preguntar), y una fila en el registro de actividad
+  (`tickets.override`). Hoy: vender en puerta (también en eventos «Solo anticipadas», donde el
+  modo puerta no lo ofrece salvo con "Vender igual"), confirmar una transferencia vencida (cupo y
+  tramo) y cargar entradas a mano (cupo, máximo, venta cerrada, encadenado sin habilitar)
+  (`src/lib/server/tickets/overrides.js`).
 - **La compra pública conserva todos los límites.** `reserveOrder` no tiene override y mandar
   `override` en la compra no hace nada (hay pruebas).
 - El `id` de un tipo de entrada **no cambia nunca** una vez que vendió (las órdenes lo guardan).
@@ -44,7 +51,8 @@ invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el c
 | Estado, entrada, QR, checkout simulado | `src/routes/entradas/`                                                                             |
 | Webhook de MP / cron de recordatorios  | `src/routes/api/mercadopago/webhook/`, `src/routes/api/cron/recordatorios/`                        |
 | Panel                                  | `src/routes/(authed)/admin/entradas/`, `admin/eventos/[slug]/`, `admin/checkin/`                   |
-| Tablas                                 | `migrations/0002` a `0005` y `0010` (ver [datos.md](datos.md))                                     |
+| Tablas                                 | `migrations/0002` a `0005`, `0010` y `0016` (ver [datos.md](datos.md))                             |
+| Preventas y encadenados                | `src/lib/utils/ticketTiers.js` (puro), `TicketTiersEditor.svelte`                                  |
 
 ## Cómo probar
 
@@ -57,6 +65,8 @@ npm run dev:tickets     # MP simulado + admin falso (.env.tickets); nada real se
   `.env.tickets.local`.
 - Checkout simulado en `/entradas/simular-pago/<orden>` (aprobar, rechazar, pendiente).
 - Sin `RESEND_API_KEY`, los mails se muestran en la consola.
+- Demo con preventas: `scripts/demo/n3-entradas.sql` (datos inventados, solo para la base de
+  preview; ver el encabezado del archivo).
 - Pruebas: `npx vitest run src/lib/server/tickets` y
   `npx playwright test -c playwright.tickets.config.js` (este segundo **no corre en CI**: correlo
   si tocás la compra, el editor de entradas o los ajustes). Ver [pruebas-y-ci.md](pruebas-y-ci.md).
@@ -66,7 +76,13 @@ npm run dev:tickets     # MP simulado + admin falso (.env.tickets); nada real se
 
 **Poner un evento a la venta.** Panel → Eventos → el evento → Editar → sección 🎟️ Entradas:
 prender "Vender entradas por el sitio", cargar los tipos (el primero, «General»), cupo si hay,
-precio o a la gorra, medios de pago y, si es presencial, "Hay entradas en la puerta".
+precio fijo, preventas o a la gorra, medios de pago y, si es presencial, "Hay entradas en la
+puerta" (con precio en la puerta opcional) o, apagado, "Solo anticipadas".
+
+**Preventas escalonadas.** En el tipo, «Cómo se cobra» → Preventas: cada tramo con nombre, precio
+y, opcional, cantidad ("los primeros 5") y fecha ("hasta el 9/10"); el último sin nada es "el
+resto". Para una tanda que sale cuando se agota otra: un tipo aparte con «Se habilita» → "Cuando se
+agote o cierre «…»".
 
 **Cortar la venta.** Estado "Agotadas" o una fecha de cierre. Con ventas hechas, el editor no deja
 borrar un tipo vendido ni apagar la venta.

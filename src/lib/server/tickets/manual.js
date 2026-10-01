@@ -6,15 +6,16 @@
  * marcar el ingreso.
  *
  * Límites (se pueden pasar con confirmación; ver overrides.js): el cupo del tipo, el máximo por
- * compra de la página (`MAX_TICKETS_PER_FORM`) y la venta cerrada (por horario, del tipo,
- * evento agotado o cancelado). "Todavía no abrió la venta" no es un límite: cargar invitaciones
+ * compra de la página (`MAX_TICKETS_PER_FORM`), la venta cerrada (por horario, del tipo,
+ * evento agotado o cancelado) y un tipo encadenado que todavía no se habilitó. Las cargas a mano
+ * no gastan lugares de los tramos de preventa (la orden queda con `ticket_tier` NULL). "Todavía no abrió la venta" no es un límite: cargar invitaciones
  * antes es lo normal.
  */
 import { MAX_TICKETS_PER_FORM, computePrice, remainingOf } from '$lib/utils/tickets.js';
-import { salesState, typeOpen } from './config.js';
+import { salesState, typeAvailability, typeOpen } from './config.js';
 import { insertApprovedOrder } from './door.js';
-import { getCounts } from './orders.js';
-import { capacityLimit, closedLimit, maxPerPurchaseLimit } from './overrides.js';
+import { getCounts, getTaken } from './orders.js';
+import { capacityLimit, closedLimit, maxPerPurchaseLimit, notActiveLimit } from './overrides.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -56,9 +57,14 @@ export async function manualOrderLimits(
 	{ eventSlug, config, type, quantity, now = Date.now() }
 ) {
 	const c = (await getCounts(db, eventSlug, now)).get(type.id);
+	// Tipo encadenado que todavía no se habilitó (el anterior sigue a la venta).
+	const waitingFor = type.after
+		? typeAvailability(config, type, await getTaken(db, eventSlug, now), now).waitingFor
+		: null;
 	return /** @type {import('./overrides.js').ExceededLimit[]} */ (
 		[
 			closedLimit(salesState(config, now), typeOpen(config, type, now) ? null : type),
+			notActiveLimit(type, waitingFor),
 			maxPerPurchaseLimit(quantity, MAX_TICKETS_PER_FORM),
 			capacityLimit(type, c ? c.sold + c.held : 0, quantity)
 		].filter(Boolean)

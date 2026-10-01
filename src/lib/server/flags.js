@@ -30,6 +30,14 @@ export const FLAGS = Object.freeze({
 			'"Recuperar" desde Actividad. Los eventos con entradas vendidas no se pueden borrar. ' +
 			'Apagado, el botón no aparece y la página de borrar da 404.',
 		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -111,6 +119,15 @@ export function cuentasEnabled(platform) {
  */
 export function borrarDesdePanelEnabled(platform) {
 	return isFlagOn(getDB(platform), 'borrar_desde_panel');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**
