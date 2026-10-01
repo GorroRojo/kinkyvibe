@@ -45,7 +45,11 @@ describe('secciones de Ajustes y Cuentas', () => {
 	});
 	it('Interruptores está en el menú de Ajustes y se encuentra en la paleta', () => {
 		const item = navItem('ajustes-interruptores');
-		expect(item).toMatchObject({ href: '/admin/ajustes/interruptores', group: 'ajustes' });
+		expect(item).toMatchObject({
+			href: '/admin/ajustes/interruptores',
+			area: 'ajustes',
+			sub: 'sistema'
+		});
 		expect(item?.menu).not.toBe(false);
 		const cmds = buildCommands();
 		for (const q of ['interruptores', 'funciones nuevas', 'prender'])
