@@ -15,7 +15,10 @@
 	$: value = (key) => fieldValue(form, data.settings, key);
 </script>
 
-<PageHeader title="Mails" subtitle="Remitente, respuesta y recordatorios antes de cada evento." />
+<PageHeader
+	title="Mails"
+	subtitle="Remitente, respuesta, recordatorios antes de cada evento y envíos en tandas."
+/>
 <Tabs tabs={[...AJUSTES_TABS]} />
 
 <form
@@ -154,7 +157,37 @@
 		<p class="kv-note">
 			"Horas antes": desde la hora de inicio (48 = 2 días antes). "Días antes, a la hora": 0 = el
 			mismo día; hora de Argentina. Se mandan en la primera pasada del cron (cada 15 minutos)
-			después de esa hora, una sola vez por compra.
+			después de esa hora (en un evento grande, en varias pasadas: ver "Envíos en tandas"), una sola
+			vez por compra.
+		</p>
+	</Card>
+
+	<Card title="Envíos en tandas">
+		<label class="kv-field batch">
+			<span>Mails por tanda</span>
+			<input
+				class="kv-input"
+				type="number"
+				name="mail_batch_size"
+				inputmode="numeric"
+				min={data.batch.min}
+				max={data.batch.max}
+				step="1"
+				value={value('mail_batch_size')}
+				placeholder={String(data.batch.default)}
+				aria-describedby="batch-help"
+				aria-invalid={errors.mail_batch_size ? 'true' : undefined}
+			/>
+			{#if errors.mail_batch_size}<small class="kv-error field-error"
+					>{errors.mail_batch_size}</small
+				>{/if}
+		</label>
+		<p class="kv-note" id="batch-help">
+			Cuántos mails se mandan por vez; si alguno falla, sigue en la próxima vuelta. Vale para los
+			recordatorios y para "Enviar el link a todes": cada vuelta del cron (cada 15 minutos) manda
+			como mucho esta cantidad y la siguiente sigue donde quedó. De {data.batch.min} a {data.batch
+				.max}; vacío = {data.batch.default}. Un mail que falla se reintenta hasta 3 veces; después
+			aparece en "Para revisar" del Inicio.
 		</p>
 	</Card>
 
@@ -186,5 +219,8 @@
 	}
 	.small {
 		font-size: 0.88rem;
+	}
+	.batch {
+		max-width: 12rem;
 	}
 </style>

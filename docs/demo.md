@@ -4,6 +4,17 @@ Sirve para probar el panel de admin en un deploy de preview de Cloudflare Pages 
 que no sea `main`) con datos inventados, sin GitHub OAuth (que solo funciona en kinkyvibe.ar) y
 sin tocar el repo.
 
+## Lo que nunca se tiene que romper
+
+- **Nada del modo demo llega a producción**: todo va dentro de `if (PREVIEW_BUILD)` o detrás de
+  `isPreviewDeploy()`, y la identidad demo solo es admin en un preview.
+- **Un preview nunca commitea al repo ni escribe en la base de producción.** Usa su propia base
+  (`kinkyvibe-preview`, ver [datos.md](datos.md)). Los datos de prueba jamás se cargan en
+  `kinkyvibe`.
+- **Un preview no le manda mails a gente real**: solo a `EMAIL_ALLOWLIST` (ver [mails.md](mails.md)).
+- Todo lo nuevo que lea o escriba contenido pasa por `getRepoClient()`, así funciona igual en la
+  demo.
+
 ## Qué hace
 
 - **Entrar**: en un preview, `/login` (y el encabezado del sitio, si no hay sesión) muestra
@@ -69,3 +80,19 @@ archivo, para aplicarlo a mano.
 - No sube imágenes de verdad: el panel sigue mostrando las del deploy.
 - No hay GitHub de verdad: los links «ver el commit» llevan a `/api/preview-status`.
 - En producción no hace nada: no hay botón, la cookie se ignora y el código no está en el bundle.
+
+## Cómo probar
+
+- Abrí el preview del PR (Cloudflare publica el link en el PR; el chequeo «Cloudflare Pages» →
+  Details lleva al deploy en el panel de Cloudflare), entrá a `/login` y tocá «🧪 Entrar como
+  admin de prueba».
+- `GET /api/preview-status` dice si el entorno está bien armado (base, allowlist de mails) y qué se
+  guardó en `demo_files`.
+- Pruebas: `npx vitest run src/lib/server/demo src/lib/server/tickets/events.demo.test.js`.
+
+## Lo que viene
+
+Decisión 0009: datos de prueba con fechas relativas y un botón «Recargar datos de prueba» en el
+panel (solo en previews). Todavía no están en `main`. Hoy un preview se detecta con `CF_PAGES_BRANCH`
+(Cloudflare Pages); con la migración a Workers eso puede cambiar: ver
+[workers-migracion.md](workers-migracion.md).

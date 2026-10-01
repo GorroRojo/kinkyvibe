@@ -2,14 +2,23 @@
  * Encabezados de seguridad que agrega `hooks.server.js` a cada respuesta.
  *
  * - En todo el sitio: `X-Content-Type-Options: nosniff` y `Referrer-Policy`.
- * - En el panel, el editor, el login y las páginas de entradas: no se pueden mostrar dentro de un
- *   iframe de otro sitio (`X-Frame-Options: DENY` y `frame-ancestors 'none'`). Así nadie puede
+ * - En el panel, el editor, el login, las páginas de entradas y las de cuentas: no se pueden
+ *   mostrar dentro de un iframe de otro sitio (`X-Frame-Options: DENY` y `frame-ancestors 'none'`). Así nadie puede
  *   esconder un botón del panel ("Reembolsar", "Marcar ingreso") debajo de su propia página.
  *   El resto del sitio sigue pudiendo embeberse.
  */
 
 /** Prefijos de rutas que nunca se muestran dentro de un iframe. */
-export const NO_FRAME_PREFIXES = ['/admin', '/edit', '/login', '/logout', '/callback', '/entradas'];
+export const NO_FRAME_PREFIXES = [
+	'/admin',
+	'/edit',
+	'/login',
+	'/logout',
+	'/callback',
+	'/entradas',
+	'/ingresar',
+	'/mi-rincon'
+];
 
 /** @param {string} pathname */
 export function isNoFramePath(pathname) {

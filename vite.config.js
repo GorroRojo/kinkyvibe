@@ -1,11 +1,13 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
+import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
 
 export default defineConfig({
 	plugins: [sveltekit()],
-	// Rama del deploy de Cloudflare Pages ('' fuera de Pages); ver src/lib/server/deploy.js.
+	// Rama del deploy (Workers Builds o Cloudflare Pages; '' en local): ver
+	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
 	define: {
-		__DEPLOY_BRANCH__: JSON.stringify(process.env.CF_PAGES_BRANCH ?? '')
+		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env))
 	},
 	assetsInclude: ['**/*.odt'],
 	build: {

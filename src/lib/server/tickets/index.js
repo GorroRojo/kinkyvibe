@@ -42,8 +42,10 @@ import {
 	claimStreamLinkSend,
 	getStreamLink,
 	releaseStreamLinkSend,
-	sendStreamLinkToAll
+	sendStreamLinkBatch
 } from './stream.js';
+import { mailBatchSize } from './batchSize.js';
+import { runMailQueueWith } from './mailQueue.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -306,6 +308,16 @@ async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = 
 }
 
 /**
+ * El mismo envío (Resend, filtro de los previews, remitente de los ajustes) para mails que no
+ * son de entradas, como el código para ingresar de las cuentas (src/lib/server/cuentas/).
+ *
+ * @param {Parameters<typeof deliver>[0]} input
+ */
+export function deliverEmail(input) {
+	return deliver(input);
+}
+
+/**
  * Link de la transmisión de un evento online (o `null`), sin romper si falta la tabla.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
@@ -398,26 +410,40 @@ export async function sendOrderEmail({
 }
 
 /**
- * "Enviar el link a todes": manda el link de la transmisión a cada orden aprobada del evento
- * que todavía no lo recibió (idempotente por valor del link; ver stream.js).
+ * "Enviar el link a todes": manda una tanda del link de la transmisión (como mucho `limit`
+ * mails, por defecto el "de a cuántos" de los ajustes) a las órdenes aprobadas del evento que
+ * todavía no lo recibieron (idempotente por valor del link; ver stream.js). Lo que quede lo
+ * sigue el cron ({@link runMailQueue}) si el envío está pedido con `requestStreamLinkSend`.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
  *   eventSlug: string,
  *   link: string,
  *   origin: string,
- *   fetch: typeof fetch
+ *   fetch: typeof fetch,
+ *   limit?: number,
+ *   now?: number
  * }} input
  */
-export async function sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn }) {
+export async function sendStreamLinkEmails({
+	db,
+	eventSlug,
+	link,
+	origin,
+	fetch: fetchFn,
+	limit,
+	now = Date.now()
+}) {
 	const config = await getEventTickets(eventSlug);
 	const event = { title: config?.title || eventSlug, start: config?.start };
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
 	const template = await getTemplateOverride(db, 'stream');
-	return sendStreamLinkToAll(db, {
+	return sendStreamLinkBatch(db, {
 		eventSlug,
 		link,
+		now,
+		limit: limit ?? mailBatchSize((await getSalesSettings(db)).mail_batch_size),
 		send: async (order) => {
 			const tickets = await getOrderTickets(db, order.id);
 			const message = buildStreamLinkEmail({
@@ -515,17 +541,19 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 }
 
 /**
- * Manda los recordatorios que tocan ahora (lo llama POST /api/cron/recordatorios). Ver
- * reminders.js: idempotente, solo órdenes aprobadas de eventos que no empezaron.
+ * Manda una tanda de los recordatorios que tocan ahora (como mucho `limit` mails; por defecto,
+ * el "de a cuántos" de los ajustes). Ver reminders.js: idempotente, solo órdenes aprobadas de
+ * eventos que no empezaron.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
  *   origin: string,
  *   fetch: typeof fetch,
- *   now?: number
+ *   now?: number,
+ *   limit?: number
  * }} input
  */
-export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Date.now() }) {
+export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
 	const settings = await getSalesSettings(db);
 	const reminders = parseReminders(settings.reminders);
 	const ticketed = await listTicketedEvents();
@@ -546,6 +574,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 		events,
 		reminders,
 		now,
+		limit: limit ?? mailBatchSize(settings.mail_batch_size),
 		send: async (order, reminder) => {
 			const e = bySlug.get(order.event_slug);
 			if (!e) return false;
@@ -578,6 +607,28 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			});
 			return result !== 'failed';
 		}
+	});
+}
+
+/**
+ * Una corrida del cron de mails (POST /api/cron/recordatorios, cada 15 minutos): una tanda de
+ * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" (ver
+ * mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   origin: string,
+ *   fetch: typeof fetch,
+ *   now?: number,
+ *   limit?: number
+ * }} input
+ */
+export async function runMailQueue({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
+	return runMailQueueWith(db, {
+		limit,
+		sendReminders: (limit) => sendReminderEmails({ db, origin, fetch: fetchFn, now, limit }),
+		sendStreamLink: ({ eventSlug, link, limit }) =>
+			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit })
 	});
 }
 

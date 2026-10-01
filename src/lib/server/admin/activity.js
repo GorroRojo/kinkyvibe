@@ -28,7 +28,9 @@ export const ACTION_FAMILIES = /** @type {Record<string, string>} */ ({
 	stream: 'Transmisión',
 	discount: 'Códigos',
 	settings: 'Ajustes',
-	event: 'Eventos'
+	event: 'Eventos',
+	account: 'Cuentas',
+	profile: 'Perfiles'
 });
 
 /** Nombre legible de cada tipo de objetivo. */
@@ -36,7 +38,9 @@ export const TARGET_TYPES = /** @type {Record<string, string>} */ ({
 	order: 'Orden',
 	event: 'Evento',
 	discount: 'Código',
-	settings: 'Ajustes'
+	settings: 'Ajustes',
+	account: 'Cuenta',
+	profile: 'Perfil'
 });
 
 /**

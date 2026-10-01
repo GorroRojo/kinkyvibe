@@ -30,7 +30,7 @@ import { CHECKOUT_RATE_LIMITS, buyAction, discountAction } from './checkout.js';
 import { validateBuyer, validateHolder } from './config.js';
 import { createDiscountCode } from './discounts.js';
 import { HOLD_LIMITS, getCounts, reserveOrder } from './orders.js';
-import { clientHash } from './safeguards.js';
+import { clientHash, clientNetwork } from './safeguards.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -109,6 +109,29 @@ describe('clientHash', () => {
 		expect(await clientHash('203.0.113.7', now + 3600_000)).toBe(h);
 		expect(await clientHash('203.0.113.8', now)).not.toBe(h);
 		expect(await clientHash('203.0.113.7', now + 24 * 3600_000)).not.toBe(h);
+	});
+
+	it('IPv6: toda una red /64 es la misma conexión; otra /64, otra', async () => {
+		const now = Date.UTC(2026, 9, 1, 12);
+		const h = await clientHash('2001:db8:1:2::1', now);
+		expect(await clientHash('2001:db8:1:2::2', now)).toBe(h);
+		expect(await clientHash('2001:0db8:0001:0002:ffff:aaaa:bbbb:cccc', now)).toBe(h);
+		expect(await clientHash('2001:DB8:1:2:0:0:0:99', now)).toBe(h);
+		expect(await clientHash('2001:db8:1:3::1', now)).not.toBe(h);
+	});
+
+	it('clientNetwork: IPv4 tal cual, IPv6 por /64, IPv4 dentro de IPv6 como IPv4', () => {
+		expect(clientNetwork('203.0.113.7')).toBe('203.0.113.7');
+		expect(clientNetwork('2001:db8:1:2:3:4:5:6')).toBe('2001:db8:1:2::/64');
+		expect(clientNetwork('2001:db8::1')).toBe('2001:db8:0:0::/64');
+		expect(clientNetwork('::1')).toBe('0:0:0:0::/64');
+		expect(clientNetwork('fe80::1%eth0')).toBe('fe80:0:0:0::/64');
+		expect(clientNetwork('::ffff:203.0.113.7')).toBe('203.0.113.7');
+		expect(clientNetwork('64:ff9b::203.0.113.7')).toBe('64:ff9b:0:0::/64');
+		// Lo que no es una IP válida queda igual (y cuenta aparte).
+		expect(clientNetwork('unknown')).toBe('unknown');
+		expect(clientNetwork('1:2:3')).toBe('1:2:3');
+		expect(clientNetwork('1::2::3')).toBe('1::2::3');
 	});
 });
 

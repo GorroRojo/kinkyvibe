@@ -5,7 +5,7 @@
  * Takes the GitHub client as a parameter (github.js, or mock.js under `npm run dev:admin`), so it
  * has no SvelteKit imports and can be tested with a fake client.
  */
-import { Buffer } from 'buffer';
+import { toBase64 } from '$lib/utils/base64.js';
 import { detectImageType, MAX_IMAGE_BYTES } from '$lib/utils/eventDraft.js';
 import {
 	eventsUsingAsset,
@@ -34,7 +34,7 @@ export async function readUploadedImage(image) {
 	const bytes = new Uint8Array(await image.arrayBuffer());
 	const ext = detectImageType(bytes);
 	if (!ext) return { error: 'La imagen tiene que ser JPG, PNG o WEBP.' };
-	return { bytes, ext, base64: Buffer.from(bytes).toString('base64') };
+	return { bytes, ext, base64: toBase64(bytes) };
 }
 
 /**

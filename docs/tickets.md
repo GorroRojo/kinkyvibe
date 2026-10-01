@@ -1,5 +1,7 @@
 # Venta de entradas (fase 1, prototipo)
 
+> Referencia completa. Para la versión corta (qué no se puede romper, cómo probar, tareas comunes) ver [entradas.md](entradas.md); los mails, en [mails.md](mails.md); la base, en [datos.md](datos.md).
+
 Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada, y al que se puede aportar pagando una entrada solidaria), un **recargo por la comisión de Mercado Pago** y entradas **"a la gorra"** (cada quien elige cuánto paga; en eventos online, con el link de la transmisión en lugar de QR). Les organizadores ven quién compró en `/admin/entradas`, confirman transferencias, cargan el alias para transferir y la comisión en **Ajustes de venta** y controlan el ingreso en la puerta escaneando el QR (o tipeando el código corto de la entrada) con el celu.
 
 > Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
@@ -164,7 +166,7 @@ Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tien
 
 - Las entradas llevan **el link de la transmisión en lugar de un QR**, y no hay control de ingreso.
 - El link **no va en el repo** (es público): une admin lo carga en la ficha del evento (`/admin/eventos/<slug>`, pestaña Resumen) → **Link de la transmisión** (se guarda en D1, `event_ticket_settings`; tiene que ser `https://`).
-- Si el link ya está al aprobarse una compra, va en el mail de las entradas. Si se carga o cambia después, el botón **Enviar el link a todes (N personas)** lo manda por mail a cada compra aprobada que todavía no recibió **ese** link. Es idempotente por valor del link (`stream_link_sends`: orden + SHA-256 del link, reservado antes de mandar, así dos clicks o dos admins no duplican; si un envío falla se libera para reintentar). Si el link cambia, se puede mandar el nuevo a todes.
+- Si el link ya está al aprobarse una compra, va en el mail de las entradas. Si se carga o cambia después, el botón **Enviar el link a todes (N personas)** lo manda por mail a cada compra aprobada que todavía no recibió **ese** link. Es idempotente por valor del link (`stream_link_sends`: orden + SHA-256 del link, reservado antes de mandar, así dos clicks o dos admins no duplican). Si el link cambia, se puede mandar el nuevo a todes. Manda **en tandas** (ver "Envíos en tandas" abajo): el botón manda la primera y deja el envío pedido (`event_ticket_settings.stream_send_hash`); el resto lo manda el cron en las próximas vueltas (o otro toque del botón). El botón también reintenta a quienes habían fallado todos sus intentos.
 - La página de la entrada muestra el link cuando existe (solo si la compra está aprobada).
 
 ### El Fondo KinkyVibe
@@ -210,9 +212,10 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 
 ### Mails y recordatorios
 
-- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en Ajustes de venta; si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
+- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Ajustes → Mails y plantillas** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
 - **Recordatorios** (`src/lib/server/tickets/reminders.js`): lista configurable en Ajustes de venta (activado + cuándo: "N horas antes" del inicio, o "N días antes a las HH:MM" en hora de Argentina, UTC−3 fijo). Por defecto: **2 días antes** (48 h) y **el mismo día a las 9:00**. Un evento no los manda con `recordatorios: false` en el frontmatter. El mail lleva cuándo y dónde, el link y el código de cada entrada o, en eventos online, el link de la transmisión si ya está.
-- **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar y se libera si falla. Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
+- **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos un Worker aparte que está en `workers/cron/` (ver su README para deployarlo: `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` en esa carpeta). Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar (ver "Envíos en tandas"). Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
+- **Envíos en tandas** (`src/lib/server/tickets/sendState.js`, `mailQueue.js`, migración `0011_send_batches.sql`): cada corrida del cron manda como mucho **"Mails por tanda"** (Ajustes → Mails; de 5 a 200, vacío = 40): primero los recordatorios que tocan (del evento más cercano al más lejano) y, con lo que sobre, lo que quede de cada "Enviar el link a todes". Lo demás sigue en la próxima corrida, así un evento grande no se corta por los límites de un pedido del Worker. Cada fila de `reminder_sends` / `stream_link_sends` tiene un estado: `sending` (reservada; si queda así más de 10 minutos, el Worker se cortó y se retoma), `sent`, `retry` (falló: se reintenta en la próxima corrida) o `failed` (falló 3 veces: no se reintenta solo). Dos corridas a la vez no duplican nada (la reserva es atómica) y cada mail lleva además una clave de idempotencia de Resend. Los `failed` aparecen en **Para revisar** del Inicio: los recordatorios con **Reintentar** (vuelven a la cola), el link con un acceso al evento (el botón los reintenta).
 
 ### Ajustes de venta
 
@@ -222,7 +225,7 @@ Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y acti
   - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
   - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
 - **Fondo** (`/admin/ajustes/fondo`): el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
-- **Mails** (`/admin/ajustes/mails`): remitente, dirección de respuesta y los **recordatorios** (ver arriba).
+- **Mails y plantillas** (`/admin/ajustes/mails`): remitente, dirección de respuesta, los **recordatorios**, **Mails por tanda** (ver arriba) y, en `/admin/ajustes/mails/plantillas`, el texto de cada mail (tabla `email_templates`; ver [mails.md](mails.md)).
 
 Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
@@ -307,7 +310,7 @@ Solo en desarrollo (`vite dev`; en el build de producción este código no exist
 ## Probar en local (sin cuentas de nada)
 
 ```sh
-npm install
+npm ci
 npm run dev:tickets
 ```
 
@@ -350,15 +353,15 @@ Para mirar la base local: `npx wrangler d1 execute kinkyvibe --local --command "
 
 ## Producción: base de datos
 
-Requiere tener D1 activado (ver la sección "Base de datos" del README). Antes de deployar este código, correr **una vez**:
+Ver [datos.md](datos.md). Antes de deployar código que trae una migración nueva, correr:
 
 ```sh
 npm run db:migrate:remote        # = npx wrangler d1 migrations apply kinkyvibe --remote
 ```
 
-Aplica las migraciones que falten: `0001_rate_limits.sql` (de la base), `0002_tickets.sql` (todas las tablas de entradas en un solo archivo) y `0003_ticket_safeguards.sql` (columnas para los límites por cliente y las órdenes para revisar). Se puede correr cuantas veces se quiera. De acá en adelante, cada cambio de esquema va en una migración nueva.
+Aplica solo las migraciones que falten (se puede correr cuantas veces se quiera). En producción ya están aplicadas de `0001` a `0010` (30/9/2026). Cada cambio de esquema va en una migración nueva.
 
-(y lo mismo contra la base de preview si se usa otra). Consultas útiles:
+(y lo mismo contra la base de preview, `kinkyvibe-preview`). Consultas útiles (solo lectura; los datos de producción son de personas reales, no se copian a issues ni PRs):
 
 ```sh
 npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status, COUNT(*) FROM orders GROUP BY 1, 2"
@@ -369,7 +372,7 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Precio:** solo desde el frontmatter en el servidor; el webhook además compara el monto y la moneda del pago con el total guardado en la orden.
 - **Webhook:** firma HMAC-SHA256 con comparación de tiempo constante y `ts` de hasta 15 minutos; aun con firma válida, el estado se toma de la API de MP con nuestro token, nunca del body. Las notificaciones IPN viejas (`?topic=…`, sin firma) se ignoran.
 - **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/entradas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
-- **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
+- **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda; una IPv6 cuenta por su red /64), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
 - **Eventos de prueba:** los `prueba-entradas-*` del repo solo venden en `vite dev` (`isTestEventSlug` en `events.js`); en el sitio publicado no tienen venta.
 - **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`.
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
@@ -438,8 +441,7 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 **Operación:**
 
 - **Transferencias:** alguien tiene que revisar la cuenta y confirmar a mano (no hay verificación automática). Una reserva por transferencia bloquea cupo 48 h: con muchos mails distintos alguien podría bloquear el cupo; si pasa, cancelar desde el admin y bajar `TICKETS_TRANSFER_HOLD_HOURS`.
-- **Borrar el evento de prueba** (`prueba-entradas-2026-12.md`) antes de vender de verdad.
-
+- **Borrar los eventos de prueba** (`prueba-entradas-2026-12.md` y `prueba-entradas-gorra-2026-12.md`) antes de vender de verdad.
 - Una persona "dueña" de las credenciales y de revisar los logs (Cloudflare → Workers & Pages → Logs) durante las ventas.
 - Probar el escaneo en la puerta con los celulares reales (Android/Chrome anda con la página; en iPhone, con la cámara del sistema) y con poca señal.
 

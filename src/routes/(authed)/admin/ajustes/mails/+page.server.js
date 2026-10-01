@@ -1,6 +1,6 @@
 /**
- * Ajustes → Mails: remitente y dirección de respuesta de los mails de entradas, y los
- * recordatorios antes de cada evento. En D1 (`ticket_settings`). Solo admins.
+ * Ajustes → Mails: remitente y dirección de respuesta de los mails de entradas, los
+ * recordatorios antes de cada evento y de a cuántos mails se mandan los envíos masivos. En D1 (`ticket_settings`). Solo admins.
  */
 import { env as privateEnv } from '$env/dynamic/private';
 import { requireAdmin } from '$lib/server/auth';
@@ -12,6 +12,11 @@ import {
 	parseReminders
 } from '$lib/server/tickets/reminders.js';
 import { DEFAULT_FROM_EMAIL, DEFAULT_REPLY_TO } from '$lib/server/tickets/settings.js';
+import {
+	DEFAULT_MAIL_BATCH_SIZE,
+	MAX_MAIL_BATCH_SIZE,
+	MIN_MAIL_BATCH_SIZE
+} from '$lib/server/tickets/batchSize.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -30,6 +35,12 @@ export async function load({ locals, url, platform, setHeaders }) {
 		defaultReminders: DEFAULT_REMINDERS.map(describeReminder),
 		maxReminders: MAX_REMINDERS,
 		cronConfigured: Boolean(privateEnv.CRON_SECRET),
+		// "De a cuántos": mails por tanda en recordatorios y "Enviar el link a todes".
+		batch: {
+			default: DEFAULT_MAIL_BATCH_SIZE,
+			min: MIN_MAIL_BATCH_SIZE,
+			max: MAX_MAIL_BATCH_SIZE
+		},
 		// Remitente y respuesta que se usan si los campos quedan vacíos.
 		emailDefaults: {
 			from: privateEnv.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,

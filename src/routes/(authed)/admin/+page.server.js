@@ -13,8 +13,11 @@ import {
 	expiringTransfers,
 	failedReminders,
 	groupReviewItems,
+	integrityReviewRow,
+	integrityRun,
 	monthMoney,
 	pendingTransfers,
+	profileReviewItems,
 	recentActivity,
 	reviewItems,
 	reviewOrders,
@@ -22,19 +25,21 @@ import {
 	salesSummary,
 	sinceLastVisit,
 	streamLinkSlugs,
+	stuckSends,
 	ticketTotals,
 	unsentEmails,
 	upcomingEvents,
 	whenLabel
 } from '$lib/server/admin/inicio.js';
 import { markSeen, touchLastSeen } from '$lib/server/admin/lastSeen.js';
+import { profilesToReview } from '$lib/server/admin/cuentas.js';
 import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
 import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
-import { parseReminders } from '$lib/server/tickets/reminders.js';
+import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import {
@@ -87,7 +92,10 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		seen,
 		settings,
 		expiring,
-		contentPulls
+		stuck,
+		integrity,
+		contentPulls,
+		newProfiles
 	] = await Promise.all([
 		ticketTotals(db, soonTicketed, now),
 		checkinTotals(
@@ -103,13 +111,18 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		touchLastSeen(db, user.id, now),
 		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
 		expiringTransfers(db, now, agendaUntil),
+		stuckSends(db, soonTicketed),
+		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
+		integrityRun(db),
 		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
 		usesLocalRepo() || !locals.user_token
 			? Promise.resolve([])
 			: openContentPullStatuses(locals.user_token).catch((e) => {
 					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
 					return [];
-				})
+				}),
+		// Perfiles creados por cuentas que ninguna admin revisó todavía (Cuentas → Perfiles).
+		profilesToReview(db)
 	]);
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
@@ -125,6 +138,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		review,
 		streamLinks,
 		reminders,
+		stuck,
 		now,
 		skip
 	});
@@ -139,17 +153,22 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
 	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
-	// Lo repetitivo (sin imagen, borradores) va en una fila por tipo con la cuenta.
+	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const todo = groupReviewItems(
 		[
 			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
+			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...pullItems.filter((i) => i.tone === 'info')
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
 	);
+	// El chequeo nocturno de los datos, en una sola fila que se despliega (solo si encontró algo).
+	const integrityRow = integrityReviewRow(integrity, { formatWhen: (ms) => whenLabel(ms, now) });
+	if (integrityRow) todo.push(integrityRow);
 
-	const settingsItem = navItem('ajustes-cobros');
+	// Los recordatorios se configuran en Ajustes → Mails y plantillas.
+	const remindersItem = navItem('ajustes-mails');
 	const agenda = agendaItems({
 		events,
 		ticketed,
@@ -161,7 +180,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			event: eventLink,
 			orders: (slug) => orderHref(slug),
 			transfers: transfersHref,
-			reminders: (settingsItem && navLink(settingsItem)) || '/admin/entradas/ajustes'
+			reminders: (remindersItem && navLink(remindersItem)) || '/admin/ajustes/mails'
 		}
 	});
 	const focus = salesFocus(upcoming);
@@ -224,6 +243,36 @@ export const actions = {
 				message: sent
 					? `Reenviamos las entradas de ${orderReference(order.id)}.`
 					: 'No se pudo mandar el mail (ver logs).'
+			}
+		};
+	},
+
+	// "Reintentar" desde "Para revisar": los recordatorios de un evento que fallaron todos sus
+	// intentos vuelven a la cola; los manda el próximo cron.
+	retryReminders: async ({ locals, url, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { resend: { ok: false, message: 'Sin base de datos.' } });
+		const slug = String((await request.formData()).get('slug') ?? '');
+		if (!/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(slug)) {
+			return fail(400, { resend: { ok: false, message: 'Evento inválido.' } });
+		}
+		const n = await retryFailedReminders(db, slug);
+		if (n) {
+			await logAdminAction(db, locals, {
+				action: 'reminders.retry',
+				targetType: 'event',
+				targetId: slug,
+				summary: `Volvió a poner en la cola ${n === 1 ? '1 recordatorio' : `${n} recordatorios`}`,
+				detail: { count: n }
+			});
+		}
+		return {
+			resend: {
+				ok: true,
+				message: n
+					? `Listo: ${n === 1 ? 'el recordatorio sale' : `los ${n} recordatorios salen`} en la próxima vuelta del cron (cada 15 minutos).`
+					: 'No había recordatorios fallidos para reintentar.'
 			}
 		};
 	},

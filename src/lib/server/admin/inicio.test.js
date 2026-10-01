@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { logAccountCreated } from './accountEvents.js';
 import {
 	EMAIL_GRACE_MS,
 	agendaItems,
@@ -17,10 +18,14 @@ import {
 	pendingTransfers,
 	recentActivity,
 	groupReviewItems,
+	profileReviewItems,
+	integrityReviewRow,
+	integrityRun,
 	reviewItems,
 	reviewOrders,
 	sinceLastVisit,
 	streamLinkSlugs,
+	stuckSends,
 	ticketTotals,
 	unsentEmails,
 	upcomingEvents
@@ -290,9 +295,14 @@ describe('actividad', () => {
 			{ action: 'x.y', summary: 'de otre' },
 			{ now: NOW - HOUR }
 		);
+		// Una cuenta nueva va en la lista, pero no es un cambio de otre admin.
+		await logAccountCreated(t.db, '00000000-0000-4000-8000-000000000000', { now: NOW - HOUR });
 		const s = await sinceLastVisit(t.db, { since: NOW - 2 * HOUR, login: 'yo' });
 		expect(s).toMatchObject({ orders: 1, money: 7000, transfers: 1, audit: 1 });
-		expect(s?.items.length).toBe(4);
+		expect(s?.items.length).toBe(5);
+		expect(s?.items.filter((i) => i.kind === 'account').map((i) => i.title)).toEqual([
+			'Se creó una cuenta nueva'
+		]);
 	});
 });
 
@@ -492,6 +502,45 @@ describe('upcomingEvents y reviewItems', () => {
 			'draft-borrador'
 		]);
 	});
+	it('envíos que fallaron todos sus intentos: recordatorios con "Reintentar", link al evento', async () => {
+		expect(await stuckSends(null, ['online'])).toEqual({
+			reminders: new Map(),
+			streamLinks: new Map()
+		});
+		const withStuck = upcomingEvents({
+			events,
+			ticketed,
+			totals,
+			streamLinks: new Set(['online']),
+			stuck: { reminders: new Map([['online', 2]]), streamLinks: new Map([['online', 1]]) },
+			now: NOW,
+			skip: (slug) => slug.startsWith('prueba-entradas')
+		});
+		expect(withStuck.find((e) => e.slug === 'online')).toMatchObject({
+			stuckReminders: 2,
+			stuckStreamLinks: 1
+		});
+		const items = reviewItems({
+			upcoming: withStuck,
+			transfers: [],
+			unsent: [],
+			review: [],
+			titles: new Map(),
+			links: {
+				transfers: (s) => `/t/${s}`,
+				order: (s, id) => `/o/${s}/${id ?? ''}`,
+				stream: (s) => `/s/${s}`,
+				edit: (s) => `/e/${s}`
+			},
+			formatWhen: () => ''
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')).toMatchObject({
+			action: 'Reintentar',
+			retryReminders: { slug: 'online' }
+		});
+		expect(items.find((i) => i.id === 'reminder-failed-online')?.text).toMatch(/^2 órdenes/);
+		expect(items.find((i) => i.id === 'stream-failed-online')).toMatchObject({ href: '/s/online' });
+	});
 });
 
 describe('groupReviewItems', () => {
@@ -575,6 +624,52 @@ describe('groupReviewItems', () => {
 		expect(groupReviewItems([image('a')], { links, min: 1 })[0]).toMatchObject({
 			kind: 'group',
 			title: '1 evento próximo sin imagen'
+		});
+	});
+});
+
+describe('perfiles nuevos en "Para revisar"', () => {
+	const profile = (
+		/** @type {number} */ id,
+		kind = /** @type {'persona' | 'grupo'} */ ('persona')
+	) => ({
+		id,
+		title: `Perfil Inventado ${id}`,
+		kind,
+		createdAt: NOW - HOUR
+	});
+
+	it('un ítem por perfil, con link a su ficha', () => {
+		const items = profileReviewItems([profile(7, 'grupo')], { formatWhen: () => 'hace 1 h' });
+		expect(items).toEqual([
+			{
+				id: 'profile-7',
+				tone: 'info',
+				icon: 'profile',
+				title: 'Perfil nuevo: Perfil Inventado 7',
+				text: 'Grupo · creado desde Mi rincón hace 1 h',
+				action: 'Revisar',
+				href: '/admin/cuentas/perfiles/7',
+				group: 'profile',
+				name: 'Perfil Inventado 7'
+			}
+		]);
+		expect(profileReviewItems([])).toEqual([]);
+	});
+
+	it('uno solo queda de a uno; varios, una fila que lleva a Perfiles filtrado', () => {
+		const links = { noImage: '/admin/eventos?filtro=sin-imagen' };
+		const one = groupReviewItems(profileReviewItems([profile(1)]), { links });
+		expect(one.map((r) => `${r.kind}:${r.id}`)).toEqual(['item:profile-1']);
+		const many = groupReviewItems(profileReviewItems([profile(1), profile(2), profile(3)]), {
+			links
+		});
+		expect(many).toHaveLength(1);
+		expect(many[0]).toMatchObject({
+			kind: 'group',
+			id: 'group-profile',
+			title: '3 perfiles nuevos para revisar',
+			href: '/admin/cuentas/perfiles?filtro=sin-revisar'
 		});
 	});
 });
@@ -851,5 +946,75 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 			}
 		]);
 		expect(items.at(-1)?.kind).toBe('order');
+	});
+});
+
+describe('chequeo nocturno de los datos en "Para revisar"', () => {
+	it('con problemas: una sola fila que se despliega con código y slug', () => {
+		const row = integrityReviewRow(
+			{
+				ranAt: 1000,
+				count: 3,
+				problems: [
+					{ code: 'invalid_data', objectId: 4, slug: 'salon-inventado', type: 'lugar' },
+					{ code: 'invalid_data', objectId: 5 },
+					{ code: 'dangling_edge', edgeId: 9 }
+				]
+			},
+			{ formatWhen: () => 'jue 1 oct, 03:00' }
+		);
+		expect(row).toMatchObject({
+			kind: 'group',
+			id: 'group-integrity',
+			tone: 'bad',
+			title: 'Chequeo nocturno: 3 problemas en los datos',
+			text: 'invalid_data ×2, dangling_edge · revisado jue 1 oct, 03:00. No se arregla solo.',
+			action: 'Ver'
+		});
+		expect(row && 'href' in row ? row.href : undefined).toBeUndefined();
+		expect(row?.kind === 'group' ? row.items.map((i) => i.name) : []).toEqual([
+			'invalid_data · salon-inventado',
+			'invalid_data · objeto 5',
+			'dangling_edge · relación 9'
+		]);
+	});
+
+	it('singular, y avisa si hay más problemas que los guardados', () => {
+		const one = integrityReviewRow({ ranAt: 0, count: 1, problems: [{ code: 'fts_out_of_sync' }] });
+		expect(one?.title).toBe('Chequeo nocturno: 1 problema en los datos');
+		const more = integrityReviewRow({
+			ranAt: 0,
+			count: 60,
+			problems: [{ code: 'orphan', objectId: 1 }]
+		});
+		expect(more?.kind === 'group' ? more.items.at(-1)?.name : '').toBe(
+			'y 59 problemas más (ver los logs del cron)'
+		);
+	});
+
+	it('sin problemas o sin corridas: nada', () => {
+		expect(integrityReviewRow({ ranAt: 0, count: 0, problems: [] })).toBeNull();
+		expect(integrityReviewRow(null)).toBeNull();
+	});
+
+	it('integrityRun: null sin base, sin corridas o sin la migración 0012 (no tira error)', async () => {
+		expect(await integrityRun(null)).toBeNull();
+		expect(await integrityRun(t.db)).toBeNull();
+		const bare = await createTestDB({ migrate: false });
+		try {
+			expect(await integrityRun(bare.db)).toBeNull();
+		} finally {
+			await bare.dispose();
+		}
+	}, 30_000);
+
+	it('integrityRun: la última corrida guardada', async () => {
+		const { recordIntegrityRun } = await import('$lib/server/objects/integrity.js');
+		await recordIntegrityRun(t.db, [{ code: 'orphan', message: 'x', objectId: 3 }], 5000);
+		expect(await integrityRun(t.db)).toEqual({
+			ranAt: 5000,
+			count: 1,
+			problems: [{ code: 'orphan', objectId: 3 }]
+		});
 	});
 });

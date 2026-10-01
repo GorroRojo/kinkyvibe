@@ -12,9 +12,14 @@ import { orderReference } from '$lib/utils/tickets.js';
 import {
 	describeReminder,
 	dueReminderOrders,
+	failedReminderCounts,
 	reminderDueAt,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
+import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
+import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
+import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
+import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -282,6 +287,37 @@ export function failedReminders(db, { events, reminders, now }) {
 }
 
 /**
+ * Envíos masivos que se rindieron (fallaron todos sus intentos; ver tickets/sendState.js), por
+ * evento: recordatorios y link de la transmisión (el actual). No se reintentan solos.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string[]} slugs
+ * @returns {Promise<{ reminders: Map<string, number>, streamLinks: Map<string, number> }>}
+ */
+export function stuckSends(db, slugs) {
+	return safe(
+		db,
+		'envíos fallidos',
+		{ reminders: new Map(), streamLinks: new Map() },
+		async (db) => ({
+			reminders: await failedReminderCounts(db, slugs),
+			streamLinks: await failedStreamLinkCounts(db, slugs)
+		})
+	);
+}
+
+/**
+ * La última corrida del chequeo nocturno de integridad de los objetos (null si no hubo ninguna
+ * o si la base todavía no tiene la migración 0012).
+ *
+ * @param {D1Database | null | undefined} db
+ * @returns {Promise<import('$lib/server/objects/integrity.js').IntegrityRun | null>}
+ */
+export function integrityRun(db) {
+	return safe(db, 'chequeo nocturno', null, lastIntegrityRun);
+}
+
+/**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
  * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo en entradas
  * (aportes − lo que cubrió).
@@ -313,16 +349,37 @@ export function monthMoney(db, now) {
 }
 
 /**
+ * `kind: 'account'`: una cuenta o un perfil nuevos (no lo hizo une admin; ver accountEvents.js).
+ * `href`: a dónde lleva el ítem, si no sale de `slug`/`orderId` (cuentas y perfiles).
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account',
  *   title: string,
  *   who: string,
  *   detail: string,
  *   slug: string | null,
- *   orderId: string | null
+ *   orderId: string | null,
+ *   href?: string | null
  * }} ActivityItem
  */
+
+/** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
+const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
+	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
+	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón'
+});
+
+/**
+ * A dónde lleva una entrada del registro que apunta a una cuenta o a un perfil.
+ * @param {unknown} type
+ * @param {unknown} id
+ */
+function auditTargetHref(type, id) {
+	if (!id) return null;
+	if (type === 'account') return accountHref(String(id));
+	if (type === 'profile') return profileHref(String(id));
+	return null;
+}
 
 const ORDER_KIND = /** @type {const} */ ({
 	approved: 'order',
@@ -402,14 +459,16 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 		});
 	}
 	for (const a of audit) {
+		const accountEvent = ACCOUNT_EVENT_WHO[String(a.action)];
 		items.push({
 			at: Number(a.at),
-			kind: 'audit',
+			kind: accountEvent ? 'account' : 'audit',
 			title: String(a.summary),
-			who: String(a.actor_login),
-			detail: String(a.action),
+			who: accountEvent ?? String(a.actor_login),
+			detail: accountEvent ? '' : String(a.action),
 			slug: a.target_type === 'event' && a.target_id ? String(a.target_id) : null,
-			orderId: null
+			orderId: null,
+			href: auditTargetHref(a.target_type, a.target_id)
 		});
 	}
 	for (const c of checkins) {
@@ -436,7 +495,8 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 
 /**
  * Resumen de "desde tu última visita": cuántas compras, transferencias nuevas y acciones de
- * otres admins hubo desde `since`, más la lista de movimientos.
+ * otres admins hubo desde `since`, más la lista de movimientos. Las cuentas y los perfiles nuevos
+ * van en la lista pero no cuentan como acciones de admins.
  *
  * @param {D1Database | null | undefined} db
  * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
@@ -449,9 +509,9 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
 					(SELECT COUNT(*) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS orders,
 					(SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS money,
 					(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND created_at > ?1) AS transfers,
-					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2) AS audit`
+					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit`
 			)
-			.bind(since, login)
+			.bind(since, login, ACCOUNT_EVENT_ACTOR)
 			.first();
 		return {
 			orders: Number(row?.orders ?? 0),
@@ -490,6 +550,8 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review: number,
  *   missingStream: boolean,
  *   failedReminders: number,
+ *   stuckReminders: number,
+ *   stuckStreamLinks: number,
  *   checkedIn: number,
  *   issued: number
  * }} UpcomingEvent
@@ -509,6 +571,7 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
  *   review?: { slug: string }[],
  *   streamLinks?: Set<string>,
  *   reminders?: Map<string, number>,
+ *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
  *   now: number,
  *   skip?: (slug: string) => boolean
  * }} input
@@ -523,6 +586,7 @@ export function upcomingEvents({
 	review = [],
 	streamLinks = new Set(),
 	reminders = new Map(),
+	stuck = { reminders: new Map(), streamLinks: new Map() },
 	now,
 	skip = () => false
 }) {
@@ -587,6 +651,8 @@ export function upcomingEvents({
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
 			failedReminders: reminders.get(e.slug) ?? 0,
+			stuckReminders: stuck.reminders.get(e.slug) ?? 0,
+			stuckStreamLinks: stuck.streamLinks.get(e.slug) ?? 0,
 			checkedIn: ci?.checkedIn ?? 0,
 			issued: ci?.tickets ?? 0
 		});
@@ -606,15 +672,40 @@ export function upcomingEvents({
  *   href?: string,
  *   resend?: { orderId: string },
  *   group?: ReviewGroupKind,
- *   name?: string
+ *   name?: string,
+ *   retryReminders?: { slug: string }
  * }} ReviewItem
  */
 
 /**
- * Tipos de ítem de "Para revisar" que son higiene de contenido (no plata, entradas ni gente):
- * si hay varios del mismo tipo se muestran en una sola fila (ver `groupReviewItems`).
- * @typedef {'image' | 'draft'} ReviewGroupKind
+ * Tipos de ítem de "Para revisar" que se juntan si hay varios: la higiene de contenido (sin
+ * imagen, borradores) y los perfiles nuevos de cuentas (ver `groupReviewItems`).
+ * @typedef {'image' | 'draft' | 'profile'} ReviewGroupKind
  */
+
+/**
+ * "Para revisar": un ítem por cada perfil creado por una cuenta que ninguna admin revisó todavía
+ * (`profilesToReview` en cuentas.js). Queda hasta que une admin lo marca como revisado, lo oculta
+ * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
+ * Cuentas → Perfiles filtrado.
+ *
+ * @param {{ id: number, title: string, kind: 'persona' | 'grupo', createdAt: number }[]} profiles
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewItem[]}
+ */
+export function profileReviewItems(profiles, { formatWhen } = {}) {
+	return profiles.map((p) => ({
+		id: `profile-${p.id}`,
+		tone: 'info',
+		icon: 'profile',
+		title: `Perfil nuevo: ${p.title}`,
+		text: `${p.kind === 'grupo' ? 'Grupo' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		action: 'Revisar',
+		href: profileHref(p.id),
+		group: 'profile',
+		name: p.title
+	}));
+}
 
 /**
  * "Para revisar" (Q14: todo lo de la propuesta): cada ítem con su acción.
@@ -713,6 +804,28 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				href: links.order(e.slug)
 			});
 		}
+		if (e.stuckReminders) {
+			items.push({
+				id: `reminder-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'bell',
+				title: `Recordatorios que fallaron: ${e.title}`,
+				text: `${plural(e.stuckReminders, 'orden', 'órdenes')} sin su recordatorio después de varios intentos (ver logs); ya no se reintenta solo`,
+				action: 'Reintentar',
+				retryReminders: { slug: e.slug }
+			});
+		}
+		if (e.stuckStreamLinks) {
+			items.push({
+				id: `stream-failed-${e.slug}`,
+				tone: 'bad',
+				icon: 'link',
+				title: `El link de la transmisión no le llegó a todes: ${e.title}`,
+				text: `${plural(e.stuckStreamLinks, 'orden', 'órdenes')} sin el link después de varios intentos (ver logs); "Enviar el link a todes" lo reintenta`,
+				action: 'Ver link',
+				href: links.stream(e.slug)
+			});
+		}
 	}
 	// Los borradores también: así la cuenta coincide con el filtro "Sin imagen" de Eventos.
 	for (const e of upcoming) {
@@ -753,7 +866,7 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
  * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.
  * @typedef {{
  *   id: string,
- *   tone: 'info',
+ *   tone: 'info' | 'bad',
  *   icon: string,
  *   title: string,
  *   text: string,
@@ -772,7 +885,7 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
  * Conserva el orden: los grupos van donde estaba su primer ítem.
  *
  * @param {ReviewItem[]} items
- * @param {{ links: { noImage: string }, min?: number }} opts
+ * @param {{ links: { noImage: string, profiles?: string }, min?: number }} opts
  * @returns {ReviewRow[]}
  */
 export function groupReviewItems(items, { links, min = 2 }) {
@@ -804,6 +917,16 @@ export function groupReviewItems(items, { links, min = 2 }) {
 			text: 'Eventos próximos que no aparecen en el calendario',
 			action: 'Ver',
 			items: list
+		}),
+		profile: (list) => ({
+			id: 'group-profile',
+			tone: 'info',
+			icon: 'profile',
+			title: plural(list.length, 'perfil nuevo para revisar', 'perfiles nuevos para revisar'),
+			text: 'Creados desde Mi rincón; quedan acá hasta que los marques como revisados',
+			action: 'Ver',
+			href: links.profiles ?? PROFILES_TO_REVIEW_HREF,
+			items: list
 		})
 	};
 	/** @type {ReviewRow[]} */
@@ -820,6 +943,67 @@ export function groupReviewItems(items, { links, min = 2 }) {
 		}
 	}
 	return rows;
+}
+
+/**
+ * "Para revisar": una sola fila con lo que encontró el último chequeo nocturno de integridad de
+ * los objetos (se despliega con cada problema: código y slug). Nada si la última corrida salió
+ * bien o si no hubo ninguna.
+ *
+ * @param {import('$lib/server/objects/integrity.js').IntegrityRun | null} run
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewRow | null}
+ */
+export function integrityReviewRow(run, { formatWhen } = {}) {
+	if (!run || run.count <= 0) return null;
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** @type {Map<string, number>} */
+	const byCode = new Map();
+	for (const p of run.problems) byCode.set(p.code, (byCode.get(p.code) ?? 0) + 1);
+	const codes = [...byCode].map(([code, n]) => (n > 1 ? `${code} ×${n}` : code)).join(', ');
+	/** @type {ReviewItem[]} */
+	const items = run.problems.map((p, i) => {
+		const where =
+			p.slug ??
+			(p.objectId !== undefined
+				? `objeto ${p.objectId}`
+				: p.edgeId !== undefined
+					? `relación ${p.edgeId}`
+					: (p.type ?? ''));
+		return {
+			id: `integrity-${i}`,
+			tone: 'bad',
+			icon: 'alert',
+			title: p.code,
+			text: '',
+			action: '',
+			name: where ? `${p.code} · ${where}` : p.code
+		};
+	});
+	const hidden = run.count - run.problems.length;
+	if (hidden > 0) {
+		items.push({
+			id: 'integrity-more',
+			tone: 'bad',
+			icon: 'alert',
+			title: 'más',
+			text: '',
+			action: '',
+			name: `y ${plural(hidden, 'problema más', 'problemas más')} (ver los logs del cron)`
+		});
+	}
+	const when = formatWhen ? ` · revisado ${formatWhen(run.ranAt)}` : '';
+	return {
+		kind: 'group',
+		id: 'group-integrity',
+		tone: 'bad',
+		icon: 'alert',
+		title: `Chequeo nocturno: ${plural(run.count, 'problema', 'problemas')} en los datos`,
+		text: `${codes || 'sin detalle'}${when}. No se arregla solo.`,
+		action: 'Ver',
+		items
+	};
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';

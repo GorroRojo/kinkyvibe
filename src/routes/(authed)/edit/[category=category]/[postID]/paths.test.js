@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { actions, load } from './+page.server.js';
+import { load } from './+page.server.js';
+import { utf8ToBase64 } from '$lib/utils/base64.js';
+
+// The pickers' data (tag usage, profiles, authors) is not what these tests are about.
+vi.mock('$lib/server/admin/content.js', () => ({
+	editorData: async () => ({ tagUsage: {}, profiles: [], authorUsage: {} })
+}));
 
 const locals = {
 	user: { id: 4594048, login: 'GorroRojo', name: null, avatar_url: '' },
@@ -39,53 +45,54 @@ describe('post editor input validation', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('the load action validates category and path too', async () => {
-		const fetchMock = vi.fn();
-		vi.stubGlobal('fetch', fetchMock);
-		for (const [category, path] of [
-			['calendario', '../../../x'],
-			['../..', 'x'],
-			[null, 'x'],
-			['calendario', null]
-		]) {
-			const body = new FormData();
-			if (category !== null) body.set('category', category);
-			if (path !== null) body.set('path', path);
-			const request = new Request('https://kinkyvibe.ar/edit/calendario/x?/load', {
-				method: 'POST',
-				body
-			});
-			const r = await actions.load(/** @type {any} */ ({ locals, url, request }));
-			expect(r?.status).toBe(400);
-		}
-		expect(fetchMock).not.toHaveBeenCalled();
-	});
-
-	it('a valid post is fetched from the site repo', async () => {
+	it('a valid post is fetched from the site repo and decoded as UTF-8', async () => {
 		// The editor reads the newest saved version: first the open content PRs (none here), then
 		// the file on main.
+		const text = '---\ntitle: Año 🏙️\n---\n\nñandú y amigues 🎉\n';
 		const fetchMock = vi.fn(async (/** @type {string} */ u) =>
 			u.includes('/pulls?')
 				? new Response('[]')
 				: new Response(
-						JSON.stringify({ type: 'file', content: btoa('hola'), encoding: 'base64', sha: 's' })
+						JSON.stringify({ type: 'file', content: utf8ToBase64(text), encoding: 'base64', sha: 's' })
 					)
 		);
 		vi.stubGlobal('fetch', fetchMock);
-		const body = new FormData();
-		body.set('category', 'calendario');
-		body.set('path', 'fiesta');
-		const request = new Request('https://kinkyvibe.ar/edit/calendario/x?/load', {
-			method: 'POST',
-			body
-		});
 		const r = /** @type {any} */ (
-			await actions.load(/** @type {any} */ ({ locals, url, request }))
+			await load(
+				/** @type {any} */ ({
+					locals,
+					url: new URL('https://kinkyvibe.ar/edit/material/fiesta'),
+					params: { category: 'material', postID: 'fiesta' }
+				})
+			)
 		);
-		expect(r.post.raw).toBe('hola');
+		expect(r.post.raw).toBe(text);
 		expect(r.post.sha).toBe('s');
 		expect(fetchMock.mock.calls.map((c) => /** @type {any} */ (c)[0])).toContain(
-			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/calendario/fiesta.md?ref=main'
+			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/material/fiesta.md?ref=main'
 		);
+	});
+
+	it('a file GitHub sends without base64 content (over 1 MB) is an error, not an empty post', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (/** @type {string} */ u) =>
+				u.includes('/pulls?')
+					? new Response('[]')
+					: new Response(
+							JSON.stringify({ type: 'file', content: '', encoding: 'none', sha: 's' })
+						)
+			)
+		);
+		const e = await rejection(() =>
+			load(
+				/** @type {any} */ ({
+					locals,
+					url: new URL('https://kinkyvibe.ar/edit/material/fiesta'),
+					params: { category: 'material', postID: 'fiesta' }
+				})
+			)
+		);
+		expect(e.status).toBe(502);
 	});
 });
