@@ -523,12 +523,12 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			3
 		);
 
-		// Pay what you want with a recommended minimum (#135).
+		// Pay what you want with a minimum (the recommended minimum was removed in #150).
 		const talk = data.events.find((e) => e.series === 'charla-consentimiento');
 		const talkConfig = /** @type {any} */ (
 			parseTicketConfig(parse(splitMarkdown(eventMarkdown(/** @type {any} */ (talk))).frontmatter))
 		);
-		expect(talkConfig.types[0].gorra).toEqual({ min: 1000, recommended: 3000, suggested: 4000 });
+		expect(talkConfig.types[0].gorra).toEqual({ min: 1000, suggested: 4000 });
 
 		// Tips: invented, on real posts and tonight's party.
 		expect(await count(`tips WHERE mp_preference_id = '${SEED_BY}'`)).toBe(7);
