@@ -42,9 +42,13 @@ const VENUE_TAGS = [
 	'club',
 	'venue'
 ];
-/** Algo que parece una dirección: una calle con número. */
-const ADDRESS =
-	/\b(calle|av\.?|avenida|pasaje|ruta)\s+[\p{L} .]+\s\d{1,5}\b|\b[\p{Lu}][\p{L}]+\s\d{2,5}\b,/u;
+/**
+ * Algo que parece una dirección: una calle con número. Las palabras y los espacios van en grupos
+ * que no se pisan (`(?:\s+palabra)+`): con `\s+[\p{L} .]+\s` un texto largo de espacios hacía
+ * que la expresión tardara tiempo cuadrático (ReDoS).
+ */
+export const ADDRESS =
+	/\b(?:calle|av\.?|avenida|pasaje|ruta)(?:\s+[\p{L}.]+)+\s+\d{1,5}\b|\b\p{Lu}\p{L}+\s\d{2,5}\b,/u;
 /** Pronombres en plural (el primer juego del link de pronombr.es, o el texto). */
 const PLURAL_PRONOUNS = new Set(['elles', 'ellos', 'ellas', 'ellxs', 'elloas', 'ellos/ellas']);
 

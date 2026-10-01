@@ -89,7 +89,7 @@ export function splitMarkdown(raw) {
  * @param {string} body
  */
 export function normalizeBody(body) {
-	return body.replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '');
+	return body.replace(/^(?:[ \t]*\n)+/, '').trimEnd();
 }
 
 /**
