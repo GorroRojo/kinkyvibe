@@ -197,6 +197,59 @@ perfiles**, de dos tipos:
 No hay "nombre para mostrar" aparte (E1): el nombre del perfil es el `title` del objeto. Los
 lugares (B3) pueden sumarse más adelante como otro tipo de perfil; nada de esto lo impide.
 
+### Permiso para tener perfiles (apagado por defecto)
+
+Decisión de gorrite: **crear y gestionar perfiles no es para cualquier cuenta**. Cada cuenta tiene
+el permiso "puede tener perfiles" (`accounts.can_have_profiles`, migración
+`0015_permiso_perfiles.sql`), **apagado** al crearse. Lo prenden o apagan **solo les admins**,
+desde el panel (Cuentas → la ficha de la cuenta → "Darle el permiso"), y cada cambio queda en
+Actividad (`account.profiles_permission`, sin el mail). Va en una columna propia y no en
+`preferences` porque eso lo puede cambiar la persona.
+
+Sin el permiso, la cuenta **no ve nada de perfiles**:
+
+- en Mi rincón no aparece la tarjeta "Tus perfiles" (ni la frase de perfiles al borrar la cuenta);
+- `/mi-rincon/perfiles` y `/mi-rincon/perfiles/[slug]`, con sus actions, dan **404**
+  (`requireMember` de `perfilesWeb.js`, la entrada de todas esas páginas);
+- además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
+  acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
+  antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
+- las **invitaciones** (a gestionar un grupo o a ser integrante) no se le muestran ni las puede
+  aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
+  responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
+  pendiente como cualquier otra: no se entera de si la cuenta tiene el permiso. La invitación
+  queda guardada (y vence sola); si la cuenta recibe el permiso antes de que venza, la ve.
+
+Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
+Les admins los siguen viendo en el panel. Si une dueñe de un grupo pierde el permiso, sigue
+contando como dueñe (el grupo no queda sin dueñe en los datos), pero no lo puede gestionar.
+Al borrar una cuenta el permiso vuelve a 0.
+
+**Datos que ya estaban:** al aplicar la migración, todas las cuentas quedan sin permiso (también
+la que ya tenía un perfil en producción): esa cuenta deja de ver su perfil hasta que une admin le
+dé el permiso. El perfil sigue entero y se ve en el panel.
+
+### En el panel
+
+- **Cuentas** (`/admin/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
+  crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
+  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/cuentas/[id]`)
+  muestra sus perfiles y el botón del permiso.
+- **Perfiles** (`/admin/cuentas/perfiles`): todos los perfiles, también ocultos y borrados (persona
+  o grupo, nombre, dirección, visibilidad, creado, quiénes lo gestionan), con búsqueda y filtros
+  (para revisar, ocultos, borrados). En la ficha (`/admin/cuentas/perfiles/[id]`): marcar como
+  revisado, **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()`
+  con la versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada).
+- **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/grupo)" aparecen en la
+  actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
+  la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
+  (`src/lib/server/admin/accountEvents.js`), sin mails ni ids de cuenta en el texto.
+- **Para revisar:** cada perfil creado por una cuenta queda en "Para revisar" del Inicio (y en el
+  contador del menú, en Perfiles) hasta que une admin lo marca como revisado, lo oculta o lo
+  borra. No hay columna nueva: la marca es la entrada de Actividad de esa acción
+  (`profile.review`, `profile.hide` o `profile.delete`). Si son varios, van en una sola fila que
+  lleva a Perfiles filtrado.
+
 **Todavía no hay página pública de perfiles.** Los perfiles de amigues siguen siendo archivos
 `.md` y no se tocan. `getPublicProfile()` ya arma lo que mostraría esa página (lista blanca de
 campos), pero nadie la usa todavía.
@@ -338,6 +391,11 @@ campos), pero nadie la usa todavía.
 
 ### Probarlo
 
+- `npx vitest run src/lib/server/cuentas/permisoPerfiles.test.js "src/routes/(authed)/admin/cuentas"`:
+  el permiso apagado por defecto; sin él, 404 en todas las páginas y actions de perfiles, Mi rincón
+  sin la tarjeta, invitaciones invisibles e inusables y la misma respuesta para quien invita; el
+  panel (solo admins, el permiso y su registro, ocultar y borrar por `saveObject()`, "Para
+  revisar" y la actividad).
 - `npx vitest run src/lib/server/cuentas/perfiles.test.js "src/routes/(content)/mi-rincon/perfiles"`:
   migración y foreign keys, permisos, le última dueñe, el aviso de conflicto, invitaciones que no
   revelan cuentas (tampoco con el aviso por mail) y sus límites, integrantes (invitar, aceptar,
@@ -356,6 +414,8 @@ campos), pero nadie la usa todavía.
   `mi-rincon/perfiles/`).
 - Perfiles: `src/lib/server/cuentas/perfiles.js` (reglas), `perfilesWeb.js` (formularios y
   sesión), tipo `src/lib/server/objects/types/perfil.js`, textos en `src/lib/utils/perfiles.js`.
+- Permiso: `canHaveProfiles()` en `accounts.js`. Panel: `src/routes/(authed)/admin/cuentas/`,
+  lógica en `src/lib/server/admin/cuentas.js`, novedades en `src/lib/server/admin/accountEvents.js`.
 - Link del encabezado: `accountLink` en `src/lib/utils/cuentas.js`, usado en
   `src/routes/(content)/+layout.svelte`.
 

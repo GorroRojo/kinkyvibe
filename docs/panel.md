@@ -35,10 +35,11 @@ buscador salen de ahí).
 
 | Grupo     | Sección (URL)                                                  | Para qué                                                                                                                                                                           |
 | --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —         | Inicio (`/admin`)                                              | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                 |
+| —         | Inicio (`/admin`)                                              | próximos eventos, para revisar (también perfiles nuevos de cuentas), plata del mes, actividad (también cuentas y perfiles nuevos), "desde tu última visita"                        |
 | Eventos   | Eventos, Cargar evento, Agenda (+ Importar planilla), Check-in | lista y ficha de cada evento (Resumen, Ventas, Órdenes, Transferencias, Códigos, Mail, Editar); modo puerta                                                                        |
 | Entradas  | Ventas, Transferencias, Códigos, Personas, Estadísticas        | ventas de todos los eventos, bandeja de transferencias, códigos de descuento, quienes compraron (con notas), gráficos                                                              |
 | Contenido | Material, Amigues, Etiquetas, No listadas                      | editores de contenido ([contenido.md](contenido.md))                                                                                                                               |
+| Cuentas   | Cuentas, Perfiles                                              | cuentas del público (búsqueda por mail, ficha con sus perfiles y el permiso "puede tener perfiles") y todos los perfiles (revisar, ocultar, borrar) ([cuentas.md](cuentas.md))     |
 | Ajustes   | Cobros, Fondo, Mails y plantillas, Admins, Actividad           | datos para transferir y comisión de MP, % del Fondo, remitente, recordatorios y plantillas ([mails.md](mails.md)), lista de admins (solo lectura), registro de actividad (con CSV) |
 
 ## Dónde está el código
@@ -78,7 +79,13 @@ muestra.
 **Ver quién hizo algo.** Ajustes → Actividad (filtros y CSV).
 
 **Algo "para revisar".** Aparece en Inicio, en Ventas y en la ficha del evento (pago tarde que
-pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo.
+pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Los perfiles
+nuevos de cuentas aparecen en Inicio y en el contador de Cuentas → Perfiles hasta que se marcan
+como revisados (o se ocultan o borran) desde su ficha.
+
+**Dejar que una cuenta tenga perfiles.** Cuentas → buscar el mail → la ficha → "Darle el
+permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
+([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
 
 ## Lo que viene
 
