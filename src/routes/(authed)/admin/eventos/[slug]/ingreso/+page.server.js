@@ -40,26 +40,24 @@ import {
 	remainingOf
 } from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
-import { eventSeries } from '$lib/server/tickets/series.js';
-import { getEventMeta } from '$lib/server/tickets/events.js';
-import { NO_STORE, cachedPrior, doorContext } from './context.server.js';
+import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './context.server.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	const admin = requireAdmin(event.locals, event.url);
 	event.setHeaders(NO_STORE);
 	const { db, config } = await doorContext(event, { fondo: true });
-	const [counts, sales, meta] = await Promise.all([
+	const [counts, sales, series] = await Promise.all([
 		doorCounts(db, event.params.slug),
 		getCounts(db, event.params.slug),
-		getEventMeta(event.params.slug)
+		doorSeriesLabel(event.params.slug)
 	]);
 	return {
 		bare: true,
 		slug: event.params.slug,
 		title: config.title,
 		start: config.start ?? null,
-		series: eventSeries(event.params.slug, meta).label,
+		series,
 		login: admin.login,
 		counts,
 		fondoEnabled: config.fondoEnabled,
