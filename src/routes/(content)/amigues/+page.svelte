@@ -5,11 +5,12 @@
 	import Tag from '$lib/components/Tag.svelte';
 	export let data;
 	import PostList from '$lib/components/PostList.svelte';
+	import KindFilter from '$lib/components/amigues/KindFilter.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores.js';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
-	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe','AUCH'];
+	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe', 'AUCH'];
 	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
 		.sort((a, b) => {
@@ -23,6 +24,12 @@
 		});
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
+	// Con los perfiles de la base (interruptor `perfiles_publicos`): filtro por tipo (`?tipo=`).
+	$: tipo = data.kinds ? ($page.url.searchParams.get('tipo') ?? '') : '';
+	$: shownPosts =
+		tipo && data.kinds && tipo in data.kinds
+			? amiguesPosts.filter((p) => p.meta.kind === tipo)
+			: amiguesPosts;
 </script>
 
 <svelte:head>
@@ -106,7 +113,13 @@
 	</dl>
 </div>
 
-<PostList posts={amiguesPosts} />
+{#if data.kinds}
+	<KindFilter kinds={data.kinds} current={tipo} />
+{/if}
+
+{#key tipo}
+	<PostList posts={shownPosts} />
+{/key}
 
 <style lang="scss">
 	.glosario {

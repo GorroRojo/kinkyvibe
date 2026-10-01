@@ -13,7 +13,7 @@ import {
 	parseMailBatchSize
 } from './batchSize.js';
 import { runMailQueueWith } from './mailQueue.js';
-import { applyPayment, reserveOrder } from './orders.js';
+import { applyPayment, issueTicketsStatements, reserveOrder } from './orders.js';
 import {
 	DEFAULT_REMINDERS,
 	failedReminderCounts,
@@ -54,43 +54,90 @@ const NOW = START - 47 * H;
 const LINK = 'https://meet.example.com/sala-de-prueba';
 
 /**
- * `n` órdenes aprobadas, compradas hace 10 días.
+ * Una orden aprobada hecha con el flujo de compra de verdad (reserveOrder + applyPayment), una vez
+ * por archivo: la plantilla de las órdenes de las pruebas. Ver `orders`.
  *
- * @param {number} n
- * @param {string} [slug]
+ * @type {Record<string, unknown>}
  */
-async function orders(n, slug = SLUG) {
-	const out = [];
-	for (let i = 0; i < n; i++) {
-		const createdAt = START - 10 * 24 * H + i * 1000;
-		const r = /** @type {any} */ (
-			await reserveOrder(t.db, {
-				eventSlug: slug,
-				type: { id: 'general', price: 1000, capacity: 500 },
-				quantity: 1,
-				holders: [{ name: `Persona ${i}`, pronouns: 'elle' }],
-				buyer: {
-					name: `Persona ${i}`,
-					pronouns: 'elle',
-					email: `persona${i}@example.com`,
-					dni: '30111222'
-				},
-				now: createdAt
-			})
-		);
+let template;
+beforeAll(async () => {
+	await resetDB(t.db);
+	const createdAt = START - 10 * 24 * H;
+	const holders = [{ name: 'Persona plantilla', pronouns: 'elle' }];
+	const r = /** @type {any} */ (
+		await reserveOrder(t.db, {
+			eventSlug: SLUG,
+			type: { id: 'general', price: 1000, capacity: 500 },
+			quantity: 1,
+			holders,
+			buyer: {
+				name: 'Persona plantilla',
+				pronouns: 'elle',
+				email: 'plantilla@example.com',
+				dni: '30111222'
+			},
+			now: createdAt
+		})
+	);
+	const paid = /** @type {any} */ (
 		await applyPayment(
 			t.db,
 			{
-				id: 5000 + i + (slug === SLUG ? 0 : 1000),
+				id: 4999,
 				status: 'approved',
 				external_reference: r.order.id,
 				transaction_amount: 1000,
 				currency_id: 'ARS'
 			},
 			{ now: createdAt }
+		)
+	);
+	expect(paid.order).toMatchObject({ status: 'approved', mp_payment_id: '4999' });
+	expect(paid.tickets).toHaveLength(1);
+	// applyPayment borra `holders` al emitir las entradas; la plantilla los conserva.
+	template = { ...paid.order, holders: JSON.stringify(holders) };
+});
+
+/**
+ * `n` órdenes aprobadas, compradas hace 10 días: copias de la plantilla (columnas y valores que
+ * deja el flujo de compra de verdad) con sus entradas emitidas por `issueTicketsStatements`, en un
+ * solo batch. Hacer cada compra con reserveOrder + applyPayment son ~10 consultas por orden contra
+ * el D1 de miniflare; con la máquina cargada eso solo ya pasaba los 5 s del test.
+ *
+ * @param {number} n
+ * @param {string} [slug]
+ */
+async function orders(n, slug = SLUG) {
+	const out = [];
+	/** @type {import('@cloudflare/workers-types').D1PreparedStatement[]} */
+	const statements = [];
+	for (let i = 0; i < n; i++) {
+		const createdAt = START - 10 * 24 * H + i * 1000;
+		/** @type {Record<string, unknown>} */
+		const row = {
+			...template,
+			id: crypto.randomUUID(),
+			event_slug: slug,
+			buyer_name: `Persona ${i}`,
+			buyer_email: `persona${i}@example.com`,
+			holders: JSON.stringify([{ name: `Persona ${i}`, pronouns: 'elle' }]),
+			created_at: createdAt,
+			updated_at: createdAt,
+			expires_at: createdAt + Number(template.expires_at) - Number(template.created_at),
+			mp_payment_id: String(5000 + i + (slug === SLUG ? 0 : 1000))
+		};
+		const cols = Object.keys(row);
+		statements.push(
+			t.db
+				.prepare(
+					`INSERT INTO orders (${cols.join(', ')}) VALUES (${cols.map((_, j) => `?${j + 1}`).join(', ')})`
+				)
+				.bind(...cols.map((c) => row[c] ?? null)),
+			...issueTicketsStatements(t.db, /** @type {any} */ (row))
 		);
-		out.push(r.order);
+		out.push(row);
 	}
+	await t.db.batch(statements);
 	return out;
 }
 

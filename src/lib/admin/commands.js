@@ -57,6 +57,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'eventos-nuevo': 'nuevo crear evento cargar duplicar',
 	'eventos-importar': 'importar planilla excel sheet',
 	'eventos-agenda': 'agenda planilla tabla',
+	'eventos-lugares': 'lugares direccion mapa venue espacio donde',
 	checkin: 'check-in ingreso puerta qr escanear',
 	entradas: 'ventas entradas plata recaudado',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
@@ -71,7 +72,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	cuentas: 'cuentas usuaries publico registradas',
-	'cuentas-perfiles': 'perfiles cuentas revisar grupos',
+	'cuentas-perfiles': 'perfiles cuentas revisar proyectos',
 	actividad: 'actividad registro auditoria historial quien cambio'
 });
 
@@ -82,6 +83,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'eventos-nuevo': 'calendar-plus',
 	'eventos-importar': 'sheet',
 	'eventos-agenda': 'calendar',
+	'eventos-lugares': 'map-pin',
 	checkin: 'scan',
 	entradas: 'wallet',
 	'entradas-transferencias': 'transfer',

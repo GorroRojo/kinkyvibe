@@ -10,6 +10,7 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { siteOrigin, streamLinkFor } from '$lib/server/tickets/index.js';
 import { checkIn, getTicketByToken, isValidToken } from '$lib/server/tickets/orders.js';
 import { qrSvg } from '$lib/server/tickets/qr.js';
+import { buyerLocation } from '$lib/server/amigues/venues.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, url, locals }) {
@@ -21,6 +22,9 @@ export async function load({ params, platform, url, locals }) {
 	const config = await getEventTickets(ticket.event_slug);
 	const online = Boolean(config?.online);
 	const valid = ticket.order_status === 'approved';
+	// Con la compra aprobada, el lugar completo (aunque en el sitio no se muestre la dirección).
+	const venue = valid && !online ? await buyerLocation(db, ticket.event_slug) : null;
+	const place = venue ?? config;
 	return {
 		// Nombre y pronombres, nunca el DNI (esta página la ve cualquiera que tenga el QR).
 		ticket: {
@@ -45,7 +49,7 @@ export async function load({ params, platform, url, locals }) {
 			when: formatEventDate(config?.start),
 			where: online
 				? 'Online'
-				: [config?.location_name, config?.location].filter(Boolean).join(' · '),
+				: [place?.location_name, place?.location].filter(Boolean).join(' · '),
 			online
 		},
 		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.

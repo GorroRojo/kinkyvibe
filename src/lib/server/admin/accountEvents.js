@@ -10,6 +10,7 @@
  *
  * Nunca tira ni frena lo que la llama (como `logAdminAction`).
  */
+import { profileKindOf } from '../objects/types/perfil.js';
 import { logAdminAction } from './audit.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -54,7 +55,7 @@ export function logAccountCreated(db, accountId, { now = Date.now() } = {}) {
  * @param {{ now?: number }} [opts]
  */
 export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
-	const kind = profile.kind === 'grupo' ? 'grupo' : 'persona';
+	const kind = profileKindOf(profile);
 	return logAdminAction(
 		db,
 		actor,
