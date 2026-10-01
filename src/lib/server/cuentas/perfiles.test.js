@@ -361,10 +361,13 @@ describe('invitaciones a gestionar', () => {
 		expect(withAccount).toEqual({ ok: true, message: MESSAGES.invited });
 		expect(without).toEqual(withAccount);
 		expect(already).toEqual(withAccount);
-		// La lista de quien invita tampoco lo revela: tres invitaciones iguales, sin mail.
+		// La lista de quien invita tampoco lo revela: tres invitaciones iguales, sin el mail
+		// invitado (solo quién invitó, que es otre dueñe).
 		const list = ok(await listManagers(t.db, a.id, g.slug, opts));
 		expect(list.invites).toHaveLength(3);
-		expect(JSON.stringify(list.invites)).not.toMatch(/example\.com/);
+		expect(list.invites.map((i) => i.invitedBy)).toEqual([a.email, a.email, a.email]);
+		const listed = JSON.stringify(list.invites);
+		for (const email of [b.email, 'nadie@example.com']) expect(listed).not.toContain(email);
 
 		expect(await myInvites(t.db, c.id, opts)).toEqual([]);
 		const [inv] = await myInvites(t.db, b.id, opts);
@@ -590,6 +593,57 @@ describe('aviso por mail de las invitaciones', () => {
 		expect(await fake.settle()).toEqual(['limited']);
 		expect(fake.sent).toEqual([]);
 		expect(await myInvites(t.db, b.id, opts)).toHaveLength(1);
+	});
+});
+
+describe('invitaciones de quien deja de ser dueñe', () => {
+	/**
+	 * Grupo de `a` con `b` como dueñe también, y una invitación pendiente de cada une.
+	 */
+	async function setup() {
+		const a = await account('dueñe-inventade');
+		const b = await account('otre-dueñe-inventade');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		ok(await inviteManager(t.db, a.id, g.slug, b.email, opts));
+		ok(await answerInvite(t.db, b.id, (await myInvites(t.db, b.id, opts))[0].id, true, opts));
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'owner'));
+		ok(await inviteManager(t.db, a.id, g.slug, 'de-a@example.com', opts));
+		ok(await inviteManager(t.db, b.id, g.slug, 'de-b@example.com', opts));
+		/** @param {string} id */
+		const pendingBy = (id) =>
+			count('SELECT COUNT(*) AS n FROM profile_invites WHERE invited_by = ?1', [id]);
+		return { a, b, g, pendingBy };
+	}
+
+	it('sacarle la propiedad borra sus invitaciones; las de otres quedan', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager'));
+		expect(await pendingBy(b.id)).toBe(0);
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('sacarle de la gestión borra sus invitaciones', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await removeManager(t.db, a.id, g.slug, b.id));
+		expect(await pendingBy(b.id)).toBe(0);
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('si el cambio no se hace (le última dueñe), sus invitaciones quedan', async () => {
+		const { a, b, g, pendingBy } = await setup();
+		ok(await removeManager(t.db, a.id, g.slug, b.id));
+		expect(await setManagerRole(t.db, a.id, g.slug, a.id, 'manager')).toMatchObject({
+			ok: false
+		});
+		expect(await pendingBy(a.id)).toBe(1);
+	});
+
+	it('les dueñes ven quién mandó cada invitación; les managers no ven las invitaciones', async () => {
+		const { a, b, g } = await setup();
+		const list = ok(await listManagers(t.db, a.id, g.slug, opts));
+		expect(list.invites.map((i) => i.invitedBy).sort()).toEqual([a.email, b.email].sort());
+		ok(await setManagerRole(t.db, a.id, g.slug, b.id, 'manager'));
+		expect(ok(await listManagers(t.db, b.id, g.slug, opts)).invites).toEqual([]);
 	});
 });
 

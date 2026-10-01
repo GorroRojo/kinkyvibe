@@ -226,6 +226,10 @@ campos), pero nadie la usa todavía.
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
   cuenta que invitó.
+  - Les dueñes ven en la lista de pendientes quién mandó cada una (el mail de esa cuenta, que es
+    otre dueñe del grupo); nunca el mail invitado. Les `manager` no ven las invitaciones.
+  - Si alguien deja de ser dueñe (le sacan la propiedad, le sacan de la gestión o se va), sus
+    invitaciones pendientes se borran en la misma tanda. Al borrar una cuenta, también.
 - **Integrantes**: edges `es_integrante_de` desde el perfil de una persona hacia el del grupo, sin
   datos extra. Los suma directamente quien gestiona el grupo (sin pedido ni aprobación) y se
   escriben con `saveObject()` sobre el perfil de la persona, con la versión que está guardada en

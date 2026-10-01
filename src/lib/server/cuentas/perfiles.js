@@ -434,11 +434,22 @@ const ACTIVE_OWNERS = `(SELECT COUNT(*) FROM profile_managers p JOIN accounts a 
 
 /**
  * @typedef {{ accountId: string, email: string, role: ManagerRole, me: boolean }} ManagerRow
- * @typedef {{ id: string, createdAt: number, expiresAt: number }} InviteRow
+ * @typedef {{ id: string, createdAt: number, expiresAt: number, invitedBy: string | null }} InviteRow
+ *   `invitedBy`: el mail de quien invitó (otre dueñe del grupo), o null si ya no está
  */
 
 /**
- * Quiénes gestionan un grupo y las invitaciones pendientes. Solo para quienes lo gestionan.
+ * Invitaciones de alguien que ya no es dueñe de ese perfil (porque le sacaron la propiedad, salió
+ * de la gestión o lo sacaron): se borran en la misma tanda que el cambio. ?1 = perfil, ?2 = cuenta.
+ * Si el cambio no se hizo (por ejemplo, era le última dueñe), sigue siendo dueñe y no se borra nada.
+ */
+const DROP_INVITES_OF_NON_OWNER = `DELETE FROM profile_invites WHERE profile_id = ?1 AND invited_by = ?2
+	AND NOT EXISTS (SELECT 1 FROM profile_managers
+		WHERE profile_id = ?1 AND account_id = ?2 AND role = 'owner')`;
+
+/**
+ * Quiénes gestionan un grupo y las invitaciones pendientes. Solo para quienes lo gestionan; las
+ * invitaciones (con quién las mandó), solo para dueñes, que son quienes pueden cancelarlas.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -458,13 +469,17 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
 		)
 		.bind(managed.profile.id)
 		.all();
-	const { results: invites } = await db
-		.prepare(
-			`SELECT id, created_at, expires_at FROM profile_invites
-			WHERE profile_id = ?1 AND expires_at > ?2 ORDER BY created_at`
-		)
-		.bind(managed.profile.id, now)
-		.all();
+	const { results: invites } =
+		managed.role === 'owner'
+			? await db
+					.prepare(
+						`SELECT i.id, i.created_at, i.expires_at, a.email AS invited_by FROM profile_invites i
+						LEFT JOIN accounts a ON a.id = i.invited_by AND a.deleted_at IS NULL
+						WHERE i.profile_id = ?1 AND i.expires_at > ?2 ORDER BY i.created_at`
+					)
+					.bind(managed.profile.id, now)
+					.all()
+			: { results: [] };
 	return {
 		ok: true,
 		managers: results.map((r) => ({
@@ -476,7 +491,8 @@ export async function listManagers(db, accountId, slug, { now = Date.now() } = {
 		invites: invites.map((r) => ({
 			id: String(r.id),
 			createdAt: Number(r.created_at),
-			expiresAt: Number(r.expires_at)
+			expiresAt: Number(r.expires_at),
+			invitedBy: r.invited_by == null ? null : String(r.invited_by)
 		}))
 	};
 }
@@ -695,7 +711,8 @@ export async function answerInvite(db, accountId, inviteId, accept, { now = Date
 
 /**
  * Cambia el rol de alguien que gestiona un grupo (solo dueñes). Nunca deja al grupo sin dueñe:
- * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero.
+ * la condición va en la misma sentencia, así dos cambios a la vez no pueden dejarlo en cero. Si
+ * deja de ser dueñe, sus invitaciones pendientes se borran en la misma tanda.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -710,13 +727,16 @@ export async function setManagerRole(db, accountId, slug, targetAccountId, role)
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
 	if (managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
-	const res = await db
-		.prepare(
-			`UPDATE profile_managers SET role = ?3 WHERE profile_id = ?1 AND account_id = ?2
-			AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
-		)
-		.bind(managed.profile.id, text(targetAccountId), role)
-		.run();
+	const target = text(targetAccountId);
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`UPDATE profile_managers SET role = ?3 WHERE profile_id = ?1 AND account_id = ?2
+				AND (?3 = 'owner' OR role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
+			)
+			.bind(managed.profile.id, target, role),
+		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
+	]);
 	if (res.meta.changes) return { ok: true };
 	return failure(
 		409,
@@ -741,7 +761,8 @@ async function isManager(db, profileId, accountId) {
 
 /**
  * Saca a alguien de la gestión de un grupo: une dueñe a cualquiera, cualquiera a sí misme
- * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia).
+ * ("dejar de gestionar"). Le última dueñe no se puede ir (condición en la misma sentencia). Las
+ * invitaciones pendientes que mandó se borran en la misma tanda.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -757,13 +778,15 @@ export async function removeManager(db, accountId, slug, targetAccountId) {
 	if (managed.kind !== 'grupo')
 		return failure(400, self ? MESSAGES.personaLeave : MESSAGES.onlyGroups);
 	if (!self && managed.role !== 'owner') return failure(403, MESSAGES.onlyOwner);
-	const res = await db
-		.prepare(
-			`DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2
-			AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
-		)
-		.bind(managed.profile.id, target)
-		.run();
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2
+				AND (role = 'manager' OR ${ACTIVE_OWNERS} > 1)`
+			)
+			.bind(managed.profile.id, target),
+		db.prepare(DROP_INVITES_OF_NON_OWNER).bind(managed.profile.id, target)
+	]);
 	if (res.meta.changes) return { ok: true };
 	if (!(await isManager(db, managed.profile.id, target))) return failure(409, MESSAGES.notManager);
 	return failure(409, self ? MESSAGES.lastOwner : MESSAGES.lastOwnerOther);

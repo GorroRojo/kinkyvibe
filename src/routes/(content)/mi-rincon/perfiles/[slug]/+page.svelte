@@ -280,7 +280,9 @@
 						{#each data.invites as inv (inv.id)}
 							<li>
 								<span class="hint"
-									>Del {fmtDate(inv.createdAt)}; vence el {fmtDate(inv.expiresAt)}.</span
+									>{inv.invitedBy ? `La mandó ${inv.invitedBy}` : 'Invitación'} el {fmtDate(
+										inv.createdAt
+									)}; vence el {fmtDate(inv.expiresAt)}.</span
 								>
 								<form method="POST" action="?/cancelarInvitacion" use:enhance>
 									<input type="hidden" name="invite" value={inv.id} />
