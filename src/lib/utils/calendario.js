@@ -8,7 +8,8 @@
  *   (fechas "naive" en hora de Argentina, sin zona: la librería las muestra tal cual);
  * - `rescheduleProblem` / `dropTarget` / `movedAgendaValues`: si se puede mover un evento, adónde
  *   va al soltarlo (en la vista semana solo cambia el día, nunca la hora) y cómo queda la fila; se
- *   guarda por el mismo camino que la planilla;
+ *   guarda por el mismo camino que la planilla; `dragSnapDuration`: el arrastre de la semana se
+ *   ve igual (la vista previa no cambia de hora);
  * - `newEventQuestion` / `newEventHref` / `readNewEventPrefill`: la pregunta antes de cargar un
  *   evento en un día vacío, el link al formulario de evento nuevo con el día (y las horas)
  *   elegidos, y su lectura del lado del formulario.
@@ -209,6 +210,20 @@ export function dropTarget(view, from, to) {
 	if (view === 'timeGridWeek') return to.date === from.date ? null : { date: to.date };
 	if (to.date === from.date && to.time === from.time) return null;
 	return { date: to.date, time: to.time };
+}
+
+/**
+ * El paso (`snapDuration` de la librería) mientras arrastran un evento ya cargado. En la vista
+ * semana es un día entero: la franja donde está el puntero no cuenta, así que la vista previa del
+ * arrastre se queda en su hora y solo se corre de día en día (lo mismo que después hace
+ * `dropTarget` al soltarlo). Sin esto la vista previa seguía al puntero a otra hora y, al soltar,
+ * volvía a la hora original. `undefined` = el paso de siempre (una franja), que es el que usan
+ * tocar un día vacío y arrastrar un rango para cargar un evento nuevo.
+ * @param {string} view vista de la librería
+ * @returns {string | undefined}
+ */
+export function dragSnapDuration(view) {
+	return view === 'timeGridWeek' ? '24:00' : undefined;
 }
 
 /**

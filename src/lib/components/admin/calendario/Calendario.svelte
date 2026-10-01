@@ -14,12 +14,14 @@
 	 *   vista semana);
 	 * - `move` { id, date, time?, revert }: soltaron un evento en otro día. En la vista semana va
 	 *   solo el día (sin `time`: conserva su hora aunque lo suelten en otra franja; ver
-	 *   `dropTarget`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no se puede.
+	 *   `dropTarget`). Mientras lo arrastran, la vista previa tampoco cambia de hora: solo se corre de
+	 *   día (ver `dragSnapDuration`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no
+	 *   se puede.
 	 * Los eventos con `extendedProps.pending` (movidos sin guardar) se ven con borde punteado y la
 	 * etiqueta "pendiente".
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { dropTarget, localDateParts } from '$lib/utils/calendario.js';
+	import { dragSnapDuration, dropTarget, localDateParts } from '$lib/utils/calendario.js';
 
 	/** @type {import('$lib/utils/calendario.js').CalendarEventInput[]} */
 	export let events = [];
@@ -90,6 +92,27 @@
 			return;
 		}
 		dispatch('move', { id: String(info.event.id), ...to, revert: info.revert });
+	}
+
+	/**
+	 * Al apoyar el puntero en un evento de la vista semana, el paso del arrastre pasa a ser un día
+	 * entero (`dragSnapDuration`), así la vista previa se queda en su hora; al soltar vuelve el paso
+	 * de siempre (lo usan tocar un día vacío y arrastrar un rango). Va en captura porque la librería
+	 * toma el paso en su propio pointerdown, y la vuelta espera a que la librería procese el soltar.
+	 * @param {PointerEvent} e
+	 */
+	function onPointerDownCapture(e) {
+		const snap = dragSnapDuration(ec?.getOption('view') ?? view);
+		if (!ec || !snap) return;
+		if (!(e.target instanceof Element) || !e.target.closest('.ec-event')) return;
+		ec.setOption('snapDuration', snap);
+		const reset = () => {
+			window.removeEventListener('pointerup', reset);
+			window.removeEventListener('pointercancel', reset);
+			setTimeout(() => ec?.setOption('snapDuration', undefined));
+		};
+		window.addEventListener('pointerup', reset);
+		window.addEventListener('pointercancel', reset);
 	}
 
 	/** @param {any} info */
@@ -166,7 +189,12 @@
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions (las flechas solo mueven el foco entre los eventos, que son botones) -->
-<div class="calendario" bind:this={root} on:keydown={onKeydown}>
+<div
+	class="calendario"
+	bind:this={root}
+	on:keydown={onKeydown}
+	on:pointerdown|capture={onPointerDownCapture}
+>
 	{#if Calendar}
 		<svelte:component this={Calendar} bind:this={ec} {plugins} {options} eventContent={chip} />
 	{:else if failed}

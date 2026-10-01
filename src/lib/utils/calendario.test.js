@@ -3,6 +3,7 @@ import {
 	calendarEvent,
 	calendarEvents,
 	defaultCalendarView,
+	dragSnapDuration,
 	dropTarget,
 	eventTone,
 	localDateParts,
@@ -222,6 +223,29 @@ describe('dropTarget', () => {
 			date: '2026-12-16',
 			startTime: '21:00',
 			endTime: '02:00'
+		});
+	});
+});
+
+describe('dragSnapDuration', () => {
+	it('en la vista semana el arrastre va de a un día entero (la vista previa no cambia de hora)', () => {
+		expect(dragSnapDuration('timeGridWeek')).toBe('24:00');
+	});
+
+	it('en el mes y la lista queda el paso de siempre', () => {
+		expect(dragSnapDuration('dayGridMonth')).toBeUndefined();
+		expect(dragSnapDuration('listMonth')).toBeUndefined();
+	});
+
+	it('lo que se ve al arrastrar en la semana es lo que queda al soltar (y lo que lista el aviso)', () => {
+		// Con el paso de un día, la vista previa queda en el día de destino a la misma hora.
+		const from = { date: '2026-12-12', time: '21:00' };
+		const preview = { date: '2026-12-15', time: from.time };
+		const to = dropTarget('timeGridWeek', from, preview);
+		expect(to).toEqual({ date: '2026-12-15' });
+		expect(movedAgendaValues(row(), /** @type {{ date: string }} */ (to))).toMatchObject({
+			date: preview.date,
+			startTime: preview.time
 		});
 	});
 });
