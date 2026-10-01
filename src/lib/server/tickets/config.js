@@ -28,6 +28,23 @@
  *                        # no vende. Si falta: se vende en la puerta y la página no dice nada.
  * puerta_precio: $ 12.000 en efectivo   # opcional (con `puerta: true`): precio en la puerta
  * ```
+ *
+ * Preventas escalonadas y tipos encadenados (ver $lib/utils/ticketTiers.js):
+ *
+ * ```yaml
+ * tickets:
+ *   - id: general
+ *     name: General
+ *     capacity: 40              # opcional, como siempre: el cupo total del tipo
+ *     tiers:                    # en lugar de `price`: tramos de precio, en orden
+ *       - { id: preventa-1, name: Preventa 1, price: 8000, quantity: 5 }    # los primeros 5
+ *       - { id: preventa-2, name: Preventa 2, price: 9000, until: 2026-10-09T23:59-03:00 }
+ *       - { id: general, name: General, price: 10000 }   # sin cantidad ni fecha: el resto
+ *   - id: ultima-tanda
+ *     name: Última tanda
+ *     price: 12000
+ *     after: general            # se habilita cuando «general» se agota o cierra
+ * ```
  */
 
 /**
@@ -39,8 +56,20 @@
  *
  * `capacity`: cupo del tipo, o `null` si no tiene límite (sin `capacity` en el frontmatter).
  *
+ * `tiers`: tramos de precio (preventas escalonadas), o `null`. En un tipo con tramos, `price` y
+ * `fondo` son los del ÚLTIMO tramo (el precio "pleno": lo usan la venta en la puerta y el panel);
+ * la compra online usa el tramo vigente (`currentTier` de $lib/utils/ticketTiers.js).
+ *
+ * `after`: id del tipo que se tiene que agotar o cerrar para que este se habilite, o `null`.
+ *
+ * `tier` (solo en el tipo "efectivo" que arma la compra, ver `withTier`): el tramo con el que se
+ * reserva, con su cantidad y su fecha para controlarlos en la misma sentencia.
+ *
  * @typedef {{ id: string, name: string, price: number, fondo: number, capacity: number | null,
- *   gorra: { min: number, suggested: number } | null, closesAt?: number | null }} TicketType
+ *   gorra: { min: number, suggested: number } | null, closesAt?: number | null,
+ *   tiers?: import('$lib/utils/ticketTiers.js').Tier[] | null, after?: string | null,
+ *   tier?: { id: string, name: string, quantity: number | null, until: number | null } | null
+ * }} TicketType
  */
 /** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
 /** @typedef {{ name: string, pronouns: string }} Holder */
@@ -88,6 +117,7 @@ import {
 // Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
 export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
 import { formatARS } from '$lib/utils/money.js';
+import { availabilityOf, chainCycle, unreachableAfter } from '$lib/utils/ticketTiers.js';
 export { formatARS };
 export { MAX_TICKETS_PER_FORM };
 
@@ -146,9 +176,14 @@ export function parseTicketConfig(meta, options = {}) {
 		if (types.some((t) => t.id === id)) throw new TypeError(`Id de entrada repetido: "${id}"`);
 		const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id;
 		const capacity = parseCapacity(raw.capacity, id);
+		const after = parseAfter(raw.after, id);
+		const hasTiers = raw.tiers !== undefined && raw.tiers !== null;
 		if (raw.a_la_gorra !== undefined && raw.a_la_gorra !== null) {
 			if (raw.price !== undefined && raw.price !== null) {
 				throw new TypeError(`"${id}" tiene \`price\` y \`a_la_gorra\`: usá uno de los dos`);
+			}
+			if (hasTiers) {
+				throw new TypeError(`"${id}" es a la gorra: no puede tener tramos (\`tiers\`)`);
 			}
 			const min = Number(raw.a_la_gorra?.minimo);
 			const suggested = Number(raw.a_la_gorra?.sugerido);
@@ -168,7 +203,27 @@ export function parseTicketConfig(meta, options = {}) {
 				fondo: 0,
 				capacity,
 				gorra: { min, suggested },
-				closesAt: typeClose(raw, id)
+				closesAt: typeClose(raw, id),
+				...(after ? { after } : {})
+			});
+			continue;
+		}
+		if (hasTiers) {
+			if (raw.price !== undefined && raw.price !== null) {
+				throw new TypeError(`"${id}" tiene \`price\` y \`tiers\`: usá uno de los dos`);
+			}
+			const tiers = parseTiers(raw.tiers, id, fondoPercent);
+			const last = tiers[tiers.length - 1];
+			types.push({
+				id,
+				name,
+				price: last.price,
+				fondo: last.fondo,
+				capacity,
+				gorra: null,
+				closesAt: typeClose(raw, id),
+				tiers,
+				...(after ? { after } : {})
 			});
 			continue;
 		}
@@ -179,7 +234,25 @@ export function parseTicketConfig(meta, options = {}) {
 		// El fondo es siempre el porcentaje vigente (sin la etiqueta KinkyVibe, `fondoPercent` es
 		// null: sin fondo). Un `fondo` en pesos en el tipo ya no existe y se ignora.
 		const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
-		types.push({ id, name, price, fondo, capacity, gorra: null, closesAt: typeClose(raw, id) });
+		types.push({
+			id,
+			name,
+			price,
+			fondo,
+			capacity,
+			gorra: null,
+			closesAt: typeClose(raw, id),
+			...(after ? { after } : {})
+		});
+	}
+	for (const t of types) {
+		if (t.after && !types.some((o) => o.id === t.after)) {
+			throw new TypeError(`"${t.id}" se habilita después de "${t.after}", que no existe`);
+		}
+	}
+	const cycle = chainCycle(types);
+	if (cycle) {
+		throw new TypeError(`"${cycle}": los tipos encadenados (\`after\`) forman un círculo`);
 	}
 	/** @type {PaymentMethod[]} */
 	let paymentMethods = ['mercadopago'];
@@ -247,6 +320,91 @@ export function parseCapacity(raw, id) {
 		throw new TypeError(`Cupo inválido para "${id}": tiene que ser un entero (o nada, sin límite)`);
 	}
 	return capacity;
+}
+
+/**
+ * `after` de un tipo: id de otro tipo, o `null`.
+ *
+ * @param {unknown} raw
+ * @param {string} id
+ * @returns {string | null}
+ */
+function parseAfter(raw, id) {
+	if (raw === undefined || raw === null || raw === '') return null;
+	const after = String(raw).trim();
+	if (!TYPE_ID_RE.test(after)) throw new TypeError(`\`after\` inválido en "${id}": "${after}"`);
+	if (after === id) throw new TypeError(`"${id}" no puede habilitarse después de sí mismo`);
+	return after;
+}
+
+/** Máximo de tramos por tipo (más no tiene sentido y complica la compra). */
+export const MAX_TIERS = 10;
+
+/**
+ * `tiers` de un tipo: lista de 1 a `MAX_TIERS` tramos `{ id, name, price, quantity?, until? }`.
+ * El fondo se calcula como en un tipo con precio. Un tramo sin cantidad ni fecha tiene que ser el
+ * último (si no, los que siguen no se venderían nunca).
+ *
+ * @param {unknown} raw
+ * @param {string} typeId
+ * @param {number | null} fondoPercent
+ * @returns {import('$lib/utils/ticketTiers.js').Tier[]}
+ */
+export function parseTiers(raw, typeId, fondoPercent) {
+	if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TIERS) {
+		throw new TypeError(`\`tiers\` de "${typeId}": una lista de 1 a ${MAX_TIERS} tramos`);
+	}
+	/** @type {import('$lib/utils/ticketTiers.js').Tier[]} */
+	const tiers = [];
+	for (const item of raw) {
+		const id = String(item?.id ?? '');
+		if (!TYPE_ID_RE.test(id)) throw new TypeError(`Id de tramo inválido en "${typeId}": "${id}"`);
+		if (tiers.some((t) => t.id === id)) {
+			throw new TypeError(`Id de tramo repetido en "${typeId}": "${id}"`);
+		}
+		const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id;
+		const price = Number(item.price);
+		if (!Number.isSafeInteger(price) || price <= 0 || price > ORDER_MAX_TOTAL) {
+			throw new TypeError(`Precio inválido en el tramo "${id}" de "${typeId}"`);
+		}
+		let quantity = null;
+		if (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') {
+			quantity = Number(item.quantity);
+			if (!Number.isSafeInteger(quantity) || quantity < 1) {
+				throw new TypeError(
+					`Cantidad inválida en el tramo "${id}" de "${typeId}": un entero desde 1 (o nada)`
+				);
+			}
+		}
+		const until = saleTime(item.until, `\`until\` del tramo "${id}" de "${typeId}"`, true);
+		const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
+		tiers.push({ id, name, price, fondo, quantity, until });
+	}
+	const stuck = unreachableAfter(tiers);
+	if (stuck !== -1) {
+		throw new TypeError(
+			`El tramo "${tiers[stuck].id}" de "${typeId}" no tiene cantidad ni fecha: los que siguen nunca se venderían`
+		);
+	}
+	return tiers;
+}
+
+/**
+ * El tipo "efectivo" para comprar con un tramo: precio y fondo del tramo, y el tramo (para
+ * controlarlo al reservar). Sin tramo, el tipo tal cual (con `tier: null`).
+ *
+ * @param {TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').Tier | null | undefined} tier
+ * @returns {TicketType}
+ */
+export function withTier(type, tier) {
+	if (!tier) return { ...type, tier: null };
+	return {
+		...type,
+		price: tier.price,
+		fondo: tier.fondo,
+		tier: { id: tier.id, name: tier.name, quantity: tier.quantity, until: tier.until }
+	};
 }
 
 /** Largo máximo del texto `puerta_precio`. */
@@ -330,6 +488,20 @@ export function typeClosesAt(config, type) {
 export function typeOpen(config, type, now = Date.now()) {
 	const closes = typeClosesAt(config, type);
 	return closes === null || now < closes;
+}
+
+/**
+ * Estado de un tipo para la compra online ahora: cerrado por horario, esperando a que se agote o
+ * cierre el tipo anterior (encadenado), agotado (cupo o tramos) o abierto con su tramo vigente.
+ * Ver `availabilityOf` en $lib/utils/ticketTiers.js.
+ *
+ * @param {EventTickets} config
+ * @param {TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').TakenCounts} taken lo de `getTaken` (orders.js)
+ * @param {number} [now]
+ */
+export function typeAvailability(config, type, taken, now = Date.now()) {
+	return availabilityOf(config.types, type, taken, now, (t) => !typeOpen(config, t, now));
 }
 
 /**
