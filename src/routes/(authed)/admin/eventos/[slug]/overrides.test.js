@@ -32,6 +32,15 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 	};
 });
 
+// El modo puerta busca la serie del evento ("primera vez en…") entre todas las publicaciones, y
+// leerlas compila con mdsvex todo el repo: más de 5 s por venta la primera vez. Acá solo importan
+// los límites, así que la lista va vacía (evento sin serie); la serie se prueba en
+// $lib/server/tickets/series.test.js.
+vi.mock('$lib/utils', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	fetchMarkdownPosts: async () => []
+}));
+
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
