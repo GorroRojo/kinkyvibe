@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import {
 	AJUSTES_SUBGROUPS,
 	EVENT_TABS,
@@ -217,6 +217,23 @@ describe('NAV', () => {
 		expect(navItem('etiquetas')?.area).toBe('etiquetas');
 		expect(navItem('estadisticas')?.area).toBe('estadisticas');
 		expect(navItem('eventos-lugares')?.area).toBe('eventos');
+	});
+	it('"Roles y preguntas" está en Eventos (la URL sigue bajo /admin/ajustes/)', () => {
+		expect(navItem('ajustes-personas')).toMatchObject({
+			label: 'Roles y preguntas',
+			area: 'eventos',
+			href: '/admin/ajustes/personas'
+		});
+	});
+	it('las páginas bajo /admin/ajustes/ que en el menú están en otra área no muestran las pestañas de Ajustes', () => {
+		const root = new URL('../../routes/(authed)/', import.meta.url);
+		const moved = NAV.filter((i) => i.area !== 'ajustes' && i.href.startsWith('/admin/ajustes/'));
+		expect(moved.map((i) => i.id).sort()).toEqual(['ajustes-personas', 'ajustes-plantillas']);
+		for (const page of adminPages()) {
+			if (!moved.some((i) => page === i.href || page.startsWith(i.href + '/'))) continue;
+			const src = readFileSync(new URL(`.${page}/+page.svelte`, root), 'utf8');
+			expect(src, page).not.toContain('AJUSTES_TABS');
+		}
 	});
 	it('el botón "Para revisar" lleva a la tarjeta del Inicio', () => {
 		expect(REVIEW_LINK).toMatchObject({ href: '/admin#para-revisar', counter: 'review' });

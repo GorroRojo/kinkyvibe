@@ -29,8 +29,7 @@
 
 	<Card title="Preguntas generales">
 		<p class="kv-note">
-			Las que se definen una vez en <a href="/admin/ajustes/personas"
-				>Ajustes → Personas y preguntas</a
+			Las que se definen una vez en <a href="/admin/ajustes/personas">Eventos › Roles y preguntas</a
 			>. Marcá las que usa este evento.
 		</p>
 		{#if form?.general}

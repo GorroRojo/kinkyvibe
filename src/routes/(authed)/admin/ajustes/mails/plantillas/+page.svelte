@@ -1,11 +1,9 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { ChevronRight, Mail } from '@lucide/svelte';
-	import { AJUSTES_TABS } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 
 	export let data;
@@ -16,7 +14,6 @@
 	subtitle="El asunto, el título y el texto de arriba de cada mail que manda el sistema."
 	back={{ href: '/admin/ajustes/mails', label: 'Mails' }}
 />
-<Tabs tabs={[...AJUSTES_TABS]} current="/admin/ajustes/mails" />
 
 <div class="kv-stack settings">
 	{#if !data.dbAvailable}

@@ -1,5 +1,5 @@
 /**
- * Ajustes → Personas y preguntas (interruptor `personas_eventos`; apagado, 404):
+ * Eventos › Roles y preguntas (la URL sigue bajo /admin/ajustes/; interruptor `personas_eventos`; apagado, 404):
  * - roles de personas en eventos: los fijos y los que agregan les admins;
  * - preguntas de inscripción generales: se definen acá y cada evento elige cuáles usa (pestaña
  *   Preguntas de su ficha).

@@ -1,6 +1,6 @@
 /**
  * Panel de personas en eventos y preguntas de inscripción (interruptor `personas_eventos`):
- * - Ajustes → Personas y preguntas y la pestaña Preguntas: solo admins (sin sesión, 303 al
+ * - Eventos › Roles y preguntas y la pestaña Preguntas: solo admins (sin sesión, 303 al
  *   login; sin permiso, 403) y, con el interruptor apagado, 404 (como si no existieran);
  * - roles y preguntas se guardan y quedan en Actividad;
  * - la compra pública pregunta, valida en el servidor y guarda las respuestas con la orden;
@@ -149,7 +149,7 @@ describe('solo admins, y solo con el interruptor', () => {
 	});
 });
 
-describe('Ajustes → Personas y preguntas', () => {
+describe('Eventos › Roles y preguntas', () => {
 	it('agregar y sacar roles (los fijos no), con registro', async () => {
 		await on();
 		const added = await ajustes.actions.addRole(fakeEvent({ form: { name: 'Cuida la puerta' } }));

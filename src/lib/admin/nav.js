@@ -235,7 +235,7 @@ export const NAV = Object.freeze([
 		href: '/admin/ajustes/personas',
 		icon: ListPlus,
 		emoji: '🧩',
-		label: 'Personas y preguntas',
+		label: 'Roles y preguntas',
 		area: 'eventos',
 		soon: false,
 		flag: 'personas_eventos',
