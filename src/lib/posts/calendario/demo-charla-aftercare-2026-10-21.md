@@ -20,7 +20,7 @@ modalidad: online
 tickets:
   - id: gorra
     name: A la gorra
-    a_la_gorra: { minimo: 1000, minimo_recomendado: 3000, sugerido: 4000 }
+    a_la_gorra: { minimo: 1000, sugerido: 4000 }
     capacity: 80
   - id: libre
     name: Libre

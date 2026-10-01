@@ -90,7 +90,7 @@ prueba» además:
   taller y la fiesta con preventas), un grupo con su integrante, una ficha con un pedido «Es mi
   perfil» pendiente y un perfil de una cuenta esperando aprobación.
 - Carga **preventas** («Fiesta con preventas (demo)»: Preventa 1 llena, Preventa 2 vigente,
-  Última tanda encadenada, entradas en la puerta), **gorra con mínimo recomendado** (las charlas),
+  Última tanda encadenada, entradas en la puerta), **gorra con mínimo** (las charlas),
   **propinas** inventadas, **personas con rol** (Noche Látex y talleres, con el rol propio «Cuida
   la puerta»), **preguntas de inscripción** con respuestas (próximo taller) y **suscripciones a
   series** (Picantearla, Cine para Sucixs).

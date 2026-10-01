@@ -23,7 +23,7 @@
  * saveObject(), en ./seedProfiles.js, que solo usa imports relativos).
  *
  * Noche 3 (rama de demo `claude/n3-demo`): además prende los interruptores nuevos
- * (`N3_FLAGS`), y carga preventas escalonadas, gorra con mínimo recomendado, propinas, personas
+ * (`N3_FLAGS`), y carga preventas escalonadas, gorra, propinas, personas
  * con rol y preguntas de inscripción, lugares con su privacidad, un pedido «Es mi perfil» y
  * suscripciones a series. Cada cosa en su sección, salteada si la base no tiene su migración.
  *
@@ -302,7 +302,7 @@ export function people() {
  * @prop {string} id
  * @prop {string} name
  * @prop {number} [price]
- * @prop {{minimo: number, sugerido: number, recomendado?: number}} [gorra]
+ * @prop {{minimo: number, sugerido: number}} [gorra]
  * @prop {number} capacity
  * @prop {number} [closeDaysBefore]
  * @prop {{id: string, name: string, price: number, quantity?: number}[]} [tiers] preventas
@@ -453,7 +453,7 @@ export function events(today) {
 				{
 					id: 'gorra',
 					name: 'A la gorra',
-					gorra: { minimo: 1000, recomendado: 3000, sugerido: 4000 },
+					gorra: { minimo: 1000, sugerido: 4000 },
 					capacity: 80
 				},
 				{ id: 'libre', name: 'Libre', gorra: { minimo: 0, sugerido: 2000 }, capacity: 40 }
@@ -541,10 +541,7 @@ export function eventMarkdown(e) {
 	for (const t of e.tickets) {
 		lines.push(`  - id: ${t.id}`, `    name: ${t.name}`);
 		if (t.gorra) {
-			const rec = t.gorra.recomendado ? `, minimo_recomendado: ${t.gorra.recomendado}` : '';
-			lines.push(
-				`    a_la_gorra: { minimo: ${t.gorra.minimo}${rec}, sugerido: ${t.gorra.sugerido} }`
-			);
+			lines.push(`    a_la_gorra: { minimo: ${t.gorra.minimo}, sugerido: ${t.gorra.sugerido} }`);
 		} else if (t.tiers) {
 			lines.push('    tiers:');
 			for (const tr of t.tiers) {
