@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
+import { sha256Hex } from '$lib/server/hash.js';
 import {
 	applyQueuedCheckIns,
 	checkinGroup,
@@ -17,7 +18,6 @@ import {
 	MAX_DOOR_SALE,
 	PANEL_ORDER_HARD_MAX,
 	doorSaleLimits,
-	sha256Hex,
 	ticketWithBuyer
 } from './door.js';
 import { checkIn, normalizeTicketCode, reserveOrder, tokenByCode } from './orders.js';
