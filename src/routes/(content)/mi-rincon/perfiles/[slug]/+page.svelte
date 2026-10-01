@@ -37,8 +37,6 @@
 		new Date(d).toLocaleDateString('es-AR', { timeZone: TIMEZONE, day: 'numeric', month: 'long' });
 
 	let confirmName = '';
-	$: pending = data.members.filter((m) => !m.accepted);
-	$: accepted = data.members.filter((m) => m.accepted);
 </script>
 
 <svelte:head>
@@ -164,54 +162,47 @@
 				<p class="ok" role="status">{msg('integrantes')?.message}</p>
 			{/if}
 			<p class="hint">
-				Una persona se suma desde su propio perfil, con la dirección de este grupo (<code
-					>{p.slug}</code
-				>). Acá aceptás o sacás.
+				Sumás a una persona con la dirección de su perfil (te la pasa ella). Solo perfiles de
+				persona que podés ver, nunca ocultos. Le aparece en su Mi rincón y se puede ir cuando
+				quiera; si se va, no la pueden volver a sumar por 30 días.
 				{p.show_members
-					? 'Les aceptades se muestran en el perfil del grupo.'
+					? 'Les integrantes se muestran en el perfil del grupo, a quien pueda ver cada perfil.'
 					: 'Por ahora no se muestran: lo elegís arriba.'}
 			</p>
-			{#if pending.length}
-				<h3>Pidieron sumarse</h3>
+			{#if data.members.length}
 				<ul class="list">
-					{#each pending as m (m.id)}
-						<li>
-							<strong>{m.title}</strong>
-							<div class="row">
-								<form method="POST" action="?/integrante" use:enhance>
-									<input type="hidden" name="persona" value={m.id} />
-									<input type="hidden" name="do" value="accept" />
-									<button class="pill-btn" type="submit">Aceptar</button>
-								</form>
-								<form method="POST" action="?/integrante" use:enhance>
-									<input type="hidden" name="persona" value={m.id} />
-									<input type="hidden" name="do" value="remove" />
-									<button class="pill-btn ghost" type="submit">Rechazar</button>
-								</form>
-							</div>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-			{#if accepted.length}
-				<h3>Son parte</h3>
-				<ul class="list">
-					{#each accepted as m (m.id)}
+					{#each data.members as m (m.id)}
 						<li>
 							<details>
-								<summary>{m.title}</summary>
-								<form method="POST" action="?/integrante" use:enhance>
+								<summary>
+									<span>{m.title}</span>
+									<span class="hint"><code>{m.slug}</code></span>
+								</summary>
+								<form method="POST" action="?/sacarIntegrante" use:enhance>
 									<input type="hidden" name="persona" value={m.id} />
-									<input type="hidden" name="do" value="remove" />
 									<button class="pill-btn ghost" type="submit">Sacar del grupo</button>
 								</form>
 							</details>
 						</li>
 					{/each}
 				</ul>
-			{:else if !pending.length}
+			{:else}
 				<p class="hint">Todavía no hay integrantes.</p>
 			{/if}
+			<form method="POST" action="?/sumarIntegrante" use:enhance>
+				<label>
+					<span>Sumar a una persona</span>
+					<input
+						name="persona"
+						type="text"
+						required
+						autocomplete="off"
+						placeholder="dirección de su perfil"
+						aria-invalid={msg('integrantes')?.errors?.persona ? 'true' : undefined}
+					/>
+				</label>
+				<button class="pill-btn" type="submit">Sumar</button>
+			</form>
 		</section>
 
 		<section class="surface-card" aria-labelledby="managers-title">
@@ -313,42 +304,22 @@
 				<ul class="list">
 					{#each data.memberships as g (g.id)}
 						<li>
-							<details>
-								<summary>
-									<span>{g.title}</span>
-									<span class="hint">{g.accepted ? 'Sos parte' : 'Esperando que te acepten'}</span>
-								</summary>
-								<form method="POST" action="?/salirGrupo" use:enhance>
-									<input type="hidden" name="group" value={g.id} />
-									<button class="pill-btn ghost" type="submit"
-										>{g.accepted ? 'Salir del grupo' : 'Retirar el pedido'}</button
-									>
-								</form>
-							</details>
+							<span>Te sumaron a <strong>{g.title}</strong></span>
+							<form method="POST" action="?/salirGrupo" use:enhance>
+								<input type="hidden" name="group" value={g.id} />
+								<button class="pill-btn ghost" type="submit">Salir del grupo</button>
+							</form>
 						</li>
 					{/each}
 				</ul>
 			{:else}
 				<p class="hint">Este perfil no es parte de ningún grupo.</p>
 			{/if}
-			<form method="POST" action="?/sumarme" use:enhance>
-				<label>
-					<span>Pedir sumarte a un grupo</span>
-					<input
-						name="group"
-						type="text"
-						required
-						autocomplete="off"
-						placeholder="dirección del grupo"
-						aria-invalid={msg('grupos')?.errors?.group ? 'true' : undefined}
-					/>
-				</label>
-				<p class="hint">
-					Pedile la dirección a quienes gestionan el grupo. Aparecés como integrante cuando te
-					aceptan, y solo si el grupo muestra a sus integrantes.
-				</p>
-				<button class="pill-btn" type="submit">Pedir sumarme</button>
-			</form>
+			<p class="hint">
+				Un grupo te suma con la dirección de este perfil (<code>{p.slug}</code>): pasásela a quienes
+				lo gestionan. Salir es un clic y no le tenés que pedir nada a nadie; después, ese grupo no
+				te puede volver a sumar por 30 días.
+			</p>
 		</section>
 	{/if}
 

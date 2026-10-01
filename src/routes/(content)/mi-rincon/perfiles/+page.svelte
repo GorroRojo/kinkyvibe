@@ -66,6 +66,36 @@
 		<p class="ok" role="status">{f.message}</p>
 	{/if}
 
+	{#if data.memberships.length}
+		<section class="surface-card" aria-labelledby="groups-title">
+			<h2 id="groups-title">Grupos en los que estás</h2>
+			{#if f?.action === 'grupos' && f.error}
+				<p class="error" role="alert">{f.error}</p>
+			{:else if f?.action === 'grupos' && f.message}
+				<p class="ok" role="status">{f.message}</p>
+			{/if}
+			<p class="hint">
+				Los grupos te pueden sumar con la dirección de tu perfil. Salir es un clic y no le tenés que
+				pedir nada a nadie; después, ese grupo no te puede volver a sumar por 30 días.
+			</p>
+			<ul class="list">
+				{#each data.memberships as m (`${m.groupId}:${m.personaSlug}`)}
+					<li>
+						<span>Te sumaron a <strong>{m.groupTitle}</strong></span>
+						<span class="hint">con tu perfil {m.personaTitle}</span>
+						<form method="POST" action="?/salirGrupo">
+							<input type="hidden" name="persona" value={m.personaSlug} />
+							<input type="hidden" name="group" value={m.groupId} />
+							<button class="pill-btn ghost" type="submit">Salir del grupo</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{:else if f?.action === 'grupos' && f.message}
+		<p class="ok" role="status">{f.message}</p>
+	{/if}
+
 	<section class="surface-card" aria-labelledby="mine-title">
 		<h2 id="mine-title">Los que gestionás</h2>
 		{#if data.profiles.length === 0}

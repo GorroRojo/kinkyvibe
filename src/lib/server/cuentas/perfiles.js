@@ -9,7 +9,7 @@
  * Los perfiles son objetos `perfil` (src/lib/server/objects/types/perfil.js) y se escriben SOLO
  * con saveObject(). Quién gestiona qué va en `profile_managers` (migración 0014): las cuentas no
  * son objetos, así que no puede ser un edge. Integrantes de un grupo: edges `es_integrante_de`
- * desde el perfil de la persona hacia el del grupo, con `data.aceptado`.
+ * desde el perfil de la persona hacia el del grupo.
  *
  * Reglas que hace cumplir este archivo (las páginas no deciden nada):
  * - solo quien gestiona un perfil lo ve en Mi rincón y lo edita; para cualquier otra cuenta el
@@ -17,8 +17,9 @@
  * - un perfil de persona tiene una sola cuenta (su dueñe); un grupo, al menos une dueñe: nadie
  *   se va ni pierde la propiedad si es le última (sentencias condicionales, sin carreras);
  * - las invitaciones a gestionar van por mail y nunca dicen si ese mail tiene cuenta;
- * - para ser integrante de un grupo, la persona lo pide desde su perfil y el grupo lo acepta:
- *   nadie aparece en un grupo sin haberlo pedido.
+ * - el grupo suma integrantes directamente, solo perfiles de persona que puede ver (nunca
+ *   ocultos); la persona lo ve en Mi rincón y se va cuando quiere, sin pedirle nada a nadie, y
+ *   ese grupo no la puede volver a sumar por 30 días.
  *
  * Las lecturas de "gestión" (mis perfiles, un perfil que gestiono) leen `objects` unidas a
  * `profile_managers`: la condición de acceso es esa unión, no la visibilidad (quien gestiona
@@ -28,6 +29,7 @@
 import {
 	ANON,
 	ObjectError,
+	canSee,
 	VersionConflictError,
 	getEdges,
 	getObject,
@@ -78,7 +80,6 @@ export const INVITE_RATE_LIMITS = Object.freeze({
 
 export const MESSAGES = Object.freeze({
 	notFound: 'No encontramos ese perfil.',
-	groupNotFound: 'No encontramos ese grupo. Revisá la dirección.',
 	conflict:
 		'Alguien lo cambió mientras tanto, así que no guardamos tus cambios. Abajo está la versión nueva; revisala y volvé a guardar.',
 	onlyOwner: 'Eso lo puede hacer solo quien es dueñe del perfil.',
@@ -97,6 +98,12 @@ export const MESSAGES = Object.freeze({
 	tooManyInviteMails: 'Mandaste muchas invitaciones seguidas. Esperá un rato y probá de nuevo.',
 	inviteGone: 'Esa invitación ya no está: puede que haya vencido o que la hayan cancelado.',
 	notManager: 'Esa persona ya no gestiona este perfil.',
+	personaNotFound:
+		'No encontramos ese perfil de persona. Revisá la dirección (te la pasa la persona desde su perfil).',
+	notMember: 'Esa persona ya no está en el grupo.',
+	recentlyLeft:
+		'Esa persona dejó el grupo hace poco: por ahora no la pueden volver a sumar. Si quiere volver, que te avise.',
+	busy: 'Hubo otros cambios al mismo tiempo. Probá de nuevo.',
 	invalid: 'Revisá los datos marcados.'
 });
 
@@ -765,97 +772,90 @@ export function leaveProfile(db, accountId, slug) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Integrantes: edges `es_integrante_de` (persona → grupo), escritos con saveObject().
+// Integrantes: edges `es_integrante_de` (persona → grupo), escritos con saveObject() sobre el
+// perfil de la persona. El grupo suma directamente; la persona se va cuando quiere.
 // ---------------------------------------------------------------------------------------------
 
-/**
- * @typedef {{ to: number, data: { aceptado: boolean } }} MemberEdge
- */
+/** Cuánto tiempo un grupo no puede volver a sumar a una persona que se fue. */
+export const LEAVE_BLOCK_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Intentos al guardar los edges de una persona si otro guardado se cruza. */
+const MEMBER_SAVE_ATTEMPTS = 3;
 
 /**
- * Los edges de integrante que salen de un perfil de persona (lectura de gestión).
+ * Los grupos a los que apunta un perfil de persona (lectura de gestión), en orden.
  *
  * @param {D1Database} db
  * @param {number} personaId
- * @returns {Promise<MemberEdge[]>}
+ * @returns {Promise<number[]>}
  */
 async function memberEdges(db, personaId) {
 	const { results } = await db
-		.prepare('SELECT to_id, data FROM edges WHERE from_id = ?1 AND kind = ?2 ORDER BY position, id')
+		.prepare('SELECT to_id FROM edges WHERE from_id = ?1 AND kind = ?2 ORDER BY position, id')
 		.bind(personaId, MEMBER_EDGE)
 		.all();
-	return results.map((r) => ({
-		to: Number(r.to_id),
-		data: { aceptado: JSON.parse(String(r.data ?? '{}'))?.aceptado === true }
-	}));
+	return results.map((r) => Number(r.to_id));
 }
 
 /**
- * Reescribe los edges de integrante de una persona con saveObject() (versión actual: el cambio
- * es solo de relaciones; si otro guardado se cruza, vuelve el aviso de conflicto).
+ * Un perfil de persona vivo, leído de nuevo (para cada intento de guardado).
  *
  * @param {D1Database} db
- * @param {StoredObject} persona
- * @param {MemberEdge[]} edges
- * @param {string} accountId quien hace el cambio
+ * @param {number} id
+ */
+async function readPersona(db, id) {
+	const row = await db
+		.prepare(
+			`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type = ?2 AND deleted_at IS NULL`
+		)
+		.bind(id, PROFILE_TYPE)
+		.first();
+	if (!row) return null;
+	const o = rowToObject(row);
+	return o.data.kind === 'persona' ? o : null;
+}
+
+/**
+ * Cambia los grupos de una persona con saveObject(). Lee el perfil y sus edges de nuevo en cada
+ * intento y guarda con esa versión: si otro guardado se cruza (la persona editando su perfil, un
+ * grupo sumándola), se vuelve a intentar con lo nuevo en vez de pisarlo o fallar.
+ *
+ * `change` recibe la persona y sus grupos y devuelve los grupos nuevos, `null` (nada que hacer:
+ * está bien así) o un Failure. `also` son las sentencias de apoyo que van en la misma tanda.
+ *
+ * @param {D1Database} db
+ * @param {number} personaId
+ * @param {string} accountId quien hace el cambio (queda en `updated_by`, que solo ven admins)
  * @param {number} now
+ * @param {(persona: StoredObject, groups: number[]) => Promise<number[] | null | Failure>} change
+ * @param {D1PreparedStatement[]} [also]
  * @returns {Promise<{ ok: true } | Failure>}
  */
-async function saveMemberEdges(db, persona, edges, accountId, now) {
-	try {
-		await saveObject(
-			db,
-			{
-				id: persona.id,
-				type: PROFILE_TYPE,
-				version: persona.version,
-				edges: { [MEMBER_EDGE]: edges }
-			},
-			{ actor: accountActor(accountId), now }
-		);
-		return { ok: true };
-	} catch (error) {
-		return saveFailure(error);
+async function changeMemberships(db, personaId, accountId, now, change, also = []) {
+	for (let attempt = 1; attempt <= MEMBER_SAVE_ATTEMPTS; attempt++) {
+		const persona = await readPersona(db, personaId);
+		if (!persona) return failure(404, MESSAGES.personaNotFound);
+		const next = await change(persona, await memberEdges(db, persona.id));
+		if (next === null) return { ok: true };
+		if (!Array.isArray(next)) return next;
+		try {
+			await saveObject(
+				db,
+				{
+					id: persona.id,
+					type: PROFILE_TYPE,
+					version: persona.version,
+					edges: { [MEMBER_EDGE]: next }
+				},
+				{ actor: accountActor(accountId), now, also: () => also }
+			);
+			return { ok: true };
+		} catch (error) {
+			if (error instanceof VersionConflictError && attempt < MEMBER_SAVE_ATTEMPTS) continue;
+			return saveFailure(error);
+		}
 	}
-}
-
-/**
- * Una persona pide sumarse a un grupo (por la dirección del grupo). El grupo tiene que ser
- * visible para esta cuenta: uno oculto "no existe". Queda pendiente hasta que el grupo acepte.
- *
- * @param {D1Database} db
- * @param {string} accountId
- * @param {string} personaSlug
- * @param {unknown} groupSlug
- * @param {{ now?: number }} [opts]
- * @returns {Promise<{ ok: true } | Failure>}
- */
-export async function requestMembership(
-	db,
-	accountId,
-	personaSlug,
-	groupSlug,
-	{ now = Date.now() } = {}
-) {
-	const managed = await getManagedProfile(db, accountId, personaSlug);
-	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'persona') return failure(400, MESSAGES.onlyPersonas);
-	const slug = slugFromInput(groupSlug);
-	const group = slug
-		? await getObject(db, { type: PROFILE_TYPE, slug }, memberViewer(accountId))
-		: null;
-	if (!group || group.data.kind !== 'grupo') {
-		return failure(404, MESSAGES.groupNotFound, { group: MESSAGES.groupNotFound });
-	}
-	const edges = await memberEdges(db, managed.profile.id);
-	if (edges.some((e) => e.to === group.id)) return { ok: true };
-	return saveMemberEdges(
-		db,
-		managed.profile,
-		[...edges, { to: group.id, data: { aceptado: false } }],
-		accountId,
-		now
-	);
+	return failure(409, MESSAGES.busy);
 }
 
 /**
@@ -873,7 +873,84 @@ function slugFromInput(value) {
 }
 
 /**
- * La persona deja un grupo (o retira su pedido).
+ * Quien gestiona un grupo suma a una persona como integrante, por la dirección de su perfil. Sin
+ * pedido ni aprobación, con estos resguardos:
+ * - solo perfiles de persona que esta cuenta puede VER (getObject con su visibilidad), y nunca
+ *   uno oculto, aunque sea suyo: para todo lo demás la respuesta es "no lo encontramos", igual
+ *   que si no existiera;
+ * - si esa persona dejó ESTE grupo hace menos de 30 días, no se la puede volver a sumar
+ *   (`profile_member_blocks`, migración 0014);
+ * - la persona lo ve en Mi rincón → Perfiles y se puede ir cuando quiera (`leaveMembership`).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} groupSlug
+ * @param {unknown} personaSlug
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function addMember(db, accountId, groupSlug, personaSlug, { now = Date.now() } = {}) {
+	const managed = await getManagedProfile(db, accountId, groupSlug);
+	if (!managed) return failure(404, MESSAGES.notFound);
+	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	const groupId = managed.profile.id;
+	const notFound = failure(404, MESSAGES.personaNotFound, { persona: MESSAGES.personaNotFound });
+	const slug = slugFromInput(personaSlug);
+	const seen = slug
+		? await getObject(db, { type: PROFILE_TYPE, slug }, memberViewer(accountId))
+		: null;
+	if (!seen || seen.data.kind !== 'persona' || seen.visibility === 'hidden') return notFound;
+	await db
+		.prepare('DELETE FROM profile_member_blocks WHERE group_id = ?1 AND until <= ?2')
+		.bind(groupId, now)
+		.run();
+	return changeMemberships(db, seen.id, accountId, now, async (persona, groups) => {
+		// Se vuelve a mirar en cada intento: pudo pasar a oculto mientras tanto.
+		if (persona.visibility === 'hidden') return notFound;
+		if (groups.includes(groupId)) return null;
+		const blocked = await db
+			.prepare(
+				'SELECT 1 AS x FROM profile_member_blocks WHERE group_id = ?1 AND persona_id = ?2 AND until > ?3'
+			)
+			.bind(groupId, persona.id, now)
+			.first();
+		if (blocked) return failure(409, MESSAGES.recentlyLeft, { persona: MESSAGES.recentlyLeft });
+		return [...groups, groupId];
+	});
+}
+
+/**
+ * Quien gestiona un grupo saca a une integrante. No bloquea nada: el grupo la puede volver a
+ * sumar (el bloqueo de 30 días es solo cuando la persona se va).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string} groupSlug
+ * @param {unknown} personaId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ ok: true } | Failure>}
+ */
+export async function removeMember(db, accountId, groupSlug, personaId, { now = Date.now() } = {}) {
+	const managed = await getManagedProfile(db, accountId, groupSlug);
+	if (!managed) return failure(404, MESSAGES.notFound);
+	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
+	const id = Number(personaId);
+	if (!Number.isSafeInteger(id)) return failure(404, MESSAGES.notMember);
+	const groupId = managed.profile.id;
+	const result = await changeMemberships(db, id, accountId, now, async (_, groups) =>
+		groups.includes(groupId)
+			? groups.filter((g) => g !== groupId)
+			: failure(404, MESSAGES.notMember)
+	);
+	return !result.ok && result.message === MESSAGES.personaNotFound
+		? failure(404, MESSAGES.notMember)
+		: result;
+}
+
+/**
+ * La persona deja un grupo. Siempre se puede, sin aprobación de nadie, aunque el grupo esté
+ * oculto o borrado. En la misma tanda queda el bloqueo: ese grupo no la puede volver a sumar por
+ * 30 días. Si ya no estaba, no hace nada (y no bloquea).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -892,105 +969,101 @@ export async function leaveMembership(
 	const managed = await getManagedProfile(db, accountId, personaSlug);
 	if (!managed) return failure(404, MESSAGES.notFound);
 	if (managed.kind !== 'persona') return failure(400, MESSAGES.onlyPersonas);
-	const edges = await memberEdges(db, managed.profile.id);
-	const rest = edges.filter((e) => e.to !== Number(groupId));
-	if (rest.length === edges.length) return { ok: true };
-	return saveMemberEdges(db, managed.profile, rest, accountId, now);
+	const group = Number(groupId);
+	if (!Number.isSafeInteger(group)) return { ok: true };
+	const block = db
+		.prepare(
+			`INSERT INTO profile_member_blocks (group_id, persona_id, until) VALUES (?1, ?2, ?3)
+			ON CONFLICT (group_id, persona_id) DO UPDATE SET until = excluded.until`
+		)
+		.bind(group, managed.profile.id, now + LEAVE_BLOCK_MS);
+	return changeMemberships(
+		db,
+		managed.profile.id,
+		accountId,
+		now,
+		async (_, groups) => (groups.includes(group) ? groups.filter((g) => g !== group) : null),
+		[block]
+	);
 }
 
 /**
- * Los grupos de un perfil de persona, para su propia pantalla (incluye pedidos pendientes).
+ * Los grupos de un perfil de persona, para su propia pantalla.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} personaSlug
- * @returns {Promise<{ id: number, title: string, accepted: boolean }[]>}
+ * @returns {Promise<{ id: number, title: string }[]>}
  */
 export async function listMemberships(db, accountId, personaSlug) {
 	const managed = await getManagedProfile(db, accountId, personaSlug);
 	if (!managed || managed.kind !== 'persona') return [];
 	const { results } = await db
 		.prepare(
-			`SELECT o.id, o.title, e.data FROM edges e JOIN objects o ON o.id = e.to_id
+			`SELECT o.id, o.title FROM edges e JOIN objects o ON o.id = e.to_id
 			WHERE e.from_id = ?1 AND e.kind = ?2 AND o.deleted_at IS NULL
 			ORDER BY o.title COLLATE NOCASE`
 		)
 		.bind(managed.profile.id, MEMBER_EDGE)
 		.all();
+	return results.map((r) => ({ id: Number(r.id), title: String(r.title) }));
+}
+
+/**
+ * Todos los grupos que sumaron a alguno de los perfiles de persona de esta cuenta, para
+ * Mi rincón → Perfiles ("Te sumaron a…"). Es la pantalla de la propia cuenta: ahí sí se ve qué
+ * perfil suyo está en qué grupo (nadie más lo ve junto).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @returns {Promise<{ groupId: number, groupTitle: string, personaSlug: string, personaTitle: string }[]>}
+ */
+export async function listMyMemberships(db, accountId) {
+	const { results } = await db
+		.prepare(
+			`SELECT g.id AS group_id, g.title AS group_title, p.slug AS persona_slug, p.title AS persona_title
+			FROM profile_managers pm
+			JOIN objects p ON p.id = pm.profile_id
+			JOIN edges e ON e.from_id = p.id AND e.kind = ?2
+			JOIN objects g ON g.id = e.to_id
+			WHERE pm.account_id = ?1 AND p.type = ?3 AND p.deleted_at IS NULL AND g.deleted_at IS NULL
+			ORDER BY g.title COLLATE NOCASE, p.title COLLATE NOCASE`
+		)
+		.bind(accountId, MEMBER_EDGE, PROFILE_TYPE)
+		.all();
 	return results.map((r) => ({
-		id: Number(r.id),
-		title: String(r.title),
-		accepted: JSON.parse(String(r.data ?? '{}'))?.aceptado === true
+		groupId: Number(r.group_id),
+		groupTitle: String(r.group_title),
+		personaSlug: String(r.persona_slug),
+		personaTitle: String(r.persona_title)
 	}));
 }
 
 /**
- * Integrantes y pedidos de un grupo, para quienes lo gestionan.
+ * Integrantes de un grupo, para quienes lo gestionan: solo los perfiles que esta cuenta puede
+ * ver (si une integrante pasa a oculto, deja de aparecer también acá).
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} groupSlug
- * @returns {Promise<{ id: number, title: string, accepted: boolean }[]>}
+ * @returns {Promise<{ id: number, slug: string, title: string }[]>}
  */
 export async function listGroupMembers(db, accountId, groupSlug) {
 	const managed = await getManagedProfile(db, accountId, groupSlug);
 	if (!managed || managed.kind !== 'grupo') return [];
 	const { results } = await db
 		.prepare(
-			`SELECT o.id, o.title, e.data FROM edges e JOIN objects o ON o.id = e.from_id
-			WHERE e.to_id = ?1 AND e.kind = ?2 AND o.deleted_at IS NULL
+			`SELECT ${MANAGED_COLUMNS} FROM edges e JOIN objects o ON o.id = e.from_id
+			WHERE e.to_id = ?1 AND e.kind = ?2 AND o.type = ?3 AND o.deleted_at IS NULL
 			ORDER BY o.title COLLATE NOCASE`
 		)
-		.bind(managed.profile.id, MEMBER_EDGE)
+		.bind(managed.profile.id, MEMBER_EDGE, PROFILE_TYPE)
 		.all();
-	return results.map((r) => ({
-		id: Number(r.id),
-		title: String(r.title),
-		accepted: JSON.parse(String(r.data ?? '{}'))?.aceptado === true
-	}));
-}
-
-/**
- * Quien gestiona un grupo acepta un pedido o saca a une integrante. Solo toca el edge hacia SU
- * grupo, en el perfil de la persona (con saveObject, como toda escritura).
- *
- * @param {D1Database} db
- * @param {string} accountId
- * @param {string} groupSlug
- * @param {unknown} personaId
- * @param {'accept' | 'remove'} action
- * @param {{ now?: number }} [opts]
- * @returns {Promise<{ ok: true } | Failure>}
- */
-export async function answerMember(
-	db,
-	accountId,
-	groupSlug,
-	personaId,
-	action,
-	{ now = Date.now() } = {}
-) {
-	const managed = await getManagedProfile(db, accountId, groupSlug);
-	if (!managed) return failure(404, MESSAGES.notFound);
-	if (managed.kind !== 'grupo') return failure(400, MESSAGES.onlyGroups);
-	const id = Number(personaId);
-	const row = Number.isSafeInteger(id)
-		? await db
-				.prepare(
-					`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type = ?2 AND deleted_at IS NULL
-					AND EXISTS (SELECT 1 FROM edges WHERE from_id = ?1 AND kind = ?3 AND to_id = ?4)`
-				)
-				.bind(id, PROFILE_TYPE, MEMBER_EDGE, managed.profile.id)
-				.first()
-		: null;
-	if (!row) return failure(404, 'Esa persona ya no está en el grupo ni lo pidió.');
-	const persona = rowToObject(row);
-	const edges = await memberEdges(db, persona.id);
-	const next =
-		action === 'accept'
-			? edges.map((e) => (e.to === managed.profile.id ? { ...e, data: { aceptado: true } } : e))
-			: edges.filter((e) => e.to !== managed.profile.id);
-	return saveMemberEdges(db, persona, next, accountId, now);
+	const viewer = memberViewer(accountId);
+	return results
+		.map(rowToObject)
+		.filter((o) => o.data.kind === 'persona' && canSee(o, viewer))
+		.map((o) => ({ id: o.id, slug: o.slug, title: o.title }));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1007,8 +1080,8 @@ export async function answerMember(
 /**
  * Un perfil como lo ve cualquiera que no lo gestiona (para la página pública que viene). Una
  * lista blanca de campos: sin ids, sin quién lo creó o editó, sin quiénes lo gestionan. Los
- * integrantes solo si el grupo eligió mostrarlos, solo les aceptades y solo los perfiles que
- * quien mira puede ver.
+ * integrantes solo si el grupo eligió mostrarlos y solo los perfiles de persona que quien mira
+ * puede ver (getEdges pasa los dos extremos por el helper de visibilidad).
  *
  * @param {D1Database} db
  * @param {string} slug
@@ -1024,7 +1097,7 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
 	if (kind === 'grupo' && o.data.show_members === true) {
 		const edges = await getEdges(db, o.id, viewer, { direction: 'in', kind: MEMBER_EDGE });
 		members = edges
-			.filter((e) => e.data?.aceptado === true && e.object.data.kind === 'persona')
+			.filter((e) => e.object.data.kind === 'persona')
 			.map((e) => ({ slug: e.object.slug, title: e.object.title }))
 			.sort((a, b) => a.title.localeCompare(b.title, 'es'));
 	}

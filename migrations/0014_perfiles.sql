@@ -40,3 +40,19 @@ CREATE TABLE IF NOT EXISTS profile_invites (
 );
 
 CREATE INDEX IF NOT EXISTS profile_invites_email ON profile_invites (email_hash, expires_at);
+
+-- Integrantes: un grupo suma a una persona directamente (edge `es_integrante_de`, persona →
+-- grupo), y la persona se puede ir cuando quiera. Si se va, ESE grupo no la puede volver a sumar
+-- por 30 días. Esta tabla guarda solo eso: qué grupo, qué perfil de persona y hasta cuándo.
+-- Va acá y no en otro lado porque:
+-- - no puede ser un edge: los edges se leen con getEdges() y cualquiera que vea los dos perfiles
+--   vería que esa persona estuvo en el grupo;
+-- - no entra en rate_limits: esa tabla guarda como mucho 24 horas.
+-- No dice cuándo se fue ni nada de la cuenta; solo la lee y escribe perfiles.js, nunca se
+-- muestra, y las filas vencidas se borran al sumar a alguien a ese grupo.
+CREATE TABLE IF NOT EXISTS profile_member_blocks (
+	group_id INTEGER NOT NULL REFERENCES objects (id) ON DELETE CASCADE,
+	persona_id INTEGER NOT NULL REFERENCES objects (id) ON DELETE CASCADE,
+	until INTEGER NOT NULL, -- ms desde epoch: hasta acá el grupo no la puede volver a sumar
+	PRIMARY KEY (group_id, persona_id)
+) WITHOUT ROWID;
