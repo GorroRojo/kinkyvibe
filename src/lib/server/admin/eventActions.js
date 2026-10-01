@@ -30,7 +30,7 @@ import {
 import { orderReference } from '$lib/utils/tickets.js';
 
 /**
- * Acciones de la venta de entradas de un evento (antes en /admin/entradas/<slug>). Cada pestaña de
+ * Acciones de la venta de entradas de un evento (antes, una página por evento bajo Entradas). Cada pestaña de
  * la ficha exporta las suyas: `export const actions = pickActions('confirm', 'cancel')`. Todas
  * llaman a `requireAdmin` (las form actions no pasan por el layout) y dejan registro con
  * `logAdminAction`.

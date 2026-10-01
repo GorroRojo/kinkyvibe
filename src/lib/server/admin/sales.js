@@ -1,6 +1,6 @@
 /**
- * Ventas de todos los eventos para el panel (`/admin/entradas`) y la bandeja de transferencias
- * (`/admin/entradas/transferencias`). Consultas de solo lectura sobre `orders`; los números son
+ * Ventas de todos los eventos para el panel (`/admin/ventas`) y la bandeja de transferencias
+ * (`/admin/ventas/transferencias`). Consultas de solo lectura sobre `orders`; los números son
  * los mismos que `getCounts` (orders.js) pero de todos los eventos en una sola consulta.
  */
 import { HOLDING } from '$lib/server/tickets/discounts.js';

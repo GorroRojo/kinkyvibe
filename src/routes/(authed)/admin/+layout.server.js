@@ -47,7 +47,7 @@ async function panelCounts(platform) {
 			}
 		})(),
 		(async () => {
-			// Perfiles creados por cuentas que ninguna admin revisó (Cuentas → Perfiles). Sin la
+			// Perfiles creados por cuentas que ninguna admin revisó (Perfiles). Sin la
 			// base o sin las migraciones de perfiles, 0 (no aparece).
 			// Más los pedidos "Es mi perfil" pendientes (docs/amigues.md).
 			const [review, claims] = await Promise.all([

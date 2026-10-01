@@ -11,7 +11,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
-	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
@@ -188,9 +188,9 @@
 					<input name="city" maxlength="100" bind:value={values.text.city} />
 				</label>
 				<label class="kv-field">
-					<span>Privacidad de la dirección (por defecto)</span>
+					<span>Qué se muestra de la dirección (por defecto)</span>
 					<select name="venue_privacy" bind:value={values.venue_privacy}>
-						<option value="">Sin elegir (dirección completa)</option>
+						<option value="">{VENUE_PRIVACY_UNSET_LABEL}</option>
 						{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
 							<option {value}>{label}</option>
 						{/each}

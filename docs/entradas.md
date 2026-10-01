@@ -50,7 +50,7 @@ invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el c
 | Página de compra                       | `src/routes/(content)/calendario/[event]/entradas/`                                                |
 | Estado, entrada, QR, checkout simulado | `src/routes/entradas/`                                                                             |
 | Webhook de MP / cron de recordatorios  | `src/routes/api/mercadopago/webhook/`, `src/routes/api/cron/recordatorios/`                        |
-| Panel                                  | `src/routes/(authed)/admin/entradas/`, `admin/eventos/[slug]/`, `admin/checkin/`                   |
+| Panel                                  | `src/routes/(authed)/admin/ventas/`, `admin/eventos/[slug]/`, `admin/checkin/`                     |
 | Tablas                                 | `migrations/0002` a `0005`, `0010` y `0016` (ver [datos.md](datos.md))                             |
 | Preventas y encadenados                | `src/lib/utils/ticketTiers.js` (puro), `TicketTiersEditor.svelte`                                  |
 
@@ -87,7 +87,7 @@ agote o cierre «…»".
 **Cortar la venta.** Estado "Agotadas" o una fecha de cierre. Con ventas hechas, el editor no deja
 borrar un tipo vendido ni apagar la venta.
 
-**Confirmar una transferencia.** Entradas → Transferencias → Confirmar pago. Si la reserva venció
+**Confirmar una transferencia.** Ventas › Transferencias → Confirmar pago. Si la reserva venció
 y no hay cupo, pide confirmar el pase de límite.
 
 **Vender en la puerta / cargar invitaciones.** Check-in → el evento → Vender en puerta; o menú
