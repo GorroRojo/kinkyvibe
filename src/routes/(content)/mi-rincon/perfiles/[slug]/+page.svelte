@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { TIMEZONE } from '$lib/utils/dates.js';
-	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 
 	export let data;
@@ -264,7 +264,7 @@
 							value={values.venue?.venue_privacy ?? ''}
 							aria-invalid={errors.venue_privacy ? 'true' : undefined}
 						>
-							<option value="">Sin elegir: la dirección completa</option>
+							<option value="">{VENUE_PRIVACY_UNSET_LABEL}</option>
 							{#each Object.entries(VENUE_PRIVACY_LABELS) as [value, label] (value)}
 								<option {value}>{label}</option>
 							{/each}
