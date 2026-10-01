@@ -20,6 +20,7 @@ import {
 import { createLoginCode, normalizeCode, verifyLoginCode } from './codes.js';
 import { releaseAccountProfiles } from './perfiles.js';
 import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
+import { accountMailAllowed } from './mailCap.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {(to: string, message: { subject: string, html: string, text: string }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
@@ -53,6 +54,8 @@ export const MESSAGES = Object.freeze({
 	tooManyCodes: 'Pediste varios códigos seguidos. Esperá unos minutos y probá de nuevo.',
 	tooManyAttempts: 'Demasiados intentos. Esperá unos minutos y probá de nuevo.',
 	mailFailed: 'No pudimos mandar el mail. Probá de nuevo en un rato.',
+	/** Tope global de mails (mailCap.js): el mismo texto para cualquier mail. */
+	mailBusy: 'Estamos mandando muchos mails en este momento. Probá en un rato.',
 	badLogin: 'El mail o la contraseña no coinciden.'
 });
 
@@ -113,6 +116,9 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 		return tooManyCodes();
 	if (!(await allowed(db, `cuentas:code:ed:${hash}`, RATE_LIMITS.codeRequestEmailDay, now)))
 		return tooManyCodes();
+	// Al final, el tope global (para cualquier mail igual: no dice nada de la dirección).
+	if (!(await accountMailAllowed(db, now)))
+		return { ok: false, status: 429, message: MESSAGES.mailBusy };
 	const { code } = await createLoginCode(db, hash, { now, purpose });
 	const message =
 		purpose === 'login' ? buildLoginCodeEmail({ code }) : buildConfirmCodeEmail({ code, purpose });

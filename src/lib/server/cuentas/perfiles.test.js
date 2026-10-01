@@ -10,6 +10,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON, getEdges, getObject, searchObjects } from '$lib/server/objects/index.js';
 import { deleteAccount, upsertVerifiedAccount } from './accounts.js';
 import { closeAccount } from './index.js';
+import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
 import {
 	INVITE_RATE_LIMITS,
 	INVITE_TTL_MS,
@@ -566,6 +567,20 @@ describe('aviso por mail de las invitaciones', () => {
 		expect(results.filter((r) => r === 'sent')).toHaveLength(limit);
 		expect(results.at(-1)).toBe('limited');
 		expect(await myInvites(t.db, b.id, opts)).toHaveLength(limit + 1);
+	});
+
+	it('con el tope global de mails lleno, el aviso no sale y la invitación queda', async () => {
+		const a = await account('dueñe-inventade');
+		const b = await account('gestora-inventada');
+		const g = await create(a.id, { kind: 'grupo', title: 'Grupo Inventado' });
+		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		const fake = fakeNotice();
+		expect(
+			await inviteManager(t.db, a.id, g.slug, b.email, { ...opts, notice: fake.notice })
+		).toEqual({ ok: true, message: MESSAGES.invited });
+		expect(await fake.settle()).toEqual(['limited']);
+		expect(fake.sent).toEqual([]);
+		expect(await myInvites(t.db, b.id, opts)).toHaveLength(1);
 	});
 });
 

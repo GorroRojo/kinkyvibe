@@ -89,8 +89,20 @@ nada de estas tablas para sumarlas.
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
+| Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
+Una IPv6 cuenta por su red /64 entera (`clientNetwork` en `src/lib/server/tickets/safeguards.js`):
+a cada casa o servidor le toca por lo menos una /64, así que contar cada dirección por separado
+dejaría saltar los límites. Las IPv4 cuentan igual que antes.
+
+El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
+salen (códigos de ingreso, códigos para confirmar y avisos de invitación), de cualquier conexión
+y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
+nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
+texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
+(la invitación se crea igual y aparece en Mi rincón).
 Los límites se miran en orden (conexión, mail + conexión, mail cada 15 minutos, mail por día) y
 cada uno suma solo si pasó el anterior: un pedido rechazado no gasta el cupo del mail, y una sola
 conexión puede pedir como mucho 4 de los 10 códigos diarios de un mail, así no deja a otra persona

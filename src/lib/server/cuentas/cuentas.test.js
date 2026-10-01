@@ -33,7 +33,9 @@ import {
 	requestCode,
 	verifyCode
 } from './index.js';
+import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
 import { ordersForAccount } from './orders.js';
+import { clientHash } from '$lib/server/tickets/safeguards.js';
 import {
 	LAST_SEEN_EVERY_MS,
 	SESSION_COOKIE_MAX_AGE,
@@ -419,6 +421,67 @@ describe('los límites por mail no los gasta otra conexión', () => {
 			now: NOW
 		});
 		expect(r).toMatchObject({ ok: true, account: { id: a.id } });
+	});
+});
+
+describe('tope global de mails y conexiones IPv6', () => {
+	it('con el tope global lleno: el mismo aviso para cualquier mail, sin mandar nada', async () => {
+		for (let i = 0; i < ACCOUNT_MAIL_CAP.limit; i++) await accountMailAllowed(t.db, NOW);
+		const { sent, send } = fakeSender();
+		const a = await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW });
+		const b = await requestCode({
+			db: t.db,
+			email: 'otra.persona@example.com',
+			client: 'c2',
+			send,
+			now: NOW
+		});
+		expect(a).toEqual({ ok: false, status: 429, message: MESSAGES.mailBusy });
+		expect(b).toEqual(a);
+		const c = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'password',
+			client: 'c3',
+			send,
+			now: NOW
+		});
+		expect(c).toEqual(a);
+		expect(sent).toEqual([]);
+		// En la hora siguiente vuelve a andar.
+		const later = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: 'c1',
+			send,
+			now: NOW + 3600_000
+		});
+		expect(later.ok).toBe(true);
+	});
+
+	it('cada mail que sale suma al tope; los pedidos rechazados no', async () => {
+		const { send } = fakeSender();
+		await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW });
+		for (let i = 0; i < 5; i++) {
+			await requestCode({ db: t.db, email: EMAIL, client: 'c1', send, now: NOW + i });
+		}
+		const row = await t.db
+			.prepare("SELECT hits FROM rate_limits WHERE bucket = 'cuentas:mail:global'")
+			.first();
+		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmail.limit);
+	});
+
+	it('dos direcciones de la misma red IPv6 /64 comparten el límite por conexión', async () => {
+		const { send } = fakeSender();
+		const n = RATE_LIMITS.codeRequestClient.limit;
+		for (let i = 0; i < n; i++) {
+			const client = await clientHash(`2001:db8:1:2::${i + 1}`, NOW);
+			const r = await requestCode({ db: t.db, email: `p${i}@example.com`, client, send, now: NOW });
+			expect(r.ok).toBe(true);
+		}
+		const client = await clientHash('2001:db8:1:2:aaaa::1', NOW);
+		const r = await requestCode({ db: t.db, email: 'una.mas@example.com', client, send, now: NOW });
+		expect(r).toMatchObject({ ok: false, status: 429 });
 	});
 });
 

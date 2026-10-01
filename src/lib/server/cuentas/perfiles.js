@@ -42,6 +42,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { emailHash, getAccount, getAccountByEmail, normalizeEmail } from './accounts.js';
 import { buildProfileInviteEmail } from './email.js';
+import { accountMailAllowed } from './mailCap.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -579,6 +580,8 @@ export async function sendInviteNotice(db, { profileId, email, hash, notice, now
 			now
 		);
 		if (!limit.allowed) return 'limited';
+		// El tope global de mails de cuentas: si se llegó, el aviso no sale (la invitación queda).
+		if (!(await accountMailAllowed(db, now))) return 'limited';
 		const groupTitle = String(group.title);
 		const message = buildProfileInviteEmail({
 			groupTitle,
