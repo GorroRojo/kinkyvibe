@@ -40,7 +40,7 @@
 
 <PageHeader
 	title="Borrar {data.info.one}"
-	subtitle="«{data.title}» · {data.kind}/{data.slug}"
+	subtitle="«{deleted?.title ?? undone?.title ?? data.title}» · {data.kind}/{data.slug}"
 	back={{ href: data.info.list, label: 'Volver' }}
 />
 
@@ -53,7 +53,7 @@
 				: `Listo: «${undone.title}» vuelve a estar. Se publica en unos minutos.`}
 		/>
 		{#if undone.publish}<PublishStatus pr={undone.publish} />{/if}
-		<p><a href={editHref}>Ir a {data.info.the}</a></p>
+		<p><a href={editHref}>Abrir {data.info.the}</a></p>
 	{:else if deleted}
 		<form method="POST" action="?/deshacer" use:enhance={submit}>
 			<input type="hidden" name="id" value={deleted.id} />
