@@ -14,8 +14,10 @@
  * - nada de esto entra en lo que se arma al compilar (sitemap, RSS, calendario .ics, buscador,
  *   /api/posts): esas salidas leen solo los .md, así que no pueden filtrar una dirección guardada
  *   acá (lo verifica la prueba de filtraciones).
+ * - los .ics dinámicos (etiqueta o serie, "lo tuyo", de #141) usan {@link feedVenues}: lo mismo
+ *   que la página del evento le muestra a cualquiera.
  */
-import { getObject } from '$lib/server/objects/index.js';
+import { ANON, getObject } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -140,6 +142,31 @@ export async function buyerLocation(db, eventSlug) {
 		console.error('[lugares] no se pudo leer el lugar para quien compró', e);
 		return null;
 	}
+}
+
+/**
+ * Para los calendarios .ics dinámicos (etiqueta o serie, "lo tuyo"): el lugar de cada evento de
+ * `slugs` que tiene uno, como lo ve cualquiera en la página del evento (ANON), para
+ * `feedLocation`. Vacío si `perfiles_publicos` está apagado (entonces el .ics usa lo del .md, como
+ * la página). Si algo falla, tira: mejor un .ics que no carga que uno con una dirección oculta.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {Iterable<string>} slugs
+ * @returns {Promise<Map<string, VenueView>>}
+ */
+export async function feedVenues(db, slugs) {
+	/** @type {Map<string, VenueView>} */
+	const out = new Map();
+	if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return out;
+	const want = new Set(slugs);
+	const { results } = await db.prepare('SELECT event_slug FROM event_venues').all();
+	for (const r of results) {
+		const slug = String(r.event_slug);
+		if (!want.has(slug)) continue;
+		const view = await publicVenueForEvent(db, slug, ANON);
+		if (view) out.set(slug, view);
+	}
+	return out;
 }
 
 /**
