@@ -430,11 +430,47 @@ describe('a la gorra', () => {
 			price: 5000,
 			fondo: 0,
 			capacity: 100,
-			gorra: { min: 1000, suggested: 5000 },
+			gorra: { min: 1000, recommended: null, suggested: 5000 },
 			closesAt: null
 		});
 		expect(c.types[0].fondo).toBe(1600);
-		expect(c.types[2].gorra).toEqual({ min: 0, suggested: 3000 });
+		expect(c.types[2].gorra).toEqual({ min: 0, recommended: null, suggested: 3000 });
+	});
+
+	it('mínimo recomendado: opcional, entre el mínimo y el sugerido, y no se exige', () => {
+		const withRec = /** @type {any} */ (
+			parseTicketConfig({
+				...META,
+				tickets: [
+					{ id: 'g', a_la_gorra: { minimo: 500, minimo_recomendado: 3000, sugerido: 5000 } }
+				]
+			})
+		);
+		expect(withRec.types[0].gorra).toEqual({ min: 500, recommended: 3000, suggested: 5000 });
+		// Igual al mínimo: como si no estuviera.
+		const same = /** @type {any} */ (
+			parseTicketConfig({
+				...META,
+				tickets: [{ id: 'g', a_la_gorra: { minimo: 500, minimo_recomendado: 500, sugerido: 900 } }]
+			})
+		);
+		expect(same.types[0].gorra.recommended).toBe(null);
+		for (const minimo_recomendado of [400, 6000, 1.5, 'x']) {
+			expect(() =>
+				parseTicketConfig({
+					...META,
+					tickets: [{ id: 'g', a_la_gorra: { minimo: 500, minimo_recomendado, sugerido: 5000 } }]
+				})
+			).toThrow(/minimo_recomendado/);
+		}
+		// Se puede pagar menos que el recomendado, pero no menos que el mínimo.
+		const cfg = /** @type {any} */ (withRec);
+		const base = { ...ok, type: 'g' };
+		expect(validatePurchase(cfg, { ...base, amount: '1000' })).toMatchObject({
+			ok: true,
+			unitPrice: 1000
+		});
+		expect(validatePurchase(cfg, { ...base, amount: '400' })).toMatchObject({ ok: false });
 	});
 
 	it.each([

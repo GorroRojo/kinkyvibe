@@ -57,7 +57,7 @@ export async function getAllCounts(db, now = Date.now()) {
 
 /**
  * @typedef {{
- *   id: string, name: string, price: number | null, gorra: { min: number, suggested: number } | null,
+ *   id: string, name: string, price: number | null, gorra: { min: number, recommended?: number | null, suggested: number } | null,
  *   capacity: number | null, fondo: number, sold: number, held: number, revenue: number,
  *   fondoUsed: number, contribution: number, surcharge: number, over: boolean
  * }} TypeSales
@@ -94,7 +94,13 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 			id: t.id,
 			name: t.name,
 			price: t.gorra ? null : t.price,
-			gorra: t.gorra ? { min: t.gorra.min, suggested: t.gorra.suggested } : null,
+			gorra: t.gorra
+				? {
+						min: t.gorra.min,
+						recommended: t.gorra.recommended ?? null,
+						suggested: t.gorra.suggested
+					}
+				: null,
 			capacity,
 			fondo: t.fondo ?? 0,
 			sold,

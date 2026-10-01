@@ -8,7 +8,8 @@
  * sobre el archivo final.
  *
  * Campos del frontmatter que maneja (ver docs/tickets.md):
- * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, sugerido }, capacity }`
+ * - `tickets`: lista de tipos `{ id, name, price | a_la_gorra: { minimo, minimo_recomendado?,
+ *   sugerido }, capacity }`
  *   (`capacity` es opcional: sin cupo = sin límite);
  * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
  *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo.
@@ -100,6 +101,7 @@ export function isOnlineEvent(meta) {
  * @prop {'price' | 'gorra'} mode
  * @prop {string} price
  * @prop {string} min
+ * @prop {string} recommended mínimo recomendado ('' = no hay; se muestra pero no se exige)
  * @prop {string} suggested
  * @prop {string} capacity '' = sin cupo (sin límite)
  * @prop {string} close cierre propio (datetime-local, hora de Argentina); '' = cierra con el evento
@@ -143,6 +145,7 @@ export function emptyTicketType({ first = false } = {}) {
 		mode: 'price',
 		price: '',
 		min: '0',
+		recommended: '',
 		suggested: '',
 		capacity: '',
 		close: ''
@@ -190,6 +193,7 @@ export function readTicketsForm(meta) {
 			mode: gorra ? 'gorra' : 'price',
 			price: gorra ? '' : str(raw?.price),
 			min: gorra ? str(raw.a_la_gorra?.minimo) : '0',
+			recommended: gorra ? str(raw.a_la_gorra?.minimo_recomendado) : '',
 			suggested: gorra ? str(raw.a_la_gorra?.sugerido) : '',
 			capacity: str(raw?.capacity),
 			close: toLocalInput(raw?.close, true)
@@ -333,6 +337,15 @@ export function validateTicketsForm(form, { sales } = {}) {
 				errors.push(`${label}: el sugerido no puede ser menor que el mínimo.`);
 			else if (suggested > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el sugerido es demasiado alto (¿sobra un cero?).`);
+			if (t.recommended.trim()) {
+				const rec = parseAmount(t.recommended);
+				if (rec === null)
+					errors.push(`${label}: el mínimo recomendado tiene que ser en pesos enteros.`);
+				else if (min !== null && rec < min)
+					errors.push(`${label}: el mínimo recomendado no puede ser menor que el mínimo.`);
+				else if (suggested !== null && rec > suggested)
+					errors.push(`${label}: el mínimo recomendado no puede ser mayor que el sugerido.`);
+			}
 		} else {
 			const price = parseAmount(t.price);
 			if (price === null || price <= 0)
@@ -400,6 +413,10 @@ const normalizedType = (t) => ({
 	mode: t.mode,
 	price: t.mode === 'price' ? (parseAmount(t.price) ?? t.price) : null,
 	min: t.mode === 'gorra' ? (parseAmount(t.min || '0') ?? t.min) : null,
+	recommended:
+		t.mode === 'gorra' && t.recommended.trim()
+			? (parseAmount(t.recommended) ?? t.recommended)
+			: null,
 	suggested: t.mode === 'gorra' ? (parseAmount(t.suggested) ?? t.suggested) : null,
 	capacity: t.capacity.trim() ? (parseCount(t.capacity) ?? t.capacity) : null,
 	close: t.close.trim()
@@ -485,7 +502,15 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		const modeChanged = t.mode === 'gorra' ? node.has('price') : node.has('a_la_gorra');
 		if (t.mode === 'gorra') {
 			node.delete('price');
-			const gorra = doc.createNode({ minimo: amount(t.min), sugerido: amount(t.suggested) });
+			const gorra = doc.createNode(
+				t.recommended.trim()
+					? {
+							minimo: amount(t.min),
+							minimo_recomendado: amount(t.recommended),
+							sugerido: amount(t.suggested)
+						}
+					: { minimo: amount(t.min), sugerido: amount(t.suggested) }
+			);
 			gorra.flow = true;
 			node.set('a_la_gorra', gorra);
 		} else {
@@ -605,9 +630,10 @@ export function describeTicketsForm(form, formatARS) {
 				if (t.mode === 'gorra') {
 					const s = parseAmount(t.suggested);
 					const m = parseAmount(t.min || '0');
+					const r = t.recommended.trim() ? parseAmount(t.recommended) : null;
 					return `${t.name.trim() || t.id}: a la gorra (sugerido ${s === null ? '?' : formatARS(s)}${
-						m ? `, mínimo ${formatARS(m)}` : ''
-					}${cap})`;
+						r ? `, mínimo recomendado ${formatARS(r)}` : ''
+					}${m ? `, mínimo ${formatARS(m)}` : ''}${cap})`;
 				}
 				const p = parseAmount(t.price);
 				return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}`;
