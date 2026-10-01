@@ -48,4 +48,30 @@ describe('VenueLocation', () => {
 		expect(name).not.toContain('openstreetmap.org');
 		expect(name).toContain(ADDRESS_FOR_BUYERS);
 	});
+
+	it('"Ver en Google Maps" solo donde se ve la dirección, y sin el nombre en «Sólo dirección»', () => {
+		const G = 'https://www.google.com/maps/search/?api=1&amp;query=';
+		const point = html(addressView);
+		expect(point).toContain(`href="${G}-34.6%2C-58.4"`);
+		expect(point).toContain('>Ver en Google Maps</a>');
+		const noPoint = { ...addressView, lat: undefined, lng: undefined };
+		const street = html(noPoint);
+		expect(street).toContain(
+			`href="${G}Calle%20Inventada%201%2C%20Barrio%20Inventado%2C%20Ciudad%20de%20Prueba"`
+		);
+		const pub = html({ ...noPoint, level: 'public', name: 'Galpón Inventado', href: '/x' });
+		expect(pub).toContain(`href="${G}Galp%C3%B3n%20Inventado%2C%20Calle%20Inventada%201`);
+		// en la página del lugar, con "Nombre + dirección", también
+		expect(
+			html({ ...addressView, level: 'public', name: 'Galpón Inventado', href: '/x' }, 'venue')
+		).toContain('Ver en Google Maps');
+		for (const view of /** @type {import('$lib/utils/venues.js').VenueView[]} */ ([
+			{ level: 'name', name: 'Galpón Inventado', href: '/x' },
+			{ level: 'area', area: 'Barrio Inventado', city: 'Ciudad de Prueba' },
+			{ level: 'hidden' }
+		])) {
+			expect(html(view)).not.toContain('Google Maps');
+			expect(html(view, 'venue')).not.toContain('Google Maps');
+		}
+	});
 });

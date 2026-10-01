@@ -6,7 +6,7 @@
 	 * Props: `view` (VenueView), `context` ('event' | 'venue').
 	 */
 	import { MapPin } from '@lucide/svelte';
-	import { ADDRESS_FOR_BUYERS, showsAddress } from '$lib/utils/venues.js';
+	import { ADDRESS_FOR_BUYERS, googleMapsLink, showsAddress } from '$lib/utils/venues.js';
 	import VenueMap from './VenueMap.svelte';
 
 	/** @type {import('$lib/utils/venues.js').VenueView} */
@@ -15,6 +15,8 @@
 	export let context = 'event';
 
 	$: place = [view.area, view.city].filter(Boolean).join(', ');
+	/* "Ver en Google Maps": solo en los niveles que muestran la dirección (pedido de gorrite). */
+	$: gmaps = googleMapsLink(view);
 </script>
 
 <section class="venue" aria-label={context === 'event' ? 'Dónde' : 'Ubicación'}>
@@ -47,6 +49,11 @@
 	</p>
 	{#if context === 'event' && !showsAddress(view.level)}
 		<p class="note">{ADDRESS_FOR_BUYERS}</p>
+	{/if}
+	{#if gmaps}
+		<p class="gmaps">
+			<a href={gmaps} target="_blank" rel="noopener noreferrer">Ver en Google Maps</a>
+		</p>
 	{/if}
 	<!-- El mapa, también en "Sólo dirección" (decisión de gorrite); ahí sin el nombre. -->
 	{#if showsAddress(view.level) && view.lat !== undefined && view.lng !== undefined}
@@ -85,6 +92,17 @@
 	}
 	.text {
 		white-space: pre-line;
+	}
+	.gmaps {
+		margin: 0.4em 0;
+	}
+	.gmaps a {
+		display: inline-block;
+		padding: 0.3em 0.8em;
+		border: 1px solid currentColor;
+		border-radius: 999px;
+		font-size: var(--step--1);
+		text-decoration: none;
 	}
 	h4 {
 		margin: 1em 0 0.3em;

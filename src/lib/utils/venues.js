@@ -258,6 +258,28 @@ export function osmLink(lat, lng, zoom = 17) {
 }
 
 /**
+ * El link "Ver en Google Maps" de un lugar ya filtrado por su nivel, o `undefined` si el nivel no
+ * muestra la dirección (pedido de gorrite: solo "Nombre + dirección" y "Sólo dirección"). Es un
+ * link común, sin mapa embebido. Con el punto en el mapa busca el punto; si no, la dirección. En
+ * "Sólo dirección" la búsqueda nunca lleva el nombre del lugar (la vista ni siquiera lo trae).
+ *
+ * @param {VenueView} view
+ * @returns {string | undefined}
+ */
+export function googleMapsLink(view) {
+	if (!showsAddress(view.level)) return undefined;
+	let query = '';
+	if (view.lat !== undefined && view.lng !== undefined) {
+		query = `${view.lat},${view.lng}`;
+	} else if (view.address) {
+		const name = view.level === 'public' ? view.name : undefined;
+		query = [name, view.address, view.area, view.city].filter(Boolean).join(', ');
+	}
+	if (!query) return undefined;
+	return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+/**
  * Las baldosas de OpenStreetMap para un mapa estático chico (sin librerías: imágenes comunes),
  * con el punto en el centro.
  *

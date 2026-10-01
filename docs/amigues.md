@@ -113,6 +113,11 @@ escrita, es pública (el repo es público): Eventos → Lugares avisa para sacar
 sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falta tocar
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
 
+**"Ver en Google Maps"** (pedido de gorrite): un link común (sin mapa embebido) en la página del
+evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Busca el punto si el
+lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca lleva el nombre
+(`googleMapsLink` en `src/lib/utils/venues.js`).
+
 ## Del vínculo provisorio al edge
 
 Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**

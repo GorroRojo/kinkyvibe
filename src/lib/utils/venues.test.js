@@ -10,6 +10,7 @@ import {
 	effectivePrivacy,
 	eventPrivacyText,
 	fullAddress,
+	googleMapsLink,
 	inheritPrivacyLabel,
 	osmLink,
 	osmTiles,
@@ -194,6 +195,41 @@ describe('nivel «Sólo dirección» (address)', () => {
 		});
 		expect(venueLine({ level: 'address' })).toBe('Lugar a confirmar');
 		expect(venueSchema({ level: 'address' })).toBeUndefined();
+	});
+});
+
+describe('"Ver en Google Maps"', () => {
+	const G = 'https://www.google.com/maps/search/?api=1&query=';
+	// Galpón sin el punto en el mapa, para probar la búsqueda por dirección.
+	const noPoint = { title: venue.title, data: { ...venue.data, lat: undefined, lng: undefined } };
+
+	it('con el punto en el mapa busca el punto (en los dos niveles con dirección)', () => {
+		expect(googleMapsLink(venueView(venue, 'public', href))).toBe(`${G}-34.6%2C-58.4`);
+		expect(googleMapsLink(venueView(venue, 'address', href))).toBe(`${G}-34.6%2C-58.4`);
+	});
+
+	it('sin el punto, la dirección; en "Sólo dirección", nunca el nombre', () => {
+		expect(googleMapsLink(venueView(noPoint, 'public', href))).toBe(
+			G +
+				encodeURIComponent('Galpón Inventado, Calle Falsa 742, Barrio Inventado, Ciudad de Prueba')
+		);
+		const addressOnly = googleMapsLink(venueView(noPoint, 'address', href));
+		expect(addressOnly).toBe(
+			G + encodeURIComponent('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba')
+		);
+		expect(decodeURIComponent(String(addressOnly))).not.toContain('Galpón');
+		// Aunque la vista trajera el nombre por error, en "Sólo dirección" no se usa.
+		expect(
+			googleMapsLink({ level: 'address', name: 'Galpón Inventado', address: 'Calle Falsa 742' })
+		).toBe(G + encodeURIComponent('Calle Falsa 742'));
+	});
+
+	it('en los niveles que no muestran la dirección, o sin dirección ni punto, no hay link', () => {
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(googleMapsLink(venueView(venue, level, href))).toBeUndefined();
+		}
+		expect(googleMapsLink({ level: 'address', area: 'Barrio Inventado' })).toBeUndefined();
+		expect(googleMapsLink({ level: 'public', name: 'Galpón Inventado' })).toBeUndefined();
 	});
 });
 
