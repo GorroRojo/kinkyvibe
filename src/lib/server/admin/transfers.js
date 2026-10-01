@@ -1,6 +1,6 @@
 /**
  * Confirmar o cancelar una transferencia desde el panel, sin saber de antemano de qué evento es
- * (la bandeja `/admin/entradas/transferencias` junta todos). Usa las mismas funciones que la
+ * (la bandeja `/admin/ventas/transferencias` junta todos). Usa las mismas funciones que la
  * página de cada evento (`confirmTransfer` y `cancelTransfer` de orders.js, idempotentes) y
  * deja el mismo registro de actividad (`transfer.confirm` / `transfer.cancel`).
  *

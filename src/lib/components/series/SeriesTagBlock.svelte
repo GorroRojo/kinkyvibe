@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * Lo de series en la página de una etiqueta (/wiki/<etiqueta>, que puede estar prerenderizada):
-	 * lo pide a /api/series/<etiqueta> al cargar, así el interruptor `series` se respeta en el
+	 * lo pide a /api/series/<etiqueta> (forma slug: seriesApiPath) al cargar, así el interruptor `series` se respeta en el
 	 * momento. Apagado (404) no muestra nada. Si la etiqueta es una serie: su imagen, las próximas
 	 * ediciones primero y después las pasadas, y "Avisame si se repite". Si tiene eventos: el
 	 * calendario .ics para suscribirse.
@@ -11,6 +11,7 @@
 	import EditionList from './EditionList.svelte';
 	import SeriesNotifyForm from './SeriesNotifyForm.svelte';
 	import CalendarSubscribe from './CalendarSubscribe.svelte';
+	import { seriesApiPath } from '$lib/utils/series.js';
 
 	/** @type {string} */
 	export let tag;
@@ -23,7 +24,7 @@
 		origin = location.origin;
 		if (!tag) return;
 		try {
-			const r = await fetch(`/api/series/${encodeURIComponent(tag)}`);
+			const r = await fetch(seriesApiPath(tag));
 			if (r.ok) info = await r.json();
 		} catch {
 			info = null;

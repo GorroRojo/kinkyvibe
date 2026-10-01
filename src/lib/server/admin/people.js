@@ -1,5 +1,5 @@
 /**
- * Personas (base de clientes del panel, `/admin/personas`) y los datos de Estadísticas:
+ * Personas (base de clientes del panel, `/admin/comunidad/personas`) y los datos de Estadísticas:
  * salen de las órdenes, agrupadas por email normalizado. Solo admins. Nunca se lee el DNI.
  *
  * - Compró un evento: tiene una orden aprobada (o reembolsada, que se muestra pero no suma).

@@ -1,6 +1,6 @@
 /**
  * Panel → Amigues con los perfiles en la base (interruptor `perfiles_publicos`): loads y actions
- * que usan /admin/amigues/[slug], /admin/amigues/nuevo y /admin/eventos/lugares. Con el
+ * que usan /admin/comunidad/perfiles/[slug], /admin/comunidad/perfiles/nuevo y /admin/eventos/lugares. Con el
  * interruptor apagado, esas rutas siguen con el editor de .md de siempre (contentRoutes.js).
  *
  * Cada load y cada action llama a `requireAdmin`. Todo cambio queda en el registro de actividad.
@@ -155,7 +155,10 @@ export async function createProfileAction({ locals, url, platform, request }) {
 		targetId: result.profile.id,
 		summary: `Creó el perfil «${result.profile.title}» (${profileKindOf(result.profile.data)})`
 	});
-	redirect(303, `/admin/amigues/${encodeURIComponent(result.profile.slug)}?guardado=creado`);
+	redirect(
+		303,
+		`/admin/comunidad/perfiles/${encodeURIComponent(result.profile.slug)}?guardado=creado`
+	);
 }
 
 /**

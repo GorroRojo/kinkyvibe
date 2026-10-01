@@ -2,14 +2,21 @@ import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_VENUE_PRIVACY,
 	REJECT_REASON_MAX,
+	VENUE_PRIVACY_LABELS,
+	VENUE_PRIVACY_LEVELS,
+	VENUE_PRIVACY_UNSET_LABEL,
 	cleanRejectReason,
 	coordinateText,
 	effectivePrivacy,
+	eventPrivacyText,
 	fullAddress,
+	googleMapsLink,
+	inheritPrivacyLabel,
 	osmLink,
 	osmTiles,
 	parseCoordinate,
 	reviewState,
+	showsAddress,
 	showsVenueLink,
 	venueLine,
 	venueSchema,
@@ -112,6 +119,117 @@ describe('privacidad del lugar', () => {
 	it('la dirección completa para quien compró', () => {
 		expect(fullAddress(venue.data)).toBe('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba');
 		expect(fullAddress({ city: 'Solo ciudad' })).toBe('Solo ciudad');
+	});
+});
+
+describe('textos de la privacidad (panel y Mi rincón)', () => {
+	// gorrite pidió estos textos exactos (con "Sólo" con tilde y esas mayúsculas).
+	it('cada nivel tiene su texto, en el orden de los desplegables', () => {
+		expect(VENUE_PRIVACY_LABELS).toEqual({
+			public: 'Nombre + dirección',
+			name: 'Sólo Nombre',
+			address: 'Sólo dirección',
+			area: 'Sólo dirección parcial (Barrio)',
+			hidden: 'Nada'
+		});
+		expect(Object.keys(VENUE_PRIVACY_LABELS)).toEqual([...VENUE_PRIVACY_LEVELS]);
+		expect(VENUE_PRIVACY_UNSET_LABEL).toBe('Sin elegir (Nombre + dirección)');
+	});
+
+	it('"Igual que el Lugar" muestra el nivel del lugar; sin nivel, Nombre + dirección', () => {
+		expect(inheritPrivacyLabel('name')).toBe('Igual que el Lugar (Sólo Nombre)');
+		expect(inheritPrivacyLabel('address')).toBe('Igual que el Lugar (Sólo dirección)');
+		expect(inheritPrivacyLabel('area')).toBe(
+			'Igual que el Lugar (Sólo dirección parcial (Barrio))'
+		);
+		expect(inheritPrivacyLabel('hidden')).toBe('Igual que el Lugar (Nada)');
+		expect(inheritPrivacyLabel('public')).toBe('Igual que el Lugar (Nombre + dirección)');
+		for (const unset of [null, undefined, '', 'cualquiera']) {
+			expect(inheritPrivacyLabel(unset)).toBe('Igual que el Lugar (Nombre + dirección)');
+		}
+	});
+
+	it('en un evento: su nivel si tiene uno, si no "Igual que el Lugar"', () => {
+		expect(eventPrivacyText('hidden', 'public')).toBe('Nada');
+		expect(eventPrivacyText('address', 'hidden')).toBe('Sólo dirección');
+		expect(eventPrivacyText(null, 'name')).toBe('Igual que el Lugar (Sólo Nombre)');
+		expect(eventPrivacyText(null, null)).toBe('Igual que el Lugar (Nombre + dirección)');
+	});
+});
+
+describe('nivel «Sólo dirección» (address)', () => {
+	it('la dirección, el barrio, la ciudad y el mapa; ni el nombre, ni el link, ni los textos libres', () => {
+		const v = venueView(venue, 'address', href);
+		expect(v).toEqual({
+			level: 'address',
+			address: 'Calle Falsa 742',
+			area: 'Barrio Inventado',
+			city: 'Ciudad de Prueba',
+			lat: -34.6,
+			lng: -58.4
+		});
+		expect(JSON.stringify(v)).not.toMatch(/Galpón|amigues|Colectivo|Rampa/);
+	});
+
+	it('es un nivel válido, se elige en el evento o en el lugar, y no muestra el link', () => {
+		expect(effectivePrivacy('address', 'public')).toBe('address');
+		expect(effectivePrivacy(null, 'address')).toBe('address');
+		expect(showsVenueLink('address')).toBe(false);
+		expect(showsAddress('address')).toBe(true);
+		expect(showsAddress('public')).toBe(true);
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(showsAddress(level)).toBe(false);
+		}
+	});
+
+	it('la línea y los datos estructurados: la dirección sin el nombre', () => {
+		const v = venueView(venue, 'address', href);
+		expect(venueLine(v)).toBe('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba');
+		expect(venueSchema(v)).toEqual({
+			'@type': 'Place',
+			name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba',
+			address: {
+				'@type': 'PostalAddress',
+				name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba'
+			}
+		});
+		expect(venueLine({ level: 'address' })).toBe('Lugar a confirmar');
+		expect(venueSchema({ level: 'address' })).toBeUndefined();
+	});
+});
+
+describe('"Ver en Google Maps"', () => {
+	const G = 'https://www.google.com/maps/search/?api=1&query=';
+	// Galpón sin el punto en el mapa, para probar la búsqueda por dirección.
+	const noPoint = { title: venue.title, data: { ...venue.data, lat: undefined, lng: undefined } };
+
+	it('con el punto en el mapa busca el punto (en los dos niveles con dirección)', () => {
+		expect(googleMapsLink(venueView(venue, 'public', href))).toBe(`${G}-34.6%2C-58.4`);
+		expect(googleMapsLink(venueView(venue, 'address', href))).toBe(`${G}-34.6%2C-58.4`);
+	});
+
+	it('sin el punto, la dirección; en "Sólo dirección", nunca el nombre', () => {
+		expect(googleMapsLink(venueView(noPoint, 'public', href))).toBe(
+			G +
+				encodeURIComponent('Galpón Inventado, Calle Falsa 742, Barrio Inventado, Ciudad de Prueba')
+		);
+		const addressOnly = googleMapsLink(venueView(noPoint, 'address', href));
+		expect(addressOnly).toBe(
+			G + encodeURIComponent('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba')
+		);
+		expect(decodeURIComponent(String(addressOnly))).not.toContain('Galpón');
+		// Aunque la vista trajera el nombre por error, en "Sólo dirección" no se usa.
+		expect(
+			googleMapsLink({ level: 'address', name: 'Galpón Inventado', address: 'Calle Falsa 742' })
+		).toBe(G + encodeURIComponent('Calle Falsa 742'));
+	});
+
+	it('en los niveles que no muestran la dirección, o sin dirección ni punto, no hay link', () => {
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(googleMapsLink(venueView(venue, level, href))).toBeUndefined();
+		}
+		expect(googleMapsLink({ level: 'address', area: 'Barrio Inventado' })).toBeUndefined();
+		expect(googleMapsLink({ level: 'public', name: 'Galpón Inventado' })).toBeUndefined();
 	});
 });
 

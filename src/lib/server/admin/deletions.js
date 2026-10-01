@@ -39,7 +39,7 @@ export const DELETABLE = Object.freeze({
 	material: {
 		one: 'material',
 		the: 'el material',
-		list: '/admin/material',
+		list: '/admin/contenido/material',
 		page: '/material',
 		targetType: 'post',
 		action: 'material'
@@ -47,7 +47,7 @@ export const DELETABLE = Object.freeze({
 	amigues: {
 		one: 'perfil',
 		the: 'el perfil',
-		list: '/admin/amigues',
+		list: '/admin/comunidad/perfiles',
 		page: '/amigues',
 		targetType: 'post',
 		action: 'amigues'

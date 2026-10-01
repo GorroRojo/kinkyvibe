@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * Tarjeta del evento de prueba en Ventas (/admin/entradas): la que linkea a su pestaña Ventas.
+ * Tarjeta del evento de prueba en Ventas (/admin/ventas): la que linkea a su pestaña Ventas.
  * @param {import('@playwright/test').Page} page
  */
 const salesCard = (page) =>
@@ -29,8 +29,8 @@ const salesCard = (page) =>
  * @param {import('@playwright/test').Page} page
  */
 async function gotoSalesCard(page) {
-	await page.goto('/admin/entradas');
-	if ((await salesCard(page).count()) === 0) await page.goto('/admin/entradas?ver=pasados');
+	await page.goto('/admin/ventas');
+	if ((await salesCard(page).count()) === 0) await page.goto('/admin/ventas?ver=pasados');
 	return salesCard(page);
 }
 
@@ -264,7 +264,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });
 	await expect(quick.getByRole('link', { name: 'Nuevo código' })).toHaveAttribute(
 		'href',
-		'/admin/entradas/codigos'
+		'/admin/ventas/codigos'
 	);
 	await expect(quick.getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
 		'href',
@@ -272,7 +272,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	);
 	await expect(page.locator('a.stat', { hasText: 'Entradas este mes' })).toHaveAttribute(
 		'href',
-		'/admin/entradas'
+		'/admin/ventas'
 	);
 	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
 	await page.getByText('GorroRojo').first().click();
@@ -441,13 +441,13 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	const veinte = `E2E20${suffix}`;
 	const gratis = `E2EGRATIS${suffix}`;
 
-	await page.goto('/admin/entradas');
+	await page.goto('/admin/ventas');
 	await expect(page.getByRole('link', { name: 'Códigos', exact: true }).last()).toHaveAttribute(
 		'href',
-		'/admin/entradas/codigos'
+		'/admin/ventas/codigos'
 	);
 	// Con la página ya hidratada (si no, a veces se envía el formulario sin los datos).
-	await page.goto('/admin/entradas/codigos', { waitUntil: 'networkidle' });
+	await page.goto('/admin/ventas/codigos', { waitUntil: 'networkidle' });
 	for (const [code, value, max] of [
 		[veinte, '20', '1'],
 		[gratis, '100', '']
@@ -492,7 +492,7 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	await expect(page.getByText('Sin cargo')).toBeVisible();
 	await expect(page.getByRole('link', { name: /Ver entrada/ })).toHaveCount(1);
 
-	await page.goto('/admin/entradas/codigos');
+	await page.goto('/admin/ventas/codigos');
 	await expect(page.locator('.code', { hasText: veinte })).toContainText('1 aprobados');
 	await expect(page.locator('.code', { hasText: veinte })).toContainText('Sin usos disponibles');
 });

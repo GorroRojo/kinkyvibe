@@ -13,6 +13,7 @@ import {
 	seriesOfTags,
 	seriesTagIds,
 	splitEditions,
+	seriesApiPath,
 	subscribeLinks,
 	tagFeedPath,
 	tagPagePath
@@ -149,7 +150,11 @@ describe('splitEditions', () => {
 describe('links', () => {
 	it('página y calendario de una etiqueta', () => {
 		expect(tagPagePath('Cine para Sucixs')).toBe('/wiki/Cine-para-Sucixs');
-		expect(tagFeedPath('Cine para Sucixs')).toBe('/ics/etiqueta/Cine%20para%20Sucixs.ics');
+		// Misma forma slug que la página (antes iba con %20; la ruta acepta las dos).
+		expect(tagFeedPath('Cine para Sucixs')).toBe('/ics/etiqueta/Cine-para-Sucixs.ics');
+		expect(seriesApiPath('Cine para Sucixs')).toBe('/api/series/Cine-para-Sucixs');
+		expect(tagPagePath('Deseo & Disidencia')).toBe('/wiki/Deseo-%26-Disidencia');
+		expect(tagFeedPath('Deseo & Disidencia')).toBe('/ics/etiqueta/Deseo-%26-Disidencia.ics');
 	});
 	it('subscribeLinks: webcal y Google', () => {
 		const l = subscribeLinks('https://kinkyvibe.ar/ics/etiqueta/x.ics');

@@ -1,7 +1,7 @@
 /**
  * Eventos → Lugares (mapa del panel): los perfiles de tipo lugar y en qué lugar sucede cada
  * evento ("sucede en", con la privacidad de la dirección de ese evento). Son los mismos perfiles
- * de Contenido → Amigues (filtro «Lugares»); se editan con el mismo editor.
+ * de Perfiles (filtro «Lugares»); se editan con el mismo editor.
  *
  * El vínculo evento → lugar es provisorio (tabla `event_venues`, por dirección del evento)
  * mientras los eventos sigan siendo .md: ver docs/amigues.md. Funciona con el interruptor
@@ -85,8 +85,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 			events: links.filter((l) => l.venueId === v.id).length
 		})),
 		links,
-		events,
-		privacyLabels: VENUE_PRIVACY_LABELS
+		events
 	};
 }
 
@@ -158,7 +157,7 @@ export const actions = {
 			action: 'event.venue_set',
 			targetType: 'event',
 			targetId: eventSlug,
-			summary: `Puso el lugar del evento ${eventSlug}${privacy ? ` (dirección: ${VENUE_PRIVACY_LABELS[privacy].toLowerCase()})` : ''}`,
+			summary: `Puso el lugar del evento ${eventSlug}${privacy ? ` (se muestra: ${VENUE_PRIVACY_LABELS[privacy]})` : ''}`,
 			detail: { venueId, privacy }
 		});
 		return { link: { ok: true, message: 'Listo: el evento tiene lugar.' } };

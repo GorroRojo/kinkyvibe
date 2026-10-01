@@ -12,7 +12,7 @@
  *     rol: Facilita
  * ```
  *
- * Cada rol apunta a un perfil (persona o proyecto) de Cuentas → Perfiles. Qué perfil se muestra lo
+ * Cada rol apunta a un perfil (persona o proyecto) de Perfiles (panel). Qué perfil se muestra lo
  * decide el servidor (visibilidad + aprobación + interruptor); acá solo se valida la forma.
  *
  * Cuando los eventos pasen a la base, cada perfil listado es un edge `persona` (evento → perfil)
