@@ -3,7 +3,7 @@
  * imágenes de las fichas viejas (mdsvex) y lo que nunca puede pasar (XSS).
  */
 import { describe, expect, it } from 'vitest';
-import { renderProfileBody, resolveMediaImports } from './render.js';
+import { renderProfileBody, resolveMediaImports, scriptBlocks } from './render.js';
 import { rehype } from 'rehype';
 import { safeUrl } from './sanitize.js';
 
@@ -137,5 +137,18 @@ describe('safeUrl', () => {
 		expect(safeUrl('mailto:a@example.com', { image: true })).toBeNull();
 		expect(safeUrl('#x', { image: true })).toBeNull();
 		expect(safeUrl('/media/5.webp', { image: true })).toBe('/media/5.webp');
+	});
+});
+
+describe('scriptBlocks', () => {
+	it('lee el contenido de cada bloque, con atributos, mayúsculas y cierres raros', () => {
+		const body = '<script>a</script> x <SCRIPT lang="ts">b</Script > y <script>c</script\t\nfoo>';
+		expect(scriptBlocks(body)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('no confunde otras etiquetas y no se rompe sin cierre', () => {
+		expect(scriptBlocks('<scripts>no</scripts>')).toEqual([]);
+		expect(scriptBlocks('<script>sin cierre')).toEqual([]);
+		expect(scriptBlocks('texto sin bloques')).toEqual([]);
 	});
 });
