@@ -20,8 +20,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo  |
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Ingresar" / "Mi rincón"): código por mail, contraseña, sesiones, interruptor          |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción            |
-| [workers-migracion.md](workers-migracion.md)   | (en preparación) Paso de Cloudflare Pages a Workers y backups                                               |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite: leelo antes de cambiar un área (llega con la rama `claude/decisiones`)   |
+| [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                           |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite: leelo antes de cambiar un área                                           |
 
 Otras guías sueltas:
 
