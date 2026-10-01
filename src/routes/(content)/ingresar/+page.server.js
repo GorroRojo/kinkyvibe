@@ -33,8 +33,13 @@ export async function load({ platform, locals, url, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const next = nextPath(url.searchParams.get('next'), url);
 	if (locals.member) redirect(303, next);
-	// Después de borrar la cuenta (Mi rincón) se vuelve acá con un aviso.
-	return { next, deleted: url.searchParams.get('borrada') === '1' };
+	// Después de borrar la cuenta o de cerrar sesión en todos lados (Mi rincón) se vuelve acá
+	// con un aviso.
+	return {
+		next,
+		deleted: url.searchParams.get('borrada') === '1',
+		loggedOutEverywhere: url.searchParams.get('salida') === 'todas'
+	};
 }
 
 /** @type {import('./$types').Actions} */

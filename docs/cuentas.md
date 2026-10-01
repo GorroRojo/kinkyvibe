@@ -5,7 +5,8 @@
 Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
-pone, cambia o saca la contraseña, cierra sesión o borra la cuenta. Tocar la contraseña y borrar la
+pone, cambia o saca la contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
 Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son los perfiles (ver
@@ -136,7 +137,8 @@ el código por mail sigue andando.
   en el próximo ingreso.
 - **Sal de 16 bytes** al azar por contraseña y **clave de 32 bytes**.
 - Contraseñas de **10 a 200 caracteres**, normalizadas a Unicode NFC.
-- Cambiar la contraseña cierra las otras sesiones de la cuenta (la actual sigue abierta).
+- Poner, cambiar o sacar la contraseña cierra las otras sesiones de la cuenta (la actual sigue
+  abierta).
 
 ### Sesiones (`src/lib/server/cuentas/session.js`)
 
@@ -144,6 +146,9 @@ el código por mail sigue andando.
 - Cookie `kvRincon`: token al azar de 256 bits, `HttpOnly`, `Secure` (salvo http://localhost),
   `SameSite=Lax`, 400 días (el máximo de los navegadores). `last_seen_at` se actualiza como
   mucho una vez por día y, cuando pasa, la cookie se vuelve a mandar con 400 días más.
+- En Mi rincón, "Cerrar sesión en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
+  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
+  saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie y el interruptor
   está prendido.
 

@@ -46,9 +46,21 @@
 		<h2 id="cuenta-title">Tu cuenta</h2>
 		<p>Mail: <strong>{data.email}</strong></p>
 		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
-		<form method="POST" action="?/salir">
-			<button class="pill-btn ghost" type="submit">Cerrar sesión</button>
-		</form>
+		{#if form?.action === 'sesiones' && form.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/salir">
+				<button class="pill-btn ghost" type="submit">Cerrar sesión</button>
+			</form>
+			<form method="POST" action="?/salirTodos">
+				<button class="pill-btn ghost" type="submit">Cerrar sesión en todos lados</button>
+			</form>
+		</div>
+		<p class="hint">
+			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
+			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+		</p>
 	</section>
 
 	<section class="surface-card" aria-labelledby="perfiles-title">
@@ -97,8 +109,8 @@
 		{/if}
 		<p class="hint">
 			{#if data.hasPassword}
-				Podés entrar con tu contraseña o con un código por mail. Si la cambiás, se cierran tus otras
-				sesiones.
+				Podés entrar con tu contraseña o con un código por mail. Si la cambiás o la sacás, se
+				cierran tus otras sesiones.
 			{:else}
 				Es opcional: sin contraseña, entrás con un código que te mandamos por mail.
 			{/if}
@@ -309,6 +321,11 @@
 	}
 	.start {
 		justify-self: start;
+	}
+	.row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
 	}
 	.danger {
 		border-top: 0.25rem solid var(--1-dark);
