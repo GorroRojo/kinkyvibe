@@ -30,7 +30,11 @@ export async function GET({ params, platform }) {
 	]);
 	const mine = [...listed, ...unlisted].filter((p) => slugs.has(String(p.meta.postID)));
 	return icsResponse(
-		buildIcsFeed(mine, { calName: 'Lo tuyo · KinkyVibe', profiles: listed, includeCancelled: true }),
+		buildIcsFeed(mine, {
+			calName: 'Lo tuyo · KinkyVibe',
+			profiles: listed,
+			includeCancelled: true
+		}),
 		{ private: true }
 	);
 }

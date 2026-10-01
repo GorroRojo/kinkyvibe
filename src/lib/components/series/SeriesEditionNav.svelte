@@ -21,7 +21,9 @@
 			<a class="step prev" href={series.prev.path} rel="prev">
 				<ChevronLeft size={18} aria-hidden="true" />
 				<span
-					><small>Anterior · #{series.prev.number}</small>{editionDateLabel(series.prev.start)}</span
+					><small>Anterior · #{series.prev.number}</small>{editionDateLabel(
+						series.prev.start
+					)}</span
 				>
 			</a>
 		{:else}

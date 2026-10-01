@@ -34,11 +34,13 @@
 		<h2 id="mio-title">Lo tuyo en tu calendario</h2>
 		<p class="hint">
 			Un calendario con los eventos para los que tenés entradas. Se actualiza solo cuando comprás.
-			El link es secreto: cualquiera que lo tenga ve en qué eventos tenés entrada. Si lo
-			compartiste sin querer, generá uno nuevo y el anterior deja de andar.
+			El link es secreto: cualquiera que lo tenga ve en qué eventos tenés entrada. Si lo compartiste
+			sin querer, generá uno nuevo y el anterior deja de andar.
 		</p>
 		{#if newPath}
-			<p class="ok" role="status">Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.</p>
+			<p class="ok" role="status">
+				Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
+			</p>
 			<code class="link">{$page.url.origin + newPath}</code>
 			<CalendarSubscribe url={$page.url.origin + newPath} label="lo tuyo" />
 		{:else if form?.action === 'revocar'}
