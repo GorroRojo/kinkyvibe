@@ -354,6 +354,58 @@ campos), pero nadie la usa todavía.
 - A mano: `CUENTAS_ENABLED=1 npm run dev`, pedir un código en `/ingresar` y copiarlo de la
   consola.
 
+## Límites conocidos
+
+Cosas que se sabe que no están resueltas del todo, o que se aceptaron así. Si cambia alguna,
+actualizá esta lista.
+
+- **Integrantes sin consentimiento previo.** Un grupo suma a una persona sin pedirle nada (ella
+  lo ve en Mi rincón y se va con un clic), el bloqueo de 30 días es por grupo y sumar o sacar
+  integrantes no tiene límite propio (cada cambio sube la `version` del perfil de la persona, así
+  que puede chocar con lo que ella está editando). Está pendiente de una decisión de gorrite
+  (pedido y aceptación, aviso, bloqueo más amplio); no se cambió a propósito.
+- **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
+  El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
+  mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
+  ven afectadas.
+- **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
+  más adelante: necesita claves y configuración en el panel de Cloudflare.
+- **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
+  conexión, bloquean el ingreso con contraseña de ese mail por hasta 15 minutos. El ingreso con
+  código sigue andando.
+- **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
+  hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar
+  uno sigue siendo muy improbable.
+- **PBKDF2 con 100.000 iteraciones**, el máximo de Workers (OWASP pide 600.000). Ver "Contraseña".
+- **Hash del mail sin secreto.** En `login_codes`, `rate_limits` y `profile_invites` se guarda
+  `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail
+  adivinado está ahí. Para que "no se guarda el mail" valga también contra eso, habría que usar
+  un HMAC con una clave secreta del entorno.
+- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Cerrar sesión en todos lados" o cambiar
+  o sacar la contraseña.
+- **El nombre del grupo va en el aviso de invitación.** Lo escribe quien gestiona el grupo y llega
+  con el remitente del sitio. Va escapado, pero algunos programas de mail convierten en link un
+  dominio escrito ahí. Como mucho salen 3 avisos por día a un mismo mail.
+- **Quienes gestionan un grupo ven el mail de les demás**, también les `manager`. Les dueñes ven,
+  además, quién mandó cada invitación pendiente.
+- **Sufijo de dirección.** Si el nombre de un perfil nuevo ya está usado, el sufijo al azar no dice
+  cuántos hay, pero que aparezca un sufijo sí dice que existe algún perfil (de cualquier
+  visibilidad, también borrado) con esa dirección. Para que no diga nada habría que poner sufijo
+  siempre, lo que cambia todas las direcciones.
+- **Ids correlativos.** Quienes gestionan un grupo ven el id de cada integrante (en el formulario
+  para sacarle); dos perfiles creados seguidos por la misma cuenta tienen ids cercanos.
+- **"Solo con cuenta" es cualquiera que se haga una**, con cualquier mail. Los textos de la
+  visibilidad lo tienen que dejar claro.
+- **Cookie sin prefijo `__Host-`.** Solo importaría si algún subdominio del sitio lo manejara otra
+  gente.
+- **Al borrar una cuenta**, lo que queda de ella: los grupos que pasan a otra persona o que se
+  borran por quedar sin nadie conservan sus datos y su `created_by`/`updated_by`; los edges de
+  integrantes que esa cuenta sumó a perfiles ajenos conservan su `created_by`; las invitaciones
+  para su mail vencen solas (solo guardan el hash). Las filas borradas (suave) siguen en los
+  backups.
+- **Previews.** Cualquiera que entra a un preview es admin de demo y puede prender `cuentas` en la
+  base del preview (separada de producción, y los mails solo salen a `EMAIL_ALLOWLIST`).
+
 ## Pendiente (partes siguientes)
 
 - Passkeys.
