@@ -32,7 +32,9 @@ export async function createFeedToken(db, accountId, now = Date.now()) {
 	await db.batch([
 		db.prepare('DELETE FROM calendar_feeds WHERE account_id = ?1').bind(accountId),
 		db
-			.prepare('INSERT INTO calendar_feeds (token_hash, account_id, created_at) VALUES (?1, ?2, ?3)')
+			.prepare(
+				'INSERT INTO calendar_feeds (token_hash, account_id, created_at) VALUES (?1, ?2, ?3)'
+			)
 			.bind(await sha256Hex(token), accountId, now)
 	]);
 	return token;
