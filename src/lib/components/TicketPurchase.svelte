@@ -123,13 +123,8 @@
 		const n = parseAmount(amount);
 		return n !== null && exceedsOrderMax(n, count);
 	});
-	/**
-	 * Montos rápidos: el mínimo (si es mayor a 0), el mínimo recomendado, el sugerido, 1,5 × el
-	 * sugerido y el doble.
-	 */
-	let gorraChips = $derived(
-		gorra ? gorraQuickAmounts(gorra.min, gorra.suggested, gorra.recommended ?? null) : []
-	);
+	/** Montos rápidos: el mínimo (si es mayor a 0), el sugerido, 1,5 × el sugerido y el doble. */
+	let gorraChips = $derived(gorra ? gorraQuickAmounts(gorra.min, gorra.suggested) : []);
 	let prices = $derived(
 		computePrice({
 			price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
@@ -344,11 +339,8 @@
 						</span>
 						{#if t.gorra}
 							<small class="type-fondo">
-								Pagás lo que quieras: sugerido {formatARS(
-									t.gorra.suggested
-								)}{#if t.gorra.recommended}, mínimo recomendado {formatARS(
-										t.gorra.recommended
-									)}{/if}{#if t.gorra.min}, mínimo
+								Pagás lo que quieras: sugerido {formatARS(t.gorra.suggested)}{#if t.gorra.min},
+									mínimo
 									{formatARS(t.gorra.min)}{/if}
 							</small>
 						{:else if t.fondo}
@@ -396,17 +388,15 @@
 								class="chip"
 								aria-pressed={gorraAmount === n}
 								onclick={() => (amount = String(n))}
-								>{n === 0 ? 'Sin cargo' : formatARS(n)}{#if n === gorra?.suggested}&nbsp;· sugerido{:else if n === gorra?.recommended}&nbsp;·
-									mínimo recomendado{/if}</button
+								>{n === 0 ? 'Sin cargo' : formatARS(n)}{#if n === gorra?.suggested}&nbsp;· sugerido{/if}</button
 							>
 						{/each}
 					</div>
 					<small class="hint" id="entradas-monto-ayuda">
-						Sugerido {formatARS(gorra.suggested)}{#if gorra.recommended}, mínimo recomendado {formatARS(
-								gorra.recommended
-							)}{/if}{#if gorra.min}, mínimo {formatARS(gorra.min)}{:else}. Si no podés pagar, poné
-							0{/if}. En las entradas a la gorra no se aplican el descuento del Fondo KinkyVibe ni
-						los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
+						Sugerido {formatARS(gorra.suggested)}{#if gorra.min}, mínimo {formatARS(
+								gorra.min
+							)}{:else}. Si no podés pagar, poné 0{/if}. En las entradas a la gorra no se aplican el
+						descuento del Fondo KinkyVibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
 							Mercado Pago se suma el recargo de la comisión){/if}.
 					</small>
 					{#if errors.amount}

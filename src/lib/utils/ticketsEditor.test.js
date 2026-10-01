@@ -290,39 +290,28 @@ describe('applyTicketsForm: ida y vuelta', () => {
 			a_la_gorra: { minimo: 1000, sugerido: 5000 },
 			capacity: 3
 		});
-		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({
-			min: 1000,
-			recommended: null,
-			suggested: 5000
-		});
+		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({ min: 1000, suggested: 5000 });
 	});
 
-	it('mínimo recomendado: se escribe solo si se cargó, y se valida entre mínimo y sugerido', () => {
-		const initial = formOf(FM);
-		const form = formOf(FM);
-		Object.assign(form.types[1], {
-			mode: 'gorra',
-			min: '1000',
-			recommended: '3.000',
-			suggested: '5000'
-		});
-		const out = applyTicketsForm(FM, form, initial);
-		expect(out).toContain('a_la_gorra: { minimo: 1000, minimo_recomendado: 3000, sugerido: 5000 }');
-		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({
-			min: 1000,
-			recommended: 3000,
-			suggested: 5000
-		});
-		expect(formOf(out).types[1].recommended).toBe('3000');
-		for (const [recommended, msg] of [
-			['500', /no puede ser menor que el mínimo/],
-			['9000', /no puede ser mayor que el sugerido/],
-			['abc', /pesos enteros/]
-		]) {
-			const bad = formOf(FM);
-			Object.assign(bad.types[1], { mode: 'gorra', min: '1000', recommended, suggested: '5000' });
-			expect(validateTicketsForm(bad).errors.join(' ')).toMatch(msg);
-		}
+	it('un `minimo_recomendado` suelto (ya no existe) se ignora y se saca al cambiar el tipo', () => {
+		const fm = FM.replace(
+			'    price: 8000\n',
+			'    a_la_gorra: { minimo: 1000, minimo_recomendado: 3000, sugerido: 5000 }\n'
+		);
+		expect(fm).toContain('minimo_recomendado');
+		const initial = formOf(fm);
+		expect(initial.types[1]).toMatchObject({ mode: 'gorra', min: '1000', suggested: '5000' });
+		expect(initial.types[1]).not.toHaveProperty('recommended');
+		expect(validateTicketsForm(initial).errors).toEqual([]);
+		// Sin cambios en ese tipo, el archivo queda como estaba.
+		expect(applyTicketsForm(fm, formOf(fm), initial)).toContain('minimo_recomendado: 3000');
+		// Al cambiarlo, se escribe sin la clave vieja.
+		const form = formOf(fm);
+		form.types[1].suggested = '6000';
+		const out = applyTicketsForm(fm, form, initial);
+		expect(out).toContain('a_la_gorra: { minimo: 1000, sugerido: 6000 }');
+		expect(out).not.toContain('minimo_recomendado');
+		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({ min: 1000, suggested: 6000 });
 	});
 
 	it('prender la venta en un evento sin entradas: los valores por defecto no se escriben', () => {

@@ -14,8 +14,6 @@
  *   - id: gorra
  *     name: A la gorra
  *     a_la_gorra: { minimo: 0, sugerido: 5000 }   # en lugar de `price`: la persona elige el monto
- *     # opcional: `minimo_recomendado: 3000` (se muestra y se sugiere, pero se puede pagar menos,
- *     # hasta `minimo`, que es el piso que se exige)
  *     capacity: 200
  * modalidad: online      # opcional: online | presencial (si falta: online si tiene la etiqueta
  *                        # "Online" y no tiene `location`). Online = link en lugar de QR.
@@ -53,8 +51,7 @@
  */
 
 /**
- * Tipo de entrada. En los tipos "a la gorra" `gorra` tiene el mínimo (exigido), el mínimo
- * recomendado (`recommended`, solo se muestra; `null` si no hay) y el sugerido, `price` es el
+ * Tipo de entrada. En los tipos "a la gorra" `gorra` tiene el mínimo y el sugerido, `price` es el
  * sugerido (solo para mostrar) y `fondo` es 0: el monto lo elige la persona al comprar.
  *
  * `closesAt`: cierre propio del tipo (`close` en el frontmatter; por ejemplo, la anticipada cierra
@@ -82,7 +79,7 @@
  * }} TicketType
  */
 /**
- * @typedef {{ min: number, recommended?: number | null, suggested: number }} Gorra
+ * @typedef {{ min: number, suggested: number }} Gorra
  */
 /** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
 /** @typedef {{ name: string, pronouns: string }} Holder */
@@ -216,17 +213,6 @@ export function parseTicketConfig(meta, options = {}) {
 					`\`a_la_gorra.sugerido\` inválido para "${id}": un entero entre el mínimo y ${ORDER_MAX_TOTAL}`
 				);
 			}
-			const rawRec = raw.a_la_gorra?.minimo_recomendado;
-			const recommended =
-				rawRec === undefined || rawRec === null || rawRec === '' ? null : Number(rawRec);
-			if (
-				recommended !== null &&
-				(!Number.isSafeInteger(recommended) || recommended < min || recommended > suggested)
-			) {
-				throw new TypeError(
-					`\`a_la_gorra.minimo_recomendado\` inválido para "${id}": un entero entre el mínimo y el sugerido`
-				);
-			}
 			// Sin fondo: quien paga elige el monto (el fondo no aplica a la gorra).
 			types.push({
 				id,
@@ -234,7 +220,7 @@ export function parseTicketConfig(meta, options = {}) {
 				price: suggested,
 				fondo: 0,
 				capacity,
-				gorra: { min, recommended: recommended === min ? null : recommended, suggested },
+				gorra: { min, suggested },
 				closesAt: typeClose(raw, id),
 				...(after ? { after } : {})
 			});
