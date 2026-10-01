@@ -11,8 +11,8 @@
 	 *
 	 * `ask` devuelve la clave de confirmación si la persona confirma, o `null` si cancela.
 	 *
-	 * Paso explícito: el botón que confirma está deshabilitado hasta tildar "Entiendo…" (nada de
-	 * confirmar con un Enter distraído; pedido de gorrite: aviso claro + segundo paso).
+	 * El aviso explica qué límite se pasa y alcanza con el botón que confirma (sin casilla extra;
+	 * decisión de gorrite). El foco arranca en "Cancelar", así un Enter distraído no confirma.
 	 */
 	import { tick } from 'svelte';
 	import { TriangleAlert } from '@lucide/svelte';
@@ -28,8 +28,6 @@
 	/** @type {((key: string | null) => void) | null} */
 	let settle = null;
 	let key = '';
-	/** Tildó "Entiendo que paso el límite". */
-	let understood = false;
 
 	/**
 	 * @param {{ limits: { message: string }[], key: string }} needs
@@ -40,7 +38,6 @@
 		settle?.(null);
 		limits = needs.limits ?? [];
 		key = needs.key;
-		understood = false;
 		title =
 			options.title ??
 			(limits.length === 1 ? 'Esto pasa un límite de venta' : 'Esto pasa límites de venta');
@@ -73,16 +70,10 @@
 		Como admin podés seguir igual. Queda anotado en el registro de actividad, con quién fue y por
 		cuánto se pasó.
 	</p>
-	<label class="understood">
-		<input type="checkbox" bind:checked={understood} />
-		Entiendo que esto pasa {limits.length === 1 ? 'el límite' : 'los límites'} y lo hago igual.
-	</label>
 	<div class="btns">
 		<!-- svelte-ignore a11y-autofocus -->
 		<button type="button" class="btn ghost" autofocus on:click={() => close(null)}>Cancelar</button>
-		<button type="button" class="btn" disabled={!understood} on:click={() => close(key)}
-			>{confirmLabel}</button
-		>
+		<button type="button" class="btn" on:click={() => close(key)}>{confirmLabel}</button>
 	</div>
 </dialog>
 
@@ -121,24 +112,6 @@
 		margin: 0 0 1rem;
 		color: var(--muted, #666);
 		font-size: 0.95rem;
-	}
-	.understood {
-		display: flex;
-		gap: 0.5rem;
-		align-items: flex-start;
-		margin: 0 0 1rem;
-		font-weight: 700;
-		cursor: pointer;
-	}
-	.understood input {
-		width: 1.2rem;
-		height: 1.2rem;
-		flex: none;
-		margin-top: 0.1rem;
-	}
-	.btn:disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
 	}
 	.btns {
 		display: flex;
