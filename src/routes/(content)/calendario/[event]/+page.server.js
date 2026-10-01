@@ -2,14 +2,18 @@ import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
+import { propinasEnabled } from '$lib/server/flags.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch }) {
-	const [related, tickets] = await Promise.all([
+	const [related, tickets, propinas] = await Promise.all([
 		loadRelated(params.event),
-		loadTickets(params.event, platform, fetch)
+		loadTickets(params.event, platform, fetch),
+		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
+		// solo lo muestra en los eventos de KinkyVibe).
+		propinasEnabled(platform)
 	]);
-	return { ...related, tickets };
+	return { ...related, tickets, propinas };
 }
 
 /** Related posts, computed on the server so the page doesn't need every post.
