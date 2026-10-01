@@ -147,7 +147,7 @@ export function isTestEventSlug(slug) {
  * personas, estadísticas). `null` si no existe o no está publicado.
  *
  * @param {string} slug
- * @returns {Promise<{ title: string, start: string | null } | null>}
+ * @returns {Promise<{ title: string, start: string | null, tags: string[] } | null>}
  */
 export async function getEventInfo(slug) {
 	const meta = await loadMeta(slug);
@@ -155,7 +155,8 @@ export async function getEventInfo(slug) {
 	const start = meta.start instanceof Date ? meta.start.toISOString() : meta.start;
 	return {
 		title: typeof meta.title === 'string' && meta.title ? meta.title : slug,
-		start: start ? String(start) : null
+		start: start ? String(start) : null,
+		tags: Array.isArray(meta.tags) ? meta.tags.filter((t) => typeof t === 'string') : []
 	};
 }
 

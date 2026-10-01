@@ -290,7 +290,39 @@ describe('applyTicketsForm: ida y vuelta', () => {
 			a_la_gorra: { minimo: 1000, sugerido: 5000 },
 			capacity: 3
 		});
-		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({ min: 1000, suggested: 5000 });
+		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({
+			min: 1000,
+			recommended: null,
+			suggested: 5000
+		});
+	});
+
+	it('mínimo recomendado: se escribe solo si se cargó, y se valida entre mínimo y sugerido', () => {
+		const initial = formOf(FM);
+		const form = formOf(FM);
+		Object.assign(form.types[1], {
+			mode: 'gorra',
+			min: '1000',
+			recommended: '3.000',
+			suggested: '5000'
+		});
+		const out = applyTicketsForm(FM, form, initial);
+		expect(out).toContain('a_la_gorra: { minimo: 1000, minimo_recomendado: 3000, sugerido: 5000 }');
+		expect(parseTicketConfig(metaOf(out))?.types[1].gorra).toEqual({
+			min: 1000,
+			recommended: 3000,
+			suggested: 5000
+		});
+		expect(formOf(out).types[1].recommended).toBe('3000');
+		for (const [recommended, msg] of [
+			['500', /no puede ser menor que el mínimo/],
+			['9000', /no puede ser mayor que el sugerido/],
+			['abc', /pesos enteros/]
+		]) {
+			const bad = formOf(FM);
+			Object.assign(bad.types[1], { mode: 'gorra', min: '1000', recommended, suggested: '5000' });
+			expect(validateTicketsForm(bad).errors.join(' ')).toMatch(msg);
+		}
 	});
 
 	it('prender la venta en un evento sin entradas: los valores por defecto no se escriben', () => {
