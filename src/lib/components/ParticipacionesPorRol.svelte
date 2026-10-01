@@ -46,7 +46,7 @@
 
 <style>
 	.participa {
-		margin: 1.2em 0;
+		margin-block: 1.2em;
 	}
 	h2 {
 		margin: 0 0 0.3em;

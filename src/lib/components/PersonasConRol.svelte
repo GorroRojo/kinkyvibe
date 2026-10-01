@@ -29,7 +29,7 @@
 
 <style>
 	.personas {
-		margin: 0.8em 0;
+		margin-block: 0.8em;
 		padding: 0.6em 0.9em;
 		border-radius: 0.8em;
 		background: color-mix(in srgb, var(--2) 10%, white);

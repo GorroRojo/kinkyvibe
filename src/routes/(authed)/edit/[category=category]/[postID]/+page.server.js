@@ -19,7 +19,7 @@ import {
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
-import { editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
+import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import {
 	featuredOf,
@@ -135,10 +135,10 @@ export const _editActions = {
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });
 		// Personas con rol (interruptor personas_eventos): perfiles y roles válidos.
-		const personas = params.category === 'amigues' ? null : await editorPersonas(platform);
-		if (personas) {
+		const roles = params.category === 'amigues' ? null : await activeRoles(platform);
+		if (roles) {
 			const personasError = await newFileErrors(locals.user_token, params, fileContent, (c) =>
-				personasFileErrors(c, personas.roles)
+				personasFileErrors(c, roles)
 			);
 			if (personasError) return fail(400, { error: personasError });
 		}

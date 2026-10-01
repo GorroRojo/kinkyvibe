@@ -18,6 +18,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                     |
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo  |
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Ingresar" / "Mi rincón"): código por mail, contraseña, sesiones, interruptor          |
+| [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción (interruptor `personas_eventos`)         |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción            |
 | [workers-migracion.md](workers-migracion.md)   | (en preparación) Paso de Cloudflare Pages a Workers y backups                                               |
 | [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite: leelo antes de cambiar un área (llega con la rama `claude/decisiones`)   |

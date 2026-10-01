@@ -231,15 +231,26 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
  * @returns {Promise<{ roles: string[], profiles: PublicProfileRef[] } | null>}
  */
 export async function editorPersonas(platform) {
-	const db = getDB(platform);
-	if (!db || !(await personasEventosEnabled(platform))) return null;
+	const roles = await activeRoles(platform);
+	if (!roles) return null;
 	try {
-		const [roles, profiles] = await Promise.all([listRoles(db), pickableProfiles(db)]);
-		return { roles, profiles };
+		return { roles, profiles: await pickableProfiles(/** @type {D1Database} */ (getDB(platform))) };
 	} catch (error) {
 		logDBError('perfiles para el editor', error);
-		return { roles: await listRoles(db), profiles: [] };
+		return { roles, profiles: [] };
 	}
+}
+
+/**
+ * La lista de roles si el interruptor está prendido (para validar al guardar), o `null`.
+ *
+ * @param {App.Platform | undefined} platform
+ * @returns {Promise<string[] | null>}
+ */
+export async function activeRoles(platform) {
+	const db = getDB(platform);
+	if (!db || !(await personasEventosEnabled(platform))) return null;
+	return listRoles(db);
 }
 
 /**
