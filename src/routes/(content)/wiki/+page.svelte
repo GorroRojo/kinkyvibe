@@ -2,7 +2,7 @@
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query } from '$lib/utils/stores';
 	import { Search } from '@lucide/svelte';
-	import tagsFactory from '$lib/utils/tags';
+	import { freshSiteTags } from '$lib/utils/siteTags.js';
 
 	query.set('');
 
@@ -26,14 +26,14 @@
 	}
 	query.subscribe((newQuery) => {
 		if (newQuery == undefined || newQuery.trim() == '') {
-			wikiTagManager.update(() => tagsFactory());
+			wikiTagManager.update(() => freshSiteTags());
 			// $page.url.searchParams.delete('q');
 		} else {
 			// $page.url.searchParams.set('q', newQuery);
 			wikiTagManager.update((wtm) => {
 				/**@type {TagID[]}*/
 				let del = [];
-				let temp = tagsFactory();
+				let temp = freshSiteTags();
 				/**@type TagID[]*/
 				let include = [];
 				temp.tagsData().forEach((t) => {
@@ -106,7 +106,8 @@
 	>
 		Esta kinkipedia está escrita, editada y organizada con sudor y posicionamiento político por <a
 			href="/amigues/DemonWeb">@DemonWeb <small class="p-pronoun">él</small></a
-		> <a href="/amigues/Gorro_Rojo">@Gorro_Rojo <small class="p-pronoun">eso/elle</small></a> y <a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
+		> <a href="/amigues/Gorro_Rojo">@Gorro_Rojo <small class="p-pronoun">eso/elle</small></a> y
+		<a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
 	</p>
 </article>
 

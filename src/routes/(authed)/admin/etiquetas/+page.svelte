@@ -184,7 +184,7 @@
 	}
 
 	/* ---------- preview & save ---------- */
-	/** @type {null | {summary: string[], total: number, files: Array<{path: string, added: number, removed: number, more: number, hunks: Array<{oldStart: number, newStart: number, lines: Array<{t: string, s: string}>}>}>}} */
+	/** @type {null | {summary: string[], warnings?: string[], total: number, files: Array<{path: string, added: number, removed: number, more: number, hunks: Array<{oldStart: number, newStart: number, lines: Array<{t: string, s: string}>}>}>}} */
 	let preview = null;
 	let busy = '';
 	let saveError = '';
@@ -279,6 +279,12 @@
 	</svelte:fragment>
 </PageHeader>
 
+{#if data.dbMode}
+	<p class="note">
+		Las etiquetas se leen de la base (interruptor «Etiquetas desde la base»): los cambios se guardan
+		al momento, sin commits. Los textos de la Kinkipedia siguen en sus publicaciones.
+	</p>
+{/if}
 {#if data.mock}
 	<p class="note warn">
 		Modo de prueba (<code>npm run dev:admin</code>): los «commits» van a una carpeta temporal.
@@ -286,15 +292,15 @@
 {/if}
 {#if saved}
 	<p class="note ok" role="status">
-		<CircleCheck size={18} aria-hidden="true" /> Guardado ({saved.files} archivo{saved.files === 1
-			? ''
-			: 's'}):
+		<CircleCheck size={18} aria-hidden="true" />
+		{#if data.dbMode}Guardado en la base ({saved.files} cambio{saved.files === 1
+				? ''
+				: 's'}):{:else}Guardado ({saved.files} archivo{saved.files === 1 ? '' : 's'}):{/if}
 		{saved.summary.join('; ')}.
-		{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
-				href={saved.commit}
-				target="_blank"
-				rel="noreferrer">Ver el commit</a
-			>. El sitio se actualiza en unos minutos.{/if}
+		{#if data.dbMode}En menos de un minuto se ve en el sitio.{:else if saved.publish}<PublishStatus
+				pr={saved.publish}
+			/>{:else}<a href={saved.commit} target="_blank" rel="noreferrer">Ver el commit</a>. El sitio
+			se actualiza en unos minutos.{/if}
 	</p>
 {/if}
 
@@ -376,11 +382,23 @@
 				{#if saveError}<p class="err" role="alert">{saveError}</p>{/if}
 				{#if preview}
 					<div class="preview">
-						<p>
-							<strong>Un solo commit</strong> que cambia {preview.total} archivo{preview.total === 1
-								? ''
-								: 's'}:
-						</p>
+						{#if data.dbMode}
+							<p>
+								Cambia{preview.total === 1 ? '' : 'n'}
+								<strong>{preview.total} etiqueta{preview.total === 1 ? '' : 's'}</strong> en la base:
+							</p>
+							{#each preview.warnings ?? [] as w}<p class="err">
+									<AlertTriangle size={16} aria-hidden="true" />
+									{w}
+								</p>{/each}
+						{:else}
+							<p>
+								<strong>Un solo commit</strong> que cambia {preview.total} archivo{preview.total ===
+								1
+									? ''
+									: 's'}:
+							</p>
+						{/if}
 						{#each preview.files as f}
 							<details open={preview.files.length <= 3}>
 								<summary
@@ -540,11 +558,19 @@
 								placeholder="Nombre nuevo"
 							/></label
 						>
-						<label class="check"
-							><input type="checkbox" bind:checked={keepAlias} /> El nombre viejo queda como alias (los
-							links viejos siguen andando)</label
-						>
-						<button class="kv-btn ghost small">Renombrar en todas las publicaciones</button>
+						{#if data.dbMode}
+							<p class="muted">
+								El nombre viejo queda como alias: las publicaciones lo siguen usando y los links
+								viejos andan.
+							</p>
+							<button class="kv-btn ghost small">Renombrar</button>
+						{:else}
+							<label class="check"
+								><input type="checkbox" bind:checked={keepAlias} /> El nombre viejo queda como alias (los
+								links viejos siguen andando)</label
+							>
+							<button class="kv-btn ghost small">Renombrar en todas las publicaciones</button>
+						{/if}
 					</form>
 					<form
 						on:submit|preventDefault={() =>

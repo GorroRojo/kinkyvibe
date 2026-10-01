@@ -42,7 +42,7 @@ const RAW_KEYS = /** @type {const} */ ([
 ]);
 
 /** Campos de datos que vienen del archivo, con el mismo nombre. */
-const DATA_KEYS = /** @type {const} */ (['icon', 'color', 'description', 'image']);
+export const DATA_KEYS = /** @type {const} */ (['icon', 'color', 'description', 'image']);
 
 /**
  * Copia limpia de una entrada del archivo (tagsFactory le agrega cosas a los objetos que recibe).
