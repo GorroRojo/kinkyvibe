@@ -18,7 +18,7 @@ import { randomDigits } from './crypto.js';
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
  * Para qué sirve un código: 'login' (ingresar), 'password' (poner, cambiar o sacar la
- * contraseña), 'delete' (borrar la cuenta) o 'grupo' (cambiar dueñes de un grupo o borrarlo).
+ * contraseña), 'delete' (borrar la cuenta) o 'grupo' (cambiar dueñes de un proyecto o borrarlo).
  * @typedef {'login' | 'password' | 'delete' | 'grupo'} CodePurpose
  */
 

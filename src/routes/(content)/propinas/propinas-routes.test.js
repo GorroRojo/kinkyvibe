@@ -25,6 +25,8 @@ beforeEach(async () => {
 });
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');
+	vi.doUnmock('$lib/utils');
+	vi.doUnmock('$lib/server/pronouns');
 	vi.resetModules();
 });
 
@@ -54,6 +56,15 @@ async function modules(flag = '1') {
 	vi.doMock('$env/dynamic/private', () => ({
 		env: { PROPINAS_ENABLED: flag, MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
 	}));
+	// El load de /material/<post> también arma las relacionadas y los pronombres de las menciones,
+	// que importan (y compilan con mdsvex) todas las publicaciones del repo: más de 15 s la primera
+	// vez, y con la máquina cargada pasaba los 30 s del test. Acá solo importa `propinas`, así que
+	// esas dos listas van vacías; la publicación misma se sigue cargando de verdad con `fetchPost`.
+	vi.doMock('$lib/utils', async (importOriginal) => ({
+		.../** @type {object} */ (await importOriginal()),
+		fetchMarkdownPosts: async () => []
+	}));
+	vi.doMock('$lib/server/pronouns', () => ({ mentionPronouns: async () => ({}) }));
 	return {
 		page: await import('./+page.server.js'),
 		gracias: await import('./[id]/gracias/+page.server.js'),
