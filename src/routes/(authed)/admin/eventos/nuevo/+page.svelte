@@ -1,4 +1,5 @@
 <script>
+	import { checkMapLink } from '$lib/utils/eventPlace.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { onDestroy, tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -261,6 +262,9 @@
 		startValue && (endValue || !values.hasEnd) ? validateSchedule(startValue, endValue) : null;
 	$: scheduleText = startValue ? describeSchedule(startValue, endValue) : '';
 
+	// «Dónde»: el link al mapa es opcional, pero si está tiene que ser https de un sitio de mapas.
+	$: mapCheck = checkMapLink(values.location_map);
+	$: mapError = mapCheck.ok ? '' : mapCheck.message;
 	$: problems = /** @type {string[]} */ (
 		[
 			!values.title.trim() && 'Falta el título.',
@@ -279,6 +283,7 @@
 			askScope &&
 				!imageScope &&
 				'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
+			mapError,
 			...tagErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
 		].filter(Boolean)
@@ -687,13 +692,28 @@
 					</label>
 					<div class="grid">
 						<label class="field">
-							<span>Dirección</span>
+							<span>Dónde</span>
 							<input
 								id="ev-location"
 								bind:value={values.location}
-								placeholder="Calle 123, Ciudad"
+								placeholder="Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»"
 							/>
-							<small>Dejalo vacío si es online.</small>
+							<small
+								>Para un lugar de una sola vez. Dejalo vacío si es online. Si el evento tiene un
+								lugar en «Sucede en» (Lugares), se muestra el lugar.</small
+							>
+						</label>
+						<label class="field">
+							<span>Link al mapa (opcional)</span>
+							<input
+								id="ev-location-map"
+								type="url"
+								inputmode="url"
+								bind:value={values.location_map}
+								placeholder="https://www.openstreetmap.org/…"
+								aria-invalid={mapError ? 'true' : undefined}
+							/>
+							<small>{mapError || 'De OpenStreetMap o Google Maps.'}</small>
 						</label>
 						<label class="field">
 							<span>Nombre del lugar</span>
@@ -933,7 +953,10 @@
 					<dt>Estado</dt>
 					<dd>{STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}</dd>
 					<dt>Lugar</dt>
-					<dd>{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}</dd>
+					<dd>
+						{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+						{#if values.location_map && !mapError}· con link al mapa{/if}
+					</dd>
 					<dt>Organizan</dt>
 					<dd>{authors.join(', ') || '—'}</dd>
 					<dt>Etiquetas</dt>
