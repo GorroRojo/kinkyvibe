@@ -7,21 +7,12 @@
  * No Svelte / SvelteKit imports: runs in the browser, on the server and in vitest.
  */
 import tagsFactory from './tags.js';
+import { foldText as normalizeText } from './text.js';
+
+/** Lowercases and strips diacritics: "Córdoba" → "cordoba" (see foldText in text.js). */
+export { normalizeText };
 
 /** @typedef {ReturnType<typeof tagsFactory>} Tags */
-
-/**
- * Lowercases and strips diacritics: "Córdoba" → "cordoba".
- * @param {unknown} s
- */
-export function normalizeText(s) {
-	return String(s ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
 
 /** @type {Tags | undefined} */
 let defaultTags;
