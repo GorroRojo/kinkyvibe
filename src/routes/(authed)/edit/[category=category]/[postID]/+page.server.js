@@ -19,6 +19,7 @@ import {
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import {
@@ -150,6 +151,11 @@ export const _editActions = {
 				await salesByType(getDB(platform), params.postID)
 			);
 			if (ticketError) return fail(400, { error: ticketError });
+			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
+			const placeError = await newFileErrors(locals.user_token, params, fileContent, (c) =>
+				placeFileErrors(c)
+			);
+			if (placeError) return fail(400, { error: placeError });
 		}
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.

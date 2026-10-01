@@ -58,10 +58,17 @@ const byCategory = {
 		{ key: 'end', label: 'Termina', type: 'datetime' },
 		{
 			key: 'location',
-			label: 'Dirección',
+			label: 'Dónde',
 			type: 'text',
-			placeholder: 'Calle 123, Ciudad',
-			help: 'Dejalo vacío si es online.'
+			placeholder: 'Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»',
+			help: 'Para un lugar de una sola vez. Dejalo vacío si es online. Si el evento tiene un lugar en «Sucede en» (Lugares), se muestra el lugar.'
+		},
+		{
+			key: 'location_map',
+			label: 'Link al mapa (opcional)',
+			type: 'url',
+			placeholder: 'https://www.openstreetmap.org/…',
+			help: 'De OpenStreetMap o Google Maps (https).'
 		},
 		{
 			key: 'location_name',
