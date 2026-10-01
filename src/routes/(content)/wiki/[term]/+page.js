@@ -1,4 +1,5 @@
 import tagsFactory from '$lib/utils/tags';
+import { resolveTagSlug } from '$lib/utils/tagSlug.js';
 export const prerender = 'auto';
 
 // Only wiki posts, and only the one being viewed is downloaded. Metadata comes from
@@ -13,7 +14,9 @@ export async function load({ params, data }) {
 		const content = await posts[`/src/lib/posts/wiki/${params.term}.md`]?.();
 		return { ...data, content };
 	}
-	// no wiki entry: show the tag of the same name. Tags have methods, so they can't come
-	// from the server load.
-	return { ...data, tag: tagsFactory().get(params.term) };
+	// no wiki entry: show the tag of the same name ("Rancheadita-Kinky" → "Rancheadita Kinky",
+	// aliases → their tag; same helper as /api/series and the .ics). Tags have methods, so they
+	// can't come from the server load.
+	const tags = tagsFactory();
+	return { ...data, tag: resolveTagSlug(tags, params.term) ?? tags.get(params.term) };
 }
