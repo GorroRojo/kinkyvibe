@@ -4,7 +4,6 @@ import {
 	REJECT_REASON_MAX,
 	VENUE_PRIVACY_LABELS,
 	VENUE_PRIVACY_LEVELS,
-	VENUE_PRIVACY_SHORT,
 	VENUE_PRIVACY_UNSET_LABEL,
 	cleanRejectReason,
 	coordinateText,
@@ -16,6 +15,7 @@ import {
 	osmTiles,
 	parseCoordinate,
 	reviewState,
+	showsAddress,
 	showsVenueLink,
 	venueLine,
 	venueSchema,
@@ -122,37 +122,78 @@ describe('privacidad del lugar', () => {
 });
 
 describe('textos de la privacidad (panel y Mi rincón)', () => {
-	// gorrite: los textos dicen qué se muestra, no "qué dirección".
-	it('cada nivel dice explícito qué se muestra, largo y corto', () => {
+	// gorrite pidió estos textos exactos (con "Sólo" con tilde y esas mayúsculas).
+	it('cada nivel tiene su texto, en el orden de los desplegables', () => {
 		expect(VENUE_PRIVACY_LABELS).toEqual({
-			public: 'Mostrar la dirección completa',
-			name: 'Mostrar solo el nombre',
-			area: 'Mostrar solo el barrio',
-			hidden: 'No mostrar el lugar'
+			public: 'Nombre + dirección',
+			name: 'Sólo Nombre',
+			address: 'Sólo dirección',
+			area: 'Sólo dirección parcial (Barrio)',
+			hidden: 'Nada'
 		});
-		for (const level of VENUE_PRIVACY_LEVELS) {
-			expect(VENUE_PRIVACY_LABELS[level]).toBeTruthy();
-			expect(VENUE_PRIVACY_SHORT[level]).toBeTruthy();
-		}
 		expect(Object.keys(VENUE_PRIVACY_LABELS)).toEqual([...VENUE_PRIVACY_LEVELS]);
-		expect(VENUE_PRIVACY_UNSET_LABEL).toBe('Sin elegir (dirección completa)');
+		expect(VENUE_PRIVACY_UNSET_LABEL).toBe('Sin elegir (Nombre + dirección)');
 	});
 
-	it('"igual que el lugar" muestra el nivel del lugar; sin nivel, la dirección completa', () => {
-		expect(inheritPrivacyLabel('name')).toBe('Igual que el lugar (ahora: solo el nombre)');
-		expect(inheritPrivacyLabel('area')).toBe('Igual que el lugar (ahora: solo el barrio)');
-		expect(inheritPrivacyLabel('hidden')).toBe('Igual que el lugar (ahora: lugar oculto)');
-		expect(inheritPrivacyLabel('public')).toBe('Igual que el lugar (ahora: dirección completa)');
+	it('"Igual que el Lugar" muestra el nivel del lugar; sin nivel, Nombre + dirección', () => {
+		expect(inheritPrivacyLabel('name')).toBe('Igual que el Lugar (Sólo Nombre)');
+		expect(inheritPrivacyLabel('address')).toBe('Igual que el Lugar (Sólo dirección)');
+		expect(inheritPrivacyLabel('area')).toBe(
+			'Igual que el Lugar (Sólo dirección parcial (Barrio))'
+		);
+		expect(inheritPrivacyLabel('hidden')).toBe('Igual que el Lugar (Nada)');
+		expect(inheritPrivacyLabel('public')).toBe('Igual que el Lugar (Nombre + dirección)');
 		for (const unset of [null, undefined, '', 'cualquiera']) {
-			expect(inheritPrivacyLabel(unset)).toBe('Igual que el lugar (ahora: dirección completa)');
+			expect(inheritPrivacyLabel(unset)).toBe('Igual que el Lugar (Nombre + dirección)');
 		}
 	});
 
-	it('en un evento: su nivel si tiene uno, si no "igual que el lugar"', () => {
-		expect(eventPrivacyText('hidden', 'public')).toBe('No mostrar el lugar');
-		expect(eventPrivacyText('public', 'hidden')).toBe('Mostrar la dirección completa');
-		expect(eventPrivacyText(null, 'name')).toBe('Igual que el lugar (ahora: solo el nombre)');
-		expect(eventPrivacyText(null, null)).toBe('Igual que el lugar (ahora: dirección completa)');
+	it('en un evento: su nivel si tiene uno, si no "Igual que el Lugar"', () => {
+		expect(eventPrivacyText('hidden', 'public')).toBe('Nada');
+		expect(eventPrivacyText('address', 'hidden')).toBe('Sólo dirección');
+		expect(eventPrivacyText(null, 'name')).toBe('Igual que el Lugar (Sólo Nombre)');
+		expect(eventPrivacyText(null, null)).toBe('Igual que el Lugar (Nombre + dirección)');
+	});
+});
+
+describe('nivel «Sólo dirección» (address)', () => {
+	it('la dirección, el barrio, la ciudad y el mapa; ni el nombre, ni el link, ni los textos libres', () => {
+		const v = venueView(venue, 'address', href);
+		expect(v).toEqual({
+			level: 'address',
+			address: 'Calle Falsa 742',
+			area: 'Barrio Inventado',
+			city: 'Ciudad de Prueba',
+			lat: -34.6,
+			lng: -58.4
+		});
+		expect(JSON.stringify(v)).not.toMatch(/Galpón|amigues|Colectivo|Rampa/);
+	});
+
+	it('es un nivel válido, se elige en el evento o en el lugar, y no muestra el link', () => {
+		expect(effectivePrivacy('address', 'public')).toBe('address');
+		expect(effectivePrivacy(null, 'address')).toBe('address');
+		expect(showsVenueLink('address')).toBe(false);
+		expect(showsAddress('address')).toBe(true);
+		expect(showsAddress('public')).toBe(true);
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(showsAddress(level)).toBe(false);
+		}
+	});
+
+	it('la línea y los datos estructurados: la dirección sin el nombre', () => {
+		const v = venueView(venue, 'address', href);
+		expect(venueLine(v)).toBe('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba');
+		expect(venueSchema(v)).toEqual({
+			'@type': 'Place',
+			name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba',
+			address: {
+				'@type': 'PostalAddress',
+				name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba'
+			}
+		});
+		expect(venueLine({ level: 'address' })).toBe('Lugar a confirmar');
+		expect(venueSchema({ level: 'address' })).toBeUndefined();
 	});
 });
 

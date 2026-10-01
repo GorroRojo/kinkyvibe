@@ -33,7 +33,7 @@ import {
 	listRejectedVenues,
 	rejectPendingVenue
 } from '$lib/server/amigues/pendingVenues.js';
-import { isVenuePrivacy, VENUE_PRIVACY_SHORT } from '$lib/utils/venues.js';
+import { isVenuePrivacy, VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
 async function eventChoices() {
@@ -157,7 +157,7 @@ export const actions = {
 			action: 'event.venue_set',
 			targetType: 'event',
 			targetId: eventSlug,
-			summary: `Puso el lugar del evento ${eventSlug}${privacy ? ` (se muestra: ${VENUE_PRIVACY_SHORT[privacy]})` : ''}`,
+			summary: `Puso el lugar del evento ${eventSlug}${privacy ? ` (se muestra: ${VENUE_PRIVACY_LABELS[privacy]})` : ''}`,
 			detail: { venueId, privacy }
 		});
 		return { link: { ok: true, message: 'Listo: el evento tiene lugar.' } };

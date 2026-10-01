@@ -54,7 +54,7 @@
  *   lng?: number,
  *   accessibility?: string,
  *   how_to_get_there?: string,
- *   venue_privacy?: 'public' | 'name' | 'area' | 'hidden'
+ *   venue_privacy?: 'public' | 'name' | 'address' | 'area' | 'hidden'
  * }} PerfilData
  */
 
@@ -64,10 +64,13 @@
  * src/lib/utils/venues.js) y cada evento la puede cambiar (tabla `event_venues`).
  * - public: nombre, dirección, barrio, ciudad y mapa;
  * - name: solo el nombre (con el link a su página);
+ * - address: la dirección (calle y número, barrio, ciudad) y el mapa, sin el nombre (una casa
+ *   particular, por ejemplo);
  * - area: solo el barrio y la ciudad (ni el nombre: lo identificaría);
  * - hidden: nada (quien compra entrada recibe la dirección completa igual).
+ * Los mismos que VENUE_PRIVACY_LEVELS en src/lib/utils/venues.js (lo revisa types.test.js).
  */
-export const VENUE_PRIVACY = /** @type {const} */ (['public', 'name', 'area', 'hidden']);
+export const VENUE_PRIVACY = /** @type {const} */ (['public', 'name', 'address', 'area', 'hidden']);
 
 /** Campos que solo tienen los lugares. */
 export const VENUE_FIELDS = Object.freeze([

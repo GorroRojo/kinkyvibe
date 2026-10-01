@@ -2,22 +2,27 @@
  * Lugares (decisión B3): la privacidad de su dirección y lo que se muestra en cada nivel.
  * Funciones puras, sin base: las usan el servidor (páginas, mails) y el panel.
  *
- * Niveles, de más a menos visible (cada lugar tiene uno por defecto y cada evento lo puede
- * cambiar; ver docs/amigues.md):
- * 1. `public`: nombre, dirección, barrio, ciudad, mapa, accesibilidad y cómo llegar;
- * 2. `name`: solo el nombre, con el link a la página del lugar;
- * 3. `area`: solo el barrio y la ciudad (el nombre no: identificaría el lugar);
- * 4. `hidden`: nada.
- * En los niveles 2 a 4, quien compra entrada recibe la dirección completa en el mail y en la
- * página de su entrada.
+ * Niveles (cada lugar tiene uno por defecto y cada evento lo puede cambiar; ver docs/amigues.md):
+ * - `public`: nombre, dirección, barrio, ciudad, mapa, accesibilidad y cómo llegar;
+ * - `name`: solo el nombre, con el link a la página del lugar;
+ * - `address`: la dirección (calle y número, barrio, ciudad) y el mapa, sin el nombre ni el link
+ *   (por ejemplo una casa particular, donde el nombre delataría a alguien; decisión de gorrite);
+ * - `area`: solo el barrio y la ciudad (el nombre no: identificaría el lugar);
+ * - `hidden`: nada.
+ * En todos los niveles menos `public`, quien compra entrada recibe el lugar completo (nombre y
+ * dirección) en el mail y en la página de su entrada.
  */
 
 import { textOrNull } from './text.js';
 
-/** @typedef {'public' | 'name' | 'area' | 'hidden'} VenuePrivacy */
+/** @typedef {'public' | 'name' | 'address' | 'area' | 'hidden'} VenuePrivacy */
 
-/** @type {readonly VenuePrivacy[]} */
-export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'area', 'hidden']);
+/**
+ * En el orden en que se ofrecen en los desplegables. La migración 0027 agrega `address` al CHECK
+ * de `event_venues.privacy`.
+ * @type {readonly VenuePrivacy[]}
+ */
+export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'address', 'area', 'hidden']);
 
 /**
  * Sin nivel elegido, un lugar muestra la dirección completa (decisión de gorrite): quien no la
@@ -27,27 +32,21 @@ export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'area', 'hi
 export const DEFAULT_VENUE_PRIVACY = 'public';
 
 /**
- * Qué se muestra en cada nivel, como opción de un desplegable o columna del panel y de Mi rincón.
- * Un solo mapa para que se lea igual en todos lados (decisión de gorrite: dicen qué se muestra,
- * no "qué dirección").
+ * Qué se muestra en cada nivel: las opciones de los desplegables, las columnas del panel, los CSV
+ * y el registro de actividad. Un solo mapa para que se lea igual en todos lados; los textos (con
+ * "Sólo" con tilde y esas mayúsculas) son los que pidió gorrite.
+ * @type {Readonly<Record<VenuePrivacy, string>>}
  */
 export const VENUE_PRIVACY_LABELS = Object.freeze({
-	public: 'Mostrar la dirección completa',
-	name: 'Mostrar solo el nombre',
-	area: 'Mostrar solo el barrio',
-	hidden: 'No mostrar el lugar'
-});
-
-/** Lo mismo, corto y en minúscula, para ir entre paréntesis ("ahora: solo el nombre"). */
-export const VENUE_PRIVACY_SHORT = Object.freeze({
-	public: 'dirección completa',
-	name: 'solo el nombre',
-	area: 'solo el barrio',
-	hidden: 'lugar oculto'
+	public: 'Nombre + dirección',
+	name: 'Sólo Nombre',
+	address: 'Sólo dirección',
+	area: 'Sólo dirección parcial (Barrio)',
+	hidden: 'Nada'
 });
 
 /** La opción "sin elegir" del nivel de un lugar (vale el nivel por defecto). */
-export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_SHORT[DEFAULT_VENUE_PRIVACY]})`;
+export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_LABELS[DEFAULT_VENUE_PRIVACY]})`;
 
 /** Aviso para el público cuando la dirección no se muestra. */
 export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
@@ -78,12 +77,12 @@ export function effectivePrivacy(eventOverride, venueDefault) {
 
 /**
  * La opción "igual que el lugar" del nivel de un evento, con el nivel que vale ahora: el del
- * lugar elegido, o la dirección completa si el lugar no tiene uno.
+ * lugar elegido, o el por defecto si el lugar no tiene uno ("Igual que el Lugar (Sólo Nombre)").
  *
  * @param {unknown} venueDefault
  */
 export function inheritPrivacyLabel(venueDefault) {
-	return `Igual que el lugar (ahora: ${VENUE_PRIVACY_SHORT[effectivePrivacy(null, venueDefault)]})`;
+	return `Igual que el Lugar (${VENUE_PRIVACY_LABELS[effectivePrivacy(null, venueDefault)]})`;
 }
 
 /**
@@ -106,6 +105,16 @@ export function eventPrivacyText(eventOverride, venueDefault) {
  */
 export function showsVenueLink(level) {
 	return level === 'public' || level === 'name';
+}
+
+/**
+ * ¿En este nivel se ve la dirección (calle y número) y el mapa? Si no, la página del evento avisa
+ * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}).
+ *
+ * @param {VenuePrivacy} level
+ */
+export function showsAddress(level) {
+	return level === 'public' || level === 'address';
 }
 
 /**
@@ -155,6 +164,18 @@ export function venueView(venue, level, href) {
 		return view;
 	}
 	if (level === 'name') return { level, name: venue.title, href };
+	if (level === 'address') {
+		// Sin el nombre ni el link (lo delatarían), y sin los textos libres (cómo llegar,
+		// accesibilidad), que pueden nombrarlo. El mapa sí (decisión de gorrite).
+		/** @type {VenueView} */
+		const view = { level };
+		const fields = { address: s(d.address), area: s(d.area), city: s(d.city) };
+		for (const [k, v] of Object.entries(fields)) if (v) /** @type {any} */ (view)[k] = v;
+		const lat = n(d.lat);
+		const lng = n(d.lng);
+		if (lat !== undefined && lng !== undefined) Object.assign(view, { lat, lng });
+		return view;
+	}
 	if (level === 'area') {
 		/** @type {VenueView} */
 		const view = { level };
@@ -175,6 +196,9 @@ export function venueView(venue, level, href) {
 export function venueLine(view) {
 	if (view.level === 'public') return [view.name, view.address].filter(Boolean).join(' · ');
 	if (view.level === 'name') return view.name ?? '';
+	if (view.level === 'address') {
+		return [view.address, view.area, view.city].filter(Boolean).join(', ') || 'Lugar a confirmar';
+	}
 	const place = [view.area, view.city].filter(Boolean).join(', ');
 	return view.level === 'area' && place ? place : 'Lugar a confirmar';
 }
@@ -196,6 +220,11 @@ export function venueSchema(view) {
 			: { '@type': 'Place', name: view.name };
 	}
 	if (view.level === 'name' && view.name) return { '@type': 'Place', name: view.name };
+	if (view.level === 'address') {
+		const line = [view.address, view.area, view.city].filter(Boolean).join(', ');
+		if (line)
+			return { '@type': 'Place', name: line, address: { '@type': 'PostalAddress', name: line } };
+	}
 	if (view.level === 'area') {
 		const place = [view.area, view.city].filter(Boolean).join(', ');
 		if (place) return { '@type': 'Place', name: place };

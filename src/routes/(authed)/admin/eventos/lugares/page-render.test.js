@@ -52,21 +52,22 @@ describe('/admin/eventos/lugares: qué se muestra de la dirección en un evento'
 		expect(body).not.toContain('Dirección en este evento');
 		const options = [...privacySelect(body).matchAll(/<option([^>]*)>([^<]*)<\/option>/g)];
 		expect(options.map((m) => m[2])).toEqual([
-			'Igual que el lugar (ahora: solo el nombre)',
-			'Mostrar la dirección completa',
-			'Mostrar solo el nombre',
-			'Mostrar solo el barrio',
-			'No mostrar el lugar'
+			'Igual que el Lugar (Sólo Nombre)',
+			'Nombre + dirección',
+			'Sólo Nombre',
+			'Sólo dirección',
+			'Sólo dirección parcial (Barrio)',
+			'Nada'
 		]);
 		expect(options[0][1]).toContain('value=""');
 	});
 
-	it('si el lugar elegido no tiene nivel, "igual que el lugar" es la dirección completa', () => {
+	it('si el lugar elegido no tiene nivel, "Igual que el Lugar" es Nombre + dirección', () => {
 		const body = page([
 			venue({ id: 1, title: 'Galpón Inventado', privacy: null }),
 			venue({ id: 2, title: 'Sótano Inventado', privacy: 'hidden' })
 		]);
-		expect(privacySelect(body)).toContain('Igual que el lugar (ahora: dirección completa)');
+		expect(privacySelect(body)).toContain('Igual que el Lugar (Nombre + dirección)');
 	});
 
 	it('la lista de eventos usa los mismos textos (y el nivel del lugar de cada uno)', () => {
@@ -78,16 +79,16 @@ describe('/admin/eventos/lugares: qué se muestra de la dirección en un evento'
 			],
 			[
 				{ ...link, eventSlug: 'a', venueId: 2, venueTitle: 'Sótano Inventado', privacy: null },
-				{ ...link, eventSlug: 'b', venueId: 1, venueTitle: 'Galpón Inventado', privacy: 'hidden' }
+				{ ...link, eventSlug: 'b', venueId: 1, venueTitle: 'Galpón Inventado', privacy: 'address' }
 			]
 		);
 		expect(cells(body)).toEqual([
 			// la lista de lugares (Galpón sin nivel elegido)
-			'Mostrar la dirección completa',
-			'Mostrar solo el barrio',
+			'Nombre + dirección',
+			'Sólo dirección parcial (Barrio)',
 			// la de eventos
-			'Igual que el lugar (ahora: solo el barrio)',
-			'No mostrar el lugar'
+			'Igual que el Lugar (Sólo dirección parcial (Barrio))',
+			'Sólo dirección'
 		]);
 	});
 });
