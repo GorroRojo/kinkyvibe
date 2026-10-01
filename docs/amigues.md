@@ -111,6 +111,13 @@ la base. La prueba `src/routes/(content)/amigues/amigues-routes.test.js` planta 
 revisa todas esas salidas y los datos de las páginas. Si el `.md` de un evento tiene `location`
 escrita, es pública (el repo es público): Eventos → Lugares avisa para sacarla.
 
+**«Dónde» sin lugar** (sitios de una sola vez que no son un Lugar: una plaza, un bar): el editor de
+eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link al mapa** opcional
+(`location_map`, solo https de OpenStreetMap o Google Maps; lo valida el guardado). La página del
+evento los muestra («Ver en el mapa») y el `.ics` lleva el texto en `LOCATION` y el link en la
+descripción. Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
+ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `checkMapLink`).
+
 **Mapa**: baldosas de OpenStreetMap como imágenes comunes (sin librerías ni scripts de afuera; el
 sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falta tocar
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
