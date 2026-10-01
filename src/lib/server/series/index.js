@@ -16,6 +16,7 @@ import {
 	seriesOfTags,
 	seriesTagIds,
 	splitEditions,
+	tagIdFromSlug,
 	tagPagePath
 } from '$lib/utils/series.js';
 
@@ -112,7 +113,7 @@ export async function eventSeries(event, opts = {}) {
  */
 export async function seriesPage(tagId, opts = {}) {
 	const { posts, tags, now } = await resolve(opts);
-	const id = tags.get(tagId)?.id ?? tagId;
+	const id = tagIdFromSlug(tags, tagId) ?? tagId;
 	if (!seriesTagIds(tags).includes(id)) return null;
 	const editions = seriesEditions(posts, id);
 	const { upcoming, past } = splitEditions(editions, now);
@@ -143,7 +144,7 @@ export async function allSeries(opts = {}) {
  */
 export async function eventsForTag(tagId, opts = {}) {
 	const { posts, tags } = await resolve(opts);
-	const id = tags.get(tagId)?.id ?? tagId;
+	const id = tagIdFromSlug(tags, tagId) ?? tagId;
 	const wanted = new Set([id, ...(tags.get(id)?.getAllChildren?.() ?? [])]);
 	return posts.filter(
 		(p) => p.meta?.category === 'calendario' && (p.meta.tags ?? []).some((t) => wanted.has(t))

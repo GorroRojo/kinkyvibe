@@ -49,16 +49,17 @@ let mails = [];
 
 /**
  * Los módulos con los interruptores como se pida y posts inventados.
- * @param {{ series?: string, cuentas?: string }} [flags]
+ * `extra`: más posts listados, además de los de fakeSeriesPosts.
+ * @param {{ series?: string, cuentas?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
  */
-async function modules({ series = '1', cuentas = '1' } = {}) {
+async function modules({ series = '1', cuentas = '1', extra } = {}) {
 	vi.resetModules();
 	mails = [];
 	vi.doMock('$env/dynamic/private', () => ({
 		env: { SERIES_ENABLED: series, CUENTAS_ENABLED: cuentas }
 	}));
 	const now = Date.now();
-	const listed = fakeSeriesPosts(now);
+	const listed = [...fakeSeriesPosts(now), ...(extra?.(now) ?? [])];
 	const unlisted = [
 		fakeEvent('privado-no-listado', now + 3 * DAY, ['taller'], { title: 'No listado de prueba' })
 	];
@@ -265,6 +266,91 @@ describe('prendido: páginas', () => {
 		expect(plain).toMatchObject({ series: null, feed: '/ics/etiqueta/taller.ics' });
 		expect(await thrown(() => m.api.GET(ev({ params: { tag: 'no-existe-nada' } })))).toMatchObject({
 			status: 404
+		});
+	});
+});
+
+/** Una serie de varias palabras (etiqueta real del árbol) y eventos con etiquetas que tienen alias. */
+const multiWord = (/** @type {number} */ now) => [
+	fakeEvent('rancheadita-prueba-1', now - 20 * DAY, ['Rancheadita Kinky'], {
+		title: 'Ronda de prueba'
+	}),
+	fakeEvent('rancheadita-prueba-2', now + 20 * DAY, ['Rancheadita Kinky'], {
+		title: 'Ronda de prueba: la próxima'
+	}),
+	fakeEvent('web-prueba', now + 4 * DAY, ['web'], { title: 'Charla virtual inventada' }),
+	fakeEvent('ssc-prueba', now + 6 * DAY, ['SSC'], { title: 'Charla de consentimiento inventada' })
+];
+
+describe('prendido: series de varias palabras y alias (el link usa guiones)', () => {
+	it('/api/series/Rancheadita-Kinky: la serie, con los links en la misma forma', async () => {
+		const m = await modules({ extra: multiWord });
+		for (const tag of ['Rancheadita-Kinky', 'Rancheadita Kinky', 'rancheadita-kinky']) {
+			const body = await (await m.api.GET(ev({ params: { tag } }))).json();
+			expect(body.series).toMatchObject({
+				id: 'Rancheadita Kinky',
+				name: 'Rancheadita Kinky',
+				href: '/wiki/Rancheadita-Kinky',
+				total: 2
+			});
+			expect(body.series.upcoming.map((/** @type {any} */ e) => e.slug)).toEqual([
+				'rancheadita-prueba-2'
+			]);
+			expect(body.series.past.map((/** @type {any} */ e) => e.slug)).toEqual([
+				'rancheadita-prueba-1'
+			]);
+			expect(body.feed).toBe('/ics/etiqueta/Rancheadita-Kinky.ics');
+		}
+	});
+
+	it('/ics/etiqueta/Rancheadita-Kinky.ics (y el link viejo con espacio): sus ediciones', async () => {
+		const m = await modules({ extra: multiWord });
+		for (const tag of ['Rancheadita-Kinky', 'Rancheadita Kinky']) {
+			const text = await (await m.icsTag.GET(ev({ params: { tag } }))).text();
+			expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+			expect(text).toContain('UID:rancheadita-prueba-2@kinkyvibe.ar');
+			expect(text).not.toContain('serie-prueba-');
+			expect(text).toContain('X-WR-CALNAME:Rancheadita Kinky · KinkyVibe');
+		}
+	});
+
+	it('alias: llevan a su etiqueta (también en forma slug)', async () => {
+		const m = await modules({ extra: multiWord });
+		const online = await (await m.api.GET(ev({ params: { tag: 'online' } }))).json();
+		expect(online).toMatchObject({ series: null, feed: '/ics/etiqueta/web.ics' });
+		const ssc = await (
+			await m.api.GET(ev({ params: { tag: 'Sano-Seguro-y-Consensuado' } }))
+		).json();
+		expect(ssc).toMatchObject({ series: null, feed: '/ics/etiqueta/SSC.ics' });
+		const ics = await (
+			await m.icsTag.GET(ev({ params: { tag: 'Sano-Seguro-y-Consensuado' } }))
+		).text();
+		expect(ics).toContain('UID:ssc-prueba@kinkyvibe.ar');
+		expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+	});
+
+	it('un slug que no existe sigue dando 404 (API y .ics)', async () => {
+		const m = await modules({ extra: multiWord });
+		for (const tag of ['Rancheadita-Inventada', 'no-existe-nada']) {
+			expect(await thrown(() => m.api.GET(ev({ params: { tag } })))).toMatchObject({
+				status: 404
+			});
+			expect(await thrown(() => m.icsTag.GET(ev({ params: { tag } })))).toMatchObject({
+				status: 404
+			});
+		}
+	});
+
+	it('la página del evento enlaza la serie con la misma forma', async () => {
+		const m = await modules({ extra: multiWord });
+		const data = /** @type {any} */ (
+			await m.evento.load(
+				ev({ path: '/calendario/rancheadita-prueba-2', params: { event: 'rancheadita-prueba-2' } })
+			)
+		);
+		expect(data.series.list[0]).toMatchObject({
+			id: 'Rancheadita Kinky',
+			href: '/wiki/Rancheadita-Kinky'
 		});
 	});
 });
