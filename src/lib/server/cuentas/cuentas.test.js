@@ -315,6 +315,113 @@ describe('ingresar con código', () => {
 	});
 });
 
+describe('los límites por mail no los gasta otra conexión', () => {
+	const MIN = 60 * 1000;
+
+	it('los pedidos rechazados no cuentan para el tope diario del mail', async () => {
+		const { send } = fakeSender();
+		for (let i = 0; i < 10; i++) {
+			await requestCode({ db: t.db, email: EMAIL, client: 'otra-conexion', send, now: NOW + i });
+		}
+		// En la ventana siguiente de 15 minutos y horas después, desde su propia conexión, puede.
+		const later = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: CLIENT,
+			send,
+			now: NOW + 20 * MIN
+		});
+		expect(later.ok).toBe(true);
+		const muchLater = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: 'cliente-2',
+			send,
+			now: NOW + 6 * 60 * MIN
+		});
+		expect(muchLater.ok).toBe(true);
+	});
+
+	it('una sola conexión no llega al tope diario de un mail ajeno', async () => {
+		const { sent, send } = fakeSender();
+		// Durante 10 horas, 3 pedidos en cada ventana de 15 minutos desde la misma conexión.
+		for (let w = 0; w < 40; w++) {
+			for (let i = 0; i < 3; i++) {
+				await requestCode({
+					db: t.db,
+					email: EMAIL,
+					client: 'otra-conexion',
+					send,
+					now: NOW + w * 15 * MIN + i
+				});
+			}
+		}
+		expect(sent.length).toBe(RATE_LIMITS.codeRequestEmailClientDay.limit);
+		expect(RATE_LIMITS.codeRequestEmailClientDay.limit).toBeLessThan(
+			RATE_LIMITS.codeRequestEmailDay.limit
+		);
+		const own = await requestCode({
+			db: t.db,
+			email: EMAIL,
+			client: CLIENT,
+			send,
+			now: NOW + 11 * 60 * MIN
+		});
+		expect(own.ok).toBe(true);
+	});
+
+	it('lo mismo con los códigos para confirmar (comparten el cupo)', async () => {
+		const { send } = fakeSender();
+		for (let i = 0; i < 10; i++) {
+			await requestConfirmCode({
+				db: t.db,
+				email: EMAIL,
+				purpose: 'delete',
+				client: 'otra-conexion',
+				send,
+				now: NOW + i
+			});
+		}
+		const r = await requestConfirmCode({
+			db: t.db,
+			email: EMAIL,
+			purpose: 'password',
+			client: CLIENT,
+			send,
+			now: NOW + 20 * MIN
+		});
+		expect(r.ok).toBe(true);
+	});
+
+	it('las contraseñas mal escritas desde otras conexiones no frenan el ingreso con código', async () => {
+		const a = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		await setPassword(t.db, a.id, PW, { iterations: 1000 });
+		for (let i = 0; i <= RATE_LIMITS.passwordEmail.limit; i++) {
+			await passwordLogin({
+				db: t.db,
+				email: EMAIL,
+				password: 'no es la contraseña',
+				client: `c${i}`,
+				now: NOW
+			});
+		}
+		const { sent, send } = fakeSender();
+		expect(
+			await requestCode({ db: t.db, email: EMAIL, client: CLIENT, send, now: NOW })
+		).toMatchObject({
+			ok: true
+		});
+		const r = await verifyCode({
+			db: t.db,
+			email: EMAIL,
+			code: sent[0].code,
+			client: CLIENT,
+			now: NOW
+		});
+		expect(r).toMatchObject({ ok: true, account: { id: a.id } });
+	});
+});
+
 describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 	/** @param {string} code */
 	const other = (code) => (code === '000000' ? '111111' : '000000');

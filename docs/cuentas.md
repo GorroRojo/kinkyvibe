@@ -84,12 +84,17 @@ nada de estas tablas para sumarlas.
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
 | Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 4 por día                                   |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
+Los límites se miran en orden (conexión, mail + conexión, mail cada 15 minutos, mail por día) y
+cada uno suma solo si pasó el anterior: un pedido rechazado no gasta el cupo del mail, y una sola
+conexión puede pedir como mucho 4 de los 10 códigos diarios de un mail, así no deja a otra persona
+sin poder entrar. Los códigos para confirmar comparten estos mismos contadores.
 Con 5 intentos por código y 10 códigos por día, adivinar un código tiene como mucho 50 chances
 en un millón por día y por mail. Si alguien bloquea la contraseña de otra persona a propósito,
 el código por mail sigue andando.
