@@ -121,6 +121,10 @@
 	.dot.account {
 		background: var(--link);
 	}
+	.dot.tip {
+		background: var(--accent);
+		box-shadow: inset 0 0 0 2px var(--ok);
+	}
 	time {
 		font-size: 0.8rem;
 		white-space: nowrap;

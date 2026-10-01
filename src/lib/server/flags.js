@@ -22,6 +22,14 @@ export const FLAGS = Object.freeze({
 			'"Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
+	},
+	propinas: {
+		label: 'Propinas',
+		description:
+			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
+			've la nota del cafecito como siempre y /propinas da 404.',
+		envVar: 'PROPINAS_ENABLED'
 	}
 });
 
@@ -94,6 +102,15 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function cuentasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'cuentas');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas');
 }
 
 /**

@@ -9,6 +9,7 @@
  */
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
+import { formatARS } from '$lib/utils/money.js';
 import {
 	describeReminder,
 	dueReminderOrders,
@@ -350,10 +351,11 @@ export function monthMoney(db, now) {
 
 /**
  * `kind: 'account'`: una cuenta o un perfil nuevos (no lo hizo une admin; ver accountEvents.js).
+ * `kind: 'tip'`: una propina aprobada (docs/propinas.md).
  * `href`: a dónde lleva el ítem, si no sale de `slug`/`orderId` (cuentas y perfiles).
  * @typedef {{
  *   at: number,
- *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account',
+ *   kind: 'order' | 'transfer' | 'refund' | 'audit' | 'checkin' | 'account' | 'tip',
  *   title: string,
  *   who: string,
  *   detail: string,
@@ -398,7 +400,7 @@ const ORDER_KIND = /** @type {const} */ ({
  * @returns {Promise<ActivityItem[]>}
  */
 export async function recentActivity(db, { limit = 12, since = 0, titles = new Map() } = {}) {
-	const [orders, audit, checkins] = await Promise.all([
+	const [orders, audit, checkins, tips] = await Promise.all([
 		safe(db, 'actividad: órdenes', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
 			const { results } = await db
 				.prepare(
@@ -429,6 +431,17 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`
 				)
 				.bind(since, limit, CHECKIN_BUCKET_MS)
+				.all();
+			return results;
+		}),
+		// Sin la migración 0019 (propinas) la consulta falla y `safe` devuelve [].
+		safe(db, 'actividad: propinas', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
+			const { results } = await db
+				.prepare(
+					`SELECT id, amount, post_category, post_slug, approved_at FROM tips
+					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`
+				)
+				.bind(since, limit)
 				.all();
 			return results;
 		})
@@ -487,6 +500,18 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 					: `${arTime(first)} a ${arTime(last)}`,
 			slug,
 			orderId: null
+		});
+	}
+	for (const t of tips) {
+		items.push({
+			at: Number(t.approved_at),
+			kind: 'tip',
+			title: `Propina de ${formatARS(Number(t.amount))}`,
+			who: String(t.post_slug),
+			detail: String(t.post_category),
+			slug: null,
+			orderId: null,
+			href: '/admin/propinas'
 		});
 	}
 	items.sort((a, b) => b.at - a.at);

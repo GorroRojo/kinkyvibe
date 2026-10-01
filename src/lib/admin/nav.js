@@ -49,6 +49,7 @@ import {
 	EyeOff,
 	FileSpreadsheet,
 	CircleUser,
+	HandCoins,
 	HandHeart,
 	Heart,
 	House,
@@ -191,6 +192,16 @@ export const NAV = Object.freeze([
 		icon: ChartLine,
 		emoji: '📈',
 		label: 'Estadísticas',
+		group: 'entradas',
+		soon: false
+	},
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		id: 'propinas',
+		href: '/admin/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
 		group: 'entradas',
 		soon: false
 	},
