@@ -8,6 +8,7 @@
  */
 import { env } from '$env/dynamic/private';
 import { sha256Hex } from '$lib/server/hash.js';
+import { toBase64url } from '$lib/utils/base64.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -86,13 +87,6 @@ export function clientAddress(event) {
 	}
 }
 
-/** @param {Uint8Array} bytes */
-function base64url(bytes) {
-	let s = '';
-	for (const b of bytes) s += String.fromCharCode(b);
-	return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
 /**
  * Clave para firmar los links de confirmación: al azar, se crea sola la primera vez y queda en
  * D1 (`ticket_settings`), nunca en el repo.
@@ -106,7 +100,7 @@ async function confirmKey(db) {
 		)?.value ?? null;
 	let key = await read();
 	if (!key) {
-		const random = base64url(crypto.getRandomValues(new Uint8Array(32)));
+		const random = toBase64url(crypto.getRandomValues(new Uint8Array(32)));
 		await db
 			.prepare(
 				`INSERT OR IGNORE INTO ticket_settings (key, value, updated_at, updated_by)
@@ -135,7 +129,7 @@ export async function confirmToken(db, orderId) {
 		['sign']
 	);
 	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`confirm:${orderId}`));
-	return base64url(new Uint8Array(sig)).slice(0, 32);
+	return toBase64url(new Uint8Array(sig)).slice(0, 32);
 }
 
 /**

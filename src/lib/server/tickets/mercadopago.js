@@ -11,6 +11,8 @@
  * - Webhooks: header `x-signature: ts=…,v1=…` = HMAC-SHA256(secret,
  *   "id:{data.id};request-id:{x-request-id};ts:{ts};") en hex, con `data.id` del query string.
  */
+import { timingSafeEqual } from '$lib/server/hash.js';
+import { toHex } from '$lib/utils/base64.js';
 
 export const MP_API = 'https://api.mercadopago.com';
 
@@ -192,20 +194,7 @@ export async function hmacSha256Hex(secret, message) {
 		['sign']
 	);
 	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-	return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/**
- * Comparación en tiempo constante (respecto del contenido) de dos strings hex.
- *
- * @param {string} a
- * @param {string} b
- */
-export function timingSafeEqual(a, b) {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	return diff === 0;
+	return toHex(sig);
 }
 
 /**

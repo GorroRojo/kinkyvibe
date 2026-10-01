@@ -1026,8 +1026,8 @@
 		outline: 3px solid var(--2-light);
 	}
 
-	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto (botones de 42 px: siguen
-	   siendo cómodos para el dedo sin ocupar media pantalla). */
+	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto. Los botones miden 44 × 44
+	   por dentro del borde (el mínimo para el dedo que usa todo el sitio). */
 	.field.qty {
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -1040,7 +1040,8 @@
 	.stepper {
 		display: inline-flex;
 		align-items: stretch;
-		height: 42px;
+		/* 44 px de botón + 2 px de borde arriba y abajo. */
+		height: 48px;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
 		border-radius: 999px;
 		background: white;
@@ -1072,9 +1073,9 @@
 		margin: 0;
 	}
 	button.step {
-		flex: 0 0 42px;
-		width: 42px;
-		min-width: 42px;
+		flex: 0 0 44px;
+		width: 44px;
+		min-width: 44px;
 		min-height: 0;
 		height: auto;
 		margin: 0;
@@ -1188,9 +1189,11 @@
 	}
 	.pay button {
 		/* Alto para dos líneas y ancho que no depende del texto: el texto cambia con el medio de
-		   pago y no debería mover nada. */
+		   pago y no debería mover nada. Dos líneas = 2 × 1,2em de texto + 2 × 0,8em de padding
+		   (el botón cuenta el padding en su alto): 4em. Con 3,6em, «Reservar y ver cómo
+		   transferir» en dos líneas lo estiraba 8 px al elegir Transferencia. */
 		flex: 1 1 16em;
-		min-height: 3.6em;
+		min-height: calc(2 * 1.2em + 2 * 0.8em);
 		line-height: 1.2;
 	}
 	.option {
