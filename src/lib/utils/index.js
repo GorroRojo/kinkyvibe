@@ -63,6 +63,17 @@ export const thumbURL = async (category, postID, assetID) => {
 };
 
 /**
+ * URL of a file in a post's media folder, by file name ("5.webp", "spoiler.webp"), or undefined.
+ * Used by profile bodies stored in the database (their mdsvex image imports name the file).
+ * @param {"calendario"|"amigues"|"material"|"wiki"} category
+ * @param {string} postID
+ * @param {string} file
+ * @returns {string|undefined}
+ */
+export const mediaURL = (category, postID, file) =>
+	/^[\w.-]+$/.test(file) ? mediaURLs[`../posts/${category}/media/${postID}/${file}`] : undefined;
+
+/**
  * @param {TagManager} [tagManager=tagsFactory()]
  * @returns {(tag: string)=>string}
  */
@@ -118,13 +129,9 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		}
 	}
 
-	const sortTags = cachedTagSorter(tagManager);
 	const processedMeta = {
 		...meta,
-		tags: [...(meta.tags ?? [])]
-			.map((t) => tagManager.get(t))
-			.sort(sortTags)
-			.map((t) => t.id),
+		tags: canonicalTags(meta.tags ?? [], tagManager),
 		featured:
 			meta.featured !== undefined
 				? await thumbURL(meta.category, postID, meta.featured)
@@ -140,6 +147,21 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		path: '/' + meta.category + '/' + postID
 	};
 	return processedPost;
+}
+
+/**
+ * Tags as the site shows them: each alias resolved to its tag id, sorted like the tag tree.
+ * Shared by the .md posts and the profiles stored in the database.
+ * @param {readonly string[]} tags
+ * @param {TagManager} [tagManager]
+ * @returns {string[]}
+ */
+export function canonicalTags(tags, tagManager = defaultTagManager()) {
+	const sortTags = cachedTagSorter(tagManager);
+	return [...tags]
+		.map((t) => tagManager.get(t))
+		.sort(sortTags)
+		.map((t) => t.id);
 }
 
 /** @type {TagManager|undefined} */

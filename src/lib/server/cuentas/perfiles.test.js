@@ -52,8 +52,12 @@ import {
 	removeManager,
 	removeMember,
 	setManagerRole,
-	updateProfile
+	updateProfile,
+	accountVenueData
 } from './perfiles.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
+import { findPublicProfile, listPublicProfiles } from '$lib/server/amigues/profiles.js';
+import { listPendingVenues } from '$lib/server/amigues/pendingVenues.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -222,7 +226,8 @@ describe('crear y listar', () => {
 
 	it('datos inválidos: no se crea nada (ni el perfil ni la fila de gestión)', async () => {
 		const a = await account('dueñe-inventade');
-		expect(await createProfile(t.db, a.id, { kind: 'lugar', title: 'X' })).toMatchObject({
+		// Un tipo inventado (desde #137 una cuenta también puede crear lugares, decisión 0022).
+		expect(await createProfile(t.db, a.id, { kind: 'cualquiera', title: 'X' })).toMatchObject({
 			ok: false,
 			status: 400,
 			message: MESSAGES.badKind
@@ -1517,5 +1522,105 @@ describe('valor viejo «grupo» (antes de la migración 0023)', () => {
 		expect(
 			await createProfile(t.db, a.id, /** @type {any} */ ({ kind: 'Grupo', title: 'X' }), opts)
 		).toMatchObject({ ok: false, status: 400, message: MESSAGES.badKind });
+	});
+});
+
+describe('lugares desde las cuentas (decisión de gorrite, 0022)', () => {
+	it('accountVenueData: pone lo escrito, saca lo vacío y deja lo demás como estaba', () => {
+		const current = {
+			kind: 'lugar',
+			address: 'Calle Vieja 1',
+			lat: -34.6,
+			lng: -58.4,
+			bio: 'Hola'
+		};
+		expect(
+			accountVenueData(
+				{
+					address: ' Calle Inventada 123 ',
+					area: 'Barrio Inventado',
+					city: '',
+					venue_privacy: 'area'
+				},
+				current
+			)
+		).toEqual({
+			kind: 'lugar',
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			venue_privacy: 'area',
+			lat: -34.6,
+			lng: -58.4,
+			bio: 'Hola'
+		});
+		// Sin los campos del formulario de lugar, no toca nada.
+		expect(accountVenueData(undefined, current)).toEqual(current);
+		// Privacidad vacía = sin elegir (la dirección completa, decisión 0021).
+		expect(accountVenueData({ venue_privacy: '' }, { venue_privacy: 'hidden' })).toEqual({});
+	});
+
+	it('una cuenta crea un lugar: no es público hasta que une admin lo aprueba', async () => {
+		const a = await account('carga-lugar');
+		const created = await createProfile(
+			t.db,
+			a.id,
+			{ kind: 'lugar', title: 'Sala Inventada', visibility: 'public' },
+			opts
+		);
+		if (!created.ok) throw new Error(created.message);
+		const venue = created.profile;
+		expect(venue.data.kind).toBe('lugar');
+		const saved = await updateProfile(
+			t.db,
+			a.id,
+			venue.slug,
+			{
+				title: 'Sala Inventada',
+				version: venue.version,
+				venue: {
+					address: 'Calle Inventada 123',
+					area: 'Barrio Inventado',
+					city: 'Ciudad Inventada',
+					accessibility: '',
+					how_to_get_there: '',
+					venue_privacy: 'name'
+				}
+			},
+			opts
+		);
+		expect(saved).toMatchObject({ ok: true });
+		expect((await getManagedProfile(t.db, a.id, venue.slug))?.profile.data).toMatchObject({
+			kind: 'lugar',
+			address: 'Calle Inventada 123',
+			area: 'Barrio Inventado',
+			venue_privacy: 'name'
+		});
+		// Sin aprobar: no está en /amigues ni se abre para quien no lo gestiona.
+		expect(await findPublicProfile(t.db, venue.slug, ANON)).toBeNull();
+		expect(await listPublicProfiles(t.db, ANON, { kind: 'lugar' })).toEqual([]);
+		expect((await listPendingVenues(t.db)).map((v) => v.title)).toEqual(['Sala Inventada']);
+		// Quien lo cargó lo sigue viendo.
+		expect(
+			await findPublicProfile(t.db, venue.slug, memberViewer(a.id), { accountId: a.id })
+		).not.toBeNull();
+
+		await approveProfile(t.db, venue.id, 'admin-de-prueba');
+		expect(await findPublicProfile(t.db, venue.slug, ANON)).not.toBeNull();
+		expect(await listPendingVenues(t.db)).toEqual([]);
+	});
+
+	it('una privacidad inventada no se guarda', async () => {
+		const a = await account('carga-lugar');
+		const created = await createProfile(t.db, a.id, { kind: 'lugar', title: 'Otro Lugar' }, opts);
+		if (!created.ok) throw new Error(created.message);
+		const bad = await updateProfile(
+			t.db,
+			a.id,
+			created.profile.slug,
+			{ title: 'Otro Lugar', version: 1, venue: { venue_privacy: 'secreta' } },
+			opts
+		);
+		expect(bad).toMatchObject({ ok: false, status: 400 });
+		expect(bad.ok === false && Object.keys(bad.errors ?? {})).toContain('venue_privacy');
 	});
 });

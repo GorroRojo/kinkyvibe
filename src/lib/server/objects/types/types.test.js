@@ -114,15 +114,43 @@ describe('perfil', () => {
 		});
 	});
 
+	it('lugar: sus campos solo valen para lugares; la ubicación va completa (noche 3)', () => {
+		const venue = {
+			kind: 'lugar',
+			address: 'Calle Inventada 1',
+			area: 'Barrio Inventado',
+			lat: -34.6,
+			lng: -58.4,
+			venue_privacy: 'area'
+		};
+		expect(validateData(perfil, venue)).toMatchObject({ ok: true });
+		const asPersona = validateData(perfil, { ...venue, kind: 'persona' });
+		expect(asPersona.ok ? [] : asPersona.errors.map((e) => e.path).sort()).toEqual([
+			'address',
+			'area',
+			'lat',
+			'lng',
+			'venue_privacy'
+		]);
+		const half = validateData(perfil, { kind: 'lugar', lat: -34.6 });
+		expect(half.ok ? [] : half.errors.map((e) => e.path)).toEqual(['lat']);
+		expect(validateData(perfil, { kind: 'lugar', venue_privacy: 'secreta' }).ok).toBe(false);
+		expect(validateData(perfil, { kind: 'persona', pronouns_url: 'javascript:alert(1)' }).ok).toBe(
+			false
+		);
+	});
+
 	it('rechaza tipos inventados, links que no son web, imágenes de afuera y claves desconocidas', () => {
 		const paths = (/** @type {Record<string, unknown>} */ data) => {
 			const r = validateData(perfil, data);
 			return r.ok ? [] : r.errors.map((e) => e.path).sort();
 		};
-		expect(paths({ kind: 'lugar' })).toEqual(['kind']);
-		expect(paths({ kind: 'persona', display_name: 'X', email: 'x@example.com' })).toEqual([
+		// Desde la noche 3 (bloque A) `lugar` es un tipo de perfil y `email` un campo (de las fichas
+		// de amigues importadas): la prueba usa otro tipo y otra clave inventados.
+		expect(paths({ kind: 'cualquiera' })).toEqual(['kind']);
+		expect(paths({ kind: 'persona', display_name: 'X', manager_email: 'x@example.com' })).toEqual([
 			'display_name',
-			'email'
+			'manager_email'
 		]);
 		expect(paths({ kind: 'persona', links: ['javascript:alert(1)'] })).toEqual(['links']);
 		expect(paths({ kind: 'persona', links: ['https://usuario:clave@ejemplo.test'] })).toEqual([
@@ -150,17 +178,19 @@ describe('perfil', () => {
 	});
 
 	it('el valor viejo «grupo» se lee como «proyecto» (y nada más se normaliza)', () => {
-		expect(PROFILE_KINDS).toEqual(['persona', 'proyecto']);
+		expect(PROFILE_KINDS).toEqual(['persona', 'proyecto', 'lugar']);
 		expect(LEGACY_PROJECT_KIND).toBe('grupo');
 		expect(normalizeProfileKind('grupo')).toBe('proyecto');
 		expect(normalizeProfileKind('proyecto')).toBe('proyecto');
 		expect(normalizeProfileKind('persona')).toBe('persona');
-		for (const v of ['Grupo', 'lugar', '', null, undefined, 1]) {
+		expect(normalizeProfileKind('lugar')).toBe('lugar');
+		for (const v of ['Grupo', 'Lugar', '', null, undefined, 1]) {
 			expect(normalizeProfileKind(v)).toBeNull();
 		}
 		expect(profileKindOf({ kind: 'grupo' })).toBe('proyecto');
 		expect(profileKindOf({ kind: 'proyecto' })).toBe('proyecto');
 		expect(profileKindOf({ kind: 'persona' })).toBe('persona');
+		expect(profileKindOf({ kind: 'lugar' })).toBe('lugar');
 		// Lo que no se reconoce sigue contando como persona, como antes del cambio.
 		expect(profileKindOf({})).toBe('persona');
 		expect(profileKindOf(null)).toBe('persona');

@@ -179,7 +179,11 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
   unidas a `profile_managers` sin `visibleWhere()`: la condición de acceso es esa unión (quien
   gestiona un proyecto oculto lo tiene que poder editar). Todo lo que ve el público u otra cuenta
   pasa por `getObject`/`getEdges`.
-- Más adelante, los lugares (B3) pueden sumarse como otro `kind` con sus campos extra.
+- Lugares (B3) y fichas de amigues importadas: `kind` también puede ser `lugar`, y el tipo suma
+  los campos de las fichas (`body`, `pronouns_url`, `link_text`, contacto, `tags`, `authors`,
+  imágenes y fechas de la ficha vieja, `unlisted`) y los de lugar (`address`, `area`, `city`,
+  `lat`, `lng`, `accessibility`, `how_to_get_there`, `venue_privacy`; solo para lugares). Ver
+  [amigues.md](amigues.md).
 
 ## Tareas comunes
 

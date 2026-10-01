@@ -80,6 +80,26 @@ import { accountMailAllowed } from './mailCap.js';
  */
 
 export const PROFILE_TYPE = 'perfil';
+/**
+ * Los tipos de perfil que puede crear una cuenta. También lugares (decisión de gorrite,
+ * docs/decisiones/0022-lugares-desde-cuentas.md): como todo perfil que crea una cuenta, no
+ * aparece en el sitio hasta que une admin lo aprueba (Panel → Eventos → Lugares, "Para aprobar";
+ * src/lib/server/amigues/pendingVenues.js).
+ */
+export const ACCOUNT_PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto', 'lugar']);
+
+/**
+ * Los campos de un lugar que se editan desde Mi rincón (la ubicación en el mapa, `lat`/`lng`, la
+ * carga une admin).
+ */
+export const ACCOUNT_VENUE_FIELDS = Object.freeze([
+	'address',
+	'area',
+	'city',
+	'accessibility',
+	'how_to_get_there'
+]);
+
 export const MEMBER_EDGE = 'es_integrante_de';
 /** Perfiles (vivos) que puede gestionar una cuenta. */
 export const MAX_PROFILES_PER_ACCOUNT = 20;
@@ -115,7 +135,7 @@ export const MESSAGES = Object.freeze({
 	personaLeave: 'Un perfil de persona no se deja: si no lo querés más, borralo.',
 	tooManyProfiles: `Llegaste al máximo de ${MAX_PROFILES_PER_ACCOUNT} perfiles.`,
 	tooManyInvites: `Hay demasiadas invitaciones pendientes (máximo ${MAX_PENDING_INVITES}). Cancelá alguna.`,
-	badKind: 'Elegí si el perfil es de una persona o de un proyecto.',
+	badKind: 'Elegí si el perfil es de una persona, de un proyecto o de un lugar.',
 	badEmail: 'Revisá el mail: no parece una dirección válida.',
 	invited:
 		'Listo. Si ese mail tiene cuenta, le mandamos un aviso. La invitación aparece en Mi rincón → Perfiles cuando entre con ese mail (vence en 14 días).',
@@ -209,11 +229,34 @@ function parseLinks(value) {
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
  * @prop {boolean} [show_members] solo proyectos
+ * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS} y
+ *   `venue_privacy` ('' = sin elegir: la dirección completa)
  */
 
 /**
- * `data` de un perfil a partir de lo que se editó. `kind` y `avatar` no se editan acá: quedan
- * como estaban.
+ * Los campos de lugar de `data` a partir de lo que mandó Mi rincón: los vacíos se sacan; los
+ * demás campos quedan como estaban. Pura (sin base).
+ *
+ * @param {Record<string, string> | undefined} venue
+ * @param {Record<string, unknown>} current
+ * @returns {Record<string, unknown>}
+ */
+export function accountVenueData(venue, current) {
+	/** @type {Record<string, unknown>} */
+	const data = { ...current };
+	if (!venue) return data;
+	for (const key of [...ACCOUNT_VENUE_FIELDS, 'venue_privacy']) {
+		const value = text(venue[key]).trim();
+		if (value) data[key] = value;
+		else delete data[key];
+	}
+	return data;
+}
+
+/**
+ * `data` de un perfil a partir de lo que se editó. Lo que no se edita desde Mi rincón (`kind`,
+ * `avatar` y los demás campos, por ejemplo los de una ficha de amigues importada o los de un
+ * lugar) queda como estaba.
  *
  * @param {ProfileKind} kind
  * @param {ProfileInput} input
@@ -222,13 +265,15 @@ function parseLinks(value) {
 function profileData(kind, input, current = {}) {
 	/** @type {Record<string, unknown>} */
 	const data = {
+		...current,
 		kind,
 		bio: text(input.bio),
 		pronouns: text(input.pronouns),
 		links: parseLinks(input.links)
 	};
-	if (current.avatar !== undefined) data.avatar = current.avatar;
 	if (kind === 'proyecto') data.show_members = input.show_members === true;
+	else delete data.show_members;
+	if (kind === 'lugar') return accountVenueData(input.venue, data);
 	return data;
 }
 
@@ -361,7 +406,8 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 	const kind = normalizeProfileKind(input.kind);
 	// Sin el permiso de perfiles, como si no existiera nada (las páginas ya dan 404).
 	if (!(await canHaveProfiles(db, accountId))) return failure(404, MESSAGES.notFound);
-	if (!kind) return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
+	if (!kind || !(/** @type {readonly string[]} */ (ACCOUNT_PROFILE_KINDS).includes(kind)))
+		return failure(400, MESSAGES.badKind, { kind: MESSAGES.badKind });
 	if (!(await getAccount(db, accountId))) return failure(404, MESSAGES.notFound);
 	if ((await countMyProfiles(db, accountId)) >= MAX_PROFILES_PER_ACCOUNT) {
 		return failure(400, MESSAGES.tooManyProfiles);
@@ -1532,7 +1578,9 @@ export async function releaseAccountProfiles(db, accountId, { now = Date.now() }
 		.all();
 	for (const row of results) {
 		const p = rowToObject(row);
-		if (profileKindOf(p.data) !== 'proyecto') {
+		// Las personas se vacían y se borran; los proyectos y los lugares quedan (pasan a otra cuenta
+		// o se borran con sus datos, que no son de la persona).
+		if (profileKindOf(p.data) === 'persona') {
 			await saveFresh(
 				db,
 				p.id,

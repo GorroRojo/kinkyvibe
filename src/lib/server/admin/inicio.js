@@ -10,6 +10,7 @@
 import { logDBError } from '$lib/server/db';
 import { orderReference } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
+import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	describeReminder,
 	dueReminderOrders,
@@ -713,8 +714,9 @@ export function upcomingEvents({
 
 /**
  * Tipos de ítem de "Para revisar" que se juntan si hay varios: la higiene de contenido (sin
- * imagen, borradores) y los perfiles nuevos de cuentas (ver `groupReviewItems`).
- * @typedef {'image' | 'draft' | 'profile'} ReviewGroupKind
+ * imagen, borradores), los perfiles nuevos de cuentas y los pedidos "Es mi perfil" (ver
+ * `groupReviewItems`).
+ * @typedef {'image' | 'draft' | 'profile' | 'claim'} ReviewGroupKind
  */
 
 /**
@@ -723,7 +725,7 @@ export function upcomingEvents({
  * o lo borra desde su ficha; si son varios, `groupReviewItems` los junta en una fila que lleva a
  * Cuentas → Perfiles filtrado.
  *
- * @param {{ id: number, title: string, kind: 'persona' | 'proyecto', createdAt: number }[]} profiles
+ * @param {{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]} profiles
  * @param {{ formatWhen?: (ms: number) => string }} [opts]
  * @returns {ReviewItem[]}
  */
@@ -733,11 +735,33 @@ export function profileReviewItems(profiles, { formatWhen } = {}) {
 		tone: 'info',
 		icon: 'profile',
 		title: `Perfil nuevo: ${p.title}`,
-		text: `${p.kind === 'proyecto' ? 'Proyecto' : 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
+		text: `${KIND_LABELS[p.kind] ?? 'Persona'} · creado desde Mi rincón${formatWhen ? ` ${formatWhen(p.createdAt)}` : ''}`,
 		action: 'Revisar',
 		href: profileHref(p.id),
 		group: 'profile',
 		name: p.title
+	}));
+}
+
+/**
+ * "Para revisar": un ítem por cada pedido "Es mi perfil" pendiente (`listClaims` en
+ * src/lib/server/amigues/claims.js). Sin el mail de la cuenta: se ve en la ficha del perfil.
+ *
+ * @param {{ id: number, profileId: number, profileTitle: string, createdAt: number }[]} claims
+ * @param {{ formatWhen?: (ms: number) => string }} [opts]
+ * @returns {ReviewItem[]}
+ */
+export function claimReviewItems(claims, { formatWhen } = {}) {
+	return claims.map((c) => ({
+		id: `claim-${c.id}`,
+		tone: 'info',
+		icon: 'profile',
+		title: `«Es mi perfil»: ${c.profileTitle}`,
+		text: `Una cuenta pide hacerse cargo${formatWhen ? ` · ${formatWhen(c.createdAt)}` : ''}`,
+		action: 'Revisar',
+		href: profileHref(c.profileId),
+		group: 'claim',
+		name: c.profileTitle
 	}));
 }
 
@@ -960,6 +984,16 @@ export function groupReviewItems(items, { links, min = 2 }) {
 			text: 'Creados desde Mi rincón; quedan acá hasta que los marques como revisados',
 			action: 'Ver',
 			href: links.profiles ?? PROFILES_TO_REVIEW_HREF,
+			items: list
+		}),
+		claim: (list) => ({
+			id: 'group-claim',
+			tone: 'info',
+			icon: 'profile',
+			title: plural(list.length, 'pedido «Es mi perfil»', 'pedidos «Es mi perfil»'),
+			text: 'Cuentas que piden hacerse cargo de un perfil que ya existe',
+			action: 'Ver',
+			href: '/admin/cuentas/perfiles',
 			items: list
 		})
 	};

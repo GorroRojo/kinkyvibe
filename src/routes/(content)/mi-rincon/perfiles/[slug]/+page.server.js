@@ -38,6 +38,7 @@ import {
 	requireMember
 } from '$lib/server/cuentas/perfilesWeb.js';
 import { checkConfirmCode, requestConfirmCode } from '$lib/server/cuentas/index.js';
+import { approvalOf } from '$lib/server/amigues/approvals.js';
 import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
 
 /** Dónde se pidió el código (para mostrar el aviso en esa parte de la página). */
@@ -85,6 +86,9 @@ export async function load(event) {
 	const { profile, kind, role } = found;
 	const group = kind === 'proyecto';
 	const managers = group ? await listManagers(db, member.id, slug) : null;
+	/** @param {unknown} v */
+	const str = (v) => (typeof v === 'string' ? v : '');
+	const d = profile.data;
 	return {
 		profile: {
 			slug: profile.slug,
@@ -95,15 +99,29 @@ export async function load(event) {
 			bio: profile.data.bio ?? '',
 			pronouns: profile.data.pronouns ?? '',
 			links: (profile.data.links ?? []).join('\n'),
-			show_members: profile.data.show_members === true
+			show_members: profile.data.show_members === true,
+			venue:
+				kind === 'lugar'
+					? {
+							address: str(d.address),
+							area: str(d.area),
+							city: str(d.city),
+							accessibility: str(d.accessibility),
+							how_to_get_there: str(d.how_to_get_there),
+							venue_privacy: str(d.venue_privacy)
+						}
+					: null
 		},
+		// Sin aprobar no aparece en el sitio (decisión de gorrite: los perfiles y lugares nuevos de
+		// las cuentas esperan a une admin).
+		pending: !(await approvalOf(db, profile.id)),
 		role,
 		isNew: event.url.searchParams.get('nuevo') === '1',
 		managers: managers?.ok ? managers.managers : [],
 		invites: managers?.ok ? managers.invites : [],
 		members: group ? await listGroupMembers(db, member.id, slug) : [],
 		pendingMembers: group ? await listGroupMemberInvites(db, member.id, slug) : [],
-		memberships: group ? [] : await listMemberships(db, member.id, slug)
+		memberships: group || kind === 'lugar' ? [] : await listMemberships(db, member.id, slug)
 	};
 }
 

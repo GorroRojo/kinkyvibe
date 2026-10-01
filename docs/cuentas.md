@@ -259,15 +259,20 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   (`profile.review`, `profile.hide` o `profile.delete`). Si son varios, van en una sola fila que
   lleva a Perfiles filtrado.
 
-**Todavía no hay página pública de perfiles.** Los perfiles de amigues siguen siendo archivos
-`.md` y no se tocan. `getPublicProfile()` ya arma lo que mostraría esa página (lista blanca de
-campos), pero nadie la usa todavía.
+**Página pública:** `/amigues`, detrás del interruptor `perfiles_publicos` (ver
+[amigues.md](amigues.md)): las fichas importadas, los perfiles aprobados por admins, "Es mi
+perfil" y los lugares. Una cuenta puede crear personas, proyectos y **lugares** (decisión de
+gorrite, [0022](decisiones/0022-lugares-desde-cuentas.md)); como todo perfil nuevo de una cuenta,
+aparece en el sitio recién cuando une admin lo aprueba (los lugares, en Eventos → Lugares → "Para
+aprobar").
 
 ### Páginas (detrás del mismo interruptor `cuentas`)
 
-- `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona o proyecto, nombre
-  y quién lo puede ver) y las invitaciones a gestionar proyectos que le llegaron.
-- `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad.
+- `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona, proyecto o lugar,
+  nombre y quién lo puede ver) y las invitaciones a gestionar proyectos que le llegaron.
+- `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad (un
+  lugar, además: dirección, barrio, ciudad, accesibilidad, cómo llegar y qué se muestra de la
+  dirección; la ubicación en el mapa la carga une admin).
   - En un proyecto: invitar integrantes (con la dirección del perfil de la persona), ver las
     invitaciones pendientes y retirarlas, sacar integrantes, ver quiénes lo gestionan, invitar a
     gestionar, cambiar roles, sacar gente, dejar de gestionar y borrar.
