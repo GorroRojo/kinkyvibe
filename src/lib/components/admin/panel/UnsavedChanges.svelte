@@ -179,8 +179,9 @@
 			</div>
 		{:else if notice.kind === 'offer'}
 			<p>
-				<b>Tenés un borrador sin guardar</b> de {notice.age}{#if notice.parts?.length}
-					({notice.parts.join(', ')}){/if}. ¿Lo recuperás?
+				<b>Tenés un borrador sin guardar</b> de {notice.age}{notice.parts?.length
+					? ` (${notice.parts.join(', ')})`
+					: ''}. ¿Lo recuperás?
 			</p>
 			<div class="btns">
 				<button type="button" class="btn" id="draft-recover" on:click={recoverStale}

@@ -3,23 +3,19 @@
 	import { onDestroy, tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import DayPicker from '$lib/components/admin/DayPicker.svelte';
-	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
-	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
-	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
+	import OrganizersField from '$lib/components/admin/event-form/OrganizersField.svelte';
+	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
+	import { draftKey } from '$lib/admin/draft.js';
+	import { formSections } from '$lib/admin/eventForm.js';
+	import { checkImageFile } from '$lib/utils/imageUpload.js';
 	import '$lib/components/admin/admin.scss';
 	import '$lib/admin/panel-editor.scss';
 	import { tagManager } from '$lib/utils/stores';
-	import {
-		buildTagOptions,
-		excludedFromPicker,
-		joinEventTags,
-		splitEventTags,
-		validateEventTags
-	} from '$lib/utils/adminTags.js';
-	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
+	import { joinEventTags, splitEventTags, validateEventTags } from '$lib/utils/adminTags.js';
 	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
@@ -84,8 +80,6 @@
 			: undefined;
 
 	/* ---------- tags & organizers ---------- */
-	const tagOptions = buildTagOptions({ category: 'calendario', usage: data.tagUsage });
-	const reservedTags = new Set([...excludedFromPicker('calendario'), 'web', 'online', 'virtual']);
 	const initialTags = splitEventTags(splitList(values.tags));
 	let tagRules = {
 		kinkyvibe: initialTags.kinkyvibe,
@@ -96,7 +90,6 @@
 	};
 	let freeTags = initialTags.rest;
 	let authors = splitList(values.authors);
-	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
 	$: values.tags = joinEventTags({ ...tagRules, rest: freeTags });
 	$: values.authors = authors;
 	$: tagErrors = validateEventTags(splitList(values.tags));
@@ -197,21 +190,16 @@
 		const file = e.currentTarget.files?.[0];
 		uploadError = '';
 		if (!file) return;
-		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
-		} else if (file.size > data.maxImageBytes) {
-			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
-				data.maxImageBytes / 1024 / 1024
-			} MB.`;
-		}
-		if (uploadError) {
+		const check = checkImageFile(file, data.maxImageBytes);
+		if (check.error) {
+			uploadError = check.error;
 			fileInput.value = '';
 			return;
 		}
 		if (uploadURL) URL.revokeObjectURL(uploadURL);
 		uploadURL = URL.createObjectURL(file);
 		uploadName = file.name;
-		uploadExt = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+		uploadExt = check.ext;
 		featuredMode = 'upload';
 	}
 	/** @param {'keep'|'none'} mode */
@@ -396,10 +384,51 @@
 			} else if (result.type === 'error') {
 				publishError = result.error?.message ?? 'Algo salió mal.';
 			} else {
+				published = true;
 				await applyAction(result);
 			}
 			window.scrollTo({ top: 0 });
 		};
+	}
+
+	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
+	// Como en Editar: la imagen elegida no entra en el borrador (es un archivo); el resto sí.
+	$: draft = {
+		values,
+		tagRules,
+		freeTags,
+		authors,
+		tickets,
+		slug: slugEdited ? slug : '',
+		slugEdited
+	};
+	$: draftJSON = JSON.stringify(draft);
+	/** Lo que hay al abrir la página (después de que corren los `$:` de arriba). */
+	let pristine = '';
+	$: if (!pristine) pristine = draftJSON;
+	/** Se guardó: navegar a la página del evento no tiene que preguntar nada. */
+	let published = false;
+	$: dirty = !form?.success && draftJSON !== pristine;
+	/** @param {any} d */
+	function restoreDraft(d) {
+		if (!d || typeof d !== 'object') return;
+		if (d.values) {
+			values = { ...values, ...d.values };
+			// Que la fecha de fin recuperada no se recalcule desde la de inicio.
+			lastStartKey = `${values.startDate}|${values.hasEnd}`;
+			lastEnd = values.endDate;
+			if (isValidDate(values.startDate) && isValidDate(values.endDate))
+				span = Math.max(0, daysBetween(values.startDate, values.endDate));
+			if (isValidDate(values.startDate)) month = values.startDate.slice(0, 7);
+		}
+		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
+		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
+		if (Array.isArray(d.authors)) authors = d.authors;
+		if (d.tickets) tickets = d.tickets;
+		if (d.slugEdited && typeof d.slug === 'string') {
+			slugEdited = true;
+			slug = d.slug;
+		}
 	}
 
 	/** Enter in a text field must not submit the form. @param {KeyboardEvent} e */
@@ -423,559 +452,564 @@
 		</p>
 	{/if}
 
-	{#if form?.success}
-		<section class="done" aria-live="polite">
-			<h1>¡Listo! 🎉</h1>
-			<p>
-				{#if form.mode === 'borrador'}
-					El evento se guardó como <strong>no listado</strong>: no aparece en el calendario, pero se
-					puede ver con el link.
-				{:else if form.publish && form.publish.state !== 'merged'}
-					El evento se guardó y se <strong>publica</strong> solo cuando pasen las pruebas.
-				{:else}
-					El evento se <strong>publicó</strong>.
-				{/if}
-			</p>
-			<p>
-				{form.publish ? 'Cuando se publique va a estar en' : 'Va a estar en'}
-				<a href={form.eventUrl} target="_blank" rel="noreferrer"
-					><strong>kinkyvibe.ar{form.eventUrl}</strong></a
-				>
-			</p>
-			<p class="note">
-				⏳ {#if form.publish}<PublishStatus pr={form.publish} />{:else}El sitio tarda unos minutos
-					(normalmente entre 2 y 5) en actualizarse.{/if} Si el link da error al principio, esperá un
-				poco y recargá. Si pasan más de 15 minutos, avisale a
-				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
-			</p>
-			{#if form.imageScope === 'todas'}
-				<p class="note">
-					🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-						{' '}({form.affected.length}
-						{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-					{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron
-						los eventos que la usaban.{/if}
-				</p>
-			{:else if form.imageScope === 'esta'}
-				<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
-			{/if}
-			{#each form.warnings ?? [] as warning}
-				<p class="warning">⚠️ {warning}</p>
-			{/each}
-			<p class="small">
-				{#if form.publish}Guardado en el <a href={form.publish.url} target="_blank" rel="noreferrer"
-						>PR #{form.publish.number}</a
-					>{:else}Cambio guardado en GitHub: <a
-						href={form.commitUrl}
-						target="_blank"
-						rel="noreferrer">ver el commit</a
-					>{/if}
-				· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
-					(form.files?.length ?? 0) - 1
-						? ', '
-						: ''}{/each}
-			</p>
-			<p class="buttons">
-				<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
-				<a
-					class="button secondary"
-					href="/admin/eventos/nuevo?desde={form.slug}"
-					data-sveltekit-reload>Duplicar este mismo</a
-				>
-			</p>
-		</section>
-	{:else}
-		<h1>
-			{#if source}Duplicar «{source.title}»{:else}Nuevo evento{/if}
-		</h1>
-		{#if !source}
-			<p class="hint">
-				¿Es otra edición de un evento que ya existe? Es más fácil duplicarlo: buscalo en
-				<a href="/admin/eventos?filtro=pasados">Eventos</a> y tocá <em>Duplicar</em>.
-			</p>
-		{/if}
-		<ol class="steps" aria-label="Pasos">
-			<li class:current={step === 'editar'}>1. Completar datos</li>
-			<li class:current={step === 'revisar'}>2. Revisar y publicar</li>
-		</ol>
-
-		<form
-			method="POST"
-			action="?/publicar"
-			enctype="multipart/form-data"
-			novalidate
-			use:enhance={submitForm}
-			on:keydown={preventEnterSubmit}
-		>
-			<input type="hidden" name="slug" value={slug} />
-			<input type="hidden" name="source" value={source?.slug ?? ''} />
-			<input type="hidden" name="featuredMode" value={featuredMode} />
-			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
-			<textarea hidden name="content" value={generated.md}></textarea>
-
-			<!-- ======================= STEP 1 ======================= -->
-			<div class="step" hidden={step !== 'editar'}>
-				{#if source}
-					<p class="hint">
-						Copiamos todos los datos de <a
-							href="/calendario/{source.slug}"
-							target="_blank"
-							rel="noreferrer">{source.title}</a
-						>. Cambiá la fecha y revisá lo demás.
-					</p>
-				{/if}
-
-				<fieldset class="card">
-					<legend>📅 ¿Cuándo es?</legend>
-					{#if originalSchedule}
-						<p class="hint">El evento original fue el {originalSchedule}.</p>
+	<EventForm
+		sections={form?.success || step !== 'editar' ? [] : formSections({ mode: 'nuevo' })}
+		draftKey={draftKey('nuevo', source?.slug ?? 'plantilla')}
+		{dirty}
+		snapshot={draft}
+		restore={restoreDraft}
+		saved={Boolean(form?.success)}
+		saving={submitting || published}
+	>
+		{#if form?.success}
+			<section class="done" aria-live="polite">
+				<h1>¡Listo! 🎉</h1>
+				<p>
+					{#if form.mode === 'borrador'}
+						El evento se guardó como <strong>no listado</strong>: no aparece en el calendario, pero
+						se puede ver con el link.
+					{:else if form.publish && form.publish.state !== 'merged'}
+						El evento se guardó y se <strong>publica</strong> solo cuando pasen las pruebas.
+					{:else}
+						El evento se <strong>publicó</strong>.
 					{/if}
-					<div class="field-label">
-						<span id="ev-start-date-label">Día que empieza <span class="req">*</span></span>
-						<DayPicker
-							bind:value={values.startDate}
-							bind:month
-							today={data.today}
-							hintWeekday={sourceWeekday}
-							describedby="ev-start-date-help"
-						/>
-						<small id="ev-start-date-help">
-							Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
-							{#if sourceWeekday !== undefined}Resaltamos el mismo día de la semana que el original.{/if}
-						</small>
-						{#if values.startDate && values.startDate < data.today}
-							<p class="warning">⚠️ Esa fecha ya pasó.</p>
+				</p>
+				<p>
+					{form.publish ? 'Cuando se publique va a estar en' : 'Va a estar en'}
+					<a href={form.eventUrl} target="_blank" rel="noreferrer"
+						><strong>kinkyvibe.ar{form.eventUrl}</strong></a
+					>
+				</p>
+				<p class="note">
+					⏳ {#if form.publish}<PublishStatus pr={form.publish} />{:else}El sitio tarda unos minutos
+						(normalmente entre 2 y 5) en actualizarse.{/if} Si el link da error al principio, esperá un
+					poco y recargá. Si pasan más de 15 minutos, avisale a
+					<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
+				</p>
+				{#if form.imageScope === 'todas'}
+					<p class="note">
+						🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
+							{' '}({form.affected.length}
+							{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+						{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron
+							los eventos que la usaban.{/if}
+					</p>
+				{:else if form.imageScope === 'esta'}
+					<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
+				{/if}
+				{#each form.warnings ?? [] as warning}
+					<p class="warning">⚠️ {warning}</p>
+				{/each}
+				<p class="small">
+					{#if form.publish}Guardado en el <a
+							href={form.publish.url}
+							target="_blank"
+							rel="noreferrer">PR #{form.publish.number}</a
+						>{:else}Cambio guardado en GitHub: <a
+							href={form.commitUrl}
+							target="_blank"
+							rel="noreferrer">ver el commit</a
+						>{/if}
+					· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
+						(form.files?.length ?? 0) - 1
+							? ', '
+							: ''}{/each}
+				</p>
+				<p class="buttons">
+					<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
+					<a
+						class="button secondary"
+						href="/admin/eventos/nuevo?desde={form.slug}"
+						data-sveltekit-reload>Duplicar este mismo</a
+					>
+				</p>
+			</section>
+		{:else}
+			<h1>
+				{#if source}Duplicar «{source.title}»{:else}Nuevo evento{/if}
+			</h1>
+			{#if !source}
+				<p class="hint">
+					¿Es otra edición de un evento que ya existe? Es más fácil duplicarlo: buscalo en
+					<a href="/admin/eventos?filtro=pasados">Eventos</a> y tocá <em>Duplicar</em>.
+				</p>
+			{/if}
+			<ol class="steps" aria-label="Pasos">
+				<li class:current={step === 'editar'}>1. Completar datos</li>
+				<li class:current={step === 'revisar'}>2. Revisar y publicar</li>
+			</ol>
+
+			<form
+				method="POST"
+				action="?/publicar"
+				enctype="multipart/form-data"
+				novalidate
+				use:enhance={submitForm}
+				on:keydown={preventEnterSubmit}
+			>
+				<input type="hidden" name="slug" value={slug} />
+				<input type="hidden" name="source" value={source?.slug ?? ''} />
+				<input type="hidden" name="featuredMode" value={featuredMode} />
+				<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
+				<textarea hidden name="content" value={generated.md}></textarea>
+
+				<!-- ======================= STEP 1 ======================= -->
+				<div class="step" hidden={step !== 'editar'}>
+					{#if source}
+						<p class="hint">
+							Copiamos todos los datos de <a
+								href="/calendario/{source.slug}"
+								target="_blank"
+								rel="noreferrer">{source.title}</a
+							>. Cambiá la fecha y revisá lo demás.
+						</p>
+					{/if}
+
+					<fieldset class="card" id="sec-cuando">
+						<legend>📅 ¿Cuándo es?</legend>
+						{#if originalSchedule}
+							<p class="hint">El evento original fue el {originalSchedule}.</p>
 						{/if}
-					</div>
-					<div class="grid">
-						<label class="field">
-							<span>Hora que empieza <span class="req">*</span></span>
-							<input type="time" id="ev-start-time" bind:value={values.startTime} required />
-						</label>
-						{#if values.hasEnd}
+						<div class="field-label">
+							<span id="ev-start-date-label">Día que empieza <span class="req">*</span></span>
+							<DayPicker
+								bind:value={values.startDate}
+								bind:month
+								today={data.today}
+								hintWeekday={sourceWeekday}
+								describedby="ev-start-date-help"
+							/>
+							<small id="ev-start-date-help">
+								Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
+								{#if sourceWeekday !== undefined}Resaltamos el mismo día de la semana que el
+									original.{/if}
+							</small>
+							{#if values.startDate && values.startDate < data.today}
+								<p class="warning">⚠️ Esa fecha ya pasó.</p>
+							{/if}
+						</div>
+						<div class="grid">
 							<label class="field">
-								<span>Día que termina <span class="req">*</span></span>
+								<span>Hora que empieza <span class="req">*</span></span>
+								<input type="time" id="ev-start-time" bind:value={values.startTime} required />
+							</label>
+							{#if values.hasEnd}
+								<label class="field">
+									<span>Día que termina <span class="req">*</span></span>
+									<input
+										type="date"
+										id="ev-end-date"
+										bind:value={values.endDate}
+										min={values.startDate}
+										required
+									/>
+								</label>
+								<label class="field">
+									<span>Hora que termina <span class="req">*</span></span>
+									<input type="time" id="ev-end-time" bind:value={values.endTime} required />
+								</label>
+							{/if}
+						</div>
+						<label class="check">
+							<input type="checkbox" id="ev-has-end" bind:checked={values.hasEnd} />
+							Tiene hora de finalización
+						</label>
+						{#if scheduleText && !scheduleError}
+							<p class="schedule">🗓️ <span>{scheduleText}</span></p>
+						{/if}
+						{#if scheduleError}
+							<p class="error">
+								{scheduleError}
+								{#if values.startDate === values.endDate}
+									<button type="button" class="link" on:click={endsNextDay}
+										>¿Termina al día siguiente?</button
+									>
+								{/if}
+							</p>
+						{/if}
+					</fieldset>
+
+					<fieldset class="card" id="sec-datos">
+						<legend>📝 Datos del evento</legend>
+						<label class="field">
+							<span>Título <span class="req">*</span></span>
+							<input
+								id="ev-title"
+								bind:value={values.title}
+								placeholder="Ej: Picantearla (62ª Edición)"
+							/>
+						</label>
+						<label class="field">
+							<span>Resumen corto</span>
+							<textarea
+								id="ev-summary"
+								bind:value={values.summary}
+								rows="3"
+								placeholder="Aparece en la lista de eventos y cuando se comparte el link"
+							></textarea>
+						</label>
+						<label class="field">
+							<span>Estado</span>
+							<select id="ev-status" bind:value={values.status}>
+								{#each STATUS_OPTIONS as option}
+									<option value={option.value}>{option.label} — {option.help}</option>
+								{/each}
+							</select>
+						</label>
+						<div class="grid">
+							<label class="field">
+								<span>Dirección</span>
 								<input
-									type="date"
-									id="ev-end-date"
-									bind:value={values.endDate}
-									min={values.startDate}
-									required
+									id="ev-location"
+									bind:value={values.location}
+									placeholder="Calle 123, Ciudad"
+								/>
+								<small>Dejalo vacío si es online.</small>
+							</label>
+							<label class="field">
+								<span>Nombre del lugar</span>
+								<input
+									id="ev-location-name"
+									bind:value={values.location_name}
+									placeholder="Ej: El Surco"
 								/>
 							</label>
 							<label class="field">
-								<span>Hora que termina <span class="req">*</span></span>
-								<input type="time" id="ev-end-time" bind:value={values.endTime} required />
+								<span>Link de inscripción / entradas</span>
+								<input
+									id="ev-link"
+									type="url"
+									bind:value={values.link}
+									placeholder="https://forms.gle/..."
+									inputmode="url"
+								/>
+								<small>Solo se muestra cuando el estado es «Abierto».</small>
 							</label>
-						{/if}
-					</div>
-					<label class="check">
-						<input type="checkbox" id="ev-has-end" bind:checked={values.hasEnd} />
-						Tiene hora de finalización
-					</label>
-					{#if scheduleText && !scheduleError}
-						<p class="schedule">🗓️ <span>{scheduleText}</span></p>
-					{/if}
-					{#if scheduleError}
-						<p class="error">
-							{scheduleError}
-							{#if values.startDate === values.endDate}
-								<button type="button" class="link" on:click={endsNextDay}
-									>¿Termina al día siguiente?</button
-								>
-							{/if}
-						</p>
-					{/if}
-				</fieldset>
-
-				<fieldset class="card">
-					<legend>📝 Datos del evento</legend>
-					<label class="field">
-						<span>Título <span class="req">*</span></span>
-						<input
-							id="ev-title"
-							bind:value={values.title}
-							placeholder="Ej: Picantearla (62ª Edición)"
-						/>
-					</label>
-					<label class="field">
-						<span>Resumen corto</span>
-						<textarea
-							id="ev-summary"
-							bind:value={values.summary}
-							rows="3"
-							placeholder="Aparece en la lista de eventos y cuando se comparte el link"></textarea>
-					</label>
-					<label class="field">
-						<span>Estado</span>
-						<select id="ev-status" bind:value={values.status}>
-							{#each STATUS_OPTIONS as option}
-								<option value={option.value}>{option.label} — {option.help}</option>
-							{/each}
-						</select>
-					</label>
-					<div class="grid">
-						<label class="field">
-							<span>Dirección</span>
-							<input
-								id="ev-location"
-								bind:value={values.location}
-								placeholder="Calle 123, Ciudad"
-							/>
-							<small>Dejalo vacío si es online.</small>
-						</label>
-						<label class="field">
-							<span>Nombre del lugar</span>
-							<input
-								id="ev-location-name"
-								bind:value={values.location_name}
-								placeholder="Ej: El Surco"
-							/>
-						</label>
-						<label class="field">
-							<span>Link de inscripción / entradas</span>
-							<input
-								id="ev-link"
-								type="url"
-								bind:value={values.link}
-								placeholder="https://forms.gle/..."
-								inputmode="url"
-							/>
-							<small>Solo se muestra cuando el estado es «Abierto».</small>
-						</label>
-						<label class="field">
-							<span>Texto del botón</span>
-							<input id="ev-link-text" bind:value={values.link_text} placeholder="Inscribirme" />
-						</label>
-					</div>
-					<div class="field-label">
-						<label for="ev-authors">Organizan</label>
-						<OrganizerPicker
+							<label class="field">
+								<span>Texto del botón</span>
+								<input id="ev-link-text" bind:value={values.link_text} placeholder="Inscribirme" />
+							</label>
+						</div>
+						<OrganizersField
 							bind:authors
 							profiles={data.profiles}
-							options={organizerOptions}
+							authorUsage={data.authorUsage}
 							id="ev-authors"
-							describedby="ev-authors-help"
-						/>
-						<small id="ev-authors-help"
+							helpId="ev-authors-help"
 							>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden
-							ser varias personas o grupos.</small
+							ser varias personas o grupos.</OrganizersField
 						>
-					</div>
-				</fieldset>
+					</fieldset>
 
-				<fieldset class="card">
-					<legend>🔗 Dirección de la página</legend>
-					<label class="field">
-						<span>Así va a quedar el link del evento</span>
-						<div class="slug">
-							<span class="prefix">kinkyvibe.ar/calendario/</span>
-							<input
-								id="ev-slug"
-								value={slug}
-								on:input={onSlugInput}
-								placeholder={isValidDate(values.startDate) ? '' : 'Elegí la fecha primero'}
-								autocomplete="off"
-								autocapitalize="off"
-								spellcheck="false"
-							/>
-						</div>
-					</label>
-					{#if slugEdited && proposedSlug}
-						<button type="button" class="link" on:click={resetSlug}
-							>Usar la dirección sugerida</button
-						>
-					{/if}
-					{#if slugProblem || serverSlugError}
-						<p class="error">
-							{slugProblem || serverSlugError}
-							{#if serverSlugError && serverSlug.suggestion}
-								<button
-									type="button"
-									class="link"
-									on:click={() => useSuggestion(serverSlug.suggestion)}
-									>Usar «{serverSlug.suggestion}»</button
-								>
-							{/if}
-						</p>
-					{:else}
-						<p class="hint">Se completa sola con la fecha. Solo minúsculas, números y guiones.</p>
-					{/if}
-				</fieldset>
-
-				<fieldset class="card">
-					<legend>🏷️ Etiquetas</legend>
-					<EventTagRules bind:state={tagRules} errors={showProblems ? tagErrors : []} />
-					<div class="field-label">
-						<label for="ev-tags">Otras etiquetas: tipo de evento, prácticas, temas…</label>
-						<TagPicker
-							bind:tags={freeTags}
-							options={tagOptions}
-							reserved={reservedTags}
-							reservedHint="se elige con los botones de arriba (idioma, lugar, precio o KinkyVibe)."
-							id="ev-tags"
-							describedby="ev-tags-help"
-						/>
-						<small id="ev-tags-help"
-							>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí
-							las que ya existen: son las que se usan para filtrar.</small
-						>
-					</div>
-				</fieldset>
-
-				<TicketsEditor
-					bind:state={tickets}
-					tags={splitList(values.tags)}
-					location={values.location}
-					errors={showProblems ? ticketsCheck.errors : []}
-					warnings={ticketsCheck.warnings}
-					idPrefix="ev"
-				/>
-
-				<fieldset class="card">
-					<legend>🖼️ Imagen</legend>
-					<div class="image-row">
-						{#if previewImage}
-							<img src={previewImage} alt="Imagen del evento" class="thumb" />
-						{:else}
-							<div class="thumb empty">Sin imagen</div>
-						{/if}
-						<div class="image-actions">
-							{#if featuredMode === 'keep' && sourceImageIsShared}
-								<p class="hint">
-									Se usa la misma imagen que el evento original. Es una imagen compartida del sitio
-									(<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se modifica.
-								</p>
-							{:else if featuredMode === 'keep'}
-								<p class="hint">
-									Se usa la misma imagen que el evento original: se copia a la carpeta de este
-									evento. El evento original no cambia.
-								</p>
-							{:else if featuredMode === 'upload'}
-								<p class="hint">Nueva imagen: {uploadName}</p>
-							{/if}
-							{#if askScope}
-								<ImageScopeChoice
-									bind:scope={imageScope}
-									assetName={sourceFields.featured}
-									newName={sharedNewName}
-									ownFolder={slug ? `calendario/media/${slug}/` : ''}
-									idPrefix="ev"
-									invalid={showProblems}
-								/>
-							{/if}
-							<label class="file">
-								<span
-									>{featuredMode === 'upload'
-										? 'Elegir otra imagen'
-										: 'Subir una imagen nueva'}</span
-								>
+					<fieldset class="card" id="sec-direccion">
+						<legend>🔗 Dirección de la página</legend>
+						<label class="field">
+							<span>Así va a quedar el link del evento</span>
+							<div class="slug">
+								<span class="prefix">kinkyvibe.ar/calendario/</span>
 								<input
-									bind:this={fileInput}
-									type="file"
-									name="image"
-									id="ev-image"
-									accept="image/jpeg,image/png,image/webp"
-									on:change={onFileChange}
+									id="ev-slug"
+									value={slug}
+									on:input={onSlugInput}
+									placeholder={isValidDate(values.startDate) ? '' : 'Elegí la fecha primero'}
+									autocomplete="off"
+									autocapitalize="off"
+									spellcheck="false"
 								/>
-							</label>
-							<small
-								>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
+							</div>
+						</label>
+						{#if slugEdited && proposedSlug}
+							<button type="button" class="link" on:click={resetSlug}
+								>Usar la dirección sugerida</button
 							>
-							{#if sourceImageIsShared && !askScope}
-								<p class="note" id="ev-image-where">
-									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones
-									de este evento o solo para esta.
-								</p>
-							{:else if !askScope}
-								<p class="note" id="ev-image-where">
-									📁 Una imagen nueva se guarda solo para este evento{#if slug}
-										{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
-									cambia.
-								</p>
-							{/if}
-							{#if featuredMode !== 'none'}
-								<button type="button" class="link" on:click={() => setImage('none')}
-									>Quitar imagen</button
-								>
-							{/if}
-							{#if hasSourceImage && featuredMode !== 'keep'}
-								<button type="button" class="link" on:click={() => setImage('keep')}
-									>Usar la imagen del evento original</button
-								>
-							{/if}
-							{#if uploadError}<p class="error">{uploadError}</p>{/if}
-						</div>
-					</div>
-				</fieldset>
-
-				<fieldset class="card">
-					<legend>📄 Texto largo de la página</legend>
-					<p class="hint">
-						Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
-						<code>- lista</code>,
-						<code>**negrita**</code>.
-					</p>
-					<textarea id="ev-body" class="body" bind:value={values.body} rows="12"></textarea>
-				</fieldset>
-
-				{#if showProblems && (problems.length || generated.error)}
-					<div class="problems" role="alert">
-						<strong>Falta completar:</strong>
-						<ul>
-							{#each problems as p}<li>{p}</li>{/each}
-							{#if generated.error}<li>{generated.error}</li>{/if}
-						</ul>
-					</div>
-				{/if}
-				{#if checkError}<p class="error check-error">{checkError}</p>{/if}
-
-				<div class="bar">
-					<button
-						type="button"
-						class="button"
-						id="to-preview"
-						on:click={goToPreview}
-						disabled={checking}
-					>
-						{checking ? 'Revisando…' : 'Revisar antes de publicar →'}
-					</button>
-				</div>
-			</div>
-
-			<!-- ======================= STEP 2 ======================= -->
-			<div class="step" hidden={step !== 'revisar'}>
-				{#if publishError}<p class="error" role="alert">{publishError}</p>{/if}
-				<p class="hint">Así se va a ver en la lista de eventos:</p>
-				{#if previewPost}
-					<div class="card-preview" aria-hidden="true">
-						{#key previewPost}
-							<PostListItem post={previewPost} />
-						{/key}
-					</div>
-				{/if}
-				<dl class="summary-list">
-					<dt>Cuándo</dt>
-					<dd class="cap">{scheduleText}</dd>
-					<dt>Link</dt>
-					<dd><code>kinkyvibe.ar/calendario/{slug}</code></dd>
-					<dt>Estado</dt>
-					<dd>{STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}</dd>
-					<dt>Lugar</dt>
-					<dd>{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}</dd>
-					<dt>Organizan</dt>
-					<dd>{authors.join(', ') || '—'}</dd>
-					<dt>Etiquetas</dt>
-					<dd>{splitList(values.tags).join(', ')}</dd>
-					<dt>Entradas</dt>
-					<dd id="review-tickets">{describeTicketsForm(tickets, formatARS)}</dd>
-					<dt>Imagen</dt>
-					<dd id="review-image">
-						{#if featuredMode === 'upload' && scope === 'todas'}
-							<strong>Nueva para todas las ediciones:</strong>
-							{uploadName} reemplaza la imagen compartida
-							<code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured}, que
-								pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan los eventos
-								que la usaban){/if}. Cambia también en los eventos pasados.
-						{:else if featuredMode === 'upload'}
-							<strong>Nueva, solo para este evento:</strong>
-							{uploadName}, en
-							<code>calendario/media/{slug}/1.{uploadExt}</code>.{#if sourceImageIsShared}
-								{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no
-								cambian.{/if}
-						{:else if featuredMode === 'keep' && sourceImageIsShared}
-							La misma del evento original: la imagen compartida <code>{sourceFields.featured}</code
-							> (no se copia ni se modifica).
-						{:else if featuredMode === 'keep'}
-							La misma del evento original (copiada a este evento)
-						{:else}
-							Sin imagen
 						{/if}
-					</dd>
-				</dl>
-				{#if featuredMode === 'upload' && scope === 'todas'}
-					<div class="affected" id="review-affected">
-						{#if affected}
-							<p>
-								<strong>
-									{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también
-									van a mostrar la imagen nueva{sharedNewName !== sourceFields.featured
-										? ' (se actualiza su archivo)'
-										: ''}:
-								</strong>
+						{#if slugProblem || serverSlugError}
+							<p class="error">
+								{slugProblem || serverSlugError}
+								{#if serverSlugError && serverSlug.suggestion}
+									<button
+										type="button"
+										class="link"
+										on:click={() => useSuggestion(serverSlug.suggestion)}
+										>Usar «{serverSlug.suggestion}»</button
+									>
+								{/if}
 							</p>
-							<ul>
-								{#each affected as ev}
-									<li>
-										<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
-											>{ev.title || ev.slug}</a
-										>
-										<small>{ev.start.slice(0, 10)}</small>
-									</li>
-								{/each}
-							</ul>
 						{:else}
-							<p>No pudimos listar los eventos que usan esta imagen.</p>
+							<p class="hint">Se completa sola con la fecha. Solo minúsculas, números y guiones.</p>
 						{/if}
-					</div>
-				{/if}
-				<details>
-					<summary>Ver el archivo que se va a guardar</summary>
-					<pre class="markdown">{generated.md}</pre>
-				</details>
+					</fieldset>
 
-				<div class="bar publish">
-					<button type="button" class="button secondary" on:click={backToEdit} disabled={submitting}
-						>← Volver a editar</button
-					>
-					<button
-						type="submit"
-						name="mode"
-						value="borrador"
-						class="button secondary"
-						id="save-draft"
-						disabled={submitting}
-						title="Se guarda pero no aparece en el calendario; se puede ver con el link"
-						>Guardar como no listado</button
-					>
-					{#if !confirming}
+					<TagsSection
+						usage={data.tagUsage}
+						bind:tagRules
+						bind:freeTags
+						errors={showProblems ? tagErrors : []}
+						inputId="ev-tags"
+						helpId="ev-tags-help"
+					/>
+
+					<TicketsEditor
+						bind:state={tickets}
+						tags={splitList(values.tags)}
+						location={values.location}
+						errors={showProblems ? ticketsCheck.errors : []}
+						warnings={ticketsCheck.warnings}
+						idPrefix="ev"
+					/>
+
+					<fieldset class="card" id="sec-imagen">
+						<legend>🖼️ Imagen</legend>
+						<div class="image-row">
+							{#if previewImage}
+								<img src={previewImage} alt="Imagen del evento" class="thumb" />
+							{:else}
+								<div class="thumb empty">Sin imagen</div>
+							{/if}
+							<div class="image-actions">
+								{#if featuredMode === 'keep' && sourceImageIsShared}
+									<p class="hint">
+										Se usa la misma imagen que el evento original. Es una imagen compartida del
+										sitio (<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se
+										modifica.
+									</p>
+								{:else if featuredMode === 'keep'}
+									<p class="hint">
+										Se usa la misma imagen que el evento original: se copia a la carpeta de este
+										evento. El evento original no cambia.
+									</p>
+								{:else if featuredMode === 'upload'}
+									<p class="hint">Nueva imagen: {uploadName}</p>
+								{/if}
+								{#if askScope}
+									<ImageScopeChoice
+										bind:scope={imageScope}
+										assetName={sourceFields.featured}
+										newName={sharedNewName}
+										ownFolder={slug ? `calendario/media/${slug}/` : ''}
+										idPrefix="ev"
+										invalid={showProblems}
+									/>
+								{/if}
+								<label class="file">
+									<span
+										>{featuredMode === 'upload'
+											? 'Elegir otra imagen'
+											: 'Subir una imagen nueva'}</span
+									>
+									<input
+										bind:this={fileInput}
+										type="file"
+										name="image"
+										id="ev-image"
+										accept="image/jpeg,image/png,image/webp"
+										on:change={onFileChange}
+									/>
+								</label>
+								<small
+									>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
+								>
+								{#if sourceImageIsShared && !askScope}
+									<p class="note" id="ev-image-where">
+										📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las
+										ediciones de este evento o solo para esta.
+									</p>
+								{:else if !askScope}
+									<p class="note" id="ev-image-where">
+										📁 Una imagen nueva se guarda solo para este evento{#if slug}
+											{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
+										cambia.
+									</p>
+								{/if}
+								{#if featuredMode !== 'none'}
+									<button type="button" class="link" on:click={() => setImage('none')}
+										>Quitar imagen</button
+									>
+								{/if}
+								{#if hasSourceImage && featuredMode !== 'keep'}
+									<button type="button" class="link" on:click={() => setImage('keep')}
+										>Usar la imagen del evento original</button
+									>
+								{/if}
+								{#if uploadError}<p class="error">{uploadError}</p>{/if}
+							</div>
+						</div>
+					</fieldset>
+
+					<fieldset class="card" id="sec-texto">
+						<legend>📄 Texto largo de la página</legend>
+						<p class="hint">
+							Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
+							<code>- lista</code>,
+							<code>**negrita**</code>.
+						</p>
+						<textarea id="ev-body" class="body" bind:value={values.body} rows="12"></textarea>
+					</fieldset>
+
+					{#if showProblems && (problems.length || generated.error)}
+						<div class="problems" role="alert">
+							<strong>Falta completar:</strong>
+							<ul>
+								{#each problems as p}<li>{p}</li>{/each}
+								{#if generated.error}<li>{generated.error}</li>{/if}
+							</ul>
+						</div>
+					{/if}
+					{#if checkError}<p class="error check-error">{checkError}</p>{/if}
+
+					<div class="bar sticky">
 						<button
 							type="button"
-							class="button primary"
-							id="publish"
-							on:click={() => (confirming = true)}
-							disabled={submitting}>Publicar</button
+							class="button"
+							id="to-preview"
+							on:click={goToPreview}
+							disabled={checking}
 						>
-					{/if}
+							{checking ? 'Revisando…' : 'Revisar antes de publicar →'}
+						</button>
+					</div>
 				</div>
-				{#if confirming}
-					<div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
-						<p id="confirm-text">
-							¿Publicar <strong>{values.title}</strong> en el calendario? Se va a ver en el sitio en unos
-							minutos.
-						</p>
-						<div class="bar">
+
+				<!-- ======================= STEP 2 ======================= -->
+				<div class="step" hidden={step !== 'revisar'}>
+					{#if publishError}<p class="error" role="alert">{publishError}</p>{/if}
+					<p class="hint">Así se va a ver en la lista de eventos:</p>
+					{#if previewPost}
+						<div class="card-preview" aria-hidden="true">
+							{#key previewPost}
+								<PostListItem post={previewPost} />
+							{/key}
+						</div>
+					{/if}
+					<dl class="summary-list">
+						<dt>Cuándo</dt>
+						<dd class="cap">{scheduleText}</dd>
+						<dt>Link</dt>
+						<dd><code>kinkyvibe.ar/calendario/{slug}</code></dd>
+						<dt>Estado</dt>
+						<dd>{STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}</dd>
+						<dt>Lugar</dt>
+						<dd>
+							{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+						</dd>
+						<dt>Organizan</dt>
+						<dd>{authors.join(', ') || '—'}</dd>
+						<dt>Etiquetas</dt>
+						<dd>{splitList(values.tags).join(', ')}</dd>
+						<dt>Entradas</dt>
+						<dd id="review-tickets">{describeTicketsForm(tickets, formatARS)}</dd>
+						<dt>Imagen</dt>
+						<dd id="review-image">
+							{#if featuredMode === 'upload' && scope === 'todas'}
+								<strong>Nueva para todas las ediciones:</strong>
+								{uploadName} reemplaza la imagen compartida
+								<code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured},
+									que pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan
+									los eventos que la usaban){/if}. Cambia también en los eventos pasados.
+							{:else if featuredMode === 'upload'}
+								<strong>Nueva, solo para este evento:</strong>
+								{uploadName}, en
+								<code>calendario/media/{slug}/1.{uploadExt}</code>.{#if sourceImageIsShared}
+									{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no
+									cambian.{/if}
+							{:else if featuredMode === 'keep' && sourceImageIsShared}
+								La misma del evento original: la imagen compartida <code
+									>{sourceFields.featured}</code
+								> (no se copia ni se modifica).
+							{:else if featuredMode === 'keep'}
+								La misma del evento original (copiada a este evento)
+							{:else}
+								Sin imagen
+							{/if}
+						</dd>
+					</dl>
+					{#if featuredMode === 'upload' && scope === 'todas'}
+						<div class="affected" id="review-affected">
+							{#if affected}
+								<p>
+									<strong>
+										{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también
+										van a mostrar la imagen nueva{sharedNewName !== sourceFields.featured
+											? ' (se actualiza su archivo)'
+											: ''}:
+									</strong>
+								</p>
+								<ul>
+									{#each affected as ev}
+										<li>
+											<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
+												>{ev.title || ev.slug}</a
+											>
+											<small>{ev.start.slice(0, 10)}</small>
+										</li>
+									{/each}
+								</ul>
+							{:else}
+								<p>No pudimos listar los eventos que usan esta imagen.</p>
+							{/if}
+						</div>
+					{/if}
+					<details>
+						<summary>Ver el archivo que se va a guardar</summary>
+						<pre class="markdown">{generated.md}</pre>
+					</details>
+
+					<div class="bar publish">
+						<button
+							type="button"
+							class="button secondary"
+							on:click={backToEdit}
+							disabled={submitting}>← Volver a editar</button
+						>
+						<button
+							type="submit"
+							name="mode"
+							value="borrador"
+							class="button secondary"
+							id="save-draft"
+							disabled={submitting}
+							title="Se guarda pero no aparece en el calendario; se puede ver con el link"
+							>Guardar como no listado</button
+						>
+						{#if !confirming}
 							<button
 								type="button"
-								class="button secondary"
-								on:click={() => (confirming = false)}
-								disabled={submitting}>Cancelar</button
-							>
-							<button
-								type="submit"
-								name="mode"
-								value="publicar"
 								class="button primary"
-								id="confirm-publish"
-								disabled={submitting}>{submitting ? 'Publicando…' : 'Sí, publicar'}</button
+								id="publish"
+								on:click={() => (confirming = true)}
+								disabled={submitting}>Publicar</button
 							>
-						</div>
+						{/if}
 					</div>
-				{/if}
-				{#if submitting}<p class="hint" aria-live="polite">Guardando en GitHub…</p>{/if}
-			</div>
-		</form>
-	{/if}
+					{#if confirming}
+						<div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
+							<p id="confirm-text">
+								¿Publicar <strong>{values.title}</strong> en el calendario? Se va a ver en el sitio en
+								unos minutos.
+							</p>
+							<div class="bar">
+								<button
+									type="button"
+									class="button secondary"
+									on:click={() => (confirming = false)}
+									disabled={submitting}>Cancelar</button
+								>
+								<button
+									type="submit"
+									name="mode"
+									value="publicar"
+									class="button primary"
+									id="confirm-publish"
+									disabled={submitting}>{submitting ? 'Publicando…' : 'Sí, publicar'}</button
+								>
+							</div>
+						</div>
+					{/if}
+					{#if submitting}<p class="hint" aria-live="polite">Guardando en GitHub…</p>{/if}
+				</div>
+			</form>
+		{/if}
+	</EventForm>
 </main>
 
 <style lang="scss">
