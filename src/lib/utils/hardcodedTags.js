@@ -90,8 +90,8 @@ export const hardcodedTags = [
 	{ id: 'sesión en vivo', icon: '🏇' },
 	{ id: 'taller', icon: '🎓' },
 	{ id: 'evento recurrente', children: ['Picantearla', 'Cine para Sucixs'] },
-	{ id: 'Picantearla', icon: '🔥' },
-	{ id: 'Cine para Sucixs', icon: '🎞️' },
+	{ id: 'Picantearla', icon: '🔥', image: 'picantearla-miniatura.webp' },
+	{ id: 'Cine para Sucixs', icon: '🎞️', image: 'cine-para-sucixs-miniatura.webp' },
 	{
 		id: 'material',
 		icon: '📖',

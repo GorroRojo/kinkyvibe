@@ -71,6 +71,14 @@
 		</section>
 	{/if}
 
+	{#if data.seriesOn}
+		<section class="surface-card" aria-labelledby="calendario-title">
+			<h2 id="calendario-title">Tu calendario</h2>
+			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
+		</section>
+	{/if}
+
 	<section class="surface-card" aria-labelledby="compras-title">
 		<h2 id="compras-title">Tus compras</h2>
 		{#if data.ordersError}

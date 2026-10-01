@@ -8,6 +8,7 @@
  */
 import { env } from '$env/dynamic/private';
 import { sha256Hex } from '$lib/server/hash.js';
+import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -86,56 +87,15 @@ export function clientAddress(event) {
 	}
 }
 
-/** @param {Uint8Array} bytes */
-function base64url(bytes) {
-	let s = '';
-	for (const b of bytes) s += String.fromCharCode(b);
-	return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
 /**
- * Clave para firmar los links de confirmación: al azar, se crea sola la primera vez y queda en
- * D1 (`ticket_settings`), nunca en el repo.
- *
- * @param {D1Database} db
- */
-async function confirmKey(db) {
-	const read = async () =>
-		/** @type {{ value: string } | null} */ (
-			await db.prepare('SELECT value FROM ticket_settings WHERE key = ?1').bind(CONFIRM_KEY).first()
-		)?.value ?? null;
-	let key = await read();
-	if (!key) {
-		const random = base64url(crypto.getRandomValues(new Uint8Array(32)));
-		await db
-			.prepare(
-				`INSERT OR IGNORE INTO ticket_settings (key, value, updated_at, updated_by)
-				VALUES (?1, ?2, ?3, 'sistema')`
-			)
-			.bind(CONFIRM_KEY, random, Date.now())
-			.run();
-		key = await read();
-	}
-	if (!key) throw new Error('no se pudo crear la clave de confirmación');
-	return key;
-}
-
-/**
- * Firma (HMAC-SHA256) de la confirmación de una orden.
+ * Firma (HMAC-SHA256) de la confirmación de una orden. La clave está en D1 (`ticket_settings`),
+ * ver $lib/server/signedLinks.js.
  *
  * @param {D1Database} db
  * @param {string} orderId
  */
-export async function confirmToken(db, orderId) {
-	const key = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode(await confirmKey(db)),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
-	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`confirm:${orderId}`));
-	return base64url(new Uint8Array(sig)).slice(0, 32);
+export function confirmToken(db, orderId) {
+	return signLink(db, CONFIRM_KEY, `confirm:${orderId}`);
 }
 
 /**
@@ -145,12 +105,8 @@ export async function confirmToken(db, orderId) {
  * @param {string} orderId
  * @param {unknown} token
  */
-export async function verifyConfirmToken(db, orderId, token) {
-	if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{32}$/.test(token)) return false;
-	const expected = await confirmToken(db, orderId);
-	let diff = 0;
-	for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ token.charCodeAt(i);
-	return diff === 0;
+export function verifyConfirmToken(db, orderId, token) {
+	return verifyLink(db, CONFIRM_KEY, `confirm:${orderId}`, token);
 }
 
 /**

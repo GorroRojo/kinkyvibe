@@ -24,6 +24,7 @@
  * @prop {string} [icon]
  * @prop {string} [visible_name]
  * @prop {string} [color]
+ * @prop {string} [image] archivo de src/lib/assets (p. ej. la imagen de una serie)
  * @prop {string} [description]
  * @prop {TagID[]} [related]
  * @prop {string[]} [aka]

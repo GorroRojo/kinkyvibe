@@ -16,6 +16,7 @@
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
+	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	export let data;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
@@ -119,6 +120,7 @@
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
+	{#if data.series}<EventSeries series={data.series} part="nav" />{/if}
 	
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
@@ -273,6 +275,9 @@
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
 	</div>
+	{#if data.series}
+		<EventSeries series={data.series} part="after" origin={$page.url.origin} />
+	{/if}
 	{#if data.meta.tags.includes('KinkyVibe')}
 		<Note id="cafecito">
 			Este material fue proporcionado por <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.

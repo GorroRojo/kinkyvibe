@@ -5,6 +5,7 @@
 		Copy,
 		ExternalLink,
 		FileSpreadsheet,
+		Repeat,
 		Search,
 		SearchX,
 		Table2
@@ -109,6 +110,9 @@
 	<svelte:fragment slot="actions">
 		<CsvButton rows={visible} {columns} filename="eventos-{filter}.csv" />
 		<a class="kv-btn ghost" href="/admin/eventos/agenda"><Table2 {...icon} /> Agenda</a>
+		{#if data.seriesOn}<a class="kv-btn ghost" href="/admin/eventos/series"
+				><Repeat {...icon} /> Series</a
+			>{/if}
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet {...icon} /> Importar planilla</a
 		>

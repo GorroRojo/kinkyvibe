@@ -315,6 +315,7 @@ const KEY_ORDER = [
 	'aka',
 	'aliasOf',
 	'color',
+	'image',
 	'description',
 	'related',
 	'children'
@@ -370,10 +371,20 @@ export const EDITABLE_FIELDS = Object.freeze([
 	'icon',
 	'visible_name',
 	'color',
+	'image',
 	'description',
 	'aka',
 	'related'
 ]);
+
+/**
+ * ¿Es un nombre de archivo de src/lib/assets? (sin carpetas; las mismas extensiones que el sitio
+ * busca en thumbURL).
+ * @param {unknown} name
+ */
+export function isAssetFileName(name) {
+	return typeof name === 'string' && /^[\w][\w.-]{0,120}\.(?:jpe?g|jfif|png|webp)$/i.test(name);
+}
 
 /** @param {unknown} s */
 const clean = (s) =>
@@ -606,6 +617,10 @@ function applyOne(m, op) {
 					v = [...new Set((Array.isArray(raw) ? raw : []).map(clean).filter((x) => x && x !== id))];
 				} else if (typeof raw === 'string') v = k === 'description' ? raw.trim() : clean(raw);
 				if (k === 'visible_name' && v === id) v = '';
+				if (k === 'image' && v && !isAssetFileName(v))
+					throw new Error(
+						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp).`
+					);
 				if (k === 'aka') {
 					for (const a of v) {
 						const t = m.aliasTarget(a);
@@ -691,7 +706,7 @@ function applyOne(m, op) {
 					(a) => a !== into && a !== from
 				);
 				if (aka.length) setKey(dst, 'aka', [...new Set(aka)]);
-				for (const k of ['icon', 'visible_name', 'description', 'color']) {
+				for (const k of ['icon', 'visible_name', 'description', 'color', 'image']) {
 					if (dst[k] === undefined && src[k] !== undefined) setKey(dst, k, src[k]);
 				}
 				const rel = [...(dst.related ?? []), ...(src.related ?? [])].filter(
@@ -1080,6 +1095,7 @@ export const USAGE_CATEGORIES = Object.freeze(['calendario', 'material', 'amigue
  * @prop {string} name visible name
  * @prop {string} icon
  * @prop {string} [color] own or inherited
+ * @prop {string} [image] own image (src/lib/assets file name; series use it)
  * @prop {boolean} declared has its own entry (else: only a child reference)
  * @prop {string[]} children
  * @prop {string[]} parents
@@ -1135,6 +1151,7 @@ export function analyzeTags(entries, usage, wikiPosts = {}) {
 			n.name = e.visible_name ?? id;
 			n.icon = String(e.icon ?? '').trim();
 			if (e.color) n.color = e.color;
+			if (typeof e.image === 'string' && e.image.trim()) n.image = e.image.trim();
 			n.children = [...(e.children ?? [])];
 			n.aka = [...(e.aka ?? [])];
 			n.description = e.description ?? '';
