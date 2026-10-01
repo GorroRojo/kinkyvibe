@@ -4,9 +4,12 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import RecoverableDeletions from '$lib/components/admin/panel/RecoverableDeletions.svelte';
 	import { ChevronRight, ChevronsLeft, Filter, X } from '@lucide/svelte';
 
 	export let data;
+	/** @type {any} */
+	export let form = null;
 
 	$: f = data.filters;
 	$: filtered = Boolean(f.actor || f.type || f.targetType || f.targetId);
@@ -50,6 +53,8 @@
 		<CsvButton href={data.csvHref} label="CSV" />
 	</svelte:fragment>
 </PageHeader>
+
+<RecoverableDeletions rows={data.deletions} result={form} />
 
 <Card>
 	<form class="filters" method="GET" data-sveltekit-keepfocus>

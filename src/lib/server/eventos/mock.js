@@ -36,9 +36,22 @@ function safeRepoPath(path) {
 	return full;
 }
 
+/**
+ * Paths a mock "commit" deleted and nothing re-created since (<outDir>/deleted.txt).
+ * @returns {Promise<Set<string>>}
+ */
+async function deletedPaths() {
+	try {
+		return new Set((await readFile(join(outDir, 'deleted.txt'), 'utf-8')).split('\n').filter(Boolean));
+	} catch (e) {
+		return new Set();
+	}
+}
+
 /** @param {string} _token @param {string} path */
 export async function getFile(_token, path) {
 	const full = safeRepoPath(path);
+	if ((await deletedPaths()).has(path)) return null;
 	// Like GitHub: what an earlier mock "commit" wrote wins over the checkout (so an event created
 	// with the mock can be opened in /edit, and a second edit sees the first one).
 	const committed = join(outDir, 'files', path);
@@ -50,6 +63,7 @@ export async function getFile(_token, path) {
 
 /** @param {string} _token @param {string} path */
 export async function pathExists(_token, path) {
+	if ((await deletedPaths()).has(path)) return false;
 	return (await exists(safeRepoPath(path))) || (await exists(join(outDir, 'files', path)));
 }
 
@@ -140,6 +154,10 @@ export async function commitFiles(_token, { files, message, mustNotExist = [] })
 			continue;
 		}
 		await mkdir(dirname(target), { recursive: true });
+		// Re-created (e.g. restoring a deleted post): no longer deleted.
+		const gone = await deletedPaths();
+		if (gone.delete(f.path))
+			await writeFile(join(outDir, 'deleted.txt'), [...gone].map((p) => p + '\n').join(''));
 		if (f.sha?.startsWith('local:')) await copyFile(safeRepoPath(f.sha.slice(6)), target);
 		else if (f.base64 !== undefined) await writeFile(target, Buffer.from(f.base64, 'base64'));
 		else await writeFile(target, f.content ?? '', 'utf-8');

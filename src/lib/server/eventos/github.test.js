@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import {
 	branchStamp,
 	clearPullsCache,
+	closeContentPull,
 	commitFiles,
 	contentBranchName,
 	contentKey,
@@ -590,5 +591,22 @@ describe('getFile', () => {
 	it('fails on a file GitHub sends without content (over 1 MB) instead of returning ""', async () => {
 		respond = () => ({ status: 200, json: { type: 'file', encoding: 'none', content: '' } });
 		await expect(getFile('t', `${DIR}/a.md`)).rejects.toThrow(/encoding none/);
+	});
+});
+
+describe('closeContentPull', () => {
+	it('closes the PR and deletes its branch, even if the branch is already gone', async () => {
+		respond = (m) => (m === 'PATCH' ? { status: 200, json: {} } : { status: 422, json: {} });
+		await closeContentPull('t', { number: 7, branch: 'contenido/material-x-20261001-120000' });
+		expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+			'PATCH pulls/7',
+			'DELETE git/refs/heads/contenido/material-x-20261001-120000'
+		]);
+		expect(calls[0].body).toEqual({ state: 'closed' });
+	});
+	it('only touches content branches', async () => {
+		respond = () => ({ status: 200, json: {} });
+		await expect(closeContentPull('t', { number: 1, branch: 'main' })).rejects.toThrow();
+		expect(calls).toEqual([]);
 	});
 });
