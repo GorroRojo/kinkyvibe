@@ -59,8 +59,10 @@
 	h2 {
 		margin: 0 0 0 0.5rem;
 		font-size: 1.15rem;
-		text-transform: capitalize;
 		white-space: nowrap;
+	}
+	h2::first-letter {
+		text-transform: uppercase;
 	}
 	.today {
 		padding: 0.35rem 0.9rem;

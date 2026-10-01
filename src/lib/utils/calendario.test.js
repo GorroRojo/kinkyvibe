@@ -50,7 +50,7 @@ describe('calendarEvent', () => {
 			id: 'fiesta-de-prueba',
 			title: 'Fiesta de prueba',
 			start: '2026-12-12T21:00',
-			end: '2026-12-13T02:00',
+			end: '2026-12-12T23:59',
 			allDay: false,
 			startEditable: true,
 			durationEditable: false,
@@ -67,6 +67,13 @@ describe('calendarEvent', () => {
 	it('termina el mismo día si la hora de fin es posterior', () => {
 		const e = calendarEvent(row({ end: '2026-12-12T23:30-03:00' }), { places: PLACES });
 		expect(e.end).toBe('2026-12-12T23:30');
+	});
+
+	it('lo que termina a la madrugada se dibuja en su día; más tarde, ocupa los dos', () => {
+		const late = calendarEvent(row({ end: '2026-12-13T09:00-03:00' }), { places: PLACES });
+		expect(late.end).toBe('2026-12-12T23:59');
+		const morning = calendarEvent(row({ end: '2026-12-13T10:00-03:00' }), { places: PLACES });
+		expect(morning.end).toBe('2026-12-13T10:00');
 	});
 
 	it('los eventos de varios días conservan sus días', () => {

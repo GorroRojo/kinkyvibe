@@ -97,6 +97,9 @@ export function rescheduleProblem(row, places) {
 	return first ? `Revisalo en la planilla o la ficha: ${first}` : null;
 }
 
+/** Lo que termina al día siguiente hasta esta hora se dibuja solo en el día que empieza. */
+export const OVERNIGHT_UNTIL = '09:00';
+
 /**
  * @typedef {{
  *   id: string,
@@ -114,7 +117,9 @@ export function rescheduleProblem(row, places) {
 /**
  * Una fila de la agenda → un evento de @event-calendar/core. Las fechas van sin zona horaria
  * ("2026-12-12T21:00"): la librería las toma como hora local y las muestra tal cual, así que se ve
- * la hora de Argentina en cualquier navegador. Sin hora de fin, dura una hora (solo para dibujarlo).
+ * la hora de Argentina en cualquier navegador. Solo para dibujarlo: sin hora de fin dura una hora,
+ * y lo que termina a la madrugada (hasta `OVERNIGHT_UNTIL`) llega hasta las 23:59 de su día. La hora
+ * real se muestra en el chip (`extendedProps.time`).
  *
  * @param {import('./agenda.js').AgendaRow} row
  * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
@@ -127,9 +132,15 @@ export function calendarEvent(row, { places, canEdit = true }) {
 	let end = addDays(row.date, 1);
 	if (timed) {
 		start = `${row.date}T${row.startTime}`;
-		end = isValidTime(row.endTime)
-			? `${addDays(row.date, endDaysFor(row))}T${row.endTime}`
-			: `${addDays(row.date, minutes(row.startTime) >= 23 * 60 ? 1 : 0)}T${hhmm(minutes(row.startTime) + 60)}`;
+		const days = endDaysFor(row);
+		if (!isValidTime(row.endTime)) {
+			end = `${addDays(row.date, minutes(row.startTime) >= 23 * 60 ? 1 : 0)}T${hhmm(minutes(row.startTime) + 60)}`;
+		} else if (days === 1 && row.endTime <= OVERNIGHT_UNTIL) {
+			// Una fiesta de 22:00 a 05:00 se dibuja en su día (si no, ocupa dos días en el mes).
+			end = `${row.date}T23:59`;
+		} else {
+			end = `${addDays(row.date, days)}T${row.endTime}`;
+		}
 	}
 	const tone = eventTone(row);
 	return {

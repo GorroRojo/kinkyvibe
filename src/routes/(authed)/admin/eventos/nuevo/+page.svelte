@@ -551,7 +551,8 @@
 							describedby="ev-start-date-help"
 						/>
 						<small id="ev-start-date-help">
-							Elegí el día: arranca vacío a propósito para que nadie publique la fecha vieja.
+							{#if data.prefill.date}Es el día que tocaste en la agenda: cambialo si hace falta.{:else}Elegí
+								el día: arranca vacío a propósito para que nadie publique la fecha vieja.{/if}
 							{#if sourceWeekday !== undefined}Resaltamos el mismo día de la semana que el original.{/if}
 						</small>
 						{#if values.startDate && values.startDate < data.today}

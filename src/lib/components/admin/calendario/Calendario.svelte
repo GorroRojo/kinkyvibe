@@ -99,6 +99,12 @@
 	 * @param {KeyboardEvent} e
 	 */
 	function onKeydown(e) {
+		// Enter en un evento abre el detalle (lo hace la librería); sin esto, el mismo Enter llega
+		// como "keypress" al botón Cerrar de la hoja recién abierta y la cierra.
+		if (e.key === 'Enter' && e.target instanceof HTMLElement && e.target.closest('.ec-event')) {
+			e.preventDefault();
+			return;
+		}
 		const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
 		if (!keys.includes(e.key) || !(e.target instanceof HTMLElement)) return;
 		const current = e.target.closest('.ec-event[tabindex]');
@@ -127,6 +133,8 @@
 		nowIndicator: true,
 		scrollTime: '16:00:00',
 		slotDuration: '01:00',
+		slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+		eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
 		allDaySlot: true,
 		allDayContent: 'Todo el día',
 		noEventsContent: 'No hay eventos en este período.',
@@ -156,9 +164,10 @@
 </div>
 
 {#snippet chip(/** @type {any} */ arg)}
+	{@const time = arg.event.extendedProps.time}
 	<span class="kv-chip">
-		{#if arg.event.extendedProps.time && arg.view.type !== 'listMonth'}<span class="kv-chip-time"
-				>{arg.event.extendedProps.time.split(' ')[0]}</span
+		{#if time}<span class="kv-chip-time"
+				>{arg.view.type === 'listMonth' ? time : time.split(' ')[0]}</span
 			>{/if}
 		<span class="kv-chip-title">{arg.event.title}</span>
 	</span>
@@ -191,9 +200,10 @@
 		border-radius: var(--card-round);
 		background: var(--surface);
 	}
-	.calendario :global(.ec-day-head),
-	.calendario :global(.ec-col-head) {
-		text-transform: capitalize;
+	.calendario :global(.ec-day-head)::first-letter,
+	.calendario :global(.ec-col-head)::first-letter,
+	.calendario :global(.ec-day-side)::first-letter {
+		text-transform: uppercase;
 	}
 	.calendario :global(.ec-day.ec-today .ec-day-head) {
 		color: var(--link);
@@ -260,5 +270,14 @@
 	}
 	.calendario :global(.ec-toolbar) {
 		display: none;
+	}
+	/* En el celu, en el mes solo entra el título. */
+	@media (max-width: 640px) {
+		.calendario :global(.ec-day-grid.ec-month-view .kv-chip-time) {
+			display: none;
+		}
+		.calendario :global(.ec-day-grid.ec-month-view .ec-event) {
+			font-size: 0.75rem;
+		}
 	}
 </style>
