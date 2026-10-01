@@ -8,7 +8,7 @@
 	import { Clock, MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
-	import { DEFAULT_VENUE_PRIVACY } from '$lib/utils/venues.js';
+	import { DEFAULT_VENUE_PRIVACY, REJECT_REASON_MAX } from '$lib/utils/venues.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -72,7 +72,8 @@
 			</svelte:fragment>
 			<p class="kv-note">
 				Lugares que cargaron las cuentas. No aparecen en el sitio (ni en los eventos) hasta que los
-				aprobás. Rechazar lo borra: deja de verse también en el Mi rincón de quien lo cargó.
+				aprobás. Si lo rechazás, sigue sin aparecer y sale de esta lista; quien lo cargó lo ve como
+				«Rechazado» en su Mi rincón, con el motivo si escribís uno. Si lo corrige, vuelve acá.
 			</p>
 			<div class="kv-table-wrap">
 				<table class="kv-table">
@@ -103,8 +104,15 @@
 											<input type="hidden" name="lugar" value={v.id} />
 											<button class="kv-btn small" type="submit">Aprobar</button>
 										</form>
-										<form method="POST" action="?/rechazarLugar" use:enhance>
+										<form method="POST" action="?/rechazarLugar" class="kv-row" use:enhance>
 											<input type="hidden" name="lugar" value={v.id} />
+											<input
+												name="motivo"
+												class="kv-input reason"
+												maxlength={REJECT_REASON_MAX}
+												placeholder="Motivo (opcional)"
+												aria-label="Motivo del rechazo para «{v.title}» (opcional, lo ve quien lo cargó)"
+											/>
 											<button class="kv-btn ghost small" type="submit">Rechazar</button>
 										</form>
 									</div>
@@ -298,6 +306,11 @@
 	}
 	.grow {
 		flex: 1 1 16rem;
+	}
+	.reason {
+		min-width: 0;
+		width: 12rem;
+		max-width: 100%;
 	}
 	.new {
 		margin-top: 1rem;

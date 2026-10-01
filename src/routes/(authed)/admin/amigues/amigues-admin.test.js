@@ -10,6 +10,7 @@ import { ADMINS } from '$lib/server/auth';
 import { importAmigues } from '$lib/server/amigues/importer.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { isApproved } from '$lib/server/amigues/profiles.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
 import { getManagedProfile } from '$lib/server/cuentas/perfiles.js';
 import { makeAccount, makeProfile, readAmigueFiles } from '$lib/server/amigues/testing.js';
 
@@ -323,7 +324,7 @@ describe('Eventos → Lugares', () => {
 });
 
 describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)', () => {
-	it('lista los lugares sin aprobar; aprobar los publica y rechazar los borra, con registro', async () => {
+	it('lista los lugares sin aprobar; aprobar los publica y rechazar los deja para quien los cargó, con registro', async () => {
 		const m = await modules('1');
 		const cuenta = await makeAccount(t.db, 'carga-lugares');
 		const a = await makeProfile(t.db, {
@@ -370,18 +371,48 @@ describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)
 		);
 		expect(lateReject.status).toBe(409);
 
+		// Rechazar (decisión de gorrite): no se borra; queda quién, cuándo y el motivo.
 		const rejected = /** @type {any} */ (
-			await m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: String(b.id) } }))
+			await m.lugares.actions.rechazarLugar(
+				fakeEvent({ form: { lugar: String(b.id), motivo: '  Falta   la dirección  ' } })
+			)
 		);
 		expect(rejected.pending.ok).toBe(true);
 		const row = await t.db
 			.prepare('SELECT deleted_at FROM objects WHERE id = ?1')
 			.bind(b.id)
 			.first();
-		expect(row?.deleted_at).not.toBeNull();
+		expect(row).not.toBeNull();
+		expect(row?.deleted_at).toBeNull();
 		expect(await isApproved(t.db, b.id)).toBe(false);
-		expect((await audit('profile.delete'))[0]).toMatchObject({ target_id: String(b.id) });
+		const rejection = await t.db
+			.prepare('SELECT rejected_by, reason FROM profile_rejections WHERE profile_id = ?1')
+			.bind(b.id)
+			.first();
+		expect(rejection).toMatchObject({ reason: 'Falta la dirección' });
+		expect(String(rejection?.rejected_by)).not.toBe('');
+		expect((await audit('profile.reject'))[0]).toMatchObject({ target_id: String(b.id) });
+		expect(await audit('profile.delete')).toEqual([]);
+		// Sale de "Para aprobar" y no se rechaza dos veces.
 		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).pending).toEqual([]);
+		const twice = /** @type {any} */ (
+			await m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: String(b.id) } }))
+		);
+		expect(twice.status).toBe(409);
+		expect(await audit('profile.reject')).toHaveLength(1);
+		// Tampoco se aprueba desde "Para aprobar" (ya no está); desde su ficha sí, y el rechazo se va.
+		const lateApprove = /** @type {any} */ (
+			await m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: String(b.id) } }))
+		);
+		expect(lateApprove.status).toBe(404);
+		await approveProfile(t.db, b.id, 'admin-de-prueba');
+		expect(await isApproved(t.db, b.id)).toBe(true);
+		expect(
+			await t.db
+				.prepare('SELECT 1 FROM profile_rejections WHERE profile_id = ?1')
+				.bind(b.id)
+				.first()
+		).toBeNull();
 
 		// Algo que no es un lugar no se aprueba ni se rechaza desde acá.
 		const persona = await makeProfile(t.db, { title: 'Otra Persona', approved: false });
@@ -392,6 +423,39 @@ describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)
 			expect(r.status).toBe(404);
 		}
 		expect(await isApproved(t.db, persona.id)).toBe(false);
+	});
+});
+
+describe('Eventos → Lugares: rechazar es solo de admins', () => {
+	it('sin sesión o sin ser admin, no se rechaza ni se aprueba un lugar que espera', async () => {
+		const m = await modules('1');
+		const cuenta = await makeAccount(t.db, 'carga-lugares');
+		const v = await makeProfile(t.db, {
+			title: 'Sala Pendiente Inventada',
+			kind: 'lugar',
+			approved: false,
+			actor: `cuenta:${cuenta.id}`
+		});
+		const form = { lugar: String(v.id), motivo: 'Inventado' };
+		const intruder = { id: 1, login: 'no-es-admin' };
+		expect(
+			(
+				await thrown(() =>
+					m.lugares.actions.rechazarLugar(fakeEvent({ form, user: null, token: null }))
+				)
+			)?.status
+		).toBe(303);
+		expect(
+			(await thrown(() => m.lugares.actions.rechazarLugar(fakeEvent({ form, user: intruder }))))
+				?.status
+		).toBe(403);
+		expect(
+			(await thrown(() => m.lugares.actions.aprobarLugar(fakeEvent({ form, user: intruder }))))
+				?.status
+		).toBe(403);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM profile_rejections').first())?.n).toBe(0);
+		expect(await isApproved(t.db, v.id)).toBe(false);
+		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).pending).toHaveLength(1);
 	});
 });
 

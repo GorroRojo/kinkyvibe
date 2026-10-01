@@ -3,6 +3,7 @@
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { TIMEZONE } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 
 	export let data;
 	export let form;
@@ -75,6 +76,17 @@
 			Todavía no aparece en el sitio: une admin lo tiene que aprobar. Mientras tanto lo ves vos (y
 			quienes lo gestionan).
 		</p>
+	{:else if data.rejection}
+		<div class="error rejected" role="status">
+			<p>
+				<strong>Rechazado.</strong> Une admin no lo aprobó ({fmtDate(data.rejection.at)}), así que
+				no aparece en el sitio. Lo seguís viendo vos (y quienes lo gestionan).
+			</p>
+			{#if data.rejection.reason}
+				<p>Motivo: <q>{data.rejection.reason}</q></p>
+			{/if}
+			<p>Si lo corregís y guardás, vuelve a esperar que une admin lo apruebe.</p>
+		</div>
 	{/if}
 
 	<section class="surface-card" aria-labelledby="edit-title">
@@ -202,6 +214,14 @@
 						/>
 						{#if errors.city}<span class="field-error">{errors.city}</span>{/if}
 					</label>
+					<div class="coords">
+						<VenueCoordinates
+							lat={values.venue?.lat ?? ''}
+							lng={values.venue?.lng ?? ''}
+							{errors}
+							gridClass="coords-grid"
+						/>
+					</div>
 					<label>
 						<span>Accesibilidad <small class="hint">(escaleras, baño accesible…)</small></span>
 						<textarea
@@ -749,8 +769,46 @@
 		padding: 0.5em 0.8em;
 		border-radius: var(--round-sm);
 	}
-	.field-error {
+	.field-error,
+	.coords :global(.field-error) {
 		color: var(--1-ink);
 		font-size: var(--step--1);
+	}
+	.rejected {
+		display: grid;
+		gap: 0.4em;
+	}
+	/* La ubicación en el mapa (componente compartido con el panel): mismos estilos que los demás campos. */
+	.coords {
+		display: grid;
+		gap: 0.4em;
+		width: 100%;
+	}
+	.coords :global(.coords-grid) {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+		gap: 0.4em 0.8em;
+	}
+	.coords :global(label) {
+		display: grid;
+		gap: 0.25em;
+	}
+	.coords :global(label > span:first-child) {
+		font-weight: 600;
+	}
+	.coords :global(input) {
+		font: inherit;
+		font-size: var(--step-0);
+		padding: 0.5em 0.7em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+		min-height: var(--tap);
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.coords :global(.hint) {
+		color: var(--muted);
+		font-size: var(--step--1);
+		margin: 0;
 	}
 </style>

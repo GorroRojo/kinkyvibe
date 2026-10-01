@@ -30,7 +30,9 @@ export const PROFILE_REVIEW_ACTIONS = Object.freeze([
 	'profile.hide',
 	'profile.delete',
 	// Aprobar para /amigues también es haberlo revisado (docs/amigues.md).
-	'profile.approve'
+	'profile.approve',
+	// Rechazar un lugar de una cuenta (sigue existiendo, ver pendingVenues.js), también.
+	'profile.reject'
 ]);
 
 /** Cuántas filas muestran las listas (el buscador encuentra el resto). */

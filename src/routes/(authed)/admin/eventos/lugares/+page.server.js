@@ -10,7 +10,9 @@
  *
  * "Para aprobar": los lugares que cargó una cuenta (decisión de gorrite, docs/decisiones/
  * 0022-lugares-desde-cuentas.md) no aparecen en el sitio hasta que une admin los aprueba acá.
- * Rechazar los borra (suave). Ver src/lib/server/amigues/pendingVenues.js.
+ * Rechazar no los borra (decisión de gorrite): quedan sin aparecer en el sitio y quien los cargó
+ * los ve como «Rechazado» en Mi rincón, con el motivo opcional que se escribe acá. Ver
+ * src/lib/server/amigues/pendingVenues.js.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -108,16 +110,24 @@ export const actions = {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { pending: { ok: false, message: 'Sin base de datos.' } });
-		const id = Number((await request.formData()).get('lugar'));
-		const r = await rejectPendingVenue(db, id, { by: admin.login });
+		const form = await request.formData();
+		const id = Number(form.get('lugar'));
+		const r = await rejectPendingVenue(db, id, { by: admin.login, reason: form.get('motivo') });
 		if (!r.ok) return fail(r.status, { pending: { ok: false, message: r.message } });
+		// El motivo va al detalle (lo ven solo admins en Actividad), no al resumen.
 		await logAdminAction(db, locals, {
-			action: 'profile.delete',
+			action: 'profile.reject',
 			targetType: 'profile',
 			targetId: id,
-			summary: `Rechazó (borró) el lugar «${r.title}»`
+			summary: `Rechazó el lugar «${r.title}»`,
+			...(r.reason ? { detail: { reason: r.reason } } : {})
 		});
-		return { pending: { ok: true, message: `Listo: rechazaste «${r.title}».` } };
+		return {
+			pending: {
+				ok: true,
+				message: `Listo: rechazaste «${r.title}». Quien lo cargó lo ve como rechazado en su Mi rincón.`
+			}
+		};
 	},
 
 	vincular: async ({ locals, url, platform, request }) => {

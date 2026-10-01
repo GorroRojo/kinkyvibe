@@ -21,7 +21,8 @@ export const ACCOUNT_EVENT_ACTOR = 'cuentas (sitio)';
 /** Acciones del registro que son novedades de cuentas y perfiles (no de admins). */
 export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
-	profileCreated: 'profile.create'
+	profileCreated: 'profile.create',
+	venueResubmitted: 'profile.resubmit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -65,6 +66,28 @@ export function logProfileCreated(db, profile, { now = Date.now() } = {}) {
 			targetId: profile.id,
 			summary: `Se creó el perfil «${profile.title}» (${kind})`,
 			detail: { kind, visibility: profile.visibility }
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Volvieron a mandar un lugar rechazado" (lo editó quien lo cargó, desde Mi rincón): vuelve a
+ * "Para aprobar" en Eventos → Lugares.
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, title: string }} profile
+ * @param {{ now?: number }} [opts]
+ */
+export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.venueResubmitted,
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
 		},
 		{ now }
 	);

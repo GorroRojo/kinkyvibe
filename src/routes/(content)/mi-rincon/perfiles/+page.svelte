@@ -164,7 +164,14 @@
 						<span class="hint">
 							{KIND_LABELS[p.kind]} · {VISIBILITY_SHORT[p.visibility] ?? p.visibility}
 							{#if p.kind === 'proyecto'}· {ROLE_LABELS[p.role]}{/if}
+							{#if p.review === 'pending'}· Espera aprobación{/if}
 						</span>
+						{#if p.review === 'rejected'}
+							<span class="rejected"
+								><strong>Rechazado</strong>{#if p.rejectReason}: <q>{p.rejectReason}</q>{/if}. Si lo
+								corregís y guardás, vuelve a esperar aprobación.</span
+							>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -335,6 +342,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5em;
+	}
+	.rejected {
+		color: var(--1-ink);
+		font-size: var(--step--1);
 	}
 	.hint {
 		color: var(--muted);
