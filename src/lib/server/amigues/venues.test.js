@@ -65,7 +65,9 @@ describe('el evento muestra lo que su nivel deja', () => {
 		])) {
 			const v = await venue(privacy);
 			const slug = `evento-${privacy}`;
-			expect((await m.setEventVenue(t.db, { eventSlug: slug, venueId: v.id, privacy: null, by: 'a' })).ok).toBe(true);
+			expect(
+				(await m.setEventVenue(t.db, { eventSlug: slug, venueId: v.id, privacy: null, by: 'a' })).ok
+			).toBe(true);
 			const view = await m.publicVenueForEvent(t.db, slug, ANON);
 			expect(view).toMatchObject(expected);
 			const json = JSON.stringify(view);
@@ -78,10 +80,20 @@ describe('el evento muestra lo que su nivel deja', () => {
 	it('el evento manda sobre el lugar (más y menos privado)', async () => {
 		const m = await modules();
 		const pub = await venue('public');
-		await m.setEventVenue(t.db, { eventSlug: 'secreto', venueId: pub.id, privacy: 'hidden', by: 'a' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'secreto',
+			venueId: pub.id,
+			privacy: 'hidden',
+			by: 'a'
+		});
 		expect(await m.publicVenueForEvent(t.db, 'secreto', ANON)).toEqual({ level: 'hidden' });
 		const hidden = await venue('hidden');
-		await m.setEventVenue(t.db, { eventSlug: 'abierto', venueId: hidden.id, privacy: 'public', by: 'a' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'abierto',
+			venueId: hidden.id,
+			privacy: 'public',
+			by: 'a'
+		});
 		expect(await m.publicVenueForEvent(t.db, 'abierto', ANON)).toMatchObject({ address: SECRET });
 	});
 
@@ -93,7 +105,12 @@ describe('el evento muestra lo que su nivel deja', () => {
 			visibility: 'hidden',
 			data: { address: SECRET, venue_privacy: 'public' }
 		});
-		await m.setEventVenue(t.db, { eventSlug: 'e1', venueId: hiddenProfile.id, privacy: null, by: 'a' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'e1',
+			venueId: hiddenProfile.id,
+			privacy: null,
+			by: 'a'
+		});
 		expect(await m.publicVenueForEvent(t.db, 'e1', ANON)).toEqual({ level: 'hidden' });
 		const pending = await makeProfile(t.db, {
 			title: 'Lugar Sin Aprobar',
@@ -117,11 +134,23 @@ describe('el evento muestra lo que su nivel deja', () => {
 	it('solo se vinculan lugares que existen y eventos con dirección válida', async () => {
 		const m = await modules();
 		const persona = await makeProfile(t.db, { title: 'No Es Lugar' });
-		expect((await m.setEventVenue(t.db, { eventSlug: 'x', venueId: persona.id, privacy: null, by: 'a' })).ok).toBe(false);
-		const v = await venue('public');
-		expect((await m.setEventVenue(t.db, { eventSlug: '../x', venueId: v.id, privacy: null, by: 'a' })).ok).toBe(false);
 		expect(
-			(await m.setEventVenue(t.db, { eventSlug: 'x', venueId: v.id, privacy: /** @type {any} */ ('todo'), by: 'a' })).ok
+			(await m.setEventVenue(t.db, { eventSlug: 'x', venueId: persona.id, privacy: null, by: 'a' }))
+				.ok
+		).toBe(false);
+		const v = await venue('public');
+		expect(
+			(await m.setEventVenue(t.db, { eventSlug: '../x', venueId: v.id, privacy: null, by: 'a' })).ok
+		).toBe(false);
+		expect(
+			(
+				await m.setEventVenue(t.db, {
+					eventSlug: 'x',
+					venueId: v.id,
+					privacy: /** @type {any} */ ('todo'),
+					by: 'a'
+				})
+			).ok
 		).toBe(false);
 		expect(await m.removeEventVenue(t.db, 'x')).toBe(false);
 	});
@@ -145,14 +174,27 @@ describe('la página del lugar', () => {
 		);
 		// Con el lugar en "oculta", los que siguen al lugar tampoco.
 		const hidden = await venue('hidden');
-		await m.setEventVenue(t.db, { eventSlug: 'sigue-al-lugar', venueId: hidden.id, privacy: null, by: 'a' });
-		await m.setEventVenue(t.db, { eventSlug: 'abre-el-evento', venueId: hidden.id, privacy: 'name', by: 'a' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'sigue-al-lugar',
+			venueId: hidden.id,
+			privacy: null,
+			by: 'a'
+		});
+		await m.setEventVenue(t.db, {
+			eventSlug: 'abre-el-evento',
+			venueId: hidden.id,
+			privacy: 'name',
+			by: 'a'
+		});
 		expect(await m.listedVenueEvents(t.db, hidden)).toEqual(['abre-el-evento']);
 	});
 
 	it('la ubicación de la página sigue la privacidad del lugar', async () => {
 		const m = await modules();
-		expect(m.venuePageLocation(await venue('public'), '/x')).toMatchObject({ address: SECRET, lat: -34.6 });
+		expect(m.venuePageLocation(await venue('public'), '/x')).toMatchObject({
+			address: SECRET,
+			lat: -34.6
+		});
 		expect(JSON.stringify(m.venuePageLocation(await venue('name'), '/x'))).not.toContain(SECRET);
 		expect(m.venuePageLocation(await venue('area'), '/x')).toEqual({
 			level: 'area',
@@ -167,14 +209,24 @@ describe('quien compró recibe la dirección completa', () => {
 		const m = await modules();
 		for (const privacy of ['public', 'name', 'area', 'hidden']) {
 			const v = await venue(privacy);
-			await m.setEventVenue(t.db, { eventSlug: `compra-${privacy}`, venueId: v.id, privacy: null, by: 'a' });
+			await m.setEventVenue(t.db, {
+				eventSlug: `compra-${privacy}`,
+				venueId: v.id,
+				privacy: null,
+				by: 'a'
+			});
 			expect(await m.buyerLocation(t.db, `compra-${privacy}`)).toEqual({
 				location_name: `Lugar ${privacy}`,
 				location: `${SECRET}, ${AREA}, Ciudad Inventada`
 			});
 		}
 		const v = await venue('public', 'Otro Lugar');
-		await m.setEventVenue(t.db, { eventSlug: 'override', venueId: v.id, privacy: 'hidden', by: 'a' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'override',
+			venueId: v.id,
+			privacy: 'hidden',
+			by: 'a'
+		});
 		expect((await m.buyerLocation(t.db, 'override'))?.location).toContain(SECRET);
 	});
 

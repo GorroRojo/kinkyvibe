@@ -64,7 +64,11 @@ describe('del formulario a los datos', () => {
 		values.lat = '-34';
 		values.lng = '-58';
 		values.show_members = true;
-		expect(formToData(values)).toMatchObject({ kind: 'lugar', address: 'Calle Inventada 1', lat: -34 });
+		expect(formToData(values)).toMatchObject({
+			kind: 'lugar',
+			address: 'Calle Inventada 1',
+			lat: -34
+		});
 		expect(formToData({ ...values, kind: 'persona' })).toEqual({ kind: 'persona' });
 		expect(formToData({ ...values, kind: 'grupo' })).toEqual({ kind: 'grupo', show_members: true });
 	});
@@ -139,7 +143,10 @@ describe('guardar en la base', () => {
 		const r = await createProfileFromPanel(t.db, values, { actor: 'admin-de-prueba' });
 		expect(r.ok).toBe(true);
 		const profile = /** @type {any} */ (r).profile;
-		expect(profile).toMatchObject({ slug: 'lugar-nuevo-inventado', data: { kind: 'lugar', venue_privacy: 'area' } });
+		expect(profile).toMatchObject({
+			slug: 'lugar-nuevo-inventado',
+			data: { kind: 'lugar', venue_privacy: 'area' }
+		});
 		expect(await isApproved(t.db, profile.id)).toBe(true);
 		// Mismo nombre: otra dirección, sin pisar.
 		const twin = await createProfileFromPanel(t.db, values, { actor: 'admin-de-prueba' });

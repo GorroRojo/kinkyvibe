@@ -223,13 +223,17 @@ export function changedFields(a, b) {
 			out.push(key);
 	}
 	for (const key of ['unlisted', 'show_members']) {
-		if (Boolean(/** @type {any} */ (a)[key]) !== Boolean(/** @type {any} */ (b)[key])) out.push(key);
+		if (Boolean(/** @type {any} */ (a)[key]) !== Boolean(/** @type {any} */ (b)[key]))
+			out.push(key);
 	}
 	for (const key of EDITOR_TEXT_FIELDS) {
 		if ((a.text[key] ?? '').trim() !== (b.text[key] ?? '').trim()) out.push(key);
 	}
 	for (const key of EDITOR_LIST_FIELDS) {
-		if (parseList(key, a.lists[key] ?? '').join('\n') !== parseList(key, b.lists[key] ?? '').join('\n'))
+		if (
+			parseList(key, a.lists[key] ?? '').join('\n') !==
+			parseList(key, b.lists[key] ?? '').join('\n')
+		)
 			out.push(key);
 	}
 	return out;
@@ -365,7 +369,9 @@ export async function saveProfileFromPanel(db, current, values, { actor, now = D
 		return { ok: true, profile };
 	} catch (e) {
 		if (e instanceof VersionConflictError) {
-			const latest = await getObject(db, { id: current.id }, ADMIN_VIEWER, { includeDeleted: true });
+			const latest = await getObject(db, { id: current.id }, ADMIN_VIEWER, {
+				includeDeleted: true
+			});
 			if (!latest) return { ok: false, status: 404, message: 'Ese perfil ya no existe.' };
 			const theirs = profileFormValues(latest);
 			return {

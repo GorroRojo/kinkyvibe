@@ -19,7 +19,9 @@
 	{#if result}
 		<p class="msg" class:bad={!result.ok} role="status">{result.message}</p>
 	{:else if state === 'manager'}
-		<p class="msg">Gestionás este perfil: lo editás en <a href="/mi-rincon/perfiles">Mi rincón</a>.</p>
+		<p class="msg">
+			Gestionás este perfil: lo editás en <a href="/mi-rincon/perfiles">Mi rincón</a>.
+		</p>
 	{:else if state === 'pending'}
 		<p class="msg">Pediste este perfil. Les admins lo van a revisar pronto.</p>
 	{:else if !open}

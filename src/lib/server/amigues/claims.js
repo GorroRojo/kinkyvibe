@@ -107,7 +107,8 @@ export async function createClaim(
 	) {
 		return { ok: false, status: 404, message: CLAIM_MESSAGES.notFound };
 	}
-	if (await managerRole(db, accountId, profileId)) return { ok: true, message: CLAIM_MESSAGES.manager };
+	if (await managerRole(db, accountId, profileId))
+		return { ok: true, message: CLAIM_MESSAGES.manager };
 	const text = String(message ?? '')
 		.replace(/\r\n?/g, '\n')
 		.trim()

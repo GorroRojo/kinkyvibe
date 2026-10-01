@@ -2,28 +2,12 @@
  * Utilidades para las pruebas de amigues y lugares (solo Node/vitest, nunca se importa desde la
  * app). Datos inventados; las fichas reales de amigues son públicas a propósito.
  */
-import { readdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { saveObject } from '../objects/save.js';
+import { approveNewStatement } from './approvals.js';
+
+export { AMIGUES_DIR, readAmigueFiles } from './files.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-
-export const AMIGUES_DIR = path.resolve('src/lib/posts/amigues');
-
-/**
- * Las fichas .md reales del repo, como las pide `importAmigues`.
- *
- * @returns {Promise<{ legacySlug: string, raw: string }[]>}
- */
-export async function readAmigueFiles() {
-	const names = (await readdir(AMIGUES_DIR)).filter((f) => f.endsWith('.md')).sort();
-	return Promise.all(
-		names.map(async (name) => ({
-			legacySlug: name.slice(0, -3),
-			raw: await readFile(path.join(AMIGUES_DIR, name), 'utf8')
-		}))
-	);
-}
 
 /**
  * Un perfil de prueba con saveObject() (aprobado para /amigues salvo `approved: false`).
@@ -33,7 +17,15 @@ export async function readAmigueFiles() {
  */
 export async function makeProfile(
 	db,
-	{ title, kind = 'persona', visibility = 'public', data = {}, approved = true, actor = 'admin-de-prueba', slug }
+	{
+		title,
+		kind = 'persona',
+		visibility = 'public',
+		data = {},
+		approved = true,
+		actor = 'admin-de-prueba',
+		slug
+	}
 ) {
 	const now = Date.now();
 	return saveObject(
@@ -42,17 +34,7 @@ export async function makeProfile(
 		{
 			actor,
 			now,
-			also: (self) =>
-				approved
-					? [
-							db
-								.prepare(
-									`INSERT INTO profile_approvals (profile_id, approved_at, approved_by)
-									SELECT id, ?3, 'admin-de-prueba' FROM objects WHERE type = ?1 AND slug = ?2`
-								)
-								.bind(self.type, self.slug, now)
-						]
-					: []
+			also: (self) => (approved ? [approveNewStatement(db, self, 'admin-de-prueba', now)] : [])
 		}
 	);
 }

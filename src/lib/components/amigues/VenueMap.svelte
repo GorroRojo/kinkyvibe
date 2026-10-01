@@ -20,7 +20,13 @@
 
 <figure class="venue-map">
 	<a href={osmLink(lat, lng)} target="_blank" rel="noopener noreferrer" class="frame">
-		<span class="tiles" style:width="{width}px" style:height="{height}px" role="img" aria-label="Mapa: {label}">
+		<span
+			class="tiles"
+			style:width="{width}px"
+			style:height="{height}px"
+			role="img"
+			aria-label="Mapa: {label}"
+		>
 			{#each map.tiles as t (`${t.x}-${t.y}-${t.left}`)}
 				<img
 					src={t.url}
@@ -38,7 +44,8 @@
 	</a>
 	<figcaption>
 		<a href={osmLink(lat, lng)} target="_blank" rel="noopener noreferrer">Ver en OpenStreetMap</a>
-		· © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer"
+		· ©
+		<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer"
 			>colaboradores de OpenStreetMap</a
 		>
 	</figcaption>
@@ -52,6 +59,8 @@
 	}
 	.frame {
 		display: block;
+		width: fit-content;
+		margin-inline: auto;
 		max-width: 100%;
 		overflow: hidden;
 		border-radius: 0.8em;

@@ -21,7 +21,7 @@
 	$: eventsBySlug = new Map(data.events.map((e) => [e.slug, e]));
 	/** @param {string | null} p */
 	const privacyText = (p) =>
-		p ? (/** @type {Record<string, string>} */ (data.privacyLabels)[p] ?? p) : 'la del lugar';
+		p ? /** @type {Record<string, string>} */ ((data.privacyLabels)[p] ?? p) : 'la del lugar';
 	let newName = '';
 </script>
 
@@ -103,7 +103,13 @@
 			<input type="hidden" name="version" value="0" />
 			<label class="kv-field grow">
 				<span>Lugar nuevo</span>
-				<input name="title" bind:value={newName} placeholder="Nombre del lugar" required maxlength="200" />
+				<input
+					name="title"
+					bind:value={newName}
+					placeholder="Nombre del lugar"
+					required
+					maxlength="200"
+				/>
 			</label>
 			<button class="kv-btn" type="submit" disabled={!newName.trim()}>Crear y completar</button>
 		</form>
@@ -126,9 +132,9 @@
 			/>
 		</svelte:fragment>
 		<p class="kv-note">
-			Cada evento puede mostrar la dirección más o menos que su lugar. Quien compra entrada la recibe
-			completa en el mail y en su entrada. La página del lugar lista solo los eventos que muestran el
-			nombre del lugar.
+			Cada evento puede mostrar la dirección más o menos que su lugar. Quien compra entrada la
+			recibe completa en el mail y en su entrada. La página del lugar lista solo los eventos que
+			muestran el nombre del lugar.
 		</p>
 		{#if data.links.length}
 			<div class="kv-table-wrap">

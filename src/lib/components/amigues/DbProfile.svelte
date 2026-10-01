@@ -23,7 +23,8 @@
 
 	$: p = data.profile;
 	$: showAuthors =
-		p.authors.length > 1 || (p.authors.length === 1 && p.authors[0].replaceAll(' ', '-') !== p.slug);
+		p.authors.length > 1 ||
+		(p.authors.length === 1 && p.authors[0].replaceAll(' ', '-') !== p.slug);
 	/** @type {Record<string, string>} */
 	const KIND_LABELS = { persona: 'Persona', grupo: 'Grupo', lugar: 'Lugar' };
 </script>
@@ -46,8 +47,8 @@
 		<p class="badges">
 			{#if data.badges.hidden}<span>Oculto: lo ven solo les admins</span>{/if}
 			{#if data.badges.pending}<span
-					>Todavía no aparece en Amigues: lo tiene que aprobar une admin. Lo ves porque lo gestionás o
-					sos admin.</span
+					>Todavía no aparece en Amigues: lo tiene que aprobar une admin. Lo ves porque lo gestionás
+					o sos admin.</span
 				>{/if}
 			{#if data.badges.membersOnly}<span>Solo para personas con cuenta</span>{/if}
 		</p>

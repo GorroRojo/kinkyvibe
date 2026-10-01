@@ -17,7 +17,9 @@
 	{#if image}
 		<img src={image} class="profile-pic u-photo" alt="" />
 	{:else}
-		<span class="profile-pic initial" aria-hidden="true">{title.trim().charAt(0).toUpperCase()}</span>
+		<span class="profile-pic initial" aria-hidden="true"
+			>{title.trim().charAt(0).toUpperCase()}</span
+		>
 	{/if}
 	<h1 id="title" class="profile-name p-name">
 		{title}

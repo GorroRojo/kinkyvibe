@@ -10,7 +10,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { importAmigues } from '$lib/server/amigues/importer.js';
-import { addManager, makeAccount, makeProfile, readAmigueFiles } from '$lib/server/amigues/testing.js';
+import {
+	addManager,
+	makeAccount,
+	makeProfile,
+	readAmigueFiles
+} from '$lib/server/amigues/testing.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -135,7 +140,9 @@ async function thrown(fn) {
 
 /** @param {string} slug */
 const profilePage = async (/** @type {any} */ m, slug, o = {}) =>
-	/** @type {any} */ (await m.page.load(fakeEvent({ path: `/amigues/${slug}`, params: { profile: slug }, ...o })));
+	/** @type {any} */ (
+		await m.page.load(fakeEvent({ path: `/amigues/${slug}`, params: { profile: slug }, ...o }))
+	);
 
 describe('interruptor apagado: como siempre', () => {
 	it('/amigues y las fichas salen de los .md, aunque la base tenga perfiles', async () => {
@@ -150,9 +157,16 @@ describe('interruptor apagado: como siempre', () => {
 		// Los eventos no muestran lugar.
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
-		await setEventVenue(t.db, { eventSlug: 'fiesta-inventada', venueId: v.id, privacy: 'public', by: 'a' });
+		await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: v.id,
+			privacy: 'public',
+			by: 'a'
+		});
 		const ev = /** @type {any} */ (
-			await m.event.load(fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } }))
+			await m.event.load(
+				fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } })
+			)
 		);
 		expect(ev.venue).toBeNull();
 	});
@@ -194,14 +208,19 @@ describe('interruptor prendido', () => {
 
 		const page = await profilePage(m, 'Gorro_Rojo');
 		expect(page).toMatchObject({ mode: 'db', canonical: '/amigues/Gorro_Rojo' });
-		expect(page.profile).toMatchObject({ title: 'gorrite', slug: 'Gorro_Rojo', pronounLabel: 'eso/elle' });
+		expect(page.profile).toMatchObject({
+			title: 'gorrite',
+			slug: 'Gorro_Rojo',
+			pronounLabel: 'eso/elle'
+		});
 		expect(page.bodyHtml).toContain('gorrite');
 		expect(JSON.stringify(page)).not.toContain('admin-de-prueba');
 		// El contacto de la ficha no viaja a la página (la página vieja tampoco lo mostraba).
 		const luzi = await profilePage(m, 'Luzi');
 		expect(luzi.profile.title).toBe('Luzi');
 		expect(JSON.stringify(luzi)).not.toMatch(/luzgras@|2405 3932|1993-12-22|No binarie/);
-		for (const key of ['email', 'tel', 'bday', 'gender_identity']) expect(luzi.profile).not.toHaveProperty(key);
+		for (const key of ['email', 'tel', 'bday', 'gender_identity'])
+			expect(luzi.profile).not.toHaveProperty(key);
 		// La dirección nueva del objeto también lleva, con la vieja como canónica.
 		expect((await profilePage(m, 'gorro-rojo')).canonical).toBe('/amigues/Gorro_Rojo');
 		// La no listada se abre con su link.
@@ -224,7 +243,9 @@ describe('interruptor prendido', () => {
 		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
 		const m = await modules();
 		const row = await t.db
-			.prepare("SELECT o.id, o.version FROM objects o JOIN profile_sources s ON s.profile_id = o.id WHERE s.legacy_slug = 'Yuyo'")
+			.prepare(
+				"SELECT o.id, o.version FROM objects o JOIN profile_sources s ON s.profile_id = o.id WHERE s.legacy_slug = 'Yuyo'"
+			)
 			.first();
 		await saveObject(
 			t.db,
@@ -239,7 +260,11 @@ describe('interruptor prendido', () => {
 	it('un perfil nuevo sin aprobar: 404 para el público; su dueñe lo ve con el aviso', async () => {
 		const m = await modules();
 		const owner = await makeAccount(t.db, 'duene');
-		const p = await makeProfile(t.db, { title: 'Perfil Sin Aprobar', approved: false, actor: `cuenta:${owner.id}` });
+		const p = await makeProfile(t.db, {
+			title: 'Perfil Sin Aprobar',
+			approved: false,
+			actor: `cuenta:${owner.id}`
+		});
 		await addManager(t.db, p.id, owner.id);
 		expect((await thrown(() => profilePage(m, p.slug)))?.status).toBe(404);
 		const mine = await profilePage(m, p.slug, { member: owner });
@@ -254,9 +279,13 @@ describe('interruptor prendido', () => {
 		const without = await makeAccount(t.db, 'sin-permiso', { profiles: false });
 		expect((await profilePage(m, 'Yuyo', { member: without })).claim).toBeNull();
 		expect(
-			(await thrown(() =>
-				m.page.actions.esMiPerfil(fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: without }))
-			))?.status
+			(
+				await thrown(() =>
+					m.page.actions.esMiPerfil(
+						fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: without })
+					)
+				)
+			)?.status
 		).toBe(404);
 
 		const me = await makeAccount(t.db, 'persona-prueba');
@@ -268,12 +297,16 @@ describe('interruptor prendido', () => {
 			)
 		);
 		const r2 = /** @type {any} */ (
-			await m.page.actions.esMiPerfil(fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: me }))
+			await m.page.actions.esMiPerfil(
+				fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: me })
+			)
 		);
 		expect(r2).toEqual(r1);
 		expect(r2.claim.ok).toBe(true);
 		expect((await profilePage(m, 'Yuyo', { member: me })).claim).toEqual({ state: 'pending' });
-		const n = await t.db.prepare("SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'").first();
+		const n = await t.db
+			.prepare("SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'")
+			.first();
 		expect(n?.n).toBe(2);
 	});
 
@@ -292,17 +325,39 @@ describe('lugares en las páginas', () => {
 			data: { address: 'Calle Falsa 742', area: 'Barrio Inventado', venue_privacy: 'name' }
 		});
 		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
-		await setEventVenue(t.db, { eventSlug: 'fiesta-inventada', venueId: v.id, privacy: null, by: 'a' });
-		await setEventVenue(t.db, { eventSlug: 'taller-inventado', venueId: v.id, privacy: 'hidden', by: 'a' });
+		await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: v.id,
+			privacy: null,
+			by: 'a'
+		});
+		await setEventVenue(t.db, {
+			eventSlug: 'taller-inventado',
+			venueId: v.id,
+			privacy: 'hidden',
+			by: 'a'
+		});
 		const ev = /** @type {any} */ (
-			await m.event.load(fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } }))
+			await m.event.load(
+				fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } })
+			)
 		);
-		expect(ev.venue).toEqual({ level: 'name', name: 'Galpón Inventado', href: '/amigues/galpon-inventado' });
+		expect(ev.venue).toEqual({
+			level: 'name',
+			name: 'Galpón Inventado',
+			href: '/amigues/galpon-inventado'
+		});
 		const page = await profilePage(m, 'galpon-inventado');
 		expect(page.profile.kind).toBe('lugar');
-		expect(page.location).toEqual({ level: 'name', name: 'Galpón Inventado', href: '/amigues/galpon-inventado' });
+		expect(page.location).toEqual({
+			level: 'name',
+			name: 'Galpón Inventado',
+			href: '/amigues/galpon-inventado'
+		});
 		// Lista el evento que muestra el lugar, no el que lo oculta.
-		expect(page.venueEvents.map((/** @type {any} */ p) => p.path)).toEqual(['/calendario/fiesta-inventada']);
+		expect(page.venueEvents.map((/** @type {any} */ p) => p.path)).toEqual([
+			'/calendario/fiesta-inventada'
+		]);
 	});
 });
 
@@ -327,22 +382,40 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 			}
 		});
 		const { setEventVenue, buyerLocation } = await import('$lib/server/amigues/venues.js');
-		await setEventVenue(t.db, { eventSlug: 'fiesta-inventada', venueId: hidden.id, privacy: null, by: 'a' });
+		await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: hidden.id,
+			privacy: null,
+			by: 'a'
+		});
 		// Otro lugar público cuyo evento oculta la dirección (la del evento manda).
 		const open = await makeProfile(t.db, {
 			title: 'Bar Abierto Inventado',
 			kind: 'lugar',
 			data: { address: 'Avenida Pública 99', area: 'Barrio Público', venue_privacy: 'public' }
 		});
-		await setEventVenue(t.db, { eventSlug: 'taller-inventado', venueId: open.id, privacy: 'hidden', by: 'a' });
+		await setEventVenue(t.db, {
+			eventSlug: 'taller-inventado',
+			venueId: open.id,
+			privacy: 'hidden',
+			by: 'a'
+		});
 
 		/** @type {Record<string, string>} */
 		const outputs = {};
 		const text = async (/** @type {Response} */ r) => r.text();
-		outputs.sitemap = await text(await (await import('../sitemap.xml/+server.js')).GET(/** @type {any} */ ({})));
-		outputs.rss = await text(await (await import('../../rss/+server.js')).GET(/** @type {any} */ ({})));
-		outputs.ics = await text(await (await import('../calendario.ics/+server.js')).GET(/** @type {any} */ ({})));
-		outputs.posts = await text(await (await import('../../api/posts/+server.js')).GET(/** @type {any} */ ({})));
+		outputs.sitemap = await text(
+			await (await import('../sitemap.xml/+server.js')).GET(/** @type {any} */ ({}))
+		);
+		outputs.rss = await text(
+			await (await import('../../rss/+server.js')).GET(/** @type {any} */ ({}))
+		);
+		outputs.ics = await text(
+			await (await import('../calendario.ics/+server.js')).GET(/** @type {any} */ ({}))
+		);
+		outputs.posts = await text(
+			await (await import('../../api/posts/+server.js')).GET(/** @type {any} */ ({}))
+		);
 		outputs.search = await text(
 			await (await import('../../api/search-index.json/+server.js')).GET(/** @type {any} */ ({}))
 		);
@@ -373,6 +446,8 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 		expect(JSON.parse(outputs.lugarAbierto).venueEvents).toEqual([]);
 		// Quien compró sí recibe la dirección completa.
 		expect((await buyerLocation(t.db, 'fiesta-inventada'))?.location).toContain(SECRET);
-		expect((await buyerLocation(t.db, 'taller-inventado'))?.location).toContain('Avenida Pública 99');
+		expect((await buyerLocation(t.db, 'taller-inventado'))?.location).toContain(
+			'Avenida Pública 99'
+		);
 	});
 });

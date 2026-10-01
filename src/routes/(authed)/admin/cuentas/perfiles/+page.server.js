@@ -5,11 +5,7 @@
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import {
-	PROFILE_FILTERS,
-	PROFILE_KIND_FILTERS,
-	listProfiles
-} from '$lib/server/admin/cuentas.js';
+import { PROFILE_FILTERS, PROFILE_KIND_FILTERS, listProfiles } from '$lib/server/admin/cuentas.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
 import { claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
 

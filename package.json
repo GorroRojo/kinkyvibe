@@ -23,6 +23,7 @@
 		"db:migrations:new": "wrangler d1 migrations create kinkyvibe",
 		"preview:worker": "wrangler dev --port 8880 --test-scheduled",
 		"db:restore": "node scripts/d1-restore.js",
+		"amigues:import": "node scripts/import-amigues.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."

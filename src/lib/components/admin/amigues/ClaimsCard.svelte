@@ -69,8 +69,11 @@
 							<button class="kv-btn small" name="decision" value="aprobar" disabled={busy !== 0}
 								>Aprobar</button
 							>
-							<button class="kv-btn ghost small" name="decision" value="rechazar" disabled={busy !== 0}
-								>Rechazar</button
+							<button
+								class="kv-btn ghost small"
+								name="decision"
+								value="rechazar"
+								disabled={busy !== 0}>Rechazar</button
 							>
 						</form>
 					{:else if c.decidedBy}

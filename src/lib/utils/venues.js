@@ -40,7 +40,10 @@ export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
  * @returns {value is VenuePrivacy}
  */
 export function isVenuePrivacy(value) {
-	return typeof value === 'string' && /** @type {readonly string[]} */ (VENUE_PRIVACY_LEVELS).includes(value);
+	return (
+		typeof value === 'string' &&
+		/** @type {readonly string[]} */ (VENUE_PRIVACY_LEVELS).includes(value)
+	);
 }
 
 /**
@@ -145,7 +148,11 @@ export function venueLine(view) {
 export function venueSchema(view) {
 	if (view.level === 'public' && view.name) {
 		return view.address
-			? { '@type': 'Place', name: view.name, address: { '@type': 'PostalAddress', name: view.address } }
+			? {
+					'@type': 'Place',
+					name: view.name,
+					address: { '@type': 'PostalAddress', name: view.address }
+				}
 			: { '@type': 'Place', name: view.name };
 	}
 	if (view.level === 'name' && view.name) return { '@type': 'Place', name: view.name };

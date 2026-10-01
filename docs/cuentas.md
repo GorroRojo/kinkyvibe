@@ -250,9 +250,9 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   (`profile.review`, `profile.hide` o `profile.delete`). Si son varios, van en una sola fila que
   lleva a Perfiles filtrado.
 
-**Todavía no hay página pública de perfiles.** Los perfiles de amigues siguen siendo archivos
-`.md` y no se tocan. `getPublicProfile()` ya arma lo que mostraría esa página (lista blanca de
-campos), pero nadie la usa todavía.
+**Página pública:** `/amigues`, detrás del interruptor `perfiles_publicos` (ver
+[amigues.md](amigues.md)): las fichas importadas, los perfiles aprobados por admins, "Es mi
+perfil" y los lugares. Una cuenta puede crear personas y grupos; los lugares los crean les admins.
 
 ### Páginas (detrás del mismo interruptor `cuentas`)
 

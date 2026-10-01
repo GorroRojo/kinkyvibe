@@ -23,7 +23,8 @@
 		{#if context === 'event'}
 			{#if view.level === 'public' || view.level === 'name'}
 				Sucede en <a href={view.href} class="p-location">{view.name}</a
-				>{#if view.level === 'public' && view.address}: <span class="address">{view.address}</span>{/if}
+				>{#if view.level === 'public' && view.address}: <span class="address">{view.address}</span
+					>{/if}
 				{#if view.level === 'public' && place}<span class="place">({place})</span>{/if}
 			{:else if view.level === 'area' && place}
 				Sucede en <span class="p-location">{place}</span>

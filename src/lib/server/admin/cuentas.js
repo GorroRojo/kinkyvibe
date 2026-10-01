@@ -259,7 +259,10 @@ const APPROVED = 'EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id
  *   clave de {@link PROFILE_KIND_FILTERS}
  * @returns {Promise<{ profiles: AdminProfile[], counts: { total: number, toReview: number, hidden: number, deleted: number } }>}
  */
-export async function listProfiles(db, { q = '', filter = '', kind = '', limit = LIST_LIMIT } = {}) {
+export async function listProfiles(
+	db,
+	{ q = '', filter = '', kind = '', limit = LIST_LIMIT } = {}
+) {
 	const vis = visibleWhere(ADMIN, 'o', { includeDeleted: true });
 	/** @type {string[]} */
 	const where = ['o.type = ?', vis.sql];

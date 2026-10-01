@@ -69,7 +69,12 @@ async function approvedOrder() {
 			type: { id: 'general', price: 8000, capacity: 10 },
 			quantity: 1,
 			holders: [{ name: 'Persona de Prueba', pronouns: 'elle' }],
-			buyer: { name: 'Persona de Prueba', pronouns: 'elle', email: 'p@example.com', dni: '30111222' }
+			buyer: {
+				name: 'Persona de Prueba',
+				pronouns: 'elle',
+				email: 'p@example.com',
+				dni: '30111222'
+			}
 		})
 	);
 	const { order, tickets } = await applyPayment(t.db, {
@@ -111,7 +116,12 @@ describe('dirección completa para quien compró', () => {
 			const v = await makeProfile(t.db, {
 				title: 'Galpón Inventado',
 				kind: 'lugar',
-				data: { address: SECRET, area: 'Barrio Inventado', city: 'Ciudad Inventada', venue_privacy: privacy }
+				data: {
+					address: SECRET,
+					area: 'Barrio Inventado',
+					city: 'Ciudad Inventada',
+					venue_privacy: privacy
+				}
 			});
 			await m.venues.setEventVenue(t.db, {
 				eventSlug: 'fiesta-inventada',
@@ -121,7 +131,15 @@ describe('dirección completa para quien compró', () => {
 			});
 			const { order, tickets } = await approvedOrder();
 			const { sent, fetch } = captureFetch();
-			expect(await m.tickets.sendOrderEmail({ db: t.db, order, tickets, origin: 'https://kinkyvibe.ar', fetch })).toBe(true);
+			expect(
+				await m.tickets.sendOrderEmail({
+					db: t.db,
+					order,
+					tickets,
+					origin: 'https://kinkyvibe.ar',
+					fetch
+				})
+			).toBe(true);
 			expect(sent).toHaveLength(1);
 			const full = `${SECRET}, Barrio Inventado, Ciudad Inventada`;
 			expect(sent[0].text).toContain(full);
@@ -140,10 +158,21 @@ describe('dirección completa para quien compró', () => {
 			kind: 'lugar',
 			data: { address: SECRET, venue_privacy: 'hidden' }
 		});
-		await m.venues.setEventVenue(t.db, { eventSlug: 'fiesta-inventada', venueId: v.id, privacy: null, by: 'a' });
+		await m.venues.setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: v.id,
+			privacy: null,
+			by: 'a'
+		});
 		const { order, tickets } = await approvedOrder();
 		const { sent, fetch } = captureFetch();
-		await m.tickets.sendOrderEmail({ db: t.db, order, tickets, origin: 'https://kinkyvibe.ar', fetch });
+		await m.tickets.sendOrderEmail({
+			db: t.db,
+			order,
+			tickets,
+			origin: 'https://kinkyvibe.ar',
+			fetch
+		});
 		expect(sent[0].text).toContain('Lugar del archivo · Dirección del archivo');
 		expect(sent[0].text).not.toContain(SECRET);
 		const page = /** @type {any} */ (await m.page.load(ticketEvent(tickets[0].token)));

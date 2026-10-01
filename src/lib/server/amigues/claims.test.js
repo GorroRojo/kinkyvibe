@@ -112,7 +112,10 @@ describe('resolver un pedido (admins)', () => {
 		const [pending] = await listClaims(t.db);
 		expect(pending).toMatchObject({ profileTitle: 'Ficha Inventada', email: 'duena@example.com' });
 		const r = await decideClaim(t.db, pending.id, true, { by: 'admin-de-prueba' });
-		expect(r).toMatchObject({ ok: true, claim: { status: 'approved', decidedBy: 'admin-de-prueba' } });
+		expect(r).toMatchObject({
+			ok: true,
+			claim: { status: 'approved', decidedBy: 'admin-de-prueba' }
+		});
 		expect((await getManagedProfile(t.db, a.id, p.slug))?.role).toBe('owner');
 		expect(await countPendingClaims(t.db)).toBe(0);
 		// Dos veces no: ya está resuelto.
@@ -151,7 +154,9 @@ describe('resolver un pedido (admins)', () => {
 			ok: false,
 			status: 409
 		});
-		expect(await decideClaim(t.db, Number(onGrupo?.id), true, { by: 'a' })).toMatchObject({ ok: true });
+		expect(await decideClaim(t.db, Number(onGrupo?.id), true, { by: 'a' })).toMatchObject({
+			ok: true
+		});
 		expect((await getManagedProfile(t.db, second.id, grupo.slug))?.role).toBe('owner');
 	});
 
@@ -168,6 +173,9 @@ describe('resolver un pedido (admins)', () => {
 	});
 
 	it('un pedido que no existe', async () => {
-		expect(await decideClaim(t.db, 424242, true, { by: 'a' })).toMatchObject({ ok: false, status: 404 });
+		expect(await decideClaim(t.db, 424242, true, { by: 'a' })).toMatchObject({
+			ok: false,
+			status: 404
+		});
 	});
 });

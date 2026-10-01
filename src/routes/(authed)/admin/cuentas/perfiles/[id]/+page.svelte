@@ -138,7 +138,11 @@
 
 {#if data.claims.length || form?.claim}
 	<div class="layout">
-		<ClaimsCard claims={data.claims} result={form?.claim} title="Pedidos «Es mi perfil» de este perfil" />
+		<ClaimsCard
+			claims={data.claims}
+			result={form?.claim}
+			title="Pedidos «Es mi perfil» de este perfil"
+		/>
 	</div>
 {/if}
 
@@ -151,7 +155,8 @@
 				</form>
 			{:else}
 				<form method="POST" action="?/desaprobar" use:enhance={submit('desaprobar')}>
-					<button class="kv-btn ghost" type="submit" disabled={busy !== ''}>Sacar de Amigues</button>
+					<button class="kv-btn ghost" type="submit" disabled={busy !== ''}>Sacar de Amigues</button
+					>
 				</form>
 			{/if}
 			{#if !data.review}
@@ -168,8 +173,8 @@
 			{/if}
 		</div>
 		<p class="kv-note">
-			Aprobar lo muestra en /amigues (si su visibilidad lo deja) y lo saca de "Para revisar". Ocultar
-			o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
+			Aprobar lo muestra en /amigues (si su visibilidad lo deja) y lo saca de "Para revisar".
+			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
 			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
 		</p>
 		<details class="danger">

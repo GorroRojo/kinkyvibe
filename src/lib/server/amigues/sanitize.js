@@ -157,7 +157,11 @@ function cleanElement(node) {
 		? input.className.filter((/** @type {unknown} */ c) => typeof c === 'string' && CLASS.test(c))
 		: [];
 	if (classes.length) props.className = classes.slice(0, 5);
-	if (node.tagName === 'a' && typeof props.href === 'string' && /^(https?:)?\/\//i.test(props.href)) {
+	if (
+		node.tagName === 'a' &&
+		typeof props.href === 'string' &&
+		/^(https?:)?\/\//i.test(props.href)
+	) {
 		props.target = '_blank';
 		props.rel = ['noopener', 'noreferrer', 'nofollow'];
 	}

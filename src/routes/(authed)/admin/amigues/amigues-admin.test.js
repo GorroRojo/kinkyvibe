@@ -106,8 +106,12 @@ async function thrown(fn) {
 
 /** @param {string} action */
 const audit = async (action) =>
-	(await t.db.prepare('SELECT summary, target_id FROM admin_audit WHERE action = ?1').bind(action).all())
-		.results;
+	(
+		await t.db
+			.prepare('SELECT summary, target_id FROM admin_audit WHERE action = ?1')
+			.bind(action)
+			.all()
+	).results;
 
 /** El formulario del editor a partir de lo que devuelve el load. @param {any} data */
 function formOf(data, changes = {}) {
@@ -132,21 +136,31 @@ describe('solo admins', () => {
 		const m = await modules();
 		const calls = [
 			() => m.edit.load(fakeEvent({ params: { slug: 'x' }, user: null, token: null })),
-			() => m.edit.actions.guardarPerfil(fakeEvent({ params: { slug: 'x' }, form: {}, user: null, token: null })),
+			() =>
+				m.edit.actions.guardarPerfil(
+					fakeEvent({ params: { slug: 'x' }, form: {}, user: null, token: null })
+				),
 			() => m.importar.load(fakeEvent({ user: null, token: null })),
 			() => m.importar.actions.importar(fakeEvent({ form: {}, user: null, token: null })),
 			() => m.csv.GET(fakeEvent({ user: null, token: null })),
 			() => m.lugares.load(fakeEvent({ user: null, token: null })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: null, token: null })),
-			() => m.profile.actions.aprobar(fakeEvent({ params: { id: '1' }, form: {}, user: null, token: null })),
-			() => m.profile.actions.pedido(fakeEvent({ params: { id: '1' }, form: {}, user: null, token: null }))
+			() =>
+				m.profile.actions.aprobar(
+					fakeEvent({ params: { id: '1' }, form: {}, user: null, token: null })
+				),
+			() =>
+				m.profile.actions.pedido(
+					fakeEvent({ params: { id: '1' }, form: {}, user: null, token: null })
+				)
 		];
 		for (const call of calls) expect((await thrown(call))?.status).toBe(303);
 		const intruder = { id: 1, login: 'no-es-admin' };
 		for (const call of [
 			() => m.importar.actions.importar(fakeEvent({ form: {}, user: intruder })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: intruder })),
-			() => m.edit.actions.guardarPerfil(fakeEvent({ params: { slug: 'x' }, form: {}, user: intruder }))
+			() =>
+				m.edit.actions.guardarPerfil(fakeEvent({ params: { slug: 'x' }, form: {}, user: intruder }))
 		]) {
 			expect((await thrown(call))?.status).toBe(403);
 		}
@@ -171,7 +185,9 @@ describe('importar y clasificar desde el panel', () => {
 		// Confirmar como lugar (cambia el tipo con saveObject) y queda confirmado.
 		const c = /** @type {any} */ (
 			await m.importar.actions.confirmar(
-				fakeEvent({ form: { profile: String(kv.profileId), kind: 'lugar', version: String(kv.version) } })
+				fakeEvent({
+					form: { profile: String(kv.profileId), kind: 'lugar', version: String(kv.version) }
+				})
 			)
 		);
 		expect(c.confirm.ok).toBe(true);
@@ -208,7 +224,10 @@ describe('editor de la base', () => {
 
 		const first = /** @type {any} */ (
 			await m.edit.actions.guardarPerfil(
-				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(opened, { bio: 'Editado por une admin' }) })
+				fakeEvent({
+					params: { slug: 'Yuyo' },
+					form: formOf(opened, { bio: 'Editado por une admin' })
+				})
 			)
 		);
 		expect(first.perfil.ok).toBe(true);
@@ -217,12 +236,17 @@ describe('editor de la base', () => {
 		// Otra pestaña con la versión vieja.
 		const stale = /** @type {any} */ (
 			await m.edit.actions.guardarPerfil(
-				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(opened, { bio: 'Lo de la otra pestaña' }) })
+				fakeEvent({
+					params: { slug: 'Yuyo' },
+					form: formOf(opened, { bio: 'Lo de la otra pestaña' })
+				})
 			)
 		);
 		expect(stale.status).toBe(409);
 		expect(stale.data.perfil.conflict.changes).toEqual(
-			expect.arrayContaining([{ field: 'bio', label: 'Presentación', theirs: 'Editado por une admin' }])
+			expect.arrayContaining([
+				{ field: 'bio', label: 'Presentación', theirs: 'Editado por une admin' }
+			])
 		);
 		// Lo escrito vuelve intacto al formulario.
 		expect(stale.data.perfil.values.text.bio).toBe('Lo de la otra pestaña');
@@ -230,7 +254,9 @@ describe('editor de la base', () => {
 		expect(now.values.text.bio).toBe('Editado por une admin');
 		expect((await audit('profile.update')).length).toBe(1);
 
-		const confirm = /** @type {any} */ (await m.edit.actions.confirmarTipo(fakeEvent({ params: { slug: 'Yuyo' }, form: {} })));
+		const confirm = /** @type {any} */ (
+			await m.edit.actions.confirmarTipo(fakeEvent({ params: { slug: 'Yuyo' }, form: {} }))
+		);
 		expect(confirm.perfil.ok).toBe(true);
 	});
 
@@ -238,11 +264,23 @@ describe('editor de la base', () => {
 		const m = await modules('0');
 		const r = await thrown(() =>
 			m.lugares.actions.crearPerfil(
-				fakeEvent({ form: { title: 'Galpón Nuevo Inventado', kind: 'lugar', visibility: 'public', version: '0' } })
+				fakeEvent({
+					form: {
+						title: 'Galpón Nuevo Inventado',
+						kind: 'lugar',
+						visibility: 'public',
+						version: '0'
+					}
+				})
 			)
 		);
-		expect(r).toMatchObject({ status: 303, location: '/admin/amigues/galpon-nuevo-inventado?guardado=creado' });
-		const row = await t.db.prepare("SELECT id FROM objects WHERE slug = 'galpon-nuevo-inventado'").first();
+		expect(r).toMatchObject({
+			status: 303,
+			location: '/admin/amigues/galpon-nuevo-inventado?guardado=creado'
+		});
+		const row = await t.db
+			.prepare("SELECT id FROM objects WHERE slug = 'galpon-nuevo-inventado'")
+			.first();
 		expect(await isApproved(t.db, Number(row?.id))).toBe(true);
 	});
 });
@@ -252,17 +290,23 @@ describe('Eventos → Lugares', () => {
 		const m = await modules('0');
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const bad = /** @type {any} */ (
-			await m.lugares.actions.vincular(fakeEvent({ form: { evento: 'no-existe', lugar: String(v.id) } }))
+			await m.lugares.actions.vincular(
+				fakeEvent({ form: { evento: 'no-existe', lugar: String(v.id) } })
+			)
 		);
 		expect(bad.status).toBe(400);
 		const ok = /** @type {any} */ (
 			await m.lugares.actions.vincular(
-				fakeEvent({ form: { evento: 'fiesta-inventada', lugar: String(v.id), privacidad: 'hidden' } })
+				fakeEvent({
+					form: { evento: 'fiesta-inventada', lugar: String(v.id), privacidad: 'hidden' }
+				})
 			)
 		);
 		expect(ok.link.ok).toBe(true);
 		const data = /** @type {any} */ (await m.lugares.load(fakeEvent()));
-		expect(data.links).toEqual([expect.objectContaining({ eventSlug: 'fiesta-inventada', privacy: 'hidden' })]);
+		expect(data.links).toEqual([
+			expect.objectContaining({ eventSlug: 'fiesta-inventada', privacy: 'hidden' })
+		]);
 		expect(data.events[0]).toMatchObject({ slug: 'fiesta-inventada', mdAddress: true });
 		expect(data.venues[0]).toMatchObject({ title: 'Lugar Inventado', events: 1 });
 		expect((await audit('event.venue_set')).length).toBe(1);
@@ -270,7 +314,7 @@ describe('Eventos → Lugares', () => {
 			await m.lugares.actions.desvincular(fakeEvent({ form: { evento: 'fiesta-inventada' } }))
 		);
 		expect(removed.link.ok).toBe(true);
-		expect((/** @type {any} */ (await m.lugares.load(fakeEvent()))).links).toEqual([]);
+		expect(/** @type {any} */ (await m.lugares.load(fakeEvent())).links).toEqual([]);
 	});
 });
 
@@ -291,11 +335,16 @@ describe('aprobar y pedidos "Es mi perfil" (Cuentas → Perfiles)', () => {
 		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
 		const a = await makeAccount(t.db, 'reclama');
 		await createClaim(t.db, { accountId: a.id, profileId: p.id, connection: 'c' });
-		const detail = /** @type {any} */ (await m.profile.load(fakeEvent({ params: { id: String(p.id) } })));
+		const detail = /** @type {any} */ (
+			await m.profile.load(fakeEvent({ params: { id: String(p.id) } }))
+		);
 		expect(detail.claims).toHaveLength(1);
 		const r = /** @type {any} */ (
 			await m.profile.actions.pedido(
-				fakeEvent({ params: { id: String(p.id) }, form: { claim: String(detail.claims[0].id), decision: 'aprobar' } })
+				fakeEvent({
+					params: { id: String(p.id) },
+					form: { claim: String(detail.claims[0].id), decision: 'aprobar' }
+				})
 			)
 		);
 		expect(r.claim.ok).toBe(true);

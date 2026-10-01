@@ -39,7 +39,8 @@
 		</select>
 	</label>
 	<button class="kv-btn" type="submit">Buscar</button>
-	{#if resetHref && (q || filter || kind)}<a class="kv-btn ghost" href={resetHref}>Ver todos</a>{/if}
+	{#if resetHref && (q || filter || kind)}<a class="kv-btn ghost" href={resetHref}>Ver todos</a
+		>{/if}
 </form>
 
 <style>

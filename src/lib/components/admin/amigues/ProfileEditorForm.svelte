@@ -65,7 +65,13 @@
 	<div class="kv-grid-2">
 		<label class="kv-field">
 			<span>Nombre</span>
-			<input name="title" required maxlength="200" bind:value={values.title} aria-invalid={Boolean(err('title'))} />
+			<input
+				name="title"
+				required
+				maxlength="200"
+				bind:value={values.title}
+				aria-invalid={Boolean(err('title'))}
+			/>
 			{#if err('title')}<small class="kv-error">{err('title')}</small>{/if}
 		</label>
 		<label class="kv-field">
@@ -98,12 +104,21 @@
 	<div class="kv-grid-2">
 		<label class="kv-field">
 			<span>Pronombres</span>
-			<input name="pronouns" maxlength="40" bind:value={values.text.pronouns} placeholder="elle/ella" />
+			<input
+				name="pronouns"
+				maxlength="40"
+				bind:value={values.text.pronouns}
+				placeholder="elle/ella"
+			/>
 			{#if err('pronouns')}<small class="kv-error">{err('pronouns')}</small>{/if}
 		</label>
 		<label class="kv-field">
 			<span>Link de pronombres</span>
-			<input name="pronouns_url" bind:value={values.text.pronouns_url} placeholder="https://pronombr.es/elle" />
+			<input
+				name="pronouns_url"
+				bind:value={values.text.pronouns_url}
+				placeholder="https://pronombr.es/elle"
+			/>
 			{#if err('pronouns_url')}<small class="kv-error">{err('pronouns_url')}</small>{/if}
 		</label>
 	</div>
@@ -116,7 +131,12 @@
 		</label>
 		<label class="kv-field">
 			<span>Texto del botón</span>
-			<input name="link_text" maxlength="80" bind:value={values.text.link_text} placeholder="Ir a su página" />
+			<input
+				name="link_text"
+				maxlength="80"
+				bind:value={values.text.link_text}
+				placeholder="Ir a su página"
+			/>
 		</label>
 	</div>
 
@@ -174,7 +194,9 @@
 							<option {value}>{label}</option>
 						{/each}
 					</select>
-					<small>Cada evento la puede cambiar. Quien compra entrada recibe siempre la dirección.</small>
+					<small
+						>Cada evento la puede cambiar. Quien compra entrada recibe siempre la dirección.</small
+					>
 				</label>
 				<label class="kv-field">
 					<span>Latitud</span>
@@ -193,7 +215,8 @@
 			</p>
 			<label class="kv-field">
 				<span>Cómo llegar</span>
-				<textarea name="how_to_get_there" rows="3" bind:value={values.text.how_to_get_there}></textarea>
+				<textarea name="how_to_get_there" rows="3" bind:value={values.text.how_to_get_there}
+				></textarea>
 			</label>
 			<label class="kv-field">
 				<span>Accesibilidad</span>
@@ -208,13 +231,24 @@
 			Los cargó cada amigue en su ficha pública. La página no los muestra (como antes).
 		</p>
 		<div class="kv-grid-2">
-			<label class="kv-field"><span>Mail</span><input name="email" bind:value={values.text.email} /></label>
-			<label class="kv-field"><span>Teléfono</span><input name="tel" bind:value={values.text.tel} /></label>
-			<label class="kv-field"><span>Cumpleaños</span><input name="bday" bind:value={values.text.bday} /></label>
 			<label class="kv-field"
-				><span>Identidad de género</span><input name="gender_identity" bind:value={values.text.gender_identity} /></label
+				><span>Mail</span><input name="email" bind:value={values.text.email} /></label
 			>
-			<label class="kv-field"><span>Ocupación</span><input name="job_title" bind:value={values.text.job_title} /></label>
+			<label class="kv-field"
+				><span>Teléfono</span><input name="tel" bind:value={values.text.tel} /></label
+			>
+			<label class="kv-field"
+				><span>Cumpleaños</span><input name="bday" bind:value={values.text.bday} /></label
+			>
+			<label class="kv-field"
+				><span>Identidad de género</span><input
+					name="gender_identity"
+					bind:value={values.text.gender_identity}
+				/></label
+			>
+			<label class="kv-field"
+				><span>Ocupación</span><input name="job_title" bind:value={values.text.job_title} /></label
+			>
 		</div>
 	</details>
 
@@ -226,7 +260,8 @@
 	{#if err('form')}<p class="kv-flash bad">{err('form')}</p>{/if}
 
 	<div class="kv-row">
-		<button class="kv-btn" type="submit" disabled={busy}>{busy ? 'Guardando…' : submitLabel}</button>
+		<button class="kv-btn" type="submit" disabled={busy}>{busy ? 'Guardando…' : submitLabel}</button
+		>
 		<slot name="actions" />
 	</div>
 </form>

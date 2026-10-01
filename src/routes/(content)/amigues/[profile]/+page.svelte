@@ -36,8 +36,7 @@
 		image: [(ld ? ld.image : meta.featured) + ''],
 		datePublished: toISO((ld ? ld.publishedDate : meta.published_date) ?? ''),
 		dateModified: toISO(
-			(ld ? (ld.updatedDate ?? ld.publishedDate) : (meta.updated_date ?? meta.published_date)) ??
-				''
+			(ld ? (ld.updatedDate ?? ld.publishedDate) : (meta.updated_date ?? meta.published_date)) ?? ''
 		),
 		author: (ld ? ld.authors : meta.authors)?.map((/** @type {string} */ a) => ({
 			'@type': 'Person',
@@ -107,11 +106,7 @@
 		</div>
 	</article>
 
-	<RelatedPosts
-		{meta}
-		relatedPosts={data.relatedPosts}
-		relatedPastCount={data.relatedPastCount}
-	/>
+	<RelatedPosts {meta} relatedPosts={data.relatedPosts} relatedPastCount={data.relatedPastCount} />
 {/if}
 
 <style lang="scss">

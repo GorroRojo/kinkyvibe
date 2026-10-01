@@ -27,8 +27,8 @@
 	{#if data.notImported}
 		<p class="kv-flash warn">
 			Hay {data.notImported}
-			{data.notImported === 1 ? 'ficha .md que no está' : 'fichas .md que no están'} en la base: se
-			siguen mostrando desde el archivo. <a href="/admin/amigues/importar">Importar</a>
+			{data.notImported === 1 ? 'ficha .md que no está' : 'fichas .md que no están'} en la base: se siguen
+			mostrando desde el archivo. <a href="/admin/amigues/importar">Importar</a>
 		</p>
 	{/if}
 	<Card>

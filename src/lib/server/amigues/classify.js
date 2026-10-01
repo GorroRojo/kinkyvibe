@@ -22,8 +22,7 @@
 const PLURAL_VERBS =
 	/\b(somos|brindamos|damos|ofrecemos|hacemos|trabajamos|contamos|fabricamos|publicamos|dise[ñn]amos|producimos|nuestr[ao]s?)\b/i;
 /** Primera persona del singular: "soy", "me llamo"… */
-const SINGULAR =
-	/\b(soy|me llamo|mi nombre|me dicen|me auto|practico|me dedico|trabajo desde)\b/i;
+const SINGULAR = /\b(soy|me llamo|mi nombre|me dicen|me auto|practico|me dedico|trabajo desde)\b/i;
 /** Palabras de organización en el nombre o el resumen. */
 const ORG_WORDS =
 	/\b(producciones|productora|cooperativa|colectiv[oa]s?|red de|comunidad|fiesta|concurso|emprendimiento|proyecto|grupo|tienda)\b/i;
@@ -31,9 +30,19 @@ const ORG_WORDS =
 const VENUE_WORDS =
 	/\b(bar|centro cultural|espacio cultural|casa cultural|sala|club|boliche|galp[oó]n|dungeon|mazmorra|venue)\b/i;
 /** Etiquetas de lugar. */
-const VENUE_TAGS = ['lugar', 'lugares', 'espacio', 'bar', 'centro cultural', 'sala', 'club', 'venue'];
+const VENUE_TAGS = [
+	'lugar',
+	'lugares',
+	'espacio',
+	'bar',
+	'centro cultural',
+	'sala',
+	'club',
+	'venue'
+];
 /** Algo que parece una dirección: una calle con número. */
-const ADDRESS = /\b(calle|av\.?|avenida|pasaje|ruta)\s+[\p{L} .]+\s\d{1,5}\b|\b[\p{Lu}][\p{L}]+\s\d{2,5}\b,/u;
+const ADDRESS =
+	/\b(calle|av\.?|avenida|pasaje|ruta)\s+[\p{L} .]+\s\d{1,5}\b|\b[\p{Lu}][\p{L}]+\s\d{2,5}\b,/u;
 /** Pronombres en plural (el primer juego del link de pronombr.es, o el texto). */
 const PLURAL_PRONOUNS = new Set(['elles', 'ellos', 'ellas', 'ellxs', 'elloas', 'ellos/ellas']);
 

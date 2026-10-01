@@ -8,12 +8,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON } from '$lib/server/objects/index.js';
 import { memberViewer } from '$lib/server/cuentas/perfiles.js';
 import { saveObject } from '../objects/save.js';
-import {
-	findPublicProfile,
-	groupMembers,
-	listPublicProfiles,
-	publicProfile
-} from './profiles.js';
+import { findPublicProfile, groupMembers, listPublicProfiles, publicProfile } from './profiles.js';
 import { approveProfile, unapproveProfile } from './approvals.js';
 import { addManager, makeAccount, makeProfile } from './testing.js';
 
@@ -67,7 +62,9 @@ describe('visibilidad y aprobación', () => {
 		await addManager(t.db, p.id, owner.id);
 		expect(await listed(ANON)).toEqual([]);
 		expect(await findPublicProfile(t.db, p.slug, ANON)).toBeNull();
-		expect(await findPublicProfile(t.db, p.slug, memberViewer(other.id), { accountId: other.id })).toBeNull();
+		expect(
+			await findPublicProfile(t.db, p.slug, memberViewer(other.id), { accountId: other.id })
+		).toBeNull();
 		// Quien lo gestiona y les admins lo ven (con el aviso de que falta aprobarlo).
 		const mine = await findPublicProfile(t.db, p.slug, memberViewer(owner.id), {
 			accountId: owner.id
@@ -142,10 +139,18 @@ describe('lo que llega a la página (lista blanca)', () => {
 describe('integrantes de un grupo', () => {
 	/** @param {number} personaId @param {number} groupId */
 	async function join(personaId, groupId) {
-		const row = await t.db.prepare('SELECT version FROM objects WHERE id = ?1').bind(personaId).first();
+		const row = await t.db
+			.prepare('SELECT version FROM objects WHERE id = ?1')
+			.bind(personaId)
+			.first();
 		await saveObject(
 			t.db,
-			{ id: personaId, type: 'perfil', version: Number(row?.version), edges: { es_integrante_de: [groupId] } },
+			{
+				id: personaId,
+				type: 'perfil',
+				version: Number(row?.version),
+				edges: { es_integrante_de: [groupId] }
+			},
 			{ actor: 'admin-de-prueba' }
 		);
 	}
@@ -164,24 +169,34 @@ describe('integrantes de un grupo', () => {
 		const manager = await makeAccount(t.db, 'gestiona');
 		await addManager(t.db, group.id, manager.id);
 		const fresh = /** @type {any} */ (await findPublicProfile(t.db, group.slug, ANON)).object;
-		expect(await groupMembers(t.db, fresh, ANON)).toEqual([{ slug: a.slug, title: 'Ana Inventada' }]);
+		expect(await groupMembers(t.db, fresh, ANON)).toEqual([
+			{ slug: a.slug, title: 'Ana Inventada' }
+		]);
 		const member = memberViewer((await makeAccount(t.db, 'mira')).id);
 		expect((await groupMembers(t.db, fresh, member))?.map((m) => m.title)).toEqual([
 			'Ana Inventada',
 			'Dani Con Cuenta'
 		]);
 		// Ni les admins ven acá a les ocultes; y quien gestiona no es integrante.
-		expect((await groupMembers(t.db, fresh, ADMIN))?.map((m) => m.title)).not.toContain('Bea Oculta');
+		expect((await groupMembers(t.db, fresh, ADMIN))?.map((m) => m.title)).not.toContain(
+			'Bea Oculta'
+		);
 		const json = JSON.stringify(await groupMembers(t.db, fresh, ADMIN));
 		expect(json).not.toMatch(/gestiona@example\.com|cuenta:/);
 
 		// Sin show_members, null (no se muestra la sección).
 		await saveObject(
 			t.db,
-			{ id: group.id, type: 'perfil', version: fresh.version, data: { kind: 'grupo', show_members: false } },
+			{
+				id: group.id,
+				type: 'perfil',
+				version: fresh.version,
+				data: { kind: 'grupo', show_members: false }
+			},
 			{ actor: 'admin-de-prueba' }
 		);
-		const hiddenMembers = /** @type {any} */ (await findPublicProfile(t.db, group.slug, ANON)).object;
+		const hiddenMembers = /** @type {any} */ (await findPublicProfile(t.db, group.slug, ANON))
+			.object;
 		expect(await groupMembers(t.db, hiddenMembers, ANON)).toBeNull();
 	});
 });

@@ -16,14 +16,18 @@ describe('markdown y la lista corta de HTML', () => {
 		);
 		expect(html).toContain('<strong>mundo</strong>');
 		expect(html).toContain('<small>(chiquito)</small>');
-		expect(html).toMatch(/<a (class="mention" href="\/amigues\/Alguien"|href="\/amigues\/Alguien" class="mention")>@Alguien<\/a>/);
+		expect(html).toMatch(
+			/<a (class="mention" href="\/amigues\/Alguien"|href="\/amigues\/Alguien" class="mention")>@Alguien<\/a>/
+		);
 		expect(html).toContain('href="/wiki/bondage"');
 		expect(html).toContain('<li>uno</li>');
 	});
 
 	it('los links de afuera abren aparte, sin referrer', async () => {
 		const html = await render('[sitio](https://example.com/x)');
-		expect(html).toMatch(/<a href="https:\/\/example\.com\/x" target="_blank" rel="noopener noreferrer nofollow">/);
+		expect(html).toMatch(
+			/<a href="https:\/\/example\.com\/x" target="_blank" rel="noopener noreferrer nofollow">/
+		);
 	});
 
 	it('las imágenes que importaba mdsvex se resuelven a la carpeta de medios', async () => {
@@ -67,7 +71,9 @@ describe('nada activo pasa', () => {
 	for (const a of attacks) {
 		it(a, async () => {
 			const html = await render(a);
-			expect(html).not.toMatch(/<script|<iframe|<svg|<form|<object|<embed|<style|<meta|<math|<template/i);
+			expect(html).not.toMatch(
+				/<script|<iframe|<svg|<form|<object|<embed|<style|<meta|<math|<template/i
+			);
 			expect(html).not.toMatch(/\son\w+=/i);
 			expect(html).not.toMatch(/javascript:|vbscript:|data:image/i);
 			expect(html).not.toMatch(/style=/i);

@@ -167,7 +167,8 @@ export async function confirmKindAction({ locals, url, platform, params }) {
 	const db = getDB(platform);
 	if (!db) return fail(503, { perfil: { ok: false, message: 'Sin base de datos.' } });
 	const found = await loadEditableProfile(db, params.slug ?? '');
-	if (!found?.source) return fail(404, { perfil: { ok: false, message: 'No es una ficha importada.' } });
+	if (!found?.source)
+		return fail(404, { perfil: { ok: false, message: 'No es una ficha importada.' } });
 	await confirmKind(db, found.object.id, admin.login);
 	await logAdminAction(db, locals, {
 		action: 'profile.kind_confirm',

@@ -30,7 +30,10 @@
 <PageHeader
 	title={p.title}
 	subtitle="/amigues/{p.urlSlug}"
-	back={{ href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/amigues', label: p.kind === 'lugar' ? 'Lugares' : 'Amigues' }}
+	back={{
+		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/amigues',
+		label: p.kind === 'lugar' ? 'Lugares' : 'Amigues'
+	}}
 >
 	<svelte:fragment slot="meta">
 		<Badge>{data.kinds[p.kind] ?? p.kind}</Badge>
@@ -39,7 +42,8 @@
 		{#if !data.approval}<Badge tone="warn">no aparece en Amigues</Badge>{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="actions">
-		<a class="kv-btn ghost" href="/amigues/{p.urlSlug}" target="_blank" rel="noopener">Ver página</a>
+		<a class="kv-btn ghost" href="/amigues/{p.urlSlug}" target="_blank" rel="noopener">Ver página</a
+		>
 		<a class="kv-btn ghost" href={profileHref(p.id)}>Ficha y pedidos</a>
 	</svelte:fragment>
 </PageHeader>
@@ -57,8 +61,9 @@
 			<p class="kv-note">
 				Vino de <code>src/lib/posts/amigues/{data.source.legacySlug}.md</code> el {fmtDateTime(
 					data.source.importedAt
-				)}. La clasificación automática propuso <strong>{data.kinds[data.source.suggestedKind]}</strong
-				>: {data.source.reason || 'sin señales claras'}.
+				)}. La clasificación automática propuso
+				<strong>{data.kinds[data.source.suggestedKind]}</strong>: {data.source.reason ||
+					'sin señales claras'}.
 			</p>
 			{#if data.source.confirmedAt}
 				<p class="kv-note">
@@ -66,7 +71,9 @@
 				</p>
 			{:else}
 				<form method="POST" action="?/confirmarTipo" use:enhance class="kv-row">
-					<span class="kv-note">¿Es {data.kinds[p.kind]}? Si no, cambiá el tipo abajo y guardá.</span>
+					<span class="kv-note"
+						>¿Es {data.kinds[p.kind]}? Si no, cambiá el tipo abajo y guardá.</span
+					>
 					<button class="kv-btn small" type="submit">Sí, confirmar</button>
 				</form>
 			{/if}

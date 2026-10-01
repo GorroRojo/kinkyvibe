@@ -111,8 +111,8 @@ describe('mapa de OpenStreetMap', () => {
 			expect(t.top + 256).toBeGreaterThan(0);
 		}
 		// El centro del recuadro cae dentro de alguna baldosa.
-		expect(tiles.some((t) => t.left <= 160 && t.left + 256 > 160 && t.top <= 100 && t.top + 256 > 100)).toBe(
-			true
-		);
+		expect(
+			tiles.some((t) => t.left <= 160 && t.left + 256 > 160 && t.top <= 100 && t.top + 256 > 100)
+		).toBe(true);
 	});
 });

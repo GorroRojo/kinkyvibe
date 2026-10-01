@@ -97,7 +97,8 @@ export async function amiguesListPosts(db, locals, { kind } = {}) {
 	);
 	if (!kind) {
 		for (const post of md) {
-			if (post.meta.layout === 'amigues' && !imported.has(String(post.meta.postID))) posts.push(post);
+			if (post.meta.layout === 'amigues' && !imported.has(String(post.meta.postID)))
+				posts.push(post);
 		}
 	}
 	return posts;

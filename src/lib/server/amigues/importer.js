@@ -22,6 +22,7 @@
 import YAML from 'yaml';
 import { ObjectError } from '../objects/errors.js';
 import { saveObject, slugify } from '../objects/save.js';
+import { approveNewStatement } from './approvals.js';
 import { classifyAmigue } from './classify.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -107,12 +108,7 @@ export function parseFrontmatter(frontmatter) {
 const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 
 /** @param {unknown} v @returns {string[]} */
-const strList = (v) =>
-	Array.isArray(v)
-		? v.map(str).filter(Boolean)
-		: str(v)
-			? [str(v)]
-			: [];
+const strList = (v) => (Array.isArray(v) ? v.map(str).filter(Boolean) : str(v) ? [str(v)] : []);
 
 /** @param {unknown} v */
 const truthy = (v) => ['true', 'yes', '1', 'sí', 'si'].includes(str(v).toLowerCase());
@@ -434,12 +430,7 @@ async function createImported(db, mapped, { actor, now, hash }) {
 								SELECT id, ?3, ?4, 1, ?5, ?6, ?7, ?7 FROM objects WHERE type = ?1 AND slug = ?2`
 							)
 							.bind(self.type, self.slug, mapped.legacySlug, hash, mapped.suggested, reason, now),
-						db
-							.prepare(
-								`INSERT INTO profile_approvals (profile_id, approved_at, approved_by)
-								SELECT id, ?3, ?4 FROM objects WHERE type = ?1 AND slug = ?2`
-							)
-							.bind(self.type, self.slug, now, IMPORT_APPROVER)
+						approveNewStatement(db, self, IMPORT_APPROVER, now)
 					]
 				}
 			);

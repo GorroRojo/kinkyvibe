@@ -257,6 +257,9 @@ export async function setEventVenue(db, { eventSlug, venueId, privacy, by, now =
  */
 export async function removeEventVenue(db, eventSlug) {
 	if (!isEventSlug(eventSlug)) return false;
-	const r = await db.prepare('DELETE FROM event_venues WHERE event_slug = ?1').bind(eventSlug).run();
+	const r = await db
+		.prepare('DELETE FROM event_venues WHERE event_slug = ?1')
+		.bind(eventSlug)
+		.run();
 	return r.meta.changes > 0;
 }

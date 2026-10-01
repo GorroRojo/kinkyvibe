@@ -76,7 +76,11 @@ describe('clasificación', () => {
 	it('propone persona, grupo o lugar con razones legibles', () => {
 		expect(
 			classifyAmigue(
-				{ summary: 'Somos una cooperativa', authors: ['A', 'B'], pronoun: 'https://pronombr.es/elles' },
+				{
+					summary: 'Somos una cooperativa',
+					authors: ['A', 'B'],
+					pronoun: 'https://pronombr.es/elles'
+				},
 				'X'
 			)
 		).toMatchObject({ kind: 'grupo' });
@@ -238,7 +242,9 @@ describe('volver a importar después de cambios', () => {
 
 	it('si el .md cambió y el perfil no se tocó, lo actualiza', async () => {
 		await importAmigues(t.db, files, { actor: ACTOR });
-		const changed = withChange('Yuyo', (raw) => raw.replace('Soy tatuador', 'Soy tatuador inventado'));
+		const changed = withChange('Yuyo', (raw) =>
+			raw.replace('Soy tatuador', 'Soy tatuador inventado')
+		);
 		const r = await importAmigues(t.db, changed, { actor: ACTOR });
 		expect(summarizeImport(r)).toMatchObject({ updated: 1, unchanged: 30 });
 		const ref = await resolveProfileSlug(t.db, 'Yuyo');
@@ -256,7 +262,12 @@ describe('volver a importar después de cambios', () => {
 		const row = await objectRow(/** @type {number} */ (ref?.id));
 		await saveObject(
 			t.db,
-			{ id: Number(row?.id), type: 'perfil', version: Number(row?.version), title: 'Nombre editado' },
+			{
+				id: Number(row?.id),
+				type: 'perfil',
+				version: Number(row?.version),
+				title: 'Nombre editado'
+			},
 			{ actor: 'otre-admin' }
 		);
 		const changed = withChange('Drux', (raw) => raw.replace('michi sadico', 'michi inventado'));

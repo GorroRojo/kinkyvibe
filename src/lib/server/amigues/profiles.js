@@ -71,7 +71,10 @@ export async function resolveProfileSlug(db, urlSlug) {
 		.bind(PROFILE_TYPE, urlSlug)
 		.first();
 	if (!row) return null;
-	return { id: Number(row.id), legacySlug: row.legacy_slug == null ? null : String(row.legacy_slug) };
+	return {
+		id: Number(row.id),
+		legacySlug: row.legacy_slug == null ? null : String(row.legacy_slug)
+	};
 }
 
 /**
