@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { validateFields } from '../fields.js';
 import { coreTypes, createRegistry, validateData } from './index.js';
+import {
+	LEGACY_PROJECT_KIND,
+	PROFILE_KINDS,
+	normalizeProfileKind,
+	profileKindOf
+} from './perfil.js';
 
 const evento = /** @type {import('./index.js').CoreType} */ (coreTypes.get('evento'));
 const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar'));
@@ -90,8 +96,8 @@ describe('perfil', () => {
 		expect(validateData(perfil, {})).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
 		expect(
 			validateData(perfil, {
-				kind: 'grupo',
-				bio: 'Somos un grupo inventado',
+				kind: 'proyecto',
+				bio: 'Somos un proyecto inventado',
 				pronouns: ' elles ',
 				links: ['https://ejemplo.test/a', '', 'https://ejemplo.test/a', 'http://ejemplo.test/b'],
 				show_members: false
@@ -99,8 +105,8 @@ describe('perfil', () => {
 		).toEqual({
 			ok: true,
 			data: {
-				kind: 'grupo',
-				bio: 'Somos un grupo inventado',
+				kind: 'proyecto',
+				bio: 'Somos un proyecto inventado',
 				pronouns: 'elles',
 				links: ['https://ejemplo.test/a', 'http://ejemplo.test/b'],
 				show_members: false
@@ -133,12 +139,47 @@ describe('perfil', () => {
 		expect(paths({ kind: 'persona', bio: 'x'.repeat(1001) })).toEqual(['bio']);
 	});
 
-	it('"mostrar integrantes" es solo para grupos', () => {
+	it('"mostrar integrantes" es solo para proyectos', () => {
 		expect(validateData(perfil, { kind: 'persona', show_members: false })).toMatchObject({
 			ok: false,
 			errors: [{ path: 'show_members' }]
 		});
-		expect(validateData(perfil, { kind: 'grupo', show_members: true })).toMatchObject({ ok: true });
+		expect(validateData(perfil, { kind: 'proyecto', show_members: true })).toMatchObject({
+			ok: true
+		});
+	});
+
+	it('el valor viejo «grupo» se lee como «proyecto» (y nada más se normaliza)', () => {
+		expect(PROFILE_KINDS).toEqual(['persona', 'proyecto']);
+		expect(LEGACY_PROJECT_KIND).toBe('grupo');
+		expect(normalizeProfileKind('grupo')).toBe('proyecto');
+		expect(normalizeProfileKind('proyecto')).toBe('proyecto');
+		expect(normalizeProfileKind('persona')).toBe('persona');
+		for (const v of ['Grupo', 'lugar', '', null, undefined, 1]) {
+			expect(normalizeProfileKind(v)).toBeNull();
+		}
+		expect(profileKindOf({ kind: 'grupo' })).toBe('proyecto');
+		expect(profileKindOf({ kind: 'proyecto' })).toBe('proyecto');
+		expect(profileKindOf({ kind: 'persona' })).toBe('persona');
+		// Lo que no se reconoce sigue contando como persona, como antes del cambio.
+		expect(profileKindOf({})).toBe('persona');
+		expect(profileKindOf(null)).toBe('persona');
+	});
+
+	it('una fila vieja con «grupo» valida y se guarda como «proyecto»; nunca queda «grupo»', () => {
+		expect(validateData(perfil, { kind: 'grupo', show_members: true })).toEqual({
+			ok: true,
+			data: { kind: 'proyecto', show_members: true }
+		});
+		// No muta lo que recibe.
+		const legacy = { kind: 'grupo' };
+		validateData(perfil, legacy);
+		expect(legacy).toEqual({ kind: 'grupo' });
+		// Otros valores siguen sin pasar.
+		expect(validateData(perfil, { kind: 'Grupo' })).toMatchObject({
+			ok: false,
+			errors: [{ path: 'kind' }]
+		});
 	});
 });
 

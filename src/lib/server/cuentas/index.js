@@ -169,8 +169,8 @@ async function checkCode({ db, email, code: rawCode, client, now, purpose }) {
  * contraseña ni borrar la cuenta sin acceso al mail).
  * - 'password': poner, cambiar o sacar la contraseña.
  * - 'delete': borrar la cuenta.
- * - 'grupo': hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe de un grupo, y
- *   borrar un grupo (Mi rincón → Perfiles; las reglas están en perfiles.js).
+ * - 'grupo': hacer dueñe a alguien, sacarle la propiedad o sacar a otre dueñe de un proyecto, y
+ *   borrar un proyecto (Mi rincón → Perfiles; las reglas están en perfiles.js).
  * @typedef {'password' | 'delete' | 'grupo'} ConfirmPurpose
  */
 
@@ -234,7 +234,7 @@ export function eventRequiresAccount(meta) {
 
 /**
  * Borra una cuenta desde "Mi rincón" (con el código ya verificado): primero suelta sus perfiles
- * (las personas se vacían y se borran, los grupos pasan a quien sigue gestionándolos o se borran
+ * (las personas se vacían y se borran, los proyectos pasan a quien sigue gestionándolos o se borran
  * si no queda nadie) y después borra la cuenta, en una tanda (docs/cuentas.md). Si algo falla a
  * la mitad, la cuenta sigue viva y se puede volver a correr. Va acá y no en accounts.js porque
  * perfiles.js ya importa accounts.js.

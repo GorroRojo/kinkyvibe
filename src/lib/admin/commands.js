@@ -71,7 +71,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	cuentas: 'cuentas usuaries publico registradas',
-	'cuentas-perfiles': 'perfiles cuentas revisar grupos',
+	'cuentas-perfiles': 'perfiles cuentas revisar proyectos',
 	actividad: 'actividad registro auditoria historial quien cambio'
 });
 

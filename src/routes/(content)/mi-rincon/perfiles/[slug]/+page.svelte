@@ -19,7 +19,7 @@
 	$: f = form;
 
 	$: p = data.profile;
-	$: group = p.kind === 'grupo';
+	$: group = p.kind === 'proyecto';
 	$: owner = data.role === 'owner';
 
 	/** Lo que se escribió y no se guardó por un error de datos (no por un conflicto). */
@@ -39,7 +39,7 @@
 
 	let confirmName = '';
 
-	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el grupo. */
+	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el proyecto. */
 	$: codeSent = f?.codeSentFor === 'grupo';
 	/** El código que se escribió (uno solo para toda la página: sirve para una acción). */
 	let groupCode = '';
@@ -181,7 +181,7 @@
 				recién cuando acepta; se puede ir cuando quiera. Si rechaza o se va, no la pueden volver a
 				invitar por 30 días.
 				{p.show_members
-					? 'Les integrantes se muestran en el perfil del grupo, a quien pueda ver cada perfil.'
+					? 'Les integrantes se muestran en el perfil del proyecto, a quien pueda ver cada perfil.'
 					: 'Por ahora no se muestran: lo elegís arriba.'}
 			</p>
 			{#if data.members.length}
@@ -195,7 +195,7 @@
 								</summary>
 								<form method="POST" action="?/sacarIntegrante" use:enhance>
 									<input type="hidden" name="persona" value={m.id} />
-									<button class="pill-btn ghost" type="submit">Sacar del grupo</button>
+									<button class="pill-btn ghost" type="submit">Sacar del proyecto</button>
 								</form>
 							</details>
 						</li>
@@ -206,7 +206,7 @@
 			{/if}
 			{#if data.pendingMembers.length}
 				<h3>Invitaciones pendientes</h3>
-				<p class="hint">Las ven solo quienes gestionan el grupo y la persona invitada.</p>
+				<p class="hint">Las ven solo quienes gestionan el proyecto y la persona invitada.</p>
 				<ul class="list">
 					{#each data.pendingMembers as m (m.id)}
 						<li>
@@ -238,7 +238,7 @@
 		<section class="surface-card" aria-labelledby="managers-title">
 			<h2 id="managers-title">Quiénes lo gestionan</h2>
 			<p class="hint">
-				Esto lo ven solo quienes gestionan el grupo: nunca se muestra en público.
+				Esto lo ven solo quienes gestionan el proyecto: nunca se muestra en público.
 				{owner
 					? 'Como dueñe, podés sumar gente, sacarla y pasar la propiedad.'
 					: 'Les dueñes pueden sumar gente, sacarla y pasar la propiedad.'}
@@ -343,7 +343,7 @@
 						<input name="email" type="email" required autocomplete="off" maxlength="254" />
 					</label>
 					<p class="hint">
-						Si ese mail tiene cuenta, le mandamos un aviso corto con el nombre del grupo (sin tu
+						Si ese mail tiene cuenta, le mandamos un aviso corto con el nombre del proyecto (sin tu
 						mail). La invitación la ve cuando entre a Mi rincón con ese mail.
 					</p>
 					<button class="pill-btn" type="submit">Invitar</button>
@@ -370,11 +370,11 @@
 		</section>
 	{:else}
 		<section class="surface-card" aria-labelledby="groups-title">
-			<h2 id="groups-title">Grupos</h2>
-			{#if msg('grupos')?.error}
-				<p class="error" role="alert">{msg('grupos')?.error}</p>
-			{:else if msg('grupos')?.message}
-				<p class="ok" role="status">{msg('grupos')?.message}</p>
+			<h2 id="groups-title">Proyectos</h2>
+			{#if msg('proyectos')?.error}
+				<p class="error" role="alert">{msg('proyectos')?.error}</p>
+			{:else if msg('proyectos')?.message}
+				<p class="ok" role="status">{msg('proyectos')?.message}</p>
 			{/if}
 			{#if data.memberships.length}
 				<ul class="list">
@@ -383,19 +383,19 @@
 							<span>Sos parte de <strong>{g.title}</strong></span>
 							<form method="POST" action="?/salirGrupo" use:enhance>
 								<input type="hidden" name="group" value={g.id} />
-								<button class="pill-btn ghost" type="submit">Salir del grupo</button>
+								<button class="pill-btn ghost" type="submit">Salir del proyecto</button>
 							</form>
 						</li>
 					{/each}
 				</ul>
 			{:else}
-				<p class="hint">Este perfil no es parte de ningún grupo.</p>
+				<p class="hint">Este perfil no es parte de ningún proyecto.</p>
 			{/if}
 			<p class="hint">
-				Un grupo te invita con la dirección de este perfil (<code>{p.slug}</code>): pasásela a
+				Un proyecto te invita con la dirección de este perfil (<code>{p.slug}</code>): pasásela a
 				quienes lo gestionan. Las invitaciones aparecen en Mi rincón → Perfiles y figurás recién
 				cuando aceptás. Salir es un clic y no le tenés que pedir nada a nadie; si rechazás o te vas,
-				ese grupo no te puede volver a invitar por 30 días.
+				ese proyecto no te puede volver a invitar por 30 días.
 			</p>
 		</section>
 	{/if}
@@ -407,9 +407,9 @@
 				<p class="error" role="alert">{msg('dejar')?.error}</p>
 			{/if}
 			<details open={f?.action === 'dejar'}>
-				<summary>Dejar de gestionar este grupo</summary>
+				<summary>Dejar de gestionar este proyecto</summary>
 				<p>
-					El grupo sigue igual; vos ya no lo vas a ver en Mi rincón. Para volver, alguien que es
+					El proyecto sigue igual; vos ya no lo vas a ver en Mi rincón. Para volver, alguien que es
 					dueñe te tiene que invitar de nuevo.
 					{#if owner}Si sos la única persona dueña, antes hacé dueñe a otra.{/if}
 				</p>
@@ -423,10 +423,10 @@
 				<p class="error" role="alert">{msg('borrar')?.error}</p>
 			{/if}
 			<details open={f?.action === 'borrar'}>
-				<summary>Borrar {group ? 'el grupo' : 'el perfil'}</summary>
+				<summary>Borrar {group ? 'el proyecto' : 'el perfil'}</summary>
 				<p>
 					{group
-						? 'Se borra el perfil del grupo para todes, también para quienes lo gestionan con vos.'
+						? 'Se borra el perfil del proyecto para todes, también para quienes lo gestionan con vos.'
 						: 'Se borra este perfil. Tus otros perfiles y tu cuenta siguen igual.'}
 					Deja de verse en todos lados. Si fue un error, escribinos: les admins lo pueden recuperar.
 				</p>
@@ -434,7 +434,7 @@
 					{#if msg('borrar')?.message}
 						<p class="ok" role="status">{msg('borrar')?.message}</p>
 					{/if}
-					<p class="hint">Para borrar el grupo te pedimos un código por mail.</p>
+					<p class="hint">Para borrar el proyecto te pedimos un código por mail.</p>
 					<form method="POST" action="?/confirmar" use:enhance>
 						<input type="hidden" name="donde" value="borrar" />
 						<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>

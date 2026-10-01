@@ -1,13 +1,16 @@
 /**
- * Tipo núcleo `perfil`: una persona o un grupo, con nombre (el `title` del objeto: no hay
+ * Tipo núcleo `perfil`: una persona o un proyecto, con nombre (el `title` del objeto: no hay
  * "nombre para mostrar" aparte, decisión E1) y pocos campos más.
  *
  * - Una cuenta puede tener varios perfiles (decisión A2). Quién gestiona cada uno NO está acá:
  *   las cuentas no son objetos, así que va en la tabla `profile_managers` (migración 0014). Ver
  *   src/lib/server/cuentas/perfiles.js y docs/cuentas.md («Perfiles»).
- * - Integrantes de un grupo: edges `es_integrante_de` desde el perfil de una persona hacia el del
- *   grupo. Que el origen sea persona y el destino grupo lo controla perfiles.js (el registro solo
- *   sabe de tipos, no de `kind`).
+ * - Proyecto: lo que no es una persona (marcas, productoras, emprendimientos, colectivos, fiestas),
+ *   con une o varies integrantes. Hasta la migración 0023 se llamaba `grupo`: ese valor viejo se
+ *   sigue aceptando y se lee como `proyecto` ({@link normalizeProfileKind}).
+ * - Integrantes de un proyecto: edges `es_integrante_de` desde el perfil de una persona hacia el
+ *   del proyecto. Que el origen sea persona y el destino proyecto lo controla perfiles.js (el
+ *   registro solo sabe de tipos, no de `kind`).
  * - `kind` no se cambia después de crear el perfil (lo controla perfiles.js).
  * - Más adelante, los lugares (decisión B3) pueden sumarse como otro `kind` con sus campos extra;
  *   nada de acá lo impide.
@@ -17,7 +20,7 @@
 
 /**
  * @typedef {{
- *   kind: 'persona' | 'grupo',
+ *   kind: ProfileKind,
  *   bio?: string,
  *   pronouns?: string,
  *   links?: string[],
@@ -26,7 +29,38 @@
  * }} PerfilData
  */
 
-export const PROFILE_KINDS = /** @type {const} */ (['persona', 'grupo']);
+export const PROFILE_KINDS = /** @type {const} */ (['persona', 'proyecto']);
+
+/** @typedef {(typeof PROFILE_KINDS)[number]} ProfileKind */
+
+/**
+ * El nombre viejo de `proyecto` (hasta la migración 0023_perfil_proyecto). No se escribe más:
+ * si aparece en una fila, se lee como `proyecto`.
+ */
+export const LEGACY_PROJECT_KIND = 'grupo';
+
+/**
+ * El único lugar que decide qué `kind` es un valor guardado o recibido: `proyecto` (también el
+ * viejo `grupo`), `persona`, o `null` si no es ninguno.
+ *
+ * @param {unknown} value
+ * @returns {ProfileKind | null}
+ */
+export function normalizeProfileKind(value) {
+	if (value === LEGACY_PROJECT_KIND) return 'proyecto';
+	return PROFILE_KINDS.find((k) => k === value) ?? null;
+}
+
+/**
+ * El `kind` de los datos de un perfil ya guardado. Lo que no se reconoce cuenta como persona
+ * (como hasta ahora).
+ *
+ * @param {Record<string, unknown> | null | undefined} data
+ * @returns {ProfileKind}
+ */
+export function profileKindOf(data) {
+	return normalizeProfileKind(data?.kind) ?? 'persona';
+}
 
 /** Cuántos links como mucho (web, redes…). */
 export const LINKS_MAX = 8;
@@ -71,6 +105,14 @@ const perfil = {
 	edges: {
 		es_integrante_de: { label: 'Integrante de', to: ['perfil'] }
 	},
+	normalize(data) {
+		// Una fila con el `kind` viejo se guarda (editada, borrada…) ya como `proyecto`.
+		if (data && typeof data === 'object' && !Array.isArray(data)) {
+			const kind = /** @type {Record<string, unknown>} */ (data).kind;
+			if (kind === LEGACY_PROJECT_KIND) return { ...data, kind: normalizeProfileKind(kind) };
+		}
+		return data;
+	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */
 		const errors = [];
@@ -81,10 +123,10 @@ const perfil = {
 		if (data.avatar !== undefined && !AVATAR_KEY.test(String(data.avatar))) {
 			errors.push({ path: 'avatar', message: 'Imagen: tiene que ser una imagen subida al sitio' });
 		}
-		if (data.kind !== 'grupo' && data.show_members !== undefined) {
+		if (data.kind !== 'proyecto' && data.show_members !== undefined) {
 			errors.push({
 				path: 'show_members',
-				message: 'Mostrar integrantes: solo para perfiles de grupo'
+				message: 'Mostrar integrantes: solo para perfiles de proyecto'
 			});
 		}
 		return errors;
