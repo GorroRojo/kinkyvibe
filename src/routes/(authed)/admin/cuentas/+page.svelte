@@ -70,7 +70,7 @@
 						<th class="hide-sm">Mail verificado</th>
 						<th class="hide-sm">Contraseña</th>
 						<th class="r">Perfiles</th>
-						<th>Puede tener perfiles</th>
+						<th><abbr title="Puede tener perfiles">Permiso</abbr></th>
 					</tr>
 				</thead>
 				<tbody>

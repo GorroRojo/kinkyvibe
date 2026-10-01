@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { logAccountCreated } from './accountEvents.js';
 import {
 	EMAIL_GRACE_MS,
 	agendaItems,
@@ -294,9 +295,14 @@ describe('actividad', () => {
 			{ action: 'x.y', summary: 'de otre' },
 			{ now: NOW - HOUR }
 		);
+		// Una cuenta nueva va en la lista, pero no es un cambio de otre admin.
+		await logAccountCreated(t.db, '00000000-0000-4000-8000-000000000000', { now: NOW - HOUR });
 		const s = await sinceLastVisit(t.db, { since: NOW - 2 * HOUR, login: 'yo' });
 		expect(s).toMatchObject({ orders: 1, money: 7000, transfers: 1, audit: 1 });
-		expect(s?.items.length).toBe(4);
+		expect(s?.items.length).toBe(5);
+		expect(s?.items.filter((i) => i.kind === 'account').map((i) => i.title)).toEqual([
+			'Se creó una cuenta nueva'
+		]);
 	});
 });
 

@@ -19,7 +19,7 @@ import {
 import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
 import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
 import { accountHref, profileHref, PROFILES_TO_REVIEW_HREF } from '$lib/admin/links.js';
-import { ACCOUNT_EVENT_ACTIONS } from './accountEvents.js';
+import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -495,7 +495,8 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
 
 /**
  * Resumen de "desde tu última visita": cuántas compras, transferencias nuevas y acciones de
- * otres admins hubo desde `since`, más la lista de movimientos.
+ * otres admins hubo desde `since`, más la lista de movimientos. Las cuentas y los perfiles nuevos
+ * van en la lista pero no cuentan como acciones de admins.
  *
  * @param {D1Database | null | undefined} db
  * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
@@ -508,9 +509,9 @@ export async function sinceLastVisit(db, { since, login = '', titles }) {
 					(SELECT COUNT(*) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS orders,
 					(SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS money,
 					(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND created_at > ?1) AS transfers,
-					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2) AS audit`
+					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit`
 			)
-			.bind(since, login)
+			.bind(since, login, ACCOUNT_EVENT_ACTOR)
 			.first();
 		return {
 			orders: Number(row?.orders ?? 0),
