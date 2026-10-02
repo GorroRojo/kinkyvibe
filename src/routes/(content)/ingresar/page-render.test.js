@@ -15,11 +15,16 @@ const EMAIL = 'persona.inventada@example.com';
 const html = (form) =>
 	render(Page, { props: { data: /** @type {any} */ (data), form: /** @type {any} */ (form) } })
 		.body;
-/** Sin las marcas de hidratación ni etiquetas. */
-const text = (/** @type {string} */ s) =>
-	s
-		.replace(/<!--[^]*?-->/g, '')
-		.replace(/<[^>]+>/g, '')
+/**
+ * El texto visible: saca cada etiqueta (y los comentarios de hidratación de Svelte) desde un `<`
+ * hasta el `>` siguiente, de una pasada; el resultado nunca tiene un `<`.
+ * @param {string} html
+ */
+const text = (html) =>
+	html
+		.split('<')
+		.map((part, i) => (i === 0 ? part : part.slice(part.indexOf('>') + 1 || part.length)))
+		.join('')
 		.replace(/\s+/g, ' ');
 
 describe('/ingresar: cuándo vence el código', () => {

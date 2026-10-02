@@ -9,10 +9,16 @@ import { expiryMoment } from '$lib/utils/expiry.js';
 import Page from './+page.svelte';
 
 const AR = { timeZone: 'America/Argentina/Buenos_Aires' };
-const text = (/** @type {string} */ s) =>
-	s
-		.replace(/<!--[^]*?-->/g, '')
-		.replace(/<[^>]+>/g, '')
+/**
+ * El texto visible: saca cada etiqueta (y los comentarios de hidratación de Svelte) desde un `<`
+ * hasta el `>` siguiente, de una pasada; el resultado nunca tiene un `<`.
+ * @param {string} html
+ */
+const text = (html) =>
+	html
+		.split('<')
+		.map((part, i) => (i === 0 ? part : part.slice(part.indexOf('>') + 1 || part.length)))
+		.join('')
 		.replace(/\s+/g, ' ');
 
 /** @param {Record<string, unknown>} order */
