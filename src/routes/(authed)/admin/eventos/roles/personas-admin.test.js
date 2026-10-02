@@ -38,6 +38,8 @@ import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { buyAction } from '$lib/server/tickets/checkout.js';
 import { fieldInputName } from '$lib/utils/signupFields.js';
 import * as ajustes from './+page.server.js';
+import { listRoles } from '$lib/server/personas/roles.js';
+import { ADD_ROLE_ACTION } from '$lib/utils/personasPicker.js';
 import * as preguntas from '../[slug]/preguntas/+page.server.js';
 import * as csv from '../[slug]/ordenes.csv/+server.js';
 
@@ -153,7 +155,9 @@ describe('Eventos › Roles y preguntas', () => {
 	it('agregar y sacar roles (los fijos no), con registro', async () => {
 		await on();
 		const added = await ajustes.actions.addRole(fakeEvent({ form: { name: 'Cuida la puerta' } }));
-		expect(added).toEqual({ role: { ok: true, message: 'Rol «Cuida la puerta» agregado.' } });
+		expect(added).toEqual({
+			role: { ok: true, name: 'Cuida la puerta', message: 'Rol «Cuida la puerta» agregado.' }
+		});
 		const dup = /** @type {any} */ (
 			await ajustes.actions.addRole(fakeEvent({ form: { name: 'organiza' } }))
 		);
@@ -171,6 +175,53 @@ describe('Eventos › Roles y preguntas', () => {
 			summary: 'Agregó el rol «Cuida la puerta»'
 		});
 		expect(await audit('persona_role.remove')).toHaveLength(1);
+	});
+
+	// «+ Nuevo rol…» de la sección Personas de los formularios llama a esta misma acción (con
+	// fetch, `x-sveltekit-action`): mismos permisos, misma validación y mismo registro.
+	it('crear un rol desde el formulario: queda elegible, en la página de Roles y en Actividad', async () => {
+		await on();
+		expect(ADD_ROLE_ACTION).toBe('/admin/eventos/roles?/addRole');
+		const url = new URL(ADD_ROLE_ACTION, 'https://kinkyvibe.ar');
+		expect(url.pathname).toBe('/admin/eventos/roles');
+		expect(url.search.slice(2)).toBe('addRole');
+		expect(typeof ajustes.actions[url.search.slice(2)]).toBe('function');
+
+		const created = /** @type {any} */ (
+			await ajustes.actions.addRole(fakeEvent({ form: { name: '  Cuida   la puerta ' } }))
+		);
+		// El formulario usa `name` para elegirlo en esa fila.
+		expect(created.role).toMatchObject({ ok: true, name: 'Cuida la puerta' });
+		const data = /** @type {any} */ (await ajustes.load(fakeEvent()));
+		expect(data.roles.map((/** @type {any} */ r) => r.name)).toContain('Cuida la puerta');
+		expect(await listRoles(t.db)).toContain('Cuida la puerta');
+		expect((await audit('persona_role.add')).at(-1)).toMatchObject({
+			actor_login: admin.login,
+			summary: 'Agregó el rol «Cuida la puerta»'
+		});
+
+		// Repetido (sin importar mayúsculas), o uno fijo: 409 con el mensaje en voseo, sin registro.
+		for (const name of ['cuida la puerta', 'ORGANIZA']) {
+			const dup = /** @type {any} */ (await ajustes.actions.addRole(fakeEvent({ form: { name } })));
+			expect(dup.status).toBe(409);
+			expect(dup.data.role.ok).toBe(false);
+			expect(dup.data.role.message).toMatch(/^«.+» ya está en la lista: elegilo de ahí\.$/);
+		}
+		const bad = /** @type {any} */ (
+			await ajustes.actions.addRole(fakeEvent({ form: { name: '!' } }))
+		);
+		expect(bad.status).toBe(400);
+		expect(bad.data.role.message).toBe(
+			'Escribí un rol de 2 a 40 letras (letras, números, espacios y guiones).'
+		);
+		expect(await audit('persona_role.add')).toHaveLength(1);
+
+		// Sin ser admin, nada (403), como cualquier acción del panel.
+		const denied = await thrown(() =>
+			ajustes.actions.addRole(fakeEvent({ form: { name: 'Otro rol' }, user: notAdmin }))
+		);
+		expect(denied?.status).toBe(403);
+		expect(await listRoles(t.db)).not.toContain('Otro rol');
 	});
 
 	it('preguntas generales: se validan, se guardan y se borran', async () => {

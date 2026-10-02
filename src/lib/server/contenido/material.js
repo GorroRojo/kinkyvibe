@@ -9,6 +9,12 @@
  * Solo imports relativos.
  */
 import { asText, asTextList } from '../../utils/text.js';
+import {
+	hasPersonaItems,
+	personasForData,
+	personasFromData,
+	personasToMd
+} from '../../utils/personasList.js';
 import { freeHtmlNotes, normalizeBody } from './eventos.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
@@ -32,6 +38,7 @@ const MAPPED_KEYS = new Set([
 	'title',
 	'tags',
 	'authors',
+	'personas',
 	'force_unlisted',
 	'force_unpublished',
 	'redirect'
@@ -51,7 +58,8 @@ const COMPONENT = /<[A-Z][A-Za-z0-9]*[\s/>]/;
 /**
  * Convierte la metadata de un post de material (la que da mdsvex) y su cuerpo en lo que se
  * guarda. Mapa: `title` → título; `force_unlisted: true` → `unlisted`; `force_unpublished: true` →
- * visibilidad oculta; `tags`, `authors` → listas; los campos de texto con el mismo nombre; el
+ * visibilidad oculta; `tags` → lista; `authors` y `personas` → la lista única `personas`
+ * (`[{ profile?, name?, role }]`, ../../utils/personasList.js); los campos de texto con el mismo nombre; el
  * cuerpo → `body`; lo demás → `extra`, tal cual.
  *
  * @param {string} legacySlug
@@ -70,8 +78,11 @@ export function mdToMaterial(legacySlug, meta, body) {
 	}
 	const tags = asTextList(meta.tags);
 	if (tags.length) data.tags = tags;
-	const authors = asTextList(meta.authors);
-	if (authors.length) data.authors = authors;
+	// Quienes organizan o escriben (`authors:`) y las demás personas (`personas:`), en una sola
+	// lista (../../utils/personasList.js).
+	const people = personasForData(asTextList(meta.authors), meta.personas, MATERIAL_CATEGORY);
+	if (people.items.length) data.personas = people.items;
+	warnings.push(...people.warnings);
 	if (isTrue(meta.force_unlisted)) data.unlisted = true;
 	if (isTrue(meta.redirect)) data.redirect = true;
 	const text = normalizeBody(body);
@@ -127,5 +138,12 @@ export function materialToMeta(object) {
 	if (d.unlisted) meta.force_unlisted = true;
 	if (d.redirect) meta.redirect = true;
 	if (object.visibility === 'hidden') meta.force_unpublished = true;
+	// La lista única vuelve a `authors` y `personas`, como los .md. Lo guardado con la forma de
+	// antes (`authors` + `extra.personas`) ya está arriba, tal cual.
+	if (hasPersonaItems(d)) {
+		const md = personasToMd(personasFromData(d, MATERIAL_CATEGORY), MATERIAL_CATEGORY);
+		meta.authors = md.authors;
+		if (md.personas.length) meta.personas = md.personas;
+	}
 	return meta;
 }

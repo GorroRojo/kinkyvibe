@@ -35,6 +35,14 @@
 	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
+	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import { authorRoleOf, personasToMd, validatePersonaItems } from '$lib/utils/personasList.js';
+	import {
+		ADD_ROLE_ACTION,
+		formPersonas,
+		personaOptions,
+		restorePeople
+	} from '$lib/utils/personasPicker.js';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
 	import { contentDraftLabels, formSections } from '$lib/admin/eventForm.js';
 	import { emptyUpload } from '$lib/admin/imageState.js';
@@ -62,7 +70,8 @@
 	 *   slug: string, source: {slug: string, title: string} | null, fromTemplate: boolean,
 	 *   taken: string[], imageUrl: string | null, today: string, maxImageBytes: number,
 	 *   mock: boolean, savesToDb?: boolean, tagUsage: Record<string, number>,
-	 *   profiles: import('$lib/utils/organizers.js').Profile[], authorUsage: Record<string, number>
+	 *   profiles: import('$lib/utils/organizers.js').Profile[], authorUsage: Record<string, number>,
+	 *   personas?: { roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null
 	 * }}
 	 */
 	export let data;
@@ -99,8 +108,40 @@
 		if ('published_date' in f.values) f.values.published_date = data.today;
 		f.tags = [];
 		f.authors = [];
+		f.personas = [];
 		f.body = '';
 	}
+
+	/* ---------- personas (material): autores y el resto, en una sola lista ---------- */
+	// Como en el editor de eventos: `data.personas` ({ roles, profiles }) llega solo con el
+	// interruptor personas_eventos; apagado, es el «Autores» de siempre y `personas:` no se toca.
+	const withPeople = hasAuthors(category);
+	const personasData = withPeople ? (data.personas ?? null) : null;
+	const authorRole = authorRoleOf(category);
+	let roles = personasData ? [...personasData.roles] : [authorRole];
+	let people = withPeople
+		? formPersonas(f.authors, personasData ? f.personas : [], category, {
+				withPersonas: Boolean(personasData),
+				options: personaOptions(
+					data.profiles ?? [],
+					personasData?.profiles ?? [],
+					data.authorUsage ?? {}
+				)
+			})
+		: [];
+	/** Lo que el formulario guarda: `authors` y (con el interruptor) `personas`. @param {typeof people} items */
+	function syncPeople(items) {
+		if (!withPeople) return;
+		const md = personasToMd(items, category);
+		f.authors = md.authors;
+		if (personasData) f.personas = md.personas;
+	}
+	$: syncPeople(people);
+	// Lo que el archivo ya tenía mal no bloquea guardar otros cambios.
+	const initialPeopleErrors = withPeople ? validatePersonaItems(people, roles) : [];
+	$: newPeopleErrors = withPeople
+		? validatePersonaItems(people, roles).filter((e) => !initialPeopleErrors.includes(e))
+		: [];
 
 	// Para saber si un formulario nuevo ya tiene algo escrito.
 	const startForm = JSON.stringify(f);
@@ -197,6 +238,7 @@
 		? []
 		: [
 				...contentProblems(category, f),
+				...newPeopleErrors,
 				...(slugError ? [slugError] : []),
 				...(slugCheck && slugCheck.slug === slug && slugCheck.error ? [slugCheck.error] : []),
 				...(upload.error ? [upload.error] : []),
@@ -310,11 +352,14 @@
 	$: dirty = isNew
 		? JSON.stringify(f) !== startForm || Boolean(upload.name) || slugTouched
 		: changed;
-	$: draft = { f, slug, slugTouched, rawText };
+	$: draft = { f, people, slug, slugTouched, rawText };
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
 		if (d.f && typeof d.f === 'object') f = { ...f, ...d.f };
+		// Un borrador de antes de juntar las secciones tiene solo `f.authors`.
+		if (withPeople)
+			people = restorePeople(d.people ? d : { authors: d.f?.authors }, people, authorRole);
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 		if (isNew && d.slugTouched && typeof d.slug === 'string') {
 			slug = d.slug;
@@ -364,7 +409,11 @@
 	{/if}
 
 	<EventForm
-		sections={formSections({ mode: 'contenido', parseError: !!parseError })}
+		sections={formSections({
+			mode: 'contenido',
+			hasPersonas: withPeople,
+			parseError: !!parseError
+		})}
 		draftKey={unsavedKey}
 		base={isNew ? '' : sha}
 		{dirty}
@@ -394,15 +443,7 @@
 			</p>
 			<textarea class="raw" bind:value={rawText} rows="30" aria-label="Archivo completo"></textarea>
 		{:else}
-			<DatosSection
-				fields={mainFields}
-				bind:values={f.values}
-				hasAuthors={hasAuthors(category)}
-				bind:authors={f.authors}
-				profiles={data.profiles}
-				authorUsage={data.authorUsage}
-				authorsLabel="Autores"
-			>
+			<DatosSection fields={mainFields} bind:values={f.values}>
 				<svelte:fragment slot="grid">
 					{#if isNew}
 						<label class="field wide">
@@ -445,6 +486,21 @@
 					</details>
 				{/if}
 			</DatosSection>
+
+			{#if withPeople}
+				<PersonasSection
+					bind:items={people}
+					bind:roles
+					defaultRole={authorRole}
+					{category}
+					profiles={data.profiles}
+					dbProfiles={personasData?.profiles ?? []}
+					authorUsage={data.authorUsage}
+					addRoleAction={personasData ? ADD_ROLE_ACTION : ''}
+					errors={newPeopleErrors}
+					idPrefix="content-personas"
+				/>
+			{/if}
 
 			<ImageSection
 				bind:this={imageSection}

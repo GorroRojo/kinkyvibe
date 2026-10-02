@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * Personas de un evento o publicación, por rol ("Organiza: Colectivo X, Persona Y"), cada una
-	 * con link a su perfil. Recibe solo perfiles públicos (lo decide el servidor,
+	 * con link a su perfil (un nombre libre, sin perfil, va como texto: `href` vacío). Recibe solo perfiles públicos (lo decide el servidor,
 	 * src/lib/server/personas/): este componente no filtra nada.
 	 *
 	 * Props: `groups` ({ rol, items: { slug, title, href }[] }[]), `title` (encabezado).
@@ -18,8 +18,11 @@
 				<div class="row">
 					<dt>{g.rol}</dt>
 					<dd>
-						{#each g.items as p, i (p.slug)}<a class="h-card" href={p.href}>{p.title}</a
-							>{#if i < g.items.length - 1}<span class="sep">, </span>{/if}{/each}
+						{#each g.items as p, i (i)}{#if p.href}<a class="h-card" href={p.href}>{p.title}</a
+								>{:else}<span class="h-card">{p.title}</span>{/if}{#if i < g.items.length - 1}<span
+									class="sep"
+									>,
+								</span>{/if}{/each}
 					</dd>
 				</div>
 			{/each}
