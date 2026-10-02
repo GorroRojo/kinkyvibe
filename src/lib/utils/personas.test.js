@@ -92,7 +92,7 @@ describe('personas del frontmatter', () => {
 		);
 		expect(bad.ok).toBe(false);
 		expect(!bad.ok && bad.errors).toEqual([
-			'Personas, fila 1: elegí un perfil.',
+			'Personas, fila 1: elegí un perfil o escribí un nombre.',
 			'Personas, fila 2: «Inventado» no es un rol de la lista.',
 			'Personas, fila 4: ese perfil ya tiene el rol Facilita.',
 			'Personas, fila 5: tiene que tener perfil y rol.'
@@ -103,6 +103,55 @@ describe('personas del frontmatter', () => {
 			rol: 'Facilita'
 		}));
 		expect(validatePersonas(many, roles).ok).toBe(false);
+	});
+});
+
+describe('nombres libres (Personas en una sola sección)', () => {
+	it('para mostrar: un nombre libre con su rol, sin repetir; un perfil con nombre no cuenta como nombre', () => {
+		expect(
+			parsePersonas([
+				{ nombre: '  Persona   Sin Perfil ', rol: 'Fotografía' },
+				{ nombre: 'Persona Sin Perfil', rol: 'fotografía' },
+				{ nombre: '', rol: 'Facilita' },
+				{ nombre: 'x'.repeat(101), rol: 'Facilita' },
+				{ perfil: 'Mal Slug', nombre: 'Con Perfil Malo', rol: 'Facilita' },
+				{ perfil: 'persona-de-prueba', rol: 'Facilita' }
+			])
+		).toEqual([
+			{ nombre: 'Persona Sin Perfil', rol: 'Fotografía' },
+			{ perfil: 'persona-de-prueba', rol: 'Facilita' }
+		]);
+	});
+
+	it('para guardar: un nombre sirve en vez del perfil; repetido con el mismo rol, no', () => {
+		const roles = mergeRoles();
+		expect(
+			validatePersonas(
+				[
+					{ nombre: 'Persona Sin Perfil', rol: 'fotografía' },
+					{ perfil: 'persona-de-prueba', rol: 'Facilita' }
+				],
+				roles
+			)
+		).toEqual({
+			ok: true,
+			personas: [
+				{ nombre: 'Persona Sin Perfil', rol: 'Fotografía' },
+				{ perfil: 'persona-de-prueba', rol: 'Facilita' }
+			]
+		});
+		const bad = validatePersonas(
+			[
+				{ nombre: '   ', rol: 'Facilita' },
+				{ nombre: 'Persona Sin Perfil', rol: 'Facilita' },
+				{ nombre: 'persona sin perfil', rol: 'Facilita' }
+			],
+			roles
+		);
+		expect(!bad.ok && bad.errors).toEqual([
+			'Personas, fila 1: elegí un perfil o escribí un nombre.',
+			'Personas, fila 3: esa persona ya tiene el rol Facilita.'
+		]);
 	});
 });
 
