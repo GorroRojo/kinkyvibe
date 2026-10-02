@@ -262,27 +262,58 @@ export async function sendStreamLinkBatch(
  * @returns {Promise<Map<string, number>>}
  */
 export async function failedStreamLinkCounts(db, slugs) {
+	if (!slugs.length) return new Map();
+	const [links, counts] =
+		/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */ (
+			await db.batch(failedStreamLinkStatements(db, slugs))
+		);
+	return readFailedStreamLinkCounts(links.results, counts.results);
+}
+
+/**
+ * Las consultas de {@link failedStreamLinkCounts} (para correrlas en una tanda; `slugs` no
+ * vacío): el link actual de cada evento y los envíos fallidos por evento y por link. Cuál es el
+ * link actual (su hash) se elige después, en {@link readFailedStreamLinkCounts}.
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ */
+export function failedStreamLinkStatements(db, slugs) {
+	const list = slugs.map((_, i) => `?${i + 1}`).join(', ');
+	return [
+		db
+			.prepare(
+				`SELECT event_slug, stream_link FROM event_ticket_settings
+				WHERE stream_link IS NOT NULL AND stream_link != ''
+					AND event_slug IN (${list})`
+			)
+			.bind(...slugs),
+		db
+			.prepare(
+				`SELECT o.event_slug, s.link_hash, COUNT(*) AS n FROM stream_link_sends s
+				JOIN orders o ON o.id = s.order_id
+				WHERE s.status = 'failed' AND o.status = 'approved' AND o.event_slug IN (${list})
+				GROUP BY o.event_slug, s.link_hash`
+			)
+			.bind(...slugs)
+	];
+}
+
+/**
+ * @param {Record<string, unknown>[]} links el link actual de cada evento
+ * @param {Record<string, unknown>[]} counts los envíos fallidos por evento y link
+ * @returns {Promise<Map<string, number>>}
+ */
+export async function readFailedStreamLinkCounts(links, counts) {
+	/** @type {Map<string, number>} */
+	const failed = new Map();
+	for (const r of counts) failed.set(`${r.event_slug}\n${r.link_hash}`, Number(r.n ?? 0));
 	/** @type {Map<string, number>} */
 	const out = new Map();
-	if (!slugs.length) return out;
-	const { results } = await db
-		.prepare(
-			`SELECT event_slug, stream_link FROM event_ticket_settings
-			WHERE stream_link IS NOT NULL AND stream_link != ''
-				AND event_slug IN (${slugs.map((_, i) => `?${i + 1}`).join(', ')})`
-		)
-		.bind(...slugs)
-		.all();
-	for (const r of results) {
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS n FROM stream_link_sends s JOIN orders o ON o.id = s.order_id
-				WHERE s.link_hash = ?2 AND s.status = 'failed' AND o.event_slug = ?1 AND o.status = 'approved'`
-			)
-			.bind(String(r.event_slug), await streamLinkHash(String(r.stream_link)))
-			.first();
-		const n = Number(row?.n ?? 0);
-		if (n) out.set(String(r.event_slug), n);
+	for (const r of links) {
+		const slug = String(r.event_slug);
+		const n = failed.get(`${slug}\n${await streamLinkHash(String(r.stream_link))}`) ?? 0;
+		if (n) out.set(slug, n);
 	}
 	return out;
 }

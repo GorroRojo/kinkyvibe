@@ -18,7 +18,7 @@ import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.j
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
-import { logDBError } from '$lib/server/db';
+import { rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { PROFILE_KIND_FILTERS, profileOrigin } from '$lib/admin/perfiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -506,33 +506,45 @@ export function deleteProfileAsAdmin(db, id, version, user, { now = Date.now() }
  * @param {{ limit?: number }} [opts]
  * @returns {Promise<{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]>}
  */
-export async function profilesToReview(db, { limit = 50 } = {}) {
-	if (!db) return [];
-	try {
-		const vis = visibleWhere(ADMIN, 'o');
-		const { results } = await db
-			.prepare(
-				`SELECT o.id, o.title, o.data, o.created_at FROM objects o
-				WHERE o.type = ? AND ${vis.sql} AND ${BY_ACCOUNT} AND NOT ${REVIEWED}
-				ORDER BY o.created_at, o.id LIMIT ?`
-			)
-			.bind(PROFILE_TYPE, ...vis.params, limit)
-			.all();
-		return results.map((r) => {
-			let kind = /** @type {import('$lib/server/objects/types/perfil.js').ProfileKind} */ (
-				'persona'
-			);
-			try {
-				kind = profileKindOf(JSON.parse(String(r.data)));
-			} catch {
-				// datos rotos: el chequeo nocturno lo reporta
-			}
-			return { id: Number(r.id), title: String(r.title), kind, createdAt: Number(r.created_at) };
-		});
-	} catch (error) {
-		logDBError('perfiles para revisar', error);
-		return [];
-	}
+export function profilesToReview(db, { limit = 50 } = {}) {
+	return runQuery(db, profilesToReviewQuery({ limit }));
+}
+
+/**
+ * {@link profilesToReview} para correr en una tanda (`runQueries`).
+ *
+ * @param {{ limit?: number }} [opts]
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<{ id: number, title: string, kind: import('$lib/server/objects/types/perfil.js').ProfileKind, createdAt: number }[]>}
+ */
+export function profilesToReviewQuery({ limit = 50 } = {}) {
+	return {
+		what: 'perfiles para revisar',
+		fallback: [],
+		statements: (db) => {
+			const vis = visibleWhere(ADMIN, 'o');
+			return [
+				db
+					.prepare(
+						`SELECT o.id, o.title, o.data, o.created_at FROM objects o
+						WHERE o.type = ? AND ${vis.sql} AND ${BY_ACCOUNT} AND NOT ${REVIEWED}
+						ORDER BY o.created_at, o.id LIMIT ?`
+					)
+					.bind(PROFILE_TYPE, ...vis.params, limit)
+			];
+		},
+		read: (results) =>
+			rowsOf(results).map((r) => {
+				let kind = /** @type {import('$lib/server/objects/types/perfil.js').ProfileKind} */ (
+					'persona'
+				);
+				try {
+					kind = profileKindOf(JSON.parse(String(r.data)));
+				} catch {
+					// datos rotos: el chequeo nocturno lo reporta
+				}
+				return { id: Number(r.id), title: String(r.title), kind, createdAt: Number(r.created_at) };
+			})
+	};
 }
 
 /**
@@ -540,20 +552,29 @@ export async function profilesToReview(db, { limit = 50 } = {}) {
  *
  * @param {D1Database | null | undefined} db
  */
-export async function countProfilesToReview(db) {
-	if (!db) return 0;
-	try {
-		const vis = visibleWhere(ADMIN, 'o');
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS n FROM objects o
-				WHERE o.type = ? AND ${vis.sql} AND ${BY_ACCOUNT} AND NOT ${REVIEWED}`
-			)
-			.bind(PROFILE_TYPE, ...vis.params)
-			.first();
-		return Number(row?.n ?? 0);
-	} catch (error) {
-		logDBError('contador de perfiles para revisar', error);
-		return 0;
-	}
+export function countProfilesToReview(db) {
+	return runQuery(db, countProfilesToReviewQuery());
+}
+
+/**
+ * {@link countProfilesToReview} para correr en una tanda (`runQueries`).
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<number>}
+ */
+export function countProfilesToReviewQuery() {
+	return {
+		what: 'contador de perfiles para revisar',
+		fallback: 0,
+		statements: (db) => {
+			const vis = visibleWhere(ADMIN, 'o');
+			return [
+				db
+					.prepare(
+						`SELECT COUNT(*) AS n FROM objects o
+						WHERE o.type = ? AND ${vis.sql} AND ${BY_ACCOUNT} AND NOT ${REVIEWED}`
+					)
+					.bind(PROFILE_TYPE, ...vis.params)
+			];
+		},
+		read: (results) => Number(rowsOf(results)[0]?.n ?? 0)
+	};
 }
