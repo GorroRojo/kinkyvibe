@@ -71,6 +71,17 @@
 		</section>
 	{/if}
 
+	{#if data.sigoOn}
+		<section class="surface-card" aria-labelledby="sigo-title">
+			<h2 id="sigo-title">Lo que sigo</h2>
+			<p class="hint">
+				Etiquetas, series, perfiles y lugares que seguís: qué va a tu calendario y de qué te
+				escribimos.
+			</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que sigo</a>
+		</section>
+	{/if}
+
 	{#if data.seriesOn}
 		<section class="surface-card" aria-labelledby="calendario-title">
 			<h2 id="calendario-title">Tu calendario</h2>
