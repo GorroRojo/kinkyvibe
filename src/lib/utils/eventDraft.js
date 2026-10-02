@@ -6,6 +6,7 @@
  */
 import { parseDocument, isScalar, isSeq, Scalar } from 'yaml';
 import { escapeRegExp } from './text.js';
+import { personasFromMd, personasToMd } from './personasList.js';
 
 export { slugify } from './text.js';
 
@@ -19,7 +20,11 @@ export const REMOVE = Symbol('remove');
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const STATUS_OPTIONS = [
-	{ value: 'anunciado', label: 'Anunciado', help: 'Todavía no abrió la inscripción (el link queda oculto)' },
+	{
+		value: 'anunciado',
+		label: 'Anunciado',
+		help: 'Todavía no abrió la inscripción (el link queda oculto)'
+	},
 	{ value: 'abierto', label: 'Abierto', help: 'Se puede inscribir / comprar entrada' },
 	{ value: 'agotadas', label: 'Agotadas', help: 'No quedan lugares' },
 	{ value: 'cancelado', label: 'Cancelado', help: 'El evento no se hace' }
@@ -92,7 +97,9 @@ export function joinMarkdown(frontmatter, body) {
 function parseFrontmatter(frontmatter) {
 	const doc = parseDocument(frontmatter);
 	if (doc.errors.length) {
-		throw new Error('Las propiedades del evento tienen un error de formato: ' + doc.errors[0].message);
+		throw new Error(
+			'Las propiedades del evento tienen un error de formato: ' + doc.errors[0].message
+		);
 	}
 	return doc;
 }
@@ -122,7 +129,9 @@ export function readEventFields(frontmatter) {
 		force_unlisted: data.force_unlisted === true,
 		category: str(data.category),
 		tags: list(data.tags),
-		authors: list(data.authors)
+		authors: list(data.authors),
+		/** `personas:` tal cual (ver ./personasList.js). */
+		personas: /** @type {unknown} */ (data.personas)
 	};
 }
 
@@ -567,7 +576,8 @@ export function uniqueSlug(slug, taken) {
  * @returns {'jpg'|'png'|'webp'|null}
  */
 export function detectImageType(bytes) {
-	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
+	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+		return 'jpg';
 	if (
 		bytes.length >= 8 &&
 		[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((b, i) => bytes[i] === b)
@@ -609,6 +619,8 @@ export function isNumericFeatured(featured) {
  * @prop {string} link_text
  * @prop {string|string[]} tags a list, or comma separated
  * @prop {string|string[]} authors a list, or comma separated
+ * @prop {import('./personasList.js').MdPersona[]} [personas] `personas:` (with the
+ *   personas_eventos switch; undefined = leave the source's as they are)
  * @prop {'keep'|'upload'|'none'} featuredMode
  * @prop {string} [uploadExt] extension of the uploaded image, when featuredMode is 'upload'
  * @prop {string|number} [uploadFeatured] `featured` for an uploaded image (default 1, the new
@@ -662,6 +674,11 @@ export function buildEventMarkdown(sourceRaw, form) {
 	if (tags.join('\n') !== source.tags.join('\n')) changes.tags = tags;
 	const authors = splitList(form.authors);
 	if (authors.join('\n') !== source.authors.join('\n')) changes.authors = authors;
+	if (form.personas !== undefined) {
+		const before = personasToMd(personasFromMd([], source.personas, 'calendario'), 'calendario');
+		if (JSON.stringify(form.personas) !== JSON.stringify(before.personas))
+			changes.personas = form.personas.length ? form.personas : REMOVE;
+	}
 	if (form.featuredMode === 'upload') changes.featured = form.uploadFeatured || 1;
 	else if (form.featuredMode === 'none') changes.featured = null;
 

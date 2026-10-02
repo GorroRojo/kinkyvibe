@@ -16,6 +16,7 @@ import {
 	validateContentSlug
 } from './contentPosts.js';
 import tagsFactory from './tags.js';
+import { personasFromMd, personasToMd } from './personasList.js';
 
 const MATERIAL = `---
 published_date: 2019-05-10Z-03:00
@@ -175,6 +176,39 @@ describe('readContentForm / buildContentMarkdown', () => {
 			forceKeys: ['published_date']
 		});
 		expect(out).toContain('published_date: 2019-05-10Z-03:00');
+	});
+
+	// «Personas en una sola sección»: el editor de material guarda autores y personas desde una
+	// sola lista; en el .md, `authors:` y `personas:` como siempre.
+	it('personas: the same file when nothing changed; one list back to authors + personas', () => {
+		const raw = MATERIAL.replace(
+			'featured: 1\n',
+			'featured: 1\npersonas:\n  - perfil: colectivo-de-prueba\n    rol: Traductore\n'
+		);
+		const initial = readContentForm('material', raw);
+		expect(initial.personas).toEqual([{ perfil: 'colectivo-de-prueba', rol: 'Traductore' }]);
+		expect(buildContentMarkdown('material', raw, initial, structuredClone(initial))).toBe(raw);
+		const items = [
+			...personasFromMd(initial.authors, initial.personas, 'material'),
+			{ name: 'Persona Sin Perfil', role: 'Diseño' },
+			{ name: 'Otre Autore', role: 'Autore' }
+		];
+		const md = personasToMd(items, 'material');
+		const out = buildContentMarkdown('material', raw, initial, {
+			...structuredClone(initial),
+			authors: md.authors,
+			personas: md.personas
+		});
+		expect(out).toContain('authors:\n  - DemonWeb\n  - Otre Autore\n');
+		expect(out).toContain(
+			'personas:\n  - perfil: colectivo-de-prueba\n    rol: Traductore\n  - nombre: Persona Sin Perfil\n    rol: Diseño\n'
+		);
+		// Sin personas con otro rol, la clave se va.
+		const none = buildContentMarkdown('material', raw, initial, {
+			...structuredClone(initial),
+			personas: []
+		});
+		expect(none).not.toMatch(/^personas:/m);
 	});
 
 	it('throws a readable error for broken frontmatter', () => {
