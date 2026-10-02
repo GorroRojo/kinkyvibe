@@ -2,24 +2,22 @@
  * Pure helpers for the tag fields of the admin editors (/admin/eventos/nuevo and /edit/...):
  * the searchable tag list for the picker, and the rules events follow for some tag groups.
  *
- * Everything is derived from the tag tree in ./hardcodedTags.js (through ./tags.js), so adding
- * e.g. a new city under "lugar" there makes it show up here with no other change.
+ * Everything is derived from the tag tree in use (./hardcodedTags.js, or the database with the
+ * `etiquetas_db` switch: ./siteTags.js), so adding e.g. a new city under "lugar" there makes it
+ * show up here with no other change.
  * No Svelte / SvelteKit imports: runs in the browser, on the server and in vitest.
  */
-import tagsFactory from './tags.js';
+import { currentSiteTags } from './siteTags.js';
 import { foldText as normalizeText } from './text.js';
 
 /** Lowercases and strips diacritics: "Córdoba" → "cordoba" (see foldText in text.js). */
 export { normalizeText };
 
-/** @typedef {ReturnType<typeof tagsFactory>} Tags */
+/** @typedef {TagManager} Tags */
 
-/** @type {Tags | undefined} */
-let defaultTags;
-/** The site's tag tree (built once). */
+/** The site's tag tree in use (the file, or the database with the `etiquetas_db` switch). */
 export function siteTags() {
-	if (!defaultTags) defaultTags = tagsFactory();
-	return defaultTags;
+	return currentSiteTags();
 }
 
 /**

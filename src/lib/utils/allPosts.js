@@ -14,8 +14,9 @@ export const isCurrent = (post, now = Date.now()) =>
 /** @type {Promise<ProcessedPost[]>|undefined} */
 let allPosts;
 /**
- * Browser only: every listed post, including past events, from the prerendered
- * /api/posts JSON (a static asset). Pages call this once the viewer turns on "show past events".
+ * Browser only: every listed post, including past events, from /api/posts (server-rendered and
+ * cached a few minutes: its tags follow the `etiquetas_db` switch). Pages call this once the
+ * viewer turns on "show past events".
  * @return {Promise<ProcessedPost[]>}
  */
 export const fetchAllPostsClient = () =>

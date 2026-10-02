@@ -8,6 +8,7 @@ import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
+import { applySiteTags } from '$lib/server/etiquetas/source.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
 // trusted; delete them if a browser still has them.
@@ -15,6 +16,9 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
+	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de etiquetas de este pedido (archivo o
+	// base) pasa a ser el que usa todo el servidor. Nunca tira: sin base, el archivo.
+	await applySiteTags(event.platform);
 	// Cuentas del público (docs/cuentas.md): `locals.member`, aparte de `locals.user` (admins con
 	// GitHub). Solo consulta algo si hay cookie de sesión y el interruptor está prendido.
 	await loadMember(event);
