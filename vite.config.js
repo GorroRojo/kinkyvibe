@@ -1,9 +1,11 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
+import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js).
+	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
 	// Rama del deploy (Workers Builds o Cloudflare Pages; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
 	define: {

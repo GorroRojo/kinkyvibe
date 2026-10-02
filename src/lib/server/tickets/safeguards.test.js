@@ -2,7 +2,7 @@
  * Resguardos de la compra: límites por cliente, por email y de reservas abiertas, códigos de
  * descuento en `?/buy`, mails por dirección y nombres.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 vi.mock('./events.js', async () => {
 	const { parseTicketConfig } = await import('./config.js');
@@ -265,37 +265,49 @@ describe('?/buy', () => {
 		'los códigos de descuento que se prueban en ?/buy cuentan para el mismo límite que ?/discount',
 		{ timeout: 30000 },
 		async () => {
-			await createDiscountCode(
-				t.db,
-				{
-					code: 'REAL10',
-					kind: 'percent',
-					value: 10,
-					event_slug: null,
-					starts_at: null,
-					ends_at: null,
-					max_uses: null
-				},
-				{ by: 'admin' }
-			);
-			const { limit } = CHECKOUT_RATE_LIMITS.code;
-			// Mitad con "Aplicar", mitad comprando: el contador es uno solo.
-			for (let i = 0; i < limit; i++) {
-				const action = i % 2 ? discountAction : buyAction;
-				const r = await post(action, order({ code: `MAL${i}`, email: 'no-es-mail' }));
-				expect(r.status).toBe(400);
+			// Reloj fijo: la ventana del límite de códigos es de 10 min (fija, alineada a :00, :10…).
+			// Con el reloj real, si el loop cruzaba un borde el contador volvía a cero y el
+			// REAL10 de abajo compraba (redirect, `status` undefined) en vez de dar 429.
+			const now = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 1, 12, 5, 0));
+			try {
+				await createDiscountCode(
+					t.db,
+					{
+						code: 'REAL10',
+						kind: 'percent',
+						value: 10,
+						event_slug: null,
+						starts_at: null,
+						ends_at: null,
+						max_uses: null
+					},
+					{ by: 'admin' }
+				);
+				const { limit } = CHECKOUT_RATE_LIMITS.code;
+				// Mitad con "Aplicar", mitad comprando: el contador es uno solo.
+				for (let i = 0; i < limit; i++) {
+					const action = i % 2 ? discountAction : buyAction;
+					const r = await post(action, order({ code: `MAL${i}`, email: 'no-es-mail' }));
+					expect(r.status).toBe(400);
+				}
+				const blocked = await post(buyAction, order({ code: 'REAL10' }));
+				expect(blocked.status).toBe(429);
+				expect(blocked.data.buy.errors.code).toMatch(/Demasiados intentos/);
+				expect((await post(discountAction, order({ code: 'REAL10' }))).status).toBe(429);
+				// Desde otra conexión el código válido anda.
+				const ok = await post(discountAction, order({ code: 'REAL10' }), '198.51.100.9');
+				expect(ok.buy.discount).toMatchObject({ code: 'REAL10' });
+			} finally {
+				now.mockRestore();
 			}
-			const blocked = await post(buyAction, order({ code: 'REAL10' }));
-			expect(blocked.status).toBe(429);
-			expect(blocked.data.buy.errors.code).toMatch(/Demasiados intentos/);
-			expect((await post(discountAction, order({ code: 'REAL10' }))).status).toBe(429);
-			// Desde otra conexión el código válido anda.
-			const ok = await post(discountAction, order({ code: 'REAL10' }), '198.51.100.9');
-			expect(ok.buy.discount).toMatchObject({ code: 'REAL10' });
 		}
 	);
 
 	it('mails a una misma dirección: como mucho 3 por hora', { timeout: 30000 }, async () => {
+		// Reloj fijo: el límite de mails usa ventanas de una hora en punto; si el loop cruzaba
+		// una hora (p. ej. las 13:00:00), el contador volvía a cero y salían más de 3 mails.
+		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 9, 1, 12, 5, 0));
+		onTestFinished(() => now.mockRestore());
 		const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const mails = () =>

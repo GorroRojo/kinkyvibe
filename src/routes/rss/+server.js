@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 const siteURL = 'https://kinkyvibe.ar';
 const siteTitle = 'KinkyVibe';
 const siteDescription =
@@ -17,7 +17,7 @@ const FEED_ONLY_ITEMS = [
 		description:
 			'Estamos haciendo grandes y super importantes cambios en el sitio y uno fue un arreglo al RSS que gatilló todos esos posts que te llegaron recién. Mala mía perdón. Pero te doy exclusiva para recompensar: muy pronto vas a poder comprar las entradas para los eventos directo desde el sitio! Sin más google forms que andan flojos ni tener que mandar comprobantes. Eso y mucho más se vieneee. Gracias por seguirnos por acá, me intriga muchísimo quiénes realmente usan RSS con el sitio jsaj. -gorrite',
 		date: '2026-09-29T19:00:00-03:00',
-		// Drops out of the feed on the first build after this date (the feed is prerendered).
+		// Drops out of the feed after this date.
 		until: '2026-10-27T00:00:00-03:00'
 	}
 ];
@@ -25,10 +25,12 @@ const FEED_ONLY_ITEMS = [
 /** How many posts the feed lists (newest first), like most sites do. */
 const FEED_LIMIT = 50;
 
-export const prerender = true;
+// Dinámico (antes se prerenderizaba): con el interruptor `contenido_db` prendido los eventos salen
+// de la base y pueden cambiar sin un deploy. Apagado, da lo mismo que el archivo de siempre.
 
-export const GET = async () => {
-	const allPosts = await fetchMarkdownPosts();
+/** @param {{ platform?: App.Platform }} [event] */
+export const GET = async (event) => {
+	const allPosts = await sitePosts(event?.platform);
 	const time = (/** @type {ProcessedPost} */ p) =>
 		new Date(p.meta.published_date ?? '').getTime() || 0;
 	const sortedPosts = allPosts.sort((a, b) => time(b) - time(a));

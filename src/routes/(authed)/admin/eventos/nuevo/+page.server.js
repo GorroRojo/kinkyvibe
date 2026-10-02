@@ -394,6 +394,8 @@ export const actions = {
 				message,
 				mustNotExist,
 				unchanged: [...unchanged, ...seriesUnchanged],
+				// Interruptor `contenido_db`: el evento nuevo va a la base (con su autoría).
+				actor: admin.login,
 				pr: {
 					action: mode === 'borrador' ? 'carga (no listado)' : source ? 'duplica' : 'publica',
 					who: admin.name

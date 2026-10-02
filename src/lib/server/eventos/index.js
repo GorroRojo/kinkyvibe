@@ -48,28 +48,36 @@ export function usesLocalRepo() {
  * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
  * On a preview deploy (PREVIEW_BUILD, also a build-time constant) it returns the demo client:
  * "commits" go to the preview's D1 (`demo_files`), never to GitHub, whoever is logged in.
+ * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): with the
+ * `contenido_db` switch on, the events stored in the database are read and saved there.
  * @returns {Promise<typeof github>}
  */
 export async function getRepoClient() {
+	const { withContentDb } = await import('../contenido/repo.js');
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
 		// @ts-ignore
-		return await import('./mock.js');
+		return withContentDb({ ...github, ...(await import('./mock.js')) });
 	}
 	if (PREVIEW_BUILD) {
 		const { client } = await import('../demo/index.js');
-		return /** @type {typeof github} */ (/** @type {unknown} */ ({ ...github, ...client }));
+		return withContentDb(
+			/** @type {typeof github} */ (/** @type {unknown} */ ({ ...github, ...client }))
+		);
 	}
-	return github;
+	return withContentDb(github);
 }
 
 /* ------------------------------------------------------------------------------------------ */
 
 const mdModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
 /** @type {Record<string, string>} */
-const mediaFiles = import.meta.glob('/src/lib/posts/calendario/media/*/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
+const mediaFiles = import.meta.glob(
+	'/src/lib/posts/calendario/media/*/*.{jpeg,jfif,jpg,png,webp}',
+	{
+		eager: true,
+		import: 'default'
+	}
+);
 /** @type {Record<string, string>} */
 const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}', {
 	eager: true,
@@ -131,8 +139,28 @@ let cache;
  */
 export async function listEvents() {
 	if (!cache || import.meta.env.DEV) cache = loadEvents();
-	if (PREVIEW_BUILD) return withDemoEvents(await cache);
-	return cache;
+	const events = PREVIEW_BUILD ? await withDemoEvents(await cache) : await cache;
+	return withDbEvents(events);
+}
+
+/**
+ * Interruptor `contenido_db`: los eventos que están en la base (también los ocultos y borrados,
+ * que el panel ve) en lugar de su .md, y los que solo están en la base.
+ * @param {EventSummary[]} events
+ */
+async function withDbEvents(events) {
+	const { activeContentDB, allDbEvents } = await import('../contenido/repo.js');
+	const { eventToMeta } = await import('../contenido/eventos.js');
+	const db = await activeContentDB();
+	if (!db) return events;
+	const fromDb = await allDbEvents(db);
+	if (!fromDb.size) return events;
+	const bySlug = new Map(events.map((e) => [e.slug, e]));
+	for (const [slug, e] of fromDb) {
+		if (e.deleted) bySlug.delete(slug);
+		else bySlug.set(slug, summarize(slug, eventToMeta(e.object)));
+	}
+	return [...bySlug.values()].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
 }
 
 /**
