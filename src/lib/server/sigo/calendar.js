@@ -63,7 +63,9 @@ export async function managedProfileSlugs(db, accountId) {
 function namingProfiles(posts, profileSlugs) {
 	if (!profileSlugs.size) return [];
 	return posts.filter((p) =>
-		parsePersonas(p.meta?.[PERSONAS_KEY]).some((e) => profileSlugs.has(e.perfil))
+		parsePersonas(p.meta?.[PERSONAS_KEY]).some(
+			(e) => e.perfil !== undefined && profileSlugs.has(e.perfil)
+		)
 	);
 }
 
