@@ -8,7 +8,7 @@
 	 * Lo usan /admin/eventos/nuevo, PostEditor (pestaña Editar de la ficha y /edit/...) y
 	 * ContentEditor (material y amigues en el panel). Cada uno
 	 * pone sus secciones adentro (las compartidas están en esta carpeta: TagsSection,
-	 * OrganizersField, FieldGrid; Entradas es TicketsEditor). La barra de guardar es el elemento
+	 * PersonasSection, FieldGrid; Entradas es TicketsEditor). La barra de guardar es el elemento
 	 * con la clase `bar sticky`; adentro van SaveButton (apagado, con ruedita y «Guardando…»
 	 * mientras se guarda) y SaveStatus (la confirmación, también para lectores de pantalla). Los
 	 * textos que dependen de si se guarda en la base o en GitHub: $lib/admin/saveCopy.js.

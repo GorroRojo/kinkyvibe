@@ -13,6 +13,12 @@
  * Solo imports relativos.
  */
 import { asText, asTextList } from '../../utils/text.js';
+import {
+	hasPersonaItems,
+	personasForData,
+	personasFromData,
+	personasToMd
+} from '../../utils/personasList.js';
 import evento from '../objects/types/evento.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
@@ -43,6 +49,7 @@ const MAPPED_KEYS = new Set([
 	'title',
 	'tags',
 	'authors',
+	'personas',
 	'force_unlisted',
 	'force_unpublished',
 	'redirect',
@@ -94,7 +101,8 @@ const argentinaDay = (/** @type {number} */ ms) =>
  * que se guarda.
  *
  * Mapa: `title` → título; `force_unlisted: true` → `unlisted`; `force_unpublished: true` →
- * visibilidad oculta; `tags`, `authors` → listas; los campos de texto con el mismo nombre; el
+ * visibilidad oculta; `tags` → lista; `authors` y `personas` → la lista única `personas`
+ * (`[{ profile?, name?, role }]`, ../../utils/personasList.js); los campos de texto con el mismo nombre; el
  * cuerpo → `body`; todo lo demás (entradas, colores del carrusel…) → `extra`, tal cual.
  *
  * Un fin anterior al inicio el mismo día (una fiesta de 21 a 1) es el día siguiente, como lo lee
@@ -116,8 +124,11 @@ export function mdToEvent(legacySlug, meta, body) {
 	}
 	const tags = asTextList(meta.tags);
 	if (tags.length) data.tags = tags;
-	const authors = asTextList(meta.authors);
-	if (authors.length) data.authors = authors;
+	// Quienes organizan o escriben (`authors:`) y las demás personas (`personas:`), en una sola
+	// lista (../../utils/personasList.js).
+	const people = personasForData(asTextList(meta.authors), meta.personas, EVENT_CATEGORY);
+	if (people.items.length) data.personas = people.items;
+	warnings.push(...people.warnings);
 	if (isTrue(meta.force_unlisted)) data.unlisted = true;
 	if (isTrue(meta.redirect)) data.redirect = true;
 	const text = normalizeBody(body);
@@ -213,6 +224,13 @@ export function eventToMeta(object) {
 	if (d.unlisted) meta.force_unlisted = true;
 	if (d.redirect) meta.redirect = true;
 	if (object.visibility === 'hidden') meta.force_unpublished = true;
+	// La lista única vuelve a `authors` y `personas`, como los .md. Lo guardado con la forma de
+	// antes (`authors` + `extra.personas`) ya está arriba, tal cual.
+	if (hasPersonaItems(d)) {
+		const md = personasToMd(personasFromData(d, EVENT_CATEGORY), EVENT_CATEGORY);
+		meta.authors = md.authors;
+		if (md.personas.length) meta.personas = md.personas;
+	}
 	return meta;
 }
 

@@ -62,7 +62,10 @@ describe('mdToEvent', () => {
 		expect(m.data).toMatchObject({
 			summary: 'Un resumen inventado',
 			tags: ['español', 'KinkyVibe', 'pago', 'AMBA', 'pago'],
-			authors: ['KinkyVibe', 'Persona Inventada'],
+			personas: [
+				{ name: 'KinkyVibe', role: 'Organiza' },
+				{ name: 'Persona Inventada', role: 'Organiza' }
+			],
 			featured: '1',
 			unlisted: true,
 			body: 'Hola **mundo**',
@@ -92,6 +95,90 @@ describe('mdToEvent', () => {
 		if (!v.ok) throw new Error(JSON.stringify(v.errors));
 		const back = eventToMeta({ title: m.title, data: v.data, visibility: m.visibility });
 		expect(metaDiff(norm(back), norm(FAKE))).toEqual([]);
+	});
+});
+
+/*
+ * «Personas en una sola sección»: en la base, `authors:` y `personas:` son una sola lista
+ * (`data.personas`). La metadata que reciben las páginas (y el .md que arma la base para el
+ * editor) vuelve a tener `authors` y `personas` como siempre. Lo importado antes, con
+ * `data.authors` y `extra.personas`, se sigue leyendo igual.
+ */
+describe('personas: una sola lista en la base', () => {
+	const WITH_PERSONAS = {
+		...FAKE,
+		personas: [
+			{ perfil: 'colectivo-de-prueba', rol: 'Facilita' },
+			{ nombre: 'Persona Sin Perfil', rol: 'Fotografía' },
+			{ perfil: 'persona-de-prueba', rol: 'Organiza' }
+		]
+	};
+	const LIST = [
+		{ name: 'KinkyVibe', role: 'Organiza' },
+		{ name: 'Persona Inventada', role: 'Organiza' },
+		{ profile: 'colectivo-de-prueba', role: 'Facilita' },
+		{ name: 'Persona Sin Perfil', role: 'Fotografía' },
+		{ profile: 'persona-de-prueba', role: 'Organiza' }
+	];
+
+	it('importar guarda una sola lista (quienes organizan incluides), nada en extra', () => {
+		const m = mdToEvent('x', WITH_PERSONAS, '');
+		expect(m.data.personas).toEqual(LIST);
+		expect(m.data).not.toHaveProperty('authors');
+		expect(/** @type {any} */ (m.data.extra)).not.toHaveProperty('personas');
+		const v = validateData(evento, m.data);
+		expect(v.ok).toBe(true);
+	});
+
+	it('la metadata vuelve a tener authors (los que organizan, en orden) y personas', () => {
+		const m = mdToEvent('x', WITH_PERSONAS, '');
+		const back = eventToMeta({ title: m.title, data: m.data, visibility: m.visibility });
+		expect(back.authors).toEqual(['KinkyVibe', 'Persona Inventada']);
+		expect(back.personas).toEqual(WITH_PERSONAS.personas);
+		expect(metaDiff(norm(back), norm(WITH_PERSONAS))).toEqual([]);
+	});
+
+	it('el .md que arma la base para el editor tiene los campos de siempre, y vuelve a la misma lista', () => {
+		const m = mdToEvent('x', WITH_PERSONAS, 'Hola');
+		const text = eventToMarkdown({ title: m.title, data: m.data, visibility: m.visibility });
+		expect(text).toContain('authors:\n  - KinkyVibe\n  - Persona Inventada\n');
+		expect(text).toContain('personas:\n  - perfil: colectivo-de-prueba\n    rol: Facilita\n');
+		expect(text).toContain('  - nombre: Persona Sin Perfil\n    rol: Fotografía\n');
+		expect(markdownToEvent('x', text).data.personas).toEqual(LIST);
+	});
+
+	it('lo importado con la forma de antes se lee igual (y pasa a la nueva al guardarlo)', () => {
+		const nueva = mdToEvent('x', WITH_PERSONAS, '');
+		const { personas, ...rest } = /** @type {Record<string, any>} */ (nueva.data);
+		const vieja = {
+			...rest,
+			authors: ['KinkyVibe', 'Persona Inventada'],
+			extra: { ...rest.extra, personas: WITH_PERSONAS.personas }
+		};
+		expect(personas).toEqual(LIST);
+		// La forma de antes sigue siendo válida para el tipo (no hace falta migrar nada).
+		expect(validateData(evento, vieja).ok).toBe(true);
+		const fromOld = eventToMeta({ title: nueva.title, data: vieja, visibility: 'public' });
+		const fromNew = eventToMeta({ title: nueva.title, data: nueva.data, visibility: 'public' });
+		expect(fromOld.authors).toEqual(fromNew.authors);
+		expect(fromOld.personas).toEqual(fromNew.personas);
+		expect(metaDiff(norm(fromOld), norm(fromNew))).toEqual([]);
+		// Guardar desde el panel pasa por el .md: queda con la forma nueva.
+		const resaved = markdownToEvent(
+			'x',
+			eventToMarkdown({ title: nueva.title, data: vieja, visibility: 'public' })
+		);
+		expect(resaved.data.personas).toEqual(LIST);
+		expect(resaved.data).not.toHaveProperty('authors');
+	});
+
+	it('el tipo no acepta una lista mal armada', () => {
+		const v = validateData(evento, {
+			start: '2031-02-02T21:00-03:00',
+			personas: [{ role: 'Organiza' }]
+		});
+		expect(v.ok).toBe(false);
+		expect(validateData(evento, { start: '2031-02-02T21:00-03:00', personas: {} }).ok).toBe(false);
 	});
 });
 

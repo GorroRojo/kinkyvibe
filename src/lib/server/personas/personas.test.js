@@ -252,6 +252,46 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 		}
 	});
 
+	// «Personas en una sola sección»: un nombre libre (sin perfil) se muestra como texto, sin
+	// link; los perfiles siguen las mismas reglas de siempre.
+	it('un nombre libre va como texto (sin link) junto a los perfiles públicos', async () => {
+		await seedProfiles();
+		const groups = await resolvePersonas(
+			t.db,
+			[
+				{ perfil: 'colectivo-de-prueba', rol: 'Organiza' },
+				{ nombre: 'Persona Sin Perfil', rol: 'Organiza' },
+				{ perfil: 'oculto', rol: 'Organiza' },
+				{ nombre: 'Fotógrafe Inventade', rol: 'Fotografía' }
+			],
+			mergeRoles()
+		);
+		expect(groups).toEqual([
+			{
+				rol: 'Organiza',
+				items: [
+					{
+						slug: 'colectivo-de-prueba',
+						title: 'Colectivo De Prueba',
+						kind: 'proyecto',
+						href: '/amigues/Colectivo_de_Prueba'
+					},
+					{ slug: '', title: 'Persona Sin Perfil', kind: 'persona', href: '' }
+				]
+			},
+			{
+				rol: 'Fotografía',
+				items: [{ slug: '', title: 'Fotógrafe Inventade', kind: 'persona', href: '' }]
+			}
+		]);
+		// Solo nombres: no hace falta consultar perfiles.
+		expect(
+			await resolvePersonas(t.db, [{ nombre: 'Solo Nombre', rol: 'Facilita' }], mergeRoles())
+		).toEqual([
+			{ rol: 'Facilita', items: [{ slug: '', title: 'Solo Nombre', kind: 'persona', href: '' }] }
+		]);
+	});
+
 	it('la página de un perfil no público no lista nada', async () => {
 		await seedProfiles();
 		const posts = [
