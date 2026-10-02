@@ -11,6 +11,7 @@
  * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md, «En la base»).
  */
 import { linkProblem } from './evento.js';
+import { personaItemsProblems } from '../../../utils/personasList.js';
 
 /** @type {import('./index.js').CoreType} */
 const material = {
@@ -23,7 +24,12 @@ const material = {
 		// (src/lib/server/contenido/render.js).
 		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },
 		tags: { kind: 'list', label: 'Etiquetas', max: 60 },
+		// Forma de antes (lo importado antes de «Personas en una sola sección»): se sigue leyendo; lo
+		// que se guarda ahora va en `personas`.
 		authors: { kind: 'list', label: 'Autores', max: 30 },
+		// Personas con su rol, autores incluides: `[{ profile?, name?, role }]`
+		// (src/lib/utils/personasList.js). En los .md siguen siendo `authors:` y `personas:`.
+		personas: { kind: 'json', array: true, label: 'Personas', max: 30_000 },
 		featured: { kind: 'text', label: 'Imagen principal', max: 200 },
 		// Texto con su propia regla (`check`): un link web, un mail, una página del sitio o el número
 		// de un archivo de la carpeta del post (`link: 1`, como algunos .md de hoy).
@@ -42,7 +48,10 @@ const material = {
 	check(data) {
 		const link = data.link ? String(data.link) : '';
 		const problem = link && !/^\d+$/.test(link) ? linkProblem(link) : null;
-		return problem ? [{ path: 'link', message: `Link: ${problem}` }] : [];
+		return [
+			...(problem ? [{ path: 'link', message: `Link: ${problem}` }] : []),
+			...personaItemsProblems(data.personas).map((message) => ({ path: 'personas', message }))
+		];
 	},
 	searchText(data) {
 		return [data.summary, data.body].filter(Boolean).join('\n');

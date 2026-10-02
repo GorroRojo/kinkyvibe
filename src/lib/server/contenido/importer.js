@@ -26,6 +26,7 @@ import { coreTypes, validateData } from '../objects/types/index.js';
 import { sha256, splitMarkdown } from '../amigues/importer.js';
 import { CONTENT_CATEGORIES } from './categories.js';
 import { dataDiff } from './parity.js';
+import { reshapePersonas } from '../../utils/personasList.js';
 import { revisionStatement } from './revisions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -242,7 +243,9 @@ export async function planImport(db, category, files) {
 			const changed = [
 				...(source.title !== mapped.title ? ['title'] : []),
 				...(source.visibility !== mapped.visibility ? ['visibility'] : []),
-				...dataDiff(source.data, validated.data)
+				// Lo importado con la forma de antes de «Personas en una sola sección» (`authors` +
+				// `extra.personas`) se compara como si ya tuviera la lista única: es lo mismo.
+				...dataDiff(reshapePersonas(source.data, cat.category), validated.data)
 			];
 			if (source.deleted) rows.push({ ...row, action: 'skipped_deleted', changed });
 			else if (source.hash === hash) rows.push({ ...row, action: 'unchanged', changed });

@@ -40,6 +40,7 @@ import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
 import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/posts/material/_post_template.md?raw';
 import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 
@@ -189,7 +190,9 @@ export function newLoad(category) {
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
-			...(await editorData(category))
+			...(await editorData(category)),
+			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
 }
@@ -236,7 +239,9 @@ export function editLoad(category) {
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
-			...(await editorData(category))
+			...(await editorData(category)),
+			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
 }
@@ -302,6 +307,27 @@ export function editorActions(category) {
 				return fail(400, { error: describe(e) });
 			}
 			if (problems.length) return fail(400, { error: problems.join(' ') });
+			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			// Como en el editor de publicaciones, lo que el archivo ya tenía mal no bloquea.
+			const roles = category === 'material' ? await activeRoles(platform) : null;
+			if (roles) {
+				let added = personasFileErrors(content, roles);
+				if (added.length && !isNew) {
+					try {
+						const current = await readContentPost(
+							await getRepoClient(),
+							admin.token,
+							category,
+							slug
+						);
+						const before = current ? personasFileErrors(current.raw, roles) : [];
+						added = added.filter((e) => !before.includes(e));
+					} catch {
+						// Sin el archivo actual, todo cuenta como nuevo.
+					}
+				}
+				if (added.length) return fail(400, { error: added.join(' ') });
+			}
 
 			/** @type {{base64: string, ext: 'jpg'|'png'|'webp'} | null} */
 			let image = null;
