@@ -4,7 +4,8 @@
 	 * como la barra de cambios sin guardar. La agenda la usa antes de cargar un evento en un día
 	 * vacío ("¿Cargar un evento el …?" · Cargar / Cancelar).
 	 * Props: `message`, `confirmLabel`, `cancelLabel`. Eventos: `confirm`, `cancel` (también con
-	 * Escape). Al aparecer, el foco va al botón que confirma.
+	 * Escape). Al aparecer, el foco va al botón que confirma. Slot `extra`: otros botones, entre
+	 * Cancelar y el que confirma (la agenda pone «Nota del día»).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { CalendarPlus, X } from '@lucide/svelte';
@@ -42,6 +43,7 @@
 		<button class="kv-btn ghost" type="button" on:click={() => dispatch('cancel')}
 			><X size={16} aria-hidden="true" /> {cancelLabel}</button
 		>
+		<slot name="extra" />
 		<button class="kv-btn" type="button" use:focusOnMount on:click={() => dispatch('confirm')}
 			><CalendarPlus size={16} aria-hidden="true" /> {confirmLabel}</button
 		>

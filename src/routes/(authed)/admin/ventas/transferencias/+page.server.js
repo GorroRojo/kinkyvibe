@@ -1,6 +1,7 @@
 /**
  * Bandeja de transferencias de todos los eventos: las que esperan comprobante (la que vence
- * antes arriba) y las vencidas de los últimos 7 días. Confirmar y cancelar usan las mismas
+ * antes arriba), las vencidas y las rechazadas de los últimos 7 días. Confirmar, cancelar y
+ * deshacer un rechazo usan las mismas
  * funciones idempotentes que la página de cada evento. Solo admins (`requireAdmin` en el `load`
  * y en cada action: las actions no pasan por el layout).
  */
@@ -8,9 +9,18 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { listTransferInbox } from '$lib/server/admin/sales.js';
-import { cancelTransferFromPanel, confirmTransferFromPanel } from '$lib/server/admin/transfers.js';
+import {
+	cancelTransferFromPanel,
+	confirmTransferFromPanel,
+	reopenTransferFromPanel
+} from '$lib/server/admin/transfers.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
-import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	inBackground,
+	sendOrderEmail,
+	siteOrigin,
+	transferHoldMs
+} from '$lib/server/tickets/index.js';
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 
@@ -29,7 +39,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 	]);
 	const inbox = filtered ?? all;
 	// Títulos y nombres de los tipos, una vez por evento.
-	const slugs = [...new Set([...all.pending, ...all.expired].map((o) => o.event_slug))];
+	const slugs = [
+		...new Set([...all.pending, ...all.expired, ...all.rejected].map((o) => o.event_slug))
+	];
 	const configs = new Map(
 		await Promise.all(slugs.map(async (s) => /** @type {const} */ ([s, await getEventTickets(s)])))
 	);
@@ -49,7 +61,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 			total: o.total,
 			discountCode: o.discount_code,
 			createdAt: o.created_at,
-			expiresAt: o.expires_at
+			expiresAt: o.expires_at,
+			updatedAt: o.updated_at,
+			rejectedBy: o.status === 'cancelled' ? (o.confirmed_by ?? '') : ''
 		};
 	};
 	/** @type {Map<string, number>} */
@@ -62,7 +76,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 			.map((s) => ({ slug: s, title: configs.get(s)?.title ?? s, pending: perEvent.get(s) ?? 0 }))
 			.sort((a, b) => b.pending - a.pending || a.title.localeCompare(b.title)),
 		pending: inbox.pending.map(row),
-		expired: inbox.expired.map(row)
+		expired: inbox.expired.map(row),
+		rejected: inbox.rejected.map(row)
 	};
 }
 
@@ -112,6 +127,33 @@ export const actions = {
 			orderId: orderIdOf(await request.formData())
 		});
 		const body = { transfer: { ok: r.ok, message: r.message } };
+		return r.ok ? body : fail(r.status, body);
+	},
+
+	// "Deshacer rechazo": la transferencia cancelada vuelve a esperar comprobante, con la reserva
+	// renovada. Solo si hay lugar; si no, el mismo aviso que confirmar una tardía (`override`).
+	reopen: async ({ locals, url, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const r = await reopenTransferFromPanel({
+			db,
+			locals,
+			by: admin.login,
+			orderId: orderIdOf(form),
+			holdMs: transferHoldMs(),
+			override: readOverride(form)
+		});
+		const body = {
+			transfer: {
+				ok: r.ok,
+				message: r.message,
+				order: orderIdOf(form),
+				action: 'reopen',
+				needsConfirmation: r.needsConfirmation ?? null
+			}
+		};
 		return r.ok ? body : fail(r.status, body);
 	}
 };

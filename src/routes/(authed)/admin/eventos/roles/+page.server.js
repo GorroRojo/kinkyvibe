@@ -11,6 +11,7 @@ import { logDBError } from '$lib/server/db';
 import {
 	createFieldAction,
 	deleteFieldAction,
+	updateFieldAction,
 	requirePersonasAdmin
 } from '$lib/server/personas/admin.js';
 import { addRole, listCustomRoles, removeRole } from '$lib/server/personas/roles.js';
@@ -78,5 +79,6 @@ export const actions = {
 		};
 	},
 	createField: (event) => createFieldAction(event, null),
+	updateField: (event) => updateFieldAction(event, null),
 	deleteField: (event) => deleteFieldAction(event, null)
 };
