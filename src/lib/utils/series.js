@@ -9,6 +9,7 @@
  */
 
 import { TIMEZONE } from './dates.js';
+import { currentSiteTagList } from './siteTags.js';
 import { tagSlug } from './tagSlug.js';
 
 export { resolveTagSlug, tagIdFromSlug, tagSlug } from './tagSlug.js';
@@ -59,6 +60,58 @@ export function isSeriesTag(tagManager, id) {
 export function seriesOfTags(tags, seriesIds) {
 	const set = new Set(tags ?? []);
 	return seriesIds.filter((id) => set.has(id));
+}
+
+/** @param {string} s */
+const norm = (s) => s.trim().toLowerCase();
+
+/**
+ * Índice de las etiquetas de serie sobre la lista cruda de etiquetas en uso (archivo o base,
+ * ./siteTags.js), sin armar un TagManager: nombre (o alias) en minúsculas → id de la etiqueta.
+ * Hijas y nietas de `root`; los alias (`aka`, y las entradas con `aliasOf`) apuntan al id.
+ * Lo usan los gráficos de Estadísticas para contar quién vuelve a la misma serie.
+ *
+ * @param {ReadonlyArray<{ id: string, children?: string[], aka?: string[], aliasOf?: string }>} [rawTags]
+ * @param {string} [root]
+ * @returns {Map<string, string>}
+ */
+export function seriesTagIndex(rawTags = currentSiteTagList(), root = SERIES_PARENT) {
+	const byId = new Map(rawTags.map((t) => [t.id, t]));
+	const children = (/** @type {string} */ id) => byId.get(id)?.children ?? [];
+	const ids = new Set();
+	for (const child of children(root)) {
+		ids.add(child);
+		for (const grandchild of children(child)) ids.add(grandchild);
+	}
+	/** @type {Map<string, string>} */
+	const index = new Map();
+	for (const id of ids) {
+		index.set(norm(id), id);
+		for (const alias of byId.get(id)?.aka ?? []) index.set(norm(alias), id);
+	}
+	for (const t of rawTags) {
+		if (t.aliasOf && ids.has(t.aliasOf)) index.set(norm(t.id), t.aliasOf);
+	}
+	return index;
+}
+
+/**
+ * Las series de un evento a partir de sus etiquetas tal como vienen en el frontmatter (sin
+ * canonizar: compara sin mayúsculas y resuelve alias), sin repetir, en orden alfabético.
+ *
+ * @param {unknown} tags las etiquetas del frontmatter
+ * @param {Map<string, string>} [index] de `seriesTagIndex`
+ * @returns {string[]}
+ */
+export function eventSeriesTags(tags, index = seriesTagIndex()) {
+	if (!Array.isArray(tags)) return [];
+	const found = new Set();
+	for (const t of tags) {
+		if (typeof t !== 'string') continue;
+		const id = index.get(norm(t));
+		if (id) found.add(id);
+	}
+	return [...found].sort((a, b) => a.localeCompare(b));
 }
 
 /**
