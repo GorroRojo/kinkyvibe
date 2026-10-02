@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
 	import { formatARS } from '$lib/utils/money.js';
+	import { fieldsForTicketType } from '$lib/utils/signupFields.js';
 	import {
 		ORDER_MAX_MESSAGE,
 		computePrice,
@@ -87,6 +88,11 @@
 	let pending = $state(false);
 
 	let selected = $derived(tickets.types.find((t) => t.id === type));
+	// Preguntas de inscripción que aplican al tipo elegido: las de una vez por compra van al
+	// final; las de una vez por entrada, dentro de cada entrada.
+	let typeFields = $derived(fieldsForTicketType(tickets.fields ?? [], type));
+	let purchaseFields = $derived(typeFields.filter((f) => !f.perTicket));
+	let ticketFields = $derived(typeFields.filter((f) => f.perTicket));
 	let gorra = $derived(selected?.gorra ?? null);
 	// "¿Cómo querés pagar tu entrada?": sin fondo en este tipo, no se ofrece el descuento del
 	// fondo y la opción por defecto es precio completo. No aplica a la gorra.
@@ -626,16 +632,23 @@
 								{/if}
 							</div>
 						</div>
+						<SignupFieldInputs
+							fields={ticketFields}
+							ticket={i}
+							legend=""
+							hint={false}
+							values={result?.values?.answers ?? {}}
+							{errors}
+						/>
 					</fieldset>
 				{/each}
 			</fieldset>
 
 			<!-- Preguntas de inscripción del evento (interruptor personas_eventos; si no hay, nada). -->
-			<SignupFieldInputs
-				fields={tickets.fields ?? []}
-				values={result?.values?.answers ?? {}}
-				{errors}
-			/>
+			<SignupFieldInputs fields={purchaseFields} values={result?.values?.answers ?? {}} {errors} />
+			{#if ticketFields.length && !purchaseFields.length}
+				<small class="hint">Tus respuestas las ven solo les organizadores.</small>
+			{/if}
 
 			{#if !gorra}
 				<div class="field code">

@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { FileSpreadsheet, FlaskConical, Plus } from '@lucide/svelte';
+	import { FileSpreadsheet, FlaskConical, Plus, StickyNote } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
@@ -10,10 +10,17 @@
 	import AgendaSheet from '$lib/components/admin/agenda/AgendaSheet.svelte';
 	import AgendaToolbar from '$lib/components/admin/agenda/AgendaToolbar.svelte';
 	import EventDetail from '$lib/components/admin/agenda/EventDetail.svelte';
+	import DayNoteEditor from '$lib/components/admin/agenda/DayNoteEditor.svelte';
 	import Calendario from '$lib/components/admin/calendario/Calendario.svelte';
 	import { postAgendaSaveMany } from '$lib/admin/agendaSave.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { agendaValues } from '$lib/utils/agenda.js';
+	import {
+		dayNoteEvent,
+		noteIdFromEventId,
+		removeDayNote,
+		upsertDayNote
+	} from '$lib/utils/dayNotes.js';
 	import {
 		CALENDAR_VIEWS,
 		CALENDAR_VIEW_KEY,
@@ -89,10 +96,47 @@
 
 	$: ecView = CALENDAR_VIEWS.find((v) => v.id === view)?.ec ?? '';
 	$: visibleRows = withPendingMoves(rows, pending);
-	$: events = calendarEvents(visibleRows, {
-		places: data.places,
-		canEdit: data.canEdit && !saving
-	});
+	$: events = [
+		// Las notas primero: en cada día se ven arriba de los eventos.
+		...notes.map(dayNoteEvent),
+		...calendarEvents(visibleRows, {
+			places: data.places,
+			canEdit: data.canEdit && !saving
+		})
+	];
+
+	/* ---------- notas de los días (D1, solo admins) ---------- */
+	/** @type {import('$lib/utils/dayNotes.js').DayNote[]} */
+	let notes = data.notes;
+	let noteOpen = false;
+	/** @type {import('$lib/utils/dayNotes.js').DayNote | null} */
+	let noteEditing = null;
+	let noteDate = '';
+
+	/** @param {string} date */
+	function addNote(date) {
+		if (!data.notesEnabled) return;
+		noteEditing = null;
+		noteDate = date;
+		noteOpen = true;
+	}
+	/** @param {import('$lib/utils/dayNotes.js').DayNote} note */
+	function editNote(note) {
+		if (!data.notesEnabled) return;
+		noteEditing = note;
+		noteOpen = true;
+	}
+	/** @param {string} eventId */
+	function openEvent(eventId) {
+		const noteId = noteIdFromEventId(eventId);
+		if (noteId === null) {
+			selected = eventId;
+			detailOpen = true;
+			return;
+		}
+		const note = notes.find((n) => n.id === noteId);
+		if (note) editNote(note);
+	}
 
 	/**
 	 * @param {string} slug
@@ -236,12 +280,17 @@
 
 <PageHeader
 	title="Agenda"
-	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (conserva su hora; se guarda cuando tocás «Guardar cambios» y confirmás) o tocá un día vacío para cargar uno. En la planilla editás varios a la vez."
+	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (conserva su hora; se guarda cuando tocás «Guardar cambios» y confirmás) o tocá un día vacío para cargar uno o dejarle una nota. En la planilla editás varios a la vez."
 >
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet size={16} aria-hidden="true" /> Importar planilla</a
 		>
+		{#if data.notesEnabled}
+			<button class="kv-btn ghost" type="button" on:click={() => addNote(data.today)}
+				><StickyNote size={16} aria-hidden="true" /> Nota del día</button
+			>
+		{/if}
 		<a class="kv-btn" href="/admin/eventos/nuevo"><Plus size={16} aria-hidden="true" /> Evento</a>
 	</svelte:fragment>
 </PageHeader>
@@ -275,8 +324,13 @@
 	<AgendaSheet
 		rows={rows.filter((r) => r.date >= data.today)}
 		places={data.places}
+		{notes}
+		today={data.today}
+		notesEnabled={data.notesEnabled}
 		bind:dirtyCount={sheetDirty}
 		on:saved={(e) => updateRow(e.detail.slug, e.detail.values)}
+		on:addNote={(e) => addNote(e.detail)}
+		on:openNote={(e) => editNote(e.detail)}
 	/>
 {:else if view}
 	<Calendario
@@ -284,10 +338,7 @@
 		bind:title
 		view={ecView}
 		{events}
-		on:open={(e) => {
-			selected = e.detail.id;
-			detailOpen = true;
-		}}
+		on:open={(e) => openEvent(e.detail.id)}
 		on:pick={(e) => (newEventAsk = e.detail)}
 		on:move={(e) => reschedule(e.detail.id, e.detail, e.detail.revert)}
 	/>
@@ -298,7 +349,21 @@
 			cancelLabel="Cancelar"
 			on:confirm={create}
 			on:cancel={() => (newEventAsk = null)}
-		/>
+		>
+			<svelte:fragment slot="extra">
+				{#if data.notesEnabled}
+					<button
+						class="kv-btn ghost"
+						type="button"
+						on:click={() => {
+							const date = newEventAsk?.date ?? data.today;
+							newEventAsk = null;
+							addNote(date);
+						}}><StickyNote size={16} aria-hidden="true" /> Nota del día</button
+					>
+				{/if}
+			</svelte:fragment>
+		</ConfirmPrompt>
 	{/if}
 	{#if pendingCount || problemList.length}
 		<PendingBar
@@ -330,6 +395,20 @@
 	pending={selectedPending}
 	on:move={(e) => selected && reschedule(selected, { date: e.detail.date })}
 	on:revert={() => selected && dispatchPending({ type: 'revert', slug: selected })}
+/>
+
+<DayNoteEditor
+	bind:open={noteOpen}
+	note={noteEditing}
+	date={noteDate}
+	on:saved={(e) => {
+		notes = upsertDayNote(notes, e.detail);
+		say('Nota guardada.');
+	}}
+	on:deleted={(e) => {
+		notes = removeDayNote(notes, e.detail);
+		say('Nota borrada.');
+	}}
 />
 
 <!-- Avisos (sin Deshacer: los movimientos se deshacen antes de guardar, con «Descartar»). -->

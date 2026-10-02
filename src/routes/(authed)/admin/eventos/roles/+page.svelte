@@ -86,6 +86,8 @@
 			fields={data.fields}
 			csvName="preguntas-generales.csv"
 			empty="Todavía no hay preguntas generales."
+			{form}
+			idPrefix="general"
 		/>
 		<h3>Agregar una pregunta general</h3>
 		<SignupFieldForm {form} idPrefix="general" />
