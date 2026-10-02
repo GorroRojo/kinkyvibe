@@ -91,6 +91,16 @@ interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o `CONTENIDO
   leen los eventos de la base (convertidos al mismo `ProcessedPost` que da un `.md`). **La base
   decide** cada dirección que tiene (oculto o borrado → 404 aunque el `.md` siga); lo que no está
   en la base sigue saliendo de su `.md`.
+- **El texto se ve igual que hoy** (decisión 0004: superadmins pueden usar HTML libre). Cada texto
+  guarda cómo se muestra (`data.body_html`), decidido al guardar según quién lo escribió:
+  `'libre'` para lo importado del repo y lo que guarda une superadmin; si no, la lista corta.
+  - Libre y sin cambios respecto de su `.md`: la página usa el componente que mdsvex compiló de
+    ese `.md` (exactamente lo de siempre: estilos, `<iframe>`, `<video>`, componentes).
+  - Libre y editado: `freeHtml.js` lo arma con el mismo camino que mdsvex (HTML libre, comillas
+    tipográficas, anclas, menciones, wiki, índice; sus `<style>` se aplican solo dentro del texto
+    con `@scope`). Con los textos reales da el mismo HTML que mdsvex en 535 de 571 (el resto son
+    casos borde del parser de markdown; `render.test.js` no deja que empeore).
+  - Lista corta: `amigues/sanitize.js`, como los perfiles.
 - **Historial**: cada guardado (también importar) copia el objeto a `object_revisions` en la misma
   tanda de `saveObject()` (`src/lib/server/contenido/revisions.js`).
 
@@ -100,7 +110,7 @@ interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o `CONTENIDO
 | Importación                        | `src/lib/server/contenido/importer.js` (+ `bundle.js`: los `.md` del deploy) |
 | Qué cuenta como «igual»            | `src/lib/server/contenido/parity.js`                                         |
 | Lectura para las páginas           | `src/lib/server/contenido/posts.js`                                          |
-| Texto del cuerpo (HTML limpio)     | `src/lib/server/contenido/render.js` (lista corta de `amigues/sanitize.js`)  |
+| Texto del cuerpo                   | `src/lib/server/contenido/render.js` (y `freeHtml.js` para el HTML libre)    |
 | Esquema                            | `migrations/0031_contenido_eventos.sql`                                      |
 
 Lo que todavía no cambia (pasos siguientes):
@@ -110,8 +120,6 @@ Lo que todavía no cambia (pasos siguientes):
   (`src/lib/server/tickets/events.js`); en la base quedan guardadas en `extra`, sin usarse.
 - El panel (listas de eventos, No listadas, el contador) y los mails (recordatorios, «avisame si
   se repite») siguen leyendo los `.md`.
-- Lo que mdsvex hace y la base no: `<script>`/componentes, `<style>` propios del post, `<iframe>` y
-  las comillas tipográficas. La importación avisa en cada evento que usa algo de eso.
 - `/calendario.ics`, `/rss`, `/sitemap.xml`, `/api/posts` y `/api/search-index.json` dejaron de
   prerenderizarse (con el interruptor apagado dan lo mismo que antes, pero los arma el Worker).
 

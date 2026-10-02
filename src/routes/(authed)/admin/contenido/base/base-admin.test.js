@@ -115,18 +115,19 @@ describe('importar desde el panel', () => {
 		const m = await modules('0');
 		const before = /** @type {any} */ (await m.page.load(fakeEvent()));
 		expect(before.flagOn).toBe(false);
-		expect(before.status).toMatchObject({ files: 7, imported: 0, pending: 6, problems: 1 });
+		expect(before.status).toMatchObject({ files: 8, imported: 0, pending: 7, problems: 1 });
 
 		const r = /** @type {any} */ (await m.page.actions.importar(fakeEvent({ form: {} })));
-		expect(r.importResult).toMatchObject({ remaining: 0, summary: { created: 6, error: 0 } });
+		expect(r.importResult).toMatchObject({ remaining: 0, summary: { created: 7, error: 0 } });
 		const audit = await t.db
 			.prepare("SELECT summary FROM admin_audit WHERE action = 'contenido.import'")
 			.all();
 		expect(audit.results).toHaveLength(1);
 
 		const after = /** @type {any} */ (await m.page.load(fakeEvent()));
-		expect(after.status).toMatchObject({ imported: 6, same: 6, pending: 0, drift: 0, problems: 1 });
-		// Para revisar: el roto (no se puede leer) y los que tienen avisos (estilos propios, fin al día siguiente).
+		expect(after.status).toMatchObject({ imported: 7, same: 7, pending: 0, drift: 0, problems: 1 });
+		// Para revisar: el roto (no se puede leer) y los que tienen avisos (fin al día siguiente). El HTML
+		// libre es solo una nota: se ve igual que hoy.
 		expect(after.rows.map((/** @type {any} */ r) => r.legacySlug)).toEqual([
 			'fiesta-inventada-2031-01',
 			'roto-2031-06'

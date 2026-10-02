@@ -24,6 +24,7 @@
  *   link?: string,
  *   link_text?: string,
  *   body?: string,
+ *   body_html?: 'libre' | 'corta',
  *   tags?: string[],
  *   authors?: string[],
  *   featured?: string,
@@ -85,6 +86,10 @@ const evento = {
 		link: { kind: 'text', label: 'Link de acción', max: 2000 },
 		link_text: { kind: 'text', label: 'Texto del link', max: 80 },
 		body: { kind: 'longtext', label: 'Descripción' },
+		// Cómo se muestra el texto (decisión 0004): 'libre' (HTML libre: lo importado del repo y lo
+		// que guarda une superadmin, se ve como hoy) o 'corta' (la lista corta de HTML). Se decide al
+		// guardar, según quién escribió el texto (src/lib/server/contenido/render.js).
+		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },
 		tags: { kind: 'list', label: 'Etiquetas', max: EVENT_TAGS_MAX },
 		authors: { kind: 'list', label: 'Quiénes organizan', max: EVENT_AUTHORS_MAX },
 		// Número de la imagen en la carpeta del evento («1») o archivo de src/lib/assets

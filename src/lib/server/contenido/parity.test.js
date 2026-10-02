@@ -108,17 +108,17 @@ const ids = (posts) => posts.map((p) => p.meta.postID);
 describe('importación', () => {
 	it('crea los eventos, informa lo que no puede y es idempotente', async () => {
 		const plan = await planImport(t.db, 'calendario', files);
-		expect(summarizeImport(plan)).toMatchObject({ created: 5, invalid: 1, error: 0 });
+		expect(summarizeImport(plan)).toMatchObject({ created: 6, invalid: 1, error: 0 });
 		expect(plan.find((r) => r.legacySlug === 'roto-2031-06')?.action).toBe('invalid');
 		expect(
 			plan.find((r) => r.legacySlug === 'fiesta-inventada-2031-01')?.warnings.join(' ')
 		).toMatch(/día siguiente/);
 
 		const first = await importAll();
-		expect(summarizeImport(first.results)).toMatchObject({ created: 5, error: 0 });
+		expect(summarizeImport(first.results)).toMatchObject({ created: 6, error: 0 });
 		const again = await runImport(t.db, 'calendario', files, { actor: 'x', now: NOW });
 		expect(again.results).toEqual([]);
-		expect(summarizeImport(again.plan)).toMatchObject({ unchanged: 5, invalid: 1 });
+		expect(summarizeImport(again.plan)).toMatchObject({ unchanged: 6, invalid: 1 });
 		// Sin cambios: ningún campo distinto (la base tiene lo mismo que daría importar hoy).
 		expect(again.plan.filter((r) => r.action === 'unchanged').every((r) => !r.changed.length)).toBe(
 			true
@@ -142,9 +142,9 @@ describe('importación', () => {
 	it('va de a tandas', async () => {
 		const r1 = await runImport(t.db, 'calendario', files, { actor: 'a', now: NOW, limit: 2 });
 		expect(r1.results).toHaveLength(2);
-		expect(r1.remaining).toBe(3);
+		expect(r1.remaining).toBe(4);
 		const r2 = await runImport(t.db, 'calendario', files, { actor: 'a', now: NOW, limit: 10 });
-		expect(r2.results).toHaveLength(3);
+		expect(r2.results).toHaveLength(4);
 		expect(r2.remaining).toBe(0);
 	});
 
