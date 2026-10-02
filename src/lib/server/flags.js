@@ -99,9 +99,17 @@ export const FLAG_CACHE_MS = 30_000;
 /** @type {Map<string, { value: boolean, expires: number }>} */
 const cache = new Map();
 
+/** La lectura de todos los interruptores en curso (la comparten los pedidos que llegan juntos). */
+/** @type {{ db: D1Database, read: Promise<Map<string, boolean>> } | null} */
+let reading = null;
+/** Sube con cada `clearFlagCache`: una lectura que empezó antes no se guarda. */
+let generation = 0;
+
 /** Olvida los valores recordados (al guardar desde el panel, y en los tests). */
 export function clearFlagCache() {
 	cache.clear();
+	reading = null;
+	generation++;
 }
 
 /**
@@ -137,7 +145,29 @@ export async function readFlag(db, key) {
 }
 
 /**
+ * Todos los interruptores de la base en una consulta (sin caché). Sin base, sin la tabla o si la
+ * lectura falla: todos apagados, como `readFlag`.
+ *
+ * @param {D1Database} db
+ * @returns {Promise<Map<string, boolean>>}
+ */
+async function readAllFlags(db) {
+	/** @type {Map<string, boolean>} */
+	const out = new Map();
+	try {
+		const { results } = await db.prepare('SELECT key, enabled FROM feature_flags').all();
+		for (const r of results) out.set(String(r.key), Number(r.enabled) === 1);
+	} catch (error) {
+		logDBError('feature flags', error);
+	}
+	return out;
+}
+
+/**
  * ¿Está prendido? La variable de entorno manda; si no dice nada, la base (con caché).
+ *
+ * Cuando hay que ir a la base, se leen y se recuerdan todos los interruptores juntos (una consulta
+ * en lugar de una por interruptor): una página consulta varios.
  *
  * @param {D1Database | null | undefined} db
  * @param {FlagKey} key
@@ -148,8 +178,27 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 	if (forced !== null) return forced;
 	const hit = cache.get(key);
 	if (hit && hit.expires > now) return hit.value;
-	const value = await readFlag(db, key);
-	cache.set(key, { value, expires: now + FLAG_CACHE_MS });
+	if (!db) {
+		cache.set(key, { value: false, expires: now + FLAG_CACHE_MS });
+		return false;
+	}
+	const gen = generation;
+	if (reading?.db !== db) {
+		const read = readAllFlags(db);
+		reading = { db, read };
+		read.finally(() => {
+			if (reading?.read === read) reading = null;
+		});
+	}
+	const all = await reading.read;
+	const value = all.get(key) ?? false;
+	if (gen === generation) {
+		for (const k of Object.keys(FLAGS)) {
+			const fresh = cache.get(k);
+			if (!fresh || fresh.expires <= now)
+				cache.set(k, { value: all.get(k) ?? false, expires: now + FLAG_CACHE_MS });
+		}
+	}
 	return value;
 }
 

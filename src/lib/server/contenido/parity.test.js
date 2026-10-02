@@ -8,11 +8,13 @@
  * apagado nada cambie.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { buildIcsFeed } from '$lib/utils/icsFeed.js';
 import { stripMarkdown } from '$lib/utils/search.js';
 import { EVENT_FIELDS } from './eventos.js';
+import { CATEGORY_LIST, categoryOfType } from './categories.js';
 import { metaDiff, normalizeMeta } from './parity.js';
 import { planImport, runImport, summarizeImport } from './importer.js';
 import { listRevisions } from './revisions.js';
@@ -347,5 +349,100 @@ describe('visibilidad', () => {
 			mode: 'md'
 		});
 		expect((await posts.siteBodies(t.platform)).size).toBe(0);
+	});
+});
+
+describe('las listas no leen el cuerpo de los posts', () => {
+	/**
+	 * Lo que armaban las listas antes de leer sin el cuerpo: cada post con su `data` entero, y los
+	 * cuerpos para la búsqueda en la misma lectura.
+	 * @param {typeof import('./posts.js')} posts
+	 */
+	async function oldPath(posts) {
+		const types = CATEGORY_LIST.map((c) => c.type);
+		const t2 = types.map(() => '?').join(', ');
+		const visible = visibleWhere(ANON, 'o');
+		const { results: claimedRows } = await t.db
+			.prepare(
+				`SELECT o.type, o.slug, s.legacy_slug FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id WHERE o.type IN (${t2})`
+			)
+			.bind(...types)
+			.all();
+		const { results: rows } = await t.db
+			.prepare(
+				`SELECT o.id, o.type, o.slug, o.title, o.data, o.visibility, s.legacy_slug FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE o.type IN (${t2}) AND ${visible.sql} ORDER BY o.id`
+			)
+			.bind(...types, ...visible.params)
+			.all();
+		/** @type {Map<string, Set<string>>} */
+		const claimed = new Map(CATEGORY_LIST.map((c) => [c.category, new Set()]));
+		for (const r of claimedRows) {
+			const set = claimed.get(String(categoryOfType(String(r.type))?.category));
+			set?.add(String(r.slug));
+			if (r.legacy_slug) set?.add(String(r.legacy_slug));
+		}
+		/** @type {any[]} */
+		const listed = [];
+		/** @type {any[]} */
+		const unlisted = [];
+		/** @type {Map<string, string>} */
+		const bodies = new Map();
+		for (const r of rows) {
+			const cat = /** @type {NonNullable<ReturnType<typeof categoryOfType>>} */ (
+				categoryOfType(String(r.type))
+			);
+			const data = JSON.parse(String(r.data));
+			const object = { title: String(r.title), data, visibility: String(r.visibility) };
+			const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
+			const post = await utils.processPost(
+				undefined,
+				postID,
+				/** @type {any} */ (cat.toMeta(object)),
+				true
+			);
+			(post.meta.force_unlisted ? unlisted : listed).push(post);
+			if (typeof data.body === 'string' && data.body) bodies.set(post.path, data.body);
+		}
+		return {
+			listed: posts.mergePosts(structuredClone(md.listed), { claimed }, listed),
+			unlisted: posts.mergePosts(structuredClone(md.unlisted), { claimed }, unlisted),
+			bodies
+		};
+	}
+
+	it('dan lo mismo que leyendo todo, sin traer ningún cuerpo', async () => {
+		await importAll();
+		const posts = await contenido('1');
+		const counted = countingDB(t.db);
+		const platform = /** @type {App.Platform} */ ({ env: { ...t.env, DB: counted.db } });
+		const listed = await posts.sitePosts(platform);
+		const unlisted = await posts.sitePosts(platform, false, true);
+		const old = await oldPath(posts);
+		expect(listed).toEqual(old.listed);
+		expect(unlisted).toEqual(old.unlisted);
+		expect(listed.length).toBeGreaterThan(3);
+		expect(old.bodies.size).toBeGreaterThan(3);
+		// Ninguna fila leída para las listas trae el cuerpo.
+		let rowsWithData = 0;
+		for (const q of counted.log) {
+			for (const row of /** @type {any} */ (q.result)?.results ?? []) {
+				if (typeof row.data !== 'string') continue;
+				rowsWithData++;
+				expect(JSON.parse(row.data), String(row.slug)).not.toHaveProperty('body');
+			}
+		}
+		expect(rowsWithData).toBeGreaterThan(3);
+
+		// La búsqueda sí recibe los cuerpos: los mismos, leídos una vez por cambio de la base.
+		expect(await posts.siteBodies(platform)).toEqual(old.bodies);
+		counted.reset();
+		expect(await posts.siteBodies(platform)).toEqual(old.bodies);
+		expect(await posts.sitePosts(platform)).toEqual(old.listed);
+		// Solo la consulta chica de «¿cambió algo?», una por llamada.
+		expect(counted.queries).toBe(2);
+		expect(counted.bytes()).toBeLessThan(400);
 	});
 });

@@ -157,6 +157,9 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
   importaciones) y vuelve a leerlos si cambió. Todo lo que escribe pasa por `saveObject()`, que
   cambia eso; un `UPDATE objects` a mano que no toque `updated_at` no se ve hasta el próximo
   guardado. Un evento por su dirección es una sola consulta, por los índices únicos.
+- Las listas públicas (`posts.js`) leen la metadata **sin el cuerpo** (con `json_remove`): el
+  cuerpo es casi todo lo que pesa `data` (con ~570 posts, ~1,1 MB contra ~0,34 MB). El cuerpo lo
+  pide aparte solo el índice de la búsqueda (`siteBodies`), una vez por cambio de la base.
 
 Lo que todavía no cambia (pasos siguientes):
 

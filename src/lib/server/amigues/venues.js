@@ -19,8 +19,8 @@
  *   lugar según su nivel (lo verifica la prueba de filtraciones).
  */
 import { venuePlaceMeta, stripMdPlace } from '$lib/utils/eventPlace.js';
-import { ANON, getObject } from '$lib/server/objects/index.js';
-import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
+import { ANON, canSee, getObject } from '$lib/server/objects/index.js';
+import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
@@ -94,12 +94,27 @@ export async function eventVenue(db, eventSlug) {
 export async function publicVenueForEvent(db, eventSlug, viewer) {
 	const link = await eventVenue(db, eventSlug);
 	if (!link) return null;
-	const level = effectivePrivacy(link.override, link.venue.data.venue_privacy);
-	if (level === 'hidden') return { level };
-	const visible = await getObject(db, { id: link.venue.id }, viewer);
-	if (!visible || visible.visibility === 'hidden' || !(await isApproved(db, link.venue.id))) {
+	if (effectivePrivacy(link.override, link.venue.data.venue_privacy) === 'hidden') {
 		return { level: 'hidden' };
 	}
+	const visible = await getObject(db, { id: link.venue.id }, viewer);
+	return linkedVenueView(link, visible, visible ? await isApproved(db, link.venue.id) : false);
+}
+
+/**
+ * Lo que se muestra del lugar de un evento, con lo ya leído: el vínculo (`eventVenue`), el lugar
+ * como lo ve quien mira (`getObject`, `null` si no lo puede ver) y si está aprobado. La usan la
+ * página del evento (un evento) y {@link feedVenues} (muchos, leídos juntos), así deciden igual.
+ *
+ * @param {{ venue: StoredObject, legacySlug: string | null, override: VenuePrivacy | null }} link
+ * @param {StoredObject | null} visible
+ * @param {boolean} approved
+ * @returns {VenueView}
+ */
+function linkedVenueView(link, visible, approved) {
+	const level = effectivePrivacy(link.override, link.venue.data.venue_privacy);
+	if (level === 'hidden') return { level };
+	if (!visible || visible.visibility === 'hidden' || !approved) return { level: 'hidden' };
 	return venueView(link.venue, level, `/amigues/${urlSlugOf(link.venue, link.legacySlug)}`);
 }
 
@@ -199,13 +214,56 @@ export async function feedVenues(db, slugs) {
 	/** @type {Map<string, VenueView>} */
 	const out = new Map();
 	if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return out;
-	const want = new Set(slugs);
-	const { results } = await db.prepare('SELECT event_slug FROM event_venues').all();
-	for (const r of results) {
-		const slug = String(r.event_slug);
-		if (!want.has(slug)) continue;
-		const view = await publicVenueForEvent(db, slug, ANON);
-		if (view) out.set(slug, view);
+	const want = [...new Set(slugs)].filter(isEventSlug);
+	if (!want.length) return out;
+	// Todos juntos, en una sola vuelta a la base: los vínculos de los eventos pedidos y sus lugares
+	// (una fila por lugar, no por evento). Antes eran tres consultas por evento con lugar: la
+	// página de un lugar con 80 eventos hacía ~240 y el .ics general ~850.
+	const cols = OBJECT_COLUMNS.split(', ')
+		.map((c) => `o.${c}`)
+		.join(', ');
+	const wanted = JSON.stringify(want);
+	/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */
+	const [links, venues] = await db.batch([
+		db
+			.prepare(
+				`SELECT event_slug, venue_id, privacy FROM event_venues
+				WHERE event_slug IN (SELECT value FROM json_each(?1)) ORDER BY event_slug`
+			)
+			.bind(wanted),
+		db
+			.prepare(
+				`SELECT ${cols}, s.legacy_slug AS legacy_slug,
+					EXISTS (SELECT 1 FROM profile_approvals a WHERE a.profile_id = o.id) AS approved
+				FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
+				WHERE o.id IN (
+					SELECT venue_id FROM event_venues WHERE event_slug IN (SELECT value FROM json_each(?1))
+				) AND o.type = ?2 AND o.deleted_at IS NULL`
+			)
+			.bind(wanted, PROFILE_TYPE)
+	]);
+	/** @type {Map<number, { venue: StoredObject, legacySlug: string | null, visible: StoredObject | null, approved: boolean }>} */
+	const byId = new Map();
+	for (const row of venues.results) {
+		const venue = rowToObject(row);
+		if (profileKindOf(venue.data) !== 'lugar') continue;
+		byId.set(venue.id, {
+			venue,
+			legacySlug: row.legacy_slug == null ? null : String(row.legacy_slug),
+			// Lo mismo que `getObject(db, { id }, ANON)` con la fila ya leída.
+			visible: canSee(venue, ANON) ? forViewer(venue, ANON) : null,
+			approved: Boolean(row.approved)
+		});
+	}
+	for (const r of links.results) {
+		const found = byId.get(Number(r.venue_id));
+		if (!found) continue;
+		const link = {
+			venue: found.venue,
+			legacySlug: found.legacySlug,
+			override: isVenuePrivacy(r.privacy) ? r.privacy : null
+		};
+		out.set(String(r.event_slug), linkedVenueView(link, found.visible, found.approved));
 	}
 	return out;
 }

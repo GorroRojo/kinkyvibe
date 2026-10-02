@@ -179,7 +179,8 @@ tardó 0,37 s, así que los tiempos sirven para comparar entre sí, no como núm
 
 Lo común a todo pedido (`hooks.server.js`): el interruptor `etiquetas_db` y, si está prendido, el
 árbol de la base. Los interruptores y el árbol se recuerdan 30 s por isolate, así que cuestan
-**1 consulta cada 30 s por interruptor**, no por pedido. Sin cookie no se consulta nada más.
+**1 consulta cada 30 s para todos los interruptores juntos** (antes, una por interruptor), no por
+pedido. Sin cookie no se consulta nada más.
 
 | Endpoint                 | Del bundle                                                         | D1 con todo apagado    | Con `perfiles_publicos`                                   | Con `contenido_db`                                                             | Qué se recuerda en el isolate                          |
 | ------------------------ | ------------------------------------------------------------------ | ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------ |
@@ -195,6 +196,11 @@ El N+1 está en `feedVenues` (`src/lib/server/amigues/venues.js`): lee **todas**
 (1) e `isApproved` (1). Con 30 eventos con lugar son ~91 consultas una detrás de otra en cada
 pedido a `/calendario.ics` y a `/api/posts`.
 
+**Arreglado** (PR «Sitio público rápido con contenido en la base»): `feedVenues` lee los vínculos
+de los eventos pedidos y sus lugares en un solo `batch` (una vuelta a la base, con 5 o con 500
+eventos) y decide igual que la página del evento (`linkedVenueView`). Arregla también la página de
+cada lugar (~240 consultas con ~80 eventos), las listas, los relacionados y `/api/posts`.
+
 ### Recomendaciones (de más a menos impacto)
 
 No están implementadas. Cada una es un PR chico aparte.
@@ -204,7 +210,7 @@ No están implementadas. Cada una es un PR chico aparte.
 | 1   | **Comprimir `/calendario.ics`**: una Compression Rule en la zona (Rules → Compression Rules) que sume `text/calendar`, o comprimirlo en el Worker (`CompressionStream` + `content-encoding`)                                                             | 509 KB a ~50–60 KB (los otros comprimen 8–15 veces). Lo piden los calendarios suscriptos una y otra vez                                                                         | XS (regla: 10 min, sin código) |
 | 2   | **Cache API** para los 5 endpoints públicos: un helper que busque en `caches.default`, y si no está, arme la respuesta y la guarde con `ctx.waitUntil` (clave = URL; con `contenido_db`, sumar la «marca» de la base para que un cambio se vea al toque) | Hoy el Worker arma todo en cada pedido y `s-maxage` no sirve. Saca CPU y consultas a D1 de casi todos los pedidos                                                               | S (medio día, con pruebas)     |
 | 3   | **`stale-while-revalidate`** y algo de caché en el navegador para RSS y sitemap: `public, max-age=900, stale-while-revalidate=86400` (hoy `max-age=0`); sumar `stale-while-revalidate` a `TAGGED_CACHE`                                                  | Los lectores de RSS y los buscadores vuelven a pedir; con SWR nadie espera mientras se rearma (sirve con la nº 2)                                                               | XS                             |
-| 4   | **Sacar el N+1 de `feedVenues`**: una sola consulta con `JOIN` (`event_venues`, `objects`, `profile_sources`, `profile_approvals`) filtrando por los slugs pedidos, y aplicar `effectivePrivacy`/`venueView` en memoria                                  | Con `perfiles_publicos` prendido, `.ics` y `/api/posts` pasan de 1 + 3·N consultas en serie a 1. Código de privacidad: la prueba de filtraciones tiene que seguir pasando igual | S–M                            |
+| 4   | **(Hecho)** **Sacar el N+1 de `feedVenues`**: una sola consulta con `JOIN` (`event_venues`, `objects`, `profile_sources`, `profile_approvals`) filtrando por los slugs pedidos, y aplicar `effectivePrivacy`/`venueView` en memoria                      | Con `perfiles_publicos` prendido, `.ics` y `/api/posts` pasan de 1 + 3·N consultas en serie a 1. Código de privacidad: la prueba de filtraciones tiene que seguir pasando igual | S–M                            |
 | 5   | **Recordar el índice de búsqueda con `contenido_db`**: guardarlo por (árbol, «marca» de la base) en vez de rearmarlo en cada pedido                                                                                                                      | Hoy, prendido, cada apertura del buscador rearma ~600 textos                                                                                                                    | S                              |
 | 6   | **Recordar el cuerpo armado** (`.ics`, RSS, sitemap, JSON de `/api/posts`) por (árbol, «marca», lugares) en el isolate                                                                                                                                   | Evita rearmar 500 KB de texto por pedido si la nº 2 no alcanza (la Cache API es por ciudad de Cloudflare)                                                                       | S                              |
 | 7   | **`ETag` débil** (hash del cuerpo) y `304` con `If-None-Match`                                                                                                                                                                                           | Ahorra la descarga a quien vuelve a pedir lo mismo (calendarios, buscador)                                                                                                      | S                              |

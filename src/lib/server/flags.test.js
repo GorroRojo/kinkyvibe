@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { navFlagKeys } from '$lib/admin/nav.js';
 import {
 	FLAGS,
@@ -80,5 +80,36 @@ describe('interruptores', () => {
 
 	it('los interruptores del menú del panel (flag en nav.js) existen', () => {
 		for (const key of navFlagKeys()) expect(Object.keys(FLAGS), key).toContain(key);
+	});
+
+	it('una página que mira varios interruptores consulta la base una sola vez', async () => {
+		await setFlag(t.db, 'series', true, { by: 'admin-de-prueba' });
+		await setFlag(t.db, 'propinas', true, { by: 'admin-de-prueba' });
+		clearFlagCache();
+		const counted = countingDB(t.db);
+		const now = 5_000_000;
+		const keys = /** @type {(keyof typeof FLAGS)[]} */ (Object.keys(FLAGS));
+		// Todos juntos (como los loads en paralelo) y después uno por uno.
+		const together = await Promise.all(
+			keys.map((k) => isFlagOn(counted.db, k, { now, envValue: '' }))
+		);
+		for (const k of keys) await isFlagOn(counted.db, k, { now: now + 1, envValue: '' });
+		expect(counted.queries).toBe(1);
+		expect(Object.fromEntries(keys.map((k, i) => [k, together[i]]))).toEqual(
+			Object.fromEntries(keys.map((k) => [k, k === 'series' || k === 'propinas']))
+		);
+		// Cuando vence, otra vez una sola.
+		await Promise.all(
+			keys.map((k) => isFlagOn(counted.db, k, { now: now + FLAG_CACHE_MS, envValue: '' }))
+		);
+		expect(counted.queries).toBe(2);
+		// Sin la tabla: todos apagados, como readFlag.
+		clearFlagCache();
+		const bare = await createTestDB({ migrate: false });
+		try {
+			expect(await isFlagOn(bare.db, 'series', { envValue: '' })).toBe(false);
+		} finally {
+			await bare.dispose();
+		}
 	});
 });

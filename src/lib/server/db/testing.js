@@ -330,3 +330,75 @@ export async function resetDB(db) {
 		...rebuild.map((r) => db.prepare(`INSERT INTO ${q(r.name)} (${q(r.name)}) VALUES ('rebuild')`))
 	]);
 }
+
+/**
+ * Una vista de `db` que cuenta las consultas, para las pruebas de rendimiento: cada `first`,
+ * `all`, `run` o `raw` es una, y cada `batch` también es una (una sola vuelta a la base). Guarda
+ * el SQL y lo que devolvió cada una, para ver cuánto viaja desde la base.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ */
+export function countingDB(db) {
+	/** @type {{ sql: string, result: unknown }[]} */
+	const log = [];
+	const RAW = Symbol('statement');
+	/** @type {WeakMap<object, string>} */
+	const sqlOf = new WeakMap();
+	/**
+	 * @param {any} statement
+	 * @param {string} sql
+	 * @returns {any}
+	 */
+	const wrap = (statement, sql) => {
+		const proxy = new Proxy(statement, {
+			get(target, prop) {
+				if (prop === RAW) return target;
+				if (prop === 'bind') {
+					return (/** @type {unknown[]} */ ...args) => wrap(target.bind(...args), sql);
+				}
+				if (prop === 'first' || prop === 'all' || prop === 'run' || prop === 'raw') {
+					return async (/** @type {unknown[]} */ ...args) => {
+						const result = await target[prop](...args);
+						log.push({ sql, result });
+						return result;
+					};
+				}
+				const value = target[prop];
+				return typeof value === 'function' ? value.bind(target) : value;
+			}
+		});
+		sqlOf.set(proxy, sql);
+		return proxy;
+	};
+	const counted = /** @type {import('@cloudflare/workers-types').D1Database} */ (
+		new Proxy(db, {
+			get(target, prop) {
+				if (prop === 'prepare') {
+					return (/** @type {string} */ sql) => wrap(target.prepare(sql), sql);
+				}
+				if (prop === 'batch') {
+					return async (/** @type {any[]} */ statements) => {
+						const result = await target.batch(statements.map((s) => s[RAW] ?? s));
+						log.push({ sql: statements.map((s) => sqlOf.get(s) ?? '?').join(';\n'), result });
+						return result;
+					};
+				}
+				const value = /** @type {any} */ (target)[prop];
+				return typeof value === 'function' ? value.bind(target) : value;
+			}
+		})
+	);
+	return {
+		db: counted,
+		log,
+		/** Cuántas consultas desde el último `reset`. */
+		get queries() {
+			return log.length;
+		},
+		/** Cuánto devolvieron (largo del JSON de los resultados). */
+		bytes: () => log.reduce((n, q) => n + JSON.stringify(q.result ?? null).length, 0),
+		reset: () => {
+			log.length = 0;
+		}
+	};
+}
