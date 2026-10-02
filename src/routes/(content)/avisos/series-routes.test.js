@@ -74,6 +74,9 @@ async function modules({ series = '1', cuentas = '1', extra } = {}) {
 		},
 		thumbURL: async (/** @type {string} */ _c, /** @type {string} */ _p, /** @type {string} */ f) =>
 			`/assets/${f}`,
+		// La imagen de un evento como imagen de la serie (calendario:<evento>/<archivo>).
+		mediaURL: (/** @type {string} */ c, /** @type {string} */ p, /** @type {string} */ f) =>
+			`/media/${c}/${p}/${f}`,
 		currentRelated: () => ({ relatedPosts: [], relatedPastCount: 0 }),
 		relatedPostsFor: () => []
 	}));
@@ -97,6 +100,7 @@ async function modules({ series = '1', cuentas = '1', extra } = {}) {
 		icsTag: await import('../../ics/etiqueta/[tag].ics/+server.js'),
 		icsMine: await import('../../ics/mio/[token].ics/+server.js'),
 		calendario: await import('../mi-rincon/calendario/+page.server.js'),
+		calendarioPublico: await import('../calendario/+page.server.js'),
 		web: await import('$lib/server/series/web.js')
 	};
 }
@@ -140,6 +144,11 @@ describe('interruptor apagado: nada cambia', () => {
 		);
 		expect(data.series).toBeNull();
 		expect(mails).toHaveLength(0);
+	});
+	it('/calendario no linkea a la lista de series', async () => {
+		const m = await modules({ series: '0' });
+		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
+		expect(data.seriesLink).toBe(false);
 	});
 	it('el cron no hace nada de series', async () => {
 		const m = await modules({ series: '0' });
@@ -247,6 +256,12 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 });
 
 describe('prendido: páginas', () => {
+	it('/calendario linkea a la lista de series de la Kinkipedia', async () => {
+		const m = await modules();
+		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
+		expect(data.seriesLink).toBe(true);
+	});
+
 	it('evento: «Edición N de…», anterior/siguiente y si ya pasó', async () => {
 		const m = await modules();
 		const data = /** @type {any} */ (
@@ -368,6 +383,92 @@ describe('prendido: series de varias palabras y alias (el link usa guiones)', ()
 		expect(data.series.list[0]).toMatchObject({
 			id: 'Rancheadita Kinky',
 			href: '/wiki/Rancheadita-Kinky'
+		});
+	});
+});
+
+/** Una serie hija con «:» y espacios (etiqueta real del árbol); sus ediciones llevan también la madre. */
+const childSeries = (/** @type {number} */ now) => [
+	fakeEvent('deluxe-prueba-1', now - 30 * DAY, ['Picantearla', 'Picantearla: Deluxe'], {
+		title: 'Deluxe de prueba'
+	}),
+	fakeEvent('deluxe-prueba-2', now + 30 * DAY, ['Picantearla', 'Picantearla: Deluxe'], {
+		title: 'Deluxe de prueba: la próxima'
+	})
+];
+
+describe('prendido: series hijas con «:» en el nombre (Picantearla: Deluxe)', () => {
+	const SLUGS = ['Picantearla:-Deluxe', 'Picantearla: Deluxe', 'picantearla:-deluxe'];
+
+	it('/api/series: la serie, con los links codificados', async () => {
+		const m = await modules({ extra: childSeries });
+		for (const tag of SLUGS) {
+			const body = await (await m.api.GET(ev({ params: { tag } }))).json();
+			expect(body.series).toMatchObject({
+				id: 'Picantearla: Deluxe',
+				href: '/wiki/Picantearla%3A-Deluxe',
+				total: 2
+			});
+			expect(body.series.upcoming.map((/** @type {any} */ e) => e.slug)).toEqual([
+				'deluxe-prueba-2'
+			]);
+			expect(body.feed).toBe('/ics/etiqueta/Picantearla%3A-Deluxe.ics');
+		}
+	});
+
+	it('/ics/etiqueta/Picantearla:-Deluxe.ics: solo sus ediciones', async () => {
+		const m = await modules({ extra: childSeries });
+		for (const tag of SLUGS) {
+			const text = await (await m.icsTag.GET(ev({ params: { tag } }))).text();
+			expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+			expect(text).toContain('UID:deluxe-prueba-2@kinkyvibe.ar');
+			expect(text).not.toContain('serie-prueba-');
+		}
+	});
+
+	it('la madre sigue con todas sus ediciones (también las de la hija)', async () => {
+		const m = await modules({ extra: childSeries });
+		const body = await (await m.api.GET(ev({ params: { tag: 'Picantearla' } }))).json();
+		const slugs = [...body.series.upcoming, ...body.series.past].map(
+			(/** @type {any} */ e) => e.slug
+		);
+		expect(slugs).toEqual(expect.arrayContaining(['deluxe-prueba-1', 'deluxe-prueba-2']));
+	});
+
+	it('la página del evento enlaza las dos series («Avisame» incluido)', async () => {
+		const m = await modules({ extra: childSeries });
+		const data = /** @type {any} */ (
+			await m.evento.load(
+				ev({ path: '/calendario/deluxe-prueba-1', params: { event: 'deluxe-prueba-1' } })
+			)
+		);
+		expect(data.series.list.map((/** @type {any} */ s) => [s.id, s.href])).toEqual([
+			['Picantearla', '/wiki/Picantearla'],
+			['Picantearla: Deluxe', '/wiki/Picantearla%3A-Deluxe']
+		]);
+	});
+
+	it('«Avisame si se repite»: /avisos?serie=…, suscribirse y la baja nombran la serie hija', async () => {
+		const m = await modules({ extra: childSeries });
+		for (const serie of SLUGS) {
+			const page = /** @type {any} */ (
+				await m.avisos.load(ev({ path: `/avisos?serie=${encodeURIComponent(serie)}` }))
+			);
+			expect(page.series).toMatchObject({
+				id: 'Picantearla: Deluxe',
+				href: '/wiki/Picantearla%3A-Deluxe'
+			});
+		}
+		const r = /** @type {any} */ (
+			await m.avisos.actions.suscribir(
+				ev({ path: '/avisos', form: { serie: 'Picantearla: Deluxe', email: EMAIL } })
+			)
+		);
+		expect(r).toMatchObject({ ok: true, status: 'pending', seriesName: 'Picantearla: Deluxe' });
+		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
+		expect(await m.baja.load(ev({ params: { token: unsub } }))).toEqual({
+			valid: true,
+			seriesName: 'Picantearla: Deluxe'
 		});
 	});
 });

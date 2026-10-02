@@ -9,6 +9,7 @@
  */
 
 import { TIMEZONE } from './dates.js';
+import { currentSiteTagList } from './siteTags.js';
 import { tagSlug } from './tagSlug.js';
 
 export { resolveTagSlug, tagIdFromSlug, tagSlug } from './tagSlug.js';
@@ -59,6 +60,58 @@ export function isSeriesTag(tagManager, id) {
 export function seriesOfTags(tags, seriesIds) {
 	const set = new Set(tags ?? []);
 	return seriesIds.filter((id) => set.has(id));
+}
+
+/** @param {string} s */
+const norm = (s) => s.trim().toLowerCase();
+
+/**
+ * Índice de las etiquetas de serie sobre la lista cruda de etiquetas en uso (archivo o base,
+ * ./siteTags.js), sin armar un TagManager: nombre (o alias) en minúsculas → id de la etiqueta.
+ * Hijas y nietas de `root`; los alias (`aka`, y las entradas con `aliasOf`) apuntan al id.
+ * Lo usan los gráficos de Estadísticas para contar quién vuelve a la misma serie.
+ *
+ * @param {ReadonlyArray<{ id: string, children?: string[], aka?: string[], aliasOf?: string }>} [rawTags]
+ * @param {string} [root]
+ * @returns {Map<string, string>}
+ */
+export function seriesTagIndex(rawTags = currentSiteTagList(), root = SERIES_PARENT) {
+	const byId = new Map(rawTags.map((t) => [t.id, t]));
+	const children = (/** @type {string} */ id) => byId.get(id)?.children ?? [];
+	const ids = new Set();
+	for (const child of children(root)) {
+		ids.add(child);
+		for (const grandchild of children(child)) ids.add(grandchild);
+	}
+	/** @type {Map<string, string>} */
+	const index = new Map();
+	for (const id of ids) {
+		index.set(norm(id), id);
+		for (const alias of byId.get(id)?.aka ?? []) index.set(norm(alias), id);
+	}
+	for (const t of rawTags) {
+		if (t.aliasOf && ids.has(t.aliasOf)) index.set(norm(t.id), t.aliasOf);
+	}
+	return index;
+}
+
+/**
+ * Las series de un evento a partir de sus etiquetas tal como vienen en el frontmatter (sin
+ * canonizar: compara sin mayúsculas y resuelve alias), sin repetir, en orden alfabético.
+ *
+ * @param {unknown} tags las etiquetas del frontmatter
+ * @param {Map<string, string>} [index] de `seriesTagIndex`
+ * @returns {string[]}
+ */
+export function eventSeriesTags(tags, index = seriesTagIndex()) {
+	if (!Array.isArray(tags)) return [];
+	const found = new Set();
+	for (const t of tags) {
+		if (typeof t !== 'string') continue;
+		const id = index.get(norm(t));
+		if (id) found.add(id);
+	}
+	return [...found].sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -175,7 +228,10 @@ export function splitEditions(editions, now = Date.now()) {
 }
 
 /**
- * La imagen de una serie: el campo `image` de su etiqueta (nombre de archivo de src/lib/assets).
+ * La imagen de una serie: el campo `image` de su etiqueta. Es el nombre de un archivo de
+ * src/lib/assets («picantearla-miniatura.webp») o la imagen de un evento, sin copiarla:
+ * `calendario:<evento>/<archivo>` («calendario:colectiver-2026-08/1.webp», el archivo de
+ * src/lib/posts/calendario/media/colectiver-2026-08/).
  *
  * @param {Pick<RawTag, 'image'> | undefined} tag
  * @returns {string | undefined}
@@ -183,6 +239,24 @@ export function splitEditions(editions, now = Date.now()) {
 export function seriesImage(tag) {
 	const v = typeof tag?.image === 'string' ? tag.image.trim() : '';
 	return v || undefined;
+}
+
+/** Prefijo de la imagen de una serie que es la imagen de un evento. */
+export const EVENT_IMAGE_PREFIX = 'calendario:';
+
+const EVENT_IMAGE =
+	/^calendario:([A-Za-z0-9][A-Za-z0-9_-]{0,150})\/([A-Za-z0-9][\w.-]{0,120}\.(?:jpe?g|jfif|png|webp))$/i;
+
+/**
+ * Si `image` es la imagen de un evento (`calendario:<evento>/<archivo>`), el evento y el
+ * archivo; si no, `null`. Sin `..`, sin más carpetas ni links de afuera.
+ *
+ * @param {unknown} image
+ * @returns {{ slug: string, file: string } | null}
+ */
+export function eventImageRef(image) {
+	const m = typeof image === 'string' ? image.match(EVENT_IMAGE) : null;
+	return m ? { slug: m[1], file: m[2] } : null;
 }
 
 /**

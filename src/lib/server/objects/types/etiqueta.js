@@ -52,9 +52,12 @@ export const COLOR = /^(?:#[0-9a-f]{3,8}|[a-z]{3,30}|var\(--[a-z0-9-]{1,30}\))$/
 
 /**
  * Una imagen de src/lib/assets (el nombre del archivo, como `image` de las series hoy:
- * «picantearla-miniatura.webp»). Sin carpetas ni links de afuera.
+ * «picantearla-miniatura.webp») o la de un evento, `calendario:<evento>/<archivo>`
+ * (src/lib/posts/calendario/media/<evento>/<archivo>, ver seriesImage en $lib/utils/series.js).
+ * Sin otras carpetas ni links de afuera.
  */
-export const IMAGE_KEY = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,150}\.(?:webp|png|jpe?g|jfif|gif|avif)$/;
+export const IMAGE_KEY =
+	/^(?:calendario:[A-Za-z0-9][A-Za-z0-9_-]{0,150}\/)?[A-Za-z0-9][A-Za-z0-9_.-]{0,150}\.(?:webp|png|jpe?g|jfif|gif|avif)$/;
 
 /** @type {import('./index.js').CoreType} */
 const etiqueta = {

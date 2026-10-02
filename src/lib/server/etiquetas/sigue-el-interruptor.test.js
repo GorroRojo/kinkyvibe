@@ -15,7 +15,7 @@ import { currentSiteTags, setSiteTagList } from '$lib/utils/siteTags.js';
 import { tagManager } from '$lib/utils/stores.js';
 import { canonicalTag, siteTags as adminSiteTags } from '$lib/utils/adminTags.js';
 import { isKinkyVibeEvent } from '$lib/utils/ticketsEditor.js';
-import { seriesTagIndex } from '$lib/utils/eventSeries.js';
+import { seriesTagIndex } from '$lib/utils/series.js';
 import { siteTags as seriesSiteTags, seriesPage } from '$lib/server/series/index.js';
 import { doorSeriesLabel } from '../../../routes/(authed)/admin/eventos/[slug]/ingreso/context.server.js';
 import { applySiteTags } from './source.js';

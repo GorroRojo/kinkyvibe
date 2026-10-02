@@ -270,12 +270,19 @@ export async function siteBodies(platform) {
 export async function resolveContentSlug(db, category, slug) {
 	const cat = CONTENT_CATEGORIES[category];
 	if (!cat) return null;
+	// Dos búsquedas por índices únicos ((category, legacy_slug) y (type, slug)); con un `OR` entre
+	// las dos tablas, SQLite recorría todos los posts del tipo.
 	const row = await db
 		.prepare(
-			`SELECT o.id, s.legacy_slug FROM objects o
-			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-			WHERE o.type = ?1 AND (s.legacy_slug = ?3 OR o.slug = ?3)
-			ORDER BY (s.legacy_slug = ?3) DESC LIMIT 1`
+			`SELECT id, legacy_slug FROM (
+				SELECT o.id, s.legacy_slug, 0 AS pri FROM content_sources s
+				JOIN objects o ON o.id = s.object_id AND o.type = ?1
+				WHERE s.category = ?2 AND s.legacy_slug = ?3
+				UNION ALL
+				SELECT o.id, s.legacy_slug, 1 AS pri FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+				WHERE o.type = ?1 AND o.slug = ?3
+			) ORDER BY pri LIMIT 1`
 		)
 		.bind(cat.type, category, slug)
 		.first();

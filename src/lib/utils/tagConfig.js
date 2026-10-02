@@ -12,6 +12,9 @@
  *   orphan / unused / undeclared tags, broken references).
  * - lineDiff: unified-diff hunks for the preview.
  */
+import { eventImageRef } from './series.js';
+
+import { isSystemTag, systemTagMessage } from './systemTags.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Parser (the small subset of JS the file uses: an array of object literals)                */
@@ -386,6 +389,15 @@ export function isAssetFileName(name) {
 	return typeof name === 'string' && /^[\w][\w.-]{0,120}\.(?:jpe?g|jfif|png|webp)$/i.test(name);
 }
 
+/**
+ * ¿Sirve como `image` de una etiqueta? Un archivo de src/lib/assets o la imagen de un evento
+ * (`calendario:<evento>/<archivo>`, ver seriesImage en series.js).
+ * @param {unknown} name
+ */
+export function isTagImage(name) {
+	return isAssetFileName(name) || eventImageRef(name) !== null;
+}
+
 /** @param {unknown} s */
 const clean = (s) =>
 	String(s ?? '')
@@ -617,9 +629,9 @@ function applyOne(m, op) {
 					v = [...new Set((Array.isArray(raw) ? raw : []).map(clean).filter((x) => x && x !== id))];
 				} else if (typeof raw === 'string') v = k === 'description' ? raw.trim() : clean(raw);
 				if (k === 'visible_name' && v === id) v = '';
-				if (k === 'image' && v && !isAssetFileName(v))
+				if (k === 'image' && v && !isTagImage(v))
 					throw new Error(
-						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp).`
+						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp) o la de un evento (calendario:<evento>/1.webp).`
 					);
 				if (k === 'aka') {
 					for (const a of v) {
@@ -665,6 +677,7 @@ function applyOne(m, op) {
 			const err = validateTagName(to);
 			if (err) throw new Error(err);
 			if (from === to) return;
+			if (isSystemTag(from)) throw new Error(systemTagMessage(from, 'rename'));
 			const target = m.aliasTarget(to);
 			if ((m.find(to) || m.isChildRef(to) || target !== undefined) && target !== from)
 				throw new Error(`Ya existe «${to}». Para juntar dos etiquetas usá «Fusionar».`);
@@ -693,6 +706,7 @@ function applyOne(m, op) {
 		case 'merge': {
 			const { from, into } = op;
 			if (from === into) throw new Error('Elegí dos etiquetas distintas.');
+			if (isSystemTag(from)) throw new Error(systemTagMessage(from, 'merge'));
 			if (m.aliasTarget(into) !== undefined && !m.find(into))
 				throw new Error(`«${into}» es un alias: elegí la etiqueta a la que apunta.`);
 			if (m.descendants(from).has(into))

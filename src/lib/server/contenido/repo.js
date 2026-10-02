@@ -27,7 +27,8 @@ import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
-import { getObject, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
+import { forViewer, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
+import { canSee } from '$lib/server/objects/visibility.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
 import { CONTENT_CATEGORIES } from './categories.js';
@@ -35,7 +36,6 @@ import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
 import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
-import { resolveContentSlug } from './posts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -141,10 +141,33 @@ function asPostObject(category, object, legacySlug) {
  * @returns {Promise<DbPostObject | null>}
  */
 export async function findDbPostObject(db, category, slug) {
-	const ref = await resolveContentSlug(db, category, slug);
-	if (!ref) return null;
-	const object = await getObject(db, { id: ref.id }, PANEL, { includeDeleted: true });
-	return object ? asPostObject(category, object, ref.legacySlug) : null;
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) return null;
+	// Una sola consulta, por los índices únicos (category, legacy_slug) y (type, slug): antes eran
+	// dos (resolveContentSlug de ./posts.js + getObject) y la primera recorría todos los posts del
+	// tipo por el `OR` entre las dos tablas. Mismo orden: primero la dirección vieja, después la del
+	// objeto.
+	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
+	const row = await db
+		.prepare(
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug FROM (
+				SELECT ${prefixed('o')}, s.legacy_slug, 0 AS pri FROM content_sources s
+				JOIN objects o ON o.id = s.object_id AND o.type = ?1
+				WHERE s.category = ?2 AND s.legacy_slug = ?3
+				UNION ALL
+				SELECT ${prefixed('o')}, s.legacy_slug, 1 AS pri FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+				WHERE o.type = ?1 AND o.slug = ?3
+			) ORDER BY pri LIMIT 1`
+		)
+		.bind(cat.type, category, slug)
+		.first();
+	if (!row) return null;
+	// El objeto como lo da getObject(): sin la dirección vieja.
+	const { legacy_slug: legacy, ...columns } = row;
+	const object = rowToObject(columns);
+	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
+	return asPostObject(category, forViewer(object, PANEL), legacy ? String(legacy) : null);
 }
 
 /**
@@ -174,26 +197,90 @@ export const findDbEvent = (db, slug) => findDbPost(db, EVENT_CATEGORY, slug);
  */
 export async function allDbPostObjects(db, category) {
 	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) return new Map();
+	const stamp = await postsStamp(db, cat.type, category);
+	let entry = postsCache.get(category);
+	if (entry?.stamp !== stamp) {
+		const rows = readDbPostRows(db, cat.type, category);
+		entry = { stamp, rows };
+		postsCache.set(category, entry);
+		const mine = entry;
+		rows.catch(() => {
+			if (postsCache.get(category) === mine) postsCache.delete(category);
+		});
+	}
 	/** @type {Map<string, DbPostObject>} */
 	const out = new Map();
-	if (!cat) return out;
-	const cols = OBJECT_COLUMNS.split(', ')
-		.map((c) => `o.${c}`)
-		.join(', ');
-	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
-	const { results } = await db
-		.prepare(
-			`SELECT ${cols}, s.legacy_slug FROM objects o
-			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-			WHERE o.type = ?1`
-		)
-		.bind(cat.type, category)
-		.all();
-	for (const r of results) {
+	// Objetos nuevos en cada llamada (como antes: quien llama los puede tocar sin cambiar lo
+	// recordado), armados de las filas tal como vinieron de la base.
+	for (const r of await entry.rows) {
 		const e = asPostObject(category, rowToObject(r), r.legacy_slug ? String(r.legacy_slug) : null);
 		out.set(e.urlSlug, e);
 	}
 	return out;
+}
+
+/** @param {string} alias */
+const prefixed = (alias) =>
+	OBJECT_COLUMNS.split(', ')
+		.map((c) => `${alias}.${c}`)
+		.join(', ');
+
+/**
+ * Lo que leyó {@link allDbPostObjects} por categoría, mientras la base no cambie (como las listas
+ * públicas en ./posts.js): las páginas del panel piden todos los eventos en cada pedido (la lista,
+ * el inicio, el editor, la agenda) y leerlos es traer el `data` (con el texto) de cada uno.
+ * Se guardan las filas (texto y números, sin objetos compartidos).
+ * @type {Map<string, { stamp: string, rows: Promise<Record<string, unknown>[]> }>}
+ */
+const postsCache = new Map();
+
+/** Olvida lo recordado (tests). */
+export function clearDbPostCache() {
+	postsCache.clear();
+}
+
+/**
+ * Cuántos posts de la categoría hay y cuándo cambió el último (saveObject() pone `updated_at` en
+ * cada guardado), el último guardado del historial (cada guardado del panel y cada importación
+ * escribe uno en `object_revisions`) y lo mismo de las importaciones: si nada de eso cambió, lo
+ * leído sigue valiendo. Una fila, solo con índices (sin leer el `data` de ningún objeto).
+ *
+ * @param {D1Database} db
+ * @param {string} type
+ * @param {string} category
+ */
+async function postsStamp(db, type, category) {
+	const row = await db
+		.prepare(
+			`SELECT (SELECT count(*) FROM objects WHERE type = ?1) AS n,
+				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
+				(SELECT max(id) FROM object_revisions) AS v,
+				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
+				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su`
+		)
+		.bind(type, category)
+		.first();
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}`;
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} type
+ * @param {string} category
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function readDbPostRows(db, type, category) {
+	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
+	const { results } = await db
+		.prepare(
+			`SELECT ${prefixed('o')}, s.legacy_slug FROM objects o
+			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+			WHERE o.type = ?1`
+		)
+		.bind(type, category)
+		.all();
+	return results;
 }
 
 /**

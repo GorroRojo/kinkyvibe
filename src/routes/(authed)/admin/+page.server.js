@@ -61,6 +61,35 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const db = getDB(platform);
 	const now = Date.now();
 
+	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
+	// Lo que no depende de la lista de eventos sale ya, a la par de leerla (una vuelta a la base
+	// menos antes de poder mostrar la página).
+	const independent = Promise.all([
+		pendingTransfers(db, now),
+		reviewOrders(db),
+		unsentEmails(db, now),
+		monthMoney(db, now),
+		resolveFondoMonth({ db, fetch, now }),
+		touchLastSeen(db, user.id, now),
+		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
+		expiringTransfers(db, now, agendaUntil),
+		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
+		integrityRun(db),
+		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
+		usesLocalRepo() || !locals.user_token
+			? Promise.resolve([])
+			: openContentPullStatuses(locals.user_token).catch((e) => {
+					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
+					return [];
+				}),
+		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
+		profilesToReview(db),
+		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
+		db ? listClaims(db).catch(() => []) : Promise.resolve([])
+	]);
+	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlo.
+	independent.catch(() => {});
+
 	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
 	const ticketed = new Map(ticketedList.map((t) => [t.slug, t.config]));
 	const titles = new Map(events.map((e) => [e.slug, e.title]));
@@ -81,54 +110,39 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			: [];
 	});
 
-	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
 	const [
-		totals,
-		checkins,
-		transfers,
-		review,
-		unsent,
-		streamLinks,
-		money,
-		fondo,
-		seen,
-		settings,
-		expiring,
-		stuck,
-		integrity,
-		contentPulls,
-		newProfiles,
-		claims
+		[totals, checkins, streamLinks, stuck],
+		[
+			transfers,
+			review,
+			unsent,
+			money,
+			fondo,
+			seen,
+			settings,
+			expiring,
+			integrity,
+			contentPulls,
+			newProfiles,
+			claims
+		]
 	] = await Promise.all([
-		ticketTotals(db, soonTicketed, now),
-		checkinTotals(
-			db,
-			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
-		),
-		pendingTransfers(db, now),
-		reviewOrders(db),
-		unsentEmails(db, now),
-		streamLinkSlugs(db, soonTicketed),
-		monthMoney(db, now),
-		resolveFondoMonth({ db, fetch, now }),
-		touchLastSeen(db, user.id, now),
-		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
-		expiringTransfers(db, now, agendaUntil),
-		stuckSends(db, soonTicketed),
-		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
-		integrityRun(db),
-		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
-		usesLocalRepo() || !locals.user_token
-			? Promise.resolve([])
-			: openContentPullStatuses(locals.user_token).catch((e) => {
-					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
-					return [];
-				}),
-		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
-		profilesToReview(db),
-		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
-		db ? listClaims(db).catch(() => []) : Promise.resolve([])
+		Promise.all([
+			ticketTotals(db, soonTicketed, now),
+			checkinTotals(
+				db,
+				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
+			),
+			streamLinkSlugs(db, soonTicketed),
+			stuckSends(db, soonTicketed)
+		]),
+		independent
 	]);
+	// Solo necesitan los títulos y la última visita: a la par de los recordatorios.
+	const activityP = recentActivity(db, { limit: 10, titles });
+	const sinceP = seen ? sinceLastVisit(db, { since: seen.since, login: user.login, titles }) : null;
+	activityP.catch(() => {});
+	sinceP?.catch(() => {});
 	const reminderList = settings ? parseReminders(settings.reminders) : [];
 	const reminders = settings
 		? await failedReminders(db, { events: reminderEvents, reminders: reminderList, now })
@@ -192,8 +206,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const focus = salesFocus(upcoming);
 
 	const [activity, since, trend] = await Promise.all([
-		recentActivity(db, { limit: 10, titles }),
-		seen ? sinceLastVisit(db, { since: seen.since, login: user.login, titles }) : null,
+		activityP,
+		sinceP,
 		focus ? eventSalesTrend(db, focus.event.slug, now) : null
 	]);
 	const sales = focus

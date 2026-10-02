@@ -12,6 +12,7 @@ import {
 	searchTagOptions,
 	exactTagOption,
 	excludedFromPicker,
+	reservedPickerTags,
 	cleanNewTag,
 	ancestorsOf,
 	addSpecificTag,
@@ -141,7 +142,15 @@ describe('picker options', () => {
 	it('events: no rule groups, no other categories, no structural nodes', () => {
 		for (const t of ['español', 'AMBA', 'Online', 'pago', 'KinkyVibe', 'LSA'])
 			expect(ids).not.toContain(t);
-		for (const t of ['web', 'online', 'guía', 'emprendimiento', 'tipo de evento', 'calendario', 'root'])
+		for (const t of [
+			'web',
+			'online',
+			'guía',
+			'emprendimiento',
+			'tipo de evento',
+			'calendario',
+			'root'
+		])
 			expect(ids).not.toContain(t);
 		expect(ids).toContain('taller');
 		expect(ids).toContain('shibari');
@@ -227,5 +236,17 @@ describe('parent / child tags in the picker', () => {
 	});
 	it('compares canonical ids: aliases count as the same tag', () => {
 		expect(addSpecificTag(['BDSM'], 'bdsm').added).toBe(false);
+	});
+});
+
+describe('reservedPickerTags', () => {
+	it('events: the rule groups plus the online words', () => {
+		const r = reservedPickerTags('calendario');
+		for (const t of excludedFromPicker('calendario')) expect(r.has(t)).toBe(true);
+		for (const t of ['web', 'online', 'virtual']) expect(r.has(t)).toBe(true);
+	});
+	it('other categories: nothing reserved', () => {
+		expect(reservedPickerTags('material').size).toBe(0);
+		expect(reservedPickerTags('amigues').size).toBe(0);
 	});
 });

@@ -12,6 +12,7 @@ import {
 	printEntry,
 	readOps,
 	isAssetFileName,
+	isTagImage,
 	renameWikiLinks,
 	replaceTagInPost,
 	validateTagName
@@ -404,6 +405,19 @@ describe('image (imagen de una serie)', () => {
 		}
 		expect(isAssetFileName('picantearla-miniatura.webp')).toBe(true);
 		expect(isAssetFileName('foto.JPG')).toBe(true);
+	});
+	it('también acepta la imagen de un evento (calendario:<evento>/<archivo>)', () => {
+		const ref = 'calendario:colectiver-2026-08/1.webp';
+		const out = run([{ type: 'update', id: 'impacto', set: { image: ref } }]);
+		expect(entry(out, 'impacto')?.image).toBe(ref);
+		expect(isTagImage(ref)).toBe(true);
+		expect(isTagImage('picantearla-miniatura.webp')).toBe(true);
+		for (const bad of ['calendario:../x.webp', 'calendario:a/b/c.webp', 'otra:a/1.webp']) {
+			expect(isTagImage(bad), bad).toBe(false);
+			expect(() => run([{ type: 'update', id: 'impacto', set: { image: bad } }])).toThrow(
+				/src\/lib\/assets/
+			);
+		}
 	});
 	it('merge: la imagen pasa a la etiqueta que queda si no tenía', () => {
 		const src = SRC.replace("{ id: 'suelta' }", "{ id: 'suelta', image: 's.webp' }");
