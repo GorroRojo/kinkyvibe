@@ -1,32 +1,77 @@
 <script>
 	/**
-	 * Sección «👥 Personas» del formulario (interruptor personas_eventos): quiénes participan y con
-	 * qué rol, con PersonasEditor. Movida tal cual desde PostEditor.
+	 * Sección «👥 Personas» del formulario: quiénes organizan (o escriben) y quiénes participan con
+	 * otro rol, en una sola lista (PersonasField). Antes eran dos: «Organizan» en Datos y
+	 * «Personas» (con el interruptor personas_eventos). La misma al crear un evento, al editar una
+	 * publicación (PostEditor) y en ContentEditor (material).
 	 *
-	 * Props:
-	 * - `personas` (bind): `{ perfil, rol }[]`.
-	 * - `roles`, `profiles`: los de `data.personas`.
-	 * - `errors`: los nuevos (lo que el archivo ya tenía mal no se muestra como error).
-	 * - `idPrefix`: el de PersonasEditor.
+	 * Props: los de PersonasField (`items` y `roles` con bind) y `helpId`. Sin el interruptor
+	 * personas_eventos, `roles` es solo el rol de autores (`defaultRole`): no hay selector de rol ni
+	 * perfiles de la base, como el viejo «Organizan».
 	 */
-	import PersonasEditor from '$lib/components/admin/PersonasEditor.svelte';
+	import PersonasField from './PersonasField.svelte';
 
-	/** @type {{ perfil: string, rol: string }[]} */
-	export let personas = [];
+	/** @type {import('$lib/utils/personasList.js').PersonaItem[]} */
+	export let items = [];
 	/** @type {string[]} */
 	export let roles = [];
-	/** @type {{ slug: string, title: string, kind: 'persona' | 'proyecto' }[]} */
+	export let defaultRole = 'Organiza';
+	export let category = 'calendario';
+	/** @type {import('$lib/utils/organizers.js').Profile[]} */
 	export let profiles = [];
+	/** @type {import('$lib/utils/personasPicker.js').DbProfile[]} */
+	export let dbProfiles = [];
+	/** @type {Record<string, number>} */
+	export let authorUsage = {};
+	export let addRoleAction = '';
+	export let id = 'authors-input';
+	export let helpId = 'authors-help';
+	export let idPrefix = 'personas';
 	/** @type {string[]} */
 	export let errors = [];
-	export let idPrefix = 'edit-personas';
+
+	$: withRoles = roles.length > 1;
+	$: who = category === 'calendario' ? 'quién organiza' : 'quién escribe';
 </script>
 
 <fieldset class="card" id="sec-personas">
 	<legend>👥 Personas</legend>
-	<p class="hint">
-		Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo los
-		perfiles públicos).
-	</p>
-	<PersonasEditor bind:personas {roles} {profiles} {errors} {idPrefix} />
+	<label class="add-label" for={id}>Sumar persona</label>
+	<PersonasField
+		bind:items
+		bind:roles
+		{defaultRole}
+		{category}
+		{profiles}
+		{dbProfiles}
+		{authorUsage}
+		{addRoleAction}
+		{id}
+		describedby={helpId}
+		{idPrefix}
+		{errors}
+	/>
+	<small id={helpId} class="help">
+		{#if withRoles}
+			Elegí de amigues o de Perfiles (se enlaza su perfil) o escribí un nombre y elegí «Agregar».
+			Cada persona va con su rol: «{defaultRole}» es {who}. En la página se muestran con link a su
+			perfil (solo los perfiles públicos).
+		{:else}
+			Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden ser
+			varias personas o grupos.
+		{/if}
+	</small>
 </fieldset>
+
+<style>
+	.add-label {
+		display: block;
+		font-weight: bold;
+		margin-top: 0.4em;
+	}
+	.help {
+		display: block;
+		margin-top: 0.4em;
+		opacity: 0.85;
+	}
+</style>

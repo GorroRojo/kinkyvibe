@@ -10,7 +10,8 @@
 
 /**
  * `json` es solo para tipos núcleo (nunca para campos del panel): un objeto JSON tal cual, por
- * ejemplo lo que un .md importado tiene y el tipo todavía no conoce como campo propio.
+ * ejemplo lo que un .md importado tiene y el tipo todavía no conoce como campo propio. Con
+ * `array: true`, una lista JSON (la forma de cada ítem la revisa el `check` del tipo).
  *
  * @typedef {'text' | 'longtext' | 'integer' | 'number' | 'boolean' | 'datetime' | 'date' | 'url' | 'option' | 'list' | 'json'} FieldKind
  */
@@ -23,6 +24,7 @@
  * @prop {number} [max] largo máximo (texto, o el JSON de `json`) o valor máximo (números)
  * @prop {number} [min] valor mínimo (números)
  * @prop {readonly string[]} [options] valores posibles ('option' y cada ítem de 'list')
+ * @prop {boolean} [array] 'json': una lista en vez de un objeto
  */
 
 /** @typedef {{ path: string, message: string }} FieldError */
@@ -132,8 +134,8 @@ function checkValue(def, value) {
 			return out.length ? { value: out } : {};
 		}
 		case 'json': {
-			if (typeof value !== 'object' || Array.isArray(value)) {
-				return { error: 'tiene que ser un objeto' };
+			if (typeof value !== 'object' || Array.isArray(value) !== Boolean(def.array)) {
+				return { error: def.array ? 'tiene que ser una lista' : 'tiene que ser un objeto' };
 			}
 			let text;
 			try {
@@ -143,7 +145,7 @@ function checkValue(def, value) {
 			}
 			if (text.length > (def.max ?? LONGTEXT_MAX)) return { error: 'es demasiado largo' };
 			const copy = JSON.parse(text);
-			return Object.keys(copy).length ? { value: copy } : {};
+			return (def.array ? copy.length : Object.keys(copy).length) ? { value: copy } : {};
 		}
 		default:
 			return { error: `clase de campo desconocida: ${/** @type {any} */ (def).kind}` };

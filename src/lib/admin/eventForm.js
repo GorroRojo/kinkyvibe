@@ -23,7 +23,9 @@ import { changedKeys } from './draft.js';
  * @param {string} [o.category] la categoría (editar); los eventos son `calendario`
  * @param {string} [o.idPrefix] el de TicketsEditor (`ev` al crear, `edit` al editar)
  * @param {boolean} [o.hasImage] editar: la publicación tiene sección de imagen (los eventos)
- * @param {boolean} [o.hasPersonas] editar: sección de personas (interruptor personas_eventos)
+ * @param {boolean} [o.hasPersonas] la sección «Personas» (quiénes organizan o escriben y con
+ *   qué rol): al crear un evento siempre; al editar y en el panel, si la publicación tiene
+ *   personas (no los perfiles de amigues)
  * @param {boolean} [o.parseError] editar: el archivo se edita como texto (sin secciones)
  * @returns {FormSection[]}
  */
@@ -32,36 +34,43 @@ export function formSections({
 	category = 'calendario',
 	idPrefix = mode === 'nuevo' ? 'ev' : 'edit',
 	hasImage = false,
-	hasPersonas = false,
+	hasPersonas = mode === 'nuevo',
 	parseError = false
 }) {
 	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
 	const cuando = { id: 'sec-cuando', icon: '📅', label: 'Fecha y hora' };
+	const personas = hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' };
 	if (mode === 'nuevo')
-		return [
-			cuando,
-			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
-			{ id: 'sec-direccion', icon: '🔗', label: 'Dirección' },
-			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
-			tickets,
-			{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
-			{ id: 'sec-texto', icon: '📄', label: 'Texto' }
-		];
+		return /** @type {FormSection[]} */ (
+			[
+				cuando,
+				{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+				personas,
+				{ id: 'sec-direccion', icon: '🔗', label: 'Dirección' },
+				{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
+				tickets,
+				{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
+				{ id: 'sec-texto', icon: '📄', label: 'Texto' }
+			].filter(Boolean)
+		);
 	if (parseError) return [];
 	if (mode === 'contenido')
-		return [
-			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
-			{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
-			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
-			{ id: 'sec-texto', icon: '📄', label: 'Texto' },
-			{ id: 'sec-lista', icon: '👀', label: 'En la lista' }
-		];
+		return /** @type {FormSection[]} */ (
+			[
+				{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+				personas,
+				{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
+				{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
+				{ id: 'sec-texto', icon: '📄', label: 'Texto' },
+				{ id: 'sec-lista', icon: '👀', label: 'En la lista' }
+			].filter(Boolean)
+		);
 	const isEvent = category === 'calendario';
 	return /** @type {FormSection[]} */ (
 		[
 			isEvent && cuando,
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
-			hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' },
+			personas,
 			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
 			isEvent && tickets,
@@ -77,7 +86,9 @@ export function formSections({
 export const DRAFT_PART_SECTION = {
 	schedule: 'Fecha y hora',
 	values: 'Datos',
-	authors: 'Datos',
+	// Los borradores de antes de juntar «Organizan» y «Personas» guardaban `authors`.
+	authors: 'Personas',
+	people: 'Personas',
 	slug: 'Dirección',
 	slugEdited: 'Dirección',
 	tagRules: 'Etiquetas',
@@ -106,7 +117,9 @@ export function draftSectionLabels(keys, map = DRAFT_PART_SECTION) {
  */
 export const CONTENT_FORM_SECTION = {
 	values: 'Datos',
-	authors: 'Datos',
+	authors: 'Personas',
+	personas: 'Personas',
+	people: 'Personas',
 	featured: 'Imagen',
 	tags: 'Etiquetas',
 	body: 'Texto'

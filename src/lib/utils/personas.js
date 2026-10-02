@@ -10,9 +10,15 @@
  *     rol: Organiza
  *   - perfil: persona-de-prueba
  *     rol: Facilita
+ *   - nombre: Persona Sin Perfil    # un nombre libre (sin link), para vincular un perfil después
+ *     rol: Fotografía
  * ```
  *
- * Cada rol apunta a un perfil (persona o proyecto) de Perfiles (panel). Qué perfil se muestra lo
+ * Quienes organizan (eventos) o escriben (material, wiki) siguen en `authors:`, como siempre; en
+ * el panel las dos listas se editan juntas, en la sección «Personas» (ver ./personasList.js, que
+ * también arma la lista única que guarda la base).
+ *
+ * Cada rol apunta a un perfil (persona o proyecto) de Perfiles (panel) o a un nombre libre. Qué perfil se muestra lo
  * decide el servidor (visibilidad + aprobación + interruptor); acá solo se valida la forma.
  *
  * Cuando los eventos pasen a la base, cada perfil listado es un edge `persona` (evento → perfil)
@@ -48,7 +54,25 @@ const PROFILE_SLUG_MAX = 100;
 /** Letras (con tildes), números, espacios, guiones y apóstrofos; empieza con letra o número. */
 const ROLE_NAME = /^[\p{L}\p{N}][\p{L}\p{N} '’-]*$/u;
 
-/** @typedef {{ perfil: string, rol: string }} PersonaEntry */
+/**
+ * Una fila de `personas:`. Lo de siempre es un perfil (`perfil`, su dirección); desde «Personas
+ * en una sola sección» también puede ser un nombre libre (`nombre`), para alguien sin perfil
+ * (se muestra como texto, sin link, y se le puede vincular un perfil después).
+ * @typedef {{ perfil: string, rol: string, nombre?: undefined } | { nombre: string, rol: string, perfil?: undefined }} PersonaEntry
+ */
+
+/** Largo máximo de un nombre libre (como un ítem de `authors:`). */
+export const PERSON_NAME_MAX = 100;
+
+/**
+ * Un nombre libre limpio (una línea, sin espacios de más, NFC), o `''` si no sirve.
+ * @param {unknown} raw
+ */
+export function cleanPersonName(raw) {
+	if (typeof raw !== 'string') return '';
+	const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+	return name.length <= PERSON_NAME_MAX ? name : '';
+}
 
 /**
  * @template T
@@ -105,7 +129,7 @@ const isRecord = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 /**
  * Lo que dice el frontmatter, para mostrar: se saltean las entradas con forma inválida, sin
- * repetir (perfil, rol), hasta {@link MAX_PERSONAS}. No mira la lista de roles (un rol que se
+ * repetir (perfil o nombre, rol), hasta {@link MAX_PERSONAS}. No mira la lista de roles (un rol que se
  * borró del panel se sigue mostrando como está escrito).
  *
  * @param {unknown} raw `meta.personas`
@@ -116,12 +140,22 @@ export function parsePersonas(raw) {
 	/** @type {PersonaEntry[]} */
 	const out = [];
 	for (const item of raw) {
-		if (!isRecord(item) || !isProfileSlug(item.perfil)) continue;
+		if (!isRecord(item)) continue;
 		const rol = cleanRole(item.rol);
 		if (!rol) continue;
-		const perfil = /** @type {string} */ (item.perfil);
-		if (out.some((e) => e.perfil === perfil && roleKey(e.rol) === roleKey(rol))) continue;
-		out.push({ perfil, rol });
+		const same = (/** @type {PersonaEntry} */ e) => roleKey(e.rol) === roleKey(rol);
+		if (isProfileSlug(item.perfil)) {
+			const perfil = /** @type {string} */ (item.perfil);
+			if (out.some((e) => e.perfil === perfil && same(e))) continue;
+			out.push({ perfil, rol });
+		} else if (item.perfil === undefined && cleanPersonName(item.nombre)) {
+			const nombre = cleanPersonName(item.nombre);
+			if (
+				out.some((e) => e.nombre !== undefined && roleKey(e.nombre) === roleKey(nombre) && same(e))
+			)
+				continue;
+			out.push({ nombre, rol });
+		} else continue;
 		if (out.length >= MAX_PERSONAS) break;
 	}
 	return out;
@@ -129,7 +163,7 @@ export function parsePersonas(raw) {
 
 /**
  * Valida `personas` para guardar (editor del panel y acción de guardar): forma, direcciones de
- * perfil, roles de la lista y el máximo. Sin `personas` (o vacío) está bien.
+ * perfil (o un nombre libre), roles de la lista y el máximo. Sin `personas` (o vacío) está bien.
  *
  * @param {unknown} raw
  * @param {readonly string[]} roles {@link mergeRoles}
@@ -153,13 +187,26 @@ export function validatePersonas(raw, roles) {
 			errors.push(`Personas, fila ${n}: tiene que tener perfil y rol.`);
 			return;
 		}
-		if (!isProfileSlug(item.perfil)) {
-			errors.push(`Personas, fila ${n}: elegí un perfil.`);
+		const nombre = item.perfil === undefined ? cleanPersonName(item.nombre) : '';
+		if (!nombre && !isProfileSlug(item.perfil)) {
+			errors.push(`Personas, fila ${n}: elegí un perfil o escribí un nombre.`);
 			return;
 		}
 		const rol = findRole(roles, item.rol);
 		if (!rol) {
 			errors.push(`Personas, fila ${n}: «${String(item.rol ?? '')}» no es un rol de la lista.`);
+			return;
+		}
+		if (nombre) {
+			if (
+				personas.some(
+					(e) => e.nombre !== undefined && roleKey(e.nombre) === roleKey(nombre) && e.rol === rol
+				)
+			) {
+				errors.push(`Personas, fila ${n}: esa persona ya tiene el rol ${rol}.`);
+				return;
+			}
+			personas.push({ nombre, rol });
 			return;
 		}
 		const perfil = /** @type {string} */ (item.perfil);
@@ -240,7 +287,7 @@ export function contentByRole(posts, slug, roles = FIXED_ROLES) {
  * @param {readonly PersonaEntry[]} personas
  */
 export function profileSlugsOf(personas) {
-	return [...new Set(personas.map((e) => e.perfil))];
+	return [...new Set(personas.flatMap((e) => (e.perfil ? [e.perfil] : [])))];
 }
 
 /**
@@ -256,6 +303,7 @@ export function personasToEdges(personas, idBySlug) {
 	/** @type {Map<number, string[]>} */
 	const byId = new Map();
 	for (const e of personas) {
+		if (!e.perfil) continue;
 		const id = idBySlug.get(e.perfil);
 		if (!id) continue;
 		const roles = byId.get(id) ?? [];
