@@ -18,6 +18,21 @@ const addressView = {
 	lng: -58.4
 };
 
+/**
+ * Las etiquetas (y los comentarios de Svelte) cambiadas por espacios, repitiendo hasta que no
+ * quede ninguna: solo para comparar el texto en las pruebas.
+ * @param {string} html
+ */
+function stripTags(html) {
+	let out = html;
+	let prev;
+	do {
+		prev = out;
+		out = out.replace(/<[^<>]*>/g, ' ');
+	} while (out !== prev);
+	return out;
+}
+
 /** @param {import('$lib/utils/venues.js').VenueView} view @param {'event' | 'venue'} [context] */
 const html = (view, context = 'event') => render(VenueLocation, { props: { view, context } }).body;
 
@@ -79,10 +94,7 @@ describe('VenueLocation', () => {
 describe('VenueLocation compacto (la tarjeta del evento)', () => {
 	/** El texto visible y los links, para comparar las dos versiones. */
 	const facts = (/** @type {string} */ body) => ({
-		text: body
-			.replace(/<!--[\s\S]*?-->/g, '')
-			.replace(/<svg[\s\S]*?<\/svg>/g, ' ')
-			.replace(/<[^>]+>/g, ' ')
+		text: stripTags(body)
 			.replace(/Sucede en/g, ' ')
 			.replace(/[\s:·]+/g, ' ')
 			.trim(),

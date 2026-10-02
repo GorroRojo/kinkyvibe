@@ -79,14 +79,22 @@ const card = (/** @type {string} */ html) => {
 	const to = html.indexOf('class="share-row');
 	return html.slice(from, to);
 };
-/** El texto visible (sin etiquetas, sin comentarios ni íconos). */
-const text = (/** @type {string} */ html) =>
-	html
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.replace(/<svg[\s\S]*?<\/svg>/g, ' ')
-		.replace(/<[^>]+>/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
+/**
+ * Las etiquetas (y los comentarios de Svelte) cambiadas por espacios, repitiendo hasta que no
+ * quede ninguna: solo para comparar el texto en las pruebas.
+ * @param {string} html
+ */
+function stripTags(html) {
+	let out = html;
+	let prev;
+	do {
+		prev = out;
+		out = out.replace(/<[^<>]*>/g, ' ');
+	} while (out !== prev);
+	return out;
+}
+/** El texto visible (sin etiquetas, comentarios ni íconos). */
+const text = (/** @type {string} */ html) => stripTags(html).replace(/\s+/g, ' ').trim();
 /** @param {string} haystack @param {string} needle */
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 /** La parte de la página que arma el artículo del evento (sin lo relacionado de abajo). */
