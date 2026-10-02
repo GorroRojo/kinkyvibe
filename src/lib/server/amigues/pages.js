@@ -29,7 +29,12 @@ import {
 	viewerFor
 } from './profiles.js';
 import { renderProfileBody } from './render.js';
-import { listedVenueEvents, venuePageLocation } from './venues.js';
+import {
+	listedVenueEvents,
+	relatedWithVenuePlaces,
+	venuePageLocation,
+	withVenuePlaces
+} from './venues.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -134,15 +139,19 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 
 	const posts = await fetchMarkdownPosts();
-	const related = currentRelated(
-		relatedPostsFor(
-			/** @type {any} */ ({
-				category: 'amigues',
-				postID: profile.slug,
-				title: profile.title,
-				authors: profile.authors
-			}),
-			posts
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		db,
+		currentRelated(
+			relatedPostsFor(
+				/** @type {any} */ ({
+					category: 'amigues',
+					postID: profile.slug,
+					title: profile.title,
+					authors: profile.authors
+				}),
+				posts
+			)
 		)
 	);
 
@@ -164,7 +173,10 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 		location = venuePageLocation(object, href);
 		const slugs = new Set(await listedVenueEvents(db, object));
 		venueEvents = slugs.size
-			? posts.filter((p) => p.meta.category === 'calendario' && slugs.has(String(p.meta.postID)))
+			? await withVenuePlaces(
+					db,
+					posts.filter((p) => p.meta.category === 'calendario' && slugs.has(String(p.meta.postID)))
+				)
 			: [];
 	}
 

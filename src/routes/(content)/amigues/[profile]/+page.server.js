@@ -6,6 +6,7 @@ import { cuentasEnabled, perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { profilePageData, profileSlugTaken } from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
+import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
 
@@ -44,7 +45,10 @@ export async function load({ params, platform, locals, setHeaders }) {
 	return {
 		mode: /** @type {const} */ ('md'),
 		...post,
-		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
+		...(await relatedWithVenuePlaces(
+			db,
+			currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+		)),
 		pronouns: await mentionPronouns()
 	};
 }

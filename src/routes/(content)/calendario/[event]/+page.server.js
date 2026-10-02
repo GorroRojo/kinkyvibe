@@ -2,11 +2,10 @@ import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
-import { perfilesPublicosEnabled, propinasEnabled, seriesEnabled } from '$lib/server/flags.js';
+import { propinasEnabled, seriesEnabled } from '$lib/server/flags.js';
 import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
-import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
-import { viewerFor } from '$lib/server/amigues/profiles.js';
+import { eventPageVenue, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
@@ -14,10 +13,11 @@ import { siteTagManager } from '$lib/server/etiquetas/source.js';
 export async function load({ params, platform, fetch, locals }) {
 	const post = await fetchPost('calendario', params.event, true).catch(() => null);
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
-		loadRelated(post),
+		loadRelated(post, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals),
-		loadVenue(params.event, platform, locals),
+		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
+		eventPageVenue(getDB(platform), params.event, locals),
 		loadPersonas(post, platform),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
 		// solo lo muestra en los eventos de KinkyVibe).
@@ -40,29 +40,16 @@ async function loadPersonas(post, platform) {
 	}
 }
 
-/**
- * "Sucede en": el lugar del evento según su privacidad (docs/amigues.md), solo con el interruptor
- * `perfiles_publicos` prendido. `null` si no tiene lugar: la página muestra lo de su .md.
- * @param {string} slug
- * @param {App.Platform|undefined} platform
- * @param {App.Locals} locals
- */
-async function loadVenue(slug, platform, locals) {
-	const db = getDB(platform);
-	if (!db || !(await perfilesPublicosEnabled(platform))) return null;
-	try {
-		return await publicVenueForEvent(db, slug, viewerFor(locals));
-	} catch (e) {
-		console.error('[calendario] no se pudo leer el lugar del evento', e);
-		return null;
-	}
-}
-
 /** Related posts, computed on the server so the page doesn't need every post.
- * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js) */
-async function loadRelated(post) {
+ * Un lugar vinculado manda sobre el «Dónde» del .md de cada uno.
+ * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {App.Platform|undefined} platform */
+async function loadRelated(post, platform) {
 	if (!post) return { relatedPosts: [], relatedPastCount: 0 };
-	return currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+	return relatedWithVenuePlaces(
+		getDB(platform),
+		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+	);
 }
 
 /**
@@ -75,10 +62,7 @@ async function loadRelated(post) {
 async function loadSeries(post, platform, locals) {
 	if (!post || !(await seriesEnabled(platform))) return null;
 	const { postID: slug, tags, start } = post.meta;
-	const list = await eventSeries(
-		{ slug, tags, start },
-		{ tags: await siteTagManager(platform) }
-	);
+	const list = await eventSeries({ slug, tags, start }, { tags: await siteTagManager(platform) });
 	if (!list.length) return null;
 	return { list, account: await seriesAccountState(platform, locals) };
 }

@@ -1,5 +1,7 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import { isCurrent } from '$lib/utils/allPosts';
+import { getDB } from '$lib/server/db';
+import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 
 // all the calendar grid (and a collapsed past-events list) uses; the page loads
 // the full posts if the viewer chooses to list past events
@@ -30,12 +32,21 @@ const slimMeta = (meta) => {
 };
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load() {
+export async function load({ platform }) {
 	const now = Date.now();
 	const posts = (await fetchMarkdownPosts()).filter((p) => p.meta.layout == 'calendario');
+	// Un lugar vinculado manda sobre el «Dónde» del .md (los pasados ya van sin él).
+	const current = new Map(
+		(
+			await withVenuePlaces(
+				getDB(platform),
+				posts.filter((p) => isCurrent(p, now))
+			)
+		).map((p) => [p.path, p])
+	);
 	return {
-		posts: posts.map((p) =>
-			isCurrent(p, now) ? p : /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
+		posts: posts.map(
+			(p) => current.get(p.path) ?? /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
 		)
 	};
 }

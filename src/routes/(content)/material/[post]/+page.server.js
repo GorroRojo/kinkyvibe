@@ -4,6 +4,8 @@ import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { redirect } from '@sveltejs/kit';
 import { personasForPage } from '$lib/server/personas/index.js';
+import { getDB } from '$lib/server/db';
+import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
@@ -16,7 +18,10 @@ export async function load({ params, platform }) {
 	}
 	return {
 		...post,
-		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
+		...(await relatedWithVenuePlaces(
+			getDB(platform),
+			currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+		)),
 		pronouns: await mentionPronouns(),
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
 		personas: await personasForPage(platform, post.meta),
