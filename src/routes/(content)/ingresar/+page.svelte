@@ -1,5 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
+	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
+	import { durationText } from '$lib/utils/expiry.js';
 
 	export let data;
 	export let form;
@@ -40,11 +42,14 @@
 			{#if form?.sent}Si el mail está bien, en un ratito te llega un código a <strong
 					>{email}</strong
 				>.{:else}Escribí el código que te mandamos a <strong>{email}</strong>.{/if}
-			Vence en 10 minutos.
+			Vence en {durationText(data.codeTtlMs)}{#if form?.expiresAt}{' '}(<ExpiryTime
+					at={form.expiresAt}
+				/>){/if}.
 		</p>
 		<form method="POST" action="?/verificar" use:enhance={submit}>
 			<input type="hidden" name="email" value={email} />
 			<input type="hidden" name="next" value={next} />
+			{#if form?.expiresAt}<input type="hidden" name="vence" value={form.expiresAt} />{/if}
 			<label>
 				<span>Código</span>
 				<input
