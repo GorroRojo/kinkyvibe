@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromInput, postFields, toInput } from './postFields.js';
+import { datosFieldId, datosFields, fromInput, postFields, toInput } from './postFields.js';
 
 /** @param {string} key */
 const field = (key, category = 'calendario') => {
@@ -66,5 +66,32 @@ describe('fromInput', () => {
 	it('ida y vuelta conserva el valor', () => {
 		const f = field('start');
 		expect(fromInput(f, toInput(f, '2026-12-19T21:00-03:00'))).toBe('2026-12-19T21:00-03:00');
+	});
+});
+
+describe('datosFields / datosFieldId', () => {
+	it('crear un evento: los mismos campos (e ids) que tenía «Datos del evento»', () => {
+		const id = datosFieldId('nuevo');
+		expect(datosFields('nuevo').map((f) => id(f.key))).toEqual([
+			'ev-title',
+			'ev-summary',
+			'ev-status',
+			'ev-location',
+			'ev-location-map',
+			'ev-location-name',
+			'ev-link',
+			'ev-link-text'
+		]);
+	});
+	it('editar un evento: todo menos Empieza y Termina (van en «¿Cuándo es?»)', () => {
+		expect(datosFields('editar').map((f) => f.key)).toEqual(
+			postFields('calendario')
+				.map((f) => f.key)
+				.filter((k) => k !== 'start' && k !== 'end')
+		);
+		expect(datosFieldId('editar')('link_text')).toBe('link_text-input');
+	});
+	it('otras publicaciones: los mismos de siempre', () => {
+		expect(datosFields('editar', 'material')).toEqual(postFields('material'));
 	});
 });

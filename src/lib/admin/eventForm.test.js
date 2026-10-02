@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { changedKeys, draftAction } from './draft.js';
-import { currentSection, draftSectionLabels, formSections } from './eventForm.js';
+import {
+	contentDraftLabels,
+	currentSection,
+	draftSectionLabels,
+	formSections
+} from './eventForm.js';
 
 const ids = (/** @type {Array<{id: string}>} */ list) => list.map((s) => s.id);
 
@@ -17,8 +22,11 @@ describe('formSections', () => {
 		]);
 	});
 
-	it('editar un evento: con imagen y entradas', () => {
+	// Noche 4: Editar usa la misma «📅 ¿Cuándo es?» que crear (antes Empieza y Termina estaban en
+	// Datos), así que el índice de Editar empieza con Fecha y hora, como el de crear.
+	it('editar un evento: Fecha y hora primero (como al crear), con imagen y entradas', () => {
 		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([
+			'sec-cuando',
 			'sec-datos',
 			'sec-imagen',
 			'sec-etiquetas',
@@ -43,6 +51,7 @@ describe('formSections', () => {
 			hasPersonas: true
 		});
 		expect(ids(sections)).toEqual([
+			'sec-cuando',
 			'sec-datos',
 			'sec-personas',
 			'sec-imagen',
@@ -51,6 +60,17 @@ describe('formSections', () => {
 			'sec-texto'
 		]);
 		expect(ids(formSections({ mode: 'editar', hasPersonas: true, parseError: true }))).toEqual([]);
+	});
+
+	it('material y amigues en el panel (ContentEditor): el mismo armazón', () => {
+		expect(ids(formSections({ mode: 'contenido' }))).toEqual([
+			'sec-datos',
+			'sec-imagen',
+			'sec-etiquetas',
+			'sec-texto',
+			'sec-lista'
+		]);
+		expect(formSections({ mode: 'contenido', parseError: true })).toEqual([]);
 	});
 
 	it('si el archivo se edita como texto no hay secciones', () => {
@@ -75,6 +95,24 @@ describe('draftSectionLabels', () => {
 	});
 	it('ignora las partes que no conoce', () => {
 		expect(draftSectionLabels(['otraCosa', 'body'])).toEqual(['Texto']);
+	});
+	it('la fecha y hora de Editar es su propia sección', () => {
+		expect(draftSectionLabels(['schedule', 'values'])).toEqual(['Fecha y hora', 'Datos']);
+	});
+});
+
+describe('contentDraftLabels (ContentEditor)', () => {
+	const f = { values: { title: 'Guía de prueba' }, tags: [], authors: [], body: '', featured: '' };
+	const current = { f, slug: 'guia', slugTouched: false, rawText: '' };
+	it('mira adentro del formulario', () => {
+		const draft = { ...current, f: { ...f, body: 'texto', tags: ['BDSM'] } };
+		expect(contentDraftLabels(draft, current)).toEqual(['Etiquetas', 'Texto']);
+	});
+	it('la dirección va con Datos; igual a lo que hay, nada', () => {
+		expect(contentDraftLabels({ ...current, slug: 'otra', slugTouched: true }, current)).toEqual([
+			'Datos'
+		]);
+		expect(contentDraftLabels(structuredClone(current), current)).toEqual([]);
 	});
 });
 

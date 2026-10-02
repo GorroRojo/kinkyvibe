@@ -1,7 +1,7 @@
 <script>
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
-	import { onDestroy, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
@@ -10,18 +10,20 @@
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
-	import OrganizersField from '$lib/components/admin/event-form/OrganizersField.svelte';
+	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
+	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
-	import { checkImageFile } from '$lib/utils/imageUpload.js';
+	import { emptyUpload, newEventImage } from '$lib/admin/imageState.js';
+	import { datosFieldId, datosFields } from '$lib/admin/postFields.js';
+	import { scheduleProblems, scheduleSpan, scheduleSummary } from '$lib/admin/schedule.js';
 	import DuplicateChooser from '$lib/components/admin/DuplicateChooser.svelte';
 	import { applyNewEventPrefill } from '$lib/utils/calendario.js';
 	import '$lib/components/admin/admin.scss';
 	import '$lib/admin/panel-editor.scss';
 	import { tagManager } from '$lib/utils/stores';
 	import { joinEventTags, splitEventTags, validateEventTags } from '$lib/utils/adminTags.js';
-	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
 		applyTicketsToMarkdown,
@@ -32,16 +34,12 @@
 	import { parseDocument } from 'yaml';
 	import {
 		STATUS_OPTIONS,
-		addDays,
 		buildEventMarkdown,
-		daysBetween,
 		deriveSlug,
 		describeSchedule,
 		formFromSource,
-		formatEventDate,
 		isNumericFeatured,
 		isValidDate,
-		isValidTime,
 		parseEventDate,
 		prefillMonth,
 		readEventFields,
@@ -49,7 +47,6 @@
 		splitList,
 		splitMarkdown,
 		uniqueSlug,
-		validateSchedule,
 		validateSlug
 	} from '$lib/utils/eventDraft.js';
 
@@ -75,13 +72,10 @@
 	let values = formFromSource(sourceRaw, { today: data.today, fromTemplate: !source });
 
 	// Dates start empty so nobody publishes a copy with last month's date by accident.
-	// The end date follows the start date, keeping the original event's length in days.
-	let span = 0;
-	if (values.startDate && values.endDate) {
-		span = Math.max(0, daysBetween(values.startDate, values.endDate));
-		// "21:00 to 01:00" on the same day is a common typo in old events: it means the next day.
-		if (span === 0 && values.endTime < values.startTime) span = 1;
-	}
+	// The end date follows the start date, keeping the original event's length in days
+	// (ScheduleSection). "21:00 to 01:00" on the same day is a common typo in old events: it means
+	// the next day.
+	let span = scheduleSpan(values, { fixSameDayTypo: true });
 	values.startDate = '';
 	values.endDate = '';
 	// ...but the calendar opens on the month the copy most likely is: this month until the 15th,
@@ -111,30 +105,10 @@
 	$: values.tags = joinEventTags({ ...tagRules, rest: freeTags });
 	$: values.authors = authors;
 	$: tagErrors = validateEventTags(splitList(values.tags));
-
-	function onStartDateChange() {
-		if (isValidDate(values.startDate)) values.endDate = addDays(values.startDate, span);
-	}
-	function onEndDateChange() {
-		if (isValidDate(values.startDate) && isValidDate(values.endDate))
-			span = Math.max(0, daysBetween(values.startDate, values.endDate));
-	}
-	// Run after the bindings have updated `values` (event handler order is not guaranteed).
-	let lastStartKey = '';
-	let lastEnd = '';
-	$: if (`${values.startDate}|${values.hasEnd}` !== lastStartKey) {
-		lastStartKey = `${values.startDate}|${values.hasEnd}`;
-		onStartDateChange();
-		lastEnd = values.endDate;
-	}
-	$: if (values.endDate !== lastEnd) {
-		lastEnd = values.endDate;
-		onEndDateChange();
-	}
-	function endsNextDay() {
-		values.endDate = addDays(values.startDate, 1);
-		span = 1;
-	}
+	/** @type {ScheduleSection | undefined} */
+	let scheduleSection;
+	/** «Datos»: los mismos campos que Editar, sin las fechas de publicación ni «No listado». */
+	const shownFields = datosFields('nuevo');
 
 	/* ---------- tickets ---------- */
 	// Se copian del evento original (un evento nuevo arranca sin venta). Sin ventas que cuidar:
@@ -182,70 +156,43 @@
 	const sourceImageIsShared = hasSourceImage && !isNumericFeatured(sourceFields.featured);
 	/** @type {'keep'|'upload'|'none'} */
 	let featuredMode = hasSourceImage ? 'keep' : 'none';
-	/** @type {HTMLInputElement} */
-	let fileInput;
-	let uploadURL = '';
-	let uploadName = '';
-	/** @type {'jpg'|'png'|'webp'|''} */
-	let uploadExt = '';
-	let uploadError = '';
+	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
+	let upload = emptyUpload();
+	/** @type {ImageSection | undefined} */
+	let imageSection;
 	/**
 	 * Only asked when the original uses a shared image (src/lib/assets): is the new image for every
 	 * edition (replace the shared file) or only for this one (the new event's own folder)?
 	 * @type {''|'todas'|'esta'}
 	 */
 	let imageScope = '';
-	$: askScope = sourceImageIsShared && featuredMode === 'upload';
-	$: scope = uploadScope(sourceFields.featured, askScope ? imageScope : '');
-	$: sharedNewName =
-		askScope && uploadExt ? replacementAssetName(sourceFields.featured, uploadExt) : '';
+	$: ({
+		askScope,
+		scope,
+		sharedNewName,
+		uploadFeatured,
+		preview: previewImage,
+		problem: scopeProblem
+	} = newEventImage({
+		mode: featuredMode,
+		sourceFeatured: sourceFields.featured,
+		sourceShared: sourceImageIsShared,
+		sourceUrl: source?.featuredUrl,
+		upload,
+		imageScope
+	}));
 	/** Events that show the shared image (from the server, when going to the review step). */
 	/** @type {Array<{slug: string, title: string, start: string}> | null} */
 	let affected = null;
-	/** @param {Event} e */
-	function onFileChange(e) {
-		// @ts-ignore
-		const file = e.currentTarget.files?.[0];
-		uploadError = '';
-		if (!file) return;
-		const check = checkImageFile(file, data.maxImageBytes);
-		if (check.error) {
-			uploadError = check.error;
-			fileInput.value = '';
-			return;
-		}
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = URL.createObjectURL(file);
-		uploadName = file.name;
-		uploadExt = check.ext;
-		featuredMode = 'upload';
-	}
 	/** @param {'keep'|'none'} mode */
 	function setImage(mode) {
 		featuredMode = mode;
-		if (fileInput) fileInput.value = '';
-		uploadError = '';
+		imageSection?.resetInput();
+		upload = { ...upload, error: '' };
 	}
-	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
-	$: previewImage =
-		featuredMode === 'upload'
-			? uploadURL
-			: featuredMode === 'keep'
-				? source?.featuredUrl
-				: undefined;
 
 	/* ---------- validation & generated file ---------- */
-	$: startValue =
-		isValidDate(values.startDate) && isValidTime(values.startTime)
-			? formatEventDate(values.startDate, values.startTime)
-			: '';
-	$: endValue =
-		values.hasEnd && isValidDate(values.endDate) && isValidTime(values.endTime)
-			? formatEventDate(values.endDate, values.endTime)
-			: '';
-	$: scheduleError =
-		startValue && (endValue || !values.hasEnd) ? validateSchedule(startValue, endValue) : null;
-	$: scheduleText = startValue ? describeSchedule(startValue, endValue) : '';
+	$: ({ error: scheduleError, text: scheduleText } = scheduleSummary(values));
 
 	// «Dónde»: el link al mapa es opcional, pero si está tiene que ser https de un sitio de mapas.
 	$: mapCheck = checkMapLink(values.location_map);
@@ -254,34 +201,19 @@
 	$: problems = /** @type {string[]} */ (
 		[
 			!values.title.trim() && 'Falta el título.',
-			!isValidDate(values.startDate) && 'Falta la fecha de inicio.',
-			!isValidTime(values.startTime) && 'Falta la hora de inicio.',
-			values.hasEnd &&
-				isValidDate(values.startDate) &&
-				!isValidDate(values.endDate) &&
-				'Falta la fecha de fin.',
-			values.hasEnd && !isValidTime(values.endTime) && 'Falta la hora de fin.',
-			scheduleError,
+			...scheduleProblems(values),
 			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
 			slugProblem,
 			serverSlugError,
-			uploadError,
-			askScope &&
-				!imageScope &&
-				'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
+			upload.error,
+			scopeProblem,
 			mapError,
 			...tagErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
 		].filter(Boolean)
 	);
 
-	$: generated = build(
-		values,
-		featuredMode,
-		scope === 'todas' ? sharedNewName : 1,
-		problems.length,
-		tickets
-	);
+	$: generated = build(values, featuredMode, uploadFeatured, problems.length, tickets);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'upload'|'none'} mode
@@ -438,10 +370,7 @@
 		if (d.values) {
 			values = { ...values, ...d.values };
 			// Que la fecha de fin recuperada no se recalcule desde la de inicio.
-			lastStartKey = `${values.startDate}|${values.hasEnd}`;
-			lastEnd = values.endDate;
-			if (isValidDate(values.startDate) && isValidDate(values.endDate))
-				span = Math.max(0, daysBetween(values.startDate, values.endDate));
+			tick().then(() => scheduleSection?.resync());
 			if (isValidDate(values.startDate)) month = values.startDate.slice(0, 7);
 		}
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
@@ -636,103 +565,31 @@
 					{/if}
 
 					<ScheduleSection
+						bind:this={scheduleSection}
 						bind:values
+						bind:span
 						bind:month
 						today={data.today}
 						hintWeekday={sourceWeekday}
 						{originalSchedule}
 						{scheduleText}
 						{scheduleError}
-						onEndsNextDay={endsNextDay}
 						fromAgenda={Boolean(data.prefill.date)}
 					/>
 
-					<fieldset class="card" id="sec-datos">
-						<legend>📝 Datos del evento</legend>
-						<label class="field">
-							<span>Título <span class="req">*</span></span>
-							<input
-								id="ev-title"
-								bind:value={values.title}
-								placeholder="Ej: Picantearla (62ª Edición)"
-							/>
-						</label>
-						<label class="field">
-							<span>Resumen corto</span>
-							<textarea
-								id="ev-summary"
-								bind:value={values.summary}
-								rows="3"
-								placeholder="Aparece en la lista de eventos y cuando se comparte el link"
-							></textarea>
-						</label>
-						<label class="field">
-							<span>Estado</span>
-							<select id="ev-status" bind:value={values.status}>
-								{#each STATUS_OPTIONS as option}
-									<option value={option.value}>{option.label} — {option.help}</option>
-								{/each}
-							</select>
-						</label>
-						<div class="grid">
-							<label class="field">
-								<span>Dónde</span>
-								<input
-									id="ev-location"
-									bind:value={values.location}
-									placeholder="Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»"
-								/>
-								<small
-									>Para un lugar de una sola vez. Dejalo vacío si es online. Si el evento tiene un
-									lugar en «Sucede en» (Lugares), se muestra el lugar.</small
-								>
-							</label>
-							<label class="field">
-								<span>Link al mapa (opcional)</span>
-								<input
-									id="ev-location-map"
-									type="url"
-									inputmode="url"
-									bind:value={values.location_map}
-									placeholder="https://www.openstreetmap.org/…"
-									aria-invalid={mapError ? 'true' : undefined}
-								/>
-								<small>{mapError || 'De OpenStreetMap o Google Maps.'}</small>
-							</label>
-							<label class="field">
-								<span>Nombre del lugar</span>
-								<input
-									id="ev-location-name"
-									bind:value={values.location_name}
-									placeholder="Ej: El Surco"
-								/>
-							</label>
-							<label class="field">
-								<span>Link de inscripción / entradas</span>
-								<input
-									id="ev-link"
-									type="url"
-									bind:value={values.link}
-									placeholder="https://forms.gle/..."
-									inputmode="url"
-								/>
-								<small>Solo se muestra cuando el estado es «Abierto».</small>
-							</label>
-							<label class="field">
-								<span>Texto del botón</span>
-								<input id="ev-link-text" bind:value={values.link_text} placeholder="Inscribirme" />
-							</label>
-						</div>
-						<OrganizersField
-							bind:authors
-							profiles={data.profiles}
-							authorUsage={data.authorUsage}
-							id="ev-authors"
-							helpId="ev-authors-help"
-							>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden
-							ser varias personas o grupos.</OrganizersField
-						>
-					</fieldset>
+					<DatosSection
+						legend="📝 Datos del evento"
+						fields={shownFields}
+						idFor={datosFieldId('nuevo')}
+						errors={mapError ? { location_map: mapError } : {}}
+						bind:values
+						bind:authors
+						profiles={data.profiles}
+						authorUsage={data.authorUsage}
+						authorsId="ev-authors"
+						authorsHelpId="ev-authors-help"
+						authorsHelp="Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden ser varias personas o grupos."
+					/>
 
 					<fieldset class="card" id="sec-direccion">
 						<legend>🔗 Dirección de la página</legend>
@@ -792,13 +649,13 @@
 					/>
 
 					<ImageSection
+						bind:this={imageSection}
+						bind:upload
 						src={previewImage}
 						inputId="ev-image"
 						buttonText={featuredMode === 'upload' ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
 						maxImageBytes={data.maxImageBytes}
-						error={uploadError}
-						bind:input={fileInput}
-						on:change={onFileChange}
+						on:chosen={() => (featuredMode = 'upload')}
 					>
 						<svelte:fragment slot="before">
 							{#if featuredMode === 'keep' && sourceImageIsShared}
@@ -812,7 +669,7 @@
 									evento. El evento original no cambia.
 								</p>
 							{:else if featuredMode === 'upload'}
-								<p class="hint">Nueva imagen: {uploadName}</p>
+								<p class="hint">Nueva imagen: {upload.name}</p>
 							{/if}
 							{#if askScope}
 								<ImageScopeChoice
@@ -849,15 +706,12 @@
 						{/if}
 					</ImageSection>
 
-					<fieldset class="card" id="sec-texto">
-						<legend>📄 Texto largo de la página</legend>
-						<p class="hint">
-							Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
-							<code>- lista</code>,
-							<code>**negrita**</code>.
-						</p>
-						<textarea id="ev-body" class="body" bind:value={values.body} rows="12"></textarea>
-					</fieldset>
+					<BodySection bind:value={values.body} legend="📄 Texto largo de la página" id="ev-body">
+						<svelte:fragment slot="hint"
+							>Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
+							<code>- lista</code>, <code>**negrita**</code>.</svelte:fragment
+						>
+					</BodySection>
 
 					{#if showProblems && (problems.length || generated.error)}
 						<div class="problems" role="alert">
@@ -924,14 +778,14 @@
 						<dd id="review-image">
 							{#if featuredMode === 'upload' && scope === 'todas'}
 								<strong>Nueva para todas las ediciones:</strong>
-								{uploadName} reemplaza la imagen compartida
+								{upload.name} reemplaza la imagen compartida
 								<code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured},
 									que pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan
 									los eventos que la usaban){/if}. Cambia también en los eventos pasados.
 							{:else if featuredMode === 'upload'}
 								<strong>Nueva, solo para este evento:</strong>
-								{uploadName}, en
-								<code>calendario/media/{slug}/1.{uploadExt}</code>.{#if sourceImageIsShared}
+								{upload.name}, en
+								<code>calendario/media/{slug}/1.{upload.ext}</code>.{#if sourceImageIsShared}
 									{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no
 									cambian.{/if}
 							{:else if featuredMode === 'keep' && sourceImageIsShared}
@@ -1055,10 +909,6 @@
 				color: var(--1-dark);
 			}
 		}
-	}
-	textarea.body {
-		font-family: monospace;
-		font-size: var(--step--1);
 	}
 	.slug {
 		display: flex;

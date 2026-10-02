@@ -1,22 +1,35 @@
 <script>
-	import CodeMirror from 'svelte-codemirror-editor';
-	import { markdown } from '@codemirror/lang-markdown';
 	import { deserialize } from '$app/forms';
-	import { onDestroy } from 'svelte';
+	import { tick } from 'svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
-	import PersonasEditor from '$lib/components/admin/PersonasEditor.svelte';
 	import { PERSONAS_KEY, validatePersonas } from '$lib/utils/personas.js';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
-	import FieldGrid from '$lib/components/admin/event-form/FieldGrid.svelte';
-	import OrganizersField from '$lib/components/admin/event-form/OrganizersField.svelte';
+	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
+	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
+	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
-	import { fromInput, postFields, toInput } from '$lib/admin/postFields.js';
-	import { checkImageFile } from '$lib/utils/imageUpload.js';
+	import { editEventImage, emptyUpload } from '$lib/admin/imageState.js';
+	import {
+		datosFieldId,
+		datosFields,
+		fromInput,
+		postFields,
+		toInput
+	} from '$lib/admin/postFields.js';
+	import {
+		scheduleFromInputs,
+		scheduleProblems,
+		scheduleSpan,
+		scheduleSummary,
+		scheduleToInputs
+	} from '$lib/admin/schedule.js';
+	import { checkMapLink } from '$lib/utils/eventPlace.js';
 	import {
 		applyTicketsToMarkdown,
 		readTicketsForm,
@@ -29,11 +42,9 @@
 		applyFrontmatterChanges,
 		joinMarkdown,
 		splitMarkdown,
-		todayInArgentina,
-		validateSchedule
+		todayInArgentina
 	} from '$lib/utils/eventDraft.js';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
 	import { parseDocument } from 'yaml';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 
@@ -75,7 +86,10 @@
 	let rawText = data.post.raw;
 
 	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
+	// Todos los campos (para armar el archivo) y los que se muestran en «Datos»: Empieza y Termina
+	// van en «¿Cuándo es?».
 	const fields = postFields(category);
+	const shownFields = datosFields('editar', category);
 	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
 	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
 	/** @type {string | null} */
@@ -97,6 +111,27 @@
 	// with a reference to the `f` of the `bind:value={values[f.key]}` loop below and crashes.
 	/** @type {Record<string, any>} */
 	let values = { ...initial, updated_date: todayInArgentina() };
+
+	/* ---------- fecha y hora (eventos): la misma sección que al crear ---------- */
+	const today = todayInArgentina();
+	// Día y hora por separado; vuelven a `start` / `end` con el mismo formato de `toInput`, así que
+	// si no se tocan, no cambian en el archivo.
+	let schedule = scheduleFromInputs(initial.start ?? '', initial.end ?? '');
+	let span = scheduleSpan(schedule);
+	let month = (schedule.startDate || today).slice(0, 7);
+	/** @type {ScheduleSection | undefined} */
+	let scheduleSection;
+	$: allValues = isEvent ? { ...values, ...scheduleToInputs(schedule) } : values;
+	$: scheduleInfo = scheduleSummary(schedule);
+
+	// «Link al mapa»: como al crear, pero solo si se cambió (lo que el archivo ya tenía no bloquea).
+	$: mapError =
+		isEvent && values.location_map !== initial.location_map
+			? (() => {
+					const check = checkMapLink(values.location_map);
+					return check.ok ? '' : check.message;
+				})()
+			: '';
 
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */
@@ -157,55 +192,32 @@
 
 	/* ---------- image (events only) ---------- */
 	const image = data.image;
-	/** @type {HTMLInputElement} */
-	let fileInput;
-	let uploadURL = '';
-	let uploadName = '';
-	/** @type {'jpg'|'png'|'webp'|''} */
-	let uploadExt = '';
-	let uploadError = '';
+	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
+	let upload = emptyUpload();
+	/** @type {ImageSection | undefined} */
+	let imageSection;
 	/** @type {''|'todas'|'esta'} */
 	let imageScope = '';
 	/** @type {Array<{slug: string, title: string, start: string}> | null} */
 	let affected = null;
 	let affectedError = '';
-	$: askScope = Boolean(image?.shared && uploadExt);
-	$: scope = uploadScope(image?.featured ?? '', askScope ? imageScope : '');
-	$: sharedNewName = askScope ? replacementAssetName(image?.featured ?? '', uploadExt) : '';
-	/** `featured` after saving with the new image ('' = unchanged) */
-	$: newFeatured = !uploadExt
-		? ''
-		: scope === 'todas'
-			? sharedNewName
-			: String(image?.nextNumber ?? 1);
+	$: ({
+		askScope,
+		scope,
+		sharedNewName,
+		newFeatured,
+		problem: scopeProblem
+	} = editEventImage({
+		image,
+		upload,
+		imageScope
+	}));
 	$: if (askScope && scope === 'todas' && affected === null && !affectedError) loadAffected();
 
-	/** @param {Event} e */
-	function onFileChange(e) {
-		// @ts-ignore
-		const file = e.currentTarget.files?.[0];
-		uploadError = '';
-		if (!file) return;
-		const check = checkImageFile(file, data.maxImageBytes);
-		if (check.error) {
-			uploadError = check.error;
-			fileInput.value = '';
-			return;
-		}
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = URL.createObjectURL(file);
-		uploadName = file.name;
-		uploadExt = check.ext;
-	}
 	function clearUpload() {
-		if (fileInput) fileInput.value = '';
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = '';
-		uploadName = '';
-		uploadExt = '';
+		imageSection?.clear();
 		imageScope = '';
 	}
-	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
 
 	async function loadAffected() {
 		try {
@@ -227,22 +239,17 @@
 	}
 
 	/* ---------- result ---------- */
-	/** @type {Field} */
-	const datetime = { key: '', label: '', type: 'datetime' };
-	$: scheduleError =
-		isEvent && values.start && values.end
-			? validateSchedule(fromInput(datetime, values.start), fromInput(datetime, values.end))
-			: null;
 	$: problems = parseError
 		? []
 		: /** @type {string[]} */ (
 				[
-					...fields.filter((f) => f.required && !values[f.key]).map((f) => `Falta «${f.label}».`),
-					scheduleError,
-					uploadError,
-					askScope &&
-						!imageScope &&
-						'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
+					...shownFields
+						.filter((f) => f.required && !values[f.key])
+						.map((f) => `Falta «${f.label}».`),
+					...(isEvent ? scheduleProblems(schedule) : []),
+					mapError,
+					upload.error,
+					scopeProblem,
 					...tagErrors,
 					...newTicketErrors.map((e) => `Entradas: ${e}`),
 					...newPersonasErrors
@@ -251,7 +258,7 @@
 
 	$: content = parseError
 		? rawText
-		: build(values, tags, authors, body, newFeatured, tickets, personas);
+		: build(allValues, tags, authors, body, newFeatured, tickets, personas);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
@@ -285,20 +292,27 @@
 	const unchanged = parseError
 		? data.post.raw
 		: build(
-				values,
+				// (No `allValues`: los `$:` todavía no corrieron.)
+				isEvent ? { ...values, ...scheduleToInputs(schedule) } : values,
 				isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags,
 				authors,
 				body
 			);
-	$: changed = content !== unchanged || Boolean(uploadExt);
+	$: changed = content !== unchanged || Boolean(upload.ext);
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
-	$: draft = { values, tagRules, freeTags, authors, tickets, personas, body, rawText };
+	$: draft = { schedule, values, tagRules, freeTags, authors, tickets, personas, body, rawText };
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
 		if (d.values) values = { ...values, ...d.values };
+		if (isEvent && d.schedule && typeof d.schedule === 'object') {
+			schedule = { ...schedule, ...d.schedule };
+			if (schedule.startDate) month = schedule.startDate.slice(0, 7);
+			// Que el día de fin recuperado no se recalcule desde el de inicio.
+			tick().then(() => scheduleSection?.resync());
+		}
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		if (Array.isArray(d.authors)) authors = d.authors;
@@ -352,51 +366,55 @@
 			</p>
 			<textarea class="raw" bind:value={rawText} rows="30"></textarea>
 		{:else}
-			<fieldset class="card" id="sec-datos">
-				<legend>📝 Datos</legend>
-				<FieldGrid {fields} warnings={fieldWarnings} bind:values />
-				{#if hasAuthors}
-					<OrganizersField
-						bind:authors
-						profiles={data.profiles}
-						authorUsage={data.authorUsage}
-						label={authorsLabel}
-						>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar».</OrganizersField
-					>
-				{/if}
-			</fieldset>
+			{#if isEvent}
+				<ScheduleSection
+					bind:this={scheduleSection}
+					bind:values={schedule}
+					bind:span
+					bind:month
+					{today}
+					mode="editar"
+					idPrefix="edit"
+					scheduleText={scheduleInfo.text}
+					scheduleError={scheduleInfo.error}
+				/>
+			{/if}
+
+			<DatosSection
+				fields={shownFields}
+				idFor={datosFieldId('editar')}
+				warnings={fieldWarnings}
+				errors={mapError ? { location_map: mapError } : {}}
+				bind:values
+				{hasAuthors}
+				bind:authors
+				profiles={data.profiles}
+				authorUsage={data.authorUsage}
+				{authorsLabel}
+			/>
 
 			{#if personasData}
-				<fieldset class="card" id="sec-personas">
-					<legend>👥 Personas</legend>
-					<p class="hint">
-						Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo
-						los perfiles públicos).
-					</p>
-					<PersonasEditor
-						bind:personas
-						roles={personasData.roles}
-						profiles={personasData.profiles}
-						errors={newPersonasErrors}
-						idPrefix="edit-personas"
-					/>
-				</fieldset>
+				<PersonasSection
+					bind:personas
+					roles={personasData.roles}
+					profiles={personasData.profiles}
+					errors={newPersonasErrors}
+				/>
 			{/if}
 
 			{#if image}
 				<ImageSection
-					src={uploadURL || image.url}
+					bind:this={imageSection}
+					bind:upload
+					src={upload.url || image.url}
 					inputId="edit-image"
 					form="edit-form"
-					buttonText={uploadExt ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
+					buttonText={upload.ext ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
 					maxImageBytes={data.maxImageBytes}
-					error={uploadError}
-					bind:input={fileInput}
-					on:change={onFileChange}
 				>
 					<svelte:fragment slot="before">
-						{#if uploadExt}
-							<p class="hint">Nueva imagen: {uploadName}</p>
+						{#if upload.ext}
+							<p class="hint">Nueva imagen: {upload.name}</p>
 						{:else if image.shared}
 							<p class="hint">
 								Usa una imagen compartida con otras ediciones: <code>{image.featured}</code>.
@@ -415,7 +433,7 @@
 							/>
 						{/if}
 					</svelte:fragment>
-					{#if !uploadExt}
+					{#if !upload.ext}
 						<p class="note" id="edit-image-where">
 							{#if image.shared}
 								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
@@ -426,7 +444,7 @@
 							{/if}
 						</p>
 					{/if}
-					{#if uploadExt}
+					{#if upload.ext}
 						<p class="note" id="edit-image-case">
 							{#if scope === 'todas'}
 								🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
@@ -437,7 +455,7 @@
 								Elegí arriba si es para todas las ediciones o solo para esta.
 							{:else}
 								📁 <strong>Solo este evento:</strong> se guarda como
-								<code>{image.folder}{image.nextNumber}.{uploadExt}</code>{#if image.shared}; la
+								<code>{image.folder}{image.nextNumber}.{upload.ext}</code>{#if image.shared}; la
 									imagen compartida y los otros eventos no cambian{/if}.
 							{/if}
 						</p>
@@ -505,15 +523,7 @@
 				/>
 			{/if}
 
-			<fieldset class="card" id="sec-texto">
-				<legend>📄 Texto de la página</legend>
-				<p class="hint">
-					Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>.
-				</p>
-				<div class="editor">
-					<CodeMirror lineWrapping tabSize={4} bind:value={body} lang={markdown()} />
-				</div>
-			</fieldset>
+			<BodySection bind:value={body} />
 		{/if}
 
 		{#if problems.length}
@@ -576,17 +586,6 @@
 
 <style lang="scss">
 	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). */
-	.editor {
-		border-radius: 0.8em;
-		outline: 1px solid var(--1-light);
-		overflow: hidden;
-		/* Con fallback para /edit (fuera del panel); en el panel valen los tokens (claro y oscuro). */
-		:global(.cm-editor) {
-			max-height: 40rem;
-			background: var(--surface, white);
-			color: var(--text, #333);
-		}
-	}
 	.affected {
 		background: var(--warn-bg, #fff8e1);
 		color: var(--text, inherit);

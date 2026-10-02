@@ -5,7 +5,8 @@
 	 * (columna al costado en la compu, fila fija arriba en el celu), un solo botón para guardar al
 	 * final (fijo abajo) y un borrador local que se guarda mientras se escribe.
 	 *
-	 * Lo usan /admin/eventos/nuevo y PostEditor (pestaña Editar de la ficha y /edit/...). Cada uno
+	 * Lo usan /admin/eventos/nuevo, PostEditor (pestaña Editar de la ficha y /edit/...) y
+	 * ContentEditor (material y amigues en el panel). Cada uno
 	 * pone sus secciones adentro (las compartidas están en esta carpeta: TagsSection,
 	 * OrganizersField, FieldGrid; Entradas es TicketsEditor). La barra de guardar es el elemento
 	 * con la clase `bar sticky`.
@@ -19,6 +20,8 @@
 	 *   no hay índice.
 	 * - `draftKey`, `base`, `dirty`, `snapshot`, `restore`, `saved`, `saveForm`, `saving`: los de
 	 *   UnsavedChanges (`base` es el sha del archivo: si cambió, pregunta antes de recuperar).
+	 * - `describe(draft, current)`: en qué secciones difiere el borrador (sin pasarlo, según las
+	 *   partes del borrador de los eventos: `draftSectionLabels`).
 	 */
 	import SectionIndex from './SectionIndex.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
@@ -38,8 +41,8 @@
 	export let saveForm = '';
 	export let saving = false;
 
-	/** @param {unknown} draft @param {unknown} current */
-	const describe = (draft, current) => draftSectionLabels(changedKeys(draft, current));
+	/** @type {(draft: any, current: any) => string[]} */
+	export let describe = (draft, current) => draftSectionLabels(changedKeys(draft, current));
 
 	$: withIndex = sections.length > 1;
 </script>
