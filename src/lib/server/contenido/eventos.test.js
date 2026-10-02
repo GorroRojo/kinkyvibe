@@ -184,7 +184,7 @@ describe('los eventos reales del repo', () => {
 			new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date).getTime();
 		fromMd.sort((a, b) => time(b) - time(a));
 		const imported = new Set(fromDb.map((p) => p.meta.postID));
-		const merged = mergePosts([], { claimed: new Set() }, fromDb.reverse());
+		const merged = mergePosts([], { claimed: new Map() }, fromDb.reverse());
 		expect(merged.map((p) => p.meta.postID)).toEqual(
 			fromMd.filter((p) => imported.has(p.meta.postID)).map((p) => p.meta.postID)
 		);

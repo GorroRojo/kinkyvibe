@@ -1,39 +1,40 @@
 /**
- * Guardar eventos en la base desde el panel, sin cambiar las pantallas (interruptor `contenido_db`).
+ * Guardar contenido (eventos y material) en la base desde el panel, sin cambiar las pantallas
+ * (interruptor `contenido_db`).
  *
  * Todo lo que el panel escribe pasa por un solo cliente del repo (`getRepoClient()`,
  * docs/publicar-contenido.md): el editor, cargar y duplicar eventos, la agenda, importar la
- * planilla, borrar, las etiquetas, las imágenes compartidas. {@link withContentDb} envuelve ese
- * cliente como lo hace el modo demo: con el interruptor prendido, el .md de un evento que está en
- * la base (o uno nuevo) se lee y se guarda en la base; todo lo demás (imágenes, el archivo de
- * etiquetas, material, los .md que la base no tiene) sigue yendo al repo como siempre.
+ * planilla, borrar, las etiquetas, las imágenes compartidas, el editor de material.
+ * {@link withContentDb} envuelve ese cliente como lo hace el modo demo: con el interruptor
+ * prendido, el .md de un post que está en la base (o uno nuevo) se lee y se guarda en la base;
+ * todo lo demás (imágenes, el archivo de etiquetas, amigues, la wiki, los .md que la base no
+ * tiene) sigue yendo al repo como siempre.
  *
- * - **Leer**: el texto del evento se arma desde el objeto ({@link eventToMarkdown}), con un
- *   «sha» que es el de ese texto: si alguien guarda en el medio, el texto cambia y el próximo
- *   guardado con el sha viejo da `FileChangedError`, como con GitHub.
- * - **Guardar**: cada archivo de evento va con saveObject() (versión nueva cada vez, con el número
- *   de versión que se leyó; el historial queda en `object_revisions`), después del commit al repo
- *   de lo que no es de la base (si eso falla, la base no se toca). Se valida todo antes de
- *   escribir nada.
- * - **Borrar** un archivo de evento es el borrado suave del objeto; volver a crearlo, deshacerlo.
- * - Los eventos que la base no tiene y ya existen como .md siguen yendo al .md (lo que sale en el
- *   sitio para esa dirección es el .md).
+ * - **Leer**: el texto se arma desde el objeto ({@link postToMarkdown}), con un «sha» que es el de
+ *   ese texto: si alguien guarda en el medio, el texto cambia y el próximo guardado con el sha
+ *   viejo da `FileChangedError`, como con GitHub.
+ * - **Guardar**: cada archivo va con saveObject() (versión nueva cada vez, con el número de versión
+ *   que se leyó; el historial queda en `object_revisions`), después del commit al repo de lo que no
+ *   es de la base (si eso falla, la base no se toca). Se valida todo antes de escribir nada.
+ * - **Borrar** un archivo es el borrado suave del objeto; volver a crearlo, deshacerlo.
+ * - Los .md que la base no tiene y ya existen siguen yendo al .md (lo que sale en el sitio para esa
+ *   dirección es el .md).
  *
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
  */
 import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
-import { POSTS_DIR } from '$lib/server/eventos/images.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { getObject, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
-import { EVENT_CATEGORY, EVENT_TYPE, eventToMeta } from './eventos.js';
-import { eventToMarkdown, markdownToEvent } from './markdown.js';
+import { CONTENT_CATEGORIES } from './categories.js';
+import { EVENT_CATEGORY } from './eventos.js';
+import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
-import { resolveEventSlug } from './posts.js';
+import { resolveContentSlug } from './posts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -58,51 +59,86 @@ export async function activeContentDB() {
 /** Quién mira desde el panel: lo ve todo (también lo oculto y lo borrado, para no pisarlo). */
 const PANEL = /** @type {const} */ ({ role: 'admin', id: 'panel' });
 
-const EVENT_FILE = /^src\/lib\/posts\/calendario\/([^/_][^/]*)\.md$/;
+const POST_FILE = /^src\/lib\/posts\/([a-z]+)\/([^/_][^/]*)\.md$/;
+
+/** @param {string} category */
+const dirOf = (category) => `src/lib/posts/${category}`;
+
+/**
+ * La categoría (de las que van a la base) y la dirección de una ruta del repo
+ * (`src/lib/posts/<categoría>/<slug>.md`), o null.
+ *
+ * @param {string} path
+ * @returns {{ category: string, slug: string } | null}
+ */
+export function postOfPath(path) {
+	const m = POST_FILE.exec(path);
+	if (!m || !CONTENT_CATEGORIES[m[1]]) return null;
+	return { category: m[1], slug: m[2] };
+}
 
 /**
  * La dirección del evento de una ruta del repo (`src/lib/posts/calendario/<slug>.md`), o null.
  * @param {string} path
  */
 export function eventSlugOfPath(path) {
-	return EVENT_FILE.exec(path)?.[1] ?? null;
+	const p = postOfPath(path);
+	return p?.category === EVENT_CATEGORY ? p.slug : null;
 }
 
 /**
- * @typedef {{ object: StoredObject, urlSlug: string, raw: string, sha: string, deleted: boolean }} DbEventFile
+ * @typedef {{ category: string, object: StoredObject, urlSlug: string, raw: string, sha: string, deleted: boolean }} DbPostFile
  */
 
 /**
+ * @param {string} category
  * @param {StoredObject} object
  * @param {string} urlSlug
- * @returns {Promise<DbEventFile>}
+ * @returns {Promise<DbPostFile>}
  */
-async function asFile(object, urlSlug) {
-	const raw = eventToMarkdown(object);
-	return { object, urlSlug, raw, sha: await gitBlobSha(raw), deleted: object.deleted_at !== null };
+async function asFile(category, object, urlSlug) {
+	const raw = postToMarkdown(category, object);
+	return {
+		category,
+		object,
+		urlSlug,
+		raw,
+		sha: await gitBlobSha(raw),
+		deleted: object.deleted_at !== null
+	};
 }
 
 /**
- * El evento de la base en esa dirección (vieja o del objeto), también oculto o borrado, o null.
+ * El post de la base en esa dirección (vieja o del objeto), también oculto o borrado, o null.
  *
  * @param {D1Database} db
+ * @param {string} category
  * @param {string} slug
- * @returns {Promise<DbEventFile | null>}
+ * @returns {Promise<DbPostFile | null>}
  */
-export async function findDbEvent(db, slug) {
-	const ref = await resolveEventSlug(db, slug);
+export async function findDbPost(db, category, slug) {
+	const ref = await resolveContentSlug(db, category, slug);
 	if (!ref) return null;
 	const object = await getObject(db, { id: ref.id }, PANEL, { includeDeleted: true });
-	return object ? asFile(object, ref.legacySlug ?? object.slug) : null;
+	return object ? asFile(category, object, ref.legacySlug ?? object.slug) : null;
 }
 
+/** @param {D1Database} db @param {string} slug */
+export const findDbEvent = (db, slug) => findDbPost(db, EVENT_CATEGORY, slug);
+
 /**
- * Todos los eventos de la base (también ocultos y borrados) por dirección, para el panel.
+ * Todos los posts de una categoría en la base (también ocultos y borrados) por dirección, para el
+ * panel.
  *
  * @param {D1Database} db
- * @returns {Promise<Map<string, DbEventFile>>}
+ * @param {string} category
+ * @returns {Promise<Map<string, DbPostFile>>}
  */
-export async function allDbEvents(db) {
+export async function allDbPosts(db, category) {
+	const cat = CONTENT_CATEGORIES[category];
+	/** @type {Map<string, DbPostFile>} */
+	const out = new Map();
+	if (!cat) return out;
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
@@ -113,24 +149,22 @@ export async function allDbEvents(db) {
 			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
 			WHERE o.type = ?1`
 		)
-		.bind(EVENT_TYPE, EVENT_CATEGORY)
+		.bind(cat.type, category)
 		.all();
-	/** @type {Map<string, DbEventFile>} */
-	const out = new Map();
 	for (const r of results) {
 		const object = rowToObject(r);
 		const urlSlug = r.legacy_slug ? String(r.legacy_slug) : object.slug;
-		out.set(urlSlug, await asFile(object, urlSlug));
+		out.set(urlSlug, await asFile(category, object, urlSlug));
 	}
 	return out;
 }
 
-/** @param {string} slug */
-const pathOf = (slug) => `${POSTS_DIR}/${slug}.md`;
+/** @param {D1Database} db */
+export const allDbEvents = (db) => allDbPosts(db, EVENT_CATEGORY);
 
 /**
  * @typedef {{
- *   path: string, slug: string, existing: DbEventFile | null, remove: boolean,
+ *   path: string, category: string, slug: string, existing: DbPostFile | null, remove: boolean,
  *   title?: string, data?: Record<string, unknown>, visibility?: 'public' | 'hidden'
  * }} PlannedWrite
  */
@@ -146,86 +180,94 @@ const pathOf = (slug) => `${POSTS_DIR}/${slug}.md`;
 export function withContentDb(base) {
 	/**
 	 * @param {string} path
-	 * @returns {Promise<DbEventFile | null>}
+	 * @returns {Promise<DbPostFile | null>}
 	 */
-	async function eventAt(path) {
-		const slug = eventSlugOfPath(path);
-		if (!slug) return null;
+	async function postAt(path) {
+		const p = postOfPath(path);
+		if (!p) return null;
 		const db = await activeContentDB();
-		return db ? findDbEvent(db, slug) : null;
+		return db ? findDbPost(db, p.category, p.slug) : null;
 	}
+
+	/** La categoría cuya carpeta es `dir` (sin la barra final), o null. @param {string} dir */
+	const categoryOfDir = (dir) => {
+		const clean = dir.replace(/\/+$/, '');
+		return Object.keys(CONTENT_CATEGORIES).find((c) => dirOf(c) === clean) ?? null;
+	};
 
 	return {
 		...base,
 
 		/** @param {string} token @param {string} path */
 		async getFile(token, path) {
-			const e = await eventAt(path);
+			const e = await postAt(path);
 			if (e) return e.deleted ? null : e.raw;
 			return base.getFile(token, path);
 		},
 
 		/** @param {string} token @param {string} path */
 		async readFile(token, path) {
-			const e = await eventAt(path);
+			const e = await postAt(path);
 			if (e) return e.deleted ? null : { raw: e.raw, sha: e.sha, ref: 'base' };
 			return base.readFile ? base.readFile(token, path) : null;
 		},
 
 		/** @param {string} token @param {string} path @param {...any} rest */
 		async pathExists(token, path, ...rest) {
-			// Un evento borrado en la base sigue ocupando su dirección (se puede deshacer).
-			if (await eventAt(path)) return true;
+			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer).
+			if (await postAt(path)) return true;
 			return base.pathExists(token, path, ...rest);
 		},
 
 		/** @param {string} token @param {string[]} paths @param {...any} rest */
 		async existingPaths(token, paths, ...rest) {
 			const found = new Set(await base.existingPaths(token, paths, ...rest));
-			for (const p of paths) if (!found.has(p) && (await eventAt(p))) found.add(p);
+			for (const p of paths) if (!found.has(p) && (await postAt(p))) found.add(p);
 			return paths.filter((p) => found.has(p));
 		},
 
 		/**
-		 * La carpeta de eventos incluye los de la base (los borrados no).
+		 * La carpeta de una categoría incluye los posts de la base (los borrados no).
 		 * @param {string} token @param {string} path @param {any} [opts]
 		 */
 		async listTree(token, path, opts) {
 			const list = await base.listTree(token, path, opts);
-			const db = await activeContentDB();
-			if (!db || path.replace(/\/+$/, '') !== POSTS_DIR) return list;
-			const events = await allDbEvents(db);
+			const category = categoryOfDir(path);
+			const db = category ? await activeContentDB() : null;
+			if (!db || !category) return list;
+			const posts = await allDbPosts(db, category);
 			const out = list.filter(
-				(/** @type {{ path: string }} */ f) => !events.get(eventSlugOfPath(f.path) ?? '')?.deleted
+				(/** @type {{ path: string }} */ f) => !posts.get(postOfPath(f.path)?.slug ?? '')?.deleted
 			);
 			const have = new Set(out.map((/** @type {{ path: string }} */ f) => f.path));
-			for (const [slug, e] of events) {
-				const p = pathOf(slug);
+			for (const [slug, e] of posts) {
+				const p = `${dirOf(category)}/${slug}.md`;
 				if (!e.deleted && !have.has(p)) out.push({ path: p, sha: e.sha, type: 'blob' });
 			}
 			return out;
 		},
 
 		/**
-		 * Los textos de la carpeta de eventos, con los de la base en lugar de sus .md.
+		 * Los textos de la carpeta de una categoría, con los de la base en lugar de sus .md.
 		 * @param {string} token @param {string} dir
 		 */
 		async getDirTexts(token, dir) {
 			const list = await base.getDirTexts(token, dir);
-			const db = await activeContentDB();
-			if (!db || dir.replace(/\/+$/, '') !== POSTS_DIR) return list;
-			const events = await allDbEvents(db);
+			const category = categoryOfDir(dir);
+			const db = category ? await activeContentDB() : null;
+			if (!db || !category) return list;
+			const posts = await allDbPosts(db, category);
 			/** @type {Array<{ path: string, sha: string, text: string }>} */
 			const out = [];
 			const seen = new Set();
 			for (const f of list) {
-				const e = events.get(eventSlugOfPath(f.path) ?? '');
+				const e = posts.get(postOfPath(f.path)?.slug ?? '');
 				seen.add(f.path);
 				if (!e) out.push(f);
 				else if (!e.deleted) out.push({ path: f.path, sha: e.sha, text: e.raw });
 			}
-			for (const [slug, e] of events) {
-				const p = pathOf(slug);
+			for (const [slug, e] of posts) {
+				const p = `${dirOf(category)}/${slug}.md`;
 				if (!e.deleted && !seen.has(p)) out.push({ path: p, sha: e.sha, text: e.raw });
 			}
 			return out;
@@ -240,36 +282,37 @@ export function withContentDb(base) {
 			if (!db) return base.commitFiles(token, opts);
 			const { files, mustNotExist = [], unchanged = [] } = opts;
 
-			// Qué archivos de evento van a la base: los que la base tiene, y los nuevos.
+			// Qué archivos van a la base: los que la base tiene, y los nuevos.
 			/** @type {PlannedWrite[]} */
 			const writes = [];
 			/** @type {Set<string>} */
 			const toDb = new Set();
 			for (const f of files) {
-				const slug = eventSlugOfPath(f.path);
-				if (!slug) continue;
-				const existing = await findDbEvent(db, slug);
+				const p = postOfPath(f.path);
+				if (!p) continue;
+				const existing = await findDbPost(db, p.category, p.slug);
 				if (!existing && (await base.pathExists(token, f.path))) continue; // solo .md: al repo
 				if (!existing && f.delete) continue;
 				toDb.add(f.path);
 				if (f.delete) {
-					writes.push({ path: f.path, slug, existing, remove: true });
+					writes.push({ path: f.path, ...p, existing, remove: true });
 					continue;
 				}
 				if (f.content === undefined) {
 					throw new Error(`No se puede copiar ${f.path} a la base: falta su texto.`);
 				}
-				const mapped = markdownToEvent(slug, f.content);
+				const mapped = markdownToPost(p.category, p.slug, f.content);
+				if (mapped.error && !existing) throw new Error(mapped.error);
 				const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
-					coreTypes.get(EVENT_TYPE)
+					coreTypes.get(CONTENT_CATEGORIES[p.category].type)
 				);
 				const valid = validateData(def, mapped.data);
 				if (!valid.ok) {
-					throw new Error(`Revisá el evento: ${valid.errors.map((e) => e.message).join('; ')}`);
+					throw new Error(`Revisá los datos: ${valid.errors.map((e) => e.message).join('; ')}`);
 				}
 				writes.push({
 					path: f.path,
-					slug,
+					...p,
 					existing,
 					remove: false,
 					title: mapped.title,
@@ -308,7 +351,7 @@ export function withContentDb(base) {
 			const saved = [];
 			for (const w of writes) {
 				try {
-					await writeEvent(db, w, actor);
+					await writePost(db, w, actor);
 				} catch (error) {
 					if (error instanceof VersionConflictError) throw new FileChangedError(w.path);
 					if (error instanceof ObjectError) {
@@ -317,11 +360,11 @@ export function withContentDb(base) {
 					}
 					throw error;
 				}
-				saved.push(w.slug);
+				saved.push(`${w.category}/${w.slug}`);
 			}
 			const first = saved[0];
 			return {
-				...(commit ?? { sha: 'base', url: first ? `/calendario/${first}` : '/calendario' }),
+				...(commit ?? { sha: 'base', url: first ? `/${first}` : '/' }),
 				db: saved
 			};
 		}
@@ -329,22 +372,23 @@ export function withContentDb(base) {
 }
 
 /**
- * Guarda un archivo de evento en la base (con el historial en la misma tanda).
+ * Guarda un archivo en la base (con el historial en la misma tanda).
  *
  * @param {D1Database} db
  * @param {PlannedWrite} w
  * @param {string} actor
  */
-async function writeEvent(db, w, actor) {
+async function writePost(db, w, actor) {
+	const type = CONTENT_CATEGORIES[w.category].type;
 	const also = (/** @type {import('$lib/server/objects/save.js').SavedRef} */ self) => [
 		revisionStatement(db, self, 'panel')
 	];
 	if (w.remove) {
-		const e = /** @type {DbEventFile} */ (w.existing);
+		const e = /** @type {DbPostFile} */ (w.existing);
 		if (e.deleted) return e.object;
 		return saveObject(
 			db,
-			{ id: e.object.id, type: EVENT_TYPE, version: e.object.version, deleted: true },
+			{ id: e.object.id, type, version: e.object.version, deleted: true },
 			{ actor, also }
 		);
 	}
@@ -353,12 +397,12 @@ async function writeEvent(db, w, actor) {
 			db,
 			{
 				id: w.existing.object.id,
-				type: EVENT_TYPE,
+				type,
 				version: w.existing.object.version,
 				title: w.title,
 				data: w.data,
 				visibility: w.visibility,
-				// Volver a crear un evento borrado es deshacer el borrado.
+				// Volver a crear un post borrado es deshacer el borrado.
 				...(w.existing.deleted ? { deleted: false } : {})
 			},
 			{ actor, also }
@@ -366,24 +410,24 @@ async function writeEvent(db, w, actor) {
 	}
 	return saveObject(
 		db,
-		{ type: EVENT_TYPE, slug: w.slug, title: w.title, data: w.data, visibility: w.visibility },
+		{ type, slug: w.slug, title: w.title, data: w.data, visibility: w.visibility },
 		{ actor, also }
 	);
 }
 
 /**
- * Lo que la base dice de un evento para quien lo vende o lo muestra en el panel (la
- * configuración de entradas, el título, la fecha): la metadata como la de un .md (`eventToMeta`),
- * `null` si la base lo tiene oculto o borrado (no se vende: «la base decide»), o `undefined` si la
- * base no lo tiene: entonces vale el .md.
+ * Lo que la base dice de un post para quien lo vende o lo muestra en el panel (la configuración
+ * de entradas, el título, la fecha): la metadata como la de un .md, `null` si la base lo tiene
+ * oculto o borrado (no se vende: «la base decide»), o `undefined` si la base no lo tiene: entonces
+ * vale el .md.
  *
- * @param {DbEventFile | null | undefined} e
+ * @param {DbPostFile | null | undefined} e
  * @returns {Record<string, any> | null | undefined}
  */
 function publicMetaOf(e) {
 	if (!e) return undefined;
 	if (e.deleted || e.object.visibility !== 'public') return null;
-	return eventToMeta(e.object);
+	return CONTENT_CATEGORIES[e.category].toMeta(e.object);
 }
 
 /**
@@ -414,17 +458,20 @@ export async function dbEventMetas() {
 }
 
 /**
- * El texto de un evento de la base para el editor (con el sha para guardar contra él); `null` si
- * la base no lo tiene o el interruptor está apagado; `{ deleted: true }` si está borrado.
+ * El texto de un post de la base para el editor (con el sha para guardar contra él); `null` si la
+ * base no lo tiene o el interruptor está apagado; `{ deleted: true }` si está borrado.
  *
  * @param {string} path
  * @returns {Promise<{ raw: string, sha: string } | { deleted: true } | null>}
  */
-export async function readDbEventFile(path) {
-	const slug = eventSlugOfPath(path);
-	const db = slug ? await activeContentDB() : null;
-	if (!db || !slug) return null;
-	const e = await findDbEvent(db, slug);
+export async function readDbPostFile(path) {
+	const p = postOfPath(path);
+	const db = p ? await activeContentDB() : null;
+	if (!db || !p) return null;
+	const e = await findDbPost(db, p.category, p.slug);
 	if (!e) return null;
 	return e.deleted ? { deleted: true } : { raw: e.raw, sha: e.sha };
 }
+
+/** Lo mismo (nombre de la primera versión, solo eventos). */
+export const readDbEventFile = readDbPostFile;

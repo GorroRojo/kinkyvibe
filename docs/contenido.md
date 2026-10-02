@@ -73,8 +73,17 @@ transversales: si lo hacés en código, va en su propio PR y se mergea primero.
 
 ## En la base (paso 5 de 0026, detrás de `contenido_db`)
 
-Primera parte: **eventos**. Material y wiki llegan después, con el mismo camino. Todo detrás del
-interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o `CONTENIDO_DB_ENABLED=1|0`).
+**Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
+La wiki no: sus textos pasan a ser el cuerpo de las etiquetas ([etiquetas.md](etiquetas.md)). Todo
+detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o
+`CONTENIDO_DB_ENABLED=1|0`).
+
+- El material que usa un **componente interactivo** de Svelte (hoy `juego-de-peleas` y
+  `donde-y-como-golpear-un-cuerpo`) no se importa y sigue saliendo de su `.md` (0004: los
+  interactivos son componentes registrados en código, un paso aparte). Los PDF y documentos que el
+  material enlaza desde su `<script>` se resuelven con la misma URL que les da el build.
+- **Descargar todo** (botón en Contenido → En la base, `descargar.tar`): los eventos y el material
+  de la base como `.md` en un `.tar` (los ocultos con `force_unpublished: true`; no los borrados).
 
 - **Importar** (Contenido → **En la base**, `/admin/contenido/base`): pasa los `.md` de calendario
   de este deploy a objetos `evento` en la base de ese entorno. Idempotente (`content_sources`
@@ -121,8 +130,8 @@ Lo que todavía no cambia (pasos siguientes):
 
 - Las imágenes siguen en el repo (`media/<slug>/`); R2 es un paso aparte. Una imagen nueva va en
   un PR y se ve cuando se publica (unos minutos); el texto del evento se ve enseguida.
-- Apagar el interruptor vuelve a los `.md`: lo editado en la base no está en los `.md` (falta el
-  botón «Descargar todo»).
+- Apagar el interruptor vuelve a los `.md`: lo editado en la base no está en los `.md` (se puede
+  bajar con «Descargar todo» y volver a subir a mano).
 - Lo que mdsvex hace y la base no: `<script>`/componentes, `<style>` propios del post, `<iframe>` y
   las comillas tipográficas. La importación avisa en cada evento que usa algo de eso.
 - `/calendario.ics`, `/rss`, `/sitemap.xml`, `/api/posts` y `/api/search-index.json` dejaron de

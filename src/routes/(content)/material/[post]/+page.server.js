@@ -3,20 +3,31 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { siteContent } from '$lib/server/contenido/posts.js';
+import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ params, platform }) {
+export async function load({ params, platform, locals, setHeaders }) {
+	// Interruptor `contenido_db`: el post de la base (con su texto ya armado), si la base tiene esa
+	// dirección; oculto o borrado → 404 aunque el .md siga.
+	const found = await siteContent(platform, 'material', params.post, { viewer: viewerFor(locals) });
+	if (found.mode === 'db' && !found.post) error(404, 'Not found');
+	const db = found.mode === 'db' ? found.post : null;
+	if (db?.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
 	// 404s for missing/unpublished posts. The content component can't be serialized,
 	// so +page.js loads it on its own.
 	// eslint-disable-next-line no-unused-vars
-	const { content, ...post } = await fetchPost('material', params.post);
+	const { content, ...post } = db ?? (await fetchPost('material', params.post));
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
 	return {
 		...post,
+		...(db
+			? { mode: /** @type {const} */ ('db'), html: db.html }
+			: { mode: /** @type {const} */ ('md'), html: undefined }),
 		...currentRelated(relatedPostsFor(post.meta, await sitePosts(platform))),
 		pronouns: await mentionPronouns(),
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).

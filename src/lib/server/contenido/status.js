@@ -5,7 +5,7 @@
  *
  * Solo imports relativos.
  */
-import { CONTENT_CATEGORIES } from './importer.js';
+import { CONTENT_CATEGORIES } from './categories.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./importer.js').ImportRow} ImportRow */
@@ -82,6 +82,20 @@ export async function countOnlyInDb(db, category) {
 		.first();
 	return Number(row?.n ?? 0);
 }
+
+/**
+ * Las categorías del panel (Contenido → En la base), con sus nombres para mostrar.
+ * @type {ReadonlyArray<{ key: string, title: string, one: string, many: string }>}
+ */
+export const IMPORT_CATEGORIES = Object.freeze([
+	{ key: 'calendario', title: 'Eventos', one: 'evento', many: 'eventos' },
+	{
+		key: 'material',
+		title: 'Material',
+		one: 'publicación de material',
+		many: 'publicaciones de material'
+	}
+]);
 
 /** Qué quiere decir cada acción, para el panel y el CSV. */
 export const ACTION_LABELS = Object.freeze({

@@ -6,6 +6,9 @@ const posts = import.meta.glob('/src/lib/posts/material/*.md', { import: 'defaul
 
 /** @type {import("./$types").PageLoad} */
 export async function load({ params, data }) {
+	// Interruptor `contenido_db`: el post viene entero del servidor (sin .md no hay componente;
+	// la página muestra `html`).
+	if (data.mode === 'db') return { ...data, content: undefined };
 	const content = await posts[`/src/lib/posts/material/${params.post}.md`]?.();
-	return { ...data, content };
+	return { ...data, html: undefined, content };
 }

@@ -156,7 +156,10 @@ describe('guardar', () => {
 			actor: 'admin-inventade'
 		});
 		expect(base.commits).toEqual([]);
-		expect(r).toMatchObject({ db: ['taller-inventado-2031-02'] });
+		expect(r).toMatchObject({
+			db: ['calendario/taller-inventado-2031-02'],
+			url: '/calendario/taller-inventado-2031-02'
+		});
 		const o = await objectOf('taller-inventado-2031-02');
 		expect(o.version).toBe(2);
 		expect(JSON.parse(o.data).status).toBe('abierto');

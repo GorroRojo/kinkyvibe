@@ -139,7 +139,13 @@
 		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
-		<svelte:component this={data.content} />
+		{#if data.mode === 'db'}
+			<!-- Texto de la base, ya limpio en el servidor (lista corta de HTML, src/lib/server/amigues/sanitize.js). -->
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html data.html}
+		{:else}
+			<svelte:component this={data.content} />
+		{/if}
 	</div>
 	{#if isKinkyVibePost(data.meta)}
 		<PostSupport propinas={data.propinas} category="material" slug={$page.params.post ?? ''} />

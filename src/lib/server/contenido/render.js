@@ -14,6 +14,30 @@ import { mediaURL } from '$lib/utils';
 import { renderProfileBody } from '$lib/server/amigues/render.js';
 
 /**
+ * Los archivos que no son imágenes de las carpetas de medios (PDF, video, documentos), que el
+ * material enlaza con `<a href={guia}>`: misma URL que les da el build del .md.
+ * @type {Record<string, string>}
+ */
+const fileURLs = import.meta.glob('/src/lib/posts/*/media/*/*.{pdf,mp4,webm,odt}', {
+	eager: true,
+	query: '?url',
+	import: 'default'
+});
+
+/**
+ * @param {string} category
+ * @param {string} folder
+ * @param {string} file
+ */
+function anyMediaURL(category, folder, file) {
+	if (!/^[\w.-]+$/.test(file) || !/^[\w.-]+$/.test(folder)) return undefined;
+	return (
+		mediaURL(/** @type {any} */ (category), folder, file) ??
+		fileURLs[`/src/lib/posts/${category}/media/${folder}/${file}`]
+	);
+}
+
+/**
  * @param {string | undefined | null} body
  * @param {'calendario' | 'material' | 'wiki'} category
  * @param {string} folder la carpeta de medios del post (el nombre del .md: `legacy_slug`)
@@ -23,6 +47,6 @@ export function renderContentBody(body, category, folder) {
 	return renderProfileBody(body, {
 		// Un post puede usar imágenes de la carpeta de otro (`./media/<otro>/1.webp`).
 		resolveMedia: (file, path) =>
-			mediaURL(category, /\/media\/([\w.-]+)\//.exec(path)?.[1] ?? folder, file)
+			anyMediaURL(category, /\/media\/([\w.-]+)\//.exec(path)?.[1] ?? folder, file)
 	});
 }

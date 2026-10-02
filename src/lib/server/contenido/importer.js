@@ -24,33 +24,17 @@ import { ObjectError } from '../objects/errors.js';
 import { saveObject, slugify } from '../objects/save.js';
 import { coreTypes, validateData } from '../objects/types/index.js';
 import { sha256, splitMarkdown } from '../amigues/importer.js';
-import { EVENT_CATEGORY, EVENT_TYPE, eventToMeta, mdToEvent } from './eventos.js';
+import { CONTENT_CATEGORIES } from './categories.js';
 import { dataDiff } from './parity.js';
 import { revisionStatement } from './revisions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./eventos.js').MappedEvent} Mapped */
 
-/**
- * Lo que la importación necesita de cada categoría: el tipo de objeto y el mapa .md → objeto.
- *
- * @typedef {{
- *   type: string,
- *   label: string,
- *   map: (legacySlug: string, meta: Record<string, any>, body: string) => Mapped,
- *   toMeta: (object: { title: string, data: Record<string, any>, visibility: string }) => Record<string, any>
- * }} ContentCategory
- */
+/** @typedef {import('./categories.js').ContentCategory} ContentCategory */
 
-/** @type {Record<string, ContentCategory>} */
-export const CONTENT_CATEGORIES = {
-	[EVENT_CATEGORY]: {
-		type: EVENT_TYPE,
-		label: 'eventos',
-		map: mdToEvent,
-		toMeta: /** @type {ContentCategory['toMeta']} */ (eventToMeta)
-	}
-};
+// Las categorías (eventos, material) y su mapa .md → objeto viven en ./categories.js.
+export { CONTENT_CATEGORIES };
 
 /** Cuántos objetos escribe {@link runImport} como mucho por llamada (cada uno, ~3 consultas). */
 export const IMPORT_CHUNK = 40;
@@ -230,6 +214,10 @@ export async function planImport(db, category, files) {
 		const mapped = cat.map(file.legacySlug, file.meta, body);
 		const validated = validateData(def, mapped.data);
 		const row = { ...base, title: mapped.title, warnings: mapped.warnings, mapped };
+		if (mapped.error && !source) {
+			rows.push({ ...row, action: 'error', message: mapped.error });
+			continue;
+		}
 		if (!validated.ok) {
 			rows.push({
 				...row,

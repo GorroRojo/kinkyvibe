@@ -1,17 +1,18 @@
 /**
- * Un objeto `evento` como texto .md (frontmatter + cuerpo) y de vuelta.
+ * Un objeto de contenido (`evento`, `material`) como texto .md (frontmatter + cuerpo) y de vuelta.
  *
  * El editor del panel (y la agenda, importar la planilla, las etiquetas…) trabajan sobre el texto
- * de un .md. Con el interruptor `contenido_db` prendido, el texto de un evento de la base se arma
- * con {@link eventToMarkdown} y lo que el editor guarda se lee con {@link markdownToEvent}: así
- * esas pantallas no cambian (ver ./repo.js).
+ * de un .md. Con el interruptor `contenido_db` prendido, el texto de un post de la base se arma con
+ * {@link postToMarkdown} y lo que el editor guarda se lee con {@link markdownToPost}: así esas
+ * pantallas no cambian (ver ./repo.js).
  *
  * Funciones puras. Solo imports relativos.
  */
 import { parse, stringify } from 'yaml';
-import { eventToMeta, mdToEvent } from './eventos.js';
+import { CONTENT_CATEGORIES } from './categories.js';
+import { EVENT_CATEGORY } from './eventos.js';
 
-/** El orden de las claves (el de los .md de hoy, src/lib/posts/calendario/_event_template.md). */
+/** El orden de las claves (el de los .md de hoy, como las plantillas `_….md`). */
 const KEY_ORDER = [
 	'published_date',
 	'updated_date',
@@ -33,15 +34,25 @@ const KEY_ORDER = [
 	'location_map',
 	'link',
 	'link_text',
-	'redirect'
+	'redirect',
+	'original_published_date',
+	'access_date'
 ];
 
+/** @param {string} category */
+function categoryOf(category) {
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) throw new Error(`Categoría que no está en la base: ${category}`);
+	return cat;
+}
+
 /**
+ * @param {string} category
  * @param {Pick<import('../objects/read.js').StoredObject, 'title' | 'data' | 'visibility'>} object
  * @returns {string}
  */
-export function eventToMarkdown(object) {
-	const meta = eventToMeta(object);
+export function postToMarkdown(category, object) {
+	const meta = categoryOf(category).toMeta(object);
 	/** @type {Record<string, unknown>} */
 	const ordered = {};
 	for (const key of KEY_ORDER) if (meta[key] !== undefined) ordered[key] = meta[key];
@@ -64,27 +75,35 @@ function split(raw) {
 }
 
 /**
- * Lee el texto de un evento como lo guarda la base. Tira (en castellano) si el frontmatter no se
+ * Lee el texto de un post como lo guarda la base. Tira (en castellano) si el frontmatter no se
  * puede leer.
  *
+ * @param {string} category
  * @param {string} legacySlug
  * @param {string} raw
  * @returns {import('./eventos.js').MappedEvent}
  */
-export function markdownToEvent(legacySlug, raw) {
+export function markdownToPost(category, legacySlug, raw) {
+	const cat = categoryOf(category);
 	const { frontmatter, body } = split(raw);
 	let meta;
 	try {
 		meta = parse(frontmatter) ?? {};
 	} catch (e) {
 		throw new Error(
-			'Las propiedades del evento tienen un error de formato: ' +
+			'Las propiedades tienen un error de formato: ' +
 				String(/** @type {Error} */ (e).message).split('\n')[0]
 		);
 	}
 	if (typeof meta !== 'object' || Array.isArray(meta)) {
-		throw new Error('Las propiedades del evento tienen que ser una lista de «clave: valor».');
+		throw new Error('Las propiedades tienen que ser una lista de «clave: valor».');
 	}
 	// Como mdsvex: la metadata pasa por JSON (las fechas quedan como texto).
-	return mdToEvent(legacySlug, JSON.parse(JSON.stringify(meta)), body);
+	return cat.map(legacySlug, JSON.parse(JSON.stringify(meta)), body);
 }
+
+/** @param {Parameters<typeof postToMarkdown>[1]} object */
+export const eventToMarkdown = (object) => postToMarkdown(EVENT_CATEGORY, object);
+
+/** @param {string} legacySlug @param {string} raw */
+export const markdownToEvent = (legacySlug, raw) => markdownToPost(EVENT_CATEGORY, legacySlug, raw);
