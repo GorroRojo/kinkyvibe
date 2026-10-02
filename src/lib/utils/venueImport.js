@@ -627,3 +627,44 @@ export function importLinks(candidate, chosenSlugs, venueDefault) {
 		links: events.map((e) => ({ slug: e.slug, privacy: privacyOverride(e.level, venuePrivacy) }))
 	};
 }
+
+/**
+ * Si el perfil del lugar nuevo aparece en /amigues (`listed`) o no (`unlisted`: `data.unlisted`,
+ * como cualquier perfil no listado). Es aparte del nivel de privacidad de la dirección: un lugar
+ * no listado sigue saliendo en sus eventos con lo que su nivel deja ver y su página sigue andando
+ * (por el link del evento), pero no está en las listas de /amigues.
+ *
+ * @typedef {'unlisted' | 'listed'} VenueListing
+ */
+
+/** Decisión de gorrite: los lugares que se crean desde los eventos nacen no listados. */
+export const DEFAULT_VENUE_LISTING = /** @type {VenueListing} */ ('unlisted');
+
+/**
+ * Los textos de la vista previa: la opción para todos y la de cada lugar.
+ * @type {Readonly<Record<VenueListing, { all: string, one: string }>>}
+ */
+export const VENUE_LISTING_LABELS = Object.freeze({
+	unlisted: { all: 'No listados (no aparecen en Amigues)', one: 'No listado' },
+	listed: { all: 'Públicos', one: 'Público' }
+});
+
+/**
+ * @param {unknown} value
+ * @returns {value is VenueListing}
+ */
+export const isVenueListing = (value) => value === 'unlisted' || value === 'listed';
+
+/**
+ * Cómo se crea un lugar: lo elegido para ese lugar si se eligió; si no, lo elegido para todos; y
+ * ante cualquier otra cosa, no listado.
+ *
+ * @param {unknown} all la opción «Cómo se crean» de la vista previa
+ * @param {unknown} [own] la de ese lugar (vacía = como todos)
+ * @returns {VenueListing}
+ */
+export function venueListing(all, own) {
+	if (isVenueListing(own)) return own;
+	if (isVenueListing(all)) return all;
+	return DEFAULT_VENUE_LISTING;
+}

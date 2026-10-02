@@ -55,9 +55,13 @@ export const actions = {
 				targetId: r.venueId ?? null,
 				summary:
 					r.action === 'created'
-						? `Creó el lugar «${r.title}» desde los eventos (${events.length} ${events.length === 1 ? 'evento' : 'eventos'}; se muestra: ${VENUE_PRIVACY_LABELS[r.venuePrivacy ?? 'public']})`
+						? `Creó el lugar «${r.title}» desde los eventos (${events.length} ${events.length === 1 ? 'evento' : 'eventos'}; se muestra: ${VENUE_PRIVACY_LABELS[r.venuePrivacy ?? 'public']}; ${r.listing === 'listed' ? 'listado en Amigues' : 'no listado en Amigues'})`
 						: `Vinculó ${events.length} ${events.length === 1 ? 'evento' : 'eventos'} al lugar «${r.title}» desde los eventos`,
-				detail: { events, privacy: r.links.map((l) => l.privacy ?? 'lugar') }
+				detail: {
+					events,
+					privacy: r.links.map((l) => l.privacy ?? 'lugar'),
+					...(r.action === 'created' ? { listing: r.listing ?? 'unlisted' } : {})
+				}
 			});
 		}
 		return {

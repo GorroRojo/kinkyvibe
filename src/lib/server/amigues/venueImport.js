@@ -4,8 +4,11 @@
  * lugar (reglas puras en src/lib/utils/venueImport.js) y crea los elegidos.
  *
  * Escribe solo con los caminos de siempre:
- * - el lugar nuevo, con saveObject() (perfil de tipo lugar, público y aprobado como los que crea
- *   une admin), y en la MISMA tanda su aprobación y los vínculos de sus eventos;
+ * - el lugar nuevo, con saveObject() (perfil de tipo lugar, visible y aprobado como los que crea
+ *   une admin), y en la MISMA tanda su aprobación y los vínculos de sus eventos. Nace **no
+ *   listado** (`data.unlisted`: no aparece en /amigues) salvo que le admin elija «Públicos»
+ *   (decisión de gorrite); eso no cambia lo que muestran sus eventos, que sigue su nivel de
+ *   privacidad;
  * - «sucede en» es una fila de `event_venues` (docs/amigues.md): vincular un evento NO toca su .md
  *   ni su objeto en la base, así que no hace falta commit ni PR;
  * - nunca pisa el lugar de un evento que ya tiene uno (solo si su lugar está borrado).
@@ -19,7 +22,13 @@ import { ObjectError } from '$lib/server/objects/errors.js';
 import { saveObject, slugify } from '$lib/server/objects/save.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { effectivePrivacy, isVenuePrivacy } from '$lib/utils/venues.js';
-import { importLinks, newVenueFor, planVenueImport, refitEvents } from '$lib/utils/venueImport.js';
+import {
+	importLinks,
+	newVenueFor,
+	planVenueImport,
+	refitEvents,
+	venueListing
+} from '$lib/utils/venueImport.js';
 import { approveNewStatement } from './approvals.js';
 import { isEventSlug, listEventVenues, listVenues } from './venues.js';
 
@@ -79,17 +88,20 @@ export async function loadVenueImportPlan(db, events) {
 }
 
 /**
- * Lo que eligió le admin en la vista previa.
- * @typedef {{ key: string, title: string, location: string, events: string[] }} VenueChoice
+ * Lo que eligió le admin en la vista previa. `listing` solo cuenta para un lugar nuevo; sin él,
+ * el lugar nace no listado.
+ * @typedef {{ key: string, title: string, location: string, events: string[], listing?: import('$lib/utils/venueImport.js').VenueListing }} VenueChoice
  */
 
 /**
- * Lee el formulario de la vista previa: `crear` (las claves elegidas, en orden) y, por cada
- * clave, `titulo:<clave>`, `donde:<clave>` y `evento:<clave>` (los eventos marcados).
+ * Lee el formulario de la vista previa: `crear` (las claves elegidas, en orden), `listado` (cómo
+ * se crean: `unlisted` o `listed`) y, por cada clave, `titulo:<clave>`, `donde:<clave>`,
+ * `evento:<clave>` (los eventos marcados) y `listado:<clave>` (vacío = como todos).
  * @param {FormData} form
  * @returns {VenueChoice[]}
  */
 export function readVenueChoices(form) {
+	const all = form.get('listado');
 	const seen = new Set();
 	/** @type {VenueChoice[]} */
 	const out = [];
@@ -104,7 +116,8 @@ export function readVenueChoices(form) {
 				.trim()
 				.slice(0, TITLE_MAX),
 			location: String(form.get(`donde:${key}`) ?? ''),
-			events: form.getAll(`evento:${key}`).map(String)
+			events: form.getAll(`evento:${key}`).map(String),
+			listing: venueListing(all, form.get(`listado:${key}`))
 		});
 	}
 	return out;
@@ -145,6 +158,7 @@ function linkStatement(db, link, venue, by, now) {
  *   title: string,
  *   slug?: string,
  *   venuePrivacy?: VenuePrivacy,
+ *   listing?: import('$lib/utils/venueImport.js').VenueListing,
  *   links: { slug: string, privacy: VenuePrivacy | null }[],
  *   message?: string
  * }} VenueImportResult
@@ -217,7 +231,11 @@ async function createVenue(db, c, choice, { actor, now }) {
 	const venue = newVenueFor(c, { title: choice.title, location });
 	const fitted = { ...c, events: refitEvents(c, venue) };
 	const { venuePrivacy, links } = importLinks(fitted, choice.events);
+	// No listado salvo que se elija «Público» (venueListing: ante la duda, no listado).
+	const listing = venueListing(undefined, choice.listing);
+	/** @type {Record<string, unknown>} */
 	const data = { ...venue.data, venue_privacy: venuePrivacy };
+	if (listing === 'unlisted') data.unlisted = true;
 	const base = slugify(venue.title) || 'lugar';
 	for (const slug of [base, `${base.slice(0, 80)}-${now.toString(36).slice(-5)}`]) {
 		try {
@@ -240,6 +258,7 @@ async function createVenue(db, c, choice, { actor, now }) {
 				title: saved.title,
 				slug: saved.slug,
 				venuePrivacy,
+				listing,
 				links
 			};
 		} catch (e) {

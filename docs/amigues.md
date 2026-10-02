@@ -160,9 +160,18 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   la dirección), queda sin marcar y la vista previa dice qué cambiaría. La prueba
   `src/lib/server/amigues/venueImport.test.js` compara la página, las listas y el `.ics` de cada
   evento antes y después de vincularlo.
-- **Nada se guarda hasta «Crear lugares»** (con confirmación). Los lugares nacen públicos y
-  aprobados (como los que crea une admin); se guardan con `saveObject()` y, en la misma tanda, su
-  aprobación y los vínculos. Vincular no toca el `.md` ni el objeto del evento (es una fila de
+- **Listados o no en `/amigues`** (decidido por gorrite: **no listados por defecto**): la vista
+  previa tiene «Cómo se crean: No listados (no aparecen en Amigues) · Públicos» y cada lugar nuevo
+  lo puede cambiar («Como todos», «No listado», «Público»). No listado es `data.unlisted` del
+  perfil, como cualquier perfil no listado: no sale en las listas de `/amigues` (ni en
+  `?tipo=lugar`); el sitemap, el buscador y `/api/posts` salen de los `.md`, así que tampoco. Es
+  aparte de la privacidad de la dirección: su evento muestra exactamente lo que su nivel deja ver
+  (con el link a la página del lugar, que anda) y la página del lugar lista sus eventos. Lo prueban
+  `src/lib/server/amigues/venueImport.test.js` y `src/routes/(content)/amigues/amigues-routes.test.js`.
+  Se cambia después en el editor del perfil («No listar en /amigues»).
+- **Nada se guarda hasta «Crear lugares»** (con confirmación). Los lugares nacen visibles y
+  aprobados (como los que crea une admin), listados o no según lo elegido; se guardan con
+  `saveObject()` y, en la misma tanda, su aprobación y los vínculos. Vincular no toca el `.md` ni el objeto del evento (es una fila de
   `event_venues`), y nunca pisa el lugar de un evento que ya tiene uno. Va de a tandas y se puede
   repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
 
