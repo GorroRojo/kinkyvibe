@@ -2,39 +2,42 @@ import { fail } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
+import { rowsOf, runQueries } from '$lib/server/db/batch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import {
 	AGENDA_DAYS,
+	activityItems,
 	agendaItems,
 	arDay,
 	arDayStart,
-	checkinTotals,
-	eventSalesTrend,
-	expiringTransfers,
-	failedReminders,
+	checkinTotalsQuery,
+	claimReviewItems,
+	eventSalesTrendQuery,
+	expiringTransfersQuery,
+	failedRemindersQuery,
 	groupReviewItems,
 	integrityReviewRow,
-	integrityRun,
-	monthMoney,
-	pendingTransfers,
+	integrityRunQuery,
+	monthMoneyQuery,
+	pendingTransfersQuery,
 	profileReviewItems,
-	claimReviewItems,
-	recentActivity,
+	recentActivityRowsQuery,
 	reviewItems,
-	reviewOrders,
+	reviewOrdersQuery,
 	salesFocus,
+	salesFocusSlugs,
 	salesSummary,
-	sinceLastVisit,
-	streamLinkSlugs,
-	stuckSends,
-	ticketTotals,
-	unsentEmails,
+	sinceLastVisitQuery,
+	streamLinkSlugsQuery,
+	stuckSendsQuery,
+	ticketTotalsQuery,
+	unsentEmailsQuery,
 	upcomingEvents,
 	whenLabel
 } from '$lib/server/admin/inicio.js';
-import { markSeen, touchLastSeen } from '$lib/server/admin/lastSeen.js';
-import { profilesToReview } from '$lib/server/admin/cuentas.js';
-import { listClaims } from '$lib/server/amigues/claims.js';
+import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
+import { profilesToReviewQuery } from '$lib/server/admin/cuentas.js';
+import { listClaimsStatement, toAdminClaim } from '$lib/server/amigues/claims.js';
 import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
 import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
@@ -42,7 +45,11 @@ import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
-import { getSalesSettings } from '$lib/server/tickets/settings.js';
+import {
+	getSalesSettings,
+	readSalesSettings,
+	salesSettingsStatement
+} from '$lib/server/tickets/settings.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import {
 	editEventHref,
@@ -62,33 +69,38 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const now = Date.now();
 
 	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
-	// Lo que no depende de la lista de eventos sale ya, a la par de leerla (una vuelta a la base
-	// menos antes de poder mostrar la página).
-	const independent = Promise.all([
-		pendingTransfers(db, now),
-		reviewOrders(db),
-		unsentEmails(db, now),
-		monthMoney(db, now),
-		resolveFondoMonth({ db, fetch, now }),
-		touchLastSeen(db, user.id, now),
-		db ? getSalesSettings(db).catch(() => null) : Promise.resolve(null),
-		expiringTransfers(db, now, agendaUntil),
+	// Dos idas a la base (dos tandas, ver $lib/server/db/batch.js) en vez de una por consulta.
+	// Primera: todo lo que no depende de la lista de eventos, a la par de leerla.
+	const first = runQueries(db, {
+		transfers: pendingTransfersQuery(now),
+		review: reviewOrdersQuery(),
+		unsent: unsentEmailsQuery(now),
+		money: monthMoneyQuery(now),
+		seen: touchLastSeenQuery(user.id, now),
+		settings: salesSettingsQuery(),
+		expiring: expiringTransfersQuery(now, agendaUntil),
 		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
-		integrityRun(db),
+		integrity: integrityRunQuery(),
+		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
+		newProfiles: profilesToReviewQuery(),
+		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
+		claims: claimsQuery(),
+		// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
+		activity: recentActivityRowsQuery({ limit: 10 })
+	});
+	const others = Promise.all([
+		resolveFondoMonth({ db, fetch, now }),
 		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
 		usesLocalRepo() || !locals.user_token
 			? Promise.resolve([])
 			: openContentPullStatuses(locals.user_token).catch((e) => {
 					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
 					return [];
-				}),
-		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
-		profilesToReview(db),
-		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
-		db ? listClaims(db).catch(() => []) : Promise.resolve([])
+				})
 	]);
-	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlo.
-	independent.catch(() => {});
+	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlos.
+	first.catch(() => {});
+	others.catch(() => {});
 
 	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
 	const ticketed = new Map(ticketedList.map((t) => [t.slug, t.config]));
@@ -109,44 +121,35 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			? [{ slug, start, reminders: c.reminders, cancelled: c.status === 'cancelado' }]
 			: [];
 	});
+	// El bloque de ventas elige su evento con los totales, pero los que puede elegir se saben ya:
+	// su tendencia va en la segunda tanda, con los totales.
+	const focusSlugs = salesFocusSlugs(upcomingEvents({ events, ticketed, now, skip }));
 
-	const [
-		[totals, checkins, streamLinks, stuck],
-		[
-			transfers,
-			review,
-			unsent,
-			money,
-			fondo,
-			seen,
-			settings,
-			expiring,
-			integrity,
-			contentPulls,
-			newProfiles,
-			claims
-		]
-	] = await Promise.all([
-		Promise.all([
-			ticketTotals(db, soonTicketed, now),
-			checkinTotals(
-				db,
-				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
-			),
-			streamLinkSlugs(db, soonTicketed),
-			stuckSends(db, soonTicketed)
-		]),
-		independent
-	]);
-	// Solo necesitan los títulos y la última visita: a la par de los recordatorios.
-	const activityP = recentActivity(db, { limit: 10, titles });
-	const sinceP = seen ? sinceLastVisit(db, { since: seen.since, login: user.login, titles }) : null;
-	activityP.catch(() => {});
-	sinceP?.catch(() => {});
-	const reminderList = settings ? parseReminders(settings.reminders) : [];
-	const reminders = settings
-		? await failedReminders(db, { events: reminderEvents, reminders: reminderList, now })
-		: new Map();
+	// fondo.kinkyvibe.ar y los PRs de GitHub no frenan la segunda tanda: se esperan al final.
+	const s1 = await first;
+	const reminderList = s1.settings ? parseReminders(s1.settings.reminders) : [];
+	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
+	// ajustes de los recordatorios).
+	const s2 = await runQueries(db, {
+		totals: ticketTotalsQuery(soonTicketed, now),
+		checkins: checkinTotalsQuery(
+			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
+		),
+		streamLinks: streamLinkSlugsQuery(soonTicketed),
+		stuck: stuckSendsQuery(soonTicketed),
+		reminders: s1.settings
+			? failedRemindersQuery({ events: reminderEvents, reminders: reminderList, now })
+			: noQuery(new Map()),
+		since: s1.seen
+			? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
+			: noQuery(null),
+		...Object.fromEntries(
+			focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
+		)
+	});
+	const { totals, checkins, streamLinks, stuck, reminders, since } = s2;
+	const { transfers, review, unsent, money, seen, expiring, integrity, newProfiles, claims } = s1;
+	const [fondo, contentPulls] = await others;
 
 	const upcoming = upcomingEvents({
 		events,
@@ -204,12 +207,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		}
 	});
 	const focus = salesFocus(upcoming);
-
-	const [activity, since, trend] = await Promise.all([
-		activityP,
-		sinceP,
-		focus ? eventSalesTrend(db, focus.event.slug, now) : null
-	]);
+	const trend = focus ? /** @type {any} */ (s2[`trend:${focus.event.slug}`] ?? null) : null;
 	const sales = focus
 		? salesSummary({ focus, config: ticketed.get(focus.event.slug), totals, trend, now })
 		: null;
@@ -224,8 +222,46 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		todo,
 		money,
 		fondo,
-		activity,
+		activity: activityItems(s1.activity, { limit: 10, titles }),
 		since: since ? { ...since, first: seen?.first ?? false } : null
+	};
+}
+
+/**
+ * Lugar vacío en una tanda: no va a la base y da `value`.
+ * @template T
+ * @param {T} value
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<T>}
+ */
+function noQuery(value) {
+	return { what: '', fallback: value, statements: () => [], read: () => value };
+}
+
+/**
+ * Los ajustes de la venta (para los recordatorios). `null` si fallan; sin la tabla, los de las
+ * variables de entorno (como `getSalesSettings`).
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<Awaited<ReturnType<typeof getSalesSettings>> | null>}
+ */
+function salesSettingsQuery() {
+	return {
+		what: 'inicio: ajustes de la venta',
+		fallback: null,
+		statements: (db) => [salesSettingsStatement(db)],
+		read: (results) => readSalesSettings(rowsOf(results)),
+		alone: getSalesSettings
+	};
+}
+
+/**
+ * Los pedidos "Es mi perfil" pendientes; `[]` si falla (sin la migración 0017).
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<import('$lib/server/amigues/claims.js').AdminClaim[]>}
+ */
+function claimsQuery() {
+	return {
+		what: 'inicio: pedidos "Es mi perfil"',
+		fallback: [],
+		statements: (db) => [listClaimsStatement(db)],
+		read: (results) => rowsOf(results).map(toAdminClaim)
 	};
 }
 

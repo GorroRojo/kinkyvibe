@@ -1,0 +1,89 @@
+/**
+ * Contadores del menú del panel, para el layout de /admin (`+layout.server.js`).
+ */
+import { getDB } from '$lib/server/db';
+import { rowsOf, runQueries } from '$lib/server/db/batch.js';
+import { countProfilesToReviewQuery } from '$lib/server/admin/cuentas.js';
+import { countPendingClaimsStatement, readPendingClaimsCount } from '$lib/server/amigues/claims.js';
+import { unlistedCountQuery } from '$lib/server/contenido/posts.js';
+
+/**
+ * Contadores del menú del panel (`data.panelCounts`, las claves que usa `counter` en
+ * `$lib/admin/nav.js`). Tienen que ser baratos y nunca romper la página: sin base de datos o con
+ * un error, el contador simplemente no aparece. Todos salen en una sola ida a la base (una tanda,
+ * ver $lib/server/db/batch.js).
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {number} [now]
+ * @returns {Promise<Record<string, number>>}
+ */
+export async function panelCounts(platform, now = Date.now()) {
+	/** @type {Record<string, number>} */
+	const counts = {};
+	const db = getDB(platform);
+	/** @type {import('$lib/server/db/batch.js').BatchQuery<number | null>} */
+	let unlistedQuery;
+	try {
+		unlistedQuery = await unlistedCountQuery(platform);
+	} catch (error) {
+		console.error('[admin] contador de no listadas:', error);
+		unlistedQuery = { what: '', fallback: null, statements: () => [], read: () => null };
+	}
+	const { orders, profiles, claims, unlisted } = await runQueries(db, {
+		orders: panelOrderCountsQuery(now),
+		// Perfiles creados por cuentas que ninguna admin revisó (Perfiles). Sin la base o sin las
+		// migraciones de perfiles, 0 (no aparece).
+		profiles: countProfilesToReviewQuery(),
+		// Más los pedidos "Es mi perfil" pendientes (docs/amigues.md). 0 sin la migración 0017.
+		claims: {
+			what: 'contador de pedidos "Es mi perfil"',
+			fallback: 0,
+			statements: (db) => [countPendingClaimsStatement(db)],
+			read: (results) => readPendingClaimsCount(rowsOf(results)[0])
+		},
+		// Publicaciones no listadas (borradores).
+		unlisted: unlistedQuery
+	});
+	if (orders) {
+		counts.transfers = orders.transfers;
+		counts.reviewOrders = orders.reviewOrders;
+	}
+	counts.profilesToReview = profiles + claims;
+	if (unlisted !== null) counts.unlisted = unlisted;
+	// Botón global "Para revisar": lo pendiente que se cuenta barato (transferencias, órdenes para
+	// revisar, perfiles y pedidos "Es mi perfil"). La tarjeta del Inicio puede listar algo más
+	// (mails sin mandar, recordatorios que fallaron…).
+	counts.review =
+		(counts.transfers ?? 0) + (counts.reviewOrders ?? 0) + (counts.profilesToReview ?? 0);
+	return counts;
+}
+
+/**
+ * Transferencias esperando comprobante y todavía vigentes, y órdenes marcadas "para revisar"
+ * (pago tarde que pasó el cupo, posible cobro doble): una sola pasada por `orders`, solo por las
+ * filas de esos dos índices (`orders_status_created` y `orders_needs_review`).
+ *
+ * @param {number} now
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<{ transfers: number, reviewOrders: number } | null>}
+ */
+function panelOrderCountsQuery(now) {
+	return {
+		what: 'contadores de órdenes del panel',
+		fallback: null,
+		statements: (db) => [
+			db
+				.prepare(
+					`SELECT
+						COALESCE(SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?1 THEN 1 ELSE 0 END), 0) AS transfers,
+						COALESCE(SUM(CASE WHEN needs_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS review
+					FROM orders
+					WHERE (status = 'awaiting_transfer' AND expires_at > ?1) OR needs_review IS NOT NULL`
+				)
+				.bind(now)
+		],
+		read: (results) => {
+			const row = rowsOf(results)[0];
+			return { transfers: Number(row?.transfers ?? 0), reviewOrders: Number(row?.review ?? 0) };
+		}
+	};
+}

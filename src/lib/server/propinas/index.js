@@ -252,14 +252,27 @@ export const FONDO_TIP_WHERE = "status = 'approved' AND destination = 'fondo'";
  * @param {{ from?: number, to?: number }} [range]
  * @returns {Promise<{ count: number, total: number }>}
  */
-export async function fondoTipTotals(db, { from = 0, to = Number.MAX_SAFE_INTEGER } = {}) {
-	const row = await db
+export async function fondoTipTotals(db, range = {}) {
+	return readFondoTipTotals(await fondoTipTotalsStatement(db, range).first());
+}
+
+/**
+ * La consulta de {@link fondoTipTotals} (para correrla en una tanda).
+ *
+ * @param {D1Database} db
+ * @param {{ from?: number, to?: number }} [range]
+ */
+export function fondoTipTotalsStatement(db, { from = 0, to = Number.MAX_SAFE_INTEGER } = {}) {
+	return db
 		.prepare(
 			`SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total FROM tips
 			WHERE ${FONDO_TIP_WHERE} AND approved_at >= ?1 AND approved_at < ?2`
 		)
-		.bind(from, to)
-		.first();
+		.bind(from, to);
+}
+
+/** @param {Record<string, unknown> | null | undefined} row */
+export function readFondoTipTotals(row) {
 	return { count: Number(row?.count ?? 0), total: Number(row?.total ?? 0) };
 }
 

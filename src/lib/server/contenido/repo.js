@@ -23,6 +23,7 @@
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
  */
+import { getRequestEvent } from '$app/server';
 import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -250,7 +251,47 @@ export function clearDbPostCache() {
  * @param {string} type
  * @param {string} category
  */
-async function postsStamp(db, type, category) {
+function postsStamp(db, type, category) {
+	// Dos lecturas a la par en el MISMO pedido (el Inicio pide los eventos y las entradas a la vez)
+	// comparten la consulta: es la misma respuesta. Solo dentro del pedido: un pedido que acaba de
+	// guardar nunca recibe la respuesta de una consulta que salió antes que su guardado.
+	const request = currentRequest();
+	if (!request) return readPostsStamp(db, type, category);
+	let pending = stampsInFlight.get(request);
+	if (!pending) stampsInFlight.set(request, (pending = new Map()));
+	const key = `${type}\n${category}`;
+	const running = pending.get(key);
+	if (running) return running;
+	const mine = readPostsStamp(db, type, category);
+	pending.set(key, mine);
+	const forget = () => {
+		if (pending.get(key) === mine) pending.delete(key);
+	};
+	mine.then(forget, forget);
+	return mine;
+}
+
+/**
+ * Las consultas de {@link postsStamp} que están en camino, por pedido.
+ * @type {WeakMap<object, Map<string, Promise<string>>>}
+ */
+const stampsInFlight = new WeakMap();
+
+/** El pedido en curso, o `null` fuera de un pedido (scripts, tests, crons). */
+function currentRequest() {
+	try {
+		return getRequestEvent();
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} type
+ * @param {string} category
+ */
+async function readPostsStamp(db, type, category) {
 	const row = await db
 		.prepare(
 			`SELECT (SELECT count(*) FROM objects WHERE type = ?1) AS n,
