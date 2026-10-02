@@ -5,6 +5,7 @@ import {
 	capacityLimit,
 	checkOverride,
 	closedLimit,
+	discountUsesLimit,
 	limitMessage,
 	logOverride,
 	maxPerPurchaseLimit,
@@ -60,6 +61,23 @@ describe('límites', () => {
 		expect(noDoorLimit({ door: { on: true } })).toBeNull();
 		expect(noDoorLimit({ door: null })).toBeNull();
 		expect(noDoorLimit(null)).toBeNull();
+	});
+
+	it('usos de un código: nada si le queda uno o si no tiene máximo; si no, cuánto se pasa', () => {
+		expect(discountUsesLimit('PRUEBA', 3, 2)).toBeNull();
+		expect(discountUsesLimit('PRUEBA', null, 99)).toBeNull();
+		const limit = discountUsesLimit('PRUEBA', 3, 3);
+		expect(limit).toEqual({
+			kind: 'discount_uses',
+			code: 'PRUEBA',
+			maxUses: 3,
+			before: 3,
+			after: 4,
+			over: 1
+		});
+		const l = /** @type {import('./overrides.js').ExceededLimit} */ (limit);
+		expect(limitMessage(l)).toMatch(/PRUEBA ya se usó 3 de 3 veces/);
+		expect(overrideKey([l])).toBe('discount_uses:PRUEBA:4/3');
 	});
 
 	it('mensajes en castellano con cuánto se pasa', () => {

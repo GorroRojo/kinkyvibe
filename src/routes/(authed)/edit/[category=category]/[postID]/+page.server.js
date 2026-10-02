@@ -20,6 +20,7 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
+import { linkedVenueName } from '$lib/server/amigues/venues.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import {
@@ -72,6 +73,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
 	return {
 		sales,
+		// Con un lugar en «Sucede en», el «Dónde» del archivo no se muestra (el editor avisa).
+		linkedVenue: isEvent ? await linkedVenueName(getDB(platform), params.postID) : null,
 		salesUnavailable: isEvent && sales === null,
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.

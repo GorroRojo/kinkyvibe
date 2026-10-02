@@ -1,5 +1,6 @@
 import { fetchPost } from '$lib/utils';
 import { error } from '@sveltejs/kit';
+import { stripMdPlace } from '$lib/utils/eventPlace.js';
 
 /** @type {import("./$types").PageLoad} */
 export async function load({ params, data }) {
@@ -11,5 +12,12 @@ export async function load({ params, data }) {
 	} catch {
 		error(404, 'Ese evento no existe.');
 	}
-	return { meta: post.meta, path: post.path, tickets: data.tickets };
+	// Un lugar vinculado manda sobre el «Dónde» del .md (como en la página del evento).
+	const venue = data.venue ?? null;
+	return {
+		meta: venue ? stripMdPlace(post.meta) : post.meta,
+		path: post.path,
+		tickets: data.tickets,
+		venue
+	};
 }

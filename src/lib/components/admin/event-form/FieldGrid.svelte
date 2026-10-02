@@ -6,11 +6,15 @@
 	 * Props:
 	 * - `fields`: los campos, en orden.
 	 * - `values` (bind): valor de cada input, por `key` (ids: `<key>-input`).
+	 * - `warnings`: aviso opcional debajo de un campo, por `key` (p. ej. el «Dónde» del .md cuando
+	 *   el evento tiene un lugar en «Sucede en»).
 	 */
 	/** @type {import('$lib/admin/postFields.js').Field[]} */
 	export let fields = [];
 	/** @type {Record<string, any>} */
 	export let values = {};
+	/** @type {Record<string, string>} */
+	export let warnings = {};
 </script>
 
 <div class="grid">
@@ -71,6 +75,7 @@
 					<input id="{f.key}-input" bind:value={values[f.key]} placeholder={f.placeholder} />
 				{/if}
 				{#if f.help}<small>{f.help}</small>{/if}
+				{#if warnings[f.key]}<small class="warning">⚠️ {warnings[f.key]}</small>{/if}
 			</label>
 		{/if}
 	{/each}

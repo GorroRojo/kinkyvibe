@@ -76,6 +76,19 @@
 
 	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
 	const fields = postFields(category);
+	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
+	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
+	/** @type {string | null} */
+	const linkedVenue = category === 'calendario' ? (data.linkedVenue ?? null) : null;
+	/** @type {Record<string, string>} */
+	const fieldWarnings = linkedVenue
+		? Object.fromEntries(
+				MD_PLACE_KEYS.map((key) => [
+					key,
+					`Este evento tiene un lugar en «Sucede en» (${linkedVenue}): en el sitio se muestra ese lugar según su privacidad, no este dato. Se guarda igual.`
+				])
+			)
+		: {};
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
@@ -341,7 +354,7 @@
 		{:else}
 			<fieldset class="card" id="sec-datos">
 				<legend>📝 Datos</legend>
-				<FieldGrid {fields} bind:values />
+				<FieldGrid {fields} warnings={fieldWarnings} bind:values />
 				{#if hasAuthors}
 					<OrganizersField
 						bind:authors

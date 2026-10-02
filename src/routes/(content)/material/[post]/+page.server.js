@@ -4,6 +4,8 @@ import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { redirect } from '@sveltejs/kit';
 import { personasForPage } from '$lib/server/personas/index.js';
+import { getDB } from '$lib/server/db';
+import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
@@ -15,7 +17,11 @@ export async function load({ params, platform }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
-	const related = currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		getDB(platform),
+		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+	);
 	return {
 		...post,
 		...related,
