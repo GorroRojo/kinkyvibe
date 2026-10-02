@@ -1,4 +1,5 @@
-import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '$lib/utils';
+import { currentRelated, fetchPost, relatedPostsFor } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
@@ -16,7 +17,7 @@ export async function load({ params, platform }) {
 	}
 	return {
 		...post,
-		...currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts())),
+		...currentRelated(relatedPostsFor(post.meta, await sitePosts(platform))),
 		pronouns: await mentionPronouns(),
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
 		personas: await personasForPage(platform, post.meta),

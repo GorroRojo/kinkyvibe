@@ -1,0 +1,139 @@
+/**
+ * Contenido → En la base: solo admins; el estado (cuántos coinciden, qué revisar), la importación
+ * de a tandas, el registro en Actividad y el CSV. D1 de miniflare; los .md son los eventos
+ * inventados de src/lib/server/contenido/fixtures (datos falsos).
+ */
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { ADMINS } from '$lib/server/auth';
+
+vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
+
+const fixtures = vi.hoisted(() => ({ files: /** @type {any[]} */ ([]) }));
+vi.mock('$lib/server/contenido/bundle.js', () => ({
+	bundledSourceFiles: async (/** @type {string} */ category) =>
+		category === 'calendario' ? structuredClone(fixtures.files) : []
+}));
+
+const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
+	import.meta.glob('/src/lib/server/contenido/fixtures/calendario/*.md', {
+		import: 'metadata',
+		eager: true
+	})
+);
+const raws = /** @type {Record<string, string>} */ (
+	import.meta.glob('/src/lib/server/contenido/fixtures/calendario/*.md', {
+		query: '?raw',
+		import: 'default',
+		eager: true
+	})
+);
+fixtures.files = Object.keys(raws)
+	.sort()
+	.map((path) => ({
+		legacySlug: path.split('/').pop()?.replace(/\.md$/, ''),
+		raw: raws[path],
+		meta: metas[path] ?? null
+	}));
+
+/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+let t;
+beforeAll(async () => {
+	t = await createTestDB();
+});
+afterAll(async () => {
+	await t?.dispose();
+});
+beforeEach(async () => {
+	await resetDB(t.db);
+});
+afterEach(() => {
+	vi.doUnmock('$env/dynamic/private');
+	vi.resetModules();
+});
+
+const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
+
+async function modules(flag = '0') {
+	vi.resetModules();
+	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
+	return {
+		page: await import('./+page.server.js'),
+		csv: await import('./importacion.csv/+server.js')
+	};
+}
+
+/** @param {{ form?: Record<string, string>, user?: any, token?: string | null }} [o] */
+function fakeEvent({ form, user, token } = {}) {
+	const url = new URL('/admin/contenido/base', 'https://kinkyvibe.ar');
+	return /** @type {any} */ ({
+		url,
+		params: {},
+		platform: t.platform,
+		locals: {
+			user: user === undefined ? admin : user,
+			user_token: token === undefined ? 'token-de-prueba' : token
+		},
+		setHeaders: () => {},
+		request: new Request(url, {
+			method: form ? 'POST' : 'GET',
+			body: form ? new URLSearchParams(form) : undefined
+		})
+	});
+}
+
+/** @param {() => unknown} fn */
+async function thrown(fn) {
+	try {
+		await fn();
+		return null;
+	} catch (e) {
+		return /** @type {any} */ (e);
+	}
+}
+
+describe('solo admins', () => {
+	it('sin sesión, al login; sin permiso, 403; no se escribe nada', async () => {
+		const m = await modules();
+		for (const call of [
+			() => m.page.load(fakeEvent({ user: null, token: null })),
+			() => m.page.actions.importar(fakeEvent({ form: {}, user: null, token: null })),
+			() => m.csv.GET(fakeEvent({ user: null, token: null }))
+		]) {
+			expect((await thrown(call))?.status).toBe(303);
+		}
+		const intruder = { id: 1, login: 'no-es-admin' };
+		expect(
+			(await thrown(() => m.page.actions.importar(fakeEvent({ form: {}, user: intruder }))))?.status
+		).toBe(403);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM objects').first())?.n).toBe(0);
+	});
+});
+
+describe('importar desde el panel', () => {
+	it('muestra qué haría, importa, queda en Actividad y después todo coincide', async () => {
+		const m = await modules('0');
+		const before = /** @type {any} */ (await m.page.load(fakeEvent()));
+		expect(before.flagOn).toBe(false);
+		expect(before.status).toMatchObject({ files: 7, imported: 0, pending: 6, problems: 1 });
+
+		const r = /** @type {any} */ (await m.page.actions.importar(fakeEvent({ form: {} })));
+		expect(r.importResult).toMatchObject({ remaining: 0, summary: { created: 6, error: 0 } });
+		const audit = await t.db
+			.prepare("SELECT summary FROM admin_audit WHERE action = 'contenido.import'")
+			.all();
+		expect(audit.results).toHaveLength(1);
+
+		const after = /** @type {any} */ (await m.page.load(fakeEvent()));
+		expect(after.status).toMatchObject({ imported: 6, same: 6, pending: 0, drift: 0, problems: 1 });
+		// Para revisar: el roto (no se puede leer) y los que tienen avisos (estilos propios, fin al día siguiente).
+		expect(after.rows.map((/** @type {any} */ r) => r.legacySlug)).toEqual([
+			'fiesta-inventada-2031-01',
+			'roto-2031-06'
+		]);
+
+		const csv = await (await m.csv.GET(fakeEvent())).text();
+		expect(csv).toContain('fiesta-inventada-2031-01');
+		expect(csv).toContain('sin cambios');
+	});
+});

@@ -1,8 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { fetchMarkdownPosts } from '$lib/utils';
+import { siteBodies, sitePosts } from '$lib/server/contenido/posts.js';
 import tagsFactory from '$lib/utils/tags';
 import { fold, stripMarkdown, truncate } from '$lib/utils/search';
-export const prerender = true;
+// Dinámico (antes se prerenderizaba): con el interruptor `contenido_db` prendido los eventos salen
+// de la base y pueden cambiar sin un deploy. Apagado, da lo mismo que el archivo de siempre.
 
 /**
  * Máximo de caracteres de cuerpo (texto plano) por post en el índice. Los eventos se
@@ -20,11 +22,12 @@ const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 /**
  * @param {string} category
  * @param {string} postID
+ * @param {string} [stored] el cuerpo guardado en la base (interruptor `contenido_db`)
  */
-async function plainBody(category, postID) {
+async function plainBody(category, postID, stored) {
 	const loader = rawPosts[`/src/lib/posts/${category}/${postID}.md`];
-	if (!loader) return '';
-	const text = stripMarkdown(await loader());
+	if (stored === undefined && !loader) return '';
+	const text = stripMarkdown(stored ?? (await loader()));
 	return /^contenido secreto$/i.test(text) ? '' : truncate(text, BODY_MAX[category] ?? 1000);
 }
 
@@ -43,14 +46,15 @@ const str = (v) => (v === undefined || v === null ? '' : String(v));
  * Sólo incluye posts listados y publicados, igual que fetchMarkdownPosts.
  * @type {import("./$types").RequestHandler}
  */
-export async function GET() {
+export async function GET({ platform }) {
 	const tagManager = tagsFactory();
 	/** @type {import('$lib/utils/search').SearchDoc[]} */
 	const docs = [];
 	/** @type {Set<string>} */
 	const usedTags = new Set();
 
-	const posts = (await fetchMarkdownPosts()).filter((p) => !p.meta.force_unpublished);
+	const [all, bodies] = await Promise.all([sitePosts(platform), siteBodies(platform)]);
+	const posts = all.filter((p) => !p.meta.force_unpublished);
 	for (const { meta, path } of posts) {
 		const tags = [...new Set(meta.tags ?? [])];
 		tags.forEach((t) => usedTags.add(t));
@@ -64,7 +68,7 @@ export async function GET() {
 			a: (meta.authors ?? []).map(str),
 			d: event ? isoDate(meta.start) : undefined,
 			e: event ? isoDate(meta.end) : undefined,
-			b: await plainBody(meta.category, meta.postID)
+			b: await plainBody(meta.category, meta.postID, bodies.get(path))
 		});
 	}
 
@@ -131,5 +135,5 @@ export async function GET() {
 			if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete doc[k];
 		}
 	}
-	return json({ v: 1, docs, tags });
+	return json({ v: 1, docs, tags }, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }

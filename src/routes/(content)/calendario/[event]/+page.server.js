@@ -1,4 +1,6 @@
-import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '$lib/utils';
+import { error } from '@sveltejs/kit';
+import { currentRelated, fetchPost, relatedPostsFor } from '$lib/utils';
+import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
@@ -10,19 +12,37 @@ import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ params, platform, fetch, locals }) {
-	const post = await fetchPost('calendario', params.event, true).catch(() => null);
+export async function load({ params, platform, fetch, locals, setHeaders }) {
+	// Interruptor `contenido_db`: el evento de la base (con su texto ya armado). Si la base no tiene
+	// esa dirección, el .md como siempre (+page.js carga su componente).
+	const found = await siteEvent(platform, params.event, { viewer: viewerFor(locals) });
+	if (found.mode === 'db' && !found.post) error(404, 'Not found');
+	const db = found.mode === 'db' ? found.post : null;
+	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
+	if (db?.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
+	const post = db ?? (await fetchPost('calendario', params.event, true).catch(() => null));
+	const posts = await sitePosts(platform);
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
-		loadRelated(post),
+		loadRelated(post, posts),
 		loadTickets(params.event, platform, fetch),
-		loadSeries(post, platform, locals),
+		loadSeries(post, platform, locals, posts),
 		loadVenue(params.event, platform, locals),
 		loadPersonas(post, platform),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
 		// solo lo muestra en los eventos de KinkyVibe).
 		propinasEnabled(platform)
 	]);
-	return { ...related, tickets, series, venue, personas, propinas };
+	return {
+		...related,
+		tickets,
+		series,
+		venue,
+		personas,
+		propinas,
+		...(db
+			? { mode: /** @type {const} */ ('db'), post: db }
+			: { mode: /** @type {const} */ ('md') })
+	};
 }
 
 /**
@@ -58,10 +78,11 @@ async function loadVenue(slug, platform, locals) {
 }
 
 /** Related posts, computed on the server so the page doesn't need every post.
- * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js) */
-async function loadRelated(post) {
+ * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {ProcessedPost[]} posts */
+async function loadRelated(post, posts) {
 	if (!post) return { relatedPosts: [], relatedPastCount: 0 };
-	return currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+	return currentRelated(relatedPostsFor(post.meta, posts));
 }
 
 /**
@@ -70,11 +91,12 @@ async function loadRelated(post) {
  * @param {ProcessedPost|null} post
  * @param {App.Platform|undefined} platform
  * @param {App.Locals} locals
+ * @param {ProcessedPost[]} posts
  */
-async function loadSeries(post, platform, locals) {
+async function loadSeries(post, platform, locals, posts) {
 	if (!post || !(await seriesEnabled(platform))) return null;
 	const { postID: slug, tags, start } = post.meta;
-	const list = await eventSeries({ slug, tags, start });
+	const list = await eventSeries({ slug, tags, start }, { posts });
 	if (!list.length) return null;
 	return { list, account: await seriesAccountState(platform, locals) };
 }

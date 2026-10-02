@@ -66,6 +66,16 @@ export const FLAGS = Object.freeze({
 			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
 			've la nota del cafecito como siempre y /propinas da 404.',
 		envVar: 'PROPINAS_ENABLED'
+	},
+	contenido_db: {
+		label: 'Contenido desde la base (eventos)',
+		description:
+			'Las páginas públicas (listas, la página de cada evento, el .ics, las etiquetas, la ' +
+			'búsqueda, el RSS y el sitemap) leen los eventos de la base en vez de los archivos .md. ' +
+			'Un evento que no está en la base sigue saliendo de su .md. Apagado, todo sale de los .md ' +
+			'como siempre. Antes de prenderlo: importar los eventos (Contenido → En la base) y ' +
+			'revisar que no haya diferencias.',
+		envVar: 'CONTENIDO_DB_ENABLED'
 	}
 });
 
@@ -184,6 +194,16 @@ export function personasEventosEnabled(platform) {
  */
 export function propinasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'propinas');
+}
+
+/**
+ * Atajo para las rutas: ¿el contenido (por ahora, los eventos) sale de la base?
+ * (docs/contenido.md («En la base»))
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function contenidoDbEnabled(platform) {
+	return isFlagOn(getDB(platform), 'contenido_db');
 }
 
 /**

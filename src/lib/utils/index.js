@@ -103,16 +103,23 @@ export const fetchPost = async (category, postID, shallow = false) => {
 };
 
 /**
- * Processes a post and returns relevant information.
+ * Processes a post and returns relevant information. Exported for the posts stored in the
+ * database ($lib/server/contenido/posts.js), so they become the same ProcessedPost as a .md.
  *
- * @param {ConstructorOfATypedSvelteComponent} postContent - The content of the post.
+ * @param {ConstructorOfATypedSvelteComponent|undefined} postContent - The content of the post.
  * @param {string} postID - The ID of the post.
  * @param {AnyPostData} meta - The metadata associated with the post.
  * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
  * @param {TagManager} [tagManager] - The tag manager to use.
  * @return {Promise<ProcessedPost>} An object containing the processed post information.
  */
-async function processPost(postContent, postID, meta, shallow = false, tagManager = defaultTagManager()) {
+export async function processPost(
+	postContent,
+	postID,
+	meta,
+	shallow = false,
+	tagManager = defaultTagManager()
+) {
 	let authorsProfiles = [];
 	/**@type {ProcessedPost[]} */
 	if (!shallow) {

@@ -3,7 +3,9 @@ import { redirect } from '@sveltejs/kit';
 
 /** @type {import("./$types").PageLoad} */
 export async function load({ params, data }) {
-	let post = await fetchPost('calendario', params.event);
+	// Interruptor `contenido_db`: el evento viene entero del servidor (no hay componente .md;
+	// la página muestra `post.html`).
+	let post = data?.mode === 'db' ? data.post : await fetchPost('calendario', params.event);
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
@@ -13,6 +15,8 @@ export async function load({ params, data }) {
 	return {
 		...data,
 		...post,
+		// el texto del evento de la base, ya armado y limpio (sin .md no hay componente)
+		html: data?.mode === 'db' ? data.post.html : undefined,
 		tickets: data?.tickets ?? null,
 		venue: data?.venue ?? null,
 		propinas: data?.propinas ?? false

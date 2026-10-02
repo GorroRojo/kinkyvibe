@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isCurrent } from '$lib/utils/allPosts';
 
 // all the calendar grid (and a collapsed past-events list) uses; the page loads
@@ -30,9 +30,9 @@ const slimMeta = (meta) => {
 };
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load() {
+export async function load({ platform }) {
 	const now = Date.now();
-	const posts = (await fetchMarkdownPosts()).filter((p) => p.meta.layout == 'calendario');
+	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
 	return {
 		posts: posts.map((p) =>
 			isCurrent(p, now) ? p : /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })

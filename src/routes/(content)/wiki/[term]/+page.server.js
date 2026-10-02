@@ -1,11 +1,12 @@
-import { currentRelated, fetchMarkdownPosts, fetchPost } from '$lib/utils';
+import { currentRelated, fetchPost } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import tagsFactory from '$lib/utils/tags';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
 
 const tagManager = tagsFactory();
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ params }) {
+export async function load({ params, platform }) {
 	let term = '';
 	/** @type {string[]} */
 	let children = [];
@@ -24,7 +25,7 @@ export async function load({ params }) {
 		// from the URL form ("Rancheadita-Kinky", aliases) like every other tag route.
 		term = tagIdFromSlug(tagManager, params.term) ?? params.term;
 	}
-	const posts = await fetchMarkdownPosts();
+	const posts = await sitePosts(platform);
 	return {
 		...post,
 		...currentRelated(

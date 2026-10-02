@@ -121,9 +121,11 @@ export async function profileSlugTaken(db, urlSlug) {
  * @param {D1Database} db
  * @param {string} urlSlug
  * @param {App.Locals} locals
- * @param {{ cuentas: boolean }} opts si están prendidas las cuentas (para "Es mi perfil")
+ * @param {{ cuentas: boolean, posts?: ProcessedPost[] }} opts si están prendidas las cuentas
+ *   (para "Es mi perfil"); `posts`: las publicaciones del sitio (con los eventos de la base si
+ *   el interruptor `contenido_db` está prendido; por defecto, los .md)
  */
-export async function profilePageData(db, urlSlug, locals, { cuentas }) {
+export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sitePosts }) {
 	const viewer = viewerFor(locals);
 	const accountId = locals.member?.id;
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
@@ -133,7 +135,7 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 
-	const posts = await fetchMarkdownPosts();
+	const posts = sitePosts ?? (await fetchMarkdownPosts());
 	const related = currentRelated(
 		relatedPostsFor(
 			/** @type {any} */ ({

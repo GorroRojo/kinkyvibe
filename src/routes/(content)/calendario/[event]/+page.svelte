@@ -294,7 +294,13 @@
 		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
 	<div class="content" use:processContent>
-		<svelte:component this={data.content} />
+		{#if data.mode === 'db'}
+			<!-- Texto de la base, ya limpio en el servidor (lista corta de HTML, src/lib/server/amigues/sanitize.js). -->
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html data.html}
+		{:else}
+			<svelte:component this={data.content} />
+		{/if}
 		{#if data.meta.link && data.meta.link_text}
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
