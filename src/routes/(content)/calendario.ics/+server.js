@@ -19,6 +19,6 @@ export async function GET({ platform }) {
 		allPosts.filter((p) => p.meta.category === 'calendario').map((p) => String(p.meta.postID))
 	);
 	return new Response(buildIcsFeed(allPosts, { venues }), {
-		headers: { 'Content-Type': 'text/calendar', ...TAGGED_CACHE }
+		headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...TAGGED_CACHE }
 	});
 }

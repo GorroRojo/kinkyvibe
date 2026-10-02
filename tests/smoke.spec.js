@@ -165,6 +165,7 @@ test.describe('calendario', () => {
 		const res = await request.get('/calendario.ics');
 		expect(res.status()).toBe(200);
 		expect(res.headers()['content-type']).toContain('text/calendar');
+		expect(res.headers()['content-type']).toContain('charset=utf-8');
 		const text = await res.text();
 		const { lines, events } = parseIcs(text);
 		expect(lines[0]).toBe('BEGIN:VCALENDAR');
