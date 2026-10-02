@@ -294,10 +294,15 @@
 		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
 	<div class="content" use:processContent>
-		{#if data.mode === 'db'}
-			<!-- Texto de la base, ya limpio en el servidor (lista corta de HTML, src/lib/server/amigues/sanitize.js). -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html data.html}
+		{#if data.html !== undefined}
+			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+			<div class="kv-texto-libre">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html data.css ? `<style>${data.css}</style>` : ''}
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html data.html}
+			</div>
 		{:else}
 			<svelte:component this={data.content} />
 		{/if}

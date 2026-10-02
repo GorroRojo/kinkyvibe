@@ -83,7 +83,8 @@ const argentinaDay = (/** @type {number} */ ms) =>
  *   title: string,
  *   data: Record<string, unknown>,
  *   visibility: 'public' | 'hidden',
- *   warnings: string[]
+ *   warnings: string[],
+ *   notes?: string[]
  * }} MappedEvent
  */
 
@@ -141,27 +142,34 @@ export function mdToEvent(legacySlug, meta, body) {
 			);
 		}
 	}
-	if (/<script[\s>]/i.test(text)) {
-		warnings.push(
-			'tiene un bloque <script> de mdsvex: en la base se muestra el texto sin ese código'
-		);
-	}
-	if (/<style[\s>]/i.test(text)) {
-		warnings.push(
-			'tiene estilos propios (<style>): en la base se muestra con los estilos del sitio'
-		);
-	}
-	if (/<iframe[\s>]/i.test(text)) {
-		warnings.push('tiene un <iframe>: la lista corta de HTML no lo muestra');
-	}
-
 	return {
 		legacySlug,
 		title: asText(meta.title) || legacySlug,
 		data,
 		visibility: isTrue(meta.force_unpublished) ? 'hidden' : 'public',
-		warnings
+		warnings,
+		notes: freeHtmlNotes(text)
 	};
+}
+
+/**
+ * Nota informativa (no es un problema) si el texto usa HTML fuera de la lista corta: se muestra
+ * igual que hoy, porque lo importado del repo cuenta como HTML libre de superadmin (decisión 0004,
+ * `body_html: 'libre'`, ver ./render.js).
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function freeHtmlNotes(text) {
+	const used = [
+		[/<script[\s>]/i, '<script>'],
+		[/<style[\s>]/i, '<style>'],
+		[/<iframe[\s>]/i, '<iframe>'],
+		[/<(video|audio)[\s>]/i, '<video>']
+	]
+		.filter(([re]) => /** @type {RegExp} */ (re).test(text))
+		.map(([, name]) => name);
+	return used.length ? [`usa HTML libre (${used.join(', ')}): se muestra igual que hoy`] : [];
 }
 
 /**

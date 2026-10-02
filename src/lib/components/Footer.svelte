@@ -10,17 +10,27 @@
 		Globe,
 		Home,
 		LogIn,
-		LayoutDashboard
+		UserRound,
+		HandCoins
 	} from '@lucide/svelte';
 	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
+	import { accountLink } from '$lib/utils/cuentas.js';
+	import { supportLink } from '$lib/utils/footer.js';
+	/**
+	 * Datos del layout raíz (interruptores `cuentas` y `propinas`, `member`).
+	 * @type {{ cuentas?: boolean, member?: boolean, propinas?: boolean }}
+	 */
+	export let data = {};
+	$: cuenta = accountLink(data);
+	$: apoyo = supportLink(data);
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);`;
 </script>
 
 <footer>
 	<div class="wip">
-		Este sitió esta en constante construcción. Reportar problemas a <a
+		Este sitio está en constante construcción. Reportar problemas a <a
 			href="https://t.me/Gorro_Rojo"
 		>
 			@Gorro_Rojo
@@ -54,9 +64,11 @@
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
 				</li>
 				<li>
-					<a href="https://cafecito.app/kinkyvibe" target="_blank">
-						<SimpleIcon icon={siKofi} />CafecitoApp
-					</a>
+					{#if apoyo.kind === 'cafecito'}
+						<a href={apoyo.href} target="_blank"><SimpleIcon icon={siKofi} />{apoyo.label}</a>
+					{:else}
+						<a href={apoyo.href} target="_blank"><HandCoins {style} />{apoyo.label}</a>
+					{/if}
 				</li>
 			</ul>
 		</li>
@@ -89,18 +101,22 @@
 				</li>
 			</ul>
 		</li>
-		<li>
-			<h3>Cuenta</h3>
-			<ul>
-				<li>
-					<a href="/login"><LogIn {style} />Iniciar sesión</a>
-				</li>
-				<li>
-					<a href="/admin"><LayoutDashboard {style} />Panel de admin</a>
-				</li>
-			</ul>
-		</li>
+		{#if cuenta}
+			<!-- Cuentas del público (docs/cuentas.md): solo con el interruptor prendido -->
+			<li>
+				<h3>Tu cuenta</h3>
+				<ul>
+					<li>
+						<a href={cuenta.href}>
+							{#if data.member}<UserRound {style} />{:else}<LogIn {style} />{/if}{cuenta.label}
+						</a>
+					</li>
+				</ul>
+			</li>
+		{/if}
 	</ul>
+	<!-- para el equipo: el panel (login con GitHub) -->
+	<p class="panel"><a href="/login">Entrar al panel</a></p>
 </footer>
 
 <style>
@@ -163,6 +179,17 @@
 		list-style: none;
 		margin-top: 0;
 	}
+	.panel {
+		margin: 1.5em 0 0;
+		text-align: center;
+		font-size: var(--step--2);
+		opacity: 0.85;
+	}
+	.panel a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2em;
+	}
 	@media screen and (max-width: 680px) {
 		footer {
 			padding-inline: 16px;
@@ -179,7 +206,8 @@
 			flex: 1 1 10rem;
 		}
 		/* links de al menos 44 px de alto para el dedo */
-		li a {
+		li a,
+		.panel a {
 			min-height: var(--tap);
 		}
 	}

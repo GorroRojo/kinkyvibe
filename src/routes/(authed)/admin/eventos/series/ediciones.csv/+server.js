@@ -7,6 +7,7 @@ import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
 import { allSeries } from '$lib/server/series/index.js';
 import { requireSeries } from '$lib/server/series/web.js';
 import { argDate, argTime } from '$lib/utils/dates.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, platform }) {
@@ -14,7 +15,7 @@ export async function GET({ locals, url, platform }) {
 	await requireSeries(platform);
 	const only = url.searchParams.get('serie');
 	const now = Date.now();
-	const rows = (await allSeries({ now }))
+	const rows = (await allSeries({ now, tags: await siteTagManager(platform) }))
 		.filter((s) => !only || s.id === only)
 		.flatMap((s) => s.editions.map((e) => ({ series: s.name, ...e })));
 	const csv = toCsv(rows, [

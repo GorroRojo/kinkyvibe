@@ -4,7 +4,7 @@
  */
 import { fail } from '@sveltejs/kit';
 import { confirmSubscription } from '$lib/server/series/subscriptions.js';
-import { siteTags } from '$lib/server/series/index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { requireSeries, requireSeriesDB } from '$lib/server/series/web.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -27,6 +27,7 @@ export const actions = {
 			return fail(400, {
 				error: 'El link venció o ya se usó. Si querés el aviso, pedilo de nuevo desde la serie.'
 			});
-		return { ok: true, seriesName: siteTags().get(tag)?.visible_name ?? tag };
+		const tags = await siteTagManager(platform);
+		return { ok: true, seriesName: tags.get(tag)?.visible_name ?? tag };
 	}
 };
