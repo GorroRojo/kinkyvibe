@@ -3,14 +3,15 @@
  */
 
 /**
- * Cómo apoyar a KinkyVibe: "Dejá una propina" (/propinas) con el interruptor `propinas` prendido
- * (docs/propinas.md), Cafecito si está apagado.
+ * Cómo apoyar a KinkyVibe: "Dejá una propina" al Fondo (fondo.kinkyvibe.ar, adonde van las propinas
+ * según la decisión 0018) con el interruptor `propinas` prendido, Cafecito si está apagado. No va a
+ * /propinas porque esa página solo deja propinas desde un post (decisión de gorrite, 2/10).
  *
  * @param {{ propinas?: boolean } | null | undefined} data datos del layout raíz
- * @returns {{ href: string, label: string, external: boolean }}
+ * @returns {{ href: string, label: string, kind: 'fondo' | 'cafecito' }}
  */
 export function supportLink(data) {
 	return data?.propinas
-		? { href: '/propinas', label: 'Dejá una propina', external: false }
-		: { href: 'https://cafecito.app/kinkyvibe', label: 'CafecitoApp', external: true };
+		? { href: 'https://fondo.kinkyvibe.ar', label: 'Dejá una propina', kind: 'fondo' }
+		: { href: 'https://cafecito.app/kinkyvibe', label: 'CafecitoApp', kind: 'cafecito' };
 }

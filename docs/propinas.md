@@ -13,9 +13,9 @@ admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias.
   destino solo cambia cómo se cuenta: las propinas "Para el Fondo" aprobadas suman a los
   **aportes al Fondo KinkyVibe** del panel, igual que el aporte de una entrada solidaria (ver
   "En el panel").
-- En el pie de página (Footer), "Dejá una propina" lleva a `/propinas` en lugar del link a
-  Cafecito. Sin `?de=`, esa página explica que las propinas se dejan desde cada publicación de
-  KinkyVibe y lleva al material y al calendario.
+- En el pie de página (Footer), "Dejá una propina" lleva al Fondo (`fondo.kinkyvibe.ar`) en
+  lugar del link a Cafecito (decisión de gorrite, 2/10): `/propinas` sin `?de=` no deja dejar
+  una propina, solo explica que se dejan desde cada publicación de KinkyVibe.
 
 Está detrás del interruptor **Propinas** (Ajustes → Interruptores), apagado por defecto. Apagado,
 las publicaciones muestran la nota del cafecito de siempre, el pie de página sigue con el link a

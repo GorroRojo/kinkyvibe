@@ -64,10 +64,10 @@
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
 				</li>
 				<li>
-					{#if apoyo.external}
+					{#if apoyo.kind === 'cafecito'}
 						<a href={apoyo.href} target="_blank"><SimpleIcon icon={siKofi} />{apoyo.label}</a>
 					{:else}
-						<a href={apoyo.href}><HandCoins {style} />{apoyo.label}</a>
+						<a href={apoyo.href} target="_blank"><HandCoins {style} />{apoyo.label}</a>
 					{/if}
 				</li>
 			</ul>

@@ -64,8 +64,8 @@ export const FLAGS = Object.freeze({
 		description:
 			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
 			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito, y en el pie de ' +
-			'página "Dejá una propina" en lugar de Cafecito. Apagado, se ve la nota del cafecito ' +
-			'como siempre y /propinas da 404.',
+			'página "Dejá una propina" (al Fondo) en lugar de Cafecito. Apagado, se ve la nota del ' +
+			'cafecito como siempre y /propinas da 404.',
 		envVar: 'PROPINAS_ENABLED'
 	},
 	etiquetas_db: {

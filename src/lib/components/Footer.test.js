@@ -48,7 +48,8 @@ describe('Footer', () => {
 
 	it('propinas prendido: "Dejá una propina" en lugar de Cafecito', () => {
 		const body = html({ propinas: true });
-		expect(body).toMatch(/href="\/propinas"[^>]*>[\s\S]*?Dejá una propina/);
+		expect(body).toMatch(/href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>[\s\S]*?Dejá una propina/);
+		expect(body).not.toContain('href="/propinas"');
 		expect(body).not.toContain('cafecito.app');
 		expect(body).not.toContain('CafecitoApp');
 	});

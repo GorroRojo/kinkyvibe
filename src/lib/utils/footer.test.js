@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { supportLink } from './footer.js';
 
 describe('supportLink', () => {
-	it('con propinas prendido: "Dejá una propina" en el sitio', () => {
+	it('con propinas prendido: "Dejá una propina" al Fondo', () => {
 		expect(supportLink({ propinas: true })).toEqual({
-			href: '/propinas',
+			href: 'https://fondo.kinkyvibe.ar',
 			label: 'Dejá una propina',
-			external: false
+			kind: 'fondo'
 		});
 	});
 
@@ -14,7 +14,7 @@ describe('supportLink', () => {
 		const cafecito = {
 			href: 'https://cafecito.app/kinkyvibe',
 			label: 'CafecitoApp',
-			external: true
+			kind: 'cafecito'
 		};
 		expect(supportLink({ propinas: false })).toEqual(cafecito);
 		expect(supportLink({})).toEqual(cafecito);
