@@ -2,7 +2,9 @@
  * Guardar cambios de la agenda desde el navegador, por las actions de /admin/eventos/agenda:
  * - `postAgendaSave`: una fila (action `save`, Enter en la planilla);
  * - `postAgendaSaveMany`: varias filas en un solo commit (action `saveMany`: "Guardar N filas" de
- *   la planilla y "Guardar cambios" de los eventos movidos en el calendario).
+ *   la planilla y "Guardar cambios" de los eventos movidos en el calendario);
+ * - `postDayNote` / `postDayNoteDelete`: guardar o borrar una nota de un día (actions `noteSave` y
+ *   `noteDelete`, en D1).
  * Devuelven lo que respondió el servidor, o null si la sesión venció y se fue a /login.
  */
 import { deserialize } from '$app/forms';
@@ -85,4 +87,42 @@ export async function postAgendaSaveMany(changes) {
 			results: []
 		}
 	);
+}
+
+/**
+ * @typedef {{
+ *   ok: boolean,
+ *   message: string,
+ *   note?: import('$lib/utils/dayNotes.js').DayNote,
+ *   id?: number,
+ *   errors?: { date?: string, body?: string, color?: string }
+ * }} DayNoteResponse
+ */
+
+/**
+ * Agrega una nota (sin `id`) o cambia una.
+ * @param {{ id?: number | null, date: string, body: string, color: string }} note
+ * @returns {Promise<DayNoteResponse | null>}
+ */
+export async function postDayNote({ id, date, body, color }) {
+	const form = new FormData();
+	if (id) form.set('id', String(id));
+	form.set('date', date);
+	form.set('body', body);
+	form.set('color', color);
+	const r = await postAction('noteSave', form);
+	if (!r) return null;
+	return r.data?.note ?? { ok: false, message: r.status ? SERVER_ERROR : OFFLINE };
+}
+
+/**
+ * @param {number} id
+ * @returns {Promise<DayNoteResponse | null>}
+ */
+export async function postDayNoteDelete(id) {
+	const form = new FormData();
+	form.set('id', String(id));
+	const r = await postAction('noteDelete', form);
+	if (!r) return null;
+	return r.data?.note ?? { ok: false, message: r.status ? SERVER_ERROR : OFFLINE };
 }

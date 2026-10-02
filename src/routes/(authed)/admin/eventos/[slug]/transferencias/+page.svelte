@@ -5,6 +5,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
+	import ReopenTransferButton from '$lib/components/admin/panel/ReopenTransferButton.svelte';
 	import { ORDER_STATUS, formatDni, shortTime } from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 
@@ -63,7 +64,13 @@
 			<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
 			{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
 				<!-- Sin JavaScript: la confirmación en la página. -->
-				<form class="flash error" method="POST" action="?/confirm">
+				<form
+					class="flash error"
+					method="POST"
+					action={'action' in form.transfer && form.transfer.action === 'reopen'
+						? '?/reopen'
+						: '?/confirm'}
+				>
 					{#each form.transfer.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
 					<input type="hidden" name="order" value={form.transfer.order} />
 					<button
@@ -138,6 +145,9 @@
 					{o.name} · {formatARS(o.total)}
 					<Badge tone={o.status === 'approved' ? 'ok' : 'neutral'}>{ORDER_STATUS[o.status]}</Badge>
 					<span class="muted">por {o.confirmedBy}</span>
+					{#if o.status === 'cancelled'}
+						<ReopenTransferButton id={o.id} reference={o.reference} dialog={overrideDialog} />
+					{/if}
 				</li>
 			{/each}
 		</ul>
