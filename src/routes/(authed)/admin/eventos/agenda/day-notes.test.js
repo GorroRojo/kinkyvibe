@@ -7,7 +7,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 vi.mock('$lib/server/eventos/panel.js', async (importOriginal) => {
 	const actual = /** @type {any} */ (await importOriginal());
-	return { ...actual, agendaRows: async () => [] };
+	// Sin leer los ~500 eventos del bundle (lento en vitest): la agenda y «duplicar» vacías.
+	return { ...actual, agendaRows: async () => [], listPanelEvents: async () => [] };
 });
 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
