@@ -137,7 +137,7 @@ describe('series hijas de Picantearla (nombres con «:» y espacios)', () => {
 	it('los links del sitio (página, /api/series, .ics) codifican «:» y vuelven a la serie', () => {
 		const tm = tagsFactory();
 		for (const [name, slug] of NAMES) {
-			const encoded = slug.replace(':', '%3A');
+			const encoded = slug.replaceAll(':', '%3A');
 			expect(tagPagePath(name)).toBe(`/wiki/${encoded}`);
 			expect(seriesApiPath(name)).toBe(`/api/series/${encoded}`);
 			expect(tagFeedPath(name)).toBe(`/ics/etiqueta/${encoded}.ics`);
