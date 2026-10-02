@@ -51,6 +51,20 @@ export function eventEnd(start, end) {
 /** @param {number} n */
 const pad2 = (n) => String(n).padStart(2, '0');
 const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MONTHS_ES = [
+	'enero',
+	'febrero',
+	'marzo',
+	'abril',
+	'mayo',
+	'junio',
+	'julio',
+	'agosto',
+	'septiembre',
+	'octubre',
+	'noviembre',
+	'diciembre'
+];
 
 /**
  * `yyyy-MM-dd` in Argentina time.
@@ -78,4 +92,20 @@ export function argTime(d) {
 export function argWeekdayDay(d) {
 	const a = toArgentina(d);
 	return `${WEEKDAYS_ES[a.getDay()]} ${pad2(a.getDate())}`;
+}
+
+/**
+ * Long date and 24-hour time in Argentina time, as the event page shows it:
+ * `2 de octubre de 2026 a las 15:00 hs`.
+ *
+ * Built by hand instead of with `toLocaleString('es-AR', { timeStyle: 'short' })`: recent ICU/CLDR
+ * data gives es-AR a 12-hour clock (`3:00 p. m.`), so appending «hs» printed `3:00 p. m.hs`.
+ * @param {string|number|Date} d
+ */
+export function argDateTimeLong(d) {
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	return `${a.getDate()} de ${MONTHS_ES[a.getMonth()]} de ${a.getFullYear()} a las ${pad2(
+		a.getHours()
+	)}:${pad2(a.getMinutes())} hs`;
 }
