@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import YAML from 'yaml';
+import { extractFrontmatter, listPosts } from '../../tests/content-lib.js';
 import tagsFactory from './tags';
 import {
 	SERIES_PARENT,
@@ -48,6 +50,38 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 		const ids = seriesTagIds(tree());
 		expect(seriesOfTags(['taller', 'Serie B', 'Serie A'], ids)).toEqual(['Serie A', 'Serie B']);
 		expect(seriesOfTags(undefined, ids)).toEqual([]);
+	});
+	it('en el árbol del sitio, las series hijas de Picantearla tienen ícono e imagen', () => {
+		const t = tagsFactory();
+		for (const id of ['Picantearla: Deluxe', 'Picantearla: Protocolar', 'Picantearla: Age Play']) {
+			expect(isSeriesTag(t, id)).toBe(true);
+			expect(t.get(id).icon).toBeTruthy();
+			const image = seriesImage(t.get(id));
+			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+		}
+	});
+	it('las ediciones reales de las series hijas siguen siendo ediciones de Picantearla', () => {
+		const posts = listPosts()
+			.filter((p) => p.category === 'calendario')
+			.map((p) => {
+				const doc = YAML.parseDocument(extractFrontmatter(p.source) ?? '');
+				return { slug: p.slug, errors: doc.errors.length, data: doc.toJS() };
+			});
+		/** @param {string} id */
+		const tagged = (id) =>
+			posts.filter((p) => (p.data?.tags ?? []).includes(id)).map((p) => p.slug);
+		const deluxe = tagged('Picantearla: Deluxe');
+		const protocolar = tagged('Picantearla: Protocolar');
+		const agePlay = tagged('Picantearla: Age Play');
+		expect(deluxe).toHaveLength(16);
+		expect(deluxe).toContain('picantearla-diciembre-2023'); // «Picantearla Deluxe (8° Edición)»
+		expect(protocolar).toHaveLength(4);
+		expect(agePlay).toEqual(['picantearla-age-play-2024-10', 'picantearla-age-play-2025-12']);
+		const picantearla = new Set(tagged('Picantearla'));
+		for (const slug of [...deluxe, ...protocolar, ...agePlay]) {
+			expect(picantearla.has(slug), slug).toBe(true);
+			expect(posts.find((p) => p.slug === slug)?.errors, slug).toBe(0);
+		}
 	});
 	it('en el árbol del sitio, Picantearla y Cine para Sucixs son series con imagen', () => {
 		const t = tagsFactory();
