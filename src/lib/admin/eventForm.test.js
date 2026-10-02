@@ -14,6 +14,7 @@ describe('formSections', () => {
 		expect(ids(formSections({ mode: 'nuevo' }))).toEqual([
 			'sec-cuando',
 			'sec-datos',
+			'sec-personas',
 			'sec-lugar',
 			'sec-direccion',
 			'sec-etiquetas',
@@ -45,7 +46,10 @@ describe('formSections', () => {
 		]);
 	});
 
-	it('con el interruptor personas_eventos: Personas después de Datos (y del Lugar)', () => {
+	// «Personas en una sola sección»: Organizan / Autores salió de Datos y está siempre en
+	// Personas (con o sin el interruptor personas_eventos), salvo en los perfiles de amigues.
+	// En los eventos, después va el «Lugar».
+	it('con personas (eventos, material, wiki): Personas después de Datos', () => {
 		const sections = formSections({
 			mode: 'editar',
 			category: 'calendario',
@@ -55,8 +59,8 @@ describe('formSections', () => {
 		expect(ids(sections)).toEqual([
 			'sec-cuando',
 			'sec-datos',
-			'sec-lugar',
 			'sec-personas',
+			'sec-lugar',
 			'sec-imagen',
 			'sec-etiquetas',
 			'edit-tickets',
@@ -74,6 +78,14 @@ describe('formSections', () => {
 			'sec-lista'
 		]);
 		expect(formSections({ mode: 'contenido', parseError: true })).toEqual([]);
+		expect(ids(formSections({ mode: 'contenido', hasPersonas: true }))).toEqual([
+			'sec-datos',
+			'sec-personas',
+			'sec-imagen',
+			'sec-etiquetas',
+			'sec-texto',
+			'sec-lista'
+		]);
 	});
 
 	it('si el archivo se edita como texto no hay secciones', () => {
@@ -90,11 +102,14 @@ describe('formSections', () => {
 
 describe('draftSectionLabels', () => {
 	it('nombra las secciones sin repetir y en orden', () => {
-		expect(draftSectionLabels(['values', 'authors', 'tickets', 'freeTags', 'tagRules'])).toEqual([
+		expect(draftSectionLabels(['values', 'people', 'tickets', 'freeTags', 'tagRules'])).toEqual([
 			'Datos',
+			'Personas',
 			'Entradas',
 			'Etiquetas'
 		]);
+		// Un borrador de antes (con `authors`) también nombra Personas.
+		expect(draftSectionLabels(['authors'])).toEqual(['Personas']);
 	});
 	it('ignora las partes que no conoce', () => {
 		expect(draftSectionLabels(['otraCosa', 'body'])).toEqual(['Texto']);

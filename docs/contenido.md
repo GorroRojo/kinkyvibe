@@ -122,6 +122,12 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
   - Lista corta: `amigues/sanitize.js`, como los perfiles.
 - **Historial**: cada guardado (también importar) copia el objeto a `object_revisions` en la misma
   tanda de `saveObject()` (`src/lib/server/contenido/revisions.js`).
+- **Personas**: `authors:` y `personas:` de un `.md` se guardan como **una sola lista**,
+  `data.personas: [{ profile?, name?, role }]` (quienes organizan o escriben incluides), y vuelven
+  a `authors` y `personas` en la metadata y en el `.md` que arma la base
+  (`src/lib/utils/personasList.js`; ver [personas-eventos.md](personas-eventos.md)). Lo importado
+  antes con `data.authors` y `extra.personas` se sigue leyendo igual, volver a importarlo no lo
+  cuenta como cambio y guardarlo lo pasa a la lista única.
 
 | Qué                                | Dónde                                                                        |
 | ---------------------------------- | ---------------------------------------------------------------------------- |

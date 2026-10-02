@@ -92,14 +92,18 @@ describe('dates', () => {
 		expect(validateSchedule('2026-10-10T20:00-03:00', '2026-10-11T01:30-03:00')).toBe(null);
 		expect(validateSchedule('2026-10-10T20:00-03:00', undefined)).toBe(null);
 		// real mistake seen in aberraciones-2024-03: ends "before" it starts
-		expect(validateSchedule('2024-03-17T21:00-03:00', '2024-03-17T01:00-03:00')).toMatch(/terminar/);
+		expect(validateSchedule('2024-03-17T21:00-03:00', '2024-03-17T01:00-03:00')).toMatch(
+			/terminar/
+		);
 		expect(validateSchedule('', '')).toMatch(/inicio/);
 	});
 	it('describes schedules in Spanish', () => {
 		expect(describeSchedule('2026-09-12T20:00-03:00', '2026-09-13T01:30-03:00')).toBe(
 			'sábado 12 de septiembre de 2026, de 20:00 a 01:30 (del domingo 13 de septiembre de 2026)'
 		);
-		expect(describeSchedule('2026-10-10T20:00-03:00')).toBe('sábado 10 de octubre de 2026, a las 20:00');
+		expect(describeSchedule('2026-10-10T20:00-03:00')).toBe(
+			'sábado 10 de octubre de 2026, a las 20:00'
+		);
 	});
 });
 
@@ -149,7 +153,9 @@ describe('slugs', () => {
 		expect(validateSlug('córdoba')).toMatch(/minúsculas/);
 		expect(validateSlug('../etc')).toMatch(/minúsculas/);
 		expect(validateSlug('picantearla-2026-09', ['picantearla-2026-09'])).toMatch(/Ya existe/);
-		expect(validateSlug('picantearla-2026-09', (s) => s === 'picantearla-2026-09')).toMatch(/Ya existe/);
+		expect(validateSlug('picantearla-2026-09', (s) => s === 'picantearla-2026-09')).toMatch(
+			/Ya existe/
+		);
 	});
 	it('resolves collisions with -2, -3', () => {
 		const taken = new Set(['picantearla-2026-09', 'picantearla-2026-09-2']);
@@ -183,7 +189,9 @@ describe('slugs', () => {
 describe('images', () => {
 	it('detects image types by magic bytes', () => {
 		expect(detectImageType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('jpg');
-		expect(detectImageType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe('png');
+		expect(detectImageType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(
+			'png'
+		);
 		const webp = new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ');
 		expect(detectImageType(webp)).toBe('webp');
 		expect(detectImageType(new TextEncoder().encode('<svg xmlns='))).toBe(null);
@@ -244,7 +252,13 @@ describe('applyFrontmatterChanges', () => {
 		});
 		expect(out).toContain('  - KinkyVibe # etiqueta especial #');
 		expect(out).toContain('  - pago # pago | gratis | a la gorra #');
-		expect(parseDocument(out).toJS().tags).toEqual(['español', 'KinkyVibe', 'pago', 'Córdoba', 'cuerdas']);
+		expect(parseDocument(out).toJS().tags).toEqual([
+			'español',
+			'KinkyVibe',
+			'pago',
+			'Córdoba',
+			'cuerdas'
+		]);
 	});
 });
 
@@ -346,19 +360,61 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 	});
 
 	it('publishes a copy of an unlisted draft as listed', () => {
-		const src = post('punto-fijo-2026-09').replace('#force_unlisted: false', 'force_unlisted: true');
-		const md = buildEventMarkdown(src, { ...formFromSource(src, { today }), startDate: '2026-10-16', endDate: '2026-10-16' });
+		const src = post('punto-fijo-2026-09').replace(
+			'#force_unlisted: false',
+			'force_unlisted: true'
+		);
+		const md = buildEventMarkdown(src, {
+			...formFromSource(src, { today }),
+			startDate: '2026-10-16',
+			endDate: '2026-10-16'
+		});
 		expect(meta(md).force_unlisted).toBeUndefined();
 	});
 
 	it('rejects impossible schedules', () => {
 		const src = post('aberraciones-2024-03');
 		const form = formFromSource(src, { today });
-		expect(() => buildEventMarkdown(src, { ...form, startDate: '2026-10-10', endDate: '2026-10-10' })).toThrow(
-			/terminar/
-		);
+		expect(() =>
+			buildEventMarkdown(src, { ...form, startDate: '2026-10-10', endDate: '2026-10-10' })
+		).toThrow(/terminar/);
 		const md = buildEventMarkdown(src, { ...form, startDate: '2026-10-10', endDate: '2026-10-11' });
 		expect(meta(md).end).toBe('2026-10-11T01:00-03:00');
+	});
+
+	// «Personas en una sola sección»: crear/duplicar escribe `personas:` solo si se pasa (con el
+	// interruptor personas_eventos) y cambió; si no, queda la del evento original.
+	it('personas: untouched unless given and changed', () => {
+		const src = NEW_EVENT_TEMPLATE.replace(
+			'authors:\n  - KinkyVibe\n',
+			'authors:\n  - KinkyVibe\npersonas:\n  - perfil: colectivo-de-prueba\n    rol: Facilita\n'
+		);
+		const form = {
+			...formFromSource(src, { today }),
+			title: 'Copia',
+			startDate: '2026-10-21',
+			endDate: '2026-10-21'
+		};
+		const same = buildEventMarkdown(src, { ...form });
+		expect(meta(same).personas).toEqual([{ perfil: 'colectivo-de-prueba', rol: 'Facilita' }]);
+		expect(
+			buildEventMarkdown(src, {
+				...form,
+				personas: [{ perfil: 'colectivo-de-prueba', rol: 'Facilita' }]
+			})
+		).toBe(same);
+		const changed = buildEventMarkdown(src, {
+			...form,
+			personas: [
+				{ perfil: 'colectivo-de-prueba', rol: 'Facilita' },
+				{ nombre: 'Persona Sin Perfil', rol: 'Fotografía' }
+			]
+		});
+		expect(meta(changed).personas).toEqual([
+			{ perfil: 'colectivo-de-prueba', rol: 'Facilita' },
+			{ nombre: 'Persona Sin Perfil', rol: 'Fotografía' }
+		]);
+		expect(meta(buildEventMarkdown(src, { ...form, personas: [] }))).not.toHaveProperty('personas');
 	});
 
 	it("creates an event from the owner's _event_template.md", () => {

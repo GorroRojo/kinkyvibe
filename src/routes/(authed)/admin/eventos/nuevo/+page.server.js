@@ -31,6 +31,7 @@ import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
+import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb, saveCopy } from '$lib/admin/saveCopy.js';
@@ -141,6 +142,8 @@ export async function load({ locals, url, platform }) {
 		seriesPrompt,
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
+		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		personas: await editorPersonas(platform),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
 		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
@@ -292,6 +295,12 @@ export const actions = {
 			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
 			const placeErrors = placeFileErrors(String(data.get('content') ?? ''));
 			if (placeErrors.length) throw new Error(placeErrors.join(' '));
+			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			const roles = await activeRoles(platform);
+			const personasErrors = roles
+				? personasFileErrors(String(data.get('content') ?? ''), roles)
+				: [];
+			if (personasErrors.length) throw new Error(personasErrors.join(' '));
 			/** @type {Record<string, any>} */
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined

@@ -18,6 +18,15 @@
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
 	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
+	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import { personasToMd, validatePersonaItems } from '$lib/utils/personasList.js';
+	import {
+		ADD_ROLE_ACTION,
+		formPersonas,
+		personaOptions,
+		personaView,
+		restorePeople
+	} from '$lib/utils/personasPicker.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
 	import { emptyUpload, newEventImage } from '$lib/admin/imageState.js';
@@ -116,9 +125,7 @@
 		prices: initialTags.prices
 	};
 	let freeTags = initialTags.rest;
-	let authors = splitList(values.authors);
 	$: values.tags = joinEventTags({ ...tagRules, rest: freeTags });
-	$: values.authors = authors;
 	$: tagErrors = validateEventTags(splitList(values.tags));
 	/** @type {ScheduleSection | undefined} */
 	let scheduleSection;
@@ -142,6 +149,31 @@
 	const initialTickets = readTicketsForm(sourceMeta);
 	let tickets = readTicketsForm(sourceMeta);
 	$: ticketsCheck = validateTicketsForm(tickets);
+
+	/* ---------- personas: quienes organizan y el resto, en una sola lista ---------- */
+	// Como en Editar: `data.personas` ({ roles, profiles }) llega solo con el interruptor
+	// personas_eventos; apagado, es el «Organizan» de siempre y `personas:` (de un evento que se
+	// duplica) queda como está. Se escribe en `authors:` y `personas:` ($lib/utils/personasList.js).
+	/** @type {{ roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null} */
+	const personasData = data.personas ?? null;
+	let roles = personasData ? [...personasData.roles] : ['Organiza'];
+	const dbProfiles = personasData?.profiles ?? [];
+	let people = formPersonas(splitList(values.authors), sourceMeta.personas, 'calendario', {
+		withPersonas: Boolean(personasData),
+		options: personaOptions(data.profiles ?? [], dbProfiles, data.authorUsage ?? {})
+	});
+	$: peopleMd = personasToMd(people, 'calendario');
+	$: values.authors = peopleMd.authors;
+	$: values.personas = personasData ? peopleMd.personas : undefined;
+	// Como lo demás de crear: todo lo que se ve tiene que estar bien para publicar.
+	$: peopleErrors = validatePersonaItems(people, roles);
+	const dbBySlug = new Map(dbProfiles.map((p) => [p.slug, p]));
+	$: peopleText = people
+		.map((p) => {
+			const label = personaView(p, 'calendario', data.profiles ?? [], dbBySlug).label;
+			return personasData ? `${label} (${p.role})` : label;
+		})
+		.join(', ');
 
 	/* ---------- slug ---------- */
 	const taken = new Set(data.takenSlugs);
@@ -234,6 +266,7 @@
 			scopeProblem,
 			mapError,
 			...tagErrors,
+			...peopleErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
 		].filter(Boolean)
 	);
@@ -386,7 +419,7 @@
 		values,
 		tagRules,
 		freeTags,
-		authors,
+		people,
 		tickets,
 		slug: slugEdited ? slug : '',
 		slugEdited,
@@ -410,7 +443,7 @@
 		}
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
-		if (Array.isArray(d.authors)) authors = d.authors;
+		people = restorePeople(d, people, 'Organiza');
 		if (d.tickets) tickets = d.tickets;
 		if (venuePicker && d.venue && typeof d.venue === 'object')
 			venue = venueChoice(d.venue.venueId, d.venue.privacy);
@@ -644,12 +677,21 @@
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
 						bind:values
-						bind:authors
+					/>
+
+					<PersonasSection
+						bind:items={people}
+						bind:roles
+						defaultRole="Organiza"
+						category="calendario"
 						profiles={data.profiles}
+						{dbProfiles}
 						authorUsage={data.authorUsage}
-						authorsId="ev-authors"
-						authorsHelpId="ev-authors-help"
-						authorsHelp="Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar». Pueden ser varias personas o grupos."
+						addRoleAction={personasData ? ADD_ROLE_ACTION : ''}
+						id="ev-authors"
+						helpId="ev-authors-help"
+						idPrefix="ev-personas"
+						errors={peopleErrors}
 					/>
 
 					<PlaceSection
@@ -834,8 +876,8 @@
 								{#if values.location_map && !mapError}· con link al mapa{/if}
 							{/if}
 						</dd>
-						<dt>Organizan</dt>
-						<dd>{authors.join(', ') || '—'}</dd>
+						<dt>{personasData ? 'Personas' : 'Organizan'}</dt>
+						<dd>{peopleText || '—'}</dd>
 						<dt>Etiquetas</dt>
 						<dd>{splitList(values.tags).join(', ')}</dd>
 						{#if seriesPrompt && (seriesChoice === 'crear' || seriesChoice === 'agregar')}

@@ -69,7 +69,7 @@ export async function addRole(db, raw, { by, now = Date.now() }) {
 	}
 	const custom = await listCustomRoles(db);
 	if (findRole(mergeRoles(custom.map((r) => r.name)), name)) {
-		return { ok: false, status: 409, message: `«${name}» ya está en la lista.` };
+		return { ok: false, status: 409, message: `«${name}» ya está en la lista: elegilo de ahí.` };
 	}
 	if (custom.length >= MAX_CUSTOM_ROLES) {
 		return { ok: false, status: 400, message: `Hasta ${MAX_CUSTOM_ROLES} roles agregados.` };
@@ -81,7 +81,7 @@ export async function addRole(db, raw, { by, now = Date.now() }) {
 		.bind(name, now, by)
 		.run();
 	if (!res.meta.changes)
-		return { ok: false, status: 409, message: `«${name}» ya está en la lista.` };
+		return { ok: false, status: 409, message: `«${name}» ya está en la lista: elegilo de ahí.` };
 	return { ok: true, name };
 }
 
