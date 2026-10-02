@@ -1,181 +1,316 @@
 <script>
-	import { onMount } from 'svelte';
-	import { enhance } from '$app/forms';
-	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
-	import { formatARS } from '$lib/utils/money.js';
-	import { fieldsForTicketType } from '$lib/utils/signupFields.js';
-	import {
-		ORDER_MAX_MESSAGE,
-		computePrice,
-		defaultFondoOption,
-		exceedsOrderMax,
-		fondoOptionsFor,
-		gorraQuickAmounts,
-		mpSurcharge,
-		parseAmount,
-		formatSaleTime,
-		leftText,
-		purchaseConditions,
-		saleWindowText,
-		unitPrice
-	} from '$lib/utils/tickets.js';
-
 	/**
-	 * Formulario de compra de entradas (página /calendario/<slug>/entradas). Funciona sin
-	 * JavaScript (form actions `?/discount` y `?/buy`). Los precios, descuentos y recargos que se
+	 * Formulario de compra de entradas (página /calendario/<slug>/entradas), en tres pasos:
+	 * **Entradas → Tus datos → Pagar**, con el resumen de la compra siempre a la vista (columna al
+	 * costado en pantallas anchas, barra desplegable arriba en el celu).
+	 *
+	 * Es UN solo formulario: los pasos que no se ven quedan en la página (con `hidden`), así lo
+	 * escrito no se pierde al ir y volver, y se manda todo junto como siempre (form actions
+	 * `?/discount` y `?/buy`). Sin JavaScript se ven los tres pasos juntos (ver el <noscript> de
+	 * abajo) y funciona como antes. Con JavaScript, cada paso se valida antes de avanzar con las
+	 * mismas reglas que el servidor ($lib/utils/purchaseSteps.js); si el servidor devuelve
+	 * errores, se vuelve al primer paso que los tiene. Los precios, descuentos y recargos que se
 	 * muestran son informativos: el servidor recalcula todo con el frontmatter del evento y la
 	 * base de datos.
 	 *
-	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se borra al
-	 * cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale bien.
-	 * Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni sobrevive a
-	 * cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca se usa
-	 * localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a marcarla).
-	 *
-	 * @type {{
-	 *   tickets: import('$lib/server/tickets/checkout.js').TicketsView,
-	 *   result?: {
-	 *     error?: string | null,
-	 *     errors?: Record<string, string>,
-	 *     values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string> },
-	 *     discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
-	 *   } | null
-	 * }}
+	 * Lo que se va completando (y el paso) se guarda en `sessionStorage` (solo esta pestaña; se
+	 * borra al cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale
+	 * bien. Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
+	 * sobrevive a cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca
+	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
+	 * marcarla).
 	 */
-	let { tickets, result = null } = $props();
+	import { onMount, tick } from 'svelte';
+	import { enhance } from '$app/forms';
+	import { formatARS } from '$lib/utils/money.js';
+	import { fieldsForTicketType } from '$lib/utils/signupFields.js';
+	import {
+		computePrice,
+		defaultFondoOption,
+		fondoOptionsFor,
+		gorraQuickAmounts,
+		purchaseConditions,
+		saleWindowText
+	} from '$lib/utils/tickets.js';
+	import {
+		PURCHASE_STEPS,
+		STEP_BUYER,
+		STEP_PAY,
+		STEP_TICKETS,
+		buyerStepErrors,
+		errorsOutsideStep,
+		firstStepWithErrors,
+		furthestReachable,
+		gorraAmountFor,
+		payStepErrors,
+		purchaseSummary,
+		stepOfField,
+		ticketsStepErrors
+	} from '$lib/utils/purchaseSteps.js';
+	import StepIndicator from '$lib/components/purchase/StepIndicator.svelte';
+	import PurchaseSummary from '$lib/components/purchase/PurchaseSummary.svelte';
+	import TicketsStep from '$lib/components/purchase/TicketsStep.svelte';
+	import BuyerStep from '$lib/components/purchase/BuyerStep.svelte';
+	import PayStep from '$lib/components/purchase/PayStep.svelte';
 
 	/** @typedef {{ name: string, pronouns: string }} HolderValues */
+	/**
+	 * @typedef {{
+	 *   error?: string | null,
+	 *   errors?: Record<string, string>,
+	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string> },
+	 *   discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
+	 * } | null} BuyResult
+	 */
+
+	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
+	export let tickets;
+	/** Lo que devolvió la última form action (`form.buy`). @type {BuyResult | undefined} */
+	export let result = null;
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
-	// svelte-ignore state_referenced_locally
 	const initial = result?.values ?? {};
-	// svelte-ignore state_referenced_locally
 	const firstAvailable = tickets.types.find((t) => t.available > 0 && !t.closed)?.id ?? '';
-	let type = $state(initial.type || firstAvailable);
-	let quantity = $state(Math.max(1, Math.trunc(Number(initial.quantity)) || 1));
-	/** Lo que está escrito en el campo de cantidad (se puede tipear; se corrige al salir). */
-	let quantityText = $state(String(Math.max(1, Math.trunc(Number(initial.quantity)) || 1)));
-	let buyerName = $state(initial.name ?? '');
-	let buyerPronouns = $state(initial.pronouns ?? '');
-	let email = $state(initial.email ?? '');
-	let dni = $state(initial.dni ?? '');
-	let code = $state(initial.code ?? '');
-	// svelte-ignore state_referenced_locally
-	let method = $state(initial.method || tickets.methods[0] || 'mercadopago');
-	/** @type {string} */
-	let option = $state(initial.option ?? '');
+	let type = initial.type || firstAvailable;
+	let quantity = Math.max(1, Math.trunc(Number(initial.quantity)) || 1);
+	let buyerName = initial.name ?? '';
+	let buyerPronouns = initial.pronouns ?? '';
+	let email = initial.email ?? '';
+	let dni = initial.dni ?? '';
+	let code = initial.code ?? '';
+	let method = initial.method || tickets.methods[0] || 'mercadopago';
+	let option = initial.option ?? '';
 	/** Monto "a la gorra" por entrada, como texto (vacío = el sugerido). */
-	let amount = $state(initial.amount ?? '');
+	let amount = initial.amount ?? '';
 	/** @type {HolderValues[]} */
-	// svelte-ignore state_referenced_locally
-	let holders = $state(
-		Array.from({ length: tickets.maxQuantity }, (_, i) => ({
-			name: initial.holders?.[i]?.name ?? '',
-			pronouns: initial.holders?.[i]?.pronouns ?? ''
-		}))
-	);
+	let holders = Array.from({ length: tickets.maxQuantity }, (_, i) => ({
+		name: initial.holders?.[i]?.name ?? '',
+		pronouns: initial.holders?.[i]?.pronouns ?? ''
+	}));
 	// La entrada 1 copia el nombre y los pronombres de quien compra hasta que alguien los edite.
-	// svelte-ignore state_referenced_locally
-	let firstHolderEdited = $state(Boolean(initial.holders?.[0]?.name));
-	// svelte-ignore state_referenced_locally
-	let firstPronounsEdited = $state(Boolean(initial.holders?.[0]?.pronouns));
-	$effect(() => {
-		if (!firstHolderEdited) holders[0].name = buyerName;
-	});
-	$effect(() => {
-		if (!firstPronounsEdited) holders[0].pronouns = buyerPronouns;
-	});
-	let pending = $state(false);
+	let firstHolderEdited = Boolean(initial.holders?.[0]?.name);
+	let firstPronounsEdited = Boolean(initial.holders?.[0]?.pronouns);
+	let pending = false;
 
-	let selected = $derived(tickets.types.find((t) => t.id === type));
+	// Solo dependen de lo que escribe quien compra (las funciones no se siguen como dependencias).
+	$: copyBuyerName(buyerName);
+	$: copyBuyerPronouns(buyerPronouns);
+	/** @param {string} name */
+	function copyBuyerName(name) {
+		if (firstHolderEdited || !holders[0]) return;
+		holders[0].name = name;
+		holders = holders;
+	}
+	/** @param {string} pronouns */
+	function copyBuyerPronouns(pronouns) {
+		if (firstPronounsEdited || !holders[0]) return;
+		holders[0].pronouns = pronouns;
+		holders = holders;
+	}
+
+	// --- Pasos ---
+	/** Errores que se muestran: los del servidor y los de cada paso al querer avanzar. */
+	/** @type {Record<string, string>} */
+	let errors = result?.errors ?? {};
+	/** Paso actual (0, 1, 2). Si el servidor devolvió errores, el primero que los tiene. */
+	let step = firstStepWithErrors(errors) ?? (result?.error ? STEP_PAY : STEP_TICKETS);
+	/** Hasta dónde se llegó (para saltar con el indicador). */
+	let reached = result?.values ? STEP_PAY : step;
+	/** Pasos en los que ya se quiso avanzar: ahí los errores se actualizan mientras se escribe. */
+	let tried = [false, false, false];
+	/** Con JavaScript: valida cada paso (en lugar de los avisos del navegador). */
+	let enhanced = false;
+	/** @type {HTMLFormElement | undefined} */
+	let formEl;
+	/** @type {(HTMLElement | null)[]} */
+	let headings = [];
+
+	$: selected = tickets.types.find((t) => t.id === type);
 	// Preguntas de inscripción que aplican al tipo elegido: las de una vez por compra van al
 	// final; las de una vez por entrada, dentro de cada entrada.
-	let typeFields = $derived(fieldsForTicketType(tickets.fields ?? [], type));
-	let purchaseFields = $derived(typeFields.filter((f) => !f.perTicket));
-	let ticketFields = $derived(typeFields.filter((f) => f.perTicket));
-	let gorra = $derived(selected?.gorra ?? null);
+	$: typeFields = fieldsForTicketType(tickets.fields ?? [], type);
+	$: purchaseFields = typeFields.filter((f) => !f.perTicket);
+	$: ticketFields = typeFields.filter((f) => f.perTicket);
+	$: gorra = selected?.gorra ?? null;
 	// "¿Cómo querés pagar tu entrada?": sin fondo en este tipo, no se ofrece el descuento del
 	// fondo y la opción por defecto es precio completo. No aplica a la gorra.
 	// Sin la etiqueta KinkyVibe no hay Fondo: solo el precio de lista (el servidor hace lo mismo).
-	let fondoOptions = $derived(
-		tickets.fondoEnabled
-			? fondoOptionsFor(selected?.fondo ?? 0)
-			: fondoOptionsFor(0).filter((o) => o.id === 'completo')
-	);
-	let chosenOption = $derived(
+	$: fondoOptions = tickets.fondoEnabled
+		? fondoOptionsFor(selected?.fondo ?? 0)
+		: fondoOptionsFor(0).filter((o) => o.id === 'completo');
+	$: chosenOption =
 		fondoOptions.find((o) => o.id === option) ??
-			fondoOptions.find((o) => o.id === defaultFondoOption(selected?.fondo ?? 0)) ??
-			fondoOptions[0]
-	);
-	let maxQuantity = $derived(Math.max(1, Math.min(tickets.maxQuantity, selected?.available ?? 1)));
-	let count = $derived(Math.max(1, Math.min(quantity, maxQuantity)));
-	let errors = $derived(result?.errors ?? {});
+		fondoOptions.find((o) => o.id === defaultFondoOption(selected?.fondo ?? 0)) ??
+		fondoOptions[0];
+	$: maxQuantity = Math.max(1, Math.min(tickets.maxQuantity, selected?.available ?? 1));
+	$: count = Math.max(1, Math.min(quantity, maxQuantity));
+	// Si cambia el tipo y hay menos disponibles, la cantidad baja al máximo nuevo.
+	$: if (quantity > maxQuantity) quantity = maxQuantity;
 	// El descuento aplicado vale mientras el código escrito sea el mismo (y no a la gorra).
-	let applied = $derived(
+	$: applied =
 		!gorra && result?.discount && result.discount.code === code.trim().toUpperCase()
 			? result.discount
-			: null
-	);
-	/** Monto a la gorra por entrada que se va a cobrar (`null` si lo escrito no es válido). */
-	let gorraAmount = $derived.by(() => {
-		if (!gorra) return null;
-		if (!amount.trim()) return gorra.suggested;
-		const n = parseAmount(amount);
-		return n !== null && n >= gorra.min && !exceedsOrderMax(n, count) ? n : null;
-	});
-	/** Lo escrito es un número válido pero pasa el tope técnico de la orden (¿un cero de más?). */
-	let gorraTooHigh = $derived.by(() => {
-		if (!gorra || !amount.trim()) return false;
-		const n = parseAmount(amount);
-		return n !== null && exceedsOrderMax(n, count);
-	});
+			: null;
+	/** Monto a la gorra por entrada que se va a cobrar (`value: null` si lo escrito no sirve). */
+	$: gorraState = gorraAmountFor(gorra, amount, count);
+	$: gorraAmount = gorraState.value;
 	/** Montos rápidos: el mínimo (si es mayor a 0), el sugerido, 1,5 × el sugerido y el doble. */
-	let gorraChips = $derived(gorra ? gorraQuickAmounts(gorra.min, gorra.suggested) : []);
-	let prices = $derived(
-		computePrice({
-			price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
-			fondo: selected?.fondo ?? 0,
-			option: gorra ? 'gorra' : chosenOption.id,
-			quantity: selected ? count : 0,
-			discount: applied,
-			method,
-			feeBasisPoints: tickets.feeBasisPoints
-		})
-	);
-	let free = $derived(
-		Boolean(selected) && (!gorra || gorraAmount !== null) && prices.subtotal - prices.discount === 0
-	);
-	let conditions = $derived(
-		purchaseConditions({
-			contactEmail: tickets.contactEmail,
-			transferHoldHours: tickets.transferHoldHours,
-			methods: tickets.methods,
-			online: tickets.online
-		})
-	);
-
-	/** @param {number} n */
-	function setQuantity(n) {
-		quantity = Math.max(1, Math.min(maxQuantity, n));
-		quantityText = String(quantity);
-	}
-
-	/** @param {Event & { currentTarget: HTMLInputElement }} e */
-	function typedQuantity(e) {
-		quantityText = e.currentTarget.value;
-		const n = Math.trunc(Number(quantityText));
-		if (quantityText.trim() && Number.isFinite(n) && n >= 1) quantity = Math.min(n, maxQuantity);
-	}
-
-	// Si cambia el tipo y hay menos disponibles, la cantidad baja al máximo nuevo.
-	$effect(() => {
-		if (quantity > maxQuantity) setQuantity(maxQuantity);
+	$: gorraChips = gorra ? gorraQuickAmounts(gorra.min, gorra.suggested) : [];
+	$: prices = computePrice({
+		price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
+		fondo: selected?.fondo ?? 0,
+		option: gorra ? 'gorra' : chosenOption.id,
+		quantity: selected ? count : 0,
+		discount: applied,
+		method,
+		feeBasisPoints: tickets.feeBasisPoints
 	});
+	$: free =
+		Boolean(selected) &&
+		(!gorra || gorraAmount !== null) &&
+		prices.subtotal - prices.discount === 0;
+	$: conditions = purchaseConditions({
+		contactEmail: tickets.contactEmail,
+		transferHoldHours: tickets.transferHoldHours,
+		methods: tickets.methods,
+		online: tickets.online
+	});
+	$: summary = purchaseSummary({
+		type: selected,
+		count,
+		prices,
+		gorra: Boolean(gorra),
+		showOption: tickets.fondoEnabled,
+		discountCode: applied?.code ?? null,
+		free,
+		feeBasisPoints: tickets.feeBasisPoints,
+		methods: tickets.methods
+	});
+
+	/**
+	 * Respuestas a las preguntas de inscripción, como están escritas en el formulario (esos campos
+	 * no se guardan en variables: ver SignupFieldInputs).
+	 * @returns {Record<string, string>}
+	 */
+	function readAnswers() {
+		if (!formEl) return {};
+		/** @type {Record<string, string>} */
+		const out = {};
+		for (const [name, value] of new FormData(formEl)) {
+			if (name.startsWith('campo_') && typeof value === 'string') out[name] = value;
+		}
+		return out;
+	}
+
+	/**
+	 * Errores de un paso con lo que hay escrito ahora.
+	 * @param {number} s
+	 * @returns {Record<string, string>}
+	 */
+	function stepErrors(s) {
+		if (s === STEP_TICKETS) {
+			return ticketsStepErrors({ type: selected, count, maxQuantity, amount });
+		}
+		if (s === STEP_BUYER) {
+			return buyerStepErrors({
+				buyer: { name: buyerName, pronouns: buyerPronouns, email, dni },
+				holders,
+				count,
+				fields: typeFields,
+				typeId: type,
+				answers: readAnswers()
+			});
+		}
+		const accept = /** @type {HTMLInputElement | null | undefined} */ (
+			formEl?.querySelector('input[name="accept"]')
+		);
+		return payStepErrors({
+			method,
+			methods: tickets.methods,
+			free,
+			accept: Boolean(accept?.checked)
+		});
+	}
+
+	/**
+	 * Muestra los errores de un paso (reemplaza los que había de ese paso). Devuelve si tiene.
+	 * @param {number} s
+	 */
+	function checkStep(s) {
+		const found = stepErrors(s);
+		errors = { ...errorsOutsideStep(errors, s), ...found };
+		return Object.keys(found).length > 0;
+	}
+
+	/**
+	 * Cambia de paso y lleva el foco a su título (así un lector de pantalla anuncia dónde está).
+	 * @param {number} s
+	 * @param {{ focus?: 'heading' | 'error' }} [o] `error`: al primer campo marcado del paso
+	 */
+	async function showStep(s, o = {}) {
+		step = s;
+		if (s > reached) reached = s;
+		await tick();
+		const section = headings[s]?.closest('section');
+		/** @type {HTMLElement | null | undefined} */
+		const target =
+			o.focus === 'error'
+				? (section?.querySelector('[aria-invalid="true"], [data-invalid] input:not(:disabled)') ??
+					headings[s])
+				: headings[s];
+		target?.focus({ preventScroll: true });
+		target?.scrollIntoView?.({ block: o.focus === 'error' ? 'center' : 'start' });
+	}
+
+	/**
+	 * Ir a un paso: para atrás siempre; para adelante, solo si los pasos del medio están bien (si
+	 * no, se queda en el primero con errores y los muestra).
+	 * @param {number} target
+	 */
+	function goTo(target) {
+		if (target <= step) {
+			showStep(target);
+			return;
+		}
+		const byStep = PURCHASE_STEPS.map((_, s) => (s >= step && s < target ? stepErrors(s) : {}));
+		const stop = furthestReachable(byStep, target);
+		if (stop < target) {
+			tried[stop] = true;
+			checkStep(stop);
+			showStep(stop, { focus: 'error' });
+			return;
+		}
+		for (let s = step; s < target; s++) errors = errorsOutsideStep(errors, s);
+		showStep(target);
+	}
+
+	/** Mientras se completa un paso en el que ya se quiso avanzar, los errores se actualizan. */
+	/** @param {number} s */
+	async function revalidate(s) {
+		if (!tried[s]) return;
+		await tick();
+		checkStep(s);
+	}
+
+	// Si el servidor devolvió el formulario (errores, o el código aplicado), se muestran sus
+	// errores y se vuelve al primer paso que los tiene.
+	let lastResult = result;
+	$: onResult(result);
+	/** @param {BuyResult | undefined} r */
+	function onResult(r) {
+		if (r === lastResult) return;
+		lastResult = r;
+		errors = r?.errors ?? {};
+		tried = [false, false, false];
+		const s = firstStepWithErrors(errors);
+		if (s !== null) showStep(s, { focus: 'error' });
+		else if (r?.error) showStep(STEP_PAY, { focus: 'error' });
+	}
 
 	// --- Borrador en sessionStorage (ver arriba) ---
 	const DRAFT_VERSION = 2;
 	let draftKey = '';
-	let draftReady = $state(false);
+	let draftReady = false;
 
 	function readDraft() {
 		try {
@@ -195,13 +330,14 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
+		enhanced = true;
 		draftKey = `kv-entradas:${location.pathname}`;
 		// Si el servidor devolvió el formulario (con errores), eso manda.
 		const d = result?.values ? null : readDraft();
 		if (d) {
 			if (tickets.types.some((t) => t.id === d.type && t.available > 0 && !t.closed)) type = d.type;
-			if (Number(d.quantity) >= 1) setQuantity(Number(d.quantity));
+			if (Number(d.quantity) >= 1) quantity = Math.trunc(Number(d.quantity));
 			if (typeof d.option === 'string') option = d.option;
 			if (typeof d.amount === 'string') amount = d.amount;
 			if (typeof d.method === 'string' && tickets.methods.includes(d.method)) method = d.method;
@@ -219,34 +355,45 @@
 						holders[i] = { name: String(h?.name ?? ''), pronouns: String(h?.pronouns ?? '') };
 					});
 			}
+			// El paso donde estaba, si los anteriores siguen bien (sin mover el foco).
+			const saved = Math.max(0, Math.min(STEP_PAY, Math.trunc(Number(d.step)) || 0));
+			if (saved > 0) {
+				await tick();
+				const byStep = PURCHASE_STEPS.map((_, s) => (s < saved ? stepErrors(s) : {}));
+				step = furthestReachable(byStep, saved);
+				reached = step;
+			}
 		}
 		draftReady = true;
 	});
 
-	$effect(() => {
-		if (!draftReady) return;
-		const draft = JSON.stringify({
-			v: DRAFT_VERSION,
-			type,
-			quantity,
-			option,
-			amount,
-			method,
-			name: buyerName,
-			pronouns: buyerPronouns,
-			email,
-			dni,
-			code,
-			firstHolderEdited,
-			firstPronounsEdited,
-			holders: holders.slice(0, count).map((h) => ({ name: h.name, pronouns: h.pronouns }))
-		});
+	$: draft = {
+		v: DRAFT_VERSION,
+		step,
+		type,
+		quantity,
+		option,
+		amount,
+		method,
+		name: buyerName,
+		pronouns: buyerPronouns,
+		email,
+		dni,
+		code,
+		firstHolderEdited,
+		firstPronounsEdited,
+		holders: holders.slice(0, count).map((h) => ({ name: h.name, pronouns: h.pronouns }))
+	};
+	$: if (draftReady) saveDraft(draft);
+
+	/** @param {Record<string, unknown>} d */
+	function saveDraft(d) {
 		try {
-			sessionStorage.setItem(draftKey, draft);
+			sessionStorage.setItem(draftKey, JSON.stringify(d));
 		} catch {
 			// sin sessionStorage: el formulario funciona igual, solo no sobrevive a una recarga
 		}
-	});
+	}
 
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
@@ -258,21 +405,36 @@
 		unavailable: 'La venta online no está disponible en este momento.'
 	};
 
-	let submitText = $derived(
-		pending
-			? 'Un momento…'
-			: free
-				? 'Confirmar entradas sin cargo'
-				: method === 'transferencia'
-					? 'Reservar y ver cómo transferir'
-					: 'Ir a pagar con Mercado Pago'
-	);
+	$: submitText = pending
+		? 'Un momento…'
+		: free
+			? 'Confirmar entradas sin cargo'
+			: method === 'transferencia'
+				? 'Reservar y ver cómo transferir'
+				: 'Ir a pagar con Mercado Pago';
 
-	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
-	let feeText = $derived(
-		(tickets.feeBasisPoints / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 }) + ' %'
+	$: closesText = tickets.closesAt ? `${saleWindowText({ closesAt: tickets.closesAt })}.` : '';
+	/** Pasos que tienen algún error a la vista. */
+	$: stepsWithErrors = new Set(
+		Object.keys(errors)
+			.filter((k) => errors[k])
+			.map(stepOfField)
 	);
 </script>
+
+<svelte:head>
+	<!-- Sin JavaScript: los tres pasos juntos, como un formulario común (sin botones de paso). -->
+	<noscript>
+		<style>
+			.purchase-step[hidden] {
+				display: flex !important;
+			}
+			.js-only {
+				display: none !important;
+			}
+		</style>
+	</noscript>
+</svelte:head>
 
 <section class="tickets" id="entradas" aria-labelledby="entradas-titulo">
 	<h2 id="entradas-titulo">Comprar entradas</h2>
@@ -295,510 +457,144 @@
 			{/each}
 		</ul>
 	{:else}
-		<form
-			method="POST"
-			action="?/buy"
-			use:enhance={({ submitter }) => {
-				const applying = submitter?.getAttribute('formaction')?.includes('discount');
-				if (!applying) pending = true;
-				return async ({ result: res, update }) => {
-					// La compra salió bien (vamos a pagar, a los datos para transferir o a las
-					// entradas): ya no hace falta el borrador.
-					if (res.type === 'redirect') clearDraft();
-					if (res.type === 'redirect' && /^https?:/.test(res.location)) {
-						// El checkout de Mercado Pago es otro sitio: navegación completa.
-						window.location.href = res.location;
-						return;
+		<div class="js-only">
+			<StepIndicator
+				steps={PURCHASE_STEPS}
+				current={step}
+				reachable={reached}
+				on:select={(e) => goTo(e.detail)}
+			/>
+		</div>
+		{#if result?.error}
+			<p class="form-error" role="alert">{result.error}</p>
+		{/if}
+		<div class="layout">
+			<PurchaseSummary {summary} {closesText} collapseKey={step} />
+			<form
+				method="POST"
+				action="?/buy"
+				novalidate={enhanced}
+				bind:this={formEl}
+				use:enhance={({ submitter, cancel }) => {
+					const applying = submitter?.getAttribute('formaction')?.includes('discount');
+					if (!applying) {
+						// Todos los pasos, por si algo cambió al volver atrás.
+						const byStep = PURCHASE_STEPS.map((_, s) => stepErrors(s));
+						const stop = furthestReachable(byStep, PURCHASE_STEPS.length);
+						if (stop < PURCHASE_STEPS.length) {
+							cancel();
+							tried[stop] = true;
+							checkStep(stop);
+							showStep(stop, { focus: 'error' });
+							return;
+						}
+						pending = true;
 					}
-					await update({ reset: false });
-					pending = false;
-				};
-			}}
-		>
-			<fieldset class="types">
-				<legend>Tipo de entrada</legend>
-				<!-- Tramo de preventa que se está viendo: el servidor elige el precio, esto solo sirve
-				     para avisar si cambió antes de cobrar. -->
-				<input type="hidden" name="tier" value={selected?.tier?.id ?? ''} />
-				{#each tickets.types as t (t.id)}
-					<label class="type" class:soldout={t.available === 0 || t.closed}>
-						<input
-							type="radio"
-							name="type"
-							value={t.id}
-							bind:group={type}
-							disabled={t.available === 0 || t.closed}
-							required
-						/>
-						<span class="type-name"
-							>{t.name}{#if t.tier}<span class="type-tier">{t.tier.name}</span>{/if}</span
-						>
-						<span class="type-price">
-							{#if t.gorra}
-								<strong>A la gorra</strong>
-							{:else}
-								{#if t.fondo}<s class="list-price" aria-label="precio completo {formatARS(t.price)}"
-										>{formatARS(t.price)}</s
-									>{/if}
-								<strong>{formatARS(t.price - t.fondo)}</strong>
-							{/if}
-						</span>
-						{#if t.gorra}
-							<small class="type-fondo">
-								Pagás lo que quieras: sugerido {formatARS(t.gorra.suggested)}{#if t.gorra.min},
-									mínimo
-									{formatARS(t.gorra.min)}{/if}
-							</small>
-						{:else if t.fondo}
-							<small class="type-fondo">
-								💜 Con el descuento del Fondo KinkyVibe ({formatARS(t.fondo)} menos)
-							</small>
+					return async ({ result: res, update }) => {
+						// La compra salió bien (vamos a pagar, a los datos para transferir o a las
+						// entradas): ya no hace falta el borrador.
+						if (res.type === 'redirect') clearDraft();
+						if (res.type === 'redirect' && /^https?:/.test(res.location)) {
+							// El checkout de Mercado Pago es otro sitio: navegación completa.
+							window.location.href = res.location;
+							return;
+						}
+						await update({ reset: false });
+						pending = false;
+					};
+				}}
+			>
+				{#each PURCHASE_STEPS as s, i (s.id)}
+					<section
+						class="purchase-step"
+						id="paso-{s.id}"
+						hidden={step !== i}
+						aria-labelledby="paso-{s.id}-titulo"
+						on:input={() => revalidate(i)}
+						on:change={() => revalidate(i)}
+					>
+						<h3 id="paso-{s.id}-titulo" tabindex="-1" bind:this={headings[i]}>
+							<span class="step-of">Paso {i + 1} de {PURCHASE_STEPS.length}</span>
+							{s.label}
+						</h3>
+						{#if tried[i] && stepsWithErrors.has(i)}
+							<p class="step-error js-only" role="alert">Revisá lo marcado para seguir.</p>
 						{/if}
-						<small class="type-left">
-							{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
-									t.left
-								)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
-								{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
-									t.closesAt
-								)}{/if}
-						</small>
-					</label>
-				{/each}
-				{#if errors.type}<p class="field-error">{errors.type}</p>{/if}
-			</fieldset>
-
-			{#if selected && gorra}
-				<div class="field gorra">
-					<label for="entradas-monto">¿Cuánto querés pagar por entrada?</label>
-					<div class="amount-row">
-						<span class="currency" aria-hidden="true">$</span>
-						<input
-							id="entradas-monto"
-							type="text"
-							name="amount"
-							inputmode="numeric"
-							autocomplete="off"
-							maxlength="12"
-							placeholder={String(gorra.suggested)}
-							bind:value={amount}
-							aria-describedby="entradas-monto-ayuda"
-							aria-invalid={errors.amount || (amount.trim() && gorraAmount === null)
-								? 'true'
-								: undefined}
-						/>
-					</div>
-					<div class="chips" role="group" aria-label="Montos rápidos">
-						{#each gorraChips as n (n)}
-							<button
-								type="button"
-								class="chip"
-								aria-pressed={gorraAmount === n}
-								onclick={() => (amount = String(n))}
-								>{n === 0 ? 'Sin cargo' : formatARS(n)}{#if n === gorra?.suggested}&nbsp;· sugerido{/if}</button
-							>
-						{/each}
-					</div>
-					<small class="hint" id="entradas-monto-ayuda">
-						Sugerido {formatARS(gorra.suggested)}{#if gorra.min}, mínimo {formatARS(
-								gorra.min
-							)}{:else}. Si no podés pagar, poné 0{/if}. En las entradas a la gorra no se aplican el
-						descuento del Fondo KinkyVibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
-							Mercado Pago se suma el recargo de la comisión){/if}.
-					</small>
-					{#if errors.amount}
-						<span class="field-error">{errors.amount}</span>
-					{:else if gorraTooHigh}
-						<span class="field-error">{ORDER_MAX_MESSAGE}</span>
-					{:else if amount.trim() && gorraAmount === null}
-						<span class="field-error"
-							>Escribí un monto en pesos (sin centavos), desde {formatARS(gorra.min)}.</span
-						>
-					{/if}
-				</div>
-			{:else if selected && tickets.fondoEnabled}
-				<fieldset class="options">
-					<legend>¿Cómo querés pagar tu entrada?</legend>
-					<small class="hint">
-						El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener"
-							>Fondo KinkyVibe</a
-						>
-						baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
-							mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más
-						va entero al fondo.
-					</small>
-					{#each fondoOptions as o (o.id)}
-						{@const u = unitPrice(selected.price, selected.fondo, o.id)}
-						<label class="option">
-							<input
-								type="radio"
-								name="option"
-								value={o.id}
-								checked={chosenOption.id === o.id}
-								onchange={() => (option = o.id)}
+						{#if i === STEP_TICKETS}
+							<TicketsStep
+								{tickets}
+								bind:type
+								bind:option
+								bind:amount
+								bind:quantity
+								bind:code
+								{selected}
+								{gorraState}
+								{gorraChips}
+								{fondoOptions}
+								{chosenOption}
+								{maxQuantity}
+								{count}
+								{errors}
+								{applied}
 							/>
-							<span class="option-name">
-								{o.label}{#if o.percent}{' '}<small>(+{o.percent} %)</small>{/if}
-							</span>
-							<strong class="option-price">{formatARS(u.price)}</strong>
-							<small class="option-note">
-								{#if o.id === 'fondo'}
-									el fondo cubre {formatARS(u.fondo)} de cada entrada
-								{:else if o.id === 'completo'}
-									{selected.fondo ? 'sin usar el descuento del fondo' : 'precio de la entrada'}
-								{:else}
-									{formatARS(u.contribution)} por entrada van al Fondo KinkyVibe
-								{/if}
-							</small>
-						</label>
-					{/each}
-					{#if errors.option}<p class="field-error">{errors.option}</p>{/if}
-				</fieldset>
-			{/if}
-
-			<div class="field qty">
-				<label for="entradas-cantidad">Cantidad</label>
-				<div class="stepper">
-					<button
-						type="button"
-						class="step"
-						aria-label="Una entrada menos"
-						aria-controls="entradas-cantidad"
-						disabled={count <= 1}
-						onclick={() => setQuantity(count - 1)}>−</button
-					>
-					<input
-						id="entradas-cantidad"
-						type="number"
-						name="quantity"
-						inputmode="numeric"
-						min="1"
-						max={maxQuantity}
-						step="1"
-						required
-						value={quantityText}
-						oninput={typedQuantity}
-						onblur={() => setQuantity(count)}
-						aria-invalid={errors.quantity ? 'true' : undefined}
-					/>
-					<button
-						type="button"
-						class="step"
-						aria-label="Una entrada más"
-						aria-controls="entradas-cantidad"
-						disabled={count >= maxQuantity}
-						onclick={() => setQuantity(count + 1)}>+</button
-					>
-				</div>
-				{#if errors.quantity}<span class="field-error">{errors.quantity}</span>{/if}
-			</div>
-
-			<fieldset class="group">
-				<legend>Tus datos</legend>
-				<div class="row">
-					<label class="field">
-						<span>Tu nombre</span>
-						<input
-							type="text"
-							name="name"
-							autocomplete="name"
-							minlength="2"
-							maxlength="80"
-							required
-							bind:value={buyerName}
-							aria-invalid={errors.name ? 'true' : undefined}
-						/>
-						{#if errors.name}<span class="field-error">{errors.name}</span>{/if}
-					</label>
-					<div class="field">
-						<span class="label-row">
-							<label for="entradas-tus-pronombres">Tus pronombres</label>
-							<a
-								class="help"
-								href="https://pronombr.es"
-								target="_blank"
-								rel="noopener"
-								title="¿Qué son los pronombres? (se abre en otra pestaña)"
-								aria-label="¿Qué son los pronombres? (se abre en otra pestaña)">?</a
+						{:else if i === STEP_BUYER}
+							<BuyerStep
+								bind:buyerName
+								bind:buyerPronouns
+								bind:email
+								bind:dni
+								bind:holders
+								bind:firstHolderEdited
+								bind:firstPronounsEdited
+								{count}
+								{ticketFields}
+								{purchaseFields}
+								answers={result?.values?.answers ?? {}}
+								{errors}
+							/>
+						{:else}
+							<PayStep
+								{tickets}
+								bind:method
+								{free}
+								{conditions}
+								{errors}
+								{submitText}
+								submitDisabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
 							>
-						</span>
-						<input
-							id="entradas-tus-pronombres"
-							type="text"
-							name="pronouns"
-							maxlength="40"
-							placeholder="ella, él, elle…"
-							autocomplete="off"
-							required
-							bind:value={buyerPronouns}
-							aria-invalid={errors.pronouns ? 'true' : undefined}
-						/>
-						{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
-					</div>
-				</div>
-				<div class="row">
-					<label class="field">
-						<span>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</span>
-						<input
-							type="email"
-							name="email"
-							autocomplete="email"
-							maxlength="254"
-							required
-							bind:value={email}
-							aria-invalid={errors.email ? 'true' : undefined}
-						/>
-						{#if errors.email}<span class="field-error">{errors.email}</span>{/if}
-					</label>
-					<label class="field">
-						<span>DNI (número de documento)</span>
-						<input
-							type="text"
-							name="dni"
-							inputmode="numeric"
-							autocomplete="off"
-							maxlength="12"
-							required
-							placeholder="12.345.678"
-							bind:value={dni}
-							aria-invalid={errors.dni ? 'true' : undefined}
-						/>
-						{#if errors.dni}<span class="field-error">{errors.dni}</span>{/if}
-					</label>
-				</div>
-				<small class="hint">
-					El email y el DNI son datos administrativos de la compra: el DNI no aparece en las
-					entradas ni en los mails.
-				</small>
-			</fieldset>
-
-			<fieldset class="group">
-				<legend>{count === 1 ? 'Tu entrada' : 'Las entradas'}</legend>
-				<small class="hint">
-					Nombre y pronombres de cada persona, para el evento. El nombre es como le conocen: no
-					tiene que ser el del documento.
-				</small>
-				{#each Array.from({ length: count }, (v, n) => n) as i (i)}
-					<fieldset class="holder">
-						<legend
-							>Entrada {i + 1}{#if i === 0}&nbsp;(vos){/if}</legend
-						>
-						<div class="row">
-							<label class="field">
-								<span>Nombre</span>
-								<input
-									type="text"
-									name="holder_name_{i}"
-									autocomplete="off"
-									maxlength="80"
-									required={i > 0}
-									bind:value={holders[i].name}
-									oninput={() => {
-										if (i === 0) firstHolderEdited = true;
-									}}
-									aria-invalid={errors[`holder_name_${i}`] ? 'true' : undefined}
-								/>
-								{#if errors[`holder_name_${i}`]}
-									<span class="field-error">{errors[`holder_name_${i}`]}</span>
-								{/if}
-							</label>
-							<div class="field">
-								<span class="label-row">
-									<label for="entradas-pronombres-{i}">Pronombres</label>
-									<a
-										class="help"
-										href="https://pronombr.es"
-										target="_blank"
-										rel="noopener"
-										title="¿Qué son los pronombres? (se abre en otra pestaña)"
-										aria-label="¿Qué son los pronombres? (se abre en otra pestaña)">?</a
-									>
-								</span>
-								<input
-									id="entradas-pronombres-{i}"
-									type="text"
-									name="holder_pronouns_{i}"
-									maxlength="40"
-									placeholder="ella, él, elle…"
-									autocomplete="off"
-									required={i > 0}
-									bind:value={holders[i].pronouns}
-									oninput={() => {
-										if (i === 0) firstPronounsEdited = true;
-									}}
-									aria-invalid={errors[`holder_pronouns_${i}`] ? 'true' : undefined}
-								/>
-								{#if errors[`holder_pronouns_${i}`]}
-									<span class="field-error">{errors[`holder_pronouns_${i}`]}</span>
-								{/if}
-							</div>
-						</div>
-						<SignupFieldInputs
-							fields={ticketFields}
-							ticket={i}
-							legend=""
-							hint={false}
-							values={result?.values?.answers ?? {}}
-							{errors}
-						/>
-					</fieldset>
-				{/each}
-			</fieldset>
-
-			<!-- Preguntas de inscripción del evento (interruptor personas_eventos; si no hay, nada). -->
-			<SignupFieldInputs fields={purchaseFields} values={result?.values?.answers ?? {}} {errors} />
-			{#if ticketFields.length && !purchaseFields.length}
-				<small class="hint">Tus respuestas las ven solo les organizadores.</small>
-			{/if}
-
-			{#if !gorra}
-				<div class="field code">
-					<label for="entradas-codigo">Código de descuento (opcional)</label>
-					<div class="code-row">
-						<input
-							id="entradas-codigo"
-							type="text"
-							name="code"
-							maxlength="32"
-							autocomplete="off"
-							autocapitalize="characters"
-							spellcheck="false"
-							bind:value={code}
-							aria-invalid={errors.code ? 'true' : undefined}
-						/>
-						<button
-							type="submit"
-							class="secondary"
-							formaction="?/discount"
-							formnovalidate
-							disabled={!code.trim()}>Aplicar</button
-						>
-					</div>
-					{#if errors.code}
-						<span class="field-error" role="alert">{errors.code}</span>
-					{:else if applied}
-						<span class="applied" role="status">✓ {applied.message}</span>
-					{/if}
-				</div>
-			{/if}
-
-			{#if tickets.methods.length > 1 && !free}
-				<fieldset class="methods">
-					<legend>Medio de pago</legend>
-					<div class="method-cards">
-						{#each tickets.methods as m (m)}
-							<label class="method">
-								<input type="radio" name="method" value={m} bind:group={method} />
-								<span>
-									<strong>{m === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}</strong>
-									<small
-										>{m === 'mercadopago'
-											? 'tarjeta o dinero en cuenta'
-											: 'bancaria, sin recargo'}</small
-									>
-								</span>
-							</label>
-						{/each}
-					</div>
-					<!-- Las dos explicaciones ocupan el mismo lugar (la más larga define el alto): al
-					     cambiar de medio no se mueve nada. -->
-					<div class="method-notes">
-						{#each tickets.methods as m (m)}
-							<p class="method-note" class:shown={method === m} aria-hidden={method !== m}>
-								{#if m === 'mercadopago'}
-									Pagás en Mercado Pago{#if tickets.feeBasisPoints}, con el recargo de la comisión ({feeText}){/if}.
-									Te reservamos el lugar 20 minutos mientras pagás.
-								{:else}
-									Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar {tickets.transferHoldHours}
-									horas mientras mandás el comprobante por mail.
-								{/if}
-							</p>
-						{/each}
-					</div>
-					{#if errors.method}<p class="field-error">{errors.method}</p>{/if}
-				</fieldset>
-			{:else}
-				<input type="hidden" name="method" value={free ? '' : (tickets.methods[0] ?? '')} />
-			{/if}
-
-			<details class="conditions">
-				<summary>Condiciones de compra y devoluciones</summary>
-				<ul>
-					{#each conditions as c, i (i)}
-						<li>{c}</li>
-					{/each}
-				</ul>
-			</details>
-
-			<label class="accept">
-				<input type="checkbox" name="accept" required />
-				<span>Tengo 18 años o más y acepto las condiciones de compra.</span>
-			</label>
-			{#if errors.accept}<p class="field-error">{errors.accept}</p>{/if}
-
-			{#if result?.error}
-				<p class="form-error" role="alert">{result.error}</p>
-			{/if}
-
-			<div class="pay">
-				<div class="breakdown" aria-live="polite">
-					{#if selected}
-						<p class="line">
-							<span
-								>Entradas ({count} × {formatARS(prices.unit)}){#if gorra}&nbsp;a la gorra{/if}</span
-							>
-							<span>{formatARS(prices.subtotal)}</span>
-						</p>
-						{#if prices.fondo}
-							<p class="line note">
-								<span>💜 Ya descontado: el Fondo KinkyVibe cubre {formatARS(prices.fondo)}</span>
-							</p>
-						{/if}
-						{#if prices.contribution}
-							<p class="line note">
-								<span>💜 Incluye {formatARS(prices.contribution)} de aporte al Fondo KinkyVibe</span
+								<button
+									slot="back"
+									type="button"
+									class="back js-only"
+									on:click={() => goTo(STEP_BUYER)}
+									>Volver a {PURCHASE_STEPS[STEP_BUYER].label}</button
 								>
-							</p>
+							</PayStep>
 						{/if}
-						{#if prices.discount}
-							<p class="line">
-								<span>Código {applied?.code}</span>
-								<span>−{formatARS(prices.discount)}</span>
-							</p>
+						{#if i < STEP_PAY}
+							<div class="step-nav js-only">
+								{#if i > 0}
+									<button type="button" class="back" on:click={() => goTo(i - 1)}
+										>Volver a {PURCHASE_STEPS[i - 1].label}</button
+									>
+								{/if}
+								<button type="button" class="next" on:click={() => goTo(i + 1)}
+									>Continuar<span class="next-to">: {PURCHASE_STEPS[i + 1].label}</span></button
+								>
+							</div>
 						{/if}
-						{#if prices.surcharge}
-							<p class="line">
-								<span>Recargo Mercado Pago</span>
-								<span>+{formatARS(prices.surcharge)}</span>
-							</p>
-						{:else if tickets.feeBasisPoints && tickets.methods.includes('mercadopago') && !free}
-							<!-- Reserva el lugar de la línea del recargo para que el total no salte. Lleva el mismo
-							     texto (invisible y fuera del DOM, en ::before) para que se corte en las mismas
-							     líneas que la real cuando la columna es angosta. -->
-							<p class="line placeholder" aria-hidden="true">
-								<span data-text="Recargo Mercado Pago"></span>
-								<span data-text="+{formatARS(mpSurcharge(prices.total, tickets.feeBasisPoints))}"
-								></span>
-							</p>
-						{/if}
-					{/if}
-					<p class="total">Total: <strong>{formatARS(prices.total)}</strong></p>
-				</div>
-				<button
-					type="submit"
-					disabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
-					>{submitText}</button
-				>
-			</div>
-			{#if tickets.closesAt}
-				<small class="closes">{saleWindowText({ closesAt: tickets.closesAt })}.</small>
-			{/if}
-		</form>
+					</section>
+				{/each}
+			</form>
+		</div>
 	{/if}
 </section>
 
 <style>
 	.tickets {
-		max-width: 40rem;
+		/* Las piezas de la compra se acomodan según el ancho de este bloque (container queries). */
+		container: compra / inline-size;
 		margin: 1.5em auto 0;
 		padding: 1em 1.2em 1.2em;
 		border-radius: var(--round);
@@ -819,84 +615,85 @@
 		margin: 0 0 0.8em;
 		font-size: var(--step--1);
 	}
+	/* Celu: el resumen arriba (barra) y el formulario abajo. */
+	.layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'summary' 'form';
+		gap: 0.9em;
+	}
 	form {
+		grid-area: form;
+		min-width: 0;
+	}
+	.purchase-step {
 		display: flex;
 		flex-direction: column;
 		gap: 0.9em;
-	}
-	fieldset {
-		border: 0;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5em;
 		min-width: 0;
 	}
-	legend {
-		font-weight: bold;
-		margin-bottom: 0.4em;
+	.purchase-step[hidden] {
+		display: none;
 	}
-	.type {
-		display: grid;
-		grid-template-columns: auto 1fr auto;
-		grid-template-areas: 'radio name price' 'radio fondo fondo' 'radio left left';
-		align-items: center;
-		column-gap: 0.7em;
-		padding: 0.7em 0.9em;
-		border-radius: 0.7em;
-		background: white;
-		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
-		cursor: pointer;
+	h3 {
+		margin: 0;
+		font-size: var(--step-1);
+		color: var(--1-ink);
+		line-height: 1.2;
+		/* Al cambiar de paso se lleva el título arriba sin taparlo con la barra del resumen (celu)
+		   y dejando ver el indicador de pasos. */
+		scroll-margin-top: 8rem;
 	}
-	.type:has(input:checked) {
-		outline: 3px solid var(--2);
+	h3:focus {
+		outline: none;
 	}
-	.type.soldout {
-		opacity: 0.55;
-		cursor: not-allowed;
+	h3:focus-visible {
+		outline: 3px solid var(--2-light);
+		outline-offset: 3px;
+		border-radius: 0.3em;
 	}
-	.type input {
-		grid-area: radio;
-		width: 1.3em;
-		height: 1.3em;
-		accent-color: var(--2);
-	}
-	.type-name {
-		grid-area: name;
-		font-weight: bold;
-	}
-	/* Tramo vigente de una preventa ("Preventa 1"): una etiqueta chica al lado del nombre. */
-	.type-tier {
-		display: inline-block;
-		margin-left: 0.5em;
-		padding: 0.05em 0.6em;
-		border-radius: 1em;
-		background: color-mix(in srgb, var(--2) 15%, white);
-		color: var(--2-dark);
+	.step-of {
+		display: block;
 		font-size: var(--step--1);
 		font-weight: normal;
-		white-space: nowrap;
-	}
-	.type-price {
-		grid-area: price;
-		text-align: right;
-	}
-	.list-price {
 		color: var(--muted);
-		font-size: var(--step--1);
-		margin-right: 0.3em;
 	}
-	.type-fondo {
-		grid-area: fondo;
+	.step-nav {
+		display: flex;
+		flex-wrap: wrap-reverse;
+		justify-content: space-between;
+		gap: 0.6em;
+		margin-top: 0.3em;
+	}
+	button {
+		font: inherit;
+		font-weight: bold;
+		border: 0;
+		border-radius: var(--round-pill);
+		padding: 0.8em 1.3em;
+		min-height: 3em;
+		cursor: pointer;
+	}
+	button.next {
+		margin-left: auto;
+		color: white;
+		background: var(--1);
+		flex: 0 1 auto;
+	}
+	button.next:hover {
+		background: var(--1-dark);
+	}
+	button.back {
+		background: none;
 		color: var(--2-dark);
+		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
 	}
-	.type-left {
-		grid-area: left;
-		color: var(--1-ink);
+	button.back:hover {
+		background: color-mix(in srgb, var(--2) 10%, white);
 	}
-	.type-left:empty {
-		display: none;
+	button:focus-visible {
+		outline: 3px solid var(--2-light);
+		outline-offset: 2px;
 	}
 	.readonly {
 		list-style: none;
@@ -907,418 +704,39 @@
 		justify-content: space-between;
 		padding: 0.3em 0;
 	}
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25em;
-		min-width: 0;
-	}
-	.field > span:first-child,
-	.field > label {
-		font-weight: bold;
-		font-size: var(--step--1);
-	}
-	.group {
-		gap: 0.6em;
-	}
-	.holder {
-		padding: 0.6em 0.9em 0.8em;
-		border-radius: 0.7em;
-		background: white;
-		outline: 2px solid color-mix(in srgb, var(--2) 25%, transparent);
-	}
-	.holder legend {
-		float: left;
-		margin: 0 0 0.3em;
-		color: var(--2-dark);
-		font-size: var(--step--1);
-	}
-	.holder .row {
-		clear: both;
-	}
-	.breakdown {
-		flex: 1 1 14em;
-		font-size: var(--step--1);
-	}
-	.breakdown .line {
-		display: flex;
-		justify-content: space-between;
-		gap: 1em;
-		margin: 0.1em 0;
-	}
-	.breakdown .note {
-		color: var(--2-dark);
-	}
-	.breakdown .placeholder {
-		visibility: hidden;
-	}
-	.breakdown .placeholder span::before {
-		content: attr(data-text);
-	}
-	.breakdown .total {
-		margin-top: 0.3em;
-	}
-	.row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.6em;
-	}
-	.hint {
-		color: var(--muted);
-		font-size: var(--step--2);
-	}
-	.code-row {
-		display: flex;
-		gap: 0.5em;
-	}
-	.code-row input {
-		flex: 1;
-		min-width: 0;
-		text-transform: uppercase;
-	}
-	button.secondary {
-		flex-grow: 0;
-		background: white;
-		color: var(--1-dark);
-		outline: 0;
-		border: 2px solid var(--1);
-		box-shadow: none;
-		padding: 0.5em 1.1em;
-		min-height: 2.8em;
-	}
-	button.secondary:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--1) 10%, white);
-	}
-	.applied {
-		color: hsl(140, 60%, 28%);
-		font-weight: bold;
-		font-size: var(--step--1);
-	}
-
-	/* Medio de pago: tarjetas del mismo alto, una al lado de la otra, y la explicación debajo en
-	   un lugar reservado (ver .method-notes). Elegir una no cambia el tamaño de nada. */
-	.method-cards {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.6em;
-	}
-	.method {
-		display: flex;
-		gap: 0.6em;
-		align-items: center;
-		min-height: 3.6em;
-		padding: 0.55em 0.8em;
-		border-radius: 0.7em;
-		background: white;
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
-		cursor: pointer;
-	}
-	.method:has(input:checked) {
-		box-shadow: 0 0 0 3px var(--2);
-		background: color-mix(in srgb, var(--2) 6%, white);
-	}
-	.method input {
-		flex-shrink: 0;
-		width: 1.2em;
-		height: 1.2em;
-		margin: 0;
-		accent-color: var(--2);
-	}
-	.method small {
-		display: block;
-		color: var(--muted);
-		font-size: var(--step--1);
-		line-height: 1.25;
-	}
-	.method-notes {
-		display: grid;
-	}
-	.method-note {
-		grid-area: 1 / 1;
-		margin: 0;
-		font-size: var(--step--1);
-		color: var(--muted);
-		visibility: hidden;
-	}
-	.method-note.shown {
-		visibility: visible;
-	}
-
-	input[type='text'],
-	input[type='email'],
-	input[type='number'] {
-		font: inherit;
-		padding: 0.55em 0.7em;
-		border-radius: 0.5em;
-		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
-		min-height: 2.8em;
-		min-width: 0;
-	}
-	input:focus-visible {
-		outline: 3px solid var(--2-light);
-	}
-
-	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto. Los botones miden 44 × 44
-	   por dentro del borde (el mínimo para el dedo que usa todo el sitio). */
-	.field.qty {
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.4em 0.8em;
-	}
-	.field.qty > label {
-		font-size: var(--step-0);
-	}
-	.stepper {
-		display: inline-flex;
-		align-items: stretch;
-		/* 44 px de botón + 2 px de borde arriba y abajo. */
-		height: 48px;
-		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		border-radius: 999px;
-		background: white;
-		overflow: hidden;
-	}
-	.stepper:focus-within {
-		border-color: var(--2);
-	}
-	.stepper input {
-		width: 2.8em;
-		min-height: 0;
-		padding: 0;
-		border: 0;
-		border-radius: 0;
-		background: transparent;
-		text-align: center;
-		font-size: var(--step-0);
-		font-weight: bold;
-		-moz-appearance: textfield;
-		appearance: textfield;
-	}
-	.stepper input:focus-visible {
-		outline: 2px solid var(--2-light);
-		outline-offset: -2px;
-	}
-	.stepper input::-webkit-outer-spin-button,
-	.stepper input::-webkit-inner-spin-button {
-		-webkit-appearance: none;
-		margin: 0;
-	}
-	button.step {
-		flex: 0 0 44px;
-		width: 44px;
-		min-width: 44px;
-		min-height: 0;
-		height: auto;
-		margin: 0;
-		padding: 0;
-		border: 0;
-		border-radius: 0;
-		box-shadow: none;
-		font-size: var(--step-1);
-		font-weight: bold;
-		line-height: 1;
-		background: transparent;
-		color: var(--2-dark);
-	}
-	button.step:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--2) 10%, white);
-	}
-	button.step:disabled {
-		color: color-mix(in srgb, var(--2-dark) 35%, transparent);
-		background: transparent;
-	}
-
-	/* A la gorra */
-	.amount-row {
-		display: flex;
-		align-items: center;
-		gap: 0.4em;
-	}
-	.amount-row .currency {
-		font-size: var(--step-1);
-		font-weight: bold;
-	}
-	.amount-row input {
-		width: 9em;
-		font-size: var(--step-1);
-		font-weight: bold;
-	}
-	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4em;
-	}
-	button.chip {
-		flex-grow: 0;
-		min-height: 2.6em;
-		padding: 0.3em 0.8em;
-		font-weight: normal;
-		font-size: var(--step--1);
-		background: white;
-		color: var(--2-dark);
-		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
-	}
-	button.chip:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--2) 10%, white);
-	}
-	button.chip[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 3px var(--2);
-		font-weight: bold;
-	}
-
-	.conditions {
-		font-size: var(--step--1);
-	}
-	.conditions summary {
-		cursor: pointer;
-		text-decoration: underline;
-	}
-	.conditions ul {
-		margin: 0.5em 0 0;
-		padding: 0.6em 0.8em 0.6em 2em;
-		border-radius: 0.5em;
-		background: white;
-	}
-	.conditions li {
-		margin: 0.25em 0;
-	}
-	.accept {
-		display: flex;
-		gap: 0.6em;
-		align-items: flex-start;
-		font-size: var(--step--1);
-	}
-	.accept input {
-		width: 1.4em;
-		height: 1.4em;
-		flex-shrink: 0;
-		accent-color: var(--1);
-	}
-	.pay {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6em;
-	}
-	.total {
-		margin: 0;
-		font-size: var(--step-1);
-	}
-	button {
-		font: inherit;
-		font-weight: bold;
-		color: white;
-		background: var(--1);
-		border: 0;
-		border-radius: var(--round-pill);
-		padding: 0.8em 1.3em;
-		min-height: 3em;
-		cursor: pointer;
-		flex-grow: 1;
-		max-width: 22em;
-	}
-	.pay button {
-		/* Alto para dos líneas y ancho que no depende del texto: el texto cambia con el medio de
-		   pago y no debería mover nada. Dos líneas = 2 × 1,2em de texto + 2 × 0,8em de padding
-		   (el botón cuenta el padding en su alto): 4em. Con 3,6em, «Reservar y ver cómo
-		   transferir» en dos líneas lo estiraba 8 px al elegir Transferencia. */
-		flex: 1 1 16em;
-		min-height: calc(2 * 1.2em + 2 * 0.8em);
-		line-height: 1.2;
-	}
-	.option {
-		display: grid;
-		grid-template-columns: auto 1fr auto;
-		grid-template-areas: 'radio name price' 'radio note note';
-		align-items: center;
-		column-gap: 0.7em;
-		padding: 0.55em 0.9em;
-		border-radius: 0.7em;
-		background: white;
-		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
-		cursor: pointer;
-	}
-	.option:has(input:checked) {
-		outline: 3px solid var(--2);
-	}
-	.option input {
-		grid-area: radio;
-		width: 1.2em;
-		height: 1.2em;
-		accent-color: var(--2);
-	}
-	.option-name {
-		grid-area: name;
-		font-weight: bold;
-	}
-	.option-price {
-		grid-area: price;
-		text-align: right;
-		white-space: nowrap;
-	}
-	.option-note {
-		grid-area: note;
-		color: var(--muted);
-		font-size: var(--step--1);
-	}
-	.label-row {
-		display: flex;
-		align-items: baseline;
-		gap: 0.3em;
-		font-weight: bold;
-		font-size: var(--step--1);
-	}
-	/* "?" de pronombres: discreto, está por las dudas. */
-	.help {
-		font-weight: normal;
-		font-size: var(--step--2);
-		color: var(--muted);
-		text-decoration: underline dotted;
-		text-underline-offset: 2px;
-		/* bigger hit area without moving the label */
-		padding: 0.5em 0.6em;
-		margin: -0.5em -0.3em;
-	}
-	.help:hover,
-	.help:focus-visible {
-		color: var(--2-dark);
-	}
-	button:hover:not(:disabled) {
-		background: var(--1-dark);
-	}
-	button:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-	.field-error,
+	.step-error,
 	.form-error {
 		color: hsl(0, 75%, 40%);
 		font-size: var(--step--1);
+		font-weight: bold;
 		margin: 0;
 	}
 	.form-error {
-		font-weight: bold;
+		margin-bottom: 0.8em;
 	}
 	.closed {
 		font-weight: bold;
 	}
-	.closes {
-		color: var(--muted);
-		font-size: var(--step--2);
+	@container compra (max-width: 30rem) {
+		.next-to {
+			display: none;
+		}
+		.step-nav button {
+			flex: 1 1 auto;
+		}
+	}
+	/* Pantallas anchas: el formulario y, al costado, el resumen. */
+	@container compra (min-width: 46rem) {
+		.layout {
+			grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
+			grid-template-areas: 'form summary';
+			gap: 1.4em;
+			align-items: start;
+		}
 	}
 	@media (max-width: 500px) {
 		.tickets {
 			padding: 0.9em;
-		}
-		.pay button {
-			max-width: none;
-			width: 100%;
-		}
-		.row {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>

@@ -62,8 +62,9 @@
 </div>
 
 <style>
+	/* Ancho para el formulario y, en pantallas anchas, el resumen de la compra al costado. */
 	.purchase-page {
-		max-width: 40rem;
+		max-width: 62rem;
 		margin: 0 auto;
 		padding: 0 16px 3em;
 	}
