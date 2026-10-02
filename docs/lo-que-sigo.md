@@ -35,7 +35,7 @@ de siempre, sin salir de la página (`?/seguir`). Sin JavaScript es un campo de 
 (el nombre de la etiqueta, un alias o la forma de la URL).
 
 Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). Sumar Telegram
-(el bot, `docs/telegram.md`) es darle sus casillas en `fields` y `enabled: true`: la grilla
+(el bot, [telegram.md](telegram.md)) es darle sus casillas en `fields` y `enabled: true`: la grilla
 (`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Todavía no hay nada de Telegram en la
 base.
 
