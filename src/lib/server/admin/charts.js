@@ -8,7 +8,7 @@
  * para contar quién vuelve y no salen).
  */
 import { dayNumber } from '$lib/admin/salesChart.js';
-import { eventSeriesTags, seriesTagIndex } from '$lib/utils/eventSeries.js';
+import { eventSeriesTags, seriesTagIndex } from '$lib/utils/series.js';
 import { normalizeEmail } from './people.js';
 import { lastMonths, monthKey, monthLabel } from './stats.js';
 
@@ -65,7 +65,7 @@ export function salesEvents(days, events) {
  * vez, cuántas volvieron a otro evento.
  *
  * Y lo mismo dentro de la serie: las series de un evento son sus etiquetas hijas o nietas de
- * «evento recurrente» (`$lib/utils/eventSeries.js`). Por evento con serie, cuántes entraban por
+ * «evento recurrente» (`$lib/utils/series.js`). Por evento con serie, cuántes entraban por
  * primera vez a esa serie y cuántes ya habían venido a un evento de la misma serie
  * (`seriesNewcomers` / `seriesReturning`; `null` en eventos sin serie). Total: de quienes
  * entraron a algún evento con serie, cuántes volvieron a la misma serie.
