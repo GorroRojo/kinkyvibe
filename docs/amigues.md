@@ -183,7 +183,9 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   previa tiene «Cómo se crean: No listados (no aparecen en Amigues) · Públicos» y cada lugar nuevo
   lo puede cambiar («Como todos», «No listado», «Público»). No listado es `data.unlisted` del
   perfil, como cualquier perfil no listado: no sale en las listas de `/amigues` (ni en
-  `?tipo=lugar`); el sitemap, el buscador y `/api/posts` salen de los `.md`, así que tampoco. Es
+  `?tipo=lugar`); el sitemap y `/api/posts` salen de los `.md`, así que tampoco, y el buscador
+  nunca lleva lugares (con el interruptor prendido indexa los perfiles de persona y proyecto que
+  lista `/amigues`, ver `src/lib/server/search/siteIndex.js`). Es
   aparte de la privacidad de la dirección: su evento muestra exactamente lo que su nivel deja ver
   (con el link a la página del lugar, que anda) y la página del lugar lista sus eventos. Lo prueban
   `src/lib/server/amigues/venueImport.test.js` y `src/routes/(content)/amigues/amigues-routes.test.js`.

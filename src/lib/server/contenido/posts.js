@@ -367,6 +367,19 @@ export async function siteBodies(platform) {
 }
 
 /**
+ * La marca de cambios del contenido de la base (la misma con la que se recuerdan las listas), o
+ * `null` con el interruptor apagado. Para quien recuerda algo armado con las listas o los cuerpos
+ * (el índice de la búsqueda): si la marca no cambió, lo armado sigue valiendo.
+ *
+ * @param {App.Platform | undefined} platform
+ * @returns {Promise<string | null>}
+ */
+export async function siteContentStamp(platform) {
+	const db = await contentDb(platform);
+	return db ? contentStamp(db) : null;
+}
+
+/**
  * A qué objeto lleva una dirección de una categoría (sin mirar visibilidad: es para decidir el
  * camino). Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la
  * del objeto.
