@@ -137,8 +137,8 @@
 	}
 
 	/**
+	 * @param {string} slug
 	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow & { draft?: boolean }>} values
-	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow>} values
 	 */
 	function updateRow(slug, values) {
 		rows = rows.map((r) => (r.slug === slug ? { ...r, ...values, slug } : r));
