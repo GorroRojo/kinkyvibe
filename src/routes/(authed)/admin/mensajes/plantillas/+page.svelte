@@ -5,6 +5,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 
 	export let data;
 </script>
@@ -12,7 +13,7 @@
 <PageHeader
 	title="Plantillas de los mails"
 	subtitle="El asunto, el título y el texto de arriba de cada mail que manda el sistema."
-	back={{ href: '/admin/ajustes/mails', label: 'Mails' }}
+	back={areaBackLink('ajustes-plantillas')}
 />
 
 <div class="kv-stack settings">

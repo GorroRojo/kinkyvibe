@@ -43,3 +43,16 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	}
 	expect(broken).toEqual([]);
 });
+
+test('una dirección del panel que no existe da 404 adentro del panel (con el menú)', async ({
+	page
+}) => {
+	const res = await page.goto('/admin/no-existe/tampoco', { waitUntil: 'domcontentloaded' });
+	expect(res?.status()).toBe(404);
+	await expect(page.getByRole('navigation', { name: 'Secciones del panel' })).toBeVisible();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('No encontramos esta página');
+	await expect(page.getByRole('link', { name: 'Volver al Inicio' })).toHaveAttribute(
+		'href',
+		'/admin'
+	);
+});

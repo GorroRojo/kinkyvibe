@@ -35,7 +35,13 @@
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
 	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
-	import { MOBILE_TABS, REVIEW_LINK, activeNavItem, navItem } from '$lib/admin/nav.js';
+	import {
+		MOBILE_TABS,
+		REVIEW_LINK,
+		activeNavItem,
+		navItem,
+		reviewCountOf
+	} from '$lib/admin/nav.js';
 	import { readHideSoon, saveHideSoon } from '$lib/admin/navPrefs.js';
 	import {
 		DEFAULT_THEME,
@@ -67,7 +73,7 @@
 	$: counts = data.panelCounts ?? {};
 	/** @type {Record<string, boolean>} */
 	$: flags = data.navFlags ?? {};
-	$: reviewCount = Number(counts[REVIEW_LINK.counter] ?? 0);
+	$: reviewCount = reviewCountOf(counts);
 	$: user = data.user;
 	let avatarFailed = false;
 	$: avatar = avatarFailed

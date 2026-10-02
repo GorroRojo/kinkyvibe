@@ -149,7 +149,7 @@
 				<tbody>
 					{#each filtered.slice(0, 500) as p (p.id)}
 						<tr>
-							<td>
+							<td class="who">
 								<a class="name" href="/admin/comunidad/personas/{p.id}">{p.name}</a>
 								{#if p.pronouns.length}<span class="muted">({p.pronouns.join(', ')})</span>{/if}
 								{#if p.notes}<span class="note" title="{p.notes} notas"
@@ -190,6 +190,12 @@
 	}
 	.name {
 		font-weight: 700;
+	}
+	/* La columna de la persona no se angosta hasta partir el mail letra por letra: con
+	   `overflow-wrap: anywhere` su ancho mínimo sería una letra. Un mail más largo que esto se
+	   corta donde haga falta (sigue siendo un solo texto, se puede seleccionar y copiar entero). */
+	.who {
+		min-width: 14rem;
 	}
 	.email {
 		display: block;

@@ -142,6 +142,17 @@ export const REVIEW_LINK = Object.freeze({
 	counter: 'review'
 });
 
+/**
+ * Cuántas cosas hay "Para revisar": la ÚNICA cuenta, la del botón global (barra de arriba y
+ * header del celu) y la del Inicio ("N cosas para revisar" y la tarjeta). Sale de
+ * `data.panelCounts` (`panelCounts.js`), así los dos números no pueden ser distintos.
+ * @param {Record<string, number> | null | undefined} counts `data.panelCounts`
+ * @returns {number}
+ */
+export function reviewCountOf(counts) {
+	return Number(counts?.[REVIEW_LINK.counter] ?? 0) || 0;
+}
+
 /** @type {readonly NavItem[]} */
 export const NAV = Object.freeze([
 	{
@@ -588,6 +599,20 @@ export function navItem(id) {
  */
 export function navArea(id) {
 	return NAV_AREAS.find((a) => a.id === id);
+}
+
+/**
+ * Link «← Área» arriba del título de una sección: a la página de su área (la sección cuya URL es
+ * la del área, como /admin/ventas), con el nombre del área. `null` si la sección no tiene área o el área no tiene
+ * esa página.
+ * @param {string} id id de la sección
+ * @returns {{ href: string, label: string } | null}
+ */
+export function areaBackLink(id) {
+	const area = navArea(navItem(id)?.area);
+	if (!area) return null;
+	const root = NAV.find((i) => i.href === `/admin/${area.id}`);
+	return root ? { href: root.href, label: area.label } : null;
 }
 
 /**

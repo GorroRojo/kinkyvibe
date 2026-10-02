@@ -5,11 +5,15 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import { brokenImage } from '$lib/admin/brokenImage.js';
 
 	export let data;
 
 	/** @type {Record<number, boolean>} */
 	let failed = {};
+
+	/** @param {number} id */
+	const markFailed = (id) => () => (failed = { ...failed, [id]: true });
 </script>
 
 <PageHeader title="Admins" subtitle="Quién puede entrar al panel." />
@@ -20,7 +24,7 @@
 		<ul class="admins">
 			{#each data.admins as a (a.id)}
 				<li>
-					{#if failed[a.id]}
+					{#if failed[a.id] || !a.avatar}
 						<span class="avatar initial" aria-hidden="true"
 							>{a.login.slice(0, 1).toUpperCase()}</span
 						>
@@ -33,7 +37,7 @@
 							height="48"
 							loading="lazy"
 							referrerpolicy="no-referrer"
-							on:error={() => (failed = { ...failed, [a.id]: true })}
+							use:brokenImage={markFailed(a.id)}
 						/>
 					{/if}
 					<div class="who">

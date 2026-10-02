@@ -1,5 +1,5 @@
 /**
- * Ajustes → Mails → Plantillas: los mails que manda el sistema y si tienen texto propio.
+ * Mensajes → Plantillas: los mails que manda el sistema y si tienen texto propio.
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
