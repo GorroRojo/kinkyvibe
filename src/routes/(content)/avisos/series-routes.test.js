@@ -100,6 +100,7 @@ async function modules({ series = '1', cuentas = '1', extra } = {}) {
 		icsTag: await import('../../ics/etiqueta/[tag].ics/+server.js'),
 		icsMine: await import('../../ics/mio/[token].ics/+server.js'),
 		calendario: await import('../mi-rincon/calendario/+page.server.js'),
+		calendarioPublico: await import('../calendario/+page.server.js'),
 		web: await import('$lib/server/series/web.js')
 	};
 }
@@ -143,6 +144,11 @@ describe('interruptor apagado: nada cambia', () => {
 		);
 		expect(data.series).toBeNull();
 		expect(mails).toHaveLength(0);
+	});
+	it('/calendario no linkea a la lista de series', async () => {
+		const m = await modules({ series: '0' });
+		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
+		expect(data.seriesLink).toBe(false);
 	});
 	it('el cron no hace nada de series', async () => {
 		const m = await modules({ series: '0' });
@@ -250,6 +256,12 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 });
 
 describe('prendido: páginas', () => {
+	it('/calendario linkea a la lista de series de la Kinkipedia', async () => {
+		const m = await modules();
+		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
+		expect(data.seriesLink).toBe(true);
+	});
+
 	it('evento: «Edición N de…», anterior/siguiente y si ya pasó', async () => {
 		const m = await modules();
 		const data = /** @type {any} */ (
