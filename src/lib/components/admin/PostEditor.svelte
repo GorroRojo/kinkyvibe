@@ -187,6 +187,10 @@
 		}
 	];
 	const fields = [...common, ...(byCategory[category] ?? []), ...tail];
+	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
+	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
+	/** @type {string | null} */
+	const linkedVenue = category === 'calendario' ? (data.linkedVenue ?? null) : null;
 
 	/** @param {Field} f @param {any} v */
 	function toInput(f, v) {
@@ -541,6 +545,12 @@
 								<input id="{f.key}-input" bind:value={values[f.key]} placeholder={f.placeholder} />
 							{/if}
 							{#if f.help}<small>{f.help}</small>{/if}
+							{#if linkedVenue && MD_PLACE_KEYS.includes(f.key)}
+								<small class="warning"
+									>⚠️ Este evento tiene un lugar en «Sucede en» ({linkedVenue}): en el sitio se
+									muestra ese lugar según su privacidad, no este dato. Se guarda igual.</small
+								>
+							{/if}
 						</label>
 					{/if}
 				{/each}

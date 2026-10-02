@@ -8,7 +8,7 @@
  * datos que la página pública del evento: el mismo armado que /calendario.ics.
  */
 import { error } from '@sveltejs/kit';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { cuentasEnabled } from '$lib/server/flags.js';
 import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
@@ -26,8 +26,8 @@ export async function GET({ params, platform }) {
 	if (!accountId) error(404, 'Not found');
 	const slugs = await ticketedSlugs(db, accountId);
 	const [listed, unlisted] = await Promise.all([
-		fetchMarkdownPosts(),
-		fetchMarkdownPosts(false, true)
+		sitePosts(platform),
+		sitePosts(platform, false, true)
 	]);
 	const mine = [...listed, ...unlisted].filter((p) => slugs.has(String(p.meta.postID)));
 	return icsResponse(

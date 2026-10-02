@@ -2,7 +2,7 @@ import '$lib/types.d.js';
 import { dev } from '$app/environment';
 import { isCurrent, relatedPostsFor } from './allPosts';
 import { addMentionPronouns, pronounLabel } from './mentions';
-import tagsFactory from './tags';
+import { currentSiteTags, fileSiteTags, siteTagsFromDb } from './siteTags.js';
 import { error } from '@sveltejs/kit';
 
 export { relatedPostsFor };
@@ -74,10 +74,10 @@ export const mediaURL = (category, postID, file) =>
 	/^[\w.-]+$/.test(file) ? mediaURLs[`../posts/${category}/media/${postID}/${file}`] : undefined;
 
 /**
- * @param {TagManager} [tagManager=tagsFactory()]
+ * @param {TagManager} [tagManager] por defecto, el árbol en uso (archivo o base, siteTags.js)
  * @returns {(tag: string)=>string}
  */
-export function aliaserFactory(tagManager = tagsFactory()) {
+export function aliaserFactory(tagManager = currentSiteTags()) {
 	return (tag) => tagManager.get(tag)?.id ?? tag;
 }
 
@@ -103,16 +103,23 @@ export const fetchPost = async (category, postID, shallow = false) => {
 };
 
 /**
- * Processes a post and returns relevant information.
+ * Processes a post and returns relevant information. Exported for the posts stored in the
+ * database ($lib/server/contenido/posts.js), so they become the same ProcessedPost as a .md.
  *
- * @param {ConstructorOfATypedSvelteComponent} postContent - The content of the post.
+ * @param {ConstructorOfATypedSvelteComponent|undefined} postContent - The content of the post.
  * @param {string} postID - The ID of the post.
  * @param {AnyPostData} meta - The metadata associated with the post.
  * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
  * @param {TagManager} [tagManager] - The tag manager to use.
  * @return {Promise<ProcessedPost>} An object containing the processed post information.
  */
-async function processPost(postContent, postID, meta, shallow = false, tagManager = defaultTagManager()) {
+export async function processPost(
+	postContent,
+	postID,
+	meta,
+	shallow = false,
+	tagManager = currentSiteTags()
+) {
 	let authorsProfiles = [];
 	/**@type {ProcessedPost[]} */
 	if (!shallow) {
@@ -140,6 +147,7 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined,
 		postID
 	};
+	writtenTags.set(processedMeta, [...(meta.tags ?? [])]);
 	const processedPost = {
 		content: shallow ? undefined : postContent,
 		meta: processedMeta,
@@ -151,12 +159,13 @@ async function processPost(postContent, postID, meta, shallow = false, tagManage
 
 /**
  * Tags as the site shows them: each alias resolved to its tag id, sorted like the tag tree.
- * Shared by the .md posts and the profiles stored in the database.
+ * Shared by the .md posts and the profiles stored in the database. By default, the tag tree in
+ * use (the file, or the database with the `etiquetas_db` switch: $lib/utils/siteTags.js).
  * @param {readonly string[]} tags
  * @param {TagManager} [tagManager]
  * @returns {string[]}
  */
-export function canonicalTags(tags, tagManager = defaultTagManager()) {
+export function canonicalTags(tags, tagManager = currentSiteTags()) {
 	const sortTags = cachedTagSorter(tagManager);
 	return [...tags]
 		.map((t) => tagManager.get(t))
@@ -164,11 +173,27 @@ export function canonicalTags(tags, tagManager = defaultTagManager()) {
 		.map((t) => t.id);
 }
 
-/** @type {TagManager|undefined} */
-let _defaultTagManager;
-/** Tag manager shared by processPost (it only reads from it), built once instead of once per post. */
-function defaultTagManager() {
-	return (_defaultTagManager ??= tagsFactory());
+/**
+ * The tags each processed post had in its file (before canonicalTags), so the cached list can be
+ * re-tagged with another tag tree without reading the posts again.
+ * @type {WeakMap<object, string[]>}
+ */
+const writtenTags = new WeakMap();
+
+/**
+ * The same posts with their tags cleaned up with `tagManager` (new post and meta objects; the
+ * rest is shared).
+ * @param {readonly ProcessedPost[]} posts
+ * @param {TagManager} tagManager
+ * @returns {ProcessedPost[]}
+ */
+export function retagPosts(posts, tagManager) {
+	return posts.map((p) => {
+		const written = writtenTags.get(p.meta) ?? p.meta.tags ?? [];
+		const meta = { ...p.meta, tags: canonicalTags(written, tagManager) };
+		writtenTags.set(meta, written);
+		return { ...p, meta };
+	});
 }
 
 /** @type {WeakMap<TagManager, (a: ProcessedTag, b: ProcessedTag) => number>} */
@@ -243,6 +268,8 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 	// Posts only change on deploy, so the processed list is computed once per
 	// server instance (not in dev, so edited posts show up without a restart).
 	// Callers get a fresh array and may sort it in place.
+	// The list is processed with the file's tag tree; with the `etiquetas_db` switch on, the
+	// tags are cleaned up again with the database's tree (once per tree: retaggedCache).
 	const key = `${wiki}-${unlisted}`;
 	let posts = dev ? undefined : postsCache.get(key);
 	if (!posts) {
@@ -252,11 +279,22 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 			posts.catch(() => postsCache.delete(key));
 		}
 	}
-	return [...(await posts)];
+	if (!siteTagsFromDb()) return [...(await posts)];
+	const tree = currentSiteTags();
+	let byKey = retaggedCache.get(tree);
+	if (!byKey) retaggedCache.set(tree, (byKey = new Map()));
+	let retagged = dev ? undefined : byKey.get(key);
+	if (!retagged) {
+		retagged = retagPosts(await posts, tree);
+		if (!dev) byKey.set(key, retagged);
+	}
+	return [...retagged];
 };
 
 /** @type {Map<string, Promise<ProcessedPost[]>>} */
 const postsCache = new Map();
+/** @type {WeakMap<TagManager, Map<string, ProcessedPost[]>>} */
+const retaggedCache = new WeakMap();
 
 /**
  * @param {boolean} wiki
@@ -286,7 +324,8 @@ async function loadMarkdownPosts(wiki, unlisted) {
 		) {
 			continue;
 		}
-		processedPosts.push(await processPost(postContent, postID, metadata, true));
+		// The file's tree here: the cached list is the same whatever the switch says (see above).
+		processedPosts.push(await processPost(postContent, postID, metadata, true, fileSiteTags()));
 	}
 	processedPosts.sort((a, b) => {
 		/** @param {ProcessedPost} x @returns number */

@@ -1,8 +1,19 @@
 import { json } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { fetchMarkdownPosts } from '$lib/utils';
-import tagsFactory from '$lib/utils/tags';
+import { contentDb, siteBodies, sitePosts } from '$lib/server/contenido/posts.js';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { fold, stripMarkdown, truncate } from '$lib/utils/search';
-export const prerender = true;
+import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
+
+// Not prerendered: the tags follow the `etiquetas_db` switch (the file or the database,
+// docs/etiquetas.md) and the events follow `contenido_db`; the database can't be read at build
+// time. With the events from the files it's built once per tag tree and server instance
+// (indexCache); with `contenido_db` on, events can change without a deploy, so it's built each time.
+export const prerender = false;
+
+/** @type {WeakMap<TagManager, Promise<unknown>>} */
+const indexCache = new WeakMap();
 
 /**
  * Máximo de caracteres de cuerpo (texto plano) por post en el índice. Los eventos se
@@ -11,7 +22,7 @@ export const prerender = true;
  */
 const BODY_MAX = { calendario: 400, material: 2500, amigues: 2500, wiki: 2500 };
 
-/** Markdown crudo de cada post, cargado sólo por este endpoint (en build). */
+/** Markdown crudo de cada post, cargado sólo por este endpoint. */
 // `{ as: 'raw' }` is gone in Vite 8 (it returned the module instead of the text).
 const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 	import.meta.glob('/src/lib/posts/*/*.md', { query: '?raw', import: 'default' })
@@ -20,11 +31,12 @@ const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 /**
  * @param {string} category
  * @param {string} postID
+ * @param {string} [stored] el cuerpo guardado en la base (interruptor `contenido_db`)
  */
-async function plainBody(category, postID) {
+async function plainBody(category, postID, stored) {
 	const loader = rawPosts[`/src/lib/posts/${category}/${postID}.md`];
-	if (!loader) return '';
-	const text = stripMarkdown(await loader());
+	if (stored === undefined && !loader) return '';
+	const text = stripMarkdown(stored ?? (await loader()));
 	return /^contenido secreto$/i.test(text) ? '' : truncate(text, BODY_MAX[category] ?? 1000);
 }
 
@@ -43,14 +55,34 @@ const str = (v) => (v === undefined || v === null ? '' : String(v));
  * Sólo incluye posts listados y publicados, igual que fetchMarkdownPosts.
  * @type {import("./$types").RequestHandler}
  */
-export async function GET() {
-	const tagManager = tagsFactory();
+export async function GET({ platform }) {
+	const tagManager = currentSiteTags();
+	if (await contentDb(platform)) {
+		return json(await buildIndex(tagManager, platform), { headers: TAGGED_CACHE });
+	}
+	let index = dev ? undefined : indexCache.get(tagManager);
+	if (!index) {
+		index = buildIndex(tagManager, platform);
+		if (!dev) {
+			indexCache.set(tagManager, index);
+			index.catch(() => indexCache.delete(tagManager));
+		}
+	}
+	return json(await index, { headers: TAGGED_CACHE });
+}
+
+/**
+ * @param {TagManager} tagManager
+ * @param {App.Platform | undefined} platform
+ */
+async function buildIndex(tagManager, platform) {
 	/** @type {import('$lib/utils/search').SearchDoc[]} */
 	const docs = [];
 	/** @type {Set<string>} */
 	const usedTags = new Set();
 
-	const posts = (await fetchMarkdownPosts()).filter((p) => !p.meta.force_unpublished);
+	const [all, bodies] = await Promise.all([sitePosts(platform), siteBodies(platform)]);
+	const posts = all.filter((p) => !p.meta.force_unpublished);
 	for (const { meta, path } of posts) {
 		const tags = [...new Set(meta.tags ?? [])];
 		tags.forEach((t) => usedTags.add(t));
@@ -64,7 +96,7 @@ export async function GET() {
 			a: (meta.authors ?? []).map(str),
 			d: event ? isoDate(meta.start) : undefined,
 			e: event ? isoDate(meta.end) : undefined,
-			b: await plainBody(meta.category, meta.postID)
+			b: await plainBody(meta.category, meta.postID, bodies.get(path))
 		});
 	}
 
@@ -131,5 +163,5 @@ export async function GET() {
 			if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete doc[k];
 		}
 	}
-	return json({ v: 1, docs, tags });
+	return { v: 1, docs, tags };
 }

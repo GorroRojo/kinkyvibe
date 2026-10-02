@@ -197,6 +197,23 @@ describe('applyAgendaChange', () => {
 		expect(r.content).toContain('#end: 2026-12-13T02:00-03:00');
 	});
 
+	it('publicar un borrador desde la planilla le saca la marca de borrador', () => {
+		const draft = RAW.replace(/^title:/m, 'borrador: true\nforce_unlisted: true\ntitle:');
+		const published = applyAgendaChange(draft, {
+			before: { ...before, state: 'no-listado' },
+			after: { ...before, state: 'publicado' }
+		});
+		expect(published.content).not.toMatch(/^borrador:/m);
+		expect(published.content).not.toContain('force_unlisted');
+		// Vuelto a «No listado» después, es privado, no borrador.
+		const hidden = applyAgendaChange(published.content, {
+			before,
+			after: { ...before, state: 'no-listado' }
+		});
+		expect(hidden.content).toContain('force_unlisted: true');
+		expect(hidden.content).not.toMatch(/^borrador:/m);
+	});
+
 	it('estados: no listado, cancelado y de vuelta a publicado', () => {
 		const unlisted = applyAgendaChange(RAW, { before, after: { ...before, state: 'no-listado' } });
 		expect(unlisted.content).toContain('force_unlisted: true');

@@ -2,20 +2,30 @@
 	/**
 	 * Los campos de una serie en Eventos → Series, para «Crear serie» y para «Editar».
 	 * Props:
-	 * - `mode`: 'create' (pide el nombre con el que la nombran los eventos) o 'edit' (pide el
-	 *   nombre visible, el ícono, la imagen y la descripción; el nombre de la etiqueta no cambia acá);
-	 * - `values`: lo que ya tiene (o lo que se escribió antes de un error);
+	 * - `mode`: 'create' (pide el nombre con el que la nombran los eventos) o 'edit' (el nombre de
+	 *   la etiqueta, que se puede renombrar como en Etiquetas, el nombre visible, el ícono, la
+	 *   imagen y la descripción);
+	 * - `values`: lo que ya tiene (o lo que se escribió antes de un error); en 'edit', `id` es el
+	 *   nombre de la etiqueta ahora y `key` el que se escribió;
+	 * - `dbMode`: interruptor `etiquetas_db` (cambia qué se puede elegir al renombrar);
 	 * - `assets`: las imágenes de src/lib/assets para elegir;
 	 * - `id`: prefijo único para los ids de los campos.
 	 */
+	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
+
 	/** @type {'create' | 'edit'} */
 	export let mode = 'create';
-	/** @type {{ name?: string, visible_name?: string, icon?: string, image?: string, description?: string }} */
+	/** @type {{ id?: string, key?: string, keepAlias?: string, name?: string, visible_name?: string, icon?: string, image?: string, description?: string }} */
 	export let values = {};
 	/** @type {readonly string[]} */
 	export let assets = [];
+	export let dbMode = false;
 	export let id = 'serie';
 	$: imageMissing = Boolean(values.image) && !assets.includes(values.image ?? '');
+	let key = values.key ?? values.id ?? '';
+	// Como en Etiquetas: con la base, por defecto sin alias (se renombra en las publicaciones).
+	let keepAlias = values.keepAlias !== undefined ? values.keepAlias === '1' : !dbMode;
+	$: renaming = mode === 'edit' && key.trim() !== '' && key.trim() !== (values.id ?? '');
 </script>
 
 {#if mode === 'create'}
@@ -25,6 +35,16 @@
 		<small class="muted">Es la etiqueta que les vas a poner a sus eventos.</small>
 	</label>
 {:else}
+	<label class="kv-field" for="{id}-key">
+		<span>Nombre de la etiqueta</span>
+		<input id="{id}-key" name="key" required maxlength="60" bind:value={key} />
+		<small class="muted">Es la etiqueta que llevan sus eventos. Cambiarlo es renombrarla.</small>
+	</label>
+	{#if renaming}
+		<RenameChoice {dbMode} bind:keepAlias name="keepAlias" idPrefix="{id}-renombrar" />
+	{:else}
+		<input type="hidden" name="keepAlias" value={keepAlias ? '1' : ''} />
+	{/if}
 	<label class="kv-field" for="{id}-visible">
 		<span>Nombre visible (opcional)</span>
 		<input

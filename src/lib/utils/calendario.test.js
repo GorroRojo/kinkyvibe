@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+	applyNewEventPrefill,
 	calendarEvent,
 	calendarEvents,
+	draftRows,
 	defaultCalendarView,
 	dragSnapDuration,
 	dropTarget,
 	eventTone,
+	isDraftRow,
 	localDateParts,
 	movedAgendaValues,
 	newEventHref,
@@ -303,5 +306,128 @@ describe('evento nuevo con fecha', () => {
 			endTime: ''
 		});
 		expect(read('')).toEqual({ date: '', startTime: '', endTime: '' });
+	});
+});
+
+describe('duplicar en el día elegido (desde + fecha)', () => {
+	it('el link lleva el evento a duplicar y el día', () => {
+		expect(newEventHref({ date: '2026-12-12', from: 'picantearla-2026-11' })).toBe(
+			'/admin/eventos/nuevo?desde=picantearla-2026-11&fecha=2026-12-12'
+		);
+		expect(newEventHref({ from: 'picantearla-2026-11' })).toBe(
+			'/admin/eventos/nuevo?desde=picantearla-2026-11'
+		);
+		// un slug inválido no va
+		expect(newEventHref({ date: '2026-12-12', from: '../x' })).toBe(
+			'/admin/eventos/nuevo?fecha=2026-12-12'
+		);
+	});
+
+	const copy = {
+		startDate: '',
+		startTime: '21:00',
+		endDate: '',
+		endTime: '02:00',
+		hasEnd: true,
+		title: 'Fiesta'
+	};
+
+	it('el día elegido manda y se conservan las horas del original (y que termina al día siguiente)', () => {
+		const r = applyNewEventPrefill(copy, 1, { date: '2026-12-12', startTime: '', endTime: '' });
+		expect(r.values).toMatchObject({
+			startDate: '2026-12-12',
+			startTime: '21:00',
+			endDate: '2026-12-13',
+			endTime: '02:00',
+			hasEnd: true,
+			title: 'Fiesta'
+		});
+		expect(r.span).toBe(1);
+		// no cambia el formulario original
+		expect(copy.startDate).toBe('');
+	});
+
+	it('con horas elegidas (rango de la semana), van esas y se recalcula el día de fin', () => {
+		const r = applyNewEventPrefill(copy, 1, {
+			date: '2026-12-12',
+			startTime: '18:00',
+			endTime: '20:00'
+		});
+		expect(r.values).toMatchObject({
+			startDate: '2026-12-12',
+			startTime: '18:00',
+			endTime: '20:00',
+			endDate: '2026-12-12'
+		});
+		expect(r.span).toBe(0);
+	});
+
+	it('solo la hora de inicio: conserva el fin del original y ve si cruza la medianoche', () => {
+		const sameDay = { ...copy, startTime: '20:00', endTime: '23:00' };
+		const r = applyNewEventPrefill(sameDay, 0, {
+			date: '2026-12-12',
+			startTime: '23:30',
+			endTime: ''
+		});
+		expect(r.values).toMatchObject({ startTime: '23:30', endTime: '23:00', endDate: '2026-12-13' });
+		expect(r.span).toBe(1);
+	});
+
+	it('los eventos de varios días conservan sus días', () => {
+		const retreat = { ...copy, startTime: '10:00', endTime: '18:00' };
+		const r = applyNewEventPrefill(retreat, 2, {
+			date: '2026-12-12',
+			startTime: '11:00',
+			endTime: '17:00'
+		});
+		expect(r.values.endDate).toBe('2026-12-14');
+		expect(r.span).toBe(2);
+	});
+
+	it('sin día no toca nada', () => {
+		const r = applyNewEventPrefill(copy, 1, { date: '', startTime: '', endTime: '' });
+		expect(r.values).toEqual(copy);
+		expect(r.span).toBe(1);
+	});
+});
+
+describe('borradores en el calendario', () => {
+	it('un borrador lleva «draft» y lo que le falta', () => {
+		const draft = {
+			...row({ force_unlisted: true }),
+			draft: true,
+			missing: [{ label: 'Imagen' }, { label: 'Precio' }]
+		};
+		const e = calendarEvent(draft, { places: PLACES });
+		expect(e.extendedProps).toMatchObject({ draft: true, missing: ['Imagen', 'Precio'] });
+	});
+
+	it('uno publicado no', () => {
+		const e = calendarEvent({ ...row(), missing: [{ label: 'Imagen' }] }, { places: PLACES });
+		expect(e.extendedProps.draft).toBeUndefined();
+		expect(e.extendedProps.missing).toBeUndefined();
+	});
+
+	it('un no listado a propósito (sin la marca de borrador) no es borrador', () => {
+		const e = calendarEvent(
+			{ ...row({ force_unlisted: true }), missing: [{ label: 'Imagen' }] },
+			{ places: PLACES }
+		);
+		expect(e.extendedProps.draft).toBeUndefined();
+		expect(isDraftRow({ ...row({ force_unlisted: true }), draft: true })).toBe(true);
+		expect(isDraftRow({ ...row({ force_unlisted: true }) })).toBe(false);
+		// confirmado (publicado) aunque la fila todavía diga draft
+		expect(isDraftRow({ ...row(), draft: true })).toBe(false);
+	});
+
+	it('filtro «a confirmar»: solo los borradores (marca + no listado)', () => {
+		const rows = [
+			row(),
+			{ ...row({ force_unlisted: true }), slug: 'borrador', draft: true },
+			{ ...row({ force_unlisted: true }), slug: 'privado' },
+			{ ...row({ status: 'cancelado' }), slug: 'cancelado', draft: true }
+		];
+		expect(draftRows(rows, true).map((r) => r.slug)).toEqual(['borrador']);
+		expect(draftRows(rows, false)).toHaveLength(4);
 	});
 });

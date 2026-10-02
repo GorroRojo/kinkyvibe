@@ -6,6 +6,16 @@ const posts = import.meta.glob('/src/lib/posts/material/*.md', { import: 'defaul
 
 /** @type {import("./$types").PageLoad} */
 export async function load({ params, data }) {
+	// Interruptor `contenido_db`: el post viene del servidor. Si su texto es el mismo que el del .md
+	// (`component`), se muestra el componente de ese .md, igual que siempre; si no, `html`.
+	if (data.mode === 'db') {
+		const content = data.component
+			? await posts[`/src/lib/posts/material/${data.meta.postID}.md`]?.()
+			: undefined;
+		return content
+			? { ...data, html: undefined, css: '', content }
+			: { ...data, content: undefined };
+	}
 	const content = await posts[`/src/lib/posts/material/${params.post}.md`]?.();
-	return { ...data, content };
+	return { ...data, html: undefined, content };
 }

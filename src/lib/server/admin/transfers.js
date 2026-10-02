@@ -12,8 +12,8 @@
  * clave de exactamente ese límite; ver tickets/overrides.js). Queda en el registro.
  *
  * Una transferencia rechazada (cancelada) se puede volver a "esperando comprobante" ("Deshacer
- * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo, o pasando
- * el límite con el mismo diálogo.
+ * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo (y le queda
+ * un uso a su código de descuento), o pasando el límite con el mismo diálogo.
  */
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
@@ -230,7 +230,11 @@ export async function reopenTransferFromPanel({
 	const ask = (needsConfirmation) => ({
 		ok: false,
 		status: 409,
-		message: `No hay lugar para volver a reservar ${ref}: ${needsConfirmation.limits
+		message: `${
+			needsConfirmation.limits.every((l) => l.kind === 'discount_uses')
+				? `No se puede volver a reservar ${ref} con su código`
+				: `No hay lugar para volver a reservar ${ref}`
+		}: ${needsConfirmation.limits
 			.map((l) => l.message)
 			.join(' ')} Podés deshacer el rechazo igual confirmándolo en el aviso.`,
 		needsConfirmation
