@@ -2,9 +2,17 @@
 	import '$lib/styles/style.scss';
 	import {
 		filteredTags,
-		togglePositiveTagFilterFn
+		tagManager,
+		togglePositiveTagFilterFn,
+		wikiTagManager
 	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import { useSiteTags } from '$lib/utils/siteTags.js';
+
+	/** @type {import('./$types').LayoutData} */
+	export let data;
+	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de la base; null = el del archivo.
+	$: useSiteTags(data.siteTags, [tagManager, wikiTagManager]);
 	// onMount(() => {
 	filteredTags.set([]);
 	// });

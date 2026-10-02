@@ -2,7 +2,11 @@
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query } from '$lib/utils/stores';
 	import { Search } from '@lucide/svelte';
-	import tagsFactory from '$lib/utils/tags';
+	import { freshSiteTags } from '$lib/utils/siteTags.js';
+	import SeriesGrid from '$lib/components/series/SeriesGrid.svelte';
+
+	/** @type {import('./$types').PageData} */
+	export let data;
 
 	query.set('');
 
@@ -26,14 +30,14 @@
 	}
 	query.subscribe((newQuery) => {
 		if (newQuery == undefined || newQuery.trim() == '') {
-			wikiTagManager.update(() => tagsFactory());
+			wikiTagManager.update(() => freshSiteTags());
 			// $page.url.searchParams.delete('q');
 		} else {
 			// $page.url.searchParams.set('q', newQuery);
 			wikiTagManager.update((wtm) => {
 				/**@type {TagID[]}*/
 				let del = [];
-				let temp = tagsFactory();
+				let temp = freshSiteTags();
 				/**@type TagID[]*/
 				let include = [];
 				temp.tagsData().forEach((t) => {
@@ -98,6 +102,16 @@
 			<GlosarioTree />
 		{/key}
 	</dl>
+	<!-- interruptor `series`: apagado, `data.series` viene vacía -->
+	{#if data.series?.length && !$query?.trim()}
+		<section class="series" aria-labelledby="series-title">
+			<h2 id="series-title">Series</h2>
+			<p class="series-intro">
+				Eventos que se repiten: cada serie tiene su página con todas sus ediciones.
+			</p>
+			<SeriesGrid series={data.series} />
+		</section>
+	{/if}
 	<p
 		class="callout"
 		style:--callout-color="var(--4)"
@@ -106,7 +120,8 @@
 	>
 		Esta kinkipedia está escrita, editada y organizada con sudor y posicionamiento político por <a
 			href="/amigues/DemonWeb">@DemonWeb <small class="p-pronoun">él</small></a
-		> <a href="/amigues/Gorro_Rojo">@Gorro_Rojo <small class="p-pronoun">eso/elle</small></a> y <a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
+		> <a href="/amigues/Gorro_Rojo">@Gorro_Rojo <small class="p-pronoun">eso/elle</small></a> y
+		<a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
 	</p>
 </article>
 
@@ -134,6 +149,17 @@
 		h1 {
 			text-align: left;
 		}
+	}
+	.series {
+		margin: 1.5em 0;
+		h2 {
+			text-align: left;
+			margin-bottom: 0.2em;
+		}
+	}
+	.series-intro {
+		margin: 0 0 0.8em;
+		font-size: var(--step-0);
 	}
 	.searchbox {
 		width: 100%;

@@ -13,6 +13,9 @@ import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
 import { seriesEnabled } from '$lib/server/flags.js';
+import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
+import { dbPreviewOf, planDbTagEdit } from '$lib/server/etiquetas/editor.js';
+import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -24,7 +27,21 @@ const describe = (e) => (e instanceof Error ? e.message : String(e));
 
 /** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
 export async function load({ locals, url, platform }) {
-	requireAdmin(locals, url);
+	const login = requireAdmin(locals, url).login;
+	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
+	const seriesOn = await seriesEnabled(platform);
+	const counts = await usageAndWiki();
+	const fromDb = await dbTagsForAdmin(platform, login);
+	if (fromDb) {
+		return {
+			entries: recordsToRawTags(fromDb.records),
+			...counts,
+			fromRepo: false,
+			mock: false,
+			seriesOn,
+			dbMode: true
+		};
+	}
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
 	// The tree as it is on the repo now (so a change just saved shows before the deploy ends).
@@ -41,6 +58,11 @@ export async function load({ locals, url, platform }) {
 	} catch (e) {
 		throw error(500, describe(e));
 	}
+	return { entries, ...counts, fromRepo, mock: isMockMode(), seriesOn, dbMode: false };
+}
+
+/** Cuánto se usa cada etiqueta (en los posts del deploy) y qué etiquetas tienen entrada en la wiki. */
+async function usageAndWiki() {
 	/** @type {Record<string, Record<string, number>>} */
 	const usage = {};
 	for (const c of USAGE_CATEGORIES) usage[c] = await tagUsage(c);
@@ -49,9 +71,7 @@ export async function load({ locals, url, platform }) {
 	for (const p of await contentMetas()) {
 		if (p.category === 'wiki' && p.meta?.wiki) wikiPosts[String(p.meta.wiki)] = p.slug;
 	}
-	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
-	const seriesOn = await seriesEnabled(platform);
-	return { entries, usage, wikiPosts, fromRepo, mock: isMockMode(), seriesOn };
+	return { usage, wikiPosts };
 }
 
 /**
@@ -67,12 +87,20 @@ function opsFrom(data) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	previsualizar: async ({ locals, request, url }) => {
-		requireAdmin(locals, url);
-		const admin = getEventAdmin(locals);
-		if (!admin) return fail(403, { error: NO_PERMISSION });
+	previsualizar: async ({ locals, request, url, platform }) => {
+		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
+		const fromDb = await dbTagsForAdmin(platform, login);
+		if (fromDb) {
+			try {
+				return { preview: dbPreviewOf(planDbTagEdit(fromDb.records, r.ops)) };
+			} catch (e) {
+				return fail(400, { error: describe(e) });
+			}
+		}
+		const admin = getEventAdmin(locals);
+		if (!admin) return fail(403, { error: NO_PERMISSION });
 		try {
 			const plan = await planTagEdit(await getRepoClient(), admin.token, r.ops, bundledSource);
 			return { preview: previewOf(plan) };
@@ -81,11 +109,20 @@ export const actions = {
 		}
 	},
 	guardar: async ({ locals, request, url, platform }) => {
-		requireAdmin(locals, url);
-		const admin = getEventAdmin(locals);
-		if (!admin) return fail(403, { error: NO_PERMISSION });
+		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
+		const fromDb = await dbTagsForAdmin(platform, login);
+		if (fromDb) {
+			// Interruptor `etiquetas_db`: al momento en la base, sin commit.
+			const res = await saveTagOpsToDb(fromDb, r.ops, { locals, login });
+			if (!res.ok) return fail(res.status, { error: res.error });
+			return {
+				saved: { db: true, commit: '', publish: null, summary: res.summary, files: res.written }
+			};
+		}
+		const admin = getEventAdmin(locals);
+		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const client = await getRepoClient();
 		let plan;
 		try {

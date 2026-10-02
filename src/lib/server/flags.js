@@ -63,9 +63,19 @@ export const FLAGS = Object.freeze({
 		label: 'Propinas',
 		description:
 			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
-			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito. Apagado, se ' +
-			've la nota del cafecito como siempre y /propinas da 404.',
+			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito, y en el pie de ' +
+			'página "Dejá una propina" (al Fondo) en lugar de Cafecito. Apagado, se ve la nota del ' +
+			'cafecito como siempre y /propinas da 404.',
 		envVar: 'PROPINAS_ENABLED'
+	},
+	etiquetas_db: {
+		label: 'Etiquetas desde la base',
+		description:
+			'El sitio lee el árbol de etiquetas de la base (objetos `etiqueta`) en lugar del archivo ' +
+			'hardcodedTags.js, y Etiquetas en el panel guarda los cambios en la base al momento, sin ' +
+			'commits. Antes de prenderlo: Etiquetas → Importar a la base. Apagado (o con la base sin ' +
+			'etiquetas), todo sigue leyendo el archivo como siempre.',
+		envVar: 'ETIQUETAS_DB_ENABLED'
 	},
 	contenido_db: {
 		label: 'Contenido desde la base (eventos)',
@@ -194,6 +204,15 @@ export function personasEventosEnabled(platform) {
  */
 export function propinasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'propinas');
+}
+
+/**
+ * Atajo para las rutas: ¿las etiquetas se leen de la base? (docs/etiquetas.md)
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function etiquetasDbEnabled(platform) {
+	return isFlagOn(getDB(platform), 'etiquetas_db');
 }
 
 /**

@@ -1,12 +1,12 @@
 import { currentRelated, fetchPost } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import tagsFactory from '$lib/utils/tags';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
-
-const tagManager = tagsFactory();
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
+	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
+	const tagManager = await siteTagManager(platform);
 	let term = '';
 	/** @type {string[]} */
 	let children = [];
