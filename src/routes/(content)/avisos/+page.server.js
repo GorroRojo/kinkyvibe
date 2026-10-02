@@ -34,7 +34,8 @@ export async function load({ url, platform, locals, setHeaders }) {
 	await requireSeries(platform);
 	setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const series = await seriesPage(url.searchParams.get('serie') ?? '', {
-		tags: await siteTagManager(platform)
+		tags: await siteTagManager(platform),
+		platform
 	});
 	if (!series) error(404, 'Esa serie no existe.');
 	return {
@@ -57,7 +58,8 @@ export const actions = {
 		const db = await requireSeriesDB(platform);
 		const form = await request.formData();
 		const series = await seriesPage(field(form, 'serie'), {
-			tags: await siteTagManager(platform)
+			tags: await siteTagManager(platform),
+			platform
 		});
 		if (!series) return fail(400, { error: 'Esa serie no existe.' });
 		const now = Date.now();
@@ -90,7 +92,8 @@ export const actions = {
 		if (!locals.member) return fail(401, { error: 'Ingresá a tu cuenta para darte de baja.' });
 		const form = await request.formData();
 		const series = await seriesPage(field(form, 'serie'), {
-			tags: await siteTagManager(platform)
+			tags: await siteTagManager(platform),
+			platform
 		});
 		if (!series) return fail(400, { error: 'Esa serie no existe.' });
 		await unsubscribeAccount(db, locals.member.id, series.id);

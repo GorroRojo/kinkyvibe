@@ -56,15 +56,43 @@ personas:
     rol: Organiza
   - perfil: persona-de-prueba
     rol: Facilita
+  - nombre: Persona Sin Perfil # un nombre libre: se muestra sin link
+    rol: Fotografía
 ```
+
+- **Un nombre libre** (`nombre:` en vez de `perfil:`) sirve para cualquier rol: alguien sin perfil
+  todavía (se le vincula uno después). En la página va como texto, sin link.
 
 - Roles fijos (código, `FIXED_ROLES` en `src/lib/utils/personas.js`): Autore, Traductore, Organiza,
   Produce, Facilita, Monitorea, Enseña, Fotografía, Diseño. Les admins suman más en Eventos →
   Roles y preguntas (tabla `persona_roles`). Sacar uno no toca los `.md`: se sigue mostrando
   como está escrito, y el editor avisa al guardar.
-- El editor de publicaciones (eventos, material y wiki) tiene la sección «Personas». Guardar valida
-  forma, perfil y rol (`validatePersonas`); como con las entradas, lo que el archivo ya tenía mal no
-  bloquea guardar otros cambios.
+- **Una sola sección «Personas»** (pedido de gorrite): «Organizan» / «Autores» y «Personas» se
+  editan juntas al crear un evento, al editarlo, en material y en la wiki. Un buscador como el de
+  «Organizan» (fichas de amigues, perfiles de la base o un nombre libre → «Agregar») y cada persona
+  en una fila con su rol (Organiza en eventos y Autore en material es el de quien se suma), para
+  subir, bajar o sacar. Sin el interruptor, la sección es el «Organizan» de siempre (sin roles).
+  Guardar valida forma, perfil o nombre y rol («Personas, fila 1: elegí un perfil o escribí un
+  nombre»); lo que el archivo ya tenía mal no bloquea guardar otros cambios.
+- **Dónde se guarda.** En los `.md` no cambia nada: los nombres con el rol de autores (Organiza en
+  eventos, Autore en material y wiki) van a `authors:` y el resto a `personas:`, así que un `.md`
+  sin cambios en las personas queda igual, byte a byte. En la base (`contenido_db`) es **una sola
+  lista** en `data.personas`: `[{ profile?, name?, role }]` (`profile` es la dirección del perfil,
+  como `perfil:`; `name`, un nombre). Las páginas, las tarjetas, el `.ics`, el RSS, la búsqueda y
+  «Participa en» siguen leyendo `authors` y `personas` de la metadata, que para los posts de la
+  base se arma desde esa lista (`authors` = los nombres con el rol de autores, en orden). El mapa
+  está en un solo lugar, con pruebas de ida y vuelta: `src/lib/utils/personasList.js`. Lo importado
+  antes (con `data.authors` y `extra.personas`) se lee igual y pasa a la lista única la próxima vez
+  que se guarda o se vuelve a importar (no hace falta migrar nada).
+- **Un perfil con el rol Organiza** que se suma desde los perfiles de la base va a `personas:`
+  (como antes), no a `authors:`: `authors:` lleva nombres (el de la ficha de amigues, si tiene). Una
+  ficha de amigues importada a la base es una sola sugerencia: con el rol de autores se guarda su
+  nombre en `authors:`; con otro rol, su perfil en `personas:`.
+- **«+ Nuevo rol…»** al final del selector de rol: crea el rol ahí mismo (un campo chico → «Crear
+  rol») y se lo pone a esa persona. Llama a la misma acción que Eventos › Roles y preguntas
+  (`?/addRole`): solo admins, la misma validación (un rol repetido: «… ya está en la lista: elegilo
+  de ahí.»), el mismo registro de actividad (`persona_role.add`) y la protección de SvelteKit contra
+  pedidos de otros sitios.
 - **¿Por qué no edges?** Un edge une dos objetos, y los eventos todavía son `.md`. El tipo `evento`
   ya declara el edge `persona` (→ `perfil`, `data: { roles: [...] }`) y `personasToEdges()` arma
   exactamente esa forma: cuando los eventos pasen a la base, cada `personas:` se convierte en edges
@@ -139,24 +167,26 @@ en el `personas:` de ese evento. Solo las de sus eventos.
 
 ## Dónde está el código
 
-| Qué                              | Dónde                                                                                                                                |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                                                          |
-| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                                                   |
-| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                   |
-| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                  |
-| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                   |
-| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                      |
-| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                             |
-| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                  |
-| Componentes del panel            | `admin/PersonasEditor.svelte`, `SignupFieldForm.svelte`, `SignupFieldList.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
-| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                      |
-| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                       |
+| Qué                              | Dónde                                                                                                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                                                                                              |
+| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                                                                                       |
+| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                                                       |
+| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                                                      |
+| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                                                       |
+| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                                                          |
+| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                                                                 |
+| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                                                      |
+| Lista única (md ⇄ base)          | `src/lib/utils/personasList.js` (y `personasPicker.js`, el formulario)                                                                                                   |
+| Componentes del panel            | `admin/event-form/PersonasSection.svelte`, `PersonasField.svelte`, `SignupFieldForm.svelte`, `SignupFieldList.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
+| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                                                          |
+| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                                                           |
 
 ## Cómo probarlo
 
 ```sh
-npx vitest run src/lib/utils/personas.test.js src/lib/utils/signupFields.test.js \
+npx vitest run src/lib/utils/personas.test.js src/lib/utils/personasList.test.js \
+  src/lib/utils/signupFields.test.js \
   src/lib/server/personas src/lib/server/tickets/signupFields.test.js \
   "src/routes/(authed)/admin/eventos/roles" scripts/demo/n3-personas.test.js \
   "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"

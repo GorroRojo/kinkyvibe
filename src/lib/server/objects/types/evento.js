@@ -15,6 +15,8 @@
  * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md («En la base»)).
  */
 
+import { personaItemsProblems } from '../../../utils/personasList.js';
+
 /**
  * @typedef {{
  *   summary?: string,
@@ -27,6 +29,7 @@
  *   body_html?: 'libre' | 'corta',
  *   tags?: string[],
  *   authors?: string[],
+ *   personas?: import('../../../utils/personasList.js').PersonaItem[],
  *   featured?: string,
  *   logo?: string,
  *   location?: string,
@@ -91,7 +94,12 @@ const evento = {
 		// guardar, según quién escribió el texto (src/lib/server/contenido/render.js).
 		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },
 		tags: { kind: 'list', label: 'Etiquetas', max: EVENT_TAGS_MAX },
+		// Forma de antes (lo importado antes de «Personas en una sola sección»): se sigue leyendo; lo
+		// que se guarda ahora va en `personas`.
 		authors: { kind: 'list', label: 'Quiénes organizan', max: EVENT_AUTHORS_MAX },
+		// Personas con su rol, quienes organizan incluides: `[{ profile?, name?, role }]`
+		// (src/lib/utils/personasList.js). En los .md siguen siendo `authors:` y `personas:`.
+		personas: { kind: 'json', array: true, label: 'Personas', max: 30_000 },
 		// Número de la imagen en la carpeta del evento («1») o archivo de src/lib/assets
 		// («cabaret-astral-miniatura.webp»). Las imágenes siguen en el repo (R2 es un paso aparte).
 		featured: { kind: 'text', label: 'Imagen principal', max: 200 },
@@ -123,6 +131,8 @@ const evento = {
 		}
 		const link = data.link ? linkProblem(String(data.link)) : null;
 		if (link) errors.push({ path: 'link', message: `Link de acción: ${link}` });
+		for (const message of personaItemsProblems(data.personas))
+			errors.push({ path: 'personas', message });
 		return errors;
 	},
 	searchText(data) {

@@ -4,11 +4,12 @@
  * de miniflare con la importación de verdad; del lado .md, el mismo `processPost` que usa el sitio.
  *
  * También: la importación es idempotente, informa lo que cambia, no pisa lo editado en el panel,
- * guarda el historial; la visibilidad (oculto, no listado, borrado) y que con el interruptor
- * apagado nada cambie.
+ * guarda el historial; la visibilidad (oculto, no listado, borrado), que con el interruptor
+ * apagado nada cambie y que el contador «No listadas» del panel dé lo mismo que la lista.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { runQuery } from '$lib/server/db/batch.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { buildIcsFeed } from '$lib/utils/icsFeed.js';
 import { stripMarkdown } from '$lib/utils/search.js';
@@ -123,6 +124,53 @@ describe('importación', () => {
 		expect(again.plan.filter((r) => r.action === 'unchanged').every((r) => !r.changed.length)).toBe(
 			true
 		);
+	});
+
+	// «Personas en una sola sección»: lo importado antes guardaba `authors` y `extra.personas`.
+	// No se migra: se lee igual, volver a importar no lo ve como cambio y guardarlo lo reacomoda.
+	it('lo importado con la forma de antes (authors + extra.personas) sigue andando', async () => {
+		await importAll();
+		const slug = 'taller-inventado-2031-02';
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT o.id, o.data FROM content_sources s JOIN objects o ON o.id = s.object_id
+					WHERE s.legacy_slug = ?1`
+				)
+				.bind(slug)
+				.first()
+		);
+		const data = JSON.parse(row.data);
+		expect(data.personas).toEqual([
+			{ name: 'Persona Inventada', role: 'Organiza' },
+			{ name: 'Otre Inventade', role: 'Organiza' }
+		]);
+		expect(data).not.toHaveProperty('authors');
+		// Como lo guardaba la importación antes de este cambio.
+		const { personas, ...old } = data;
+		old.authors = personas.map((/** @type {any} */ p) => p.name);
+		await saveObject(
+			t.db,
+			{ id: row.id, type: 'evento', version: 1, data: old },
+			{ actor: 'admin-inventade', now: NOW }
+		);
+		const stored = /** @type {any} */ (
+			await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(row.id).first()
+		);
+		expect(JSON.parse(stored.data)).not.toHaveProperty('personas');
+
+		const plan = await planImport(t.db, 'calendario', files);
+		expect(plan.find((r) => r.legacySlug === slug)).toMatchObject({
+			action: 'unchanged',
+			changed: []
+		});
+		const posts = await contenido('1');
+		const found = await posts.siteEvent(t.platform, slug);
+		const post = found.mode === 'db' ? found.post : null;
+		expect(post?.meta.authors).toEqual(['Persona Inventada', 'Otre Inventade']);
+		const f = files.find((x) => x.legacySlug === slug);
+		const fromMd = await utils.processPost(undefined, slug, /** @type {any} */ (f?.meta));
+		expect(metaDiff(norm(post?.meta ?? {}), norm(fromMd.meta))).toEqual([]);
 	});
 
 	it('la dirección vieja con mayúsculas se guarda; el objeto usa minúsculas', async () => {
@@ -347,5 +395,82 @@ describe('visibilidad', () => {
 			mode: 'md'
 		});
 		expect((await posts.siteBodies(t.platform)).size).toBe(0);
+	});
+});
+
+describe('el contador «No listadas» del menú del panel', () => {
+	/** Lo que mostraba antes: el largo de la lista de no listadas. */
+	const fromList = async (/** @type {typeof import('./posts.js')} */ posts) =>
+		(await posts.sitePosts(t.platform, false, true)).length;
+	/** Lo de ahora: una consulta, sin armar las listas. */
+	const fromQuery = async (/** @type {typeof import('./posts.js')} */ posts) =>
+		runQuery(t.db, await posts.unlistedCountQuery(t.platform));
+
+	/** @param {string} legacySlug */
+	async function objectOf(legacySlug) {
+		const row = await t.db
+			.prepare(
+				`SELECT o.id, o.version, o.data FROM objects o
+				JOIN content_sources s ON s.object_id = o.id WHERE s.legacy_slug = ?1`
+			)
+			.bind(legacySlug)
+			.first();
+		if (!row) throw new Error(`no está en la base: ${legacySlug}`);
+		return { id: Number(row.id), version: Number(row.version), data: JSON.parse(String(row.data)) };
+	}
+
+	it('da lo mismo que la lista de no listadas, también al ocultar, no listar y borrar', async () => {
+		const extra = [
+			// Un .md no listado que no está en la base, y otro de una categoría que no está en la base.
+			{ meta: { category: 'calendario', postID: 'no-listado-sin-importar-2031-09' } },
+			{ meta: { category: 'amigues', postID: 'perfil-no-listado-inventado' } }
+		];
+		md.unlisted.push(...extra);
+		try {
+			let posts = await contenido('1');
+			// Sin nada importado: todo sale de los .md.
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			expect(await fromQuery(posts)).toBe(md.unlisted.length);
+
+			await importAll();
+			posts = await contenido('1');
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+
+			// Un evento listado pasa a no listado en la base (su .md sigue listado).
+			const fiesta = await objectOf('fiesta-inventada-2031-01');
+			await saveObject(
+				t.db,
+				{ ...fiesta, type: 'evento', data: { ...fiesta.data, unlisted: true } },
+				{ actor: 'admin-inventade', now: NOW + 1 }
+			);
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			const withFiesta = Number(await fromQuery(posts));
+
+			// El no listado se oculta: deja de contar.
+			const ciclo = await objectOf('ciclo-no-listado-2031-04');
+			await saveObject(
+				t.db,
+				{ id: ciclo.id, version: ciclo.version, type: 'evento', visibility: 'hidden' },
+				{ actor: 'admin-inventade', now: NOW + 2 }
+			);
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			expect(await fromQuery(posts)).toBe(withFiesta - 1);
+
+			// Borrado: tampoco cuenta, y su .md no vuelve (la base decide su dirección).
+			const borrar = await objectOf('fiesta-inventada-2031-01');
+			await saveObject(
+				t.db,
+				{ id: borrar.id, version: borrar.version, type: 'evento', deleted: true },
+				{ actor: 'admin-inventade', now: NOW + 3 }
+			);
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+
+			// Con el interruptor apagado, los .md.
+			posts = await contenido('0');
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			expect(await fromQuery(posts)).toBe(md.unlisted.length);
+		} finally {
+			md.unlisted.splice(md.unlisted.length - extra.length, extra.length);
+		}
 	});
 });

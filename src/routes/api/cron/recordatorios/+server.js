@@ -40,7 +40,7 @@ export async function POST({ request, platform, url, fetch }) {
 		// «Lo que sigo» también aparte (interruptores `lo_que_sigo` y `cuentas`).
 		let sigo = null;
 		try {
-			sigo = await runSigoCron({ db, origin: siteOrigin(url), fetch });
+			sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
 		} catch (error) {
 			logDBError('cron lo que sigo', error);
 		}

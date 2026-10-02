@@ -1,7 +1,7 @@
 # 0029. Un bot de Telegram como otra vista del sitio
 
 - Fecha: 2026-10-01
-- Estado: Aceptada. No hay código todavía.
+- Estado: Aceptada. Fase 1 con código (#175): `/proximos` y `/evento`, interruptor `telegram_bot`.
 
 ## Contexto
 
@@ -76,5 +76,5 @@ Reglas:
 ## Cómo va (1/10)
 
 - Fase 1 en un PR aparte: webhook `/api/telegram`, `/proximos`, `/evento`, interruptor
-  `telegram_bot`. Guía: [`docs/telegram.md`](../telegram.md). Lee los eventos de los `.md`; falta
-  cambiar a `sitePosts` cuando #166 esté en `main`.
+  `telegram_bot`. Guía: [`docs/telegram.md`](../telegram.md). Lee los eventos por la capa
+  compartida (`sitePosts`: de la base o de los `.md`, según `contenido_db`).
