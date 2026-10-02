@@ -187,6 +187,28 @@ describe('planDbTagEdit + applyDbTagPlan', () => {
 		expect(() => planDbTagEdit(current, [])).toThrow(/No hay cambios/);
 	});
 
+	it('etiquetas del sistema: no se renombran ni se fusionan (con la base tampoco)', async () => {
+		const current = await stored();
+		expect(() =>
+			planDbTagEdit(current, [{ type: 'rename', from: 'evento recurrente', to: 'Series' }])
+		).toThrow(/etiqueta del sistema/);
+		expect(() =>
+			planDbTagEdit(current, [
+				{ type: 'rename', from: 'evento recurrente', to: 'Series', keepAlias: false }
+			])
+		).toThrow(/no se puede renombrar/);
+		expect(() =>
+			planDbTagEdit(current, [{ type: 'merge', from: 'evento recurrente', into: 'prácticas' }])
+		).toThrow(/no se puede fusionar/);
+		// Lo demás sí: el nombre visible, y fusionar OTRA etiqueta adentro de la del sistema.
+		expect(() =>
+			planDbTagEdit(current, [
+				{ type: 'update', id: 'evento recurrente', set: { visible_name: 'Series' } },
+				{ type: 'merge', from: 'cuerdas', into: 'evento recurrente' }
+			])
+		).not.toThrow();
+	});
+
 	it('si alguien guardó mientras tanto, avisa y no pisa', async () => {
 		const current = await stored();
 		const plan = planDbTagEdit(current, [{ type: 'update', id: 'cuerdas', set: { icon: '🧵' } }]);

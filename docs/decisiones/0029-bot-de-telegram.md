@@ -1,7 +1,7 @@
 # 0029. Un bot de Telegram como otra vista del sitio
 
 - Fecha: 2026-10-01
-- Estado: **Propuesta, a confirmar por gorrite.** No hay código todavía.
+- Estado: Aceptada. No hay código todavía.
 
 ## Contexto
 
