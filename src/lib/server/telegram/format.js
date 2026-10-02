@@ -124,16 +124,73 @@ export function formatPickList(events, origin) {
 	return `${PICK_EVENT_TEXT}\n\n${formatEventList(events, origin)}`;
 }
 
-/** @param {string} origin */
-export function formatHelp(origin) {
+/**
+ * @param {string} origin
+ * @param {{ accounts?: boolean }} [opts] `accounts`: con la fase 2 prendida, suma los comandos de
+ *   la cuenta
+ */
+export function formatHelp(origin, { accounts = false } = {}) {
+	const account = accounts
+		? '\nCon tu cuenta del sitio (por chat privado):\n' +
+			'/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n' +
+			'/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n' +
+			'/desvincular: desconectá este chat\n'
+		: '';
 	return (
 		'Hola, soy el bot de KinkyVibe. Podés pedirme:\n\n' +
 		'/proximos: los próximos eventos (tocá uno para ver el detalle)\n' +
 		'/evento: elegí un evento de la lista\n' +
-		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n\n' +
-		`Para comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
+		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
+		account +
+		`\nPara comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
 	);
 }
+
+/**
+ * Un aviso de «Lo que sigo» por Telegram: solo título, fecha y link (nada de lugar ni de quién
+ * más sigue lo mismo).
+ *
+ * @param {{ kind: 'nuevo' | 'recordatorio', title: string, start: string, url: string }} notice
+ */
+export function formatFollowNotice({ kind, title, start, url }) {
+	const head = kind === 'nuevo' ? '🆕 Se anunció algo nuevo' : '⏰ Recordatorio: falta poco';
+	const when = formatWhen(start);
+	return `${head}\n\n<b>${escapeHtml(title)}</b>${when ? `\n${escapeHtml(when)}` : ''}\n${escapeHtml(url)}`;
+}
+
+/** @param {string} origin */
+export function formatLinked(origin) {
+	return (
+		'Listo: este chat quedó conectado a tu cuenta de KinkyVibe. ' +
+		`Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: ${escapeHtml(origin)}/mi-rincon/sigo\n\n` +
+		'Para pausarlos: /silenciar. Para desconectar: /desvincular.'
+	);
+}
+
+export const LINK_ASK_CODE_TEXT =
+	'Mandame el código que aparece en Mi rincón → Lo que sigo → «Conectar Telegram», así: /vincular ABCD-2345';
+
+export const LINK_INVALID_TEXT =
+	'Ese código no sirve: puede estar mal escrito, ya usado o vencido (duran 15 minutos). Pedí uno nuevo en Mi rincón → Lo que sigo.';
+
+export const LINK_TOO_MANY_TEXT =
+	'Probaste muchos códigos seguidos. Esperá un rato y probá de nuevo.';
+
+export const PRIVATE_ONLY_TEXT =
+	'Esto se hace por chat privado con el bot, no en grupos: escribime directamente.';
+
+export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con el bot.';
+
+export const NOT_LINKED_TEXT =
+	'Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.';
+
+export const UNLINKED_TEXT =
+	'Listo: desconecté este chat de tu cuenta. No te va a llegar ningún aviso más por acá.';
+
+export const MUTED_TEXT =
+	'Listo: pausé todos los avisos por Telegram. Cuando quieras volver a recibirlos: /reanudar.';
+
+export const UNMUTED_TEXT = 'Listo: vas a volver a recibir los avisos que elegiste en Lo que sigo.';
 
 export const NOT_FOUND_TEXT =
 	'No encontré ese evento entre los próximos. Probá con /proximos para ver la lista.';

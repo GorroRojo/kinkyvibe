@@ -4,8 +4,9 @@
 	import FollowOptions from '$lib/components/sigo/FollowOptions.svelte';
 	import CalendarSubscribe from '$lib/components/series/CalendarSubscribe.svelte';
 	import { TIMEZONE } from '$lib/utils/dates.js';
+	import TelegramCard from '$lib/components/sigo/TelegramCard.svelte';
 	import { editionDateLabel } from '$lib/utils/series.js';
-	import { NOTIFY_CHANNELS, followEmoji, groupFollows } from '$lib/utils/sigo.js';
+	import { followEmoji, groupFollows, notifyChannels } from '$lib/utils/sigo.js';
 
 	export let data;
 	export let form;
@@ -51,8 +52,10 @@
 
 	$: groups = groupFollows(data.follows);
 	$: taken = new Set(data.follows.map(rowId));
+	// Las columnas de la grilla: Telegram prendida solo con el chat vinculado (data.telegram).
+	$: channels = notifyChannels(data.telegram);
 	// La nota de lo que viene (Telegram), si hay alguna columna apagada.
-	$: soon = NOTIFY_CHANNELS.find((c) => !c.enabled && c.note);
+	$: soon = channels.find((c) => !c.enabled && c.note);
 </script>
 
 <svelte:head>
@@ -168,6 +171,7 @@
 										options={f.options}
 										name={f.name ?? f.title}
 										disabled={busy === rowId(f)}
+										{channels}
 										noteId={soon ? 'sigo-proximamente' : undefined}
 										on:change={autoSave}
 									/>
@@ -188,6 +192,10 @@
 				</ul>
 			</section>
 		{/each}
+	{/if}
+
+	{#if data.telegram}
+		<TelegramCard telegram={data.telegram} />
 	{/if}
 
 	<section class="surface-card" id="calendario" aria-labelledby="cal-title">

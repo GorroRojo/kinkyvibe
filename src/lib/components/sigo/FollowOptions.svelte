@@ -6,8 +6,9 @@
 	 * interruptor prendido manda su casilla (`calendario`, `mail_nuevo`, `recordatorio`).
 	 *
 	 * Las columnas salen de `channels` (NOTIFY_CHANNELS de $lib/utils/sigo.js): una columna sin
-	 * `enabled` se ve apagada, con «Próximamente», y no manda nada. Sumar Telegram es darle sus
-	 * casillas y `enabled: true` ahí; esta grilla no cambia.
+	 * `enabled` se ve apagada, con «Próximamente» (o su `offLabel`), y no manda nada. Cada columna
+	 * prendida manda además `canal=<id>`, para que el servidor sepa qué casillas se mostraron (una
+	 * casilla apagada no se manda). Telegram se prende por cuenta con `notifyChannels`.
 	 *
 	 * Props: `options` (FollowOptions), `name` (para los textos de lectores de pantalla),
 	 * `disabled`, `channels`, `kinds`, `noteId` (id del texto que explica lo que viene). Reenvía
@@ -36,6 +37,9 @@
 </script>
 
 <div class="follow-options">
+	{#each channels as c (c.id)}
+		{#if c.enabled}<input type="hidden" name="canal" value={c.id} />{/if}
+	{/each}
 	<label class="switch calendar">
 		<input
 			type="checkbox"
@@ -57,7 +61,7 @@
 				{#each channels as c (c.id)}
 					<th scope="col" class:soon={!c.enabled} data-channel={c.id}>
 						{c.label}
-						{#if !c.enabled}<span class="soon-chip">Próximamente</span>{/if}
+						{#if !c.enabled}<span class="soon-chip">{c.offLabel ?? 'Próximamente'}</span>{/if}
 					</th>
 				{/each}
 			</tr>
@@ -89,7 +93,9 @@
 								{/if}
 								<span class="track" aria-hidden="true"></span>
 								<span class="visually-hidden"
-									>{k.label} por {c.label}{field ? '' : ' (próximamente)'}</span
+									>{k.label} por {c.label}{field
+										? ''
+										: ` (${(c.offLabel ?? 'Próximamente').toLowerCase()})`}</span
 								>
 							</label>
 						</td>

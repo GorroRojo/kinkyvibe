@@ -10,14 +10,21 @@
  * - no se guarda ningún mail: los avisos van al mail de la cuenta.
  */
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { DEFAULT_FOLLOW_OPTIONS, MAX_FOLLOWS, optionsFromRow } from '$lib/utils/sigo.js';
+import {
+	DEFAULT_FOLLOW_OPTIONS,
+	MAX_FOLLOWS,
+	optionsFromRow,
+	telegramOptionsFromRow
+} from '$lib/utils/sigo.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/utils/sigo.js').FollowTarget} FollowTarget */
 /** @typedef {import('$lib/utils/sigo.js').FollowOptions} FollowOptions */
 /**
  * @typedef {{ kind: import('$lib/utils/sigo.js').FollowKind, key: string,
- *   options: FollowOptions, createdAt: number, seriesSubscriptionId: string | null }} FollowRow
+ *   options: FollowOptions, telegram: import('$lib/utils/sigo.js').TelegramOptions,
+ *   createdAt: number, seriesSubscriptionId: string | null }} FollowRow `telegram`: los avisos por
+ *   Telegram (migración 0033), aparte de `options` porque solo cuentan con un chat vinculado
  */
 
 /** Cambios por cuenta (seguir, dejar de seguir, opciones): no es un mail, pero se topea igual. */
@@ -107,7 +114,8 @@ export async function unfollow(db, accountId, target, { now = Date.now() } = {})
 }
 
 /**
- * Cambia las opciones de algo que ya sigue. `{ ok: false, status: 404 }` si no lo sigue.
+ * Cambia las opciones de algo que ya sigue. `{ ok: false, status: 404 }` si no lo sigue. Las de
+ * Telegram cambian solo si vienen en `options` (si no, quedan como estaban).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -121,7 +129,8 @@ export async function setFollowOptions(db, accountId, target, options, { now = D
 		return { ok: false, status: 429, message: SIGO_MESSAGES.tooMany };
 	const r = await db
 		.prepare(
-			`UPDATE follows SET in_calendar = ?4, mail_new = ?5, mail_reminder = ?6, updated_at = ?7
+			`UPDATE follows SET in_calendar = ?4, mail_new = ?5, mail_reminder = ?6, updated_at = ?7,
+				tg_new = coalesce(?8, tg_new), tg_reminder = coalesce(?9, tg_reminder)
 			WHERE account_id = ?1 AND target_kind = ?2 AND target_key = ?3`
 		)
 		.bind(
@@ -131,13 +140,18 @@ export async function setFollowOptions(db, accountId, target, options, { now = D
 			options.calendario ? 1 : 0,
 			options.mail_nuevo ? 1 : 0,
 			options.recordatorio ? 1 : 0,
-			now
+			now,
+			bit(options.telegram_nuevo),
+			bit(options.telegram_recordatorio)
 		)
 		.run();
 	if (Number(r.meta?.changes ?? 0) !== 1)
 		return { ok: false, status: 404, message: SIGO_MESSAGES.notFound };
 	return { ok: true };
 }
+
+/** `undefined` → `null` (no cambiar), si no 1 o 0. @param {boolean | undefined} v */
+const bit = (v) => (v === undefined ? null : v ? 1 : 0);
 
 /**
  * @param {Record<string, unknown>} r
@@ -148,6 +162,7 @@ function toRow(r) {
 		kind: /** @type {FollowRow['kind']} */ (String(r.target_kind)),
 		key: String(r.target_key),
 		options: optionsFromRow(r),
+		telegram: telegramOptionsFromRow(r),
 		createdAt: Number(r.created_at),
 		seriesSubscriptionId: r.series_subscription_id == null ? null : String(r.series_subscription_id)
 	};
