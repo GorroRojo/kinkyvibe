@@ -89,6 +89,12 @@ nada de estas tablas para sumarlas.
 
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
   otro anula el anterior del mismo `purpose`.
+- **«Vence en…» con la hora exacta** (pedido de gorrite): el mail dice «Vence en 10 minutos (a
+  las 14:35, hora de Argentina y Uruguay)», porque no sabemos la zona de quien lo lee. En
+  `/ingresar`, el servidor muestra esa misma hora de Argentina y, ya en el navegador, la cambia por
+  la hora local de quien mira (`ExpiryTime.svelte`). Lo mismo para el link de «Avisame si se
+  repite» (mail) y las páginas de la reserva por transferencia (`/entradas/…/estado` y
+  `…/confirmar`). Helper puro: `src/lib/utils/expiry.js`.
 - Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
   contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un proyecto y borrarlo,
   ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
