@@ -1,7 +1,18 @@
 <script>
 	import '$lib/styles/style.scss';
-	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import {
+		filteredTags,
+		tagManager,
+		togglePositiveTagFilterFn,
+		wikiTagManager
+	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import { useSiteTags } from '$lib/utils/siteTags.js';
+
+	/** @type {import('./$types').LayoutData} */
+	export let data;
+	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de la base; null = el del archivo.
+	$: useSiteTags(data.siteTags, [tagManager, wikiTagManager]);
 
 	// Modo demo (docs/demo.md): constante de compilación, como PREVIEW_BUILD en el servidor. En
 	// el build de producción es `false` y el botón de recargar datos no entra en el bundle.
