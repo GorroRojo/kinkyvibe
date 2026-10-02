@@ -15,6 +15,7 @@ import { getDB, logDBError } from '$lib/server/db';
 import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
+import { runSigoCron } from '$lib/server/sigo/cron.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -36,7 +37,17 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron series', error);
 		}
-		return json(series ? { ...r, series } : r, { headers: { 'cache-control': 'no-store' } });
+		// «Lo que sigo» también aparte (interruptores `lo_que_sigo` y `cuentas`).
+		let sigo = null;
+		try {
+			sigo = await runSigoCron({ db, origin: siteOrigin(url), fetch });
+		} catch (error) {
+			logDBError('cron lo que sigo', error);
+		}
+		return json(
+			{ ...r, ...(series ? { series } : {}), ...(sigo ? { sigo } : {}) },
+			{ headers: { 'cache-control': 'no-store' } }
+		);
 	} catch (error) {
 		logDBError('cron recordatorios', error);
 		return json({ error: 'error' }, { status: 500 });
