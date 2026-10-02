@@ -9,9 +9,12 @@
  * 3. el resultado vuelve a registros (`tagsToRecords`) y se compara con lo que había, por objeto:
  *    solo se escriben las etiquetas que cambiaron.
  *
+ * Renombrar (decisión de gorrite): quien edita elige. Por defecto (`keepAlias: false`) el nombre
+ * viejo NO queda como alias y las publicaciones que lo usan se reescriben con un commit
+ * (`planTagRenameInPosts`, rename.js: lo hace quien llama, panel.js); con `keepAlias: true` el
+ * nombre viejo queda como alias y no se toca ninguna publicación.
+ *
  * Diferencias con el archivo:
- * - Renombrar SIEMPRE deja el nombre viejo como alias: las publicaciones (.md, en el repo) siguen
- *   nombrándola como antes y se resuelven por el alias. No se tocan publicaciones.
  * - Una etiqueta renombrada sigue siendo el mismo objeto (su texto de la wiki, su historial y su
  *   dirección se mantienen); el alias con el nombre viejo es un objeto nuevo.
  * - El texto de la wiki y los demás datos que el archivo no tiene (`body`, `wiki_*`) se conservan.
@@ -48,16 +51,6 @@ const clean = (s) =>
 	String(s ?? '')
 		.replace(/\s+/g, ' ')
 		.trim();
-
-/**
- * Renombrar siempre deja alias (ver arriba).
- *
- * @param {readonly TagOp[]} ops
- * @returns {TagOp[]}
- */
-export function forceKeepAlias(ops) {
-	return ops.map((op) => (op.type === 'rename' ? { ...op, keepAlias: true } : op));
-}
 
 /** Los datos que vienen del archivo (los que el editor cambia). @param {Record<string, unknown>} data */
 function fileData(data) {
@@ -99,18 +92,17 @@ export function describeTagRecord(r) {
  * operación no tiene sentido (como el editor del archivo).
  *
  * @param {readonly StoredTag[]} current
- * @param {readonly TagOp[]} rawOps
+ * @param {readonly TagOp[]} ops
  * @returns {DbTagPlan}
  */
-export function planDbTagEdit(current, rawOps) {
-	const ops = forceKeepAlias(rawOps);
+export function planDbTagEdit(current, ops) {
 	if (!ops.length) throw new Error('No hay cambios.');
 	/** @type {string[]} */
 	const warnings = [];
 	const byKey = new Map(current.map((t) => [t.key, t]));
 	const entries = recordsToRawTags(current).map((value) => ({ value }));
 	const before = tagsToRecords(entries.map((e) => e.value)).records;
-	const after = tagsToRecords(applyTagOps(entries, ops).map((e) => e.value)).records;
+	const after = tagsToRecords(applyTagOps(entries, [...ops]).map((e) => e.value)).records;
 
 	// Qué objeto es cada nombre de después: el mismo nombre, salvo los renombrados.
 	/** @type {Map<string, string | null>} nombre de después → nombre de antes */

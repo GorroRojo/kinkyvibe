@@ -11,6 +11,7 @@ import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -24,7 +25,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	const post = db ?? (await fetchPost('calendario', params.event, true).catch(() => null));
 	const posts = await sitePosts(platform);
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
-		loadRelated(post, posts),
+		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals, posts),
 		loadVenue(params.event, platform, locals),
@@ -78,12 +79,15 @@ async function loadVenue(slug, platform, locals) {
 	}
 }
 
-/** Related posts, computed on the server so the page doesn't need every post.
+/** Related posts, computed on the server so the page doesn't need every post, with the ticket
+ * sales state of the related events for their cards (one batched query, see listStates.js).
  * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
- * @param {ProcessedPost[]} posts */
-async function loadRelated(post, posts) {
-	if (!post) return { relatedPosts: [], relatedPastCount: 0 };
-	return currentRelated(relatedPostsFor(post.meta, posts));
+ * @param {ProcessedPost[]} posts
+ * @param {App.Platform|undefined} platform */
+async function loadRelated(post, posts, platform) {
+	if (!post) return { relatedPosts: [], relatedPastCount: 0, ticketStates: null };
+	const related = currentRelated(relatedPostsFor(post.meta, posts));
+	return { ...related, ticketStates: await ticketStatesFor(platform, related.relatedPosts) };
 }
 
 /**

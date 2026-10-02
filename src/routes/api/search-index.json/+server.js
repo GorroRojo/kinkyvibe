@@ -1,10 +1,19 @@
 import { json } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { fetchMarkdownPosts } from '$lib/utils';
-import { siteBodies, sitePosts } from '$lib/server/contenido/posts.js';
-import tagsFactory from '$lib/utils/tags';
+import { contentDb, siteBodies, sitePosts } from '$lib/server/contenido/posts.js';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { fold, stripMarkdown, truncate } from '$lib/utils/search';
-// Dinámico (antes se prerenderizaba): con el interruptor `contenido_db` prendido los eventos salen
-// de la base y pueden cambiar sin un deploy. Apagado, da lo mismo que el archivo de siempre.
+import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
+
+// Not prerendered: the tags follow the `etiquetas_db` switch (the file or the database,
+// docs/etiquetas.md) and the events follow `contenido_db`; the database can't be read at build
+// time. With the events from the files it's built once per tag tree and server instance
+// (indexCache); with `contenido_db` on, events can change without a deploy, so it's built each time.
+export const prerender = false;
+
+/** @type {WeakMap<TagManager, Promise<unknown>>} */
+const indexCache = new WeakMap();
 
 /**
  * Máximo de caracteres de cuerpo (texto plano) por post en el índice. Los eventos se
@@ -13,7 +22,7 @@ import { fold, stripMarkdown, truncate } from '$lib/utils/search';
  */
 const BODY_MAX = { calendario: 400, material: 2500, amigues: 2500, wiki: 2500 };
 
-/** Markdown crudo de cada post, cargado sólo por este endpoint (en build). */
+/** Markdown crudo de cada post, cargado sólo por este endpoint. */
 // `{ as: 'raw' }` is gone in Vite 8 (it returned the module instead of the text).
 const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 	import.meta.glob('/src/lib/posts/*/*.md', { query: '?raw', import: 'default' })
@@ -47,7 +56,26 @@ const str = (v) => (v === undefined || v === null ? '' : String(v));
  * @type {import("./$types").RequestHandler}
  */
 export async function GET({ platform }) {
-	const tagManager = tagsFactory();
+	const tagManager = currentSiteTags();
+	if (await contentDb(platform)) {
+		return json(await buildIndex(tagManager, platform), { headers: TAGGED_CACHE });
+	}
+	let index = dev ? undefined : indexCache.get(tagManager);
+	if (!index) {
+		index = buildIndex(tagManager, platform);
+		if (!dev) {
+			indexCache.set(tagManager, index);
+			index.catch(() => indexCache.delete(tagManager));
+		}
+	}
+	return json(await index, { headers: TAGGED_CACHE });
+}
+
+/**
+ * @param {TagManager} tagManager
+ * @param {App.Platform | undefined} platform
+ */
+async function buildIndex(tagManager, platform) {
 	/** @type {import('$lib/utils/search').SearchDoc[]} */
 	const docs = [];
 	/** @type {Set<string>} */
@@ -135,5 +163,5 @@ export async function GET({ platform }) {
 			if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete doc[k];
 		}
 	}
-	return json({ v: 1, docs, tags }, { headers: { 'Cache-Control': 'public, max-age=300' } });
+	return { v: 1, docs, tags };
 }

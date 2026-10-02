@@ -1,5 +1,6 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isCurrent } from '$lib/utils/allPosts';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 // all the calendar grid (and a collapsed past-events list) uses; the page loads
 // the full posts if the viewer chooses to list past events
@@ -36,6 +37,8 @@ export async function load({ platform }) {
 	return {
 		posts: posts.map((p) =>
 			isCurrent(p, now) ? p : /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
-		)
+		),
+		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
+		ticketStates: await ticketStatesFor(platform, posts)
 	};
 }

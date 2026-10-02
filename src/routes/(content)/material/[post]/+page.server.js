@@ -5,6 +5,7 @@ import { propinasEnabled } from '$lib/server/flags.js';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { redirect } from '@sveltejs/kit';
 import { personasForPage } from '$lib/server/personas/index.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
@@ -15,9 +16,12 @@ export async function load({ params, platform }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
+	const related = currentRelated(relatedPostsFor(post.meta, await sitePosts(platform)));
 	return {
 		...post,
-		...currentRelated(relatedPostsFor(post.meta, await sitePosts(platform))),
+		...related,
+		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
+		ticketStates: await ticketStatesFor(platform, related.relatedPosts),
 		pronouns: await mentionPronouns(),
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
 		personas: await personasForPage(platform, post.meta),
