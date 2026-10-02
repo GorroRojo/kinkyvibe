@@ -2,13 +2,15 @@
 	/**
 	 * Eventos → Series: cada serie (etiqueta hija de «evento recurrente») con su imagen, la próxima
 	 * edición, cuántas personas pidieron aviso (solo el número) y sus ediciones. CSV con todas las
-	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente» (se guarda como en
-	 * Contenido → Etiquetas, donde también se cambia la imagen).
+	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: nombre
+	 * visible, ícono, imagen y descripción. Se guarda como en Etiquetas (commit al archivo, o en la
+	 * base con el interruptor `etiquetas_db`).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import { Plus, Repeat, Tags } from '@lucide/svelte';
+	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
+	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -23,7 +25,25 @@
 	const icon = { size: 18, 'aria-hidden': true };
 	let creating = false;
 	let busy = false;
-	$: if (form?.error) creating = true;
+	/** La serie que se está editando (su id), o ''. */
+	let editing = '';
+	$: if (form?.error && !form?.editing) creating = true;
+	$: if (form?.editing) editing = form.editing;
+	$: if (form?.edited) editing = '';
+	/** Lo que se acaba de guardar (crear o editar), para el aviso. */
+	$: done = form?.created
+		? { ...form.created, verb: 'creó' }
+		: form?.edited
+			? { ...form.edited, verb: 'guardó' }
+			: null;
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submit = () => {
+		busy = true;
+		return async ({ update }) => {
+			await update({ reset: false });
+			busy = false;
+		};
+	};
 </script>
 
 <PageHeader
@@ -46,56 +66,37 @@
 	</svelte:fragment>
 </PageHeader>
 
-{#if form?.created}
+{#if done}
 	<p class="kv-flash" role="status">
-		Listo: se creó la serie «{form.created.name}». Aparece acá cuando termine de publicarse el
-		sitio; ponele la etiqueta a sus eventos.
-		{#if form.created.publish}<PublishStatus pr={form.created.publish} />{:else}<a
-				href={form.created.commit}
-				target="_blank"
-				rel="noreferrer">Ver el commit</a
-			>{/if}
+		Listo: se {done.verb} la serie «{done.name}».
+		{#if done.db}
+			Ya está en la base: en menos de un minuto se ve en el sitio.
+		{:else}
+			Se ve cuando termine de publicarse el sitio.
+			{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
+					href={done.commit}
+					target="_blank"
+					rel="noreferrer">Ver el commit</a
+				>{/if}
+		{/if}
+		{#if done.verb === 'creó'}Ponele la etiqueta a sus eventos.{/if}
 	</p>
 {/if}
 
 {#if data.canCreate && creating}
 	<Card>
-		<form
-			id="crear-serie"
-			class="kv-form"
-			method="POST"
-			action="?/crear"
-			use:enhance={() => {
-				busy = true;
-				return async ({ update }) => {
-					await update({ reset: false });
-					busy = false;
-				};
-			}}
-		>
+		<form id="crear-serie" class="kv-form" method="POST" action="?/crear" use:enhance={submit}>
 			<h2 class="form-title">Crear serie</h2>
 			<p class="muted small">
 				Una serie es una etiqueta hija de «evento recurrente»: después, ponésela a cada edición.
 			</p>
-			<label class="kv-field">
-				<span>Nombre</span>
-				<input name="name" required maxlength="60" value={form?.values?.name ?? ''} />
-			</label>
-			<label class="kv-field">
-				<span>Imagen (opcional)</span>
-				<select name="image" value={form?.values?.image ?? ''}>
-					<option value="">Sin imagen</option>
-					{#each data.assets as a (a)}<option value={a}>{a}</option>{/each}
-				</select>
-				<small class="muted">Un archivo de src/lib/assets.</small>
-			</label>
-			<label class="kv-field">
-				<span>Descripción (opcional)</span>
-				<textarea name="description" rows="3" maxlength="2000"
-					>{form?.values?.description ?? ''}</textarea
-				>
-			</label>
-			{#if form?.error}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
+			<SeriesFields
+				mode="create"
+				id="crear"
+				values={form?.editing ? {} : (form?.values ?? {})}
+				assets={data.assets}
+			/>
+			{#if form?.error && !form?.editing}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
 			<div class="kv-row">
 				<button class="kv-btn" type="submit" disabled={busy}
 					>{busy ? 'Guardando…' : 'Crear serie'}</button
@@ -149,11 +150,49 @@
 								>{/if}
 						</p>
 					</div>
-					<CsvButton
-						href="/admin/eventos/series/ediciones.csv?serie={encodeURIComponent(s.id)}"
-						label="CSV"
-					/>
+					<div class="kv-row">
+						{#if data.canCreate}
+							<button
+								type="button"
+								class="kv-btn ghost small"
+								aria-expanded={editing === s.id}
+								on:click={() => (editing = editing === s.id ? '' : s.id)}
+								><Pencil size={16} aria-hidden="true" /> Editar</button
+							>
+						{/if}
+						<CsvButton
+							href="/admin/eventos/series/ediciones.csv?serie={encodeURIComponent(s.id)}"
+							label="CSV"
+						/>
+					</div>
 				</div>
+				{#if s.description && editing !== s.id}<p class="small description">{s.description}</p>{/if}
+				{#if data.canCreate && editing === s.id}
+					<form class="kv-form edit" method="POST" action="?/editar" use:enhance={submit}>
+						<input type="hidden" name="id" value={s.id} />
+						<p class="muted small">
+							La etiqueta de sus eventos sigue siendo «{s.id}» (para cambiarla: Renombrar, en
+							Etiquetas).
+						</p>
+						<SeriesFields
+							mode="edit"
+							id="editar-{s.edit.id}"
+							values={form?.editing === s.id && form?.values ? form.values : s.edit}
+							assets={data.assets}
+						/>
+						{#if form?.editing === s.id && form?.error}<p class="kv-flash bad" role="alert">
+								{form.error}
+							</p>{/if}
+						<div class="kv-row">
+							<button class="kv-btn" type="submit" disabled={busy}
+								>{busy ? 'Guardando…' : 'Guardar'}</button
+							>
+							<button type="button" class="kv-btn ghost" on:click={() => (editing = '')}
+								>Cancelar</button
+							>
+						</div>
+					</form>
+				{/if}
 				{#if s.editions.length}
 					<details>
 						<summary>Ver las {s.editions.length} ediciones</summary>
@@ -193,6 +232,13 @@
 {/if}
 
 <style>
+	.description {
+		margin: 0.5rem 0 0;
+		white-space: pre-line;
+	}
+	.edit {
+		margin-top: 0.75rem;
+	}
 	.list {
 		display: grid;
 		gap: 1rem;

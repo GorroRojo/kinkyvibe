@@ -118,8 +118,8 @@ apagado por defecto. Antes de prenderlo: importar (paso 2).
   - `/wiki/<etiqueta>` (hijas y la etiqueta sin entrada propia).
 - **Qué sigue leyendo el archivo** (pasos siguientes): lo prerenderizado en el build (RSS,
   `/api/posts`, el índice del buscador, el sitemap), la limpieza de etiquetas de cada post
-  (`canonicalTags`/`processPost`), las series (paso 4) y el editor de eventos. Los textos de la
-  Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
+  (`canonicalTags`/`processPost`) y el editor de eventos (las series, desde el paso 4, ya no: ver
+  abajo). Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
 - **Editor** (`/admin/etiquetas`): con el interruptor prendido y etiquetas en la base, la misma
   página guarda en la base al momento, sin commits (`src/lib/server/etiquetas/editor.js`). Usa
   las mismas operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después
@@ -132,6 +132,25 @@ apagado por defecto. Antes de prenderlo: importar (paso 2).
   - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
     («recargá»); lo anterior queda guardado.
 - Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
+
+## Series (paso 4)
+
+Las series son etiquetas hijas de «evento recurrente». Todo detrás del interruptor `series`.
+
+- **Eventos → Series** (`/admin/eventos/series`): «Crear serie» y, en cada serie, **«Editar»**:
+  nombre visible, ícono, imagen (de `src/lib/assets`) y descripción
+  (`seriesEditOps`, `src/lib/utils/seriesAdmin.js`). El nombre con el que la nombran los eventos
+  no cambia ahí (eso es Renombrar, en Etiquetas). Se guarda como en Etiquetas: commit al archivo
+  o, con `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos
+  son un componente (`SeriesFields.svelte`) que usan crear y editar.
+- **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
+  ediciones (`SeriesTagBlock.svelte`, como antes).
+- **Kinkipedia** (`/wiki`): la sección «Series», con una tarjeta por serie que tiene ediciones
+  (imagen, descripción, cuántas ediciones y la próxima) que lleva a su página
+  (`seriesSummaries`, `SeriesGrid.svelte`). Se esconde mientras se busca.
+- Las páginas de series, el panel, los avisos, `/ics/etiqueta/…` y Mi rincón leen el árbol de
+  `siteTagManager` (archivo o base). Siguen con el archivo: «¿Es parte de una serie?» al duplicar
+  un evento, el ingreso y el link de baja de los avisos (solo el nombre).
 
 ## Cómo probar
 

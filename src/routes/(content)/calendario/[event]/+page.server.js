@@ -8,6 +8,7 @@ import { seriesAccountState } from '$lib/server/series/web.js';
 import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals }) {
@@ -74,7 +75,10 @@ async function loadRelated(post) {
 async function loadSeries(post, platform, locals) {
 	if (!post || !(await seriesEnabled(platform))) return null;
 	const { postID: slug, tags, start } = post.meta;
-	const list = await eventSeries({ slug, tags, start });
+	const list = await eventSeries(
+		{ slug, tags, start },
+		{ tags: await siteTagManager(platform) }
+	);
 	if (!list.length) return null;
 	return { list, account: await seriesAccountState(platform, locals) };
 }

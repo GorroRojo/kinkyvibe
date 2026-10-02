@@ -3,6 +3,10 @@
 	import { wikiTagManager, query } from '$lib/utils/stores';
 	import { Search } from '@lucide/svelte';
 	import { freshSiteTags } from '$lib/utils/siteTags.js';
+	import SeriesGrid from '$lib/components/series/SeriesGrid.svelte';
+
+	/** @type {import('./$types').PageData} */
+	export let data;
 
 	query.set('');
 
@@ -98,6 +102,16 @@
 			<GlosarioTree />
 		{/key}
 	</dl>
+	<!-- interruptor `series`: apagado, `data.series` viene vacía -->
+	{#if data.series?.length && !$query?.trim()}
+		<section class="series" aria-labelledby="series-title">
+			<h2 id="series-title">Series</h2>
+			<p class="series-intro">
+				Eventos que se repiten: cada serie tiene su página con todas sus ediciones.
+			</p>
+			<SeriesGrid series={data.series} />
+		</section>
+	{/if}
 	<p
 		class="callout"
 		style:--callout-color="var(--4)"
@@ -135,6 +149,17 @@
 		h1 {
 			text-align: left;
 		}
+	}
+	.series {
+		margin: 1.5em 0;
+		h2 {
+			text-align: left;
+			margin-bottom: 0.2em;
+		}
+	}
+	.series-intro {
+		margin: 0 0 0.8em;
+		font-size: var(--step-0);
 	}
 	.searchbox {
 		width: 100%;
