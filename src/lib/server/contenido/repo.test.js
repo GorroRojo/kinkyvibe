@@ -517,3 +517,59 @@ describe('cómo se muestra el texto que se guarda (decisión 0004)', () => {
 		expect(await htmlOf()).toBe('libre');
 	});
 });
+
+describe('borradores de la agenda (carga rápida y «Confirmar») con el interruptor prendido', () => {
+	const LOGIN = 'agenda-inventade';
+	const admin = { token: 't', name: 'Agenda Inventade (nombre visible)' };
+	const locals = /** @type {any} */ ({ user: { id: 1, login: LOGIN, name: admin.name } });
+
+	it('el borrador nuevo va a la base con la marca, a nombre del login, y «Confirmar» se la saca', async () => {
+		const s = await setup();
+		const { runAsPanelAuthor } = await import('./author.js');
+		const { createQuickDraft, confirmDraft } = await import('$lib/server/eventos/drafts.js');
+		const { DRAFT_KEY } = await import('$lib/utils/sheetImport.js');
+		/** @type {any} */
+		let made;
+		await runAsPanelAuthor({ login: LOGIN, name: admin.name, superadmin: true }, async () => {
+			made = await createQuickDraft({
+				client: /** @type {any} */ (s.client),
+				admin,
+				source: 'taller-inventado-2031-02',
+				title: '',
+				date: '2031-09-12',
+				startTime: '',
+				endTime: ''
+			});
+		});
+		expect(made.ok).toBe(true);
+		// En la base (no en el repo), no listado, con la marca y guardado por el login de GitHub.
+		expect(s.base.store.has(path(made.slug))).toBe(false);
+		const o = await objectOf(made.slug);
+		expect(o).toBeTruthy();
+		const data = JSON.parse(o.data);
+		expect(data.unlisted).toBe(true);
+		expect(JSON.stringify(data)).toContain(`"${DRAFT_KEY}":true`);
+		expect((await listRevisions(t.db, o.id))[0]?.savedBy).toBe(LOGIN);
+		// Lo que lee el panel (el cliente envuelto) es el borrador de la base.
+		expect(await s.client.getFile('t', path(made.slug))).toContain(`${DRAFT_KEY}: true`);
+
+		/** @type {any} */
+		let confirmed;
+		await runAsPanelAuthor({ login: LOGIN, name: admin.name, superadmin: true }, async () => {
+			confirmed = await confirmDraft({
+				platform: t.platform,
+				locals,
+				client: /** @type {any} */ (s.client),
+				admin,
+				slug: made.slug
+			});
+		});
+		expect(confirmed).toMatchObject({ ok: true, status: 200 });
+		expect(s.base.store.has(path(made.slug))).toBe(false);
+		const after = JSON.parse((await objectOf(made.slug)).data);
+		expect(after.unlisted ?? false).toBe(false);
+		expect(JSON.stringify(after)).not.toContain(`"${DRAFT_KEY}"`);
+		expect(await s.client.getFile('t', path(made.slug))).not.toContain(DRAFT_KEY);
+		expect((await listRevisions(t.db, (await objectOf(made.slug)).id))[0]?.savedBy).toBe(LOGIN);
+	});
+});

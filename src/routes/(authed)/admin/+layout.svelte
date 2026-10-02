@@ -60,6 +60,8 @@
 	let userMenu;
 
 	$: bare = $page.data?.bare === true;
+	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
+	$: wide = $page.data?.wide === true;
 	$: active = activeNavItem($page.url.pathname);
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
@@ -327,7 +329,7 @@
 					>
 				</header>
 
-				<main class="page">
+				<main class="page" class:wide>
 					<slot />
 				</main>
 			</div>
@@ -614,6 +616,14 @@
 	.page {
 		padding: 0.3rem 2rem 6rem;
 		max-width: 80rem;
+	}
+	.page.wide {
+		max-width: none;
+	}
+	@media (min-width: 900px) {
+		.page.wide {
+			padding-inline: 1.25rem;
+		}
 	}
 
 	.mtop,

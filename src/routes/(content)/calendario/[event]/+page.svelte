@@ -64,9 +64,11 @@
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
 		endDate: toISO(end),
-		eventAttendanceMode: data.meta.location
-			? 'https://schema.org/OnlineEventAttendanceMode'
-			: 'https://schema.org/OfflineEventAttendanceMode',
+		// Con lugar o con «Dónde», presencial; sin ninguno de los dos, online.
+		eventAttendanceMode:
+			data.venue || data.meta.location
+				? 'https://schema.org/OfflineEventAttendanceMode'
+				: 'https://schema.org/OnlineEventAttendanceMode',
 		eventStatus:
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'

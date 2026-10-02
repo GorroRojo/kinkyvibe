@@ -1072,6 +1072,9 @@ export function generalTickets(sourceTickets, price) {
  * @prop {string} [price] the "Valor" cell: one General price becomes the General ticket type
  */
 
+/** Frontmatter key that marks a panel draft (only these get «A confirmar» and «Confirmar»). */
+export const DRAFT_KEY = 'borrador';
+
 const ONLINE = /^(online|virtual|zoom|meet|google meet|jitsi|por zoom|por meet)$/i;
 
 /**
@@ -1099,7 +1102,8 @@ export function placeFields(place, source) {
 /**
  * Builds the markdown of an imported event: a copy of `sourceRaw` (the previous event of the
  * series, or the events template) with the new title, dates, place and link, published_date
- * today, and ALWAYS `force_unlisted: true` (a draft the organizers publish later).
+ * today, and ALWAYS `force_unlisted: true` plus the draft marker `borrador: true` (a draft the
+ * organizers complete and confirm later from the agenda: «Confirmar» removes both).
  *
  * @param {string} sourceRaw
  * @param {ImportChoice} choice
@@ -1159,6 +1163,10 @@ export function buildImportedEvent(sourceRaw, choice, { today, fromTemplate = fa
 	if (fromTemplate) notes.push('Creado desde cero: falta el texto, la imagen y las etiquetas.');
 
 	let content = buildEventMarkdown(sourceRaw, form);
+	{
+		const fm = splitMarkdown(content);
+		content = joinMarkdown(applyFrontmatterChanges(fm.frontmatter, { [DRAFT_KEY]: true }), fm.body);
+	}
 	const price = parseGeneralPrice(choice.price ?? '');
 	if (price !== null) {
 		const fm = splitMarkdown(content);
