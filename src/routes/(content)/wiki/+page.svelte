@@ -104,7 +104,7 @@
 	</dl>
 	<!-- interruptor `series`: apagado, `data.series` viene vacía -->
 	{#if data.series?.length && !$query?.trim()}
-		<section class="series" aria-labelledby="series-title">
+		<section class="series" id="series" aria-labelledby="series-title">
 			<h2 id="series-title">Series</h2>
 			<p class="series-intro">
 				Eventos que se repiten: cada serie tiene su página con todas sus ediciones.
