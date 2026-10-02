@@ -2,9 +2,11 @@
  * El formulario de eventos en una página (`$lib/components/admin/event-form/EventForm.svelte`):
  * qué secciones tiene, para el índice de secciones, y cómo nombrar las partes de un borrador.
  *
- * Lo usan /admin/eventos/nuevo (crear o duplicar) y PostEditor (la pestaña Editar de la ficha y
- * /edit/<categoría>/<slug>). Sin imports de Svelte: corre en el navegador y en vitest.
+ * Lo usan /admin/eventos/nuevo (crear o duplicar), PostEditor (la pestaña Editar de la ficha y
+ * /edit/<categoría>/<slug>) y ContentEditor (material y amigues en el panel). Sin imports de
+ * Svelte: corre en el navegador y en vitest.
  */
+import { changedKeys } from './draft.js';
 
 /**
  * @typedef {object} FormSection
@@ -16,7 +18,8 @@
 /**
  * Las secciones del formulario, en el orden en que aparecen.
  * @param {object} o
- * @param {'nuevo' | 'editar'} o.mode crear/duplicar un evento, o editar una publicación
+ * @param {'nuevo' | 'editar' | 'contenido'} o.mode crear/duplicar un evento, editar una
+ *   publicación, o crear/editar material o un perfil de amigue en el panel (ContentEditor)
  * @param {string} [o.category] la categoría (editar); los eventos son `calendario`
  * @param {string} [o.idPrefix] el de TicketsEditor (`ev` al crear, `edit` al editar)
  * @param {boolean} [o.hasImage] editar: la publicación tiene sección de imagen (los eventos)
@@ -33,9 +36,10 @@ export function formSections({
 	parseError = false
 }) {
 	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
+	const cuando = { id: 'sec-cuando', icon: '📅', label: 'Fecha y hora' };
 	if (mode === 'nuevo')
 		return [
-			{ id: 'sec-cuando', icon: '📅', label: 'Fecha y hora' },
+			cuando,
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
 			{ id: 'sec-direccion', icon: '🔗', label: 'Dirección' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
@@ -44,9 +48,18 @@ export function formSections({
 			{ id: 'sec-texto', icon: '📄', label: 'Texto' }
 		];
 	if (parseError) return [];
+	if (mode === 'contenido')
+		return [
+			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+			{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
+			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
+			{ id: 'sec-texto', icon: '📄', label: 'Texto' },
+			{ id: 'sec-lista', icon: '👀', label: 'En la lista' }
+		];
 	const isEvent = category === 'calendario';
 	return /** @type {FormSection[]} */ (
 		[
+			isEvent && cuando,
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
 			hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' },
 			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
@@ -62,6 +75,7 @@ export function formSections({
  * @type {Record<string, string>}
  */
 export const DRAFT_PART_SECTION = {
+	schedule: 'Fecha y hora',
 	values: 'Datos',
 	authors: 'Datos',
 	slug: 'Dirección',
@@ -84,6 +98,38 @@ export const DRAFT_PART_SECTION = {
  */
 export function draftSectionLabels(keys, map = DRAFT_PART_SECTION) {
 	return [...new Set(keys.map((k) => map[k]).filter(Boolean))];
+}
+
+/**
+ * En qué sección está cada parte del formulario de ContentEditor (`f` en su borrador).
+ * @type {Record<string, string>}
+ */
+export const CONTENT_FORM_SECTION = {
+	values: 'Datos',
+	authors: 'Datos',
+	featured: 'Imagen',
+	tags: 'Etiquetas',
+	body: 'Texto'
+};
+
+/**
+ * Las secciones en las que un borrador de ContentEditor (`{ f, slug, slugTouched, rawText }`)
+ * difiere de lo que hay en la página, para el aviso de «Tenés un borrador sin guardar».
+ * @param {unknown} draft
+ * @param {unknown} current
+ * @returns {string[]}
+ */
+export function contentDraftLabels(draft, current) {
+	/** @param {unknown} v @returns {Record<string, unknown>} */
+	const obj = (v) => (v && typeof v === 'object' ? /** @type {any} */ (v) : {});
+	const top = changedKeys(draft, current);
+	const inForm = top.includes('f') ? changedKeys(obj(draft).f, obj(current).f) : [];
+	return draftSectionLabels([...inForm, ...top.filter((k) => k !== 'f')], {
+		...CONTENT_FORM_SECTION,
+		slug: 'Datos',
+		slugTouched: 'Datos',
+		rawText: 'Texto'
+	});
 }
 
 /**

@@ -164,3 +164,37 @@ export function fromInput(f, v) {
 			.trim();
 	return String(v).trim();
 }
+
+/**
+ * Lo que crear un evento no muestra en «Datos»: las fechas de publicación las pone el servidor y
+ * «No listado» se elige al final («Guardar como no listado»).
+ */
+const NOT_IN_NEW_EVENT = ['published_date', 'updated_date', 'force_unlisted'];
+
+/**
+ * Los campos de la sección «📝 Datos» (DatosSection), los mismos al crear un evento y al editar
+ * cualquier publicación. Empieza y Termina no están: van en «📅 ¿Cuándo es?» (ScheduleSection).
+ * @param {'nuevo' | 'editar'} mode
+ * @param {string} [category]
+ * @returns {Field[]}
+ */
+export function datosFields(mode, category = 'calendario') {
+	return postFields(category)
+		.filter((f) => f.type !== 'datetime')
+		.filter((f) => mode !== 'nuevo' || !NOT_IN_NEW_EVENT.includes(f.key))
+		.map((f) =>
+			category === 'calendario' && f.key === 'title'
+				? { ...f, placeholder: 'Ej: Picantearla (62ª Edición)' }
+				: f
+		);
+}
+
+/**
+ * El id del input de cada campo de «Datos»: `ev-<campo>` al crear (con guiones: `ev-link-text`),
+ * `<campo>-input` al editar (los de siempre de cada editor).
+ * @param {'nuevo' | 'editar'} mode
+ * @returns {(key: string) => string}
+ */
+export function datosFieldId(mode) {
+	return mode === 'nuevo' ? (key) => `ev-${key.replace(/_/g, '-')}` : (key) => `${key}-input`;
+}
