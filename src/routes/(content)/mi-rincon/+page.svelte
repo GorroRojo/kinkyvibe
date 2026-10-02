@@ -80,17 +80,16 @@
 	{/if}
 
 	{#if data.sigoOn}
+		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
 		<section class="surface-card" aria-labelledby="sigo-title">
-			<h2 id="sigo-title">Lo que sigo</h2>
+			<h2 id="sigo-title">Lo que seguís y tu calendario</h2>
 			<p class="hint">
-				Etiquetas, series, perfiles y lugares que seguís: qué va a tu calendario y de qué te
-				escribimos.
+				Etiquetas, series, perfiles y lugares que seguís y de qué te escribimos. Y tu calendario
+				personal: lo que seguís, tus entradas y donde participás, en tu app de calendario.
 			</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que sigo</a>
+			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
 		</section>
-	{/if}
-
-	{#if data.seriesOn}
+	{:else if data.seriesOn}
 		<section class="surface-card" aria-labelledby="calendario-title">
 			<h2 id="calendario-title">Tu calendario</h2>
 			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>

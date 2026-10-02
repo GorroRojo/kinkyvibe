@@ -9,7 +9,9 @@ series son etiquetas), perfiles (personas y proyectos) y lugares. Por cada cosa 
 - **Mail cuando se anuncia algo nuevo**;
 - **Recordatorio el día antes**.
 
-Todo se configura en **Mi rincón → Lo que sigo** (`/mi-rincon/sigo`), con un CSV de la lista.
+Todo se configura en **Mi rincón → Lo que sigo** (`/mi-rincon/sigo`), con un CSV de la lista. Es
+también el lugar del **calendario personal** (`.ics`): qué entra y el link para suscribirse. En Mi
+rincón es una sola tarjeta, «Lo que seguís y tu calendario».
 Es el diseño de [0025](decisiones/0025-lo-que-sigo.md): un solo sistema en lugar de piezas
 sueltas («Avisame si se repite», suscripciones por etiqueta y los ajustes del calendario).
 
@@ -30,9 +32,21 @@ avisos como grilla de qué («Algo nuevo», «Recordatorio el día antes») × p
 apagado, con «Próximamente»). Sin nada seguido, invita a seguir.
 
 Arriba, **«Agregar»** busca etiquetas y series del árbol (y, con `perfiles_publicos`, perfiles y
-lugares) con el selector de etiquetas del sitio (`ChipCombobox`) y sigue lo elegido con las opciones
-de siempre, sin salir de la página (`?/seguir`). Sin JavaScript es un campo de texto con «Seguir»
-(el nombre de la etiqueta, un alias o la forma de la URL).
+lugares) con el selector de etiquetas del sitio (`ChipCombobox`, con `look="search"`: el aspecto del
+buscador de las listas, campo redondeado con lupa y sugerencias con emoji y color) y sigue lo
+elegido con las opciones de siempre, sin salir de la página (`?/seguir`). Sin JavaScript es el mismo
+campo con «Seguir» (el nombre de la etiqueta, un alias o la forma de la URL).
+
+Abajo, **«Tu calendario»** (`#calendario`): qué junta el calendario personal, «Mis entradas» y «Los
+eventos donde participo» y, con el interruptor `series`, el link secreto para suscribirse (se ve una
+sola vez; «Generar un link nuevo» revoca el anterior; `?/crearLink`, `?/revocarLink`). Sin
+`series` el `.ics` personal da 404, así que no se ofrece el link.
+
+Antes eran dos páginas: **Mi rincón → Calendario** (`/mi-rincon/calendario`) tenía el link y la
+lista de «Avisos de series», que con «Lo que sigo» ya son cosas seguidas. Con `lo_que_sigo`
+prendido, esa dirección sigue andando (sin redirect) y muestra un aviso que lleva a
+`/mi-rincon/sigo#calendario`; sus acciones también andan, por si quedó una pestaña abierta. Apagado,
+Mi rincón y esa página quedan como siempre.
 
 Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). Sumar Telegram
 (el bot, [telegram.md](telegram.md)) es darle sus casillas en `fields` y `enabled: true`: la grilla
@@ -82,8 +96,8 @@ Qué se sigue:
 
 ### El calendario personal
 
-`/ics/mio/<token>.ics` (el link está en Mi rincón → Calendario, que sigue necesitando el
-interruptor `series`) junta, con `lo_que_sigo` prendido (`src/lib/server/sigo/calendar.js`):
+`/ics/mio/<token>.ics` (el link está en Mi rincón → Lo que sigo → «Tu calendario»; sin
+`lo_que_sigo`, en Mi rincón → Calendario. Sigue necesitando el interruptor `series`) junta, con `lo_que_sigo` prendido (`src/lib/server/sigo/calendar.js`):
 
 - **mis entradas**, incluidos los eventos no listados (son de la persona);
 - **los eventos donde participo**: los que nombran en `personas:` un perfil que la cuenta gestiona;
@@ -118,11 +132,16 @@ Con `lo_que_sigo` y `cuentas` prendidos:
 
 - **con cuenta**, «Avisame» es seguir la etiqueta de la serie con «mail cuando se anuncia algo
   nuevo» (y «en mi calendario»). Darse de baja apaga ese mail, pero la etiqueta queda seguida;
-- las suscripciones con cuenta que ya había en `series_subscriptions` pasan a `follows` en el cron,
-  con `created_at` = cuándo se confirmaron y su id en `series_subscription_id`. La fila vieja se
+- las suscripciones con cuenta que ya había en `series_subscriptions` pasan a `follows` en el cron
+  (y las de una cuenta, apenas abre Mi rincón → Lo que sigo, así aparecen en su lista), con
+  `created_at` = cuándo se confirmaron y su id en `series_subscription_id`. La fila vieja se
   borra en la misma tanda, así no llegan dos avisos. El link de baja de los mails que ya salieron
   (`/avisos/baja/<id>.<firma>`) sigue andando: apaga el mail de lo nuevo de esa etiqueta;
 - **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre.
+
+En las páginas, con cuenta, «Avisame» dice que es seguir la serie y lleva a Lo que sigo
+(`seriesAccountState` devuelve `sigo`). En `/wiki/<serie>` no se muestra: el botón «Seguir» de la
+misma página hace lo mismo. Sin cuenta, el formulario con el mail sigue en los dos lados.
 
 Si se apaga `lo_que_sigo` después de prenderlo, lo que ya pasó a `follows` no recibe mails hasta
 que se vuelva a prender.
@@ -156,6 +175,12 @@ que se vuelva a prender.
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal sigue necesitando `series` (es donde se crea el link); «Lo que sigo» le
   suma cosas pero no lo prende solo.
+- Mi rincón muestra una sola tarjeta, «Lo que seguís y tu calendario», y la página se sigue
+  llamando «Lo que sigo» (como el interruptor y los mails). `/mi-rincon/calendario` no redirige:
+  muestra un aviso con el link.
+- «Agregar» usa `ChipCombobox` con el aspecto del buscador público y no `TagSearch`: `TagSearch`
+  maneja los filtros de las listas (los stores `filteredTags` y `searchText`) y no sirve para otra
+  cosa sin reescribirlo.
 
 ### Límites
 

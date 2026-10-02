@@ -44,7 +44,10 @@
 			Te mandamos un mail para confirmar. Abrilo y tocá el link: sin confirmar no te avisamos nada.
 		</p>
 	{:else if form?.ok && form.status === 'confirmed'}
-		<p class="ok" role="status">Listo: te vamos a avisar por mail.</p>
+		<p class="ok" role="status">
+			Listo: te vamos a avisar por mail.{#if data.account.sigo}
+				Ahora seguís {s.name}: lo cambiás en <a href="/mi-rincon/sigo">Lo que sigo</a>.{/if}
+		</p>
 	{:else if form?.ok && form.status === 'removed'}
 		<p class="ok" role="status">Listo: no te vamos a avisar más de {s.name}.</p>
 	{:else if data.account.member && subscribed}

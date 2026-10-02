@@ -37,22 +37,24 @@ const slimMeta = (meta) => {
 export async function load({ platform }) {
 	const now = Date.now();
 	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
-	// Un lugar vinculado manda sobre el «Dónde» del .md (los pasados ya van sin él).
-	const current = new Map(
-		(
-			await withVenuePlaces(
-				getDB(platform),
-				posts.filter((p) => isCurrent(p, now))
-			)
-		).map((p) => [p.path, p])
-	);
+	// A la par (cada consulta a la base es una vuelta).
+	const [withVenues, ticketStates, seriesLink] = await Promise.all([
+		// Un lugar vinculado manda sobre el «Dónde» del .md (los pasados ya van sin él).
+		withVenuePlaces(
+			getDB(platform),
+			posts.filter((p) => isCurrent(p, now))
+		),
+		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
+		ticketStatesFor(platform, posts),
+		// Interruptor `series`: link a la lista de series de la Kinkipedia (/wiki#series).
+		seriesEnabled(platform)
+	]);
+	const current = new Map(withVenues.map((p) => [p.path, p]));
 	return {
 		posts: posts.map(
 			(p) => current.get(p.path) ?? /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
 		),
-		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
-		ticketStates: await ticketStatesFor(platform, posts),
-		// Interruptor `series`: link a la lista de series de la Kinkipedia (/wiki#series).
-		seriesLink: await seriesEnabled(platform)
+		ticketStates,
+		seriesLink
 	};
 }

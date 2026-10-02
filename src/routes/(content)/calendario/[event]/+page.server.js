@@ -18,13 +18,16 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// Interruptor `contenido_db`: el evento de la base (con su texto ya armado). Si la base no tiene
 	// esa dirección, el .md como siempre (+page.js carga su componente).
-	const found = await siteEvent(platform, params.event, { viewer: viewerFor(locals) });
+	// La lista de publicaciones (para relacionados y series) se lee a la par del evento.
+	const [found, posts] = await Promise.all([
+		siteEvent(platform, params.event, { viewer: viewerFor(locals) }),
+		sitePosts(platform)
+	]);
 	if (found.mode === 'db' && !found.post) error(404, 'Not found');
 	const db = found.mode === 'db' ? found.post : null;
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (db?.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
 	const post = db ?? (await fetchPost('calendario', params.event, true).catch(() => null));
-	const posts = await sitePosts(platform);
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
 		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),

@@ -13,7 +13,7 @@
 	import CalendarSubscribe from './CalendarSubscribe.svelte';
 	import { editionDateLabel, tagFeedPath } from '$lib/utils/series.js';
 
-	/** @type {{ list: Array<{ id: string, name: string, href: string, icon: string, number: number, total: number, prev: any, next: any, past: boolean, nextUpcoming: import('$lib/utils/series.js').Edition | null }>, account: { member: boolean, subscribed: string[] } }} */
+	/** @type {{ list: Array<{ id: string, name: string, href: string, icon: string, number: number, total: number, prev: any, next: any, past: boolean, nextUpcoming: import('$lib/utils/series.js').Edition | null }>, account: { member: boolean, subscribed: string[], sigo?: boolean } }} */
 	export let series;
 	/** @type {'nav' | 'after'} */
 	export let part = 'nav';
@@ -40,6 +40,7 @@
 					seriesName={s.name}
 					member={series.account.member}
 					subscribed={series.account.subscribed.includes(s.id)}
+					sigo={Boolean(series.account.sigo)}
 					heading={s.nextUpcoming ? `Avisame de las próximas ediciones` : 'Avisame si se repite'}
 				/>
 			{/if}

@@ -16,7 +16,7 @@
 	/** @type {string} */
 	export let tag;
 
-	/** @type {null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean } }} */
+	/** @type {null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean, sigo?: boolean } }} */
 	let info = null;
 	let origin = '';
 
@@ -53,7 +53,9 @@
 					<EditionList editions={s.past} />
 				</details>
 			{/if}
-			{#if s.total}
+			<!-- Con cuenta y «Lo que sigo», «Avisame» es lo mismo que el botón «Seguir» de esta página
+			     (FollowButton): no se muestran los dos. Sin cuenta, el aviso por mail sigue acá. -->
+			{#if s.total && !(info.account.member && info.account.sigo)}
 				<SeriesNotifyForm
 					seriesId={s.id}
 					seriesName={s.name}
