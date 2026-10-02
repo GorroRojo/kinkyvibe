@@ -23,6 +23,7 @@ import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { linkedVenueName } from '$lib/server/amigues/venues.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
+import { readDbEventFile } from '$lib/server/contenido/repo.js';
 import {
 	featuredOf,
 	isSafeAssetName,
@@ -172,7 +173,8 @@ export const _editActions = {
 				sha,
 				userName,
 				image,
-				asked: String(data.get('imageScope') ?? '')
+				asked: String(data.get('imageScope') ?? ''),
+				actor: user.login
 			});
 		}
 		let commit;
@@ -184,7 +186,8 @@ export const _editActions = {
 				sha,
 				userName,
 				params.category,
-				params.postID
+				params.postID,
+				user.login
 			);
 		} catch (e) {
 			console.log(e);
@@ -216,6 +219,11 @@ export const _editActions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
+	// Interruptor `contenido_db`: un evento de la base se edita en la base (el sha es el de su
+	// texto, para avisar si alguien guardó en el medio; ver $lib/server/contenido/repo.js).
+	const fromDb = await readDbEventFile(path);
+	if (fromDb && 'deleted' in fromDb) throw error(404, 'No se encontró la publicación');
+	if (fromDb) return { raw: fromDb.raw, sha: fromDb.sha, path };
 	if (usesLocalRepo()) {
 		// `npm run dev:admin` (reads the local checkout, see $lib/server/eventos/mock.js) or a
 		// preview deploy (demo mode: the demo layer in D1, then the deployed files).
@@ -244,14 +252,17 @@ async function getFileContent(token, path) {
  * @param {string} userName - The user's name
  * @param {string} category - The category of the post
  * @param {string} postID - The post ID
+ * @param {string} [actor] login of who saves (events stored in the database record it)
  */
-async function saveFileContent(token, path, content, sha, userName, category, postID) {
+async function saveFileContent(token, path, content, sha, userName, category, postID, actor) {
 	const client = await getRepoClient();
 	// The mock's sha is not a blob sha; the mock and the demo layer ignore `unchanged` anyway.
 	return await client.commitFiles(token, {
 		files: [{ path, content }],
 		message: `[admin] ${userName} updated ${category}/${postID}`,
-		unchanged: usesLocalRepo() ? [] : [{ path, sha }],
+		actor,
+		// Un evento de la base se compara siempre (su sha es el del texto que se abrió).
+		unchanged: usesLocalRepo() && !sha.match(/^[0-9a-f]{40}$/) ? [] : [{ path, sha }],
 		pr: { action: 'edita', who: userName }
 	});
 }
@@ -314,9 +325,9 @@ async function newFileErrors(token, params, content, errorsOf) {
  * - "todas": replaces the shared image in src/lib/assets (renaming it and updating every event
  *   that uses it if the extension changes);
  * - "esta" (or an event without a shared image): the next free number of the event's own folder.
- * @param {{token: string, params: {category: string, postID: string}, content: string, sha: string, userName: string, image: File, asked: string}} opts
+ * @param {{token: string, params: {category: string, postID: string}, content: string, sha: string, userName: string, image: File, asked: string, actor?: string}} opts
  */
-async function saveWithImage({ token, params, content, sha, userName, image, asked }) {
+async function saveWithImage({ token, params, content, sha, userName, image, asked, actor }) {
 	const read = await readUploadedImage(image);
 	if ('error' in read) return fail(400, { error: read.error });
 	const path = postPath(params);
@@ -380,6 +391,7 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 			message,
 			mustNotExist,
 			unchanged,
+			actor,
 			pr: {
 				action: scope === 'todas' ? 'edita (imagen de todas las ediciones)' : 'edita',
 				who: userName

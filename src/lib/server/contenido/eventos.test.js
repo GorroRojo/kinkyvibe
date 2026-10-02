@@ -10,6 +10,7 @@ import { splitMarkdown } from '../amigues/importer.js';
 import { stripMarkdown } from '$lib/utils/search.js';
 import { processPost } from '$lib/utils';
 import { mergePosts } from './posts.js';
+import { eventToMarkdown, markdownToEvent } from './markdown.js';
 
 const evento = /** @type {import('../objects/types/index.js').CoreType} */ (
 	coreTypes.get('evento')
@@ -135,6 +136,29 @@ describe('los eventos reales del repo', () => {
 			const { body } = splitMarkdown(raws[path]);
 			const stored = String(mdToEvent(slug, meta, body).data.body ?? '');
 			if (stripMarkdown(stored).trim() !== stripMarkdown(raws[path]).trim()) problems.push(slug);
+		}
+		expect(problems).toEqual([]);
+	});
+
+	it('el texto .md que arma la base (para el editor) vuelve a dar los mismos datos', () => {
+		/** @type {string[]} */
+		const problems = [];
+		for (const [path, meta] of entries) {
+			if (!meta) continue;
+			const slug = path.split('/').pop()?.replace(/\.md$/, '') ?? '';
+			const m = mdToEvent(slug, meta, splitMarkdown(raws[path]).body);
+			const v = validateData(evento, m.data);
+			if (!v.ok) continue;
+			const object = { title: m.title, data: v.data, visibility: m.visibility };
+			const again = markdownToEvent(slug, eventToMarkdown(object));
+			const v2 = validateData(evento, again.data);
+			if (!v2.ok) {
+				problems.push(`${slug}: ${v2.errors.map((e) => e.message).join('; ')}`);
+				continue;
+			}
+			if (again.title !== m.title || again.visibility !== m.visibility)
+				problems.push(`${slug}: título`);
+			if (JSON.stringify(v2.data) !== JSON.stringify(v.data)) problems.push(`${slug}: datos`);
 		}
 		expect(problems).toEqual([]);
 	});

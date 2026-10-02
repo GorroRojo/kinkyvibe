@@ -123,13 +123,32 @@ interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o `CONTENIDO
 | Texto del cuerpo                   | `src/lib/server/contenido/render.js` (y `freeHtml.js` para el HTML libre)    |
 | Esquema                            | `migrations/0031_contenido_eventos.sql`                                      |
 
+- **Editar** (`src/lib/server/contenido/repo.js`): con el interruptor prendido, todo lo que el
+  panel guarda pasa por `withContentDb`, que envuelve el cliente del repo (`getRepoClient()`) como
+  el modo demo. El `.md` de un evento que está en la base, o de uno nuevo, se lee y se guarda en la
+  base: el editor, cargar y duplicar, la agenda, importar la planilla, borrar (borrado suave) y
+  deshacer, las etiquetas y las imágenes compartidas siguen trabajando sobre el texto del `.md`
+  (lo arma `markdown.js` desde el objeto). Cada guardado es una versión nueva con historial
+  (`object_revisions`, `source = 'panel'`); el «sha» que manda el editor es el del texto que abrió,
+  así que si alguien guardó en el medio avisa como con GitHub (`FileChangedError`). Lo que no es
+  de la base (imágenes, el archivo de etiquetas, material, los `.md` que la base no tiene) sigue
+  yendo al repo, primero (si eso falla, la base no se toca). Se ve enseguida, sin PR ni deploy.
+- **Quién guarda** es siempre el **login de GitHub** de le admin (`saved_by`/`updated_by`), en
+  todos los guardados del panel: hooks.server.js corre el pedido de cada admin con
+  `resolveAsPanelAuthor` (`contenido/author.js`) y `withContentDb` lo toma de ahí; el nombre que
+  muestra cada pantalla (`pr.who`) es solo para el PR. Ahí también se decide `body_html`: si el
+  texto no cambió queda como estaba (la agenda, las etiquetas o borrar no lo tocan); si cambió,
+  `'libre'` si guarda une superadmin (hoy, todes les admins) y la lista corta si no.
+- Con el interruptor prendido, también leen la base: la venta de entradas y la puerta
+  (`tickets/events.js`: configuración, título, fecha), la lista de eventos del panel, su ficha, No
+  listadas y su contador, Eventos → Lugares y el cron de «avisame si se repite».
+
 Lo que todavía no cambia (pasos siguientes):
 
-- Las imágenes siguen en el repo (`media/<slug>/`); R2 es un paso aparte.
-- Las entradas (precios, cupos, medios de pago) siguen saliendo del frontmatter del `.md`
-  (`src/lib/server/tickets/events.js`); en la base quedan guardadas en `extra`, sin usarse.
-- El panel (listas de eventos, No listadas, el contador) y los mails (recordatorios, «avisame si
-  se repite») siguen leyendo los `.md`.
+- Las imágenes siguen en el repo (`media/<slug>/`); R2 es un paso aparte. Una imagen nueva va en
+  un PR y se ve cuando se publica (unos minutos); el texto del evento se ve enseguida.
+- Apagar el interruptor vuelve a los `.md`: lo editado en la base no está en los `.md` (falta el
+  botón «Descargar todo»).
 - `/calendario.ics`, `/rss`, `/sitemap.xml`, `/api/posts` y `/api/search-index.json` dejaron de
   prerenderizarse (con el interruptor apagado dan lo mismo que antes, pero los arma el Worker).
 
