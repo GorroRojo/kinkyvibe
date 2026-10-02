@@ -14,8 +14,7 @@ import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
-import { dbPreviewOf, planDbTagEdit } from '$lib/server/etiquetas/editor.js';
-import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
+import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -75,6 +74,16 @@ async function usageAndWiki() {
 }
 
 /**
+ * Con qué hacer el commit de las publicaciones (renombrar sin alias), o null si no se puede.
+ * @param {App.Locals} locals
+ * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
+ */
+async function repoAccess(locals) {
+	const admin = getEventAdmin(locals);
+	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
+}
+
+/**
  * @param {FormData} data
  */
 function opsFrom(data) {
@@ -93,11 +102,10 @@ export const actions = {
 		if (!r.ops) return fail(400, { error: r.error });
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (fromDb) {
-			try {
-				return { preview: dbPreviewOf(planDbTagEdit(fromDb.records, r.ops)) };
-			} catch (e) {
-				return fail(400, { error: describe(e) });
-			}
+			// Renombrar sin alias: también cuántas publicaciones cambian (y cómo).
+			const res = await previewDbTagEdit(fromDb, r.ops, await repoAccess(locals));
+			if (!res.ok) return fail(res.status, { error: res.error });
+			return { preview: res.preview };
 		}
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
@@ -114,11 +122,23 @@ export const actions = {
 		if (!r.ops) return fail(400, { error: r.error });
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (fromDb) {
-			// Interruptor `etiquetas_db`: al momento en la base, sin commit.
-			const res = await saveTagOpsToDb(fromDb, r.ops, { locals, login });
+			// Interruptor `etiquetas_db`: al momento en la base. Renombrar sin alias, además, un
+			// commit que cambia las publicaciones (antes de tocar la base).
+			const res = await saveDbTagEdit(fromDb, r.ops, {
+				locals,
+				login,
+				repo: await repoAccess(locals)
+			});
 			if (!res.ok) return fail(res.status, { error: res.error });
 			return {
-				saved: { db: true, commit: '', publish: null, summary: res.summary, files: res.written }
+				saved: {
+					db: true,
+					commit: res.commit ?? '',
+					publish: res.publish,
+					summary: res.summary,
+					files: res.written,
+					posts: res.posts
+				}
 			};
 		}
 		const admin = getEventAdmin(locals);

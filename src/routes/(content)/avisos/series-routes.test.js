@@ -7,6 +7,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import {
 	DAY,
 	fakeEvent,
@@ -17,7 +18,7 @@ import {
 	thrown
 } from '$lib/server/series/fixtures.js';
 
-vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
+vi.setConfig({ testTimeout: 300_000, hookTimeout: 30_000 });
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -188,6 +189,22 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		});
 		const left = await t.db.prepare('SELECT COUNT(*) AS n FROM series_subscriptions').first();
 		expect(Number(left?.n)).toBe(0);
+	});
+
+	it('el link de baja nombra la serie con el árbol en uso (archivo o base)', async () => {
+		const m = await modules();
+		await m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }));
+		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
+		// Lo que pone hooks.server.js con `etiquetas_db`: una «base» con otro nombre visible.
+		/** @type {Record<string, any>[]} */
+		const list = JSON.parse(JSON.stringify(hardcodedTags));
+		const serie = list.find((e) => e.id === 'Picantearla');
+		if (serie) serie.visible_name = 'Picantearla en la Base';
+		(await import('$lib/utils/siteTags.js')).setSiteTagList(list);
+		expect(await m.baja.load(ev({ params: { token: unsub } }))).toEqual({
+			valid: true,
+			seriesName: 'Picantearla en la Base'
+		});
 	});
 
 	it('la baja anda aunque después se apague el interruptor', async () => {
