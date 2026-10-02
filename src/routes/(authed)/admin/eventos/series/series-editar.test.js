@@ -2,7 +2,8 @@
  * «Editar» en Eventos → Series: nombre visible, ícono, imagen y descripción de una serie. Con el
  * archivo (interruptor `etiquetas_db` apagado): un commit al archivo de etiquetas, con un cliente
  * del repo de mentira. Con la base (prendido y etiquetas importadas): al momento en la base.
- * D1 de miniflare para la base y el registro del panel.
+ * D1 de miniflare para la base y el registro del panel. Renombrar la serie (el nombre de la
+ * etiqueta): primero cuántas publicaciones cambian, después se guarda al confirmar.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -44,7 +45,9 @@ async function page(env) {
 		.../** @type {any} */ (await importOriginal()),
 		getRepoClient: async () => ({
 			getFile: async () => null, // usa la copia del deploy
-			getDirTexts: async () => [],
+			// Un evento inventado de la serie (solo se lee al renombrar).
+			getDirTexts: async (/** @type {string} */ _t, /** @type {string} */ dir) =>
+				dir.endsWith('calendario') ? [{ path: `${dir}/edicion-de-prueba.md`, text: EVENT_MD }] : [],
 			commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
 				commits.push(c);
 				return { url: 'https://example.com/commit/prueba' };
@@ -57,6 +60,10 @@ async function page(env) {
 /** @param {Record<string, string>} form @param {any} [user] */
 const post = (form, user = admin) =>
 	fakeRequestEvent({ platform: t.platform, path: '/admin/eventos/series?/editar', user, form });
+
+const EVENT_MD = ['---', 'title: Edición de prueba', 'tags:', '  - Picantearla', '---', ''].join(
+	'\n'
+);
 
 const EDIT = {
 	id: 'Picantearla',
@@ -139,5 +146,101 @@ describe('Editar serie', () => {
 		const off = await page({ SERIES_ENABLED: '0' });
 		expect(await off.mod.actions.editar(post(EDIT))).toMatchObject({ status: 404 });
 		expect(commits).toHaveLength(0);
+	});
+
+	describe('renombrar la serie', () => {
+		const RENAME = { ...EDIT, key: 'Picantearla Renombrada' };
+
+		it('con la base: primero cuántas publicaciones cambian; al confirmar, commit y base sin alias', async () => {
+			await importTags(
+				t.db,
+				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+				{ actor: 'admin-de-prueba' }
+			);
+			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '1' });
+			const asked = /** @type {any} */ (await mod.actions.editar(post(RENAME)));
+			expect(asked).toMatchObject({
+				editing: 'Picantearla',
+				confirmRename: {
+					from: 'Picantearla',
+					to: 'Picantearla Renombrada',
+					keepAlias: '',
+					posts: 1,
+					db: true
+				}
+			});
+			expect(commits).toHaveLength(0);
+			expect((await loadTagRecords(t.db)).some((r) => r.key === 'Picantearla')).toBe(true);
+
+			const res = await mod.actions.editar(
+				post({ ...RENAME, confirmTo: 'Picantearla Renombrada', confirmAlias: '' })
+			);
+			expect(res).toMatchObject({
+				edited: {
+					name: 'Picantearla Renombrada',
+					renamedFrom: 'Picantearla',
+					db: true,
+					posts: 1
+				}
+			});
+			expect(commits).toHaveLength(1);
+			expect(commits[0].files[0].content).toContain('  - Picantearla Renombrada');
+			const records = await loadTagRecords(t.db);
+			expect(records.some((r) => r.key === 'Picantearla')).toBe(false);
+			expect(records.find((r) => r.key === 'Picantearla Renombrada')?.data).toMatchObject({
+				icon: '🌶'
+			});
+		});
+
+		it('con la base y «dejar el alias»: no cambia ninguna publicación', async () => {
+			await importTags(
+				t.db,
+				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+				{ actor: 'admin-de-prueba' }
+			);
+			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '1' });
+			const withAlias = { ...RENAME, keepAlias: '1' };
+			expect(await mod.actions.editar(post(withAlias))).toMatchObject({
+				confirmRename: { keepAlias: '1', posts: 0 }
+			});
+			// Si cambia lo elegido, se vuelve a preguntar (no se guarda).
+			expect(
+				await mod.actions.editar(
+					post({ ...withAlias, confirmTo: 'Picantearla Renombrada', confirmAlias: '' })
+				)
+			).toMatchObject({ confirmRename: { keepAlias: '1' } });
+			const res = await mod.actions.editar(
+				post({ ...withAlias, confirmTo: 'Picantearla Renombrada', confirmAlias: '1' })
+			);
+			expect(res).toMatchObject({ edited: { name: 'Picantearla Renombrada', posts: 0 } });
+			expect(commits).toHaveLength(0);
+			const old = (await loadTagRecords(t.db)).find((r) => r.key === 'Picantearla');
+			expect(old?.aliasOf).toBe('Picantearla Renombrada');
+		});
+
+		it('con el archivo: el mismo commit renombra en el archivo y en las publicaciones', async () => {
+			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '0' });
+			expect(await mod.actions.editar(post(RENAME))).toMatchObject({
+				confirmRename: { posts: 1, db: false }
+			});
+			const res = await mod.actions.editar(
+				post({ ...RENAME, confirmTo: 'Picantearla Renombrada', confirmAlias: '' })
+			);
+			expect(res).toMatchObject({ edited: { name: 'Picantearla Renombrada', db: false } });
+			expect(commits).toHaveLength(1);
+			const paths = commits[0].files.map((/** @type {any} */ f) => f.path);
+			expect(paths).toEqual([
+				'src/lib/utils/hardcodedTags.js',
+				'src/lib/posts/calendario/edicion-de-prueba.md'
+			]);
+		});
+
+		it('un nombre que ya existe: error, sin preguntar', async () => {
+			const { mod } = await page({ ETIQUETAS_DB_ENABLED: '0' });
+			expect(await mod.actions.editar(post({ ...EDIT, key: 'bondage' }))).toMatchObject({
+				status: 400,
+				data: { editing: 'Picantearla' }
+			});
+		});
 	});
 });

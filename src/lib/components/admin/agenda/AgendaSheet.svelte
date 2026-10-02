@@ -27,6 +27,7 @@
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import DayNoteChip from './DayNoteChip.svelte';
 	import SheetFilters from './SheetFilters.svelte';
+	import MissingBadge from './MissingBadge.svelte';
 	import { postAgendaSave, postAgendaSaveMany } from '$lib/admin/agendaSave.js';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { dayLabel } from '$lib/admin/eventFormat.js';
@@ -37,9 +38,10 @@
 		validateAgendaRow
 	} from '$lib/utils/agenda.js';
 	import { EMPTY_SHEET_FILTER, agendaCsvRows, agendaSheetGroups } from '$lib/utils/agendaSheet.js';
+	import { isDraftRow } from '$lib/utils/calendario.js';
 
 	/** @typedef {import('$lib/utils/agenda.js').AgendaValues} Values */
-	/** @typedef {import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean }} Row */
+	/** @typedef {import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, draft?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }} Row */
 
 	/** @type {Row[]} */
 	export let rows = [];
@@ -51,6 +53,8 @@
 	export let notesEnabled = false;
 	/** Filas con cambios sin guardar (para avisar antes de cambiar de vista). */
 	export let dirtyCount = 0;
+	/** Filtro «a confirmar» de la agenda: solo los borradores (`isDraftRow`). */
+	export let draftsOnly = false;
 
 	const dispatch = createEventDispatcher();
 	// Se leen una vez: después, cada fila lleva su propio estado.
@@ -236,7 +240,9 @@
 	/* ---------- grupos (semana → día), filtros y CSV ---------- */
 	/** @type {import('$lib/utils/agendaSheet.js').SheetFilter} */
 	let filter = { ...EMPTY_SHEET_FILTER };
-	$: items = data.rows.map((row) => ({ ...state[row.slug].saved, slug: row.slug, row }));
+	$: items = data.rows
+		.filter((row) => !draftsOnly || isDraftRow({ ...row, state: state[row.slug].saved.state }))
+		.map((row) => ({ ...state[row.slug].saved, slug: row.slug, row }));
 	$: weeks = agendaSheetGroups(items, notes, { from: today, filter });
 	$: shown = weeks.reduce((n, w) => n + w.days.reduce((m, d) => m + d.rows.length, 0), 0);
 	$: csvRows = agendaCsvRows(weeks);
@@ -444,6 +450,9 @@
 														>{st.label}</option
 													>{/each}
 											</select>
+											{#if isDraftRow({ ...row, state: s.saved.state })}
+												<MissingBadge missing={row.missing ?? []} />
+											{/if}
 										</td>
 										<td class="row-actions">
 											{#if changed.length || s.saving}

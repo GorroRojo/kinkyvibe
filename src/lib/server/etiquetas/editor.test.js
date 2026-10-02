@@ -9,7 +9,7 @@ import { applyTagOps } from '$lib/utils/tagConfig.js';
 import { saveObject } from '../objects/save.js';
 import { TAG_TYPE } from '../objects/types/etiqueta.js';
 import { importTags } from './importer.js';
-import { applyDbTagPlan, dbPreviewOf, forceKeepAlias, planDbTagEdit } from './editor.js';
+import { applyDbTagPlan, dbPreviewOf, planDbTagEdit } from './editor.js';
 import { recordsToRawTags, tagsToRecords } from './model.js';
 import { loadTagRecords } from './read.js';
 
@@ -82,7 +82,7 @@ async function run(ops) {
 	const expected = tagsToRecords(
 		applyTagOps(
 			recordsToRawTags(current).map((value) => ({ value })),
-			forceKeepAlias(ops)
+			ops
 		).map((e) => e.value)
 	).records;
 	const plan = planDbTagEdit(current, ops);
@@ -110,10 +110,25 @@ describe('planDbTagEdit + applyDbTagPlan', () => {
 		expect(after.some((r) => r.key === 'Etiqueta Oculta')).toBe(true);
 	});
 
-	it('renombrar mantiene el objeto (y su texto) y deja el nombre viejo como alias', async () => {
+	it('renombrar sin alias (lo de siempre): el mismo objeto (y su texto), el nombre viejo deja de existir', async () => {
+		const before = /** @type {any} */ ((await stored()).find((r) => r.key === 'ataduras'));
+		const { result, expected } = await run([
+			{ type: 'rename', from: 'ataduras', to: 'Bondage', keepAlias: false }
+		]);
+		expect(result.errors).toEqual([]);
+		const after = await stored();
+		expect(shape(after)).toEqual(shape(expected));
+		const renamed = after.find((r) => r.key === 'Bondage');
+		expect(renamed?.id).toBe(before.id);
+		expect(renamed?.data.body).toBe('Texto largo de la wiki.');
+		expect(after.some((r) => r.key === 'ataduras')).toBe(false);
+		expect(after.find((r) => r.key === 'atar')?.aliasOf).toBe('Bondage');
+	});
+
+	it('renombrar dejando el alias: el mismo objeto (y su texto) y el nombre viejo como alias', async () => {
 		const before = /** @type {any} */ ((await stored()).find((r) => r.key === 'ataduras'));
 		const { result, expected, plan } = await run([
-			{ type: 'rename', from: 'ataduras', to: 'Bondage', keepAlias: false }
+			{ type: 'rename', from: 'ataduras', to: 'Bondage', keepAlias: true }
 		]);
 		expect(result.errors).toEqual([]);
 		const after = await stored();

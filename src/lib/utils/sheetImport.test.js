@@ -528,6 +528,8 @@ describe('buildImportedEvent', () => {
 		});
 		expect(m.summary).toBe(meta(raw).summary);
 		expect(m.tags).toEqual(meta(raw).tags);
+		// the panel's draft marker: only these get «A confirmar» / «Confirmar» in the agenda
+		expect(m.borrador).toBe(true);
 		// body and comments are kept
 		expect(splitMarkdown(content).body).toBe(splitMarkdown(raw).body);
 		expect(content).toContain('status: abierto # abierto | anunciado | agotadas | cancelado');
@@ -571,6 +573,7 @@ describe('buildImportedEvent', () => {
 		expect(m.featured).toBe(1);
 		expect(m.end).toBeUndefined();
 		expect(m.force_unlisted).toBe(true);
+		expect(m.borrador).toBe(true);
 	});
 	it('creates unknown events from the template', () => {
 		const template = readFileSync(new URL('_event_template.md', DIR), 'utf8');

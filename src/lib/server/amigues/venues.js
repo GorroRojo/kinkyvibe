@@ -11,12 +11,14 @@
  * - la dirección de un lugar sale de acá solo en {@link publicVenueForEvent} (según el nivel) y en
  *   {@link buyerVenueForEvent} (completa, solo para mails y páginas de quien compró);
  * - la página de un lugar lista solo los eventos que muestran el link al lugar (niveles 1 y 2);
- * - nada de esto entra en lo que se arma al compilar (sitemap, RSS, calendario .ics, buscador,
- *   /api/posts): esas salidas leen solo los .md, así que no pueden filtrar una dirección guardada
- *   acá (lo verifica la prueba de filtraciones).
- * - los .ics dinámicos (etiqueta o serie, "lo tuyo", de #141) usan {@link feedVenues}: lo mismo
- *   que la página del evento le muestra a cualquiera.
+ * - sitemap, RSS y buscador no llevan lugares (ni el «Dónde» del .md);
+ * - los .ics (el general, etiqueta o serie, "lo tuyo") usan {@link feedVenues}: lo mismo que la
+ *   página del evento le muestra a cualquiera;
+ * - un lugar vinculado manda: las salidas públicas que mandan la meta de los eventos (listas,
+ *   carrusel, /api/posts) pasan por {@link withVenuePlaces}, que cambia el «Dónde» del .md por el
+ *   lugar según su nivel (lo verifica la prueba de filtraciones).
  */
+import { venuePlaceMeta, stripMdPlace } from '$lib/utils/eventPlace.js';
 import { ANON, getObject } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
@@ -29,7 +31,7 @@ import {
 	venueView
 } from '$lib/utils/venues.js';
 import { isFlagOn } from '$lib/server/flags.js';
-import { isApproved, urlSlugOf } from './profiles.js';
+import { isApproved, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -102,6 +104,45 @@ export async function publicVenueForEvent(db, eventSlug, viewer) {
 }
 
 /**
+ * "Sucede en" para las páginas de un evento (la del evento, /entradas y /compartir): el lugar
+ * según su privacidad para quien mira, solo con el interruptor `perfiles_publicos` prendido.
+ * `null` si no tiene lugar (o si la base falla): la página muestra lo de su .md.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} eventSlug
+ * @param {App.Locals} locals
+ * @returns {Promise<VenueView | null>}
+ */
+export async function eventPageVenue(db, eventSlug, locals) {
+	try {
+		if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return null;
+		return await publicVenueForEvent(db, eventSlug, viewerFor(locals));
+	} catch (e) {
+		console.error('[calendario] no se pudo leer el lugar del evento', e);
+		return null;
+	}
+}
+
+/**
+ * Para el editor de un evento: el nombre del lugar vinculado si la página lo usa (interruptor
+ * `perfiles_publicos` prendido), para avisar que el «Dónde» del .md no se muestra. `null` si no
+ * tiene lugar o no se pudo leer.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} eventSlug
+ * @returns {Promise<string | null>}
+ */
+export async function linkedVenueName(db, eventSlug) {
+	try {
+		if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return null;
+		return (await eventVenue(db, eventSlug))?.venue.title ?? null;
+	} catch (e) {
+		console.error('[lugares] no se pudo leer el lugar del evento para el editor', e);
+		return null;
+	}
+}
+
+/**
  * El lugar completo para quien compró una entrada (mail de confirmación, recordatorios y página
  * de la entrada), en cualquier nivel de privacidad. `null` si el evento no tiene lugar.
  *
@@ -167,6 +208,52 @@ export async function feedVenues(db, slugs) {
 		if (view) out.set(slug, view);
 	}
 	return out;
+}
+
+/**
+ * Un lugar vinculado manda: `posts` con el «Dónde» del .md (`location`, `location_name`,
+ * `location_map`) de cada evento con lugar cambiado por lo que la página del evento le muestra a
+ * cualquiera (`venuePlaceMeta`). Para todo lo público que manda la meta de los eventos (listas,
+ * carrusel, /api/posts). No toca los posts de entrada (vienen de la caché de los .md).
+ *
+ * Sin base o con `perfiles_publicos` apagado, como están (la página del evento también usa el
+ * .md). Si la base falla, los eventos van sin el «Dónde» del .md: mejor sin lugar que con uno
+ * que debía estar oculto.
+ *
+ * @template {{ meta: Record<string, any> }} P
+ * @param {D1Database | null | undefined} db
+ * @param {readonly P[]} posts
+ * @returns {Promise<P[]>}
+ */
+export async function withVenuePlaces(db, posts) {
+	/** @param {P} p */
+	const isEvent = (p) => p.meta?.category === 'calendario';
+	const slugs = posts.filter(isEvent).map((p) => String(p.meta.postID));
+	if (!slugs.length) return [...posts];
+	/** @type {Map<string, VenueView>} */
+	let venues;
+	try {
+		venues = await feedVenues(db, slugs);
+	} catch (e) {
+		console.error('[lugares] no se pudieron leer los lugares de los eventos', e);
+		return posts.map((p) => (isEvent(p) ? { ...p, meta: stripMdPlace(p.meta) } : p));
+	}
+	if (!venues.size) return [...posts];
+	return posts.map((p) => {
+		const venue = isEvent(p) ? venues.get(String(p.meta.postID)) : undefined;
+		return venue ? { ...p, meta: venuePlaceMeta(p.meta, venue) } : p;
+	});
+}
+
+/**
+ * {@link withVenuePlaces} para los posts relacionados de una página (`currentRelated`).
+ * @template {{ relatedPosts: { meta: Record<string, any> }[] }} R
+ * @param {D1Database | null | undefined} db
+ * @param {R} related
+ * @returns {Promise<R>}
+ */
+export async function relatedWithVenuePlaces(db, related) {
+	return { ...related, relatedPosts: await withVenuePlaces(db, related.relatedPosts) };
 }
 
 /**

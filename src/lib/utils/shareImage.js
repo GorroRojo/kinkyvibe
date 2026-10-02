@@ -448,7 +448,8 @@ export function eventInfo(meta) {
 	const { day, hours, dayShort, hoursShort, multiDay } = formatEventDate(meta.start, meta.end);
 	const online = !meta.location;
 	const place = online ? 'Online' : meta.location_name ?? meta.location;
-	const address = !online && meta.location_name ? meta.location : '';
+	const address =
+		!online && meta.location_name && meta.location !== meta.location_name ? meta.location : '';
 	/** @type {string[]} */
 	const all = (meta.authors ?? [])
 		.filter(Boolean)

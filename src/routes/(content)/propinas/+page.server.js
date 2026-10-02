@@ -46,7 +46,7 @@ export const actions = {
 			values,
 			client: relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event)),
 			origin: siteOrigin(url),
-			findPost: findTipPost
+			findPost: (category, slug) => findTipPost(category, slug, platform)
 		});
 		if (!result.ok) {
 			return fail(result.status, { values, error: result.error, errors: result.errors });
