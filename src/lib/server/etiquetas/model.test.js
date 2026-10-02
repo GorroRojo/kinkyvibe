@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import tagsFactory from '$lib/utils/tags.js';
 import { parseWikiFile, recordsToRawTags, tagsToRecords } from './model.js';
+import { coreTypes, validateData } from '../objects/types/index.js';
+import { TAG_TYPE } from '../objects/types/etiqueta.js';
 
 const wikiRaw = /** @type {Record<string, string>} */ (
 	import.meta.glob('/src/lib/posts/wiki/*.md', { query: '?raw', import: 'default', eager: true })
@@ -81,6 +83,18 @@ describe('tagsToRecords / recordsToRawTags', () => {
 		const picantearla = records.find((r) => r.key === 'Picantearla');
 		expect(picantearla?.data.image).toBe('picantearla-miniatura.webp');
 		expect(picantearla?.parents).toEqual([{ key: 'evento recurrente', orden: 0 }]);
+	});
+
+	it('las imágenes de las series (de assets o de un evento) pasan las reglas del tipo', () => {
+		const etiqueta = /** @type {import('../objects/types/index.js').CoreType} */ (
+			coreTypes.get(TAG_TYPE)
+		);
+		const series = tagsFactory(fresh()).get('evento recurrente').children ?? [];
+		const withImage = records.filter((r) => series.includes(r.key) && r.data.image);
+		expect(withImage.some((r) => String(r.data.image).startsWith('calendario:'))).toBe(true);
+		for (const r of withImage) {
+			expect(validateData(etiqueta, { key: r.key, ...r.data }).ok, r.key).toBe(true);
+		}
 	});
 
 	it('los alias son registros con solo su nombre y a quién apuntan', () => {

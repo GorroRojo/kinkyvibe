@@ -4,6 +4,7 @@
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
 import { TIMEZONE } from '$lib/utils/dates.js';
+import { expiresInText } from '$lib/utils/expiry.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
 
@@ -18,17 +19,27 @@ export function editionDate(start) {
 }
 
 /**
- * @param {{ seriesName: string, confirmUrl: string, unsubscribeUrl: string, hours: number }} input
+ * `expiresAt`: cuándo vence el link. En el mail va con la hora de Argentina (no sabemos la zona de
+ * quien lo lee; src/lib/utils/expiry.js).
+ * @param {{ seriesName: string, confirmUrl: string, unsubscribeUrl: string, expiresAt: number, now: number }} input
  * @returns {Message}
  */
-export function buildSeriesConfirmEmail({ seriesName, confirmUrl, unsubscribeUrl, hours }) {
+export function buildSeriesConfirmEmail({
+	seriesName,
+	confirmUrl,
+	unsubscribeUrl,
+	expiresAt,
+	now
+}) {
+	const vence = expiresInText(expiresAt, now, { lowercase: true });
 	const subject = `Confirmá el aviso de ${seriesName}`;
 	const text = [
 		'Hola:',
 		'',
 		`Pediste que te avisemos por mail cuando haya una nueva edición de ${seriesName}.`,
 		'',
-		`Para confirmarlo, entrá a este link (vence en ${hours} horas): ${confirmUrl}`,
+		`Para confirmarlo, entrá a este link: ${confirmUrl}`,
+		`El link ${vence}.`,
 		'',
 		'Si no lo pediste vos, ignorá este mail: sin confirmar no te llega nada.',
 		`Para borrar el pedido ahora: ${unsubscribeUrl}`
@@ -37,7 +48,7 @@ export function buildSeriesConfirmEmail({ seriesName, confirmUrl, unsubscribeUrl
 		<p>Hola:</p>
 		<p>Pediste que te avisemos por mail cuando haya una nueva edición de <strong>${escapeHtml(seriesName)}</strong>.</p>
 		<p><a href="${escapeHtml(confirmUrl)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#e0338f;color:#fff;text-decoration:none;font-weight:bold">Confirmar el aviso</a></p>
-		<p style="${SMALL}">El link vence en ${hours} horas.</p>
+		<p style="${SMALL}">El link ${escapeHtml(vence)}.</p>
 		<p style="${SMALL}">Si no lo pediste vos, ignorá este mail: sin confirmar no te llega nada. También podés <a href="${escapeHtml(unsubscribeUrl)}">borrar el pedido ahora</a>.</p>
 	</div>`;
 	return { subject, html, text };
