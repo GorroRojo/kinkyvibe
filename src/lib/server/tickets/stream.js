@@ -263,7 +263,10 @@ export async function sendStreamLinkBatch(
  */
 export async function failedStreamLinkCounts(db, slugs) {
 	if (!slugs.length) return new Map();
-	const [links, counts] = await db.batch(failedStreamLinkStatements(db, slugs));
+	const [links, counts] =
+		/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */ (
+			await db.batch(failedStreamLinkStatements(db, slugs))
+		);
 	return readFailedStreamLinkCounts(links.results, counts.results);
 }
 

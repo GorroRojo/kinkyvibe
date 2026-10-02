@@ -584,7 +584,7 @@ async function seed() {
 	// El chequeo nocturno encontró algo.
 	await recordIntegrityRun(
 		t.db,
-		[{ code: 'edge_dangling', message: 'inventado', edgeId: 7 }],
+		[{ code: 'dangling_edge', message: 'inventado', edgeId: 7 }],
 		NOW - 8 * HOUR
 	);
 	// Última visita: hace dos horas (visita nueva), vista hasta hace tres días.
@@ -672,7 +672,7 @@ async function bothLoads(platform) {
 	const before = await oldLoad(fakeEvent(platform));
 	const seenAfterOld = await lastSeenRow();
 	await restoreLastSeen(saved);
-	const after = await load(fakeEvent(platform));
+	const after = /** @type {typeof before} */ (await load(fakeEvent(platform)));
 	// Las dos anotan la visita igual.
 	expect((await lastSeenRow()).results).toEqual(seenAfterOld.results);
 	return { before, after };

@@ -207,7 +207,11 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		}
 	});
 	const focus = salesFocus(upcoming);
-	const trend = focus ? /** @type {any} */ (s2[`trend:${focus.event.slug}`] ?? null) : null;
+	const trends =
+		/** @type {Record<string, import('$lib/server/admin/inicio.js').SalesTrend | null>} */ (
+			/** @type {unknown} */ (s2)
+		);
+	const trend = focus ? (trends[`trend:${focus.event.slug}`] ?? null) : null;
 	const sales = focus
 		? salesSummary({ focus, config: ticketed.get(focus.event.slug), totals, trend, now })
 		: null;

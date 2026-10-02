@@ -257,8 +257,8 @@ function postsStamp(db, type, category) {
 	// guardar nunca recibe la respuesta de una consulta que salió antes que su guardado.
 	const request = currentRequest();
 	if (!request) return readPostsStamp(db, type, category);
-	let pending = stampsInFlight.get(request);
-	if (!pending) stampsInFlight.set(request, (pending = new Map()));
+	const pending = stampsInFlight.get(request) ?? new Map();
+	stampsInFlight.set(request, pending);
 	const key = `${type}\n${category}`;
 	const running = pending.get(key);
 	if (running) return running;

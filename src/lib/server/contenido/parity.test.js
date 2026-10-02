@@ -397,7 +397,7 @@ describe('el contador «No listadas» del menú del panel', () => {
 				{ actor: 'admin-inventade', now: NOW + 1 }
 			);
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
-			const withFiesta = await fromQuery(posts);
+			const withFiesta = Number(await fromQuery(posts));
 
 			// El no listado se oculta: deja de contar.
 			const ciclo = await objectOf('ciclo-no-listado-2031-04');
