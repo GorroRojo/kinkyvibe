@@ -3,6 +3,7 @@
 	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
 	import SearchButton from './SearchButton.svelte';
+	import { isSectionActive } from '$lib/utils/navigation.js';
 	export let links;
 </script>
 
@@ -10,7 +11,7 @@
 	<ul>
 		{#each links as { icon, name, sub, href, target = undefined }}
 			<li
-				class:current={$page.url.pathname.includes(href) ||
+				class:current={isSectionActive($page.url.pathname, href) ||
 					($currentPostData &&
 						$currentPostData?.path == $page?.url?.pathname &&
 						$currentPostData?.category == href.slice(1))}
