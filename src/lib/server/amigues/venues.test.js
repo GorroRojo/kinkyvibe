@@ -300,3 +300,128 @@ describe('los .ics dinámicos (feedVenues)', () => {
 		expect((await off.feedVenues(t.db, ['ics-off'])).size).toBe(0);
 	});
 });
+
+describe('feedVenues lee todos los lugares juntos', () => {
+	/** Un vínculo escrito directo en la base (para casos que `setEventVenue` no deja crear). */
+	const rawLink = (/** @type {string} */ slug, /** @type {number} */ venueId) =>
+		t.db
+			.prepare(
+				`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
+				VALUES (?1, ?2, NULL, 1, 'a', 1, 'a')`
+			)
+			.bind(slug, venueId)
+			.run();
+
+	/**
+	 * Lugares en todos los casos: los cinco niveles, el evento que cambia el nivel, oculto, solo
+	 * con cuenta, sin aprobar, borrado, un perfil que no es lugar y una dirección inválida.
+	 * @param {Awaited<ReturnType<typeof modules>>} m
+	 * @returns {Promise<string[]>} las direcciones de los eventos vinculados
+	 */
+	async function seed(m) {
+		/** @type {string[]} */
+		const slugs = [];
+		const link = async (
+			/** @type {string} */ slug,
+			/** @type {number} */ venueId,
+			/** @type {any} */ privacy = null
+		) => {
+			const r = await m.setEventVenue(t.db, { eventSlug: slug, venueId, privacy, by: 'a' });
+			expect(r.ok, slug).toBe(true);
+			slugs.push(slug);
+		};
+		for (const level of ['public', 'name', 'address', 'area', 'hidden']) {
+			const v = await venue(level);
+			await link(`${level}-como-el-lugar`, v.id);
+			for (const override of ['public', 'name', 'address', 'area', 'hidden']) {
+				await link(`${level}-evento-${override}`, v.id, override);
+			}
+		}
+		for (const [title, extra] of /** @type {const} */ ([
+			['Lugar Oculto', { visibility: 'hidden' }],
+			['Lugar Con Cuenta', { visibility: 'members' }],
+			['Lugar Sin Aprobar', { approved: false }]
+		])) {
+			const v = await makeProfile(t.db, {
+				title,
+				kind: 'lugar',
+				data: { address: SECRET, venue_privacy: 'public' },
+				...extra
+			});
+			await link(`${v.slug}-1`, v.id);
+			await link(`${v.slug}-2`, v.id, 'name');
+		}
+		const gone = await venue('public', 'Lugar Borrado');
+		await link('borrado-1', gone.id);
+		await saveObject(
+			t.db,
+			{ id: gone.id, type: 'perfil', version: gone.version, deleted: true },
+			{ actor: 'a' }
+		);
+		const persona = await makeProfile(t.db, { title: 'No Es Lugar' });
+		await rawLink('persona-1', persona.id);
+		slugs.push('persona-1');
+		const ok = await venue('public', 'Lugar Con Dirección Rara');
+		await rawLink('dirección inválida', ok.id);
+		slugs.push('dirección inválida');
+		return slugs;
+	}
+
+	/**
+	 * Lo que hacía feedVenues antes: recorrer los vínculos y pedir el lugar de cada evento pedido
+	 * por separado, como la página del evento (`publicVenueForEvent`).
+	 * @param {Awaited<ReturnType<typeof modules>>} m
+	 * @param {string[]} slugs
+	 */
+	async function oneByOne(m, slugs) {
+		const want = new Set(slugs);
+		const out = new Map();
+		const { results } = await t.db.prepare('SELECT event_slug FROM event_venues').all();
+		for (const r of results) {
+			const slug = String(r.event_slug);
+			if (!want.has(slug)) continue;
+			const view = await m.publicVenueForEvent(t.db, slug, ANON);
+			if (view) out.set(slug, view);
+		}
+		return out;
+	}
+
+	it('da lo mismo que pedir el lugar de cada evento por separado', async () => {
+		const m = await modules();
+		const linked = await seed(m);
+		const asked = [...linked, 'sin-lugar', '../no-es-direccion', linked[0]];
+		const together = await m.feedVenues(t.db, asked);
+		const expected = await oneByOne(m, asked);
+		expect(Object.fromEntries(together)).toEqual(Object.fromEntries(expected));
+		// La prueba cubre todos los casos (no pasa por dar vacío).
+		const levels = new Set([...together.values()].map((v) => v.level));
+		expect([...levels].sort()).toEqual(['address', 'area', 'hidden', 'name', 'public']);
+		expect(together.size).toBeGreaterThan(30);
+		// Solo una parte: lo mismo.
+		const some = linked.filter((_, i) => i % 3 === 0);
+		expect(Object.fromEntries(await m.feedVenues(t.db, some))).toEqual(
+			Object.fromEntries(await oneByOne(m, some))
+		);
+	});
+
+	it('una sola vuelta a la base, con 5 o con 60 eventos (antes eran 3 consultas por evento)', async () => {
+		const { countingDB } = await import('$lib/server/db/testing.js');
+		const m = await modules();
+		const v = await venue('public');
+		const slugs = Array.from({ length: 60 }, (_, i) => `muchos-${i}`);
+		for (const slug of slugs) {
+			await m.setEventVenue(t.db, { eventSlug: slug, venueId: v.id, privacy: null, by: 'a' });
+		}
+		const counted = countingDB(t.db);
+		const few = await m.feedVenues(counted.db, slugs.slice(0, 5));
+		const fewQueries = counted.queries;
+		counted.reset();
+		const many = await m.feedVenues(counted.db, slugs);
+		expect(few.size).toBe(5);
+		expect(many.size).toBe(60);
+		expect(fewQueries).toBe(1);
+		expect(counted.queries).toBe(1);
+		// El lugar viaja una vez, no una por evento.
+		expect(JSON.stringify(counted.log[0].result).split(SECRET).length - 1).toBe(1);
+	});
+});

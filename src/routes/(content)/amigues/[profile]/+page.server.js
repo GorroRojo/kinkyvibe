@@ -23,9 +23,11 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 export async function load({ params, platform, locals, setHeaders }) {
 	const db = getDB(platform);
 	if (db && (await perfilesPublicosEnabled(platform))) {
+		// Una sola lectura de las publicaciones para toda la página (nadie las modifica).
+		const posts = await sitePosts(platform);
 		const page = await profilePageData(db, params.profile, locals, {
 			cuentas: await cuentasEnabled(platform),
-			posts: await sitePosts(platform)
+			posts
 		});
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
@@ -34,7 +36,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
 				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
-					...(await sitePosts(platform)),
+					...posts,
 					...(await fetchMarkdownPosts(true))
 				])
 			};

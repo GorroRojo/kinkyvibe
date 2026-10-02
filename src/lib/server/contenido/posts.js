@@ -16,6 +16,9 @@
  *   post, con quien mira (les admins ven los ocultos).
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
  *   objetos hay y cuándo cambió el último (una consulta chica, con índice).
+ * - Las listas no leen el cuerpo de los posts (`data.body`, la mayor parte de lo guardado): solo
+ *   la metadata. El cuerpo lo lee aparte el índice de la búsqueda (`siteBodies`), una vez por
+ *   cambio de la base.
  */
 import { error } from '@sveltejs/kit';
 import { fetchMarkdownPosts, fetchPost, processPost } from '$lib/utils';
@@ -54,7 +57,8 @@ export async function contentDb(platform) {
  *   claimed: Map<string, Set<string>>,
  *   listed: ProcessedPost[],
  *   unlisted: ProcessedPost[],
- *   bodies: Map<string, string>
+ *   paths: Map<number, string>,
+ *   bodies?: Promise<Map<string, string>>
  * }} DbState
  */
 
@@ -120,9 +124,11 @@ async function loadDbState(db, stamp) {
 			)
 			.bind(...TYPES)
 			.all(),
+		// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
 		db
 			.prepare(
-				`SELECT o.id, o.type, o.slug, o.title, o.data, o.visibility, s.legacy_slug FROM objects o
+				`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
+					s.legacy_slug FROM objects o
 				LEFT JOIN content_sources s ON s.object_id = o.id
 				WHERE o.type IN (${t}) AND ${visible.sql}
 				ORDER BY o.id`
@@ -143,8 +149,8 @@ async function loadDbState(db, stamp) {
 	const listed = [];
 	/** @type {ProcessedPost[]} */
 	const unlisted = [];
-	/** @type {Map<string, string>} */
-	const bodies = new Map();
+	/** @type {Map<number, string>} */
+	const paths = new Map();
 	for (const r of rows.results) {
 		const cat = categoryOfType(String(r.type));
 		if (!cat) continue;
@@ -167,10 +173,52 @@ async function loadDbState(db, stamp) {
 			true
 		);
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
-		const body = /** @type {any} */ (data).body;
-		if (typeof body === 'string' && body) bodies.set(post.path, body);
+		paths.set(Number(r.id), post.path);
 	}
-	return { stamp, claimed, listed, unlisted, bodies };
+	return { stamp, claimed, listed, unlisted, paths };
+}
+
+/**
+ * `data` sin `body`, en la misma consulta (un `data` que no es JSON va tal cual: lo resuelve el
+ * `JSON.parse` de siempre).
+ */
+const DATA_WITHOUT_BODY = `CASE WHEN json_valid(o.data) THEN json_remove(o.data, '$.body') ELSE o.data END`;
+
+/**
+ * El cuerpo de cada post de la lista, por dirección. Lo lee una vez por cambio de la base (lo
+ * guarda en el mismo estado) y solo lo pide la búsqueda.
+ *
+ * @param {D1Database} db
+ * @param {DbState} state
+ * @returns {Promise<Map<string, string>>}
+ */
+function stateBodies(db, state) {
+	if (!state.bodies) {
+		const t = marks(TYPES.length);
+		const visible = visibleWhere(ANON, 'o');
+		const loading = db
+			.prepare(
+				`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
+					THEN json_extract(o.data, '$.body') END AS body
+				FROM objects o WHERE o.type IN (${t}) AND ${visible.sql} ORDER BY o.id`
+			)
+			.bind(...TYPES, ...visible.params)
+			.all()
+			.then(({ results }) => {
+				/** @type {Map<string, string>} */
+				const bodies = new Map();
+				for (const r of results) {
+					const path = state.paths.get(Number(r.id));
+					if (path && typeof r.body === 'string' && r.body) bodies.set(path, r.body);
+				}
+				return bodies;
+			});
+		state.bodies = loading;
+		loading.catch(() => {
+			if (state.bodies === loading) delete state.bodies;
+		});
+	}
+	return state.bodies;
 }
 
 /** Orden de las categorías cuando dos publicaciones tienen la misma fecha (como los .md). */
@@ -315,7 +363,7 @@ export async function currentSitePosts(platform) {
 export async function siteBodies(platform) {
 	const db = await contentDb(platform);
 	if (!db) return new Map();
-	return (await dbState(db)).bodies;
+	return stateBodies(db, await dbState(db));
 }
 
 /**
