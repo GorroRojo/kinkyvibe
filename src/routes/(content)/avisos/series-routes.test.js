@@ -51,13 +51,18 @@ let mails = [];
 /**
  * Los módulos con los interruptores como se pida y posts inventados.
  * `extra`: más posts listados, además de los de fakeSeriesPosts.
- * @param {{ series?: string, cuentas?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
+ * `sigo`: el interruptor «Lo que sigo» (sin pedirlo, sin tocar, como antes).
+ * @param {{ series?: string, cuentas?: string, sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
  */
-async function modules({ series = '1', cuentas = '1', extra } = {}) {
+async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
 	vi.resetModules();
 	mails = [];
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { SERIES_ENABLED: series, CUENTAS_ENABLED: cuentas }
+		env: {
+			SERIES_ENABLED: series,
+			CUENTAS_ENABLED: cuentas,
+			...(sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {})
+		}
 	}));
 	const now = Date.now();
 	const listed = [...fakeSeriesPosts(now), ...(extra?.(now) ?? [])];
@@ -237,10 +242,55 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const page = /** @type {any} */ (
 			await m.avisos.load(ev({ member, path: '/avisos?serie=Picantearla' }))
 		);
-		expect(page.account).toEqual({ member: true, subscribed: ['Picantearla'] });
+		expect(page.account).toEqual({
+			member: true,
+			subscribed: ['Picantearla'],
+			sigo: false,
+			invite: false
+		});
 		expect(
 			await m.avisos.actions.baja(ev({ member, form: { serie: 'Picantearla' } }))
 		).toMatchObject({ ok: true, status: 'removed' });
+	});
+
+	it('con cuenta y «Lo que sigo»: «Avisame» es seguir la serie (y lo dicen la página, el evento y /api/series)', async () => {
+		const m = await modules({ sigo: '1' });
+		const account = await upsertVerifiedAccount(t.db, EMAIL);
+		const member = { id: account.id, email: EMAIL };
+		expect(
+			await m.avisos.actions.suscribir(ev({ member, form: { serie: 'Picantearla', cuenta: '1' } }))
+		).toMatchObject({ ok: true, status: 'confirmed' });
+		// Nada en la tabla vieja: es una cosa seguida, con mail de lo nuevo.
+		const old = await t.db.prepare('SELECT * FROM series_subscriptions').all();
+		expect(old.results).toEqual([]);
+		const follows = await t.db
+			.prepare('SELECT target_kind, target_key, mail_new FROM follows WHERE account_id = ?1')
+			.bind(account.id)
+			.all();
+		expect(follows.results).toEqual([
+			{ target_kind: 'etiqueta', target_key: 'Picantearla', mail_new: 1 }
+		]);
+		const page = /** @type {any} */ (
+			await m.avisos.load(ev({ member, path: '/avisos?serie=Picantearla' }))
+		);
+		expect(page.account).toEqual({
+			member: true,
+			subscribed: ['Picantearla'],
+			sigo: true,
+			invite: false
+		});
+		const evento = /** @type {any} */ (
+			await m.evento.load(
+				ev({ member, path: '/calendario/serie-prueba-2', params: { event: 'serie-prueba-2' } })
+			)
+		);
+		expect(evento.series.account).toMatchObject({ member: true, sigo: true });
+		const body = await (await m.api.GET(ev({ member, params: { tag: 'Picantearla' } }))).json();
+		expect(body.account).toEqual({ member: true, subscribed: true, sigo: true, invite: false });
+		// Sin cuenta, el aviso por mail sigue igual (no es «Lo que sigo»), y con «Lo que sigo» prendido
+		// se invita a entrar para seguir (pedido de gorrite).
+		const anon = await (await m.api.GET(ev({ params: { tag: 'Picantearla' } }))).json();
+		expect(anon.account).toEqual({ member: false, subscribed: false, sigo: false, invite: true });
 	});
 
 	it('una serie que no existe: 404 en la página, 400 al suscribirse', async () => {
@@ -273,7 +323,12 @@ describe('prendido: páginas', () => {
 		expect(s).toMatchObject({ id: 'Picantearla', number: 8, total: 3, past: true });
 		expect(s.prev.slug).toBe('serie-prueba-1');
 		expect(s.next.slug).toBe('serie-prueba-3');
-		expect(data.series.account).toEqual({ member: false, subscribed: [] });
+		expect(data.series.account).toEqual({
+			member: false,
+			subscribed: [],
+			sigo: false,
+			invite: false
+		});
 		const other = /** @type {any} */ (
 			await m.evento.load(ev({ path: '/calendario/otra-cosa', params: { event: 'otra-cosa' } }))
 		);

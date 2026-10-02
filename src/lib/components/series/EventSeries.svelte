@@ -13,7 +13,7 @@
 	import CalendarSubscribe from './CalendarSubscribe.svelte';
 	import { editionDateLabel, tagFeedPath } from '$lib/utils/series.js';
 
-	/** @type {{ list: Array<{ id: string, name: string, href: string, icon: string, number: number, total: number, prev: any, next: any, past: boolean, nextUpcoming: import('$lib/utils/series.js').Edition | null }>, account: { member: boolean, subscribed: string[] } }} */
+	/** @type {{ list: Array<{ id: string, name: string, href: string, icon: string, number: number, total: number, prev: any, next: any, past: boolean, nextUpcoming: import('$lib/utils/series.js').Edition | null }>, account: { member: boolean, subscribed: string[], sigo?: boolean, invite?: boolean } }} */
 	export let series;
 	/** @type {'nav' | 'after'} */
 	export let part = 'nav';
@@ -40,17 +40,37 @@
 					seriesName={s.name}
 					member={series.account.member}
 					subscribed={series.account.subscribed.includes(s.id)}
+					sigo={Boolean(series.account.sigo)}
 					heading={s.nextUpcoming ? `Avisame de las próximas ediciones` : 'Avisame si se repite'}
 				/>
 			{/if}
-			<div class="cal surface-card">
-				<CalendarSubscribe url={origin + tagFeedPath(s.id)} label="las fechas de {s.name}" />
-			</div>
+			<!-- Con cuenta y «Lo que sigo», seguir ya pone las fechas en tu calendario: el .ics de la
+			     serie sería un segundo camino confuso (pedido de gorrite). Sin cuenta, sigue. -->
+			{#if !(series.account.member && series.account.sigo)}
+				<div class="cal surface-card">
+					<CalendarSubscribe url={origin + tagFeedPath(s.id)} label="las fechas de {s.name}" />
+					{#if !series.account.member && series.account.invite}
+						<p class="invite">
+							¿Querés que te avisemos y no perderte ninguna?
+							<a href="/ingresar?next={encodeURIComponent(s.href)}"
+								>Entrá con tu mail y seguí {s.name} →</a
+							>
+						</p>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/each}
 {/if}
 
 <style>
+	.invite {
+		margin: 0.6em 0 0;
+		font-size: var(--step--1);
+	}
+	.invite a {
+		font-weight: 700;
+	}
 	.event-series {
 		display: grid;
 		gap: 0;

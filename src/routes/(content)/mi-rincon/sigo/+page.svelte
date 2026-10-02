@@ -2,7 +2,9 @@
 	import { enhance } from '$app/forms';
 	import FollowAdd from '$lib/components/sigo/FollowAdd.svelte';
 	import FollowOptions from '$lib/components/sigo/FollowOptions.svelte';
+	import CalendarSubscribe from '$lib/components/series/CalendarSubscribe.svelte';
 	import TelegramCard from '$lib/components/sigo/TelegramCard.svelte';
+	import { TIMEZONE } from '$lib/utils/dates.js';
 	import { editionDateLabel } from '$lib/utils/series.js';
 	import { followEmoji, groupFollows, notifyChannels } from '$lib/utils/sigo.js';
 
@@ -32,6 +34,22 @@
 	/** @param {{ kind: string, key: string }} f */
 	const rowId = (f) => `${f.kind}:${f.key}`;
 
+	/** @param {number | null} d */
+	const fmtDate = (d) =>
+		d == null
+			? ''
+			: new Date(d).toLocaleDateString('es-AR', {
+					timeZone: TIMEZONE,
+					day: 'numeric',
+					month: 'long',
+					year: 'numeric'
+				});
+
+	// El link recién creado (se muestra una sola vez) o el aviso de que se revocó.
+	$: newUrl = form?.action === 'link' && form.url ? String(form.url) : '';
+	$: revoked = form?.action === 'revocarLink' && form.ok;
+	$: hasLink = Boolean(data.feed || newUrl) && !revoked;
+
 	$: groups = groupFollows(data.follows);
 	$: taken = new Set(data.follows.map(rowId));
 	// Las columnas de la grilla: Telegram prendida solo con el chat vinculado (data.telegram).
@@ -52,6 +70,10 @@
 		Etiquetas, series, perfiles y lugares que seguís. Por cada uno elegís si sus eventos van a tu
 		calendario, si te avisamos cuando se anuncia algo nuevo y si te recordamos el día antes. Lo que
 		seguís es privado: no lo ve nadie más.
+	</p>
+	<p class="hint">
+		Más abajo, <a href="#calendario">tu calendario</a>: lo que seguís, tus entradas y donde
+		participás, todo junto para sumar a tu app de calendario.
 	</p>
 
 	{#if form?.error && form.action !== 'seguir'}
@@ -176,12 +198,18 @@
 		<TelegramCard telegram={data.telegram} />
 	{/if}
 
-	<section class="surface-card" aria-labelledby="cal-title">
+	<section class="surface-card" id="calendario" aria-labelledby="cal-title">
 		<h2 id="cal-title"><span aria-hidden="true">📅</span> Tu calendario</h2>
 		<p class="hint">
-			Además de lo que seguís con «En mi calendario», tu calendario personal puede sumar esto. El
-			link para suscribirte está en <a href="/mi-rincon/calendario">Mi rincón → Calendario</a>.
+			Un solo calendario con todo lo tuyo, para sumar una vez a Google Calendar o a la app de
+			calendario de tu celu o tu compu. Se actualiza solo (algunas apps tardan hasta un día en traer
+			los cambios). Junta:
 		</p>
+		<ul class="what">
+			<li>lo que seguís con «En mi calendario» (arriba, en cada cosa que seguís);</li>
+			<li>tus entradas, también las de eventos no listados;</li>
+			<li>los eventos donde participás, con un perfil que manejás.</li>
+		</ul>
 		<form method="POST" action="?/calendario" use:enhance={submit('calendario')} class="options">
 			<label>
 				<input
@@ -205,6 +233,44 @@
 			</label>
 			<noscript><button class="pill-btn ghost small" type="submit">Guardar</button></noscript>
 		</form>
+
+		{#if data.seriesOn}
+			<h3 id="cal-link-title">Tu link para suscribirte</h3>
+			<p class="hint">
+				El link es secreto: cualquiera que lo tenga ve tu calendario. Si lo compartiste sin querer,
+				generá uno nuevo y el anterior deja de andar.
+			</p>
+			{#if newUrl}
+				<p class="ok" role="status">
+					Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
+				</p>
+				<code class="feed-link">{newUrl}</code>
+				<CalendarSubscribe url={newUrl} label="tu calendario" />
+			{:else if revoked}
+				<p class="ok" role="status">Listo: el link dejó de andar.</p>
+			{/if}
+			{#if data.feed && !newUrl && !revoked}
+				<p>
+					Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
+						? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
+						: ''}.
+				</p>
+			{/if}
+			<div class="row">
+				<form method="POST" action="?/crearLink" use:enhance={submit('link')}>
+					<button class="pill-btn" type="submit" disabled={busy === 'link'}
+						>{hasLink ? 'Generar un link nuevo' : 'Crear mi link'}</button
+					>
+				</form>
+				{#if hasLink}
+					<form method="POST" action="?/revocarLink" use:enhance={submit('link')}>
+						<button class="pill-btn ghost" type="submit" disabled={busy === 'link'}
+							>Revocar el link</button
+						>
+					</form>
+				{/if}
+			</div>
+		{/if}
 	</section>
 </div>
 
@@ -393,6 +459,26 @@
 		cursor: not-allowed;
 	}
 
+	.what {
+		margin: 0;
+		padding-inline-start: 1.2em;
+		font-size: var(--step--1);
+		display: grid;
+		gap: 0.15em;
+	}
+	.row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6em;
+	}
+	.feed-link {
+		display: block;
+		padding: 0.6em;
+		background: var(--hover);
+		border-radius: var(--round-sm);
+		overflow-wrap: anywhere;
+		font-size: var(--step--1);
+	}
 	.options {
 		display: flex;
 		flex-wrap: wrap;

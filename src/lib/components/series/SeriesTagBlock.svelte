@@ -16,12 +16,14 @@
 	/** @type {string} */
 	export let tag;
 
-	/** @type {null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean } }} */
+	/** @type {null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean, sigo?: boolean, invite?: boolean } }} */
 	let info = null;
 	let origin = '';
+	let here = '/';
 
 	onMount(async () => {
 		origin = location.origin;
+		here = location.pathname;
 		if (!tag) return;
 		try {
 			const r = await fetch(seriesApiPath(tag));
@@ -53,7 +55,9 @@
 					<EditionList editions={s.past} />
 				</details>
 			{/if}
-			{#if s.total}
+			<!-- Con cuenta y «Lo que sigo», «Avisame» es lo mismo que el botón «Seguir» de esta página
+			     (FollowButton): no se muestran los dos. Sin cuenta, el aviso por mail sigue acá. -->
+			{#if s.total && !(info.account.member && info.account.sigo)}
 				<SeriesNotifyForm
 					seriesId={s.id}
 					seriesName={s.name}
@@ -63,15 +67,32 @@
 				/>
 			{/if}
 		{/if}
-		{#if info.feed}
+		<!-- Con cuenta y «Lo que sigo», «Seguir» ya pone las fechas en tu calendario: no se ofrece
+		     también el .ics de la etiqueta (pedido de gorrite). Sin cuenta, sigue. -->
+		{#if info.feed && !(info.account.member && info.account.sigo)}
 			<div class="surface-card">
 				<CalendarSubscribe url={origin + info.feed} label="las fechas de {s ? s.name : tag}" />
+				{#if !info.account.member && info.account.invite}
+					<p class="invite">
+						¿Querés que te avisemos y no perderte ninguna?
+						<a href="/ingresar?next={encodeURIComponent(here)}"
+							>Entrá con tu mail y seguí {s ? s.name : tag} →</a
+						>
+					</p>
+				{/if}
 			</div>
 		{/if}
 	</section>
 {/if}
 
 <style>
+	.invite {
+		margin: 0.6em 0 0;
+		font-size: var(--step--1);
+	}
+	.invite a {
+		font-weight: 700;
+	}
 	.series-block {
 		width: min(45rem, 100%);
 		margin: 1.5em auto 0;

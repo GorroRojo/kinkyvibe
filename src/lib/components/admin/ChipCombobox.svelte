@@ -2,6 +2,8 @@
 	A text field with suggestions that adds the picked values as chips (tags, organizers...).
 	Keyboard: ↓/↑ move through suggestions, Enter or comma adds, Escape closes, Backspace on an
 	empty field removes the last chip. Follows the ARIA 1.2 combobox + listbox pattern.
+	`look="search"` gives it the public search look (a pill field with a magnifier, like the
+	lists' TagSearch) for pages outside the panel, where no form styles surround it.
 -->
 <script context="module">
 	let counter = 0;
@@ -9,6 +11,7 @@
 
 <script>
 	import { tick } from 'svelte';
+	import { Search } from '@lucide/svelte';
 
 	/**
 	 * @typedef {object} Item
@@ -55,6 +58,17 @@
 	 * @type {(values: string[], value: string) => string[]}
 	 */
 	export let add = (values, value) => [...values, value];
+	/**
+	 * 'chips' (the panel's, styled by the surrounding form) or 'search' (public pill field).
+	 * @type {'chips' | 'search'}
+	 */
+	export let look = 'chips';
+	/**
+	 * Extra attributes for the text field (e.g. `name` and `required` for a no-JavaScript
+	 * fallback that submits what was typed).
+	 * @type {Record<string, string | number | boolean | undefined>}
+	 */
+	export let inputAttrs = {};
 
 	const listId = `${id}-list`;
 	let query = '';
@@ -138,7 +152,7 @@
 	}
 </script>
 
-<div class="chip-combobox" class:open>
+<div class="chip-combobox" class:open class:search={look === 'search'}>
 	{#if values.length}
 		<ul class="chips" aria-label="Elegidas">
 			{#each values as value, i}
@@ -146,7 +160,8 @@
 				<li class="chip" class:unknown={c.unknown} style:--chip-color={c.color} title={c.title}>
 					{#if c.thumb}<img src={c.thumb} alt="" class="avatar" />{/if}
 					<span
-						>{#if c.icon}<span aria-hidden="true">{c.icon}</span> {/if}{c.label}</span
+						>{#if c.icon}<span aria-hidden="true">{c.icon}</span>
+						{/if}{c.label}</span
 					>
 					<button type="button" on:click={() => remove(i)} aria-label="{removeLabel} {c.label}"
 						>×</button
@@ -158,7 +173,9 @@
 	<!-- Between the chips and the text field, so the suggestions list never covers it. -->
 	<slot name="after-chips" />
 	<div class="field">
+		{#if look === 'search'}<Search size="1.1em" aria-hidden="true" class="search-icon" />{/if}
 		<input
+			{...inputAttrs}
 			bind:this={input}
 			{id}
 			type="text"
@@ -191,6 +208,7 @@
 					class:active={i === active}
 					class:create={item.create}
 					class:disabled={item.disabled}
+					style:--option-color={item.color}
 					on:mousedown|preventDefault
 					on:click={() => pick(item)}
 					on:mousemove={() => !item.disabled && (active = i)}
@@ -323,6 +341,63 @@
 		small {
 			font-size: var(--step--2, 0.75em);
 			opacity: 0.7;
+		}
+	}
+	/* look="search": the public pill field, like TagSearch on the lists */
+	.search {
+		.field {
+			display: flex;
+			align-items: center;
+			gap: 0.4em;
+			background: var(--surface, white);
+			border-radius: var(--round-pill);
+			outline: 1px solid var(--1-light);
+			box-shadow: var(--shadow);
+			min-height: var(--tap);
+			padding: 0.3em 0.9em;
+			box-sizing: border-box;
+			cursor: text;
+			transition: 100ms;
+			&:focus-within {
+				outline-width: 3px;
+			}
+			:global(.search-icon) {
+				color: var(--1);
+				flex: none;
+			}
+		}
+		input {
+			flex: 1 1 10em;
+			min-width: 0;
+			height: 2em;
+			border: 0;
+			outline: none;
+			padding: 0.3em 0.2em;
+			font: inherit;
+			font-size: var(--step-0);
+			background: transparent;
+			color: inherit;
+			&::placeholder {
+				color: color-mix(in srgb, var(--1-ink) 70%, white);
+			}
+		}
+		.options {
+			outline: 1px solid var(--1-light);
+			box-shadow: 0 0.4em 1.2em color-mix(in srgb, var(--1-dark) 20%, transparent);
+			font-size: var(--step--1);
+		}
+		[role='option'] {
+			padding: 0.45em 0.7em;
+			border-radius: 0.5em;
+			color: color-mix(in srgb, black 25%, var(--option-color, var(--1)));
+			&.active {
+				background: color-mix(in srgb, var(--option-color, var(--1)) 14%, white);
+				outline: 1px solid var(--option-color, var(--1));
+			}
+			.icon {
+				display: inline-block;
+				min-width: 1.3em;
+			}
 		}
 	}
 	.sr-only {

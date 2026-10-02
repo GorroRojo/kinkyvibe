@@ -3,10 +3,12 @@
 	 * «Agregar» de Mi rincón → Lo que sigo: buscar una etiqueta, una serie o (si vienen) un perfil
 	 * o un lugar y seguirlo con las opciones de siempre, sin salir de la página (?/seguir).
 	 *
-	 * Con JavaScript es el selector de etiquetas del sitio (ChipCombobox, con la búsqueda de
-	 * $lib/utils/adminTags.js): elegir una sugerencia manda el formulario en el momento. Sin
-	 * JavaScript es un campo de texto con «Seguir»: el servidor busca la etiqueta por su nombre,
-	 * un alias o la forma de la URL.
+	 * Es el selector de etiquetas del sitio (ChipCombobox, con la búsqueda de
+	 * $lib/utils/adminTags.js) con el aspecto del buscador público de las listas (`look="search"`:
+	 * campo redondeado con lupa, sugerencias con emoji y color). Con JavaScript, elegir una
+	 * sugerencia manda el formulario en el momento. Sin JavaScript es el mismo campo (con
+	 * `name="clave"`) y un botón «Seguir»: el servidor busca la etiqueta por su nombre, un alias o
+	 * la forma de la URL.
 	 *
 	 * Props: `tags` (followableTags), `profiles` (followableProfiles; vacío = solo etiquetas),
 	 * `taken` (lo que ya sigue, como `tipo:clave`), `result` (la respuesta de ?/seguir, si la hay).
@@ -106,6 +108,18 @@
 		return values;
 	}
 
+	/**
+	 * Sin coincidencias, lo dice (como el buscador de las listas) en vez de cerrar la lista.
+	 *
+	 * @param {string} query
+	 * @param {string[]} _values
+	 * @param {unknown[]} found
+	 */
+	const extra = (query, _values, found) =>
+		query.trim() && !found.length
+			? { value: '', label: `Nada coincide con «${query.trim()}».`, disabled: true }
+			: null;
+
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
 		busy = true;
@@ -137,31 +151,26 @@
 	{#if mounted}
 		<input type="hidden" name="tipo" value={kind} />
 		<input type="hidden" name="clave" value={key} />
+	{:else}
+		<input type="hidden" name="tipo" value="etiqueta" />
+	{/if}
+	<div class="field">
 		<ChipCombobox
 			values={[]}
 			id="sigo-agregar"
-			placeholder="shibari, cine, un lugar…"
+			look="search"
+			placeholder={mounted ? 'shibari, cine, un lugar…' : 'Nombre de la etiqueta o la serie'}
 			describedby="sigo-agregar-ayuda"
+			inputAttrs={mounted ? {} : { name: 'clave', required: true, maxlength: 100 }}
 			{search}
+			{extra}
 			add={pick}
 			addedMessage={(label) => `Siguiendo ${label}…`}
 		/>
-	{:else}
-		<input type="hidden" name="tipo" value="etiqueta" />
-		<div class="plain">
-			<input
-				id="sigo-agregar"
-				name="clave"
-				type="text"
-				required
-				maxlength="100"
-				autocomplete="off"
-				placeholder="Nombre de la etiqueta o la serie"
-				aria-describedby="sigo-agregar-ayuda"
-			/>
+		{#if !mounted}
 			<button class="pill-btn small" type="submit">Seguir</button>
-		</div>
-	{/if}
+		{/if}
+	</div>
 	{#if result?.error}
 		<p class="error" role="alert">{result.error}</p>
 	{:else if result?.ok}
@@ -184,16 +193,14 @@
 		color: var(--muted);
 		font-size: var(--step--1);
 	}
-	.plain {
+	.field {
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: 0.5em;
 	}
-	.plain input {
-		flex: 1 1 12em;
-		min-width: 0;
-		min-height: var(--tap);
-		box-sizing: border-box;
+	.field > :global(.chip-combobox) {
+		flex: 1 1 14em;
 	}
 	.small {
 		font-size: var(--step--1);

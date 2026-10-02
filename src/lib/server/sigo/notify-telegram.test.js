@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeAccount } from '$lib/server/amigues/testing.js';
-import { DAY, fakeEvent, fakeSend } from '$lib/server/series/fixtures.js';
+import { DAY, fakeEvent, fakeSend, insertOrder } from '$lib/server/series/fixtures.js';
 import tagsFactory from '$lib/utils/tags';
 import {
 	consumeLinkCode,
@@ -162,6 +162,20 @@ describe('recordatorio por Telegram', () => {
 			{ kind: 'recordatorio', channel: 'mail' },
 			{ kind: 'recordatorio', channel: 'telegram' }
 		]);
+	});
+
+	it('con entrada para el evento no sale ni por Telegram ni por mail', async () => {
+		const a = await account('tg-con-entrada', { recordatorio: true, telegram_recordatorio: true });
+		await insertOrder(t.db, { email: a.email, slug: 'con-entrada', now: NOW - DAY });
+		const posts = [fakeEvent('con-entrada', NOW + 20 * HOUR, ['Picantearla'])];
+		const tg = fakeTelegram();
+		const mail = fakeSend();
+		expect(await run({ posts, telegram: tg, send: mail })).toMatchObject({
+			sent: 0,
+			telegram: { sent: 0 }
+		});
+		expect(tg.sent).toEqual([]);
+		expect(mail.sent).toEqual([]);
 	});
 
 	it('sin el canal (bot apagado o sin token) no sale nada por Telegram y el mail sigue', async () => {

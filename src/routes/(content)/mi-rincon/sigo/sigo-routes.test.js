@@ -53,8 +53,8 @@ const FAKE_POSTS = [
 	}
 ];
 
-/** @param {{ sigo?: string, cuentas?: string, perfiles?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
+/** @param {{ sigo?: string, cuentas?: string, perfiles?: string, series?: string }} [flags] */
+async function modules({ sigo = '1', cuentas = '1', perfiles = '0', series } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
@@ -62,7 +62,9 @@ async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
 			CUENTAS_ENABLED: cuentas,
 			ETIQUETAS_DB_ENABLED: '0',
 			CONTENIDO_DB_ENABLED: '0',
-			PERFILES_PUBLICOS_ENABLED: perfiles
+			PERFILES_PUBLICOS_ENABLED: perfiles,
+			// Sin pedirlo, como antes: el interruptor `series` sin tocar.
+			...(series ? { SERIES_ENABLED: series } : {})
 		}
 	}));
 	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados.
@@ -73,7 +75,10 @@ async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
 	return {
 		page: await import('./+page.server.js'),
 		csv: await import('./sigo.csv/+server.js'),
-		rincon: await import('../+page.server.js')
+		rincon: await import('../+page.server.js'),
+		calendario: await import('../calendario/+page.server.js'),
+		feeds: await import('$lib/server/series/feeds.js'),
+		subscriptions: await import('$lib/server/series/subscriptions.js')
 	};
 }
 
@@ -304,5 +309,121 @@ describe('tu calendario', () => {
 			entradas: true,
 			participo: true
 		});
+	});
+});
+
+describe('tu calendario en la misma página (lo que estaba en Mi rincón → Calendario)', () => {
+	it('con `series`: el link secreto se crea acá, anda, se ve una vez y se revoca', async () => {
+		const m = await modules({ series: '1' });
+		const member = await makeAccount(t.db, 'cal-link');
+		let data = /** @type {any} */ (await m.page.load(ev({ member })));
+		expect(data).toMatchObject({ seriesOn: true, feed: null });
+
+		const r = /** @type {any} */ (await m.page.actions.crearLink(ev({ member, form: {} })));
+		expect(r).toMatchObject({ action: 'link', ok: true });
+		const token = r.url.match(/^https?:\/\/[^/]+\/ics\/mio\/(.+)\.ics$/)[1];
+		expect(await m.feeds.accountForFeed(t.db, token)).toBe(member.id);
+
+		data = await m.page.load(ev({ member }));
+		expect(data.feed).toMatchObject({ createdAt: expect.any(Number) });
+		// El token no vuelve nunca en la página.
+		expect(JSON.stringify(data)).not.toContain(token);
+
+		expect(await m.page.actions.revocarLink(ev({ member, form: {} }))).toMatchObject({
+			action: 'revocarLink',
+			ok: true
+		});
+		expect(await m.feeds.accountForFeed(t.db, token)).toBeNull();
+		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).toBeNull();
+	});
+
+	it('sin `series` (el .ics personal da 404): sin link ni acciones del link', async () => {
+		const m = await modules({ series: '0' });
+		const member = await makeAccount(t.db, 'cal-sin-series');
+		expect(await m.page.load(ev({ member }))).toMatchObject({ seriesOn: false, feed: null });
+		for (const action of /** @type {const} */ (['crearLink', 'revocarLink'])) {
+			expect(await thrown(() => m.page.actions[action](ev({ member, form: {} })))).toMatchObject({
+				status: 404
+			});
+		}
+		const { results } = await t.db.prepare('SELECT * FROM calendar_feeds').all();
+		expect(results).toEqual([]);
+	});
+
+	it('las acciones del link también piden sesión y los dos interruptores', async () => {
+		let m = await modules({ series: '1' });
+		expect(await thrown(() => m.page.actions.crearLink(ev({ form: {} })))).toMatchObject({
+			status: 303,
+			location: '/ingresar?next=%2Fmi-rincon%2Fsigo'
+		});
+		m = await modules({ series: '1', sigo: '0' });
+		const member = await makeAccount(t.db, 'cal-sigo-apagado');
+		expect(await thrown(() => m.page.actions.crearLink(ev({ member, form: {} })))).toMatchObject({
+			status: 404
+		});
+	});
+
+	it('Mi rincón → Calendario sigue andando: con «Lo que sigo» lleva acá; apagado, como siempre', async () => {
+		const member = await makeAccount(t.db, 'cal-viejo');
+		let m = await modules({ series: '1' });
+		const on = /** @type {any} */ (
+			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
+		);
+		expect(on).toEqual({ sigoOn: true, feed: null, series: [] });
+		// Una pestaña vieja todavía puede crear y revocar el link desde ahí.
+		const created = /** @type {any} */ (
+			await m.calendario.actions.crear(ev({ path: '/mi-rincon/calendario', member, form: {} }))
+		);
+		expect(created.path).toMatch(/^\/ics\/mio\/.+\.ics$/);
+		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).not.toBeNull();
+
+		m = await modules({ series: '1', sigo: '0' });
+		const off = /** @type {any} */ (
+			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
+		);
+		expect(off).toMatchObject({ sigoOn: false, series: [] });
+		expect(off.feed).toMatchObject({ createdAt: expect.any(Number) });
+	});
+
+	it('«Avisame» que la cuenta pidió antes: aparece en la lista al abrir la página, y el link de baja viejo anda', async () => {
+		// Con «Lo que sigo» apagado, «Avisame» con cuenta escribe en series_subscriptions.
+		let m = await modules({ series: '1', sigo: '0' });
+		const a = await makeAccount(t.db, 'avisame-antes');
+		const b = await makeAccount(t.db, 'avisame-otra');
+		for (const acc of [a, b])
+			await m.subscriptions.subscribeAccount({
+				db: t.db,
+				seriesTag: 'shibari',
+				accountId: acc.id,
+				now: Date.now() - DAY
+			});
+		const { results } = await t.db
+			.prepare('SELECT id FROM series_subscriptions WHERE account_id = ?1')
+			.bind(a.id)
+			.all();
+		const oldLink = await m.subscriptions.unsubscribeUrl(
+			t.db,
+			'https://kinkyvibe.ar',
+			String(results[0].id)
+		);
+
+		m = await modules({ series: '1' });
+		const data = /** @type {any} */ (await m.page.load(ev({ member: a })));
+		expect(data.follows).toHaveLength(1);
+		expect(data.follows[0]).toMatchObject({
+			key: 'shibari',
+			options: { calendario: true, mail_nuevo: true, recordatorio: false }
+		});
+		// Solo los de esta cuenta: la otra espera al cron.
+		const left = await t.db.prepare('SELECT account_id FROM series_subscriptions').all();
+		expect(left.results.map((r) => r.account_id)).toEqual([b.id]);
+
+		const token = oldLink.split('/avisos/baja/')[1];
+		expect(await m.subscriptions.unsubscribe(t.db, token)).toEqual({
+			ok: true,
+			seriesTag: 'shibari'
+		});
+		const after = /** @type {any} */ (await m.page.load(ev({ member: a })));
+		expect(after.follows[0].options.mail_nuevo).toBe(false);
 	});
 });
