@@ -18,8 +18,8 @@ cuentas es un link al sitio.
 
 - **Sin reglas propias de visibilidad.** El bot solo muestra lo que le da
   `src/lib/server/telegram/events.js`, que es el único lugar que sabe cómo se leen los eventos
-  (hoy de los `.md`; cuando `contenido_db` esté en `main`, de `sitePosts`). No armar consultas
-  propias ni leer los `.md` desde otro lado.
+  (con `sitePosts` de `src/lib/server/contenido/posts.js`: de la base o de los `.md`, según
+  `contenido_db`). No armar consultas propias ni leer los `.md` o la base desde otro lado.
 - **Nada oculto, no listado ni ya empezado.**
 - **Sin datos de compradores ni de lugares con dirección privada** (0005, 0007, 0029).
 - El secreto del webhook se chequea **antes** que el interruptor y en tiempo constante.
@@ -61,7 +61,9 @@ Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoi
 
 ## Qué sigue
 
-- Cambiar `events.js` a `sitePosts` cuando #166 (`contenido_db`) esté en `main`.
+- ~~Cambiar `events.js` a `sitePosts` cuando `contenido_db` esté en `main`.~~ Hecho: el bot lee
+  por la capa compartida (tests con el interruptor apagado y prendido en
+  `src/lib/server/telegram/events-source.test.js`).
 - Fase 2: vincular un chat con una cuenta y sumar Telegram a "Lo que sigo" (0025). Trae una
   migración.
 - Fase 3: avisos y estado para organizadores (0029).
