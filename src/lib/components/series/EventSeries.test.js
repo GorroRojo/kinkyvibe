@@ -21,7 +21,7 @@ const serie = {
 	nextUpcoming: null
 };
 
-/** @param {{ member: boolean, sigo?: boolean }} account */
+/** @param {{ member: boolean, sigo?: boolean, invite?: boolean }} account */
 const html = (account) =>
 	render(EventSeries, {
 		props: {
@@ -39,6 +39,22 @@ describe('EventSeries (después del contenido)', () => {
 	it('sin cuenta, o con cuenta sin «Lo que sigo»: con el .ics de la serie', () => {
 		for (const account of [{ member: false, sigo: true }, { member: false }, { member: true }]) {
 			expect(html(account)).toContain('Suscribite a las fechas de Serie de prueba');
+		}
+	});
+
+	it('sin sesión y con «Lo que sigo»: invita a entrar para seguir la serie', () => {
+		const h = html({ member: false, invite: true });
+		expect(h).toContain('Entrá con tu mail y seguí Serie de prueba');
+		expect(h).toContain('/ingresar?next=%2Fwiki%2FSerie-de-prueba');
+	});
+
+	it('sin la invitación: con sesión, o sin «Lo que sigo»', () => {
+		for (const account of [
+			{ member: false, invite: false },
+			{ member: false },
+			{ member: true, invite: true }
+		]) {
+			expect(html(account)).not.toContain('Entrá con tu mail');
 		}
 	});
 });
