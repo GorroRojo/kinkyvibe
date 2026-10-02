@@ -74,6 +74,13 @@ Qué más suma el calendario (paso 3): «mis entradas» y «los eventos donde pa
 - `src/lib/server/sigo/web.js`: los interruptores y la cuenta de la sesión.
 - `src/routes/(content)/mi-rincon/sigo/`: la página (acciones `seguir`, `dejar`, `opciones`) y el
   CSV (`sigo.csv`).
+- `src/lib/components/FollowButton.svelte`: el botón «Seguir» en `/wiki/<etiqueta>` y en
+  `/amigues/<perfil>` (solo perfiles de la base). Pregunta a `GET /api/sigo?tipo=&clave=` al cargar,
+  porque la página de una etiqueta puede estar prerenderizada: con un interruptor apagado da 404 y
+  el botón no aparece. Sin sesión lleva a `/ingresar` y vuelve a la página; en las series, quien no
+  tiene cuenta sigue teniendo «Avisame si se repite» solo con el mail. Con sesión manda a
+  `/mi-rincon/sigo?/seguir` o `?/dejar` (sin JavaScript, el resultado se ve en Mi rincón).
+  `/api/sigo` solo dice si **esta** cuenta lo sigue, nunca quién más.
 
 ### Decidido por Claude, a confirmar con gorrite
 
