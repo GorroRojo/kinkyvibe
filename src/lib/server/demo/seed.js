@@ -58,7 +58,9 @@ export const N3_FLAGS = Object.freeze([
 	'etiquetas_db',
 	// Contenido a la base (#166/#167/#169). El demo importa desde Contenido → En la base; lo que
 	// no está en la base sigue saliendo de su .md.
-	'contenido_db'
+	'contenido_db',
+	// «Lo que sigo» (#178–#182, todavía PRs): seguir etiquetas, perfiles y lugares.
+	'lo_que_sigo'
 ]);
 /** Rol agregado "desde el panel" (#139), además de los fijos. */
 export const N3_CUSTOM_ROLE = 'Cuida la puerta';
