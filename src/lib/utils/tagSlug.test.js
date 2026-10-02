@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import tagsFactory from './tags';
 import { resolveTagSlug, tagIdFromSlug, tagSlug } from './tagSlug.js';
 import { seriesApiPath, seriesTagIds, tagFeedPath, tagPagePath } from './series.js';
+import { readSearchParams, writeSearchParams } from './postSearch.js';
 
 /** Árbol chico, inventado (tagsFactory modifica los objetos: uno nuevo por prueba). */
 const tree = () =>
@@ -93,5 +94,84 @@ describe('las series del sitio', () => {
 		const tm = tagsFactory();
 		expect(tagIdFromSlug(tm, 'no-existe-nada')).toBeNull();
 		expect(tagIdFromSlug(tm, 'Rancheadita-Inventada')).toBeNull();
+	});
+});
+
+describe('series hijas de Picantearla (nombres con «:» y espacios)', () => {
+	const NAMES = [
+		['Picantearla: Deluxe', 'Picantearla:-Deluxe'],
+		['Picantearla: Protocolar', 'Picantearla:-Protocolar'],
+		['Picantearla: Age Play', 'Picantearla:-Age-Play']
+	];
+
+	it('son series, hijas de Picantearla (que sigue siendo serie)', () => {
+		const tm = tagsFactory();
+		const ids = seriesTagIds(tm);
+		expect(ids).toContain('Picantearla');
+		for (const [name] of NAMES) {
+			expect(ids).toContain(name);
+			expect(tm.get(name).parents).toEqual(['Picantearla']);
+		}
+		expect(tm.get('Picantearla').children).toEqual(NAMES.map(([name]) => name));
+	});
+
+	it('la etiqueta de práctica «edad» (alias «age play») no cambia ni se vuelve serie', () => {
+		const tm = tagsFactory();
+		expect(tm.get('age play').id).toBe('edad');
+		expect(seriesTagIds(tm)).not.toContain('edad');
+		expect(tagIdFromSlug(tm, 'age-play')).toBe('edad');
+		expect(tagIdFromSlug(tm, 'Picantearla:-Age-Play')).toBe('Picantearla: Age Play');
+	});
+
+	it('nombre ↔ slug, ida y vuelta (con espacios, guiones o en minúsculas)', () => {
+		const tm = tagsFactory();
+		for (const [name, slug] of NAMES) {
+			expect(tagSlug(name)).toBe(slug);
+			expect(tagIdFromSlug(tm, slug)).toBe(name);
+			expect(tagIdFromSlug(tm, name)).toBe(name);
+			expect(tagIdFromSlug(tm, slug.toLowerCase())).toBe(name);
+			expect(tagIdFromSlug(tm, decodeURIComponent(encodeURIComponent(slug)))).toBe(name);
+		}
+	});
+
+	it('los links del sitio (página, /api/series, .ics) codifican «:» y vuelven a la serie', () => {
+		const tm = tagsFactory();
+		for (const [name, slug] of NAMES) {
+			const encoded = slug.replaceAll(':', '%3A');
+			expect(tagPagePath(name)).toBe(`/wiki/${encoded}`);
+			expect(seriesApiPath(name)).toBe(`/api/series/${encoded}`);
+			expect(tagFeedPath(name)).toBe(`/ics/etiqueta/${encoded}.ics`);
+			for (const [prefix, path] of [
+				['/wiki/', tagPagePath(name)],
+				['/api/series/', seriesApiPath(name)],
+				['/ics/etiqueta/', tagFeedPath(name)]
+			]) {
+				// empieza con «/»: el «:» no se lee como esquema (como en «mailto:»)
+				const url = new URL(path, 'https://kinkyvibe.ar');
+				expect(url.origin).toBe('https://kinkyvibe.ar');
+				expect(url.pathname).toBe(path);
+				const segment = decodeURIComponent(url.pathname.slice(prefix.length));
+				expect(tagIdFromSlug(tm, segment.replace(/\.ics$/, ''))).toBe(name);
+			}
+		}
+	});
+
+	it('los links con el nombre tal cual (/wiki/<id>, /todo?tags=<id>) llevan a la serie', () => {
+		const tm = tagsFactory();
+		for (const [name] of NAMES) {
+			// como `href="/wiki/{termino.id}"`: el navegador codifica el espacio
+			const wiki = new URL(`/wiki/${name}`, 'https://kinkyvibe.ar');
+			expect(wiki.origin).toBe('https://kinkyvibe.ar');
+			const segment = decodeURIComponent(wiki.pathname.slice('/wiki/'.length));
+			expect(tagIdFromSlug(tm, segment)).toBe(name);
+			// los chips de filtro: ?tags=a,b (el «:» no separa)
+			const todo = new URL(`/todo?tags=${name},BDSM`, 'https://kinkyvibe.ar');
+			expect(readSearchParams(todo).tags).toEqual([name, 'BDSM']);
+			const written = writeSearchParams(new URL('https://kinkyvibe.ar/todo'), {
+				tags: [name, 'BDSM'],
+				text: ''
+			});
+			expect(readSearchParams(written).tags).toEqual([name, 'BDSM']);
+		}
 	});
 });

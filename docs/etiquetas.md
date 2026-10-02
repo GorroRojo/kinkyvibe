@@ -54,7 +54,7 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `icon`         | `text`     | `icon` (un emoji)                                                                 |
 | `color`        | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
 | `description`  | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
-| `image`        | `text`     | `image` (series): un archivo de `src/lib/assets`, como `serie-miniatura.webp`     |
+| `image`        | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
 | `body`         | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`   | `text`     | `title` del `.md` de la wiki                                                      |
 | `wiki_summary` | `longtext` | `summary` del `.md` de la wiki                                                    |
@@ -109,7 +109,8 @@ público) con sus relaciones, ambas puntas con `visibleWhere()`.
 ## Leer y editar desde la base (paso 3)
 
 Interruptor **«Etiquetas desde la base»** (`etiquetas_db`, variable `ETIQUETAS_DB_ENABLED`),
-apagado por defecto. Antes de prenderlo: importar (paso 2).
+apagado por defecto. Antes de prenderlo: importar (paso 2). El paso a paso para prenderlo (preview,
+producción) y apagarlo está en [interruptores.md](interruptores.md).
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
   `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
@@ -180,6 +181,13 @@ Las series son etiquetas hijas de «evento recurrente». Todo detrás del interr
   `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: commit al archivo o, con
   `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos son un
   componente (`SeriesFields.svelte`) que usan crear y editar.
+- **Imagen de la serie** (`image` de la etiqueta): un archivo de `src/lib/assets`
+  (`picantearla-miniatura.webp`) o, sin copiarla, la imagen de un evento:
+  `calendario:<evento>/<archivo>` (`calendario:colectiver-2026-08/1.webp`, el archivo de
+  `src/lib/posts/calendario/media/colectiver-2026-08/`). Lo resuelven `eventImageRef`
+  (`src/lib/utils/series.js`) y `seriesImageURL`; lo validan el editor (`isTagImage`) y el tipo
+  (`IMAGE_KEY`), así que el importador lo copia a la base igual. El selector de Editar solo ofrece
+  archivos de `src/lib/assets`; la imagen de un evento se conserva si no se cambia.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
   ediciones (`SeriesTagBlock.svelte`, como antes).
 - **Kinkipedia** (`/wiki`): la sección «Series», con una tarjeta por serie que tiene ediciones

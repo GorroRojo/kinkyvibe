@@ -7,7 +7,7 @@
 import { expect, test } from '@playwright/test';
 import { computePrice } from '../../src/lib/utils/tickets.js';
 import { TRANSFER_INFO, ticketsE2EEvent } from './event.js';
-import { AGE_OK, ars, fakeDni, shots } from './helpers.js';
+import { AGE_OK, ars, fakeDni, nextStep, shots } from './helpers.js';
 
 const EVENT = ticketsE2EEvent();
 const FIELDS = ['Alias', 'CBU/CVU', 'Titular', 'Banco'];
@@ -67,6 +67,13 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	await page.goto(`/calendario/${EVENT}/entradas`, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await block.getByLabel(/General/).check();
+	// Los datos van en «Tus datos» y el medio de pago en «Pagar».
+	await nextStep(block, 'Tus datos');
+	await block.getByLabel('Tu nombre').fill('Persona Ajustes');
+	await block.getByLabel('Tus pronombres').fill('elle');
+	await block.getByLabel(/^Email/).fill(`ajustes-${Date.now()}@example.com`);
+	await block.getByLabel(/^DNI/).fill(fakeDni());
+	await nextStep(block, 'Pagar');
 	await block.getByLabel(/Mercado Pago/).check();
 	const mp = computePrice({
 		price: 10000,
@@ -78,10 +85,6 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	await expect(block.getByText(`Total: ${ars(mp.total)}`)).toBeVisible();
 	await expect(block.locator('.method-note.shown')).toContainText('(5 %)');
 	await block.getByLabel(/Transferencia/).check();
-	await block.getByLabel('Tu nombre').fill('Persona Ajustes');
-	await block.getByLabel('Tus pronombres').fill('elle');
-	await block.getByLabel(/^Email/).fill(`ajustes-${Date.now()}@example.com`);
-	await block.getByLabel(/^DNI/).fill(fakeDni());
 	await block.getByLabel(/18 años/).check();
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page.getByRole('heading', { name: /falta la transferencia/ })).toBeVisible();

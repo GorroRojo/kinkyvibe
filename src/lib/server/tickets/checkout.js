@@ -54,6 +54,7 @@ import {
 } from './orders.js';
 import { clientAddress, clientHash } from './safeguards.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
+import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -358,7 +359,13 @@ function readForm(form) {
 			pronouns: str(`holder_pronouns_${i}`, 100)
 		})),
 		// Respuestas a las preguntas de inscripción: las lee buyAction, que sabe cuáles hay.
-		answers: /** @type {Record<string, string>} */ ({})
+		answers: /** @type {Record<string, string>} */ ({}),
+		// Datos guardados de la cuenta (docs/cuentas.md): las casillas de «Tus datos». `accountForm`
+		// dice que el formulario las mostró; sin eso, no se guarda ni se saca nada (por ejemplo, un
+		// formulario abierto antes de ingresar no borra lo guardado).
+		accountForm: form.get('datos_cuenta') === '1',
+		remember: form.get('guardar_datos') === '1',
+		rememberDni: form.get('recordar_dni') === '1'
 	};
 }
 
@@ -716,6 +723,14 @@ export async function buyAction(event) {
 	}
 
 	const order = reserved.order;
+	// Compra con cuenta: guarda o saca los datos según las casillas (nunca frena la compra).
+	const member = event.locals?.member;
+	if (member && values.accountForm) {
+		await saveAfterPurchase(db, member.id, valid.buyer, {
+			remember: values.remember,
+			rememberDni: values.rememberDni
+		});
+	}
 	const origin = siteOrigin(url);
 	const statusUrl = `/entradas/${order.id}/estado`;
 

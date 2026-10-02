@@ -127,6 +127,54 @@ evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Bu
 lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca lleva el nombre
 (`googleMapsLink` en `src/lib/utils/venues.js`).
 
+## Importar de eventos
+
+**Eventos → Lugares → «Importar de eventos»** (`/admin/eventos/lugares/importar`, solo admins)
+arma lugares con el «Dónde» que ya tienen los eventos (`location_name`, `location`,
+`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: los
+`.md`, o la base con `contenido_db` prendido). Reglas puras en `src/lib/utils/venueImport.js`;
+lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
+
+- **Mismo lugar**: el mismo nombre, la misma calle y número o el mismo link al mapa, sin importar
+  mayúsculas, tildes, espacios, puntuación, «Av.» ni «CABA» / «Ciudad Autónoma de Buenos Aires».
+  Un barrio solo («Almagro, CABA») no es una dirección: junta solo eventos sin nombre. Dos grupos
+  con el mismo nombre y direcciones distintas quedan aparte (se avisa: ¿se mudó?).
+- Se saltean los eventos online, los que no tienen «Dónde» y los que ya tienen lugar. Si el lugar
+  ya existe (mismo nombre o misma calle y número), se ofrece vincular sus eventos.
+- **Privacidad** (gorrite: «si está en los eventos, es público»): cada evento queda con el nivel
+  que muestra lo mismo que ya mostraba:
+
+  | El evento muestra                         | Nivel                             |
+  | ----------------------------------------- | --------------------------------- |
+  | nombre y dirección (o barrio, o mapa)     | "Nombre + dirección"              |
+  | solo el nombre                            | "Sólo Nombre"                     |
+  | solo una dirección con número (o un mapa) | "Sólo dirección"                  |
+  | solo un barrio o ciudad (sin número)      | "Sólo dirección parcial (Barrio)" |
+
+  El lugar toma el más abierto de los eventos que se vinculan, y cada evento que muestra menos
+  lleva su propio nivel en `event_venues.privacy`. Con nombre, el «Dónde» va entero a la
+  dirección del lugar; sin nombre ni número, al barrio.
+
+- **Nada cambia en el sitio**: un evento se propone marcado solo si con el lugar se ve lo mismo
+  (`eventFit`, con la misma lista blanca que la página). Si no (otro nombre, otra forma de escribir
+  la dirección), queda sin marcar y la vista previa dice qué cambiaría. La prueba
+  `src/lib/server/amigues/venueImport.test.js` compara la página, las listas y el `.ics` de cada
+  evento antes y después de vincularlo.
+- **Listados o no en `/amigues`** (decidido por gorrite: **no listados por defecto**): la vista
+  previa tiene «Cómo se crean: No listados (no aparecen en Amigues) · Públicos» y cada lugar nuevo
+  lo puede cambiar («Como todos», «No listado», «Público»). No listado es `data.unlisted` del
+  perfil, como cualquier perfil no listado: no sale en las listas de `/amigues` (ni en
+  `?tipo=lugar`); el sitemap, el buscador y `/api/posts` salen de los `.md`, así que tampoco. Es
+  aparte de la privacidad de la dirección: su evento muestra exactamente lo que su nivel deja ver
+  (con el link a la página del lugar, que anda) y la página del lugar lista sus eventos. Lo prueban
+  `src/lib/server/amigues/venueImport.test.js` y `src/routes/(content)/amigues/amigues-routes.test.js`.
+  Se cambia después en el editor del perfil («No listar en /amigues»).
+- **Nada se guarda hasta «Crear lugares»** (con confirmación). Los lugares nacen visibles y
+  aprobados (como los que crea une admin), listados o no según lo elegido; se guardan con
+  `saveObject()` y, en la misma tanda, su aprobación y los vínculos. Vincular no toca el `.md` ni el objeto del evento (es una fila de
+  `event_venues`), y nunca pisa el lugar de un evento que ya tiene uno. Va de a tandas y se puede
+  repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
+
 ## Del vínculo provisorio al edge
 
 Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**
