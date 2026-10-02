@@ -70,6 +70,41 @@ function namingProfiles(posts, profileSlugs) {
 }
 
 /**
+ * Los eventos (de `events`) de una cosa seguida: con la etiqueta o una de sus hijas; los que
+ * nombran al perfil en `personas:` y, si es un lugar, los que se hacen ahí y lo muestran en
+ * público. Un perfil que la cuenta ya no puede ver (o que dejó de estar aprobado) no da nada.
+ * Lo usan el calendario y los mails (notify.js).
+ *
+ * @template {PostLike} P
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {{ kind: string, key: string }} f
+ * @param {readonly P[]} events
+ * @param {TagManager} tags
+ * @returns {Promise<P[]>}
+ */
+export async function eventsForFollow(db, accountId, f, events, tags) {
+	if (f.kind === 'etiqueta') {
+		// Por el nombre canónico o un alias (si se renombró con la base), y sus hijas.
+		const tag = resolveTagSlug(tags, f.key);
+		if (!tag?.id) return [];
+		const keys = new Set([tag.id, ...(tag.getAllChildren?.() ?? [])]);
+		return events.filter((p) =>
+			(Array.isArray(p.meta.tags) ? p.meta.tags : []).some((t) => keys.has(t))
+		);
+	}
+	const id = Number(f.key);
+	if (!Number.isSafeInteger(id) || id <= 0) return [];
+	const object = await getObject(db, { id }, memberViewer(accountId));
+	if (!object || object.type !== PROFILE_TYPE) return [];
+	if (!(await isApproved(db, id)) && !(await managerRole(db, accountId, id))) return [];
+	const at =
+		profileKindOf(object.data) === 'lugar' ? new Set(await listedVenueEvents(db, object)) : null;
+	const named = new Set(namingProfiles(events, new Set([object.slug])).map(slugOf));
+	return events.filter((p) => named.has(slugOf(p)) || Boolean(at?.has(slugOf(p))));
+}
+
+/**
  * Qué eventos van al calendario personal de la cuenta, por dirección.
  *
  * @param {D1Database} db
@@ -89,37 +124,8 @@ export async function calendarSlugs(db, accountId, { listed, sigo, tags }) {
 	if (prefs.participo)
 		add(namingProfiles(events, new Set(await managedProfileSlugs(db, accountId))));
 
-	const follows = (await listFollows(db, accountId)).filter((f) => f.options.calendario);
-	/** @type {Set<string>} */
-	const tagKeys = new Set();
-	/** @type {Set<string>} */
-	const profileSlugs = new Set();
-	for (const f of follows) {
-		if (f.kind === 'etiqueta') {
-			// Por el nombre canónico o un alias (si se renombró con la base), y sus hijas.
-			const tag = resolveTagSlug(tags, f.key);
-			if (!tag?.id) continue;
-			tagKeys.add(tag.id);
-			for (const child of tag.getAllChildren?.() ?? []) tagKeys.add(child);
-			continue;
-		}
-		const id = Number(f.key);
-		const object = await getObject(db, { id }, memberViewer(accountId));
-		if (!object || object.type !== PROFILE_TYPE) continue;
-		if (!(await isApproved(db, id)) && !(await managerRole(db, accountId, id))) continue;
-		profileSlugs.add(object.slug);
-		if (profileKindOf(object.data) === 'lugar') {
-			const at = new Set(await listedVenueEvents(db, object));
-			add(events.filter((p) => at.has(slugOf(p))));
-		}
+	for (const f of (await listFollows(db, accountId)).filter((f) => f.options.calendario)) {
+		add(await eventsForFollow(db, accountId, f, events, tags));
 	}
-	if (tagKeys.size) {
-		add(
-			events.filter((p) =>
-				(Array.isArray(p.meta.tags) ? p.meta.tags : []).some((t) => tagKeys.has(t))
-			)
-		);
-	}
-	add(namingProfiles(events, profileSlugs));
 	return out;
 }

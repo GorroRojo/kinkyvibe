@@ -4,6 +4,9 @@
  * cuando se anuncia algo nuevo» y «recordatorio el día antes» por cada una. Ver
  * docs/lo-que-sigo.md.
  *
+ * Cada cosa seguida trae su emoji o imagen y su próximo evento; «Agregar» busca etiquetas,
+ * series y (con `perfiles_publicos`) perfiles y lugares para seguirlos sin salir de la página.
+ *
  * Los botones «Seguir» de las páginas de etiquetas y perfiles mandan acá (?/seguir, ?/dejar).
  * Sin sesión, a /ingresar (y de vuelta a la página de donde vino, si es de este sitio).
  * Todo es privado: `no-store`, `noindex`, y nada de otra cuenta.
@@ -11,6 +14,8 @@
 import { fail } from '@sveltejs/kit';
 import { safeRedirect } from '$lib/server/auth.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { sitePosts } from '$lib/server/contenido/posts.js';
+import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import {
 	follow,
 	getCalendarPrefs,
@@ -20,7 +25,13 @@ import {
 	unfollow,
 	SIGO_MESSAGES
 } from '$lib/server/sigo/follows.js';
-import { describeFollows, resolveTarget } from '$lib/server/sigo/targets.js';
+import { upcomingEvents } from '$lib/server/sigo/notify.js';
+import {
+	describeFollows,
+	followableProfiles,
+	followableTags,
+	resolveTarget
+} from '$lib/server/sigo/targets.js';
 import { SIGO_PATH, requireSigoMember } from '$lib/server/sigo/web.js';
 import { DEFAULT_FOLLOW_OPTIONS, optionsFromForm, parseTarget } from '$lib/utils/sigo.js';
 
@@ -43,18 +54,39 @@ async function actionContext(event) {
 	return { db, member, form };
 }
 
+/**
+ * Los eventos próximos (listados, sin cancelar), del más cercano al más lejano.
+ *
+ * @param {App.Platform | undefined} platform
+ */
+async function nextEvents(platform) {
+	const posts = await sitePosts(platform);
+	return upcomingEvents(posts, Date.now()).sort(
+		(a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime()
+	);
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireSigoMember(event);
-	const tags = await siteTagManager(event.platform);
+	const [tags, events, profilesOn] = await Promise.all([
+		siteTagManager(event.platform),
+		nextEvents(event.platform),
+		perfilesPublicosEnabled(event.platform)
+	]);
 	return {
 		follows: await describeFollows(
-			{ db, tags, accountId: member.id },
+			{ db, tags, accountId: member.id, events },
 			await listFollows(db, member.id)
 		),
 		// Qué más va al calendario personal (además de lo seguido).
-		calendar: await getCalendarPrefs(db, member.id)
+		calendar: await getCalendarPrefs(db, member.id),
+		// Para «Agregar»: las etiquetas y series del árbol y, con perfiles públicos, los perfiles.
+		add: {
+			tags: followableTags(tags, events),
+			profiles: profilesOn ? await followableProfiles(db, member.id) : []
+		}
 	};
 }
 

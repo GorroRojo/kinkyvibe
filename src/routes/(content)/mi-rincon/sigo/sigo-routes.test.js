@@ -24,14 +24,51 @@ beforeEach(async () => {
 });
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');
+	vi.doUnmock('$lib/utils');
 	vi.resetModules();
 });
 
-/** @param {{ sigo?: string, cuentas?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1' } = {}) {
+const DAY = 24 * 60 * 60 * 1000;
+/** Un evento inventado, a `days` días de hoy. @param {string} slug @param {number} days @param {string[]} tags */
+const fakeEvent = (slug, days, tags) => ({
+	path: `/calendario/${slug}`,
+	meta: {
+		title: `Evento ${slug}`,
+		postID: slug,
+		category: 'calendario',
+		layout: 'calendario',
+		status: 'abierto',
+		start: new Date(Date.now() + days * DAY).toISOString(),
+		tags
+	}
+});
+/** Los eventos del deploy (inventados): la página arma con esto el próximo de cada cosa. */
+const FAKE_POSTS = [
+	fakeEvent('ya-paso', -3, ['shibari']),
+	fakeEvent('lejano', 40, ['shibari', 'cine']),
+	fakeEvent('cercano', 5, ['shibari']),
+	{
+		...fakeEvent('cancelado', 2, ['shibari']),
+		meta: { ...fakeEvent('cancelado', 2, ['shibari']).meta, status: 'cancelado' }
+	}
+];
+
+/** @param {{ sigo?: string, cuentas?: string, perfiles?: string }} [flags] */
+async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { LO_QUE_SIGO_ENABLED: sigo, CUENTAS_ENABLED: cuentas, ETIQUETAS_DB_ENABLED: '0' }
+		env: {
+			LO_QUE_SIGO_ENABLED: sigo,
+			CUENTAS_ENABLED: cuentas,
+			ETIQUETAS_DB_ENABLED: '0',
+			CONTENIDO_DB_ENABLED: '0',
+			PERFILES_PUBLICOS_ENABLED: perfiles
+		}
+	}));
+	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados.
+	vi.doMock('$lib/utils', async (importOriginal) => ({
+		.../** @type {object} */ (await importOriginal()),
+		fetchMarkdownPosts: async () => FAKE_POSTS
 	}));
 	return {
 		page: await import('./+page.server.js'),
@@ -168,6 +205,83 @@ describe('con sesión', () => {
 		expect(theirs.follows).toEqual([]);
 		const csv = await (await m.csv.GET(ev({ member: b }))).text();
 		expect(csv).not.toContain('Lugar Inventado');
+	});
+});
+
+describe('la página', () => {
+	it('cada cosa seguida trae su emoji, su grupo y el próximo evento (no el pasado ni el cancelado)', async () => {
+		const m = await modules();
+		const member = await makeAccount(t.db, 'tarjetas');
+		const venue = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
+		await m.page.actions.seguir(ev({ member, form: { tipo: 'etiqueta', clave: 'shibari' } }));
+		await m.page.actions.seguir(ev({ member, form: { tipo: 'perfil', clave: String(venue.id) } }));
+		const data = /** @type {any} */ (await m.page.load(ev({ member })));
+		const tag = data.follows.find((/** @type {any} */ f) => f.kind === 'etiqueta');
+		expect(tag).toMatchObject({ name: 'shibari', series: false, profileKind: null });
+		expect(tag.next).toMatchObject({ title: 'Evento cercano', href: '/calendario/cercano' });
+		const place = data.follows.find((/** @type {any} */ f) => f.kind === 'perfil');
+		expect(place).toMatchObject({ name: 'Lugar Inventado', profileKind: 'lugar', next: null });
+	});
+
+	it('«Agregar»: etiquetas del árbol con cuántos eventos próximos tienen; perfiles solo con perfiles públicos', async () => {
+		const member = await makeAccount(t.db, 'agregar');
+		await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
+		await makeProfile(t.db, { title: 'Oculto Inventado', visibility: 'hidden' });
+		let m = await modules();
+		let data = /** @type {any} */ (await m.page.load(ev({ member })));
+		const byId = new Map(data.add.tags.map((/** @type {any} */ o) => [o.id, o]));
+		expect(byId.get('shibari')).toMatchObject({ name: 'shibari', count: 2, inTree: true });
+		expect(byId.get('Rancheadita Kinky')).toMatchObject({ series: true });
+		expect(byId.has('root')).toBe(false);
+		expect(data.add.profiles).toEqual([]);
+
+		m = await modules({ perfiles: '1' });
+		data = /** @type {any} */ (await m.page.load(ev({ member })));
+		expect(data.add.profiles).toEqual([
+			{ key: expect.any(String), name: 'Lugar Inventado', kind: 'lugar' }
+		]);
+	});
+
+	it('«Agregar» sigue con las opciones de siempre sin salir de la página', async () => {
+		const m = await modules({ perfiles: '1' });
+		const member = await makeAccount(t.db, 'agregar-seguir');
+		await makeProfile(t.db, { title: 'Persona Inventada' });
+		// Sin JavaScript: el nombre escrito, como en la URL de la etiqueta.
+		const r = /** @type {any} */ (
+			await m.page.actions.seguir(
+				ev({ member, form: { tipo: 'etiqueta', clave: 'Rancheadita-Kinky' } })
+			)
+		);
+		expect(r).toMatchObject({
+			action: 'seguir',
+			ok: true,
+			kind: 'etiqueta',
+			key: 'Rancheadita Kinky',
+			options: { calendario: true, mail_nuevo: true, recordatorio: false }
+		});
+		// Con JavaScript: lo elegido en el buscador (un perfil, por su id).
+		const { profiles } = /** @type {any} */ (await m.page.load(ev({ member }))).add;
+		expect(profiles).toHaveLength(1);
+		const p = /** @type {any} */ (
+			await m.page.actions.seguir(
+				ev({ member, form: { tipo: 'perfil', clave: profiles[0]?.key ?? '' } })
+			)
+		);
+		expect(p).toMatchObject({ ok: true, kind: 'perfil' });
+		const data = /** @type {any} */ (await m.page.load(ev({ member })));
+		expect(data.follows.map((/** @type {any} */ f) => [f.kind, f.available])).toEqual([
+			['etiqueta', true],
+			['perfil', true]
+		]);
+		expect(data.follows[0].series).toBe(true);
+		// Lo que no existe no se sigue, y la página lo dice junto al buscador.
+		const bad = /** @type {any} */ (
+			await m.page.actions.seguir(
+				ev({ member, form: { tipo: 'etiqueta', clave: 'no-existe-inventada' } })
+			)
+		);
+		expect(bad.status).toBe(404);
+		expect(bad.data).toMatchObject({ action: 'seguir', error: expect.any(String) });
 	});
 });
 
