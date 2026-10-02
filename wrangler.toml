@@ -56,8 +56,7 @@ bucket_name = "kinkyvibe-backups"
 
 # Previews (una por rama que no sea main): no heredan nada de producción. Usan la base de
 # prueba y no tienen bucket de backups. Los secrets se cargan en el panel, en «Previews Base»;
-# las variables de texto van acá (si no, cada deploy las pisa). Sin SITE_URL a propósito: en un
-# preview los links tienen que apuntar al preview.
+# las variables de texto van acá (si no, cada deploy las pisa).
 [previews]
 
 [previews.vars]
@@ -65,6 +64,9 @@ bucket_name = "kinkyvibe-backups"
 EMAIL_ALLOWLIST = "gorro.rojo@gmail.com"
 # App de GitHub de prueba (el client id no es secreto: aparece en el link de ingreso).
 GITHUB_CLIENT_ID = "aea641478a2f62ca687a"
+# Vacío a propósito: en un preview los links tienen que apuntar al preview (el código usa el
+# origen del pedido si SITE_URL está vacío). Pisa un SITE_URL viejo cargado en el panel.
+SITE_URL = ""
 
 [[previews.d1_databases]]
 binding = "DB"
