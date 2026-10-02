@@ -130,7 +130,7 @@ export const OVERNIGHT_UNTIL = '09:00';
  * real se muestra en el chip (`extendedProps.time`). Una fila con `pending` (movida y sin guardar,
  * ver pendingMoves.js) lleva la clase `kv-ev-pendiente`.
  *
- * @param {import('./agenda.js').AgendaRow & { pending?: boolean, missing?: { label: string }[] }} row
+ * @param {import('./agenda.js').AgendaRow & { pending?: boolean, draft?: boolean, missing?: { label: string }[] }} row
  * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
  * @returns {CalendarEventInput}
  */
@@ -152,7 +152,7 @@ export function calendarEvent(row, { places, canEdit = true }) {
 		}
 	}
 	const tone = eventTone(row);
-	const draft = row.state === 'no-listado';
+	const draft = isDraftRow(row);
 	return {
 		id: row.slug,
 		title: row.title || row.slug,
@@ -179,14 +179,24 @@ export function calendarEvent(row, { places, canEdit = true }) {
 }
 
 /**
+ * ¿Es un borrador del panel? Tiene la marca `borrador: true` (la pone la importación y la carga
+ * rápida; `draft` en la fila) y sigue no listado. Un evento no listado a propósito (sin la marca)
+ * no es un borrador: no aparece en «A confirmar» ni se ofrece «Confirmar».
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state'> & { draft?: boolean }} row
+ */
+export function isDraftRow(row) {
+	return row.draft === true && row.state === 'no-listado';
+}
+
+/**
  * Solo los borradores (filtro «a confirmar» de la agenda), o todas si `onlyDrafts` es false.
- * @template {Pick<import('./agenda.js').AgendaRow, 'state'>} R
+ * @template {Pick<import('./agenda.js').AgendaRow, 'state'> & { draft?: boolean }} R
  * @param {R[]} rows
  * @param {boolean} onlyDrafts
  * @returns {R[]}
  */
 export function draftRows(rows, onlyDrafts) {
-	return onlyDrafts ? rows.filter((r) => r.state === 'no-listado') : rows;
+	return onlyDrafts ? rows.filter(isDraftRow) : rows;
 }
 
 /**

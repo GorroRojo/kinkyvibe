@@ -35,9 +35,16 @@ tags:
 category: calendario
 status: anunciado
 force_unlisted: true
+borrador: true
 start: 2099-12-20T20:00-03:00
 ---
 `;
+/** Un evento no listado a propósito (privado): sin la marca de borrador. */
+const PRIVATE = `${DIR}/evento-privado-de-prueba.md`;
+const PRIVATE_RAW = DRAFT_RAW.replace('borrador: true\n', '').replace(
+	'Borrador de prueba',
+	'Evento privado de prueba'
+);
 
 /** Repo falso: archivos, imágenes y los commits que se hicieron. */
 const repo = {
@@ -102,7 +109,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
 	await resetDB(t.db);
-	repo.files = { [SOURCE]: RAW, [DRAFT]: DRAFT_RAW };
+	repo.files = { [SOURCE]: RAW, [DRAFT]: DRAFT_RAW, [PRIVATE]: PRIVATE_RAW };
 	repo.media = { [`${DIR}/media/fiesta-de-prueba-2099-11/1.jpg`]: 'sha-de-la-imagen' };
 	repo.commits = [];
 });
@@ -150,6 +157,7 @@ describe('carga rápida (action crearBorrador)', () => {
 		expect(repo.commits).toHaveLength(1);
 		const made = repo.files[`${DIR}/fiesta-de-prueba-2099-12.md`];
 		expect(made).toContain('force_unlisted: true');
+		expect(made).toContain('borrador: true');
 		expect(made).toContain('status: anunciado');
 		expect(made).toContain('start: 2099-12-12T21:00-03:00');
 		expect(made).toContain('end: 2099-12-13T02:00-03:00');
@@ -164,7 +172,8 @@ describe('carga rápida (action crearBorrador)', () => {
 		expect(r.draft.row).toMatchObject({
 			slug: 'fiesta-de-prueba-2099-12',
 			date: '2099-12-12',
-			state: 'no-listado'
+			state: 'no-listado',
+			draft: true
 		});
 		expect(r.draft.row.missing.map((/** @type {any} */ m) => m.id)).toEqual(['inscripcion']);
 		const audit = (await listAudit(t.db)).filter((e) => e.action === 'event.draft');
@@ -190,6 +199,7 @@ describe('carga rápida (action crearBorrador)', () => {
 		expect(r.draft).toMatchObject({ ok: true, slug: 'charla-inventada-2099-12' });
 		const made = repo.files[`${DIR}/charla-inventada-2099-12.md`];
 		expect(made).toContain('force_unlisted: true');
+		expect(made).toContain('borrador: true');
 		expect(made).toContain('start: 2099-12-12T19:00-03:00');
 	});
 
@@ -227,14 +237,15 @@ const SEEN = {
 };
 
 describe('Confirmar un borrador', () => {
-	it('desde la agenda: pasa a publicado (sin tocar el estado) y queda en Actividad', async () => {
+	it('desde la agenda: pasa a publicado, pierde la marca (el estado no cambia) y queda en Actividad', async () => {
 		const r = await call(actions.confirmar, admin, {
 			slug: 'borrador-de-prueba',
 			before: JSON.stringify(SEEN)
 		});
 		expect(r.confirm).toMatchObject({ ok: true, slug: 'borrador-de-prueba' });
-		expect(r.confirm.message).toMatch(/^Confirmado\./);
+		expect(r.confirm.message).toMatch(/^Confirmado/);
 		expect(repo.files[DRAFT]).not.toContain('force_unlisted');
+		expect(repo.files[DRAFT]).not.toContain('borrador');
 		expect(repo.files[DRAFT]).toContain('status: anunciado');
 		const audit = (await listAudit(t.db)).filter((e) => e.action === 'event.confirm');
 		expect(audit).toHaveLength(1);
@@ -245,6 +256,21 @@ describe('Confirmar un borrador', () => {
 		const r = await call(fichaActions.confirmar, admin, {}, { slug: 'borrador-de-prueba' });
 		expect(r.confirm).toMatchObject({ ok: true });
 		expect(repo.files[DRAFT]).not.toContain('force_unlisted');
+		expect(repo.files[DRAFT]).not.toContain('borrador');
+	});
+
+	it('un no listado a propósito (sin la marca) no se confirma, ni desde la agenda ni desde la ficha', async () => {
+		const seen = { ...SEEN, title: 'Evento privado de prueba' };
+		const a = await call(actions.confirmar, admin, {
+			slug: 'evento-privado-de-prueba',
+			before: JSON.stringify(seen)
+		});
+		expect(a.status).toBe(409);
+		const b = await call(fichaActions.confirmar, admin, {}, { slug: 'evento-privado-de-prueba' });
+		expect(b.status).toBe(409);
+		expect(repo.files[PRIVATE]).toBe(PRIVATE_RAW);
+		expect(repo.commits).toHaveLength(0);
+		expect((await listAudit(t.db)).filter((e) => e.action === 'event.confirm')).toHaveLength(0);
 	});
 
 	it('uno que ya está publicado: 409 y no toca el repo', async () => {
@@ -253,15 +279,15 @@ describe('Confirmar un borrador', () => {
 		expect(repo.commits).toHaveLength(0);
 	});
 
-	it('si alguien ya lo publicó mientras tanto: no hay nada que guardar', async () => {
+	it('si alguien ya lo publicó mientras tanto: solo le saca la marca', async () => {
 		repo.files[DRAFT] = DRAFT_RAW.replace('force_unlisted: true\n', '');
 		const r = await call(actions.confirmar, admin, {
 			slug: 'borrador-de-prueba',
 			before: JSON.stringify(SEEN)
 		});
-		expect(r.confirm).toMatchObject({ ok: true, changed: [] });
-		expect(repo.commits).toHaveLength(0);
-		expect((await listAudit(t.db)).filter((e) => e.action === 'event.confirm')).toHaveLength(0);
+		expect(r.confirm).toMatchObject({ ok: true });
+		expect(repo.commits).toHaveLength(1);
+		expect(repo.files[DRAFT]).not.toContain('borrador');
 	});
 
 	it('si alguien lo canceló mientras tanto: conflicto (409) con lo último', async () => {

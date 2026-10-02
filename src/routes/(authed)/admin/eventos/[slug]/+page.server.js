@@ -119,8 +119,9 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			});
 		}
 	}
-	// Borrador (no listado): «Confirmar», con lo que le falta.
-	const missing = event.unlisted
+	// Borrador del panel (`borrador: true` y no listado): «Confirmar», con lo que le falta.
+	const draft = Boolean(event.draft && event.unlisted);
+	const missing = draft
 		? eventMissing({
 				image: Boolean(event.thumb),
 				summary: event.summary,
@@ -133,7 +134,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				status: event.status
 			})
 		: [];
-	return { checklist, stream, sale, online: Boolean(config?.online), missing };
+	return { checklist, stream, sale, online: Boolean(config?.online), draft, missing };
 }
 
 export const actions = {

@@ -35,7 +35,7 @@
 {#if form?.confirm}
 	<p class="flash" class:error={!form.confirm.ok} role="status">{form.confirm.message}</p>
 {/if}
-{#if e.unlisted && !form?.confirm?.ok}
+{#if data.draft && !form?.confirm?.ok}
 	<form
 		class="confirm"
 		method="POST"

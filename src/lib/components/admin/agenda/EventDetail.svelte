@@ -22,10 +22,10 @@
 	import ConfirmDraft from './ConfirmDraft.svelte';
 	import { eventLink, editEventHref } from '$lib/admin/links.js';
 	import { dayLabel } from '$lib/admin/eventFormat.js';
-	import { rowBadges } from '$lib/utils/calendario.js';
+	import { isDraftRow, rowBadges } from '$lib/utils/calendario.js';
 	import { isValidDate } from '$lib/utils/eventDraft.js';
 
-	/** @type {(import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }) | null} */
+	/** @type {(import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, draft?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }) | null} */
 	export let row = null;
 	export let open = false;
 	/** @type {string | null} */
@@ -73,7 +73,7 @@
 			{/if}
 		</dl>
 
-		{#if row.state === 'no-listado'}
+		{#if isDraftRow(row)}
 			{#key row.slug}
 				<ConfirmDraft
 					missing={row.missing ?? []}

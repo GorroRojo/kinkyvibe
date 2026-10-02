@@ -38,9 +38,10 @@
 		validateAgendaRow
 	} from '$lib/utils/agenda.js';
 	import { EMPTY_SHEET_FILTER, agendaCsvRows, agendaSheetGroups } from '$lib/utils/agendaSheet.js';
+	import { isDraftRow } from '$lib/utils/calendario.js';
 
 	/** @typedef {import('$lib/utils/agenda.js').AgendaValues} Values */
-	/** @typedef {import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }} Row */
+	/** @typedef {import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, draft?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }} Row */
 
 	/** @type {Row[]} */
 	export let rows = [];
@@ -52,7 +53,7 @@
 	export let notesEnabled = false;
 	/** Filas con cambios sin guardar (para avisar antes de cambiar de vista). */
 	export let dirtyCount = 0;
-	/** Filtro «a confirmar» de la agenda: solo los borradores (el filtro de estado «No listado»). */
+	/** Filtro «a confirmar» de la agenda: solo los borradores (`isDraftRow`). */
 	export let draftsOnly = false;
 
 	const dispatch = createEventDispatcher();
@@ -239,15 +240,9 @@
 	/* ---------- grupos (semana → día), filtros y CSV ---------- */
 	/** @type {import('$lib/utils/agendaSheet.js').SheetFilter} */
 	let filter = { ...EMPTY_SHEET_FILTER };
-	let lastDraftsOnly = false;
-	$: if (draftsOnly !== lastDraftsOnly) {
-		lastDraftsOnly = draftsOnly;
-		filter = {
-			...filter,
-			state: draftsOnly ? 'no-listado' : filter.state === 'no-listado' ? '' : filter.state
-		};
-	}
-	$: items = data.rows.map((row) => ({ ...state[row.slug].saved, slug: row.slug, row }));
+	$: items = data.rows
+		.filter((row) => !draftsOnly || isDraftRow({ ...row, state: state[row.slug].saved.state }))
+		.map((row) => ({ ...state[row.slug].saved, slug: row.slug, row }));
 	$: weeks = agendaSheetGroups(items, notes, { from: today, filter });
 	$: shown = weeks.reduce((n, w) => n + w.days.reduce((m, d) => m + d.rows.length, 0), 0);
 	$: csvRows = agendaCsvRows(weeks);
@@ -455,7 +450,7 @@
 														>{st.label}</option
 													>{/each}
 											</select>
-											{#if s.saved.state === 'no-listado'}
+											{#if isDraftRow({ ...row, state: s.saved.state })}
 												<MissingBadge missing={row.missing ?? []} />
 											{/if}
 										</td>

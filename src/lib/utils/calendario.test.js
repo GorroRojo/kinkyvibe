@@ -8,6 +8,7 @@ import {
 	dragSnapDuration,
 	dropTarget,
 	eventTone,
+	isDraftRow,
 	localDateParts,
 	movedAgendaValues,
 	newEventHref,
@@ -394,6 +395,7 @@ describe('borradores en el calendario', () => {
 	it('un borrador lleva «draft» y lo que le falta', () => {
 		const draft = {
 			...row({ force_unlisted: true }),
+			draft: true,
 			missing: [{ label: 'Imagen' }, { label: 'Precio' }]
 		};
 		const e = calendarEvent(draft, { places: PLACES });
@@ -406,13 +408,26 @@ describe('borradores en el calendario', () => {
 		expect(e.extendedProps.missing).toBeUndefined();
 	});
 
-	it('filtro «a confirmar»: solo los no listados', () => {
+	it('un no listado a propósito (sin la marca de borrador) no es borrador', () => {
+		const e = calendarEvent(
+			{ ...row({ force_unlisted: true }), missing: [{ label: 'Imagen' }] },
+			{ places: PLACES }
+		);
+		expect(e.extendedProps.draft).toBeUndefined();
+		expect(isDraftRow({ ...row({ force_unlisted: true }), draft: true })).toBe(true);
+		expect(isDraftRow({ ...row({ force_unlisted: true }) })).toBe(false);
+		// confirmado (publicado) aunque la fila todavía diga draft
+		expect(isDraftRow({ ...row(), draft: true })).toBe(false);
+	});
+
+	it('filtro «a confirmar»: solo los borradores (marca + no listado)', () => {
 		const rows = [
 			row(),
-			{ ...row({ force_unlisted: true }), slug: 'borrador' },
-			{ ...row({ status: 'cancelado' }), slug: 'cancelado' }
+			{ ...row({ force_unlisted: true }), slug: 'borrador', draft: true },
+			{ ...row({ force_unlisted: true }), slug: 'privado' },
+			{ ...row({ status: 'cancelado' }), slug: 'cancelado', draft: true }
 		];
 		expect(draftRows(rows, true).map((r) => r.slug)).toEqual(['borrador']);
-		expect(draftRows(rows, false)).toHaveLength(3);
+		expect(draftRows(rows, false)).toHaveLength(4);
 	});
 });

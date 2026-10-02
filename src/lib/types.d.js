@@ -93,7 +93,10 @@
  * 		location_name?: string,
  * 		link?: URL
  * 		link_text?: string
+ * 		borrador?: boolean
  * }} CalendarioPostData */
+// `borrador: true`: un borrador del panel (importación de la planilla o carga rápida de la agenda),
+// no listado hasta que alguien lo confirma (ver src/lib/server/eventos/drafts.js).
 /** @typedef {PostData & {
  * 		pronoun: string,
  * 		link: URL,

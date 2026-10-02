@@ -26,6 +26,7 @@
 		calendarEvents,
 		defaultCalendarView,
 		draftRows,
+		isDraftRow,
 		parseCalendarView,
 		rescheduleProblem
 	} from '$lib/utils/calendario.js';
@@ -136,7 +137,7 @@
 	}
 
 	/**
-	 * @param {string} slug
+	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow & { draft?: boolean }>} values
 	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow>} values
 	 */
 	function updateRow(slug, values) {
@@ -310,7 +311,7 @@
 
 	/* ---------- borradores: filtro «a confirmar» y «Confirmar» ---------- */
 	let onlyDrafts = false;
-	$: draftCount = rows.filter((r) => r.state === 'no-listado' && r.date >= data.today).length;
+	$: draftCount = rows.filter((r) => isDraftRow(r) && r.date >= data.today).length;
 	let confirming = false;
 
 	async function confirmSelected() {
@@ -321,7 +322,7 @@
 		confirming = false;
 		if (!r) return;
 		if (r.ok) {
-			updateRow(row.slug, { state: 'publicado' });
+			updateRow(row.slug, { state: 'publicado', draft: false });
 			say(r.message);
 		} else {
 			if (r.current) updateRow(row.slug, r.current);

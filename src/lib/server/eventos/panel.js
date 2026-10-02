@@ -49,6 +49,7 @@ const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
  * @prop {boolean} online
  * @prop {boolean} kinkyvibe
  * @prop {boolean} sellsTickets tiene `tickets` en el frontmatter (aunque la venta esté cerrada)
+ * @prop {boolean} draft borrador del panel (`borrador: true`, ver drafts.js)
  * @prop {string} [thumb] URL de la imagen
  */
 
@@ -78,6 +79,7 @@ function toPanelEvent(e, meta) {
 		online: split.place === 'Online' || meta?.modalidad === 'online',
 		kinkyvibe: split.kinkyvibe,
 		sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
+		draft: meta?.borrador === true,
 		thumb: e.thumb ?? featuredURL(e.slug, meta?.featured)
 	};
 }
@@ -152,7 +154,8 @@ export async function agendaRows({ today = todayInArgentina() } = {}) {
 			}),
 			thumb: e.thumb ?? '',
 			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
-			// «Qué falta» (lo muestra la agenda en los borradores).
+			// Borrador del panel (`borrador: true`) y «qué falta» (lo muestra la agenda en los borradores).
+			draft: meta?.borrador === true,
 			missing: eventMissing(missingInputFromMeta({ ...(meta ?? {}), status: e.status }))
 		});
 	}
