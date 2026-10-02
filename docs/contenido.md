@@ -61,6 +61,16 @@ entrada General a ese precio y sin cupo; cualquier otro valor (gorra, varios pre
 revisa a mano en Entradas (`parseGeneralPrice`, `generalTickets` e `inheritedTimes` en
 `src/lib/utils/sheetImport.js`).
 
+**Borradores (planificar el mes).** En la Agenda, tocar un día vacío (o «Evento») ofrece duplicar un
+evento que ya existe o empezar de cero con el título, y crea un **borrador** en ese día sin salir de
+la agenda. Un borrador es un evento con `force_unlisted: true`, `status: anunciado` y la marca
+`borrador: true` (la misma que pone Importar planilla; ver `src/lib/server/eventos/drafts.js`).
+Solo los eventos con la marca aparecen en el filtro «A confirmar», muestran «falta N» (lo que les
+falta para la página pública, `src/lib/utils/eventMissing.js`) y ofrecen **Confirmar** (en la
+agenda y en la ficha), que los publica (saca `force_unlisted` y la marca, sin cambiar el `status`)
+y queda en Actividad. Un evento no listado a propósito, sin la marca, nunca se publica desde ahí.
+Los borradores importados antes de esta marca no la tienen: se confirman desde el editor.
+
 **Cambiar etiquetas.** Panel → Etiquetas: renombrar, mover o fusionar hace **un solo PR** que
 toca `hardcodedTags.js` y todos los posts afectados. Los renombres de etiquetas son cambios
 transversales: si lo hacés en código, va en su propio PR y se mergea primero.
