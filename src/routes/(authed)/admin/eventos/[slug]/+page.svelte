@@ -3,16 +3,19 @@
 	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
+	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
-	/** @type {import('./$types').ActionData} */
+	/** `stream`: lo que devuelven las actions del link (la de «Confirmar» no lo trae). */
+	/** @type {import('./$types').ActionData & { stream?: any }} */
 	export let form;
 
 	$: e = data.event;
 	$: done = data.checklist.filter((c) => c.ok).length;
+	let confirming = false;
 
 	/** @param {number} ms */
 	function time(ms) {
@@ -28,6 +31,31 @@
 </script>
 
 <svelte:head><title>{e.title} · Panel</title></svelte:head>
+
+{#if form?.confirm}
+	<p class="flash" class:error={!form.confirm.ok} role="status">{form.confirm.message}</p>
+{/if}
+{#if data.draft && !form?.confirm?.ok}
+	<form
+		class="confirm"
+		method="POST"
+		action="?/confirmar"
+		use:enhance={() => {
+			confirming = true;
+			return async ({ update }) => {
+				await update();
+				confirming = false;
+			};
+		}}
+	>
+		<ConfirmDraft
+			missing={data.missing}
+			busy={confirming}
+			submit
+			editHref={eventHref(e.slug, 'editar')}
+		/>
+	</form>
+{/if}
 
 <div class="grid">
 	<Card title="Checklist">
@@ -146,6 +174,12 @@
 <DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
+	.confirm {
+		margin-bottom: 1rem;
+	}
+	.flash[role='status'] {
+		margin-bottom: 1rem;
+	}
 	.grid {
 		display: grid;
 		gap: 1rem;

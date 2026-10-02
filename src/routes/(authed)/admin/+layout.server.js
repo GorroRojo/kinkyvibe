@@ -2,7 +2,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { countProfilesToReview } from '$lib/server/admin/cuentas.js';
 import { countPendingClaims } from '$lib/server/amigues/claims.js';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { borrarDesdePanelEnabled, isFlagOn } from '$lib/server/flags.js';
 import { navFlagKeys } from '$lib/admin/nav.js';
 
@@ -59,7 +59,7 @@ async function panelCounts(platform) {
 		(async () => {
 			try {
 				// Publicaciones no listadas (borradores). Cacheado por instancia fuera de dev.
-				counts.unlisted = (await fetchMarkdownPosts(false, true)).length;
+				counts.unlisted = (await sitePosts(platform, false, true)).length;
 			} catch (error) {
 				console.error('[admin] contador de no listadas:', error);
 			}

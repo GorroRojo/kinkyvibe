@@ -29,7 +29,12 @@ import {
 	viewerFor
 } from './profiles.js';
 import { renderProfileBody } from './render.js';
-import { listedVenueEvents, venuePageLocation } from './venues.js';
+import {
+	listedVenueEvents,
+	relatedWithVenuePlaces,
+	venuePageLocation,
+	withVenuePlaces
+} from './venues.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -121,9 +126,11 @@ export async function profileSlugTaken(db, urlSlug) {
  * @param {D1Database} db
  * @param {string} urlSlug
  * @param {App.Locals} locals
- * @param {{ cuentas: boolean }} opts si están prendidas las cuentas (para "Es mi perfil")
+ * @param {{ cuentas: boolean, posts?: ProcessedPost[] }} opts si están prendidas las cuentas
+ *   (para "Es mi perfil"); `posts`: las publicaciones del sitio (con los eventos de la base si
+ *   el interruptor `contenido_db` está prendido; por defecto, los .md)
  */
-export async function profilePageData(db, urlSlug, locals, { cuentas }) {
+export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sitePosts }) {
 	const viewer = viewerFor(locals);
 	const accountId = locals.member?.id;
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
@@ -133,16 +140,20 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 
-	const posts = await fetchMarkdownPosts();
-	const related = currentRelated(
-		relatedPostsFor(
-			/** @type {any} */ ({
-				category: 'amigues',
-				postID: profile.slug,
-				title: profile.title,
-				authors: profile.authors
-			}),
-			posts
+	const posts = sitePosts ?? (await fetchMarkdownPosts());
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		db,
+		currentRelated(
+			relatedPostsFor(
+				/** @type {any} */ ({
+					category: 'amigues',
+					postID: profile.slug,
+					title: profile.title,
+					authors: profile.authors
+				}),
+				posts
+			)
 		)
 	);
 
@@ -164,7 +175,10 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 		location = venuePageLocation(object, href);
 		const slugs = new Set(await listedVenueEvents(db, object));
 		venueEvents = slugs.size
-			? posts.filter((p) => p.meta.category === 'calendario' && slugs.has(String(p.meta.postID)))
+			? await withVenuePlaces(
+					db,
+					posts.filter((p) => p.meta.category === 'calendario' && slugs.has(String(p.meta.postID)))
+				)
 			: [];
 	}
 

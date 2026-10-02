@@ -3,10 +3,11 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { doorText } from '$lib/utils/tickets.js';
 	import { page } from '$app/stores';
+	import { venueLine } from '$lib/utils/venues.js';
 
 	/**
 	 * @type {{
-	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView },
+	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView, venue: import('$lib/utils/venues.js').VenueView | null },
 	 *   form: { buy?: any } | null
 	 * }}
 	 */
@@ -26,10 +27,13 @@
 				}) + ' hs'
 			: ''
 	);
+	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
 	let where = $derived(
 		data.tickets.online
 			? 'Online'
-			: [data.meta.location_name, data.meta.location].filter(Boolean).join(' · ')
+			: data.venue
+				? venueLine(data.venue)
+				: [data.meta.location_name, data.meta.location].filter(Boolean).join(' · ')
 	);
 </script>
 
