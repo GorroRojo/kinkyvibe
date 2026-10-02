@@ -347,7 +347,9 @@ describe('quién guarda: el login de GitHub en cada guardado del panel', () => {
 		const { resolveAsPanelAuthor, panelAuthor } = await import('./author.js');
 		const { ADMINS } = await import('$lib/server/auth');
 		const admin = { ...ADMINS[0], name: 'Nombre visible' };
-		expect(resolveAsPanelAuthor({ locals: { user: admin } }, () => panelAuthor())).toEqual({
+		expect(
+			resolveAsPanelAuthor({ locals: /** @type {any} */ ({ user: admin }) }, () => panelAuthor())
+		).toEqual({
 			login: admin.login,
 			name: 'Nombre visible',
 			superadmin: true
@@ -356,7 +358,9 @@ describe('quién guarda: el login de GitHub en cada guardado del panel', () => {
 		expect(
 			resolveAsPanelAuthor({ locals: /** @type {any} */ ({ user: other }) }, () => panelAuthor())
 		).toBeNull();
-		expect(resolveAsPanelAuthor({ locals: {} }, () => panelAuthor())).toBeNull();
+		expect(
+			resolveAsPanelAuthor({ locals: /** @type {any} */ ({}) }, () => panelAuthor())
+		).toBeNull();
 	});
 
 	it('el editor, cargar un evento e importar la planilla (commit con `pr.who`)', async () => {
