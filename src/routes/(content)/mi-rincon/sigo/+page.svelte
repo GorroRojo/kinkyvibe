@@ -51,6 +51,37 @@
 		<p class="ok" role="status">Listo: dejaste de seguirlo.</p>
 	{/if}
 
+	<section class="surface-card" aria-labelledby="cal-title">
+		<h2 id="cal-title">Tu calendario</h2>
+		<p class="hint">
+			Además de lo que seguís con «En mi calendario», tu calendario personal puede sumar esto. El
+			link para suscribirte está en <a href="/mi-rincon/calendario">Mi rincón → Calendario</a>.
+		</p>
+		<form method="POST" action="?/calendario" use:enhance={submit('calendario')} class="options">
+			<label>
+				<input
+					type="checkbox"
+					name="entradas"
+					checked={data.calendar.entradas}
+					disabled={busy === 'calendario'}
+					on:change={autoSave}
+				/>
+				Mis entradas
+			</label>
+			<label>
+				<input
+					type="checkbox"
+					name="participo"
+					checked={data.calendar.participo}
+					disabled={busy === 'calendario'}
+					on:change={autoSave}
+				/>
+				Los eventos donde participo (con un perfil que manejás)
+			</label>
+			<noscript><button class="pill-btn ghost small" type="submit">Guardar</button></noscript>
+		</form>
+	</section>
+
 	<section class="surface-card" aria-labelledby="sigo-title">
 		<div class="head">
 			<h2 id="sigo-title">Lo que seguís</h2>

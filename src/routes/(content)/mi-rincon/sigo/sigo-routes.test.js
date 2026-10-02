@@ -170,3 +170,25 @@ describe('con sesión', () => {
 		expect(csv).not.toContain('Lugar Inventado');
 	});
 });
+
+describe('tu calendario', () => {
+	it('mis entradas y donde participo: prendidos de entrada, se guardan por cuenta', async () => {
+		const m = await modules();
+		const a = await makeAccount(t.db, 'cal-prefs');
+		const b = await makeAccount(t.db, 'cal-prefs-otra');
+		expect(/** @type {any} */ (await m.page.load(ev({ member: a }))).calendar).toEqual({
+			entradas: true,
+			participo: true
+		});
+		const r = await m.page.actions.calendario(ev({ member: a, form: { entradas: 'on' } }));
+		expect(r).toMatchObject({ ok: true, calendar: { entradas: true, participo: false } });
+		expect(/** @type {any} */ (await m.page.load(ev({ member: a }))).calendar).toEqual({
+			entradas: true,
+			participo: false
+		});
+		expect(/** @type {any} */ (await m.page.load(ev({ member: b }))).calendar).toEqual({
+			entradas: true,
+			participo: true
+		});
+	});
+});
