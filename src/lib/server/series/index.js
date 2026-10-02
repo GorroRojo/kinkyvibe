@@ -5,10 +5,11 @@
  * quien llama controla el interruptor.
  *
  * Las funciones reciben `posts` y `tags` para poder probarlas con datos inventados; por defecto
- * usan los posts listados del deploy y hardcodedTags.js.
+ * usan los posts listados del deploy y el árbol de etiquetas en uso (archivo o base, interruptor
+ * `etiquetas_db`: $lib/utils/siteTags.js).
  */
 import { fetchMarkdownPosts, thumbURL } from '$lib/utils';
-import tagsFactory from '$lib/utils/tags';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import {
 	editionNav,
 	seriesEditions,
@@ -24,11 +25,9 @@ import {
 /** @typedef {readonly Pick<ProcessedPost, 'meta' | 'path'>[]} Posts */
 /** @typedef {{ posts?: Posts, tags?: TagManager, now?: number }} SeriesOptions */
 
-/** @type {TagManager | undefined} */
-let defaultTags;
-/** El árbol de etiquetas del deploy (se arma una vez). */
+/** El árbol de etiquetas en uso (el archivo, o la base con el interruptor `etiquetas_db`). */
 export function siteTags() {
-	return (defaultTags ??= tagsFactory());
+	return currentSiteTags();
 }
 
 /**

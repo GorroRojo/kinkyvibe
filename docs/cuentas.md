@@ -14,7 +14,10 @@ Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son l
 cosas separadas (`locals.user` para admins, `locals.member` para cuentas) y una no toca a la otra.
 
 Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingresar` y
-`/mi-rincon` dan 404 y el encabezado no muestra nada.
+`/mi-rincon` dan 404 y ni el encabezado ni el pie de página muestran nada. Prendido, el link
+"Ingresar"/"Mi rincón" está en el encabezado (también en pantallas de menos de 330 px, donde es lo
+único que queda al lado del logo) y en la columna "Tu cuenta" del pie de página. El pie de página
+tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 
 ## Cómo prenderlo
 
@@ -436,8 +439,8 @@ aprobar").
   sesión), tipo `src/lib/server/objects/types/perfil.js`, textos en `src/lib/utils/perfiles.js`.
 - Permiso: `canHaveProfiles()` en `accounts.js`. Panel: `src/routes/(authed)/admin/comunidad/cuentas/`,
   lógica en `src/lib/server/admin/cuentas.js`, novedades en `src/lib/server/admin/accountEvents.js`.
-- Link del encabezado: `accountLink` en `src/lib/utils/cuentas.js`, usado en
-  `src/routes/(content)/+layout.svelte`.
+- Link del encabezado y del pie de página: `accountLink` en `src/lib/utils/cuentas.js`, usado en
+  `src/routes/(content)/+layout.svelte` y `src/lib/components/Footer.svelte`.
 
 ## Cómo probarlo
 
@@ -445,7 +448,7 @@ aprobar").
   códigos (vencimiento, intentos, límites), contraseñas, sesiones, borrado, compras por mail y el
   interruptor apagado (404 y sin link).
 - `tests/cuentas.spec.js` (Playwright, con `CUENTAS_ENABLED=1` en `playwright.config.js`):
-  `/ingresar` se ve y el encabezado lleva ahí.
+  `/ingresar` se ve y el encabezado (también a 320 px) y el pie de página llevan ahí.
 - A mano: `CUENTAS_ENABLED=1 npm run dev`, pedir un código en `/ingresar` y copiarlo de la
   consola.
 

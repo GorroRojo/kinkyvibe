@@ -26,12 +26,15 @@ Se hace en PRs chicos, uno arriba del otro:
 3. Leer las etiquetas de la base detrás del interruptor `etiquetas_db`, y editarlas en el panel
    guardando en la base.
 4. Arreglos de series (editar, imagen, páginas y listado en la Kinkipedia).
+5. Todo lee de la misma fuente, y renombrar en la base elige entre reescribir las publicaciones o
+   dejar un alias.
 
 ## Lo que nunca se tiene que romper
 
 1. **Los posts nombran las etiquetas por su `key`**, el texto exacto de hoy («Rancheadita Kinky»,
-   con mayúsculas, tildes y espacios). Cambiar un `key` es renombrar la etiqueta en todos los
-   posts: eso sigue siendo una operación aparte (hoy, `/admin/etiquetas` › Renombrar).
+   con mayúsculas, tildes y espacios). Cambiar un `key` es renombrar la etiqueta: es una operación
+   aparte (`/admin/etiquetas` › Renombrar, o el nombre de la etiqueta en Eventos → Series ›
+   Editar), ver «Renombrar» abajo.
 2. **Un `key` por etiqueta viva.** Lo garantiza el índice único `objects_etiqueta_key`
    (migración 0029). Distingue mayúsculas: «Dominatrix» y «dominatrix» son dos etiquetas (hoy la
    primera es alias de la segunda).
@@ -110,22 +113,35 @@ apagado por defecto. Antes de prenderlo: importar (paso 2).
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
   `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
-  archivo, como siempre. Lo leído se recuerda 30 s por isolate; el editor lo olvida al guardar.
-- **Qué lo usa ya**:
-  - el layout raíz manda el árbol de la base (`data.siteTags`, solo prendido) y
-    `src/lib/utils/siteTags.js` lo pone en los stores `tagManager` y `wikiTagManager`: los chips,
-    filtros, colores, la Kinkipedia (`/wiki`, con su buscador) y todo lo que lee esos stores;
-  - `/wiki/<etiqueta>` (hijas y la etiqueta sin entrada propia).
-- **Qué sigue leyendo el archivo** (pasos siguientes): lo prerenderizado en el build (RSS,
-  `/api/posts`, el índice del buscador, el sitemap), la limpieza de etiquetas de cada post
-  (`canonicalTags`/`processPost`) y el editor de eventos (las series, desde el paso 4, ya no: ver
-  abajo). Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
+  archivo, como siempre. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
+  nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
+- **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
+  (`currentSiteTags()`, `currentSiteTagList()`).
+  - En el servidor, `hooks.server.js` pone el árbol de cada pedido al empezar (`applySiteTags`):
+    también los stores `tagManager` y `wikiTagManager` del SSR. Todos los pedidos de un isolate
+    ven la misma lista (la de los 30 s).
+  - En el navegador, el layout raíz manda la lista de la base (`data.siteTags`, solo prendido) y
+    `useSiteTags` la pone en los stores y en `siteTags.js`.
+  - Lo leen de ahí: la limpieza de etiquetas de cada post (`canonicalTags`/`processPost`,
+    `fetchPost`), los listados de posts (`fetchMarkdownPosts`: la lista se procesa una vez con el
+    archivo y, con la base, se vuelven a limpiar las etiquetas, una vez por árbol), los
+    editores del panel (`adminTags.js`: el editor de eventos, «¿Es parte de una serie?» al
+    duplicar, que con la base crea la serie en la base), las series (páginas, avisos, link de
+    baja, `/ics/etiqueta/…`), el ingreso (la serie del evento), KinkyVibe en las entradas
+    (`isKinkyVibeEvent`) y Estadísticas (`seriesTagIndex`).
+  - **Lo que se prerenderizaba**: la base no se puede leer en el build. `/api/posts`,
+    `/api/search-index.json` y `/calendario.ics` usan las etiquetas, así que ya no se
+    prerenderizan: se arman en el servidor (lo pesado, una vez por árbol e isolate) con
+    `Cache-Control: public, max-age=300, s-maxage=300` (`src/lib/server/etiquetas/cache.js`).
+    El RSS y el sitemap siguen prerenderizados porque no muestran etiquetas (una prueba lo
+    verifica: salen iguales con cualquier árbol).
+  - `sigue-el-interruptor.test.js` prueba cada lugar con una «base» inventada.
+- Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
 - **Editor** (`/admin/etiquetas`): con el interruptor prendido y etiquetas en la base, la misma
-  página guarda en la base al momento, sin commits (`src/lib/server/etiquetas/editor.js`). Usa
-  las mismas operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después
-  compara objeto por objeto y escribe solo lo que cambió. Diferencias:
-  - renombrar siempre deja el nombre viejo como alias (las publicaciones no se tocan, se
-    resuelven por el alias); la etiqueta renombrada sigue siendo el mismo objeto;
+  página guarda en la base al momento (`src/lib/server/etiquetas/editor.js`). Usa las mismas
+  operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
+  objeto por objeto y escribe solo lo que cambió. Diferencias:
+  - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
     con texto pasa a ser alias (fusionar), la vista previa avisa;
   - sacar un alias lo borra (suave, recuperable desde el historial del objeto);
@@ -133,29 +149,49 @@ apagado por defecto. Antes de prenderlo: importar (paso 2).
     («recargá»); lo anterior queda guardado.
 - Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
 
+### Renombrar (con la base)
+
+Decisión de gorrite: quien renombra elige (`RenameChoice.svelte`, el mismo en Etiquetas y en
+Eventos → Series › Editar):
+
+- **Por defecto: renombrar en todas las publicaciones, sin alias.** Un commit reescribe las
+  publicaciones que usan el nombre viejo (el mismo camino que el editor del archivo:
+  `replaceTagInPost` y `commitTagEdit`) y después se renombra en la base; el nombre viejo deja de
+  existir. Si el commit falla, la base no se toca. Hace falta poder hacer commits (entrar con
+  GitHub). Hasta que termina de publicarse el sitio (unos minutos), las publicaciones todavía
+  dicen el nombre viejo y se ven como una etiqueta suelta.
+- **Dejar el nombre viejo como alias**: no se toca ninguna publicación; se resuelven por el alias.
+- Antes de confirmar se ve cuántas publicaciones cambian (y cómo): la vista previa de Etiquetas,
+  o un paso de confirmación en Series.
+- La parte de las publicaciones es una sola función, `planTagRenameInPosts`
+  (`src/lib/server/etiquetas/rename.js`): hoy los `.md` del repo; cuando el contenido pase a la
+  base (`contenido_db`), esa función tiene que sumar los posts de la base.
+- El archivo (`hardcodedTags.js`) no se toca al renombrar en la base: con el interruptor
+  prendido es solo el respaldo.
+
 ## Series (paso 4)
 
 Las series son etiquetas hijas de «evento recurrente». Todo detrás del interruptor `series`.
 
 - **Eventos → Series** (`/admin/eventos/series`): «Crear serie» y, en cada serie, **«Editar»**:
-  nombre visible, ícono, imagen (de `src/lib/assets`) y descripción
-  (`seriesEditOps`, `src/lib/utils/seriesAdmin.js`). El nombre con el que la nombran los eventos
-  no cambia ahí (eso es Renombrar, en Etiquetas). Se guarda como en Etiquetas: commit al archivo
-  o, con `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos
-  son un componente (`SeriesFields.svelte`) que usan crear y editar.
+  nombre de la etiqueta (renombrar, con la misma elección y el mismo valor por defecto que en
+  Etiquetas, y un paso para confirmar después de ver cuántas publicaciones cambian), nombre
+  visible, ícono, imagen (de `src/lib/assets`) y descripción (`seriesEditOps`,
+  `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: commit al archivo o, con
+  `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos son un
+  componente (`SeriesFields.svelte`) que usan crear y editar.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
   ediciones (`SeriesTagBlock.svelte`, como antes).
 - **Kinkipedia** (`/wiki`): la sección «Series», con una tarjeta por serie que tiene ediciones
   (imagen, descripción, cuántas ediciones y la próxima) que lleva a su página
   (`seriesSummaries`, `SeriesGrid.svelte`). Se esconde mientras se busca.
-- Las páginas de series, el panel, los avisos, `/ics/etiqueta/…` y Mi rincón leen el árbol de
-  `siteTagManager` (archivo o base). Siguen con el archivo: «¿Es parte de una serie?» al duplicar
-  un evento, el ingreso y el link de baja de los avisos (solo el nombre).
+- Todo lo de series lee el árbol en uso (archivo o base), también «¿Es parte de una serie?» al
+  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5).
 
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/objects/types src/lib/server/etiquetas
+npx vitest run src/lib/server/objects/types src/lib/server/etiquetas src/routes/\(authed\)/admin/eventos/series
 npm run db:migrate:local && npm run tags:import -- --dry
 ```
 
