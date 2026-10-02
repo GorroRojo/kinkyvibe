@@ -76,6 +76,14 @@ export const FLAGS = Object.freeze({
 			'commits. Antes de prenderlo: Etiquetas → Importar a la base. Apagado (o con la base sin ' +
 			'etiquetas), todo sigue leyendo el archivo como siempre.',
 		envVar: 'ETIQUETAS_DB_ENABLED'
+	},
+	telegram_bot: {
+		label: 'Bot de Telegram',
+		description:
+			'El bot de la comunidad contesta /proximos y /evento con los próximos eventos públicos ' +
+			'(docs/telegram.md, decisión 0029). Antes de prenderlo: cargar TELEGRAM_WEBHOOK_SECRET y ' +
+			'apuntar el webhook del bot a /api/telegram. Apagado, el bot no contesta nada.',
+		envVar: 'TELEGRAM_BOT_ENABLED'
 	}
 });
 
