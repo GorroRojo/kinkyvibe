@@ -15,7 +15,7 @@ export async function GET({ locals, url, platform }) {
 	await requireSeries(platform);
 	const only = url.searchParams.get('serie');
 	const now = Date.now();
-	const rows = (await allSeries({ now, tags: await siteTagManager(platform) }))
+	const rows = (await allSeries({ now, tags: await siteTagManager(platform), platform }))
 		.filter((s) => !only || s.id === only)
 		.flatMap((s) => s.editions.map((e) => ({ series: s.name, ...e })));
 	const csv = toCsv(rows, [

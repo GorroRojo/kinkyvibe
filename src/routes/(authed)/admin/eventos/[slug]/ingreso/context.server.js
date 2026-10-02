@@ -10,21 +10,25 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { doorSeries, priorAttendance } from '$lib/server/tickets/series.js';
 import { siteTags } from '$lib/server/series/index.js';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 
 const PRIOR_TTL_MS = 60 * 1000;
 /** @type {Map<string, { at: number, value: Promise<import('$lib/server/tickets/series.js').PriorAttendance> }>} */
 const priorCache = new Map();
 
 /**
+ * Los eventos salen de la capa compartida de contenido (`sitePosts`: de la base o de los `.md`,
+ * según `contenido_db`).
+ *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} slug
+ * @param {App.Platform} [platform]
  */
-export function cachedPrior(db, slug) {
+export function cachedPrior(db, slug, platform) {
 	const now = Date.now();
 	const hit = priorCache.get(slug);
 	if (hit && now - hit.at < PRIOR_TTL_MS) return hit.value;
-	const value = fetchMarkdownPosts()
+	const value = sitePosts(platform)
 		.then((posts) => priorAttendance(db, { slug, posts, tags: siteTags() }))
 		.catch((e) => {
 			console.error('[puerta] primera vez en la serie:', e);
@@ -40,9 +44,10 @@ export function cachedPrior(db, slug) {
  * evento no tiene etiqueta de serie.
  *
  * @param {string} slug
+ * @param {App.Platform} [platform]
  */
-export async function doorSeriesLabel(slug) {
-	return doorSeries(await fetchMarkdownPosts(), siteTags(), slug).series.label;
+export async function doorSeriesLabel(slug, platform) {
+	return doorSeries(await sitePosts(platform), siteTags(), slug).series.label;
 }
 
 /**
