@@ -77,23 +77,49 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
  * Para los formularios de "Avisame si se repite": si hay una cuenta con sesión (se suscribe sin
  * mail), a qué series ya está suscripta y si con cuenta «Avisame» es seguir la serie en «Lo que
  * sigo» (`sigo`, interruptores `lo_que_sigo` y `cuentas`; sigo/avisame.js). Sin cuenta,
- * `{ member: false, subscribed: [], sigo: false }`.
+ * `{ member: false, subscribed: [], sigo: false, invite }`: `invite` dice si se invita a entrar
+ * para seguir (los mismos interruptores prendidos; ver {@link followInvite}).
  *
  * @param {App.Platform | undefined} platform
  * @param {App.Locals} locals
- * @returns {Promise<{ member: boolean, subscribed: string[], sigo: boolean }>}
+ * @returns {Promise<{ member: boolean, subscribed: string[], sigo: boolean, invite: boolean }>}
  */
 export async function seriesAccountState(platform, locals) {
 	const db = getDB(platform);
-	if (!locals.member || !db) return { member: false, subscribed: [], sigo: false };
+	if (!locals.member || !db) {
+		return {
+			member: false,
+			subscribed: [],
+			sigo: false,
+			invite: await followInvite(platform, locals)
+		};
+	}
 	try {
 		return {
 			member: true,
 			subscribed: await accountSubscriptions(db, locals.member.id),
-			sigo: await avisameViaSigo(db)
+			sigo: await avisameViaSigo(db),
+			invite: false
 		};
 	} catch (e) {
 		console.error('[series] suscripciones de la cuenta:', e);
-		return { member: true, subscribed: [], sigo: false };
+		return { member: true, subscribed: [], sigo: false, invite: false };
+	}
+}
+
+/**
+ * Sin sesión y con «Lo que sigo» y cuentas prendidos: invitar a entrar para seguir (debajo del
+ * calendario de una serie o etiqueta; pedido de gorrite). Con sesión, o si algo falla, no.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ */
+export async function followInvite(platform, locals) {
+	const db = getDB(platform);
+	if (locals.member || !db) return false;
+	try {
+		return await avisameViaSigo(db);
+	} catch {
+		return false;
 	}
 }

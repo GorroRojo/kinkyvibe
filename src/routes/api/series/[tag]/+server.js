@@ -9,7 +9,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { eventsForTag, seriesPage } from '$lib/server/series/index.js';
-import { requireSeries, seriesAccountState } from '$lib/server/series/web.js';
+import { followInvite, requireSeries, seriesAccountState } from '$lib/server/series/web.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { tagFeedPath, tagIdFromSlug } from '$lib/utils/series.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
@@ -29,7 +29,7 @@ export async function GET({ params, platform, locals }) {
 	if (!series && !events.length) error(404, 'Not found');
 	const account = series
 		? await seriesAccountState(platform, locals)
-		: { member: false, subscribed: [], sigo: false };
+		: { member: false, subscribed: [], sigo: false, invite: await followInvite(platform, locals) };
 	return json(
 		{
 			series,
@@ -38,7 +38,9 @@ export async function GET({ params, platform, locals }) {
 				member: account.member,
 				subscribed: account.subscribed.includes(id),
 				// Con cuenta y «Lo que sigo», «Avisame» es seguir la serie (el botón «Seguir» de la página).
-				sigo: account.sigo
+				sigo: account.sigo,
+				// Sin sesión y con «Lo que sigo»: invitar a entrar para seguir.
+				invite: account.invite
 			}
 		},
 		{ headers: { 'cache-control': 'private, no-store' } }

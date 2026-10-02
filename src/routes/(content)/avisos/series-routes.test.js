@@ -242,7 +242,12 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const page = /** @type {any} */ (
 			await m.avisos.load(ev({ member, path: '/avisos?serie=Picantearla' }))
 		);
-		expect(page.account).toEqual({ member: true, subscribed: ['Picantearla'], sigo: false });
+		expect(page.account).toEqual({
+			member: true,
+			subscribed: ['Picantearla'],
+			sigo: false,
+			invite: false
+		});
 		expect(
 			await m.avisos.actions.baja(ev({ member, form: { serie: 'Picantearla' } }))
 		).toMatchObject({ ok: true, status: 'removed' });
@@ -268,7 +273,12 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const page = /** @type {any} */ (
 			await m.avisos.load(ev({ member, path: '/avisos?serie=Picantearla' }))
 		);
-		expect(page.account).toEqual({ member: true, subscribed: ['Picantearla'], sigo: true });
+		expect(page.account).toEqual({
+			member: true,
+			subscribed: ['Picantearla'],
+			sigo: true,
+			invite: false
+		});
 		const evento = /** @type {any} */ (
 			await m.evento.load(
 				ev({ member, path: '/calendario/serie-prueba-2', params: { event: 'serie-prueba-2' } })
@@ -276,10 +286,11 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		);
 		expect(evento.series.account).toMatchObject({ member: true, sigo: true });
 		const body = await (await m.api.GET(ev({ member, params: { tag: 'Picantearla' } }))).json();
-		expect(body.account).toEqual({ member: true, subscribed: true, sigo: true });
-		// Sin cuenta, el aviso por mail sigue igual (no es «Lo que sigo»).
+		expect(body.account).toEqual({ member: true, subscribed: true, sigo: true, invite: false });
+		// Sin cuenta, el aviso por mail sigue igual (no es «Lo que sigo»), y con «Lo que sigo» prendido
+		// se invita a entrar para seguir (pedido de gorrite).
 		const anon = await (await m.api.GET(ev({ params: { tag: 'Picantearla' } }))).json();
-		expect(anon.account).toEqual({ member: false, subscribed: false, sigo: false });
+		expect(anon.account).toEqual({ member: false, subscribed: false, sigo: false, invite: true });
 	});
 
 	it('una serie que no existe: 404 en la página, 400 al suscribirse', async () => {
@@ -312,7 +323,12 @@ describe('prendido: páginas', () => {
 		expect(s).toMatchObject({ id: 'Picantearla', number: 8, total: 3, past: true });
 		expect(s.prev.slug).toBe('serie-prueba-1');
 		expect(s.next.slug).toBe('serie-prueba-3');
-		expect(data.series.account).toEqual({ member: false, subscribed: [], sigo: false });
+		expect(data.series.account).toEqual({
+			member: false,
+			subscribed: [],
+			sigo: false,
+			invite: false
+		});
 		const other = /** @type {any} */ (
 			await m.evento.load(ev({ path: '/calendario/otra-cosa', params: { event: 'otra-cosa' } }))
 		);
