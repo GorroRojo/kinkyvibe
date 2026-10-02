@@ -1374,6 +1374,34 @@ export const SECTIONS = [
 			)
 	},
 	{
+		table: 'agenda_day_notes',
+		optional: true,
+		// Notas del día de la Agenda (#163) inventadas, en varios colores, alrededor de hoy.
+		reset: [`DELETE FROM agenda_day_notes WHERE created_by = ${sql(SEED_BY)};`],
+		rows: (d) => {
+			/** @type {[number, string, string][]} */
+			const list = [
+				[0, 'Llegar 19 h a armar la puerta', 'violeta'],
+				[3, 'Feriado', 'amarillo'],
+				[3, 'No reservar el lugar: pintan el salón', 'rosa'],
+				[8, 'Confirmado el DJ de la fiesta', 'verde'],
+				[12, 'Ver si hay sonido prestado', 'gris']
+			];
+			return list.map(([offset, body, color]) => {
+				const date = new Date(arInstant(d.today, offset, '12:00') + AR).toISOString().slice(0, 10);
+				return insert('agenda_day_notes', {
+					date,
+					body,
+					color,
+					created_at: d.now,
+					created_by: SEED_BY,
+					updated_at: d.now,
+					updated_by: SEED_BY
+				});
+			});
+		}
+	},
+	{
 		table: 'tips',
 		optional: true,
 		// Propinas (#133) inventadas: aprobadas, una reembolsada, una rechazada y una en curso.
