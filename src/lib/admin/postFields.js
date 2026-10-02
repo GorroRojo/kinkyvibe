@@ -61,7 +61,7 @@ const byCategory = {
 			label: 'Dónde',
 			type: 'text',
 			placeholder: 'Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»',
-			help: 'Para un lugar de una sola vez. Dejalo vacío si es online. Si el evento tiene un lugar en «Sucede en» (Lugares), se muestra el lugar.'
+			help: 'Para un lugar de una sola vez. Dejalo vacío si es online. Con un lugar elegido, la página muestra el lugar y no este texto.'
 		},
 		{
 			key: 'location_map',
@@ -197,4 +197,23 @@ export function datosFields(mode, category = 'calendario') {
  */
 export function datosFieldId(mode) {
 	return mode === 'nuevo' ? (key) => `ev-${key.replace(/_/g, '-')}` : (key) => `${key}-input`;
+}
+
+/**
+ * El «Dónde» en texto libre de un evento (`location`, `location_map`, `location_name`): van en la
+ * sección «📍 Lugar» (PlaceSection), junto al lugar elegido, no en «📝 Datos».
+ */
+export const PLACE_FIELD_KEYS = Object.freeze(['location', 'location_map', 'location_name']);
+
+/**
+ * Los campos de «Datos» separados en los de «📝 Datos» y los del «Dónde» en texto libre (solo en
+ * los eventos; las demás categorías quedan como están).
+ * @param {Field[]} fields
+ * @param {string} [category]
+ * @returns {{ datos: Field[], place: Field[] }}
+ */
+export function splitPlaceFields(fields, category = 'calendario') {
+	if (category !== 'calendario') return { datos: fields, place: [] };
+	const isPlace = (/** @type {Field} */ f) => PLACE_FIELD_KEYS.includes(f.key);
+	return { datos: fields.filter((f) => !isPlace(f)), place: fields.filter(isPlace) };
 }

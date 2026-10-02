@@ -41,7 +41,8 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 2. En el panel del entorno (primero preview): **Perfiles → Importar y clasificar →
    Importar las fichas**. Se puede repetir: es idempotente.
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
-4. Cargar los lugares en **Eventos → Lugares** y vincular los eventos.
+4. Cargar los lugares en **Eventos → Lugares** y vincular los eventos (ahí o en el «📍 Lugar» del
+   formulario de cada evento).
 5. Prender `perfiles_publicos`.
 
 Importar en local: `npm run amigues:import` (o `-- --dry` para ver qué haría). Demo con datos
@@ -117,6 +118,24 @@ eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link a
 evento los muestra («Ver en el mapa») y el `.ics` lleva el texto en `LOCATION` y el link en la
 descripción. Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
 ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `checkMapLink`).
+
+**Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
+editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en
+`src/lib/components/admin/event-form/`): un buscador de lugares (también los ocultos, no listados y
+sin aprobar, marcados; con su dirección, barrio y ciudad, porque es el panel), el nivel para este
+evento («Igual que el Lugar (…)» o los otros), **«Editar»** el lugar elegido (nombre, dirección,
+barrio y ciudad, sin salir del formulario; se guarda en el perfil como desde su editor, con
+`profile.update` en el registro) y **«+ Crear lugar»** (nombre y dirección; nace **no listado** en
+Amigues salvo que se elija «Público», como al importar lugares desde los eventos: `venueListing`).
+No listado no es oculto: el evento lo muestra según su nivel. Con un lugar, el «Dónde» en texto
+libre queda plegado («Usar texto libre en vez de un lugar»), como en las páginas públicas. Guardar
+escribe `event_venues` con `setEventVenue`/`removeEventVenue` (y el registro), se guarde el evento
+en GitHub o en la base: **el `.md` no cambia por el lugar** (salvo la fecha de «Actualizado», que se
+pone como en cualquier guardado: cambiar solo el lugar en Editar también la actualiza, decisión de
+gorrite). Al crear, el lugar se vincula recién cuando el evento se creó (si crear falla, no se
+vincula nada); al duplicar, arranca con el lugar del original. La ficha del evento muestra el lugar
+y su nivel con «Cambiar». Código: `src/lib/server/amigues/eventFormVenue.js` y
+`src/lib/utils/venueChoice.js`.
 
 **Mapa**: baldosas de OpenStreetMap como imágenes comunes (sin librerías ni scripts de afuera; el
 sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falta tocar

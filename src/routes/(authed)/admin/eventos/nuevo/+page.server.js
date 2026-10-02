@@ -46,6 +46,15 @@ import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
 import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
+import {
+	checkVenueChoice,
+	createVenueAction,
+	editVenueAction,
+	saveVenueChoice,
+	venueNotSavedWarning,
+	venuePickerData
+} from '$lib/server/amigues/eventFormVenue.js';
+import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { duplicableEvents } from '$lib/server/eventos/drafts.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
@@ -141,6 +150,8 @@ export async function load({ locals, url, platform }) {
 		prefill: readNewEventPrefill(url.searchParams),
 		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
 		duplicables: source ? [] : await duplicableEvents(),
+		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (en `event_venues`).
+		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		savesToDb,
@@ -206,6 +217,11 @@ export const actions = {
 			return fail(502, { error: copy.slugCheckFailed + describeError(e) });
 		}
 	},
+
+	/** «+ Crear lugar» desde el «Lugar» del formulario (solo admins, como Eventos → Lugares). */
+	crearLugar: createVenueAction,
+	/** Edición rápida del lugar elegido (nombre, dirección, barrio y ciudad). */
+	editarLugar: editVenueAction,
 
 	publicar: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);
@@ -295,6 +311,12 @@ export const actions = {
 		} catch (e) {
 			return fail(400, { error: describeError(e) });
 		}
+
+		// «Lugar»: va a `event_venues` (no al archivo), recién cuando el evento se creó. Si el lugar
+		// ya no existe, no se crea nada.
+		const venue = readVenueChoice(data);
+		const venueCheck = await checkVenueChoice(getDB(platform), venue);
+		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
 
 		// «¿Es parte de una serie?» (solo al duplicar y con el interruptor `series` prendido).
 		/** @type {import('$lib/utils/seriesAdmin.js').SeriesChoice} */
@@ -443,10 +465,18 @@ export const actions = {
 					series: seriesChoice.type === 'none' ? null : seriesChoice
 				}
 			});
+			// El evento ya existe (con su dirección): ahora sí, el lugar.
+			const venueSaved = await saveVenueChoice(getDB(platform), locals, {
+				eventSlug: slug,
+				choice: venue,
+				by: admin.login
+			});
+			if (!venueSaved.ok) warnings.push(venueNotSavedWarning(venueSaved.message));
 			return {
 				success: true,
 				slug,
 				mode,
+				venueSaved: venueSaved.ok && venueSaved.changed,
 				commitUrl: commit.url,
 				publish: commit.pr ?? null,
 				// Interruptor `contenido_db`: el evento se guardó en la base (ya se ve).

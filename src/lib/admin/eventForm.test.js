@@ -15,6 +15,7 @@ describe('formSections', () => {
 			'sec-cuando',
 			'sec-datos',
 			'sec-personas',
+			'sec-lugar',
 			'sec-direccion',
 			'sec-etiquetas',
 			'ev-tickets',
@@ -29,6 +30,7 @@ describe('formSections', () => {
 		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([
 			'sec-cuando',
 			'sec-datos',
+			'sec-lugar',
 			'sec-imagen',
 			'sec-etiquetas',
 			'edit-tickets',
@@ -46,6 +48,7 @@ describe('formSections', () => {
 
 	// «Personas en una sola sección»: Organizan / Autores salió de Datos y está siempre en
 	// Personas (con o sin el interruptor personas_eventos), salvo en los perfiles de amigues.
+	// En los eventos, después va el «Lugar».
 	it('con personas (eventos, material, wiki): Personas después de Datos', () => {
 		const sections = formSections({
 			mode: 'editar',
@@ -57,6 +60,7 @@ describe('formSections', () => {
 			'sec-cuando',
 			'sec-datos',
 			'sec-personas',
+			'sec-lugar',
 			'sec-imagen',
 			'sec-etiquetas',
 			'edit-tickets',

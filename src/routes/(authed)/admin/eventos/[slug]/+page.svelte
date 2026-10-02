@@ -83,9 +83,29 @@
 			<dt>Cuándo</dt>
 			<dd class="first-up">{describeSchedule(e.start, e.end) || 'Sin fecha'}</dd>
 			<dt>Lugar</dt>
-			<dd>{e.locationName || '—'}</dd>
-			{#if e.location}<dt>Dirección</dt>
-				<dd>{e.location}</dd>{/if}
+			{#if data.venue}
+				<dd id="venue-row">
+					<a href="/admin/comunidad/perfiles/{data.venue.slug}">{data.venue.title}</a>
+					<small class="muted block">Se muestra: {data.venue.privacy}</small>
+					<a class="small-link" href="{eventHref(e.slug, 'editar')}#sec-lugar">Cambiar</a>
+				</dd>
+				{#if e.locationName || e.location}<dt>Texto libre</dt>
+					<dd>
+						{[e.locationName, e.location].filter(Boolean).join(' — ')}
+						<small class="muted block"
+							>{data.venue.flagOn
+								? 'No se muestra: manda el lugar.'
+								: 'Se muestra hasta que se prenda «Perfiles públicos».'}</small
+						>
+					</dd>{/if}
+			{:else}
+				<dd id="venue-row">
+					{e.locationName || '—'}
+					<a class="small-link" href="{eventHref(e.slug, 'editar')}#sec-lugar">Elegir un lugar</a>
+				</dd>
+				{#if e.location}<dt>Dirección</dt>
+					<dd>{e.location}</dd>{/if}
+			{/if}
 			<dt>Región</dt>
 			<dd>{e.place || '—'}</dd>
 			<dt>Organizan</dt>
@@ -234,6 +254,12 @@
 	.kv dd {
 		margin: 0;
 		overflow-wrap: anywhere;
+	}
+	.block {
+		display: block;
+	}
+	.small-link {
+		font-size: 0.85rem;
 	}
 	.first-up::first-letter {
 		text-transform: uppercase;

@@ -16,6 +16,7 @@
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
 	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
+	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
 	import { personasToMd, validatePersonaItems } from '$lib/utils/personasList.js';
@@ -29,7 +30,14 @@
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
 	import { emptyUpload, newEventImage } from '$lib/admin/imageState.js';
-	import { datosFieldId, datosFields } from '$lib/admin/postFields.js';
+	import { datosFieldId, datosFields, splitPlaceFields } from '$lib/admin/postFields.js';
+	import {
+		NO_VENUE,
+		sameVenueChoice,
+		venueChoice,
+		venueChoiceFields,
+		venueChoiceText
+	} from '$lib/utils/venueChoice.js';
 	import { scheduleProblems, scheduleSpan, scheduleSummary } from '$lib/admin/schedule.js';
 	import DuplicateChooser from '$lib/components/admin/DuplicateChooser.svelte';
 	import { applyNewEventPrefill } from '$lib/utils/calendario.js';
@@ -123,6 +131,16 @@
 	let scheduleSection;
 	/** «Datos»: los mismos campos que Editar, sin las fechas de publicación ni «No listado». */
 	const shownFields = datosFields('nuevo');
+	// El «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
+	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields);
+
+	/* ---------- lugar: en `event_venues` (no en el archivo), después de crear el evento ---------- */
+	const venuePicker = data.venuePicker ?? null;
+	/** Los lugares (más los que se crean desde el formulario). */
+	let venues = venuePicker?.venues ?? [];
+	// Al duplicar, el lugar del evento original.
+	let venue = venuePicker ? { ...venuePicker.current } : { ...NO_VENUE };
+	$: venueTouched = Boolean(venuePicker) && !sameVenueChoice(venue, NO_VENUE);
 
 	/* ---------- tickets ---------- */
 	// Se copian del evento original (un evento nuevo arranca sin venta). Sin ventas que cuidar:
@@ -404,7 +422,8 @@
 		people,
 		tickets,
 		slug: slugEdited ? slug : '',
-		slugEdited
+		slugEdited,
+		venue
 	};
 	$: draftJSON = JSON.stringify(draft);
 	/** Lo que hay al abrir la página (después de que corren los `$:` de arriba). */
@@ -426,6 +445,8 @@
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, 'Organiza');
 		if (d.tickets) tickets = d.tickets;
+		if (venuePicker && d.venue && typeof d.venue === 'object')
+			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 		if (d.slugEdited && typeof d.slug === 'string') {
 			slugEdited = true;
 			slug = d.slug;
@@ -510,6 +531,9 @@
 				{:else if form.imageScope === 'esta'}
 					<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
 				{/if}
+				{#if form.venueSaved}
+					<p class="note" id="done-venue">📍 El lugar quedó elegido para el evento.</p>
+				{/if}
 				{#each form.warnings ?? [] as warning}
 					<p class="warning">⚠️ {warning}</p>
 				{/each}
@@ -569,6 +593,9 @@
 				<input type="hidden" name="featuredMode" value={featuredMode} />
 				<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 				<textarea hidden name="content" value={generated.md}></textarea>
+				{#each Object.entries(venueChoiceFields(venue, venueTouched)) as [name, value] (name)}
+					<input type="hidden" {name} {value} />
+				{/each}
 
 				<!-- ======================= STEP 1 ======================= -->
 				<div class="step" hidden={step !== 'editar'}>
@@ -647,9 +674,8 @@
 
 					<DatosSection
 						legend="📝 Datos del evento"
-						fields={shownFields}
+						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
-						errors={mapError ? { location_map: mapError } : {}}
 						bind:values
 					/>
 
@@ -666,6 +692,17 @@
 						helpId="ev-authors-help"
 						idPrefix="ev-personas"
 						errors={peopleErrors}
+					/>
+
+					<PlaceSection
+						picker={venuePicker}
+						bind:venues
+						bind:choice={venue}
+						fields={placeShown}
+						idFor={datosFieldId('nuevo')}
+						errors={mapError ? { location_map: mapError } : {}}
+						bind:values
+						idPrefix="ev"
 					/>
 
 					<fieldset class="card" id="sec-direccion">
@@ -831,9 +868,13 @@
 						<dt>Estado</dt>
 						<dd>{STATUS_OPTIONS.find((o) => o.value === values.status)?.label ?? values.status}</dd>
 						<dt>Lugar</dt>
-						<dd>
-							{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
-							{#if values.location_map && !mapError}· con link al mapa{/if}
+						<dd id="review-place">
+							{#if venueChoiceText(venue, venues)}
+								{venueChoiceText(venue, venues)}
+							{:else}
+								{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+								{#if values.location_map && !mapError}· con link al mapa{/if}
+							{/if}
 						</dd>
 						<dt>{personasData ? 'Personas' : 'Organizan'}</dt>
 						<dd>{peopleText || '—'}</dd>

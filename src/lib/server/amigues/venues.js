@@ -124,25 +124,6 @@ export async function eventPageVenue(db, eventSlug, locals) {
 }
 
 /**
- * Para el editor de un evento: el nombre del lugar vinculado si la página lo usa (interruptor
- * `perfiles_publicos` prendido), para avisar que el «Dónde» del .md no se muestra. `null` si no
- * tiene lugar o no se pudo leer.
- *
- * @param {D1Database | null | undefined} db
- * @param {string} eventSlug
- * @returns {Promise<string | null>}
- */
-export async function linkedVenueName(db, eventSlug) {
-	try {
-		if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return null;
-		return (await eventVenue(db, eventSlug))?.venue.title ?? null;
-	} catch (e) {
-		console.error('[lugares] no se pudo leer el lugar del evento para el editor', e);
-		return null;
-	}
-}
-
-/**
  * El lugar completo para quien compró una entrada (mail de confirmación, recordatorios y página
  * de la entrada), en cualquier nivel de privacidad. `null` si el evento no tiene lugar.
  *
