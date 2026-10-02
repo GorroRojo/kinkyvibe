@@ -15,9 +15,18 @@ export const LIST_MAX = 8;
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
-/** @param {string} text */
+/**
+ * Escapa para el HTML de Telegram, también dentro de un atributo (`href="…"`): las comillas
+ * dobles se escapan para que un valor no pueda cerrar el atributo.
+ *
+ * @param {string} text
+ */
 export function escapeHtml(text) {
-	return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	return String(text)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
 }
 
 /**

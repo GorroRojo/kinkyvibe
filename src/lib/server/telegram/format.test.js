@@ -36,6 +36,19 @@ describe('escapeHtml', () => {
 	it('escapa lo que Telegram interpreta como HTML', () => {
 		expect(escapeHtml('<b>a & b</b>')).toBe('&lt;b&gt;a &amp; b&lt;/b&gt;');
 	});
+
+	it('escapa las comillas dobles, para que no cierren un atributo', () => {
+		expect(escapeHtml('a" onclick="x')).toBe('a&quot; onclick=&quot;x');
+	});
+
+	it('un origen con comillas no puede salirse del href', () => {
+		const text = formatEventList(
+			[{ slug: 'x', title: 'T', start: '2031-01-10T21:00:00-03:00' }],
+			'https://ejemplo.test" onclick="x'
+		);
+		expect(text).not.toMatch(/href="[^"]*"[^>]*onclick/);
+		expect(text).toContain('&quot;');
+	});
 });
 
 describe('eventUrl', () => {
