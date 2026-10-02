@@ -13,7 +13,7 @@ export async function GET(event) {
 	requireAdmin(event.locals, event.url);
 	const { db, typeNames } = await doorContext(event);
 	const slug = event.params.slug;
-	const prior = await cachedPrior(db, slug);
+	const prior = await cachedPrior(db, slug, event.platform);
 	const [tickets, counts] = await Promise.all([
 		offlineList(db, { slug, typeNames, prior }),
 		doorCounts(db, slug)

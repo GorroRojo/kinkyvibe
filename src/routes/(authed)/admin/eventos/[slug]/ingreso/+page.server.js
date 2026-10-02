@@ -50,7 +50,7 @@ export async function load(event) {
 	const [counts, sales, series] = await Promise.all([
 		doorCounts(db, event.params.slug),
 		getCounts(db, event.params.slug),
-		doorSeriesLabel(event.params.slug)
+		doorSeriesLabel(event.params.slug, event.platform)
 	]);
 	return {
 		bare: true,
@@ -116,7 +116,7 @@ async function checkinAction(event) {
 		};
 	}
 	const full = r.ticket ? await ticketWithBuyer(db, { id: r.ticket.id }) : null;
-	const prior = await cachedPrior(db, slug);
+	const prior = await cachedPrior(db, slug, event.platform);
 	return {
 		checkin: {
 			result: r.result,
@@ -305,7 +305,7 @@ export const actions = {
 				event.platform
 			);
 		}
-		const prior = await cachedPrior(db, slug);
+		const prior = await cachedPrior(db, slug, event.platform);
 		const cards = [];
 		for (const t of r.tickets) {
 			const full = await ticketWithBuyer(db, { id: t.id });

@@ -5,10 +5,12 @@
  * quien llama controla el interruptor.
  *
  * Las funciones reciben `posts` y `tags` para poder probarlas con datos inventados; por defecto
- * usan los posts listados del deploy y el árbol de etiquetas en uso (archivo o base, interruptor
- * `etiquetas_db`: $lib/utils/siteTags.js).
+ * usan los posts listados del sitio por la capa compartida de contenido (`sitePosts(platform)`:
+ * de la base o de los `.md`, según el interruptor `contenido_db`; pasá `platform`) y el árbol de
+ * etiquetas en uso (archivo o base, interruptor `etiquetas_db`: $lib/utils/siteTags.js).
  */
-import { fetchMarkdownPosts, mediaURL, thumbURL } from '$lib/utils';
+import { mediaURL, thumbURL } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import {
 	editionNav,
@@ -24,7 +26,10 @@ import {
 
 /** @typedef {import('$lib/utils/series.js').Edition} Edition */
 /** @typedef {readonly Pick<ProcessedPost, 'meta' | 'path'>[]} Posts */
-/** @typedef {{ posts?: Posts, tags?: TagManager, now?: number }} SeriesOptions */
+/**
+ * @typedef {{ posts?: Posts, tags?: TagManager, now?: number,
+ *   platform?: App.Platform }} SeriesOptions `platform`: de dónde leer los posts si no vienen
+ */
 
 /** El árbol de etiquetas en uso (el archivo, o la base con el interruptor `etiquetas_db`). */
 export function siteTags() {
@@ -37,7 +42,7 @@ export function siteTags() {
  */
 async function resolve(opts) {
 	return {
-		posts: opts.posts ?? (await fetchMarkdownPosts()),
+		posts: opts.posts ?? (await sitePosts(opts.platform)),
 		tags: opts.tags ?? siteTags(),
 		now: opts.now ?? Date.now()
 	};
