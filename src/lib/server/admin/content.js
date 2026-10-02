@@ -43,14 +43,15 @@ async function allMeta() {
  * @param {PostMeta[]} posts
  */
 async function withDbPosts(posts) {
-	const { activeContentDB, allDbPosts } = await import('../contenido/repo.js');
+	const { activeContentDB, allDbPostObjects } = await import('../contenido/repo.js');
 	const { CONTENT_CATEGORIES } = await import('../contenido/categories.js');
 	const db = await activeContentDB();
 	if (!db) return posts;
 	/** @type {Map<string, PostMeta>} */
 	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
 	for (const [category, cat] of Object.entries(CONTENT_CATEGORIES)) {
-		for (const [slug, e] of await allDbPosts(db, category)) {
+		// Solo la metadata: sin armar el texto de cada post.
+		for (const [slug, e] of await allDbPostObjects(db, category)) {
 			if (e.deleted) byKey.delete(`${category}/${slug}`);
 			else byKey.set(`${category}/${slug}`, { category, slug, meta: cat.toMeta(e.object) });
 		}
