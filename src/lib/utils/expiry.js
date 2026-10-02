@@ -81,14 +81,15 @@ export function expiryMoment(expiresAt, now, { timeZone, until = false } = {}) {
 
 /**
  * Lo que muestra una página (ExpiryTime.svelte): en el servidor (y sin JavaScript), la hora de
- * Argentina con la aclaración; ya en el navegador (`local`), la hora de quien mira, sin aclarar.
+ * Argentina con la aclaración; ya en el navegador (`local`), la hora de quien mira con «(tu hora)»
+ * (decisión de gorrite en #198).
  *
  * @param {number} expiresAt
  * @param {number} now
  * @param {{ local: boolean, until?: boolean }} opts
  */
 export function expiryLabel(expiresAt, now, { local, until = false }) {
-	if (local) return expiryMoment(expiresAt, now, { until });
+	if (local) return `${expiryMoment(expiresAt, now, { until })} (tu hora)`;
 	return `${expiryMoment(expiresAt, now, { timeZone: TIMEZONE, until })}, ${ARGENTINA_TIME_NOTE}`;
 }
 

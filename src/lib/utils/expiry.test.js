@@ -81,9 +81,9 @@ describe('expiryLabel (páginas)', () => {
 		);
 	});
 
-	it('en el navegador, la hora local sin aclarar', () => {
+	it('en el navegador, la hora local con «(tu hora)»', () => {
 		expect(expiryLabel(NOW + 10 * MIN, NOW, { local: true })).toBe(
-			expiryMoment(NOW + 10 * MIN, NOW)
+			`${expiryMoment(NOW + 10 * MIN, NOW)} (tu hora)`
 		);
 		expect(expiryLabel(NOW + 10 * MIN, NOW, { local: true })).not.toContain('Argentina');
 	});
