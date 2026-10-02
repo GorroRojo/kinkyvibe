@@ -69,6 +69,7 @@ async function seriesHeader(tags, id) {
 		id,
 		name: tag?.visible_name ?? id,
 		icon: tag?.icon ?? '',
+		description: typeof tag?.description === 'string' ? tag.description : '',
 		href: tagPagePath(id),
 		image: await seriesImageURL(seriesImage(tag))
 	};
@@ -134,6 +135,25 @@ export async function allSeries(opts = {}) {
 		out.push({ ...(await seriesHeader(tags, id)), editions, upcoming, past });
 	}
 	return out;
+}
+
+/**
+ * Las series para listarlas (la Kinkipedia): nombre, imagen, descripción, cuántas ediciones y la
+ * próxima. Solo las que tienen al menos una edición, en el orden del árbol.
+ *
+ * @param {SeriesOptions} [opts]
+ */
+export async function seriesSummaries(opts = {}) {
+	return (await allSeries(opts))
+		.filter((s) => s.editions.length)
+		.map(({ editions, upcoming, past, ...head }) => ({
+			...head,
+			total: editions.length,
+			next: upcoming[0]
+				? { title: upcoming[0].title, start: upcoming[0].start, path: upcoming[0].path }
+				: null,
+			last: past[0] ? { start: past[0].start } : null
+		}));
 }
 
 /**

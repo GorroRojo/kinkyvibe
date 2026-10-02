@@ -22,7 +22,7 @@ import {
 } from './subscriptions.js';
 import { markEditionsSeen, runSeriesNotifications } from './notify.js';
 import { accountForFeed, createFeedToken, feedInfo, revokeFeeds, ticketedSlugs } from './feeds.js';
-import { eventSeries, seriesPage } from './index.js';
+import { eventSeries, seriesPage, seriesSummaries } from './index.js';
 import { DAY, fakeEvent, fakeSend, fakeSeriesPosts, insertOrder, linkIn } from './fixtures.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
@@ -408,5 +408,25 @@ describe('vistas (index.js)', () => {
 		expect(p?.upcoming.map((e) => e.slug)).toEqual(['serie-prueba-3']);
 		expect(p?.past.map((e) => e.slug)).toEqual(['serie-prueba-2', 'serie-prueba-1']);
 		expect(await seriesPage('taller', { posts, tags, now: NOW })).toBeNull();
+	});
+	it('seriesSummaries: las series con ediciones, con la próxima y la descripción', async () => {
+		const own = tagsFactory(
+			/** @type {any} */ ([
+				{ id: 'root', children: ['evento recurrente'] },
+				{ id: 'evento recurrente', children: ['Picantearla', 'Serie Sin Ediciones'] },
+				{ id: 'Picantearla', icon: '🌶', description: 'Una serie inventada.' },
+				{ id: 'Serie Sin Ediciones' }
+			])
+		);
+		const list = await seriesSummaries({ posts, tags: own, now: NOW });
+		expect(list).toHaveLength(1);
+		expect(list[0]).toMatchObject({
+			id: 'Picantearla',
+			icon: '🌶',
+			description: 'Una serie inventada.',
+			total: 3,
+			next: { title: 'Serie de prueba: la próxima' }
+		});
+		expect(list[0].last?.start).toBeTruthy();
 	});
 });
