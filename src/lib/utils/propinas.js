@@ -88,6 +88,19 @@ export function isKinkyVibePost(meta) {
 }
 
 /**
+ * Si un evento muestra el bloque de propina: solo los de KinkyVibe totalmente gratis (etiqueta
+ * «gratis», sin «pago» ni «a la gorra»). En los pagos o a la gorra ya hubo con qué aportar
+ * (decisión de gorrite, 2/10). El material sigue con {@link isKinkyVibePost}.
+ *
+ * @param {{ tags?: unknown } | null | undefined} meta
+ */
+export function showEventTip(meta) {
+	if (!isKinkyVibePost(meta)) return false;
+	const tags = /** @type {string[]} */ (meta?.tags);
+	return tags.includes('gratis') && !tags.includes('pago') && !tags.includes('a la gorra');
+}
+
+/**
  * Monto de una propina: entero en pesos entre {@link TIP_MIN} y {@link TIP_MAX}. Acepta "2000",
  * "2.000" y "$ 2.000".
  *

@@ -9,6 +9,7 @@ import {
 	TIP_MIN,
 	TIP_PRESETS,
 	isKinkyVibePost,
+	showEventTip,
 	monthLabel,
 	parseTipAmount,
 	parseTipDestination,
@@ -175,5 +176,18 @@ describe('monthLabel', () => {
 		expect(monthLabel('2027-01')).toBe('enero de 2027');
 		expect(monthLabel('2026-13')).toBe('2026-13');
 		expect(monthLabel('raro')).toBe('raro');
+	});
+});
+
+describe('showEventTip', () => {
+	it('solo eventos de KinkyVibe totalmente gratis', () => {
+		expect(showEventTip({ tags: ['KinkyVibe', 'gratis'] })).toBe(true);
+		expect(showEventTip({ tags: ['KinkyVibe', 'pago'] })).toBe(false);
+		expect(showEventTip({ tags: ['KinkyVibe', 'a la gorra'] })).toBe(false);
+		expect(showEventTip({ tags: ['KinkyVibe', 'gratis', 'pago'] })).toBe(false);
+		expect(showEventTip({ tags: ['KinkyVibe'] })).toBe(false);
+		expect(showEventTip({ tags: ['gratis'] })).toBe(false);
+		expect(showEventTip({})).toBe(false);
+		expect(showEventTip(null)).toBe(false);
 	});
 });
