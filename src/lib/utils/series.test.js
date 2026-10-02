@@ -7,6 +7,7 @@ import {
 	editionDateLabel,
 	editionNav,
 	editionNumberFromTitle,
+	eventImageRef,
 	isSeriesTag,
 	seriesEditions,
 	seriesImage,
@@ -56,6 +57,49 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 			const image = seriesImage(t.get(id));
 			expect(image).toMatch(/\.webp$/);
 			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+		}
+	});
+});
+
+describe('las series del sitio: imagen e ícono', () => {
+	it('cada serie tiene ícono e imagen, y la imagen existe (de src/lib/assets o de un evento)', () => {
+		const t = tagsFactory();
+		const ids = seriesTagIds(t);
+		expect(ids.length).toBeGreaterThan(40);
+		for (const id of ids) {
+			const tag = t.get(id);
+			expect(String(tag.icon ?? '').trim(), `${id}: ícono`).not.toBe('');
+			const image = String(seriesImage(tag) ?? '');
+			const ref = eventImageRef(image);
+			const file = ref
+				? path.resolve('src/lib/posts/calendario/media', ref.slug, ref.file)
+				: path.resolve('src/lib/assets', image);
+			expect(image, `${id}: imagen`).not.toBe('');
+			expect(existsSync(file), `${id}: ${image}`).toBe(true);
+		}
+	});
+});
+
+describe('eventImageRef (la imagen de un evento como imagen de la serie)', () => {
+	it('calendario:<evento>/<archivo>', () => {
+		expect(eventImageRef('calendario:colectiver-2026-08/1.webp')).toEqual({
+			slug: 'colectiver-2026-08',
+			file: '1.webp'
+		});
+	});
+	it('nada más: ni archivos de assets, ni carpetas, ni links, ni otras categorías', () => {
+		for (const bad of [
+			'picantearla-miniatura.webp',
+			'calendario:../x.webp',
+			'calendario:a/b/c.webp',
+			'calendario:evento/',
+			'calendario:evento/x.svg',
+			'amigues:perfil/1.webp',
+			'https://otro.sitio/x.webp',
+			undefined,
+			3
+		]) {
+			expect(eventImageRef(bad), String(bad)).toBeNull();
 		}
 	});
 });
