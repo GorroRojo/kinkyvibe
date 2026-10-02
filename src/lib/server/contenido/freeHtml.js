@@ -74,10 +74,13 @@ const HTML_BLOCK_TAGS = new Set(
 export function likeMdsvex(text) {
 	// Los comentarios HTML no se publican (Svelte los saca); uno que ocupa su propia línea en el
 	// medio de una lista no la corta (en CommonMark, sí).
-	const lines = text
-		.replace(/^[ \t]*<!--[\s\S]*?-->[ \t]*\r?\n/gm, '')
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.split('\n');
+	// Hasta que no quede ninguno (sacar uno puede juntar las partes de otro: `<!<!---->--`).
+	let clean = text.replace(/^[ \t]*<!--[\s\S]*?-->[ \t]*\r?\n/gm, '');
+	for (let prev = ''; prev !== clean;) {
+		prev = clean;
+		clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+	}
+	const lines = clean.split('\n');
 	let fence = '';
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
