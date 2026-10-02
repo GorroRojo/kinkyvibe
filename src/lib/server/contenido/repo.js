@@ -110,7 +110,46 @@ async function asFile(category, object, urlSlug) {
 }
 
 /**
+ * @typedef {{ category: string, object: StoredObject, urlSlug: string, legacySlug: string | null, deleted: boolean }} DbPostObject
+ *   Un post de la base sin su texto (`raw`) ni su sha: lo que necesitan las listas y la metadata.
+ *   Armar el texto y su sha de cada post es lo caro; solo hace falta para leerlo o guardarlo.
+ */
+
+/**
+ * @param {string} category
+ * @param {StoredObject} object
+ * @param {string | null} legacySlug
+ * @returns {DbPostObject}
+ */
+function asPostObject(category, object, legacySlug) {
+	return {
+		category,
+		object,
+		urlSlug: legacySlug ?? object.slug,
+		legacySlug,
+		deleted: object.deleted_at !== null
+	};
+}
+
+/**
  * El post de la base en esa dirección (vieja o del objeto), también oculto o borrado, o null.
+ * Sin el texto: para la metadata (ver {@link findDbPost}).
+ *
+ * @param {D1Database} db
+ * @param {string} category
+ * @param {string} slug
+ * @returns {Promise<DbPostObject | null>}
+ */
+export async function findDbPostObject(db, category, slug) {
+	const ref = await resolveContentSlug(db, category, slug);
+	if (!ref) return null;
+	const object = await getObject(db, { id: ref.id }, PANEL, { includeDeleted: true });
+	return object ? asPostObject(category, object, ref.legacySlug) : null;
+}
+
+/**
+ * El post de la base en esa dirección (vieja o del objeto), también oculto o borrado, o null, con
+ * su texto y su sha (para el editor y para guardar).
  *
  * @param {D1Database} db
  * @param {string} category
@@ -118,26 +157,24 @@ async function asFile(category, object, urlSlug) {
  * @returns {Promise<DbPostFile | null>}
  */
 export async function findDbPost(db, category, slug) {
-	const ref = await resolveContentSlug(db, category, slug);
-	if (!ref) return null;
-	const object = await getObject(db, { id: ref.id }, PANEL, { includeDeleted: true });
-	return object ? asFile(category, object, ref.legacySlug ?? object.slug) : null;
+	const found = await findDbPostObject(db, category, slug);
+	return found ? asFile(category, found.object, found.urlSlug) : null;
 }
 
 /** @param {D1Database} db @param {string} slug */
 export const findDbEvent = (db, slug) => findDbPost(db, EVENT_CATEGORY, slug);
 
 /**
- * Todos los posts de una categoría en la base (también ocultos y borrados) por dirección, para el
- * panel.
+ * Todos los posts de una categoría en la base (también ocultos y borrados) por dirección, sin el
+ * texto: una sola consulta, para las listas del panel y la metadata.
  *
  * @param {D1Database} db
  * @param {string} category
- * @returns {Promise<Map<string, DbPostFile>>}
+ * @returns {Promise<Map<string, DbPostObject>>}
  */
-export async function allDbPosts(db, category) {
+export async function allDbPostObjects(db, category) {
 	const cat = CONTENT_CATEGORIES[category];
-	/** @type {Map<string, DbPostFile>} */
+	/** @type {Map<string, DbPostObject>} */
 	const out = new Map();
 	if (!cat) return out;
 	const cols = OBJECT_COLUMNS.split(', ')
@@ -153,15 +190,54 @@ export async function allDbPosts(db, category) {
 		.bind(cat.type, category)
 		.all();
 	for (const r of results) {
-		const object = rowToObject(r);
-		const urlSlug = r.legacy_slug ? String(r.legacy_slug) : object.slug;
-		out.set(urlSlug, await asFile(category, object, urlSlug));
+		const e = asPostObject(category, rowToObject(r), r.legacy_slug ? String(r.legacy_slug) : null);
+		out.set(e.urlSlug, e);
+	}
+	return out;
+}
+
+/**
+ * Buscar en lo que dio {@link allDbPostObjects} como lo hace {@link findDbPostObject} (sin
+ * consultar de nuevo): primero la dirección vieja de un .md importado, después la del objeto.
+ *
+ * @param {Map<string, DbPostObject>} posts
+ * @returns {(slug: string) => DbPostObject | null}
+ */
+export function dbPostFinder(posts) {
+	/** @type {Map<string, DbPostObject>} */
+	const byLegacy = new Map();
+	/** @type {Map<string, DbPostObject>} */
+	const byObjectSlug = new Map();
+	for (const e of posts.values()) {
+		if (e.legacySlug !== null && !byLegacy.has(e.legacySlug)) byLegacy.set(e.legacySlug, e);
+		if (!byObjectSlug.has(e.object.slug)) byObjectSlug.set(e.object.slug, e);
+	}
+	return (slug) => byLegacy.get(slug) ?? byObjectSlug.get(slug) ?? null;
+}
+
+/**
+ * Todos los posts de una categoría en la base (también ocultos y borrados) por dirección, con su
+ * texto y su sha (para listar la carpeta en el editor o descargarlos). Para listas y metadata,
+ * {@link allDbPostObjects}, que no arma los textos.
+ *
+ * @param {D1Database} db
+ * @param {string} category
+ * @returns {Promise<Map<string, DbPostFile>>}
+ */
+export async function allDbPosts(db, category) {
+	/** @type {Map<string, DbPostFile>} */
+	const out = new Map();
+	for (const [urlSlug, e] of await allDbPostObjects(db, category)) {
+		out.set(urlSlug, await asFile(category, e.object, urlSlug));
 	}
 	return out;
 }
 
 /** @param {D1Database} db */
 export const allDbEvents = (db) => allDbPosts(db, EVENT_CATEGORY);
+
+/** Los eventos de la base sin su texto (ver {@link allDbPostObjects}). @param {D1Database} db */
+export const allDbEventObjects = (db) => allDbPostObjects(db, EVENT_CATEGORY);
 
 /**
  * @typedef {{
@@ -190,6 +266,17 @@ export function withContentDb(base) {
 		return db ? findDbPost(db, p.category, p.slug) : null;
 	}
 
+	/**
+	 * ¿La base tiene un post en esa ruta (también borrado)? Sin armar su texto.
+	 * @param {string} path
+	 */
+	async function hasPostAt(path) {
+		const p = postOfPath(path);
+		if (!p) return false;
+		const db = await activeContentDB();
+		return db ? (await findDbPostObject(db, p.category, p.slug)) !== null : false;
+	}
+
 	/** La categoría cuya carpeta es `dir` (sin la barra final), o null. @param {string} dir */
 	const categoryOfDir = (dir) => {
 		const clean = dir.replace(/\/+$/, '');
@@ -216,14 +303,14 @@ export function withContentDb(base) {
 		/** @param {string} token @param {string} path @param {...any} rest */
 		async pathExists(token, path, ...rest) {
 			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer).
-			if (await postAt(path)) return true;
+			if (await hasPostAt(path)) return true;
 			return base.pathExists(token, path, ...rest);
 		},
 
 		/** @param {string} token @param {string[]} paths @param {...any} rest */
 		async existingPaths(token, paths, ...rest) {
 			const found = new Set(await base.existingPaths(token, paths, ...rest));
-			for (const p of paths) if (!found.has(p) && (await postAt(p))) found.add(p);
+			for (const p of paths) if (!found.has(p) && (await hasPostAt(p))) found.add(p);
 			return paths.filter((p) => found.has(p));
 		},
 
@@ -456,7 +543,7 @@ async function writePost(db, w, actor) {
  * oculto o borrado (no se vende: «la base decide»), o `undefined` si la base no lo tiene: entonces
  * vale el .md.
  *
- * @param {DbPostFile | null | undefined} e
+ * @param {DbPostObject | null | undefined} e
  * @returns {Record<string, any> | null | undefined}
  */
 function publicMetaOf(e) {
@@ -474,7 +561,7 @@ function publicMetaOf(e) {
 export async function dbEventMeta(slug) {
 	const db = await activeContentDB();
 	if (!db) return undefined;
-	return publicMetaOf(await findDbEvent(db, slug));
+	return publicMetaOf(await findDbPostObject(db, EVENT_CATEGORY, slug));
 }
 
 /**
@@ -488,7 +575,7 @@ export async function dbEventMetas() {
 	if (!db) return null;
 	/** @type {Map<string, Record<string, any> | null>} */
 	const out = new Map();
-	for (const [slug, e] of await allDbEvents(db)) out.set(slug, publicMetaOf(e) ?? null);
+	for (const [slug, e] of await allDbEventObjects(db)) out.set(slug, publicMetaOf(e) ?? null);
 	return out;
 }
 

@@ -1,5 +1,6 @@
 <script>
-	import { deserialize } from '$app/forms';
+	import { applyAction, deserialize, enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
@@ -45,6 +46,9 @@
 		todayInArgentina
 	} from '$lib/utils/eventDraft.js';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import SaveButton from '$lib/components/admin/event-form/SaveButton.svelte';
+	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
+	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import { parseDocument } from 'yaml';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 
@@ -52,6 +56,11 @@
 	 * Editor de publicaciones (datos + imagen + etiquetas + entradas + texto en markdown). Lo usan
 	 * /edit/<categoría>/<slug> y, dentro del panel, la pestaña Editar de la ficha de un evento
 	 * (`embedded`: sin el título ni el link de volver, que pone la ficha).
+	 *
+	 * Guarda con `use:enhance`: mientras guarda, «Guardar» queda apagado con «Guardando…»; al
+	 * terminar bien, vuelve a leer la página (`invalidateAll`) y las páginas que lo usan lo arman
+	 * de nuevo con el archivo guardado (`{#key data.post}`), como cuando la página se recargaba.
+	 * Los textos dependen de si guardar va a la base (`data.savesToDb`, $lib/admin/saveCopy.js).
 	 */
 	/** @type {any} */
 	export let data;
@@ -66,6 +75,8 @@
 
 	const sha = data.post.sha ?? '';
 	const path = data.post.path ?? '';
+	/** Con el interruptor `contenido_db`, este post se guarda en la base (se ve enseguida). */
+	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
 	/** @type {string} */
@@ -321,6 +332,37 @@
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 	}
+
+	/* ---------- guardar ---------- */
+	let saving = false;
+	/** La confirmación de la barra: hasta que se vuelve a cambiar algo. */
+	$: savedMessage =
+		form?.save && !changed && !saving
+			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
+			: '';
+
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	function submitSave({ cancel }) {
+		// Un solo envío a la vez (y nada que guardar si está bloqueado).
+		if (saving || !content || problems.length > 0 || !changed) {
+			cancel();
+			return;
+		}
+		saving = true;
+		return async ({ result, update }) => {
+			try {
+				if (result.type === 'success') {
+					// Primero el resultado (borra el borrador), después el archivo guardado.
+					await applyAction(result);
+					await invalidateAll();
+				} else {
+					await update({ reset: false });
+				}
+			} finally {
+				saving = false;
+			}
+		};
+	}
 </script>
 
 <svelte:head>
@@ -357,7 +399,7 @@
 		snapshot={draft}
 		restore={restoreDraft}
 		saved={Boolean(form?.save)}
-		saveForm="edit-form"
+		{saving}
 	>
 		{#if parseError}
 			<p class="problems" role="alert">
@@ -548,16 +590,18 @@
 				{:else if form.imageScope === 'esta'}
 					· La imagen nueva se guardó solo para este evento.
 				{/if}
-				<br /><PublishStatus pr={form.publish} />
+				<br />{#if form.savedToDb}Se ve enseguida en el sitio{#if form.publish}; la imagen nueva
+						tarda unos minutos: <PublishStatus
+							pr={form.publish}
+						/>{:else}.{/if}{:else}<PublishStatus pr={form.publish} />{/if}
 			</p>
 		{/if}
 
-		<FilePreview {content} />
+		<FilePreview {content} savesToDb={data.savesToDb} />
 
-		<small class="later"
-			>Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos
-			(normalmente menos de 15) en verse. Si pasa más tiempo, avisale a
-			<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.</small
+		<small class="later" id="save-help"
+			>{copy.editHelp}{#if copy.askGorrite}{' '}Si pasa más tiempo, avisale a
+				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.{/if}</small
 		>
 		<form
 			method="POST"
@@ -565,6 +609,7 @@
 			class="bar sticky"
 			id="edit-form"
 			enctype="multipart/form-data"
+			use:enhance={submitSave}
 		>
 			<textarea hidden name="content" value={content}></textarea>
 			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
@@ -573,12 +618,12 @@
 			<input type="hidden" name="path" value={path} />
 			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
 				>{/if}
-			<button
-				type="submit"
-				class="button"
+			<SaveStatus {saving} message={savedMessage} />
+			<SaveButton
 				id="save"
+				{saving}
 				disabled={!content || problems.length > 0 || !changed}
-				title={!changed ? 'No hay cambios' : undefined}>Guardar</button
+				title={!changed && !saving ? 'No hay cambios' : undefined}>Guardar</SaveButton
 			>
 		</form>
 	</EventForm>

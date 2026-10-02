@@ -4,7 +4,9 @@
 	«Guardar», local draft; DatosSection, ImageSection, TagsSection, BodySection, FilePreview in
 	$lib/components/admin/event-form/) and saves through `?/guardar` (see
 	$lib/server/admin/contentRoutes.js): one commit with the post and, optionally, a new image in
-	its media folder.
+	its media folder. While saving, «Guardar» is off with «Guardando…» (SaveButton); after saving, the
+	bar says how it went (SaveStatus). The copy depends on whether saving goes to the database
+	(`data.savesToDb`, switch `contenido_db`; see $lib/admin/saveCopy.js).
 -->
 <script>
 	import { onDestroy } from 'svelte';
@@ -28,6 +30,9 @@
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
 	import FieldGrid from '$lib/components/admin/event-form/FieldGrid.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
+	import SaveButton from '$lib/components/admin/event-form/SaveButton.svelte';
+	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
+	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
@@ -56,7 +61,7 @@
 	 *   category: 'material'|'amigues', mode: 'nuevo'|'editar', raw: string, sha: string,
 	 *   slug: string, source: {slug: string, title: string} | null, fromTemplate: boolean,
 	 *   taken: string[], imageUrl: string | null, today: string, maxImageBytes: number,
-	 *   mock: boolean, tagUsage: Record<string, number>,
+	 *   mock: boolean, savesToDb?: boolean, tagUsage: Record<string, number>,
 	 *   profiles: import('$lib/utils/organizers.js').Profile[], authorUsage: Record<string, number>
 	 * }}
 	 */
@@ -69,6 +74,8 @@
 	const isNew = mode === 'nuevo';
 	const one = category === 'material' ? 'material' : 'perfil';
 	const tm = siteTags();
+	/** Con el interruptor `contenido_db` (material), se guarda en la base y se ve enseguida. */
+	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
 	let baseRaw = data.raw;
@@ -234,7 +241,7 @@
 	let saving = false;
 	/** Guardó bien y el servidor redirige a la publicación creada. */
 	let redirecting = false;
-	/** @type {null | {at: number, commit: string, imagePath: string | null, publish: any}} */
+	/** @type {null | {at: number, commit: string, imagePath: string | null, publish: any, savedToDb: boolean}} */
 	let saved = null;
 	const justCreated = $page.url.searchParams.get('guardado');
 	/** El PR con el que se publica lo recién creado (viene en la dirección tras redirigir). */
@@ -254,7 +261,8 @@
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submit({ cancel }) {
 		showProblems = true;
-		if (problems.length || !content || !changed) {
+		// Un solo envío a la vez.
+		if (saving || redirecting || problems.length || !content || !changed) {
 			cancel();
 			return;
 		}
@@ -272,7 +280,13 @@
 			saving = false;
 			if (result.type === 'success' && result.data?.saved) {
 				const s = result.data.saved;
-				saved = { at: s.at, commit: s.commit, imagePath: s.imagePath, publish: s.publish };
+				saved = {
+					at: s.at,
+					commit: s.commit,
+					imagePath: s.imagePath,
+					publish: s.publish,
+					savedToDb: Boolean(s.savedToDb)
+				};
 				baseRaw = s.content;
 				sha = s.sha;
 				try {
@@ -307,6 +321,15 @@
 			slugTouched = true;
 		}
 	}
+
+	/** La confirmación de la barra de guardar: hasta que se vuelve a cambiar algo. */
+	$: savedMessage = saved
+		? changed
+			? ''
+			: savedSummary({ savedToDb: saved.savedToDb, pr: saved.publish })
+		: justCreated && !dirty
+			? savedSummary({ savedToDb: data.savesToDb, pr: createdPr })
+			: '';
 
 	$: pageTitle = isNew
 		? data.source
@@ -356,8 +379,9 @@
 				<CircleCheck size={18} aria-hidden="true" />
 				<span>
 					{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}.
-					{#if createdPr}<PublishStatus pr={createdPr} />{:else}Se ve en el sitio (y en la lista)
-						cuando termina el deploy, en unos minutos.{/if}
+					{#if data.savesToDb}{copy.contentCreated}{#if createdPr}{' '}La imagen nueva tarda unos
+							minutos: <PublishStatus pr={createdPr} />{/if}
+					{:else if createdPr}<PublishStatus pr={createdPr} />{:else}{copy.contentCreated}{/if}
 					Podés seguir editándola acá.
 				</span>
 			</p>
@@ -396,8 +420,8 @@
 							</div>
 							<small id="slug-help" class:bad={slugError || slugCheck?.error}>
 								{#if slugError}{slugError}
-								{:else if checkingSlug}<LoaderCircle size={14} class="spin" aria-hidden="true" /> Comprobando
-									en GitHub…
+								{:else if checkingSlug}<LoaderCircle size={14} class="spin" aria-hidden="true" />
+									{copy.checkingSlug}
 								{:else if slugCheck?.slug === slug && slugCheck.error}{slugCheck.error}
 								{:else if slugCheck?.slug === slug && !slugCheck.unverified}<CircleCheck
 										size={14}
@@ -520,13 +544,16 @@
 				<CircleCheck size={18} aria-hidden="true" />
 				<span>
 					{new Date(saved.at).toLocaleTimeString('es-AR')} ·
-					{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}Guardado. El sitio se
-						actualiza en unos minutos.{/if}
+					{#if saved.savedToDb}{copy.contentSaved}{#if saved.publish}{' '}La imagen nueva tarda unos
+							minutos: <PublishStatus pr={saved.publish} />{/if}
+					{:else if saved.publish}<PublishStatus
+							pr={saved.publish}
+						/>{:else}{copy.contentSaved}{/if}
 				</span>
 			</p>
 		{/if}
 
-		<FilePreview {content} />
+		<FilePreview {content} savesToDb={data.savesToDb} />
 
 		<form
 			method="POST"
@@ -542,18 +569,15 @@
 			<input type="hidden" name="sha" value={sha} />
 			<input type="hidden" name="eol" value={lineEndingOf(baseRaw)} />
 			<input type="hidden" name="desde" value={data.source?.slug ?? ''} />
-			<small class="later"
-				>Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.</small
-			>
-			<button
-				type="submit"
-				class="kv-btn"
+			<SaveStatus saving={saving || redirecting} message={savedMessage} />
+			{#if !savedMessage}<small class="later" id="save-help">{copy.contentHelp}</small>{/if}
+			<SaveButton
+				variant="kv-btn"
 				id="save"
-				disabled={saving || !content || (!changed && !isNew)}
+				saving={saving || redirecting}
+				disabled={!content || (!changed && !isNew)}
+				><Save size={18} aria-hidden="true" /> {isNew ? `Crear ${one}` : 'Guardar'}</SaveButton
 			>
-				{#if saving}<LoaderCircle size={18} class="spin" aria-hidden="true" /> Guardando…
-				{:else}<Save size={18} aria-hidden="true" /> {isNew ? `Crear ${one}` : 'Guardar'}{/if}
-			</button>
 		</form>
 	</EventForm>
 </div>

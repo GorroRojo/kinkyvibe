@@ -9,6 +9,10 @@
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import SaveButton from '$lib/components/admin/event-form/SaveButton.svelte';
+	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
+	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
+	import { announce } from '$lib/admin/announce.js';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
 	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
@@ -54,6 +58,9 @@
 	export let data;
 	/** @type {import('./$types').ActionData} */
 	export let form;
+
+	/** Con el interruptor `contenido_db`, el evento se guarda en la base y se ve enseguida. */
+	const copy = saveCopy(data.savesToDb);
 
 	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna (interruptor
 	// `series`): crear una serie nueva con el nombre sugerido, agregarlo a una que existe o no.
@@ -259,6 +266,8 @@
 	let checkError = '';
 	let confirming = false;
 	let submitting = false;
+	/** Qué botón mandó el formulario: «Guardar como no listado» o «Sí, publicar». */
+	let submittingMode = '';
 	let publishError = '';
 
 	async function goToPreview() {
@@ -317,15 +326,22 @@
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submitForm({ cancel, submitter }) {
-		if (step !== 'revisar' || !submitter || !generated.md) {
+		// Un solo envío a la vez.
+		if (submitting || step !== 'revisar' || !submitter || !generated.md) {
 			cancel();
 			return;
 		}
 		submitting = true;
+		submittingMode = submitter instanceof HTMLButtonElement ? submitter.value : '';
 		publishError = '';
 		return async ({ result }) => {
 			submitting = false;
+			submittingMode = '';
 			confirming = false;
+			if (result.type === 'success')
+				announce(
+					'¡Listo! ' + savedSummary({ savedToDb: result.data?.savedToDb, pr: result.data?.publish })
+				);
 			if (result.type === 'failure') {
 				publishError = String(result.data?.error ?? 'No se pudo guardar.');
 				if (result.data?.slugError) {
@@ -420,24 +436,36 @@
 					{#if form.mode === 'borrador'}
 						El evento se guardó como <strong>no listado</strong>: no aparece en el calendario, pero
 						se puede ver con el link.
-					{:else if form.publish && form.publish.state !== 'merged'}
+					{:else if form.publish && form.publish.state !== 'merged' && !form.savedToDb}
 						El evento se guardó y se <strong>publica</strong> solo cuando pasen las pruebas.
 					{:else}
 						El evento se <strong>publicó</strong>.
 					{/if}
 				</p>
 				<p>
-					{form.publish ? 'Cuando se publique va a estar en' : 'Va a estar en'}
+					{form.savedToDb
+						? 'Ya está en'
+						: form.publish
+							? 'Cuando se publique va a estar en'
+							: 'Va a estar en'}
 					<a href={form.eventUrl} target="_blank" rel="noreferrer"
 						><strong>kinkyvibe.ar{form.eventUrl}</strong></a
 					>
 				</p>
-				<p class="note">
-					⏳ {#if form.publish}<PublishStatus pr={form.publish} />{:else}El sitio tarda unos minutos
-						(normalmente entre 2 y 5) en actualizarse.{/if} Si el link da error al principio, esperá un
-					poco y recargá. Si pasan más de 15 minutos, avisale a
-					<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
-				</p>
+				{#if form.savedToDb}
+					<p class="note" id="done-db">
+						✅ Ya se ve en el sitio.{#if form.publish}{' '}La imagen nueva tarda unos minutos: <PublishStatus
+								pr={form.publish}
+							/>{/if}
+					</p>
+				{:else}
+					<p class="note">
+						⏳ {#if form.publish}<PublishStatus pr={form.publish} />{:else}El sitio tarda unos
+							minutos (normalmente entre 2 y 5) en actualizarse.{/if} Si el link da error al principio,
+						esperá un poco y recargá. Si pasan más de 15 minutos, avisale a
+						<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
+					</p>
+				{/if}
 				{#if form.imageScope === 'todas'}
 					<p class="note">
 						🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
@@ -452,21 +480,28 @@
 				{#each form.warnings ?? [] as warning}
 					<p class="warning">⚠️ {warning}</p>
 				{/each}
-				<p class="small">
-					{#if form.publish}Guardado en el <a
-							href={form.publish.url}
-							target="_blank"
-							rel="noreferrer">PR #{form.publish.number}</a
-						>{:else}Cambio guardado en GitHub: <a
-							href={form.commitUrl}
-							target="_blank"
-							rel="noreferrer">ver el commit</a
-						>{/if}
-					· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
-						(form.files?.length ?? 0) - 1
-							? ', '
-							: ''}{/each}
-				</p>
+				{#if form.savedToDb}
+					<p class="small">
+						Guardado en la base, con historial{#if form.publish}{' '}· La imagen va en el
+							<a href={form.publish.url} target="_blank" rel="noreferrer"
+								>PR #{form.publish.number}</a
+							>{/if}.
+					</p>
+				{:else}<p class="small">
+						{#if form.publish}Guardado en el <a
+								href={form.publish.url}
+								target="_blank"
+								rel="noreferrer">PR #{form.publish.number}</a
+							>{:else}Cambio guardado en GitHub: <a
+								href={form.commitUrl}
+								target="_blank"
+								rel="noreferrer">ver el commit</a
+							>{/if}
+						· Archivos: {#each form.files ?? [] as f, i}<code>{f}</code>{i <
+							(form.files?.length ?? 0) - 1
+								? ', '
+								: ''}{/each}
+					</p>{/if}
 				<p class="buttons">
 					<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
 					<a
@@ -725,15 +760,13 @@
 					{#if checkError}<p class="error check-error">{checkError}</p>{/if}
 
 					<div class="bar sticky">
-						<button
+						<SaveButton
 							type="button"
-							class="button"
 							id="to-preview"
 							on:click={goToPreview}
-							disabled={checking}
+							saving={checking}
+							savingLabel="Revisando…">Revisar antes de publicar →</SaveButton
 						>
-							{checking ? 'Revisando…' : 'Revisar antes de publicar →'}
-						</button>
 					</div>
 				</div>
 
@@ -825,7 +858,7 @@
 							{/if}
 						</div>
 					{/if}
-					<FilePreview content={generated.md} />
+					<FilePreview content={generated.md} savesToDb={data.savesToDb} />
 
 					<div class="bar publish">
 						<button
@@ -834,15 +867,15 @@
 							on:click={backToEdit}
 							disabled={submitting}>← Volver a editar</button
 						>
-						<button
-							type="submit"
+						<SaveButton
 							name="mode"
 							value="borrador"
-							class="button secondary"
+							variant="button secondary"
 							id="save-draft"
+							saving={submitting && submittingMode === 'borrador'}
 							disabled={submitting}
 							title="Se guarda pero no aparece en el calendario; se puede ver con el link"
-							>Guardar como no listado</button
+							>Guardar como no listado</SaveButton
 						>
 						{#if !confirming}
 							<button
@@ -857,8 +890,7 @@
 					{#if confirming}
 						<div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
 							<p id="confirm-text">
-								¿Publicar <strong>{values.title}</strong> en el calendario? Se va a ver en el sitio en
-								unos minutos.
+								¿Publicar <strong>{values.title}</strong> en el calendario? {copy.confirmPublish}
 							</p>
 							<div class="bar">
 								<button
@@ -867,18 +899,21 @@
 									on:click={() => (confirming = false)}
 									disabled={submitting}>Cancelar</button
 								>
-								<button
-									type="submit"
+								<SaveButton
 									name="mode"
 									value="publicar"
-									class="button primary"
+									variant="button primary"
 									id="confirm-publish"
-									disabled={submitting}>{submitting ? 'Publicando…' : 'Sí, publicar'}</button
+									saving={submitting && submittingMode !== 'borrador'}
+									disabled={submitting}
+									savingLabel="Publicando…">Sí, publicar</SaveButton
 								>
 							</div>
 						</div>
 					{/if}
-					{#if submitting}<p class="hint" aria-live="polite">Guardando en GitHub…</p>{/if}
+					<!-- Anuncia «Guardando…» a los lectores de pantalla (la confirmación, submitForm). -->
+					<SaveStatus saving={submitting} savingText={copy.saving} />
+					{#if submitting}<p class="hint">{copy.saving}</p>{/if}
 				</div>
 			</form>
 		{/if}

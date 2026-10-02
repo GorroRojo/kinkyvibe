@@ -24,6 +24,8 @@ import { linkedVenueName } from '$lib/server/amigues/venues.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import { readDbEventFile } from '$lib/server/contenido/repo.js';
+import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { commitSavedToDb } from '$lib/admin/saveCopy.js';
 import {
 	featuredOf,
 	isSafeAssetName,
@@ -87,6 +89,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 				? await imageInfo(locals.user_token, params.postID, post.raw)
 				: null,
 		maxImageBytes: MAX_IMAGE_BYTES,
+		// Interruptor `contenido_db`: este post se guarda en la base (se ve enseguida).
+		savesToDb: await panelSavesToDb(platform, params.category, params.postID),
 		mock: isMockMode()
 	};
 }
@@ -197,7 +201,12 @@ export const _editActions = {
 					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
 			});
 		}
-		return { save: 'Guardado', publish: commit.pr ?? null, commitUrl: commit.url };
+		return {
+			save: 'Guardado',
+			publish: commit.pr ?? null,
+			commitUrl: commit.url,
+			savedToDb: commitSavedToDb(commit)
+		};
 	},
 	/** Events that show a shared image, for the "todas las ediciones" option. */
 	afectados: async ({ locals, request, url }) => {
@@ -401,6 +410,7 @@ async function saveWithImage({ token, params, content, sha, userName, image, ask
 			save: 'Guardado',
 			publish: commit.pr ?? null,
 			commitUrl: commit.url,
+			savedToDb: commitSavedToDb(commit),
 			imageScope: scope,
 			affected,
 			files: files.filter((f) => !f.delete).map((f) => f.path),

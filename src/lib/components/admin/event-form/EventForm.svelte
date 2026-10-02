@@ -9,7 +9,9 @@
 	 * ContentEditor (material y amigues en el panel). Cada uno
 	 * pone sus secciones adentro (las compartidas están en esta carpeta: TagsSection,
 	 * OrganizersField, FieldGrid; Entradas es TicketsEditor). La barra de guardar es el elemento
-	 * con la clase `bar sticky`.
+	 * con la clase `bar sticky`; adentro van SaveButton (apagado, con ruedita y «Guardando…»
+	 * mientras se guarda) y SaveStatus (la confirmación, también para lectores de pantalla). Los
+	 * textos que dependen de si se guarda en la base o en GitHub: $lib/admin/saveCopy.js.
 	 *
 	 * Borrador y aviso al salir: UnsavedChanges, que (como en todos los editores) ofrece
 	 * «Recuperar / Descartar» en vez de recuperarlo solo; acá además dice qué secciones tiene

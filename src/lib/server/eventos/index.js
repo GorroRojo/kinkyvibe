@@ -149,11 +149,12 @@ export async function listEvents() {
  * @param {EventSummary[]} events
  */
 async function withDbEvents(events) {
-	const { activeContentDB, allDbEvents } = await import('../contenido/repo.js');
+	const { activeContentDB, allDbEventObjects } = await import('../contenido/repo.js');
 	const { eventToMeta } = await import('../contenido/eventos.js');
 	const db = await activeContentDB();
 	if (!db) return events;
-	const fromDb = await allDbEvents(db);
+	// Solo la metadata: sin armar el texto de cada evento.
+	const fromDb = await allDbEventObjects(db);
 	if (!fromDb.size) return events;
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
 	for (const [slug, e] of fromDb) {
