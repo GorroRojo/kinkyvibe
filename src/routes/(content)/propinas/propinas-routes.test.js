@@ -1,7 +1,8 @@
 /**
  * Rutas de propinas con el interruptor `propinas` apagado y prendido: /propinas (form action),
- * /propinas/<id>/gracias, el pie de las publicaciones (propina o la nota del cafecito de siempre)
- * y el webhook de MP (firma y estados). D1 de miniflare, MP simulado con `fetch`; datos inventados.
+ * /propinas/<id>/gracias, el pie de las publicaciones (propina o la nota del cafecito de siempre),
+ * el dato del layout raíz para el pie de página y el webhook de MP (firma y estados). D1 de
+ * miniflare, MP simulado con `fetch`; datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
@@ -328,5 +329,22 @@ describe('interruptor prendido', () => {
 			m.gracias.load(fakeEvent({ params: { id: 'no-existe' }, mp }))
 		);
 		expect(missing?.status).toBe(404);
+	});
+});
+
+describe('pie de página (dato del layout raíz)', () => {
+	/** @param {string} flag */
+	async function rootData(flag) {
+		await modules(flag);
+		const root = await import('../../+layout.server.js');
+		return /** @type {any} */ (await root.load(/** @type {any} */ (fakeEvent())));
+	}
+
+	it('apagado: `propinas` es false (el pie sigue con Cafecito)', async () => {
+		expect((await rootData('0')).propinas).toBe(false);
+	});
+
+	it('prendido: `propinas` es true (el pie muestra "Dejá una propina")', async () => {
+		expect((await rootData('1')).propinas).toBe(true);
 	});
 });
