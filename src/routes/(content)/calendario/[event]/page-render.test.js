@@ -104,8 +104,8 @@ const article = (/** @type {string} */ html) =>
 describe('/calendario/<evento>: la hora', () => {
 	it('en 24 h con «hs», como se dice en Argentina', () => {
 		const body = page();
-		expect(body).toMatch(/class="dt-start"[^>]*>2 de octubre de 2026 a las 15:00 hs<\/time>/);
-		expect(body).toMatch(/class="dt-end"[^>]*>2 de octubre de 2026 a las 19:00 hs<\/time>/);
+		expect(body).toMatch(/class="dt-start[^"]*"[^>]*>2 de octubre de 2026 a las 15:00 hs<\/time>/);
+		expect(body).toMatch(/class="dt-end[^"]*"[^>]*>2 de octubre de 2026 a las 19:00 hs<\/time>/);
 		expect(body).not.toContain('p. m.');
 		expect(body).not.toContain('m.hs');
 	});

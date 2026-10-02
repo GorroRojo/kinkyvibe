@@ -8,7 +8,7 @@
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
-	import { isKinkyVibePost } from '$lib/utils/propinas.js';
+	import { showEventTip } from '$lib/utils/propinas.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
@@ -100,24 +100,24 @@
 		location: data.venue
 			? venueSchema(data.venue)
 			: data.meta.location
-			? {
-					'@type': 'Place',
-					name: data.meta.location_name ?? data.meta.title,
-					address: { '@type': 'PostalAddress', name: data.meta.location }
-			  }
-			: { '@type': 'VirtualLocation', url: data.meta.link },
+				? {
+						'@type': 'Place',
+						name: data.meta.location_name ?? data.meta.title,
+						address: { '@type': 'PostalAddress', name: data.meta.location }
+					}
+				: { '@type': 'VirtualLocation', url: data.meta.link },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
 		organizer: {
 			'@type': data.meta.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
 			name: data.meta.tags?.includes('KinkyVibe')
 				? 'KinkyVibe'
-				: data.meta.authors?.[0] ?? 'KinkyVibe',
+				: (data.meta.authors?.[0] ?? 'KinkyVibe'),
 			url:
 				'https://kinkyvibe.ar/' +
 				(data.meta.tags?.includes('KinkyVibe')
 					? 'KinkyVibe'
-					: data.meta.authors?.[0] ?? 'KinkyVibe')
+					: (data.meta.authors?.[0] ?? 'KinkyVibe'))
 		}
 		//   "offers": {
 		//     "@type": "Offer",
@@ -165,7 +165,7 @@
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
 	{#if data.series}<EventSeries series={data.series} part="nav" />{/if}
-	
+
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
 		<address>
@@ -305,7 +305,8 @@
 	{#if data.series}
 		<EventSeries series={data.series} part="after" origin={$page.url.origin} />
 	{/if}
-	{#if isKinkyVibePost(data.meta)}
+	<!-- La propina solo en eventos gratis de KinkyVibe (decisión de gorrite). -->
+	{#if showEventTip(data.meta)}
 		<PostSupport propinas={data.propinas} category="calendario" slug={$page.params.event ?? ''} />
 	{/if}
 </article>
@@ -412,8 +413,10 @@
 		display: grid;
 		grid-template-areas: 'title title' 'pic time' 'pic location' 'button button';
 		grid-template-columns: auto 4fr;
-		column-gap: 0.3em;
-		font-size: var(--step-1);
+		column-gap: 0.6em;
+		/* Texto más chico que antes (--step-1): la fecha y el lugar entran en menos renglones. */
+		font-size: var(--step-0);
+		line-height: 1.35;
 		margin-inline: auto;
 		margin-top: 1.4em;
 		max-width: min(40rem, calc(100% - 32px));
@@ -426,7 +429,8 @@
 		img {
 			max-width: 100%;
 			max-height: 100%;
-			height: 10em;
+			/* La misma altura de antes, aunque el texto sea más chico. */
+			height: 12rem;
 			min-width: 0;
 			min-height: 0;
 			grid-area: pic;
@@ -437,13 +441,20 @@
 		} */
 		small {
 			opacity: 0.7;
+			font-size: var(--step--1);
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			margin-top: 0.35em;
+		}
+		time {
+			font-weight: 700;
 		}
 		.event-times {
 			grid-area: time;
 			display: flex;
 			flex-direction: column;
 			margin-block: 0;
-			padding-top: 0.2em;
+			padding-top: 0.5em;
 			padding-right: 0.5em;
 		}
 		.event-place {
