@@ -97,6 +97,14 @@ export const FLAGS = Object.freeze({
 			'«recordatorio el día antes» por cada cosa. Necesita también «Cuentas del público». ' +
 			'Apagado, no se ve nada de esto y /mi-rincon/sigo da 404.',
 		envVar: 'LO_QUE_SIGO_ENABLED'
+	},
+	telegram_bot: {
+		label: 'Bot de Telegram',
+		description:
+			'El bot de la comunidad contesta /proximos y /evento con los próximos eventos públicos ' +
+			'(docs/telegram.md, decisión 0029). Antes de prenderlo: cargar TELEGRAM_WEBHOOK_SECRET y ' +
+			'apuntar el webhook del bot a /api/telegram. Apagado, el bot no contesta nada.',
+		envVar: 'TELEGRAM_BOT_ENABLED'
 	}
 });
 
