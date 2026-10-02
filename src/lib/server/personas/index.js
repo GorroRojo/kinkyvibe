@@ -177,7 +177,8 @@ export async function pickableProfiles(db) {
 }
 
 /**
- * Las personas de un evento o publicación, agrupadas por rol y solo con perfiles públicos.
+ * Las personas de un evento o publicación, agrupadas por rol y solo con perfiles públicos (los
+ * nombres libres van como texto: `href` vacío).
  * (Sin interruptores: para eso está {@link personasForPage}.)
  *
  * @param {D1Database} db
@@ -188,8 +189,16 @@ export async function pickableProfiles(db) {
 export async function resolvePersonas(db, raw, roles) {
 	const entries = parsePersonas(raw);
 	if (!entries.length) return [];
-	const profiles = await publicProfilesBySlug(db, profileSlugsOf(entries));
+	const slugs = profileSlugsOf(entries);
+	const profiles = slugs.length ? await publicProfilesBySlug(db, slugs) : new Map();
 	const items = entries.flatMap((e) => {
+		// Un nombre libre (sin perfil) se muestra como texto, sin link: lo escribió une admin en la
+		// publicación, que es pública.
+		if (e.nombre !== undefined) {
+			return [
+				{ rol: e.rol, slug: '', title: e.nombre, kind: /** @type {const} */ ('persona'), href: '' }
+			];
+		}
 		const p = profiles.get(e.perfil);
 		return p ? [{ rol: e.rol, ...p }] : [];
 	});

@@ -87,6 +87,89 @@ describe('PostEditor (Editar un evento)', () => {
 	});
 });
 
+/*
+ * «Personas en una sola sección»: Organizan y Personas son una sola sección (👥 Personas) en los
+ * tres formularios, con el buscador de siempre (mismo id) y, con el interruptor personas_eventos,
+ * el rol de cada persona y «+ Nuevo rol…».
+ */
+describe('Personas: una sola sección', () => {
+	const WITH_PERSONAS = EVENT.replace(
+		'---\n\nTexto',
+		'personas:\n  - perfil: colectivo-de-prueba\n    rol: Facilita\n  - nombre: Persona Sin Perfil\n    rol: Fotografía\n---\n\nTexto'
+	);
+	const personasData = {
+		roles: ['Autore', 'Organiza', 'Facilita', 'Fotografía'],
+		profiles: [
+			{
+				slug: 'colectivo-de-prueba',
+				title: 'Colectivo de Prueba',
+				kind: 'proyecto',
+				href: '/amigues/colectivo-de-prueba'
+			}
+		]
+	};
+	/** @param {any} personas */
+	const edit = (personas) =>
+		render(PostEditor, {
+			props: {
+				data: {
+					...common,
+					post: {
+						raw: WITH_PERSONAS,
+						sha: 'sha-de-prueba',
+						path: 'src/lib/posts/calendario/fiesta.md'
+					},
+					image: null,
+					sales: null,
+					personas
+				},
+				form: null,
+				category: 'calendario',
+				postID: 'fiesta-de-prueba',
+				embedded: true
+			}
+		}).body;
+
+	it('con el interruptor: una sola lista con rol por persona, Organiza primero, y «+ Nuevo rol…»', () => {
+		const body = edit(personasData);
+		expect(hasId(body, 'sec-personas')).toBe(true);
+		expect(hasId(body, 'authors-input')).toBe(true);
+		// Nada de Organizan en Datos ni de la vieja fila de perfil.
+		expect(body).not.toContain('edit-personas-perfil-0');
+		for (const id of ['edit-personas-rol-0', 'edit-personas-rol-1', 'edit-personas-rol-2'])
+			expect(hasId(body, id), id).toBe(true);
+		expect(body.indexOf('Persona Inventada')).toBeLessThan(body.indexOf('Colectivo de Prueba'));
+		expect(body).toContain('Persona Sin Perfil');
+		expect(body).toContain('+ Nuevo rol…');
+		expect(body).toMatch(/<option value="Facilita"[^>]*selected/);
+	});
+
+	it('sin cambios, el archivo es el mismo (solo la fecha de hoy): authors y personas como estaban', () => {
+		const body = edit(personasData);
+		expect(body).toMatch(/<button[^>]*id="save"[^>]*disabled/);
+		const preview = (body.match(/<pre class="markdown[^"]*">([\s\S]*?)<\/pre>/)?.[1] ?? '')
+			.replaceAll('&lt;', '<')
+			.replaceAll('&gt;', '>')
+			.replaceAll('&quot;', '"')
+			.replaceAll('&#39;', "'")
+			.replaceAll('&amp;', '&');
+		expect(preview).toContain('authors:\n  - Persona Inventada\n');
+		expect(preview).toContain(
+			'personas:\n  - perfil: colectivo-de-prueba\n    rol: Facilita\n  - nombre: Persona Sin Perfil\n    rol: Fotografía\n'
+		);
+	});
+
+	it('sin el interruptor: el «Organizan» de siempre (sin roles ni «+ Nuevo rol…») y personas: no se toca', () => {
+		const body = edit(null);
+		expect(hasId(body, 'sec-personas')).toBe(true);
+		expect(hasId(body, 'authors-input')).toBe(true);
+		expect(body).not.toContain('edit-personas-rol-0');
+		expect(body).not.toContain('+ Nuevo rol…');
+		expect(body).toContain('Persona Inventada');
+		expect(body).not.toContain('Colectivo de Prueba');
+	});
+});
+
 describe('/admin/eventos/nuevo (crear un evento)', () => {
 	const body = render(NewEvent, {
 		props: {
@@ -120,6 +203,7 @@ describe('/admin/eventos/nuevo (crear un evento)', () => {
 			'ev-link',
 			'ev-link-text',
 			'ev-authors',
+			'sec-personas',
 			'ev-image',
 			'to-preview',
 			'save-draft'
@@ -175,6 +259,7 @@ Texto.
 			'sec-texto',
 			'sec-lista',
 			'title-input',
+			'sec-personas',
 			'authors-input',
 			'content-image',
 			'content-form',
