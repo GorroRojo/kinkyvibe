@@ -20,3 +20,6 @@ yarn.lock
 
 # Static assets are served verbatim
 /static
+
+# Fixtures de las pruebas de contenido en la base: el texto exacto importa (hash del .md).
+/src/lib/server/contenido/fixtures

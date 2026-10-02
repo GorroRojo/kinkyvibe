@@ -1,11 +1,13 @@
 import { error, fail } from '@sveltejs/kit';
 import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { getDB } from '$lib/server/db';
 import { cuentasEnabled, perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { profilePageData, profileSlugTaken } from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
+import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
@@ -22,7 +24,8 @@ export async function load({ params, platform, locals, setHeaders }) {
 	const db = getDB(platform);
 	if (db && (await perfilesPublicosEnabled(platform))) {
 		const page = await profilePageData(db, params.profile, locals, {
-			cuentas: await cuentasEnabled(platform)
+			cuentas: await cuentasEnabled(platform),
+			posts: await sitePosts(platform)
 		});
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
@@ -31,7 +34,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
 				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
-					...(await fetchMarkdownPosts()),
+					...(await sitePosts(platform)),
 					...(await fetchMarkdownPosts(true))
 				])
 			};
@@ -42,7 +45,11 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// so +page.js loads it on its own.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...post } = await fetchPost('amigues', params.profile);
-	const related = currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		db,
+		currentRelated(relatedPostsFor(post.meta, await sitePosts(platform)))
+	);
 	return {
 		mode: /** @type {const} */ ('md'),
 		...post,

@@ -33,8 +33,29 @@ let cache;
 /** @returns {Promise<PostMeta[]>} */
 async function allMeta() {
 	if (!cache || import.meta.env.DEV) cache = loadAll();
-	if (PREVIEW_BUILD) return withDemoPosts(await cache);
-	return cache;
+	const posts = PREVIEW_BUILD ? await withDemoPosts(await cache) : await cache;
+	return withDbPosts(posts);
+}
+
+/**
+ * Interruptor `contenido_db`: los eventos y el material que están en la base (también los
+ * ocultos, que el panel ve) en lugar de su .md, y los que solo están en la base.
+ * @param {PostMeta[]} posts
+ */
+async function withDbPosts(posts) {
+	const { activeContentDB, allDbPosts } = await import('../contenido/repo.js');
+	const { CONTENT_CATEGORIES } = await import('../contenido/categories.js');
+	const db = await activeContentDB();
+	if (!db) return posts;
+	/** @type {Map<string, PostMeta>} */
+	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
+	for (const [category, cat] of Object.entries(CONTENT_CATEGORIES)) {
+		for (const [slug, e] of await allDbPosts(db, category)) {
+			if (e.deleted) byKey.delete(`${category}/${slug}`);
+			else byKey.set(`${category}/${slug}`, { category, slug, meta: cat.toMeta(e.object) });
+		}
+	}
+	return [...byKey.values()];
 }
 
 /**

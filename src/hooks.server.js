@@ -7,6 +7,8 @@ import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
+import { setContentDB } from '$lib/server/contenido/repo.js';
+import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { applySiteTags } from '$lib/server/etiquetas/source.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -15,6 +17,9 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
+	// Interruptor `contenido_db`: la base que usa el cliente del repo para los eventos de la base
+	// (es la misma para todo el isolate, como la del modo demo).
+	setContentDB(getDB(event.platform));
 	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de etiquetas de este pedido (archivo o
 	// base) pasa a ser el que usa todo el servidor. Nunca tira: sin base, el archivo.
 	await applySiteTags(event.platform);
@@ -34,7 +39,7 @@ export async function handle({ event, resolve }) {
 		// Admin checks match the numeric GitHub id: borrow the listed admin's (0 = not an admin).
 		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
 		mockUser.id = adminByLogin(mockUser.login)?.id ?? 0;
-		return withSecurityHeaders(event.url, await resolve(event));
+		return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 	}
 	// PREVIEW DEPLOYS ONLY: demo mode (docs/demo.md). PREVIEW_BUILD is a build-time constant
 	// (false in the production build and locally), so this block is removed from production.
@@ -45,7 +50,7 @@ export async function handle({ event, resolve }) {
 		if (event.cookies.get(DEMO_COOKIE) === '1') {
 			event.locals.user = demoUser();
 			event.locals.user_token = DEMO_TOKEN;
-			return withSecurityHeaders(event.url, await resolve(event));
+			return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 		}
 	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
@@ -60,7 +65,7 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
-	return withSecurityHeaders(event.url, await resolve(event));
+	return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 }
 
 /**

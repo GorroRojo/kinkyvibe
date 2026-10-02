@@ -33,6 +33,9 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
  * - `no_door`: el evento es "Solo anticipadas" (`puerta: false`).
  * - `tier`: cantidad de un tramo de preventa (al confirmar una transferencia vencida cuyo tramo se
  *   llenó mientras tanto). Mismos campos que `capacity`, más el tramo.
+ * - `discount_uses`: usos de un código de descuento (al deshacer el rechazo de una transferencia
+ *   con código, si mientras estuvo rechazada se usaron los que quedaban). `before`: usos que ya
+ *   cuentan; `after`: con esta orden; `over`: cuántos de más.
  * - `not_active`: el tipo está encadenado y todavía no se habilitó (`after`: se habilita cuando se
  *   agote o cierre `afterName`).
  *
@@ -44,6 +47,8 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
  *   | { kind: 'no_door' }
  *   | { kind: 'tier', type: string, typeName: string, tier: string, tierName: string,
  *     quantity: number, before: number, after: number, over: number }
+ *   | { kind: 'discount_uses', code: string, maxUses: number, before: number, after: number,
+ *     over: number }
  *   | { kind: 'not_active', type: string, typeName: string, afterName: string }} ExceededLimit
  */
 
@@ -94,6 +99,21 @@ export function tierLimit(type, tier, taken, quantity) {
 		after,
 		over: after - tier.quantity
 	};
+}
+
+/**
+ * ¿Se pasa de los usos de un código de descuento? `null` si no (o si el código no tiene máximo).
+ *
+ * @param {string} code
+ * @param {number | null | undefined} maxUses
+ * @param {number} uses usos que ya cuentan (aprobadas + reservas vigentes)
+ * @returns {ExceededLimit | null}
+ */
+export function discountUsesLimit(code, maxUses, uses) {
+	if (maxUses === null || maxUses === undefined) return null;
+	const after = uses + 1;
+	if (after <= maxUses) return null;
+	return { kind: 'discount_uses', code, maxUses, before: uses, after, over: after - maxUses };
 }
 
 /**
@@ -172,6 +192,8 @@ export function limitMessage(limit) {
 			return limit.before >= limit.quantity
 				? `El tramo «${limit.tierName}» de «${limit.typeName}» ya está completo (${limit.before} / ${limit.quantity}): quedarían ${limit.after} / ${limit.quantity}, ${plural(limit.over)} de más a ese precio.`
 				: `Se pasa del tramo «${limit.tierName}» de «${limit.typeName}»: quedarían ${limit.after} / ${limit.quantity}, ${plural(limit.over)} de más a ese precio.`;
+		case 'discount_uses':
+			return `El código ${limit.code} ya se usó ${limit.before} de ${limit.maxUses} veces: quedaría en ${limit.after} / ${limit.maxUses}.`;
 		case 'not_active':
 			return `«${limit.typeName}» todavía no se habilitó: se habilita cuando se agote o cierre «${limit.afterName}».`;
 	}
@@ -196,6 +218,8 @@ export function limitSummary(limit) {
 			return 'evento solo anticipadas';
 		case 'tier':
 			return `tramo «${limit.tierName}» de «${limit.typeName}» +${limit.over} (${limit.after} / ${limit.quantity})`;
+		case 'discount_uses':
+			return `usos del código ${limit.code} +${limit.over} (${limit.after} / ${limit.maxUses})`;
 		case 'not_active':
 			return `«${limit.typeName}» antes de habilitarse`;
 	}
@@ -219,6 +243,8 @@ export function overrideKey(limits) {
 					return 'no_door';
 				case 'tier':
 					return `tier:${l.type}:${l.tier}:${l.after}/${l.quantity}`;
+				case 'discount_uses':
+					return `discount_uses:${l.code}:${l.after}/${l.maxUses}`;
 				case 'not_active':
 					return `not_active:${l.type}`;
 			}

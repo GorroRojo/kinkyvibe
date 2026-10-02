@@ -10,6 +10,8 @@
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import DuplicateChooser from '$lib/components/admin/DuplicateChooser.svelte';
+	import { applyNewEventPrefill } from '$lib/utils/calendario.js';
 	import '$lib/components/admin/admin.scss';
 	import '$lib/admin/panel-editor.scss';
 	import { tagManager } from '$lib/utils/stores';
@@ -88,16 +90,9 @@
 	// next month from the 16th (Argentina time). The day is always picked by hand.
 	let month = prefillMonth(data.today);
 	// ...unless it comes from the agenda calendar (a day was clicked): then that day, and the
-	// times if a range was picked in the week view.
-	if (data.prefill.date) {
-		values.startDate = data.prefill.date;
-		month = data.prefill.date.slice(0, 7);
-	}
-	if (data.prefill.startTime) values.startTime = data.prefill.startTime;
-	if (data.prefill.endTime) {
-		values.endTime = data.prefill.endTime;
-		values.hasEnd = true;
-	}
+	// times if a range was picked in the week view (a copy keeps the original's times otherwise).
+	({ values, span } = applyNewEventPrefill(values, span, data.prefill));
+	if (data.prefill.date) month = data.prefill.date.slice(0, 7);
 	const sourceStart = parseEventDate(sourceFields.start).date;
 	const sourceWeekday =
 		source && isValidDate(sourceStart)
@@ -514,10 +509,7 @@
 			{#if source}Duplicar «{source.title}»{:else}Nuevo evento{/if}
 		</h1>
 		{#if !source}
-			<p class="hint">
-				¿Es otra edición de un evento que ya existe? Es más fácil duplicarlo: buscalo en
-				<a href="/admin/eventos?filtro=pasados">Eventos</a> y tocá <em>Duplicar</em>.
-			</p>
+			<DuplicateChooser compact candidates={data.duplicables ?? []} prefill={data.prefill} />
 		{/if}
 		<ol class="steps" aria-label="Pasos">
 			<li class:current={step === 'editar'}>1. Completar datos</li>
