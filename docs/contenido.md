@@ -151,6 +151,12 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
 - Con el interruptor prendido, también leen la base: la venta de entradas y la puerta
   (`tickets/events.js`: configuración, título, fecha), la lista de eventos del panel, su ficha, No
   listadas y su contador, Eventos → Lugares y el cron de «avisame si se repite».
+- El panel recuerda por isolate los eventos y el material que leyó de la base
+  (`allDbPostObjects`, como las listas públicas en `posts.js`): cada pedido pregunta solo si cambió
+  algo (cuántos hay y su último `updated_at`, el último guardado de `object_revisions` y las
+  importaciones) y vuelve a leerlos si cambió. Todo lo que escribe pasa por `saveObject()`, que
+  cambia eso; un `UPDATE objects` a mano que no toque `updated_at` no se ve hasta el próximo
+  guardado. Un evento por su dirección es una sola consulta, por los índices únicos.
 
 Lo que todavía no cambia (pasos siguientes):
 
