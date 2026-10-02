@@ -20,7 +20,15 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
-import { linkedVenueName } from '$lib/server/amigues/venues.js';
+import {
+	checkVenueChoice,
+	createVenueForEventAction,
+	editVenueForEventAction,
+	saveVenueChoice,
+	venueNotSavedWarning,
+	venuePickerData
+} from '$lib/server/amigues/eventFormVenue.js';
+import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import { readDbEventFile } from '$lib/server/contenido/repo.js';
@@ -76,8 +84,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
 	return {
 		sales,
-		// Con un lugar en «Sucede en», el «Dónde» del archivo no se muestra (el editor avisa).
-		linkedVenue: isEvent ? await linkedVenueName(getDB(platform), params.postID) : null,
+		// «Lugar» del formulario: los lugares y el elegido (en `event_venues`, no en el archivo).
+		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
 		salesUnavailable: isEvent && sales === null,
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
@@ -165,21 +173,40 @@ export const _editActions = {
 			);
 			if (placeError) return fail(400, { error: placeError });
 		}
+		// «Lugar» (solo eventos): va a `event_venues`, no al archivo. Se revisa antes de guardar y se
+		// guarda después, solo si el archivo se guardó.
+		const venue = params.category === 'calendario' ? readVenueChoice(data) : null;
+		const venueCheck = await checkVenueChoice(getDB(platform), venue);
+		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
+		/** @param {any} result lo que devuelve guardar el archivo (o un fail) */
+		const withVenue = async (result) => {
+			if (!venue || !result || !('save' in result)) return result;
+			const r = await saveVenueChoice(getDB(platform), locals, {
+				eventSlug: params.postID,
+				choice: venue,
+				by: user.login
+			});
+			return r.ok
+				? { ...result, venueSaved: r.changed }
+				: { ...result, warnings: [venueNotSavedWarning(r.message)] };
+		};
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
 		const userName = user.name || user.login || 'admin';
 		const image = data.get('image');
 		if (params.category === 'calendario' && image instanceof File && image.size > 0) {
-			return await saveWithImage({
-				token: locals.user_token,
-				params,
-				content: fileContent,
-				sha,
-				userName,
-				image,
-				asked: String(data.get('imageScope') ?? ''),
-				actor: user.login
-			});
+			return withVenue(
+				await saveWithImage({
+					token: locals.user_token,
+					params,
+					content: fileContent,
+					sha,
+					userName,
+					image,
+					asked: String(data.get('imageScope') ?? ''),
+					actor: user.login
+				})
+			);
 		}
 		let commit;
 		try {
@@ -201,13 +228,17 @@ export const _editActions = {
 					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
 			});
 		}
-		return {
+		return withVenue({
 			save: 'Guardado',
 			publish: commit.pr ?? null,
 			commitUrl: commit.url,
 			savedToDb: commitSavedToDb(commit)
-		};
+		});
 	},
+	/** «+ Crear lugar» desde el «Lugar» del formulario (solo eventos). */
+	crearLugar: createVenueForEventAction,
+	/** Edición rápida del lugar elegido en el «Lugar» del formulario (solo eventos). */
+	editarLugar: editVenueForEventAction,
 	/** Events that show a shared image, for the "todas las ediciones" option. */
 	afectados: async ({ locals, request, url }) => {
 		requireAdmin(locals, url);
@@ -445,5 +476,13 @@ export const actions = {
 	afectados: (event) => {
 		rejectEvents(event.params);
 		return _editActions.afectados(event);
+	},
+	crearLugar: (event) => {
+		rejectEvents(event.params);
+		return _editActions.crearLugar(event);
+	},
+	editarLugar: (event) => {
+		rejectEvents(event.params);
+		return _editActions.editarLugar(event);
 	}
 };

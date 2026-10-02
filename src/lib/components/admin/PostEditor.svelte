@@ -5,12 +5,21 @@
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
-	import { PERSONAS_KEY, validatePersonas } from '$lib/utils/personas.js';
+	import { PERSONAS_KEY } from '$lib/utils/personas.js';
+	import { authorRoleOf, validatePersonaItems } from '$lib/utils/personasList.js';
+	import {
+		ADD_ROLE_ACTION,
+		formPersonas,
+		formPersonasChanges,
+		personaOptions,
+		restorePeople
+	} from '$lib/utils/personasPicker.js';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
 	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
 	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
@@ -21,8 +30,15 @@
 		datosFields,
 		fromInput,
 		postFields,
+		splitPlaceFields,
 		toInput
 	} from '$lib/admin/postFields.js';
+	import {
+		NO_VENUE,
+		sameVenueChoice,
+		venueChoice,
+		venueChoiceFields
+	} from '$lib/utils/venueChoice.js';
 	import {
 		scheduleFromInputs,
 		scheduleProblems,
@@ -101,19 +117,15 @@
 	// van en «¿Cuándo es?».
 	const fields = postFields(category);
 	const shownFields = datosFields('editar', category);
-	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
-	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
-	/** @type {string | null} */
-	const linkedVenue = category === 'calendario' ? (data.linkedVenue ?? null) : null;
-	/** @type {Record<string, string>} */
-	const fieldWarnings = linkedVenue
-		? Object.fromEntries(
-				MD_PLACE_KEYS.map((key) => [
-					key,
-					`Este evento tiene un lugar en «Sucede en» (${linkedVenue}): en el sitio se muestra ese lugar según su privacidad, no este dato. Se guarda igual.`
-				])
-			)
-		: {};
+	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
+	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
+
+	/* ---------- lugar (eventos): en `event_venues`, no en el archivo ---------- */
+	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice, flagOn: boolean } | null} */
+	const venuePicker = category === 'calendario' ? (data.venuePicker ?? null) : null;
+	const savedVenue = venuePicker?.current ?? NO_VENUE;
+	let venue = { ...savedVenue };
+	$: venueChanged = Boolean(venuePicker) && !sameVenueChoice(venue, savedVenue);
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
@@ -162,29 +174,37 @@
 	$: tagErrors = isEvent ? validateEventTags(tags) : [];
 
 	const hasAuthors = category !== 'amigues';
-	const initialAuthors = list(meta.authors);
-	let authors = [...initialAuthors];
-	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
 
-	/* ---------- personas con rol (interruptor personas_eventos) ---------- */
-	// `data.personas` ({ roles, profiles }) llega solo con el interruptor prendido; apagado, el
-	// editor no muestra ni toca `personas:`.
-	/** @type {{ roles: string[], profiles: { slug: string, title: string, kind: 'persona' | 'proyecto' }[] } | null} */
-	const personasData = category !== 'amigues' ? (data.personas ?? null) : null;
-	/** @type {{ perfil: string, rol: string }[]} */
-	const initialPersonas = (Array.isArray(meta[PERSONAS_KEY]) ? meta[PERSONAS_KEY] : [])
-		.filter((/** @type {any} */ e) => e && typeof e === 'object')
-		.map((/** @type {any} */ e) => ({ perfil: String(e.perfil ?? ''), rol: String(e.rol ?? '') }));
-	let personas = initialPersonas.map((e) => ({ ...e }));
-	/** @param {{ perfil: string, rol: string }[]} list */
-	const personasErrors = (list) => {
-		if (!personasData || parseError) return [];
-		const r = validatePersonas(list, personasData.roles);
-		return r.ok ? [] : r.errors;
-	};
+	/* ---------- personas: quienes organizan o escriben y el resto, en una sola lista ---------- */
+	// `data.personas` ({ roles, profiles }) llega solo con el interruptor personas_eventos. Apagado,
+	// la sección es el «Organizan» / «Autores» de siempre (sin roles) y `personas:` no se toca. Se
+	// guarda en `authors:` y `personas:` como siempre ($lib/utils/personasPicker.js); en la base,
+	// como una sola lista.
+	/** @type {{ roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null} */
+	const personasData = hasAuthors ? (data.personas ?? null) : null;
+	const authorRole = authorRoleOf(category);
+	let roles = personasData ? [...personasData.roles] : [authorRole];
+	const initialPeople =
+		hasAuthors && !parseError
+			? formPersonas(list(meta.authors), meta[PERSONAS_KEY], category, {
+					withPersonas: Boolean(personasData),
+					options: personaOptions(
+						data.profiles ?? [],
+						personasData?.profiles ?? [],
+						data.authorUsage ?? {}
+					)
+				})
+			: [];
+	let people = initialPeople.map((it) => ({ ...it }));
+	/**
+	 * @param {typeof people} items
+	 * @param {string[]} r
+	 */
+	const peopleErrors = (items, r) =>
+		hasAuthors && !parseError ? validatePersonaItems(items, r) : [];
 	// Como con las entradas: lo que el archivo ya tenía mal no bloquea guardar otros cambios.
-	const initialPersonasErrors = personasErrors(initialPersonas);
-	$: newPersonasErrors = personasErrors(personas).filter((e) => !initialPersonasErrors.includes(e));
+	const initialPeopleErrors = peopleErrors(initialPeople, roles);
+	$: newPeopleErrors = peopleErrors(people, roles).filter((e) => !initialPeopleErrors.includes(e));
 
 	/* ---------- tickets (events only) ---------- */
 	const initialTickets = readTicketsForm(meta);
@@ -263,23 +283,20 @@
 					scopeProblem,
 					...tagErrors,
 					...newTicketErrors.map((e) => `Entradas: ${e}`),
-					...newPersonasErrors
+					...newPeopleErrors
 				].filter(Boolean)
 			);
 
-	$: content = parseError
-		? rawText
-		: build(allValues, tags, authors, body, newFeatured, tickets, personas);
+	$: content = parseError ? rawText : build(allValues, tags, people, body, newFeatured, tickets);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
-	 * @param {string[]} a
+	 * @param {typeof people} ps las personas (van a `authors:` y, con el interruptor, `personas:`)
 	 * @param {string} b
 	 * @param {string} [featured] new `featured` ('' = unchanged); the server sets the final one
 	 * @param {typeof tickets} [tk] ticket sales form (events only)
-	 * @param {typeof personas} [ps] personas con rol (solo con el interruptor prendido)
 	 */
-	function build(v, t, a, b, featured = '', tk = initialTickets, ps = initialPersonas) {
+	function build(v, t, ps, b, featured = '', tk = initialTickets) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -287,11 +304,15 @@
 				changes[f.key] = fromInput(f, v[f.key]);
 		}
 		if (t.join('\n') !== initialTags.join('\n')) changes.tags = t;
-		if (hasAuthors && a.join('\n') !== initialAuthors.join('\n')) changes.authors = a;
+		if (hasAuthors)
+			Object.assign(
+				changes,
+				formPersonasChanges(initialPeople, ps, category, {
+					withPersonas: Boolean(personasData),
+					remove: REMOVE
+				})
+			);
 		if (featured) changes.featured = /^\d+$/.test(featured) ? Number(featured) : featured;
-		if (personasData && JSON.stringify(ps) !== JSON.stringify(initialPersonas)) {
-			changes[PERSONAS_KEY] = ps.length ? ps.map(({ perfil, rol }) => ({ perfil, rol })) : REMOVE;
-		}
 		try {
 			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
 			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
@@ -306,14 +327,16 @@
 				// (No `allValues`: los `$:` todavía no corrieron.)
 				isEvent ? { ...values, ...scheduleToInputs(schedule) } : values,
 				isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags,
-				authors,
+				initialPeople,
 				body
 			);
-	$: changed = content !== unchanged || Boolean(upload.ext);
+	// Cambiar solo el «Lugar» también se guarda, por el mismo camino que cualquier cambio: el
+	// archivo va con la fecha de «Actualizado» de hoy (decisión de gorrite), y nada más.
+	$: changed = content !== unchanged || Boolean(upload.ext) || venueChanged;
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
-	$: draft = { schedule, values, tagRules, freeTags, authors, tickets, personas, body, rawText };
+	$: draft = { schedule, values, tagRules, freeTags, people, tickets, body, rawText, venue };
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
@@ -326,11 +349,12 @@
 		}
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
-		if (Array.isArray(d.authors)) authors = d.authors;
+		people = restorePeople(d, people, authorRole);
 		if (d.tickets) tickets = d.tickets;
-		if (personasData && Array.isArray(d.personas)) personas = d.personas;
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
+		if (venuePicker && d.venue && typeof d.venue === 'object')
+			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 	}
 
 	/* ---------- guardar ---------- */
@@ -390,7 +414,7 @@
 			mode: 'editar',
 			category,
 			hasImage: Boolean(image),
-			hasPersonas: Boolean(personasData),
+			hasPersonas: hasAuthors,
 			parseError: !!parseError
 		})}
 		draftKey={draftKey(category, postID)}
@@ -422,25 +446,32 @@
 				/>
 			{/if}
 
-			<DatosSection
-				fields={shownFields}
-				idFor={datosFieldId('editar')}
-				warnings={fieldWarnings}
-				errors={mapError ? { location_map: mapError } : {}}
-				bind:values
-				{hasAuthors}
-				bind:authors
-				profiles={data.profiles}
-				authorUsage={data.authorUsage}
-				{authorsLabel}
-			/>
+			<DatosSection fields={datosShown} idFor={datosFieldId('editar')} bind:values />
 
-			{#if personasData}
+			{#if hasAuthors}
 				<PersonasSection
-					bind:personas
-					roles={personasData.roles}
-					profiles={personasData.profiles}
-					errors={newPersonasErrors}
+					bind:items={people}
+					bind:roles
+					defaultRole={authorRole}
+					{category}
+					profiles={data.profiles}
+					dbProfiles={personasData?.profiles ?? []}
+					authorUsage={data.authorUsage}
+					addRoleAction={personasData ? ADD_ROLE_ACTION : ''}
+					errors={newPeopleErrors}
+					idPrefix="edit-personas"
+				/>
+			{/if}
+
+			{#if isEvent}
+				<PlaceSection
+					picker={venuePicker}
+					bind:choice={venue}
+					fields={placeShown}
+					idFor={datosFieldId('editar')}
+					errors={mapError ? { location_map: mapError } : {}}
+					bind:values
+					idPrefix="edit"
 				/>
 			{/if}
 
@@ -579,6 +610,9 @@
 		{#if form?.error}
 			<p class="error" role="alert">{form.error}</p>
 		{/if}
+		{#each form?.warnings ?? [] as warning}
+			<p class="warning" role="alert">⚠️ {warning}</p>
+		{/each}
 		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
@@ -616,6 +650,9 @@
 			<input type="hidden" name="sha" value={sha} />
 			<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
 			<input type="hidden" name="path" value={path} />
+			{#each Object.entries(venueChoiceFields(venue, venueChanged)) as [name, value] (name)}
+				<input type="hidden" {name} {value} />
+			{/each}
 			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />

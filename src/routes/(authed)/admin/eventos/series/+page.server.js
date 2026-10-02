@@ -50,7 +50,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	}
 	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
 	const tags = await siteTagManager(platform);
-	const series = await allSeries({ tags });
+	const series = await allSeries({ tags, platform });
 	const dbMode = Boolean(await dbTagsForAdmin(platform, login));
 	const canCreate = dbMode || Boolean(getEventAdmin(locals));
 	const upcomingSlugs = new Set(series.flatMap((s) => s.upcoming.map((e) => e.slug)));
@@ -118,7 +118,7 @@ export const actions = {
 			description: data.get('description')
 		};
 		const tags = await siteTagManager(platform);
-		const current = (await allSeries({ tags })).some((s) => s.id === id)
+		const current = (await allSeries({ tags, platform })).some((s) => s.id === id)
 			? editValues(tags, id)
 			: null;
 		if (!current) return fail(404, { editing: id, error: 'Esa serie ya no existe.' });

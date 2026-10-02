@@ -6,20 +6,34 @@
  * devuelve vacío y el Inicio muestra su estado vacío en lugar de romperse. Solo lo ven admins,
  * así que la actividad muestra nombres de compradores (decisión de gorrite, Q17), pero nunca DNI
  * ni tokens: las consultas no los piden.
+ *
+ * Las consultas van en tanda (una sola ida a la base, ver $lib/server/db/batch.js): cada `…Query`
+ * es una consulta para `runQueries` (así la arma el load del Inicio), y la función del mismo nombre
+ * sin `Query` la corre sola.
  */
-import { logDBError } from '$lib/server/db';
+import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
+	DUE_REMINDER_WHERE,
 	describeReminder,
-	dueReminderOrders,
-	failedReminderCounts,
+	dueReminderParams,
+	dueReminderPlan,
+	failedReminderCountsStatement,
+	readFailedReminderCounts,
 	reminderDueAt,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
-import { failedStreamLinkCounts } from '$lib/server/tickets/stream.js';
-import { lastIntegrityRun } from '$lib/server/objects/integrity.js';
+import {
+	failedStreamLinkStatements,
+	readFailedStreamLinkCounts
+} from '$lib/server/tickets/stream.js';
+import {
+	LAST_INTEGRITY_RUN_SQL,
+	integrityRunFromRow,
+	lastIntegrityRun
+} from '$lib/server/objects/integrity.js';
 import {
 	accountHref,
 	profileHref,
@@ -27,9 +41,13 @@ import {
 	PROFILES_TO_REVIEW_HREF
 } from '$lib/admin/links.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
-import { fondoTipTotals } from '$lib/server/propinas/index.js';
+import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
+/**
+ * @template T
+ * @typedef {import('$lib/server/db/batch.js').BatchQuery<T>} BatchQuery
+ */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
 /** @typedef {import('$lib/server/tickets/config.js').EventTickets} EventTickets */
 
@@ -73,22 +91,17 @@ export function arMonthWindow(now) {
 }
 
 /**
- * Corre una consulta y devuelve `fallback` si no hay base o si falla.
+ * Una consulta del Inicio (ver $lib/server/db/batch.js): sin sentencias si no hace falta ir a la
+ * base (por ejemplo, sin eventos); `fallback` sin base o si falla.
  * @template T
- * @param {D1Database | null | undefined} db
  * @param {string} what
  * @param {T} fallback
- * @param {(db: D1Database) => Promise<T>} fn
- * @returns {Promise<T>}
+ * @param {(db: D1Database) => import('@cloudflare/workers-types').D1PreparedStatement[]} statements
+ * @param {(results: import('$lib/server/db/batch.js').D1Result[]) => T | Promise<T>} read
+ * @returns {BatchQuery<T>}
  */
-async function safe(db, what, fallback, fn) {
-	if (!db) return fallback;
-	try {
-		return await fn(db);
-	} catch (error) {
-		logDBError(`inicio: ${what}`, error);
-		return fallback;
-	}
+function query(what, fallback, statements, read) {
+	return { what: `inicio: ${what}`, fallback, statements, read };
 }
 
 /**
@@ -109,13 +122,24 @@ const placeholders = (slugs) => slugs.map(() => '?').join(', ');
  * @returns {Promise<Map<string, Map<string, TypeTotals>>>}
  */
 export function ticketTotals(db, slugs, now) {
-	return safe(db, 'totales por evento', new Map(), async (db) => {
-		/** @type {Map<string, Map<string, TypeTotals>>} */
-		const out = new Map();
-		if (!slugs.length) return out;
-		const { results } = await db
-			.prepare(
-				`SELECT event_slug, ticket_type,
+	return runQuery(db, ticketTotalsQuery(slugs, now));
+}
+
+/**
+ * @param {string[]} slugs
+ * @param {number} now
+ * @returns {BatchQuery<Map<string, Map<string, TypeTotals>>>}
+ */
+export function ticketTotalsQuery(slugs, now) {
+	return query(
+		'totales por evento',
+		new Map(),
+		(db) =>
+			slugs.length
+				? [
+						db
+							.prepare(
+								`SELECT event_slug, ticket_type,
 					SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 					SUM(CASE WHEN status IN ('pending', 'rejected', 'awaiting_transfer') AND expires_at > ?
 						THEN quantity ELSE 0 END) AS held,
@@ -124,22 +148,27 @@ export function ticketTotals(db, slugs, now) {
 					SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 				GROUP BY event_slug, ticket_type`
-			)
-			.bind(now, ...slugs)
-			.all();
-		for (const r of results) {
-			const slug = String(r.event_slug);
-			if (!out.has(slug)) out.set(slug, new Map());
-			out.get(slug)?.set(String(r.ticket_type), {
-				sold: Number(r.sold ?? 0),
-				held: Number(r.held ?? 0),
-				revenue: Number(r.revenue ?? 0),
-				fondo: Number(r.fondo ?? 0),
-				contribution: Number(r.contribution ?? 0)
-			});
+							)
+							.bind(now, ...slugs)
+					]
+				: [],
+		(results) => {
+			/** @type {Map<string, Map<string, TypeTotals>>} */
+			const out = new Map();
+			for (const r of rowsOf(results)) {
+				const slug = String(r.event_slug);
+				if (!out.has(slug)) out.set(slug, new Map());
+				out.get(slug)?.set(String(r.ticket_type), {
+					sold: Number(r.sold ?? 0),
+					held: Number(r.held ?? 0),
+					revenue: Number(r.revenue ?? 0),
+					fondo: Number(r.fondo ?? 0),
+					contribution: Number(r.contribution ?? 0)
+				});
+			}
+			return out;
 		}
-		return out;
-	});
+	);
 }
 
 /**
@@ -150,28 +179,43 @@ export function ticketTotals(db, slugs, now) {
  * @returns {Promise<Map<string, { tickets: number, checkedIn: number }>>}
  */
 export function checkinTotals(db, slugs) {
-	return safe(db, 'ingresos', new Map(), async (db) => {
-		/** @type {Map<string, { tickets: number, checkedIn: number }>} */
-		const out = new Map();
-		if (!slugs.length) return out;
-		const { results } = await db
-			.prepare(
-				`SELECT t.event_slug, COUNT(*) AS tickets,
+	return runQuery(db, checkinTotalsQuery(slugs));
+}
+
+/**
+ * @param {string[]} slugs
+ * @returns {BatchQuery<Map<string, { tickets: number, checkedIn: number }>>}
+ */
+export function checkinTotalsQuery(slugs) {
+	return query(
+		'ingresos',
+		new Map(),
+		(db) =>
+			slugs.length
+				? [
+						db
+							.prepare(
+								`SELECT t.event_slug, COUNT(*) AS tickets,
 					SUM(CASE WHEN t.checked_in_at IS NOT NULL THEN 1 ELSE 0 END) AS checked_in
 				FROM tickets t JOIN orders o ON o.id = t.order_id
 				WHERE o.status = 'approved' AND t.event_slug IN (${placeholders(slugs)})
 				GROUP BY t.event_slug`
-			)
-			.bind(...slugs)
-			.all();
-		for (const r of results) {
-			out.set(String(r.event_slug), {
-				tickets: Number(r.tickets ?? 0),
-				checkedIn: Number(r.checked_in ?? 0)
-			});
+							)
+							.bind(...slugs)
+					]
+				: [],
+		(results) => {
+			/** @type {Map<string, { tickets: number, checkedIn: number }>} */
+			const out = new Map();
+			for (const r of rowsOf(results)) {
+				out.set(String(r.event_slug), {
+					tickets: Number(r.tickets ?? 0),
+					checkedIn: Number(r.checked_in ?? 0)
+				});
+			}
+			return out;
 		}
-		return out;
-	});
+	);
 }
 
 /**
@@ -182,21 +226,33 @@ export function checkinTotals(db, slugs) {
  * @returns {Promise<{ slug: string, count: number, oldestExpiry: number }[]>}
  */
 export function pendingTransfers(db, now) {
-	return safe(db, 'transferencias', [], async (db) => {
-		const { results } = await db
-			.prepare(
-				`SELECT event_slug, COUNT(*) AS n, MIN(expires_at) AS oldest FROM orders
+	return runQuery(db, pendingTransfersQuery(now));
+}
+
+/**
+ * @param {number} now
+ * @returns {BatchQuery<{ slug: string, count: number, oldestExpiry: number }[]>}
+ */
+export function pendingTransfersQuery(now) {
+	return query(
+		'transferencias',
+		[],
+		(db) => [
+			db
+				.prepare(
+					`SELECT event_slug, COUNT(*) AS n, MIN(expires_at) AS oldest FROM orders
 				WHERE status = 'awaiting_transfer' AND expires_at > ?
 				GROUP BY event_slug ORDER BY oldest`
-			)
-			.bind(now)
-			.all();
-		return results.map((r) => ({
-			slug: String(r.event_slug),
-			count: Number(r.n),
-			oldestExpiry: Number(r.oldest)
-		}));
-	});
+				)
+				.bind(now)
+		],
+		(results) =>
+			rowsOf(results).map((r) => ({
+				slug: String(r.event_slug),
+				count: Number(r.n),
+				oldestExpiry: Number(r.oldest)
+			}))
+	);
 }
 
 /**
@@ -208,23 +264,35 @@ export function pendingTransfers(db, now) {
  * @returns {Promise<{ id: string, ref: string, slug: string, buyerName: string, at: number }[]>}
  */
 export function unsentEmails(db, now) {
-	return safe(db, 'mails sin enviar', [], async (db) => {
-		const { results } = await db
-			.prepare(
-				`SELECT id, event_slug, buyer_name, updated_at FROM orders
+	return runQuery(db, unsentEmailsQuery(now));
+}
+
+/**
+ * @param {number} now
+ * @returns {BatchQuery<{ id: string, ref: string, slug: string, buyerName: string, at: number }[]>}
+ */
+export function unsentEmailsQuery(now) {
+	return query(
+		'mails sin enviar',
+		[],
+		(db) => [
+			db
+				.prepare(
+					`SELECT id, event_slug, buyer_name, updated_at FROM orders
 				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?
 				ORDER BY updated_at DESC LIMIT 20`
-			)
-			.bind(now - EMAIL_GRACE_MS)
-			.all();
-		return results.map((r) => ({
-			id: String(r.id),
-			ref: orderReference(String(r.id)),
-			slug: String(r.event_slug),
-			buyerName: String(r.buyer_name),
-			at: Number(r.updated_at)
-		}));
-	});
+				)
+				.bind(now - EMAIL_GRACE_MS)
+		],
+		(results) =>
+			rowsOf(results).map((r) => ({
+				id: String(r.id),
+				ref: orderReference(String(r.id)),
+				slug: String(r.event_slug),
+				buyerName: String(r.buyer_name),
+				at: Number(r.updated_at)
+			}))
+	);
 }
 
 /**
@@ -234,21 +302,31 @@ export function unsentEmails(db, now) {
  * @returns {Promise<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
  */
 export function reviewOrders(db) {
-	return safe(db, 'órdenes para revisar', [], async (db) => {
-		const { results } = await db
-			.prepare(
+	return runQuery(db, reviewOrdersQuery());
+}
+
+/**
+ * @returns {BatchQuery<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
+ */
+export function reviewOrdersQuery() {
+	return query(
+		'órdenes para revisar',
+		[],
+		(db) => [
+			db.prepare(
 				`SELECT id, event_slug, needs_review, buyer_name FROM orders
 				WHERE needs_review IS NOT NULL ORDER BY updated_at DESC LIMIT 50`
 			)
-			.all();
-		return results.map((r) => ({
-			id: String(r.id),
-			ref: orderReference(String(r.id)),
-			slug: String(r.event_slug),
-			reason: String(r.needs_review),
-			buyerName: String(r.buyer_name)
-		}));
-	});
+		],
+		(results) =>
+			rowsOf(results).map((r) => ({
+				id: String(r.id),
+				ref: orderReference(String(r.id)),
+				slug: String(r.event_slug),
+				reason: String(r.needs_review),
+				buyerName: String(r.buyer_name)
+			}))
+	);
 }
 
 /**
@@ -259,22 +337,37 @@ export function reviewOrders(db) {
  * @returns {Promise<Set<string>>}
  */
 export function streamLinkSlugs(db, slugs) {
-	return safe(db, 'links de transmisión', new Set(), async (db) => {
-		if (!slugs.length) return new Set();
-		const { results } = await db
-			.prepare(
-				`SELECT event_slug FROM event_ticket_settings
+	return runQuery(db, streamLinkSlugsQuery(slugs));
+}
+
+/**
+ * @param {string[]} slugs
+ * @returns {BatchQuery<Set<string>>}
+ */
+export function streamLinkSlugsQuery(slugs) {
+	return query(
+		'links de transmisión',
+		new Set(),
+		(db) =>
+			slugs.length
+				? [
+						db
+							.prepare(
+								`SELECT event_slug FROM event_ticket_settings
 				WHERE stream_link IS NOT NULL AND stream_link != '' AND event_slug IN (${placeholders(slugs)})`
-			)
-			.bind(...slugs)
-			.all();
-		return new Set(results.map((r) => String(r.event_slug)));
-	});
+							)
+							.bind(...slugs)
+					]
+				: [],
+		(results) => new Set(rowsOf(results).map((r) => String(r.event_slug)))
+	);
 }
 
 /**
  * Recordatorios que ya tendrían que haber salido (hace más de {@link REMINDER_GRACE_MS}) y no
- * salieron: cuántas órdenes por evento. Usa la misma cuenta que el cron de recordatorios.
+ * salieron: cuántas órdenes por evento. Usa la misma cuenta que el cron de recordatorios
+ * (`dueReminderPlan` y `DUE_REMINDER_WHERE`): una consulta por recordatorio vencido, todas en la
+ * misma tanda.
  *
  * @param {D1Database | null | undefined} db
  * @param {{
@@ -284,14 +377,36 @@ export function streamLinkSlugs(db, slugs) {
  * }} input
  * @returns {Promise<Map<string, number>>}
  */
-export function failedReminders(db, { events, reminders, now }) {
-	return safe(db, 'recordatorios', new Map(), async (db) => {
-		/** @type {Map<string, number>} */
-		const out = new Map();
-		const late = await dueReminderOrders(db, { events, reminders, now: now - REMINDER_GRACE_MS });
-		for (const { slug } of late) out.set(slug, (out.get(slug) ?? 0) + 1);
-		return out;
-	});
+export function failedReminders(db, input) {
+	return runQuery(db, failedRemindersQuery(input));
+}
+
+/**
+ * @param {Parameters<typeof failedReminders>[1]} input
+ * @returns {BatchQuery<Map<string, number>>}
+ */
+export function failedRemindersQuery({ events, reminders, now }) {
+	const late = now - REMINDER_GRACE_MS;
+	const plan = dueReminderPlan({ events, reminders, now: late });
+	return query(
+		'recordatorios',
+		new Map(),
+		(db) =>
+			plan.map((item) =>
+				db
+					.prepare(`SELECT COUNT(*) AS n FROM orders o WHERE ${DUE_REMINDER_WHERE}`)
+					.bind(...dueReminderParams(item, late))
+			),
+		(results) => {
+			/** @type {Map<string, number>} */
+			const out = new Map();
+			plan.forEach(({ slug }, i) => {
+				const n = Number(rowsOf(results, i)[0]?.n ?? 0);
+				if (n) out.set(slug, (out.get(slug) ?? 0) + n);
+			});
+			return out;
+		}
+	);
 }
 
 /**
@@ -303,13 +418,24 @@ export function failedReminders(db, { events, reminders, now }) {
  * @returns {Promise<{ reminders: Map<string, number>, streamLinks: Map<string, number> }>}
  */
 export function stuckSends(db, slugs) {
-	return safe(
-		db,
+	return runQuery(db, stuckSendsQuery(slugs));
+}
+
+/**
+ * @param {string[]} slugs
+ * @returns {BatchQuery<{ reminders: Map<string, number>, streamLinks: Map<string, number> }>}
+ */
+export function stuckSendsQuery(slugs) {
+	return query(
 		'envíos fallidos',
 		{ reminders: new Map(), streamLinks: new Map() },
-		async (db) => ({
-			reminders: await failedReminderCounts(db, slugs),
-			streamLinks: await failedStreamLinkCounts(db, slugs)
+		(db) =>
+			slugs.length
+				? [failedReminderCountsStatement(db, slugs), ...failedStreamLinkStatements(db, slugs)]
+				: [],
+		async (results) => ({
+			reminders: readFailedReminderCounts(rowsOf(results, 0)),
+			streamLinks: await readFailedStreamLinkCounts(rowsOf(results, 1), rowsOf(results, 2))
 		})
 	);
 }
@@ -322,7 +448,24 @@ export function stuckSends(db, slugs) {
  * @returns {Promise<import('$lib/server/objects/integrity.js').IntegrityRun | null>}
  */
 export function integrityRun(db) {
-	return safe(db, 'chequeo nocturno', null, lastIntegrityRun);
+	return runQuery(db, integrityRunQuery());
+}
+
+/**
+ * En la tanda la consulta va directo; si la tabla no existe, la tanda falla y, sola, mira antes si
+ * existe (`lastIntegrityRun`).
+ * @returns {BatchQuery<import('$lib/server/objects/integrity.js').IntegrityRun | null>}
+ */
+export function integrityRunQuery() {
+	return {
+		...query(
+			'chequeo nocturno',
+			/** @type {import('$lib/server/objects/integrity.js').IntegrityRun | null} */ (null),
+			(db) => [db.prepare(LAST_INTEGRITY_RUN_SQL)],
+			(results) => integrityRunFromRow(rowsOf(results)[0])
+		),
+		alone: lastIntegrityRun
+	};
 }
 
 /**
@@ -333,35 +476,61 @@ export function integrityRun(db) {
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
- * @returns {Promise<{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number } | null>}
+ * @returns {Promise<MonthMoney | null>}
  */
 export function monthMoney(db, now) {
-	return safe(db, 'plata del mes', null, async (db) => {
-		const { start, end } = arMonthWindow(now);
-		const [row, tips] = await Promise.all([
-			db
-				.prepare(
-					`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
+	return runQuery(db, monthMoneyQuery(now));
+}
+
+/**
+ * @typedef {{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number }} MonthMoney
+ */
+
+/**
+ * Las órdenes del mes y las propinas al Fondo van en la misma tanda, pero si fallan las propinas
+ * (sin sus migraciones) cuentan 0, sin romper el resto.
+ * @param {number} now
+ * @returns {BatchQuery<MonthMoney | null>}
+ */
+export function monthMoneyQuery(now) {
+	const { start, end } = arMonthWindow(now);
+	return combineQueries(
+		'inicio: plata del mes',
+		[
+			query(
+				'plata del mes',
+				/** @type {Record<string, unknown> | null} */ (null),
+				(db) => [
+					db
+						.prepare(
+							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
-				)
-				.bind(start, end)
-				.first(),
-			// Sin las migraciones de propinas la consulta falla: 0, sin romper el resto.
-			safe(db, 'propinas al fondo del mes', { count: 0, total: 0 }, (db) =>
-				fondoTipTotals(db, { from: start, to: end })
+						)
+						.bind(start, end)
+				],
+				(results) => rowsOf(results)[0] ?? {}
+			),
+			query(
+				'propinas al fondo del mes',
+				{ count: 0, total: 0 },
+				(db) => [fondoTipTotalsStatement(db, { from: start, to: end })],
+				(results) => readFondoTipTotals(rowsOf(results)[0])
 			)
-		]);
-		return {
-			start,
-			total: Number(row?.total ?? 0),
-			orders: Number(row?.orders ?? 0),
-			tickets: Number(row?.tickets ?? 0),
-			fondoNet: Number(row?.fondo_net ?? 0) + tips.total,
-			fondoTips: tips.total
-		};
-	});
+		],
+		([row, tips]) =>
+			row
+				? {
+						start,
+						total: Number(row.total ?? 0),
+						orders: Number(row.orders ?? 0),
+						tickets: Number(row.tickets ?? 0),
+						fondoNet: Number(row.fondo_net ?? 0) + tips.total,
+						fondoTips: tips.total
+					}
+				: null
+	);
 }
 
 /**
@@ -416,53 +585,98 @@ const ORDER_KIND = /** @type {const} */ ({
  * @param {{ limit?: number, since?: number, titles?: Map<string, string> }} [opts]
  * @returns {Promise<ActivityItem[]>}
  */
-export async function recentActivity(db, { limit = 12, since = 0, titles = new Map() } = {}) {
-	const [orders, audit, checkins, tips] = await Promise.all([
-		safe(db, 'actividad: órdenes', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
-			const { results } = await db
-				.prepare(
-					`SELECT id, event_slug, status, buyer_name, buyer_pronouns, quantity, ticket_type, total,
+export function recentActivity(db, opts = {}) {
+	return runQuery(db, recentActivityQuery(opts));
+}
+
+/**
+ * {@link recentActivity} para una tanda.
+ *
+ * @param {{ limit?: number, since?: number, titles?: Map<string, string> }} [opts]
+ * @returns {BatchQuery<ActivityItem[]>}
+ */
+export function recentActivityQuery({ limit = 12, since = 0, titles = new Map() } = {}) {
+	return mapQuery(recentActivityRowsQuery({ limit, since }), (rows) =>
+		activityItems(rows, { limit, titles })
+	);
+}
+
+/**
+ * @typedef {{
+ *   orders: Record<string, unknown>[],
+ *   audit: Record<string, unknown>[],
+ *   checkins: Record<string, unknown>[],
+ *   tips: Record<string, unknown>[]
+ * }} ActivityRows
+ */
+
+/**
+ * Las filas de la actividad (sin armar: los títulos de los eventos se pueden poner después, con
+ * {@link activityItems}). Las cuatro consultas van juntas y cada una conserva su respaldo (por
+ * ejemplo, sin la migración de propinas la de propinas da `[]` y las otras siguen).
+ *
+ * @param {{ limit?: number, since?: number }} [opts]
+ * @returns {BatchQuery<ActivityRows>}
+ */
+export function recentActivityRowsQuery({ limit = 12, since = 0 } = {}) {
+	/** @type {Record<string, unknown>[]} */
+	const none = [];
+	/**
+	 * @param {string} what
+	 * @param {string} sql
+	 * @param {unknown[]} params
+	 */
+	const part = (what, sql, params) =>
+		query(
+			what,
+			none,
+			(db) => [db.prepare(sql).bind(...params)],
+			(results) => rowsOf(results)
+		);
+	return combineQueries(
+		'inicio: actividad',
+		[
+			part(
+				'actividad: órdenes',
+				`SELECT id, event_slug, status, buyer_name, buyer_pronouns, quantity, ticket_type, total,
 						payment_method, updated_at, created_at
 					FROM orders WHERE status IN ('approved', 'awaiting_transfer', 'refunded') AND updated_at > ?
-					ORDER BY updated_at DESC LIMIT ?`
-				)
-				.bind(since, limit)
-				.all();
-			return results;
-		}),
-		safe(db, 'actividad: registro', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
-			const { results } = await db
-				.prepare(
-					`SELECT id, at, actor_login, action, target_type, target_id, summary FROM admin_audit
-					WHERE at > ? ORDER BY at DESC LIMIT ?`
-				)
-				.bind(since, limit)
-				.all();
-			return results;
-		}),
-		safe(db, 'actividad: ingresos', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
-			const { results } = await db
-				.prepare(
-					`SELECT event_slug, COUNT(*) AS n, MIN(checked_in_at) AS first, MAX(checked_in_at) AS last
+					ORDER BY updated_at DESC LIMIT ?`,
+				[since, limit]
+			),
+			part(
+				'actividad: registro',
+				`SELECT id, at, actor_login, action, target_type, target_id, summary FROM admin_audit
+					WHERE at > ? ORDER BY at DESC LIMIT ?`,
+				[since, limit]
+			),
+			part(
+				'actividad: ingresos',
+				`SELECT event_slug, COUNT(*) AS n, MIN(checked_in_at) AS first, MAX(checked_in_at) AS last
 					FROM tickets WHERE checked_in_at > ?1
-					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`
-				)
-				.bind(since, limit, CHECKIN_BUCKET_MS)
-				.all();
-			return results;
-		}),
-		// Sin la migración 0019 (propinas) la consulta falla y `safe` devuelve [].
-		safe(db, 'actividad: propinas', /** @type {Record<string, unknown>[]} */ ([]), async (db) => {
-			const { results } = await db
-				.prepare(
-					`SELECT id, amount, post_category, post_slug, approved_at FROM tips
-					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`
-				)
-				.bind(since, limit)
-				.all();
-			return results;
-		})
-	]);
+					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`,
+				[since, limit, CHECKIN_BUCKET_MS]
+			),
+			// Sin la migración 0019 (propinas) la consulta falla y da [].
+			part(
+				'actividad: propinas',
+				`SELECT id, amount, post_category, post_slug, approved_at FROM tips
+					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`,
+				[since, limit]
+			)
+		],
+		([orders, audit, checkins, tips]) => ({ orders, audit, checkins, tips })
+	);
+}
+
+/**
+ * Arma la actividad con las filas de {@link recentActivityRowsQuery}.
+ *
+ * @param {ActivityRows} rows
+ * @param {{ limit: number, titles?: Map<string, string> }} opts
+ * @returns {ActivityItem[]}
+ */
+export function activityItems({ orders, audit, checkins, tips }, { limit, titles = new Map() }) {
 	/** @type {ActivityItem[]} */
 	const items = [];
 	for (const o of orders) {
@@ -543,28 +757,59 @@ export async function recentActivity(db, { limit = 12, since = 0, titles = new M
  * @param {D1Database | null | undefined} db
  * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
  */
-export async function sinceLastVisit(db, { since, login = '', titles }) {
-	const counts = await safe(db, 'desde tu última visita', null, async (db) => {
-		const row = await db
-			.prepare(
-				`SELECT
-					(SELECT COUNT(*) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS orders,
-					(SELECT COALESCE(SUM(total), 0) FROM orders WHERE status = 'approved' AND updated_at > ?1) AS money,
-					(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND created_at > ?1) AS transfers,
-					(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit`
-			)
-			.bind(since, login, ACCOUNT_EVENT_ACTOR)
-			.first();
-		return {
-			orders: Number(row?.orders ?? 0),
-			money: Number(row?.money ?? 0),
-			transfers: Number(row?.transfers ?? 0),
-			audit: Number(row?.audit ?? 0)
-		};
-	});
-	if (!counts) return null;
-	const items = await recentActivity(db, { since, limit: 15, titles });
-	return { since, ...counts, items };
+export function sinceLastVisit(db, opts) {
+	return runQuery(db, sinceLastVisitQuery(opts));
+}
+
+/**
+ * @typedef {{ since: number, orders: number, money: number, transfers: number, audit: number, items: ActivityItem[] }} SinceLastVisit
+ */
+
+/**
+ * {@link sinceLastVisit} para una tanda: las cuentas y la lista van juntas. Las tres cuentas de
+ * órdenes salen de una sola pasada por `orders`.
+ *
+ * @param {{ since: number, login?: string, titles?: Map<string, string> }} opts
+ * @returns {BatchQuery<SinceLastVisit | null>}
+ */
+export function sinceLastVisitQuery({ since, login = '', titles }) {
+	return combineQueries(
+		'inicio: desde tu última visita',
+		[
+			query(
+				'desde tu última visita',
+				/** @type {{ orders: number, money: number, transfers: number, audit: number } | null} */ (
+					null
+				),
+				(db) => [
+					db
+						.prepare(
+							`SELECT o.orders, o.money, o.transfers,
+								(SELECT COUNT(*) FROM admin_audit WHERE at > ?1 AND actor_login != ?2 AND actor_login != ?3) AS audit
+							FROM (
+								SELECT
+									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN 1 ELSE 0 END), 0) AS orders,
+									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN total ELSE 0 END), 0) AS money,
+									COALESCE(SUM(CASE WHEN status = 'awaiting_transfer' AND created_at > ?1 THEN 1 ELSE 0 END), 0) AS transfers
+								FROM orders WHERE status IN ('approved', 'awaiting_transfer')
+							) o`
+						)
+						.bind(since, login, ACCOUNT_EVENT_ACTOR)
+				],
+				(results) => {
+					const row = rowsOf(results)[0];
+					return {
+						orders: Number(row?.orders ?? 0),
+						money: Number(row?.money ?? 0),
+						transfers: Number(row?.transfers ?? 0),
+						audit: Number(row?.audit ?? 0)
+					};
+				}
+			),
+			recentActivityQuery({ since, limit: 15, titles })
+		],
+		([counts, items]) => (counts ? { since, ...counts, items } : null)
+	);
 }
 
 /**
@@ -1143,22 +1388,35 @@ export function arTime(ms) {
  * @returns {Promise<{ slug: string, day: string, count: number, first: number }[]>}
  */
 export function expiringTransfers(db, now, until) {
-	return safe(db, 'transferencias por vencer', [], async (db) => {
-		const { results } = await db
-			.prepare(
-				`SELECT event_slug, COUNT(*) AS n, MIN(expires_at) AS first FROM orders
+	return runQuery(db, expiringTransfersQuery(now, until));
+}
+
+/**
+ * @param {number} now
+ * @param {number} until
+ * @returns {BatchQuery<{ slug: string, day: string, count: number, first: number }[]>}
+ */
+export function expiringTransfersQuery(now, until) {
+	return query(
+		'transferencias por vencer',
+		[],
+		(db) => [
+			db
+				.prepare(
+					`SELECT event_slug, COUNT(*) AS n, MIN(expires_at) AS first FROM orders
 				WHERE status = 'awaiting_transfer' AND expires_at > ?1 AND expires_at < ?2
 				GROUP BY event_slug, CAST((expires_at + ?3) / ?4 AS INTEGER) ORDER BY first`
-			)
-			.bind(now, until, AR_OFFSET_MS, DAY_MS)
-			.all();
-		return results.map((r) => ({
-			slug: String(r.event_slug),
-			day: arDay(Number(r.first)),
-			count: Number(r.n),
-			first: Number(r.first)
-		}));
-	});
+				)
+				.bind(now, until, AR_OFFSET_MS, DAY_MS)
+		],
+		(results) =>
+			rowsOf(results).map((r) => ({
+				slug: String(r.event_slug),
+				day: arDay(Number(r.first)),
+				count: Number(r.n),
+				first: Number(r.first)
+			}))
+	);
 }
 
 /**
@@ -1341,38 +1599,45 @@ export function agendaItems({
  * @returns {Promise<SalesTrend | null>}
  */
 export function eventSalesTrend(db, slug, now, days = 7) {
-	return safe(db, 'ventas por día', null, async (db) => {
-		const from = arDayStart(now) - (days - 1) * DAY_MS;
-		const byDay = db
+	return runQuery(db, eventSalesTrendQuery(slug, now, days));
+}
+
+/**
+ * {@link eventSalesTrend} para una tanda. Sin la columna `channel` la tanda falla y, sola, vuelve a
+ * probar sin ella.
+ *
+ * @param {string} slug
+ * @param {number} now
+ * @param {number} [days]
+ * @returns {BatchQuery<SalesTrend | null>}
+ */
+export function eventSalesTrendQuery(slug, now, days = 7) {
+	const from = arDayStart(now) - (days - 1) * DAY_MS;
+	/** @param {D1Database} db */
+	const byDay = (db) =>
+		db
 			.prepare(
 				`SELECT CAST((created_at - ?1) / ?2 AS INTEGER) AS d, SUM(quantity) AS n FROM orders
 				WHERE event_slug = ?3 AND status = 'approved' AND created_at >= ?1
 				GROUP BY d`
 			)
 			.bind(from, DAY_MS, slug);
-		/** @param {boolean} withChannel */
-		const byChannel = (withChannel) =>
-			db
-				.prepare(
-					`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
+	/** @param {D1Database} db @param {boolean} withChannel */
+	const byChannel = (db, withChannel) =>
+		db
+			.prepare(
+				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
 					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1`
-				)
-				.bind(slug);
-		let res;
-		try {
-			res = await db.batch([byDay, byChannel(true)]);
-		} catch (error) {
-			if (!/channel/i.test(String(/** @type {Error} */ (error)?.message ?? error))) throw error;
-			res = await db.batch([byDay, byChannel(false)]);
-		}
+			)
+			.bind(slug);
+	/** @param {import('$lib/server/db/batch.js').D1Result[]} res */
+	const read = (res) => {
 		/** @type {Map<number, number>} */
 		const counts = new Map();
-		for (const r of /** @type {Record<string, unknown>[]} */ (res[0].results)) {
-			counts.set(Number(r.d), Number(r.n ?? 0));
-		}
+		for (const r of rowsOf(res, 0)) counts.set(Number(r.d), Number(r.n ?? 0));
 		let online = 0;
 		let door = 0;
-		for (const r of /** @type {Record<string, unknown>[]} */ (res[1].results)) {
+		for (const r of rowsOf(res, 1)) {
 			if (r.channel === 'puerta') door += Number(r.n ?? 0);
 			else online += Number(r.n ?? 0);
 		}
@@ -1384,7 +1649,25 @@ export function eventSalesTrend(db, slug, now, days = 7) {
 			online,
 			door
 		};
-	});
+	};
+	return {
+		...query(
+			'ventas por día',
+			/** @type {SalesTrend | null} */ (null),
+			(db) => [byDay(db), byChannel(db, true)],
+			read
+		),
+		alone: async (db) => {
+			let res;
+			try {
+				res = await db.batch([byDay(db), byChannel(db, true)]);
+			} catch (error) {
+				if (!/channel/i.test(String(/** @type {Error} */ (error)?.message ?? error))) throw error;
+				res = await db.batch([byDay(db), byChannel(db, false)]);
+			}
+			return read(/** @type {import('$lib/server/db/batch.js').D1Result[]} */ (res));
+		}
+	};
 }
 
 /**
@@ -1406,6 +1689,25 @@ export function eventSalesTrend(db, slug, now, days = 7) {
  * }} SalesSummary
  */
 
+/** @param {UpcomingEvent[]} upcoming */
+function focusCandidates(upcoming) {
+	const candidates = upcoming.filter((e) => e.ticketed && !e.draft && e.status !== 'cancelado');
+	return { candidates, today: candidates.filter((e) => e.today) };
+}
+
+/**
+ * Los eventos que puede elegir {@link salesFocus}, sin saber todavía cuánto vendió cada uno (no
+ * cambia ni cuáles son ni su orden): todos los de hoy con entradas o, si no hay, el próximo. Así
+ * su tendencia de ventas va en la misma tanda que los totales.
+ *
+ * @param {UpcomingEvent[]} upcoming
+ * @returns {string[]}
+ */
+export function salesFocusSlugs(upcoming) {
+	const { candidates, today } = focusCandidates(upcoming);
+	return (today.length ? today : candidates.slice(0, 1)).map((e) => e.slug);
+}
+
 /**
  * El evento del bloque de ventas: de los de hoy con entradas, el que más vendió; si no hay, el
  * próximo con entradas. Cancelados y borradores no cuentan. `others`: los otros de hoy.
@@ -1414,8 +1716,7 @@ export function eventSalesTrend(db, slug, now, days = 7) {
  * @returns {{ event: UpcomingEvent, others: { slug: string, title: string }[] } | null}
  */
 export function salesFocus(upcoming) {
-	const candidates = upcoming.filter((e) => e.ticketed && !e.draft && e.status !== 'cancelado');
-	const today = candidates.filter((e) => e.today);
+	const { candidates, today } = focusCandidates(upcoming);
 	if (today.length) {
 		const event = today.reduce((best, e) => (e.sold > best.sold ? e : best));
 		return {

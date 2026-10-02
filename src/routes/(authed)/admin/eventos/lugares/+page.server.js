@@ -20,12 +20,8 @@ import { getDB } from '$lib/server/db';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { perfilesPublicosEnabled } from '$lib/server/flags.js';
-import {
-	listEventVenues,
-	listVenues,
-	removeEventVenue,
-	setEventVenue
-} from '$lib/server/amigues/venues.js';
+import { listEventVenues, listVenues } from '$lib/server/amigues/venues.js';
+import { linkEventVenue, unlinkEventVenue } from '$lib/server/amigues/eventFormVenue.js';
 import { createProfileAction } from '$lib/server/admin/amiguesRoutes.js';
 import { approveProfile } from '$lib/server/amigues/approvals.js';
 import {
@@ -33,7 +29,7 @@ import {
 	listRejectedVenues,
 	rejectPendingVenue
 } from '$lib/server/amigues/pendingVenues.js';
-import { isVenuePrivacy, VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
+import { isVenuePrivacy } from '$lib/utils/venues.js';
 
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
 /** @param {App.Platform | undefined} platform */
@@ -153,15 +149,9 @@ export const actions = {
 		if (!events.some((e) => e.slug === eventSlug)) {
 			return fail(400, { link: { ok: false, message: 'Elegí un evento.' } });
 		}
-		const r = await setEventVenue(db, { eventSlug, venueId, privacy, by: admin.login });
+		// El mismo camino (y el mismo registro) que el «Lugar» del formulario del evento.
+		const r = await linkEventVenue(db, locals, { eventSlug, venueId, privacy, by: admin.login });
 		if (!r.ok) return fail(400, { link: r });
-		await logAdminAction(db, locals, {
-			action: 'event.venue_set',
-			targetType: 'event',
-			targetId: eventSlug,
-			summary: `Puso el lugar del evento ${eventSlug}${privacy ? ` (se muestra: ${VENUE_PRIVACY_LABELS[privacy]})` : ''}`,
-			detail: { venueId, privacy }
-		});
 		return { link: { ok: true, message: 'Listo: el evento tiene lugar.' } };
 	},
 
@@ -170,15 +160,9 @@ export const actions = {
 		const db = getDB(platform);
 		if (!db) return fail(503, { link: { ok: false, message: 'Sin base de datos.' } });
 		const eventSlug = String((await request.formData()).get('evento') ?? '');
-		if (!(await removeEventVenue(db, eventSlug))) {
+		if (!(await unlinkEventVenue(db, locals, eventSlug))) {
 			return fail(404, { link: { ok: false, message: 'Ese evento no tenía lugar.' } });
 		}
-		await logAdminAction(db, locals, {
-			action: 'event.venue_remove',
-			targetType: 'event',
-			targetId: eventSlug,
-			summary: `Sacó el lugar del evento ${eventSlug}`
-		});
 		return { link: { ok: true, message: 'Listo: el evento ya no tiene lugar.' } };
 	}
 };

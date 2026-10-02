@@ -15,6 +15,7 @@ import { saleWindowText } from '$lib/utils/tickets.js';
 import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { confirmDraft } from '$lib/server/eventos/drafts.js';
 import { eventMissing } from '$lib/utils/eventMissing.js';
+import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
@@ -134,7 +135,9 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				status: event.status
 			})
 		: [];
-	return { checklist, stream, sale, online: Boolean(config?.online), draft, missing };
+	// «Lugar»: el vinculado (en `event_venues`, se elige en el formulario del evento).
+	const venue = await panelVenueRow(db, params.slug);
+	return { checklist, stream, sale, online: Boolean(config?.online), draft, missing, venue };
 }
 
 export const actions = {

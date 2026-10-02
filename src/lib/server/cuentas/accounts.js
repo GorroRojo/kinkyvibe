@@ -185,8 +185,8 @@ export async function checkPassword(db, email, password, { now = Date.now() } = 
 }
 
 /**
- * Borra la cuenta: las órdenes quedan (desvinculadas), las sesiones y los códigos pendientes se
- * van, y la fila queda sin ningún dato de la persona. Todo en una tanda atómica.
+ * Borra la cuenta: las órdenes quedan (desvinculadas), las sesiones, los códigos pendientes y lo
+ * seguido se van, y la fila queda sin ningún dato de la persona. Todo en una tanda atómica.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -201,6 +201,9 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 		db.prepare('UPDATE orders SET account_id = NULL WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM account_sessions WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM login_codes WHERE email_hash = ?1').bind(hash),
+		// «Lo que sigo» (migración 0032): lo seguido y los avisos ya mandados son de la persona.
+		db.prepare('DELETE FROM follows WHERE account_id = ?1').bind(accountId),
+		db.prepare('DELETE FROM follow_notifications WHERE account_id = ?1').bind(accountId),
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,

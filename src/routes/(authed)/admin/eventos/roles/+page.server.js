@@ -4,6 +4,10 @@
  * - preguntas de inscripción generales: se definen acá y cada evento elige cuáles usa (pestaña
  *   Preguntas de su ficha).
  * Solo admins; todo queda en el registro de actividad. Ver docs/personas-eventos.md.
+ *
+ * `?/addRole` también lo llama la sección «Personas» de los formularios de eventos y material
+ * («+ Nuevo rol…» en el selector de rol: $lib/utils/personasPicker.js `ADD_ROLE_ACTION`), así crear
+ * un rol desde ahí tiene la misma validación, los mismos permisos y el mismo registro.
  */
 import { fail } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -52,7 +56,9 @@ export const actions = {
 			targetId: 'persona_roles',
 			summary: `Agregó el rol «${result.name}»`
 		});
-		return { role: { ok: true, message: `Rol «${result.name}» agregado.` } };
+		// `name`: el rol como quedó (también lo usa «+ Nuevo rol…» de la sección Personas de los
+		// formularios, que llama a esta misma acción).
+		return { role: { ok: true, name: result.name, message: `Rol «${result.name}» agregado.` } };
 	},
 	removeRole: async (event) => {
 		const { db } = await requirePersonasAdmin(event);

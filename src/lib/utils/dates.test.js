@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { argDate, argTime, argWeekdayDay, eventEnd, toArgentina } from './dates.js';
+import {
+	argDate,
+	argDateTimeLong,
+	argTime,
+	argWeekdayDay,
+	eventEnd,
+	toArgentina
+} from './dates.js';
 
 describe('toArgentina', () => {
 	it('gives the Argentina wall-clock time in local getters (UTC-3, no DST)', () => {
@@ -75,5 +82,48 @@ describe('argDate / argTime / argWeekdayDay', () => {
 
 	it('return NaN strings for invalid input (callers check validity first)', () => {
 		expect(argDate('nope')).toContain('NaN');
+	});
+});
+
+describe('argDateTimeLong', () => {
+	it('prints the long date and a 24-hour time with «hs» (no «p. m.»)', () => {
+		expect(argDateTimeLong('2026-10-02T15:00:00-03:00')).toBe(
+			'2 de octubre de 2026 a las 15:00 hs'
+		);
+		expect(argDateTimeLong('2026-10-02T19:00:00-03:00')).toBe(
+			'2 de octubre de 2026 a las 19:00 hs'
+		);
+		expect(argDateTimeLong('2026-10-02T15:00:00-03:00')).not.toMatch(/m\.|am|pm/i);
+	});
+
+	it('keeps the minutes and pads the hour', () => {
+		expect(argDateTimeLong('2026-12-19T21:30:00-03:00')).toBe(
+			'19 de diciembre de 2026 a las 21:30 hs'
+		);
+		expect(argDateTimeLong('2026-01-05T09:05:00-03:00')).toBe('5 de enero de 2026 a las 09:05 hs');
+	});
+
+	it('midnight is 00:00 of the next day, and after midnight stays in 24 h', () => {
+		expect(argDateTimeLong('2026-10-03T00:00:00-03:00')).toBe(
+			'3 de octubre de 2026 a las 00:00 hs'
+		);
+		expect(argDateTimeLong('2026-10-03T01:30:00-03:00')).toBe(
+			'3 de octubre de 2026 a las 01:30 hs'
+		);
+		expect(argDateTimeLong('2026-10-02T12:00:00-03:00')).toBe(
+			'2 de octubre de 2026 a las 12:00 hs'
+		);
+	});
+
+	it('uses Argentina time whatever the input offset (and a Date works too)', () => {
+		// 02:30 UTC is still 23:30 of the previous day in Argentina
+		expect(argDateTimeLong('2026-03-01T02:30:00Z')).toBe('28 de febrero de 2026 a las 23:30 hs');
+		expect(argDateTimeLong(new Date('2026-10-02T18:00:00Z'))).toBe(
+			'2 de octubre de 2026 a las 15:00 hs'
+		);
+	});
+
+	it('an invalid date gives an empty string', () => {
+		expect(argDateTimeLong('no es una fecha')).toBe('');
 	});
 });

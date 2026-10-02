@@ -10,5 +10,5 @@ import { siteTagManager } from '$lib/server/etiquetas/source.js';
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ platform }) {
 	if (!(await seriesEnabled(platform))) return { series: [] };
-	return { series: await seriesSummaries({ tags: await siteTagManager(platform) }) };
+	return { series: await seriesSummaries({ tags: await siteTagManager(platform), platform }) };
 }
