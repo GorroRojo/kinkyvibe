@@ -27,6 +27,11 @@
 	export let filter = false;
 	/** Keep the search in the URL (`?tags=a,b&q=texto`). Only one PostList per page should do this. */
 	export let syncUrl = true;
+	/** Estado de la venta de entradas por slug (`ticketStatesFor` en el load de la página); si no
+	 * se pasa, el `ticketStates` de los datos de la página, si lo hay.
+	 * @type {import('$lib/utils/ticketCta.js').TicketStates | null | undefined} */
+	export let ticketStates = undefined;
+	$: states = ticketStates ?? $page.data?.ticketStates ?? null;
 
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
@@ -258,7 +263,6 @@
 			/>
 		</div>
 		{#if outerFilteredPosts.length > 0 || searching}
-			{@const Item = $userConfig.display_type == 'list' ? PostListItem : Card}
 			<div class="results">
 				<p class="post-amount" aria-live="polite">
 					{tagFilteredPosts.length}
@@ -283,7 +287,11 @@
 				<ul id="posts" class={$userConfig.display_type + ' h-feed'} bind:this={listEl}>
 					{#each shownPosts as post (post.path)}
 						<li data-key={post.path}>
-							<svelte:component this={Item} {post} />
+							{#if $userConfig.display_type == 'list'}
+								<PostListItem {post} ticketStates={states} />
+							{:else}
+								<Card {post} />
+							{/if}
 						</li>
 					{/each}
 				</ul>

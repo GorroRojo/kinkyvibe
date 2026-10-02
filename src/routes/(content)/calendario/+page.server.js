@@ -1,5 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import { isCurrent } from '$lib/utils/allPosts';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 // all the calendar grid (and a collapsed past-events list) uses; the page loads
 // the full posts if the viewer chooses to list past events
@@ -30,12 +31,14 @@ const slimMeta = (meta) => {
 };
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load() {
+export async function load({ platform }) {
 	const now = Date.now();
 	const posts = (await fetchMarkdownPosts()).filter((p) => p.meta.layout == 'calendario');
 	return {
 		posts: posts.map((p) =>
 			isCurrent(p, now) ? p : /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
-		)
+		),
+		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
+		ticketStates: await ticketStatesFor(platform, posts)
 	};
 }

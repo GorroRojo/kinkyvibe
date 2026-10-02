@@ -124,9 +124,37 @@ async function availableMethods(db, config) {
 	const transfer = config.paymentMethods.includes('transferencia')
 		? Boolean(await transferInfo(db))
 		: false;
+	return methodsFor(config, transfer);
+}
+
+/**
+ * Lo mismo que `availableMethods` con los datos para transferir ya leídos (las listas de eventos
+ * los leen una sola vez para todos: listStates.js).
+ *
+ * @param {import('./config.js').EventTickets} config
+ * @param {boolean} transferReady ¿hay datos para transferir?
+ * @returns {import('./config.js').PaymentMethod[]}
+ */
+export function methodsFor(config, transferReady) {
 	return config.paymentMethods.filter((m) =>
-		m === 'mercadopago' ? Boolean(env.MP_ACCESS_TOKEN) || isMpMock() : transfer
+		m === 'mercadopago' ? Boolean(env.MP_ACCESS_TOKEN) || isMpMock() : transferReady
 	);
+}
+
+/**
+ * ¿Se puede comprar este tipo ahora? Abierto por horario, no esperando a otro tipo (encadenado)
+ * y con lugar. Es la misma regla que usa `getTicketsView` (`available > 0 && !closed`).
+ *
+ * @param {import('./config.js').EventTickets} config
+ * @param {import('./config.js').TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').TakenCounts} taken
+ * @param {number} now
+ */
+export function typeBuyableNow(config, type, taken, now) {
+	if (!typeOpen(config, type, now)) return false;
+	const a = typeAvailability(config, type, taken, now);
+	if (a.state === 'waiting' || a.state === 'closed') return false;
+	return a.remaining === null || a.remaining > 0;
 }
 
 /**

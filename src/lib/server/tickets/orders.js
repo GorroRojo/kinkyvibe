@@ -318,18 +318,50 @@ export function tierTaken(db, { eventSlug, typeId, tierId, exceptId = null, now 
  * @returns {Promise<import('$lib/utils/ticketTiers.js').TakenCounts>}
  */
 export async function getTaken(db, eventSlug, now = Date.now()) {
-	const { results } = await db
-		.prepare(
-			`SELECT ticket_type, ticket_tier, COALESCE(SUM(quantity), 0) AS n FROM orders
-			WHERE event_slug = ?1
-				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?2))
-			GROUP BY ticket_type, ticket_tier`
-		)
-		.bind(eventSlug, now)
-		.all();
-	/** @type {import('$lib/utils/ticketTiers.js').TakenCounts} */
-	const taken = { types: new Map(), tiers: new Map() };
+	return (await getTakenMany(db, [eventSlug], now)).get(eventSlug) ?? emptyTakenCounts();
+}
+
+const TAKEN_CHUNK = 90;
+
+/** @returns {import('$lib/utils/ticketTiers.js').TakenCounts} */
+const emptyTakenCounts = () => ({ types: new Map(), tiers: new Map() });
+
+/**
+ * Lo mismo que `getTaken` para varios eventos en UNA consulta (las listas de eventos: ver
+ * listStates.js). Los eventos sin órdenes no aparecen en el resultado.
+ *
+ * @param {D1Database} db
+ * @param {string[]} eventSlugs
+ * @param {number} [now]
+ * @returns {Promise<Map<string, import('$lib/utils/ticketTiers.js').TakenCounts>>}
+ */
+export async function getTakenMany(db, eventSlugs, now = Date.now()) {
+	/** @type {Map<string, import('$lib/utils/ticketTiers.js').TakenCounts>} */
+	const out = new Map();
+	const slugs = [...new Set(eventSlugs)];
+	/** @type {Record<string, unknown>[]} */
+	const results = [];
+	// D1 acepta hasta 100 parámetros por consulta: en la práctica es una sola (las listas tienen
+	// pocos eventos con entradas a la vez).
+	for (let i = 0; i < slugs.length; i += TAKEN_CHUNK) {
+		const chunk = slugs.slice(i, i + TAKEN_CHUNK);
+		// ?1 es `now`; los slugs van de ?2 en adelante.
+		const marks = chunk.map((_, j) => `?${j + 2}`).join(', ');
+		const res = await db
+			.prepare(
+				`SELECT event_slug, ticket_type, ticket_tier, COALESCE(SUM(quantity), 0) AS n FROM orders
+				WHERE event_slug IN (${marks})
+					AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?1))
+				GROUP BY event_slug, ticket_type, ticket_tier`
+			)
+			.bind(now, ...chunk)
+			.all();
+		results.push(...res.results);
+	}
 	for (const r of results) {
+		const slug = String(r.event_slug);
+		let taken = out.get(slug);
+		if (!taken) out.set(slug, (taken = emptyTakenCounts()));
 		const type = String(r.ticket_type);
 		const n = Number(r.n ?? 0);
 		taken.types.set(type, (taken.types.get(type) ?? 0) + n);
@@ -337,7 +369,7 @@ export async function getTaken(db, eventSlug, now = Date.now()) {
 			taken.tiers.set(tierKey(type, String(r.ticket_tier)), n);
 		}
 	}
-	return taken;
+	return out;
 }
 
 /**
