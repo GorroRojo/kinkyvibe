@@ -13,6 +13,13 @@
  * suscripto. Límites con db/rateLimit.js (por conexión, por mail y el tope global de mails de
  * cuentas, que comparte la cuenta de Resend).
  */
+import {
+	avisameViaSigo,
+	followForSubscription,
+	followSeriesByMail,
+	mailFollowedTags,
+	stopSeriesMail
+} from '$lib/server/sigo/avisame.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
@@ -167,6 +174,11 @@ export async function subscribeEmail({
 export async function subscribeAccount({ db, seriesTag, accountId, now = Date.now() }) {
 	if (!(await allowed(db, `series:sub:a:${accountId}`, SUBSCRIBE_LIMITS.account, now)))
 		return { ok: false, status: 429, message: SERIES_MESSAGES.tooMany };
+	// Con «Lo que sigo» prendido: seguir la etiqueta con mail de lo nuevo (sigo/avisame.js).
+	if (await avisameViaSigo(db)) {
+		const r = await followSeriesByMail(db, accountId, seriesTag, { now });
+		return r.ok ? { ok: true, status: 'confirmed' } : r;
+	}
 	await db
 		.prepare(
 			`INSERT INTO series_subscriptions
@@ -230,7 +242,9 @@ export async function unsubscribe(db, token) {
 		.prepare('DELETE FROM series_subscriptions WHERE id = ?1 RETURNING series_tag')
 		.bind(id)
 		.first();
-	return { ok: true, seriesTag: row ? String(row.series_tag) : null };
+	if (row) return { ok: true, seriesTag: String(row.series_tag) };
+	// Ya pasada a «Lo que sigo»: el link viejo apaga el mail de lo nuevo de esa etiqueta.
+	return { ok: true, seriesTag: await followForSubscription(db, id) };
 }
 
 /**
@@ -244,7 +258,7 @@ export async function subscriptionSeries(db, id) {
 		.prepare('SELECT series_tag FROM series_subscriptions WHERE id = ?1')
 		.bind(id)
 		.first();
-	return row ? String(row.series_tag) : null;
+	return row ? String(row.series_tag) : await followForSubscription(db, id, { dryRun: true });
 }
 
 /**
@@ -259,6 +273,8 @@ export async function unsubscribeAccount(db, accountId, seriesTag) {
 		.prepare('DELETE FROM series_subscriptions WHERE account_id = ?1 AND series_tag = ?2')
 		.bind(accountId, seriesTag)
 		.run();
+	// Y si va por «Lo que sigo», apaga el mail de lo nuevo (la etiqueta queda seguida).
+	await stopSeriesMail(db, accountId, seriesTag);
 }
 
 /**
@@ -275,7 +291,9 @@ export async function accountSubscriptions(db, accountId) {
 		)
 		.bind(accountId)
 		.all();
-	return results.map((r) => String(r.series_tag));
+	const old = results.map((r) => String(r.series_tag));
+	if (!(await avisameViaSigo(db))) return old;
+	return [...new Set([...old, ...(await mailFollowedTags(db, accountId))])].sort();
 }
 
 /**

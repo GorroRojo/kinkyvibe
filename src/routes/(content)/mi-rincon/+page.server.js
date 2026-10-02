@@ -29,6 +29,7 @@ import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cu
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { seriesEnabled } from '$lib/server/flags.js';
+import { sigoEnabled } from '$lib/server/sigo/web.js';
 
 /** Lo que hay que escribir para confirmar el borrado. */
 const DELETE_CONFIRMATION = 'borrar';
@@ -77,6 +78,8 @@ export async function load(event) {
 		canHaveProfiles: await canHaveProfiles(db, account.id),
 		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series).
 		seriesOn: await seriesEnabled(event.platform),
+		// Interruptor `lo_que_sigo`: link a Mi rincón → Lo que sigo (docs/lo-que-sigo.md).
+		sigoOn: await sigoEnabled(event.platform),
 		ordersError,
 		orders: orders.map((o) => ({
 			id: o.id,
