@@ -178,7 +178,7 @@ describe('ingresar con código', () => {
 			send,
 			now: NOW
 		});
-		expect(r).toEqual({ ok: true, email: EMAIL });
+		expect(r).toEqual({ ok: true, email: EMAIL, expiresAt: NOW + CODE_TTL_MS });
 		expect(sent).toHaveLength(1);
 		expect(sent[0].to).toBe(EMAIL);
 		expect(sent[0].subject).not.toMatch(/\d{6}/);

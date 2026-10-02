@@ -141,53 +141,122 @@ export const hardcodedTags = [
 			'Troles & Tableros'
 		]
 	},
-	{ id: 'Picantearla', icon: '🔥', image: 'picantearla-miniatura.webp' },
+	{
+		id: 'Picantearla',
+		icon: '🔥',
+		image: 'picantearla-miniatura.webp',
+		// Series hijas (ediciones especiales). Sus eventos llevan también «Picantearla».
+		children: ['Picantearla: Deluxe', 'Picantearla: Protocolar', 'Picantearla: Age Play']
+	},
+	{ id: 'Picantearla: Deluxe', icon: '💎', image: 'picantearla-deluxe-miniatura.webp' },
+	{ id: 'Picantearla: Protocolar', icon: '📝', image: 'picantearla-protocolar-miniatura.webp' },
+	{ id: 'Picantearla: Age Play', icon: '🎈', image: 'picantearla-age-play-fiestas-miniatura.webp' },
 	{ id: 'Cine para Sucixs', icon: '🎞️', image: 'cine-para-sucixs-miniatura.webp' },
-	{ id: 'Charla debate de Fugas Críticas' },
-	{ id: 'Aberraciones' },
-	{ id: 'Carrera de Reyes' },
-	{ id: 'Club de Hosts' },
-	{ id: 'Cuirdas Sudacas' },
-	{ id: 'Deseo & Disidencia' },
-	{ id: 'Despatologizando las Prácticas BDSM' },
-	{ id: 'Festi Kinky' },
-	{ id: 'Fetichismo y Escritura' },
-	{ id: 'Fiesta Colectiver' },
-	{ id: 'Grupo de Apoyo y Discusión para age players' },
-	{ id: 'Grupo de Apoyo y Discusión para Doms' },
-	{ id: 'Grupo de Apoyo y Discusión para sumis' },
-	{ id: 'Grupo de Apoyo y Discusión para sumis y Doms' },
-	{ id: '¡Hablame sucio!' },
-	{ id: 'Jamarada Kinky' },
-	{ id: 'Juegos de Rol' },
-	{ id: 'Kinky Jam' },
-	{ id: 'Laboratorio fetichista' },
-	{ id: 'Matiné de Cuerdas' },
-	{ id: 'Merienda Kinky' },
-	{ id: 'Mini Talleres Rapiditos' },
-	{ id: 'Pinchacitos' },
-	{ id: 'Rancheadita Kinky' },
-	{ id: 'Reducción de Daños de Sustancias con Perspectiva Disidente' },
-	{ id: 'Seducir y Negar' },
-	{ id: 'Someter' },
-	{ id: 'Taller de Age Play' },
-	{ id: 'Taller de Asfixia Erótica' },
-	{ id: 'Taller de BDSM Inicial' },
-	{ id: 'Taller de Bondage' },
-	{ id: 'Taller de Dominación para Principiantes' },
-	{ id: 'Taller de Dominación para Trabajadores Sexuales' },
-	{ id: 'Taller de Fisting Vaginal' },
-	{ id: 'Taller de Humillación' },
-	{ id: 'Taller de Juegos con Cera de Velas' },
-	{ id: 'Taller de Juegos de Impacto' },
-	{ id: 'Taller de Mirones' },
-	{ id: 'Taller de Perfil de Riesgo' },
-	{ id: 'Taller de Placer y Riesgo' },
-	{ id: 'Taller de sumisión para Principiantes' },
-	{ id: 'Taller introductorio intensivo de shibari' },
-	{ id: 'Tinta Corrida' },
-	{ id: 'Todo Kink es Político' },
-	{ id: 'Troles & Tableros' },
+	{
+		id: 'Charla debate de Fugas Críticas',
+		icon: '💬',
+		image: 'calendario:fugas-criticas-charla-debate-2025-07-redes-afectivas-en-tiempos-de-individualismo/1.webp'
+	},
+	{ id: 'Aberraciones', icon: '🎬', image: 'aberraciones-miniatura.webp' },
+	{ id: 'Carrera de Reyes', icon: '👑', image: 'carrera-de-reyes-miniatura.webp' },
+	{ id: 'Club de Hosts', icon: '🥂', image: 'club-de-hosts-halloween-miniatura.webp' },
+	{
+		id: 'Cuirdas Sudacas',
+		icon: '🪢',
+		image: 'cuirdas-sudacas-miniatura.webp'
+	},
+	{ id: 'Deseo & Disidencia', icon: '🧣', image: 'deseo-y-disidencia-miniatura.webp' },
+	{
+		id: 'Despatologizando las Prácticas BDSM',
+		icon: '🩺',
+		image: 'despatologizando-las-practicas-bdsm-miniatura.webp'
+	},
+	{ id: 'Festi Kinky', icon: '🎊', image: 'festi-kinky-24-7-miniatura.webp' },
+	{
+		id: 'Fetichismo y Escritura',
+		icon: '✒️',
+		image: 'taller-fetichismo-escritura-miniatura.webp'
+	},
+	{ id: 'Fiesta Colectiver', icon: '🪩', image: 'calendario:colectiver-2026-08/1.webp' },
+	{
+		id: 'Grupo de Apoyo y Discusión para age players',
+		icon: '🍭',
+		image: 'grupo-age-players-miniatura.webp'
+	},
+	{
+		id: 'Grupo de Apoyo y Discusión para Doms',
+		icon: '💓',
+		image: 'grupo-doms-miniatura.webp'
+	},
+	{
+		id: 'Grupo de Apoyo y Discusión para sumis',
+		icon: '💝',
+		image: 'grupo-sumis-miniatura.webp'
+	},
+	{
+		id: 'Grupo de Apoyo y Discusión para sumis y Doms',
+		icon: '💞',
+		image: 'grupo-sumis-y-doms-miniatura.webp'
+	},
+	{ id: '¡Hablame sucio!', icon: '👅', image: 'hablame-sucio-miniatura.webp' },
+	{ id: 'Jamarada Kinky', icon: '🔥', image: 'jamarada-kinky-miniatura.webp' },
+	{ id: 'Juegos de Rol', icon: '🎭', image: 'taller-juegos-de-rol-miniatura.webp' },
+	{ id: 'Kinky Jam', icon: '🔥', image: 'kinky-jam-miniatura.webp' },
+	{ id: 'Laboratorio fetichista', icon: '🧪', image: 'laboratorio-somatico-miniatura.webp' },
+	{ id: 'Matiné de Cuerdas', icon: '🪢', image: 'matine-de-cuerdas-miniatura.webp' },
+	{ id: 'Merienda Kinky', icon: '🧉' },
+	{ id: 'Mini Talleres Rapiditos', icon: '⏱️', image: 'rapidito-miniatura.webp' },
+	{ id: 'Pinchacitos', icon: '🪡', image: 'pinchacitos-miniatura.webp' },
+	{ id: 'Rancheadita Kinky', icon: '🧺', image: 'rancheadita-kinky-miniatura.webp' },
+	{
+		id: 'Reducción de Daños de Sustancias con Perspectiva Disidente',
+		icon: '🛟',
+		image: 'taller-reduccion-de-danos-miniatura.webp'
+	},
+	{ id: 'Seducir y Negar', icon: '😏', image: 'seducir-y-negar-miniatura.webp' },
+	{ id: 'Someter', icon: '🤼', image: 'someter-miniatura.webp' },
+	{ id: 'Taller de Age Play', icon: '🍭', image: 'taller-age-play-miniatura.webp' },
+	{ id: 'Taller de Asfixia Erótica', icon: '🌬️', image: 'asfixia-erotica-miniatura.webp' },
+	{ id: 'Taller de BDSM Inicial', icon: '🌱', image: 'bdsm-inicial-online.webp' },
+	{ id: 'Taller de Bondage', icon: '🔗', image: 'taller-bondage-miniatura.webp' },
+	{
+		id: 'Taller de Dominación para Principiantes',
+		icon: '👢',
+		image: 'taller-dominacion-principiantes-miniatura.webp'
+	},
+	{
+		id: 'Taller de Dominación para Trabajadores Sexuales',
+		icon: '💼',
+		image: 'taller-dominacion-ts-miniatura.webp'
+	},
+	{
+		id: 'Taller de Fisting Vaginal',
+		icon: '🧴',
+		image: 'calendario:taller-fisting-vaginal-2024-06/1.webp'
+	},
+	{ id: 'Taller de Humillación', icon: '🙇', image: 'taller-humillacion-miniatura.webp' },
+	{ id: 'Taller de Juegos con Cera de Velas', icon: '🕯️', image: 'taller-cera-miniatura.webp' },
+	{
+		id: 'Taller de Juegos de Impacto',
+		icon: '🏓',
+		image: 'calendario:taller-impacto-2024-06/1.webp'
+	},
+	{ id: 'Taller de Mirones', icon: '🎥', image: 'taller-de-mirones-miniatura.webp' },
+	{ id: 'Taller de Perfil de Riesgo', icon: '⚖️', image: 'perfil-de-riesgo-miniatura.webp' },
+	{ id: 'Taller de Placer y Riesgo', icon: '📜', image: 'taller-placer-riesgo-miniatura.webp' },
+	{
+		id: 'Taller de sumisión para Principiantes',
+		icon: '🧎',
+		image: 'taller-sumision-principiantes-miniatura.webp'
+	},
+	{
+		id: 'Taller introductorio intensivo de shibari',
+		icon: '🪢',
+		image: 'taller-shibari-intensivo.webp'
+	},
+	{ id: 'Tinta Corrida', icon: '🖨️', image: 'tinta-corrida-miniatura.webp' },
+	{ id: 'Todo Kink es Político', icon: '✊', image: 'todo-kink-es-politico-miniatura.webp' },
+	{ id: 'Troles & Tableros', icon: '🎲', image: 'troles-y-tableros-miniatura.webp' },
 	{
 		id: 'material',
 		icon: '📖',

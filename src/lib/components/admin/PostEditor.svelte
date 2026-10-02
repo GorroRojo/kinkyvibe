@@ -1,47 +1,54 @@
 <script>
-	import CodeMirror from 'svelte-codemirror-editor';
-	import { markdown } from '@codemirror/lang-markdown';
-	import { deserialize } from '$app/forms';
-	import { onDestroy } from 'svelte';
-	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
+	import { applyAction, deserialize, enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { tick } from 'svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
-	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
-	import PersonasEditor from '$lib/components/admin/PersonasEditor.svelte';
+	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import { PERSONAS_KEY, validatePersonas } from '$lib/utils/personas.js';
-	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
-	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
+	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
+	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
+	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
+	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
+	import { formSections } from '$lib/admin/eventForm.js';
+	import { editEventImage, emptyUpload } from '$lib/admin/imageState.js';
+	import {
+		datosFieldId,
+		datosFields,
+		fromInput,
+		postFields,
+		toInput
+	} from '$lib/admin/postFields.js';
+	import {
+		scheduleFromInputs,
+		scheduleProblems,
+		scheduleSpan,
+		scheduleSummary,
+		scheduleToInputs
+	} from '$lib/admin/schedule.js';
+	import { checkMapLink } from '$lib/utils/eventPlace.js';
 	import {
 		applyTicketsToMarkdown,
 		readTicketsForm,
 		validateTicketsForm
 	} from '$lib/utils/ticketsEditor.js';
 	import '$lib/components/admin/admin.scss';
-	import {
-		buildTagOptions,
-		excludedFromPicker,
-		joinEventTags,
-		splitEventTags,
-		validateEventTags
-	} from '$lib/utils/adminTags.js';
-	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
+	import { joinEventTags, splitEventTags, validateEventTags } from '$lib/utils/adminTags.js';
 	import {
 		REMOVE,
-		STATUS_OPTIONS,
 		applyFrontmatterChanges,
-		formatEventDate,
-		formatPostDate,
-		isValidDate,
-		isValidTime,
 		joinMarkdown,
-		parseEventDate,
 		splitMarkdown,
-		todayInArgentina,
-		validateSchedule
+		todayInArgentina
 	} from '$lib/utils/eventDraft.js';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import { replacementAssetName, uploadScope } from '$lib/utils/sharedImage.js';
+	import SaveButton from '$lib/components/admin/event-form/SaveButton.svelte';
+	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
+	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import { parseDocument } from 'yaml';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 
@@ -49,6 +56,11 @@
 	 * Editor de publicaciones (datos + imagen + etiquetas + entradas + texto en markdown). Lo usan
 	 * /edit/<categoría>/<slug> y, dentro del panel, la pestaña Editar de la ficha de un evento
 	 * (`embedded`: sin el título ni el link de volver, que pone la ficha).
+	 *
+	 * Guarda con `use:enhance`: mientras guarda, «Guardar» queda apagado con «Guardando…»; al
+	 * terminar bien, vuelve a leer la página (`invalidateAll`) y las páginas que lo usan lo arman
+	 * de nuevo con el archivo guardado (`{#key data.post}`), como cuando la página se recargaba.
+	 * Los textos dependen de si guardar va a la base (`data.savesToDb`, $lib/admin/saveCopy.js).
 	 */
 	/** @type {any} */
 	export let data;
@@ -63,6 +75,8 @@
 
 	const sha = data.post.sha ?? '';
 	const path = data.post.path ?? '';
+	/** Con el interruptor `contenido_db`, este post se guarda en la base (se ve enseguida). */
+	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
 	/** @type {string} */
@@ -82,142 +96,24 @@
 	// With properties that can't be read, the whole file is edited as text.
 	let rawText = data.post.raw;
 
-	/**
-	 * @typedef {object} Field
-	 * @prop {string} key
-	 * @prop {string} label
-	 * @prop {'text'|'textarea'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
-	 * @prop {string} [placeholder]
-	 * @prop {string} [help]
-	 * @prop {boolean} [required]
-	 * @prop {boolean} [wide]
-	 * @prop {Array<{value: string, label: string}>} [options]
-	 */
-
-	/** @type {Field[]} */
-	const common = [
-		{ key: 'title', label: 'Título', type: 'text', required: true, wide: true },
-		{
-			key: 'summary',
-			label: 'Resumen corto',
-			type: 'textarea',
-			wide: true,
-			placeholder: 'Aparece en las listas y cuando se comparte el link'
-		},
-		{ key: 'published_date', label: 'Publicado', type: 'date', required: true },
-		{
-			key: 'updated_date',
-			label: 'Actualizado',
-			type: 'date',
-			help: 'Se pone la fecha de hoy al guardar.'
-		}
-	];
-	/** @type {Record<string, Field[]>} */
-	const byCategory = {
-		calendario: [
-			{
-				key: 'status',
-				label: 'Estado',
-				type: 'select',
-				wide: true,
-				options: STATUS_OPTIONS.map((o) => ({ value: o.value, label: `${o.label} — ${o.help}` }))
-			},
-			{ key: 'start', label: 'Empieza', type: 'datetime', required: true },
-			{ key: 'end', label: 'Termina', type: 'datetime' },
-			{
-				key: 'location',
-				label: 'Dónde',
-				type: 'text',
-				placeholder: 'Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»',
-				help: 'Para un lugar de una sola vez. Dejalo vacío si es online. Si el evento tiene un lugar en «Sucede en» (Lugares), se muestra el lugar.'
-			},
-			{
-				key: 'location_map',
-				label: 'Link al mapa (opcional)',
-				type: 'url',
-				placeholder: 'https://www.openstreetmap.org/…',
-				help: 'De OpenStreetMap o Google Maps (https).'
-			},
-			{
-				key: 'location_name',
-				label: 'Nombre del lugar',
-				type: 'text',
-				placeholder: 'Ej: El Surco'
-			},
-			{
-				key: 'link',
-				label: 'Link de inscripción / entradas',
-				type: 'url',
-				placeholder: 'https://forms.gle/...',
-				help: 'Solo se muestra cuando el estado es «Abierto».'
-			},
-			{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Inscribirme' }
-		],
-		amigues: [
-			{
-				key: 'pronoun',
-				label: 'Pronombres',
-				type: 'text',
-				placeholder: 'https://pronombr.es/elle&el'
-			},
-			{ key: 'gender_identity', label: 'Género', type: 'text' },
-			{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej: Educador BDSM' },
-			{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://instagram.com/...' },
-			{ key: 'email', label: 'Mail', type: 'email' },
-			{ key: 'tel', label: 'Teléfono', type: 'tel', placeholder: '+54 11 1234 5678' },
-			{ key: 'location', label: 'Dirección', type: 'text', placeholder: 'Calle 123, Ciudad' },
-			{ key: 'bday', label: 'Cumpleaños', type: 'date' }
-		],
-		material: [
-			{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://...' },
-			{ key: 'link_text', label: 'Texto del link', type: 'text', placeholder: 'Ir al sitio' },
-			{ key: 'redirect', label: 'Redireccionar directo al link', type: 'checkbox', wide: true },
-			{ key: 'access_date', label: 'Última fecha de acceso', type: 'date' },
-			{ key: 'original_published_date', label: 'Fecha de publicación original', type: 'date' }
-		],
-		wiki: []
-	};
-	/** @type {Field[]} */
-	const tail = [
-		{
-			key: 'force_unlisted',
-			label: 'No listado (no aparece en las listas, se ve con el link)',
-			type: 'checkbox',
-			wide: true
-		}
-	];
-	const fields = [...common, ...(byCategory[category] ?? []), ...tail];
+	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
+	// Todos los campos (para armar el archivo) y los que se muestran en «Datos»: Empieza y Termina
+	// van en «¿Cuándo es?».
+	const fields = postFields(category);
+	const shownFields = datosFields('editar', category);
 	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
 	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
 	/** @type {string | null} */
 	const linkedVenue = category === 'calendario' ? (data.linkedVenue ?? null) : null;
-
-	/** @param {Field} f @param {any} v */
-	function toInput(f, v) {
-		if (f.type === 'checkbox') return v === true;
-		if (v === undefined || v === null) return '';
-		if (f.type === 'date') return String(v).slice(0, 10);
-		if (f.type === 'datetime') {
-			const { date, time } = parseEventDate(v);
-			return date ? `${date}T${time || '00:00'}` : '';
-		}
-		return String(v);
-	}
-	/** @param {Field} f @param {any} v @returns {any} value for applyFrontmatterChanges */
-	function fromInput(f, v) {
-		if (f.type === 'checkbox') return v ? true : null;
-		if (v === '' || v === undefined || v === null) return null;
-		if (f.type === 'date') return isValidDate(v) ? formatPostDate(v) : v;
-		if (f.type === 'datetime') {
-			const [date, time] = String(v).split('T');
-			return isValidDate(date) && isValidTime(time) ? formatEventDate(date, time) : v;
-		}
-		if (f.type === 'textarea')
-			return String(v)
-				.replace(/\s*\n\s*/g, ' ')
-				.trim();
-		return String(v).trim();
-	}
+	/** @type {Record<string, string>} */
+	const fieldWarnings = linkedVenue
+		? Object.fromEntries(
+				MD_PLACE_KEYS.map((key) => [
+					key,
+					`Este evento tiene un lugar en «Sucede en» (${linkedVenue}): en el sitio se muestra ese lugar según su privacidad, no este dato. Se guarda igual.`
+				])
+			)
+		: {};
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
@@ -227,15 +123,32 @@
 	/** @type {Record<string, any>} */
 	let values = { ...initial, updated_date: todayInArgentina() };
 
+	/* ---------- fecha y hora (eventos): la misma sección que al crear ---------- */
+	const today = todayInArgentina();
+	// Día y hora por separado; vuelven a `start` / `end` con el mismo formato de `toInput`, así que
+	// si no se tocan, no cambian en el archivo.
+	let schedule = scheduleFromInputs(initial.start ?? '', initial.end ?? '');
+	let span = scheduleSpan(schedule);
+	let month = (schedule.startDate || today).slice(0, 7);
+	/** @type {ScheduleSection | undefined} */
+	let scheduleSection;
+	$: allValues = isEvent ? { ...values, ...scheduleToInputs(schedule) } : values;
+	$: scheduleInfo = scheduleSummary(schedule);
+
+	// «Link al mapa»: como al crear, pero solo si se cambió (lo que el archivo ya tenía no bloquea).
+	$: mapError =
+		isEvent && values.location_map !== initial.location_map
+			? (() => {
+					const check = checkMapLink(values.location_map);
+					return check.ok ? '' : check.message;
+				})()
+			: '';
+
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */
 	const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
 	const initialTags = list(meta.tags);
 	const isEvent = category === 'calendario';
-	const tagOptions = buildTagOptions({ category, usage: data.tagUsage });
-	const reservedTags = isEvent
-		? new Set([...excludedFromPicker('calendario'), 'web', 'online', 'virtual'])
-		: new Set();
 	const split = splitEventTags(initialTags);
 	let tagRules = {
 		kinkyvibe: split.kinkyvibe,
@@ -251,7 +164,6 @@
 	const hasAuthors = category !== 'amigues';
 	const initialAuthors = list(meta.authors);
 	let authors = [...initialAuthors];
-	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
 	const authorsLabel = isEvent ? 'Organizan' : 'Autores';
 
 	/* ---------- personas con rol (interruptor personas_eventos) ---------- */
@@ -291,60 +203,32 @@
 
 	/* ---------- image (events only) ---------- */
 	const image = data.image;
-	/** @type {HTMLInputElement} */
-	let fileInput;
-	let uploadURL = '';
-	let uploadName = '';
-	/** @type {'jpg'|'png'|'webp'|''} */
-	let uploadExt = '';
-	let uploadError = '';
+	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
+	let upload = emptyUpload();
+	/** @type {ImageSection | undefined} */
+	let imageSection;
 	/** @type {''|'todas'|'esta'} */
 	let imageScope = '';
 	/** @type {Array<{slug: string, title: string, start: string}> | null} */
 	let affected = null;
 	let affectedError = '';
-	$: askScope = Boolean(image?.shared && uploadExt);
-	$: scope = uploadScope(image?.featured ?? '', askScope ? imageScope : '');
-	$: sharedNewName = askScope ? replacementAssetName(image?.featured ?? '', uploadExt) : '';
-	/** `featured` after saving with the new image ('' = unchanged) */
-	$: newFeatured = !uploadExt
-		? ''
-		: scope === 'todas'
-			? sharedNewName
-			: String(image?.nextNumber ?? 1);
+	$: ({
+		askScope,
+		scope,
+		sharedNewName,
+		newFeatured,
+		problem: scopeProblem
+	} = editEventImage({
+		image,
+		upload,
+		imageScope
+	}));
 	$: if (askScope && scope === 'todas' && affected === null && !affectedError) loadAffected();
 
-	/** @param {Event} e */
-	function onFileChange(e) {
-		// @ts-ignore
-		const file = e.currentTarget.files?.[0];
-		uploadError = '';
-		if (!file) return;
-		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
-		} else if (file.size > data.maxImageBytes) {
-			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
-				data.maxImageBytes / 1024 / 1024
-			} MB.`;
-		}
-		if (uploadError) {
-			fileInput.value = '';
-			return;
-		}
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = URL.createObjectURL(file);
-		uploadName = file.name;
-		uploadExt = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-	}
 	function clearUpload() {
-		if (fileInput) fileInput.value = '';
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = '';
-		uploadName = '';
-		uploadExt = '';
+		imageSection?.clear();
 		imageScope = '';
 	}
-	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
 
 	async function loadAffected() {
 		try {
@@ -366,22 +250,17 @@
 	}
 
 	/* ---------- result ---------- */
-	/** @type {Field} */
-	const datetime = { key: '', label: '', type: 'datetime' };
-	$: scheduleError =
-		isEvent && values.start && values.end
-			? validateSchedule(fromInput(datetime, values.start), fromInput(datetime, values.end))
-			: null;
 	$: problems = parseError
 		? []
 		: /** @type {string[]} */ (
 				[
-					...fields.filter((f) => f.required && !values[f.key]).map((f) => `Falta «${f.label}».`),
-					scheduleError,
-					uploadError,
-					askScope &&
-						!imageScope &&
-						'Elegí si la imagen nueva es para todas las ediciones del evento o solo para esta.',
+					...shownFields
+						.filter((f) => f.required && !values[f.key])
+						.map((f) => `Falta «${f.label}».`),
+					...(isEvent ? scheduleProblems(schedule) : []),
+					mapError,
+					upload.error,
+					scopeProblem,
 					...tagErrors,
 					...newTicketErrors.map((e) => `Entradas: ${e}`),
 					...newPersonasErrors
@@ -390,7 +269,7 @@
 
 	$: content = parseError
 		? rawText
-		: build(values, tags, authors, body, newFeatured, tickets, personas);
+		: build(allValues, tags, authors, body, newFeatured, tickets, personas);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
@@ -424,20 +303,27 @@
 	const unchanged = parseError
 		? data.post.raw
 		: build(
-				values,
+				// (No `allValues`: los `$:` todavía no corrieron.)
+				isEvent ? { ...values, ...scheduleToInputs(schedule) } : values,
 				isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags,
 				authors,
 				body
 			);
-	$: changed = content !== unchanged || Boolean(uploadExt);
+	$: changed = content !== unchanged || Boolean(upload.ext);
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
-	$: draft = { values, tagRules, freeTags, authors, tickets, personas, body, rawText };
+	$: draft = { schedule, values, tagRules, freeTags, authors, tickets, personas, body, rawText };
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
 		if (d.values) values = { ...values, ...d.values };
+		if (isEvent && d.schedule && typeof d.schedule === 'object') {
+			schedule = { ...schedule, ...d.schedule };
+			if (schedule.startDate) month = schedule.startDate.slice(0, 7);
+			// Que el día de fin recuperado no se recalcule desde el de inicio.
+			tick().then(() => scheduleSection?.resync());
+		}
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		if (Array.isArray(d.authors)) authors = d.authors;
@@ -445,6 +331,37 @@
 		if (personasData && Array.isArray(d.personas)) personas = d.personas;
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
+	}
+
+	/* ---------- guardar ---------- */
+	let saving = false;
+	/** La confirmación de la barra: hasta que se vuelve a cambiar algo. */
+	$: savedMessage =
+		form?.save && !changed && !saving
+			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
+			: '';
+
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	function submitSave({ cancel }) {
+		// Un solo envío a la vez (y nada que guardar si está bloqueado).
+		if (saving || !content || problems.length > 0 || !changed) {
+			cancel();
+			return;
+		}
+		saving = true;
+		return async ({ result, update }) => {
+			try {
+				if (result.type === 'success') {
+					// Primero el resultado (borra el borrador), después el archivo guardado.
+					await applyAction(result);
+					await invalidateAll();
+				} else {
+					await update({ reset: false });
+				}
+			} finally {
+				saving = false;
+			}
+		};
 	}
 </script>
 
@@ -468,139 +385,78 @@
 
 	{#if !embedded}<h1>Editar «{meta.title ?? postID}»</h1>{/if}
 
-	<UnsavedChanges
+	<EventForm
+		sections={formSections({
+			mode: 'editar',
+			category,
+			hasImage: Boolean(image),
+			hasPersonas: Boolean(personasData),
+			parseError: !!parseError
+		})}
 		draftKey={draftKey(category, postID)}
 		base={sha}
 		dirty={changed}
 		snapshot={draft}
 		restore={restoreDraft}
 		saved={Boolean(form?.save)}
-		saveForm="edit-form"
-	/>
-
-	{#if parseError}
-		<p class="problems" role="alert">
-			Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
-			como texto. Revisá las líneas entre los <code>---</code>.
-		</p>
-		<textarea class="raw" bind:value={rawText} rows="30"></textarea>
-	{:else}
-		<fieldset class="card">
-			<legend>📝 Datos</legend>
-			<div class="grid">
-				{#each fields as f}
-					{#if f.type === 'checkbox'}
-						<label class="check" class:wide={f.wide}>
-							<input type="checkbox" id="{f.key}-input" bind:checked={values[f.key]} />
-							{f.label}
-						</label>
-					{:else}
-						<label class="field" class:wide={f.wide}>
-							<span
-								>{f.label}
-								{#if f.required}<span class="req">*</span>{/if}</span
-							>
-							{#if f.type === 'textarea'}
-								<textarea
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									rows="3"
-									placeholder={f.placeholder}></textarea>
-							{:else if f.type === 'select'}
-								<select id="{f.key}-input" bind:value={values[f.key]}>
-									{#each f.options ?? [] as o}<option value={o.value}>{o.label}</option>{/each}
-								</select>
-							{:else if f.type === 'date'}
-								<input type="date" id="{f.key}-input" bind:value={values[f.key]} />
-							{:else if f.type === 'datetime'}
-								<input
-									type="datetime-local"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									min={f.key === 'end' ? values.start : undefined}
-								/>
-							{:else if f.type === 'url'}
-								<input
-									type="url"
-									inputmode="url"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else if f.type === 'email'}
-								<input
-									type="email"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else if f.type === 'tel'}
-								<input
-									type="tel"
-									id="{f.key}-input"
-									bind:value={values[f.key]}
-									placeholder={f.placeholder}
-								/>
-							{:else}
-								<input id="{f.key}-input" bind:value={values[f.key]} placeholder={f.placeholder} />
-							{/if}
-							{#if f.help}<small>{f.help}</small>{/if}
-							{#if linkedVenue && MD_PLACE_KEYS.includes(f.key)}
-								<small class="warning"
-									>⚠️ Este evento tiene un lugar en «Sucede en» ({linkedVenue}): en el sitio se
-									muestra ese lugar según su privacidad, no este dato. Se guarda igual.</small
-								>
-							{/if}
-						</label>
-					{/if}
-				{/each}
-			</div>
-			{#if hasAuthors}
-				<div class="field-label">
-					<label for="authors-input">{authorsLabel}</label>
-					<OrganizerPicker
-						bind:authors
-						profiles={data.profiles}
-						options={organizerOptions}
-						id="authors-input"
-						describedby="authors-help"
-					/>
-					<small id="authors-help"
-						>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar».</small
-					>
-				</div>
+		{saving}
+	>
+		{#if parseError}
+			<p class="problems" role="alert">
+				Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
+				como texto. Revisá las líneas entre los <code>---</code>.
+			</p>
+			<textarea class="raw" bind:value={rawText} rows="30"></textarea>
+		{:else}
+			{#if isEvent}
+				<ScheduleSection
+					bind:this={scheduleSection}
+					bind:values={schedule}
+					bind:span
+					bind:month
+					{today}
+					mode="editar"
+					idPrefix="edit"
+					scheduleText={scheduleInfo.text}
+					scheduleError={scheduleInfo.error}
+				/>
 			{/if}
-		</fieldset>
 
-		{#if personasData}
-			<fieldset class="card">
-				<legend>👥 Personas</legend>
-				<p class="hint">
-					Quiénes participan y con qué rol. En la página se muestran con link a su perfil (solo los
-					perfiles públicos).
-				</p>
-				<PersonasEditor
+			<DatosSection
+				fields={shownFields}
+				idFor={datosFieldId('editar')}
+				warnings={fieldWarnings}
+				errors={mapError ? { location_map: mapError } : {}}
+				bind:values
+				{hasAuthors}
+				bind:authors
+				profiles={data.profiles}
+				authorUsage={data.authorUsage}
+				{authorsLabel}
+			/>
+
+			{#if personasData}
+				<PersonasSection
 					bind:personas
 					roles={personasData.roles}
 					profiles={personasData.profiles}
 					errors={newPersonasErrors}
-					idPrefix="edit-personas"
 				/>
-			</fieldset>
-		{/if}
+			{/if}
 
-		{#if image}
-			<fieldset class="card">
-				<legend>🖼️ Imagen</legend>
-				<div class="image-row">
-					{#if uploadURL || image.url}
-						<img src={uploadURL || image.url} alt="Imagen del evento" class="thumb" />
-					{:else}
-						<div class="thumb empty">Sin imagen</div>
-					{/if}
-					<div class="image-actions">
-						{#if uploadExt}
-							<p class="hint">Nueva imagen: {uploadName}</p>
+			{#if image}
+				<ImageSection
+					bind:this={imageSection}
+					bind:upload
+					src={upload.url || image.url}
+					inputId="edit-image"
+					form="edit-form"
+					buttonText={upload.ext ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
+					maxImageBytes={data.maxImageBytes}
+				>
+					<svelte:fragment slot="before">
+						{#if upload.ext}
+							<p class="hint">Nueva imagen: {upload.name}</p>
 						{:else if image.shared}
 							<p class="hint">
 								Usa una imagen compartida con otras ediciones: <code>{image.featured}</code>.
@@ -618,242 +474,163 @@
 								invalid={problems.length > 0}
 							/>
 						{/if}
-						<label class="file">
-							<span>{uploadExt ? 'Elegir otra imagen' : 'Subir una imagen nueva'}</span>
-							<input
-								bind:this={fileInput}
-								type="file"
-								name="image"
-								form="edit-form"
-								id="edit-image"
-								accept="image/jpeg,image/png,image/webp"
-								on:change={onFileChange}
-							/>
-						</label>
-						<small
-							>JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</small
-						>
-						{#if !uploadExt}
-							<p class="note" id="edit-image-where">
-								{#if image.shared}
-									📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones
-									de este evento o solo para esta.
-								{:else}
-									📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code
-									>).
-								{/if}
-							</p>
-						{/if}
-						{#if uploadExt}
-							<p class="note" id="edit-image-case">
-								{#if scope === 'todas'}
-									🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
-									<code>{image.featured}</code>{#if sharedNewName !== image.featured}
-										{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se
-										actualizan los eventos que la usaban){/if}.
-								{:else if askScope && !imageScope}
-									Elegí arriba si es para todas las ediciones o solo para esta.
-								{:else}
-									📁 <strong>Solo este evento:</strong> se guarda como
-									<code>{image.folder}{image.nextNumber}.{uploadExt}</code>{#if image.shared}; la
-										imagen compartida y los otros eventos no cambian{/if}.
-								{/if}
-							</p>
-							{#if scope === 'todas'}
-								<div class="affected" id="edit-affected">
-									{#if affected}
-										<p>
-											<strong
-												>{affected.length === 1
-													? 'Este evento usa'
-													: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar
-												la nueva{sharedNewName !== image.featured
-													? ' (se actualiza su archivo)'
-													: ''}:</strong
-											>
-										</p>
-										<ul>
-											{#each affected as ev}
-												<li>
-													{#if ev.slug === postID}
-														<strong>{ev.title || ev.slug}</strong> (este)
-													{:else}
-														<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
-															>{ev.title || ev.slug}</a
-														>
-													{/if}
-													<small>{ev.start.slice(0, 10)}</small>
-												</li>
-											{/each}
-										</ul>
-									{:else if affectedError}
-										<p>{affectedError}</p>
-									{:else}
-										<p>Buscando los eventos que usan esta imagen…</p>
-									{/if}
-								</div>
+					</svelte:fragment>
+					{#if !upload.ext}
+						<p class="note" id="edit-image-where">
+							{#if image.shared}
+								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
+								este evento o solo para esta.
+							{:else}
+								📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code
+								>).
 							{/if}
-							<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button
-							>
+						</p>
+					{/if}
+					{#if upload.ext}
+						<p class="note" id="edit-image-case">
+							{#if scope === 'todas'}
+								🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
+								<code>{image.featured}</code>{#if sharedNewName !== image.featured}
+									{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se
+									actualizan los eventos que la usaban){/if}.
+							{:else if askScope && !imageScope}
+								Elegí arriba si es para todas las ediciones o solo para esta.
+							{:else}
+								📁 <strong>Solo este evento:</strong> se guarda como
+								<code>{image.folder}{image.nextNumber}.{upload.ext}</code>{#if image.shared}; la
+									imagen compartida y los otros eventos no cambian{/if}.
+							{/if}
+						</p>
+						{#if scope === 'todas'}
+							<div class="affected" id="edit-affected">
+								{#if affected}
+									<p>
+										<strong
+											>{affected.length === 1
+												? 'Este evento usa'
+												: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar
+											la nueva{sharedNewName !== image.featured
+												? ' (se actualiza su archivo)'
+												: ''}:</strong
+										>
+									</p>
+									<ul>
+										{#each affected as ev}
+											<li>
+												{#if ev.slug === postID}
+													<strong>{ev.title || ev.slug}</strong> (este)
+												{:else}
+													<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
+														>{ev.title || ev.slug}</a
+													>
+												{/if}
+												<small>{ev.start.slice(0, 10)}</small>
+											</li>
+										{/each}
+									</ul>
+								{:else if affectedError}
+									<p>{affectedError}</p>
+								{:else}
+									<p>Buscando los eventos que usan esta imagen…</p>
+								{/if}
+							</div>
 						{/if}
-						{#if uploadError}<p class="error">{uploadError}</p>{/if}
-					</div>
-				</div>
-			</fieldset>
-		{/if}
-
-		<fieldset class="card">
-			<legend>🏷️ Etiquetas</legend>
-			{#if isEvent}
-				<EventTagRules bind:state={tagRules} errors={tagErrors} idPrefix="edit" />
+						<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button>
+					{/if}
+				</ImageSection>
 			{/if}
-			<div class="field-label">
-				<label for="tags-input"
-					>{isEvent ? 'Otras etiquetas: tipo de evento, prácticas, temas…' : 'Etiquetas'}</label
-				>
-				<TagPicker
-					bind:tags={freeTags}
-					options={tagOptions}
-					reserved={reservedTags}
-					reservedHint="se elige con los botones de arriba (idioma, lugar, precio o KinkyVibe)."
-					id="tags-input"
-					placeholder={isEvent
-						? 'Buscá una etiqueta: taller, shibari, cine…'
-						: 'Buscá una etiqueta: BDSM, shibari, guía…'}
-					describedby="tags-help"
-				/>
-				<small id="tags-help"
-					>Escribí para buscar (sin importar tildes). Si no existe, podés crearla, pero preferí las
-					que ya existen: son las que se usan para filtrar.</small
-				>
-			</div>
-		</fieldset>
 
-		{#if isEvent}
-			<TicketsEditor
-				bind:state={tickets}
-				{tags}
-				location={values.location}
-				sales={data.sales}
-				salesUnavailable={data.salesUnavailable}
-				errors={ticketsCheck.errors}
-				warnings={ticketsCheck.warnings}
+			<TagsSection
+				{category}
+				usage={data.tagUsage}
+				bind:tagRules
+				bind:freeTags
+				errors={tagErrors}
 				idPrefix="edit"
+				placeholder={isEvent
+					? 'Buscá una etiqueta: taller, shibari, cine…'
+					: 'Buscá una etiqueta: BDSM, shibari, guía…'}
 			/>
+
+			{#if isEvent}
+				<TicketsEditor
+					bind:state={tickets}
+					{tags}
+					location={values.location}
+					sales={data.sales}
+					salesUnavailable={data.salesUnavailable}
+					errors={ticketsCheck.errors}
+					warnings={ticketsCheck.warnings}
+					idPrefix="edit"
+				/>
+			{/if}
+
+			<BodySection bind:value={body} />
 		{/if}
 
-		<fieldset class="card">
-			<legend>📄 Texto de la página</legend>
-			<p class="hint">
-				Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>.
-			</p>
-			<div class="editor">
-				<CodeMirror lineWrapping tabSize={4} bind:value={body} lang={markdown()} />
+		{#if problems.length}
+			<div class="problems" role="alert">
+				<strong>Antes de guardar:</strong>
+				<ul>
+					{#each problems as p}<li>{p}</li>{/each}
+				</ul>
 			</div>
-		</fieldset>
-	{/if}
+		{/if}
+		{#if form?.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		{#if form?.save}
+			<p class="note" role="status">
+				✅ {form.save}
+				{new Date().toLocaleString('es-AR')}
+				{#if form.imageScope === 'todas'}
+					· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
+						{' '}({form.affected.length}
+						{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
+				{:else if form.imageScope === 'esta'}
+					· La imagen nueva se guardó solo para este evento.
+				{/if}
+				<br />{#if form.savedToDb}Se ve enseguida en el sitio{#if form.publish}; la imagen nueva
+						tarda unos minutos: <PublishStatus
+							pr={form.publish}
+						/>{:else}.{/if}{:else}<PublishStatus pr={form.publish} />{/if}
+			</p>
+		{/if}
 
-	{#if problems.length}
-		<div class="problems" role="alert">
-			<strong>Antes de guardar:</strong>
-			<ul>
-				{#each problems as p}<li>{p}</li>{/each}
-			</ul>
-		</div>
-	{/if}
-	{#if form?.error}
-		<p class="error" role="alert">{form.error}</p>
-	{/if}
-	{#if form?.save}
-		<p class="note" role="status">
-			✅ {form.save}
-			{new Date().toLocaleString('es-AR')}
-			{#if form.imageScope === 'todas'}
-				· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-					{' '}({form.affected.length}
-					{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-			{:else if form.imageScope === 'esta'}
-				· La imagen nueva se guardó solo para este evento.
-			{/if}
-			<br /><PublishStatus pr={form.publish} />
-		</p>
-	{/if}
+		<FilePreview {content} savesToDb={data.savesToDb} />
 
-	<details>
-		<summary>Ver el archivo que se va a guardar</summary>
-		<pre class="markdown">{content}</pre>
-	</details>
-
-	<form method="POST" action="?/save" class="bar" id="edit-form" enctype="multipart/form-data">
-		<textarea hidden name="content" value={content}></textarea>
-		<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
-		<input type="hidden" name="sha" value={sha} />
-		<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
-		<input type="hidden" name="path" value={path} />
-		<small class="later"
-			>Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos
-			(normalmente menos de 15) en verse. Si pasa más tiempo, avisale a
-			<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.</small
+		<small class="later" id="save-help"
+			>{copy.editHelp}{#if copy.askGorrite}{' '}Si pasa más tiempo, avisale a
+				<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.{/if}</small
 		>
-		<button
-			type="submit"
-			class="button"
-			id="save"
-			disabled={!content || problems.length > 0 || !changed}
-			title={!changed ? 'No hay cambios' : undefined}>Guardar</button
+		<form
+			method="POST"
+			action="?/save"
+			class="bar sticky"
+			id="edit-form"
+			enctype="multipart/form-data"
+			use:enhance={submitSave}
 		>
-	</form>
+			<textarea hidden name="content" value={content}></textarea>
+			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
+			<input type="hidden" name="sha" value={sha} />
+			<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
+			<input type="hidden" name="path" value={path} />
+			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
+				>{/if}
+			<SaveStatus {saving} message={savedMessage} />
+			<SaveButton
+				id="save"
+				{saving}
+				disabled={!content || problems.length > 0 || !changed}
+				title={!changed && !saving ? 'No hay cambios' : undefined}>Guardar</SaveButton
+			>
+		</form>
+	</EventForm>
 </svelte:element>
 
 <style lang="scss">
 	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). */
-	.wide {
-		grid-column: 1 / -1;
-	}
-	.editor {
-		border-radius: 0.8em;
-		outline: 1px solid var(--1-light);
-		overflow: hidden;
-		/* Con fallback para /edit (fuera del panel); en el panel valen los tokens (claro y oscuro). */
-		:global(.cm-editor) {
-			max-height: 40rem;
-			background: var(--surface, white);
-			color: var(--text, #333);
-		}
-	}
-	.image-row {
-		display: flex;
-		gap: 1em;
-		align-items: flex-start;
-		flex-wrap: wrap;
-	}
-	.thumb {
-		width: 8em;
-		height: 8em;
-		object-fit: cover;
-		border-radius: 1em;
-		&.empty {
-			display: grid;
-			place-items: center;
-			background: var(--surface-2, #f3eef6);
-			font-size: var(--step--1);
-		}
-	}
-	.image-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4em;
-		align-items: flex-start;
-		flex: 1 1 14em;
-		min-width: 0;
-		input[type='file'] {
-			max-width: 100%;
-			font-size: var(--step--1);
-		}
-		code {
-			overflow-wrap: anywhere;
-		}
-	}
 	.affected {
 		background: var(--warn-bg, #fff8e1);
 		color: var(--text, inherit);
@@ -879,24 +656,11 @@
 		font-size: var(--step--1);
 	}
 	.later {
-		flex: 1 1 16em;
-	}
-	details {
+		display: block;
 		margin-top: 1em;
-		summary {
-			cursor: pointer;
-			color: var(--2-dark);
-		}
 	}
-	.markdown {
-		background: #1e1e1e;
-		color: #eee;
-		border-radius: 1em;
-		padding: 1em;
-		font-size: var(--step--2);
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		max-height: 30em;
-		overflow: auto;
+	.blocked {
+		flex: 1 1 12em;
+		color: var(--bad, #b00020);
 	}
 </style>

@@ -17,13 +17,15 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { dateParts, eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 	import {
-		dateParts,
-		eventBadges,
-		foldSearch,
-		shortDate,
-		timeRange
-	} from '$lib/admin/eventFormat.js';
+		FILTERS,
+		filterId,
+		inFilter,
+		isUpcoming,
+		matchesSearch,
+		searchWords
+	} from '$lib/admin/eventList.js';
 	import { todayInArgentina } from '$lib/utils/eventDraft.js';
 
 	/** @type {import('./$types').PageData} */
@@ -32,48 +34,103 @@
 	const PAGE = 40;
 	const icon = { size: 16, strokeWidth: 2.25, 'aria-hidden': true };
 
-	/** @typedef {(typeof data.events)[number]} Row */
-
-	const FILTERS = /** @type {const} */ ([
-		{ id: 'proximos', label: 'Próximos' },
-		{ id: 'pasados', label: 'Pasados' },
-		{ id: 'borradores', label: 'Borradores' },
-		{ id: 'sin-imagen', label: 'Sin imagen' }
-	]);
+	/** @typedef {import('$lib/admin/eventList.js').EventRow} Row */
 
 	const today = todayInArgentina(new Date(data.now));
 	/** @param {Row} e */
-	const upcoming = (e) => !!e.start && e.start.slice(0, 10) >= today;
+	const upcoming = (e) => isUpcoming(e, today);
+	// Cuántos hay en cada filtro y en total: de todos los eventos (los cuenta el servidor), aunque
+	// la página tenga cargados solo algunos.
+	$: counts = data.counts;
 
-	/** @type {Record<string, (e: Row) => boolean>} */
-	const test = {
-		proximos: (e) => upcoming(e) && !e.unpublished,
-		pasados: (e) => !upcoming(e),
-		borradores: (e) => e.unlisted && !e.unpublished,
-		'sin-imagen': (e) => upcoming(e) && !e.thumb && !e.unpublished
-	};
-	const counts = Object.fromEntries(
-		FILTERS.map((f) => [f.id, data.events.filter(test[f.id]).length])
-	);
+	// La página trae los próximos, los borradores y los pasados de los últimos meses; los
+	// anteriores llegan con «Ver anteriores» (de a tandas) y se suman acá.
+	/** @type {Row[]} */
+	let older = [];
+	let olderLeft = data.older;
+	let loadingOlder = false;
+	let olderError = '';
+	/**
+	 * Lo de la página más lo que llegó después, sin repetir, del más nuevo al más viejo.
+	 * @param {Row[]} first
+	 * @param {Row[]} more
+	 */
+	function merge(first, more) {
+		const have = new Set(first.map((e) => e.slug));
+		return [...first, ...more.filter((e) => !have.has(e.slug))].sort((a, b) => a.i - b.i);
+	}
+	$: loaded = merge(data.events, older);
 
-	$: filter = FILTERS.some((f) => f.id === $page.url.searchParams.get('filtro'))
-		? /** @type {string} */ ($page.url.searchParams.get('filtro'))
-		: 'proximos';
+	$: filter = filterId($page.url.searchParams.get('filtro'));
 	let query = '';
 	let shown = PAGE;
-	$: words = foldSearch(query).split(/\s+/).filter(Boolean);
-	$: inFilter = data.events.filter(test[filter]);
-	// Próximos: del más cercano al más lejano. El resto: del más nuevo al más viejo.
-	$: ordered =
-		filter === 'proximos' || filter === 'sin-imagen' ? [...inFilter].reverse() : inFilter;
+	$: words = searchWords(query);
+	$: ordered = inFilter(loaded, filter, today);
+
+	// Buscar busca en TODOS los eventos (también los que no están cargados): al instante en lo
+	// cargado y, un momento después, en el servidor, que trae los que falten.
+	/** @type {{ query: string, events: Row[] } | null} */
+	let found = null;
+	let searching = false;
+	let searchError = '';
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let searchTimer;
+	$: searchServer(words.join(' '));
+	/** @param {string} q */
+	function searchServer(q) {
+		clearTimeout(searchTimer);
+		searchError = '';
+		if (!q) {
+			searching = false;
+			found = null;
+			return;
+		}
+		searching = true;
+		searchTimer = setTimeout(async () => {
+			try {
+				const res = await fetch(`/admin/eventos/lista.json?q=${encodeURIComponent(q)}`);
+				if (!res.ok) throw new Error(String(res.status));
+				const body = await res.json();
+				if (words.join(' ') !== q) return;
+				found = { query: q, events: body.events };
+			} catch (e) {
+				if (words.join(' ') === q) searchError = 'No pudimos buscar en los eventos anteriores.';
+			} finally {
+				if (words.join(' ') === q) searching = false;
+			}
+		}, 300);
+	}
+	$: localMatches = loaded.filter((e) => matchesSearch(e, words));
 	$: visible = words.length
-		? // Buscando se busca en todos los eventos, no solo en el filtro.
-			data.events.filter((e) => {
-				const hay = foldSearch(`${e.title} ${e.slug} ${e.locationName} ${e.location} ${e.place}`);
-				return words.every((w) => hay.includes(w));
-			})
+		? found && found.query === words.join(' ')
+			? found.events
+			: localMatches
 		: ordered;
 	$: (query, filter, (shown = PAGE));
+	// «Ver anteriores»: solo en Pasados, cuando ya se ve todo lo cargado.
+	$: canLoadOlder =
+		!words.length && filter === 'pasados' && olderLeft > 0 && shown >= visible.length;
+
+	async function loadOlder() {
+		loadingOlder = true;
+		olderError = '';
+		try {
+			const res = await fetch(`/admin/eventos/lista.json?anteriores=${older.length}`);
+			if (!res.ok) throw new Error(String(res.status));
+			const body = await res.json();
+			older = [...older, ...body.events];
+			olderLeft = body.remaining;
+			shown = visible.length + body.events.length;
+		} catch (e) {
+			olderError = 'No pudimos traer los eventos anteriores. Probá de nuevo.';
+		} finally {
+			loadingOlder = false;
+		}
+	}
+
+	$: csvHref = `/admin/eventos/eventos.csv?filtro=${filter}${
+		words.length ? `&q=${encodeURIComponent(query)}` : ''
+	}`;
 
 	/** @param {Row} e */
 	function warnings(e) {
@@ -82,33 +139,14 @@
 		if (e.transfers) out.push(`${e.transfers} transf. por confirmar`);
 		return out;
 	}
-
-	/** @type {import('$lib/admin/csv.js').CsvColumn<Row>[]} */
-	const columns = [
-		{ label: 'slug', key: 'slug' },
-		{ label: 'título', key: 'title' },
-		{ label: 'empieza', key: 'start' },
-		{ label: 'termina', key: 'end' },
-		{ label: 'estado', key: 'status' },
-		{ label: 'no listado', value: (e) => (e.unlisted ? 'sí' : '') },
-		{ label: 'lugar', key: 'locationName' },
-		{ label: 'dirección', key: 'location' },
-		{ label: 'región', key: 'place' },
-		{ label: 'imagen', value: (e) => (e.thumb ? 'sí' : 'no') },
-		{ label: 'vende entradas', value: (e) => (e.sellsTickets ? 'sí' : '') },
-		{ label: 'vendidas', value: (e) => (e.sellsTickets ? e.sold : '') },
-		{ label: 'cupo', value: (e) => e.capacity ?? '' },
-		{ label: 'transferencias pendientes', value: (e) => e.transfers || '' }
-	];
 </script>
 
 <PageHeader
 	title="Eventos"
-	subtitle="{counts.proximos} próximos · {counts.borradores} borradores · {data.events
-		.length} en total"
+	subtitle="{counts.proximos} próximos · {counts.borradores} borradores · {data.total} en total"
 >
 	<svelte:fragment slot="actions">
-		<CsvButton rows={visible} {columns} filename="eventos-{filter}.csv" />
+		<CsvButton href={csvHref} />
 		<a class="kv-btn ghost" href="/admin/eventos/agenda"><Table2 {...icon} /> Agenda</a>
 		{#if data.seriesOn}<a class="kv-btn ghost" href="/admin/eventos/series"
 				><Repeat {...icon} /> Series</a
@@ -147,10 +185,19 @@
 </div>
 
 <Card padded={false}>
+	{#if words.length && (searching || searchError)}
+		<p class="status" role="status">
+			{searchError || 'Buscando también en los eventos anteriores…'}
+		</p>
+	{/if}
 	{#if visible.length === 0}
 		<EmptyState
 			icon={SearchX}
-			title={words.length ? `No encontramos eventos con “${query}”` : 'No hay eventos acá'}
+			title={words.length
+				? searching
+					? `Buscando “${query}”…`
+					: `No encontramos eventos con “${query}”`
+				: 'No hay eventos acá'}
 			text={filter === 'sin-imagen' && !words.length
 				? 'Todos los próximos eventos tienen imagen.'
 				: ''}
@@ -219,6 +266,14 @@
 				>
 			</p>
 		{/if}
+	{/if}
+	{#if canLoadOlder}
+		<p class="more">
+			<button class="kv-btn ghost" on:click={loadOlder} disabled={loadingOlder}
+				>{loadingOlder ? 'Trayendo…' : `Ver anteriores (${olderLeft})`}</button
+			>
+			{#if olderError}<span class="status" role="alert">{olderError}</span>{/if}
+		</p>
 	{/if}
 </Card>
 
@@ -388,6 +443,13 @@
 		text-align: center;
 		padding: 0.5rem 0 1rem;
 		margin: 0;
+	}
+	.status {
+		display: block;
+		margin: 0;
+		padding: 0.6rem 1rem;
+		color: var(--muted);
+		font-size: 0.85rem;
 	}
 	.sr-only {
 		position: absolute;

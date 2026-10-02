@@ -158,7 +158,8 @@ export async function subscribeEmail({
 		seriesName,
 		confirmUrl: confirmUrl(origin, token),
 		unsubscribeUrl: await unsubscribeUrl(db, origin, id),
-		hours: Math.round(CONFIRM_TTL_MS / 3_600_000)
+		expiresAt: now + CONFIRM_TTL_MS,
+		now
 	});
 	const result = await send(email, message);
 	if (result === 'failed') return { ok: false, status: 502, message: SERIES_MESSAGES.mailFailed };
