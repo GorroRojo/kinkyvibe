@@ -166,6 +166,31 @@ export async function listPublicProfiles(db, viewer, { kind } = {}) {
 }
 
 /**
+ * Una marca que cambia cuando cambia algo de lo que lista {@link listPublicProfiles}: cuántos
+ * perfiles hay y cuándo cambió el último (todo cambio de un objeto pasa por `saveObject`, que
+ * actualiza `updated_at`: también ocultar, borrar o marcar «no listado»), las aprobaciones y las
+ * fichas importadas. Una consulta chica, para quien recuerda algo armado con los perfiles (el
+ * índice de la búsqueda).
+ *
+ * @param {D1Database} db
+ * @returns {Promise<string>}
+ */
+export async function profilesStamp(db) {
+	const row = await db
+		.prepare(
+			`SELECT (SELECT count(*) FROM objects WHERE type = ?1) AS n,
+				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
+				(SELECT count(*) FROM profile_approvals) AS an,
+				(SELECT total(profile_id) FROM profile_approvals) AS ai,
+				(SELECT count(*) FROM profile_sources) AS sn,
+				(SELECT max(updated_at) FROM profile_sources) AS su`
+		)
+		.bind(PROFILE_TYPE)
+		.first();
+	return `${row?.n}:${row?.u}:${row?.an}:${row?.ai}:${row?.sn}:${row?.su}`;
+}
+
+/**
  * Las direcciones viejas de todas las fichas importadas (también ocultas o borradas): con el
  * interruptor prendido, esas fichas se muestran solo desde la base (aunque el .md siga).
  *
