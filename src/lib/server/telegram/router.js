@@ -1,13 +1,27 @@
 /**
- * Qué responde el bot a cada mensaje y a cada botón (decisión 0029, fase 1: solo lectura).
+ * Qué responde el bot a cada mensaje y a cada botón (decisión 0029). Fase 1: eventos, solo
+ * lectura. Fase 2: vincular el chat con una cuenta (`/vincular`, `/desvincular`, `/silenciar`,
+ * `/reanudar`), solo por chat privado y con `deps.accounts` (que da `null` con algún interruptor
+ * apagado).
  *
  * `handleUpdate` recibe un "update" de Telegram y devuelve la respuesta como un método de la API
  * (`sendMessage`, `editMessageText` o `answerCallbackQuery`), que el webhook contesta en el mismo
  * pedido (así no hace falta guardar el token del bot ni llamar a la API de Telegram), o `null` si
  * no hay nada que contestar. No tiene reglas propias de visibilidad: lo que se puede mostrar lo
- * decide `deps.listUpcoming`, también cuando se toca un botón viejo.
+ * decide `deps.listUpcoming`, también cuando se toca un botón viejo. No sabe de la base: lo de
+ * las cuentas pasa por `deps.accounts` (link.js).
  */
 import {
+	ACCOUNTS_OFF_TEXT,
+	LINK_ASK_CODE_TEXT,
+	LINK_INVALID_TEXT,
+	LINK_TOO_MANY_TEXT,
+	MUTED_TEXT,
+	NOT_LINKED_TEXT,
+	PRIVATE_ONLY_TEXT,
+	UNLINKED_TEXT,
+	UNMUTED_TEXT,
+	formatLinked,
 	ERROR_TEXT,
 	NOT_FOUND_TEXT,
 	UNAVAILABLE_TEXT,
@@ -34,11 +48,28 @@ import {
  */
 
 /**
+ * Lo que el bot puede hacer con las cuentas (fase 2). `chatId` es siempre el del chat privado.
+ *
+ * @typedef {{
+ *   link: (code: string, chatId: number | string) => Promise<'linked' | 'invalid' | 'too_many'>,
+ *   unlink: (chatId: number | string) => Promise<boolean>,
+ *   setMuted: (chatId: number | string, muted: boolean) => Promise<boolean>
+ * }} BotAccounts
+ */
+
+/**
  * @typedef {{
  *   listUpcoming: () => Promise<BotEvent[]>,
- *   origin: string
+ *   origin: string,
+ *   accounts?: () => Promise<BotAccounts | null>
  * }} Deps
  */
+
+/** Los comandos de la cuenta (fase 2). */
+const ACCOUNT_COMMANDS = new Set(['vincular', 'desvincular', 'silenciar', 'reanudar']);
+
+/** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
+const START_CODE = /^[A-Za-z0-9]{8}$/;
 
 /**
  * "/evento@MiBot taller" → `{ name: 'evento', args: 'taller' }`. `null` si no es un comando.
@@ -214,6 +245,36 @@ async function handleCallback(callback, deps) {
 }
 
 /**
+ * `/vincular`, `/desvincular`, `/silenciar` y `/reanudar`: solo por chat privado (en un grupo,
+ * cualquiera del grupo vería el código o recibiría los avisos de otra persona).
+ *
+ * @param {{ name: string, args: string }} command
+ * @param {any} chat
+ * @param {Deps} deps
+ * @returns {Promise<string>}
+ */
+async function accountCommand(command, chat, deps) {
+	if (chat?.type !== 'private') return PRIVATE_ONLY_TEXT;
+	const accounts = deps.accounts ? await deps.accounts() : null;
+	if (!accounts) return ACCOUNTS_OFF_TEXT;
+	const chatId = chat.id;
+	switch (command.name) {
+		case 'vincular': {
+			if (!command.args) return LINK_ASK_CODE_TEXT;
+			const r = await accounts.link(command.args, chatId);
+			if (r === 'linked') return formatLinked(deps.origin);
+			return r === 'too_many' ? LINK_TOO_MANY_TEXT : LINK_INVALID_TEXT;
+		}
+		case 'desvincular':
+			return (await accounts.unlink(chatId)) ? UNLINKED_TEXT : NOT_LINKED_TEXT;
+		case 'silenciar':
+			return (await accounts.setMuted(chatId, true)) ? MUTED_TEXT : NOT_LINKED_TEXT;
+		default:
+			return (await accounts.setMuted(chatId, false)) ? UNMUTED_TEXT : NOT_LINKED_TEXT;
+	}
+}
+
+/**
  * Botones para una lista (ninguno si está vacía).
  *
  * @param {BotEvent[]} events
@@ -237,9 +298,17 @@ export async function handleUpdate(update, deps) {
 	try {
 		switch (command.name) {
 			case 'start':
+				// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
+				if (START_CODE.test(command.args)) {
+					const linkCommand = { name: 'vincular', args: command.args };
+					return reply(chatId, await accountCommand(linkCommand, message.chat, deps));
+				}
+			// falls through
 			case 'ayuda':
-			case 'help':
-				return reply(chatId, formatHelp(origin));
+			case 'help': {
+				const accounts = deps.accounts ? await deps.accounts() : null;
+				return reply(chatId, formatHelp(origin, { accounts: Boolean(accounts) }));
+			}
 			case 'proximos': {
 				const events = await deps.listUpcoming();
 				return reply(chatId, formatEventList(events, origin), keyboardFor(events));
@@ -260,6 +329,9 @@ export async function handleUpdate(update, deps) {
 				return reply(chatId, formatChoices(found, origin), eventListKeyboard(found));
 			}
 			default:
+				if (ACCOUNT_COMMANDS.has(command.name)) {
+					return reply(chatId, await accountCommand(command, message.chat, deps));
+				}
 				return reply(chatId, UNKNOWN_TEXT);
 		}
 	} catch (error) {

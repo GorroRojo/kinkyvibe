@@ -36,8 +36,11 @@ de siempre, sin salir de la página (`?/seguir`). Sin JavaScript es un campo de 
 
 Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). Sumar Telegram
 (el bot, [telegram.md](telegram.md)) es darle sus casillas en `fields` y `enabled: true`: la grilla
-(`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Todavía no hay nada de Telegram en la
-base.
+(`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Con la fase 2 del bot
+([telegram.md](telegram.md), migración 0033) la columna se prende por cuenta con
+`notifyChannels(data.telegram)`: andando con el chat vinculado, «Sin conectar» si no, y
+«Próximamente» con el bot apagado. La tarjeta «Telegram» (`TelegramCard.svelte`) va abajo de lo
+seguido.
 
 ## Cómo prenderlo
 

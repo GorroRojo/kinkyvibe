@@ -18,6 +18,17 @@
  *
  * El mail va al de la cuenta; no dice nada de otras cuentas. Lleva el link para apagar todos los
  * mails de «Lo que sigo» (sin entrar) y el de Mi rincón → Lo que sigo.
+ *
+ * **Telegram** (fase 2 del bot, docs/telegram.md): con `telegram` (el cron lo pasa con el
+ * interruptor `telegram_bot` prendido y el secret TELEGRAM_BOT_TOKEN cargado), lo mismo por el
+ * chat vinculado de la cuenta (`telegram_chats`, si no está silenciado), con sus casillas
+ * (`tg_new`, `tg_reminder`) y su propia fila en `follow_notifications` (canal `telegram`): un
+ * aviso por cuenta, evento, tipo y canal. Diferencias:
+ * - **horario de silencio**: entre las 23 y las 9 (hora de Argentina) no sale nada por Telegram
+ *   ni se toma ninguna fila; lo pendiente sale en la primera corrida desde las 9;
+ * - «algo nuevo» solo de eventos que se vieron después de vincular el chat;
+ * - el mensaje lleva solo título, fecha y link;
+ * - si Telegram dice que el chat ya no recibe (bloqueó al bot), se desvincula.
  */
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { eventsForFollow } from './calendar.js';
@@ -25,11 +36,18 @@ import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
 import { buildFollowEmail } from './email.js';
 import { resolveTarget } from './targets.js';
-import { optionsFromRow } from '$lib/utils/sigo.js';
+import { optionsFromRow, telegramOptionsFromRow } from '$lib/utils/sigo.js';
+import { formatFollowNotice } from '$lib/server/telegram/format.js';
+import { isQuietHour } from '$lib/server/telegram/quiet.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
 /** @typedef {(to: string, message: import('./email.js').Message, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
+
+/** @typedef {'mail' | 'telegram'} Channel */
+
+/** Avisos por Telegram por corrida, como mucho (aparte de los mails). */
+export const TELEGRAM_NOTIFY_BATCH = 50;
 
 /** Mails por corrida, como mucho (el resto sale en las siguientes). */
 export const FOLLOW_NOTIFY_BATCH = 50;
@@ -118,8 +136,11 @@ export async function markEventsSeen(db, slugs, now) {
 
 /**
  * @param {{ db: D1Database, posts: readonly Post[], tags: TagManager, origin: string,
- *   send: FollowSend, now?: number, limit?: number }} input
- * @returns {Promise<{ seen: number, migrated: number, sent: number, failed: number }>}
+ *   send: FollowSend, now?: number, limit?: number,
+ *   telegram?: { send: import('$lib/server/telegram/send.js').TelegramSend } | null,
+ *   telegramLimit?: number }} input
+ * @returns {Promise<{ seen: number, migrated: number, sent: number, failed: number,
+ *   telegram: { sent: number, failed: number, quiet: boolean } | null }>}
  */
 export async function runFollowNotifications({
 	db,
@@ -128,8 +149,14 @@ export async function runFollowNotifications({
 	origin,
 	send,
 	now = Date.now(),
-	limit = FOLLOW_NOTIFY_BATCH
+	limit = FOLLOW_NOTIFY_BATCH,
+	telegram = null,
+	telegramLimit = TELEGRAM_NOTIFY_BATCH
 }) {
+	const quiet = Boolean(telegram) && isQuietHour(now);
+	// En horario de silencio no se lee nada de Telegram: lo pendiente queda para las 9.
+	const telegramOn = Boolean(telegram) && !quiet;
+	const tg = telegram ? { sent: 0, failed: 0, quiet } : null;
 	const events = upcomingEvents(posts, now);
 	const seen = await markEventsSeen(
 		db,
@@ -137,7 +164,7 @@ export async function runFollowNotifications({
 		now
 	);
 	const migrated = await migrateAccountSubscriptions(db, { now });
-	if (!events.length) return { seen, migrated, sent: 0, failed: 0 };
+	if (!events.length) return { seen, migrated, sent: 0, failed: 0, telegram: tg };
 
 	const keys = JSON.stringify(events.map((p) => String(p.meta.postID)));
 	const { results: seenRows } = await db
@@ -150,31 +177,44 @@ export async function runFollowNotifications({
 	const firstSeen = new Map(seenRows.map((r) => [String(r.event_slug), Number(r.first_seen_at)]));
 	const { results: sentRows } = await db
 		.prepare(
-			`SELECT account_id, event_slug, kind FROM follow_notifications
+			`SELECT account_id, event_slug, kind, channel FROM follow_notifications
 			WHERE event_slug IN (SELECT value FROM json_each(?1))`
 		)
 		.bind(keys)
 		.all();
+	/** @param {unknown} account @param {unknown} slug @param {unknown} kind @param {unknown} channel */
+	const sentKey = (account, slug, kind, channel) =>
+		`${account}\u0000${slug}\u0000${kind}\u0000${channel}`;
 	const already = new Set(
-		sentRows.map((r) => `${r.account_id}\u0000${r.event_slug}\u0000${r.kind}`)
+		sentRows.map((r) => sentKey(r.account_id, r.event_slug, r.kind, r.channel))
 	);
 
-	// Las cosas seguidas con algún mail, de cuentas vivas con mail.
+	// Las cosas seguidas con algún aviso: por mail (cuentas vivas con mail) o, si Telegram anda,
+	// por el chat vinculado y no silenciado.
 	const { results: rows } = await db
 		.prepare(
-			`SELECT f.*, a.email FROM follows f JOIN accounts a ON a.id = f.account_id
-			WHERE (f.mail_new = 1 OR f.mail_reminder = 1)
-			AND a.deleted_at IS NULL AND a.email IS NOT NULL
+			`SELECT f.*, a.email, tc.chat_id AS tg_chat_id, tc.linked_at AS tg_linked_at
+			FROM follows f JOIN accounts a ON a.id = f.account_id
+			LEFT JOIN telegram_chats tc ON ?1 = 1 AND tc.account_id = f.account_id AND tc.muted = 0
+			WHERE a.deleted_at IS NULL AND (
+				(a.email IS NOT NULL AND (f.mail_new = 1 OR f.mail_reminder = 1))
+				OR (tc.chat_id IS NOT NULL AND (f.tg_new = 1 OR f.tg_reminder = 1)))
 			ORDER BY f.account_id, f.created_at`
 		)
+		.bind(telegramOn ? 1 : 0)
 		.all();
 
-	/** @type {Map<string, { email: string, items: Map<string, { post: Post, kinds: Set<'nuevo' | 'recordatorio'>, reasons: Set<string> }> }>} */
+	/**
+	 * @typedef {{ post: Post, kinds: Record<Channel, Set<'nuevo' | 'recordatorio'>>,
+	 *   reasons: Set<string> }} Item
+	 */
+	/** @type {Map<string, { email: string | null, chatId: string | null, items: Map<string, Item> }>} */
 	const byAccount = new Map();
-	let budget = limit;
 	for (const row of rows) {
 		const accountId = String(row.account_id);
-		const options = optionsFromRow(row);
+		const mail = row.email == null ? null : optionsFromRow(row);
+		const chat = row.tg_chat_id == null ? null : telegramOptionsFromRow(row);
+		const linkedAt = Number(row.tg_linked_at ?? Infinity);
 		const target = {
 			kind: /** @type {any} */ (String(row.target_kind)),
 			key: String(row.target_key)
@@ -185,46 +225,93 @@ export async function runFollowNotifications({
 		let reason = null;
 		for (const post of matched) {
 			const slug = String(post.meta.postID);
-			/** @type {('nuevo' | 'recordatorio')[]} */
-			const due = [];
 			const seenAt = firstSeen.get(slug);
-			if (options.mail_nuevo && seenAt !== undefined && Number(row.created_at) < seenAt)
-				due.push('nuevo');
+			const isNew = seenAt !== undefined && Number(row.created_at) < seenAt;
 			const start = new Date(post.meta.start).getTime();
-			if (options.recordatorio && start - now <= REMINDER_WINDOW_MS) due.push('recordatorio');
-			const fresh = due.filter((k) => !already.has(`${accountId}\u0000${slug}\u0000${k}`));
+			const isSoon = start - now <= REMINDER_WINDOW_MS;
+			/** @type {[Channel, 'nuevo' | 'recordatorio'][]} */
+			const due = [];
+			if (mail?.mail_nuevo && isNew) due.push(['mail', 'nuevo']);
+			if (mail?.recordatorio && isSoon) due.push(['mail', 'recordatorio']);
+			// Por Telegram, «algo nuevo» solo de lo que se vio después de vincular el chat.
+			if (chat?.telegram_nuevo && isNew && Number(seenAt) > linkedAt)
+				due.push(['telegram', 'nuevo']);
+			if (chat?.telegram_recordatorio && isSoon) due.push(['telegram', 'recordatorio']);
+			const fresh = due.filter(([ch, k]) => !already.has(sentKey(accountId, slug, k, ch)));
 			if (!fresh.length) continue;
 			reason ??=
 				(await resolveTarget({ db, tags, accountId }, target))?.title ?? String(row.target_key);
 			let acc = byAccount.get(accountId);
-			if (!acc) byAccount.set(accountId, (acc = { email: String(row.email), items: new Map() }));
-			const item = acc.items.get(slug) ?? { post, kinds: new Set(), reasons: new Set() };
+			if (!acc) {
+				acc = {
+					email: row.email == null ? null : String(row.email),
+					chatId: row.tg_chat_id == null ? null : String(row.tg_chat_id),
+					items: new Map()
+				};
+				byAccount.set(accountId, acc);
+			}
+			const item = acc.items.get(slug) ?? {
+				post,
+				kinds: { mail: new Set(), telegram: new Set() },
+				reasons: new Set()
+			};
 			acc.items.set(slug, item);
-			for (const k of fresh) item.kinds.add(k);
+			for (const [ch, k] of fresh) item.kinds[ch].add(k);
 			item.reasons.add(reason);
 		}
 	}
 
+	/**
+	 * Toma la fila antes de mandar (si otra corrida ya la tomó, no se manda).
+	 *
+	 * @param {string} accountId
+	 * @param {string} slug
+	 * @param {string} kind
+	 * @param {Channel} channel
+	 */
+	const claim = async (accountId, slug, kind, channel) => {
+		const r = await db
+			.prepare(
+				`INSERT INTO follow_notifications (account_id, event_slug, kind, channel, sent_at)
+				VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT DO NOTHING`
+			)
+			.bind(accountId, slug, kind, channel, now)
+			.run();
+		return Number(r.meta?.changes ?? 0) === 1;
+	};
+	/**
+	 * Suelta la fila si no salió (se reintenta en la próxima).
+	 *
+	 * @param {string} accountId
+	 * @param {string} slug
+	 * @param {string} kind
+	 * @param {Channel} channel
+	 */
+	const release = (accountId, slug, kind, channel) =>
+		db
+			.prepare(
+				`DELETE FROM follow_notifications
+				WHERE account_id = ?1 AND event_slug = ?2 AND kind = ?3 AND channel = ?4`
+			)
+			.bind(accountId, slug, kind, channel)
+			.run();
+
 	let sent = 0;
 	let failed = 0;
+	let budget = limit;
+	let tgBudget = telegramLimit;
 	for (const [accountId, acc] of byAccount) {
 		for (const [slug, item] of acc.items) {
-			for (const kind of item.kinds) {
-				if (budget <= 0) return { seen, migrated, sent, failed };
-				const claim = await db
-					.prepare(
-						`INSERT INTO follow_notifications (account_id, event_slug, kind, sent_at)
-						VALUES (?1, ?2, ?3, ?4) ON CONFLICT DO NOTHING`
-					)
-					.bind(accountId, slug, kind, now)
-					.run();
-				if (Number(claim.meta?.changes ?? 0) !== 1) continue;
+			const eventUrl = origin + (item.post.path ?? `/calendario/${slug}`);
+			for (const kind of item.kinds.mail) {
+				if (budget <= 0 || !acc.email) break;
+				if (!(await claim(accountId, slug, kind, 'mail'))) continue;
 				budget--;
 				const message = buildFollowEmail({
 					kind,
 					title: String(item.post.meta.title ?? slug),
 					start: String(item.post.meta.start),
-					eventUrl: origin + (item.post.path ?? `/calendario/${slug}`),
+					eventUrl,
 					reasons: [...item.reasons],
 					manageUrl: `${origin}/mi-rincon/sigo`,
 					stopUrl: await stopMailUrl(db, origin, accountId)
@@ -238,16 +325,35 @@ export async function runFollowNotifications({
 				}
 				if (result === 'failed') {
 					failed++;
-					await db
-						.prepare(
-							`DELETE FROM follow_notifications
-							WHERE account_id = ?1 AND event_slug = ?2 AND kind = ?3`
-						)
-						.bind(accountId, slug, kind)
-						.run();
+					await release(accountId, slug, kind, 'mail');
 				} else sent++;
+			}
+			for (const kind of item.kinds.telegram) {
+				if (!telegram || !tg || tgBudget <= 0 || !acc.chatId) break;
+				if (!(await claim(accountId, slug, kind, 'telegram'))) continue;
+				tgBudget--;
+				const text = formatFollowNotice({
+					kind,
+					title: String(item.post.meta.title ?? slug),
+					start: String(item.post.meta.start),
+					url: eventUrl
+				});
+				const result = await telegram.send(acc.chatId, text);
+				if (result === 'sent') tg.sent++;
+				else if (result === 'blocked') {
+					// Bloqueó al bot o borró el chat: se desvincula (puede conectarlo de nuevo).
+					tg.failed++;
+					await db
+						.prepare('DELETE FROM telegram_chats WHERE account_id = ?1 AND chat_id = ?2')
+						.bind(accountId, acc.chatId)
+						.run();
+					acc.chatId = null;
+				} else {
+					tg.failed++;
+					await release(accountId, slug, kind, 'telegram');
+				}
 			}
 		}
 	}
-	return { seen, migrated, sent, failed };
+	return { seen, migrated, sent, failed, telegram: tg };
 }

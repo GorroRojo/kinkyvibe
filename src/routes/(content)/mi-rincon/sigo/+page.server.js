@@ -33,6 +33,7 @@ import {
 	resolveTarget
 } from '$lib/server/sigo/targets.js';
 import { SIGO_PATH, requireSigoMember } from '$lib/server/sigo/web.js';
+import { telegramCardData, withTelegramOptions } from '$lib/server/telegram/web.js';
 import { DEFAULT_FOLLOW_OPTIONS, optionsFromForm, parseTarget } from '$lib/utils/sigo.js';
 
 /** @param {FormData} form @param {string} key */
@@ -70,16 +71,19 @@ async function nextEvents(platform) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireSigoMember(event);
-	const [tags, events, profilesOn] = await Promise.all([
+	const [tags, events, profilesOn, telegram] = await Promise.all([
 		siteTagManager(event.platform),
 		nextEvents(event.platform),
-		perfilesPublicosEnabled(event.platform)
+		perfilesPublicosEnabled(event.platform),
+		// Fase 2 del bot: `null` con algún interruptor apagado (docs/telegram.md).
+		telegramCardData(event.platform, db, member.id)
 	]);
 	return {
 		follows: await describeFollows(
 			{ db, tags, accountId: member.id, events },
-			await listFollows(db, member.id)
+			withTelegramOptions(await listFollows(db, member.id), telegram)
 		),
+		telegram,
 		// Qué más va al calendario personal (además de lo seguido).
 		calendar: await getCalendarPrefs(db, member.id),
 		// Para «Agregar»: las etiquetas y series del árbol y, con perfiles públicos, los perfiles.

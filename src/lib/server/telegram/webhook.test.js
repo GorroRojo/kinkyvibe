@@ -126,6 +126,19 @@ describe('handleWebhook', () => {
 		expect(await res.text()).toBe('');
 	});
 
+	it('/vincular por chat privado llega a las cuentas, solo con el secreto', async () => {
+		const link = vi.fn(async () => /** @type {const} */ ('linked'));
+		const accounts = vi.fn(async () => ({ link, unlink: vi.fn(), setMuted: vi.fn() }));
+		const body = JSON.stringify({
+			message: { chat: { id: 7, type: 'private' }, text: '/vincular ABCD-2345' }
+		});
+		expect((await run({ request: req({ body, secret: null }), accounts })).status).toBe(401);
+		expect(accounts).not.toHaveBeenCalled();
+		const res = await run({ request: req({ body }), accounts });
+		expect((await res.json()).text).toContain('quedó conectado');
+		expect(link).toHaveBeenCalledWith('ABCD-2345', 7);
+	});
+
 	it('400 si el body no es JSON, 413 si es enorme', async () => {
 		expect((await run({ request: req({ body: 'no es json' }) })).status).toBe(400);
 		const big = JSON.stringify({ x: 'a'.repeat(MAX_BODY_BYTES) });

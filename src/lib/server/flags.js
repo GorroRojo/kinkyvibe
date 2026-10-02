@@ -103,7 +103,10 @@ export const FLAGS = Object.freeze({
 		description:
 			'El bot de la comunidad contesta /proximos y /evento con los próximos eventos públicos ' +
 			'(docs/telegram.md, decisión 0029). Antes de prenderlo: cargar TELEGRAM_WEBHOOK_SECRET y ' +
-			'apuntar el webhook del bot a /api/telegram. Apagado, el bot no contesta nada.',
+			'apuntar el webhook del bot a /api/telegram. Con «Lo que sigo» y «Cuentas del público» ' +
+			'prendidos, además conecta chats con cuentas (Mi rincón → Lo que sigo) y manda esos ' +
+			'avisos por Telegram (necesita el secret TELEGRAM_BOT_TOKEN y la migración 0033). ' +
+			'Apagado, el bot no contesta nada.',
 		envVar: 'TELEGRAM_BOT_ENABLED'
 	}
 });
