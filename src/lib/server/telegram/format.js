@@ -110,15 +110,27 @@ export function formatEvent(event, origin) {
  */
 export function formatChoices(events, origin) {
 	const lines = events.slice(0, LIST_MAX).map((e) => eventLine(e, origin));
-	return `Encontré varios eventos. ¿Cuál querés ver?\n\n${lines.join('\n\n')}`;
+	return `Encontré varios eventos. ¿Cuál querés ver? Tocá uno.\n\n${lines.join('\n\n')}`;
+}
+
+/**
+ * La lista para elegir con botones (`/evento` sin nada).
+ *
+ * @param {BotEvent[]} events
+ * @param {string} origin
+ */
+export function formatPickList(events, origin) {
+	if (events.length === 0) return formatEventList(events, origin);
+	return `${PICK_EVENT_TEXT}\n\n${formatEventList(events, origin)}`;
 }
 
 /** @param {string} origin */
 export function formatHelp(origin) {
 	return (
 		'Hola, soy el bot de KinkyVibe. Podés pedirme:\n\n' +
-		'/proximos: los próximos eventos\n' +
-		'/evento &lt;nombre&gt;: el detalle de un evento\n\n' +
+		'/proximos: los próximos eventos (tocá uno para ver el detalle)\n' +
+		'/evento: elegí un evento de la lista\n' +
+		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n\n' +
 		`Para comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
 	);
 }
@@ -126,7 +138,10 @@ export function formatHelp(origin) {
 export const NOT_FOUND_TEXT =
 	'No encontré ese evento entre los próximos. Probá con /proximos para ver la lista.';
 
-export const ASK_EVENT_TEXT = 'Decime qué evento buscás, por ejemplo: /evento taller de shibari';
+export const PICK_EVENT_TEXT =
+	'Tocá el evento que querés ver. También podés decirme qué evento buscás, por ejemplo: /evento taller de shibari';
+
+export const UNAVAILABLE_TEXT = 'Ese evento ya no está disponible.';
 
 export const UNKNOWN_TEXT = 'No entendí ese comando. Probá con /ayuda.';
 
