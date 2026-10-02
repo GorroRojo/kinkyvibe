@@ -1,6 +1,6 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import { bundleMeta, listPanelEvents } from '$lib/server/eventos/panel.js';
+import { listPanelEventsWithMeta } from '$lib/server/eventos/panel.js';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 
@@ -42,40 +42,38 @@ export async function load({ locals, url, platform, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const now = Date.now();
 	const [events, sales] = await Promise.all([
-		listPanelEvents(),
+		// Con su frontmatter, leído una sola vez para todos (no un pedido a la base por evento).
+		listPanelEventsWithMeta(),
 		salesByEvent(getDB(platform), now)
 	]);
-	const rows = await Promise.all(
-		events.map(async (e) => {
-			/** @type {number | null} */
-			let capacity = null;
-			if (e.sellsTickets) {
-				const meta = await bundleMeta(e.slug);
-				/** @type {any[]} */
-				const list = Array.isArray(meta?.tickets) ? meta.tickets : [];
-				// Un tipo sin `capacity` no tiene límite: entonces el evento tampoco (null).
-				capacity = totalCapacity(list.map((t) => t?.capacity));
-			}
-			return {
-				slug: e.slug,
-				title: e.title,
-				start: e.start,
-				end: e.end,
-				status: e.status,
-				locationName: e.locationName,
-				location: e.location,
-				place: e.place,
-				unlisted: e.unlisted,
-				unpublished: e.unpublished,
-				online: e.online,
-				thumb: e.thumb ?? '',
-				sellsTickets: e.sellsTickets,
-				capacity,
-				sold: sales.get(e.slug)?.sold ?? 0,
-				transfers: sales.get(e.slug)?.transfers ?? 0
-			};
-		})
-	);
+	const rows = events.map(({ event: e, meta }) => {
+		/** @type {number | null} */
+		let capacity = null;
+		if (e.sellsTickets) {
+			/** @type {any[]} */
+			const list = Array.isArray(meta?.tickets) ? meta.tickets : [];
+			// Un tipo sin `capacity` no tiene límite: entonces el evento tampoco (null).
+			capacity = totalCapacity(list.map((t) => t?.capacity));
+		}
+		return {
+			slug: e.slug,
+			title: e.title,
+			start: e.start,
+			end: e.end,
+			status: e.status,
+			locationName: e.locationName,
+			location: e.location,
+			place: e.place,
+			unlisted: e.unlisted,
+			unpublished: e.unpublished,
+			online: e.online,
+			thumb: e.thumb ?? '',
+			sellsTickets: e.sellsTickets,
+			capacity,
+			sold: sales.get(e.slug)?.sold ?? 0,
+			transfers: sales.get(e.slug)?.transfers ?? 0
+		};
+	});
 	// Interruptor `series`: botón a Eventos → Series.
 	return { events: rows, now, seriesOn: await seriesEnabled(platform) };
 }
