@@ -6,7 +6,9 @@ import {
 	formatChoices,
 	formatEvent,
 	formatEventList,
+	formatFollowNotice,
 	formatHelp,
+	formatPickList,
 	formatWhen
 } from './format.js';
 
@@ -114,11 +116,49 @@ describe('formatChoices', () => {
 	});
 });
 
+describe('formatPickList', () => {
+	it('invita a tocar un evento o a buscarlo', () => {
+		const text = formatPickList([fake(1)], ORIGIN);
+		expect(text).toContain('Tocá el evento que querés ver');
+		expect(text).toContain('Evento inventado 1');
+	});
+
+	it('sin eventos, manda al calendario', () => {
+		expect(formatPickList([], ORIGIN)).toContain('no hay eventos próximos');
+	});
+});
+
 describe('formatHelp', () => {
 	it('usa voseo, escapa el <nombre> y apunta al sitio', () => {
 		const text = formatHelp(ORIGIN);
 		expect(text).toContain('Podés pedirme');
 		expect(text).toContain('/evento &lt;nombre&gt;');
+		expect(text).toContain('tocá uno');
 		expect(text).toContain('https://ejemplo.test');
+	});
+});
+
+describe('formatFollowNotice', () => {
+	it('solo título, fecha y link, escapados', () => {
+		const text = formatFollowNotice({
+			kind: 'nuevo',
+			title: 'Taller <inventado>',
+			start: '2031-01-10T21:00:00-03:00',
+			url: 'https://ejemplo.test/calendario/taller-inventado'
+		});
+		expect(text).toBe(
+			'🆕 Se anunció algo nuevo\n\n<b>Taller &lt;inventado&gt;</b>\nvie 10 ene · 21:00\nhttps://ejemplo.test/calendario/taller-inventado'
+		);
+	});
+
+	it('el recordatorio dice que falta poco', () => {
+		const text = formatFollowNotice({
+			kind: 'recordatorio',
+			title: 'Fiesta inventada',
+			start: '2031-01-10T21:00:00-03:00',
+			url: 'https://ejemplo.test/calendario/fiesta'
+		});
+		expect(text).toContain('Recordatorio');
+		expect(text).toContain('<b>Fiesta inventada</b>');
 	});
 });

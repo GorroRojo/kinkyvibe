@@ -50,8 +50,11 @@ Mi rincón y esa página quedan como siempre.
 
 Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). Sumar Telegram
 (el bot, [telegram.md](telegram.md)) es darle sus casillas en `fields` y `enabled: true`: la grilla
-(`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Todavía no hay nada de Telegram en la
-base.
+(`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Con la fase 2 del bot
+([telegram.md](telegram.md), migración 0033) la columna se prende por cuenta con
+`notifyChannels(data.telegram)`: andando con el chat vinculado, «Sin conectar» si no, y
+«Próximamente» con el bot apagado. La tarjeta «Telegram» (`TelegramCard.svelte`) va abajo de lo
+seguido.
 
 ## Cómo prenderlo
 
@@ -120,8 +123,9 @@ Los corre el cron de mails (POST /api/cron/recordatorios, cada 15 minutos) con `
   con ese mail, si lo seguía desde antes de que el cron viera el evento (`follow_events_seen`). La
   primera corrida de todas anota lo que ya estaba con fecha 0: prender el interruptor no manda una
   tanda de mails por todo lo ya anunciado.
-- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. No sale si la
-  cuenta ya tiene entrada (orden aprobada con su `account_id` o su mail): le llegan los de las entradas.
+- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. No sale (ni por
+  mail ni por Telegram) si la cuenta ya tiene entrada (orden aprobada con su `account_id` o su
+  mail): le llegan los recordatorios de las entradas.
 
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque los interruptores estén apagados; apaga los

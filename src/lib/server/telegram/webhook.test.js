@@ -89,6 +89,56 @@ describe('handleWebhook', () => {
 		expect(await res.text()).toBe('');
 	});
 
+	it('un botón tocado con el secreto: cambia el mensaje en el mismo pedido', async () => {
+		const body = JSON.stringify({
+			update_id: 5,
+			callback_query: {
+				id: 'cb-9',
+				data: 'ev:fiesta-inventada-2031-02',
+				message: { message_id: 11, chat: { id: 7, type: 'private' } }
+			}
+		});
+		const res = await run({ request: req({ body }) });
+		expect(res.status).toBe(200);
+		const out = await res.json();
+		expect(out).toMatchObject({ method: 'editMessageText', chat_id: 7, message_id: 11 });
+		expect(out.text).toContain('Fiesta inventada');
+	});
+
+	it('un botón tocado sin secreto o con otro: 401, sin leer eventos', async () => {
+		const body = JSON.stringify({
+			callback_query: { id: 'cb-9', data: 'ls', message: { message_id: 11, chat: { id: 7 } } }
+		});
+		const listUpcoming = vi.fn(async () => EVENTS);
+		for (const secret of [null, 'otro-secreto-de-prueba']) {
+			const res = await run({ request: req({ body, secret }), listUpcoming });
+			expect(res.status).toBe(401);
+		}
+		expect(listUpcoming).not.toHaveBeenCalled();
+	});
+
+	it('un botón tocado con el interruptor apagado: 200 vacío', async () => {
+		const body = JSON.stringify({
+			callback_query: { id: 'cb-9', data: 'ls', message: { message_id: 11, chat: { id: 7 } } }
+		});
+		const res = await run({ request: req({ body }), enabled: false });
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe('');
+	});
+
+	it('/vincular por chat privado llega a las cuentas, solo con el secreto', async () => {
+		const link = vi.fn(async () => /** @type {const} */ ('linked'));
+		const accounts = vi.fn(async () => ({ link, unlink: vi.fn(), setMuted: vi.fn() }));
+		const body = JSON.stringify({
+			message: { chat: { id: 7, type: 'private' }, text: '/vincular ABCD-2345' }
+		});
+		expect((await run({ request: req({ body, secret: null }), accounts })).status).toBe(401);
+		expect(accounts).not.toHaveBeenCalled();
+		const res = await run({ request: req({ body }), accounts });
+		expect((await res.json()).text).toContain('quedó conectado');
+		expect(link).toHaveBeenCalledWith('ABCD-2345', 7);
+	});
+
 	it('400 si el body no es JSON, 413 si es enorme', async () => {
 		expect((await run({ request: req({ body: 'no es json' }) })).status).toBe(400);
 		const big = JSON.stringify({ x: 'a'.repeat(MAX_BODY_BYTES) });

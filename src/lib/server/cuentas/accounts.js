@@ -204,6 +204,9 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 		// «Lo que sigo» (migración 0032): lo seguido y los avisos ya mandados son de la persona.
 		db.prepare('DELETE FROM follows WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM follow_notifications WHERE account_id = ?1').bind(accountId),
+		// El chat de Telegram vinculado y sus códigos (migración 0033).
+		db.prepare('DELETE FROM telegram_chats WHERE account_id = ?1').bind(accountId),
+		db.prepare('DELETE FROM telegram_link_codes WHERE account_id = ?1').bind(accountId),
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,

@@ -2,6 +2,7 @@
 
 - Fecha: 2026-10-01
 - Estado: Aceptada. Fase 1 con código (#175): `/proximos` y `/evento`, interruptor `telegram_bot`.
+  Fase 2 en un PR aparte: vincular la cuenta y avisos de «Lo que sigo» (migración 0033).
 
 ## Contexto
 
@@ -78,3 +79,20 @@ Reglas:
 - Fase 1 en un PR aparte: webhook `/api/telegram`, `/proximos`, `/evento`, interruptor
   `telegram_bot`. Guía: [`docs/telegram.md`](../telegram.md). Lee los eventos por la capa
   compartida (`sitePosts`: de la base o de los `.md`, según `contenido_db`).
+- Botones (teclados inline): `/proximos` y `/evento` sin nada muestran un botón por evento; al
+  tocarlo, el mensaje cambia al detalle. `/evento <texto>` también busca por fecha. Sigue sin
+  base ni token: todo se contesta en el mismo pedido.
+
+## Cómo va (2/10)
+
+- Fase 2 en un PR aparte, con la migración `0033_telegram_avisos.sql` (tablas `telegram_chats` y
+  `telegram_link_codes`, columnas `tg_new` y `tg_reminder` en `follows` y el canal en la clave de
+  `follow_notifications`). Detrás de `telegram_bot`, `lo_que_sigo` y `cuentas`.
+- Vincular: código de un solo uso desde Mi rincón → Lo que sigo y `/vincular <código>` por chat
+  privado; `/silenciar`, `/reanudar` y `/desvincular`.
+- Telegram es un canal más de «Lo que sigo» (como dice esta decisión): la columna de la grilla se
+  prende con el chat vinculado y los avisos salen del mismo cron, uno por cuenta, evento, tipo y
+  canal, con horario de silencio de 23 a 9 (hora de Argentina). Solo título, fecha y link.
+- Mandar necesita un secret nuevo, `TELEGRAM_BOT_TOKEN` (lo carga gorrite en Cloudflare); sin él,
+  los avisos por Telegram se saltean con una línea en el log. El webhook sigue sin usarlo.
+- Detalle y lo decidido por Claude a confirmar: [`docs/telegram.md`](../telegram.md).

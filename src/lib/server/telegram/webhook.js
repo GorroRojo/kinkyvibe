@@ -32,10 +32,12 @@ export async function isValidWebhookSecret(given, expected) {
  *   secret: string | undefined,
  *   enabled: boolean,
  *   origin: string,
- *   listUpcoming: import('./router.js').Deps['listUpcoming']
- * }} args
+ *   listUpcoming: import('./router.js').Deps['listUpcoming'],
+ *   accounts?: import('./router.js').Deps['accounts']
+ * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
+ *   con `lo_que_sigo` o `cuentas` apagado
  */
-export async function handleWebhook({ request, secret, enabled, origin, listUpcoming }) {
+export async function handleWebhook({ request, secret, enabled, origin, listUpcoming, accounts }) {
 	if (!secret || secret.length < MIN_WEBHOOK_SECRET_LENGTH) {
 		console.error('[telegram] falta TELEGRAM_WEBHOOK_SECRET: no se pueden verificar pedidos');
 		return new Response('not configured', { status: 503 });
@@ -56,6 +58,6 @@ export async function handleWebhook({ request, secret, enabled, origin, listUpco
 	} catch {
 		return new Response('bad request', { status: 400 });
 	}
-	const response = await handleUpdate(update, { listUpcoming, origin });
+	const response = await handleUpdate(update, { listUpcoming, origin, accounts });
 	return response ? json(response) : new Response(null, { status: 200 });
 }
