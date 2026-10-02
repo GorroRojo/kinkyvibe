@@ -265,13 +265,17 @@ Texto.
 				form: null
 			}
 		}).body;
-	/** El texto visible, sin etiquetas ni espacios de más. @param {string} html */
+	/**
+	 * El texto entre etiquetas, con los espacios juntados (solo para buscar frases en lo que
+	 * renderiza el servidor; no limpia HTML).
+	 * @param {string} html
+	 */
 	const text = (html) =>
 		html
-			.replace(/<!--[\s\S]*?-->/g, '')
-			.replace(/<pre[\s\S]*?<\/pre>/g, '')
-			.replace(/<[^>]+>/g, ' ')
-			.replace(/\s+/g, ' ');
+			.split(/<[^>]*>/)
+			.join(' ')
+			.split(/\s+/)
+			.join(' ');
 
 	describe('apagado (GitHub): los textos de siempre', () => {
 		it('Editar: el aviso de las pruebas automáticas y @Gorro_Rojo', () => {
