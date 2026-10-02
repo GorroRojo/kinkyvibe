@@ -62,18 +62,26 @@
 		{/if}
 		<div class="image-actions">
 			<slot name="before" />
-			<label class="file">
+			<!-- El input nativo dice «Choose File» en el idioma del navegador: queda escondido (pero
+			     se enfoca con el teclado y abre con Enter o Espacio) y se ve el botón en castellano. -->
+			<label class="file" for={inputId}>
 				<span>{buttonText}</span>
 				<input
 					bind:this={input}
+					class="file-input"
 					type="file"
 					name="image"
 					form={form || undefined}
 					id={inputId}
 					accept={IMAGE_TYPES.join(',')}
+					aria-describedby="{inputId}-name"
 					on:change={onChange}
 				/>
+				<span class="file-button" aria-hidden="true">Elegir archivo</span>
 			</label>
+			<small class="file-name" id="{inputId}-name"
+				>{upload.name ? `Elegiste: ${upload.name}` : 'Ningún archivo elegido'}</small
+			>
 			<small
 				><slot name="formats"
 					>JPG, PNG o WEBP, hasta {maxImageBytes / 1024 / 1024} MB. Mejor si es cuadrada.</slot
@@ -112,9 +120,45 @@
 		flex: 1 1 14em;
 		min-width: 0;
 	}
-	input[type='file'] {
-		max-width: 100%;
-		font-size: var(--step--1);
+	.file {
+		position: relative;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4em 0.8em;
+		cursor: pointer;
+	}
+	/* Escondido a la vista, no a los lectores de pantalla ni al teclado. */
+	.file-input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	.file-button {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.5rem;
+		padding: 0.35em 1.1em;
+		border: 2px solid var(--accent, var(--1));
+		border-radius: 2em;
+		background: var(--surface, white);
+		color: var(--accent-dark, var(--1-dark));
+		font-weight: 700;
+		white-space: nowrap;
+	}
+	.file:hover .file-button {
+		background: color-mix(in srgb, var(--accent, var(--1)) 10%, var(--surface, white));
+	}
+	.file-input:focus-visible + .file-button {
+		outline: 2px solid var(--link, var(--2));
+		outline-offset: 2px;
+	}
+	.file-name {
+		overflow-wrap: anywhere;
 	}
 	.image-actions :global(code) {
 		overflow-wrap: anywhere;

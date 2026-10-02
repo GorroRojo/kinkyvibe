@@ -46,6 +46,11 @@
 		align-items: center;
 		flex-wrap: wrap;
 	}
+	/* Sin relleno (una tabla o una lista de borde a borde), el título igual va con el margen de
+	   la tarjeta. */
+	.card:not(.padded) > header {
+		padding: 1.1rem 1.3rem 0;
+	}
 	h2 {
 		font-size: var(--step-0-5, 1.2rem);
 		margin: 0;

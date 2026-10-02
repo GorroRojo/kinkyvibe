@@ -52,7 +52,7 @@
 						<form method="POST" action="?/removeRole" use:enhance>
 							<input type="hidden" name="name" value={r.name} />
 							<button class="kv-btn ghost small" type="submit"
-								>Sacar <span class="sr-only">el rol {r.name}</span></button
+								>Sacar<span class="visually-hidden"> el rol {r.name}</span></button
 							>
 						</form>
 					{/if}
