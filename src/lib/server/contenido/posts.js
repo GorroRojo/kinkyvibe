@@ -235,6 +235,67 @@ export async function sitePosts(platform, wiki = false, unlisted = false) {
 }
 
 /**
+ * Cuántas publicaciones no listadas hay (el contador «No listadas» del menú del panel): lo mismo
+ * que `(await sitePosts(platform, false, true)).length`, sin armar las listas públicas (después de
+ * cada cambio en la base eso era volver a leer y procesar todas las publicaciones). Con el
+ * interruptor prendido es una consulta, para la tanda del layout del panel: los .md no listados
+ * cuya dirección no decide la base (`mergePosts`) más lo no listado de la base que ve cualquiera
+ * (la columna `unlisted`, migración 0031, es el `unlisted` de cada objeto). Apagado, los .md.
+ * `null` si la consulta falla (el contador no aparece).
+ *
+ * @param {App.Platform | undefined} platform
+ * @returns {Promise<import('$lib/server/db/batch.js').BatchQuery<number | null>>}
+ */
+export async function unlistedCountQuery(platform) {
+	const md = await fetchMarkdownPosts(false, true);
+	const what = 'contador de no listadas';
+	if (!(await contentDb(platform))) {
+		return { what, fallback: md.length, statements: () => [], read: () => md.length };
+	}
+	/** @type {[string, string][]} */
+	const pairs = [];
+	// Las de categorías que no están en la base (amigues) siempre salen del .md.
+	let others = 0;
+	for (const p of md) {
+		const category = String(p.meta.category);
+		if (Object.hasOwn(CONTENT_CATEGORIES, category)) {
+			pairs.push([CONTENT_CATEGORIES[category].type, String(p.meta.postID)]);
+		} else {
+			others++;
+		}
+	}
+	const t = marks(TYPES.length);
+	const visible = visibleWhere(ANON, 'o');
+	return {
+		what,
+		fallback: null,
+		statements: (db) => [
+			db
+				.prepare(
+					// Las direcciones que decide la base: las de los objetos y las viejas de sus .md.
+					`WITH claimed(type, id) AS MATERIALIZED (
+						SELECT o.type, o.slug FROM objects o WHERE o.type IN (${t}) AND o.slug IS NOT NULL
+						UNION
+						SELECT o.type, s.legacy_slug FROM objects o JOIN content_sources s ON s.object_id = o.id
+						WHERE o.type IN (${t}) AND s.legacy_slug IS NOT NULL AND s.legacy_slug != ''
+					)
+					SELECT
+						(SELECT COUNT(*) FROM json_each(?) m
+							WHERE (json_extract(m.value, '$[0]'), json_extract(m.value, '$[1]'))
+								NOT IN (SELECT type, id FROM claimed)) AS md,
+						(SELECT COUNT(*) FROM objects o
+							WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1) AS db`
+				)
+				.bind(...TYPES, ...TYPES, JSON.stringify(pairs), ...TYPES, ...visible.params)
+		],
+		read: (results) => {
+			const row = results[0]?.results?.[0];
+			return others + Number(row?.md ?? 0) + Number(row?.db ?? 0);
+		}
+	};
+}
+
+/**
  * Lo mismo que `fetchCurrentPosts()`: las listadas, sin los eventos que ya empezaron.
  *
  * @param {App.Platform | undefined} platform
