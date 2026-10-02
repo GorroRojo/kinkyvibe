@@ -372,6 +372,68 @@ describe('lugares en las páginas', () => {
 	});
 });
 
+describe('un lugar no listado (como nacen los importados de eventos)', () => {
+	it('su evento lo muestra según la privacidad, pero no está en /amigues ni en otras listas', async () => {
+		const m = await modules();
+		const NAME = 'Galpón No Listado Inventado';
+		const v = await makeProfile(t.db, {
+			title: NAME,
+			kind: 'lugar',
+			data: { address: 'Calle Falsa 742', venue_privacy: 'public', unlisted: true }
+		});
+		const href = `/amigues/${v.slug}`;
+		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
+		await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: v.id,
+			privacy: null,
+			by: 'a'
+		});
+		const ev = /** @type {any} */ (
+			await m.event.load(
+				fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } })
+			)
+		);
+		// Lo mismo que mostraría un lugar listado: nombre (con link), dirección.
+		expect(ev.venue).toMatchObject({ level: 'public', name: NAME, href });
+		expect(JSON.stringify(ev.venue)).toContain('Calle Falsa 742');
+		// Su página anda (por el link del evento) y lista el evento.
+		const page = await profilePage(m, v.slug);
+		expect(page.profile.title).toBe(NAME);
+		expect(page.venueEvents.map((/** @type {any} */ p) => p.path)).toEqual([
+			'/calendario/fiesta-inventada'
+		]);
+		// Pero no está en /amigues (ni para alguien con cuenta).
+		const member = await makeAccount(t.db, 'curiosa');
+		for (const o of [{}, { member }]) {
+			const list = /** @type {any} */ (await m.list.load(fakeEvent(o)));
+			const paths = list.posts.map((/** @type {any} */ p) => p.path);
+			expect(paths).not.toContain(href);
+			expect(JSON.stringify(list)).not.toContain(NAME);
+		}
+		// Ni en el sitemap, el RSS, el JSON de posts ni el buscador (el evento sí puede llevar el
+		// nombre del lugar, como lo muestra su página; lo que no tiene que estar es el perfil).
+		const text = async (/** @type {Response} */ r) => r.text();
+		/** @type {Record<string, string>} */
+		const outputs = {
+			sitemap: await text(
+				await (await import('../sitemap.xml/+server.js')).GET(/** @type {any} */ ({}))
+			),
+			rss: await text(await (await import('../../rss/+server.js')).GET()),
+			posts: await text(
+				await (await import('../../api/posts/+server.js')).GET(/** @type {any} */ ({}))
+			),
+			search: await text(
+				await (await import('../../api/search-index.json/+server.js')).GET(/** @type {any} */ ({}))
+			)
+		};
+		for (const [name, out] of Object.entries(outputs)) {
+			expect(out, name).not.toContain(href);
+			expect(out, name).not.toContain(v.slug);
+		}
+	});
+});
+
 describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 	const SECRET = 'Calle Secretísima 1234';
 	const AREA = 'Barrio Reservado';
