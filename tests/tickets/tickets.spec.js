@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { computePrice } from '../../src/lib/utils/tickets.js';
 import { MP_FEE_PERCENT, TRANSFER_INFO, ticketsE2EEvent } from './event.js';
-import { AGE_OK, ars, dotted, fakeDni, shots } from './helpers.js';
+import { AGE_OK, ars, dotted, fakeDni, goToStep, nextStep, shots, stepHeading } from './helpers.js';
 
 const EVENT = ticketsE2EEvent();
 const BUY_URL = `/calendario/${EVENT}/entradas`;
@@ -90,9 +90,18 @@ async function buy(page, o = {}) {
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await expect(block.getByRole('heading', { name: 'Comprar entradas' })).toBeVisible();
+	// El borrador de una compra anterior en esta pestaña vuelve al paso donde quedó.
+	if (await stepHeading(block, 'Entradas').isHidden()) await goToStep(block, 'Entradas');
 	await block.getByLabel(TYPES[type].label).check();
 	if (o.optionLabel) await block.getByLabel(o.optionLabel).check();
 	await block.getByLabel('Cantidad').fill(String(quantity));
+	// El código de descuento está en el paso «Entradas».
+	if (o.code) {
+		await block.getByLabel(/Código de descuento/).fill(o.code.toLowerCase());
+		await block.getByRole('button', { name: 'Aplicar' }).click();
+		await expect(block.getByText(/✓ Código/)).toBeVisible();
+	}
+	await nextStep(block, 'Tus datos');
 	await block.getByLabel('Tu nombre').fill(buyer.name);
 	await block.getByLabel('Tus pronombres').fill('elle');
 	await block.getByLabel(/^Email/).fill(buyer.email);
@@ -114,11 +123,7 @@ async function buy(page, o = {}) {
 			.getByLabel(/^Pronombres/)
 			.fill(person.pronouns);
 	}
-	if (o.code) {
-		await block.getByLabel(/Código de descuento/).fill(o.code.toLowerCase());
-		await block.getByRole('button', { name: 'Aplicar' }).click();
-		await expect(block.getByText(/✓ Código/)).toBeVisible();
-	}
+	await nextStep(block, 'Pagar');
 	const prices = expected(type, quantity, method, o.discount, o.option);
 	if (prices.subtotal - prices.discount > 0) {
 		await block.getByLabel(method === 'transferencia' ? /Transferencia/ : /Mercado Pago/).check();
@@ -133,6 +138,18 @@ async function buy(page, o = {}) {
 		}
 	}
 	return { id, buyer, people, prices };
+}
+
+/**
+ * Completa el paso «Tus datos» con datos inventados (una entrada).
+ * @param {import('@playwright/test').Locator} block
+ */
+async function fillBuyer(block) {
+	const id = Math.random().toString(36).slice(2, 8);
+	await block.getByLabel('Tu nombre').fill(`Persona E2E ${id}`);
+	await block.getByLabel('Tus pronombres').fill('elle');
+	await block.getByLabel(/^Email/).fill(`e2e-${id}@example.com`);
+	await block.getByLabel(/^DNI/).fill(fakeDni());
 }
 
 test('compra de 3 con datos por entrada → pago aprobado → QR → admin con DNI → check-in', async ({
@@ -282,30 +299,56 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	);
 });
 
-test('datos inválidos: se marcan y no se crea la orden', async ({ page }) => {
+test('datos inválidos: se marcan y no se crea la orden', async ({ page, browser }) => {
+	// Con JavaScript, el paso «Tus datos» no deja seguir y marca lo mismo que el servidor.
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
-	const block = page.locator('#entradas');
-	await block.getByLabel(TYPES.general.label).check();
-	await block.getByRole('button', { name: 'Una entrada más' }).click();
-	await block.getByLabel('Tu nombre').fill('Persona Uno');
-	await block.getByLabel(/^Email/).fill('e2e-invalido@example.com');
-	await block.getByLabel(/^DNI/).fill('12.345');
-	await block
+	const inline = page.locator('#entradas');
+	await inline.getByLabel(TYPES.general.label).check();
+	await inline.getByRole('button', { name: 'Una entrada más' }).click();
+	await nextStep(inline, 'Tus datos');
+	await inline.getByLabel('Tu nombre').fill('Persona Uno');
+	await inline.getByLabel(/^Email/).fill('e2e-invalido@example.com');
+	await inline.getByLabel(/^DNI/).fill('12.345');
+	await inline
 		.locator('fieldset.holder')
 		.nth(1)
 		.getByLabel('Nombre', { exact: true })
 		.fill('Persona Dos');
-	await block.getByLabel(/18 años/).check();
-	// Sin JavaScript de por medio (el navegador frenaría el envío por los `required`): así se ve
-	// qué contesta el servidor con DNI inválido y pronombres vacíos.
+	await inline.getByRole('button', { name: /^Continuar/ }).click();
+	await expect(inline.getByRole('heading', { name: /Tus datos/ })).toBeVisible();
+	await expect(inline.getByText('Revisá lo marcado para seguir.')).toBeVisible();
+	await expect(inline.getByText(/Revisá el DNI/)).toBeVisible();
+	await expect(inline.getByText('Poné tus pronombres.')).toHaveCount(1);
+	await expect(inline.getByText('Poné los pronombres de esta persona.')).toHaveCount(2);
+	// El foco va al primer campo marcado.
+	await expect(inline.getByLabel('Tus pronombres')).toBeFocused();
+
+	// Sin JavaScript (los tres pasos juntos, como un formulario común): así se ve qué contesta el
+	// servidor con DNI inválido y pronombres vacíos. Sin JavaScript el botón «Una entrada más»
+	// no hace nada: la cantidad se escribe (la entrada 2 aparece en la respuesta, vacía).
+	const noJs = await browser.newContext({ javaScriptEnabled: false });
+	const plain = await noJs.newPage();
+	await plain.goto(BUY_URL);
+	const block = plain.locator('#entradas');
+	await expect(block.getByRole('button', { name: /^Continuar/ })).toHaveCount(0);
+	await block.getByLabel(TYPES.general.label).check();
+	await block.getByLabel('Cantidad').fill('2');
+	await block.getByLabel('Tu nombre').fill('Persona Uno');
+	await block.getByLabel(/^Email/).fill('e2e-invalido@example.com');
+	await block.getByLabel(/^DNI/).fill('12.345');
+	// `force`: sin JavaScript en la página, la espera de Playwright a que el elemento "quede
+	// quieto" no termina nunca (usa requestAnimationFrame); el clic es el mismo.
+	await block.getByLabel(/18 años/).check({ force: true });
+	// Sin los avisos del navegador (frenaría el envío por los `required`).
 	await block.locator('form').evaluate((f) => f.setAttribute('novalidate', ''));
-	await block.locator('.pay button[type="submit"]').click();
+	await block.locator('.pay button[type="submit"]').click({ force: true });
 	await expect(block.getByText('Revisá los datos marcados.')).toBeVisible();
 	await expect(block.getByText(/Revisá el DNI/)).toBeVisible();
 	// Tus pronombres vacíos (la entrada 1 los toma de ahí) y los de la entrada 2.
 	await expect(block.getByText('Poné tus pronombres.')).toHaveCount(1);
 	await expect(block.getByText('Poné los pronombres de esta persona.')).toHaveCount(2);
-	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}/entradas`));
+	await expect(plain).toHaveURL(new RegExp(`/calendario/${EVENT}/entradas`));
+	await noJs.close();
 });
 
 test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de pago', async ({
@@ -313,9 +356,12 @@ test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de p
 }) => {
 	await buy(page, { type: 'general', quantity: 2, submit: false });
 	const block = page.locator('#entradas');
+	// El tipo de entrada está en el paso «Entradas» (el indicador deja volver y seguir).
+	await goToStep(block, 'Entradas');
 	await expect(
 		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
 	).toBeVisible();
+	await goToStep(block, 'Pagar');
 	// Horario de la venta (el fixture cierra en 30 días), en hora de Argentina.
 	await expect(block.locator('.closes')).toHaveText(
 		/^La venta cierra el [a-záéíóúñ]+ \d{1,2}\/\d{1,2} a las \d{2}:\d{2}\.$/
@@ -407,6 +453,7 @@ test('pronombres de quien compra: obligatorios y copiados a la entrada 1 hasta e
 }) => {
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
+	await nextStep(block, 'Tus datos');
 	const mine = block.getByLabel('Tus pronombres');
 	await expect(mine).toHaveAttribute('required', '');
 	const first = block
@@ -629,6 +676,10 @@ test('el evento de prueba: botón en la página del evento → página de compra
 	await block.getByLabel(/Anticipada/).check();
 	await expect(options.getByRole('radio')).toHaveCount(5);
 	await expect(options.getByLabel(/Con el descuento del fondo/)).toBeChecked();
+	// Medio de pago y condiciones, en el paso «Pagar».
+	await nextStep(block, 'Tus datos');
+	await fillBuyer(block);
+	await nextStep(block, 'Pagar');
 	await block.getByLabel(/Transferencia/).check();
 	await expect(block.locator('.method-note.shown')).toContainText(
 		'Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail'
@@ -706,6 +757,7 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await block.getByLabel(TYPES.general.label).check();
 	await block.getByLabel(/Entrada muy solidaria/).check();
 	await block.getByRole('button', { name: 'Una entrada más' }).click();
+	await nextStep(block, 'Tus datos');
 	await block.getByLabel('Tu nombre').fill('Persona Recarga');
 	await block.getByLabel('Tus pronombres').fill('elle');
 	const recargaEmail = `e2e-recarga-${Date.now()}@example.com`;
@@ -744,7 +796,11 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	// La casilla de +18 no se guarda.
 	await expect(block.getByLabel(/18 años/)).not.toBeChecked();
 
+	// Vuelve al paso donde estaba («Tus datos»).
+	await expect(block.getByRole('heading', { name: /Tus datos/ })).toBeVisible();
+
 	// Al comprar se borra el borrador.
+	await nextStep(block, 'Pagar');
 	await block.getByLabel(/Transferencia/).check();
 	await block.getByLabel(/18 años/).check();
 	const { total } = expected('general', 2, 'transferencia', null, 'muy-solidaria');
@@ -814,4 +870,62 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await page.getByLabel(/Código de la entrada/).fill(ticketUrl);
 	await page.getByRole('button', { name: 'Validar' }).click();
 	await expect(page.locator('.result')).toContainText('Anulada');
+});
+
+test('tres pasos: indicador, validación por paso, foco, volver sin perder nada y 330 px sin scroll horizontal', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 330, height: 740 });
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	const steps = block.getByRole('navigation', { name: 'Pasos de la compra' });
+	const noHorizontalScroll = () =>
+		page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+	await expect(steps.locator('[aria-current="step"]')).toContainText('Entradas');
+	expect(await noHorizontalScroll()).toBe(true);
+
+	// En el celu, el resumen es una barra con el total que se despliega.
+	await expect(block.getByText('Total:')).toBeVisible();
+	await expect(block.getByText(/^Entradas \(1 ×/)).toBeHidden();
+	await block.getByRole('button', { name: /Ver detalle/ }).click();
+	await expect(block.getByRole('button', { name: /Ocultar detalle/ })).toHaveAttribute(
+		'aria-expanded',
+		'true'
+	);
+	await expect(block.getByText(/^Entradas \(1 ×/)).toBeVisible();
+
+	// «Tus datos» vacío: no deja seguir, marca cada campo y lleva el foco al primero.
+	await nextStep(block, 'Tus datos');
+	await expect(steps.locator('[aria-current="step"]')).toContainText('Tus datos');
+	expect(await noHorizontalScroll()).toBe(true);
+	await block.getByRole('button', { name: /^Continuar/ }).click();
+	await expect(block.getByText('Poné tu nombre (entre 2 y 80 letras).')).toBeVisible();
+	await expect(block.getByText(/Revisá el email/)).toBeVisible();
+	await expect(block.getByLabel('Tu nombre')).toBeFocused();
+	await expect(steps.locator('[aria-current="step"]')).toContainText('Tus datos');
+	// Los errores se van mientras se corrige.
+	await block.getByLabel('Tu nombre').fill('Persona Pasos');
+	await expect(block.getByText('Poné tu nombre (entre 2 y 80 letras).')).toHaveCount(0);
+	await block.getByLabel('Tus pronombres').fill('elle');
+	await block.getByLabel(/^Email/).fill(`e2e-pasos-${Date.now()}@example.com`);
+	await block.getByLabel(/^DNI/).fill('30.111.222');
+	await nextStep(block, 'Pagar');
+	expect(await noHorizontalScroll()).toBe(true);
+
+	// «Pagar» sin la casilla de +18: no envía.
+	await block.locator('.pay button[type="submit"]').click();
+	await expect(block.getByText(/Tenés que confirmar que tenés 18 años/)).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+
+	// Volver (con el botón y con el indicador) no pierde nada.
+	await block.getByRole('button', { name: 'Volver a Tus datos' }).click();
+	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Pasos');
+	await expect(block.getByLabel(/^DNI/)).toHaveValue('30.111.222');
+	await goToStep(block, 'Entradas');
+	await block.getByRole('button', { name: 'Una entrada más' }).click();
+	// Para adelante con el indicador: se frena en «Tus datos» (falta la entrada 2).
+	await steps.getByRole('button', { name: /^Paso 3: Pagar/ }).click();
+	await expect(block.getByRole('heading', { name: /^Paso 2 de 3 Tus datos$/ })).toBeVisible();
+	await expect(block.locator('input[name="holder_name_1"]')).toBeFocused();
+	await shots(page, '03-pasos-tus-datos', undefined, { fullPage: false });
 });
