@@ -23,7 +23,16 @@ export const FOLLOW_OPTIONS = Object.freeze(
 	])
 );
 
-/** @typedef {{ calendario: boolean, mail_nuevo: boolean, recordatorio: boolean }} FollowOptions */
+/**
+ * Las opciones de una cosa seguida. Las de Telegram (migración 0033) van aparte y son opcionales:
+ * solo están cuando la cuenta puede recibir avisos por Telegram (chat vinculado e interruptores
+ * prendidos), así lo de siempre no cambia.
+ *
+ * @typedef {{ calendario: boolean, mail_nuevo: boolean, recordatorio: boolean }
+ *   & Partial<TelegramOptions>} FollowOptions
+ */
+
+/** @typedef {{ telegram_nuevo: boolean, telegram_recordatorio: boolean }} TelegramOptions */
 
 /**
  * Lo que queda prendido al tocar «Seguir» (Decidido por Claude, a confirmar con gorrite): sus
@@ -71,10 +80,42 @@ export function optionsFromForm(form) {
 		const v = form.get(name);
 		return v === 'on' || v === '1' || v === 'true';
 	};
-	return {
+	/** @type {FollowOptions} */
+	const options = {
 		calendario: on('calendario'),
 		mail_nuevo: on('mail_nuevo'),
 		recordatorio: on('recordatorio')
+	};
+	// Las casillas de Telegram, solo si el formulario mostró esa columna (manda `canal=telegram`):
+	// si no, quedan como estaban.
+	if (formChannels(form).includes('telegram')) {
+		options.telegram_nuevo = on('telegram_nuevo');
+		options.telegram_recordatorio = on('telegram_recordatorio');
+	}
+	return options;
+}
+
+/**
+ * Los canales que mostró el formulario (`canal`, uno por columna prendida).
+ *
+ * @param {{ get(name: string): unknown, getAll?: (name: string) => unknown[] }} form
+ * @returns {string[]}
+ */
+function formChannels(form) {
+	const all = typeof form.getAll === 'function' ? form.getAll('canal') : [form.get('canal')];
+	return all.filter((v) => typeof v === 'string').map(String);
+}
+
+/**
+ * Las opciones de Telegram de una fila de `follows` (columnas de la migración 0033).
+ *
+ * @param {Record<string, unknown>} row
+ * @returns {TelegramOptions}
+ */
+export function telegramOptionsFromRow(row) {
+	return {
+		telegram_nuevo: Number(row.tg_new) === 1,
+		telegram_recordatorio: Number(row.tg_reminder) === 1
 	};
 }
 
@@ -205,7 +246,9 @@ export const NOTIFY_KINDS = Object.freeze(
 
 /**
  * @typedef {{ id: string, label: string, enabled: boolean,
- *   fields: Partial<Record<NotifyKindId, keyof FollowOptions>>, note?: string }} NotifyChannel
+ *   fields: Partial<Record<NotifyKindId, keyof FollowOptions>>, note?: string,
+ *   offLabel?: string }} NotifyChannel `offLabel`: el cartelito de la columna apagada
+ *   (si no, «Próximamente»)
  */
 
 /** @type {readonly NotifyChannel[]} */
@@ -224,6 +267,35 @@ export const NOTIFY_CHANNELS = Object.freeze([
 		note: 'Vas a poder recibir esto por Telegram cuando conectes tu cuenta.'
 	}
 ]);
+
+/** Las casillas de la columna Telegram (columnas `tg_new` y `tg_reminder` de `follows`). */
+export const TELEGRAM_FIELDS = Object.freeze(
+	/** @type {const} */ ({ nuevo: 'telegram_nuevo', recordatorio: 'telegram_recordatorio' })
+);
+
+/**
+ * Las columnas de la grilla según lo que puede la cuenta (fase 2 del bot, docs/telegram.md):
+ *
+ * - sin el bot (`telegram` es `null` o falta): como siempre, Telegram «Próximamente»;
+ * - con el bot y sin chat vinculado: apagada, con «Conectá Telegram» y la nota de cómo;
+ * - con el chat vinculado: prendida, con sus casillas.
+ *
+ * @param {{ linked: boolean } | null | undefined} telegram
+ * @returns {readonly NotifyChannel[]}
+ */
+export function notifyChannels(telegram) {
+	if (!telegram) return NOTIFY_CHANNELS;
+	return NOTIFY_CHANNELS.map((c) => {
+		if (c.id !== 'telegram') return c;
+		if (telegram.linked)
+			return { ...c, enabled: true, fields: { ...TELEGRAM_FIELDS }, note: undefined };
+		return {
+			...c,
+			offLabel: 'Sin conectar',
+			note: 'Para recibir esto por Telegram, conectá tu cuenta con el bot (más abajo, en «Telegram»).'
+		};
+	});
+}
 
 /**
  * @typedef {{ key: string, name: string, kind: string }} ProfileOption un perfil para el buscador
