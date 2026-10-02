@@ -6,6 +6,7 @@
  */
 import { featuredURL, listEvents } from './index.js';
 import { agendaRowFromMeta } from '$lib/utils/agenda.js';
+import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
 import { splitEventTags } from '$lib/utils/adminTags.js';
 import { AR_OFFSET, parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 
@@ -57,6 +58,7 @@ const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
  * @prop {boolean} online
  * @prop {boolean} kinkyvibe
  * @prop {boolean} sellsTickets tiene `tickets` en el frontmatter (aunque la venta esté cerrada)
+ * @prop {boolean} draft borrador del panel (`borrador: true`, ver drafts.js)
  * @prop {string} [thumb] URL de la imagen
  */
 
@@ -86,6 +88,7 @@ function toPanelEvent(e, meta) {
 		online: split.place === 'Online' || meta?.modalidad === 'online',
 		kinkyvibe: split.kinkyvibe,
 		sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
+		draft: meta?.borrador === true,
 		thumb: e.thumb ?? featuredURL(e.slug, meta?.featured)
 	};
 }
@@ -159,7 +162,10 @@ export async function agendaRows({ today = todayInArgentina() } = {}) {
 				force_unlisted: e.unlisted
 			}),
 			thumb: e.thumb ?? '',
-			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0
+			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
+			// Borrador del panel (`borrador: true`) y «qué falta» (lo muestra la agenda en los borradores).
+			draft: meta?.borrador === true,
+			missing: eventMissing(missingInputFromMeta({ ...(meta ?? {}), status: e.status }))
 		});
 	}
 	rows.sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));
