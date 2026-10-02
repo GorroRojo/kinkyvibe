@@ -8,8 +8,7 @@
 	 * - `fields`: los campos, en orden.
 	 * - `values` (bind): valor de cada input, por `key`.
 	 * - `idFor(key)`: el id de cada input (sin pasarlo, `<key>-input`).
-	 * - `warnings`: aviso opcional debajo de un campo, por `key` (p. ej. el «Dónde» del .md cuando
-	 *   el evento tiene un lugar en «Sucede en»).
+	 * - `warnings`: aviso opcional debajo de un campo, por `key`.
 	 * - `errors`: error de un campo, por `key`: reemplaza la ayuda y marca el input.
 	 * - Slot: más campos al final de la grilla.
 	 */

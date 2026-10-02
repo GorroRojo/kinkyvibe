@@ -14,6 +14,7 @@ describe('formSections', () => {
 		expect(ids(formSections({ mode: 'nuevo' }))).toEqual([
 			'sec-cuando',
 			'sec-datos',
+			'sec-lugar',
 			'sec-direccion',
 			'sec-etiquetas',
 			'ev-tickets',
@@ -28,6 +29,7 @@ describe('formSections', () => {
 		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([
 			'sec-cuando',
 			'sec-datos',
+			'sec-lugar',
 			'sec-imagen',
 			'sec-etiquetas',
 			'edit-tickets',
@@ -43,7 +45,7 @@ describe('formSections', () => {
 		]);
 	});
 
-	it('con el interruptor personas_eventos: Personas después de Datos', () => {
+	it('con el interruptor personas_eventos: Personas después de Datos (y del Lugar)', () => {
 		const sections = formSections({
 			mode: 'editar',
 			category: 'calendario',
@@ -53,6 +55,7 @@ describe('formSections', () => {
 		expect(ids(sections)).toEqual([
 			'sec-cuando',
 			'sec-datos',
+			'sec-lugar',
 			'sec-personas',
 			'sec-imagen',
 			'sec-etiquetas',

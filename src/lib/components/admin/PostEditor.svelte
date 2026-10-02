@@ -11,6 +11,7 @@
 	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
 	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
 	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
+	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
@@ -21,8 +22,15 @@
 		datosFields,
 		fromInput,
 		postFields,
+		splitPlaceFields,
 		toInput
 	} from '$lib/admin/postFields.js';
+	import {
+		NO_VENUE,
+		sameVenueChoice,
+		venueChoice,
+		venueChoiceFields
+	} from '$lib/utils/venueChoice.js';
 	import {
 		scheduleFromInputs,
 		scheduleProblems,
@@ -101,19 +109,15 @@
 	// van en «¿Cuándo es?».
 	const fields = postFields(category);
 	const shownFields = datosFields('editar', category);
-	/** El «Dónde» del archivo: con un lugar en «Sucede en», no se muestra en el sitio. */
-	const MD_PLACE_KEYS = ['location', 'location_map', 'location_name'];
-	/** @type {string | null} */
-	const linkedVenue = category === 'calendario' ? (data.linkedVenue ?? null) : null;
-	/** @type {Record<string, string>} */
-	const fieldWarnings = linkedVenue
-		? Object.fromEntries(
-				MD_PLACE_KEYS.map((key) => [
-					key,
-					`Este evento tiene un lugar en «Sucede en» (${linkedVenue}): en el sitio se muestra ese lugar según su privacidad, no este dato. Se guarda igual.`
-				])
-			)
-		: {};
+	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
+	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
+
+	/* ---------- lugar (eventos): en `event_venues`, no en el archivo ---------- */
+	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice, flagOn: boolean } | null} */
+	const venuePicker = category === 'calendario' ? (data.venuePicker ?? null) : null;
+	const savedVenue = venuePicker?.current ?? NO_VENUE;
+	let venue = { ...savedVenue };
+	$: venueChanged = Boolean(venuePicker) && !sameVenueChoice(venue, savedVenue);
 
 	/** @type {Record<string, any>} */
 	const initial = Object.fromEntries(fields.map((f) => [f.key, toInput(f, meta[f.key])]));
@@ -309,11 +313,24 @@
 				authors,
 				body
 			);
-	$: changed = content !== unchanged || Boolean(upload.ext);
+	$: fileChanged = content !== unchanged || Boolean(upload.ext);
+	// Cambiar solo el «Lugar» también se guarda (sin tocar el archivo: `soloLugar`).
+	$: changed = fileChanged || venueChanged;
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
-	$: draft = { schedule, values, tagRules, freeTags, authors, tickets, personas, body, rawText };
+	$: draft = {
+		schedule,
+		values,
+		tagRules,
+		freeTags,
+		authors,
+		tickets,
+		personas,
+		body,
+		rawText,
+		venue
+	};
 	/** @param {any} d */
 	function restoreDraft(d) {
 		if (!d || typeof d !== 'object') return;
@@ -331,6 +348,8 @@
 		if (personasData && Array.isArray(d.personas)) personas = d.personas;
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
+		if (venuePicker && d.venue && typeof d.venue === 'object')
+			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 	}
 
 	/* ---------- guardar ---------- */
@@ -338,7 +357,9 @@
 	/** La confirmación de la barra: hasta que se vuelve a cambiar algo. */
 	$: savedMessage =
 		form?.save && !changed && !saving
-			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
+			? form.venueOnly
+				? 'Guardado: el lugar del evento (el archivo no cambió).'
+				: savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
 			: '';
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
@@ -423,10 +444,8 @@
 			{/if}
 
 			<DatosSection
-				fields={shownFields}
+				fields={datosShown}
 				idFor={datosFieldId('editar')}
-				warnings={fieldWarnings}
-				errors={mapError ? { location_map: mapError } : {}}
 				bind:values
 				{hasAuthors}
 				bind:authors
@@ -434,6 +453,18 @@
 				authorUsage={data.authorUsage}
 				{authorsLabel}
 			/>
+
+			{#if isEvent}
+				<PlaceSection
+					picker={venuePicker}
+					bind:choice={venue}
+					fields={placeShown}
+					idFor={datosFieldId('editar')}
+					errors={mapError ? { location_map: mapError } : {}}
+					bind:values
+					idPrefix="edit"
+				/>
+			{/if}
 
 			{#if personasData}
 				<PersonasSection
@@ -579,7 +610,12 @@
 		{#if form?.error}
 			<p class="error" role="alert">{form.error}</p>
 		{/if}
-		{#if form?.save}
+		{#each form?.warnings ?? [] as warning}
+			<p class="warning" role="alert">⚠️ {warning}</p>
+		{/each}
+		{#if form?.save && form.venueOnly}
+			<p class="note" role="status">✅ Guardado: el lugar del evento. El archivo no cambió.</p>
+		{:else if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
 				{new Date().toLocaleString('es-AR')}
@@ -616,6 +652,10 @@
 			<input type="hidden" name="sha" value={sha} />
 			<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
 			<input type="hidden" name="path" value={path} />
+			{#each Object.entries(venueChoiceFields(venue, venueChanged)) as [name, value] (name)}
+				<input type="hidden" {name} {value} />
+			{/each}
+			<input type="hidden" name="soloLugar" value={venueChanged && !fileChanged ? '1' : ''} />
 			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />

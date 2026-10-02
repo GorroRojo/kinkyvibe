@@ -37,10 +37,13 @@ export function formSections({
 }) {
 	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
 	const cuando = { id: 'sec-cuando', icon: '📅', label: 'Fecha y hora' };
+	// El lugar elegido y el «Dónde» en texto libre (PlaceSection).
+	const lugar = { id: 'sec-lugar', icon: '📍', label: 'Lugar' };
 	if (mode === 'nuevo')
 		return [
 			cuando,
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+			lugar,
 			{ id: 'sec-direccion', icon: '🔗', label: 'Dirección' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
 			tickets,
@@ -61,6 +64,7 @@ export function formSections({
 		[
 			isEvent && cuando,
 			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+			isEvent && lugar,
 			hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' },
 			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
@@ -78,6 +82,7 @@ export const DRAFT_PART_SECTION = {
 	schedule: 'Fecha y hora',
 	values: 'Datos',
 	authors: 'Datos',
+	venue: 'Lugar',
 	slug: 'Dirección',
 	slugEdited: 'Dirección',
 	tagRules: 'Etiquetas',
