@@ -6,7 +6,7 @@
 import { expect, test } from '@playwright/test';
 import { computePrice } from '../../src/lib/utils/tickets.js';
 import { MP_FEE_PERCENT, ticketsE2EGorraEvent } from './event.js';
-import { AGE_OK, ars, fakeDni, shots } from './helpers.js';
+import { AGE_OK, ars, fakeDni, goToStep, nextStep, shots } from './helpers.js';
 
 const EVENT = ticketsE2EGorraEvent();
 const BUY_URL = `/calendario/${EVENT}/entradas`;
@@ -28,6 +28,7 @@ async function fill(page, o = {}) {
 	if (o.amount !== undefined)
 		await block.getByLabel('¿Cuánto querés pagar por entrada?').fill(o.amount);
 	if (o.quantity) await block.getByLabel('Cantidad').fill(String(o.quantity));
+	await nextStep(block, 'Tus datos');
 	await block.getByLabel('Tu nombre').fill(`Gorra E2E ${id}`);
 	await block.getByLabel('Tus pronombres').fill('elle');
 	await block.getByLabel(/^Email/).fill(`gorra-${id}@example.com`);
@@ -40,6 +41,7 @@ async function fill(page, o = {}) {
 			.getByLabel(/^Pronombres/)
 			.fill('ella');
 	}
+	await nextStep(block, 'Pagar');
 	await block.getByLabel(/18 años/).check();
 	return { block, id };
 }
@@ -59,6 +61,8 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	await expect(page.locator('.buy-button')).toContainText('a la gorra');
 
 	const { block } = await fill(page);
+	// El monto está en el paso «Entradas».
+	await goToStep(block, 'Entradas');
 	const amount = block.getByLabel('¿Cuánto querés pagar por entrada?');
 	// Vacío = el sugerido; el chip del sugerido aparece marcado.
 	await expect(amount).toHaveAttribute('placeholder', '5000');
@@ -103,6 +107,7 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	// 7.000 × 2 con Mercado Pago.
 	await amount.fill('7.000');
 	await block.getByRole('button', { name: 'Una entrada más' }).click();
+	await nextStep(block, 'Tus datos');
 	await block
 		.locator('fieldset.holder')
 		.nth(1)
@@ -120,6 +125,7 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 		method: 'mercadopago',
 		feeBasisPoints: FEE_BP
 	});
+	await nextStep(block, 'Pagar');
 	await expect(block.getByText(`Total: ${ars(prices.total)}`)).toBeVisible();
 	await shots(page, '11-gorra-compra', block);
 	await block.locator('.pay button[type="submit"]').click();
@@ -221,9 +227,13 @@ test('evento sin la etiqueta KinkyVibe: sin opciones del Fondo, y un POST armado
 
 test('a la gorra con $ 0 (mínimo 0): se emite sin pagar', async ({ page }) => {
 	const { block } = await fill(page, { type: /^Libre/ });
+	await goToStep(block, 'Entradas');
+	// Los botones rápidos se ven (así el "no hay botón" de abajo no es por estar en otro paso).
+	await expect(block.getByRole('group', { name: 'Montos rápidos' })).toBeVisible();
 	// Con mínimo 0 no hay botón del mínimo: se escribe 0.
 	await expect(block.getByRole('button', { name: 'Sin cargo' })).toHaveCount(0);
 	await block.getByLabel('¿Cuánto querés pagar por entrada?').fill('0');
+	await goToStep(block, 'Pagar');
 	const submit = block.locator('.pay button[type="submit"]');
 	await expect(submit).toHaveText('Confirmar entradas sin cargo');
 	await expect(block.locator('fieldset.methods')).toHaveCount(0);
