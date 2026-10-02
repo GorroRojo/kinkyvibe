@@ -156,29 +156,34 @@ export function salesTotals(events) {
 /**
  * Transferencias de todos los eventos que esperan comprobante (y las vencidas de los últimos
  * 7 días, por si el pago llega tarde). Las vigentes primero, la que vence antes arriba; después
- * las vencidas, la más reciente arriba.
+ * las vencidas, la más reciente arriba. Aparte, las rechazadas (canceladas desde el panel) en los
+ * últimos 7 días, la más reciente arriba, para poder deshacer el rechazo.
  *
  * @param {D1Database} db
  * @param {{ now?: number, eventSlug?: string }} [opts]
- * @returns {Promise<{ pending: Order[], expired: Order[] }>}
+ * @returns {Promise<{ pending: Order[], expired: Order[], rejected: Order[] }>}
  */
 export async function listTransferInbox(db, { now = Date.now(), eventSlug } = {}) {
 	const { results } = await db
 		.prepare(
 			`SELECT * FROM orders
 			WHERE payment_method = 'transferencia'
-				AND status IN ('awaiting_transfer', 'expired')
-				AND expires_at > ?1
+				AND ((status IN ('awaiting_transfer', 'expired') AND expires_at > ?1)
+					OR (status = 'cancelled' AND updated_at > ?1))
 				AND (?2 IS NULL OR event_slug = ?2)
 			ORDER BY expires_at ASC`
 		)
 		.bind(now - EXPIRED_TRANSFER_VISIBLE_MS, eventSlug ?? null)
 		.all();
 	const orders = /** @type {Order[]} */ (results);
+	const open = orders.filter((o) => o.status !== 'cancelled');
 	return {
-		pending: orders.filter((o) => o.status === 'awaiting_transfer' && o.expires_at > now),
-		expired: orders
+		pending: open.filter((o) => o.status === 'awaiting_transfer' && o.expires_at > now),
+		expired: open
 			.filter((o) => !(o.status === 'awaiting_transfer' && o.expires_at > now))
-			.reverse()
+			.reverse(),
+		rejected: orders
+			.filter((o) => o.status === 'cancelled')
+			.sort((a, b) => b.updated_at - a.updated_at)
 	};
 }

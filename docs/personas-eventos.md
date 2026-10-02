@@ -84,6 +84,24 @@ personas:
 | `event_signup_general` | qué generales usa cada evento                                              |
 | `order_answers`        | las respuestas de cada orden (JSON `[{ id, label, value }]`), con la orden |
 
+**Alcance y edición (migración 0026).** Cada pregunta se puede **editar** (texto, tipo, opciones,
+obligatoria y alcance) en vez de borrarla y crearla de nuevo; las respuestas ya guardadas quedan
+como se respondieron (con la pregunta copiada como estaba). Y cada pregunta elige:
+
+- **a qué tipos de entrada aplica**: todos (`[]`, lo de siempre) o algunos. Las propias de un evento
+  lo guardan en `signup_fields.ticket_types`; una general no tiene tipos propios (son de cada
+  evento): cada evento la acota al elegirla (`event_signup_general.ticket_types`). Como una compra
+  es de un solo tipo, una pregunta acotada se pide solo al comprar ese tipo;
+- **cuántas veces se pregunta**: una vez por compra (lo de siempre) o **una vez por entrada**
+  (`signup_fields.per_ticket`): si alguien compra 3, responde 3 veces, dentro de cada entrada del
+  formulario (campo `campo_<id>_<entrada>`). Se guarda con `ticket` (1, 2, 3…) en el JSON de
+  `order_answers`; en Órdenes cada respuesta dice de qué entrada es y en los CSV (Órdenes y el de
+  les organizadores) van juntas en la columna de la pregunta: «Entrada 1: … | Entrada 2: …».
+
+Las reglas puras (qué preguntas aplican a cada tipo, cuántas respuestas pide una compra, validar
+el alcance) están en `src/lib/utils/signupFields.js` (`fieldsForTicketType`, `answerSlots`,
+`answerSetCount`, `validateFieldScope`).
+
 Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 120 letras por
 pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
@@ -121,19 +139,19 @@ en el `personas:` de ese evento. Solo las de sus eventos.
 
 ## Dónde está el código
 
-| Qué                              | Dónde                                                                                                    |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                              |
-| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                       |
-| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                       |
-| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`      |
-| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                       |
-| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                          |
-| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                 |
-| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                      |
-| Componentes del panel            | `admin/PersonasEditor.svelte`, `SignupFieldForm.svelte`, `SignupFieldList.svelte`, `OrderAnswers.svelte` |
-| Migración                        | `migrations/0018_personas_eventos.sql`                                                                   |
-| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                           |
+| Qué                              | Dónde                                                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                                                          |
+| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                                                   |
+| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                   |
+| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                  |
+| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                   |
+| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                      |
+| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                             |
+| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                  |
+| Componentes del panel            | `admin/PersonasEditor.svelte`, `SignupFieldForm.svelte`, `SignupFieldList.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
+| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                      |
+| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                       |
 
 ## Cómo probarlo
 

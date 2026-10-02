@@ -9,8 +9,10 @@ import {
 	sendOrderEmail,
 	sendRefundEmail,
 	sendStreamLinkEmails,
-	siteOrigin
+	siteOrigin,
+	transferHoldMs
 } from '$lib/server/tickets/index.js';
+import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import {
 	cancelTransfer,
 	clearReview,
@@ -355,6 +357,35 @@ export const eventTicketActions = {
 		return ok
 			? { transfer: { ok: true, message: `${ref} cancelada: se liberó el cupo.` } }
 			: fail(409, { transfer: { ok: false, message: `No se pudo cancelar ${ref}.` } });
+	},
+
+	// "Deshacer rechazo": la transferencia cancelada vuelve a esperar comprobante (misma función
+	// que la bandeja general; solo órdenes de este evento). Sin lugar, pide `override`.
+	reopen: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const orderId = String(form.get('order') ?? '').slice(0, 60);
+		const r = await reopenTransferFromPanel({
+			db,
+			locals,
+			by: admin.login,
+			orderId,
+			eventSlug: params.slug,
+			holdMs: transferHoldMs(),
+			override: readOverride(form)
+		});
+		const body = {
+			transfer: {
+				ok: r.ok,
+				message: r.message,
+				order: orderId,
+				action: 'reopen',
+				needsConfirmation: r.needsConfirmation ?? null
+			}
+		};
+		return r.ok ? body : fail(r.status, body);
 	}
 };
 

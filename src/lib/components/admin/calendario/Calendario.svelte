@@ -18,7 +18,8 @@
 	 *   día (ver `dragSnapDuration`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no
 	 *   se puede.
 	 * Los eventos con `extendedProps.pending` (movidos sin guardar) se ven con borde punteado y la
-	 * etiqueta "pendiente".
+	 * etiqueta "pendiente". Los que tienen `extendedProps.note` son notas de un día (ver
+	 * dayNotes.js): de todo el día, con su color, y no se arrastran; tocarlas también manda `open`.
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { dragSnapDuration, dropTarget, localDateParts } from '$lib/utils/calendario.js';
@@ -123,6 +124,11 @@
 			day: 'numeric',
 			month: 'long'
 		}).format(info.event.start);
+		if (p.note) {
+			info.el.setAttribute('aria-label', `Nota del ${when}: ${info.event.title}`);
+			info.el.setAttribute('title', 'Nota del día: tocala para cambiarla o borrarla');
+			return;
+		}
 		info.el.setAttribute(
 			'aria-label',
 			[info.event.title, when, p.time, p.pending ? 'cambio sin guardar' : '']
@@ -304,6 +310,15 @@
 		font-weight: 700;
 		line-height: 1.5;
 		align-self: center;
+	}
+	/* Nota de un día: su color (variables en `styles`, ver dayNotes.js), en cursiva y sin hora. */
+	.calendario :global(.ec-event.kv-nota) {
+		font-style: italic;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.calendario :global(.ec-list .ec-event.kv-nota) {
+		background: var(--tone-bg);
 	}
 	.calendario :global(.kv-ev-cancelado .kv-chip-title) {
 		text-decoration: line-through;
