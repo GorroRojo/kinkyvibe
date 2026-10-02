@@ -10,12 +10,13 @@
  *   va al soltarlo (en la vista semana solo cambia el día, nunca la hora) y cómo queda la fila; se
  *   guarda por el mismo camino que la planilla; `dragSnapDuration`: el arrastre de la semana se
  *   ve igual (la vista previa no cambia de hora);
- * - `newEventQuestion` / `newEventHref` / `readNewEventPrefill`: la pregunta antes de cargar un
- *   evento en un día vacío, el link al formulario de evento nuevo con el día (y las horas)
- *   elegidos, y su lectura del lado del formulario.
+ * - `newEventQuestion` / `newEventHref` / `readNewEventPrefill` / `applyNewEventPrefill`: la
+ *   pregunta antes de cargar un evento en un día vacío, el link al formulario de evento nuevo con el
+ *   día (y las horas) elegidos (y el evento a duplicar), su lectura del lado del formulario y cómo
+ *   queda el formulario con eso.
  */
 import { endDaysFor, validateAgendaRow } from './agenda.js';
-import { addDays, describeDate, isValidDate, isValidTime } from './eventDraft.js';
+import { addDays, describeDate, isValidDate, isValidTime, validateSlug } from './eventDraft.js';
 import { eventBadges } from '$lib/admin/eventFormat.js';
 
 /** Vistas de la agenda: las tres del calendario y la planilla editable de siempre. */
@@ -114,9 +115,11 @@ export const OVERNIGHT_UNTIL = '09:00';
  *   durationEditable: false,
  *   classNames: string[],
  *   styles?: string[],
- *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean, note?: boolean }
+ *   extendedProps: { slug: string, tone: string, time: string, problem: string | null, pending: boolean, draft?: boolean, missing?: string[], note?: boolean }
  * }} CalendarEventInput
  * `styles` y `extendedProps.note`: solo las notas de los días (ver dayNotes.js).
+ * `draft`: es un borrador (no listado, «a confirmar»); `missing`: lo que le falta (ver
+ * eventMissing.js), solo en los borradores.
  */
 
 /**
@@ -127,7 +130,7 @@ export const OVERNIGHT_UNTIL = '09:00';
  * real se muestra en el chip (`extendedProps.time`). Una fila con `pending` (movida y sin guardar,
  * ver pendingMoves.js) lleva la clase `kv-ev-pendiente`.
  *
- * @param {import('./agenda.js').AgendaRow & { pending?: boolean }} row
+ * @param {import('./agenda.js').AgendaRow & { pending?: boolean, draft?: boolean, missing?: { label: string }[] }} row
  * @param {{ places: string[], canEdit?: boolean }} options `canEdit`: se puede arrastrar
  * @returns {CalendarEventInput}
  */
@@ -149,6 +152,7 @@ export function calendarEvent(row, { places, canEdit = true }) {
 		}
 	}
 	const tone = eventTone(row);
+	const draft = isDraftRow(row);
 	return {
 		id: row.slug,
 		title: row.title || row.slug,
@@ -168,9 +172,31 @@ export function calendarEvent(row, { places, canEdit = true }) {
 			tone,
 			time: timed ? (row.endTime ? `${row.startTime} – ${row.endTime}` : row.startTime) : '',
 			problem,
-			pending: Boolean(row.pending)
+			pending: Boolean(row.pending),
+			...(draft ? { draft, missing: (row.missing ?? []).map((m) => m.label) } : {})
 		}
 	};
+}
+
+/**
+ * ¿Es un borrador del panel? Tiene la marca `borrador: true` (la pone la importación y la carga
+ * rápida; `draft` en la fila) y sigue no listado. Un evento no listado a propósito (sin la marca)
+ * no es un borrador: no aparece en «A confirmar» ni se ofrece «Confirmar».
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state'> & { draft?: boolean }} row
+ */
+export function isDraftRow(row) {
+	return row.draft === true && row.state === 'no-listado';
+}
+
+/**
+ * Solo los borradores (filtro «a confirmar» de la agenda), o todas si `onlyDrafts` es false.
+ * @template {Pick<import('./agenda.js').AgendaRow, 'state'> & { draft?: boolean }} R
+ * @param {R[]} rows
+ * @param {boolean} onlyDrafts
+ * @returns {R[]}
+ */
+export function draftRows(rows, onlyDrafts) {
+	return onlyDrafts ? rows.filter(isDraftRow) : rows;
 }
 
 /**
@@ -260,16 +286,46 @@ export function movedAgendaValues(values, { date, time }) {
 }
 
 /**
- * Link al formulario de evento nuevo con el día (y opcionalmente las horas) ya puestos.
- * @param {{ date: string, startTime?: string, endTime?: string }} prefill
+ * Link al formulario de evento nuevo con el día (y opcionalmente las horas) ya puestos. Con `from`
+ * (el slug de un evento), el formulario duplica ese evento en ese día.
+ * @param {{ date?: string, startTime?: string, endTime?: string, from?: string }} prefill
  */
-export function newEventHref({ date, startTime, endTime }) {
+export function newEventHref({ date = '', startTime, endTime, from }) {
 	const q = new URLSearchParams();
+	if (from && !validateSlug(from)) q.set('desde', from);
 	if (isValidDate(date)) q.set('fecha', date);
 	if (startTime && isValidTime(startTime)) q.set('hora', startTime);
 	if (endTime && isValidTime(endTime)) q.set('hasta', endTime);
 	const s = q.toString();
 	return s ? `/admin/eventos/nuevo?${s}` : '/admin/eventos/nuevo';
+}
+
+/**
+ * Pone en el formulario de evento nuevo (o en la copia de un evento) el día y las horas que
+ * vinieron de la agenda. El día manda; las horas del original se conservan si no eligieron otras.
+ * `span` (días entre el inicio y el fin del original) se recalcula si cambian las horas: una
+ * copia de 20:00 a 23:00 que pasa a empezar a las 23:30 termina al día siguiente; los eventos de
+ * varios días (2 o más) conservan sus días.
+ *
+ * @template {{ startDate: string, startTime: string, endDate: string, endTime: string, hasEnd: boolean }} V
+ * @param {V} values el formulario (de `formFromSource`)
+ * @param {number} span
+ * @param {{ date: string, startTime: string, endTime: string }} prefill de `readNewEventPrefill`
+ * @returns {{ values: V, span: number }}
+ */
+export function applyNewEventPrefill(values, span, prefill) {
+	if (!isValidDate(prefill.date)) return { values: { ...values }, span };
+	const next = { ...values, startDate: prefill.date };
+	if (prefill.startTime) next.startTime = prefill.startTime;
+	if (prefill.endTime) {
+		next.endTime = prefill.endTime;
+		next.hasEnd = true;
+	}
+	const days = prefill.startTime
+		? endDaysFor({ startTime: next.startTime, endTime: next.endTime, endDays: span })
+		: span;
+	next.endDate = addDays(prefill.date, days);
+	return { values: next, span: days };
 }
 
 /**
