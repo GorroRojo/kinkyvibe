@@ -8,4 +8,7 @@
 	export let form;
 </script>
 
-<PostEditor {data} {form} category="calendario" postID={data.event.slug} embedded />
+<!-- Al guardar se vuelve a leer la página: el editor se arma de nuevo con el archivo guardado. -->
+{#key data.post}
+	<PostEditor {data} {form} category="calendario" postID={data.event.slug} embedded />
+{/key}

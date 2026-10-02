@@ -32,6 +32,8 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { seriesEnabled } from '$lib/server/flags.js';
+import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { commitSavedToDb, saveCopy } from '$lib/admin/saveCopy.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { planTagEdit } from '$lib/server/admin/tagEditor.js';
@@ -91,6 +93,8 @@ export async function load({ locals, url, platform }) {
 	let source = null;
 	/** @type {ReturnType<typeof seriesPromptFor>} */
 	let seriesPrompt = null;
+	// Interruptor `contenido_db`: el evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
+	const savesToDb = await panelSavesToDb(platform, 'calendario');
 	if (desde) {
 		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
 		const client = await getRepoClient();
@@ -98,7 +102,7 @@ export async function load({ locals, url, platform }) {
 		try {
 			raw = await client.getFile(admin.token, eventPath(desde));
 		} catch (e) {
-			throw error(502, 'No pudimos leer el evento desde GitHub: ' + describeError(e));
+			throw error(502, saveCopy(savesToDb).eventReadFailed + describeError(e));
 		}
 		if (raw === null) throw error(404, `No encontramos el evento “${desde}”.`);
 		let fields;
@@ -136,6 +140,7 @@ export async function load({ locals, url, platform }) {
 		duplicables: source ? [] : await duplicableEvents(),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
+		savesToDb,
 		mock: isMockMode()
 	};
 }
@@ -170,7 +175,7 @@ async function suggestFreeSlug(client, token, slug) {
 /** @type {import('./$types').Actions} */
 export const actions = {
 	/** Checks the slug against GitHub right before showing the preview. */
-	verificar: async ({ locals, request }) => {
+	verificar: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const data = await request.formData();
@@ -194,7 +199,8 @@ export const actions = {
 				suggestion: await suggestFreeSlug(client, admin.token, slug)
 			});
 		} catch (e) {
-			return fail(502, { error: 'No pudimos consultar GitHub: ' + describeError(e) });
+			const copy = saveCopy(await panelSavesToDb(platform, 'calendario'));
+			return fail(502, { error: copy.slugCheckFailed + describeError(e) });
 		}
 	},
 
@@ -434,6 +440,8 @@ export const actions = {
 				mode,
 				commitUrl: commit.url,
 				publish: commit.pr ?? null,
+				// Interruptor `contenido_db`: el evento se guardó en la base (ya se ve).
+				savedToDb: commitSavedToDb(commit),
 				eventUrl: `/calendario/${slug}`,
 				files: files.filter((f) => !f.delete).map((f) => f.path),
 				deleted,
@@ -463,7 +471,8 @@ export const actions = {
 				e instanceof GitHubError && (e.status === 401 || e.status === 403)
 					? ' Probá cerrar sesión y volver a entrar.'
 					: '';
-			return fail(502, { error: 'No se pudo guardar en GitHub: ' + describeError(e) + hint });
+			const copy = saveCopy(await panelSavesToDb(platform, 'calendario').catch(() => false));
+			return fail(502, { error: copy.saveFailed + describeError(e) + hint });
 		}
 	}
 };

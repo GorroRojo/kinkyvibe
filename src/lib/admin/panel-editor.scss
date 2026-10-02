@@ -2,6 +2,16 @@
 // dentro del marco del panel: el mismo formulario de $lib/components/admin/admin.scss, con los
 // tokens del panel (claro y oscuro) y los botones y tarjetas del panel. Solo aplica dentro de
 // `.kv-panel`, así que /edit (fuera del panel) queda como estaba.
+// Lo que tapan las barras fijas del panel: el índice de secciones y el «Guardar» del formulario
+// de eventos ($lib/components/admin/event-form) quedan fijos justo al lado.
+.kv-panel {
+	--form-sticky-top: 4.6rem;
+	--form-sticky-bottom: 0px;
+	@media (max-width: 899.98px) {
+		--form-sticky-top: 3.75rem;
+		--form-sticky-bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
+	}
+}
 .kv-panel .kv-admin {
 	max-width: 52rem;
 	margin: 0;
@@ -11,6 +21,10 @@
 
 	&.embedded {
 		max-width: none;
+	}
+	// Con el índice de secciones al costado, un poco más ancho.
+	&:has(.section-index) {
+		max-width: 66rem;
 	}
 	h1 {
 		font-size: 1.6rem;

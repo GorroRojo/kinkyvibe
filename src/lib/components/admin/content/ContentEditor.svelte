@@ -1,12 +1,14 @@
 <!--
 	Editor of a material post or an amigues profile inside the panel: create, duplicate or edit.
-	Reuses the event editor's pieces (TagPicker, OrganizerPicker, CodeMirror, the admin form look)
-	and saves through `?/guardar` (see $lib/server/admin/contentRoutes.js): one commit with the
-	post and, optionally, a new image in its media folder.
+	Uses the same frame and sections as the event form (EventForm: section index, one sticky
+	«Guardar», local draft; DatosSection, ImageSection, TagsSection, BodySection, FilePreview in
+	$lib/components/admin/event-form/) and saves through `?/guardar` (see
+	$lib/server/admin/contentRoutes.js): one commit with the post and, optionally, a new image in
+	its media folder. While saving, «Guardar» is off with «Guardando…» (SaveButton); after saving, the
+	bar says how it went (SaveStatus). The copy depends on whether saving goes to the database
+	(`data.savesToDb`, switch `contenido_db`; see $lib/admin/saveCopy.js).
 -->
 <script>
-	import CodeMirror from 'svelte-codemirror-editor';
-	import { markdown } from '@codemirror/lang-markdown';
 	import { onDestroy } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 	import { browser } from '$app/environment';
@@ -16,27 +18,31 @@
 		CircleCheck,
 		CircleAlert,
 		ExternalLink,
-		FileText,
-		Image as ImageIcon,
 		LoaderCircle,
 		Save,
-		ShieldAlert,
-		Tags as TagsIcon,
-		UserRound
+		ShieldAlert
 	} from '@lucide/svelte';
 	import '$lib/components/admin/admin.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import EventForm from '$lib/components/admin/event-form/EventForm.svelte';
+	import BodySection from '$lib/components/admin/event-form/BodySection.svelte';
+	import DatosSection from '$lib/components/admin/event-form/DatosSection.svelte';
+	import FieldGrid from '$lib/components/admin/event-form/FieldGrid.svelte';
+	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
+	import SaveButton from '$lib/components/admin/event-form/SaveButton.svelte';
+	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
+	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
+	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
+	import { contentDraftLabels, formSections } from '$lib/admin/eventForm.js';
+	import { emptyUpload } from '$lib/admin/imageState.js';
 	import { contentAdminHref, contentAdminLabel } from '$lib/admin/nav.js';
-	import OrganizerPicker from '$lib/components/admin/OrganizerPicker.svelte';
-	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import Tags from '$lib/components/Tags.svelte';
 	import QuickTags from './QuickTags.svelte';
-	import { buildTagOptions, canonicalTag, siteTags } from '$lib/utils/adminTags.js';
-	import { buildOrganizerOptions } from '$lib/utils/organizers.js';
+	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import {
 		buildContentMarkdown,
 		contentProblems,
@@ -55,7 +61,7 @@
 	 *   category: 'material'|'amigues', mode: 'nuevo'|'editar', raw: string, sha: string,
 	 *   slug: string, source: {slug: string, title: string} | null, fromTemplate: boolean,
 	 *   taken: string[], imageUrl: string | null, today: string, maxImageBytes: number,
-	 *   mock: boolean, tagUsage: Record<string, number>,
+	 *   mock: boolean, savesToDb?: boolean, tagUsage: Record<string, number>,
 	 *   profiles: import('$lib/utils/organizers.js').Profile[], authorUsage: Record<string, number>
 	 * }}
 	 */
@@ -68,6 +74,8 @@
 	const isNew = mode === 'nuevo';
 	const one = category === 'material' ? 'material' : 'perfil';
 	const tm = siteTags();
+	/** Con el interruptor `contenido_db` (material), se guarda en la base y se ve enseguida. */
+	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
 	let baseRaw = data.raw;
@@ -147,44 +155,14 @@
 	}
 	onDestroy(() => clearTimeout(slugTimer));
 
-	/* ---------- tags & authors ---------- */
-	const tagOptions = buildTagOptions({ category, usage: data.tagUsage });
-	const organizerOptions = buildOrganizerOptions(data.profiles, data.authorUsage);
-
 	/* ---------- image ---------- */
-	/** @type {HTMLInputElement} */
-	let fileInput;
-	let uploadURL = '';
-	let uploadName = '';
-	let uploadError = '';
-	/** @param {Event} e */
-	function onFileChange(e) {
-		// @ts-ignore
-		const file = e.currentTarget.files?.[0];
-		uploadError = '';
-		if (!file) return;
-		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-			uploadError = 'La imagen tiene que ser JPG, PNG o WEBP.';
-		} else if (file.size > data.maxImageBytes) {
-			uploadError = `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El máximo es ${
-				data.maxImageBytes / 1024 / 1024
-			} MB.`;
-		}
-		if (uploadError) {
-			fileInput.value = '';
-			return;
-		}
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = URL.createObjectURL(file);
-		uploadName = file.name;
-	}
+	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
+	let upload = emptyUpload();
+	/** @type {ImageSection | undefined} */
+	let imageSection;
 	function clearUpload() {
-		if (fileInput) fileInput.value = '';
-		if (uploadURL) URL.revokeObjectURL(uploadURL);
-		uploadURL = '';
-		uploadName = '';
+		imageSection?.clear();
 	}
-	onDestroy(() => uploadURL && URL.revokeObjectURL(uploadURL));
 	$: currentImage = isNew && data.source ? null : data.imageUrl;
 
 	/* ---------- result ---------- */
@@ -214,23 +192,21 @@
 	}
 	$: unchangedContent = parseError || isNew ? '' : safeBuild(initial, buildOpts);
 	$: changed =
-		isNew || content !== (parseError ? baseRaw : unchangedContent) || Boolean(uploadName);
+		isNew || content !== (parseError ? baseRaw : unchangedContent) || Boolean(upload.name);
 	$: problems = parseError
 		? []
 		: [
 				...contentProblems(category, f),
 				...(slugError ? [slugError] : []),
 				...(slugCheck && slugCheck.slug === slug && slugCheck.error ? [slugCheck.error] : []),
-				...(uploadError ? [uploadError] : []),
-				...(category === 'amigues' && isNew && !uploadName
+				...(upload.error ? [upload.error] : []),
+				...(category === 'amigues' && isNew && !upload.name
 					? ['Subí una foto o un logo para el perfil.']
 					: [])
 			];
 	let showProblems = false;
 
 	/* ---------- preview ---------- */
-	/** @type {'editar'|'vista'} */
-	let pane = 'editar';
 	let previewHtml = '';
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
 	let previewTimer;
@@ -255,7 +231,7 @@
 			summary: f.values.summary || '',
 			tags: previewTags,
 			authors: f.authors,
-			featured: uploadURL || currentImage || undefined,
+			featured: upload.url || currentImage || undefined,
 			published_date: f.values.published_date || data.today,
 			category
 		}
@@ -265,7 +241,7 @@
 	let saving = false;
 	/** Guardó bien y el servidor redirige a la publicación creada. */
 	let redirecting = false;
-	/** @type {null | {at: number, commit: string, imagePath: string | null, publish: any}} */
+	/** @type {null | {at: number, commit: string, imagePath: string | null, publish: any, savedToDb: boolean}} */
 	let saved = null;
 	const justCreated = $page.url.searchParams.get('guardado');
 	/** El PR con el que se publica lo recién creado (viene en la dirección tras redirigir). */
@@ -285,7 +261,8 @@
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submit({ cancel }) {
 		showProblems = true;
-		if (problems.length || !content || !changed) {
+		// Un solo envío a la vez.
+		if (saving || redirecting || problems.length || !content || !changed) {
 			cancel();
 			return;
 		}
@@ -303,7 +280,13 @@
 			saving = false;
 			if (result.type === 'success' && result.data?.saved) {
 				const s = result.data.saved;
-				saved = { at: s.at, commit: s.commit, imagePath: s.imagePath, publish: s.publish };
+				saved = {
+					at: s.at,
+					commit: s.commit,
+					imagePath: s.imagePath,
+					publish: s.publish,
+					savedToDb: Boolean(s.savedToDb)
+				};
 				baseRaw = s.content;
 				sha = s.sha;
 				try {
@@ -325,7 +308,7 @@
 	const newKey = (from) => draftKey(category, from ? `nuevo-desde-${from}` : 'nuevo');
 	const unsavedKey = isNew ? newKey(data.source?.slug ?? '') : draftKey(category, data.slug);
 	$: dirty = isNew
-		? JSON.stringify(f) !== startForm || Boolean(uploadName) || slugTouched
+		? JSON.stringify(f) !== startForm || Boolean(upload.name) || slugTouched
 		: changed;
 	$: draft = { f, slug, slugTouched, rawText };
 	/** @param {any} d */
@@ -338,6 +321,15 @@
 			slugTouched = true;
 		}
 	}
+
+	/** La confirmación de la barra de guardar: hasta que se vuelve a cambiar algo. */
+	$: savedMessage = saved
+		? changed
+			? ''
+			: savedSummary({ savedToDb: saved.savedToDb, pr: saved.publish })
+		: justCreated && !dirty
+			? savedSummary({ savedToDb: data.savesToDb, pr: createdPr })
+			: '';
 
 	$: pageTitle = isNew
 		? data.source
@@ -370,247 +362,145 @@
 			guardan en una carpeta temporal.
 		</p>
 	{/if}
-	<UnsavedChanges
+
+	<EventForm
+		sections={formSections({ mode: 'contenido', parseError: !!parseError })}
 		draftKey={unsavedKey}
 		base={isNew ? '' : sha}
 		{dirty}
 		snapshot={draft}
 		restore={restoreDraft}
+		describe={contentDraftLabels}
 		saved={Boolean(saved)}
 		saving={saving || redirecting}
-	/>
-
-	{#if justCreated && !saved}
-		<p class="banner ok" role="status">
-			<CircleCheck size={18} aria-hidden="true" />
-			<span>
-				{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}.
-				{#if createdPr}<PublishStatus pr={createdPr} />{:else}Se ve en el sitio (y en la lista)
-					cuando termina el deploy, en unos minutos.{/if}
-				Podés seguir editándola acá.
-			</span>
-		</p>
-	{/if}
-
-	{#if parseError}
-		<p class="problems" role="alert">
-			Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
-			como texto. Revisá las líneas entre los <code>---</code>.
-		</p>
-		<textarea class="raw" bind:value={rawText} rows="30" aria-label="Archivo completo"></textarea>
-	{:else}
-		<fieldset class="card">
-			<legend><FileText size={18} aria-hidden="true" /> Datos</legend>
-			<div class="grid">
-				{#each mainFields as fd}
-					{#if fd.type === 'checkbox'}
-						<label class="check" class:wide={fd.wide}>
-							<input type="checkbox" id="{fd.key}-input" bind:checked={f.values[fd.key]} />
-							{fd.label}
-						</label>
-					{:else}
-						<label class="field" class:wide={fd.wide}>
-							<span
-								>{fd.label}
-								{#if fd.required}<span class="req">*</span>{/if}</span
-							>
-							{#if fd.type === 'textarea'}
-								<textarea
-									id="{fd.key}-input"
-									bind:value={f.values[fd.key]}
-									rows="3"
-									placeholder={fd.placeholder}></textarea>
-							{:else if fd.type === 'date'}
-								<input type="date" id="{fd.key}-input" bind:value={f.values[fd.key]} />
-							{:else if fd.type === 'url'}
-								<input
-									type="url"
-									inputmode="url"
-									id="{fd.key}-input"
-									bind:value={f.values[fd.key]}
-									placeholder={fd.placeholder}
-								/>
-							{:else}
-								<input
-									id="{fd.key}-input"
-									bind:value={f.values[fd.key]}
-									placeholder={fd.placeholder}
-								/>
-							{/if}
-							{#if fd.help}<small>{fd.help}</small>{/if}
-						</label>
-					{/if}
-				{/each}
-				{#if isNew}
-					<label class="field wide">
-						<span>Dirección de la página <span class="req">*</span></span>
-						<div class="slug">
-							<span class="prefix">kinkyvibe.ar/{category}/</span>
-							<input
-								id="slug-input"
-								bind:value={slug}
-								on:input={() => (slugTouched = true)}
-								autocomplete="off"
-								spellcheck="false"
-								aria-describedby="slug-help"
-							/>
-						</div>
-						<small id="slug-help" class:bad={slugError || slugCheck?.error}>
-							{#if slugError}{slugError}
-							{:else if checkingSlug}<LoaderCircle size={14} class="spin" aria-hidden="true" /> Comprobando
-								en GitHub…
-							{:else if slugCheck?.slug === slug && slugCheck.error}{slugCheck.error}
-							{:else if slugCheck?.slug === slug && !slugCheck.unverified}<CircleCheck
-									size={14}
-									aria-hidden="true"
-								/> Libre.
-							{:else}Se completa sola con el título; podés cambiarla. No se puede cambiar después.{/if}
-						</small>
-					</label>
-				{/if}
-			</div>
-
-			{#if contactFields.length}
-				<details class="contact" open={hasContact}>
-					<summary><ShieldAlert size={16} aria-hidden="true" /> Datos de contacto públicos</summary>
-					<p class="warn">
-						Todo lo que pongas acá se ve en la página pública del perfil y queda en el historial
-						público del repositorio. Completalo solo si la persona lo pidió.
-					</p>
-					<div class="grid">
-						{#each contactFields as fd}
-							<label class="field">
-								<span>{fd.label}</span>
-								{#if fd.type === 'date'}
-									<input type="date" id="{fd.key}-input" bind:value={f.values[fd.key]} />
-								{:else if fd.type === 'email'}
-									<input type="email" id="{fd.key}-input" bind:value={f.values[fd.key]} />
-								{:else if fd.type === 'tel'}
-									<input type="tel" id="{fd.key}-input" bind:value={f.values[fd.key]} />
-								{:else}
-									<input id="{fd.key}-input" bind:value={f.values[fd.key]} />
-								{/if}
-							</label>
-						{/each}
-					</div>
-				</details>
-			{/if}
-		</fieldset>
-
-		{#if hasAuthors(category)}
-			<fieldset class="card">
-				<legend><UserRound size={18} aria-hidden="true" /> Autores</legend>
-				<div class="field-label">
-					<label for="authors-input" class="sr">Autores</label>
-					<OrganizerPicker
-						bind:authors={f.authors}
-						profiles={data.profiles}
-						options={organizerOptions}
-						id="authors-input"
-						describedby="authors-help"
-					/>
-					<small id="authors-help"
-						>Elegí de amigues (se enlaza su perfil) o escribí un nombre y elegí «Agregar».</small
-					>
-				</div>
-			</fieldset>
+	>
+		{#if justCreated && !saved}
+			<p class="banner ok" role="status">
+				<CircleCheck size={18} aria-hidden="true" />
+				<span>
+					{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}.
+					{#if data.savesToDb}{copy.contentCreated}{#if createdPr}{' '}La imagen nueva tarda unos
+							minutos: <PublishStatus pr={createdPr} />{/if}
+					{:else if createdPr}<PublishStatus pr={createdPr} />{:else}{copy.contentCreated}{/if}
+					Podés seguir editándola acá.
+				</span>
+			</p>
 		{/if}
 
-		<fieldset class="card">
-			<legend><ImageIcon size={18} aria-hidden="true" /> Imagen</legend>
-			<div class="image-row">
-				{#if uploadURL || currentImage}
-					<img src={uploadURL || currentImage} alt="Imagen de la publicación" class="thumb" />
-				{:else}
-					<div class="thumb empty">Sin imagen</div>
+		{#if parseError}
+			<p class="problems" role="alert">
+				Las propiedades de este archivo tienen un error de formato ({parseError}), así que se edita
+				como texto. Revisá las líneas entre los <code>---</code>.
+			</p>
+			<textarea class="raw" bind:value={rawText} rows="30" aria-label="Archivo completo"></textarea>
+		{:else}
+			<DatosSection
+				fields={mainFields}
+				bind:values={f.values}
+				hasAuthors={hasAuthors(category)}
+				bind:authors={f.authors}
+				profiles={data.profiles}
+				authorUsage={data.authorUsage}
+				authorsLabel="Autores"
+			>
+				<svelte:fragment slot="grid">
+					{#if isNew}
+						<label class="field wide">
+							<span>Dirección de la página <span class="req">*</span></span>
+							<div class="slug">
+								<span class="prefix">kinkyvibe.ar/{category}/</span>
+								<input
+									id="slug-input"
+									bind:value={slug}
+									on:input={() => (slugTouched = true)}
+									autocomplete="off"
+									spellcheck="false"
+									aria-describedby="slug-help"
+								/>
+							</div>
+							<small id="slug-help" class:bad={slugError || slugCheck?.error}>
+								{#if slugError}{slugError}
+								{:else if checkingSlug}<LoaderCircle size={14} class="spin" aria-hidden="true" />
+									{copy.checkingSlug}
+								{:else if slugCheck?.slug === slug && slugCheck.error}{slugCheck.error}
+								{:else if slugCheck?.slug === slug && !slugCheck.unverified}<CircleCheck
+										size={14}
+										aria-hidden="true"
+									/> Libre.
+								{:else}Se completa sola con el título; podés cambiarla. No se puede cambiar después.{/if}
+							</small>
+						</label>
+					{/if}
+				</svelte:fragment>
+				{#if contactFields.length}
+					<details class="contact" open={hasContact}>
+						<summary
+							><ShieldAlert size={16} aria-hidden="true" /> Datos de contacto públicos</summary
+						>
+						<p class="warn">
+							Todo lo que pongas acá se ve en la página pública del perfil y queda en el historial
+							público del repositorio. Completalo solo si la persona lo pidió.
+						</p>
+						<FieldGrid fields={contactFields} bind:values={f.values} />
+					</details>
 				{/if}
-				<div class="image-actions">
-					{#if uploadName}
-						<p class="hint">Nueva imagen: {uploadName}</p>
+			</DatosSection>
+
+			<ImageSection
+				bind:this={imageSection}
+				bind:upload
+				src={upload.url || currentImage}
+				alt="Imagen de la publicación"
+				inputId="content-image"
+				form="content-form"
+				buttonText={upload.name
+					? 'Elegir otra imagen'
+					: currentImage
+						? 'Cambiar la imagen'
+						: 'Subir una imagen'}
+				maxImageBytes={data.maxImageBytes}
+			>
+				<svelte:fragment slot="before">
+					{#if upload.name}
+						<p class="hint">Nueva imagen: {upload.name}</p>
 					{:else if isNew && data.source && initial.featured}
 						<p class="hint">La copia no usa la imagen del original: subí una.</p>
 					{/if}
-					<label class="file">
-						<span
-							>{uploadName
-								? 'Elegir otra imagen'
-								: currentImage
-									? 'Cambiar la imagen'
-									: 'Subir una imagen'}</span
-						>
-						<input
-							bind:this={fileInput}
-							type="file"
-							name="image"
-							form="content-form"
-							id="content-image"
-							accept="image/jpeg,image/png,image/webp"
-							on:change={onFileChange}
-						/>
-					</label>
-					<small>
-						JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Se guarda en
-						<code>{category}/media/{slug || '…'}/</code>{isNew
-							? ' como 1'
-							: ' con el próximo número libre'}
-						(las imágenes que ya usa el texto no se tocan).
-					</small>
-					{#if uploadName}<button type="button" class="link" on:click={clearUpload}
-							>No cambiar la imagen</button
-						>{/if}
-					{#if uploadError}<p class="error">{uploadError}</p>{/if}
-				</div>
-			</div>
-		</fieldset>
+				</svelte:fragment>
+				<svelte:fragment slot="formats">
+					JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Se guarda en
+					<code>{category}/media/{slug || '…'}/</code>{isNew
+						? ' como 1'
+						: ' con el próximo número libre'}
+					(las imágenes que ya usa el texto no se tocan).
+				</svelte:fragment>
+				{#if upload.name}<button type="button" class="link" on:click={clearUpload}
+						>No cambiar la imagen</button
+					>{/if}
+			</ImageSection>
 
-		<fieldset class="card">
-			<legend><TagsIcon size={18} aria-hidden="true" /> Etiquetas</legend>
-			<QuickTags {category} bind:tags={f.tags} idPrefix="content-quick" />
-			<div class="field-label">
-				<label for="tags-input">Todas las etiquetas: prácticas, temas…</label>
-				<TagPicker
-					bind:tags={f.tags}
-					options={tagOptions}
-					id="tags-input"
-					placeholder="Buscá una etiqueta: BDSM, shibari, guía…"
-					describedby="tags-help"
-				/>
-				<small id="tags-help"
+			<TagsSection
+				{category}
+				usage={data.tagUsage}
+				bind:freeTags={f.tags}
+				label="Todas las etiquetas: prácticas, temas…"
+				placeholder="Buscá una etiqueta: BDSM, shibari, guía…"
+			>
+				<QuickTags slot="before" {category} bind:tags={f.tags} idPrefix="content-quick" />
+				<svelte:fragment slot="help"
 					>Escribí para buscar (sin importar tildes). Preferí las que ya existen: son las que se
 					usan para filtrar. Las etiquetas se ordenan y renombran en <a href="/admin/etiquetas"
 						>Etiquetas</a
-					>.</small
+					>.</svelte:fragment
 				>
-			</div>
-		</fieldset>
+			</TagsSection>
 
-		<fieldset class="card body-card">
-			<legend><FileText size={18} aria-hidden="true" /> Texto de la página</legend>
-			<div class="panes-toggle" role="tablist" aria-label="Texto">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={pane === 'editar'}
-					on:click={() => (pane = 'editar')}>Editar</button
+			<BodySection bind:value={f.body}>
+				<svelte:fragment slot="hint"
+					>Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>,
+					<code>[[término]]</code> para la Kinkipedia.</svelte:fragment
 				>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={pane === 'vista'}
-					on:click={() => (pane = 'vista')}>Vista previa</button
-				>
-			</div>
-			<div class="panes" data-pane={pane}>
-				<div class="pane-edit">
-					<p class="hint">
-						Formato: <code>## Título</code>, <code>- lista</code>, <code>**negrita**</code>,
-						<code>[[término]]</code> para la Kinkipedia.
-					</p>
-					<div class="editor">
-						<CodeMirror lineWrapping tabSize={4} bind:value={f.body} lang={markdown()} />
-					</div>
-				</div>
-				<div class="pane-preview" aria-label="Vista previa">
+				<svelte:fragment slot="preview">
 					<div class="public-preview">
 						<article>
 							<h1>{f.values.title || 'Sin título'}</h1>
@@ -626,73 +516,70 @@
 						>Vista aproximada: los componentes y las imágenes que importa el texto se ven al
 						publicar.</small
 					>
+				</svelte:fragment>
+			</BodySection>
+
+			<fieldset class="card" id="sec-lista">
+				<legend>👀 Así se ve en la lista</legend>
+				<div class="card-preview" aria-hidden="true">
+					{#key previewPost}<PostListItem post={previewPost} />{/key}
 				</div>
+			</fieldset>
+		{/if}
+
+		{#if showProblems && problems.length}
+			<div class="problems" role="alert">
+				<strong>Antes de guardar:</strong>
+				<ul>
+					{#each problems as p}<li>{p}</li>{/each}
+				</ul>
 			</div>
-		</fieldset>
+		{/if}
+		{#if form?.error}<p class="error" role="alert">
+				<CircleAlert size={16} aria-hidden="true" />
+				{form.error}
+			</p>{/if}
+		{#if saved}
+			<p class="banner ok" role="status">
+				<CircleCheck size={18} aria-hidden="true" />
+				<span>
+					{new Date(saved.at).toLocaleTimeString('es-AR')} ·
+					{#if saved.savedToDb}{copy.contentSaved}{#if saved.publish}{' '}La imagen nueva tarda unos
+							minutos: <PublishStatus pr={saved.publish} />{/if}
+					{:else if saved.publish}<PublishStatus
+							pr={saved.publish}
+						/>{:else}{copy.contentSaved}{/if}
+				</span>
+			</p>
+		{/if}
 
-		<fieldset class="card">
-			<legend>Así se ve en la lista</legend>
-			<div class="card-preview" aria-hidden="true">
-				{#key previewPost}<PostListItem post={previewPost} />{/key}
-			</div>
-		</fieldset>
-	{/if}
+		<FilePreview {content} savesToDb={data.savesToDb} />
 
-	{#if showProblems && problems.length}
-		<div class="problems" role="alert">
-			<strong>Antes de guardar:</strong>
-			<ul>
-				{#each problems as p}<li>{p}</li>{/each}
-			</ul>
-		</div>
-	{/if}
-	{#if form?.error}<p class="error" role="alert">
-			<CircleAlert size={16} aria-hidden="true" />
-			{form.error}
-		</p>{/if}
-	{#if saved}
-		<p class="banner ok" role="status">
-			<CircleCheck size={18} aria-hidden="true" />
-			<span>
-				{new Date(saved.at).toLocaleTimeString('es-AR')} ·
-				{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}Guardado. El sitio se
-					actualiza en unos minutos.{/if}
-			</span>
-		</p>
-	{/if}
-
-	<details class="file-view">
-		<summary>Ver el archivo que se va a guardar</summary>
-		<pre class="markdown">{content}</pre>
-	</details>
-
-	<form
-		method="POST"
-		action="?/guardar"
-		class="bar"
-		id="content-form"
-		enctype="multipart/form-data"
-		use:enhance={submit}
-	>
-		<textarea hidden name="content" value={content}></textarea>
-		<input type="hidden" name="mode" value={mode} />
-		<input type="hidden" name="slug" value={slug} />
-		<input type="hidden" name="sha" value={sha} />
-		<input type="hidden" name="eol" value={lineEndingOf(baseRaw)} />
-		<input type="hidden" name="desde" value={data.source?.slug ?? ''} />
-		<small class="later"
-			>Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.</small
+		<form
+			method="POST"
+			action="?/guardar"
+			class="bar sticky"
+			id="content-form"
+			enctype="multipart/form-data"
+			use:enhance={submit}
 		>
-		<button
-			type="submit"
-			class="kv-btn"
-			id="save"
-			disabled={saving || !content || (!changed && !isNew)}
-		>
-			{#if saving}<LoaderCircle size={18} class="spin" aria-hidden="true" /> Guardando…
-			{:else}<Save size={18} aria-hidden="true" /> {isNew ? `Crear ${one}` : 'Guardar'}{/if}
-		</button>
-	</form>
+			<textarea hidden name="content" value={content}></textarea>
+			<input type="hidden" name="mode" value={mode} />
+			<input type="hidden" name="slug" value={slug} />
+			<input type="hidden" name="sha" value={sha} />
+			<input type="hidden" name="eol" value={lineEndingOf(baseRaw)} />
+			<input type="hidden" name="desde" value={data.source?.slug ?? ''} />
+			<SaveStatus saving={saving || redirecting} message={savedMessage} />
+			{#if !savedMessage}<small class="later" id="save-help">{copy.contentHelp}</small>{/if}
+			<SaveButton
+				variant="kv-btn"
+				id="save"
+				saving={saving || redirecting}
+				disabled={!content || (!changed && !isNew)}
+				><Save size={18} aria-hidden="true" /> {isNew ? `Crear ${one}` : 'Guardar'}</SaveButton
+			>
+		</form>
+	</EventForm>
 </div>
 
 <style lang="scss">
@@ -711,16 +598,6 @@
 			gap: 0.4em;
 			font-size: 1.1rem;
 		}
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-	}
-	.wide {
-		grid-column: 1 / -1;
 	}
 	.banner {
 		display: flex;
@@ -781,85 +658,6 @@
 			font-size: 0.9rem;
 		}
 	}
-	.image-row {
-		display: flex;
-		gap: 1em;
-		align-items: flex-start;
-		flex-wrap: wrap;
-	}
-	.thumb {
-		width: 8em;
-		height: 8em;
-		object-fit: cover;
-		border-radius: 1em;
-		&.empty {
-			display: grid;
-			place-items: center;
-			background: var(--surface-2);
-			color: var(--muted);
-			font-size: 0.9rem;
-		}
-	}
-	.image-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4em;
-		align-items: flex-start;
-		flex: 1 1 14em;
-		min-width: 0;
-		input[type='file'] {
-			max-width: 100%;
-			font-size: 0.9rem;
-		}
-		code {
-			overflow-wrap: anywhere;
-		}
-	}
-	.panes-toggle {
-		display: none;
-		gap: 0.3rem;
-		button {
-			border: 1px solid var(--line);
-			background: var(--surface);
-			border-radius: 2em;
-			padding: 0.4rem 1rem;
-			font-weight: 700;
-			cursor: pointer;
-			min-height: 2.4rem;
-		}
-		button[aria-selected='true'] {
-			background: var(--accent);
-			color: var(--accent-ink);
-			border-color: var(--accent);
-		}
-	}
-	.panes {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 1rem;
-	}
-	.editor {
-		border-radius: 0.8em;
-		border: 1px solid var(--line);
-		overflow: hidden;
-		:global(.cm-editor) {
-			max-height: 44rem;
-			min-height: 20rem;
-			background: var(--surface);
-			color: var(--text);
-		}
-		:global(.cm-gutters) {
-			background: var(--surface-2);
-			color: var(--muted);
-			border-color: var(--line);
-		}
-	}
-	.pane-preview {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		min-width: 0;
-	}
 	/* The public site is light-only: its palette inside the previews, also in dark mode. */
 	.public-preview,
 	.card-preview {
@@ -916,42 +714,12 @@
 		flex: 1 1 16em;
 		color: var(--muted);
 	}
-	.file-view {
-		margin: 1em 0;
-		summary {
-			cursor: pointer;
-			color: var(--link);
-		}
-	}
-	.markdown {
-		background: #1e1e1e;
-		color: #eee;
-		border-radius: 1em;
-		padding: 1em;
-		font-size: 0.8rem;
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		max-height: 30em;
-		overflow: auto;
-	}
 	:global(.spin) {
 		animation: spin 1s linear infinite;
 	}
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
-		}
-	}
-	@media (max-width: 1000px) {
-		.panes-toggle {
-			display: flex;
-		}
-		.panes {
-			grid-template-columns: minmax(0, 1fr);
-		}
-		.panes[data-pane='editar'] .pane-preview,
-		.panes[data-pane='vista'] .pane-edit {
-			display: none;
 		}
 	}
 </style>
