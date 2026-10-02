@@ -141,7 +141,16 @@ export const hardcodedTags = [
 			'Troles & Tableros'
 		]
 	},
-	{ id: 'Picantearla', icon: '🔥', image: 'picantearla-miniatura.webp' },
+	{
+		id: 'Picantearla',
+		icon: '🔥',
+		image: 'picantearla-miniatura.webp',
+		// Series hijas (ediciones especiales). Sus eventos llevan también «Picantearla».
+		children: ['Picantearla: Deluxe', 'Picantearla: Protocolar', 'Picantearla: Age Play']
+	},
+	{ id: 'Picantearla: Deluxe', icon: '💎', image: 'picantearla-deluxe-miniatura.webp' },
+	{ id: 'Picantearla: Protocolar', icon: '📝', image: 'picantearla-protocolar-miniatura.webp' },
+	{ id: 'Picantearla: Age Play', icon: '🎈', image: 'picantearla-age-play-fiestas-miniatura.webp' },
 	{ id: 'Cine para Sucixs', icon: '🎞️', image: 'cine-para-sucixs-miniatura.webp' },
 	{
 		id: 'Charla debate de Fugas Críticas',
