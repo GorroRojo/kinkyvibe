@@ -75,3 +75,38 @@ describe('VenueLocation', () => {
 		}
 	});
 });
+
+describe('VenueLocation compacto (la tarjeta del evento)', () => {
+	/** El texto visible y los links, para comparar las dos versiones. */
+	const facts = (/** @type {string} */ body) => ({
+		text: body
+			.replace(/<!--[\s\S]*?-->/g, '')
+			.replace(/<svg[\s\S]*?<\/svg>/g, ' ')
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/Sucede en/g, ' ')
+			.replace(/[\s:·]+/g, ' ')
+			.trim(),
+		hrefs: [...body.matchAll(/href="([^"]*)"/g)].map((m) => m[1])
+	});
+	// Todos los datos en todos los niveles: el nivel es lo único que decide qué se ve.
+	const full = {
+		...addressView,
+		name: 'Galpón Inventado',
+		href: '/amigues/galpon-inventado',
+		howTo: 'Tocá el timbre de prueba',
+		accessibility: 'Rampa inventada'
+	};
+
+	it('en cada nivel muestra exactamente lo mismo que la versión de siempre, sin "Sucede en"', () => {
+		for (const level of /** @type {const} */ (['public', 'name', 'address', 'area', 'hidden'])) {
+			const view = { ...full, level };
+			const big = render(VenueLocation, { props: { view, context: 'event' } }).body;
+			const small = render(VenueLocation, {
+				props: { view, context: 'event', compact: true }
+			}).body;
+			expect(facts(small)).toEqual(facts(big));
+			expect(small).not.toContain('Sucede en');
+			expect(small).toContain('lucide-map-pin');
+		}
+	});
+});

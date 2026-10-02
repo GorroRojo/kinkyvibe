@@ -15,7 +15,9 @@
 			day: 'numeric',
 			month: 'long',
 			hour: '2-digit',
-			minute: '2-digit'
+			minute: '2-digit',
+			// sin esto, es-AR sale en 12 h y con el «hs» de abajo quedaba «03:00 p. m. hs»
+			hourCycle: 'h23'
 		}).format(new Date(ms));
 </script>
 

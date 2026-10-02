@@ -3,7 +3,9 @@
 	 * La ubicación de un lugar según su privacidad (lo que llega ya viene filtrado por el
 	 * servidor: `venueView` en src/lib/utils/venues.js). En la página de un evento dice "Sucede en";
 	 * en la del lugar, solo la dirección.
-	 * Props: `view` (VenueView), `context` ('event' | 'venue').
+	 * Props: `view` (VenueView), `context` ('event' | 'venue'), `compact` (la versión chica para la
+	 * tarjeta del evento: lo mismo que se ve en cada nivel, sin el "Sucede en" ni márgenes; la
+	 * tarjeta ya dice «en»).
 	 */
 	import { MapPin } from '@lucide/svelte';
 	import { ADDRESS_FOR_BUYERS, googleMapsLink, showsAddress } from '$lib/utils/venues.js';
@@ -13,28 +15,33 @@
 	export let view;
 	/** @type {'event' | 'venue'} */
 	export let context = 'event';
+	export let compact = false;
 
 	$: place = [view.area, view.city].filter(Boolean).join(', ');
 	/* "Ver en Google Maps": solo en los niveles que muestran la dirección (pedido de gorrite). */
 	$: gmaps = googleMapsLink(view);
 </script>
 
-<section class="venue" aria-label={context === 'event' ? 'Dónde' : 'Ubicación'}>
+<section class="venue" class:compact aria-label={context === 'event' ? 'Dónde' : 'Ubicación'}>
 	<p class="where">
 		<MapPin size="1.1em" aria-hidden="true" />
 		{#if context === 'event'}
 			{#if view.level === 'public' || view.level === 'name'}
-				Sucede en <a href={view.href} class="p-location">{view.name}</a
-				>{#if view.level === 'public' && view.address}: <span class="address">{view.address}</span
+				{#if !compact}Sucede en{/if}
+				<a href={view.href} class="p-location">{view.name}</a
+				>{#if view.level === 'public' && view.address}{compact ? ' · ' : ': '}<span class="address"
+						>{view.address}</span
 					>{/if}
 				{#if view.level === 'public' && place}<span class="place">({place})</span>{/if}
 			{:else if view.level === 'address' && (view.address || place)}
-				Sucede en <span class="p-location"
+				{#if !compact}Sucede en{/if}
+				<span class="p-location"
 					>{#if view.address}<span class="address">{view.address}</span>{/if}
 					{#if place}<span class="place">{view.address ? `(${place})` : place}</span>{/if}</span
 				>
 			{:else if view.level === 'area' && place}
-				Sucede en <span class="p-location">{place}</span>
+				{#if !compact}Sucede en{/if}
+				<span class="p-location">{place}</span>
 			{:else}
 				Lugar a confirmar
 			{/if}
@@ -106,5 +113,44 @@
 	}
 	h4 {
 		margin: 1em 0 0.3em;
+	}
+	/* En la tarjeta del evento: el texto corre seguido (con el ícono al principio) y hereda el
+	   tamaño y el color de la tarjeta. */
+	.compact {
+		max-width: none;
+		margin: 0;
+		padding: 0;
+	}
+	.compact .where {
+		display: block;
+		margin: 0;
+		font-size: inherit;
+	}
+	.compact .where :global(svg) {
+		vertical-align: -0.15em;
+	}
+	.compact :global(a) {
+		color: inherit;
+	}
+	.compact .note,
+	.compact .gmaps {
+		margin: 0.3em 0 0;
+	}
+	.compact :global(.venue-map) {
+		margin: 0.6em 0 0.2em;
+	}
+	.compact :global(.venue-map .frame) {
+		margin-inline: 0;
+	}
+	.compact :global(.venue-map figcaption) {
+		text-align: start;
+	}
+	.compact h4 {
+		margin: 0.6em 0 0.1em;
+		font-size: var(--step-0);
+	}
+	.compact .text {
+		margin: 0;
+		font-size: var(--step-0);
 	}
 </style>
