@@ -2,8 +2,9 @@
  * Búsqueda global: normalización de texto, limpieza de markdown, armado y consulta
  * de un índice invertido chico (sin dependencias).
  *
- * El índice "crudo" lo genera /api/search-index.json en build (prerender) y el
- * cliente lo descarga recién al abrir el buscador (ver SearchPalette.svelte).
+ * El índice "crudo" lo genera /api/search-index.json (en el servidor, una vez por árbol de
+ * etiquetas: sigue al interruptor `etiquetas_db`) y el cliente lo descarga recién al abrir el
+ * buscador (ver SearchPalette.svelte).
  */
 
 /**
