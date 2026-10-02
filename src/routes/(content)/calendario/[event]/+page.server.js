@@ -8,6 +8,7 @@ import { seriesAccountState } from '$lib/server/series/web.js';
 import { eventPageVenue, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals }) {
@@ -40,16 +41,18 @@ async function loadPersonas(post, platform) {
 	}
 }
 
-/** Related posts, computed on the server so the page doesn't need every post.
+/** Related posts, computed on the server so the page doesn't need every post, with the ticket
+ * sales state of the related events for their cards (one batched query, see listStates.js).
  * Un lugar vinculado manda sobre el «Dónde» del .md de cada uno.
  * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
  * @param {App.Platform|undefined} platform */
 async function loadRelated(post, platform) {
-	if (!post) return { relatedPosts: [], relatedPastCount: 0 };
-	return relatedWithVenuePlaces(
+	if (!post) return { relatedPosts: [], relatedPastCount: 0, ticketStates: null };
+	const related = await relatedWithVenuePlaces(
 		getDB(platform),
 		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
 	);
+	return { ...related, ticketStates: await ticketStatesFor(platform, related.relatedPosts) };
 }
 
 /**

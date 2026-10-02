@@ -18,7 +18,8 @@
 	}
 
 	const title = 'KinkyVibe.ar';
-	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
+	const summary =
+		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
 	const websiteSchema = {

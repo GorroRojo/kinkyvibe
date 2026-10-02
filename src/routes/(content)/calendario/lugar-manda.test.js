@@ -139,16 +139,16 @@ async function publicOutputs() {
 	out.todo = JSON.stringify(await (await import('../todo/+page.server.js')).load(fakeEvent()));
 	out.calendario = JSON.stringify(await (await import('./+page.server.js')).load(fakeEvent()));
 	out.relacionados = JSON.stringify(
-		await (await import('../amigues/[profile]/+page.server.js')).load(
-			fakeEvent({ path: '/amigues/Yuyo', params: { profile: 'Yuyo' } })
-		)
+		await (
+			await import('../amigues/[profile]/+page.server.js')
+		).load(fakeEvent({ path: '/amigues/Yuyo', params: { profile: 'Yuyo' } }))
 	);
 	for (const level of LEVELS) {
 		const slug = `lugar-${level}`;
 		out[`compartir ${slug}`] = JSON.stringify(
-			await (await import('./[event]/compartir/+page.server.js')).load(
-				fakeEvent({ path: `/calendario/${slug}/compartir`, params: { event: slug } })
-			)
+			await (
+				await import('./[event]/compartir/+page.server.js')
+			).load(fakeEvent({ path: `/calendario/${slug}/compartir`, params: { event: slug } }))
 		);
 	}
 	return out;
@@ -215,9 +215,9 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 		flags('1');
 		const venue = await linkVenues();
 		const page = /** @type {any} */ (
-			await (await import('../amigues/[profile]/+page.server.js')).load(
-				fakeEvent({ path: `/amigues/${venue.slug}`, params: { profile: String(venue.slug) } })
-			)
+			await (
+				await import('../amigues/[profile]/+page.server.js')
+			).load(fakeEvent({ path: `/amigues/${venue.slug}`, params: { profile: String(venue.slug) } }))
 		);
 		expect(page.venueEvents.map((/** @type {any} */ p) => p.path).sort()).toEqual([
 			'/calendario/lugar-name',
@@ -236,9 +236,9 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 			await (await import('../../api/posts/+server.js')).GET(fakeEvent())
 		).text();
 		expect(posts).toContain('Calle Md lugar-hidden');
-		const share = await (await import('./[event]/compartir/+page.server.js')).load(
-			fakeEvent({ params: { event: 'lugar-hidden' } })
-		);
+		const share = await (
+			await import('./[event]/compartir/+page.server.js')
+		).load(fakeEvent({ params: { event: 'lugar-hidden' } }));
 		expect(share).toEqual({ venue: null });
 	});
 });

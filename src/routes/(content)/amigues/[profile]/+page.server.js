@@ -9,6 +9,7 @@ import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /**
  * La página de un perfil. Con el interruptor `perfiles_publicos` prendido, el perfil de la base
@@ -42,13 +43,17 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// so +page.js loads it on its own.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...post } = await fetchPost('amigues', params.profile);
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		db,
+		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+	);
 	return {
 		mode: /** @type {const} */ ('md'),
 		...post,
-		...(await relatedWithVenuePlaces(
-			db,
-			currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
-		)),
+		...related,
+		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
+		ticketStates: await ticketStatesFor(platform, related.relatedPosts),
 		pronouns: await mentionPronouns()
 	};
 }

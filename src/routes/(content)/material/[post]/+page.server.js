@@ -6,6 +6,7 @@ import { redirect } from '@sveltejs/kit';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { getDB } from '$lib/server/db';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
@@ -16,12 +17,16 @@ export async function load({ params, platform }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(
+		getDB(platform),
+		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+	);
 	return {
 		...post,
-		...(await relatedWithVenuePlaces(
-			getDB(platform),
-			currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
-		)),
+		...related,
+		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
+		ticketStates: await ticketStatesFor(platform, related.relatedPosts),
 		pronouns: await mentionPronouns(),
 		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
 		personas: await personasForPage(platform, post.meta),
