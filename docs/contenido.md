@@ -81,6 +81,94 @@ transversales: si lo hacés en código, va en su propio PR y se mergea primero.
 `npx vitest run src/tests/content.test.js` y, si arreglaste un problema conocido,
 `UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js`.
 
+## En la base (paso 5 de 0026, detrás de `contenido_db`)
+
+**Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
+La wiki no: sus textos pasan a ser el cuerpo de las etiquetas ([etiquetas.md](etiquetas.md)). Todo
+detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o
+`CONTENIDO_DB_ENABLED=1|0`).
+
+- El material que usa un **componente interactivo** de Svelte (hoy `juego-de-peleas` y
+  `donde-y-como-golpear-un-cuerpo`) no se importa y sigue saliendo de su `.md` (0004: los
+  interactivos son componentes registrados en código, un paso aparte). Los PDF y documentos que el
+  material enlaza desde su `<script>` se resuelven con la misma URL que les da el build.
+- **Descargar todo** (botón en Contenido → En la base, `descargar.tar`): los eventos y el material
+  de la base como `.md` en un `.tar` (los ocultos con `force_unpublished: true`; no los borrados).
+
+- **Importar** (Contenido → **En la base**, `/admin/contenido/base`): pasa los `.md` de calendario
+  de este deploy a objetos `evento` en la base de ese entorno. Idempotente (`content_sources`
+  guarda el SHA-256 de cada `.md`): lo que no cambió no se toca, lo editado o borrado en el panel
+  tampoco (lo informa, con los campos distintos). Va de a 40 por pedido (D1 tiene un máximo de
+  consultas por pedido) y la página sigue sola. CSV con lo que pasa con cada archivo. Se puede
+  correr con el interruptor apagado.
+- **Paridad**: la página cuenta cuántos coinciden con su `.md` y lista lo que no (campos distintos,
+  avisos, errores). Las pruebas `src/lib/server/contenido/eventos.test.js` (todos los eventos
+  reales, ida y vuelta) y `parity.test.js` (eventos inventados en un D1: listas, página, `.ics`,
+  búsqueda, visibilidad) verifican que las páginas reciben lo mismo.
+- **Leer** (`src/lib/server/contenido/posts.js`): con el interruptor prendido, las listas, la página
+  de cada evento, el `.ics`, las etiquetas y series, la búsqueda, `/api/posts`, el RSS y el sitemap
+  leen los eventos de la base (convertidos al mismo `ProcessedPost` que da un `.md`). **La base
+  decide** cada dirección que tiene (oculto o borrado → 404 aunque el `.md` siga); lo que no está
+  en la base sigue saliendo de su `.md`.
+- **El texto se ve igual que hoy** (decisión 0004: superadmins pueden usar HTML libre). Cada texto
+  guarda cómo se muestra (`data.body_html`), decidido al guardar según quién lo escribió:
+  `'libre'` para lo importado del repo y lo que guarda une superadmin; si no, la lista corta.
+  - Libre y sin cambios respecto de su `.md`: la página usa el componente que mdsvex compiló de
+    ese `.md` (exactamente lo de siempre: estilos, `<iframe>`, `<video>`, componentes).
+  - Libre y editado: `freeHtml.js` lo arma con el mismo camino que mdsvex (HTML libre, comillas
+    tipográficas, anclas, menciones, wiki, índice; sus `<style>` se aplican solo dentro del texto
+    con `@scope`). Con los textos reales da el mismo HTML que mdsvex en 535 de 571 (el resto son
+    casos borde del parser de markdown; `render.test.js` no deja que empeore).
+  - Lista corta: `amigues/sanitize.js`, como los perfiles.
+- **Historial**: cada guardado (también importar) copia el objeto a `object_revisions` en la misma
+  tanda de `saveObject()` (`src/lib/server/contenido/revisions.js`).
+
+| Qué                                | Dónde                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| Mapa `.md` ↔ evento (ida y vuelta) | `src/lib/server/contenido/eventos.js`                                        |
+| Importación                        | `src/lib/server/contenido/importer.js` (+ `bundle.js`: los `.md` del deploy) |
+| Qué cuenta como «igual»            | `src/lib/server/contenido/parity.js`                                         |
+| Lectura para las páginas           | `src/lib/server/contenido/posts.js`                                          |
+| Texto del cuerpo                   | `src/lib/server/contenido/render.js` (y `freeHtml.js` para el HTML libre)    |
+| Esquema                            | `migrations/0031_contenido_eventos.sql`                                      |
+
+- **Editar** (`src/lib/server/contenido/repo.js`): con el interruptor prendido, todo lo que el
+  panel guarda pasa por `withContentDb`, que envuelve el cliente del repo (`getRepoClient()`) como
+  el modo demo. El `.md` de un evento que está en la base, o de uno nuevo, se lee y se guarda en la
+  base: el editor, cargar y duplicar, la agenda, importar la planilla, borrar (borrado suave) y
+  deshacer, las etiquetas y las imágenes compartidas siguen trabajando sobre el texto del `.md`
+  (lo arma `markdown.js` desde el objeto). Cada guardado es una versión nueva con historial
+  (`object_revisions`, `source = 'panel'`); el «sha» que manda el editor es el del texto que abrió,
+  así que si alguien guardó en el medio avisa como con GitHub (`FileChangedError`). Lo que no es
+  de la base (imágenes, el archivo de etiquetas, material, los `.md` que la base no tiene) sigue
+  yendo al repo, primero (si eso falla, la base no se toca). Se ve enseguida, sin PR ni deploy.
+- **Quién guarda** es siempre el **login de GitHub** de le admin (`saved_by`/`updated_by`), en
+  todos los guardados del panel: hooks.server.js corre el pedido de cada admin con
+  `resolveAsPanelAuthor` (`contenido/author.js`) y `withContentDb` lo toma de ahí; el nombre que
+  muestra cada pantalla (`pr.who`) es solo para el PR. Ahí también se decide `body_html`: si el
+  texto no cambió queda como estaba (la agenda, las etiquetas o borrar no lo tocan); si cambió,
+  `'libre'` si guarda une superadmin (hoy, todes les admins) y la lista corta si no.
+- Con el interruptor prendido, también leen la base: la venta de entradas y la puerta
+  (`tickets/events.js`: configuración, título, fecha), la lista de eventos del panel, su ficha, No
+  listadas y su contador, Eventos → Lugares y el cron de «avisame si se repite».
+
+Lo que todavía no cambia (pasos siguientes):
+
+- Las imágenes siguen en el repo (`media/<slug>/`); R2 es un paso aparte. Una imagen nueva va en
+  un PR y se ve cuando se publica (unos minutos); el texto del evento se ve enseguida.
+- Apagar el interruptor vuelve a los `.md`: lo editado en la base no está en los `.md` (se puede
+  bajar con «Descargar todo» y volver a subir a mano).
+- `/calendario.ics`, `/rss`, `/sitemap.xml`, `/api/posts` y `/api/search-index.json` dejaron de
+  prerenderizarse (con el interruptor apagado dan lo mismo que antes, pero los arma el Worker).
+
+### Prenderlo
+
+1. Aplicar `migrations/0031_contenido_eventos.sql` (gorrite, como siempre; [datos.md](datos.md)).
+2. En el panel del entorno (primero preview): Contenido → En la base → Importar.
+3. Revisar «Para revisar»: errores (por ejemplo, un fin semanas antes del inicio) se corrigen en el
+   `.md` y se vuelve a importar.
+4. Prender `contenido_db`. Para volver atrás, apagarlo (o `CONTENIDO_DB_ENABLED=0`).
+
 ## Lo que viene (decisión 0004)
 
 - El contenido pasa a D1 como **objetos** (tipos, campos y relaciones), con historial completo,

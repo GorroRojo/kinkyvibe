@@ -15,8 +15,14 @@ const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar
 const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('tiene evento, lugar, perfil y etiqueta; el evento puede apuntar a un lugar', () => {
-		expect([...coreTypes.types.keys()]).toEqual(['evento', 'lugar', 'perfil', 'etiqueta']);
+	it('tiene evento, lugar, perfil, etiqueta y material; el evento puede apuntar a un lugar', () => {
+		expect([...coreTypes.types.keys()]).toEqual([
+			'evento',
+			'lugar',
+			'perfil',
+			'etiqueta',
+			'material'
+		]);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar'], max: 1 });
 		expect(perfil.edges?.es_integrante_de).toMatchObject({ to: ['perfil'] });
 	});

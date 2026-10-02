@@ -100,14 +100,26 @@ async function demoOverlay() {
 /**
  * @param {string} slug
  * @param {DemoOverlay | null} [overlay] ya leída (para no releerla por cada evento)
+ * @param {DemoOverlay | null} [content] los eventos de la base ya leídos (interruptor
+ *   `contenido_db`, ver $lib/server/contenido/repo.js); sin pasar, se busca este evento
  * @returns {Promise<Record<string, any> | null>} frontmatter de un evento publicado
  */
-async function loadMeta(slug, overlay) {
+async function loadMeta(slug, overlay, content) {
 	if (!isValidEventSlug(slug) || slug.startsWith('_')) return null;
-	const layer = overlay === undefined ? await demoOverlay() : overlay;
+	// La base manda sobre el .md (y sobre la capa demo) para los eventos que tiene: `null` si
+	// está oculto o borrado.
+	const fromDb =
+		content === undefined
+			? await (await import('../contenido/repo.js')).dbEventMeta(slug)
+			: content?.has(slug)
+				? content.get(slug)
+				: undefined;
+	const layer = fromDb !== undefined ? null : overlay === undefined ? await demoOverlay() : overlay;
 	/** @type {Record<string, any> | null | undefined} */
 	let meta;
-	if (layer?.has(slug)) {
+	if (fromDb !== undefined) {
+		meta = fromDb;
+	} else if (layer?.has(slug)) {
 		meta = layer.get(slug);
 	} else {
 		const importer = eventFiles[`/src/lib/posts/calendario/${slug}.md`];
@@ -218,12 +230,14 @@ export async function listTicketedEvents(options = {}) {
 export async function listEventMetas() {
 	const out = [];
 	const overlay = await demoOverlay();
+	const content = await (await import('../contenido/repo.js')).dbEventMetas();
 	const slugs = new Set(
 		Object.keys(eventFiles).map((path) => path.split('/').pop()?.replace(/\.md$/, '') ?? '')
 	);
 	for (const slug of overlay?.keys() ?? []) slugs.add(slug);
+	for (const slug of content?.keys() ?? []) slugs.add(slug);
 	for (const slug of slugs) {
-		const meta = await loadMeta(slug, overlay);
+		const meta = await loadMeta(slug, overlay, content);
 		if (meta) out.push({ slug, meta });
 	}
 	return out;

@@ -71,11 +71,18 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** @param {string} perfiles '1' prendido, '0' apagado */
-function flags(perfiles) {
+/**
+ * @param {string} perfiles '1' prendido, '0' apagado
+ * @param {string} [contenido] interruptor `contenido_db`
+ */
+function flags(perfiles, contenido = '0') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { PERFILES_PUBLICOS_ENABLED: perfiles, CUENTAS_ENABLED: '1' }
+		env: {
+			PERFILES_PUBLICOS_ENABLED: perfiles,
+			CUENTAS_ENABLED: '1',
+			CONTENIDO_DB_ENABLED: contenido
+		}
 	}));
 }
 
@@ -239,6 +246,59 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 		const share = await (
 			await import('./[event]/compartir/+page.server.js')
 		).load(fakeEvent({ params: { event: 'lugar-hidden' } }));
-		expect(share).toEqual({ venue: null });
+		expect(share).toEqual({ mode: 'md', venue: null });
+	});
+});
+
+describe('con `contenido_db` prendido (los eventos salen de la base)', () => {
+	/** Los eventos importados a la base, con un «Dónde» distinto del de su .md. */
+	async function importEvents() {
+		const { stringify } = await import('yaml');
+		const { runImport } = await import('$lib/server/contenido/importer.js');
+		const files = fake.posts.map((p) => {
+			const slug = String(p.meta.postID);
+			const meta = {
+				...p.meta,
+				location: `Calle Base ${slug}`,
+				location_name: `Nombre Base ${slug}`,
+				location_map: `https://www.openstreetmap.org/node/mapa-base-${slug}`
+			};
+			delete (/** @type {any} */ (meta).postID);
+			return { legacySlug: slug, raw: `---\n${stringify(meta)}---\n\nTexto.\n`, meta };
+		});
+		const r = await runImport(t.db, 'calendario', files, { actor: 'admin-inventade' });
+		expect(r.remaining).toBe(0);
+		expect(r.results.every((x) => x.action === 'created')).toBe(true);
+		(await import('$lib/server/contenido/posts.js')).clearContentCache();
+	}
+
+	/** @param {string} slug */
+	const anyPlace = (slug) => [...mdPlace(slug), `Calle Base ${slug}`, `Nombre Base ${slug}`];
+
+	it('un evento de la base con lugar tampoco muestra su «Dónde» en ninguna salida', async () => {
+		flags('1', '1');
+		await importEvents();
+		await linkVenues();
+		const outputs = await publicOutputs();
+		for (const level of LEVELS) {
+			const slug = `lugar-${level}`;
+			outputs[`evento ${slug}`] = JSON.stringify(
+				await (
+					await import('./[event]/+page.server.js')
+				).load(fakeEvent({ path: `/calendario/${slug}`, params: { event: slug } }))
+			);
+		}
+		for (const [name, out] of Object.entries(outputs)) {
+			for (const level of LEVELS) {
+				for (const s of anyPlace(`lugar-${level}`)) expect(out, `${name}: ${s}`).not.toContain(s);
+			}
+		}
+		// Salen de la base: el evento sin lugar muestra el «Dónde» de la base, no el del .md.
+		for (const name of ['posts', 'inicio', 'todo', 'calendario']) {
+			expect(outputs[name], name).toContain('Calle Base sin-lugar');
+			expect(outputs[name], name).not.toContain('Calle Md sin-lugar');
+		}
+		expect(JSON.parse(outputs['evento lugar-name']).mode).toBe('db');
+		expect(JSON.parse(outputs['compartir lugar-name']).mode).toBe('db');
 	});
 });

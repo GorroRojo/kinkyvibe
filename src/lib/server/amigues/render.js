@@ -53,7 +53,8 @@ export function scriptBlocks(body) {
  * Las expresiones que no son una imagen importada quedan como estaban (se ven como texto).
  *
  * @param {string} body
- * @param {(file: string) => string | undefined} resolveMedia nombre de archivo → URL
+ * @param {(file: string, path: string) => string | undefined} resolveMedia nombre de archivo (y
+ *   la ruta completa del import) → URL
  * @returns {string}
  */
 export function resolveMediaImports(body, resolveMedia) {
@@ -63,7 +64,7 @@ export function resolveMediaImports(body, resolveMedia) {
 		for (const m of block.matchAll(IMPORT)) {
 			const file = m[2].split('/').pop() ?? '';
 			if (!/\/media\//.test(m[2])) continue;
-			const url = resolveMedia(file);
+			const url = resolveMedia(file, m[2]);
 			if (url) names.set(m[1], url);
 		}
 	}
@@ -86,7 +87,7 @@ const processor = rehype()
 
 /**
  * @param {string | undefined | null} body markdown (con el HTML corto que usan las fichas)
- * @param {{ resolveMedia?: (file: string) => string | undefined }} [opts]
+ * @param {{ resolveMedia?: (file: string, path: string) => string | undefined }} [opts]
  * @returns {Promise<string>} HTML limpio
  */
 export async function renderProfileBody(body, { resolveMedia = () => undefined } = {}) {
