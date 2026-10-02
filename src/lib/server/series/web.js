@@ -2,7 +2,7 @@
  * Pegamento entre las series y SvelteKit: el interruptor, el envío de mails y la corrida del cron.
  */
 import { error } from '@sveltejs/kit';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { isFlagOn, seriesEnabled } from '$lib/server/flags.js';
 import { deliverEmail } from '$lib/server/tickets/index.js';
@@ -61,7 +61,10 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 	if (!(await isFlagOn(db, 'series'))) return null;
 	return runSeriesNotifications({
 		db,
-		posts: await fetchMarkdownPosts(),
+		// Con `contenido_db` prendido, los eventos de la base (también los creados en el panel).
+		posts: await sitePosts(
+			/** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
+		),
 		tags: siteTags(),
 		origin,
 		send: seriesSender(db, fetchFn),

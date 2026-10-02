@@ -72,6 +72,7 @@ import {
 	CalendarPlus,
 	CalendarRange,
 	ChartLine,
+	Database,
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
@@ -391,6 +392,16 @@ export const NAV = Object.freeze([
 		area: 'contenido',
 		soon: false,
 		counter: 'unlisted'
+	},
+	{
+		id: 'contenido-base',
+		href: '/admin/contenido/base',
+		icon: Database,
+		emoji: '🗄️',
+		label: 'En la base',
+		area: 'contenido',
+		soon: false,
+		flag: 'contenido_db'
 	},
 	{
 		id: 'colecciones',

@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { getDB } from '$lib/server/db';
 import { cuentasEnabled, perfilesPublicosEnabled } from '$lib/server/flags.js';
@@ -23,7 +24,8 @@ export async function load({ params, platform, locals, setHeaders }) {
 	const db = getDB(platform);
 	if (db && (await perfilesPublicosEnabled(platform))) {
 		const page = await profilePageData(db, params.profile, locals, {
-			cuentas: await cuentasEnabled(platform)
+			cuentas: await cuentasEnabled(platform),
+			posts: await sitePosts(platform)
 		});
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
@@ -32,7 +34,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
 				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
-					...(await fetchMarkdownPosts()),
+					...(await sitePosts(platform)),
 					...(await fetchMarkdownPosts(true))
 				])
 			};
@@ -46,7 +48,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
 	const related = await relatedWithVenuePlaces(
 		db,
-		currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()))
+		currentRelated(relatedPostsFor(post.meta, await sitePosts(platform)))
 	);
 	return {
 		mode: /** @type {const} */ ('md'),

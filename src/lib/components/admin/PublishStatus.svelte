@@ -91,6 +91,13 @@
 			>){pr.stacked ? '; se sumó al cambio de esta publicación que ya estaba esperando' : ''}.
 		{/if}
 	</span>
+{:else if commitUrl?.startsWith('/')}
+	<!-- Interruptor `contenido_db`: se guardó en la base y ya se ve (sin PR ni deploy). -->
+	<span class="publish-status" role="status">
+		Guardado en la base: ya se ve en el sitio (<a href={commitUrl} target="_blank" rel="noreferrer"
+			>ver</a
+		>).
+	</span>
 {:else if commitUrl}
 	<span class="publish-status" role="status">
 		Cambio guardado: <a href={commitUrl} target="_blank" rel="noreferrer">ver el commit</a>.
