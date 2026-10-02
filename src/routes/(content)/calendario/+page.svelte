@@ -157,6 +157,8 @@
 
 <style lang="scss">
 	.series-link {
+		font-size: var(--step-1);
+		line-height: 1.6;
 		text-align: center;
 		margin: -1em auto 2em;
 		max-width: min(50rem, calc(100% - 32px));

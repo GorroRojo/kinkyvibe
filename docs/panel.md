@@ -47,10 +47,29 @@ sección (Etiquetas, Estadísticas), que usan la URL del área.
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                         | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                   |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`) | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md)) |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                             | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                     |
-| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`)                                                                                                                                                                                         | la taxonomía del sitio ([contenido.md](contenido.md))                                                                                                                                                                          |
+| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                    | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                          |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                           | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                           |
 | Estadísticas | Ventas en el tiempo (`/admin/estadisticas`)                                                                                                                                                                                     | gráficos                                                                                                                                                                                                                       |
 | Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Mails y envíos (`/mails`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Actividad (`/actividad`)  | datos para transferir y comisión de MP, % del Fondo, propinas, remitente y recordatorios, lista de admins, interruptores, registro (con CSV y "Recuperar" lo borrado)                                                          |
+
+**Agenda** (`/admin/eventos/agenda`, cambiada en #171). Usa todo el ancho de la pantalla; en la
+compu el mes llena el alto y los días crecen con sus eventos. Tiene dos vistas, Calendario y
+Planilla:
+
+- **Carga rápida**: tocar un día vacío (o «Evento») abre una hoja para duplicar un evento que ya
+  existe (buscador, con series y ediciones recientes primero) o «Empezar de cero» con el título.
+  Crea un **borrador** en ese día sin salir de la agenda: no listado, con la marca `borrador: true`
+  en su `.md` (`DRAFT_KEY` en `src/lib/utils/sheetImport.js`), por el mismo camino que Importar
+  planilla (`src/lib/server/eventos/drafts.js`).
+- **«Qué falta»** (`eventMissing.js`): imagen, resumen, dónde, región, precio, link o entradas, y
+  quién organiza. Se ve en los borradores del calendario y en la planilla.
+- **«Confirmar»** un borrador (en la agenda y en la ficha del evento): le saca la marca y lo lista;
+  queda en Actividad (`event.confirm`). Publicarlo desde la planilla también le saca la marca.
+- **Filtro «A confirmar»** (calendario y planilla): solo los borradores con la marca. Un evento no
+  listado a propósito (sin la marca) no aparece ahí ni ofrece «Confirmar».
+- **Limitación conocida**: un borrador recién creado se ve en la agenda hasta que recargás la
+  página; después desaparece hasta que el sitio se vuelve a publicar con su commit (unos minutos),
+  porque la agenda lee los eventos del deploy.
 
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
@@ -131,7 +150,8 @@ En el preview de un PR: «🧪 Entrar como admin de prueba» en `/login` ([demo.
 con `soon: true`, `phase` y `soonText`, al final de su área. Para construirla, cambiá `soon` por
 `false` (con `flag` si sale detrás de un interruptor), creá la ruta en `src/routes/(authed)/admin/…` con `requireAdmin` en el `load` y en cada
 action, registrá los cambios con `logAdminAction` y agregá una prueba de que sin sesión redirige y
-sin permiso da 403. Lo nuevo sale detrás de un interruptor, apagado (0001).
+sin permiso da 403. Lo nuevo sale detrás de un interruptor, apagado (0001; ver
+[interruptores.md](interruptores.md)).
 
 **Agregar une admin.** Hoy es código: sumar `{ id, login }` en `ADMINS` de `auth.js`, con el id
 sacado de `https://api.github.com/users/<login>` (no tipeado a mano). Ajustes › Admins solo lo
@@ -150,7 +170,6 @@ permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 
 ## Lo que viene
 
-Decisiones 0002, 0003, 0008 y 0010: cuentas del público (separadas del login de admins, que sigue
-con GitHub), niveles de permiso (superadmins → organizadores), bandeja de mails dentro del panel,
+Decisiones 0002, 0003, 0008 y 0010: niveles de permiso (superadmins → organizadores), bandeja de mails dentro del panel,
 el panel como CRM, formularios nuevos (edición larga con índice, compra en tres pasos) y más
 gráficos.

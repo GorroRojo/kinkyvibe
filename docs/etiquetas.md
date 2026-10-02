@@ -109,7 +109,8 @@ público) con sus relaciones, ambas puntas con `visibleWhere()`.
 ## Leer y editar desde la base (paso 3)
 
 Interruptor **«Etiquetas desde la base»** (`etiquetas_db`, variable `ETIQUETAS_DB_ENABLED`),
-apagado por defecto. Antes de prenderlo: importar (paso 2).
+apagado por defecto. Antes de prenderlo: importar (paso 2). El paso a paso para prenderlo (preview,
+producción) y apagarlo está en [interruptores.md](interruptores.md).
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
   `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
