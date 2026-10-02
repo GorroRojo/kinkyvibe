@@ -1,4 +1,5 @@
-import { currentRelated, fetchMarkdownPosts, fetchPost } from '$lib/utils';
+import { currentRelated, fetchPost } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { getDB } from '$lib/server/db';
@@ -29,7 +30,7 @@ export async function load({ params, platform }) {
 		// from the URL form ("Rancheadita-Kinky", aliases) like every other tag route.
 		term = tagIdFromSlug(tagManager, params.term) ?? params.term;
 	}
-	const posts = await fetchMarkdownPosts();
+	const posts = await sitePosts(platform);
 	const current = currentRelated(
 		posts.filter((p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c)))
 	);

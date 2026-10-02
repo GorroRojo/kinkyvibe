@@ -13,11 +13,11 @@ import { AR_OFFSET, parseEventDate, todayInArgentina } from '$lib/utils/eventDra
 const metaModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
 
 /**
- * Frontmatter de un evento en este deploy, o null.
+ * Frontmatter del .md de un evento en este deploy, o null.
  * @param {string} slug
  * @returns {Promise<Record<string, any> | null>}
  */
-export async function bundleMeta(slug) {
+async function fileMeta(slug) {
 	const load = metaModules[`/src/lib/posts/calendario/${slug}.md`];
 	if (!load || slug.startsWith('_')) return null;
 	try {
@@ -25,6 +25,52 @@ export async function bundleMeta(slug) {
 	} catch (e) {
 		return null;
 	}
+}
+
+/**
+ * Frontmatter de un evento en este deploy, o null.
+ * @param {string} slug
+ * @returns {Promise<Record<string, any> | null>}
+ */
+export async function bundleMeta(slug) {
+	// Interruptor `contenido_db`: si la base tiene el evento, manda la base (también si está
+	// oculto: el panel lo ve).
+	const { activeContentDB, findDbPostObject } = await import('../contenido/repo.js');
+	const db = await activeContentDB();
+	const fromDb = db ? await findDbPostObject(db, 'calendario', slug) : null;
+	if (fromDb) {
+		const { eventToMeta } = await import('../contenido/eventos.js');
+		return fromDb.deleted ? null : eventToMeta(fromDb.object);
+	}
+	return fileMeta(slug);
+}
+
+/**
+ * Lo mismo que {@link bundleMeta} para varios eventos de una vez: con el interruptor
+ * `contenido_db`, UNA consulta para todos (no una o dos por evento) y sin armar el texto de cada
+ * uno. Para las listas del panel.
+ * @param {string[]} slugs
+ * @returns {Promise<Map<string, Record<string, any> | null>>}
+ */
+export async function bundleMetas(slugs) {
+	const { activeContentDB, allDbEventObjects, dbPostFinder } = await import('../contenido/repo.js');
+	const { eventToMeta } = await import('../contenido/eventos.js');
+	const db = await activeContentDB();
+	const find = db ? dbPostFinder(await allDbEventObjects(db)) : () => null;
+	/** @type {Map<string, Record<string, any> | null>} */
+	const out = new Map();
+	await Promise.all(
+		slugs.map(async (slug) => {
+			const fromDb = find(slug);
+			const meta = fromDb
+				? fromDb.deleted
+					? null
+					: eventToMeta(fromDb.object)
+				: await fileMeta(slug);
+			out.set(slug, meta);
+		})
+	);
+	return out;
 }
 
 /** @param {unknown} v */
@@ -85,12 +131,24 @@ function toPanelEvent(e, meta) {
 }
 
 /**
+ * Todos los eventos, del más nuevo al más viejo, con los datos del panel y su frontmatter.
+ * @returns {Promise<Array<{ event: PanelEvent, meta: Record<string, any> | null }>>}
+ */
+export async function listPanelEventsWithMeta() {
+	const events = await listEvents();
+	const metas = await bundleMetas(events.map((e) => e.slug));
+	return events.map((e) => {
+		const meta = metas.get(e.slug) ?? null;
+		return { event: toPanelEvent(e, meta), meta };
+	});
+}
+
+/**
  * Todos los eventos, del más nuevo al más viejo, con los datos del panel.
  * @returns {Promise<PanelEvent[]>}
  */
 export async function listPanelEvents() {
-	const events = await listEvents();
-	return Promise.all(events.map(async (e) => toPanelEvent(e, await bundleMeta(e.slug))));
+	return (await listPanelEventsWithMeta()).map((x) => x.event);
 }
 
 /**
@@ -138,11 +196,13 @@ export function panelEventFromMeta(slug, meta) {
  * @param {{ today?: string }} [options]
  */
 export async function agendaRows({ today = todayInArgentina() } = {}) {
-	const events = await listEvents();
+	const events = (await listEvents()).filter(
+		(e) => !e.unpublished && e.start && e.start.slice(0, 10) >= today
+	);
+	const metas = await bundleMetas(events.map((e) => e.slug));
 	const rows = [];
 	for (const e of events) {
-		if (e.unpublished || !e.start || e.start.slice(0, 10) < today) continue;
-		const meta = await bundleMeta(e.slug);
+		const meta = metas.get(e.slug) ?? null;
 		rows.push({
 			...agendaRowFromMeta(e.slug, {
 				...(meta ?? {}),

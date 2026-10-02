@@ -188,7 +188,13 @@ describe('NAV', () => {
 		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
 		expect(ids('mensajes')).toEqual(['ajustes-plantillas', 'lo-que-sigo', 'bandeja']);
 		expect(ids('etiquetas')).toEqual(['etiquetas']);
-		expect(ids('contenido')).toEqual(['material', 'no-listadas', 'colecciones', 'videos']);
+		expect(ids('contenido')).toEqual([
+			'material',
+			'no-listadas',
+			'contenido-base',
+			'colecciones',
+			'videos'
+		]);
 		expect(ids('estadisticas')).toEqual(['estadisticas']);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
@@ -291,7 +297,13 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual(['cuentas', 'personas_eventos', 'propinas', 'series']);
+		expect(navFlagKeys().sort()).toEqual([
+			'contenido_db',
+			'cuentas',
+			'personas_eventos',
+			'propinas',
+			'series'
+		]);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);

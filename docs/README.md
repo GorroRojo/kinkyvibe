@@ -24,6 +24,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones        |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción (interruptor `personas_eventos`)                 |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
+| [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
 | [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0029, cada una con su línea en su índice): leelo antes de cambiar un área |
 

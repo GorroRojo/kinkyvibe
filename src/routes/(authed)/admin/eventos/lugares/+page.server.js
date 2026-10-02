@@ -17,7 +17,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import {
@@ -36,10 +36,12 @@ import {
 import { isVenuePrivacy, VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
 
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
-async function eventChoices() {
+/** @param {App.Platform | undefined} platform */
+async function eventChoices(platform) {
+	// Con `contenido_db` prendido, también los eventos de la base.
 	const [listed, unlisted] = await Promise.all([
-		fetchMarkdownPosts(false, false),
-		fetchMarkdownPosts(false, true)
+		sitePosts(platform, false, false),
+		sitePosts(platform, false, true)
 	]);
 	return [...listed, ...unlisted]
 		.filter((p) => p.meta.category === 'calendario')
@@ -63,7 +65,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const [venues, links, events, flagOn, pending, rejected] = await Promise.all([
 		listVenues(db),
 		listEventVenues(db),
-		eventChoices(),
+		eventChoices(platform),
 		perfilesPublicosEnabled(platform),
 		listPendingVenues(db),
 		// "Rechazados" (decisión de gorrite): quién lo rechazó y el motivo; se pueden aprobar.
@@ -147,7 +149,7 @@ export const actions = {
 		const venueId = Number(form.get('lugar'));
 		const rawPrivacy = String(form.get('privacidad') ?? '');
 		const privacy = isVenuePrivacy(rawPrivacy) ? rawPrivacy : null;
-		const events = await eventChoices();
+		const events = await eventChoices(platform);
 		if (!events.some((e) => e.slug === eventSlug)) {
 			return fail(400, { link: { ok: false, message: 'Elegí un evento.' } });
 		}
