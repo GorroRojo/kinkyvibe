@@ -89,6 +89,15 @@ export const FLAGS = Object.freeze({
 			'importar (Contenido → En la base) y revisar que no haya diferencias.',
 		envVar: 'CONTENIDO_DB_ENABLED'
 	},
+	lo_que_sigo: {
+		label: 'Lo que sigo',
+		description:
+			'Con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y ' +
+			'Mi rincón → Lo que sigo, con «en mi calendario», «mail cuando se anuncia algo nuevo» y ' +
+			'«recordatorio el día antes» por cada cosa. Necesita también «Cuentas del público». ' +
+			'Apagado, no se ve nada de esto y /mi-rincon/sigo da 404.',
+		envVar: 'LO_QUE_SIGO_ENABLED'
+	},
 	telegram_bot: {
 		label: 'Bot de Telegram',
 		description:
@@ -233,6 +242,16 @@ export function etiquetasDbEnabled(platform) {
  */
 export function contenidoDbEnabled(platform) {
 	return isFlagOn(getDB(platform), 'contenido_db');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido «Lo que sigo»? (docs/lo-que-sigo.md). Solo este
+ * interruptor: quien llama mira además `cuentas` (`requireSigo` en $lib/server/sigo/web.js).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function loQueSigoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'lo_que_sigo');
 }
 
 /**
