@@ -14,9 +14,17 @@ const eventRaws = /** @type {any} */ (
 	import.meta.glob('/src/lib/posts/calendario/*.md', { query: '?raw', import: 'default' })
 );
 
+/** @type {Record<string, () => Promise<Record<string, any> | undefined>>} */
+const materialMetas = import.meta.glob('/src/lib/posts/material/*.md', { import: 'metadata' });
+/** @type {Record<string, () => Promise<string>>} */
+const materialRaws = /** @type {any} */ (
+	import.meta.glob('/src/lib/posts/material/*.md', { query: '?raw', import: 'default' })
+);
+
 /** @type {Record<string, { metas: typeof eventMetas, raws: typeof eventRaws }>} */
 const BY_CATEGORY = {
-	calendario: { metas: eventMetas, raws: eventRaws }
+	calendario: { metas: eventMetas, raws: eventRaws },
+	material: { metas: materialMetas, raws: materialRaws }
 };
 
 /**

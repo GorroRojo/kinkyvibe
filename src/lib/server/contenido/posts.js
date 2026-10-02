@@ -2,19 +2,20 @@
  * De dónde leen las páginas públicas el contenido: los .md o la base (interruptor `contenido_db`).
  *
  * Con el interruptor apagado, todo es exactamente lo de siempre (`fetchMarkdownPosts`,
- * `fetchPost` de $lib/utils). Prendido, los eventos salen de la base y se convierten en el mismo
- * `ProcessedPost` que da un .md ({@link eventToMeta} + `processPost`), así las listas, la página del
- * evento, el .ics, las etiquetas, la búsqueda, el RSS y el sitemap no cambian su código.
+ * `fetchPost` de $lib/utils). Prendido, los eventos y el material salen de la base y se convierten
+ * en el mismo `ProcessedPost` que da un .md (el `toMeta` de cada categoría, ./categories.js, +
+ * `processPost`), así las listas, las páginas, el .ics, las etiquetas, la búsqueda, el RSS y el
+ * sitemap no cambian su código.
  *
  * Reglas (como los perfiles, docs/amigues.md):
- * - **La base decide** cada dirección que tiene: un evento importado (por su .md) o creado en la
+ * - **La base decide** cada dirección que tiene: un post importado (por su .md) o creado en la
  *   base. Si está oculto o borrado, para quien no lo puede ver es 404 aunque el .md siga en el repo.
  * - Un .md que no está en la base (no se importó todavía, o tuvo un error) sigue saliendo de su .md.
  * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`/`getObject`): las listas,
- *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de un
- *   evento, con quien mira (les admins ven los ocultos).
+ *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de cada
+ *   post, con quien mira (les admins ven los ocultos).
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
- *   eventos hay y cuándo cambió el último (una consulta chica, con índice).
+ *   objetos hay y cuándo cambió el último (una consulta chica, con índice).
  */
 import { error } from '@sveltejs/kit';
 import { fetchMarkdownPosts, fetchPost, processPost } from '$lib/utils';
@@ -23,11 +24,17 @@ import { getDB } from '$lib/server/db';
 import { contenidoDbEnabled } from '$lib/server/flags.js';
 import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
-import { EVENT_CATEGORY, EVENT_TYPE, eventToMeta } from './eventos.js';
+import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
+import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
+
+const TYPES = CATEGORY_LIST.map((c) => c.type);
+const CATEGORIES = CATEGORY_LIST.map((c) => c.category);
+/** `?, ?` para una lista de `n` valores. @param {number} n */
+const marks = (n) => Array.from({ length: n }, () => '?').join(', ');
 
 /**
  * La base, si el contenido sale de ella (interruptor prendido y base disponible); si no, `null`.
@@ -44,7 +51,7 @@ export async function contentDb(platform) {
 /**
  * @typedef {{
  *   stamp: string,
- *   claimed: Set<string>,
+ *   claimed: Map<string, Set<string>>,
  *   listed: ProcessedPost[],
  *   unlisted: ProcessedPost[],
  *   bodies: Map<string, string>
@@ -60,20 +67,22 @@ export function clearContentCache() {
 }
 
 /**
- * Cuántos eventos hay y cuándo cambió el último (objetos e importaciones): si no cambió, lo
- * recordado sigue valiendo.
+ * Cuántos objetos de contenido hay y cuándo cambió el último (objetos e importaciones): si no
+ * cambió, lo recordado sigue valiendo.
  *
  * @param {D1Database} db
  */
 async function contentStamp(db) {
+	const t = marks(TYPES.length);
+	const c = marks(CATEGORIES.length);
 	const row = await db
 		.prepare(
-			`SELECT (SELECT count(*) FROM objects WHERE type = ?1) AS n,
-				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
-				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su`
+			`SELECT (SELECT count(*) FROM objects WHERE type IN (${t})) AS n,
+				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
+				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
+				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su`
 		)
-		.bind(EVENT_TYPE, EVENT_CATEGORY)
+		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
 	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}`;
 }
@@ -100,31 +109,35 @@ async function dbState(db) {
  */
 async function loadDbState(db, stamp) {
 	const visible = visibleWhere(ANON, 'o');
+	const t = marks(TYPES.length);
 	const [claimedRows, rows] = await Promise.all([
 		// Qué direcciones decide la base (vivas, ocultas o borradas): esas no salen del .md.
 		db
 			.prepare(
-				`SELECT o.slug, s.legacy_slug FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-				WHERE o.type = ?1`
+				`SELECT o.type, o.slug, s.legacy_slug FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE o.type IN (${t})`
 			)
-			.bind(EVENT_TYPE, EVENT_CATEGORY)
+			.bind(...TYPES)
 			.all(),
 		db
 			.prepare(
-				`SELECT o.id, o.slug, o.title, o.data, o.visibility, s.legacy_slug FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?
-				WHERE o.type = ? AND ${visible.sql}
-				ORDER BY o.start_at DESC`
+				`SELECT o.id, o.type, o.slug, o.title, o.data, o.visibility, s.legacy_slug FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE o.type IN (${t}) AND ${visible.sql}
+				ORDER BY o.id`
 			)
-			.bind(EVENT_CATEGORY, EVENT_TYPE, ...visible.params)
+			.bind(...TYPES, ...visible.params)
 			.all()
 	]);
-	/** @type {Set<string>} */
-	const claimed = new Set();
+	/** @type {Map<string, Set<string>>} */
+	const claimed = new Map(CATEGORIES.map((c) => [c, new Set()]));
 	for (const r of claimedRows.results) {
-		claimed.add(String(r.slug));
-		if (r.legacy_slug) claimed.add(String(r.legacy_slug));
+		const cat = categoryOfType(String(r.type));
+		if (!cat) continue;
+		const set = /** @type {Set<string>} */ (claimed.get(cat.category));
+		set.add(String(r.slug));
+		if (r.legacy_slug) set.add(String(r.legacy_slug));
 	}
 	/** @type {ProcessedPost[]} */
 	const listed = [];
@@ -133,6 +146,8 @@ async function loadDbState(db, stamp) {
 	/** @type {Map<string, string>} */
 	const bodies = new Map();
 	for (const r of rows.results) {
+		const cat = categoryOfType(String(r.type));
+		if (!cat) continue;
 		let data = {};
 		try {
 			data = JSON.parse(String(r.data));
@@ -142,15 +157,13 @@ async function loadDbState(db, stamp) {
 		const object = {
 			title: String(r.title),
 			data: /** @type {Record<string, any>} */ (data),
-			visibility: /** @type {import('$lib/server/objects/visibility.js').Visibility} */ (
-				String(r.visibility)
-			)
+			visibility: String(r.visibility)
 		};
 		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
 		const post = await processPost(
 			undefined,
 			postID,
-			/** @type {any} */ (eventToMeta(object)),
+			/** @type {any} */ (cat.toMeta(object)),
 			true
 		);
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
@@ -198,14 +211,14 @@ export function comparePosts(a, b) {
  */
 export function mergePosts(md, state, fromDb) {
 	const kept = md.filter(
-		(p) => !(p.meta.category === EVENT_CATEGORY && state.claimed.has(String(p.meta.postID)))
+		(p) => !state.claimed.get(String(p.meta.category))?.has(String(p.meta.postID))
 	);
 	return [...kept, ...fromDb].sort(comparePosts);
 }
 
 /**
- * Lo mismo que `fetchMarkdownPosts(wiki, unlisted)`, con los eventos de la base si el interruptor
- * está prendido.
+ * Lo mismo que `fetchMarkdownPosts(wiki, unlisted)`, con los eventos y el material de la base si
+ * el interruptor está prendido.
  *
  * @param {App.Platform | undefined} platform
  * @param {boolean} [wiki]
@@ -232,8 +245,8 @@ export async function currentSitePosts(platform) {
 }
 
 /**
- * El cuerpo (markdown) de los eventos de la base por dirección (`/calendario/<slug>`), para el
- * índice de la búsqueda. Vacío con el interruptor apagado.
+ * El cuerpo (markdown) de lo que sale de la base, por dirección (`/calendario/<slug>`,
+ * `/material/<slug>`), para el índice de la búsqueda. Vacío con el interruptor apagado.
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<Map<string, string>>}
@@ -245,14 +258,18 @@ export async function siteBodies(platform) {
 }
 
 /**
- * A qué objeto lleva una dirección de evento (sin mirar visibilidad: es para decidir el camino).
- * Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la del objeto.
+ * A qué objeto lleva una dirección de una categoría (sin mirar visibilidad: es para decidir el
+ * camino). Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la
+ * del objeto.
  *
  * @param {D1Database} db
+ * @param {string} category
  * @param {string} slug
  * @returns {Promise<{ id: number, legacySlug: string | null } | null>}
  */
-export async function resolveEventSlug(db, slug) {
+export async function resolveContentSlug(db, category, slug) {
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) return null;
 	const row = await db
 		.prepare(
 			`SELECT o.id, s.legacy_slug FROM objects o
@@ -260,10 +277,20 @@ export async function resolveEventSlug(db, slug) {
 			WHERE o.type = ?1 AND (s.legacy_slug = ?3 OR o.slug = ?3)
 			ORDER BY (s.legacy_slug = ?3) DESC LIMIT 1`
 		)
-		.bind(EVENT_TYPE, EVENT_CATEGORY, slug)
+		.bind(cat.type, category, slug)
 		.first();
 	if (!row) return null;
 	return { id: Number(row.id), legacySlug: row.legacy_slug ? String(row.legacy_slug) : null };
+}
+
+/**
+ * Lo mismo para eventos.
+ *
+ * @param {D1Database} db
+ * @param {string} slug
+ */
+export function resolveEventSlug(db, slug) {
+	return resolveContentSlug(db, EVENT_CATEGORY, slug);
 }
 
 /**
@@ -271,23 +298,26 @@ export async function resolveEventSlug(db, slug) {
  */
 
 /**
- * Un evento para su página. `{ mode: 'md' }`: sale del .md como siempre (interruptor apagado o
- * dirección que la base no tiene). `{ mode: 'db', post: null }`: la base la tiene pero quien mira
- * no la puede ver → 404.
+ * Un post (evento o material) para su página. `{ mode: 'md' }`: sale del .md como siempre
+ * (interruptor apagado o dirección que la base no tiene). `{ mode: 'db', post: null }`: la base la
+ * tiene pero quien mira no la puede ver → 404.
  *
  * @param {App.Platform | undefined} platform
+ * @param {string} category
  * @param {string} slug
  * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
  * @returns {Promise<SitePost>}
  */
-export async function siteEvent(
+export async function siteContent(
 	platform,
+	category,
 	slug,
 	{ viewer = ANON, shallow = false, html = true } = {}
 ) {
-	const db = await contentDb(platform);
-	if (!db) return { mode: 'md' };
-	const ref = await resolveEventSlug(db, slug);
+	const cat = CONTENT_CATEGORIES[category];
+	const db = cat ? await contentDb(platform) : null;
+	if (!db || !cat) return { mode: 'md' };
+	const ref = await resolveContentSlug(db, category, slug);
 	if (!ref) return { mode: 'md' };
 	const object = await getObject(db, { id: ref.id }, viewer);
 	if (!object) return { mode: 'db', post: null };
@@ -295,11 +325,16 @@ export async function siteEvent(
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (eventToMeta(object)),
+		/** @type {any} */ (cat.toMeta(object)),
 		shallow
 	);
 	const body = html
-		? await renderContentBody(object.data, EVENT_CATEGORY, postID, { vars: post.meta })
+		? await renderContentBody(
+				object.data,
+				/** @type {'calendario' | 'material'} */ (category),
+				postID,
+				{ vars: post.meta }
+			)
 		: { html: '', css: '', component: false };
 	// El componente no viaja desde el servidor: con `component`, +page.js carga el del .md (el
 	// texto es el mismo); si no, la página muestra `html` (y `css`, solo dentro del texto).
@@ -309,8 +344,20 @@ export async function siteEvent(
 }
 
 /**
- * Lo mismo que `fetchPost(category, slug, shallow)` (tira 404 si no existe), con los eventos de
- * la base si el interruptor está prendido. Para quien solo necesita la metadata.
+ * Un evento para su página (ver {@link siteContent}).
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
+ * @returns {Promise<SitePost>}
+ */
+export function siteEvent(platform, slug, opts) {
+	return siteContent(platform, EVENT_CATEGORY, slug, opts);
+}
+
+/**
+ * Lo mismo que `fetchPost(category, slug, shallow)` (tira 404 si no existe), con lo de la base si
+ * el interruptor está prendido. Para quien solo necesita la metadata.
  *
  * @param {App.Platform | undefined} platform
  * @param {'calendario' | 'amigues' | 'material' | 'wiki'} category
@@ -319,8 +366,8 @@ export async function siteEvent(
  * @returns {Promise<ProcessedPost>}
  */
 export async function sitePost(platform, category, slug, { viewer = ANON, shallow = true } = {}) {
-	if (category === EVENT_CATEGORY) {
-		const found = await siteEvent(platform, slug, { viewer, shallow, html: false });
+	if (CONTENT_CATEGORIES[category]) {
+		const found = await siteContent(platform, category, slug, { viewer, shallow, html: false });
 		if (found.mode === 'db') {
 			if (!found.post) error(404, 'Not found');
 			return found.post;

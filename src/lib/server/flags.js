@@ -79,13 +79,14 @@ export const FLAGS = Object.freeze({
 		envVar: 'ETIQUETAS_DB_ENABLED'
 	},
 	contenido_db: {
-		label: 'Contenido desde la base (eventos)',
+		label: 'Contenido desde la base (eventos y material)',
 		description:
-			'Las páginas públicas (listas, la página de cada evento, el .ics, las etiquetas, la ' +
-			'búsqueda, el RSS y el sitemap) leen los eventos de la base en vez de los archivos .md. ' +
-			'Un evento que no está en la base sigue saliendo de su .md. Apagado, todo sale de los .md ' +
-			'como siempre. Antes de prenderlo: importar los eventos (Contenido → En la base) y ' +
-			'revisar que no haya diferencias.',
+			'Las páginas públicas (listas, la página de cada evento y de cada material, el .ics, las ' +
+			'etiquetas, la búsqueda, el RSS y el sitemap), la venta de entradas y el panel leen los ' +
+			'eventos y el material de la base en vez de los archivos .md, y editarlos desde el panel ' +
+			'guarda en la base (se ve enseguida, con historial). Lo que no está en la base sigue ' +
+			'saliendo de su .md. Apagado, todo sale de los .md como siempre. Antes de prenderlo: ' +
+			'importar (Contenido → En la base) y revisar que no haya diferencias.',
 		envVar: 'CONTENIDO_DB_ENABLED'
 	}
 });

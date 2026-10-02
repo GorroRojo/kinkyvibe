@@ -84,6 +84,7 @@ const argentinaDay = (/** @type {number} */ ms) =>
  *   data: Record<string, unknown>,
  *   visibility: 'public' | 'hidden',
  *   warnings: string[],
+ *   error?: string
  *   notes?: string[]
  * }} MappedEvent
  */

@@ -201,3 +201,24 @@ describe('lista corta para quien no es superadmin', () => {
 		expect(r2.html).not.toContain('<iframe');
 	});
 });
+
+describe('el material real se ve igual que hoy', () => {
+	it('el texto de cada uno es el del .md: la página usa su componente', async () => {
+		const texts = /** @type {Record<string, string>} */ (
+			import.meta.glob('/src/lib/posts/material/*.md', {
+				query: '?raw',
+				import: 'default',
+				eager: true
+			})
+		);
+		/** @type {string[]} */
+		const notSame = [];
+		for (const [path, raw] of Object.entries(texts)) {
+			const body = bodyOf(raw);
+			if (slugOf(path).startsWith('_') || !body) continue;
+			const r = await renderContentBody({ body, body_html: 'libre' }, 'material', slugOf(path));
+			if (!r.component) notSame.push(slugOf(path));
+		}
+		expect(notSame).toEqual([]);
+	});
+});
