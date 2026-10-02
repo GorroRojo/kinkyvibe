@@ -72,3 +72,9 @@ Reglas:
   los demás agentes.
 - Todo texto del bot, en español rioplatense con el lenguaje inclusivo del sitio.
 - Cada fase actualiza esta decisión en el mismo PR.
+
+## Cómo va (1/10)
+
+- Fase 1 en un PR aparte: webhook `/api/telegram`, `/proximos`, `/evento`, interruptor
+  `telegram_bot`. Guía: [`docs/telegram.md`](../telegram.md). Lee los eventos de los `.md`; falta
+  cambiar a `sitePosts` cuando #166 esté en `main`.

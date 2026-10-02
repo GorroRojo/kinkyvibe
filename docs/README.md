@@ -23,6 +23,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [lo-que-sigo.md](lo-que-sigo.md)               | «Lo que sigo»: seguir etiquetas, series, perfiles y lugares (calendario y mails), interruptor `lo_que_sigo`  |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción (interruptor `personas_eventos`)          |
+| [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción             |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints     |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                            |
