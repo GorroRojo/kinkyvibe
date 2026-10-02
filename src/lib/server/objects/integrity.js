@@ -305,9 +305,18 @@ export async function recordIntegrityRun(db, problems, now = Date.now()) {
  */
 export async function lastIntegrityRun(db) {
 	if (!(await hasTable(db, 'integrity_runs'))) return null;
-	const row = await db
-		.prepare('SELECT ran_at, problem_count, problems FROM integrity_runs ORDER BY id DESC LIMIT 1')
-		.first();
+	return integrityRunFromRow(await db.prepare(LAST_INTEGRITY_RUN_SQL).first());
+}
+
+/** La última corrida (sin mirar si existe la tabla: para una tanda, ver {@link lastIntegrityRun}). */
+export const LAST_INTEGRITY_RUN_SQL =
+	'SELECT ran_at, problem_count, problems FROM integrity_runs ORDER BY id DESC LIMIT 1';
+
+/**
+ * @param {Record<string, unknown> | null | undefined} row lo que devolvió {@link LAST_INTEGRITY_RUN_SQL}
+ * @returns {IntegrityRun | null}
+ */
+export function integrityRunFromRow(row) {
 	if (!row) return null;
 	/** @type {StoredProblem[]} */
 	let problems = [];

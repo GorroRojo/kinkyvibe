@@ -5,6 +5,7 @@
 	import ProfileHeader from '$lib/components/amigues/ProfileHeader.svelte';
 	import RelatedPosts from '$lib/components/amigues/RelatedPosts.svelte';
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
+	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -49,6 +50,8 @@
 {#if data.mode === 'db'}
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
+	<!-- «Lo que sigo» (interruptores `lo_que_sigo` y `cuentas`): apagado, /api/sigo da 404 y no se ve -->
+	<FollowButton kind="perfil" key={String(data.profileId)} name={data.profile?.title ?? ''} />
 	{#if data.participa}
 		<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
 	{/if}
