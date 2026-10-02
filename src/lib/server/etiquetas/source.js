@@ -14,6 +14,8 @@ import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAG_CACHE_MS, isFlagOn } from '$lib/server/flags.js';
+import { useSiteTags } from '$lib/utils/siteTags.js';
+import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
 import { loadTagRecords } from './read.js';
 
@@ -55,7 +57,12 @@ export async function tagSourceFrom(db, { now = Date.now(), flagOn } = {}) {
 	let value = FILE;
 	try {
 		const rawTags = await readDbRawTags(db);
-		if (rawTags) value = { rawTags, fromDb: true };
+		// Sin cambios: la misma lista (el mismo objeto), así los árboles y los posts ya
+		// limpiados con ella se siguen usando (WeakMap por lista o por árbol).
+		const prev = cache?.value;
+		if (rawTags && prev?.fromDb && JSON.stringify(prev.rawTags) === JSON.stringify(rawTags))
+			value = prev;
+		else if (rawTags) value = { rawTags, fromDb: true };
 	} catch (error) {
 		logDBError('etiquetas desde la base', error);
 	}
@@ -101,4 +108,19 @@ export function tagManagerOf(source) {
  */
 export async function siteTagManager(platform) {
 	return tagManagerOf(await siteTagSource(platform));
+}
+
+/**
+ * Pone el árbol de este pedido como el árbol en uso del servidor ($lib/utils/siteTags.js, y los
+ * stores `tagManager`/`wikiTagManager` del SSR). Lo llama `hooks.server.js` al empezar cada pedido:
+ * así todo lo que lee el árbol (posts, editores, series, ingreso, avisos…) sigue al interruptor.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {{ source?: TagSource }} [opts] `source` para tests
+ * @returns {Promise<TagSource>}
+ */
+export async function applySiteTags(platform, { source } = {}) {
+	const src = source ?? (await siteTagSource(platform));
+	useSiteTags(src.fromDb ? src.rawTags : null, [tagManager, wikiTagManager]);
+	return src;
 }

@@ -5,16 +5,19 @@
  * la base: acá solo se cuentan. Las ediciones se bajan en CSV (ediciones.csv).
  *
  * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente», con imagen
- * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): nombre visible,
- * ícono, imagen y descripción de una serie. Las dos se guardan por el mismo camino que
+ * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
+ * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
+ * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
  * /admin/etiquetas: un commit al archivo de etiquetas (planTagEdit / commitTagEdit) o, con el
- * interruptor `etiquetas_db`, en la base al momento (src/lib/server/etiquetas/panel.js).
+ * interruptor `etiquetas_db`, en la base al momento (src/lib/server/etiquetas/panel.js; renombrar
+ * en las publicaciones, además, un commit). Renombrar pide confirmar después de ver cuántas
+ * publicaciones cambian.
  */
 import { fail } from '@sveltejs/kit';
 import { isAdmin, requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { commitTagEdit, planTagEdit } from '$lib/server/admin/tagEditor.js';
+import { TAGS_PATH, commitTagEdit, planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { assetNames, getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { allSeries, tagExists } from '$lib/server/series/index.js';
@@ -23,7 +26,7 @@ import { requireSeries } from '$lib/server/series/web.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
+import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -106,7 +109,9 @@ export const actions = {
 		if (!(await seriesEnabled(platform))) return fail(404, { error: 'Not found' });
 		const data = await request.formData();
 		const id = String(data.get('id') ?? '');
+		const keepAlias = data.get('keepAlias') === '1';
 		const input = {
+			key: data.get('key') ?? undefined,
 			visible_name: data.get('visible_name'),
 			icon: data.get('icon'),
 			image: data.get('image'),
@@ -117,18 +122,38 @@ export const actions = {
 			? editValues(tags, id)
 			: null;
 		if (!current) return fail(404, { editing: id, error: 'Esa serie ya no existe.' });
-		const planned = seriesEditOps(input, current);
-		if (!planned.ok) {
-			return fail(400, { editing: id, error: planned.error, values: textValues(input) });
+		const planned = seriesEditOps(input, current, {
+			keepAlias,
+			exists: (n) => tagExists(n, tags)
+		});
+		const values = { ...textValues(input), keepAlias: keepAlias ? '1' : '' };
+		if (!planned.ok) return fail(400, { editing: id, error: planned.error, values });
+		// Renombrar: primero cuántas publicaciones cambian; se guarda cuando se confirma eso mismo.
+		const confirmed =
+			data.get('confirmTo') === planned.name && data.get('confirmAlias') === values.keepAlias;
+		if (planned.renamed && !confirmed) {
+			const count = await renamedPosts(locals, platform, planned.ops);
+			if (!count.ok) return fail(count.status, { editing: id, error: count.error, values });
+			return {
+				editing: id,
+				values,
+				confirmRename: {
+					from: id,
+					to: planned.name,
+					keepAlias: values.keepAlias,
+					posts: count.posts,
+					db: count.db
+				}
+			};
 		}
 		const res = await saveSeriesOps(locals, platform, planned.ops, {
-			name: id,
-			summary: `editar «${id}»`
+			name: planned.name,
+			summary: planned.renamed
+				? `renombrar «${id}» a «${planned.name}»`
+				: `editar «${planned.name}»`
 		});
-		if (!res.ok) {
-			return fail(res.status, { editing: id, error: res.error, values: textValues(input) });
-		}
-		return { edited: { name: id, ...res.saved } };
+		if (!res.ok) return fail(res.status, { editing: id, error: res.error, values });
+		return { edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved } };
 	}
 };
 
@@ -145,11 +170,51 @@ function editValues(tags, id) {
 	const visible = str(t?.visible_name);
 	return {
 		id,
+		key: id,
 		visible_name: visible === id ? '' : visible,
 		icon: str(t?.icon).trim(),
 		image: str(t?.image).trim(),
 		description: str(t?.description)
 	};
+}
+
+/**
+ * Con qué hacer el commit de las publicaciones, o null si no se puede.
+ * @param {App.Locals} locals
+ * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
+ */
+async function repoAccess(locals) {
+	const admin = getEventAdmin(locals);
+	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
+}
+
+/**
+ * Cuántas publicaciones cambian al renombrar (lo que se muestra antes de confirmar): con la base,
+ * las del renombre sin alias (con alias, ninguna); con el archivo, las del commit (menos el
+ * archivo de etiquetas).
+ *
+ * @param {App.Locals} locals
+ * @param {App.Platform | undefined} platform
+ * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
+ * @returns {Promise<{ ok: true, posts: number, db: boolean } | { ok: false, status: number, error: string }>}
+ */
+async function renamedPosts(locals, platform, ops) {
+	if (!locals.user || !isAdmin(locals.user))
+		return { ok: false, status: 403, error: NO_PERMISSION };
+	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
+	if (fromDb) {
+		const res = await previewDbTagEdit(fromDb, ops, await repoAccess(locals));
+		if (!res.ok) return res;
+		return { ok: true, posts: res.preview.posts?.total ?? 0, db: true };
+	}
+	const admin = getEventAdmin(locals);
+	if (!admin) return { ok: false, status: 403, error: NO_PERMISSION };
+	try {
+		const plan = await planTagEdit(await getRepoClient(), admin.token, ops, bundledSource);
+		return { ok: true, posts: plan.files.filter((f) => f.path !== TAGS_PATH).length, db: false };
+	} catch (e) {
+		return { ok: false, status: 400, error: describe(e) };
+	}
 }
 
 /**
@@ -159,21 +224,26 @@ function editValues(tags, id) {
  * @param {App.Platform | undefined} platform
  * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
  * @param {{ name: string, summary: string }} what
- * @returns {Promise<{ ok: true, saved: { db: boolean, commit: string | null, publish: any } } | { ok: false, status: number, error: string }>}
+ * @returns {Promise<{ ok: true, saved: { db: boolean, commit: string | null, publish: any, posts?: number } } | { ok: false, status: number, error: string }>}
  */
 async function saveSeriesOps(locals, platform, ops, { name, summary }) {
 	if (!locals.user || !isAdmin(locals.user))
 		return { ok: false, status: 403, error: NO_PERMISSION };
 	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
 	if (fromDb) {
-		const res = await saveTagOpsToDb(fromDb, ops, {
+		// Renombrar sin alias: también un commit que cambia las publicaciones (saveDbTagEdit).
+		const res = await saveDbTagEdit(fromDb, ops, {
 			locals,
 			login: locals.user.login,
 			label: 'Series',
-			targetId: name.slice(0, 120)
+			targetId: name.slice(0, 120),
+			repo: await repoAccess(locals)
 		});
 		if (!res.ok) return res;
-		return { ok: true, saved: { db: true, commit: null, publish: null } };
+		return {
+			ok: true,
+			saved: { db: true, commit: res.commit, publish: res.publish, posts: res.posts }
+		};
 	}
 	const admin = getEventAdmin(locals);
 	if (!admin) return { ok: false, status: 403, error: NO_PERMISSION };

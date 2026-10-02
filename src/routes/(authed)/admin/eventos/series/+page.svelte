@@ -2,9 +2,10 @@
 	/**
 	 * Eventos → Series: cada serie (etiqueta hija de «evento recurrente») con su imagen, la próxima
 	 * edición, cuántas personas pidieron aviso (solo el número) y sus ediciones. CSV con todas las
-	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: nombre
-	 * visible, ícono, imagen y descripción. Se guarda como en Etiquetas (commit al archivo, o en la
-	 * base con el interruptor `etiquetas_db`).
+	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: el nombre
+	 * de la etiqueta (renombrar, con la misma elección que en Etiquetas; se confirma después de ver
+	 * cuántas publicaciones cambian), nombre visible, ícono, imagen y descripción. Se guarda como en
+	 * Etiquetas (commit al archivo, o en la base con el interruptor `etiquetas_db`).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -30,6 +31,9 @@
 	$: if (form?.error && !form?.editing) creating = true;
 	$: if (form?.editing) editing = form.editing;
 	$: if (form?.edited) editing = '';
+	/** Renombrar: lo que hay que confirmar (cuántas publicaciones cambian) en esa serie, o null. */
+	$: confirmFor = (/** @type {string} */ id) =>
+		form?.editing === id && form?.confirmRename ? form.confirmRename : null;
 	/** Lo que se acaba de guardar (crear o editar), para el aviso. */
 	$: done = form?.created
 		? { ...form.created, verb: 'creó' }
@@ -68,9 +72,19 @@
 
 {#if done}
 	<p class="kv-flash" role="status">
-		Listo: se {done.verb} la serie «{done.name}».
+		Listo: se {done.verb} la serie «{done.name}»{#if done.renamedFrom}
+			(antes «{done.renamedFrom}»){/if}.
 		{#if done.db}
 			Ya está en la base: en menos de un minuto se ve en el sitio.
+			{#if done.posts}
+				El commit que cambia {done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} se ve cuando termine
+				de publicarse el sitio.
+				{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
+						href={done.commit}
+						target="_blank"
+						rel="noreferrer">Ver el commit</a
+					>{/if}
+			{/if}
 		{:else}
 			Se ve cuando termine de publicarse el sitio.
 			{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
@@ -170,22 +184,47 @@
 				{#if data.canCreate && editing === s.id}
 					<form class="kv-form edit" method="POST" action="?/editar" use:enhance={submit}>
 						<input type="hidden" name="id" value={s.id} />
-						<p class="muted small">
-							La etiqueta de sus eventos sigue siendo «{s.id}» (para cambiarla: Renombrar, en
-							Etiquetas).
-						</p>
-						<SeriesFields
-							mode="edit"
-							id="editar-{s.edit.id}"
-							values={form?.editing === s.id && form?.values ? form.values : s.edit}
-							assets={data.assets}
-						/>
+						{#key form}
+							<SeriesFields
+								mode="edit"
+								id="editar-{s.edit.id}"
+								values={form?.editing === s.id && form?.values
+									? { ...s.edit, ...form.values }
+									: s.edit}
+								dbMode={data.dbMode}
+								assets={data.assets}
+							/>
+						{/key}
 						{#if form?.editing === s.id && form?.error}<p class="kv-flash bad" role="alert">
 								{form.error}
 							</p>{/if}
+						{#if confirmFor(s.id)}
+							{@const confirm = confirmFor(s.id)}
+							<div class="kv-flash" role="status">
+								<p>
+									Vas a renombrar «{confirm.from}» a «{confirm.to}».
+									{#if confirm.db && confirm.keepAlias === '1'}
+										No cambia ninguna publicación: «{confirm.from}» queda como alias.
+									{:else if confirm.posts}
+										Cambia{confirm.posts === 1 ? '' : 'n'}
+										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>,
+										con un commit{#if confirm.db}, y «{confirm.from}» deja de existir{/if}.
+									{:else}
+										Ninguna publicación usa «{confirm.from}»: no hace falta cambiar ninguna.
+									{/if}
+								</p>
+								<p>Si está bien, confirmá. Si cambiás algo, se vuelve a contar.</p>
+							</div>
+							<input type="hidden" name="confirmTo" value={confirm.to} />
+							<input type="hidden" name="confirmAlias" value={confirm.keepAlias} />
+						{/if}
 						<div class="kv-row">
 							<button class="kv-btn" type="submit" disabled={busy}
-								>{busy ? 'Guardando…' : 'Guardar'}</button
+								>{busy
+									? 'Guardando…'
+									: confirmFor(s.id)
+										? 'Confirmar y guardar'
+										: 'Guardar'}</button
 							>
 							<button type="button" class="kv-btn ghost" on:click={() => (editing = '')}
 								>Cancelar</button

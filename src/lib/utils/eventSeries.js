@@ -1,9 +1,9 @@
 /**
- * Series de eventos según el árbol de etiquetas (src/lib/utils/hardcodedTags.js): una serie es
+ * Series de eventos según el árbol de etiquetas en uso (archivo o base, ./siteTags.js): una serie es
  * una etiqueta hija o nieta de «evento recurrente» (Picantearla, Cine para Sucixs…). Puro, sin
  * Svelte: lo usan los gráficos de Estadísticas para contar quién vuelve a la misma serie.
  */
-import { hardcodedTags } from './hardcodedTags.js';
+import { currentSiteTagList } from './siteTags.js';
 
 export const RECURRING_ROOT = 'evento recurrente';
 
@@ -17,7 +17,7 @@ const norm = (s) => s.trim().toLowerCase();
  * @param {string} [root]
  * @returns {Map<string, string>}
  */
-export function seriesTagIndex(rawTags = hardcodedTags, root = RECURRING_ROOT) {
+export function seriesTagIndex(rawTags = currentSiteTagList(), root = RECURRING_ROOT) {
 	const byId = new Map(rawTags.map((t) => [t.id, t]));
 	const children = (/** @type {string} */ id) => byId.get(id)?.children ?? [];
 	const ids = new Set();
