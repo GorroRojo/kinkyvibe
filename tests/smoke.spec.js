@@ -119,7 +119,7 @@ test.describe('calendario', () => {
 	// Cloudflare), so crawlers/link previews saw 22:30 for a 19:30 -03:00 event.
 	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({ request }) => {
 		const html = await (await request.get('/calendario/someter-2026-09')).text();
-		expect(html).toMatch(/class="dt-start"[^>]*>[^<]*a las 19:30 hs</);
+		expect(html).toMatch(/class="dt-start[^"]*"[^>]*>[^<]*a las 19:30 hs</);
 	});
 
 	// Regression test: the viewed month used to live in a module-level store, so one
