@@ -100,12 +100,14 @@ const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
 /**
  * How many posts of a category use each tag (as written).
  * @param {string} category
+ * @param {PostMeta[]} [metas] what {@link contentMetas} gave, if the caller already has it (each
+ *   call reads every post of the database with `contenido_db` on)
  * @returns {Promise<Record<string, number>>}
  */
-export async function tagUsage(category) {
+export async function tagUsage(category, metas) {
 	/** @type {Record<string, number>} */
 	const out = {};
-	for (const p of await allMeta()) {
+	for (const p of metas ?? (await allMeta())) {
 		if (p.category !== category) continue;
 		for (const t of new Set(list(p.meta.tags))) out[t] = (out[t] ?? 0) + 1;
 	}
@@ -115,12 +117,13 @@ export async function tagUsage(category) {
 /**
  * How many posts of a category list each `authors:` entry.
  * @param {string} category
+ * @param {PostMeta[]} [metas] as in {@link tagUsage}
  * @returns {Promise<Record<string, number>>}
  */
-export async function authorUsage(category) {
+export async function authorUsage(category, metas) {
 	/** @type {Record<string, number>} */
 	const out = {};
-	for (const p of await allMeta()) {
+	for (const p of metas ?? (await allMeta())) {
 		if (p.category !== category) continue;
 		for (const a of new Set(list(p.meta.authors).map((x) => x.trim()))) {
 			if (a) out[a] = (out[a] ?? 0) + 1;
@@ -147,10 +150,11 @@ function profileImage(slug, id) {
 
 /**
  * The amigues profiles (unpublished ones left out), for the organizer picker.
+ * @param {PostMeta[]} [metas] as in {@link tagUsage}
  * @returns {Promise<import('$lib/utils/organizers.js').Profile[]>}
  */
-export async function listProfiles() {
-	return (await allMeta())
+export async function listProfiles(metas) {
+	return (metas ?? (await allMeta()))
 		.filter((p) => p.category === 'amigues' && p.meta.force_unpublished !== true)
 		.map((p) => ({
 			slug: p.slug,
@@ -168,10 +172,12 @@ export async function listProfiles() {
  * @param {string} category
  */
 export async function editorData(category) {
+	// One read of every post for the three (before: three, each reading the database again).
+	const metas = await allMeta();
 	const [usage, profiles, authors] = await Promise.all([
-		tagUsage(category),
-		listProfiles(),
-		authorUsage(category === 'amigues' ? 'calendario' : category)
+		tagUsage(category, metas),
+		listProfiles(metas),
+		authorUsage(category === 'amigues' ? 'calendario' : category, metas)
 	]);
 	return { tagUsage: usage, profiles, authorUsage: authors };
 }
