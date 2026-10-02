@@ -7,6 +7,7 @@ import {
 	formatEvent,
 	formatEventList,
 	formatHelp,
+	formatPickList,
 	formatWhen
 } from './format.js';
 
@@ -114,11 +115,24 @@ describe('formatChoices', () => {
 	});
 });
 
+describe('formatPickList', () => {
+	it('invita a tocar un evento o a buscarlo', () => {
+		const text = formatPickList([fake(1)], ORIGIN);
+		expect(text).toContain('Tocá el evento que querés ver');
+		expect(text).toContain('Evento inventado 1');
+	});
+
+	it('sin eventos, manda al calendario', () => {
+		expect(formatPickList([], ORIGIN)).toContain('no hay eventos próximos');
+	});
+});
+
 describe('formatHelp', () => {
 	it('usa voseo, escapa el <nombre> y apunta al sitio', () => {
 		const text = formatHelp(ORIGIN);
 		expect(text).toContain('Podés pedirme');
 		expect(text).toContain('/evento &lt;nombre&gt;');
+		expect(text).toContain('tocá uno');
 		expect(text).toContain('https://ejemplo.test');
 	});
 });
