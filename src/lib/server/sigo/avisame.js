@@ -130,19 +130,26 @@ export async function followForSubscription(
  * prende el mail. La fila vieja se borra en la misma tanda (con sus `series_notifications`), así
  * el aviso viejo deja de mandarle y no le llegan dos.
  *
+ * Con `accountId`, solo las de esa cuenta: Mi rincón → Lo que sigo lo corre al abrirse, así lo
+ * que la cuenta pidió antes de prender «Lo que sigo» aparece en su lista sin esperar al cron.
+ *
  * @param {D1Database} db
- * @param {{ now?: number, limit?: number }} [opts]
+ * @param {{ now?: number, limit?: number, accountId?: string }} [opts]
  * @returns {Promise<number>} cuántas pasó
  */
-export async function migrateAccountSubscriptions(db, { now = Date.now(), limit = 100 } = {}) {
+export async function migrateAccountSubscriptions(
+	db,
+	{ now = Date.now(), limit = 100, accountId } = {}
+) {
 	const { results } = await db
 		.prepare(
 			`SELECT s.id, s.account_id, s.series_tag, s.confirmed_at FROM series_subscriptions s
 			JOIN accounts a ON a.id = s.account_id AND a.deleted_at IS NULL
 			WHERE s.account_id IS NOT NULL AND s.confirmed_at IS NOT NULL
+			AND (?2 IS NULL OR s.account_id = ?2)
 			ORDER BY s.confirmed_at LIMIT ?1`
 		)
-		.bind(limit)
+		.bind(limit, accountId ?? null)
 		.all();
 	let moved = 0;
 	for (const r of results) {

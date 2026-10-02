@@ -9,6 +9,7 @@ import { deliverEmail } from '$lib/server/tickets/index.js';
 import { siteTags } from './index.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
+import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -74,19 +75,25 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 
 /**
  * Para los formularios de "Avisame si se repite": si hay una cuenta con sesión (se suscribe sin
- * mail) y a qué series ya está suscripta. Sin cuenta, `{ member: false, subscribed: [] }`.
+ * mail), a qué series ya está suscripta y si con cuenta «Avisame» es seguir la serie en «Lo que
+ * sigo» (`sigo`, interruptores `lo_que_sigo` y `cuentas`; sigo/avisame.js). Sin cuenta,
+ * `{ member: false, subscribed: [], sigo: false }`.
  *
  * @param {App.Platform | undefined} platform
  * @param {App.Locals} locals
- * @returns {Promise<{ member: boolean, subscribed: string[] }>}
+ * @returns {Promise<{ member: boolean, subscribed: string[], sigo: boolean }>}
  */
 export async function seriesAccountState(platform, locals) {
 	const db = getDB(platform);
-	if (!locals.member || !db) return { member: false, subscribed: [] };
+	if (!locals.member || !db) return { member: false, subscribed: [], sigo: false };
 	try {
-		return { member: true, subscribed: await accountSubscriptions(db, locals.member.id) };
+		return {
+			member: true,
+			subscribed: await accountSubscriptions(db, locals.member.id),
+			sigo: await avisameViaSigo(db)
+		};
 	} catch (e) {
 		console.error('[series] suscripciones de la cuenta:', e);
-		return { member: true, subscribed: [] };
+		return { member: true, subscribed: [], sigo: false };
 	}
 }

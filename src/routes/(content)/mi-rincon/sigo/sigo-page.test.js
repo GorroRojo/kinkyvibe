@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
 import FollowOptions from '$lib/components/sigo/FollowOptions.svelte';
+import FollowAdd from '$lib/components/sigo/FollowAdd.svelte';
+import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 import { NOTIFY_CHANNELS } from '$lib/utils/sigo.js';
 
 const OPTIONS = { calendario: true, mail_nuevo: true, recordatorio: false };
@@ -32,11 +34,12 @@ const follow = (extra) => ({
 	...extra
 });
 
-/** @param {{ follows?: any[], profiles?: any[], form?: any }} [o] */
-const page = ({ follows = [], profiles = [], form = null } = {}) =>
+/** @param {{ follows?: any[], profiles?: any[], form?: any, extra?: Record<string, any> }} [o] */
+const page = ({ follows = [], profiles = [], form = null, extra = {} } = {}) =>
 	render(Page, {
 		props: /** @type {any} */ ({
 			data: {
+				...extra,
 				follows,
 				calendar: { entradas: true, participo: false },
 				add: {
@@ -207,5 +210,117 @@ describe('FollowOptions: sumar un canal es solo configurarlo', () => {
 		const inputs = [...html.matchAll(/<input[^>]*role="switch"[^>]*>/g)].map((m) => m[0]);
 		expect(inputs.filter((i) => i.includes('disabled'))).toEqual([]);
 		expect(inputs.filter((i) => i.includes('name="recordatorio"'))).toHaveLength(2);
+	});
+});
+
+describe('tu calendario: en esta misma página (antes, Mi rincón → Calendario)', () => {
+	/** La sección «Tu calendario». @param {string} html */
+	const section = (html) => {
+		const m = html.match(/<section[^>]*id="calendario"[\s\S]*?<\/section>/);
+		return m ? m[0] : '';
+	};
+
+	it('explica qué entra: lo seguido, tus entradas y donde participás', () => {
+		const cal = section(page());
+		expect(cal).toContain('Tu calendario');
+		expect(cal).toContain('lo que seguís con «En mi calendario»');
+		expect(cal).toContain('tus entradas');
+		expect(cal).toContain('los eventos donde participás');
+		expect(cal).toMatch(/<form[^>]*action="\?\/calendario"/);
+		// Ya no manda a otra página para el link.
+		expect(cal).not.toContain('href="/mi-rincon/calendario"');
+	});
+
+	it('el intro de la página lleva a la sección', () => {
+		expect(page()).toContain('href="#calendario"');
+	});
+
+	it('con `series` y sin link: «Crear mi link», sin revocar', () => {
+		const cal = section(page({ extra: { seriesOn: true, feed: null } }));
+		expect(cal).toContain('Tu link para suscribirte');
+		expect(cal).toMatch(/<form[^>]*action="\?\/crearLink"[\s\S]*Crear mi link/);
+		expect(cal).not.toContain('?/revocarLink');
+	});
+
+	it('con un link activo: desde cuándo, generar uno nuevo o revocarlo (el link no se muestra)', () => {
+		const cal = section(
+			page({
+				extra: { seriesOn: true, feed: { createdAt: Date.UTC(2026, 5, 10, 15), lastUsedAt: null } }
+			})
+		);
+		expect(cal).toContain('Tenés un link activo desde el 10 de junio de 2026');
+		expect(cal).toContain('Generar un link nuevo');
+		expect(cal).toMatch(/<form[^>]*action="\?\/revocarLink"/);
+		expect(cal).not.toContain('/ics/mio/');
+	});
+
+	it('recién creado: el link una sola vez, con los botones para suscribirse', () => {
+		const url = 'https://kinkyvibe.ar/ics/mio/token-inventado.ics';
+		const cal = section(
+			page({
+				extra: { seriesOn: true, feed: { createdAt: 0, lastUsedAt: null } },
+				form: { action: 'link', ok: true, url }
+			})
+		);
+		expect(cal).toContain('no lo vamos a mostrar de nuevo');
+		expect(cal).toContain(`<code class="feed-link`);
+		expect(cal).toContain(url);
+		expect(cal).toContain('Google Calendar');
+		expect(cal).toContain('webcal://kinkyvibe.ar/ics/mio/token-inventado.ics');
+		expect(cal).not.toContain('Tenés un link activo');
+	});
+
+	it('revocado: lo dice y ofrece crear otro', () => {
+		const cal = section(
+			page({
+				extra: { seriesOn: true, feed: null },
+				form: { action: 'revocarLink', ok: true }
+			})
+		);
+		expect(cal).toContain('Listo: el link dejó de andar.');
+		expect(cal).toContain('Crear mi link');
+		expect(cal).not.toContain('?/revocarLink');
+	});
+
+	it('sin `series`: lo que entra se elige igual, pero sin link (el .ics personal no anda)', () => {
+		const cal = section(page({ extra: { seriesOn: false, feed: null } }));
+		expect(cal).toContain('Mis entradas');
+		expect(cal).not.toContain('Tu link para suscribirte');
+		expect(cal).not.toContain('crearLink');
+	});
+});
+
+describe('«Agregar»: el buscador del sitio, con estilo', () => {
+	const TAGS = [
+		{
+			id: 'shibari',
+			name: 'shibari',
+			icon: '🪢',
+			group: 'cuerdas',
+			aliases: [],
+			count: 1,
+			inTree: true
+		}
+	];
+
+	it('usa el selector de etiquetas (ChipCombobox) con el aspecto del buscador público', () => {
+		const html = render(FollowAdd, { props: { tags: TAGS } }).body;
+		expect(html).toMatch(/class="chip-combobox[^"]*\bsearch\b/);
+		expect(html).toContain('lucide-search');
+		expect(html).toMatch(/<input[^>]*role="combobox"/);
+		// Sin JavaScript, el mismo campo manda lo escrito, con «Seguir».
+		expect(html).toMatch(/<input[^>]*name="clave"[^>]*required[^>]*role="combobox"/);
+		expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Seguir<\/button>/);
+		// Ya no hay un segundo campo suelto, sin estilo.
+		expect([...html.matchAll(/<input[^>]*type="text"/g)]).toHaveLength(1);
+	});
+
+	it('ChipCombobox: sin `look`, el del panel (sin lupa ni la clase del buscador)', () => {
+		const html = render(ChipCombobox, { props: { search: () => [] } }).body;
+		expect(html).toMatch(/class="chip-combobox(?: svelte-[a-z0-9]+)?"/);
+		expect(html).not.toContain('lucide-search');
+		const pill = render(ChipCombobox, { props: { search: () => [], look: 'search' } }).body;
+		expect(pill).toMatch(/class="chip-combobox[^"]*\bsearch\b/);
+		expect(pill).toContain('lucide-search');
 	});
 });

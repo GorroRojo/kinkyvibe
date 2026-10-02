@@ -7,6 +7,8 @@
 	 * - `seriesId`, `seriesName`: la serie (etiqueta).
 	 * - `member`: hay una cuenta con sesión (se suscribe sin escribir el mail).
 	 * - `subscribed`: esa cuenta ya está suscripta.
+	 * - `sigo`: con cuenta, «Avisame» es seguir la serie en «Lo que sigo» (los textos lo dicen y
+	 *   llevan a Mi rincón → Lo que sigo).
 	 * - `heading`: título del bloque.
 	 */
 	import { enhance } from '$app/forms';
@@ -18,6 +20,7 @@
 	export let seriesName;
 	export let member = false;
 	export let subscribed = false;
+	export let sigo = false;
 	export let heading = 'Avisame si se repite';
 
 	let busy = false;
@@ -38,7 +41,9 @@
 					message = `Listo: no te vamos a avisar más de ${seriesName}.`;
 				} else if (status === 'confirmed') {
 					subscribed = true;
-					message = `Listo: te vamos a avisar por mail cuando haya una nueva edición de ${seriesName}.`;
+					message = sigo
+						? `Listo: seguís ${seriesName} y te avisamos por mail cuando se anuncie una nueva edición.`
+						: `Listo: te vamos a avisar por mail cuando haya una nueva edición de ${seriesName}.`;
 				} else {
 					message =
 						'Te mandamos un mail para confirmar. Abrilo y tocá el link: sin confirmar no te avisamos nada.';
@@ -64,14 +69,28 @@
 		<p class="error" role="alert">{error}</p>
 	{/if}
 	{#if member && subscribed}
-		<p>Te vamos a avisar por mail cuando haya una nueva edición de {seriesName}.</p>
+		{#if sigo}
+			<p>
+				Seguís {seriesName}: te avisamos por mail cuando se anuncie una nueva edición.
+				<a href="/mi-rincon/sigo">Elegí qué recibís en Lo que sigo</a>.
+			</p>
+		{:else}
+			<p>Te vamos a avisar por mail cuando haya una nueva edición de {seriesName}.</p>
+		{/if}
 		<form method="POST" action="/avisos?/baja" use:enhance={submit}>
 			<input type="hidden" name="serie" value={seriesId} />
 			<button class="pill-btn ghost" type="submit" disabled={busy}>Dejar de avisarme</button>
 		</form>
 	{:else if member}
 		{#if !message}
-			<p>Te mandamos un solo mail a tu cuenta cada vez que se anuncie una nueva edición.</p>
+			<p>
+				{#if sigo}
+					Seguí {seriesName} con tu cuenta: te mandamos un mail cada vez que se anuncie una nueva edición
+					y sus fechas van a tu calendario.
+				{:else}
+					Te mandamos un solo mail a tu cuenta cada vez que se anuncie una nueva edición.
+				{/if}
+			</p>
 		{/if}
 		<form method="POST" action="/avisos?/suscribir" use:enhance={submit}>
 			<input type="hidden" name="serie" value={seriesId} />

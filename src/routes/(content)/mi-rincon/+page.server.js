@@ -92,9 +92,11 @@ export async function load(event) {
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
 		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series).
+		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series),
+		// solo sin «Lo que sigo».
 		seriesOn: await seriesEnabled(event.platform),
-		// Interruptor `lo_que_sigo`: link a Mi rincón → Lo que sigo (docs/lo-que-sigo.md).
+		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+		// calendario personal (docs/lo-que-sigo.md).
 		sigoOn: await sigoEnabled(event.platform),
 		ordersError,
 		saved: {
