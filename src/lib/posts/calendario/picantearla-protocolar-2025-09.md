@@ -7,6 +7,7 @@ tags:
   - español
   - KinkyVibe
   - Picantearla
+  - 'Picantearla: Protocolar'
   - pago
   - evento
   - BDSM

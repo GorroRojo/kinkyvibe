@@ -1,11 +1,12 @@
 /**
  * Borradores locales de los editores del panel: mientras hay cambios sin guardar, el editor guarda
  * lo que la persona hizo en localStorage (solo en este navegador), así no se pierde si cambia de
- * pestaña, navega a otro lado o cierra la ventana. Al volver al editor se recupera.
+ * pestaña, navega a otro lado o cierra la ventana. Al volver al editor se ofrece recuperarlo.
  *
  * Cada borrador se guarda con la versión del archivo de la que partió (`base`, por ejemplo el sha
  * del archivo): si el archivo cambió desde entonces, el borrador queda marcado como `stale` y el
- * editor pregunta antes de recuperarlo (recuperarlo pisaría lo que cambió otra persona).
+ * editor pregunta antes de recuperarlo (recuperarlo pisaría lo que cambió otra persona). Si no,
+ * el editor ofrece recuperarlo («Recuperar / Descartar»); nunca lo recupera solo.
  *
  * Todas las funciones reciben el storage para poder probarlas; el storage puede faltar o tirar
  * error (ventanas privadas, storage lleno o bloqueado): entonces no hacen nada.
@@ -113,4 +114,40 @@ export function draftAge(savedAt, now = Date.now()) {
 	if (h < 24) return h === 1 ? 'hace 1 hora' : `hace ${h} horas`;
 	const d = Math.floor(h / 24);
 	return d === 1 ? 'hace 1 día' : `hace ${d} días`;
+}
+
+/**
+ * Qué hacer al abrir un editor con el borrador que había guardado (ver `loadDraft`):
+ * - `clear`: se acaba de guardar, o el borrador es igual a lo que ya hay: se borra.
+ * - `none`: no hay borrador.
+ * - `stale`: el archivo cambió desde que se empezó el borrador: preguntar antes de recuperarlo
+ *   (avisando que pisa lo que guardó otra persona).
+ * - `offer`: ofrecer recuperarlo («Recuperar / Descartar»). Nunca se recupera solo: es así en
+ *   todos los editores del panel (pedido de gorrite).
+ * @param {Draft | null} draft
+ * @param {{ current: unknown, saved?: boolean }} opts `current`: lo que ya hay
+ * @returns {'clear' | 'none' | 'stale' | 'offer'}
+ */
+export function draftAction(draft, { current, saved = false }) {
+	if (saved) return 'clear';
+	if (!draft) return 'none';
+	if (JSON.stringify(draft.data) === JSON.stringify(current)) return 'clear';
+	if (draft.stale) return 'stale';
+	return 'offer';
+}
+
+/**
+ * Las claves de primer nivel en las que difieren dos snapshots (para decir qué partes del
+ * formulario tiene distintas un borrador). Compara por JSON, como se guardan.
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {string[]}
+ */
+export function changedKeys(a, b) {
+	/** @param {unknown} v @returns {Record<string, unknown>} */
+	const obj = (v) => (v && typeof v === 'object' ? /** @type {any} */ (v) : {});
+	const x = obj(a);
+	const y = obj(b);
+	const keys = [...new Set([...Object.keys(x), ...Object.keys(y)])];
+	return keys.filter((k) => JSON.stringify(x[k] ?? null) !== JSON.stringify(y[k] ?? null));
 }
