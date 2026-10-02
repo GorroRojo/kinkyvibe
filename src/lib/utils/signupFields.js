@@ -8,6 +8,10 @@
  *
  * Las respuestas son datos de quien compra: se guardan con la orden (tabla `order_answers`) y las
  * ven solo les admins (Órdenes y su CSV). Se guarda la pregunta como estaba al comprar.
+ *
+ * Alcance (migración 0026): cada pregunta aplica a todos los tipos de entrada o a algunos
+ * (`ticketTypes`, `[]` = todos) y se pregunta una vez por compra o una vez por entrada
+ * (`perTicket`: si alguien compra 3, responde 3 veces). Una compra es de un solo tipo de entrada.
  */
 
 export const FIELD_KINDS = /** @type {const} */ (['text', 'choice', 'checkbox']);
@@ -31,15 +35,136 @@ export const MAX_EVENT_FIELDS = 10;
 export const MAX_GENERAL_FIELDS = 30;
 /** Lo que se guarda como respuesta de una casilla marcada. */
 export const CHECKBOX_YES = 'Sí';
+/** Tipos de entrada que puede nombrar una pregunta (y largo de cada id). */
+export const MAX_SCOPE_TYPES = 20;
+const TYPE_ID_MAX = 60;
 
 /**
- * @typedef {{ id: number, label: string, kind: FieldKind, required: boolean, options: string[] }} SignupField
- * @typedef {{ id: number, label: string, value: string }} Answer
+ * `perTicket` y `ticketTypes` son opcionales: sin ellos, una vez por compra y para todos los
+ * tipos (como antes de la migración 0026).
+ *
+ * @typedef {{ id: number, label: string, kind: FieldKind, required: boolean, options: string[],
+ *   perTicket?: boolean, ticketTypes?: string[] }} SignupField
+ * @typedef {{ id: number, label: string, value: string, ticket?: number }} Answer
+ *   `ticket`: en las preguntas "una vez por entrada", qué entrada de la compra (1, 2, 3…)
  */
 
-/** El `name` del campo en el formulario de compra. @param {number} id */
-export function fieldInputName(id) {
-	return `campo_${id}`;
+/**
+ * El `name` del campo en el formulario de compra. Con `ticket` (0, 1, 2…), el de esa entrada en
+ * una pregunta "una vez por entrada".
+ * @param {number} id
+ * @param {number | null} [ticket]
+ */
+export function fieldInputName(id, ticket = null) {
+	return ticket === null ? `campo_${id}` : `campo_${id}_${ticket}`;
+}
+
+/**
+ * Los ids de tipos de entrada de una pregunta: JSON guardado o una lista. Sin vacíos ni
+ * repetidos.
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+export function parseTicketTypes(raw) {
+	let list = raw;
+	if (typeof raw === 'string') {
+		try {
+			list = JSON.parse(raw);
+		} catch {
+			return [];
+		}
+	}
+	if (!Array.isArray(list)) return [];
+	/** @type {string[]} */
+	const out = [];
+	for (const item of list) {
+		const id = typeof item === 'string' ? item.trim() : '';
+		if (id && id.length <= TYPE_ID_MAX && !out.includes(id)) out.push(id);
+	}
+	return out.slice(0, MAX_SCOPE_TYPES);
+}
+
+/**
+ * ¿La pregunta aplica a una compra de este tipo de entrada?
+ * @param {Pick<SignupField, 'ticketTypes'>} field
+ * @param {string} typeId
+ */
+export function fieldAppliesTo(field, typeId) {
+	return !field.ticketTypes?.length || field.ticketTypes.includes(typeId);
+}
+
+/**
+ * Las preguntas que se hacen en una compra de este tipo de entrada (en su orden).
+ * @template {Pick<SignupField, 'ticketTypes'>} F
+ * @param {readonly F[]} fields
+ * @param {string} typeId
+ * @returns {F[]}
+ */
+export function fieldsForTicketType(fields, typeId) {
+	return fields.filter((f) => fieldAppliesTo(f, typeId));
+}
+
+/**
+ * Las veces que se responde una pregunta en una compra de `quantity` entradas: `[null]` si es
+ * una vez por compra; `[0, 1, …]` (una por entrada) si es una vez por entrada.
+ * @param {Pick<SignupField, 'perTicket'>} field
+ * @param {number} quantity
+ * @returns {(number | null)[]}
+ */
+export function answerSlots(field, quantity) {
+	if (!field.perTicket) return [null];
+	const n = Number.isInteger(quantity) && quantity > 0 ? quantity : 1;
+	return Array.from({ length: n }, (_, i) => i);
+}
+
+/**
+ * Cuántas respuestas (conjuntos) pide una compra: las de una vez por compra cuentan una, las de
+ * una vez por entrada, una por entrada. Solo las preguntas que aplican a ese tipo.
+ * @param {readonly SignupField[]} fields
+ * @param {string} typeId
+ * @param {number} quantity
+ */
+export function answerSetCount(fields, typeId, quantity) {
+	return fieldsForTicketType(fields, typeId).reduce(
+		(n, f) => n + answerSlots(f, quantity).length,
+		0
+	);
+}
+
+/**
+ * Valida el alcance que elige le admin: "todos los tipos" o algunos (de los que tiene el
+ * evento), y una vez por compra o por entrada. Para las generales no hay tipos (`typeIds` vacío):
+ * aplican a todos (cada evento puede acotarlas al elegirlas).
+ *
+ * @param {{ perTicket?: unknown, scope?: unknown, ticketTypes?: unknown }} raw `scope`: `some`
+ *   si eligió algunos tipos
+ * @param {readonly string[]} typeIds los tipos de entrada del evento
+ * @returns {{ ok: true, perTicket: boolean, ticketTypes: string[] }
+ *   | { ok: false, errors: { ticketTypes: string } }}
+ */
+export function validateFieldScope(raw, typeIds = []) {
+	const perTicket = raw.perTicket === true || raw.perTicket === 'on' || raw.perTicket === '1';
+	if (raw.scope !== 'some' || !typeIds.length) return { ok: true, perTicket, ticketTypes: [] };
+	const chosen = parseTicketTypes(raw.ticketTypes).filter((id) => typeIds.includes(id));
+	if (!chosen.length) {
+		return { ok: false, errors: { ticketTypes: 'Elegí al menos un tipo de entrada.' } };
+	}
+	// Todos elegidos = todos (así un tipo nuevo también la pregunta).
+	const ticketTypes =
+		chosen.length === typeIds.length ? [] : typeIds.filter((id) => chosen.includes(id));
+	return { ok: true, perTicket, ticketTypes };
+}
+
+/**
+ * Texto corto del alcance para el panel: "Todas las entradas · una vez por compra".
+ * @param {Pick<SignupField, 'perTicket' | 'ticketTypes'>} field
+ * @param {readonly { id: string, name: string }[]} [types] los del evento, para los nombres
+ */
+export function scopeText(field, types = []) {
+	const which = field.ticketTypes?.length
+		? `Solo ${field.ticketTypes.map((id) => types.find((t) => t.id === id)?.name ?? id).join(', ')}`
+		: 'Todas las entradas';
+	return `${which} · ${field.perTicket ? 'una vez por entrada' : 'una vez por compra'}`;
 }
 
 /**
@@ -132,39 +257,60 @@ export function validateFieldDef(raw) {
  * respuestas vacías de preguntas opcionales no se guardan. Los errores van por `name` del campo
  * ({@link fieldInputName}), igual que el resto de los errores de la compra.
  *
+ * Con `typeId`, solo las preguntas que aplican a ese tipo de entrada; las de "una vez por
+ * entrada" se validan `quantity` veces (una por entrada, `ticket` 1, 2, 3… en la respuesta).
+ *
  * @param {readonly SignupField[]} fields
  * @param {Record<string, unknown>} raw por `name` del campo
+ * @param {{ typeId?: string, quantity?: number }} [scope]
  * @returns {{ ok: true, answers: Answer[] } | { ok: false, errors: Record<string, string> }}
  */
-export function validateAnswers(fields, raw) {
+export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 	/** @type {Record<string, string>} */
 	const errors = {};
 	/** @type {Answer[]} */
 	const answers = [];
-	for (const f of fields) {
-		const name = fieldInputName(f.id);
-		const value = raw?.[name];
-		if (f.kind === 'checkbox') {
-			const checked = value === 'on' || value === '1' || value === true;
-			if (f.required && !checked) errors[name] = 'Marcá esta casilla para seguir.';
-			else if (checked) answers.push({ id: f.id, label: f.label, value: CHECKBOX_YES });
-			continue;
+	const asked = typeId === undefined ? fields : fieldsForTicketType(fields, typeId);
+	for (const f of asked) {
+		for (const slot of answerSlots(f, quantity)) {
+			const name = fieldInputName(f.id, slot);
+			const r = validateOne(f, raw?.[name]);
+			if ('error' in r && r.error) errors[name] = r.error;
+			else if ('value' in r && r.value !== null) {
+				answers.push({
+					id: f.id,
+					label: f.label,
+					value: r.value,
+					...(slot === null ? {} : { ticket: slot + 1 })
+				});
+			}
 		}
-		if (f.kind === 'choice') {
-			const chosen = line(value);
-			if (!chosen) {
-				if (f.required) errors[name] = 'Elegí una opción.';
-			} else if (!f.options.includes(chosen)) errors[name] = 'Elegí una de las opciones.';
-			else answers.push({ id: f.id, label: f.label, value: chosen });
-			continue;
-		}
-		const text = answerText(value);
-		if (!text) {
-			if (f.required) errors[name] = 'Completá esta respuesta.';
-		} else if (text.length > ANSWER_MAX) errors[name] = `Hasta ${ANSWER_MAX} letras.`;
-		else answers.push({ id: f.id, label: f.label, value: text });
 	}
 	return Object.keys(errors).length ? { ok: false, errors } : { ok: true, answers };
+}
+
+/**
+ * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`.
+ * @param {SignupField} f
+ * @param {unknown} value
+ * @returns {{ value: string | null } | { error: string }}
+ */
+function validateOne(f, value) {
+	if (f.kind === 'checkbox') {
+		const checked = value === 'on' || value === '1' || value === true;
+		if (f.required && !checked) return { error: 'Marcá esta casilla para seguir.' };
+		return { value: checked ? CHECKBOX_YES : null };
+	}
+	if (f.kind === 'choice') {
+		const chosen = line(value);
+		if (!chosen) return f.required ? { error: 'Elegí una opción.' } : { value: null };
+		if (!f.options.includes(chosen)) return { error: 'Elegí una de las opciones.' };
+		return { value: chosen };
+	}
+	const text = answerText(value);
+	if (!text) return f.required ? { error: 'Completá esta respuesta.' } : { value: null };
+	if (text.length > ANSWER_MAX) return { error: `Hasta ${ANSWER_MAX} letras.` };
+	return { value: text };
 }
 
 /**
@@ -182,7 +328,12 @@ export function parseStoredAnswers(json) {
 	if (!Array.isArray(list)) return [];
 	return list
 		.filter((a) => a && typeof a === 'object' && Number.isSafeInteger(a.id))
-		.map((a) => ({ id: Number(a.id), label: String(a.label ?? ''), value: String(a.value ?? '') }));
+		.map((a) => ({
+			id: Number(a.id),
+			label: String(a.label ?? ''),
+			value: String(a.value ?? ''),
+			...(Number.isSafeInteger(a.ticket) && a.ticket > 0 ? { ticket: Number(a.ticket) } : {})
+		}));
 }
 
 /**
@@ -204,12 +355,22 @@ export function answerColumns(answerLists, fields = []) {
 }
 
 /**
- * La respuesta a una pregunta, o `''`.
+ * La respuesta a una pregunta, o `''`. Las de "una vez por entrada" van juntas, con su entrada:
+ * "Entrada 1: Vegana | Entrada 2: Sin TACC".
  * @param {readonly Answer[] | undefined} answers
  * @param {number} id
  */
 export function answerFor(answers, id) {
-	return answers?.find((a) => a.id === id)?.value ?? '';
+	const found = answers?.filter((a) => a.id === id) ?? [];
+	if (found.length === 1 && !found[0].ticket) return found[0].value;
+	return found
+		.map((a) => (a.ticket ? `${answerTicketLabel(a.ticket)}: ${a.value}` : a.value))
+		.join(' | ');
+}
+
+/** "Entrada 2" (la de una respuesta "una vez por entrada"). @param {number} ticket */
+export function answerTicketLabel(ticket) {
+	return `Entrada ${ticket}`;
 }
 
 /**
@@ -221,5 +382,15 @@ export const FIELD_CSV_COLUMNS = Object.freeze([
 	{ key: 'label', label: 'pregunta' },
 	{ label: 'tipo', value: (/** @type {SignupField} */ f) => FIELD_KIND_LABELS[f.kind] },
 	{ label: 'obligatoria', value: (/** @type {SignupField} */ f) => f.required },
-	{ label: 'opciones', value: (/** @type {SignupField} */ f) => f.options.join(' | ') }
+	{ label: 'opciones', value: (/** @type {SignupField} */ f) => f.options.join(' | ') },
+	{
+		label: 'se pregunta',
+		value: (/** @type {SignupField} */ f) =>
+			f.perTicket ? 'una vez por entrada' : 'una vez por compra'
+	},
+	{
+		label: 'tipos de entrada',
+		value: (/** @type {SignupField} */ f) =>
+			f.ticketTypes?.length ? f.ticketTypes.join(' | ') : 'todos'
+	}
 ]);
