@@ -21,6 +21,24 @@ Se hace en PRs chicos, uno arriba del otro:
 3. Lo seguido, mis entradas y los eventos donde participo, en el calendario personal.
 4. Los mails (algo nuevo y recordatorio) y pasar «Avisame si se repite» a este sistema.
 
+### La página
+
+`/mi-rincon/sigo` agrupa lo seguido en **Etiquetas y series · Perfiles · Lugares**. Cada cosa es una
+tarjeta con el emoji y el color de su etiqueta (o la imagen de la serie o del perfil), el nombre con
+link a su página, el próximo evento anunciado y sus opciones: «En mi calendario» aparte y los
+avisos como grilla de qué («Algo nuevo», «Recordatorio el día antes») × por dónde (Mail; Telegram
+apagado, con «Próximamente»). Sin nada seguido, invita a seguir.
+
+Arriba, **«Agregar»** busca etiquetas y series del árbol (y, con `perfiles_publicos`, perfiles y
+lugares) con el selector de etiquetas del sitio (`ChipCombobox`) y sigue lo elegido con las opciones
+de siempre, sin salir de la página (`?/seguir`). Sin JavaScript es un campo de texto con «Seguir»
+(el nombre de la etiqueta, un alias o la forma de la URL).
+
+Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). Sumar Telegram
+(el bot, `docs/telegram.md`) es darle sus casillas en `fields` y `enabled: true`: la grilla
+(`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Todavía no hay nada de Telegram en la
+base.
+
 ## Cómo prenderlo
 
 Interruptor **«Lo que sigo»** (`lo_que_sigo`, variable `LO_QUE_SIGO_ENABLED`), apagado por
@@ -118,6 +136,8 @@ que se vuelva a prender.
 - `src/lib/server/sigo/web.js`: los interruptores y la cuenta de la sesión.
 - `src/routes/(content)/mi-rincon/sigo/`: la página (acciones `seguir`, `dejar`, `opciones`) y el
   CSV (`sigo.csv`).
+- `src/lib/components/sigo/`: «Agregar» (`FollowAdd.svelte`) y la grilla de opciones de cada cosa
+  seguida (`FollowOptions.svelte`).
 - `src/lib/components/FollowButton.svelte`: el botón «Seguir» en `/wiki/<etiqueta>` y en
   `/amigues/<perfil>` (solo perfiles de la base). Pregunta a `GET /api/sigo?tipo=&clave=` al cargar,
   porque la página de una etiqueta puede estar prerenderizada: con un interruptor apagado da 404 y

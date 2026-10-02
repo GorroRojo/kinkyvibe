@@ -3,6 +3,7 @@
  * puede seguir, cómo se nombra cada cosa en un formulario, qué opciones tiene cada una y el CSV
  * de la lista. Las lecturas y escrituras están en $lib/server/sigo/.
  */
+import { foldText } from './text.js';
 
 /** Las clases de cosas que se pueden seguir (`follows.target_kind`). */
 export const FOLLOW_KINDS = /** @type {const} */ (['etiqueta', 'perfil']);
@@ -108,9 +109,156 @@ export function followKindLabel(kind, profileKind = null) {
 }
 
 /**
- * @typedef {{ kind: FollowKind, key: string, title: string, href: string | null,
- *   label: string, available: boolean, options: FollowOptions, createdAt: number }} FollowView
+ * Lo que muestra la tarjeta de cada cosa seguida, además del nombre: el emoji y el color de la
+ * etiqueta, la imagen (de la serie o del perfil), si es una serie, qué clase de perfil es y el
+ * próximo evento anunciado.
+ *
+ * @typedef {{ title: string, href: string, start: string }} NextEvent
+ * @typedef {{ name?: string, icon?: string, color?: string, image?: string | null,
+ *   series?: boolean, profileKind?: string | null, next?: NextEvent | null }} FollowLook
  */
+
+/**
+ * @typedef {{ kind: FollowKind, key: string, title: string, href: string | null,
+ *   label: string, available: boolean, options: FollowOptions, createdAt: number }
+ *   & FollowLook} FollowView
+ */
+
+/**
+ * Los grupos de la página, en orden: etiquetas y series, perfiles (personas y proyectos) y
+ * lugares.
+ */
+export const FOLLOW_GROUPS = Object.freeze(
+	/** @type {const} */ ([
+		{ id: 'temas', title: 'Etiquetas y series' },
+		{ id: 'perfiles', title: 'Perfiles' },
+		{ id: 'lugares', title: 'Lugares' }
+	])
+);
+
+/** @typedef {typeof FOLLOW_GROUPS[number]['id']} FollowGroupId */
+
+/**
+ * En qué grupo va cada cosa seguida.
+ *
+ * @param {Pick<FollowView, 'kind' | 'profileKind'>} f
+ * @returns {FollowGroupId}
+ */
+export function followGroupOf(f) {
+	if (f.kind === 'etiqueta') return 'temas';
+	return f.profileKind === 'lugar' ? 'lugares' : 'perfiles';
+}
+
+/**
+ * La lista partida en grupos (en el orden de FOLLOW_GROUPS), sin los grupos vacíos. Dentro de
+ * cada grupo queda el orden que traía la lista (`sortFollows`).
+ *
+ * @template {Pick<FollowView, 'kind' | 'profileKind'>} T
+ * @param {readonly T[]} items
+ * @returns {{ id: FollowGroupId, title: string, items: T[] }[]}
+ */
+export function groupFollows(items) {
+	return FOLLOW_GROUPS.map((g) => ({
+		id: g.id,
+		title: g.title,
+		items: items.filter((f) => followGroupOf(f) === g.id)
+	})).filter((g) => g.items.length > 0);
+}
+
+/** El emoji de una cosa seguida sin emoji propio (una etiqueta sin ícono, un perfil). */
+export const KIND_EMOJI = Object.freeze({
+	etiqueta: '🏷️',
+	serie: '🔁',
+	persona: '👤',
+	proyecto: '✨',
+	lugar: '📍'
+});
+
+/**
+ * @param {Pick<FollowView, 'kind' | 'icon' | 'series' | 'profileKind'>} f
+ * @returns {string}
+ */
+export function followEmoji(f) {
+	if (f.icon) return f.icon;
+	if (f.kind === 'etiqueta') return f.series ? KIND_EMOJI.serie : KIND_EMOJI.etiqueta;
+	if (f.profileKind === 'lugar') return KIND_EMOJI.lugar;
+	if (f.profileKind === 'proyecto') return KIND_EMOJI.proyecto;
+	return KIND_EMOJI.persona;
+}
+
+/**
+ * Los avisos de cada cosa seguida, como grilla de qué (filas) × por dónde (columnas). Cada
+ * columna dice qué casilla del formulario corresponde a cada fila (`fields`); una columna sin
+ * `enabled` se muestra apagada con «Próximamente».
+ *
+ * Telegram (docs/telegram.md) está listo para sumarse: cuando haya cuentas conectadas, se le
+ * ponen sus casillas en `fields` y `enabled: true`, y la grilla no cambia.
+ */
+export const NOTIFY_KINDS = Object.freeze(
+	/** @type {const} */ ([
+		{ id: 'nuevo', label: 'Algo nuevo' },
+		{ id: 'recordatorio', label: 'Recordatorio el día antes' }
+	])
+);
+
+/** @typedef {typeof NOTIFY_KINDS[number]['id']} NotifyKindId */
+
+/**
+ * @typedef {{ id: string, label: string, enabled: boolean,
+ *   fields: Partial<Record<NotifyKindId, keyof FollowOptions>>, note?: string }} NotifyChannel
+ */
+
+/** @type {readonly NotifyChannel[]} */
+export const NOTIFY_CHANNELS = Object.freeze([
+	{
+		id: 'mail',
+		label: 'Mail',
+		enabled: true,
+		fields: { nuevo: 'mail_nuevo', recordatorio: 'recordatorio' }
+	},
+	{
+		id: 'telegram',
+		label: 'Telegram',
+		enabled: false,
+		fields: {},
+		note: 'Vas a poder recibir esto por Telegram cuando conectes tu cuenta.'
+	}
+]);
+
+/**
+ * @typedef {{ key: string, name: string, kind: string }} ProfileOption un perfil para el buscador
+ *   de «Agregar» (`key`: el id del objeto; `kind`: persona, proyecto o lugar)
+ */
+
+/**
+ * Los perfiles que coinciden con lo escrito (sin mayúsculas ni tildes), primero los que empiezan
+ * así. Sin texto, ninguno.
+ *
+ * @param {readonly ProfileOption[]} profiles
+ * @param {string} query
+ * @param {{ taken?: ReadonlySet<string>, limit?: number }} [opts] `taken`: los que ya sigue
+ * @returns {ProfileOption[]}
+ */
+export function searchProfiles(profiles, query, { taken = new Set(), limit = 5 } = {}) {
+	const q = foldText(query);
+	if (!q) return [];
+	/** @type {{ p: ProfileOption, score: number }[]} */
+	const hits = [];
+	for (const p of profiles) {
+		if (taken.has(p.key)) continue;
+		const name = foldText(p.name);
+		const score = name.startsWith(q)
+			? 0
+			: name.split(/[\s/-]+/).some((w) => w.startsWith(q))
+				? 1
+				: name.includes(q)
+					? 2
+					: -1;
+		if (score >= 0) hits.push({ p, score });
+	}
+	hits.sort((a, b) => a.score - b.score || a.p.name.localeCompare(b.p.name, 'es'));
+	return hits.slice(0, limit).map((h) => h.p);
+}
 
 /**
  * Ordena la lista de Mi rincón: primero lo que sigue disponible, por clase y nombre.
