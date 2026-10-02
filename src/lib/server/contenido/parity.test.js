@@ -125,6 +125,53 @@ describe('importación', () => {
 		);
 	});
 
+	// «Personas en una sola sección»: lo importado antes guardaba `authors` y `extra.personas`.
+	// No se migra: se lee igual, volver a importar no lo ve como cambio y guardarlo lo reacomoda.
+	it('lo importado con la forma de antes (authors + extra.personas) sigue andando', async () => {
+		await importAll();
+		const slug = 'taller-inventado-2031-02';
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT o.id, o.data FROM content_sources s JOIN objects o ON o.id = s.object_id
+					WHERE s.legacy_slug = ?1`
+				)
+				.bind(slug)
+				.first()
+		);
+		const data = JSON.parse(row.data);
+		expect(data.personas).toEqual([
+			{ name: 'Persona Inventada', role: 'Organiza' },
+			{ name: 'Otre Inventade', role: 'Organiza' }
+		]);
+		expect(data).not.toHaveProperty('authors');
+		// Como lo guardaba la importación antes de este cambio.
+		const { personas, ...old } = data;
+		old.authors = personas.map((/** @type {any} */ p) => p.name);
+		await saveObject(
+			t.db,
+			{ id: row.id, type: 'evento', version: 1, data: old },
+			{ actor: 'admin-inventade', now: NOW }
+		);
+		const stored = /** @type {any} */ (
+			await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(row.id).first()
+		);
+		expect(JSON.parse(stored.data)).not.toHaveProperty('personas');
+
+		const plan = await planImport(t.db, 'calendario', files);
+		expect(plan.find((r) => r.legacySlug === slug)).toMatchObject({
+			action: 'unchanged',
+			changed: []
+		});
+		const posts = await contenido('1');
+		const found = await posts.siteEvent(t.platform, slug);
+		const post = found.mode === 'db' ? found.post : null;
+		expect(post?.meta.authors).toEqual(['Persona Inventada', 'Otre Inventade']);
+		const f = files.find((x) => x.legacySlug === slug);
+		const fromMd = await utils.processPost(undefined, slug, /** @type {any} */ (f?.meta));
+		expect(metaDiff(norm(post?.meta ?? {}), norm(fromMd.meta))).toEqual([]);
+	});
+
 	it('la dirección vieja con mayúsculas se guarda; el objeto usa minúsculas', async () => {
 		await importAll();
 		const row = await t.db

@@ -9,6 +9,7 @@
  * know are kept (applyFrontmatterChanges).
  */
 import { parseDocument } from 'yaml';
+import { personasFromMd, personasToMd } from './personasList.js';
 import {
 	REMOVE,
 	applyFrontmatterChanges,
@@ -205,6 +206,8 @@ const list = (v) =>
  * @prop {Record<string, any>} values one per field of the category (string, or boolean for checkboxes)
  * @prop {string[]} tags
  * @prop {string[]} authors
+ * @prop {import('./personasList.js').MdPersona[]} [personas] `personas:` (people with another
+ *   role; see ./personasList.js). Written only if it changed.
  * @prop {string} body
  * @prop {string} featured current `featured` value ('' = none)
  */
@@ -263,6 +266,9 @@ export function readContentForm(category, raw) {
 		values,
 		tags: list(meta.tags),
 		authors: list(meta.authors).filter((a) => a.trim()),
+		personas: hasAuthors(category)
+			? personasToMd(personasFromMd([], meta.personas, category), category).personas
+			: [],
 		body,
 		featured: meta.featured === undefined || meta.featured === null ? '' : String(meta.featured)
 	};
@@ -297,6 +303,10 @@ export function buildContentMarkdown(category, baseRaw, initial, form, opts = {}
 		const authors = form.authors.map((a) => a.trim()).filter(Boolean);
 		if (authors.join('\n') !== initial.authors.join('\n') || force.has('authors'))
 			changes.authors = authors.length ? authors : REMOVE;
+		const before = initial.personas ?? [];
+		const now = form.personas ?? before;
+		if (JSON.stringify(now) !== JSON.stringify(before))
+			changes.personas = now.length ? now : REMOVE;
 	}
 	if (opts.featured === null) {
 		if (initial.featured) changes.featured = null; // e.g. a copy: the image is the original's
