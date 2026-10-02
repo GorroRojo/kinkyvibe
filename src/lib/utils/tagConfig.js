@@ -945,25 +945,49 @@ export function planTagChange({ source, sourceSha, sourcePath, posts, ops }) {
 	/** @type {PlannedFile[]} */
 	const files = [];
 	if (after !== source) files.push({ path: sourcePath, before: source, after, sha: sourceSha });
-	/** @type {Map<string, {path: string, before: string, after: string, sha?: string}>} */
-	const touched = new Map();
+	files.push(...renameTagsInPosts(posts, postRenamePairs(ops)));
+	return { files, summary: ops.map(describeOp) };
+}
+
+/**
+ * The [old, new] name pairs a list of operations writes into the posts (rename and merge), in
+ * order. With `onlyWithoutAlias`, only the renames that don't keep the old name as an alias (the
+ * database editor: renaming with an alias leaves the posts alone).
+ * @param {readonly TagOp[]} ops
+ * @param {{ onlyWithoutAlias?: boolean }} [opts]
+ * @returns {Array<[string, string]>}
+ */
+export function postRenamePairs(ops, { onlyWithoutAlias = false } = {}) {
+	/** @type {Array<[string, string]>} */
+	const pairs = [];
 	for (const op of ops) {
-		const pair =
-			op.type === 'rename'
-				? [op.from, clean(op.to)]
-				: op.type === 'merge'
-					? [op.from, op.into]
-					: null;
-		if (!pair) continue;
+		if (op.type === 'rename') {
+			if (onlyWithoutAlias && op.keepAlias !== false) continue;
+			if (clean(op.to) !== op.from) pairs.push([op.from, clean(op.to)]);
+		} else if (op.type === 'merge' && !onlyWithoutAlias) pairs.push([op.from, op.into]);
+	}
+	return pairs;
+}
+
+/**
+ * Every post whose `tags:` (or `wiki:`) uses an old name exactly as written, rewritten with the
+ * new one (replaceTagInPost), sorted by path. Posts that use an alias of it are not touched.
+ * @param {ReadonlyArray<{path: string, text: string, sha?: string}>} posts
+ * @param {ReadonlyArray<readonly [string, string]>} pairs [old, new] (postRenamePairs)
+ * @returns {PlannedFile[]}
+ */
+export function renameTagsInPosts(posts, pairs) {
+	/** @type {Map<string, PlannedFile>} */
+	const touched = new Map();
+	for (const [from, to] of pairs) {
 		for (const p of posts) {
 			const cur = touched.get(p.path)?.after ?? p.text;
-			const next = replaceTagInPost(cur, pair[0], pair[1]);
+			const next = replaceTagInPost(cur, from, to);
 			if (next !== cur)
 				touched.set(p.path, { path: p.path, before: p.text, after: next, sha: p.sha });
 		}
 	}
-	files.push(...[...touched.values()].sort((a, b) => a.path.localeCompare(b.path)));
-	return { files, summary: ops.map(describeOp) };
+	return [...touched.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /**

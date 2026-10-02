@@ -21,7 +21,7 @@
  */
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
-import tagsFactory from './tags.js';
+import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
@@ -66,20 +66,16 @@ export const PAYMENT_METHOD_LABELS = /** @type {const} */ ({
 	transferencia: 'Transferencia (se confirma a mano)'
 });
 
-/** @type {ReturnType<typeof tagsFactory> | undefined} */
-let tagManager;
-
 /**
  * ¿El evento tiene la etiqueta KinkyVibe? Resuelve los alias con el tag manager (así "kinkyvibe"
- * o "Kinkyvibe" también cuentan), no comparando texto.
+ * o "Kinkyvibe" también cuentan), no comparando texto. El árbol en uso (archivo o base).
  *
  * @param {{ tags?: unknown } | undefined} meta
  */
 export function isKinkyVibeEvent(meta) {
 	const tags = meta?.tags;
 	if (!Array.isArray(tags)) return false;
-	tagManager ??= tagsFactory();
-	const tm = tagManager;
+	const tm = currentSiteTags();
 	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
 }
 

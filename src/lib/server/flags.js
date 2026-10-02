@@ -72,8 +72,9 @@ export const FLAGS = Object.freeze({
 		label: 'Etiquetas desde la base',
 		description:
 			'El sitio lee el árbol de etiquetas de la base (objetos `etiqueta`) en lugar del archivo ' +
-			'hardcodedTags.js, y Etiquetas en el panel guarda los cambios en la base al momento, sin ' +
-			'commits. Antes de prenderlo: Etiquetas → Importar a la base. Apagado (o con la base sin ' +
+			'hardcodedTags.js (todo el sitio: páginas, listados, buscador, panel, series, ingreso), y ' +
+			'Etiquetas en el panel guarda los cambios en la base al momento (renombrar en las ' +
+			'publicaciones, además, hace un commit). Antes de prenderlo: Etiquetas → Importar a la base. Apagado (o con la base sin ' +
 			'etiquetas), todo sigue leyendo el archivo como siempre.',
 		envVar: 'ETIQUETAS_DB_ENABLED'
 	}

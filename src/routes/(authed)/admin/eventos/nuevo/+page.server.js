@@ -38,6 +38,8 @@ import { planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { seriesTagIds } from '$lib/utils/series.js';
 import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
 import { addTagToPost } from '$lib/utils/tagConfig.js';
+import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
+import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
 import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
@@ -317,15 +319,25 @@ export const actions = {
 
 		/** @type {Array<{path: string, sha: string}>} */
 		const seriesUnchanged = [];
+		// Con el interruptor `etiquetas_db`, la serie nueva se crea en la base (después del commit
+		// del evento), no en el archivo: el mismo camino que /admin/etiquetas.
+		/** @type {null | { fromDb: NonNullable<Awaited<ReturnType<typeof dbTagsForAdmin>>>, ops: import('$lib/utils/tagConfig.js').TagOp[] }} */
+		let seriesToDb = null;
 		try {
 			if (seriesChoice.type === 'create') {
 				// La etiqueta nueva, por el mismo camino que /admin/etiquetas.
 				const planned = seriesCreateOps({ name: seriesChoice.name });
 				if (!planned.ok) return fail(400, { error: planned.error });
-				const plan = await planTagEdit(client, admin.token, planned.ops, bundledTags);
-				for (const f of plan.files) {
-					files.push({ path: f.path, content: f.after });
-					if (f.sha) seriesUnchanged.push({ path: f.path, sha: f.sha });
+				const fromDb = await dbTagsForAdmin(platform, admin.login);
+				if (fromDb) {
+					planDbTagEdit(fromDb.records, planned.ops); // valida antes del commit (tira)
+					seriesToDb = { fromDb, ops: planned.ops };
+				} else {
+					const plan = await planTagEdit(client, admin.token, planned.ops, bundledTags);
+					for (const f of plan.files) {
+						files.push({ path: f.path, content: f.after });
+						if (f.sha) seriesUnchanged.push({ path: f.path, sha: f.sha });
+					}
 				}
 			}
 			if (seriesChoice.type !== 'none' && seriesChoice.markSource) {
@@ -387,6 +399,18 @@ export const actions = {
 					who: admin.name
 				}
 			});
+			if (seriesToDb) {
+				const res = await saveTagOpsToDb(seriesToDb.fromDb, seriesToDb.ops, {
+					locals,
+					login: admin.login,
+					label: 'Series',
+					targetId: seriesChoice.type === 'none' ? null : seriesChoice.name.slice(0, 120)
+				});
+				if (!res.ok)
+					warnings.push(
+						`El evento se guardó, pero no se pudo crear la serie en la base: ${res.error} Creala desde Eventos → Series.`
+					);
+			}
 			await logAdminAction(getDB(platform), locals, {
 				action: mode === 'borrador' ? 'event.draft' : 'event.publish',
 				targetType: 'event',

@@ -9,12 +9,13 @@ import { publicVenueForEvent } from '$lib/server/amigues/venues.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals }) {
 	const post = await fetchPost('calendario', params.event, true).catch(() => null);
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
-		loadRelated(post),
+		loadRelated(post, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals),
 		loadVenue(params.event, platform, locals),
@@ -58,11 +59,14 @@ async function loadVenue(slug, platform, locals) {
 	}
 }
 
-/** Related posts, computed on the server so the page doesn't need every post.
- * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js) */
-async function loadRelated(post) {
-	if (!post) return { relatedPosts: [], relatedPastCount: 0 };
-	return currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+/** Related posts, computed on the server so the page doesn't need every post, with the ticket
+ * sales state of the related events for their cards (one batched query, see listStates.js).
+ * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {App.Platform|undefined} platform */
+async function loadRelated(post, platform) {
+	if (!post) return { relatedPosts: [], relatedPastCount: 0, ticketStates: null };
+	const related = currentRelated(relatedPostsFor(post.meta, await fetchMarkdownPosts()));
+	return { ...related, ticketStates: await ticketStatesFor(platform, related.relatedPosts) };
 }
 
 /**
@@ -75,10 +79,7 @@ async function loadRelated(post) {
 async function loadSeries(post, platform, locals) {
 	if (!post || !(await seriesEnabled(platform))) return null;
 	const { postID: slug, tags, start } = post.meta;
-	const list = await eventSeries(
-		{ slug, tags, start },
-		{ tags: await siteTagManager(platform) }
-	);
+	const list = await eventSeries({ slug, tags, start }, { tags: await siteTagManager(platform) });
 	if (!list.length) return null;
 	return { list, account: await seriesAccountState(platform, locals) };
 }
