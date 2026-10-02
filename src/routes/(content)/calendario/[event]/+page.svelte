@@ -9,15 +9,16 @@
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
-	import { onMount } from 'svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
 	import { format } from 'date-fns';
-	import { toArgentina, TIMEZONE, eventEnd } from '$lib/utils/dates.js';
+	import { toArgentina, eventEnd, argDateTimeLong } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { processContent } from '$lib/utils';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
+	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
+	import { Globe, MapPin } from '@lucide/svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueSchema } from '$lib/utils/venues.js';
@@ -31,7 +32,8 @@
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
 	// sobre el «Dónde» del .md (`location` y su link al mapa `location_map`; docs/amigues.md).
-	// Lo mismo que el .ics (eventPlace.js).
+	// Lo mismo que el .ics (eventPlace.js). En la tarjeta, el lugar va una sola vez: con lugar,
+	// VenueLocation en su versión chica (con las reglas de cada nivel); sin lugar, el «Dónde».
 	$: place = eventPlace(data.meta, data.venue);
 	$: where = place.text;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
@@ -53,8 +55,30 @@
 			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
 			.catch(() => (loadedPast = false));
 	}
-	// loaded after hydration so the calendar button (~290 KB) doesn't delay the page
-	onMount(() => import('add-to-calendar-button'));
+	/** «Agregar a mi calendario» (add-to-calendar-button, en hora argentina). */
+	/** @type {import('svelte').ComponentProps<typeof AddToCalendarButton>['event']} */
+	let calendarEvent;
+	$: calendarEvent = {
+		name: data.meta.title,
+		description: data.meta.summary,
+		startDate: format(toArgentina(data.meta.start), 'yyyy-MM-dd'),
+		startTime: format(toArgentina(data.meta.start), 'HH:mm'),
+		endDate: format(toArgentina(end), 'yyyy-MM-dd'),
+		endTime: format(toArgentina(end), 'HH:mm'),
+		status:
+			/** @type {Record<string, 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE'>} */ ({
+				abierto: 'CONFIRMED',
+				cancelado: 'CANCELLED',
+				anunciado: 'TENTATIVE',
+				agotadas: 'CONFIRMED'
+			})[data.meta.status] ?? 'CONFIRMED',
+		timeZone: 'America/Buenos_Aires',
+		options: ['iCal', 'Apple', 'Outlook.com', 'Google', 'MicrosoftTeams', 'Microsoft365', 'Yahoo'],
+		language: 'es',
+		iCalFileName: 'Sample Event',
+		listStyle: 'overlay',
+		organizer: 'Mel|kinkyvibe@gmail.com'
+	};
 </script>
 
 <LDTag
@@ -167,124 +191,85 @@
 	{/if}
 
 	{#if data.meta.status == 'cancelado'}
-	<h1 id="title p-name"><u>CANCELADO</u></h1>
+		<h1 id="title p-name"><u>CANCELADO</u></h1>
 	{:else}
-	<div class="event-header">
-		{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
-		<p class="event-times">
-			<small>desde</small><time class="dt-start" datetime={data.meta.start}
-				>{new Date(data.meta.start).toLocaleString('es-AR', {
-					dateStyle: 'long',
-					timeStyle: 'short',
-					timeZone: TIMEZONE
-				})}hs</time
-			>
-			<small>hasta</small><time
-				class="dt-end"
-				datetime={toISO(end)}
-				>{end.toLocaleString('es-AR', {
-					dateStyle: 'long',
-					timeStyle: 'short',
-					timeZone: TIMEZONE
-				})}hs</time
-			>
-			<small>en</small>
-			<span class="p-location">
-				{where}
-			</span>
-			{#if place.mapUrl}
-				<a class="map-link" href={place.mapUrl} target="_blank" rel="noopener noreferrer"
-					>{MAP_LABEL}</a
+		<div class="event-header">
+			{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
+			<p class="event-times">
+				<small>desde</small><time class="dt-start" datetime={data.meta.start}
+					>{argDateTimeLong(data.meta.start)}</time
 				>
-			{/if}
-		</p>
-		<div class="event-atcb">
+				<small>hasta</small><time class="dt-end" datetime={toISO(end)}>{argDateTimeLong(end)}</time>
+			</p>
+			<div class="event-place">
+				<small>en</small>
+				{#if data.venue}
+					<VenueLocation view={data.venue} context="event" compact />
+				{:else}
+					<p class="md-place">
+						<svelte:component
+							this={where === 'Online' ? Globe : MapPin}
+							size="1.1em"
+							aria-hidden="true"
+						/>
+						<span class="p-location">{where}</span>
+					</p>
+					{#if place.mapUrl}
+						<a class="map-link" href={place.mapUrl} target="_blank" rel="noopener noreferrer"
+							>{MAP_LABEL}</a
+						>
+					{/if}
+				{/if}
+			</div>
 			{#if data.meta.link && !data.tickets}
-				<div class="event-link-wrapper">
-					<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
+				<div class="event-cta">
+					<div class="event-link-wrapper">
+						<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
+					</div>
 				</div>
 			{/if}
-			<add-to-calendar-button
-				style={`
-					--btn-background: var(--1);
-					--btn-border: var(--1);
-					--btn-text: white;
-					--btn-shadow: none;
-					--btn-background-hover: var(--1-dark);
-					--btn-border-hover: var(--1-dark);
-					--btn-text-hover: white;
-					--btn-shadow-hover: none;
-					--font: 'Lato', sans-serif;
-					`}
-				trigger="click"
-				name={data.meta.title}
-				description={data.meta.summary}
-				startDate={format(toArgentina(data.meta.start), 'yyyy-MM-dd')}
-				startTime={format(toArgentina(data.meta.start), 'HH:mm')}
-				endDate={format(
-					toArgentina(end),
-					'yyyy-MM-dd'
-				)}
-				status={{
-					abierto: 'CONFIRMED',
-					cancelado: 'CANCELLED',
-					anunciado: 'TENTATIVE',
-					agotadas: 'CONFIRMED'
-				}[data.meta.status] ?? 'CONFIRMED'}
-				endTime={format(toArgentina(end), 'HH:mm')}
-				timeZone="America/Buenos_Aires"
-				options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-				language="es"
-				iCalFileName="Sample Event"
-				listStyle="overlay"
-				label="Agregar a mi calendario"
-				buttonStyle="round"
-				organizer="Mel|kinkyvibe@gmail.com"
-				size="8"
-			></add-to-calendar-button>
 		</div>
-	</div>
-	{#if data.venue}
-		<VenueLocation view={data.venue} context="event" />
-	{/if}
-	{#if data.tickets}
-		{@const t = data.tickets}
-		<section class="buy-cta" id="entradas" aria-label="Entradas">
-			{#if t.open}
-				<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
-					<span class="buy-title">Comprar entradas</span>
-					<span class="buy-meta">
-						{#if t.priceFrom !== null}desde {formatARS(
-								t.priceFrom
-							)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
-							·
-						{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-							<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
-					</span>
-				</a>
-				{#if t.closesAt}
-					<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
+		{#if data.tickets}
+			{@const t = data.tickets}
+			<section class="buy-cta" id="entradas" aria-label="Entradas">
+				{#if t.open}
+					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
+						<span class="buy-title">Comprar entradas</span>
+						<span class="buy-meta">
+							{#if t.priceFrom !== null}desde {formatARS(
+									t.priceFrom
+								)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
+								·
+							{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
+								<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
+						</span>
+					</a>
+					{#if t.closesAt}
+						<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
+					{/if}
+				{:else}
+					<p class="buy-closed">
+						{t.reason === 'soldout'
+							? 'Entradas agotadas.'
+							: t.reason === 'closed'
+								? 'Venta cerrada.'
+								: t.reason === 'notyet' && t.opensAt
+									? `Entradas: ${saleWindowText({ opensAt: t.opensAt })}.`
+									: t.reason === 'cancelled'
+										? 'El evento se canceló: no hay venta de entradas.'
+										: 'La venta online de entradas no está disponible en este momento.'}
+					</p>
 				{/if}
-			{:else}
-				<p class="buy-closed">
-					{t.reason === 'soldout'
-						? 'Entradas agotadas.'
-						: t.reason === 'closed'
-							? 'Venta cerrada.'
-							: t.reason === 'notyet' && t.opensAt
-								? `Entradas: ${saleWindowText({ opensAt: t.opensAt })}.`
-								: t.reason === 'cancelled'
-									? 'El evento se canceló: no hay venta de entradas.'
-									: 'La venta online de entradas no está disponible en este momento.'}
-				</p>
-			{/if}
-			{#if t.reason !== 'cancelled' && doorText(t.door)}
-				<p class="buy-when buy-door">{doorText(t.door)}</p>
-			{/if}
-		</section>
-	{/if}
+				{#if t.reason !== 'cancelled' && doorText(t.door)}
+					<p class="buy-when buy-door">{doorText(t.door)}</p>
+				{/if}
+			</section>
+		{/if}
 	{/if}
 	<div class="share-row">
+		{#if data.meta.status != 'cancelado'}
+			<AddToCalendarButton event={calendarEvent} />
+		{/if}
 		<ShareEventButton
 			url={$page.url.origin + '/calendario/' + data.meta.postID}
 			title={data.meta.title}
@@ -321,11 +306,7 @@
 		<EventSeries series={data.series} part="after" origin={$page.url.origin} />
 	{/if}
 	{#if isKinkyVibePost(data.meta)}
-		<PostSupport
-			propinas={data.propinas}
-			category="calendario"
-			slug={$page.params.event ?? ''}
-		/>
+		<PostSupport propinas={data.propinas} category="calendario" slug={$page.params.event ?? ''} />
 	{/if}
 </article>
 
@@ -357,10 +338,15 @@
 {/if}
 
 <style lang="scss">
+	/* «Agregar a mi calendario» y «Compartir», del mismo estilo; en pantallas angostas, uno
+	   abajo del otro. */
 	.share-row {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: center;
+		gap: 0.6em;
 		margin-top: 1.2em;
+		padding-inline: 16px;
 	}
 	#tags {
 		margin-inline: auto;
@@ -458,12 +444,32 @@
 			flex-direction: column;
 			margin-block: 0;
 			padding-top: 0.2em;
+			padding-right: 0.5em;
 		}
+		.event-place {
+			grid-area: location;
+			display: flex;
+			flex-direction: column;
+			padding: 0 0.5em 0.6em 0;
+		}
+		.md-place {
+			margin: 0;
+			:global(svg) {
+				vertical-align: -0.15em;
+			}
+		}
+		/* Como el "Ver en Google Maps" de un lugar (VenueLocation). */
 		.map-link {
-			font-size: 0.9em;
 			align-self: flex-start;
+			margin-top: 0.3em;
+			padding: 0.3em 0.8em;
+			border: 1px solid currentColor;
+			border-radius: 999px;
+			color: inherit;
+			font-size: var(--step--1);
+			text-decoration: none;
 		}
-		.event-atcb {
+		.event-cta {
 			align-self: center;
 			justify-self: center;
 			grid-area: button;
@@ -518,6 +524,9 @@
 			.event-times {
 				padding-left: 0.5em;
 				padding-bottom: 0.5em;
+			}
+			.event-place {
+				padding-left: 0.5em;
 			}
 			img {
 				display: none;

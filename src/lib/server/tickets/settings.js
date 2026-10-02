@@ -64,24 +64,39 @@ function empty() {
  * @returns {Promise<SalesSettings & { updatedAt: number | null, updatedBy: string | null }>}
  */
 export async function getSalesSettings(db) {
-	const out = { ...empty(), updatedAt: /** @type {number | null} */ (null), updatedBy: null };
-	if (!db) return out;
+	if (!db) return readSalesSettings([]);
 	try {
-		const { results } = await db
-			.prepare('SELECT key, value, updated_at, updated_by FROM ticket_settings')
-			.all();
-		for (const r of results) {
-			const key = /** @type {SettingKey} */ (String(r.key));
-			if (!SETTING_KEYS.includes(key)) continue;
-			out[key] = String(r.value ?? '');
-			if (out.updatedAt === null || Number(r.updated_at) > out.updatedAt) {
-				out.updatedAt = Number(r.updated_at);
-				out.updatedBy = /** @type {any} */ (String(r.updated_by));
-			}
-		}
+		const { results } = await salesSettingsStatement(db).all();
+		return readSalesSettings(results);
 	} catch (error) {
 		// Sin la tabla (migración pendiente) se usan las variables de entorno.
 		if (!(error instanceof Error && /no such table/i.test(error.message))) throw error;
+	}
+	return readSalesSettings([]);
+}
+
+/**
+ * La consulta de {@link getSalesSettings} (para correrla en una tanda).
+ * @param {D1Database} db
+ */
+export function salesSettingsStatement(db) {
+	return db.prepare('SELECT key, value, updated_at, updated_by FROM ticket_settings');
+}
+
+/**
+ * Los ajustes a partir de las filas de `ticket_settings` (ver {@link getSalesSettings}).
+ * @param {Record<string, unknown>[]} rows
+ */
+export function readSalesSettings(rows) {
+	const out = { ...empty(), updatedAt: /** @type {number | null} */ (null), updatedBy: null };
+	for (const r of rows) {
+		const key = /** @type {SettingKey} */ (String(r.key));
+		if (!SETTING_KEYS.includes(key)) continue;
+		out[key] = String(r.value ?? '');
+		if (out.updatedAt === null || Number(r.updated_at) > out.updatedAt) {
+			out.updatedAt = Number(r.updated_at);
+			out.updatedBy = /** @type {any} */ (String(r.updated_by));
+		}
 	}
 	return out;
 }
