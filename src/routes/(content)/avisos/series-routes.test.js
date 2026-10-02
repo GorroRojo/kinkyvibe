@@ -74,6 +74,9 @@ async function modules({ series = '1', cuentas = '1', extra } = {}) {
 		},
 		thumbURL: async (/** @type {string} */ _c, /** @type {string} */ _p, /** @type {string} */ f) =>
 			`/assets/${f}`,
+		// La imagen de un evento como imagen de la serie (calendario:<evento>/<archivo>).
+		mediaURL: (/** @type {string} */ c, /** @type {string} */ p, /** @type {string} */ f) =>
+			`/media/${c}/${p}/${f}`,
 		currentRelated: () => ({ relatedPosts: [], relatedPastCount: 0 }),
 		relatedPostsFor: () => []
 	}));
