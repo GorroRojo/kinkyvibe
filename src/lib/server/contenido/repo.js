@@ -31,7 +31,8 @@ import { getObject, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read
 import { saveObject } from '$lib/server/objects/save.js';
 import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
 import { CONTENT_CATEGORIES } from './categories.js';
-import { EVENT_CATEGORY } from './eventos.js';
+import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
+import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
 import { resolveContentSlug } from './posts.js';
@@ -275,12 +276,18 @@ export function withContentDb(base) {
 
 		/**
 		 * @param {string} token
-		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string }} opts
+		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean }} opts
+		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js
 		 */
 		async commitFiles(token, opts) {
 			const db = await activeContentDB();
 			if (!db) return base.commitFiles(token, opts);
 			const { files, mustNotExist = [], unchanged = [] } = opts;
+			// Quién guarda: el login de GitHub de le admin de este pedido (./author.js); nunca el
+			// nombre que se muestra (`pr.who`).
+			const author = panelAuthor();
+			const actor = String(author?.login || opts.actor || 'panel');
+			const superadmin = author ? author.superadmin : opts.superadmin === true;
 
 			// Qué archivos van a la base: los que la base tiene, y los nuevos.
 			/** @type {PlannedWrite[]} */
@@ -306,7 +313,13 @@ export function withContentDb(base) {
 				const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
 					coreTypes.get(CONTENT_CATEGORIES[p.category].type)
 				);
-				const valid = validateData(def, mapped.data);
+				// `body_html` lo decide el guardado (bodyHtmlFor), no el texto.
+				const fromText = { ...mapped.data };
+				delete fromText.body_html;
+				const valid = validateData(def, {
+					...fromText,
+					...bodyHtmlFor(existing, fromText.body, superadmin)
+				});
 				if (!valid.ok) {
 					throw new Error(`Revisá los datos: ${valid.errors.map((e) => e.message).join('; ')}`);
 				}
@@ -327,7 +340,9 @@ export function withContentDb(base) {
 			for (const p of mustNotExist) {
 				if (!toDb.has(p)) continue;
 				const w = writes.find((x) => x.path === p);
-				if (w?.existing) throw new PathExistsError(p);
+				// Uno borrado (suave) no cuenta: volver a crearlo es deshacer el borrado (también
+				// «Deshacer» de Borrar, que pide que no exista).
+				if (w?.existing && !w.existing.deleted) throw new PathExistsError(p);
 			}
 			for (const u of unchanged) {
 				if (!toDb.has(u.path)) continue;
@@ -346,7 +361,6 @@ export function withContentDb(base) {
 					})
 				: null;
 
-			const actor = String(opts.actor || opts.pr?.who || 'panel');
 			/** @type {string[]} */
 			const saved = [];
 			for (const w of writes) {
@@ -369,6 +383,27 @@ export function withContentDb(base) {
 			};
 		}
 	};
+}
+
+/**
+ * Cómo se muestra el texto que se guarda (decisión 0004, ver ./render.js): si el texto no cambió,
+ * como estaba (la agenda, las etiquetas o borrar no lo tocan); si cambió, HTML libre si lo guarda
+ * une superadmin y la lista corta si no.
+ *
+ * @param {DbPostFile | null} existing
+ * @param {unknown} body el texto nuevo
+ * @param {boolean} superadmin
+ * @returns {{ body_html?: 'libre' | 'corta' }}
+ */
+export function bodyHtmlFor(existing, body, superadmin) {
+	const text = normalizeBody(String(body ?? ''));
+	if (!text) return {};
+	const before = existing?.object.data;
+	if (before && normalizeBody(String(before.body ?? '')) === text) {
+		const kept = before.body_html;
+		return kept === 'libre' || kept === 'corta' ? { body_html: kept } : { body_html: 'corta' };
+	}
+	return { body_html: superadmin ? 'libre' : 'corta' };
 }
 
 /**

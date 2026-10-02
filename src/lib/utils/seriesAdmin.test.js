@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from './seriesAdmin.js';
+import {
+	readSeriesChoice,
+	seriesCreateOps,
+	seriesEditOps,
+	seriesPromptFor
+} from './seriesAdmin.js';
 import { SERIES_PARENT } from './series.js';
 
 describe('seriesCreateOps', () => {
@@ -76,5 +81,92 @@ describe('readSeriesChoice', () => {
 			ok: false
 		});
 		expect(readSeriesChoice({ choice: 'otra' }, opts)).toMatchObject({ ok: false });
+	});
+});
+
+describe('seriesEditOps', () => {
+	const current = {
+		id: 'Serie Inventada',
+		visible_name: 'Serie Inventada',
+		icon: '🎭',
+		image: 'vieja.webp'
+	};
+	it('solo lo que cambió, en una operación «update» de la etiqueta', () => {
+		expect(
+			seriesEditOps(
+				{
+					visible_name: '  La Serie  Inventada ',
+					icon: '🎭',
+					image: 'nueva.webp',
+					description: ' Una serie. '
+				},
+				current
+			)
+		).toEqual({
+			ok: true,
+			name: 'Serie Inventada',
+			renamed: null,
+			ops: [
+				{
+					type: 'update',
+					id: 'Serie Inventada',
+					set: {
+						visible_name: 'La Serie Inventada',
+						image: 'nueva.webp',
+						description: 'Una serie.'
+					}
+				}
+			]
+		});
+	});
+	it('vaciar un campo lo saca; el nombre visible igual al de la etiqueta no cuenta', () => {
+		const r = seriesEditOps(
+			{ visible_name: 'Serie Inventada', icon: '', image: '', description: '' },
+			current
+		);
+		expect(r).toMatchObject({ ok: true, ops: [{ set: { icon: '', image: '' } }] });
+	});
+	it('errores: sin cambios, imagen de afuera, corchetes, textos largos', () => {
+		const same = { visible_name: '', icon: '🎭', image: 'vieja.webp', description: '' };
+		expect(seriesEditOps(same, current)).toEqual({ ok: false, error: 'No cambiaste nada.' });
+		expect(seriesEditOps({ ...same, image: '../x.webp' }, current).ok).toBe(false);
+		expect(seriesEditOps({ ...same, image: 'https://x.test/a.webp' }, current).ok).toBe(false);
+		expect(seriesEditOps({ ...same, visible_name: 'Con [[link]]' }, current).ok).toBe(false);
+		expect(seriesEditOps({ ...same, icon: '🎭🎭🎭🎭🎭🎭🎭🎭🎭' }, current).ok).toBe(false);
+		expect(seriesEditOps({ ...same, description: 'x'.repeat(2001) }, current).ok).toBe(false);
+	});
+	it('renombrar la etiqueta: primero «rename» (sin alias por defecto), lo demás con el nombre nuevo', () => {
+		const same = { visible_name: '', icon: '🎭', image: 'vieja.webp', description: '' };
+		expect(seriesEditOps({ ...same, key: '  Serie  Nueva ' }, current)).toEqual({
+			ok: true,
+			name: 'Serie Nueva',
+			renamed: 'Serie Inventada',
+			ops: [{ type: 'rename', from: 'Serie Inventada', to: 'Serie Nueva', keepAlias: false }]
+		});
+		const withAlias = seriesEditOps({ ...same, key: 'Serie Nueva', icon: '🌶' }, current, {
+			keepAlias: true
+		});
+		expect(withAlias).toMatchObject({
+			ok: true,
+			ops: [
+				{ type: 'rename', from: 'Serie Inventada', to: 'Serie Nueva', keepAlias: true },
+				{ type: 'update', id: 'Serie Nueva', set: { icon: '🌶' } }
+			]
+		});
+		// El mismo nombre (o vacío) no renombra.
+		expect(seriesEditOps({ ...same, key: 'Serie Inventada' }, current)).toEqual({
+			ok: false,
+			error: 'No cambiaste nada.'
+		});
+		expect(seriesEditOps({ ...same, key: '' }, current).ok).toBe(false);
+	});
+	it('renombrar: el nombre nuevo tiene que ser válido y libre', () => {
+		const same = { visible_name: '', icon: '🎭', image: 'vieja.webp', description: '' };
+		const exists = (/** @type {string} */ n) => n === 'Ocupada';
+		expect(seriesEditOps({ ...same, key: 'Ocupada' }, current, { exists })).toMatchObject({
+			ok: false,
+			error: expect.stringContaining('Ya existe')
+		});
+		expect(seriesEditOps({ ...same, key: 'Con [corchete]' }, current).ok).toBe(false);
 	});
 });

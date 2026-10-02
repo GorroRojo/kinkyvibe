@@ -9,7 +9,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { requireCuentas } from '$lib/server/cuentas/web.js';
 import { createFeedToken, feedInfo, revokeFeeds } from '$lib/server/series/feeds.js';
 import { accountSubscriptions, unsubscribeAccount } from '$lib/server/series/subscriptions.js';
-import { siteTags } from '$lib/server/series/index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { requireSeries } from '$lib/server/series/web.js';
 import { tagPagePath } from '$lib/utils/series.js';
 
@@ -30,7 +30,7 @@ async function requireMember(event) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const tags = siteTags();
+	const tags = await siteTagManager(event.platform);
 	return {
 		feed: await feedInfo(db, member.id),
 		series: (await accountSubscriptions(db, member.id)).map((id) => ({

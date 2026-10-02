@@ -9,7 +9,7 @@ export const prerender = 'auto';
 const posts = import.meta.glob('/src/lib/posts/wiki/*.md', { import: 'default' });
 
 /** @type {import("./$types").PageLoad} */
-export async function load({ params, data }) {
+export async function load({ params, data, parent }) {
 	if ('meta' in data) {
 		const content = await posts[`/src/lib/posts/wiki/${params.term}.md`]?.();
 		return { ...data, content };
@@ -17,6 +17,10 @@ export async function load({ params, data }) {
 	// no wiki entry: show the tag of the same name ("Rancheadita-Kinky" → "Rancheadita Kinky",
 	// aliases → their tag; same helper as /api/series and the .ics). Tags have methods, so they
 	// can't come from the server load.
-	const tags = tagsFactory();
+	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db` (layout raíz).
+	const { siteTags } = await parent();
+	const tags = siteTags
+		? tagsFactory(/** @type {any} */ (structuredClone(siteTags)))
+		: tagsFactory();
 	return { ...data, tag: resolveTagSlug(tags, params.term) ?? tags.get(params.term) };
 }

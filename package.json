@@ -24,6 +24,7 @@
 		"preview:worker": "wrangler dev --port 8880 --test-scheduled",
 		"db:restore": "node scripts/d1-restore.js",
 		"amigues:import": "node scripts/import-amigues.js",
+		"tags:import": "node scripts/import-tags.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."

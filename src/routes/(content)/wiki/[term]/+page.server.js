@@ -1,12 +1,13 @@
 import { currentRelated, fetchPost } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import tagsFactory from '$lib/utils/tags';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
-
-const tagManager = tagsFactory();
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
+	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
+	const tagManager = await siteTagManager(platform);
 	let term = '';
 	/** @type {string[]} */
 	let children = [];
@@ -26,12 +27,13 @@ export async function load({ params, platform }) {
 		term = tagIdFromSlug(tagManager, params.term) ?? params.term;
 	}
 	const posts = await sitePosts(platform);
+	const related = currentRelated(
+		posts.filter((p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c)))
+	);
 	return {
 		...post,
-		...currentRelated(
-			posts.filter(
-				(p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c))
-			)
-		)
+		...related,
+		// «Comprar entradas» / «Agotadas» en las tarjetas (prerenderizada: `null`, link a /entradas).
+		ticketStates: await ticketStatesFor(platform, related.relatedPosts)
 	};
 }

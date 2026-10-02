@@ -1,6 +1,7 @@
 // @ts-nocheck -- test code
 // Cuentas del público (docs/cuentas.md): con CUENTAS_ENABLED=1 (lo pone playwright.config.js),
-// /ingresar se muestra, el encabezado tiene "Ingresar" y /mi-rincon sin sesión lleva a /ingresar.
+// /ingresar se muestra, el encabezado (también a 320 px) y el footer tienen "Ingresar" y
+// /mi-rincon sin sesión lleva a /ingresar.
 // El login completo (código por mail) lo cubren los tests unitarios: acá no hay mails.
 import { expect, test } from '@playwright/test';
 
@@ -32,4 +33,35 @@ test('el encabezado lleva a Ingresar y /mi-rincon pide ingresar', async ({ page 
 	await expect(page).toHaveURL(/\/ingresar$/);
 	await page.goto('/mi-rincon');
 	await expect(page).toHaveURL(/\/ingresar\?next=%2Fmi-rincon$/);
+});
+
+test('a 320 px el encabezado sigue mostrando Ingresar', async ({ page }) => {
+	await page.setViewportSize({ width: 320, height: 640 });
+	await page.goto('/calendario');
+	const cuenta = page.locator('#user a.cuenta', { hasText: 'Ingresar' });
+	await expect(cuenta).toBeVisible();
+	// Entra en la pantalla, sin scroll horizontal.
+	const box = await cuenta.boundingBox();
+	expect(box && box.x >= 0 && box.x + box.width <= 320).toBe(true);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+	await cuenta.click();
+	await expect(page).toHaveURL(/\/ingresar$/);
+});
+
+test('el footer lleva a Ingresar (Tu cuenta) y el equipo entra al panel abajo de todo', async ({
+	page
+}) => {
+	await page.goto('/calendario');
+	const footer = page.locator('footer');
+	await expect(footer.getByRole('heading', { name: 'Tu cuenta' })).toBeVisible();
+	await expect(footer.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/ingresar');
+	await expect(footer.getByRole('link', { name: 'Entrar al panel' })).toHaveAttribute(
+		'href',
+		'/login'
+	);
+	await expect(footer.getByRole('link', { name: 'Iniciar sesión' })).toHaveCount(0);
+	await expect(footer.getByRole('link', { name: 'Panel de admin' })).toHaveCount(0);
+	// Sin PROPINAS_ENABLED (interruptor apagado) sigue Cafecito.
+	await expect(footer.getByRole('link', { name: 'CafecitoApp' })).toBeVisible();
+	await expect(footer).toContainText('Este sitio está en constante construcción.');
 });

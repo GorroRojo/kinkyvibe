@@ -100,6 +100,16 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
   leen los eventos de la base (convertidos al mismo `ProcessedPost` que da un `.md`). **La base
   decide** cada dirección que tiene (oculto o borrado → 404 aunque el `.md` siga); lo que no está
   en la base sigue saliendo de su `.md`.
+- **El texto se ve igual que hoy** (decisión 0004: superadmins pueden usar HTML libre). Cada texto
+  guarda cómo se muestra (`data.body_html`), decidido al guardar según quién lo escribió:
+  `'libre'` para lo importado del repo y lo que guarda une superadmin; si no, la lista corta.
+  - Libre y sin cambios respecto de su `.md`: la página usa el componente que mdsvex compiló de
+    ese `.md` (exactamente lo de siempre: estilos, `<iframe>`, `<video>`, componentes).
+  - Libre y editado: `freeHtml.js` lo arma con el mismo camino que mdsvex (HTML libre, comillas
+    tipográficas, anclas, menciones, wiki, índice; sus `<style>` se aplican solo dentro del texto
+    con `@scope`). Con los textos reales da el mismo HTML que mdsvex en 535 de 571 (el resto son
+    casos borde del parser de markdown; `render.test.js` no deja que empeore).
+  - Lista corta: `amigues/sanitize.js`, como los perfiles.
 - **Historial**: cada guardado (también importar) copia el objeto a `object_revisions` en la misma
   tanda de `saveObject()` (`src/lib/server/contenido/revisions.js`).
 
@@ -109,7 +119,7 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
 | Importación                        | `src/lib/server/contenido/importer.js` (+ `bundle.js`: los `.md` del deploy) |
 | Qué cuenta como «igual»            | `src/lib/server/contenido/parity.js`                                         |
 | Lectura para las páginas           | `src/lib/server/contenido/posts.js`                                          |
-| Texto del cuerpo (HTML limpio)     | `src/lib/server/contenido/render.js` (lista corta de `amigues/sanitize.js`)  |
+| Texto del cuerpo                   | `src/lib/server/contenido/render.js` (y `freeHtml.js` para el HTML libre)    |
 | Esquema                            | `migrations/0031_contenido_eventos.sql`                                      |
 
 - **Editar** (`src/lib/server/contenido/repo.js`): con el interruptor prendido, todo lo que el
@@ -122,6 +132,12 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
   así que si alguien guardó en el medio avisa como con GitHub (`FileChangedError`). Lo que no es
   de la base (imágenes, el archivo de etiquetas, material, los `.md` que la base no tiene) sigue
   yendo al repo, primero (si eso falla, la base no se toca). Se ve enseguida, sin PR ni deploy.
+- **Quién guarda** es siempre el **login de GitHub** de le admin (`saved_by`/`updated_by`), en
+  todos los guardados del panel: hooks.server.js corre el pedido de cada admin con
+  `resolveAsPanelAuthor` (`contenido/author.js`) y `withContentDb` lo toma de ahí; el nombre que
+  muestra cada pantalla (`pr.who`) es solo para el PR. Ahí también se decide `body_html`: si el
+  texto no cambió queda como estaba (la agenda, las etiquetas o borrar no lo tocan); si cambió,
+  `'libre'` si guarda une superadmin (hoy, todes les admins) y la lista corta si no.
 - Con el interruptor prendido, también leen la base: la venta de entradas y la puerta
   (`tickets/events.js`: configuración, título, fecha), la lista de eventos del panel, su ficha, No
   listadas y su contador, Eventos → Lugares y el cron de «avisame si se repite».
@@ -132,8 +148,6 @@ Lo que todavía no cambia (pasos siguientes):
   un PR y se ve cuando se publica (unos minutos); el texto del evento se ve enseguida.
 - Apagar el interruptor vuelve a los `.md`: lo editado en la base no está en los `.md` (se puede
   bajar con «Descargar todo» y volver a subir a mano).
-- Lo que mdsvex hace y la base no: `<script>`/componentes, `<style>` propios del post, `<iframe>` y
-  las comillas tipográficas. La importación avisa en cada evento que usa algo de eso.
 - `/calendario.ics`, `/rss`, `/sitemap.xml`, `/api/posts` y `/api/search-index.json` dejaron de
   prerenderizarse (con el interruptor apagado dan lo mismo que antes, pero los arma el Worker).
 

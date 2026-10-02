@@ -26,6 +26,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import TagTreeNode from '$lib/components/admin/tags/TagTreeNode.svelte';
 	import TagGraph from '$lib/components/admin/tags/TagGraph.svelte';
+	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
 	import { USAGE_CATEGORIES, analyzeTags, applyTagOps, describeOp } from '$lib/utils/tagConfig.js';
 
@@ -114,7 +115,8 @@
 	/** @type {{icon: string, visible_name: string, color: string, image: string, description: string, related: string}} */
 	let fields = { icon: '', visible_name: '', color: '', image: '', description: '', related: '' };
 	let renameTo = '';
-	let keepAlias = true;
+	// Con la base, por defecto se renombra en las publicaciones sin dejar alias (RenameChoice).
+	let keepAlias = !data.dbMode;
 	let mergeInto = '';
 	let moveTo = '';
 	let newAlias = '';
@@ -135,6 +137,7 @@
 			related: (current.find((e) => e.id === id && !e.aliasOf)?.related ?? []).join(', ')
 		};
 		renameTo = '';
+		keepAlias = !data.dbMode;
 		mergeInto = '';
 		moveTo = '';
 		newAlias = '';
@@ -184,11 +187,12 @@
 	}
 
 	/* ---------- preview & save ---------- */
-	/** @type {null | {summary: string[], total: number, files: Array<{path: string, added: number, removed: number, more: number, hunks: Array<{oldStart: number, newStart: number, lines: Array<{t: string, s: string}>}>}>}} */
+	/** @typedef {{total: number, files: Array<{path: string, added: number, removed: number, more: number, hunks: Array<{oldStart: number, newStart: number, lines: Array<{t: string, s: string}>}>}>}} PreviewFiles */
+	/** @type {null | (PreviewFiles & {summary: string[], warnings?: string[], posts?: PreviewFiles | null})} */
 	let preview = null;
 	let busy = '';
 	let saveError = '';
-	/** @type {null | {commit: string, publish?: any, summary: string[], files: number}} */
+	/** @type {null | {commit: string, publish?: any, summary: string[], files: number, posts?: number}} */
 	let saved = null;
 	/**
 	 * @param {string} action
@@ -274,10 +278,18 @@
 	subtitle="El árbol de etiquetas del sitio, cuánto se usa cada una y la Kinkipedia. Arrastrá una etiqueta sobre otra para moverla."
 >
 	<svelte:fragment slot="actions">
+		<a class="kv-btn ghost" href="/admin/etiquetas/importar">Importar a la base</a>
 		<CsvButton rows={csvRows} columns={csvColumns} filename="etiquetas.csv" />
 	</svelte:fragment>
 </PageHeader>
 
+{#if data.dbMode}
+	<p class="note">
+		Las etiquetas se leen de la base (interruptor «Etiquetas desde la base»): los cambios se guardan
+		al momento, sin commits (salvo renombrar en las publicaciones, que las cambia con un commit).
+		Los textos de la Kinkipedia siguen en sus publicaciones.
+	</p>
+{/if}
 {#if data.mock}
 	<p class="note warn">
 		Modo de prueba (<code>npm run dev:admin</code>): los «commits» van a una carpeta temporal.
@@ -285,11 +297,19 @@
 {/if}
 {#if saved}
 	<p class="note ok" role="status">
-		<CircleCheck size={18} aria-hidden="true" /> Guardado ({saved.files} archivo{saved.files === 1
-			? ''
-			: 's'}):
+		<CircleCheck size={18} aria-hidden="true" />
+		{#if data.dbMode}Guardado en la base ({saved.files} cambio{saved.files === 1
+				? ''
+				: 's'}):{:else}Guardado ({saved.files} archivo{saved.files === 1 ? '' : 's'}):{/if}
 		{saved.summary.join('; ')}.
-		{#if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
+		{#if data.dbMode}En menos de un minuto se ve en el sitio.{#if saved.posts}
+				Además, un commit cambia {saved.posts} publicaci{saved.posts === 1 ? 'ón' : 'ones'}: se ve
+				cuando termine de publicarse el sitio.
+				{#if saved.publish}<PublishStatus pr={saved.publish} />{:else if saved.commit}<a
+						href={saved.commit}
+						target="_blank"
+						rel="noreferrer">Ver el commit</a
+					>{/if}{/if}{:else if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
 				href={saved.commit}
 				target="_blank"
 				rel="noreferrer">Ver el commit</a
@@ -375,11 +395,23 @@
 				{#if saveError}<p class="err" role="alert">{saveError}</p>{/if}
 				{#if preview}
 					<div class="preview">
-						<p>
-							<strong>Un solo commit</strong> que cambia {preview.total} archivo{preview.total === 1
-								? ''
-								: 's'}:
-						</p>
+						{#if data.dbMode}
+							<p>
+								Cambia{preview.total === 1 ? '' : 'n'}
+								<strong>{preview.total} etiqueta{preview.total === 1 ? '' : 's'}</strong> en la base:
+							</p>
+							{#each preview.warnings ?? [] as w}<p class="err">
+									<AlertTriangle size={16} aria-hidden="true" />
+									{w}
+								</p>{/each}
+						{:else}
+							<p>
+								<strong>Un solo commit</strong> que cambia {preview.total} archivo{preview.total ===
+								1
+									? ''
+									: 's'}:
+							</p>
+						{/if}
 						{#each preview.files as f}
 							<details open={preview.files.length <= 3}>
 								<summary
@@ -397,6 +429,37 @@
 						{#if preview.total > preview.files.length}<p class="muted">
 								… y {preview.total - preview.files.length} archivos más.
 							</p>{/if}
+						{#if preview.posts}
+							<p>
+								{#if preview.posts.total}
+									Y <strong>un commit</strong> que cambia
+									<strong
+										>{preview.posts.total} publicaci{preview.posts.total === 1
+											? 'ón'
+											: 'ones'}</strong
+									> (el nombre viejo deja de existir):
+								{:else}
+									Ninguna publicación usa el nombre viejo: no hace falta cambiar ninguna.
+								{/if}
+							</p>
+							{#each preview.posts.files as f}
+								<details open={preview.posts.files.length <= 3}>
+									<summary
+										><code>{f.path}</code> <span class="plus">+{f.added}</span>
+										<span class="minus">−{f.removed}</span></summary
+									>
+									{#each f.hunks as h}
+										<pre class="diff">{#each h.lines as l}<span
+													class="l{l.t === '+' ? ' add' : l.t === '-' ? ' del' : ''}"
+													>{l.t}{l.s}</span
+												>{/each}</pre>
+									{/each}
+								</details>
+							{/each}
+							{#if preview.posts.total > preview.posts.files.length}<p class="muted">
+									… y {preview.posts.total - preview.posts.files.length} publicaciones más.
+								</p>{/if}
+						{/if}
 						<button type="button" class="kv-btn" on:click={doSave} disabled={busy !== ''}>
 							{#if busy === 'save'}<LoaderCircle size={16} class="spin" />{:else}<Save
 									size={16}
@@ -539,11 +602,17 @@
 								placeholder="Nombre nuevo"
 							/></label
 						>
-						<label class="check"
-							><input type="checkbox" bind:checked={keepAlias} /> El nombre viejo queda como alias (los
-							links viejos siguen andando)</label
+						<RenameChoice
+							dbMode={data.dbMode}
+							bind:keepAlias
+							idPrefix="renombrar-{n.id}"
+							uses={n.total}
+						/>
+						<button class="kv-btn ghost small"
+							>{data.dbMode && keepAlias
+								? 'Renombrar'
+								: 'Renombrar en todas las publicaciones'}</button
 						>
-						<button class="kv-btn ghost small">Renombrar en todas las publicaciones</button>
 					</form>
 					<form
 						on:submit|preventDefault={() =>

@@ -59,6 +59,7 @@ export const IMPORT_CHUNK = 40;
  *   title: string,
  *   changed: string[],
  *   warnings: string[],
+ *   notes: string[],
  *   message?: string
  * }} ImportRow
  */
@@ -192,6 +193,7 @@ export async function planImport(db, category, files) {
 			title: source?.title ?? file.legacySlug,
 			changed: [],
 			warnings: [],
+			notes: [],
 			hash,
 			mapped: null,
 			data: null,
@@ -212,8 +214,17 @@ export async function planImport(db, category, files) {
 			body = '';
 		}
 		const mapped = cat.map(file.legacySlug, file.meta, body);
+		// Lo que viene del repo cuenta como HTML libre de superadmin (decisión 0004): se muestra
+		// igual que hoy (./render.js).
+		if (mapped.data.body) mapped.data = { ...mapped.data, body_html: 'libre' };
 		const validated = validateData(def, mapped.data);
-		const row = { ...base, title: mapped.title, warnings: mapped.warnings, mapped };
+		const row = {
+			...base,
+			title: mapped.title,
+			warnings: mapped.warnings,
+			notes: mapped.notes ?? [],
+			mapped
+		};
 		if (mapped.error && !source) {
 			rows.push({ ...row, action: 'error', message: mapped.error });
 			continue;

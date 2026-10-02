@@ -120,5 +120,6 @@ export const IMPORT_CSV = [
 	{ key: 'slug', label: 'Dirección en la base' },
 	{ label: 'Campos distintos', value: (r) => r.changed.join(' ') },
 	{ label: 'Avisos', value: (r) => r.warnings.join(' · ') },
+	{ label: 'Notas', value: (r) => (r.notes ?? []).join(' · ') },
 	{ label: 'Error', value: (r) => r.message ?? '' }
 ];

@@ -294,7 +294,7 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
- * @typedef {{ mode: 'md' } | { mode: 'db', post: (ProcessedPost & { html: string }) | null }} SitePost
+ * @typedef {{ mode: 'md' } | { mode: 'db', post: (ProcessedPost & import('./render.js').RenderedBody) | null }} SitePost
  */
 
 /**
@@ -330,15 +330,17 @@ export async function siteContent(
 	);
 	const body = html
 		? await renderContentBody(
-				object.data.body,
+				object.data,
 				/** @type {'calendario' | 'material'} */ (category),
-				postID
+				postID,
+				{ vars: post.meta }
 			)
-		: '';
-	// El componente no existe (no hay .md): la página muestra `html`.
+		: { html: '', css: '', component: false };
+	// El componente no viaja desde el servidor: con `component`, +page.js carga el del .md (el
+	// texto es el mismo); si no, la página muestra `html` (y `css`, solo dentro del texto).
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...rest } = post;
-	return { mode: 'db', post: { ...rest, html: body } };
+	return { mode: 'db', post: { ...rest, ...body } };
 }
 
 /**
