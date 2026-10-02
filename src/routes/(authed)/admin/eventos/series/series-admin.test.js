@@ -40,7 +40,10 @@ async function routes(flag = '1') {
 	vi.doMock('$lib/utils', () => ({
 		fetchMarkdownPosts: async () => [...posts],
 		thumbURL: async (/** @type {string} */ _c, /** @type {string} */ _p, /** @type {string} */ f) =>
-			`/assets/${f}`
+			`/assets/${f}`,
+		// La imagen de un evento como imagen de la serie (calendario:<evento>/<archivo>).
+		mediaURL: (/** @type {string} */ c, /** @type {string} */ p, /** @type {string} */ f) =>
+			`/media/${c}/${p}/${f}`
 	}));
 	return {
 		page: await import('./+page.server.js'),

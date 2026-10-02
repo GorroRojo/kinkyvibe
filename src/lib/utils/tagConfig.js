@@ -12,6 +12,7 @@
  *   orphan / unused / undeclared tags, broken references).
  * - lineDiff: unified-diff hunks for the preview.
  */
+import { eventImageRef } from './series.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Parser (the small subset of JS the file uses: an array of object literals)                */
@@ -386,6 +387,15 @@ export function isAssetFileName(name) {
 	return typeof name === 'string' && /^[\w][\w.-]{0,120}\.(?:jpe?g|jfif|png|webp)$/i.test(name);
 }
 
+/**
+ * ¿Sirve como `image` de una etiqueta? Un archivo de src/lib/assets o la imagen de un evento
+ * (`calendario:<evento>/<archivo>`, ver seriesImage en series.js).
+ * @param {unknown} name
+ */
+export function isTagImage(name) {
+	return isAssetFileName(name) || eventImageRef(name) !== null;
+}
+
 /** @param {unknown} s */
 const clean = (s) =>
 	String(s ?? '')
@@ -617,9 +627,9 @@ function applyOne(m, op) {
 					v = [...new Set((Array.isArray(raw) ? raw : []).map(clean).filter((x) => x && x !== id))];
 				} else if (typeof raw === 'string') v = k === 'description' ? raw.trim() : clean(raw);
 				if (k === 'visible_name' && v === id) v = '';
-				if (k === 'image' && v && !isAssetFileName(v))
+				if (k === 'image' && v && !isTagImage(v))
 					throw new Error(
-						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp).`
+						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp) o la de un evento (calendario:<evento>/1.webp).`
 					);
 				if (k === 'aka') {
 					for (const a of v) {
