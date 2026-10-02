@@ -228,7 +228,10 @@ export function splitEditions(editions, now = Date.now()) {
 }
 
 /**
- * La imagen de una serie: el campo `image` de su etiqueta (nombre de archivo de src/lib/assets).
+ * La imagen de una serie: el campo `image` de su etiqueta. Es el nombre de un archivo de
+ * src/lib/assets («picantearla-miniatura.webp») o la imagen de un evento, sin copiarla:
+ * `calendario:<evento>/<archivo>` («calendario:colectiver-2026-08/1.webp», el archivo de
+ * src/lib/posts/calendario/media/colectiver-2026-08/).
  *
  * @param {Pick<RawTag, 'image'> | undefined} tag
  * @returns {string | undefined}
@@ -236,6 +239,24 @@ export function splitEditions(editions, now = Date.now()) {
 export function seriesImage(tag) {
 	const v = typeof tag?.image === 'string' ? tag.image.trim() : '';
 	return v || undefined;
+}
+
+/** Prefijo de la imagen de una serie que es la imagen de un evento. */
+export const EVENT_IMAGE_PREFIX = 'calendario:';
+
+const EVENT_IMAGE =
+	/^calendario:([A-Za-z0-9][A-Za-z0-9_-]{0,150})\/([A-Za-z0-9][\w.-]{0,120}\.(?:jpe?g|jfif|png|webp))$/i;
+
+/**
+ * Si `image` es la imagen de un evento (`calendario:<evento>/<archivo>`), el evento y el
+ * archivo; si no, `null`. Sin `..`, sin más carpetas ni links de afuera.
+ *
+ * @param {unknown} image
+ * @returns {{ slug: string, file: string } | null}
+ */
+export function eventImageRef(image) {
+	const m = typeof image === 'string' ? image.match(EVENT_IMAGE) : null;
+	return m ? { slug: m[1], file: m[2] } : null;
 }
 
 /**

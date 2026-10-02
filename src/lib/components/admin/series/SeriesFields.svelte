@@ -12,6 +12,7 @@
 	 * - `id`: prefijo único para los ids de los campos.
 	 */
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
+	import { eventImageRef } from '$lib/utils/series.js';
 
 	/** @type {'create' | 'edit'} */
 	export let mode = 'create';
@@ -22,6 +23,8 @@
 	export let dbMode = false;
 	export let id = 'serie';
 	$: imageMissing = Boolean(values.image) && !assets.includes(values.image ?? '');
+	// La imagen de un evento (calendario:<evento>/<archivo>): se conserva si no se cambia.
+	$: eventImage = eventImageRef(values.image);
 	let key = values.key ?? values.id ?? '';
 	// Como en Etiquetas: con la base, por defecto sin alias (se renombra en las publicaciones).
 	let keepAlias = values.keepAlias !== undefined ? values.keepAlias === '1' : !dbMode;
@@ -67,7 +70,10 @@
 		{#if imageMissing}<option value={values.image}>{values.image}</option>{/if}
 		{#each assets as a (a)}<option value={a}>{a}</option>{/each}
 	</select>
-	<small class="muted">Un archivo de src/lib/assets.</small>
+	<small class="muted">
+		Un archivo de src/lib/assets.
+		{#if eventImage}Ahora usa la imagen del evento «{eventImage.slug}».{/if}
+	</small>
 </label>
 <label class="kv-field" for="{id}-description">
 	<span>Descripción (opcional)</span>
