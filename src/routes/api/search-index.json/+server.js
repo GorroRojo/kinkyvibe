@@ -8,6 +8,7 @@ import {
 	listPublicProfiles,
 	profilesStamp
 } from '$lib/server/amigues/profiles.js';
+import { eventVenuesStamp, linkedVenues } from '$lib/server/amigues/venues.js';
 import { perfilesPublicosEnabled, seriesEnabled } from '$lib/server/flags.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { buildSearchIndex } from '$lib/server/search/siteIndex.js';
@@ -21,8 +22,8 @@ export const prerender = false;
 
 /**
  * El índice armado (ya como JSON), por árbol de etiquetas y server instance. Sigue valiendo
- * mientras no cambie la marca de lo que lee de la base (`key`: el contenido, los perfiles y el
- * interruptor de series), como las listas de contenido (src/lib/server/contenido/posts.js): cada
+ * mientras no cambie la marca de lo que lee de la base (`key`: el contenido, los perfiles, los
+ * vínculos evento → lugar y el interruptor de series), como las listas de contenido (src/lib/server/contenido/posts.js): cada
  * pedido hace solo las consultas chicas de «¿cambió algo?».
  * @type {WeakMap<TagManager, { key: string, body: Promise<string> }>}
  */
@@ -36,7 +37,7 @@ const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 
 /**
  * Índice para la búsqueda global (ver $lib/utils/search.js y SearchPalette.svelte).
- * Sólo lo que ve cualquiera en las listas del sitio.
+ * Sólo lo que alcanza cualquiera navegando el sitio (sin cuenta): el índice es el mismo para todes.
  * @type {import("./$types").RequestHandler}
  */
 export async function GET({ platform }) {
@@ -51,6 +52,7 @@ export async function GET({ platform }) {
 	const key = JSON.stringify([
 		contentStamp,
 		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
+		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null,
 		series
 	]);
 	let entry = dev ? undefined : indexCache.get(tagManager);
@@ -84,6 +86,15 @@ async function buildIndex(tagManager, platform, { profiles, series }) {
 		profiles && db ? listPublicProfiles(db, ANON) : null,
 		profiles && db ? importedLegacySlugs(db) : null
 	]);
+	// Los lugares no listados a los que lleva el link de un evento que está en el índice (listado
+	// y publicado): se alcanzan navegando, así que se pueden encontrar buscando.
+	const reachableEvents = posts
+		.filter(
+			({ meta }) =>
+				meta.category === 'calendario' && !meta.force_unpublished && !meta.force_unlisted
+		)
+		.map(({ meta }) => String(meta.postID));
+	const venues = profiles && db ? await linkedVenues(db, reachableEvents) : [];
 	return buildSearchIndex({
 		posts,
 		wikiPosts,
@@ -94,7 +105,8 @@ async function buildIndex(tagManager, platform, { profiles, series }) {
 			if (stored !== undefined) return stored;
 			return rawPosts[`/src/lib/posts/${meta.category}/${meta.postID}.md`]?.();
 		},
-		profiles: profileList && imported ? { list: profileList, imported } : null,
+		profiles:
+			profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null,
 		series
 	});
 }

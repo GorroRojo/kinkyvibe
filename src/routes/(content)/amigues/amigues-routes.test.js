@@ -411,8 +411,8 @@ describe('un lugar no listado (como nacen los importados de eventos)', () => {
 			expect(paths).not.toContain(href);
 			expect(JSON.stringify(list)).not.toContain(NAME);
 		}
-		// Ni en el sitemap, el RSS, el JSON de posts ni el buscador (el evento sí puede llevar el
-		// nombre del lugar, como lo muestra su página; lo que no tiene que estar es el perfil).
+		// Ni en el sitemap, el RSS ni el JSON de posts (el evento sí puede llevar el nombre del
+		// lugar, como lo muestra su página; lo que no tiene que estar es el perfil).
 		const text = async (/** @type {Response} */ r) => r.text();
 		/** @type {Record<string, string>} */
 		const outputs = {
@@ -422,15 +422,34 @@ describe('un lugar no listado (como nacen los importados de eventos)', () => {
 			rss: await text(await (await import('../../rss/+server.js')).GET()),
 			posts: await text(
 				await (await import('../../api/posts/+server.js')).GET(/** @type {any} */ ({}))
-			),
-			search: await text(
-				await (await import('../../api/search-index.json/+server.js')).GET(/** @type {any} */ ({}))
 			)
 		};
 		for (const [name, out] of Object.entries(outputs)) {
 			expect(out, name).not.toContain(href);
 			expect(out, name).not.toContain(v.slug);
 		}
+		// El buscador sí (antes no): la página del evento linkea el lugar, así que se alcanza
+		// navegando, y la regla de gorrite es que lo que se alcanza navegando se puede encontrar
+		// buscando. Con su nombre, nunca su calle; y deja de estar si el evento ya no lo linkea.
+		const searchIndex = async () =>
+			text(
+				await (
+					await import('../../api/search-index.json/+server.js')
+				).GET(/** @type {any} */ ({ platform: t.platform }))
+			);
+		const search = await searchIndex();
+		expect(search).toContain(href);
+		expect(search).toContain(NAME);
+		expect(search).not.toContain('Calle Falsa 742');
+		await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: v.id,
+			privacy: 'area',
+			by: 'a'
+		});
+		const unlinked = await searchIndex();
+		expect(unlinked).not.toContain(href);
+		expect(unlinked).not.toContain(NAME);
 	});
 });
 
@@ -487,8 +506,11 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 		outputs.posts = await text(
 			await (await import('../../api/posts/+server.js')).GET(/** @type {any} */ ({}))
 		);
+		// Con la base (antes sin `platform`, así que el buscador no leía ningún lugar).
 		outputs.search = await text(
-			await (await import('../../api/search-index.json/+server.js')).GET(/** @type {any} */ ({}))
+			await (
+				await import('../../api/search-index.json/+server.js')
+			).GET(/** @type {any} */ ({ platform: t.platform }))
 		);
 		for (const slug of ['fiesta-inventada', 'taller-inventado']) {
 			outputs[`evento ${slug}`] = JSON.stringify(
@@ -507,11 +529,19 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 			expect(out, name).not.toContain(AREA);
 			expect(out, name).not.toContain('Tocar timbre');
 			expect(out, name).not.toContain('-34.61');
-			// El lugar es un perfil público (su nombre puede estar en /amigues); lo que no puede
-			// aparecer es en qué evento está ni su dirección.
-			if (!name.startsWith('lugar') && name !== 'amigues') expect(out, name).not.toContain(NAME);
+			// El lugar es un perfil público (su nombre puede estar en /amigues y en el buscador, que
+			// lleva lo que se alcanza navegando); lo que no puede aparecer es en qué evento está ni su
+			// dirección.
+			if (!name.startsWith('lugar') && name !== 'amigues' && name !== 'search') {
+				expect(out, name).not.toContain(NAME);
+			}
 			if (name !== 'lugarAbierto') expect(out, name).not.toContain('Avenida Pública 99');
 		}
+		// En el buscador, el nombre solo en la entrada del lugar mismo (nunca junto a un evento).
+		/** @type {import('$lib/utils/search').RawSearchIndex} */
+		const index = JSON.parse(outputs.search);
+		const withName = index.docs.filter((d) => JSON.stringify(d).includes(NAME));
+		expect(withName.map((d) => d.h)).toEqual([`/amigues/${hidden.slug}`]);
 		// La página del lugar no lista el evento que lo oculta.
 		expect(JSON.parse(outputs.lugarOculto).venueEvents).toEqual([]);
 		expect(JSON.parse(outputs.lugarAbierto).venueEvents).toEqual([]);
