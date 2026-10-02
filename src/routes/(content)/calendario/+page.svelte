@@ -146,10 +146,24 @@
 			</a>
 			para nunca perderte de nada!
 		</p>
+		{#if data.seriesLink}
+			<p class="series-link">
+				¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
+				ediciones.
+			</p>
+		{/if}
 	</div>
 </div>
 
 <style lang="scss">
+	.series-link {
+		text-align: center;
+		margin: -1em auto 2em;
+		max-width: min(50rem, calc(100% - 32px));
+		a {
+			font-weight: 700;
+		}
+	}
 	.subscribe {
 		font-size: var(--step-1);
 		text-align: center;
