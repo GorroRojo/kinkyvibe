@@ -11,7 +11,10 @@
  * - la dirección de un lugar sale de acá solo en {@link publicVenueForEvent} (según el nivel) y en
  *   {@link buyerVenueForEvent} (completa, solo para mails y páginas de quien compró);
  * - la página de un lugar lista solo los eventos que muestran el link al lugar (niveles 1 y 2);
- * - sitemap, RSS y buscador no llevan lugares (ni el «Dónde» del .md);
+ * - sitemap y RSS no llevan lugares; el buscador lleva solo los que ya se alcanzan navegando
+ *   (listados, o no listados con link desde un evento visible: {@link linkedVenues}), con su
+ *   nombre, descripción y lo que muestra su página según su nivel (nunca la calle), y nunca el
+ *   «Dónde» del .md (src/lib/server/search/siteIndex.js);
  * - los .ics (el general, etiqueta o serie, "lo tuyo") usan {@link feedVenues}: lo mismo que la
  *   página del evento le muestra a cualquiera;
  * - un lugar vinculado manda: las salidas públicas que mandan la meta de los eventos (listas,
@@ -28,6 +31,7 @@ import {
 	fullAddress,
 	isVenuePrivacy,
 	showsVenueLink,
+	venuePageLevel,
 	venueView
 } from '$lib/utils/venues.js';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -195,11 +199,65 @@ export async function feedVenues(db, slugs) {
 	/** @type {Map<string, VenueView>} */
 	const out = new Map();
 	if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return out;
+	for (const { eventSlug, view } of await anonEventVenues(db, slugs)) out.set(eventSlug, view);
+	return out;
+}
+
+/**
+ * Los lugares a los que lleva el link de alguno de los eventos de `slugs`, como lo ve cualquiera
+ * en la página del evento (ANON): solo niveles "Nombre + dirección" o "Sólo Nombre" y lugares
+ * que ANON puede ver y están aprobados (lo mismo que decide el link, {@link linkedVenueView}).
+ * Para el buscador: un lugar no listado al que se llega desde un evento visible también se puede
+ * encontrar buscando (regla de gorrite: lo que ya se alcanza navegando). El objeto va como lo ve
+ * ANON (`forViewer`); quien lo use elige qué campos muestra. No mira el interruptor
+ * `perfiles_publicos`: quien llama lo decide.
+ *
+ * @param {D1Database} db
+ * @param {Iterable<string>} slugs los eventos que ya se pueden alcanzar (listados y publicados)
+ * @returns {Promise<{ object: StoredObject, legacySlug: string | null }[]>}
+ */
+export async function linkedVenues(db, slugs) {
+	/** @type {Map<number, { object: StoredObject, legacySlug: string | null }>} */
+	const out = new Map();
+	for (const { view, found } of await anonEventVenues(db, slugs)) {
+		if (!view.href || !found.visible || out.has(found.venue.id)) continue;
+		out.set(found.venue.id, { object: found.visible, legacySlug: found.legacySlug });
+	}
+	return [...out.values()];
+}
+
+/**
+ * Una marca que cambia cuando cambia algún vínculo evento → lugar (agregar, sacar o cambiar el
+ * nivel: `setEventVenue` actualiza `updated_at`). Una consulta chica, para quien recuerda algo
+ * armado con los vínculos (el índice de la búsqueda).
+ *
+ * @param {D1Database} db
+ * @returns {Promise<string>}
+ */
+export async function eventVenuesStamp(db) {
+	const row = await db
+		.prepare(
+			`SELECT count(*) AS n, total(updated_at) AS u, total(venue_id) AS v,
+				total(length(privacy)) AS p FROM event_venues`
+		)
+		.first();
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.p}`;
+}
+
+/**
+ * El lugar de cada evento de `slugs` que tiene uno, como lo ve ANON en la página del evento, con
+ * lo leído del lugar. Todos juntos, en una sola vuelta a la base: los vínculos de los eventos
+ * pedidos y sus lugares (una fila por lugar, no por evento). Antes eran tres consultas por evento
+ * con lugar: la página de un lugar con 80 eventos hacía ~240 y el .ics general ~850.
+ *
+ * @param {D1Database} db
+ * @param {Iterable<string>} slugs
+ */
+async function anonEventVenues(db, slugs) {
+	/** @type {{ eventSlug: string, view: VenueView, found: { venue: StoredObject, legacySlug: string | null, visible: StoredObject | null, approved: boolean } }[]} */
+	const out = [];
 	const want = [...new Set(slugs)].filter(isEventSlug);
 	if (!want.length) return out;
-	// Todos juntos, en una sola vuelta a la base: los vínculos de los eventos pedidos y sus lugares
-	// (una fila por lugar, no por evento). Antes eran tres consultas por evento con lugar: la
-	// página de un lugar con 80 eventos hacía ~240 y el .ics general ~850.
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
@@ -244,7 +302,11 @@ export async function feedVenues(db, slugs) {
 			legacySlug: found.legacySlug,
 			override: isVenuePrivacy(r.privacy) ? r.privacy : null
 		};
-		out.set(String(r.event_slug), linkedVenueView(link, found.visible, found.approved));
+		out.push({
+			eventSlug: String(r.event_slug),
+			view: linkedVenueView(link, found.visible, found.approved),
+			found
+		});
 	}
 	return out;
 }
@@ -324,8 +386,7 @@ export async function listedVenueEvents(db, venue) {
  * @returns {VenueView}
  */
 export function venuePageLocation(venue, href) {
-	const level = effectivePrivacy(null, venue.data.venue_privacy);
-	return venueView(venue, level === 'address' ? 'name' : level, href);
+	return venueView(venue, venuePageLevel(venue.data.venue_privacy), href);
 }
 
 // ---------------------------------------------------------------------------------------------

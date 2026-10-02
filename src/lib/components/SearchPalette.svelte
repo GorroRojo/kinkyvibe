@@ -247,7 +247,7 @@
 					bind:value={query}
 					on:keydown={onInputKeydown}
 					type="search"
-					placeholder="Buscar eventos, material, amigues, Kinkipedia…"
+					placeholder="Buscar eventos, series, material, amigues, Kinkipedia…"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"
@@ -274,7 +274,7 @@
 					<p class="status">{error}</p>
 				{:else if query.trim().length < 2}
 					<p class="status">
-						Buscá en todo el sitio: eventos, textos, amigues y la Kinkipedia.<br />
+						Buscá en todo el sitio: eventos, series, textos, amigues y la Kinkipedia.<br />
 						<small>Probá con «shibari», «consentimiento» o el nombre de une autore.</small>
 					</p>
 				{:else if !index}
@@ -307,6 +307,7 @@
 										on:click={() => searchOpen.set(false)}
 									>
 										<span class="title">
+											{#if doc.i}<span aria-hidden="true">{doc.i}&nbsp;</span>{/if}
 											{#each engine.highlight(doc.t, item.hit.words) as part}
 												{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}
 											{/each}

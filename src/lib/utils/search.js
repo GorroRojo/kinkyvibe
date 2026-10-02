@@ -2,14 +2,15 @@
  * Búsqueda global: normalización de texto, limpieza de markdown, armado y consulta
  * de un índice invertido chico (sin dependencias).
  *
- * El índice "crudo" lo genera /api/search-index.json (en el servidor, una vez por árbol de
- * etiquetas: sigue al interruptor `etiquetas_db`) y el cliente lo descarga recién al abrir el
- * buscador (ver SearchPalette.svelte).
+ * El índice "crudo" lo genera /api/search-index.json (en el servidor, con lo que entra decidido
+ * en $lib/server/search/siteIndex.js; se recuerda por árbol de etiquetas mientras la base no
+ * cambie) y el cliente lo descarga recién al abrir el buscador (ver SearchPalette.svelte).
  */
 
 /**
  * @typedef {Object} SearchDoc
- * @prop {'calendario'|'material'|'amigues'|'wiki'} c - categoría
+ * @prop {'calendario'|'material'|'amigues'|'wiki'|'serie'} c - categoría (`serie`: la página de
+ *   una serie de eventos, en la Kinkipedia)
  * @prop {string} h - href
  * @prop {string} t - título
  * @prop {string} [s] - resumen
@@ -19,6 +20,7 @@
  * @prop {string} [e] - fecha de fin (eventos)
  * @prop {string} [b] - cuerpo en texto plano (truncado)
  * @prop {string[]} [k] - otros nombres (aka) para entradas de la Kinkipedia
+ * @prop {string} [i] - ícono (emoji) de la etiqueta, para entradas de la Kinkipedia y series
  */
 
 /**
@@ -325,7 +327,7 @@ export function search(index, q, { limit = 1000 } = {}) {
 		}
 		/** @type {Map<number, number>} */
 		const next = new Map();
-		for (const [doc, s] of termScores) next.set(doc, (ti > 0 ? scores.get(doc) ?? 0 : 0) + s);
+		for (const [doc, s] of termScores) next.set(doc, (ti > 0 ? (scores.get(doc) ?? 0) : 0) + s);
 		scores = next;
 		if (scores.size === 0) return [];
 	}
@@ -358,6 +360,7 @@ export function search(index, q, { limit = 1000 } = {}) {
 
 export const GROUPS = /** @type {const} */ ([
 	['proximos', 'Eventos próximos'],
+	['serie', 'Series'],
 	['material', 'Material'],
 	['amigues', 'Amigues'],
 	['wiki', 'Kinkipedia'],

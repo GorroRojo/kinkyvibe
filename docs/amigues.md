@@ -106,11 +106,22 @@ en los recordatorios y en la página de su entrada (con la compra aprobada).
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").
 
-**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts`, el índice del buscador y las
-imágenes para compartir se arman al compilar desde los `.md`, así que no pueden contener nada de
-la base. La prueba `src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y
-revisa todas esas salidas y los datos de las páginas. Si el `.md` de un evento tiene `location`
-escrita, es pública (el repo es público): Eventos → Lugares avisa para sacarla.
+**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir se
+arman al compilar desde los `.md`, así que no pueden contener nada de la base. La prueba
+`src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y revisa todas esas
+salidas (también el buscador) y los datos de las páginas. Si el `.md` de un evento tiene
+`location` escrita, es pública (el repo es público): Eventos → Lugares avisa para sacarla.
+
+**El buscador** sigue la regla de gorrite: si quien busca ya tiene una forma de llegar a algo
+navegando, lo puede encontrar buscando; nunca más. El índice es uno solo para todes (se recuerda
+en el servidor), así que es lo que alcanza une visitante sin cuenta. Con `perfiles_publicos`
+prendido lleva los lugares **listados** (están en `/amigues`) y los **no listados a los que lleva
+el link de un evento visible** (listado y publicado, con el nivel «Nombre + dirección» o «Sólo
+Nombre», y el lugar visible y aprobado: lo mismo que decide el link en la página del evento,
+`linkedVenues` en `src/lib/server/amigues/venues.js`). De cada lugar, lo que muestra su página:
+nombre, descripción, etiquetas y, si su nivel por defecto los muestra (`venuePageLevel` en
+`src/lib/utils/venues.js`), barrio y ciudad. **Nunca la calle y número**, «cómo llegar» ni
+«accesibilidad», ni en qué eventos está. Código: `src/lib/server/search/siteIndex.js`.
 
 **«Dónde» sin lugar** (sitios de una sola vez que no son un Lugar: una plaza, un bar): el editor de
 eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link al mapa** opcional
@@ -183,7 +194,8 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   previa tiene «Cómo se crean: No listados (no aparecen en Amigues) · Públicos» y cada lugar nuevo
   lo puede cambiar («Como todos», «No listado», «Público»). No listado es `data.unlisted` del
   perfil, como cualquier perfil no listado: no sale en las listas de `/amigues` (ni en
-  `?tipo=lugar`); el sitemap, el buscador y `/api/posts` salen de los `.md`, así que tampoco. Es
+  `?tipo=lugar`); el sitemap y `/api/posts` salen de los `.md`, así que tampoco. El buscador sí
+  puede llevarlo, pero solo si un evento visible lo linkea (ver «El buscador» arriba). Es
   aparte de la privacidad de la dirección: su evento muestra exactamente lo que su nivel deja ver
   (con el link a la página del lugar, que anda) y la página del lugar lista sus eventos. Lo prueban
   `src/lib/server/amigues/venueImport.test.js` y `src/routes/(content)/amigues/amigues-routes.test.js`.

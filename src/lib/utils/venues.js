@@ -108,6 +108,20 @@ export function showsVenueLink(level) {
 }
 
 /**
+ * El nivel con el que se ve la página de un lugar (su nivel por defecto). La página muestra
+ * siempre el nombre, así que en "Sólo dirección" no puede mostrar también la dirección (juntaría
+ * las dos cosas): ahí se ve como "Sólo Nombre". Lo usan la página del lugar y el buscador, así
+ * muestran lo mismo.
+ *
+ * @param {unknown} venueDefault el `venue_privacy` del lugar
+ * @returns {VenuePrivacy}
+ */
+export function venuePageLevel(venueDefault) {
+	const level = effectivePrivacy(null, venueDefault);
+	return level === 'address' ? 'name' : level;
+}
+
+/**
  * ¿En este nivel se ve la dirección (calle y número) y el mapa? Si no, la página del evento avisa
  * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}).
  *
