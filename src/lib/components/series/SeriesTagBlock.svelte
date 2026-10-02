@@ -65,7 +65,9 @@
 				/>
 			{/if}
 		{/if}
-		{#if info.feed}
+		<!-- Con cuenta y «Lo que sigo», «Seguir» ya pone las fechas en tu calendario: no se ofrece
+		     también el .ics de la etiqueta (pedido de gorrite). Sin cuenta, sigue. -->
+		{#if info.feed && !(info.account.member && info.account.sigo)}
 			<div class="surface-card">
 				<CalendarSubscribe url={origin + info.feed} label="las fechas de {s ? s.name : tag}" />
 			</div>

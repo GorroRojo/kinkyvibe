@@ -44,9 +44,13 @@
 					heading={s.nextUpcoming ? `Avisame de las próximas ediciones` : 'Avisame si se repite'}
 				/>
 			{/if}
-			<div class="cal surface-card">
-				<CalendarSubscribe url={origin + tagFeedPath(s.id)} label="las fechas de {s.name}" />
-			</div>
+			<!-- Con cuenta y «Lo que sigo», seguir ya pone las fechas en tu calendario: el .ics de la
+			     serie sería un segundo camino confuso (pedido de gorrite). Sin cuenta, sigue. -->
+			{#if !(series.account.member && series.account.sigo)}
+				<div class="cal surface-card">
+					<CalendarSubscribe url={origin + tagFeedPath(s.id)} label="las fechas de {s.name}" />
+				</div>
+			{/if}
 		</div>
 	{/each}
 {/if}
