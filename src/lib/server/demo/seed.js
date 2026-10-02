@@ -55,7 +55,10 @@ export const N3_FLAGS = Object.freeze([
 	'borrar_desde_panel',
 	// Noche 4: etiquetas desde la base (#164/#173). El demo importa las etiquetas desde el panel
 	// (Etiquetas → Importar); sin importar, el sitio sigue leyendo el archivo.
-	'etiquetas_db'
+	'etiquetas_db',
+	// Contenido a la base (#166/#167/#169). El demo importa desde Contenido → En la base; lo que
+	// no está en la base sigue saliendo de su .md.
+	'contenido_db'
 ]);
 /** Rol agregado "desde el panel" (#139), además de los fijos. */
 export const N3_CUSTOM_ROLE = 'Cuida la puerta';
