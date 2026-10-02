@@ -358,6 +358,95 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 			]);
 		});
 
+		/** Un código inventado de `maxUses` usos, puesto en la orden `id`. */
+		async function withCode(/** @type {string} */ id, /** @type {number} */ maxUses) {
+			await t.db
+				.prepare(
+					`INSERT INTO discount_codes (code, kind, value, max_uses, created_at, created_by)
+					VALUES ('PRUEBA', 'percent', 10, ?1, 0, 'admin-prueba')
+					ON CONFLICT (code) DO NOTHING`
+				)
+				.bind(maxUses)
+				.run();
+			await t.db.prepare("UPDATE orders SET discount_code = 'PRUEBA' WHERE id = ?").bind(id).run();
+		}
+
+		it('con código sin usos libres: no la reabre; con la clave del aviso sí, y lo anota', async () => {
+			const o = await reserve('fiesta-a', { method: 'transferencia' });
+			await withCode(o.id, 1);
+			await reject(o.id);
+			// Mientras estuvo rechazada, otra compra usó el único uso del código.
+			const other = await reserve('fiesta-a', { now: NOW + 2000 });
+			await withCode(other.id, 1);
+			await approve(other.id);
+			const base = {
+				db: t.db,
+				locals,
+				by: 'admin-prueba',
+				orderId: o.id,
+				holdMs: HOLD,
+				now: NOW + 3000
+			};
+			const first = await reopenTransferFromPanel(base);
+			expect(first).toMatchObject({ ok: false, status: 409 });
+			expect(first.message).toMatch(/con su código/);
+			expect(first.needsConfirmation?.limits).toEqual([
+				expect.objectContaining({ kind: 'discount_uses', maxUses: 1, before: 1, after: 2 })
+			]);
+			expect((await getOrder(t.db, o.id))?.status).toBe('cancelled');
+			expect(await audit()).toEqual([{ action: 'transfer.cancel', target_id: o.id }]);
+
+			const r = await reopenTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+			expect(r).toMatchObject({ ok: true });
+			expect((await getOrder(t.db, o.id))?.status).toBe('awaiting_transfer');
+			expect(await audit()).toEqual([
+				{ action: 'transfer.cancel', target_id: o.id },
+				{ action: 'transfer.reopen', target_id: o.id },
+				{ action: 'tickets.override', target_id: o.id }
+			]);
+			const { results } = await t.db
+				.prepare("SELECT summary FROM admin_audit WHERE action = 'tickets.override'")
+				.all();
+			expect(String(results[0].summary)).toMatch(/usos del código PRUEBA \+1 \(2 \/ 1\)/);
+		});
+
+		it('la sentencia también frena el código sin usos libres (si se usó entre el control y el cambio)', async () => {
+			const { reopenTransfer } = await import('$lib/server/tickets/orders.js');
+			const o = await reserve('fiesta-a', { method: 'transferencia' });
+			await withCode(o.id, 1);
+			await reject(o.id);
+			const other = await reserve('fiesta-a', { now: NOW + 2000 });
+			await withCode(other.id, 1);
+			await approve(other.id);
+			const input = {
+				orderId: o.id,
+				eventSlug: 'fiesta-a',
+				capacity: 3,
+				by: 'admin-prueba',
+				holdMs: HOLD,
+				now: NOW + 3000
+			};
+			expect((await reopenTransfer(t.db, input)).result).toBe('no-capacity');
+			expect((await reopenTransfer(t.db, { ...input, override: true })).result).toBe('reopened');
+		});
+
+		it('con código y usos libres, o sin código, como siempre', async () => {
+			const o = await reserve('fiesta-a', { method: 'transferencia' });
+			await withCode(o.id, 2);
+			await reject(o.id);
+			const other = await reserve('fiesta-a', { now: NOW + 2000 });
+			await withCode(other.id, 2);
+			await approve(other.id);
+			const base = { db: t.db, locals, by: 'admin-prueba', holdMs: HOLD, now: NOW + 3000 };
+			expect(await reopenTransferFromPanel({ ...base, orderId: o.id })).toMatchObject({ ok: true });
+			const plain = await reserve('fiesta-a', { method: 'transferencia', now: NOW + 4000 });
+			await reject(plain.id, NOW + 4500);
+			expect(
+				await reopenTransferFromPanel({ ...base, orderId: plain.id, now: NOW + 5000 })
+			).toMatchObject({ ok: true });
+			expect((await audit()).map((a) => a.action)).not.toContain('tickets.override');
+		});
+
 		it('solo transferencias rechazadas, y del evento pedido', async () => {
 			const pending = await reserve('fiesta-a', { method: 'transferencia' });
 			const base = { db: t.db, locals, by: 'x', holdMs: HOLD, now: NOW + 1000 };
