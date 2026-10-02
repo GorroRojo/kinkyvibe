@@ -180,6 +180,8 @@ export async function profilePageData(db, urlSlug, locals, { cuentas }) {
 		// La dirección del objeto (no la vieja de la ficha): es la que usan los `personas:` de los
 		// eventos (src/lib/server/personas/).
 		objectSlug: object.slug,
+		// El id del objeto: es lo que guarda «Lo que sigo» (botón «Seguir», docs/lo-que-sigo.md).
+		profileId: object.id,
 		canonical: href,
 		bodyHtml: await renderProfileBody(/** @type {string | undefined} */ (object.data.body), {
 			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined)
