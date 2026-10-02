@@ -13,6 +13,8 @@
  * - lineDiff: unified-diff hunks for the preview.
  */
 
+import { isSystemTag, systemTagMessage } from './systemTags.js';
+
 /* ------------------------------------------------------------------------------------------ */
 /*  Parser (the small subset of JS the file uses: an array of object literals)                */
 /* ------------------------------------------------------------------------------------------ */
@@ -665,6 +667,7 @@ function applyOne(m, op) {
 			const err = validateTagName(to);
 			if (err) throw new Error(err);
 			if (from === to) return;
+			if (isSystemTag(from)) throw new Error(systemTagMessage(from, 'rename'));
 			const target = m.aliasTarget(to);
 			if ((m.find(to) || m.isChildRef(to) || target !== undefined) && target !== from)
 				throw new Error(`Ya existe «${to}». Para juntar dos etiquetas usá «Fusionar».`);
@@ -693,6 +696,7 @@ function applyOne(m, op) {
 		case 'merge': {
 			const { from, into } = op;
 			if (from === into) throw new Error('Elegí dos etiquetas distintas.');
+			if (isSystemTag(from)) throw new Error(systemTagMessage(from, 'merge'));
 			if (m.aliasTarget(into) !== undefined && !m.find(into))
 				throw new Error(`«${into}» es un alias: elegí la etiqueta a la que apunta.`);
 			if (m.descendants(from).has(into))
