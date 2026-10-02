@@ -61,6 +61,10 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 	});
 });
 
+// Series que van sin imagen a propósito: decisión de gorrite en el PR #193.
+// Es una lista cerrada; cualquier otra serie sin imagen sigue haciendo fallar el test.
+const SERIES_SIN_IMAGEN = ['Merienda Kinky'];
+
 describe('las series del sitio: imagen e ícono', () => {
 	it('cada serie tiene ícono e imagen, y la imagen existe (de src/lib/assets o de un evento)', () => {
 		const t = tagsFactory();
@@ -69,6 +73,7 @@ describe('las series del sitio: imagen e ícono', () => {
 		for (const id of ids) {
 			const tag = t.get(id);
 			expect(String(tag.icon ?? '').trim(), `${id}: ícono`).not.toBe('');
+			if (SERIES_SIN_IMAGEN.includes(id)) continue;
 			const image = String(seriesImage(tag) ?? '');
 			const ref = eventImageRef(image);
 			const file = ref
@@ -76,6 +81,15 @@ describe('las series del sitio: imagen e ícono', () => {
 				: path.resolve('src/lib/assets', image);
 			expect(image, `${id}: imagen`).not.toBe('');
 			expect(existsSync(file), `${id}: ${image}`).toBe(true);
+		}
+	});
+
+	it('las series de SERIES_SIN_IMAGEN existen y de verdad no tienen imagen', () => {
+		const t = tagsFactory();
+		const ids = seriesTagIds(t);
+		for (const id of SERIES_SIN_IMAGEN) {
+			expect(ids, id).toContain(id);
+			expect(seriesImage(t.get(id)), id).toBeUndefined();
 		}
 	});
 });

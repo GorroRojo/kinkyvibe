@@ -149,14 +149,14 @@ export const hardcodedTags = [
 		image: 'calendario:fugas-criticas-charla-debate-2025-07-redes-afectivas-en-tiempos-de-individualismo/1.webp'
 	},
 	{ id: 'Aberraciones', icon: '🎬', image: 'aberraciones-miniatura.webp' },
-	{ id: 'Carrera de Reyes', icon: '👑', image: 'calendario:carrera-de-reyes-2025-04/1.webp' },
+	{ id: 'Carrera de Reyes', icon: '👑', image: 'carrera-de-reyes-miniatura.webp' },
 	{ id: 'Club de Hosts', icon: '🥂', image: 'club-de-hosts-halloween-miniatura.webp' },
 	{
 		id: 'Cuirdas Sudacas',
 		icon: '🪢',
-		image: 'calendario:cuirdas-sudacas-2026-07-casita/1.webp'
+		image: 'cuirdas-sudacas-miniatura.webp'
 	},
-	{ id: 'Deseo & Disidencia', icon: '🎗️', image: 'deseo-y-disidencia-miniatura.webp' },
+	{ id: 'Deseo & Disidencia', icon: '🧣', image: 'deseo-y-disidencia-miniatura.webp' },
 	{
 		id: 'Despatologizando las Prácticas BDSM',
 		icon: '🩺',
@@ -171,34 +171,34 @@ export const hardcodedTags = [
 	{ id: 'Fiesta Colectiver', icon: '🪩', image: 'calendario:colectiver-2026-08/1.webp' },
 	{
 		id: 'Grupo de Apoyo y Discusión para age players',
-		icon: '🧸',
+		icon: '🍭',
 		image: 'grupo-age-players-miniatura.webp'
 	},
 	{
 		id: 'Grupo de Apoyo y Discusión para Doms',
-		icon: '🗝️',
+		icon: '💓',
 		image: 'grupo-doms-miniatura.webp'
 	},
 	{
 		id: 'Grupo de Apoyo y Discusión para sumis',
-		icon: '🕊️',
+		icon: '💝',
 		image: 'grupo-sumis-miniatura.webp'
 	},
 	{
 		id: 'Grupo de Apoyo y Discusión para sumis y Doms',
-		icon: '🤝',
+		icon: '💞',
 		image: 'grupo-sumis-y-doms-miniatura.webp'
 	},
-	{ id: '¡Hablame sucio!', icon: '💋', image: 'hablame-sucio-miniatura.webp' },
-	{ id: 'Jamarada Kinky', icon: '🌀', image: 'jamarada-kinky-miniatura.webp' },
+	{ id: '¡Hablame sucio!', icon: '👅', image: 'hablame-sucio-miniatura.webp' },
+	{ id: 'Jamarada Kinky', icon: '🔥', image: 'jamarada-kinky-miniatura.webp' },
 	{ id: 'Juegos de Rol', icon: '🎭', image: 'taller-juegos-de-rol-miniatura.webp' },
-	{ id: 'Kinky Jam', icon: '⛓️', image: 'kinky-jam-miniatura.webp' },
-	{ id: 'Laboratorio fetichista', icon: '🔬', image: 'laboratorio-somatico-miniatura.webp' },
-	{ id: 'Matiné de Cuerdas', icon: '🧉', image: 'matine-de-cuerdas-miniatura.webp' },
-	{ id: 'Merienda Kinky', icon: '🍰', image: 'calendario:merienda-kinky-noviembre-2023/1.webp' },
+	{ id: 'Kinky Jam', icon: '🔥', image: 'kinky-jam-miniatura.webp' },
+	{ id: 'Laboratorio fetichista', icon: '🧪', image: 'laboratorio-somatico-miniatura.webp' },
+	{ id: 'Matiné de Cuerdas', icon: '🪢', image: 'matine-de-cuerdas-miniatura.webp' },
+	{ id: 'Merienda Kinky', icon: '🧉' },
 	{ id: 'Mini Talleres Rapiditos', icon: '⏱️', image: 'rapidito-miniatura.webp' },
 	{ id: 'Pinchacitos', icon: '🪡', image: 'pinchacitos-miniatura.webp' },
-	{ id: 'Rancheadita Kinky', icon: '🌳', image: 'rancheadita-kinky-miniatura.webp' },
+	{ id: 'Rancheadita Kinky', icon: '🧺', image: 'rancheadita-kinky-miniatura.webp' },
 	{
 		id: 'Reducción de Daños de Sustancias con Perspectiva Disidente',
 		icon: '🛟',
@@ -206,7 +206,7 @@ export const hardcodedTags = [
 	},
 	{ id: 'Seducir y Negar', icon: '😏', image: 'seducir-y-negar-miniatura.webp' },
 	{ id: 'Someter', icon: '🤼', image: 'someter-miniatura.webp' },
-	{ id: 'Taller de Age Play', icon: '🪀', image: 'taller-age-play-miniatura.webp' },
+	{ id: 'Taller de Age Play', icon: '🍭', image: 'taller-age-play-miniatura.webp' },
 	{ id: 'Taller de Asfixia Erótica', icon: '🌬️', image: 'asfixia-erotica-miniatura.webp' },
 	{ id: 'Taller de BDSM Inicial', icon: '🌱', image: 'bdsm-inicial-online.webp' },
 	{ id: 'Taller de Bondage', icon: '🔗', image: 'taller-bondage-miniatura.webp' },
@@ -242,7 +242,7 @@ export const hardcodedTags = [
 	},
 	{
 		id: 'Taller introductorio intensivo de shibari',
-		icon: '🔰',
+		icon: '🪢',
 		image: 'taller-shibari-intensivo.webp'
 	},
 	{ id: 'Tinta Corrida', icon: '🖨️', image: 'tinta-corrida-miniatura.webp' },
