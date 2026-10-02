@@ -26,7 +26,9 @@ const { candidates, skipped } = planVenueImport(
 			'2024-01-01'
 		),
 		ev('d', { location: 'Barrio Falso, Ciudad Inventada' }, '2023-01-01'),
-		ev('e', { location: 'Online' }, '2023-01-01')
+		ev('e', { location: 'Online' }, '2023-01-01'),
+		// En un lugar que ya existe: se ofrece vincularlo (no hay nada que crear).
+		ev('f', { location_name: 'Sótano Inventado' }, '2023-05-01')
 	],
 	{
 		venues: [{ id: 9, slug: 'sotano', title: 'Sótano Inventado', data: { kind: 'lugar' } }]
@@ -63,6 +65,26 @@ describe('/admin/eventos/lugares/importar', () => {
 		expect(checked('b')).toBe(true);
 		expect(checked('c')).toBe(false);
 		expect(body).toContain('Cambiaría: se va a ver con el nombre «Galpón Inventado»');
+	});
+
+	it('cómo se crean: no listados por defecto, con «Públicos» y la opción de cada lugar', () => {
+		expect(body).toContain('Cómo se crean');
+		const radio = (/** @type {string} */ value) =>
+			body.match(new RegExp(`<input[^>]*type="radio"[^>]*value="${value}"[^>]*>`))?.[0] ?? '';
+		expect(radio('unlisted')).toMatch(/checked/);
+		expect(radio('unlisted')).toContain('name="listado"');
+		expect(radio('listed')).not.toMatch(/checked/);
+		expect(body).toContain('No listados (no aparecen en Amigues)');
+		expect(body).toContain('Públicos');
+		// Cada lugar nuevo tiene su opción, que arranca «como todos»; el que ya existe no.
+		const named = candidates.find((c) => c.hasName && !c.existing);
+		const existing = candidates.find((c) => c.existing);
+		expect(named).toBeDefined();
+		expect(existing).toBeDefined();
+		expect(body).toContain(`name="listado:${named?.key}"`);
+		expect(body).not.toContain(`name="listado:${existing?.key}"`);
+		expect(body).toContain('Como todos (No listado)');
+		expect(body).toContain('no aparece en Amigues');
 	});
 
 	it('no manda nada sin confirmar, y tiene CSV', () => {

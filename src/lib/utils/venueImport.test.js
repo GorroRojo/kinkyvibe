@@ -21,7 +21,9 @@ import {
 	refitEvents,
 	streetKey,
 	venueDataFor,
-	venueDefaultLevel
+	venueDefaultLevel,
+	venueListing,
+	DEFAULT_VENUE_LISTING
 } from './venueImport.js';
 
 /**
@@ -317,5 +319,24 @@ describe('qué cambiaría al vincular', () => {
 		expect(importLinks(c, ['b', 'c']).venuePrivacy).toBe('name');
 		// Un lugar que ya existe conserva su nivel.
 		expect(importLinks(c, ['a'], 'area').links).toEqual([{ slug: 'a', privacy: 'public' }]);
+	});
+});
+
+describe('cómo se crean (listados en Amigues o no)', () => {
+	it('por defecto, no listados (decisión de gorrite)', () => {
+		expect(DEFAULT_VENUE_LISTING).toBe('unlisted');
+		expect(venueListing(undefined)).toBe('unlisted');
+		expect(venueListing(null, null)).toBe('unlisted');
+		expect(venueListing('cualquier cosa', '')).toBe('unlisted');
+	});
+
+	it('la opción para todos, salvo que el lugar tenga la suya', () => {
+		expect(venueListing('listed')).toBe('listed');
+		expect(venueListing('listed', '')).toBe('listed');
+		expect(venueListing('unlisted', '')).toBe('unlisted');
+		expect(venueListing('listed', 'unlisted')).toBe('unlisted');
+		expect(venueListing('unlisted', 'listed')).toBe('listed');
+		expect(venueListing(undefined, 'listed')).toBe('listed');
+		expect(venueListing('listed', 'otra')).toBe('listed');
 	});
 });

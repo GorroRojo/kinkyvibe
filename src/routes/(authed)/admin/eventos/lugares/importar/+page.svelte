@@ -8,7 +8,14 @@
 	import { invalidateAll } from '$app/navigation';
 	import { MapPin } from '@lucide/svelte';
 	import { VENUE_PRIVACY_LABELS } from '$lib/utils/venues.js';
-	import { importLinks, newVenueFor, refitEvents } from '$lib/utils/venueImport.js';
+	import {
+		DEFAULT_VENUE_LISTING,
+		VENUE_LISTING_LABELS,
+		importLinks,
+		newVenueFor,
+		refitEvents,
+		venueListing
+	} from '$lib/utils/venueImport.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -18,7 +25,17 @@
 	export let data;
 
 	/** @typedef {import('$lib/utils/venueImport.js').VenueCandidate} VenueCandidate */
-	/** @typedef {{ create: boolean, title: string, location: string, events: Record<string, boolean> }} Choice */
+	/** @typedef {import('$lib/utils/venueImport.js').VenueListing} VenueListing */
+	/**
+	 * `listing`: lo elegido para ese lugar ('' = como todos).
+	 * @typedef {{ create: boolean, title: string, location: string, events: Record<string, boolean>, listing: VenueListing | '' }} Choice
+	 */
+
+	/** Cómo se crean los lugares nuevos (decisión de gorrite: no listados por defecto). */
+	/** @type {VenueListing} */
+	let listingAll = DEFAULT_VENUE_LISTING;
+	/** @type {VenueListing[]} */
+	const LISTINGS = ['unlisted', 'listed'];
 
 	/** @param {VenueCandidate[]} candidates @returns {Record<string, Choice>} */
 	const initialChoices = (candidates) =>
@@ -29,7 +46,8 @@
 					create: c.suggested,
 					title: c.title,
 					location: c.address || c.area,
-					events: Object.fromEntries(c.events.map((e) => [e.slug, e.fits]))
+					events: Object.fromEntries(c.events.map((e) => [e.slug, e.fits])),
+					listing: /** @type {VenueListing | ''} */ ('')
 				}
 			])
 		);
@@ -64,10 +82,12 @@
 		const events = eventsOf(c, choice);
 		const chosen = events.filter((e) => choice.events[e.slug]).map((e) => e.slug);
 		const { venuePrivacy, links } = importLinks({ ...c, events }, chosen);
-		return { c, events, chosen, venuePrivacy, links };
+		const listing = venueListing(listingAll, choice.listing);
+		return { c, events, chosen, venuePrivacy, links, listing };
 	});
 	$: selected = views.filter((v) => choices[v.c.key].create && v.chosen.length);
 	$: toCreate = selected.filter((v) => !v.c.existing).length;
+	$: toCreateListed = selected.filter((v) => !v.c.existing && v.listing === 'listed').length;
 	$: toLink = selected.reduce((n, v) => n + v.chosen.length, 0);
 
 	let confirming = false;
@@ -226,6 +246,20 @@
 			<EmptyState icon={MapPin} title="No hay lugares para armar" />
 		{:else}
 			<form method="POST" action="?/crear" use:enhance={runAll}>
+				<fieldset class="listing">
+					<legend>Cómo se crean</legend>
+					{#each LISTINGS as l (l)}
+						<label class="pick">
+							<input type="radio" name="listado" value={l} bind:group={listingAll} />
+							{VENUE_LISTING_LABELS[l].all}
+						</label>
+					{/each}
+					<p class="small muted block">
+						Es si el perfil del lugar aparece en Amigues. Los eventos muestran lo mismo de cualquier
+						forma (según la privacidad de cada uno) y la página del lugar anda por su link. Podés
+						cambiarlo en cada lugar.
+					</p>
+				</fieldset>
 				<ul class="candidates">
 					{#each views as v (v.c.key)}
 						{@const c = v.c}
@@ -276,6 +310,15 @@
 									{:else}
 										<input type="hidden" name="donde:{c.key}" value={choices[c.key].location} />
 									{/if}
+									<label class="kv-field">
+										<span>En Amigues</span>
+										<select name="listado:{c.key}" bind:value={choices[c.key].listing}>
+											<option value="">Como todos ({VENUE_LISTING_LABELS[listingAll].one})</option>
+											{#each LISTINGS as l (l)}
+												<option value={l}>{VENUE_LISTING_LABELS[l].one}</option>
+											{/each}
+										</select>
+									</label>
 								{/if}
 							</div>
 							<p class="small muted">
@@ -286,7 +329,8 @@
 								{#if c.existing}
 									cada evento queda mostrando lo que mostraba
 								{:else}
-									se muestra: {VENUE_PRIVACY_LABELS[v.venuePrivacy]}
+									se muestra: {VENUE_PRIVACY_LABELS[v.venuePrivacy]} ·
+									{v.listing === 'listed' ? 'aparece en Amigues' : 'no aparece en Amigues'}
 								{/if}
 								{#if !c.hasName}<Badge tone="warn">sin nombre: escribí uno</Badge>{/if}
 							</p>
@@ -342,8 +386,11 @@
 								toLink,
 								'evento',
 								'eventos'
-							)}. Los lugares nacen públicos y aprobados. Los eventos no se tocan: el vínculo se
-							guarda aparte y se puede sacar en Lugares.
+							)}.{#if toCreate}
+								Lugares nuevos: {plural(toCreate - toCreateListed, 'no listado', 'no listados')} (no aparecen
+								en Amigues) y {plural(toCreateListed, 'público', 'públicos')}; todos nacen
+								aprobados.{/if} Los eventos no se tocan: el vínculo se guarda aparte y se puede sacar
+							en Lugares.
 						</p>
 						<div class="kv-row">
 							<button class="kv-btn" type="submit" disabled={busy}
@@ -426,6 +473,20 @@
 	}
 	.events li {
 		padding: 0.35rem 0;
+	}
+	.listing {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0 1.2rem;
+		align-items: center;
+		border: 0;
+		padding: 0;
+		margin: 0 0 0.6rem;
+	}
+	.listing legend {
+		font-weight: 600;
+		padding: 0;
+		margin-bottom: 0.2rem;
 	}
 	.actions,
 	.confirm {

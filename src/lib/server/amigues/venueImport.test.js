@@ -1,7 +1,8 @@
 /**
- * Lugares → «Importar de eventos» contra un D1 de miniflare: crea los lugares elegidos (públicos,
- * aprobados, con el nivel que muestra lo que ya mostraban los eventos), vincula solo los eventos
- * marcados, no pisa vínculos, va de a tandas y se puede repetir. Y lo más importante: **vincular
+ * Lugares → «Importar de eventos» contra un D1 de miniflare: crea los lugares elegidos (visibles,
+ * aprobados, no listados en /amigues salvo que se elija «Públicos», con el nivel que muestra lo
+ * que ya mostraban los eventos), vincula solo los eventos marcados, no pisa vínculos, va de a
+ * tandas y se puede repetir. Y lo más importante: **vincular
  * no cambia lo que muestra el sitio** (la página del evento, las listas y el .ics muestran lo mismo
  * antes y después). Eventos y lugares inventados.
  */
@@ -48,7 +49,8 @@ async function modules() {
 	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: '1' } }));
 	return {
 		imp: await import('./venueImport.js'),
-		venues: await import('./venues.js')
+		venues: await import('./venues.js'),
+		profiles: await import('./profiles.js')
 	};
 }
 
@@ -112,7 +114,7 @@ describe('leer los eventos', () => {
 });
 
 describe('crear lugares', () => {
-	it('crea el lugar público y aprobado, con el nivel de sus eventos, y vincula solo los marcados', async () => {
+	it('crea el lugar visible y aprobado (no listado), con el nivel de sus eventos, y vincula solo los marcados', async () => {
 		const { imp, venues } = await modules();
 		setPosts([
 			post('ev-full', FAKE.full),
@@ -160,10 +162,12 @@ describe('crear lugares', () => {
 			created_by: 'admin-inventade',
 			approved_by: 'admin-inventade'
 		});
+		// Sin elegir cómo se crea: no listado (decisión de gorrite).
 		expect(JSON.parse(String(row?.data))).toEqual({
 			kind: 'lugar',
 			address: 'Calle Falsa 123, CABA',
-			venue_privacy: 'public'
+			venue_privacy: 'public',
+			unlisted: true
 		});
 		const links = await venues.listEventVenues(t.db);
 		expect(links.map((l) => [l.eventSlug, l.privacy, l.updatedBy])).toEqual([
@@ -267,6 +271,111 @@ describe('crear lugares', () => {
 			expect(r.results).toHaveLength(2);
 		}
 		expect(total).toBe(5);
+	});
+});
+
+describe('cómo se crean: no listados (por defecto) o públicos en /amigues', () => {
+	it('el formulario: no listado por defecto, la opción para todos y la de cada lugar', async () => {
+		const { imp } = await modules();
+		/** @param {[string, string][]} entries */
+		const form = (entries) => {
+			const f = new FormData();
+			for (const [k, v] of entries) f.append(k, v);
+			return f;
+		};
+		const base = /** @type {[string, string][]} */ ([
+			['crear', 'a'],
+			['crear', 'b'],
+			['evento:a', 'ev-a'],
+			['evento:b', 'ev-b']
+		]);
+		const listings = (/** @type {[string, string][]} */ extra) =>
+			imp.readVenueChoices(form([...base, ...extra])).map((c) => c.listing);
+		expect(listings([])).toEqual(['unlisted', 'unlisted']);
+		expect(listings([['listado', 'otra-cosa']])).toEqual(['unlisted', 'unlisted']);
+		expect(listings([['listado', 'listed']])).toEqual(['listed', 'listed']);
+		expect(
+			listings([
+				['listado', 'listed'],
+				['listado:a', ''],
+				['listado:b', 'unlisted']
+			])
+		).toEqual(['listed', 'unlisted']);
+		expect(
+			listings([
+				['listado', 'unlisted'],
+				['listado:a', 'listed']
+			])
+		).toEqual(['listed', 'unlisted']);
+	});
+
+	it('no listado: fuera de /amigues, pero el evento lo muestra igual y su página anda', async () => {
+		const { imp, venues, profiles } = await modules();
+		setPosts([
+			post('ev-full', FAKE.full),
+			post('ev-name', FAKE.nameOnly),
+			post('ev-otro', { location_name: 'Bar Inventado', location: 'Pasaje Falso 45, CABA' })
+		]);
+		const events = await imp.importableEvents(undefined);
+		const before = Object.fromEntries(events.map((e) => [e.slug, shown(e.meta, null)]));
+		const plan = await imp.loadVenueImportPlan(t.db, events);
+		const galpon = plan.candidates.find((c) => c.title === 'Galpón Inventado');
+		const bar = plan.candidates.find((c) => c.title === 'Bar Inventado');
+		if (!galpon || !bar) throw new Error('faltan candidatos');
+		const { results } = await imp.runVenueImport(
+			t.db,
+			plan,
+			[
+				// Sin elegir: no listado.
+				{
+					key: galpon.key,
+					title: galpon.title,
+					location: galpon.address,
+					events: ['ev-full', 'ev-name']
+				},
+				{
+					key: bar.key,
+					title: bar.title,
+					location: bar.address,
+					events: ['ev-otro'],
+					listing: 'listed'
+				}
+			],
+			{ actor: 'a' }
+		);
+		expect(results).toMatchObject([
+			{ action: 'created', title: 'Galpón Inventado', listing: 'unlisted' },
+			{ action: 'created', title: 'Bar Inventado', listing: 'listed' }
+		]);
+		const data = async (/** @type {number | undefined} */ id) =>
+			JSON.parse(
+				String(
+					(await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(id).first())?.data
+				)
+			);
+		expect((await data(results[0].venueId)).unlisted).toBe(true);
+		expect(await data(results[1].venueId)).not.toHaveProperty('unlisted');
+
+		// /amigues (todas las listas, también la de lugares): solo el público.
+		for (const kind of [undefined, /** @type {const} */ ('lugar')]) {
+			const listed = await profiles.listPublicProfiles(t.db, ANON, { kind });
+			expect(listed.map((p) => p.object.title)).toEqual(['Bar Inventado']);
+		}
+		// La página de los dos anda (el evento linkea al lugar con «Nombre + dirección»).
+		for (const r of results) {
+			const page = await profiles.findPublicProfile(t.db, String(r.slug), ANON);
+			expect(page?.object.title, r.title).toBe(r.title);
+		}
+		// Y cada evento muestra exactamente lo mismo que antes, listado o no.
+		for (const e of events) {
+			const view = await venues.publicVenueForEvent(t.db, e.slug, ANON);
+			expect(view, e.slug).not.toBeNull();
+			expect(shown(e.meta, view), e.slug).toEqual(before[e.slug]);
+		}
+		expect(await venues.publicVenueForEvent(t.db, 'ev-full', ANON)).toMatchObject({
+			name: 'Galpón Inventado',
+			href: `/amigues/${results[0].slug}`
+		});
 	});
 });
 
