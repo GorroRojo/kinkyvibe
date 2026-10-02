@@ -606,7 +606,9 @@ export async function enableAutoMerge(token, pull) {
  * so edits made from an older read never overwrite someone else's change. Both are checked on
  * the commit's base: main, or the branch of the open PR it stacks on. Never force-pushes.
  * @param {string} token
- * @param {{files: CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: PublishOptions}} opts
+ * `actor` (login of who saves) is not used here: the events stored in the database record it
+ * (withContentDb in $lib/server/contenido/repo.js).
+ * @param {{files: CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: PublishOptions, actor?: string}} opts
  * @returns {Promise<{sha: string, url: string, pr?: PublishResult}>} `pr` is always set here; the
  *   dev mock and the demo layer (same interface) have no PR.
  */

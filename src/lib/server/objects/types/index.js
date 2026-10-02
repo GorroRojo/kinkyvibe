@@ -8,6 +8,7 @@ import { validateFields } from '../fields.js';
 import etiqueta from './etiqueta.js';
 import evento from './evento.js';
 import lugar from './lugar.js';
+import material from './material.js';
 import perfil from './perfil.js';
 
 /**
@@ -69,7 +70,7 @@ export function createRegistry(list) {
 }
 
 /** Los tipos núcleo del sitio. */
-export const coreTypes = createRegistry([evento, lugar, perfil, etiqueta]);
+export const coreTypes = createRegistry([evento, lugar, perfil, etiqueta, material]);
 
 /**
  * Valida y normaliza los datos de un objeto según su tipo.

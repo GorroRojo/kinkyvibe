@@ -4,7 +4,10 @@
  * - `postAgendaSaveMany`: varias filas en un solo commit (action `saveMany`: "Guardar N filas" de
  *   la planilla y "Guardar cambios" de los eventos movidos en el calendario);
  * - `postDayNote` / `postDayNoteDelete`: guardar o borrar una nota de un día (actions `noteSave` y
- *   `noteDelete`, en D1).
+ *   `noteDelete`, en D1);
+ * - `postQuickDraft`: cargar un borrador en un día, duplicando un evento o de cero (action
+ *   `crearBorrador`);
+ * - `postConfirmDraft`: confirmar un borrador (action `confirmar`).
  * Devuelven lo que respondió el servidor, o null si la sesión venció y se fue a /login.
  */
 import { deserialize } from '$app/forms';
@@ -125,4 +128,43 @@ export async function postDayNoteDelete(id) {
 	const r = await postAction('noteDelete', form);
 	if (!r) return null;
 	return r.data?.note ?? { ok: false, message: r.status ? SERVER_ERROR : OFFLINE };
+}
+
+/**
+ * @typedef {{
+ *   ok: boolean,
+ *   message: string,
+ *   slug?: string,
+ *   title?: string,
+ *   notes?: string[],
+ *   row?: ReturnType<typeof import('$lib/server/eventos/drafts.js').draftAgendaRow>
+ * }} QuickDraftResponse
+ */
+
+/**
+ * @param {{ source?: string, title?: string, date: string, startTime?: string, endTime?: string }} fields
+ * @returns {Promise<QuickDraftResponse | null>}
+ */
+export async function postQuickDraft(fields) {
+	const form = new FormData();
+	for (const [k, v] of Object.entries(fields)) if (v) form.set(k, v);
+	const r = await postAction('crearBorrador', form);
+	if (!r) return null;
+	return r.data?.draft ?? { ok: false, message: r.status ? SERVER_ERROR : OFFLINE };
+}
+
+/**
+ * @param {string} slug
+ * @param {import('$lib/utils/agenda.js').AgendaValues} before lo que la persona vio
+ * @returns {Promise<AgendaSaveResponse | null>}
+ */
+export async function postConfirmDraft(slug, before) {
+	const form = new FormData();
+	form.set('slug', slug);
+	form.set('before', JSON.stringify(before));
+	const r = await postAction('confirmar', form);
+	if (!r) return null;
+	return (
+		r.data?.confirm ?? { status: r.status, ok: false, message: r.status ? SERVER_ERROR : OFFLINE }
+	);
 }
