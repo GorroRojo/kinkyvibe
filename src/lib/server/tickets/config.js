@@ -113,7 +113,6 @@ import {
 	PAYMENT_METHODS,
 	defaultFondoOption,
 	isFondoOption,
-	normalizeDni,
 	parseAmount,
 	parseFeePercent,
 	parseSaleTime
@@ -125,6 +124,11 @@ import {
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
 import { validateAnswers } from '$lib/utils/signupFields.js';
+import { validateBuyer, validateHolder, validateHolders } from '$lib/utils/ticketBuyer.js';
+
+// Viven en $lib/utils/ticketBuyer.js (la página de compra valida cada paso en el navegador con
+// las mismas reglas).
+export { validateBuyer, validateHolder, validateHolders };
 
 // Viven en $lib/utils/ticketsEditor.js (el editor de eventos también las usa en el navegador).
 export { KINKYVIBE_TAG, isKinkyVibeEvent, isOnlineEvent };
@@ -547,76 +551,6 @@ export function typeAvailability(config, type, taken, now = Date.now()) {
 }
 
 /**
- * Texto de una línea: sin caracteres de control ni de dirección (bidi, ancho cero), espacios
- * colapsados.
- * @param {unknown} raw
- */
-function cleanText(raw) {
-	return typeof raw === 'string'
-		? raw
-				// eslint-disable-next-line no-control-regex -- se sacan a propósito
-				.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, ' ')
-				.trim()
-				.replace(/\s+/g, ' ')
-		: '';
-}
-
-/**
- * Los nombres van en mails y en el admin: sin links ni etiquetas.
- * @param {string} text
- */
-const looksLikeLink = (text) =>
-	/https?:|www\.|[<>]|\b[a-z0-9-]+\.(com|net|org|ar|io|ly|me|xyz)\b/i.test(text);
-
-/**
- * Valida los datos de una persona (una entrada): son para el evento.
- *
- * - nombre: como se conoce a la persona (no hace falta que sea el del documento), 2 a 80 letras;
- * - pronombres: obligatorios, hasta 40 letras (texto libre: "ella", "elle / él", "cualquiera"…).
- *
- * @param {{ name?: unknown, pronouns?: unknown }} raw
- * @returns {{ ok: true, holder: Holder } | { ok: false, errors: { name?: string, pronouns?: string } }}
- */
-export function validateHolder(raw) {
-	/** @type {{ name?: string, pronouns?: string }} */
-	const errors = {};
-	const name = cleanText(raw.name);
-	if (name.length < 2 || name.length > 80) errors.name = 'Poné un nombre (entre 2 y 80 letras).';
-	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
-	const pronouns = cleanText(raw.pronouns);
-	if (!pronouns) errors.pronouns = 'Poné los pronombres de esta persona.';
-	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
-	if (Object.keys(errors).length) return { ok: false, errors };
-	return { ok: true, holder: { name, pronouns } };
-}
-
-/**
- * Valida los datos de quien compra (uno por compra): nombre, pronombres (obligatorios, como en
- * cada entrada), email y DNI (7 a 9 dígitos, se aceptan puntos; se guarda solo con dígitos).
- *
- * @param {{ name?: unknown, pronouns?: unknown, email?: unknown, dni?: unknown }} raw
- * @returns {{ ok: true, buyer: Buyer } | { ok: false, errors: { name?: string, pronouns?: string, email?: string, dni?: string } }}
- */
-export function validateBuyer(raw) {
-	/** @type {{ name?: string, pronouns?: string, email?: string, dni?: string }} */
-	const errors = {};
-	const name = cleanText(raw.name);
-	if (name.length < 2 || name.length > 80) errors.name = 'Poné tu nombre (entre 2 y 80 letras).';
-	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
-	const pronouns = cleanText(raw.pronouns);
-	if (!pronouns) errors.pronouns = 'Poné tus pronombres.';
-	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
-	const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
-	if (email.length > 254 || !/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/.test(email)) {
-		errors.email = 'Revisá el email: ahí te mandamos las entradas.';
-	}
-	const dni = normalizeDni(raw.dni);
-	if (!dni) errors.dni = 'Revisá el DNI: tiene que tener entre 7 y 9 números.';
-	if (Object.keys(errors).length || !dni) return { ok: false, errors };
-	return { ok: true, buyer: { name, pronouns, email, dni } };
-}
-
-/**
  * Valida lo que manda el formulario de compra. Los precios salen de `config`, no del form.
  *
  * Errores: `name`, `pronouns`, `email`, `dni` (quien compra), `amount` (monto "a la gorra") y
@@ -664,16 +598,11 @@ export function validatePurchase(config, input) {
 	const b = validateBuyer(input.buyer);
 	if (!b.ok) Object.assign(errors, b.errors);
 	/** @type {Holder[]} */
-	const holders = [];
+	let holders = [];
 	if (!errors.quantity) {
-		for (let i = 0; i < quantity; i++) {
-			const raw = input.holders[i] ?? {};
-			const name = i === 0 && !cleanText(raw.name) ? input.buyer.name : raw.name;
-			const pronouns = i === 0 && !cleanText(raw.pronouns) ? input.buyer.pronouns : raw.pronouns;
-			const r = validateHolder({ name, pronouns });
-			if (r.ok) holders.push(r.holder);
-			else for (const [k, v] of Object.entries(r.errors)) errors[`holder_${k}_${i}`] = v;
-		}
+		const h = validateHolders(input.buyer, input.holders, quantity);
+		holders = h.holders;
+		Object.assign(errors, h.errors);
 	}
 	const method =
 		input.method === undefined || input.method === '' ? config.paymentMethods[0] : input.method;

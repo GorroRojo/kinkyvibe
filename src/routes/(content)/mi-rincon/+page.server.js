@@ -1,7 +1,7 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), cerrar sesión (acá o en todos lados) y borrar la
- * cuenta. Con el
+ * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
+ * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Con el
  * interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
@@ -30,6 +30,13 @@ import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
+import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import {
+	editSavedBuyer,
+	isSavedBuyerField,
+	maskDni,
+	withoutSavedField
+} from '$lib/utils/savedBuyer.js';
 
 /** Lo que hay que escribir para confirmar el borrado. */
 const DELETE_CONFIRMATION = 'borrar';
@@ -65,6 +72,15 @@ export async function load(event) {
 		logDBError('cuentas: compras', e);
 		ordersError = true;
 	}
+	// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+	let saved = /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({});
+	let savedError = false;
+	try {
+		saved = await getSavedBuyer(db, account.id);
+	} catch {
+		console.error('[cuentas] no se pudieron leer los datos guardados');
+		savedError = true;
+	}
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
 	const events = new Map();
 	for (const o of orders) {
@@ -81,6 +97,13 @@ export async function load(event) {
 		// Interruptor `lo_que_sigo`: link a Mi rincón → Lo que sigo (docs/lo-que-sigo.md).
 		sigoOn: await sigoEnabled(event.platform),
 		ordersError,
+		saved: {
+			name: saved.name ?? '',
+			pronouns: saved.pronouns ?? '',
+			hasDni: Boolean(saved.dni),
+			dniMasked: maskDni(saved.dni)
+		},
+		savedError,
 		orders: orders.map((o) => ({
 			id: o.id,
 			reference: orderReference(o.id),
@@ -195,6 +218,73 @@ export const actions = {
 			action: 'contrasena',
 			message: 'Listo: ya no tenés contraseña. Entrás con el código por mail.'
 		};
+	},
+
+	// «Mis datos»: cambia el nombre y los pronombres (vacíos se sacan) y el DNI (vacío no cambia).
+	// Mismas reglas que la compra (validadores de quien compra).
+	datos: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		try {
+			const current = await getSavedBuyer(db, member.id);
+			const r = editSavedBuyer(current, {
+				name: field(form, 'name'),
+				pronouns: field(form, 'pronouns'),
+				dni: field(form, 'dni')
+			});
+			// Lo escrito vuelve, salvo el DNI (no se devuelve nunca en un error).
+			if (!r.ok)
+				return fail(400, {
+					action: 'datos',
+					errors: r.errors,
+					values: { name: field(form, 'name'), pronouns: field(form, 'pronouns') }
+				});
+			await setSavedBuyer(db, member.id, r.saved);
+		} catch {
+			console.error('[cuentas] no se pudieron guardar los datos');
+			return fail(500, { action: 'datos', error: 'No se pudo guardar. Probá de nuevo.' });
+		}
+		return { action: 'datos', message: 'Tus datos quedaron guardados.' };
+	},
+
+	borrarDato: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const campo = field(form, 'campo');
+		if (!isSavedBuyerField(campo))
+			return fail(400, { action: 'datos', error: 'No sabemos qué borrar.' });
+		try {
+			const current = await getSavedBuyer(db, member.id);
+			await setSavedBuyer(db, member.id, withoutSavedField(current, campo));
+		} catch {
+			console.error('[cuentas] no se pudo borrar un dato guardado');
+			return fail(500, { action: 'datos', error: 'No se pudo borrar. Probá de nuevo.' });
+		}
+		const what = { name: 'Tu nombre', pronouns: 'Tus pronombres', dni: 'Tu DNI' }[campo];
+		return { action: 'datos', message: `${what}: borrado.` };
+	},
+
+	borrarDatos: async (event) => {
+		const { db, member } = await requireMember(event);
+		try {
+			await setSavedBuyer(db, member.id, {});
+		} catch {
+			console.error('[cuentas] no se pudieron borrar los datos guardados');
+			return fail(500, { action: 'datos', error: 'No se pudo borrar. Probá de nuevo.' });
+		}
+		return { action: 'datos', message: 'Listo: borramos todos tus datos guardados.' };
+	},
+
+	// «Mostrar» el DNI entero: solo a la propia cuenta, en la respuesta de esta acción.
+	mostrarDni: async (event) => {
+		const { db, member } = await requireMember(event);
+		try {
+			const { dni } = await getSavedBuyer(db, member.id);
+			return { action: 'datos', dni: dni ?? '' };
+		} catch {
+			console.error('[cuentas] no se pudieron leer los datos guardados');
+			return fail(500, { action: 'datos', error: 'No se pudo. Probá de nuevo.' });
+		}
 	},
 
 	salir: async (event) => {

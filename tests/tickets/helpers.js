@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import { expect } from '@playwright/test';
 import path from 'node:path';
 
 export const SHOTS = process.env.TICKETS_SHOTS_DIR;
@@ -54,6 +55,43 @@ export function ars(n) {
 /** @param {string} dni */
 export function dotted(dni) {
 	return Number(dni).toLocaleString('es-AR');
+}
+
+/**
+ * Compra en tres pasos: «Continuar» desde el paso que se ve y espera que se vea el siguiente
+ * (su título, que además recibe el foco).
+ *
+ * @param {import('@playwright/test').Locator} block el bloque de compra (#entradas)
+ * @param {'Tus datos' | 'Pagar'} next el nombre del paso al que se llega
+ */
+export async function nextStep(block, next) {
+	await block.getByRole('button', { name: /^Continuar/ }).click();
+	await expect(stepHeading(block, next)).toBeVisible();
+	await expect(stepHeading(block, next)).toBeFocused();
+}
+
+/**
+ * Salta a un paso con el indicador de pasos (para atrás, o adelante a uno por el que ya pasó).
+ *
+ * @param {import('@playwright/test').Locator} block
+ * @param {'Entradas' | 'Tus datos' | 'Pagar'} name
+ */
+export async function goToStep(block, name) {
+	await block
+		.getByRole('navigation', { name: 'Pasos de la compra' })
+		.getByRole('button', { name: new RegExp(`^Paso \\d: ${name}`) })
+		.click();
+	await expect(stepHeading(block, name)).toBeVisible();
+}
+
+/**
+ * El título del paso (el que dice «Paso N de 3»).
+ *
+ * @param {import('@playwright/test').Locator} block
+ * @param {string} name
+ */
+export function stepHeading(block, name) {
+	return block.getByRole('heading', { name: new RegExp(`^Paso \\d de 3 ${name}$`) });
 }
 
 /** Sin esto el cartel "¿Sos mayor de 18 años?" tapa la página. */

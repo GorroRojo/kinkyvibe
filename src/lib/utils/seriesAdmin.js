@@ -6,7 +6,10 @@
  */
 import { SERIES_PARENT } from './series.js';
 import { seriesNameFromTitle } from './seriesDetect.js';
-import { isAssetFileName, validateTagName } from './tagConfig.js';
+import { isTagImage, validateTagName } from './tagConfig.js';
+
+const IMAGE_ERROR =
+	'La imagen tiene que ser un archivo de src/lib/assets o la de un evento (calendario:<evento>/1.webp).';
 
 /** @param {unknown} s */
 const clean = (s) =>
@@ -27,8 +30,7 @@ export function seriesCreateOps(input, { exists = () => false } = {}) {
 	if (invalid) return { ok: false, error: invalid };
 	if (exists(name)) return { ok: false, error: `Ya existe una etiqueta «${name}».` };
 	const image = clean(input.image);
-	if (image && !isAssetFileName(image))
-		return { ok: false, error: 'La imagen tiene que ser un archivo de src/lib/assets.' };
+	if (image && !isTagImage(image)) return { ok: false, error: IMAGE_ERROR };
 	const description = String(input.description ?? '').trim();
 	if (description.length > 2000)
 		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
@@ -85,8 +87,7 @@ export function seriesEditOps(input, current, { keepAlias = false, exists = () =
 		return { ok: false, error: 'El nombre no puede tener corchetes.' };
 	if (next.icon.length > SERIES_ICON_MAX)
 		return { ok: false, error: 'El ícono tiene que ser un emoji (o dos).' };
-	if (next.image && !isAssetFileName(next.image))
-		return { ok: false, error: 'La imagen tiene que ser un archivo de src/lib/assets.' };
+	if (next.image && !isTagImage(next.image)) return { ok: false, error: IMAGE_ERROR };
 	if (next.description.length > 2000)
 		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
 	const beforeVisible =
