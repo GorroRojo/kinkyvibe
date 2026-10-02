@@ -78,3 +78,6 @@ Reglas:
 - Fase 1 en un PR aparte: webhook `/api/telegram`, `/proximos`, `/evento`, interruptor
   `telegram_bot`. Guía: [`docs/telegram.md`](../telegram.md). Lee los eventos por la capa
   compartida (`sitePosts`: de la base o de los `.md`, según `contenido_db`).
+- Botones (teclados inline): `/proximos` y `/evento` sin nada muestran un botón por evento; al
+  tocarlo, el mensaje cambia al detalle. `/evento <texto>` también busca por fecha. Sigue sin
+  base ni token: todo se contesta en el mismo pedido.
