@@ -185,6 +185,16 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
   `lat`, `lng`, `accessibility`, `how_to_get_there`, `venue_privacy`; solo para lugares). Ver
   [amigues.md](amigues.md).
 
+### `evento`
+
+Los eventos de calendario (paso 5 de 0026), con los mismos nombres de campo que el frontmatter de
+los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `featured`,
+`location`…; `force_unlisted` → `unlisted`, `force_unpublished` → visibilidad `hidden`). Lo que el
+tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). Columnas
+generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
+importación, la lectura detrás de `contenido_db` y el historial (`object_revisions`):
+[contenido.md](contenido.md) («En la base»).
+
 ### `etiqueta`
 
 Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones

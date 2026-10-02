@@ -5,7 +5,7 @@
  * puede ir: ver `feedLocation`).
  */
 import { error } from '@sveltejs/kit';
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
 import { eventsForTag } from '$lib/server/series/index.js';
 import { requireSeries } from '$lib/server/series/web.js';
@@ -21,7 +21,7 @@ export async function GET({ params, platform }) {
 	const tags = await siteTagManager(platform);
 	const tag = resolveTagSlug(tags, params.tag);
 	const id = tag?.id ?? params.tag;
-	const posts = await fetchMarkdownPosts();
+	const posts = await sitePosts(platform);
 	const events = await eventsForTag(id, { posts, tags });
 	if (!events.length) error(404, 'Not found');
 	const name = tag?.visible_name ?? id;

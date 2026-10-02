@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts } from '$lib/utils';
+import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isCurrent } from '$lib/utils/allPosts';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
@@ -35,7 +35,7 @@ const slimMeta = (meta) => {
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ platform }) {
 	const now = Date.now();
-	const posts = (await fetchMarkdownPosts()).filter((p) => p.meta.layout == 'calendario');
+	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
 	// Un lugar vinculado manda sobre el «Dónde» del .md (los pasados ya van sin él).
 	const current = new Map(
 		(
