@@ -11,8 +11,9 @@
  *    el calendario, `eventsForFollow`) y le manda, como mucho una vez por evento y tipo:
  *    - **nuevo**: si sigue algo con «mail cuando se anuncia algo nuevo» desde antes de que se
  *      viera el evento;
- *    - **recordatorio**: si sigue algo con «recordatorio el día antes» y el evento empieza en
- *      las próximas 24 horas.
+ *    - **recordatorio**: si sigue algo con «recordatorio el día antes», el evento empieza en
+ *      las próximas 24 horas y la cuenta no tiene entrada para ese evento (esa ya recibe los
+ *      recordatorios de las entradas, $lib/server/tickets/reminders.js).
  *    La fila de `follow_notifications` se toma antes de mandar y se suelta si el mail falla (se
  *    reintenta en la próxima). Resend recibe además una clave de idempotencia.
  *
@@ -26,6 +27,7 @@ import { migrateAccountSubscriptions } from './avisame.js';
 import { buildFollowEmail } from './email.js';
 import { resolveTarget } from './targets.js';
 import { optionsFromRow } from '$lib/utils/sigo.js';
+import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
@@ -117,6 +119,35 @@ export async function markEventsSeen(db, slugs, now) {
 }
 
 /**
+ * Qué cuentas tienen entrada para qué eventos, en una sola consulta: órdenes que cuentan para
+ * los recordatorios de las entradas ({@link REMINDER_ORDER_SQL}) con el `account_id` de la cuenta
+ * o con su mail (sin importar mayúsculas: el recordatorio de las entradas va a ese mismo mail).
+ * Devuelve claves `<cuenta>\u0000<evento>`.
+ *
+ * @param {D1Database} db
+ * @param {readonly string[]} slugs
+ * @returns {Promise<Set<string>>}
+ */
+export async function accountsWithTickets(db, slugs) {
+	if (!slugs.length) return new Set();
+	// UNION (y no OR) para que cada mitad use su índice.
+	const { results } = await db
+		.prepare(
+			`SELECT a.id AS account_id, o.event_slug FROM orders o JOIN accounts a ON a.id = o.account_id
+			WHERE o.event_slug IN (SELECT value FROM json_each(?1)) AND ${REMINDER_ORDER_SQL}
+				AND a.deleted_at IS NULL
+			UNION
+			SELECT a.id AS account_id, o.event_slug FROM orders o
+			JOIN accounts a ON lower(a.email) = lower(o.buyer_email)
+			WHERE o.event_slug IN (SELECT value FROM json_each(?1)) AND ${REMINDER_ORDER_SQL}
+				AND a.deleted_at IS NULL AND a.email IS NOT NULL`
+		)
+		.bind(JSON.stringify(slugs))
+		.all();
+	return new Set(results.map((r) => `${r.account_id}\u0000${r.event_slug}`));
+}
+
+/**
  * @param {{ db: D1Database, posts: readonly Post[], tags: TagManager, origin: string,
  *   send: FollowSend, now?: number, limit?: number }} input
  * @returns {Promise<{ seen: number, migrated: number, sent: number, failed: number }>}
@@ -158,6 +189,13 @@ export async function runFollowNotifications({
 	const already = new Set(
 		sentRows.map((r) => `${r.account_id}\u0000${r.event_slug}\u0000${r.kind}`)
 	);
+	// Quien tiene entrada ya recibe los recordatorios de las entradas: el de «Lo que sigo», no.
+	const withTicket = await accountsWithTickets(
+		db,
+		events
+			.filter((p) => new Date(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
+			.map((p) => String(p.meta.postID))
+	);
 
 	// Las cosas seguidas con algún mail, de cuentas vivas con mail.
 	const { results: rows } = await db
@@ -191,7 +229,12 @@ export async function runFollowNotifications({
 			if (options.mail_nuevo && seenAt !== undefined && Number(row.created_at) < seenAt)
 				due.push('nuevo');
 			const start = new Date(post.meta.start).getTime();
-			if (options.recordatorio && start - now <= REMINDER_WINDOW_MS) due.push('recordatorio');
+			if (
+				options.recordatorio &&
+				start - now <= REMINDER_WINDOW_MS &&
+				!withTicket.has(`${accountId}\u0000${slug}`)
+			)
+				due.push('recordatorio');
 			const fresh = due.filter((k) => !already.has(`${accountId}\u0000${slug}\u0000${k}`));
 			if (!fresh.length) continue;
 			reason ??=

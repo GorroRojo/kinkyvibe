@@ -175,10 +175,17 @@ export function dueReminderPlan({ events, reminders, now }) {
 }
 
 /**
+ * Qué órdenes (alias `o`) cuentan para los recordatorios: las aprobadas (no las canceladas,
+ * reembolsadas ni pendientes). También lo usa «Lo que sigo» para no mandar su recordatorio a
+ * quien ya tiene entrada ($lib/server/sigo/notify.js).
+ */
+export const REMINDER_ORDER_SQL = `o.status = 'approved'`;
+
+/**
  * Las órdenes (alias `o`) a las que les toca un recordatorio del plan y todavía no lo recibieron
  * ni se agotaron sus intentos. Parámetros: {@link dueReminderParams}.
  */
-export const DUE_REMINDER_WHERE = `o.event_slug = ?1 AND o.status = 'approved'
+export const DUE_REMINDER_WHERE = `o.event_slug = ?1 AND ${REMINDER_ORDER_SQL}
 	AND o.created_at < ?2
 	AND ${pendingSendSql('reminder_sends', { key: 3, stale: 4 })}`;
 

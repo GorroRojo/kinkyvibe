@@ -7,7 +7,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeAccount } from '$lib/server/amigues/testing.js';
-import { DAY, fakeEvent, fakeSend, linkIn } from '$lib/server/series/fixtures.js';
+import { DAY, fakeEvent, fakeSend, insertOrder, linkIn } from '$lib/server/series/fixtures.js';
 import tagsFactory from '$lib/utils/tags';
 import { follow, getFollow, setFollowOptions } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
@@ -97,6 +97,58 @@ describe('runFollowNotifications', () => {
 		expect(await run({ posts, send, now: NOW + DAY + 3 })).toMatchObject({ sent: 0 });
 		expect(send.sent.at(-1)?.subject).toContain('Mañana');
 		expect(send.sent.at(-1)?.to).toBe(a.email);
+	});
+
+	describe('con entrada para el evento', () => {
+		const REMINDER_ONLY = { calendario: true, mail_nuevo: false, recordatorio: true };
+
+		it('no manda el recordatorio a quien ya tiene entrada (por mail o por cuenta)', async () => {
+			const conMail = await makeAccount(t.db, 'sigo-con-entrada');
+			const conCuenta = await makeAccount(t.db, 'sigo-entrada-cuenta');
+			const sin = await makeAccount(t.db, 'sigo-sin-entrada');
+			for (const a of [conMail, conCuenta, sin])
+				await follow(t.db, a.id, TAG, { now: NOW - DAY, options: REMINDER_ONLY });
+			// Mail con otras mayúsculas: es la misma casilla.
+			await insertOrder(t.db, { email: 'Sigo-Con-Entrada@example.com', slug: 'manana', now: NOW });
+			await insertOrder(t.db, {
+				email: 'otra-casilla@example.com',
+				slug: 'manana',
+				accountId: conCuenta.id,
+				now: NOW
+			});
+			const posts = [fakeEvent('manana', NOW + 2 * DAY, ['Picantearla'])];
+			const send = fakeSend();
+			expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ sent: 1 });
+			expect(send.sent.map((m) => m.to)).toEqual([sin.email]);
+			expect(send.sent[0].subject).toContain('Mañana');
+		});
+
+		it('las órdenes canceladas, reembolsadas o pendientes no cuentan', async () => {
+			const a = await makeAccount(t.db, 'sigo-reembolso');
+			await follow(t.db, a.id, TAG, { now: NOW - DAY, options: REMINDER_ONLY });
+			for (const status of ['cancelled', 'refunded', 'pending'])
+				await insertOrder(t.db, { email: a.email, slug: 'manana', status, now: NOW });
+			await insertOrder(t.db, { email: a.email, slug: 'otro-evento', now: NOW });
+			const posts = [fakeEvent('manana', NOW + 2 * DAY, ['Picantearla'])];
+			const send = fakeSend();
+			expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ sent: 1 });
+			expect(send.sent[0].to).toBe(a.email);
+		});
+
+		it('«se anunció algo nuevo» le llega igual', async () => {
+			const a = await makeAccount(t.db, 'sigo-nuevo-con-entrada');
+			await follow(t.db, a.id, TAG, {
+				now: NOW - DAY,
+				options: { calendario: true, mail_nuevo: true, recordatorio: true }
+			});
+			await run({ posts: [fakeEvent('semilla', NOW + 5 * DAY, ['otra'])] });
+			await insertOrder(t.db, { email: a.email, slug: 'pronto', now: NOW });
+			const send = fakeSend();
+			const posts = [fakeEvent('pronto', NOW + DAY / 2, ['Picantearla'])];
+			expect(await run({ posts, send, now: NOW + 1000 })).toMatchObject({ sent: 1 });
+			expect(send.sent[0].subject).toContain('Se anunció');
+			expect(await run({ posts, send, now: NOW + 2000 })).toMatchObject({ sent: 0 });
+		});
 	});
 
 	it('el link del mail apaga todos los mails, pero lo seguido queda', async () => {
