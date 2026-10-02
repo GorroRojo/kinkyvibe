@@ -24,6 +24,11 @@
 	import { eventPlace } from '$lib/utils/eventPlace.js';
 	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
 	export let data;
+	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
+	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
+	// bloque de estilos del componente.
+	const STYLE_TAG = 'style';
+	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
 	// sobre el «Dónde» del .md (`location` y su link al mapa `location_map`; docs/amigues.md).
 	// Lo mismo que el .ics (eventPlace.js).
@@ -59,9 +64,11 @@
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
 		endDate: toISO(end),
-		eventAttendanceMode: data.meta.location
-			? 'https://schema.org/OnlineEventAttendanceMode'
-			: 'https://schema.org/OfflineEventAttendanceMode',
+		// Con lugar o con «Dónde», presencial; sin ninguno de los dos, online.
+		eventAttendanceMode:
+			data.venue || data.meta.location
+				? 'https://schema.org/OfflineEventAttendanceMode'
+				: 'https://schema.org/OnlineEventAttendanceMode',
 		eventStatus:
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'
@@ -294,7 +301,18 @@
 		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
 	<div class="content" use:processContent>
-		<svelte:component this={data.content} />
+		{#if data.html !== undefined}
+			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+			<div class="kv-texto-libre">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html ownStyle}
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html data.html}
+			</div>
+		{:else}
+			<svelte:component this={data.content} />
+		{/if}
 		{#if data.meta.link && data.meta.link_text}
 			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
 		{/if}
