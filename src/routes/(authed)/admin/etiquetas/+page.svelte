@@ -29,6 +29,7 @@
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
 	import { USAGE_CATEGORIES, analyzeTags, applyTagOps, describeOp } from '$lib/utils/tagConfig.js';
+	import { SYSTEM_TAGS, isSystemTag } from '$lib/utils/systemTags.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -589,31 +590,41 @@
 					</div>
 				</form>
 
+				{#if isSystemTag(n.id)}
+					<p class="system-note">
+						<AlertTriangle size={14} aria-hidden="true" />
+						Etiqueta del sistema: {SYSTEM_TAGS[n.id]}. El sitio la usa por su nombre, así que no se
+						puede renombrar ni fusionar con otra. Sí podés cambiarle el nombre visible, el ícono o
+						la descripción.
+					</p>
+				{/if}
 				<div class="ops-forms">
-					<form
-						on:submit|preventDefault={() =>
-							renameTo.trim() &&
-							queue({ type: 'rename', from: n.id, to: renameTo, keepAlias }, renameTo.trim())}
-					>
-						<label
-							><span><Pencil size={14} /> Renombrar</span><input
-								class="kv-input"
-								bind:value={renameTo}
-								placeholder="Nombre nuevo"
-							/></label
+					{#if !isSystemTag(n.id)}
+						<form
+							on:submit|preventDefault={() =>
+								renameTo.trim() &&
+								queue({ type: 'rename', from: n.id, to: renameTo, keepAlias }, renameTo.trim())}
 						>
-						<RenameChoice
-							dbMode={data.dbMode}
-							bind:keepAlias
-							idPrefix="renombrar-{n.id}"
-							uses={n.total}
-						/>
-						<button class="kv-btn ghost small"
-							>{data.dbMode && keepAlias
-								? 'Renombrar'
-								: 'Renombrar en todas las publicaciones'}</button
-						>
-					</form>
+							<label
+								><span><Pencil size={14} /> Renombrar</span><input
+									class="kv-input"
+									bind:value={renameTo}
+									placeholder="Nombre nuevo"
+								/></label
+							>
+							<RenameChoice
+								dbMode={data.dbMode}
+								bind:keepAlias
+								idPrefix="renombrar-{n.id}"
+								uses={n.total}
+							/>
+							<button class="kv-btn ghost small"
+								>{data.dbMode && keepAlias
+									? 'Renombrar'
+									: 'Renombrar en todas las publicaciones'}</button
+							>
+						</form>
+					{/if}
 					<form
 						on:submit|preventDefault={() =>
 							moveTo.trim() &&
@@ -646,21 +657,23 @@
 							{/each}
 						</div>
 					</form>
-					<form
-						on:submit|preventDefault={() =>
-							mergeInto.trim() &&
-							queue({ type: 'merge', from: n.id, into: mergeInto.trim() }, mergeInto.trim())}
-					>
-						<label
-							><span><GitMerge size={14} /> Fusionar con</span><input
-								class="kv-input"
-								bind:value={mergeInto}
-								list="tag-names"
-								placeholder="Etiqueta que queda"
-							/></label
+					{#if !isSystemTag(n.id)}
+						<form
+							on:submit|preventDefault={() =>
+								mergeInto.trim() &&
+								queue({ type: 'merge', from: n.id, into: mergeInto.trim() }, mergeInto.trim())}
 						>
-						<button class="kv-btn ghost small">Fusionar (esta pasa a ser alias)</button>
-					</form>
+							<label
+								><span><GitMerge size={14} /> Fusionar con</span><input
+									class="kv-input"
+									bind:value={mergeInto}
+									list="tag-names"
+									placeholder="Etiqueta que queda"
+								/></label
+							>
+							<button class="kv-btn ghost small">Fusionar (esta pasa a ser alias)</button>
+						</form>
+					{/if}
 					<form
 						on:submit|preventDefault={() =>
 							childName.trim() &&
@@ -1132,5 +1145,12 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+	.system-note {
+		display: flex;
+		gap: 0.4em;
+		align-items: flex-start;
+		margin: 0.5em 0;
+		font-size: 0.9em;
 	}
 </style>
