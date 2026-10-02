@@ -8,6 +8,9 @@ import { createTestDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
 import { parseTagSource } from '$lib/utils/tagConfig.js';
+import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { importTags } from '$lib/server/etiquetas/importer.js';
+import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 });
 
@@ -52,10 +55,10 @@ const eventMd = (title, start) =>
 
 const SOURCE_MD = eventMd('Fiesta de Prueba (3ª Edición)', '2026-08-10T21:00-03:00');
 
-/** @param {string} flag */
-async function page(flag = '1') {
+/** @param {string} flag @param {Record<string, string>} [env] */
+async function page(flag = '1', env = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag, ...env } }));
 	/** @type {any[]} */
 	const commits = [];
 	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
@@ -175,6 +178,41 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		).toMatchObject({ status: 400 });
 		expect(commits).toHaveLength(1);
 	});
+
+	it('con etiquetas_db: pregunta con las series de la base y crea la serie en la base', async () => {
+		/** @type {Record<string, any>[]} */
+		const raw = JSON.parse(JSON.stringify(hardcodedTags));
+		raw.find((e) => e.id === 'evento recurrente')?.children.push('Serie Solo de la Base');
+		await importTags(t.db, { rawTags: raw }, { actor: 'admin-de-prueba' });
+		const { mod, commits } = await page('1', { ETIQUETAS_DB_ENABLED: '1' });
+		// Lo que hace hooks.server.js en cada pedido.
+		await (await import('$lib/server/etiquetas/source.js')).applySiteTags(t.platform);
+		const data = /** @type {any} */ (
+			await mod.load(
+				fakeRequestEvent({
+					platform: t.platform,
+					path: `/admin/eventos/nuevo?desde=${SOURCE}`,
+					user: admin
+				})
+			)
+		);
+		expect(data.seriesPrompt.existing).toContain('Serie Solo de la Base');
+		const res = /** @type {any} */ (
+			await mod.actions.publicar(
+				publish({ seriesChoice: 'crear', seriesName: 'Fiesta de Prueba en la Base' })
+			)
+		);
+		expect(res.success).toBe(true);
+		expect(res.warnings).toEqual([]);
+		// El commit es solo el evento: la serie no va al archivo…
+		expect(commits[0].files.map((/** @type {any} */ f) => f.path)).toEqual([
+			'src/lib/posts/calendario/fiesta-de-prueba-2026-10.md'
+		]);
+		// …sino a la base.
+		const tag = (await loadTagRecords(t.db)).find((r) => r.key === 'Fiesta de Prueba en la Base');
+		expect(tag?.parents.map((p) => p.key)).toEqual(['evento recurrente']);
+		// Importar el árbol entero a la base tarda: más tiempo que el resto.
+	}, 180_000);
 
 	it('con el interruptor apagado se ignora la respuesta', async () => {
 		const { mod, commits } = await page('0');

@@ -90,7 +90,7 @@ cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archiv
 | Leer y buscar                               | `src/lib/server/objects/read.js` → `getObject()`, `searchObjects()`                                 |
 | Relaciones                                  | `src/lib/server/objects/edges.js` → `getEdges()`                                                    |
 | Visibilidad                                 | `src/lib/server/objects/visibility.js`                                                              |
-| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `perfil.js`, `index.js`)                  |
+| Tipos núcleo y su registro                  | `src/lib/server/objects/types/` (`evento.js`, `lugar.js`, `perfil.js`, `etiqueta.js`, `index.js`)   |
 | Clases de campo (texto, fecha, link…)       | `src/lib/server/objects/fields.js`                                                                  |
 | Chequeo de integridad                       | `src/lib/server/objects/integrity.js`; fila del Inicio: `integrityReviewRow()` en `admin/inicio.js` |
 | Errores (`code`, `status`, mensaje)         | `src/lib/server/objects/errors.js`                                                                  |
@@ -184,6 +184,13 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
   imágenes y fechas de la ficha vieja, `unlisted`) y los de lugar (`address`, `area`, `city`,
   `lat`, `lng`, `accessibility`, `how_to_get_there`, `venue_privacy`; solo para lugares). Ver
   [amigues.md](amigues.md).
+
+### `etiqueta`
+
+Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones
+`hijo_de`, `relacionada_con` y `alias_de`. Archivo: `src/lib/server/objects/types/etiqueta.js`;
+todo el detalle (campos, el índice único de `key`, la tabla `tag_sources`) en
+[etiquetas.md](etiquetas.md).
 
 ## Tareas comunes
 

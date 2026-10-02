@@ -13,6 +13,8 @@ import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { USAGE_CATEGORIES, parseTagSource, readOps } from '$lib/utils/tagConfig.js';
 import { seriesEnabled } from '$lib/server/flags.js';
+import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
+import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
 // The copy of the tag file in this deploy (fallback when the repo client doesn't have it).
 import bundledSource from '$lib/utils/hardcodedTags.js?raw';
 
@@ -24,7 +26,21 @@ const describe = (e) => (e instanceof Error ? e.message : String(e));
 
 /** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
 export async function load({ locals, url, platform }) {
-	requireAdmin(locals, url);
+	const login = requireAdmin(locals, url).login;
+	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
+	const seriesOn = await seriesEnabled(platform);
+	const counts = await usageAndWiki();
+	const fromDb = await dbTagsForAdmin(platform, login);
+	if (fromDb) {
+		return {
+			entries: recordsToRawTags(fromDb.records),
+			...counts,
+			fromRepo: false,
+			mock: false,
+			seriesOn,
+			dbMode: true
+		};
+	}
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
 	// The tree as it is on the repo now (so a change just saved shows before the deploy ends).
@@ -41,6 +57,11 @@ export async function load({ locals, url, platform }) {
 	} catch (e) {
 		throw error(500, describe(e));
 	}
+	return { entries, ...counts, fromRepo, mock: isMockMode(), seriesOn, dbMode: false };
+}
+
+/** Cuánto se usa cada etiqueta (en los posts del deploy) y qué etiquetas tienen entrada en la wiki. */
+async function usageAndWiki() {
 	/** @type {Record<string, Record<string, number>>} */
 	const usage = {};
 	for (const c of USAGE_CATEGORIES) usage[c] = await tagUsage(c);
@@ -49,9 +70,17 @@ export async function load({ locals, url, platform }) {
 	for (const p of await contentMetas()) {
 		if (p.category === 'wiki' && p.meta?.wiki) wikiPosts[String(p.meta.wiki)] = p.slug;
 	}
-	// Interruptor `series`: el campo "Imagen" (la de la serie) solo se muestra prendido.
-	const seriesOn = await seriesEnabled(platform);
-	return { entries, usage, wikiPosts, fromRepo, mock: isMockMode(), seriesOn };
+	return { usage, wikiPosts };
+}
+
+/**
+ * Con qué hacer el commit de las publicaciones (renombrar sin alias), o null si no se puede.
+ * @param {App.Locals} locals
+ * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
+ */
+async function repoAccess(locals) {
+	const admin = getEventAdmin(locals);
+	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
 }
 
 /**
@@ -67,12 +96,19 @@ function opsFrom(data) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	previsualizar: async ({ locals, request, url }) => {
-		requireAdmin(locals, url);
-		const admin = getEventAdmin(locals);
-		if (!admin) return fail(403, { error: NO_PERMISSION });
+	previsualizar: async ({ locals, request, url, platform }) => {
+		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
+		const fromDb = await dbTagsForAdmin(platform, login);
+		if (fromDb) {
+			// Renombrar sin alias: también cuántas publicaciones cambian (y cómo).
+			const res = await previewDbTagEdit(fromDb, r.ops, await repoAccess(locals));
+			if (!res.ok) return fail(res.status, { error: res.error });
+			return { preview: res.preview };
+		}
+		const admin = getEventAdmin(locals);
+		if (!admin) return fail(403, { error: NO_PERMISSION });
 		try {
 			const plan = await planTagEdit(await getRepoClient(), admin.token, r.ops, bundledSource);
 			return { preview: previewOf(plan) };
@@ -81,11 +117,32 @@ export const actions = {
 		}
 	},
 	guardar: async ({ locals, request, url, platform }) => {
-		requireAdmin(locals, url);
-		const admin = getEventAdmin(locals);
-		if (!admin) return fail(403, { error: NO_PERMISSION });
+		const login = requireAdmin(locals, url).login;
 		const r = opsFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
+		const fromDb = await dbTagsForAdmin(platform, login);
+		if (fromDb) {
+			// Interruptor `etiquetas_db`: al momento en la base. Renombrar sin alias, además, un
+			// commit que cambia las publicaciones (antes de tocar la base).
+			const res = await saveDbTagEdit(fromDb, r.ops, {
+				locals,
+				login,
+				repo: await repoAccess(locals)
+			});
+			if (!res.ok) return fail(res.status, { error: res.error });
+			return {
+				saved: {
+					db: true,
+					commit: res.commit ?? '',
+					publish: res.publish,
+					summary: res.summary,
+					files: res.written,
+					posts: res.posts
+				}
+			};
+		}
+		const admin = getEventAdmin(locals);
+		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const client = await getRepoClient();
 		let plan;
 		try {

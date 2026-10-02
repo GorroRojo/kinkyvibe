@@ -18,7 +18,12 @@
 	 *   día (ver `dragSnapDuration`). Quien escucha lo anota (o lo guarda) y llama a `revert()` si no
 	 *   se puede.
 	 * Los eventos con `extendedProps.pending` (movidos sin guardar) se ven con borde punteado y la
-	 * etiqueta "pendiente".
+	 * etiqueta "pendiente"; los borradores (`extendedProps.draft`), con «falta N» (lo que les falta,
+	 * `extendedProps.missing`) o «a confirmar».
+	 * Tamaño: en desktop el mes y la semana llenan el alto que queda de la pantalla (como el
+	 * calendario público); en el mes, un día con muchos eventos crece en vez de esconderlos, y los
+	 * títulos ocupan hasta dos líneas. En el celu, el alto natural. Los que tienen `extendedProps.note` son notas de un día (ver
+	 * dayNotes.js): de todo el día, con su color, y no se arrastran; tocarlas también manda `open`.
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { dragSnapDuration, dropTarget, localDateParts } from '$lib/utils/calendario.js';
@@ -39,6 +44,18 @@
 	/** @type {HTMLDivElement} */
 	let root;
 	let failed = false;
+	/** Alto disponible (px) desde el calendario hasta abajo de la pantalla; 0 en el celu. */
+	let fill = 0;
+
+	/** Mide cuánto alto queda en la pantalla para el calendario (solo en desktop). */
+	function measure() {
+		if (!root || window.innerWidth < 900) {
+			fill = 0;
+			return;
+		}
+		const top = root.getBoundingClientRect().top + window.scrollY;
+		fill = Math.max(360, Math.round(window.innerHeight - top - 16));
+	}
 
 	onMount(async () => {
 		try {
@@ -48,6 +65,7 @@
 		} catch (e) {
 			failed = true;
 		}
+		measure();
 	});
 
 	export function prev() {
@@ -123,13 +141,28 @@
 			day: 'numeric',
 			month: 'long'
 		}).format(info.event.start);
+		if (p.note) {
+			info.el.setAttribute('aria-label', `Nota del ${when}: ${info.event.title}`);
+			info.el.setAttribute('title', 'Nota del día: tocala para cambiarla o borrarla');
+			return;
+		}
+		const missing = Array.isArray(p.missing) ? p.missing : [];
+		const draft = p.draft
+			? `borrador a confirmar${missing.length ? `, falta: ${missing.join(', ').toLowerCase()}` : ''}`
+			: '';
 		info.el.setAttribute(
 			'aria-label',
-			[info.event.title, when, p.time, p.pending ? 'cambio sin guardar' : '']
+			[info.event.title, when, p.time, draft, p.pending ? 'cambio sin guardar' : '']
 				.filter(Boolean)
 				.join(', ')
 		);
-		if (p.problem) info.el.setAttribute('title', `No se puede arrastrar: ${p.problem}`);
+		const tips = [
+			p.draft
+				? `Borrador a confirmar${missing.length ? `. Falta: ${missing.join(', ')}` : ''}`
+				: '',
+			p.problem ? `No se puede arrastrar: ${p.problem}` : ''
+		].filter(Boolean);
+		if (tips.length) info.el.setAttribute('title', tips.join('\n'));
 	}
 
 	/**
@@ -164,8 +197,9 @@
 		locale: 'es-AR',
 		firstDay: 1,
 		headerToolbar: { start: '', center: '', end: '' },
-		height: view === 'timeGridWeek' ? '72vh' : 'auto',
-		dayMaxEvents: true,
+		height: view === 'timeGridWeek' ? (fill ? `${fill}px` : '72vh') : 'auto',
+		// En el mes los días crecen con sus eventos (no hay "+N más").
+		dayMaxEvents: view !== 'dayGridMonth',
 		eventStartEditable: true,
 		eventDurationEditable: false,
 		nowIndicator: true,
@@ -188,9 +222,13 @@
 	};
 </script>
 
+<svelte:window on:resize={measure} />
+
 <!-- svelte-ignore a11y-no-static-element-interactions (las flechas solo mueven el foco entre los eventos, que son botones) -->
 <div
 	class="calendario"
+	class:fill={fill > 0}
+	style:--kv-fill={fill ? `${fill}px` : null}
 	bind:this={root}
 	on:keydown={onKeydown}
 	on:pointerdown|capture={onPointerDownCapture}
@@ -213,6 +251,12 @@
 				>{arg.view.type === 'listMonth' ? time : time.split(' ')[0]}</span
 			>{/if}
 		<span class="kv-chip-title">{arg.event.title}</span>
+		{#if arg.event.extendedProps.draft}
+			{@const missing = arg.event.extendedProps.missing ?? []}
+			<span class="kv-chip-draft" aria-hidden="true"
+				>{missing.length ? `falta ${missing.length}` : 'a confirmar'}</span
+			>
+		{/if}
 		{#if arg.event.extendedProps.pending}<span class="kv-chip-pending">pendiente</span>{/if}
 	</span>
 {/snippet}
@@ -293,6 +337,21 @@
 	.calendario :global(.ec-list .ec-event.kv-ev-pendiente) {
 		background: var(--warn-bg);
 	}
+	/* Borrador (no listado): «falta N» / «a confirmar» (además del color de «Borrador»). */
+	.calendario :global(.kv-chip-draft) {
+		flex: none;
+		margin-left: auto;
+		padding: 0 0.4em;
+		border-radius: 1em;
+		border: 1px solid var(--warn);
+		color: var(--text);
+		background: var(--surface);
+		font-size: 0.72em;
+		font-weight: 700;
+		line-height: 1.45;
+		align-self: flex-start;
+		white-space: nowrap;
+	}
 	.calendario :global(.kv-chip-pending) {
 		flex: none;
 		margin-left: auto;
@@ -304,6 +363,15 @@
 		font-weight: 700;
 		line-height: 1.5;
 		align-self: center;
+	}
+	/* Nota de un día: su color (variables en `styles`, ver dayNotes.js), en cursiva y sin hora. */
+	.calendario :global(.ec-event.kv-nota) {
+		font-style: italic;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.calendario :global(.ec-list .ec-event.kv-nota) {
+		background: var(--tone-bg);
 	}
 	.calendario :global(.kv-ev-cancelado .kv-chip-title) {
 		text-decoration: line-through;
@@ -335,6 +403,26 @@
 	}
 	.calendario :global(.ec-toolbar) {
 		display: none;
+	}
+	/* Mes: los títulos en hasta dos líneas. */
+	.calendario :global(.ec-day-grid.ec-month-view .kv-chip) {
+		white-space: normal;
+		align-items: flex-start;
+	}
+	.calendario :global(.ec-day-grid.ec-month-view .kv-chip-title) {
+		flex: 1 1 auto;
+		min-width: 0;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
+	}
+	/* Desktop: el mes llena el alto que queda (las semanas se reparten el espacio y crecen si un día
+	   tiene muchos eventos). */
+	.calendario.fill :global(.ec-day-grid.ec-month-view .ec-main) {
+		min-height: var(--kv-fill);
+		grid-template-rows: max-content repeat(var(--ec-grid-rows), minmax(max-content, 1fr));
 	}
 	/* En el celu, en el mes solo entra el título. */
 	@media (max-width: 640px) {

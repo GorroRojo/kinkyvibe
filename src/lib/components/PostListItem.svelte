@@ -12,11 +12,16 @@
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
+	import { ticketCta } from '$lib/utils/ticketCta.js';
 </script>
 
 <script>
 	//@ts-nocheck
 	export let post;
+	/** Estado de la venta de entradas de los eventos de la lista, por slug (ver ticketCta.js);
+	 * `null` si no se sabe: un evento con entradas muestra igual el link a /entradas.
+	 * @type {import('$lib/utils/ticketCta.js').TicketStates | null} */
+	export let ticketStates = null;
 	let {
 		path,
 		meta: {
@@ -51,6 +56,9 @@
 	// the button shows only its icon there
 	let narrow = false;
 	let past = start ? new Date(start).getTime() < Date.now() : false;
+	// Si el evento vende entradas acá, «Comprar entradas» (o «Agotadas»…) en lugar de la
+	// inscripción externa.
+	$: tickets = ticketCta(post.meta, ticketStates, { past });
 	onMount(() => {
 		narrow = window.matchMedia('(max-width: 600px)').matches;
 		mounted = true;
@@ -195,7 +203,18 @@
 	</div>
 	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
 	     restructure it if it were server-rendered, breaking hydration. -->
-	{#if mounted && link && status && status == 'abierto' && !past}
+	{#if tickets}
+		{#if tickets.kind == 'buy' && mounted}
+			<!-- svelte-ignore node_invalid_placement_ssr -->
+			<a href={tickets.href} class="CTA">{tickets.text}</a>
+		{:else if tickets.kind == 'buy'}
+			<!-- Server-rendered as a plain label (same look and place; until hydration a click opens
+			     the event page, like the rest of the card). -->
+			<span class="CTA">{tickets.text}</span>
+		{:else if tickets.kind == 'note'}
+			<span class="CTA note">{tickets.text}</span>
+		{/if}
+	{:else if mounted && link && status && status == 'abierto' && !past}
 		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
 	{/if}
@@ -260,6 +279,17 @@
 		&:hover {
 			color: white;
 			filter: brightness(0.92);
+		}
+		/* «Agotadas», «Venta cerrada»…: un aviso, no un botón */
+		&.note {
+			background: transparent;
+			color: var(--post-color);
+			outline: 2px solid var(--post-color);
+			outline-offset: -2px;
+			font-weight: 700;
+			&:hover {
+				filter: none;
+			}
 		}
 	}
 	.post {

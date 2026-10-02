@@ -7,20 +7,22 @@
 import { error } from '@sveltejs/kit';
 import { fetchMarkdownPosts } from '$lib/utils';
 import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
-import { eventsForTag, siteTags } from '$lib/server/series/index.js';
+import { eventsForTag } from '$lib/server/series/index.js';
 import { requireSeries } from '$lib/server/series/web.js';
 import { resolveTagSlug } from '$lib/utils/series.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform }) {
 	await requireSeries(platform);
 	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
-	const tag = resolveTagSlug(siteTags(), params.tag);
+	const tags = await siteTagManager(platform);
+	const tag = resolveTagSlug(tags, params.tag);
 	const id = tag?.id ?? params.tag;
 	const posts = await fetchMarkdownPosts();
-	const events = await eventsForTag(id, { posts });
+	const events = await eventsForTag(id, { posts, tags });
 	if (!events.length) error(404, 'Not found');
 	const name = tag?.visible_name ?? id;
 	// La privacidad de los lugares (#137) manda sobre `location` del .md, como en la página.

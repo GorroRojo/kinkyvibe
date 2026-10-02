@@ -41,12 +41,20 @@ export const touchesPosts = (ops) => ops.some((o) => o.type === 'rename' || o.ty
  */
 export async function planTagEdit(client, token, ops, bundled) {
 	const { source, sha } = await readTagSource(client, token, bundled);
-	const posts = touchesPosts(ops)
-		? (await Promise.all(POST_DIRS.map((d) => client.getDirTexts(token, d))))
-				.flat()
-				.filter((f) => f.path.endsWith('.md') && !f.path.split('/').pop()?.startsWith('_'))
-		: [];
+	const posts = touchesPosts(ops) ? await readPostFiles(client, token) : [];
 	return planTagChange({ source, sourceSha: sha, sourcePath: TAGS_PATH, posts, ops });
+}
+
+/**
+ * Every post (.md, not the `_` templates) of the 4 folders as it is on the repo now, with its
+ * blob sha (one request per folder).
+ * @param {Pick<TagClient, 'getDirTexts'>} client
+ * @param {string} token
+ */
+export async function readPostFiles(client, token) {
+	return (await Promise.all(POST_DIRS.map((d) => client.getDirTexts(token, d))))
+		.flat()
+		.filter((f) => f.path.endsWith('.md') && !f.path.split('/').pop()?.startsWith('_'));
 }
 
 /**

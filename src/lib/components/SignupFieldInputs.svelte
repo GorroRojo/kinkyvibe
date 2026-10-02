@@ -7,7 +7,9 @@
 	 * Las respuestas no se guardan en sessionStorage: son datos de la persona y no hace falta.
 	 *
 	 * Props: `fields` (SignupField[]), `values` (lo que se mandó, por `name`), `errors` (por
-	 * `name`), `idPrefix`.
+	 * `name`), `idPrefix`, `ticket` (0, 1, 2…: las preguntas "una vez por entrada" de esa entrada;
+	 * `null` = las de una vez por compra), `legend` (`''` = sin título) y `hint` (el aviso de
+	 * quién ve las respuestas).
 	 */
 	import { ANSWER_MAX, fieldInputName } from '$lib/utils/signupFields.js';
 
@@ -18,14 +20,18 @@
 	/** @type {Record<string, string>} */
 	export let errors = {};
 	export let idPrefix = 'entradas-campo';
+	/** @type {number | null} */
+	export let ticket = null;
+	export let legend = 'Unas preguntas más';
+	export let hint = true;
 </script>
 
 {#if fields.length}
 	<fieldset class="signup-fields">
-		<legend>Unas preguntas más</legend>
+		{#if legend}<legend>{legend}</legend>{/if}
 		{#each fields as f (f.id)}
-			{@const name = fieldInputName(f.id)}
-			{@const id = `${idPrefix}-${f.id}`}
+			{@const name = fieldInputName(f.id, ticket)}
+			{@const id = ticket === null ? `${idPrefix}-${f.id}` : `${idPrefix}-${f.id}-${ticket}`}
 			{#if f.kind === 'checkbox'}
 				<label class="check">
 					<input
@@ -74,7 +80,7 @@
 			{/if}
 			{#if errors[name]}<span class="field-error">{errors[name]}</span>{/if}
 		{/each}
-		<small class="hint">Tus respuestas las ven solo les organizadores.</small>
+		{#if hint}<small class="hint">Tus respuestas las ven solo les organizadores.</small>{/if}
 	</fieldset>
 {/if}
 

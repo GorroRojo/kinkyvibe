@@ -20,6 +20,7 @@
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
+	import { breadcrumbLd, sectionCrumb } from '$lib/utils/navigation.js';
 	export let data;
 	$: cuentaLink = accountLink(data);
 	togglePositiveTagFilterFn.update(
@@ -31,19 +32,10 @@
 				);
 			}
 	);
-	/** @type {(cat: string | undefined) => (LD.BreadcrumbList & {"@context": string})} */
-	let ldBreadcrumb = (cat) => ({
-		'@context': 'https://schema.org',
-		'@type': 'BreadcrumbList',
-		itemListElement: [
-			{
-				'@type': 'ListItem',
-				position: 1,
-				name: cat == 'wiki' ? 'Kinkipedia' : (cat ?? ''),
-				item: 'https://example.com/books'
-			}
-		]
-	});
+	// Migas de pan: las visibles y las de datos estructurados salen de lo mismo (sectionCrumb).
+	$: onPost = Boolean($currentPostData && $currentPostData.path == $page.url.pathname);
+	$: crumb = onPost ? sectionCrumb($currentPostData?.category) : null;
+	$: ldBreadcrumb = onPost ? breadcrumbLd($currentPostData?.category, $page.url.origin) : null;
 </script>
 
 <svelte:head>
@@ -112,18 +104,18 @@
 {#if $page.url.pathname != '/'}
 	<div class="breadcrumbs">
 		<a href={'/'}>
-			{#if !($currentPostData && $currentPostData.path == $page.url.pathname)}
+			{#if !onPost}
 				<ArrowLeft size="20" aria-hidden="true" />
 			{/if}
 			Inicio
 		</a>
 
-		{#if $currentPostData && $currentPostData.path == $page.url.pathname}
-			<LDTag schema={ldBreadcrumb($currentPostData?.category)} />
+		{#if crumb}
+			{#if ldBreadcrumb}
+				<LDTag schema={ldBreadcrumb} />
+			{/if}
 			<ChevronLeft size="20" aria-hidden="true" />
-			<a href={'/' + $currentPostData.category}
-				>{$currentPostData.category == 'wiki' ? 'Kinkipedia' : $currentPostData.category}</a
-			>
+			<a href={crumb.path}>{crumb.name}</a>
 		{/if}
 	</div>
 {/if}
@@ -133,7 +125,7 @@
 	</main>
 {/key}
 
-<Footer />
+<Footer {data} />
 
 <style>
 	#user {
@@ -370,12 +362,14 @@
 			display: none;
 		}
 	}
+	/* muy angosto: solo el logo y el link de la cuenta (Ingresar / Mi rincón), para que siempre se
+	   pueda entrar; los otros botones siguen en el menú y el footer */
 	@media (max-width: 330px) {
 		#me {
-			grid-template-areas: 'logo';
-			grid-template-columns: 1fr;
+			grid-template-columns: auto auto;
+			justify-content: center;
 		}
-		#user {
+		#user > a:not(.cuenta) {
 			display: none;
 		}
 	}

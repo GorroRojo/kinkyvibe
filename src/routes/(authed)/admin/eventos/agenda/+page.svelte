@@ -1,26 +1,32 @@
 <script>
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { FileSpreadsheet, FlaskConical, Plus } from '@lucide/svelte';
+	import { FileSpreadsheet, FilePen, FlaskConical, Plus, StickyNote } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
 	import PendingBar from '$lib/components/admin/agenda/PendingBar.svelte';
-	import ConfirmPrompt from '$lib/components/admin/agenda/ConfirmPrompt.svelte';
+	import QuickAdd from '$lib/components/admin/agenda/QuickAdd.svelte';
 	import AgendaSheet from '$lib/components/admin/agenda/AgendaSheet.svelte';
 	import AgendaToolbar from '$lib/components/admin/agenda/AgendaToolbar.svelte';
 	import EventDetail from '$lib/components/admin/agenda/EventDetail.svelte';
+	import DayNoteEditor from '$lib/components/admin/agenda/DayNoteEditor.svelte';
 	import Calendario from '$lib/components/admin/calendario/Calendario.svelte';
-	import { postAgendaSaveMany } from '$lib/admin/agendaSave.js';
+	import { postAgendaSaveMany, postConfirmDraft, postQuickDraft } from '$lib/admin/agendaSave.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { agendaValues } from '$lib/utils/agenda.js';
+	import {
+		dayNoteEvent,
+		noteIdFromEventId,
+		removeDayNote,
+		upsertDayNote
+	} from '$lib/utils/dayNotes.js';
 	import {
 		CALENDAR_VIEWS,
 		CALENDAR_VIEW_KEY,
 		calendarEvents,
 		defaultCalendarView,
-		newEventHref,
-		newEventQuestion,
+		draftRows,
+		isDraftRow,
 		parseCalendarView,
 		rescheduleProblem
 	} from '$lib/utils/calendario.js';
@@ -79,7 +85,6 @@
 		)
 			return;
 		view = next;
-		newEventAsk = null;
 		try {
 			localStorage.setItem(CALENDAR_VIEW_KEY, next);
 		} catch (e) {
@@ -89,14 +94,51 @@
 
 	$: ecView = CALENDAR_VIEWS.find((v) => v.id === view)?.ec ?? '';
 	$: visibleRows = withPendingMoves(rows, pending);
-	$: events = calendarEvents(visibleRows, {
-		places: data.places,
-		canEdit: data.canEdit && !saving
-	});
+	$: events = [
+		// Las notas primero: en cada día se ven arriba de los eventos.
+		...notes.map(dayNoteEvent),
+		...calendarEvents(draftRows(visibleRows, onlyDrafts), {
+			places: data.places,
+			canEdit: data.canEdit && !saving
+		})
+	];
+
+	/* ---------- notas de los días (D1, solo admins) ---------- */
+	/** @type {import('$lib/utils/dayNotes.js').DayNote[]} */
+	let notes = data.notes;
+	let noteOpen = false;
+	/** @type {import('$lib/utils/dayNotes.js').DayNote | null} */
+	let noteEditing = null;
+	let noteDate = '';
+
+	/** @param {string} date */
+	function addNote(date) {
+		if (!data.notesEnabled) return;
+		noteEditing = null;
+		noteDate = date;
+		noteOpen = true;
+	}
+	/** @param {import('$lib/utils/dayNotes.js').DayNote} note */
+	function editNote(note) {
+		if (!data.notesEnabled) return;
+		noteEditing = note;
+		noteOpen = true;
+	}
+	/** @param {string} eventId */
+	function openEvent(eventId) {
+		const noteId = noteIdFromEventId(eventId);
+		if (noteId === null) {
+			selected = eventId;
+			detailOpen = true;
+			return;
+		}
+		const note = notes.find((n) => n.id === noteId);
+		if (note) editNote(note);
+	}
 
 	/**
 	 * @param {string} slug
-	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow>} values
+	 * @param {Partial<import('$lib/utils/agenda.js').AgendaRow & { draft?: boolean }>} values
 	 */
 	function updateRow(slug, values) {
 		rows = rows.map((r) => (r.slug === slug ? { ...r, ...values, slug } : r));
@@ -219,30 +261,92 @@
 		say('Descartaste los cambios: los eventos volvieron a sus días.');
 	}
 
-	/**
-	 * Tocaron un día vacío (o arrastraron un rango en la semana): primero se pregunta, en la página,
-	 * "¿Cargar un evento el …?"; con «Cargar» abre el formulario de evento nuevo con eso puesto.
-	 * @type {{ date: string, startTime?: string, endTime?: string } | null}
-	 */
-	let newEventAsk = null;
+	/* ---------- carga rápida: un borrador en un día, sin salir de la agenda ---------- */
+	let quickOpen = false;
+	let quickDate = '';
+	let quickStart = '';
+	let quickEnd = '';
+	let quickBusy = false;
+	let quickError = '';
 
-	function create() {
-		if (!newEventAsk) return;
-		const href = newEventHref(newEventAsk);
-		newEventAsk = null;
-		goto(href);
+	/**
+	 * Tocaron un día vacío (o arrastraron un rango en la semana), o «Evento»: «¿Querés duplicar un
+	 * evento que ya existe?» o «Empezar de cero», en una hoja.
+	 * @param {{ date?: string, startTime?: string, endTime?: string }} at
+	 */
+	function openQuickAdd({ date = data.today, startTime = '', endTime = '' } = {}) {
+		quickDate = date;
+		quickStart = startTime;
+		quickEnd = endTime;
+		quickError = '';
+		quickOpen = true;
+	}
+
+	/** @param {{ source?: string, title?: string }} what */
+	async function createDraft(what) {
+		if (quickBusy) return;
+		quickBusy = true;
+		quickError = '';
+		const r = await postQuickDraft({
+			...what,
+			date: quickDate,
+			startTime: quickStart,
+			endTime: quickStart ? quickEnd : ''
+		});
+		quickBusy = false;
+		if (!r) return;
+		if (!r.ok || !r.row) {
+			quickError = r.message;
+			return;
+		}
+		const row = { ...r.row, slug: r.slug ?? r.row.slug };
+		rows = [...rows.filter((x) => x.slug !== row.slug), row].sort((a, b) =>
+			`${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`)
+		);
+		quickOpen = false;
+		say(
+			`${r.message} Quedó como borrador (no se ve en el sitio): tocalo para completarlo o confirmarlo.`
+		);
+	}
+
+	/* ---------- borradores: filtro «a confirmar» y «Confirmar» ---------- */
+	let onlyDrafts = false;
+	$: draftCount = rows.filter((r) => isDraftRow(r) && r.date >= data.today).length;
+	let confirming = false;
+
+	async function confirmSelected() {
+		const row = rows.find((r) => r.slug === selected);
+		if (!row || confirming) return;
+		confirming = true;
+		const r = await postConfirmDraft(row.slug, agendaValues(row));
+		confirming = false;
+		if (!r) return;
+		if (r.ok) {
+			updateRow(row.slug, { state: 'publicado', draft: false });
+			say(r.message);
+		} else {
+			if (r.current) updateRow(row.slug, r.current);
+			say(`No se confirmó: ${r.message}`, true);
+		}
 	}
 </script>
 
 <PageHeader
 	title="Agenda"
-	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (conserva su hora; se guarda cuando tocás «Guardar cambios» y confirmás) o tocá un día vacío para cargar uno. En la planilla editás varios a la vez."
+	subtitle="Tocá un evento para ver lo principal, arrastralo para cambiarle el día (conserva su hora; se guarda cuando tocás «Guardar cambios» y confirmás) o tocá un día vacío para cargar un borrador (duplicando uno que ya existe o de cero) o dejarle una nota. Los borradores no se ven en el sitio hasta que los confirmás. En la planilla editás varios a la vez."
 >
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet size={16} aria-hidden="true" /> Importar planilla</a
 		>
-		<a class="kv-btn" href="/admin/eventos/nuevo"><Plus size={16} aria-hidden="true" /> Evento</a>
+		{#if data.notesEnabled}
+			<button class="kv-btn ghost" type="button" on:click={() => addNote(data.today)}
+				><StickyNote size={16} aria-hidden="true" /> Nota del día</button
+			>
+		{/if}
+		<button class="kv-btn" type="button" on:click={() => openQuickAdd()}
+			><Plus size={16} aria-hidden="true" /> Evento</button
+		>
 	</svelte:fragment>
 </PageHeader>
 
@@ -269,14 +373,33 @@
 	on:next={() => calendar?.next()}
 	on:today={() => calendar?.today()}
 	on:view={(e) => setView(e.detail)}
-/>
+>
+	<button
+		slot="filters"
+		type="button"
+		class="kv-btn ghost small drafts-filter"
+		class:on={onlyDrafts}
+		aria-pressed={onlyDrafts}
+		title="Mostrar solo los borradores (no listados) que falta completar y confirmar"
+		on:click={() => (onlyDrafts = !onlyDrafts)}
+		><FilePen size={16} aria-hidden="true" /> A confirmar{draftCount
+			? ` (${draftCount})`
+			: ''}</button
+	>
+</AgendaToolbar>
 
 {#if view === 'planilla'}
 	<AgendaSheet
 		rows={rows.filter((r) => r.date >= data.today)}
+		draftsOnly={onlyDrafts}
 		places={data.places}
+		{notes}
+		today={data.today}
+		notesEnabled={data.notesEnabled}
 		bind:dirtyCount={sheetDirty}
 		on:saved={(e) => updateRow(e.detail.slug, e.detail.values)}
+		on:addNote={(e) => addNote(e.detail)}
+		on:openNote={(e) => editNote(e.detail)}
 	/>
 {:else if view}
 	<Calendario
@@ -284,22 +407,10 @@
 		bind:title
 		view={ecView}
 		{events}
-		on:open={(e) => {
-			selected = e.detail.id;
-			detailOpen = true;
-		}}
-		on:pick={(e) => (newEventAsk = e.detail)}
+		on:open={(e) => openEvent(e.detail.id)}
+		on:pick={(e) => openQuickAdd(e.detail)}
 		on:move={(e) => reschedule(e.detail.id, e.detail, e.detail.revert)}
 	/>
-	{#if newEventAsk}
-		<ConfirmPrompt
-			message={newEventQuestion(newEventAsk)}
-			confirmLabel="Cargar"
-			cancelLabel="Cancelar"
-			on:confirm={create}
-			on:cancel={() => (newEventAsk = null)}
-		/>
-	{/if}
 	{#if pendingCount || problemList.length}
 		<PendingBar
 			count={pendingCount}
@@ -326,10 +437,42 @@
 	row={selectedRow}
 	bind:open={detailOpen}
 	problem={selectedProblem}
-	busy={saving}
+	busy={saving || confirming}
 	pending={selectedPending}
+	on:confirm={confirmSelected}
 	on:move={(e) => selected && reschedule(selected, { date: e.detail.date })}
 	on:revert={() => selected && dispatchPending({ type: 'revert', slug: selected })}
+/>
+
+<QuickAdd
+	bind:open={quickOpen}
+	bind:date={quickDate}
+	bind:startTime={quickStart}
+	bind:endTime={quickEnd}
+	candidates={data.duplicables}
+	busy={quickBusy}
+	error={quickError}
+	notesEnabled={data.notesEnabled}
+	on:duplicate={(e) => createDraft({ source: e.detail.slug })}
+	on:scratch={(e) => createDraft({ title: e.detail.title })}
+	on:note={(e) => {
+		quickOpen = false;
+		addNote(e.detail);
+	}}
+/>
+
+<DayNoteEditor
+	bind:open={noteOpen}
+	note={noteEditing}
+	date={noteDate}
+	on:saved={(e) => {
+		notes = upsertDayNote(notes, e.detail);
+		say('Nota guardada.');
+	}}
+	on:deleted={(e) => {
+		notes = removeDayNote(notes, e.detail);
+		say('Nota borrada.');
+	}}
 />
 
 <!-- Avisos (sin Deshacer: los movimientos se deshacen antes de guardar, con «Descartar»). -->
@@ -348,6 +491,11 @@
 		background: var(--warn-bg);
 		border-radius: 0.8rem;
 		padding: 0.5rem 0.9rem;
+	}
+	.drafts-filter.on {
+		background: var(--warn-bg);
+		border-color: var(--warn);
+		font-weight: 700;
 	}
 	.foot {
 		font-size: 0.85rem;

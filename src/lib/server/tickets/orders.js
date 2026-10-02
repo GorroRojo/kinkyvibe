@@ -318,18 +318,50 @@ export function tierTaken(db, { eventSlug, typeId, tierId, exceptId = null, now 
  * @returns {Promise<import('$lib/utils/ticketTiers.js').TakenCounts>}
  */
 export async function getTaken(db, eventSlug, now = Date.now()) {
-	const { results } = await db
-		.prepare(
-			`SELECT ticket_type, ticket_tier, COALESCE(SUM(quantity), 0) AS n FROM orders
-			WHERE event_slug = ?1
-				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?2))
-			GROUP BY ticket_type, ticket_tier`
-		)
-		.bind(eventSlug, now)
-		.all();
-	/** @type {import('$lib/utils/ticketTiers.js').TakenCounts} */
-	const taken = { types: new Map(), tiers: new Map() };
+	return (await getTakenMany(db, [eventSlug], now)).get(eventSlug) ?? emptyTakenCounts();
+}
+
+const TAKEN_CHUNK = 90;
+
+/** @returns {import('$lib/utils/ticketTiers.js').TakenCounts} */
+const emptyTakenCounts = () => ({ types: new Map(), tiers: new Map() });
+
+/**
+ * Lo mismo que `getTaken` para varios eventos en UNA consulta (las listas de eventos: ver
+ * listStates.js). Los eventos sin órdenes no aparecen en el resultado.
+ *
+ * @param {D1Database} db
+ * @param {string[]} eventSlugs
+ * @param {number} [now]
+ * @returns {Promise<Map<string, import('$lib/utils/ticketTiers.js').TakenCounts>>}
+ */
+export async function getTakenMany(db, eventSlugs, now = Date.now()) {
+	/** @type {Map<string, import('$lib/utils/ticketTiers.js').TakenCounts>} */
+	const out = new Map();
+	const slugs = [...new Set(eventSlugs)];
+	/** @type {Record<string, unknown>[]} */
+	const results = [];
+	// D1 acepta hasta 100 parámetros por consulta: en la práctica es una sola (las listas tienen
+	// pocos eventos con entradas a la vez).
+	for (let i = 0; i < slugs.length; i += TAKEN_CHUNK) {
+		const chunk = slugs.slice(i, i + TAKEN_CHUNK);
+		// ?1 es `now`; los slugs van de ?2 en adelante.
+		const marks = chunk.map((_, j) => `?${j + 2}`).join(', ');
+		const res = await db
+			.prepare(
+				`SELECT event_slug, ticket_type, ticket_tier, COALESCE(SUM(quantity), 0) AS n FROM orders
+				WHERE event_slug IN (${marks})
+					AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?1))
+				GROUP BY event_slug, ticket_type, ticket_tier`
+			)
+			.bind(now, ...chunk)
+			.all();
+		results.push(...res.results);
+	}
 	for (const r of results) {
+		const slug = String(r.event_slug);
+		let taken = out.get(slug);
+		if (!taken) out.set(slug, (taken = emptyTakenCounts()));
 		const type = String(r.ticket_type);
 		const n = Number(r.n ?? 0);
 		taken.types.set(type, (taken.types.get(type) ?? 0) + n);
@@ -337,7 +369,7 @@ export async function getTaken(db, eventSlug, now = Date.now()) {
 			taken.tiers.set(tierKey(type, String(r.ticket_tier)), n);
 		}
 	}
-	return taken;
+	return out;
 }
 
 /**
@@ -1228,6 +1260,31 @@ export async function transferLimits(db, { order, type, now = Date.now() }) {
 	if (order.payment_method !== 'transferencia') return [];
 	if (order.status !== 'awaiting_transfer' && order.status !== 'expired') return [];
 	if (order.status === 'awaiting_transfer' && order.expires_at > now) return [];
+	return placeLimits(db, { order, type, now });
+}
+
+/**
+ * Qué límites se pasarían al deshacer el rechazo de una transferencia (volverla a "esperando
+ * comprobante"): mientras estuvo cancelada no ocupaba lugar, así que vuelve a entrar solo si hay
+ * cupo en su tipo y en su tramo. Mismos límites que `transferLimits` para una vencida. Una orden
+ * que no es una transferencia cancelada da `[]` (la rechaza `reopenTransfer`).
+ *
+ * @param {D1Database} db
+ * @param {Parameters<typeof transferLimits>[1]} input
+ * @returns {Promise<import('./overrides.js').ExceededLimit[]>}
+ */
+export async function reopenLimits(db, { order, type, now = Date.now() }) {
+	if (order.payment_method !== 'transferencia' || order.status !== 'cancelled') return [];
+	return placeLimits(db, { order, type, now });
+}
+
+/**
+ * Cupo del tipo y del tramo para una orden que hoy no ocupa lugar.
+ *
+ * @param {D1Database} db
+ * @param {Parameters<typeof transferLimits>[1]} input
+ */
+async function placeLimits(db, { order, type, now = Date.now() }) {
 	const taken = await takenPlaces(db, {
 		eventSlug: order.event_slug,
 		typeId: order.ticket_type,
@@ -1303,4 +1360,64 @@ export async function cancelTransfer(db, { orderId, eventSlug, by, now = Date.no
 		.bind(orderId, eventSlug, by, now)
 		.run();
 	return res.meta.changes === 1;
+}
+
+/**
+ * Deshace el rechazo (admin) de una transferencia cancelada: vuelve a "esperando comprobante"
+ * con una reserva nueva de `holdMs` desde ahora (la vieja ya no sirve: mientras estuvo cancelada
+ * el lugar quedó libre). Una sola sentencia condicional, como `confirmTransfer`: solo vuelve si
+ * todavía hay cupo en el tipo (`capacity`) y en el tramo de la orden (`tierQuantity`), salvo
+ * `override: true` (le admin confirmó en el diálogo que se pasa; ver `reopenLimits`).
+ *
+ * @param {D1Database} db
+ * @param {{ orderId: string, eventSlug: string, capacity: number | null, by: string,
+ *   holdMs: number, now?: number, override?: boolean, tierQuantity?: number | null }} input
+ * @returns {Promise<{
+ *   result: 'reopened' | 'already' | 'no-capacity' | 'not-transfer' | 'not-found' | 'not-cancelled',
+ *   order: Order | null
+ * }>}
+ */
+export async function reopenTransfer(
+	db,
+	{
+		orderId,
+		eventSlug,
+		capacity,
+		by,
+		holdMs,
+		now = Date.now(),
+		override = false,
+		tierQuantity = null
+	}
+) {
+	const order = isValidOrderId(orderId) ? await getOrder(db, orderId) : null;
+	if (!order || order.event_slug !== eventSlug) return { result: 'not-found', order: null };
+	if (order.payment_method !== 'transferencia') return { result: 'not-transfer', order };
+	const res = await db
+		.prepare(
+			`UPDATE orders SET status = 'awaiting_transfer', expires_at = ?3, confirmed_by = NULL,
+				updated_at = ?2
+			WHERE id = ?1 AND payment_method = 'transferencia' AND status = 'cancelled' AND (
+				?5 = 1 OR ((?4 IS NULL OR (
+					SELECT COALESCE(SUM(o2.quantity), 0) FROM orders o2
+					WHERE o2.event_slug = orders.event_slug AND o2.ticket_type = orders.ticket_type
+						AND o2.id != orders.id
+						AND (o2.status = 'approved' OR (o2.status IN ${HOLDING} AND o2.expires_at > ?2))
+				) + orders.quantity <= ?4) AND (?6 IS NULL OR orders.ticket_tier IS NULL OR (
+					SELECT COALESCE(SUM(o3.quantity), 0) FROM orders o3
+					WHERE o3.event_slug = orders.event_slug AND o3.ticket_type = orders.ticket_type
+						AND o3.ticket_tier = orders.ticket_tier AND o3.id != orders.id
+						AND (o3.status = 'approved' OR (o3.status IN ${HOLDING} AND o3.expires_at > ?2))
+				) + orders.quantity <= ?6))
+			)`
+		)
+		.bind(order.id, now, now + holdMs, capacity, override ? 1 : 0, tierQuantity)
+		.run();
+	const fresh = await getOrder(db, order.id);
+	if (res.meta.changes === 1) return { result: 'reopened', order: fresh };
+	if (fresh?.status === 'awaiting_transfer' && fresh.expires_at > now) {
+		return { result: 'already', order: fresh };
+	}
+	if (fresh?.status !== 'cancelled') return { result: 'not-cancelled', order: fresh };
+	return { result: 'no-capacity', order: fresh };
 }

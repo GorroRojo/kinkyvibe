@@ -21,7 +21,9 @@ import {
 	listGeneralFields,
 	listOwnFields,
 	readAnswers,
-	setChosenGeneral
+	setChosenGeneral,
+	updateField,
+	chosenGeneral
 } from './signupFields.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
@@ -122,8 +124,16 @@ describe('interruptor', () => {
 		await setFlag(t.db, 'personas_eventos', true, BY);
 		const fields = await eventSignupFields(t.db, EVENT);
 		expect(fields.map((f) => f.id)).toEqual([ids.general, ids.own]);
-		// Lo que llega a la página: sin quién ni cuándo la editó.
-		expect(Object.keys(fields[0]).sort()).toEqual(['id', 'kind', 'label', 'options', 'required']);
+		// Lo que llega a la página: sin quién ni cuándo la editó (con el alcance: migración 0026).
+		expect(Object.keys(fields[0]).sort()).toEqual([
+			'id',
+			'kind',
+			'label',
+			'options',
+			'perTicket',
+			'required',
+			'ticketTypes'
+		]);
 	});
 });
 
@@ -200,5 +210,166 @@ describe('comprar con preguntas', () => {
 		const { rows: orderRows } = await eventOrderRows(t.db, EVENT, config, NOW);
 		expect(orderRows).toHaveLength(1);
 		expect(orderRows[0].answers).toEqual(answers);
+	});
+});
+
+describe('alcance y edición (migración 0026)', () => {
+	const config = /** @type {import('./config.js').EventTickets} */ (
+		parseTicketConfig({
+			title: 'Taller de prueba',
+			start: '2099-12-01T20:00-03:00',
+			tickets: [
+				{ id: 'general', name: 'General', price: 8000, capacity: 10 },
+				{ id: 'vip', name: 'VIP', price: 12000, capacity: 10 }
+			]
+		})
+	);
+	const buyer = {
+		name: 'Persona de Prueba',
+		pronouns: 'elle',
+		email: 'prueba@example.com',
+		dni: '30.000.000'
+	};
+	/** @param {number} n */
+	const holders = (n) =>
+		Array.from({ length: n }, (_, i) => ({ name: `Persona ${i + 1}`, pronouns: 'elle' }));
+
+	it('guarda una vez por entrada y los tipos; una general se acota por evento', async () => {
+		const own = await createField(
+			t.db,
+			EVENT,
+			def('¿Alguna restricción alimentaria?', { perTicket: true, ticketTypes: ['vip'] }),
+			BY
+		);
+		const general = await createField(
+			t.db,
+			null,
+			// Una general no guarda tipos propios (son de cada evento).
+			def('¿Cómo te enteraste?', { ticketTypes: ['vip'] }),
+			BY
+		);
+		if (!own.ok || !general.ok) throw new Error('no se pudo sembrar');
+		expect((await listOwnFields(t.db, EVENT))[0]).toMatchObject({
+			perTicket: true,
+			ticketTypes: ['vip']
+		});
+		expect((await listGeneralFields(t.db))[0]).toMatchObject({ perTicket: false, ticketTypes: [] });
+		await setChosenGeneral(t.db, EVENT, [general.id], { [general.id]: ['general'] });
+		expect(await chosenGeneral(t.db, EVENT)).toEqual([
+			{ id: general.id, ticketTypes: ['general'] }
+		]);
+		const fields = await fieldsForEvent(t.db, EVENT);
+		expect(fields.map((f) => [f.id, f.ticketTypes])).toEqual([
+			[general.id, ['general']],
+			[own.id, ['vip']]
+		]);
+	});
+
+	it('editar cambia la pregunta; las respuestas guardadas quedan como se respondieron', async () => {
+		const own = await createField(t.db, EVENT, def('¿Alguna restricción?'), BY);
+		if (!own.ok) throw new Error('no se pudo sembrar');
+		const r = await reserveOrder(t.db, {
+			eventSlug: EVENT,
+			type: config.types[0],
+			quantity: 1,
+			holders: holders(1),
+			buyer: { name: 'Persona de Prueba', email: 'prueba@example.com', dni: '30000000' },
+			option: 'completo',
+			now: NOW,
+			answers: [{ id: own.id, label: '¿Alguna restricción?', value: 'Sin gluten' }]
+		});
+		expect(r.ok).toBe(true);
+		const before = await updateField(
+			t.db,
+			own.id,
+			EVENT,
+			def('Elegí tu menú', {
+				kind: 'choice',
+				required: true,
+				options: ['Vegano', 'Común'],
+				perTicket: true
+			}),
+			{ by: 'admin-de-prueba', now: 2 }
+		);
+		expect(before).toBe('¿Alguna restricción?');
+		expect((await listOwnFields(t.db, EVENT))[0]).toMatchObject({
+			label: 'Elegí tu menú',
+			kind: 'choice',
+			required: true,
+			options: ['Vegano', 'Común'],
+			perTicket: true,
+			updatedAt: 2
+		});
+		expect(r.ok && (await answersByOrder(t.db, EVENT)).get(r.order.id)).toEqual([
+			{ id: own.id, label: '¿Alguna restricción?', value: 'Sin gluten' }
+		]);
+		// Solo las de ese evento (o generales con null).
+		expect(await updateField(t.db, own.id, 'otro-evento', def('Otra'), BY)).toBeNull();
+		expect(await updateField(t.db, own.id, null, def('Otra'), BY)).toBeNull();
+		expect(await updateField(t.db, 999, EVENT, def('Otra'), BY)).toBeNull();
+	});
+
+	it('la compra pregunta solo lo del tipo elegido y las de "por entrada", una por entrada', async () => {
+		const perTicket = await createField(
+			t.db,
+			EVENT,
+			def('¿Alguna restricción alimentaria?', { required: true, perTicket: true }),
+			BY
+		);
+		const vipOnly = await createField(
+			t.db,
+			EVENT,
+			def('Talle de remera', { required: true, ticketTypes: ['vip'] }),
+			BY
+		);
+		if (!perTicket.ok || !vipOnly.ok) throw new Error('no se pudo sembrar');
+		await setFlag(t.db, 'personas_eventos', true, BY);
+		const fields = await eventSignupFields(t.db, EVENT);
+		const base = { quantity: 2, buyer, holders: holders(2), accept: 'on', now: NOW };
+
+		// General x2: no pide el talle; la de por entrada, dos veces.
+		const missing = validatePurchase(
+			{ ...config, fields },
+			{ ...base, type: 'general', answers: {} }
+		);
+		expect(!missing.ok && missing.errors).toEqual({
+			[fieldInputName(perTicket.id, 0)]: 'Completá esta respuesta.',
+			[fieldInputName(perTicket.id, 1)]: 'Completá esta respuesta.'
+		});
+		const form = new FormData();
+		form.set(fieldInputName(perTicket.id, 0), 'Vegana');
+		form.set(fieldInputName(perTicket.id, 1), 'Sin TACC');
+		form.set(fieldInputName(perTicket.id, 2), 'de una tercera entrada que no se compra');
+		const answers = readAnswers(form, fields, '2');
+		expect(answers).toEqual({
+			[fieldInputName(perTicket.id, 0)]: 'Vegana',
+			[fieldInputName(perTicket.id, 1)]: 'Sin TACC'
+		});
+		const ok = validatePurchase({ ...config, fields }, { ...base, type: 'general', answers });
+		expect(ok.ok && ok.answers).toEqual([
+			{ id: perTicket.id, label: '¿Alguna restricción alimentaria?', value: 'Vegana', ticket: 1 },
+			{ id: perTicket.id, label: '¿Alguna restricción alimentaria?', value: 'Sin TACC', ticket: 2 }
+		]);
+
+		// VIP: además el talle (una vez por compra).
+		const vip = validatePurchase({ ...config, fields }, { ...base, type: 'vip', answers });
+		expect(!vip.ok && vip.errors).toEqual({
+			[fieldInputName(vipOnly.id)]: 'Completá esta respuesta.'
+		});
+
+		// Se guardan con la entrada de cada una.
+		const r = await reserveOrder(t.db, {
+			eventSlug: EVENT,
+			type: config.types[0],
+			quantity: 2,
+			holders: holders(2),
+			buyer: { name: 'Persona de Prueba', email: 'prueba@example.com', dni: '30000000' },
+			option: 'completo',
+			now: NOW,
+			answers: ok.ok ? ok.answers : []
+		});
+		expect(r.ok && (await answersByOrder(t.db, EVENT)).get(r.order.id)).toEqual(
+			ok.ok ? ok.answers : null
+		);
 	});
 });

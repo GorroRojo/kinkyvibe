@@ -1,6 +1,7 @@
 /**
  * Ficha del evento, pestaña Transferencias: confirmar el pago (emite y manda las entradas) o
- * cancelar la reserva. Se siguen mostrando 7 días las reservas vencidas.
+ * cancelar la reserva. Se siguen mostrando 7 días las reservas vencidas. Una rechazada (cancelada)
+ * de "Resueltas hace poco" se puede volver a esperar comprobante ("Deshacer rechazo").
  */
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -31,4 +32,4 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	return { transfers: pendingTransfers(rows, now), resolved };
 }
 
-export const actions = pickActions('confirm', 'cancel');
+export const actions = pickActions('confirm', 'cancel', 'reopen');
