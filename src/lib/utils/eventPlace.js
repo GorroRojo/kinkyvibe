@@ -97,3 +97,51 @@ export function placeFileErrors(content) {
 	const map = checkMapLink(String(meta.location_map));
 	return map.ok ? [] : [map.message];
 }
+
+/** Los campos del «Dónde» del .md (texto libre de quien edita). */
+export const MD_PLACE_FIELDS = Object.freeze(['location', 'location_name', 'location_map']);
+
+/**
+ * La meta de un evento sin el «Dónde» del .md (`location`, `location_name`, `location_map`).
+ * @template {Record<string, any>} M
+ * @param {M} meta
+ * @returns {M}
+ */
+export function stripMdPlace(meta) {
+	const out = /** @type {Record<string, any>} */ ({ ...meta });
+	for (const key of MD_PLACE_FIELDS) delete out[key];
+	return /** @type {M} */ (out);
+}
+
+/**
+ * El lugar en pocas palabras (carrusel, imagen para compartir): el nombre si su nivel lo deja
+ * ver; si no, lo que se ve de la dirección, o «Lugar a confirmar».
+ * @param {import('./venues.js').VenueView} venue
+ */
+export function venueShortLabel(venue) {
+	if ((venue.level === 'public' || venue.level === 'name') && venue.name) return venue.name;
+	return venueLine(venue) || 'Lugar a confirmar';
+}
+
+/**
+ * Un lugar vinculado manda (como en la página del evento): la meta que pueden usar las salidas
+ * públicas (listas, carrusel, /api/posts, la imagen para compartir) con el «Dónde» del .md
+ * cambiado por lo que el nivel del lugar deja ver. `location_name` es el lugar en pocas palabras
+ * y `location` la dirección si el nivel la muestra junto al nombre ("Nombre + dirección"); si no,
+ * lo mismo que `location_name` (nunca vacía: un evento con lugar no pasa por online). El link al
+ * mapa del .md no va. Sin lugar, la meta como está.
+ *
+ * @template {Record<string, any>} M
+ * @param {M} meta
+ * @param {import('./venues.js').VenueView | null | undefined} venue
+ * @returns {M}
+ */
+export function venuePlaceMeta(meta, venue) {
+	if (!venue) return meta;
+	const label = venueShortLabel(venue);
+	return /** @type {M} */ ({
+		...stripMdPlace(meta),
+		location_name: label,
+		location: (venue.level === 'public' && venue.address) || label
+	});
+}

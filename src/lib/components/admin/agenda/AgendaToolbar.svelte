@@ -4,6 +4,7 @@
 	 * Props: `view` (la vista elegida), `title` (período, ej. "octubre de 2026"), `nav` (default
 	 * true: muestra anterior / hoy / siguiente; la planilla no los usa).
 	 * Eventos: `prev`, `next`, `today`, `view` (detail: id de la vista).
+	 * Slot `filters`: filtros que valen para todas las vistas (la agenda pone «A confirmar»).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
@@ -30,6 +31,7 @@
 			<h2 aria-live="polite">{title}</h2>
 		</div>
 	{/if}
+	<slot name="filters" />
 	<div class="views" role="group" aria-label="Vista">
 		{#each CALENDAR_VIEWS as v (v.id)}
 			<button

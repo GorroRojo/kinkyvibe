@@ -25,6 +25,7 @@ import {
 	validateSchedule
 } from './eventDraft.js';
 import { splitEventTags } from './adminTags.js';
+import { DRAFT_KEY } from './sheetImport.js';
 
 /** Estados que se eligen en la agenda (cómo se ve el evento en el sitio). */
 export const AGENDA_STATES = /** @type {const} */ ([
@@ -287,6 +288,10 @@ export function applyAgendaChange(raw, { before, after }) {
 			if (current.state === 'cancelado') changes.status = 'anunciado';
 			changes.force_unlisted =
 				next.state === 'no-listado' ? true : fields.force_unlisted ? REMOVE : undefined;
+			// Publicarlo desde la planilla también lo saca de borrador: si después alguien lo vuelve a
+			// poner como «No listado», es un evento privado, no un borrador a confirmar.
+			if (next.state === 'publicado' && new RegExp(`^${DRAFT_KEY}:`, 'm').test(frontmatter))
+				changes[DRAFT_KEY] = REMOVE;
 		}
 	}
 	return {
