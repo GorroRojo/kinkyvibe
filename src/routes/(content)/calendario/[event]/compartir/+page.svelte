@@ -72,9 +72,7 @@
 	]);
 
 	$: palette =
-		mode in PALETTES
-			? PALETTES[mode]
-			: derivePalette(roles, mode === 'auto' ? swatches[3]?.hex : undefined);
+		mode in PALETTES ? PALETTES[mode] : derivePalette(roles, mode === 'auto' ? swatches[3]?.hex : undefined);
 
 	/** @param {string} id */
 	function choosePreset(id) {
@@ -131,9 +129,7 @@
 		}
 		if (!image) layout = 'cartel';
 		try {
-			const probe = new File([new Blob(['x'], { type: 'image/png' })], 'x.png', {
-				type: 'image/png'
-			});
+			const probe = new File([new Blob(['x'], { type: 'image/png' })], 'x.png', { type: 'image/png' });
 			canShareFiles = !!navigator.canShare?.({ files: [probe] });
 		} catch (e) {
 			canShareFiles = false;
@@ -151,13 +147,7 @@
 			const extras = extrasFromSections(sectionsFromHTML(await res.text()));
 			const next = defaultTexts(data.meta, extras);
 			const on = defaultEnabled(next);
-			for (const key of /** @type {(keyof typeof texts)[]} */ ([
-				'price',
-				'priceInfo',
-				'audience',
-				'dress',
-				'access'
-			])) {
+			for (const key of /** @type {(keyof typeof texts)[]} */ (['price', 'priceInfo', 'audience', 'dress', 'access'])) {
 				if (touched.has(key) || !next[key] || next[key] === texts[key]) continue;
 				texts[key] = next[key];
 				enabled[key] = on[key];
@@ -277,8 +267,9 @@
 		<h1>Compartir como imagen</h1>
 		<p class="subtitle"><a href={data.path}>{data.meta.title}</a></p>
 		<p class="lead">
-			Descargá las imágenes para compartir el evento. Elegí el diseño, los colores y la tipografía,
-			y prendé, apagá o corregí cada dato: los cambios quedan solo en tu dispositivo.
+			Descargá las imágenes para compartir el evento. Elegí el diseño, los colores y la
+			tipografía, y prendé, apagá o corregí cada dato: los cambios quedan solo en tu
+			dispositivo.
 		</p>
 		{#if info.ended}
 			<p class="warning">Ojo: este evento ya pasó.</p>
@@ -354,15 +345,11 @@
 					{/if}
 					{#each Object.entries(PALETTES) as [id, p]}
 						<label class:selected={mode == id}>
-							<input
-								type="radio"
-								checked={mode == id}
-								on:change={() => choosePreset(id)}
-								name="palette"
-							/>
+							<input type="radio" checked={mode == id} on:change={() => choosePreset(id)} name="palette" />
 							<span class="dots" aria-hidden="true">
-								<span style="background: {p.bg}"></span><span style="background: {p.title}"
-								></span><span style="background: {p.small}"></span>
+								<span style="background: {p.bg}"></span><span style="background: {p.title}"></span><span
+									style="background: {p.small}"
+								></span>
 							</span>
 							{p.label}
 						</label>
@@ -383,11 +370,7 @@
 								<span>{label}</span>
 							</label>
 							{#if swatches.length}
-								<div
-									class="swatches"
-									role="group"
-									aria-label="Colores de la imagen para {label.toLowerCase()}"
-								>
+								<div class="swatches" role="group" aria-label="Colores de la imagen para {label.toLowerCase()}">
 									{#each swatches as sw}
 										<button
 											type="button"
@@ -412,20 +395,18 @@
 			<fieldset class="fonts">
 				<legend>Tipografías</legend>
 				<div class="font-grid">
-					<label>
-						<span>Títulos</span>
-						<select bind:value={displayFont} on:change={applyFonts}>
-							{#each Object.entries(FONTS.display) as [id, f]}<option value={id}>{f.label}</option
-								>{/each}
-						</select>
-					</label>
-					<label>
-						<span>Textos</span>
-						<select bind:value={bodyFont} on:change={applyFonts}>
-							{#each Object.entries(FONTS.body) as [id, f]}<option value={id}>{f.label}</option
-								>{/each}
-						</select>
-					</label>
+				<label>
+					<span>Títulos</span>
+					<select bind:value={displayFont} on:change={applyFonts}>
+						{#each Object.entries(FONTS.display) as [id, f]}<option value={id}>{f.label}</option>{/each}
+					</select>
+				</label>
+				<label>
+					<span>Textos</span>
+					<select bind:value={bodyFont} on:change={applyFonts}>
+						{#each Object.entries(FONTS.body) as [id, f]}<option value={id}>{f.label}</option>{/each}
+					</select>
+				</label>
 				</div>
 				{#if fontsLoading}<p class="hint" role="status">Cargando tipografía…</p>{/if}
 			</fieldset>
@@ -469,7 +450,8 @@
 								on:input={() => {
 									touched.add(field.key);
 									if (!field.required && texts[field.key]) enabled[field.key] = true;
-								}}></textarea>
+								}}
+							></textarea>
 						{:else}
 							<input
 								type="text"

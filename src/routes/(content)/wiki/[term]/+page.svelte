@@ -116,13 +116,13 @@
 					{#each line as { name, disabled = false }}
 						<span class="line">
 							{#if disabled}
-								<ChevronLeft {style} /><span class="familiar-name">{name}</span>
-							{:else}
-								<ChevronLeft {style} /><a
-									class="familiar-name"
-									href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a
-								>
-							{/if}
+							<ChevronLeft {style} /><span class="familiar-name">{name}</span>
+						{:else}
+							<ChevronLeft {style} /><a
+								class="familiar-name"
+								href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a
+							>
+						{/if}
 						</span>
 					{/each}
 				</div>
@@ -137,10 +137,7 @@
 								<span class="familiar-name">{name}</span>
 								<ChevronRight {style} />
 							{:else}
-								<a
-									class="familiar-name"
-									href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a
-								>
+								<a class="familiar-name" href={'/wiki/' + encodeURIComponent(name.replaceAll(' ', '-'))}>{name}</a>
 								<ChevronRight {style} />
 							{/if}
 						</span>
@@ -185,7 +182,7 @@
 	}
 	.lineage a {
 		background: white;
-		padding: 0.2em 0.5em;
+		padding: .2em .5em;
 		border-radius: var(--round);
 		text-decoration: none;
 	}

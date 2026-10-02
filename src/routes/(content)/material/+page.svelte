@@ -29,9 +29,7 @@
 		/>).
 	</p>
 	<dl>
-		{#each $filteredTags
-			.map($tagManager.get)
-			.filter((t) => t.parsedDescription) as termino (termino.id)}
+		{#each $filteredTags.map($tagManager.get).filter((t) => t.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>

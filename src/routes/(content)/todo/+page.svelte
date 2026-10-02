@@ -28,20 +28,10 @@
 </svelte:head>
 <div class="glosario">
 	<p>
-		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag
-			tag="calendario"
-		/>, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa,
-		por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag
-			tag="libros"
-			internalTag="libro"
-		/> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag
-			tag="clases"
-		/> u ofrecen <InlineTag tag="sesiones" />.
+		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag tag="calendario" />, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa, por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag tag="libros" internalTag="libro" /> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag tag="clases" /> u ofrecen <InlineTag tag="sesiones" />.
 	</p>
 	<dl>
-		{#each $filteredTags
-			.map($tagManager.get)
-			.filter((i) => i.parsedDescription) as termino (termino.id)}
+		{#each $filteredTags.map($tagManager.get).filter(i=>i.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
@@ -107,7 +97,7 @@
 </div>
 <PostList posts={allPosts} />
 
-<style lang="scss">
+	<style lang="scss">
 	.glosario {
 		max-width: 60rem;
 		margin-inline: auto;
