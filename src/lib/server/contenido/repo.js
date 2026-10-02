@@ -250,6 +250,7 @@ export function clearDbPostCache() {
  * @param {D1Database} db
  * @param {string} type
  * @param {string} category
+ * @returns {Promise<string>}
  */
 function postsStamp(db, type, category) {
 	// Dos lecturas a la par en el MISMO pedido (el Inicio pide los eventos y las entradas a la vez)

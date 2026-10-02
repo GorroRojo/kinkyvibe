@@ -97,8 +97,9 @@ cerrada muestra la suma de sus contadores.
 **Consultas en tanda** (Inicio y contadores del menú): el Inicio hace **dos** idas a la base
 (`db.batch`) en vez de una por consulta (eran 33): la primera con todo lo que no depende de la
 lista de eventos, la segunda con lo que sí (totales, recordatorios, "desde tu última visita", la
-tendencia de ventas). Los contadores del menú son **una** (las dos cuentas de órdenes salen de una
-sola pasada; «No listadas» se cuenta con una consulta, sin armar las listas públicas). Si una
+tendencia de ventas). Los contadores del menú son **una** (las dos cuentas de órdenes van en una
+sola consulta, cada una por su índice; «No listadas» se cuenta con una consulta, sin armar las
+listas públicas). Si una
 consulta de la tanda falla (por ejemplo, falta una migración), cada una se corre sola con su
 respaldo, como antes. Para sumar algo al Inicio: un `…Query` en `src/lib/server/admin/inicio.js`
 (ver `src/lib/server/db/batch.js`) y una línea en la tanda que corresponda; el test

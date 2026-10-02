@@ -60,8 +60,9 @@ export async function panelCounts(platform, now = Date.now()) {
 
 /**
  * Transferencias esperando comprobante y todavía vigentes, y órdenes marcadas "para revisar"
- * (pago tarde que pasó el cupo, posible cobro doble): una sola pasada por `orders`, solo por las
- * filas de esos dos índices (`orders_status_created` y `orders_needs_review`).
+ * (pago tarde que pasó el cupo, posible cobro doble): una sola consulta, cada cuenta por su índice
+ * (`orders_status_created` y `orders_needs_review`). Con `SUM(CASE …)` y un `OR`, SQLite recorría
+ * toda la tabla.
  *
  * @param {number} now
  * @returns {import('$lib/server/db/batch.js').BatchQuery<{ transfers: number, reviewOrders: number } | null>}
@@ -74,10 +75,8 @@ function panelOrderCountsQuery(now) {
 			db
 				.prepare(
 					`SELECT
-						COALESCE(SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?1 THEN 1 ELSE 0 END), 0) AS transfers,
-						COALESCE(SUM(CASE WHEN needs_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS review
-					FROM orders
-					WHERE (status = 'awaiting_transfer' AND expires_at > ?1) OR needs_review IS NOT NULL`
+						(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND expires_at > ?1) AS transfers,
+						(SELECT COUNT(*) FROM orders WHERE needs_review IS NOT NULL) AS review`
 				)
 				.bind(now)
 		],
