@@ -14,9 +14,10 @@ import { siteEvent } from '$lib/server/contenido/posts.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { eventPageVenue } from '$lib/server/amigues/venues.js';
 import { stripMdPlace } from '$lib/utils/eventPlace.js';
+import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params, platform, fetch, locals }) {
+export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!isValidEventSlug(params.event)) error(404, 'Ese evento no existe.');
 	// Interruptor `contenido_db`: el encabezado sale del evento de la base (si la tiene). La
 	// configuración de las entradas sigue saliendo del .md (getTicketsView).
@@ -35,7 +36,11 @@ export async function load({ params, platform, fetch, locals }) {
 	const event = stored
 		? { meta: venue ? stripMdPlace(stored.meta) : stored.meta, path: stored.path }
 		: null;
-	return { tickets, event, venue };
+	// Con cuenta (interruptor `cuentas`): nombre, pronombres, DNI guardados y el mail de la cuenta,
+	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
+	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
+	if (account) setHeaders({ 'cache-control': 'private, no-store' });
+	return { tickets, event, venue, account };
 }
 
 /** @type {import('./$types').Actions} */

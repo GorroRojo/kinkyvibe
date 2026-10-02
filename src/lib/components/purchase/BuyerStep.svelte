@@ -4,6 +4,9 @@
 	 * los pronombres de cada entrada y las preguntas de inscripción que aplican al tipo elegido
 	 * (las de una vez por entrada, dentro de cada entrada; las de una vez por compra, al final).
 	 * Los valores los maneja TicketPurchase.svelte (con `bind:`).
+	 *
+	 * Con cuenta (`signedIn`), las casillas de los datos guardados: «Guardar mis datos para la
+	 * próxima» (nombre y pronombres) y, aparte, «Recordar mi DNI» (docs/cuentas.md).
 	 */
 	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
 
@@ -16,6 +19,10 @@
 	/** La entrada 1 copia los datos de quien compra hasta que alguien la edite. */
 	export let firstHolderEdited = false;
 	export let firstPronounsEdited = false;
+	/** Con cuenta: muestra las casillas de los datos guardados. */
+	export let signedIn = false;
+	export let remember = false;
+	export let rememberDni = false;
 	export let count = 1;
 	/** @type {import('$lib/utils/signupFields.js').SignupField[]} */
 	export let ticketFields = [];
@@ -107,6 +114,28 @@
 		El email y el DNI son datos administrativos de la compra: el DNI no aparece en las entradas ni
 		en los mails.
 	</small>
+	{#if signedIn}
+		<div class="save-box">
+			<!-- Dice que este formulario mostró las casillas (sin esto, el servidor no toca nada). -->
+			<input type="hidden" name="datos_cuenta" value="1" />
+			<label class="check">
+				<input type="checkbox" name="guardar_datos" value="1" bind:checked={remember} />
+				<span>Guardar mis datos para la próxima</span>
+			</label>
+			<small class="hint"
+				>Tu nombre y tus pronombres quedan en tu cuenta. Si comprás para otra persona, destildalo
+				para no reemplazar tus datos.</small
+			>
+			<label class="check">
+				<input type="checkbox" name="recordar_dni" value="1" bind:checked={rememberDni} />
+				<span>Recordar mi DNI</span>
+			</label>
+			<small class="hint">
+				Solo si lo marcás. Lo ves solo vos. En Mi rincón → Mis datos podés ver, cambiar o borrar lo
+				guardado.
+			</small>
+		</div>
+	{/if}
 </fieldset>
 
 <fieldset class="group">
@@ -270,6 +299,29 @@
 	.help:hover,
 	.help:focus-visible {
 		color: var(--2-dark);
+	}
+	.save-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3em;
+		padding: 0.6em 0.9em;
+		border-radius: 0.7em;
+		background: color-mix(in srgb, var(--2) 8%, white);
+	}
+	.check {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		min-height: 2.75em;
+		font-weight: bold;
+		font-size: var(--step--1);
+		cursor: pointer;
+	}
+	.check input {
+		width: 1.25em;
+		height: 1.25em;
+		flex-shrink: 0;
+		accent-color: var(--2-dark);
 	}
 	.field-error {
 		color: hsl(0, 75%, 40%);

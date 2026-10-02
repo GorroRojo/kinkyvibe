@@ -32,6 +32,35 @@ const looksLikeLink = (text) =>
 	/https?:|www\.|[<>]|\b[a-z0-9-]+\.(com|net|org|ar|io|ly|me|xyz)\b/i.test(text);
 
 /**
+ * Nombre de una persona: 2 a 80 letras, sin links. `error` con `emptyMessage` si no sirve.
+ * La usan quien compra, cada entrada y los datos guardados de la cuenta (Mi rincón).
+ *
+ * @param {unknown} raw
+ * @param {string} emptyMessage
+ * @returns {{ value: string, error: string | null }}
+ */
+export function checkName(raw, emptyMessage) {
+	const value = cleanText(raw);
+	if (value.length < 2 || value.length > 80) return { value, error: emptyMessage };
+	if (looksLikeLink(value)) return { value, error: 'El nombre no puede tener links.' };
+	return { value, error: null };
+}
+
+/**
+ * Pronombres: obligatorios, hasta 40 letras (texto libre). `error` con `emptyMessage` si faltan.
+ *
+ * @param {unknown} raw
+ * @param {string} emptyMessage
+ * @returns {{ value: string, error: string | null }}
+ */
+export function checkPronouns(raw, emptyMessage) {
+	const value = cleanText(raw);
+	if (!value) return { value, error: emptyMessage };
+	if (value.length > 40) return { value, error: 'Hasta 40 letras.' };
+	return { value, error: null };
+}
+
+/**
  * Valida los datos de una persona (una entrada): son para el evento.
  *
  * - nombre: como se conoce a la persona (no hace falta que sea el del documento), 2 a 80 letras;
@@ -43,14 +72,12 @@ const looksLikeLink = (text) =>
 export function validateHolder(raw) {
 	/** @type {{ name?: string, pronouns?: string }} */
 	const errors = {};
-	const name = cleanText(raw.name);
-	if (name.length < 2 || name.length > 80) errors.name = 'Poné un nombre (entre 2 y 80 letras).';
-	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
-	const pronouns = cleanText(raw.pronouns);
-	if (!pronouns) errors.pronouns = 'Poné los pronombres de esta persona.';
-	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
+	const name = checkName(raw.name, 'Poné un nombre (entre 2 y 80 letras).');
+	if (name.error) errors.name = name.error;
+	const pronouns = checkPronouns(raw.pronouns, 'Poné los pronombres de esta persona.');
+	if (pronouns.error) errors.pronouns = pronouns.error;
 	if (Object.keys(errors).length) return { ok: false, errors };
-	return { ok: true, holder: { name, pronouns } };
+	return { ok: true, holder: { name: name.value, pronouns: pronouns.value } };
 }
 
 /**
@@ -63,12 +90,10 @@ export function validateHolder(raw) {
 export function validateBuyer(raw) {
 	/** @type {{ name?: string, pronouns?: string, email?: string, dni?: string }} */
 	const errors = {};
-	const name = cleanText(raw.name);
-	if (name.length < 2 || name.length > 80) errors.name = 'Poné tu nombre (entre 2 y 80 letras).';
-	else if (looksLikeLink(name)) errors.name = 'El nombre no puede tener links.';
-	const pronouns = cleanText(raw.pronouns);
-	if (!pronouns) errors.pronouns = 'Poné tus pronombres.';
-	else if (pronouns.length > 40) errors.pronouns = 'Hasta 40 letras.';
+	const name = checkName(raw.name, 'Poné tu nombre (entre 2 y 80 letras).');
+	if (name.error) errors.name = name.error;
+	const pronouns = checkPronouns(raw.pronouns, 'Poné tus pronombres.');
+	if (pronouns.error) errors.pronouns = pronouns.error;
 	const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
 	if (email.length > 254 || !/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/.test(email)) {
 		errors.email = 'Revisá el email: ahí te mandamos las entradas.';
@@ -76,7 +101,7 @@ export function validateBuyer(raw) {
 	const dni = normalizeDni(raw.dni);
 	if (!dni) errors.dni = 'Revisá el DNI: tiene que tener entre 7 y 9 números.';
 	if (Object.keys(errors).length || !dni) return { ok: false, errors };
-	return { ok: true, buyer: { name, pronouns, email, dni } };
+	return { ok: true, buyer: { name: name.value, pronouns: pronouns.value, email, dni } };
 }
 
 /**

@@ -7,7 +7,7 @@
 
 	/**
 	 * @type {{
-	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView, venue: import('$lib/utils/venues.js').VenueView | null },
+	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView, venue: import('$lib/utils/venues.js').VenueView | null, account: ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null },
 	 *   form: { buy?: any } | null
 	 * }}
 	 */
@@ -58,7 +58,7 @@
 		<p class="door">{doorText(data.tickets.door)}</p>
 	{/if}
 
-	<TicketPurchase tickets={data.tickets} result={form?.buy} />
+	<TicketPurchase tickets={data.tickets} result={form?.buy} account={data.account} />
 </div>
 
 <style>

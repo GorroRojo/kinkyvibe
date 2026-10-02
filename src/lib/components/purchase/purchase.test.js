@@ -132,3 +132,60 @@ describe('TicketPurchase', () => {
 		expect(body).not.toContain('Pasos de la compra');
 	});
 });
+
+describe('TicketPurchase con cuenta (datos guardados)', () => {
+	// Datos inventados.
+	const account = {
+		name: 'Persona Prueba',
+		pronouns: 'elle',
+		email: 'cuenta@example.com',
+		dni: '30111222',
+		remember: true,
+		rememberDni: false
+	};
+	/** El `<input>` con este `name`. */
+	const input = (/** @type {string} */ body, /** @type {string} */ name) =>
+		body.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))?.[0] ?? '';
+
+	it('sin cuenta: ni datos completados ni casillas, como siempre', () => {
+		const { body } = render(TicketPurchase, { props: { tickets } });
+		expect(body).not.toContain('Guardar mis datos para la próxima');
+		expect(body).not.toContain('Recordar mi DNI');
+		expect(input(body, 'datos_cuenta')).toBe('');
+		expect(input(body, 'name')).not.toContain('value="Persona');
+	});
+
+	it('con cuenta: nombre, pronombres, mail y DNI completados; las casillas como arrancan', () => {
+		const { body } = render(TicketPurchase, { props: { tickets, account } });
+		expect(input(body, 'name')).toContain('value="Persona Prueba"');
+		expect(input(body, 'pronouns')).toContain('value="elle"');
+		expect(input(body, 'email')).toContain('value="cuenta@example.com"');
+		expect(input(body, 'dni')).toContain('value="30111222"');
+		expect(input(body, 'datos_cuenta')).toContain('value="1"');
+		expect(input(body, 'guardar_datos')).toMatch(/\schecked/);
+		expect(input(body, 'recordar_dni')).not.toMatch(/\schecked/);
+		// La entrada 1 copia a quien compra.
+		expect(input(body, 'holder_name_0')).toContain('value="Persona Prueba"');
+	});
+
+	it('si el servidor devolvió el formulario, mandan sus valores y casillas', () => {
+		const result = {
+			error: 'Revisá los datos marcados.',
+			errors: { dni: 'Revisá el DNI: tiene que tener entre 7 y 9 números.' },
+			values: {
+				name: 'Otro Nombre',
+				pronouns: 'ella',
+				email: 'otra@example.com',
+				dni: '12',
+				accountForm: true,
+				remember: false,
+				rememberDni: true
+			}
+		};
+		const { body } = render(TicketPurchase, { props: { tickets, account, result } });
+		expect(input(body, 'name')).toContain('value="Otro Nombre"');
+		expect(input(body, 'dni')).toContain('value="12"');
+		expect(input(body, 'guardar_datos')).not.toMatch(/\schecked/);
+		expect(input(body, 'recordar_dni')).toMatch(/\schecked/);
+	});
+});
