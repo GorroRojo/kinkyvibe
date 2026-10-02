@@ -107,7 +107,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0007](0007-amistades-guardados-suscripciones.md): Amistades, asistencia, guardados y
   suscripciones (30/9)
 - [0025](0025-lo-que-sigo.md): "Lo que sigo" (1/10)
-- [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10, propuesta)
+- [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10)
 
 ### Panel y CRM
 
