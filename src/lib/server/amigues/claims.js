@@ -138,7 +138,7 @@ export async function createClaim(
  */
 
 /** @param {Record<string, unknown>} r @returns {AdminClaim} */
-function toAdminClaim(r) {
+export function toAdminClaim(r) {
 	let kind = 'persona';
 	try {
 		kind = profileKindOf(JSON.parse(String(r.data)));
@@ -176,7 +176,18 @@ const CLAIM_SELECT = `SELECT c.id, c.profile_id, c.account_id, c.message, c.stat
  * @param {{ profileId?: number, status?: 'pending' | 'all', limit?: number }} [opts]
  * @returns {Promise<AdminClaim[]>}
  */
-export async function listClaims(db, { profileId, status = 'pending', limit = 200 } = {}) {
+export async function listClaims(db, opts = {}) {
+	const { results } = await listClaimsStatement(db, opts).all();
+	return results.map(toAdminClaim);
+}
+
+/**
+ * La consulta de {@link listClaims} (para correrla en una tanda; cada fila con `toAdminClaim`).
+ *
+ * @param {D1Database} db
+ * @param {{ profileId?: number, status?: 'pending' | 'all', limit?: number }} [opts]
+ */
+export function listClaimsStatement(db, { profileId, status = 'pending', limit = 200 } = {}) {
 	const where = [];
 	/** @type {(string | number)[]} */
 	const params = [];
@@ -185,14 +196,12 @@ export async function listClaims(db, { profileId, status = 'pending', limit = 20
 		where.push('c.profile_id = ?');
 		params.push(profileId);
 	}
-	const { results } = await db
+	return db
 		.prepare(
 			`${CLAIM_SELECT} ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
 			ORDER BY c.status = 'pending' DESC, c.created_at, c.id LIMIT ?`
 		)
-		.bind(...params, limit)
-		.all();
-	return results.map(toAdminClaim);
+		.bind(...params, limit);
 }
 
 /**
@@ -203,16 +212,26 @@ export async function listClaims(db, { profileId, status = 'pending', limit = 20
 export async function countPendingClaims(db) {
 	if (!db) return 0;
 	try {
-		const row = await db
-			.prepare(
-				`SELECT COUNT(*) AS n FROM profile_claims c JOIN objects o ON o.id = c.profile_id
-				WHERE c.status = 'pending' AND o.deleted_at IS NULL`
-			)
-			.first();
-		return Number(row?.n ?? 0);
+		return readPendingClaimsCount(await countPendingClaimsStatement(db).first());
 	} catch {
 		return 0; // sin la migración 0017
 	}
+}
+
+/**
+ * La consulta de {@link countPendingClaims} (para correrla en una tanda).
+ * @param {D1Database} db
+ */
+export function countPendingClaimsStatement(db) {
+	return db.prepare(
+		`SELECT COUNT(*) AS n FROM profile_claims c JOIN objects o ON o.id = c.profile_id
+		WHERE c.status = 'pending' AND o.deleted_at IS NULL`
+	);
+}
+
+/** @param {Record<string, unknown> | null | undefined} row */
+export function readPendingClaimsCount(row) {
+	return Number(row?.n ?? 0);
 }
 
 /**

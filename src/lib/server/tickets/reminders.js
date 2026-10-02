@@ -136,6 +136,31 @@ export function reminderDueAt(r, start) {
  */
 export async function dueReminderOrders(db, { events, reminders, now }) {
 	const out = [];
+	for (const item of dueReminderPlan({ events, reminders, now })) {
+		const { results } = await db
+			.prepare(`SELECT o.* FROM orders o WHERE ${DUE_REMINDER_WHERE} ORDER BY o.created_at`)
+			.bind(...dueReminderParams(item, now))
+			.all();
+		for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
+			out.push({ order, reminder: item.reminder, id: item.id, slug: item.slug });
+		}
+	}
+	return out;
+}
+
+/**
+ * Qué recordatorios de qué eventos ya tocan a `now` (sin mirar la base), del evento más cercano
+ * al más lejano: lo que recorre {@link dueReminderOrders}, una consulta por cada uno.
+ *
+ * @param {{
+ *   events: { slug: string, start: number, reminders: boolean, cancelled: boolean }[],
+ *   reminders: Reminder[],
+ *   now: number
+ * }} input
+ * @returns {{ slug: string, reminder: Reminder, id: string, due: number }[]}
+ */
+export function dueReminderPlan({ events, reminders, now }) {
+	const out = [];
 	const sorted = [...events].sort((a, b) => a.start - b.start);
 	for (const e of sorted) {
 		if (!e.reminders || e.cancelled || !(e.start > now)) continue;
@@ -143,22 +168,26 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 			if (!r.enabled) continue;
 			const due = reminderDueAt(r, e.start);
 			if (due > now || due >= e.start) continue;
-			const id = reminderId(r);
-			const { results } = await db
-				.prepare(
-					`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND o.status = 'approved'
-						AND o.created_at < ?2
-						AND ${pendingSendSql('reminder_sends', { key: 3, stale: 4 })}
-					ORDER BY o.created_at`
-				)
-				.bind(e.slug, due, id, now - STALE_CLAIM_MS)
-				.all();
-			for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
-				out.push({ order, reminder: r, id, slug: e.slug });
-			}
+			out.push({ slug: e.slug, reminder: r, id: reminderId(r), due });
 		}
 	}
 	return out;
+}
+
+/**
+ * Las órdenes (alias `o`) a las que les toca un recordatorio del plan y todavía no lo recibieron
+ * ni se agotaron sus intentos. Parámetros: {@link dueReminderParams}.
+ */
+export const DUE_REMINDER_WHERE = `o.event_slug = ?1 AND o.status = 'approved'
+	AND o.created_at < ?2
+	AND ${pendingSendSql('reminder_sends', { key: 3, stale: 4 })}`;
+
+/**
+ * @param {{ slug: string, id: string, due: number }} item un ítem de {@link dueReminderPlan}
+ * @param {number} now
+ */
+export function dueReminderParams(item, now) {
+	return [item.slug, item.due, item.id, now - STALE_CLAIM_MS];
 }
 
 /**
@@ -200,10 +229,19 @@ export async function sendDueReminders(
  * @returns {Promise<Map<string, number>>}
  */
 export async function failedReminderCounts(db, slugs) {
-	/** @type {Map<string, number>} */
-	const out = new Map();
-	if (!slugs.length) return out;
-	const { results } = await db
+	if (!slugs.length) return new Map();
+	const { results } = await failedReminderCountsStatement(db, slugs).all();
+	return readFailedReminderCounts(results);
+}
+
+/**
+ * La consulta de {@link failedReminderCounts} (para correrla en una tanda). `slugs` no vacío.
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ */
+export function failedReminderCountsStatement(db, slugs) {
+	return db
 		.prepare(
 			`SELECT o.event_slug AS slug, COUNT(*) AS n FROM reminder_sends s
 			JOIN orders o ON o.id = s.order_id
@@ -211,9 +249,17 @@ export async function failedReminderCounts(db, slugs) {
 				AND o.event_slug IN (${slugs.map((_, i) => `?${i + 1}`).join(', ')})
 			GROUP BY o.event_slug`
 		)
-		.bind(...slugs)
-		.all();
-	for (const r of results) out.set(String(r.slug), Number(r.n));
+		.bind(...slugs);
+}
+
+/**
+ * @param {Record<string, unknown>[]} rows lo que devolvió {@link failedReminderCountsStatement}
+ * @returns {Map<string, number>}
+ */
+export function readFailedReminderCounts(rows) {
+	/** @type {Map<string, number>} */
+	const out = new Map();
+	for (const r of rows) out.set(String(r.slug), Number(r.n));
 	return out;
 }
 
