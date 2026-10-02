@@ -65,7 +65,11 @@ function fakeRepo() {
 				if (f.delete) store.delete(f.path);
 				else store.set(f.path, f.content ?? f.base64 ?? '');
 			}
-			return { sha: 'abc', url: 'https://ejemplo.test/commit/abc', pr: { number: 1 } };
+			return {
+				sha: 'abc',
+				url: 'https://ejemplo.test/commit/abc',
+				pr: { number: 1, branch: 'rama-inventada' }
+			};
 		}
 	};
 }
@@ -311,5 +315,198 @@ describe('con el interruptor apagado', () => {
 		await client.commitFiles('t', { files: [{ path: p, content: 'x' }], message: 'x' });
 		expect(base.commits).toHaveLength(1);
 		expect((await objectOf('taller-inventado-2031-02')).version).toBe(1);
+	});
+});
+
+describe('quién guarda: el login de GitHub en cada guardado del panel', () => {
+	// Les admins guardan con su login (hooks.server.js corre el pedido con resolveAsPanelAuthor);
+	// cada pantalla manda su nombre (`pr.who`, para el PR), que nunca es la autoría en la base.
+	const LOGIN = 'persona-inventada';
+	const NAME = 'Persona Inventada (nombre visible)';
+	const SLUG = 'taller-inventado-2031-02';
+
+	/** Corre `fn` como lo corre el panel para une admin, con todo cargado de nuevo. */
+	async function asAdmin(
+		/** @type {(s: Awaited<ReturnType<typeof setup>>) => Promise<unknown>} */ fn
+	) {
+		const s = await setup();
+		const { runAsPanelAuthor } = await import('./author.js');
+		await runAsPanelAuthor({ login: LOGIN, name: NAME, superadmin: true }, () => fn(s));
+		return s;
+	}
+	const lastBy = async (slug = SLUG) =>
+		(await listRevisions(t.db, (await objectOf(slug)).id))[0]?.savedBy;
+	const actor = {
+		login: LOGIN,
+		name: NAME,
+		token: 't',
+		locals: { user: { id: 1, login: LOGIN, name: NAME } }
+	};
+
+	it('hooks.server.js: el pedido de une admin lleva su login; el de otres, nada', async () => {
+		const { resolveAsPanelAuthor, panelAuthor } = await import('./author.js');
+		const { ADMINS } = await import('$lib/server/auth');
+		const admin = { ...ADMINS[0], name: 'Nombre visible' };
+		expect(resolveAsPanelAuthor({ locals: { user: admin } }, () => panelAuthor())).toEqual({
+			login: admin.login,
+			name: 'Nombre visible',
+			superadmin: true
+		});
+		const other = { id: 1, login: 'alguien-inventade' };
+		expect(
+			resolveAsPanelAuthor({ locals: /** @type {any} */ ({ user: other }) }, () => panelAuthor())
+		).toBeNull();
+		expect(resolveAsPanelAuthor({ locals: {} }, () => panelAuthor())).toBeNull();
+	});
+
+	it('el editor, cargar un evento e importar la planilla (commit con `pr.who`)', async () => {
+		await asAdmin(async ({ client }) => {
+			const file = await client.readFile('t', path(SLUG));
+			await client.commitFiles('t', {
+				files: [{ path: path(SLUG), content: String(file?.raw).replace('anunciado', 'abierto') }],
+				message: `[admin] ${NAME} updated calendario/${SLUG}`,
+				unchanged: [{ path: path(SLUG), sha: String(file?.sha) }],
+				pr: { action: 'edita', who: NAME }
+			});
+			const content = String(file?.raw).replace('Taller Inventado de Nudos', 'Taller Nuevo');
+			await client.commitFiles('t', {
+				files: [{ path: path('taller-nuevo-2031-09'), content }],
+				message: 'publica',
+				mustNotExist: [path('taller-nuevo-2031-09')],
+				pr: { action: 'publica', who: NAME }
+			});
+			await client.commitFiles('t', {
+				files: [{ path: path('importado-2031-10'), content }],
+				message: 'importa',
+				pr: { action: 'importa', who: NAME, kind: 'importar', slug: 'importado-2031-10' }
+			});
+		});
+		expect(await lastBy()).toBe(LOGIN);
+		expect(await lastBy('taller-nuevo-2031-09')).toBe(LOGIN);
+		expect(await lastBy('importado-2031-10')).toBe(LOGIN);
+	});
+
+	it('la agenda (una fila y varias)', async () => {
+		const { saveAgendaRow, saveAgendaRows } = await import('$lib/server/eventos/agenda.js');
+		const { agendaRowFromMeta, agendaValues } = await import('$lib/utils/agenda.js');
+		const { eventTagGroups } = await import('$lib/utils/adminTags.js');
+		const places = eventTagGroups().places;
+		const rowOf = async (/** @type {any} */ client, /** @type {string} */ slug) => {
+			const { markdownToEvent } = await import('./markdown.js');
+			const { eventToMeta } = await import('./eventos.js');
+			const m = markdownToEvent(slug, String(await client.getFile('t', path(slug))));
+			return agendaValues(agendaRowFromMeta(slug, eventToMeta(/** @type {any} */ (m))));
+		};
+		await asAdmin(async ({ client }) => {
+			const before = await rowOf(client, SLUG);
+			const r = await saveAgendaRow({
+				client: /** @type {any} */ (client),
+				token: 't',
+				author: NAME,
+				slug: SLUG,
+				before,
+				after: { ...before, title: 'Taller Inventado Renombrado' },
+				places
+			});
+			expect(r.ok).toBe(true);
+		});
+		expect(await lastBy()).toBe(LOGIN);
+		await resetDB(t.db);
+		await runImport(t.db, 'calendario', files, { actor: 'importacion', now: Date.now() });
+		await asAdmin(async ({ client }) => {
+			const before = await rowOf(client, SLUG);
+			const r = await saveAgendaRows({
+				client: /** @type {any} */ (client),
+				token: 't',
+				author: NAME,
+				rows: [{ slug: SLUG, before, after: { ...before, title: 'Otro título inventado' } }],
+				places
+			});
+			expect(JSON.stringify(r)).not.toMatch(/"ok":false/);
+		});
+		expect(await lastBy()).toBe(LOGIN);
+	});
+
+	it('borrar y deshacer el borrado', async () => {
+		const { deletePost, readPostFiles, undoDeletion } =
+			await import('$lib/server/admin/deletions.js');
+		/** @type {number} */
+		let id = 0;
+		await asAdmin(async ({ client }) => {
+			const files = await readPostFiles(/** @type {any} */ (client), 't', 'calendario', SLUG);
+			id = (
+				await deletePost(/** @type {any} */ (client), t.db, actor, {
+					kind: 'calendario',
+					slug: SLUG,
+					files: /** @type {any} */ (files)
+				})
+			).id;
+		});
+		expect((await objectOf(SLUG)).deleted_at).not.toBeNull();
+		expect(await lastBy()).toBe(LOGIN);
+		await asAdmin(async ({ client }) => {
+			await undoDeletion(/** @type {any} */ (client), t.db, actor, id);
+		});
+		expect((await objectOf(SLUG)).deleted_at).toBeNull();
+		expect(await lastBy()).toBe(LOGIN);
+	});
+
+	it('las etiquetas (commitTagEdit)', async () => {
+		const { commitTagEdit } = await import('$lib/server/admin/tagEditor.js');
+		await asAdmin(async ({ client }) => {
+			const file = await client.readFile('t', path(SLUG));
+			const after = String(file?.raw).replace('  - bondage\n  - bondage\n', '  - bondage\n');
+			await commitTagEdit(
+				/** @type {any} */ (client),
+				't',
+				/** @type {any} */ ({
+					files: [{ path: path(SLUG), after, sha: String(file?.sha) }],
+					summary: ['bondage repetida']
+				}),
+				NAME
+			);
+		});
+		expect(await lastBy()).toBe(LOGIN);
+	});
+});
+
+describe('cómo se muestra el texto que se guarda (decisión 0004)', () => {
+	const SLUG = 'taller-inventado-2031-02';
+	const htmlOf = async () => JSON.parse((await objectOf(SLUG)).data).body_html;
+
+	/** @param {boolean} superadmin @param {(raw: string) => string} change */
+	async function saveAs(superadmin, change) {
+		const { client } = await setup();
+		const { runAsPanelAuthor } = await import('./author.js');
+		await runAsPanelAuthor({ login: 'alguien-inventade', superadmin }, async () => {
+			const file = await client.readFile('t', path(SLUG));
+			await client.commitFiles('t', {
+				files: [{ path: path(SLUG), content: change(String(file?.raw)) }],
+				message: 'edita',
+				unchanged: [{ path: path(SLUG), sha: String(file?.sha) }]
+			});
+		});
+	}
+
+	it('lo importado es HTML libre; si no cambia el texto, sigue así aunque no sea superadmin', async () => {
+		expect(await htmlOf()).toBe('libre');
+		await saveAs(false, (raw) => raw.replace('status: anunciado', 'status: abierto'));
+		expect(await htmlOf()).toBe('libre');
+	});
+
+	it('un texto editado por alguien que no es superadmin pasa a la lista corta', async () => {
+		await saveAs(false, (raw) => `${raw}\n<iframe src="https://ejemplo.test"></iframe>\n`);
+		expect(await htmlOf()).toBe('corta');
+		// Y no se puede pedir HTML libre desde el texto.
+		await saveAs(false, (raw) =>
+			raw.replace('status: anunciado', 'status: abierto\nbody_html: libre')
+		);
+		expect(await htmlOf()).toBe('corta');
+	});
+
+	it('un texto editado por une superadmin es HTML libre', async () => {
+		await saveAs(false, (raw) => `${raw}\nUn cambio.\n`);
+		await saveAs(true, (raw) => `${raw}\nOtro cambio.\n`);
+		expect(await htmlOf()).toBe('libre');
 	});
 });

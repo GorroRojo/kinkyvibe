@@ -123,6 +123,12 @@ interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, o `CONTENIDO
   así que si alguien guardó en el medio avisa como con GitHub (`FileChangedError`). Lo que no es
   de la base (imágenes, el archivo de etiquetas, material, los `.md` que la base no tiene) sigue
   yendo al repo, primero (si eso falla, la base no se toca). Se ve enseguida, sin PR ni deploy.
+- **Quién guarda** es siempre el **login de GitHub** de le admin (`saved_by`/`updated_by`), en
+  todos los guardados del panel: hooks.server.js corre el pedido de cada admin con
+  `resolveAsPanelAuthor` (`contenido/author.js`) y `withContentDb` lo toma de ahí; el nombre que
+  muestra cada pantalla (`pr.who`) es solo para el PR. Ahí también se decide `body_html`: si el
+  texto no cambió queda como estaba (la agenda, las etiquetas o borrar no lo tocan); si cambió,
+  `'libre'` si guarda une superadmin (hoy, todes les admins) y la lista corta si no.
 - Con el interruptor prendido, también leen la base: la venta de entradas y la puerta
   (`tickets/events.js`: configuración, título, fecha), la lista de eventos del panel, su ficha, No
   listadas y su contador, Eventos → Lugares y el cron de «avisame si se repite».

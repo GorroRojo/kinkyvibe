@@ -8,6 +8,7 @@ import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js'
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
+import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { applySiteTags } from '$lib/server/etiquetas/source.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -38,7 +39,7 @@ export async function handle({ event, resolve }) {
 		// Admin checks match the numeric GitHub id: borrow the listed admin's (0 = not an admin).
 		const mockUser = /** @type {NonNullable<App.Locals['user']>} */ (event.locals.user);
 		mockUser.id = adminByLogin(mockUser.login)?.id ?? 0;
-		return withSecurityHeaders(event.url, await resolve(event));
+		return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 	}
 	// PREVIEW DEPLOYS ONLY: demo mode (docs/demo.md). PREVIEW_BUILD is a build-time constant
 	// (false in the production build and locally), so this block is removed from production.
@@ -49,7 +50,7 @@ export async function handle({ event, resolve }) {
 		if (event.cookies.get(DEMO_COOKIE) === '1') {
 			event.locals.user = demoUser();
 			event.locals.user_token = DEMO_TOKEN;
-			return withSecurityHeaders(event.url, await resolve(event));
+			return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 		}
 	}
 	const token = event.cookies.get(TOKEN_COOKIE) ?? '';
@@ -64,7 +65,7 @@ export async function handle({ event, resolve }) {
 		}
 	}
 
-	return withSecurityHeaders(event.url, await resolve(event));
+	return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 }
 
 /**
