@@ -13,7 +13,9 @@ import { safeRedirect } from '$lib/server/auth.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import {
 	follow,
+	getCalendarPrefs,
 	listFollows,
+	setCalendarPrefs,
 	setFollowOptions,
 	unfollow,
 	SIGO_MESSAGES
@@ -50,7 +52,9 @@ export async function load(event) {
 		follows: await describeFollows(
 			{ db, tags, accountId: member.id },
 			await listFollows(db, member.id)
-		)
+		),
+		// Qué más va al calendario personal (además de lo seguido).
+		calendar: await getCalendarPrefs(db, member.id)
 	};
 }
 
@@ -81,6 +85,13 @@ export const actions = {
 		const r = await unfollow(db, member.id, target);
 		if (!r.ok) return fail(r.status, { action: 'dejar', error: r.message });
 		return { action: 'dejar', ok: true, kind: target.kind, key: target.key };
+	},
+	calendario: async (event) => {
+		const { db, member, form } = await actionContext(event);
+		const on = (/** @type {string} */ k) => form.get(k) === 'on';
+		const prefs = { entradas: on('entradas'), participo: on('participo') };
+		await setCalendarPrefs(db, member.id, prefs);
+		return { action: 'calendario', ok: true, calendar: prefs };
 	},
 	opciones: async (event) => {
 		const { db, member, form } = await actionContext(event);

@@ -62,8 +62,21 @@ Qué se sigue:
 - `perfil`: por el id del objeto (persona, proyecto o lugar), que no cambia aunque cambie la
   dirección. Si es un lugar o no se decide al leer (`profileKindOf`).
 
-Qué más suma el calendario (paso 3): «mis entradas» y «los eventos donde participo», en
-`accounts.preferences` (`sigoCalEntradas`, `sigoCalParticipo`; sin la clave = prendido).
+### El calendario personal
+
+`/ics/mio/<token>.ics` (el link está en Mi rincón → Calendario, que sigue necesitando el
+interruptor `series`) junta, con `lo_que_sigo` prendido (`src/lib/server/sigo/calendar.js`):
+
+- **mis entradas**, incluidos los eventos no listados (son de la persona);
+- **los eventos donde participo**: los que nombran en `personas:` un perfil que la cuenta gestiona;
+- **lo seguido con «en mi calendario»**: los eventos con la etiqueta o una de sus hijas, los que
+  nombran al perfil y, si es un lugar, los que se hacen ahí y lo muestran en público
+  (`listedVenueEvents`). Solo si la cuenta todavía puede ver ese perfil.
+
+Las dos primeras se prenden y apagan en Mi rincón → Lo que sigo → «Tu calendario» y se guardan en
+`accounts.preferences` (`sigoCalEntradas`, `sigoCalParticipo`; sin la clave = prendido). Lo que no
+es una entrada propia sale solo de eventos listados. Con `lo_que_sigo` apagado, el calendario
+muestra solo las entradas, como siempre.
 
 ### Código
 
@@ -87,6 +100,8 @@ Qué más suma el calendario (paso 3): «mis entradas» y «los eventos donde pa
 - Al tocar «Seguir» quedan prendidos «en mi calendario» y «mail cuando se anuncia algo nuevo»; el
   recordatorio, apagado (`DEFAULT_FOLLOW_OPTIONS`).
 - Hasta 300 cosas seguidas por cuenta y 120 cambios por hora.
+- El calendario personal sigue necesitando `series` (es donde se crea el link); «Lo que sigo» le
+  suma cosas pero no lo prende solo.
 
 ### Límites
 
