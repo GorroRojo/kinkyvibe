@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -7,16 +8,6 @@
 	export let form;
 
 	$: order = form?.order ?? data.order;
-	/** @param {number} ms */
-	const deadline = (ms) =>
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: 'America/Argentina/Buenos_Aires',
-			weekday: 'long',
-			day: 'numeric',
-			month: 'long',
-			hour: '2-digit',
-			minute: '2-digit'
-		}).format(new Date(ms));
 </script>
 
 <svelte:head>
@@ -27,7 +18,7 @@
 	{#if order.confirmed && !order.expired}
 		<h1>¡Reserva confirmada! 💜</h1>
 		<p>
-			Te guardamos el lugar hasta el <strong>{deadline(order.expiresAt)} hs</strong>. Transferí y
+			Te guardamos el lugar <strong><ExpiryTime at={order.expiresAt} until /></strong>. Transferí y
 			mandanos el comprobante respondiendo el mail.
 		</p>
 	{:else if order.expired}
@@ -36,8 +27,8 @@
 	{:else}
 		<h1>Confirmá tu reserva</h1>
 		<p>
-			Así te guardamos el lugar {order.fullHours} horas mientras hacés la transferencia (ahora vence el
-			<strong>{deadline(order.expiresAt)} hs</strong>).
+			Así te guardamos el lugar {order.fullHours} horas mientras hacés la transferencia (ahora vence
+			<strong><ExpiryTime at={order.expiresAt} /></strong>).
 		</p>
 		<form method="POST" use:enhance>
 			<input type="hidden" name="k" value={data.k} />

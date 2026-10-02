@@ -3,21 +3,31 @@
  * celu) y sin links: el código se escribe en la página donde se pidió.
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
+import { expiresInText } from '$lib/utils/expiry.js';
 import { CODE_TTL_MS } from './codes.js';
 
 /**
- * @param {{ code: string }} input
+ * «Vence en 10 minutos (a las 14:35, hora de Argentina y Uruguay)»: en el mail no sabemos la zona
+ * horaria de quien lo lee (src/lib/utils/expiry.js).
+ * @param {{ now?: number, expiresAt?: number }} input
+ */
+const expires = ({ now = Date.now(), expiresAt = now + CODE_TTL_MS }) =>
+	expiresInText(expiresAt, now);
+
+/**
+ * @param {{ code: string, now?: number, expiresAt?: number }} input `expiresAt`: cuándo vence el
+ *   código (por defecto, `now` + CODE_TTL_MS)
  * @returns {{ subject: string, html: string, text: string }}
  */
-export function buildLoginCodeEmail({ code }) {
-	const minutes = Math.round(CODE_TTL_MS / 60_000);
+export function buildLoginCodeEmail({ code, now, expiresAt }) {
+	const vence = expires({ now, expiresAt });
 	const subject = 'Tu código para ingresar a KinkyVibe';
 	const text = [
 		'Hola:',
 		'',
 		`Tu código para ingresar a KinkyVibe es: ${code}`,
 		'',
-		`Escribilo en la página donde lo pediste. Vence en ${minutes} minutos y sirve una sola vez.`,
+		`Escribilo en la página donde lo pediste. ${vence}. Sirve una sola vez.`,
 		'',
 		'Si no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón.'
 	].join('\n');
@@ -25,7 +35,7 @@ export function buildLoginCodeEmail({ code }) {
 		<p>Hola:</p>
 		<p>Tu código para ingresar a KinkyVibe es:</p>
 		<p style="font-size:32px;font-weight:bold;letter-spacing:0.2em;margin:16px 0">${escapeHtml(code)}</p>
-		<p>Escribilo en la página donde lo pediste. Vence en ${minutes} minutos y sirve una sola vez.</p>
+		<p>Escribilo en la página donde lo pediste. ${escapeHtml(vence)}. Sirve una sola vez.</p>
 		<p style="font-size:13px;color:#555">Si no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón.</p>
 	</div>`;
 	return { subject, html, text };
@@ -41,11 +51,11 @@ const CONFIRM_WHAT = {
 /**
  * Mail con el código para confirmar una acción delicada en Mi rincón.
  *
- * @param {{ code: string, purpose: 'password' | 'delete' | 'grupo' }} input
+ * @param {{ code: string, purpose: 'password' | 'delete' | 'grupo', now?: number, expiresAt?: number }} input
  * @returns {{ subject: string, html: string, text: string }}
  */
-export function buildConfirmCodeEmail({ code, purpose }) {
-	const minutes = Math.round(CODE_TTL_MS / 60_000);
+export function buildConfirmCodeEmail({ code, purpose, now, expiresAt }) {
+	const vence = expires({ now, expiresAt });
 	const what = CONFIRM_WHAT[purpose];
 	const subject = 'Tu código para confirmar en KinkyVibe';
 	const text = [
@@ -53,7 +63,7 @@ export function buildConfirmCodeEmail({ code, purpose }) {
 		'',
 		`Para confirmar ${what}, escribí este código en Mi rincón: ${code}`,
 		'',
-		`Vence en ${minutes} minutos y sirve una sola vez.`,
+		`${vence}. Sirve una sola vez.`,
 		'',
 		'Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.'
 	].join('\n');
@@ -61,7 +71,7 @@ export function buildConfirmCodeEmail({ code, purpose }) {
 		<p>Hola:</p>
 		<p>Para confirmar ${escapeHtml(what)}, escribí este código en Mi rincón:</p>
 		<p style="font-size:32px;font-weight:bold;letter-spacing:0.2em;margin:16px 0">${escapeHtml(code)}</p>
-		<p>Vence en ${minutes} minutos y sirve una sola vez.</p>
+		<p>${escapeHtml(vence)}. Sirve una sola vez.</p>
 		<p style="font-size:13px;color:#555">Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.</p>
 	</div>`;
 	return { subject, html, text };

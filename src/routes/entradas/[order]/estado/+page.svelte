@@ -2,21 +2,12 @@
 	import { invalidateAll } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
+	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 
 	let { data } = $props();
 
 	let order = $derived(data.order);
 	let waiting = $derived(order.status === 'pending');
-
-	/** @param {number} ms */
-	function deadline(ms) {
-		return new Date(ms).toLocaleString('es-AR', {
-			dateStyle: 'full',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		});
-	}
 
 	// Mientras esperamos la confirmación, volvemos a consultar cada 5 segundos (hasta 2 minutos).
 	$effect(() => {
@@ -57,7 +48,7 @@
 		<h1>Reservamos tus entradas: falta la transferencia</h1>
 		<p>
 			Transferí <strong class="amount">{formatARS(order.total)}</strong>: te reservamos el lugar
-			{order.holdHours} horas (hasta el <strong>{deadline(order.expiresAt)} hs</strong>) mientras
+			{order.holdHours} horas (<strong><ExpiryTime at={order.expiresAt} until /></strong>) mientras
 			mandás el comprobante por mail. Si no llega a tiempo, la reserva se libera.
 		</p>
 		{#if order.confirmPending}

@@ -83,7 +83,7 @@ const clientKey = (client) => sha256Hex(`cuentas:client:${client}`);
  * una cuenta con ese mail (la cuenta se crea recién cuando se verifica el código).
  *
  * @param {{ db: D1Database, email: unknown, client: string, send: SendMail, now?: number }} input
- * @returns {Promise<{ ok: true, email: string } | { ok: false, status: number, message: string }>}
+ * @returns {Promise<{ ok: true, email: string, expiresAt: number } | { ok: false, status: number, message: string }>}
  */
 export function requestCode({ db, email, client, send, now = Date.now() }) {
 	return sendCode({ db, email, client, send, now, purpose: 'login' });
@@ -95,7 +95,7 @@ export function requestCode({ db, email, client, send, now = Date.now() }) {
  *
  * @param {{ db: D1Database, email: unknown, client: string, send: SendMail, now: number,
  *   purpose: import('./codes.js').CodePurpose }} input
- * @returns {Promise<{ ok: true, email: string } | { ok: false, status: number, message: string }>}
+ * @returns {Promise<{ ok: true, email: string, expiresAt: number } | { ok: false, status: number, message: string }>}
  */
 async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	const email = normalizeEmail(rawEmail);
@@ -119,14 +119,16 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	// Al final, el tope global (para cualquier mail igual: no dice nada de la dirección).
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: MESSAGES.mailBusy };
-	const { code } = await createLoginCode(db, hash, { now, purpose });
+	const { code, expiresAt } = await createLoginCode(db, hash, { now, purpose });
 	const message =
-		purpose === 'login' ? buildLoginCodeEmail({ code }) : buildConfirmCodeEmail({ code, purpose });
+		purpose === 'login'
+			? buildLoginCodeEmail({ code, now, expiresAt })
+			: buildConfirmCodeEmail({ code, purpose, now, expiresAt });
 	// `log` solo se muestra en `vite dev` sin RESEND_API_KEY (tickets/index.js): así se puede
 	// probar en local. Nunca se loguea en producción.
 	const result = await send(email, message, `Código (${purpose}): ${code}`);
 	if (result === 'failed') return { ok: false, status: 502, message: MESSAGES.mailFailed };
-	return { ok: true, email };
+	return { ok: true, email, expiresAt };
 }
 
 /**

@@ -8,10 +8,11 @@
  * usan los posts listados del deploy y el árbol de etiquetas en uso (archivo o base, interruptor
  * `etiquetas_db`: $lib/utils/siteTags.js).
  */
-import { fetchMarkdownPosts, thumbURL } from '$lib/utils';
+import { fetchMarkdownPosts, mediaURL, thumbURL } from '$lib/utils';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import {
 	editionNav,
+	eventImageRef,
 	seriesEditions,
 	seriesImage,
 	seriesOfTags,
@@ -43,12 +44,15 @@ async function resolve(opts) {
 }
 
 /**
- * URL de la imagen de una serie (archivo de src/lib/assets), o `undefined`.
+ * URL de la imagen de una serie (archivo de src/lib/assets o imagen de un evento,
+ * `calendario:<evento>/<archivo>`: ver seriesImage), o `undefined`.
  *
  * @param {string | undefined} file
  */
 export async function seriesImageURL(file) {
 	if (!file) return undefined;
+	const ref = eventImageRef(file);
+	if (ref) return mediaURL('calendario', ref.slug, ref.file);
 	try {
 		return await thumbURL('calendario', '', file);
 	} catch {
