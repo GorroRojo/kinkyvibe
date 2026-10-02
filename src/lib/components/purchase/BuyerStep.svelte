@@ -122,7 +122,10 @@
 				<input type="checkbox" name="guardar_datos" value="1" bind:checked={remember} />
 				<span>Guardar mis datos para la próxima</span>
 			</label>
-			<small class="hint">Tu nombre y tus pronombres quedan en tu cuenta.</small>
+			<small class="hint"
+				>Tu nombre y tus pronombres quedan en tu cuenta. Si comprás para otra persona, destildalo
+				para no reemplazar tus datos.</small
+			>
 			<label class="check">
 				<input type="checkbox" name="recordar_dni" value="1" bind:checked={rememberDni} />
 				<span>Recordar mi DNI</span>
