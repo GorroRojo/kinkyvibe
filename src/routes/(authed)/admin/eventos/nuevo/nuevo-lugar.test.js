@@ -150,7 +150,7 @@ describe('los lugares para el formulario', () => {
 			title: 'Casa Oculta Inventada',
 			kind: 'lugar',
 			visibility: 'hidden',
-			data: { unlisted: true, area: 'Barrio Inventado' }
+			data: { unlisted: true, address: 'Calle Escondida 1', area: 'Barrio Inventado' }
 		});
 		const pendiente = await makeProfile(t.db, {
 			title: 'Sala Pendiente Inventada',
@@ -175,6 +175,8 @@ describe('los lugares para el formulario', () => {
 			visibility: 'hidden',
 			unlisted: true,
 			approved: true,
+			// El panel ve la dirección (decisión de gorrite).
+			address: 'Calle Escondida 1',
 			area: 'Barrio Inventado'
 		});
 		expect(data?.venues.find((x) => x.id === pendiente.id)).toMatchObject({ approved: false });

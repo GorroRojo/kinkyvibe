@@ -29,12 +29,20 @@ const option = (o) => ({
 	unlisted: false,
 	approved: true,
 	privacy: null,
+	address: '',
 	area: '',
 	city: '',
+	version: 1,
 	...o
 });
 const VENUES = [
-	option({ id: 1, title: 'Sala Inventada', privacy: 'name', area: 'Barrio Inventado' }),
+	option({
+		id: 1,
+		title: 'Sala Inventada',
+		privacy: 'name',
+		address: 'Calle Inventada 123',
+		area: 'Barrio Inventado'
+	}),
 	option({
 		id: 2,
 		slug: 'casa-oculta',
@@ -80,7 +88,8 @@ describe('PlaceSection', () => {
 		for (const title of ['Sala Inventada', 'Casa Oculta', 'Sala Pendiente'])
 			expect(body).toContain(title);
 		for (const mark of ['Oculto', 'No listado', 'Sin aprobar']) expect(body).toContain(mark);
-		expect(body).toContain('Barrio Inventado');
+		// El panel ve la dirección (decisión de gorrite).
+		expect(body).toContain('Calle Inventada 123, Barrio Inventado');
 		expect(body).toContain('+ Crear lugar');
 		expect(hasId(body, 'location-input')).toBe(true);
 		expect(body).not.toContain('<details');
@@ -94,6 +103,10 @@ describe('PlaceSection', () => {
 		});
 		expect(hasId(body, 'edit-venue-chosen')).toBe(true);
 		expect(hasId(body, 'edit-venue-privacy')).toBe(true);
+		expect(body).toContain('Calle Inventada 123, Barrio Inventado');
+		// «Editar» abre la edición rápida (nombre, dirección, barrio y ciudad), que va por su cuenta.
+		expect(hasId(body, 'edit-venue-edit-open')).toBe(true);
+		expect(hasId(body, 'edit-venue-edit')).toBe(false);
 		expect(body).toContain('Igual que el Lugar (Sólo Nombre)');
 		for (const label of Object.values(VENUE_PRIVACY_LABELS)) expect(body).toContain(label);
 		expect(body).toContain('Cambiar');
@@ -180,7 +193,18 @@ describe('Editar y Crear usan el «Lugar»', () => {
 		expect(hiddenValue(body, 'lugar')).toBe('1');
 		expect(hiddenValue(body, 'lugarPrivacidad')).toBe('name');
 		expect(hiddenValue(body, 'lugarCambio')).toBe('');
-		expect(hiddenValue(body, 'soloLugar')).toBe('');
+		// Sin `soloLugar`: cambiar solo el lugar guarda el archivo como siempre, con la fecha de
+		// «Actualizado» de hoy y nada más (decisión de gorrite).
+		expect(hiddenValue(body, 'soloLugar')).toBeUndefined();
+		const sent = body.match(/<textarea hidden="" name="content">([^<]*)<\/textarea>/)?.[1] ?? '';
+		/** @param {string} text */
+		const withoutUpdated = (text) =>
+			text
+				.split('\n')
+				.filter((l) => !l.startsWith('updated_date:'))
+				.join('\n');
+		expect(sent).toMatch(/^updated_date: /m);
+		expect(withoutUpdated(sent)).toBe(withoutUpdated(EVENT));
 		// El archivo no lleva nada del lugar.
 		const file = body.match(/<textarea hidden="" name="content">([^<]*)<\/textarea>/)?.[1] ?? '';
 		expect(file).toContain('title: Fiesta de prueba');

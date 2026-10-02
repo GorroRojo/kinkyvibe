@@ -23,6 +23,7 @@ import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import {
 	checkVenueChoice,
 	createVenueForEventAction,
+	editVenueForEventAction,
 	saveVenueChoice,
 	venueNotSavedWarning,
 	venuePickerData
@@ -189,10 +190,6 @@ export const _editActions = {
 				? { ...result, venueSaved: r.changed }
 				: { ...result, warnings: [venueNotSavedWarning(r.message)] };
 		};
-		// Solo cambió el «Lugar»: el archivo queda como está (ni la fecha de «Actualizado»).
-		if (venue && data.get('soloLugar') === '1') {
-			return withVenue({ save: 'Guardado', venueOnly: true, publish: null, savedToDb: false });
-		}
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
 		const userName = user.name || user.login || 'admin';
@@ -240,6 +237,8 @@ export const _editActions = {
 	},
 	/** «+ Crear lugar» desde el «Lugar» del formulario (solo eventos). */
 	crearLugar: createVenueForEventAction,
+	/** Edición rápida del lugar elegido en el «Lugar» del formulario (solo eventos). */
+	editarLugar: editVenueForEventAction,
 	/** Events that show a shared image, for the "todas las ediciones" option. */
 	afectados: async ({ locals, request, url }) => {
 		requireAdmin(locals, url);
@@ -481,5 +480,9 @@ export const actions = {
 	crearLugar: (event) => {
 		rejectEvents(event.params);
 		return _editActions.crearLugar(event);
+	},
+	editarLugar: (event) => {
+		rejectEvents(event.params);
+		return _editActions.editarLugar(event);
 	}
 };

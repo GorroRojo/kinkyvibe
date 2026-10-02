@@ -48,6 +48,7 @@ import { readNewEventPrefill } from '$lib/utils/calendario.js';
 import {
 	checkVenueChoice,
 	createVenueAction,
+	editVenueAction,
 	saveVenueChoice,
 	venueNotSavedWarning,
 	venuePickerData
@@ -216,6 +217,8 @@ export const actions = {
 
 	/** «+ Crear lugar» desde el «Lugar» del formulario (solo admins, como Eventos → Lugares). */
 	crearLugar: createVenueAction,
+	/** Edición rápida del lugar elegido (nombre, dirección, barrio y ciudad). */
+	editarLugar: editVenueAction,
 
 	publicar: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);

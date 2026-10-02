@@ -13,8 +13,8 @@ import { foldText } from './text.js';
 /** @typedef {import('./venues.js').VenuePrivacy} VenuePrivacy */
 
 /**
- * Un lugar para elegir (lo que manda el servidor al formulario; nunca la dirección completa:
- * solo barrio y ciudad, para distinguir lugares con el mismo nombre).
+ * Un lugar para elegir (lo que manda el servidor al formulario del panel, solo admins; con la
+ * dirección, como en el editor del perfil: decisión de gorrite).
  * @typedef {object} VenueOption
  * @prop {number} id
  * @prop {string} slug
@@ -24,8 +24,10 @@ import { foldText } from './text.js';
  * @prop {boolean} approved aprobado para el sitio (los que cargan las cuentas, hasta que une admin
  *   los aprueba, no)
  * @prop {VenuePrivacy | null} privacy su nivel por defecto
+ * @prop {string} address calle y número
  * @prop {string} area
  * @prop {string} city
+ * @prop {number} version la del perfil (para la edición rápida, con control de versión)
  */
 
 /**
@@ -110,16 +112,16 @@ export function venueOptionMarks(v) {
 }
 
 /**
- * Barrio y ciudad, para distinguir lugares con el mismo nombre.
+ * Dirección, barrio y ciudad (el panel las muestra: decisión de gorrite).
  * @param {VenueOption} v
  */
 export function venueOptionPlace(v) {
-	return [v.area, v.city].filter(Boolean).join(', ');
+	return [v.address, v.area, v.city].filter(Boolean).join(', ');
 }
 
 /**
- * Los lugares que coinciden con lo que se escribió (nombre, dirección en el sitio, barrio o
- * ciudad; sin importar tildes ni mayúsculas), primero los que empiezan así. Sin texto, los
+ * Los lugares que coinciden con lo que se escribió (nombre, dirección en el sitio, calle, barrio
+ * o ciudad; sin importar tildes ni mayúsculas), primero los que empiezan así. Sin texto, los
  * primeros `limit` en orden.
  * @param {readonly VenueOption[]} venues
  * @param {string} query
@@ -133,7 +135,7 @@ export function searchVenues(venues, query, limit = 8) {
 	const hits = [];
 	for (const v of venues) {
 		const title = foldText(v.title);
-		const rest = foldText([v.slug.replace(/-/g, ' '), v.area, v.city].join(' '));
+		const rest = foldText([v.slug.replace(/-/g, ' '), v.address, v.area, v.city].join(' '));
 		const rank = title.startsWith(q) ? 0 : title.includes(q) ? 1 : rest.includes(q) ? 2 : -1;
 		if (rank >= 0) hits.push({ v, rank });
 	}

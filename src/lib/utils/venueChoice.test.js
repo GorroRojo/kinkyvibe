@@ -21,13 +21,21 @@ const option = (o) => ({
 	unlisted: false,
 	approved: true,
 	privacy: null,
+	address: '',
 	area: '',
 	city: '',
+	version: 1,
 	...o
 });
 
 const VENUES = [
-	option({ id: 1, slug: 'cafe-del-arbol', title: 'Café del Árbol', area: 'Almagro' }),
+	option({
+		id: 1,
+		slug: 'cafe-del-arbol',
+		title: 'Café del Árbol',
+		address: 'Calle Inventada 742',
+		area: 'Almagro'
+	}),
 	option({ id: 2, slug: 'el-sotano', title: 'El Sótano', city: 'La Plata', privacy: 'name' }),
 	option({ id: 3, slug: 'arboleda', title: 'Arboleda', visibility: 'hidden', unlisted: true }),
 	option({ id: 4, slug: 'casa-nueva', title: 'Casa Nueva', approved: false, visibility: 'members' })
@@ -104,7 +112,8 @@ describe('searchVenues', () => {
 		expect(searchVenues(VENUES, 'sotano').map((v) => v.id)).toEqual([2]);
 	});
 
-	it('también por barrio, ciudad y dirección en el sitio', () => {
+	it('también por calle, barrio, ciudad y dirección en el sitio', () => {
+		expect(searchVenues(VENUES, 'inventada 742').map((v) => v.id)).toEqual([1]);
 		expect(searchVenues(VENUES, 'almagro').map((v) => v.id)).toEqual([1]);
 		expect(searchVenues(VENUES, 'la plata').map((v) => v.id)).toEqual([2]);
 		expect(searchVenues(VENUES, 'casa nueva').map((v) => v.id)).toEqual([4]);
@@ -119,8 +128,9 @@ describe('marcas y textos', () => {
 		expect(venueOptionMarks(VENUES[3])).toEqual(['Solo con cuenta', 'Sin aprobar']);
 	});
 
-	it('barrio y ciudad', () => {
+	it('dirección, barrio y ciudad (el panel ve la dirección)', () => {
 		expect(venueOptionPlace(option({ area: 'Almagro', city: 'CABA' }))).toBe('Almagro, CABA');
+		expect(venueOptionPlace(option({ address: 'Calle 1', city: 'CABA' }))).toBe('Calle 1, CABA');
 		expect(venueOptionPlace(option({}))).toBe('');
 	});
 

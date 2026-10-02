@@ -313,9 +313,9 @@
 				authors,
 				body
 			);
-	$: fileChanged = content !== unchanged || Boolean(upload.ext);
-	// Cambiar solo el «Lugar» también se guarda (sin tocar el archivo: `soloLugar`).
-	$: changed = fileChanged || venueChanged;
+	// Cambiar solo el «Lugar» también se guarda, por el mismo camino que cualquier cambio: el
+	// archivo va con la fecha de «Actualizado» de hoy (decisión de gorrite), y nada más.
+	$: changed = content !== unchanged || Boolean(upload.ext) || venueChanged;
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
 	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
@@ -357,9 +357,7 @@
 	/** La confirmación de la barra: hasta que se vuelve a cambiar algo. */
 	$: savedMessage =
 		form?.save && !changed && !saving
-			? form.venueOnly
-				? 'Guardado: el lugar del evento (el archivo no cambió).'
-				: savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
+			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
 			: '';
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
@@ -613,9 +611,7 @@
 		{#each form?.warnings ?? [] as warning}
 			<p class="warning" role="alert">⚠️ {warning}</p>
 		{/each}
-		{#if form?.save && form.venueOnly}
-			<p class="note" role="status">✅ Guardado: el lugar del evento. El archivo no cambió.</p>
-		{:else if form?.save}
+		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
 				{new Date().toLocaleString('es-AR')}
@@ -655,7 +651,6 @@
 			{#each Object.entries(venueChoiceFields(venue, venueChanged)) as [name, value] (name)}
 				<input type="hidden" {name} {value} />
 			{/each}
-			<input type="hidden" name="soloLugar" value={venueChanged && !fileChanged ? '1' : ''} />
 			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />

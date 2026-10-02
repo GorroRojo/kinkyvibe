@@ -2,7 +2,9 @@
  * «Lugar» en Editar un evento (pedido de gorrite: elegir el lugar desde el evento): guardar pone,
  * cambia o saca el lugar en `event_venues` (con el registro de actividad), tanto si el evento se
  * guarda en GitHub como en la base (`contenido_db`); el archivo queda igual que sin el «Lugar»;
- * cambiar solo el lugar no toca el archivo; si guardar el archivo falla, el lugar no cambia.
+ * cambiar solo el lugar guarda el archivo con la fecha de «Actualizado» de hoy y nada más
+ * (decisión de gorrite); si guardar el archivo falla, el lugar no cambia. También «+ Crear lugar»
+ * (no listado por defecto, decisión de gorrite) y la edición rápida del lugar elegido.
  * Repo de mentira, D1 de miniflare y datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,8 +12,17 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import { makeProfile } from '$lib/server/amigues/testing.js';
-import { setEventVenue } from '$lib/server/amigues/venues.js';
+import { publicVenueForEvent, setEventVenue } from '$lib/server/amigues/venues.js';
 import { runImport } from '$lib/server/contenido/importer.js';
+import { listRevisions } from '$lib/server/contenido/revisions.js';
+import { ANON } from '$lib/server/objects/index.js';
+import {
+	applyFrontmatterChanges,
+	formatPostDate,
+	joinMarkdown,
+	splitMarkdown,
+	todayInArgentina
+} from '$lib/utils/eventDraft.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -36,11 +47,32 @@ const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 const SLUG = 'fiesta-de-prueba-2031-05';
 const PATH = `src/lib/posts/calendario/${SLUG}.md`;
 
+/**
+ * Lo que manda Editar cuando no se tocó nada del archivo: la fecha de «Actualizado» de hoy
+ * (`updated_date`, como hace PostEditor en cada guardado) y nada más.
+ * @param {string} raw
+ */
+const withTodayUpdated = (raw) => {
+	const { frontmatter, body } = splitMarkdown(raw);
+	return joinMarkdown(
+		applyFrontmatterChanges(frontmatter, { updated_date: formatPostDate(todayInArgentina()) }),
+		body
+	);
+};
+
+/** @param {string} a @param {string} b las líneas que cambian */
+const changedLines = (a, b) => {
+	const x = a.split('\n');
+	const y = b.split('\n');
+	return y.filter((line, i) => line !== x[i]);
+};
+
 /** @param {string} title */
 const eventMd = (title) =>
 	[
 		'---',
 		`title: ${title}`,
+		'updated_date: 2031-01-01Z-03:00',
 		"summary: 'Resumen inventado'",
 		'tags:',
 		'  - español',
@@ -162,22 +194,30 @@ describe('guardar en GitHub', () => {
 		]);
 	});
 
-	it('cambiar solo el nivel no guarda el archivo (ni la fecha de «Actualizado»)', async () => {
+	// Decisión de gorrite: cambiar solo el lugar también actualiza «Actualizado», por el camino de
+	// siempre (antes este caso no guardaba el archivo).
+	it('cambiar solo el nivel guarda el archivo con la fecha de «Actualizado» de hoy, y nada más', async () => {
 		const v = await lugar();
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: null, by: 'otre' });
 		const { mod, commits } = await page();
+		const original = eventMd('Fiesta de Prueba');
 		const res = /** @type {any} */ (
 			await mod.actions.save(
 				save({
+					content: withTodayUpdated(original),
 					lugar: String(v.id),
 					lugarPrivacidad: 'hidden',
-					lugarCambio: '1',
-					soloLugar: '1'
+					lugarCambio: '1'
 				})
 			)
 		);
-		expect(res).toMatchObject({ save: 'Guardado', venueOnly: true, venueSaved: true });
-		expect(commits).toHaveLength(0);
+		expect(res).toMatchObject({ save: 'Guardado', venueSaved: true });
+		expect(commits).toHaveLength(1);
+		const saved = commits[0].files[0];
+		expect(saved.path).toBe(PATH);
+		expect(changedLines(original, saved.content)).toEqual([
+			`updated_date: ${formatPostDate(todayInArgentina())}`
+		]);
 		expect(await venueRow()).toMatchObject({ venue_id: v.id, privacy: 'hidden' });
 	});
 
@@ -186,7 +226,13 @@ describe('guardar en GitHub', () => {
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: 'name', by: 'otre' });
 		const { mod } = await page();
 		const res = /** @type {any} */ (
-			await mod.actions.save(save({ lugar: '', lugarCambio: '1', soloLugar: '1' }))
+			await mod.actions.save(
+				save({
+					content: withTodayUpdated(eventMd('Fiesta de Prueba')),
+					lugar: '',
+					lugarCambio: '1'
+				})
+			)
 		);
 		expect(res.save).toBe('Guardado');
 		expect(await venueRow()).toBeNull();
@@ -282,10 +328,61 @@ describe('guardar en la base (contenido_db)', () => {
 		expect(withVenue.raw).toBe(plain.raw);
 		expect(await venueRow(FIXTURE)).toMatchObject({ venue_id: v.id, privacy: null });
 	});
+
+	it('cambiar solo el lugar guarda una versión nueva con la fecha de hoy, a nombre de quien guardó', async () => {
+		await runImport(t.db, 'calendario', files, { actor: 'importacion', now: 1_900_000_000_000 });
+		const v = await lugar();
+		const { mod, client } = await page({ contenido: true });
+		const file = /** @type {{ raw: string, sha: string }} */ (
+			await client.readFile('t', FIXTURE_PATH)
+		);
+		const res = /** @type {any} */ (
+			await mod.actions.save(
+				save(
+					{
+						content: withTodayUpdated(file.raw),
+						sha: file.sha,
+						lugar: String(v.id),
+						lugarPrivacidad: 'area',
+						lugarCambio: '1'
+					},
+					FIXTURE
+				)
+			)
+		);
+		expect(res).toMatchObject({ save: 'Guardado', savedToDb: true, venueSaved: true });
+		const raw = /** @type {string} */ (await client.getFile('t', FIXTURE_PATH));
+		expect(raw).toMatch(
+			new RegExp(`^updated_date: '?${formatPostDate(todayInArgentina())}'?$`, 'm')
+		);
+		// Sin la línea de «Actualizado», el texto es el mismo de antes.
+		/** @param {string} text */
+		const withoutUpdated = (text) =>
+			text
+				.split('\n')
+				.filter((l) => !l.startsWith('updated_date:'))
+				.join('\n');
+		expect(withoutUpdated(raw)).toBe(withoutUpdated(file.raw));
+		const object = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT o.id FROM objects o JOIN content_sources s ON s.object_id = o.id
+					WHERE s.legacy_slug = ?1`
+				)
+				.bind(FIXTURE)
+				.first()
+		);
+		const revs = await listRevisions(t.db, object.id);
+		expect(revs.map((r) => [r.version, r.source, r.savedBy])).toEqual([
+			[2, 'panel', admin.login],
+			[1, 'import', 'importacion']
+		]);
+		expect(await venueRow(FIXTURE)).toMatchObject({ venue_id: v.id, privacy: 'area' });
+	});
 });
 
 describe('«+ Crear lugar»', () => {
-	it('crea un lugar aprobado (con registro) y lo devuelve para elegirlo', async () => {
+	it('crea un lugar aprobado y no listado en Amigues (con registro) y lo devuelve para elegirlo', async () => {
 		const { mod } = await page();
 		const event = fakeRequestEvent({
 			platform: t.platform,
@@ -295,19 +392,66 @@ describe('«+ Crear lugar»', () => {
 			form: { title: 'Sala Nueva Inventada', address: 'Calle Inventada 99' }
 		});
 		const res = /** @type {any} */ (await mod.actions.crearLugar(event));
+		// Decisión de gorrite: no listado por defecto (como al importar lugares desde los eventos).
 		expect(res.venueCreated).toMatchObject({
 			title: 'Sala Nueva Inventada',
 			visibility: 'public',
+			unlisted: true,
 			approved: true,
-			privacy: null
+			privacy: null,
+			address: 'Calle Inventada 99'
 		});
-		// Sin la dirección (el buscador no la necesita).
-		expect(JSON.stringify(res.venueCreated)).not.toContain('Calle Inventada 99');
 		const row = /** @type {any} */ (
 			await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(res.venueCreated.id).first()
 		);
-		expect(JSON.parse(row.data)).toMatchObject({ kind: 'lugar', address: 'Calle Inventada 99' });
+		expect(JSON.parse(row.data)).toMatchObject({
+			kind: 'lugar',
+			address: 'Calle Inventada 99',
+			unlisted: true
+		});
 		expect(await audit('profile.create')).toHaveLength(1);
+	});
+
+	it('«Público» lo crea listado; no listado no cambia lo que muestra el evento', async () => {
+		const { mod } = await page();
+		/** @param {string} title @param {Record<string, string>} extra */
+		const create = async (title, extra) =>
+			/** @type {any} */ (
+				await mod.actions.crearLugar(
+					fakeRequestEvent({
+						platform: t.platform,
+						path: `/admin/eventos/${SLUG}/editar?/crearLugar`,
+						params: { slug: SLUG },
+						user: admin,
+						form: { title, address: 'Calle Inventada 99', ...extra }
+					})
+				)
+			).venueCreated;
+		const listed = await create('Sala Listada', { listado: 'listed' });
+		const unlisted = await create('Sala No Listada', {});
+		const odd = await create('Sala Rara', { listado: 'cualquier cosa' });
+		expect(listed.unlisted).toBe(false);
+		expect(unlisted.unlisted).toBe(true);
+		expect(odd.unlisted).toBe(true);
+		const data = /** @type {any} */ (
+			await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(listed.id).first()
+		);
+		expect(JSON.parse(data.data).unlisted).toBeUndefined();
+		// La página del evento muestra igual el lugar no listado y el listado (según su nivel).
+		await setEventVenue(t.db, { eventSlug: 'a', venueId: listed.id, privacy: null, by: 'x' });
+		await setEventVenue(t.db, { eventSlug: 'b', venueId: unlisted.id, privacy: null, by: 'x' });
+		const a = /** @type {any} */ (await publicVenueForEvent(t.db, 'a', ANON));
+		const b = /** @type {any} */ (await publicVenueForEvent(t.db, 'b', ANON));
+		expect(b).toMatchObject({
+			level: 'public',
+			name: 'Sala No Listada',
+			address: 'Calle Inventada 99'
+		});
+		/** @param {Record<string, unknown>} view sin el nombre ni el link (son de cada lugar) */
+		const shape = (view) =>
+			Object.fromEntries(Object.entries(view).filter(([k]) => k !== 'name' && k !== 'href'));
+		expect(shape(b)).toEqual(shape(a));
+		expect(Object.keys(b).sort()).toEqual(Object.keys(a).sort());
 	});
 
 	it('sin nombre no crea nada; sin admin, a iniciar sesión', async () => {
@@ -336,6 +480,132 @@ describe('«+ Crear lugar»', () => {
 		);
 		expect(anon?.status).toBe(303);
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM objects').first())?.n).toBe(0);
+	});
+});
+
+describe('«Editar» el lugar elegido (edición rápida)', () => {
+	/** @param {Record<string, string>} form @param {any} [user] */
+	const editEvent = (form, user = admin) =>
+		fakeRequestEvent({
+			platform: t.platform,
+			path: `/admin/eventos/${SLUG}/editar?/editarLugar`,
+			params: { slug: SLUG },
+			user,
+			form
+		});
+
+	it('guarda nombre, dirección, barrio y ciudad en el perfil (con registro y autoría); lo demás queda', async () => {
+		const v = await makeProfile(t.db, {
+			title: 'Sala Vieja Inventada',
+			kind: 'lugar',
+			data: {
+				address: 'Calle 1',
+				venue_privacy: 'area',
+				unlisted: true,
+				how_to_get_there: 'Por la puerta verde'
+			}
+		});
+		const { mod } = await page();
+		const res = /** @type {any} */ (
+			await mod.actions.editarLugar(
+				editEvent({
+					lugar: String(v.id),
+					version: String(v.version),
+					title: 'Sala Nueva Inventada',
+					address: 'Calle Inventada 2',
+					area: 'Barrio Inventado',
+					city: 'Ciudad Inventada'
+				})
+			)
+		);
+		expect(res.venueUpdated).toMatchObject({
+			id: v.id,
+			title: 'Sala Nueva Inventada',
+			address: 'Calle Inventada 2',
+			area: 'Barrio Inventado',
+			city: 'Ciudad Inventada',
+			privacy: 'area',
+			unlisted: true,
+			version: v.version + 1
+		});
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare('SELECT title, data, updated_by FROM objects WHERE id = ?1')
+				.bind(v.id)
+				.first()
+		);
+		expect(row.title).toBe('Sala Nueva Inventada');
+		expect(row.updated_by).toBe(admin.login);
+		expect(JSON.parse(row.data)).toMatchObject({
+			address: 'Calle Inventada 2',
+			area: 'Barrio Inventado',
+			city: 'Ciudad Inventada',
+			venue_privacy: 'area',
+			unlisted: true,
+			how_to_get_there: 'Por la puerta verde'
+		});
+		const log = /** @type {any[]} */ (
+			(
+				await t.db
+					.prepare("SELECT actor_login, target_id FROM admin_audit WHERE action = 'profile.update'")
+					.all()
+			).results
+		);
+		expect(log).toEqual([{ actor_login: admin.login, target_id: String(v.id) }]);
+	});
+
+	it('los errores vuelven para mostrarlos al lado de cada campo, sin guardar', async () => {
+		const v = await lugar();
+		const { mod } = await page();
+		const base = {
+			lugar: String(v.id),
+			version: String(v.version),
+			address: '',
+			area: '',
+			city: ''
+		};
+		const empty = /** @type {any} */ (
+			await mod.actions.editarLugar(editEvent({ ...base, title: ' ' }))
+		);
+		expect(empty.status).toBe(400);
+		expect(empty.data.venueErrors).toEqual({ title: 'Escribí el nombre del lugar.' });
+		const long = /** @type {any} */ (
+			await mod.actions.editarLugar(editEvent({ ...base, title: 'Sala', area: 'x'.repeat(150) }))
+		);
+		expect(long.status).toBe(400);
+		expect(long.data.venueErrors.area).toMatch(/Barrio/);
+		const stale = /** @type {any} */ (
+			await mod.actions.editarLugar(editEvent({ ...base, title: 'Sala', version: '99' }))
+		);
+		expect(stale.status).toBe(409);
+		expect(stale.data.venueError).toMatch(/Alguien más cambió este lugar/);
+		const gone = /** @type {any} */ (
+			await mod.actions.editarLugar(editEvent({ ...base, lugar: '999999', title: 'Sala' }))
+		);
+		expect(gone.status).toBe(404);
+		const row = /** @type {any} */ (
+			await t.db.prepare('SELECT title, version FROM objects WHERE id = ?1').bind(v.id).first()
+		);
+		expect(row).toMatchObject({ title: 'Sala Inventada', version: v.version });
+		expect(await audit('profile.update')).toHaveLength(0);
+	});
+
+	it('solo admins: sin sesión a iniciar sesión, sin ser admin 403', async () => {
+		const v = await lugar();
+		const { mod } = await page();
+		const form = { lugar: String(v.id), version: String(v.version), title: 'Robado' };
+		expect((await thrown(() => mod.actions.editarLugar(editEvent(form, null))))?.status).toBe(303);
+		expect(
+			(
+				await thrown(() =>
+					mod.actions.editarLugar(editEvent(form, { id: 1, login: 'no-es-admin' }))
+				)
+			)?.status
+		).toBe(403);
+		const row = /** @type {any} */ (
+			await t.db.prepare('SELECT title FROM objects WHERE id = ?1').bind(v.id).first()
+		);
+		expect(row.title).toBe('Sala Inventada');
 	});
 });
 

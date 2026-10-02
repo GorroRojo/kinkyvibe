@@ -17,6 +17,9 @@
 	 * - `idPrefix`: prefijo de los ids (`ev` al crear, `edit` al editar).
 	 * - `venues` (bind, opcional): los lugares, con los que se crean desde acá.
 	 * - `createAction`: la acción de «+ Crear lugar» (sin pasarla, `?/crearLugar`).
+	 * - `editAction`: la de «Editar» el lugar elegido (nombre, dirección, barrio y ciudad; sin
+	 *   pasarla, `?/editarLugar`). Va por su cuenta (fetch): no manda el formulario del evento ni
+	 *   pierde lo que no se guardó.
 	 */
 	import { deserialize } from '$app/forms';
 	import { tick } from 'svelte';
@@ -27,6 +30,7 @@
 		inheritPrivacyLabel,
 		showsAddress
 	} from '$lib/utils/venues.js';
+	import { DEFAULT_VENUE_LISTING, VENUE_LISTING_LABELS } from '$lib/utils/venueImport.js';
 	import {
 		NO_VENUE,
 		searchVenues,
@@ -51,6 +55,7 @@
 	export let errors = {};
 	export let idPrefix = 'ev';
 	export let createAction = '?/crearLugar';
+	export let editAction = '?/editarLugar';
 
 	/**
 	 * Los lugares (más los que se crean acá; con bind, la página los ve para el resumen).
@@ -63,10 +68,27 @@
 	let creating = false;
 	let newName = '';
 	let newAddress = '';
+	/** Lugar nuevo: no listado en Amigues salvo que se elija «Público» (decisión de gorrite). */
+	let newListing = DEFAULT_VENUE_LISTING;
+	const LISTINGS = /** @type {const} */ (['unlisted', 'listed']);
 	let createBusy = false;
 	let createError = '';
 	/** @type {HTMLInputElement | undefined} */
 	let searchInput;
+
+	/* Edición rápida del lugar elegido (decisión de gorrite). */
+	let editing = false;
+	let editBusy = false;
+	let editError = '';
+	/** @type {Record<string, string>} */
+	let editErrors = {};
+	let edit = { title: '', address: '', area: '', city: '' };
+	const EDIT_FIELDS = /** @type {const} */ ([
+		{ key: 'title', label: 'Nombre', max: 200 },
+		{ key: 'address', label: 'Dirección', max: 300 },
+		{ key: 'area', label: 'Barrio', max: 100 },
+		{ key: 'city', label: 'Ciudad', max: 100 }
+	]);
 
 	$: chosen =
 		choice.venueId === null ? null : (venues.find((v) => v.id === choice.venueId) ?? null);
@@ -91,6 +113,58 @@
 	function unlink() {
 		choice = { ...NO_VENUE };
 		changing = false;
+		editing = false;
+	}
+
+	function startEdit() {
+		if (!chosen) return;
+		edit = { title: chosen.title, address: chosen.address, area: chosen.area, city: chosen.city };
+		editError = '';
+		editErrors = {};
+		editing = true;
+	}
+
+	async function saveEdit() {
+		if (editBusy || !chosen) return;
+		if (!edit.title.trim()) {
+			editErrors = { title: 'Escribí el nombre del lugar.' };
+			return;
+		}
+		editBusy = true;
+		editError = '';
+		editErrors = {};
+		try {
+			const body = new FormData();
+			body.set('lugar', String(chosen.id));
+			body.set('version', String(chosen.version));
+			for (const f of EDIT_FIELDS) body.set(f.key, edit[f.key].trim());
+			const response = await fetch(editAction, {
+				method: 'POST',
+				body,
+				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+			});
+			/** @type {any} */
+			const result = deserialize(await response.text());
+			if (result.type === 'success' && result.data?.venueUpdated) {
+				const v = /** @type {VenueOption} */ (result.data.venueUpdated);
+				venues = venues.map((x) => (x.id === v.id ? v : x));
+				editing = false;
+			} else {
+				editError = result.data?.venueError ?? 'No se pudo guardar el lugar.';
+				editErrors = result.data?.venueErrors ?? {};
+			}
+		} catch (e) {
+			editError = 'No pudimos conectarnos con el sitio. ¿Tenés internet?';
+		} finally {
+			editBusy = false;
+		}
+	}
+
+	/** Enter en la edición rápida guarda el lugar (no el evento). @param {KeyboardEvent} e */
+	function onEditKey(e) {
+		if (e.key !== 'Enter') return;
+		e.preventDefault();
+		saveEdit();
 	}
 
 	async function startChange() {
@@ -113,6 +187,7 @@
 			const body = new FormData();
 			body.set('title', newName.trim());
 			body.set('address', newAddress.trim());
+			body.set('listado', newListing);
 			const response = await fetch(createAction, {
 				method: 'POST',
 				body,
@@ -126,6 +201,7 @@
 				pick(v);
 				newName = '';
 				newAddress = '';
+				newListing = DEFAULT_VENUE_LISTING;
 			} else {
 				createError = result.data?.venueError ?? 'No se pudo crear el lugar.';
 			}
@@ -157,11 +233,51 @@
 
 		{#if chosen}
 			<div class="chosen" id="{idPrefix}-venue-chosen">
-				<p class="name">
-					<strong>{chosen.title}</strong>
-					{#each venueOptionMarks(chosen) as mark}<span class="mark">{mark}</span>{/each}
-					{#if venueOptionPlace(chosen)}<small class="block">{venueOptionPlace(chosen)}</small>{/if}
-				</p>
+				{#if editing}
+					<div class="quick-edit" id="{idPrefix}-venue-edit">
+						{#each EDIT_FIELDS as f (f.key)}
+							<label class="field">
+								<span
+									>{f.label}{#if f.key === 'title'}{' '}<span class="req">*</span>{/if}</span
+								>
+								<input
+									id="{idPrefix}-venue-edit-{f.key}"
+									bind:value={edit[f.key]}
+									maxlength={f.max}
+									on:keydown={onEditKey}
+									aria-invalid={editErrors[f.key] ? 'true' : undefined}
+								/>
+								{#if editErrors[f.key]}<small class="error">{editErrors[f.key]}</small>{/if}
+							</label>
+						{/each}
+						<small
+							>Cambia el lugar en todos sus eventos (como en su página). Lo que ve el público lo
+							sigue decidiendo el nivel de privacidad.</small
+						>
+						{#if editError}<p class="error" role="alert">{editError}</p>{/if}
+						<div class="actions">
+							<button
+								type="button"
+								class="button secondary"
+								id="{idPrefix}-venue-edit-save"
+								disabled={editBusy}
+								on:click={saveEdit}>{editBusy ? 'Guardando…' : 'Guardar'}</button
+							>
+							<button type="button" class="link" on:click={() => (editing = false)}>Cancelar</button
+							>
+						</div>
+					</div>
+				{:else}
+					<p class="name">
+						<strong>{chosen.title}</strong>
+						{#each venueOptionMarks(chosen) as mark}<span class="mark">{mark}</span>{/each}
+						{#if venueOptionPlace(chosen)}<small class="block">{venueOptionPlace(chosen)}</small
+							>{/if}
+						<button type="button" class="link" id="{idPrefix}-venue-edit-open" on:click={startEdit}
+							>Editar</button
+						>
+					</p>
+				{/if}
 				<label class="field">
 					<span>Qué se muestra de la dirección en este evento</span>
 					<select id="{idPrefix}-venue-privacy" value={choice.privacy ?? ''} on:change={onPrivacy}>
@@ -257,10 +373,24 @@
 							<span>Dirección</span>
 							<input bind:value={newAddress} maxlength="500" placeholder="Calle 123" />
 						</label>
+						<div class="listing" role="radiogroup" aria-label="En Amigues">
+							{#each LISTINGS as l (l)}
+								<label class="check">
+									<input
+										type="radio"
+										name="{idPrefix}-venue-listing"
+										value={l}
+										bind:group={newListing}
+									/>
+									{VENUE_LISTING_LABELS[l].one}
+									{#if l === 'unlisted'}<small>(no aparece en Amigues)</small>{/if}
+								</label>
+							{/each}
+						</div>
 						<small
-							>Se crea aprobado y con la dirección completa a la vista (como «Lugar nuevo» en
-							Eventos → Lugares): después elegís qué se muestra en este evento. Lo demás (barrio,
-							mapa, accesibilidad) lo completás en su página.</small
+							>Se crea aprobado. No listado no lo esconde del evento: la página del evento lo
+							muestra según el nivel que elijas después. Lo demás (barrio, mapa, accesibilidad) lo
+							completás en su página.</small
 						>
 						{#if createError}<p class="error" role="alert">{createError}</p>{/if}
 						<div class="actions">
@@ -367,6 +497,24 @@
 	.option:hover,
 	.option[aria-pressed='true'] {
 		outline-width: 2px;
+	}
+	.quick-edit {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5em;
+	}
+	.quick-edit > :not(label) {
+		grid-column: 1 / -1;
+	}
+	@media (max-width: 540px) {
+		.quick-edit {
+			grid-template-columns: 1fr;
+		}
+	}
+	.listing {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em 1.2em;
 	}
 	.create {
 		border-top: 1px solid var(--line, rgba(0, 0, 0, 0.08));
