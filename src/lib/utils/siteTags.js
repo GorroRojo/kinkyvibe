@@ -54,10 +54,10 @@ export function fileSiteTags() {
 /**
  * La lista en uso, como la del archivo (para lo que lee la lista y no el árbol).
  *
- * @returns {readonly Record<string, any>[]}
+ * @returns {ReadonlyArray<{ id: string } & Record<string, any>>}
  */
 export function currentSiteTagList() {
-	return current ?? hardcodedTags;
+	return /** @type {any} */ (current) ?? hardcodedTags;
 }
 
 /** ¿Se está usando la lista de la base? */

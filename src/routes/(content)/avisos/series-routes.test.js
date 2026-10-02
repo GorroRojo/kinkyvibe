@@ -18,7 +18,7 @@ import {
 	thrown
 } from '$lib/server/series/fixtures.js';
 
-vi.setConfig({ testTimeout: 300_000, hookTimeout: 30_000 });
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;

@@ -102,7 +102,7 @@ export function planDbTagEdit(current, ops) {
 	const byKey = new Map(current.map((t) => [t.key, t]));
 	const entries = recordsToRawTags(current).map((value) => ({ value }));
 	const before = tagsToRecords(entries.map((e) => e.value)).records;
-	const after = tagsToRecords(applyTagOps(entries, ops).map((e) => e.value)).records;
+	const after = tagsToRecords(applyTagOps(entries, [...ops]).map((e) => e.value)).records;
 
 	// Qué objeto es cada nombre de después: el mismo nombre, salvo los renombrados.
 	/** @type {Map<string, string | null>} nombre de después → nombre de antes */

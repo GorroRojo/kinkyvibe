@@ -211,7 +211,8 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		// …sino a la base.
 		const tag = (await loadTagRecords(t.db)).find((r) => r.key === 'Fiesta de Prueba en la Base');
 		expect(tag?.parents.map((p) => p.key)).toEqual(['evento recurrente']);
-	});
+		// Importar el árbol entero a la base tarda: más tiempo que el resto.
+	}, 180_000);
 
 	it('con el interruptor apagado se ignora la respuesta', async () => {
 		const { mod, commits } = await page('0');
