@@ -6,7 +6,8 @@
 	 * Mover no guarda: queda pendiente hasta "Guardar cambios" (ver pendingMoves.js).
 	 * Props: `row` (fila de la agenda como se ve, con lo pendiente aplicado, o null), `open` (bind),
 	 * `problem` (por qué no se puede mover; null = se puede), `busy` (guardando), `pending` (el cambio
-	 * sin guardar de este evento, o null). Eventos: `move` { date }, `revert` (volver a lo guardado).
+	 * sin guardar de este evento, o null). Eventos: `move` { date }, `revert` (volver a lo guardado),
+	 * `confirm` (los borradores: «Confirmar», ver ConfirmDraft.svelte).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import {
@@ -18,12 +19,13 @@
 	} from '@lucide/svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import ConfirmDraft from './ConfirmDraft.svelte';
 	import { eventLink, editEventHref } from '$lib/admin/links.js';
 	import { dayLabel } from '$lib/admin/eventFormat.js';
 	import { rowBadges } from '$lib/utils/calendario.js';
 	import { isValidDate } from '$lib/utils/eventDraft.js';
 
-	/** @type {(import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean }) | null} */
+	/** @type {(import('$lib/utils/agenda.js').AgendaRow & { sellsTickets?: boolean, missing?: import('$lib/utils/eventMissing.js').MissingItem[] }) | null} */
 	export let row = null;
 	export let open = false;
 	/** @type {string | null} */
@@ -70,6 +72,20 @@
 				</dd>
 			{/if}
 		</dl>
+
+		{#if row.state === 'no-listado'}
+			{#key row.slug}
+				<ConfirmDraft
+					missing={row.missing ?? []}
+					busy={busy || Boolean(pending)}
+					editHref={editEventHref(row.slug)}
+					on:confirm={() => dispatch('confirm')}
+				/>
+			{/key}
+			{#if pending}<small class="muted"
+					>Guardá o descartá el cambio de día antes de confirmarlo.</small
+				>{/if}
+		{/if}
 
 		<div class="links">
 			<a class="kv-btn" href={eventLink(row.slug, { tickets: row.sellsTickets })}

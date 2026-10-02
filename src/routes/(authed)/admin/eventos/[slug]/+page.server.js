@@ -2,6 +2,7 @@
  * Ficha del evento, pestaña Resumen: datos, checklist (imagen, link de la transmisión,
  * recordatorios, venta abierta) y el link de la transmisión de los eventos online.
  */
+import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { pickActions } from '$lib/server/admin/eventActions.js';
@@ -11,6 +12,9 @@ import { parseReminders } from '$lib/server/tickets/reminders.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { getStreamLink, streamLinkRecipients } from '$lib/server/tickets/stream.js';
 import { saleWindowText } from '$lib/utils/tickets.js';
+import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
+import { confirmDraft } from '$lib/server/eventos/drafts.js';
+import { eventMissing } from '$lib/utils/eventMissing.js';
 
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
@@ -115,7 +119,37 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			});
 		}
 	}
-	return { checklist, stream, sale, online: Boolean(config?.online) };
+	// Borrador (no listado): «Confirmar», con lo que le falta.
+	const missing = event.unlisted
+		? eventMissing({
+				image: Boolean(event.thumb),
+				summary: event.summary,
+				location: event.location,
+				locationName: event.locationName,
+				tags: event.tags,
+				authors: event.authors,
+				link: event.link,
+				tickets: Boolean(event.sellsTickets),
+				status: event.status
+			})
+		: [];
+	return { checklist, stream, sale, online: Boolean(config?.online), missing };
 }
 
-export const actions = pickActions('setLink', 'sendLink');
+export const actions = {
+	...pickActions('setLink', 'sendLink'),
+	/** «Confirmar» un borrador: pasa a publicado (lo mismo que en la agenda). */
+	confirmar: async ({ locals, url, params, platform }) => {
+		requireAdmin(locals, url);
+		const admin = getEventAdmin(locals);
+		if (!admin) return fail(403, { confirm: { ok: false, message: 'No tenés permiso.' } });
+		const r = await confirmDraft({
+			platform,
+			locals,
+			client: await getRepoClient(),
+			admin,
+			slug: params.slug
+		});
+		return r.ok ? { confirm: r } : fail(r.status, { confirm: r });
+	}
+};

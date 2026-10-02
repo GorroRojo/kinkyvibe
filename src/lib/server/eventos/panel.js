@@ -6,6 +6,7 @@
  */
 import { featuredURL, listEvents } from './index.js';
 import { agendaRowFromMeta } from '$lib/utils/agenda.js';
+import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
 import { splitEventTags } from '$lib/utils/adminTags.js';
 import { AR_OFFSET, parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 
@@ -150,7 +151,9 @@ export async function agendaRows({ today = todayInArgentina() } = {}) {
 				force_unlisted: e.unlisted
 			}),
 			thumb: e.thumb ?? '',
-			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0
+			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
+			// «Qué falta» (lo muestra la agenda en los borradores).
+			missing: eventMissing(missingInputFromMeta({ ...(meta ?? {}), status: e.status }))
 		});
 	}
 	rows.sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));

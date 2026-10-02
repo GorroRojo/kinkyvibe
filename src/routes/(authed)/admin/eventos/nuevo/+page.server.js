@@ -41,6 +41,7 @@ import { addTagToPost } from '$lib/utils/tagConfig.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
 import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
+import { duplicableEvents } from '$lib/server/eventos/drafts.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
@@ -129,6 +130,8 @@ export async function load({ locals, url, platform }) {
 		today: todayInArgentina(),
 		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
 		prefill: readNewEventPrefill(url.searchParams),
+		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
+		duplicables: source ? [] : await duplicableEvents(),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		mock: isMockMode()
