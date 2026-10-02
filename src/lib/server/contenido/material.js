@@ -9,7 +9,7 @@
  * Solo imports relativos.
  */
 import { asText, asTextList } from '../../utils/text.js';
-import { normalizeBody } from './eventos.js';
+import { freeHtmlNotes, normalizeBody } from './eventos.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
 
@@ -86,28 +86,13 @@ export function mdToMaterial(legacySlug, meta, body) {
 	}
 	if (Object.keys(extra).length) data.extra = extra;
 
-	if (/<script[\s>]/i.test(text)) {
-		warnings.push(
-			'tiene un bloque <script> de mdsvex: en la base se muestran sus imágenes y archivos, sin ese código'
-		);
-	}
-	if (/<style[\s>]/i.test(text)) {
-		warnings.push(
-			'tiene estilos propios (<style>): en la base se muestra con los estilos del sitio'
-		);
-	}
-	if (/<iframe[\s>]/i.test(text)) {
-		warnings.push('tiene un <iframe>: la lista corta de HTML no lo muestra');
-	}
-	if (/<(video|audio)[\s>]/i.test(text)) {
-		warnings.push('tiene un video o audio: la lista corta de HTML no lo muestra');
-	}
 	return {
 		legacySlug,
 		title: asText(meta.title) || legacySlug,
 		data,
 		visibility: isTrue(meta.force_unpublished) ? 'hidden' : 'public',
 		warnings,
+		notes: freeHtmlNotes(text),
 		...(COMPONENT.test(text)
 			? {
 					error:

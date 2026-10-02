@@ -19,6 +19,9 @@ const material = {
 	fields: {
 		summary: { kind: 'text', label: 'Resumen', max: 1000 },
 		body: { kind: 'longtext', label: 'Texto' },
+		// Cómo se muestra el texto (decisión 0004), como en `evento`: 'libre' o 'corta'
+		// (src/lib/server/contenido/render.js).
+		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },
 		tags: { kind: 'list', label: 'Etiquetas', max: 60 },
 		authors: { kind: 'list', label: 'Autores', max: 30 },
 		featured: { kind: 'text', label: 'Imagen principal', max: 200 },

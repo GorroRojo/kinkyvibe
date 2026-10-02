@@ -14,6 +14,11 @@
 	import { page } from '$app/stores';
 	import { TIMEZONE } from '$lib/utils/dates.js';
 	export let data;
+	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
+	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
+	// bloque de estilos del componente.
+	const STYLE_TAG = 'style';
+	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	/**@type {(s:string|number|Date)=>(string)}*/
 	let toISO = (s) => {
@@ -139,10 +144,15 @@
 		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
-		{#if data.mode === 'db'}
-			<!-- Texto de la base, ya limpio en el servidor (lista corta de HTML, src/lib/server/amigues/sanitize.js). -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html data.html}
+		{#if data.html !== undefined}
+			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+			<div class="kv-texto-libre">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html ownStyle}
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html data.html}
+			</div>
 		{:else}
 			<svelte:component this={data.content} />
 		{/if}
