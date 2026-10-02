@@ -17,6 +17,15 @@ const metaModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import:
  * @returns {Promise<Record<string, any> | null>}
  */
 export async function bundleMeta(slug) {
+	// Interruptor `contenido_db`: si la base tiene el evento, manda la base (también si está
+	// oculto: el panel lo ve).
+	const { activeContentDB, findDbEvent } = await import('../contenido/repo.js');
+	const db = await activeContentDB();
+	const fromDb = db ? await findDbEvent(db, slug) : null;
+	if (fromDb) {
+		const { eventToMeta } = await import('../contenido/eventos.js');
+		return fromDb.deleted ? null : eventToMeta(fromDb.object);
+	}
 	const load = metaModules[`/src/lib/posts/calendario/${slug}.md`];
 	if (!load || slug.startsWith('_')) return null;
 	try {
