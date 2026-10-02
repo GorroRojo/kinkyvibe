@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import YAML from 'yaml';
+import { extractFrontmatter, listPosts } from '../../tests/content-lib.js';
 import tagsFactory from './tags';
 import {
 	SERIES_PARENT,
 	editionDateLabel,
 	editionNav,
 	editionNumberFromTitle,
+	eventImageRef,
 	isSeriesTag,
 	seriesEditions,
 	seriesImage,
@@ -49,6 +52,38 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 		expect(seriesOfTags(['taller', 'Serie B', 'Serie A'], ids)).toEqual(['Serie A', 'Serie B']);
 		expect(seriesOfTags(undefined, ids)).toEqual([]);
 	});
+	it('en el árbol del sitio, las series hijas de Picantearla tienen ícono e imagen', () => {
+		const t = tagsFactory();
+		for (const id of ['Picantearla: Deluxe', 'Picantearla: Protocolar', 'Picantearla: Age Play']) {
+			expect(isSeriesTag(t, id)).toBe(true);
+			expect(t.get(id).icon).toBeTruthy();
+			const image = seriesImage(t.get(id));
+			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+		}
+	});
+	it('las ediciones reales de las series hijas siguen siendo ediciones de Picantearla', () => {
+		const posts = listPosts()
+			.filter((p) => p.category === 'calendario')
+			.map((p) => {
+				const doc = YAML.parseDocument(extractFrontmatter(p.source) ?? '');
+				return { slug: p.slug, errors: doc.errors.length, data: doc.toJS() };
+			});
+		/** @param {string} id */
+		const tagged = (id) =>
+			posts.filter((p) => (p.data?.tags ?? []).includes(id)).map((p) => p.slug);
+		const deluxe = tagged('Picantearla: Deluxe');
+		const protocolar = tagged('Picantearla: Protocolar');
+		const agePlay = tagged('Picantearla: Age Play');
+		expect(deluxe).toHaveLength(16);
+		expect(deluxe).toContain('picantearla-diciembre-2023'); // «Picantearla Deluxe (8° Edición)»
+		expect(protocolar).toHaveLength(4);
+		expect(agePlay).toEqual(['picantearla-age-play-2024-10', 'picantearla-age-play-2025-12']);
+		const picantearla = new Set(tagged('Picantearla'));
+		for (const slug of [...deluxe, ...protocolar, ...agePlay]) {
+			expect(picantearla.has(slug), slug).toBe(true);
+			expect(posts.find((p) => p.slug === slug)?.errors, slug).toBe(0);
+		}
+	});
 	it('en el árbol del sitio, Picantearla y Cine para Sucixs son series con imagen', () => {
 		const t = tagsFactory();
 		for (const id of ['Picantearla', 'Cine para Sucixs']) {
@@ -56,6 +91,63 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 			const image = seriesImage(t.get(id));
 			expect(image).toMatch(/\.webp$/);
 			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+		}
+	});
+});
+
+// Series que van sin imagen a propósito: decisión de gorrite en el PR #193.
+// Es una lista cerrada; cualquier otra serie sin imagen sigue haciendo fallar el test.
+const SERIES_SIN_IMAGEN = ['Merienda Kinky'];
+
+describe('las series del sitio: imagen e ícono', () => {
+	it('cada serie tiene ícono e imagen, y la imagen existe (de src/lib/assets o de un evento)', () => {
+		const t = tagsFactory();
+		const ids = seriesTagIds(t);
+		expect(ids.length).toBeGreaterThan(40);
+		for (const id of ids) {
+			const tag = t.get(id);
+			expect(String(tag.icon ?? '').trim(), `${id}: ícono`).not.toBe('');
+			if (SERIES_SIN_IMAGEN.includes(id)) continue;
+			const image = String(seriesImage(tag) ?? '');
+			const ref = eventImageRef(image);
+			const file = ref
+				? path.resolve('src/lib/posts/calendario/media', ref.slug, ref.file)
+				: path.resolve('src/lib/assets', image);
+			expect(image, `${id}: imagen`).not.toBe('');
+			expect(existsSync(file), `${id}: ${image}`).toBe(true);
+		}
+	});
+
+	it('las series de SERIES_SIN_IMAGEN existen y de verdad no tienen imagen', () => {
+		const t = tagsFactory();
+		const ids = seriesTagIds(t);
+		for (const id of SERIES_SIN_IMAGEN) {
+			expect(ids, id).toContain(id);
+			expect(seriesImage(t.get(id)), id).toBeUndefined();
+		}
+	});
+});
+
+describe('eventImageRef (la imagen de un evento como imagen de la serie)', () => {
+	it('calendario:<evento>/<archivo>', () => {
+		expect(eventImageRef('calendario:colectiver-2026-08/1.webp')).toEqual({
+			slug: 'colectiver-2026-08',
+			file: '1.webp'
+		});
+	});
+	it('nada más: ni archivos de assets, ni carpetas, ni links, ni otras categorías', () => {
+		for (const bad of [
+			'picantearla-miniatura.webp',
+			'calendario:../x.webp',
+			'calendario:a/b/c.webp',
+			'calendario:evento/',
+			'calendario:evento/x.svg',
+			'amigues:perfil/1.webp',
+			'https://otro.sitio/x.webp',
+			undefined,
+			3
+		]) {
+			expect(eventImageRef(bad), String(bad)).toBeNull();
 		}
 	});
 });

@@ -7,6 +7,7 @@ tags:
   - español
   - KinkyVibe
   - Picantearla
+  - 'Picantearla: Deluxe'
   - pago
   - evento
   - BDSM

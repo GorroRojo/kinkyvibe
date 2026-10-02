@@ -38,6 +38,8 @@ import {
 } from '$lib/utils/contentPosts.js';
 import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
+import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
+import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import materialTemplate from '$lib/posts/material/_post_template.md?raw';
 import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 
@@ -146,11 +148,13 @@ export function visibilityAction(category) {
  * @param {'material'|'amigues'} category
  */
 export function newLoad(category) {
-	/** @param {{locals: App.Locals, url: URL}} event */
-	return async ({ locals, url }) => {
+	/** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
+	return async ({ locals, url, platform }) => {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
+		// Interruptor `contenido_db`: lo nuevo de material va a la base (se ve enseguida).
+		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
 		/** @type {null | {slug: string, raw: string, title: string}} */
 		let source = null;
@@ -160,7 +164,7 @@ export function newLoad(category) {
 			try {
 				post = await readContentPost(await getRepoClient(), admin.token, category, desde);
 			} catch (e) {
-				throw error(502, 'No pudimos leer la publicación desde GitHub: ' + describe(e));
+				throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
 			}
 			if (!post) throw error(404, 'Esa publicación no existe.');
 			let title = desde;
@@ -183,6 +187,7 @@ export function newLoad(category) {
 			imageUrl: null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
+			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category))
 		};
@@ -194,19 +199,21 @@ export function newLoad(category) {
  * @param {'material'|'amigues'} category
  */
 export function editLoad(category) {
-	/** @param {{locals: App.Locals, url: URL, params: Record<string, string>}} event */
-	return async ({ locals, url, params }) => {
+	/** @param {{locals: App.Locals, url: URL, params: Record<string, string>, platform?: App.Platform}} event */
+	return async ({ locals, url, params, platform }) => {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
 		const slug = params.slug ?? '';
 		if (!contentPath(category, slug) || slug.startsWith('_'))
 			throw error(404, 'Esa publicación no existe.');
+		// Interruptor `contenido_db`: esta publicación se guarda en la base (se ve enseguida).
+		const savesToDb = await panelSavesToDb(platform, category, slug);
 		let post;
 		try {
 			post = await readContentPost(await getRepoClient(), admin.token, category, slug);
 		} catch (e) {
-			throw error(502, 'No pudimos leer la publicación desde GitHub: ' + describe(e));
+			throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
 		}
 		if (!post) throw error(404, 'Esa publicación no existe.');
 		let featured = '';
@@ -227,6 +234,7 @@ export function editLoad(category) {
 			imageUrl: contentImageURL(category, slug, featured) ?? null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
+			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category))
 		};
@@ -241,7 +249,7 @@ export function editLoad(category) {
  */
 export function editorActions(category) {
 	return {
-		direccion: async ({ locals, request, url }) => {
+		direccion: async ({ locals, request, url, platform }) => {
 			requireAdmin(locals, url);
 			const admin = getEventAdmin(locals);
 			if (!admin) return fail(403, { error: NO_PERMISSION });
@@ -258,9 +266,7 @@ export function editorActions(category) {
 				return {
 					slugCheck: {
 						slug,
-						error: found.length
-							? 'Ya existe una publicación (o su carpeta de imágenes) con esa dirección en GitHub.'
-							: ''
+						error: found.length ? saveCopy(await panelSavesToDb(platform, category)).slugTaken : ''
 					}
 				};
 			} catch (e) {
@@ -350,19 +356,19 @@ export function editorActions(category) {
 						content: r.content,
 						imagePath: r.imagePath,
 						commit: r.commit.url,
-						publish: r.commit.pr ?? null
+						publish: r.commit.pr ?? null,
+						// Interruptor `contenido_db`: se guardó en la base (ya se ve).
+						savedToDb: commitSavedToDb(r.commit)
 					}
 				};
 			} catch (e) {
 				if (isRedirect(e)) throw e;
+				const toDb = await panelSavesToDb(platform, category, isNew ? '' : slug).catch(() => false);
 				if (e instanceof PathExistsError)
-					return fail(409, { error: `Ya existe ${e.path} en GitHub. Elegí otra dirección.` });
+					return fail(409, { error: pathExistsMessage(toDb, e.path) });
 				if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 				if (e instanceof FileChangedError)
-					return fail(409, {
-						error:
-							'Alguien cambió esta publicación en GitHub mientras la editabas. Copiá tus cambios, recargá la página y volvé a intentar.'
-					});
+					return fail(409, { error: saveCopy(toDb).changedMeanwhile });
 				console.log(e);
 				return fail(502, { error: 'No se pudo guardar: ' + describe(e) + '. Probá de nuevo.' });
 			}

@@ -126,6 +126,15 @@ describe('seriesEditOps', () => {
 		);
 		expect(r).toMatchObject({ ok: true, ops: [{ set: { icon: '', image: '' } }] });
 	});
+	it('la imagen de un evento se conserva al editar otra cosa (no es de src/lib/assets)', () => {
+		const withEvent = { ...current, image: 'calendario:colectiver-2026-08/1.webp' };
+		const r = seriesEditOps(
+			{ visible_name: '', icon: '🪩', image: withEvent.image, description: '' },
+			withEvent
+		);
+		expect(r).toMatchObject({ ok: true, ops: [{ type: 'update', set: { icon: '🪩' } }] });
+		expect(r.ok && r.ops[0].type === 'update' && 'image' in r.ops[0].set).toBe(false);
+	});
 	it('errores: sin cambios, imagen de afuera, corchetes, textos largos', () => {
 		const same = { visible_name: '', icon: '🎭', image: 'vieja.webp', description: '' };
 		expect(seriesEditOps(same, current)).toEqual({ ok: false, error: 'No cambiaste nada.' });

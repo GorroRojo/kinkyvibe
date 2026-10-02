@@ -54,6 +54,17 @@ describe('etiqueta: datos', () => {
 		for (const bad of ['../secreto.webp', 'https://otro.sitio/x.webp', 'a/b.webp', 'x.svg']) {
 			expect(IMAGE_KEY.test(bad), bad).toBe(false);
 		}
+		// La imagen de un evento (src/lib/posts/calendario/media/<evento>/<archivo>), sin copiarla.
+		expect(IMAGE_KEY.test('calendario:colectiver-2026-08/1.webp')).toBe(true);
+		for (const bad of [
+			'calendario:../secreto.webp',
+			'calendario:a/b/c.webp',
+			'calendario:/x.webp',
+			'material:post/1.webp',
+			'calendario:evento/x.svg'
+		]) {
+			expect(IMAGE_KEY.test(bad), bad).toBe(false);
+		}
 		const r = validateData(etiqueta, {
 			key: 'mal [[nombre]]',
 			color: 'red;x',

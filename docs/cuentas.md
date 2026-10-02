@@ -5,7 +5,8 @@
 Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
-pone, cambia o saca la contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+sus datos guardados para comprar (ver "Datos guardados para la compra"), pone, cambia o saca la
+contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
 cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
@@ -186,6 +187,41 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
 - En la página de un proyecto pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
   a otre dueñe, y borrar el proyecto (`para` no existe ahí: `?/confirmar` manda siempre uno de
   `grupo`; ver "Perfiles").
+
+### Datos guardados para la compra
+
+Con sesión (y el interruptor `cuentas` prendido), la compra de entradas completa «Tus datos» con
+lo que la cuenta tiene guardado, y la persona elige qué se guarda.
+
+- **Qué se completa:** nombre, pronombres y DNI guardados, y el **mail de la cuenta** (se puede
+  cambiar en el formulario: es a donde van las entradas). La entrada 1 copia nombre y pronombres
+  como siempre. Los pronombres son un campo de quien compra, no una pregunta de inscripción: no hay
+  preguntas que completar. Si el servidor devolvió el formulario o hay un borrador en
+  `sessionStorage`, mandan esos valores.
+- **Dos casillas en «Tus datos»:** «Guardar mis datos para la próxima» (nombre y pronombres;
+  **marcada** de entrada) y, aparte, «Recordar mi DNI» (**sin marcar**, salvo que ya haya un DNI
+  guardado: así desmarcarla es la forma de sacarlo). Al comprar, lo que está marcado se guarda y
+  **lo desmarcado se saca**. Se guarda recién cuando la orden se crea (una compra rechazada no
+  guarda nada) y guardar nunca frena la compra.
+- Un campo oculto `datos_cuenta=1` dice que el formulario mostró las casillas: sin él (por ejemplo,
+  un formulario abierto antes de ingresar) el servidor no guarda ni saca nada.
+- **Mi rincón → «Mis datos»:** muestra lo guardado con el DNI tapado salvo los últimos 3
+  (`•••••678`); «Mostrar» lo pide entero al servidor (`?/mostrarDni`), así no está en la página
+  hasta que se toca. Se puede cambiar (nombre o pronombres vacíos se borran; el DNI vacío no
+  cambia, para eso está «Borrar»), borrar cada dato o «Borrar todo».
+- **Dónde se guardan:** `accounts.preferences`, clave `savedBuyer` (`{ name, pronouns, dni }`), la
+  columna que la migración 0013 dejó para esto. **Sin migración nueva.** Al borrar la cuenta,
+  `deleteAccount()` deja `preferences = '{}'` (un CHECK de la tabla lo exige), así que se van con
+  ella.
+- **Validación:** las mismas reglas que la compra (`checkName`, `checkPronouns` de
+  `src/lib/utils/ticketBuyer.js` y `normalizeDni`); lo guardado se vuelve a limpiar al leerlo.
+- **Privacidad del DNI:** solo lo ve la propia cuenta (la página de compra y Mi rincón, las dos con
+  `cache-control: private, no-store`). Nunca se loguea (los errores se registran sin el detalle),
+  nunca va en mails, y el panel de cuentas no lee `preferences`. Les admins siguen viendo el DNI
+  solo donde ya lo veían: en las órdenes.
+- Código: `src/lib/utils/savedBuyer.js` (reglas puras: qué completar, qué guardar o sacar, editar,
+  tapar el DNI) y `src/lib/server/cuentas/savedBuyer.js` (leer, guardar, lo que necesita la página
+  de compra y lo que hace `?/buy` al final).
 
 ### Evento que pide cuenta (P7.1)
 
@@ -436,7 +472,7 @@ aprobar").
 ## Dónde está el código
 
 - `src/lib/server/cuentas/`: `accounts.js` (cuentas, contraseña, borrado), `codes.js`,
-  `session.js`, `orders.js` (compras de la cuenta), `password.js`, `crypto.js`, `email.js`,
+  `session.js`, `orders.js` (compras de la cuenta), `savedBuyer.js` (datos guardados para la compra), `password.js`, `crypto.js`, `email.js`,
   `index.js` (los pasos de ingresar con sus límites) y `web.js` (cookies, `locals.member`, mails).
 - `src/lib/server/flags.js`: interruptores. Panel: `src/routes/(authed)/admin/ajustes/interruptores/`.
 - Páginas: `src/routes/(content)/ingresar/` y `src/routes/(content)/mi-rincon/` (perfiles en
@@ -481,7 +517,8 @@ actualizá esta lista.
   adivinado está ahí. Para que "no se guarda el mail" valga también contra eso, habría que usar
   un HMAC con una clave secreta del entorno.
 - **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Cerrar sesión en todos lados" o cambiar
-  o sacar la contraseña.
+  o sacar la contraseña. Con una sesión abierta ajena se pueden ver los datos guardados (también
+  el DNI, si se guardó): «Mostrar» no pide código por mail.
 - **El nombre del proyecto va en el aviso de invitación.** Lo escribe quien gestiona el proyecto y llega
   con el remitente del sitio. Va escapado, pero algunos programas de mail convierten en link un
   dominio escrito ahí. Como mucho salen 3 avisos por día a un mismo mail.
@@ -509,5 +546,5 @@ actualizá esta lista.
 - Passkeys.
 - Perfiles: página pública (con `getPublicProfile()`), subir imagen (el campo `avatar` ya existe,
   solo acepta imágenes del sitio) y lugares como tipo de perfil (B3).
-- Compra con cuenta: guardar `orders.account_id`, "Recordar mi DNI" (en `preferences`) y los
-  eventos con `requiere_cuenta`.
+- Compra con cuenta: guardar `orders.account_id` y los eventos con `requiere_cuenta` ("Recordar mi
+  DNI" ya está: ver "Datos guardados para la compra").
