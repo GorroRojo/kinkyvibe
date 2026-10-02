@@ -78,6 +78,37 @@ Las dos primeras se prenden y apagan en Mi rincón → Lo que sigo → «Tu cale
 es una entrada propia sale solo de eventos listados. Con `lo_que_sigo` apagado, el calendario
 muestra solo las entradas, como siempre.
 
+### Los mails (`src/lib/server/sigo/notify.js`)
+
+Los corre el cron de mails (POST /api/cron/recordatorios, cada 15 minutos) con `lo_que_sigo` y
+`cuentas` prendidos. Van al mail de la cuenta, uno por cuenta, evento y tipo
+(`follow_notifications`), aunque varias cosas seguidas lleven al mismo evento (el mail dice cuáles):
+
+- **Se anunció algo nuevo**: un evento próximo (listado, no cancelado) de algo que la cuenta sigue
+  con ese mail, si lo seguía desde antes de que el cron viera el evento (`follow_events_seen`). La
+  primera corrida de todas anota lo que ya estaba con fecha 0: prender el interruptor no manda una
+  tanda de mails por todo lo ya anunciado.
+- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento.
+
+Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
+(`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque los interruptores estén apagados; apaga los
+dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida.
+
+### «Avisame si se repite» (`src/lib/server/sigo/avisame.js`)
+
+Con `lo_que_sigo` y `cuentas` prendidos:
+
+- **con cuenta**, «Avisame» es seguir la etiqueta de la serie con «mail cuando se anuncia algo
+  nuevo» (y «en mi calendario»). Darse de baja apaga ese mail, pero la etiqueta queda seguida;
+- las suscripciones con cuenta que ya había en `series_subscriptions` pasan a `follows` en el cron,
+  con `created_at` = cuándo se confirmaron y su id en `series_subscription_id`. La fila vieja se
+  borra en la misma tanda, así no llegan dos avisos. El link de baja de los mails que ya salieron
+  (`/avisos/baja/<id>.<firma>`) sigue andando: apaga el mail de lo nuevo de esa etiqueta;
+- **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre.
+
+Si se apaga `lo_que_sigo` después de prenderlo, lo que ya pasó a `follows` no recibe mails hasta
+que se vuelva a prender.
+
 ### Código
 
 - `src/lib/utils/sigo.js`: lo puro (qué se puede seguir, las opciones, el orden y el CSV), con
@@ -100,6 +131,9 @@ muestra solo las entradas, como siempre.
 - Al tocar «Seguir» quedan prendidos «en mi calendario» y «mail cuando se anuncia algo nuevo»; el
   recordatorio, apagado (`DEFAULT_FOLLOW_OPTIONS`).
 - Hasta 300 cosas seguidas por cuenta y 120 cambios por hora.
+- El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
+- «Avisame» con cuenta deja también «en mi calendario» prendido.
+- Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal sigue necesitando `series` (es donde se crea el link); «Lo que sigo» le
   suma cosas pero no lo prende solo.
 

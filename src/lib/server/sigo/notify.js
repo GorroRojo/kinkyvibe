@@ -198,9 +198,9 @@ export async function runFollowNotifications({
 				(await resolveTarget({ db, tags, accountId }, target))?.title ?? String(row.target_key);
 			let acc = byAccount.get(accountId);
 			if (!acc) byAccount.set(accountId, (acc = { email: String(row.email), items: new Map() }));
-			let item = acc.items.get(slug);
-			if (!item) acc.items.set(slug, (item = { post, kinds: new Set(), reasons: new Set() }));
-			fresh.forEach((k) => item.kinds.add(k));
+			const item = acc.items.get(slug) ?? { post, kinds: new Set(), reasons: new Set() };
+			acc.items.set(slug, item);
+			for (const k of fresh) item.kinds.add(k);
 			item.reasons.add(reason);
 		}
 	}
