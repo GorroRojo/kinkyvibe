@@ -157,6 +157,7 @@ describe('interruptor prendido', () => {
 		await m.flags.setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
 		expect(await m.ingresar.load(fakeEvent({ path: '/ingresar' }))).toEqual({
 			next: '/mi-rincon',
+			codeTtlMs: 10 * 60 * 1000,
 			deleted: false,
 			loggedOutEverywhere: false
 		});
@@ -212,15 +213,53 @@ describe('interruptor prendido', () => {
 		const m = await modules('1');
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		try {
+			const before = Date.now();
 			const r = await m.ingresar.actions.codigo(
 				fakeEvent({ path: '/ingresar', form: { email: EMAIL, next: '//evil.example' } })
 			);
-			expect(r).toEqual({ step: 'code', email: EMAIL, next: '/mi-rincon', sent: true });
+			// Con cuándo vence, para mostrar la hora en la página.
+			expect(r).toEqual({
+				step: 'code',
+				email: EMAIL,
+				next: '/mi-rincon',
+				sent: true,
+				expiresAt: expect.any(Number)
+			});
+			const expiresAt = /** @type {any} */ (r).expiresAt;
+			expect(expiresAt).toBeGreaterThanOrEqual(before + 10 * 60 * 1000);
+			expect(expiresAt).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000);
+			const row = await t.db.prepare('SELECT expires_at FROM login_codes').first();
+			expect(row?.expires_at).toBe(expiresAt);
 		} finally {
 			log.mockRestore();
 		}
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM accounts').first())?.n).toBe(0);
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(1);
+	});
+
+	it('código mal escrito: la hora en que vence vuelve a la página, solo si es creíble', async () => {
+		const m = await modules('1');
+		const verify = async (/** @type {string} */ vence) =>
+			/** @type {any} */ (
+				await m.ingresar.actions.verificar(
+					fakeEvent({
+						path: '/ingresar',
+						form: { email: EMAIL, next: '/mi-rincon', code: '000000', vence }
+					})
+				)
+			);
+		const soon = Date.now() + 5 * 60 * 1000;
+		const ok = await verify(String(soon));
+		expect(ok.data).toMatchObject({ step: 'code', email: EMAIL, expiresAt: soon });
+		expect(ok.data.error).toBeTruthy();
+		for (const bad of [
+			String(Date.now() + 60 * 60 * 1000), // más lejos que lo que dura un código
+			String(Date.now() - 1000), // ya vencido
+			'mañana',
+			''
+		]) {
+			expect((await verify(bad)).data.expiresAt, bad).toBeNull();
+		}
 	});
 
 	/**
