@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { RECURRING_ROOT, eventSeriesTags, seriesTagIndex } from './eventSeries.js';
+import { SERIES_PARENT, eventSeriesTags, seriesTagIndex } from './series.js';
 
 const tree = [
-	{ id: 'calendario', children: ['tipo de evento', RECURRING_ROOT] },
+	{ id: 'calendario', children: ['tipo de evento', SERIES_PARENT] },
 	{ id: 'tipo de evento', children: ['fiesta', 'taller'] },
-	{ id: RECURRING_ROOT, children: ['Serie Uno', 'Serie Dos'] },
+	{ id: SERIES_PARENT, children: ['Serie Uno', 'Serie Dos'] },
 	{ id: 'Serie Uno', aka: ['serie-1'], children: ['Serie Uno Online'] },
 	{ id: 'Serie Uno Online', children: ['Bisnieta'] },
 	{ id: 'Serie Dos' },

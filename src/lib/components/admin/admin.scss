@@ -7,6 +7,11 @@
 	font-size: var(--step-0);
 	box-sizing: border-box;
 
+	// Con el índice de secciones del formulario de eventos al costado, un poco más ancho.
+	&:has(.section-index) {
+		max-width: 62rem;
+	}
+
 	h1 {
 		font-size: var(--step-2);
 		margin: 0.3em 0;
