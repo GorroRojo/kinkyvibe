@@ -26,6 +26,14 @@
 
 	let confirmDelete = '';
 
+	// «Mis datos»: el DNI entero solo llega con «Mostrar» (la respuesta de ?/mostrarDni).
+	let hideDni = false;
+	$: (form, (hideDni = false));
+	$: shownDni = !hideDni && form?.action === 'datos' && form.dni ? String(form.dni) : '';
+	$: savedEmpty = !data.saved.name && !data.saved.pronouns && !data.saved.hasDni;
+	/** @type {Record<string, string>} */
+	$: datosErrors = (form?.action === 'datos' && form.errors) || {};
+
 	/** Las respuestas de las actions quedan en `form` sin vaciar los otros campos. */
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const keep =
@@ -106,6 +114,130 @@
 		<p class="hint">
 			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
 		</p>
+	</section>
+
+	<section class="surface-card" id="mis-datos" aria-labelledby="datos-title">
+		<h2 id="datos-title">Mis datos</h2>
+		<p class="hint">
+			Los usamos solo para completarte el formulario cuando comprás entradas con tu cuenta. Los ves
+			solo vos.
+		</p>
+		{#if form?.action === 'datos'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		{#if data.savedError}
+			<p class="error" role="alert">No pudimos cargar tus datos. Probá de nuevo en un rato.</p>
+		{:else}
+			{#if savedEmpty}
+				<p class="hint">
+					Todavía no guardaste nada. Se guardan al comprar, si marcás «Guardar mis datos para la
+					próxima» o «Recordar mi DNI», o acá abajo.
+				</p>
+			{:else}
+				<dl class="saved">
+					{#if data.saved.name}
+						<div>
+							<dt>Nombre</dt>
+							<dd>{data.saved.name}</dd>
+							<form method="POST" action="?/borrarDato" use:enhance={keep}>
+								<input type="hidden" name="campo" value="name" />
+								<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
+							</form>
+						</div>
+					{/if}
+					{#if data.saved.pronouns}
+						<div>
+							<dt>Pronombres</dt>
+							<dd>{data.saved.pronouns}</dd>
+							<form method="POST" action="?/borrarDato" use:enhance={keep}>
+								<input type="hidden" name="campo" value="pronouns" />
+								<button class="link" type="submit" aria-label="Borrar tus pronombres">Borrar</button
+								>
+							</form>
+						</div>
+					{/if}
+					{#if data.saved.hasDni}
+						<div>
+							<dt>DNI</dt>
+							<dd class="dni">{shownDni || data.saved.dniMasked}</dd>
+							{#if shownDni}
+								<button class="link" type="button" on:click={() => (hideDni = true)}>Ocultar</button
+								>
+							{:else}
+								<form method="POST" action="?/mostrarDni" use:enhance={keep}>
+									<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
+										>Mostrar</button
+									>
+								</form>
+							{/if}
+							<form method="POST" action="?/borrarDato" use:enhance={keep}>
+								<input type="hidden" name="campo" value="dni" />
+								<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
+							</form>
+						</div>
+					{/if}
+				</dl>
+			{/if}
+			<details open={Object.keys(datosErrors).length > 0}>
+				<summary>{savedEmpty ? 'Guardar mis datos' : 'Cambiar mis datos'}</summary>
+				<form method="POST" action="?/datos" use:enhance={keep}>
+					<label>
+						<span>Tu nombre</span>
+						<input
+							name="name"
+							type="text"
+							autocomplete="name"
+							maxlength="80"
+							value={form?.action === 'datos' && form.values ? form.values.name : data.saved.name}
+							aria-invalid={datosErrors.name ? 'true' : undefined}
+						/>
+						{#if datosErrors.name}<span class="field-error">{datosErrors.name}</span>{/if}
+					</label>
+					<label>
+						<span>Tus pronombres</span>
+						<input
+							name="pronouns"
+							type="text"
+							autocomplete="off"
+							maxlength="40"
+							placeholder="ella, él, elle…"
+							value={form?.action === 'datos' && form.values
+								? form.values.pronouns
+								: data.saved.pronouns}
+							aria-invalid={datosErrors.pronouns ? 'true' : undefined}
+						/>
+						{#if datosErrors.pronouns}<span class="field-error">{datosErrors.pronouns}</span>{/if}
+					</label>
+					<label>
+						<span>{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
+						<input
+							name="dni"
+							type="text"
+							inputmode="numeric"
+							autocomplete="off"
+							maxlength="12"
+							placeholder="12.345.678"
+							aria-invalid={datosErrors.dni ? 'true' : undefined}
+						/>
+						{#if datosErrors.dni}<span class="field-error">{datosErrors.dni}</span>{/if}
+					</label>
+					<p class="hint">
+						Si dejás el nombre o los pronombres vacíos, se borran.{#if data.saved.hasDni}
+							El DNI escribilo solo si lo querés cambiar: vacío, queda el que está.{/if}
+					</p>
+					<button class="pill-btn" type="submit">Guardar</button>
+				</form>
+			</details>
+			{#if !savedEmpty}
+				<form method="POST" action="?/borrarDatos" use:enhance={keep}>
+					<button class="pill-btn ghost" type="submit">Borrar todo</button>
+				</form>
+			{/if}
+		{/if}
 	</section>
 
 	<section class="surface-card" aria-labelledby="pw-title">
@@ -300,6 +432,39 @@
 		gap: 0.2em 0.6em;
 		align-items: baseline;
 		color: var(--2-dark);
+	}
+	.saved {
+		display: grid;
+		gap: 0.2em;
+		margin: 0;
+	}
+	.saved > div {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0 0.8em;
+		border-bottom: 1px solid var(--line);
+	}
+	.saved dt {
+		font-weight: 600;
+		min-width: 6.5em;
+	}
+	.saved dd {
+		margin: 0;
+		flex: 1;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.saved .dni {
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.05em;
+	}
+	.saved form {
+		display: contents;
+	}
+	.field-error {
+		color: var(--1-ink);
+		font-size: var(--step--1);
 	}
 	.hint {
 		color: var(--muted);

@@ -454,6 +454,9 @@ test('pronombres de quien compra: obligatorios y copiados a la entrada 1 hasta e
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	const block = page.locator('#entradas');
 	await nextStep(block, 'Tus datos');
+	// Sin cuenta, «Tus datos» es el de siempre: sin las casillas de los datos guardados.
+	await expect(block.getByLabel('Guardar mis datos para la próxima')).toHaveCount(0);
+	await expect(block.getByLabel('Recordar mi DNI')).toHaveCount(0);
 	const mine = block.getByLabel('Tus pronombres');
 	await expect(mine).toHaveAttribute('required', '');
 	const first = block

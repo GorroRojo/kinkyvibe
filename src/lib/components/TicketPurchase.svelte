@@ -19,6 +19,11 @@
 	 * sobrevive a cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca
 	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
 	 * marcarla).
+	 *
+	 * Con cuenta (interruptor `cuentas`, `account`), «Tus datos» arranca con el nombre, los
+	 * pronombres y el DNI guardados y el mail de la cuenta, y muestra las casillas «Guardar mis
+	 * datos para la próxima» y «Recordar mi DNI» (docs/cuentas.md, «Datos guardados»). Si el
+	 * servidor devolvió el formulario o hay un borrador, mandan esos. Sin cuenta, nada cambia.
 	 */
 	import { onMount, tick } from 'svelte';
 	import { enhance } from '$app/forms';
@@ -58,7 +63,7 @@
 	 * @typedef {{
 	 *   error?: string | null,
 	 *   errors?: Record<string, string>,
-	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string> },
+	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean },
 	 *   discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 * } | null} BuyResult
 	 */
@@ -67,16 +72,27 @@
 	export let tickets;
 	/** Lo que devolvió la última form action (`form.buy`). @type {BuyResult | undefined} */
 	export let result = null;
+	/**
+	 * Con cuenta: lo que se completa en «Tus datos» y cómo arrancan las casillas (purchasePrefill).
+	 * @type {ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null}
+	 */
+	export let account = null;
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
 	const firstAvailable = tickets.types.find((t) => t.available > 0 && !t.closed)?.id ?? '';
 	let type = initial.type || firstAvailable;
 	let quantity = Math.max(1, Math.trunc(Number(initial.quantity)) || 1);
-	let buyerName = initial.name ?? '';
-	let buyerPronouns = initial.pronouns ?? '';
-	let email = initial.email ?? '';
-	let dni = initial.dni ?? '';
+	let buyerName = initial.name ?? account?.name ?? '';
+	let buyerPronouns = initial.pronouns ?? account?.pronouns ?? '';
+	let email = initial.email ?? account?.email ?? '';
+	let dni = initial.dni ?? account?.dni ?? '';
+	// Casillas de los datos guardados (solo con cuenta). Si el servidor devolvió el formulario
+	// que las mostraba, como quedaron; si no, como arrancan para esta cuenta.
+	let remember = initial.accountForm ? Boolean(initial.remember) : (account?.remember ?? false);
+	let rememberDni = initial.accountForm
+		? Boolean(initial.rememberDni)
+		: (account?.rememberDni ?? false);
 	let code = initial.code ?? '';
 	let method = initial.method || tickets.methods[0] || 'mercadopago';
 	let option = initial.option ?? '';
@@ -346,6 +362,8 @@
 			email = String(d.email ?? '');
 			dni = String(d.dni ?? '');
 			code = String(d.code ?? '');
+			if (account && typeof d.remember === 'boolean') remember = d.remember;
+			if (account && typeof d.rememberDni === 'boolean') rememberDni = d.rememberDni;
 			firstHolderEdited = Boolean(d.firstHolderEdited);
 			firstPronounsEdited = Boolean(d.firstPronounsEdited);
 			if (Array.isArray(d.holders)) {
@@ -382,6 +400,7 @@
 		code,
 		firstHolderEdited,
 		firstPronounsEdited,
+		...(account ? { remember, rememberDni } : {}),
 		holders: holders.slice(0, count).map((h) => ({ name: h.name, pronouns: h.pronouns }))
 	};
 	$: if (draftReady) saveDraft(draft);
@@ -547,6 +566,9 @@
 								bind:holders
 								bind:firstHolderEdited
 								bind:firstPronounsEdited
+								bind:remember
+								bind:rememberDni
+								signedIn={Boolean(account)}
 								{count}
 								{ticketFields}
 								{purchaseFields}
