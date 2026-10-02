@@ -35,10 +35,14 @@ async function eventFromRepo(locals, slug) {
  */
 export async function load({ locals, url, params, platform }) {
 	requireAdmin(locals, url);
-	const event = (await getPanelEvent(params.slug)) ?? (await eventFromRepo(locals, params.slug));
+	// Las dos lecturas a la vez (cada una es una ida a la base con `contenido_db`).
+	const [found, config] = await Promise.all([
+		getPanelEvent(params.slug),
+		// Vende entradas de verdad (configuración válida y publicada): las pestañas de venta.
+		getEventTickets(params.slug)
+	]);
+	const event = found ?? (await eventFromRepo(locals, params.slug));
 	if (!event) error(404, 'No encontramos ese evento.');
-	// Vende entradas de verdad (configuración válida y publicada): las pestañas de venta.
-	const config = await getEventTickets(params.slug);
 	const db = getDB(platform);
 	const counts = { orders: 0, transfers: 0, review: 0 };
 	if (db && config) {

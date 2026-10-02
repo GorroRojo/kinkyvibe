@@ -64,10 +64,12 @@ export async function load({ locals, url, platform }) {
 async function usageAndWiki() {
 	/** @type {Record<string, Record<string, number>>} */
 	const usage = {};
-	for (const c of USAGE_CATEGORIES) usage[c] = await tagUsage(c);
+	// Una sola lectura de todas las publicaciones (con `contenido_db`, cada una lee la base).
+	const metas = await contentMetas();
+	for (const c of USAGE_CATEGORIES) usage[c] = await tagUsage(c, metas);
 	/** @type {Record<string, string>} */
 	const wikiPosts = {};
-	for (const p of await contentMetas()) {
+	for (const p of metas) {
 		if (p.category === 'wiki' && p.meta?.wiki) wikiPosts[String(p.meta.wiki)] = p.slug;
 	}
 	return { usage, wikiPosts };

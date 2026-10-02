@@ -55,6 +55,8 @@ function eventFiles(extra) {
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
 let statements = 0;
+/** @type {string[]} */
+let sqls = [];
 /** La base de pruebas, contando cada consulta que se prepara. */
 const counted = /** @type {import('@cloudflare/workers-types').D1Database} */ (
 	new Proxy(
@@ -64,6 +66,7 @@ const counted = /** @type {import('@cloudflare/workers-types').D1Database} */ (
 				if (prop === 'prepare') {
 					return (/** @type {string} */ sql) => {
 						statements++;
+						sqls.push(sql);
 						return t.db.prepare(sql);
 					};
 				}
@@ -136,10 +139,13 @@ async function setup(extra) {
 		listEvents: async () => summaries
 	}));
 	const panel = await import('./panel.js');
-	// Desde acá, contar las consultas de la base que usa el panel.
+	// Desde acá, contar las consultas de la base que usa el panel (sin lo recordado al armar los
+	// eventos de prueba).
+	repo.clearDbPostCache();
 	repo.setContentDB(counted);
 	statements = 0;
-	return { panel, toMarkdown, slugs: summaries.map((s) => s.slug) };
+	sqls = [];
+	return { panel, repo, toMarkdown, slugs: summaries.map((s) => s.slug) };
 }
 
 describe('listas del panel con contenido_db', () => {
@@ -180,6 +186,138 @@ describe('listas del panel con contenido_db', () => {
 		for (const { event, meta } of list) {
 			expect(meta).toEqual(await panel.bundleMeta(event.slug));
 			expect(event).toEqual(await panel.getPanelEvent(event.slug));
+		}
+	});
+});
+
+/** ¿Alguna de las consultas lee todos los eventos (con su `data`, sin filtrar por dirección)? */
+const readAll = () => sqls.some((q) => /\bo\.data\b/.test(q) && /WHERE o\.type = \?1\s*$/.test(q));
+
+describe('lo leído se recuerda mientras la base no cambie', () => {
+	it('la segunda vez, la lista solo pregunta si cambió algo: una consulta chica', async () => {
+		const { panel } = await setup(30);
+		const first = await panel.listPanelEventsWithMeta();
+		expect(readAll()).toBe(true);
+		statements = 0;
+		sqls = [];
+		const again = await panel.listPanelEventsWithMeta();
+		expect(again).toEqual(first);
+		expect(statements).toBe(1);
+		expect(readAll()).toBe(false);
+	});
+
+	it('un guardado del panel (y un borrado) se ven en la próxima lista', async () => {
+		const { panel, repo } = await setup(3);
+		const slug = 'taller-inventado-2031-02';
+		const before = await panel.bundleMetas([slug]);
+		expect(before.get(slug)?.title).toBe('Taller Inventado de Nudos');
+		const client = repo.withContentDb(
+			/** @type {any} */ ({ pathExists: async () => false, commitFiles: async () => ({}) })
+		);
+		const path = `src/lib/posts/calendario/${slug}.md`;
+		const file = await client.readFile('t', path);
+		await client.commitFiles('t', {
+			files: [
+				{
+					path,
+					content: String(file?.raw).replace(
+						'title: Taller Inventado de Nudos',
+						'title: Taller Cambiado'
+					)
+				}
+			],
+			message: 'edita',
+			unchanged: [{ path, sha: String(file?.sha) }],
+			actor: 'admin-inventade'
+		});
+		expect((await panel.bundleMetas([slug])).get(slug)?.title).toBe('Taller Cambiado');
+		await client.commitFiles('t', {
+			files: [{ path, delete: true }],
+			message: 'borra',
+			actor: 'admin-inventade'
+		});
+		expect((await panel.bundleMetas([slug])).get(slug)).toBeNull();
+	});
+
+	it('quien toca lo que recibe no cambia lo recordado', async () => {
+		const { repo } = await setup(3);
+		const slug = 'taller-inventado-2031-02';
+		const first = await repo.allDbEventObjects(counted);
+		const e = /** @type {any} */ (first.get(slug));
+		e.object.title = 'Tocado';
+		e.object.data.tags.push('tocada');
+		first.delete(slug);
+		const again = /** @type {any} */ ((await repo.allDbEventObjects(counted)).get(slug));
+		expect(again.object.title).toBe('Taller Inventado de Nudos');
+		expect(again.object.data.tags).not.toContain('tocada');
+	});
+
+	it('un cambio hecho desde otro lado (otro isolate) también se ve', async () => {
+		const { panel } = await setup(3);
+		const slug = 'taller-inventado-2031-02';
+		await panel.bundleMetas([slug]);
+		// Lo mismo que hace saveObject(): versión y `updated_at` nuevos.
+		await t.db
+			.prepare(
+				`UPDATE objects SET title = 'Otro Título', data = json_set(data, '$.title', 'Otro Título'),
+				version = version + 1, updated_at = updated_at + 1
+				WHERE id = (SELECT object_id FROM content_sources WHERE legacy_slug = ?1)`
+			)
+			.bind(slug)
+			.run();
+		expect((await panel.bundleMetas([slug])).get(slug)?.title).toBe('Otro Título');
+	});
+});
+
+describe('un evento por su dirección', () => {
+	it('una sola consulta (antes dos, y una recorría todos), y lo mismo que buscarlo en la lista', async () => {
+		const { repo, slugs } = await setup(10);
+		const all = await repo.allDbEventObjects(t.db);
+		const find = repo.dbPostFinder(all);
+		const asked = [
+			...slugs,
+			// También por la dirección del objeto (cuando es otra que la del .md) y una que no existe.
+			...[...all.values()].map((e) => e.object.slug),
+			'no-existe-2031-09'
+		];
+		const { resolveContentSlug } = await import('../contenido/posts.js');
+		const { getObject } = await import('../objects/read.js');
+		for (const slug of asked) {
+			statements = 0;
+			sqls = [];
+			const one = await repo.findDbPostObject(counted, 'calendario', slug);
+			expect(statements).toBe(1);
+			expect(readAll()).toBe(false);
+			const listed = find(slug);
+			expect(one && { ...one, object: null }).toEqual(listed && { ...listed, object: null });
+			// El objeto, igual que antes (resolveContentSlug + getObject), y resolveContentSlug da lo
+			// mismo que la consulta de antes (con el `OR`, que recorría todos los eventos).
+			const ref = await resolveContentSlug(t.db, 'calendario', slug);
+			const old = await t.db
+				.prepare(
+					`SELECT o.id, s.legacy_slug FROM objects o
+					LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+					WHERE o.type = ?1 AND (s.legacy_slug = ?3 OR o.slug = ?3)
+					ORDER BY (s.legacy_slug = ?3) DESC LIMIT 1`
+				)
+				.bind('evento', 'calendario', slug)
+				.first();
+			expect(ref).toEqual(
+				old
+					? { id: Number(old.id), legacySlug: old.legacy_slug ? String(old.legacy_slug) : null }
+					: null
+			);
+			const before = ref
+				? await getObject(
+						t.db,
+						{ id: ref.id },
+						{ role: 'admin', id: 'panel' },
+						{
+							includeDeleted: true
+						}
+					)
+				: null;
+			expect(one?.object ?? null).toEqual(before);
 		}
 	});
 });

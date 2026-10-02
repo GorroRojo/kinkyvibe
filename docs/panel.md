@@ -94,6 +94,14 @@ lleva a la tarjeta "Para revisar" del Inicio.
 última que abriste (se recuerda en el navegador, `navPrefs.js`; sin storage anda igual). Un área
 cerrada muestra la suma de sus contadores.
 
+**Eventos → lista, por páginas** (gorrite, 2/10): la página no trae todos los eventos (son
+cientos). Trae los próximos, los borradores y los pasados de los últimos 90 días; «Ver anteriores»
+(en Pasados) pide al servidor la tanda siguiente (`/admin/eventos/lista.json?anteriores=N`), y
+buscar busca primero en lo cargado y enseguida en todos (`?q=`). Los filtros son al instante sobre
+lo cargado y sus cuentas son de todos. El CSV sale del servidor con todos los eventos del filtro o
+de la búsqueda (`/admin/eventos/eventos.csv`). Ver `src/lib/server/eventos/panelList.js` y
+`src/lib/admin/eventList.js`.
+
 **Celu**: la barra de abajo sigue igual (Inicio, Eventos, Check-in, Ventas, Más). "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
 ser "Para revisar".
