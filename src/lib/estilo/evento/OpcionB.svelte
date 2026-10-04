@@ -1,21 +1,22 @@
 <script>
 	/**
-	 * Opción B, «Dos columnas con lateral»: en compu, el texto a la izquierda y a la derecha una
-	 * columna fija (sticky) con cuándo, dónde, comprar, acciones y el mapa, que acompaña mientras
-	 * se lee. En el celu, la columna de la derecha se mete entre el encabezado y el texto.
+	 * Opción B, «Dos columnas con lateral»: en compu, a la izquierda el título y enseguida el
+	 * texto; a la derecha, una columna fija (sticky) con el afiche cuadrado chico, cuándo, dónde,
+	 * comprar, las partes del taller y las acciones. En el celu, esa columna va entre el título y
+	 * el texto. Mapa, personas, etiquetas y la serie, después del texto.
 	 */
 	import { TagChip } from '$lib/components/ui';
 	import Tags from '$lib/components/Tags.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
-	import EventSeries from '$lib/components/series/EventSeries.svelte';
-	import PartesTaller from '$lib/components/PartesTaller.svelte';
-	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import CuandoDonde from './CuandoDonde.svelte';
 	import Compra from './Compra.svelte';
+	import Partes from './Partes.svelte';
 	import Acciones from './Acciones.svelte';
+	import Mapa from './Mapa.svelte';
+	import Serie from './Serie.svelte';
 	import NotaPasado from './NotaPasado.svelte';
 	import ContenidoLargo from './ContenidoLargo.svelte';
-	import { meta, venue, tickets, series, partes, personas } from './datos.js';
+	import { meta, tickets, series, personas } from './datos.js';
 
 	export let past = false;
 	const s = series.list[0];
@@ -23,36 +24,32 @@
 
 <article class="opcion-b">
 	<header class="cabeza">
-		<p class="serie"><TagChip tag={s.id} href={s.href} /></p>
+		<p class="serie-chip"><TagChip tag={s.id} href={s.href} /></p>
 		<h1>{meta.title}</h1>
 		<p class="por">por {meta.authors.join(' y ')}</p>
-		<div class="navs">
-			<EventSeries {series} part="nav" />
-			<PartesTaller {partes} part="nav" />
-		</div>
 	</header>
 
 	<aside class="lateral" aria-label="Cuándo, dónde y entradas">
 		<div class="lateral-fijo">
 			{#if past}<NotaPasado />{/if}
 			<div class="info surface-card">
-				<img class="miniatura" src={meta.featured} alt="Afiche del evento" />
-				<CuandoDonde />
+				<div class="arriba">
+					<img class="miniatura" src={meta.featured} alt="Afiche del evento" />
+					<CuandoDonde />
+				</div>
 				{#if !past}<Compra {tickets} wide />{/if}
+				<Partes flat />
 			</div>
 			<Acciones {past} />
-			<section class="mapa surface-card" aria-label="Mapa y cómo llegar">
-				<VenueLocation view={venue} context="event" compact part="more" />
-			</section>
 		</div>
 	</aside>
 
 	<div class="principal">
-		<PersonasConRol groups={personas} />
 		<div class="content texto"><ContenidoLargo /></div>
-		<PartesTaller {partes} part="list" />
+		<Mapa title="Cómo llegar" />
+		<PersonasConRol groups={personas} />
 		<div class="etiquetas"><Tags tags={meta.tags} /></div>
-		<EventSeries {series} part="after" origin="https://example.invalid" />
+		<Serie />
 	</div>
 </article>
 
@@ -85,14 +82,6 @@
 		color: var(--muted);
 		font-size: var(--text-sm);
 	}
-	.navs {
-		text-align: start;
-	}
-	.navs :global(.edition-nav),
-	.navs :global(.part-nav) {
-		margin-inline: 0;
-		text-align: start;
-	}
 	.lateral {
 		grid-area: lateral;
 		min-width: 0;
@@ -108,16 +97,18 @@
 		gap: var(--space-s);
 		padding: var(--space-s);
 	}
+	/* Afiche cuadrado chico al lado de la fecha y el lugar. */
+	.arriba {
+		display: grid;
+		grid-template-columns: 6rem 1fr;
+		gap: var(--space-xs);
+		align-items: start;
+	}
 	.miniatura {
 		width: 100%;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 1;
 		object-fit: cover;
-		object-position: top;
 		border-radius: var(--radius-m);
-	}
-	.mapa {
-		padding: var(--space-xs) var(--space-s);
-		font-size: var(--text-sm);
 	}
 	.principal {
 		grid-area: principal;
@@ -138,7 +129,7 @@
 	}
 	@media (min-width: 900px) {
 		.opcion-b {
-			grid-template-columns: minmax(0, 1fr) 22rem;
+			grid-template-columns: minmax(0, 1fr) 24rem;
 			grid-template-areas: 'cabeza lateral' 'principal lateral';
 			grid-template-rows: auto 1fr;
 			column-gap: var(--space-l);
@@ -146,18 +137,6 @@
 		.lateral-fijo {
 			position: sticky;
 			top: var(--space-s);
-			/* Si no entra en la pantalla, la columna se desplaza sola. */
-			max-height: calc(100vh - 2 * var(--space-s));
-			overflow-y: auto;
-			padding: var(--space-3xs);
 		}
-	}
-	/* Las tarjetas de los componentes reales (partes, calendario de la serie), al ancho de la
-	   columna de la maqueta. */
-	.principal :global(.partes),
-	.principal :global(.event-series .next),
-	.principal :global(.event-series .cal) {
-		width: 100%;
-		margin-inline: 0;
 	}
 </style>

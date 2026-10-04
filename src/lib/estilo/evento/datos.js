@@ -7,16 +7,17 @@
  */
 import { argDateTimeLong, argTime, eventEnd } from '$lib/utils/dates.js';
 
-/** Afiche inventado (SVG en línea: sin archivos ni pedidos a otros sitios). */
-const AFICHE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+/** Afiche inventado, cuadrado como la mayoría de los reales (SVG en línea: sin archivos ni
+ * pedidos a otros sitios). */
+const AFICHE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
 <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a0dad"/><stop offset="1" stop-color="#f43fb4"/></linearGradient></defs>
-<rect width="800" height="1000" fill="url(#g)"/>
-<g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="10">
-<path d="M-40 260 C 200 120, 600 420, 840 240"/><path d="M-40 340 C 220 200, 580 500, 840 320"/>
-<path d="M-40 420 C 240 280, 560 580, 840 400"/></g>
-<text x="400" y="640" fill="#fff" font-family="sans-serif" font-size="78" font-weight="700" text-anchor="middle">AFICHE</text>
-<text x="400" y="730" fill="#fff" font-family="sans-serif" font-size="78" font-weight="700" text-anchor="middle">DE EJEMPLO</text>
-<text x="400" y="830" fill="#fff" fill-opacity=".85" font-family="sans-serif" font-size="34" text-anchor="middle">datos inventados</text>
+<rect width="1000" height="1000" fill="url(#g)"/>
+<g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="12">
+<path d="M-40 220 C 250 80, 750 380, 1040 200"/><path d="M-40 310 C 270 170, 730 470, 1040 290"/>
+<path d="M-40 400 C 290 260, 710 560, 1040 380"/></g>
+<text x="500" y="650" fill="#fff" font-family="sans-serif" font-size="96" font-weight="700" text-anchor="middle">AFICHE</text>
+<text x="500" y="760" fill="#fff" font-family="sans-serif" font-size="96" font-weight="700" text-anchor="middle">DE EJEMPLO</text>
+<text x="500" y="860" fill="#fff" fill-opacity=".85" font-family="sans-serif" font-size="42" text-anchor="middle">cuadrado · datos inventados</text>
 </svg>`;
 export const AFICHE = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(AFICHE_SVG)}`;
 
