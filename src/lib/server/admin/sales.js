@@ -4,14 +4,17 @@
  * los mismos que `getCounts` (orders.js) pero de todos los eventos en una sola consulta.
  */
 import { HOLDING } from '$lib/server/tickets/discounts.js';
-import { goalProgress } from '$lib/utils/salesGoal.js';
+import { MP_FEE_SQL, goalProgress, netRevenue } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
 
 /**
  * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number,
- *   surcharge: number }} TypeCounts
+ *   surcharge: number, mpFee?: number }} TypeCounts
+ *
+ * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
+ * $lib/utils/salesGoal.js); para lo neto de la meta de venta.
  */
 
 /** Transferencias vencidas que se siguen mostrando (por si el pago llega tarde). */
@@ -33,7 +36,8 @@ export async function getAllCounts(db, now = Date.now()) {
 				SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
 				SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
 				SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
-				SUM(CASE WHEN status = 'approved' THEN surcharge_amount ELSE 0 END) AS surcharge
+				SUM(CASE WHEN status = 'approved' THEN surcharge_amount ELSE 0 END) AS surcharge,
+				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
 			FROM orders GROUP BY event_slug, ticket_type`
 		)
 		.bind(now)
@@ -49,7 +53,8 @@ export async function getAllCounts(db, now = Date.now()) {
 			revenue: Number(r.revenue ?? 0),
 			fondo: Number(r.fondo ?? 0),
 			contribution: Number(r.contribution ?? 0),
-			surcharge: Number(r.surcharge ?? 0)
+			surcharge: Number(r.surcharge ?? 0),
+			mpFee: Number(r.mp_fee ?? 0)
 		});
 		out.set(slug, byType);
 	}
@@ -71,12 +76,14 @@ export async function getAllCounts(db, now = Date.now()) {
  *   slug: string, title: string, start: string | null, status: string | null,
  *   upcoming: boolean, fondoEnabled: boolean, online: boolean, review: number,
  *   types: TypeSales[], sold: number, held: number, capacity: number | null, revenue: number,
- *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number,
+ *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number, net: number,
  *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null
  * }} EventSales
  *
  * `capacity` del evento: la suma de los cupos, o `null` si algún tipo no tiene cupo.
- * `progress`: el avance contra la meta de venta (`meta_venta`), o `null` sin meta.
+ * `net`: lo recaudado menos la comisión de Mercado Pago (`netRevenue`, $lib/utils/salesGoal.js).
+ * `progress`: el avance contra la meta de venta (`meta_venta`; la de plata, contra `net`), o
+ * `null` sin meta.
  */
 
 /**
@@ -114,6 +121,7 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 	const start = config.start ?? null;
 	const sold = sum((t) => t.sold);
 	const revenue = sum((t) => t.revenue);
+	const mpFee = config.types.reduce((s, t) => s + (counts?.get(t.id)?.mpFee ?? 0), 0);
 	const startMs = start ? Date.parse(start) : NaN;
 	return {
 		slug,
@@ -135,7 +143,8 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 		// Neto del fondo: aportes − lo que cubrió (negativo = el fondo puso más de lo que entró).
 		fondoNet: sum((t) => t.contribution - t.fondoUsed),
 		surcharge: sum((t) => t.surcharge),
-		progress: goalProgress(config.goal, { sold, revenue })
+		net: netRevenue({ revenue, mpFee }),
+		progress: goalProgress(config.goal, { sold, revenue, mpFee })
 	};
 }
 

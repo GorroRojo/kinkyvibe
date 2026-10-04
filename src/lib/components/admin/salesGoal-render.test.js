@@ -1,13 +1,11 @@
 /**
- * Meta de venta en pantalla: el control «Meta de venta» (editor de eventos, dentro de «Entradas»,
- * y editor de una serie) y el avance contra la meta (lista de eventos, Inicio, Ventas). Datos
- * inventados.
+ * Meta de venta en pantalla: el control «Meta de venta» (editor de eventos, dentro de «Entradas»)
+ * y el avance contra la meta (lista de eventos, Inicio, Ventas). Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import SalesGoalField from './SalesGoalField.svelte';
 import TicketsEditor from './TicketsEditor.svelte';
-import SeriesFields from './series/SeriesFields.svelte';
 import GoalProgress from './panel/GoalProgress.svelte';
 import SalesThermometer from './panel/SalesThermometer.svelte';
 import { readTicketsForm } from '$lib/utils/ticketsEditor.js';
@@ -42,24 +40,16 @@ describe('SalesGoalField', () => {
 		expect(body).toContain('id="ed-goal-value"');
 		expect(text(body)).toContain('¿Cuánta plata?');
 		expect(text(body)).toContain(norm(`Meta: ${formatARS(250000)}`));
-		expect(text(body)).toContain('antes de la comisión de Mercado Pago');
+		expect(text(body)).toContain('Cuenta lo neto: lo cobrado menos la comisión de Mercado Pago');
 	});
 
-	it('entradas, con nombres para el formulario de la serie y un aviso', () => {
+	it('entradas: pide cuántas y muestra la meta (sin hablar de la comisión)', () => {
 		const { body } = render(SalesGoalField, {
-			props: {
-				idPrefix: 'serie',
-				kind: 'entradas',
-				value: '30',
-				named: true,
-				note: 'Viene de la serie.'
-			}
+			props: { idPrefix: 'ed', kind: 'entradas', value: '30' }
 		});
-		expect(body).toContain('name="goal_kind"');
-		expect(body).toContain('name="goal_value"');
 		expect(text(body)).toContain('¿Cuántas entradas?');
 		expect(text(body)).toContain('Meta: 30 entradas');
-		expect(text(body)).toContain('Viene de la serie.');
+		expect(text(body)).not.toContain('comisión');
 	});
 });
 
@@ -72,12 +62,11 @@ describe('TicketsEditor', () => {
 
 	it('la sección Entradas trae «Meta de venta» con la meta del evento', () => {
 		const { body } = render(TicketsEditor, {
-			props: { state: readTicketsForm(meta), idPrefix: 'edit', goalNote: 'Es la de la serie.' }
+			props: { state: readTicketsForm(meta), idPrefix: 'edit' }
 		});
 		expect(body).toContain('id="edit-goal"');
 		expect(text(body)).toContain('Meta de venta');
 		expect(body).toMatch(/id="edit-goal-value"[^>]*value="30"|value="30"[^>]*id="edit-goal-value"/);
-		expect(text(body)).toContain('Es la de la serie.');
 	});
 
 	it('con la venta apagada no se muestra', () => {
@@ -88,45 +77,23 @@ describe('TicketsEditor', () => {
 	});
 });
 
-describe('SeriesFields', () => {
-	it('editar una serie muestra su meta por defecto', () => {
-		const { body } = render(SeriesFields, {
-			props: {
-				mode: 'edit',
-				id: 'editar-x',
-				values: { id: 'Serie Inventada', key: 'Serie Inventada', meta_venta: 'plata:300000' }
-			}
-		});
-		expect(text(body)).toContain('Meta de venta por defecto (opcional)');
-		expect(text(body)).toContain('La heredan las ediciones nuevas');
-		expect(body).toContain('name="goal_kind"');
-		expect(text(body)).toContain(norm(`Meta: ${formatARS(300000)}`));
-	});
-
-	it('crear una serie también la ofrece (sin meta al empezar)', () => {
-		const { body } = render(SeriesFields, { props: { mode: 'create', id: 'crear' } });
-		expect(body).toContain('id="crear-goal-kind"');
-		expect(body).not.toContain('id="crear-goal-value"');
-	});
-});
-
 /** Un avance que sí existe (con meta). @param {ReturnType<typeof goalProgress>} p */
 const must = (p) => /** @type {import('$lib/utils/salesGoal.js').GoalProgress} */ (p);
 
 describe('GoalProgress', () => {
-	it('plata: «$ 180.000 de $ 250.000 (72 %)», con la barra a ese porcentaje', () => {
-		const progress = must(goalProgress('plata:250000', { sold: 10, revenue: 180000 }));
+	it('plata: «$ 180.000 netos de $ 250.000 (72 %)», con la barra a ese porcentaje', () => {
+		const progress = must(goalProgress('plata:250000', { sold: 10, revenue: 183600, mpFee: 3600 }));
 		const { body } = render(GoalProgress, { props: { progress } });
-		expect(text(body)).toBe(norm(`${formatARS(180000)} de ${formatARS(250000)} (72 %)`));
+		expect(text(body)).toBe(norm(`${formatARS(180000)} netos de ${formatARS(250000)} (72 %)`));
 		expect(body).toContain('style="width:72%"');
 		expect(body).toContain('role="meter"');
 		expect(body).toContain('aria-valuemax="250000"');
 	});
 
 	it('entradas: «23 de 30 entradas»; al pasarse, la barra llena y «meta cumplida»', () => {
-		const p = must(goalProgress('entradas:30', { sold: 23, revenue: 0 }));
+		const p = must(goalProgress('entradas:30', { sold: 23, revenue: 0, mpFee: 0 }));
 		expect(text(render(GoalProgress, { props: { progress: p } }).body)).toBe('23 de 30 entradas');
-		const over = must(goalProgress('entradas:30', { sold: 33, revenue: 0 }));
+		const over = must(goalProgress('entradas:30', { sold: 33, revenue: 0, mpFee: 0 }));
 		const { body } = render(GoalProgress, { props: { progress: over } });
 		expect(text(body)).toBe('33 de 30 entradas · meta cumplida');
 		expect(body).toContain('style="width:100%"');
@@ -150,7 +117,7 @@ describe('SalesThermometer con meta', () => {
 	});
 
 	it('meta en entradas: la línea «meta 30» y el texto arriba', () => {
-		const progress = goalProgress('entradas:30', { sold: 23, revenue: 0 });
+		const progress = goalProgress('entradas:30', { sold: 23, revenue: 0, mpFee: 0 });
 		const { body } = render(SalesThermometer, { props: { chart, progress } });
 		expect(text(body)).toContain('Meta: 23 de 30 entradas');
 		expect(body).toContain('goal-chart-line');
@@ -158,9 +125,9 @@ describe('SalesThermometer con meta', () => {
 	});
 
 	it('meta en plata: el texto, sin línea (el gráfico es de entradas); sin meta, nada', () => {
-		const progress = goalProgress('plata:250000', { sold: 23, revenue: 180000 });
+		const progress = goalProgress('plata:250000', { sold: 23, revenue: 180000, mpFee: 0 });
 		const { body } = render(SalesThermometer, { props: { chart, progress } });
-		expect(text(body)).toContain(norm(`Meta: ${formatARS(180000)} de ${formatARS(250000)}`));
+		expect(text(body)).toContain(norm(`Meta: ${formatARS(180000)} netos de ${formatARS(250000)}`));
 		expect(body).not.toContain('goal-chart-line');
 		const plain = render(SalesThermometer, { props: { chart } }).body;
 		expect(plain).not.toContain('goal-line');

@@ -1,25 +1,20 @@
 /**
  * Meta de venta de un evento (docs/tickets.md, «Meta de venta»): una sola por evento, en plata
- * (pesos, lo mismo que el panel cuenta como recaudado: la suma de las órdenes aprobadas, antes de
- * la comisión de Mercado Pago) o en entradas. El panel muestra el avance contra la meta; sin meta,
- * contra el cupo (como siempre).
+ * (pesos NETOS: lo cobrado en las órdenes aprobadas menos la comisión de Mercado Pago, ver
+ * {@link netRevenue}) o en entradas (vendidas, órdenes aprobadas). El panel muestra el avance
+ * contra la meta; sin meta, contra el cupo (como siempre).
  *
- * Dónde se guarda:
- * - en el evento, la clave `meta_venta` del frontmatter (`meta_venta: plata:250000` o
- *   `meta_venta: entradas:30`); con `contenido_db`, la misma clave dentro de `extra` del objeto
- *   `evento`, como el resto de la configuración de entradas;
- * - en una serie, la clave `meta_venta` de su etiqueta (hardcodedTags.js o el campo `meta_venta`
- *   del objeto `etiqueta`): la meta que heredan las ediciones NUEVAS al crearlas o duplicarlas (se
- *   copia; cambiarla después no toca los eventos que ya existen).
+ * Se guarda en el evento, en la clave `meta_venta` del frontmatter (`meta_venta: plata:250000` o
+ * `meta_venta: entradas:30`); con `contenido_db`, la misma clave dentro de `extra` del objeto
+ * `evento`, como el resto de la configuración de entradas. Duplicar un evento la copia como
+ * cualquier otro campo.
  *
  * Funciones puras (sin red ni SvelteKit): las usan el editor (navegador), el servidor y vitest.
- * Solo imports relativos (lo importa el tipo `etiqueta`, que usa el cron sin pasar por Vite).
- * Sobre el archivo de un evento: ./salesGoalFile.js.
  */
 import { formatARS } from './money.js';
 import { parseAmount } from './tickets.js';
 
-/** La clave del frontmatter (y de la etiqueta de una serie). */
+/** La clave del frontmatter. */
 export const GOAL_KEY = 'meta_venta';
 
 export const GOAL_KINDS = /** @type {const} */ (['plata', 'entradas']);
@@ -139,89 +134,63 @@ export function describeSalesGoal(goal) {
 }
 
 /**
+ * La comisión de Mercado Pago de una orden, en SQL (sobre una fila de `orders`): su recargo
+ * (`surcharge_amount`) si se pagó con Mercado Pago, 0 si no. El recargo se calcula al comprar con
+ * la tasa vigente (`mp_fee_percent` del evento, Ajustes → Cobros, TICKETS_MP_FEE_PERCENT o 2 %:
+ * `mpFeeBasisPoints`) justo para que, después de la comisión de MP, quede la base
+ * (`mpSurcharge` en ./tickets.js): lo que se queda MP es ese recargo. Transferencia, puerta,
+ * manual y sin cargo no tienen comisión. Sumar solo sobre órdenes aprobadas.
+ */
+export const MP_FEE_SQL = `CASE WHEN payment_method = 'mercadopago' THEN surcharge_amount ELSE 0 END`;
+
+/**
+ * Lo mismo que {@link MP_FEE_SQL}, sobre una orden ya leída.
+ * @param {{ payment_method?: string | null, surcharge_amount?: number | null }} order
+ */
+export function orderMpFee(order) {
+	return order.payment_method === 'mercadopago' ? Number(order.surcharge_amount) || 0 : 0;
+}
+
+/**
+ * Lo neto: lo cobrado (suma del `total` de las órdenes aprobadas, el «Recaudado» del panel) menos
+ * la comisión de Mercado Pago de esas órdenes ({@link MP_FEE_SQL} / {@link orderMpFee}).
+ * @param {{ revenue: number, mpFee: number }} totals
+ */
+export function netRevenue({ revenue, mpFee }) {
+	return Math.max(0, (Number(revenue) || 0) - (Number(mpFee) || 0));
+}
+
+/**
  * @typedef {object} GoalProgress
  * @prop {GoalKind} kind
- * @prop {number} current lo vendido (entradas) o recaudado (pesos)
+ * @prop {number} current lo vendido (entradas) o lo neto (pesos, {@link netRevenue})
  * @prop {number} target la meta
  * @prop {number} pct porcentaje redondeado (puede pasar de 100)
  * @prop {boolean} reached se llegó a la meta
- * @prop {string} text «$ 180.000 de $ 250.000 (72 %)» o «23 de 30 entradas»
+ * @prop {string} text «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30 entradas»
  */
 
 /**
  * El avance contra la meta, o `null` sin meta (entonces se muestra el cupo, como siempre).
- * `revenue` es lo que el panel cuenta como recaudado (suma de las órdenes aprobadas).
+ * Plata: lo neto ({@link netRevenue}: `revenue` = lo recaudado, `mpFee` = la comisión de MP de
+ * las órdenes aprobadas). Entradas: `sold` (vendidas, órdenes aprobadas).
  *
  * @param {unknown} goal una meta (`SalesGoal`) o lo guardado (`'plata:250000'`)
- * @param {{ sold: number, revenue: number }} totals
+ * @param {{ sold: number, revenue: number, mpFee: number }} totals
  * @returns {GoalProgress | null}
  */
-export function goalProgress(goal, { sold, revenue }) {
+export function goalProgress(goal, { sold, revenue, mpFee }) {
 	const g =
 		goal && typeof goal === 'object' && 'kind' in goal && 'value' in goal
 			? parseSalesGoal(storedSalesGoal(/** @type {SalesGoal} */ (goal)))
 			: parseSalesGoal(goal);
 	if (!g) return null;
-	const current = Math.max(0, g.kind === 'plata' ? Number(revenue) || 0 : Number(sold) || 0);
+	const current =
+		g.kind === 'plata' ? netRevenue({ revenue, mpFee }) : Math.max(0, Number(sold) || 0);
 	const pct = Math.round((current / g.value) * 100);
 	const text =
 		g.kind === 'plata'
-			? `${formatARS(current)} de ${formatARS(g.value)} (${pct} %)`
+			? `${formatARS(current)} netos de ${formatARS(g.value)} (${pct} %)`
 			: `${current} de ${entradas(g.value)}`;
 	return { kind: g.kind, current, target: g.value, pct, reached: current >= g.value, text };
-}
-
-/**
- * Las metas por defecto de las series: `{ [serie]: 'plata:250000' }`, solo las que tienen una
- * válida.
- *
- * @param {readonly string[]} seriesIds las series (seriesTagIds)
- * @param {(id: string) => Record<string, unknown> | undefined} getTag
- * @returns {Record<string, string>}
- */
-export function seriesGoalMap(seriesIds, getTag) {
-	/** @type {Record<string, string>} */
-	const out = {};
-	for (const id of seriesIds) {
-		const goal = parseSalesGoal(getTag(id)?.[GOAL_KEY]);
-		if (goal) out[id] = storedSalesGoal(goal);
-	}
-	return out;
-}
-
-/**
- * La meta por defecto que le toca a un evento por sus etiquetas: la de la primera serie (en el
- * orden de sus etiquetas) que tenga una.
- *
- * @param {readonly unknown[] | undefined} tags
- * @param {Record<string, string> | null | undefined} seriesGoals ver {@link seriesGoalMap}
- * @returns {{ series: string, goal: SalesGoal } | null}
- */
-export function seriesGoalFor(tags, seriesGoals) {
-	if (!seriesGoals || !Array.isArray(tags)) return null;
-	for (const t of tags) {
-		const id = typeof t === 'string' ? t.trim() : '';
-		if (!id || !Object.hasOwn(seriesGoals, id)) continue;
-		const goal = parseSalesGoal(seriesGoals[id]);
-		if (goal) return { series: id, goal };
-	}
-	return null;
-}
-
-/**
- * Herencia al crear o duplicar una edición (sin formulario: la carga rápida de la agenda y la
- * importación de la planilla): si el evento vende entradas y es de una serie con meta por
- * defecto, esa meta reemplaza la que vino copiada del original. Devuelve lo que hay que escribir
- * en `meta_venta`, o `null` si no hay que cambiar nada.
- *
- * @param {Record<string, any>} meta el frontmatter del evento nuevo
- * @param {Record<string, string> | null | undefined} seriesGoals
- * @returns {string | null}
- */
-export function inheritedGoal(meta, seriesGoals) {
-	if (!Array.isArray(meta?.tickets) || !meta.tickets.length) return null;
-	const found = seriesGoalFor(meta.tags, seriesGoals);
-	if (!found) return null;
-	const next = storedSalesGoal(found.goal);
-	return meta[GOAL_KEY] === next ? null : next;
 }

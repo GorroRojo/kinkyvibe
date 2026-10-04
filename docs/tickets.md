@@ -57,7 +57,7 @@ mp_fee_percent: 2 # opcional; si falta: Ajustes de venta, TICKETS_MP_FEE_PERCENT
 modalidad: online # opcional: online | presencial (ver "Eventos online")
 puerta: true # opcional (presenciales): true = también en la puerta; false = "Solo anticipadas"; si falta, ver abajo
 puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: nota de texto libre para la página (un número solo se muestra como $); lo que se cobra es el `door_price` de cada tipo
-meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos> o entradas:<cantidad>); ver "Meta de venta"
+meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos netos de la comisión de MP> o entradas:<cantidad>); ver "Meta de venta"
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
@@ -194,11 +194,17 @@ La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (
 El panel mostraba el avance de cada evento contra **vender todas las entradas** (el cupo), algo
 que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de gorrite):
 
-- **`meta_venta: plata:250000`**: pesos. Cuenta lo mismo que el panel ya cuenta como recaudado
-  («Recaudado»/«Cobrado»): la suma del `total` de las órdenes aprobadas, **antes de la comisión de
-  Mercado Pago** (con el recargo, los aportes al Fondo y lo que pagó cada quien; sin lo que cubrió
-  el Fondo ni los descuentos de los códigos).
-- **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas).
+- **`meta_venta: plata:250000`**: pesos **netos**, después de la comisión de Mercado Pago. Neto =
+  la suma del `total` de las órdenes aprobadas (el «Recaudado» del panel) **menos la comisión de MP
+  de las que se pagaron con Mercado Pago**. Esa comisión es el recargo guardado en la orden
+  (`surcharge_amount`): se calcula al comprar con la tasa vigente (`mp_fee_percent` del evento,
+  Ajustes → Cobros, `TICKETS_MP_FEE_PERCENT` o 2 %) justo para que, después de la comisión, quede la
+  base (ver [Precio](#precio-fondo-código-y-recargo)), así que neto = lo que pagó cada quien sin el
+  recargo. Las órdenes por transferencia, en la puerta, cargadas a mano o sin cargo no tienen
+  comisión. Una sola definición: `MP_FEE_SQL` / `orderMpFee` y `netRevenue` en
+  `src/lib/utils/salesGoal.js`.
+- **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas). La
+  comisión no cuenta.
 - Sin `meta_venta`: como siempre, contra el cupo.
 - También se acepta, escrita a mano, la forma de mapa (`meta_venta: { entradas: 30 }`, una sola
   clave). Una meta que no se entiende es «sin meta»: nunca frena la venta ni el panel. El número es
@@ -208,11 +214,13 @@ que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de go
 
 **Dónde se edita.** En el editor del evento (crear, duplicar y editar), sección **Entradas** ›
 **Meta de venta**: «Sin meta», «Plata (pesos)» o «Entradas» y el número. Solo con la venta
-prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`).
+prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`). **Duplicar** un
+evento (el formulario, la carga rápida de la agenda o la importación de la planilla) copia la meta
+del original como cualquier otro campo; en el formulario se puede cambiar antes de guardar.
 
-**Dónde se ve.** Con meta, el avance contra la meta («$ 180.000 de $ 250.000 (72 %)» o «23 de 30
-entradas»; verde y «meta cumplida» al llegar, sin la marca roja del cupo: pasarse es bueno). Sin
-meta, el cupo, como antes:
+**Dónde se ve.** Con meta, el avance contra la meta («$ 180.000 netos de $ 250.000 (72 %)» o «23
+de 30 entradas»; verde y «meta cumplida» al llegar, sin la marca roja del cupo: pasarse es bueno).
+Sin meta, el cupo, como antes:
 
 - Panel → Eventos (la columna de ventas de cada evento; el CSV suma la columna «meta»);
 - Inicio: la lista de próximos (y su CSV), «Hoy» y la tarjeta de ventas del próximo evento;
@@ -221,28 +229,13 @@ meta, el cupo, como antes:
 - Ventas → Todas las ventas: debajo del título de cada evento.
 
 El cupo no cambia en ningún lado: sigue siendo el límite de la venta y se sigue mostrando como
-número («vendidas / cupo») donde ya estaba.
+número («vendidas / cupo») donde ya estaba. «Recaudado» también sigue igual (antes de la comisión).
 
-**Series.** Una serie puede tener una **meta por defecto** (Eventos → Series › Editar o Crear
-serie: «Meta de venta por defecto»), guardada en `meta_venta` de su etiqueta (en
-`hardcodedTags.js` o, con `etiquetas_db`, el campo `meta_venta` del objeto `etiqueta`). Las
-ediciones **nuevas** la heredan **copiada**: cambiarla después en la serie no toca los eventos que
-ya existen.
-
-- Al cargar o duplicar en el formulario (`/admin/eventos/nuevo`), si el evento queda en una serie
-  con meta por defecto (por sus etiquetas o por «¿Es parte de una serie?» › Agregar a una
-  existente), el formulario arranca con esa meta (reemplaza la que traía el original) y lo dice
-  («Es la meta por defecto de la serie…»). Se copia una vez por serie: se puede cambiar o sacar
-  solo para esa edición.
-- La carga rápida de la agenda y la importación de la planilla (sin formulario) escriben la meta
-  de la serie en el archivo nuevo si el evento vende entradas (`withInheritedGoal`,
-  `src/lib/utils/salesGoalFile.js`).
-
-Código: `src/lib/utils/salesGoal.js` (leer, formulario, `goalProgress`, herencia; con pruebas en
-`salesGoal.test.js`), `goal` en `EventTickets` (`parseTicketConfig`), `progress` en
-`summarizeEvent` (`admin/sales.js`) y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue` en las
-filas de Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y
-`SalesGoalField.svelte`.
+Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`; con pruebas en
+`salesGoal.test.js`), `goal` en `EventTickets` (`parseTicketConfig`), `mpFee` en `getCounts`
+(`tickets/orders.js`), `getAllCounts` y `progress`/`net` en `summarizeEvent` (`admin/sales.js`),
+`ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
+Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
 ### Horario de la venta
 
