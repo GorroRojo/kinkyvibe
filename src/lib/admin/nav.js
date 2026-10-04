@@ -213,7 +213,7 @@ export const NAV = Object.freeze([
 		href: '/admin/checkin',
 		icon: ScanLine,
 		emoji: '🚪',
-		label: 'Check-in',
+		label: 'Puerta',
 		area: 'eventos',
 		soon: false,
 		highlight: true
@@ -537,7 +537,7 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
 	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
+	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
 	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).

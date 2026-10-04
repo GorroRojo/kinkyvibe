@@ -19,7 +19,7 @@ export const FLAGS = Object.freeze({
 	cuentas: {
 		label: 'Cuentas del público',
 		description:
-			'"Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
+			'"Entrar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},

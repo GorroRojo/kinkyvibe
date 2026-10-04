@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog, argDateList } from '$lib/utils/dates.js';
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -401,15 +401,6 @@
 		};
 	}
 
-	// La hora del «guardado»: 24 h, hora de Argentina (es-AR a secas puede salir con «p. m.»).
-	const savedAtFmt = argFormat({
-		year: 'numeric',
-		month: 'numeric',
-		day: 'numeric',
-		hour: 'numeric',
-		minute: 'numeric',
-		second: 'numeric'
-	});
 </script>
 
 <svelte:head>
@@ -583,7 +574,7 @@
 														>{ev.title || ev.slug}</a
 													>
 												{/if}
-												<small>{ev.start.slice(0, 10)}</small>
+												<small>{argDateList(ev.start, { time: false })}</small>
 											</li>
 										{/each}
 									</ul>
@@ -645,7 +636,7 @@
 		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
-				{savedAtFmt.format(new Date())}
+				{argDateLog(new Date())}
 				{#if form.imageScope === 'todas'}
 					· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
 						{' '}({form.affected.length}

@@ -1,4 +1,5 @@
 <script>
+	import { argDateList } from '$lib/utils/dates.js';
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
@@ -940,7 +941,7 @@
 											<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
 												>{ev.title || ev.slug}</a
 											>
-											<small>{ev.start.slice(0, 10)}</small>
+											<small>{argDateList(ev.start, { time: false })}</small>
 										</li>
 									{/each}
 								</ul>

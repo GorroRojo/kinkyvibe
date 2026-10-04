@@ -1,6 +1,7 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
+import { argDateTimeLong } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
 import {
@@ -149,14 +150,7 @@ export function formatEventDate(start) {
 	if (!start) return '';
 	const d = new Date(start);
 	if (Number.isNaN(d.getTime())) return String(start);
-	return (
-		d.toLocaleString('es-AR', {
-			dateStyle: 'full',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		}) + ' hs'
-	);
+	return argDateTimeLong(d);
 }
 
 /** @param {string} email */

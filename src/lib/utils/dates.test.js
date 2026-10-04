@@ -4,6 +4,8 @@ import { es } from 'date-fns/locale';
 import {
 	argFormat,
 	argDate,
+	argDateList,
+	argDateLog,
 	argDateTimeLong,
 	argTime,
 	argWeekdayDay,
@@ -86,46 +88,78 @@ describe('argDate / argTime / argWeekdayDay', () => {
 	});
 });
 
-describe('argDateTimeLong', () => {
-	it('prints the long date and a 24-hour time with «hs» (no «p. m.»)', () => {
+describe('argDateTimeLong (encabezados)', () => {
+	it('prints weekday, long date and a 24-hour time, without «hs» (no «p. m.»)', () => {
 		expect(argDateTimeLong('2026-10-02T15:00:00-03:00')).toBe(
-			'2 de octubre de 2026 a las 15:00 hs'
+			'viernes 2 de octubre de 2026, 15:00'
 		);
 		expect(argDateTimeLong('2026-10-02T19:00:00-03:00')).toBe(
-			'2 de octubre de 2026 a las 19:00 hs'
+			'viernes 2 de octubre de 2026, 19:00'
 		);
-		expect(argDateTimeLong('2026-10-02T15:00:00-03:00')).not.toMatch(/m\.|am|pm/i);
+		expect(argDateTimeLong('2026-10-02T15:00:00-03:00')).not.toMatch(/m\.|am|pm|hs/i);
 	});
 
 	it('keeps the minutes and pads the hour', () => {
 		expect(argDateTimeLong('2026-12-19T21:30:00-03:00')).toBe(
-			'19 de diciembre de 2026 a las 21:30 hs'
+			'sábado 19 de diciembre de 2026, 21:30'
 		);
-		expect(argDateTimeLong('2026-01-05T09:05:00-03:00')).toBe('5 de enero de 2026 a las 09:05 hs');
+		expect(argDateTimeLong('2026-01-05T09:05:00-03:00')).toBe('lunes 5 de enero de 2026, 09:05');
 	});
 
 	it('midnight is 00:00 of the next day, and after midnight stays in 24 h', () => {
 		expect(argDateTimeLong('2026-10-03T00:00:00-03:00')).toBe(
-			'3 de octubre de 2026 a las 00:00 hs'
+			'sábado 3 de octubre de 2026, 00:00'
 		);
 		expect(argDateTimeLong('2026-10-03T01:30:00-03:00')).toBe(
-			'3 de octubre de 2026 a las 01:30 hs'
+			'sábado 3 de octubre de 2026, 01:30'
 		);
 		expect(argDateTimeLong('2026-10-02T12:00:00-03:00')).toBe(
-			'2 de octubre de 2026 a las 12:00 hs'
+			'viernes 2 de octubre de 2026, 12:00'
 		);
 	});
 
 	it('uses Argentina time whatever the input offset (and a Date works too)', () => {
 		// 02:30 UTC is still 23:30 of the previous day in Argentina
-		expect(argDateTimeLong('2026-03-01T02:30:00Z')).toBe('28 de febrero de 2026 a las 23:30 hs');
+		expect(argDateTimeLong('2026-03-01T02:30:00Z')).toBe('sábado 28 de febrero de 2026, 23:30');
 		expect(argDateTimeLong(new Date('2026-10-02T18:00:00Z'))).toBe(
-			'2 de octubre de 2026 a las 15:00 hs'
+			'viernes 2 de octubre de 2026, 15:00'
+		);
+	});
+
+	it('without the time', () => {
+		expect(argDateTimeLong('2026-10-02T15:00:00-03:00', { time: false })).toBe(
+			'viernes 2 de octubre de 2026'
 		);
 	});
 
 	it('an invalid date gives an empty string', () => {
 		expect(argDateTimeLong('no es una fecha')).toBe('');
+	});
+});
+
+describe('argDateList (listas)', () => {
+	const now = '2026-10-04T12:00:00-03:00';
+	it('«vie 2 oct · 22:00», in Argentina time', () => {
+		expect(argDateList('2026-10-02T22:00:00-03:00', { now })).toBe('vie 2 oct · 22:00');
+		expect(argDateList('2026-10-03T01:00:00Z', { now })).toBe('vie 2 oct · 22:00');
+		expect(argDateList('2026-12-19T09:05:00-03:00', { now })).toBe('sáb 19 dic · 09:05');
+	});
+	it('without the time, and with the year when it is not this year', () => {
+		expect(argDateList('2026-10-02T22:00:00-03:00', { now, time: false })).toBe('vie 2 oct');
+		expect(argDateList('2025-10-02T22:00:00-03:00', { now })).toBe('jue 2 oct 2025 · 22:00');
+	});
+	it('never ISO nor «hs»; invalid gives an empty string', () => {
+		expect(argDateList('2026-10-02T22:00:00-03:00', { now })).not.toMatch(/\d{4}-\d{2}|hs/);
+		expect(argDateList('no es una fecha')).toBe('');
+	});
+});
+
+describe('argDateLog (registros)', () => {
+	it('«2/10/26 13:43», in Argentina time', () => {
+		expect(argDateLog('2026-10-02T13:43:00-03:00')).toBe('2/10/26 13:43');
+		expect(argDateLog('2026-03-01T02:30:00Z')).toBe('28/2/26 23:30');
+		expect(argDateLog('2026-10-02T13:43:00-03:00', { time: false })).toBe('2/10/26');
+		expect(argDateLog('no es una fecha')).toBe('');
 	});
 });
 

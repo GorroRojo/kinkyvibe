@@ -7,7 +7,7 @@
 		MousePointerClick,
 		Heart
 	} from '@lucide/svelte';
-	import { argDate, argTime, eventEnd } from '$lib/utils/dates.js';
+	import { argDate, argDateList, argTime, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
@@ -107,11 +107,7 @@
 			{#if date}
 				{#if start}
 					<time datetime={start} class="dt-start dt-end">
-						{@html argDate(start) +
-							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;' +
-							argTime(start) +
-							' - ' +
-							argTime(eventEnd(start, end))}
+						{argDateList(start)} – {argTime(eventEnd(start, end))}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -119,7 +115,7 @@
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={date}>
-						{date ? argDate(date) : ''}
+						{date ? argDateList(date, { time: false }) : ''}
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}

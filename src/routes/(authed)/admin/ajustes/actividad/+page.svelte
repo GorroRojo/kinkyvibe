@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -17,13 +17,6 @@
 	/** Familias que aparecen en el registro (la parte antes del punto de cada acción). */
 	$: families = [...new Set(data.facets.actions.map((a) => a.split('.')[0]))];
 
-	const whenFmt = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 
 	/** @param {string} action */
 	function tone(action) {
@@ -129,7 +122,7 @@
 			<ol class="log">
 				{#each data.entries as e (e.id)}
 					<li>
-						<time datetime={new Date(e.at).toISOString()}>{whenFmt.format(e.at)}</time>
+						<time datetime={new Date(e.at).toISOString()}>{argDateLog(e.at)}</time>
 						<div class="what">
 							<b>{e.summary}</b>
 							<span class="meta">

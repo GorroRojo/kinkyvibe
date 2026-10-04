@@ -256,8 +256,10 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 
 	// Resumen de la ficha del evento (el link de la transmisión está ahí).
 	await page.goto(`/admin/eventos/${EVENT}`, { waitUntil: 'networkidle' });
-	// Online: no hay control de ingreso.
-	await expect(page.getByRole('link', { name: /Modo puerta/ })).toHaveCount(0);
+	// Online: no hay control de ingreso (ni la pestaña Puerta).
+	const tabs = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(tabs.getByRole('link', { name: 'Resumen', exact: true })).toBeVisible();
+	await expect(tabs.getByRole('link', { name: 'Puerta', exact: true })).toHaveCount(0);
 	const section = page.locator('section.stream');
 	const input = section.getByLabel(/Link \(https/);
 	await input.fill('meet.example.com/sin-https');

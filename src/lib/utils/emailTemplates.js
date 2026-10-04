@@ -83,7 +83,7 @@ const V = {
 	fecha: {
 		name: 'fecha',
 		label: 'fecha y hora del evento',
-		sample: 'sábado, 10 de octubre de 2026, 22:00 hs'
+		sample: 'sábado 10 de octubre de 2026, 22:00'
 	},
 	lugar: {
 		name: 'lugar',
@@ -103,7 +103,7 @@ const V = {
 	vence: {
 		name: 'vence',
 		label: 'cuándo vence la reserva',
-		sample: 'jueves, 1 de octubre de 2026, 11:00 hs'
+		sample: 'jueves 1 de octubre de 2026, 11:00'
 	},
 	link_estado: {
 		name: 'link_estado',

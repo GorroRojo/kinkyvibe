@@ -31,7 +31,7 @@
 			</li>
 		{/each}
 	</ul>
-	<a class="back" href="/ingresar">← Ingresar con tu mail</a>
+	<a class="back" href="/ingresar">← Entrar con tu mail</a>
 </section>
 
 <style>

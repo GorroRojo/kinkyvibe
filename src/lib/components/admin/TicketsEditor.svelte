@@ -452,13 +452,13 @@
 						>
 					</label>
 					<small
-						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
+						>La página del evento avisa que también hay entradas en la puerta, y en Puerta
 						se puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
 							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
 					>
 				{:else}
 					<small
-						>La página del evento dice «Solo anticipadas» y el modo puerta no ofrece vender.</small
+						>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small
 					>
 				{/if}
 			</fieldset>

@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * Lista de movimientos del Inicio (actividad reciente y "desde tu última visita"): un punto de
 	 * color por tipo, qué pasó (con link a donde se ve), quién/dónde y hace cuánto.
@@ -16,13 +16,6 @@
 	export let limit = Infinity;
 	export let compact = false;
 
-	const whenFmt = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 
 	/** @param {number} ms */
 	function ago(ms) {
@@ -30,7 +23,7 @@
 		if (diff < 60_000) return 'recién';
 		if (diff < 3_600_000) return `hace ${Math.round(diff / 60_000)} min`;
 		if (diff < 86_400_000) return `hace ${Math.round(diff / 3_600_000)} h`;
-		return whenFmt.format(ms);
+		return argDateLog(ms);
 	}
 
 	/** @param {import('$lib/server/admin/inicio.js').ActivityItem} a */

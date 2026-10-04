@@ -5,16 +5,16 @@
 </script>
 
 <svelte:head>
-	<title>Iniciar sesión - KinkyVibe.ar</title>
+	<title>Entrar - KinkyVibe.ar</title>
 </svelte:head>
 
 <main>
 	<section class="login surface-card" aria-labelledby="login-title">
 		<img src={logo} alt="" width="72" height="72" />
-		<h1 id="login-title">Iniciar sesión</h1>
+		<h1 id="login-title">Entrar</h1>
 		<p>Para quienes editan el sitio.</p>
 		<form method="POST">
-			<input class="pill-btn" type="submit" value="Iniciar sesión con GitHub" />
+			<input class="pill-btn" type="submit" value="Entrar con GitHub" />
 			<input hidden type="text" name="redirectTo" value={redirectTo} />
 		</form>
 		{#if $page.data.demoMode}

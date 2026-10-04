@@ -1,33 +1,29 @@
 /**
  * Formatos de fecha del panel, siempre en hora de Argentina.
  */
-import { TIMEZONE as SITE_TIMEZONE } from '$lib/utils/dates.js';
+import { argDateList, argDateLog } from '$lib/utils/dates.js';
 
 /**
- * "10 oct 2026" (acepta ms o un texto de fecha del frontmatter).
+ * Fecha para listas y tablas: "vie 2 oct" ("vie 2 oct 2025" si no es de este año). Acepta ms o
+ * un texto de fecha del frontmatter. Ver los formatos en `$lib/utils/dates.js`.
  * @param {string | number | null | undefined} value
  */
 export function fmtDate(value) {
 	if (value === null || value === undefined || value === '') return '';
 	const d = new Date(value);
 	if (Number.isNaN(d.getTime())) return String(value);
-	return d.toLocaleDateString('es-AR', { dateStyle: 'medium', timeZone: SITE_TIMEZONE });
+	return argDateList(d, { time: false });
 }
 
 /**
- * "10/10/26 22:00".
+ * Fecha y hora de un registro: "2/10/26 13:43".
  * @param {string | number | null | undefined} value
  */
 export function fmtDateTime(value) {
 	if (value === null || value === undefined || value === '') return '';
 	const d = new Date(value);
 	if (Number.isNaN(d.getTime())) return String(value);
-	return d.toLocaleString('es-AR', {
-		dateStyle: 'short',
-		timeStyle: 'short',
-		hourCycle: 'h23',
-		timeZone: SITE_TIMEZONE
-	});
+	return argDateLog(d);
 }
 
 /**

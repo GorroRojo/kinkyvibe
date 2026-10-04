@@ -89,7 +89,7 @@ export const actions = {
 	},
 	baja: async ({ request, platform, locals }) => {
 		const db = await requireSeriesDB(platform);
-		if (!locals.member) return fail(401, { error: 'Ingresá a tu cuenta para darte de baja.' });
+		if (!locals.member) return fail(401, { error: 'Entrá a tu cuenta para darte de baja.' });
 		const form = await request.formData();
 		const series = await seriesPage(field(form, 'serie'), {
 			tags: await siteTagManager(platform),

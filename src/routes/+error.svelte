@@ -91,7 +91,7 @@
 
 		<div class="actions">
 			{#if status === 401}
-				<a class="btn primary" href={loginHref}>Iniciar sesión</a>
+				<a class="btn primary" href={loginHref}>Entrar</a>
 			{:else if status >= 500}
 				<button class="btn primary" type="button" on:click={() => window.location.reload()}>
 					Probar de nuevo

@@ -37,7 +37,7 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	const text = [
 		'Hola:',
 		'',
-		`Tu código para ingresar a KinkyVibe es: ${code}`,
+		`Tu código para entrar a Kinky Vibe es: ${code}`,
 		'',
 		`Escribilo en la página donde lo pediste. ${vence}. Sirve una sola vez.`,
 		'',
@@ -46,9 +46,9 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	const html = mailLayout({
 		origin,
 		label: 'Tu código',
-		titleHtml: 'Tu código para ingresar',
+		titleHtml: 'Tu código para entrar',
 		contentHtml: `<p>Hola:</p>
-		<p>Tu código para ingresar a Kinky Vibe es:</p>
+		<p>Tu código para entrar a Kinky Vibe es:</p>
 		${codeBlock(code)}
 		<p>Escribilo en la página donde lo pediste. ${escapeHtml(vence)}. Sirve una sola vez.</p>`,
 		helpHtml:

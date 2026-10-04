@@ -5,7 +5,7 @@
 	 *
 	 * Props: `groups` ({ rol, items: { title, path, category, date }[] }[]).
 	 */
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argDateList } from '$lib/utils/dates.js';
 
 	/** @type {{ rol: string, items: { title: string, path: string, category: string, date: string | null }[] }[]} */
 	export let groups = [];
@@ -17,9 +17,7 @@
 	function day(d) {
 		if (!d) return '';
 		const t = new Date(d);
-		return Number.isNaN(t.getTime())
-			? ''
-			: t.toLocaleDateString('es-AR', { dateStyle: 'medium', timeZone: TIMEZONE });
+		return Number.isNaN(t.getTime()) ? '' : argDateList(t, { time: false });
 	}
 </script>
 

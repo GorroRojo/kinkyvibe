@@ -1,4 +1,5 @@
 <script>
+	import { argDateLog } from '$lib/utils/dates.js';
 	import { enhance } from '$app/forms';
 	import { eventHref } from '$lib/admin/nav.js';
 
@@ -13,14 +14,7 @@
 
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
-		return ms
-			? new Date(ms).toLocaleString('es-AR', {
-					dateStyle: 'short',
-					timeStyle: 'short',
-					hourCycle: 'h23',
-					timeZone: 'America/Argentina/Buenos_Aires'
-				})
-			: '';
+		return ms ? argDateLog(ms) : '';
 	}
 </script>
 
@@ -107,7 +101,7 @@
 					{:else}❌ Entrada inválida.{/if}
 				</p>
 			{/if}
-			<a href={eventHref(data.event.slug, 'ingreso')}>Ir al modo puerta</a>
+			<a href={eventHref(data.event.slug, 'ingreso')}>Ir a Puerta</a>
 		</form>
 	{/if}
 </article>

@@ -73,7 +73,7 @@ export const actions = {
 			error(404, 'Not found');
 		}
 		if (!locals.member)
-			return fail(401, { claim: { ok: false, message: 'Ingresá para pedirlo.' } });
+			return fail(401, { claim: { ok: false, message: 'Entrá para pedirlo.' } });
 		const ref = await resolveProfileSlug(db, params.profile);
 		const form = await request.formData();
 		const message = form.get('mensaje');
