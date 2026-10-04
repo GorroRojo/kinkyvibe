@@ -38,6 +38,7 @@ import {
 } from '$lib/server/objects/integrity.js';
 import {
 	accountHref,
+	personHref,
 	profileHref,
 	PROFILE_CLAIMS_HREF,
 	PROFILES_TO_REVIEW_HREF
@@ -573,6 +574,7 @@ const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 function auditTargetHref(type, id) {
 	if (!id) return null;
 	if (type === 'account') return accountHref(String(id));
+	if (type === 'person') return personHref(String(id));
 	if (type === 'profile') return profileHref(String(id));
 	return null;
 }

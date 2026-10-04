@@ -190,6 +190,9 @@ export const NOTE_MAX = 2000;
  */
 
 /**
+ * El mail se compara sin mayúsculas ni espacios (una nota vieja guardada con otro formato
+ * también aparece).
+ *
  * @param {D1Database | null | undefined} db
  * @param {string} email normalizado
  * @returns {Promise<PersonNote[]>} la más nueva primero
@@ -199,7 +202,7 @@ export async function listNotes(db, email) {
 	try {
 		const { results } = await db
 			.prepare(
-				'SELECT id, body, created_at, created_by FROM person_notes WHERE email = ?1 ORDER BY created_at DESC, id DESC'
+				'SELECT id, body, created_at, created_by FROM person_notes WHERE lower(trim(email)) = ?1 ORDER BY created_at DESC, id DESC'
 			)
 			.bind(email)
 			.all();
@@ -216,7 +219,7 @@ export async function listNotes(db, email) {
 }
 
 /**
- * Cuántas notas tiene cada persona.
+ * Cuántas notas tiene cada persona, por mail normalizado.
  * @param {D1Database | null | undefined} db
  * @returns {Promise<Map<string, number>>}
  */
@@ -224,7 +227,9 @@ export async function noteCounts(db) {
 	if (!db) return new Map();
 	try {
 		const { results } = await db
-			.prepare('SELECT email, COUNT(*) AS n FROM person_notes GROUP BY email')
+			.prepare(
+				'SELECT lower(trim(email)) AS email, COUNT(*) AS n FROM person_notes GROUP BY lower(trim(email))'
+			)
 			.all();
 		return new Map(results.map((r) => [String(r.email), Number(r.n)]));
 	} catch (error) {
@@ -269,7 +274,7 @@ export async function addNote(db, { email, body, by, now = Date.now() }) {
  */
 export async function deleteNote(db, { email, id }) {
 	const res = await db
-		.prepare('DELETE FROM person_notes WHERE id = ?1 AND email = ?2')
+		.prepare('DELETE FROM person_notes WHERE id = ?1 AND lower(trim(email)) = ?2')
 		.bind(id, email)
 		.run();
 	return res.meta.changes === 1;

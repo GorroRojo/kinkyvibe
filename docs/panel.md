@@ -52,6 +52,19 @@ sección (Etiquetas, Estadísticas), que usan la URL del área.
 | Estadísticas | Ventas en el tiempo (`/admin/estadisticas`)                                                                                                                                                                                     | gráficos                                                                                                                                                                                                                       |
 | Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Mails y envíos (`/mails`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Actividad (`/actividad`)  | datos para transferir y comisión de MP, % del Fondo, propinas, remitente y recordatorios, lista de admins, interruptores, registro (con CSV y "Recuperar" lo borrado)                                                          |
 
+**Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
+el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
+normalizado (sin espacios ni mayúsculas) y por su cuenta: Cuenta (fechas, contraseña sí/no, sesiones,
+«Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
+entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
+mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
+series, calendario y Telegram: nunca tokens ni el id del chat), Notas internas y Actividad. La
+ficha de una cuenta (`/admin/comunidad/cuentas/<id>`) muestra la misma ficha (también para una
+cuenta borrada), así que los links viejos siguen andando. El DNI no viene con la página: cada
+«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
+de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
+(una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
+
 **Agenda** (`/admin/eventos/agenda`, cambiada en #171). Usa todo el ancho de la pantalla; en la
 compu el mes llena el alto y los días crecen con sus eventos. Tiene dos vistas, Calendario y
 Planilla:
