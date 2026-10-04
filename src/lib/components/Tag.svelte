@@ -16,12 +16,12 @@
 </script>
 
 {#if isCheckbox}
-	<label class="tag" class:checked class:noBorder>
+	<label class="tag tap-target" class:checked class:noBorder>
 		<input type="checkbox" on:input={onInput} {name} bind:checked tabindex="0" />
 		{icon} {tag}
 	</label>
 {:else if isLink}
-	<a class="tag" rel="tag" href="/todo?tags={tag}" class:noBorder>{icon} {tag}</a>
+	<a class="tag tap-target" rel="tag" href="/todo?tags={tag}" class:noBorder>{icon} {tag}</a>
 {:else}
 	<span class="tag" class:noBorder>
 		{icon} {tag}

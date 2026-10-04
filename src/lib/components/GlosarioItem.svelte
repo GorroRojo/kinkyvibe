@@ -82,7 +82,7 @@
 			<div class="itemtitle">
 				{#if !title && entry && entry.meta && entry.meta.wiki}
 					{tag?.icon ?? ''}
-					<a href="/wiki/{entry.meta.wiki}">
+					<a class="tap-target" href="/wiki/{entry.meta.wiki}">
 						<MiniMarkup value={entry.meta.title} />
 					</a>
 				{:else if title}
@@ -129,9 +129,9 @@
 									>Ver también:
 									{#each related as relatedTag, i}
 										{#if relatedTag.meta}
-											<a href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
+											<a class="tap-target" href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
 										{:else}
-											<a href={tagPagePath(relatedTag.id)}
+											<a class="tap-target" href={tagPagePath(relatedTag.id)}
 												>{relatedTag.visible_name ?? relatedTag.id}</a
 											>
 										{/if}
