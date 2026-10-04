@@ -3,11 +3,11 @@
 	"version": "1.1.0",
 	"private": true,
 	"scripts": {
-		"predev": "node scripts/db-migrate-local.js",
+		"predev": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev": "vite dev",
-		"predev:tickets": "node scripts/db-migrate-local.js",
+		"predev:tickets": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev:tickets": "vite dev --mode tickets",
-		"predev:admin": "node scripts/db-migrate-local.js",
+		"predev:admin": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev:admin": "vite dev --mode admin",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -25,9 +25,12 @@
 		"db:restore": "node scripts/d1-restore.js",
 		"amigues:import": "node scripts/import-amigues.js",
 		"tags:import": "node scripts/import-tags.js",
+		"content:import": "node scripts/import-content.js",
+		"images:import": "node scripts/import-images.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"ui:impacto": "node scripts/ui-impacto/run.js"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260929.1",
@@ -43,6 +46,8 @@
 		"eslint-config-prettier": "^8.5.0",
 		"eslint-plugin-svelte": "^2.46.1",
 		"mdsvex": "^0.12.8",
+		"pixelmatch": "7.2.0",
+		"pngjs": "7.0.0",
 		"prettier": "^3.9.9",
 		"prettier-plugin-svelte": "^4.1.1",
 		"rehype": "^12.0.1",

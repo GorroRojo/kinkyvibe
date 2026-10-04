@@ -1,6 +1,6 @@
 /**
- * Mi rincón → Telegram (fase 2 del bot): con cualquiera de `telegram_bot`, `lo_que_sigo` o
- * `cuentas` apagado, 404 y Lo que sigo sin nada de Telegram; sin sesión, a /ingresar; con sesión,
+ * Mi rincón → Telegram (fase 2 del bot): con `telegram_bot` o `lo_que_sigo` apagado (`cuentas`
+ * ya no tiene interruptor: se fue su caso), 404 y Lo que sigo sin nada de Telegram; sin sesión, a /ingresar; con sesión,
  * pedir un código, vincular (como lo haría el bot), ver las casillas de Telegram en Lo que sigo,
  * guardarlas y desconectar. D1 de miniflare; cuentas y chats inventados.
  */
@@ -31,17 +31,13 @@ afterEach(() => {
 
 const CHAT = 555555555;
 
-/** @param {{ bot?: string, sigo?: string, cuentas?: string }} [flags] */
-async function modules({ bot = '1', sigo = '1', cuentas = '1' } = {}) {
+/** @param {{ bot?: string, sigo?: string }} [flags] */
+async function modules({ bot = '1', sigo = '1' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
 			TELEGRAM_BOT_ENABLED: bot,
 			LO_QUE_SIGO_ENABLED: sigo,
-			CUENTAS_ENABLED: cuentas,
-			ETIQUETAS_DB_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
-			PERFILES_PUBLICOS_ENABLED: '0',
 			TELEGRAM_BOT_USERNAME: 'BotInventadoBot'
 		}
 	}));
@@ -59,7 +55,7 @@ async function modules({ bot = '1', sigo = '1', cuentas = '1' } = {}) {
 const ev = (o) => fakeRequestEvent({ platform: t.platform, path: '/mi-rincon/telegram', ...o });
 
 describe('interruptores', () => {
-	for (const flags of [{ bot: '0' }, { sigo: '0' }, { cuentas: '0' }]) {
+	for (const flags of [{ bot: '0' }, { sigo: '0' }]) {
 		it(`apagado (${JSON.stringify(flags)}): 404, y Lo que sigo sin Telegram`, async () => {
 			const m = await modules(flags);
 			const member = await makeAccount(t.db, 'tg-apagado');

@@ -1,8 +1,8 @@
 /**
  * De dónde saca el bot los eventos (decisión 0029). Es el ÚNICO lugar que sabe cómo se leen:
  * con `sitePosts(platform)` de `$lib/server/contenido/posts.js`, la capa compartida de contenido
- * (devuelve el mismo `ProcessedPost` de la base o de los `.md`, según el interruptor
- * `contenido_db`). El resto del bot no sabe de dónde vienen.
+ * (devuelve los eventos de la base como `ProcessedPost`). El resto del bot no sabe de dónde
+ * vienen.
  *
  * Solo salen eventos públicos: nada oculto ni no listado (`sitePosts` sin `unlisted` da solo lo
  * listado y, con la base, lo que ve cualquiera sin cuenta) y nada que ya empezó. No se arman

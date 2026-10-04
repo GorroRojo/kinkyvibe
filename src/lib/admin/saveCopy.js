@@ -1,8 +1,7 @@
 /**
- * Los textos de los formularios de eventos y material que dependen de adónde se guarda: con el
- * interruptor `contenido_db` prendido (y un post que está en la base, o uno nuevo de una categoría
- * que va a la base) se guarda en la base y se ve enseguida; apagado, cada guardado es un PR en
- * GitHub que se publica solo cuando pasan las pruebas (tarda unos minutos).
+ * Los textos de los formularios que dependen de adónde se guarda: los eventos y el material se
+ * guardan en la base y se ven enseguida; las fichas de amigues, con un PR en GitHub que se publica
+ * solo cuando pasan las pruebas (tarda unos minutos).
  *
  * Con el interruptor apagado los textos son exactamente los de siempre.
  *

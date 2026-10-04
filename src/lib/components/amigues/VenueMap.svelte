@@ -1,8 +1,16 @@
 <script>
 	/**
-	 * Mapa chico de un lugar con baldosas de OpenStreetMap (imágenes comunes, sin librerías ni
-	 * scripts de afuera) y el link para abrirlo en openstreetmap.org. Solo se muestra cuando la
-	 * dirección del lugar se ve ("Nombre + dirección" o "Sólo dirección").
+	 * Mapa chico de un lugar con baldosas de OpenStreetMap: imágenes comunes que el navegador carga
+	 * recién cuando el mapa está por entrar en pantalla (`loading="lazy"`), sin librerías, sin
+	 * scripts ni iframes de afuera. Abajo, «Abrir en OpenStreetMap» y el crédito que pide
+	 * OpenStreetMap (el botón de indicaciones «Cómo llegar» se sacó: gorrite, 4/10). Solo se muestra cuando la dirección del lugar se ve ("Nombre + dirección"
+	 * o "Sólo dirección"): quien lo usa decide con `showsAddress`, y el servidor no manda las
+	 * coordenadas en los otros niveles (`venueView` en src/lib/utils/venues.js).
+	 *
+	 * El alto es fijo (no corre nada cuando llegan las baldosas) y el ancho se adapta hasta
+	 * `width`: las baldosas se arman para el ancho máximo y se ubican desde el centro, así en un
+	 * celular se recortan los costados y el punto queda siempre en el medio.
+	 *
 	 * Props: `lat`, `lng`, `label` (nombre del lugar, o su dirección si el nombre no se muestra,
 	 * para el texto alternativo).
 	 */
@@ -14,20 +22,15 @@
 	export let lng;
 	export let label = '';
 
-	const width = 320;
+	const width = 440;
 	const height = 200;
 	$: map = osmTiles(lat, lng, { width, height });
+	$: href = osmLink(lat, lng);
 </script>
 
-<figure class="venue-map">
-	<a href={osmLink(lat, lng)} target="_blank" rel="noopener noreferrer" class="frame">
-		<span
-			class="tiles"
-			style:width="{width}px"
-			style:height="{height}px"
-			role="img"
-			aria-label="Mapa: {label}"
-		>
+<figure class="venue-map" style:--map-w="{width}px" style:--map-h="{height}px">
+	<a {href} target="_blank" rel="noopener noreferrer" class="frame" tabindex="-1">
+		<span class="tiles" role="img" aria-label="Mapa: {label}">
 			{#each map.tiles as t (`${t.x}-${t.y}-${t.left}`)}
 				<img
 					src={t.url}
@@ -35,8 +38,9 @@
 					width="256"
 					height="256"
 					loading="lazy"
+					decoding="async"
 					referrerpolicy="strict-origin-when-cross-origin"
-					style:left="{t.left}px"
+					style:left="calc(50% + {t.left - width / 2}px)"
 					style:top="{t.top}px"
 				/>
 			{/each}
@@ -44,10 +48,13 @@
 		</span>
 	</a>
 	<figcaption>
-		<a href={osmLink(lat, lng)} target="_blank" rel="noopener noreferrer">Ver en OpenStreetMap</a>
-		· ©
-		<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer"
-			>colaboradores de OpenStreetMap</a
+		<span class="links">
+			<a {href} target="_blank" rel="noopener noreferrer">Abrir en OpenStreetMap</a>
+		</span>
+		<small class="credit"
+			>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer"
+				>colaboradores de OpenStreetMap</a
+			></small
 		>
 	</figcaption>
 </figure>
@@ -55,23 +62,22 @@
 <style>
 	.venue-map {
 		margin: 1em auto;
-		width: fit-content;
-		max-width: 100%;
+		width: min(100%, var(--map-w));
 	}
 	.frame {
 		display: block;
-		width: fit-content;
-		margin-inline: auto;
-		max-width: 100%;
 		overflow: hidden;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 	}
 	.tiles {
 		position: relative;
 		display: block;
-		max-width: 100%;
+		width: 100%;
+		/* Reservado desde el principio: no corre nada cuando llegan las baldosas. */
+		height: var(--map-h);
 		overflow: hidden;
+		/* El gris de las baldosas de OSM mientras cargan (también si se ve en modo oscuro). */
 		background: #e5e3df;
 	}
 	.tiles img {
@@ -87,14 +93,37 @@
 		margin: -18px 0 0 -9px;
 		border-radius: 50% 50% 50% 0;
 		transform: rotate(-45deg);
-		background: hsl(319, 90%, 55%);
+		background: var(--1, hsl(319, 90%, 55%));
 		border: 2px solid white;
 		box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 	}
 	figcaption {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.4em 0.8em;
+		margin-top: 0.5em;
 		font-size: var(--step--1);
-		margin-top: 0.4em;
-		text-align: center;
-		opacity: 0.85;
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4em;
+	}
+	.links a {
+		display: inline-block;
+		padding: 0.3em 0.8em;
+		border: 1px solid currentColor;
+		border-radius: var(--radius-pill);
+		color: inherit;
+		text-decoration: none;
+	}
+	.credit {
+		font-size: 0.85em;
+		opacity: 0.8;
+	}
+	.credit a {
+		color: inherit;
 	}
 </style>

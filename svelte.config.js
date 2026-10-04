@@ -45,8 +45,7 @@ const config = {
 		},
 		adapter: cfAdapter({
 			// Dónde escribir el Worker de SvelteKit al compilar para Workers (no es wrangler.toml
-			// porque su `main` es worker/index.js, que lo envuelve para sumar los crons). En
-			// Cloudflare Pages (CF_PAGES) el adapter compila para Pages como siempre.
+			// porque su `main` es worker/index.js, que lo envuelve para sumar los crons).
 			config: 'wrangler.adapter.toml',
 			// En `vite dev`/`vite preview` simula los bindings de wrangler.toml (D1 incluido) con
 			// miniflare, guardando los datos en .wrangler/state. Nunca se conecta a Cloudflare.

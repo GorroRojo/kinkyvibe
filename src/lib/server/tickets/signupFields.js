@@ -9,11 +9,10 @@
  *   les organizadores; ver src/lib/server/personas/organiza.js). Se
  *   escriben en la MISMA tanda que la orden (reserveOrder, `answersStatement`).
  *
- * Todo detrás del interruptor `personas_eventos`: apagado, {@link eventSignupFields} devuelve
- * `[]` y la compra queda como siempre.
+ * Sin base, {@link eventSignupFields} devuelve `[]` y la compra queda como siempre (el
+ * interruptor `personas_eventos` quedó prendido para siempre).
  */
 import { logDBError } from '$lib/server/db';
-import { isFlagOn } from '$lib/server/flags.js';
 import {
 	MAX_EVENT_FIELDS,
 	MAX_GENERAL_FIELDS,
@@ -149,7 +148,7 @@ export async function fieldsForEvent(db, slug) {
 }
 
 /**
- * Lo que pregunta el formulario de compra: `[]` con el interruptor apagado, sin base o si falla
+ * Lo que pregunta el formulario de compra: `[]` sin base o si falla
  * (la compra sigue funcionando sin preguntas extra).
  *
  * @param {D1Database | null | undefined} db
@@ -157,7 +156,7 @@ export async function fieldsForEvent(db, slug) {
  * @returns {Promise<SignupField[]>}
  */
 export async function eventSignupFields(db, slug) {
-	if (!db || !(await isFlagOn(db, 'personas_eventos'))) return [];
+	if (!db) return [];
 	try {
 		return (await fieldsForEvent(db, slug)).map(
 			({ id, label, kind, required, options, perTicket, ticketTypes }) => ({

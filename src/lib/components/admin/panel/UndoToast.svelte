@@ -3,7 +3,7 @@
 	 * Aviso de "Guardaste X" con un botón Deshacer (la planilla y el calendario de la agenda).
 	 * Props: `message`, `busy` (deshaciendo: el botón se apaga), `floating` (default false: va en
 	 * el flujo de la página; true: flota abajo, como un toast), `canUndo` (default true: muestra el
-	 * botón), `error` (el aviso es un error: en rosa). Eventos: `undo`, `close` (solo con `floating`).
+	 * botón), `error` (el aviso es un error: en rojo). Eventos: `undo`, `close` (solo con `floating`).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { Undo2, X } from '@lucide/svelte';
@@ -39,15 +39,17 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		background: var(--ok-bg);
 		color: var(--text);
 		border-radius: var(--card-round);
-		padding: 0.5rem 0.6rem 0.5rem 1rem;
+		padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-xs);
 		margin-bottom: 1rem;
 	}
+	/* Malas noticias en rojo; «Guardado» y «Deshacer» siguen en verde. */
 	.undo.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.floating {
 		position: fixed;
@@ -58,7 +60,7 @@
 		width: min(34rem, calc(100vw - 32px));
 		box-sizing: border-box;
 		margin: 0;
-		box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+		box-shadow: var(--shadow-2);
 		border: 1px solid var(--line);
 	}
 	@media (min-width: 900px) {
@@ -69,7 +71,7 @@
 	.actions {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 	}
 	.close {
 		border: 0;

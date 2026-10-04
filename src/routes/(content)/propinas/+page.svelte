@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>Dejá una propina - KinkyVibe.ar</title>
+	<title>Dejá una propina · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -34,7 +34,7 @@
 	<section class="surface-card empty">
 		<h1>Propinas</h1>
 		<p>
-			Las propinas se dejan desde el pie de cada publicación de KinkyVibe. Pasá por el
+			Las propinas se dejan desde el pie de cada publicación de Kinky Vibe. Pasá por el
 			<a href="/material">material</a> o el <a href="/calendario">calendario</a>.
 		</p>
 	</section>

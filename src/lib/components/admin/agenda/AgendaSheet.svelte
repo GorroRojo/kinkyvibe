@@ -503,7 +503,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-bottom: 0.8rem;
 	}
 	.sheet-box {
@@ -552,18 +552,18 @@
 	.week-head th {
 		background: var(--surface);
 		color: var(--link);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		padding: 0.9rem 0.6rem 0.3rem;
+		padding: var(--space-xs) var(--space-2xs) var(--space-3xs);
 		border-bottom: 2px solid var(--link);
 	}
 	.day-head th {
 		background: var(--surface-2);
 		color: var(--text);
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		font-weight: 400;
-		padding: 0.4rem 0.6rem;
+		padding: 0.4rem var(--space-2xs);
 	}
 	.day-head.is-today th {
 		background: var(--link-bg);
@@ -577,7 +577,7 @@
 	.day-line {
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.6rem;
+		gap: var(--space-3xs) var(--space-2xs);
 	}
 	.day-label {
 		font-weight: 700;
@@ -588,7 +588,7 @@
 	}
 	.day-count {
 		color: var(--muted);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 	}
 	.add-note {
 		display: inline-flex;
@@ -599,7 +599,7 @@
 		background: transparent;
 		color: var(--muted);
 		font: inherit;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		padding: 0.1rem 0.45rem;
 		cursor: pointer;
 	}
@@ -634,7 +634,7 @@
 		box-sizing: border-box;
 		border: 0;
 		background: transparent;
-		padding: 0.5rem 0.6rem;
+		padding: var(--space-2xs) var(--space-2xs);
 		min-height: 2.6rem;
 		min-width: 6.5rem;
 		color: var(--text);
@@ -676,20 +676,20 @@
 		position: absolute;
 		left: 0.6rem;
 		bottom: 0.1rem;
-		font-size: 0.68rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 		pointer-events: none;
 	}
 	.row-actions {
 		white-space: nowrap;
-		padding: 0.3rem 0.5rem !important;
+		padding: var(--space-3xs) var(--space-2xs) !important;
 		min-width: 9rem;
 		vertical-align: middle !important;
 		text-align: right !important;
 	}
 	.kv-btn.small {
-		padding: 0.3rem 0.8rem;
-		font-size: 0.85rem;
+		padding: var(--space-3xs) var(--space-xs);
+		font-size: var(--text-xs);
 	}
 	.icon {
 		border: 0;
@@ -712,16 +712,16 @@
 		display: block;
 		white-space: normal;
 		max-width: 16rem;
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		color: var(--ok);
 		margin-top: 0.2rem;
 		text-align: left;
 	}
 	.msg.error {
-		color: var(--bad);
+		color: var(--error);
 	}
 	.foot {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin-top: 0.8rem;
 	}
 	.sr-only {

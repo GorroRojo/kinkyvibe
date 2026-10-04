@@ -2,15 +2,17 @@
  * Un objeto de contenido (`evento`, `material`) como texto .md (frontmatter + cuerpo) y de vuelta.
  *
  * El editor del panel (y la agenda, importar la planilla, las etiquetas…) trabajan sobre el texto
- * de un .md. Con el interruptor `contenido_db` prendido, el texto de un post de la base se arma con
- * {@link postToMarkdown} y lo que el editor guarda se lee con {@link markdownToPost}: así esas
- * pantallas no cambian (ver ./repo.js).
+ * de un .md. El texto de un post de la base se arma con {@link postToMarkdown} y lo que el editor
+ * guarda se lee con {@link markdownToPost}: así esas pantallas no cambian (ver ./repo.js).
+ * «Descargar todo» usa {@link postToMarkdown} con `legacy`: los interactivos vuelven a la forma de
+ * los .md del repo (../../utils/interactivos.js).
  *
  * Funciones puras. Solo imports relativos.
  */
 import { parse, stringify } from 'yaml';
 import { CONTENT_CATEGORIES } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
+import { toLegacyComponents } from '../../utils/interactivos.js';
 
 /** El orden de las claves (el de los .md de hoy, como las plantillas `_….md`). */
 const KEY_ORDER = [
@@ -49,16 +51,19 @@ function categoryOf(category) {
 /**
  * @param {string} category
  * @param {Pick<import('../objects/read.js').StoredObject, 'title' | 'data' | 'visibility'>} object
+ * @param {{ legacy?: boolean }} [opts] `legacy`: los interactivos como en los .md del repo (el
+ *   componente importado en el `<script>`), para «Descargar todo»
  * @returns {string}
  */
-export function postToMarkdown(category, object) {
+export function postToMarkdown(category, object, { legacy = false } = {}) {
 	const meta = categoryOf(category).toMeta(object);
 	/** @type {Record<string, unknown>} */
 	const ordered = {};
 	for (const key of KEY_ORDER) if (meta[key] !== undefined) ordered[key] = meta[key];
 	for (const [key, value] of Object.entries(meta)) if (!(key in ordered)) ordered[key] = value;
 	const frontmatter = stringify(ordered, { lineWidth: 0 }).trimEnd();
-	const body = String(object.data?.body ?? '');
+	const stored = String(object.data?.body ?? '');
+	const body = legacy ? toLegacyComponents(stored) : stored;
 	return `---\n${frontmatter}\n---\n${body ? `\n${body}\n` : ''}`;
 }
 

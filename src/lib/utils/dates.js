@@ -107,18 +107,56 @@ export function argWeekdayDay(d) {
 	return `${WEEKDAYS_ES[a.getDay()]} ${pad2(a.getDate())}`;
 }
 
+/** Weekday and month abbreviations for lists ("vie 2 oct"). */
+const WEEKDAYS_SHORT_ES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MONTHS_SHORT_ES = MONTHS_ES.map((m) => m.slice(0, 3));
+
 /**
- * Long date and 24-hour time in Argentina time, as the event page shows it:
- * `2 de octubre de 2026 a las 15:00 hs`.
- *
- * Built by hand instead of with `toLocaleString('es-AR', { timeStyle: 'short' })`: recent ICU/CLDR
- * data gives es-AR a 12-hour clock (`3:00 p. m.`), so appending «hs» printed `3:00 p. m.hs`.
- * @param {string|number|Date} d
+ * Formatos de fecha visibles (decisión de gorrite, revisión de UI paso 3). Nunca fechas ISO ni
+ * «hs» en lo que se ve:
+ * - listas: {@link argDateList} → `vie 2 oct · 22:00` (con el año si no es el actual);
+ * - encabezados: {@link argDateTimeLong} → `viernes 2 de octubre de 2026, 22:00`;
+ * - registros: «hace X» (`fmtRelative` del panel) o {@link argDateLog} → `2/10/26 13:43`.
  */
-export function argDateTimeLong(d) {
+
+/**
+ * Date for lists, in Argentina time: `vie 2 oct · 22:00`. Without the time if `time` is false
+ * (`vie 2 oct`). The year goes at the end (`vie 2 oct 2025`) when it isn't the year of `now`.
+ * @param {string|number|Date} d
+ * @param {{ time?: boolean, now?: string|number|Date }} [opts]
+ */
+export function argDateList(d, { time = true, now = Date.now() } = {}) {
 	const a = toArgentina(d);
 	if (isNaN(a.getTime())) return '';
-	return `${a.getDate()} de ${MONTHS_ES[a.getMonth()]} de ${a.getFullYear()} a las ${pad2(
-		a.getHours()
-	)}:${pad2(a.getMinutes())} hs`;
+	const year = a.getFullYear() === toArgentina(now).getFullYear() ? '' : ` ${a.getFullYear()}`;
+	const day = `${WEEKDAYS_SHORT_ES[a.getDay()]} ${a.getDate()} ${MONTHS_SHORT_ES[a.getMonth()]}${year}`;
+	return time ? `${day} · ${pad2(a.getHours())}:${pad2(a.getMinutes())}` : day;
+}
+
+/**
+ * Date for logs and tables, in Argentina time: `2/10/26 13:43` (`2/10/26` without the time).
+ * @param {string|number|Date} d
+ * @param {{ time?: boolean }} [opts]
+ */
+export function argDateLog(d, { time = true } = {}) {
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	const day = `${a.getDate()}/${a.getMonth() + 1}/${pad2(a.getFullYear() % 100)}`;
+	return time ? `${day} ${pad2(a.getHours())}:${pad2(a.getMinutes())}` : day;
+}
+
+/**
+ * Long date for headers, in Argentina time: `viernes 2 de octubre de 2026, 22:00` (the event
+ * page, the mails). Without the time if `time` is false (`viernes 2 de octubre de 2026`).
+ *
+ * Built by hand instead of with `toLocaleString('es-AR', { timeStyle: 'short' })`: recent ICU/CLDR
+ * data gives es-AR a 12-hour clock (`3:00 p. m.`).
+ * @param {string|number|Date} d
+ * @param {{ time?: boolean }} [opts]
+ */
+export function argDateTimeLong(d, { time = true } = {}) {
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	const day = `${WEEKDAYS_ES[a.getDay()]} ${a.getDate()} de ${MONTHS_ES[a.getMonth()]} de ${a.getFullYear()}`;
+	return time ? `${day}, ${pad2(a.getHours())}:${pad2(a.getMinutes())}` : day;
 }

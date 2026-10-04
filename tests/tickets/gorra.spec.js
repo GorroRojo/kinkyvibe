@@ -89,7 +89,7 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	await expect(block.locator('fieldset.options')).toHaveCount(0);
 	await expect(block.getByLabel(/Código de descuento/)).toHaveCount(0);
 	await expect(block).toContainText(
-		'no se aplican el descuento del Fondo KinkyVibe ni los códigos de descuento'
+		'no se aplican el descuento del Fondo Kinky Vibe ni los códigos de descuento'
 	);
 
 	// Sin monto máximo: solo el tope técnico de la orden ($ 100.000.000) contra errores de tipeo.
@@ -188,7 +188,7 @@ test('evento sin la etiqueta KinkyVibe: sin opciones del Fondo, y un POST armado
 	const { block } = await fill(page, { type: /^Precio fijo/ });
 	// Precio de lista, sin "¿Cómo querés pagar tu entrada?" ni textos del Fondo.
 	await expect(block.locator('fieldset.options')).toHaveCount(0);
-	await expect(block).not.toContainText('Fondo KinkyVibe');
+	await expect(block).not.toContainText('Fondo Kinky Vibe');
 	const list = computePrice({
 		price: 6000,
 		option: 'completo',
@@ -256,8 +256,10 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 
 	// Resumen de la ficha del evento (el link de la transmisión está ahí).
 	await page.goto(`/admin/eventos/${EVENT}`, { waitUntil: 'networkidle' });
-	// Online: no hay control de ingreso.
-	await expect(page.getByRole('link', { name: /Modo puerta/ })).toHaveCount(0);
+	// Online: no hay control de ingreso (ni la pestaña Puerta).
+	const tabs = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(tabs.getByRole('link', { name: 'Resumen', exact: true })).toBeVisible();
+	await expect(tabs.getByRole('link', { name: 'Puerta', exact: true })).toHaveCount(0);
 	const section = page.locator('section.stream');
 	const input = section.getByLabel(/Link \(https/);
 	await input.fill('meet.example.com/sin-https');
@@ -273,8 +275,11 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 	const pending = Number((await send.innerText()).match(/\((\d+)/)?.[1]);
 	expect(pending).toBeGreaterThanOrEqual(1);
 	await shots(page, '12-gorra-admin-link', section);
-	page.once('dialog', (d) => d.accept());
+	// Pregunta con el diálogo de la página (ConfirmDialog), no con window.confirm.
 	await send.click();
+	const ask = page.getByRole('dialog', { name: /¿Mandar el link por mail a/ });
+	await expect(ask).toBeVisible();
+	await ask.getByRole('button', { name: 'Mandar' }).click();
 	await expect(section.getByText(new RegExp(`Link enviado a ${pending} persona`))).toBeVisible();
 	await expect(
 		section.getByRole('button', { name: '✓ Todes ya recibieron este link' })

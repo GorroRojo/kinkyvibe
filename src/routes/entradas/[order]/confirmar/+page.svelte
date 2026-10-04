@@ -11,7 +11,7 @@
 </script>
 
 <svelte:head>
-	<title>Confirmar reserva · KinkyVibe</title>
+	<title>Confirmar reserva · Kinky Vibe</title>
 </svelte:head>
 
 <main class="confirm">
@@ -43,7 +43,7 @@
 	.confirm {
 		max-width: 36rem;
 		margin: 2em auto;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 	.button {
 		font: inherit;

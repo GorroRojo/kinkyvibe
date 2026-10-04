@@ -3,9 +3,8 @@
  * evento ("sucede en", con la privacidad de la dirección de ese evento). Son los mismos perfiles
  * de Perfiles (filtro «Lugares»); se editan con el mismo editor.
  *
- * El vínculo evento → lugar es provisorio (tabla `event_venues`, por dirección del evento)
- * mientras los eventos sigan siendo .md: ver docs/amigues.md. Funciona con el interruptor
- * `perfiles_publicos` apagado (para dejar todo listo); el sitio lo usa recién al prenderlo.
+ * El vínculo evento → lugar es el edge `lugar` del evento en la base (por eso el evento tiene que
+ * estar en la base): ver docs/amigues.md.
  * Solo admins; queda en el registro.
  *
  * "Para aprobar": los lugares que cargó una cuenta (decisión de gorrite, docs/decisiones/
@@ -19,7 +18,6 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { listEventVenues, listVenues } from '$lib/server/amigues/venues.js';
 import { linkEventVenue, unlinkEventVenue } from '$lib/server/amigues/eventFormVenue.js';
 import { createProfileAction } from '$lib/server/admin/amiguesRoutes.js';
@@ -34,7 +32,7 @@ import { isVenuePrivacy } from '$lib/utils/venues.js';
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
 /** @param {App.Platform | undefined} platform */
 async function eventChoices(platform) {
-	// Con `contenido_db` prendido, también los eventos de la base.
+	// Los eventos de la base.
 	const [listed, unlisted] = await Promise.all([
 		sitePosts(platform, false, false),
 		sitePosts(platform, false, true)
@@ -58,17 +56,15 @@ export async function load({ locals, url, platform, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [venues, links, events, flagOn, pending, rejected] = await Promise.all([
+	const [venues, links, events, pending, rejected] = await Promise.all([
 		listVenues(db),
 		listEventVenues(db),
 		eventChoices(platform),
-		perfilesPublicosEnabled(platform),
 		listPendingVenues(db),
 		// "Rechazados" (decisión de gorrite): quién lo rechazó y el motivo; se pueden aprobar.
 		listRejectedVenues(db)
 	]);
 	return {
-		flagOn,
 		pending,
 		rejected,
 		venues: venues.map((v) => ({
@@ -156,11 +152,11 @@ export const actions = {
 	},
 
 	desvincular: async ({ locals, url, platform, request }) => {
-		requireAdmin(locals, url);
+		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { link: { ok: false, message: 'Sin base de datos.' } });
 		const eventSlug = String((await request.formData()).get('evento') ?? '');
-		if (!(await unlinkEventVenue(db, locals, eventSlug))) {
+		if (!(await unlinkEventVenue(db, locals, eventSlug, admin.login))) {
 			return fail(404, { link: { ok: false, message: 'Ese evento no tenía lugar.' } });
 		}
 		return { link: { ok: true, message: 'Listo: el evento ya no tiene lugar.' } };

@@ -4,7 +4,9 @@
  * existen mientras se escribe).
  *
  * Qué se puede editar de cada mail: el **asunto**, el **título** y el **texto de arriba** (el
- * saludo y lo que quieran agregar). Lo demás (datos del evento, precios, entradas con su QR y
+ * saludo y lo que quieran agregar) y, si quieren, la **etiqueta** gris de arriba del título, el
+ * **texto del botón**, la **línea de ayuda** de abajo del botón y el **por qué te llega** del pie
+ * (`TEMPLATE_EXTRAS`: vacíos = el texto de siempre). Lo demás (datos del evento, precios, entradas con su QR y
  * código, links, número de orden, política de devoluciones) lo sigue poniendo el código: una
  * plantilla nunca puede romper un QR ni un link.
  *
@@ -12,20 +14,71 @@
  * - `{{variable}}` se reemplaza por su valor, siempre escapado (un nombre con `<b>` se ve tal
  *   cual, no como HTML). Una variable que no es de esa plantilla no se puede guardar.
  * - Todo el resto del texto también se escapa. Lo único que se interpreta es `**negrita**`,
- *   una línea en blanco (párrafo nuevo) y un salto de línea.
+ *   `[texto](dirección)` (un link), una línea en blanco (párrafo nuevo) y un salto de línea. La
+ *   etiqueta y el botón son texto solo (sin negrita; un link sale como «texto (dirección)»); la
+ *   ayuda y el pie, una línea con negrita y links.
+ * - Links: solo a `https://`, `http://`, `mailto:` y `tel:` ({@link isSafeLinkUrl}); con otra
+ *   dirección (`javascript:`…) no se puede guardar y, si igual llega, se ve como texto. En el
+ *   asunto no se interpretan (se ve tal cual). En el texto plano del mail: «texto (dirección)».
+ * - Algo que parece una etiqueta HTML (`<a href…>`, `</p>`) no se puede guardar: igual se vería
+ *   tal cual, pero así nadie cree que funciona.
+ *
+ * Por evento: cada campo se puede cambiar solo para los mails de un evento
+ * (`event_email_templates`, migración 0034). Orden: lo del evento → la plantilla general → el
+ * texto del código ({@link mergeTemplates}).
  */
 import { escapeHtml } from './escape.js';
 
 /** @typedef {{ name: string, label: string, sample: string }} TemplateVar */
 /**
- * @typedef {{ subject: string, heading: string, body: string }} TemplateText
+ * @typedef {'label' | 'button' | 'help' | 'why'} ExtraKey
+ * @typedef {'subject' | 'heading' | 'body' | ExtraKey} TemplateKey
+ * @typedef {{ subject: string, heading: string, body: string, label?: string, button?: string,
+ *   help?: string, why?: string }} TemplateText
+ * Lo que sale de validar: las principales siempre ('' = sin texto propio, solo por evento) y
+ * las opcionales solo si tienen texto.
+ * @typedef {TemplateText} TemplateValue
+ * Una plantilla (o una capa de una: la del evento, la general) con las partes que tiene; las que
+ * faltan o están vacías salen del texto del código.
+ * @typedef {Partial<Record<TemplateKey, string | null>>} TemplateParts
+ * @typedef {{ default: string, note?: string }} ExtraDef
  * @typedef {{ id: TemplateId, label: string, when: string, fixed: string, vars: TemplateVar[],
- *   defaults: TemplateText }} TemplateDef
+ *   defaults: TemplateText, extras: Partial<Record<ExtraKey, ExtraDef>> }} TemplateDef
  * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund'} TemplateId
  */
 
 /** Largo máximo de cada parte. */
-export const TEMPLATE_LIMITS = Object.freeze({ subject: 200, heading: 200, body: 4000 });
+export const TEMPLATE_LIMITS = Object.freeze({
+	subject: 200,
+	heading: 200,
+	body: 4000,
+	label: 60,
+	button: 60,
+	help: 500,
+	why: 300
+});
+
+/** Las partes principales (en la plantilla general no pueden quedar vacías). */
+export const TEMPLATE_MAIN = /** @type {const} */ (['subject', 'heading', 'body']);
+/** Las partes opcionales (vacías = el texto de siempre). */
+export const TEMPLATE_EXTRAS = /** @type {const} */ (['label', 'button', 'help', 'why']);
+/** @type {readonly TemplateKey[]} */
+export const TEMPLATE_KEYS = Object.freeze([...TEMPLATE_MAIN, ...TEMPLATE_EXTRAS]);
+
+/** Nombre de cada parte en el panel. */
+export const TEMPLATE_FIELD_LABELS = Object.freeze({
+	subject: 'Asunto',
+	heading: 'Título',
+	body: 'Texto de arriba',
+	label: 'Etiqueta de arriba del título',
+	button: 'Texto del botón',
+	help: 'Línea de ayuda (abajo del botón)',
+	why: 'Por qué te llega (pie del mail)'
+});
+
+/** Por qué llegan los mails de entradas (pie de la plantilla común). */
+export const WHY_BOUGHT = 'Te llega porque compraste entradas en kinkyvibe.ar.';
+export const WHY_RESERVED = 'Te llega porque reservaste entradas en kinkyvibe.ar.';
 
 /** @type {Record<string, TemplateVar>} */
 const V = {
@@ -34,7 +87,7 @@ const V = {
 	fecha: {
 		name: 'fecha',
 		label: 'fecha y hora del evento',
-		sample: 'sábado, 10 de octubre de 2026, 22:00 hs'
+		sample: 'sábado 10 de octubre de 2026, 22:00'
 	},
 	lugar: {
 		name: 'lugar',
@@ -54,7 +107,7 @@ const V = {
 	vence: {
 		name: 'vence',
 		label: 'cuándo vence la reserva',
-		sample: 'jueves, 1 de octubre de 2026, 11:00 hs'
+		sample: 'jueves 1 de octubre de 2026, 11:00'
 	},
 	link_estado: {
 		name: 'link_estado',
@@ -91,6 +144,18 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Tus entradas para {{evento}}',
 			heading: '¡Ya tenés tus entradas!',
 			body: 'Hola {{nombre}}, gracias por tu compra.'
+		},
+		extras: {
+			label: { default: 'Tus entradas' },
+			button: {
+				default: 'Ver mis entradas',
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+			},
+			help: {
+				default: '',
+				note: 'Sin texto propio: cómo se usa el QR en la puerta (o, si es online, cómo llega el link).'
+			},
+			why: { default: WHY_BOUGHT }
 		}
 	},
 	{
@@ -115,6 +180,15 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Datos para transferir · {{evento}} ({{referencia}})',
 			heading: 'Reservamos tus entradas',
 			body: 'Hola {{nombre}}, para confirmarlas transferí **{{total}}**. Te reservamos el lugar {{horas}} horas (hasta el **{{vence}}**) mientras mandás el comprobante por mail.'
+		},
+		extras: {
+			label: { default: 'Tu reserva' },
+			button: {
+				default: 'Ver el estado de tu compra',
+				note: 'Si hay que confirmar la reserva, el botón lleva a confirmarla y dice «Confirmar mi reserva».'
+			},
+			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
+			why: { default: WHY_RESERVED }
 		}
 	},
 	{
@@ -128,6 +202,15 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Link de la transmisión: {{evento}}',
 			heading: 'Ya está el link de la transmisión',
 			body: 'Hola {{nombre}}, este es el link para **{{evento}}** ({{fecha}}).'
+		},
+		extras: {
+			label: { default: 'Transmisión' },
+			button: { default: 'Entrar a la transmisión' },
+			help: {
+				default: '',
+				note: 'Sin texto propio: los links a cada entrada. Con texto propio, esos links pasan más abajo.'
+			},
+			why: { default: WHY_BOUGHT }
 		}
 	},
 	{
@@ -141,6 +224,15 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Recordatorio: {{evento}} {{cuando}}',
 			heading: '¡{{evento}} {{cuando}}!',
 			body: 'Hola {{nombre}}, te recordamos que tenés {{entradas}} ({{tipo}}).'
+		},
+		extras: {
+			label: { default: 'Recordatorio' },
+			button: {
+				default: 'Ver mis entradas',
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+			},
+			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
+			why: { default: WHY_BOUGHT }
 		}
 	},
 	{
@@ -154,6 +246,11 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Reembolso de tu compra · {{evento}}',
 			heading: 'Reembolsamos tu compra',
 			body: 'Hola {{nombre}}, hicimos el reembolso de {{total}} de tu compra de {{cantidad}} × {{tipo}} para **{{evento}}** ({{fecha}}).'
+		},
+		// Sin botón (ni línea de ayuda debajo).
+		extras: {
+			label: { default: 'Reembolso' },
+			why: { default: WHY_BOUGHT }
 		}
 	}
 ]);
@@ -161,6 +258,40 @@ export const EMAIL_TEMPLATES = Object.freeze([
 /** @param {unknown} id @returns {TemplateDef | undefined} */
 export function templateDef(id) {
 	return EMAIL_TEMPLATES.find((t) => t.id === id);
+}
+
+/**
+ * Las partes que se pueden editar en ese mail (las principales y las opcionales que tiene).
+ * @param {TemplateId} id
+ * @returns {TemplateKey[]}
+ */
+export function templateKeys(id) {
+	const def = templateDef(id);
+	if (!def) return [];
+	return [...TEMPLATE_MAIN, ...TEMPLATE_EXTRAS.filter((k) => def.extras[k])];
+}
+
+/**
+ * Junta capas de plantilla, de la que manda a la que menos: para cada parte, la primera que
+ * tenga texto. Normalmente `mergeTemplates(delEvento, general)`; lo que no está en ninguna sale
+ * del texto del código. `null` si ninguna capa tiene nada (el mail sale como siempre).
+ *
+ * @param {...(TemplateParts | null | undefined)} layers
+ * @returns {TemplateParts | null}
+ */
+export function mergeTemplates(...layers) {
+	/** @type {TemplateParts} */
+	const out = {};
+	for (const key of TEMPLATE_KEYS) {
+		for (const layer of layers) {
+			const v = layer?.[key];
+			if (typeof v === 'string' && v.trim()) {
+				out[key] = v;
+				break;
+			}
+		}
+	}
+	return Object.keys(out).length ? out : null;
 }
 
 const VAR_RE = /\{\{\s*([^{}\s]*)\s*\}\}/g;
@@ -176,51 +307,123 @@ export function findVariables(text) {
 /**
  * Variables que no existen en esa plantilla.
  * @param {TemplateId} id
- * @param {Partial<TemplateText>} tpl
+ * @param {Partial<Record<TemplateKey, string | null>>} tpl
  */
 export function unknownVariables(id, tpl) {
 	const allowed = new Set(templateDef(id)?.vars.map((v) => v.name) ?? []);
-	return findVariables([tpl.subject, tpl.heading, tpl.body].join('\n')).filter(
+	return findVariables(TEMPLATE_KEYS.map((k) => tpl[k] ?? '').join('\n')).filter(
 		(n) => !allowed.has(n)
 	);
 }
 
+/** Algo que parece una etiqueta HTML: `<a …>`, `</p>`, `<br/>`, `<!-- -->`. */
+const HTML_TAG_RE = /<\/?[a-z!?][^<>]*>/i;
+
+/** Color de los links de las plantillas (el `MAIL_COLORS.link` de src/lib/server/email/layout.js). */
+export const TEMPLATE_LINK_COLOR = 'hsl(262,90%,45%)';
+
+/** Un link: `[texto](dirección)`, la dirección sin espacios ni paréntesis. */
+const LINK_RE = /\[([^[\]\n]+)\]\(([^\s()]+)\)/g;
+/** Lo que parece un link, para validar: la dirección hasta el primer espacio o `)`. */
+const LINK_LIKE_RE = /\[[^[\]\n]+\]\(([^\s)]*)/g;
+/** Las direcciones que puede tener un link. */
+const SAFE_URL_RE = /^(?:https?:\/\/[^\s<>"'`]+|mailto:[^\s<>"'`]+|tel:\+?[0-9][0-9().-]*)$/i;
+
+/**
+ * ¿Un link puede ir a esta dirección? Solo `https://`, `http://`, `mailto:` y `tel:`.
+ * @param {string} url
+ */
+export function isSafeLinkUrl(url) {
+	return SAFE_URL_RE.test(String(url ?? ''));
+}
+
+/** El error de un link a una dirección que no se puede usar. */
+export const LINK_ERROR =
+	'Los links solo pueden ir a direcciones que empiezan con https://, http://, mailto: o tel: (así: [texto](https://…)).';
+
+/**
+ * Valida un texto en el formato seguro: largo, sin HTML, solo esas variables, llaves cerradas y,
+ * si `links`, links solo a direcciones permitidas (la dirección puede ser una `{{variable}}`
+ * sola: su valor se revisa al armar el mail). `null` si está bien.
+ *
+ * @param {string} text ya limpio (no vacío)
+ * @param {{ max: number, vars: readonly string[], links?: boolean }} opts
+ * @returns {string | null}
+ */
+export function safeTextError(text, { max, vars, links = true }) {
+	if (text.length > max) return `Hasta ${max} caracteres.`;
+	if (HTML_TAG_RE.test(text))
+		return 'No se puede usar HTML: escribí texto común (para negrita, **así**; para un dato, una {{variable}}).';
+	const allowed = new Set(vars);
+	const unknown = findVariables(text).filter((n) => !allowed.has(n));
+	if (unknown.length)
+		return (
+			`${unknown.length === 1 ? 'Esta variable no existe' : 'Estas variables no existen'} en este mail: ` +
+			unknown.map((n) => `{{${n}}}`).join(', ') +
+			'.'
+		);
+	if (/\{\{|\}\}/.test(text.replace(VAR_RE, ''))) return 'Hay llaves {{ }} sin cerrar.';
+	if (links) {
+		for (const m of text.matchAll(LINK_LIKE_RE)) {
+			const url = m[1].trim();
+			const onlyVar = /^\{\{\s*[^{}\s]+\s*\}\}$/.test(url);
+			if (!onlyVar && !isSafeLinkUrl(url)) return LINK_ERROR;
+		}
+	}
+	return null;
+}
+
 /**
  * Valida y limpia una plantilla del formulario.
+ *
+ * - En la plantilla general (`optional: false`), asunto, título y texto no pueden quedar vacíos.
+ * - Por evento (`optional: true`), todo puede quedar vacío: vacío = lo de la plantilla general.
+ * - Las partes opcionales siempre pueden quedar vacías. Las que ese mail no tiene quedan vacías.
+ *
  * @param {TemplateId} id
  * @param {Record<string, unknown>} form
- * @returns {{ ok: true, value: TemplateText } | { ok: false, errors: Partial<Record<keyof TemplateText, string>>, value: TemplateText }}
+ * @param {{ optional?: boolean }} [opts]
+ * @returns {{ ok: true, value: TemplateValue } | { ok: false, errors: Partial<Record<TemplateKey, string>>, value: TemplateValue }}
  */
-export function validateTemplate(id, form) {
+export function validateTemplate(id, form, { optional = false } = {}) {
+	/** @param {unknown} v */
+	const line = (v) =>
+		String(v ?? '')
+			.replace(/[\r\n\t]+/g, ' ')
+			.trim();
+	const keys = new Set(templateKeys(id));
+	/** @type {TemplateValue} */
 	const value = {
-		subject: String(form.subject ?? '')
-			.replace(/[\r\n\t]+/g, ' ')
-			.trim(),
-		heading: String(form.heading ?? '')
-			.replace(/[\r\n\t]+/g, ' ')
-			.trim(),
+		subject: line(form.subject),
+		heading: line(form.heading),
 		body: String(form.body ?? '')
 			.replace(/\r\n?/g, '\n')
 			.replace(/\n{3,}/g, '\n\n')
-			.trim()
+			.trim(),
+		...Object.fromEntries(
+			TEMPLATE_EXTRAS.filter((k) => keys.has(k))
+				.map((k) => [k, line(form[k])])
+				.filter(([, v]) => v)
+		)
 	};
-	/** @type {Partial<Record<keyof TemplateText, string>>} */
+	/** @type {Partial<Record<TemplateKey, string>>} */
 	const errors = {};
 	if (!templateDef(id)) return { ok: false, errors: { subject: 'No existe ese mail.' }, value };
-	for (const key of /** @type {const} */ (['subject', 'heading', 'body'])) {
-		if (!value[key]) errors[key] = 'No puede quedar vacío.';
-		else if (value[key].length > TEMPLATE_LIMITS[key])
-			errors[key] = `Hasta ${TEMPLATE_LIMITS[key]} caracteres.`;
-		else {
-			const unknown = unknownVariables(id, { [key]: value[key] });
-			if (unknown.length)
-				errors[key] =
-					`${unknown.length === 1 ? 'Esta variable no existe' : 'Estas variables no existen'} en este mail: ` +
-					unknown.map((n) => `{{${n}}}`).join(', ') +
-					'.';
-			else if (/\{\{|\}\}/.test(value[key].replace(VAR_RE, '')))
-				errors[key] = 'Hay llaves {{ }} sin cerrar.';
+	const vars = templateDef(id)?.vars.map((v) => v.name) ?? [];
+	for (const key of TEMPLATE_KEYS) {
+		const required = !optional && TEMPLATE_MAIN.includes(/** @type {any} */ (key));
+		const text = value[key] ?? '';
+		if (!text) {
+			if (required) errors[key] = 'No puede quedar vacío.';
+			continue;
 		}
+		// En el asunto los links no se interpretan (se ven tal cual).
+		const error = safeTextError(text, {
+			max: TEMPLATE_LIMITS[key],
+			vars,
+			links: key !== 'subject'
+		});
+		if (error) errors[key] = error;
 	}
 	return Object.keys(errors).length ? { ok: false, errors, value } : { ok: true, value };
 }
@@ -238,34 +441,76 @@ function fill(text, vars, map = (v) => v) {
 }
 
 /**
- * Texto plano (asunto y versión de texto del mail): sin `**`.
+ * Las variables reemplazadas por marcadores (`\u0000N\u0000`), para que su valor nunca se
+ * interprete (ni HTML, ni `**`, ni un link), y cómo volver a poner los valores.
  * @param {string} text
  * @param {Record<string, string | number>} vars
  */
-export function renderPlain(text, vars) {
-	return fill(String(text ?? '').replace(/\*\*/g, ''), vars);
+function marked(text, vars) {
+	/** @type {string[]} */
+	const values = [];
+	const out = fill(text, vars, (v) => {
+		values.push(v);
+		return `\u0000${values.length - 1}\u0000`;
+	});
+	/** @param {string} t @param {(v: string) => string} [map] */
+	const unmark = (t, map = (v) => v) =>
+		// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
+		t.replace(/\u0000(\d+)\u0000/g, (_, i) => map(values[Number(i)]));
+	return { text: out, unmark };
 }
 
 /**
- * Una línea en HTML: todo escapado, `**negrita**` y saltos de línea como <br>.
+ * Texto plano (asunto y versión de texto del mail): sin `**`. Con `links`, cada link
+ * `[texto](dirección)` a una dirección permitida sale como «texto (dirección)»; sin `links` (el
+ * asunto), tal cual.
+ * @param {string} text
+ * @param {Record<string, string | number>} vars
+ * @param {{ links?: boolean }} [opts]
+ */
+export function renderPlain(text, vars, { links = false } = {}) {
+	const clean = String(text ?? '').replace(/\*\*/g, '');
+	if (!links) return fill(clean, vars);
+	const m = marked(clean, vars);
+	return m.unmark(
+		m.text.replace(LINK_RE, (all, label, url) => {
+			const real = m.unmark(url);
+			return isSafeLinkUrl(real) ? `${label} (${real})` : all;
+		})
+	);
+}
+
+/**
+ * Una línea en HTML: todo escapado, `**negrita**`, links a direcciones permitidas y saltos de
+ * línea como <br>.
  * Las variables se ponen al final (con marcadores), así su valor nunca se interpreta: ni HTML
  * ni `**`.
  * @param {string} text
  * @param {Record<string, string | number>} vars
  */
 export function renderInlineHtml(text, vars) {
+	const m = marked(String(text ?? ''), vars);
+	// Los links a direcciones permitidas, con marcadores (`\u0001N\u0002` … `\u0001\u0002`) que
+	// el escape no toca; los demás quedan como texto.
 	/** @type {string[]} */
-	const values = [];
-	const marked = fill(text, vars, (v) => {
-		values.push(v);
-		return `\u0000${values.length - 1}\u0000`;
+	const urls = [];
+	const withLinks = m.text.replace(LINK_RE, (all, label, url) => {
+		const real = m.unmark(url);
+		if (!isSafeLinkUrl(real)) return all;
+		urls.push(real);
+		return `\u0001${urls.length - 1}\u0002${label}\u0001\u0002`;
 	});
-	return (
-		escapeHtml(marked)
+	return m.unmark(
+		escapeHtml(withLinks)
 			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 			.replace(/\n/g, '<br>')
-			// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
-			.replace(/\u0000(\d+)\u0000/g, (_, i) => escapeHtml(values[Number(i)]))
+			// eslint-disable-next-line no-control-regex -- marcadores de los links
+			.replace(/\u0001(\d+)\u0002/g, (_, i) => {
+				return `<a href="${escapeHtml(urls[Number(i)])}" style="color:${TEMPLATE_LINK_COLOR};">`;
+			})
+			// eslint-disable-next-line no-control-regex -- marcadores de los links
+			.replace(/\u0001\u0002/g, '</a>'),
+		escapeHtml
 	);
 }
 

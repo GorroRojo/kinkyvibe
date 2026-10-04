@@ -2,9 +2,9 @@
 
 ## Qué hace
 
-Dos cosas, las dos detrás del interruptor **`personas_eventos`** (Ajustes → Interruptores,
-apagado por defecto; variable `PERSONAS_EVENTOS_ENABLED`: `1` lo fuerza prendido, `0` apagado).
-Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cambian.
+Dos cosas, siempre prendidas (el interruptor `personas_eventos` quedó fijo,
+[interruptores.md](interruptores.md); la variable `PERSONAS_EVENTOS_ENABLED` ya no hace nada).
+Sin base, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cambian.
 
 1. **Personas con rol (B7).** Un evento o una publicación de material lista personas con su rol
    («Organiza: Colectivo de Prueba»). Cada rol apunta a un **perfil** de persona o de proyecto
@@ -27,9 +27,9 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
      que carga une admin y los importados nacen aprobados; los de una cuenta esperan a une admin;
   3. es una persona o un proyecto (`profileKindOf()` de
      `src/lib/server/objects/types/perfil.js`, que lee el viejo `grupo` como proyecto). Los
-     lugares no van como personas: van en «Sucede en» (`event_venues`, ver amigues.md);
-  4. el interruptor `perfiles_publicos` está prendido (`profilesSwitchOn()`): sin él, /amigues
-     muestra las fichas `.md` y el link no tendría a dónde ir.
+     lugares no van como personas: van en «Sucede en» (edge `lugar`, ver amigues.md);
+  4. hay base (los interruptores `perfiles_publicos` y `personas_eventos` quedaron fijos): el
+     link lleva a la página del perfil en /amigues.
 
   Si no, ese perfil no aparece en absoluto (ni «perfil oculto»). Todo eso vive en un solo lugar:
   `src/lib/server/personas/index.js`.
@@ -71,17 +71,19 @@ personas:
   editan juntas al crear un evento, al editarlo, en material y en la wiki. Un buscador como el de
   «Organizan» (fichas de amigues, perfiles de la base o un nombre libre → «Agregar») y cada persona
   en una fila con su rol (Organiza en eventos y Autore en material es el de quien se suma), para
-  subir, bajar o sacar. Sin el interruptor, la sección es el «Organizan» de siempre (sin roles).
+  subir, bajar o sacar. Sin base, la sección es el «Organizan» de siempre (sin roles).
   Guardar valida forma, perfil o nombre y rol («Personas, fila 1: elegí un perfil o escribí un
   nombre»); lo que el archivo ya tenía mal no bloquea guardar otros cambios.
 - **Dónde se guarda.** En los `.md` no cambia nada: los nombres con el rol de autores (Organiza en
   eventos, Autore en material y wiki) van a `authors:` y el resto a `personas:`, así que un `.md`
   sin cambios en las personas queda igual, byte a byte. En la base (`contenido_db`) es **una sola
-  lista** en `data.personas`: `[{ profile?, name?, role }]` (`profile` es la dirección del perfil,
-  como `perfil:`; `name`, un nombre). Las páginas, las tarjetas, el `.ics`, el RSS, la búsqueda y
-  «Participa en» siguen leyendo `authors` y `personas` de la metadata, que para los posts de la
-  base se arma desde esa lista (`authors` = los nombres con el rol de autores, en orden). El mapa
-  está en un solo lugar, con pruebas de ida y vuelta: `src/lib/utils/personasList.js`. Lo importado
+  lista**, `[{ profile?, name?, role }]` (`profile` es la dirección del perfil, como `perfil:`;
+  `name`, un nombre): en los eventos y el material, los perfiles van como edges (abajo) y el resto
+  en `data.personas`. Las páginas, las tarjetas, el `.ics`,
+  el RSS, la búsqueda y «Participa en» siguen leyendo `authors` y `personas` de la metadata, que
+  para los posts de la base se arma desde esa lista (`authors` = los nombres con el rol de autores,
+  en orden). El mapa está en un solo lugar, con pruebas de ida y vuelta:
+  `src/lib/utils/personasList.js`. Lo importado
   antes (con `data.authors` y `extra.personas`) se lee igual y pasa a la lista única la próxima vez
   que se guarda o se vuelve a importar (no hace falta migrar nada).
 - **Un perfil con el rol Organiza** que se suma desde los perfiles de la base va a `personas:`
@@ -93,15 +95,23 @@ personas:
   (`?/addRole`): solo admins, la misma validación (un rol repetido: «… ya está en la lista: elegilo
   de ahí.»), el mismo registro de actividad (`persona_role.add`) y la protección de SvelteKit contra
   pedidos de otros sitios.
-- **¿Por qué no edges?** Un edge une dos objetos, y los eventos todavía son `.md`. El tipo `evento`
-  ya declara el edge `persona` (→ `perfil`, `data: { roles: [...] }`) y `personasToEdges()` arma
-  exactamente esa forma: cuando los eventos pasen a la base, cada `personas:` se convierte en edges
-  con `saveObject()` y estas lecturas pasan a `getEdges()`.
-- La wiki se prerenderiza (sin base al compilar): ahí el frontmatter se guarda pero la página no
-  muestra personas.
+- **Edges en la base (eventos y material).** En un evento o un material de la base, cada perfil de la lista es un **edge
+  `persona`** (evento o material → perfil), no una dirección en `data` (regla 4 de [objetos.md](objetos.md);
+  decisión de gorrite, «Contenido solo en la base», paso 3): un edge por perfil con
+  `data: { roles: [...], at: [...] }`, cada rol con su lugar en la lista. En `data.personas`
+  quedan solo los nombres sin perfil (y una dirección que no es de ningún perfil vivo: no hay a qué
+  apuntar), en su orden. Guardar (panel o importación) parte la lista y leer la vuelve a armar
+  igual, en el mismo orden, así la metadata, el `.md` que arma la base, la búsqueda y «Participa
+  en» no cambian: `src/lib/server/contenido/personasEdges.js`. La migración
+  `0035_relaciones_edges.sql` pasó a edges lo que ya estaba guardado en los eventos, y la
+  `0043_material_personas_edges.sql`, en el material. Las lecturas internas traen los edges de
+  cualquier perfil, como antes estaba la dirección en el JSON: qué se muestra lo sigue decidiendo
+  `personas/index.js`.
+- La wiki sale de la base (el texto de la wiki de cada etiqueta): la página no muestra personas
+  (sus autores, `wiki_authors`, sí cuentan para «Participa en»).
 - Links: `profileHref()` → `/amigues/<dirección>`: la vieja si el perfil se importó de una ficha
   `.md` (`profile_sources.legacy_slug`, como `urlSlugOf()` de amigues), si no la del objeto. La
-  lista «Participa en» aparece en la página del perfil de la base (`perfiles_publicos`), buscada
+  lista «Participa en» aparece en la página del perfil de la base, buscada
   por la dirección del objeto (`objectSlug` de `profilePageData`).
 
 ### Preguntas
@@ -147,11 +157,10 @@ en el `personas:` de ese evento. Solo las de sus eventos.
   nombre de quien compró y lo que respondió. Ni mail, ni teléfono, ni DNI, ni montos. Las reservas
   sin pagar, vencidas o reembolsadas no aparecen (les admins las siguen viendo en Órdenes).
 - **Quién entra (todo en el servidor, `requireOrganizer` en `src/lib/server/personas/organiza.js`):**
-  1. interruptor `cuentas` prendido, sesión de cuenta (si no, a `/ingresar?next=…`) y el permiso
-     «puede tener perfiles»: lo mismo que el resto de Mi rincón (`requireMember`);
-  2. interruptor `personas_eventos` prendido;
-  3. la cuenta gestiona el perfil (`getManagedProfile`);
-  4. el evento está publicado y lista ese perfil con el rol Organiza (sin importar mayúsculas).
+  1. sesión de cuenta (si no, a `/ingresar?next=…`) y el permiso «puede tener perfiles»: lo mismo
+     que el resto de Mi rincón (`requireMember`);
+  2. la cuenta gestiona el perfil (`getManagedProfile`);
+  3. el evento está publicado y lista ese perfil con el rol Organiza (sin importar mayúsculas).
 
   Si algo no se cumple: **404, no 403**, así no se sabe si el evento existe o tiene respuestas.
   Gestionar un perfil con otro rol en el evento (por ejemplo Facilita) no alcanza.
@@ -192,7 +201,6 @@ npx vitest run src/lib/utils/personas.test.js src/lib/utils/personasList.test.js
   "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"
 ```
 
-A mano: `PERSONAS_EVENTOS_ENABLED=1 PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev`,
-cargar
+A mano: `npm run dev`, cargar
 `scripts/demo/n3-personas.sql` en la base local
 (`npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-personas.sql`).

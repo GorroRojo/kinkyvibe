@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Gracias - KinkyVibe.ar</title>
+	<title>Gracias · Kinky Vibe</title>
 	<meta name="robots" content="noindex, nofollow" />
 	<meta name="referrer" content="no-referrer" />
 </svelte:head>
@@ -20,7 +20,7 @@
 		<p>
 			Recibimos tus <strong>{formatARS(data.tip.amount)}</strong
 			>{#if data.tip.destination === 'fondo'}
-				para el Fondo KinkyVibe{/if}. Nos ayuda un montón a seguir haciendo material y encuentros
+				para el Fondo Kinky Vibe{/if}. Nos ayuda un montón a seguir haciendo material y encuentros
 			para todes.
 		</p>
 	{:else if status === 'pending'}

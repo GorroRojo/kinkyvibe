@@ -56,12 +56,12 @@ const icsDate = (v) =>
 
 const MAIN_ROUTES = [
 	// The home <h1> is a hidden h-card (microformats), so check the first visible section title.
-	{ path: '/', title: /^KinkyVibe\.ar$/, heading: 'Talleres y eventos', level: 2 },
-	{ path: '/calendario', title: /Calendario/ },
+	{ path: '/', title: /^Kinky Vibe$/, heading: 'Talleres y eventos', level: 2 },
+	{ path: '/calendario', title: /^Calendario · Kinky Vibe$/ },
 	{ path: '/material', title: /Artículos, links y descargables/ },
 	{ path: '/amigues', title: /Emprendimientos y profesionales/ },
 	{ path: '/wiki', title: /Kinkipedia/, heading: 'Kinkipedia' },
-	{ path: '/todo', title: /KinkyVibe/ },
+	{ path: '/todo', title: /^Kinky Vibe$/ },
 	{ path: '/calendario/someter-2026-09', title: /Someter/, heading: /Someter/ },
 	{ path: '/material/6-tips-para-tops', title: /6 tips para tops/, heading: '6 tips para tops' },
 	{ path: '/amigues/AUCH', title: /AUCH/, heading: /AUCH/ },
@@ -130,8 +130,8 @@ test.describe('calendario', () => {
 		await expect(start).toHaveAttribute('datetime', '2026-09-11T19:30-03:00');
 		await expect(start).toContainText('11 de septiembre de 2026');
 		// Always 24-hour Argentina time, whatever the browser's ICU data (it used to print
-		// "7:30 p. m.hs" where es-AR defaults to a 12-hour clock).
-		await expect(start).toContainText('11 de septiembre de 2026 a las 19:30 hs');
+		// "7:30 p. m.hs" where es-AR defaults to a 12-hour clock), and no «hs» (UI review).
+		await expect(start).toHaveText('viernes 11 de septiembre de 2026, 19:30');
 		await context.close();
 	});
 
@@ -139,7 +139,7 @@ test.describe('calendario', () => {
 	// Cloudflare), so crawlers/link previews saw 22:30 for a 19:30 -03:00 event.
 	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({ request }) => {
 		const html = await (await request.get('/calendario/someter-2026-09')).text();
-		expect(html).toMatch(/class="dt-start[^"]*"[^>]*>[^<]*a las 19:30 hs</);
+		expect(html).toMatch(/class="dt-start[^"]*"[^>]*>[^<]*de 2026, 19:30</);
 	});
 
 	// Regression test: the viewed month used to live in a module-level store, so one
@@ -260,6 +260,13 @@ test.describe('errores', () => {
 			expect(res.status()).toBe(404);
 		});
 	}
+
+	// La galería de componentes solo existe en previews y en dev (docs/estilo.md): este build no
+	// tiene rama de deploy, como producción.
+	test('/estilo (galería de componentes) devuelve 404 fuera de un preview', async ({ request }) => {
+		const res = await request.get('/estilo');
+		expect(res.status()).toBe(404);
+	});
 });
 
 test.describe('auth', () => {

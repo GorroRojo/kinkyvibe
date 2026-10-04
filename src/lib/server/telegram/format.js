@@ -137,7 +137,7 @@ export function formatHelp(origin, { accounts = false } = {}) {
 			'/desvincular: desconectá este chat\n'
 		: '';
 	return (
-		'Hola, soy el bot de KinkyVibe. Podés pedirme:\n\n' +
+		'Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n' +
 		'/proximos: los próximos eventos (tocá uno para ver el detalle)\n' +
 		'/evento: elegí un evento de la lista\n' +
 		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
@@ -161,7 +161,7 @@ export function formatFollowNotice({ kind, title, start, url }) {
 /** @param {string} origin */
 export function formatLinked(origin) {
 	return (
-		'Listo: este chat quedó conectado a tu cuenta de KinkyVibe. ' +
+		'Listo: este chat quedó conectado a tu cuenta de Kinky Vibe. ' +
 		`Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: ${escapeHtml(origin)}/mi-rincon/sigo\n\n` +
 		'Para pausarlos: /silenciar. Para desconectar: /desvincular.'
 	);

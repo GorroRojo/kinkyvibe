@@ -10,6 +10,7 @@
 	en una grilla según el ancho del editor (container queries), no de la ventana.
 -->
 <script>
+	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
@@ -122,7 +123,6 @@
 			checked={state.enabled}
 			on:change={(e) => setEnabled(e.currentTarget.checked)}
 		/>
-		<span class="track" aria-hidden="true"></span>
 		<span>
 			<strong>Vender entradas por el sitio</strong>
 			<small
@@ -135,13 +135,13 @@
 	<p class="note fondo" id="{idPrefix}-tickets-fondo" aria-live="polite">
 		{#if fondo}
 			💜 Tiene la etiqueta KinkyVibe: se aplica solo el <strong
-				>descuento del Fondo KinkyVibe</strong
+				>descuento del Fondo Kinky Vibe</strong
 			>
 			(el porcentaje del mes de fondo.kinkyvibe.ar) y se ofrecen las opciones solidarias. No hay nada
 			que cargar.
 		{:else}
-			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo KinkyVibe</strong> (se cobra el precio
-			de lista). Para usarlo, prendé «Lo organiza KinkyVibe» en Etiquetas.
+			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el
+			precio de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
 		{/if}
 	</p>
 
@@ -178,11 +178,11 @@
 							>
 							<button
 								type="button"
-								class="link remove"
+								class="kv-link remove"
 								on:click={() => removeType(i)}
 								disabled={taken > 0}
 								title={taken > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
-								>Quitar</button
+								><X size={16} aria-hidden="true" /> Sacar</button
 							>
 						</span>
 					</div>
@@ -452,14 +452,12 @@
 						>
 					</label>
 					<small
-						>La página del evento avisa que también hay entradas en la puerta, y en el modo puerta
-						se puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
+						>La página del evento avisa que también hay entradas en la puerta, y en Puerta se puede
+						«Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
 							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
 					>
 				{:else}
-					<small
-						>La página del evento dice «Solo anticipadas» y el modo puerta no ofrece vender.</small
-					>
+					<small>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small>
 				{/if}
 			</fieldset>
 		{/if}
@@ -508,7 +506,7 @@
 		flex-direction: column;
 		gap: 0.5em;
 		background: var(--surface-2, #faf6fc);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 0.8em 0.8em;
 		min-width: 0;
 	}
@@ -713,49 +711,12 @@
 			outline-offset: 1px;
 		}
 	}
+	/* el interruptor en sí es el compartido (style.scss, `role="switch"`) */
 	.switch {
 		display: flex;
 		align-items: center;
 		gap: 0.7em;
 		cursor: pointer;
-		position: relative;
-		input {
-			position: absolute;
-			opacity: 0;
-			width: 1px;
-			height: 1px;
-			margin: 0;
-		}
-		.track {
-			flex: none;
-			width: 2.6em;
-			height: 1.5em;
-			border-radius: 1em;
-			background: #ccc;
-			position: relative;
-			transition: background 150ms;
-			&::after {
-				content: '';
-				position: absolute;
-				top: 0.2em;
-				left: 0.2em;
-				width: 1.1em;
-				height: 1.1em;
-				border-radius: 50%;
-				background: var(--surface, white);
-				transition: transform 150ms;
-			}
-		}
-		input:checked + .track {
-			background: var(--1);
-			&::after {
-				transform: translateX(1.1em);
-			}
-		}
-		input:focus-visible + .track {
-			outline: 3px solid var(--2-dark, #333);
-			outline-offset: 2px;
-		}
 		> span:last-child {
 			display: flex;
 			flex-direction: column;

@@ -1,10 +1,9 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
-	import { applyAction, deserialize, enhance } from '$app/forms';
+	import { argDateLog } from '$lib/utils/dates.js';
+	import { applyAction, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
-	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
-	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import { PERSONAS_KEY } from '$lib/utils/personas.js';
 	import { authorRoleOf, validatePersonaItems } from '$lib/utils/personasList.js';
@@ -25,7 +24,6 @@
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
-	import { editEventImage, emptyUpload } from '$lib/admin/imageState.js';
 	import {
 		datosFieldId,
 		datosFields,
@@ -94,7 +92,7 @@
 
 	const sha = data.post.sha ?? '';
 	const path = data.post.path ?? '';
-	/** Con el interruptor `contenido_db`, este post se guarda en la base (se ve enseguida). */
+	/** Los eventos y el material se guardan en la base (se ven enseguida). */
 	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
@@ -123,8 +121,8 @@
 	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
 
-	/* ---------- lugar (eventos): en `event_venues`, no en el archivo ---------- */
-	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice, flagOn: boolean } | null} */
+	/* ---------- lugar (eventos): edge `lugar` del evento en la base, no en el archivo ---------- */
+	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice } | null} */
 	const venuePicker = category === 'calendario' ? (data.venuePicker ?? null) : null;
 	const savedVenue = venuePicker?.current ?? NO_VENUE;
 	let venue = { ...savedVenue };
@@ -188,7 +186,7 @@
 	const hasAuthors = category !== 'amigues';
 
 	/* ---------- personas: quienes organizan o escriben y el resto, en una sola lista ---------- */
-	// `data.personas` ({ roles, profiles }) llega solo con el interruptor personas_eventos. Apagado,
+	// `data.personas` ({ roles, profiles }) llega con base. Sin base,
 	// la sección es el «Organizan» / «Autores» de siempre (sin roles) y `personas:` no se toca. Se
 	// guarda en `authors:` y `personas:` como siempre ($lib/utils/personasPicker.js); en la base,
 	// como una sola lista.
@@ -234,52 +232,12 @@
 	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
 
 	/* ---------- image (events only) ---------- */
+	// El selector de imágenes (docs/imagenes.md): la imagen elegida va como edge `portada` en el
+	// mismo guardado; al elegir o sacar una, se saca también la vieja del repo (`featured`).
 	const image = data.image;
-	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
-	let upload = emptyUpload();
-	/** @type {ImageSection | undefined} */
-	let imageSection;
-	/** @type {''|'todas'|'esta'} */
-	let imageScope = '';
-	/** @type {Array<{slug: string, title: string, start: string}> | null} */
-	let affected = null;
-	let affectedError = '';
-	$: ({
-		askScope,
-		scope,
-		sharedNewName,
-		newFeatured,
-		problem: scopeProblem
-	} = editEventImage({
-		image,
-		upload,
-		imageScope
-	}));
-	$: if (askScope && scope === 'todas' && affected === null && !affectedError) loadAffected();
-
-	function clearUpload() {
-		imageSection?.clear();
-		imageScope = '';
-	}
-
-	async function loadAffected() {
-		try {
-			const body = new FormData();
-			body.set('asset', image?.featured ?? '');
-			const response = await fetch('?/afectados', {
-				method: 'POST',
-				body,
-				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
-			});
-			/** @type {any} */
-			const result = deserialize(await response.text());
-			if (result.type === 'success') affected = result.data?.affected ?? [];
-			else
-				affectedError = result.data?.error ?? 'No pudimos listar los eventos que usan esta imagen.';
-		} catch (e) {
-			affectedError = 'No pudimos listar los eventos que usan esta imagen.';
-		}
-	}
+	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
+	let pickedImage = data.image?.current ?? null;
+	let imageTouched = false;
 
 	/* ---------- result ---------- */
 	$: problems = parseError
@@ -292,24 +250,23 @@
 					...(isEvent ? scheduleProblems(schedule) : []),
 					mapError,
 					linkError,
-					upload.error,
-					scopeProblem,
 					...tagErrors,
 					...newTicketErrors.map((e) => `Entradas: ${e}`),
 					...newPeopleErrors
 				].filter(Boolean)
 			);
 
-	$: content = parseError ? rawText : build(allValues, tags, people, body, newFeatured, tickets);
+	$: content = parseError ? rawText : build(allValues, tags, people, body, imageTouched, tickets);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
 	 * @param {typeof people} ps las personas (van a `authors:` y, con el interruptor, `personas:`)
 	 * @param {string} b
-	 * @param {string} [featured] new `featured` ('' = unchanged); the server sets the final one
+	 * @param {boolean} [dropFeatured] se eligió o se sacó una imagen en el selector: la vieja del
+	 *   repo (`featured`) se saca (la imagen pasa a ser el edge `portada`)
 	 * @param {typeof tickets} [tk] ticket sales form (events only)
 	 */
-	function build(v, t, ps, b, featured = '', tk = initialTickets) {
+	function build(v, t, ps, b, dropFeatured = false, tk = initialTickets) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -325,7 +282,7 @@
 					remove: REMOVE
 				})
 			);
-		if (featured) changes.featured = /^\d+$/.test(featured) ? Number(featured) : featured;
+		if (dropFeatured) changes.featured = REMOVE;
 		try {
 			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
 			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
@@ -345,10 +302,10 @@
 			);
 	// Cambiar solo el «Lugar» también se guarda, por el mismo camino que cualquier cambio: el
 	// archivo va con la fecha de «Actualizado» de hoy (decisión de gorrite), y nada más.
-	$: changed = content !== unchanged || Boolean(upload.ext) || venueChanged;
+	$: changed = content !== unchanged || imageTouched || venueChanged;
 
 	/* ---------- unsaved changes (local draft + warning before leaving) ---------- */
-	// La imagen elegida no entra en el borrador (es un archivo): el resto sí.
+	// La imagen elegida no entra en el borrador: el resto sí.
 	$: draft = { schedule, values, tagRules, freeTags, people, tickets, body, rawText, venue };
 	/** @param {any} d */
 	function restoreDraft(d) {
@@ -400,16 +357,6 @@
 			}
 		};
 	}
-
-	// La hora del «guardado»: 24 h, hora de Argentina (es-AR a secas puede salir con «p. m.»).
-	const savedAtFmt = argFormat({
-		year: 'numeric',
-		month: 'numeric',
-		day: 'numeric',
-		hour: 'numeric',
-		minute: 'numeric',
-		second: 'numeric'
-	});
 </script>
 
 <svelte:head>
@@ -504,99 +451,16 @@
 			{/if}
 
 			{#if image}
-				<ImageSection
-					bind:this={imageSection}
-					bind:upload
-					src={upload.url || image.url}
-					inputId="edit-image"
+				<ImagePicker
+					bind:value={pickedImage}
+					legacyUrl={image.legacyUrl}
+					target={image.target}
+					contextLabel="De este evento"
+					idPrefix="edit-image"
 					form="edit-form"
-					buttonText={upload.ext ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
-					maxImageBytes={data.maxImageBytes}
-				>
-					<svelte:fragment slot="before">
-						{#if upload.ext}
-							<p class="hint">Nueva imagen: {upload.name}</p>
-						{:else if image.shared}
-							<p class="hint">
-								Usa una imagen compartida con otras ediciones: <code>{image.featured}</code>.
-							</p>
-						{:else if image.featured}
-							<p class="hint">Usa una imagen propia (<code>{image.folder}</code>).</p>
-						{/if}
-						{#if askScope}
-							<ImageScopeChoice
-								bind:scope={imageScope}
-								assetName={image.featured}
-								newName={sharedNewName}
-								ownFolder={image.folder}
-								idPrefix="edit"
-								invalid={problems.length > 0}
-							/>
-						{/if}
-					</svelte:fragment>
-					{#if !upload.ext}
-						<p class="note" id="edit-image-where">
-							{#if image.shared}
-								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
-								este evento o solo para esta.
-							{:else}
-								📁 Una imagen nueva se guarda solo para este evento (en <code>{image.folder}</code
-								>).
-							{/if}
-						</p>
-					{/if}
-					{#if upload.ext}
-						<p class="note" id="edit-image-case">
-							{#if scope === 'todas'}
-								🖼️ <strong>Todas las ediciones:</strong> se reemplaza la imagen compartida
-								<code>{image.featured}</code>{#if sharedNewName !== image.featured}
-									{' '}(pasa a llamarse <code>{sharedNewName}</code>; se borra la vieja y se
-									actualizan los eventos que la usaban){/if}.
-							{:else if askScope && !imageScope}
-								Elegí arriba si es para todas las ediciones o solo para esta.
-							{:else}
-								📁 <strong>Solo este evento:</strong> se guarda como
-								<code>{image.folder}{image.nextNumber}.{upload.ext}</code>{#if image.shared}; la
-									imagen compartida y los otros eventos no cambian{/if}.
-							{/if}
-						</p>
-						{#if scope === 'todas'}
-							<div class="affected" id="edit-affected">
-								{#if affected}
-									<p>
-										<strong
-											>{affected.length === 1
-												? 'Este evento usa'
-												: `Estos ${affected.length} eventos usan`} la imagen compartida y van a mostrar
-											la nueva{sharedNewName !== image.featured
-												? ' (se actualiza su archivo)'
-												: ''}:</strong
-										>
-									</p>
-									<ul>
-										{#each affected as ev}
-											<li>
-												{#if ev.slug === postID}
-													<strong>{ev.title || ev.slug}</strong> (este)
-												{:else}
-													<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
-														>{ev.title || ev.slug}</a
-													>
-												{/if}
-												<small>{ev.start.slice(0, 10)}</small>
-											</li>
-										{/each}
-									</ul>
-								{:else if affectedError}
-									<p>{affectedError}</p>
-								{:else}
-									<p>Buscando los eventos que usan esta imagen…</p>
-								{/if}
-							</div>
-						{/if}
-						<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button>
-					{/if}
-				</ImageSection>
+					canDelete
+					on:change={() => (imageTouched = true)}
+				/>
 			{/if}
 
 			<TagsSection
@@ -645,18 +509,10 @@
 		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
-				{savedAtFmt.format(new Date())}
-				{#if form.imageScope === 'todas'}
-					· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-						{' '}({form.affected.length}
-						{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-				{:else if form.imageScope === 'esta'}
-					· La imagen nueva se guardó solo para este evento.
-				{/if}
-				<br />{#if form.savedToDb}Se ve enseguida en el sitio{#if form.publish}; la imagen nueva
-						tarda unos minutos: <PublishStatus
-							pr={form.publish}
-						/>{:else}.{/if}{:else}<PublishStatus pr={form.publish} />{/if}
+				{argDateLog(new Date())}
+				<br />{#if form.savedToDb}Se ve enseguida en el sitio.{:else}<PublishStatus
+						pr={form.publish}
+					/>{/if}
 			</p>
 		{/if}
 
@@ -675,7 +531,6 @@
 			use:enhance={submitSave}
 		>
 			<textarea hidden name="content" value={content}></textarea>
-			<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 			<input type="hidden" name="sha" value={sha} />
 			<input type="hidden" name="eol" value={lineEndingOf(data.post.raw)} />
 			<input type="hidden" name="path" value={path} />
@@ -697,26 +552,6 @@
 
 <style lang="scss">
 	/* Shared form look: $lib/components/admin/admin.scss (class kv-admin). */
-	.affected {
-		background: var(--warn-bg, #fff8e1);
-		color: var(--text, inherit);
-		border-radius: 1em;
-		padding: 0.6em 1em;
-		align-self: stretch;
-		p {
-			margin: 0 0 0.3em;
-		}
-		ul {
-			margin: 0;
-			padding-left: 1.2em;
-			max-height: 16em;
-			overflow: auto;
-		}
-		small {
-			opacity: 0.7;
-			margin-left: 0.3em;
-		}
-	}
 	textarea.raw {
 		font-family: monospace;
 		font-size: var(--step--1);

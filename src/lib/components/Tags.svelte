@@ -1,7 +1,8 @@
 <script>
 	import { flip } from 'svelte/animate';
 	import { scale } from 'svelte/transition';
-	import { filteredTags, tagManager } from '$lib/utils/stores';
+	import { filteredTags } from '$lib/utils/stores';
+	import TagChip from '$lib/components/TagChip.svelte';
 
 	/**@type {string[]}*/
 	export let tags;
@@ -14,15 +15,11 @@
 	).filter((t) => showFilteredTags || !$filteredTags.includes(t));
 </script>
 
+<!-- Chips de etiqueta con el color y el emoji de cada una (TagChip, `.kv-tag`). -->
 <ul>
 	{#each [...new Set(localFilteredTags)] as tag (tag)}
-		{@const config = $tagManager.get(tag)}
-		{@const color = config?.getColor() ?? 'var(--color,var(--1))'}
-		{@const icon = config?.icon ?? ''}
-		<li style:--tag-color={color} in:scale animate:flip>
-			<a href="/todo?tags={tag}" class:card={false}>
-				{icon} {tag}
-			</a>
+		<li in:scale animate:flip>
+			<TagChip {tag} href="/todo?tags={encodeURIComponent(tag)}" />
 		</li>
 	{/each}
 </ul>
@@ -31,30 +28,20 @@
 	ul {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2em;
-		font-size: 0.8em;
+		gap: var(--space-3xs);
 		padding: 0 0.4em;
-		overflow-x: scroll;
-		overflow-y: hidden;
+		margin: 0;
+		/* sin recortar: los chips se acomodan en filas y su zona de toque (.tap-target) se puede
+		   tocar entera */
 		justify-content: center;
+		list-style: none;
 	}
-	ul::-webkit-scrollbar {
-		display: none;
+	/* en las páginas públicas, un paso más grande que en el panel */
+	ul :global(.kv-tag) {
+		font-size: var(--text-sm);
+		padding: 0.25em 0.8em;
 	}
 	li {
 		display: block;
-		border-radius: 3em;
-		--tag-color: var(--color);
-		background: var(--tag-color, var(--1));
-		padding: 0.5em 0.8em;
-		transition: 50ms;
-	}
-	a {
-		color: white;
-		text-decoration: none;
-	}
-	li:hover {
-		text-decoration: underline;
-		text-decoration-color: white;
 	}
 </style>

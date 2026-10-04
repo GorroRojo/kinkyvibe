@@ -8,6 +8,7 @@ import TicketPurchase from '../TicketPurchase.svelte';
 import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
+import { stripHtmlComments } from '$lib/utils/htmlStrip.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -127,7 +128,7 @@ describe('TicketPurchase', () => {
 		const { body } = render(TicketPurchase, {
 			props: { tickets: { ...tickets, open: false, reason: 'soldout' } }
 		});
-		expect(body).toContain('Entradas agotadas.');
+		expect(body).toMatch(/<p class="closed[^"]*"[^>]*>Agotadas\.<\/p>/);
 		expect(body).not.toContain('<form');
 		expect(body).not.toContain('Pasos de la compra');
 	});
@@ -187,5 +188,17 @@ describe('TicketPurchase con cuenta (datos guardados)', () => {
 		expect(input(body, 'dni')).toContain('value="12"');
 		expect(input(body, 'guardar_datos')).not.toMatch(/\schecked/);
 		expect(input(body, 'recordar_dni')).toMatch(/\schecked/);
+	});
+});
+
+describe('TicketsStep', () => {
+	it('un tipo sin lugar dice «Agotadas» (aunque sea un solo tipo), nunca «Agotada»', async () => {
+		const { default: TicketsStep } = await import('./TicketsStep.svelte');
+		const soldOut = { ...tickets, types: [{ ...tickets.types[0], available: 0, left: 0 }] };
+		const { body } = render(TicketsStep, { props: { tickets: soldOut } });
+		// Sin los comentarios que deja Svelte al renderizar.
+		const html = stripHtmlComments(body);
+		expect(html).toMatch(/<small class="type-left[^"]*">\s*Agotadas\s*<\/small>/);
+		expect(body).not.toMatch(/Agotada(?!s)/);
 	});
 });

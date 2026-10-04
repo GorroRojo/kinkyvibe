@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-	<title>Pago simulado - KinkyVibe.ar</title>
+	<title>Pago simulado · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -21,6 +21,6 @@
 	.wrap {
 		max-width: 36rem;
 		margin: 1em auto;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 </style>

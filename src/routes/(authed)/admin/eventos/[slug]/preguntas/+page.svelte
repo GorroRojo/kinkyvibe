@@ -97,6 +97,6 @@
 	}
 	h3 {
 		margin: 1.2rem 0 0.5rem;
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 </style>

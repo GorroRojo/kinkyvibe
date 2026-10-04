@@ -1,18 +1,20 @@
 <script>
-	import { enhance } from '$app/forms';
+	import { onDestroy } from 'svelte';
+	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
+	import DniReveal from '$lib/components/admin/DniReveal.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
 		ORDER_STATUS,
 		ORDER_STATUS_TONE,
 		PAYMENT_METHOD,
-		formatDni,
+		dniQueryDigits,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -33,12 +35,59 @@
 			: filter === 'pending'
 				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
 				: data.orders.filter((o) => o.status === filter);
+	// El DNI completo no está en la página: las palabras que parecen un DNI se buscan en el
+	// servidor (`?/dniSearch`, devuelve los ids de las órdenes que coinciden). Nombre, email,
+	// referencia y personas se buscan acá.
+	/** @type {Record<string, string[]>} dígitos → ids de las órdenes con ese DNI (o que empieza así) */
+	let dniHits = {};
+	/** @type {Set<string>} */
+	let dniPending = new Set();
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let dniTimer;
+	$: dniWords = [...new Set(words.map(dniQueryDigits).filter(Boolean))];
+	$: scheduleDniSearch(dniWords);
+	/** @param {string[]} list */
+	function scheduleDniSearch(list) {
+		clearTimeout(dniTimer);
+		const missing = list.filter((d) => !(d in dniHits) && !dniPending.has(d));
+		if (missing.length) dniTimer = setTimeout(() => missing.forEach(searchDni), 250);
+	}
+	/** @param {string} digits */
+	async function searchDni(digits) {
+		dniPending = new Set(dniPending).add(digits);
+		try {
+			const body = new FormData();
+			body.set('q', digits);
+			const res = await fetch('?/dniSearch', {
+				method: 'POST',
+				body,
+				headers: { 'x-sveltekit-action': 'true' }
+			});
+			const result = /** @type {any} */ (deserialize(await res.text()));
+			const ids = result.type === 'success' ? result.data?.dniSearch?.ids : null;
+			if (Array.isArray(ids)) dniHits = { ...dniHits, [digits]: ids.map(String) };
+		} catch {
+			// Sin conexión: se busca solo por lo demás.
+		} finally {
+			dniPending.delete(digits);
+			dniPending = new Set(dniPending);
+		}
+	}
+	onDestroy(() => clearTimeout(dniTimer));
+	// Reactiva (lee `dniHits`): así la lista se vuelve a filtrar cuando llega la respuesta.
+	/** @type {(word: string, hay: string, id: string) => boolean} */
+	$: matches = (word, hay, id) => {
+		if (hay.includes(word)) return true;
+		const digits = dniQueryDigits(word);
+		return Boolean(digits && dniHits[digits]?.includes(id));
+	};
+	$: searchingDni = dniWords.some((d) => dniPending.has(d) || !(d in dniHits));
 	$: visible = words.length
 		? byStatus.filter((o) => {
 				const hay = foldSearch(
-					`${o.reference} ${o.name} ${o.email} ${o.dni} ${o.holders.map((h) => h.name).join(' ')}`
+					`${o.reference} ${o.name} ${o.email} ${o.holders.map((h) => h.name).join(' ')}`
 				);
-				return words.every((w) => hay.includes(w));
+				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
 	$: counts = {
@@ -116,7 +165,9 @@
 		</label>
 	</div>
 
-	{#if visible.length === 0}
+	{#if searchingDni}
+		<p class="searching" role="status">Buscando por DNI…</p>
+	{:else if visible.length === 0}
 		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
@@ -124,7 +175,7 @@
 			<li class="order status-{o.status}" id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
-					<span class="dni">DNI {formatDni(o.dni)}</span>
+					<DniReveal orderId={o.id} tail={o.dniTail} {form} />
 					<a href="mailto:{o.email}">{o.email}</a>
 					<Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}
 						><span class="status">{ORDER_STATUS[o.status]}</span></Badge
@@ -235,24 +286,25 @@
 <style>
 	.flash {
 		background: var(--ok-bg);
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0 0 1rem;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.review {
 		background: var(--warn-bg);
-		border-radius: 1rem;
-		padding: 0.6rem 1.1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-s);
 		margin: 0 0 1rem;
 	}
 	.review h2 {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 		margin: 0.3rem 0;
 	}
 	.review ul {
@@ -267,7 +319,7 @@
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		align-items: center;
 	}
 	.filter {
@@ -276,7 +328,7 @@
 		gap: 0.4rem;
 	}
 	.filter select {
-		padding: 0.45rem 0.7rem;
+		padding: 0.45rem var(--space-2xs);
 		min-height: 2.5rem;
 		border-radius: 3em;
 		border: 1px solid var(--field);
@@ -288,7 +340,7 @@
 		gap: 0.4rem;
 		border: 1px solid var(--field);
 		border-radius: 3em;
-		padding: 0 0.9rem;
+		padding: 0 var(--space-xs);
 		flex: 1 1 14rem;
 		max-width: 22rem;
 		color: var(--muted);
@@ -321,16 +373,16 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.order {
 		border: 1px solid var(--line);
 		border-left: 4px solid var(--line);
 		border-radius: var(--card-round);
-		padding: 0.7rem 0.9rem;
+		padding: var(--space-2xs) var(--space-xs);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.status-approved {
 		border-left-color: var(--3);
@@ -342,18 +394,21 @@
 	.who {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.8rem;
+		gap: 0.2rem var(--space-xs);
 		align-items: center;
 		overflow-wrap: anywhere;
 	}
-	.dni,
+	.searching {
+		margin: var(--space-2xs) 0;
+		color: var(--muted);
+	}
 	.ref {
 		font-family: ui-monospace, monospace;
 		white-space: nowrap;
 	}
 	.what,
 	.meta {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.meta {
 		color: var(--muted);
@@ -362,11 +417,11 @@
 		display: inline;
 	}
 	.small {
-		padding: 0.25rem 0.7rem;
-		font-size: 0.82rem;
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 	}
 	.holders {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.holders :global(.in) {
 		color: var(--ok);
@@ -376,7 +431,7 @@
 		background: var(--ok-bg);
 	}
 	.refund {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.refund summary {
 		cursor: pointer;
@@ -385,8 +440,8 @@
 	}
 	.refund-panel {
 		margin-top: 0.4rem;
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--bad-bg);
 	}
 	.refund-panel p {
@@ -399,7 +454,7 @@
 		font-weight: 700;
 		border: 0;
 		border-radius: 2em;
-		padding: 0.6rem 1.1rem;
+		padding: var(--space-2xs) var(--space-s);
 		min-height: 2.75rem;
 		cursor: pointer;
 		background: var(--bad);

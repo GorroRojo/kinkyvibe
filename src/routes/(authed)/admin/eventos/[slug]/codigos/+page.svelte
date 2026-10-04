@@ -23,7 +23,7 @@
 	/** @typedef {(typeof data.codes)[number]} Code */
 	/** @param {Code} c */
 	function codeState(c) {
-		if (!c.active) return 'Inactivo';
+		if (!c.active) return 'Apagado';
 		if (c.ends_at !== null && data.now >= c.ends_at) return 'Vencido';
 		if (c.starts_at !== null && data.now < c.starts_at) return 'Todavía no empieza';
 		if (c.max_uses !== null && c.approved + c.held >= c.max_uses) return 'Sin usos disponibles';
@@ -96,7 +96,7 @@
 										<input type="hidden" name="code" value={c.code} />
 										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
 										<button type="submit" class="kv-btn ghost small">
-											{c.active ? 'Desactivar' : 'Activar'}
+											{c.active ? 'Apagar' : 'Prender'}
 										</button>
 									</form>
 								</td>
@@ -196,39 +196,40 @@
 <style>
 	.grid {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
 		align-items: start;
 	}
 	.flash {
 		background: var(--ok-bg);
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0 0 1rem;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.block {
 		display: block;
 	}
 	button.small {
-		padding: 0.25rem 0.7rem;
-		font-size: 0.82rem;
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 	}
 	.new {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		border: 0;
 		padding: 0;
 		margin: 0;
@@ -246,7 +247,7 @@
 		color: var(--bad);
 	}
 	.field input:not([type='radio']) {
-		padding: 0.55rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		min-height: 2.75rem;
 		box-sizing: border-box;
 		border-radius: 3em;
@@ -265,7 +266,7 @@
 	}
 	.row {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 	}
 	.new .kv-btn {

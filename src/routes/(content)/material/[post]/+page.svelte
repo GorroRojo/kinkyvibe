@@ -4,11 +4,12 @@
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
+	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import Note from '$lib/components/Note.svelte';
-	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -55,7 +56,7 @@
 	}}
 />
 <svelte:head>
-	<title>{data.meta.title} - KinkyVibe.ar</title>
+	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
@@ -150,15 +151,20 @@
 			<div class="kv-texto-libre">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html ownStyle}
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html data.html}
+				{#if data.parts}
+					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+					<ContentParts parts={data.parts} />
+				{:else}
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html data.html}
+				{/if}
 			</div>
 		{:else}
 			<svelte:component this={data.content} />
 		{/if}
 	</div>
 	{#if isKinkyVibePost(data.meta)}
-		<PostSupport propinas={data.propinas} category="material" slug={$page.params.post ?? ''} />
+		<TipBlock category="material" slug={$page.params.post ?? ''} />
 	{/if}
 </article>
 

@@ -4,7 +4,7 @@
  * nunca se borra solo. El backup de todas las noches lo hace el cron (src/lib/server/scheduled.js).
  *
  * Protegido igual que /api/cron/recordatorios: header `x-cron-secret` = CRON_SECRET. Solo anda
- * en el Worker de producción (necesita el binding BACKUPS; en Pages y en los Previews: 503).
+ * en el Worker de producción (necesita el binding BACKUPS; en los Previews: 503).
  *
  *   curl -X POST https://kinkyvibe.ar/api/cron/backup -H "x-cron-secret: $CRON_SECRET"
  */

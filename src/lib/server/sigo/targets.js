@@ -3,7 +3,7 @@
  *
  * - **etiqueta**: una que existe en el árbol del sitio (archivo o base, `siteTagManager`). Se
  *   guarda por su nombre canónico: un alias o la forma de la URL («Rancheadita-Kinky») se
- *   resuelven antes (`resolveTagSlug`). Si después se renombra con la base (`etiquetas_db`), el
+ *   resuelven antes (`resolveTagSlug`). Si después se renombra dejando el alias, el
  *   nombre viejo queda como alias y lo seguido se sigue resolviendo.
  * - **perfil** (persona, proyecto o lugar): un perfil de la base que quien mira puede ver y que
  *   está aprobado para /amigues (o que gestiona), con las mismas reglas que su página pública

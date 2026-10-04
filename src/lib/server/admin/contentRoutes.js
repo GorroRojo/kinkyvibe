@@ -1,7 +1,7 @@
 /**
- * Loads and form actions shared by /admin/contenido/material/** and /admin/comunidad/perfiles/**
- * (list, nuevo, [slug]; URLs from `contentAdminHref` in nav.js). Each route file is a thin wrapper
- * that picks the category.
+ * Loads and form actions of /admin/contenido/material/** (list, nuevo, [slug]; URLs from
+ * `contentAdminHref` in nav.js). The amigues profiles have their own editor, in the database only
+ * (./amiguesRoutes.js).
  *
  * Every load calls requireAdmin (loads run in parallel with the layout's) and every action checks
  * the admin itself (actions don't run the layout load). Writes go through the same GitHub commit
@@ -30,6 +30,9 @@ import {
 	PendingChangeError
 } from '$lib/server/eventos/github.js';
 import { readUploadedImage } from '$lib/server/eventos/images.js';
+import { findImage, imageOf } from '$lib/server/media/library.js';
+import { resolveContentSlug } from '$lib/server/contenido/posts.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
 import {
 	contentProblems,
 	readContentForm,
@@ -42,13 +45,12 @@ import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCop
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/posts/material/_post_template.md?raw';
-import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 
 /** @type {Record<string, string>} */
-const TEMPLATES = { material: materialTemplate, amigues: amiguesTemplate };
+const TEMPLATES = { material: materialTemplate };
 
 const NO_PERMISSION =
-	'No tenés permiso para editar contenido. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para editar contenido. Probá salir y volver a entrar.';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
@@ -58,6 +60,41 @@ export const SECTION = Object.freeze({
 	material: { one: 'material', label: 'Material' },
 	amigues: { one: 'perfil', label: 'Amigues' }
 });
+
+/** @param {App.Locals} locals */
+const adminViewer = (locals) =>
+	/** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
+		role: 'admin',
+		id: locals.user?.login ?? 'panel'
+	});
+
+/**
+ * La imagen del material para el selector (docs/imagenes.md): la de la biblioteca (edge
+ * `portada`) si tiene; si no, la vieja del repo. Solo material: las fichas de amigues siguen
+ * subiendo su imagen al repo (no son de la base).
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {string} slug '' = una publicación nueva
+ * @param {string | undefined} legacyUrl
+ */
+async function materialImage(platform, locals, slug, legacyUrl) {
+	const db = getDB(platform);
+	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
+	let current = null;
+	if (db && slug) {
+		try {
+			const ref = await resolveContentSlug(db, 'material', slug);
+			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
+		} catch {
+			// Sin la de la biblioteca, se muestra la del repo.
+		}
+	}
+	return {
+		current,
+		legacyUrl: current ? null : (legacyUrl ?? null),
+		target: slug ? `material:${slug}` : null
+	};
+}
 
 /* ------------------------------------------------------------------------------------------ */
 /*  List                                                                                       */
@@ -154,7 +191,7 @@ export function newLoad(category) {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
-		// Interruptor `contenido_db`: lo nuevo de material va a la base (se ve enseguida).
+		// Lo nuevo de material va a la base (se ve enseguida).
 		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
 		/** @type {null | {slug: string, raw: string, title: string}} */
@@ -186,12 +223,14 @@ export function newLoad(category) {
 			fromTemplate: !source,
 			taken: await takenContentSlugs(category),
 			imageUrl: null,
+			// Material: el selector de imágenes (docs/imagenes.md).
+			image: category === 'material' ? await materialImage(platform, locals, '', undefined) : null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category)),
-			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			// Personas con rol en el material (sin base, null).
 			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
@@ -210,7 +249,7 @@ export function editLoad(category) {
 		const slug = params.slug ?? '';
 		if (!contentPath(category, slug) || slug.startsWith('_'))
 			throw error(404, 'Esa publicación no existe.');
-		// Interruptor `contenido_db`: esta publicación se guarda en la base (se ve enseguida).
+		// El material se guarda en la base (se ve enseguida); amigues, con un PR.
 		const savesToDb = await panelSavesToDb(platform, category, slug);
 		let post;
 		try {
@@ -235,12 +274,22 @@ export function editLoad(category) {
 			fromTemplate: false,
 			taken: [],
 			imageUrl: contentImageURL(category, slug, featured) ?? null,
+			// Material: el selector de imágenes (docs/imagenes.md).
+			image:
+				category === 'material'
+					? await materialImage(
+							platform,
+							locals,
+							slug,
+							contentImageURL(category, slug, featured) ?? undefined
+						)
+					: null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category)),
-			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			// Personas con rol en el material (sin base, null).
 			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
@@ -307,7 +356,7 @@ export function editorActions(category) {
 				return fail(400, { error: describe(e) });
 			}
 			if (problems.length) return fail(400, { error: problems.join(' ') });
-			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			// Personas con rol: perfiles (o nombres) y roles válidos.
 			// Como en el editor de publicaciones, lo que el archivo ya tenía mal no bloquea.
 			const roles = category === 'material' ? await activeRoles(platform) : null;
 			if (roles) {
@@ -329,9 +378,26 @@ export function editorActions(category) {
 				if (added.length) return fail(400, { error: added.join(' ') });
 			}
 
+			// Material: la imagen elegida en el selector va como edge `portada` en el mismo guardado
+			// (docs/imagenes.md). Amigues: el archivo subido va al repo, como antes.
+			/** @type {Record<string, number[]> | undefined} */
+			let edges;
+			if (category === 'material') {
+				const choice = readImageChoice(data.get('imageId'));
+				if (choice.action === 'remove') edges = { portada: [] };
+				if (choice.action === 'set') {
+					const db = getDB(platform);
+					const picked = db ? await findImage(db, choice.id, adminViewer(locals)) : null;
+					if (!picked)
+						return fail(400, {
+							error: 'La imagen elegida ya no está en la biblioteca. Elegí otra.'
+						});
+					edges = { portada: [picked.id] };
+				}
+			}
 			/** @type {{base64: string, ext: 'jpg'|'png'|'webp'} | null} */
 			let image = null;
-			const file = data.get('image');
+			const file = category === 'material' ? null : data.get('image');
 			if (file instanceof File && file.size > 0) {
 				const read = await readUploadedImage(file);
 				if ('error' in read) return fail(400, { error: read.error });
@@ -355,7 +421,8 @@ export function editorActions(category) {
 						from: isNew && from ? from : undefined,
 						image: Boolean(image)
 					}),
-					pr: { action: !isNew ? 'edita' : from ? 'duplica' : 'crea', who: admin.name }
+					pr: { action: !isNew ? 'edita' : from ? 'duplica' : 'crea', who: admin.name },
+					...(edges ? { edges } : {})
 				});
 				await logAdminAction(getDB(platform), locals, {
 					action: `${category}.${isNew ? (from ? 'duplicate' : 'create') : 'update'}`,
@@ -383,7 +450,7 @@ export function editorActions(category) {
 						imagePath: r.imagePath,
 						commit: r.commit.url,
 						publish: r.commit.pr ?? null,
-						// Interruptor `contenido_db`: se guardó en la base (ya se ve).
+						// Se guardó en la base (ya se ve).
 						savedToDb: commitSavedToDb(r.commit)
 					}
 				};

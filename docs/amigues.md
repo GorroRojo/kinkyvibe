@@ -1,14 +1,15 @@
 # Amigues y lugares (perfiles públicos)
 
-Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interruptor
-**`perfiles_publicos`, apagado** (Ajustes → Interruptores, o `PERFILES_PUBLICOS_ENABLED=1|0`).
+Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). El interruptor `perfiles_publicos`
+**quedó prendido para siempre** ([interruptores.md](interruptores.md)): con base, todo esto
+anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
 
 ## Qué hace
 
 - Las fichas de amigues (`src/lib/posts/amigues/*.md`) pasan a ser **perfiles** (`perfil` en
   [objetos.md](objetos.md)) de tipo **persona**, **proyecto** o **lugar**, con **las mismas
-  direcciones** (`/amigues/Gorro_Rojo` sigue andando). Los `.md` quedan en el repo hasta que
-  gorrite confirme que todo coincide.
+  direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base** («solo base», paso 2): el
+  sitio y el panel ya no leen ni escriben los `.md`, que quedan en el repo como respaldo (0004).
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
 - **"Es mi perfil"**: una cuenta con el permiso "puede tener perfiles" pide hacerse cargo; une
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
@@ -24,17 +25,47 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del
   1/10; "Amigues" queda solo como nombre del directorio público `/amigues`): filtros por tipo,
-  origen y estado, CSV, «Para aprobar», los pedidos "Es mi perfil" y, con el interruptor apagado,
-  la pestaña «Fichas .md». El editor edita el perfil en la base (publica al guardar, con aviso de
-  conflicto); también **Perfiles → Importar y clasificar** y **Eventos → Lugares**.
+  origen y estado, CSV, «Para aprobar» y los pedidos "Es mi perfil". El editor edita el perfil en
+  la base (publica al guardar, con aviso de conflicto), con su imagen elegida en el selector de la
+  biblioteca (R2, edge `avatar`, [imagenes.md](imagenes.md)); también **Perfiles → Importar y
+  clasificar** y **Eventos → Lugares**. La dirección vieja `/edit/amigues/<ficha>` lleva al editor.
 
-## Con el interruptor apagado
+## Solo la base (fichas sin importar)
 
-Todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas leen los `.md`. El
-panel deja igual importar, revisar la clasificación y cargar lugares, para preparar todo antes de
-prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra el sitio).
+Una ficha `.md` que la base todavía no tiene **no existe**: no está en `/amigues`, su página da 404
+y el panel no la edita (avisa que hay que importarla). La importación (Perfiles → Importar y
+clasificar) la pasa a la base con la misma dirección; la prueba `src/lib/server/contenido/fichas.test.js`
+verifica que todas las fichas del repo se importan sin errores. Sin base no hay perfiles. Lo que
+el sitio leía de los `.md` ahora sale de los perfiles (`src/lib/server/amigues/asPost.js`): las
+listas (`sitePosts`), les autores de un evento o material y los pronombres de las @menciones.
+«Descargar todo» los vuelve a dar como `.md` ([contenido.md](contenido.md)). Pasos para el cambio:
+[contenido.md](contenido.md), «Amigues y la wiki».
 
-## Prenderlo (orden recomendado)
+## Borrar un perfil desde el panel
+
+El editor de un perfil tiene «Borrar…», que lleva a la página de
+confirmación de siempre (`/admin/borrar/amigues/<dirección>`: lo que depende del perfil y, si hay
+algo, escribir la dirección para confirmar).
+
+- **Todo perfil vive solo en la base** (los creados en el panel, los lugares, los de las cuentas y
+  también las fichas importadas de un `.md`): se borra en la base, al toque y sin GitHub. Es el borrado suave del objeto
+  (`deleted_at` con `saveObject()`, con su revisión en `object_revisions`); «Deshacer» y
+  «Recuperar» (Actividad) lo vuelven atrás. Las relaciones (el edge `lugar` de los eventos,
+  personas con rol, integrantes, quién lo gestiona) **quedan guardadas**: quienes las leen ya se
+  saltean los perfiles borrados (`visibleWhere`, `getEdges`, `eventVenue`), así que dejan de
+  aparecer y vuelven al deshacer. Un evento cuyo lugar se borró muestra su «Dónde» en texto libre,
+  si tiene (también en los mails de las entradas): la página de borrar lo avisa.
+- **Ficha del perfil en Comunidad › Cuentas** (`/admin/comunidad/cuentas/perfiles/<id>`):
+  «Borrar el perfil» usa el mismo borrado (`deleteDbProfile`, con su fila `objeto:perfil:<id>` en
+  `panel_deletions`), así que muestra «Deshacer» enseguida (`?/deshacer`,
+  `undoDbProfileDeletionById`) y queda en «Recuperar» de Actividad (gorrite, 4/10).
+- Antes, una ficha importada que tenía `.md` se borraba con un commit en GitHub: ya no («solo
+  base»). Su `.md` queda en el repo como respaldo; volver a importarlo no la revive.
+
+Código: `deleteDbProfile` y `deleteBackend` en `src/lib/server/admin/deletions.js`; pruebas en
+`deletions-db.test.js` y `src/routes/(authed)/admin/borrar/borrar.test.js`.
+
+## Una base nueva (orden recomendado)
 
 1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
    (gorrite, como siempre: ver [datos.md](datos.md)).
@@ -43,11 +74,9 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
 4. Cargar los lugares en **Eventos → Lugares** y vincular los eventos (ahí o en el «📍 Lugar» del
    formulario de cada evento).
-5. Prender `perfiles_publicos`.
 
 Importar en local: `npm run amigues:import` (o `-- --dry` para ver qué haría). Demo con datos
-inventados: `node scripts/demo/n3-amigues.js` y después
-`PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin`.
+inventados: `node scripts/demo/n3-amigues.js` y después `npm run dev:admin`.
 
 ## Lo que nunca se tiene que romper
 
@@ -77,9 +106,9 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **la dirección completa**,
 decisión de gorrite; también
 vale para los lugares ya guardados sin nivel) y cada evento lo puede cambiar
-(`event_venues.privacy`), y el del evento manda. Quien no quiera la dirección pública elige otro
-nivel; el valor por defecto se decide en un solo lugar, `DEFAULT_VENUE_PRIVACY` en
-`src/lib/utils/venues.js`:
+(`data.privacy` del edge `lugar` del evento), y el del evento manda. Quien no quiera la
+dirección pública elige otro nivel; el valor por defecto se decide en un solo lugar,
+`DEFAULT_VENUE_PRIVACY` en `src/lib/utils/venues.js`:
 
 | Nivel     | En el panel                       | En la página del evento                          | ¿El lugar lista el evento? |
 | --------- | --------------------------------- | ------------------------------------------------ | -------------------------- |
@@ -97,7 +126,8 @@ Los textos del panel salen de un solo mapa, `VENUE_PRIVACY_LABELS` en `src/lib/u
 de gorrite), pero no el nombre, el link, "cómo llegar" ni "accesibilidad" (textos libres que
 pueden nombrarlo). Por lo mismo la página del lugar, que siempre muestra el nombre, no lista esos
 eventos, y si el nivel por defecto del lugar es este, su página se ve como "Sólo Nombre" (sin la
-dirección). La migración 0027 agrega `address` al CHECK de `event_venues.privacy`.
+dirección). La migración 0027 agregó `address` al CHECK de la tabla vieja `event_venues`; en el
+edge, el nivel se valida en código (`isVenuePrivacy`).
 
 En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada". En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
@@ -106,16 +136,25 @@ en los recordatorios y en la página de su entrada (con la compra aprobada).
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").
 
-**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir se
-arman al compilar desde los `.md`, así que no pueden contener nada de la base. La prueba
+**El mapa** (`VenueMap.svelte`): baldosas de OpenStreetMap como imágenes comunes con
+`loading="lazy"` (sin librerías, scripts ni iframes de afuera, así que no hace falta tocar la CSP),
+alto fijo (no corre nada al cargar) y ancho que se adapta al celular con el punto en el centro.
+Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreetMap» (el botón de
+indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
+del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
+y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
+`venues.test.js` y `VenueLocation.test.js`).
+
+**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir
+llevan de los perfiles solo lo que muestra `/amigues` a cualquiera (aprobados, no ocultos, con la
+lista blanca de `publicProfile`; nunca la dirección de un lugar). La prueba
 `src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y revisa todas esas
 salidas (también el buscador) y los datos de las páginas. Si el `.md` de un evento tiene
 `location` escrita, es pública (el repo es público): Eventos → Lugares avisa para sacarla.
 
 **El buscador** sigue la regla de gorrite: si quien busca ya tiene una forma de llegar a algo
 navegando, lo puede encontrar buscando; nunca más. El índice es uno solo para todes (se recuerda
-en el servidor), así que es lo que alcanza une visitante sin cuenta. Con `perfiles_publicos`
-prendido lleva los lugares **listados** (están en `/amigues`) y los **no listados a los que lleva
+en el servidor), así que es lo que alcanza une visitante sin cuenta. Con base, lleva los lugares **listados** (están en `/amigues`) y los **no listados a los que lleva
 el link de un evento visible** (listado y publicado, con el nivel «Nombre + dirección» o «Sólo
 Nombre», y el lugar visible y aprobado: lo mismo que decide el link en la página del evento,
 `linkedVenues` en `src/lib/server/amigues/venues.js`). De cada lugar, lo que muestra su página:
@@ -140,10 +179,11 @@ barrio y ciudad, sin salir del formulario; se guarda en el perfil como desde su 
 Amigues salvo que se elija «Público», como al importar lugares desde los eventos: `venueListing`).
 No listado no es oculto: el evento lo muestra según su nivel. Con un lugar, el «Dónde» en texto
 libre queda plegado («Usar texto libre en vez de un lugar»), como en las páginas públicas. Guardar
-escribe `event_venues` con `setEventVenue`/`removeEventVenue` (y el registro), se guarde el evento
-en GitHub o en la base: **el `.md` no cambia por el lugar** (salvo la fecha de «Actualizado», que se
-pone como en cualquier guardado: cambiar solo el lugar en Editar también la actualiza, decisión de
-gorrite). Al crear, el lugar se vincula recién cuando el evento se creó (si crear falla, no se
+escribe el edge `lugar` del evento con `setEventVenue`/`removeEventVenue` (y el registro), se guarde
+el texto del evento en GitHub o en la base: **el `.md` no cambia por el lugar** (salvo la fecha de
+«Actualizado», que se pone como en cualquier guardado: cambiar solo el lugar en Editar también la
+actualiza, decisión de gorrite). Al crear, el lugar se vincula recién cuando el evento se creó (si
+crear falla, no se
 vincula nada); al duplicar, arranca con el lugar del original. La ficha del evento muestra el lugar
 y su nivel con «Cambiar». Código: `src/lib/server/amigues/eventFormVenue.js` y
 `src/lib/utils/venueChoice.js`.
@@ -161,8 +201,8 @@ lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca
 
 **Eventos → Lugares → «Importar de eventos»** (`/admin/eventos/lugares/importar`, solo admins)
 arma lugares con el «Dónde» que ya tienen los eventos (`location_name`, `location`,
-`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: los
-`.md`, o la base con `contenido_db` prendido). Reglas puras en `src/lib/utils/venueImport.js`;
+`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: la
+base). Reglas puras en `src/lib/utils/venueImport.js`;
 lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 
 - **Mismo lugar**: el mismo nombre, la misma calle y número o el mismo link al mapa, sin importar
@@ -182,7 +222,7 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   | solo un barrio o ciudad (sin número)      | "Sólo dirección parcial (Barrio)" |
 
   El lugar toma el más abierto de los eventos que se vinculan, y cada evento que muestra menos
-  lleva su propio nivel en `event_venues.privacy`. Con nombre, el «Dónde» va entero a la
+  lleva su propio nivel en `data.privacy` de su edge `lugar`. Con nombre, el «Dónde» va entero a la
   dirección del lugar; sin nombre ni número, al barrio.
 
 - **Nada cambia en el sitio**: un evento se propone marcado solo si con el lugar se ve lo mismo
@@ -202,24 +242,40 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   Se cambia después en el editor del perfil («No listar en /amigues»).
 - **Nada se guarda hasta «Crear lugares»** (con confirmación). Los lugares nacen visibles y
   aprobados (como los que crea une admin), listados o no según lo elegido; se guardan con
-  `saveObject()` y, en la misma tanda, su aprobación y los vínculos. Vincular no toca el `.md` ni el objeto del evento (es una fila de
-  `event_venues`), y nunca pisa el lugar de un evento que ya tiene uno. Va de a tandas y se puede
+  `saveObject()` y, en la misma tanda, su aprobación; después se vincula cada evento (un guardado
+  del evento con su edge `lugar`, `linkEventVenueIfFree`). Vincular no toca el `.md` ni los datos
+  del evento, solo un evento que está en la base se puede vincular, y nunca pisa el lugar de un
+  evento que ya tiene uno. Va de a tandas y se puede
   repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
 
-## Del vínculo provisorio al edge
+## «Sucede en» es un edge
 
-Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**
-(`event_slug` → `venue_id`, con `privacy`; confirmado por gorrite, porque los eventos pasan a la
-base pronto). Se eligió una tabla y no `lugar:` en el frontmatter
-porque: la dirección y la privacidad quedan fuera del repo público; el cambio se ve al toque (sin
-PR ni deploy); `venue_id` tiene foreign key al objeto; y las salidas compiladas no pueden filtrar
-nada. Contra: si se cambia la dirección (slug) de un evento, hay que volver a vincularlo.
+"Sucede en" es un **edge `lugar`** del evento (evento → perfil de tipo lugar), escrito solo con
+`saveObject()` sobre el evento (regla 4 de [objetos.md](objetos.md); decisión de gorrite,
+«Contenido solo en la base», paso 3). El nivel propio del evento va en `edges.data`
+(`{ "privacy": "name" }`); sin nivel propio, el edge no tiene `data` y vale el del lugar.
 
-Cuando los eventos pasen a la base: por cada fila, `saveObject()` del evento con
-`edges: { lugar: [{ to: venue_id, data: privacy ? { privacy } : null }] }` (el tipo `evento` ya
-tiene el edge `lugar` hacia… `lugar`: hay que cambiar su destino a `perfil`), y después se borra
-la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues.js` pasan a
-`getEdges`.
+- **El evento tiene que estar en la base** (importado desde Contenido → En la base, o creado con
+  `contenido_db`). Si no, vincular contesta «Ese evento todavía no está en la base: importalo…»
+  (`NOT_IN_DB`) y el formulario guarda el texto igual, con ese aviso.
+- Para afuera todo sigue siendo **por la dirección del evento**: la de su página, la del `.md`
+  importado (`content_sources.legacy_slug`) o la del objeto (la misma regla que `postID` en
+  `contenido/posts.js`). Las lecturas de `src/lib/server/amigues/venues.js` (`eventVenue`,
+  `feedVenues`, `linkedVenues`, `listedVenueEvents`, `listEventVenues`) leen los edges con esa
+  dirección; son lecturas internas (deciden qué mostrar) y nunca mandan el lugar entero a una
+  página: lo que se ve sale de `venueView` según el nivel, como antes.
+- Cada cambio es una **versión nueva del evento** con su revisión (`object_revisions`, `source =
+'lugar'`). Si el evento se importó de un `.md` y nadie lo había editado, sigue contando como no
+  editado (`content_sources.imported_version` sube con él), así volver a importar su `.md` lo
+  sigue actualizando. El guardado del texto (panel o importación) no toca el edge `lugar`.
+- `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
+  los eventos con lugar: cualquier cambio del vínculo la mueve.
+- **La tabla `event_venues` queda en la base pero nadie la usa** (las migraciones solo agregan).
+  La migración `0035_relaciones_edges.sql` pasó a edges las filas de los eventos que ya estaban en
+  la base; las de eventos que todavía eran solo `.md` se pasan cuando se importan
+  (`legacyVenueEdge` en `contenido/importer.js`, la única lectura que queda). Una migración futura
+  la puede borrar cuando todos los eventos estén en la base.
+- Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
 ## Tablas (migraciones 0017, 0024 y 0025)
 
@@ -229,7 +285,7 @@ la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues
 | `profile_approvals`  | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
 | `profile_claims`     | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
 | `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
-| `event_venues`       | "sucede en" provisorio, con la privacidad del evento                                                                                                                                                                                |
+| `event_venues`       | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
 
 ## Dónde está el código
 

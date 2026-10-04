@@ -6,7 +6,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { testRecipients } from '$lib/server/admin/mailTemplates.js';
+import { templateInput, testRecipients } from '$lib/server/admin/mailTemplates.js';
 import { getDB, logDBError } from '$lib/server/db';
 import {
 	contactEmail,
@@ -32,13 +32,12 @@ function defOr404(id) {
 /** @param {Request} request */
 async function readForm(request) {
 	const f = await request.formData();
-	/** @param {string} k @param {number} max */
-	const get = (k, max) => String(f.get(k) ?? '').slice(0, max + 100);
 	return {
-		subject: get('subject', TEMPLATE_LIMITS.subject),
-		heading: get('heading', TEMPLATE_LIMITS.heading),
-		body: get('body', TEMPLATE_LIMITS.body),
-		to: get('to', 200).trim().toLowerCase()
+		...templateInput(f),
+		to: String(f.get('to') ?? '')
+			.slice(0, 300)
+			.trim()
+			.toLowerCase()
 	};
 }
 
@@ -63,7 +62,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			when: def.when,
 			fixed: def.fixed,
 			vars: def.vars,
-			defaults: def.defaults
+			defaults: def.defaults,
+			extras: def.extras
 		},
 		limits: TEMPLATE_LIMITS,
 		saved: saved ?? null,

@@ -1,11 +1,10 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 
 	export let data;
@@ -26,9 +25,7 @@
 	$: source = SOURCES[data.fondo.source] ?? SOURCES.none;
 </script>
 
-<PageHeader title="Fondo" subtitle="Descuento del Fondo KinkyVibe en las entradas." />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
+<PageHeader title="Fondo" subtitle="Descuento del Fondo Kinky Vibe en las entradas." />
 <form
 	class="kv-form settings"
 	method="POST"
@@ -112,11 +109,11 @@
 	.fondo-now {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		margin: 0;
 	}
 	.big {
-		font-size: 2rem;
+		font-size: var(--text-2xl);
 		font-weight: 700;
 	}
 </style>

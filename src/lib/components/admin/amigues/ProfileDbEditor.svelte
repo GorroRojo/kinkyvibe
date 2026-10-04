@@ -1,7 +1,7 @@
 <script>
 	/**
-	 * Página del panel para editar un perfil de la base (Comunidad › Perfiles; las fichas importadas,
-	 * con el interruptor `perfiles_publicos`): encabezado con su estado (tipo a confirmar, oculto, sin aprobar),
+	 * Página del panel para editar un perfil de la base (Comunidad › Perfiles; también las fichas
+	 * importadas): encabezado con su estado (tipo a confirmar, oculto, sin aprobar),
 	 * el formulario y la clasificación de la importación.
 	 * Props: `data` (de `editorPageData` en src/lib/server/admin/amiguesRoutes.js) y `form`.
 	 */
@@ -93,6 +93,7 @@
 			action="?/guardarPerfil"
 			submitLabel="Guardar y publicar"
 			kinds={data.kinds}
+			image={data.image ?? null}
 		/>
 	</Card>
 </div>

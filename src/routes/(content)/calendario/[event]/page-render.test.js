@@ -1,6 +1,7 @@
 /**
  * La página de un evento (/calendario/<evento>), pedido de gorrite:
- * - la hora en 24 h a la argentina («a las 15:00 hs», nunca «3:00 p. m.hs»);
+ * - la hora en 24 h a la argentina («viernes 2 de octubre de 2026, 15:00», sin «hs» y nunca
+ *   «3:00 p. m.»);
  * - el lugar una sola vez, en la tarjeta y con el ícono del pin, mostrando en cada nivel de
  *   privacidad exactamente lo mismo que antes mostraba el bloque «Sucede en» de abajo;
  * - «Agregar a mi calendario» abajo, al lado de «Compartir», y no en la tarjeta.
@@ -10,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
 import { ADDRESS_FOR_BUYERS, venueView } from '$lib/utils/venues.js';
+import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({
@@ -102,18 +104,18 @@ const article = (/** @type {string} */ html) =>
 	html.slice(html.indexOf('<article'), html.indexOf('</article>'));
 
 describe('/calendario/<evento>: la hora', () => {
-	it('en 24 h con «hs», como se dice en Argentina', () => {
+	it('en 24 h, con el día de la semana y sin «hs» (formato de encabezado)', () => {
 		const body = page();
-		expect(body).toMatch(/class="dt-start[^"]*"[^>]*>2 de octubre de 2026 a las 15:00 hs<\/time>/);
-		expect(body).toMatch(/class="dt-end[^"]*"[^>]*>2 de octubre de 2026 a las 19:00 hs<\/time>/);
+		expect(body).toMatch(/class="dt-start[^"]*"[^>]*>viernes 2 de octubre de 2026, 15:00<\/time>/);
+		expect(body).toMatch(/class="dt-end[^"]*"[^>]*>viernes 2 de octubre de 2026, 19:00<\/time>/);
 		expect(body).not.toContain('p. m.');
-		expect(body).not.toContain('m.hs');
+		expect(article(body)).not.toMatch(/\d hs\b/);
 	});
 
 	it('con minutos y pasada la medianoche', () => {
 		const body = page({ start: '2026-12-19T21:30:00-03:00', end: '2026-12-20T00:00:00-03:00' });
-		expect(body).toContain('19 de diciembre de 2026 a las 21:30 hs');
-		expect(body).toContain('20 de diciembre de 2026 a las 00:00 hs');
+		expect(body).toContain('sábado 19 de diciembre de 2026, 21:30');
+		expect(body).toContain('domingo 20 de diciembre de 2026, 00:00');
 	});
 });
 
@@ -245,11 +247,7 @@ describe('/calendario/<evento>: el botón de comprar entradas', () => {
 		const html = body.slice(body.indexOf('>', from) + 1, body.indexOf('</span>', from));
 		// Sin poner espacios en lugar de las etiquetas (como hace stripTags): lo que importa es
 		// si los espacios están en el texto.
-		return html
-			.replace(/<!--[\s\S]*?-->/g, '')
-			.replace(/<[^<>]*>/g, '')
-			.replace(/\s+/g, ' ')
-			.trim();
+		return stripHtmlTags(html).replace(/\s+/g, ' ').trim();
 	};
 
 	it('separa el precio de lo que queda con « · »', () => {

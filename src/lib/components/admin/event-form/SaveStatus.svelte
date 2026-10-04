@@ -38,7 +38,7 @@
 		gap: 0.35em;
 		flex: 1 1 14em;
 		color: var(--ok, #1b7a3d);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.save-status :global(svg) {
 		flex: none;

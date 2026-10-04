@@ -76,6 +76,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-plantillas': 'plantillas textos mails email compra recordatorio mensajes',
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
+	'ajustes-automatizaciones':
+		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
 	cuentas: 'cuentas usuaries publico registradas',
 	amigues:
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
@@ -110,6 +112,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-plantillas': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
+	'ajustes-automatizaciones': 'history',
 	cuentas: 'person',
 	actividad: 'history',
 	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).
@@ -147,8 +150,8 @@ export function buildCommands({ today = [] } = {}) {
 		for (const e of today) {
 			out.push({
 				id: `checkin-today:${e.slug}`,
-				label: `Abrir check-in de hoy: ${e.title}`,
-				hint: 'Modo puerta',
+				label: `Abrir la puerta de hoy: ${e.title}`,
+				hint: 'Puerta',
 				keywords: 'check-in ingreso puerta hoy qr escanear',
 				icon: 'scan',
 				href: e.href
@@ -157,7 +160,7 @@ export function buildCommands({ today = [] } = {}) {
 	} else if (checkinFallback) {
 		out.push({
 			id: 'checkin-today',
-			label: 'Abrir check-in de hoy',
+			label: 'Abrir la puerta de hoy',
 			hint: 'Hoy no hay eventos con entradas: elegí uno',
 			keywords: 'check-in ingreso puerta hoy qr escanear',
 			icon: 'scan',
@@ -208,7 +211,7 @@ export function buildCommands({ today = [] } = {}) {
 		},
 		{
 			id: 'logout',
-			label: 'Cerrar sesión',
+			label: 'Salir',
 			hint: '',
 			keywords: 'salir logout cerrar sesion',
 			icon: 'logout',

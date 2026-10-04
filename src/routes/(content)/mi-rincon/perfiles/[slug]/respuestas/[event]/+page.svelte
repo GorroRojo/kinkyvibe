@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>Respuestas · {data.event.title} - Mi rincón - KinkyVibe.ar</title>
+	<title>Respuestas · {data.event.title} · Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

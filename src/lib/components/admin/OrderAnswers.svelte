@@ -30,13 +30,13 @@
 <style>
 	.answers {
 		margin: 0.4rem 0;
-		padding: 0.5rem 0.8rem;
-		border-radius: 0.8em;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--surface-2, #f4eff7);
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
-		font-size: 0.9rem;
+		gap: var(--space-3xs);
+		font-size: var(--text-sm);
 	}
 	dt {
 		font-weight: 700;

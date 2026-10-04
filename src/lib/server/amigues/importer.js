@@ -57,6 +57,33 @@ const TEXT_FIELDS = /** @type {const} */ ([
 /** Claves del frontmatter que no son datos del perfil (todas las fichas dicen lo mismo). */
 const IGNORED_KEYS = new Set(['layout', 'category', 'force_unpublished', 'force_unlisted']);
 
+/**
+ * Lo que un perfil de la base tiene y las fichas del repo no (los .md de «Descargar todo»,
+ * ./markdown.js): el tipo, todos los links, si un proyecto muestra sus integrantes y los datos de
+ * un lugar. Ninguna ficha del repo los usa.
+ */
+const PROFILE_ONLY_KEYS = /** @type {const} */ ([
+	'kind',
+	'links',
+	'show_members',
+	'area',
+	'city',
+	'lat',
+	'lng',
+	'accessibility',
+	'how_to_get_there',
+	'venue_privacy'
+]);
+
+/** Campos de texto de un lugar que pasan tal cual (además de `location` → `address`). */
+const VENUE_TEXT_FIELDS = /** @type {const} */ ([
+	'area',
+	'city',
+	'accessibility',
+	'how_to_get_there',
+	'venue_privacy'
+]);
+
 /** Claves que el importador entiende. */
 const KNOWN_KEYS = new Set([
 	...TEXT_FIELDS,
@@ -67,6 +94,7 @@ const KNOWN_KEYS = new Set([
 	'tags',
 	'authors',
 	'location',
+	...PROFILE_ONLY_KEYS,
 	...IGNORED_KEYS
 ]);
 
@@ -143,7 +171,9 @@ export function mdToProfile(legacySlug, raw, { kind } = {}) {
 	const meta = parseFrontmatter(frontmatter);
 	const classified = classifyAmigue(meta, legacySlug);
 	const suggested = classified.kind;
-	const finalKind = kind ?? suggested;
+	// Un .md de «Descargar todo» dice su tipo (`kind`); las fichas del repo no.
+	const written = normalizeProfileKind(str(meta.kind));
+	const finalKind = kind ?? written ?? suggested;
 	/** @type {string[]} */
 	const warnings = [];
 	for (const key of Object.keys(meta)) {
@@ -160,7 +190,8 @@ export function mdToProfile(legacySlug, raw, { kind } = {}) {
 	if (/^https?:\/\//i.test(pronoun)) data.pronouns_url = pronoun;
 	else if (pronoun) data.pronouns = pronoun;
 	const link = str(meta.link);
-	if (link) data.links = [link];
+	const links = [...new Set([link, ...strList(meta.links)].filter(Boolean))];
+	if (links.length) data.links = links;
 	for (const key of TEXT_FIELDS) {
 		const value = str(meta[key]);
 		if (value) data[key] = value;
@@ -174,6 +205,19 @@ export function mdToProfile(legacySlug, raw, { kind } = {}) {
 	if (location) {
 		if (finalKind === 'lugar') data.address = location;
 		else warnings.push('tiene dirección (location) pero no es un lugar: no se importa');
+	}
+	if (finalKind === 'lugar') {
+		for (const key of VENUE_TEXT_FIELDS) {
+			const value = str(meta[key]);
+			if (value) data[key] = value;
+		}
+		for (const key of ['lat', 'lng']) {
+			const value = Number(str(meta[key]));
+			if (str(meta[key]) && Number.isFinite(value)) data[key] = value;
+		}
+	}
+	if (finalKind === 'proyecto' && meta.show_members !== undefined) {
+		data.show_members = truthy(meta.show_members);
 	}
 
 	return {

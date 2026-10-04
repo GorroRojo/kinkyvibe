@@ -1,23 +1,24 @@
 /**
  * Series de eventos del lado del servidor: arma lo que muestran las páginas a partir de los posts
  * del deploy y del árbol de etiquetas. La lógica está en $lib/utils/series.js (pura, con tests);
- * acá solo se juntan los datos. Todo detrás del interruptor `series` (src/lib/server/flags.js):
- * quien llama controla el interruptor.
+ * acá solo se juntan los datos (el interruptor `series` quedó prendido para siempre).
  *
  * Las funciones reciben `posts` y `tags` para poder probarlas con datos inventados; por defecto
  * usan los posts listados del sitio por la capa compartida de contenido (`sitePosts(platform)`:
- * de la base o de los `.md`, según el interruptor `contenido_db`; pasá `platform`) y el árbol de
- * etiquetas en uso (archivo o base, interruptor `etiquetas_db`: $lib/utils/siteTags.js).
+ * de la base; pasá `platform`) y el árbol de etiquetas en uso (la base: $lib/utils/siteTags.js).
  */
 import { mediaURL, thumbURL } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
+import { getDB } from '$lib/server/db';
+import { seriesImageKeys } from '$lib/server/media/library.js';
 import {
 	editionNav,
 	eventImageRef,
 	seriesEditions,
 	seriesImage,
 	seriesOfTags,
+	seriesParentOf,
 	seriesTagIds,
 	splitEditions,
 	tagIdFromSlug,
@@ -28,24 +29,42 @@ import {
 /** @typedef {readonly Pick<ProcessedPost, 'meta' | 'path'>[]} Posts */
 /**
  * @typedef {{ posts?: Posts, tags?: TagManager, now?: number,
- *   platform?: App.Platform }} SeriesOptions `platform`: de dónde leer los posts si no vienen
+ *   platform?: App.Platform, images?: Map<string, string> }} SeriesOptions `platform`: de dónde
+ *   leer los posts (y las imágenes de la biblioteca) si no vienen; `images`: nombre de la etiqueta
+ *   → clave de su imagen en la biblioteca (docs/imagenes.md)
  */
 
-/** El árbol de etiquetas en uso (el archivo, o la base con el interruptor `etiquetas_db`). */
+/** El árbol de etiquetas en uso (la base; el archivo, solo como respaldo). */
 export function siteTags() {
 	return currentSiteTags();
 }
 
 /**
  * @param {SeriesOptions} opts
- * @returns {Promise<{ posts: Posts, tags: TagManager, now: number }>}
+ * @returns {Promise<{ posts: Posts, tags: TagManager, now: number, images: Map<string, string> }>}
  */
 async function resolve(opts) {
 	return {
 		posts: opts.posts ?? (await sitePosts(opts.platform)),
 		tags: opts.tags ?? siteTags(),
-		now: opts.now ?? Date.now()
+		now: opts.now ?? Date.now(),
+		images: opts.images ?? (await libraryImages(opts.platform))
 	};
+}
+
+/**
+ * Las imágenes de la biblioteca de las series; ninguna sin base o si falla (quedan las del repo).
+ * @param {App.Platform | undefined} platform
+ * @returns {Promise<Map<string, string>>}
+ */
+async function libraryImages(platform) {
+	const db = getDB(platform);
+	if (!db) return new Map();
+	try {
+		return await seriesImageKeys(db);
+	} catch {
+		return new Map();
+	}
 }
 
 /**
@@ -66,20 +85,23 @@ export async function seriesImageURL(file) {
 }
 
 /**
- * Lo básico de una serie para mostrar.
+ * Lo básico de una serie para mostrar. La imagen: la de la biblioteca si tiene (edge `imagen`);
+ * si no, la del repo (campo `image`).
  *
  * @param {TagManager} tags
  * @param {string} id
+ * @param {Map<string, string>} [images]
  */
-async function seriesHeader(tags, id) {
+async function seriesHeader(tags, id, images) {
 	const tag = tags.get(id);
+	const key = images?.get(id);
 	return {
 		id,
 		name: tag?.visible_name ?? id,
 		icon: tag?.icon ?? '',
 		description: typeof tag?.description === 'string' ? tag.description : '',
 		href: tagPagePath(id),
-		image: await seriesImageURL(seriesImage(tag))
+		image: key ? `/media/${key}` : await seriesImageURL(seriesImage(tag))
 	};
 }
 
@@ -91,7 +113,7 @@ async function seriesHeader(tags, id) {
  * @param {SeriesOptions} [opts]
  */
 export async function eventSeries(event, opts = {}) {
-	const { posts, tags, now } = await resolve(opts);
+	const { posts, tags, now, images } = await resolve(opts);
 	const ids = seriesOfTags(event.tags, seriesTagIds(tags));
 	const out = [];
 	for (const id of ids) {
@@ -101,7 +123,7 @@ export async function eventSeries(event, opts = {}) {
 		const { upcoming } = splitEditions(editions, now);
 		const started = new Date(event.start ?? editions[nav.index].start).getTime() <= now;
 		out.push({
-			...(await seriesHeader(tags, id)),
+			...(await seriesHeader(tags, id, images)),
 			number: nav.number,
 			total: nav.total,
 			prev: nav.prev,
@@ -121,12 +143,12 @@ export async function eventSeries(event, opts = {}) {
  * @param {SeriesOptions} [opts]
  */
 export async function seriesPage(tagId, opts = {}) {
-	const { posts, tags, now } = await resolve(opts);
+	const { posts, tags, now, images } = await resolve(opts);
 	const id = tagIdFromSlug(tags, tagId) ?? tagId;
 	if (!seriesTagIds(tags).includes(id)) return null;
 	const editions = seriesEditions(posts, id);
 	const { upcoming, past } = splitEditions(editions, now);
-	return { ...(await seriesHeader(tags, id)), total: editions.length, upcoming, past };
+	return { ...(await seriesHeader(tags, id, images)), total: editions.length, upcoming, past };
 }
 
 /**
@@ -135,27 +157,32 @@ export async function seriesPage(tagId, opts = {}) {
  * @param {SeriesOptions} [opts]
  */
 export async function allSeries(opts = {}) {
-	const { posts, tags, now } = await resolve(opts);
+	const { posts, tags, now, images } = await resolve(opts);
 	const out = [];
 	for (const id of seriesTagIds(tags)) {
 		const editions = seriesEditions(posts, id);
 		const { upcoming, past } = splitEditions(editions, now);
-		out.push({ ...(await seriesHeader(tags, id)), editions, upcoming, past });
+		out.push({ ...(await seriesHeader(tags, id, images)), editions, upcoming, past });
 	}
 	return out;
 }
 
 /**
- * Las series para listarlas (la Kinkipedia): nombre, imagen, descripción, cuántas ediciones y la
- * próxima. Solo las que tienen al menos una edición, en el orden del árbol.
+ * Las series para listarlas (la Kinkipedia): nombre, imagen, descripción, cuántas ediciones, la
+ * próxima y la serie madre (`parent`, si es una serie hija). Solo las que tienen al menos una
+ * edición, en el orden del árbol.
  *
  * @param {SeriesOptions} [opts]
  */
 export async function seriesSummaries(opts = {}) {
-	return (await allSeries(opts))
+	const tags = opts.tags ?? siteTags();
+	const ids = seriesTagIds(tags);
+	return (await allSeries({ ...opts, tags }))
 		.filter((s) => s.editions.length)
 		.map(({ editions, upcoming, past, ...head }) => ({
 			...head,
+			// La serie madre, si es una serie hija (la Kinkipedia las agrupa: groupSeries).
+			parent: seriesParentOf(tags, head.id, ids),
 			total: editions.length,
 			next: upcoming[0]
 				? { title: upcoming[0].title, start: upcoming[0].start, path: upcoming[0].path }
@@ -171,7 +198,7 @@ export async function seriesSummaries(opts = {}) {
  * @param {SeriesOptions} [opts]
  */
 export async function eventsForTag(tagId, opts = {}) {
-	const { posts, tags } = await resolve(opts);
+	const { posts, tags } = await resolve({ ...opts, images: new Map() });
 	const id = tagIdFromSlug(tags, tagId) ?? tagId;
 	const wanted = new Set([id, ...(tags.get(id)?.getAllChildren?.() ?? [])]);
 	return posts.filter(

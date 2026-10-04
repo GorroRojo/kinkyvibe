@@ -12,7 +12,7 @@ import { ANON } from '$lib/server/objects/index.js';
 import { eventPlace, venuePlaceMeta } from '$lib/utils/eventPlace.js';
 import { feedLocation } from '$lib/utils/icsFeed.js';
 import { addressKey } from '$lib/utils/venueImport.js';
-import { makeProfile } from './testing.js';
+import { makeEvent, makeProfile } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -43,13 +43,39 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Los módulos con `perfiles_publicos` prendido. */
+/** Los eventos de `sitePosts` también en la base («sucede en» es un edge del evento). */
+async function eventsInDb() {
+	for (const p of [...posts.listed, ...posts.unlisted]) {
+		if (p.meta?.category === 'calendario') await makeEvent(t.db, String(p.meta.postID));
+	}
+}
+
+/**
+ * Los módulos con `perfiles_publicos` prendido. «Sucede en» es un edge del evento, así que los
+ * eventos tienen que estar en la base: antes de importar o vincular, se crean los que falten.
+ */
 async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: '1' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
+	const imp = await import('./venueImport.js');
+	const venues = await import('./venues.js');
 	return {
-		imp: await import('./venueImport.js'),
-		venues: await import('./venues.js'),
+		imp: {
+			...imp,
+			/** @type {typeof imp.runVenueImport} */
+			async runVenueImport(...args) {
+				await eventsInDb();
+				return imp.runVenueImport(...args);
+			}
+		},
+		venues: {
+			...venues,
+			/** @type {typeof venues.setEventVenue} */
+			async setEventVenue(db, input) {
+				await makeEvent(db, input.eventSlug);
+				return venues.setEventVenue(db, input);
+			}
+		},
 		profiles: await import('./profiles.js')
 	};
 }
@@ -265,7 +291,9 @@ describe('crear lugares', () => {
 		let total = 0;
 		for (let round = 0; round < 5; round++) {
 			const plan = await imp.loadVenueImportPlan(t.db, events);
-			const r = await imp.runVenueImport(t.db, plan, choices(plan), { actor: 'a', budget: 12 });
+			// Cada candidato (lugar nuevo con un evento) cuesta 5 + 8 (el guardado del evento con su
+			// edge `lugar`): con 26 entran dos por tanda.
+			const r = await imp.runVenueImport(t.db, plan, choices(plan), { actor: 'a', budget: 26 });
 			total += r.results.length;
 			if (!r.remaining) break;
 			expect(r.results).toHaveLength(2);

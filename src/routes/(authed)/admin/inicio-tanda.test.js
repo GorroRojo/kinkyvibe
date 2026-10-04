@@ -13,6 +13,7 @@ import { insertOrder, insertTicket } from '$lib/server/admin/testRows.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logAccountCreated } from '$lib/server/admin/accountEvents.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
+import { makeProfile } from '$lib/server/amigues/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
@@ -72,9 +73,9 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 const fake = vi.hoisted(() => ({
 	/** @type {any[]} */ events: [],
 	/** @type {{ slug: string, config: any }[]} */ ticketed: [],
-	/** Los .md no listados (el contador «No listadas»). @type {any[]} */ unlisted: []
+	/** Las fichas .md no listadas (el contador «No listadas»). @type {any[]} */ unlisted: []
 }));
-vi.mock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: '1' } }));
+vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/eventos/index.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
 	listEvents: async () => structuredClone(fake.events),
@@ -592,8 +593,9 @@ async function seed() {
 		.prepare('INSERT INTO admin_last_seen (admin_id, seen_at, last_at) VALUES (?1, ?2, ?3)')
 		.bind(admin.id, NOW - 3 * DAY, NOW - 2 * HOUR)
 		.run();
-	// Un .md no listado (el contador del menú).
-	fake.unlisted = [{ meta: { category: 'calendario', postID: 'no-listado-inventado-2031-09' } }];
+	// Un perfil no listado (el contador del menú): «solo base», sale de la base como los eventos
+	// (antes era una ficha .md no listada).
+	await makeProfile(t.db, { title: 'Perfil No Listado Inventado', data: { unlisted: true } });
 }
 
 /** La fila de la última visita, para volver a dejarla igual entre las dos corridas. */
@@ -789,7 +791,8 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		const layout = countingPlatform();
 		await panelCounts(layout.platform);
 		expect(layout.trips()).toBe(1);
-		expect(layout.stats.prepared).toBe(4);
+		// (La cuenta de «No listadas» suma los perfiles no listados de la base: una sentencia más.)
+		expect(layout.stats.prepared).toBe(5);
 	});
 });
 

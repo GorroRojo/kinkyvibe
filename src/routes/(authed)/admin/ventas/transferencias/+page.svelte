@@ -3,6 +3,7 @@
 	 * Bandeja de transferencias de todos los eventos: confirmar o cancelar, filtrar por evento, y
 	 * deshacer el rechazo de una cancelada en los últimos 7 días.
 	 */
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -193,8 +194,15 @@
 						<form
 							method="POST"
 							action="?/cancel"
-							use:enhance={({ cancel }) => {
-								if (!confirm(`¿Cancelar ${o.reference}? Se libera el cupo.`)) return cancel();
+							use:enhance={async ({ cancel }) => {
+								const ok = await askConfirm({
+									title: `¿Cancelar ${o.reference}?`,
+									text: 'Se libera el cupo.',
+									confirmLabel: 'Cancelar la orden',
+									cancelLabel: 'Volver',
+									tone: 'danger'
+								});
+								if (!ok) return cancel();
 								busy = o.id;
 								return async ({ update }) => {
 									await update();
@@ -247,8 +255,14 @@
 							<form
 								method="POST"
 								action="?/cancel"
-								use:enhance={({ cancel }) => {
-									if (!confirm(`¿Cancelar ${o.reference}?`)) cancel();
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: `¿Cancelar ${o.reference}?`,
+										confirmLabel: 'Cancelar la orden',
+										cancelLabel: 'Volver',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
 								}}
 							>
 								<input type="hidden" name="order" value={o.id} />
@@ -314,10 +328,10 @@
 	.list li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	.list li:first-child {
@@ -326,21 +340,21 @@
 	.main {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 		flex: 1 1 18rem;
 		overflow-wrap: anywhere;
 	}
 	.ref {
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 		letter-spacing: 0.03em;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.buttons {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 </style>

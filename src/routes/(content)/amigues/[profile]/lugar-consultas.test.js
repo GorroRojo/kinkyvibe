@@ -6,7 +6,8 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { venuePlaceMeta } from '$lib/utils/eventPlace.js';
 
@@ -71,16 +72,10 @@ afterEach(() => {
 async function venuePage(n) {
 	await resetDB(t.db);
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			PERFILES_PUBLICOS_ENABLED: '1',
-			PERSONAS_EVENTOS_ENABLED: '1',
-			CUENTAS_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
-			ETIQUETAS_DB_ENABLED: '0'
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	fake.posts = Array.from({ length: n }, (_, i) => fakeEventPost(i));
+	// Los eventos salen de la base.
+	await seedPosts(t.db, fake.posts);
 	const venue = await makeProfile(t.db, {
 		title: 'Galpón Inventado',
 		kind: 'lugar',
@@ -93,6 +88,8 @@ async function venuePage(n) {
 	});
 	const venues = await import('$lib/server/amigues/venues.js');
 	for (let i = 0; i < n; i++) {
+		// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+		await makeEvent(t.db, slugOf(i));
 		await venues.setEventVenue(t.db, {
 			eventSlug: slugOf(i),
 			venueId: venue.id,
@@ -100,6 +97,9 @@ async function venuePage(n) {
 			by: 'a'
 		});
 	}
+	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar (applySiteTags, recordado
+	// unos segundos), y con él las páginas de la wiki («Participa en» de un perfil).
+	await (await import('$lib/server/etiquetas/source.js')).siteTagSource(t.platform);
 	const counted = countingDB(t.db);
 	const { load } = await import('./+page.server.js');
 	const url = new URL(`/amigues/${venue.slug}`, 'https://kinkyvibe.ar');
@@ -125,8 +125,9 @@ describe('la página de un lugar con muchos eventos', () => {
 		expect(many.page.venueEvents).toHaveLength(60);
 		expect(many.queries).toBe(few.queries);
 		expect(many.queries).toBeLessThanOrEqual(10);
-		// Ninguna consulta pide el lugar de un evento por separado.
+		// Ninguna consulta pide el lugar de un evento por separado (ni la tabla de antes ni el edge).
 		expect(many.log.filter((q) => /WHERE ev\.event_slug = \?1/.test(q.sql))).toEqual([]);
+		expect(many.log.filter((q) => /legacy_slug, ev\.slug\) = \?1/.test(q.sql))).toEqual([]);
 	});
 
 	it('cada evento muestra el mismo lugar que su página (como antes, evento por evento)', async () => {

@@ -116,7 +116,9 @@ export function contentCommitMessage({ who, verb, category, slug, from, image })
  * Saves a post in one commit.
  * @param {PostClient} client
  * @param {string} token
- * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string, pr?: import('../eventos/github.js').PublishOptions}} opts
+ * @param {{category: string, slug: string, content: string, isNew: boolean, baseSha?: string, image?: SaveImage | null, message: string, pr?: import('../eventos/github.js').PublishOptions, edges?: Record<string, number[]>}} opts
+ *   `edges`: relaciones del post que cambian en el mismo guardado (la imagen de la biblioteca,
+ *   `{ portada: [id] }`; solo posts de la base, docs/imagenes.md)
  */
 export async function saveContentPost(client, token, opts) {
 	const plan = await planContentSave(client, token, opts);
@@ -125,7 +127,8 @@ export async function saveContentPost(client, token, opts) {
 		message: opts.message,
 		mustNotExist: plan.mustNotExist,
 		unchanged: plan.unchanged,
-		...(opts.pr ? { pr: opts.pr } : {})
+		...(opts.pr ? { pr: opts.pr } : {}),
+		...(opts.edges ? { edges: { [plan.path]: opts.edges } } : {})
 	});
 	return { ...plan, commit };
 }

@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * La página de un perfil guardado en la base (interruptor `perfiles_publicos`): persona, proyecto
+	 * La página de un perfil guardado en la base: persona, proyecto
 	 * o lugar. Todo lo que llega ya pasó por las reglas del servidor (src/lib/server/amigues/):
 	 * lista blanca de campos, HTML del texto ya limpio, integrantes visibles, privacidad del lugar.
 	 * Props: `data` (lo que arma `profilePageData`), `claimResult` (la respuesta de "Es mi perfil").
@@ -152,11 +152,11 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 		justify-content: center;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		span {
 			font-size: var(--step--1);
 			padding: 0.3em 0.8em;
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			background: color-mix(in srgb, gold 30%, transparent);
 		}
 	}

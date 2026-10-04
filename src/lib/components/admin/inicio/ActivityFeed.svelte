@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * Lista de movimientos del Inicio (actividad reciente y "desde tu última visita"): un punto de
 	 * color por tipo, qué pasó (con link a donde se ve), quién/dónde y hace cuánto.
@@ -16,21 +16,13 @@
 	export let limit = Infinity;
 	export let compact = false;
 
-	const whenFmt = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
-
 	/** @param {number} ms */
 	function ago(ms) {
 		const diff = now - ms;
 		if (diff < 60_000) return 'recién';
 		if (diff < 3_600_000) return `hace ${Math.round(diff / 60_000)} min`;
 		if (diff < 86_400_000) return `hace ${Math.round(diff / 3_600_000)} h`;
-		return whenFmt.format(ms);
+		return argDateLog(ms);
 	}
 
 	/** @param {import('$lib/server/admin/inicio.js').ActivityItem} a */
@@ -65,9 +57,9 @@
 	}
 	li {
 		display: flex;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: center;
-		padding: 0.55rem 0;
+		padding: var(--space-2xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	li:first-child {
@@ -126,7 +118,7 @@
 		box-shadow: inset 0 0 0 2px var(--ok);
 	}
 	time {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		white-space: nowrap;
 		align-self: flex-start;
 		padding-top: 0.15rem;

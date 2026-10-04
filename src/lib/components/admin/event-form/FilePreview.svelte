@@ -3,8 +3,7 @@
 	 * «Ver el archivo que se va a guardar»: el markdown que genera el formulario, plegado. Movido
 	 * desde /admin/eventos/nuevo y PostEditor, que lo tenían igual.
 	 *
-	 * `savesToDb`: con el interruptor `contenido_db`, lo que se guarda va a la base (no es un archivo
-	 * del repo): el título lo dice ($lib/admin/saveCopy.js).
+	 * `savesToDb`: lo que se guarda va a la base (no es un archivo del repo): el título lo dice ($lib/admin/saveCopy.js).
 	 */
 	import { saveCopy } from '$lib/admin/saveCopy.js';
 
@@ -28,7 +27,7 @@
 	.markdown {
 		background: #1e1e1e;
 		color: #eee;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 1em;
 		font-size: var(--step--2);
 		white-space: pre-wrap;

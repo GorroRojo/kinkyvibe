@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
+	import { argDateList } from '$lib/utils/dates.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -11,7 +12,7 @@
 		mark
 	} = post;
 	export let setId = true;
-	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	mark = tags.includes('KinkyVibe') ? 'Kinky Vibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
 
@@ -47,6 +48,12 @@
 			</small>
 		{/if}
 	</h3>
+	{#if category == 'calendario' && argDateList(start ?? '')}
+		<!-- la fecha corta de las listas (docs/estilo.md, «Textos») -->
+		<time class="card-date dt-start" datetime={new Date(start ?? '').toISOString()}
+			>{argDateList(start ?? '')}</time
+		>
+	{/if}
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
@@ -102,6 +109,14 @@
 		padding: 0.5em;
 		text-align: center;
 	}
+	.card-date {
+		margin: -0.3em auto 0.6em;
+		padding-inline: 0.5em;
+		text-align: center;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 700;
+	}
 	.p-pronouns {
 		font-size: 0.6em;
 		opacity: 0.7;
@@ -115,7 +130,7 @@
 	.card.mark {
 		--post-color: var(--1);
 		--shadow-color: var(--color, var(--color-2, var(--1)));
-		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-1);
 		height: 100%;
 		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 		&.amigues img {
@@ -193,7 +208,7 @@
 		}
 
 		&::-webkit-scrollbar-thumb {
-			border-radius: 1rem;
+			border-radius: var(--radius-m);
 			background-color: var(--1-light);
 			&:active {
 				background-color: var(--1);
@@ -209,7 +224,7 @@
 		outline: 1px solid var(--post-color, var(--2));
 		height: unset;
 		aspect-ratio: 1;
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		scale: 1.1;
 	}
 	.amigues h3 {

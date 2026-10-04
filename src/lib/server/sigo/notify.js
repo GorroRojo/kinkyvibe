@@ -1,7 +1,7 @@
 /**
  * Los mails de «Lo que sigo» (docs/lo-que-sigo.md): «se anunció algo nuevo» y «recordatorio el
- * día antes». Los corre el cron de mails cada 15 minutos (POST /api/cron/recordatorios) con los
- * interruptores `lo_que_sigo` y `cuentas` prendidos. Cada corrida:
+ * día antes». Los corre el cron de mails cada 15 minutos (POST /api/cron/recordatorios) con el
+ * interruptor `lo_que_sigo` prendido. Cada corrida:
  *
  * 1. anota en `follow_events_seen` los eventos próximos (listados, con fecha futura, no
  *    cancelados) que todavía no había visto. La primera corrida de todas los anota con fecha 0:
@@ -355,7 +355,8 @@ export async function runFollowNotifications({
 					eventUrl,
 					reasons: [...item.reasons],
 					manageUrl: `${origin}/mi-rincon/sigo`,
-					stopUrl: await stopMailUrl(db, origin, accountId)
+					stopUrl: await stopMailUrl(db, origin, accountId),
+					origin
 				});
 				/** @type {'sent' | 'simulated' | 'failed'} */
 				let result = 'failed';

@@ -7,6 +7,7 @@ import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
 import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
+import { isMediaPath } from '$lib/utils/media.js';
 
 import { POSTS_DIR } from './images.js';
 
@@ -34,8 +35,8 @@ export function isMockMode() {
 }
 
 /**
- * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a Cloudflare
- * Pages preview (demo mode, $lib/server/demo). Then post files are read and saved through
+ * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a preview
+ * deploy (demo mode, $lib/server/demo). Then post files are read and saved through
  * getRepoClient() instead of the GitHub contents API.
  */
 export function usesLocalRepo() {
@@ -48,8 +49,9 @@ export function usesLocalRepo() {
  * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
  * On a preview deploy (PREVIEW_BUILD, also a build-time constant) it returns the demo client:
  * "commits" go to the preview's D1 (`demo_files`), never to GitHub, whoever is logged in.
- * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): with the
- * `contenido_db` switch on, the events stored in the database are read and saved there.
+ * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): events,
+ * material, amigues profiles and wiki pages are always read from and saved to the database; only
+ * what still lives in the repo (images) reaches this client.
  * @returns {Promise<typeof github>}
  */
 export async function getRepoClient() {
@@ -69,6 +71,7 @@ export async function getRepoClient() {
 
 /* ------------------------------------------------------------------------------------------ */
 
+/** Los .md de eventos del repo (solo sus nombres: ver {@link takenSlugsInBundle}). */
 const mdModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
 /** @type {Record<string, string>} */
 const mediaFiles = import.meta.glob(
@@ -101,6 +104,7 @@ const FORMATS = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
  */
 export function featuredURL(slug, featured) {
 	if (featured === undefined || featured === null || featured === '') return undefined;
+	if (isMediaPath(featured)) return String(featured);
 	if (isNumericFeatured(featured)) {
 		for (const f of FORMATS) {
 			const url = mediaFiles[`/src/lib/posts/calendario/media/${slug}/${featured}.${f}`];
@@ -130,54 +134,28 @@ function siteDate(v) {
 	return date ? `${date}T${time || '00:00'}${AR_OFFSET}` : '';
 }
 
-/** @type {Promise<EventSummary[]> | undefined} */
-let cache;
-
 /**
- * Events included in this deploy, newest first.
+ * Los eventos de la base (también los ocultos, que el panel ve; no los borrados), newest first.
  * @returns {Promise<EventSummary[]>}
  */
 export async function listEvents() {
-	if (!cache || import.meta.env.DEV) cache = loadEvents();
-	const events = PREVIEW_BUILD ? await withDemoEvents(await cache) : await cache;
-	return withDbEvents(events);
-}
-
-/**
- * Interruptor `contenido_db`: los eventos que están en la base (también los ocultos y borrados,
- * que el panel ve) en lugar de su .md, y los que solo están en la base.
- * @param {EventSummary[]} events
- */
-async function withDbEvents(events) {
 	const { activeContentDB, allDbEventObjects } = await import('../contenido/repo.js');
 	const { eventToMeta } = await import('../contenido/eventos.js');
-	const db = await activeContentDB();
-	if (!db) return events;
+	const { imageKeysByObject } = await import('../media/library.js');
+	const db = activeContentDB();
+	if (!db) return [];
+	// La imagen de la biblioteca de cada evento (edge `portada`), si tiene; si no, la del repo.
+	const covers = await imageKeysByObject(db, 'evento', 'portada').catch(() => new Map());
+	/** @type {EventSummary[]} */
+	const events = [];
 	// Solo la metadata: sin armar el texto de cada evento.
-	const fromDb = await allDbEventObjects(db);
-	if (!fromDb.size) return events;
-	const bySlug = new Map(events.map((e) => [e.slug, e]));
-	for (const [slug, e] of fromDb) {
-		if (e.deleted) bySlug.delete(slug);
-		else bySlug.set(slug, summarize(slug, eventToMeta(e.object)));
+	for (const [slug, e] of await allDbEventObjects(db)) {
+		if (e.deleted) continue;
+		const meta = eventToMeta(e.object);
+		const cover = covers.get(e.object.id);
+		events.push(summarize(slug, cover ? { ...meta, featured: `/media/${cover}` } : meta));
 	}
-	return [...bySlug.values()].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
-}
-
-/**
- * Demo mode: the events of the deploy with what the demo layer created, edited or deleted.
- * @param {EventSummary[]} events
- */
-async function withDemoEvents(events) {
-	const { overlayPostMetas } = await import('../demo/index.js');
-	const changed = await overlayPostMetas('calendario');
-	if (!changed.length) return events;
-	const bySlug = new Map(events.map((e) => [e.slug, e]));
-	for (const { slug, meta } of changed) {
-		if (meta) bySlug.set(slug, summarize(slug, meta));
-		else bySlug.delete(slug);
-	}
-	return [...bySlug.values()].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+	return events.sort((a, b) => (b.start || '').localeCompare(a.start || ''));
 }
 
 /**
@@ -199,27 +177,10 @@ function summarize(slug, meta) {
 	};
 }
 
-async function loadEvents() {
-	/** @type {EventSummary[]} */
-	const events = [];
-	for (const [path, load] of Object.entries(mdModules)) {
-		const slug = path.split('/').pop()?.replace(/\.md$/, '') ?? '';
-		if (!slug || slug.startsWith('_')) continue;
-		/** @type {any} */
-		let meta;
-		try {
-			meta = await load();
-		} catch (e) {
-			continue;
-		}
-		if (!meta) continue;
-		events.push(summarize(slug, meta));
-	}
-	events.sort((a, b) => (b.start || '').localeCompare(a.start || ''));
-	return events;
-}
-
-/** Slugs taken in this deploy: event files and media folders. */
+/**
+ * Slugs taken in this deploy: event files (the .md kept in the repo as a backup: their address is
+ * not reused) and media folders.
+ */
 export function takenSlugsInBundle() {
 	const slugs = new Set();
 	for (const path of Object.keys(mdModules)) slugs.add(path.split('/').pop()?.replace(/\.md$/, ''));

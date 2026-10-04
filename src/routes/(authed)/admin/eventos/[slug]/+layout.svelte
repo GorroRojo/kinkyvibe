@@ -5,9 +5,10 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
+	import { CalendarDays, Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
+	import TagChip from '$lib/components/TagChip.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
 	import { eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 
@@ -16,12 +17,18 @@
 
 	const icon = { size: 16, strokeWidth: 2.25, 'aria-hidden': true };
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
-	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail'];
+	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
 
 	$: bare = $page.data?.bare === true;
 	$: e = data.event;
-	$: tabs = EVENT_TABS.filter((t) => e.sellsTickets || !SALES_TABS.includes(t.id))
-		// Preguntas de inscripción: solo con el interruptor `personas_eventos` prendido.
+	// Parte de un taller con una sola entrada: su modo puerta usa las entradas del taller.
+	$: tabs = EVENT_TABS.filter(
+		(t) =>
+			e.sellsTickets ||
+			!SALES_TABS.includes(t.id) ||
+			(t.id === 'ingreso' && data.workshop?.coveredDoor)
+	)
+		// Preguntas de inscripción: con base y venta de entradas.
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
@@ -48,7 +55,10 @@
 		{#if e.thumb}
 			<img class="cover" src={e.thumb} alt="" />
 		{:else}
-			<div class="cover gradient" aria-hidden="true"></div>
+			<!-- Sin imagen: el ícono grande del tipo (evento). -->
+			<div class="cover type-icon" aria-hidden="true">
+				<CalendarDays size={48} strokeWidth={1.75} />
+			</div>
 		{/if}
 		<div class="text">
 			<a class="back" href="/admin/eventos">← Eventos</a>
@@ -59,9 +69,22 @@
 			{/if}
 			<div class="chips">
 				{#each eventBadges(e) as b}<Badge tone={b.tone}>{b.label}</Badge>{/each}
-				{#if e.kinkyvibe}<Badge tone="info">Fondo KinkyVibe</Badge>{/if}
+				{#if data.workshop}
+					<!-- Talleres en varias partes (docs/talleres-partes.md) -->
+					{#if data.workshop.isWorkshop}
+						<Badge tone="info">{data.workshop.label}</Badge>
+					{:else}
+						<a
+							class="part-chip"
+							href="/admin/eventos/{encodeURIComponent(data.workshop.workshopSlug)}/editar#partes"
+							><Badge tone="info">{data.workshop.label}</Badge>
+							<span>de «{data.workshop.workshopTitle}»</span></a
+						>
+					{/if}
+				{/if}
+				{#if e.kinkyvibe}<Badge tone="info">Fondo Kinky Vibe</Badge>{/if}
 				{#each e.tags.filter((t) => t !== 'KinkyVibe' && t !== e.place) as t}
-					<span class="tag">{t}</span>
+					<TagChip tag={t} />
 				{/each}
 			</div>
 		</div>
@@ -99,7 +122,7 @@
 		display: grid;
 		grid-template-columns: 7rem minmax(0, 1fr);
 		grid-template-areas: 'cover text' 'actions actions';
-		gap: 0.6rem 1.1rem;
+		gap: var(--space-2xs) var(--space-s);
 		align-items: start;
 		margin: 0.4rem 0 1rem;
 	}
@@ -111,8 +134,12 @@
 		object-fit: cover;
 		box-shadow: var(--shadow);
 	}
-	.gradient {
-		background: linear-gradient(135deg, var(--1), var(--2));
+	.type-icon {
+		display: grid;
+		place-items: center;
+		background: var(--link-bg);
+		color: var(--link);
+		box-shadow: none;
 	}
 	.text {
 		grid-area: text;
@@ -122,11 +149,11 @@
 		gap: 0.2rem;
 	}
 	.back {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	h1 {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 		margin: 0;
 		overflow-wrap: anywhere;
 		line-height: 1.15;
@@ -145,17 +172,20 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
+		align-items: center;
 		margin-top: 0.3rem;
 	}
-	.tag {
-		font-size: 0.75rem;
-		font-weight: 700;
-		border-radius: 3em;
-		padding: 0.1em 0.6em;
-		background: var(--surface);
-		border: 1px solid var(--field);
-		color: var(--accent);
+	.part-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.part-chip:hover span {
+		text-decoration: underline;
 	}
 	.actions {
 		grid-area: actions;
@@ -167,11 +197,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		background: var(--warn-bg);
 		color: var(--text);
 		border-radius: var(--card-round);
-		padding: 0.6rem 0.8rem 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.push {
@@ -204,7 +234,7 @@
 			height: 4.5rem;
 		}
 		h1 {
-			font-size: 1.3rem;
+			font-size: var(--text-base);
 		}
 	}
 </style>

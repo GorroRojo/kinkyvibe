@@ -53,11 +53,11 @@
 		width: max-content;
 		margin-inline: auto;
 		max-width: 100%;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 	}
 	.profile-pic {
 		display: block;
-		border-radius: 9999em;
+		border-radius: var(--radius-pill);
 		object-fit: cover;
 		max-height: 4em;
 		width: auto;

@@ -30,11 +30,39 @@ export function monthHasPastEvents(posts, month, now = Date.now()) {
 	});
 }
 
+/**
+ * Encabezado de la lista de /calendario: el mes que se ve y cuántos eventos tiene, «Octubre · 7
+ * eventos» (con el año si no es este: «Enero 2027 · 1 evento»).
+ * @param {string} month yyyy-MM
+ * @param {number} count
+ * @param {number} [now]
+ */
+export function monthCountLabel(month, count, now = Date.now()) {
+	const [y, m] = month.split('-').map(Number);
+	const names = [
+		'Enero',
+		'Febrero',
+		'Marzo',
+		'Abril',
+		'Mayo',
+		'Junio',
+		'Julio',
+		'Agosto',
+		'Septiembre',
+		'Octubre',
+		'Noviembre',
+		'Diciembre'
+	];
+	const name = names[m - 1] ?? month;
+	const year = y === toArgentina(now).getFullYear() ? '' : ` ${y}`;
+	return `${name}${year} · ${count} ${count === 1 ? 'evento' : 'eventos'}`;
+}
+
 /** @type {Promise<ProcessedPost[]>|undefined} */
 let allPosts;
 /**
  * Browser only: every listed post, including past events, from /api/posts (server-rendered and
- * cached a few minutes: its tags follow the `etiquetas_db` switch). Pages call this once the
+ * cached a few minutes: its tags come from the database). Pages call this once the
  * viewer turns on "show past events".
  * @return {Promise<ProcessedPost[]>}
  */

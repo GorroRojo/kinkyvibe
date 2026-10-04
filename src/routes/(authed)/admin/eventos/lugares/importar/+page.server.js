@@ -9,7 +9,6 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { contenidoDbEnabled, perfilesPublicosEnabled } from '$lib/server/flags.js';
 import {
 	importableEvents,
 	loadVenueImportPlan,
@@ -25,12 +24,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const events = await importableEvents(platform);
-	const [{ candidates, skipped }, flagOn, fromDb] = await Promise.all([
-		loadVenueImportPlan(db, events),
-		perfilesPublicosEnabled(platform),
-		contenidoDbEnabled(platform)
-	]);
-	return { candidates, skipped, total: events.length, flagOn, fromDb };
+	const { candidates, skipped } = await loadVenueImportPlan(db, events);
+	return { candidates, skipped, total: events.length };
 }
 
 /** @type {import('./$types').Actions} */

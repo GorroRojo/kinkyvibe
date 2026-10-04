@@ -56,7 +56,7 @@
 			? `Pasa el cupo de «${type.name}»: quedarían ${type.taken + count} / ${type.capacity}.`
 			: '',
 		count > data.maxPerPurchase ? `Son más de ${data.maxPerPurchase} entradas por compra.` : '',
-		data.salesClosed || (type && !type.open) ? 'La venta ya cerró.' : ''
+		data.salesClosed || (type && !type.open) ? 'Venta cerrada.' : ''
 	].filter(Boolean);
 
 	/** @type {import('./$types').SubmitFunction} */
@@ -99,7 +99,7 @@
 		if (!t.open) return 'venta cerrada';
 		if (t.capacity === null) return 'sin cupo';
 		if (t.taken > t.capacity) return `pasada del cupo (${t.taken} / ${t.capacity})`;
-		if (t.available === 0) return `agotada (${t.taken} / ${t.capacity})`;
+		if (t.available === 0) return `agotadas (${t.taken} / ${t.capacity})`;
 		return `quedan ${t.available} de ${t.capacity}`;
 	}
 </script>
@@ -264,26 +264,26 @@
 <style>
 	.layout {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		max-width: 44rem;
 	}
 	.stack {
 		display: grid;
-		gap: 0.9rem;
+		gap: var(--space-xs);
 	}
 	.grid2 {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-		gap: 0.9rem;
+		gap: var(--space-xs);
 	}
 	.field {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.field > span,
 	legend {
 		font-weight: 700;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	fieldset {
 		border: 0;
@@ -291,7 +291,7 @@
 		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 	}
 	legend {
 		margin-bottom: 0.3rem;
@@ -305,7 +305,7 @@
 		margin: 0;
 	}
 	.note {
-		border-radius: 1rem;
+		border-radius: var(--radius-m);
 		resize: vertical;
 	}
 	.total {
@@ -318,12 +318,12 @@
 	}
 	.warn {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: flex-start;
 		background: var(--warn-bg);
 		color: var(--text);
 		border-radius: var(--card-round);
-		padding: 0.6rem 0.9rem;
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.warn p {
 		margin: 0 0 0.2rem;
@@ -343,14 +343,14 @@
 		padding: 0;
 		margin: 0 0 0.6rem;
 		display: grid;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 	}
 	.codes li {
 		display: flex;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 </style>

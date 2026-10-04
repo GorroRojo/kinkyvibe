@@ -138,11 +138,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem 0.8rem;
+		gap: var(--space-2xs) var(--space-xs);
 		background: var(--warn-bg);
 		border: 1px dashed var(--warn);
-		border-radius: 0.8rem;
-		padding: 0.55rem 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.pending p {
 		margin: 0;
@@ -151,12 +151,12 @@
 	.facts {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 		margin: 0;
 	}
 	dt {
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	dd {
 		margin: 0;
@@ -165,36 +165,36 @@
 	.badges {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.links {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.move {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		border-top: 1px solid var(--line);
-		padding-top: 0.9rem;
+		padding-top: var(--space-xs);
 	}
 	.move label {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		font-weight: 700;
 	}
 	.move-row {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 	.move input {
 		min-height: 2.6rem;
 		border: 1px solid var(--line);
-		border-radius: 0.6rem;
-		padding: 0 0.6rem;
+		border-radius: var(--radius-s);
+		padding: 0 var(--space-2xs);
 		background: var(--surface);
 		color: var(--text);
 	}

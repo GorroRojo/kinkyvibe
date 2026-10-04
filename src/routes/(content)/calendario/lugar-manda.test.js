@@ -8,7 +8,8 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 
 // La primera prueba compila las rutas (y la ficha real de Yuyo): tarda.
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 90_000 });
@@ -51,8 +52,7 @@ const fake = vi.hoisted(() => {
 vi.mock('$lib/utils', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
 	fetchMarkdownPosts: async (/** @type {boolean} */ wiki) =>
-		wiki ? [] : structuredClone(fake.posts),
-	fetchCurrentPosts: async () => structuredClone(fake.posts)
+		wiki ? [] : structuredClone(fake.posts)
 }));
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -71,20 +71,14 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/**
- * @param {string} perfiles '1' prendido, '0' apagado
- * @param {string} [contenido] interruptor `contenido_db`
- */
-function flags(perfiles, contenido = '0') {
+/** Módulos recién cargados, sin variables de entorno. */
+function flags() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			PERFILES_PUBLICOS_ENABLED: perfiles,
-			CUENTAS_ENABLED: '1',
-			CONTENIDO_DB_ENABLED: contenido
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 }
+
+/** Los eventos inventados, en la base (de donde salen los eventos), con su «Dónde». */
+const seedEvents = () => seedPosts(t.db, fake.posts);
 
 /** @param {{ path?: string, params?: Record<string, string> }} [o] */
 function fakeEvent({ path = '/', params = {} } = {}) {
@@ -118,6 +112,9 @@ async function linkVenues() {
 	});
 	const { setEventVenue } = await import('$lib/server/amigues/venues.js');
 	for (const level of LEVELS) {
+		// «Sucede en» es un edge del evento: el evento tiene que estar en la base (si ya se importó,
+		// es ese).
+		await makeEvent(t.db, `lugar-${level}`);
 		await setEventVenue(t.db, {
 			eventSlug: `lugar-${level}`,
 			venueId: venue.id,
@@ -145,6 +142,11 @@ async function publicOutputs() {
 	out.inicio = JSON.stringify(await (await import('../+page.server.js')).load(fakeEvent()));
 	out.todo = JSON.stringify(await (await import('../todo/+page.server.js')).load(fakeEvent()));
 	out.calendario = JSON.stringify(await (await import('./+page.server.js')).load(fakeEvent()));
+	// La ficha (real, pública) de Yuyo, en la base: «solo base», los perfiles salen solo de ahí.
+	const { importAmigues } = await import('$lib/server/amigues/importer.js');
+	const { readAmigueFiles } = await import('$lib/server/amigues/files.js');
+	const yuyo = (await readAmigueFiles()).filter((f) => f.legacySlug === 'Yuyo');
+	await importAmigues(t.db, yuyo, { actor: 'admin-de-prueba' });
 	out.relacionados = JSON.stringify(
 		await (
 			await import('../amigues/[profile]/+page.server.js')
@@ -166,7 +168,8 @@ const mdPlace = (slug) => [`Calle Md ${slug}`, `Nombre Md ${slug}`, `mapa-md-${s
 
 describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	it('en ninguna salida pública aparece el «Dónde» del .md de un evento con lugar', async () => {
-		flags('1');
+		flags();
+		await seedEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();
 		for (const [name, out] of Object.entries(outputs)) {
@@ -183,7 +186,8 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	});
 
 	it('en su lugar va lo que el nivel deja ver', async () => {
-		flags('1');
+		flags();
+		await seedEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();
 		/** @type {{ path: string, meta: Record<string, any> }[]} */
@@ -219,7 +223,8 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	});
 
 	it('la página del lugar lista sus eventos sin el «Dónde» del .md', async () => {
-		flags('1');
+		flags();
+		await seedEvents();
 		const venue = await linkVenues();
 		const page = /** @type {any} */ (
 			await (
@@ -236,21 +241,10 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 		}
 	});
 
-	it('con `perfiles_publicos` apagado, todo como antes (la página también usa el .md)', async () => {
-		flags('0');
-		await linkVenues();
-		const posts = await (
-			await (await import('../../api/posts/+server.js')).GET(fakeEvent())
-		).text();
-		expect(posts).toContain('Calle Md lugar-hidden');
-		const share = await (
-			await import('./[event]/compartir/+page.server.js')
-		).load(fakeEvent({ params: { event: 'lugar-hidden' } }));
-		expect(share).toEqual({ mode: 'md', venue: null });
-	});
+	// «Con `perfiles_publicos` apagado, todo como antes» se fue con el interruptor (quedó fijo).
 });
 
-describe('con `contenido_db` prendido (los eventos salen de la base)', () => {
+describe('los eventos salen de la base, no de su .md', () => {
 	/** Los eventos importados a la base, con un «Dónde» distinto del de su .md. */
 	async function importEvents() {
 		const { stringify } = await import('yaml');
@@ -276,7 +270,7 @@ describe('con `contenido_db` prendido (los eventos salen de la base)', () => {
 	const anyPlace = (slug) => [...mdPlace(slug), `Calle Base ${slug}`, `Nombre Base ${slug}`];
 
 	it('un evento de la base con lugar tampoco muestra su «Dónde» en ninguna salida', async () => {
-		flags('1', '1');
+		flags();
 		await importEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();
@@ -298,7 +292,7 @@ describe('con `contenido_db` prendido (los eventos salen de la base)', () => {
 			expect(outputs[name], name).toContain('Calle Base sin-lugar');
 			expect(outputs[name], name).not.toContain('Calle Md sin-lugar');
 		}
-		expect(JSON.parse(outputs['evento lugar-name']).mode).toBe('db');
-		expect(JSON.parse(outputs['compartir lugar-name']).mode).toBe('db');
+		expect(JSON.parse(outputs['evento lugar-name']).post.path).toBe('/calendario/lugar-name');
+		expect(JSON.parse(outputs['compartir lugar-name']).path).toBe('/calendario/lugar-name');
 	});
 });

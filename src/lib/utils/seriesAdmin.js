@@ -1,5 +1,5 @@
 /**
- * Crear series desde el panel (interruptor `series`): «Crear serie» en Eventos → Series y la
+ * Crear series desde el panel: «Crear serie» en Eventos → Series y la
  * pregunta «¿Es parte de una serie?» al duplicar un evento. Una serie es una etiqueta hija de
  * «evento recurrente»; los cambios se guardan con el mismo camino que /admin/etiquetas
  * (planTagEdit / commitTagEdit). Funciones puras, con pruebas en seriesAdmin.test.js.
@@ -18,28 +18,44 @@ const clean = (s) =>
 		.trim();
 
 /**
- * Las operaciones del editor de etiquetas para crear una serie.
+ * Las operaciones del editor de etiquetas para crear una serie: hija de «evento recurrente» o, con
+ * `parent`, de otra serie (una serie hija: una edición especial, como «Picantearla: Deluxe»). Sus eventos llevan las dos etiquetas: la de la serie hija
+ * y la de la madre (así la página de la madre sigue mostrando todas las ediciones).
  *
- * @param {{ name: unknown, image?: unknown, description?: unknown }} input
- * @param {{ exists?: (name: string) => boolean }} [opts]
- * @returns {{ ok: true, name: string, ops: import('./tagConfig.js').TagOp[] } | { ok: false, error: string }}
+ * @param {{ name: unknown, image?: unknown, description?: unknown, icon?: unknown, parent?: unknown }} input
+ * @param {{ exists?: (name: string) => boolean, seriesIds?: readonly string[] }} [opts]
+ *   `seriesIds`: las series que existen (las únicas madres que se aceptan además de «evento
+ *   recurrente»)
+ * @returns {{ ok: true, name: string, parent: string, ops: import('./tagConfig.js').TagOp[] } | { ok: false, error: string }}
  */
-export function seriesCreateOps(input, { exists = () => false } = {}) {
+export function seriesCreateOps(input, { exists = () => false, seriesIds = [] } = {}) {
 	const name = clean(input.name);
 	const invalid = validateTagName(name);
 	if (invalid) return { ok: false, error: invalid };
 	if (exists(name)) return { ok: false, error: `Ya existe una etiqueta «${name}».` };
+	const parent = clean(input.parent) || SERIES_PARENT;
+	if (parent !== SERIES_PARENT && !seriesIds.includes(parent))
+		return { ok: false, error: 'Elegí una de las series como madre (o ninguna).' };
 	const image = clean(input.image);
 	if (image && !isTagImage(image)) return { ok: false, error: IMAGE_ERROR };
+	const icon = clean(input.icon);
+	if (icon.length > SERIES_ICON_MAX)
+		return { ok: false, error: 'El ícono tiene que ser un emoji (o dos).' };
 	const description = String(input.description ?? '').trim();
 	if (description.length > 2000)
 		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
 	/** @type {import('./tagConfig.js').TagOp[]} */
 	const ops = [
-		{ type: 'create', id: name, parent: SERIES_PARENT, ...(description ? { description } : {}) }
+		{
+			type: 'create',
+			id: name,
+			parent,
+			...(icon ? { icon } : {}),
+			...(description ? { description } : {})
+		}
 	];
 	if (image) ops.push({ type: 'update', id: name, set: { image } });
-	return { ok: true, name, ops };
+	return { ok: true, name, parent, ops };
 }
 
 /** Largo máximo del ícono (un emoji, como en Etiquetas). */

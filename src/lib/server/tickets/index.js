@@ -23,9 +23,12 @@ import {
 	sendWithResend
 } from './email.js';
 import { parseAllowlist, routeEmail } from './emailGuard.js';
-import { getEventTickets, listTicketedEvents } from './events.js';
+import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
+import { coveredPartsByWorkshop } from '../eventos/partes.js';
+import { workshopPartsList } from './workshopParts.js';
 import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
+import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
@@ -34,8 +37,8 @@ import {
 	getSalesSettings,
 	transferInfoFromSettings
 } from './settings.js';
-import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
-import { getTemplateOverride } from './templates.js';
+import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
+import { resolveTemplate } from './templates.js';
 import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
@@ -46,6 +49,7 @@ import {
 	sendStreamLinkBatch
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
+import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
@@ -159,7 +163,7 @@ export function contactEmail() {
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  */
 export async function emailSettings(db) {
-	/** @type {{ from_email?: string, reply_to_email?: string }} */
+	/** @type {{ from_email?: string, reply_to_email?: string, mail_footer_contact?: string, mail_footer_signoff?: string }} */
 	let s = {};
 	try {
 		s = await getSalesSettings(db);
@@ -168,8 +172,19 @@ export async function emailSettings(db) {
 	}
 	return {
 		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
-		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO
+		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
+		// Pie de los mails (vacío = el de siempre): lo aplica `deliver()` con `withMailFooter`.
+		footer: { contact: s.mail_footer_contact || '', signoff: s.mail_footer_signoff || '' }
 	};
+}
+
+/**
+ * El pie de los mails de los ajustes (para la vista previa de las plantillas; ver `emailSettings`).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export async function mailFooter(db) {
+	return (await emailSettings(db)).footer;
 }
 
 /**
@@ -271,6 +286,12 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	}
 	if (result.newlyApproved && result.order) {
 		const order = result.order;
+		// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
+		trackFunnel(platform?.env, {
+			slug: order.event_slug,
+			step: 'aprobada',
+			method: order.payment_method
+		});
 		const sending = sendOrderEmail({ db, order, tickets: result.tickets, origin, fetch: fetchFn });
 		const ctx = platform?.ctx;
 		if (ctx?.waitUntil) ctx.waitUntil(sending);
@@ -293,7 +314,10 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = '' }) {
+async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey, log = '' }) {
+	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
+	const settings = await emailSettings(db);
+	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
 	const apiKey = env.RESEND_API_KEY;
 	if (!apiKey) {
 		if (dev) {
@@ -315,7 +339,7 @@ async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = 
 		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
 		return 'simulated';
 	}
-	const { from, replyTo } = await emailSettings(db);
+	const { from, replyTo } = settings;
 	await sendWithResend({
 		fetch: fetchFn,
 		apiKey,
@@ -388,7 +412,7 @@ export async function sendOrderEmail({
 		if (streamLink && (await claimStreamLinkSend(db, { orderId: order.id, link: streamLink }))) {
 			claimedLink = streamLink;
 		}
-		// Si el evento tiene lugar (interruptor `perfiles_publicos`), quien compró recibe la
+		// Si el evento tiene lugar, quien compró recibe la
 		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
 		const venue = await buyerLocation(db, order.event_slug);
 		const message = buildTicketEmail({
@@ -400,12 +424,14 @@ export async function sendOrderEmail({
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
 				online,
-				streamLink
+				streamLink,
+				// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte.
+				parts: await workshopPartsList(db, order.event_slug, { online })
 			},
 			typeName,
 			origin,
 			contactEmail: contactEmail(),
-			template: await getTemplateOverride(db, 'tickets')
+			template: await resolveTemplate(db, order.event_slug, 'tickets')
 		});
 		const result = await deliver({
 			db,
@@ -462,7 +488,7 @@ export async function sendStreamLinkEmails({
 	const event = { title: config?.title || eventSlug, start: config?.start };
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
-	const template = await getTemplateOverride(db, 'stream');
+	const template = await resolveTemplate(db, eventSlug, 'stream');
 	return sendStreamLinkBatch(db, {
 		eventSlug,
 		link,
@@ -509,7 +535,15 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 		const config = await getEventTickets(order.event_slug);
 		const message = buildTransferEmail({
 			order,
-			event: { title: config?.title || order.event_slug, start: config?.start },
+			event: {
+				title: config?.title || order.event_slug,
+				start: config?.start,
+				// La compra todavía no está pagada: el lugar como se ve en el sitio.
+				parts: await workshopPartsList(db, order.event_slug, {
+					online: Boolean(config?.online),
+					buyer: false
+				})
+			},
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 			transferInfo: info,
 			replyTo: await replyToAddress(db),
@@ -517,7 +551,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			origin,
 			confirmUrl: await confirmUrl(db, origin, order.id),
 			fullHoldHours: Math.round(transferHoldMs() / 3600000),
-			template: await getTemplateOverride(db, 'transfer')
+			template: await resolveTemplate(db, order.event_slug, 'transfer')
 		});
 		const result = await deliver({
 			db,
@@ -548,7 +582,7 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			event: { title: config?.title || order.event_slug, start: config?.start },
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 			contactEmail: contactEmail(),
-			template: await getTemplateOverride(db, 'refund')
+			template: await resolveTemplate(db, order.event_slug, 'refund')
 		});
 		const result = await deliver({
 			db,
@@ -591,47 +625,99 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 		}))
 		.filter((e) => Number.isFinite(e.start));
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
+	// Talleres en varias partes con una sola entrada (docs/talleres-partes.md): cada otra parte es un
+	// evento más para los recordatorios, con su fecha y las órdenes del taller.
+	/** @type {Map<string, { title: string, start: string }>} */
+	const partInfo = new Map();
+	/** @type {import('./reminders.js').ReminderEvent[]} */
+	const partEvents = [];
+	const covered = await coveredPartsByWorkshop(db).catch((e) => {
+		console.error('[recordatorios] partes de los talleres:', e);
+		return new Map();
+	});
+	for (const [workshop, { parts }] of covered) {
+		const e = bySlug.get(workshop);
+		if (!e) continue;
+		for (const p of parts) {
+			const start = p.start ? Date.parse(p.start) : NaN;
+			if (!Number.isFinite(start)) continue;
+			partInfo.set(p.slug, { title: p.title, start: String(p.start) });
+			partEvents.push({
+				slug: workshop,
+				start,
+				reminders: e.reminders,
+				cancelled: e.cancelled || p.status === 'cancelado',
+				part: p.slug
+			});
+		}
+	}
 	/** @type {Map<string, string | null>} */
 	const links = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
-	const template = await getTemplateOverride(db, 'reminder');
+	/** @type {Map<string, Record<string, any> | null>} */
+	const partMetas = new Map();
+	// La lista de partes de cada taller con una sola entrada, leída una vez por taller.
+	/** @type {Map<string, Awaited<ReturnType<typeof workshopPartsList>>>} */
+	const partLists = new Map();
+	// Plantilla de cada evento (la del evento sobre la general), leída una vez por evento.
+	/** @type {Map<string, Awaited<ReturnType<typeof resolveTemplate>>>} */
+	const templates = new Map();
 	return sendDueReminders(db, {
-		events,
+		events: [...events, ...partEvents],
 		reminders,
 		now,
 		limit: limit ?? mailBatchSize(settings.mail_batch_size),
-		send: async (order, reminder) => {
+		send: async (order, reminder, part) => {
 			const e = bySlug.get(order.event_slug);
 			if (!e) return false;
 			const config = e.config;
+			// Una parte: su título, su fecha y su lugar; las entradas y la plantilla, las del taller.
+			const where = part ?? e.slug;
+			const info = part ? partInfo.get(part) : null;
+			if (part && !info) return false;
+			if (part && !partMetas.has(part)) partMetas.set(part, await getEventMeta(part));
+			const meta = part ? partMetas.get(part) : null;
 			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
 			const tickets = await getOrderTickets(db, order.id);
-			if (!venues.has(e.slug)) venues.set(e.slug, await buyerLocation(db, e.slug));
-			const venue = venues.get(e.slug);
+			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
+			const venue = venues.get(where);
+			if (!templates.has(e.slug))
+				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
+			if (!partLists.has(e.slug)) {
+				partLists.set(
+					e.slug,
+					await workshopPartsList(db, e.slug, { online: Boolean(config.online) })
+				);
+			}
 			const message = buildReminderEmail({
 				order,
 				tickets,
 				reminder,
 				event: {
-					title: config.title || e.slug,
-					start: config.start,
-					location: venue ? venue.location : config.location,
-					location_name: venue ? venue.location_name : config.location_name,
+					title: info ? info.title : config.title || e.slug,
+					start: info ? info.start : config.start,
+					location: venue ? venue.location : meta ? meta.location : config.location,
+					location_name: venue
+						? venue.location_name
+						: meta
+							? meta.location_name
+							: config.location_name,
 					online: config.online,
-					streamLink: config.online ? (links.get(e.slug) ?? null) : null
+					streamLink: config.online ? (links.get(e.slug) ?? null) : null,
+					parts: partLists.get(e.slug) ?? null
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 				origin,
 				contactEmail: contactEmail(),
-				template
+				template: templates.get(e.slug)
 			});
 			const result = await deliver({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
-				idempotencyKey: `reminder-${order.id}-${reminderId(reminder)}`
+				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`
 			});
 			return result !== 'failed';
 		}

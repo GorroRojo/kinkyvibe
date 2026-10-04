@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * "Avisame si se repite": formulario para recibir un mail cuando se publique una nueva edición
-	 * de una serie (interruptor `series`). Manda a /avisos (?/suscribir o ?/baja); con JavaScript
+	 * de una serie. Manda a /avisos (?/suscribir o ?/baja); con JavaScript
 	 * muestra el resultado acá mismo, sin JavaScript lo muestra la página /avisos.
 	 * Props:
 	 * - `seriesId`, `seriesName`: la serie (etiqueta).
@@ -157,11 +157,11 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.sr-only {
 		position: absolute;

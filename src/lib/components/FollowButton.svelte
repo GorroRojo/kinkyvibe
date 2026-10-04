@@ -1,8 +1,8 @@
 <script>
 	/**
 	 * «Seguir» de «Lo que sigo» (docs/lo-que-sigo.md) en la página de una etiqueta o un perfil.
-	 * Pregunta a /api/sigo al cargar (la página puede estar prerenderizada): con `lo_que_sigo` o
-	 * `cuentas` apagado (404) no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
+	 * Pregunta a /api/sigo al cargar (la página puede estar prerenderizada): con `lo_que_sigo`
+	 * apagado (404) no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
 	 * sesión, manda a /mi-rincon/sigo (?/seguir o ?/dejar); con JavaScript cambia acá mismo, sin
 	 * JavaScript muestra el resultado en Mi rincón → Lo que sigo.
 	 * Props: `kind` (`etiqueta` o `perfil`), `key` (nombre de la etiqueta o id del perfil),
@@ -23,6 +23,7 @@
 	let info = null;
 	let here = '/';
 	let busy = false;
+	/** @type {'' | 'seguir' | 'dejar'} */
 	let message = '';
 	let error = '';
 
@@ -48,9 +49,7 @@
 			busy = false;
 			if (result.type === 'success' && info?.member) {
 				info = { ...info, following };
-				message = following
-					? 'Listo. Elegí qué querés recibir en Mi rincón → Lo que sigo.'
-					: 'Listo: ya no lo seguís.';
+				message = following ? 'seguir' : 'dejar';
 			} else if (result.type === 'redirect') {
 				window.location.href = result.location;
 			} else if (result.type === 'failure') {
@@ -95,7 +94,13 @@
 				<a class="hint" href="/mi-rincon/sigo">Qué recibís</a>
 			{/if}
 		{/if}
-		{#if message}<p class="ok" role="status">{message}</p>{/if}
+		{#if message === 'seguir'}
+			<p class="ok" role="status">
+				Listo. Elegí qué querés recibir en <a href="/mi-rincon/sigo">Mi rincón → Lo que sigo</a>.
+			</p>
+		{:else if message === 'dejar'}
+			<p class="ok" role="status">Listo: ya no lo seguís.</p>
+		{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 	</div>
 {/if}
@@ -106,8 +111,12 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5em 0.8em;
-		width: min(45rem, 100%);
+		/* 16px a los costados en el celu */
+		width: min(45rem, calc(100% - 32px));
 		margin: 1em auto 0;
+	}
+	.ok a {
+		color: inherit;
 	}
 	.follow :global(.pill-btn) {
 		display: inline-flex;
@@ -124,10 +133,10 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 </style>

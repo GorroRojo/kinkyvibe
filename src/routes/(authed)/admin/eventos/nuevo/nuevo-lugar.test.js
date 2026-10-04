@@ -2,14 +2,16 @@
  * «Lugar» al crear un evento (pedido de gorrite: elegir el lugar desde el formulario): el lugar se
  * vincula recién después de crear el evento (con su dirección), con registro; el archivo es el
  * mismo que sin el «Lugar»; si crear falla (o el lugar ya no existe) no se vincula nada; al
- * duplicar, el formulario arranca con el lugar del original. Repo de mentira, D1 de miniflare y
- * datos inventados.
+ * duplicar, el formulario arranca con el lugar del original. «Sucede en» es el edge `lugar` del
+ * evento en la base: el evento nuevo nace en la base y se vincula; si el cliente del repo no lo
+ * guarda en la base (no debería pasar), se crea y avisa que el lugar no se guardó. Repo de
+ * mentira, D1 de miniflare y datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 import { setEventVenue } from '$lib/server/amigues/venues.js';
 import { venuePickerData } from '$lib/server/amigues/eventFormVenue.js';
 
@@ -52,27 +54,40 @@ const EVENT_MD = [
 	''
 ].join('\n');
 
-/** @param {{ failCommit?: boolean }} [opts] */
-async function page({ failCommit = false } = {}) {
+/**
+ * La ruta con un repo de mentira. Con `contenido` el cliente pasa por withContentDb, como en
+ * producción (el evento nuevo va a la base); sin, el repo de mentira solo (el evento no llega a la
+ * base).
+ * @param {{ failCommit?: boolean, contenido?: boolean }} [opts]
+ */
+async function page({ failCommit = false, contenido = false } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: '0' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	/** @type {any[]} */
 	const commits = [];
-	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
-		.../** @type {any} */ (await importOriginal()),
-		getRepoClient: async () => ({
-			getFile: async () => null,
-			getDirTexts: async () => [],
-			pathExists: async () => false,
-			listDir: async () => [],
-			commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
-				if (failCommit) throw new Error('GitHub no responde (inventado)');
-				commits.push(c);
-				return { url: 'https://example.com/commit/prueba' };
-			}
-		})
-	}));
-	return { mod: await import('./+page.server.js'), commits };
+	const fake = {
+		getFile: async () => null,
+		getDirTexts: async () => [],
+		pathExists: async () => false,
+		existingPaths: async () => [],
+		listDir: async () => [],
+		listTree: async () => [],
+		commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
+			if (failCommit) throw new Error('GitHub no responde (inventado)');
+			commits.push(c);
+			return { url: 'https://example.com/commit/prueba' };
+		}
+	};
+	vi.doMock('$lib/server/eventos', async (importOriginal) => {
+		const repo = await import('$lib/server/contenido/repo.js');
+		return {
+			.../** @type {any} */ (await importOriginal()),
+			getRepoClient: async () => (contenido ? repo.withContentDb(fake) : fake)
+		};
+	});
+	const repo = await import('$lib/server/contenido/repo.js');
+	repo.setContentDB(t.db);
+	return { mod: await import('./+page.server.js'), commits, repo };
 }
 
 /** @param {Record<string, string>} extra */
@@ -84,9 +99,18 @@ const publish = (extra) =>
 		form: { slug: SLUG, featuredMode: 'none', content: EVENT_MD, ...extra }
 	});
 
+/** El vínculo guardado: el edge `lugar` del evento (`null` si no tiene). */
 const venueRow = async (slug = SLUG) =>
 	/** @type {any} */ (
-		await t.db.prepare('SELECT * FROM event_venues WHERE event_slug = ?1').bind(slug).first()
+		await t.db
+			.prepare(
+				`SELECT e.to_id AS venue_id, json_extract(e.data, '$.privacy') AS privacy FROM edges e
+				JOIN objects o ON o.id = e.from_id AND o.type = 'evento'
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE e.kind = 'lugar' AND coalesce(s.legacy_slug, o.slug) = ?1`
+			)
+			.bind(slug)
+			.first()
 	);
 
 const lugar = async () =>
@@ -94,20 +118,26 @@ const lugar = async () =>
 
 describe('crear un evento con lugar', () => {
 	it('crea el evento y después vincula el lugar; el archivo es el mismo que sin el «Lugar»', async () => {
-		const v = await lugar();
-		const { mod, commits } = await page();
-		const plain = /** @type {any} */ (await mod.actions.publicar(publish({})));
+		// El evento nuevo nace en la base y el lugar es su edge.
+		const control = await page({ contenido: true });
+		const plain = /** @type {any} */ (await control.mod.actions.publicar(publish({})));
 		expect(plain).toMatchObject({ success: true, venueSaved: false });
 		expect(await venueRow()).toBeNull();
+		const plainText = (await control.repo.findDbEvent(t.db, SLUG))?.raw;
+		expect(plainText).toBeTruthy();
+		await resetDB(t.db);
+
+		const v = await lugar();
+		const { mod, commits, repo } = await page({ contenido: true });
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(
 				publish({ lugar: String(v.id), lugarPrivacidad: 'address', lugarCambio: '1' })
 			)
 		);
 		expect(res).toMatchObject({ success: true, venueSaved: true, warnings: [] });
-		expect(commits).toHaveLength(2);
-		expect(commits[1].files).toEqual(commits[0].files);
+		expect(commits).toHaveLength(0); // todo en la base
 		expect(res.content).toBe(plain.content);
+		expect((await repo.findDbEvent(t.db, SLUG))?.raw).toBe(plainText);
 		expect(await venueRow()).toMatchObject({ venue_id: v.id, privacy: 'address' });
 		const log = /** @type {any[]} */ (
 			(
@@ -118,7 +148,21 @@ describe('crear un evento con lugar', () => {
 			).results
 		);
 		// Primero el evento, después el lugar.
-		expect(log.map((r) => r.action)).toEqual(['event.publish', 'event.publish', 'event.venue_set']);
+		expect(log.map((r) => r.action)).toEqual(['event.publish', 'event.venue_set']);
+	});
+
+	it('si el evento no llega a la base, se crea igual y avisa que el lugar no', async () => {
+		const v = await lugar();
+		const { mod, commits } = await page();
+		const res = /** @type {any} */ (
+			await mod.actions.publicar(
+				publish({ lugar: String(v.id), lugarPrivacidad: 'address', lugarCambio: '1' })
+			)
+		);
+		expect(res).toMatchObject({ success: true, venueSaved: false });
+		expect(commits).toHaveLength(1);
+		expect(res.warnings.join(' ')).toMatch(/el lugar no: .*todavía no está en la base/);
+		expect(await venueRow()).toBeNull();
 	});
 
 	it('si crear el evento falla, no se vincula nada', async () => {
@@ -158,6 +202,7 @@ describe('los lugares para el formulario', () => {
 			approved: false
 		});
 		await makeProfile(t.db, { title: 'Persona Inventada', kind: 'persona' });
+		await makeEvent(t.db, 'fiesta-de-prueba-2031-08');
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-de-prueba-2031-08',
 			venueId: v.id,

@@ -274,7 +274,7 @@ Texto.
 });
 
 /*
- * Interruptor `contenido_db`: con el guardado en la base, ningún texto de los formularios habla de
+ * Contenido en la base (el interruptor `contenido_db` quedó fijo): ningún texto de los formularios habla de
  * GitHub ni de esperar minutos; apagado, los textos son los de siempre. Y la barra de guardar
  * usa SaveButton (la ruedita y «Guardando…» mientras guarda).
  */

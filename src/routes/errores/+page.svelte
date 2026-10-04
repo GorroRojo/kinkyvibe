@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>Páginas de error · KinkyVibe</title>
+	<title>Páginas de error · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

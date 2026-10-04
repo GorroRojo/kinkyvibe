@@ -1,5 +1,5 @@
 /**
- * Guardar desde el panel en la base (interruptor `etiquetas_db`): escribe, queda en Actividad y
+ * Guardar desde el panel en la base (el interruptor `etiquetas_db` quedó fijo): escribe, queda en Actividad y
  * olvida lo recordado; una operación imposible no escribe nada. Renombrar sin alias (lo de
  * siempre): primero un commit que cambia las publicaciones, después la base.
  */
@@ -42,14 +42,14 @@ const from = async () => ({
 
 describe('saveTagOpsToDb', () => {
 	it('guarda, lo anota en Actividad y el sitio lo ve sin esperar', async () => {
-		const before = await tagSourceFrom(t.db, { flagOn: true, now: 1 });
+		const before = await tagSourceFrom(t.db, { now: 1 });
 		const res = await saveTagOpsToDb(
 			await from(),
 			[{ type: 'update', id: 'Serie Inventada', set: { icon: '🎭' } }],
 			{ locals, login: LOGIN, label: 'Series', targetId: 'Serie Inventada' }
 		);
 		expect(res).toMatchObject({ ok: true, written: 1 });
-		const after = await tagSourceFrom(t.db, { flagOn: true, now: 2 });
+		const after = await tagSourceFrom(t.db, { now: 2 });
 		expect(after).not.toBe(before);
 		expect(after.rawTags.find((e) => e.id === 'Serie Inventada')?.icon).toBe('🎭');
 		const audit = await listAudit(t.db, { targetType: 'tags' });

@@ -5,7 +5,7 @@
  * archivo de src/lib/assets) y la descripción, la de la etiqueta o su entrada de la Kinkipedia.
  *
  * Funciones puras (sin Svelte ni SvelteKit): andan en el navegador, en el servidor y en vitest.
- * Todo lo que va detrás del interruptor `series` (src/lib/server/flags.js) usa esto.
+ * Todo lo de series usa esto.
  */
 
 import { TIMEZONE } from './dates.js';
@@ -322,4 +322,51 @@ export function subscribeLinks(url) {
 		webcal,
 		google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`
 	};
+}
+
+/**
+ * La serie madre de una serie (una serie hija, como «Picantearla: Deluxe» o «Cuirdas Sudacas
+ * 2026», está dentro de otra serie y no directo en «evento recurrente»), o `null`. Si tiene
+ * varias madres que son series, la primera.
+ *
+ * @param {TagManager} tagManager
+ * @param {string} id
+ * @param {readonly string[]} [seriesIds] de `seriesTagIds` (para no recalcularlo)
+ * @returns {string | null}
+ */
+export function seriesParentOf(tagManager, id, seriesIds = seriesTagIds(tagManager)) {
+	const parents = /** @type {string[]} */ (tagManager.get(id)?.parents ?? []);
+	return parents.find((p) => p !== id && seriesIds.includes(p)) ?? null;
+}
+
+/**
+ * Agrupa una lista de series (la de la Kinkipedia) por serie madre: cada madre lleva sus hijas en
+ * `children`, en el orden en que venían. Una hija cuya madre no está en la lista (porque la madre
+ * no tiene ediciones propias) queda suelta, como cualquier otra. Las hijas de una hija se juntan
+ * con la madre de arriba (dos niveles alcanzan para mostrar).
+ *
+ * @template {{ id: string, parent?: string | null }} S
+ * @param {readonly S[]} list
+ * @returns {(S & { children: S[] })[]}
+ */
+export function groupSeries(list) {
+	const byId = new Map(list.map((s) => [s.id, s]));
+	/** @param {S} s */
+	const topOf = (s) => {
+		let current = s;
+		const seen = new Set([s.id]);
+		while (current.parent && byId.has(current.parent) && !seen.has(current.parent)) {
+			seen.add(current.parent);
+			current = /** @type {S} */ (byId.get(current.parent));
+		}
+		return current;
+	};
+	/** @type {Map<string, S & { children: S[] }>} */
+	const groups = new Map();
+	for (const s of list) {
+		const top = topOf(s);
+		if (!groups.has(top.id)) groups.set(top.id, { ...top, children: [] });
+		if (top.id !== s.id) /** @type {any} */ (groups.get(top.id)).children.push(s);
+	}
+	return [...groups.values()];
 }

@@ -12,6 +12,9 @@
  *   Quienes gestionan un perfil lo ven en Mi rincón por `profile_managers`, no por acá.
  * - Borrado (`deleted_at`): nadie, salvo admins que lo piden explícitamente (para deshacer).
  * - Ante la duda (rol o visibilidad desconocidos) no se muestra.
+ * - Partes de un taller (docs/talleres-partes.md): si el taller tiene «Si ocultás el taller,
+ *   ocultar también sus partes», una parte se ve solo si quien mira también ve el taller
+ *   (`partVisibleWhere`, para las lecturas públicas de eventos).
  *
  * Solo usa imports relativos.
  */
@@ -118,5 +121,37 @@ export function visibleWhere(viewer, alias = 'objects', { includeDeleted = false
 	return {
 		sql: `(${deleted}(${alias}.visibility IN (${list}) OR (${alias}.visibility IN (${extraList}) AND ${alias}.created_by = ? AND ${alias}.type NOT IN (${noCreator}))))`,
 		params: [/** @type {string} */ (id)]
+	};
+}
+
+/**
+ * La clave del taller (en `extra`) de «Si ocultás el taller, ocultar también sus partes»
+ * (`OCULTAR_PARTES_KEY` de src/lib/utils/partes.js; acá sin importarla, solo imports del servidor).
+ */
+export const HIDE_PARTS_KEY = 'ocultar_partes';
+
+/** El `kind` del edge del taller a cada una de sus otras partes. */
+const PART_EDGE = 'parte';
+
+/**
+ * Además de `visibleWhere`, para los eventos: que la fila no sea una parte de un taller (vivo) que
+ * oculta sus partes y que quien mira no ve. Un taller sin la opción, o borrado, no cambia nada.
+ * Usa `?` sin número, como `visibleWhere`.
+ *
+ * @param {Viewer | null | undefined} viewer
+ * @param {string} [alias] nombre o alias de la tabla `objects` (la parte) en la consulta
+ * @returns {{ sql: string, params: string[] }}
+ */
+export function partVisibleWhere(viewer, alias = 'objects') {
+	if (!/^[a-z_][a-z0-9_]*$/i.test(alias)) throw new Error(`alias inválido: ${alias}`);
+	const ws = visibleWhere(viewer, 'vis_taller');
+	return {
+		sql: `NOT EXISTS (SELECT 1 FROM edges vis_parte
+			JOIN objects vis_taller ON vis_taller.id = vis_parte.from_id
+			WHERE vis_parte.kind = '${PART_EDGE}' AND vis_parte.to_id = ${alias}.id
+			AND vis_taller.deleted_at IS NULL
+			AND json_extract(vis_taller.data, '$.extra.${HIDE_PARTS_KEY}') = 1
+			AND NOT ${ws.sql})`,
+		params: ws.params
 	};
 }

@@ -38,7 +38,7 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
-import { clearFlagCache, setFlag } from '$lib/server/flags.js';
+import { clearFlagCache } from '$lib/server/flags.js';
 import { buyAction } from '$lib/server/tickets/checkout.js';
 import { fieldInputName } from '$lib/utils/signupFields.js';
 import * as ajustes from './+page.server.js';
@@ -104,8 +104,6 @@ async function thrown(fn) {
 	}
 }
 
-const on = () => setFlag(t.db, 'personas_eventos', true, { by: 'admin-de-prueba' });
-
 /** @param {string} action */
 const audit = async (action) =>
 	(
@@ -150,21 +148,17 @@ async function own() {
 }
 
 describe('editar una pregunta', () => {
-	it('solo admins (403) y con el interruptor (404)', async () => {
+	// Sin el «404 con el interruptor apagado»: `personas_eventos` quedó prendido para siempre.
+	it('solo admins (403)', async () => {
 		const noUser = await thrown(() =>
 			preguntas.actions.updateField(
 				fakeEvent({ path, user: notAdmin, form: { id: '1', label: 'Otra', kind: 'text' } })
 			)
 		);
 		expect(noUser?.status).toBe(403);
-		const off = await thrown(() =>
-			ajustes.actions.updateField(fakeEvent({ form: { id: '1', label: 'Otra', kind: 'text' } }))
-		);
-		expect(off?.status).toBe(404);
 	});
 
 	it('cambia texto, tipo, opciones, obligatoria y alcance; queda en Actividad; las respuestas viejas no cambian', async () => {
-		await on();
 		await transferInfo();
 		await create({ label: '¿Alguna restricción alimentaria?', kind: 'text' });
 		const [field] = await own();
@@ -233,7 +227,6 @@ describe('editar una pregunta', () => {
 	});
 
 	it('elegir algunos tipos sin marcar ninguno: error, no cambia nada', async () => {
-		await on();
 		await create({ label: 'Talle de remera', kind: 'text' });
 		const [field] = await own();
 		const r = /** @type {any} */ (
@@ -252,7 +245,6 @@ describe('editar una pregunta', () => {
 
 describe('alcance en la compra, Órdenes y su CSV', () => {
 	it('por entrada: una respuesta por entrada, guardada con su entrada y junta en el CSV', async () => {
-		await on();
 		await transferInfo();
 		await create({
 			label: '¿Alguna restricción alimentaria?',
@@ -310,7 +302,6 @@ describe('alcance en la compra, Órdenes y su CSV', () => {
 	});
 
 	it('VIP: también pide la acotada a VIP', async () => {
-		await on();
 		await transferInfo();
 		await create({
 			label: 'Talle de remera',
@@ -328,7 +319,6 @@ describe('alcance en la compra, Órdenes y su CSV', () => {
 	});
 
 	it('una general se acota a algunos tipos en este evento', async () => {
-		await on();
 		await ajustes.actions.createField(
 			fakeEvent({ form: { label: 'Quiero recibir novedades', kind: 'checkbox', per_ticket: 'on' } })
 		);

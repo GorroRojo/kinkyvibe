@@ -37,7 +37,7 @@
 <style>
 	.mock {
 		background: #f5f7fb;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 1.2em;
 		outline: 3px solid #009ee3;
 	}
@@ -62,7 +62,7 @@
 		font-weight: bold;
 		min-height: 3.2em;
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		color: white;
 		cursor: pointer;
 	}
@@ -70,7 +70,7 @@
 		background: #009ee3;
 	}
 	.reject {
-		background: hsl(0, 70%, 45%);
+		background: var(--error);
 	}
 	.pending {
 		background: #777;

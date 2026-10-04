@@ -18,6 +18,7 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import Chart from '$lib/components/admin/charts/Chart.svelte';
 	import SalesOverTime from '$lib/components/admin/charts/SalesOverTime.svelte';
+	import Visits from '$lib/components/admin/stats/Visits.svelte';
 
 	export let data;
 
@@ -41,7 +42,7 @@
 
 <PageHeader
 	title="Estadísticas"
-	subtitle="Cómo vienen las ventas, las series y la gente que vuelve. Solo compras aprobadas."
+	subtitle="Cómo vienen las ventas (solo compras aprobadas), las series, la gente que vuelve y las visitas al sitio."
 />
 
 {#if !s}
@@ -350,6 +351,10 @@
 	</div>
 {/if}
 
+{#if data.visits}
+	<Visits visits={data.visits} />
+{/if}
+
 <style>
 	.sub {
 		display: flex;
@@ -359,7 +364,7 @@
 	}
 	h3 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 	td small {
 		display: block;

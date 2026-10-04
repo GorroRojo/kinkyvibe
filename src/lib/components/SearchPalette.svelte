@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateList } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -201,16 +201,8 @@
 		}
 	}
 
-	const dateFormat = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 	/** @param {string} d */
-	const formatDate = (d) => dateFormat.format(new Date(d));
+	const formatDate = (d) => argDateList(new Date(d));
 </script>
 
 <svelte:window on:keydown={onWindowKeydown} />
@@ -232,7 +224,7 @@
 			bind:this={dialog}
 			on:keydown={onDialogKeydown}
 		>
-			<h2 id="search-title" class="visually-hidden">Buscar en KinkyVibe</h2>
+			<h2 id="search-title" class="visually-hidden">Buscar en Kinky Vibe</h2>
 			<div class="bar">
 				<span class="icon" aria-hidden="true">
 					{#if loadingIndex && !index && !error}
@@ -377,7 +369,7 @@
 		flex-direction: column;
 		background: white;
 		border-radius: var(--round, 1rem);
-		box-shadow: 0 1em 3em rgba(0, 0, 0, 0.35);
+		box-shadow: var(--shadow-3);
 		overflow: hidden;
 		color: #222;
 	}
@@ -478,7 +470,7 @@
 		flex-direction: column;
 		gap: 0.15em;
 		padding: 0.5em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		text-decoration: none;
 		color: inherit;
 		border-left: 3px solid transparent;
@@ -504,7 +496,7 @@
 		.name {
 			border: 1px solid var(--1-light);
 			color: var(--1-dark);
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			padding: 0 0.5em;
 		}
 	}

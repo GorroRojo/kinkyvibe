@@ -6,6 +6,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { isHttpError, isRedirect } from '@sveltejs/kit';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
+import { runImport } from '$lib/server/contenido/importer.js';
+import { setContentDB } from '$lib/server/contenido/repo.js';
 import { actions } from './+page.server.js';
 
 // Evento de prueba del repo que vende entradas (solo en dev/tests, nunca en el sitio publicado).
@@ -21,8 +23,27 @@ beforeAll(async () => {
 afterAll(async () => {
 	await t?.dispose();
 });
+/** El evento de prueba del repo, como lo importa la base (de donde salen los eventos). */
+const source = {
+	raw: /** @type {Record<string, string>} */ (
+		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
+			query: '?raw',
+			import: 'default',
+			eager: true
+		})
+	)[`/src/lib/posts/calendario/${EVENT}.md`],
+	meta: /** @type {Record<string, any>} */ (
+		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
+			import: 'metadata',
+			eager: true
+		})
+	)[`/src/lib/posts/calendario/${EVENT}.md`]
+};
+
 beforeEach(async () => {
 	await resetDB(t.db);
+	setContentDB(t.db);
+	await runImport(t.db, 'calendario', [{ legacySlug: EVENT, ...source }], { actor: 'prueba' });
 });
 
 let payment = 1;

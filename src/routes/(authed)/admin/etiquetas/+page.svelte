@@ -28,6 +28,8 @@
 	import TagGraph from '$lib/components/admin/tags/TagGraph.svelte';
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
+	import { wikiEditHref } from '$lib/admin/nav.js';
+	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import { USAGE_CATEGORIES, analyzeTags, applyTagOps, describeOp } from '$lib/utils/tagConfig.js';
 	import { SYSTEM_TAGS, isSystemTag } from '$lib/utils/systemTags.js';
 
@@ -286,9 +288,9 @@
 
 {#if data.dbMode}
 	<p class="note">
-		Las etiquetas se leen de la base (interruptor «Etiquetas desde la base»): los cambios se guardan
-		al momento, sin commits (salvo renombrar en las publicaciones, que las cambia con un commit).
-		Los textos de la Kinkipedia siguen en sus publicaciones.
+		Las etiquetas se leen de la base: los cambios se guardan al momento, sin commits (renombrar en
+		las publicaciones también las cambia en la base). Los textos de la Kinkipedia también están en
+		la base: se editan desde cada etiqueta («Entrada de la Kinkipedia»).
 	</p>
 {/if}
 {#if data.mock}
@@ -304,13 +306,8 @@
 				: 's'}):{:else}Guardado ({saved.files} archivo{saved.files === 1 ? '' : 's'}):{/if}
 		{saved.summary.join('; ')}.
 		{#if data.dbMode}En menos de un minuto se ve en el sitio.{#if saved.posts}
-				Además, un commit cambia {saved.posts} publicaci{saved.posts === 1 ? 'ón' : 'ones'}: se ve
-				cuando termine de publicarse el sitio.
-				{#if saved.publish}<PublishStatus pr={saved.publish} />{:else if saved.commit}<a
-						href={saved.commit}
-						target="_blank"
-						rel="noreferrer">Ver el commit</a
-					>{/if}{/if}{:else if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
+				Además, cambiaron {saved.posts} publicaci{saved.posts === 1 ? 'ón' : 'ones'} (en la base).
+			{/if}{:else if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
 				href={saved.commit}
 				target="_blank"
 				rel="noreferrer">Ver el commit</a
@@ -433,7 +430,7 @@
 						{#if preview.posts}
 							<p>
 								{#if preview.posts.total}
-									Y <strong>un commit</strong> que cambia
+									Y cambia{preview.posts.total === 1 ? '' : 'n'}
 									<strong
 										>{preview.posts.total} publicaci{preview.posts.total === 1
 											? 'ón'
@@ -502,7 +499,7 @@
 						<span class="chip"
 							>{a}<button
 								type="button"
-								aria-label="Quitar {a}"
+								aria-label="Sacar {a}"
 								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span
@@ -512,7 +509,7 @@
 						<span class="chip variant" title="Variante de escritura (aliasOf)"
 							>{a}<button
 								type="button"
-								aria-label="Quitar {a}"
+								aria-label="Sacar {a}"
 								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span
@@ -552,15 +549,14 @@
 							placeholder="(el de su madre)"
 						/></label
 					>
-					{#if data.seriesOn}
-						<label
-							>Imagen (series) <input
-								class="kv-input"
-								bind:value={fields.image}
-								placeholder="Ej.: serie.webp (de src/lib/assets)"
-							/></label
-						>
-					{/if}
+					<label
+						>Imagen (series) <input
+							class="kv-input"
+							bind:value={fields.image}
+							placeholder="Ej.: serie.webp (de src/lib/assets)"
+						/></label
+					>
+
 					<label
 						>Relacionadas <input
 							class="kv-input"
@@ -577,11 +573,13 @@
 							placeholder="Usá [[otra etiqueta]] para enlazar."></textarea>
 					</label>
 					<div class="wide actions">
-						{#if n.wiki}
-							<a class="kv-btn ghost" href="/edit/wiki/{n.wiki}"
-								><Pencil size={16} /> Editar la entrada de la Kinkipedia</a
-							>
-						{/if}
+						<!-- El texto de la wiki se guarda en la base, en su propio editor (sin GitHub). -->
+						<a class="kv-btn ghost" href={wikiEditHref(tagSlug(n.id))}
+							><Pencil size={16} />
+							{n.wiki
+								? 'Editar la entrada de la Kinkipedia'
+								: 'Escribir la entrada de la Kinkipedia'}</a
+						>
 						<a
 							class="kv-btn ghost"
 							href="/wiki/{encodeURIComponent(n.id)}"
@@ -806,13 +804,13 @@
 	.layout {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: start;
 	}
 	.side {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--space-xs);
 		min-width: 0;
 	}
 	@media (max-width: 1000px) {
@@ -825,11 +823,11 @@
 	}
 	.note {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		flex-wrap: wrap;
 		border-radius: var(--round);
-		padding: 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.note.ok {
@@ -841,15 +839,15 @@
 		color: var(--warn);
 	}
 	.tree-head {
-		padding: 1rem 1rem 0.4rem;
+		padding: var(--space-xs) var(--space-xs) 0.4rem;
 	}
 	.search {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		border: 1px solid var(--field);
 		border-radius: 3em;
-		padding: 0 0.9rem;
+		padding: 0 var(--space-xs);
 		color: var(--muted);
 		background: var(--surface);
 	}
@@ -858,7 +856,7 @@
 		min-width: 0;
 		border: 0;
 		background: transparent;
-		padding: 0.6rem 0;
+		padding: var(--space-2xs) 0;
 		outline: none;
 	}
 	.search:focus-within {
@@ -868,7 +866,7 @@
 	.flat {
 		list-style: none;
 		margin: 0;
-		padding: 0.3rem 0.5rem 1rem;
+		padding: var(--space-3xs) var(--space-2xs) var(--space-xs);
 		max-height: 78vh;
 		overflow: auto;
 	}
@@ -879,8 +877,8 @@
 		align-items: center;
 		border: 0;
 		background: none;
-		padding: 0.5rem;
-		border-radius: 0.7rem;
+		padding: var(--space-2xs);
+		border-radius: var(--radius-s);
 		cursor: pointer;
 		text-align: left;
 		min-height: 2.4rem;
@@ -895,7 +893,7 @@
 	.flat .count {
 		margin-left: auto;
 		color: var(--muted);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 	}
 	.dot {
 		width: 0.55rem;
@@ -904,17 +902,17 @@
 		flex: none;
 	}
 	.pad {
-		padding: 0.5rem;
+		padding: var(--space-2xs);
 	}
 	.detail-head {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 	.detail-head h2 {
 		margin: 0;
-		font-size: 1.3rem;
+		font-size: var(--text-base);
 	}
 	.big-dot {
 		width: 0.9rem;
@@ -923,26 +921,26 @@
 	}
 	.usage {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.bar {
 		display: grid;
 		grid-template-columns: 6.5rem 1fr 2.5rem;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.track {
 		height: 0.55rem;
 		background: var(--bar-track);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		overflow: hidden;
 	}
 	.track span {
 		display: block;
 		height: 100%;
 		background: var(--accent);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 	}
 	.bar .num {
 		text-align: right;
@@ -950,11 +948,11 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		align-items: center;
 	}
 	.lbl {
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
 		color: var(--muted);
@@ -967,8 +965,8 @@
 		gap: 0.2rem;
 		border: 1px solid var(--field);
 		border-radius: 2em;
-		padding: 0.1rem 0.3rem 0.1rem 0.7rem;
-		font-size: 0.85rem;
+		padding: 0.1rem var(--space-3xs) 0.1rem var(--space-2xs);
+		font-size: var(--text-xs);
 	}
 	.chip.variant {
 		border-style: dashed;
@@ -986,7 +984,7 @@
 	}
 	.inline {
 		display: flex;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		align-items: center;
 	}
 	.inline input {
@@ -996,20 +994,20 @@
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.grid label,
 	.ops-forms label {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.85rem;
+		gap: var(--space-3xs);
+		font-size: var(--text-xs);
 		font-weight: 700;
 	}
 	.grid label span,
 	.ops-forms label span {
 		display: flex;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		align-items: center;
 	}
 	.grid .wide {
@@ -1017,8 +1015,8 @@
 	}
 	textarea {
 		border: 1px solid var(--field);
-		border-radius: 1rem;
-		padding: 0.6rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		background: var(--surface);
 		color: var(--text);
 		font-weight: 400;
@@ -1033,9 +1031,9 @@
 	.ops-forms {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		border-top: 1px solid var(--line);
-		padding-top: 0.8rem;
+		padding-top: var(--space-xs);
 	}
 	.ops-forms form {
 		display: flex;
@@ -1053,7 +1051,7 @@
 	}
 	.ops {
 		margin: 0;
-		padding-left: 1.3rem;
+		padding-left: var(--space-s);
 	}
 	.err {
 		color: var(--bad);
@@ -1065,7 +1063,7 @@
 	.preview {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: flex-start;
 	}
 	.preview details {
@@ -1083,15 +1081,15 @@
 	}
 	.diff {
 		background: var(--surface-2);
-		border-radius: 0.8rem;
-		padding: 0.5rem 0;
-		font-size: 0.75rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) 0;
+		font-size: var(--text-xs);
 		overflow-x: auto;
 		margin: 0.3rem 0;
 	}
 	.diff .l {
 		display: block;
-		padding: 0 0.7rem;
+		padding: 0 var(--space-2xs);
 		white-space: pre;
 	}
 	.diff .add {
@@ -1105,16 +1103,16 @@
 	.tabs {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.tabs button {
 		border: 1px solid var(--field);
 		background: var(--surface);
 		border-radius: 2em;
-		padding: 0.3rem 0.8rem;
+		padding: var(--space-3xs) var(--space-xs);
 		cursor: pointer;
 		font-weight: 700;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		min-height: 2.2rem;
 	}
 	.tabs button[aria-selected='true'] {
@@ -1130,7 +1128,7 @@
 		overflow: auto;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.8rem;
+		gap: var(--space-3xs) var(--space-xs);
 	}
 	.issues button {
 		border: 0;
@@ -1138,7 +1136,7 @@
 		color: var(--link);
 		cursor: pointer;
 		text-decoration: underline;
-		padding: 0.3rem 0;
+		padding: var(--space-3xs) 0;
 	}
 	:global(.spin) {
 		animation: spin 1s linear infinite;

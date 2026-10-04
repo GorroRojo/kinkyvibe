@@ -22,6 +22,7 @@
 	 * - `resync()`: llamarla después de cambiar `values` desde afuera (al recuperar un borrador),
 	 *   para que el día de fin recuperado no se recalcule desde el de inicio.
 	 */
+	import { CalendarPlus } from '@lucide/svelte';
 	import DayPicker from '$lib/components/admin/DayPicker.svelte';
 	import { addDays, isValidDate } from '$lib/utils/eventDraft.js';
 	import { endDateFollowingStart, scheduleSpan } from '$lib/admin/schedule.js';
@@ -128,7 +129,8 @@
 		<p class="error">
 			{scheduleError}
 			{#if values.startDate === values.endDate}
-				<button type="button" class="link" on:click={endsNextDay}>¿Termina al día siguiente?</button
+				<button type="button" class="kv-link" on:click={endsNextDay}
+					><CalendarPlus size={16} aria-hidden="true" /> ¿Termina al día siguiente?</button
 				>
 			{/if}
 		</p>
@@ -139,7 +141,7 @@
 	.schedule {
 		margin: 0;
 		background: var(--3-light);
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		padding: 0.4em 0.8em;
 		span {
 			display: inline-block;

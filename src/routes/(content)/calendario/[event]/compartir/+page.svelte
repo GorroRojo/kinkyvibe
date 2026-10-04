@@ -258,7 +258,7 @@
 </script>
 
 <svelte:head>
-	<title>Compartir como imagen: {data.meta.title} - KinkyVibe.ar</title>
+	<title>Compartir como imagen: {data.meta.title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -492,7 +492,7 @@
 	.compartir {
 		max-width: 80rem;
 		margin-inline: auto;
-		padding-inline: 1rem;
+		padding-inline: var(--space-xs);
 		box-sizing: border-box;
 	}
 	header {
@@ -518,14 +518,14 @@
 	.workspace {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
-		gap: 2rem;
+		gap: var(--space-m);
 		align-items: start;
 		margin-top: 1.5rem;
 	}
 	.previews {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1.2rem;
+		gap: var(--space-s);
 		align-items: start;
 		position: sticky;
 		top: 1rem;
@@ -555,8 +555,8 @@
 	canvas {
 		width: 100%;
 		height: auto;
-		border-radius: 0.6rem;
-		box-shadow: 0 0.5em 2em rgba(0, 0, 0, 0.2);
+		border-radius: var(--radius-s);
+		box-shadow: var(--shadow-3);
 		background: var(--2-dark);
 		&.loading {
 			opacity: 0.4;
@@ -565,13 +565,13 @@
 	.controls {
 		display: flex;
 		flex-direction: column;
-		gap: 1.2rem;
+		gap: var(--space-s);
 		min-width: 0;
 	}
 	fieldset {
 		border: 0;
 		margin: 0;
-		padding: 1rem;
+		padding: var(--space-xs);
 		background: white;
 		border-radius: var(--round);
 		min-width: 0;
@@ -596,7 +596,7 @@
 			align-items: center;
 			gap: 0.4em;
 			padding: 0.35em 0.9em;
-			border-radius: 999em;
+			border-radius: var(--radius-pill);
 			outline: 2px solid var(--2);
 			color: var(--2-dark);
 			cursor: pointer;
@@ -667,7 +667,7 @@
 			height: 2.2em;
 			padding: 0;
 			border: 2px solid var(--2-light);
-			border-radius: 0.5em;
+			border-radius: var(--radius-s);
 			background: none;
 			cursor: pointer;
 		}
@@ -786,7 +786,7 @@
 		font: inherit;
 		font-weight: bold;
 		padding: 0.45em 1em;
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		cursor: pointer;
 		&:hover:not(:disabled) {
 			background: var(--1-light);
@@ -806,7 +806,7 @@
 	.caption {
 		background: white;
 		border-radius: var(--round);
-		padding: 1rem;
+		padding: var(--space-xs);
 		h2 {
 			font-size: var(--step-1);
 			margin: 0 0 0.6em;
@@ -830,9 +830,9 @@
 			display: flex;
 			overflow-x: auto;
 			scroll-snap-type: x mandatory;
-			gap: 1rem;
+			gap: var(--space-xs);
 			margin-inline: -1rem;
-			padding: 0.5rem 1rem 1rem;
+			padding: var(--space-2xs) var(--space-xs) var(--space-xs);
 			figure {
 				flex: 0 0 72%;
 				scroll-snap-align: center;

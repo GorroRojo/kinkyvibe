@@ -199,12 +199,10 @@ describe('los eventos reales del repo', () => {
 			const m = mdToEvent(slug, meta, body);
 			const v = validateData(evento, m.data);
 			if (!v.ok) {
-				// Un fin semanas antes del inicio es un error de tipeo del .md: la importación lo
-				// informa y ese evento sigue saliendo del .md (no se adivina la fecha).
-				const typo =
-					v.errors.every((e) => e.path === 'end') &&
-					Date.parse(String(meta.end)) < Date.parse(String(meta.start));
-				if (!typo) problems.push(`${slug}: ${v.errors.map((e) => e.message).join('; ')}`);
+				// Sin excepciones: el sitio ya no muestra un evento desde su .md, así que uno que no se
+				// puede importar desaparecería. (Antes se toleraba un fin semanas antes del inicio, que
+				// seguía saliendo del .md; esos dos .md se corrigieron.)
+				problems.push(`${slug}: ${v.errors.map((e) => e.message).join('; ')}`);
 				continue;
 			}
 			const back = eventToMeta({ title: m.title, data: v.data, visibility: m.visibility });
@@ -271,7 +269,7 @@ describe('los eventos reales del repo', () => {
 			new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date).getTime();
 		fromMd.sort((a, b) => time(b) - time(a));
 		const imported = new Set(fromDb.map((p) => p.meta.postID));
-		const merged = mergePosts([], { claimed: new Map() }, fromDb.reverse());
+		const merged = mergePosts([], fromDb.reverse());
 		expect(merged.map((p) => p.meta.postID)).toEqual(
 			fromMd.filter((p) => imported.has(p.meta.postID)).map((p) => p.meta.postID)
 		);

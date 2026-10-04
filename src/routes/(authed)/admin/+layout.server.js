@@ -1,7 +1,7 @@
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { panelCounts } from '$lib/server/admin/panelCounts.js';
-import { borrarDesdePanelEnabled, isFlagOn } from '$lib/server/flags.js';
+import { isFlagOn } from '$lib/server/flags.js';
 import { navFlagKeys } from '$lib/admin/nav.js';
 
 /**
@@ -25,11 +25,6 @@ export async function load({ locals, url, platform, untrack }) {
 	// El layout de (authed) ya controla, pero los loads corren en paralelo: se controla acá también.
 	// `untrack` para que los contadores no se recalculen en cada cambio de página.
 	untrack(() => requireAdmin(locals, url));
-	const [counts, borrar, flags] = await Promise.all([
-		panelCounts(platform),
-		borrarDesdePanelEnabled(platform),
-		navFlags(platform)
-	]);
-	// `borrarDesdePanel`: interruptor del botón "Borrar" (DeleteLink.svelte lo lee de acá).
-	return { panelCounts: counts, borrarDesdePanel: borrar, navFlags: flags };
+	const [counts, flags] = await Promise.all([panelCounts(platform), navFlags(platform)]);
+	return { panelCounts: counts, navFlags: flags };
 }

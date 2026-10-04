@@ -1,5 +1,5 @@
 /**
- * "Avisame si se repite" (interruptor `series`): suscribirse a una serie de eventos para recibir
+ * "Avisame si se repite": suscribirse a una serie de eventos para recibir
  * un mail cuando se publique una nueva edición. Los formularios de la página de un evento y de la
  * serie mandan acá (?/suscribir); sin JavaScript, esta página muestra el resultado. Con cuenta
  * del público y sesión abierta, se puede usar la cuenta en vez del mail (y darse de baja acá).
@@ -13,12 +13,7 @@ import {
 	subscribeEmail,
 	unsubscribeAccount
 } from '$lib/server/series/subscriptions.js';
-import {
-	requireSeries,
-	requireSeriesDB,
-	seriesAccountState,
-	seriesSender
-} from '$lib/server/series/web.js';
+import { requireSeriesDB, seriesAccountState, seriesSender } from '$lib/server/series/web.js';
 import { clientOf } from '$lib/server/cuentas/web.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
@@ -31,7 +26,6 @@ const field = (form, key) => {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ url, platform, locals, setHeaders }) {
-	await requireSeries(platform);
 	setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const series = await seriesPage(url.searchParams.get('serie') ?? '', {
 		tags: await siteTagManager(platform),
@@ -89,7 +83,7 @@ export const actions = {
 	},
 	baja: async ({ request, platform, locals }) => {
 		const db = await requireSeriesDB(platform);
-		if (!locals.member) return fail(401, { error: 'Ingresá a tu cuenta para darte de baja.' });
+		if (!locals.member) return fail(401, { error: 'Entrá a tu cuenta para darte de baja.' });
 		const form = await request.formData();
 		const series = await seriesPage(field(form, 'serie'), {
 			tags: await siteTagManager(platform),

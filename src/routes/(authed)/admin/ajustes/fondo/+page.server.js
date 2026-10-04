@@ -1,5 +1,5 @@
 /**
- * Ajustes → Fondo: el porcentaje del Fondo KinkyVibe que se aplica ahora (y de dónde sale) y
+ * Ajustes → Fondo: el porcentaje del Fondo Kinky Vibe que se aplica ahora (y de dónde sale) y
  * el porcentaje fijado a mano para emergencias. Solo admins.
  */
 import { requireAdmin } from '$lib/server/auth';

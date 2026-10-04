@@ -197,12 +197,24 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
 	await expect(fondoValue(card, 'Neto del fondo')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
-	// La pestaña Órdenes de la ficha muestra cada entrada y el DNI de quien compró.
+	// La pestaña Órdenes de la ficha muestra cada entrada y, del DNI de quien compró, solo los
+	// últimos 3 dígitos: el completo con «Mostrar» (queda registrado), nunca en el HTML de entrada.
 	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
 	const order = page.locator('.order', { hasText: buyer.email });
+	await expect(order.getByText(`DNI •••.${buyer.dni.slice(-3)}`)).toBeVisible();
+	const ordersHtml = await page.content();
+	expect(ordersHtml).not.toContain(buyer.dni);
+	expect(ordersHtml).not.toContain(dotted(buyer.dni));
+	await order.getByRole('button', { name: /Mostrar/ }).click();
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
 	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
 	await expect(order).toContainText(`recargo MP +${ars(prices.surcharge)}`);
+	// El buscador encuentra la orden por DNI (se busca en el servidor).
+	await page.reload();
+	await page.getByRole('searchbox').fill(buyer.dni.slice(0, 5));
+	await expect(page.locator('.order', { hasText: buyer.email })).toBeVisible();
+	await page.getByRole('searchbox').fill('99999999999');
+	await expect(page.locator('.order', { hasText: buyer.email })).toHaveCount(0);
 
 	// El CSV tiene una fila por entrada, con el DNI de quien compró.
 	const csv = await (await page.request.get(`/admin/eventos/${EVENT}/ordenes.csv`)).text();
@@ -359,7 +371,7 @@ test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de p
 	// El tipo de entrada está en el paso «Entradas» (el indicador deja volver y seguir).
 	await goToStep(block, 'Entradas');
 	await expect(
-		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
+		block.getByText('💜 Con el descuento del Fondo Kinky Vibe ($ 2.000 menos)')
 	).toBeVisible();
 	await goToStep(block, 'Pagar');
 	// Horario de la venta (el fixture cierra en 30 días), en hora de Argentina.
@@ -722,7 +734,7 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	});
 	expect(prices).toMatchObject({ fondo: 0, contribution: 2000, subtotal: 22000 });
 	const block = page.locator('#entradas');
-	await expect(block.getByText('💜 Incluye $ 2.000 de aporte al Fondo KinkyVibe')).toBeVisible();
+	await expect(block.getByText('💜 Incluye $ 2.000 de aporte al Fondo Kinky Vibe')).toBeVisible();
 	await expect(block.locator('fieldset.options')).toContainText(
 		'lo que pagás de más va entero al fondo'
 	);

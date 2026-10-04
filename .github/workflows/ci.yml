@@ -33,6 +33,12 @@ jobs:
       - name: Unit + content tests
         run: npx vitest run
 
+      # Los eventos de prueba del modo demo (.md con la marca del seed) son solo de la rama demo:
+      # nunca pueden llegar a main (docs/demo.md).
+      - name: No demo events in posts
+        if: github.event_name == 'push' || github.base_ref == 'main'
+        run: node scripts/demo/guard.js posts
+
   e2e:
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04
@@ -54,6 +60,11 @@ jobs:
       # ni necesitar cuenta de Cloudflare.
       - name: Worker bundle (wrangler dry-run)
         run: npx wrangler deploy --dry-run --outdir .wrangler/dry-run
+
+      # Este build no tiene rama de deploy, como producción para el modo demo (PREVIEW_BUILD es
+      # false): el seed y el botón «Recargar datos de prueba» no pueden estar en el Worker.
+      - name: No demo seed in the production bundle
+        run: node scripts/demo/guard.js bundle .wrangler/dry-run/index.js
 
       # The browser only changes when @playwright/test does: keep it between runs.
       - name: Playwright version
@@ -103,6 +114,76 @@ jobs:
 
       - name: svelte-check ratchet
         run: node scripts/svelte-check-ratchet.js
+
+  # Informe de impacto visual (docs/ui-impacto.md): capturas de las páginas principales en la base
+  # del PR y en el PR, comparadas. Es SOLO INFORMATIVO: no está en los `needs` de ci-ok y lleva
+  # `continue-on-error: true` (la única excepción a la regla de nunca usarlo: no es una prueba, es
+  # un informe para mirar antes de aprobar un cambio de diseño). Corre solo si el PR toca estilos o
+  # componentes; el informe queda como artifact `ui-impacto` y el resumen en la página de la corrida.
+  ui-impacto:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # El merge del PR y su primer padre (la base del PR), para --base HEAD^1.
+          fetch-depth: 2
+
+      - name: ¿Toca estilos o componentes?
+        id: changes
+        run: |
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "$files"
+          if echo "$files" | grep -qE '^src/.*\.(svelte|scss|css)$|^src/lib/styles/|^src/lib/components/'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Sin cambios en estilos ni componentes: no hace falta el informe de impacto visual." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.run == 'true'
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+        if: steps.changes.outputs.run == 'true'
+
+      - name: Playwright version
+        if: steps.changes.outputs.run == 'true'
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        if: steps.changes.outputs.run == 'true'
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+
+      - name: Install Chromium for Playwright
+        if: steps.changes.outputs.run == 'true' && steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Chromium's system libraries
+        if: steps.changes.outputs.run == 'true' && steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Impacto visual
+        if: steps.changes.outputs.run == 'true'
+        run: npm run ui:impacto -- --base HEAD^1
+        env:
+          UI_IMPACTO_ARTIFACT_NOTE: 'El informe completo (base | nuevo | diferencias) está en el artifact **ui-impacto** de esta corrida: bajalo, descomprimilo y abrí `index.html`.'
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changes.outputs.run == 'true'
+        with:
+          name: ui-impacto
+          path: ui-impacto/
+          retention-days: 14
 
   # The single check to require in branch protection. It passes only if every job it needs
   # succeeded (or was skipped), so jobs can be added or renamed without touching the settings.

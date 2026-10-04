@@ -3,8 +3,10 @@
 ## Qué es
 
 Las etiquetas ordenan todo el sitio: los eventos, el material, les amigues y la Kinkipedia (la
-wiki) las nombran en su `tags:`. Hoy viven en un archivo, `src/lib/utils/hardcodedTags.js`, que se
-edita desde `/admin/etiquetas` con un commit. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
+wiki) las nombran en su `tags:`. Viven en la base (objetos `etiqueta`) y se editan desde
+`/admin/etiquetas`, que guarda en la base al momento. El archivo `src/lib/utils/hardcodedTags.js`
+queda solo como respaldo de lectura (sin base, o con la base sin etiquetas) y ya no se edita desde
+el panel. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
 «Etiquetas a objetos») las pasa a la base, como objetos ([objetos.md](objetos.md)).
 
 El diseño es de gorrite:
@@ -47,18 +49,20 @@ Se hace en PRs chicos, uno arriba del otro:
 
 Archivo: `src/lib/server/objects/types/etiqueta.js`.
 
-| Campo          | Clase      | Qué es hoy en `hardcodedTags.js` / la wiki                                        |
-| -------------- | ---------- | --------------------------------------------------------------------------------- |
-| (`title`)      | —          | `visible_name`, o el `id` si no tiene                                             |
-| `key`          | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
-| `icon`         | `text`     | `icon` (un emoji)                                                                 |
-| `color`        | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
-| `description`  | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
-| `image`        | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
-| `body`         | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
-| `wiki_title`   | `text`     | `title` del `.md` de la wiki                                                      |
-| `wiki_summary` | `longtext` | `summary` del `.md` de la wiki                                                    |
-| `wiki_authors` | `list`     | `authors` del `.md` de la wiki                                                    |
+| Campo            | Clase      | Qué es hoy en `hardcodedTags.js` / la wiki                                        |
+| ---------------- | ---------- | --------------------------------------------------------------------------------- |
+| (`title`)        | —          | `visible_name`, o el `id` si no tiene                                             |
+| `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
+| `icon`           | `text`     | `icon` (un emoji)                                                                 |
+| `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
+| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
+| `image`          | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
+| `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
+| `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |
+| `wiki_summary`   | `longtext` | `summary` del `.md` de la wiki                                                    |
+| `wiki_authors`   | `list`     | `authors` del `.md` de la wiki                                                    |
+| `wiki_tags`      | `list`     | `tags` del `.md` de la wiki (otras etiquetas que nombra la página)                |
+| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: lo importado, HTML libre) |
 
 | Relación          | Hacia    | Qué es hoy                                                                     |
 | ----------------- | -------- | ------------------------------------------------------------------------------ |
@@ -108,13 +112,15 @@ público) con sus relaciones, ambas puntas con `visibleWhere()`.
 
 ## Leer y editar desde la base (paso 3)
 
-Interruptor **«Etiquetas desde la base»** (`etiquetas_db`, variable `ETIQUETAS_DB_ENABLED`),
-apagado por defecto. Antes de prenderlo: importar (paso 2). El paso a paso para prenderlo (preview,
-producción) y apagarlo está en [interruptores.md](interruptores.md).
+El interruptor «Etiquetas desde la base» (`etiquetas_db`) **quedó prendido para siempre** y salió
+de Interruptores («Contenido solo en la base», paso 2): ya no hay commits al archivo de etiquetas.
+Una base nueva (un preview o la local) necesita importar primero (paso 2; en la compu,
+`npm run tags:import`): hasta entonces el sitio lee el archivo y el editor avisa que hay que
+importar.
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
-  `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
-  archivo, como siempre. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
+  `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: el archivo,
+  solo como respaldo. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
   nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
@@ -137,9 +143,10 @@ producción) y apagarlo está en [interruptores.md](interruptores.md).
     El RSS y el sitemap siguen prerenderizados porque no muestran etiquetas (una prueba lo
     verifica: salen iguales con cualquier árbol).
   - `sigue-el-interruptor.test.js` prueba cada lugar con una «base» inventada.
-- Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
-- **Editor** (`/admin/etiquetas`): con el interruptor prendido y etiquetas en la base, la misma
-  página guarda en la base al momento (`src/lib/server/etiquetas/editor.js`). Usa las mismas
+- Los textos de la Kinkipedia (`/wiki/<entrada>`) salen de la base («solo base», paso 2): ver
+  «La Kinkipedia» abajo.
+- **Editor** (`/admin/etiquetas`): guarda en la base al momento (sin etiquetas en la base, la
+  página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
   operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
@@ -155,31 +162,62 @@ producción) y apagarlo está en [interruptores.md](interruptores.md).
 Decisión de gorrite: quien renombra elige (`RenameChoice.svelte`, el mismo en Etiquetas y en
 Eventos → Series › Editar):
 
-- **Por defecto: renombrar en todas las publicaciones, sin alias.** Un commit reescribe las
+- **Por defecto: renombrar en todas las publicaciones, sin alias.** Se reescriben las
   publicaciones que usan el nombre viejo (el mismo camino que el editor del archivo:
-  `replaceTagInPost` y `commitTagEdit`) y después se renombra en la base; el nombre viejo deja de
-  existir. Si el commit falla, la base no se toca. Hace falta poder hacer commits (entrar con
-  GitHub). Hasta que termina de publicarse el sitio (unos minutos), las publicaciones todavía
-  dicen el nombre viejo y se ven como una etiqueta suelta.
+  `replaceTagInPost` y `commitTagEdit`), **todas en la base y sin GitHub** (eventos, material,
+  perfiles de amigues y páginas de la wiki: `dbRepoAccess`, `src/lib/server/contenido/fichas.js`), y
+  después se renombra la etiqueta; el nombre viejo deja de existir. Si cambiar las publicaciones
+  falla, la etiqueta no se toca. Se ve enseguida.
 - **Dejar el nombre viejo como alias**: no se toca ninguna publicación; se resuelven por el alias.
 - Antes de confirmar se ve cuántas publicaciones cambian (y cómo): la vista previa de Etiquetas,
   o un paso de confirmación en Series.
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
-  (`src/lib/server/etiquetas/rename.js`): hoy los `.md` del repo; cuando el contenido pase a la
-  base (`contenido_db`), esa función tiene que sumar los posts de la base.
-- El archivo (`hardcodedTags.js`) no se toca al renombrar en la base: con el interruptor
-  prendido es solo el respaldo.
+  (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente solo-base
+  (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`): Etiquetas y Eventos → Series usan el
+  mismo, sin leer ni escribir GitHub.
+- Los eventos y el material que tienen la etiqueta como edge `etiqueta` (migración 0042,
+  [objetos.md](objetos.md)) **no se reescriben**: el edge apunta a la etiqueta y, al cambiarle el
+  `key`, ya muestran el nombre nuevo. Solo se reescriben los que la tienen como texto en
+  `data.tags` (guardados cuando la etiqueta no existía); el cliente dice cuáles son por edge
+  (`linkedTagsOf` de `withContentDb`/`dbPostsOnlyClient`). La vista previa lo cuenta en una línea
+  («N publicaciones la tienen enlazada y cambian solas»). Un `wiki:` con el nombre se reescribe
+  igual.
+- El archivo (`hardcodedTags.js`) no se toca nunca desde el panel: es solo el respaldo.
+
+## La Kinkipedia (solo base)
+
+El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wiki_authors`,
+`wiki_tags`) es su página `/wiki/<dirección>` (`tagSlug(key)`: los mismos nombres que los `.md` de
+`src/lib/posts/wiki/`, que quedan solo como respaldo).
+
+- **Leer**: `src/lib/server/wiki/site.js`. Las páginas vienen con el árbol de etiquetas
+  (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
+  sitemap y «Participa en» no suman consultas. `/wiki/<término>` resuelve la etiqueta como toda
+  dirección de etiqueta (también un alias) y arma el texto en el servidor
+  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice; la
+  lista corta si `wiki_body_html` es `corta`). **Ya no se prerenderiza** (`prerender = false`): la
+  base no se puede leer al compilar.
+- **Editar**: Etiquetas → cada etiqueta → «Editar/Escribir la entrada de la Kinkipedia»
+  (`/admin/etiquetas/wiki/<dirección>`, `src/lib/server/etiquetas/wikiEditor.js`): en la base al
+  momento, con historial (`object_revisions`), Actividad (`wiki.update`, `wiki.delete`) y control de
+  versión. Cambia solo el texto de la wiki (ni el nombre, ni las relaciones, ni la descripción).
+  «Sacar la entrada» le saca el texto (queda en el historial). `/edit/wiki/<…>` lleva ahí.
+- **Cómo se muestra** (`wiki_body_html`, como `body_html` de los eventos): si el texto no cambió,
+  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor (lo importado del repo): HTML libre.
+- **Importar**: el importador de etiquetas (arriba); `wiki_tags` es nuevo, así que reimportar
+  actualiza la página que tiene `tags:` (si nadie la editó en el panel).
 
 ## Series (paso 4)
 
-Las series son etiquetas hijas de «evento recurrente». Todo detrás del interruptor `series`.
+Las series son etiquetas hijas de «evento recurrente». El interruptor `series` quedó prendido
+para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 
 - **Eventos → Series** (`/admin/eventos/series`): «Crear serie» y, en cada serie, **«Editar»**:
   nombre de la etiqueta (renombrar, con la misma elección y el mismo valor por defecto que en
   Etiquetas, y un paso para confirmar después de ver cuántas publicaciones cambian), nombre
   visible, ícono, imagen (de `src/lib/assets`) y descripción (`seriesEditOps`,
-  `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: commit al archivo o, con
-  `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos son un
+  `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: en la base al momento
+  (`src/lib/server/etiquetas/panel.js`). Los campos son un
   componente (`SeriesFields.svelte`) que usan crear y editar.
 - **Imagen de la serie** (`image` de la etiqueta): un archivo de `src/lib/assets`
   (`picantearla-miniatura.webp`) o, sin copiarla, la imagen de un evento:
@@ -190,11 +228,26 @@ Las series son etiquetas hijas de «evento recurrente». Todo detrás del interr
   archivos de `src/lib/assets`; la imagen de un evento se conserva si no se cambia.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
   ediciones (`SeriesTagBlock.svelte`, como antes).
-- **Kinkipedia** (`/wiki`): la sección «Series», con una tarjeta por serie que tiene ediciones
-  (imagen, descripción, cuántas ediciones y la próxima) que lleva a su página
-  (`seriesSummaries`, `SeriesGrid.svelte`). Se esconde mientras se busca.
-- Todo lo de series lee el árbol en uso (archivo o base), también «¿Es parte de una serie?» al
-  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5).
+- **Kinkipedia** (`/wiki`): la sección «Series» (`#series`), con una tarjeta por serie que tiene
+  ediciones (imagen o su emoji grande, descripción, cuántas ediciones y la próxima, o la última)
+  que lleva a su página (`seriesSummaries`, `SeriesGrid.svelte`). Las **series hijas** van dentro
+  de la tarjeta de su madre (`seriesParentOf`, `groupSeries` en `src/lib/utils/series.js`); si la
+  madre no tiene ediciones propias, la hija queda suelta. Se esconde mientras se busca.
+- **Buscador de la Kinkipedia**: es el selector de etiquetas del sitio (`ChipCombobox` con
+  `look="search"` y `searchTagOptions`, como en Lo que sigo): sugiere entradas por nombre, nombre
+  visible o alias y al elegir una lleva a `/wiki/<etiqueta>`; lo escrito sigue filtrando el árbol
+  como antes. Arriba, un índice de secciones con anclas (`src/lib/utils/wikiIndex.js`).
+- **Series hijas** (una edición especial): una serie puede estar dentro de otra («Picantearla:
+  Deluxe» dentro de «Picantearla»). Sus eventos llevan **las dos** etiquetas: la de la hija y la de
+  la madre, así la página de la madre sigue con todas las ediciones. En Eventos → Series: «Crear
+  serie» pregunta «¿Va dentro de otra serie?». Lo arma `seriesCreateOps` con `parent` (solo una
+  serie que existe). El botón «Serie por año» se sacó (gorrite, 4/10): Cuirdas Sudacas va a ser un
+  taller en partes por año ([talleres-partes.md](talleres-partes.md)), en el corte, no como series
+  hijas.
+- Todo lo de series lee el árbol en uso (la base), también «¿Es parte de una serie?» al
+  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5). Los crons de avisos
+  (series y «Lo que sigo») leen las etiquetas de la base ellos mismos (`siteTagManager`), sin
+  depender del árbol que dejó el último pedido en el isolate.
 
 ## Cómo probar
 

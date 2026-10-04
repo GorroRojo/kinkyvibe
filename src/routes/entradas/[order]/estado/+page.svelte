@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>Tu compra - KinkyVibe.ar</title>
+	<title>Tu compra · Kinky Vibe</title>
 </svelte:head>
 
 <section class="estado estado-{order.status}" aria-live="polite">
@@ -118,7 +118,7 @@
 			<dd>{formatARS(order.list)}</dd>
 		{/if}
 		{#if order.fondo}
-			<dt>Fondo KinkyVibe</dt>
+			<dt>Fondo Kinky Vibe</dt>
 			<dd>−{formatARS(order.fondo)} 💜</dd>
 		{/if}
 		{#if order.contribution}

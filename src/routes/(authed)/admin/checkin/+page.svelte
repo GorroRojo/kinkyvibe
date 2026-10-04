@@ -1,4 +1,5 @@
 <script>
+	import { argDateList } from '$lib/utils/dates.js';
 	/** Check-in: elegir el evento y abrir el modo puerta. */
 	import { DoorOpen } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -8,18 +9,8 @@
 
 	export let data;
 
-	const TZ = 'America/Argentina/Buenos_Aires';
 	/** @param {number} ms */
-	const when = (ms) =>
-		new Date(ms).toLocaleString('es-AR', {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23',
-			timeZone: TZ
-		});
+	const when = (ms) => argDateList(ms);
 
 	const SECTIONS = /** @type {const} */ ([
 		['hoy', 'Hoy'],
@@ -32,8 +23,8 @@
 </script>
 
 <PageHeader
-	title="Check-in"
-	subtitle="Elegí el evento para abrir el modo puerta: pantalla oscura, sin menús, que no se apaga y sigue andando sin conexión."
+	title="Puerta"
+	subtitle="Elegí el evento para abrir su Puerta: pantalla oscura, sin menús, que no se apaga y sigue andando sin conexión."
 />
 
 {#if !data.hasDb}
@@ -75,7 +66,7 @@
 								class:ghost={e.slug !== firstSlug || id === 'recientes'}
 								href={eventHref(e.slug, 'ingreso')}
 							>
-								<DoorOpen size={18} /> Abrir modo puerta
+								<DoorOpen size={18} /> Abrir Puerta
 							</a>
 						</div>
 					</Card>
@@ -90,7 +81,7 @@
 		margin-bottom: 1.4rem;
 	}
 	h2 {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--muted);
@@ -98,7 +89,7 @@
 	}
 	.list {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	@media (min-width: 900px) {
 		.list {
@@ -108,25 +99,25 @@
 	.event {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	.info {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	h3 {
 		margin: 0;
-		font-size: 1.1rem;
+		font-size: var(--text-base);
 	}
 	p {
 		margin: 0;
 	}
 	.count {
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 	}
 	.count b {
-		font-size: 1.5rem;
+		font-size: var(--text-lg);
 	}
 	.event .kv-btn {
 		align-self: flex-start;
@@ -135,8 +126,8 @@
 	.note {
 		background: var(--warn-bg);
 		color: var(--warn);
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 	}
 	.empty {
 		margin: 0;

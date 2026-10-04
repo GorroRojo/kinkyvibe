@@ -8,6 +8,7 @@
 	import { StickyNote, Users } from '@lucide/svelte';
 	import { fmtDate } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
+	import { personHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -150,7 +151,7 @@
 					{#each filtered.slice(0, 500) as p (p.id)}
 						<tr>
 							<td class="who">
-								<a class="name" href="/admin/comunidad/personas/{p.id}">{p.name}</a>
+								<a class="name" href={personHref(p.id)}>{p.name}</a>
 								{#if p.pronouns.length}<span class="muted">({p.pronouns.join(', ')})</span>{/if}
 								{#if p.notes}<span class="note" title="{p.notes} notas"
 										><StickyNote size={14} aria-label="{p.notes} notas" /></span
@@ -182,7 +183,7 @@
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 	}
 	.grow {
@@ -209,7 +210,7 @@
 		margin-left: 0.2rem;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
 		.hide-sm {

@@ -7,10 +7,13 @@
  * `.svelte-kit/cloudflare/_worker.js` (ver svelte.config.js y wrangler.adapter.toml); wrangler
  * empaqueta este archivo junto con ese.
  *
- * Cloudflare Pages no usa este archivo: allá el sitio sigue siendo el `_worker.js` del adapter.
+ * Acá también se anotan las visitas anónimas (docs/analiticas.md): este `fetch` ve todos los
+ * pedidos que llegan al Worker, incluso las páginas que el adapter sirve desde su caché (esas no
+ * pasan por hooks.server.js). Sin el binding `ANALYTICS` no hace nada.
  */
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';
+import { trackPageView } from '../src/lib/server/analytics/track.js';
 
 export default {
 	/**
@@ -18,8 +21,11 @@ export default {
 	 * @param {Record<string, unknown>} env
 	 * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
 	 */
-	fetch(request, env, ctx) {
-		return app.fetch(request, env, ctx);
+	async fetch(request, env, ctx) {
+		const response = await app.fetch(request, env, ctx);
+		// Sincrónico y nunca tira (writeDataPoint no espera la red). No lee el cuerpo.
+		trackPageView(request, response, env);
+		return response;
 	},
 
 	/**

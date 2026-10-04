@@ -150,7 +150,7 @@
 	{chip}
 	{onChange}
 	add={addTag}
-	removeLabel="Quitar etiqueta"
+	removeLabel="Sacar etiqueta"
 	addedMessage={(label) => `Etiqueta agregada: ${label}`}
 >
 	<p class="replaced" role="status" slot="after-chips">

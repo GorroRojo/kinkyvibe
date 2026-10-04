@@ -65,3 +65,7 @@ relaciones) que después sirve para todo lo demás.
   `saveObject()` como única vía de escritura, un solo helper de visibilidad, versiones y chequeo
   nocturno. El primer tipo en uso es `perfil` (#125). Guía: [`docs/objetos.md`](../objetos.md).
 - Los eventos siguen en `.md`. Amigues pasan a perfiles en la base en #137 (abierto).
+- «Contenido solo en la base» (paso 2, 4/10): los eventos y el material se leen y se guardan solo
+  en la base (`contenido_db`, `etiquetas_db` y `series` quedaron fijos). Los interactivos son
+  etiquetas registradas en el texto (`<kv-donde-golpear-un-cuerpo>`, `src/lib/utils/interactivos.js`).
+  Los `.md` quedan en el repo como respaldo hasta borrarlos. Guía: [`docs/contenido.md`](../contenido.md).

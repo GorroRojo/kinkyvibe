@@ -7,12 +7,15 @@
 	 *
 	 * Props: `values` (ProfileFormValues de src/lib/server/amigues/editor.js), `errors` (por campo),
 	 * `conflict` ({ version, changes: [{ field, label, theirs }] }), `action` (form action),
-	 * `submitLabel`, `kinds` (tipos que se pueden elegir).
+	 * `submitLabel`, `kinds` (tipos que se pueden elegir), `image` (la imagen del perfil para el
+	 * selector de la biblioteca, docs/imagenes.md: `{ current, legacyUrl, target }`; sin pasar, un
+	 * perfil nuevo, que elige su imagen después de crearse).
 	 */
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
 	export let values;
@@ -24,6 +27,11 @@
 	export let submitLabel = 'Guardar';
 	/** @type {Record<string, string>} */
 	export let kinds = KIND_LABELS;
+	/** @type {{ current: import('$lib/server/media/library.js').PublicImage | null, legacyUrl: string | null, target: string } | null} */
+	export let image = null;
+
+	/** La imagen elegida en el selector (va en el campo oculto `imageId`). */
+	let avatar = image?.current ?? null;
 
 	let busy = false;
 	$: kind = values.kind;
@@ -86,12 +94,25 @@
 		</label>
 	</div>
 
-	<fieldset class="kv-field">
+	{#if image}
+		<ImagePicker
+			bind:value={avatar}
+			legacyUrl={image.legacyUrl}
+			target={image.target}
+			contextLabel="De este perfil"
+			legend="Imagen del perfil"
+			idPrefix="perfil-imagen"
+			sectionId="sec-perfil-imagen"
+			canDelete
+		/>
+	{/if}
+
+	<fieldset class="kv-field choices">
 		<span>Quién lo puede ver</span>
 		{#each VISIBILITY_OPTIONS as o (o.value)}
-			<label class="kv-check">
+			<label class="kv-choice">
 				<input type="radio" name="visibility" value={o.value} bind:group={values.visibility} />
-				{o.label} <small>{o.hint}</small>
+				<span><strong>{o.label}</strong> <small>{o.hint}</small></span>
 			</label>
 		{/each}
 	</fieldset>
@@ -266,7 +287,7 @@
 <style>
 	.conflict ul {
 		margin: 0.4rem 0 0;
-		padding-left: 1.2rem;
+		padding-left: var(--space-s);
 		font-weight: 400;
 	}
 	.conflict p {
@@ -277,12 +298,15 @@
 		padding: 0;
 		margin: 0;
 	}
+	.kv-field.choices {
+		gap: var(--space-2xs);
+	}
 	.venue {
 		border: 1px solid var(--field);
-		border-radius: 1em;
-		padding: 1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-xs);
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.venue legend {
 		font-weight: 700;
@@ -290,7 +314,7 @@
 	}
 	.mono {
 		font-family: ui-monospace, monospace;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.contact summary {
 		cursor: pointer;
@@ -298,6 +322,6 @@
 	}
 	.contact[open] {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 </style>

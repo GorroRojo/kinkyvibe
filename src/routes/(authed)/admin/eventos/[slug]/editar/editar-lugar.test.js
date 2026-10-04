@@ -1,7 +1,8 @@
 /**
  * «Lugar» en Editar un evento (pedido de gorrite: elegir el lugar desde el evento): guardar pone,
- * cambia o saca el lugar en `event_venues` (con el registro de actividad), tanto si el evento se
- * guarda en GitHub como en la base (`contenido_db`); el archivo queda igual que sin el «Lugar»;
+ * cambia o saca el edge `lugar` del evento en la base (con el registro de actividad y una versión
+ * nueva del evento); el evento se guarda en la base (nunca en GitHub) y su texto queda igual que
+ * sin el «Lugar»;
  * cambiar solo el lugar guarda el archivo con la fecha de «Actualizado» de hoy y nada más
  * (decisión de gorrite); si guardar el archivo falla, el lugar no cambia. También «+ Crear lugar»
  * (no listado por defecto, decisión de gorrite) y la edición rápida del lugar elegido.
@@ -11,11 +12,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 import { publicVenueForEvent, setEventVenue } from '$lib/server/amigues/venues.js';
 import { runImport } from '$lib/server/contenido/importer.js';
 import { listRevisions } from '$lib/server/contenido/revisions.js';
 import { ANON } from '$lib/server/objects/index.js';
+import { parse } from 'yaml';
 import {
 	applyFrontmatterChanges,
 	formatPostDate,
@@ -60,13 +62,6 @@ const withTodayUpdated = (raw) => {
 	);
 };
 
-/** @param {string} a @param {string} b las líneas que cambian */
-const changedLines = (a, b) => {
-	const x = a.split('\n');
-	const y = b.split('\n');
-	return y.filter((line, i) => line !== x[i]);
-};
-
 /** @param {string} title */
 const eventMd = (title) =>
 	[
@@ -89,15 +84,18 @@ const eventMd = (title) =>
 	].join('\n');
 
 /**
- * La ruta con un repo de mentira. `contenido` prende `contenido_db` (el cliente pasa por
- * withContentDb, como en producción); `failCommit` hace fallar el guardado.
- * @param {{ contenido?: boolean, failCommit?: boolean }} [opts]
+ * La ruta con un repo de mentira (el cliente pasa por withContentDb, como en producción: el evento
+ * se guarda en la base). El evento SLUG está en la base (importado de `eventMd`).
  */
-async function page({ contenido = false, failCommit = false } = {}) {
+async function page() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { CONTENIDO_DB_ENABLED: contenido ? '1' : '0', PERFILES_PUBLICOS_ENABLED: '1' }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
+	const raw = eventMd('Fiesta de Prueba');
+	const meta = JSON.parse(JSON.stringify(parse(splitMarkdown(raw).frontmatter)));
+	await runImport(t.db, 'calendario', [{ legacySlug: SLUG, raw, meta }], {
+		actor: 'importacion',
+		now: 1_900_000_000_000
+	});
 	/** @type {any[]} */
 	const commits = [];
 	/** @type {Map<string, string>} */
@@ -112,7 +110,6 @@ async function page({ contenido = false, failCommit = false } = {}) {
 		listTree: async () => [],
 		getDirTexts: async () => [],
 		commitFiles: async (/** @type {string} */ _t, /** @type {any} */ c) => {
-			if (failCommit) throw new Error('GitHub no responde (inventado)');
 			commits.push(c);
 			return { url: 'https://example.com/commit/prueba' };
 		}
@@ -151,9 +148,18 @@ const save = (form, slug = SLUG) =>
 		}
 	});
 
+/** El vínculo guardado: el edge `lugar` del evento (`null` si no tiene). */
 const venueRow = async (slug = SLUG) =>
 	/** @type {any} */ (
-		await t.db.prepare('SELECT * FROM event_venues WHERE event_slug = ?1').bind(slug).first()
+		await t.db
+			.prepare(
+				`SELECT e.to_id AS venue_id, json_extract(e.data, '$.privacy') AS privacy FROM edges e
+				JOIN objects o ON o.id = e.from_id AND o.type = 'evento'
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE e.kind = 'lugar' AND coalesce(s.legacy_slug, o.slug) = ?1`
+			)
+			.bind(slug)
+			.first()
 	);
 
 /** @param {string} action */
@@ -168,73 +174,37 @@ const audit = async (action) =>
 const lugar = async (title = 'Sala Inventada', privacy = 'name') =>
 	makeProfile(t.db, { title, kind: 'lugar', data: { address: 'Calle 1', venue_privacy: privacy } });
 
-describe('guardar en GitHub', () => {
-	it('elegir un lugar lo vincula (con registro) y el archivo queda igual que sin el «Lugar»', async () => {
-		const v = await lugar();
-		const { mod, commits } = await page();
-		const plain = /** @type {any} */ (await mod.actions.save(save({})));
-		expect(plain.save).toBe('Guardado');
-		expect(await venueRow()).toBeNull();
-		const res = /** @type {any} */ (
-			await mod.actions.save(
-				save({ lugar: String(v.id), lugarPrivacidad: 'area', lugarCambio: '1' })
-			)
+describe('guardar: el «Lugar» del evento', () => {
+	/** El texto y el sha del evento SLUG en la base. @param {any} client */
+	const current = async (client) =>
+		/** @type {{ raw: string, sha: string }} */ (await client.readFile('t', PATH));
+	/** La versión del evento SLUG en la base. */
+	const version = async () =>
+		Number(
+			/** @type {any} */ (
+				await t.db
+					.prepare(
+						`SELECT o.version FROM objects o JOIN content_sources s ON s.object_id = o.id
+						WHERE s.legacy_slug = ?1`
+					)
+					.bind(SLUG)
+					.first()
+			)?.version
 		);
-		expect(res).toMatchObject({ save: 'Guardado', venueSaved: true });
-		expect(commits).toHaveLength(2);
-		expect(commits[1].files).toEqual(commits[0].files);
-		expect(commits[1].files[0].content).not.toMatch(/Sala Inventada|lugar/i);
-		expect(await venueRow()).toMatchObject({ venue_id: v.id, privacy: 'area' });
-		const log = await audit('event.venue_set');
-		expect(log).toEqual([
-			expect.objectContaining({
-				target_id: SLUG,
-				summary: expect.stringContaining('Sólo dirección parcial (Barrio)')
-			})
-		]);
-	});
-
-	// Decisión de gorrite: cambiar solo el lugar también actualiza «Actualizado», por el camino de
-	// siempre (antes este caso no guardaba el archivo).
-	it('cambiar solo el nivel guarda el archivo con la fecha de «Actualizado» de hoy, y nada más', async () => {
-		const v = await lugar();
-		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: null, by: 'otre' });
-		const { mod, commits } = await page();
-		const original = eventMd('Fiesta de Prueba');
-		const res = /** @type {any} */ (
-			await mod.actions.save(
-				save({
-					content: withTodayUpdated(original),
-					lugar: String(v.id),
-					lugarPrivacidad: 'hidden',
-					lugarCambio: '1'
-				})
-			)
-		);
-		expect(res).toMatchObject({ save: 'Guardado', venueSaved: true });
-		expect(commits).toHaveLength(1);
-		const saved = commits[0].files[0];
-		expect(saved.path).toBe(PATH);
-		expect(changedLines(original, saved.content)).toEqual([
-			`updated_date: ${formatPostDate(todayInArgentina())}`
-		]);
-		expect(await venueRow()).toMatchObject({ venue_id: v.id, privacy: 'hidden' });
-	});
 
 	it('«Sacar lugar» lo desvincula, con registro', async () => {
 		const v = await lugar();
+		const { mod, client, commits } = await page();
+		// «Sucede en» es un edge del evento: se vincula con el evento ya en la base (versión 2).
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: 'name', by: 'otre' });
-		const { mod } = await page();
+		const file = await current(client);
 		const res = /** @type {any} */ (
 			await mod.actions.save(
-				save({
-					content: withTodayUpdated(eventMd('Fiesta de Prueba')),
-					lugar: '',
-					lugarCambio: '1'
-				})
+				save({ content: withTodayUpdated(file.raw), sha: file.sha, lugar: '', lugarCambio: '1' })
 			)
 		);
-		expect(res.save).toBe('Guardado');
+		expect(res).toMatchObject({ save: 'Guardado', savedToDb: true });
+		expect(commits).toHaveLength(0);
 		expect(await venueRow()).toBeNull();
 		expect(await audit('event.venue_remove')).toHaveLength(1);
 	});
@@ -242,41 +212,49 @@ describe('guardar en GitHub', () => {
 	it('sin tocar el «Lugar», guardar no cambia el vínculo', async () => {
 		const v = await lugar();
 		const otro = await lugar('Otra Sala Inventada');
+		const { mod, client, commits } = await page();
+		// «Sucede en» es un edge del evento: se vincula con el evento ya en la base (versión 2).
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: 'name', by: 'otre' });
-		const { mod, commits } = await page();
+		const file = await current(client);
 		// Los campos llegan, pero sin `lugarCambio`: no se tocó.
 		const res = /** @type {any} */ (
-			await mod.actions.save(save({ lugar: String(otro.id), lugarPrivacidad: 'public' }))
+			await mod.actions.save(
+				save({ sha: file.sha, lugar: String(otro.id), lugarPrivacidad: 'public' })
+			)
 		);
 		expect(res.save).toBe('Guardado');
-		expect(commits).toHaveLength(1);
+		expect(commits).toHaveLength(0);
+		expect(await version()).toBe(3); // importado (1), el lugar (2) y este guardado (3)
 		expect(await venueRow()).toMatchObject({ venue_id: v.id, privacy: 'name' });
 		expect(await audit('event.venue_set')).toHaveLength(0);
 	});
 
-	it('si guardar el archivo falla, el lugar no se vincula', async () => {
+	it('si guardar el evento falla (alguien guardó en el medio), el lugar no se vincula', async () => {
 		const v = await lugar();
-		const { mod } = await page({ failCommit: true });
+		const { mod } = await page();
 		const res = /** @type {any} */ (
-			await mod.actions.save(save({ lugar: String(v.id), lugarCambio: '1' }))
+			await mod.actions.save(save({ sha: 'b'.repeat(40), lugar: String(v.id), lugarCambio: '1' }))
 		);
 		expect(res.status).toBe(502);
+		expect(await version()).toBe(1);
 		expect(await venueRow()).toBeNull();
 	});
 
 	it('un lugar que ya no existe no guarda nada', async () => {
-		const { mod, commits } = await page();
+		const { mod, client, commits } = await page();
+		const file = await current(client);
 		const res = /** @type {any} */ (
-			await mod.actions.save(save({ lugar: '999999', lugarCambio: '1' }))
+			await mod.actions.save(save({ sha: file.sha, lugar: '999999', lugarCambio: '1' }))
 		);
 		expect(res.status).toBe(400);
 		expect(res.data.error).toMatch(/ya no existe/);
 		expect(commits).toHaveLength(0);
+		expect(await version()).toBe(1);
 		expect(await venueRow()).toBeNull();
 	});
 });
 
-describe('guardar en la base (contenido_db)', () => {
+describe('guardar en la base', () => {
 	const FIXTURE = 'fiesta-inventada-2031-01';
 	const FIXTURE_PATH = `src/lib/posts/calendario/${FIXTURE}.md`;
 	const raws = /** @type {Record<string, string>} */ (
@@ -303,7 +281,7 @@ describe('guardar en la base (contenido_db)', () => {
 	 */
 	async function saveFromDb(extra) {
 		await runImport(t.db, 'calendario', files, { actor: 'importacion', now: 1_900_000_000_000 });
-		const { mod, client, commits } = await page({ contenido: true });
+		const { mod, client, commits } = await page();
 		const file = /** @type {{ raw: string, sha: string }} */ (
 			await client.readFile('t', FIXTURE_PATH)
 		);
@@ -332,7 +310,7 @@ describe('guardar en la base (contenido_db)', () => {
 	it('cambiar solo el lugar guarda una versión nueva con la fecha de hoy, a nombre de quien guardó', async () => {
 		await runImport(t.db, 'calendario', files, { actor: 'importacion', now: 1_900_000_000_000 });
 		const v = await lugar();
-		const { mod, client } = await page({ contenido: true });
+		const { mod, client } = await page();
 		const file = /** @type {{ raw: string, sha: string }} */ (
 			await client.readFile('t', FIXTURE_PATH)
 		);
@@ -373,7 +351,10 @@ describe('guardar en la base (contenido_db)', () => {
 				.first()
 		);
 		const revs = await listRevisions(t.db, object.id);
+		// El texto (versión 2) y después el lugar (versión 3: el edge `lugar` es un guardado del
+		// evento, con su historial).
 		expect(revs.map((r) => [r.version, r.source, r.savedBy])).toEqual([
+			[3, 'lugar', admin.login],
 			[2, 'panel', admin.login],
 			[1, 'import', 'importacion']
 		]);
@@ -438,6 +419,8 @@ describe('«+ Crear lugar»', () => {
 		);
 		expect(JSON.parse(data.data).unlisted).toBeUndefined();
 		// La página del evento muestra igual el lugar no listado y el listado (según su nivel).
+		await makeEvent(t.db, 'a');
+		await makeEvent(t.db, 'b');
 		await setEventVenue(t.db, { eventSlug: 'a', venueId: listed.id, privacy: null, by: 'x' });
 		await setEventVenue(t.db, { eventSlug: 'b', venueId: unlisted.id, privacy: null, by: 'x' });
 		const a = /** @type {any} */ (await publicVenueForEvent(t.db, 'a', ANON));
@@ -479,7 +462,9 @@ describe('«+ Crear lugar»', () => {
 			)
 		);
 		expect(anon?.status).toBe(303);
-		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM objects').first())?.n).toBe(0);
+		expect(
+			(await t.db.prepare("SELECT COUNT(*) AS n FROM objects WHERE type = 'perfil'").first())?.n
+		).toBe(0);
 	});
 });
 
@@ -614,6 +599,7 @@ describe('la ficha del evento (fila «Lugar»)', () => {
 		const v = await lugar();
 		const { panelVenueRow } = await import('$lib/server/amigues/eventFormVenue.js');
 		expect(await panelVenueRow(t.db, SLUG)).toBeNull();
+		await makeEvent(t.db, SLUG);
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: null, by: 'otre' });
 		const row = await panelVenueRow(t.db, SLUG);
 		expect(row).toMatchObject({

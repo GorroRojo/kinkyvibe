@@ -1,27 +1,19 @@
 /**
  * /propinas: la form action del bloque "Dejá una propina" de las publicaciones (docs/propinas.md).
- * Con el interruptor `propinas` apagado, 404. Sin JavaScript (o si algo falló), muestra el mismo
- * formulario con los errores.
+ * Sin JavaScript (o si algo falló), muestra el mismo formulario con los errores.
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { propinasEnabled } from '$lib/server/flags.js';
 import { readTipForm, startTip } from '$lib/server/propinas/checkout.js';
 import { findTipPost } from '$lib/server/propinas/posts.js';
 import { getGateway, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { tipPost } from '$lib/utils/propinas.js';
 
-/** @param {App.Platform | undefined} platform */
-async function requireOn(platform) {
-	if (!(await propinasEnabled(platform))) error(404, 'Not found');
-}
-
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ platform, url, setHeaders }) {
-	await requireOn(platform);
+export async function load({ url, setHeaders }) {
 	setHeaders({ 'x-robots-tag': 'noindex' });
 	// `?de=material/<slug>`: desde qué publicación (para el formulario sin JavaScript).
 	const [category, slug] = (url.searchParams.get('de') ?? '').split('/');
@@ -32,7 +24,6 @@ export async function load({ platform, url, setHeaders }) {
 export const actions = {
 	default: async (event) => {
 		const { platform, request, url, fetch } = event;
-		await requireOn(platform);
 		const db = getDB(platform);
 		const values = readTipForm(await request.formData());
 		if (!db) {

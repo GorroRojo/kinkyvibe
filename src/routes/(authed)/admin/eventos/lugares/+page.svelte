@@ -69,12 +69,6 @@
 </PageHeader>
 
 <div class="kv-stack">
-	{#if !data.flagOn}
-		<p class="kv-flash warn">
-			El interruptor «Perfiles públicos» está apagado: los eventos siguen mostrando (y mandando a
-			quienes compran) lo que dice su archivo. Podés dejar todo listo acá antes de prenderlo.
-		</p>
-	{/if}
 	{#if form?.link}
 		<p class="kv-flash" class:bad={!form.link.ok} role="status">{form.link.message}</p>
 	{/if}
@@ -382,7 +376,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.grow {
 		flex: 1 1 16rem;
@@ -399,7 +393,7 @@
 	.link-form {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 		margin-top: 1rem;
 	}

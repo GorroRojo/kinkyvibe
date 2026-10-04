@@ -27,6 +27,7 @@
 	import { contentAdminHref } from '$lib/admin/nav.js';
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import { filterContentRows, topTags } from '$lib/utils/contentPosts.js';
+	import TagChip from '$lib/components/TagChip.svelte';
 
 	/** @type {'material'|'amigues'} */
 	export let category;
@@ -194,7 +195,7 @@
 						</div>
 						{#if r.tags.length}
 							<div class="rtags">
-								{#each r.tags.slice(0, 8) as t}<span class="mini">{tagLabel(canon(t))}</span>{/each}
+								{#each r.tags.slice(0, 8) as t}<TagChip tag={canon(t)} />{/each}
 								{#if r.tags.length > 8}<span class="mini more">+{r.tags.length - 8}</span>{/if}
 							</div>
 						{/if}
@@ -270,7 +271,7 @@
 	}
 	.msg {
 		border-radius: var(--round, 1rem);
-		padding: 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.msg.ok {
@@ -278,23 +279,23 @@
 		color: var(--ok);
 	}
 	.msg.bad {
-		background: var(--bad-bg);
-		color: var(--bad);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.filters {
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
-		padding: 1rem 1rem 0.4rem;
+		gap: var(--space-2xs);
+		padding: var(--space-xs) var(--space-xs) 0.4rem;
 	}
 	.search {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		background: var(--surface);
 		border: 1px solid var(--field);
 		border-radius: 3em;
-		padding: 0 0.9rem;
+		padding: 0 var(--space-xs);
 		color: var(--muted);
 	}
 	.search input {
@@ -302,7 +303,7 @@
 		min-width: 0;
 		border: 0;
 		background: transparent;
-		padding: 0.6rem 0;
+		padding: var(--space-2xs) 0;
 		color: var(--text);
 		outline: none;
 	}
@@ -321,10 +322,10 @@
 		border: 1px solid var(--field);
 		background: var(--surface);
 		border-radius: 2em;
-		padding: 0.35rem 0.8rem;
+		padding: var(--space-3xs) var(--space-xs);
 		cursor: pointer;
 		font-weight: 700;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		min-height: 2.2rem;
 		display: inline-flex;
 		align-items: center;
@@ -333,7 +334,7 @@
 	.chip {
 		font-weight: 400;
 		min-height: 1.9rem;
-		padding: 0.2rem 0.7rem;
+		padding: 0.2rem var(--space-2xs);
 	}
 	.pill[aria-pressed='true'],
 	.chip[aria-pressed='true'] {
@@ -351,7 +352,7 @@
 	}
 	.count {
 		margin: 0.3rem 1rem 0.2rem;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.rows {
 		list-style: none;
@@ -361,9 +362,9 @@
 	.row {
 		display: grid;
 		grid-template-columns: 3.4rem 1fr auto;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.7rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		border-top: 1px solid var(--line);
 	}
 	.row:hover {
@@ -372,7 +373,7 @@
 	.thumb {
 		width: 3.4rem;
 		height: 3.4rem;
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		overflow: hidden;
 		background: var(--surface-2);
 		display: grid;
@@ -399,7 +400,7 @@
 		overflow-wrap: anywhere;
 	}
 	.meta {
-		font-size: 0.82rem;
+		font-size: var(--text-xs);
 		overflow-wrap: anywhere;
 	}
 	.meta code {
@@ -408,20 +409,20 @@
 	.rtags {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		margin-top: 0.3rem;
 	}
 	.mini {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		background: var(--surface-2);
 		border: 1px solid var(--line);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.5em;
 		white-space: nowrap;
 	}
 	.actions {
 		display: flex;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		flex-wrap: wrap;
 		justify-content: flex-end;
 	}

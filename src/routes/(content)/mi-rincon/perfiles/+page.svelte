@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-	<title>Perfiles - Mi rincón - KinkyVibe.ar</title>
+	<title>Perfiles · Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -292,7 +292,7 @@
 		width: 100%;
 	}
 	legend {
-		font-weight: 600;
+		font-weight: 700;
 		margin-bottom: 0.3em;
 	}
 	label {
@@ -301,7 +301,7 @@
 		width: 100%;
 	}
 	label > span:first-child {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	label.choice {
 		display: flex;

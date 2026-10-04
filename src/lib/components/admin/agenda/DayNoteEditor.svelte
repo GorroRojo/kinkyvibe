@@ -11,6 +11,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import { postDayNote, postDayNoteDelete } from '$lib/admin/agendaSave.js';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import {
 		DAY_NOTE_COLORS,
 		DAY_NOTE_MAX,
@@ -32,7 +33,6 @@
 	let errors = {};
 	let message = '';
 	let busy = false;
-	let confirmDelete = false;
 	/** @type {HTMLInputElement} */
 	let bodyInput;
 
@@ -49,7 +49,6 @@
 			: { date, body: '', color: DEFAULT_DAY_NOTE_COLOR };
 		errors = {};
 		message = '';
-		confirmDelete = false;
 		await tick();
 		bodyInput?.focus();
 	}
@@ -78,10 +77,13 @@
 
 	async function remove() {
 		if (!note || busy) return;
-		if (!confirmDelete) {
-			confirmDelete = true;
-			return;
-		}
+		const ok = await askConfirm({
+			title: '¿Borrar esta nota?',
+			text: note.body,
+			confirmLabel: 'Borrar',
+			tone: 'permanent'
+		});
+		if (!ok || !note) return;
 		busy = true;
 		message = '';
 		const r = await postDayNoteDelete(note.id);
@@ -92,7 +94,6 @@
 			open = false;
 		} else {
 			message = r.message;
-			confirmDelete = false;
 		}
 	}
 </script>
@@ -143,18 +144,12 @@
 
 		<div class="btns">
 			{#if note}
-				<button
-					type="button"
-					class="kv-btn ghost danger"
-					on:click={remove}
-					disabled={busy}
-					aria-live="polite"
-					><Trash2 size={16} aria-hidden="true" />
-					{confirmDelete ? '¿Seguro? Tocá de nuevo para borrar' : 'Borrar'}</button
+				<button type="button" class="kv-btn ghost danger" on:click={remove} disabled={busy}
+					><Trash2 size={16} aria-hidden="true" /> Borrar</button
 				>
 			{/if}
 			<button class="kv-btn" disabled={busy}
-				><Save size={16} aria-hidden="true" /> {busy ? 'Guardando…' : 'Guardar'}</button
+				><Save size={16} aria-hidden="true" /> {busy ? (note?.id ? 'Guardando…' : 'Creando…') : note?.id ? 'Guardar' : 'Crear nota'}</button
 			>
 		</div>
 	</form>
@@ -169,7 +164,7 @@
 	}
 	legend {
 		font-weight: 700;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: 0;
 		margin-bottom: 0.4rem;
 	}
@@ -181,14 +176,14 @@
 	.swatch {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		min-height: 2.5rem;
-		padding: 0 0.8rem 0 0.6rem;
+		padding: 0 var(--space-xs) 0 var(--space-2xs);
 		border-radius: 3em;
 		border-left: 4px solid var(--tone);
 		background: var(--tone-bg);
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.swatch input {
 		accent-color: var(--tone);
@@ -207,7 +202,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.danger {
 		margin-right: auto;

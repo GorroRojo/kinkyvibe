@@ -95,7 +95,7 @@
 						<span>{tag?.icon ?? ''} {tag?.visible_name ?? id}</span>
 						<button
 							type="button"
-							aria-label="Quitar etiqueta {tag?.visible_name ?? id}"
+							aria-label="Sacar etiqueta {tag?.visible_name ?? id}"
 							on:click|stopPropagation={() => {
 								removeTag(id);
 								inputEl?.focus();
@@ -218,7 +218,8 @@
 		list-style: none;
 		display: inline-flex;
 		align-items: center;
-		background: var(--tag-color);
+		/* etiqueta elegida: llena con su color oscurecido, texto blanco (como .kv-tag.on) */
+		background: color-mix(in srgb, var(--tag-color) 75%, black);
 		color: white;
 		border-radius: 2em;
 		line-height: 1;
@@ -273,7 +274,7 @@
 		max-height: min(18rem, 50vh);
 		overflow-y: auto;
 		background: white;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		outline: 1px solid var(--1-light);
 		box-shadow: 0 0.4em 1.2em color-mix(in srgb, var(--1-dark) 20%, transparent);
 		font-size: var(--step--1);
@@ -286,7 +287,7 @@
 		align-items: center;
 		gap: 1em;
 		padding: 0.45em 0.7em;
-		border-radius: 0.5em;
+		border-radius: var(--radius-s);
 	}
 	.suggestion {
 		cursor: pointer;
@@ -307,7 +308,7 @@
 		flex: none;
 		font-variant-numeric: tabular-nums;
 		background: color-mix(in srgb, var(--tag-color) 14%, white);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.1em 0.55em;
 		font-size: var(--step--2);
 	}

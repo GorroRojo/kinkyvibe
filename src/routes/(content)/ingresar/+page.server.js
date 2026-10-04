@@ -1,6 +1,6 @@
 /**
  * "Ingresar": cuentas del público (docs/cuentas.md), con código por mail o con contraseña.
- * Aparte del login de admins (/login, con GitHub). Con el interruptor `cuentas` apagado da 404.
+ * Aparte del login de admins (/login, con GitHub).
  *
  * `?next=` solo acepta rutas de este mismo sitio (safeRedirect).
  */

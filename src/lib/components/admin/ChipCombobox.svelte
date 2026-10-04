@@ -48,11 +48,17 @@
 	/** @type {(value: string) => Chip} */
 	export let chip = (value) => ({ label: value });
 	/** What the remove button says, before the chip's name. */
-	export let removeLabel = 'Quitar';
+	export let removeLabel = 'Sacar';
 	/** @type {(value: string) => string} */
 	export let addedMessage = (value) => `Agregado: ${value}`;
 	/** @type {(values: string[]) => void} */
 	export let onChange = () => {};
+	/**
+	 * Called with the typed text whenever it changes (typing, Escape that clears, after a pick),
+	 * for pages that also filter with what is typed (the Kinkipedia).
+	 * @type {(query: string) => void}
+	 */
+	export let onQuery = () => {};
 	/**
 	 * How a picked value joins the list. Returns the new list, or the same array to add nothing.
 	 * @type {(values: string[], value: string) => string[]}
@@ -96,6 +102,7 @@
 			}
 		}
 		query = '';
+		onQuery(query);
 		active = -1;
 		await tick();
 		input?.focus();
@@ -139,13 +146,17 @@
 			if (open) {
 				e.preventDefault();
 				open = false;
-			} else query = '';
+			} else {
+				query = '';
+				onQuery(query);
+			}
 		} else if (e.key === 'Backspace' && !query && values.length) {
 			remove(values.length - 1);
 		}
 	}
 
 	function onInput() {
+		onQuery(query);
 		open = true;
 		// Highlight the best match while typing, so Enter adds it.
 		active = query.trim() ? 0 : -1;
@@ -157,7 +168,13 @@
 		<ul class="chips" aria-label="Elegidas">
 			{#each values as value, i}
 				{@const c = chip(value)}
-				<li class="chip" class:unknown={c.unknown} style:--chip-color={c.color} title={c.title}>
+				<li
+					class="chip"
+					class:unknown={c.unknown}
+					class:colored={!!c.color}
+					style:--chip-color={c.color}
+					title={c.title}
+				>
 					{#if c.thumb}<img src={c.thumb} alt="" class="avatar" />{/if}
 					<span
 						>{#if c.icon}<span aria-hidden="true">{c.icon}</span>
@@ -252,6 +269,11 @@
 		color: white;
 		font-size: var(--step--1);
 		line-height: 1.3;
+		/* con color propio (etiquetas): lleno con el color oscurecido, así el texto blanco se
+		   lee con todos los colores del árbol (como .kv-tag.on, docs/estilo.md) */
+		&.colored {
+			background: color-mix(in srgb, var(--chip-color) 75%, black);
+		}
 		&.unknown {
 			background: var(--surface, white);
 			color: var(--1-dark);
@@ -305,8 +327,8 @@
 		padding: 0.3em;
 		list-style: none;
 		background: var(--surface, white);
-		border-radius: 0.8em;
-		box-shadow: 0 0.2em 1em rgba(0, 0, 0, 0.18);
+		border-radius: var(--radius-m);
+		box-shadow: var(--shadow-2);
 		max-height: 18em;
 		overflow: auto;
 	}
@@ -315,7 +337,7 @@
 		align-items: center;
 		gap: 0.5em;
 		padding: 0.4em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		cursor: pointer;
 		&.active {
 			background: var(--surface-2, #f3eef6);
@@ -385,7 +407,7 @@
 		}
 		[role='option'] {
 			padding: 0.45em 0.7em;
-			border-radius: 0.5em;
+			border-radius: var(--radius-s);
 			color: color-mix(in srgb, black 25%, var(--option-color, var(--1)));
 			&.active {
 				background: color-mix(in srgb, var(--option-color, var(--1)) 14%, white);

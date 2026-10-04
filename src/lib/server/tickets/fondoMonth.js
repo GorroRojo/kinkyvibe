@@ -1,5 +1,5 @@
 /**
- * Plata del Fondo KinkyVibe del mes (suscripciones), para el Inicio del panel.
+ * Plata del Fondo Kinky Vibe del mes (suscripciones), para el Inicio del panel.
  *
  * Sale del mismo endpoint que el porcentaje (`fondo.js`): https://fondo.kinkyvibe.ar/api/porcentaje
  * devuelve `{ percent, collected, goal, step, updatedAt }`. Acá solo se usan esos números

@@ -57,7 +57,7 @@
 			bind:tags={freeTags}
 			{options}
 			{reserved}
-			reservedHint="se elige con los botones de arriba (idioma, lugar, precio o KinkyVibe)."
+			reservedHint="se elige con los botones de arriba (idioma, lugar, precio o Kinky Vibe)."
 			id={inputId}
 			{placeholder}
 			describedby={helpId}

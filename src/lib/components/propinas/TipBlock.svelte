@@ -1,9 +1,9 @@
 <script>
 	/**
-	 * Bloque "Dejá una propina" al pie de las publicaciones de KinkyVibe (y en /propinas, sin JS o
+	 * Bloque "Dejá una propina" al pie de las publicaciones de Kinky Vibe (y en /propinas, sin JS o
 	 * si algo falló). Manda el formulario a /propinas, que valida todo en el servidor y redirige al
 	 * checkout de Mercado Pago. No pide datos de la persona: solo el monto y un mensaje opcional.
-	 * Toda propina va al Fondo KinkyVibe (decisión de gorrite): ya no se elige a dónde va.
+	 * Toda propina va al Fondo Kinky Vibe (decisión de gorrite): ya no se elige a dónde va.
 	 * Props: `category` y `slug` (la publicación), `values` y `errors`/`error` (lo que devolvió el
 	 * servidor, para volver a mostrar el formulario), `heading` (h2 por defecto; h1 en /propinas).
 	 */
@@ -55,7 +55,7 @@
 	<p class="lead">
 		Esto lo hicimos <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨. Tu propina va entera
 		al
-		<a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo KinkyVibe</a>, que
+		<a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo Kinky Vibe</a>, que
 		baja el precio de lo que hacemos para todes. ¡Gracias! 🤗
 	</p>
 	<form method="POST" action="/propinas" use:enhance={submit}>
@@ -122,7 +122,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--2-dark);
 		min-height: var(--tap);
 		display: flex;
@@ -153,7 +153,7 @@
 	.error {
 		margin: 0;
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	button {
 		justify-self: start;

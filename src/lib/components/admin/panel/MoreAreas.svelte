@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * Contenido del panel "Más" del celu: la lista de áreas de `$lib/admin/nav.js` (con cuántas
-	 * secciones tiene cada una y sus contadores) y, al tocar una, sus secciones.
+	 * Contenido del panel "Más" del celu: la lista de grupos del menú de `$lib/admin/nav.js`
+	 * (`NAV_GROUPS`, con cuántas secciones tiene cada uno y sus contadores) y, al tocar uno, sus
+	 * secciones.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene").
 	 */
@@ -9,11 +10,11 @@
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
 	import {
-		NAV_AREAS,
-		areaCount,
-		navArea,
-		navAreaItems,
-		navAreaSections,
+		NAV_GROUPS,
+		groupCount,
+		navGroupItems,
+		navGroupOf,
+		navGroupSections,
 		navState
 	} from '$lib/admin/nav.js';
 
@@ -25,7 +26,7 @@
 	export let flags = {};
 	export let hideSoon = false;
 
-	/** Área abierta en la hoja (`null`: la lista de áreas). */
+	/** Grupo abierto en la hoja (`null`: la lista de grupos). */
 	/** @type {string | null} */
 	let open = null;
 
@@ -33,12 +34,13 @@
 	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
 
 	$: opts = { flags, hideSoon };
-	$: areas = NAV_AREAS.map((a) => {
-		const items = navAreaItems(a.id, opts);
+	$: areas = NAV_GROUPS.map((g) => {
+		const items = navGroupItems(g.id, opts);
 		const soon = items.filter((i) => i.soon).length;
-		return { area: a, ready: items.length - soon, soon, total: areaCount(a.id, counts, opts) };
+		return { area: g, ready: items.length - soon, soon, total: groupCount(g.id, counts, opts) };
 	}).filter((x) => x.ready + x.soon > 0);
-	$: current = open ? navArea(open) : undefined;
+	$: current = open ? navGroupOf(open) : undefined;
+	$: activeGroup = navGroupOf(active?.area)?.id;
 
 	/**
 	 * "4 secciones · 2 próximamente".
@@ -56,7 +58,7 @@
 		><ChevronLeft size={18} aria-hidden="true" />Áreas</button
 	>
 	<div class="gl"><NavIcon item={current} size={18} />{current.label}</div>
-	{#each navAreaSections(current.id, opts) as section (section.id)}
+	{#each navGroupSections(current.id, opts) as section (section.id)}
 		{#if section.label}<div class="sub">{section.label}</div>{/if}
 		<div class="cards">
 			{#each section.items as item (item.id)}
@@ -76,7 +78,7 @@
 			<button
 				type="button"
 				class="arow"
-				class:here={active?.area === x.area.id}
+				class:here={activeGroup === x.area.id}
 				on:click={() => (open = x.area.id)}
 				><NavIcon item={x.area} size={22} /><span class="txt"
 					><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
@@ -92,7 +94,7 @@
 	.rows,
 	.cards {
 		display: grid;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.rows {
 		margin-top: 0.6rem;
@@ -100,13 +102,13 @@
 	.arow {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		background: var(--surface);
 		color: var(--accent);
 		border: 0;
 		border-radius: var(--round);
 		box-shadow: var(--shadow);
-		padding: 0.7rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		text-align: left;
 		width: 100%;
 		font: inherit;
@@ -124,7 +126,7 @@
 		}
 		small {
 			color: var(--muted);
-			font-size: 0.78rem;
+			font-size: var(--text-xs);
 		}
 		.chev {
 			margin-left: auto;
@@ -136,9 +138,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 		+ .chev {
@@ -155,7 +157,7 @@
 		font: inherit;
 		font-weight: 700;
 		cursor: pointer;
-		padding: 0.3rem 0;
+		padding: var(--space-3xs) 0;
 	}
 	.gl {
 		display: flex;
@@ -163,13 +165,13 @@
 		gap: 0.4rem;
 		font-weight: 700;
 		color: var(--text);
-		padding: 0.4rem 0.2rem 0.5rem;
+		padding: 0.4rem 0.2rem var(--space-2xs);
 	}
 	.sub {
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: 0.6rem 0.2rem 0.3rem;
+		padding: var(--space-2xs) 0.2rem var(--space-3xs);
 	}
 </style>

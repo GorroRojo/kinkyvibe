@@ -20,7 +20,7 @@
 	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
 	 * marcarla).
 	 *
-	 * Con cuenta (interruptor `cuentas`, `account`), «Tus datos» arranca con el nombre, los
+	 * Con cuenta (`account`), «Tus datos» arranca con el nombre, los
 	 * pronombres y el DNI guardados y el mail de la cuenta, y muestra las casillas «Guardar mis
 	 * datos para la próxima» y «Recordar mi DNI» (docs/cuentas.md, «Datos guardados»). Si el
 	 * servidor devolvió el formulario o hay un borrador, mandan esos. Sin cuenta, nada cambia.
@@ -57,6 +57,7 @@
 	import TicketsStep from '$lib/components/purchase/TicketsStep.svelte';
 	import BuyerStep from '$lib/components/purchase/BuyerStep.svelte';
 	import PayStep from '$lib/components/purchase/PayStep.svelte';
+	import { sendFunnelStep } from '$lib/utils/funnelBeacon.js';
 
 	/** @typedef {{ name: string, pronouns: string }} HolderValues */
 	/**
@@ -77,6 +78,8 @@
 	 * @type {ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null}
 	 */
 	export let account = null;
+	/** Slug del evento: solo para el aviso anónimo de los pasos (docs/analiticas.md). */
+	export let slug = '';
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
@@ -266,6 +269,9 @@
 	async function showStep(s, o = {}) {
 		step = s;
 		if (s > reached) reached = s;
+		// Aviso anónimo (una vez por paso): solo el paso y el evento, nada del formulario.
+		if (s === STEP_BUYER) sendFunnelStep('datos', slug);
+		if (s === STEP_PAY) sendFunnelStep('pagar', slug);
 		await tick();
 		const section = headings[s]?.closest('section');
 		/** @type {HTMLElement | null | undefined} */
@@ -416,7 +422,7 @@
 
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
-		soldout: 'Entradas agotadas.',
+		soldout: 'Agotadas.',
 		closed: 'Venta cerrada.',
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`
@@ -737,7 +743,7 @@
 	}
 	.step-error,
 	.form-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--error);
 		font-size: var(--step--1);
 		font-weight: bold;
 		margin: 0;

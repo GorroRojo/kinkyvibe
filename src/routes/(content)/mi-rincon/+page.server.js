@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
  * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Con el
- * interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
+ * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
+ * sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo
@@ -28,7 +28,6 @@ import {
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
 import {
@@ -92,9 +91,6 @@ export async function load(event) {
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
 		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series),
-		// solo sin «Lo que sigo».
-		seriesOn: await seriesEnabled(event.platform),
 		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
 		// calendario personal (docs/lo-que-sigo.md).
 		sigoOn: await sigoEnabled(event.platform),
@@ -296,7 +292,8 @@ export const actions = {
 		} catch (e) {
 			logDBError('cuentas: cerrar sesión', e);
 		}
-		redirect(303, '/');
+		// El inicio muestra «Saliste de tu cuenta» (src/routes/(content)/+layout.svelte).
+		redirect(303, '/?salida=1');
 	},
 
 	// Cierra todas las sesiones de la cuenta, también esta. No pide código: solo saca acceso.

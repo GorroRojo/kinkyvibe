@@ -116,29 +116,46 @@ export async function managerRole(db, accountId, profileId) {
  * @param {string} urlSlug
  * @param {Viewer} viewer
  * @param {{ accountId?: string }} [opts] la cuenta de la sesión, para saber si lo gestiona
- * @returns {Promise<{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null } | null>}
+ * @returns {Promise<{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null, avatarKey: string | null } | null>}
+ *   `avatarKey`: la clave de su imagen de la biblioteca (edge `avatar`, docs/imagenes.md), si
+ *   tiene una que ve cualquiera
  */
 export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {}) {
 	const ref = await resolveProfileSlug(db, urlSlug);
 	if (!ref) return null;
 	const object = await getObject(db, { id: ref.id }, viewer);
 	if (!object || object.type !== PROFILE_TYPE) return null;
-	const approved = await isApproved(db, object.id);
+	// Aprobado y su imagen, en una sola consulta.
+	const vi = visibleWhere(ANON, 'i');
+	const row = await db
+		.prepare(
+			`SELECT EXISTS (SELECT 1 FROM profile_approvals WHERE profile_id = ?) AS approved,
+				(SELECT json_extract(i.data, '$.key') FROM edges e
+					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
+					WHERE e.from_id = ? AND e.kind = 'avatar' AND ${vi.sql}
+					ORDER BY e.position LIMIT 1) AS avatar_key`
+		)
+		.bind(object.id, object.id, ...vi.params)
+		.first();
+	const approved = Boolean(row?.approved);
+	const avatarKey = typeof row?.avatar_key === 'string' ? row.avatar_key : null;
 	const role = accountId ? await managerRole(db, accountId, object.id) : null;
 	// Sin aprobar: solo admins y quienes lo gestionan.
 	if (!approved && viewer.role !== 'admin' && !role) return null;
-	return { object, legacySlug: ref.legacySlug, approved, role };
+	return { object, legacySlug: ref.legacySlug, approved, role, avatarKey };
 }
 
 /**
  * Los perfiles de /amigues: aprobados, no ocultos, no "no listados" y que quien mira puede ver.
+ * Con `unlisted`, al revés: los aprobados y no ocultos marcados «no listado» (la cuenta de «No
+ * listadas» y su lista).
  *
  * @param {D1Database} db
  * @param {Viewer} viewer
- * @param {{ kind?: ProfileKind }} [opts]
+ * @param {{ kind?: ProfileKind, unlisted?: boolean }} [opts]
  * @returns {Promise<{ object: StoredObject, legacySlug: string | null }[]>}
  */
-export async function listPublicProfiles(db, viewer, { kind } = {}) {
+export async function listPublicProfiles(db, viewer, { kind, unlisted = false } = {}) {
 	const visible = visibleWhere(viewer, 'o');
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
@@ -150,7 +167,7 @@ export async function listPublicProfiles(db, viewer, { kind } = {}) {
 			JOIN profile_approvals pa ON pa.profile_id = o.id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
 			WHERE o.type = ? AND ${visible.sql} AND o.visibility != 'hidden'
-			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = 0
+			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = ${unlisted ? 1 : 0}
 			ORDER BY o.title COLLATE NOCASE, o.id LIMIT 1000`
 		)
 		.bind(PROFILE_TYPE, ...visible.params)

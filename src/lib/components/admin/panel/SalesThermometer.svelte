@@ -392,7 +392,7 @@
 						x={x(end.day) + (end.day === c.to ? 8 : 0)}
 						y={y(end.total) - 9}
 						text-anchor={end.day === c.to ? 'start' : 'middle'}
-						>~{Math.round(end.total)}{c.projection.sellOutDay !== null ? ' agotado' : ''}</text
+						>~{Math.round(end.total)}{c.projection.sellOutDay !== null ? ' agotadas' : ''}</text
 					>
 				{/if}
 			{/if}
@@ -530,7 +530,7 @@
 		--ch-cortesia: #f79c06;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	@media (prefers-color-scheme: dark) {
 		:global(:root[data-theme='auto']) .thermo {
@@ -547,7 +547,7 @@
 	.head {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 	}
 	.head p {
 		margin: 0;
@@ -556,10 +556,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.2rem 0.5rem;
+		gap: 0.2rem var(--space-2xs);
 	}
 	.big b {
-		font-size: 2rem;
+		font-size: var(--text-2xl);
 		line-height: 1;
 	}
 	.over {
@@ -567,32 +567,32 @@
 		font-weight: 700;
 	}
 	.sentence {
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 	}
 	.goal-line {
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 	}
 	.est-tag {
 		display: inline-block;
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		border: 1px dashed var(--muted);
 		color: var(--muted);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.5em;
 		margin-right: 0.3em;
 		vertical-align: 0.1em;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.toggle {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		cursor: pointer;
 		width: fit-content;
 	}
@@ -621,7 +621,7 @@
 	}
 	.tick {
 		fill: var(--muted);
-		font-size: 11px;
+		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
 	}
 	.tick.strong {
@@ -751,9 +751,9 @@
 		background: var(--surface);
 		border: 1px solid var(--line);
 		box-shadow: var(--shadow);
-		border-radius: 0.6rem;
-		padding: 0.35rem 0.6rem;
-		font-size: 0.8rem;
+		border-radius: var(--radius-s);
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 		display: flex;
 		flex-direction: column;
 		pointer-events: none;
@@ -767,7 +767,7 @@
 	.tip-ch {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 	}
 	.legend {
 		list-style: none;
@@ -775,8 +775,8 @@
 		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 1rem;
-		font-size: 0.85rem;
+		gap: var(--space-3xs) var(--space-xs);
+		font-size: var(--text-xs);
 	}
 	.legend li {
 		display: inline-flex;
@@ -825,7 +825,7 @@
 	.table-view summary {
 		cursor: pointer;
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.kv-table .num,
 	.kv-table .day {

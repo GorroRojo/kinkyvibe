@@ -1,13 +1,12 @@
 /**
  * Link de cuentas del encabezado del sitio (docs/cuentas.md): "Ingresar" sin sesión, "Mi rincón"
- * con sesión, y nada si el interruptor `cuentas` está apagado.
+ * con sesión (el interruptor `cuentas` quedó prendido para siempre).
  *
- * @param {{ cuentas?: boolean, member?: boolean } | null | undefined} data datos del layout raíz
- * @returns {{ href: string, label: string } | null}
+ * @param {{ member?: boolean } | null | undefined} data datos del layout raíz
+ * @returns {{ href: string, label: string }}
  */
 export function accountLink(data) {
-	if (!data?.cuentas) return null;
-	return data.member
+	return data?.member
 		? { href: '/mi-rincon', label: 'Mi rincón' }
-		: { href: '/ingresar', label: 'Ingresar' };
+		: { href: '/ingresar', label: 'Entrar' };
 }

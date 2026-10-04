@@ -35,8 +35,8 @@ cuentas es un link al sitio.
 
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 
-Detrás de **tres** interruptores: `telegram_bot`, `lo_que_sigo` y `cuentas`. Con cualquiera
-apagado no se ve nada de Telegram en Mi rincón, el bot contesta «Todavía no se puede conectar una
+Detrás de **dos** interruptores: `telegram_bot` y `lo_que_sigo` (las cuentas ya no tienen
+interruptor). Con cualquiera apagado no se ve nada de Telegram en Mi rincón, el bot contesta «Todavía no se puede conectar una
 cuenta con el bot» y el cron no manda nada por Telegram. Trae la migración
 `0033_telegram_avisos.sql`.
 
@@ -116,7 +116,7 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/link.js`             | Fase 2: códigos de un solo uso y chats vinculados                   |
 | `src/lib/server/telegram/send.js`             | Fase 2: mandar un mensaje desde el cron (`TELEGRAM_BOT_TOKEN`)      |
 | `src/lib/server/telegram/quiet.js`            | Fase 2: el horario de silencio (23 a 9, hora de Argentina)          |
-| `src/lib/server/telegram/web.js`              | Fase 2: los tres interruptores y lo que necesita Mi rincón          |
+| `src/lib/server/telegram/web.js`              | Fase 2: los dos interruptores y lo que necesita Mi rincón           |
 | `src/lib/components/sigo/TelegramCard.svelte` | Fase 2: la tarjeta «Telegram» de Lo que sigo                        |
 | `src/routes/(content)/mi-rincon/telegram/`    | Fase 2: las acciones de la tarjeta (`?/codigo`, `?/desconectar`)    |
 
@@ -141,8 +141,8 @@ Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumula
    (0028): `npx wrangler d1 migrations apply <base> --remote` (el nombre de la base, de
    `npx wrangler d1 list`). Anda con el código de `main`.
 2. Cargar el token del bot (el que da @BotFather) como **secret `TELEGRAM_BOT_TOKEN`** en
-   Cloudflare (Pages → Settings → Variables and Secrets, Production; también Preview si querés
-   probar ahí). **Nunca en el repo.**
+   Cloudflare (Worker kinkyvibe → Settings → Variables and Secrets, Production; también Previews
+   Base si querés probar ahí). **Nunca en el repo.**
 3. Opcional: la variable `TELEGRAM_BOT_USERNAME` (el usuario del bot, sin `@`; no es un secreto)
    para el botón «Abrir el bot en Telegram».
 4. Con **Bot de Telegram**, **Lo que sigo** y **Cuentas del público** prendidos, aparece la

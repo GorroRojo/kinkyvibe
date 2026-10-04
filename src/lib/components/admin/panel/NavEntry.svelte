@@ -2,7 +2,7 @@
 	/**
 	 * Una sección del menú del panel (barra lateral o panel "Más" del celu), según su estado en
 	 * `$lib/admin/nav.js` (`navState`): lista, "prueba" (interruptor apagado) o próximamente (gris
-	 * y punteada, con "fase N", y lleva a su página "Próximamente").
+	 * y punteada, con «Próximamente»; no es un link: todavía no hay nada que abrir).
 	 * Props: `item` (NavItem), `state`, `active` (página actual), `count` (contador amarillo),
 	 * `variant` ('side' | 'tile').
 	 */
@@ -18,27 +18,35 @@
 	export let variant = 'side';
 </script>
 
-<a
-	href={item.href}
-	class={variant}
-	class:on={active}
-	class:soon={state === 'soon'}
-	class:hl={variant === 'tile' && item.highlight && state !== 'soon'}
-	aria-current={active ? 'page' : undefined}
-	><NavIcon {item} size={variant === 'side' ? 18 : 20} /><span class="label">{item.label}</span
-	>{#if state === 'soon'}<span class="tag">fase {item.phase}</span
-		>{:else if state === 'prueba'}<span
-			class="tag prueba"
-			title="Su interruptor está apagado: solo lo ven les superadmins">prueba</span
-		>{/if}{#if count && state !== 'soon'}<span class="count" title="Pendientes">{count}</span
-		>{/if}</a
->
+{#if state === 'soon'}
+	<span
+		class="{variant} soon"
+		aria-disabled="true"
+		title={item.soonText ? `Próximamente: ${item.soonText}` : 'Próximamente'}
+		><NavIcon {item} size={variant === 'side' ? 18 : 20} /><span class="label">{item.label}</span
+		><span class="tag">Próximamente</span></span
+	>
+{:else}
+	<a
+		href={item.href}
+		class={variant}
+		class:on={active}
+		class:hl={variant === 'tile' && item.highlight}
+		aria-current={active ? 'page' : undefined}
+		><NavIcon {item} size={variant === 'side' ? 18 : 20} /><span class="label">{item.label}</span
+		>{#if state === 'prueba'}<span
+				class="tag prueba"
+				title="Su interruptor está apagado: solo lo ven les superadmins">prueba</span
+			>{/if}{#if count}<span class="count" title="Pendientes">{count}</span>{/if}</a
+	>
+{/if}
 
 <style lang="scss">
-	a {
+	a,
+	.soon {
 		display: flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2xs);
 		text-decoration: none;
 		color: var(--accent);
 		font-weight: 700;
@@ -50,9 +58,9 @@
 		text-overflow: ellipsis;
 	}
 	.side {
-		padding: 0.38rem 0.8rem 0.38rem 2.3rem;
+		padding: 0.38rem var(--space-xs) 0.38rem var(--space-l);
 		border-radius: var(--round);
-		font-size: 0.94rem;
+		font-size: var(--text-sm);
 		transition: background 100ms;
 		&:hover {
 			background: var(--surface-2);
@@ -67,13 +75,14 @@
 		background: var(--surface);
 		border-radius: var(--round);
 		box-shadow: var(--shadow);
-		padding: 0.75rem 0.8rem;
+		padding: var(--space-xs) var(--space-xs);
 		&.hl {
 			background: var(--accent);
 			color: var(--accent-ink);
 		}
 		&.on {
 			color: var(--link);
+			background: var(--link-bg);
 			box-shadow: inset 0 0 0 2px var(--link);
 		}
 	}
@@ -87,16 +96,17 @@
 			background: transparent;
 			box-shadow: none;
 		}
-		&:hover {
-			color: var(--text);
-		}
+		cursor: default;
+		/* Si no entra, «Próximamente» baja a otro renglón (el nombre no se corta). */
+		flex-wrap: wrap;
+		row-gap: var(--space-3xs);
 		:global(svg) {
 			opacity: 0.7;
 		}
 	}
 	.tag {
 		margin-left: auto;
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		font-weight: 400;
 		border: 1px solid var(--line);
 		color: var(--muted);
@@ -112,9 +122,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 	}

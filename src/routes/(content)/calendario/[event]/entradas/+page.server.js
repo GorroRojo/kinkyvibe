@@ -6,7 +6,7 @@
  * Los precios, cupos y medios de pago salen del servidor (`getTicketsView`, frontmatter + D1) y
  * las form actions vuelven a validar todo (ver $lib/server/tickets/checkout.js).
  */
-import { error } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
 import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
@@ -15,28 +15,46 @@ import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { eventPageVenue } from '$lib/server/amigues/venues.js';
 import { stripMdPlace } from '$lib/utils/eventPlace.js';
 import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { coveringTicketSlug } from '$lib/utils/partes.js';
+
+/**
+ * Talleres en varias partes (docs/talleres-partes.md): si el evento es una parte de un taller con
+ * una sola entrada, la dirección de la compra del taller; si no, `null`.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ */
+async function workshopTickets(platform, slug) {
+	try {
+		return coveringTicketSlug(await readWorkshop(getDB(platform), slug), slug);
+	} catch (e) {
+		console.error('[partes] no se pudieron leer las partes del taller:', e);
+		return null;
+	}
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!isValidEventSlug(params.event)) error(404, 'Ese evento no existe.');
-	// Interruptor `contenido_db`: el encabezado sale del evento de la base (si la tiene). La
-	// configuración de las entradas sigue saliendo del .md (getTicketsView).
+	// El encabezado sale del evento de la base (si no lo tiene, 404); la configuración de las
+	// entradas, también (getTicketsView).
 	const found = await siteEvent(platform, params.event, {
 		viewer: viewerFor(locals),
 		shallow: true,
 		html: false
 	});
-	if (found.mode === 'db' && !found.post) error(404, 'Ese evento no existe.');
+	if (!found) error(404, 'Ese evento no existe.');
+	// Una parte de un taller con una sola entrada no vende: la entrada se compra en el taller.
+	const host = await workshopTickets(platform, params.event);
+	if (host) redirect(307, `/calendario/${host}/entradas`);
 	const db = getDB(platform);
 	const tickets = await getTicketsView(db, params.event, fetch);
 	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
 	// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
 	const venue = await eventPageVenue(db, params.event, locals);
-	const stored = found.mode === 'db' ? found.post : null;
-	const event = stored
-		? { meta: venue ? stripMdPlace(stored.meta) : stored.meta, path: stored.path }
-		: null;
-	// Con cuenta (interruptor `cuentas`): nombre, pronombres, DNI guardados y el mail de la cuenta,
+	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
+	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta,
 	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
 	if (account) setHeaders({ 'cache-control': 'private, no-store' });
@@ -45,6 +63,18 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	buy: (event) => buyAction(event),
+	buy: async (event) => {
+		if (await workshopTickets(event.platform, event.params.event)) {
+			return fail(409, {
+				buy: {
+					error: 'La entrada de esta parte se compra en la página del taller.',
+					errors: {},
+					values: {},
+					discount: null
+				}
+			});
+		}
+		return buyAction(event);
+	},
 	discount: (event) => discountAction(event)
 };

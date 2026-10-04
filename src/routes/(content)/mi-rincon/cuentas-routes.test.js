@@ -1,6 +1,6 @@
 /**
- * Páginas de cuentas (/ingresar, /mi-rincon), el link del encabezado y `locals.member`, con el
- * interruptor `cuentas` apagado y prendido. D1 de miniflare; datos inventados.
+ * Páginas de cuentas (/ingresar, /mi-rincon), el link del encabezado y `locals.member` (el
+ * interruptor `cuentas` quedó prendido para siempre). D1 de miniflare; datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -14,7 +14,7 @@ beforeAll(async () => {
 	// y los posts de la wiki que lee el layout) tarda unos segundos en transformarse; con la
 	// máquina cargada, la prueba que la pagaba se pasaba de los 5 s. Se paga acá, una vez, con un
 	// tiempo propio: después `modules()` solo vuelve a evaluar módulos ya transformados.
-	const warm = await modules('');
+	const warm = await modules();
 	await warm.root.load(/** @type {any} */ (fakeEvent()));
 }, 60_000);
 afterAll(async () => {
@@ -30,10 +30,10 @@ afterEach(() => {
 
 const EMAIL = 'persona.prueba@example.com';
 
-/** Módulos con la variable CUENTAS_ENABLED que se pida ('' = lo que diga la base). */
-async function modules(flag = '') {
+/** Los módulos, recién cargados (sin variables de entorno). */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CUENTAS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		ingresar: await import('../ingresar/+page.server.js'),
 		rincon: await import('./+page.server.js'),
@@ -93,68 +93,11 @@ async function thrown(fn) {
 	}
 }
 
-describe('interruptor apagado', () => {
-	it('/ingresar y /mi-rincon dan 404, también sus actions', async () => {
-		const m = await modules('');
-		expect((await thrown(() => m.ingresar.load(fakeEvent({ path: '/ingresar' }))))?.status).toBe(
-			404
-		);
-		const form = { email: EMAIL };
-		expect(
-			(await thrown(() => m.ingresar.actions.codigo(fakeEvent({ path: '/ingresar', form }))))
-				?.status
-		).toBe(404);
-		expect(
-			(await thrown(() => m.ingresar.actions.contrasena(fakeEvent({ path: '/ingresar', form }))))
-				?.status
-		).toBe(404);
-		const member = { id: crypto.randomUUID(), email: EMAIL };
-		expect(
-			(await thrown(() => m.rincon.load(fakeEvent({ path: '/mi-rincon', member }))))?.status
-		).toBe(404);
-		expect(
-			(
-				await thrown(() =>
-					m.rincon.actions.borrar(
-						fakeEvent({ path: '/mi-rincon', member, form: { confirm: 'borrar' } })
-					)
-				)
-			)?.status
-		).toBe(404);
-		// Nada se escribió.
-		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM login_codes').first())?.n).toBe(0);
-	});
-
-	it('CUENTAS_ENABLED=0 apaga aunque la base diga prendido', async () => {
-		const m = await modules('0');
-		await m.flags.setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
-		expect((await thrown(() => m.ingresar.load(fakeEvent({ path: '/ingresar' }))))?.status).toBe(
-			404
-		);
-	});
-
-	it('el encabezado no muestra el link', async () => {
-		const m = await modules('');
-		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
-		expect(data.cuentas).toBe(false);
-		expect(accountLink(data)).toBeNull();
-		expect(accountLink({ cuentas: false, member: true })).toBeNull();
-	});
-
-	it('una cookie de sesión válida no carga `locals.member`', async () => {
-		const m = await modules('');
-		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
-		const token = await m.session.createSession(t.db, account.id, 'code');
-		const event = fakeEvent({ cookies: { [m.session.SESSION_COOKIE]: token } });
-		await m.web.loadMember(event);
-		expect(event.locals.member).toBeUndefined();
-	});
-});
-
-describe('interruptor prendido', () => {
-	it('prendido desde la base (panel): /ingresar anda y el encabezado dice "Ingresar"', async () => {
-		const m = await modules('');
-		await m.flags.setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
+// Los casos «interruptor apagado» (404, sin link, sin `locals.member`) se fueron con el
+// interruptor `cuentas`, que quedó prendido para siempre.
+describe('cuentas', () => {
+	it('/ingresar anda y el encabezado dice "Entrar"', async () => {
+		const m = await modules();
 		expect(await m.ingresar.load(fakeEvent({ path: '/ingresar' }))).toEqual({
 			next: '/mi-rincon',
 			codeTtlMs: 10 * 60 * 1000,
@@ -162,11 +105,11 @@ describe('interruptor prendido', () => {
 			loggedOutEverywhere: false
 		});
 		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
-		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Ingresar' });
+		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Entrar' });
 	});
 
 	it('?next= solo acepta rutas de este sitio', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		for (const bad of [
 			'//evil.example',
 			'https://evil.example/x',
@@ -185,7 +128,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('con sesión: el encabezado dice "Mi rincón" y /ingresar lleva a next', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
 		const token = await m.session.createSession(t.db, account.id, 'code');
 		const event = fakeEvent({
@@ -204,13 +147,13 @@ describe('interruptor prendido', () => {
 	});
 
 	it('/mi-rincon sin sesión lleva a /ingresar', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const r = await thrown(() => m.rincon.load(fakeEvent({ path: '/mi-rincon' })));
 		expect(r).toMatchObject({ status: 303, location: '/ingresar?next=%2Fmi-rincon' });
 	});
 
 	it('pedir código: responde igual para cualquier mail y no crea la cuenta todavía', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		try {
 			const before = Date.now();
@@ -238,7 +181,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('código mal escrito: la hora en que vence vuelve a la página, solo si es creíble', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const verify = async (/** @type {string} */ vence) =>
 			/** @type {any} */ (
 				await m.ingresar.actions.verificar(
@@ -303,7 +246,7 @@ describe('interruptor prendido', () => {
 	const PW = 'una frase bastante larga';
 
 	it('Mi rincón: datos y compras sin pedir código', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { ev } = await signedIn(m);
 		const page = await m.rincon.load(ev());
 		expect(page).toMatchObject({
@@ -315,7 +258,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('contraseña: sin código fresco no se pone, cambia ni saca', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { account, ev, confirmCode } = await signedIn(m);
 		const hasPw = async () => (await m.accounts.getAccount(t.db, account.id))?.has_password;
 
@@ -368,7 +311,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('sacar la contraseña cierra las otras sesiones (queda esta)', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { account, token, ev, confirmCode } = await signedIn(m);
 		await m.accounts.setPassword(t.db, account.id, PW, { iterations: 1000 });
 		const other = await m.session.createSession(t.db, account.id, 'password');
@@ -381,7 +324,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('cerrar sesión en todos lados: se cierran todas, también esta', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { account, token, ev } = await signedIn(m);
 		const other = await m.session.createSession(t.db, account.id, 'code');
 		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
@@ -396,7 +339,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('borrar: pide «borrar» y un código fresco de borrar', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { account, token, ev, confirmCode } = await signedIn(m);
 		const alive = async () => (await m.accounts.getAccount(t.db, account.id)) !== null;
 
@@ -433,7 +376,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('pedir código para confirmar: solo purposes conocidos y con límite', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const { ev, confirmCode } = await signedIn(m);
 		expect(await m.rincon.actions.confirmar(ev({ para: 'login' }))).toMatchObject({
 			status: 400
@@ -455,7 +398,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('cerrar sesión borra la sesión y la cookie', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
 		const token = await m.session.createSession(t.db, account.id, 'code');
 		const event = fakeEvent({
@@ -465,7 +408,7 @@ describe('interruptor prendido', () => {
 			form: {}
 		});
 		const r = await thrown(() => m.rincon.actions.salir(event));
-		expect(r).toMatchObject({ status: 303, location: '/' });
+		expect(r).toMatchObject({ status: 303, location: '/?salida=1' });
 		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
 		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
 	});

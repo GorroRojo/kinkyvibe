@@ -20,8 +20,8 @@ import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
 	cancelled: 'El evento está cancelado',
-	soldout: 'Marcado como agotado',
-	closed: 'La venta cerró',
+	soldout: 'Marcado como «Agotadas»',
+	closed: 'Venta cerrada',
 	notyet: 'La venta todavía no abrió'
 };
 
@@ -135,7 +135,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				status: event.status
 			})
 		: [];
-	// «Lugar»: el vinculado (en `event_venues`, se elige en el formulario del evento).
+	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
 	const venue = await panelVenueRow(db, params.slug);
 	return { checklist, stream, sale, online: Boolean(config?.online), draft, missing, venue };
 }

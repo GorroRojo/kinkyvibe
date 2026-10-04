@@ -1,12 +1,12 @@
 /**
- * Rutas públicas de series con el interruptor `series` apagado (nada cambia: 404 o `null`) y
- * prendido: "Avisame si se repite" de punta a punta (suscribirse, confirmar, darse de baja), la
+ * Rutas públicas de series: "Avisame si se repite" de punta a punta (suscribirse, confirmar, darse de baja), la
  * página del evento, /api/series, los calendarios .ics (contenido, link personal revocable, sin
  * datos de nadie) y Mi rincón → Calendario. D1 de miniflare; posts y mails inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import {
 	DAY,
@@ -52,24 +52,26 @@ let mails = [];
  * Los módulos con los interruptores como se pida y posts inventados.
  * `extra`: más posts listados, además de los de fakeSeriesPosts.
  * `sigo`: el interruptor «Lo que sigo» (sin pedirlo, sin tocar, como antes).
- * @param {{ series?: string, cuentas?: string, sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
+ * @param {{ sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
  */
-async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
+async function modules({ sigo, extra } = {}) {
 	vi.resetModules();
 	mails = [];
 	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			SERIES_ENABLED: series,
-			CUENTAS_ENABLED: cuentas,
-			...(sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {})
-		}
+		env: sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {}
 	}));
 	const now = Date.now();
 	const listed = [...fakeSeriesPosts(now), ...(extra?.(now) ?? [])];
 	const unlisted = [
 		fakeEvent('privado-no-listado', now + 3 * DAY, ['taller'], { title: 'No listado de prueba' })
 	];
-	vi.doMock('$lib/utils', () => ({
+	// Los eventos salen de la base: se cargan ahí (los no listados, marcados).
+	await seedPosts(t.db, [
+		...listed,
+		...unlisted.map((p) => ({ meta: { ...p.meta, force_unlisted: true } }))
+	]);
+	vi.doMock('$lib/utils', async () => ({
+		.../** @type {object} */ (await vi.importActual('$lib/utils')),
 		fetchMarkdownPosts: async (_wiki = false, onlyUnlisted = false) =>
 			onlyUnlisted ? [...unlisted] : [...listed],
 		fetchPost: async (/** @type {string} */ _c, /** @type {string} */ slug) => {
@@ -113,57 +115,8 @@ async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
 /** @param {Parameters<typeof fakeRequestEvent>[0] extends infer O ? Omit<O, 'platform'> : never} o */
 const ev = (o) => fakeRequestEvent({ platform: t.platform, ...o });
 
-describe('interruptor apagado: nada cambia', () => {
-	it('las páginas y endpoints nuevos dan 404; la página del evento no trae series', async () => {
-		const m = await modules({ series: '0' });
-		const notFound = { status: 404 };
-		expect(
-			await thrown(() => m.avisos.load(ev({ path: '/avisos?serie=Picantearla' })))
-		).toMatchObject(notFound);
-		expect(
-			await thrown(() =>
-				m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }))
-			)
-		).toMatchObject(notFound);
-		expect(await thrown(() => m.confirmar.load(ev({ params: { token: 'x' } })))).toMatchObject(
-			notFound
-		);
-		expect(await thrown(() => m.api.GET(ev({ params: { tag: 'Picantearla' } })))).toMatchObject(
-			notFound
-		);
-		expect(await thrown(() => m.icsTag.GET(ev({ params: { tag: 'Picantearla' } })))).toMatchObject(
-			notFound
-		);
-		expect(
-			await thrown(() => m.icsMine.GET(ev({ params: { token: 'x'.repeat(43) } })))
-		).toMatchObject(notFound);
-		expect(
-			await thrown(() =>
-				m.calendario.load(ev({ member: { id: crypto.randomUUID(), email: EMAIL } }))
-			)
-		).toMatchObject(notFound);
-		const data = /** @type {any} */ (
-			await m.evento.load(
-				ev({ path: '/calendario/serie-prueba-2', params: { event: 'serie-prueba-2' } })
-			)
-		);
-		expect(data.series).toBeNull();
-		expect(mails).toHaveLength(0);
-	});
-	it('/calendario no linkea a la lista de series', async () => {
-		const m = await modules({ series: '0' });
-		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
-		expect(data.seriesLink).toBe(false);
-	});
-	it('el cron no hace nada de series', async () => {
-		const m = await modules({ series: '0' });
-		expect(
-			await m.web.runSeriesCron({ db: t.db, origin: 'https://kinkyvibe.ar', fetch })
-		).toBeNull();
-		const seen = await t.db.prepare('SELECT COUNT(*) AS n FROM series_editions_seen').first();
-		expect(Number(seen?.n)).toBe(0);
-	});
-});
+// (Las pruebas «interruptor apagado» se sacaron con el interruptor `series`, que quedó fijo: ese
+// modo ya no existe. No es aflojar las pruebas: es sacar un modo.)
 
 describe('prendido: "Avisame si se repite" de punta a punta', () => {
 	it('suscribirse → confirmar con el link → darse de baja con el link', async () => {
@@ -209,7 +162,7 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const m = await modules();
 		await m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }));
 		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
-		// Lo que pone hooks.server.js con `etiquetas_db`: una «base» con otro nombre visible.
+		// Lo que pone hooks.server.js (las etiquetas de la base): una «base» con otro nombre visible.
 		/** @type {Record<string, any>[]} */
 		const list = JSON.parse(JSON.stringify(hardcodedTags));
 		const serie = list.find((e) => e.id === 'Picantearla');
@@ -218,16 +171,6 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		expect(await m.baja.load(ev({ params: { token: unsub } }))).toEqual({
 			valid: true,
 			seriesName: 'Picantearla en la Base'
-		});
-	});
-
-	it('la baja anda aunque después se apague el interruptor', async () => {
-		let m = await modules();
-		await m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }));
-		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
-		m = await modules({ series: '0' });
-		expect(await m.baja.actions.default(ev({ params: { token: unsub }, form: {} }))).toMatchObject({
-			ok: true
 		});
 	});
 
@@ -306,12 +249,6 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 });
 
 describe('prendido: páginas', () => {
-	it('/calendario linkea a la lista de series de la Kinkipedia', async () => {
-		const m = await modules();
-		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
-		expect(data.seriesLink).toBe(true);
-	});
-
 	it('evento: «Edición N de…», anterior/siguiente y si ya pasó', async () => {
 		const m = await modules();
 		const data = /** @type {any} */ (
@@ -397,7 +334,7 @@ describe('prendido: series de varias palabras y alias (el link usa guiones)', ()
 			expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
 			expect(text).toContain('UID:rancheadita-prueba-2@kinkyvibe.ar');
 			expect(text).not.toContain('serie-prueba-');
-			expect(text).toContain('X-WR-CALNAME:Rancheadita Kinky · KinkyVibe');
+			expect(text).toContain('X-WR-CALNAME:Rancheadita Kinky · Kinky Vibe');
 		}
 	});
 
@@ -538,7 +475,7 @@ describe('prendido: calendarios .ics', () => {
 		expect(text).toContain('UID:serie-prueba-3@kinkyvibe.ar');
 		expect(text).not.toContain('otra-cosa');
 		expect(text).not.toContain('privado-no-listado');
-		expect(text).toContain('X-WR-CALNAME:Picantearla · KinkyVibe');
+		expect(text).toContain('X-WR-CALNAME:Picantearla · Kinky Vibe');
 	});
 
 	it('personal: solo tus eventos (también no listados), sin mails; revocado deja de andar', async () => {
@@ -570,8 +507,10 @@ describe('prendido: calendarios .ics', () => {
 		});
 	});
 
-	it('personal: con las cuentas apagadas, 404', async () => {
-		const m = await modules({ cuentas: '0' });
+	// Antes: «con las cuentas apagadas, 404»; `cuentas` quedó prendido para siempre. Queda el
+	// 404 de un token que no existe.
+	it('personal: un token que no existe, 404', async () => {
+		const m = await modules();
 		expect(
 			await thrown(() => m.icsMine.GET(ev({ params: { token: 'x'.repeat(43) } })))
 		).toMatchObject({

@@ -5,10 +5,11 @@
  *
  * - `unlisted` es el `force_unlisted` de los .md; `force_unpublished` es la visibilidad `hidden`.
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce, tal cual.
- * - Las imágenes y archivos (PDF, video) siguen en la carpeta del post en el repo (R2 es un paso
- *   aparte).
+ * - Los perfiles de `personas` no van en `data`: son edges `persona` (ver `edges` abajo).
+ * - La imagen principal es el edge `portada` hacia una `imagen` (R2, docs/imagenes.md); `featured`
+ *   es la imagen vieja del repo. Los archivos (PDF, video) siguen en la carpeta del post en el repo.
  *
- * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md, «En la base»).
+ * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
 import { linkProblem } from './evento.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
@@ -44,7 +45,19 @@ const material = {
 		unlisted: { kind: 'boolean', label: 'No listado' },
 		extra: { kind: 'json', label: 'Otros datos del archivo', max: 50_000 }
 	},
-	edges: {},
+	edges: {
+		// La imagen principal (docs/imagenes.md); sin este edge, `featured` (la del repo).
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 },
+		// Personas con rol, como en `evento`: un edge por perfil, `data: { roles: ['Autore', …],
+		// at: [0, …] }` (cada rol con su lugar en la lista única, src/lib/server/contenido/
+		// personasEdges.js; migración 0043 para lo ya guardado). Los nombres sin perfil no son
+		// relaciones: quedan en `data.personas`.
+		persona: { label: 'Personas con rol', to: ['perfil'] },
+		// Etiquetas, como en `evento`: un edge por etiqueta viva, `data: { at: [0, …] }` (su lugar en
+		// la lista de `tags`, src/lib/server/contenido/etiquetasEdges.js). Un nombre que no es de
+		// ninguna etiqueta queda en `data.tags`.
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: 60 }
+	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';
 		const problem = link && !/^\d+$/.test(link) ? linkProblem(link) : null;

@@ -3,32 +3,34 @@
 //   import '$lib/admin/panel-forms.scss';
 //
 //   <label class="kv-field"><span>Etiqueta</span><input …><small>Ayuda</small></label>
-//   <p class="kv-flash ok|bad" role="status">…</p>
+//   <p class="kv-flash ok|bad|warn" role="status">…</p>   (bad = error, en rojo)
+//   <label class="kv-check"><input type="checkbox" …> Texto</label>   (casilla propia, panel.scss)
 //   <p class="kv-note">texto chico gris</p>
 
 .kv-panel {
 	.kv-form {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.kv-field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 		> span:first-child {
 			font-weight: 700;
-			font-size: 0.9rem;
+			font-size: var(--text-sm);
 		}
 		small {
 			color: var(--muted);
 		}
 		.kv-error {
-			color: var(--bad);
+			color: var(--error);
 		}
 	}
-	// Mismo aspecto que .kv-input (panel.scss): píldora con el borde rosa del buscador del sitio.
+	// Mismo aspecto que .kv-input (panel.scss): rectángulo neutro de 44px con letra de 16px; los
+	// buscadores (`type="search"`) en píldora.
 	.kv-field input:not([type='checkbox'], [type='radio']),
 	.kv-field select,
 	.kv-field textarea,
@@ -36,55 +38,50 @@
 		background: var(--surface);
 		color: var(--text);
 		border: 1px solid var(--field);
-		border-radius: 3em;
-		padding: 0.55em 1em;
-		min-height: 2.75rem;
+		border-radius: var(--radius-s);
+		padding: 0.5em 0.75em;
+		min-height: var(--tap);
+		font-size: var(--text-field);
 		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
-		&:focus {
-			outline: 2px solid var(--accent);
-			outline-offset: 0;
-		}
 		&[aria-invalid='true'] {
-			border-color: var(--bad);
+			border-color: var(--error);
 			border-width: 2px;
 		}
 	}
-	.kv-input {
-		min-height: 2.75rem;
+	.kv-field input[type='search'] {
+		border-radius: var(--radius-pill);
+		padding-inline: 1em;
 	}
 	.kv-field textarea {
-		border-radius: 1em;
 		resize: vertical;
 		line-height: 1.45;
 	}
 	.kv-check {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		min-height: 2.75rem;
-		input {
-			width: 1.15rem;
-			height: 1.15rem;
-			accent-color: var(--accent);
-		}
+		gap: var(--space-2xs);
+		min-height: var(--tap);
+		cursor: pointer;
 	}
 	.kv-note {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 		color: var(--muted);
 		margin: 0;
 	}
 	.kv-flash {
 		margin: 0;
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8em;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--ok-bg);
 		color: var(--ok);
 		font-weight: 700;
-		&.bad {
-			background: var(--bad-bg);
-			color: var(--bad);
+		// Errores y malas noticias en rojo; «Guardado ✓» queda en verde (sin clase).
+		&.bad,
+		&.error {
+			background: var(--error-bg);
+			color: var(--error);
 		}
 		&.warn {
 			background: var(--warn-bg);
@@ -94,25 +91,25 @@
 	.kv-row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 	}
 	.kv-grid-2 {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
 		align-items: start;
 	}
 	.kv-stats {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
 		margin-bottom: 1rem;
 	}
 	.kv-stack {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	code {
 		background: var(--surface-2);

@@ -619,8 +619,8 @@ export function isNumericFeatured(featured) {
  * @prop {string} link_text
  * @prop {string|string[]} tags a list, or comma separated
  * @prop {string|string[]} authors a list, or comma separated
- * @prop {import('./personasList.js').MdPersona[]} [personas] `personas:` (with the
- *   personas_eventos switch; undefined = leave the source's as they are)
+ * @prop {import('./personasList.js').MdPersona[]} [personas] `personas:` (with a
+ *   database; undefined = leave the source's as they are)
  * @prop {'keep'|'upload'|'none'} featuredMode
  * @prop {string} [uploadExt] extension of the uploaded image, when featuredMode is 'upload'
  * @prop {string|number} [uploadFeatured] `featured` for an uploaded image (default 1, the new

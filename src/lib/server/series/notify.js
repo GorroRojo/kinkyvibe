@@ -1,7 +1,6 @@
 /**
  * Avisos de edición nueva ("Avisame si se repite"). Lo corre el cron de mails cada 15 minutos
- * (POST /api/cron/recordatorios, ver src/lib/server/scheduled.js), con el interruptor `series`
- * prendido. No hay otro programador.
+ * (POST /api/cron/recordatorios, ver src/lib/server/scheduled.js). No hay otro programador.
  *
  * Una edición "se publica" cuando aparece en el deploy (listada, no despublicada) con fecha en el
  * futuro. Cada corrida:
@@ -134,7 +133,8 @@ export async function runSeriesNotifications({
 			title: edition.title,
 			start: edition.start,
 			eventUrl: origin + edition.path,
-			unsubscribeUrl: await unsubscribeUrl(db, origin, id)
+			unsubscribeUrl: await unsubscribeUrl(db, origin, id),
+			origin
 		});
 		/** @type {'sent' | 'simulated' | 'failed'} */
 		let result = 'failed';

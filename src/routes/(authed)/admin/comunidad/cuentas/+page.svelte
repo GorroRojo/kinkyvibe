@@ -34,7 +34,7 @@
 
 <PageHeader
 	title="Cuentas"
-	subtitle="Las cuentas del público (Ingresar / Mi rincón). Solo lo ven les admins."
+	subtitle="Las cuentas del público (Entrar / Mi rincón). Solo lo ven les admins."
 >
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href={PROFILES_HREF}>Perfiles</a>
@@ -121,7 +121,7 @@
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 	}
 	.grow {
@@ -136,7 +136,7 @@
 		color: var(--muted);
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
 		.hide-sm {

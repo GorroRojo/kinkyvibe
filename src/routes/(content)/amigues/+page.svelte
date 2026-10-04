@@ -24,7 +24,7 @@
 		});
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
-	// Con los perfiles de la base (interruptor `perfiles_publicos`): filtro por tipo (`?tipo=`).
+	// Con los perfiles de la base: filtro por tipo (`?tipo=`).
 	$: tipo = data.kinds ? ($page.url.searchParams.get('tipo') ?? '') : '';
 	$: shownPosts =
 		tipo && data.kinds && tipo in data.kinds
@@ -33,8 +33,9 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar - Emprendimientos y profesionales</title>
+	<title>Emprendimientos y profesionales · Kinky Vibe</title>
 </svelte:head>
+<h1 class="page-title">Profesionales y emprendimientos</h1>
 <div class="glosario">
 	<p>
 		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" /> BDSM, que
@@ -129,7 +130,7 @@
 		background: color-mix(in srgb, var(--color) 2%, white);
 		padding: 1em 2em;
 		outline: 2px solid var(--color);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		color: color-mix(in srgb, var(--color) 50%, black);
 		margin-bottom: 2em;
 		line-height: 1.5;
@@ -183,7 +184,7 @@
 			color: var(--color);
 			border: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
 			background: color-mix(in srgb, var(--color) 10%, transparent);
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			padding: 0.3em;
 			/* place-content: center; */
 			text-align: center;

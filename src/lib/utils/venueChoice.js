@@ -1,7 +1,7 @@
 /**
  * «Lugar» en el formulario de eventos (crear y editar): elegir un perfil de lugar y qué se
  * muestra de su dirección en este evento. Lo que se elige no va al .md: se guarda en
- * `event_venues` (ver docs/amigues.md y src/lib/server/amigues/eventFormVenue.js), así que el
+ * el edge `lugar` del evento en la base (ver docs/amigues.md y src/lib/server/amigues/eventFormVenue.js), así que el
  * formulario lo manda en campos aparte del archivo.
  *
  * Funciones puras (sin Svelte ni base): corren en el navegador, en el servidor y en vitest.
@@ -39,7 +39,7 @@ import { foldText } from './text.js';
 export const VENUE_FORM_FIELDS = Object.freeze({
 	venue: 'lugar',
 	privacy: 'lugarPrivacidad',
-	/** `1` si se cambió algo: sin tocar el «Lugar», guardar no toca `event_venues`. */
+	/** `1` si se cambió algo: sin tocar el «Lugar», guardar no toca el lugar. */
 	touched: 'lugarCambio'
 });
 

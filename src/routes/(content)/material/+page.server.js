@@ -2,7 +2,7 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 
 /**
  * /material: las publicaciones de material listadas, por la capa compartida de contenido (de la
- * base o de los `.md`, según el interruptor `contenido_db`).
+ * base).
  *
  * @type {import("./$types").PageServerLoad}
  */

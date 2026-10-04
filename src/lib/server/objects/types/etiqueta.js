@@ -30,7 +30,9 @@
  *   body?: string,
  *   wiki_title?: string,
  *   wiki_summary?: string,
- *   wiki_authors?: string[]
+ *   wiki_authors?: string[],
+ *   wiki_tags?: string[],
+ *   wiki_body_html?: 'libre' | 'corta'
  * }} EtiquetaData
  */
 
@@ -72,12 +74,23 @@ const etiqueta = {
 		body: { kind: 'longtext', label: 'Texto de la wiki', max: WIKI_BODY_MAX },
 		wiki_title: { kind: 'text', label: 'Título de la wiki', max: 200 },
 		wiki_summary: { kind: 'longtext', label: 'Resumen de la wiki', max: 1000 },
-		wiki_authors: { kind: 'list', label: 'Autores de la wiki', max: 20 }
+		wiki_authors: { kind: 'list', label: 'Autores de la wiki', max: 20 },
+		// `tags:` del .md de la wiki (otras etiquetas que nombra la página).
+		wiki_tags: { kind: 'list', label: 'Etiquetas de la wiki', max: 60 },
+		// Cómo se muestra el texto de la wiki (como `body_html` de los eventos y el material,
+		// src/lib/server/contenido/render.js). Sin valor: lo importado del .md del repo (HTML libre).
+		wiki_body_html: {
+			kind: 'option',
+			label: 'HTML del texto de la wiki',
+			options: ['libre', 'corta']
+		}
 	},
 	edges: {
 		hijo_de: { label: 'Etiqueta madre', to: [TAG_TYPE] },
 		relacionada_con: { label: 'Relacionada con', to: [TAG_TYPE] },
-		alias_de: { label: 'Alias de', to: [TAG_TYPE], max: 1 }
+		alias_de: { label: 'Alias de', to: [TAG_TYPE], max: 1 },
+		// La imagen de una serie (docs/imagenes.md); sin este edge, `image` (la del repo).
+		imagen: { label: 'Imagen', to: ['imagen'], max: 1 }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

@@ -51,7 +51,7 @@
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 		margin-bottom: 0.6rem;
 	}

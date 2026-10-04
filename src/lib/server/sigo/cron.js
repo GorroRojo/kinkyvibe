@@ -1,9 +1,8 @@
 /**
  * La parte de «Lo que sigo» del cron de mails (POST /api/cron/recordatorios): con `lo_que_sigo`
- * o `cuentas` apagado no hace nada (`null`). Ver notify.js.
+ * apagado no hace nada (`null`). Ver notify.js.
  *
- * Los eventos salen de la capa compartida de contenido (`sitePosts`, interruptor `contenido_db`):
- * de la base o de los `.md`, solo lo listado y visible para cualquiera (nada oculto ni no
+ * Los eventos salen de la capa compartida de contenido (`sitePosts`): de la base, solo lo listado y visible para cualquiera (nada oculto ni no
  * listado). notify.js se queda con los que todavía no empezaron.
  *
  * Los avisos por Telegram (fase 2 del bot) salen además con el interruptor `telegram_bot`
@@ -13,7 +12,7 @@
 import { env } from '$env/dynamic/private';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isFlagOn } from '$lib/server/flags.js';
-import { siteTags } from '$lib/server/series/index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { seriesSender } from '$lib/server/series/web.js';
 import { telegramSender } from '$lib/server/telegram/send.js';
 import { avisameViaSigo } from './avisame.js';
@@ -39,7 +38,10 @@ export async function runSigoCron({
 	return runFollowNotifications({
 		db,
 		posts: await sitePosts(platform),
-		tags: siteTags(),
+		// Las etiquetas y series de la base, leídas acá (no el árbol que dejó el último pedido).
+		tags: await siteTagManager(
+			platform ?? /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
+		),
 		origin,
 		send: send ?? seriesSender(db, fetchFn),
 		telegram: await telegramChannel(db, fetchFn, telegramSend),

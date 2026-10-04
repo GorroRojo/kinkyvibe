@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argFormat, argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
 	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
@@ -38,6 +38,9 @@
 		Link,
 		Mail,
 		ScanLine,
+		History,
+		Inbox,
+		Sparkles,
 		Tag,
 		TriangleAlert
 	} from '@lucide/svelte';
@@ -89,13 +92,6 @@
 		day: 'numeric',
 		month: 'short'
 	});
-	const whenFmt = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 	/** @param {string} iso */
 	const monthDay = (iso) => shortFmt.format(new Date(iso + 'T12:00:00-03:00'));
 
@@ -105,7 +101,7 @@
 		if (diff < 60_000) return 'recién';
 		if (diff < 3_600_000) return `hace ${Math.round(diff / 60_000)} min`;
 		if (diff < 86_400_000) return `hace ${Math.round(diff / 3_600_000)} h`;
-		return whenFmt.format(ms);
+		return argDateLog(ms);
 	}
 
 	/**
@@ -134,7 +130,7 @@
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<import('$lib/server/admin/inicio.js').ActivityItem>[]} */
 	const activityColumns = [
-		{ label: 'Cuándo', value: (r) => whenFmt.format(r.at) },
+		{ label: 'Cuándo', value: (r) => argDateLog(r.at) },
 		{ label: 'Qué', key: 'title' },
 		{ label: 'Quién', key: 'who' },
 		{ label: 'Detalle', key: 'detail' }
@@ -215,7 +211,7 @@
 				>
 				{#if checkinQuick}
 					<a class="kv-btn ghost" href={checkinQuick}
-						><ScanLine size={18} aria-hidden="true" /> Check-in</a
+						><ScanLine size={18} aria-hidden="true" /> Puerta</a
 					>
 				{/if}
 				<a class="kv-btn ghost" href="/admin/ventas/codigos"
@@ -248,7 +244,7 @@
 				{/if}
 				{#if fondo}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value={formatARS(fondo.collected)}
 						sub="{fondoPct} % de la meta ({formatARS(fondo.goal)}) · del {monthDay(
 							fondo.window.startDate
@@ -265,11 +261,11 @@
 					<Stat
 						label="Descuento del Fondo"
 						value="{fondo.percent} %"
-						sub="en las entradas de eventos KinkyVibe este mes"
+						sub="en las entradas de eventos de Kinky Vibe este mes"
 					/>
 				{:else}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value="—"
 						sub="no pudimos leer fondo.kinkyvibe.ar"
 					/>
@@ -377,7 +373,11 @@
 								{/each}
 							</ul>
 						{:else}
-							<EmptyState emoji="✨" title="Nada para revisar" text="Todo al día. ¡Bien ahí!" />
+							<EmptyState
+								icon={Sparkles}
+								title="Nada para revisar"
+								text="Todo al día. ¡Bien ahí!"
+							/>
 						{/if}
 					</Card>
 				</div>
@@ -394,7 +394,7 @@
 					</svelte:fragment>
 					{#if !data.since}
 						<EmptyState
-							emoji="🕰️"
+							icon={History}
 							title="Sin datos"
 							text="Esta sección necesita la base de datos, que no está disponible en este entorno."
 						/>
@@ -504,7 +504,7 @@
 					</ul>
 				{:else}
 					<EmptyState
-						emoji="🗓️"
+						icon={CalendarDays}
 						title="No hay eventos próximos cargados"
 						text="Cargá uno o importá la planilla."
 					>
@@ -527,7 +527,7 @@
 					<Agenda days={data.agenda} />
 				{:else}
 					<EmptyState
-						emoji="🗓️"
+						icon={CalendarDays}
 						title="Semana tranquila"
 						text="No hay eventos, cierres de venta ni recordatorios en los próximos 7 días."
 					/>
@@ -550,7 +550,7 @@
 						>
 					{:else}
 						<EmptyState
-							emoji="📭"
+							icon={Inbox}
 							title="Sin actividad todavía"
 							text={data.dbAvailable
 								? 'Acá van a aparecer las compras, transferencias, ingresos y cambios de les admins.'
@@ -567,7 +567,7 @@
 	.hello {
 		margin: 0.4rem 0 1rem;
 		h1 {
-			font-size: 1.6rem;
+			font-size: var(--text-lg);
 			margin: 0;
 		}
 		p {
@@ -580,7 +580,7 @@
 	}
 	.today {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
@@ -588,11 +588,11 @@
 		color: var(--accent-ink);
 		border-radius: var(--card-round, 1rem);
 		box-shadow: var(--shadow);
-		padding: 1.1rem 1.3rem;
+		padding: var(--space-s) var(--space-s);
 		margin-bottom: 1rem;
 		h2 {
 			margin: 0.1rem 0;
-			font-size: 1.4rem;
+			font-size: var(--text-lg);
 		}
 		.kicker {
 			text-transform: uppercase;
@@ -606,24 +606,24 @@
 		}
 		.today-nums {
 			display: flex;
-			gap: 1.2rem;
+			gap: var(--space-s);
 			flex-wrap: wrap;
 			margin: 0.5rem 0 0;
 			b {
-				font-size: 1.3rem;
+				font-size: var(--text-base);
 			}
 		}
 	}
 	.checkin-big {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		background: var(--surface);
 		color: var(--link);
 		font-weight: 700;
-		font-size: 1.15rem;
+		font-size: var(--text-base);
 		border-radius: 2em;
-		padding: 0.9rem 1.5rem;
+		padding: var(--space-xs) var(--space-m);
 		text-decoration: none;
 		box-shadow: var(--shadow);
 		&:hover {
@@ -633,7 +633,7 @@
 	}
 	.quick {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 		margin-bottom: 1rem;
 	}
@@ -656,7 +656,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-areas: 'top' 'bottom' 'side';
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: start;
 	}
 	.main-col {
@@ -679,7 +679,7 @@
 	.side-col {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: start;
 		min-width: 0;
 	}
@@ -714,7 +714,7 @@
 	.stats {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		margin-bottom: 1rem;
 	}
 	@container main-col (min-width: 46rem) {
@@ -725,7 +725,7 @@
 	.cols {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: start;
 	}
 	@container main-col (min-width: 52rem) {
@@ -734,16 +734,16 @@
 		}
 	}
 	.sm {
-		padding: 0.35rem 0.8rem;
-		font-size: 0.88rem;
+		padding: var(--space-3xs) var(--space-xs);
+		font-size: var(--text-sm);
 	}
 	.more {
 		align-self: flex-start;
 	}
 	.flash {
 		margin: 0;
-		padding: 0.5rem 0.8rem;
-		border-radius: 0.7em;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-s);
 		background: var(--ok-bg);
 		color: var(--ok);
 		&.bad {
@@ -759,9 +759,9 @@
 	}
 	.todo li {
 		display: flex;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: center;
-		padding: 0.55rem 0;
+		padding: var(--space-2xs) 0;
 		border-top: 1px solid var(--line);
 		&:first-child {
 			border-top: 0;
@@ -773,7 +773,7 @@
 	}
 	.todo summary {
 		display: flex;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		cursor: pointer;
 		list-style: none;
@@ -782,7 +782,7 @@
 		}
 	}
 	.toggle {
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		:global(svg) {
 			transition: transform 0.15s;
 		}
@@ -806,7 +806,7 @@
 		margin: 0.4rem 0 0 2.8rem;
 		padding: 0;
 		li {
-			padding: 0.35rem 0;
+			padding: var(--space-3xs) 0;
 			border-top: 1px dashed var(--line);
 		}
 	}
@@ -849,17 +849,17 @@
 	.since-nums {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 		b {
-			font-size: 1.15rem;
+			font-size: var(--text-base);
 		}
 	}
 	.events li {
 		display: grid;
 		grid-template-columns: 3.4rem minmax(0, 1fr) auto;
-		gap: 0.9rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 		border-top: 1px solid var(--line);
 		&:first-child {
 			border-top: 0;
@@ -871,13 +871,13 @@
 		align-items: center;
 		background: var(--surface-2);
 		border-radius: var(--round, 0.8rem);
-		padding: 0.3rem 0;
+		padding: var(--space-3xs) 0;
 		line-height: 1.1;
 		b {
-			font-size: 1.35rem;
+			font-size: var(--text-lg);
 		}
 		small {
-			font-size: 0.7rem;
+			font-size: var(--text-xs);
 			text-transform: uppercase;
 			color: var(--muted);
 		}
@@ -892,13 +892,13 @@
 	.ev {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 	}
 	.ev-head {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.4rem;
+		gap: var(--space-3xs) 0.4rem;
 		align-items: center;
 	}
 	.ev-title {
@@ -910,7 +910,7 @@
 	.cap {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		max-width: 26rem;
 		> :global(.bar) {
 			flex: 1;
@@ -945,7 +945,7 @@
 	@media (max-width: 599.98px) {
 		.stats {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 0.6rem;
+			gap: var(--space-2xs);
 		}
 		.events li {
 			grid-template-columns: 3rem minmax(0, 1fr);
@@ -954,7 +954,7 @@
 			grid-column: 2;
 			text-align: left;
 			flex-direction: row;
-			gap: 0.6rem;
+			gap: var(--space-2xs);
 			align-items: baseline;
 		}
 		.today .checkin-big {

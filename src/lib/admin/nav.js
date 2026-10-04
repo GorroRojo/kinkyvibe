@@ -99,7 +99,8 @@ import {
 	TicketPercent,
 	ToggleRight,
 	Users,
-	Video
+	Video,
+	Workflow
 } from '@lucide/svelte';
 
 /**
@@ -123,6 +124,58 @@ export const NAV_AREAS = Object.freeze([
 	{ id: 'estadisticas', label: 'Estadísticas', icon: ChartLine, emoji: '📈' },
 	{ id: 'ajustes', label: 'Ajustes', icon: Settings, emoji: '⚙️', foot: true }
 ]);
+
+/**
+ * Grupos del menú (barra lateral y panel "Más" del celu): el menú simplificado de la revisión de
+ * UI (paso 3). Junta áreas chicas con la que se parecen, así arriba hay menos entradas: Inicio,
+ * Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas), Estadísticas (sola, por
+ * pedido de gorrite) y Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
+ * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
+ * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true }[]}
+ */
+export const NAV_GROUPS = Object.freeze([
+	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️', areas: ['eventos'] },
+	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas'] },
+	{
+		id: 'comunidad',
+		label: 'Comunidad',
+		icon: Users,
+		emoji: '🧑‍🤝‍🧑',
+		areas: ['comunidad', 'mensajes']
+	},
+	{
+		id: 'contenido',
+		label: 'Contenido',
+		icon: BookOpen,
+		emoji: '📚',
+		areas: ['contenido', 'etiquetas']
+	},
+	{
+		id: 'estadisticas',
+		label: 'Estadísticas',
+		icon: ChartLine,
+		emoji: '📈',
+		areas: ['estadisticas']
+	},
+	{
+		id: 'ajustes',
+		label: 'Ajustes',
+		icon: Settings,
+		emoji: '⚙️',
+		areas: ['ajustes'],
+		foot: true
+	}
+]);
+
+/**
+ * El grupo del menú de un área (o de un grupo, por su id), o `undefined`.
+ * @param {string | null | undefined} id id de área o de grupo
+ */
+export function navGroupOf(id) {
+	if (!id) return undefined;
+	return NAV_GROUPS.find((g) => g.id === id) ?? NAV_GROUPS.find((g) => g.areas.includes(id));
+}
 
 /** Subgrupos de Ajustes, en orden. */
 export const AJUSTES_SUBGROUPS = Object.freeze([
@@ -213,22 +266,20 @@ export const NAV = Object.freeze([
 		href: '/admin/checkin',
 		icon: ScanLine,
 		emoji: '🚪',
-		label: 'Check-in',
+		label: 'Puerta',
 		area: 'eventos',
 		soon: false,
 		highlight: true
 	},
 	{
-		// Series de eventos (docs/decisiones/0005). Con el interruptor apagado la página da 404.
+		// Series de eventos (docs/decisiones/0005).
 		id: 'eventos-series',
 		href: '/admin/eventos/series',
 		icon: Repeat,
 		emoji: '🔁',
 		label: 'Series',
 		area: 'eventos',
-		soon: false,
-		flag: 'series',
-		hiddenWhenOff: true
+		soon: false
 	},
 	{
 		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md), con las listas
@@ -251,9 +302,7 @@ export const NAV = Object.freeze([
 		emoji: '🧩',
 		label: 'Roles y preguntas',
 		area: 'eventos',
-		soon: false,
-		flag: 'personas_eventos',
-		hiddenWhenOff: true
+		soon: false
 	},
 
 	// Ventas
@@ -332,8 +381,7 @@ export const NAV = Object.freeze([
 		emoji: '👤',
 		label: 'Cuentas',
 		area: 'comunidad',
-		soon: false,
-		flag: 'cuentas'
+		soon: false
 	},
 
 	// Mensajes
@@ -411,8 +459,7 @@ export const NAV = Object.freeze([
 		emoji: '🗄️',
 		label: 'En la base',
 		area: 'contenido',
-		soon: false,
-		flag: 'contenido_db'
+		soon: false
 	},
 	{
 		id: 'colecciones',
@@ -482,8 +529,7 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
-		soon: false,
-		flag: 'propinas'
+		soon: false
 	},
 	{
 		id: 'ajustes-mails',
@@ -516,6 +562,18 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Todo lo que corre solo (crons, mails programados, bot de Telegram; reglas más adelante),
+		// por ahora solo para mirar. Al lado de Interruptores: es "cómo está andando el sitio".
+		id: 'ajustes-automatizaciones',
+		href: '/admin/ajustes/automatizaciones',
+		icon: Workflow,
+		emoji: '🤖',
+		label: 'Automatizaciones',
+		area: 'ajustes',
+		sub: 'sistema',
+		soon: false
+	},
+	{
 		// También "Recuperar" lo borrado desde el panel (docs/panel.md).
 		id: 'actividad',
 		href: '/admin/ajustes/actividad',
@@ -537,10 +595,12 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
 	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
+	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
-	// Interruptor `personas_eventos`: la ficha la muestra solo prendido.
+	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
+	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
+	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
 	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
 	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
 ]);
@@ -567,17 +627,26 @@ export function eventPanelLink(slug, { tickets = false } = {}) {
 
 /**
  * Link "Editar contenido" de una página pública. Los eventos se editan dentro del panel (pestaña
- * Editar de la ficha); el resto de las publicaciones, en /edit/<categoría>/<slug>. `null` si la
- * página no es una publicación editable.
+ * Editar de la ficha); los perfiles, en Comunidad › Perfiles; las páginas de la wiki, en
+ * Etiquetas › Texto de la wiki; el material, en /edit/material/<slug>. `null` si la página no es
+ * una publicación editable.
  * @param {string} pathname
  * @returns {string | null}
  */
 export function contentEditLink(pathname) {
-	const m = pathname.match(/^\/(amigues|calendario|material)\/([^/]+)\/?$/);
+	const m = pathname.match(/^\/(amigues|calendario|material|wiki)\/([^/]+)\/?$/);
 	if (!m) return null;
 	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
+	if (m[1] === 'amigues') return `/admin/comunidad/perfiles/${m[2]}`;
+	if (m[1] === 'wiki') return wikiEditHref(decodeURIComponent(m[2]));
 	return `/edit/${m[1]}/${m[2]}`;
 }
+
+/**
+ * El editor del texto de la wiki de una etiqueta (por la dirección de su página, `/wiki/<…>`).
+ * @param {string} slug
+ */
+export const wikiEditHref = (slug) => `/admin/etiquetas/wiki/${encodeURIComponent(slug)}`;
 
 /**
  * Los 5 lugares de la barra de abajo en el celu (el del medio es el botón rosa).
@@ -706,6 +775,66 @@ export function navAreaSections(area, opts) {
 		...g,
 		items: items.filter((i) => i.sub === g.id)
 	})).filter((g) => g.items.length);
+}
+
+/**
+ * Las secciones de un grupo del menú, en bloques: el área principal sin título y cada una de las
+ * otras áreas con su nombre (en Ajustes, sus subgrupos). Sin bloques vacíos.
+ *
+ * @param {string} group id de {@link NAV_GROUPS}
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
+ * @returns {{ id: string, label: string, items: NavItem[] }[]}
+ */
+export function navGroupSections(group, opts) {
+	const g = navGroupOf(group);
+	if (!g) return [];
+	return g.areas.flatMap((area, i) =>
+		navAreaSections(area, opts).map((section) =>
+			i === 0 ? section : { ...section, id: area, label: navArea(area)?.label ?? area }
+		)
+	);
+}
+
+/**
+ * Las secciones de un grupo del menú, en el orden en que se muestran.
+ * @param {string} group
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
+ */
+export function navGroupItems(group, opts) {
+	return navGroupSections(group, opts).flatMap((s) => s.items);
+}
+
+/**
+ * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
+ * del menú con dos o más secciones, una barra con todas las secciones del grupo, así se pasa de
+ * una a otra sin abrir el menú. Las del grupo Eventos no llevan (son herramientas con su propia
+ * barra: la lista, la agenda, Puerta…), ni las subpáginas (fichas, formularios), ni lo que viene.
+ * `null` si la página no lleva.
+ * @param {string} pathname
+ * @param {{ flags?: Record<string, boolean> }} [opts]
+ * @returns {{ label: string, tabs: { href: string, label: string }[] } | null}
+ */
+export function sectionTabs(pathname, { flags = {} } = {}) {
+	const path = pathname.replace(/\/+$/, '') || '/';
+	const item = NAV.find((i) => i.href === path && !i.soon && i.menu !== false);
+	const group = navGroupOf(item?.area);
+	if (!item || !group || group.id === 'eventos' || navState(item, flags) === 'hidden') return null;
+	const items = navGroupItems(group.id, { flags, hideSoon: true });
+	if (items.length < 2) return null;
+	return {
+		label: `Secciones de ${group.label}`,
+		tabs: items.map((i) => ({ href: i.href, label: i.label }))
+	};
+}
+
+/**
+ * Suma de los contadores de un grupo del menú (se muestra en el grupo cerrado).
+ * @param {string} group
+ * @param {Record<string, number>} counts
+ * @param {{ flags?: Record<string, boolean> }} [opts]
+ */
+export function groupCount(group, counts, opts) {
+	return (navGroupOf(group)?.areas ?? []).reduce((n, a) => n + areaCount(a, counts, opts), 0);
 }
 
 /**

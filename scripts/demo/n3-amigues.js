@@ -1,12 +1,13 @@
 // Datos de demo (INVENTADOS) para probar amigues y lugares en la base D1 LOCAL:
 // - un lugar en cada nivel de privacidad (pública, solo el nombre, solo el barrio, oculta),
-//   cada uno vinculado a un evento .md del repo;
+//   cada uno vinculado a un evento del repo (edge `lugar`: el evento tiene que estar importado en
+//   la base local, Contenido → En la base; si no, se avisa y se saltea);
 // - un proyecto con un integrante que se muestra;
 // - una cuenta con un pedido "Es mi perfil" pendiente;
 // - un perfil nuevo de una cuenta, esperando que une admin lo apruebe.
 //
 //   node scripts/demo/n3-amigues.js
-//   PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin
+//   npm run dev:admin
 //
 // Se puede correr más de una vez (no duplica). Escribe los perfiles con saveObject(). Nunca toca
 // una base remota (ver scripts/local-d1.js). Para importar también las fichas reales:
@@ -132,16 +133,33 @@ try {
 			slug,
 			data: { kind: 'lugar', ...v.data }
 		});
-		const now = Date.now();
 		if (events[i]) {
-			await db
+			// «Sucede en» es el edge `lugar` del evento (docs/amigues.md), con saveObject(). Sin
+			// pisar el lugar que ya tenga.
+			const ev = await db
 				.prepare(
-					`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-					VALUES (?1, ?2, NULL, ?3, ?4, ?3, ?4) ON CONFLICT (event_slug) DO NOTHING`
+					`SELECT o.id, o.version, EXISTS (SELECT 1 FROM edges e WHERE e.from_id = o.id
+						AND e.kind = 'lugar') AS has_venue
+					FROM objects o LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = 'calendario'
+					WHERE o.type = 'evento' AND (s.legacy_slug = ?1 OR (s.legacy_slug IS NULL AND o.slug = ?1))`
 				)
-				.bind(events[i], id, now, ACTOR)
-				.run();
-			console.log(`lugar «${v.title}» (${v.data.venue_privacy}) → evento ${events[i]}`);
+				.bind(events[i])
+				.first();
+			if (!ev) {
+				console.log(`evento ${events[i]} no está en la base local: «${v.title}» queda sin evento`);
+			} else if (!ev.has_venue) {
+				await saveObject(
+					db,
+					{
+						id: Number(ev.id),
+						type: 'evento',
+						version: Number(ev.version),
+						edges: { lugar: [id] }
+					},
+					{ actor: ACTOR }
+				);
+				console.log(`lugar «${v.title}» (${v.data.venue_privacy}) → evento ${events[i]}`);
+			}
 		}
 	}
 
@@ -203,9 +221,7 @@ try {
 		.bind(fresh, creator, Date.now())
 		.run();
 	console.log('perfil «Perfil Demo Nuevo» de demo-crea@example.com, sin aprobar');
-	console.log(
-		'\nListo. Prendé el interruptor: PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin'
-	);
+	console.log('\nListo. Miralo con: npm run dev:admin');
 } finally {
 	await dispose();
 }

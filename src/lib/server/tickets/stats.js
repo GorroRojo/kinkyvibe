@@ -93,7 +93,7 @@ export function paymentSplit(orders) {
 }
 
 /**
- * Fondo KinkyVibe por opción de precio ("con el descuento del fondo", "solidaria"…): entradas,
+ * Fondo Kinky Vibe por opción de precio ("con el descuento del fondo", "solidaria"…): entradas,
  * lo que cubrió el fondo y lo que se aportó. `net` = aportes − fondo usado.
  *
  * @param {StatsOrder[]} orders

@@ -1,5 +1,5 @@
 /** Textos de las órdenes en el panel (pestañas Órdenes y Transferencias de la ficha). */
-
+import { argDateLog } from '$lib/utils/dates.js';
 export const ORDER_STATUS = /** @type {Record<string, string>} */ ({
 	pending: 'Pendiente',
 	awaiting_transfer: 'Esperando transferencia',
@@ -31,16 +31,11 @@ export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 });
 
 /**
- * Fecha y hora cortas en Argentina ("30/9/26, 21:05").
+ * Fecha y hora cortas en Argentina, como en los registros ("30/9/26 21:05").
  * @param {number} ms
  */
 export function shortTime(ms) {
-	return new Date(ms).toLocaleString('es-AR', {
-		dateStyle: 'short',
-		timeStyle: 'short',
-		hourCycle: 'h23',
-		timeZone: 'America/Argentina/Buenos_Aires'
-	});
+	return argDateLog(ms);
 }
 
 /**
@@ -49,4 +44,22 @@ export function shortTime(ms) {
  */
 export function formatDni(dni) {
 	return dni ? Number(dni).toLocaleString('es-AR') : '—';
+}
+
+/**
+ * Cuántos dígitos como mínimo para buscar órdenes por DNI (en el servidor: el DNI completo no va
+ * a la página de Órdenes).
+ */
+export const DNI_SEARCH_MIN_DIGITS = 3;
+
+/**
+ * Los dígitos de lo que se escribió en el buscador si parece un DNI ("30.111" → "30111"), o ''
+ * si tiene otra cosa que números, puntos, guiones o espacios, o menos de {@link DNI_SEARCH_MIN_DIGITS}.
+ * @param {unknown} q
+ */
+export function dniQueryDigits(q) {
+	const s = String(q ?? '').trim();
+	if (!s || s.length > 20 || !/^[\d.\s-]+$/.test(s)) return '';
+	const digits = s.replace(/\D/g, '');
+	return digits.length >= DNI_SEARCH_MIN_DIGITS ? digits : '';
 }

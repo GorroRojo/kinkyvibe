@@ -111,7 +111,7 @@
 	.title {
 		display: none;
 		margin: 0 0 0.4rem;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -134,9 +134,10 @@
 		box-sizing: border-box;
 		padding: 0 0.9em;
 	}
+	/* «Estás acá»: violeta sobre lila. */
 	.section-index a[aria-current='true'] {
-		background: var(--accent, hsl(319, 90%, 60%));
-		color: var(--accent-ink, white);
+		background: var(--link-bg, var(--2-tint));
+		color: var(--link, var(--2-dark));
 		font-weight: 700;
 	}
 	.section-index a:focus-visible {
@@ -148,7 +149,7 @@
 	@container event-form (max-width: 47.99rem) {
 		.section-index {
 			margin: 0 -16px 0.8rem;
-			padding: 0.4rem 16px;
+			padding: 0.4rem var(--space-xs);
 			background: var(--bg, #fff7fb);
 		}
 		ol {
@@ -164,7 +165,7 @@
 		.section-index a {
 			background: var(--surface, white);
 			box-shadow: inset 0 0 0 1px var(--line, #ddd);
-			font-size: 0.9rem;
+			font-size: var(--text-sm);
 		}
 	}
 
@@ -176,7 +177,7 @@
 		}
 		.title {
 			display: block;
-			padding-left: 0.9rem;
+			padding-left: var(--space-xs);
 		}
 		ol {
 			display: flex;

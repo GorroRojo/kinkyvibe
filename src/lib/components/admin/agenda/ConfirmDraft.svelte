@@ -78,27 +78,27 @@
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		background: var(--warn-bg);
-		border-radius: 0.8rem;
-		padding: 0.6rem 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.lead {
 		margin: 0;
 	}
 	.missing {
 		margin: 0;
-		padding-left: 1.2rem;
+		padding-left: var(--space-s);
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
 	}
 	.missing .muted {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.btns {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 </style>

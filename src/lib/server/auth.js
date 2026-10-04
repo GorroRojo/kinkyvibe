@@ -20,7 +20,7 @@ export const TOKEN_COOKIE = 'userToken';
 
 /**
  * @param {{ id?: number, login?: string }|undefined|null} user
- * @param {boolean} [preview] whether this is a Cloudflare Pages preview deploy. The demo admin
+ * @param {boolean} [preview] whether this is a preview deploy (a branch other than main). The demo admin
  *   (see $lib/server/demo/identity.js) is only accepted on previews, never in production.
  * @returns {boolean}
  */

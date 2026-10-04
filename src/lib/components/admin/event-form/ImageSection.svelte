@@ -2,10 +2,10 @@
 	/**
 	 * Sección «🖼️ Imagen» del formulario: la miniatura, el botón para subir una imagen, el aviso
 	 * de formatos y el estado de la imagen elegida (`upload`: revisarla, la URL local de la
-	 * miniatura y soltarla al cambiarla o al salir; ver `$lib/admin/imageState.js`). La usan
-	 * /admin/eventos/nuevo, PostEditor y ContentEditor. Lo propio de cada uno (qué imagen se usa, si
-	 * es compartida, los eventos afectados, los botones de quitar o volver) va en los slots:
-	 * `before` arriba del botón y el slot por defecto abajo; `formats` reemplaza el aviso de formatos.
+	 * miniatura y soltarla al cambiarla o al salir; ver `$lib/admin/imageState.js`). Queda solo para
+	 * las fichas de amigues en ContentEditor (suben su imagen al repo); lo demás usa la biblioteca
+	 * (ImagePicker, docs/imagenes.md). Lo propio de quien la usa va en los slots: `before` arriba
+	 * del botón y el slot por defecto abajo; `formats` reemplaza el aviso de formatos.
 	 *
 	 * Props:
 	 * - `upload` (bind): la imagen elegida (`{ url, name, ext, error }`).
@@ -104,7 +104,7 @@
 		width: 8em;
 		height: 8em;
 		object-fit: cover;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 	}
 	.thumb.empty {
 		display: grid;

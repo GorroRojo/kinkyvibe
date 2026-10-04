@@ -1,23 +1,23 @@
 /**
- * Pegamento entre «Lo que sigo» y SvelteKit: los interruptores (`lo_que_sigo` y `cuentas`, los
- * dos) y la cuenta de la sesión.
+ * Pegamento entre «Lo que sigo» y SvelteKit: el interruptor `lo_que_sigo` y la cuenta de la
+ * sesión.
  */
 import { error, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { cuentasEnabled, loQueSigoEnabled } from '$lib/server/flags.js';
+import { loQueSigoEnabled } from '$lib/server/flags.js';
 
 /**
- * ¿Están prendidos «Lo que sigo» y las cuentas? Sin base, no.
+ * ¿Está prendido «Lo que sigo»? Sin base, no.
  *
  * @param {App.Platform | undefined} platform
  */
 export async function sigoEnabled(platform) {
 	if (!getDB(platform)) return false;
-	return (await loQueSigoEnabled(platform)) && (await cuentasEnabled(platform));
+	return loQueSigoEnabled(platform);
 }
 
 /**
- * Para las páginas y endpoints de «Lo que sigo»: 404 con un interruptor apagado (como si no
+ * Para las páginas y endpoints de «Lo que sigo»: 404 con el interruptor apagado (como si no
  * existieran). Devuelve la base.
  *
  * @param {App.Platform | undefined} platform

@@ -9,7 +9,7 @@
 </svelte:head>
 
 <header class="entradas-header">
-	<a href="/"><img src={logo} alt="KinkyVibe.ar" width="40" height="40" /> KinkyVibe.ar</a>
+	<a href="/"><img src={logo} alt="" width="40" height="40" /> Kinky Vibe.ar</a>
 </header>
 <main class="entradas-main">
 	{@render children()}
@@ -34,7 +34,7 @@
 	.entradas-main {
 		max-width: 36rem;
 		margin: 0 auto;
-		padding: 1em 16px 3em;
+		padding: 1em var(--space-xs) 3em;
 		font-size: var(--step-0);
 	}
 </style>

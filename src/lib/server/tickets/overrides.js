@@ -183,7 +183,7 @@ export function limitMessage(limit) {
 			return `Son ${limit.quantity} entradas y el máximo por compra es ${limit.max} (${limit.over} de más).`;
 		case 'closed':
 			if (limit.reason === 'cancelled') return 'El evento está cancelado.';
-			if (limit.reason === 'soldout') return 'El evento está marcado como agotado.';
+			if (limit.reason === 'soldout') return 'El evento está marcado como «Agotadas».';
 			if (limit.reason === 'type_closed') return `La venta de «${limit.typeName}» ya cerró.`;
 			return 'La venta de entradas ya cerró.';
 		case 'no_door':
@@ -211,7 +211,7 @@ export function limitSummary(limit) {
 			return `máximo por compra +${limit.over} (${limit.quantity} / ${limit.max})`;
 		case 'closed':
 			if (limit.reason === 'cancelled') return 'evento cancelado';
-			if (limit.reason === 'soldout') return 'evento marcado como agotado';
+			if (limit.reason === 'soldout') return 'evento marcado como «Agotadas»';
 			if (limit.reason === 'type_closed') return `venta de «${limit.typeName}» cerrada`;
 			return 'venta cerrada';
 		case 'no_door':

@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Las series de un evento en su página (interruptor `series`): arriba "Edición N de <serie>"
+	 * Las series de un evento en su página: arriba "Edición N de <serie>"
 	 * con anterior y siguiente (`part="nav"`); después del contenido (`part="after"`), si el evento
 	 * ya pasó, la próxima edición (si hay) y "Avisame si se repite", y el calendario de la serie.
 	 * Props:

@@ -1,6 +1,6 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
 const siteURL = 'https://kinkyvibe.ar';
-const siteTitle = 'KinkyVibe';
+const siteTitle = 'Kinky Vibe';
 const siteDescription =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 
@@ -25,8 +25,8 @@ const FEED_ONLY_ITEMS = [
 /** How many posts the feed lists (newest first), like most sites do. */
 const FEED_LIMIT = 50;
 
-// Dinámico (antes se prerenderizaba): con el interruptor `contenido_db` prendido los eventos salen
-// de la base y pueden cambiar sin un deploy. Apagado, da lo mismo que el archivo de siempre.
+// Dinámico (antes se prerenderizaba): los eventos y el material salen de la base y pueden cambiar
+// sin un deploy.
 
 /** @param {{ platform?: App.Platform }} [event] */
 export const GET = async (event) => {

@@ -5,13 +5,14 @@
 	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: el nombre
 	 * de la etiqueta (renombrar, con la misma elección que en Etiquetas; se confirma después de ver
 	 * cuántas publicaciones cambian), nombre visible, ícono, imagen y descripción. Se guarda como en
-	 * Etiquetas (commit al archivo, o en la base con el interruptor `etiquetas_db`).
+	 * Etiquetas (en la base).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -24,7 +25,30 @@
 	/** @type {any} */
 	export let form;
 	const icon = { size: 18, 'aria-hidden': true };
+	// El selector de imágenes (docs/imagenes.md): la imagen elegida va como edge `imagen` de la
+	// etiqueta de la serie; al elegir o sacar una, la vieja (`image`) se vacía.
+	/** @type {any} */
+	let newImage = null;
+	/** @type {any} */
+	let editImage = null;
+	let editImageTouched = false;
+	/** @param {any} s */
+	function startEdit(s) {
+		editImage = s.libraryImage;
+		editImageTouched = false;
+	}
+
 	let creating = false;
+	/**
+	 * Lo que se precarga en «Crear serie». Vacío = el formulario en blanco (se renueva cada vez que
+	 * se abre).
+	 * @type {Record<string, string>}
+	 */
+	let prefill = {};
+	/** Las series que pueden ser madre (las de arriba: dos niveles alcanzan). */
+	$: parents = data.series
+		.filter((/** @type {any} */ s) => !s.parent)
+		.map((/** @type {any} */ s) => ({ id: s.id, name: s.name, icon: s.icon }));
 	let busy = false;
 	/** La serie que se está editando (su id), o ''. */
 	let editing = '';
@@ -64,7 +88,10 @@
 				class="kv-btn"
 				aria-expanded={creating}
 				aria-controls="crear-serie"
-				on:click={() => (creating = !creating)}><Plus {...icon} /> Crear serie</button
+				on:click={() => {
+					prefill = {};
+					creating = !creating;
+				}}><Plus {...icon} /> Crear serie</button
 			>
 		{/if}
 	</svelte:fragment>
@@ -77,13 +104,8 @@
 		{#if done.db}
 			Ya está en la base: en menos de un minuto se ve en el sitio.
 			{#if done.posts}
-				El commit que cambia {done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} se ve cuando termine
-				de publicarse el sitio.
-				{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
-						href={done.commit}
-						target="_blank"
-						rel="noreferrer">Ver el commit</a
-					>{/if}
+				También se cambi{done.posts === 1 ? 'ó' : 'aron'}
+				{done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} (en la base).
 			{/if}
 		{:else}
 			Se ve cuando termine de publicarse el sitio.
@@ -96,24 +118,37 @@
 		{#if done.verb === 'creó'}Ponele la etiqueta a sus eventos.{/if}
 	</p>
 {/if}
+{#if form?.warning}<p class="kv-flash bad" role="alert">{form.warning}</p>{/if}
 
 {#if data.canCreate && creating}
 	<Card>
 		<form id="crear-serie" class="kv-form" method="POST" action="?/crear" use:enhance={submit}>
 			<h2 class="form-title">Crear serie</h2>
 			<p class="muted small">
-				Una serie es una etiqueta hija de «evento recurrente»: después, ponésela a cada edición.
+				Una serie es una etiqueta hija de «evento recurrente» (o de otra serie): después, ponésela a
+				cada edición.
 			</p>
-			<SeriesFields
-				mode="create"
-				id="crear"
-				values={form?.editing ? {} : (form?.values ?? {})}
-				assets={data.assets}
+			{#key prefill}
+				<SeriesFields
+					mode="create"
+					id="crear"
+					values={form?.editing ? {} : (form?.values ?? prefill)}
+					assets={data.assets}
+					{parents}
+					library
+				/>
+			{/key}
+			<ImagePicker
+				bind:value={newImage}
+				idPrefix="crear-imagen"
+				sectionId="sec-crear-imagen"
+				legend="Imagen (opcional)"
+				canDelete
 			/>
 			{#if form?.error && !form?.editing}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
 			<div class="kv-row">
 				<button class="kv-btn" type="submit" disabled={busy}
-					>{busy ? 'Guardando…' : 'Crear serie'}</button
+					>{busy ? 'Creando…' : 'Crear serie'}</button
 				>
 				<button type="button" class="kv-btn ghost" on:click={() => (creating = false)}
 					>Cancelar</button
@@ -142,6 +177,9 @@
 							{s.icon}
 							<a href={s.href} target="_blank" rel="noopener">{s.name}</a>
 						</h2>
+						{#if s.parent}
+							<p class="small"><Badge tone="info">Dentro de «{s.parent}»</Badge></p>
+						{/if}
 						<p class="muted small">
 							{s.total}
 							{s.total === 1 ? 'edición' : 'ediciones'} · {s.upcoming}
@@ -170,8 +208,10 @@
 								type="button"
 								class="kv-btn ghost small"
 								aria-expanded={editing === s.id}
-								on:click={() => (editing = editing === s.id ? '' : s.id)}
-								><Pencil size={16} aria-hidden="true" /> Editar</button
+								on:click={() => {
+									editing = editing === s.id ? '' : s.id;
+									startEdit(s);
+								}}><Pencil size={16} aria-hidden="true" /> Editar</button
 							>
 						{/if}
 						<CsvButton
@@ -193,8 +233,21 @@
 									: s.edit}
 								dbMode={data.dbMode}
 								assets={data.assets}
+								library
+								clearLegacy={editImageTouched}
 							/>
 						{/key}
+						<ImagePicker
+							bind:value={editImage}
+							legacyUrl={s.libraryImage ? null : s.image}
+							target="etiqueta:{s.id}"
+							contextLabel="De esta serie"
+							idPrefix="editar-imagen-{s.edit.id}"
+							sectionId="sec-editar-imagen-{s.edit.id}"
+							legend="Imagen (opcional)"
+							canDelete
+							on:change={() => (editImageTouched = true)}
+						/>
 						{#if form?.editing === s.id && form?.error}<p class="kv-flash bad" role="alert">
 								{form.error}
 							</p>{/if}
@@ -207,8 +260,9 @@
 										No cambia ninguna publicación: «{confirm.from}» queda como alias.
 									{:else if confirm.posts}
 										Cambia{confirm.posts === 1 ? '' : 'n'}
-										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>,
-										con un commit{#if confirm.db}, y «{confirm.from}» deja de existir{/if}.
+										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>
+										(eventos y material, en la base){#if confirm.db}, y «{confirm.from}» deja de
+											existir{/if}.
 									{:else}
 										Ninguna publicación usa «{confirm.from}»: no hace falta cambiar ninguna.
 									{/if}
@@ -280,11 +334,11 @@
 	}
 	.list {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: flex-start;
 		flex-wrap: wrap;
 	}
@@ -292,18 +346,18 @@
 		width: 96px;
 		height: 96px;
 		object-fit: cover;
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		flex: none;
 	}
 	.info {
 		flex: 1 1 14rem;
 		min-width: 0;
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	h2 {
 		margin: 0;
-		font-size: 1.2rem;
+		font-size: var(--text-base);
 	}
 	.form-title {
 		margin-bottom: 0.3rem;
@@ -312,7 +366,7 @@
 		margin: 0;
 	}
 	.small {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.muted {
 		color: var(--muted);
@@ -325,7 +379,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: 2.5rem;
 		display: flex;
 		align-items: center;

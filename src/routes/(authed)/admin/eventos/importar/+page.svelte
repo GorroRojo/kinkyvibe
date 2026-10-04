@@ -2,7 +2,17 @@
 	import { deserialize, applyAction } from '$app/forms';
 	import { tick } from 'svelte';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
-	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
+	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import '$lib/components/admin/admin.scss';
+	import { formatARS } from '$lib/utils/money.js';
+	import { searchSources, sourceDetail, sourceLabel } from '$lib/utils/sourcePicker.js';
+	import {
+		describeTicketsForm,
+		readTicketsForm,
+		ticketsFormChanged,
+		validateTicketsForm
+	} from '$lib/utils/ticketsEditor.js';
 	import {
 		describeSchedule,
 		isValidDate,
@@ -13,10 +23,11 @@
 		buildMatchIndex,
 		composeSchedule,
 		findExisting,
+		generalTickets,
 		inheritedTimes,
-		longDate,
 		parseGeneralPrice,
 		matchSeries,
+		normalizeLink,
 		parseSheet,
 		proposeSlug,
 		proposeTitle,
@@ -53,6 +64,10 @@
 	 * @prop {string[]} notes extra notes computed here (already loaded, past date...)
 	 * @prop {string} serverError
 	 * @prop {boolean} open details expanded
+	 * @prop {import('$lib/utils/ticketsEditor.js').TicketsForm} ticketsInitial the tickets the
+	 *   draft gets if nobody touches them: the source's, with the sheet's General price
+	 * @prop {import('$lib/utils/ticketsEditor.js').TicketsForm} tickets what is being edited
+	 * @prop {boolean} ticketsOpen the tickets editor is shown
 	 */
 
 	let text = '';
@@ -65,10 +80,65 @@
 	/** @param {string} slug */
 	const eventLabel = (slug) => {
 		const e = bySlug.get(slug);
-		if (!e) return slug;
-		const d = e.start ? longDate(e.start.slice(0, 10)).replace(/^\S+ /, '') : 'sin fecha';
-		return `${e.title} (${d})`;
+		return e ? sourceLabel(e, data.today) : slug;
 	};
+
+	/**
+	 * The picker's options for a row: what matches the search, most recent first; with nothing
+	 * typed, the suggested events (same series) first.
+	 * @param {Item} item
+	 * @param {string} query
+	 */
+	const sourceOptions = (item, query) =>
+		searchSources(data.events, query, {
+			limit: 8,
+			suggested: item.suggestions.map((c) => c.slug)
+		}).map((e) => ({
+			value: e.slug,
+			label: e.title,
+			detail: sourceDetail(e, data.today)
+		}));
+
+	/**
+	 * The tickets a row gets from its source: the source's ticket setup (and sales goal), with the
+	 * sheet's single General price if there is one (the same rule the server applies).
+	 * @param {Item} item
+	 */
+	function sourceTickets(item) {
+		const src = item.source ? bySlug.get(item.source) : null;
+		/** @type {Record<string, any>} */
+		const meta = { ...(src?.ticketMeta ?? {}) };
+		const price = parseGeneralPrice(item.sheet.price);
+		if (price !== null) {
+			const general = generalTickets(src ? meta.tickets : undefined, price);
+			if (general.tickets) meta.tickets = general.tickets;
+		}
+		return readTicketsForm(meta);
+	}
+
+	/** @param {Item} item */
+	const ticketsEdited = (item) => ticketsFormChanged(item.ticketsInitial, item.tickets);
+
+	/** Restarts the tickets of a row from its source (unless they were edited). @param {Item} item */
+	function refreshTickets(item, force = false) {
+		if (!force && item.tickets && ticketsEdited(item)) {
+			item.ticketsInitial = sourceTickets(item);
+			return;
+		}
+		item.ticketsInitial = sourceTickets(item);
+		item.tickets = sourceTickets(item);
+	}
+
+	/** The same tickets in every other included row. @param {Item} from */
+	function ticketsToAll(from) {
+		for (const item of items) {
+			if (item === from || !item.include) continue;
+			item.tickets = structuredClone(from.tickets);
+		}
+		items = items;
+		ticketsMessage = `Listo: las ${included.length} filas usan estas entradas.`;
+	}
+	let ticketsMessage = '';
 
 	/** Slugs used by the other included rows. @param {Item} item */
 	const otherSlugs = (item) =>
@@ -135,6 +205,7 @@
 			item.endTime = s.endTime;
 			item.endEstimated = s.estimated;
 		}
+		refreshTickets(item);
 		if (!item.slugEdited) {
 			const others = otherSlugs(item);
 			item.slug = proposeSlug(
@@ -183,7 +254,10 @@
 				link: sheet.link,
 				notes,
 				serverError: '',
-				open: false
+				open: false,
+				ticketsInitial: readTicketsForm({}),
+				tickets: readTicketsForm({}),
+				ticketsOpen: false
 			};
 			next.push(item);
 		});
@@ -192,10 +266,9 @@
 		items = items;
 	}
 
-	// The new value is taken from the event: on:change may run before bind:value updates `item`.
-	/** @param {Item} item @param {Event} e */
-	function onSourceChange(item, e) {
-		item.source = /** @type {HTMLSelectElement} */ (e.currentTarget).value;
+	/** @param {Item} item @param {string} slug '' = desde cero */
+	function setSource(item, slug) {
+		item.source = slug;
 		applySource(item);
 		items = items;
 	}
@@ -225,12 +298,17 @@
 		if (!isValidDate(item.date)) out.push('Falta la fecha.');
 		if (!isValidTime(item.startTime)) out.push('Falta la hora de inicio.');
 		if (item.endTime && !isValidTime(item.endTime)) out.push('La hora de fin no es válida.');
-		const linkProblem = item.link.trim() ? eventLinkProblem(item.link.trim()) : null;
+		const link = normalizeLink(item.link);
+		const linkProblem = link ? eventLinkProblem(link) : null;
 		if (linkProblem) out.push(`El link de inscripción ${linkProblem}.`);
 		const slugError = validateSlug(item.slug, takenInSite);
 		if (slugError) out.push(`Dirección: ${slugError}`);
 		else if (all.some((o) => o !== item && o.include && o.slug === item.slug))
 			out.push('Dos filas tienen la misma dirección: cambiá una.');
+		if (ticketsEdited(item)) {
+			const t = validateTicketsForm(item.tickets);
+			if (t.errors.length) out.push(`Entradas: ${t.errors.join(' ')}`);
+		}
 		if (item.serverError) out.push(item.serverError);
 		return out;
 	}
@@ -244,7 +322,10 @@
 		(i) => i.sheet.warnings.length || i.notes.length || problems.get(i.id)?.length || !i.matched
 	);
 	$: canCreate =
-		included.length > 0 && ready.length === included.length && included.length <= data.maxRows;
+		data.dbOn &&
+		included.length > 0 &&
+		ready.length === included.length &&
+		included.length <= data.maxRows;
 
 	/** @param {Item} item */
 	function scheduleText(item) {
@@ -256,80 +337,234 @@
 		isValidTime(item.startTime) && isValidTime(item.endTime) && item.endTime <= item.startTime;
 
 	/* ---------- create ---------- */
+	// Se guarda de a tandas (`data.chunk` filas por pedido, como Contenido → Importar): primero se
+	// revisan todas las tandas (`dryRun`, no guarda nada) y, si ninguna tiene problemas, se guardan
+	// una tras otra. Todas las tandas llevan el mismo `importAt`: si se corta y se reintenta una,
+	// el servidor reconoce lo que ya guardó y no lo duplica.
 	let confirming = false;
 	let submitting = false;
 	let globalError = '';
-	/** @type {null | {commitUrl: string, publish?: any, created: Array<{slug: string, title: string, url: string, notes: string[]}>, files: string[], mock: boolean}} */
+	/** @typedef {{slug: string, title: string, url: string, notes: string[]}} Created */
+	/** @type {null | {created: Created[], failed: null | {slug: string, title: string, message: string, pending: number}}} */
 	let sent = null;
+	/** @type {null | { phase: 'check' | 'save', done: number, total: number }} */
+	let progress = null;
+	/**
+	 * La importación en curso (desde que se empezó a guardar): si se corta, «Seguir guardando»
+	 * retoma desde `next` con el mismo `importAt`.
+	 * @type {null | { list: Item[], payload: any[], allSlugs: string[], importAt: number, next: number, created: Created[] }}
+	 */
+	let run = null;
+
+	/** @param {Item} i */
+	const payloadOf = (i) => ({
+		title: i.title.trim(),
+		date: i.date,
+		startTime: i.startTime,
+		endTime: i.endTime,
+		place: i.place,
+		link: normalizeLink(i.link),
+		price: i.sheet.price,
+		source: i.source,
+		slug: i.slug.trim(),
+		// Only when they were changed: if not, the server copies the source's (and the price).
+		tickets: ticketsEdited(i) ? i.tickets : null
+	});
+
+	/**
+	 * @param {any[]} rows
+	 * @param {string[]} allSlugs
+	 * @param {{ dryRun?: boolean, importAt?: number }} opts
+	 * @returns {Promise<any>}
+	 */
+	async function postChunk(rows, allSlugs, { dryRun = false, importAt } = {}) {
+		const body = new FormData();
+		body.set('rows', JSON.stringify(rows));
+		body.set('allSlugs', JSON.stringify(allSlugs));
+		if (dryRun) body.set('dryRun', '1');
+		if (importAt) body.set('importAt', String(importAt));
+		const response = await fetch('?/crear', {
+			method: 'POST',
+			body,
+			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+		});
+		return deserialize(await response.text());
+	}
+
+	/**
+	 * A failure before anything was saved: marks the rows (indexes are the chunk's, from `from`).
+	 * @param {any} result
+	 * @param {Item[]} list
+	 * @param {number} from
+	 */
+	async function showFailure(result, list, from) {
+		if (result.type === 'failure') {
+			globalError = result.data?.error ?? 'No se pudo guardar.';
+			for (const [i, msg] of Object.entries(result.data?.rowErrors ?? {})) {
+				const item = list[from + Number(i)];
+				if (item) {
+					item.serverError = String(msg);
+					item.open = true;
+				}
+			}
+			for (const [i, suggestion] of Object.entries(result.data?.conflicts ?? {})) {
+				const item = list[from + Number(i)];
+				if (item) {
+					item.slug = String(suggestion);
+					item.slugEdited = true;
+					item.notes = [
+						...item.notes,
+						`La dirección que habíamos propuesto ya existía: ahora es “${suggestion}”.`
+					];
+					item.open = true;
+				}
+			}
+			items = items;
+		} else if (result.type === 'error') {
+			globalError = result.error?.message ?? 'Algo salió mal.';
+		} else {
+			await applyAction(result);
+		}
+	}
+
+	/** Everything (or part of it) was saved: show the result. @param {null | {slug: string, title: string, message: string}} failed */
+	function finish(failed) {
+		if (!run) return;
+		const total = run.payload.length;
+		sent = {
+			created: run.created,
+			failed: failed ? { ...failed, pending: Math.max(0, total - run.created.length - 1) } : null
+		};
+		run = null;
+		items = [];
+		text = '';
+		readOnce = false;
+	}
+
+	/** Saves the chunks from `run.next` on. */
+	async function saveChunks() {
+		if (!run) return;
+		const r = run;
+		const total = r.payload.length;
+		while (r.next < total) {
+			const from = r.next;
+			progress = { phase: 'save', done: Math.min(from + data.chunk, total), total };
+			/** @type {any} */
+			let result;
+			try {
+				result = await postChunk(r.payload.slice(from, from + data.chunk), r.allSlugs, {
+					importAt: r.importAt
+				});
+			} catch {
+				result = { type: 'error', error: { message: '' } };
+			}
+			if (result.type === 'success') {
+				r.created = [...r.created, ...(result.data?.created ?? [])];
+				r.next = from + data.chunk;
+				run = r;
+				const failed = result.data?.failed;
+				if (failed) {
+					const title = r.list[from + Number(failed.index)]?.title ?? failed.slug;
+					finish({ slug: failed.slug, title, message: failed.message });
+					return;
+				}
+				continue;
+			}
+			if (result.type === 'failure' && !r.created.length) {
+				// Nothing saved yet (someone took an address since the check): as before.
+				run = null;
+				await showFailure(result, r.list, from);
+				return;
+			}
+			if (result.type === 'failure') {
+				const [i, message] = Object.entries(result.data?.rowErrors ?? {})[0] ??
+					Object.entries(result.data?.conflicts ?? {}).map(([k]) => [
+						k,
+						'la dirección ya existe'
+					])[0] ?? ['0', result.data?.error ?? 'no se pudo guardar'];
+				const item = r.list[from + Number(i)];
+				finish({ slug: item?.slug ?? '', title: item?.title ?? '', message: String(message) });
+				return;
+			}
+			// Cut off (no connection or a server error): keep `run` to resume with the same importAt.
+			globalError = `Se cortó a mitad de camino: se ${r.created.length === 1 ? 'guardó' : 'guardaron'} ${r.created.length} de ${total}. Tocá «Seguir guardando» para terminar (lo que ya se guardó no se duplica).`;
+			return;
+		}
+		finish(null);
+	}
 
 	async function create() {
 		submitting = true;
 		globalError = '';
 		for (const item of items) item.serverError = '';
-		const payload = included.map((i) => ({
-			title: i.title.trim(),
-			date: i.date,
-			startTime: i.startTime,
-			endTime: i.endTime,
-			place: i.place,
-			link: i.link.trim(),
-			price: i.sheet.price,
-			source: i.source,
-			slug: i.slug.trim()
-		}));
+		const list = included.slice();
+		const payload = list.map(payloadOf);
+		const allSlugs = payload.map((p) => p.slug);
+		const total = payload.length;
 		try {
-			const body = new FormData();
-			body.set('rows', JSON.stringify(payload));
-			const response = await fetch('?/crear', {
-				method: 'POST',
-				body,
-				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
-			});
-			/** @type {any} */
-			const result = deserialize(await response.text());
-			if (result.type === 'success') {
-				sent = result.data;
-				items = [];
-				text = '';
-				readOnce = false;
-			} else if (result.type === 'failure') {
-				globalError = result.data?.error ?? 'No se pudo guardar.';
-				for (const [i, msg] of Object.entries(result.data?.rowErrors ?? {})) {
-					const item = included[Number(i)];
-					if (item) {
-						item.serverError = String(msg);
-						item.open = true;
-					}
+			// 1. Revisar todas las tandas (no guarda nada).
+			for (let from = 0; from < total; from += data.chunk) {
+				progress = { phase: 'check', done: Math.min(from + data.chunk, total), total };
+				const result = await postChunk(payload.slice(from, from + data.chunk), allSlugs, {
+					dryRun: true
+				});
+				if (result.type !== 'success') {
+					await showFailure(result, list, from);
+					return;
 				}
-				for (const [i, suggestion] of Object.entries(result.data?.conflicts ?? {})) {
-					const item = included[Number(i)];
-					if (item) {
-						item.slug = String(suggestion);
-						item.slugEdited = true;
-						item.notes = [
-							...item.notes,
-							`La dirección que habíamos propuesto ya existía: ahora es “${suggestion}”.`
-						];
-						item.open = true;
-					}
-				}
-				items = items;
-			} else if (result.type === 'error') {
-				globalError = result.error?.message ?? 'Algo salió mal.';
-			} else {
-				await applyAction(result);
 			}
+			// 2. Guardar, de a tandas.
+			run = { list, payload, allSlugs, importAt: Date.now(), next: 0, created: [] };
+			await saveChunks();
 		} catch (e) {
 			globalError = 'No pudimos conectarnos con el sitio. ¿Tenés internet?';
 		} finally {
 			submitting = false;
-			confirming = false;
+			progress = null;
+			if (!run) confirming = false;
 		}
+		await scrollToResult();
+	}
+
+	async function resume() {
+		submitting = true;
+		globalError = '';
+		try {
+			await saveChunks();
+		} finally {
+			submitting = false;
+			progress = null;
+			if (!run) confirming = false;
+		}
+		await scrollToResult();
+	}
+
+	/** Stop after a cut: show what was saved. */
+	function stopHere() {
+		if (!run) return;
+		const r = run;
+		const item = r.list[r.next];
+		globalError = '';
+		confirming = false;
+		finish({
+			slug: item?.slug ?? '',
+			title: item?.title ?? '',
+			message: 'se cortó la conexión antes de guardarla'
+		});
+	}
+
+	async function scrollToResult() {
 		await tick();
 		document
 			.querySelector('.result, .global-error')
 			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
+
+	/** @param {{ phase: 'check' | 'save', done: number, total: number }} p */
+	const progressText = (p) =>
+		p.phase === 'check'
+			? `Revisando ${p.done} de ${p.total}…`
+			: `Guardando ${p.done} de ${p.total}…`;
 
 	/** @param {number} n @param {string} one @param {string} many */
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -342,14 +577,11 @@
 <main class="importar">
 	<p class="back"><a href="/admin/eventos/agenda">← Agenda</a></p>
 
-	{#if data.mock}
-		<p class="mock">
-			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos
-			se guardan en una carpeta temporal.
-		</p>
-	{/if}
-
 	<h1>Importar eventos desde la planilla</h1>
+
+	{#if !data.dbOn}
+		<p class="global-error" role="alert">Sin base de datos: no se puede importar.</p>
+	{/if}
 
 	{#if sent}
 		<section class="result" aria-live="polite">
@@ -357,9 +589,16 @@
 				¡Listo! 🎉 {sent.created.length === 1 ? 'Se creó' : 'Se crearon'}
 				{plural(sent.created.length, 'borrador', 'borradores')}
 			</h2>
+			{#if sent.failed}
+				<p class="global-error" role="alert">
+					No se pudo guardar «{sent.failed.title}» ({sent.failed.message}){sent.failed.pending
+						? ` y quedaron sin guardar ${plural(sent.failed.pending, 'fila más', 'filas más')}`
+						: ''}. Las que están abajo sí se guardaron: volvé a pegar las que faltan.
+				</p>
+			{/if}
 			<p>
-				Quedaron <strong>no listados</strong>: no aparecen en el calendario hasta que los publiquen.
-				Cada uno se puede ver con su link:
+				Quedaron guardados en la base como <strong>no listados</strong>: no aparecen en el
+				calendario hasta que los confirmen. Ya se pueden ver con su link:
 			</p>
 			<ul class="created">
 				{#each sent.created as c}
@@ -371,19 +610,9 @@
 				{/each}
 			</ul>
 			<p class="hint">
-				⏳ {#if sent.publish}<PublishStatus pr={sent.publish} />{:else}El sitio tarda unos minutos
-					(normalmente entre 2 y 5) en actualizarse.{/if} Después, para publicar cada uno, revisalo y
-				sacale el “no listado” (por ahora desde el editor del evento).
-			</p>
-			<p class="small">
-				{#if sent.publish}Guardado en el <a href={sent.publish.url} target="_blank" rel="noreferrer"
-						>PR #{sent.publish.number}</a
-					>{:else}Cambio guardado en GitHub: <a
-						href={sent.commitUrl}
-						target="_blank"
-						rel="noreferrer">ver el commit</a
-					>{/if}
-				· {plural(sent.files.length, 'archivo', 'archivos')}
+				Para publicar cada uno, revisalo y tocá «Confirmar» en la <a href="/admin/eventos/agenda"
+					>agenda</a
+				>.
 			</p>
 			<p>
 				<button class="button secondary" on:click={() => (sent = null)}>Importar más filas</button>
@@ -430,9 +659,10 @@
 					{#if layout === '2024'}<span class="small">(Formato de la planilla 2024.)</span>{/if}
 				</p>
 				<p class="hint">
-					Los eventos que ya existían se <strong>duplican</strong> (texto, imagen, etiquetas) con la
-					fecha nueva. Todos se crean como <strong>no listados</strong>: después los revisan y
-					publican de a uno.
+					Los eventos que ya existían se <strong>duplican</strong> con la fecha nueva: texto,
+					etiquetas, personas, lugar, entradas y meta de venta (la imagen propia no: se sube
+					después). Todos se crean como <strong>no listados</strong>: después los revisan y publican
+					de a uno.
 				</p>
 
 				<ol class="items">
@@ -492,33 +722,31 @@
 									{/if}
 								</p>
 								<div class="fields">
-									<label class="wide">
-										<span>Evento anterior (se copia)</span>
-										<select bind:value={item.source} on:change={(e) => onSourceChange(item, e)}>
-											{#if item.suggestions.length}
-												<optgroup label="Sugeridos">
-													{#each item.suggestions as c}
-														<option value={c.slug}>{eventLabel(c.slug)}</option>
-													{/each}
-												</optgroup>
-											{/if}
-											<option value="">✨ Ninguno: crear desde cero</option>
-											<optgroup label="Todos los eventos">
-												{#each data.events as e (e.slug)}
-													<option value={e.slug}>{eventLabel(e.slug)}</option>
-												{/each}
-											</optgroup>
-										</select>
-										{#if !item.matched && !item.source}
+									<div class="wide source kv-admin">
+										<label for="src-{item.id}">Evento anterior (se copia)</label>
+										<ChipCombobox
+											id="src-{item.id}"
+											values={item.source ? [item.source] : []}
+											placeholder={item.source
+												? 'Buscar otro: título, fecha o serie…'
+												: 'Buscá por título, fecha o serie (ej.: picante 2 oct)'}
+											search={(q) => sourceOptions(item, q)}
+											add={(_, value) => [value]}
+											chip={(value) => ({ label: eventLabel(value) })}
+											removeLabel="Quitar (crear desde cero):"
+											addedMessage={(label) => `Se duplica ${label}`}
+											onChange={(values) => setSource(item, values[0] ?? '')}
+										/>
+										{#if !item.source}
 											<small>Sin evento anterior: se crea desde cero (sin texto ni imagen).</small>
-										{:else if item.source}
+										{:else}
 											<small
 												><a href="/calendario/{item.source}" target="_blank" rel="noreferrer"
 													>Ver el evento anterior</a
 												></small
 											>
 										{/if}
-									</label>
+									</div>
 									<label class="wide">
 										<span>Título</span>
 										<input
@@ -586,9 +814,12 @@
 												>Link de inscripción {item.link ? '' : '(sin link queda “anunciado”)'}</span
 											>
 											<input
-												type="url"
+												type="text"
+												inputmode="url"
+												autocapitalize="off"
+												spellcheck="false"
 												bind:value={item.link}
-												placeholder="https://forms.gle/… o mailto:hola@…"
+												placeholder="https://forms.gle/…, mailto:hola@… o tel:+54…"
 											/>
 										</label>
 									</div>
@@ -607,14 +838,68 @@
 										<dd>
 											{item.sheet.price || '—'}
 											{#if parseGeneralPrice(item.sheet.price) !== null}<small
-													>(se carga como entrada General sin cupo: revisala en Entradas)</small
+													>(se carga como entrada General sin cupo: revisala en Entradas, acá abajo)</small
 												>{:else if item.sheet.price}<small
-													>(no se copia: revisalo en el texto y en Entradas)</small
+													>(no se copia solo: cargalo en Entradas, acá abajo)</small
 												>{/if}
 										</dd>
 										{#if item.sheet.comments}<dt>Comentarios</dt>
 											<dd>{item.sheet.comments} <small>(no se publican)</small></dd>{/if}
 									</dl>
+								</details>
+								<details class="tickets-box" bind:open={item.ticketsOpen}>
+									<summary>
+										🎟️ Entradas:
+										<span class="tickets-summary"
+											>{item.tickets.enabled
+												? describeTicketsForm(item.tickets, formatARS)
+												: 'sin venta por el sitio'}</span
+										>
+										{#if ticketsEdited(item)}<span class="badge">cambiadas</span>{/if}
+									</summary>
+									{#if item.ticketsOpen}
+										{@const src = item.source ? bySlug.get(item.source) : null}
+										<p class="small">
+											{item.source
+												? 'Arrancan como las del evento anterior (con su meta de venta).'
+												: 'Desde cero arranca sin venta por el sitio.'}
+											{parseGeneralPrice(item.sheet.price) !== null
+												? 'Con el precio General de la planilla.'
+												: ''}
+										</p>
+										<div class="kv-admin tickets-wrap">
+											<TicketsEditor
+												bind:state={item.tickets}
+												tags={src?.tags ?? []}
+												location={src?.location ?? item.place}
+												errors={ticketsEdited(item) ? validateTicketsForm(item.tickets).errors : []}
+												idPrefix="imp-{item.id}"
+											/>
+										</div>
+										<p class="tickets-actions">
+											{#if included.length > 1}
+												<button
+													type="button"
+													class="button secondary"
+													on:click={() => ticketsToAll(item)}
+													>Usar estas entradas en todas las filas ({included.length})</button
+												>
+											{/if}
+											{#if ticketsEdited(item)}
+												<button
+													type="button"
+													class="button secondary"
+													on:click={() => {
+														refreshTickets(item, true);
+														items = items;
+													}}>Volver a las del evento anterior</button
+												>
+											{/if}
+										</p>
+										{#if ticketsMessage}<p class="small" aria-live="polite">
+												{ticketsMessage}
+											</p>{/if}
+									{/if}
 								</details>
 							{/if}
 						</li>
@@ -634,12 +919,23 @@
 						<button class="button big" disabled={!canCreate} on:click={() => (confirming = true)}>
 							Crear {plural(included.length, 'borrador', 'borradores')}
 						</button>
+					{:else if run && !submitting}
+						<div class="confirm" role="alertdialog" aria-labelledby="resume-text">
+							<p id="resume-text">
+								Se guardaron {run.created.length} de {run.payload.length}.
+							</p>
+							<button class="button secondary" on:click={stopHere}>Dejar así</button>
+							<button class="button" id="resume-create" on:click={resume}>Seguir guardando</button>
+						</div>
 					{:else}
 						<div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
 							<p id="confirm-text">
 								Se van a crear <strong
 									>{plural(included.length, 'evento', 'eventos')} no listados</strong
-								> en el sitio, todos juntos. ¿Seguimos?
+								>
+								en el sitio.
+								{#if included.length > data.chunk}Se guardan de a {data.chunk}: no cierres la página
+									hasta que termine.{/if} ¿Seguimos?
 							</p>
 							<button
 								class="button secondary"
@@ -649,6 +945,12 @@
 							<button class="button" id="confirm-create" on:click={create} disabled={submitting}>
 								{submitting ? 'Guardando…' : 'Sí, crear'}
 							</button>
+							{#if progress}
+								<p class="progress" aria-live="polite">
+									<progress max={progress.total} value={progress.done}></progress>
+									{progressText(progress)}
+								</p>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -661,7 +963,7 @@
 	.importar {
 		max-width: 50rem;
 		margin-inline: auto;
-		padding: 0 16px 4em;
+		padding: 0 var(--space-xs) 4em;
 		font-size: var(--step-0);
 	}
 	h1 {
@@ -674,12 +976,6 @@
 	}
 	.back {
 		margin: 0.5em 0 0;
-		font-size: var(--step--1);
-	}
-	.mock {
-		background: var(--warn-bg, #fff6d6);
-		border-radius: 1em;
-		padding: 0.5em 1em;
 		font-size: var(--step--1);
 	}
 	.small {
@@ -707,7 +1003,7 @@
 		font-family: monospace;
 		font-size: 0.85em;
 		padding: 0.8em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		border: 0;
 		outline: 1px solid var(--1-light);
 		tab-size: 4;
@@ -722,7 +1018,7 @@
 		background: var(--1);
 		color: white;
 		border: 0;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.5em 1.2em;
 		font-size: var(--step-0);
 		text-decoration: none;
@@ -744,9 +1040,9 @@
 	}
 	.summary {
 		background: var(--surface, white);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 1em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 	}
 	.items {
 		list-style: none;
@@ -757,9 +1053,9 @@
 	}
 	.item {
 		background: var(--surface, white);
-		border-radius: 1.2em;
+		border-radius: var(--radius-l);
 		padding: 0.8em 1em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 		border-left: 0.4em solid var(--3-light, #cdeccd);
 		&.off {
 			background: var(--surface-2, #f6f6f6);
@@ -801,7 +1097,7 @@
 		font-size: var(--step--1);
 		li {
 			background: var(--warn-bg, #fff6d6);
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			padding: 0.2em 0.6em;
 			margin-bottom: 0.25em;
 		}
@@ -841,7 +1137,7 @@
 		select {
 			font-size: var(--step-0);
 			padding: 0.35em 0.6em;
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			border: 1px solid var(--line, #ccc);
 			min-width: 0;
 			width: 100%;
@@ -851,6 +1147,48 @@
 		small {
 			font-size: var(--step--2);
 			opacity: 0.8;
+		}
+	}
+	.source,
+	.tickets-wrap {
+		max-width: none;
+		margin: 0;
+		padding: 0;
+	}
+	.source {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2em;
+		min-width: 0;
+		> label {
+			font-size: var(--step--1);
+			color: var(--1);
+		}
+	}
+	.tickets-box {
+		border-top: 1px solid var(--line, #eee);
+		padding-top: 0.5em;
+		summary {
+			overflow-wrap: anywhere;
+		}
+		.tickets-summary {
+			color: var(--text, inherit);
+		}
+		.badge {
+			display: inline-block;
+			margin-left: 0.4em;
+			padding: 0 0.6em;
+			border-radius: 1em;
+			background: var(--warn-bg, #fff6d6);
+			font-size: var(--step--2);
+		}
+	}
+	.tickets-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		.button {
+			font-size: var(--step--1);
 		}
 	}
 	.slug {
@@ -903,7 +1241,7 @@
 	}
 	.global-error {
 		background: var(--bad-bg, #fde2e2);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.5em 1em;
 	}
 	.confirm {
@@ -916,12 +1254,23 @@
 			flex-basis: 100%;
 			margin: 0;
 		}
+		.progress {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: var(--space-3xs);
+			font-size: var(--text-sm);
+			progress {
+				width: min(100%, 20rem);
+				accent-color: var(--1);
+			}
+		}
 	}
 	.result {
 		background: var(--surface, white);
-		border-radius: 1.2em;
+		border-radius: var(--radius-l);
 		padding: 1em 1.2em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 	}
 	.created {
 		padding-left: 1.2em;

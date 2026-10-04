@@ -1,7 +1,8 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
@@ -43,62 +44,15 @@
 </script>
 
 <svelte:head>
-	<title>Mi rincón - KinkyVibe.ar</title>
+	<title>Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="rincon">
 	<h1>Mi rincón</h1>
 
-	<section class="surface-card" aria-labelledby="cuenta-title">
-		<h2 id="cuenta-title">Tu cuenta</h2>
-		<p>Mail: <strong>{data.email}</strong></p>
-		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
-		{#if form?.action === 'sesiones' && form.error}
-			<p class="error" role="alert">{form.error}</p>
-		{/if}
-		<div class="row">
-			<form method="POST" action="?/salir">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión</button>
-			</form>
-			<form method="POST" action="?/salirTodos">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión en todos lados</button>
-			</form>
-		</div>
-		<p class="hint">
-			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
-			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
-		</p>
-	</section>
-
-	{#if data.canHaveProfiles}
-		<section class="surface-card" aria-labelledby="perfiles-title">
-			<h2 id="perfiles-title">Tus perfiles</h2>
-			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
-		</section>
-	{/if}
-
-	{#if data.sigoOn}
-		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
-		<section class="surface-card" aria-labelledby="sigo-title">
-			<h2 id="sigo-title">Lo que seguís y tu calendario</h2>
-			<p class="hint">
-				Etiquetas, series, perfiles y lugares que seguís y de qué te escribimos. Y tu calendario
-				personal: lo que seguís, tus entradas y donde participás, en tu app de calendario.
-			</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
-		</section>
-	{:else if data.seriesOn}
-		<section class="surface-card" aria-labelledby="calendario-title">
-			<h2 id="calendario-title">Tu calendario</h2>
-			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
-		</section>
-	{/if}
-
 	<section class="surface-card" aria-labelledby="compras-title">
-		<h2 id="compras-title">Tus compras</h2>
+		<h2 id="compras-title">Tus compras y entradas</h2>
 		{#if data.ordersError}
 			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
 		{:else if data.orders.length === 0}
@@ -109,7 +63,7 @@
 					<li>
 						<a href="/entradas/{o.id}/estado">
 							<strong>{o.event}</strong>
-							{#if o.eventStart}<span class="hint">{fmtDate(o.eventStart)}</span>{/if}
+							{#if o.eventStart}<span class="hint">{argDateList(o.eventStart)}</span>{/if}
 						</a>
 						<span>
 							{o.quantity === 1 ? '1 entrada' : `${o.quantity} entradas`} · {formatARS(o.total)} · {STATUS[
@@ -125,6 +79,32 @@
 			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
 		</p>
 	</section>
+
+	{#if data.sigoOn}
+		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
+		<section class="surface-card" aria-labelledby="sigo-title">
+			<h2 id="sigo-title">Lo que seguís y tu calendario</h2>
+			<p class="hint">
+				Etiquetas, series, perfiles y lugares que seguís y de qué te escribimos. Y tu calendario
+				personal: lo que seguís, tus entradas y donde participás, en tu app de calendario.
+			</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
+		</section>
+	{:else}
+		<section class="surface-card" aria-labelledby="calendario-title">
+			<h2 id="calendario-title">Tu calendario</h2>
+			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
+		</section>
+	{/if}
+
+	{#if data.canHaveProfiles}
+		<section class="surface-card" aria-labelledby="perfiles-title">
+			<h2 id="perfiles-title">Tus perfiles</h2>
+			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+		</section>
+	{/if}
 
 	<section class="surface-card" id="mis-datos" aria-labelledby="datos-title">
 		<h2 id="datos-title">Mis datos</h2>
@@ -328,7 +308,28 @@
 		{/if}
 	</section>
 
-	<section class="surface-card danger" aria-labelledby="borrar-title">
+	<section class="surface-card" aria-labelledby="cuenta-title">
+		<h2 id="cuenta-title">Tu cuenta</h2>
+		<p>Mail: <strong>{data.email}</strong></p>
+		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
+		{#if form?.action === 'sesiones' && form.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/salir">
+				<button class="pill-btn ghost" type="submit">Salir</button>
+			</form>
+			<form method="POST" action="?/salirTodos">
+				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
+			</form>
+		</div>
+		<p class="hint">
+			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
+			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+		</p>
+	</section>
+
+	<section class="surface-card danger-zone" aria-labelledby="borrar-title">
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
 			<p class="error" role="alert">{form.error}</p>
@@ -361,9 +362,10 @@
 						<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
 					</label>
 					<button
-						class="pill-btn delete"
+						class="pill-btn permanent"
 						type="submit"
-						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}>Borrar mi cuenta</button
+						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}
+						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
 					>
 				</form>
 				<form method="POST" action="?/confirmar" use:enhance={keep}>
@@ -384,7 +386,8 @@
 	.rincon {
 		display: grid;
 		gap: 1em;
-		width: min(40rem, 100%);
+		/* 16px a los costados en el celu, como el resto del sitio */
+		width: min(40rem, calc(100% - 32px));
 		margin: 1.5em auto;
 	}
 	h1 {
@@ -413,7 +416,7 @@
 		width: 100%;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='text'],
 	input[type='password'] {
@@ -456,7 +459,7 @@
 		border-bottom: 1px solid var(--line);
 	}
 	.saved dt {
-		font-weight: 600;
+		font-weight: 700;
 		min-width: 6.5em;
 	}
 	.saved dd {
@@ -492,7 +495,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: var(--tap);
 		display: flex;
 		align-items: center;
@@ -512,11 +515,9 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 	}
-	.danger {
-		border-top: 0.25rem solid var(--1-dark);
-	}
-	.pill-btn.delete {
-		background: var(--1-dark);
+	/* borrar la cuenta no tiene vuelta atrás: rojo (--error), como su botón .permanent */
+	.danger-zone {
+		border-top: 0.25rem solid var(--error);
 	}
 	.ok {
 		color: var(--3-ink);

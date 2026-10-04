@@ -93,11 +93,11 @@
 				</small>
 			{:else if t.fondo}
 				<small class="type-fondo">
-					💜 Con el descuento del Fondo KinkyVibe ({formatARS(t.fondo)} menos)
+					💜 Con el descuento del Fondo Kinky Vibe ({formatARS(t.fondo)} menos)
 				</small>
 			{/if}
 			<small class="type-left">
-				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotadas{:else if t.left !== null}{leftText(
 						t.left
 					)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
 					{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
@@ -143,7 +143,7 @@
 		<small class="hint" id="entradas-monto-ayuda">
 			Sugerido {formatARS(gorra.suggested)}{#if gorra.min}, mínimo {formatARS(gorra.min)}{:else}. Si
 				no podés pagar, poné 0{/if}. En las entradas a la gorra no se aplican el descuento del Fondo
-			KinkyVibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
+			Kinky Vibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
 				Mercado Pago se suma el recargo de la comisión){/if}.
 		</small>
 		{#if errors.amount}
@@ -156,7 +156,7 @@
 	<fieldset class="options">
 		<legend>¿Cómo querés pagar tu entrada?</legend>
 		<small class="hint">
-			El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo KinkyVibe</a>
+			El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo Kinky Vibe</a>
 			baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
 				mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más va
 			entero al fondo.
@@ -185,7 +185,7 @@
 					{:else if o.id === 'completo'}
 						{selected.fondo ? 'sin usar el descuento del fondo' : 'precio de la entrada'}
 					{:else}
-						{formatARS(u.contribution)} por entrada van al Fondo KinkyVibe
+						{formatARS(u.contribution)} por entrada van al Fondo Kinky Vibe
 					{/if}
 				</small>
 			</label>
@@ -287,7 +287,7 @@
 		align-items: center;
 		column-gap: 0.7em;
 		padding: 0.7em 0.9em;
-		border-radius: 0.7em;
+		border-radius: var(--radius-s);
 		background: white;
 		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
 		cursor: pointer;
@@ -316,7 +316,7 @@
 		display: inline-block;
 		margin-left: 0.5em;
 		padding: 0.05em 0.6em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: color-mix(in srgb, var(--2) 15%, white);
 		color: var(--2-dark);
 		font-size: var(--step--1);
@@ -399,14 +399,12 @@
 	input[type='number'] {
 		font: inherit;
 		padding: 0.55em 0.7em;
-		border-radius: 0.5em;
-		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
-		min-height: 2.8em;
+		border-radius: var(--radius-s);
+		border: 1px solid var(--field);
+		background: var(--surface);
+		/* campo grande (~54px): solo en el flujo de compra (docs/estilo.md, «Piezas») */
+		min-height: 3.375rem;
 		min-width: 0;
-	}
-	input:focus-visible {
-		outline: 3px solid var(--2-light);
 	}
 
 	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto. Los botones miden 44 × 44
@@ -426,7 +424,7 @@
 		/* 44 px de botón + 2 px de borde arriba y abajo. */
 		height: 48px;
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: white;
 		overflow: hidden;
 	}
@@ -514,8 +512,12 @@
 	button.chip:hover:not(:disabled) {
 		background: color-mix(in srgb, var(--2) 10%, white);
 	}
-	button.chip[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 3px var(--2);
+	/* el elegido, lleno de su color (como los montos de las propinas) */
+	button.chip[aria-pressed='true'],
+	button.chip[aria-pressed='true']:hover:not(:disabled) {
+		background: var(--2-dark);
+		color: white;
+		box-shadow: inset 0 0 0 2px var(--2-dark);
 		font-weight: bold;
 	}
 	.option {
@@ -525,7 +527,7 @@
 		align-items: center;
 		column-gap: 0.7em;
 		padding: 0.55em 0.9em;
-		border-radius: 0.7em;
+		border-radius: var(--radius-s);
 		background: white;
 		outline: 2px solid color-mix(in srgb, var(--2) 35%, transparent);
 		cursor: pointer;
@@ -555,7 +557,7 @@
 		font-size: var(--step--1);
 	}
 	.field-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--error);
 		font-size: var(--step--1);
 		margin: 0;
 	}

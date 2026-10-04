@@ -141,7 +141,7 @@
 	.emojis {
 		margin: 0;
 		/* margin-top: 0.4rem; */
-		font-size: 1rem;
+		font-size: var(--text-sm);
 		height: 0;
 		position: absolute;
 		left: 0;
@@ -156,7 +156,7 @@
 		--border: 0.5px solid #ccc;
 		/* border: 0.5px solid #ccc; */
 		width: 100%;
-		padding: 0.1rem 1.7rem;
+		padding: 0.1rem var(--space-m);
 		text-align: center;
 		height: 100%;
 		border-bottom: var(--border);
@@ -196,7 +196,7 @@
 			top: -4.3rem;
 			left: 0;
 			right: 0;
-			font-size: 1.7rem;
+			font-size: var(--text-xl);
 			/* margin: 0.5rem; */
 			font-weight: normal;
 		}
@@ -208,7 +208,7 @@
 		display: grid;
 		place-items: center;
 		background: white;
-		font-size: 1.4rem;
+		font-size: var(--text-lg);
 		display: grid;
 		--adjusted-round: calc(var(--round) - 0.2rem);
 		&:nth-child(22) {

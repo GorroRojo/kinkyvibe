@@ -1,6 +1,6 @@
 /**
- * El editor de etiquetas del panel (/admin/etiquetas) contra la base, con el interruptor
- * `etiquetas_db` prendido. Usa las MISMAS operaciones que el editor del archivo
+ * El editor de etiquetas del panel (/admin/etiquetas) contra la base (la única forma de editar
+ * etiquetas). Usa las MISMAS operaciones que el editor del archivo
  * (src/lib/utils/tagConfig.js: crear, editar, mover, renombrar, fusionar, alias), así la página
  * es una sola:
  *

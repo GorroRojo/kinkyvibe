@@ -97,6 +97,6 @@
 		grid-column: 1 / -1;
 	}
 	.bad {
-		color: var(--bad, #b00020);
+		color: var(--error, #b00020);
 	}
 </style>

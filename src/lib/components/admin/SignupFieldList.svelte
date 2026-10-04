@@ -68,7 +68,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-bottom: 0.5rem;
 	}
 	.fields {
@@ -81,8 +81,8 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		gap: 0.8rem;
-		padding: 0.6rem 0;
+		gap: var(--space-xs);
+		padding: var(--space-2xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	.what {
@@ -109,6 +109,6 @@
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 </style>

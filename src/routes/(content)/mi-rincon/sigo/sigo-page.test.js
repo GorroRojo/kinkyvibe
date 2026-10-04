@@ -148,7 +148,7 @@ describe('con cosas seguidas', () => {
 		expect(html).toMatch(/<span class="kind[^"]*">Lugar<\/span>/);
 	});
 
-	it('la grilla: En mi calendario aparte; Mail con sus interruptores; Telegram apagado', () => {
+	it('la grilla: En mi calendario aparte; Mail con sus interruptores; Telegram apagado no se dibuja', () => {
 		const html = page({ follows: [follows[0]] });
 		const inputs = [...html.matchAll(/<input[^>]*role="switch"[^>]*>/g)].map((m) => m[0]);
 		const named = (/** @type {string} */ n) => inputs.filter((i) => i.includes(`name="${n}"`));
@@ -156,15 +156,15 @@ describe('con cosas seguidas', () => {
 		expect(named('calendario')[0]).toContain('checked');
 		expect(named('mail_nuevo')[0]).toContain('checked');
 		expect(named('recordatorio')[0]).not.toContain('checked');
-		// Telegram: una celda por fila, apagadas, sin nombre (no mandan nada) y con la nota.
+		// Telegram apagado: sin columna repetida en cada cosa seguida (antes, dos celdas apagadas y
+		// «Próximamente» en cada una); lo explica una sola nota arriba.
 		const off = inputs.filter((i) => !i.includes('name='));
-		expect(off).toHaveLength(2);
-		for (const i of off) {
-			expect(i).toContain('disabled');
-			expect(i).toContain('aria-describedby="sigo-proximamente"');
-		}
-		expect(html).toContain('Próximamente');
-		expect(html).toContain('Vas a poder recibir esto por Telegram cuando conectes tu cuenta');
+		expect(off).toHaveLength(0);
+		expect(html).not.toContain('data-channel="telegram"');
+		expect(html).not.toContain('name="canal" value="telegram"');
+		expect(
+			html.match(/Vas a poder recibir esto por Telegram cuando conectes tu cuenta/g)
+		).toHaveLength(1);
 		expect(html).toContain('Algo nuevo');
 		expect(html).toContain('Recordatorio el día antes');
 		expect(html).toMatch(/<form[^>]*action="\?\/opciones"/);
@@ -236,7 +236,7 @@ describe('tu calendario: en esta misma página (antes, Mi rincón → Calendario
 	});
 
 	it('con `series` y sin link: «Crear mi link», sin revocar', () => {
-		const cal = section(page({ extra: { seriesOn: true, feed: null } }));
+		const cal = section(page({ extra: { feed: null } }));
 		expect(cal).toContain('Tu link para suscribirte');
 		expect(cal).toMatch(/<form[^>]*action="\?\/crearLink"[\s\S]*Crear mi link/);
 		expect(cal).not.toContain('?/revocarLink');
@@ -245,7 +245,7 @@ describe('tu calendario: en esta misma página (antes, Mi rincón → Calendario
 	it('con un link activo: desde cuándo, generar uno nuevo o revocarlo (el link no se muestra)', () => {
 		const cal = section(
 			page({
-				extra: { seriesOn: true, feed: { createdAt: Date.UTC(2026, 5, 10, 15), lastUsedAt: null } }
+				extra: { feed: { createdAt: Date.UTC(2026, 5, 10, 15), lastUsedAt: null } }
 			})
 		);
 		expect(cal).toContain('Tenés un link activo desde el 10 de junio de 2026');
@@ -258,7 +258,7 @@ describe('tu calendario: en esta misma página (antes, Mi rincón → Calendario
 		const url = 'https://kinkyvibe.ar/ics/mio/token-inventado.ics';
 		const cal = section(
 			page({
-				extra: { seriesOn: true, feed: { createdAt: 0, lastUsedAt: null } },
+				extra: { feed: { createdAt: 0, lastUsedAt: null } },
 				form: { action: 'link', ok: true, url }
 			})
 		);
@@ -273,20 +273,13 @@ describe('tu calendario: en esta misma página (antes, Mi rincón → Calendario
 	it('revocado: lo dice y ofrece crear otro', () => {
 		const cal = section(
 			page({
-				extra: { seriesOn: true, feed: null },
+				extra: { feed: null },
 				form: { action: 'revocarLink', ok: true }
 			})
 		);
 		expect(cal).toContain('Listo: el link dejó de andar.');
 		expect(cal).toContain('Crear mi link');
 		expect(cal).not.toContain('?/revocarLink');
-	});
-
-	it('sin `series`: lo que entra se elige igual, pero sin link (el .ics personal no anda)', () => {
-		const cal = section(page({ extra: { seriesOn: false, feed: null } }));
-		expect(cal).toContain('Mis entradas');
-		expect(cal).not.toContain('Tu link para suscribirte');
-		expect(cal).not.toContain('crearLink');
 	});
 });
 

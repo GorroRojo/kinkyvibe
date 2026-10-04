@@ -22,12 +22,12 @@
 </script>
 
 <svelte:head>
-	<title>Ingresar - KinkyVibe.ar</title>
+	<title>Entrar · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <section class="ingresar surface-card" aria-labelledby="ingresar-title">
-	<h1 id="ingresar-title">Ingresar</h1>
+	<h1 id="ingresar-title">Entrar</h1>
 
 	{#if form?.error}
 		<p class="error" role="alert">{form.error}</p>
@@ -61,7 +61,7 @@
 					required
 				/>
 			</label>
-			<button class="pill-btn" type="submit" disabled={busy}>Ingresar</button>
+			<button class="pill-btn" type="submit" disabled={busy}>Entrar</button>
 		</form>
 		<form method="POST" action="?/codigo" use:enhance={submit} class="again">
 			<input type="hidden" name="email" value={email} />
@@ -88,7 +88,7 @@
 		</form>
 
 		<details open={step === 'password'}>
-			<summary>Ingresar con contraseña</summary>
+			<summary>Entrar con contraseña</summary>
 			<p class="hint">Si ya pusiste una contraseña en Mi rincón.</p>
 			<form method="POST" action="?/contrasena" use:enhance={submit}>
 				<input type="hidden" name="next" value={next} />
@@ -113,7 +113,7 @@
 						required
 					/>
 				</label>
-				<button class="pill-btn ghost" type="submit" disabled={busy}>Ingresar</button>
+				<button class="pill-btn ghost" type="submit" disabled={busy}>Entrar</button>
 			</form>
 		</details>
 	{/if}
@@ -152,7 +152,7 @@
 		gap: 0.25em;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='email'],
 	input[type='text'],
@@ -192,7 +192,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--2-dark);
 		min-height: var(--tap);
 		display: flex;

@@ -120,7 +120,7 @@
 		align-items: center;
 		gap: 0.2rem;
 		padding: 0.1rem 0.4rem 0.1rem calc(0.3rem + var(--depth) * 1.1rem);
-		border-radius: 0.7rem;
+		border-radius: var(--radius-s);
 		min-height: 2.3rem;
 	}
 	.row:hover {
@@ -157,12 +157,12 @@
 		min-width: 0;
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		border: 0;
 		background: none;
 		cursor: pointer;
 		text-align: left;
-		padding: 0.25rem 0;
+		padding: var(--space-3xs) 0;
 		color: inherit;
 	}
 	.name :global(.grip) {
@@ -184,12 +184,12 @@
 		white-space: nowrap;
 	}
 	.id {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 		white-space: nowrap;
 	}
 	.count {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;

@@ -120,7 +120,7 @@
 		display: grid;
 	}
 	.custom span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.custom input {
 		font-size: var(--step-0);
@@ -137,6 +137,6 @@
 	.error {
 		margin: 0;
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 </style>

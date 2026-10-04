@@ -1,15 +1,18 @@
 /**
- * Rutas de propinas con el interruptor `propinas` apagado y prendido: /propinas (form action),
- * /propinas/<id>/gracias, el pie de las publicaciones (propina o la nota del cafecito de siempre),
- * el dato del layout raíz para el pie de página y el webhook de MP (firma y estados). D1 de
- * miniflare, MP simulado con `fetch`; datos inventados.
+ * Rutas de propinas: /propinas (form action), /propinas/<id>/gracias, el pie de las
+ * publicaciones (el bloque de propina) y el webhook de MP (firma y estados). El interruptor
+ * `propinas` quedó prendido para siempre: se fueron los casos «apagado» (404, la nota del
+ * cafecito) y el dato `propinas` del layout raíz. D1 de miniflare, MP simulado con `fetch`;
+ * datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { signWebhook } from '$lib/server/tickets/mercadopago.js';
-import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+import TipBlock from '$lib/components/propinas/TipBlock.svelte';
+import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { formatARS } from '$lib/utils/money.js';
+import { runImport } from '$lib/server/contenido/importer.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -41,6 +44,23 @@ const rawPosts = /** @type {Record<string, string>} */ (
 		eager: true
 	})
 );
+/** La metadata de cada publicación (se compila solo la que se pide). */
+const metaLoaders = /** @type {Record<string, () => Promise<Record<string, any>>>} */ (
+	import.meta.glob('/src/lib/posts/material/*.md', { import: 'metadata' })
+);
+
+/** Las dos publicaciones de la prueba, en la base (de donde sale el material). */
+async function seedMaterial() {
+	const files = [];
+	for (const kv of [true, false]) {
+		const slug = materialSlug(kv);
+		const path = `/src/lib/posts/material/${slug}.md`;
+		files.push({ legacySlug: slug, raw: rawPosts[path], meta: await metaLoaders[path]() });
+	}
+	const r = await runImport(t.db, 'material', files, { actor: 'prueba' });
+	expect(r.results.filter((x) => x.action === 'error')).toEqual([]);
+}
+
 /** @param {boolean} kv */
 function materialSlug(kv) {
 	for (const [path, raw] of Object.entries(rawPosts)) {
@@ -51,16 +71,17 @@ function materialSlug(kv) {
 	throw new Error('no hay publicaciones para la prueba');
 }
 
-/** Módulos con PROPINAS_ENABLED como se pida y MP configurado (con `fetch` simulado). */
-async function modules(flag = '1') {
+/** Módulos con MP configurado (con `fetch` simulado). */
+async function modules() {
 	vi.resetModules();
+	await seedMaterial();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { PROPINAS_ENABLED: flag, MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
+		env: { MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
 	}));
 	// El load de /material/<post> también arma las relacionadas y los pronombres de las menciones,
 	// que importan (y compilan con mdsvex) todas las publicaciones del repo: más de 15 s la primera
 	// vez, y con la máquina cargada pasaba los 30 s del test. Acá solo importa `propinas`, así que
-	// esas dos listas van vacías; la publicación misma se sigue cargando de verdad con `fetchPost`.
+	// esas dos listas van vacías; la publicación misma sale de la base (`seedMaterial`).
 	vi.doMock('$lib/utils', async (importOriginal) => ({
 		.../** @type {object} */ (await importOriginal()),
 		fetchMarkdownPosts: async () => []
@@ -117,75 +138,45 @@ async function thrown(fn) {
 	}
 }
 
-describe('interruptor apagado', () => {
-	it('/propinas da 404 (página y form action) y no se crea nada', async () => {
-		const m = await modules('0');
-		expect((await thrown(() => m.page.load(fakeEvent())))?.status).toBe(404);
-		const res = await thrown(() =>
-			m.page.actions.default(
-				fakeEvent({ form: { amount: '2000', category: 'material', slug: materialSlug(true) } })
-			)
-		);
-		expect(res?.status).toBe(404);
-		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(0);
-	});
-
-	it('las publicaciones de KinkyVibe muestran la nota del cafecito como siempre', async () => {
-		const m = await modules('0');
+describe('propinas', () => {
+	it('el pie de una publicación de Kinky Vibe es el bloque de propina (y no la nota)', async () => {
+		const m = await modules();
 		const slug = materialSlug(true);
 		const data = /** @type {any} */ (await m.material.load(fakeEvent({ params: { post: slug } })));
-		expect(data.propinas).toBe(false);
-		const { body } = render(PostSupport, {
-			props: { propinas: data.propinas, category: 'material', slug }
-		});
-		expect(body).toContain('id="cafecito"');
-		expect(body).toContain('https://cafecito.app/kinkyvibe');
-		expect(body).toContain('considerá apoyarnos con algún cafecito');
-		expect(body).not.toContain('Dejá una propina');
-		// Ni rastro de la elección de destino de las propinas.
-		expect(body).not.toContain('name="destination"');
-		expect(body).not.toContain('Para el Fondo');
-	});
-});
-
-describe('interruptor prendido', () => {
-	it('el pie de una publicación de KinkyVibe es el bloque de propina (y no la nota)', async () => {
-		const m = await modules('1');
-		const slug = materialSlug(true);
-		const data = /** @type {any} */ (await m.material.load(fakeEvent({ params: { post: slug } })));
-		expect(data.propinas).toBe(true);
-		const { body } = render(PostSupport, {
-			props: { propinas: true, category: 'material', slug }
-		});
+		// La página pone el bloque solo en las publicaciones de KinkyVibe.
+		expect(isKinkyVibePost(data.meta)).toBe(true);
+		const { body } = render(TipBlock, { props: { category: 'material', slug } });
 		expect(body).toContain('Dejá una propina');
 		expect(body).toContain('action="/propinas"');
 		expect(body).toContain(formatARS(1000));
 		expect(body).toContain('Otro monto');
 		expect(body).not.toContain('cafecito.app');
-		// No se elige a dónde va: la propina va al Fondo KinkyVibe y el bloque lo dice.
+		// No se elige a dónde va: la propina va al Fondo Kinky Vibe y el bloque lo dice.
 		expect(body).not.toContain('name="destination"');
-		expect(body).not.toContain('Para KinkyVibe');
+		expect(body).not.toContain('Para Kinky Vibe');
 		expect(body).toMatch(
-			/Tu propina va entera\s+al\s+<a href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Fondo KinkyVibe<\/a>/
+			/Tu propina va entera\s+al\s+<a href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Fondo Kinky Vibe<\/a>/
 		);
-		// Una publicación que no es de KinkyVibe ni consulta el interruptor.
+		// Una publicación que no es de KinkyVibe no lleva el bloque.
 		const other = /** @type {any} */ (
 			await m.material.load(fakeEvent({ params: { post: materialSlug(false) } }))
 		);
-		expect(other.propinas).toBe(false);
+		expect(isKinkyVibePost(other.meta)).toBe(false);
 	});
 
-	it('findTipPost: solo publicaciones de KinkyVibe que existen', async () => {
-		const m = await modules('1');
-		expect(await m.posts.findTipPost('material', materialSlug(true))).toMatchObject({
+	it('findTipPost: solo publicaciones de Kinky Vibe que existen', async () => {
+		const m = await modules();
+		expect(await m.posts.findTipPost('material', materialSlug(true), t.platform)).toMatchObject({
 			title: expect.any(String)
 		});
-		expect(await m.posts.findTipPost('material', materialSlug(false))).toBeNull();
-		expect(await m.posts.findTipPost('material', 'no-existe-esta-publicacion')).toBeNull();
+		expect(await m.posts.findTipPost('material', materialSlug(false), t.platform)).toBeNull();
+		expect(
+			await m.posts.findTipPost('material', 'no-existe-esta-publicacion', t.platform)
+		).toBeNull();
 	});
 
 	it('form action: valida, crea la preferencia y redirige a MP; con errores, 400', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const slug = materialSlug(true);
 		const bad = /** @type {any} */ (
 			await m.page.actions.default(
@@ -239,7 +230,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('webhook: con firma válida aprueba y después reembolsa; sin firma, 401 y nada cambia', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const tip = await m.propinas.createTip(t.db, {
 			amount: 2000,
 			message: null,
@@ -308,7 +299,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('gracias: muestra el estado de la base y arma el link de vuelta del lado del servidor', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const tip = await m.propinas.createTip(t.db, {
 			amount: 1000,
 			message: 'privado',
@@ -330,22 +321,5 @@ describe('interruptor prendido', () => {
 			m.gracias.load(fakeEvent({ params: { id: 'no-existe' }, mp }))
 		);
 		expect(missing?.status).toBe(404);
-	});
-});
-
-describe('pie de página (dato del layout raíz)', () => {
-	/** @param {string} flag */
-	async function rootData(flag) {
-		await modules(flag);
-		const root = await import('../../+layout.server.js');
-		return /** @type {any} */ (await root.load(/** @type {any} */ (fakeEvent())));
-	}
-
-	it('apagado: `propinas` es false (el pie sigue con Cafecito)', async () => {
-		expect((await rootData('0')).propinas).toBe(false);
-	});
-
-	it('prendido: `propinas` es true (el pie muestra "Dejá una propina")', async () => {
-		expect((await rootData('1')).propinas).toBe(true);
 	});
 });

@@ -46,7 +46,7 @@
 	.bar {
 		display: flex;
 		height: 0.55rem;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		overflow: hidden;
 		background: var(--bar-track);
 		min-width: 3rem;
@@ -66,6 +66,6 @@
 	}
 	.done {
 		color: var(--ok, var(--3-dark));
-		font-weight: 600;
+		font-weight: 700;
 	}
 </style>

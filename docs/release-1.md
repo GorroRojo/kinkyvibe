@@ -5,6 +5,12 @@ grande de la interfaz, y (2) cómo rinden los endpoints que dejaron de prerender
 recomendaciones chicas. Relevado el 2/10/2026 sobre `main` (después de #169). Nada de esto
 cambia código: son tareas y propuestas para que gorrite decida.
 
+> **Actualización (Interruptores permanentes):** `cuentas`, `propinas`, `borrar_desde_panel`,
+> `perfiles_publicos` y `personas_eventos` quedaron **prendidos para siempre**, como antes
+> `series`, `etiquetas_db` y `contenido_db`: salieron de Ajustes → Interruptores y sus variables
+> `*_ENABLED` ya no hacen nada (tampoco `=0` para cortar). Lo que sigue sobre prenderlos y
+> apagarlos queda como registro; ver [interruptores.md](interruptores.md).
+
 ## 1. Checklist de Release 1
 
 ### Orden
@@ -148,7 +154,8 @@ está configurado.
 `/sitemap.xml` también se arman en cada pedido (dejaron de prerenderizarse con `contenido_db`). Otros
 públicos dinámicos con el mismo costo: `/ics/etiqueta/<etiqueta>.ics` (con `series`) y
 `/api/series/<etiqueta>` (`private, no-store`). Las páginas HTML ya eran dinámicas (no hay
-`prerender` global; solo `/wiki/<término>` es `'auto'`).
+`prerender` global; `/wiki/<término>` era `'auto'` hasta que la wiki pasó a la base: ahora también
+es dinámica).
 
 ### Medición (producción, 2/10/2026, solo `GET`)
 
@@ -222,8 +229,7 @@ No están implementadas. Cada una es un PR chico aparte.
   `/ics/etiqueta/…` usa `icsResponse` con `text/calendar; charset=utf-8`. Algún cliente puede
   mostrar mal las tildes. Arreglo de una línea (mantener `TAGGED_CACHE`).
 - **Docs desactualizadas**: [etiquetas.md](etiquetas.md) dice que RSS y sitemap «siguen
-  prerenderizados» (ya no); [mails.md](mails.md) y [tickets.md](tickets.md) todavía hablan del
-  Worker aparte `kinkyvibe-cron` (ahora los crons son del propio Worker); el comentario de
+  prerenderizados» (ya no); el comentario de
   `src/lib/server/etiquetas/cache.js` dice «en la CDN», y la CDN no guarda respuestas del Worker.
 - **Recordatorio**: el ítem de disculpas del RSS (`FEED_ONLY_ITEMS`) sale solo el 27/10, pero el
   código queda; borrarlo después.

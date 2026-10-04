@@ -1,7 +1,8 @@
 /**
- * Panel de personas en eventos y preguntas de inscripción (interruptor `personas_eventos`):
+ * Panel de personas en eventos y preguntas de inscripción (el interruptor `personas_eventos`
+ * quedó prendido para siempre; se fueron los tests de «apagado: 404»):
  * - Eventos › Roles y preguntas y la pestaña Preguntas: solo admins (sin sesión, 303 al
- *   login; sin permiso, 403) y, con el interruptor apagado, 404 (como si no existieran);
+ *   login; sin permiso, 403);
  * - roles y preguntas se guardan y quedan en Actividad;
  * - la compra pública pregunta, valida en el servidor y guarda las respuestas con la orden;
  * - las respuestas aparecen en el CSV de Órdenes; sin preguntas ni respuestas, el CSV es el de
@@ -34,7 +35,7 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
-import { clearFlagCache, setFlag } from '$lib/server/flags.js';
+import { clearFlagCache } from '$lib/server/flags.js';
 import { buyAction } from '$lib/server/tickets/checkout.js';
 import { fieldInputName } from '$lib/utils/signupFields.js';
 import * as ajustes from './+page.server.js';
@@ -102,8 +103,6 @@ async function thrown(fn) {
 	}
 }
 
-const on = () => setFlag(t.db, 'personas_eventos', true, { by: 'admin-de-prueba' });
-
 /** @param {string} action */
 const audit = async (action) =>
 	(
@@ -118,9 +117,8 @@ const ROUTES = /** @type {const} */ ([
 	['preguntas', preguntas, `/admin/eventos/${SLUG}/preguntas`]
 ]);
 
-describe('solo admins, y solo con el interruptor', () => {
+describe('solo admins', () => {
 	it('sin sesión: 303 al login; sin permiso: 403 (load y cada action), y no cambia nada', async () => {
-		await on();
 		for (const [name, mod, path] of ROUTES) {
 			const anon = await thrown(() => mod.load(fakeEvent({ path, user: null })));
 			expect(anon?.status, name).toBe(303);
@@ -137,23 +135,10 @@ describe('solo admins, y solo con el interruptor', () => {
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM persona_roles').first())?.n).toBe(0);
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM signup_fields').first())?.n).toBe(0);
 	});
-
-	it('apagado: 404 para admins también', async () => {
-		for (const [name, mod, path] of ROUTES) {
-			expect((await thrown(() => mod.load(fakeEvent({ path }))))?.status, name).toBe(404);
-			for (const [action, fn] of Object.entries(/** @type {any} */ (mod).actions)) {
-				const e = await thrown(() =>
-					fn(fakeEvent({ path, form: { name: 'Rol de prueba', label: 'Pregunta', kind: 'text' } }))
-				);
-				expect(e?.status, `${name} ?/${action}`).toBe(404);
-			}
-		}
-	});
 });
 
 describe('Eventos › Roles y preguntas', () => {
 	it('agregar y sacar roles (los fijos no), con registro', async () => {
-		await on();
 		const added = await ajustes.actions.addRole(fakeEvent({ form: { name: 'Cuida la puerta' } }));
 		expect(added).toEqual({
 			role: { ok: true, name: 'Cuida la puerta', message: 'Rol «Cuida la puerta» agregado.' }
@@ -180,7 +165,6 @@ describe('Eventos › Roles y preguntas', () => {
 	// «+ Nuevo rol…» de la sección Personas de los formularios llama a esta misma acción (con
 	// fetch, `x-sveltekit-action`): mismos permisos, misma validación y mismo registro.
 	it('crear un rol desde el formulario: queda elegible, en la página de Roles y en Actividad', async () => {
-		await on();
 		expect(ADD_ROLE_ACTION).toBe('/admin/eventos/roles?/addRole');
 		const url = new URL(ADD_ROLE_ACTION, 'https://kinkyvibe.ar');
 		expect(url.pathname).toBe('/admin/eventos/roles');
@@ -225,7 +209,6 @@ describe('Eventos › Roles y preguntas', () => {
 	});
 
 	it('preguntas generales: se validan, se guardan y se borran', async () => {
-		await on();
 		const bad = /** @type {any} */ (
 			await ajustes.actions.createField(fakeEvent({ form: { label: 'x', kind: 'choice' } }))
 		);
@@ -280,7 +263,7 @@ describe('compra con preguntas, Órdenes y su CSV', () => {
 	const csvText = async () =>
 		(await csv.GET(fakeEvent({ path: `/admin/eventos/${SLUG}/ordenes.csv` }))).text();
 
-	it('apagado: la compra no pregunta y el CSV queda como siempre', async () => {
+	it('sin preguntas: la compra no pregunta y el CSV queda como siempre', async () => {
 		await transferInfo();
 		const before = (await csvText()).split('\r\n')[0];
 		const r = await thrown(() =>
@@ -293,8 +276,7 @@ describe('compra con preguntas, Órdenes y su CSV', () => {
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM order_answers').first())?.n).toBe(0);
 	});
 
-	it('prendido: valida, guarda las respuestas con la orden y las muestra en el CSV', async () => {
-		await on();
+	it('con preguntas: valida, guarda las respuestas con la orden y las muestra en el CSV', async () => {
 		await transferInfo();
 		await preguntas.actions.createField(
 			fakeEvent({

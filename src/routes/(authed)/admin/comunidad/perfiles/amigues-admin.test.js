@@ -6,6 +6,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { saveObject } from '$lib/server/objects/save.js';
 import { ADMINS } from '$lib/server/auth';
 import { importAmigues } from '$lib/server/amigues/importer.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
@@ -19,6 +20,7 @@ import {
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
 import { rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { deleteProfileAsAdmin } from '$lib/server/admin/cuentas.js';
 import { toCsv } from '$lib/admin/csv.js';
 import {
@@ -73,9 +75,9 @@ afterEach(() => {
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
-async function modules(flag = '1') {
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		list: await import('./+page.server.js'),
 		edit: await import('./[slug]/+page.server.js'),
@@ -190,7 +192,7 @@ describe('solo admins', () => {
 
 describe('importar y clasificar desde el panel', () => {
 	it('importa las fichas, queda en Actividad y se confirma (o cambia) el tipo', async () => {
-		const m = await modules('0');
+		const m = await modules();
 		const preview = /** @type {any} */ (await m.importar.load(fakeEvent()));
 		expect(preview.summary.created).toBe(31);
 		expect(preview.rows).toEqual([]);
@@ -224,10 +226,13 @@ describe('importar y clasificar desde el panel', () => {
 });
 
 describe('editor de la base', () => {
-	it('con el interruptor apagado, las fichas importadas se siguen editando en su .md', async () => {
+	// Antes, con `perfiles_publicos` apagado, las fichas importadas se editaban en su .md; el
+	// interruptor quedó prendido para siempre.
+	it('las fichas importadas se editan en la base; una que no está en la base, no', async () => {
 		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
-		const m = await modules('0');
-		expect(await m.routes.editorPageData(t.platform, 'Gorro_Rojo')).toBeNull();
+		const m = await modules();
+		expect((await m.routes.editorPageData(t.platform, 'Gorro_Rojo'))?.editor).toBe('db');
+		expect(await m.routes.editorPageData(t.platform, 'Ficha_Que_No_Existe')).toBeNull();
 		// Un lugar (solo existe en la base) se edita en la base igual.
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		expect((await m.routes.editorPageData(t.platform, v.slug))?.editor).toBe('db');
@@ -235,7 +240,7 @@ describe('editor de la base', () => {
 
 	it('guarda y publica; si alguien guardó en el medio, 409 y no se pisa nada', async () => {
 		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
-		const m = await modules('1');
+		const m = await modules();
 		const opened = /** @type {any} */ (
 			await m.edit.load(
 				fakeEvent({ path: '/admin/comunidad/perfiles/Yuyo', params: { slug: 'Yuyo' } })
@@ -282,8 +287,69 @@ describe('editor de la base', () => {
 		expect(confirm.perfil.ok).toBe(true);
 	});
 
+	// «Solo base»: la imagen de un perfil se elige en el selector de la biblioteca (R2), como en los
+	// demás editores, y va como edge `avatar` en el mismo guardado (antes se subía al repo).
+	it('la imagen del perfil se elige de la biblioteca: edge `avatar`, sin la imagen vieja del repo', async () => {
+		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
+		const hash = 'a'.repeat(64);
+		const image = await saveObject(
+			t.db,
+			{
+				type: 'imagen',
+				slug: hash,
+				title: 'Imagen inventada',
+				data: { key: `img/${hash}.webp`, mime: 'image/webp', size: 10, width: 1, height: 1 }
+			},
+			{ actor: 'admin-de-prueba' }
+		);
+		const m = await modules();
+		const opened = /** @type {any} */ (
+			await m.edit.load(
+				fakeEvent({ path: '/admin/comunidad/perfiles/Yuyo', params: { slug: 'Yuyo' } })
+			)
+		);
+		// Sin imagen de la biblioteca todavía: el selector muestra la de la ficha vieja.
+		expect(opened.image).toMatchObject({
+			current: null,
+			target: expect.stringMatching(/^perfil:/)
+		});
+		expect(opened.image.legacyUrl).toMatch(/\.(webp|jpe?g|png)/);
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardarPerfil(
+				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(opened, { imageId: String(image.id) }) })
+			)
+		);
+		expect(saved.perfil.ok).toBe(true);
+		const ref = await t.db
+			.prepare("SELECT s.profile_id AS id FROM profile_sources s WHERE s.legacy_slug = 'Yuyo'")
+			.first();
+		const edges = await t.db
+			.prepare("SELECT to_id FROM edges WHERE from_id = ?1 AND kind = 'avatar'")
+			.bind(ref?.id)
+			.all();
+		expect(edges.results).toEqual([{ to_id: image.id }]);
+		const row = await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(ref?.id).first();
+		expect(JSON.parse(String(row?.data)).featured).toBeUndefined();
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ params: { slug: 'Yuyo' } })));
+		expect(after.image).toMatchObject({ current: { id: image.id }, legacyUrl: null });
+		// La página pública muestra la de la biblioteca.
+		const page = /** @type {any} */ (
+			await (
+				await import('../../../../(content)/amigues/[profile]/+page.server.js')
+			).load(fakeEvent({ path: '/amigues/Yuyo', params: { profile: 'Yuyo' }, user: null }))
+		);
+		expect(page.profile.image).toBe(`/media/img/${hash}.webp`);
+		// Una imagen que no existe no se guarda.
+		const bad = /** @type {any} */ (
+			await m.edit.actions.guardarPerfil(
+				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(after, { imageId: '999999' }) })
+			)
+		);
+		expect(bad.status).toBe(400);
+	});
+
 	it('crear un lugar desde Eventos → Lugares: nace aprobado y abre su editor', async () => {
-		const m = await modules('0');
+		const m = await modules();
 		const r = await thrown(() =>
 			m.lugares.actions.crearPerfil(
 				fakeEvent({
@@ -309,7 +375,9 @@ describe('editor de la base', () => {
 
 describe('Eventos → Lugares', () => {
 	it('vincula un evento a un lugar con su privacidad, avisa si el .md tiene dirección, y lo saca', async () => {
-		const m = await modules('0');
+		const m = await modules();
+		// El evento sale de la base.
+		await seedPosts(t.db, fake.posts);
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const bad = /** @type {any} */ (
 			await m.lugares.actions.vincular(
@@ -317,6 +385,8 @@ describe('Eventos → Lugares', () => {
 			)
 		);
 		expect(bad.status).toBe(400);
+		// «Sucede en» es un edge del evento: los eventos que se pueden elegir ya están en la base (un
+		// evento que no está, como `no-existe`, no se vincula).
 		const ok = /** @type {any} */ (
 			await m.lugares.actions.vincular(
 				fakeEvent({
@@ -342,7 +412,7 @@ describe('Eventos → Lugares', () => {
 
 describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)', () => {
 	it('lista los lugares sin aprobar; aprobar los publica y rechazar los deja para quien los cargó, con registro', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const cuenta = await makeAccount(t.db, 'carga-lugares');
 		const a = await makeProfile(t.db, {
 			title: 'Sala Pendiente Inventada',
@@ -473,7 +543,7 @@ describe('Eventos → Lugares: los que cargan las cuentas (decisión de gorrite)
 
 describe('Eventos → Lugares: rechazar es solo de admins', () => {
 	it('sin sesión o sin ser admin, no se rechaza ni se aprueba un lugar que espera', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const cuenta = await makeAccount(t.db, 'carga-lugares');
 		const v = await makeProfile(t.db, {
 			title: 'Sala Pendiente Inventada',
@@ -504,7 +574,7 @@ describe('Eventos → Lugares: rechazar es solo de admins', () => {
 	});
 
 	it('"Rechazados": sin sesión o sin ser admin, ni se ve ni se aprueba', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const cuenta = await makeAccount(t.db, 'carga-lugares');
 		const v = await makeProfile(t.db, {
 			title: 'Sala Rechazada Inventada',
@@ -618,41 +688,39 @@ describe('Comunidad › Perfiles (/admin/comunidad/perfiles): una sola lista (de
 		}
 	});
 
-	for (const flag of ['1', '0']) {
-		it(`une admin ve todos (ocultos y borrados también), con origen y estado (interruptor ${flag})`, async () => {
-			const s = await seed();
-			const m = await modules(flag);
-			const all = await listed(m);
-			expect(all).toMatchObject({ editor: 'db', flagOn: flag === '1', dbAvailable: true });
-			expect(all.notImported).toBe(0);
-			expect(all.profiles).toHaveLength(36);
-			expect(all.counts).toMatchObject({ total: 36, toApprove: 1, hidden: 1, deleted: 1 });
-			const byTitle = Object.fromEntries(all.profiles.map((/** @type {any} */ p) => [p.title, p]));
-			/** @param {string} title */
-			const summary = (title) => {
-				const p = byTitle[title];
-				return { origin: p.origin, state: profileState(p), href: profileRowHref(p) };
-			};
-			const yuyo = all.profiles.find((/** @type {any} */ p) => p.legacySlug === 'Yuyo');
-			expect(summary(yuyo.title)).toEqual({
-				origin: 'ficha',
-				state: 'aprobado',
-				href: '/admin/comunidad/perfiles/Yuyo'
-			});
-			expect(summary('Lugar Del Panel')).toMatchObject({ origin: 'panel', state: 'aprobado' });
-			expect(summary('Persona De Cuenta')).toMatchObject({
-				origin: 'cuenta',
-				state: 'para-aprobar'
-			});
-			expect(summary('Lugar Rechazado')).toMatchObject({ origin: 'cuenta', state: 'rechazado' });
-			expect(summary('Perfil Oculto')).toMatchObject({ origin: 'panel', state: 'oculto' });
-			expect(summary('Perfil Borrado')).toEqual({
-				origin: 'panel',
-				state: 'borrado',
-				href: `/admin/comunidad/cuentas/perfiles/${s.gone.id}`
-			});
+	it('une admin ve todos (ocultos y borrados también), con origen y estado', async () => {
+		const s = await seed();
+		const m = await modules();
+		const all = await listed(m);
+		expect(all).toMatchObject({ editor: 'db', dbAvailable: true });
+		expect(all.notImported).toBe(0);
+		expect(all.profiles).toHaveLength(36);
+		expect(all.counts).toMatchObject({ total: 36, toApprove: 1, hidden: 1, deleted: 1 });
+		const byTitle = Object.fromEntries(all.profiles.map((/** @type {any} */ p) => [p.title, p]));
+		/** @param {string} title */
+		const summary = (title) => {
+			const p = byTitle[title];
+			return { origin: p.origin, state: profileState(p), href: profileRowHref(p) };
+		};
+		const yuyo = all.profiles.find((/** @type {any} */ p) => p.legacySlug === 'Yuyo');
+		expect(summary(yuyo.title)).toEqual({
+			origin: 'ficha',
+			state: 'aprobado',
+			href: '/admin/comunidad/perfiles/Yuyo'
 		});
-	}
+		expect(summary('Lugar Del Panel')).toMatchObject({ origin: 'panel', state: 'aprobado' });
+		expect(summary('Persona De Cuenta')).toMatchObject({
+			origin: 'cuenta',
+			state: 'para-aprobar'
+		});
+		expect(summary('Lugar Rechazado')).toMatchObject({ origin: 'cuenta', state: 'rechazado' });
+		expect(summary('Perfil Oculto')).toMatchObject({ origin: 'panel', state: 'oculto' });
+		expect(summary('Perfil Borrado')).toEqual({
+			origin: 'panel',
+			state: 'borrado',
+			href: `/admin/comunidad/cuentas/perfiles/${s.gone.id}`
+		});
+	});
 
 	it('filtros: origen, estado (coinciden con profileState), tipo y búsqueda, combinados', async () => {
 		const s = await seed();
@@ -717,10 +785,9 @@ describe('Comunidad › Perfiles (/admin/comunidad/perfiles): una sola lista (de
 		expect((await getManagedProfile(t.db, a.id, p.slug))?.role).toBe('owner');
 	});
 
-	it('«Fichas .md» solo con el interruptor apagado: la lista de .md de siempre', async () => {
-		const off = await modules('0');
-		expect((await listed(off, 'vista=fichas')).editor).toBe('md');
-		const on = await modules('1');
+	// «Fichas .md» era solo con `perfiles_publicos` apagado: se fue esa mitad del test.
+	it('un `?vista=fichas` viejo muestra la lista de la base', async () => {
+		const on = await modules();
 		const page = await listed(on, 'vista=fichas');
 		expect(page.editor).toBe('db');
 		expect(page.filters.view).toBe('');

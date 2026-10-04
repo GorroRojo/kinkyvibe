@@ -1,14 +1,14 @@
 /**
- * Mi rincón → Lo que sigo (interruptores `lo_que_sigo` y `cuentas`; decisión 0025): las
+ * Mi rincón → Lo que sigo (interruptor `lo_que_sigo`; decisión 0025): las
  * etiquetas (y series), perfiles y lugares que sigue la cuenta, con «en mi calendario», «mail
  * cuando se anuncia algo nuevo» y «recordatorio el día antes» por cada una. Ver
  * docs/lo-que-sigo.md.
  *
  * Cada cosa seguida trae su emoji o imagen y su próximo evento; «Agregar» busca etiquetas,
- * series y (con `perfiles_publicos`) perfiles y lugares para seguirlos sin salir de la página.
+ * series, perfiles y lugares para seguirlos sin salir de la página.
  *
- * Es también el lugar de «Tu calendario» (el .ics personal): qué entra además de lo seguido y,
- * con el interruptor `series`, el link secreto para suscribirse (crear uno nuevo o revocarlo,
+ * Es también el lugar de «Tu calendario» (el .ics personal): qué entra además de lo seguido y
+ * el link secreto para suscribirse (crear uno nuevo o revocarlo,
  * ?/crearLink, ?/revocarLink). Mi rincón → Calendario (/mi-rincon/calendario) era otra página
  * para lo mismo: con «Lo que sigo» prendido manda acá.
  *
@@ -16,12 +16,11 @@
  * Sin sesión, a /ingresar (y de vuelta a la página de donde vino, si es de este sitio).
  * Todo es privado: `no-store`, `noindex`, y nada de otra cuenta.
  */
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { safeRedirect } from '$lib/server/auth.js';
 import { logDBError } from '$lib/server/db';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { perfilesPublicosEnabled, seriesEnabled } from '$lib/server/flags.js';
 import { createFeedToken, feedInfo, revokeFeeds } from '$lib/server/series/feeds.js';
 import { migrateAccountSubscriptions } from '$lib/server/sigo/avisame.js';
 import {
@@ -86,11 +85,9 @@ export async function load(event) {
 	} catch (e) {
 		logDBError('lo que sigo: pasar avisos de la cuenta', e);
 	}
-	const [tags, events, profilesOn, seriesOn, telegram] = await Promise.all([
+	const [tags, events, telegram] = await Promise.all([
 		siteTagManager(event.platform),
 		nextEvents(event.platform),
-		perfilesPublicosEnabled(event.platform),
-		seriesEnabled(event.platform),
 		// Fase 2 del bot: `null` con algún interruptor apagado (docs/telegram.md).
 		telegramCardData(event.platform, db, member.id)
 	]);
@@ -102,13 +99,12 @@ export async function load(event) {
 		telegram,
 		// Qué más va al calendario personal (además de lo seguido).
 		calendar: await getCalendarPrefs(db, member.id),
-		// El link del calendario personal: lo sirve /ics/mio/<token>.ics, que necesita `series`.
-		seriesOn,
-		feed: seriesOn ? await feedInfo(db, member.id) : null,
-		// Para «Agregar»: las etiquetas y series del árbol y, con perfiles públicos, los perfiles.
+		// El link del calendario personal: lo sirve /ics/mio/<token>.ics.
+		feed: await feedInfo(db, member.id),
+		// Para «Agregar»: las etiquetas y series del árbol y los perfiles.
 		add: {
 			tags: followableTags(tags, events),
-			profiles: profilesOn ? await followableProfiles(db, member.id) : []
+			profiles: await followableProfiles(db, member.id)
 		}
 	};
 }
@@ -152,13 +148,11 @@ export const actions = {
 	// vez, al crearlo; crear uno nuevo revoca el anterior.
 	crearLink: async (event) => {
 		const { db, member } = await actionContext(event);
-		if (!(await seriesEnabled(event.platform))) error(404, 'Not found');
 		const token = await createFeedToken(db, member.id);
 		return { action: 'link', ok: true, url: `${event.url.origin}/ics/mio/${token}.ics` };
 	},
 	revocarLink: async (event) => {
 		const { db, member } = await actionContext(event);
-		if (!(await seriesEnabled(event.platform))) error(404, 'Not found');
 		await revokeFeeds(db, member.id);
 		return { action: 'revocarLink', ok: true };
 	},

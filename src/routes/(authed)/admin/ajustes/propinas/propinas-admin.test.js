@@ -58,7 +58,7 @@ async function thrown(fn) {
 async function seed() {
 	const approved = await createTip(
 		t.db,
-		// Una propina vieja "Para KinkyVibe" (de antes de que todas fueran al Fondo).
+		// Una propina vieja "Para Kinky Vibe" (de antes de que todas fueran al Fondo).
 		{
 			amount: 2000,
 			message: 'Mensaje de prueba',
@@ -205,7 +205,7 @@ describe('/admin/ajustes/propinas', () => {
 			(l) => l.includes(',Aprobada,5000,') && l.endsWith(',2,Para el Fondo')
 		);
 		expect(fondoRows).toHaveLength(1);
-		expect(lines.filter((l) => l.endsWith(',Para KinkyVibe'))).toHaveLength(2);
+		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe'))).toHaveLength(2);
 	});
 
 	it('las propinas aprobadas aparecen en la actividad del Inicio (las pendientes no)', async () => {

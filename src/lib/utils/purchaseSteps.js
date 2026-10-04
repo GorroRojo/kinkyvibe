@@ -242,14 +242,14 @@ export function purchaseSummary({
 		if (prices.fondo) {
 			lines.push({
 				id: 'fondo',
-				label: `💜 Ya descontado: el Fondo KinkyVibe cubre ${formatARS(prices.fondo)}`,
+				label: `💜 Ya descontado: el Fondo Kinky Vibe cubre ${formatARS(prices.fondo)}`,
 				note: true
 			});
 		}
 		if (prices.contribution) {
 			lines.push({
 				id: 'aporte',
-				label: `💜 Incluye ${formatARS(prices.contribution)} de aporte al Fondo KinkyVibe`,
+				label: `💜 Incluye ${formatARS(prices.contribution)} de aporte al Fondo Kinky Vibe`,
 				note: true
 			});
 		}

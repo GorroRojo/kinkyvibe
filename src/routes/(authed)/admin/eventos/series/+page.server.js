@@ -1,42 +1,43 @@
 /**
- * Eventos → Series (interruptor `series`): las series (etiquetas hijas de «evento recurrente»)
- * con sus ediciones y cuántas personas pidieron aviso. Solo admins (sin sesión, al login; sin
- * permiso, 403); con el interruptor apagado, 404. Los mails de quienes piden aviso nunca salen de
+ * Eventos → Series: las series (etiquetas hijas de «evento recurrente») con sus ediciones y
+ * cuántas personas pidieron aviso. Solo admins (sin sesión, al login; sin permiso, 403). Los mails de quienes piden aviso nunca salen de
  * la base: acá solo se cuentan. Las ediciones se bajan en CSV (ediciones.csv).
  *
- * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente», con imagen
- * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
+ * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente» o, con `parent`,
+ * de otra serie (serie hija: una edición especial, como «Picantearla: Deluxe»), con ícono, imagen (de
+ * src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
  * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
- * /admin/etiquetas: un commit al archivo de etiquetas (planTagEdit / commitTagEdit) o, con el
- * interruptor `etiquetas_db`, en la base al momento (src/lib/server/etiquetas/panel.js; renombrar
- * en las publicaciones, además, un commit). Renombrar pide confirmar después de ver cuántas
- * publicaciones cambian.
+ * /admin/etiquetas: en la base al momento (src/lib/server/etiquetas/panel.js). Renombrar sin alias
+ * también cambia las publicaciones que la usan, solo en la base: nada de esta página lee ni
+ * escribe GitHub ni el archivo de etiquetas (`dbRepoAccess`). Renombrar pide confirmar después de ver
+ * cuántas publicaciones cambian.
  */
 import { fail } from '@sveltejs/kit';
 import { isAdmin, requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import { logAdminAction } from '$lib/server/admin/audit.js';
-import { TAGS_PATH, commitTagEdit, planTagEdit } from '$lib/server/admin/tagEditor.js';
-import { assetNames, getEventAdmin, getRepoClient } from '$lib/server/eventos';
-import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
+import { assetNames } from '$lib/server/eventos';
 import { allSeries, tagExists } from '$lib/server/series/index.js';
 import { subscriberCounts } from '$lib/server/series/subscriptions.js';
-import { requireSeries } from '$lib/server/series/web.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
+import { SERIES_PARENT, seriesParentOf, seriesTagIds } from '$lib/utils/series.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
-// La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
-import bundledSource from '$lib/utils/hardcodedTags.js?raw';
+import { findImage, linkImage, seriesImages } from '$lib/server/media/library.js';
+import { targetObjectId } from '$lib/server/media/targets.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
+import {
+	NEEDS_IMPORT,
+	dbRepoAccess,
+	dbTagsForAdmin,
+	previewDbTagEdit,
+	saveDbTagEdit
+} from '$lib/server/etiquetas/panel.js';
 
-const NO_PERMISSION =
-	'No tenés permiso para editar etiquetas. Probá cerrar sesión y volver a entrar.';
+const NO_PERMISSION = 'No tenés permiso para editar etiquetas. Probá salir y volver a entrar.';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
 	const login = requireAdmin(locals, url).login;
-	await requireSeries(platform);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	/** @type {Map<string, { confirmed: number, pending: number }>} */
@@ -48,19 +49,33 @@ export async function load({ locals, url, platform, setHeaders }) {
 			logDBError('series: suscripciones', error);
 		}
 	}
-	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
+	// El árbol de etiquetas en uso (la base).
 	const tags = await siteTagManager(platform);
 	const series = await allSeries({ tags, platform });
 	const dbMode = Boolean(await dbTagsForAdmin(platform, login));
-	const canCreate = dbMode || Boolean(getEventAdmin(locals));
+	const canCreate = dbMode;
 	const upcomingSlugs = new Set(series.flatMap((s) => s.upcoming.map((e) => e.slug)));
+	const ids = seriesTagIds(tags);
+	// La imagen de la biblioteca de cada serie (edge `imagen`, docs/imagenes.md).
+	/** @type {Map<string, import('$lib/server/media/library.js').PublicImage>} */
+	let library = new Map();
+	if (db) {
+		try {
+			library = await seriesImages(db, { role: 'admin', id: login });
+		} catch (error) {
+			logDBError('series: imágenes', error);
+		}
+	}
 	return {
 		series: series.map((s) => ({
 			id: s.id,
 			name: s.name,
+			// La serie madre, si es una serie hija (una edición especial).
+			parent: seriesParentOf(tags, s.id, ids),
 			icon: s.icon,
 			href: s.href,
 			image: s.image ?? null,
+			libraryImage: library.get(s.id) ?? null,
 			description: s.description,
 			total: s.editions.length,
 			upcoming: s.upcoming.length,
@@ -81,32 +96,39 @@ export async function load({ locals, url, platform, setHeaders }) {
 	};
 }
 
-/** @param {unknown} e */
-const describe = (e) => (e instanceof Error ? e.message : String(e));
-
 /** @type {import('./$types').Actions} */
 export const actions = {
 	crear: async ({ locals, request, platform }) => {
-		if (!(await seriesEnabled(platform))) return fail(404, { error: 'Not found' });
 		const data = await request.formData();
 		const input = {
 			name: data.get('name'),
 			image: data.get('image'),
-			description: data.get('description')
+			description: data.get('description'),
+			icon: data.get('icon'),
+			parent: data.get('parent')
 		};
 		const tags = await siteTagManager(platform);
-		const planned = seriesCreateOps(input, { exists: (n) => tagExists(n, tags) });
+		const planned = seriesCreateOps(input, {
+			exists: (n) => tagExists(n, tags),
+			seriesIds: seriesTagIds(tags)
+		});
 		if (!planned.ok) return fail(400, { error: planned.error, values: textValues(input) });
 		const res = await saveSeriesOps(locals, platform, planned.ops, {
 			name: planned.name,
-			summary: `crear «${planned.name}»`
+			summary:
+				planned.parent === SERIES_PARENT
+					? `crear «${planned.name}»`
+					: `crear «${planned.name}» dentro de «${planned.parent}»`
 		});
 		if (!res.ok) return fail(res.status, { error: res.error, values: textValues(input) });
-		return { created: { name: planned.name, ...res.saved } };
+		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		return {
+			created: { name: planned.name, ...res.saved },
+			...(imageWarning ? { warning: imageWarning } : {})
+		};
 	},
 
 	editar: async ({ locals, request, platform }) => {
-		if (!(await seriesEnabled(platform))) return fail(404, { error: 'Not found' });
 		const data = await request.formData();
 		const id = String(data.get('id') ?? '');
 		const keepAlias = data.get('keepAlias') === '1';
@@ -153,7 +175,11 @@ export const actions = {
 				: `editar «${planned.name}»`
 		});
 		if (!res.ok) return fail(res.status, { editing: id, error: res.error, values });
-		return { edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved } };
+		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		return {
+			edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved },
+			...(imageWarning ? { warning: imageWarning } : {})
+		};
 	}
 };
 
@@ -179,19 +205,8 @@ function editValues(tags, id) {
 }
 
 /**
- * Con qué hacer el commit de las publicaciones, o null si no se puede.
- * @param {App.Locals} locals
- * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
- */
-async function repoAccess(locals) {
-	const admin = getEventAdmin(locals);
-	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
-}
-
-/**
- * Cuántas publicaciones cambian al renombrar (lo que se muestra antes de confirmar): con la base,
- * las del renombre sin alias (con alias, ninguna); con el archivo, las del commit (menos el
- * archivo de etiquetas).
+ * Cuántas publicaciones cambian al renombrar (lo que se muestra antes de confirmar): las del
+ * renombre sin alias (con alias, ninguna).
  *
  * @param {App.Locals} locals
  * @param {App.Platform | undefined} platform
@@ -202,77 +217,72 @@ async function renamedPosts(locals, platform, ops) {
 	if (!locals.user || !isAdmin(locals.user))
 		return { ok: false, status: 403, error: NO_PERMISSION };
 	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
-	if (fromDb) {
-		const res = await previewDbTagEdit(fromDb, ops, await repoAccess(locals));
-		if (!res.ok) return res;
-		return { ok: true, posts: res.preview.posts?.total ?? 0, db: true };
-	}
-	const admin = getEventAdmin(locals);
-	if (!admin) return { ok: false, status: 403, error: NO_PERMISSION };
-	try {
-		const plan = await planTagEdit(await getRepoClient(), admin.token, ops, bundledSource);
-		return { ok: true, posts: plan.files.filter((f) => f.path !== TAGS_PATH).length, db: false };
-	} catch (e) {
-		return { ok: false, status: 400, error: describe(e) };
-	}
+	if (!fromDb) return { ok: false, status: 503, error: NEEDS_IMPORT };
+	const res = await previewDbTagEdit(fromDb, ops, await dbRepoAccess(locals));
+	if (!res.ok) return res;
+	return { ok: true, posts: res.preview.posts?.total ?? 0, db: true };
 }
 
 /**
- * Guarda operaciones de series: en la base (interruptor `etiquetas_db`) o con un commit al archivo.
+ * Guarda operaciones de series en la base.
  *
  * @param {App.Locals} locals
  * @param {App.Platform | undefined} platform
  * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
- * @param {{ name: string, summary: string }} what
+ * @param {{ name: string, summary?: string }} what
  * @returns {Promise<{ ok: true, saved: { db: boolean, commit: string | null, publish: any, posts?: number } } | { ok: false, status: number, error: string }>}
  */
-async function saveSeriesOps(locals, platform, ops, { name, summary }) {
+async function saveSeriesOps(locals, platform, ops, { name }) {
 	if (!locals.user || !isAdmin(locals.user))
 		return { ok: false, status: 403, error: NO_PERMISSION };
 	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
-	if (fromDb) {
-		// Renombrar sin alias: también un commit que cambia las publicaciones (saveDbTagEdit).
-		const res = await saveDbTagEdit(fromDb, ops, {
-			locals,
-			login: locals.user.login,
-			label: 'Series',
-			targetId: name.slice(0, 120),
-			repo: await repoAccess(locals)
-		});
-		if (!res.ok) return res;
-		return {
-			ok: true,
-			saved: { db: true, commit: res.commit, publish: res.publish, posts: res.posts }
-		};
-	}
-	const admin = getEventAdmin(locals);
-	if (!admin) return { ok: false, status: 403, error: NO_PERMISSION };
-	const client = await getRepoClient();
-	let plan;
+	if (!fromDb) return { ok: false, status: 503, error: NEEDS_IMPORT };
+	// Renombrar sin alias: también cambia las publicaciones (saveDbTagEdit).
+	const res = await saveDbTagEdit(fromDb, ops, {
+		locals,
+		login: locals.user.login,
+		label: 'Series',
+		targetId: name.slice(0, 120),
+		repo: await dbRepoAccess(locals)
+	});
+	if (!res.ok) return res;
+	return {
+		ok: true,
+		saved: { db: true, commit: res.commit, publish: res.publish, posts: res.posts }
+	};
+}
+
+/**
+ * La imagen elegida en el selector (docs/imagenes.md): un edge `imagen` de la etiqueta de la
+ * serie, después de guardar la etiqueta. Devuelve un aviso si no se pudo (la serie ya se guardó).
+ *
+ * @param {App.Locals} locals
+ * @param {App.Platform | undefined} platform
+ * @param {string} name el nombre de la etiqueta (ya guardada)
+ * @param {FormData} data
+ * @returns {Promise<string | null>}
+ */
+async function saveSeriesImage(locals, platform, name, data) {
+	const choice = readImageChoice(data.get('imageId'));
+	if (choice.action === 'keep') return null;
+	const db = getDB(platform);
+	const login = locals.user?.login;
+	if (!db || !login || !locals.user || !isAdmin(locals.user)) return null;
+	const failed = 'La serie se guardó, pero no se pudo cambiar su imagen. Probá de nuevo.';
 	try {
-		plan = await planTagEdit(client, admin.token, ops, bundledSource);
-	} catch (e) {
-		return { ok: false, status: 400, error: describe(e) };
-	}
-	try {
-		const commit = await commitTagEdit(client, admin.token, plan, admin.name);
-		await logAdminAction(getDB(platform), locals, {
-			action: 'tags.edit',
-			targetType: 'tags',
-			targetId: name.slice(0, 120),
-			summary: `Series: ${summary}`,
-			detail: { commit: commit.url, files: plan.files.map((f) => f.path) }
-		});
-		return { ok: true, saved: { db: false, commit: commit.url, publish: commit.pr ?? null } };
-	} catch (e) {
-		if (e instanceof FileChangedError)
-			return {
-				ok: false,
-				status: 409,
-				error: `${e.path} cambió en GitHub mientras tanto. Probá de nuevo.`
-			};
-		if (e instanceof PendingChangeError) return { ok: false, status: 409, error: e.message + '.' };
-		return { ok: false, status: 502, error: 'No se pudo guardar: ' + describe(e) };
+		const id = await targetObjectId(db, { type: 'etiqueta', slug: name });
+		if (!id) return failed;
+		let imageId = null;
+		if (choice.action === 'set') {
+			const image = await findImage(db, choice.id, { role: 'admin', id: login });
+			if (!image) return 'La serie se guardó, pero la imagen elegida ya no está en la biblioteca.';
+			imageId = image.id;
+		}
+		await linkImage(db, id, 'imagen', imageId, { actor: login });
+		return null;
+	} catch (error) {
+		logDBError('series: imagen', error);
+		return failed;
 	}
 }
 

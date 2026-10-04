@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel que
 	 * todavía no se deshicieron, cada una con «Recuperar» (POST `?/recuperar` con su `id`).
@@ -27,12 +27,6 @@
 		calendario: 'Evento',
 		material: 'Material',
 		amigues: 'Amigues'
-	});
-	const whenFmt = argFormat({
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
 	});
 </script>
 
@@ -65,8 +59,7 @@
 							<div class="what">
 								<b>{r.title}</b>
 								<small class="muted"
-									>{KIND[r.kind] ?? r.kind} · <code>{r.slug}</code> · {whenFmt.format(r.deletedAt)} por
-									@{r.deletedBy}{r.mediaCount
+									>{KIND[r.kind] ?? r.kind} · <code>{r.slug}</code> · {argDateLog(r.deletedAt)} por @{r.deletedBy}{r.mediaCount
 										? ` · ${r.mediaCount} ${r.mediaCount === 1 ? 'imagen' : 'imágenes'}`
 										: ''}</small
 								>
@@ -99,7 +92,7 @@
 	.recover {
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		margin-bottom: 1rem;
 	}
 	.list {
@@ -112,8 +105,8 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 0.5rem 1rem;
-		padding: 0.6rem 0;
+		gap: var(--space-2xs) var(--space-xs);
+		padding: var(--space-2xs) 0;
 		border-bottom: 1px solid var(--line);
 	}
 	li:last-child {

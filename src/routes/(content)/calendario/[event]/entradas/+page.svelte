@@ -1,4 +1,5 @@
 <script>
+	import { argDateTimeLong } from '$lib/utils/dates.js';
 	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { doorText } from '$lib/utils/tickets.js';
@@ -17,16 +18,7 @@
 		currentPostData.set({ category: 'calendario', path: $page.url.pathname });
 	});
 
-	let when = $derived(
-		data.meta.start
-			? new Date(data.meta.start).toLocaleString('es-AR', {
-					dateStyle: 'full',
-					timeStyle: 'short',
-					hourCycle: 'h23',
-					timeZone: 'America/Argentina/Buenos_Aires'
-				}) + ' hs'
-			: ''
-	);
+	let when = $derived(data.meta.start ? argDateTimeLong(data.meta.start) : '');
 	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
 	let where = $derived(
 		data.tickets.online
@@ -38,12 +30,12 @@
 </script>
 
 <svelte:head>
-	<title>Entradas · {data.meta.title} - KinkyVibe.ar</title>
+	<title>Entradas · {data.meta.title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <div class="purchase-page">
-	<p class="back"><a href={data.path}>← Volver al evento</a></p>
+	<p class="back"><a class="tap-target" href={data.path}>← Volver al evento</a></p>
 	<header class="event-mini">
 		{#if data.meta.featured}
 			<img src={data.meta.featured + ''} alt="" width="96" height="96" />
@@ -58,7 +50,12 @@
 		<p class="door">{doorText(data.tickets.door)}</p>
 	{/if}
 
-	<TicketPurchase tickets={data.tickets} result={form?.buy} account={data.account} />
+	<TicketPurchase
+		tickets={data.tickets}
+		result={form?.buy}
+		account={data.account}
+		slug={$page.params.event}
+	/>
 </div>
 
 <style>
@@ -66,7 +63,7 @@
 	.purchase-page {
 		max-width: 62rem;
 		margin: 0 auto;
-		padding: 0 16px 3em;
+		padding: 0 var(--space-xs) 3em;
 	}
 	.back {
 		margin: 1em 0 0.5em;
@@ -77,7 +74,7 @@
 		gap: 0.9em;
 		align-items: center;
 		padding: 0.7em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: var(--2-dark);
 		color: white;
 	}
@@ -85,7 +82,7 @@
 		width: 5.5em;
 		height: 5.5em;
 		object-fit: cover;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		flex-shrink: 0;
 	}
 	.event-mini > div {

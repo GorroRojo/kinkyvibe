@@ -6,6 +6,7 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
+import { runAnalyticsRollup } from './analytics/report.js';
 import {
 	checkObjectsIntegrity,
 	hasObjectsSchema,
@@ -25,7 +26,9 @@ export const DEFAULT_ORIGIN = 'https://kinkyvibe.ar';
  *   DB?: import('@cloudflare/workers-types').D1Database,
  *   BACKUPS?: import('@cloudflare/workers-types').R2Bucket,
  *   CRON_SECRET?: string,
- *   SITE_URL?: string
+ *   SITE_URL?: string,
+ *   CF_ACCOUNT_ID?: string,
+ *   CF_ANALYTICS_TOKEN?: string
  * }} ScheduledEnv
  */
 
@@ -38,7 +41,7 @@ export const DEFAULT_ORIGIN = 'https://kinkyvibe.ar';
  */
 
 /**
- * Recordatorios: el mismo pedido que antes hacía el Worker aparte de workers/cron/, pero sin
+ * Recordatorios: el mismo pedido que antes hacía el Worker aparte `kinkyvibe-cron`, pero sin
  * salir a internet: se le pasa directo al fetch de SvelteKit. Así sigue corriendo exactamente
  * `POST /api/cron/recordatorios` (con su control de CRON_SECRET), sin duplicar su lógica.
  *
@@ -138,10 +141,12 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
 		case BACKUP_CRON: {
-			// Primero el backup (si falla, la corrida falla). El chequeo después, y nunca la hace
-			// fallar: lo que encuentra queda en "Para revisar".
+			// Primero el backup (si falla, la corrida falla). El chequeo y el resumen mensual de las
+			// visitas después, y nunca la hacen fallar: lo que encuentra el chequeo queda en "Para
+			// revisar"; el resumen, en `analytics_monthly` (meses de Argentina, docs/analiticas.md).
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
 			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
+			await runAnalyticsRollup(env, { now: new Date(controller.scheduledTime) });
 			return backup;
 		}
 		default:

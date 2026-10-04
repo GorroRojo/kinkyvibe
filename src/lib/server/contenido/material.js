@@ -2,9 +2,11 @@
  * Material: del frontmatter de un .md de material a un objeto `material` y de vuelta. Es el mismo
  * patrón que los eventos (./eventos.js): funciones puras, el mapa único entre los dos mundos.
  *
- * Los posts que usan un componente interactivo de Svelte (`<HumanBody … />`) no se importan: en la
- * base no se puede correr código (decisión 0004: los interactivos son componentes registrados en
- * código, un paso aparte). Siguen saliendo de su .md.
+ * Los interactivos (decisión 0004) se guardan como etiquetas del registro
+ * (`<kv-donde-golpear-un-cuerpo></kv-donde-golpear-un-cuerpo>`, ../../utils/interactivos.js): la
+ * forma de los .md (el componente importado en su `<script>`) se convierte al importar. Un post
+ * que usa un componente de Svelte que no está registrado no se importa (en la base no se puede
+ * correr código).
  *
  * Solo imports relativos.
  */
@@ -15,7 +17,9 @@ import {
 	personasFromData,
 	personasToMd
 } from '../../utils/personasList.js';
+import { toRegisteredTags } from '../../utils/interactivos.js';
 import { freeHtmlNotes, normalizeBody } from './eventos.js';
+import { stripHtmlComments } from '../../utils/htmlStrip.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
 
@@ -56,6 +60,15 @@ const isEmpty = (v) =>
 const COMPONENT = /<[A-Z][A-Za-z0-9]*[\s/>]/;
 
 /**
+ * ¿El texto usa un componente de Svelte que no es un interactivo registrado? Lo que está dentro
+ * de un comentario HTML no cuenta (no se muestra: `juego-de-peleas` tiene uno comentado).
+ * @param {string} text el texto ya con las etiquetas del registro
+ */
+export function usesUnregisteredComponent(text) {
+	return COMPONENT.test(stripHtmlComments(text));
+}
+
+/**
  * Convierte la metadata de un post de material (la que da mdsvex) y su cuerpo en lo que se
  * guarda. Mapa: `title` → título; `force_unlisted: true` → `unlisted`; `force_unpublished: true` →
  * visibilidad oculta; `tags` → lista; `authors` y `personas` → la lista única `personas`
@@ -85,7 +98,7 @@ export function mdToMaterial(legacySlug, meta, body) {
 	warnings.push(...people.warnings);
 	if (isTrue(meta.force_unlisted)) data.unlisted = true;
 	if (isTrue(meta.redirect)) data.redirect = true;
-	const text = normalizeBody(body);
+	const text = normalizeBody(toRegisteredTags(body));
 	if (text) data.body = text;
 
 	/** @type {Record<string, unknown>} */
@@ -104,10 +117,10 @@ export function mdToMaterial(legacySlug, meta, body) {
 		visibility: isTrue(meta.force_unpublished) ? 'hidden' : 'public',
 		warnings,
 		notes: freeHtmlNotes(text),
-		...(COMPONENT.test(text)
+		...(usesUnregisteredComponent(text)
 			? {
 					error:
-						'Usa un componente interactivo: en la base todavía no se puede mostrar. Sigue saliendo de su .md.'
+						'Usa un componente de Svelte que no es un interactivo registrado: en la base no se puede mostrar (ver src/lib/utils/interactivos.js).'
 				}
 			: {})
 	};

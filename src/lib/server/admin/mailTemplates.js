@@ -5,6 +5,7 @@
 import { env } from '$env/dynamic/private';
 import { contactEmail, emailSettings } from '$lib/server/tickets/index.js';
 import { parseAllowlist } from '$lib/server/tickets/emailGuard.js';
+import { TEMPLATE_KEYS, TEMPLATE_LIMITS } from '$lib/utils/emailTemplates.js';
 
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
 
@@ -56,5 +57,22 @@ export async function testRecipients({ db, token, fetch: fetchFn }) {
 	add((await emailSettings(db)).replyTo, 'dirección de respuesta de los mails');
 	add(contactEmail(), 'contacto de la organización');
 	for (const a of parseAllowlist(env.EMAIL_ALLOWLIST)) add(a, 'lista de mails permitidos');
+	return out;
+}
+
+/**
+ * Las partes de una plantilla mandadas por el editor (FormData del formulario o el JSON de la
+ * vista previa), recortadas a un poco más del máximo de cada una (`validateTemplate` avisa).
+ *
+ * @param {FormData | Record<string, unknown>} source
+ */
+export function templateInput(source) {
+	/** @param {string} k */
+	const raw = (k) => (source instanceof FormData ? source.get(k) : source?.[k]);
+	/** @type {Record<string, string>} */
+	const out = {};
+	for (const k of TEMPLATE_KEYS) {
+		out[k] = String(raw(k) ?? '').slice(0, TEMPLATE_LIMITS[k] + 100);
+	}
 	return out;
 }

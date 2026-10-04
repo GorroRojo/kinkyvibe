@@ -40,6 +40,20 @@ export function shortDate(start) {
 	return p ? `${p.weekday} ${p.day} ${p.month} ${p.year}` : '';
 }
 
+/**
+ * Fecha y hora para una lista: "vie 2 oct · 22:00" (sin hora: "vie 2 oct"). El año va solo si no
+ * es el de `today` ("vie 3 oct 2025 · 22:00"), para no confundir ediciones de años distintos.
+ * @param {string} start formato del sitio
+ * @param {string} [today] YYYY-MM-DD (el día de hoy en Argentina)
+ */
+export function listDate(start, today = '') {
+	const p = dateParts(start);
+	if (!p) return '';
+	const year = today && String(p.year) !== today.slice(0, 4) ? ` ${p.year}` : '';
+	const time = parseEventDate(start).time;
+	return `${p.weekday} ${p.day} ${p.month}${year}${time ? ` · ${time}` : ''}`;
+}
+
 /** `status` del frontmatter → texto y tono del chip. */
 export const STATUS_BADGES =
 	/** @type {Record<string, { label: string, tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }>} */ ({

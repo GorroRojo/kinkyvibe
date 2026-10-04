@@ -1,16 +1,18 @@
 /**
- * Lugares → «Importar de eventos»: lee el «Dónde» de todos los eventos (los .md, o la base con
- * `contenido_db` prendido: los mismos lectores que el sitio, `sitePosts`), arma los candidatos a
+ * Lugares → «Importar de eventos»: lee el «Dónde» de todos los eventos (de la base, con los
+ * mismos lectores que el sitio, `sitePosts`), arma los candidatos a
  * lugar (reglas puras en src/lib/utils/venueImport.js) y crea los elegidos.
  *
  * Escribe solo con los caminos de siempre:
  * - el lugar nuevo, con saveObject() (perfil de tipo lugar, visible y aprobado como los que crea
- *   une admin), y en la MISMA tanda su aprobación y los vínculos de sus eventos. Nace **no
+ *   une admin), y en la MISMA tanda su aprobación; después, los vínculos de sus eventos. Nace **no
  *   listado** (`data.unlisted`: no aparece en /amigues) salvo que le admin elija «Públicos»
  *   (decisión de gorrite); eso no cambia lo que muestran sus eventos, que sigue su nivel de
  *   privacidad;
- * - «sucede en» es una fila de `event_venues` (docs/amigues.md): vincular un evento NO toca su .md
- *   ni su objeto en la base, así que no hace falta commit ni PR;
+ * - «sucede en» es el edge `lugar` del evento en la base (docs/amigues.md), escrito con
+ *   saveObject() sobre cada evento (`linkEventVenueIfFree`): vincular un evento NO toca su .md ni
+ *   sus datos, así que no hace falta commit ni PR. Un evento que todavía no está en la base no se
+ *   vincula (no figura en `links`);
  * - nunca pisa el lugar de un evento que ya tiene uno (solo si su lugar está borrado).
  *
  * De a tandas ({@link runVenueImport} con `budget`): D1 tiene un máximo de consultas por pedido,
@@ -30,7 +32,7 @@ import {
 	venueListing
 } from '$lib/utils/venueImport.js';
 import { approveNewStatement } from './approvals.js';
-import { isEventSlug, listEventVenues, listVenues } from './venues.js';
+import { isEventSlug, linkEventVenueIfFree, listEventVenues, listVenues } from './venues.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -124,30 +126,29 @@ export function readVenueChoices(form) {
 }
 
 /**
- * Vincula un evento a un lugar dentro de una tanda. Nunca pisa un vínculo vigente: solo uno a un
- * lugar borrado. `venue` es el id o el lugar recién creado en la misma tanda (por su slug).
+ * Vincula los eventos a un lugar, uno por uno (cada uno es un guardado del evento). Nunca pisa un
+ * vínculo vigente: solo uno a un lugar borrado. Devuelve los que vinculó.
  *
  * @param {D1Database} db
- * @param {{ slug: string, privacy: VenuePrivacy | null }} link
- * @param {{ id: number } | { slug: string }} venue
+ * @param {{ slug: string, privacy: VenuePrivacy | null }[]} links
+ * @param {number} venueId
  * @param {string} by
  * @param {number} now
- * @returns {D1PreparedStatement}
  */
-function linkStatement(db, link, venue, by, now) {
-	const target =
-		'id' in venue
-			? { where: 'id = ?5 AND deleted_at IS NULL', value: venue.id }
-			: { where: 'slug = ?5', value: venue.slug };
-	return db
-		.prepare(
-			`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-			SELECT ?1, id, ?2, ?3, ?4, ?3, ?4 FROM objects WHERE type = ?6 AND ${target.where}
-			ON CONFLICT (event_slug) DO UPDATE SET venue_id = excluded.venue_id,
-				privacy = excluded.privacy, updated_at = excluded.updated_at, updated_by = excluded.updated_by
-			WHERE event_venues.venue_id IN (SELECT id FROM objects WHERE deleted_at IS NOT NULL)`
-		)
-		.bind(link.slug, link.privacy, now, by, target.value, PROFILE_TYPE);
+async function linkEvents(db, links, venueId, by, now) {
+	/** @type {{ slug: string, privacy: VenuePrivacy | null }[]} */
+	const done = [];
+	for (const l of links) {
+		const ok = await linkEventVenueIfFree(db, {
+			eventSlug: l.slug,
+			venueId,
+			privacy: l.privacy,
+			by,
+			now
+		});
+		if (ok) done.push(l);
+	}
+	return done;
 }
 
 /**
@@ -194,7 +195,8 @@ export async function runVenueImport(
 	let spent = 0;
 	for (const { choice, candidate } of todo) {
 		const c = /** @type {VenueCandidate} */ (candidate);
-		const cost = (c.existing ? 1 : 5) + choice.events.length;
+		// Cada evento: leerlo, el lugar y su guardado (saveObject: ~6 sentencias).
+		const cost = (c.existing ? 1 : 5) + 8 * choice.events.length;
 		if (results.length && spent + cost > budget) break;
 		spent += cost;
 		try {
@@ -245,10 +247,7 @@ async function createVenue(db, c, choice, { actor, now }) {
 				{
 					actor,
 					now,
-					also: (self) => [
-						approveNewStatement(db, self, actor, now),
-						...links.map((l) => linkStatement(db, l, { slug: self.slug }, actor, now))
-					]
+					also: (self) => [approveNewStatement(db, self, actor, now)]
 				}
 			);
 			return {
@@ -259,7 +258,7 @@ async function createVenue(db, c, choice, { actor, now }) {
 				slug: saved.slug,
 				venuePrivacy,
 				listing,
-				links
+				links: await linkEvents(db, links, saved.id, actor, now)
 			};
 		} catch (e) {
 			if (e instanceof ObjectError && e.code === 'slug_taken') continue;
@@ -284,8 +283,6 @@ async function linkToExisting(db, plan, c, choice, { actor, now }) {
 		venue && isVenuePrivacy(venue.data.venue_privacy) ? venue.data.venue_privacy : null;
 	// El nivel del lugar no cambia: cada evento lleva el suyo si es distinto.
 	const { links } = importLinks(c, choice.events, effectivePrivacy(null, current));
-	if (links.length) {
-		await db.batch(links.map((l) => linkStatement(db, l, { id: existing.id }, actor, now)));
-	}
-	return { key: c.key, action: 'linked', venueId: existing.id, title: existing.title, links };
+	const done = await linkEvents(db, links, existing.id, actor, now);
+	return { key: c.key, action: 'linked', venueId: existing.id, title: existing.title, links: done };
 }

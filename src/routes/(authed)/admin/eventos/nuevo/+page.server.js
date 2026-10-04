@@ -16,17 +16,9 @@ import {
 	PathExistsError,
 	PendingChangeError
 } from '$lib/server/eventos/github.js';
-import {
-	findAssetUsers,
-	readUploadedImage,
-	sharedAssetCommit
-} from '$lib/server/eventos/images.js';
-import {
-	isSafeAssetName,
-	isSharedAsset,
-	replacementAssetName,
-	uploadScope
-} from '$lib/utils/sharedImage.js';
+import { findImage, imageOf } from '$lib/server/media/library.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
+import { resolveEventSlug } from '$lib/server/contenido/posts.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
@@ -34,19 +26,15 @@ import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { linkFileErrors } from '$lib/utils/eventLink.js';
 import { transferReady } from '$lib/server/tickets/index.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb, saveCopy } from '$lib/admin/saveCopy.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
-import { planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { seriesTagIds } from '$lib/utils/series.js';
 import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
 import { addTagToPost } from '$lib/utils/tagConfig.js';
-import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
+import { NEEDS_IMPORT, dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
-// La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
-import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
 import {
 	checkVenueChoice,
@@ -61,7 +49,6 @@ import { duplicableEvents } from '$lib/server/eventos/drafts.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import {
-	MAX_IMAGE_BYTES,
 	NEW_EVENT_TEMPLATE,
 	applyFrontmatterChanges,
 	isNumericFeatured,
@@ -73,7 +60,7 @@ import {
 } from '$lib/utils/eventDraft.js';
 
 const NO_PERMISSION =
-	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
@@ -101,11 +88,11 @@ export async function load({ locals, url, platform }) {
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
 	const desde = url.searchParams.get('desde');
-	/** @type {null | {slug: string, raw: string, title: string, featured: string, featuredUrl?: string}} */
+	/** @type {null | {slug: string, raw: string, title: string, featured: string, featuredUrl?: string, image: import('$lib/server/media/library.js').PublicImage | null}} */
 	let source = null;
 	/** @type {ReturnType<typeof seriesPromptFor>} */
 	let seriesPrompt = null;
-	// Interruptor `contenido_db`: el evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
+	// El evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
 	const savesToDb = await panelSavesToDb(platform, 'calendario');
 	if (desde) {
 		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
@@ -128,23 +115,25 @@ export async function load({ locals, url, platform }) {
 				)}). Probá duplicar otro evento o crear uno desde cero.`
 			);
 		}
+		// La imagen de la biblioteca del original (edge `portada`), si tiene; si no, la del repo.
+		const image = await sourceImage(getDB(platform), locals, desde);
 		source = {
 			slug: desde,
 			raw,
 			title: fields.title,
 			featured: fields.featured,
-			featuredUrl: featuredURL(desde, fields.featured)
+			featuredUrl: image ? image.url : featuredURL(desde, fields.featured),
+			image
 		};
-		// Interruptor `series`: si el original no está en una serie, «¿Es parte de una serie?».
-		if (await seriesEnabled(platform))
-			seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
+		// Si el original no está en una serie, «¿Es parte de una serie?».
+		seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
 	return {
 		source,
 		seriesPrompt,
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
-		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		// Personas con rol: roles y perfiles públicos (sin base, null).
 		personas: await editorPersonas(platform),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
@@ -152,15 +141,37 @@ export async function load({ locals, url, platform }) {
 		prefill: readNewEventPrefill(url.searchParams),
 		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
 		duplicables: source ? [] : await duplicableEvents(),
-		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (en `event_venues`).
+		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
 		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
 		transferReady: await transferReady(getDB(platform)),
 		takenSlugs: takenSlugsInBundle(),
-		maxImageBytes: MAX_IMAGE_BYTES,
 		savesToDb,
 		mock: isMockMode()
 	};
+}
+
+/** @param {App.Locals} locals */
+const adminViewer = (locals) =>
+	/** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
+		role: 'admin',
+		id: locals.user?.login ?? 'panel'
+	});
+
+/**
+ * La imagen de la biblioteca de un evento (edge `portada`), o null.
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {App.Locals} locals
+ * @param {string} slug
+ */
+async function sourceImage(db, locals, slug) {
+	if (!db) return null;
+	try {
+		const ref = await resolveEventSlug(db, slug);
+		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -198,20 +209,11 @@ export const actions = {
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const data = await request.formData();
 		const slug = String(data.get('slug') ?? '').trim();
-		// Set when the new image replaces a shared one for every edition: the review step lists
-		// the events that will show it.
-		const sharedAsset = String(data.get('sharedAsset') ?? '').trim();
 		const invalid = validateSlug(slug);
 		if (invalid) return fail(400, { slugError: invalid });
 		const client = await getRepoClient();
 		try {
-			if (await slugIsFree(client, admin.token, slug)) {
-				const affected =
-					sharedAsset && isSafeAssetName(sharedAsset)
-						? await findAssetUsers(client, admin.token, sharedAsset)
-						: undefined;
-				return { slugOk: slug, affected };
-			}
+			if (await slugIsFree(client, admin.token, slug)) return { slugOk: slug };
 			return fail(409, {
 				slugError: 'Ya existe un evento con esa dirección.',
 				suggestion: await suggestFreeSlug(client, admin.token, slug)
@@ -242,42 +244,21 @@ export const actions = {
 
 		const client = await getRepoClient();
 
-		/* The uploaded image, and where it goes (see $lib/utils/sharedImage.js). */
-		/** @type {null | {ext: 'jpg'|'png'|'webp', base64: string}} */
-		let upload = null;
-		/** @type {'todas'|'esta'} */
-		let scope = 'esta';
-		let sharedName = '';
-		if (featuredMode === 'upload') {
-			const read = await readUploadedImage(data.get('image'));
-			if ('error' in read) return fail(400, { error: read.error });
-			upload = read;
-			if (source) {
-				// What the source event uses right now on GitHub, not what the form says.
-				let sourceRaw;
-				try {
-					sourceRaw = await client.getFile(admin.token, eventPath(source));
-				} catch (e) {
-					return fail(502, { error: 'No pudimos leer el evento original: ' + describeError(e) });
-				}
-				const sourceFeatured = sourceRaw
-					? readEventFields(splitMarkdown(sourceRaw).frontmatter).featured
-					: '';
-				const asked = String(data.get('imageScope') ?? '');
-				if (isSharedAsset(sourceFeatured)) {
-					if (asked !== 'todas' && asked !== 'esta')
-						return fail(400, {
-							error:
-								'¿La imagen nueva es para todas las ediciones de este evento o solo para esta? Elegí una opción.'
-						});
-					if (asked === 'todas' && !isSafeAssetName(sourceFeatured))
-						return fail(400, {
-							error: `La imagen compartida «${sourceFeatured}» tiene un nombre raro y no se puede reemplazar desde acá. Elegí «Solo esta».`
-						});
-				}
-				scope = uploadScope(sourceFeatured, asked);
-				sharedName = scope === 'todas' ? sourceFeatured.trim() : '';
-			}
+		/* La imagen (docs/imagenes.md): una de la biblioteca (edge `portada`), la del original o
+		   ninguna. */
+		/** @type {number[] | undefined} */
+		let portada;
+		if (featuredMode === 'library') {
+			const choice = readImageChoice(data.get('imageId'));
+			const db = getDB(platform);
+			const image =
+				choice.action === 'set' && db ? await findImage(db, choice.id, adminViewer(locals)) : null;
+			if (!image)
+				return fail(400, { error: 'La imagen elegida ya no está en la biblioteca. Elegí otra.' });
+			portada = [image.id];
+		} else if (featuredMode === 'keep' && source) {
+			const image = await sourceImage(getDB(platform), locals, source);
+			if (image) portada = [image.id];
 		}
 
 		// Validate the generated file and apply the listed/unlisted choice.
@@ -302,7 +283,7 @@ export const actions = {
 			// Link de inscripción: web, mail (mailto:) o página del sitio; nunca javascript:.
 			const linkErrors = linkFileErrors(String(data.get('content') ?? ''));
 			if (linkErrors.length) throw new Error(linkErrors.join(' '));
-			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			// Personas con rol: perfiles (o nombres) y roles válidos.
 			const roles = await activeRoles(platform);
 			const personasErrors = roles
 				? personasFileErrors(String(data.get('content') ?? ''), roles)
@@ -312,23 +293,23 @@ export const actions = {
 			const changes = {
 				force_unlisted: mode === 'borrador' ? true : fields.force_unlisted ? null : undefined
 			};
-			if (upload)
-				changes.featured = scope === 'todas' ? replacementAssetName(sharedName, upload.ext) : 1;
+			// Con una imagen de la biblioteca, la vieja del repo no hace falta.
+			if (featuredMode !== 'keep' || portada) changes.featured = null;
 			content = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), body);
 		} catch (e) {
 			return fail(400, { error: describeError(e) });
 		}
 
-		// «Lugar»: va a `event_venues` (no al archivo), recién cuando el evento se creó. Si el lugar
-		// ya no existe, no se crea nada.
+		// «Lugar»: va al edge `lugar` del evento en la base (no al archivo), recién cuando el evento
+		// se creó. Si el lugar ya no existe, no se crea nada.
 		const venue = readVenueChoice(data);
 		const venueCheck = await checkVenueChoice(getDB(platform), venue);
 		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
 
-		// «¿Es parte de una serie?» (solo al duplicar y con el interruptor `series` prendido).
+		// «¿Es parte de una serie?» (solo al duplicar).
 		/** @type {import('$lib/utils/seriesAdmin.js').SeriesChoice} */
 		let seriesChoice = { type: 'none' };
-		if (source && data.has('seriesChoice') && (await seriesEnabled(platform))) {
+		if (source && data.has('seriesChoice')) {
 			const read = readSeriesChoice(
 				{
 					choice: data.get('seriesChoice'),
@@ -354,17 +335,13 @@ export const actions = {
 		const warnings = [];
 		/** @type {string[]} */
 		const mustNotExist = [eventPath(slug), mediaPath(slug)];
-		/** @type {Array<{path: string, sha: string}>} */
-		let unchanged = [];
-		/** @type {import('$lib/utils/sharedImage.js').AffectedEvent[]} */
-		let affected = [];
 		/** @type {string[]} */
-		let deleted = [];
+		const deleted = [];
 
 		/** @type {Array<{path: string, sha: string}>} */
 		const seriesUnchanged = [];
-		// Con el interruptor `etiquetas_db`, la serie nueva se crea en la base (después del commit
-		// del evento), no en el archivo: el mismo camino que /admin/etiquetas.
+		// La serie nueva se crea en la base (después de guardar el evento): el mismo camino que
+		// /admin/etiquetas. Ya no hay commits al archivo de etiquetas.
 		/** @type {null | { fromDb: NonNullable<Awaited<ReturnType<typeof dbTagsForAdmin>>>, ops: import('$lib/utils/tagConfig.js').TagOp[] }} */
 		let seriesToDb = null;
 		try {
@@ -373,16 +350,9 @@ export const actions = {
 				const planned = seriesCreateOps({ name: seriesChoice.name });
 				if (!planned.ok) return fail(400, { error: planned.error });
 				const fromDb = await dbTagsForAdmin(platform, admin.login);
-				if (fromDb) {
-					planDbTagEdit(fromDb.records, planned.ops); // valida antes del commit (tira)
-					seriesToDb = { fromDb, ops: planned.ops };
-				} else {
-					const plan = await planTagEdit(client, admin.token, planned.ops, bundledTags);
-					for (const f of plan.files) {
-						files.push({ path: f.path, content: f.after });
-						if (f.sha) seriesUnchanged.push({ path: f.path, sha: f.sha });
-					}
-				}
+				if (!fromDb) return fail(503, { error: 'Serie: ' + NEEDS_IMPORT });
+				planDbTagEdit(fromDb.records, planned.ops); // valida antes de guardar (tira)
+				seriesToDb = { fromDb, ops: planned.ops };
 			}
 			if (seriesChoice.type !== 'none' && seriesChoice.markSource) {
 				const sourceRaw = await client.getFile(admin.token, eventPath(source));
@@ -397,21 +367,7 @@ export const actions = {
 		}
 
 		try {
-			if (upload && scope === 'todas') {
-				// Replace the shared image itself: every edition shows the new one.
-				const shared = await sharedAssetCommit(client, admin.token, {
-					oldName: sharedName,
-					ext: upload.ext,
-					base64: upload.base64
-				});
-				files.push(...shared.commitFiles);
-				deleted = shared.commitFiles.filter((f) => f.delete).map((f) => f.path);
-				mustNotExist.push(...shared.mustNotExist);
-				unchanged = shared.unchanged;
-				affected = shared.affected;
-			} else if (upload) {
-				files.push({ path: `${mediaPath(slug)}/1.${upload.ext}`, base64: upload.base64 });
-			} else if (featuredMode === 'keep' && source && isNumericFeatured(fields.featured)) {
+			if (!portada && featuredMode === 'keep' && source && isNumericFeatured(fields.featured)) {
 				// The image lives in the source event's media folder; copy it (GitHub reuses the
 				// existing blob, nothing is re-uploaded) so the new event is self-contained.
 				const list = await client.listDir(admin.token, mediaPath(source));
@@ -429,16 +385,15 @@ export const actions = {
 			const what = mode === 'borrador' ? 'cargó (no listado)' : 'publicó';
 			const message =
 				`[admin] ${admin.name} ${what} calendario/${slug}` +
-				(source ? ` (copia de ${source})` : '') +
-				(scope === 'todas'
-					? ` y cambió la imagen compartida ${sharedName} para todas las ediciones (${affected.length} eventos más)`
-					: '');
+				(source ? ` (copia de ${source})` : '');
 			const commit = await client.commitFiles(admin.token, {
 				files,
 				message,
 				mustNotExist,
-				unchanged: [...unchanged, ...seriesUnchanged],
-				// Interruptor `contenido_db`: el evento nuevo va a la base (con su autoría).
+				unchanged: seriesUnchanged,
+				// La imagen de la biblioteca, en el mismo guardado del evento.
+				...(portada ? { edges: { [eventPath(slug)]: { portada } } } : {}),
+				// El evento nuevo va a la base (con su autoría).
 				actor: admin.login,
 				pr: {
 					action: mode === 'borrador' ? 'carga (no listado)' : source ? 'duplica' : 'publica',
@@ -468,7 +423,7 @@ export const actions = {
 				detail: {
 					source: source || null,
 					commit: commit.url,
-					imageScope: upload ? scope : null,
+					image: portada ? portada[0] : null,
 					series: seriesChoice.type === 'none' ? null : seriesChoice
 				}
 			});
@@ -486,13 +441,11 @@ export const actions = {
 				venueSaved: venueSaved.ok && venueSaved.changed,
 				commitUrl: commit.url,
 				publish: commit.pr ?? null,
-				// Interruptor `contenido_db`: el evento se guardó en la base (ya se ve).
+				// El evento se guardó en la base (ya se ve).
 				savedToDb: commitSavedToDb(commit),
 				eventUrl: `/calendario/${slug}`,
 				files: files.filter((f) => !f.delete).map((f) => f.path),
 				deleted,
-				imageScope: upload ? scope : undefined,
-				affected,
 				series: seriesChoice.type === 'none' ? null : seriesChoice,
 				content,
 				warnings,
@@ -515,7 +468,7 @@ export const actions = {
 			}
 			const hint =
 				e instanceof GitHubError && (e.status === 401 || e.status === 403)
-					? ' Probá cerrar sesión y volver a entrar.'
+					? ' Probá salir y volver a entrar.'
 					: '';
 			const copy = saveCopy(await panelSavesToDb(platform, 'calendario').catch(() => false));
 			return fail(502, { error: copy.saveFailed + describeError(e) + hint });

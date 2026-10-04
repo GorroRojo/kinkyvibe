@@ -1,15 +1,27 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, isCurrent, monthHasPastEvents } from '$lib/utils/allPosts';
+	import {
+		fetchAllPostsClient,
+		isCurrent,
+		monthCountLabel,
+		monthHasPastEvents
+	} from '$lib/utils/allPosts';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
 	import { page } from '$app/stores';
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
-	import CardRow from '$lib/components/CardRow.svelte';
+	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
+	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor; los pasados que se
+	// cargan después vienen sin ella y se les vuelve a poner).
+	const partLabels = new Map(
+		calendarioPosts
+			.filter((p) => p.meta.parte)
+			.map((p) => [String(p.meta.postID), /** @type {{ n: number, m: number }} */ (p.meta.parte)])
+	);
 	// past events come with just what the calendar grid needs; the list only gets
 	// them once they've been loaded in full
 	let loadedPast = false;
@@ -19,7 +31,9 @@
 		loadedPast = true;
 		fetchAllPostsClient()
 			.then((posts) => {
-				calendarioPosts = posts.filter((p) => p.meta.layout == 'calendario');
+				calendarioPosts = posts
+					.filter((p) => p.meta.layout == 'calendario')
+					.map((p) => withPartLabel(p, partLabels));
 				fullPosts = true;
 			})
 			.catch(() => (loadedPast = false));
@@ -59,69 +73,80 @@
 	$: view_date = new Date(view_month + '-01T00:00');
 	// "Mostrar/Ocultar eventos pasados" only when this month has past events (gorrite's call)
 	$: month_has_past = monthHasPastEvents(calendarioPosts, view_month);
+	// En el celu primero la lista; la grilla del mes, si la piden (en la compu, siempre al lado).
+	let showGrid = false;
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar - Calendario</title>
+	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
 
-<div class="cardrow">
-	<CardRow
-		items={calendarioPosts
-			.filter((p) => !isPast(new Date(p.meta.start)))
-			.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
-		--color-1="transparent"
-		setId={false}
-	/>
-</div>
+<h1 class="page-title">Calendario</h1>
 
 <div id="container">
 	<div id="calendar">
 		<CalendarHeader {view_date} {default_month} />
-		<Calendar {view_date} let:date let:today let:past>
-			{@const events = days?.[date]}
-			{@const featuredEvent =
-				events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
-				events?.filter((e) => e.meta.featured)?.[0]}
-			{@const background = featuredEvent?.meta?.featured}
-			<button
-				class:today
-				class:past
-				disabled={!events}
-				style={background ? `--event-image: url("${background}");` : ''}
-				style:--evt-color={featuredEvent?.meta?.tags?.includes('KinkyVibe')
-					? 'var(--1)'
-					: 'var(--2)'}
-			>
-				<div class="date" class:today>
-					{Number(date.slice(8))}
+		<button
+			type="button"
+			class="pill-btn ghost small grid-toggle"
+			aria-expanded={showGrid}
+			aria-controls="month-grid"
+			on:click={() => (showGrid = !showGrid)}
+		>
+			{showGrid ? 'Ocultar la grilla del mes' : 'Ver el mes en grilla'}
+		</button>
+		<div class="month-grid" id="month-grid" class:open={showGrid}>
+			<Calendar {view_date} let:date let:today let:past>
+				{@const events = days?.[date]}
+				{@const featuredEvent =
+					events?.filter((e) => e.meta.tags.includes('KinkyVibe'))?.[0] ??
+					events?.filter((e) => e.meta.featured)?.[0]}
+				{@const background = featuredEvent?.meta?.featured}
+				<div
+					class="day"
+					class:today
+					class:past
+					style={background ? `--event-image: url("${background}");` : ''}
+					style:--evt-color={featuredEvent?.meta?.tags?.includes('KinkyVibe')
+						? 'var(--1)'
+						: 'var(--2)'}
+				>
+					<div class="date" class:today>
+						{Number(date.slice(8))}
+					</div>
+					{#if events}
+						<div class="dot"></div>
+						<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
+						{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+							{@const start = toArgentina(event.meta.start)}
+							<a
+								href={event.path}
+								class="bar"
+								class:dim={event.meta.status == 'cancelado'}
+								style:--evt-color={event?.meta?.tags?.includes('KinkyVibe')
+									? 'var(--1)'
+									: 'var(--2)'}
+							>
+								<span>
+									{event.meta.title ?? ' '}
+									{#if event.meta.parte}
+										&sdot; <em class="part">{partLabel(event.meta.parte.n, event.meta.parte.m)}</em>
+									{/if}
+									&sdot;
+									<strong>{format(start, 'HH:mm')}</strong>
+								</span>
+							</a>
+						{/each}
+					{/if}
 				</div>
-				{#if events}
-					<div class="dot"></div>
-					<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
-					{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
-						{@const start = toArgentina(event.meta.start)}
-						<a
-							href={'#' + event.path}
-							class="bar"
-							class:dim={event.meta.status == 'cancelado'}
-							style:--evt-color={event?.meta?.tags?.includes('KinkyVibe') ? 'var(--1)' : 'var(--2)'}
-						>
-							<span>
-								{event.meta.title ?? ' '}
-								&sdot;
-								<strong>{format(start, 'HH:mm')}</strong>
-							</span>
-						</a>
-					{/each}
-				{/if}
-			</button>
-		</Calendar>
+			</Calendar>
+		</div>
 	</div>
 	<div id="postlist">
 		<PostList
 			filter={{ prop: 'visible', value: true }}
 			pastEventsToggle={month_has_past}
+			amountLabel={(n) => monthCountLabel(view_month, n)}
 			posts={listPosts
 				.map((p) => ({
 					meta: {
@@ -143,12 +168,10 @@
 			</a>
 			para nunca perderte de nada!
 		</p>
-		{#if data.seriesLink}
-			<p class="series-link">
-				¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
-				ediciones.
-			</p>
-		{/if}
+		<p class="series-link">
+			¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
+			ediciones.
+		</p>
 	</div>
 </div>
 
@@ -188,35 +211,44 @@
 			}
 		}
 	}
-	.cardrow {
-		max-width: 1200px;
-		margin-inline: auto;
-	}
 	strong {
 		color: unset;
 	}
 	#calendar {
 		max-width: 50rem;
 		margin-inline: auto;
-		padding-inline: 16px;
-		height: 40em;
-		margin-bottom: 3em;
-		padding-bottom: 3em;
+		padding-inline: var(--space-xs);
+		margin-bottom: var(--space-s);
 		width: 100%;
 		min-height: 0;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
-	button.past {
+	.grid-toggle {
+		align-self: center;
+		margin-top: var(--space-2xs);
+	}
+	.month-grid {
+		display: none;
+		height: 36em;
+		min-height: 0;
+		padding-block: var(--space-s);
+	}
+	.month-grid.open {
+		display: block;
+	}
+	.day.past {
 		opacity: 0.35 !important;
 	}
-	button.today {
+	.day.today {
 		outline: 3px solid var(--1);
 		opacity: 1;
 		.date {
 			scale: 1.2;
 		}
 	}
-	button {
+	.day {
 		opacity: 0.7;
 		display: flex;
 		padding: 0;
@@ -252,7 +284,6 @@
 			color: white;
 			text-align: left;
 			text-overflow: ellipsis;
-			text-transform: capitalize;
 			text-decoration: none !important;
 			white-space: nowrap;
 			background: var(--evt-color);
@@ -276,7 +307,7 @@
 		}
 	}
 
-	button:has(.dot) {
+	.day:has(.dot) {
 		cursor: pointer;
 		opacity: 1;
 		&:hover {
@@ -319,6 +350,15 @@
 			height: 90vh;
 			position: sticky;
 			top: 0;
+		}
+		/* en la compu la grilla va siempre al lado de la lista */
+		.grid-toggle {
+			display: none;
+		}
+		.month-grid {
+			display: block;
+			flex: 1;
+			height: auto;
 		}
 		#postlist {
 			grid-area: postlist;

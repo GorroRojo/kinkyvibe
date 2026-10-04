@@ -41,8 +41,8 @@
 	.scope {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 1rem;
-		padding: 0.2rem 0 0.5rem 1.8rem;
-		font-size: 0.9rem;
+		gap: 0.2rem var(--space-xs);
+		padding: 0.2rem 0 var(--space-2xs) var(--space-m);
+		font-size: var(--text-sm);
 	}
 </style>

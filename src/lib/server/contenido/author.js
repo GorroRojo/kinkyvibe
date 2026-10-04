@@ -1,5 +1,5 @@
 /**
- * Quién guarda desde el panel, para todo el pedido (interruptor `contenido_db`).
+ * Quién guarda desde el panel, para todo el pedido (eventos y material en la base).
  *
  * Cada guardado del panel (editor, cargar un evento, la agenda, borrar y deshacer, las etiquetas,
  * importar la planilla…) pasa por el cliente del repo (./repo.js). En lugar de que cada pantalla

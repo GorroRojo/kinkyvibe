@@ -9,16 +9,15 @@
  * (`personasToEdges`), y estas lecturas pasan a `getEdges()`.
  *
  * Quién se muestra (nada de esto inventa reglas nuevas):
- * - el interruptor `personas_eventos` prendido; si no, nada (las páginas quedan como siempre);
- * - el interruptor `perfiles_publicos` prendido ({@link profilesSwitchOn}): los links llevan a
- *   la página del perfil en /amigues (docs/amigues.md), que solo existe con ese interruptor;
+ * - una base (los interruptores `personas_eventos` y `perfiles_publicos` quedaron prendidos
+ *   para siempre); los links llevan a la página del perfil en /amigues (docs/amigues.md);
  * - el perfil visible para cualquiera: `visibleWhere(ANON)` de los objetos (ni ocultos, ni
  *   "solo con cuenta", ni borrados). Se mira como anónime a propósito: así la página es igual
  *   para todes y se puede guardar en caché sin filtrar nada de una sesión;
  * - el perfil aprobado para /amigues (`PROFILE_APPROVED_SQL`: fila en `profile_approvals`,
  *   migración 0017), la misma regla que la lista de amigues;
  * - el perfil es una persona o un proyecto (`profileKindOf`, que lee el viejo `grupo` como
- *   proyecto): los lugares van aparte, en "Sucede en" (`event_venues`, docs/amigues.md).
+ *   proyecto): los lugares van aparte, en "Sucede en" (edge `lugar`, docs/amigues.md).
  *
  * Un perfil que no cumple todo eso no aparece: ni su nombre, ni su link, ni un "perfil oculto".
  * La dirección (slug) sí está en el .md, que es público en el repo: el editor solo ofrece
@@ -28,7 +27,6 @@ import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { PROFILE_APPROVED_SQL } from '$lib/server/admin/cuentas.js';
 import { getDB, logDBError } from '$lib/server/db';
-import { perfilesPublicosEnabled, personasEventosEnabled } from '$lib/server/flags.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
 	PERSONAS_KEY,
@@ -69,25 +67,12 @@ export function profileHref(slug, legacySlug = null) {
 }
 
 /**
- * ¿Están prendidos los perfiles para el público? Es el interruptor `perfiles_publicos`: sin él,
- * /amigues muestra las fichas .md y un link a un perfil de la base no tendría página.
- * @param {App.Platform | undefined} platform
- */
-export function profilesSwitchOn(platform) {
-	return perfilesPublicosEnabled(platform);
-}
-
-/**
- * ¿Mostrar personas en esta página? Los dos interruptores y la base.
+ * ¿Mostrar personas en esta página? Con base, sí.
  * @param {App.Platform | undefined} platform
  * @returns {Promise<D1Database | null>} la base, o `null` si no se muestra nada
  */
 async function enabledDB(platform) {
-	const db = getDB(platform);
-	if (!db) return null;
-	if (!(await personasEventosEnabled(platform))) return null;
-	if (!(await profilesSwitchOn(platform))) return null;
-	return db;
+	return getDB(platform) ?? null;
 }
 
 /**
@@ -179,7 +164,7 @@ export async function pickableProfiles(db) {
 /**
  * Las personas de un evento o publicación, agrupadas por rol y solo con perfiles públicos (los
  * nombres libres van como texto: `href` vacío).
- * (Sin interruptores: para eso está {@link personasForPage}.)
+ * (Sin mirar si hay base: para eso está {@link personasForPage}.)
  *
  * @param {D1Database} db
  * @param {unknown} raw `meta.personas`
@@ -210,7 +195,7 @@ export async function resolvePersonas(db, raw, roles) {
 
 /**
  * Para la página de un evento o una publicación: las personas por rol, o `null` si no hay nada
- * que mostrar (interruptores apagados, sin base, sin `personas` o ningún perfil público). Nunca
+ * que mostrar (sin base, sin `personas` o ningún perfil público). Nunca
  * rompe la página: con un error, `null`.
  *
  * @param {App.Platform | undefined} platform
@@ -247,8 +232,8 @@ export async function resolveProfileContent(db, slug, posts, roles) {
 }
 
 /**
- * Para la página de un perfil: sus eventos y publicaciones por rol, o `null` (interruptores
- * apagados, perfil no público o nada que listar).
+ * Para la página de un perfil: sus eventos y publicaciones por rol, o `null` (sin base, perfil
+ * no público o nada que listar).
  *
  * @param {App.Platform | undefined} platform
  * @param {string} slug
@@ -269,7 +254,7 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
 
 /**
  * Lo que necesita el editor de publicaciones para "Personas": la lista de roles y los perfiles
- * que se pueden elegir (públicos y aprobados). `null` con el interruptor apagado o sin base: el
+ * que se pueden elegir (públicos y aprobados). `null` sin base: el
  * editor no muestra la sección y guardar no mira `personas:`.
  *
  * @param {App.Platform | undefined} platform
@@ -287,14 +272,14 @@ export async function editorPersonas(platform) {
 }
 
 /**
- * La lista de roles si el interruptor está prendido (para validar al guardar), o `null`.
+ * La lista de roles (para validar al guardar), o `null` sin base.
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<string[] | null>}
  */
 export async function activeRoles(platform) {
 	const db = getDB(platform);
-	if (!db || !(await personasEventosEnabled(platform))) return null;
+	if (!db) return null;
 	return listRoles(db);
 }
 

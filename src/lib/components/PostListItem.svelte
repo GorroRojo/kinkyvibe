@@ -7,12 +7,13 @@
 		MousePointerClick,
 		Heart
 	} from '@lucide/svelte';
-	import { argDate, argTime, eventEnd } from '$lib/utils/dates.js';
+	import { argDate, argDateList, argTime, eventEnd } from '$lib/utils/dates.js';
 	import Tag from './Tag.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
+	import { partLabel } from '$lib/utils/partes.js';
 </script>
 
 <script>
@@ -40,7 +41,9 @@
 			category,
 			job_title,
 			redirect,
-			pronoun
+			pronoun,
+			// Talleres en varias partes: «Parte N de M» (lo agrega el calendario, docs/talleres-partes.md).
+			parte
 		}
 	} = post;
 	var date = start ?? published_date;
@@ -107,11 +110,7 @@
 			{#if date}
 				{#if start}
 					<time datetime={start} class="dt-start dt-end">
-						{@html argDate(start) +
-							'&ThickSpace;&ThickSpace;|&ThickSpace;&ThickSpace;' +
-							argTime(start) +
-							' - ' +
-							argTime(eventEnd(start, end))}
+						{argDateList(start)} – {argTime(eventEnd(start, end))}
 					</time>
 				{:else}
 					<address class="p-author">
@@ -119,7 +118,7 @@
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={date}>
-						{date ? argDate(date) : ''}
+						{date ? argDateList(date, { time: false }) : ''}
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
@@ -173,6 +172,9 @@
 	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
 	<h3>
 		{title}
+		{#if parte}
+			<small class="part-label">{'\u00a0· ' + partLabel(parte.n, parte.m)}</small>
+		{/if}
 		{#if pronounDisplay(pronoun)}
 			<small class="p-pronouns">
 				{'\u00a0' + pronounDisplay(pronoun)}
@@ -222,12 +224,12 @@
 
 <style lang="scss">
 	.post.amigues {
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		padding-top: 0;
 		outline: 2px solid var(--post-color, var(--2));
 		padding-right: 3em;
 		img {
-			border-radius: 10em;
+			border-radius: var(--radius-pill);
 			aspect-ratio: 1;
 			object-fit: cover;
 		}
@@ -252,9 +254,9 @@
 		padding: 0;
 		display: flex;
 		font-size: 0.8em;
-		/* padding: 0 0.4em; */
-		overflow-x: scroll;
-		overflow-y: hidden;
+		/* en varias filas, no recortadas abajo del botón de la derecha (y sin recortar la zona
+		   de toque de cada etiqueta) */
+		flex-wrap: wrap;
 		gap: 0.3em;
 		/* position: absolute; */
 		/* bottom: -1em; */
@@ -297,12 +299,14 @@
 		/* position: relative; */
 		width: 100%;
 		/* max-width: 900px; */
-		height: 10.5em;
+		/* alto mínimo (no fijo): si las etiquetas no entran en una fila, bajan a otra y la
+		   tarjeta crece, en vez de recortarlas */
+		min-height: 10.5em;
 
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
-		grid-template-rows: auto 1fr 2.4em;
+		grid-template-rows: auto 1fr minmax(2.4em, auto);
 		column-gap: 1em;
 		align-items: center;
 
@@ -325,10 +329,10 @@
 		}
 	}
 	.post.calendario {
-		height: 13.5em;
+		min-height: 13.5em;
 	}
 	.post.material {
-		height: 11.5em;
+		min-height: 11.5em;
 	}
 	a h3 {
 		/* display: flex; */
@@ -383,7 +387,7 @@
 		max-width: calc(100% - 0em);
 		object-fit: contain;
 		object-position: center;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		margin-left: 1em;
 		justify-self: center;
 		min-height: 0;
@@ -438,12 +442,20 @@
 		}
 		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
-			grid-template-rows: auto 1fr 2em;
+			grid-template-rows: auto 1fr minmax(2em, auto);
+			/* en el celu el botón va en su propia fila, abajo de las etiquetas (al lado las
+			   tapaba) */
 			&:has(.CTA) {
 				grid-template-areas:
-					'title title title'
-					'img summary summary'
-					'img tags cta';
+					'title title'
+					'img summary'
+					'img tags'
+					'img cta';
+				grid-template-rows: auto 1fr minmax(2em, auto) auto;
+				padding-bottom: var(--space-2xs);
+			}
+			.CTA {
+				justify-self: end;
 			}
 			/* &:has(.CTA).noimg {
 				grid-template-areas:

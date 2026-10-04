@@ -197,7 +197,7 @@
 <style>
 	.scanner {
 		position: relative;
-		border-radius: 1.2rem;
+		border-radius: var(--radius-l);
 		overflow: hidden;
 		background: radial-gradient(circle at 50% 40%, #3a3342, #1c1820 70%);
 		min-height: 11rem;
@@ -234,22 +234,22 @@
 			linear-gradient(var(--c), var(--c)) bottom right / 2.2rem 4px,
 			linear-gradient(var(--c), var(--c)) bottom right / 4px 2.2rem;
 		background-repeat: no-repeat;
-		border-radius: 0.6rem;
+		border-radius: var(--radius-s);
 		pointer-events: none;
 	}
 	.top {
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding: 0.8rem 0.8rem 0 1rem;
+		gap: var(--space-2xs);
+		padding: var(--space-xs) var(--space-xs) 0 var(--space-xs);
 	}
 	.hint {
 		margin: 0;
 		flex: 1;
 		color: rgba(255, 255, 255, 0.85);
 		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 	}
 	.round {
 		width: 2.9rem;
@@ -271,22 +271,22 @@
 		align-self: center;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin: 1rem;
-		padding: 0.9rem 1.6rem;
+		padding: var(--space-xs) var(--space-m);
 		border: 0;
 		border-radius: 2em;
 		background: var(--accent, hsl(319, 90%, 60%));
 		color: #fff;
 		font-weight: 700;
-		font-size: 1.1rem;
+		font-size: var(--text-base);
 		cursor: pointer;
 	}
 	.problem {
 		position: relative;
 		margin: 0 1rem 1rem;
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--bad-bg);
 		color: var(--bad);
 	}

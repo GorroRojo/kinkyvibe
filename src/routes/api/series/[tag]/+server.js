@@ -1,6 +1,6 @@
 /**
  * GET /api/series/<etiqueta>: lo que la página de una etiqueta (/wiki/<etiqueta>, que puede estar
- * prerenderizada) muestra con el interruptor `series` prendido: si la etiqueta es una serie, su
+ * prerenderizada) muestra: si la etiqueta es una serie, su
  * imagen y sus ediciones (próximas primero, después las pasadas); si tiene eventos, el link de su
  * calendario .ics; y si hay una cuenta con sesión, si ya está suscripta a los avisos (y si eso va
  * por «Lo que sigo»).
@@ -9,16 +9,15 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { eventsForTag, seriesPage } from '$lib/server/series/index.js';
-import { followInvite, requireSeries, seriesAccountState } from '$lib/server/series/web.js';
+import { followInvite, seriesAccountState } from '$lib/server/series/web.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { tagFeedPath, tagIdFromSlug } from '$lib/utils/series.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform, locals }) {
-	await requireSeries(platform);
 	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
-	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
+	// El árbol de etiquetas en uso (la base).
 	const tags = await siteTagManager(platform);
 	const id = tagIdFromSlug(tags, params.tag) ?? params.tag;
 	const posts = await sitePosts(platform);

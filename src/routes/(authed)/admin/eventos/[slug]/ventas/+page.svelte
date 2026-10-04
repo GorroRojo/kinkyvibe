@@ -271,7 +271,7 @@
 	</Card>
 
 	{#if showFondo}
-		<Card title="Fondo KinkyVibe">
+		<Card title="Fondo Kinky Vibe">
 			<p class="muted small">
 				{#if data.fondoPercent !== null}Descuento del fondo este mes: {data.fondoPercent} %.{/if}
 				"Fondo usado" es lo que cubrió el fondo; "aportes", lo que se pagó de más (solidaria, muy solidaria
@@ -364,18 +364,18 @@
 	}
 	.stats {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 		margin-bottom: 1rem;
 	}
 	.grid {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
 		align-items: start;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.types {
@@ -384,12 +384,12 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.9rem;
+		gap: var(--space-xs);
 	}
 	.types li {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.over-txt {
 		margin-left: 0.35em;
@@ -403,7 +403,7 @@
 	.row {
 		display: flex;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	/* Colores de los medios de pago (validados para daltonismo; ver el PR). */
 	.grid {
@@ -436,7 +436,7 @@
 	}
 	.chart .tick {
 		fill: var(--muted);
-		font-size: 11px;
+		font-size: var(--text-xs);
 	}
 	.grid-line {
 		stroke: var(--line);
@@ -474,9 +474,9 @@
 		background: var(--surface);
 		border: 1px solid var(--line);
 		box-shadow: var(--shadow);
-		border-radius: 0.6rem;
-		padding: 0.35rem 0.6rem;
-		font-size: 0.8rem;
+		border-radius: var(--radius-s);
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 		display: flex;
 		flex-direction: column;
 		pointer-events: none;
@@ -485,13 +485,13 @@
 	.table-view summary {
 		cursor: pointer;
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.split {
 		display: flex;
 		gap: 2px;
 		height: 1rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-s);
 		overflow: hidden;
 	}
 	.seg {
@@ -524,12 +524,12 @@
 	.legend li {
 		display: grid;
 		grid-template-columns: 0.8rem minmax(0, 1fr) auto;
-		gap: 0 0.5rem;
+		gap: 0 var(--space-2xs);
 		align-items: center;
 	}
 	.legend li > .muted {
 		grid-column: 2 / -1;
-		font-size: 0.82rem;
+		font-size: var(--text-xs);
 	}
 	.dot {
 		width: 0.8rem;
@@ -551,7 +551,7 @@
 	.bottom {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-top: 1rem;
 	}
 </style>

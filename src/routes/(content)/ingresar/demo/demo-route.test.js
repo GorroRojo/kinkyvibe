@@ -1,7 +1,8 @@
 /**
  * /ingresar/demo («Entrar como persona de prueba»): 404 en producción (este build no es un
- * preview, como producción), con el interruptor `cuentas` apagado y para cuentas que no son del
- * seed. En un preview (simulado), entra con la sesión normal y lleva a Mi rincón.
+ * preview, como producción) y para cuentas que no son del seed (el caso «interruptor `cuentas`
+ * apagado» se fue con el interruptor, que quedó prendido para siempre). En un preview
+ * (simulado), entra con la sesión normal y lleva a Mi rincón.
  * D1 de miniflare; datos inventados.
  */
 import { readFile } from 'node:fs/promises';
@@ -35,13 +36,12 @@ afterEach(() => {
 });
 
 /**
- * La ruta con la variable CUENTAS_ENABLED que se pida ('' = lo que diga la base; el seed la
- * prende) y, si `preview`, simulando un deploy de preview.
- * @param {{ flag?: string, preview?: boolean }} [o]
+ * La ruta (sin variables de entorno) y, si `preview`, simulando un deploy de preview.
+ * @param {{ preview?: boolean }} [o]
  */
-async function route({ flag = '', preview = false } = {}) {
+async function route({ preview = false } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CUENTAS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	if (preview) {
 		vi.doMock('$lib/server/deploy.js', async (orig) => ({
 			.../** @type {object} */ (await orig()),
@@ -109,14 +109,6 @@ describe('/ingresar/demo en producción', () => {
 });
 
 describe('/ingresar/demo en un preview', () => {
-	it('con el interruptor `cuentas` apagado da 404', async () => {
-		const m = await route({ flag: '0', preview: true });
-		expect((await thrown(() => m.page.load(fakeEvent())))?.status).toBe(404);
-		const event = fakeEvent({ persona: 'con-entradas' });
-		expect((await thrown(() => m.page.actions.default(event)))?.status).toBe(404);
-		expect(await sessionCount()).toBe(0);
-	});
-
 	it('muestra las personas y entra con la sesión normal', async () => {
 		const m = await route({ preview: true });
 		const data = /** @type {any} */ (await m.page.load(fakeEvent()));

@@ -1,13 +1,13 @@
 /**
  * Quien compra entrada para un evento en un lugar con la dirección oculta (o solo el nombre, o
  * solo el barrio) recibe la dirección completa en el mail de confirmación y la ve en la página de
- * su entrada. Con el interruptor apagado, todo como antes (lo del .md). D1 de miniflare; evento,
- * lugar y persona inventados.
+ * su entrada (el interruptor `perfiles_publicos` quedó fijo: se fue el caso «apagado»). D1 de
+ * miniflare; evento, lugar y persona inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
-import { makeProfile } from './testing.js';
+import { makeEvent, makeProfile } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -47,12 +47,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Módulos con el interruptor como se pida y una clave de Resend inventada. */
-async function modules(flag = '1') {
+/** Módulos con una clave de Resend inventada. */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { PERFILES_PUBLICOS_ENABLED: flag, RESEND_API_KEY: 're_inventada' }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: { RESEND_API_KEY: 're_inventada' } }));
 	return {
 		tickets: await import('$lib/server/tickets/index.js'),
 		venues: await import('./venues.js'),
@@ -113,7 +111,7 @@ const ticketEvent = (token) =>
 describe('dirección completa para quien compró', () => {
 	for (const privacy of ['public', 'name', 'area', 'hidden']) {
 		it(`lugar con dirección «${privacy}»: el mail y la entrada la tienen completa`, async () => {
-			const m = await modules('1');
+			const m = await modules();
 			const v = await makeProfile(t.db, {
 				title: 'Galpón Inventado',
 				kind: 'lugar',
@@ -124,6 +122,8 @@ describe('dirección completa para quien compró', () => {
 					venue_privacy: privacy
 				}
 			});
+			// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+			await makeEvent(t.db, 'fiesta-inventada');
 			await m.venues.setEventVenue(t.db, {
 				eventSlug: 'fiesta-inventada',
 				venueId: v.id,
@@ -151,32 +151,5 @@ describe('dirección completa para quien compró', () => {
 			expect(page.event.where).toBe(`Galpón Inventado · ${full}`);
 		});
 	}
-
-	it('con el interruptor apagado, lo del .md como siempre', async () => {
-		const m = await modules('0');
-		const v = await makeProfile(t.db, {
-			title: 'Galpón Inventado',
-			kind: 'lugar',
-			data: { address: SECRET, venue_privacy: 'hidden' }
-		});
-		await m.venues.setEventVenue(t.db, {
-			eventSlug: 'fiesta-inventada',
-			venueId: v.id,
-			privacy: null,
-			by: 'a'
-		});
-		const { order, tickets } = await approvedOrder();
-		const { sent, fetch } = captureFetch();
-		await m.tickets.sendOrderEmail({
-			db: t.db,
-			order,
-			tickets,
-			origin: 'https://kinkyvibe.ar',
-			fetch
-		});
-		expect(sent[0].text).toContain('Lugar del archivo · Dirección del archivo');
-		expect(sent[0].text).not.toContain(SECRET);
-		const page = /** @type {any} */ (await m.page.load(ticketEvent(tickets[0].token)));
-		expect(page.event.where).toBe('Lugar del archivo · Dirección del archivo');
-	});
+	// «Con el interruptor apagado, lo del .md» se fue con `perfiles_publicos` (quedó fijo).
 });

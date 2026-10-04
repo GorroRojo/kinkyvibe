@@ -84,7 +84,7 @@
 		.layout.with-index {
 			display: grid;
 			grid-template-columns: 11.5rem minmax(0, 1fr);
-			gap: 1.5rem;
+			gap: var(--space-m);
 			align-items: start;
 		}
 		.sections :global(fieldset.card) {
@@ -97,7 +97,7 @@
 		bottom: var(--form-sticky-bottom, 0px);
 		z-index: 3;
 		margin-inline: -0.5rem;
-		padding: 0.6rem 0.5rem;
+		padding: var(--space-2xs) var(--space-2xs);
 		background: var(--bg, #fff7fb);
 		box-shadow: 0 -1px 0 var(--line, rgba(0, 0, 0, 0.08));
 	}

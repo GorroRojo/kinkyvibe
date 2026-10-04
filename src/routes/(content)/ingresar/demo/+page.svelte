@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Entrar como persona de prueba - KinkyVibe.ar</title>
+	<title>Entrar como persona de prueba · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -31,7 +31,7 @@
 			</li>
 		{/each}
 	</ul>
-	<a class="back" href="/ingresar">← Ingresar con tu mail</a>
+	<a class="back" href="/ingresar">← Entrar con tu mail</a>
 </section>
 
 <style>

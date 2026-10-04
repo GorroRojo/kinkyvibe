@@ -20,7 +20,7 @@
  *   imágenes de la carpeta de medios y fechas), con los mismos nombres que en el frontmatter.
  *   Ver docs/amigues.md.
  *
- * La página pública es /amigues/<slug> (detrás del interruptor `perfiles_publicos`).
+ * La página pública es /amigues/<slug>.
  */
 
 /**
@@ -61,7 +61,8 @@
 /**
  * Privacidad de la dirección de un lugar (decisión B3), de más a menos visible. El lugar tiene
  * una por defecto (`venue_privacy`; sin elegir: `public`, ver DEFAULT_VENUE_PRIVACY en
- * src/lib/utils/venues.js) y cada evento la puede cambiar (tabla `event_venues`).
+ * src/lib/utils/venues.js) y cada evento la puede cambiar (`data.privacy` del edge `lugar` del
+ * evento).
  * - public: nombre, dirección, barrio, ciudad y mapa;
  * - name: solo el nombre (con el link a su página);
  * - address: la dirección (calle y número, barrio, ciudad) y el mapa, sin el nombre (una casa
@@ -199,7 +200,9 @@ const perfil = {
 		}
 	},
 	edges: {
-		es_integrante_de: { label: 'Integrante de', to: ['perfil'] }
+		es_integrante_de: { label: 'Integrante de', to: ['perfil'] },
+		// La imagen del perfil (docs/imagenes.md). El campo `avatar` (texto) quedó sin uso.
+		avatar: { label: 'Imagen', to: ['imagen'], max: 1 }
 	},
 	normalize(data) {
 		// Una fila con el `kind` viejo se guarda (editada, borrada…) ya como `proyecto`.

@@ -72,8 +72,8 @@ export function personaOptions(profiles, dbProfiles, usage = {}) {
 }
 
 /**
- * Las personas de un archivo, como las muestra el formulario. Con `withPersonas` (el interruptor
- * personas_eventos) también las de `personas:`; sin él, solo `authors:` (y `personas:` queda como
+ * Las personas de un archivo, como las muestra el formulario. Con `withPersonas` (con base)
+ * también las de `personas:`; sin él, solo `authors:` (y `personas:` queda como
  * está). Los nombres de `authors:` que tienen perfil en la base lo traen (por si se les cambia el
  * rol: con otro rol se guardan con su perfil).
  *

@@ -79,7 +79,7 @@
 		top: 0;
 		z-index: 1;
 		padding: 0.6em 0.8em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: white;
 		box-shadow:
 			0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent),
@@ -142,7 +142,7 @@
 		display: inline-block;
 		margin-left: 0.5em;
 		padding: 0.05em 0.6em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: color-mix(in srgb, var(--2) 15%, white);
 		color: var(--2-dark);
 		white-space: nowrap;

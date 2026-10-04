@@ -96,7 +96,7 @@
 			<button class="link-btn" type="submit" disabled={busy}>Desconectar Telegram</button>
 		</form>
 	{:else if pending}
-		<p>Ahora mandale este código al bot de KinkyVibe por chat privado:</p>
+		<p>Ahora mandale este código al bot de Kinky Vibe por chat privado:</p>
 		<p class="code" aria-label="Tu código">
 			<code>/vincular {pending.code}</code>
 		</p>
@@ -116,7 +116,7 @@
 		</p>
 	{:else}
 		<p class="state" data-state="sin-conectar">
-			Conectá tu cuenta con el bot de KinkyVibe para recibir por Telegram los avisos de lo que
+			Conectá tu cuenta con el bot de Kinky Vibe para recibir por Telegram los avisos de lo que
 			seguís (algo nuevo y recordatorios): título, fecha y link, nada más.
 		</p>
 		<form method="POST" action="{base}?/codigo" use:enhance={submit}>
@@ -166,7 +166,7 @@
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.small {
 		font-size: var(--step--1);

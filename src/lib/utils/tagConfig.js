@@ -798,12 +798,14 @@ function yamlScalar(v, preferQuote = '') {
  * Renames tag `from` to `to` in a post's frontmatter (`tags:` items and `wiki:`), touching only
  * those lines (inline comments kept). If the post already has `to`, the `from` line is removed.
  * Comments and commented-out items are left alone. Returns the text unchanged when there is
- * nothing to do.
+ * nothing to do. With `tags: false` only `wiki:` changes (the post holds the tag as an
+ * `etiqueta` edge, which follows the rename by itself: etiquetas/rename.js).
  * @param {string} raw
  * @param {string} from
  * @param {string} to
+ * @param {{ tags?: boolean }} [opts]
  */
-export function replaceTagInPost(raw, from, to) {
+export function replaceTagInPost(raw, from, to, { tags = true } = {}) {
 	const lines = raw.split(/(?<=\n)/);
 	if (!/^---[ \t]*\r?\n$/.test(lines[0] ?? '')) return raw;
 	let end = lines.findIndex((l, i) => i > 0 && /^---[ \t]*(\r?\n)?$/.test(l));
@@ -826,7 +828,7 @@ export function replaceTagInPost(raw, from, to) {
 				.split(',')
 				.map((s) => s.trim().replace(/^(['"])(.*)\1$/, '$2'))
 				.filter(Boolean);
-			if (vals.includes(from)) {
+			if (tags && vals.includes(from)) {
 				const next = replaceInList(vals, from, to) ?? vals;
 				lines[i] =
 					`tags: [${next.map((v) => yamlScalar(v)).join(', ')}]${flow[2] ? ' ' + flow[2] : ''}${flow[3] ?? ''}`;
@@ -848,7 +850,7 @@ export function replaceTagInPost(raw, from, to) {
 			}
 			const hasTo = found.some((f) => f.value === to);
 			for (const f of found) {
-				if (f.value !== from) continue;
+				if (!tags || f.value !== from) continue;
 				changed = true;
 				if (hasTo) {
 					lines[f.i] = '';
@@ -986,17 +988,20 @@ export function postRenamePairs(ops, { onlyWithoutAlias = false } = {}) {
 /**
  * Every post whose `tags:` (or `wiki:`) uses an old name exactly as written, rewritten with the
  * new one (replaceTagInPost), sorted by path. Posts that use an alias of it are not touched.
+ * `linked(path)`: the names that post holds as `etiqueta` edges (posts in the database); those
+ * follow the rename by themselves, so their `tags:` item is not rewritten.
  * @param {ReadonlyArray<{path: string, text: string, sha?: string}>} posts
  * @param {ReadonlyArray<readonly [string, string]>} pairs [old, new] (postRenamePairs)
+ * @param {(path: string) => ReadonlySet<string> | undefined} [linked]
  * @returns {PlannedFile[]}
  */
-export function renameTagsInPosts(posts, pairs) {
+export function renameTagsInPosts(posts, pairs, linked = () => undefined) {
 	/** @type {Map<string, PlannedFile>} */
 	const touched = new Map();
 	for (const [from, to] of pairs) {
 		for (const p of posts) {
 			const cur = touched.get(p.path)?.after ?? p.text;
-			const next = replaceTagInPost(cur, from, to);
+			const next = replaceTagInPost(cur, from, to, { tags: !linked(p.path)?.has(from) });
 			if (next !== cur)
 				touched.set(p.path, { path: p.path, before: p.text, after: next, sha: p.sha });
 		}
@@ -1025,7 +1030,7 @@ export function describeOp(op) {
 		case 'addAlias':
 			return `Agregar el alias «${op.alias}» a «${op.id}»`;
 		case 'removeAlias':
-			return `Quitar el alias «${op.alias}» de «${op.id}»`;
+			return `Sacar el alias «${op.alias}» de «${op.id}»`;
 		default:
 			return 'Cambio';
 	}

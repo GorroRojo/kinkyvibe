@@ -1,13 +1,15 @@
 /**
- * «Crear serie» en Eventos → Series: guarda por el camino de /admin/etiquetas (planTagEdit /
- * commitTagEdit) una etiqueta hija de «evento recurrente». Cliente del repo de mentira: nada sale
- * a GitHub. D1 de miniflare para el registro del panel.
+ * «Crear serie» en Eventos → Series: guarda en la base (el camino de /admin/etiquetas) una
+ * etiqueta hija de «evento recurrente». Cliente del repo de mentira: nada sale a GitHub (ya no hay
+ * commits al archivo de etiquetas). D1 de miniflare para las etiquetas y el registro del panel.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import { parseTagSource } from '$lib/utils/tagConfig.js';
+import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { importTags } from '$lib/server/etiquetas/importer.js';
+import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -21,6 +23,12 @@ afterAll(async () => {
 });
 beforeEach(async () => {
 	await resetDB(t.db);
+	// Las etiquetas, en la base (de donde se leen y donde se guardan).
+	await importTags(
+		t.db,
+		{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+		{ actor: 'admin-de-prueba' }
+	);
 });
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');
@@ -30,10 +38,9 @@ afterEach(() => {
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
-/** @param {string} flag */
-async function page(flag = '1') {
+async function page() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	/** @type {any[]} */
 	const commits = [];
 	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
@@ -55,29 +62,51 @@ const post = (form, user = admin) =>
 	fakeRequestEvent({ platform: t.platform, path: '/admin/eventos/series?/crear', user, form });
 
 describe('Crear serie', () => {
-	it('crea la etiqueta hija de «evento recurrente» en un commit, con imagen y descripción', async () => {
+	it('crea la etiqueta hija de «evento recurrente» en la base, con imagen y descripción', async () => {
 		const { mod, commits } = await page();
 		const res = await mod.actions.crear(
 			post({ name: 'Serie de Prueba', image: 'picantearla-miniatura.webp', description: 'Hola.' })
 		);
-		expect(res).toMatchObject({ created: { name: 'Serie de Prueba' } });
-		expect(commits).toHaveLength(1);
-		expect(commits[0].files.map((/** @type {any} */ f) => f.path)).toEqual([
-			'src/lib/utils/hardcodedTags.js'
-		]);
-		const entries = parseTagSource(commits[0].files[0].content).items.map((i) => i.value);
-		expect(entries.find((e) => e.id === 'evento recurrente')?.children).toContain(
-			'Serie de Prueba'
-		);
-		expect(entries.find((e) => e.id === 'Serie de Prueba')).toEqual({
-			id: 'Serie de Prueba',
+		expect(res).toMatchObject({ created: { name: 'Serie de Prueba', db: true } });
+		expect(commits).toHaveLength(0);
+		const tag = (await loadTagRecords(t.db)).find((r) => r.key === 'Serie de Prueba');
+		expect(tag?.parents.map((p) => p.key)).toEqual(['evento recurrente']);
+		expect(tag?.data).toMatchObject({
 			description: 'Hola.',
 			image: 'picantearla-miniatura.webp'
 		});
-		const log = await t.db.prepare('SELECT action, summary FROM admin_audit').all();
+		const log = await t.db
+			.prepare("SELECT action FROM admin_audit WHERE action = 'tags.edit'")
+			.all();
+		expect(log.results).toHaveLength(1);
+	});
+
+	// «¿Va dentro de otra serie?» sigue (Picantearla Deluxe); el botón «Serie por año» se fue
+	// (gorrite, 4/10), así que el ejemplo es una edición especial.
+	it('serie hija (una edición especial): queda dentro de la serie madre, con su ícono', async () => {
+		const { mod, commits } = await page();
+		const res = await mod.actions.crear(
+			post({ name: 'Cuirdas Sudacas: Edición Inventada', parent: 'Cuirdas Sudacas', icon: '🪢' })
+		);
+		expect(res).toMatchObject({ created: { name: 'Cuirdas Sudacas: Edición Inventada' } });
+		expect(commits).toHaveLength(0);
+		const records = await loadTagRecords(t.db);
+		const tag = records.find((r) => r.key === 'Cuirdas Sudacas: Edición Inventada');
+		expect(tag?.parents.map((p) => p.key)).toEqual(['Cuirdas Sudacas']);
+		expect(tag?.data).toEqual({ icon: '🪢' });
+		const log = await t.db.prepare('SELECT summary FROM admin_audit').all();
 		expect(log.results).toEqual([
-			{ action: 'tags.edit', summary: 'Series: crear «Serie de Prueba»' }
+			{
+				summary:
+					'Series (base): Crear «Cuirdas Sudacas: Edición Inventada» dentro de «Cuirdas Sudacas»'
+			}
 		]);
+		// Una madre que no es una serie: error, sin commit.
+		expect(await mod.actions.crear(post({ name: 'Otra Más', parent: 'taller' }))).toMatchObject({
+			status: 400
+		});
+		expect((await loadTagRecords(t.db)).find((r) => r.key === 'Otra Más')).toBeUndefined();
+		expect(commits).toHaveLength(0);
 	});
 
 	it('errores: nombre que ya existe o imagen inválida, sin commit', async () => {
@@ -92,14 +121,11 @@ describe('Crear serie', () => {
 		expect(commits).toHaveLength(0);
 	});
 
-	it('sin permiso, 403; con el interruptor apagado, 404', async () => {
+	it('sin permiso, 403', async () => {
 		const { mod, commits } = await page();
 		expect(
 			await mod.actions.crear(post({ name: 'X' }, { id: 1, login: 'alguien-de-prueba' }))
 		).toMatchObject({ status: 403 });
-		const off = await page('0');
-		expect(await off.mod.actions.crear(post({ name: 'X' }))).toMatchObject({ status: 404 });
 		expect(commits).toHaveLength(0);
-		expect(off.commits).toHaveLength(0);
 	});
 });

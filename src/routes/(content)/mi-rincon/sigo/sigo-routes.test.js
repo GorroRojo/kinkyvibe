@@ -1,11 +1,13 @@
 /**
- * Mi rincón → Lo que sigo: con un interruptor apagado (`lo_que_sigo` o `cuentas`) todo da 404;
+ * Mi rincón → Lo que sigo: con el interruptor `lo_que_sigo` apagado todo da 404 (`cuentas` y
+ * `perfiles_publicos` ya no tienen interruptor: se fueron sus casos «apagado»);
  * sin sesión lleva a /ingresar (y de vuelta a la página del botón «Seguir», solo si es de este
  * sitio); con sesión, seguir, cambiar opciones, dejar de seguir y el CSV, siempre solo lo de esa
  * cuenta. D1 de miniflare; datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 
@@ -53,21 +55,13 @@ const FAKE_POSTS = [
 	}
 ];
 
-/** @param {{ sigo?: string, cuentas?: string, perfiles?: string, series?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1', perfiles = '0', series } = {}) {
+/** @param {{ sigo?: string }} [flags] */
+async function modules({ sigo = '1' } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			LO_QUE_SIGO_ENABLED: sigo,
-			CUENTAS_ENABLED: cuentas,
-			ETIQUETAS_DB_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
-			PERFILES_PUBLICOS_ENABLED: perfiles,
-			// Sin pedirlo, como antes: el interruptor `series` sin tocar.
-			...(series ? { SERIES_ENABLED: series } : {})
-		}
-	}));
-	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados.
+	vi.doMock('$env/dynamic/private', () => ({ env: { LO_QUE_SIGO_ENABLED: sigo } }));
+	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados, en la
+	// base (de donde salen los eventos).
+	await seedPosts(t.db, FAKE_POSTS);
 	vi.doMock('$lib/utils', async (importOriginal) => ({
 		.../** @type {object} */ (await importOriginal()),
 		fetchMarkdownPosts: async () => FAKE_POSTS
@@ -86,7 +80,7 @@ async function modules({ sigo = '1', cuentas = '1', perfiles = '0', series } = {
 const ev = (o) => fakeRequestEvent({ platform: t.platform, path: '/mi-rincon/sigo', ...o });
 
 describe('interruptores', () => {
-	for (const flags of [{ sigo: '0' }, { cuentas: '0' }]) {
+	for (const flags of [{ sigo: '0' }]) {
 		it(`apagado (${JSON.stringify(flags)}): 404 en la página, las acciones y el CSV`, async () => {
 			const m = await modules(flags);
 			const member = await makeAccount(t.db, 'apagado');
@@ -228,27 +222,23 @@ describe('la página', () => {
 		expect(place).toMatchObject({ name: 'Lugar Inventado', profileKind: 'lugar', next: null });
 	});
 
-	it('«Agregar»: etiquetas del árbol con cuántos eventos próximos tienen; perfiles solo con perfiles públicos', async () => {
+	it('«Agregar»: etiquetas del árbol con cuántos eventos próximos tienen, y los perfiles', async () => {
 		const member = await makeAccount(t.db, 'agregar');
 		await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		await makeProfile(t.db, { title: 'Oculto Inventado', visibility: 'hidden' });
-		let m = await modules();
-		let data = /** @type {any} */ (await m.page.load(ev({ member })));
+		const m = await modules();
+		const data = /** @type {any} */ (await m.page.load(ev({ member })));
 		const byId = new Map(data.add.tags.map((/** @type {any} */ o) => [o.id, o]));
 		expect(byId.get('shibari')).toMatchObject({ name: 'shibari', count: 2, inTree: true });
 		expect(byId.get('Rancheadita Kinky')).toMatchObject({ series: true });
 		expect(byId.has('root')).toBe(false);
-		expect(data.add.profiles).toEqual([]);
-
-		m = await modules({ perfiles: '1' });
-		data = /** @type {any} */ (await m.page.load(ev({ member })));
 		expect(data.add.profiles).toEqual([
 			{ key: expect.any(String), name: 'Lugar Inventado', kind: 'lugar' }
 		]);
 	});
 
 	it('«Agregar» sigue con las opciones de siempre sin salir de la página', async () => {
-		const m = await modules({ perfiles: '1' });
+		const m = await modules();
 		const member = await makeAccount(t.db, 'agregar-seguir');
 		await makeProfile(t.db, { title: 'Persona Inventada' });
 		// Sin JavaScript: el nombre escrito, como en la URL de la etiqueta.
@@ -313,11 +303,11 @@ describe('tu calendario', () => {
 });
 
 describe('tu calendario en la misma página (lo que estaba en Mi rincón → Calendario)', () => {
-	it('con `series`: el link secreto se crea acá, anda, se ve una vez y se revoca', async () => {
-		const m = await modules({ series: '1' });
+	it('el link secreto se crea acá, anda, se ve una vez y se revoca', async () => {
+		const m = await modules();
 		const member = await makeAccount(t.db, 'cal-link');
 		let data = /** @type {any} */ (await m.page.load(ev({ member })));
-		expect(data).toMatchObject({ seriesOn: true, feed: null });
+		expect(data).toMatchObject({ feed: null });
 
 		const r = /** @type {any} */ (await m.page.actions.crearLink(ev({ member, form: {} })));
 		expect(r).toMatchObject({ action: 'link', ok: true });
@@ -337,26 +327,13 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).toBeNull();
 	});
 
-	it('sin `series` (el .ics personal da 404): sin link ni acciones del link', async () => {
-		const m = await modules({ series: '0' });
-		const member = await makeAccount(t.db, 'cal-sin-series');
-		expect(await m.page.load(ev({ member }))).toMatchObject({ seriesOn: false, feed: null });
-		for (const action of /** @type {const} */ (['crearLink', 'revocarLink'])) {
-			expect(await thrown(() => m.page.actions[action](ev({ member, form: {} })))).toMatchObject({
-				status: 404
-			});
-		}
-		const { results } = await t.db.prepare('SELECT * FROM calendar_feeds').all();
-		expect(results).toEqual([]);
-	});
-
 	it('las acciones del link también piden sesión y los dos interruptores', async () => {
-		let m = await modules({ series: '1' });
+		let m = await modules();
 		expect(await thrown(() => m.page.actions.crearLink(ev({ form: {} })))).toMatchObject({
 			status: 303,
 			location: '/ingresar?next=%2Fmi-rincon%2Fsigo'
 		});
-		m = await modules({ series: '1', sigo: '0' });
+		m = await modules({ sigo: '0' });
 		const member = await makeAccount(t.db, 'cal-sigo-apagado');
 		expect(await thrown(() => m.page.actions.crearLink(ev({ member, form: {} })))).toMatchObject({
 			status: 404
@@ -365,7 +342,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 
 	it('Mi rincón → Calendario sigue andando: con «Lo que sigo» lleva acá; apagado, como siempre', async () => {
 		const member = await makeAccount(t.db, 'cal-viejo');
-		let m = await modules({ series: '1' });
+		let m = await modules();
 		const on = /** @type {any} */ (
 			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
 		);
@@ -377,7 +354,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 		expect(created.path).toMatch(/^\/ics\/mio\/.+\.ics$/);
 		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).not.toBeNull();
 
-		m = await modules({ series: '1', sigo: '0' });
+		m = await modules({ sigo: '0' });
 		const off = /** @type {any} */ (
 			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
 		);
@@ -387,7 +364,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 
 	it('«Avisame» que la cuenta pidió antes: aparece en la lista al abrir la página, y el link de baja viejo anda', async () => {
 		// Con «Lo que sigo» apagado, «Avisame» con cuenta escribe en series_subscriptions.
-		let m = await modules({ series: '1', sigo: '0' });
+		let m = await modules({ sigo: '0' });
 		const a = await makeAccount(t.db, 'avisame-antes');
 		const b = await makeAccount(t.db, 'avisame-otra');
 		for (const acc of [a, b])
@@ -407,7 +384,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 			String(results[0].id)
 		);
 
-		m = await modules({ series: '1' });
+		m = await modules();
 		const data = /** @type {any} */ (await m.page.load(ev({ member: a })));
 		expect(data.follows).toHaveLength(1);
 		expect(data.follows[0]).toMatchObject({

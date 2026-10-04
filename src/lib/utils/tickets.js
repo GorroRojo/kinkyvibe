@@ -131,8 +131,8 @@ export function parseFeePercent(raw) {
 }
 
 /**
- * Cómo paga cada entrada la persona, respecto del Fondo KinkyVibe ("¿Cómo querés pagar tu
- * entrada?"). `percent` es lo que se suma sobre el precio COMPLETO y va al Fondo KinkyVibe.
+ * Cómo paga cada entrada la persona, respecto del Fondo Kinky Vibe ("¿Cómo querés pagar tu
+ * entrada?"). `percent` es lo que se suma sobre el precio COMPLETO y va al Fondo Kinky Vibe.
  *
  * - `fondo`: precio − lo que cubre el fondo (la opción por defecto; solo si el evento tiene fondo);
  * - `completo`: precio completo (por defecto si el evento no tiene fondo);
@@ -221,7 +221,7 @@ export function unitPrice(price, fondo, option) {
  *
  * 1. lista = precio completo × cantidad
  * 2. según la opción del fondo, por entrada (y × cantidad):
- *    - `fondo`: se resta lo que cubre el Fondo KinkyVibe;
+ *    - `fondo`: se resta lo que cubre el Fondo Kinky Vibe;
  *    - `solidaria` / `muy-solidaria` / `sugar`: se suma el 10 / 30 / 50 % del precio completo,
  *      redondeado al peso, como aporte al fondo;
  * 3. subtotal = lista − fondo + aporte

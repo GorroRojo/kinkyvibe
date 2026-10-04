@@ -65,7 +65,7 @@
 
 <style lang="scss">
 	.editor {
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		outline: 1px solid var(--line, var(--1-light));
 		overflow: hidden;
 		/* Con fallback para /edit (fuera del panel); en el panel valen los tokens (claro y oscuro). */
@@ -83,12 +83,12 @@
 	}
 	.panes-toggle {
 		display: none;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		button {
 			border: 1px solid var(--line);
 			background: var(--surface);
 			border-radius: 2em;
-			padding: 0.4rem 1rem;
+			padding: 0.4rem var(--space-xs);
 			font-weight: 700;
 			cursor: pointer;
 			min-height: 2.4rem;
@@ -102,7 +102,7 @@
 	.panes.with-preview {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.pane-edit,
 	.pane-preview {

@@ -1,6 +1,7 @@
 /**
  * Pegamento entre la fase 2 del bot (vincular cuentas, avisos de «Lo que sigo») y las páginas de
- * Mi rincón. Todo detrás de los tres interruptores: `telegram_bot`, `lo_que_sigo` y `cuentas`.
+ * Mi rincón. Todo detrás de dos interruptores: `telegram_bot` y `lo_que_sigo` (las cuentas ya no
+ * tienen interruptor).
  */
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
@@ -16,14 +17,14 @@ import { getTelegramLink } from './link.js';
  */
 
 /**
- * ¿Se puede vincular Telegram? Los tres interruptores prendidos (y una base).
+ * ¿Se puede vincular Telegram? Los dos interruptores prendidos (y una base).
  *
  * @param {App.Platform | undefined} platform
  */
 export async function telegramLinkingEnabled(platform) {
 	const db = getDB(platform);
 	if (!db) return false;
-	for (const key of /** @type {const} */ (['telegram_bot', 'lo_que_sigo', 'cuentas'])) {
+	for (const key of /** @type {const} */ (['telegram_bot', 'lo_que_sigo'])) {
 		if (!(await isFlagOn(db, key))) return false;
 	}
 	return true;

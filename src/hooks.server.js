@@ -3,7 +3,7 @@ import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
 import { getDB } from '$lib/server/db';
-import { PREVIEW_BUILD } from '$lib/server/deploy.js';
+import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
@@ -17,11 +17,11 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-	// Interruptor `contenido_db`: la base que usa el cliente del repo para los eventos de la base
-	// (es la misma para todo el isolate, como la del modo demo).
+	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para
+	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));
-	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de etiquetas de este pedido (archivo o
-	// base) pasa a ser el que usa todo el servidor. Nunca tira: sin base, el archivo.
+	// El árbol de etiquetas de este pedido (la base, docs/etiquetas.md) pasa a ser el que usa todo el
+	// servidor. Nunca tira: sin base (o sin etiquetas en la base), el archivo de respaldo.
 	await applySiteTags(event.platform);
 	// Cuentas del público (docs/cuentas.md): `locals.member`, aparte de `locals.user` (admins con
 	// GitHub). Solo consulta algo si hay cookie de sesión y el interruptor está prendido.
@@ -75,3 +75,21 @@ export async function handle({ event, resolve }) {
 async function getUser(token) {
 	return await ghGet('user', token);
 }
+
+/**
+ * Solo en previews: el mensaje del error llega a la página de error, para poder diagnosticar el
+ * modo demo sin acceso a los logs de Cloudflare (docs/demo.md). En el build de producción
+ * `PREVIEW_BUILD` es `false`, así que `handleError` queda `undefined` y SvelteKit usa el suyo, como
+ * siempre (mensaje genérico).
+ *
+ * @type {import('@sveltejs/kit').HandleServerError | undefined}
+ */
+export const handleError = PREVIEW_BUILD
+	? ({ error, message, status }) => {
+			console.error(error);
+			// Una dirección que no existe no es un error para diagnosticar: el 404 de siempre.
+			if (!isPreviewDeploy() || status === 404) return { message };
+			const e = /** @type {any} */ (error);
+			return { message: `${message}: ${e?.message ?? e}`.slice(0, 500) };
+		}
+	: undefined;

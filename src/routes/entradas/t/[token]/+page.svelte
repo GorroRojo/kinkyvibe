@@ -1,4 +1,5 @@
 <script>
+	import { argDateLog } from '$lib/utils/dates.js';
 	import { enhance } from '$app/forms';
 	import { eventHref } from '$lib/admin/nav.js';
 
@@ -13,25 +14,28 @@
 
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
-		return ms
-			? new Date(ms).toLocaleString('es-AR', {
-					dateStyle: 'short',
-					timeStyle: 'short',
-					hourCycle: 'h23',
-					timeZone: 'America/Argentina/Buenos_Aires'
-				})
-			: '';
+		return ms ? argDateLog(ms) : '';
 	}
 </script>
 
 <svelte:head>
-	<title>Entrada · {data.event.title} - KinkyVibe.ar</title>
+	<title>Entrada · {data.event.title} · Kinky Vibe</title>
 </svelte:head>
 
 <article class="ticket ticket-{data.ticket.state}">
 	<h1>{data.event.title}</h1>
 	{#if data.event.when}<p class="when">{data.event.when}</p>{/if}
 	{#if data.event.where}<p class="where">{data.event.where}</p>{/if}
+	{#if data.event.parts?.lines.length}
+		<section class="parts" aria-labelledby="parts-title">
+			<h2 id="parts-title">{data.event.parts.title}</h2>
+			<ul>
+				{#each data.event.parts.lines as line, i (i)}
+					<li>{line}</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	{#if data.event.online}
 		<div class="stream">
@@ -107,7 +111,7 @@
 					{:else}❌ Entrada inválida.{/if}
 				</p>
 			{/if}
-			<a href={eventHref(data.event.slug, 'ingreso')}>Ir al modo puerta</a>
+			<a href={eventHref(data.event.slug, 'ingreso')}>Ir a Puerta</a>
 		</form>
 	{/if}
 </article>
@@ -115,7 +119,7 @@
 <style>
 	.ticket {
 		background: white;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 1.2em;
 		outline: 3px dashed var(--1);
 		text-align: center;
@@ -135,6 +139,25 @@
 	.when,
 	.where {
 		margin: 0.2em 0;
+	}
+	.parts {
+		margin: 0.8em 0;
+		padding: 0.6em 1em;
+		border-radius: var(--round);
+		background: var(--2-tint);
+		text-align: left;
+	}
+	.parts h2 {
+		font-size: var(--step-0);
+		margin: 0 0 0.3em;
+	}
+	.parts ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.parts li {
+		margin: 0.15em 0;
 	}
 	.qr-row {
 		display: flex;

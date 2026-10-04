@@ -5,16 +5,16 @@
 </script>
 
 <svelte:head>
-	<title>Iniciar sesión - KinkyVibe.ar</title>
+	<title>Entrar · Kinky Vibe</title>
 </svelte:head>
 
 <main>
 	<section class="login surface-card" aria-labelledby="login-title">
 		<img src={logo} alt="" width="72" height="72" />
-		<h1 id="login-title">Iniciar sesión</h1>
+		<h1 id="login-title">Entrar</h1>
 		<p>Para quienes editan el sitio.</p>
 		<form method="POST">
-			<input class="pill-btn" type="submit" value="Iniciar sesión con GitHub" />
+			<input class="pill-btn" type="submit" value="Entrar con GitHub" />
 			<input hidden type="text" name="redirectTo" value={redirectTo} />
 		</form>
 		{#if $page.data.demoMode}
@@ -27,11 +27,9 @@
 					prueba.
 				</p>
 			</form>
-			{#if $page.data.cuentas}
-				<a class="pill-btn ghost demo-persona" href="/ingresar/demo"
-					>🧪 Entrar como persona de prueba</a
-				>
-			{/if}
+			<a class="pill-btn ghost demo-persona" href="/ingresar/demo"
+				>🧪 Entrar como persona de prueba</a
+			>
 		{/if}
 		<a class="back" href="/">← Volver a la página</a>
 	</section>
@@ -42,7 +40,7 @@
 		display: grid;
 		place-items: center;
 		min-height: 100vh;
-		padding: 16px;
+		padding: var(--space-xs);
 	}
 	.login {
 		display: flex;

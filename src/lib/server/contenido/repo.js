@@ -1,24 +1,25 @@
 /**
  * Guardar contenido (eventos y material) en la base desde el panel, sin cambiar las pantallas
- * (interruptor `contenido_db`).
+ * (decisión «Contenido solo en la base»: el interruptor `contenido_db` quedó prendido para
+ * siempre).
  *
  * Todo lo que el panel escribe pasa por un solo cliente del repo (`getRepoClient()`,
  * docs/publicar-contenido.md): el editor, cargar y duplicar eventos, la agenda, importar la
  * planilla, borrar, las etiquetas, las imágenes compartidas, el editor de material.
- * {@link withContentDb} envuelve ese cliente como lo hace el modo demo: con el interruptor
- * prendido, el .md de un post que está en la base (o uno nuevo) se lee y se guarda en la base;
- * todo lo demás (imágenes, el archivo de etiquetas, amigues, la wiki, los .md que la base no
- * tiene) sigue yendo al repo como siempre.
+ * {@link withContentDb} envuelve ese cliente como lo hace el modo demo: el .md de un evento, un
+ * material, una ficha de amigues o una página de la wiki **siempre** se lee y se guarda en la base
+ * (nunca en GitHub; las fichas y la wiki, con ./fichas.js); todo lo demás (imágenes) sigue yendo
+ * al repo como siempre.
  *
  * - **Leer**: el texto se arma desde el objeto ({@link postToMarkdown}), con un «sha» que es el de
  *   ese texto: si alguien guarda en el medio, el texto cambia y el próximo guardado con el sha
- *   viejo da `FileChangedError`, como con GitHub.
+ *   viejo da `FileChangedError`, como con GitHub. Un evento o material que la base no tiene no
+ *   existe (aunque su .md siga en el repo).
  * - **Guardar**: cada archivo va con saveObject() (versión nueva cada vez, con el número de versión
  *   que se leyó; el historial queda en `object_revisions`), después del commit al repo de lo que no
  *   es de la base (si eso falla, la base no se toca). Se valida todo antes de escribir nada.
  * - **Borrar** un archivo es el borrado suave del objeto; volver a crearlo, deshacerlo.
- * - Los .md que la base no tiene y ya existen siguen yendo al .md (lo que sale en el sitio para esa
- *   dirección es el .md).
+ * - Sin base no se puede guardar un evento ni un material ({@link NoContentDbError}).
  *
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
@@ -26,7 +27,6 @@
 import { getRequestEvent } from '$app/server';
 import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
-import { isFlagOn } from '$lib/server/flags.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { forViewer, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { canSee } from '$lib/server/objects/visibility.js';
@@ -37,6 +37,18 @@ import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
 import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
+import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
+import { linkedTagKeysOf, tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
+import { contentEdgesOf, dehydrateContent, withContentEdges } from './relaciones.js';
+import {
+	applyFichaWrite,
+	fichaCategoryOfDir,
+	fichaDir,
+	fichaOfPath,
+	listFichas,
+	planFichaWrite,
+	readFicha
+} from './fichas.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -52,10 +64,19 @@ export function setContentDB(db) {
 	current = db ?? null;
 }
 
-/** La base, si el interruptor `contenido_db` está prendido; si no, `null`. */
-export async function activeContentDB() {
-	if (!current) return null;
-	return (await isFlagOn(current, 'contenido_db')) ? current : null;
+/** La base del contenido, o `null` si no hay. */
+export function activeContentDB() {
+	return current;
+}
+
+/** Sin base no hay dónde guardar el contenido (nunca va a GitHub). */
+export class NoContentDbError extends Error {
+	constructor() {
+		super(
+			'No hay base de datos: los eventos, el material, los perfiles y la wiki se guardan solo en la base.'
+		);
+		this.name = 'NoContentDbError';
+	}
 }
 
 /** Quién mira desde el panel: lo ve todo (también lo oculto y lo borrado, para no pisarlo). */
@@ -77,6 +98,16 @@ export function postOfPath(path) {
 	const m = POST_FILE.exec(path);
 	if (!m || !CONTENT_CATEGORIES[m[1]]) return null;
 	return { category: m[1], slug: m[2] };
+}
+
+/**
+ * ¿Esa ruta del repo es un .md que vive en la base? (eventos, material, fichas de amigues y páginas
+ * de la wiki; ./fichas.js)
+ *
+ * @param {string} path
+ */
+export function isDbPath(path) {
+	return postOfPath(path) !== null || fichaOfPath(path) !== null;
 }
 
 /**
@@ -149,14 +180,18 @@ export async function findDbPostObject(db, category, slug) {
 	// tipo por el `OR` entre las dos tablas. Mismo orden: primero la dirección vieja, después la del
 	// objeto.
 	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
+	// Los edges `persona` y `etiqueta` van en la misma consulta (./relaciones.js): las listas de
+	// personas y de etiquetas enteras.
 	const row = await db
 		.prepare(
-			`SELECT ${OBJECT_COLUMNS}, legacy_slug FROM (
-				SELECT ${prefixed('o')}, s.legacy_slug, 0 AS pri FROM content_sources s
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges, tag_edges FROM (
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					${tagEdgesColumn('o')} AS tag_edges, 0 AS pri FROM content_sources s
 				JOIN objects o ON o.id = s.object_id AND o.type = ?1
 				WHERE s.category = ?2 AND s.legacy_slug = ?3
 				UNION ALL
-				SELECT ${prefixed('o')}, s.legacy_slug, 1 AS pri FROM objects o
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					${tagEdgesColumn('o')} AS tag_edges, 1 AS pri FROM objects o
 				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
 				WHERE o.type = ?1 AND o.slug = ?3
 			) ORDER BY pri LIMIT 1`
@@ -165,10 +200,18 @@ export async function findDbPostObject(db, category, slug) {
 		.first();
 	if (!row) return null;
 	// El objeto como lo da getObject(): sin la dirección vieja.
-	const { legacy_slug: legacy, ...columns } = row;
+	const { legacy_slug: legacy, persona_edges: personas, tag_edges: tags, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
-	return asPostObject(category, forViewer(object, PANEL), legacy ? String(legacy) : null);
+	const seen = forViewer(object, PANEL);
+	const full = {
+		...seen,
+		data: withContentEdges(seen.type, seen.data, {
+			personas: personaEdgesFromColumn(personas),
+			tags: tagEdgesFromColumn(tags)
+		})
+	};
+	return asPostObject(category, full, legacy ? String(legacy) : null);
 }
 
 /**
@@ -299,11 +342,15 @@ async function readPostsStamp(db, type, category) {
 				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
 				(SELECT max(id) FROM object_revisions) AS v,
 				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu,
+				(SELECT max(updated_at) FROM objects WHERE type = 'etiqueta') AS tu`
 		)
 		.bind(type, category)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}`;
+	// `pu`: la dirección de los perfiles de las personas (edges, ./personasEdges.js); `tu`: el `key`
+	// de las etiquetas (edges, ./etiquetasEdges.js).
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}:${row?.pu}:${row?.tu}`;
 }
 
 /**
@@ -322,7 +369,25 @@ async function readDbPostRows(db, type, category) {
 		)
 		.bind(type, category)
 		.all();
-	return results;
+	// Con las listas de personas y de etiquetas enteras (los perfiles y las etiquetas son edges:
+	// ./relaciones.js), en una consulta para todos. Guardar un edge pasa por saveObject(), que
+	// cambia `updated_at`: la marca de arriba lo nota.
+	const linked = await contentEdgesOf(
+		db,
+		results.map((r) => Number(r.id))
+	);
+	if (!linked.size) return results;
+	return results.map((r) => {
+		const edges = linked.get(Number(r.id));
+		if (!edges) return r;
+		let data;
+		try {
+			data = JSON.parse(String(r.data));
+		} catch {
+			return r;
+		}
+		return { ...r, data: JSON.stringify(withContentEdges(String(r.type), data, edges)) };
+	});
 }
 
 /**
@@ -371,13 +436,41 @@ export const allDbEventObjects = (db) => allDbPostObjects(db, EVENT_CATEGORY);
 /**
  * @typedef {{
  *   path: string, category: string, slug: string, existing: DbPostFile | null, remove: boolean,
- *   title?: string, data?: Record<string, unknown>, visibility?: 'public' | 'hidden'
+ *   title?: string, data?: Record<string, unknown>, visibility?: 'public' | 'hidden',
+ *   edges?: Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>
  * }} PlannedWrite
  */
 
 /**
- * Envuelve un cliente del repo (GitHub, el mock de `dev:admin` o el modo demo). Con el interruptor
- * apagado o sin base, cada función es la del cliente, sin cambios.
+ * Por dirección del .md, las etiquetas que cada post de la base (sin borrar) de esa carpeta nombra
+ * por edge: esas cambian solas al renombrar la etiqueta y no se reescriben (etiquetas/rename.js).
+ * Las carpetas que no son de la base, vacío.
+ *
+ * @param {string} dir
+ * @returns {Promise<Map<string, Set<string>>>}
+ */
+async function linkedTagsInDir(dir) {
+	const clean = dir.replace(/\/+$/, '');
+	const category = Object.keys(CONTENT_CATEGORIES).find((c) => dirOf(c) === clean);
+	const db = category ? activeContentDB() : null;
+	/** @type {Map<string, Set<string>>} */
+	const out = new Map();
+	if (!db || !category) return out;
+	const posts = [...(await allDbPostObjects(db, category))].filter(([, e]) => !e.deleted);
+	const linked = await linkedTagKeysOf(
+		db,
+		posts.map(([, e]) => Number(e.object.id))
+	);
+	for (const [slug, e] of posts) {
+		const keys = linked.get(Number(e.object.id));
+		if (keys) out.set(`${dirOf(category)}/${slug}.md`, keys);
+	}
+	return out;
+}
+
+/**
+ * Envuelve un cliente del repo (GitHub, el mock de `dev:admin` o el modo demo): los .md de eventos
+ * y material se leen y se guardan en la base; todo lo demás va al cliente, sin cambios.
  *
  * @template {Record<string, any>} C
  * @param {C} base
@@ -390,9 +483,8 @@ export function withContentDb(base) {
 	 */
 	async function postAt(path) {
 		const p = postOfPath(path);
-		if (!p) return null;
-		const db = await activeContentDB();
-		return db ? findDbPost(db, p.category, p.slug) : null;
+		const db = p ? activeContentDB() : null;
+		return db && p ? findDbPost(db, p.category, p.slug) : null;
 	}
 
 	/**
@@ -400,10 +492,26 @@ export function withContentDb(base) {
 	 * @param {string} path
 	 */
 	async function hasPostAt(path) {
+		const f = fichaOfPath(path);
+		if (f) {
+			const db = activeContentDB();
+			return db ? (await readFicha(db, f.category, f.slug)) !== null : false;
+		}
 		const p = postOfPath(path);
-		if (!p) return false;
-		const db = await activeContentDB();
-		return db ? (await findDbPostObject(db, p.category, p.slug)) !== null : false;
+		const db = p ? activeContentDB() : null;
+		return db && p ? (await findDbPostObject(db, p.category, p.slug)) !== null : false;
+	}
+
+	/**
+	 * El archivo de la base en esa ruta (un post o una ficha), con su texto y su sha, o null.
+	 * @param {string} path
+	 * @returns {Promise<{ raw: string, sha: string, deleted: boolean } | null>}
+	 */
+	async function dbFileAt(path) {
+		const f = fichaOfPath(path);
+		if (!f) return postAt(path);
+		const db = activeContentDB();
+		return db ? readFicha(db, f.category, f.slug) : null;
 	}
 
 	/** La categoría cuya carpeta es `dir` (sin la barra final), o null. @param {string} dir */
@@ -417,21 +525,22 @@ export function withContentDb(base) {
 
 		/** @param {string} token @param {string} path */
 		async getFile(token, path) {
-			const e = await postAt(path);
-			if (e) return e.deleted ? null : e.raw;
-			return base.getFile(token, path);
+			if (!isDbPath(path)) return base.getFile(token, path);
+			const e = await dbFileAt(path);
+			return e && !e.deleted ? e.raw : null;
 		},
 
 		/** @param {string} token @param {string} path */
 		async readFile(token, path) {
-			const e = await postAt(path);
-			if (e) return e.deleted ? null : { raw: e.raw, sha: e.sha, ref: 'base' };
-			return base.readFile ? base.readFile(token, path) : null;
+			if (!isDbPath(path)) return base.readFile ? base.readFile(token, path) : null;
+			const e = await dbFileAt(path);
+			return e && !e.deleted ? { raw: e.raw, sha: e.sha, ref: 'base' } : null;
 		},
 
 		/** @param {string} token @param {string} path @param {...any} rest */
 		async pathExists(token, path, ...rest) {
-			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer).
+			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer). El .md que
+			// sigue en el repo como respaldo, también: su dirección no se reusa.
 			if (await hasPostAt(path)) return true;
 			return base.pathExists(token, path, ...rest);
 		},
@@ -444,85 +553,118 @@ export function withContentDb(base) {
 		},
 
 		/**
-		 * La carpeta de una categoría incluye los posts de la base (los borrados no).
+		 * La carpeta de una categoría: sus posts son los de la base (los borrados no); de lo que
+		 * hay en el repo quedan solo los archivos que no son posts (plantillas, carpetas de medios).
 		 * @param {string} token @param {string} path @param {any} [opts]
 		 */
 		async listTree(token, path, opts) {
+			const fichas = fichaCategoryOfDir(path);
+			if (fichas) {
+				// Las fichas de la base; del repo, solo lo que no es una ficha (plantillas, medios).
+				const list = await base.listTree(token, path, opts);
+				const out = list.filter(
+					(/** @type {{ path: string }} */ f) => fichaOfPath(f.path)?.category !== fichas
+				);
+				const db = activeContentDB();
+				if (!db) return out;
+				for (const f of await listFichas(db, fichas)) {
+					out.push({ path: `${fichaDir(fichas)}/${f.slug}.md`, sha: f.sha, type: 'blob' });
+				}
+				return out;
+			}
 			const list = await base.listTree(token, path, opts);
 			const category = categoryOfDir(path);
-			const db = category ? await activeContentDB() : null;
-			if (!db || !category) return list;
-			const posts = await allDbPosts(db, category);
+			if (!category) return list;
+			const db = activeContentDB();
 			const out = list.filter(
-				(/** @type {{ path: string }} */ f) => !posts.get(postOfPath(f.path)?.slug ?? '')?.deleted
+				(/** @type {{ path: string }} */ f) => postOfPath(f.path)?.category !== category
 			);
-			const have = new Set(out.map((/** @type {{ path: string }} */ f) => f.path));
-			for (const [slug, e] of posts) {
-				const p = `${dirOf(category)}/${slug}.md`;
-				if (!e.deleted && !have.has(p)) out.push({ path: p, sha: e.sha, type: 'blob' });
+			if (!db) return out;
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, type: 'blob' });
 			}
 			return out;
 		},
 
 		/**
-		 * Los textos de la carpeta de una categoría, con los de la base en lugar de sus .md.
+		 * Los textos de la carpeta de una categoría: los de la base (y lo que no es un post).
 		 * @param {string} token @param {string} dir
 		 */
 		async getDirTexts(token, dir) {
-			const list = await base.getDirTexts(token, dir);
-			const category = categoryOfDir(dir);
-			const db = category ? await activeContentDB() : null;
-			if (!db || !category) return list;
-			const posts = await allDbPosts(db, category);
-			/** @type {Array<{ path: string, sha: string, text: string }>} */
-			const out = [];
-			const seen = new Set();
-			for (const f of list) {
-				const e = posts.get(postOfPath(f.path)?.slug ?? '');
-				seen.add(f.path);
-				if (!e) out.push(f);
-				else if (!e.deleted) out.push({ path: f.path, sha: e.sha, text: e.raw });
+			const fichas = fichaCategoryOfDir(dir);
+			if (fichas) {
+				const list = await base.getDirTexts(token, dir);
+				/** @type {Array<{ path: string, sha: string, text: string }>} */
+				const out = list.filter(
+					(/** @type {{ path: string }} */ f) => fichaOfPath(f.path)?.category !== fichas
+				);
+				const db = activeContentDB();
+				if (!db) return out;
+				return [...out, ...(await fichaTexts(db, fichas))];
 			}
-			for (const [slug, e] of posts) {
-				const p = `${dirOf(category)}/${slug}.md`;
-				if (!e.deleted && !seen.has(p)) out.push({ path: p, sha: e.sha, text: e.raw });
+			const category = categoryOfDir(dir);
+			if (!category) return base.getDirTexts(token, dir);
+			const list = await base.getDirTexts(token, dir);
+			const db = activeContentDB();
+			/** @type {Array<{ path: string, sha: string, text: string }>} */
+			const out = list.filter(
+				(/** @type {{ path: string }} */ f) => postOfPath(f.path)?.category !== category
+			);
+			if (!db) return out;
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, text: e.raw });
 			}
 			return out;
 		},
 
 		/**
+		 * Las etiquetas que los posts de la base de esa carpeta nombran por edge, por dirección.
+		 * @param {string} _token @param {string} dir
+		 */
+		linkedTagsOf: (_token, dir) => linkedTagsInDir(dir),
+
+		/**
 		 * @param {string} token
-		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean }} opts
-		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js
+		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean, edges?: Record<string, Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>> }} opts
+		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js.
+		 *   `edges`: por ruta, relaciones del post que cambian en el mismo guardado (por ejemplo la
+		 *   imagen, `{ portada: [id] }`; docs/imagenes.md). Solo para posts de la base.
 		 */
 		async commitFiles(token, opts) {
-			const db = await activeContentDB();
-			if (!db) return base.commitFiles(token, opts);
 			const { files, mustNotExist = [], unchanged = [] } = opts;
+			const isPost = (/** @type {string} */ path) => isDbPath(path);
+			if (!files.some((f) => isPost(f.path))) return base.commitFiles(token, opts);
+			const db = activeContentDB();
+			if (!db) throw new NoContentDbError();
 			// Quién guarda: el login de GitHub de le admin de este pedido (./author.js); nunca el
 			// nombre que se muestra (`pr.who`).
 			const author = panelAuthor();
 			const actor = String(author?.login || opts.actor || 'panel');
 			const superadmin = author ? author.superadmin : opts.superadmin === true;
 
-			// Qué archivos van a la base: los que la base tiene, y los nuevos.
+			// Todo .md de evento, material, amigues o la wiki va a la base (nunca al repo).
 			/** @type {PlannedWrite[]} */
 			const writes = [];
-			/** @type {Set<string>} */
-			const toDb = new Set();
+			/** @type {import('./fichas.js').FichaWrite[]} */
+			const fichaWrites = [];
 			for (const f of files) {
+				if (fichaOfPath(f.path)) {
+					const w = await planFichaWrite(db, f, { superadmin });
+					if (w) fichaWrites.push(w);
+					continue;
+				}
 				const p = postOfPath(f.path);
 				if (!p) continue;
 				const existing = await findDbPost(db, p.category, p.slug);
-				if (!existing && (await base.pathExists(token, f.path))) continue; // solo .md: al repo
-				if (!existing && f.delete) continue;
-				toDb.add(f.path);
 				if (f.delete) {
-					writes.push({ path: f.path, ...p, existing, remove: true });
+					// Borrar lo que la base no tiene: no hay nada que borrar.
+					if (existing) writes.push({ path: f.path, ...p, existing, remove: true });
 					continue;
 				}
 				if (f.content === undefined) {
-					throw new Error(`No se puede copiar ${f.path} a la base: falta su texto.`);
+					throw new Error(`No se puede guardar ${f.path} en la base: falta su texto.`);
 				}
 				const mapped = markdownToPost(p.category, p.slug, f.content);
 				if (mapped.error && !existing) throw new Error(mapped.error);
@@ -546,34 +688,36 @@ export function withContentDb(base) {
 					remove: false,
 					title: mapped.title,
 					data: valid.data,
-					visibility: mapped.visibility
+					visibility: mapped.visibility,
+					...(opts.edges?.[f.path] ? { edges: opts.edges[f.path] } : {})
 				});
 			}
-			if (!writes.length) return base.commitFiles(token, opts);
 
 			// Los mismos controles que un commit: lo que no tiene que existir y lo que no tiene que
 			// haber cambiado desde que se leyó.
 			for (const p of mustNotExist) {
-				if (!toDb.has(p)) continue;
-				const w = writes.find((x) => x.path === p);
+				if (!isPost(p)) continue;
+				const w = writes.find((x) => x.path === p) ?? fichaWrites.find((x) => x.path === p);
 				// Uno borrado (suave) no cuenta: volver a crearlo es deshacer el borrado (también
 				// «Deshacer» de Borrar, que pide que no exista).
 				if (w?.existing && !w.existing.deleted) throw new PathExistsError(p);
 			}
 			for (const u of unchanged) {
-				if (!toDb.has(u.path)) continue;
-				const w = writes.find((x) => x.path === u.path);
-				if (w?.existing && w.existing.sha !== u.sha) throw new FileChangedError(u.path);
+				if (!isPost(u.path)) continue;
+				const w =
+					writes.find((x) => x.path === u.path) ?? fichaWrites.find((x) => x.path === u.path);
+				const sha = w ? w.existing?.sha : (await dbFileAt(u.path))?.sha;
+				if (sha !== undefined && sha !== u.sha) throw new FileChangedError(u.path);
 			}
 
 			// Primero el repo (si algo falla ahí, la base no se toca), después la base.
-			const rest = files.filter((f) => !toDb.has(f.path));
+			const rest = files.filter((f) => !isPost(f.path));
 			const commit = rest.length
 				? await base.commitFiles(token, {
 						...opts,
 						files: rest,
-						mustNotExist: mustNotExist.filter((p) => !toDb.has(p)),
-						unchanged: unchanged.filter((u) => !toDb.has(u.path))
+						mustNotExist: mustNotExist.filter((p) => !isPost(p)),
+						unchanged: unchanged.filter((u) => !isPost(u.path))
 					})
 				: null;
 
@@ -592,6 +736,19 @@ export function withContentDb(base) {
 				}
 				saved.push(`${w.category}/${w.slug}`);
 			}
+			for (const w of fichaWrites) {
+				try {
+					await applyFichaWrite(db, w, actor);
+				} catch (error) {
+					if (error instanceof VersionConflictError) throw new FileChangedError(w.path);
+					if (error instanceof ObjectError) {
+						const details = error.errors.map((e) => e.message).join(' ');
+						throw new Error(details ? `${error.message} ${details}` : error.message);
+					}
+					throw error;
+				}
+				saved.push(`${w.category}/${w.slug}`);
+			}
 			const first = saved[0];
 			return {
 				...(commit ?? { sha: 'base', url: first ? `/${first}` : '/' }),
@@ -599,6 +756,21 @@ export function withContentDb(base) {
 			};
 		}
 	};
+}
+
+/**
+ * Los textos de las fichas de una categoría (amigues o la wiki), como los da `getDirTexts`.
+ *
+ * @param {D1Database} db
+ * @param {import('./fichas.js').FichaCategory} category
+ * @returns {Promise<Array<{ path: string, sha: string, text: string }>>}
+ */
+async function fichaTexts(db, category) {
+	return (await listFichas(db, category)).map((f) => ({
+		path: `${fichaDir(category)}/${f.slug}.md`,
+		sha: f.sha,
+		text: f.raw
+	}));
 }
 
 /**
@@ -643,6 +815,12 @@ async function writePost(db, w, actor) {
 			{ actor, also }
 		);
 	}
+	// Los perfiles de `personas` y las etiquetas van como edges, no en `data` (./relaciones.js).
+	const { data, edges } = await dehydrateContent(
+		db,
+		w.category,
+		/** @type {Record<string, unknown>} */ (w.data)
+	);
 	if (w.existing) {
 		return saveObject(
 			db,
@@ -651,7 +829,9 @@ async function writePost(db, w, actor) {
 				type,
 				version: w.existing.object.version,
 				title: w.title,
-				data: w.data,
+				data,
+				// Los edges `persona` (de `personas`) y los que manda quien guarda (la `portada`).
+				edges: { ...edges, ...w.edges },
 				visibility: w.visibility,
 				// Volver a crear un post borrado es deshacer el borrado.
 				...(w.existing.deleted ? { deleted: false } : {})
@@ -661,7 +841,14 @@ async function writePost(db, w, actor) {
 	}
 	return saveObject(
 		db,
-		{ type, slug: w.slug, title: w.title, data: w.data, visibility: w.visibility },
+		{
+			type,
+			slug: w.slug,
+			title: w.title,
+			data,
+			edges: { ...edges, ...w.edges },
+			visibility: w.visibility
+		},
 		{ actor, also }
 	);
 }
@@ -669,8 +856,7 @@ async function writePost(db, w, actor) {
 /**
  * Lo que la base dice de un post para quien lo vende o lo muestra en el panel (la configuración
  * de entradas, el título, la fecha): la metadata como la de un .md, `null` si la base lo tiene
- * oculto o borrado (no se vende: «la base decide»), o `undefined` si la base no lo tiene: entonces
- * vale el .md.
+ * oculto o borrado (no se vende), o `undefined` si la base no lo tiene (tampoco existe).
  *
  * @param {DbPostObject | null | undefined} e
  * @returns {Record<string, any> | null | undefined}
@@ -682,25 +868,25 @@ function publicMetaOf(e) {
 }
 
 /**
- * {@link publicMetaOf} de un evento; `undefined` también con el interruptor apagado.
+ * {@link publicMetaOf} de un evento; `undefined` también sin base.
  *
  * @param {string} slug
  * @returns {Promise<Record<string, any> | null | undefined>}
  */
 export async function dbEventMeta(slug) {
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	if (!db) return undefined;
 	return publicMetaOf(await findDbPostObject(db, EVENT_CATEGORY, slug));
 }
 
 /**
- * Lo mismo para todos los eventos de la base de una vez (una consulta), por dirección; `null` con
- * el interruptor apagado.
+ * Lo mismo para todos los eventos de la base de una vez (una consulta), por dirección; `null` sin
+ * base.
  *
  * @returns {Promise<Map<string, Record<string, any> | null> | null>}
  */
 export async function dbEventMetas() {
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	if (!db) return null;
 	/** @type {Map<string, Record<string, any> | null>} */
 	const out = new Map();
@@ -710,14 +896,21 @@ export async function dbEventMetas() {
 
 /**
  * El texto de un post de la base para el editor (con el sha para guardar contra él); `null` si la
- * base no lo tiene o el interruptor está apagado; `{ deleted: true }` si está borrado.
+ * base no lo tiene (o no hay base); `{ deleted: true }` si está borrado.
  *
  * @param {string} path
  * @returns {Promise<{ raw: string, sha: string } | { deleted: true } | null>}
  */
 export async function readDbPostFile(path) {
+	const f = fichaOfPath(path);
+	if (f) {
+		const db = activeContentDB();
+		const e = db ? await readFicha(db, f.category, f.slug) : null;
+		if (!e) return null;
+		return e.deleted ? { deleted: true } : { raw: e.raw, sha: e.sha };
+	}
 	const p = postOfPath(path);
-	const db = p ? await activeContentDB() : null;
+	const db = p ? activeContentDB() : null;
 	if (!db || !p) return null;
 	const e = await findDbPost(db, p.category, p.slug);
 	if (!e) return null;
@@ -726,3 +919,68 @@ export async function readDbPostFile(path) {
 
 /** Lo mismo (nombre de la primera versión, solo eventos). */
 export const readDbEventFile = readDbPostFile;
+
+/** Un cambio que tocaría algo que no es contenido de la base (imágenes, el archivo de etiquetas…). */
+export class NotInContentDbError extends Error {
+	/** @param {string} path */
+	constructor(path) {
+		super(
+			`${path} no está en la base: este cambio solo puede tocar eventos, material, perfiles y la wiki.`
+		);
+		this.name = 'NotInContentDbError';
+		this.path = path;
+	}
+}
+
+/**
+ * Un cliente del repo que solo ve y solo escribe el contenido de la base (eventos, material, fichas
+ * de amigues y páginas de la wiki), para lo que tiene que quedarse en la base sí o sí (renombrar
+ * una etiqueta o una serie reescribe sus publicaciones). Nunca llama a GitHub:
+ * - `getDirTexts` arma la carpeta de una categoría de la base desde la base (sin leer el repo);
+ * - `getFile` solo lee posts de la base;
+ * - `commitFiles` tira {@link NotInContentDbError} si algún archivo no es un post de la base; si
+ *   todos lo son, guarda por `client` (envuelto con {@link withContentDb}: va solo a la base).
+ *
+ * @param {{ getFile: Function, commitFiles: Function }} client lo de getRepoClient()
+ */
+export function dbPostsOnlyClient(client) {
+	return {
+		/** @param {string} token @param {string} dir */
+		async getDirTexts(token, dir) {
+			const fichas = fichaCategoryOfDir(dir);
+			if (fichas) {
+				const db = activeContentDB();
+				return db ? fichaTexts(db, fichas) : [];
+			}
+			const clean = dir.replace(/\/+$/, '');
+			const category = Object.keys(CONTENT_CATEGORIES).find((c) => dirOf(c) === clean);
+			const db = category ? activeContentDB() : null;
+			if (!db || !category) return [];
+			/** @type {Array<{ path: string, sha: string, text: string }>} */
+			const out = [];
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, text: e.raw });
+			}
+			return out;
+		},
+
+		/** @param {string} _token @param {string} dir */
+		linkedTagsOf: (_token, dir) => linkedTagsInDir(dir),
+
+		/** @param {string} token @param {string} path */
+		async getFile(token, path) {
+			return isDbPath(path) ? client.getFile(token, path) : null;
+		},
+
+		/**
+		 * @param {string} token
+		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string } & Record<string, any>} opts
+		 */
+		async commitFiles(token, opts) {
+			const outside = opts.files.find((f) => !isDbPath(f.path));
+			if (outside) throw new NotInContentDbError(outside.path);
+			return client.commitFiles(token, opts);
+		}
+	};
+}

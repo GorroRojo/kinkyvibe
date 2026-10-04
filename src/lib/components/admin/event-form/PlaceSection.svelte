@@ -6,11 +6,11 @@
 	 * texto queda plegado («Usar texto libre en vez de un lugar»).
 	 *
 	 * Lo elegido no va al .md: la página lo manda en campos aparte (`venueChoiceFields` en
-	 * $lib/utils/venueChoice.js) y el servidor lo guarda en `event_venues` después de guardar el
-	 * evento (src/lib/server/amigues/eventFormVenue.js).
+	 * $lib/utils/venueChoice.js) y el servidor lo guarda como edge `lugar` del evento en la base
+	 * después de guardar el evento (src/lib/server/amigues/eventFormVenue.js).
 	 *
 	 * Props:
-	 * - `picker`: `data.venuePicker` ({ venues, current, flagOn }) o `null` (sin base: solo el texto
+	 * - `picker`: `data.venuePicker` ({ venues, current }) o `null` (sin base: solo el texto
 	 *   libre, como antes).
 	 * - `choice` (bind): lo elegido ({ venueId, privacy }).
 	 * - `fields`, `values` (bind), `idFor`, `errors`: los del «Dónde» en texto libre (FieldGrid).
@@ -23,6 +23,7 @@
 	 */
 	import { deserialize } from '$app/forms';
 	import { tick } from 'svelte';
+	import { Pencil, Plus, Replace, Undo2, X } from '@lucide/svelte';
 	import FieldGrid from './FieldGrid.svelte';
 	import {
 		VENUE_PRIVACY_LABELS,
@@ -41,7 +42,7 @@
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueOption} VenueOption */
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueChoice} VenueChoice */
 
-	/** @type {{ venues: VenueOption[], current: VenueChoice, flagOn: boolean } | null} */
+	/** @type {{ venues: VenueOption[], current: VenueChoice } | null} */
 	export let picker = null;
 	/** @type {VenueChoice} */
 	export let choice = { ...NO_VENUE };
@@ -224,13 +225,6 @@
 	<legend>📍 Lugar</legend>
 
 	{#if picker}
-		{#if !picker.flagOn}
-			<p class="hint" id="{idPrefix}-venue-flag">
-				El interruptor «Perfiles públicos» está apagado: la página del evento sigue mostrando el
-				texto libre. El lugar que elijas se guarda igual y se usa cuando se prenda.
-			</p>
-		{/if}
-
 		{#if chosen}
 			<div class="chosen" id="{idPrefix}-venue-chosen">
 				{#if editing}
@@ -263,7 +257,8 @@
 								disabled={editBusy}
 								on:click={saveEdit}>{editBusy ? 'Guardando…' : 'Guardar'}</button
 							>
-							<button type="button" class="link" on:click={() => (editing = false)}>Cancelar</button
+							<button type="button" class="kv-link" on:click={() => (editing = false)}
+								><X size={16} aria-hidden="true" /> Cancelar</button
 							>
 						</div>
 					</div>
@@ -273,8 +268,11 @@
 						{#each venueOptionMarks(chosen) as mark}<span class="mark">{mark}</span>{/each}
 						{#if venueOptionPlace(chosen)}<small class="block">{venueOptionPlace(chosen)}</small
 							>{/if}
-						<button type="button" class="link" id="{idPrefix}-venue-edit-open" on:click={startEdit}
-							>Editar</button
+						<button
+							type="button"
+							class="kv-link"
+							id="{idPrefix}-venue-edit-open"
+							on:click={startEdit}><Pencil size={16} aria-hidden="true" /> Editar</button
 						>
 					</p>
 				{/if}
@@ -295,10 +293,12 @@
 				</p>
 				<div class="actions">
 					{#if !changing}
-						<button type="button" class="link" on:click={startChange}>Cambiar</button>
+						<button type="button" class="kv-link" on:click={startChange}
+							><Replace size={16} aria-hidden="true" /> Cambiar</button
+						>
 					{/if}
-					<button type="button" class="link" id="{idPrefix}-venue-remove" on:click={unlink}
-						>Sacar lugar</button
+					<button type="button" class="kv-link" id="{idPrefix}-venue-remove" on:click={unlink}
+						><X size={16} aria-hidden="true" /> Sacar lugar</button
 					>
 				</div>
 			</div>
@@ -312,7 +312,9 @@
 		{:else if missing}
 			<p class="warning" id="{idPrefix}-venue-missing">
 				⚠️ El lugar elegido ya no existe.
-				<button type="button" class="link" on:click={unlink}>Sacar lugar</button>
+				<button type="button" class="kv-link" on:click={unlink}
+					><X size={16} aria-hidden="true" /> Sacar lugar</button
+				>
 			</p>
 		{/if}
 
@@ -358,8 +360,8 @@
 					</p>
 				{/if}
 				{#if changing}
-					<button type="button" class="link" on:click={() => (changing = false)}
-						>No cambiar el lugar</button
+					<button type="button" class="kv-link" on:click={() => (changing = false)}
+						><Undo2 size={16} aria-hidden="true" /> No cambiar el lugar</button
 					>
 				{/if}
 
@@ -400,20 +402,20 @@
 								disabled={createBusy || !newName.trim()}
 								on:click={createVenue}>{createBusy ? 'Creando…' : 'Crear y elegir'}</button
 							>
-							<button type="button" class="link" on:click={() => (creating = false)}
-								>Cancelar</button
+							<button type="button" class="kv-link" on:click={() => (creating = false)}
+								><X size={16} aria-hidden="true" /> Cancelar</button
 							>
 						</div>
 					</div>
 				{:else}
 					<button
 						type="button"
-						class="link"
+						class="kv-link"
 						id="{idPrefix}-venue-new"
 						on:click={() => {
 							creating = true;
 							newName = newName || query.trim();
-						}}>+ Crear lugar</button
+						}}><Plus size={16} aria-hidden="true" /> Crear lugar</button
 					>
 				{/if}
 			</div>
@@ -426,7 +428,9 @@
 			<p class="hint">
 				Mientras haya un lugar elegido, la página del evento muestra el lugar y no este texto (se
 				guarda igual en el archivo). Para usar el texto, sacá el lugar.
-				<button type="button" class="link" on:click={unlink}>Sacar lugar</button>
+				<button type="button" class="kv-link" on:click={unlink}
+					><X size={16} aria-hidden="true" /> Sacar lugar</button
+				>
 			</p>
 			<FieldGrid {fields} {idFor} {errors} bind:values />
 		</details>
@@ -451,7 +455,7 @@
 	}
 	.chosen {
 		background: var(--surface-2, #f6f0f8);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 0.9em;
 	}
 	.name {
@@ -461,7 +465,7 @@
 		display: inline-block;
 		margin-left: 0.4em;
 		padding: 0 0.5em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		font-size: var(--step--1);
 		background: var(--4-light, #fff3c4);
 	}
@@ -490,7 +494,7 @@
 		font: inherit;
 		background: var(--surface-2, #f6f0f8);
 		border: 1px solid var(--1-light, #ddd);
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		padding: 0.45em 0.8em;
 		min-height: 2.75rem;
 		cursor: pointer;

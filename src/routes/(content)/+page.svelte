@@ -17,7 +17,7 @@
 			.catch(() => (loadedPast = false));
 	}
 
-	const title = 'KinkyVibe.ar';
+	const title = 'Kinky Vibe';
 	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
@@ -35,7 +35,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar</title>
+	<title>Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
@@ -68,7 +68,7 @@
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
 	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
-	<h1 class="profile-name p-name">KinkyVibe</h1>
+	<p class="profile-name p-name">Kinky Vibe</p>
 	<a
 		target="_blank"
 		class="u-pronouns"
@@ -83,6 +83,14 @@
 	</p>
 </div>
 <main>
+	<header class="intro">
+		<h1 class="page-title">Kinky Vibe</h1>
+		<!-- DECIDIDO POR CLAUDE, A CONFIRMAR: armado con el texto de la h-card y la descripción -->
+		<p>
+			Un proyecto de divulgación y acompañamiento disidente: talleres, eventos, material e
+			información cuir, kinky y de BDSM para todes.
+		</p>
+	</header>
 	{#if $page.url.searchParams.has('carrousel')}
 		<Carrousel
 			posts={allPosts.filter(
@@ -137,7 +145,8 @@
 		/>
 	</div>
 	<div id="lista"></div>
-	<PostList posts={allPosts} />
+	<!-- el feed largo de a 20: así el pie de página queda a mano -->
+	<PostList posts={allPosts} limit={20} />
 </main>
 
 <style>
@@ -152,8 +161,23 @@
 		/* max-width: 50rem; */
 		margin: auto;
 		display: grid;
-		gap: 3rem;
-		padding-top: 3rem;
+		gap: var(--space-xl);
+		padding-top: var(--space-s);
+	}
+	.intro {
+		max-width: 50rem;
+		margin-inline: auto;
+		padding-inline: var(--space-xs);
+		text-align: center;
+	}
+	.intro .page-title {
+		margin: 0;
+	}
+	.intro p {
+		margin: var(--space-2xs) auto 0;
+		max-width: 36rem;
+		font-size: var(--text-base);
+		color: var(--muted);
 	}
 	.cardrow {
 		width: 100%;

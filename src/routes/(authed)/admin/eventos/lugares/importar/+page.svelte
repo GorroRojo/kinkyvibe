@@ -190,15 +190,11 @@
 <div class="kv-stack">
 	<p class="kv-note">
 		Leímos {plural(data.total, 'evento', 'eventos')}
-		({data.fromDb ? 'de la base' : 'de los archivos .md'}). Salteamos {plural(
-			data.skipped.online,
-			'online',
-			'online'
-		)}, {plural(data.skipped.empty, 'sin «Dónde»', 'sin «Dónde»')} y {plural(
-			data.skipped.linked,
-			'que ya tiene lugar',
-			'que ya tienen lugar'
-		)}.
+		(de la base). Salteamos {plural(data.skipped.online, 'online', 'online')}, {plural(
+			data.skipped.empty,
+			'sin «Dónde»',
+			'sin «Dónde»'
+		)} y {plural(data.skipped.linked, 'que ya tiene lugar', 'que ya tienen lugar')}.
 	</p>
 	<p class="kv-note">
 		<strong>Privacidad:</strong> lo que ya está en los eventos es público, así que cada evento queda
@@ -207,12 +203,6 @@
 		solo un barrio, «{VENUE_PRIVACY_LABELS.area}». Los eventos que con el lugar mostrarían otra cosa
 		(otro nombre, otra forma de escribir la dirección) quedan sin marcar y te decimos qué cambiaría.
 	</p>
-	{#if !data.flagOn}
-		<p class="kv-flash warn">
-			El interruptor «Perfiles públicos» está apagado: los lugares y los vínculos quedan listos,
-			pero el sitio sigue mostrando lo que dice cada evento.
-		</p>
-	{/if}
 	{#if failure}
 		<p class="kv-flash bad" role="alert">{failure}</p>
 	{/if}
@@ -394,7 +384,7 @@
 						</p>
 						<div class="kv-row">
 							<button class="kv-btn" type="submit" disabled={busy}
-								>{busy ? 'Guardando…' : 'Crear lugares'}</button
+								>{busy ? 'Creando…' : 'Crear lugares'}</button
 							>
 							<button
 								class="kv-btn ghost"
@@ -437,7 +427,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.grow {
 		flex: 1 1 14rem;
@@ -451,7 +441,7 @@
 	}
 	.candidate {
 		border-top: 1px solid var(--line, rgba(127, 127, 127, 0.25));
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 	}
 	.candidate.off {
 		opacity: 0.7;
@@ -462,29 +452,29 @@
 	.head {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 	}
 	.pick {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		min-height: 2.4rem;
 	}
 	.events li {
-		padding: 0.35rem 0;
+		padding: var(--space-3xs) 0;
 	}
 	.listing {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0 1.2rem;
+		gap: 0 var(--space-s);
 		align-items: center;
 		border: 0;
 		padding: 0;
 		margin: 0 0 0.6rem;
 	}
 	.listing legend {
-		font-weight: 600;
+		font-weight: 700;
 		padding: 0;
 		margin-bottom: 0.2rem;
 	}

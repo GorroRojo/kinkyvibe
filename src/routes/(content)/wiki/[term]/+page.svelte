@@ -3,14 +3,21 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import SeriesTagBlock from '$lib/components/series/SeriesTagBlock.svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
+	import ContentParts from '$lib/components/ContentParts.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
+	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
+	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
+	const STYLE_TAG = 'style';
+	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
-	let haswiki = (/**@type string*/ n) => true || data.wiki?.some((e) => e.meta.wiki == n);
+	let haswiki = (/**@type string*/ n) =>
+		true || data.wiki?.some((/** @type {ProcessedPost} */ e) => e.meta.wiki == n);
 	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
 	function getAscendance(termino) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
@@ -81,7 +88,7 @@
 </script>
 
 <svelte:head>
-	<title>{data?.meta?.title ?? data.tag?.visible_name} - KinkyVibe.ar</title>
+	<title>{data?.meta?.title ?? data.tag?.visible_name} · Kinky Vibe</title>
 
 	<meta property="og:title" content={data?.meta?.title} />
 	<meta name="twitter:title" content={data?.meta?.title} />
@@ -103,17 +110,28 @@
 <article class="h-entry wiki" id="title">
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
-		{#if data.content}
-			<svelte:component this={data.content} />
+		{#if data.html}
+			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus
+			     estilos solo adentro, o la lista corta de HTML. -->
+			<div class="kv-texto-libre">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html ownStyle}
+				{#if data.parts}
+					<ContentParts parts={data.parts} />
+				{:else}
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html data.html}
+				{/if}
+			</div>
 		{/if}
 	</div>
-	<!-- «Lo que sigo» (interruptores `lo_que_sigo` y `cuentas`): apagado, /api/sigo da 404 y no se ve -->
+	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, /api/sigo da 404 y no se ve -->
 	<FollowButton
 		kind="etiqueta"
 		key={data?.tag?.id ?? data?.meta?.wiki ?? ''}
 		name={data?.tag?.visible_name ?? data?.tag?.id ?? data?.meta?.wiki ?? ''}
 	/>
-	<!-- interruptor `series`: apagado, /api/series da 404 y no se muestra nada -->
+	<!-- sin nada de series para esta etiqueta, /api/series da 404 y no se muestra nada -->
 	<SeriesTagBlock tag={data?.tag?.id ?? data?.meta?.wiki ?? ''} />
 	<hr />
 	<div class="lineage">

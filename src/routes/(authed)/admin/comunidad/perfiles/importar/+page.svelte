@@ -34,13 +34,6 @@
 />
 
 <div class="kv-stack">
-	{#if !data.flagOn}
-		<p class="kv-flash warn">
-			El interruptor «Perfiles públicos» está apagado: importar no cambia nada del sitio todavía.
-			Revisá la lista y prendelo en Ajustes → Interruptores cuando esté todo bien.
-		</p>
-	{/if}
-
 	<Card title="Importar">
 		<div class="kv-stats">
 			<Stat label="Nuevas" value={data.summary.created} />
@@ -165,8 +158,8 @@
 	.problems,
 	.preview {
 		margin: 0.5rem 0 0;
-		padding-left: 1.2rem;
-		font-size: 0.9rem;
+		padding-left: var(--space-s);
+		font-size: var(--text-sm);
 	}
 	.muted {
 		color: var(--muted);
@@ -175,7 +168,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.done {
 		opacity: 0.75;

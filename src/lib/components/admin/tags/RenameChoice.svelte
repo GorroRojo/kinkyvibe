@@ -1,7 +1,7 @@
 <!--
 	Qué pasa con el nombre viejo al renombrar una etiqueta. Lo usan Etiquetas (Renombrar) y
 	Eventos → Series (Editar), así la elección y el valor por defecto son los mismos.
-	- Con el interruptor `etiquetas_db` (`dbMode`): dos opciones. Por defecto (decisión de gorrite)
+	- Con las etiquetas en la base (`dbMode`, hoy siempre): dos opciones. Por defecto (decisión de gorrite)
 	  se renombra en todas las publicaciones y el nombre viejo NO queda como alias; la otra deja el
 	  alias y no toca ninguna publicación.
 	- Con el archivo: las publicaciones se renombran siempre; el alias es opcional.
@@ -26,7 +26,7 @@
 {#if dbMode}
 	<fieldset class="choice">
 		<legend>¿Y el nombre viejo?</legend>
-		<label class="option" class:chosen={choice === 'posts'}>
+		<label class="kv-choice">
 			<input
 				type="radio"
 				name={name || `${idPrefix}-alias`}
@@ -38,12 +38,12 @@
 			<span>
 				<strong>Renombrar en todas las publicaciones</strong>
 				<small
-					>Se cambia en cada publicación que la usa{usesText}, con un commit, y el nombre viejo deja
-					de existir. Antes de confirmar vas a ver cuántas cambian.</small
+					>Se cambia en cada publicación que la usa{usesText} (en la base, al momento) y el nombre viejo
+					deja de existir. Antes de confirmar vas a ver cuántas cambian.</small
 				>
 			</span>
 		</label>
-		<label class="option" class:chosen={choice === 'alias'}>
+		<label class="kv-choice">
 			<input
 				type="radio"
 				name={name || `${idPrefix}-alias`}
@@ -73,11 +73,11 @@
 		border: 0;
 		margin: 0.3em 0;
 		padding: 0.6em 0.8em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
-		gap: 0.4em;
+		gap: 0.6em;
 		min-width: 0;
 	}
 	legend {
@@ -86,32 +86,6 @@
 		padding: 0;
 		font-weight: bold;
 		margin-bottom: 0.2em;
-	}
-	.option {
-		display: flex;
-		gap: 0.6em;
-		align-items: flex-start;
-		padding: 0.4em 0.6em;
-		border-radius: 0.6em;
-		background: var(--surface, white);
-		cursor: pointer;
-		outline: 2px solid transparent;
-		&.chosen {
-			outline-color: var(--1, #7b3fa0);
-		}
-		input {
-			margin-top: 0.25em;
-			flex: none;
-		}
-		span {
-			display: flex;
-			flex-direction: column;
-			min-width: 0;
-		}
-		small {
-			font-size: var(--step--1);
-			opacity: 0.85;
-		}
 	}
 	.check {
 		display: flex;

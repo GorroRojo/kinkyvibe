@@ -2,10 +2,9 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { Mail } from '@lucide/svelte';
-	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 
 	export let data;
 	export let form;
@@ -17,10 +16,8 @@
 
 <PageHeader
 	title="Mails"
-	subtitle="Remitente, respuesta, recordatorios antes de cada evento y envíos en tandas."
+	subtitle="Remitente, respuesta, pie de los mails, recordatorios antes de cada evento y envíos en tandas."
 />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
 <form
 	class="kv-form settings"
 	method="POST"
@@ -79,6 +76,54 @@
 		</p>
 	</Card>
 
+	<Card title="Pie de los mails">
+		<p class="kv-note">
+			Lo que va abajo de todos los mails, debajo de «por qué te llega» (ese se cambia en cada
+			plantilla). Texto común, <code>**negrita**</code> y links (<code>[texto](https://…)</code>,
+			también <code>mailto:</code> y <code>tel:</code>); no se acepta HTML.
+		</p>
+		<label class="kv-field">
+			<span>Línea de contacto</span>
+			<input
+				type="text"
+				name="mail_footer_contact"
+				value={value('mail_footer_contact')}
+				placeholder={data.footer.contact}
+				maxlength={data.footer.limits.mail_footer_contact}
+				autocomplete="off"
+				aria-describedby="footer-contact-help"
+				aria-invalid={errors.mail_footer_contact ? 'true' : undefined}
+			/>
+			{#if errors.mail_footer_contact}<small class="kv-error field-error"
+					>{errors.mail_footer_contact}</small
+				>{/if}
+			<small id="footer-contact-help" class="kv-note">
+				<code>{'{{contacto}}'}</code> es la dirección de contacto (<code
+					>{data.footer.contactEmail}</code
+				>), con su link para escribir.
+			</small>
+		</label>
+		<label class="kv-field">
+			<span>Firma</span>
+			<input
+				type="text"
+				name="mail_footer_signoff"
+				value={value('mail_footer_signoff')}
+				placeholder={data.footer.signoff}
+				maxlength={data.footer.limits.mail_footer_signoff}
+				autocomplete="off"
+				aria-invalid={errors.mail_footer_signoff ? 'true' : undefined}
+			/>
+			{#if errors.mail_footer_signoff}<small class="kv-error field-error"
+					>{errors.mail_footer_signoff}</small
+				>{/if}
+		</label>
+		<p class="kv-note">
+			Vacíos: «{data.footer.contact}» y «{data.footer.signoff}». La vista previa de las plantillas
+			ya los muestra.
+		</p>
+	</Card>
+
 	<Card title="Plantillas">
 		<p class="kv-note">
 			El asunto, el título y el texto de arriba de cada mail (entradas, datos para transferir,
@@ -102,8 +147,8 @@
 		</p>
 		{#if !data.cronConfigured}
 			<p class="kv-flash warn">
-				Falta configurar el cron (CRON_SECRET y el Worker de <code>workers/cron/</code>): hasta
-				entonces no se manda ninguno.
+				Falta configurar el cron (el secreto <code>CRON_SECRET</code> del Worker): hasta entonces no se
+				manda ninguno.
 			</p>
 		{/if}
 		{#each [...data.reminders, null] as r, i (i)}
@@ -203,9 +248,9 @@
 	.reminder {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		gap: var(--space-3xs);
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--surface-2);
 	}
 	.reminder.new {
@@ -218,7 +263,7 @@
 		width: 5.5rem;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.batch {
 		max-width: 12rem;
