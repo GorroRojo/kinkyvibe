@@ -8,7 +8,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 import { setEventVenue } from '$lib/server/amigues/venues.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -295,8 +295,11 @@ describe('perfiles_publicos', () => {
 				}
 			});
 		/** @param {string} eventSlug @param {{ id: number }} v @param {any} [privacy] */
-		const link = (eventSlug, v, privacy = null) =>
-			setEventVenue(t.db, { eventSlug, venueId: v.id, privacy, by: 'admin-inventade' });
+		const link = async (eventSlug, v, privacy = null) => {
+			// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+			await makeEvent(t.db, eventSlug);
+			return setEventVenue(t.db, { eventSlug, venueId: v.id, privacy, by: 'admin-inventade' });
+		};
 		// Un evento de la base no listado (su página no se alcanza navegando).
 		await dbObject('evento', 'evento-no-listado', {
 			start: '2031-03-03T20:00:00-03:00',

@@ -61,7 +61,8 @@
 /**
  * Privacidad de la dirección de un lugar (decisión B3), de más a menos visible. El lugar tiene
  * una por defecto (`venue_privacy`; sin elegir: `public`, ver DEFAULT_VENUE_PRIVACY en
- * src/lib/utils/venues.js) y cada evento la puede cambiar (tabla `event_venues`).
+ * src/lib/utils/venues.js) y cada evento la puede cambiar (`data.privacy` del edge `lugar` del
+ * evento).
  * - public: nombre, dirección, barrio, ciudad y mapa;
  * - name: solo el nombre (con el link a su página);
  * - address: la dirección (calle y número, barrio, ciudad) y el mapa, sin el nombre (una casa

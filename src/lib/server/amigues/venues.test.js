@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON } from '$lib/server/objects/index.js';
 import { saveObject } from '../objects/save.js';
-import { makeProfile } from './testing.js';
+import { makeEvent, makeProfile } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -27,11 +27,23 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Los módulos con el interruptor `perfiles_publicos` como se pida. */
+/**
+ * Los módulos con el interruptor `perfiles_publicos` como se pida. «Sucede en» es un edge del
+ * evento, así que el evento tiene que estar en la base: `setEventVenue` de acá lo crea antes si
+ * falta (con una dirección válida; las inválidas siguen sin poder vincularse).
+ */
 async function modules(flag = '1') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: flag } }));
-	return import('./venues.js');
+	const m = await import('./venues.js');
+	return {
+		...m,
+		/** @type {typeof m.setEventVenue} */
+		async setEventVenue(db, input) {
+			await makeEvent(db, input.eventSlug);
+			return m.setEventVenue(db, input);
+		}
+	};
 }
 
 const SECRET = 'Calle Secreta 742';
@@ -302,15 +314,24 @@ describe('los .ics dinámicos (feedVenues)', () => {
 });
 
 describe('feedVenues lee todos los lugares juntos', () => {
-	/** Un vínculo escrito directo en la base (para casos que `setEventVenue` no deja crear). */
-	const rawLink = (/** @type {string} */ slug, /** @type {number} */ venueId) =>
-		t.db
-			.prepare(
-				`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-				VALUES (?1, ?2, NULL, 1, 'a', 1, 'a')`
-			)
-			.bind(slug, venueId)
-			.run();
+	/**
+	 * Un vínculo escrito sin pasar por `setEventVenue` (para casos que no deja crear: un perfil que
+	 * no es lugar, una dirección de evento inválida), con saveObject() como cualquier edge.
+	 */
+	const rawLink = async (/** @type {string} */ slug, /** @type {number} */ venueId) => {
+		const id = await makeEvent(t.db, slug, { anySlug: true });
+		const row = await t.db.prepare('SELECT version FROM objects WHERE id = ?1').bind(id).first();
+		await saveObject(
+			t.db,
+			{
+				id: /** @type {number} */ (id),
+				type: 'evento',
+				version: Number(row?.version),
+				edges: { lugar: [venueId] }
+			},
+			{ actor: 'a' }
+		);
+	};
 
 	/**
 	 * Lugares en todos los casos: los cinco niveles, el evento que cambia el nivel, oculto, solo
@@ -376,9 +397,8 @@ describe('feedVenues lee todos los lugares juntos', () => {
 	async function oneByOne(m, slugs) {
 		const want = new Set(slugs);
 		const out = new Map();
-		const { results } = await t.db.prepare('SELECT event_slug FROM event_venues').all();
-		for (const r of results) {
-			const slug = String(r.event_slug);
+		for (const r of await m.listEventVenues(t.db)) {
+			const slug = r.eventSlug;
 			if (!want.has(slug)) continue;
 			const view = await m.publicVenueForEvent(t.db, slug, ANON);
 			if (view) out.set(slug, view);

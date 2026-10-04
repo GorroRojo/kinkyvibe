@@ -13,6 +13,7 @@ import { importAmigues, mdToProfile } from '$lib/server/amigues/importer.js';
 import {
 	addManager,
 	makeAccount,
+	makeEvent,
 	makeProfile,
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
@@ -157,6 +158,7 @@ describe('interruptor apagado: como siempre', () => {
 		// Los eventos no muestran lugar.
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
+		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: v.id,
@@ -336,12 +338,14 @@ describe('lugares en las páginas', () => {
 			data: { address: 'Calle Falsa 742', area: 'Barrio Inventado', venue_privacy: 'name' }
 		});
 		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
+		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: v.id,
 			privacy: null,
 			by: 'a'
 		});
+		await makeEvent(t.db, 'taller-inventado'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'taller-inventado',
 			venueId: v.id,
@@ -383,6 +387,7 @@ describe('un lugar no listado (como nacen los importados de eventos)', () => {
 		});
 		const href = `/amigues/${v.slug}`;
 		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
+		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: v.id,
@@ -441,6 +446,7 @@ describe('un lugar no listado (como nacen los importados de eventos)', () => {
 		expect(search).toContain(href);
 		expect(search).toContain(NAME);
 		expect(search).not.toContain('Calle Falsa 742');
+		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: v.id,
@@ -474,6 +480,7 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 			}
 		});
 		const { setEventVenue, buyerLocation } = await import('$lib/server/amigues/venues.js');
+		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: hidden.id,
@@ -486,6 +493,7 @@ describe('prueba de filtraciones: un lugar con la dirección oculta', () => {
 			kind: 'lugar',
 			data: { address: 'Avenida Pública 99', area: 'Barrio Público', venue_privacy: 'public' }
 		});
+		await makeEvent(t.db, 'taller-inventado'); // «sucede en» es un edge del evento
 		await setEventVenue(t.db, {
 			eventSlug: 'taller-inventado',
 			venueId: open.id,

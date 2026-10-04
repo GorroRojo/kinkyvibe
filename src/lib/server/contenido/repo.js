@@ -37,6 +37,12 @@ import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
 import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
+import {
+	dehydratePersonas,
+	hydratePersonas,
+	personaEdgesOf,
+	withPersonaEdges
+} from './personasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -168,7 +174,9 @@ export async function findDbPostObject(db, category, slug) {
 	const { legacy_slug: legacy, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
-	return asPostObject(category, forViewer(object, PANEL), legacy ? String(legacy) : null);
+	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js).
+	const [full] = await hydratePersonas(db, [forViewer(object, PANEL)]);
+	return asPostObject(category, full, legacy ? String(legacy) : null);
 }
 
 /**
@@ -322,7 +330,24 @@ async function readDbPostRows(db, type, category) {
 		)
 		.bind(type, category)
 		.all();
-	return results;
+	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js). Guardar un
+	// edge pasa por saveObject(), que cambia `updated_at`: la marca de arriba lo nota.
+	const personas = await personaEdgesOf(
+		db,
+		results.map((r) => Number(r.id))
+	);
+	if (!personas.size) return results;
+	return results.map((r) => {
+		const edges = personas.get(Number(r.id));
+		if (!edges) return r;
+		let data;
+		try {
+			data = JSON.parse(String(r.data));
+		} catch {
+			return r;
+		}
+		return { ...r, data: JSON.stringify(withPersonaEdges(data, edges)) };
+	});
 }
 
 /**
@@ -643,6 +668,12 @@ async function writePost(db, w, actor) {
 			{ actor, also }
 		);
 	}
+	// Los perfiles de `personas` van como edges, no en `data` (./personasEdges.js).
+	const { data, edges } = await dehydratePersonas(
+		db,
+		w.category,
+		/** @type {Record<string, unknown>} */ (w.data)
+	);
 	if (w.existing) {
 		return saveObject(
 			db,
@@ -651,7 +682,8 @@ async function writePost(db, w, actor) {
 				type,
 				version: w.existing.object.version,
 				title: w.title,
-				data: w.data,
+				data,
+				edges,
 				visibility: w.visibility,
 				// Volver a crear un post borrado es deshacer el borrado.
 				...(w.existing.deleted ? { deleted: false } : {})
@@ -661,7 +693,7 @@ async function writePost(db, w, actor) {
 	}
 	return saveObject(
 		db,
-		{ type, slug: w.slug, title: w.title, data: w.data, visibility: w.visibility },
+		{ type, slug: w.slug, title: w.title, data, edges, visibility: w.visibility },
 		{ actor, also }
 	);
 }

@@ -3,8 +3,8 @@
  * evento ("sucede en", con la privacidad de la dirección de ese evento). Son los mismos perfiles
  * de Perfiles (filtro «Lugares»); se editan con el mismo editor.
  *
- * El vínculo evento → lugar es provisorio (tabla `event_venues`, por dirección del evento)
- * mientras los eventos sigan siendo .md: ver docs/amigues.md. Funciona con el interruptor
+ * El vínculo evento → lugar es el edge `lugar` del evento en la base (por eso el evento tiene que
+ * estar en la base): ver docs/amigues.md. Funciona con el interruptor
  * `perfiles_publicos` apagado (para dejar todo listo); el sitio lo usa recién al prenderlo.
  * Solo admins; queda en el registro.
  *
@@ -156,11 +156,11 @@ export const actions = {
 	},
 
 	desvincular: async ({ locals, url, platform, request }) => {
-		requireAdmin(locals, url);
+		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { link: { ok: false, message: 'Sin base de datos.' } });
 		const eventSlug = String((await request.formData()).get('evento') ?? '');
-		if (!(await unlinkEventVenue(db, locals, eventSlug))) {
+		if (!(await unlinkEventVenue(db, locals, eventSlug, admin.login))) {
 			return fail(404, { link: { ok: false, message: 'Ese evento no tenía lugar.' } });
 		}
 		return { link: { ok: true, message: 'Listo: el evento ya no tiene lugar.' } };

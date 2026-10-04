@@ -152,7 +152,7 @@ export async function load({ locals, url, platform }) {
 		prefill: readNewEventPrefill(url.searchParams),
 		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
 		duplicables: source ? [] : await duplicableEvents(),
-		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (en `event_venues`).
+		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
 		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
 		transferReady: await transferReady(getDB(platform)),
@@ -319,8 +319,8 @@ export const actions = {
 			return fail(400, { error: describeError(e) });
 		}
 
-		// «Lugar»: va a `event_venues` (no al archivo), recién cuando el evento se creó. Si el lugar
-		// ya no existe, no se crea nada.
+		// «Lugar»: va al edge `lugar` del evento en la base (no al archivo), recién cuando el evento
+		// se creó. Si el lugar ya no existe, no se crea nada.
 		const venue = readVenueChoice(data);
 		const venueCheck = await checkVenueChoice(getDB(platform), venue);
 		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
