@@ -33,6 +33,7 @@ import {
 } from './eventDraft.js';
 import { withEventTagDefaults } from './adminTags.js';
 import { foldText as fold } from './text.js';
+import { eventLinkProblem } from './eventLink.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Text helpers                                                                               */
@@ -554,14 +555,21 @@ export function composeSchedule(date, startTime, endTime) {
 	return { start, end: `${endDate}T${endTime}-03:00`, endDate };
 }
 
-/** @param {string} text */
-function cleanLink(text) {
+/**
+ * The sign-up link of a "Link Inscripción" cell: a web address (also a bare forms.gle/…), a
+ * `mailto:` or a bare email address (→ `mailto:`). Anything else (or a link with another scheme),
+ * ''. The result follows the site-wide rule of eventLink.js.
+ * @param {string} text
+ */
+export function cleanLink(text) {
 	const t = String(text ?? '').trim();
 	const m = t.match(
-		/(https?:\/\/\S+)|\b((?:forms\.gle|bit\.ly|docs\.google\.com|linktr\.ee)\/\S+)/i
+		/(https?:\/\/\S+)|\b((?:forms\.gle|bit\.ly|docs\.google\.com|linktr\.ee)\/\S+)|\b(mailto:\S+)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i
 	);
 	if (!m) return '';
-	return m[1] ?? 'https://' + m[2];
+	const link =
+		m[1] ?? (m[2] ? 'https://' + m[2] : m[3] ? 'mailto:' + m[3].slice(7) : 'mailto:' + m[4]);
+	return eventLinkProblem(link) === null ? link : '';
 }
 
 /**
@@ -644,7 +652,9 @@ export function parseSheet(text, { today }) {
 		}
 		const link = cleanLink(v.link ?? '');
 		if (v.link && !link && !/^(no|-+|x|\?+)$/i.test(v.link)) {
-			warnings.push(`El link de inscripción “${v.link}” no parece una dirección web: no se usa.`);
+			warnings.push(
+				`El link de inscripción “${v.link}” no parece una dirección web ni un mail: no se usa.`
+			);
 		}
 		const { start, end } = composeSchedule(parsedDate.date, times.startTime, times.endTime);
 		rows.push({

@@ -1171,6 +1171,45 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 	return items;
 }
 
+/** Dónde se cargan los datos para transferir. */
+export const TRANSFER_SETTINGS_HREF = '/admin/ajustes/cobros';
+/** El aviso cuando un evento ofrece transferencia y no hay datos (el editor dice lo mismo). */
+export const TRANSFER_MISSING_TEXT =
+	'Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece';
+
+/**
+ * "Para revisar": un aviso si algún evento que viene (con entradas y no cancelado) tiene tildada
+ * «Transferencia» pero no hay datos para transferir (ni en Ajustes → Cobros ni en
+ * TICKETS_TRANSFER_INFO). La compra esconde la opción en silencio (`methodsFor` en
+ * tickets/checkout.js); esto lo hace visible. Nunca muestra los datos en sí: solo si faltan.
+ *
+ * @param {{
+ *   upcoming: UpcomingEvent[],
+ *   ticketed: Map<string, Pick<EventTickets, 'paymentMethods'>>,
+ *   transferReady: boolean
+ * }} input
+ * @returns {ReviewItem | null}
+ */
+export function transferMissingItem({ upcoming, ticketed, transferReady }) {
+	if (transferReady) return null;
+	const events = upcoming.filter(
+		(e) =>
+			e.ticketed &&
+			e.status !== 'cancelado' &&
+			ticketed.get(e.slug)?.paymentMethods?.includes('transferencia')
+	);
+	if (!events.length) return null;
+	return {
+		id: 'transfer-missing',
+		tone: 'warn',
+		icon: 'transfer',
+		title: TRANSFER_MISSING_TEXT,
+		text: `${events.length === 1 ? 'En' : `En ${events.length} eventos:`} ${events.map((e) => e.title).join(', ')}`,
+		action: 'Completar',
+		href: TRANSFER_SETTINGS_HREF
+	};
+}
+
 /**
  * Una fila de "Para revisar" que junta varios ítems del mismo tipo. Con `href` la fila lleva a
  * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.

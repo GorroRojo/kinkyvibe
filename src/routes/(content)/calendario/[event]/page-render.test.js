@@ -267,3 +267,27 @@ describe('/calendario/<evento>: el botón de comprar entradas', () => {
 		expect(buyMeta({ left: 1 })).toBe('¡Última!');
 	});
 });
+
+describe('/calendario/<evento>: el link de inscripción', () => {
+	it('un mail (mailto:) se muestra como link al mail, sin abrir otra pestaña', () => {
+		const html = page({ link: 'mailto:hola@ejemplo.test', link_text: 'Escribinos' });
+		const links = [...html.matchAll(/<a [^>]*href="mailto:hola@ejemplo\.test"[^>]*>/g)].map(
+			(m) => m[0]
+		);
+		// En la tarjeta y al final del texto.
+		expect(links).toHaveLength(2);
+		for (const a of links) expect(a).not.toContain('target=');
+		expect(html).toContain('>Escribinos</a>');
+	});
+
+	it('un link web al final del texto sigue abriendo otra pestaña', () => {
+		const html = page({ link: 'https://forms.gle/inventado', link_text: 'Inscribirme' });
+		expect(html).toMatch(/<a [^>]*href="https:\/\/forms\.gle\/inventado"[^>]*target="_blank"/);
+	});
+
+	it('un link con javascript: (u otro esquema) no se muestra', () => {
+		const html = page({ link: 'javascript:alert(1)', link_text: 'Inscribirme' });
+		expect(html).not.toContain('javascript:');
+		expect(html).not.toContain('>Inscribirme</a>');
+	});
+});

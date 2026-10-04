@@ -5,8 +5,8 @@
  * (MP_ACCESS_TOKEN), el webhook firmado (/api/mercadopago/webhook, que reconoce las propinas por
  * el prefijo `propina:` del `external_reference`) y la máquina de estados de los pagos
  * (`mapPaymentStatus` / `nextStatus` de tickets/orders.js). La plata siempre entra a la cuenta de
- * MP de las entradas. Quien deja la propina elige el destino (`destination`): "Para KinkyVibe"
- * (por defecto) o "Para el Fondo"; las del Fondo aprobadas se cuentan como aportes al Fondo
+ * MP de las entradas. Toda propina nueva va al Fondo (`destination = 'fondo'`, decisión de
+ * gorrite; las viejas "Para KinkyVibe" quedan como están). Las del Fondo aprobadas se cuentan como aportes al Fondo
  * KinkyVibe (`fondoTipTotals`, que usa el Inicio del panel), igual que el aporte de una entrada
  * solidaria. Solo cambia cómo se cuenta, no a dónde va la plata.
  *
@@ -16,7 +16,7 @@
 import { checkoutProPreference } from '$lib/server/tickets/mercadopago.js';
 import { mapPaymentStatus, nextStatus } from '$lib/server/tickets/orders.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { TIP_DESTINATION_LABELS, TIP_STATUS_LABELS } from '$lib/utils/propinas.js';
+import { TIP_DESTINATION, TIP_DESTINATION_LABELS, TIP_STATUS_LABELS } from '$lib/utils/propinas.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'approved' | 'rejected' | 'refunded'} TipStatus */
@@ -102,13 +102,14 @@ export function buildTipPreference({ tip, postTitle, origin }) {
  *
  * @param {D1Database} db
  * @param {{ amount: number, message: string | null, category: 'material' | 'calendario', slug: string, destination?: TipDestination }} input
- *   `destination` ya validado (`validateTip`); si no viene, "Para KinkyVibe".
+ *   `destination`: si no viene, el Fondo ({@link TIP_DESTINATION}), que es lo que manda siempre
+ *   `validateTip`. Otro valor solo sirve para armar propinas viejas en los tests.
  * @param {{ now?: number }} [opts]
  * @returns {Promise<Tip>}
  */
 export async function createTip(
 	db,
-	{ amount, message, category, slug, destination = 'kinkyvibe' },
+	{ amount, message, category, slug, destination = TIP_DESTINATION },
 	{ now = Date.now() } = {}
 ) {
 	const id = crypto.randomUUID();

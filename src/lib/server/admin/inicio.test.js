@@ -27,6 +27,7 @@ import {
 	streamLinkSlugs,
 	stuckSends,
 	ticketTotals,
+	transferMissingItem,
 	unsentEmails,
 	upcomingEvents
 } from './inicio.js';
@@ -1066,5 +1067,48 @@ describe('chequeo nocturno de los datos en "Para revisar"', () => {
 			count: 1,
 			problems: [{ code: 'orphan', objectId: 3 }]
 		});
+	});
+});
+
+describe('transferMissingItem («Transferencia» tildada sin datos para transferir)', () => {
+	/** @param {string} slug @param {string} title @param {Record<string, any>} [o] */
+	const up = (slug, title, o = {}) =>
+		/** @type {any} */ ({ slug, title, ticketed: true, status: 'abierto', ...o });
+	/** @type {Map<string, { paymentMethods: ('mercadopago' | 'transferencia')[] }>} */
+	const ticketed = new Map([
+		['a', { paymentMethods: ['mercadopago', 'transferencia'] }],
+		['b', { paymentMethods: ['transferencia'] }],
+		['c', { paymentMethods: ['mercadopago'] }],
+		['d', { paymentMethods: ['transferencia'] }]
+	]);
+	const upcoming = [
+		up('a', 'Fiesta Inventada'),
+		up('b', 'Taller Inventado'),
+		up('c', 'Solo MP'),
+		up('d', 'Cancelado', { status: 'cancelado' })
+	];
+
+	it('un aviso con los eventos que ofrecen transferencia, link a Ajustes → Cobros', () => {
+		expect(transferMissingItem({ upcoming, ticketed, transferReady: false })).toEqual({
+			id: 'transfer-missing',
+			tone: 'warn',
+			icon: 'transfer',
+			title:
+				'Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece',
+			text: 'En 2 eventos: Fiesta Inventada, Taller Inventado',
+			action: 'Completar',
+			href: '/admin/ajustes/cobros'
+		});
+		expect(
+			transferMissingItem({ upcoming: [upcoming[0]], ticketed, transferReady: false })?.text
+		).toBe('En Fiesta Inventada');
+	});
+
+	it('con datos para transferir, o sin eventos con transferencia, nada', () => {
+		expect(transferMissingItem({ upcoming, ticketed, transferReady: true })).toBeNull();
+		expect(
+			transferMissingItem({ upcoming: upcoming.slice(2), ticketed, transferReady: false })
+		).toBeNull();
+		expect(transferMissingItem({ upcoming: [], ticketed, transferReady: false })).toBeNull();
 	});
 });

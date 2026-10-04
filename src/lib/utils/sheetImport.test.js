@@ -7,6 +7,7 @@ import { readTicketsForm, validateTicketsForm } from './ticketsEditor.js';
 import {
 	parseTsv,
 	parseSheet,
+	cleanLink,
 	parseDateText,
 	parseTimeText,
 	sectionOf,
@@ -834,5 +835,36 @@ describe('General price without cupo', () => {
 		);
 		expect(meta(none.content).tickets).toBeUndefined();
 		expect(none.notes.join(' ')).not.toMatch(/General/);
+	});
+});
+
+describe('cleanLink (Link Inscripción)', () => {
+	it('acepta web, forms.gle suelto, mailto: y un mail suelto (→ mailto:)', () => {
+		expect(cleanLink('https://forms.gle/abc')).toBe('https://forms.gle/abc');
+		expect(cleanLink('forms.gle/abc')).toBe('https://forms.gle/abc');
+		expect(cleanLink('mailto:hola@ejemplo.test')).toBe('mailto:hola@ejemplo.test');
+		expect(cleanLink('Escribinos a hola@ejemplo.test')).toBe('mailto:hola@ejemplo.test');
+	});
+
+	it('nunca javascript: ni otros esquemas; texto suelto, vacío', () => {
+		expect(cleanLink('javascript:alert(1)')).toBe('');
+		expect(cleanLink('data:text/html,x')).toBe('');
+		expect(cleanLink('mailto:')).toBe('');
+		expect(cleanLink('pendiente')).toBe('');
+		expect(cleanLink('')).toBe('');
+	});
+
+	it('una fila con un mail de inscripción lo usa como mailto: y sin aviso', () => {
+		const text = [
+			HEADER_2026,
+			'2026',
+			'OCTUBRE\tOCTUBRE\tOCTUBRE',
+			'FALSE\t\tTaller Inventado\tsábado 17\t15 a 18 hs\t\t\t\t\tmailto:hola@ejemplo.test',
+			'FALSE\t\tCharla Inventada\tdomingo 18\t15 a 18 hs\t\t\t\t\tjavascript:alert(1)'
+		].join('\n');
+		const { rows } = parseSheet(text, { today: TODAY });
+		expect(rows[0]).toMatchObject({ link: 'mailto:hola@ejemplo.test', warnings: [] });
+		expect(rows[1].link).toBe('');
+		expect(rows[1].warnings[0]).toMatch(/no parece una dirección web ni un mail/);
 	});
 });
