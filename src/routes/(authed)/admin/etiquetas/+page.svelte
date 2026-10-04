@@ -294,9 +294,9 @@
 
 {#if data.dbMode}
 	<p class="note">
-		Las etiquetas se leen de la base: los cambios se guardan al momento, sin commits (renombrar en
-		las publicaciones también las cambia en la base). Los textos de la Kinkipedia también están en
-		la base: se editan desde cada etiqueta («Entrada de la Kinkipedia»).
+		Los cambios se guardan al momento (renombrar una etiqueta también la cambia en todas las
+		publicaciones que la usan). Los textos de la Kinkipedia también están en la base: se editan
+		desde cada etiqueta («Entrada de la Kinkipedia»).
 	</p>
 {/if}
 {#if data.mock}
