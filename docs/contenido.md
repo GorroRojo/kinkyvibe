@@ -123,7 +123,9 @@ detrás del interruptor **`contenido_db`, apagado** (Ajustes → Interruptores, 
 - **Historial**: cada guardado (también importar) copia el objeto a `object_revisions` en la misma
   tanda de `saveObject()` (`src/lib/server/contenido/revisions.js`).
 - **Personas**: `authors:` y `personas:` de un `.md` se guardan como **una sola lista**,
-  `data.personas: [{ profile?, name?, role }]` (quienes organizan o escriben incluides), y vuelven
+  `[{ profile?, name?, role }]` (quienes organizan o escriben incluides; en los eventos, cada
+  perfil es un edge `persona` y el resto va en `data.personas`: ver
+  [personas-eventos.md](personas-eventos.md)), y vuelven
   a `authors` y `personas` en la metadata y en el `.md` que arma la base
   (`src/lib/utils/personasList.js`; ver [personas-eventos.md](personas-eventos.md)). Lo importado
   antes con `data.authors` y `extra.personas` se sigue leyendo igual, volver a importarlo no lo

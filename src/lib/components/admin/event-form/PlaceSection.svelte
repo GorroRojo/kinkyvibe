@@ -6,8 +6,8 @@
 	 * texto queda plegado («Usar texto libre en vez de un lugar»).
 	 *
 	 * Lo elegido no va al .md: la página lo manda en campos aparte (`venueChoiceFields` en
-	 * $lib/utils/venueChoice.js) y el servidor lo guarda en `event_venues` después de guardar el
-	 * evento (src/lib/server/amigues/eventFormVenue.js).
+	 * $lib/utils/venueChoice.js) y el servidor lo guarda como edge `lugar` del evento en la base
+	 * después de guardar el evento (src/lib/server/amigues/eventFormVenue.js).
 	 *
 	 * Props:
 	 * - `picker`: `data.venuePicker` ({ venues, current, flagOn }) o `null` (sin base: solo el texto

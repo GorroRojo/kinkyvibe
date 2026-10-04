@@ -7,7 +7,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
-import { makeProfile } from './testing.js';
+import { makeEvent, makeProfile } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -124,6 +124,8 @@ describe('dirección completa para quien compró', () => {
 					venue_privacy: privacy
 				}
 			});
+			// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+			await makeEvent(t.db, 'fiesta-inventada');
 			await m.venues.setEventVenue(t.db, {
 				eventSlug: 'fiesta-inventada',
 				venueId: v.id,
@@ -159,6 +161,8 @@ describe('dirección completa para quien compró', () => {
 			kind: 'lugar',
 			data: { address: SECRET, venue_privacy: 'hidden' }
 		});
+		// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+		await makeEvent(t.db, 'fiesta-inventada');
 		await m.venues.setEventVenue(t.db, {
 			eventSlug: 'fiesta-inventada',
 			venueId: v.id,

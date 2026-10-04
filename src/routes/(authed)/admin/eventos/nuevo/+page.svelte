@@ -136,7 +136,7 @@
 	// El «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields);
 
-	/* ---------- lugar: en `event_venues` (no en el archivo), después de crear el evento ---------- */
+	/* ---------- lugar: edge `lugar` del evento (no en el archivo), después de crear el evento ---------- */
 	const venuePicker = data.venuePicker ?? null;
 	/** Los lugares (más los que se crean desde el formulario). */
 	let venues = venuePicker?.venues ?? [];

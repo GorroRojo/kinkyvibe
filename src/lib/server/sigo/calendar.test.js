@@ -5,7 +5,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { addManager, makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
+import { addManager, makeAccount, makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 import { setEventVenue } from '$lib/server/amigues/venues.js';
 import tagsFactory from '$lib/utils/tags';
 import { follow, setCalendarPrefs, setFollowOptions } from './follows.js';
@@ -64,6 +64,8 @@ describe('calendarSlugs', () => {
 		await follow(t.db, a.id, { kind: 'perfil', key: String(lugar.id) });
 		// Una fila de algo que ya no puede ver (no pasa por la acción): no suma nada.
 		await follow(t.db, a.id, { kind: 'perfil', key: String(hidden.id) });
+		// «Sucede en» es un edge del evento: el evento tiene que estar en la base.
+		await makeEvent(t.db, '2030-02-01-en-el-lugar');
 		await setEventVenue(t.db, {
 			eventSlug: '2030-02-01-en-el-lugar',
 			venueId: lugar.id,

@@ -1,9 +1,8 @@
-# Configuración del Worker `kinkyvibe` (Cloudflare Workers con archivos estáticos). La migración
-# desde Cloudflare Pages y los pasos en el panel están en docs/workers-migracion.md.
+# Configuración del Worker `kinkyvibe` (Cloudflare Workers con archivos estáticos). Cómo se
+# migró desde Cloudflare Pages y qué hay en el panel: docs/workers-migracion.md.
 #
-# Mientras el sitio siga en Pages, Pages ignora este archivo (no tiene `pages_build_output_dir`
-# a propósito) y sus bindings/variables siguen en el panel de Pages. Lo usan wrangler en local
-# (`npm run dev`, tests, `wrangler d1 …`) y, después de la migración, Workers Builds.
+# Lo usan Workers Builds (deploy de producción y Previews) y wrangler en local (`npm run dev`,
+# tests, `wrangler d1 …`). No tiene `pages_build_output_dir` a propósito (ver CLAUDE.md).
 #
 # Los ids de las bases D1 no son secretos. NUNCA escribirlos a mano: copiarlos de
 # `npx wrangler d1 list --json` y comparar (ver CLAUDE.md).

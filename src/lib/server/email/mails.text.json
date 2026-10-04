@@ -1,0 +1,94 @@
+{
+	"tickets/tickets-presencial": {
+		"subject": "Tus entradas para Fiesta <b>de</b> prueba",
+		"text": "¡Ya tenés tus entradas!\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nLugar de ejemplo · Calle Falsa 123\n\n2 × General: $ 20.000\nFondo KinkyVibe: −$ 4.000\nCódigo AMIGUES: −$ 1.000\nRecargo Mercado Pago: +$ 307\nTotal: $ 15.307\n\nMostrá el QR de cada entrada en la puerta; si no se puede escanear, dictá su código. Cada entrada sirve una sola vez.\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)) · código 7HQ 4XM: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2 (Otra Persona) · código K9P 2ZT: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/tickets-online-sin-link": {
+		"subject": "Tus entradas para Fiesta <b>de</b> prueba",
+		"text": "¡Ya tenés tus entradas!\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nOnline\n\n2 × General: $ 20.000\nFondo KinkyVibe: −$ 4.000\nCódigo AMIGUES: −$ 1.000\nRecargo Mercado Pago: +$ 307\nTotal: $ 15.307\n\nEs un evento online: te mandamos el link de la transmisión por mail antes del evento.\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2 (Otra Persona): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/tickets-online-con-link": {
+		"subject": "Tus entradas para Fiesta <b>de</b> prueba",
+		"text": "¡Ya tenés tus entradas!\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nOnline\n\n2 × A la gorra (a la gorra, $ 3.000 c/u): $ 6.000\nRecargo Mercado Pago: +$ 307\nTotal: $ 6.123\n\nLink de la transmisión (personal, no lo compartas): https://meet.example/abc?x=1&y=2\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2 (Otra Persona): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/stream": {
+		"subject": "Link de la transmisión: Fiesta <b>de</b> prueba",
+		"text": "Ya está el link de la transmisión\n\nFiesta <b>de</b> prueba (sábado, 10 de octubre de 2026, 22:00 hs)\n\nLink (personal, no lo compartas): https://meet.example/abc\n\nEntrada 1: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/stream-sin-entradas": {
+		"subject": "Link de la transmisión: Sin fecha",
+		"text": "Ya está el link de la transmisión\n\nSin fecha\n\nLink (personal, no lo compartas): https://meet.example/abc\n\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/reminder-48h": {
+		"subject": "Recordatorio: Fiesta <b>de</b> prueba se acerca",
+		"text": "Fiesta <b>de</b> prueba se acerca\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nLugar de ejemplo · Calle Falsa 123\n\nLlevá el QR de cada entrada; si no se puede escanear, alcanza con el código.\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)) · código 7HQ 4XM: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2 (Otra Persona) · código K9P 2ZT: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/reminder-hoy": {
+		"subject": "Recordatorio: Fiesta <b>de</b> prueba es hoy",
+		"text": "Fiesta <b>de</b> prueba es hoy\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nLugar de ejemplo · Calle Falsa 123\n\nLlevá el QR de cada entrada; si no se puede escanear, alcanza con el código.\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)) · código 7HQ 4XM: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/reminder-horas-online": {
+		"subject": "Recordatorio: Fiesta <b>de</b> prueba es en unas horas",
+		"text": "Fiesta <b>de</b> prueba es en unas horas\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\nOnline\n\nLink de la transmisión (personal): https://meet.example/abc\nEntrada 1 (Persona <de> \"Ejemplo\" & Cía (elle)): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2 (Otra Persona): https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/refund-mp": {
+		"subject": "Reembolso de tu compra · Fiesta <b>de</b> prueba",
+		"text": "Reembolsamos tu compra\n\nHicimos el reembolso de $ 15.307 de tu compra de 2 × General para Fiesta <b>de</b> prueba.\nMercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).\nLas entradas ya no son válidas.\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\nDudas: respondé este mail o escribinos a contacto@example.com."
+	},
+	"tickets/refund-transferencia": {
+		"subject": "Reembolso de tu compra · Sin fecha",
+		"text": "Reembolsamos tu compra\n\nHicimos el reembolso de $ 15.307 de tu compra de 1 × General para Sin fecha.\nTe devolvimos el dinero por transferencia.\nLa entrada ya no es válida.\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\nDudas: respondé este mail o escribinos a contacto@example.com."
+	},
+	"tickets/refund-gratis": {
+		"subject": "Reembolso de tu compra · Fiesta <b>de</b> prueba",
+		"text": "Reembolsamos tu compra\n\nHicimos el reembolso de tu compra de 2 × General para Fiesta <b>de</b> prueba.\nEra una compra sin cargo: no hay dinero para devolver.\nLas entradas ya no son válidas.\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\nDudas: respondé este mail o escribinos a contacto@example.com."
+	},
+	"tickets/transfer-con-confirmar": {
+		"subject": "Datos para transferir · Fiesta <b>de</b> prueba (KV-3F2B8C1E)",
+		"text": "Reservamos tus entradas\n\nPara confirmarlas transferí $ 15.000. Te reservamos el lugar 2 horas (hasta el jueves, 1 de octubre de 2026, 11:00 hs) mientras mandás el comprobante por mail.\n\nConfirmá tu reserva para que te guardemos el lugar 48 horas: https://kinkyvibe.example/entradas/x/confirmar?k=abc&z=1\nSi no la confirmás, se libera a las 2 horas.\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\n2 × General: $ 20.000\nFondo KinkyVibe: −$ 4.000\nCódigo AMIGUES: −$ 1.000\nTotal: $ 15.000\n\nAlias: EJEMPLO.PRUEBA\nTitular: <Nombre>\n\nEn el concepto de la transferencia poné: KV-3F2B8C1E\nDespués mandanos el comprobante: respondé este mail o escribinos a entradas@example.com, con la referencia KV-3F2B8C1E.\nSi no llega el pago antes de esa fecha, la reserva se libera.\n\nEstado de tu compra: https://kinkyvibe.example/entradas/3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b/estado\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/transfer-sin-confirmar": {
+		"subject": "Datos para transferir · Fiesta <b>de</b> prueba (KV-3F2B8C1E)",
+		"text": "Reservamos tus entradas\n\nPara confirmarlas transferí $ 15.000. Te reservamos el lugar 1 horas (hasta el jueves, 1 de octubre de 2026, 10:00 hs) mientras mandás el comprobante por mail.\n\nFiesta <b>de</b> prueba\nsábado, 10 de octubre de 2026, 22:00 hs\n2 × General: $ 20.000\nFondo KinkyVibe: −$ 4.000\nCódigo AMIGUES: −$ 1.000\nTotal: $ 15.000\n\nAlias: EJEMPLO.PRUEBA\n\nEn el concepto de la transferencia poné: KV-3F2B8C1E\nDespués mandanos el comprobante: respondé este mail, con la referencia KV-3F2B8C1E.\nSi no llega el pago antes de esa fecha, la reserva se libera.\n\nEstado de tu compra: https://kinkyvibe.example/entradas/3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b/estado\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"buyer-mail": {
+		"subject": "Cambio de horario · Fiesta <b>de</b> prueba",
+		"text": "Sobre tu entrada para Fiesta <b>de</b> prueba (sábado, 10 de octubre de 2026, 22:00 hs)\n\nCambio de horario\n\nHola Persona <de> Ejemplo:\n\nLes contamos que el evento empieza <una hora> más tarde.\n\nNos vemos & gracias.\n\nTe escribimos porque compraste una entrada para este evento. Si tenés alguna duda, respondé este mail o escribinos a contacto@example.com."
+	},
+	"login-code": {
+		"subject": "Tu código para ingresar a KinkyVibe",
+		"text": "Hola:\n\nTu código para ingresar a KinkyVibe es: 482913\n\nEscribilo en la página donde lo pediste. Vence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón."
+	},
+	"confirm-code-password": {
+		"subject": "Tu código para confirmar en KinkyVibe",
+		"text": "Hola:\n\nPara confirmar un cambio en la contraseña de tu cuenta, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+	},
+	"confirm-code-delete": {
+		"subject": "Tu código para confirmar en KinkyVibe",
+		"text": "Hola:\n\nPara confirmar que querés borrar tu cuenta, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+	},
+	"confirm-code-grupo": {
+		"subject": "Tu código para confirmar en KinkyVibe",
+		"text": "Hola:\n\nPara confirmar un cambio de dueñes o el borrado de un proyecto que gestionás, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+	},
+	"profile-invite": {
+		"subject": "Te invitaron a gestionar un perfil en KinkyVibe",
+		"text": "Hola:\n\nTe invitaron a gestionar el perfil del proyecto «Proyecto <de> ejemplo» en KinkyVibe.\n\nPara aceptar o rechazar la invitación, entrá a Mi rincón → Perfiles: https://kinkyvibe.example/mi-rincon/perfiles\n\nSi no te interesa, ignorá este mail: la invitación vence sola."
+	},
+	"series-confirm": {
+		"subject": "Confirmá el aviso de Ciclo <de> prueba",
+		"text": "Hola:\n\nPediste que te avisemos por mail cuando haya una nueva edición de Ciclo <de> prueba.\n\nPara confirmarlo, entrá a este link: https://kinkyvibe.example/avisos/confirmar?t=abc&x=1\nEl link vence en 168 horas (el jueves 8 de octubre a las 09:00, hora de Argentina y Uruguay).\n\nSi no lo pediste vos, ignorá este mail: sin confirmar no te llega nada.\nPara borrar el pedido ahora: https://kinkyvibe.example/avisos/baja?t=def&x=1"
+	},
+	"series-new-edition": {
+		"subject": "Hay nueva edición de Ciclo <de> prueba",
+		"text": "Hola:\n\nSe anunció una nueva edición de Ciclo <de> prueba:\n\nFiesta <b>de</b> prueba · sábado, 10 de octubre de 2026, 22:00\nhttps://kinkyvibe.example/calendario/fiesta-de-prueba\n\nTe llega porque pediste que te avisemos si se repetía.\nPara no recibir más avisos de Ciclo <de> prueba: https://kinkyvibe.example/avisos/baja?t=def&x=1"
+	},
+	"sigo-nuevo": {
+		"subject": "Se anunció: Fiesta <b>de</b> prueba",
+		"text": "Hola:\n\nSe anunció un evento de algo que seguís:\n\nFiesta <b>de</b> prueba · sábado, 10 de octubre de 2026, 22:00\nhttps://kinkyvibe.example/calendario/fiesta-de-prueba\n\nTe llega porque seguís: Ciclo de prueba, Lugar <de> ejemplo.\nElegí qué te llega en Mi rincón → Lo que sigo: https://kinkyvibe.example/mi-rincon/sigo\nPara no recibir más mails de lo que seguís: https://kinkyvibe.example/sigo/baja?t=ghi&x=1"
+	},
+	"sigo-recordatorio": {
+		"subject": "Mañana: Fiesta <b>de</b> prueba",
+		"text": "Hola:\n\nTe recordamos que se viene este evento:\n\nFiesta <b>de</b> prueba · sábado, 10 de octubre de 2026, 22:00\nhttps://kinkyvibe.example/calendario/fiesta-de-prueba\n\nTe llega porque seguís: Ciclo de prueba.\nElegí qué te llega en Mi rincón → Lo que sigo: https://kinkyvibe.example/mi-rincon/sigo\nPara no recibir más mails de lo que seguís: https://kinkyvibe.example/sigo/baja?t=ghi&x=1"
+	}
+}

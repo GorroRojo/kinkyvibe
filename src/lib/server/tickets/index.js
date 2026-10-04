@@ -35,7 +35,7 @@ import {
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
-import { getTemplateOverride } from './templates.js';
+import { resolveTemplate } from './templates.js';
 import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
@@ -405,7 +405,7 @@ export async function sendOrderEmail({
 			typeName,
 			origin,
 			contactEmail: contactEmail(),
-			template: await getTemplateOverride(db, 'tickets')
+			template: await resolveTemplate(db, order.event_slug, 'tickets')
 		});
 		const result = await deliver({
 			db,
@@ -462,7 +462,7 @@ export async function sendStreamLinkEmails({
 	const event = { title: config?.title || eventSlug, start: config?.start };
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
-	const template = await getTemplateOverride(db, 'stream');
+	const template = await resolveTemplate(db, eventSlug, 'stream');
 	return sendStreamLinkBatch(db, {
 		eventSlug,
 		link,
@@ -517,7 +517,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			origin,
 			confirmUrl: await confirmUrl(db, origin, order.id),
 			fullHoldHours: Math.round(transferHoldMs() / 3600000),
-			template: await getTemplateOverride(db, 'transfer')
+			template: await resolveTemplate(db, order.event_slug, 'transfer')
 		});
 		const result = await deliver({
 			db,
@@ -548,7 +548,7 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			event: { title: config?.title || order.event_slug, start: config?.start },
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 			contactEmail: contactEmail(),
-			template: await getTemplateOverride(db, 'refund')
+			template: await resolveTemplate(db, order.event_slug, 'refund')
 		});
 		const result = await deliver({
 			db,
@@ -595,7 +595,9 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const links = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
-	const template = await getTemplateOverride(db, 'reminder');
+	// Plantilla de cada evento (la del evento sobre la general), leída una vez por evento.
+	/** @type {Map<string, Awaited<ReturnType<typeof resolveTemplate>>>} */
+	const templates = new Map();
 	return sendDueReminders(db, {
 		events,
 		reminders,
@@ -609,6 +611,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(e.slug)) venues.set(e.slug, await buyerLocation(db, e.slug));
 			const venue = venues.get(e.slug);
+			if (!templates.has(e.slug))
+				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
 			const message = buildReminderEmail({
 				order,
 				tickets,
@@ -624,7 +628,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 				origin,
 				contactEmail: contactEmail(),
-				template
+				template: templates.get(e.slug)
 			});
 			const result = await deliver({
 				db,

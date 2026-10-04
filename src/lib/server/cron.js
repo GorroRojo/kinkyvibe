@@ -1,6 +1,6 @@
 /**
  * Secreto compartido de los endpoints de cron (`/api/cron/*`): los llama el cron del propio
- * Worker (src/lib/server/scheduled.js) y, mientras el sitio siga en Pages, workers/cron/.
+ * Worker (src/lib/server/scheduled.js).
  */
 import { sha256Hex, timingSafeEqual } from '$lib/server/hash.js';
 

@@ -11,7 +11,7 @@ import {
 } from './email.js';
 
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateId} TemplateId */
-/** @typedef {import('$lib/utils/emailTemplates.js').TemplateText} TemplateText */
+/** @typedef {import('$lib/utils/emailTemplates.js').TemplateParts} TemplateParts */
 
 const SAMPLE_ORDER_ID = '3f2b8c1e-0000-4000-8000-000000000000';
 
@@ -84,22 +84,31 @@ function sampleTickets() {
 }
 
 /**
- * El mail de ejemplo de una plantilla (con `template` = null, el texto del código).
+ * El mail de ejemplo de una plantilla (con `template` = null, el texto del código). Con
+ * `event`, el título, la fecha y el lugar son los de ese evento (la vista previa de la ficha de
+ * un evento); la compra y quien compró siguen siendo de ejemplo.
  *
  * @param {TemplateId} id
- * @param {TemplateText | null} template
- * @param {{ origin: string, contactEmail: string, replyTo?: string, now?: number }} ctx
+ * @param {TemplateParts | null} template ya junta (lo del evento sobre la general)
+ * @param {{ origin: string, contactEmail: string, replyTo?: string, now?: number,
+ *   event?: { title?: string, start?: string, location?: string, location_name?: string } }} ctx
  * @returns {{ subject: string, html: string, text: string }}
  */
-export function previewEmail(id, template, { origin, contactEmail, replyTo, now = Date.now() }) {
+export function previewEmail(
+	id,
+	template,
+	{ origin, contactEmail, replyTo, now = Date.now(), event: real }
+) {
 	const order = sampleOrder(now);
 	const tickets = sampleTickets();
 	const event = {
-		title: 'Fiesta de ejemplo',
+		title: real?.title || 'Fiesta de ejemplo',
 		// Dentro de 10 días a las 22 h de Argentina.
-		start: `${new Date(now + 10 * 86400000 - 3 * 3600000).toISOString().slice(0, 10)}T22:00:00-03:00`,
-		location: 'Calle Falsa 123',
-		location_name: 'Lugar de ejemplo'
+		start:
+			real?.start ||
+			`${new Date(now + 10 * 86400000 - 3 * 3600000).toISOString().slice(0, 10)}T22:00:00-03:00`,
+		location: real ? (real.location ?? '') : 'Calle Falsa 123',
+		location_name: real ? (real.location_name ?? '') : 'Lugar de ejemplo'
 	};
 	const common = { order, typeName: 'General', contactEmail, template };
 	switch (id) {

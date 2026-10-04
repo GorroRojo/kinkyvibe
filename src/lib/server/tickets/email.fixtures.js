@@ -1,7 +1,8 @@
 /**
  * Entradas de prueba (datos inventados) para los tests de los mails: `email.golden.json` guarda
- * lo que devolvían los builders ANTES de que existieran las plantillas editables, y
- * `templates.test.js` comprueba que sin plantilla guardada salen byte a byte iguales.
+ * lo que devuelven los builders sin plantilla editable guardada, y `templates.test.js` comprueba
+ * que salen byte a byte iguales. El HTML se regeneró a propósito con la plantilla común
+ * (src/lib/server/email/layout.js); el asunto y el texto plano son los de antes.
  * Solo tests: la app no importa este archivo.
  */
 

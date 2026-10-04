@@ -375,4 +375,4 @@ estandar de emoji por tipo de post
 
 ## Tests, base de datos y venta de entradas
 
-Cómo funcionan los tests y la CI: [`docs/pruebas-y-ci.md`](/docs/pruebas-y-ci.md). La base de datos D1 y sus migraciones: [`docs/datos.md`](/docs/datos.md). La venta de entradas: [`docs/entradas.md`](/docs/entradas.md) (guía corta) y [`docs/tickets.md`](/docs/tickets.md) (referencia completa). Los recordatorios por mail los dispara el Worker de [`workers/cron/`](/workers/cron/README.md).
+Cómo funcionan los tests y la CI: [`docs/pruebas-y-ci.md`](/docs/pruebas-y-ci.md). La base de datos D1 y sus migraciones: [`docs/datos.md`](/docs/datos.md). La venta de entradas: [`docs/entradas.md`](/docs/entradas.md) (guía corta) y [`docs/tickets.md`](/docs/tickets.md) (referencia completa). Los recordatorios por mail los dispara el cron del propio Worker ([`src/lib/server/scheduled.js`](/src/lib/server/scheduled.js), horarios en `wrangler.toml`).

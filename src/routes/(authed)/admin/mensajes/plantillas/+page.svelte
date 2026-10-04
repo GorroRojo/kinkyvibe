@@ -12,7 +12,7 @@
 
 <PageHeader
 	title="Plantillas de los mails"
-	subtitle="El asunto, el título y el texto de arriba de cada mail que manda el sistema."
+	subtitle="El asunto, el título, el texto de arriba y los detalles del diseño de cada mail que manda el sistema. Cada evento puede cambiarlos para sus mails (pestaña Mails de su ficha)."
 	back={areaBackLink('ajustes-plantillas')}
 />
 

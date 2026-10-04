@@ -134,7 +134,8 @@ export async function runSeriesNotifications({
 			title: edition.title,
 			start: edition.start,
 			eventUrl: origin + edition.path,
-			unsubscribeUrl: await unsubscribeUrl(db, origin, id)
+			unsubscribeUrl: await unsubscribeUrl(db, origin, id),
+			origin
 		});
 		/** @type {'sent' | 'simulated' | 'failed'} */
 		let result = 'failed';

@@ -261,7 +261,7 @@ export function venueDefaultLevel(levels) {
 }
 
 /**
- * El nivel propio del evento (`event_venues.privacy`): `null` si es el mismo que el del lugar.
+ * El nivel propio del evento (`data.privacy` del edge `lugar`): `null` si es el mismo que el del lugar.
  * @param {VenuePrivacy} level
  * @param {VenuePrivacy} venueDefault
  * @returns {VenuePrivacy | null}

@@ -34,8 +34,8 @@ export function isMockMode() {
 }
 
 /**
- * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a Cloudflare
- * Pages preview (demo mode, $lib/server/demo). Then post files are read and saved through
+ * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a preview
+ * deploy (demo mode, $lib/server/demo). Then post files are read and saved through
  * getRepoClient() instead of the GitHub contents API.
  */
 export function usesLocalRepo() {

@@ -123,7 +123,7 @@
 	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
 
-	/* ---------- lugar (eventos): en `event_venues`, no en el archivo ---------- */
+	/* ---------- lugar (eventos): edge `lugar` del evento en la base, no en el archivo ---------- */
 	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice, flagOn: boolean } | null} */
 	const venuePicker = category === 'calendario' ? (data.venuePicker ?? null) : null;
 	const savedVenue = venuePicker?.current ?? NO_VENUE;

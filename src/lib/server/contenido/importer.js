@@ -28,6 +28,7 @@ import { CONTENT_CATEGORIES } from './categories.js';
 import { dataDiff } from './parity.js';
 import { reshapePersonas } from '../../utils/personasList.js';
 import { revisionStatement } from './revisions.js';
+import { dehydratePersonas, personaEdgesOf, withPersonaEdges } from './personasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./eventos.js').MappedEvent} Mapped */
@@ -86,10 +87,16 @@ export async function importedSources(db, category) {
 		.all();
 	/** @type {Map<string, ImportedSource>} */
 	const out = new Map();
+	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js), para comparar
+	// con lo que da el .md.
+	const personas = await personaEdgesOf(
+		db,
+		results.map((r) => Number(r.object_id))
+	);
 	for (const r of results) {
 		let data = {};
 		try {
-			data = JSON.parse(String(r.data));
+			data = withPersonaEdges(JSON.parse(String(r.data)), personas.get(Number(r.object_id)));
 		} catch {
 			data = {};
 		}
@@ -333,7 +340,12 @@ export async function runImport(
  */
 async function writeRow(db, cat, category, row, { actor, now }) {
 	const mapped = /** @type {Mapped} */ (row.mapped);
-	const data = /** @type {Record<string, unknown>} */ (row.data);
+	// Los perfiles de `personas` van como edges, no en `data` (./personasEdges.js).
+	const { data, edges } = await dehydratePersonas(
+		db,
+		category,
+		/** @type {Record<string, unknown>} */ (row.data)
+	);
 	if (row.action === 'updated') {
 		const source = /** @type {ImportedSource} */ (row.source);
 		const saved = await saveObject(
@@ -344,6 +356,7 @@ async function writeRow(db, cat, category, row, { actor, now }) {
 				version: source.version,
 				title: mapped.title,
 				data,
+				edges,
 				visibility: mapped.visibility
 			},
 			{
@@ -369,6 +382,7 @@ async function writeRow(db, cat, category, row, { actor, now }) {
 			title: mapped.title,
 			slug: /** @type {string} */ (row.slug),
 			data,
+			edges: { ...edges, ...(await legacyVenueEdge(db, category, row.legacySlug)) },
 			visibility: mapped.visibility
 		},
 		{
@@ -387,6 +401,39 @@ async function writeRow(db, cat, category, row, { actor, now }) {
 		}
 	);
 	return { ...publicRow(row), objectId: saved.id, slug: saved.slug };
+}
+
+/**
+ * El lugar que un evento tenía en la tabla vieja `event_venues` (antes de que «sucede en» fuera un
+ * edge), para el evento que se importa recién ahora: la migración 0035 pasó a edges los vínculos
+ * de los eventos que ya estaban en la base; los de los que todavía eran solo .md se pasan acá, al
+ * crearlos. Es la única lectura que queda de esa tabla (ya nadie la escribe). Solo si el lugar
+ * sigue vivo y es un lugar.
+ *
+ * @param {D1Database} db
+ * @param {string} category
+ * @param {string} legacySlug
+ * @returns {Promise<{ lugar?: { to: number, data: { privacy: string } | null }[] }>}
+ */
+async function legacyVenueEdge(db, category, legacySlug) {
+	if (category !== 'calendario') return {};
+	let row;
+	try {
+		row = await db
+			.prepare(
+				`SELECT ev.venue_id, ev.privacy FROM event_venues ev
+				JOIN objects o ON o.id = ev.venue_id AND o.type = 'perfil' AND o.deleted_at IS NULL
+					AND json_extract(o.data, '$.kind') = 'lugar'
+				WHERE ev.event_slug = ?1`
+			)
+			.bind(legacySlug)
+			.first();
+	} catch {
+		return {}; // una base sin la tabla vieja
+	}
+	if (!row) return {};
+	const privacy = typeof row.privacy === 'string' ? row.privacy : null;
+	return { lugar: [{ to: Number(row.venue_id), data: privacy ? { privacy } : null }] };
 }
 
 /**

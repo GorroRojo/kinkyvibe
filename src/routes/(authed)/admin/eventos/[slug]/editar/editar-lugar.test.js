@@ -1,7 +1,8 @@
 /**
  * «Lugar» en Editar un evento (pedido de gorrite: elegir el lugar desde el evento): guardar pone,
- * cambia o saca el lugar en `event_venues` (con el registro de actividad), tanto si el evento se
- * guarda en GitHub como en la base (`contenido_db`); el archivo queda igual que sin el «Lugar»;
+ * cambia o saca el edge `lugar` del evento en la base (con el registro de actividad y una versión
+ * nueva del evento), tanto si el texto del evento se guarda en GitHub como en la base
+ * (`contenido_db`); el evento tiene que estar en la base; el archivo queda igual que sin el «Lugar»;
  * cambiar solo el lugar guarda el archivo con la fecha de «Actualizado» de hoy y nada más
  * (decisión de gorrite); si guardar el archivo falla, el lugar no cambia. También «+ Crear lugar»
  * (no listado por defecto, decisión de gorrite) y la edición rápida del lugar elegido.
@@ -11,7 +12,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 import { publicVenueForEvent, setEventVenue } from '$lib/server/amigues/venues.js';
 import { runImport } from '$lib/server/contenido/importer.js';
 import { listRevisions } from '$lib/server/contenido/revisions.js';
@@ -151,9 +152,18 @@ const save = (form, slug = SLUG) =>
 		}
 	});
 
+/** El vínculo guardado: el edge `lugar` del evento (`null` si no tiene). */
 const venueRow = async (slug = SLUG) =>
 	/** @type {any} */ (
-		await t.db.prepare('SELECT * FROM event_venues WHERE event_slug = ?1').bind(slug).first()
+		await t.db
+			.prepare(
+				`SELECT e.to_id AS venue_id, json_extract(e.data, '$.privacy') AS privacy FROM edges e
+				JOIN objects o ON o.id = e.from_id AND o.type = 'evento'
+				LEFT JOIN content_sources s ON s.object_id = o.id
+				WHERE e.kind = 'lugar' AND coalesce(s.legacy_slug, o.slug) = ?1`
+			)
+			.bind(slug)
+			.first()
 	);
 
 /** @param {string} action */
@@ -169,6 +179,12 @@ const lugar = async (title = 'Sala Inventada', privacy = 'name') =>
 	makeProfile(t.db, { title, kind: 'lugar', data: { address: 'Calle 1', venue_privacy: privacy } });
 
 describe('guardar en GitHub', () => {
+	// El texto va a GitHub (`contenido_db` apagado), pero «sucede en» es un edge del evento en la
+	// base: el evento tiene que estar importado.
+	beforeEach(async () => {
+		await makeEvent(t.db, SLUG);
+	});
+
 	it('elegir un lugar lo vincula (con registro) y el archivo queda igual que sin el «Lugar»', async () => {
 		const v = await lugar();
 		const { mod, commits } = await page();
@@ -262,6 +278,20 @@ describe('guardar en GitHub', () => {
 		);
 		expect(res.status).toBe(502);
 		expect(await venueRow()).toBeNull();
+	});
+
+	it('un evento que todavía no está en la base: el archivo se guarda y avisa que el lugar no', async () => {
+		await resetDB(t.db); // sin el evento en la base
+		const v = await lugar();
+		const { mod, commits } = await page();
+		const res = /** @type {any} */ (
+			await mod.actions.save(save({ lugar: String(v.id), lugarCambio: '1' }))
+		);
+		expect(res.save).toBe('Guardado');
+		expect(commits).toHaveLength(1);
+		expect(JSON.stringify(res)).toMatch(/todavía no está en la base/);
+		expect(await venueRow()).toBeNull();
+		expect(await audit('event.venue_set')).toHaveLength(0);
 	});
 
 	it('un lugar que ya no existe no guarda nada', async () => {
@@ -373,7 +403,10 @@ describe('guardar en la base (contenido_db)', () => {
 				.first()
 		);
 		const revs = await listRevisions(t.db, object.id);
+		// El texto (versión 2) y después el lugar (versión 3: el edge `lugar` es un guardado del
+		// evento, con su historial).
 		expect(revs.map((r) => [r.version, r.source, r.savedBy])).toEqual([
+			[3, 'lugar', admin.login],
 			[2, 'panel', admin.login],
 			[1, 'import', 'importacion']
 		]);
@@ -438,6 +471,8 @@ describe('«+ Crear lugar»', () => {
 		);
 		expect(JSON.parse(data.data).unlisted).toBeUndefined();
 		// La página del evento muestra igual el lugar no listado y el listado (según su nivel).
+		await makeEvent(t.db, 'a');
+		await makeEvent(t.db, 'b');
 		await setEventVenue(t.db, { eventSlug: 'a', venueId: listed.id, privacy: null, by: 'x' });
 		await setEventVenue(t.db, { eventSlug: 'b', venueId: unlisted.id, privacy: null, by: 'x' });
 		const a = /** @type {any} */ (await publicVenueForEvent(t.db, 'a', ANON));
@@ -614,6 +649,7 @@ describe('la ficha del evento (fila «Lugar»)', () => {
 		const v = await lugar();
 		const { panelVenueRow } = await import('$lib/server/amigues/eventFormVenue.js');
 		expect(await panelVenueRow(t.db, SLUG)).toBeNull();
+		await makeEvent(t.db, SLUG);
 		await setEventVenue(t.db, { eventSlug: SLUG, venueId: v.id, privacy: null, by: 'otre' });
 		const row = await panelVenueRow(t.db, SLUG);
 		expect(row).toMatchObject({

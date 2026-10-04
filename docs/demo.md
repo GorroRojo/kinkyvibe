@@ -1,7 +1,7 @@
 # Modo demo (deploys de preview)
 
-Sirve para probar el panel de admin en un deploy de preview de Cloudflare Pages (cualquier rama
-que no sea `main`) con datos inventados, sin GitHub OAuth (que solo funciona en kinkyvibe.ar) y
+Sirve para probar el panel de admin en un deploy de preview de Cloudflare Workers (cualquier
+rama que no sea `main`) con datos inventados, sin GitHub OAuth (que solo funciona en kinkyvibe.ar) y
 sin tocar el repo.
 
 ## Lo que nunca se tiene que romper
@@ -35,7 +35,7 @@ sin tocar el repo.
   (`startSession`, método `code`); «Cerrar sesión» en Mi rincón la cierra.
 - **Permisos**: `isAdmin` (`src/lib/server/auth.js`) acepta esa identidad **solo si
   `isPreviewDeploy()`**. Además, el bloque de `hooks.server.js` y el cliente demo están dentro de
-  `if (PREVIEW_BUILD)`, una constante que se resuelve al compilar desde `CF_PAGES_BRANCH`: en el
+  `if (PREVIEW_BUILD)`, una constante que se resuelve al compilar desde `WORKERS_CI_BRANCH`: en el
   build de producción (y en local) esas ramas se eliminan y nada importa el módulo demo.
 - **Contenido**: en un preview, `getRepoClient()` (`src/lib/server/eventos/index.js`) devuelve el
   cliente demo (`src/lib/server/demo/client.js`) en vez de GitHub, **sea quien sea que esté
@@ -119,8 +119,8 @@ prueba se regeneraron para el 1/10 (`node scripts/demo/seed.js --today=2026-10-0
 
 ## Cómo probar
 
-- Abrí el preview del PR (Cloudflare publica el link en el PR; el chequeo «Cloudflare Pages» →
-  Details lleva al deploy en el panel de Cloudflare), entrá a `/login` y tocá «🧪 Entrar como
+- Abrí el preview del PR (Cloudflare publica el link en el PR; el chequeo «Workers Builds:
+  kinkyvibe» → Details lleva al build en el panel de Cloudflare), entrá a `/login` y tocá «🧪 Entrar como
   admin de prueba».
 - `GET /api/preview-status` dice si el entorno está bien armado (base, allowlist de mails) y qué se
   guardó en `demo_files`.
@@ -132,6 +132,5 @@ prueba se regeneraron para el 1/10 (`node scripts/demo/seed.js --today=2026-10-0
 ## Lo que viene
 
 Decisión 0009: datos de prueba con fechas relativas y un botón «Recargar datos de prueba» en el
-panel (solo en previews). Todavía no están en `main`. Hoy un preview se detecta con `CF_PAGES_BRANCH`
-(Cloudflare Pages); con la migración a Workers eso puede cambiar: ver
-[workers-migracion.md](workers-migracion.md).
+panel (solo en previews). Todavía no están en `main`. Un preview se detecta con `WORKERS_CI_BRANCH`, que pone Workers
+Builds al compilar (`src/lib/server/deployBranch.js`, [workers-migracion.md](workers-migracion.md)).

@@ -1,8 +1,8 @@
 /**
  * Tipo núcleo `evento`. Los campos siguen los nombres del frontmatter de los .md de calendario
  * (src/lib/utils/eventDraft.js), así la importación es directa (src/lib/server/contenido/eventos.js
- * tiene el mapa completo, ida y vuelta). El lugar NO es un campo: es un edge `lugar` hacia un
- * objeto de tipo `lugar`.
+ * tiene el mapa completo, ida y vuelta). El lugar NO es un campo: es un edge `lugar` hacia el
+ * perfil del lugar; tampoco los perfiles de `personas` (edges `persona`, ver `edges` abajo).
  *
  * - `start`/`end` llevan su zona; las columnas generadas `start_at`/`end_at` (migración 0031) los
  *   tienen en ms para ordenar y filtrar. `event_status` y `unlisted` también son columnas.
@@ -85,8 +85,10 @@ const evento = {
 		// Forma de antes (lo importado antes de «Personas en una sola sección»): se sigue leyendo; lo
 		// que se guarda ahora va en `personas`.
 		authors: { kind: 'list', label: 'Quiénes organizan', max: EVENT_AUTHORS_MAX },
-		// Personas con su rol, quienes organizan incluides: `[{ profile?, name?, role }]`
-		// (src/lib/utils/personasList.js). En los .md siguen siendo `authors:` y `personas:`.
+		// Personas con su rol, quienes organizan incluides: `[{ name, role }]`
+		// (src/lib/utils/personasList.js). En los .md siguen siendo `authors:` y `personas:`. Los
+		// perfiles NO van acá: son edges `persona` (abajo). Solo queda `{ profile, role }` para una
+		// dirección que no es de ningún perfil vivo (no hay a qué apuntar: no es una relación).
 		personas: { kind: 'json', array: true, label: 'Personas', max: 30_000 },
 		// Número de la imagen en la carpeta del evento («1») o archivo de src/lib/assets
 		// («cabaret-astral-miniatura.webp»). Las imágenes siguen en el repo (R2 es un paso aparte).
@@ -103,10 +105,15 @@ const evento = {
 		extra: { kind: 'json', label: 'Otros datos del archivo', max: 50_000 }
 	},
 	edges: {
-		lugar: { label: 'Lugar', to: ['lugar'], max: 1 },
-		// Personas con rol (B7): un edge por perfil, `data: { roles: ['Organiza', …] }`. Hoy los
-		// roles viven en el frontmatter de los .md (`personas:`); personasToEdges() de
-		// src/lib/utils/personas.js arma estos edges cuando el evento pase a la base.
+		// «Sucede en» (docs/amigues.md): un perfil de tipo lugar (`perfil` con `kind: 'lugar'`; el
+		// tipo `lugar` es el de ejemplo de 0012). `data: { privacy }` es el nivel propio del evento
+		// («Sólo Nombre», «Oculto»…, src/lib/utils/venues.js); sin `data`, el del lugar. Lo escriben
+		// setEventVenue/removeEventVenue (src/lib/server/amigues/venues.js), con saveObject().
+		lugar: { label: 'Lugar', to: ['lugar', 'perfil'], max: 1 },
+		// Personas con rol (B7): un edge por perfil, `data: { roles: ['Organiza', …], at: [0, …] }`:
+		// cada rol con su lugar en la lista única de personas (`at`), así la lista se arma igual que
+		// antes (src/lib/server/contenido/personasEdges.js). Los nombres sin perfil no son relaciones:
+		// quedan en `data.personas`.
 		persona: { label: 'Personas con rol', to: ['perfil'] }
 	},
 	check(data) {

@@ -19,7 +19,7 @@ import { textOrNull } from './text.js';
 
 /**
  * En el orden en que se ofrecen en los desplegables. La migración 0027 agrega `address` al CHECK
- * de `event_venues.privacy`.
+ * del edge `lugar` del evento (`data.privacy`).
  * @type {readonly VenuePrivacy[]}
  */
 export const VENUE_PRIVACY_LEVELS = Object.freeze(['public', 'name', 'address', 'area', 'hidden']);
