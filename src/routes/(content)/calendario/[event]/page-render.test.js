@@ -11,6 +11,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
 import { ADDRESS_FOR_BUYERS, venueView } from '$lib/utils/venues.js';
+import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({
@@ -258,11 +259,7 @@ describe('/calendario/<evento>: el botón de comprar entradas', () => {
 		const html = body.slice(body.indexOf('>', from) + 1, body.indexOf('</span>', from));
 		// Sin poner espacios en lugar de las etiquetas (como hace stripTags): lo que importa es
 		// si los espacios están en el texto.
-		return html
-			.replace(/<!--[\s\S]*?-->/g, '')
-			.replace(/<[^<>]*>/g, '')
-			.replace(/\s+/g, ' ')
-			.trim();
+		return stripHtmlTags(html).replace(/\s+/g, ' ').trim();
 	};
 
 	it('separa el precio de lo que queda con « · »', () => {

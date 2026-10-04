@@ -144,20 +144,20 @@ describe('Lo que sigo con Telegram', () => {
 		expect(out).toContain('data-state="conectado"');
 	});
 
-	it('con el bot y sin chat: columna apagada «Sin conectar», la nota y la tarjeta', () => {
+	it('con el bot y sin chat: sin columna apagada en cada fila, la nota (una vez) y la tarjeta', () => {
 		const out = sigoPage(card());
 		const off = switches(out).filter((i) => !i.includes('name='));
-		expect(off).toHaveLength(2);
-		for (const i of off) expect(i).toContain('disabled');
-		expect(out).toContain('Sin conectar');
-		expect(out).toContain('conectá tu cuenta con el bot');
+		expect(off).toHaveLength(0);
+		expect(out).not.toContain('data-channel="telegram"');
+		expect(out.match(/conectá tu cuenta con el bot/g)).toHaveLength(1);
 		expect(out).not.toContain('name="canal" value="telegram"');
 		expect(out).toContain('Conectar Telegram');
 	});
 
-	it('sin el bot (telegram null): como siempre, «Próximamente» y sin tarjeta', () => {
+	it('sin el bot (telegram null): la nota de lo que viene (una vez) y sin tarjeta', () => {
 		const out = sigoPage(null);
-		expect(out).toContain('Próximamente');
+		expect(out).not.toContain('data-channel="telegram"');
+		expect(out.match(/Vas a poder recibir esto por Telegram/g)).toHaveLength(1);
 		expect(out).not.toContain('Conectar Telegram');
 		expect(out).not.toContain('id="telegram-title"');
 	});

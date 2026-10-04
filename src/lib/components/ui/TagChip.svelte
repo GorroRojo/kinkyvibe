@@ -22,7 +22,7 @@
 </script>
 
 {#if href}
-	<a class="kv-tag" class:on={selected} {href} rel="tag" style:--tag-color={color}
+	<a class="kv-tag tap-target" class:on={selected} {href} rel="tag" style:--tag-color={color}
 		>{#if icon}<span aria-hidden="true">{icon}</span>{/if}{name}</a
 	>
 {:else}

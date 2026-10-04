@@ -1,6 +1,7 @@
 <script>
 	import { page } from "$app/stores";
 	import { tagManager, query } from "$lib/utils/stores";
+	import { tagPagePath } from "$lib/utils/series.js";
 
 	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
 	function parseDescription(description, query) {
@@ -84,7 +85,7 @@
 	{#if type == 'link' && entry}
 		<a href="/wiki/{entry.meta.wiki}">{line}</a>
 	{:else if type == 'link' && tag}
-		<a href="/wiki#{tag?.visible_name ?? tag.id}">{line}</a>
+		<a href={tagPagePath(tag.id)}>{line}</a>
 	{:else if type == 'mark'}
 		<mark>{line}</mark>
 	{:else}

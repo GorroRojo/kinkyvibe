@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import Tag from './Tag.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
+	import { argDateList } from '$lib/utils/dates.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -47,6 +48,12 @@
 			</small>
 		{/if}
 	</h3>
+	{#if category == 'calendario' && argDateList(start ?? '')}
+		<!-- la fecha corta de las listas (docs/estilo.md, «Textos») -->
+		<time class="card-date dt-start" datetime={new Date(start ?? '').toISOString()}
+			>{argDateList(start ?? '')}</time
+		>
+	{/if}
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
@@ -101,6 +108,14 @@
 		margin: auto auto;
 		padding: 0.5em;
 		text-align: center;
+	}
+	.card-date {
+		margin: -0.3em auto 0.6em;
+		padding-inline: 0.5em;
+		text-align: center;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 700;
 	}
 	.p-pronouns {
 		font-size: 0.6em;

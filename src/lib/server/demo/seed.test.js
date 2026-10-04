@@ -13,10 +13,14 @@ import { publicVenueForEvent } from '../amigues/venues.js';
 import { ANON } from '../objects/index.js';
 import { hydrateContent } from '../contenido/relaciones.js';
 import { eventToMeta } from '../contenido/eventos.js';
+import { readFileSync } from 'node:fs';
 import { DEMO_ACCOUNTS, DEMO_VENUES } from './seedProfiles.js';
+import { DEMO_ACCOUNT_MARK, DEMO_PERSONAS } from './personasData.js';
+import { ordersForAccount } from '../cuentas/orders.js';
 import {
 	N3_CUSTOM_ROLE,
 	N3_FLAGS,
+	PERSONA_ORDER_ID,
 	SEED_BY,
 	auditEntries,
 	buildData,
@@ -857,4 +861,71 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 			await fresh.dispose();
 		}
 	}, 120000);
+});
+
+describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives a reload', () => {
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	beforeAll(async () => {
+		t = await createTestDB();
+	});
+	afterAll(async () => {
+		await t?.dispose();
+	});
+
+	/** @param {string} file */
+	async function applyFile(file) {
+		const text = readFileSync(new URL(file, import.meta.url), 'utf8');
+		const statements = unstable_splitSqlQuery(text).filter((s) => s.trim());
+		for (const s of statements) await t.db.prepare(s).run();
+	}
+	const persona = /** @type {(typeof DEMO_PERSONAS)[number]} */ (
+		DEMO_PERSONAS.find((p) => p.key === 'con-entradas')
+	);
+
+	it('Mi rincón lists an approved ticket for tonight after every reload', async () => {
+		// The account comes from scripts/demo/n3-cuentas.sql, as in the preview database.
+		await applyFile('../../../../scripts/demo/n3-cuentas.sql');
+		const before = await ordersForAccount(t.db, persona.id);
+		expect(before).toHaveLength(1);
+
+		const day1 = Date.parse('2026-10-01T15:00:00Z');
+		const r1 = await reloadDemoData(t.db, { now: day1 });
+		// Before the fix the reset of the `demo-*` orders wiped it: «Todavía no hay compras».
+		const after = await ordersForAccount(t.db, persona.id);
+		expect(after).toHaveLength(1);
+		expect(after[0]).toMatchObject({
+			id: PERSONA_ORDER_ID,
+			event_slug: r1.tonight?.slug,
+			status: 'approved',
+			quantity: 1
+		});
+		const tickets = await t.db
+			.prepare('SELECT COUNT(*) AS n FROM tickets WHERE order_id = ?1')
+			.bind(PERSONA_ORDER_ID)
+			.first();
+		expect(Number(/** @type {any} */ (tickets).n)).toBe(1);
+
+		// Another reload (and another day): still exactly one, around the new "today".
+		const r2 = await reloadDemoData(t.db, { now: day1 + DAY });
+		const again = await ordersForAccount(t.db, persona.id);
+		expect(again).toHaveLength(1);
+		expect(again[0].event_slug).toBe(r2.tonight?.slug);
+		const n = await t.db
+			.prepare('SELECT COUNT(*) AS n FROM tickets WHERE order_id = ?1')
+			.bind(PERSONA_ORDER_ID)
+			.first();
+		expect(Number(/** @type {any} */ (n).n)).toBe(1);
+	}, 60000);
+
+	it('loads nothing for an account without the demo mark', async () => {
+		await t.db
+			.prepare(
+				`UPDATE accounts SET preferences = json_remove(preferences, '$.${DEMO_ACCOUNT_MARK}') WHERE id = ?1`
+			)
+			.bind(persona.id)
+			.run();
+		await reloadDemoData(t.db, { now: Date.parse('2026-10-03T15:00:00Z') });
+		expect(await ordersForAccount(t.db, persona.id)).toHaveLength(0);
+	}, 60000);
 });

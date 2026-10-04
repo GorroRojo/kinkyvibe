@@ -35,7 +35,7 @@
 </svelte:head>
 
 <div class="purchase-page">
-	<p class="back"><a href={data.path}>← Volver al evento</a></p>
+	<p class="back"><a class="tap-target" href={data.path}>← Volver al evento</a></p>
 	<header class="event-mini">
 		{#if data.meta.featured}
 			<img src={data.meta.featured + ''} alt="" width="96" height="96" />

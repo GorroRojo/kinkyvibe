@@ -51,55 +51,8 @@
 <div class="rincon">
 	<h1>Mi rincón</h1>
 
-	<section class="surface-card" aria-labelledby="cuenta-title">
-		<h2 id="cuenta-title">Tu cuenta</h2>
-		<p>Mail: <strong>{data.email}</strong></p>
-		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
-		{#if form?.action === 'sesiones' && form.error}
-			<p class="error" role="alert">{form.error}</p>
-		{/if}
-		<div class="row">
-			<form method="POST" action="?/salir">
-				<button class="pill-btn ghost" type="submit">Salir</button>
-			</form>
-			<form method="POST" action="?/salirTodos">
-				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
-			</form>
-		</div>
-		<p class="hint">
-			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
-			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
-		</p>
-	</section>
-
-	{#if data.canHaveProfiles}
-		<section class="surface-card" aria-labelledby="perfiles-title">
-			<h2 id="perfiles-title">Tus perfiles</h2>
-			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
-		</section>
-	{/if}
-
-	{#if data.sigoOn}
-		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
-		<section class="surface-card" aria-labelledby="sigo-title">
-			<h2 id="sigo-title">Lo que seguís y tu calendario</h2>
-			<p class="hint">
-				Etiquetas, series, perfiles y lugares que seguís y de qué te escribimos. Y tu calendario
-				personal: lo que seguís, tus entradas y donde participás, en tu app de calendario.
-			</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
-		</section>
-	{:else}
-		<section class="surface-card" aria-labelledby="calendario-title">
-			<h2 id="calendario-title">Tu calendario</h2>
-			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
-		</section>
-	{/if}
-
 	<section class="surface-card" aria-labelledby="compras-title">
-		<h2 id="compras-title">Tus compras</h2>
+		<h2 id="compras-title">Tus compras y entradas</h2>
 		{#if data.ordersError}
 			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
 		{:else if data.orders.length === 0}
@@ -126,6 +79,32 @@
 			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
 		</p>
 	</section>
+
+	{#if data.sigoOn}
+		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
+		<section class="surface-card" aria-labelledby="sigo-title">
+			<h2 id="sigo-title">Lo que seguís y tu calendario</h2>
+			<p class="hint">
+				Etiquetas, series, perfiles y lugares que seguís y de qué te escribimos. Y tu calendario
+				personal: lo que seguís, tus entradas y donde participás, en tu app de calendario.
+			</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
+		</section>
+	{:else}
+		<section class="surface-card" aria-labelledby="calendario-title">
+			<h2 id="calendario-title">Tu calendario</h2>
+			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/calendario">Ver tu calendario</a>
+		</section>
+	{/if}
+
+	{#if data.canHaveProfiles}
+		<section class="surface-card" aria-labelledby="perfiles-title">
+			<h2 id="perfiles-title">Tus perfiles</h2>
+			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+		</section>
+	{/if}
 
 	<section class="surface-card" id="mis-datos" aria-labelledby="datos-title">
 		<h2 id="datos-title">Mis datos</h2>
@@ -329,6 +308,27 @@
 		{/if}
 	</section>
 
+	<section class="surface-card" aria-labelledby="cuenta-title">
+		<h2 id="cuenta-title">Tu cuenta</h2>
+		<p>Mail: <strong>{data.email}</strong></p>
+		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
+		{#if form?.action === 'sesiones' && form.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/salir">
+				<button class="pill-btn ghost" type="submit">Salir</button>
+			</form>
+			<form method="POST" action="?/salirTodos">
+				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
+			</form>
+		</div>
+		<p class="hint">
+			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
+			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+		</p>
+	</section>
+
 	<section class="surface-card danger-zone" aria-labelledby="borrar-title">
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
@@ -386,7 +386,8 @@
 	.rincon {
 		display: grid;
 		gap: 1em;
-		width: min(40rem, 100%);
+		/* 16px a los costados en el celu, como el resto del sitio */
+		width: min(40rem, calc(100% - 32px));
 		margin: 1.5em auto;
 	}
 	h1 {
@@ -514,8 +515,9 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 	}
+	/* borrar la cuenta no tiene vuelta atrás: rojo (--error), como su botón .permanent */
 	.danger-zone {
-		border-top: 0.25rem solid var(--1-dark);
+		border-top: 0.25rem solid var(--error);
 	}
 	.ok {
 		color: var(--3-ink);
