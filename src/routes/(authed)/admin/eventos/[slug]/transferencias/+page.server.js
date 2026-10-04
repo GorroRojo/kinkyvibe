@@ -32,4 +32,4 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	return { transfers: pendingTransfers(rows, now), resolved };
 }
 
-export const actions = pickActions('confirm', 'cancel', 'reopen');
+export const actions = pickActions('confirm', 'cancel', 'reopen', 'dni');

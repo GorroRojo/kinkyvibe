@@ -45,3 +45,21 @@ export function shortTime(ms) {
 export function formatDni(dni) {
 	return dni ? Number(dni).toLocaleString('es-AR') : '—';
 }
+
+/**
+ * Cuántos dígitos como mínimo para buscar órdenes por DNI (en el servidor: el DNI completo no va
+ * a la página de Órdenes).
+ */
+export const DNI_SEARCH_MIN_DIGITS = 3;
+
+/**
+ * Los dígitos de lo que se escribió en el buscador si parece un DNI ("30.111" → "30111"), o ''
+ * si tiene otra cosa que números, puntos, guiones o espacios, o menos de {@link DNI_SEARCH_MIN_DIGITS}.
+ * @param {unknown} q
+ */
+export function dniQueryDigits(q) {
+	const s = String(q ?? '').trim();
+	if (!s || s.length > 20 || !/^[\d.\s-]+$/.test(s)) return '';
+	const digits = s.replace(/\D/g, '');
+	return digits.length >= DNI_SEARCH_MIN_DIGITS ? digits : '';
+}

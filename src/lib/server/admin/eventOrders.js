@@ -5,6 +5,11 @@
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder } from '$lib/server/tickets/signupFields.js';
+import { dniTail } from '$lib/server/tickets/door.js';
+import { logAdminAction } from '$lib/server/admin/audit.js';
+import { dniQueryDigits } from '$lib/admin/orderFormat.js';
+
+/** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /** Transferencias vencidas que se siguen mostrando (por si el pago llega tarde). */
 export const EXPIRED_TRANSFER_VISIBLE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,8 +44,9 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		reference: orderReference(o.id),
 		name: o.buyer_name,
 		email: o.buyer_email,
-		// El DNI de quien compra: solo en el admin (para chequear en la puerta si hace falta).
-		dni: o.buyer_dni ?? '',
+		// Del DNI de quien compra solo van los últimos 3 dígitos: el completo se pide aparte, orden
+		// por orden, con `revealOrderDni` (y queda en el registro de actividad).
+		dniTail: dniTail(o.buyer_dni),
 		type: names[o.ticket_type] ?? o.ticket_type,
 		quantity: o.quantity,
 		pronouns: o.buyer_pronouns ?? '',
@@ -91,4 +97,58 @@ export function pendingTransfers(rows, now = Date.now()) {
 			(o.status === 'awaiting_transfer' ||
 				(o.status === 'expired' && o.expiresAt > now - EXPIRED_TRANSFER_VISIBLE_MS))
 	);
+}
+
+/** Cuántas órdenes como mucho devuelve una búsqueda por DNI. */
+export const DNI_SEARCH_LIMIT = 200;
+
+/**
+ * Ids de las órdenes del evento cuyo DNI empieza con esos dígitos (el buscador de Órdenes: el
+ * DNI completo nunca va a la página, así que la coincidencia se busca acá). No devuelve el DNI.
+ *
+ * @param {D1Database} db
+ * @param {string} slug
+ * @param {string} query lo que se escribió (ver {@link dniQueryDigits})
+ * @returns {Promise<string[]>}
+ */
+export async function orderIdsByDni(db, slug, query) {
+	const digits = dniQueryDigits(query);
+	if (!digits) return [];
+	const { results } = await db
+		.prepare(
+			`SELECT id FROM orders WHERE event_slug = ?1 AND buyer_dni IS NOT NULL
+			AND replace(replace(replace(buyer_dni, '.', ''), ' ', ''), '-', '') LIKE ?2
+			ORDER BY created_at DESC LIMIT ?3`
+		)
+		.bind(slug, `${digits}%`, DNI_SEARCH_LIMIT)
+		.all();
+	return results.map((r) => String(r.id));
+}
+
+/**
+ * «Mostrar» el DNI completo de una orden del evento (pestañas Órdenes y Transferencias). Como en
+ * la ficha de la persona, cada vez queda en el registro de actividad (`person.dni.reveal`), sin
+ * el DNI. `null` si la orden no es de este evento o no tiene DNI (y entonces no se registra).
+ *
+ * @param {D1Database} db
+ * @param {App.Locals} locals
+ * @param {{ slug: string, orderId: string }} input
+ * @returns {Promise<string | null>}
+ */
+export async function revealOrderDni(db, locals, { slug, orderId }) {
+	if (typeof orderId !== 'string' || !orderId || orderId.length > 64) return null;
+	const row = await db
+		.prepare('SELECT id, buyer_dni FROM orders WHERE id = ?1 AND event_slug = ?2')
+		.bind(orderId, slug)
+		.first();
+	const dni = row?.buyer_dni == null ? '' : String(row.buyer_dni).trim();
+	if (!dni) return null;
+	await logAdminAction(db, locals, {
+		action: 'person.dni.reveal',
+		targetType: 'order',
+		targetId: String(row?.id),
+		summary: `Miró el DNI de la compra ${orderReference(String(row?.id))}`,
+		detail: { event: slug }
+	});
+	return dni;
 }
