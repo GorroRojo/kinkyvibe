@@ -6,7 +6,8 @@
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { confirmPaymentSubmit, keepRows } from '$lib/admin/transferConfirm.js';
 	import { Check, CheckCheck, Clock, X } from '@lucide/svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
@@ -28,42 +29,33 @@
 	/** @type {OverrideDialog} */
 	let overrideDialog;
 
+	// «Confirmar pago»: pregunta corta, límites con OverrideDialog y el resultado en la fila
+	// (ver transferConfirm.js).
+	/** @type {import('$lib/admin/transferConfirm.js').KeptRow<any>[]} */
+	let kept = [];
 	/**
-	 * "Confirmar pago": si confirmar pasa el cupo (llegó tarde y los lugares ya se ocuparon), el
-	 * servidor contesta `needsConfirmation`; se pregunta en la página y, si le admin confirma, se
-	 * reenvía con la clave en `override`.
-	 * @param {string} id
-	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 * @param {any} row
+	 * @param {number} index
+	 * @param {string} list
 	 */
-	const confirmPayment =
-		(id) =>
-		({ formElement }) => {
-			busy = id;
-			return async ({ result, update }) => {
-				// La clave vale para un solo envío.
-				formElement.querySelector('input[name=override]')?.remove();
-				const needs =
-					result.type === 'failure'
-						? /** @type {any} */ (result.data)?.transfer?.needsConfirmation
-						: null;
-				if (needs) {
-					busy = null;
-					const key = await overrideDialog.ask(needs, {
-						title: 'Confirmar esta transferencia pasa el cupo'
-					});
-					if (!key) return;
-					const input = document.createElement('input');
-					input.type = 'hidden';
-					input.name = 'override';
-					input.value = key;
-					formElement.append(input);
-					formElement.requestSubmit();
-					return;
-				}
-				await update();
-				busy = null;
-			};
-		};
+	const confirmPayment = (row, index, list) =>
+		confirmPaymentSubmit({
+			row,
+			index,
+			list,
+			overrideDialog: () => overrideDialog,
+			setBusy: (id) => (busy = id),
+			onResult: (k) => (kept = [...kept.filter((x) => x.row.id !== k.row.id), k]),
+			refresh: invalidateAll
+		});
+	$: pendingRows = keepRows(
+		data.pending,
+		kept.filter((k) => k.list === 'pending')
+	);
+	$: expiredRows = keepRows(
+		data.expired,
+		kept.filter((k) => k.list === 'expired')
+	);
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<any>[]} */
 	const columns = [
@@ -162,8 +154,8 @@
 			/>
 		{/if}
 		<ul class="list">
-			{#each data.pending as o (o.id)}
-				<li>
+			{#each pendingRows as { row: o, result }, i (o.id)}
+				<li class:done={result?.ok}>
 					<div class="main">
 						<div class="kv-row">
 							<b class="ref num">{o.reference}</b>
@@ -184,38 +176,43 @@
 							· pedida {fmtDateTime(o.createdAt)} · reservada hasta {fmtDateTime(o.expiresAt)}
 						</div>
 					</div>
-					<div class="buttons">
-						<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
-							<input type="hidden" name="order" value={o.id} />
-							<button class="kv-btn" type="submit" disabled={busy === o.id}>
-								<Check size={16} aria-hidden="true" /> Confirmar pago
-							</button>
-						</form>
-						<form
-							method="POST"
-							action="?/cancel"
-							use:enhance={async ({ cancel }) => {
-								const ok = await askConfirm({
-									title: `¿Cancelar ${o.reference}?`,
-									text: 'Se libera el cupo.',
-									confirmLabel: 'Cancelar la orden',
-									cancelLabel: 'Volver',
-									tone: 'danger'
-								});
-								if (!ok) return cancel();
-								busy = o.id;
-								return async ({ update }) => {
-									await update();
-									busy = null;
-								};
-							}}
-						>
-							<input type="hidden" name="order" value={o.id} />
-							<button class="kv-btn ghost" type="submit" disabled={busy === o.id}>
-								<X size={16} aria-hidden="true" /> Cancelar
-							</button>
-						</form>
-					</div>
+					{#if result}
+						<p class="kv-flash row-flash" class:bad={!result.ok} role="status">
+							{result.message}
+						</p>
+					{/if}
+					{#if !result?.ok}<div class="buttons">
+							<form method="POST" action="?/confirm" use:enhance={confirmPayment(o, i, 'pending')}>
+								<input type="hidden" name="order" value={o.id} />
+								<button class="kv-btn" type="submit" disabled={busy === o.id}>
+									<Check size={16} aria-hidden="true" /> Confirmar pago
+								</button>
+							</form>
+							<form
+								method="POST"
+								action="?/cancel"
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: `¿Cancelar ${o.reference}?`,
+										text: 'Se libera el cupo.',
+										confirmLabel: 'Cancelar la orden',
+										cancelLabel: 'Volver',
+										tone: 'danger'
+									});
+									if (!ok) return cancel();
+									busy = o.id;
+									return async ({ update }) => {
+										await update();
+										busy = null;
+									};
+								}}
+							>
+								<input type="hidden" name="order" value={o.id} />
+								<button class="kv-btn ghost" type="submit" disabled={busy === o.id}>
+									<X size={16} aria-hidden="true" /> Cancelar
+								</button>
+							</form>
+						</div>{/if}
 				</li>
 			{/each}
 		</ul>
@@ -229,8 +226,8 @@
 				cancelala para que no quede dando vueltas.
 			</p>
 			<ul class="list">
-				{#each data.expired as o (o.id)}
-					<li>
+				{#each expiredRows as { row: o, result }, i (o.id)}
+					<li class:done={result?.ok}>
 						<div class="main">
 							<div class="kv-row">
 								<b class="ref num">{o.reference}</b>
@@ -245,30 +242,39 @@
 								· {o.quantity} × {o.type} · pedida {fmtDateTime(o.createdAt)}
 							</div>
 						</div>
-						<div class="buttons">
-							<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
-								<input type="hidden" name="order" value={o.id} />
-								<button class="kv-btn ghost" type="submit" disabled={busy === o.id}
-									>Confirmar pago</button
+						{#if result}
+							<p class="kv-flash row-flash" class:bad={!result.ok} role="status">
+								{result.message}
+							</p>
+						{/if}
+						{#if !result?.ok}<div class="buttons">
+								<form
+									method="POST"
+									action="?/confirm"
+									use:enhance={confirmPayment(o, i, 'expired')}
 								>
-							</form>
-							<form
-								method="POST"
-								action="?/cancel"
-								use:enhance={async ({ cancel }) => {
-									const ok = await askConfirm({
-										title: `¿Cancelar ${o.reference}?`,
-										confirmLabel: 'Cancelar la orden',
-										cancelLabel: 'Volver',
-										tone: 'danger'
-									});
-									if (!ok) cancel();
-								}}
-							>
-								<input type="hidden" name="order" value={o.id} />
-								<button class="kv-btn ghost" type="submit">Cancelar</button>
-							</form>
-						</div>
+									<input type="hidden" name="order" value={o.id} />
+									<button class="kv-btn ghost" type="submit" disabled={busy === o.id}
+										>Confirmar pago</button
+									>
+								</form>
+								<form
+									method="POST"
+									action="?/cancel"
+									use:enhance={async ({ cancel }) => {
+										const ok = await askConfirm({
+											title: `¿Cancelar ${o.reference}?`,
+											confirmLabel: 'Cancelar la orden',
+											cancelLabel: 'Volver',
+											tone: 'danger'
+										});
+										if (!ok) cancel();
+									}}
+								>
+									<input type="hidden" name="order" value={o.id} />
+									<button class="kv-btn ghost" type="submit">Cancelar</button>
+								</form>
+							</div>{/if}
 					</li>
 				{/each}
 			</ul>
@@ -351,6 +357,10 @@
 	}
 	.small {
 		font-size: var(--text-xs);
+	}
+	.row-flash {
+		flex-basis: 100%;
+		margin: 0;
 	}
 	.buttons {
 		display: flex;

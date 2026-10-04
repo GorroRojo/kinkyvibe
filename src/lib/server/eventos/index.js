@@ -125,6 +125,7 @@ export function featuredURL(slug, featured) {
  * @prop {string} location
  * @prop {boolean} unlisted
  * @prop {boolean} unpublished
+ * @prop {boolean} [draft] borrador de la agenda (`borrador: true`, ver drafts.js)
  * @prop {string} [thumb]
  */
 
@@ -173,6 +174,7 @@ function summarize(slug, meta) {
 		location: String(meta.location ?? ''),
 		unlisted: meta.force_unlisted === true,
 		unpublished: meta.force_unpublished === true,
+		draft: meta.borrador === true,
 		thumb: featuredURL(slug, meta.featured)
 	};
 }

@@ -26,6 +26,7 @@ import { changedKeys } from './draft.js';
  * @param {boolean} [o.hasPersonas] la sección «Personas» (quiénes organizan o escriben y con
  *   qué rol): al crear un evento siempre; al editar y en el panel, si la publicación tiene
  *   personas (no los perfiles de amigues)
+ * @param {boolean} [o.hasPartes] editar un evento: la sección «Partes» (talleres en varias partes)
  * @param {boolean} [o.parseError] editar: el archivo se edita como texto (sin secciones)
  * @returns {FormSection[]}
  */
@@ -35,6 +36,7 @@ export function formSections({
 	idPrefix = mode === 'nuevo' ? 'ev' : 'edit',
 	hasImage = false,
 	hasPersonas = mode === 'nuevo',
+	hasPartes = false,
 	parseError = false
 }) {
 	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
@@ -78,7 +80,9 @@ export function formSections({
 			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
 			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
 			isEvent && tickets,
-			{ id: 'sec-texto', icon: '📄', label: 'Texto' }
+			{ id: 'sec-texto', icon: '📄', label: 'Texto' },
+			// Talleres en varias partes: la sección se guarda por su cuenta (PartesEditor).
+			isEvent && hasPartes && { id: 'partes', icon: '🧩', label: 'Partes' }
 		].filter(Boolean)
 	);
 }

@@ -1,7 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { Mail } from '@lucide/svelte';
+	import { Mail, Trash2 } from '@lucide/svelte';
 	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -12,6 +12,16 @@
 	$: errors = fieldErrors(form);
 	/** @type {(key: string) => string} */
 	$: value = (key) => fieldValue(form, data.settings, key);
+
+	// Recordatorios: el tipo elegido en cada fila (la hora solo va con «días antes») y los que se
+	// borran al guardar. Se vuelven a armar cuando llegan los guardados.
+	/** @type {Record<number, string>} */
+	let kinds = {};
+	/** @type {Record<number, boolean>} */
+	let deleting = {};
+	$: (data.reminders, (kinds = {}), (deleting = {}));
+	$: kindOf = (/** @type {number} */ i, /** @type {{ kind: string } | null} */ r) =>
+		kinds[i] ?? r?.kind ?? 'hours_before';
 </script>
 
 <PageHeader
@@ -139,36 +149,43 @@
 	<Card title="Recordatorios">
 		<p class="kv-note">
 			Mails a quienes compraron, antes de cada evento (con sus entradas o el link de la
-			transmisión). Un evento puede no mandarlos con <code>recordatorios: false</code> en su
-			frontmatter.
+			transmisión). Un evento puede no mandarlos: se apaga en su editor, en Entradas.
 			{#if data.remindersDefault}Ahora: los de por defecto ({data.defaultReminders.join(
 					' y '
 				)}).{/if}
 		</p>
 		{#if !data.cronConfigured}
 			<p class="kv-flash warn">
-				Falta configurar el cron (el secreto <code>CRON_SECRET</code> del Worker): hasta entonces no se
-				manda ninguno.
+				Falta configurar los envíos automáticos del sitio: hasta entonces no se manda ninguno.
+				Avisale a quien maneja el sitio (para técnicos: falta el secreto <code>CRON_SECRET</code> del
+				Worker).
 			</p>
 		{/if}
 		{#each [...data.reminders, null] as r, i (i)}
 			{#if i < data.maxReminders}
-				<div class="reminder" class:new={!r}>
-					<label class="kv-check">
-						<input
-							type="checkbox"
-							name="reminder_enabled_{i}"
-							checked={r ? r.enabled : true}
-							aria-label="Recordatorio {i + 1} activado"
-						/>
-						<b>{r ? r.text : 'Agregar otro'}</b>
-					</label>
+				<div class="reminder" class:new={!r} class:deleting={deleting[i]}>
+					{#if r}
+						<label class="kv-check">
+							<input
+								type="checkbox"
+								name="reminder_enabled_{i}"
+								checked={r.enabled}
+								aria-label="Recordatorio {i + 1} activado"
+							/>
+							<b>{r.text}</b>
+						</label>
+					{:else}
+						<!-- La fila para sumar uno: sin casilla tildada (se activa al completarla). -->
+						<input type="hidden" name="reminder_enabled_{i}" value="on" />
+						<b>Agregar otro</b>
+					{/if}
 					<div class="kv-row">
 						<select
 							class="kv-input auto"
 							name="reminder_kind_{i}"
 							aria-label="Tipo del recordatorio {i + 1}"
-							value={r?.kind ?? 'hours_before'}
+							value={kindOf(i, r)}
+							on:change={(e) => (kinds = { ...kinds, [i]: e.currentTarget.value })}
 						>
 							<option value="hours_before">horas antes</option>
 							<option value="day_at">días antes, a la hora</option>
@@ -182,17 +199,33 @@
 							aria-label="Horas o días del recordatorio {i + 1}"
 							value={r ? (r.kind === 'hours_before' ? r.hours : r.days) : ''}
 						/>
-						<input
-							class="kv-input auto"
-							type="time"
-							name="reminder_time_{i}"
-							aria-label="Hora del recordatorio {i + 1} (solo días antes)"
-							value={r?.kind === 'day_at' ? r.time : '09:00'}
-						/>
+						{#if kindOf(i, r) === 'day_at'}
+							<input
+								class="kv-input auto"
+								type="time"
+								name="reminder_time_{i}"
+								aria-label="Hora del recordatorio {i + 1}"
+								value={r?.kind === 'day_at' ? r.time : '09:00'}
+							/>
+						{/if}
 						{#if r}
-							<label class="kv-check small">
-								<input type="checkbox" name="reminder_delete_{i}" /> borrar
-							</label>
+							{#if deleting[i]}
+								<input type="hidden" name="reminder_delete_{i}" value="on" />
+								<span class="kv-note">Se borra al guardar.</span>
+								<button
+									type="button"
+									class="kv-btn small ghost"
+									on:click={() => (deleting = { ...deleting, [i]: false })}>No borrar</button
+								>
+							{:else}
+								<button
+									type="button"
+									class="kv-btn small ghost"
+									aria-label="Borrar el recordatorio {i + 1}"
+									on:click={() => (deleting = { ...deleting, [i]: true })}
+									><Trash2 size={14} aria-hidden="true" /> Borrar</button
+								>
+							{/if}
 						{/if}
 					</div>
 				</div>
@@ -200,10 +233,10 @@
 		{/each}
 		{#if errors.reminders}<small class="kv-error field-error">{errors.reminders}</small>{/if}
 		<p class="kv-note">
-			"Horas antes": desde la hora de inicio (48 = 2 días antes). "Días antes, a la hora": 0 = el
-			mismo día; hora de Argentina. Se mandan en la primera pasada del cron (cada 15 minutos)
-			después de esa hora (en un evento grande, en varias pasadas: ver "Envíos en tandas"), una sola
-			vez por compra.
+			«Horas antes»: desde la hora de inicio (48 = 2 días antes). «Días antes, a la hora»: 0 = el
+			mismo día; hora de Argentina. Salen en la primera vuelta de mails (cada 15 minutos) después de
+			esa hora (en un evento grande, en varias vueltas: ver «Envíos en tandas»), una sola vez por
+			compra.
 		</p>
 	</Card>
 
@@ -229,10 +262,10 @@
 		</label>
 		<p class="kv-note" id="batch-help">
 			Cuántos mails se mandan por vez; si alguno falla, sigue en la próxima vuelta. Vale para los
-			recordatorios y para "Enviar el link a todes": cada vuelta del cron (cada 15 minutos) manda
+			recordatorios y para «Enviar el link a todes»: cada vuelta de mails (cada 15 minutos) manda
 			como mucho esta cantidad y la siguiente sigue donde quedó. De {data.batch.min} a {data.batch
 				.max}; vacío = {data.batch.default}. Un mail que falla se reintenta hasta 3 veces; después
-			aparece en "Para revisar" del Inicio.
+			aparece en «Para revisar» del Inicio.
 		</p>
 	</Card>
 

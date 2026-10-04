@@ -409,7 +409,9 @@ export async function unlistedCountQuery(platform) {
 			db
 				.prepare(
 					`SELECT COUNT(*) AS db FROM objects o
-					WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1`
+					WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1
+					AND (o.type != 'evento'
+						OR COALESCE(json_extract(o.data, '$.extra.borrador'), json_extract(o.data, '$.borrador'), 0) = 1)`
 				)
 				.bind(...TYPES, ...visible.params),
 			db

@@ -25,15 +25,24 @@
 	// Después de guardar (o de un error), el formulario muestra lo que volvió del servidor.
 	$: values = structuredClone(form?.perfil?.values ?? data.values);
 	$: created = $page.url.searchParams.get('guardado') === 'creado';
+	/**
+	 * Lo que pasó al crear, según cómo quedó: un perfil oculto o sin aprobar no está «publicado».
+	 * @param {{ visibility: string }} profile
+	 * @param {unknown} approval
+	 */
+	function createdMessage(profile, approval) {
+		if (profile.visibility === 'hidden')
+			return 'Listo: el perfil quedó creado y oculto (no se ve en el sitio).';
+		if (!approval)
+			return 'Listo: el perfil quedó creado. Todavía no aparece en Amigues: falta aprobarlo.';
+		return 'Listo: el perfil quedó creado y publicado.';
+	}
 </script>
 
 <PageHeader
 	title={p.title}
 	subtitle="/amigues/{p.urlSlug}"
-	back={{
-		href: data.kinds && p.kind === 'lugar' ? '/admin/eventos/lugares' : '/admin/comunidad/perfiles',
-		label: p.kind === 'lugar' ? 'Lugares' : 'Perfiles'
-	}}
+	back={{ href: '/admin/comunidad/perfiles', label: 'Perfiles' }}
 >
 	<svelte:fragment slot="meta">
 		<Badge>{data.kinds[p.kind] ?? p.kind}</Badge>
@@ -44,13 +53,13 @@
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/amigues/{p.urlSlug}" target="_blank" rel="noopener">Ver página</a
 		>
-		<a class="kv-btn ghost" href={profileHref(p.id)}>Ficha y pedidos</a>
+		<a class="kv-btn ghost" href={profileHref(p.id)}>Estado, revisión y pedidos</a>
 	</svelte:fragment>
 </PageHeader>
 
 <div class="kv-stack">
 	{#if created}
-		<p class="kv-flash" role="status">Listo: el perfil quedó creado y publicado.</p>
+		<p class="kv-flash" role="status">{createdMessage(p, data.approval)}</p>
 	{/if}
 	{#if form?.perfil && !form.perfil.conflict}
 		<p class="kv-flash" class:bad={!form.perfil.ok} role="status">{form.perfil.message}</p>

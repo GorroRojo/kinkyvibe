@@ -21,6 +21,7 @@
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
  */
+import { entradas } from './plural.js';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
 import { currentSiteTags } from './siteTags.js';
@@ -498,7 +499,7 @@ export function validateTicketsForm(form, { sales } = {}) {
 	if (!form.enabled) {
 		if (soldTotal > 0)
 			errors.push(
-				`No se puede apagar la venta: ya hay ${soldTotal} entradas vendidas o reservadas. Para cortar la venta, cambiá el estado a «Agotadas» o poné una fecha de cierre.`
+				`No se puede apagar la venta: ya hay ${entradas(soldTotal)} vendidas o reservadas. Para cortar la venta, cambiá el estado a «Agotadas» o poné una fecha de cierre.`
 			);
 		return { errors, warnings };
 	}
@@ -518,7 +519,7 @@ export function validateTicketsForm(form, { sales } = {}) {
 		const taken = salesOf(sales, t.origId);
 		if (capacity !== null && taken > capacity)
 			errors.push(
-				`${label}: ya hay ${taken} entradas vendidas o reservadas, el cupo no puede ser menor.`
+				`${label}: ya hay ${entradas(taken)} vendidas o reservadas, el cupo no puede ser menor.`
 			);
 		if (t.mode === 'gorra') {
 			const min = parseAmount(t.min.trim() === '' ? '0' : t.min);
@@ -577,7 +578,7 @@ export function validateTicketsForm(form, { sales } = {}) {
 		for (const [id, s] of Object.entries(sales)) {
 			if (s.sold + s.held > 0 && !types.some((t) => t.origId === id))
 				errors.push(
-					`No se puede borrar el tipo «${id}»: ya tiene ${s.sold + s.held} entradas vendidas o reservadas.`
+					`No se puede borrar el tipo «${id}»: ya tiene ${entradas(s.sold + s.held)} vendidas o reservadas.`
 				);
 		}
 		const changed = types.filter((t) => salesOf(sales, t.origId) > 0);
@@ -650,7 +651,7 @@ function validateTiers(t, label, sales, errors) {
 		const taken = tr.origId ? (tierSales[tr.origId] ?? 0) : 0;
 		if (quantity !== null && taken > quantity)
 			errors.push(
-				`${tl}: ya hay ${taken} entradas vendidas o reservadas en este tramo, la cantidad no puede ser menor.`
+				`${tl}: ya hay ${entradas(taken)} vendidas o reservadas en este tramo, la cantidad no puede ser menor.`
 			);
 		const until = tr.until.trim() ? localMs(tr.until.trim()) : null;
 		if (until !== null && Number.isNaN(until))
@@ -667,7 +668,7 @@ function validateTiers(t, label, sales, errors) {
 	for (const [id, n] of Object.entries(tierSales)) {
 		if (n > 0 && !t.tiers.some((tr) => tr.origId === id))
 			errors.push(
-				`${label}: no se puede borrar el tramo «${id}»: ya tiene ${n} entradas vendidas o reservadas.`
+				`${label}: no se puede borrar el tramo «${id}»: ya tiene ${entradas(n)} vendidas o reservadas.`
 			);
 	}
 }

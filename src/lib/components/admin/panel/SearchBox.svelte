@@ -28,6 +28,7 @@
 		Heart,
 		History,
 		House,
+		IdCard,
 		Key,
 		Keyboard,
 		LoaderCircle,
@@ -87,7 +88,8 @@
 		order: Receipt,
 		ticket: Ticket,
 		person: User,
-		code: Tag
+		code: Tag,
+		profile: IdCard
 	});
 
 	const uid = Math.random().toString(36).slice(2, 8);

@@ -12,15 +12,21 @@
 
 <PageHeader
 	title="Contenido en la base"
-	subtitle="Los eventos y el material (.md) pasan a la base, con la misma dirección y su historial. Las imágenes siguen en el repo."
+	subtitle="Los eventos y el material se guardan en la base del sitio, con la misma dirección y su historial. Esta página es sobre todo para quien mantiene el sitio."
 />
 
 <div class="kv-stack">
 	<p class="kv-flash">
-		El sitio muestra los eventos y el material solo desde la base, y el panel los guarda acá.
-		Importar sirve para traer un .md nuevo del repo (por ejemplo, de un PR): lo que ya está en la
-		base no se pisa.
+		El sitio muestra los eventos y el material desde la base, y el panel los guarda ahí. Para cargar
+		o editar no hace falta nada de esta página.
 	</p>
+	<details class="tech">
+		<summary>Para técnicos</summary>
+		<p class="kv-note">
+			Importar trae un .md nuevo del repo (por ejemplo, de un PR): lo que ya está en la base no se
+			pisa. Las imágenes viejas siguen en el repo.
+		</p>
+	</details>
 
 	{#each data.categories as category (category.key)}
 		<ImportCard {category} labels={data.labels} chunk={data.chunk} />
@@ -36,3 +42,11 @@
 		eventos y material quedan en el repo solo como respaldo: el sitio ya no los lee.
 	</p>
 </div>
+
+<style>
+	.tech summary {
+		cursor: pointer;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+</style>

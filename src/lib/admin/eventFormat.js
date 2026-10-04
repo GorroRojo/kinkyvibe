@@ -65,13 +65,17 @@ export const STATUS_BADGES =
 
 /**
  * Chip del estado de un evento (lo que se ve en el sitio).
- * @param {{ status?: string, unlisted?: boolean, unpublished?: boolean }} e
+ * Vocabulario: «Borrador» es el que tiene la marca de la agenda y espera «Confirmar»; un evento
+ * sin listar a propósito es «No listado».
+ * @param {{ status?: string, unlisted?: boolean, unpublished?: boolean, draft?: boolean }} e
  * @returns {{ label: string, tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }[]}
  */
 export function eventBadges(e) {
 	const out = [];
 	if (e.unpublished) out.push({ label: 'Despublicado', tone: /** @type {const} */ ('bad') });
-	else if (e.unlisted) out.push({ label: 'Borrador', tone: /** @type {const} */ ('warn') });
+	else if (e.unlisted && e.draft)
+		out.push({ label: 'Borrador', tone: /** @type {const} */ ('warn') });
+	else if (e.unlisted) out.push({ label: 'No listado', tone: /** @type {const} */ ('neutral') });
 	const st = e.status ? STATUS_BADGES[e.status] : null;
 	if (st) out.push(st);
 	else if (e.status) out.push({ label: e.status, tone: /** @type {const} */ ('neutral') });

@@ -49,3 +49,14 @@ export function breadcrumbLd(category, origin) {
 		]
 	};
 }
+
+/**
+ * ¿La página tiene su propio link para volver y no lleva las migas de pan? La compra de entradas
+ * (/calendario/<evento>/entradas) muestra un solo «← Volver al evento»: con las migas eran tres
+ * links para irse.
+ *
+ * @param {string} pathname
+ */
+export function ownBackLink(pathname) {
+	return /^\/calendario\/[^/]+\/entradas\/?$/.test(pathname);
+}

@@ -15,6 +15,7 @@
  * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo (y le queda
  * un uso a su código de descuento), o pasando el límite con el mismo diálogo.
  */
+import { entradas } from '$lib/utils/plural.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
@@ -102,7 +103,7 @@ export async function confirmTransferFromPanel({
 			action: 'transfer.confirm',
 			targetType: 'order',
 			targetId: order.id,
-			summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
+			summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
 			detail: {
 				event: order.event_slug,
 				tickets: r.tickets.length,
@@ -123,7 +124,7 @@ export async function confirmTransferFromPanel({
 			slug: order.event_slug,
 			order: r.order,
 			tickets: r.tickets,
-			message: `Pago de ${ref} confirmado: se emitieron ${r.tickets.length} entradas y se mandaron a ${r.order.buyer_email}.`
+			message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${r.order.buyer_email}.`
 		};
 	}
 	if (r.result === 'already') {
@@ -140,7 +141,7 @@ export async function confirmTransferFromPanel({
 	}
 	/** @type {Record<string, string>} */
 	const messages = {
-		'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${order.quantity} entradas ${type.name}.`,
+		'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${entradas(order.quantity)} ${type.name}.`,
 		'not-transfer': `${ref} no es una compra por transferencia.`,
 		'not-found': 'No encontramos esa orden.',
 		cancelled: `${ref} está cancelada: no se puede confirmar.`
@@ -288,7 +289,7 @@ export async function reopenTransferFromPanel({
 	}
 	/** @type {Record<string, string>} */
 	const messages = {
-		'no-capacity': `No se pudo deshacer el rechazo de ${ref}: ya no hay lugar para ${order.quantity} entradas ${type.name}.`,
+		'no-capacity': `No se pudo deshacer el rechazo de ${ref}: ya no hay lugar para ${entradas(order.quantity)} ${type.name}.`,
 		'not-transfer': `${ref} no es una compra por transferencia.`,
 		'not-found': 'No encontramos esa orden.',
 		'not-cancelled': `${ref} no está rechazada: no hay nada que deshacer.`

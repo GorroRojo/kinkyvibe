@@ -12,18 +12,27 @@
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
-	import { format } from 'date-fns';
-	import { toArgentina, eventEnd, argDateTimeLong } from '$lib/utils/dates.js';
+	import { eventEnd, argDateTimeLong } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
 	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
-	import { Globe, MapPin } from '@lucide/svelte';
+	import { Globe, MapPin, ChevronDown, ArrowRight } from '@lucide/svelte';
+	import FollowButton from '$lib/components/FollowButton.svelte';
+	import { Button, TagChip } from '$lib/components/ui';
+	import PostListItem from '$lib/components/PostListItem.svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	import PartesTaller from '$lib/components/PartesTaller.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
-	import { venueSchema } from '$lib/utils/venues.js';
+	import { venueHasDetails, venueSchema } from '$lib/utils/venues.js';
+	import {
+		calendarButtonEvent,
+		isPastEvent,
+		mainSeries,
+		nextEdition,
+		splitUpcomingPast
+	} from '$lib/utils/eventPage.js';
 	import { eventPlace } from '$lib/utils/eventPlace.js';
 	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
 	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
@@ -56,36 +65,33 @@
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
-			.catch(() => (loadedPast = false));
-	}
-	/** «Agregar a mi calendario» (add-to-calendar-button, en hora argentina). */
+	$: if ($userConfig.show_past_events) showPast();
+	/** «Agregar a mi calendario» (add-to-calendar-button, en hora argentina; eventPage.js). */
 	/** @type {import('svelte').ComponentProps<typeof AddToCalendarButton>['event']} */
 	let calendarEvent;
-	$: calendarEvent = {
-		name: data.meta.title,
-		description: data.meta.summary,
-		startDate: format(toArgentina(data.meta.start), 'yyyy-MM-dd'),
-		startTime: format(toArgentina(data.meta.start), 'HH:mm'),
-		endDate: format(toArgentina(end), 'yyyy-MM-dd'),
-		endTime: format(toArgentina(end), 'HH:mm'),
-		status:
-			/** @type {Record<string, 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE'>} */ ({
-				abierto: 'CONFIRMED',
-				cancelado: 'CANCELLED',
-				anunciado: 'TENTATIVE',
-				agotadas: 'CONFIRMED'
-			})[data.meta.status] ?? 'CONFIRMED',
-		timeZone: 'America/Buenos_Aires',
-		options: ['iCal', 'Apple', 'Outlook.com', 'Google', 'MicrosoftTeams', 'Microsoft365', 'Yahoo'],
-		language: 'es',
-		iCalFileName: 'Sample Event',
-		listStyle: 'overlay',
-		organizer: 'Mel|kinkyvibe@gmail.com'
-	};
+	$: calendarEvent = calendarButtonEvent(data.meta);
+	// Un evento que ya terminó: «Este evento ya pasó» (con la próxima edición de la serie, si hay),
+	// sin la venta (ni «Venta cerrada.») y con «Agregar a mi calendario» en segundo plano.
+	$: past = isPastEvent(data.meta);
+	$: series = mainSeries(data.series);
+	$: next = nextEdition(data.series);
+	// El mapa, «Cómo llegar» y «Accesibilidad» van después del botón de comprar; en el celu,
+	// plegados detrás de «Ver mapa y cómo llegar» (así comprar queda arriba, igual en todos los
+	// eventos).
+	$: venueMore = data.venue ? venueHasDetails(data.venue) : false;
+	let mapOpen = false;
+	// «Más cosas de…»: lo que viene en orden de fecha; lo que ya pasó, aparte («Pasados»).
+	$: related = splitUpcomingPast(relatedPosts);
+	/** Cuántos pasados se ven (de a 10, para no armar cientos de tarjetas de una). */
+	let pastShown = 10;
+	function showPast() {
+		if (data.relatedPastCount > 0 && !loadedPast) {
+			loadedPast = true;
+			fetchAllPostsClient()
+				.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
+				.catch(() => (loadedPast = false));
+		}
+	}
 </script>
 
 <LDTag
@@ -141,6 +147,17 @@
 	}}
 />
 <svelte:head>
+	<!-- Sin JavaScript, el mapa y «Cómo llegar» se ven siempre (el botón para abrirlos no anda). -->
+	<noscript>
+		<style>
+			.venue-details-body {
+				display: block !important;
+			}
+			.map-toggle {
+				display: none !important;
+			}
+		</style>
+	</noscript>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
@@ -198,10 +215,25 @@
 		</address>
 	{/if}
 
+	{#if past && data.meta.status != 'cancelado'}
+		<p class="past-note surface-card" role="note">
+			<strong>Este evento ya pasó.</strong>
+			{#if next}
+				<a href={next.path}
+					>Próxima edición de la serie <ArrowRight size="1em" aria-hidden="true" /></a
+				>
+			{/if}
+		</p>
+	{/if}
 	{#if data.meta.status == 'cancelado'}
 		<h1 id="title p-name"><u>CANCELADO</u></h1>
 	{:else}
 		<div class="event-header">
+			{#if series}
+				<p class="event-series-chip">
+					<TagChip tag={series.id} href={series.href} />
+				</p>
+			{/if}
 			{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
 			<p class="event-times">
 				<small>desde</small><time class="dt-start" datetime={data.meta.start}
@@ -212,7 +244,7 @@
 			<div class="event-place">
 				<small>en</small>
 				{#if data.venue}
-					<VenueLocation view={data.venue} context="event" compact />
+					<VenueLocation view={data.venue} context="event" compact part="where" />
 				{:else}
 					<p class="md-place">
 						<svelte:component
@@ -237,7 +269,8 @@
 				</div>
 			{/if}
 		</div>
-		{#if data.tickets}
+		<!-- Un evento que ya pasó no dice «Venta cerrada.»: ya lo dice «Este evento ya pasó». -->
+		{#if data.tickets && !(past && !data.tickets.open)}
 			{@const t = data.tickets}
 			{@const price = [
 				t.priceFrom !== null ? `desde ${formatARS(t.priceFrom)}` : '',
@@ -283,11 +316,43 @@
 				{/if}
 			</section>
 		{/if}
+		{#if data.venue && venueMore}
+			<section
+				class="venue-details surface-card"
+				class:open={mapOpen}
+				aria-label="Mapa y cómo llegar"
+			>
+				<!-- Las clases de Button (secundario del sitio) a mano: Button no pasa aria-expanded. -->
+				<button
+					type="button"
+					class="pill-btn ghost map-toggle"
+					aria-expanded={mapOpen}
+					aria-controls="venue-details-body"
+					on:click={() => (mapOpen = !mapOpen)}
+				>
+					{mapOpen ? 'Ocultar mapa' : 'Ver mapa y cómo llegar'}
+					<ChevronDown size="1em" aria-hidden="true" />
+				</button>
+				<div class="venue-details-body" id="venue-details-body">
+					<VenueLocation view={data.venue} context="event" compact part="more" />
+				</div>
+			</section>
+		{/if}
 	{/if}
 	{#if data.partes}<PartesTaller partes={data.partes} part="list" />{/if}
 	<div class="share-row">
 		{#if data.meta.status != 'cancelado'}
-			<AddToCalendarButton event={calendarEvent} />
+			<AddToCalendarButton event={calendarEvent} quiet={past} />
+		{/if}
+		{#if series}
+			<!-- Seguir la serie («Lo que sigo»): sus fechas nuevas por mail y en tu calendario. -->
+			<FollowButton
+				kind="etiqueta"
+				key={series.id}
+				name={series.name}
+				label={past ? 'Seguir la serie' : `Seguir ${series.name}`}
+				inline
+			/>
 		{/if}
 		<ShareEventButton
 			url={$page.url.origin + '/calendario/' + data.meta.postID}
@@ -367,7 +432,33 @@
 				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
 		</h3>
 	</div>
-	<PostList posts={relatedPosts} />
+	{#if related.upcoming.length}
+		<PostList posts={related.upcoming} pastEventsToggle={false} />
+	{/if}
+	{#if data.relatedPastCount > 0 || related.past.length}
+		<section class="related-past" aria-labelledby="related-past-title">
+			<h4 id="related-past-title">Pasados</h4>
+			{#if related.past.length}
+				<ul class="past-list">
+					{#each related.past.slice(0, pastShown) as post (post.path)}
+						<li><PostListItem {post} /></li>
+					{/each}
+				</ul>
+				{#if related.past.length > pastShown}
+					<Button
+						surface="sitio"
+						variant="secondary"
+						class="more-past"
+						on:click={() => (pastShown += 10)}>Ver más pasados</Button
+					>
+				{/if}
+			{:else}
+				<Button surface="sitio" variant="secondary" on:click={showPast} busy={loadedPast}
+					>{loadedPast ? 'Cargando…' : `Ver ${data.relatedPastCount} pasados`}</Button
+				>
+			{/if}
+		</section>
+	{/if}
 {/if}
 
 <style lang="scss">
@@ -387,6 +478,84 @@
 		width: 100%;
 		margin-top: 2em;
 		justify-content: center;
+	}
+	/* «Este evento ya pasó» (con la próxima edición de la serie, si hay). */
+	.past-note {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2xs) var(--space-s);
+		max-width: min(40rem, calc(100% - 32px));
+		margin: var(--space-2xs) auto 0;
+		padding: var(--space-xs) var(--space-s);
+		a {
+			display: inline-flex;
+			align-items: center;
+			gap: var(--space-3xs);
+			min-height: var(--tap);
+			font-weight: 700;
+			color: var(--2-dark);
+		}
+	}
+	/* El mapa, «Cómo llegar» y «Accesibilidad», después del botón de comprar. En el celu,
+	   plegados: los abre «Ver mapa y cómo llegar». */
+	.venue-details {
+		max-width: min(40rem, calc(100% - 32px));
+		margin: var(--space-s) auto 0;
+		padding: var(--space-xs) var(--space-s);
+		font-size: var(--text-sm);
+	}
+	.map-toggle {
+		display: none;
+	}
+	@media (max-width: 500px) {
+		.map-toggle {
+			display: inline-flex;
+			:global(svg) {
+				transition: rotate 150ms;
+			}
+		}
+		.venue-details.open .map-toggle :global(svg) {
+			rotate: 180deg;
+		}
+		.venue-details:not(.open) .venue-details-body {
+			display: none;
+		}
+		/* Plegado, solo el botón (sin la tarjeta alrededor). */
+		.venue-details:not(.open) {
+			padding: 0;
+			background: none;
+			box-shadow: none;
+			text-align: center;
+		}
+		.venue-details.open .venue-details-body {
+			margin-top: var(--space-2xs);
+		}
+	}
+	/* «Más cosas de…»: lo que ya pasó, aparte. */
+	.related-past {
+		max-width: 50rem;
+		margin: var(--space-l) auto 0;
+		padding-inline: var(--space-xs);
+		text-align: center;
+		h4 {
+			margin: 0 0 var(--space-s);
+			font-size: var(--text-lg);
+			color: var(--muted);
+		}
+	}
+	.related-past :global(.more-past) {
+		margin-top: var(--space-m);
+	}
+	.past-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-l);
+		margin: 0;
+		padding: 0;
+		text-align: start;
+		list-style: none;
 	}
 	/* Botón "Comprar entradas" (el formulario está en /calendario/<slug>/entradas). */
 	.buy-cta {
@@ -468,9 +637,12 @@
 			grid-area: pic;
 			border-top-left-radius: var(--radius);
 		}
-		/* h1 {
+		/* La serie del evento, como chip con link a su página. */
+		.event-series-chip {
 			grid-area: title;
-		} */
+			margin: 0;
+			padding: var(--space-2xs) var(--space-2xs) 0;
+		}
 		small {
 			opacity: 0.7;
 			font-size: var(--step--1);

@@ -145,7 +145,7 @@
 
 <PageHeader
 	title="Eventos"
-	subtitle="{counts.proximos} próximos · {counts.borradores} borradores · {data.total} en total"
+	subtitle="{counts.proximos} próximos · {counts.borradores} no listados · {data.total} en total"
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href={csvHref} />
@@ -363,6 +363,10 @@
 		align-items: center;
 		padding: var(--space-2xs) var(--space-xs);
 		border-bottom: 1px solid var(--line);
+		/* Toda la fila lleva a la ficha (el link del título la cubre; Duplicar y Ver página quedan
+		   encima). */
+		position: relative;
+		cursor: pointer;
 	}
 	.list li:last-child {
 		border-bottom: 0;
@@ -412,6 +416,22 @@
 	}
 	.title:hover {
 		text-decoration: underline;
+	}
+	.title::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+	.title:focus-visible {
+		outline: none;
+	}
+	.title:focus-visible::after {
+		outline: 2px solid var(--focus-ring, var(--link));
+		outline-offset: -2px;
+	}
+	.actions {
+		position: relative;
+		z-index: 1;
 	}
 	.meta {
 		color: var(--muted);

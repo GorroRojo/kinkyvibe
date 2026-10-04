@@ -18,6 +18,7 @@ import {
 	ALT_REQUIRED,
 	ImageError,
 	contextImages,
+	imageUses,
 	searchImages,
 	storeImage
 } from '$lib/server/media/library.js';
@@ -52,11 +53,21 @@ export async function GET({ locals, platform, url }) {
 			: [];
 		return json({ images }, { headers: NO_STORE });
 	}
-	const images = await searchImages(db, {
+	const found = await searchImages(db, {
 		q: url.searchParams.get('q') ?? '',
 		viewer: access.viewer,
 		createdBy: access.createdBy
 	});
+	// Les admins ven dónde se usa cada una (así una portada de otro material no parece del evento).
+	const uses =
+		access.role === 'admin'
+			? await imageUses(
+					db,
+					found.map((i) => i.id),
+					access.viewer
+				)
+			: null;
+	const images = uses ? found.map((i) => ({ ...i, usedIn: uses.get(i.id) ?? [] })) : found;
 	return json({ images }, { headers: NO_STORE });
 }
 

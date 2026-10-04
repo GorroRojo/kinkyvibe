@@ -19,21 +19,24 @@ export const FLAGS = Object.freeze({
 	lo_que_sigo: {
 		label: 'Lo que sigo',
 		description:
-			'Con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y ' +
-			'Mi rincón → Lo que sigo, con «en mi calendario», «mail cuando se anuncia algo nuevo» y ' +
-			'«recordatorio el día antes» por cada cosa. ' +
-			'Apagado, no se ve nada de esto y /mi-rincon/sigo da 404.',
+			'Con cuenta, la gente puede seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus ' +
+			'páginas y Mi rincón → Lo que sigo, con «en mi calendario», «mail cuando se anuncia algo ' +
+			'nuevo» y «recordatorio el día antes» por cada cosa. Apagado, no se ve nada de esto.',
+		// Para técnicos (plegado en la página).
+		tech: 'Apagado, /mi-rincon/sigo da 404.',
 		envVar: 'LO_QUE_SIGO_ENABLED'
 	},
 	telegram_bot: {
 		label: 'Bot de Telegram',
 		description:
-			'El bot de la comunidad contesta /proximos y /evento con los próximos eventos públicos ' +
-			'(docs/telegram.md, decisión 0029). Antes de prenderlo: cargar TELEGRAM_WEBHOOK_SECRET y ' +
-			'apuntar el webhook del bot a /api/telegram. Con «Lo que sigo» prendido, ' +
-			'además conecta chats con cuentas (Mi rincón → Lo que sigo) y manda esos ' +
-			'avisos por Telegram (necesita el secret TELEGRAM_BOT_TOKEN y la migración 0033). ' +
-			'Apagado, el bot no contesta nada.',
+			'El bot de la comunidad contesta en Telegram con los próximos eventos públicos. Con ' +
+			'«Lo que sigo» prendido, además le manda a cada persona sus avisos por Telegram (si conecta ' +
+			'su cuenta en Mi rincón → Lo que sigo). Apagado, el bot no contesta nada. Antes de ' +
+			'prenderlo, pedile a quien maneja el sitio que lo deje configurado.',
+		tech:
+			'Comandos /proximos y /evento (docs/telegram.md, decisión 0029). Antes de prenderlo: ' +
+			'cargar TELEGRAM_WEBHOOK_SECRET y apuntar el webhook del bot a /api/telegram. Los avisos ' +
+			'necesitan el secret TELEGRAM_BOT_TOKEN y la migración 0033.',
 		envVar: 'TELEGRAM_BOT_ENABLED'
 	}
 });
@@ -182,6 +185,7 @@ export async function listFlags(db) {
 			key,
 			label: flag.label,
 			description: flag.description,
+			tech: flag.tech ?? '',
 			envVar: flag.envVar,
 			enabled: Number(row?.enabled) === 1,
 			forced,

@@ -8,6 +8,7 @@
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { plural } from '$lib/utils/plural.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -22,7 +23,7 @@
 	$: values = form?.create && 'values' in form.create ? (form.create.values ?? {}) : {};
 	/** @type {Record<string, string>} */
 	$: errors = form?.create && 'errors' in form.create ? (form.create.errors ?? {}) : {};
-	$: titles = Object.fromEntries(data.events.map((e) => [e.slug, e.title]));
+	$: titles = { ...data.titles, ...Object.fromEntries(data.events.map((e) => [e.slug, e.title])) };
 
 	/** @param {(typeof data.codes)[number]} c */
 	function codeState(c) {
@@ -76,73 +77,6 @@
 	{#if form?.toggle}
 		<p class="kv-flash" class:bad={!form.toggle.ok} role="status">{form.toggle.message}</p>
 	{/if}
-
-	<Card title="Códigos" padded={data.codes.length === 0}>
-		{#if data.codes.length === 0}
-			<EmptyState
-				icon={TicketPercent}
-				title="Todavía no hay códigos"
-				text="Creá el primero acá abajo."
-			/>
-		{:else}
-			<div class="kv-table-wrap">
-				<table class="kv-table">
-					<thead>
-						<tr>
-							<th>Código</th>
-							<th>Evento</th>
-							<th>Vigencia</th>
-							<th class="r">Usos</th>
-							<th>Estado</th>
-							<th aria-label="Acción"></th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.codes as c (c.code)}
-							{@const state = codeState(c)}
-							<tr class="code" class:inactive={state !== 'Activo'}>
-								<td>
-									<b class="name">{c.code}</b>
-									<small class="muted">{valueText(c)} de descuento</small>
-								</td>
-								<td>{eventText(c)}</td>
-								<td class="small">
-									{#if c.starts_at || c.ends_at}
-										{c.starts_at ? `desde ${fmtDateTime(c.starts_at)}` : ''}
-										{c.ends_at ? `hasta ${fmtDateTime(c.ends_at)}` : ''}
-									{:else}
-										<span class="muted">Sin fechas</span>
-									{/if}
-								</td>
-								<td class="r num small">
-									{c.approved} aprobados{#if c.held}
-										+ {c.held} en reserva{/if}
-									{c.max_uses !== null ? `de ${c.max_uses}` : '(sin límite)'}
-									{#if c.discounted}<small class="muted">descontado {formatARS(c.discounted)}</small
-										>{/if}
-								</td>
-								<td><Badge tone={tone(state)}>{state}</Badge></td>
-								<td>
-									<form method="POST" action="?/toggle" use:enhance>
-										<input type="hidden" name="code" value={c.code} />
-										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
-										<button type="submit" class="kv-btn ghost">
-											{c.active ? 'Apagar' : 'Prender'}
-										</button>
-									</form>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	</Card>
-	<p class="kv-note">
-		Un <strong>uso</strong> es una compra (no una entrada): cuentan las compras aprobadas y las que están
-		reservadas esperando el pago; si una reserva vence o se cancela, el uso se libera. Si el descuento
-		deja el total en $&nbsp;0, las entradas se emiten sin pasar por Mercado Pago.
-	</p>
 
 	<Card title="Nuevo código">
 		<span id="nuevo" class="anchor"></span>
@@ -239,6 +173,73 @@
 			<div><button class="kv-btn" type="submit">Crear código</button></div>
 		</form>
 	</Card>
+
+	<Card title="Códigos" padded={data.codes.length === 0}>
+		{#if data.codes.length === 0}
+			<EmptyState
+				icon={TicketPercent}
+				title="Todavía no hay códigos"
+				text="Creá el primero acá arriba."
+			/>
+		{:else}
+			<div class="kv-table-wrap">
+				<table class="kv-table">
+					<thead>
+						<tr>
+							<th>Código</th>
+							<th>Evento</th>
+							<th>Vigencia</th>
+							<th class="r">Usos</th>
+							<th>Estado</th>
+							<th aria-label="Acción"></th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.codes as c (c.code)}
+							{@const state = codeState(c)}
+							<tr class="code" class:inactive={state !== 'Activo'}>
+								<td>
+									<b class="name">{c.code}</b>
+									<small class="muted">{valueText(c)} de descuento</small>
+								</td>
+								<td>{eventText(c)}</td>
+								<td class="small">
+									{#if c.starts_at || c.ends_at}
+										{c.starts_at ? `desde ${fmtDateTime(c.starts_at)}` : ''}
+										{c.ends_at ? `hasta ${fmtDateTime(c.ends_at)}` : ''}
+									{:else}
+										<span class="muted">Sin fechas</span>
+									{/if}
+								</td>
+								<td class="r num small">
+									{plural(c.approved, 'aprobado', 'aprobados')}{#if c.held}
+										+ {c.held} en reserva{/if}
+									{c.max_uses !== null ? `de ${c.max_uses}` : '(sin límite)'}
+									{#if c.discounted}<small class="muted">descontado {formatARS(c.discounted)}</small
+										>{/if}
+								</td>
+								<td><Badge tone={tone(state)}>{state}</Badge></td>
+								<td>
+									<form method="POST" action="?/toggle" use:enhance>
+										<input type="hidden" name="code" value={c.code} />
+										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
+										<button type="submit" class="kv-btn ghost">
+											{c.active ? 'Apagar' : 'Prender'}
+										</button>
+									</form>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</Card>
+	<p class="kv-note">
+		Un <strong>uso</strong> es una compra (no una entrada): cuentan las compras aprobadas y las que están
+		reservadas esperando el pago; si una reserva vence o se cancela, el uso se libera. Si el descuento
+		deja el total en $&nbsp;0, las entradas se emiten sin pasar por Mercado Pago.
+	</p>
 </div>
 
 <style>

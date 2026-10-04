@@ -132,6 +132,18 @@ export function showsAddress(level) {
 }
 
 /**
+ * ¿El lugar tiene algo más que la dirección para mostrar en la página de un evento (el mapa,
+ * «Cómo llegar», «Accesibilidad»)? Es lo que va en «Ver mapa y cómo llegar»
+ * (`VenueLocation` con `part="more"`).
+ *
+ * @param {VenueView} view
+ */
+export function venueHasDetails(view) {
+	const map = showsAddress(view.level) && view.lat !== undefined && view.lng !== undefined;
+	return map || (view.level === 'public' && Boolean(view.howTo || view.accessibility));
+}
+
+/**
  * @typedef {{
  *   level: VenuePrivacy,
  *   name?: string,

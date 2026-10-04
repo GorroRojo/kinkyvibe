@@ -718,7 +718,9 @@ export async function buyAction(event) {
 			reserved.available === null
 				? 'No pudimos reservar tus entradas. Probá de nuevo.'
 				: reserved.available > 0
-					? `Solo quedan ${reserved.available} entradas ${valid.type.name}.`
+					? reserved.available === 1
+						? `Solo queda 1 entrada ${valid.type.name}.`
+						: `Solo quedan ${reserved.available} entradas ${valid.type.name}.`
 					: `Se agotaron las entradas ${valid.type.name} (puede liberarse alguna reserva más tarde).`
 		);
 	}

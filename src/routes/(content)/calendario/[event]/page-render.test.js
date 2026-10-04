@@ -7,7 +7,7 @@
  * - «Agregar a mi calendario» abajo, al lado de «Compartir», y no en la tarjeta.
  * Datos inventados.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
 import { ADDRESS_FOR_BUYERS, venueView } from '$lib/utils/venues.js';
@@ -21,6 +21,18 @@ vi.mock('$app/stores', () => ({
 }));
 
 const { default: Page } = await import('./+page.svelte');
+
+// El evento inventado es del viernes 2/10/2026: las pruebas miran la página antes de que pase
+// (un evento que ya pasó se ve distinto: «Este evento ya pasó», sin venta; ver abajo).
+const BEFORE = new Date('2026-10-01T12:00:00-03:00');
+const AFTER = new Date('2026-10-03T12:00:00-03:00');
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(BEFORE);
+});
+afterAll(() => {
+	vi.useRealTimers();
+});
 
 /** Un lugar inventado con todos los datos cargados (el nivel decide qué se ve). */
 const VENUE = {
@@ -287,5 +299,177 @@ describe('/calendario/<evento>: el link de inscripción', () => {
 		const html = page({ link: 'javascript:alert(1)', link_text: 'Inscribirme' });
 		expect(html).not.toContain('javascript:');
 		expect(html).not.toContain('>Inscribirme</a>');
+	});
+});
+
+describe('/calendario/<evento>: comprar arriba, el mapa después (igual en todos los eventos)', () => {
+	const tickets = {
+		open: true,
+		priceFrom: 6400,
+		gorraSuggested: null,
+		left: null,
+		closesAt: null,
+		door: null
+	};
+
+	it('el botón de comprar va justo después de la fecha y el lugar, antes del mapa', () => {
+		const venue = venueView(VENUE, 'public', HREF);
+		const body = article(page({}, { venue, tickets }));
+		const buy = body.indexOf('class="buy-cta');
+		expect(buy).toBeGreaterThan(body.indexOf('class="event-header'));
+		expect(buy).toBeGreaterThan(body.indexOf('Calle Inventada 1'));
+		expect(buy).toBeLessThan(body.indexOf('openstreetmap.org/?mlat'));
+		expect(buy).toBeLessThan(body.indexOf('Cómo llegar'));
+		expect(buy).toBeLessThan(body.indexOf('Accesibilidad'));
+	});
+
+	it('el mapa, «Cómo llegar» y «Accesibilidad» se pliegan en el celu detrás de un botón', () => {
+		const venue = venueView(VENUE, 'public', HREF);
+		const body = page({}, { venue, tickets });
+		const toggle = body.match(/<button[^>]*class="[^"]*map-toggle[^"]*"[^>]*>/)?.[0] ?? '';
+		expect(toggle).toContain('aria-expanded="false"');
+		expect(toggle).toContain('aria-controls="venue-details-body"');
+		expect(text(block(body, 'venue-details'))).toMatch(/^Ver mapa y cómo llegar/);
+		const details = body.slice(body.indexOf('id="venue-details-body"'));
+		expect(details).toContain('openstreetmap.org/?mlat');
+		expect(text(details)).toContain('Cómo llegar Tocá el timbre de prueba');
+	});
+
+	it('sin mapa ni textos (solo el nombre del lugar), no hay nada que plegar', () => {
+		const venue = venueView(VENUE, 'name', HREF);
+		expect(page({}, { venue, tickets })).not.toContain('venue-details');
+	});
+});
+
+describe('/calendario/<evento>: un evento que ya pasó', () => {
+	const closed = {
+		open: false,
+		reason: 'closed',
+		priceFrom: 6400,
+		gorraSuggested: null,
+		left: null,
+		closesAt: null,
+		door: null
+	};
+	/** @param {any} [nextUpcoming] */
+	const series = (nextUpcoming = null) => ({
+		list: [
+			{
+				id: 'Serie Inventada',
+				name: 'Serie Inventada',
+				href: '/wiki/Serie-Inventada',
+				icon: '',
+				number: 3,
+				total: 4,
+				prev: null,
+				next: null,
+				past: true,
+				nextUpcoming
+			}
+		],
+		account: { member: false, subscribed: [] }
+	});
+
+	it('dice «Este evento ya pasó», sin «Venta cerrada.» ni botón de comprar', () => {
+		vi.setSystemTime(AFTER);
+		const body = article(page({}, { tickets: closed }));
+		expect(text(body)).toContain('Este evento ya pasó.');
+		expect(body).not.toContain('Venta cerrada');
+		expect(body).not.toContain('class="buy-cta');
+	});
+
+	it('con la próxima edición de la serie, el link para ir', () => {
+		vi.setSystemTime(AFTER);
+		const next = {
+			path: '/calendario/taller-inventado-2',
+			title: 'Taller Inventado',
+			start: '2026-11-06T15:00:00-03:00'
+		};
+		const body = article(page({}, { series: series(next) }));
+		const note = block(body, 'past-note');
+		expect(note).toMatch(
+			/<a href="\/calendario\/taller-inventado-2"[^>]*>Próxima edición de la serie/
+		);
+	});
+
+	it('«Agregar a mi calendario» queda en segundo plano (link, no botón)', () => {
+		vi.setSystemTime(AFTER);
+		const row = block(page(), 'share-row');
+		expect(row).toMatch(/<button[^>]*class="kv-link quiet[^"]*"[^>]*>/);
+		vi.setSystemTime(BEFORE);
+		expect(block(page(), 'share-row')).toMatch(/<button[^>]*class="trigger[^"]*"[^>]*>/);
+	});
+
+	it('antes de que pase, nada de eso', () => {
+		const body = article(page({}, { tickets: { ...closed, open: true, reason: null } }));
+		expect(body).not.toContain('Este evento ya pasó');
+		expect(body).toContain('class="buy-cta');
+	});
+});
+
+describe('/calendario/<evento>: la serie en la cabecera', () => {
+	it('un chip con el nombre de la serie que lleva a su página', () => {
+		const body = page(
+			{},
+			{
+				series: {
+					list: [
+						{
+							id: 'Serie Inventada',
+							name: 'Serie Inventada',
+							href: '/wiki/Serie-Inventada',
+							icon: '',
+							number: 1,
+							total: 1,
+							prev: null,
+							next: null,
+							past: false,
+							nextUpcoming: null
+						}
+					],
+					account: { member: false, subscribed: [] }
+				}
+			}
+		);
+		const chip = block(card(body), 'event-series-chip');
+		expect(chip).toMatch(/<a class="kv-tag[^"]*"[^>]*href="\/wiki\/Serie-Inventada"/);
+		expect(text(chip)).toMatch(/^Serie Inventada/);
+	});
+
+	it('sin serie, sin chip', () => {
+		expect(page()).not.toContain('event-series-chip');
+	});
+});
+
+describe('/calendario/<evento>: «Más cosas de…»', () => {
+	/** @param {string} slug @param {string} start */
+	const related = (slug, start) => ({
+		path: `/calendario/${slug}`,
+		meta: {
+			title: slug,
+			postID: slug,
+			category: 'calendario',
+			start,
+			tags: [],
+			authors: ['Colectivo Inventado'],
+			summary: ''
+		}
+	});
+
+	it('lo que viene, del más cercano al más lejano; lo pasado, aparte en «Pasados»', () => {
+		const body = page(
+			{ authors: ['Colectivo Inventado'] },
+			{
+				relatedPosts: [
+					related('fiesta-lejana', '2026-12-01T22:00:00-03:00'),
+					related('fiesta-cercana', '2026-10-09T22:00:00-03:00')
+				],
+				relatedPastCount: 7
+			}
+		);
+		expect(body.indexOf('fiesta-cercana')).toBeGreaterThan(0);
+		expect(body.indexOf('fiesta-cercana')).toBeLessThan(body.indexOf('fiesta-lejana'));
+		const past = block(body, 'related-past');
+		expect(text(past)).toMatch(/^Pasados Ver 7 pasados/);
 	});
 });

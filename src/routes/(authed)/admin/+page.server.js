@@ -234,7 +234,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		dbAvailable: Boolean(db),
 		upcoming,
-		todayEvents: upcoming.filter((e) => e.today),
+		// Lo de hoy que se destaca arriba: nunca un borrador (todavía no está confirmado).
+		todayEvents: upcoming.filter((e) => e.today && !e.draft),
 		todo,
 		money,
 		fondo,

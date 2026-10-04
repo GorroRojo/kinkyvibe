@@ -249,8 +249,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await validate(ticketUrl);
 	await expect(result).toContainText('Ya ingresó');
 
+	// Escrito a mano y no existe: «Código no encontrado» (no hubo QR; antes decía «QR inválido»).
 	await validate('A'.repeat(43));
-	await expect(result).toContainText('QR inválido');
+	await expect(result).toContainText('Código no encontrado');
 
 	// "Buscar persona": por DNI de quien compró aparecen sus 3 entradas (el DNI, parcial).
 	await page.getByRole('button', { name: 'Buscar persona' }).click();
@@ -580,7 +581,16 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
-	await expect(page.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	// Antes de emitir, una pregunta corta con el nombre y el monto.
+	const ask = page.getByRole('dialog', { name: /¿Confirmar el pago de/ });
+	await expect(ask).toContainText(ars(16000));
+	await expect(ask).toContainText('2 entradas');
+	await ask.getByRole('button', { name: 'Sí, confirmar pago' }).click();
+	// El resultado queda en la misma fila (no arriba de la página) y ya no se puede confirmar.
+	await expect(pending.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	await expect(pending.getByRole('button', { name: 'Confirmar pago' })).toHaveCount(0);
+	// Al recargar, ya no está entre las pendientes.
+	await page.reload();
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.
@@ -899,8 +909,8 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 	await expect(steps.locator('[aria-current="step"]')).toContainText('Entradas');
 	expect(await noHorizontalScroll()).toBe(true);
 
-	// En el celu, el resumen es una barra con el total que se despliega.
-	await expect(block.getByText('Total:')).toBeVisible();
+	// En el celu, el resumen es una barra de una línea («1 entrada · $ …») que se despliega.
+	await expect(block.getByRole('button', { name: /^1 entrada · \$/ })).toBeVisible();
 	await expect(block.getByText(/^Entradas \(1 ×/)).toBeHidden();
 	await block.getByRole('button', { name: /Ver detalle/ }).click();
 	await expect(block.getByRole('button', { name: /Ocultar detalle/ })).toHaveAttribute(
@@ -927,10 +937,10 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 	await nextStep(block, 'Pagar');
 	expect(await noHorizontalScroll()).toBe(true);
 
-	// «Pagar» sin la casilla de +18: no envía.
+	// «Pagar» sin la casilla de +18: no envía (sigue en la dirección del paso 3, `?paso=3`).
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(block.getByText(/Tenés que confirmar que tenés 18 años/)).toBeVisible();
-	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=3$`));
 
 	// Volver (con el botón y con el indicador) no pierde nada.
 	await block.getByRole('button', { name: 'Volver a Tus datos' }).click();
@@ -960,4 +970,54 @@ test('elegir el tipo de entrada no cambia de paso: solo «Continuar» lleva a «
 	await expect(stepHeading(block, 'Tus datos')).toBeHidden();
 	await expect(block.getByText('Revisá lo marcado para seguir.')).toHaveCount(0);
 	await nextStep(block, 'Tus datos');
+});
+
+test('cada paso tiene su dirección: «Atrás» vuelve al paso anterior y recargar se queda', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.locator('a.buy-button').click();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	const block = page.locator('#entradas');
+	await expect(stepHeading(block, 'Entradas')).toBeVisible();
+	await block.getByLabel(TYPES.general.label).check();
+	await nextStep(block, 'Tus datos');
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
+	await block.getByLabel('Tu nombre').fill('Persona Atrás');
+	await block.getByLabel('Tus pronombres').fill('elle');
+	await block.getByLabel(/^Email/).fill(`e2e-atras-${Date.now()}@example.com`);
+	await block.getByLabel(/^DNI/).fill('30.222.333');
+	await nextStep(block, 'Pagar');
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=3$`));
+
+	// Recargar en «Pagar» se queda en «Pagar», con lo escrito.
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(stepHeading(block, 'Pagar')).toBeVisible();
+
+	// «Atrás» del navegador: paso por paso, sin perder nada, y después al evento.
+	await page.goBack();
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
+	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Atrás');
+	await page.goBack();
+	await expect(stepHeading(block, 'Entradas')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	await expect(block.getByLabel(TYPES.general.label)).toBeChecked();
+	// «Adelante» también anda.
+	await page.goForward();
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await page.goBack();
+	await page.goBack();
+	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}$`));
+});
+
+test('una dirección de un paso sin lo anterior completo vuelve al primero que falta', async ({
+	page
+}) => {
+	await page.goto(`${BUY_URL}?paso=3`, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	// Arranca con una entrada elegida (la más barata), pero sin «Tus datos»: se queda ahí.
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
 });
