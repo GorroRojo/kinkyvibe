@@ -46,6 +46,8 @@ import {
 import { seriesTagIds } from '$lib/utils/series.js';
 import { DRAFT_KEY, buildImportedEvent, proposeSlug } from '$lib/utils/sheetImport.js';
 import { duplicateCandidates, quickDraftChoice } from '$lib/utils/quickDraft.js';
+import { seriesGoalMap } from '$lib/utils/salesGoal.js';
+import { withInheritedGoal } from '$lib/utils/salesGoalFile.js';
 
 const MEDIA_DIR = `${POSTS_DIR}/media`;
 /** @param {string} slug */
@@ -132,6 +134,10 @@ export async function commitDraftEvents({
 		if (raw !== null) sourceRaw.set(s, raw);
 	});
 
+	// Meta de venta: una edición nueva de una serie con meta por defecto se lleva esa meta (copiada:
+	// cambiarla después en la serie no toca este evento). Ver $lib/utils/salesGoal.js.
+	const tags = siteTags();
+	const seriesGoals = seriesGoalMap(seriesTagIds(tags), (id) => tags.get(id));
 	/** @type {Record<number, string>} */
 	const rowErrors = {};
 	/** @type {import('./github.js').CommitFile[]} */
@@ -149,6 +155,7 @@ export async function commitDraftEvents({
 		}
 		try {
 			const built = buildImportedEvent(raw, row, { today, fromTemplate: !row.source });
+			built.content = withInheritedGoal(built.content, seriesGoals);
 			files.push({ path: eventPath(row.slug), content: built.content });
 			created.push({
 				slug: row.slug,

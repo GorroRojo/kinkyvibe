@@ -14,7 +14,9 @@
  *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
  *   opcional; si falta, el del último tramo o el precio fijo);
  * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
- *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo.
+ *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo;
+ * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
+ *   venta y solo se escribe con la venta prendida.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
@@ -32,6 +34,14 @@ import {
 	parseSaleTime,
 	toArgentinaLocalInput
 } from './tickets.js';
+import {
+	GOAL_KEY,
+	describeSalesGoal,
+	goalFromForm,
+	goalToForm,
+	parseSalesGoal,
+	storedSalesGoal
+} from './salesGoal.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -146,6 +156,9 @@ export function isOnlineEvent(meta) {
  * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
  * @prop {string} doorPrice nota sobre la puerta para la página (`puerta_precio`), texto libre
  *   ('' = no se muestra). Solo se muestra: lo que se cobra es el `doorPrice` de cada tipo.
+ * @prop {'' | 'plata' | 'entradas'} goalKind meta de venta (`meta_venta`): '' = sin meta (el
+ *   panel muestra el avance contra el cupo)
+ * @prop {string} goalValue pesos o cantidad de entradas
  */
 
 let keyCounter = 0;
@@ -364,8 +377,27 @@ export function readTicketsForm(meta) {
 				: str(meta.mp_fee_percent),
 		door: meta?.puerta !== false,
 		doorSet: typeof meta?.puerta === 'boolean',
-		doorPrice: str(meta?.puerta_precio)
+		doorPrice: str(meta?.puerta_precio),
+		...goalFields(meta?.[GOAL_KEY])
 	};
+}
+
+/**
+ * Los campos «Meta» del formulario para una meta guardada (una que no se entiende queda sin meta).
+ * @param {unknown} raw
+ * @returns {Pick<TicketsForm, 'goalKind' | 'goalValue'>}
+ */
+export function goalFields(raw) {
+	const f = goalToForm(raw);
+	return { goalKind: f.kind, goalValue: f.value };
+}
+
+/**
+ * La meta del formulario como se guarda ('' = sin meta). Tolera borradores viejos (sin los campos).
+ * @param {Partial<Pick<TicketsForm, 'goalKind' | 'goalValue'>>} f
+ */
+export function formGoal(f) {
+	return storedSalesGoal(goalFromForm(f.goalKind ?? '', f.goalValue ?? '').goal);
 }
 
 /**
@@ -580,6 +612,8 @@ export function validateTicketsForm(form, { sales } = {}) {
 		errors.push('La comisión de Mercado Pago tiene que ser un porcentaje entre 0 y 49,99.');
 	if (form.door && form.doorPrice.trim().length > DOOR_PRICE_MAX)
 		errors.push(`La nota sobre la puerta es muy larga (hasta ${DOOR_PRICE_MAX} caracteres).`);
+	const goal = goalFromForm(form.goalKind ?? '', form.goalValue ?? '');
+	if (goal.error) errors.push(goal.error);
 	return { errors, warnings };
 }
 
@@ -713,7 +747,9 @@ function normalized(f) {
 		reminders: f.enabled ? f.reminders : true,
 		mpFee: f.enabled ? f.mpFee.trim() : '',
 		door: f.enabled ? f.door : true,
-		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : ''
+		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
+		// Con la venta apagada, la meta no se escribe (ni se borra).
+		goal: f.enabled ? formGoal(f) : ''
 	});
 }
 
@@ -870,6 +906,12 @@ export function applyTicketsForm(frontmatter, form, initial) {
 		if (doorPrice) doc.set('puerta_precio', doorPrice);
 		else doc.delete('puerta_precio');
 	}
+	/* Meta de venta: solo si cambió (sin meta = sin la clave). */
+	const goal = formGoal(form);
+	if (goal !== formGoal(initial)) {
+		if (goal) doc.set(GOAL_KEY, goal);
+		else doc.delete(GOAL_KEY);
+	}
 	return serializeFrontmatter(doc);
 }
 
@@ -913,6 +955,8 @@ export function describeTicketsForm(form, formatARS) {
 				: form.doorPrice.trim()
 					? ` · También en la puerta (${form.doorPrice.trim()})`
 					: '';
+	const goal = parseSalesGoal(formGoal(form));
+	const goalText = goal ? ` · Meta: ${describeSalesGoal(goal)}` : '';
 	const all = withTypeIds(form.types);
 	return (
 		all
@@ -948,6 +992,8 @@ export function describeTicketsForm(form, formatARS) {
 				const p = parseAmount(t.price);
 				return `${t.name.trim() || t.id}: ${p === null ? '?' : formatARS(p)}${cap}${after}`;
 			})
-			.join(' · ') + door
+			.join(' · ') +
+		door +
+		goalText
 	);
 }

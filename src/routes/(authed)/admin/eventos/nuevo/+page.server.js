@@ -40,6 +40,7 @@ import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { seriesTagIds } from '$lib/utils/series.js';
 import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
+import { seriesGoalMap } from '$lib/utils/salesGoal.js';
 import { addTagToPost } from '$lib/utils/tagConfig.js';
 import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
@@ -137,9 +138,13 @@ export async function load({ locals, url, platform }) {
 		if (await seriesEnabled(platform))
 			seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
+	const tags = siteTags();
 	return {
 		source,
 		seriesPrompt,
+		// Metas de venta por defecto de las series: el formulario las copia al evento nuevo de una
+		// serie (una vez por serie; después se pueden cambiar). Ver $lib/utils/salesGoal.js.
+		seriesGoals: seriesGoalMap(seriesTagIds(tags), (id) => tags.get(id)),
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
 		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).

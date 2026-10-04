@@ -1,7 +1,8 @@
 <!--
 	"Entradas" del editor de eventos: prende/apaga la venta por el sitio y edita los tipos de
 	entrada (precio fijo, preventas por tramos o a la gorra; cupo opcional; cierre propio; tipos
-	encadenados), medios de pago, cierre, modalidad, entradas en la puerta y recordatorios (ver
+	encadenados), la meta de venta (SalesGoalField), medios de pago, cierre, modalidad, entradas en
+	la puerta y recordatorios (ver
 	$lib/utils/ticketsEditor.js, que lee y escribe el frontmatter). Los tramos se editan en
 	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica.
 
@@ -21,6 +22,7 @@
 		tiersForMode
 	} from '$lib/utils/ticketsEditor.js';
 	import TicketTiersEditor from './TicketTiersEditor.svelte';
+	import SalesGoalField from './SalesGoalField.svelte';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -41,6 +43,8 @@
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
 	export let settingsHref = '/admin/ajustes/cobros';
+	/** Aviso debajo de «Meta de venta» (por ejemplo, que viene de la serie). */
+	export let goalNote = '';
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -342,6 +346,13 @@
 		<button type="button" class="button secondary add" id="{idPrefix}-ticket-add" on:click={addType}
 			>+ Agregar tipo de entrada</button
 		>
+
+		<SalesGoalField
+			bind:kind={state.goalKind}
+			bind:value={state.goalValue}
+			{idPrefix}
+			note={goalNote}
+		/>
 
 		<fieldset class="group">
 			<legend>Medios de pago <span class="req">*</span></legend>

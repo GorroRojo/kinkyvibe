@@ -1,7 +1,8 @@
 <script>
 	/**
 	 * Ventas de todos los eventos que venden entradas: por evento y tipo, vendidas/cupo,
-	 * reservadas, cobrado y fondo. Próximos o pasados, y CSV.
+	 * reservadas, cobrado y fondo (y el avance contra la meta de venta, si tiene). Próximos o
+	 * pasados, y CSV.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { page } from '$app/stores';
@@ -16,6 +17,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 
@@ -127,6 +129,11 @@
 					{#if e.types.some((t) => t.over)}<Badge tone="bad">sobrevendido</Badge>{/if}
 				</div>
 			</div>
+			{#if e.progress}
+				<div class="goal">
+					<GoalProgress progress={e.progress} />
+				</div>
+			{/if}
 			<div class="kv-table-wrap">
 				<table class="kv-table">
 					<thead>
@@ -199,6 +206,10 @@
 </div>
 
 <style>
+	.goal {
+		margin: 0.5rem 0 0.2rem;
+		max-width: 28rem;
+	}
 	.head {
 		display: flex;
 		flex-wrap: wrap;

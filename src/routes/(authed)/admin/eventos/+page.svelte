@@ -14,6 +14,8 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
+	import { goalProgress } from '$lib/utils/salesGoal.js';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
@@ -234,10 +236,16 @@
 					</div>
 					<div class="sales">
 						{#if e.sellsTickets}
-							<span class="num"
-								>{e.sold}{#if e.capacity}<span class="muted"> / {e.capacity}</span>{/if}</span
-							>
-							<CapacityBar sold={e.sold} capacity={e.capacity} />
+							{@const progress = goalProgress(e.goal, e)}
+							{#if progress}
+								<!-- Con meta de venta: el avance contra la meta (no contra el cupo). -->
+								<GoalProgress {progress} compact />
+							{:else}
+								<span class="num"
+									>{e.sold}{#if e.capacity}<span class="muted"> / {e.capacity}</span>{/if}</span
+								>
+								<CapacityBar sold={e.sold} capacity={e.capacity} />
+							{/if}
 						{/if}
 					</div>
 					<div class="actions">
@@ -485,7 +493,8 @@
 		.sales:empty {
 			display: none;
 		}
-		.sales :global(.bar) {
+		.sales :global(.bar),
+		.sales :global(.goal-progress) {
 			flex: 1;
 		}
 		.actions {

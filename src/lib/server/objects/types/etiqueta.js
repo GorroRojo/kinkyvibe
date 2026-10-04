@@ -15,10 +15,13 @@
  *     dos sentidos, como hoy);
  *   - `alias_de` → etiqueta (una sola): esta etiqueta es otro nombre de aquella. Un alias no tiene
  *     más datos que su `key` (lo controla quien guarda: src/lib/server/etiquetas/).
- * - Las series son etiquetas hijas de «evento recurrente», con imagen (decisión 0005).
+ * - Las series son etiquetas hijas de «evento recurrente», con imagen (decisión 0005) y,
+ *   opcional, una meta de venta por defecto para sus ediciones nuevas (`meta_venta`:
+ *   `plata:250000` o `entradas:30`, ver ../../../utils/salesGoal.js).
  *
  * Solo usa imports relativos (lo usa el cron nocturno, que no pasa por Vite).
  */
+import { salesGoalProblem } from '../../../utils/salesGoal.js';
 
 /**
  * @typedef {{
@@ -27,6 +30,7 @@
  *   color?: string,
  *   description?: string,
  *   image?: string,
+ *   meta_venta?: string,
  *   body?: string,
  *   wiki_title?: string,
  *   wiki_summary?: string,
@@ -69,6 +73,7 @@ const etiqueta = {
 		color: { kind: 'text', label: 'Color', max: 40 },
 		description: { kind: 'longtext', label: 'Descripción', max: DESCRIPTION_MAX },
 		image: { kind: 'text', label: 'Imagen', max: 160 },
+		meta_venta: { kind: 'text', label: 'Meta de venta por defecto (series)', max: 40 },
 		body: { kind: 'longtext', label: 'Texto de la wiki', max: WIKI_BODY_MAX },
 		wiki_title: { kind: 'text', label: 'Título de la wiki', max: 200 },
 		wiki_summary: { kind: 'longtext', label: 'Resumen de la wiki', max: 1000 },
@@ -98,6 +103,8 @@ const etiqueta = {
 				message: 'Imagen: tiene que ser una imagen del sitio (por ejemplo serie-miniatura.webp)'
 			});
 		}
+		const goal = data.meta_venta === undefined ? null : salesGoalProblem(data.meta_venta);
+		if (goal) errors.push({ path: 'meta_venta', message: `Meta de venta: ${goal}` });
 		return errors;
 	},
 	searchText(data) {

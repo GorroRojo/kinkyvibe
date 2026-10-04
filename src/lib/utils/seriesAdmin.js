@@ -7,9 +7,24 @@
 import { SERIES_PARENT } from './series.js';
 import { seriesNameFromTitle } from './seriesDetect.js';
 import { isTagImage, validateTagName } from './tagConfig.js';
+import { goalFromForm, parseSalesGoal, storedSalesGoal } from './salesGoal.js';
 
 const IMAGE_ERROR =
 	'La imagen tiene que ser un archivo de src/lib/assets o la de un evento (calendario:<evento>/1.webp).';
+
+/**
+ * La meta de venta por defecto escrita en el formulario (`goal_kind`, `goal_value`), como se
+ * guarda en la etiqueta ('' = sin meta).
+ *
+ * @param {{ goal_kind?: unknown, goal_value?: unknown }} input
+ * @returns {{ ok: true, value: string } | { ok: false, error: string }}
+ */
+function formGoal(input) {
+	const read = goalFromForm(String(input.goal_kind ?? ''), String(input.goal_value ?? ''));
+	return read.error
+		? { ok: false, error: read.error }
+		: { ok: true, value: storedSalesGoal(read.goal) };
+}
 
 /** @param {unknown} s */
 const clean = (s) =>
@@ -20,7 +35,7 @@ const clean = (s) =>
 /**
  * Las operaciones del editor de etiquetas para crear una serie.
  *
- * @param {{ name: unknown, image?: unknown, description?: unknown }} input
+ * @param {{ name: unknown, image?: unknown, description?: unknown, goal_kind?: unknown, goal_value?: unknown }} input
  * @param {{ exists?: (name: string) => boolean }} [opts]
  * @returns {{ ok: true, name: string, ops: import('./tagConfig.js').TagOp[] } | { ok: false, error: string }}
  */
@@ -34,11 +49,17 @@ export function seriesCreateOps(input, { exists = () => false } = {}) {
 	const description = String(input.description ?? '').trim();
 	if (description.length > 2000)
 		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
+	const goal = formGoal(input);
+	if (!goal.ok) return goal;
 	/** @type {import('./tagConfig.js').TagOp[]} */
 	const ops = [
 		{ type: 'create', id: name, parent: SERIES_PARENT, ...(description ? { description } : {}) }
 	];
-	if (image) ops.push({ type: 'update', id: name, set: { image } });
+	/** @type {Record<string, string>} */
+	const set = {};
+	if (image) set.image = image;
+	if (goal.value) set.meta_venta = goal.value;
+	if (Object.keys(set).length) ops.push({ type: 'update', id: name, set });
 	return { ok: true, name, ops };
 }
 
@@ -50,13 +71,16 @@ export const SERIES_TITLE_MAX = 100;
 /**
  * Las operaciones del editor de etiquetas para editar una serie (Eventos → Series → Editar): el
  * nombre de la etiqueta (`key`, el que usan los eventos: renombrar, como en Etiquetas), el nombre
- * visible, el ícono, la imagen y la descripción. Solo lo que cambió.
+ * visible, el ícono, la imagen, la descripción y la meta de venta por defecto de las ediciones
+ * nuevas (`meta_venta`: se copia al crear o duplicar una edición; cambiarla no toca los eventos que
+ * ya existen). Solo lo que cambió.
  *
  * Renombrar va primero (`rename`, con `keepAlias` como lo eligió quien edita: ver
  * RenameChoice.svelte) y lo demás se aplica a la etiqueta con el nombre nuevo.
  *
- * @param {{ key?: unknown, visible_name?: unknown, icon?: unknown, image?: unknown, description?: unknown }} input
- * @param {{ id: string, visible_name?: string, icon?: string, image?: string, description?: string }} current
+ * @param {{ key?: unknown, visible_name?: unknown, icon?: unknown, image?: unknown, description?: unknown, goal_kind?: unknown, goal_value?: unknown }} input
+ *   sin `goal_kind` (undefined), la meta no se toca
+ * @param {{ id: string, visible_name?: string, icon?: string, image?: string, description?: string, meta_venta?: string }} current
  * @param {{ keepAlias?: boolean, exists?: (name: string) => boolean }} [opts] `exists`: si un
  *   nombre ya es otra etiqueta (o alias)
  * @returns {{ ok: true, name: string, renamed: string | null, ops: import('./tagConfig.js').TagOp[] } | { ok: false, error: string }}
@@ -90,6 +114,8 @@ export function seriesEditOps(input, current, { keepAlias = false, exists = () =
 	if (next.image && !isTagImage(next.image)) return { ok: false, error: IMAGE_ERROR };
 	if (next.description.length > 2000)
 		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
+	const goal = input.goal_kind === undefined ? null : formGoal(input);
+	if (goal && !goal.ok) return goal;
 	const beforeVisible =
 		current.visible_name && current.visible_name !== from ? current.visible_name : '';
 	const before = {
@@ -103,6 +129,8 @@ export function seriesEditOps(input, current, { keepAlias = false, exists = () =
 	for (const k of /** @type {(keyof typeof next)[]} */ (Object.keys(next))) {
 		if (next[k] !== before[k]) set[k] = next[k];
 	}
+	if (goal?.ok && goal.value !== storedSalesGoal(parseSalesGoal(current.meta_venta)))
+		set.meta_venta = goal.value;
 	/** @type {import('./tagConfig.js').TagOp[]} */
 	const ops = [];
 	if (key !== from) ops.push({ type: 'rename', from, to: key, keepAlias });
