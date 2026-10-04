@@ -38,8 +38,8 @@
 			<span>
 				<strong>Renombrar en todas las publicaciones</strong>
 				<small
-					>Se cambia en cada publicación que la usa{usesText}, con un commit, y el nombre viejo deja
-					de existir. Antes de confirmar vas a ver cuántas cambian.</small
+					>Se cambia en cada publicación que la usa{usesText} (en la base, al momento) y el nombre viejo
+					deja de existir. Antes de confirmar vas a ver cuántas cambian.</small
 				>
 			</span>
 		</label>

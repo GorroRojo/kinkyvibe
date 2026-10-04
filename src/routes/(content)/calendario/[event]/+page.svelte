@@ -16,7 +16,7 @@
 	import { toArgentina, eventEnd, argDateTimeLong } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { processContent } from '$lib/utils';
+	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
 	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
 	import { Globe, MapPin } from '@lucide/svelte';
@@ -304,7 +304,10 @@
 	{#if data.personas}
 		<div class="content"><PersonasConRol groups={data.personas} /></div>
 	{/if}
-	<div class="content" use:processContent>
+	<div
+		class="content"
+		use:addMentionPronouns={(name) => /** @type {Record<string, string>} */ (data.pronouns)?.[name]}
+	>
 		{#if data.html !== undefined}
 			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
 			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->

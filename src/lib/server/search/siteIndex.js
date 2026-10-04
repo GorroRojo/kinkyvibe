@@ -180,8 +180,8 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles 
 	for (const post of posts) {
 		const { meta, path } = post;
 		if (meta.force_unpublished || meta.force_unlisted) continue;
-		if (meta.category === 'amigues' && profiles && profiles.imported.has(String(meta.postID))) {
-			// Importada: la base decide (si está oculta o no listada, no aparece).
+		if (meta.category === 'amigues' && profiles) {
+			// Los perfiles van aparte (abajo, de la base: si están ocultos o no listados, no aparecen).
 			continue;
 		}
 		const tagIds = [...new Set(meta.tags ?? [])];

@@ -181,7 +181,7 @@ describe('deleting', () => {
 	});
 });
 
-describe('perfiles que viven solo en la base (sin .md)', () => {
+describe('perfiles: todos viven solo en la base', () => {
 	/** @param {string} slug */
 	const deletedAt = async (slug) =>
 		(await t.db.prepare('SELECT deleted_at FROM objects WHERE slug = ?1').bind(slug).first())
@@ -263,7 +263,9 @@ describe('perfiles que viven solo en la base (sin .md)', () => {
 		expect(repo.commits).toEqual([]);
 	});
 
-	it('una ficha con .md (importada) sigue por el repo', async () => {
+	// «Solo base»: una ficha importada de un .md también se borra en la base (antes iba por el
+	// repo: ese modo ya no existe). La dirección es la de la ficha (la vieja).
+	it('una ficha con .md (importada) también se borra y se deshace en la base, sin tocar el repo', async () => {
 		repo.files.add('src/lib/posts/amigues/Ficha_Inventada.md');
 		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
 		await t.db
@@ -276,10 +278,30 @@ describe('perfiles que viven solo en la base (sin .md)', () => {
 			.run();
 		const ev = { kind: 'amigues', slug: 'Ficha_Inventada' };
 		const page = /** @type {any} */ (await borrar.load(fakeEvent(ev)));
-		expect(page.backend).toBe('repo');
-		await borrar.actions.borrar(fakeEvent({ ...ev, form: {} }));
-		expect(repo.commits).toHaveLength(1);
-		expect(repo.files.has('src/lib/posts/amigues/Ficha_Inventada.md')).toBe(false);
+		expect(page).toMatchObject({ backend: 'objects', exists: true, title: 'Ficha Inventada' });
+		expect(page.plan.notes.join(' ')).toContain('/amigues/Ficha_Inventada');
+		const r = /** @type {any} */ (await borrar.actions.borrar(fakeEvent({ ...ev, form: {} })));
+		expect(r.deleted).toMatchObject({ immediate: true, commit: null });
+		expect(await deletedAt(p.slug)).not.toBeNull();
+		expect(repo.commits).toEqual([]);
+		// El .md sigue en el repo (respaldo), pero no se usa.
+		expect(repo.files.has('src/lib/posts/amigues/Ficha_Inventada.md')).toBe(true);
+		const undo = /** @type {any} */ (
+			await borrar.actions.deshacer(fakeEvent({ ...ev, form: { id: String(r.deleted.id) } }))
+		);
+		expect(undo.undone).toMatchObject({ mode: 'restored', slug: 'Ficha_Inventada' });
 		expect(await deletedAt(p.slug)).toBeNull();
+		expect(repo.commits).toEqual([]);
+	});
+
+	it('un perfil que la base no tiene no existe (nunca se busca en el repo)', async () => {
+		repo.files.add('src/lib/posts/amigues/Sin_Importar.md');
+		const ev = { kind: 'amigues', slug: 'Sin_Importar' };
+		const page = /** @type {any} */ (await borrar.load(fakeEvent(ev)));
+		expect(page).toMatchObject({ exists: false, plan: null });
+		const r = /** @type {any} */ (await borrar.actions.borrar(fakeEvent({ ...ev, form: {} })));
+		expect(r.status).toBe(404);
+		expect(repo.commits).toEqual([]);
+		expect(repo.files.has('src/lib/posts/amigues/Sin_Importar.md')).toBe(true);
 	});
 });

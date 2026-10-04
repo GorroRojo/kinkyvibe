@@ -49,9 +49,9 @@ export function usesLocalRepo() {
  * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
  * On a preview deploy (PREVIEW_BUILD, also a build-time constant) it returns the demo client:
  * "commits" go to the preview's D1 (`demo_files`), never to GitHub, whoever is logged in.
- * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): events and
- * material are always read from and saved to the database; only what still lives in the repo
- * (images, amigues .md, the wiki) reaches this client.
+ * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): events,
+ * material, amigues profiles and wiki pages are always read from and saved to the database; only
+ * what still lives in the repo (images) reaches this client.
  * @returns {Promise<typeof github>}
  */
 export async function getRepoClient() {

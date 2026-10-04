@@ -1,7 +1,7 @@
 /**
- * Loads and form actions shared by /admin/contenido/material/** and /admin/comunidad/perfiles/**
- * (list, nuevo, [slug]; URLs from `contentAdminHref` in nav.js). Each route file is a thin wrapper
- * that picks the category.
+ * Loads and form actions of /admin/contenido/material/** (list, nuevo, [slug]; URLs from
+ * `contentAdminHref` in nav.js). The amigues profiles have their own editor, in the database only
+ * (./amiguesRoutes.js).
  *
  * Every load calls requireAdmin (loads run in parallel with the layout's) and every action checks
  * the admin itself (actions don't run the layout load). Writes go through the same GitHub commit
@@ -45,10 +45,9 @@ import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCop
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/posts/material/_post_template.md?raw';
-import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 
 /** @type {Record<string, string>} */
-const TEMPLATES = { material: materialTemplate, amigues: amiguesTemplate };
+const TEMPLATES = { material: materialTemplate };
 
 const NO_PERMISSION =
 	'No tenés permiso para editar contenido. Probá cerrar sesión y volver a entrar.';

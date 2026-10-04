@@ -173,15 +173,18 @@ describe('dbPostsOnlyClient (Eventos → Series)', () => {
 			'Nudos que no existen'
 		);
 		expect(texts.find((f) => f.path === path('sin-importar-2031-07'))).toBeUndefined();
+		// Amigues y la wiki también son de la base («solo base», ./fichas.js): esta base no tiene
+		// ninguno, y nunca se leen del repo.
 		expect(await only.getDirTexts('t', 'src/lib/posts/wiki')).toEqual([]);
 		expect(await only.getDirTexts('t', 'src/lib/posts/amigues')).toEqual([]);
 		expect(await only.getFile('t', 'src/lib/posts/wiki/algo.md')).toBeNull();
 
+		// Lo que no es contenido de la base (el archivo de etiquetas, una imagen) no se escribe.
 		const err = await thrown(() =>
 			only.commitFiles('t', {
 				files: [
 					{ path: path('taller-inventado-2031-02'), content: 'x' },
-					{ path: 'src/lib/posts/wiki/algo.md', content: 'y' }
+					{ path: 'src/lib/utils/hardcodedTags.js', content: 'y' }
 				],
 				message: 'prueba'
 			})

@@ -97,6 +97,9 @@ async function venuePage(n) {
 			by: 'a'
 		});
 	}
+	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar (applySiteTags, recordado
+	// unos segundos), y con él las páginas de la wiki («Participa en» de un perfil).
+	await (await import('$lib/server/etiquetas/source.js')).siteTagSource(t.platform);
 	const counted = countingDB(t.db);
 	const { load } = await import('./+page.server.js');
 	const url = new URL(`/amigues/${venue.slug}`, 'https://kinkyvibe.ar');

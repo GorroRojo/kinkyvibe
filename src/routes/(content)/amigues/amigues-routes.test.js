@@ -147,12 +147,14 @@ const profilePage = async (/** @type {any} */ m, slug, o = {}) =>
 	);
 
 describe('perfiles de la base', () => {
-	it('sin importar todavía: las fichas .md siguen saliendo de su archivo', async () => {
+	// «Solo base»: una ficha .md que la base no tiene no existe (antes salía de su archivo: ese
+	// modo ya no existe; se importa primero).
+	it('sin importar todavía: las fichas .md no existen (ni en la lista ni su página)', async () => {
 		const m = await modules();
 		const list = /** @type {any} */ (await m.list.load(fakeEvent()));
 		expect(list.kinds).toBeTruthy();
-		expect(list.posts.map((/** @type {any} */ p) => p.path)).toEqual(['/amigues/Yuyo']);
-		expect((await profilePage(m, 'Yuyo')).mode).toBe('md');
+		expect(list.posts).toEqual([]);
+		expect((await thrown(() => profilePage(m, 'Yuyo')))?.status).toBe(404);
 	});
 
 	it('importadas: mismas direcciones, desde la base, sin duplicar las fichas', async () => {

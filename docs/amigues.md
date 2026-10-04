@@ -8,8 +8,8 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
 
 - Las fichas de amigues (`src/lib/posts/amigues/*.md`) pasan a ser **perfiles** (`perfil` en
   [objetos.md](objetos.md)) de tipo **persona**, **proyecto** o **lugar**, con **las mismas
-  direcciones** (`/amigues/Gorro_Rojo` sigue andando). Los `.md` quedan en el repo hasta que
-  gorrite confirme que todo coincide.
+  direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base** («solo base», paso 2): el
+  sitio y el panel ya no leen ni escriben los `.md`, que quedan en el repo como respaldo (0004).
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
 - **"Es mi perfil"**: una cuenta con el permiso "puede tener perfiles" pide hacerse cargo; une
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
@@ -25,15 +25,21 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del
   1/10; "Amigues" queda solo como nombre del directorio público `/amigues`): filtros por tipo,
-  origen y estado, CSV, «Para aprobar» y los pedidos "Es mi perfil" (sin base, la lista de fichas
-  `.md`). El editor edita el perfil en la base (publica al guardar, con aviso de
-  conflicto); también **Perfiles → Importar y clasificar** y **Eventos → Lugares**.
+  origen y estado, CSV, «Para aprobar» y los pedidos "Es mi perfil". El editor edita el perfil en
+  la base (publica al guardar, con aviso de conflicto), con su imagen elegida en el selector de la
+  biblioteca (R2, edge `avatar`, [imagenes.md](imagenes.md)); también **Perfiles → Importar y
+  clasificar** y **Eventos → Lugares**. La dirección vieja `/edit/amigues/<ficha>` lleva al editor.
 
-## Sin base, o con fichas sin importar
+## Solo la base (fichas sin importar)
 
-Sin base, todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas leen los
-`.md`. Con base, una ficha `.md` que la base todavía no tiene se sigue mostrando (y editando)
-desde su archivo; la importación la pasa a la base con la misma dirección.
+Una ficha `.md` que la base todavía no tiene **no existe**: no está en `/amigues`, su página da 404
+y el panel no la edita (avisa que hay que importarla). La importación (Perfiles → Importar y
+clasificar) la pasa a la base con la misma dirección; la prueba `src/lib/server/contenido/fichas.test.js`
+verifica que todas las fichas del repo se importan sin errores. Sin base no hay perfiles. Lo que
+el sitio leía de los `.md` ahora sale de los perfiles (`src/lib/server/amigues/asPost.js`): las
+listas (`sitePosts`), les autores de un evento o material y los pronombres de las @menciones.
+«Descargar todo» los vuelve a dar como `.md` ([contenido.md](contenido.md)). Pasos para el cambio:
+[contenido.md](contenido.md), «Amigues y la wiki».
 
 ## Borrar un perfil desde el panel
 
@@ -41,16 +47,16 @@ El editor de un perfil tiene «Borrar…», que lleva a la página de
 confirmación de siempre (`/admin/borrar/amigues/<dirección>`: lo que depende del perfil y, si hay
 algo, escribir la dirección para confirmar).
 
-- **Perfil que vive solo en la base** (sin `.md`: los creados en el panel, los lugares, los de las
-  cuentas): se borra en la base, al toque y sin GitHub. Es el borrado suave del objeto
+- **Todo perfil vive solo en la base** (los creados en el panel, los lugares, los de las cuentas y
+  también las fichas importadas de un `.md`): se borra en la base, al toque y sin GitHub. Es el borrado suave del objeto
   (`deleted_at` con `saveObject()`, con su revisión en `object_revisions`); «Deshacer» y
   «Recuperar» (Actividad) lo vuelven atrás. Las relaciones (el edge `lugar` de los eventos,
   personas con rol, integrantes, quién lo gestiona) **quedan guardadas**: quienes las leen ya se
   saltean los perfiles borrados (`visibleWhere`, `getEdges`, `eventVenue`), así que dejan de
   aparecer y vuelven al deshacer. Un evento cuyo lugar se borró muestra su «Dónde» en texto libre,
   si tiene (también en los mails de las entradas): la página de borrar lo avisa.
-- **Ficha con `.md`** (importada): como antes, por GitHub (el editor del `.md`). El editor de la
-  base no ofrece borrarla.
+- Antes, una ficha importada que tenía `.md` se borraba con un commit en GitHub: ya no («solo
+  base»). Su `.md` queda en el repo como respaldo; volver a importarlo no la revive.
 
 Código: `deleteDbProfile` y `deleteBackend` en `src/lib/server/admin/deletions.js`; pruebas en
 `deletions-db.test.js` y `src/routes/(authed)/admin/borrar/borrar.test.js`.
@@ -134,8 +140,9 @@ destino puesto) y el crédito «© colaboradores de OpenStreetMap». Sale solo e
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
 `venues.test.js` y `VenueLocation.test.js`).
 
-**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir se
-arman al compilar desde los `.md`, así que no pueden contener nada de la base. La prueba
+**Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir
+llevan de los perfiles solo lo que muestra `/amigues` a cualquiera (aprobados, no ocultos, con la
+lista blanca de `publicProfile`; nunca la dirección de un lugar). La prueba
 `src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y revisa todas esas
 salidas (también el buscador) y los datos de las páginas. Si el `.md` de un evento tiene
 `location` escrita, es pública (el repo es público): Eventos → Lugares avisa para sacarla.

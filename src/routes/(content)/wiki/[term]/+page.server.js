@@ -1,53 +1,50 @@
-import { currentRelated, fetchPost } from '$lib/utils';
+import { currentRelated } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
-import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { getDB } from '$lib/server/db';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
-import { stripMdPlace } from '$lib/utils/eventPlace.js';
-import { building } from '$app/environment';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
+import { siteWikiEntry, wikiPost } from '$lib/server/wiki/site.js';
+import { renderContentBody } from '$lib/server/contenido/render.js';
 
-/** @type {import("./$types").PageServerLoad} */
+/**
+ * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
+ * cuerpo de la etiqueta: src/lib/server/wiki/site.js). Se arma en cada pedido (ya no se
+ * prerenderiza: la base no se puede leer al compilar). Sin página de la wiki, la página muestra la
+ * etiqueta (+page.js). Los .md de src/lib/posts/wiki/ quedan solo como respaldo: el sitio no los
+ * lee.
+ *
+ * @type {import("./$types").PageServerLoad}
+ */
 export async function load({ params, platform }) {
-	// El árbol de etiquetas en uso (la base).
-	const tagManager = await siteTagManager(platform);
-	let term = '';
-	/** @type {string[]} */
-	let children = [];
-	/** @type {Omit<ProcessedPost, 'content'>|{}} */
-	let post = {};
-	try {
-		// The content component can't be serialized, so +page.js loads it on its own.
-		// eslint-disable-next-line no-unused-vars
-		const { content, ...rest } = await fetchPost('wiki', params.term);
-		post = rest;
-		const wiki = rest.meta.wiki;
-		term = wiki ?? '';
-		children = tagManager.get(wiki ?? '')?.getAllChildren() ?? [];
-	} catch (e) {
-		// no wiki entry: the page falls back to the tag of the same name (see +page.js), resolved
-		// from the URL form ("Rancheadita-Kinky", aliases) like every other tag route.
-		term = tagIdFromSlug(tagManager, params.term) ?? params.term;
-	}
+	const { entry, key, tags } = await siteWikiEntry(platform, params.term);
+	const children = tags.get(key)?.getAllChildren() ?? [];
 	const posts = await sitePosts(platform);
 	const current = currentRelated(
-		posts.filter((p) => p.meta.tags.includes(term) || children.some((c) => p.meta.tags.includes(c)))
+		posts.filter((p) => p.meta.tags.includes(key) || children.some((c) => p.meta.tags.includes(c)))
 	);
-	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento. Al prerenderizar no hay
-	// base para saber qué eventos tienen lugar: van todos sin el «Dónde» (las tarjetas no lo usan).
-	const related = building
-		? {
-				...current,
-				relatedPosts: current.relatedPosts.map((p) =>
-					p.meta?.category === 'calendario' ? { ...p, meta: stripMdPlace(p.meta) } : p
-				)
-			}
-		: await relatedWithVenuePlaces(getDB(platform), current);
+	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+	const related = await relatedWithVenuePlaces(getDB(platform), current);
+	/**
+	 * La página de la wiki (sin página: nada, y +page.js muestra la etiqueta).
+	 * @type {{ meta?: Record<string, any>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null }}
+	 */
+	let page = {};
+	if (entry) {
+		const post = wikiPost(entry, tags);
+		// Lo importado del repo (o guardado por une superadmin) con HTML libre, como lo armaba mdsvex;
+		// lo demás, con la lista corta (src/lib/server/contenido/render.js).
+		const body = await renderContentBody(
+			{ body: entry.body, body_html: entry.bodyHtml },
+			'wiki',
+			entry.slug,
+			{ vars: post.meta }
+		);
+		page = { ...post, html: body.html, css: body.css, parts: body.parts ?? null };
+	}
 	return {
-		...post,
+		...page,
 		...related,
-		// «Comprar entradas» / «Agotadas» en las tarjetas (prerenderizada: `null`, link a /entradas).
+		// «Comprar entradas» / «Agotadas» en las tarjetas.
 		ticketStates: await ticketStatesFor(platform, related.relatedPosts)
 	};
 }

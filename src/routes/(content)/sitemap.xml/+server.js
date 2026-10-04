@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts } from '$lib/utils';
+import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { render, sortByPublished } from './sitemap.js';
 // Dinámico (antes se prerenderizaba): los eventos y el material salen de la base y pueden cambiar
@@ -6,7 +6,7 @@ import { render, sortByPublished } from './sitemap.js';
 
 /** @type {import('./$types').RequestHandler} */
 export const GET = async ({ platform }) => {
-	const [posts, wikiPosts] = await Promise.all([sitePosts(platform), fetchMarkdownPosts(true)]);
+	const [posts, wikiPosts] = await Promise.all([sitePosts(platform), siteWikiPosts(platform)]);
 	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
 	const body = render(pages, sortByPublished(posts), wikiPosts);
 	const options = {

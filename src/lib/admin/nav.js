@@ -620,17 +620,26 @@ export function eventPanelLink(slug, { tickets = false } = {}) {
 
 /**
  * Link "Editar contenido" de una página pública. Los eventos se editan dentro del panel (pestaña
- * Editar de la ficha); el resto de las publicaciones, en /edit/<categoría>/<slug>. `null` si la
- * página no es una publicación editable.
+ * Editar de la ficha); los perfiles, en Comunidad › Perfiles; las páginas de la wiki, en
+ * Etiquetas › Texto de la wiki; el material, en /edit/material/<slug>. `null` si la página no es
+ * una publicación editable.
  * @param {string} pathname
  * @returns {string | null}
  */
 export function contentEditLink(pathname) {
-	const m = pathname.match(/^\/(amigues|calendario|material)\/([^/]+)\/?$/);
+	const m = pathname.match(/^\/(amigues|calendario|material|wiki)\/([^/]+)\/?$/);
 	if (!m) return null;
 	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
+	if (m[1] === 'amigues') return `/admin/comunidad/perfiles/${m[2]}`;
+	if (m[1] === 'wiki') return wikiEditHref(decodeURIComponent(m[2]));
 	return `/edit/${m[1]}/${m[2]}`;
 }
+
+/**
+ * El editor del texto de la wiki de una etiqueta (por la dirección de su página, `/wiki/<…>`).
+ * @param {string} slug
+ */
+export const wikiEditHref = (slug) => `/admin/etiquetas/wiki/${encodeURIComponent(slug)}`;
 
 /**
  * Los 5 lugares de la barra de abajo en el celu (el del medio es el botón rosa).

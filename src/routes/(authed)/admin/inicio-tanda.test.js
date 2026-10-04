@@ -13,6 +13,7 @@ import { insertOrder, insertTicket } from '$lib/server/admin/testRows.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logAccountCreated } from '$lib/server/admin/accountEvents.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
+import { makeProfile } from '$lib/server/amigues/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
@@ -592,8 +593,9 @@ async function seed() {
 		.prepare('INSERT INTO admin_last_seen (admin_id, seen_at, last_at) VALUES (?1, ?2, ?3)')
 		.bind(admin.id, NOW - 3 * DAY, NOW - 2 * HOUR)
 		.run();
-	// Una ficha .md no listada (el contador del menú; los eventos no listados salen de la base).
-	fake.unlisted = [{ meta: { category: 'amigues', postID: 'perfil-no-listado-inventado' } }];
+	// Un perfil no listado (el contador del menú): «solo base», sale de la base como los eventos
+	// (antes era una ficha .md no listada).
+	await makeProfile(t.db, { title: 'Perfil No Listado Inventado', data: { unlisted: true } });
 }
 
 /** La fila de la última visita, para volver a dejarla igual entre las dos corridas. */
@@ -789,7 +791,8 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		const layout = countingPlatform();
 		await panelCounts(layout.platform);
 		expect(layout.trips()).toBe(1);
-		expect(layout.stats.prepared).toBe(4);
+		// (La cuenta de «No listadas» suma los perfiles no listados de la base: una sentencia más.)
+		expect(layout.stats.prepared).toBe(5);
 	});
 });
 

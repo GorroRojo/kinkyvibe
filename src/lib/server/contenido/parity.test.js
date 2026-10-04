@@ -23,6 +23,7 @@ import { metaDiff, normalizeMeta } from './parity.js';
 import { planImport, runImport, summarizeImport } from './importer.js';
 import { listRevisions } from './revisions.js';
 import { splitMarkdown } from '../amigues/importer.js';
+import { makeProfile } from '../amigues/testing.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -494,15 +495,26 @@ describe('el contador «No listadas» del menú del panel', () => {
 	}
 
 	it('da lo mismo que la lista de no listadas, también al ocultar, no listar y borrar', async () => {
-		const extra = [
-			// Un .md no listado que no está en la base, y otro de una categoría que no está en la base.
-			{ meta: { category: 'calendario', postID: 'no-listado-sin-importar-2031-09' } },
-			{ meta: { category: 'amigues', postID: 'perfil-no-listado-inventado' } }
-		];
+		// Un .md no listado que no está en la base no cuenta (los eventos salen solo de la base).
+		const extra = [{ meta: { category: 'calendario', postID: 'no-listado-sin-importar-2031-09' } }];
 		md.unlisted.push(...extra);
+		// «Solo base»: los perfiles de amigues no listados son los de la base (aprobados y no
+		// ocultos); antes era una ficha .md no listada.
+		await makeProfile(t.db, { title: 'Perfil No Listado Inventado', data: { unlisted: true } });
+		await makeProfile(t.db, {
+			title: 'Perfil Oculto Inventado',
+			visibility: 'hidden',
+			data: { unlisted: true }
+		});
+		await makeProfile(t.db, {
+			title: 'Perfil Sin Aprobar Inventado',
+			approved: false,
+			data: { unlisted: true }
+		});
+		await makeProfile(t.db, { title: 'Perfil Listado Inventado' });
 		try {
 			let posts = await contenido();
-			// Sin nada importado: solo la ficha de amigues (los eventos salen solo de la base).
+			// Sin nada importado: solo el perfil no listado (aprobado y visible).
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
 			expect(await fromQuery(posts)).toBe(1);
 

@@ -93,6 +93,7 @@
 			action="?/guardarPerfil"
 			submitLabel="Guardar y publicar"
 			kinds={data.kinds}
+			image={data.image ?? null}
 		/>
 	</Card>
 </div>

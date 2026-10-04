@@ -142,6 +142,11 @@ async function publicOutputs() {
 	out.inicio = JSON.stringify(await (await import('../+page.server.js')).load(fakeEvent()));
 	out.todo = JSON.stringify(await (await import('../todo/+page.server.js')).load(fakeEvent()));
 	out.calendario = JSON.stringify(await (await import('./+page.server.js')).load(fakeEvent()));
+	// La ficha (real, pública) de Yuyo, en la base: «solo base», los perfiles salen solo de ahí.
+	const { importAmigues } = await import('$lib/server/amigues/importer.js');
+	const { readAmigueFiles } = await import('$lib/server/amigues/files.js');
+	const yuyo = (await readAmigueFiles()).filter((f) => f.legacySlug === 'Yuyo');
+	await importAmigues(t.db, yuyo, { actor: 'admin-de-prueba' });
 	out.relacionados = JSON.stringify(
 		await (
 			await import('../amigues/[profile]/+page.server.js')

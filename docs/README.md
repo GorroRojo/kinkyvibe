@@ -14,7 +14,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
-| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: archivos `.md`, cómo se editan desde el panel y el plan de pasarlos a D1         |
+| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, importan y descargan como `.md`            |
 | [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: un PR por cambio que se mergea solo cuando pasan las pruebas          |
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews               |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |

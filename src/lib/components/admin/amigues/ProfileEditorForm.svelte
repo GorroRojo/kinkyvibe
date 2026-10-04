@@ -7,12 +7,15 @@
 	 *
 	 * Props: `values` (ProfileFormValues de src/lib/server/amigues/editor.js), `errors` (por campo),
 	 * `conflict` ({ version, changes: [{ field, label, theirs }] }), `action` (form action),
-	 * `submitLabel`, `kinds` (tipos que se pueden elegir).
+	 * `submitLabel`, `kinds` (tipos que se pueden elegir), `image` (la imagen del perfil para el
+	 * selector de la biblioteca, docs/imagenes.md: `{ current, legacyUrl, target }`; sin pasar, un
+	 * perfil nuevo, que elige su imagen después de crearse).
 	 */
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
 	export let values;
@@ -24,6 +27,11 @@
 	export let submitLabel = 'Guardar';
 	/** @type {Record<string, string>} */
 	export let kinds = KIND_LABELS;
+	/** @type {{ current: import('$lib/server/media/library.js').PublicImage | null, legacyUrl: string | null, target: string } | null} */
+	export let image = null;
+
+	/** La imagen elegida en el selector (va en el campo oculto `imageId`). */
+	let avatar = image?.current ?? null;
 
 	let busy = false;
 	$: kind = values.kind;
@@ -85,6 +93,19 @@
 			{#if err('kind')}<small class="kv-error">{err('kind')}</small>{/if}
 		</label>
 	</div>
+
+	{#if image}
+		<ImagePicker
+			bind:value={avatar}
+			legacyUrl={image.legacyUrl}
+			target={image.target}
+			contextLabel="De este perfil"
+			legend="Imagen del perfil"
+			idPrefix="perfil-imagen"
+			sectionId="sec-perfil-imagen"
+			canDelete
+		/>
+	{/if}
 
 	<fieldset class="kv-field choices">
 		<span>Quién lo puede ver</span>

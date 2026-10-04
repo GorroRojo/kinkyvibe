@@ -49,18 +49,20 @@ Se hace en PRs chicos, uno arriba del otro:
 
 Archivo: `src/lib/server/objects/types/etiqueta.js`.
 
-| Campo          | Clase      | Qué es hoy en `hardcodedTags.js` / la wiki                                        |
-| -------------- | ---------- | --------------------------------------------------------------------------------- |
-| (`title`)      | —          | `visible_name`, o el `id` si no tiene                                             |
-| `key`          | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
-| `icon`         | `text`     | `icon` (un emoji)                                                                 |
-| `color`        | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
-| `description`  | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
-| `image`        | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
-| `body`         | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
-| `wiki_title`   | `text`     | `title` del `.md` de la wiki                                                      |
-| `wiki_summary` | `longtext` | `summary` del `.md` de la wiki                                                    |
-| `wiki_authors` | `list`     | `authors` del `.md` de la wiki                                                    |
+| Campo            | Clase      | Qué es hoy en `hardcodedTags.js` / la wiki                                        |
+| ---------------- | ---------- | --------------------------------------------------------------------------------- |
+| (`title`)        | —          | `visible_name`, o el `id` si no tiene                                             |
+| `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
+| `icon`           | `text`     | `icon` (un emoji)                                                                 |
+| `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
+| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
+| `image`          | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
+| `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
+| `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |
+| `wiki_summary`   | `longtext` | `summary` del `.md` de la wiki                                                    |
+| `wiki_authors`   | `list`     | `authors` del `.md` de la wiki                                                    |
+| `wiki_tags`      | `list`     | `tags` del `.md` de la wiki (otras etiquetas que nombra la página)                |
+| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: lo importado, HTML libre) |
 
 | Relación          | Hacia    | Qué es hoy                                                                     |
 | ----------------- | -------- | ------------------------------------------------------------------------------ |
@@ -141,7 +143,8 @@ importar.
     El RSS y el sitemap siguen prerenderizados porque no muestran etiquetas (una prueba lo
     verifica: salen iguales con cualquier árbol).
   - `sigue-el-interruptor.test.js` prueba cada lugar con una «base» inventada.
-- Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
+- Los textos de la Kinkipedia (`/wiki/<entrada>`) salen de la base («solo base», paso 2): ver
+  «La Kinkipedia» abajo.
 - **Editor** (`/admin/etiquetas`): guarda en la base al momento (sin etiquetas en la base, la
   página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
   operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
@@ -159,23 +162,43 @@ importar.
 Decisión de gorrite: quien renombra elige (`RenameChoice.svelte`, el mismo en Etiquetas y en
 Eventos → Series › Editar):
 
-- **Por defecto: renombrar en todas las publicaciones, sin alias.** Un commit reescribe las
+- **Por defecto: renombrar en todas las publicaciones, sin alias.** Se reescriben las
   publicaciones que usan el nombre viejo (el mismo camino que el editor del archivo:
-  `replaceTagInPost` y `commitTagEdit`) y después se renombra en la base; el nombre viejo deja de
-  existir. Si el commit falla, la base no se toca. Hace falta poder hacer commits (entrar con
-  GitHub). Hasta que termina de publicarse el sitio (unos minutos), las publicaciones todavía
-  dicen el nombre viejo y se ven como una etiqueta suelta.
+  `replaceTagInPost` y `commitTagEdit`), **todas en la base y sin GitHub** (eventos, material,
+  perfiles de amigues y páginas de la wiki: `dbRepoAccess`, `src/lib/server/contenido/fichas.js`), y
+  después se renombra la etiqueta; el nombre viejo deja de existir. Si cambiar las publicaciones
+  falla, la etiqueta no se toca. Se ve enseguida.
 - **Dejar el nombre viejo como alias**: no se toca ninguna publicación; se resuelven por el alias.
 - Antes de confirmar se ve cuántas publicaciones cambian (y cómo): la vista previa de Etiquetas,
   o un paso de confirmación en Series.
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
-  (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente del repo: los eventos y el
-  material van a la base (se ve enseguida); las fichas de amigues y la wiki, con un commit.
-- **En Eventos → Series, solo la base**: renombrar una serie reescribe solo sus eventos y el
-  material (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`), sin leer ni escribir
-  GitHub. Si alguna ficha de amigues o página de la wiki usara la etiqueta de una serie (hoy
-  ninguna), queda con el nombre viejo: para eso, Etiquetas › Renombrar o «dejar el alias».
+  (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente solo-base
+  (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`): Etiquetas y Eventos → Series usan el
+  mismo, sin leer ni escribir GitHub.
 - El archivo (`hardcodedTags.js`) no se toca nunca desde el panel: es solo el respaldo.
+
+## La Kinkipedia (solo base)
+
+El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wiki_authors`,
+`wiki_tags`) es su página `/wiki/<dirección>` (`tagSlug(key)`: los mismos nombres que los `.md` de
+`src/lib/posts/wiki/`, que quedan solo como respaldo).
+
+- **Leer**: `src/lib/server/wiki/site.js`. Las páginas vienen con el árbol de etiquetas
+  (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
+  sitemap y «Participa en» no suman consultas. `/wiki/<término>` resuelve la etiqueta como toda
+  dirección de etiqueta (también un alias) y arma el texto en el servidor
+  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice; la
+  lista corta si `wiki_body_html` es `corta`). **Ya no se prerenderiza** (`prerender = false`): la
+  base no se puede leer al compilar.
+- **Editar**: Etiquetas → cada etiqueta → «Editar/Escribir la entrada de la Kinkipedia»
+  (`/admin/etiquetas/wiki/<dirección>`, `src/lib/server/etiquetas/wikiEditor.js`): en la base al
+  momento, con historial (`object_revisions`), Actividad (`wiki.update`, `wiki.delete`) y control de
+  versión. Cambia solo el texto de la wiki (ni el nombre, ni las relaciones, ni la descripción).
+  «Sacar la entrada» le saca el texto (queda en el historial). `/edit/wiki/<…>` lleva ahí.
+- **Cómo se muestra** (`wiki_body_html`, como `body_html` de los eventos): si el texto no cambió,
+  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor (lo importado del repo): HTML libre.
+- **Importar**: el importador de etiquetas (arriba); `wiki_tags` es nuevo, así que reimportar
+  actualiza la página que tiene `tags:` (si nadie la editó en el panel).
 
 ## Series (paso 4)
 
