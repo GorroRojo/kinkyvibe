@@ -19,7 +19,7 @@
 </script>
 
 <svelte:head>
-	<title>Entrada · {data.event.title} - KinkyVibe.ar</title>
+	<title>Entrada · {data.event.title} · Kinky Vibe</title>
 </svelte:head>
 
 <article class="ticket ticket-{data.ticket.state}">

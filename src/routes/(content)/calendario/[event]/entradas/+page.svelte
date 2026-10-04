@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-	<title>Entradas · {data.meta.title} - KinkyVibe.ar</title>
+	<title>Entradas · {data.meta.title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

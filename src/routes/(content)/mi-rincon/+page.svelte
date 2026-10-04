@@ -44,7 +44,7 @@
 </script>
 
 <svelte:head>
-	<title>Mi rincón - KinkyVibe.ar</title>
+	<title>Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

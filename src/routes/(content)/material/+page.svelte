@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar - Artículos, links y descargables</title>
+	<title>Artículos, links y descargables · Kinky Vibe</title>
 </svelte:head>
 <div class="glosario">
 	<p>

@@ -24,7 +24,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar</title>
+	<title>Kinky Vibe</title>
 </svelte:head>
 <div class="glosario">
 	<p>

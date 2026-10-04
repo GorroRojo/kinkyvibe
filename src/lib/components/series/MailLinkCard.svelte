@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>{title} - KinkyVibe.ar</title>
+	<title>{title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

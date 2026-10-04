@@ -8,7 +8,7 @@
 </script>
 
 <svelte:head>
-	<title>Gracias - KinkyVibe.ar</title>
+	<title>Gracias · Kinky Vibe</title>
 	<meta name="robots" content="noindex, nofollow" />
 	<meta name="referrer" content="no-referrer" />
 </svelte:head>

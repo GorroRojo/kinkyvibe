@@ -258,7 +258,7 @@
 </script>
 
 <svelte:head>
-	<title>Compartir como imagen: {data.meta.title} - KinkyVibe.ar</title>
+	<title>Compartir como imagen: {data.meta.title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
