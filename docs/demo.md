@@ -27,6 +27,10 @@ sin tocar el repo.
   «Persona con entradas» (una entrada aprobada y dos etiquetas y un perfil seguidos), «Persona que
   gestiona un perfil» (dueñe de «Persona de Prueba») y «Cuenta recién creada» (nada). Las crea
   `scripts/demo/n3-cuentas.sql` (después de `n3-personas.sql`).
+  La compra de «Persona con entradas» es de un evento `demo-*`, así que «Recargar datos de
+  prueba» la borra con las demás órdenes de prueba: por eso la vuelve a cargar (una General
+  aprobada para la Noche Látex de hoy, `personaPurchaseRows` en `seed.js`), solo si la cuenta de
+  prueba está cargada con su id, su mail y la marca.
   Mismas reglas que el admin de prueba: la página y su action dan 404 si no es
   `isPreviewDeploy()`. Además, solo entra a esas cuentas: la persona se elige por una clave (nunca
   por un id o un mail que mande el navegador) y la cuenta tiene que estar en la base con el id y

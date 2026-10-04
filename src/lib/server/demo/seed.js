@@ -36,6 +36,7 @@
 import { DEMO_FILES_SQL } from './overlay.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES, ensureDemoProfiles } from './seedProfiles.js';
 import { saveDemoEvents } from './seedEvents.js';
+import { DEMO_ACCOUNT_MARK, DEMO_PERSONAS } from './personasData.js';
 
 /** Quién "hizo" lo que inserta el seed: sirve para borrarlo en la próxima corrida. */
 export const SEED_BY = 'seed-demo';
@@ -1144,6 +1145,77 @@ function nextOf(d, series) {
 		.sort((a, b) => a.offset - b.offset)[0];
 }
 
+/** Id fijo de la compra de «Persona con entradas» (forma de UUID, prefijo `5eed` como sus cuentas). */
+export const PERSONA_ORDER_ID = '5eed0000-0000-4000-8000-00000000c0a1';
+
+/**
+ * La compra de «Persona con entradas»: una entrada General aprobada para la próxima Noche Látex,
+ * vinculada a la cuenta y con su mail. `INSERT … SELECT … FROM accounts`: si la cuenta de prueba
+ * no está cargada (con ese id, ese mail y la marca), no inserta nada.
+ * @param {SeedData} d
+ */
+function personaPurchaseRows(d) {
+	const persona = DEMO_PERSONAS.find((p) => p.key === 'con-entradas');
+	const ev = nextOf(d, 'noche-latex');
+	const type = ev?.tickets.find((t) => t.price);
+	if (!persona || !ev || !type) return [];
+	const unit = /** @type {number} */ (type.price);
+	const p = price({
+		unit,
+		quantity: 1,
+		option: 'completo',
+		percent: ev.kv ? 20 : null,
+		method: 'transferencia'
+	});
+	const at = d.now - 2 * DAY;
+	const holder = { name: 'Persona con Entradas', pronouns: 'elle' };
+	const order = {
+		id: PERSONA_ORDER_ID,
+		event_slug: ev.slug,
+		ticket_type: type.id,
+		quantity: 1,
+		unit_price: unit,
+		fondo_option: 'completo',
+		...p,
+		buyer_name: holder.name,
+		buyer_pronouns: holder.pronouns,
+		buyer_email: persona.email,
+		buyer_dni: '99000101',
+		status: 'approved',
+		confirmed_by: 'demo',
+		email_sent_at: at + 9 * HOUR,
+		created_at: at,
+		updated_at: at + 9 * HOUR,
+		expires_at: at + 48 * HOUR,
+		account_id: persona.id
+	};
+	const ticket = {
+		id: raw('lower(hex(randomblob(16)))'),
+		order_id: PERSONA_ORDER_ID,
+		event_slug: ev.slug,
+		ticket_type: type.id,
+		holder_name: holder.name,
+		holder_pronouns: holder.pronouns,
+		token: raw('substr(lower(hex(randomblob(22))), 1, 43)'),
+		code: 'PRSNAE'
+	};
+	const account = `FROM accounts WHERE id = ${sql(persona.id)} AND email = ${sql(persona.email)}
+		AND deleted_at IS NULL AND json_extract(preferences, '$.${DEMO_ACCOUNT_MARK}') = 1`;
+	/** @param {string} table @param {Record<string, unknown>} row */
+	const fromAccount = (table, row) => {
+		const cols = Object.keys(row);
+		return `INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) SELECT ${cols.map((c) => sql(row[c])).join(', ')} ${account};`;
+	};
+	return [
+		fromAccount('orders', order),
+		// La entrada, solo si quedó la orden (y no estaba de antes).
+		fromAccount('tickets', ticket).replace(
+			/;$/,
+			` AND EXISTS (SELECT 1 FROM orders WHERE id = ${sql(PERSONA_ORDER_ID)}) AND NOT EXISTS (SELECT 1 FROM tickets WHERE order_id = ${sql(PERSONA_ORDER_ID)});`
+		)
+	];
+}
+
 /**
  * @typedef {object} Section
  * @prop {string} table
@@ -1550,6 +1622,18 @@ export const SECTIONS = [
 					})
 				];
 			})
+	},
+	{
+		table: 'orders',
+		requires: ['orders', 'tickets', 'accounts'],
+		optional: true,
+		// La compra de «Persona con entradas» (src/lib/server/demo/personas.js): la cuenta la crea
+		// scripts/demo/n3-cuentas.sql, pero su orden es de un evento `demo-*`, así que el reset de
+		// `orders` de arriba la borraba en cada recarga y Mi rincón quedaba en «Todavía no hay
+		// compras». Se vuelve a cargar acá, para la Noche Látex de hoy, solo si la cuenta de prueba
+		// existe (con su mail y su marca; si no, la foreign key de `account_id` no deja).
+		reset: [],
+		rows: (d) => personaPurchaseRows(d)
 	}
 ];
 
