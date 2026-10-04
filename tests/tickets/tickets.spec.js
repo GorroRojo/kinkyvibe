@@ -237,8 +237,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await validate(ticketUrl);
 	await expect(result).toContainText('Ya ingresó');
 
+	// Escrito a mano y no existe: «Código no encontrado» (no hubo QR; antes decía «QR inválido»).
 	await validate('A'.repeat(43));
-	await expect(result).toContainText('QR inválido');
+	await expect(result).toContainText('Código no encontrado');
 
 	// "Buscar persona": por DNI de quien compró aparecen sus 3 entradas (el DNI, parcial).
 	await page.getByRole('button', { name: 'Buscar persona' }).click();

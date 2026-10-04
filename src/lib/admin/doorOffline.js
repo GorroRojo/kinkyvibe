@@ -33,8 +33,8 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   result: 'ok' | 'already' | 'void' | 'wrong-event' | 'invalid' | 'error' | 'sold',
  *   card: DoorCard | null, cards?: DoorCard[], otherEvent?: string | null, offline?: boolean,
- *   message?: string, stamp: number
- * }} DoorScan
+ *   message?: string, stamp: number, typed?: boolean
+ * }} DoorScan `typed`: el código se escribió a mano («Escribir código»), no se escaneó
  */
 /**
  * Un ingreso marcado sin conexión, esperando para sincronizar.
@@ -272,4 +272,36 @@ export function saveDoorState(storage, slug, state) {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * Título de un resultado de la puerta que no es una entrada válida. Un código escrito a mano que
+ * no existe es «Código no encontrado» (no «QR inválido»: no hubo QR).
+ * @param {DoorScan['result']} result
+ * @param {boolean} [typed]
+ */
+export function invalidTitle(result, typed = false) {
+	if (result !== 'invalid') return '';
+	return typed ? 'Código no encontrado' : 'QR inválido';
+}
+
+/**
+ * @typedef {{ result: string, title: string, sub: string, at: number, ticketId?: string }} RecentScan
+ */
+
+/**
+ * «Últimos escaneos» después de «Deshacer»: el último ingreso de esa entrada deja de figurar como
+ * adentro (sin el tilde verde) y dice que se deshizo.
+ * @param {RecentScan[]} recent
+ * @param {string} ticketId
+ * @param {string} holder
+ * @returns {RecentScan[]}
+ */
+export function markRecentUndone(recent, ticketId, holder) {
+	let done = false;
+	return recent.map((r) => {
+		if (done || r.ticketId !== ticketId || (r.result !== 'ok' && r.result !== 'sold')) return r;
+		done = true;
+		return { ...r, result: 'undone', title: `${holder} · ingreso deshecho`, sub: '' };
+	});
 }
