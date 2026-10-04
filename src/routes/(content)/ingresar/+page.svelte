@@ -122,6 +122,10 @@
 		Tener cuenta es opcional: podés comprar entradas sin ella. Si ya compraste con este mail, tus
 		compras aparecen en Mi rincón.
 	</p>
+	{#if data.demoMode}
+		<!-- Solo en deploys de preview (docs/demo.md) -->
+		<p class="hint"><a href="/ingresar/demo">🧪 Entrar como persona de prueba</a> (sin mail)</p>
+	{/if}
 </section>
 
 <style>
