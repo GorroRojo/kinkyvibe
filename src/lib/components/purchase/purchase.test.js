@@ -189,3 +189,15 @@ describe('TicketPurchase con cuenta (datos guardados)', () => {
 		expect(input(body, 'recordar_dni')).toMatch(/\schecked/);
 	});
 });
+
+describe('TicketsStep', () => {
+	it('un tipo sin lugar dice «Agotadas» (aunque sea un solo tipo), nunca «Agotada»', async () => {
+		const { default: TicketsStep } = await import('./TicketsStep.svelte');
+		const soldOut = { ...tickets, types: [{ ...tickets.types[0], available: 0, left: 0 }] };
+		const { body } = render(TicketsStep, { props: { tickets: soldOut } });
+		// Sin los comentarios que deja Svelte al renderizar.
+		const html = body.replace(/<!--[^]*?-->/g, '');
+		expect(html).toMatch(/<small class="type-left[^"]*">\s*Agotadas\s*<\/small>/);
+		expect(body).not.toMatch(/Agotada(?!s)/);
+	});
+});

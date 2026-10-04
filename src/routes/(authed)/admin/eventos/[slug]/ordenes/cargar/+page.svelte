@@ -99,7 +99,7 @@
 		if (!t.open) return 'venta cerrada';
 		if (t.capacity === null) return 'sin cupo';
 		if (t.taken > t.capacity) return `pasada del cupo (${t.taken} / ${t.capacity})`;
-		if (t.available === 0) return `agotada (${t.taken} / ${t.capacity})`;
+		if (t.available === 0) return `agotadas (${t.taken} / ${t.capacity})`;
 		return `quedan ${t.available} de ${t.capacity}`;
 	}
 </script>

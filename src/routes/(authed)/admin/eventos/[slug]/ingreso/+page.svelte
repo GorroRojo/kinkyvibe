@@ -953,7 +953,7 @@
 								: t.taken > (t.capacity ?? 0)
 									? `pasada del cupo (${t.taken} / ${t.capacity})`
 									: t.available === 0
-										? 'agotada'
+										? 'agotadas'
 										: `quedan ${t.available}`}
 						</option>
 					{/each}
