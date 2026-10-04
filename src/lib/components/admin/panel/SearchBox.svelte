@@ -478,7 +478,8 @@
 		border: 1px solid var(--field, var(--1-light));
 		border-radius: 3em;
 		padding: 0.5rem 1rem;
-		color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
+		/* parece un input vacío: el texto va como placeholder (token de style.scss / panel.scss) */
+		color: var(--placeholder);
 		text-align: left;
 		cursor: text;
 		&.compact {
@@ -490,6 +491,7 @@
 		}
 	}
 	.label {
+		font-style: italic;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
