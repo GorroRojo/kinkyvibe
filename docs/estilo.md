@@ -154,6 +154,50 @@ viejo en tres cosas (ya están en la tabla de arriba):
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
 
+## Componentes
+
+Un componente por concepto, en [`src/lib/components/ui/`](../src/lib/components/ui/), con un solo
+import: `import { Button, Card } from '$lib/components/ui';`. Envuelven las clases y los tokens de
+arriba (el aspecto es el aprobado; no los rediseñes de paso).
+
+**Antes de crear un componente nuevo, mirá `/estilo` y preguntale a gorrite.** `/estilo` es la
+galería: cada componente con su import, cuándo usarlo y cuándo no, y sus estados (normal, hover y
+foco forzados, apagado, error, elegido, vacío), en el aspecto del panel y del sitio, claro y
+oscuro, celu y compu (también por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`), con datos
+inventados. Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
+[demo.md](demo.md)): en producción da 404 y no está en el bundle (lo controlan
+`src/lib/estilo/estiloGuard.test.js`, `tests/smoke.spec.js` y `node scripts/demo/guard.js bundle`).
+El informe de impacto visual ([ui-impacto.md](ui-impacto.md)) la fotografía, así un cambio en un
+componente se ve aunque ninguna página principal lo use.
+
+| Concepto                                                                        | Componente                                                                         |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Botón (principal, secundario, destructivo, permanente, chico, solo ícono, link) | `$lib/components/ui/Button.svelte`                                                 |
+| Chip de etiqueta                                                                | `$lib/components/ui/TagChip.svelte`                                                |
+| Chip simple (no es una etiqueta)                                                | `$lib/components/ui/Chip.svelte`                                                   |
+| Pestañas («estás acá»)                                                          | `$lib/components/ui/Tabs.svelte`                                                   |
+| Badge (estado, con ícono)                                                       | `$lib/components/ui/Badge.svelte`                                                  |
+| Campo de texto (etiqueta, ayuda, error, grande, buscador)                       | `$lib/components/ui/Field.svelte`                                                  |
+| Casilla                                                                         | `$lib/components/ui/Checkbox.svelte`                                               |
+| Interruptor                                                                     | `$lib/components/ui/Switch.svelte`                                                 |
+| Uno de N                                                                        | `$lib/components/ui/Segmented.svelte`                                              |
+| Uno de N con descripción                                                        | `$lib/components/ui/ChoiceCard.svelte`                                             |
+| Tarjeta                                                                         | `$lib/components/ui/Card.svelte`                                                   |
+| Aviso (ok, aviso, error)                                                        | `$lib/components/ui/Notice.svelte`                                                 |
+| Aviso con Deshacer                                                              | `UndoToast` (por ahora en `$lib/components/admin/panel/UndoToast.svelte`)          |
+| Lista vacía                                                                     | `$lib/components/ui/EmptyState.svelte`                                             |
+| Confirmación                                                                    | `askConfirm` (+ `$lib/components/ui/ConfirmDialog.svelte`, en el layout del panel) |
+| Diálogo propio                                                                  | `$lib/components/ui/Dialog.svelte`                                                 |
+| Hoja del celu                                                                   | `$lib/components/ui/Sheet.svelte` (gesto: `sheetDrag`)                             |
+| Encabezado de página                                                            | `$lib/components/ui/PageHeader.svelte` (con `image` o `icon`: el de la ficha)      |
+| Estado de un guardado automático                                                | `$lib/components/ui/SaveStatus.svelte`                                             |
+| Tabla para leer                                                                 | `$lib/components/ui/Table.svelte`                                                  |
+
+Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
+`PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y
+`$lib/components/admin/charts/Segmented.svelte`) siguen andando: son envoltorios del de `ui/`. En
+código nuevo, importá de `$lib/components/ui`; un PR aparte pasa los imports viejos.
+
 ## Textos
 
 Las palabras del panel y del sitio, con las decisiones de gorrite de la revisión de UI (paso 3).

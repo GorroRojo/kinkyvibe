@@ -1,18 +1,20 @@
 <script>
-	import { enhance } from '$app/forms';
+	import { onDestroy } from 'svelte';
+	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
+	import DniReveal from '$lib/components/admin/DniReveal.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
 		ORDER_STATUS,
 		ORDER_STATUS_TONE,
 		PAYMENT_METHOD,
-		formatDni,
+		dniQueryDigits,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -33,12 +35,59 @@
 			: filter === 'pending'
 				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
 				: data.orders.filter((o) => o.status === filter);
+	// El DNI completo no está en la página: las palabras que parecen un DNI se buscan en el
+	// servidor (`?/dniSearch`, devuelve los ids de las órdenes que coinciden). Nombre, email,
+	// referencia y personas se buscan acá.
+	/** @type {Record<string, string[]>} dígitos → ids de las órdenes con ese DNI (o que empieza así) */
+	let dniHits = {};
+	/** @type {Set<string>} */
+	let dniPending = new Set();
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let dniTimer;
+	$: dniWords = [...new Set(words.map(dniQueryDigits).filter(Boolean))];
+	$: scheduleDniSearch(dniWords);
+	/** @param {string[]} list */
+	function scheduleDniSearch(list) {
+		clearTimeout(dniTimer);
+		const missing = list.filter((d) => !(d in dniHits) && !dniPending.has(d));
+		if (missing.length) dniTimer = setTimeout(() => missing.forEach(searchDni), 250);
+	}
+	/** @param {string} digits */
+	async function searchDni(digits) {
+		dniPending = new Set(dniPending).add(digits);
+		try {
+			const body = new FormData();
+			body.set('q', digits);
+			const res = await fetch('?/dniSearch', {
+				method: 'POST',
+				body,
+				headers: { 'x-sveltekit-action': 'true' }
+			});
+			const result = /** @type {any} */ (deserialize(await res.text()));
+			const ids = result.type === 'success' ? result.data?.dniSearch?.ids : null;
+			if (Array.isArray(ids)) dniHits = { ...dniHits, [digits]: ids.map(String) };
+		} catch {
+			// Sin conexión: se busca solo por lo demás.
+		} finally {
+			dniPending.delete(digits);
+			dniPending = new Set(dniPending);
+		}
+	}
+	onDestroy(() => clearTimeout(dniTimer));
+	// Reactiva (lee `dniHits`): así la lista se vuelve a filtrar cuando llega la respuesta.
+	/** @type {(word: string, hay: string, id: string) => boolean} */
+	$: matches = (word, hay, id) => {
+		if (hay.includes(word)) return true;
+		const digits = dniQueryDigits(word);
+		return Boolean(digits && dniHits[digits]?.includes(id));
+	};
+	$: searchingDni = dniWords.some((d) => dniPending.has(d) || !(d in dniHits));
 	$: visible = words.length
 		? byStatus.filter((o) => {
 				const hay = foldSearch(
-					`${o.reference} ${o.name} ${o.email} ${o.dni} ${o.holders.map((h) => h.name).join(' ')}`
+					`${o.reference} ${o.name} ${o.email} ${o.holders.map((h) => h.name).join(' ')}`
 				);
-				return words.every((w) => hay.includes(w));
+				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
 	$: counts = {
@@ -116,7 +165,9 @@
 		</label>
 	</div>
 
-	{#if visible.length === 0}
+	{#if searchingDni}
+		<p class="searching" role="status">Buscando por DNI…</p>
+	{:else if visible.length === 0}
 		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
@@ -124,7 +175,7 @@
 			<li class="order status-{o.status}" id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
-					<span class="dni">DNI {formatDni(o.dni)}</span>
+					<DniReveal orderId={o.id} tail={o.dniTail} {form} />
 					<a href="mailto:{o.email}">{o.email}</a>
 					<Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}
 						><span class="status">{ORDER_STATUS[o.status]}</span></Badge
@@ -347,7 +398,10 @@
 		align-items: center;
 		overflow-wrap: anywhere;
 	}
-	.dni,
+	.searching {
+		margin: var(--space-2xs) 0;
+		color: var(--muted);
+	}
 	.ref {
 		font-family: ui-monospace, monospace;
 		white-space: nowrap;

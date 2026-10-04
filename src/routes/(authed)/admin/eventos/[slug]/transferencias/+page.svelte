@@ -7,7 +7,8 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import ReopenTransferButton from '$lib/components/admin/panel/ReopenTransferButton.svelte';
-	import { ORDER_STATUS, formatDni, shortTime } from '$lib/admin/orderFormat.js';
+	import { ORDER_STATUS, shortTime } from '$lib/admin/orderFormat.js';
+	import DniReveal from '$lib/components/admin/DniReveal.svelte';
 	import { formatARS } from '$lib/utils/money.js';
 
 	/** @type {import('./$types').PageData} */
@@ -96,7 +97,7 @@
 						<div class="who">
 							<strong class="ref">{o.reference}</strong>
 							<strong>{o.name}</strong>
-							<span class="dni">DNI {formatDni(o.dni)}</span>
+							<DniReveal orderId={o.id} tail={o.dniTail} {form} />
 							<a href="mailto:{o.email}">{o.email}</a>
 						</div>
 						<div class="what">
@@ -214,10 +215,6 @@
 		overflow-wrap: anywhere;
 	}
 	.ref,
-	.dni {
-		font-family: ui-monospace, monospace;
-		white-space: nowrap;
-	}
 	.what,
 	.meta {
 		font-size: var(--text-sm);
