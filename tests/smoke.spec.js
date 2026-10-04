@@ -55,7 +55,7 @@ const icsDate = (v) =>
 	Date.parse(v.replace(/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)(Z?)$/, '$1-$2-$3T$4:$5:$6$7'));
 
 const MAIN_ROUTES = [
-	// The home <h1> is a hidden h-card (microformats), so check the first visible section title.
+	// The home <h1> (the logo) is checked in its own test below; here, the first section title.
 	{ path: '/', title: /^Kinky Vibe$/, heading: 'Talleres y eventos', level: 2 },
 	{ path: '/calendario', title: /^Calendario · Kinky Vibe$/ },
 	{ path: '/material', title: /Artículos, links y descargables/ },
@@ -81,6 +81,21 @@ test.describe('rutas principales', () => {
 				).toBeVisible();
 		});
 	}
+
+	test('/ muestra el logo como h1 y la descripción del proyecto', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.goto('/');
+		const h1 = page.getByRole('heading', { level: 1, name: 'Kinky Vibe', exact: true });
+		await expect(h1).toBeVisible();
+		await expect(h1.getByRole('img', { name: 'Kinky Vibe', exact: true })).toBeVisible();
+		await expect(
+			page
+				.locator('header.intro')
+				.getByText('Proyecto de educación crítica, cultura transformativa y comunidad disidente.', {
+					exact: true
+				})
+		).toBeVisible();
+	});
 
 	test('/login muestra el botón de GitHub', async ({ page }) => {
 		const res = await page.goto('/login');

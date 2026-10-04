@@ -18,7 +18,8 @@
 	}
 
 	const title = 'Kinky Vibe';
-	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
+	const summary =
+		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
 	const websiteSchema = {
@@ -84,12 +85,11 @@
 </div>
 <main>
 	<header class="intro">
-		<h1 class="page-title">Kinky Vibe</h1>
-		<!-- DECIDIDO POR CLAUDE, A CONFIRMAR: armado con el texto de la h-card y la descripción -->
-		<p>
-			Un proyecto de divulgación y acompañamiento disidente: talleres, eventos, material e
-			información cuir, kinky y de BDSM para todes.
-		</p>
+		<!-- el logo es el h1: su alt da el nombre «Kinky Vibe» a lectores de pantalla y buscadores -->
+		<h1 class="intro-logo">
+			<img src={kinkyProfilePic} alt="Kinky Vibe" width="199" height="192" />
+		</h1>
+		<p>Proyecto de educación crítica, cultura transformativa y comunidad disidente.</p>
 	</header>
 	{#if $page.url.searchParams.has('carrousel')}
 		<Carrousel
@@ -164,20 +164,32 @@
 		gap: var(--space-xl);
 		padding-top: var(--space-s);
 	}
+	/* logo a la izquierda y la descripción a la derecha, también en el celu */
 	.intro {
 		max-width: 50rem;
 		margin-inline: auto;
 		padding-inline: var(--space-xs);
-		text-align: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-s);
 	}
-	.intro .page-title {
+	.intro-logo {
 		margin: 0;
+		flex: none;
+		line-height: 0;
+	}
+	.intro-logo img {
+		display: block;
+		width: var(--space-xl-2xl);
+		height: auto;
 	}
 	.intro p {
-		margin: var(--space-2xs) auto 0;
-		max-width: 36rem;
+		margin: 0;
+		max-width: 30rem;
 		font-size: var(--text-base);
 		color: var(--muted);
+		text-wrap: pretty;
 	}
 	.cardrow {
 		width: 100%;
