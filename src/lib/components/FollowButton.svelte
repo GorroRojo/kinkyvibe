@@ -23,6 +23,7 @@
 	let info = null;
 	let here = '/';
 	let busy = false;
+	/** @type {'' | 'seguir' | 'dejar'} */
 	let message = '';
 	let error = '';
 
@@ -48,9 +49,7 @@
 			busy = false;
 			if (result.type === 'success' && info?.member) {
 				info = { ...info, following };
-				message = following
-					? 'Listo. Elegí qué querés recibir en Mi rincón → Lo que sigo.'
-					: 'Listo: ya no lo seguís.';
+				message = following ? 'seguir' : 'dejar';
 			} else if (result.type === 'redirect') {
 				window.location.href = result.location;
 			} else if (result.type === 'failure') {
@@ -95,7 +94,13 @@
 				<a class="hint" href="/mi-rincon/sigo">Qué recibís</a>
 			{/if}
 		{/if}
-		{#if message}<p class="ok" role="status">{message}</p>{/if}
+		{#if message === 'seguir'}
+			<p class="ok" role="status">
+				Listo. Elegí qué querés recibir en <a href="/mi-rincon/sigo">Mi rincón → Lo que sigo</a>.
+			</p>
+		{:else if message === 'dejar'}
+			<p class="ok" role="status">Listo: ya no lo seguís.</p>
+		{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 	</div>
 {/if}
@@ -106,8 +111,12 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5em 0.8em;
-		width: min(45rem, 100%);
+		/* 16px a los costados en el celu */
+		width: min(45rem, calc(100% - 32px));
 		margin: 1em auto 0;
+	}
+	.ok a {
+		color: inherit;
 	}
 	.follow :global(.pill-btn) {
 		display: inline-flex;
