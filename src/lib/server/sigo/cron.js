@@ -12,7 +12,7 @@
 import { env } from '$env/dynamic/private';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isFlagOn } from '$lib/server/flags.js';
-import { siteTags } from '$lib/server/series/index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { seriesSender } from '$lib/server/series/web.js';
 import { telegramSender } from '$lib/server/telegram/send.js';
 import { avisameViaSigo } from './avisame.js';
@@ -38,7 +38,10 @@ export async function runSigoCron({
 	return runFollowNotifications({
 		db,
 		posts: await sitePosts(platform),
-		tags: siteTags(),
+		// Las etiquetas y series de la base, leídas acá (no el árbol que dejó el último pedido).
+		tags: await siteTagManager(
+			platform ?? /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
+		),
 		origin,
 		send: send ?? seriesSender(db, fetchFn),
 		telegram: await telegramChannel(db, fetchFn, telegramSend),

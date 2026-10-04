@@ -13,6 +13,7 @@ import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
+import { saveObject } from '$lib/server/objects/save.js';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 
@@ -27,7 +28,8 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 });
-afterEach(() => {
+afterEach(async () => {
+	(await import('$lib/server/contenido/repo.js')).setContentDB(null);
 	vi.doUnmock('$env/dynamic/private');
 	vi.doUnmock('$lib/server/eventos');
 	vi.resetModules();
@@ -35,33 +37,74 @@ afterEach(() => {
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
-/** @param {Record<string, string>} env */
+/**
+ * La página con un repo de mentira detrás de `withContentDb` (como en producción): los eventos se
+ * leen y se guardan en la base; `commits` y `reads` son lo que llegaría a GitHub.
+ * @param {Record<string, string>} env
+ */
 async function page(env) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { ...env } }));
 	/** @type {any[]} */
 	const commits = [];
-	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
-		.../** @type {any} */ (await importOriginal()),
-		getRepoClient: async () => ({
-			getFile: async () => null, // usa la copia del deploy
-			// Un evento inventado de la serie (solo se lee al renombrar).
-			getDirTexts: async (/** @type {string} */ _t, /** @type {string} */ dir) =>
-				dir.endsWith('calendario') ? [{ path: `${dir}/edicion-de-prueba.md`, text: EVENT_MD }] : [],
-			commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
-				commits.push(c);
-				return { url: 'https://example.com/commit/prueba' };
-			}
-		})
-	}));
-	return { mod: await import('./+page.server.js'), commits };
+	/** @type {string[]} */
+	const reads = [];
+	vi.doMock('$lib/server/eventos', async (importOriginal) => {
+		const { withContentDb } = await import('$lib/server/contenido/repo.js');
+		return {
+			.../** @type {any} */ (await importOriginal()),
+			getRepoClient: async () =>
+				withContentDb({
+					getFile: async (/** @type {string} */ _t, /** @type {string} */ path) => {
+						reads.push(path);
+						return null;
+					},
+					// En el repo hay una página de la wiki con la serie: nunca se lee ni se escribe.
+					getDirTexts: async (/** @type {string} */ _t, /** @type {string} */ dir) => {
+						reads.push(dir);
+						return dir.endsWith('wiki')
+							? [{ path: `${dir}/termino-de-prueba.md`, text: WIKI_MD }]
+							: [];
+					},
+					commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
+						commits.push(c);
+						return { url: 'https://example.com/commit/prueba' };
+					}
+				})
+		};
+	});
+	const repo = await import('$lib/server/contenido/repo.js');
+	repo.setContentDB(t.db);
+	return { mod: await import('./+page.server.js'), commits, reads };
+}
+
+/** Una edición inventada de la serie, en la base. */
+async function seedEdition() {
+	await saveObject(
+		t.db,
+		{
+			type: 'evento',
+			slug: 'edicion-de-prueba',
+			title: 'Edición de prueba',
+			data: { start: '2031-05-01T20:00:00-03:00', tags: ['Picantearla'] }
+		},
+		{ actor: 'admin-de-prueba' }
+	);
+}
+
+/** Las etiquetas de la edición, en la base. */
+async function editionTags() {
+	const row = /** @type {any} */ (
+		await t.db.prepare("SELECT data FROM objects WHERE slug = 'edicion-de-prueba'").first()
+	);
+	return JSON.parse(row.data).tags;
 }
 
 /** @param {Record<string, string>} form @param {any} [user] */
 const post = (form, user = admin) =>
 	fakeRequestEvent({ platform: t.platform, path: '/admin/eventos/series?/editar', user, form });
 
-const EVENT_MD = ['---', 'title: Edición de prueba', 'tags:', '  - Picantearla', '---', ''].join(
+const WIKI_MD = ['---', 'title: Término de prueba', 'tags:', '  - Picantearla', '---', ''].join(
 	'\n'
 );
 
@@ -148,13 +191,14 @@ describe('Editar serie', () => {
 	describe('renombrar la serie', () => {
 		const RENAME = { ...EDIT, key: 'Picantearla Renombrada' };
 
-		it('con la base: primero cuántas publicaciones cambian; al confirmar, commit y base sin alias', async () => {
+		it('con la base: primero cuántas publicaciones cambian; al confirmar, las ediciones y la serie cambian en la base (nada a GitHub)', async () => {
 			await importTags(
 				t.db,
 				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
 				{ actor: 'admin-de-prueba' }
 			);
-			const { mod, commits } = await page({});
+			await seedEdition();
+			const { mod, commits, reads } = await page({});
 			const asked = /** @type {any} */ (await mod.actions.editar(post(RENAME)));
 			expect(asked).toMatchObject({
 				editing: 'Picantearla',
@@ -180,8 +224,10 @@ describe('Editar serie', () => {
 					posts: 1
 				}
 			});
-			expect(commits).toHaveLength(1);
-			expect(commits[0].files[0].content).toContain('  - Picantearla Renombrada');
+			// La edición cambió en la base; a GitHub no llegó nada (ni se leyó la wiki ni amigues).
+			expect(await editionTags()).toEqual(['Picantearla Renombrada']);
+			expect(commits).toHaveLength(0);
+			expect(reads).toEqual([]);
 			const records = await loadTagRecords(t.db);
 			expect(records.some((r) => r.key === 'Picantearla')).toBe(false);
 			expect(records.find((r) => r.key === 'Picantearla Renombrada')?.data).toMatchObject({

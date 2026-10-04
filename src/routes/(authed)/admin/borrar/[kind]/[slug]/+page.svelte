@@ -56,7 +56,9 @@
 			<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
 			<UndoToast {busy} message="Borraste «{deleted.title}»." />
 		</form>
-		<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
+		{#if !deleted.immediate}
+			<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
+		{/if}
 		{#if problem}<p class="kv-flash bad" role="alert">{problem}</p>{/if}
 		<p class="kv-note">
 			Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"
@@ -94,7 +96,11 @@
 				{/if}
 				<ul class="reasons">
 					{#each plan.notes as n (n)}<li>{n}</li>{/each}
-					<li>Hasta que se publique lo podés deshacer, y después recuperarlo desde Actividad.</li>
+					{#if data.backend === 'objects'}
+						<li>Lo podés deshacer acá mismo, o recuperarlo más tarde desde Actividad.</li>
+					{:else}
+						<li>Hasta que se publique lo podés deshacer, y después recuperarlo desde Actividad.</li>
+					{/if}
 				</ul>
 				<form method="POST" action="?/borrar" use:enhance={submit} class="kv-form">
 					{#if plan.needsTyping}
