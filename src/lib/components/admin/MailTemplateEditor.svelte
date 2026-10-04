@@ -200,8 +200,10 @@
 							placeholder={mode === 'event' ? (inherited.body ?? '') : ''}
 							aria-invalid={serverErrors.body ? 'true' : undefined}></textarea>
 						<small>
-							<code>**así**</code> para negrita; una línea en blanco empieza otro párrafo. No se acepta
-							HTML.
+							<code>**así**</code> para negrita; <code>[texto](https://…)</code> para un link
+							(también
+							<code>mailto:</code> y <code>tel:</code>); una línea en blanco empieza otro párrafo.
+							No se acepta HTML.
 						</small>
 					{:else}
 						<input
@@ -223,7 +225,8 @@
 		<Card title="Detalles del diseño">
 			<p class="kv-note">
 				Opcionales. Texto común y <code>{'{{variables}}'}</code>; en la ayuda y el pie también
-				<code>**negrita**</code>. A dónde lleva el botón lo decide siempre el sistema.
+				<code>**negrita**</code> y links (<code>[texto](https://…)</code>). A dónde lleva el botón
+				lo decide siempre el sistema.
 			</p>
 			{#each keys.filter(isExtra) as k (k)}
 				<label class="kv-field">

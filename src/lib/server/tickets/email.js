@@ -41,23 +41,27 @@ function applyTemplate(template, vars) {
 		const v = template?.[k];
 		return typeof v === 'string' && v.trim() ? v : null;
 	};
-	/** @param {string | null} t */
-	const plainLine = (t) => (t === null ? null : renderPlain(t, vars).replace(/\s+/g, ' ').trim());
+	/** @param {string | null} t @param {boolean} [links] */
+	const plainLine = (t, links = true) =>
+		t === null ? null : renderPlain(t, vars, { links }).replace(/\s+/g, ' ').trim();
+	/** @param {string} t */
+	const plain = (t) => renderPlain(t, vars, { links: true });
 	const heading = get('heading');
 	const body = get('body');
 	const help = get('help');
 	const why = get('why');
 	return {
-		subject: plainLine(get('subject')),
+		// En el asunto, un link se ve tal cual (no se interpreta).
+		subject: plainLine(get('subject'), false),
 		headingHtml: heading === null ? null : renderInlineHtml(heading, vars),
-		headingText: heading === null ? null : renderPlain(heading, vars),
+		headingText: heading === null ? null : plain(heading),
 		bodyHtml: body === null ? null : renderBlockHtml(body, vars),
-		bodyText: body === null ? null : renderPlain(body, vars),
+		bodyText: body === null ? null : plain(body),
 		// Texto solo: el layout lo escapa.
 		label: plainLine(get('label')),
 		button: plainLine(get('button')),
 		helpHtml: help === null ? null : renderInlineHtml(help, vars),
-		helpText: help === null ? null : renderPlain(help, vars),
+		helpText: help === null ? null : plain(help),
 		whyHtml: why === null ? null : renderInlineHtml(why, vars)
 	};
 }

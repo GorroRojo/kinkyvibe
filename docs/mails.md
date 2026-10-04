@@ -23,9 +23,15 @@ un evento, y mandarse una prueba.
   otro lado.
 - **Una plantilla no puede romper un mail.** Solo se editan asunto, título, texto de arriba,
   etiqueta, texto del botón, línea de ayuda y pie, en un formato seguro (`{{variable}}`,
-  `**negrita**`, párrafos), todo escapado; algo que parece HTML no se puede guardar. QR, códigos,
-  links (también a dónde lleva el botón), precios y la política de devoluciones los pone siempre el
-  código.
+  `**negrita**`, `[texto](dirección)`, párrafos), todo escapado; algo que parece HTML no se puede
+  guardar. QR, códigos, los links de las entradas y a dónde lleva el botón, precios y la política
+  de devoluciones los pone siempre el código.
+- **Links en las plantillas:** `[texto](https://…)` sale como link en el HTML y como
+  «texto (dirección)» en el texto plano (la etiqueta y el botón, que son texto solo, también así).
+  Solo a `https://`, `http://`, `mailto:` y `tel:` (`isSafeLinkUrl` en `emailTemplates.js`): con
+  otra dirección (`javascript:`, `data:`…) no se puede guardar y, si igual llega, se ve como texto.
+  La dirección puede ser una variable (`[tu compra]({{link_estado}})`): su valor se revisa al
+  armar el mail. El valor de una variable nunca se vuelve link. En el asunto no se interpretan.
 - **"Mandarme una prueba" solo va a direcciones de la organización** (el email público de GitHub
   de le admin, la de respuesta, el contacto y las de `EMAIL_ALLOWLIST`), nunca a una cualquiera.
 - El DNI nunca va en un mail. Los tokens de las entradas no se loguean completos.
