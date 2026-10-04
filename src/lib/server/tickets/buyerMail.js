@@ -15,6 +15,7 @@
  * - El mail sale por `deliver()` de index.js, así que en los previews solo llega a EMAIL_ALLOWLIST.
  */
 import { escapeHtml, formatEventDate } from './email.js';
+import { mailLayout } from '$lib/server/email/layout.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -72,23 +73,28 @@ export function validateBuyerMail(input) {
  *
  * @param {{
  *   subject: string, body: string, buyerName: string,
- *   event: { title: string, start?: string }, contactEmail: string
+ *   event: { title: string, start?: string }, contactEmail: string, origin?: string
  * }} input
+ * `origin`: del sitio, para el logo (sin él, SITE_URL o el de producción).
  */
-export function buildBuyerMail({ subject, body, buyerName, event, contactEmail }) {
+export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, origin }) {
 	const when = formatEventDate(event.start);
 	const fullSubject = subject.includes(event.title) ? subject : `${subject} · ${event.title}`;
 	const paragraphs = body
 		.split(/\n{2,}/)
 		.map((p) => `<p>${escapeHtml(p).replaceAll('\n', '<br>')}</p>`)
 		.join('\n\t\t');
-	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
-		<p style="font-size:13px;color:#666;margin:0 0 4px">Sobre tu entrada para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}</p>
-		<h1 style="color:#b3127a;font-size:22px">${escapeHtml(subject)}</h1>
+	const html = mailLayout({
+		origin,
+		label: 'Sobre tu entrada',
+		titleHtml: escapeHtml(subject),
+		contentHtml: `<p><strong>${escapeHtml(event.title)}</strong>${when ? `<br>${escapeHtml(when)}` : ''}</p>
 		<p>Hola ${escapeHtml(buyerName)}:</p>
-		${paragraphs}
-		<p style="font-size:13px;color:#666">Te escribimos porque compraste una entrada para este evento. Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>
-		</body></html>`;
+		${paragraphs}`,
+		helpHtml: 'Si tenés alguna duda, respondé este mail.',
+		whyHtml: 'Te escribimos porque compraste una entrada para este evento.',
+		contactEmail
+	});
 	const text = [
 		`Sobre tu entrada para ${event.title}${when ? ` (${when})` : ''}`,
 		'',

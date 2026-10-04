@@ -44,6 +44,15 @@ Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definici
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 (`email_templates`) en `templates.js`, el
 editor en `/admin/mensajes/plantillas`.
 
+**Plantilla común (diseño):** todos los mails (los de esta tabla y los de series, «Lo que sigo» e
+invitaciones a perfiles) se arman con `mailLayout()` de `src/lib/server/email/layout.js`: logo
+centrado (URL absoluta del sitio, nunca `data:`), tarjeta blanca con borde rosa, etiqueta gris,
+título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te llega, el contacto, la
+baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
+de la tarjeta. El texto plano no pasa por la plantilla. `src/lib/server/email/layout.test.js`
+comprueba que cada builder la usa y que el asunto y el texto plano siguen iguales
+(`mails.text.json`).
+
 **Recordatorios:** un Worker aparte (`workers/cron/`, ver su README) llama cada 15 minutos a
 `POST /api/cron/recordatorios` con el header `x-cron-secret`. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.

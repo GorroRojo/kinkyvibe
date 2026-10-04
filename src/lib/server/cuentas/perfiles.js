@@ -764,7 +764,8 @@ export async function sendInviteNotice(db, { profileId, email, hash, notice, now
 		const groupTitle = String(group.title);
 		const message = buildProfileInviteEmail({
 			groupTitle,
-			url: new URL('/mi-rincon/perfiles', notice.origin).href
+			url: new URL('/mi-rincon/perfiles', notice.origin).href,
+			origin: notice.origin
 		});
 		return await notice.send(account.email, message, `Invitación a gestionar «${groupTitle}»`);
 	} catch (error) {
