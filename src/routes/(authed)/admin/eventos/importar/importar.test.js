@@ -69,13 +69,20 @@ const admin = { user: { id: ADMINS[0].id, login: ADMINS[0].login }, user_token: 
 const notAdmin = { user: { id: 1, login: 'persona-de-prueba' }, user_token: 'prueba' };
 const URL_ = new URL('http://localhost/admin/eventos/importar');
 
-/** @param {any} locals @param {unknown[]} rows */
-async function crear(locals, rows) {
+/**
+ * @param {any} locals
+ * @param {unknown[]} rows
+ * @param {{ allSlugs?: string[], dryRun?: boolean, importAt?: number, platform?: any }} [opts]
+ */
+async function crear(locals, rows, { allSlugs, dryRun, importAt, platform } = {}) {
 	const body = new FormData();
 	body.set('rows', JSON.stringify(rows));
+	if (allSlugs) body.set('allSlugs', JSON.stringify(allSlugs));
+	if (dryRun) body.set('dryRun', '1');
+	if (importAt) body.set('importAt', String(importAt));
 	/** @type {any} */
 	const event = {
-		platform: t.platform,
+		platform: platform ?? t.platform,
 		locals,
 		request: new Request(URL_, { method: 'POST', body }),
 		url: URL_
@@ -214,5 +221,167 @@ describe('action crear', () => {
 	it('solo admins', async () => {
 		const r = await crear(notAdmin, [ROW]);
 		expect(r.status).toBe(403);
+	});
+});
+
+/** `n` filas inventadas, cada una con su dirección. @param {number} n */
+const manyRows = (n) =>
+	Array.from({ length: n }, (_, i) => ({
+		...ROW,
+		title: `Taller Inventado ${i + 1}`,
+		slug: `taller-inventado-tanda-${i + 1}`
+	}));
+
+/** Cuántos eventos con estas direcciones hay en la base. @param {string[]} slugs */
+async function countEvents(slugs) {
+	const r = /** @type {any} */ (
+		await t.db
+			.prepare(
+				`SELECT COUNT(*) AS n FROM objects
+				 WHERE type = 'evento' AND slug IN (SELECT value FROM json_each(?1))`
+			)
+			.bind(JSON.stringify(slugs))
+			.first()
+	);
+	return Number(r.n);
+}
+
+/**
+ * Una base que falla al guardar el evento con la dirección `slug` (para probar un guardado que se
+ * corta a mitad de una tanda).
+ * @param {string} slug
+ */
+function platformFailingOn(slug) {
+	const real = t.db;
+	const db = new Proxy(real, {
+		get(target, prop) {
+			if (prop === 'prepare') {
+				return (/** @type {string} */ sql) => {
+					const st = target.prepare(sql);
+					if (!/INSERT INTO objects/.test(sql)) return st;
+					return new Proxy(st, {
+						get(s, p) {
+							if (p === 'bind') {
+								return (/** @type {unknown[]} */ ...args) => {
+									if (args.includes(slug)) throw new Error('Falla inventada');
+									return s.bind(...args);
+								};
+							}
+							const v = /** @type {any} */ (s)[p];
+							return typeof v === 'function' ? v.bind(s) : v;
+						}
+					});
+				};
+			}
+			const v = /** @type {any} */ (target)[prop];
+			return typeof v === 'function' ? v.bind(target) : v;
+		}
+	});
+	return { ...t.platform, env: { ...t.platform.env, DB: db } };
+}
+
+describe('de a tandas (hasta 200 filas)', () => {
+	it('la página puede importar 200 filas: revisa todas y después guarda de a 40', async () => {
+		const data = await callLoad(admin);
+		expect(data.maxRows).toBe(200);
+		expect(data.chunk).toBe(40);
+		const rows = manyRows(200);
+		const allSlugs = rows.map((r) => r.slug);
+		// 1. Revisar (no guarda nada).
+		for (let from = 0; from < rows.length; from += data.chunk) {
+			const r = await crear(admin, rows.slice(from, from + data.chunk), {
+				allSlugs,
+				dryRun: true
+			});
+			expect(r.success).toBe(true);
+			expect(r.checked).toBe(Math.min(data.chunk, rows.length - from));
+		}
+		expect(await countEvents(allSlugs)).toBe(0);
+		// 2. Guardar.
+		const importAt = Date.now();
+		const created = [];
+		for (let from = 0; from < rows.length; from += data.chunk) {
+			const r = await crear(admin, rows.slice(from, from + data.chunk), { allSlugs, importAt });
+			expect(r.success).toBe(true);
+			expect(r.failed).toBeNull();
+			created.push(...r.created);
+		}
+		expect(created.map((c) => c.slug)).toEqual(allSlugs);
+		expect(await countEvents(allSlugs)).toBe(200);
+		// Una línea en Actividad por tanda.
+		const audit = await listAudit(t.db, { limit: 10 });
+		expect(audit.filter((a) => a.action === 'event.import')).toHaveLength(5);
+	});
+
+	it('más de 40 filas en un pedido, o más de 200 en total: no guarda nada', async () => {
+		const tooMany = await crear(admin, manyRows(41));
+		expect(tooMany.status).toBe(400);
+		const rows = manyRows(201);
+		const r = await crear(admin, rows.slice(0, 40), { allSlugs: rows.map((x) => x.slug) });
+		expect(r.status).toBe(400);
+		expect(r.data.error).toMatch(/hasta 200/);
+		expect(await countEvents(rows.map((x) => x.slug))).toBe(0);
+	});
+
+	it('una dirección repetida en otra tanda es un error de la fila', async () => {
+		const rows = manyRows(45);
+		rows[44].slug = rows[3].slug;
+		const allSlugs = rows.map((r) => r.slug);
+		const r = await crear(admin, rows.slice(40), { allSlugs, dryRun: true });
+		expect(r.status).toBe(400);
+		expect(r.data.rowErrors[4]).toMatch(/misma dirección/);
+	});
+
+	it('si se reintenta una tanda (se cortó la respuesta), no se duplica nada', async () => {
+		const rows = manyRows(80);
+		const allSlugs = rows.map((r) => r.slug);
+		const importAt = Date.now();
+		const first = await crear(admin, rows.slice(0, 40), { allSlugs, importAt });
+		expect(first.success).toBe(true);
+		// La misma tanda otra vez, con el mismo importAt: ya estaba guardada.
+		const again = await crear(admin, rows.slice(0, 40), { allSlugs, importAt });
+		expect(again.success).toBe(true);
+		expect(again.failed).toBeNull();
+		expect(again.created.map((/** @type {any} */ c) => c.slug)).toEqual(allSlugs.slice(0, 40));
+		expect(again.created.every((/** @type {any} */ c) => c.again)).toBe(true);
+		const second = await crear(admin, rows.slice(40), { allSlugs, importAt });
+		expect(second.success).toBe(true);
+		expect(await countEvents(allSlugs)).toBe(80);
+		const all = /** @type {any} */ (
+			await t.db
+				.prepare(`SELECT COUNT(*) AS n FROM objects WHERE type = 'evento' AND slug LIKE ?1`)
+				.bind('taller-inventado-tanda-%')
+				.first()
+		);
+		expect(Number(all.n)).toBe(80);
+		// Actividad: solo lo que se creó de verdad (dos tandas, no tres).
+		const audit = await listAudit(t.db, { limit: 10 });
+		expect(audit.filter((a) => a.action === 'event.import')).toHaveLength(2);
+		// Otra importación (otro importAt) con una dirección ya usada: choque, como siempre.
+		const other = await crear(admin, rows.slice(0, 1), { importAt: importAt + 1 });
+		expect(other.status).toBe(409);
+	});
+
+	it('un guardado que falla a mitad de una tanda: lo anterior queda y se dice qué fila falló', async () => {
+		const rows = manyRows(80);
+		const allSlugs = rows.map((r) => r.slug);
+		const importAt = Date.now();
+		const first = await crear(admin, rows.slice(0, 40), { allSlugs, importAt });
+		expect(first.success).toBe(true);
+		const broken = await crear(admin, rows.slice(40), {
+			allSlugs,
+			importAt,
+			platform: platformFailingOn(rows[52].slug)
+		});
+		expect(broken.success).toBe(true);
+		expect(broken.created).toHaveLength(12);
+		expect(broken.failed).toMatchObject({
+			index: 12,
+			slug: rows[52].slug,
+			title: rows[52].title,
+			pending: 27
+		});
+		expect(broken.failed.message).toMatch(/Falla inventada/);
+		expect(await countEvents(allSlugs)).toBe(52);
 	});
 });

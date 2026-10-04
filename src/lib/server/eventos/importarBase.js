@@ -54,11 +54,18 @@ import {
 /** @typedef {import('$lib/utils/sourcePicker.js').ImportSource} ImportSource */
 
 /**
- * Filas por importación. Cada fila son unas pocas consultas a D1 (leer el original una vez por
- * evento, los perfiles de `personas`, el guardado con su historial); 40 es el mismo tope que la
- * importación de los `.md` (../contenido/importer.js), lejos del máximo de consultas por pedido.
+ * Filas por importación (lo que se puede pegar y crear de una vez). No van todas en un pedido: la
+ * página las manda de a {@link IMPORT_CHUNK}.
  */
-export const IMPORT_MAX_ROWS = 40;
+export const IMPORT_MAX_ROWS = 200;
+
+/**
+ * Filas por pedido. Cada fila son unas pocas consultas a D1 (leer el original una vez por evento,
+ * los perfiles de `personas`, el guardado con su historial); 40 es el mismo tope que la importación
+ * de los `.md` (../contenido/importer.js), lejos del máximo de consultas por pedido. La página
+ * repite pedidos de a 40 (primero revisa todas, después guarda) hasta terminar.
+ */
+export const IMPORT_CHUNK = 40;
 
 /** Las claves de la venta de entradas (y la meta) que el editor de entradas lee de un evento. */
 export const TICKET_META_KEYS = /** @type {const} */ ([
@@ -208,6 +215,13 @@ function withTickets(content, form) {
  * falla a mitad de camino (por ejemplo, alguien usó la dirección recién), los anteriores quedan
  * guardados y se informa cuál falló (`failed`).
  *
+ * Por tandas (la página manda de a {@link IMPORT_CHUNK}): `dryRun` solo arma y valida (no guarda
+ * nada); `allSlugs` son las direcciones de toda la importación, para que la dirección que se
+ * propone ante un choque no choque con otra fila de otra tanda. Todas las tandas de una importación
+ * usan el mismo `now`: una fila cuya dirección ya es un evento creado por `actor` justo en `now` es
+ * de esta misma importación (una tanda que se reintentó porque se cortó la respuesta), así que no
+ * se vuelve a crear ni cuenta como choque: vuelve en `created` con `again: true`.
+ *
  * @param {D1Database} db
  * @param {{
  *   rows: ImportRow[],
@@ -215,24 +229,30 @@ function withTickets(content, form) {
  *   superadmin?: boolean,
  *   today: string,
  *   taken: Set<string>,
- *   now?: number
+ *   now?: number,
+ *   dryRun?: boolean,
+ *   allSlugs?: Iterable<string>
  * }} input
  * @returns {Promise<
  *   | { ok: false, status: 400, rowErrors: Record<number, string> }
  *   | { ok: false, status: 409, conflicts: Record<number, string> }
- *   | { ok: true, created: CreatedDraft[], failed: { index: number, slug: string, message: string } | null }
+ *   | { ok: true, created: Array<CreatedDraft & { again?: boolean }>, failed: { index: number, slug: string, message: string } | null }
  * >}
  */
 export async function createImportedDrafts(
 	db,
-	{ rows, actor, superadmin = true, today, taken, now = Date.now() }
+	{ rows, actor, superadmin = true, today, taken, now = Date.now(), dryRun = false, allSlugs = [] }
 ) {
-	// Direcciones ocupadas: se propone otra (libre también dentro de la tanda).
+	// Filas que ya guardó esta misma importación (una tanda reintentada): no se crean de nuevo.
+	/** @type {Map<string, { id: number, slug: string, title: string }>} */
+	const already = dryRun ? new Map() : await savedByThisImport(db, rows, actor, now);
+
+	// Direcciones ocupadas: se propone otra (libre también dentro de toda la importación).
 	/** @type {Record<number, string>} */
 	const conflicts = {};
-	const batch = new Set(rows.map((r) => r.slug));
+	const batch = new Set([...allSlugs, ...rows.map((r) => r.slug)]);
 	rows.forEach((row, i) => {
-		if (taken.has(row.slug))
+		if (taken.has(row.slug) && !already.has(row.slug))
 			conflicts[i] = uniqueSlug(row.slug, (s) => taken.has(s) || batch.has(s));
 	});
 	if (Object.keys(conflicts).length) return { ok: false, status: 409, conflicts };
@@ -262,6 +282,7 @@ export async function createImportedDrafts(
 	/** @type {Array<{ index: number, row: ImportRow, title: string, data: Record<string, unknown>, edges: Record<string, unknown[]>, visibility: 'public' | 'hidden', notes: string[] }>} */
 	const planned = [];
 	for (const [i, row] of rows.entries()) {
+		if (already.has(row.slug)) continue;
 		try {
 			const src = row.source ? await sourceOf(row.source) : null;
 			if (row.source && (!src?.file || src.file.deleted)) {
@@ -336,10 +357,18 @@ export async function createImportedDrafts(
 		}
 	}
 	if (Object.keys(rowErrors).length) return { ok: false, status: 400, rowErrors };
+	if (dryRun) return { ok: true, created: [], failed: null };
 
-	/** @type {CreatedDraft[]} */
+	/** @type {Array<CreatedDraft & { again?: boolean }>} */
 	const created = [];
-	for (const p of planned) {
+	const plannedByIndex = new Map(planned.map((p) => [p.index, p]));
+	for (const [index, row] of rows.entries()) {
+		const done = already.get(row.slug);
+		if (done) {
+			created.push({ ...done, source: row.source, notes: [], again: true });
+			continue;
+		}
+		const p = /** @type {(typeof planned)[number]} */ (plannedByIndex.get(index));
 		try {
 			const saved = await saveObject(
 				db,
@@ -371,4 +400,33 @@ export async function createImportedDrafts(
 		}
 	}
 	return { ok: true, created, failed: null };
+}
+
+/**
+ * Los eventos de `rows` que ya creó esta importación: misma dirección, creados por `actor` justo en
+ * `now` (todas las tandas de una importación guardan con el mismo `now`).
+ *
+ * @param {D1Database} db
+ * @param {ImportRow[]} rows
+ * @param {string} actor
+ * @param {number} now
+ * @returns {Promise<Map<string, { id: number, slug: string, title: string }>>}
+ */
+async function savedByThisImport(db, rows, actor, now) {
+	const slugs = [...new Set(rows.map((r) => r.slug).filter(Boolean))];
+	/** @type {Map<string, { id: number, slug: string, title: string }>} */
+	const out = new Map();
+	if (!slugs.length) return out;
+	const marks = slugs.map((_, i) => `?${i + 4}`).join(', ');
+	const { results } = await db
+		.prepare(
+			`SELECT id, slug, title FROM objects
+			 WHERE type = ?1 AND created_by = ?2 AND created_at = ?3 AND slug IN (${marks})`
+		)
+		.bind(EVENT_TYPE, actor, now, ...slugs)
+		.all();
+	for (const r of results) {
+		out.set(String(r.slug), { id: Number(r.id), slug: String(r.slug), title: String(r.title) });
+	}
+	return out;
 }
