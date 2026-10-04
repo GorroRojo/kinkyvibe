@@ -31,6 +31,10 @@
 	 * se pasa, el `ticketStates` de los datos de la página, si lo hay.
 	 * @type {import('$lib/utils/ticketCta.js').TicketStates | null | undefined} */
 	export let ticketStates = undefined;
+	/** Show "Mostrar/Ocultar eventos pasados"? By default, whenever the list may have events;
+	 * /calendario passes whether the month on screen has past events.
+	 * @type {boolean | undefined} */
+	export let pastEventsToggle = undefined;
 	$: states = ticketStates ?? $page.data?.ticketStates ?? null;
 
 	/**@type ProcessedPost[]*/
@@ -258,8 +262,9 @@
 		{/if}
 		<div id="filterbar">
 			<FilterBar
-				event_toggle={tagFilteredPosts.length == 0 ||
-					tagFilteredPosts.some((p) => p.meta.category == 'calendario')}
+				event_toggle={pastEventsToggle ??
+					(tagFilteredPosts.length == 0 ||
+						tagFilteredPosts.some((p) => p.meta.category == 'calendario'))}
 			/>
 		</div>
 		{#if outerFilteredPosts.length > 0 || searching}

@@ -105,6 +105,19 @@ test.describe('calendario', () => {
 		expect(await links.count()).toBeGreaterThan(1);
 	});
 
+	// «Mostrar/Ocultar eventos pasados» solo cuando el mes que se ve tiene eventos pasados.
+	test('el botón de eventos pasados aparece solo si el mes tiene eventos pasados', async ({
+		page
+	}) => {
+		await acceptAgeGate(page);
+		await page.goto('/calendario?viewdate=2026-09', { waitUntil: 'networkidle' });
+		await expect(page.locator('#show-past-events')).toBeVisible();
+		// Un mes sin ningún evento (y por lo tanto sin pasados).
+		await page.goto('/calendario?viewdate=2030-01', { waitUntil: 'networkidle' });
+		await expect(page.locator('.month').first()).toContainText('Enero');
+		await expect(page.locator('#show-past-events')).toHaveCount(0);
+	});
+
 	test('la página de un evento muestra título y fecha', async ({ browser }) => {
 		const context = await browser.newContext({ timezoneId: 'America/Argentina/Buenos_Aires' });
 		const page = await context.newPage();
