@@ -20,6 +20,7 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
+import { linkFileErrors } from '$lib/utils/eventLink.js';
 import {
 	checkVenueChoice,
 	createVenueForEventAction,
@@ -172,6 +173,12 @@ export const _editActions = {
 				placeFileErrors(c)
 			);
 			if (placeError) return fail(400, { error: placeError });
+			// Link de inscripción: web, mail (mailto:) o página del sitio; nunca javascript:. Como el
+			// mapa, solo frena un problema nuevo (no uno que el archivo ya tenía).
+			const linkError = await newFileErrors(locals.user_token, params, fileContent, (c) =>
+				linkFileErrors(c)
+			);
+			if (linkError) return fail(400, { error: linkError });
 		}
 		// «Lugar» (solo eventos): va a `event_venues`, no al archivo. Se revisa antes de guardar y se
 		// guarda después, solo si el archivo se guardó.

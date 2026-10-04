@@ -80,8 +80,8 @@ const byCategory = {
 			key: 'link',
 			label: 'Link de inscripción / entradas',
 			type: 'url',
-			placeholder: 'https://forms.gle/...',
-			help: 'Solo se muestra cuando el estado es «Abierto».'
+			placeholder: 'https://forms.gle/... o mailto:hola@...',
+			help: 'Un link web o un mail (mailto:). Solo se muestra cuando el estado es «Abierto».'
 		},
 		{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Inscribirme' }
 	],

@@ -1,6 +1,7 @@
 <script>
 	import { deserialize, applyAction } from '$app/forms';
 	import { tick } from 'svelte';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import {
 		describeSchedule,
@@ -224,8 +225,8 @@
 		if (!isValidDate(item.date)) out.push('Falta la fecha.');
 		if (!isValidTime(item.startTime)) out.push('Falta la hora de inicio.');
 		if (item.endTime && !isValidTime(item.endTime)) out.push('La hora de fin no es válida.');
-		if (item.link && !/^https?:\/\/\S+$/.test(item.link.trim()))
-			out.push('El link tiene que empezar con https://');
+		const linkProblem = item.link.trim() ? eventLinkProblem(item.link.trim()) : null;
+		if (linkProblem) out.push(`El link de inscripción ${linkProblem}.`);
 		const slugError = validateSlug(item.slug, takenInSite);
 		if (slugError) out.push(`Dirección: ${slugError}`);
 		else if (all.some((o) => o !== item && o.include && o.slug === item.slug))
@@ -584,7 +585,11 @@
 											<span
 												>Link de inscripción {item.link ? '' : '(sin link queda “anunciado”)'}</span
 											>
-											<input type="url" bind:value={item.link} placeholder="https://forms.gle/…" />
+											<input
+												type="url"
+												bind:value={item.link}
+												placeholder="https://forms.gle/… o mailto:hola@…"
+											/>
 										</label>
 									</div>
 									<dl class="raw">

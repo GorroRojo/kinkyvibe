@@ -23,6 +23,7 @@
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueSchema } from '$lib/utils/venues.js';
 	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
 	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
@@ -35,6 +36,10 @@
 	// Lo mismo que el .ics (eventPlace.js). En la tarjeta, el lugar va una sola vez: con lugar,
 	// VenueLocation en su versión chica (con las reglas de cada nivel); sin lugar, el «Dónde».
 	$: place = eventPlace(data.meta, data.venue);
+	// El link de inscripción (`link`): web, mail (`mailto:`), teléfono o página del sitio; con otro
+	// esquema (`javascript:`…) no se muestra (eventLink.js). Solo un link web abre otra pestaña.
+	$: actionLink = safeEventLink(data.meta.link);
+	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
 	$: where = place.text;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
@@ -105,7 +110,7 @@
 						name: data.meta.location_name ?? data.meta.title,
 						address: { '@type': 'PostalAddress', name: data.meta.location }
 					}
-				: { '@type': 'VirtualLocation', url: data.meta.link },
+				: { '@type': 'VirtualLocation', url: isWebLink(actionLink) ? actionLink : undefined },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
 		organizer: {
@@ -221,10 +226,10 @@
 					{/if}
 				{/if}
 			</div>
-			{#if data.meta.link && !data.tickets}
+			{#if actionLink && !data.tickets}
 				<div class="event-cta">
 					<div class="event-link-wrapper">
-						<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
+						<a href={actionLink}>{data.meta.link_text ?? 'Inscripción'}</a>
 					</div>
 				</div>
 			{/if}
@@ -298,8 +303,13 @@
 		{:else}
 			<svelte:component this={data.content} />
 		{/if}
-		{#if data.meta.link && data.meta.link_text}
-			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
+		{#if actionLink && data.meta.link_text}
+			<a
+				href={actionLink}
+				target={actionLinkTarget}
+				rel={actionLinkTarget ? 'noopener' : undefined}
+				class="cta">{data.meta.link_text}</a
+			>
 		{/if}
 	</div>
 	{#if data.series}

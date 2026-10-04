@@ -1,5 +1,6 @@
 <script>
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -254,6 +255,9 @@
 	// «Dónde»: el link al mapa es opcional, pero si está tiene que ser https de un sitio de mapas.
 	$: mapCheck = checkMapLink(values.location_map);
 	$: mapError = mapCheck.ok ? '' : mapCheck.message;
+	// «Link de inscripción»: web, mail (mailto:) o página del sitio; nunca javascript: (eventLink.js).
+	$: linkProblem = values.link?.trim() ? eventLinkProblem(values.link.trim()) : null;
+	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
 	$: problems = /** @type {string[]} */ (
 		[
@@ -265,6 +269,7 @@
 			upload.error,
 			scopeProblem,
 			mapError,
+			linkError,
 			...tagErrors,
 			...peopleErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
@@ -676,6 +681,7 @@
 						legend="📝 Datos del evento"
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
+						errors={linkError ? { link: linkError } : {}}
 						bind:values
 					/>
 

@@ -47,6 +47,7 @@
 		scheduleToInputs
 	} from '$lib/admin/schedule.js';
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import {
 		applyTicketsToMarkdown,
 		readTicketsForm,
@@ -155,6 +156,15 @@
 					return check.ok ? '' : check.message;
 				})()
 			: '';
+
+	// «Link de inscripción»: web, mail (mailto:) o página del sitio; nunca javascript: ni otros
+	// esquemas (eventLink.js). Como el mapa, solo si se cambió.
+	$: linkError = (() => {
+		if (!isEvent || values.link === initial.link) return '';
+		const link = String(values.link ?? '').trim();
+		const problem = link ? eventLinkProblem(link) : null;
+		return problem ? `Link de inscripción: ${problem}.` : '';
+	})();
 
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */
@@ -279,6 +289,7 @@
 						.map((f) => `Falta «${f.label}».`),
 					...(isEvent ? scheduleProblems(schedule) : []),
 					mapError,
+					linkError,
 					upload.error,
 					scopeProblem,
 					...tagErrors,
@@ -446,7 +457,12 @@
 				/>
 			{/if}
 
-			<DatosSection fields={datosShown} idFor={datosFieldId('editar')} bind:values />
+			<DatosSection
+				fields={datosShown}
+				idFor={datosFieldId('editar')}
+				errors={linkError ? { link: linkError } : {}}
+				bind:values
+			/>
 
 			{#if hasAuthors}
 				<PersonasSection
