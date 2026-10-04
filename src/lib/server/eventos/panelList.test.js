@@ -37,7 +37,9 @@ function row(over) {
 		thumb: '/img.webp',
 		sellsTickets: false,
 		capacity: null,
+		goal: '',
 		sold: 0,
+		revenue: 0,
 		transfers: 0,
 		i: 0,
 		...over
@@ -150,7 +152,12 @@ describe('ventas de la lista', () => {
 						return {
 							results: slugs
 								.filter((/** @type {string} */ s) => s !== 'sin-ventas')
-								.map((/** @type {string} */ s) => ({ event_slug: s, sold: 3, transfers: 1 }))
+								.map((/** @type {string} */ s) => ({
+									event_slug: s,
+									sold: 3,
+									revenue: 30000,
+									transfers: 1
+								}))
 						};
 					}
 				})
@@ -170,6 +177,9 @@ describe('ventas de la lista', () => {
 			['uno', 3, 1],
 			['sin-ventas', 0, 0]
 		]);
+		// Lo recaudado (para el avance contra una meta de venta en plata), en la misma consulta.
+		expect(calls[0].sql).toMatch(/THEN total ELSE 0 END\) AS revenue/);
+		expect(out.map((e) => e.revenue)).toEqual([30000, 0]);
 	});
 
 	it('sin eventos o sin base no consulta nada', async () => {

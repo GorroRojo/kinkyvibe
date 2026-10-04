@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -47,8 +48,10 @@
 		scheduleToInputs
 	} from '$lib/admin/schedule.js';
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import {
 		applyTicketsToMarkdown,
+		goalFields,
 		readTicketsForm,
 		validateTicketsForm
 	} from '$lib/utils/ticketsEditor.js';
@@ -155,6 +158,15 @@
 					return check.ok ? '' : check.message;
 				})()
 			: '';
+
+	// «Link de inscripción»: web, mail (mailto:) o página del sitio; nunca javascript: ni otros
+	// esquemas (eventLink.js). Como el mapa, solo si se cambió.
+	$: linkError = (() => {
+		if (!isEvent || values.link === initial.link) return '';
+		const link = String(values.link ?? '').trim();
+		const problem = link ? eventLinkProblem(link) : null;
+		return problem ? `Link de inscripción: ${problem}.` : '';
+	})();
 
 	/* ---------- tags & authors ---------- */
 	/** @param {any} v @returns {string[]} */
@@ -279,6 +291,7 @@
 						.map((f) => `Falta «${f.label}».`),
 					...(isEvent ? scheduleProblems(schedule) : []),
 					mapError,
+					linkError,
 					upload.error,
 					scopeProblem,
 					...tagErrors,
@@ -350,7 +363,7 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, authorRole);
-		if (d.tickets) tickets = d.tickets;
+		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 		if (venuePicker && d.venue && typeof d.venue === 'object')
@@ -387,6 +400,16 @@
 			}
 		};
 	}
+
+	// La hora del «guardado»: 24 h, hora de Argentina (es-AR a secas puede salir con «p. m.»).
+	const savedAtFmt = argFormat({
+		year: 'numeric',
+		month: 'numeric',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: 'numeric',
+		second: 'numeric'
+	});
 </script>
 
 <svelte:head>
@@ -446,7 +469,12 @@
 				/>
 			{/if}
 
-			<DatosSection fields={datosShown} idFor={datosFieldId('editar')} bind:values />
+			<DatosSection
+				fields={datosShown}
+				idFor={datosFieldId('editar')}
+				errors={linkError ? { link: linkError } : {}}
+				bind:values
+			/>
 
 			{#if hasAuthors}
 				<PersonasSection
@@ -590,6 +618,7 @@
 					location={values.location}
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
+					transferReady={data.transferReady ?? null}
 					errors={ticketsCheck.errors}
 					warnings={ticketsCheck.warnings}
 					idPrefix="edit"
@@ -616,7 +645,7 @@
 		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
-				{new Date().toLocaleString('es-AR')}
+				{savedAtFmt.format(new Date())}
 				{#if form.imageScope === 'todas'}
 					· La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
 						{' '}({form.affected.length}

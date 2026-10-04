@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCurrent } from './allPosts.js';
+import { isCurrent, monthHasPastEvents } from './allPosts.js';
 
 /** @param {Record<string, any>} meta */
 const post = (meta) => /** @type {ProcessedPost} */ (/** @type {unknown} */ ({ meta, path: '/x' }));
@@ -76,5 +76,42 @@ describe('fetchAllPostsClient', () => {
 		const fetchAllPostsClient = await load();
 		await expect(fetchAllPostsClient()).rejects.toThrow('offline');
 		expect(await fetchAllPostsClient()).toEqual([]);
+	});
+});
+
+describe('monthHasPastEvents', () => {
+	const now = Date.parse('2026-10-04T12:00:00-03:00');
+	const event = (/** @type {string} */ start) => post({ category: 'calendario', start });
+
+	it('is true when an event of that month already started', () => {
+		const posts = [event('2026-10-03T15:30-03:00'), event('2026-10-30T16:00-03:00')];
+		expect(monthHasPastEvents(posts, '2026-10', now)).toBe(true);
+		expect(monthHasPastEvents(posts, '2026-09', now)).toBe(false);
+	});
+
+	it('is false when every event of that month is still to come', () => {
+		expect(monthHasPastEvents([event('2026-10-30T16:00-03:00')], '2026-10', now)).toBe(false);
+		expect(monthHasPastEvents([event('2026-11-07T20:00-03:00')], '2026-11', now)).toBe(false);
+	});
+
+	it('is false for an empty month', () => {
+		expect(monthHasPastEvents([event('2026-09-12T20:00-03:00')], '2026-08', now)).toBe(false);
+		expect(monthHasPastEvents([], '2026-10', now)).toBe(false);
+	});
+
+	it('groups by the month in Argentina, not in UTC', () => {
+		// 30/9 22:00 in Buenos Aires is already 1/10 in UTC.
+		const posts = [event('2026-09-30T22:00-03:00')];
+		expect(monthHasPastEvents(posts, '2026-09', now)).toBe(true);
+		expect(monthHasPastEvents(posts, '2026-10', now)).toBe(false);
+	});
+
+	it('ignores posts that are not events and events without a valid start', () => {
+		const posts = [
+			post({ category: 'material', start: '2026-10-01T10:00-03:00' }),
+			post({ category: 'calendario' }),
+			post({ category: 'calendario', start: 'pronto' })
+		];
+		expect(monthHasPastEvents(posts, '2026-10', now)).toBe(false);
 	});
 });

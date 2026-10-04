@@ -23,6 +23,7 @@
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueSchema } from '$lib/utils/venues.js';
 	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
 	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
@@ -35,6 +36,10 @@
 	// Lo mismo que el .ics (eventPlace.js). En la tarjeta, el lugar va una sola vez: con lugar,
 	// VenueLocation en su versión chica (con las reglas de cada nivel); sin lugar, el «Dónde».
 	$: place = eventPlace(data.meta, data.venue);
+	// El link de inscripción (`link`): web, mail (`mailto:`), teléfono o página del sitio; con otro
+	// esquema (`javascript:`…) no se muestra (eventLink.js). Solo un link web abre otra pestaña.
+	$: actionLink = safeEventLink(data.meta.link);
+	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
 	$: where = place.text;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
@@ -105,7 +110,7 @@
 						name: data.meta.location_name ?? data.meta.title,
 						address: { '@type': 'PostalAddress', name: data.meta.location }
 					}
-				: { '@type': 'VirtualLocation', url: data.meta.link },
+				: { '@type': 'VirtualLocation', url: isWebLink(actionLink) ? actionLink : undefined },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
 		organizer: {
@@ -221,28 +226,33 @@
 					{/if}
 				{/if}
 			</div>
-			{#if data.meta.link && !data.tickets}
+			{#if actionLink && !data.tickets}
 				<div class="event-cta">
 					<div class="event-link-wrapper">
-						<a href={data.meta.link}>{data.meta.link_text ?? 'Inscripción'}</a>
+						<a href={actionLink}>{data.meta.link_text ?? 'Inscripción'}</a>
 					</div>
 				</div>
 			{/if}
 		</div>
 		{#if data.tickets}
 			{@const t = data.tickets}
+			{@const price = [
+				t.priceFrom !== null ? `desde ${formatARS(t.priceFrom)}` : '',
+				t.gorraSuggested !== null ? 'a la gorra' : ''
+			]
+				.filter(Boolean)
+				.join(' · ')}
 			<section class="buy-cta" id="entradas" aria-label="Entradas">
 				{#if t.open}
 					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
 						<span class="buy-title">Comprar entradas</span>
-						<span class="buy-meta">
-							{#if t.priceFrom !== null}desde {formatARS(
-									t.priceFrom
-								)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
-								·
-							{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-								<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
-						</span>
+						<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
+						y salía «desde $ 6.400· Quedan 5». -->
+						<span class="buy-meta"
+							>{price}{#if t.left !== null}{#if price}{' '}<strong class="buy-left"
+										>· {leftText(t.left)}</strong
+									>{:else}<strong class="buy-left">{leftText(t.left)}</strong>{/if}{/if}</span
+						>
 					</a>
 					{#if t.closesAt}
 						<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
@@ -298,8 +308,13 @@
 		{:else}
 			<svelte:component this={data.content} />
 		{/if}
-		{#if data.meta.link && data.meta.link_text}
-			<a href={data.meta.link} target="_blank" class="cta">{data.meta.link_text}</a>
+		{#if actionLink && data.meta.link_text}
+			<a
+				href={actionLink}
+				target={actionLinkTarget}
+				rel={actionLinkTarget ? 'noopener' : undefined}
+				class="cta">{data.meta.link_text}</a
+			>
 		{/if}
 	</div>
 	{#if data.series}

@@ -58,7 +58,14 @@ async function thrown(fn) {
 async function seed() {
 	const approved = await createTip(
 		t.db,
-		{ amount: 2000, message: 'Mensaje de prueba', category: 'material', slug: 'guia' },
+		// Una propina vieja "Para KinkyVibe" (de antes de que todas fueran al Fondo).
+		{
+			amount: 2000,
+			message: 'Mensaje de prueba',
+			category: 'material',
+			slug: 'guia',
+			destination: 'kinkyvibe'
+		},
 		{ now: NOW }
 	);
 	await applyTipPayment(
@@ -74,7 +81,13 @@ async function seed() {
 	);
 	await createTip(
 		t.db,
-		{ amount: 1000, message: null, category: 'calendario', slug: 'fiesta' },
+		{
+			amount: 1000,
+			message: null,
+			category: 'calendario',
+			slug: 'fiesta',
+			destination: 'kinkyvibe'
+		},
 		{ now: NOW }
 	);
 	return approved;

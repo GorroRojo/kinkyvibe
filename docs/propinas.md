@@ -4,15 +4,16 @@
 
 Al pie de las publicaciones con la etiqueta **KinkyVibe** (material y eventos), un bloque "¿Te
 sirvió? Dejá una propina" en lugar de la nota del cafecito. La persona elige $ 1.000, $ 2.000,
-$ 5.000 u "Otro monto" (entre $ 500 y $ 500.000), elige **para quién es** ("Para KinkyVibe", por
-defecto, o "Para el Fondo"), puede sumar un mensaje (hasta 280 caracteres, solo lo leen les
-admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias.
+$ 5.000 u "Otro monto" (entre $ 500 y $ 500.000), puede sumar un mensaje (hasta 280 caracteres,
+solo lo leen les admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias. **Toda
+propina va al Fondo KinkyVibe** (decisión de gorrite, octubre de 2026): ya no se elige a dónde va,
+y el bloque lo dice.
 
 - No hace falta cuenta y no pedimos datos: ni nombre ni mail (MP pide lo suyo en su checkout).
-- La plata entra siempre a **la misma cuenta de MP que las entradas**, elija lo que elija. El
-  destino solo cambia cómo se cuenta: las propinas "Para el Fondo" aprobadas suman a los
-  **aportes al Fondo KinkyVibe** del panel, igual que el aporte de una entrada solidaria (ver
-  "En el panel").
+- La plata entra siempre a **la misma cuenta de MP que las entradas**. El destino solo cambia
+  cómo se cuenta: las propinas "Para el Fondo" aprobadas suman a los **aportes al Fondo
+  KinkyVibe** del panel, igual que el aporte de una entrada solidaria (ver "En el panel"). Las
+  propinas viejas "Para KinkyVibe" (de cuando se podía elegir) quedan como están y no suman.
 - En el pie de página (Footer), "Dejá una propina" lleva al Fondo (`fondo.kinkyvibe.ar`) en
   lugar del link a Cafecito (decisión de gorrite, 2/10): `/propinas` sin `?de=` no deja dejar
   una propina, solo explica que se dejan desde cada publicación de KinkyVibe.
@@ -26,9 +27,11 @@ Cafecito y `/propinas` da 404. La variable
 
 - **El monto lo decide el servidor.** El formulario manda un monto sugerido u "otro" + el número;
   `validateTip` (`src/lib/utils/propinas.js`) lo valida en el servidor con el mínimo y el máximo.
-- **El destino también.** `destination` tiene que ser `kinkyvibe` o `fondo` (vacío = `kinkyvibe`;
-  cualquier otra cosa, error). La base lo vuelve a controlar con un `CHECK` (migración 0022). El
-  webhook nunca lo cambia: solo toca el estado.
+- **El destino también.** Toda propina nueva se guarda con `destination = 'fondo'`
+  (`TIP_DESTINATION`): `validateTip` lo pone siempre e ignora cualquier `destination` que llegue
+  en el POST (un formulario viejo o armado). La columna sigue aceptando `kinkyvibe` por las
+  propinas viejas; la base lo controla con un `CHECK` (migración 0022). El webhook nunca lo
+  cambia: solo toca el estado.
 - **Nadie aprueba una propina desde el navegador.** El estado (`pending` → `approved` /
   `rejected` / `refunded`) lo cambia solo un pago pedido a la API de MP: el webhook firmado o el
   re-chequeo de la página de gracias (que pregunta a MP por la referencia, no lee la URL).
@@ -105,9 +108,10 @@ Confirmadas por gorrite:
 - Montos: $ 1.000 / $ 2.000 / $ 5.000 ($ 2.000 elegido por defecto) y "otro monto" entre $ 500 y
   $ 500.000.
 - Solo en las publicaciones con la etiqueta KinkyVibe.
-- **Destino** (cambiado por gorrite): quien deja la propina elige "Para KinkyVibe" (por defecto) o
-  "Para el Fondo". La plata va a la misma cuenta de MP; las del Fondo cuentan como aportes al
-  Fondo, igual que la entrada solidaria.
+- **Destino** (cambiado por gorrite, octubre de 2026): toda propina va al Fondo KinkyVibe; ya no
+  se elige entre "Para KinkyVibe" y "Para el Fondo". La plata va a la misma cuenta de MP; cuentan
+  como aportes al Fondo, igual que la entrada solidaria. Las viejas "Para KinkyVibe" se siguen
+  mostrando como están (panel, filtro y CSV).
 - **Pie de página** (cambiado por gorrite): con el interruptor prendido, "Dejá una propina"
   (`/propinas`) reemplaza al link a Cafecito; apagado, sigue Cafecito.
 

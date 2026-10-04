@@ -283,7 +283,7 @@
 									type="text"
 									maxlength="40"
 									autocomplete="off"
-									placeholder="Por ejemplo: Cuida la puerta"
+									placeholder="Ej.: Cuida la puerta"
 									aria-describedby="{idPrefix}-nuevo-rol-help"
 									aria-invalid={newRoleError ? 'true' : undefined}
 									bind:value={newRoleName}

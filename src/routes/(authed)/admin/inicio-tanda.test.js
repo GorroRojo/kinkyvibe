@@ -56,7 +56,7 @@ import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/con
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { parseReminders } from '$lib/server/tickets/reminders.js';
-import { getSalesSettings } from '$lib/server/tickets/settings.js';
+import { getSalesSettings, saveSalesSettings } from '$lib/server/tickets/settings.js';
 import {
 	editEventHref,
 	eventLink,
@@ -790,5 +790,47 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await panelCounts(layout.platform);
 		expect(layout.trips()).toBe(1);
 		expect(layout.stats.prepared).toBe(4);
+	});
+});
+
+describe('Inicio: «Transferencia» tildada sin datos para transferir', () => {
+	/** @param {string[]} paymentMethods @param {Record<string, any>} [o] */
+	const setEvents = (paymentMethods, o = {}) => {
+		fake.events = [event('fiesta-transfer', 'Fiesta Inventada', '2026-10-03T22:00-03:00')];
+		fake.ticketed = [
+			{
+				slug: 'fiesta-transfer',
+				config: tickets({ start: '2026-10-03T22:00-03:00', paymentMethods, ...o })
+			}
+		];
+	};
+	/** @returns {Promise<any[]>} */
+	const todo = async () => /** @type {any} */ (await load(fakeEvent(t.platform))).todo;
+
+	it('avisa en «Para revisar», con link a Ajustes → Cobros y sin datos de la cuenta', async () => {
+		setEvents(['mercadopago', 'transferencia']);
+		const item = (await todo()).find((i) => i.id === 'transfer-missing');
+		expect(item).toMatchObject({
+			kind: 'item',
+			tone: 'warn',
+			title:
+				'Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece',
+			text: 'En Fiesta Inventada',
+			href: '/admin/ajustes/cobros'
+		});
+	});
+
+	it('con datos en Ajustes → Cobros, sin transferencia o con el evento cancelado: no avisa', async () => {
+		setEvents(['mercadopago']);
+		expect((await todo()).some((i) => i.id === 'transfer-missing')).toBe(false);
+		setEvents(['mercadopago', 'transferencia'], { status: 'cancelado' });
+		expect((await todo()).some((i) => i.id === 'transfer-missing')).toBe(false);
+
+		setEvents(['transferencia']);
+		await saveSalesSettings(t.db, { transfer_alias: 'ALIAS.INVENTADO' }, { by: admin.login });
+		const rows = await todo();
+		expect(rows.some((i) => i.id === 'transfer-missing')).toBe(false);
+		// Los datos nunca van a la página del Inicio.
+		expect(JSON.stringify(rows)).not.toContain('ALIAS.INVENTADO');
 	});
 });

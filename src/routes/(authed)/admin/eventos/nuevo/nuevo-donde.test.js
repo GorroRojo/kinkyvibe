@@ -1,7 +1,8 @@
 /**
  * Cargar un evento con «Dónde» en texto libre y link al mapa (`location_map`): el guardado acepta
  * https de OpenStreetMap o Google Maps y rechaza cualquier otro link, sin commitear nada. Cliente
- * del repo de mentira; datos inventados.
+ * del repo de mentira; datos inventados. Al final, el link de inscripción (`link`): un mail
+ * (`mailto:`) se guarda y `javascript:` u otro esquema no.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestDB } from '$lib/server/db/testing.js';
@@ -121,6 +122,38 @@ describe('«Dónde» con link al mapa', () => {
 			);
 			expect(res.status).toBe(400);
 			expect(res.data.error).toMatch(/link al mapa/);
+		}
+		expect(commits).toHaveLength(0);
+	});
+});
+
+/** @param {string} link una línea `link: …` ya escrita en YAML */
+const withLink = (link) =>
+	eventMd('Fiesta de Prueba (4ª Edición)', '2026-10-10T21:00-03:00').replace(
+		'status: abierto\n',
+		`status: abierto\n${link}\nlink_text: Inscribirme\n`
+	);
+
+describe('link de inscripción', () => {
+	it('un mail (mailto:) se guarda tal cual', async () => {
+		const { mod, commits } = await page('0');
+		const res = /** @type {any} */ (
+			await mod.actions.publicar(publish({ content: withLink('link: mailto:hola@ejemplo.test') }))
+		);
+		expect(res.success).toBe(true);
+		expect(
+			fileIn(commits[0], 'src/lib/posts/calendario/fiesta-de-prueba-2026-10.md').content
+		).toContain('link: mailto:hola@ejemplo.test\n');
+	});
+
+	it('javascript: (u otro esquema) no se guarda', async () => {
+		const { mod, commits } = await page('0');
+		for (const link of ["link: 'javascript:alert(1)'", "link: 'data:text/html,x'"]) {
+			const res = /** @type {any} */ (
+				await mod.actions.publicar(publish({ content: withLink(link) }))
+			);
+			expect(res.status).toBe(400);
+			expect(res.data.error).toMatch(/Link de inscripción/);
 		}
 		expect(commits).toHaveLength(0);
 	});

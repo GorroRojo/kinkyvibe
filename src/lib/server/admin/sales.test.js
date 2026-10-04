@@ -121,6 +121,22 @@ describe('summarizeEvent / salesTotals', () => {
 		expect(e).toMatchObject({ sold: 3, capacity: null });
 	});
 
+	it('meta de venta: el avance contra la meta (plata recaudada o entradas); sin meta, null', () => {
+		expect(summarizeEvent({ slug: 'fiesta', config }, counts, { now: NOW }).progress).toBeNull();
+		const plata = summarizeEvent(
+			{ slug: 'fiesta', config: { ...config, goal: { kind: 'plata', value: 48000 } } },
+			counts,
+			{ now: NOW }
+		);
+		expect(plata.progress).toMatchObject({ kind: 'plata', current: 24000, target: 48000, pct: 50 });
+		const entradas = summarizeEvent(
+			{ slug: 'fiesta', config: { ...config, goal: { kind: 'entradas', value: 3 } } },
+			counts,
+			{ now: NOW }
+		);
+		expect(entradas.progress).toMatchObject({ text: '3 de 3 entradas', reached: true });
+	});
+
 	it('un evento que ya pasó no es próximo; uno sin fecha sí', () => {
 		const past = summarizeEvent({ slug: 'x', config: { ...config, start: '2026-01-01' } }, counts, {
 			now: NOW

@@ -1,5 +1,6 @@
 <script>
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -50,8 +51,11 @@
 		applyTicketsToMarkdown,
 		describeTicketsForm,
 		readTicketsForm,
-		validateTicketsForm
+		validateTicketsForm,
+		formGoal,
+		goalFields
 	} from '$lib/utils/ticketsEditor.js';
+	import { seriesGoalFor, storedSalesGoal } from '$lib/utils/salesGoal.js';
 	import { parseDocument } from 'yaml';
 	import {
 		STATUS_OPTIONS,
@@ -149,6 +153,24 @@
 	const initialTickets = readTicketsForm(sourceMeta);
 	let tickets = readTicketsForm(sourceMeta);
 	$: ticketsCheck = validateTicketsForm(tickets);
+	// Meta de venta por defecto de la serie (la del evento original o la elegida en «¿Es parte de
+	// una serie?»): se copia una vez por serie y después se puede cambiar solo para esta edición.
+	let goalFrom = '';
+	$: seriesGoal = seriesGoalFor(
+		[
+			...splitList(values.tags),
+			...(seriesChoice === 'agregar' && seriesExisting ? [seriesExisting] : [])
+		],
+		data.seriesGoals
+	);
+	$: if (seriesGoal && seriesGoal.series !== goalFrom) {
+		goalFrom = seriesGoal.series;
+		tickets = { ...tickets, ...goalFields(storedSalesGoal(seriesGoal.goal)) };
+	}
+	$: goalNote =
+		seriesGoal && formGoal(tickets) === storedSalesGoal(seriesGoal.goal)
+			? `Es la meta por defecto de la serie «${seriesGoal.series}». Podés cambiarla solo para esta edición.`
+			: '';
 
 	/* ---------- personas: quienes organizan y el resto, en una sola lista ---------- */
 	// Como en Editar: `data.personas` ({ roles, profiles }) llega solo con el interruptor
@@ -254,6 +276,9 @@
 	// «Dónde»: el link al mapa es opcional, pero si está tiene que ser https de un sitio de mapas.
 	$: mapCheck = checkMapLink(values.location_map);
 	$: mapError = mapCheck.ok ? '' : mapCheck.message;
+	// «Link de inscripción»: web, mail (mailto:) o página del sitio; nunca javascript: (eventLink.js).
+	$: linkProblem = values.link?.trim() ? eventLinkProblem(values.link.trim()) : null;
+	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
 	$: problems = /** @type {string[]} */ (
 		[
@@ -265,6 +290,7 @@
 			upload.error,
 			scopeProblem,
 			mapError,
+			linkError,
 			...tagErrors,
 			...peopleErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
@@ -444,7 +470,7 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, 'Organiza');
-		if (d.tickets) tickets = d.tickets;
+		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
 		if (venuePicker && d.venue && typeof d.venue === 'object')
 			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 		if (d.slugEdited && typeof d.slug === 'string') {
@@ -676,6 +702,7 @@
 						legend="📝 Datos del evento"
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
+						errors={linkError ? { link: linkError } : {}}
 						bind:values
 					/>
 
@@ -756,7 +783,9 @@
 					<TicketsEditor
 						bind:state={tickets}
 						tags={splitList(values.tags)}
+						{goalNote}
 						location={values.location}
+						transferReady={data.transferReady}
 						errors={showProblems ? ticketsCheck.errors : []}
 						warnings={ticketsCheck.warnings}
 						idPrefix="ev"

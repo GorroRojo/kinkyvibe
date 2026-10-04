@@ -18,8 +18,10 @@
 		<p class="emoji" aria-hidden="true">💖</p>
 		<h1>¡Gracias por tu propina!</h1>
 		<p>
-			Recibimos tus <strong>{formatARS(data.tip.amount)}</strong>. Nos ayuda un montón a seguir
-			haciendo material y encuentros para todes.
+			Recibimos tus <strong>{formatARS(data.tip.amount)}</strong
+			>{#if data.tip.destination === 'fondo'}
+				para el Fondo KinkyVibe{/if}. Nos ayuda un montón a seguir haciendo material y encuentros
+			para todes.
 		</p>
 	{:else if status === 'pending'}
 		<p class="emoji" aria-hidden="true">⏳</p>

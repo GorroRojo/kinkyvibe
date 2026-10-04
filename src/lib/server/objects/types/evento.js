@@ -15,6 +15,7 @@
  * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md («En la base»)).
  */
 
+import { eventLinkProblem } from '../../../utils/eventLink.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
 
 /**
@@ -55,25 +56,12 @@ export const EVENT_TAGS_MAX = 60;
 export const EVENT_AUTHORS_MAX = 30;
 
 /**
- * ¿Qué tiene de malo el link de acción? `null` si está bien: https:// o http://, `mailto:`,
- * `tel:`, o una dirección del mismo sitio («/calendario/…», «#entradas»).
- *
- * @param {string} link
- * @returns {string | null}
+ * ¿Qué tiene de malo el link de acción? `null` si está bien: https:// o http://, `mailto:` (con
+ * una dirección), `tel:`, o una dirección del mismo sitio («/calendario/…», «#entradas»). La
+ * regla es la de todo el sitio: {@link eventLinkProblem} (src/lib/utils/eventLink.js), la misma
+ * del editor, la importación de la planilla y la página pública.
  */
-export function linkProblem(link) {
-	if (/^\/(?!\/)/.test(link) || link.startsWith('#')) return null;
-	let url;
-	try {
-		url = new URL(link);
-	} catch {
-		return 'no es un link válido (tiene que empezar con https://)';
-	}
-	if (!['https:', 'http:', 'mailto:', 'tel:'].includes(url.protocol)) {
-		return 'tiene que ser un link web (https://), un mail (mailto:) o una página del sitio';
-	}
-	return null;
-}
+export const linkProblem = eventLinkProblem;
 
 /** @type {import('./index.js').CoreType} */
 const evento = {

@@ -13,7 +13,9 @@
  */
 import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { argFormat } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
+import { goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
@@ -833,6 +835,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   revenue: number,
  *   fondoNet: number,
  *   oversold: { type: string, sold: number, capacity: number }[],
+ *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null,
  *   transfers: number,
  *   review: number,
  *   missingStream: boolean,
@@ -934,6 +937,8 @@ export function upcomingEvents({
 			revenue,
 			fondoNet,
 			oversold,
+			// Avance contra la meta de venta (`meta_venta`); sin meta, null (se muestra el cupo).
+			progress: config ? goalProgress(config.goal, { sold, revenue }) : null,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
@@ -1171,6 +1176,45 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 	return items;
 }
 
+/** Dónde se cargan los datos para transferir. */
+export const TRANSFER_SETTINGS_HREF = '/admin/ajustes/cobros';
+/** El aviso cuando un evento ofrece transferencia y no hay datos (el editor dice lo mismo). */
+export const TRANSFER_MISSING_TEXT =
+	'Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece';
+
+/**
+ * "Para revisar": un aviso si algún evento que viene (con entradas y no cancelado) tiene tildada
+ * «Transferencia» pero no hay datos para transferir (ni en Ajustes → Cobros ni en
+ * TICKETS_TRANSFER_INFO). La compra esconde la opción en silencio (`methodsFor` en
+ * tickets/checkout.js); esto lo hace visible. Nunca muestra los datos en sí: solo si faltan.
+ *
+ * @param {{
+ *   upcoming: UpcomingEvent[],
+ *   ticketed: Map<string, Pick<EventTickets, 'paymentMethods'>>,
+ *   transferReady: boolean
+ * }} input
+ * @returns {ReviewItem | null}
+ */
+export function transferMissingItem({ upcoming, ticketed, transferReady }) {
+	if (transferReady) return null;
+	const events = upcoming.filter(
+		(e) =>
+			e.ticketed &&
+			e.status !== 'cancelado' &&
+			ticketed.get(e.slug)?.paymentMethods?.includes('transferencia')
+	);
+	if (!events.length) return null;
+	return {
+		id: 'transfer-missing',
+		tone: 'warn',
+		icon: 'transfer',
+		title: TRANSFER_MISSING_TEXT,
+		text: `${events.length === 1 ? 'En' : `En ${events.length} eventos:`} ${events.map((e) => e.title).join(', ')}`,
+		action: 'Completar',
+		href: TRANSFER_SETTINGS_HREF
+	};
+}
+
 /**
  * Una fila de "Para revisar" que junta varios ítems del mismo tipo. Con `href` la fila lleva a
  * una lista filtrada que muestra exactamente esos ítems; sin `href`, se despliega ahí mismo.
@@ -1326,8 +1370,6 @@ export function integrityReviewRow(run, { formatWhen } = {}) {
 	};
 }
 
-const TZ = 'America/Argentina/Buenos_Aires';
-
 /**
  * "en 3 h", "en 40 min" o "jue 2, 14:00" (hora de Argentina).
  * @param {number} ms
@@ -1337,8 +1379,7 @@ export function whenLabel(ms, now) {
 	const diff = ms - now;
 	if (diff > 0 && diff < 60 * 60 * 1000) return `en ${Math.max(1, Math.round(diff / 60000))} min`;
 	if (diff > 0 && diff < 24 * 60 * 60 * 1000) return `en ${Math.round(diff / 3600000)} h`;
-	return new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	return argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',

@@ -27,8 +27,10 @@ import {
 	streamLinkSlugs,
 	stuckSends,
 	ticketTotals,
+	transferMissingItem,
 	unsentEmails,
-	upcomingEvents
+	upcomingEvents,
+	whenLabel
 } from './inicio.js';
 import { logAdminAction } from './audit.js';
 import { insertOrder, insertTicket } from './testRows.js';
@@ -506,6 +508,24 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(e).toMatchObject({ capacity: null, sold: 11 });
 		// La anticipada sí tiene cupo: sigue marcada; la general (8 vendidas, sin cupo) no.
 		expect(e.oversold).toEqual([{ type: 'Anticipada', sold: 3, capacity: 2 }]);
+	});
+
+	it('meta de venta: el avance contra la meta; sin meta (o sin venta), null', () => {
+		expect(upcoming.map((e) => e.progress)).toEqual([null, null, null]);
+		const [e] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([['hoy', config({ goal: { kind: 'plata', value: 208000 } })]]),
+			totals,
+			now: NOW
+		});
+		expect(e.progress).toMatchObject({ kind: 'plata', current: 104000, target: 208000, pct: 50 });
+		const [byTickets] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([['hoy', config({ goal: { kind: 'entradas', value: 20 } })]]),
+			totals,
+			now: NOW
+		});
+		expect(byTickets.progress?.text).toBe('11 de 20 entradas');
 	});
 
 	it('reviewItems arma un ítem con acción por cada cosa para revisar', () => {
@@ -1066,5 +1086,57 @@ describe('chequeo nocturno de los datos en "Para revisar"', () => {
 			count: 1,
 			problems: [{ code: 'orphan', objectId: 3 }]
 		});
+	});
+});
+
+describe('transferMissingItem («Transferencia» tildada sin datos para transferir)', () => {
+	/** @param {string} slug @param {string} title @param {Record<string, any>} [o] */
+	const up = (slug, title, o = {}) =>
+		/** @type {any} */ ({ slug, title, ticketed: true, status: 'abierto', ...o });
+	/** @type {Map<string, { paymentMethods: ('mercadopago' | 'transferencia')[] }>} */
+	const ticketed = new Map([
+		['a', { paymentMethods: ['mercadopago', 'transferencia'] }],
+		['b', { paymentMethods: ['transferencia'] }],
+		['c', { paymentMethods: ['mercadopago'] }],
+		['d', { paymentMethods: ['transferencia'] }]
+	]);
+	const upcoming = [
+		up('a', 'Fiesta Inventada'),
+		up('b', 'Taller Inventado'),
+		up('c', 'Solo MP'),
+		up('d', 'Cancelado', { status: 'cancelado' })
+	];
+
+	it('un aviso con los eventos que ofrecen transferencia, link a Ajustes → Cobros', () => {
+		expect(transferMissingItem({ upcoming, ticketed, transferReady: false })).toEqual({
+			id: 'transfer-missing',
+			tone: 'warn',
+			icon: 'transfer',
+			title:
+				'Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece',
+			text: 'En 2 eventos: Fiesta Inventada, Taller Inventado',
+			action: 'Completar',
+			href: '/admin/ajustes/cobros'
+		});
+		expect(
+			transferMissingItem({ upcoming: [upcoming[0]], ticketed, transferReady: false })?.text
+		).toBe('En Fiesta Inventada');
+	});
+
+	it('con datos para transferir, o sin eventos con transferencia, nada', () => {
+		expect(transferMissingItem({ upcoming, ticketed, transferReady: true })).toBeNull();
+		expect(
+			transferMissingItem({ upcoming: upcoming.slice(2), ticketed, transferReady: false })
+		).toBeNull();
+		expect(transferMissingItem({ upcoming: [], ticketed, transferReady: false })).toBeNull();
+	});
+});
+
+describe('whenLabel', () => {
+	it('shows far-off times on a 24-hour clock, in Argentina time', () => {
+		const now = Date.parse('2026-10-01T12:00:00-03:00');
+		const label = whenLabel(Date.parse('2026-10-11T22:00:00-03:00'), now);
+		expect(label).toContain('22:00');
+		expect(label).not.toMatch(/[ap]\.\s?m\./i);
 	});
 });

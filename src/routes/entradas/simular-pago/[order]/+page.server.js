@@ -9,6 +9,7 @@ import { dev } from '$app/environment';
 import { error, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { isMpMock, webhookSecret } from '$lib/server/tickets/index.js';
+import { itemDetail } from '$lib/server/tickets/mercadopago.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 
 async function loadMock() {
@@ -32,7 +33,8 @@ export async function load({ params, platform }) {
 			email: order.buyer_email,
 			expiresAt: order.expires_at
 		},
-		item: preference.items[0]
+		// La cantidad una sola vez (en las órdenes de un solo ítem ya viene en el título).
+		detail: itemDetail(preference.items[0])
 	};
 }
 

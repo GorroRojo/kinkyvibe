@@ -65,7 +65,7 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	await goToStep(block, 'Entradas');
 	const amount = block.getByLabel('¿Cuánto querés pagar por entrada?');
 	// Vacío = el sugerido; el chip del sugerido aparece marcado.
-	await expect(amount).toHaveAttribute('placeholder', '5000');
+	await expect(amount).toHaveAttribute('placeholder', 'Sugerido: 5000');
 	await expect(block.getByRole('button', { name: /\$ 5\.000 · sugerido/ })).toHaveAttribute(
 		'aria-pressed',
 		'true'

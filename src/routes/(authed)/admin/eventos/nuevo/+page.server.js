@@ -31,6 +31,8 @@ import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
+import { linkFileErrors } from '$lib/utils/eventLink.js';
+import { transferReady } from '$lib/server/tickets/index.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
@@ -40,6 +42,7 @@ import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { seriesTagIds } from '$lib/utils/series.js';
 import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
+import { seriesGoalMap } from '$lib/utils/salesGoal.js';
 import { addTagToPost } from '$lib/utils/tagConfig.js';
 import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
@@ -137,9 +140,13 @@ export async function load({ locals, url, platform }) {
 		if (await seriesEnabled(platform))
 			seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
+	const tags = siteTags();
 	return {
 		source,
 		seriesPrompt,
+		// Metas de venta por defecto de las series: el formulario las copia al evento nuevo de una
+		// serie (una vez por serie; después se pueden cambiar). Ver $lib/utils/salesGoal.js.
+		seriesGoals: seriesGoalMap(seriesTagIds(tags), (id) => tags.get(id)),
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
 		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
@@ -152,6 +159,8 @@ export async function load({ locals, url, platform }) {
 		duplicables: source ? [] : await duplicableEvents(),
 		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (en `event_venues`).
 		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
+		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
+		transferReady: await transferReady(getDB(platform)),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		savesToDb,
@@ -295,6 +304,9 @@ export const actions = {
 			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
 			const placeErrors = placeFileErrors(String(data.get('content') ?? ''));
 			if (placeErrors.length) throw new Error(placeErrors.join(' '));
+			// Link de inscripción: web, mail (mailto:) o página del sitio; nunca javascript:.
+			const linkErrors = linkFileErrors(String(data.get('content') ?? ''));
+			if (linkErrors.length) throw new Error(linkErrors.join(' '));
 			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
 			const roles = await activeRoles(platform);
 			const personasErrors = roles

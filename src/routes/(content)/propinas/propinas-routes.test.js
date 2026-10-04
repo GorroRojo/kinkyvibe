@@ -162,13 +162,12 @@ describe('interruptor prendido', () => {
 		expect(body).toContain(formatARS(1000));
 		expect(body).toContain('Otro monto');
 		expect(body).not.toContain('cafecito.app');
-		// A dónde va: "Para KinkyVibe" elegido por defecto, o "Para el Fondo".
-		const radios = [...body.matchAll(/<input[^>]*name="destination"[^>]*>/g)].map((x) => x[0]);
-		expect(radios).toHaveLength(2);
-		expect(radios.find((r) => r.includes('value="kinkyvibe"'))).toContain('checked');
-		expect(radios.find((r) => r.includes('value="fondo"'))).not.toContain('checked');
-		expect(body).toContain('Para KinkyVibe');
-		expect(body).toContain('Para el Fondo');
+		// No se elige a dónde va: la propina va al Fondo KinkyVibe y el bloque lo dice.
+		expect(body).not.toContain('name="destination"');
+		expect(body).not.toContain('Para KinkyVibe');
+		expect(body).toMatch(
+			/Tu propina va entera\s+al\s+<a href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Fondo KinkyVibe<\/a>/
+		);
 		// Una publicación que no es de KinkyVibe ni consulta el interruptor.
 		const other = /** @type {any} */ (
 			await m.material.load(fakeEvent({ params: { post: materialSlug(false) } }))
@@ -211,14 +210,14 @@ describe('interruptor prendido', () => {
 			amount: 5000,
 			status: 'pending',
 			message: 'Hola',
-			destination: 'kinkyvibe'
+			destination: 'fondo'
 		});
 
-		// "Para el Fondo" se guarda; un destino raro, 400 y nada nuevo.
+		// Un formulario viejo que manda "kinkyvibe" o un destino raro: igual va al Fondo.
 		await thrown(() =>
 			m.page.actions.default(
 				fakeEvent({
-					form: { amount: '1000', destination: 'fondo', category: 'material', slug },
+					form: { amount: '1000', destination: 'kinkyvibe', category: 'material', slug },
 					mp
 				})
 			)
@@ -227,14 +226,16 @@ describe('interruptor prendido', () => {
 			await t.db.prepare('SELECT * FROM tips WHERE amount = 1000').first()
 		);
 		expect(fondo).toMatchObject({ status: 'pending', destination: 'fondo' });
-		const odd = /** @type {any} */ (
-			await m.page.actions.default(
-				fakeEvent({ form: { amount: '1000', destination: 'nope', category: 'material', slug } })
+		await thrown(() =>
+			m.page.actions.default(
+				fakeEvent({ form: { amount: '1500', destination: 'nope', category: 'material', slug }, mp })
 			)
 		);
-		expect(odd.status).toBe(400);
-		expect(odd.data.errors.destination).toBe('Elegí a dónde va tu propina.');
-		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(2);
+		const odd = /** @type {any} */ (
+			await t.db.prepare('SELECT * FROM tips WHERE amount = 1500').first()
+		);
+		expect(odd).toMatchObject({ status: 'pending', destination: 'fondo' });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(3);
 	});
 
 	it('webhook: con firma válida aprueba y después reembolsa; sin firma, 401 y nada cambia', async () => {
@@ -320,7 +321,7 @@ describe('interruptor prendido', () => {
 			await m.gracias.load(fakeEvent({ params: { id: tip.id }, mp }))
 		);
 		expect(data).toEqual({
-			tip: { amount: 1000, status: 'pending' },
+			tip: { amount: 1000, status: 'pending', destination: 'fondo' },
 			postPath: '/calendario/fiesta-de-prueba'
 		});
 		// El mensaje no se muestra en la página pública.

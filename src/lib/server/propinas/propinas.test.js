@@ -96,7 +96,8 @@ describe('buildTipPreference', () => {
 		expect(p.items).toEqual([
 			{
 				id: 'propina',
-				title: 'Propina para KinkyVibe · Guía de prueba',
+				// Toda propina nueva va al Fondo.
+				title: 'Propina para el Fondo KinkyVibe · Guía de prueba',
 				quantity: 1,
 				unit_price: 5000,
 				currency_id: 'ARS'
@@ -115,9 +116,12 @@ describe('buildTipPreference', () => {
 });
 
 describe('destino (KinkyVibe o el Fondo)', () => {
-	it('se guarda; sin destino, "kinkyvibe"', async () => {
+	it('se guarda; sin destino, "fondo" (toda propina nueva va al Fondo)', async () => {
 		const plain = await newTip();
-		expect(plain.destination).toBe('kinkyvibe');
+		expect(plain.destination).toBe('fondo');
+		// Las viejas "Para KinkyVibe" se siguen leyendo como están.
+		const old = await newTip({ destination: 'kinkyvibe' });
+		expect(old.destination).toBe('kinkyvibe');
 		const fondo = await newTip({ destination: 'fondo' });
 		expect(fondo.destination).toBe('fondo');
 		const row = await t.db
@@ -144,7 +148,8 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 		expect(approved.tip).toMatchObject({ status: 'approved', destination: 'fondo' });
 		const refunded = await applyTipPayment(t.db, payment(tip, { status: 'refunded' }));
 		expect(refunded.tip).toMatchObject({ status: 'refunded', destination: 'fondo' });
-		const other = await newTip();
+		// Una vieja "Para KinkyVibe" sigue así después del pago.
+		const other = await newTip({ destination: 'kinkyvibe' });
 		expect((await applyTipPayment(t.db, payment(other, { id: 2 }))).tip?.destination).toBe(
 			'kinkyvibe'
 		);
@@ -163,7 +168,7 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 		const pendingFondo = await newTip({ amount: 7000, destination: 'fondo' });
 		const rejectedFondo = await newTip({ amount: 5000, destination: 'fondo' });
 		const refundedFondo = await newTip({ amount: 4000, destination: 'fondo' });
-		const approvedKv = await newTip({ amount: 9000 });
+		const approvedKv = await newTip({ amount: 9000, destination: 'kinkyvibe' }); // una vieja
 		await applyTipPayment(t.db, payment(approvedFondo, { id: 1, transaction_amount: 3000 }), {
 			now: NOW
 		});
@@ -325,16 +330,24 @@ describe('datos de demo (scripts/demo/n3-propinas.sql)', () => {
 describe('panel: resumen, lista y CSV', () => {
 	async function seed() {
 		const DAY = 24 * 60 * 60 * 1000;
-		const a = await newTip({ amount: 1000, slug: 'guia-a', now: NOW });
-		const b = await newTip({ amount: 5000, slug: 'guia-a', now: NOW + DAY });
-		const c = await newTip({ amount: 2000, slug: 'fiesta', category: 'calendario', now: NOW });
+		// Las "Para KinkyVibe" son propinas viejas (de antes de que todas fueran al Fondo).
+		const kv = /** @type {const} */ ('kinkyvibe');
+		const a = await newTip({ amount: 1000, slug: 'guia-a', now: NOW, destination: kv });
+		const b = await newTip({ amount: 5000, slug: 'guia-a', now: NOW + DAY, destination: kv });
+		const c = await newTip({
+			amount: 2000,
+			slug: 'fiesta',
+			category: 'calendario',
+			now: NOW,
+			destination: kv
+		});
 		const d = await newTip({
 			amount: 3000,
 			slug: 'guia-b',
 			message: '=HYPERLINK("x")',
 			destination: 'fondo'
 		});
-		await newTip({ amount: 700, slug: 'guia-b' }); // queda pendiente
+		await newTip({ amount: 700, slug: 'guia-b', destination: kv }); // queda pendiente
 		// 31/10 23:30 en Argentina (en UTC ya sería noviembre): cuenta en octubre.
 		await applyTipPayment(t.db, payment(a, { id: 1, transaction_amount: 1000 }), {
 			now: Date.parse('2026-11-01T02:30:00Z')

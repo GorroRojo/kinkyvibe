@@ -39,7 +39,7 @@
 					id="{idPrefix}-name-{j}"
 					bind:value={tr.name}
 					maxlength="60"
-					placeholder="Preventa {j + 1}"
+					placeholder="Ej.: Preventa {j + 1}"
 				/>
 			</label>
 			<label class="field t-price">
@@ -48,7 +48,7 @@
 					id="{idPrefix}-price-{j}"
 					bind:value={tr.price}
 					inputmode="numeric"
-					placeholder="8000"
+					placeholder="Ej.: 8000"
 				/>
 			</label>
 			<label class="field t-qty">

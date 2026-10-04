@@ -35,6 +35,7 @@ const RAW_KEYS = /** @type {const} */ ([
 	'color',
 	'description',
 	'image',
+	'meta_venta',
 	'children',
 	'related',
 	'aka',
@@ -42,7 +43,13 @@ const RAW_KEYS = /** @type {const} */ ([
 ]);
 
 /** Campos de datos que vienen del archivo, con el mismo nombre. */
-export const DATA_KEYS = /** @type {const} */ (['icon', 'color', 'description', 'image']);
+export const DATA_KEYS = /** @type {const} */ ([
+	'icon',
+	'color',
+	'description',
+	'image',
+	'meta_venta'
+]);
 
 /**
  * Copia limpia de una entrada del archivo (tagsFactory le agrega cosas a los objetos que recibe).

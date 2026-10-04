@@ -4,6 +4,7 @@ import {
 	buildPreference,
 	createPreference,
 	getPayment,
+	itemDetail,
 	mpDate,
 	signWebhook,
 	signatureManifest,
@@ -178,6 +179,24 @@ describe('preferencia', () => {
 		expect(p.statement_descriptor).toBe('KINKYVIBE');
 		expect(p.expiration_date_to).toBe('2026-10-01T09:20:00.000-03:00');
 		expect(mpDate(NOW)).toBe('2026-10-01T09:00:00.000-03:00');
+	});
+
+	it('itemDetail muestra la cantidad una sola vez', () => {
+		const detail = (/** @type {Partial<typeof order> & { total?: number }} */ o) =>
+			itemDetail(
+				buildPreference({
+					order: { ...order, ...o },
+					eventTitle: 'Fiesta',
+					typeName: 'General',
+					origin: 'https://kinkyvibe.ar'
+				}).items[0]
+			);
+		// Precio × cantidad: un ítem con la cantidad.
+		expect(detail({})).toBe('2 × Entrada General · Fiesta');
+		expect(detail({ quantity: 1 })).toBe('Entrada General · Fiesta');
+		// Con fondo, descuento o recargo, un solo ítem por el total: la cantidad ya va en el título.
+		expect(detail({ total: 15307 })).toBe('2 × Entrada General · Fiesta');
+		expect(detail({ quantity: 1, total: 7500 })).toBe('1 × Entrada General · Fiesta');
 	});
 
 	it('llama a la API con el token y la clave de idempotencia', async () => {

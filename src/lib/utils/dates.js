@@ -25,6 +25,22 @@ export function toArgentina(d) {
 }
 
 /**
+ * `Intl.DateTimeFormat` in es-AR with a **24-hour clock**, in Argentina time unless `options`
+ * says otherwise. Use it instead of a bare `new Intl.DateTimeFormat('es-AR', …)` or
+ * `toLocaleString('es-AR', …)` whenever the output has an hour: recent ICU/CLDR data gives es-AR
+ * a 12-hour clock (`10:00 p. m.`), and the site always shows times as `22:00`.
+ *
+ * `hour12` is dropped because it would override `hourCycle`.
+ * @param {Intl.DateTimeFormatOptions} [options]
+ * @returns {Intl.DateTimeFormat}
+ */
+export function argFormat(options = {}) {
+	const rest = { ...options };
+	delete rest.hour12;
+	return new Intl.DateTimeFormat('es-AR', { timeZone: TIMEZONE, ...rest, hourCycle: 'h23' });
+}
+
+/**
  * The end of an event as a Date. Falls back to the start if there's no valid
  * end, and fixes the common mistake of an end past midnight written with the
  * start's date (e.g. 20:00 -> 01:30 on the same day) by moving it a day later.
@@ -36,10 +52,7 @@ export function eventEnd(start, end) {
 	const s = new Date(start);
 	const e = new Date(end ?? start);
 	if (isNaN(e.getTime())) return s;
-	if (
-		e.getTime() < s.getTime() &&
-		toArgentina(e).toDateString() == toArgentina(s).toDateString()
-	) {
+	if (e.getTime() < s.getTime() && toArgentina(e).toDateString() == toArgentina(s).toDateString()) {
 		return new Date(e.getTime() + 24 * 60 * 60 * 1000);
 	}
 	return e;

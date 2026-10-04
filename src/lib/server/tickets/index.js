@@ -119,6 +119,26 @@ export async function transferInfo(db) {
 	return envTransferInfo();
 }
 
+/**
+ * ¿Hay datos para transferir? Solo sí/no, para los avisos del panel (el editor de eventos y el
+ * Inicio): nunca los datos en sí, que solo ve quien compra por transferencia.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export async function transferReady(db) {
+	return Boolean(await transferInfo(db));
+}
+
+/**
+ * Lo mismo que {@link transferReady} con los ajustes ya leídos (el Inicio los lee en su tanda).
+ * `null` (no se pudieron leer): como {@link transferInfo}, cuenta solo TICKETS_TRANSFER_INFO.
+ *
+ * @param {import('./settings.js').SalesSettings | null} settings
+ */
+export function transferReadyFromSettings(settings) {
+	return Boolean((settings && transferInfoFromSettings(settings)) || envTransferInfo());
+}
+
 /** Cuánto se reserva el cupo esperando una transferencia (TICKETS_TRANSFER_HOLD_HOURS, 1–240 h). */
 export function transferHoldMs() {
 	const hours = Number(env.TICKETS_TRANSFER_HOLD_HOURS);

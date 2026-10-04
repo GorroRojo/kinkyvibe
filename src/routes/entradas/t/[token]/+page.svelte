@@ -81,8 +81,10 @@
 		<dd>{data.ticket.type}</dd>
 		<dt>Estado</dt>
 		<dd class="state">
-			{stateText[data.ticket.state]}{#if data.ticket.state === 'used'}
-				({time(data.ticket.checkedInAt)}){/if}
+			<!-- {' '}: Svelte saca el espacio del borde del {#if} y salía «ingresar(2/10/26, 13:14)». -->
+			{stateText[data.ticket.state]}{#if data.ticket.state === 'used'}{' '}({time(
+					data.ticket.checkedInAt
+				)}){/if}
 		</dd>
 	</dl>
 	{#if !data.event.online}

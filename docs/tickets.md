@@ -57,6 +57,7 @@ mp_fee_percent: 2 # opcional; si falta: Ajustes de venta, TICKETS_MP_FEE_PERCENT
 modalidad: online # opcional: online | presencial (ver "Eventos online")
 puerta: true # opcional (presenciales): true = también en la puerta; false = "Solo anticipadas"; si falta, ver abajo
 puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: nota de texto libre para la página (un número solo se muestra como $); lo que se cobra es el `door_price` de cada tipo
+meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos> o entradas:<cantidad>); ver "Meta de venta"
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
@@ -64,7 +65,7 @@ puerta_precio: $ 12.000, solo efectivo # opcional, con `puerta: true`: nota de t
 - En los eventos KinkyVibe, **el fondo aplica a todos los tipos de entrada** y **es automático**: el porcentaje del mes sale de fondo.kinkyvibe.ar (ver [Descuento automático del Fondo](#descuento-automático-del-fondo)) y se aplica a todos los tipos con precio, redondeado al peso. **No hay fondo fijo por evento ni por tipo**: `fondo_percent` en el evento y `fondo` (pesos) en un tipo ya no existen y, si quedan en un frontmatter, se ignoran sin error. Los precios siguen a fondo.kinkyvibe.ar también durante una venta; cada orden guarda el porcentaje y los montos con los que se compró (las órdenes ya hechas no cambian). Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un stepper compacto **− n +** al lado de la etiqueta (botones de 42 px, cómodos para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
-- `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev).
+- `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev). Para que no pase en silencio, si un evento tiene tildada «Transferencia» y no hay datos, el editor de eventos (sección Entradas) y el **Inicio** del panel (en «Para revisar», para los eventos que vienen y no están cancelados) avisan «Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece», con link a `/admin/ajustes/cobros`. Solo reciben sí/no (`transferReady` / `transferReadyFromSettings` en `src/lib/server/tickets/index.js`), nunca los datos.
 - En la página del evento, un evento con `tickets` no muestra el `link` de inscripción en el encabezado (sigue en el cuerpo si tiene `link_text`): debajo del encabezado hay un botón grande **Comprar entradas** con el precio "desde" (con el fondo aplicado; "a la gorra" si hay tipos a la gorra) y cuántas quedan si son pocas, que lleva a la página de compra.
 - **Cuántas quedan, en público:** solo se muestra un número cuando un tipo **con cupo** tiene **menos de 10** disponibles ("Quedan 7", "¡Últimas 3!", "¡Última!"; `publicLeft`/`leftText` en `src/lib/utils/tickets.js`); si no, no se muestra ni el cupo ni lo vendido. En el botón de la página del evento, solo si todos los tipos a la venta tienen cupo y entre todos quedan menos de 10. Agotado sigue diciendo "Agotada". La página de compra recibe por tipo `available` acotado a 20 (lo que se puede comprar de una vez), no el cupo real.
 - **Sin cupo** (sin `capacity`): el tipo no se agota nunca. La reserva online, la venta en la puerta y la confirmación de transferencias vencidas no controlan cupo para ese tipo (`?N IS NULL OR …` en la misma sentencia); un pago aprobado tarde no queda "para revisar" por cupo; el admin muestra "vendidas (sin cupo)". `capacity: 0` sí es un cupo (agotado).
@@ -187,6 +188,61 @@ Ejemplo: $ 10.000 con 20 % de fondo, 2 entradas solidarias, código 20 %, Mercad
 El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre $F / 💜 Incluye $A de aporte al Fondo KinkyVibe · Código −$D · Recargo Mercado Pago $Y · Total $Z" y cambia en vivo.
 
 La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; ver preguntas abiertas). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
+
+### Meta de venta
+
+El panel mostraba el avance de cada evento contra **vender todas las entradas** (el cupo), algo
+que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de gorrite):
+
+- **`meta_venta: plata:250000`**: pesos. Cuenta lo mismo que el panel ya cuenta como recaudado
+  («Recaudado»/«Cobrado»): la suma del `total` de las órdenes aprobadas, **antes de la comisión de
+  Mercado Pago** (con el recargo, los aportes al Fondo y lo que pagó cada quien; sin lo que cubrió
+  el Fondo ni los descuentos de los códigos).
+- **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas).
+- Sin `meta_venta`: como siempre, contra el cupo.
+- También se acepta, escrita a mano, la forma de mapa (`meta_venta: { entradas: 30 }`, una sola
+  clave). Una meta que no se entiende es «sin meta»: nunca frena la venta ni el panel. El número es
+  un entero mayor a 0 (topes: $ 1.000.000.000 y 100.000 entradas).
+- Con `contenido_db` es la misma clave dentro de `extra` del objeto `evento` (como `tickets`).
+  No hay migración.
+
+**Dónde se edita.** En el editor del evento (crear, duplicar y editar), sección **Entradas** ›
+**Meta de venta**: «Sin meta», «Plata (pesos)» o «Entradas» y el número. Solo con la venta
+prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`).
+
+**Dónde se ve.** Con meta, el avance contra la meta («$ 180.000 de $ 250.000 (72 %)» o «23 de 30
+entradas»; verde y «meta cumplida» al llegar, sin la marca roja del cupo: pasarse es bueno). Sin
+meta, el cupo, como antes:
+
+- Panel → Eventos (la columna de ventas de cada evento; el CSV suma la columna «meta»);
+- Inicio: la lista de próximos (y su CSV), «Hoy» y la tarjeta de ventas del próximo evento;
+- la ficha del evento › Ventas: la tarjeta «Meta de plata» / «Meta de entradas» y el termómetro
+  (el texto arriba y, si la meta es en entradas, una línea «meta N»; el gráfico es de entradas);
+- Ventas → Todas las ventas: debajo del título de cada evento.
+
+El cupo no cambia en ningún lado: sigue siendo el límite de la venta y se sigue mostrando como
+número («vendidas / cupo») donde ya estaba.
+
+**Series.** Una serie puede tener una **meta por defecto** (Eventos → Series › Editar o Crear
+serie: «Meta de venta por defecto»), guardada en `meta_venta` de su etiqueta (en
+`hardcodedTags.js` o, con `etiquetas_db`, el campo `meta_venta` del objeto `etiqueta`). Las
+ediciones **nuevas** la heredan **copiada**: cambiarla después en la serie no toca los eventos que
+ya existen.
+
+- Al cargar o duplicar en el formulario (`/admin/eventos/nuevo`), si el evento queda en una serie
+  con meta por defecto (por sus etiquetas o por «¿Es parte de una serie?» › Agregar a una
+  existente), el formulario arranca con esa meta (reemplaza la que traía el original) y lo dice
+  («Es la meta por defecto de la serie…»). Se copia una vez por serie: se puede cambiar o sacar
+  solo para esa edición.
+- La carga rápida de la agenda y la importación de la planilla (sin formulario) escriben la meta
+  de la serie en el archivo nuevo si el evento vende entradas (`withInheritedGoal`,
+  `src/lib/utils/salesGoalFile.js`).
+
+Código: `src/lib/utils/salesGoal.js` (leer, formulario, `goalProgress`, herencia; con pruebas en
+`salesGoal.test.js`), `goal` en `EventTickets` (`parseTicketConfig`), `progress` en
+`summarizeEvent` (`admin/sales.js`) y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue` en las
+filas de Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y
+`SalesGoalField.svelte`.
 
 ### Horario de la venta
 

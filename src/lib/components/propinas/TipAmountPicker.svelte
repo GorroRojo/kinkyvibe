@@ -40,7 +40,7 @@
 			inputmode="numeric"
 			autocomplete="off"
 			maxlength="12"
-			placeholder="$ 3.000"
+			placeholder="Ej.: $ 3.000"
 			bind:value={custom}
 			on:focus={() => (selected = 'otro')}
 		/>

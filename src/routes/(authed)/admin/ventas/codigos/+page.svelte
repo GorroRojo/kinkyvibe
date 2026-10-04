@@ -161,7 +161,7 @@
 						maxlength="32"
 						autocomplete="off"
 						autocapitalize="characters"
-						placeholder="AMIGUES20"
+						placeholder="Ej.: AMIGUES20"
 						value={values.code ?? ''}
 						aria-invalid={errors.code ? 'true' : undefined}
 					/>

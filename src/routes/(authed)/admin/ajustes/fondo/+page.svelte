@@ -80,7 +80,7 @@
 				name="fondo_percent_override"
 				inputmode="numeric"
 				value={value('fondo_percent_override')}
-				placeholder="automático"
+				placeholder="Vacío = automático"
 				maxlength="4"
 				autocomplete="off"
 				aria-invalid={errors.fondo_percent_override ? 'true' : undefined}

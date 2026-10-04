@@ -31,6 +31,7 @@ import {
 	streamLinkSlugsQuery,
 	stuckSendsQuery,
 	ticketTotalsQuery,
+	transferMissingItem,
 	unsentEmailsQuery,
 	upcomingEvents,
 	whenLabel
@@ -42,7 +43,11 @@ import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
 import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
-import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	sendOrderEmail,
+	siteOrigin,
+	transferReadyFromSettings
+} from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
 import {
@@ -176,9 +181,16 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	});
 	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
+	// Un evento ofrece transferencia y no hay datos para transferir: la compra no la muestra.
+	const transferMissing = transferMissingItem({
+		upcoming,
+		ticketed,
+		transferReady: transferReadyFromSettings(s1.settings)
+	});
 	const todo = groupReviewItems(
 		[
 			...pullItems.filter((i) => i.tone !== 'info'),
+			...(transferMissing ? [transferMissing] : []),
 			...todoItems,
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
@@ -242,7 +254,7 @@ function noQuery(value) {
 }
 
 /**
- * Los ajustes de la venta (para los recordatorios). `null` si fallan; sin la tabla, los de las
+ * Los ajustes de la venta (para los recordatorios y para saber si hay datos para transferir). `null` si fallan; sin la tabla, los de las
  * variables de entorno (como `getSalesSettings`).
  * @returns {import('$lib/server/db/batch.js').BatchQuery<Awaited<ReturnType<typeof getSalesSettings>> | null>}
  */

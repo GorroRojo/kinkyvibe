@@ -4,6 +4,7 @@
  * los mismos que `getCounts` (orders.js) pero de todos los eventos en una sola consulta.
  */
 import { HOLDING } from '$lib/server/tickets/discounts.js';
+import { goalProgress } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -70,10 +71,12 @@ export async function getAllCounts(db, now = Date.now()) {
  *   slug: string, title: string, start: string | null, status: string | null,
  *   upcoming: boolean, fondoEnabled: boolean, online: boolean, review: number,
  *   types: TypeSales[], sold: number, held: number, capacity: number | null, revenue: number,
- *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number
+ *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number,
+ *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null
  * }} EventSales
  *
  * `capacity` del evento: la suma de los cupos, o `null` si algún tipo no tiene cupo.
+ * `progress`: el avance contra la meta de venta (`meta_venta`), o `null` sin meta.
  */
 
 /**
@@ -109,6 +112,8 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 	/** @param {(t: TypeSales) => number} f */
 	const sum = (f) => types.reduce((s, t) => s + f(t), 0);
 	const start = config.start ?? null;
+	const sold = sum((t) => t.sold);
+	const revenue = sum((t) => t.revenue);
 	const startMs = start ? Date.parse(start) : NaN;
 	return {
 		slug,
@@ -121,15 +126,16 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 		online: Boolean(config.online),
 		review,
 		types,
-		sold: sum((t) => t.sold),
+		sold,
 		held: sum((t) => t.held),
 		capacity: types.some((t) => t.capacity === null) ? null : sum((t) => t.capacity ?? 0),
-		revenue: sum((t) => t.revenue),
+		revenue,
 		fondoUsed: sum((t) => t.fondoUsed),
 		contribution: sum((t) => t.contribution),
 		// Neto del fondo: aportes − lo que cubrió (negativo = el fondo puso más de lo que entró).
 		fondoNet: sum((t) => t.contribution - t.fondoUsed),
-		surcharge: sum((t) => t.surcharge)
+		surcharge: sum((t) => t.surcharge),
+		progress: goalProgress(config.goal, { sold, revenue })
 	};
 }
 

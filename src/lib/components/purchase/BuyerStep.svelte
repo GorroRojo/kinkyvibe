@@ -103,7 +103,7 @@
 				autocomplete="off"
 				maxlength="12"
 				required
-				placeholder="12.345.678"
+				placeholder="Ej.: 12.345.678"
 				bind:value={dni}
 				aria-invalid={errors.dni ? 'true' : undefined}
 			/>

@@ -1,7 +1,8 @@
 <script>
 	/**
 	 * Ventas de esta noche (o del próximo evento con entradas) en el Inicio: vendidas contra el
-	 * cupo, plata, ingresos si es hoy, cada tipo con su barra (sin cupo = sin barra; sobrevendido
+	 * cupo (o el avance contra la meta de venta, si tiene), plata, ingresos si es hoy, cada tipo con
+	 * su barra (sin cupo = sin barra; sobrevendido
 	 * = marcado) y las entradas vendidas por día en la última semana, en columnas a escala desde
 	 * cero. El gráfico tiene una tabla equivalente para lectores de pantalla.
 	 * Prop: `sales` (SalesSummary de inicio.js).
@@ -9,6 +10,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import { eventLink, orderHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { ChartColumn, ChevronRight } from '@lucide/svelte';
@@ -48,7 +50,10 @@
 			{#if e.held}<small>{e.held} reservadas</small>{/if}
 		</p>
 	</div>
-	{#if e.capacity !== null}
+	{#if e.progress}
+		<!-- Con meta de venta: el avance contra la meta; el cupo sigue arriba, como número. -->
+		<GoalProgress progress={e.progress} />
+	{:else if e.capacity !== null}
 		<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
 	{/if}
 	{#if over}
