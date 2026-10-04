@@ -27,12 +27,12 @@ la de los previews y la de producción.
 
 ## Las tres bases
 
-| Dónde                     | Qué base                                                                                         | Cómo se le aplican las migraciones                                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                             | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
-| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` del entorno Preview se configura en el panel de Cloudflare) | a mano, cuando un PR trae una migración nueva                                        |
-| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                      | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
-| Pruebas (vitest)          | una nueva en memoria por prueba                                                                  | solas: `createTestDB()` aplica todas                                                 |
+| Dónde                     | Qué base                                                                                      | Cómo se le aplican las migraciones                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
+| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, cuando un PR trae una migración nueva                                        |
+| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
+| Pruebas (vitest)          | una nueva en memoria por prueba                                                               | solas: `createTestDB()` aplica todas                                                 |
 
 Las migraciones `0001` a `0010` ya están aplicadas en producción (30/9/2026, antes de mergear el
 panel, #115). Con la migración a Workers los bindings pasan a configurarse distinto: ver
@@ -69,10 +69,8 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 - `src/lib/server/db/index.js`: `getDB(platform)` y `logDBError(contexto, error)` (avisa si faltan
   migraciones).
 - `src/lib/server/db/testing.js`: `createTestDB()` y `applyMigrations()` para las pruebas.
-- `wrangler.toml`: el binding `DB`. **No tiene `pages_build_output_dir` a propósito** (los
-  bindings de producción viven en el panel de Cloudflare); no se agrega.
-- En Cloudflare: **Workers & Pages → kinkyvibe → Settings → Bindings**, variable `DB`, con
-  `kinkyvibe` en Production y `kinkyvibe-preview` en Preview.
+- `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
+  Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 
 ## Cómo probar
 

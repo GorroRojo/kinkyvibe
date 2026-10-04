@@ -222,8 +222,7 @@ No están implementadas. Cada una es un PR chico aparte.
   `/ics/etiqueta/…` usa `icsResponse` con `text/calendar; charset=utf-8`. Algún cliente puede
   mostrar mal las tildes. Arreglo de una línea (mantener `TAGGED_CACHE`).
 - **Docs desactualizadas**: [etiquetas.md](etiquetas.md) dice que RSS y sitemap «siguen
-  prerenderizados» (ya no); [mails.md](mails.md) y [tickets.md](tickets.md) todavía hablan del
-  Worker aparte `kinkyvibe-cron` (ahora los crons son del propio Worker); el comentario de
+  prerenderizados» (ya no); el comentario de
   `src/lib/server/etiquetas/cache.js` dice «en la CDN», y la CDN no guarda respuestas del Worker.
 - **Recordatorio**: el ítem de disculpas del RSS (`FEED_ONLY_ITEMS`) sale solo el 27/10, pero el
   código queda; borrarlo después.

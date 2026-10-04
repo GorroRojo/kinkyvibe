@@ -4,7 +4,7 @@
 
 Cada vez que alguien abre o actualiza un pull request (y en cada push a `main`), GitHub corre
 solo una serie de chequeos, en paralelo y cada uno en su propia máquina: revisa el estilo del
-código y corre más de mil pruebas automáticas; compila el sitio, arma el Worker y lo recorre con
+código y corre más de tres mil pruebas automáticas; compila el sitio, arma el Worker y lo recorre con
 un navegador de verdad; y revisa los tipos. Al mismo tiempo, Cloudflare publica una copia de
 prueba del sitio (un "preview") con su propio link. Si todo da verde aparece el tilde ✅
 **`ci-ok`**, que es la única condición que GitHub exige para poder mergear. Si algo da rojo ❌, el
@@ -12,23 +12,27 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 
 ## Qué corre en cada PR
 
-Todo lo de GitHub Actions está en `.github/workflows/ci.yml`. Si pusheás de nuevo a la misma
-rama, la corrida anterior se cancela (`concurrency`). Los tres primeros jobs usan Ubuntu 22.04 y
-la versión de Node de `.node-version`, y arrancan con `npm ci`.
+Todo lo de GitHub Actions está en un solo archivo, `.github/workflows/ci.yml` (no hay otros
+workflows). Corre en cada pull request y en cada push a `main`, con permiso de solo lectura sobre
+el repo (`permissions: contents: read`). Si pusheás de nuevo a la misma rama, la corrida anterior
+se cancela (`concurrency`). Los tres primeros jobs corren en paralelo, usan Ubuntu 22.04 y la
+versión de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`. Tienen un límite
+de tiempo: 15 minutos `unit` y `e2e`, 10 `typecheck`.
 
-| Job (nombre en GitHub) | Pasos, en orden                                                                                                                                                                                    | Cómo reproducirlo en tu compu                                                                    |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                 | **Lint** (`npm run lint`) → **Unit + content tests** (`npx vitest run`)                                                                                                                            | `npm run lint && npx vitest run`                                                                 |
-| `e2e`                  | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
-| `typecheck`            | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                  | `node scripts/svelte-check-ratchet.js`                                                           |
-| **`ci-ok`**            | pasa solo si `unit`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                     | —                                                                                                |
+| Job (nombre en GitHub) | Pasos, en orden                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `unit`                 | **Lint** (`npm run lint`) → **Unit + content tests** (`npx vitest run`)                                                                                                                                                                                  | `npm run lint && npx vitest run`                                                                 |
+| `e2e`                  | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
+| `typecheck`            | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
+| **`ci-ok`**            | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `unit`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                        | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
-| Chequeo (nombre en GitHub)                            | Qué hace                                                                                 | Dónde está                                                                                |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `Workers Builds: kinkyvibe`                           | Cloudflare compila la rama y publica su preview con link (modo demo, [demo.md](demo.md)) | configurado en Cloudflare (`wrangler.toml`, [workers-migracion.md](workers-migracion.md)) |
-| `CodeQL`, `Analyze (javascript)`, `Analyze (actions)` | escaneo de seguridad de GitHub sobre el código y los workflows                           | configuración por defecto de GitHub (no hay archivo en el repo)                           |
+| Chequeo (nombre en GitHub)                  | Qué hace                                                                                 | Dónde está                                                                                |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Workers Builds: kinkyvibe`                 | Cloudflare compila la rama y publica su preview con link (modo demo, [demo.md](demo.md)) | configurado en Cloudflare (`wrangler.toml`, [workers-migracion.md](workers-migracion.md)) |
+| `Analyze (javascript)`, `Analyze (actions)` | escaneo de seguridad de GitHub (CodeQL) sobre el código y los workflows                  | configuración por defecto de GitHub (no hay archivo en el repo)                           |
+| `CodeQL`                                    | en los PRs, el resumen de ese escaneo: falla si el PR trae una alerta nueva              | ídem                                                                                      |
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -62,9 +66,12 @@ Detalles de `e2e`:
 ### Pruebas con base de datos
 
 Las pruebas que tocan D1 usan **una base D1 real** (el mismo motor que Cloudflare, vía
-miniflare), creada en memoria con `createTestDB()` de `src/lib/server/db/testing.js`, que aplica
+miniflare), creada vacía con `createTestDB()` de `src/lib/server/db/testing.js`, que aplica
 **todas las migraciones de `migrations/`**. No necesitan internet ni tocan la base local de
-`npm run dev`. Así se prueba, por ejemplo, que 30 compras al mismo tiempo no vendan de más. Las
+`npm run dev`. Lo normal es una base por archivo (`beforeAll`) y `resetDB()` en cada `beforeEach`.
+Para que sean rápidas, el archivo de la base vive en `/dev/shm` (en memoria; si no se puede, en
+la carpeta temporal) y cada consulta, las migraciones enteras y cada `resetDB()` son un solo
+pedido al worker de miniflare. Así se prueba, por ejemplo, que 30 compras al mismo tiempo no vendan de más. Las
 migraciones que reconstruyen tablas tienen su propia prueba con datos
 (`src/lib/server/db/migration0010.test.js`). Más en [datos.md](datos.md).
 

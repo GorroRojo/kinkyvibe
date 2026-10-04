@@ -34,9 +34,9 @@ velocidad.
 
 - **SvelteKit 2 + Svelte 5 en modo legacy** (sin runes: `export let`, `$:`, stores). JavaScript
   con tipos en JSDoc (solo `src/app.d.ts` es TypeScript). mdsvex para los `.md`.
-- **Cloudflare Pages** con `adapter-cloudflare`; la base es **D1** (`DB`). Cada PR tiene su
-  preview con modo demo. Se viene el paso a **Workers** con backups a R2
-  ([workers-migracion.md](workers-migracion.md), en preparación).
+- **Cloudflare Workers** (con Workers Builds) y `adapter-cloudflare`; la base es **D1** (`DB`),
+  con backups nocturnos a R2. Cada rama tiene su preview con modo demo
+  ([workers-migracion.md](workers-migracion.md)).
 - **Rutas** (`src/routes/`):
   - `(content)/`: páginas públicas (calendario y su página de compra, material, amigues, wiki,
     sitemap, `.ics`). La home es `src/routes/+page.svelte`; `rss/` y `auch/` están sueltas.
@@ -55,8 +55,8 @@ velocidad.
   - Todo lo demás, en D1: órdenes y entradas, códigos, ajustes, plantillas de mails, notas de
     personas, registro de actividad (tablas y quién las usa en [datos.md](datos.md)).
 - **Servicios externos**: Mercado Pago (cobros), Resend (mails), GitHub (login de admins y
-  commits de contenido), fondo.kinkyvibe.ar (porcentaje del Fondo) y un Worker de cron
-  (`workers/cron/`). Los secretos viven en el panel de Cloudflare, nunca en el repo.
+  commits de contenido), fondo.kinkyvibe.ar (porcentaje del Fondo). Los crons
+  (recordatorios y backup) son del propio Worker (`src/lib/server/scheduled.js`). Los secretos viven en el panel de Cloudflare, nunca en el repo.
 
 ## Convenciones
 

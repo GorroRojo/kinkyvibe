@@ -34,7 +34,6 @@ Otras guías sueltas:
 
 - [`README.md`](../README.md) de la raíz: cómo escribir publicaciones a mano (propiedades,
   imágenes, etiquetas).
-- [`workers/cron/README.md`](../workers/cron/README.md): el Worker que dispara los recordatorios.
 - [`CLAUDE.md`](../CLAUDE.md): reglas para los agentes (también valen para humanes).
 
 ## Cómo mantener esto

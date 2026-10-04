@@ -2,8 +2,8 @@
  * POST /api/cron/recordatorios: manda una tanda de los mails que tocan: recordatorios (ver
  * $lib/server/tickets/reminders.js) y lo que quede de cada "Enviar el link a todes" (ver
  * `runMailQueue` en $lib/server/tickets/index.js). Con el interruptor `series` prendido, también
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js). Lo llama cada 15 minutos el Worker de
- * workers/cron/; cada corrida sigue donde quedó la anterior.
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js). Lo llama cada 15 minutos el cron
+ * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
  * tiempo constante, sobre los SHA-256 para no revelar el largo). Sin CRON_SECRET configurado
