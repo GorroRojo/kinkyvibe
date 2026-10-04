@@ -230,6 +230,10 @@
 			? validateTicketsForm(initialTickets, { sales: data.sales ?? undefined }).errors
 			: [];
 	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
+	// Los errores de entradas se muestran al salir de un campo o al tocar Guardar, no apenas se
+	// prende la venta (TicketsEditor).
+	let ticketsTouched = false;
+	$: hiddenTicketErrors = ticketsTouched ? [] : newTicketErrors;
 
 	/* ---------- image (events only) ---------- */
 	// El selector de imágenes (docs/imagenes.md): la imagen elegida va como edge `portada` en el
@@ -251,7 +255,7 @@
 					mapError,
 					linkError,
 					...tagErrors,
-					...newTicketErrors.map((e) => `Entradas: ${e}`),
+					...(ticketsTouched ? newTicketErrors : []).map((e) => `Entradas: ${e}`),
 					...newPeopleErrors
 				].filter(Boolean)
 			);
@@ -335,11 +339,24 @@
 			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
 			: '';
 
+	/** Lleva a «Antes de guardar» (puede estar arriba o abajo de la barra fija). */
+	function focusProblems() {
+		const box = document.getElementById('save-problems');
+		box?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submitSave({ cancel }) {
 		// Un solo envío a la vez (y nada que guardar si está bloqueado).
 		if (saving || !content || problems.length > 0 || !changed) {
 			cancel();
+			return;
+		}
+		if (hiddenTicketErrors.length) {
+			// Guardar con errores de entradas todavía sin mostrar: se muestran y no se guarda.
+			ticketsTouched = true;
+			cancel();
+			tick().then(() => focusProblems());
 			return;
 		}
 		saving = true;
@@ -484,6 +501,7 @@
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
 					errors={ticketsCheck.errors}
+					bind:touched={ticketsTouched}
 					warnings={ticketsCheck.warnings}
 					idPrefix="edit"
 				/>
@@ -493,7 +511,7 @@
 		{/if}
 
 		{#if problems.length}
-			<div class="problems" role="alert">
+			<div class="problems" role="alert" id="save-problems">
 				<strong>Antes de guardar:</strong>
 				<ul>
 					{#each problems as p}<li>{p}</li>{/each}
@@ -537,7 +555,10 @@
 			{#each Object.entries(venueChoiceFields(venue, venueChanged)) as [name, value] (name)}
 				<input type="hidden" {name} {value} />
 			{/each}
-			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
+			{#if problems.length}<small class="blocked"
+					><button type="button" class="link" on:click={focusProblems}
+						>Revisá «Antes de guardar»</button
+					></small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />
 			<SaveButton

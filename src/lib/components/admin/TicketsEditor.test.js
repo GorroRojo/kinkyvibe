@@ -40,3 +40,23 @@ describe('TicketsEditor: transferencia sin datos para transferir', () => {
 		expect(html(['transferencia'], true)).toContain('se configuran en');
 	});
 });
+
+describe('TicketsEditor: cuándo se muestran los errores', () => {
+	/** @param {Record<string, unknown>} props */
+	const body = (props) =>
+		render(TicketsEditor, {
+			props: {
+				state: readTicketsForm({ tickets: [{ id: 'general', name: 'General', price: 10000 }] }),
+				errors: ['General: falta el precio.'],
+				...props
+			}
+		}).body;
+
+	it('recién prendida la venta (sin salir de ningún campo): todavía no', () => {
+		expect(body({})).not.toContain('falta el precio');
+	});
+	it('después de salir de un campo o al guardar: sí', () => {
+		expect(body({ touched: true })).toContain('falta el precio');
+		expect(body({ showErrors: true })).toContain('id="ev-tickets-errors"');
+	});
+});

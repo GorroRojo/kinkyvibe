@@ -778,7 +778,8 @@
 						tags={splitList(values.tags)}
 						location={values.location}
 						transferReady={data.transferReady}
-						errors={showProblems ? ticketsCheck.errors : []}
+						errors={ticketsCheck.errors}
+						showErrors={showProblems}
 						warnings={ticketsCheck.warnings}
 						idPrefix="ev"
 					/>
