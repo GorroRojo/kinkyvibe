@@ -62,7 +62,8 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   sección **Partes** (`PartesEditor.svelte`): ordenar y sacar partes (sacar no borra: queda como
   evento suelto), crear una parte nueva copiando el taller (texto, etiquetas, personas, imagen y
   lugar; sin entradas si hay una sola), sumar un evento existente (sugiere los `<taller>-parte-N`
-  sueltos, como se cargaban antes) «Entradas por parte» y «Si ocultás el taller, ocultar también sus partes».
+  sueltos, como se cargaban antes), «Entradas por parte» y «Si ocultás el taller, ocultar también
+  sus partes».
 
 ## Pendiente
 
