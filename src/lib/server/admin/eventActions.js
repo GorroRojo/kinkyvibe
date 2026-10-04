@@ -14,6 +14,8 @@ import {
 	transferHoldMs
 } from '$lib/server/tickets/index.js';
 import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
+import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
 	cancelTransfer,
 	clearReview,
@@ -67,6 +69,31 @@ export const eventTicketActions = {
 				message: done ? 'Marcada como revisada.' : 'Esa orden ya estaba revisada.'
 			}
 		};
+	},
+	// «Mostrar» el DNI completo de una orden de este evento (en la página solo van los últimos 3
+	// dígitos). Como en la ficha de la persona: cada vez queda en Actividad, sin el DNI.
+	dni: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		const orderId = String((await request.formData()).get('orden') ?? '').slice(0, 64);
+		const key = `orden:${orderId}`;
+		if (!db) return fail(503, { dni: { ok: false, key, message: 'Sin base de datos.' } });
+		if (!orderId) {
+			return fail(400, { dni: { ok: false, key: '', message: 'No sabemos qué DNI mostrar.' } });
+		}
+		const value = await revealOrderDni(db, locals, { slug: params.slug, orderId });
+		if (!value) return fail(404, { dni: { ok: false, key, message: 'No hay DNI.' } });
+		return { dni: { ok: true, key, value } };
+	},
+
+	// Buscador de Órdenes por DNI: el DNI completo no está en la página, así que se busca acá.
+	// Devuelve solo los ids de las órdenes que coinciden (el DNI empieza con esos dígitos).
+	dniSearch: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		const q = dniQueryDigits((await request.formData()).get('q'));
+		if (!db) return fail(503, { dniSearch: { ids: [] } });
+		return { dniSearch: { ids: await orderIdsByDni(db, params.slug, q) } };
 	},
 	resend: async ({ locals, url, params, platform, request, fetch }) => {
 		requireAdmin(locals, url);
