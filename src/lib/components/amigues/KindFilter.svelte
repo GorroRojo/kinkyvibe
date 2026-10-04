@@ -11,7 +11,10 @@
 <nav class="kinds" aria-label="Tipo de perfil">
 	<a class="tap-target" href="/amigues" aria-current={current === '' ? 'page' : undefined}>Todes</a>
 	{#each Object.entries(kinds) as [value, label] (value)}
-		<a class="tap-target" href="/amigues?tipo={value}" aria-current={current === value ? 'page' : undefined}>{label}</a
+		<a
+			class="tap-target"
+			href="/amigues?tipo={value}"
+			aria-current={current === value ? 'page' : undefined}>{label}</a
 		>
 	{/each}
 </nav>

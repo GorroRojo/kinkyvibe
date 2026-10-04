@@ -129,7 +129,9 @@
 									>Ver también:
 									{#each related as relatedTag, i}
 										{#if relatedTag.meta}
-											<a class="tap-target" href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
+											<a class="tap-target" href="/wiki/{relatedTag.meta.wiki}"
+												>{relatedTag.meta.wiki}</a
+											>
 										{:else}
 											<a class="tap-target" href={tagPagePath(relatedTag.id)}
 												>{relatedTag.visible_name ?? relatedTag.id}</a

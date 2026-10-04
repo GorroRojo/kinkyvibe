@@ -129,7 +129,9 @@
 		<nav class="sections" aria-label="Secciones de la Kinkipedia">
 			<ul>
 				{#if data.series?.length}
-					<li><a class="tap-target" href="#series"><span aria-hidden="true">🔁</span> Series</a></li>
+					<li>
+						<a class="tap-target" href="#series"><span aria-hidden="true">🔁</span> Series</a>
+					</li>
 				{/if}
 				{#each sections as sec (sec.id)}
 					<li>

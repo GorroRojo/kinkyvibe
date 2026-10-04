@@ -199,7 +199,9 @@ describe('Mi rincón: orden y borrar la cuenta', () => {
 		const first = page();
 		expect(first).not.toMatch(/class="pill-btn permanent"/);
 		const html = page({ action: 'borrar', codeSentFor: 'delete' });
-		const button = html.match(/<button[^>]*class="([^"]*)"[^>]*>(?:(?!<\/button>).)*Borrar mi cuenta/s);
+		const button = html.match(
+			/<button[^>]*class="([^"]*)"[^>]*>(?:(?!<\/button>).)*Borrar mi cuenta/s
+		);
 		expect(button?.[1]).toContain('permanent');
 		expect(button?.[1]).not.toContain('ghost');
 	});
