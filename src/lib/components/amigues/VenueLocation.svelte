@@ -80,7 +80,7 @@
 	.venue {
 		max-width: 70ch;
 		margin: 1em auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 	}
 	.where {
 		display: flex;
@@ -107,7 +107,7 @@
 		display: inline-block;
 		padding: 0.3em 0.8em;
 		border: 1px solid currentColor;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		font-size: var(--step--1);
 		text-decoration: none;
 	}

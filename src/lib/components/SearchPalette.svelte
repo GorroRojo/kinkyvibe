@@ -377,7 +377,7 @@
 		flex-direction: column;
 		background: white;
 		border-radius: var(--round, 1rem);
-		box-shadow: 0 1em 3em rgba(0, 0, 0, 0.35);
+		box-shadow: var(--shadow-3);
 		overflow: hidden;
 		color: #222;
 	}
@@ -478,7 +478,7 @@
 		flex-direction: column;
 		gap: 0.15em;
 		padding: 0.5em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		text-decoration: none;
 		color: inherit;
 		border-left: 3px solid transparent;
@@ -504,7 +504,7 @@
 		.name {
 			border: 1px solid var(--1-light);
 			color: var(--1-dark);
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			padding: 0 0.5em;
 		}
 	}

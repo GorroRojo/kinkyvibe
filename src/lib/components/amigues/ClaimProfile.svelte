@@ -55,12 +55,12 @@
 	.claim {
 		max-width: 60ch;
 		margin: 2em auto 1em;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		font-size: var(--step--1);
 		text-align: center;
 	}
 	.msg.bad {
-		color: crimson;
+		color: var(--error);
 	}
 	.link {
 		background: none;
@@ -88,7 +88,7 @@
 	.kv-cta {
 		justify-self: start;
 		padding: 0.5em 1.2em;
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		border: 0;
 		background: hsl(319, 90%, 55%);
 		color: white;

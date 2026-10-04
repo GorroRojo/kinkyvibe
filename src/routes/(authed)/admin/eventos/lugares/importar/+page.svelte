@@ -433,7 +433,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.grow {
 		flex: 1 1 14rem;
@@ -447,7 +447,7 @@
 	}
 	.candidate {
 		border-top: 1px solid var(--line, rgba(127, 127, 127, 0.25));
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 	}
 	.candidate.off {
 		opacity: 0.7;
@@ -458,29 +458,29 @@
 	.head {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 	}
 	.pick {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		min-height: 2.4rem;
 	}
 	.events li {
-		padding: 0.35rem 0;
+		padding: var(--space-3xs) 0;
 	}
 	.listing {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0 1.2rem;
+		gap: 0 var(--space-s);
 		align-items: center;
 		border: 0;
 		padding: 0;
 		margin: 0 0 0.6rem;
 	}
 	.listing legend {
-		font-weight: 600;
+		font-weight: 700;
 		padding: 0;
 		margin-bottom: 0.2rem;
 	}

@@ -212,11 +212,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.6rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 		background: var(--info-bg, #f3eef6);
 		color: var(--text, #333);
 		border-radius: var(--card-round, 1rem);
-		padding: 0.7rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.notice.stale {
@@ -229,7 +229,7 @@
 	.btns {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.btn {
 		display: inline-flex;
@@ -254,7 +254,7 @@
 		background: var(--surface, white);
 		color: var(--text, #333);
 		box-shadow: var(--shadow, 0 0.1em 0.3em rgba(0, 0, 0, 0.1));
-		padding: 1.2rem 1.3rem;
+		padding: var(--space-s) var(--space-s);
 		width: min(26rem, calc(100vw - 32px));
 	}
 	.confirm::backdrop {
@@ -263,7 +263,7 @@
 	}
 	.confirm h2 {
 		margin: 0 0 0.4rem;
-		font-size: 1.2rem;
+		font-size: var(--text-base);
 	}
 	.confirm p {
 		margin: 0 0 1rem;

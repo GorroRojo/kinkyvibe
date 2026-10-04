@@ -43,7 +43,7 @@
 	.confirm {
 		max-width: 36rem;
 		margin: 2em auto;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 	.button {
 		font: inherit;

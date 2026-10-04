@@ -34,7 +34,7 @@
 	.personas {
 		margin-block: 0.8em;
 		padding: 0.6em 0.9em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: color-mix(in srgb, var(--2) 10%, white);
 		font-size: var(--step--1);
 	}

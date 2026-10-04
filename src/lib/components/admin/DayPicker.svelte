@@ -202,7 +202,7 @@
 		aspect-ratio: 1;
 		min-height: 2.2em;
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: var(--surface, white);
 		outline: 1px solid var(--line, #eee);
 		outline-offset: -1px;

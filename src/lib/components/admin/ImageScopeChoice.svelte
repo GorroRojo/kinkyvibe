@@ -68,14 +68,14 @@
 		border: 0;
 		margin: 0.3em 0;
 		padding: 0.6em 0.8em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
 		gap: 0.4em;
 		min-width: 0;
 		&.invalid {
-			outline: 2px solid var(--bad, #c62828);
+			outline: 2px solid var(--bad, var(--error));
 		}
 	}
 	legend {
@@ -90,7 +90,7 @@
 		gap: 0.6em;
 		align-items: flex-start;
 		padding: 0.4em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: var(--surface, white);
 		cursor: pointer;
 		outline: 2px solid transparent;
@@ -116,6 +116,6 @@
 	}
 	.error {
 		margin: 0;
-		color: var(--bad, #c62828);
+		color: var(--bad, var(--error));
 	}
 </style>

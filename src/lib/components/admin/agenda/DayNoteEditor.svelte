@@ -169,7 +169,7 @@
 	}
 	legend {
 		font-weight: 700;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: 0;
 		margin-bottom: 0.4rem;
 	}
@@ -181,14 +181,14 @@
 	.swatch {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		min-height: 2.5rem;
-		padding: 0 0.8rem 0 0.6rem;
+		padding: 0 var(--space-xs) 0 var(--space-2xs);
 		border-radius: 3em;
 		border-left: 4px solid var(--tone);
 		background: var(--tone-bg);
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.swatch input {
 		accent-color: var(--tone);
@@ -207,7 +207,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.danger {
 		margin-right: auto;

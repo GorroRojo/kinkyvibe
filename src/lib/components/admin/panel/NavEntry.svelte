@@ -38,7 +38,7 @@
 	a {
 		display: flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2xs);
 		text-decoration: none;
 		color: var(--accent);
 		font-weight: 700;
@@ -50,9 +50,9 @@
 		text-overflow: ellipsis;
 	}
 	.side {
-		padding: 0.38rem 0.8rem 0.38rem 2.3rem;
+		padding: 0.38rem var(--space-xs) 0.38rem var(--space-l);
 		border-radius: var(--round);
-		font-size: 0.94rem;
+		font-size: var(--text-sm);
 		transition: background 100ms;
 		&:hover {
 			background: var(--surface-2);
@@ -67,7 +67,7 @@
 		background: var(--surface);
 		border-radius: var(--round);
 		box-shadow: var(--shadow);
-		padding: 0.75rem 0.8rem;
+		padding: var(--space-xs) var(--space-xs);
 		&.hl {
 			background: var(--accent);
 			color: var(--accent-ink);
@@ -96,7 +96,7 @@
 	}
 	.tag {
 		margin-left: auto;
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		font-weight: 400;
 		border: 1px solid var(--line);
 		color: var(--muted);
@@ -112,9 +112,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 	}

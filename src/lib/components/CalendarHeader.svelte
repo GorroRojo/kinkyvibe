@@ -72,14 +72,14 @@
 	}
 
 	.month {
-		font-weight: var(--month-font-weight, 600);
+		font-weight: var(--month-font-weight, 700);
 		font-size: var(--month-font-size, 2rem);
 	}
 	button {
 		background: transparent;
 		color: #222;
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		padding: 1em;
 		cursor: pointer;
 	}

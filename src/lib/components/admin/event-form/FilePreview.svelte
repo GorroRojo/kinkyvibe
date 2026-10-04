@@ -27,7 +27,7 @@
 	.markdown {
 		background: #1e1e1e;
 		color: #eee;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 1em;
 		font-size: var(--step--2);
 		white-space: pre-wrap;

@@ -209,7 +209,7 @@
 	#calendar {
 		max-width: 50rem;
 		margin-inline: auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		height: 40em;
 		margin-bottom: 3em;
 		padding-bottom: 3em;

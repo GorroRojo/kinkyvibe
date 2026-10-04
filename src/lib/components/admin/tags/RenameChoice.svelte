@@ -73,7 +73,7 @@
 		border: 0;
 		margin: 0.3em 0;
 		padding: 0.6em 0.8em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
@@ -92,7 +92,7 @@
 		gap: 0.6em;
 		align-items: flex-start;
 		padding: 0.4em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: var(--surface, white);
 		cursor: pointer;
 		outline: 2px solid transparent;

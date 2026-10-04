@@ -75,7 +75,7 @@
 		transition: 200ms;
 		max-width: 20vw;
 		overflow-x: visible;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 
 		& > span > span {
 			position: relative;

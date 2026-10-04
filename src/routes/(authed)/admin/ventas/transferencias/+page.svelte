@@ -314,10 +314,10 @@
 	.list li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	.list li:first-child {
@@ -326,21 +326,21 @@
 	.main {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 		flex: 1 1 18rem;
 		overflow-wrap: anywhere;
 	}
 	.ref {
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 		letter-spacing: 0.03em;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.buttons {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 </style>

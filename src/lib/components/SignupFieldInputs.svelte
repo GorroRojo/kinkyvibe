@@ -126,7 +126,7 @@
 	select {
 		font: inherit;
 		padding: 0.55em 0.7em;
-		border-radius: 0.5em;
+		border-radius: var(--radius-s);
 		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
 		background: white;
 		min-height: 2.8em;

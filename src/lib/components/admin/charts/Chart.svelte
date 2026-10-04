@@ -225,7 +225,7 @@
 		--c3: #cca300;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		min-width: 0;
 	}
 	@media (prefers-color-scheme: dark) {
@@ -243,7 +243,7 @@
 	.bar {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 	}
 	.grow {
@@ -252,17 +252,17 @@
 	.legend {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 1rem;
+		gap: var(--space-3xs) var(--space-xs);
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.legend li {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 	}
 	.sw {
 		display: inline-block;
@@ -303,7 +303,7 @@
 	}
 	.ytick,
 	.xtick {
-		font-size: 12px;
+		font-size: var(--text-xs);
 		fill: var(--muted);
 	}
 	.ytick {
@@ -336,10 +336,10 @@
 		background: var(--surface);
 		color: var(--text);
 		border: 1px solid var(--line);
-		border-radius: 0.6em;
-		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-		padding: 0.4rem 0.6rem;
-		font-size: 0.85rem;
+		border-radius: var(--radius-s);
+		box-shadow: var(--shadow-2);
+		padding: 0.4rem var(--space-2xs);
+		font-size: var(--text-xs);
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
@@ -350,12 +350,12 @@
 	.tip span {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 	}
 	.empty {
 		color: var(--muted);
 		margin: 0;
-		padding: 1.5rem 0;
+		padding: var(--space-m) 0;
 		text-align: center;
 	}
 </style>

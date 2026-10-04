@@ -21,6 +21,6 @@
 	.wrap {
 		max-width: 36rem;
 		margin: 1em auto;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 </style>

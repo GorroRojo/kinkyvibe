@@ -38,12 +38,12 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.65rem;
+		gap: var(--space-2xs);
 	}
 	.row {
 		display: flex;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		align-items: baseline;
 	}
 	.label {
@@ -67,6 +67,6 @@
 		background: var(--link);
 	}
 	small {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 	}
 </style>

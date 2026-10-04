@@ -23,7 +23,7 @@
 		gap: 1em;
 		width: min(40rem, 100%);
 		margin: 1.5em auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		box-sizing: border-box;
 	}
 	p {

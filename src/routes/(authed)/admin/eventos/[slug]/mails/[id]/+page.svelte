@@ -45,7 +45,7 @@
 	.head h2 {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		margin: 0.3rem 0 0.2rem;
 	}
@@ -53,6 +53,6 @@
 		margin: 0;
 	}
 	.back {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 </style>

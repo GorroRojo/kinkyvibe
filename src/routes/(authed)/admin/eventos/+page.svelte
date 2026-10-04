@@ -287,7 +287,7 @@
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 		align-items: center;
 		justify-content: space-between;
 		margin-bottom: 1rem;
@@ -303,7 +303,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4em;
-		padding: 0.4rem 0.9rem;
+		padding: 0.4rem var(--space-xs);
 		min-height: 2.5rem;
 		box-sizing: border-box;
 		border-radius: 3em;
@@ -320,7 +320,7 @@
 		color: var(--accent-ink);
 	}
 	.chip .n {
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		opacity: 0.8;
 	}
 	.search {
@@ -330,7 +330,7 @@
 		background: var(--surface);
 		border: 1px solid var(--field);
 		border-radius: 3em;
-		padding: 0 0.9rem;
+		padding: 0 var(--space-xs);
 		flex: 1 1 16rem;
 		max-width: 24rem;
 		color: var(--muted);
@@ -338,7 +338,7 @@
 	.search input {
 		border: 0;
 		background: transparent;
-		padding: 0.55rem 0;
+		padding: var(--space-2xs) 0;
 		min-height: 2.5rem;
 		width: 100%;
 		min-width: 0;
@@ -359,9 +359,9 @@
 	.list li {
 		display: grid;
 		grid-template-columns: 3.2rem 3.2rem minmax(0, 1fr) 8rem auto;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.7rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		border-bottom: 1px solid var(--line);
 	}
 	.list li:last-child {
@@ -381,10 +381,10 @@
 		color: var(--accent-dark);
 	}
 	.date b {
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
 	}
 	.date small {
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		font-weight: 700;
@@ -415,23 +415,23 @@
 	}
 	.meta {
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.badges {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.sales {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.85rem;
+		gap: var(--space-3xs);
+		font-size: var(--text-xs);
 	}
 	.actions {
 		display: flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.icon-link {
 		display: inline-grid;
@@ -447,15 +447,15 @@
 	}
 	.more {
 		text-align: center;
-		padding: 0.5rem 0 1rem;
+		padding: var(--space-2xs) 0 var(--space-xs);
 		margin: 0;
 	}
 	.status {
 		display: block;
 		margin: 0;
-		padding: 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.sr-only {
 		position: absolute;
@@ -471,8 +471,8 @@
 			grid-template-areas:
 				'date info actions'
 				'date sales sales';
-			gap: 0.3rem 0.7rem;
-			padding: 0.7rem 0.8rem;
+			gap: var(--space-3xs) var(--space-2xs);
+			padding: var(--space-2xs) var(--space-xs);
 		}
 		.date {
 			grid-area: date;
@@ -501,7 +501,7 @@
 			align-self: start;
 		}
 		.actions .kv-btn {
-			padding: 0.4rem 0.7rem;
+			padding: 0.4rem var(--space-2xs);
 		}
 	}
 </style>

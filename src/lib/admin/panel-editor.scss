@@ -27,11 +27,11 @@
 		max-width: 66rem;
 	}
 	h1 {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 	}
 	.back {
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.mock {
 		background: var(--warn-bg);
@@ -42,7 +42,7 @@
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow);
-		border-radius: 1rem;
+		border-radius: var(--radius-m);
 	}
 	label.field,
 	.field-label {
@@ -59,7 +59,7 @@
 		color: var(--text);
 		outline: 0;
 		border: 1px solid var(--line);
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		min-height: 2.75rem;
 		&:focus {
 			outline: 2px solid var(--link);
@@ -101,7 +101,7 @@
 		color: var(--accent-ink);
 		border-radius: 2em;
 		font-weight: 700;
-		padding: 0.55rem 1.2rem;
+		padding: var(--space-2xs) var(--space-s);
 		box-shadow: 0 0.15em 0 var(--accent-dark);
 		&.secondary {
 			background: var(--surface);

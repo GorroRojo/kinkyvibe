@@ -112,11 +112,11 @@
 	.fondo-now {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		margin: 0;
 	}
 	.big {
-		font-size: 2rem;
+		font-size: var(--text-2xl);
 		font-weight: 700;
 	}
 </style>

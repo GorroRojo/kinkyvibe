@@ -316,8 +316,8 @@
 		padding: 0.3em;
 		list-style: none;
 		background: var(--surface, white);
-		border-radius: 0.8em;
-		box-shadow: 0 0.2em 1em rgba(0, 0, 0, 0.18);
+		border-radius: var(--radius-m);
+		box-shadow: var(--shadow-2);
 		max-height: 18em;
 		overflow: auto;
 	}
@@ -326,7 +326,7 @@
 		align-items: center;
 		gap: 0.5em;
 		padding: 0.4em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		cursor: pointer;
 		&.active {
 			background: var(--surface-2, #f3eef6);
@@ -396,7 +396,7 @@
 		}
 		[role='option'] {
 			padding: 0.45em 0.7em;
-			border-radius: 0.5em;
+			border-radius: var(--radius-s);
 			color: color-mix(in srgb, black 25%, var(--option-color, var(--1)));
 			&.active {
 				background: color-mix(in srgb, var(--option-color, var(--1)) 14%, white);

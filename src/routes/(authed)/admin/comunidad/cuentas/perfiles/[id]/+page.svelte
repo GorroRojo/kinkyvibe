@@ -201,7 +201,7 @@
 	.facts {
 		display: grid;
 		grid-template-columns: max-content 1fr;
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 		margin: 0;
 	}
 	.facts dt {
@@ -212,7 +212,7 @@
 		overflow-wrap: anywhere;
 	}
 	.sub {
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 		margin: 1rem 0 0.3rem;
 	}
 	.bio {
@@ -228,13 +228,13 @@
 	}
 	.links li,
 	.managers li {
-		padding: 0.25rem 0;
+		padding: var(--space-3xs) 0;
 		overflow-wrap: anywhere;
 	}
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.danger {
 		margin-top: 0.8rem;
@@ -246,6 +246,6 @@
 	.danger summary {
 		cursor: pointer;
 		color: var(--bad);
-		font-weight: 600;
+		font-weight: 700;
 	}
 </style>

@@ -129,10 +129,10 @@
 	}
 	.reasons {
 		margin: 0;
-		padding-left: 1.2rem;
+		padding-left: var(--space-s);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.reasons.bad {
 		color: var(--bad);
@@ -140,8 +140,8 @@
 	}
 	.warn {
 		background: var(--warn-bg);
-		border-radius: 0.8em;
-		padding: 0.7rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.warn .head {
 		margin: 0 0 0.3rem;

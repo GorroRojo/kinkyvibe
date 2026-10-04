@@ -126,21 +126,21 @@
 	.when {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem 0.8rem;
+		gap: var(--space-2xs) var(--space-xs);
 	}
 	.when label,
 	.scratch label {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	input {
 		min-height: 2.6rem;
 		border: 1px solid var(--line);
-		border-radius: 0.6rem;
-		padding: 0 0.6rem;
+		border-radius: var(--radius-s);
+		padding: 0 var(--space-2xs);
 		background: var(--surface);
 		color: var(--text);
 		font: inherit;
@@ -148,22 +148,22 @@
 	.error {
 		margin: 0;
 		background: var(--bad-bg);
-		border-radius: 0.6rem;
-		padding: 0.4rem 0.7rem;
+		border-radius: var(--radius-s);
+		padding: 0.4rem var(--space-2xs);
 	}
 	.scratch {
 		border-top: 1px solid var(--line);
-		padding-top: 0.8rem;
+		padding-top: var(--space-xs);
 	}
 	.scratch form {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.row input {
 		flex: 1 1 14rem;
@@ -172,8 +172,8 @@
 	.more {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		border-top: 1px solid var(--line);
-		padding-top: 0.8rem;
+		padding-top: var(--space-xs);
 	}
 </style>

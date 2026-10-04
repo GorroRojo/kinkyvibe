@@ -23,12 +23,12 @@
 		justify-content: center;
 		gap: 0.5em;
 		margin: 0 auto 1.5em;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		font-size: var(--step-0);
 	}
 	a {
 		padding: 0.25em 0.8em;
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		border: 1px solid color-mix(in srgb, var(--1, hotpink) 50%, transparent);
 		color: inherit;
 		text-decoration: none;

@@ -92,7 +92,7 @@
 	.rows,
 	.cards {
 		display: grid;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.rows {
 		margin-top: 0.6rem;
@@ -100,13 +100,13 @@
 	.arow {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		background: var(--surface);
 		color: var(--accent);
 		border: 0;
 		border-radius: var(--round);
 		box-shadow: var(--shadow);
-		padding: 0.7rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		text-align: left;
 		width: 100%;
 		font: inherit;
@@ -124,7 +124,7 @@
 		}
 		small {
 			color: var(--muted);
-			font-size: 0.78rem;
+			font-size: var(--text-xs);
 		}
 		.chev {
 			margin-left: auto;
@@ -136,9 +136,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 		+ .chev {
@@ -155,7 +155,7 @@
 		font: inherit;
 		font-weight: 700;
 		cursor: pointer;
-		padding: 0.3rem 0;
+		padding: var(--space-3xs) 0;
 	}
 	.gl {
 		display: flex;
@@ -163,13 +163,13 @@
 		gap: 0.4rem;
 		font-weight: 700;
 		color: var(--text);
-		padding: 0.4rem 0.2rem 0.5rem;
+		padding: 0.4rem 0.2rem var(--space-2xs);
 	}
 	.sub {
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: 0.6rem 0.2rem 0.3rem;
+		padding: var(--space-2xs) 0.2rem var(--space-3xs);
 	}
 </style>

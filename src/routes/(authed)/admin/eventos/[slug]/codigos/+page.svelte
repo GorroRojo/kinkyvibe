@@ -196,39 +196,39 @@
 <style>
 	.grid {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
 		align-items: start;
 	}
 	.flash {
 		background: var(--ok-bg);
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0 0 1rem;
 	}
 	.flash.error {
 		background: var(--bad-bg);
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.block {
 		display: block;
 	}
 	button.small {
-		padding: 0.25rem 0.7rem;
-		font-size: 0.82rem;
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 	}
 	.new {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		border: 0;
 		padding: 0;
 		margin: 0;
@@ -246,7 +246,7 @@
 		color: var(--bad);
 	}
 	.field input:not([type='radio']) {
-		padding: 0.55rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		min-height: 2.75rem;
 		box-sizing: border-box;
 		border-radius: 3em;
@@ -265,7 +265,7 @@
 	}
 	.row {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
 	}
 	.new .kv-btn {

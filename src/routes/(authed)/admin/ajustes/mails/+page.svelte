@@ -203,9 +203,9 @@
 	.reminder {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		gap: var(--space-3xs);
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--surface-2);
 	}
 	.reminder.new {
@@ -218,7 +218,7 @@
 		width: 5.5rem;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.batch {
 		max-width: 12rem;

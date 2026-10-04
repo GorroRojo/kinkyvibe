@@ -111,7 +111,7 @@
 	.title {
 		display: none;
 		margin: 0 0 0.4rem;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -148,7 +148,7 @@
 	@container event-form (max-width: 47.99rem) {
 		.section-index {
 			margin: 0 -16px 0.8rem;
-			padding: 0.4rem 16px;
+			padding: 0.4rem var(--space-xs);
 			background: var(--bg, #fff7fb);
 		}
 		ol {
@@ -164,7 +164,7 @@
 		.section-index a {
 			background: var(--surface, white);
 			box-shadow: inset 0 0 0 1px var(--line, #ddd);
-			font-size: 0.9rem;
+			font-size: var(--text-sm);
 		}
 	}
 
@@ -176,7 +176,7 @@
 		}
 		.title {
 			display: block;
-			padding-left: 0.9rem;
+			padding-left: var(--space-xs);
 		}
 		ol {
 			display: flex;

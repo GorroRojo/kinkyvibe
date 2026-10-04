@@ -115,7 +115,7 @@
 <style>
 	.ticket {
 		background: white;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 1.2em;
 		outline: 3px dashed var(--1);
 		text-align: center;

@@ -661,7 +661,7 @@
 	.importar {
 		max-width: 50rem;
 		margin-inline: auto;
-		padding: 0 16px 4em;
+		padding: 0 var(--space-xs) 4em;
 		font-size: var(--step-0);
 	}
 	h1 {
@@ -678,7 +678,7 @@
 	}
 	.mock {
 		background: var(--warn-bg, #fff6d6);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.5em 1em;
 		font-size: var(--step--1);
 	}
@@ -707,7 +707,7 @@
 		font-family: monospace;
 		font-size: 0.85em;
 		padding: 0.8em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		border: 0;
 		outline: 1px solid var(--1-light);
 		tab-size: 4;
@@ -722,7 +722,7 @@
 		background: var(--1);
 		color: white;
 		border: 0;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.5em 1.2em;
 		font-size: var(--step-0);
 		text-decoration: none;
@@ -744,9 +744,9 @@
 	}
 	.summary {
 		background: var(--surface, white);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 1em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 	}
 	.items {
 		list-style: none;
@@ -757,9 +757,9 @@
 	}
 	.item {
 		background: var(--surface, white);
-		border-radius: 1.2em;
+		border-radius: var(--radius-l);
 		padding: 0.8em 1em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 		border-left: 0.4em solid var(--3-light, #cdeccd);
 		&.off {
 			background: var(--surface-2, #f6f6f6);
@@ -801,7 +801,7 @@
 		font-size: var(--step--1);
 		li {
 			background: var(--warn-bg, #fff6d6);
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			padding: 0.2em 0.6em;
 			margin-bottom: 0.25em;
 		}
@@ -841,7 +841,7 @@
 		select {
 			font-size: var(--step-0);
 			padding: 0.35em 0.6em;
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			border: 1px solid var(--line, #ccc);
 			min-width: 0;
 			width: 100%;
@@ -903,7 +903,7 @@
 	}
 	.global-error {
 		background: var(--bad-bg, #fde2e2);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.5em 1em;
 	}
 	.confirm {
@@ -919,9 +919,9 @@
 	}
 	.result {
 		background: var(--surface, white);
-		border-radius: 1.2em;
+		border-radius: var(--radius-l);
 		padding: 1em 1.2em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 	}
 	.created {
 		padding-left: 1.2em;

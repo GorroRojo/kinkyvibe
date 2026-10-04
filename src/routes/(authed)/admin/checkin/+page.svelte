@@ -90,7 +90,7 @@
 		margin-bottom: 1.4rem;
 	}
 	h2 {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--muted);
@@ -98,7 +98,7 @@
 	}
 	.list {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	@media (min-width: 900px) {
 		.list {
@@ -108,25 +108,25 @@
 	.event {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	.info {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	h3 {
 		margin: 0;
-		font-size: 1.1rem;
+		font-size: var(--text-base);
 	}
 	p {
 		margin: 0;
 	}
 	.count {
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 	}
 	.count b {
-		font-size: 1.5rem;
+		font-size: var(--text-lg);
 	}
 	.event .kv-btn {
 		align-self: flex-start;
@@ -135,8 +135,8 @@
 	.note {
 		background: var(--warn-bg);
 		color: var(--warn);
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 	}
 	.empty {
 		margin: 0;

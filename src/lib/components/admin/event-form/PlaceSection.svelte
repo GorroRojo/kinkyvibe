@@ -451,7 +451,7 @@
 	}
 	.chosen {
 		background: var(--surface-2, #f6f0f8);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 0.9em;
 	}
 	.name {
@@ -461,7 +461,7 @@
 		display: inline-block;
 		margin-left: 0.4em;
 		padding: 0 0.5em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		font-size: var(--step--1);
 		background: var(--4-light, #fff3c4);
 	}
@@ -490,7 +490,7 @@
 		font: inherit;
 		background: var(--surface-2, #f6f0f8);
 		border: 1px solid var(--1-light, #ddd);
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		padding: 0.45em 0.8em;
 		min-height: 2.75rem;
 		cursor: pointer;

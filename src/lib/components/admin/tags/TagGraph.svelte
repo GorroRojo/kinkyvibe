@@ -100,7 +100,7 @@
 		width: 100%;
 		height: auto;
 		display: block;
-		font-size: 12px;
+		font-size: var(--text-xs);
 	}
 	.edge {
 		stroke: var(--line);
@@ -133,12 +133,12 @@
 	.center text {
 		fill: #fff;
 		font-weight: 700;
-		font-size: 14px;
+		font-size: var(--text-xs);
 	}
 	.center .aka,
 	.more {
 		fill: var(--muted);
 		font-weight: 400;
-		font-size: 12px;
+		font-size: var(--text-xs);
 	}
 </style>

@@ -75,7 +75,7 @@
 
 	.week-days {
 		color: var(--week-days-color, gray);
-		font-weight: var(--week-days-font-weight, 600);
+		font-weight: var(--week-days-font-weight, 700);
 		margin: var(--week-days-margin, 0 0 0rem 0);
 	}
 

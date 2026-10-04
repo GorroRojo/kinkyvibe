@@ -69,7 +69,7 @@
 		margin-top: 0.7rem;
 	}
 	h3 {
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
@@ -83,14 +83,14 @@
 		grid-template-columns: 2.7rem 1.5rem minmax(0, 1fr);
 		gap: 0.4rem;
 		align-items: start;
-		padding: 0.35rem 0;
+		padding: var(--space-3xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	.item:first-child {
 		border-top: 0;
 	}
 	time {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 		padding-top: 0.1rem;
@@ -130,7 +130,7 @@
 		font-weight: 700;
 		text-decoration: none;
 		overflow-wrap: anywhere;
-		font-size: 0.93rem;
+		font-size: var(--text-sm);
 	}
 	.what small {
 		color: var(--muted);

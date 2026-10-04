@@ -64,7 +64,7 @@
 		padding: 1rem 16px calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
 		display: flex;
 		flex-direction: column;
-		gap: 0.9rem;
+		gap: var(--space-xs);
 		max-height: 92dvh;
 		overflow: auto;
 		box-sizing: border-box;
@@ -74,19 +74,19 @@
 			margin: auto;
 		}
 		.sheet {
-			border-radius: 1.2rem;
-			padding: 1.2rem 1.4rem 1.4rem;
+			border-radius: var(--radius-l);
+			padding: var(--space-s) var(--space-s) var(--space-s);
 		}
 	}
 	header {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	h2 {
 		margin: 0;
 		flex: 1;
-		font-size: 1.25rem;
+		font-size: var(--text-base);
 	}
 	.close {
 		width: 2.75rem;

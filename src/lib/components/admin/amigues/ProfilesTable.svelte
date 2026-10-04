@@ -97,7 +97,7 @@
 		overflow-wrap: anywhere;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
 		.hide-sm {

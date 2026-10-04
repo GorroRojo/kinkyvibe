@@ -34,7 +34,7 @@
 	.entradas-main {
 		max-width: 36rem;
 		margin: 0 auto;
-		padding: 1em 16px 3em;
+		padding: 1em var(--space-xs) 3em;
 		font-size: var(--step-0);
 	}
 </style>
