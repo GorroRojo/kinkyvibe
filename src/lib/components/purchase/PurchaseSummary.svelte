@@ -2,11 +2,16 @@
 	/**
 	 * Resumen de lo que se está comprando, siempre a la vista: en pantallas anchas es una columna
 	 * al costado (fija al bajar); en el celu, una barra arriba del formulario con el total, que se
-	 * despliega para ver el detalle. Un solo bloque para los dos casos (cambia con CSS), así el
-	 * total aparece una sola vez en la página.
+	 * despliega para ver el detalle. Un solo bloque para los dos casos (cambia con CSS).
+	 *
+	 * En el celu la barra es una sola línea («1 entrada · $ 15.300 ▾», toda tocable) para no tapar
+	 * el formulario; abajo, siempre a la vista, el recargo de Mercado Pago si lo hay (el total ya
+	 * lo incluye y no tiene que ser una sorpresa).
 	 *
 	 * `summary` sale de `purchaseSummary` ($lib/utils/purchaseSteps.js); acá no se hacen cuentas.
 	 */
+	import { ChevronDown } from '@lucide/svelte';
+
 	/** @type {import('$lib/utils/purchaseSteps.js').PurchaseSummary} */
 	export let summary;
 	/** Texto del cierre de la venta ("La venta cierra el …."), o vacío. */
@@ -21,24 +26,36 @@
 	function collapse(_key) {
 		expanded = false;
 	}
+	$: fee = summary.lines.find((l) => l.id === 'recargo') ?? null;
 </script>
 
 <aside class="summary" class:expanded aria-labelledby="resumen-titulo">
-	<div class="bar">
-		<h3 id="resumen-titulo">Tu compra</h3>
-		{#if summary.item}<span class="count">{summary.countText}</span>{/if}
-		<p class="total" aria-live="polite">Total: <strong>{summary.total}</strong></p>
-		<button
-			type="button"
-			class="toggle"
-			aria-expanded={expanded}
-			aria-controls="resumen-detalle"
-			on:click={() => (expanded = !expanded)}
-			>{expanded ? 'Ocultar detalle' : 'Ver detalle'}<span class="visually-hidden">
-				de la compra</span
-			></button
+	<h3 id="resumen-titulo">Tu compra</h3>
+	<!-- Celu: la barra de una línea, que despliega el detalle. -->
+	<button
+		type="button"
+		class="bar"
+		aria-expanded={expanded}
+		aria-controls="resumen-detalle"
+		on:click={() => (expanded = !expanded)}
+	>
+		<span class="bar-text"
+			>{summary.item ? summary.countText : 'Elegí tu entrada'} ·
+			<strong>{summary.total}</strong></span
 		>
-	</div>
+		<span class="visually-hidden">{expanded ? 'Ocultar detalle' : 'Ver detalle'}</span>
+		<ChevronDown size="1.1em" aria-hidden="true" />
+	</button>
+	{#if fee}
+		<p class="fee">Incluye el recargo de Mercado Pago <span class="amount">{fee.amount}</span></p>
+	{:else if summary.surchargePlaceholder}
+		<!-- Mismo lugar que la línea del recargo, para que el formulario no salte al cambiar el medio
+		     de pago (el texto va en ::before, fuera del DOM). -->
+		<p class="fee placeholder" aria-hidden="true">
+			<span data-text="Incluye el recargo de Mercado Pago"></span>
+			<span data-text={summary.surchargePlaceholder}></span>
+		</p>
+	{/if}
 	<div class="detail" id="resumen-detalle">
 		{#if summary.item}
 			<p class="item">
@@ -68,6 +85,8 @@
 		{/if}
 		{#if closesText}<small class="closes">{closesText}</small>{/if}
 	</div>
+	{#if summary.item}<span class="count">{summary.countText}</span>{/if}
+	<p class="total" aria-live="polite">Total: <strong>{summary.total}</strong></p>
 </aside>
 
 <style>
@@ -78,7 +97,7 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		padding: 0.6em 0.8em;
+		padding: var(--space-3xs) var(--space-2xs);
 		border-radius: var(--radius-m);
 		background: white;
 		box-shadow:
@@ -86,50 +105,72 @@
 			0 4px 10px rgba(0, 0, 0, 0.08);
 		font-size: var(--step--1);
 	}
-	.bar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.2em 0.6em;
-	}
 	h3 {
 		margin: 0;
 		font-size: var(--step-0);
 		color: var(--1-ink);
 	}
-	.count {
-		color: var(--muted);
-	}
+	/* Celu: «Tu compra» queda para los lectores de pantalla; se ve la barra. */
+	h3,
+	.count,
 	.total {
-		margin: 0 0 0 auto;
-		font-size: var(--step-0);
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
 	}
-	.toggle {
-		flex: 0 0 auto;
+	.bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2xs);
+		width: 100%;
+		min-height: var(--tap);
 		margin: 0;
-		padding: 0.3em 0.7em;
-		min-height: 44px;
+		padding: 0 var(--space-3xs);
 		border: 0;
-		border-radius: var(--round-pill);
 		background: none;
-		box-shadow: none;
-		color: var(--2-dark);
+		color: var(--ink);
 		font: inherit;
-		font-weight: bold;
-		text-decoration: underline;
+		font-size: var(--step-0);
+		text-align: start;
 		cursor: pointer;
 	}
-	.toggle:focus-visible {
+	.bar :global(svg) {
+		flex: none;
+		color: var(--2-dark);
+		transition: rotate 150ms;
+	}
+	.expanded .bar :global(svg) {
+		rotate: 180deg;
+	}
+	.bar:focus-visible {
 		outline: 3px solid var(--2-light);
+		border-radius: var(--radius-s);
+	}
+	.fee {
+		display: flex;
+		justify-content: space-between;
+		gap: 1em;
+		margin: 0;
+		padding: 0 var(--space-3xs) var(--space-3xs);
+		color: var(--muted);
 	}
 	.detail {
 		display: none;
 		margin-top: 0.4em;
-		padding-top: 0.4em;
+		padding: 0.4em var(--space-3xs) var(--space-3xs);
 		border-top: 1px solid color-mix(in srgb, var(--2) 25%, transparent);
 	}
 	.expanded .detail {
 		display: block;
+	}
+	/* Desplegado, el recargo ya está en el detalle. */
+	.expanded .fee {
+		display: none;
 	}
 	.item,
 	.option {
@@ -187,7 +228,7 @@
 		border: 0;
 	}
 	/* Pantallas anchas (lo decide el contenedor de la compra): columna al costado, siempre con el
-	   detalle, sin el botón para desplegar. */
+	   detalle, sin la barra para desplegar. */
 	@container compra (min-width: 46rem) {
 		.summary {
 			top: 1em;
@@ -195,16 +236,31 @@
 			flex-direction: column;
 			padding: 0.9em 1em;
 		}
-		/* Los hijos de la barra pasan a ser parte de la columna: el total va al final. */
-		.bar {
-			display: contents;
+		h3,
+		.count,
+		.total {
+			position: static;
+			width: auto;
+			height: auto;
+			margin: 0;
+			overflow: visible;
+			clip: auto;
+			white-space: normal;
+		}
+		.bar,
+		.fee {
+			display: none;
 		}
 		.count {
-			order: 1;
+			color: var(--muted);
 		}
 		.detail {
 			order: 2;
 			display: block;
+			padding-inline: 0;
+		}
+		.count {
+			order: 1;
 		}
 		.total {
 			order: 3;
@@ -212,9 +268,6 @@
 			padding-top: 0.4em;
 			border-top: 1px solid color-mix(in srgb, var(--2) 25%, transparent);
 			font-size: var(--step-1);
-		}
-		.toggle {
-			display: none;
 		}
 	}
 </style>

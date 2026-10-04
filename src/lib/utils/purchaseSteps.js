@@ -27,6 +27,62 @@ export const STEP_TICKETS = 0;
 export const STEP_BUYER = 1;
 export const STEP_PAY = 2;
 
+/**
+ * Cada paso tiene su dirección (`?paso=1|2|3`), así «Atrás» del navegador vuelve al paso anterior
+ * y una recarga se queda en el paso. El paso 1 es la dirección sin `?paso`.
+ */
+export const STEP_PARAM = 'paso';
+
+/**
+ * El paso (0, 1, 2) que dice la dirección, o `null` si no dice ninguno válido.
+ *
+ * @param {URLSearchParams} params
+ * @returns {number | null}
+ */
+export function stepFromParams(params) {
+	const raw = params.get(STEP_PARAM);
+	if (raw === null || !/^[1-9]$/.test(raw)) return null;
+	const n = Number(raw) - 1;
+	return n < PURCHASE_STEPS.length ? n : null;
+}
+
+/**
+ * La dirección del paso `step` a partir de la actual (sin cambiar lo demás de la búsqueda).
+ *
+ * @param {URL} url
+ * @param {number} step
+ * @returns {string} ruta + búsqueda + hash
+ */
+export function stepHref(url, step) {
+	const next = new URL(url);
+	if (step <= STEP_TICKETS) next.searchParams.delete(STEP_PARAM);
+	else next.searchParams.set(STEP_PARAM, String(step + 1));
+	return next.pathname + next.search + next.hash;
+}
+
+/**
+ * El tipo de entrada que arranca elegido: el más barato de los que se pueden comprar (como el
+ * «desde $ …» del botón del evento: precio menos lo que cubre el Fondo; a la gorra, el sugerido).
+ * Con empate, el primero. `''` si no hay ninguno.
+ *
+ * @param {readonly { id: string, price: number, fondo: number, available: number, closed?: boolean,
+ *   gorra?: { suggested: number } | null }[]} types
+ * @returns {string}
+ */
+export function cheapestAvailableType(types) {
+	let best = null;
+	let bestPrice = Infinity;
+	for (const t of types) {
+		if (!(t.available > 0) || t.closed) continue;
+		const price = t.gorra ? t.gorra.suggested : t.price - (t.fondo ?? 0);
+		if (price < bestPrice) {
+			best = t;
+			bestPrice = price;
+		}
+	}
+	return best?.id ?? '';
+}
+
 /** Campos del formulario que están en el paso «Entradas». */
 const TICKETS_FIELDS = new Set(['type', 'tier', 'option', 'amount', 'quantity', 'code']);
 /** Campos de quien compra (paso «Tus datos»); además, cada entrada y las preguntas. */

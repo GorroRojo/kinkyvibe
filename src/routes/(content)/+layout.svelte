@@ -7,7 +7,7 @@
 		Heart,
 		CalendarRange,
 		ShoppingCart,
-		ChevronLeft,
+		ChevronRight,
 		Globe
 	} from '@lucide/svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
@@ -20,7 +20,7 @@
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { breadcrumbLd, sectionCrumb } from '$lib/utils/navigation.js';
+	import { breadcrumbLd, ownBackLink, sectionCrumb } from '$lib/utils/navigation.js';
 	export let data;
 	$: cuentaLink = accountLink(data);
 	togglePositiveTagFilterFn.update(
@@ -121,8 +121,9 @@
 		/>
 	</div>
 </header>
-{#if $page.url.pathname != '/'}
-	<div class="breadcrumbs">
+{#if $page.url.pathname != '/' && !ownBackLink($page.url.pathname)}
+	<!-- «Inicio › Calendario» (la flecha apunta hacia adentro, como se lee). -->
+	<nav class="breadcrumbs" aria-label="Migas de pan">
 		<a href={'/'}>
 			{#if !onPost}
 				<ArrowLeft size="20" aria-hidden="true" />
@@ -134,10 +135,10 @@
 			{#if ldBreadcrumb}
 				<LDTag schema={ldBreadcrumb} />
 			{/if}
-			<ChevronLeft size="20" aria-hidden="true" />
+			<ChevronRight size="20" aria-hidden="true" />
 			<a href={crumb.path}>{crumb.name}</a>
 		{/if}
-	</div>
+	</nav>
 {/if}
 {#if loggedOut}
 	<p class="salida" role="status">

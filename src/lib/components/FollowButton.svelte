@@ -6,7 +6,9 @@
 	 * sesión, manda a /mi-rincon/sigo (?/seguir o ?/dejar); con JavaScript cambia acá mismo, sin
 	 * JavaScript muestra el resultado en Mi rincón → Lo que sigo.
 	 * Props: `kind` (`etiqueta` o `perfil`), `key` (nombre de la etiqueta o id del perfil),
-	 * `name` (cómo se llama, para el texto).
+	 * `name` (cómo se llama, para el texto), `label` (el texto del botón, «Seguir» si no se pasa)
+	 * e `inline` (en una fila de botones, como «Agregar a mi calendario» en la página de un evento:
+	 * sin el ancho ni el margen propios).
 	 */
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
@@ -18,6 +20,8 @@
 	export let key;
 	/** @type {string} */
 	export let name = '';
+	export let label = 'Seguir';
+	export let inline = false;
 
 	/** @type {null | { member: false } | { member: true, kind: string, key: string, following: boolean }} */
 	let info = null;
@@ -62,10 +66,11 @@
 </script>
 
 {#if info}
-	<div class="follow">
+	<div class="follow" class:inline>
 		{#if !info.member}
 			<a class="pill-btn ghost" href="/ingresar?next={encodeURIComponent(here)}">
-				<Bell size={18} aria-hidden="true" /> Seguir
+				<Bell size={18} aria-hidden="true" />
+				{label}
 			</a>
 			<span class="hint">Entrá con tu cuenta para seguir {name || 'esto'}.</span>
 		{:else}
@@ -86,7 +91,7 @@
 					{#if info.following}
 						<BellOff size={18} aria-hidden="true" /> Dejar de seguir
 					{:else}
-						<Bell size={18} aria-hidden="true" /> Seguir
+						<Bell size={18} aria-hidden="true" /> {label}
 					{/if}
 				</button>
 			</form>
@@ -114,6 +119,11 @@
 		/* 16px a los costados en el celu */
 		width: min(45rem, calc(100% - 32px));
 		margin: 1em auto 0;
+	}
+	.follow.inline {
+		width: auto;
+		margin: 0;
+		justify-content: center;
 	}
 	.ok a {
 		color: inherit;

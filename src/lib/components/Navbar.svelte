@@ -2,7 +2,8 @@
 	//@ts-nocheck
 	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
-	import SearchButton from './SearchButton.svelte';
+	import { Search } from '@lucide/svelte';
+	import { searchOpen } from '$lib/utils/stores';
 	import { isSectionActive } from '$lib/utils/navigation.js';
 	export let links;
 </script>
@@ -25,8 +26,22 @@
 				</a>
 			</li>
 		{/each}
+		<!-- Celu: el buscador es un ítem más de la barra de abajo (antes era un botón flotante que
+		     tapaba texto, errores de formularios y botones). En compu está en el encabezado. -->
+		<li class="search-item">
+			<button
+				type="button"
+				aria-haspopup="dialog"
+				aria-keyshortcuts="Control+K Meta+K"
+				on:click={() => searchOpen.set(true)}
+			>
+				<span>
+					<span><Search size="1em" aria-hidden="true" /></span>
+					Buscar
+				</span>
+			</button>
+		</li>
 	</ul>
-	<SearchButton variant="fab" />
 </nav>
 
 <style lang="scss">
@@ -57,7 +72,17 @@
 		width: 100%;
 		height: 4em;
 	}
-	nav a {
+	nav button {
+		width: 100%;
+		padding: 0;
+		border: 0;
+		font: inherit;
+		cursor: pointer;
+	}
+	nav .search-item {
+		display: none;
+	}
+	nav :is(a, button) {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -89,10 +114,10 @@
 		color: var(--2-dark);
 		--color: var(--2-dark);
 	}
-	.current a {
+	.current :is(a, button) {
 		background: var(--2-tint);
 	}
-	nav a span {
+	nav :is(a, button) span {
 		--color: var(--1);
 		color: var(--color);
 		translate: 0 0.3em;
@@ -101,10 +126,10 @@
 	}
 
 	nav li:hover span,
-	nav a:focus span {
+	nav :is(a, button):focus span {
 		translate: 0 0;
 	}
-	nav a:focus {
+	nav :is(a, button):focus {
 		outline: 2px solid var(--color);
 		border: 0;
 	}
@@ -118,7 +143,7 @@
 		white-space: nowrap;
 	}
 	nav li:hover small,
-	nav a:focus small {
+	nav :is(a, button):focus small {
 		scale: 1;
 	}
 	/* 681–1024px: menú más compacto para que ninguna etiqueta se parta en dos líneas */
@@ -127,19 +152,22 @@
 			gap: 0.5em;
 			padding-inline: 0.5em;
 		}
-		nav a {
+		nav :is(a, button) {
 			font-size: clamp(0.95em, 0.55em + 0.9vw, 1.2em);
 			max-width: none;
 			white-space: nowrap;
 		}
 	}
 	@media screen and (max-width: 680px) {
+		nav .search-item {
+			display: block;
+		}
 		nav {
 			position: fixed;
 			bottom: 0;
 			left: 0;
 			right: 0;
-			/* los 5 ítems reparten el ancho (el buscador es un FAB aparte, ver SearchButton) */
+			/* los 5 ítems y el buscador reparten el ancho */
 			gap: 0.25em;
 			max-width: none;
 			padding-inline: 0.5em max(0.5em, env(safe-area-inset-right));
@@ -157,8 +185,8 @@
 					width: auto;
 					height: 4em;
 					&:hover span,
-					a:hover span,
-					a:focus {
+					:is(a, button):hover span,
+					:is(a, button):focus {
 						outline: none;
 						span {
 							translate: 0 0.3em;
@@ -166,7 +194,7 @@
 					}
 					/* &.current, */
 					&.current {
-						a {
+						:is(a, button) {
 							box-shadow: none;
 						}
 						span span {
@@ -174,7 +202,7 @@
 							translate: 0 0.2em;
 						}
 					}
-					a {
+					:is(a, button) {
 						border: 0;
 						span {
 							display: flex;
@@ -202,7 +230,7 @@
 	}
 	/* 341–400px: etiquetas un poco más chicas para que entren junto al botón de búsqueda */
 	@media screen and (max-width: 400px) {
-		nav ul li a > span {
+		nav ul li :is(a, button) > span {
 			font-size: 0.7em;
 			letter-spacing: -0.01em;
 			& > span {
@@ -211,10 +239,10 @@
 		}
 	}
 	@media screen and (max-width: 340px) {
-		nav ul li a span {
+		nav ul li :is(a, button) span {
 			color: transparent;
 		}
-		nav ul li a span span {
+		nav ul li :is(a, button) span span {
 			top: -0.3em;
 			scale: 2;
 		}
@@ -222,7 +250,7 @@
 			top: -0.7em;
 		}
 		.current span,
-		nav a:focus span,
+		nav :is(a, button):focus span,
 		nav li:hover span {
 			translate: 0 0.4em;
 		}
