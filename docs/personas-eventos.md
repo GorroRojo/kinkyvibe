@@ -78,8 +78,8 @@ personas:
   eventos, Autore en material y wiki) van a `authors:` y el resto a `personas:`, así que un `.md`
   sin cambios en las personas queda igual, byte a byte. En la base (`contenido_db`) es **una sola
   lista**, `[{ profile?, name?, role }]` (`profile` es la dirección del perfil, como `perfil:`;
-  `name`, un nombre): en los eventos, los perfiles van como edges (abajo) y el resto en
-  `data.personas`; en el material, todo en `data.personas`. Las páginas, las tarjetas, el `.ics`,
+  `name`, un nombre): en los eventos y el material, los perfiles van como edges (abajo) y el resto
+  en `data.personas`. Las páginas, las tarjetas, el `.ics`,
   el RSS, la búsqueda y «Participa en» siguen leyendo `authors` y `personas` de la metadata, que
   para los posts de la base se arma desde esa lista (`authors` = los nombres con el rol de autores,
   en orden). El mapa está en un solo lugar, con pruebas de ida y vuelta:
@@ -95,18 +95,18 @@ personas:
   (`?/addRole`): solo admins, la misma validación (un rol repetido: «… ya está en la lista: elegilo
   de ahí.»), el mismo registro de actividad (`persona_role.add`) y la protección de SvelteKit contra
   pedidos de otros sitios.
-- **Edges en la base (eventos).** En un evento de la base, cada perfil de la lista es un **edge
-  `persona`** (evento → perfil), no una dirección en `data` (regla 4 de [objetos.md](objetos.md);
+- **Edges en la base (eventos y material).** En un evento o un material de la base, cada perfil de la lista es un **edge
+  `persona`** (evento o material → perfil), no una dirección en `data` (regla 4 de [objetos.md](objetos.md);
   decisión de gorrite, «Contenido solo en la base», paso 3): un edge por perfil con
   `data: { roles: [...], at: [...] }`, cada rol con su lugar en la lista. En `data.personas`
   quedan solo los nombres sin perfil (y una dirección que no es de ningún perfil vivo: no hay a qué
   apuntar), en su orden. Guardar (panel o importación) parte la lista y leer la vuelve a armar
   igual, en el mismo orden, así la metadata, el `.md` que arma la base, la búsqueda y «Participa
   en» no cambian: `src/lib/server/contenido/personasEdges.js`. La migración
-  `0035_relaciones_edges.sql` pasó a edges lo que ya estaba guardado. Las lecturas internas traen
-  los edges de cualquier perfil, como antes estaba la dirección en el JSON: qué se muestra lo sigue
-  decidiendo `personas/index.js`. El material todavía guarda la lista entera en `data.personas`
-  (paso aparte).
+  `0035_relaciones_edges.sql` pasó a edges lo que ya estaba guardado en los eventos, y la
+  `0043_material_personas_edges.sql`, en el material. Las lecturas internas traen los edges de
+  cualquier perfil, como antes estaba la dirección en el JSON: qué se muestra lo sigue decidiendo
+  `personas/index.js`.
 - La wiki se prerenderiza (sin base al compilar): ahí el frontmatter se guarda pero la página no
   muestra personas.
 - Links: `profileHref()` → `/amigues/<dirección>`: la vieja si el perfil se importó de una ficha

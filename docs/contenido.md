@@ -155,8 +155,8 @@ interruptor `contenido_db` **quedó prendido para siempre** y salió de Interrup
   tiene etiquetas, también las importa); a mano, `npm run content:import`. Las pruebas E2E hacen lo mismo antes de `vite preview`.
 - **Personas**: `authors:` y `personas:` de un `.md` se guardan como **una sola lista**,
   `[{ profile?, name?, role }]` (`src/lib/utils/personasList.js`; ver
-  [personas-eventos.md](personas-eventos.md)). En los eventos, cada perfil es un edge `persona` y
-  el resto va en `data.personas` ([objetos.md](objetos.md)).
+  [personas-eventos.md](personas-eventos.md)). En los eventos y el material, cada perfil es un
+  edge `persona` y el resto va en `data.personas` ([objetos.md](objetos.md)).
 - El panel y las listas públicas recuerdan por isolate lo que leyeron de la base mientras no cambie
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions` y las
   importaciones) y, las listas públicas, mientras no cambie el árbol de etiquetas. Las listas

@@ -1,6 +1,6 @@
 /**
  * Las relaciones del contenido (eventos y material) que se guardan como edges y se leen dentro de
- * `data`, juntas: las personas con perfil (./personasEdges.js, solo eventos) y las etiquetas
+ * `data`, juntas: las personas con perfil (./personasEdges.js) y las etiquetas
  * (./etiquetasEdges.js, eventos y material).
  *
  * Quien lee de a muchos (el panel, la importación, la página de un post) usa
@@ -9,7 +9,12 @@
  *
  * Solo imports relativos (la importación se prueba sin Vite).
  */
-import { dehydratePersonas, PERSONA_EDGE, withPersonaEdges } from './personasEdges.js';
+import {
+	dehydratePersonas,
+	PERSONA_EDGE,
+	PERSONA_EDGE_TYPES,
+	withPersonaEdges
+} from './personasEdges.js';
 import { dehydrateTags, TAG_EDGE, TAG_EDGE_TYPES, withTagEdges } from './etiquetasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -68,7 +73,8 @@ export async function contentEdgesOf(db, ids) {
 export function withContentEdges(type, data, edges) {
 	if (!edges) return data;
 	let out = data;
-	if (type === 'evento') out = withPersonaEdges(out, edges.personas);
+	const category = PERSONA_EDGE_TYPES.get(type);
+	if (category) out = withPersonaEdges(out, edges.personas, category);
 	if (TAG_EDGE_TYPES.has(type)) out = withTagEdges(out, edges.tags);
 	return out;
 }
@@ -83,7 +89,9 @@ export function withContentEdges(type, data, edges) {
  * @returns {Promise<O[]>}
  */
 export async function hydrateContent(db, objects) {
-	const wanted = objects.filter((o) => o.type === 'evento' || TAG_EDGE_TYPES.has(o.type));
+	const wanted = objects.filter(
+		(o) => PERSONA_EDGE_TYPES.has(o.type) || TAG_EDGE_TYPES.has(o.type)
+	);
 	if (!wanted.length) return [...objects];
 	const edges = await contentEdgesOf(
 		db,

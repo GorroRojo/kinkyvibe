@@ -28,7 +28,7 @@ import { getDB } from '$lib/server/db';
 import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
-import { EVENT_CATEGORY, EVENT_TYPE } from './eventos.js';
+import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
@@ -171,7 +171,7 @@ async function loadDbState(db, stamp, tree) {
 			// Los perfiles de `personas` y las etiquetas son edges (./relaciones.js), leídos en la
 			// misma consulta: la metadata lleva las listas enteras.
 			data: withContentEdges(String(r.type), /** @type {Record<string, any>} */ (data), {
-				personas: r.type === EVENT_TYPE ? personaEdgesFromColumn(r.persona_edges) : [],
+				personas: personaEdgesFromColumn(r.persona_edges),
 				tags: tagEdgesFromColumn(r.tag_edges)
 			}),
 			visibility: String(r.visibility)
