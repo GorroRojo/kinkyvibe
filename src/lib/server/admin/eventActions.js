@@ -1,3 +1,4 @@
+import { entradas } from '$lib/utils/plural.js';
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -153,7 +154,7 @@ export const eventTicketActions = {
 				action: 'transfer.confirm',
 				targetType: 'order',
 				targetId: orderId,
-				summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
+				summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
 				detail: {
 					event: params.slug,
 					tickets: r.tickets.length,
@@ -180,14 +181,14 @@ export const eventTicketActions = {
 			return {
 				transfer: {
 					ok: true,
-					message: `Pago de ${ref} confirmado: se emitieron ${r.tickets.length} entradas y se mandaron a ${confirmed.buyer_email}.`
+					message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${confirmed.buyer_email}.`
 				}
 			};
 		}
 		/** @type {Record<string, string>} */
 		const messages = {
 			already: `${ref} ya estaba confirmada (no se emitió nada de nuevo).`,
-			'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${r.order?.quantity ?? ''} entradas ${type.name}.`,
+			'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${entradas(r.order?.quantity ?? 0)} ${type.name}.`,
 			'not-transfer': `${ref} no es una compra por transferencia.`,
 			'not-found': 'No encontramos esa orden.',
 			cancelled: `${ref} está cancelada: no se puede confirmar.`

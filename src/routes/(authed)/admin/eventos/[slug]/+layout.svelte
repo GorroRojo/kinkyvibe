@@ -5,7 +5,7 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { CalendarDays, Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
+	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
@@ -20,6 +20,7 @@
 	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
 
 	$: bare = $page.data?.bare === true;
+	$: editing = $page.url.pathname.replace(/\/+$/, '').endsWith('/editar');
 	$: e = data.event;
 	// Parte de un taller con una sola entrada: su modo puerta usa las entradas del taller.
 	$: tabs = EVENT_TABS.filter(
@@ -89,6 +90,9 @@
 			</div>
 		</div>
 		<div class="actions">
+			{#if !editing}
+				<a class="kv-btn" href={eventHref(e.slug, 'editar')}><Pencil {...icon} /> Editar</a>
+			{/if}
 			<a class="kv-btn ghost" href="/calendario/{e.slug}" target="_blank" rel="noreferrer"
 				><ExternalLink {...icon} /> Ver página
 				<span class="sr-only">(se abre en otra pestaña)</span></a

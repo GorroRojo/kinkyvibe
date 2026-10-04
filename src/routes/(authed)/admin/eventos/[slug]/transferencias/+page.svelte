@@ -1,6 +1,8 @@
 <script>
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { confirmPaymentSubmit, keepRows } from '$lib/admin/transferConfirm.js';
 	import { CircleCheck } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -22,38 +24,24 @@
 	/** @type {string | null} */
 	let busy = null;
 
+	// «Confirmar pago»: pregunta corta, límites con OverrideDialog y el resultado en la fila
+	// (ver transferConfirm.js).
+	/** @type {import('$lib/admin/transferConfirm.js').KeptRow<any>[]} */
+	let kept = [];
 	/**
-	 * "Confirmar pago": si confirmar pasa el cupo (llegó tarde y los lugares ya se ocuparon), el
-	 * servidor contesta `needsConfirmation`; se pregunta en la página y, si le admin confirma, se
-	 * reenvía con la clave en `override`.
-	 * @param {string} id
-	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 * @param {any} row
+	 * @param {number} index
 	 */
-	const confirmPayment =
-		(id) =>
-		({ formElement }) => {
-			busy = id;
-			return async ({ result, update }) => {
-				// La clave vale para un solo envío.
-				formElement.querySelector('input[name=override]')?.remove();
-				const needs =
-					result.type === 'failure'
-						? /** @type {any} */ (result.data)?.transfer?.needsConfirmation
-						: null;
-				busy = null;
-				if (!needs) return update();
-				const key = await overrideDialog.ask(needs, {
-					title: 'Confirmar esta transferencia pasa el cupo'
-				});
-				if (!key) return;
-				const input = document.createElement('input');
-				input.type = 'hidden';
-				input.name = 'override';
-				input.value = key;
-				formElement.append(input);
-				formElement.requestSubmit();
-			};
-		};
+	const confirmPayment = (row, index) =>
+		confirmPaymentSubmit({
+			row,
+			index,
+			overrideDialog: () => overrideDialog,
+			setBusy: (id) => (busy = id),
+			onResult: (k) => (kept = [...kept.filter((x) => x.row.id !== k.row.id), k]),
+			refresh: invalidateAll
+		});
+	$: rows = keepRows(data.transfers, kept);
 </script>
 
 <svelte:head><title>Transferencias · {e.title} · Panel</title></svelte:head>
@@ -83,7 +71,7 @@
 				</form>
 			{/if}
 		{/if}
-		{#if data.transfers.length === 0}
+		{#if rows.length === 0}
 			<EmptyState icon={CircleCheck} title="No hay transferencias esperando confirmación." />
 		{:else}
 			<p class="muted small">
@@ -91,7 +79,7 @@
 				persona. Confirmá solo cuando la plata esté en la cuenta.
 			</p>
 			<ul class="orders">
-				{#each data.transfers as o (o.id)}
+				{#each rows as { row: o, result }, i (o.id)}
 					<li class="order status-{o.status}">
 						<div class="who">
 							<strong class="ref">{o.reference}</strong>
@@ -112,31 +100,36 @@
 								reservada hasta {shortTime(o.expiresAt)}
 							{/if}
 						</div>
-						<div class="buttons">
-							<form method="POST" action="?/confirm" use:enhance={confirmPayment(o.id)}>
-								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="kv-btn confirm" disabled={busy === o.id}
-									>Confirmar pago</button
+						{#if result}
+							<p class="kv-flash row-flash" class:bad={!result.ok} role="status">
+								{result.message}
+							</p>
+						{/if}
+						{#if !result?.ok}<div class="buttons">
+								<form method="POST" action="?/confirm" use:enhance={confirmPayment(o, i)}>
+									<input type="hidden" name="order" value={o.id} />
+									<button type="submit" class="kv-btn confirm" disabled={busy === o.id}
+										>Confirmar pago</button
+									>
+								</form>
+								<form
+									method="POST"
+									action="?/cancel"
+									use:enhance={async ({ cancel }) => {
+										const ok = await askConfirm({
+											title: `¿Cancelar ${o.reference}?`,
+											text: 'Se libera el cupo.',
+											confirmLabel: 'Cancelar la orden',
+											cancelLabel: 'Volver',
+											tone: 'danger'
+										});
+										if (!ok) cancel();
+									}}
 								>
-							</form>
-							<form
-								method="POST"
-								action="?/cancel"
-								use:enhance={async ({ cancel }) => {
-									const ok = await askConfirm({
-										title: `¿Cancelar ${o.reference}?`,
-										text: 'Se libera el cupo.',
-										confirmLabel: 'Cancelar la orden',
-										cancelLabel: 'Volver',
-										tone: 'danger'
-									});
-									if (!ok) cancel();
-								}}
-							>
-								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="kv-btn ghost cancel">Cancelar</button>
-							</form>
-						</div>
+									<input type="hidden" name="order" value={o.id} />
+									<button type="submit" class="kv-btn ghost cancel">Cancelar</button>
+								</form>
+							</div>{/if}
 					</li>
 				{/each}
 			</ul>
@@ -165,6 +158,9 @@
 <OverrideDialog bind:this={overrideDialog} confirmLabel="Sí, confirmar igual" />
 
 <style>
+	.row-flash {
+		margin: 0;
+	}
 	.transfers {
 		margin-bottom: 1rem;
 	}

@@ -592,6 +592,9 @@ export const NAV = Object.freeze([
  */
 export const EVENT_TABS = Object.freeze([
 	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
+	// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
+	// fuera de la pantalla en el celu y en la compu angosta.
+	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false },
 	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
 	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
@@ -601,8 +604,7 @@ export const EVENT_TABS = Object.freeze([
 	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
 	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
 	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
-	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
+	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false }
 ]);
 
 /**

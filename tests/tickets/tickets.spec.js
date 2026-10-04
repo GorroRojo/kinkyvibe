@@ -568,7 +568,16 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
-	await expect(page.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	// Antes de emitir, una pregunta corta con el nombre y el monto.
+	const ask = page.getByRole('dialog', { name: /¿Confirmar el pago de/ });
+	await expect(ask).toContainText(ars(16000));
+	await expect(ask).toContainText('2 entradas');
+	await ask.getByRole('button', { name: 'Sí, confirmar pago' }).click();
+	// El resultado queda en la misma fila (no arriba de la página) y ya no se puede confirmar.
+	await expect(pending.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	await expect(pending.getByRole('button', { name: 'Confirmar pago' })).toHaveCount(0);
+	// Al recargar, ya no está entre las pendientes.
+	await page.reload();
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.

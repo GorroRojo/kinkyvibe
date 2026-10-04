@@ -31,6 +31,7 @@
 	import { eventHref } from '$lib/admin/nav.js';
 	import { computePrice } from '$lib/utils/tickets.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { entradas } from '$lib/utils/plural.js';
 	import {
 		applySyncResults,
 		findTicket,
@@ -1151,7 +1152,7 @@
 				disabled={!online}
 			>
 				<RefreshCw size={22} /> Actualizar la lista {door.savedAt
-					? `(guardada ${hhmm(door.savedAt)}, ${door.list.length} entradas)`
+					? `(guardada ${hhmm(door.savedAt)}, ${entradas(door.list.length)})`
 					: ''}
 			</button>
 			<p class="muted small">
