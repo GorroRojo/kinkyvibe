@@ -15,6 +15,7 @@ import { render } from 'svelte/server';
 import { rehype } from 'rehype';
 import { splitMarkdown } from '../amigues/importer.js';
 import { normalizeBody } from './eventos.js';
+import { toRegisteredTags } from '$lib/utils/interactivos.js';
 import { FREE_BODY_CLASS, contentMediaURL, renderContentBody } from './render.js';
 import { renderFreeBody, smartypants } from './freeHtml.js';
 
@@ -78,7 +79,7 @@ function normalizeHtml(html) {
 describe('los eventos reales se ven igual que hoy', () => {
 	const real = Object.entries(raws).filter(([p]) => !slugOf(p).startsWith('_'));
 
-	it('el texto de cada uno es el del .md: la página usa su componente', async () => {
+	it('el texto de cada uno (como lo guarda la importación) es el del .md: la página usa su componente', async () => {
 		/** @type {string[]} */
 		const notSame = [];
 		for (const [path, raw] of real) {
@@ -203,7 +204,7 @@ describe('lista corta para quien no es superadmin', () => {
 });
 
 describe('el material real se ve igual que hoy', () => {
-	it('el texto de cada uno es el del .md: la página usa su componente', async () => {
+	it('el texto de cada uno (como lo guarda la importación) es el del .md: la página usa su componente', async () => {
 		const texts = /** @type {Record<string, string>} */ (
 			import.meta.glob('/src/lib/posts/material/*.md', {
 				query: '?raw',
@@ -214,7 +215,8 @@ describe('el material real se ve igual que hoy', () => {
 		/** @type {string[]} */
 		const notSame = [];
 		for (const [path, raw] of Object.entries(texts)) {
-			const body = bodyOf(raw);
+			// Con los interactivos como etiquetas del registro (`donde-y-como-golpear-un-cuerpo`).
+			const body = toRegisteredTags(bodyOf(raw));
 			if (slugOf(path).startsWith('_') || !body) continue;
 			const r = await renderContentBody({ body, body_html: 'libre' }, 'material', slugOf(path));
 			if (!r.component) notSame.push(slugOf(path));

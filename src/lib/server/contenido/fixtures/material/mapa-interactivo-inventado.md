@@ -1,7 +1,7 @@
 ---
 published_date: 2030-02-01Z-03:00
 title: Mapa Interactivo Inventado
-summary: Usa un componente, así que sigue saliendo de su .md
+summary: Usa un componente que no está registrado, así que no se importa
 tags:
   - español
   - gratis
