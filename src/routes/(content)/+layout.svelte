@@ -59,7 +59,7 @@
 			<!-- fanzines -->
 		</ul>
 		<a id="logo" rel="home" href="/">
-			<img src={logo} alt="KinkyVibe" />
+			<img src={logo} alt="Kinky Vibe" />
 		</a>
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}

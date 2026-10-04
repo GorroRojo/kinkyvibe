@@ -26,7 +26,7 @@
 	$: source = SOURCES[data.fondo.source] ?? SOURCES.none;
 </script>
 
-<PageHeader title="Fondo" subtitle="Descuento del Fondo KinkyVibe en las entradas." />
+<PageHeader title="Fondo" subtitle="Descuento del Fondo Kinky Vibe en las entradas." />
 <Tabs tabs={[...AJUSTES_TABS]} />
 
 <form

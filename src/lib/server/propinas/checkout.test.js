@@ -114,9 +114,9 @@ describe('startTip', () => {
 		if (!plain.ok) throw new Error('esperaba ok');
 		expect((await getTip(t.db, plain.tipId))?.destination).toBe('fondo');
 		const body = JSON.parse(/** @type {any} */ (fetch.mock.calls[0])[1].body);
-		expect(body.items[0].title).toBe('Propina para el Fondo KinkyVibe · Guía de prueba');
+		expect(body.items[0].title).toBe('Propina para el Fondo Kinky Vibe · Guía de prueba');
 
-		// Un formulario viejo (o armado) que pide "Para KinkyVibe" o algo raro: igual al Fondo.
+		// Un formulario viejo (o armado) que pide "Para Kinky Vibe" o algo raro: igual al Fondo.
 		const values2 = /** @type {any} */ ({ ...values(), destination: 'kinkyvibe' });
 		const old = await run({ values: values2, client: 'b' });
 		if (!old.ok) throw new Error('esperaba ok');

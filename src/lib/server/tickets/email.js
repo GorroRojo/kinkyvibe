@@ -115,10 +115,10 @@ export function priceLines(order, typeName) {
 			? `${order.quantity} × ${typeName} (a la gorra, ${formatARS(order.unit_price)} c/u): ${formatARS(order.unit_price * order.quantity)}`
 			: `${order.quantity} × ${typeName}: ${formatARS(order.unit_price * order.quantity)}`
 	];
-	if (order.fondo_amount) lines.push(`Fondo KinkyVibe: −${formatARS(order.fondo_amount)}`);
+	if (order.fondo_amount) lines.push(`Fondo Kinky Vibe: −${formatARS(order.fondo_amount)}`);
 	if (order.fondo_contribution) {
 		lines.push(
-			`${fondoOptionLabel(order.fondo_option)}, aporte al Fondo KinkyVibe: +${formatARS(order.fondo_contribution)}`
+			`${fondoOptionLabel(order.fondo_option)}, aporte al Fondo Kinky Vibe: +${formatARS(order.fondo_contribution)}`
 		);
 	}
 	if (order.discount_amount) {

@@ -37,7 +37,7 @@
 		<input type="checkbox" role="switch" id="{idPrefix}-kv" bind:checked={state.kinkyvibe} />
 		<span class="track" aria-hidden="true"></span>
 		<span>
-			<strong>{icon(groups.kinkyvibe)} Lo organiza KinkyVibe</strong>
+			<strong>{icon(groups.kinkyvibe)} Lo organiza Kinky Vibe</strong>
 			<small>Agrega la etiqueta «{groups.kinkyvibe}».</small>
 		</span>
 	</label>

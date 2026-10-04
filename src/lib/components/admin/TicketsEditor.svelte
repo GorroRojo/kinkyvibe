@@ -135,13 +135,13 @@
 	<p class="note fondo" id="{idPrefix}-tickets-fondo" aria-live="polite">
 		{#if fondo}
 			💜 Tiene la etiqueta KinkyVibe: se aplica solo el <strong
-				>descuento del Fondo KinkyVibe</strong
+				>descuento del Fondo Kinky Vibe</strong
 			>
 			(el porcentaje del mes de fondo.kinkyvibe.ar) y se ofrecen las opciones solidarias. No hay nada
 			que cargar.
 		{:else}
-			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo KinkyVibe</strong> (se cobra el precio
-			de lista). Para usarlo, prendé «Lo organiza KinkyVibe» en Etiquetas.
+			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el precio
+			de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
 		{/if}
 	</p>
 
@@ -182,7 +182,7 @@
 								on:click={() => removeType(i)}
 								disabled={taken > 0}
 								title={taken > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
-								>Quitar</button
+								>Sacar</button
 							>
 						</span>
 					</div>

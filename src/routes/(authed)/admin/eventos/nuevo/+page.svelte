@@ -819,7 +819,7 @@
 						{/if}
 						{#if featuredMode !== 'none'}
 							<button type="button" class="link" on:click={() => setImage('none')}
-								>Quitar imagen</button
+								>Sacar imagen</button
 							>
 						{/if}
 						{#if hasSourceImage && featuredMode !== 'keep'}
@@ -966,8 +966,8 @@
 							id="save-draft"
 							saving={submitting && submittingMode === 'borrador'}
 							disabled={submitting}
-							title="Se guarda pero no aparece en el calendario; se puede ver con el link"
-							>Guardar como no listado</SaveButton
+							title="Se crea pero no aparece en el calendario; se puede ver con el link"
+							>Crear como no listado</SaveButton
 						>
 						{#if !confirming}
 							<button

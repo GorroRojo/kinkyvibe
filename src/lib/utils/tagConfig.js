@@ -1025,7 +1025,7 @@ export function describeOp(op) {
 		case 'addAlias':
 			return `Agregar el alias «${op.alias}» a «${op.id}»`;
 		case 'removeAlias':
-			return `Quitar el alias «${op.alias}» de «${op.id}»`;
+			return `Sacar el alias «${op.alias}» de «${op.id}»`;
 		default:
 			return 'Cambio';
 	}

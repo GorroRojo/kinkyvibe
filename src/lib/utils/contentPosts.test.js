@@ -321,7 +321,7 @@ describe('quick tags', () => {
 	const canon = (t) => tm.get(t)?.id ?? t;
 	it('come from the tag tree', () => {
 		const g = quickTagGroups('material', tm);
-		expect(g.map((x) => x.label)).toEqual(['Idioma', 'Precio', 'Tipo', 'Formato', 'De KinkyVibe']);
+		expect(g.map((x) => x.label)).toEqual(['Idioma', 'Precio', 'Tipo', 'Formato', 'De Kinky Vibe']);
 		expect(g[1].tags).toContain('gratis');
 		expect(quickTagGroups('amigues', tm).find((x) => x.label === 'Dónde')?.tags).toContain('AMBA');
 	});

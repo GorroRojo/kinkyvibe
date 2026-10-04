@@ -244,7 +244,7 @@
 				{/if}
 				{#if fondo}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value={formatARS(fondo.collected)}
 						sub="{fondoPct} % de la meta ({formatARS(fondo.goal)}) · del {monthDay(
 							fondo.window.startDate
@@ -261,11 +261,11 @@
 					<Stat
 						label="Descuento del Fondo"
 						value="{fondo.percent} %"
-						sub="en las entradas de eventos KinkyVibe este mes"
+						sub="en las entradas de eventos de Kinky Vibe este mes"
 					/>
 				{:else}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value="—"
 						sub="no pudimos leer fondo.kinkyvibe.ar"
 					/>

@@ -1,6 +1,6 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
 const siteURL = 'https://kinkyvibe.ar';
-const siteTitle = 'KinkyVibe';
+const siteTitle = 'Kinky Vibe';
 const siteDescription =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 

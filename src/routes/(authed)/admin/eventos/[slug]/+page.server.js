@@ -20,8 +20,8 @@ import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
 	cancelled: 'El evento está cancelado',
-	soldout: 'Marcado como agotado',
-	closed: 'La venta cerró',
+	soldout: 'Marcado como «Agotadas»',
+	closed: 'Venta cerrada',
 	notyet: 'La venta todavía no abrió'
 };
 

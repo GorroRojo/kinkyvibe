@@ -222,7 +222,7 @@
 <svelte:head>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -- string fijo, ver theme.js -->
 	{@html THEME_HEAD_SCRIPT}
-	<title>Panel · KinkyVibe</title>
+	<title>Panel · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -236,7 +236,7 @@
 		<div class="app">
 			<aside class="side" aria-label="Secciones del panel">
 				<a class="brand" href="/admin">
-					<img src={logo} alt="KinkyVibe" width="64" height="64" />
+					<img src={logo} alt="Kinky Vibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
 				<SideNav {active} {counts} {flags} {hideSoon} />
@@ -309,7 +309,7 @@
 
 				<header class="mtop">
 					<a href="/admin" class="mlogo" aria-label="Inicio del panel"
-						><img src={logo} alt="KinkyVibe" width="44" height="44" /></a
+						><img src={logo} alt="Kinky Vibe" width="44" height="44" /></a
 					>
 					<SearchBox compact hotkeys={false} />
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"

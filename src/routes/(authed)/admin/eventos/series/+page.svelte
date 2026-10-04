@@ -113,7 +113,7 @@
 			{#if form?.error && !form?.editing}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
 			<div class="kv-row">
 				<button class="kv-btn" type="submit" disabled={busy}
-					>{busy ? 'Guardando…' : 'Crear serie'}</button
+					>{busy ? 'Creando…' : 'Crear serie'}</button
 				>
 				<button type="button" class="kv-btn ghost" on:click={() => (creating = false)}
 					>Cancelar</button

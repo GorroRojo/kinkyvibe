@@ -26,14 +26,14 @@
 
 	/** @param {(typeof data.codes)[number]} c */
 	function codeState(c) {
-		if (!c.active) return 'Inactivo';
+		if (!c.active) return 'Apagado';
 		if (c.ends_at !== null && data.now >= c.ends_at) return 'Vencido';
 		if (c.starts_at !== null && data.now < c.starts_at) return 'Todavía no empieza';
 		if (c.max_uses !== null && c.approved + c.held >= c.max_uses) return 'Sin usos disponibles';
 		return 'Activo';
 	}
 	/** @param {string} s @returns {'ok' | 'warn' | 'neutral'} */
-	const tone = (s) => (s === 'Activo' ? 'ok' : s === 'Inactivo' ? 'neutral' : 'warn');
+	const tone = (s) => (s === 'Activo' ? 'ok' : s === 'Apagado' ? 'neutral' : 'warn');
 	/** @param {(typeof data.codes)[number]} c */
 	const valueText = (c) => (c.kind === 'percent' ? `${c.value} %` : formatARS(c.value));
 	/** @param {(typeof data.codes)[number]} c */
@@ -127,7 +127,7 @@
 										<input type="hidden" name="code" value={c.code} />
 										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
 										<button type="submit" class="kv-btn ghost">
-											{c.active ? 'Desactivar' : 'Activar'}
+											{c.active ? 'Apagar' : 'Prender'}
 										</button>
 									</form>
 								</td>

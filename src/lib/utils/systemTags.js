@@ -11,7 +11,7 @@
 /** @type {Readonly<Record<string, string>>} id de la etiqueta → para qué la usa el código */
 export const SYSTEM_TAGS = Object.freeze({
 	KinkyVibe:
-		'marca lo que organiza KinkyVibe (tarjetas, propinas al Fondo, entradas: isKinkyVibePost, isKinkyVibeEvent)',
+		'marca lo que organiza Kinky Vibe (tarjetas, propinas al Fondo, entradas: isKinkyVibePost, isKinkyVibeEvent)',
 	'evento recurrente': 'es la madre de las series (sus hijas son las series de eventos)',
 	calendario: 'es la raíz de las etiquetas de eventos',
 	material: 'es la raíz de las etiquetas de material',

@@ -31,6 +31,6 @@ export async function GET({ params, platform }) {
 		events.map((e) => String(e.meta.postID))
 	);
 	return icsResponse(
-		buildIcsFeed(events, { calName: `${name} · KinkyVibe`, profiles: posts, venues })
+		buildIcsFeed(events, { calName: `${name} · Kinky Vibe`, profiles: posts, venues })
 	);
 }

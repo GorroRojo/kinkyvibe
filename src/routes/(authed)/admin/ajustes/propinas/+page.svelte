@@ -53,7 +53,7 @@
 
 <PageHeader
 	title="Propinas"
-	subtitle="Las que se dejan al pie de las publicaciones de KinkyVibe. Entran a la misma cuenta de Mercado Pago que las entradas."
+	subtitle="Las que se dejan al pie de las publicaciones de Kinky Vibe. Entran a la misma cuenta de Mercado Pago que las entradas."
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href="/admin/ajustes/propinas/propinas.csv" />

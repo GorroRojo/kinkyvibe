@@ -124,6 +124,51 @@ export const NAV_AREAS = Object.freeze([
 	{ id: 'ajustes', label: 'Ajustes', icon: Settings, emoji: '⚙️', foot: true }
 ]);
 
+/**
+ * Grupos del menú (barra lateral y panel "Más" del celu): el menú simplificado de la revisión de
+ * UI (paso 3). Junta áreas chicas con la que se parecen, así arriba hay menos entradas: Inicio,
+ * Eventos, Ventas (con Estadísticas), Comunidad (con Mensajes), Contenido (con Etiquetas) y
+ * Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
+ * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
+ * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true }[]}
+ */
+export const NAV_GROUPS = Object.freeze([
+	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️', areas: ['eventos'] },
+	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas', 'estadisticas'] },
+	{
+		id: 'comunidad',
+		label: 'Comunidad',
+		icon: Users,
+		emoji: '🧑‍🤝‍🧑',
+		areas: ['comunidad', 'mensajes']
+	},
+	{
+		id: 'contenido',
+		label: 'Contenido',
+		icon: BookOpen,
+		emoji: '📚',
+		areas: ['contenido', 'etiquetas']
+	},
+	{
+		id: 'ajustes',
+		label: 'Ajustes',
+		icon: Settings,
+		emoji: '⚙️',
+		areas: ['ajustes'],
+		foot: true
+	}
+]);
+
+/**
+ * El grupo del menú de un área (o de un grupo, por su id), o `undefined`.
+ * @param {string | null | undefined} id id de área o de grupo
+ */
+export function navGroupOf(id) {
+	if (!id) return undefined;
+	return NAV_GROUPS.find((g) => g.id === id) ?? NAV_GROUPS.find((g) => g.areas.includes(id));
+}
+
 /** Subgrupos de Ajustes, en orden. */
 export const AJUSTES_SUBGROUPS = Object.freeze([
 	{ id: 'plata', label: 'Plata' },
@@ -708,6 +753,43 @@ export function navAreaSections(area, opts) {
 		...g,
 		items: items.filter((i) => i.sub === g.id)
 	})).filter((g) => g.items.length);
+}
+
+/**
+ * Las secciones de un grupo del menú, en bloques: el área principal sin título y cada una de las
+ * otras áreas con su nombre (en Ajustes, sus subgrupos). Sin bloques vacíos.
+ *
+ * @param {string} group id de {@link NAV_GROUPS}
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
+ * @returns {{ id: string, label: string, items: NavItem[] }[]}
+ */
+export function navGroupSections(group, opts) {
+	const g = navGroupOf(group);
+	if (!g) return [];
+	return g.areas.flatMap((area, i) =>
+		navAreaSections(area, opts).map((section) =>
+			i === 0 ? section : { ...section, id: area, label: navArea(area)?.label ?? area }
+		)
+	);
+}
+
+/**
+ * Las secciones de un grupo del menú, en el orden en que se muestran.
+ * @param {string} group
+ * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
+ */
+export function navGroupItems(group, opts) {
+	return navGroupSections(group, opts).flatMap((s) => s.items);
+}
+
+/**
+ * Suma de los contadores de un grupo del menú (se muestra en el grupo cerrado).
+ * @param {string} group
+ * @param {Record<string, number>} counts
+ * @param {{ flags?: Record<string, boolean> }} [opts]
+ */
+export function groupCount(group, counts, opts) {
+	return (navGroupOf(group)?.areas ?? []).reduce((n, a) => n + areaCount(a, counts, opts), 0);
 }
 
 /**

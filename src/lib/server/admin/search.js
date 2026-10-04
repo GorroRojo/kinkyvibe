@@ -194,7 +194,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				sub: [
 					r.kind === 'percent' ? `${r.value} %` : `$ ${Number(r.value).toLocaleString('es-AR')}`,
 					r.event_slug ? title(String(r.event_slug)) : 'todos los eventos',
-					Number(r.active) ? 'activo' : 'desactivado'
+					Number(r.active) ? 'activo' : 'apagado'
 				].join(' · '),
 				href: '/admin/ventas/codigos'
 			}));

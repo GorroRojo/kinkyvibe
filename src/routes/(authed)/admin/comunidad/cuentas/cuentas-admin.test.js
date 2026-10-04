@@ -429,7 +429,7 @@ describe('Inicio: "Para revisar" y actividad', () => {
 		const byTitle = Object.fromEntries(items.map((i) => [i.title, i]));
 		expect(byTitle['Se creó una cuenta nueva']).toMatchObject({
 			kind: 'account',
-			who: 'Cuenta nueva · Ingresar',
+			who: 'Cuenta nueva · Entrar',
 			href: `/admin/comunidad/cuentas/${acc.id}`
 		});
 		expect(byTitle['Se creó el perfil «Persona Inventada» (persona)']).toMatchObject({

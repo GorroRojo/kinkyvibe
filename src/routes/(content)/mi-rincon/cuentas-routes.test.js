@@ -152,7 +152,7 @@ describe('interruptor apagado', () => {
 });
 
 describe('interruptor prendido', () => {
-	it('prendido desde la base (panel): /ingresar anda y el encabezado dice "Ingresar"', async () => {
+	it('prendido desde la base (panel): /ingresar anda y el encabezado dice "Entrar"', async () => {
 		const m = await modules('');
 		await m.flags.setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
 		expect(await m.ingresar.load(fakeEvent({ path: '/ingresar' }))).toEqual({
@@ -162,7 +162,7 @@ describe('interruptor prendido', () => {
 			loggedOutEverywhere: false
 		});
 		const data = /** @type {any} */ (await m.root.load(/** @type {any} */ (fakeEvent())));
-		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Ingresar' });
+		expect(accountLink(data)).toEqual({ href: '/ingresar', label: 'Entrar' });
 	});
 
 	it('?next= solo acepta rutas de este sitio', async () => {

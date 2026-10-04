@@ -127,7 +127,7 @@ describe('TicketPurchase', () => {
 		const { body } = render(TicketPurchase, {
 			props: { tickets: { ...tickets, open: false, reason: 'soldout' } }
 		});
-		expect(body).toContain('Entradas agotadas.');
+		expect(body).toMatch(/<p class="closed[^"]*"[^>]*>Agotadas\.<\/p>/);
 		expect(body).not.toContain('<form');
 		expect(body).not.toContain('Pasos de la compra');
 	});

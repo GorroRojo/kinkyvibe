@@ -62,7 +62,7 @@
 			{/if}
 			<div class="chips">
 				{#each eventBadges(e) as b}<Badge tone={b.tone}>{b.label}</Badge>{/each}
-				{#if e.kinkyvibe}<Badge tone="info">Fondo KinkyVibe</Badge>{/if}
+				{#if e.kinkyvibe}<Badge tone="info">Fondo Kinky Vibe</Badge>{/if}
 				{#each e.tags.filter((t) => t !== 'KinkyVibe' && t !== e.place) as t}
 					<span class="tag">{t}</span>
 				{/each}

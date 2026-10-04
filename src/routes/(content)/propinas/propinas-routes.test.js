@@ -130,7 +130,7 @@ describe('interruptor apagado', () => {
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(0);
 	});
 
-	it('las publicaciones de KinkyVibe muestran la nota del cafecito como siempre', async () => {
+	it('las publicaciones de Kinky Vibe muestran la nota del cafecito como siempre', async () => {
 		const m = await modules('0');
 		const slug = materialSlug(true);
 		const data = /** @type {any} */ (await m.material.load(fakeEvent({ params: { post: slug } })));
@@ -149,7 +149,7 @@ describe('interruptor apagado', () => {
 });
 
 describe('interruptor prendido', () => {
-	it('el pie de una publicación de KinkyVibe es el bloque de propina (y no la nota)', async () => {
+	it('el pie de una publicación de Kinky Vibe es el bloque de propina (y no la nota)', async () => {
 		const m = await modules('1');
 		const slug = materialSlug(true);
 		const data = /** @type {any} */ (await m.material.load(fakeEvent({ params: { post: slug } })));
@@ -162,11 +162,11 @@ describe('interruptor prendido', () => {
 		expect(body).toContain(formatARS(1000));
 		expect(body).toContain('Otro monto');
 		expect(body).not.toContain('cafecito.app');
-		// No se elige a dónde va: la propina va al Fondo KinkyVibe y el bloque lo dice.
+		// No se elige a dónde va: la propina va al Fondo Kinky Vibe y el bloque lo dice.
 		expect(body).not.toContain('name="destination"');
-		expect(body).not.toContain('Para KinkyVibe');
+		expect(body).not.toContain('Para Kinky Vibe');
 		expect(body).toMatch(
-			/Tu propina va entera\s+al\s+<a href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Fondo KinkyVibe<\/a>/
+			/Tu propina va entera\s+al\s+<a href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Fondo Kinky Vibe<\/a>/
 		);
 		// Una publicación que no es de KinkyVibe ni consulta el interruptor.
 		const other = /** @type {any} */ (
@@ -175,7 +175,7 @@ describe('interruptor prendido', () => {
 		expect(other.propinas).toBe(false);
 	});
 
-	it('findTipPost: solo publicaciones de KinkyVibe que existen', async () => {
+	it('findTipPost: solo publicaciones de Kinky Vibe que existen', async () => {
 		const m = await modules('1');
 		expect(await m.posts.findTipPost('material', materialSlug(true))).toMatchObject({
 			title: expect.any(String)

@@ -70,7 +70,7 @@
 				on:click={() => remove(j)}
 				disabled={sold > 0 || tiers.length === 1}
 				title={sold > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
-				aria-label="Quitar el tramo «{tr.name || j + 1}»">×</button
+				aria-label="Sacar el tramo «{tr.name || j + 1}»">×</button
 			>
 			{#if sold}<small class="t-sold">Vendidas o reservadas: {sold}</small>{/if}
 		</li>

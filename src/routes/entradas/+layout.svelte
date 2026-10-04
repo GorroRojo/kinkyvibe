@@ -9,7 +9,7 @@
 </svelte:head>
 
 <header class="entradas-header">
-	<a href="/"><img src={logo} alt="KinkyVibe.ar" width="40" height="40" /> KinkyVibe.ar</a>
+	<a href="/"><img src={logo} alt="" width="40" height="40" /> Kinky Vibe.ar</a>
 </header>
 <main class="entradas-main">
 	{@render children()}

@@ -71,12 +71,12 @@
 </script>
 
 <svelte:head>
-	<title>{copy.title} · KinkyVibe</title>
+	<title>{copy.title} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="error-page">
-	<a class="logo" href="/" aria-label="KinkyVibe, ir al inicio">
+	<a class="logo" href="/" aria-label="Kinky Vibe, ir al inicio">
 		<img src={logo} alt="" width="64" height="64" />
 	</a>
 

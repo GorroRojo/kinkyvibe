@@ -392,7 +392,7 @@
 						x={x(end.day) + (end.day === c.to ? 8 : 0)}
 						y={y(end.total) - 9}
 						text-anchor={end.day === c.to ? 'start' : 'middle'}
-						>~{Math.round(end.total)}{c.projection.sellOutDay !== null ? ' agotado' : ''}</text
+						>~{Math.round(end.total)}{c.projection.sellOutDay !== null ? ' agotadas' : ''}</text
 					>
 				{/if}
 			{/if}

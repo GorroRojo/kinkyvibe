@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Lo que va al pie de una publicación de KinkyVibe para apoyarnos: el bloque de propina si el
+	 * Lo que va al pie de una publicación de Kinky Vibe para apoyarnos: el bloque de propina si el
 	 * interruptor `propinas` está prendido, si no la nota del cafecito de siempre.
 	 * Props: `propinas` (el interruptor, del servidor), `category` y `slug` (la publicación).
 	 */

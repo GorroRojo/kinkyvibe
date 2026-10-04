@@ -529,7 +529,7 @@ export function quickTagGroups(category, tm) {
 					{ label: 'Precio', tags: kids('precio'), single: true },
 					{ label: 'Tipo', tags: kids('tipo de material'), single: false },
 					{ label: 'Formato', tags: kids('formato de material'), single: false },
-					{ label: 'De KinkyVibe', tags: ['KinkyVibe'], single: false }
+					{ label: 'De Kinky Vibe', tags: ['KinkyVibe'], single: false }
 				]
 			: [
 					{ label: 'Idioma', tags: kids('idioma'), single: false },

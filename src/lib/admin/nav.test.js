@@ -6,6 +6,7 @@ import {
 	MOBILE_TABS,
 	NAV,
 	NAV_AREAS,
+	NAV_GROUPS,
 	REVIEW_LINK,
 	activeNavItem,
 	areaBackLink,
@@ -13,9 +14,13 @@ import {
 	eventHref,
 	contentEditLink,
 	eventPanelLink,
+	groupCount,
 	navAreaItems,
 	navAreaSections,
 	navFlagKeys,
+	navGroupItems,
+	navGroupOf,
+	navGroupSections,
 	navItem,
 	navLink,
 	navState,
@@ -273,6 +278,72 @@ describe('NAV', () => {
 		expect(reviewCountOf({})).toBe(0);
 		expect(reviewCountOf(null)).toBe(0);
 		expect(reviewCountOf(undefined)).toBe(0);
+	});
+});
+
+describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
+	it('cinco entradas arriba: Eventos, Ventas, Comunidad, Contenido y Ajustes al pie', () => {
+		expect(NAV_GROUPS.map((g) => g.label)).toEqual([
+			'Eventos',
+			'Ventas',
+			'Comunidad',
+			'Contenido',
+			'Ajustes'
+		]);
+		expect(NAV_GROUPS.filter((g) => g.foot).map((g) => g.id)).toEqual(['ajustes']);
+		for (const g of NAV_GROUPS) expect(g.icon && g.emoji, g.id).toBeTruthy();
+	});
+	it('cada área está en un solo grupo, así ninguna sección del menú se pierde', () => {
+		const areas = NAV_GROUPS.flatMap((g) => g.areas);
+		expect([...areas].sort()).toEqual(NAV_AREAS.map((a) => a.id).sort());
+		const inGroups = NAV_GROUPS.flatMap((g) => navGroupItems(g.id).map((i) => i.id));
+		const inAreas = NAV_AREAS.flatMap((a) => navAreaItems(a.id).map((i) => i.id));
+		expect([...inGroups].sort()).toEqual([...inAreas].sort());
+		expect(new Set(inGroups).size).toBe(inGroups.length);
+	});
+	it('el grupo de cada área (y de un grupo, por su id)', () => {
+		expect(navGroupOf('estadisticas')?.id).toBe('ventas');
+		expect(navGroupOf('mensajes')?.id).toBe('comunidad');
+		expect(navGroupOf('etiquetas')?.id).toBe('contenido');
+		expect(navGroupOf('ajustes')?.id).toBe('ajustes');
+		expect(navGroupOf(null)).toBeUndefined();
+		expect(navGroupOf('no-existe')).toBeUndefined();
+	});
+	it('el área principal sin título; las otras, debajo de su nombre (Ajustes, con sus subgrupos)', () => {
+		/** @param {string} g */
+		const blocks = (g) => navGroupSections(g).map((s) => [s.label, s.items.map((i) => i.id)]);
+		expect(blocks('ventas')).toEqual([
+			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']],
+			['Estadísticas', ['estadisticas']]
+		]);
+		expect(blocks('comunidad')).toEqual([
+			['', ['personas', 'amigues', 'cuentas']],
+			['Mensajes', ['ajustes-plantillas', 'lo-que-sigo', 'bandeja']]
+		]);
+		expect(blocks('contenido')).toEqual([
+			['', ['material', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
+			['Etiquetas', ['etiquetas']]
+		]);
+		expect(navGroupSections('ajustes').map((s) => s.label)).toEqual([
+			'Plata',
+			'Comunicación',
+			'Equipo',
+			'Sistema'
+		]);
+		// "Ocultar lo que viene": un área que se queda sin nada no deja su título vacío.
+		expect(
+			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
+		).toEqual([
+			['', 3],
+			['Mensajes', 1]
+		]);
+	});
+	it('groupCount suma los contadores de todas sus áreas', () => {
+		const counts = { transfers: 2, profilesToReview: 3, unlisted: 4 };
+		expect(groupCount('ventas', counts)).toBe(2);
+		expect(groupCount('comunidad', counts)).toBe(3);
+		expect(groupCount('contenido', counts)).toBe(4);
+		expect(groupCount('no-existe', counts)).toBe(0);
 	});
 });
 

@@ -89,7 +89,7 @@ test('a la gorra: sugerido preseleccionado, mínimo, sin fondo ni código, y el 
 	await expect(block.locator('fieldset.options')).toHaveCount(0);
 	await expect(block.getByLabel(/Código de descuento/)).toHaveCount(0);
 	await expect(block).toContainText(
-		'no se aplican el descuento del Fondo KinkyVibe ni los códigos de descuento'
+		'no se aplican el descuento del Fondo Kinky Vibe ni los códigos de descuento'
 	);
 
 	// Sin monto máximo: solo el tope técnico de la orden ($ 100.000.000) contra errores de tipeo.
@@ -188,7 +188,7 @@ test('evento sin la etiqueta KinkyVibe: sin opciones del Fondo, y un POST armado
 	const { block } = await fill(page, { type: /^Precio fijo/ });
 	// Precio de lista, sin "¿Cómo querés pagar tu entrada?" ni textos del Fondo.
 	await expect(block.locator('fieldset.options')).toHaveCount(0);
-	await expect(block).not.toContainText('Fondo KinkyVibe');
+	await expect(block).not.toContainText('Fondo Kinky Vibe');
 	const list = computePrice({
 		price: 6000,
 		option: 'completo',

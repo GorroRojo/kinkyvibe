@@ -224,7 +224,7 @@
 			bind:this={dialog}
 			on:keydown={onDialogKeydown}
 		>
-			<h2 id="search-title" class="visually-hidden">Buscar en KinkyVibe</h2>
+			<h2 id="search-title" class="visually-hidden">Buscar en Kinky Vibe</h2>
 			<div class="bar">
 				<span class="icon" aria-hidden="true">
 					{#if loadingIndex && !index && !error}

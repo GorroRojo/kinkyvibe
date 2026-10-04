@@ -113,7 +113,7 @@ export function buildProfileInviteEmail({ groupTitle, url, origin }) {
 	const text = [
 		'Hola:',
 		'',
-		`Te invitaron a gestionar el perfil del proyecto «${groupTitle}» en KinkyVibe.`,
+		`Te invitaron a gestionar el perfil del proyecto «${groupTitle}» en Kinky Vibe.`,
 		'',
 		`Para aceptar o rechazar la invitación, entrá a Mi rincón → Perfiles: ${url}`,
 		'',

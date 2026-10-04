@@ -107,7 +107,7 @@ const STATUS = /** @type {Record<string, import('ics').EventStatus>} */ ({
  * @returns {string}
  */
 export function buildIcsFeed(posts, opts = {}) {
-	const { calName = 'KinkyVibe', origin = SITE_ORIGIN, includeCancelled = false } = opts;
+	const { calName = 'Kinky Vibe', origin = SITE_ORIGIN, includeCancelled = false } = opts;
 	const profiles = opts.profiles ?? posts;
 	/** @type {ics.EventAttributes[]} */
 	const events = [];
@@ -117,8 +117,8 @@ export function buildIcsFeed(posts, opts = {}) {
 		// one event with a missing/invalid start would make createEvents() fail for the whole feed
 		if (isNaN(new Date(post.meta.start).getTime())) continue;
 		const organizer = post.meta.tags?.includes('KinkyVibe')
-			? 'KinkyVibe'
-			: (post.meta.authors?.[0] ?? 'KinkyVibe');
+			? 'Kinky Vibe'
+			: (post.meta.authors?.[0] ?? 'Kinky Vibe');
 		const postPath = origin + post.path;
 		const venue = opts.venues?.get(String(post.meta.postID));
 		// El link al mapa del «Dónde» del .md, solo sin lugar vinculado (ver eventPlace.js).
