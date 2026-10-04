@@ -3,7 +3,7 @@ import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
 import { getVerifiedUser } from '$lib/server/session';
 import { getDB } from '$lib/server/db';
-import { PREVIEW_BUILD } from '$lib/server/deploy.js';
+import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
@@ -75,3 +75,20 @@ export async function handle({ event, resolve }) {
 async function getUser(token) {
 	return await ghGet('user', token);
 }
+
+/**
+ * Solo en previews: el mensaje del error llega a la página de error, para poder diagnosticar el
+ * modo demo sin acceso a los logs de Cloudflare (docs/demo.md). En el build de producción
+ * `PREVIEW_BUILD` es `false`, así que `handleError` queda `undefined` y SvelteKit usa el suyo, como
+ * siempre (mensaje genérico).
+ *
+ * @type {import('@sveltejs/kit').HandleServerError | undefined}
+ */
+export const handleError = PREVIEW_BUILD
+	? ({ error, message }) => {
+			console.error(error);
+			if (!isPreviewDeploy()) return { message };
+			const e = /** @type {any} */ (error);
+			return { message: `${message}: ${e?.message ?? e}`.slice(0, 500) };
+		}
+	: undefined;
