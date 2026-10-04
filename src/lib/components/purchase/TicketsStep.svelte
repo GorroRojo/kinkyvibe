@@ -121,7 +121,7 @@
 				inputmode="numeric"
 				autocomplete="off"
 				maxlength="12"
-				placeholder={String(gorra.suggested)}
+				placeholder="Sugerido: {gorra.suggested}"
 				bind:value={amount}
 				aria-describedby="entradas-monto-ayuda"
 				aria-invalid={errors.amount || (amount.trim() && gorraState.value === null)

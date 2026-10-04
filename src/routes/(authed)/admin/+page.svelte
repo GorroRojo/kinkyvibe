@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
 	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
@@ -14,6 +15,7 @@
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import { navItem, navLink, reviewCountOf } from '$lib/admin/nav.js';
@@ -78,8 +80,7 @@
 	const dayFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, day: 'numeric' });
 	const monFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, month: 'short' });
 	const wdFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'short' });
-	const timeFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	const timeFmt = argFormat({
 		hour: '2-digit',
 		minute: '2-digit'
 	});
@@ -88,8 +89,7 @@
 		day: 'numeric',
 		month: 'short'
 	});
-	const whenFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	const whenFmt = argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',
@@ -149,6 +149,7 @@
 		{ label: 'Reservadas', key: 'held' },
 		{ label: 'Cupo', key: 'capacity' },
 		{ label: 'Recaudado', key: 'revenue' },
+		{ label: 'Meta', value: (e) => e.progress?.text ?? '' },
 		{ label: 'Neto del fondo', value: (e) => (e.fondoEnabled ? e.fondoNet : '') }
 	];
 
@@ -189,6 +190,7 @@
 								<span
 									><b class="num">{e.sold}</b>{e.capacity ? ` / ${e.capacity}` : ''} vendidas</span
 								>
+								{#if e.progress}<span>Meta: <b class="num">{e.progress.text}</b></span>{/if}
 								<span><b class="num">{e.checkedIn}</b> de {e.issued} ingresaron</span>
 							</p>
 						{:else}
@@ -470,12 +472,17 @@
 											<small class="muted">La venta todavía no abrió.</small>
 										{:else}
 											<div class="cap">
-												<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
-												<small class="num"
-													>{e.sold}{e.capacity === null ? ' · sin cupo' : ` / ${e.capacity}`}{e.held
-														? ` · ${e.held} reservadas`
-														: ''}</small
-												>
+												{#if e.progress}
+													<!-- Con meta de venta: el avance contra la meta (no contra el cupo). -->
+													<GoalProgress progress={e.progress} compact />
+												{:else}
+													<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
+													<small class="num"
+														>{e.sold}{e.capacity === null
+															? ' · sin cupo'
+															: ` / ${e.capacity}`}{e.held ? ` · ${e.held} reservadas` : ''}</small
+													>
+												{/if}
 											</div>
 										{/if}
 									{/if}

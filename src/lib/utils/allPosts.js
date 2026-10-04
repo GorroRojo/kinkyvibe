@@ -1,6 +1,7 @@
 // Kept apart from $lib/utils/index.js so list pages can import it without
 // pulling in that module's lookup tables for every post and image.
 import '$lib/types.d.js';
+import { toArgentina } from './dates.js';
 
 /**
  * false for calendar events that already started (PostList hides them unless
@@ -10,6 +11,24 @@ import '$lib/types.d.js';
  */
 export const isCurrent = (post, now = Date.now()) =>
 	post.meta.category != 'calendario' || new Date(post.meta.start).getTime() > now;
+
+/**
+ * true if some calendar event of `month` (yyyy-MM, Argentina time) already started: /calendario
+ * only offers "Mostrar/Ocultar eventos pasados" when there is something to show or hide.
+ * @param {ProcessedPost[]} posts
+ * @param {string} month yyyy-MM
+ * @param {number} [now]
+ */
+export function monthHasPastEvents(posts, month, now = Date.now()) {
+	return posts.some((post) => {
+		if (post.meta.category != 'calendario') return false;
+		const start = new Date(post.meta.start);
+		if (isNaN(start.getTime()) || start.getTime() > now) return false;
+		const local = toArgentina(start);
+		const m = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}`;
+		return m == month;
+	});
+}
 
 /** @type {Promise<ProcessedPost[]>|undefined} */
 let allPosts;

@@ -223,3 +223,71 @@ describe('/calendario/<evento>: los botones', () => {
 		expect(text(block(body, 'share-row'))).toContain('Compartir');
 	});
 });
+
+describe('/calendario/<evento>: el botón de comprar entradas', () => {
+	/** @param {Record<string, any>} tickets */
+	const buyMeta = (tickets) => {
+		const body = page(
+			{},
+			{
+				tickets: {
+					open: true,
+					priceFrom: null,
+					gorraSuggested: null,
+					left: null,
+					closesAt: null,
+					door: null,
+					...tickets
+				}
+			}
+		);
+		const from = body.indexOf('class="buy-meta');
+		const html = body.slice(body.indexOf('>', from) + 1, body.indexOf('</span>', from));
+		// Sin poner espacios en lugar de las etiquetas (como hace stripTags): lo que importa es
+		// si los espacios están en el texto.
+		return html
+			.replace(/<!--[\s\S]*?-->/g, '')
+			.replace(/<[^<>]*>/g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+	};
+
+	it('separa el precio de lo que queda con « · »', () => {
+		expect(buyMeta({ priceFrom: 6400, left: 5 })).toMatch(/^desde \$\s6\.400 · Quedan 5$/);
+	});
+
+	it('precio y gorra, con y sin lo que queda', () => {
+		expect(buyMeta({ priceFrom: 6400, gorraSuggested: 3000 })).toMatch(
+			/^desde \$\s6\.400 · a la gorra$/
+		);
+		expect(buyMeta({ gorraSuggested: 3000, left: 2 })).toBe('a la gorra · ¡Últimas 2!');
+	});
+
+	it('solo lo que queda, sin un «·» suelto adelante', () => {
+		expect(buyMeta({ left: 1 })).toBe('¡Última!');
+	});
+});
+
+describe('/calendario/<evento>: el link de inscripción', () => {
+	it('un mail (mailto:) se muestra como link al mail, sin abrir otra pestaña', () => {
+		const html = page({ link: 'mailto:hola@ejemplo.test', link_text: 'Escribinos' });
+		const links = [...html.matchAll(/<a [^>]*href="mailto:hola@ejemplo\.test"[^>]*>/g)].map(
+			(m) => m[0]
+		);
+		// En la tarjeta y al final del texto.
+		expect(links).toHaveLength(2);
+		for (const a of links) expect(a).not.toContain('target=');
+		expect(html).toContain('>Escribinos</a>');
+	});
+
+	it('un link web al final del texto sigue abriendo otra pestaña', () => {
+		const html = page({ link: 'https://forms.gle/inventado', link_text: 'Inscribirme' });
+		expect(html).toMatch(/<a [^>]*href="https:\/\/forms\.gle\/inventado"[^>]*target="_blank"/);
+	});
+
+	it('un link con javascript: (u otro esquema) no se muestra', () => {
+		const html = page({ link: 'javascript:alert(1)', link_text: 'Inscribirme' });
+		expect(html).not.toContain('javascript:');
+		expect(html).not.toContain('>Inscribirme</a>');
+	});
+});

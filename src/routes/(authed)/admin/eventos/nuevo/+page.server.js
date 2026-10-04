@@ -31,6 +31,8 @@ import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
+import { linkFileErrors } from '$lib/utils/eventLink.js';
+import { transferReady } from '$lib/server/tickets/index.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
@@ -152,6 +154,8 @@ export async function load({ locals, url, platform }) {
 		duplicables: source ? [] : await duplicableEvents(),
 		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (en `event_venues`).
 		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
+		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
+		transferReady: await transferReady(getDB(platform)),
 		takenSlugs: takenSlugsInBundle(),
 		maxImageBytes: MAX_IMAGE_BYTES,
 		savesToDb,
@@ -295,6 +299,9 @@ export const actions = {
 			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
 			const placeErrors = placeFileErrors(String(data.get('content') ?? ''));
 			if (placeErrors.length) throw new Error(placeErrors.join(' '));
+			// Link de inscripción: web, mail (mailto:) o página del sitio; nunca javascript:.
+			const linkErrors = linkFileErrors(String(data.get('content') ?? ''));
+			if (linkErrors.length) throw new Error(linkErrors.join(' '));
 			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
 			const roles = await activeRoles(platform);
 			const personasErrors = roles

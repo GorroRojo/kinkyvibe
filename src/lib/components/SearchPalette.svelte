@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argFormat } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -201,14 +201,13 @@
 		}
 	}
 
-	const dateFormat = new Intl.DateTimeFormat('es-AR', {
+	const dateFormat = argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',
 		year: 'numeric',
 		hour: '2-digit',
-		minute: '2-digit',
-		timeZone: TIMEZONE
+		minute: '2-digit'
 	});
 	/** @param {string} d */
 	const formatDate = (d) => dateFormat.format(new Date(d));

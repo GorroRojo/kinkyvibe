@@ -109,7 +109,7 @@
 				name="pronouns"
 				maxlength="40"
 				bind:value={values.text.pronouns}
-				placeholder="elle/ella"
+				placeholder="Ej.: elle/ella"
 			/>
 			{#if err('pronouns')}<small class="kv-error">{err('pronouns')}</small>{/if}
 		</label>
@@ -118,7 +118,7 @@
 			<input
 				name="pronouns_url"
 				bind:value={values.text.pronouns_url}
-				placeholder="https://pronombr.es/elle"
+				placeholder="Ej.: https://pronombr.es/elle"
 			/>
 			{#if err('pronouns_url')}<small class="kv-error">{err('pronouns_url')}</small>{/if}
 		</label>
@@ -136,7 +136,7 @@
 				name="link_text"
 				maxlength="80"
 				bind:value={values.text.link_text}
-				placeholder="Ir a su página"
+				placeholder="Ej.: Ir a su página"
 			/>
 		</label>
 	</div>

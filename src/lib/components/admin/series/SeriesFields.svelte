@@ -60,7 +60,13 @@
 	</label>
 	<label class="kv-field" for="{id}-icon">
 		<span>Ícono (opcional)</span>
-		<input id="{id}-icon" name="icon" maxlength="16" value={values.icon ?? ''} placeholder="🎭" />
+		<input
+			id="{id}-icon"
+			name="icon"
+			maxlength="16"
+			value={values.icon ?? ''}
+			placeholder="Ej.: 🎭"
+		/>
 	</label>
 {/if}
 <label class="kv-field" for="{id}-image">

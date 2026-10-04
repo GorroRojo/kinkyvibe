@@ -932,3 +932,20 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 	await expect(block.locator('input[name="holder_name_1"]')).toBeFocused();
 	await shots(page, '03-pasos-tus-datos', undefined, { fullPage: false });
 });
+
+test('elegir el tipo de entrada no cambia de paso: solo «Continuar» lleva a «Tus datos»', async ({
+	page
+}) => {
+	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	const entradas = block.getByRole('heading', { name: /^Paso 1 de 3 Entradas$/ });
+	await expect(entradas).toBeVisible();
+	// Con el mouse y con el teclado (Enter en la lista envía el formulario: envío implícito).
+	await block.getByLabel(TYPES.anticipada.label).check();
+	await block.getByLabel(TYPES.general.label).check();
+	await block.getByLabel(TYPES.general.label).press('Enter');
+	await expect(entradas).toBeVisible();
+	await expect(stepHeading(block, 'Tus datos')).toBeHidden();
+	await expect(block.getByText('Revisá lo marcado para seguir.')).toHaveCount(0);
+	await nextStep(block, 'Tus datos');
+});

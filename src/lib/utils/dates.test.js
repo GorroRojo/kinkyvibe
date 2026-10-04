@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
+	argFormat,
 	argDate,
 	argDateTimeLong,
 	argTime,
@@ -125,5 +126,49 @@ describe('argDateTimeLong', () => {
 
 	it('an invalid date gives an empty string', () => {
 		expect(argDateTimeLong('no es una fecha')).toBe('');
+	});
+});
+
+// es-AR in recent ICU/CLDR data (Node 22+, current browsers) defaults to a 12-hour clock
+// («10:00 p. m.»); the site always shows 24-hour Argentina time.
+describe('argFormat', () => {
+	const night = new Date('2026-10-11T01:00:00Z'); // 22:00 of the 10th in Argentina
+	const NO_AMPM = /[ap]\.\s?m\.|AM|PM/i;
+
+	it('always uses a 24-hour clock', () => {
+		expect(argFormat({ hour: '2-digit', minute: '2-digit' }).format(night)).toBe('22:00');
+		expect(argFormat({ hour: '2-digit' }).resolvedOptions().hourCycle).toBe('h23');
+		expect(argFormat({ timeStyle: 'short' }).resolvedOptions().hourCycle).toBe('h23');
+	});
+
+	it('midnight is 00, not 12 or 24', () => {
+		const midnight = new Date('2026-10-11T03:05:00Z');
+		expect(argFormat({ hour: '2-digit', minute: '2-digit' }).format(midnight)).toBe('00:05');
+	});
+
+	it('keeps 24 h with dateStyle/timeStyle and with weekday/day/month fields', () => {
+		for (const opts of /** @type {Intl.DateTimeFormatOptions[]} */ ([
+			{ dateStyle: 'full', timeStyle: 'short' },
+			{ dateStyle: 'short', timeStyle: 'short' },
+			{ weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' },
+			{ hour: 'numeric', minute: 'numeric', second: 'numeric' }
+		])) {
+			const out = argFormat(opts).format(night);
+			expect(out).toContain('22:00');
+			expect(out).not.toMatch(NO_AMPM);
+		}
+	});
+
+	it('ignores hour12 (which would override hourCycle)', () => {
+		expect(argFormat({ hour: '2-digit', minute: '2-digit', hour12: true }).format(night)).toBe(
+			'22:00'
+		);
+	});
+
+	it('uses Argentina time by default, but a timeZone can be passed', () => {
+		expect(argFormat({ day: 'numeric' }).format(night)).toBe('10');
+		expect(argFormat({ timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }).format(night)).toBe(
+			'01:00'
+		);
 	});
 });

@@ -1,5 +1,6 @@
 <script>
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
@@ -50,7 +51,8 @@
 		applyTicketsToMarkdown,
 		describeTicketsForm,
 		readTicketsForm,
-		validateTicketsForm
+		validateTicketsForm,
+		goalFields
 	} from '$lib/utils/ticketsEditor.js';
 	import { parseDocument } from 'yaml';
 	import {
@@ -254,6 +256,9 @@
 	// «Dónde»: el link al mapa es opcional, pero si está tiene que ser https de un sitio de mapas.
 	$: mapCheck = checkMapLink(values.location_map);
 	$: mapError = mapCheck.ok ? '' : mapCheck.message;
+	// «Link de inscripción»: web, mail (mailto:) o página del sitio; nunca javascript: (eventLink.js).
+	$: linkProblem = values.link?.trim() ? eventLinkProblem(values.link.trim()) : null;
+	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
 	$: problems = /** @type {string[]} */ (
 		[
@@ -265,6 +270,7 @@
 			upload.error,
 			scopeProblem,
 			mapError,
+			linkError,
 			...tagErrors,
 			...peopleErrors,
 			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
@@ -444,7 +450,7 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, 'Organiza');
-		if (d.tickets) tickets = d.tickets;
+		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
 		if (venuePicker && d.venue && typeof d.venue === 'object')
 			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 		if (d.slugEdited && typeof d.slug === 'string') {
@@ -676,6 +682,7 @@
 						legend="📝 Datos del evento"
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
+						errors={linkError ? { link: linkError } : {}}
 						bind:values
 					/>
 
@@ -757,6 +764,7 @@
 						bind:state={tickets}
 						tags={splitList(values.tags)}
 						location={values.location}
+						transferReady={data.transferReady}
 						errors={showProblems ? ticketsCheck.errors : []}
 						warnings={ticketsCheck.warnings}
 						idPrefix="ev"

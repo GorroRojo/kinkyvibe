@@ -377,9 +377,6 @@
 			font-size: var(--step-0);
 			background: transparent;
 			color: inherit;
-			&::placeholder {
-				color: color-mix(in srgb, var(--1-ink) 70%, white);
-			}
 		}
 		.options {
 			outline: 1px solid var(--1-light);

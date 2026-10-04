@@ -81,7 +81,13 @@ describe('evento', () => {
 		).toMatchObject({
 			ok: false,
 			errors: [{ path: 'link' }]
-		});
+		}); // Un mail de inscripción (mailto:) vale; sin dirección, no.
+		expect(
+			validateData(evento, { start: '2026-10-02T20:00-03:00', link: 'mailto:hola@ejemplo.test' })
+		).toMatchObject({ ok: true });
+		expect(
+			validateData(evento, { start: '2026-10-02T20:00-03:00', link: 'mailto:' })
+		).toMatchObject({ ok: false, errors: [{ path: 'link' }] });
 	});
 
 	it('el texto para buscar junta resumen y descripción', () => {

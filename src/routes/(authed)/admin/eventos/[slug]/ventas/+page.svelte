@@ -3,6 +3,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
+	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import SalesThermometer from '$lib/components/admin/panel/SalesThermometer.svelte';
@@ -75,11 +76,20 @@
 
 <div class="thermo-card">
 	<Card title="Termómetro de ventas">
-		<SalesThermometer chart={data.chart} />
+		<SalesThermometer chart={data.chart} progress={data.progress} />
 	</Card>
 </div>
 
 <div class="stats">
+	{#if data.progress}
+		<Stat
+			label={data.progress.kind === 'plata' ? 'Meta de plata' : 'Meta de entradas'}
+			value="{data.progress.pct} %"
+			tone={data.progress.reached ? 'ok' : ''}
+		>
+			<GoalProgress progress={data.progress} />
+		</Stat>
+	{/if}
 	<Stat
 		label="Vendidas"
 		value={t.capacity ? `${t.sold} / ${t.capacity}` : String(t.sold)}

@@ -8,16 +8,20 @@
  * piden de a {@link OLDER_PAGE} con «Ver anteriores», y buscar busca en el servidor.
  */
 import { foldSearch } from './eventFormat.js';
+import { goalProgress } from '$lib/utils/salesGoal.js';
 
 /**
  * @typedef {{
  *   slug: string, title: string, start: string, end: string, status: string,
  *   locationName: string, location: string, place: string, unlisted: boolean,
  *   unpublished: boolean, online: boolean, thumb: string, sellsTickets: boolean,
- *   capacity: number | null, sold: number, transfers: number, i: number
+ *   capacity: number | null, goal: string, sold: number, revenue: number, mpFee: number,
+ *   transfers: number, i: number
  * }} EventRow
  *   Una fila de la lista. `i`: su lugar en la lista completa (del más nuevo al más viejo), para
- *   mezclar lo que llega después sin desordenar.
+ *   mezclar lo que llega después sin desordenar. `goal`: la meta de venta como se guarda
+ *   (`'plata:250000'`, '' = sin meta; ver $lib/utils/salesGoal.js); `revenue`: lo recaudado;
+ *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto).
  */
 
 /** Cuántos días de eventos pasados manda la página de entrada (unos tres meses). */
@@ -114,5 +118,6 @@ export const CSV_COLUMNS = [
 	{ label: 'vende entradas', value: (e) => (e.sellsTickets ? 'sí' : '') },
 	{ label: 'vendidas', value: (e) => (e.sellsTickets ? e.sold : '') },
 	{ label: 'cupo', value: (e) => e.capacity ?? '' },
+	{ label: 'meta', value: (e) => goalProgress(e.goal, e)?.text ?? '' },
 	{ label: 'transferencias pendientes', value: (e) => e.transfers || '' }
 ];

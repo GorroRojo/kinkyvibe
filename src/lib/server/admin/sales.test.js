@@ -8,6 +8,7 @@ import {
 	salesTotals,
 	summarizeEvent
 } from './sales.js';
+import { insertOrder } from './testRows.js';
 
 vi.mock('$lib/server/tickets/events.js', () => ({
 	getEventTickets: vi.fn(async (/** @type {string} */ slug) =>
@@ -75,6 +76,19 @@ describe('getAllCounts', () => {
 		}
 		expect(all.get('fiesta-a')?.get('general')).toMatchObject({ sold: 2, held: 1, revenue: 10000 });
 	});
+
+	it('mpFee: el recargo de las órdenes aprobadas pagadas con Mercado Pago (igual que getCounts)', async () => {
+		await insertOrder(t.db, { slug: 'fiesta-a', surcharge: 360 });
+		await insertOrder(t.db, { slug: 'fiesta-a', surcharge: 200 });
+		// Sin comisión: lo que no se pagó con MP (acá, una transferencia) ni lo no aprobado.
+		await insertOrder(t.db, { slug: 'fiesta-a', method: 'transferencia', surcharge: 999 });
+		await insertOrder(t.db, { slug: 'fiesta-a', status: 'refunded', surcharge: 500 });
+		const all = await getAllCounts(t.db, NOW);
+		const c = all.get('fiesta-a')?.get('general');
+		expect(c).toMatchObject({ sold: 3, mpFee: 560 });
+		expect(c?.revenue).toBe(3 * 10000 + 360 + 200 + 999);
+		expect((await getCounts(t.db, 'fiesta-a', NOW)).get('general')?.mpFee).toBe(560);
+	});
 });
 
 describe('summarizeEvent / salesTotals', () => {
@@ -119,6 +133,32 @@ describe('summarizeEvent / salesTotals', () => {
 		expect(e.types[0]).toMatchObject({ sold: 3, capacity: null, over: false });
 		expect(e.types[1]).toMatchObject({ capacity: 10, over: false });
 		expect(e).toMatchObject({ sold: 3, capacity: null });
+	});
+
+	it('meta de venta: el avance contra la meta (plata neta o entradas); sin meta, null', () => {
+		expect(summarizeEvent({ slug: 'fiesta', config }, counts, { now: NOW }).progress).toBeNull();
+		const plata = summarizeEvent(
+			{ slug: 'fiesta', config: { ...config, goal: { kind: 'plata', value: 48000 } } },
+			counts,
+			{ now: NOW }
+		);
+		expect(plata.progress).toMatchObject({ kind: 'plata', current: 24000, target: 48000, pct: 50 });
+		// Con comisión de Mercado Pago: la meta cuenta lo neto (recaudado − comisión).
+		const withFee = new Map([['general', { ...counts.get('general'), mpFee: 400 }]]);
+		const net = summarizeEvent(
+			{ slug: 'fiesta', config: { ...config, goal: { kind: 'plata', value: 47200 } } },
+			/** @type {any} */ (withFee),
+			{ now: NOW }
+		);
+		expect(net).toMatchObject({ revenue: 24000, net: 23600 });
+		expect(net.progress).toMatchObject({ current: 23600, target: 47200, pct: 50 });
+		expect(net.progress?.text).toMatch(/netos de/);
+		const entradas = summarizeEvent(
+			{ slug: 'fiesta', config: { ...config, goal: { kind: 'entradas', value: 3 } } },
+			counts,
+			{ now: NOW }
+		);
+		expect(entradas.progress).toMatchObject({ text: '3 de 3 entradas', reached: true });
 	});
 
 	it('un evento que ya pasó no es próximo; uno sin fecha sí', () => {

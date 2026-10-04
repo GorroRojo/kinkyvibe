@@ -159,6 +159,17 @@ export function buildPreference({ order, eventTitle, typeName, origin }) {
 }
 
 /**
+ * El detalle de un ítem de la preferencia para mostrar («2 × Entrada General · Fiesta»). Cuando
+ * la orden va como un solo ítem por el total, la cantidad ya está en el título (y `quantity` es
+ * 1): no se repite (el checkout simulado mostraba «1 × 2 × Entrada General»).
+ *
+ * @param {{ title: string, quantity: number }} item
+ */
+export function itemDetail(item) {
+	return item.quantity === 1 ? item.title : `${item.quantity} × ${item.title}`;
+}
+
+/**
  * @param {MPClient} client
  * @param {ReturnType<typeof checkoutProPreference>} preference
  * @param {string} idempotencyKey

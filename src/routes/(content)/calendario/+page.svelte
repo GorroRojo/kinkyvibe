@@ -1,6 +1,6 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, isCurrent } from '$lib/utils/allPosts';
+	import { fetchAllPostsClient, isCurrent, monthHasPastEvents } from '$lib/utils/allPosts';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
@@ -57,6 +57,8 @@
 		: default_month;
 	// only recomputed when the month string changes, so the grid isn't re-keyed needlessly
 	$: view_date = new Date(view_month + '-01T00:00');
+	// "Mostrar/Ocultar eventos pasados" only when this month has past events (gorrite's call)
+	$: month_has_past = monthHasPastEvents(calendarioPosts, view_month);
 </script>
 
 <svelte:head>
@@ -99,7 +101,6 @@
 					<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
 					{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
 						{@const start = toArgentina(event.meta.start)}
-						{@const minutes = format(start, 'mm')}
 						<a
 							href={'#' + event.path}
 							class="bar"
@@ -109,12 +110,7 @@
 							<span>
 								{event.meta.title ?? ' '}
 								&sdot;
-								<strong
-									>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
-										start,
-										'aaa'
-									)}</strong
-								>
+								<strong>{format(start, 'HH:mm')}</strong>
 							</span>
 						</a>
 					{/each}
@@ -125,6 +121,7 @@
 	<div id="postlist">
 		<PostList
 			filter={{ prop: 'visible', value: true }}
+			pastEventsToggle={month_has_past}
 			posts={listPosts
 				.map((p) => ({
 					meta: {

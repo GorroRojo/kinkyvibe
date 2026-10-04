@@ -210,9 +210,6 @@
 		padding: 0.3em 0.2em;
 		font: inherit;
 		background: transparent;
-		&::placeholder {
-			color: color-mix(in srgb, var(--1-ink) 70%, white);
-		}
 	}
 	.chips {
 		display: contents;

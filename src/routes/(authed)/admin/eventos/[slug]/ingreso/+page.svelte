@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * Modo puerta: pantalla completa y oscura (sin menús del panel), con la pantalla siempre
 	 * prendida (Wake Lock), escáner de QR, resultado grande, "Escribir código", "Buscar persona",
@@ -128,13 +129,7 @@
 	}
 	/** @param {number | null | undefined} ms */
 	function dateTime(ms) {
-		return ms
-			? new Date(ms).toLocaleString('es-AR', {
-					dateStyle: 'short',
-					timeStyle: 'short',
-					timeZone: TZ
-				})
-			: '—';
+		return ms ? argFormat({ dateStyle: 'short', timeStyle: 'short' }).format(ms) : '—';
 	}
 
 	// --- Guardado local (try/catch adentro de doorOffline.js) ---
@@ -868,7 +863,7 @@
 					autocomplete="off"
 					autocapitalize="characters"
 					spellcheck="false"
-					placeholder="7HQ 4XM"
+					placeholder="Ej.: 7HQ 4XM"
 					required
 				/>
 			</label>
@@ -1027,7 +1022,7 @@
 				{#each Array.from({ length: Math.min(data.maxOrder, saleQty) - 1 }) as _, i (i)}
 					<input
 						name="holder_{i + 1}"
-						placeholder="Persona {i + 2}"
+						placeholder="Nombre de la persona {i + 2}"
 						autocomplete="off"
 						aria-label="Persona {i + 2}"
 					/>

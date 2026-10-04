@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -16,8 +17,7 @@
 	/** Familias que aparecen en el registro (la parte antes del punto de cada acción). */
 	$: families = [...new Set(data.facets.actions.map((a) => a.split('.')[0]))];
 
-	const whenFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: 'America/Argentina/Buenos_Aires',
+	const whenFmt = argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',

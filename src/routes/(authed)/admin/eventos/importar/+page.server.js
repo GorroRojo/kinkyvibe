@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { eventLinkProblem } from '$lib/utils/eventLink.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import {
@@ -95,8 +96,8 @@ function rowProblem(row) {
 	if (!isValidDate(row.date)) return 'Falta la fecha o no es válida.';
 	if (!isValidTime(row.startTime)) return 'Falta la hora de inicio.';
 	if (row.endTime && !isValidTime(row.endTime)) return 'La hora de fin no es válida.';
-	if (row.link && !/^https?:\/\/\S+$/.test(row.link))
-		return 'El link tiene que empezar con https://';
+	const linkProblem = row.link ? eventLinkProblem(row.link) : null;
+	if (linkProblem) return `El link de inscripción ${linkProblem}.`;
 	if (row.source && validateSlug(row.source)) return 'El evento anterior elegido no existe.';
 	return validateSlug(row.slug);
 }

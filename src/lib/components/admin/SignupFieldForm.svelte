@@ -59,7 +59,7 @@
 			maxlength={LABEL_MAX}
 			required
 			value={values.label ?? ''}
-			placeholder="Ej: ¿Tenés alguna restricción alimentaria?"
+			placeholder="Ej.: ¿Tenés alguna restricción alimentaria?"
 			aria-invalid={errors.label ? 'true' : undefined}
 		/>
 		{#if errors.label}<small class="kv-error">{errors.label}</small>{/if}

@@ -1,7 +1,8 @@
 <!--
 	"Entradas" del editor de eventos: prende/apaga la venta por el sitio y edita los tipos de
 	entrada (precio fijo, preventas por tramos o a la gorra; cupo opcional; cierre propio; tipos
-	encadenados), medios de pago, cierre, modalidad, entradas en la puerta y recordatorios (ver
+	encadenados), la meta de venta (SalesGoalField), medios de pago, cierre, modalidad, entradas en
+	la puerta y recordatorios (ver
 	$lib/utils/ticketsEditor.js, que lee y escribe el frontmatter). Los tramos se editan en
 	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica.
 
@@ -21,6 +22,7 @@
 		tiersForMode
 	} from '$lib/utils/ticketsEditor.js';
 	import TicketTiersEditor from './TicketTiersEditor.svelte';
+	import SalesGoalField from './SalesGoalField.svelte';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -41,6 +43,13 @@
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
 	export let settingsHref = '/admin/ajustes/cobros';
+	/**
+	 * ¿Hay datos para transferir (Ajustes → Cobros o TICKETS_TRANSFER_INFO)? Solo sí/no, nunca los
+	 * datos. `false`: «Transferencia» tildada no se ofrece en la compra, y se avisa. `null`: no se
+	 * sabe (no se avisa).
+	 * @type {boolean | null}
+	 */
+	export let transferReady = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -188,7 +197,7 @@
 							<input
 								id="{idPrefix}-ticket-name-{i}"
 								bind:value={t.name}
-								placeholder={i === 0 ? 'General' : 'Anticipada'}
+								placeholder={i === 0 ? 'Ej.: General' : 'Ej.: Anticipada'}
 								maxlength="60"
 							/>
 						</label>
@@ -220,7 +229,7 @@
 									id="{idPrefix}-ticket-min-{i}"
 									bind:value={t.min}
 									inputmode="numeric"
-									placeholder="0"
+									placeholder="Sin mínimo"
 								/>
 								<small>0 = quien no puede pagar, no paga.</small>
 							</label>
@@ -230,7 +239,7 @@
 									id="{idPrefix}-ticket-suggested-{i}"
 									bind:value={t.suggested}
 									inputmode="numeric"
-									placeholder="5000"
+									placeholder="Ej.: 5000"
 								/>
 								{#if parseAmount(t.suggested) !== null}
 									<small
@@ -263,7 +272,7 @@
 									id="{idPrefix}-ticket-price-{i}"
 									bind:value={t.price}
 									inputmode="numeric"
-									placeholder="10000"
+									placeholder="Ej.: 10000"
 								/>
 								<small
 									>{money(t.price)
@@ -343,6 +352,8 @@
 			>+ Agregar tipo de entrada</button
 		>
 
+		<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
+
 		<fieldset class="group">
 			<legend>Medios de pago <span class="req">*</span></legend>
 			{#each METHODS as m}
@@ -351,7 +362,15 @@
 					{PAYMENT_METHOD_LABELS[m]}
 				</label>
 			{/each}
-			{#if state.methods.transferencia}
+			{#if state.methods.transferencia && transferReady === false}
+				<p class="warning" role="status" id="{idPrefix}-transfer-missing">
+					⚠️ Activaste transferencia pero faltan los datos en <a
+						href={settingsHref}
+						target="_blank"
+						rel="noopener">Ajustes → Cobros</a
+					>: por ahora no se ofrece.
+				</p>
+			{:else if state.methods.transferencia}
 				<small
 					>El alias y los datos para transferir se configuran en <a
 						href={settingsHref}
@@ -424,7 +443,7 @@
 							id="{idPrefix}-door-price"
 							bind:value={state.doorPrice}
 							maxlength={DOOR_PRICE_MAX}
-							placeholder="$ 12.000, solo efectivo"
+							placeholder="Ej.: $ 12.000, solo efectivo"
 							aria-describedby="{idPrefix}-door-price-hint"
 						/>
 						<small id="{idPrefix}-door-price-hint"

@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel que
 	 * todavía no se deshicieron, cada una con «Recuperar» (POST `?/recuperar` con su `id`).
@@ -27,8 +28,7 @@
 		material: 'Material',
 		amigues: 'Amigues'
 	});
-	const whenFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: 'America/Argentina/Buenos_Aires',
+	const whenFmt = argFormat({
 		day: 'numeric',
 		month: 'short',
 		hour: '2-digit',

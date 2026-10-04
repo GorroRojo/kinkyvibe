@@ -22,8 +22,16 @@
 			<form method="POST" action="/login/demo" class="demo">
 				<button type="submit" class="pill-btn ghost">🧪 Entrar como admin de prueba</button>
 				<input type="hidden" name="redirectTo" value={redirectTo} />
-				<p>Deploy de prueba: los datos son inventados y los cambios se guardan solo en la base de prueba.</p>
+				<p>
+					Deploy de prueba: los datos son inventados y los cambios se guardan solo en la base de
+					prueba.
+				</p>
 			</form>
+			{#if $page.data.cuentas}
+				<a class="pill-btn ghost demo-persona" href="/ingresar/demo"
+					>🧪 Entrar como persona de prueba</a
+				>
+			{/if}
 		{/if}
 		<a class="back" href="/">← Volver a la página</a>
 	</section>
@@ -65,6 +73,10 @@
 	.demo {
 		display: grid;
 		gap: 0.5em;
+	}
+	.demo-persona {
+		width: 100%;
+		font-size: var(--step-0);
 	}
 	.demo p {
 		font-size: var(--step--1);

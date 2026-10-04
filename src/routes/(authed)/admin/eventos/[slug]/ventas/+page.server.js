@@ -1,5 +1,6 @@
 /**
- * Ficha del evento, pestaña Ventas: números, por tipo, por día, cómo pagaron, Fondo y códigos.
+ * Ficha del evento, pestaña Ventas: números (y la meta de venta, si tiene), por tipo, por día,
+ * cómo pagaron, Fondo y códigos.
  */
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -12,6 +13,7 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, listOrders } from '$lib/server/tickets/orders.js';
 import { previousEditionSales } from '$lib/server/tickets/salesHistory.js';
+import { goalProgress } from '$lib/utils/salesGoal.js';
 import {
 	codesUsed,
 	fondoBreakdown,
@@ -50,7 +52,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			held: c?.held ?? 0,
 			revenue: c?.revenue ?? 0,
 			fondoUsed: c?.fondo ?? 0,
-			contribution: c?.contribution ?? 0
+			contribution: c?.contribution ?? 0,
+			mpFee: c?.mpFee ?? 0
 		};
 	});
 	// Sin cupo total si algún tipo no tiene cupo (`capacity: null`, sin límite).
@@ -72,15 +75,21 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			.map((t) => ({ name: t.name, at: /** @type {number} */ (t.closesAt) })),
 		previous
 	});
+	const revenue = types.reduce((s, t) => s + t.revenue, 0);
+	// La comisión de Mercado Pago de lo cobrado: la meta en plata cuenta lo neto.
+	const mpFee = types.reduce((s, t) => s + t.mpFee, 0);
 	return {
 		chart,
 		types,
 		totals: {
 			sold,
 			capacity,
-			revenue: types.reduce((s, t) => s + t.revenue, 0),
+			revenue,
 			held: heldBreakdown(orders, now)
 		},
+		// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP), o
+		// null: entonces, contra el cupo.
+		progress: goalProgress(config.goal, { sold, revenue, mpFee }),
 		perDay: salesPerDay(orders, { now }),
 		closes,
 		payments: paymentSplit(orders),

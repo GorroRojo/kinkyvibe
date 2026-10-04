@@ -204,19 +204,21 @@ export function buildTicketEmail({
 				<p style="margin:8px 0 0"><a href="${links[i]}">Ver la entrada</a></p>
 			</div>`;
 			}
+			// El QR y el código van en dos bloques inline-block (no en una fila de tabla): si no
+			// entran uno al lado del otro (un celu de 390 px), el código baja abajo del QR en lugar
+			// de desbordar el recuadro. Sin media queries, que muchos clientes de mail ignoran.
 			const code = t.code
-				? `<td style="vertical-align:middle;padding:0 0 0 12px;text-align:center">
+				? `<div style="display:inline-block;vertical-align:middle;padding:8px 12px;text-align:center">
 					<div style="font-size:12px;color:#555">Código</div>
 					<div style="font-family:'Courier New',monospace;font-size:30px;font-weight:bold;letter-spacing:3px;white-space:nowrap">${escapeHtml(displayCode(t.code))}</div>
-				</td>`
+				</div>`
 				: '';
 			return `
 			<div style="border:2px dashed #b3127a;border-radius:12px;padding:16px;margin:16px 0;text-align:center">
 				${head}
-				<table role="presentation" style="margin:0 auto;border-collapse:collapse"><tr>
-					<td style="vertical-align:middle"><img src="${origin}/entradas/t/${t.token}/qr.gif" width="200" height="200" alt="Código QR de la entrada ${i + 1}" style="display:block"></td>
-					${code}
-				</tr></table>
+				<div style="text-align:center;font-size:0">
+					<div style="display:inline-block;vertical-align:middle;font-size:16px"><img src="${origin}/entradas/t/${t.token}/qr.gif" width="200" height="200" alt="Código QR de la entrada ${i + 1}" style="display:block;max-width:100%;height:auto"></div>${code}
+				</div>
 				<p style="margin:8px 0 0"><a href="${links[i]}">Ver la entrada en el navegador</a></p>
 			</div>`;
 		})
@@ -226,7 +228,7 @@ export function buildTicketEmail({
 		? event.streamLink
 			? '<p>Este es el link para entrar a la transmisión. Es personal: no lo compartas en redes.</p>'
 			: '<p>Es un evento online: <strong>te mandamos el link de la transmisión por mail antes del evento</strong>. También va a aparecer en la página de cada entrada.</p>'
-		: '<p>Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está al lado. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.</p>';
+		: '<p>Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está junto al QR. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.</p>';
 
 	const html = `<!doctype html><html lang="es"><body style="font-family:Arial,sans-serif;color:#222;max-width:560px;margin:auto;padding:16px">
 		<h1 style="color:#b3127a;font-size:22px">${custom ? custom.headingHtml : '¡Ya tenés tus entradas!'}</h1>
