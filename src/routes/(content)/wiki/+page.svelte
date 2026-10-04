@@ -143,7 +143,6 @@
 			<GlosarioTree />
 		{/key}
 	</dl>
-	<!-- interruptor `series`: apagado, `data.series` viene vacía -->
 	{#if data.series?.length && !$query?.trim()}
 		<section class="series" id="series" aria-labelledby="series-title">
 			<h2 id="series-title">Series</h2>

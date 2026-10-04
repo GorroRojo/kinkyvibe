@@ -55,8 +55,7 @@ async function modules() {
 
 /**
  * Lo que recibe la página para `term`: los posts relacionados (server) y la etiqueta (+page.js).
- * `siteTags` es lo que manda el layout raíz: null (el archivo) o el árbol de la base (interruptor
- * `etiquetas_db`).
+ * `siteTags` es lo que manda el layout raíz: null (el archivo de respaldo) o el árbol de la base.
  *
  * @param {Awaited<ReturnType<typeof modules>>} m
  * @param {string} term
@@ -105,7 +104,7 @@ describe('/wiki/<término> → etiqueta', () => {
 		expect(slugs).toEqual([]);
 	});
 
-	it('con el árbol de la base (interruptor `etiquetas_db`), usa ese', async () => {
+	it('con el árbol de la base, usa ese', async () => {
 		const m = await modules();
 		const siteTags = [
 			{ id: 'root', children: ['evento recurrente'] },

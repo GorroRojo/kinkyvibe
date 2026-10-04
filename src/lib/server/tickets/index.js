@@ -396,7 +396,7 @@ export async function sendOrderEmail({
 		if (streamLink && (await claimStreamLinkSend(db, { orderId: order.id, link: streamLink }))) {
 			claimedLink = streamLink;
 		}
-		// Si el evento tiene lugar (interruptor `perfiles_publicos`), quien compró recibe la
+		// Si el evento tiene lugar, quien compró recibe la
 		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
 		const venue = await buyerLocation(db, order.event_slug);
 		const message = buildTicketEmail({

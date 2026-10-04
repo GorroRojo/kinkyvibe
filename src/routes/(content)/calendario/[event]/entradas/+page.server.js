@@ -54,7 +54,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
 	const venue = await eventPageVenue(db, params.event, locals);
 	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
-	// Con cuenta (interruptor `cuentas`): nombre, pronombres, DNI guardados y el mail de la cuenta,
+	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta,
 	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
 	if (account) setHeaders({ 'cache-control': 'private, no-store' });

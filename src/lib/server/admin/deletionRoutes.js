@@ -3,13 +3,11 @@
  * «Recuperar» de Actividad. La lógica está en ./deletions.js; esto es el pegamento con SvelteKit.
  *
  * Solo admins (loads: requireAdmin redirige o da 403; acciones: lo mismo, más 403 sin token de
- * GitHub). Borrar necesita el interruptor `borrar_desde_panel` prendido (si no, 404); deshacer y
- * recuperar no: apagar el interruptor nunca deja algo borrado sin vuelta atrás.
+ * GitHub). El interruptor `borrar_desde_panel` quedó prendido para siempre.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { borrarDesdePanelEnabled } from '$lib/server/flags.js';
 import { getEventAdmin, getRepoClient, usesLocalRepo } from '$lib/server/eventos';
 import {
 	FileChangedError,
@@ -61,14 +59,11 @@ async function planFor(platform, kind, slug, media) {
 }
 
 /**
- * Lo común a las acciones: admin, interruptor (si `needsFlag`) y base.
+ * Lo común a las acciones: admin y base.
  * @param {import('@sveltejs/kit').RequestEvent} event
- * @param {{ needsFlag: boolean }} opts
  */
-async function actionContext({ locals, url, platform }, { needsFlag }) {
+async function actionContext({ locals, url, platform }) {
 	requireAdmin(locals, url);
-	if (needsFlag && !(await borrarDesdePanelEnabled(platform)))
-		return { failure: fail(404, { error: 'Borrar desde el panel está apagado.' }) };
 	const admin = getEventAdmin(locals);
 	if (!admin) return { failure: fail(403, { error: NO_PERMISSION }) };
 	const db = getDB(platform);
@@ -95,7 +90,6 @@ function pullOps() {
 export async function deletePageLoad({ locals, url, params, platform, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
-	if (!(await borrarDesdePanelEnabled(platform))) error(404, 'Not found');
 	const admin = getEventAdmin(locals);
 	if (!admin) error(403, NO_PERMISSION);
 	const kind = params.kind ?? '';
@@ -120,7 +114,7 @@ export async function deletePageLoad({ locals, url, params, platform, setHeaders
 
 /** `?/borrar` @type {import('@sveltejs/kit').Action} */
 export async function deleteAction(event) {
-	const ctx = await actionContext(event, { needsFlag: true });
+	const ctx = await actionContext(event);
 	if (ctx.failure) return ctx.failure;
 	const { actor, db } = ctx;
 	const kind = event.params.kind ?? '';
@@ -159,7 +153,7 @@ export async function deleteAction(event) {
  * @type {import('@sveltejs/kit').Action}
  */
 export async function undoAction(event) {
-	const ctx = await actionContext(event, { needsFlag: false });
+	const ctx = await actionContext(event);
 	if (ctx.failure) return ctx.failure;
 	const { actor, db } = ctx;
 	const id = Number((await event.request.formData()).get('id'));

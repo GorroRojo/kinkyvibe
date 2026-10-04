@@ -16,55 +16,12 @@ import { getDB, logDBError } from '$lib/server/db';
 
 /** Los interruptores que existen. `key` es la clave en `feature_flags`. */
 export const FLAGS = Object.freeze({
-	cuentas: {
-		label: 'Cuentas del público',
-		description:
-			'"Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
-			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
-		envVar: 'CUENTAS_ENABLED'
-	},
-	borrar_desde_panel: {
-		label: 'Borrar desde el panel',
-		description:
-			'Botón "Borrar" en eventos, material y amigues, con confirmación, "Deshacer" y ' +
-			'"Recuperar" desde Actividad. Los eventos con entradas vendidas no se pueden borrar. ' +
-			'Apagado, el botón no aparece y la página de borrar da 404.',
-		envVar: 'BORRAR_DESDE_PANEL_ENABLED'
-	},
-	perfiles_publicos: {
-		label: 'Perfiles públicos (amigues y lugares)',
-		description:
-			'/amigues lee los perfiles de la base (personas, proyectos y lugares), con "Es mi perfil", ' +
-			'mapas de los lugares y la privacidad de sus direcciones en los eventos. Apagado, ' +
-			'/amigues y los eventos muestran lo de los archivos .md, como siempre. Antes de ' +
-			'prenderlo: importar las fichas (Perfiles → Importar y clasificar) y revisar la ' +
-			'clasificación.',
-		envVar: 'PERFILES_PUBLICOS_ENABLED'
-	},
-	personas_eventos: {
-		label: 'Personas en eventos y preguntas de inscripción',
-		description:
-			'Roles (Organiza, Facilita, Enseña…) que unen eventos y material con perfiles (se ven con ' +
-			'«Perfiles públicos» prendido), y preguntas ' +
-			'extra al comprar o inscribirse (Eventos → Roles y preguntas, y la pestaña Preguntas ' +
-			'de cada evento). Apagado, ni las páginas ni la compra cambian.',
-		envVar: 'PERSONAS_EVENTOS_ENABLED'
-	},
-	propinas: {
-		label: 'Propinas',
-		description:
-			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
-			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito, y en el pie de ' +
-			'página "Dejá una propina" (al Fondo) en lugar de Cafecito. Apagado, se ve la nota del ' +
-			'cafecito como siempre y /propinas da 404.',
-		envVar: 'PROPINAS_ENABLED'
-	},
 	lo_que_sigo: {
 		label: 'Lo que sigo',
 		description:
 			'Con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y ' +
 			'Mi rincón → Lo que sigo, con «en mi calendario», «mail cuando se anuncia algo nuevo» y ' +
-			'«recordatorio el día antes» por cada cosa. Necesita también «Cuentas del público». ' +
+			'«recordatorio el día antes» por cada cosa. ' +
 			'Apagado, no se ve nada de esto y /mi-rincon/sigo da 404.',
 		envVar: 'LO_QUE_SIGO_ENABLED'
 	},
@@ -73,8 +30,8 @@ export const FLAGS = Object.freeze({
 		description:
 			'El bot de la comunidad contesta /proximos y /evento con los próximos eventos públicos ' +
 			'(docs/telegram.md, decisión 0029). Antes de prenderlo: cargar TELEGRAM_WEBHOOK_SECRET y ' +
-			'apuntar el webhook del bot a /api/telegram. Con «Lo que sigo» y «Cuentas del público» ' +
-			'prendidos, además conecta chats con cuentas (Mi rincón → Lo que sigo) y manda esos ' +
+			'apuntar el webhook del bot a /api/telegram. Con «Lo que sigo» prendido, ' +
+			'además conecta chats con cuentas (Mi rincón → Lo que sigo) y manda esos ' +
 			'avisos por Telegram (necesita el secret TELEGRAM_BOT_TOKEN y la migración 0033). ' +
 			'Apagado, el bot no contesta nada.',
 		envVar: 'TELEGRAM_BOT_ENABLED'
@@ -193,54 +150,8 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 }
 
 /**
- * Atajo para las rutas: ¿están prendidas las cuentas del público?
- *
- * @param {App.Platform | undefined} platform
- */
-export function cuentasEnabled(platform) {
-	return isFlagOn(getDB(platform), 'cuentas');
-}
-
-/**
- * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
- *
- * @param {App.Platform | undefined} platform
- */
-export function borrarDesdePanelEnabled(platform) {
-	return isFlagOn(getDB(platform), 'borrar_desde_panel');
-}
-
-/**
- * Atajo para las rutas: ¿/amigues y los lugares leen los perfiles de la base? (docs/amigues.md)
- *
- * @param {App.Platform | undefined} platform
- */
-export function perfilesPublicosEnabled(platform) {
-	return isFlagOn(getDB(platform), 'perfiles_publicos');
-}
-
-/**
- * Atajo para las rutas: ¿están prendidos los roles y las preguntas de inscripción?
- * (docs/personas-eventos.md)
- *
- * @param {App.Platform | undefined} platform
- */
-export function personasEventosEnabled(platform) {
-	return isFlagOn(getDB(platform), 'personas_eventos');
-}
-
-/**
- * Atajo para las rutas: ¿están prendidas las propinas (docs/propinas.md)?
- *
- * @param {App.Platform | undefined} platform
- */
-export function propinasEnabled(platform) {
-	return isFlagOn(getDB(platform), 'propinas');
-}
-
-/**
- * Atajo para las rutas: ¿está prendido «Lo que sigo»? (docs/lo-que-sigo.md). Solo este
- * interruptor: quien llama mira además `cuentas` (`requireSigo` en $lib/server/sigo/web.js).
+ * Atajo para las rutas: ¿está prendido «Lo que sigo»? (docs/lo-que-sigo.md). Las cuentas del
+ * público ya no tienen interruptor: están siempre.
  *
  * @param {App.Platform | undefined} platform
  */

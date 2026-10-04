@@ -1,14 +1,14 @@
 /**
- * Mi rincón → Lo que sigo (interruptores `lo_que_sigo` y `cuentas`; decisión 0025): las
+ * Mi rincón → Lo que sigo (interruptor `lo_que_sigo`; decisión 0025): las
  * etiquetas (y series), perfiles y lugares que sigue la cuenta, con «en mi calendario», «mail
  * cuando se anuncia algo nuevo» y «recordatorio el día antes» por cada una. Ver
  * docs/lo-que-sigo.md.
  *
  * Cada cosa seguida trae su emoji o imagen y su próximo evento; «Agregar» busca etiquetas,
- * series y (con `perfiles_publicos`) perfiles y lugares para seguirlos sin salir de la página.
+ * series, perfiles y lugares para seguirlos sin salir de la página.
  *
- * Es también el lugar de «Tu calendario» (el .ics personal): qué entra además de lo seguido y,
- * con el interruptor `series`, el link secreto para suscribirse (crear uno nuevo o revocarlo,
+ * Es también el lugar de «Tu calendario» (el .ics personal): qué entra además de lo seguido y
+ * el link secreto para suscribirse (crear uno nuevo o revocarlo,
  * ?/crearLink, ?/revocarLink). Mi rincón → Calendario (/mi-rincon/calendario) era otra página
  * para lo mismo: con «Lo que sigo» prendido manda acá.
  *
@@ -21,7 +21,6 @@ import { safeRedirect } from '$lib/server/auth.js';
 import { logDBError } from '$lib/server/db';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { createFeedToken, feedInfo, revokeFeeds } from '$lib/server/series/feeds.js';
 import { migrateAccountSubscriptions } from '$lib/server/sigo/avisame.js';
 import {
@@ -86,10 +85,9 @@ export async function load(event) {
 	} catch (e) {
 		logDBError('lo que sigo: pasar avisos de la cuenta', e);
 	}
-	const [tags, events, profilesOn, telegram] = await Promise.all([
+	const [tags, events, telegram] = await Promise.all([
 		siteTagManager(event.platform),
 		nextEvents(event.platform),
-		perfilesPublicosEnabled(event.platform),
 		// Fase 2 del bot: `null` con algún interruptor apagado (docs/telegram.md).
 		telegramCardData(event.platform, db, member.id)
 	]);
@@ -103,10 +101,10 @@ export async function load(event) {
 		calendar: await getCalendarPrefs(db, member.id),
 		// El link del calendario personal: lo sirve /ics/mio/<token>.ics.
 		feed: await feedInfo(db, member.id),
-		// Para «Agregar»: las etiquetas y series del árbol y, con perfiles públicos, los perfiles.
+		// Para «Agregar»: las etiquetas y series del árbol y los perfiles.
 		add: {
 			tags: followableTags(tags, events),
-			profiles: profilesOn ? await followableProfiles(db, member.id) : []
+			profiles: await followableProfiles(db, member.id)
 		}
 	};
 }

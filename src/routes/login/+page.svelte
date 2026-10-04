@@ -27,11 +27,9 @@
 					prueba.
 				</p>
 			</form>
-			{#if $page.data.cuentas}
-				<a class="pill-btn ghost demo-persona" href="/ingresar/demo"
-					>🧪 Entrar como persona de prueba</a
-				>
-			{/if}
+			<a class="pill-btn ghost demo-persona" href="/ingresar/demo"
+				>🧪 Entrar como persona de prueba</a
+			>
 		{/if}
 		<a class="back" href="/">← Volver a la página</a>
 	</section>

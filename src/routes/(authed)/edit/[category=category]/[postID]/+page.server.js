@@ -94,7 +94,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
 		...(await editorData(params.category)),
-		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		// Personas con rol: roles y perfiles públicos (sin base, null).
 		personas: params.category === 'amigues' ? null : await editorPersonas(platform),
 		image:
 			params.category === 'calendario'
@@ -155,7 +155,7 @@ export const _editActions = {
 		// Events follow the same tag rules as /admin/eventos/nuevo (one language, one place).
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });
-		// Personas con rol (interruptor personas_eventos): perfiles y roles válidos.
+		// Personas con rol: perfiles y roles válidos.
 		const roles = params.category === 'amigues' ? null : await activeRoles(platform);
 		if (roles) {
 			const personasError = await newFileErrors(locals.user_token, params, fileContent, (c) =>

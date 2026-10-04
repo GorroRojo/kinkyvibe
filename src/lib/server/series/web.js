@@ -65,9 +65,9 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 /**
  * Para los formularios de "Avisame si se repite": si hay una cuenta con sesión (se suscribe sin
  * mail), a qué series ya está suscripta y si con cuenta «Avisame» es seguir la serie en «Lo que
- * sigo» (`sigo`, interruptores `lo_que_sigo` y `cuentas`; sigo/avisame.js). Sin cuenta,
+ * sigo» (`sigo`, interruptor `lo_que_sigo`; sigo/avisame.js). Sin cuenta,
  * `{ member: false, subscribed: [], sigo: false, invite }`: `invite` dice si se invita a entrar
- * para seguir (los mismos interruptores prendidos; ver {@link followInvite}).
+ * para seguir (el mismo interruptor prendido; ver {@link followInvite}).
  *
  * @param {App.Platform | undefined} platform
  * @param {App.Locals} locals

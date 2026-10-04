@@ -1,5 +1,5 @@
 /**
- * Mi rincón → Calendario (interruptores `cuentas` y `series`): el calendario personal ("lo
+ * Mi rincón → Calendario: el calendario personal ("lo
  * tuyo": los eventos con entradas de esta cuenta) con un link secreto que se puede revocar, y las
  * series de las que la cuenta pide aviso. Ver $lib/server/series/feeds.js.
  *

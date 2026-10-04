@@ -6,7 +6,6 @@ import { POSTS_DIR, getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { getPanelEvent, panelEventFromMeta } from '$lib/server/eventos/panel.js';
 import { splitMarkdown, validateSlug } from '$lib/utils/eventDraft.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
-import { personasEventosEnabled } from '$lib/server/flags.js';
 import { PANEL_VIEWER, readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
 
@@ -98,7 +97,7 @@ export async function load({ locals, url, params, platform }) {
 		workshop,
 		tabCounts: counts,
 		dbAvailable: Boolean(db),
-		// Pestaña Preguntas (preguntas de inscripción): solo con el interruptor prendido.
-		signupFieldsTab: Boolean(db && config) && (await personasEventosEnabled(platform))
+		// Pestaña Preguntas (preguntas de inscripción).
+		signupFieldsTab: Boolean(db && config)
 	};
 }

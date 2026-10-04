@@ -1,6 +1,6 @@
 /**
- * «Avisame si se repite» sobre «Lo que sigo» (decisión 0025, docs/lo-que-sigo.md). Con los
- * interruptores `lo_que_sigo` y `cuentas` prendidos:
+ * «Avisame si se repite» sobre «Lo que sigo» (decisión 0025, docs/lo-que-sigo.md). Con el
+ * interruptor `lo_que_sigo` prendido:
  *
  * - **con cuenta**, «Avisame» es seguir la etiqueta de la serie con «mail cuando se anuncia algo
  *   nuevo» (y «en mi calendario»); darse de baja apaga ese mail (lo seguido queda);
@@ -22,12 +22,12 @@ import { follow } from './follows.js';
 const AVISAME_OPTIONS = Object.freeze({ calendario: true, mail_nuevo: true, recordatorio: false });
 
 /**
- * ¿«Avisame» con cuenta va por «Lo que sigo»? (los dos interruptores).
+ * ¿«Avisame» con cuenta va por «Lo que sigo»? (su interruptor).
  *
  * @param {D1Database} db
  */
 export async function avisameViaSigo(db) {
-	return (await isFlagOn(db, 'lo_que_sigo')) && (await isFlagOn(db, 'cuentas'));
+	return isFlagOn(db, 'lo_que_sigo');
 }
 
 /**

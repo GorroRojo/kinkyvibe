@@ -27,24 +27,24 @@ beforeEach(async () => {
 
 describe('interruptores', () => {
 	it('sin fila, sin base o sin tabla: apagado', async () => {
-		expect(await readFlag(t.db, 'cuentas')).toBe(false);
-		expect(await readFlag(null, 'cuentas')).toBe(false);
-		expect(await isFlagOn(null, 'cuentas', { envValue: '' })).toBe(false);
+		expect(await readFlag(t.db, 'lo_que_sigo')).toBe(false);
+		expect(await readFlag(null, 'lo_que_sigo')).toBe(false);
+		expect(await isFlagOn(null, 'lo_que_sigo', { envValue: '' })).toBe(false);
 		const bare = await createTestDB({ migrate: false });
 		try {
-			expect(await readFlag(bare.db, 'cuentas')).toBe(false);
+			expect(await readFlag(bare.db, 'lo_que_sigo')).toBe(false);
 		} finally {
 			await bare.dispose();
 		}
 	});
 
 	it('se prende y apaga desde la base (y queda quién fue)', async () => {
-		await setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba', now: 1 });
-		expect(await isFlagOn(t.db, 'cuentas', { envValue: '' })).toBe(true);
+		await setFlag(t.db, 'lo_que_sigo', true, { by: 'admin-de-prueba', now: 1 });
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { envValue: '' })).toBe(true);
 		const [flag] = await listFlags(t.db);
-		expect(flag).toMatchObject({ key: 'cuentas', enabled: true, updatedBy: 'admin-de-prueba' });
-		await setFlag(t.db, 'cuentas', false, { by: 'admin-de-prueba', now: 2 });
-		expect(await isFlagOn(t.db, 'cuentas', { envValue: '' })).toBe(false);
+		expect(flag).toMatchObject({ key: 'lo_que_sigo', enabled: true, updatedBy: 'admin-de-prueba' });
+		await setFlag(t.db, 'lo_que_sigo', false, { by: 'admin-de-prueba', now: 2 });
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { envValue: '' })).toBe(false);
 	});
 
 	it('la variable de entorno manda: 1 prende, 0 apaga, vacía no dice nada', async () => {
@@ -53,23 +53,27 @@ describe('interruptores', () => {
 		expect(envOverride('')).toBeNull();
 		expect(envOverride('si')).toBeNull();
 		expect(envOverride(undefined)).toBeNull();
-		expect(await isFlagOn(t.db, 'cuentas', { envValue: '1' })).toBe(true);
-		await setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
-		expect(await isFlagOn(t.db, 'cuentas', { envValue: '0' })).toBe(false);
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { envValue: '1' })).toBe(true);
+		await setFlag(t.db, 'lo_que_sigo', true, { by: 'admin-de-prueba' });
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { envValue: '0' })).toBe(false);
 	});
 
 	it('recuerda el valor unos segundos; setFlag lo olvida', async () => {
 		const now = 1_000_000;
-		expect(await isFlagOn(t.db, 'cuentas', { now, envValue: '' })).toBe(false);
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { now, envValue: '' })).toBe(false);
 		// Cambio directo en la base (otro isolate): acá se sigue viendo el valor recordado…
-		await t.db.prepare("INSERT INTO feature_flags VALUES ('cuentas', 1, 1, 'otro-isolate')").run();
-		expect(await isFlagOn(t.db, 'cuentas', { now: now + 1, envValue: '' })).toBe(false);
+		await t.db
+			.prepare("INSERT INTO feature_flags VALUES ('lo_que_sigo', 1, 1, 'otro-isolate')")
+			.run();
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { now: now + 1, envValue: '' })).toBe(false);
 		// …hasta que vence.
-		expect(await isFlagOn(t.db, 'cuentas', { now: now + FLAG_CACHE_MS, envValue: '' })).toBe(true);
-		await setFlag(t.db, 'cuentas', false, { by: 'admin-de-prueba' });
-		expect(await isFlagOn(t.db, 'cuentas', { now: now + FLAG_CACHE_MS + 1, envValue: '' })).toBe(
-			false
+		expect(await isFlagOn(t.db, 'lo_que_sigo', { now: now + FLAG_CACHE_MS, envValue: '' })).toBe(
+			true
 		);
+		await setFlag(t.db, 'lo_que_sigo', false, { by: 'admin-de-prueba' });
+		expect(
+			await isFlagOn(t.db, 'lo_que_sigo', { now: now + FLAG_CACHE_MS + 1, envValue: '' })
+		).toBe(false);
 	});
 
 	it('no acepta interruptores desconocidos', async () => {
@@ -83,8 +87,8 @@ describe('interruptores', () => {
 	});
 
 	it('una página que mira varios interruptores consulta la base una sola vez', async () => {
-		await setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
-		await setFlag(t.db, 'propinas', true, { by: 'admin-de-prueba' });
+		await setFlag(t.db, 'lo_que_sigo', true, { by: 'admin-de-prueba' });
+		await setFlag(t.db, 'telegram_bot', true, { by: 'admin-de-prueba' });
 		clearFlagCache();
 		const counted = countingDB(t.db);
 		const now = 5_000_000;
@@ -96,7 +100,7 @@ describe('interruptores', () => {
 		for (const k of keys) await isFlagOn(counted.db, k, { now: now + 1, envValue: '' });
 		expect(counted.queries).toBe(1);
 		expect(Object.fromEntries(keys.map((k, i) => [k, together[i]]))).toEqual(
-			Object.fromEntries(keys.map((k) => [k, k === 'cuentas' || k === 'propinas']))
+			Object.fromEntries(keys.map((k) => [k, k === 'lo_que_sigo' || k === 'telegram_bot']))
 		);
 		// Cuando vence, otra vez una sola.
 		await Promise.all(
@@ -107,7 +111,7 @@ describe('interruptores', () => {
 		clearFlagCache();
 		const bare = await createTestDB({ migrate: false });
 		try {
-			expect(await isFlagOn(bare.db, 'cuentas', { envValue: '' })).toBe(false);
+			expect(await isFlagOn(bare.db, 'lo_que_sigo', { envValue: '' })).toBe(false);
 		} finally {
 			await bare.dispose();
 		}

@@ -139,7 +139,7 @@ export async function load({ locals, url, platform }) {
 		seriesPrompt,
 		// Tag usage, amigues profiles and past organizers for the pickers.
 		...(await editorData('calendario')),
-		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		// Personas con rol: roles y perfiles públicos (sin base, null).
 		personas: await editorPersonas(platform),
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
@@ -297,7 +297,7 @@ export const actions = {
 			// Link de inscripción: web, mail (mailto:) o página del sitio; nunca javascript:.
 			const linkErrors = linkFileErrors(String(data.get('content') ?? ''));
 			if (linkErrors.length) throw new Error(linkErrors.join(' '));
-			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			// Personas con rol: perfiles (o nombres) y roles válidos.
 			const roles = await activeRoles(platform);
 			const personasErrors = roles
 				? personasFileErrors(String(data.get('content') ?? ''), roles)

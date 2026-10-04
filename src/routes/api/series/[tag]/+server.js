@@ -1,6 +1,6 @@
 /**
  * GET /api/series/<etiqueta>: lo que la página de una etiqueta (/wiki/<etiqueta>, que puede estar
- * prerenderizada) muestra con el interruptor `series` prendido: si la etiqueta es una serie, su
+ * prerenderizada) muestra: si la etiqueta es una serie, su
  * imagen y sus ediciones (próximas primero, después las pasadas); si tiene eventos, el link de su
  * calendario .ics; y si hay una cuenta con sesión, si ya está suscripta a los avisos (y si eso va
  * por «Lo que sigo»).

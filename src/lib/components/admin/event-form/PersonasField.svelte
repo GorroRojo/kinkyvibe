@@ -11,8 +11,8 @@
 	 *
 	 * Props:
 	 * - `items` (bind): `{ profile?, name?, role }[]`.
-	 * - `roles` (bind): los roles que se pueden elegir. Con uno solo (interruptor personas_eventos
-	 *   apagado: solo quienes organizan o escriben) no hay selector de rol.
+	 * - `roles` (bind): los roles que se pueden elegir. Con uno solo (sin base: solo quienes
+	 *   organizan o escriben) no hay selector de rol.
 	 * - `defaultRole`: el de quien se suma (Organiza en eventos, Autore en material); también es el
 	 *   rol que va a `authors:`.
 	 * - `category`: la de la publicación.

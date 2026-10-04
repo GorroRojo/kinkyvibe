@@ -70,7 +70,7 @@
 			{:else if data.demoMode}
 				<!-- Preview deploys only (docs/demo.md) -->
 				<a href="/login?redirectTo=/admin">🧪 Entrar como admin de prueba</a>
-				{#if data.cuentas && !data.member}
+				{#if !data.member}
 					<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
 					<a href="/ingresar/demo">🧪 Entrar como persona de prueba</a>
 				{/if}
@@ -82,7 +82,7 @@
 				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
 			{/if}
 			{#if cuentaLink}
-				<!-- Cuentas del público (docs/cuentas.md): solo con el interruptor prendido -->
+				<!-- Cuentas del público (docs/cuentas.md) -->
 				<a class="cuenta" href={cuentaLink.href}>{cuentaLink.label}</a>
 			{/if}
 		</div>

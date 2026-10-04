@@ -81,7 +81,7 @@ describe('PlaceSection', () => {
 
 	it('sin lugar elegido: el buscador, con las marcas, «+ Crear lugar» y el texto libre a la vista', () => {
 		const body = place({
-			picker: { venues: VENUES, current: { venueId: null, privacy: null }, flagOn: true },
+			picker: { venues: VENUES, current: { venueId: null, privacy: null } },
 			choice: { venueId: null, privacy: null }
 		});
 		expect(hasId(body, 'edit-venue-search')).toBe(true);
@@ -98,7 +98,7 @@ describe('PlaceSection', () => {
 
 	it('con un lugar: el nivel para el evento («Igual que el Lugar» y los demás) y el texto libre plegado', () => {
 		const body = place({
-			picker: { venues: VENUES, current: { venueId: 1, privacy: null }, flagOn: true },
+			picker: { venues: VENUES, current: { venueId: 1, privacy: null } },
 			choice: { venueId: 1, privacy: null }
 		});
 		expect(hasId(body, 'edit-venue-chosen')).toBe(true);
@@ -120,17 +120,18 @@ describe('PlaceSection', () => {
 		expect(hasId(body, 'location-input')).toBe(true);
 	});
 
-	it('avisa si el texto libre tiene una dirección y el nivel no la muestra; con el interruptor apagado, que se guarda igual', () => {
+	// El aviso «interruptor apagado, se guarda igual» se fue con `perfiles_publicos` (quedó fijo).
+	it('avisa si el texto libre tiene una dirección y el nivel no la muestra', () => {
 		const body = place({
-			picker: { venues: VENUES, current: { venueId: 1, privacy: 'area' }, flagOn: false },
+			picker: { venues: VENUES, current: { venueId: 1, privacy: 'area' } },
 			choice: { venueId: 1, privacy: 'area' },
 			values: { location: 'Calle Falsa 123', location_map: '', location_name: '' }
 		});
 		expect(body).toContain('el archivo es público');
-		expect(hasId(body, 'edit-venue-flag')).toBe(true);
+		expect(hasId(body, 'edit-venue-flag')).toBe(false);
 		expect(body).toMatch(/<option value="area"[^>]*selected/);
 		const shows = place({
-			picker: { venues: VENUES, current: { venueId: 1, privacy: 'public' }, flagOn: true },
+			picker: { venues: VENUES, current: { venueId: 1, privacy: 'public' } },
 			choice: { venueId: 1, privacy: 'public' },
 			values: { location: 'Calle Falsa 123', location_map: '', location_name: '' }
 		});
@@ -139,7 +140,7 @@ describe('PlaceSection', () => {
 
 	it('un lugar que ya no existe: lo avisa y deja sacarlo', () => {
 		const body = place({
-			picker: { venues: VENUES, current: { venueId: 99, privacy: null }, flagOn: true },
+			picker: { venues: VENUES, current: { venueId: 99, privacy: null } },
 			choice: { venueId: 99, privacy: null }
 		});
 		expect(hasId(body, 'edit-venue-missing')).toBe(true);
@@ -178,7 +179,7 @@ describe('Editar y Crear usan el «Lugar»', () => {
 					post: { raw: EVENT, sha: 'sha-de-prueba', path: 'src/lib/posts/calendario/fiesta.md' },
 					image: null,
 					sales: null,
-					venuePicker: { venues: VENUES, current: { venueId: 1, privacy: 'name' }, flagOn: true }
+					venuePicker: { venues: VENUES, current: { venueId: 1, privacy: 'name' } }
 				},
 				form: null,
 				category: 'calendario',
@@ -224,7 +225,7 @@ describe('Editar y Crear usan el «Lugar»', () => {
 					duplicables: [],
 					takenSlugs: [],
 					mock: false,
-					venuePicker: { venues: VENUES, current: { venueId: 1, privacy: null }, flagOn: true }
+					venuePicker: { venues: VENUES, current: { venueId: 1, privacy: null } }
 				}),
 				form: null
 			}

@@ -138,7 +138,7 @@ export async function load(event) {
 		pendingMembers: group ? await listGroupMemberInvites(db, member.id, slug) : [],
 		memberships: group || kind === 'lugar' ? [] : await listMemberships(db, member.id, slug),
 		// Eventos que este perfil organiza (rol «Organiza»), con link a sus respuestas de
-		// inscripción. Vacío con el interruptor `personas_eventos` apagado (y para los lugares).
+		// inscripción. Vacío para los lugares.
 		organizes: kind === 'lugar' ? [] : await organizedEventsForPage(event.platform, profile.slug)
 	};
 }

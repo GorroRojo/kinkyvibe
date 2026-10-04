@@ -10,7 +10,7 @@ let t;
 beforeAll(async () => {
 	t = await createTestDB();
 	// La primera importación de la página tarda en transformarse: se paga acá, una vez.
-	await modules('1');
+	await modules();
 }, 60_000);
 afterAll(async () => {
 	await t?.dispose();
@@ -26,10 +26,10 @@ afterEach(() => {
 const EMAIL = 'persona.prueba@example.com';
 const DNI = '30111222';
 
-/** Módulos con la variable CUENTAS_ENABLED que se pida. */
-async function modules(flag = '1') {
+/** Los módulos, recién cargados (sin variables de entorno). */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CUENTAS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		rincon: await import('./+page.server.js'),
 		accounts: await import('$lib/server/cuentas/accounts.js'),
@@ -193,15 +193,5 @@ describe('Mi rincón → Mis datos', () => {
 		expect(row?.preferences).not.toContain('savedBuyer');
 		expect(await m.saved.getSavedBuyer(t.db, other.id)).toEqual({ name: 'Otra Persona' });
 	});
-
-	it('con el interruptor apagado, las acciones dan 404', async () => {
-		const m = await modules('0');
-		const member = { id: crypto.randomUUID(), email: EMAIL };
-		for (const action of ['datos', 'borrarDato', 'borrarDatos', 'mostrarDni']) {
-			const r = await thrown(() =>
-				/** @type {any} */ (m.rincon.actions)[action](fakeEvent(member, { campo: 'dni' }))
-			);
-			expect(r?.status).toBe(404);
-		}
-	});
+	// «Con el interruptor apagado, las acciones dan 404» se fue con `cuentas` (quedó fijo).
 });

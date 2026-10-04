@@ -4,7 +4,6 @@ import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
-import { propinasEnabled } from '$lib/server/flags.js';
 import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
 import { eventPageVenue, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
@@ -27,16 +26,13 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const [related, ownTickets, series, venue, personas, propinas, partes] = await Promise.all([
+	const [related, ownTickets, series, venue, personas, partes] = await Promise.all([
 		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals, posts),
 		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
 		eventPageVenue(getDB(platform), params.event, locals),
 		loadPersonas(post, platform),
-		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
-		// solo lo muestra en los eventos de KinkyVibe).
-		propinasEnabled(platform),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
 		loadPartes(params.event, platform, locals)
 	]);
@@ -51,14 +47,13 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		series,
 		venue,
 		personas,
-		propinas,
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
 }
 
 /**
- * Personas con su rol (interruptor `personas_eventos`; apagado, `null` y la página queda igual).
+ * Personas con su rol (`null` si no hay nada que mostrar: la página queda igual).
  * @param {ProcessedPost} post
  * @param {App.Platform|undefined} platform
  */

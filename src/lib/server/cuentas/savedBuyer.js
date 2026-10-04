@@ -56,7 +56,7 @@ export async function setSavedBuyer(db, accountId, saved, { now = Date.now() } =
 
 /**
  * Lo que la página de compra necesita de la cuenta para completar «Tus datos», o `null` sin
- * cuenta (o con el interruptor `cuentas` apagado: entonces `locals.member` no existe). Si la base
+ * cuenta (sin `locals.member`). Si la base
  * falla, la compra sigue como sin cuenta.
  *
  * @param {D1Database | null | undefined} db

@@ -203,12 +203,6 @@
 		solo un barrio, «{VENUE_PRIVACY_LABELS.area}». Los eventos que con el lugar mostrarían otra cosa
 		(otro nombre, otra forma de escribir la dirección) quedan sin marcar y te decimos qué cambiaría.
 	</p>
-	{#if !data.flagOn}
-		<p class="kv-flash warn">
-			El interruptor «Perfiles públicos» está apagado: los lugares y los vínculos quedan listos,
-			pero el sitio sigue mostrando lo que dice cada evento.
-		</p>
-	{/if}
 	{#if failure}
 		<p class="kv-flash bad" role="alert">{failure}</p>
 	{/if}

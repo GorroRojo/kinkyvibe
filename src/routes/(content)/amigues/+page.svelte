@@ -24,7 +24,7 @@
 		});
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
-	// Con los perfiles de la base (interruptor `perfiles_publicos`): filtro por tipo (`?tipo=`).
+	// Con los perfiles de la base: filtro por tipo (`?tipo=`).
 	$: tipo = data.kinds ? ($page.url.searchParams.get('tipo') ?? '') : '';
 	$: shownPosts =
 		tipo && data.kinds && tipo in data.kinds

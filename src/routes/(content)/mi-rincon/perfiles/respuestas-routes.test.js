@@ -1,8 +1,9 @@
 /**
  * Respuestas de inscripción para les organizadores (Mi rincón → el perfil → Respuestas de
  * inscripción): quien gestiona un perfil con el rol «Organiza» en el evento ve las respuestas y
- * baja el CSV; cualquier otre recibe 404; sin sesión, a /ingresar; con el interruptor apagado,
- * 404; les admins siguen viéndolas en Órdenes. D1 de miniflare; datos inventados (example.com).
+ * baja el CSV; cualquier otre recibe 404; sin sesión, a /ingresar; les admins siguen viéndolas
+ * en Órdenes. (El caso «interruptor `personas_eventos` apagado» se fue con el interruptor.)
+ * D1 de miniflare; datos inventados (example.com).
  * Sin relojes: todo lo que depende de la hora recibe `now` explícito.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,15 +57,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/**
- * Módulos con los interruptores por variable (`cuentas` siempre prendido).
- * @param {{ personas?: '1' | '0' }} [o]
- */
-async function modules({ personas = '1' } = {}) {
+/** Los módulos, recién cargados (sin variables de entorno). */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { CUENTAS_ENABLED: '1', PERSONAS_EVENTOS_ENABLED: personas }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		page: await import('./[slug]/respuestas/[event]/+page.server.js'),
 		csv: await import('./[slug]/respuestas/[event]/respuestas.csv/+server.js'),
@@ -309,22 +305,6 @@ describe('quién ve las respuestas', () => {
 			.run();
 		const data = /** @type {any} */ (await m.page.load(fakeEvent({ member: organizer })));
 		expect(data.rows).toHaveLength(1);
-	});
-
-	it('con el interruptor personas_eventos apagado: 404, y la página del perfil no lista nada', async () => {
-		const m = await modules({ personas: '0' });
-		const { organizer } = await seed(m);
-		expect((await thrown(() => m.page.load(fakeEvent({ member: organizer }))))?.status).toBe(404);
-		expect((await thrown(() => m.csv.GET(fakeEvent({ member: organizer }))))?.status).toBe(404);
-		const mine = /** @type {any} */ (
-			await m.profilePage.load(
-				fakeEvent({
-					member: organizer,
-					path: '/mi-rincon/perfiles/colectivo-organiza'
-				})
-			)
-		);
-		expect(mine.organizes).toEqual([]);
 	});
 });
 

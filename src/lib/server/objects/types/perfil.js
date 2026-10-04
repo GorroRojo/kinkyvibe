@@ -20,7 +20,7 @@
  *   imágenes de la carpeta de medios y fechas), con los mismos nombres que en el frontmatter.
  *   Ver docs/amigues.md.
  *
- * La página pública es /amigues/<slug> (detrás del interruptor `perfiles_publicos`).
+ * La página pública es /amigues/<slug>.
  */
 
 /**

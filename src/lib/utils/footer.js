@@ -1,17 +1,14 @@
 /**
- * Links del pie de página que dependen de los interruptores (datos del layout raíz).
+ * Links del pie de página.
  */
 
 /**
  * Cómo apoyar a KinkyVibe: "Dejá una propina" al Fondo (fondo.kinkyvibe.ar, adonde van las propinas
- * según la decisión 0018) con el interruptor `propinas` prendido, Cafecito si está apagado. No va a
+ * según la decisión 0018; el interruptor `propinas` quedó prendido para siempre). No va a
  * /propinas porque esa página solo deja propinas desde un post (decisión de gorrite, 2/10).
  *
- * @param {{ propinas?: boolean } | null | undefined} data datos del layout raíz
- * @returns {{ href: string, label: string, kind: 'fondo' | 'cafecito' }}
+ * @returns {{ href: string, label: string, kind: 'fondo' }}
  */
-export function supportLink(data) {
-	return data?.propinas
-		? { href: 'https://fondo.kinkyvibe.ar', label: 'Dejá una propina', kind: 'fondo' }
-		: { href: 'https://cafecito.app/kinkyvibe', label: 'CafecitoApp', kind: 'cafecito' };
+export function supportLink() {
+	return { href: 'https://fondo.kinkyvibe.ar', label: 'Dejá una propina', kind: 'fondo' };
 }

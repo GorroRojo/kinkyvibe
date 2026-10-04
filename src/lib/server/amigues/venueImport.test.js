@@ -56,7 +56,7 @@ async function eventsInDb() {
  */
 async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: '1' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	const imp = await import('./venueImport.js');
 	const venues = await import('./venues.js');
 	return {

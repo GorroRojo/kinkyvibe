@@ -1,6 +1,6 @@
 /**
- * Lo que arman las páginas públicas de /amigues cuando el interruptor `perfiles_publicos` está
- * prendido (las rutas solo eligen entre esto y los .md). Junta las reglas de profiles.js (quién ve
+ * Lo que arman las páginas públicas de /amigues con base (el interruptor
+ * `perfiles_publicos` quedó prendido para siempre; sin base, las rutas usan los .md). Junta las reglas de profiles.js (quién ve
  * qué), venues.js (privacidad de los lugares) y claims.js ("Es mi perfil"), y reusa lo que ya usa
  * el sitio para las fichas .md: imágenes (`thumbURL`/`mediaURL`), etiquetas (`canonicalTags`),
  * "Más cosas de…" (`relatedPostsFor`) y los pronombres de las menciones.
@@ -126,11 +126,10 @@ export async function profileSlugTaken(db, urlSlug) {
  * @param {D1Database} db
  * @param {string} urlSlug
  * @param {App.Locals} locals
- * @param {{ cuentas: boolean, posts?: ProcessedPost[] }} opts si están prendidas las cuentas
- *   (para "Es mi perfil"); `posts`: las publicaciones del sitio (con los eventos de la base si
- *   la base; por defecto, las fichas .md)
+ * @param {{ posts?: ProcessedPost[] }} [opts] `posts`: las publicaciones del sitio (con los
+ *   eventos de la base si la base; por defecto, las fichas .md)
  */
-export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sitePosts }) {
+export async function profilePageData(db, urlSlug, locals, { posts: sitePosts } = {}) {
 	const viewer = viewerFor(locals);
 	const accountId = locals.member?.id;
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
@@ -184,7 +183,7 @@ export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sit
 
 	/** @type {{ state: 'none' | 'pending' | 'manager' } | null} */
 	let claim = null;
-	if (cuentas && accountId && (await canHaveProfiles(db, accountId))) {
+	if (accountId && (await canHaveProfiles(db, accountId))) {
 		claim = { state: await claimState(db, accountId, object.id) };
 	}
 

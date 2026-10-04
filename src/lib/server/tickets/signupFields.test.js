@@ -1,12 +1,13 @@
 /**
  * Preguntas de inscripción (B8) contra un D1 de miniflare: guardar preguntas (generales y de un
- * evento, con topes), qué pregunta cada evento, el interruptor apagado (ninguna pregunta), la
+ * evento, con topes), qué pregunta cada evento (sin base, ninguna; el interruptor
+ * `personas_eventos` quedó prendido para siempre), la
  * validación en validatePurchase, las respuestas guardadas en la MISMA tanda que la orden (y
  * nada si la reserva no entra) y lo que ve la pestaña Órdenes. Datos inventados (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { clearFlagCache, setFlag } from '$lib/server/flags.js';
+import { clearFlagCache } from '$lib/server/flags.js';
 import { eventOrderRows } from '$lib/server/admin/eventOrders.js';
 import { MAX_EVENT_FIELDS, fieldInputName } from '$lib/utils/signupFields.js';
 import { parseTicketConfig, validatePurchase } from './config.js';
@@ -116,12 +117,11 @@ describe('guardar preguntas', () => {
 	});
 });
 
-describe('interruptor', () => {
-	it('apagado: el formulario de compra no pregunta nada; prendido, las del evento', async () => {
+// El caso «interruptor apagado: no pregunta nada» se fue con `personas_eventos` (quedó fijo).
+describe('formulario de compra', () => {
+	it('sin base no pregunta nada; con base, las del evento', async () => {
 		const ids = await seedFields();
-		expect(await eventSignupFields(t.db, EVENT)).toEqual([]);
 		expect(await eventSignupFields(null, EVENT)).toEqual([]);
-		await setFlag(t.db, 'personas_eventos', true, BY);
 		const fields = await eventSignupFields(t.db, EVENT);
 		expect(fields.map((f) => f.id)).toEqual([ids.general, ids.own]);
 		// Lo que llega a la página: sin quién ni cuándo la editó (con el alcance: migración 0026).
@@ -154,7 +154,6 @@ describe('comprar con preguntas', () => {
 
 	it('validatePurchase valida las respuestas en el servidor (sin preguntas, como siempre)', async () => {
 		const ids = await seedFields();
-		await setFlag(t.db, 'personas_eventos', true, BY);
 		const fields = await eventSignupFields(t.db, EVENT);
 		const base = { type: 'general', quantity: 1, buyer, holders: [], accept: 'on', now: NOW };
 		const missing = validatePurchase({ ...config, fields }, { ...base, answers: {} });
@@ -174,7 +173,7 @@ describe('comprar con preguntas', () => {
 			{ id: ids.general, label: '¿Cómo te enteraste?', value: 'Una amistad' },
 			{ id: ids.own, label: '¿Alguna restricción alimentaria?', value: 'Sin gluten' }
 		]);
-		// Sin preguntas (interruptor apagado): igual que antes, sin respuestas.
+		// Sin preguntas: igual que antes, sin respuestas.
 		const plain = validatePurchase(config, base);
 		expect(plain.ok && plain.answers).toEqual([]);
 	});
@@ -323,7 +322,6 @@ describe('alcance y edición (migración 0026)', () => {
 			BY
 		);
 		if (!perTicket.ok || !vipOnly.ok) throw new Error('no se pudo sembrar');
-		await setFlag(t.db, 'personas_eventos', true, BY);
 		const fields = await eventSignupFields(t.db, EVENT);
 		const base = { quantity: 2, buyer, holders: holders(2), accept: 'on', now: NOW };
 

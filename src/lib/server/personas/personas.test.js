@@ -2,14 +2,14 @@
  * Personas en eventos (B7) contra un D1 de miniflare: la lista de roles, qué perfiles se
  * muestran (personas y proyectos visibles para cualquiera y aprobados para /amigues; ninguno
  * oculto, "solo con cuenta", borrado, sin aprobar o lugar aparece, ni su nombre ni su link), lo
- * que lista un perfil, los interruptores y la forma de los edges del futuro. Datos inventados.
+ * que lista un perfil, las páginas y la forma de los edges del futuro. Datos inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { getEdges, saveObject } from '$lib/server/objects/index.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { approveProfile } from '$lib/server/amigues/approvals.js';
-import { clearFlagCache, setFlag } from '$lib/server/flags.js';
+import { clearFlagCache } from '$lib/server/flags.js';
 import { FIXED_ROLES, mergeRoles, personasToEdges } from '$lib/utils/personas.js';
 import { addRole, listCustomRoles, listRoles, removeRole } from './roles.js';
 import {
@@ -137,11 +137,6 @@ const PERSONAS = [
 	{ perfil: 'lugar-de-prueba', rol: 'Diseño' },
 	{ perfil: 'no-existe', rol: 'Diseño' }
 ];
-
-async function flagsOn() {
-	await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
-	await setFlag(t.db, 'perfiles_publicos', true, { by: ADMIN_LOGIN });
-}
 
 describe('roles', () => {
 	it('fijos + los del panel; no se repiten y los fijos no se sacan', async () => {
@@ -317,29 +312,22 @@ describe('visibilidad: un perfil que no es público no aparece', () => {
 	});
 });
 
-describe('interruptores', () => {
+// Los interruptores `personas_eventos` y `perfiles_publicos` quedaron prendidos para siempre: se
+// fue el test «apagados: nada cambia».
+describe('las páginas', () => {
 	const meta = { title: 'Taller de prueba', personas: PERSONAS };
 	const posts = async () => [
 		{ path: '/calendario/taller-de-prueba', meta: { ...meta, category: 'calendario' } }
 	];
 
-	it('apagados: nada cambia (null en las páginas, sin sección en el editor)', async () => {
-		await seedProfiles();
-		expect(await personasForPage(t.platform, meta)).toBeNull();
-		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
-		expect(await editorPersonas(t.platform)).toBeNull();
-		// Solo personas_eventos, sin `perfiles_publicos`: tampoco se muestran perfiles (sus links
-		// llevarían a /amigues, que sin ese interruptor no tiene la página del perfil). Las cuentas
-		// prendidas no alcanzan.
-		await setFlag(t.db, 'personas_eventos', true, { by: ADMIN_LOGIN });
-		await setFlag(t.db, 'cuentas', true, { by: ADMIN_LOGIN });
-		expect(await personasForPage(t.platform, meta)).toBeNull();
-		expect(await contentForProfilePage(t.platform, 'colectivo-de-prueba', posts)).toBeNull();
+	it('sin base, nada (null en las páginas, sin sección en el editor)', async () => {
+		expect(await personasForPage(undefined, meta)).toBeNull();
+		expect(await contentForProfilePage(undefined, 'colectivo-de-prueba', posts)).toBeNull();
+		expect(await editorPersonas(undefined)).toBeNull();
 	});
 
-	it('prendidos: las personas públicas y lo que lista cada perfil', async () => {
+	it('las personas públicas y lo que lista cada perfil', async () => {
 		await seedProfiles();
-		await flagsOn();
 		const groups = await personasForPage(t.platform, meta);
 		expect(groups?.map((g) => g.items.map((i) => i.slug))).toEqual([
 			['colectivo-de-prueba'],

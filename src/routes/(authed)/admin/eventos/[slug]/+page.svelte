@@ -92,11 +92,7 @@
 				{#if e.locationName || e.location}<dt>Texto libre</dt>
 					<dd>
 						{[e.locationName, e.location].filter(Boolean).join(' — ')}
-						<small class="muted block"
-							>{data.venue.flagOn
-								? 'No se muestra: manda el lugar.'
-								: 'Se muestra hasta que se prenda «Perfiles públicos».'}</small
-						>
+						<small class="muted block">No se muestra: manda el lugar.</small>
 					</dd>{/if}
 			{:else}
 				<dd id="venue-row">

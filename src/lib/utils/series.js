@@ -5,7 +5,7 @@
  * archivo de src/lib/assets) y la descripción, la de la etiqueta o su entrada de la Kinkipedia.
  *
  * Funciones puras (sin Svelte ni SvelteKit): andan en el navegador, en el servidor y en vitest.
- * Todo lo que va detrás del interruptor `series` (src/lib/server/flags.js) usa esto.
+ * Todo lo de series usa esto.
  */
 
 import { TIMEZONE } from './dates.js';

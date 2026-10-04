@@ -7,8 +7,7 @@
 --   (o --local para probar en la compu)
 --
 -- Qué carga:
--- 1. Prende el interruptor `cuentas` (sin él, /ingresar y /mi-rincon dan 404).
--- 2. Tres cuentas, mails `@example.invalid` (no existen), con la marca
+-- 1. Tres cuentas, mails `@example.invalid` (no existen), con la marca
 --    `preferences.datos_de_prueba`: solo a cuentas así deja entrar «Entrar como persona de prueba».
 --    - demo.entradas: una entrada aprobada para el evento de n3-personas.sql y cosas seguidas
 --      (dos etiquetas y el perfil «Persona de Prueba»).
@@ -18,10 +17,6 @@
 -- Va después de n3-personas.sql (el evento y el perfil son de ahí; sin ellos, lo que depende de
 -- eso no se carga). Se puede correr más de una vez (ids fijos e `INSERT OR IGNORE`). Requiere
 -- las migraciones hasta la 0032.
-
-INSERT INTO feature_flags (key, enabled, updated_at, updated_by) VALUES ('cuentas', 1, 1790866800000, 'demo')
-	ON CONFLICT (key) DO UPDATE SET enabled = 1, updated_at = excluded.updated_at,
-		updated_by = excluded.updated_by;
 
 INSERT OR IGNORE INTO accounts (id, email, email_verified_at, preferences, created_at, updated_at, can_have_profiles)
 VALUES

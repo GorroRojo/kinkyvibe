@@ -3,7 +3,6 @@ import { currentRelated, fetchMarkdownPosts, fetchPost, relatedPostsFor } from '
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { getDB } from '$lib/server/db';
-import { cuentasEnabled, perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { profilePageData, profileSlugTaken } from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
@@ -13,28 +12,25 @@ import { contentForProfilePage } from '$lib/server/personas/index.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /**
- * La página de un perfil. Con el interruptor `perfiles_publicos` prendido, el perfil de la base
- * (con la misma dirección que la ficha .md: /amigues/<slug viejo>); si hay un perfil con esa
- * dirección y quien mira no lo puede ver (oculto, sin aprobar, borrado), 404, aunque el .md siga.
- * Apagado, la ficha .md como siempre. Ver docs/amigues.md.
+ * La página de un perfil: el perfil de la base (con la misma dirección que la ficha .md:
+ * /amigues/<slug viejo>); si hay un perfil con esa dirección y quien mira no lo puede ver (oculto,
+ * sin aprobar, borrado), 404, aunque el .md siga. Sin base, o si la base no tiene un perfil con
+ * esa dirección (una ficha sin importar), la ficha .md como siempre. Ver docs/amigues.md.
  *
  * @type {import("./$types").PageServerLoad}
  */
 export async function load({ params, platform, locals, setHeaders }) {
 	const db = getDB(platform);
-	if (db && (await perfilesPublicosEnabled(platform))) {
+	if (db) {
 		// Una sola lectura de las publicaciones para toda la página (nadie las modifica).
 		const posts = await sitePosts(platform);
-		const page = await profilePageData(db, params.profile, locals, {
-			cuentas: await cuentasEnabled(platform),
-			posts
-		});
+		const page = await profilePageData(db, params.profile, locals, { posts });
 		if (page) {
 			if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
 			return {
 				...page,
 				// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
-				// (interruptor `personas_eventos`, solo si el perfil es público; si no, `null`).
+				// (solo si el perfil es público; si no, `null`).
 				participa: await contentForProfilePage(platform, page.objectSlug, async () => [
 					...posts,
 					...(await fetchMarkdownPosts(true))
@@ -65,13 +61,11 @@ export async function load({ params, platform, locals, setHeaders }) {
 /** @type {import("./$types").Actions} */
 export const actions = {
 	// "Es mi perfil": una cuenta con el permiso de perfiles pide hacerse cargo (lo aprueba une
-	// admin). Sin el interruptor, sin cuentas o sin sesión, como si no existiera.
+	// admin). Sin base, como si no existiera; sin sesión, pide ingresar.
 	esMiPerfil: async (event) => {
 		const { params, platform, locals, request } = event;
 		const db = getDB(platform);
-		if (!db || !(await perfilesPublicosEnabled(platform)) || !(await cuentasEnabled(platform))) {
-			error(404, 'Not found');
-		}
+		if (!db) error(404, 'Not found');
 		if (!locals.member)
 			return fail(401, { claim: { ok: false, message: 'Ingresá para pedirlo.' } });
 		const ref = await resolveProfileSlug(db, params.profile);

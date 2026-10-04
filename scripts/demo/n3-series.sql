@@ -5,11 +5,6 @@
 -- Idempotente: se puede correr dos veces. Mails @example.com (no existen). Los hashes son
 -- los mismos que calcula la app (subscriber_key = "e:" + SHA-256("cuentas:email:" + mail)).
 
--- Prende el interruptor `series` (en el preview; en producción se prende desde el panel).
-INSERT INTO feature_flags (key, enabled, updated_at, updated_by) VALUES ('series', 1, 1790866800000, 'demo')
-	ON CONFLICT (key) DO UPDATE SET enabled = 1, updated_at = excluded.updated_at,
-		updated_by = excluded.updated_by;
-
 -- Personas que pidieron aviso (confirmadas y una sin confirmar).
 INSERT OR IGNORE INTO series_subscriptions (id, series_tag, email, subscriber_key, created_at, confirmed_at)
 	VALUES ('2391e459-48d1-4b13-b616-ee1f82410fee', 'Picantearla', 'demo.aviso.uno@example.com', 'e:6c5fa5c06c80b9bf5cc37482374e47308481f5ab7ab71e70d187208b7dcd3947', 1789138800000, 1789138800000);

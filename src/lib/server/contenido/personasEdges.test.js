@@ -208,16 +208,10 @@ function fakeRepo() {
 	};
 }
 
-/** El cliente del repo con `contenido_db` prendido (como hooks.server.js). */
+/** El cliente del repo con la base (como hooks.server.js). */
 async function setup() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			CONTENIDO_DB_ENABLED: '1',
-			PERSONAS_EVENTOS_ENABLED: '1',
-			PERFILES_PUBLICOS_ENABLED: '1'
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	const repo = await import('./repo.js');
 	repo.setContentDB(t.db);
 	repo.clearDbPostCache();
@@ -261,7 +255,7 @@ const before = () => {
 	return { title: mapped.title, data: valid.data, visibility: mapped.visibility };
 };
 
-describe('guardar un evento desde el panel (contenido_db)', () => {
+describe('guardar un evento desde el panel (en la base)', () => {
 	it('los perfiles vivos van a edges `persona`; en `data` quedan los nombres y lo que no es un perfil', async () => {
 		const { colectivo, oculta } = await profiles();
 		const { client } = await setup();

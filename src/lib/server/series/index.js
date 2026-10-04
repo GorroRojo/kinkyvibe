@@ -1,8 +1,7 @@
 /**
  * Series de eventos del lado del servidor: arma lo que muestran las páginas a partir de los posts
  * del deploy y del árbol de etiquetas. La lógica está en $lib/utils/series.js (pura, con tests);
- * acá solo se juntan los datos. Todo detrás del interruptor `series` (src/lib/server/flags.js):
- * quien llama controla el interruptor.
+ * acá solo se juntan los datos (el interruptor `series` quedó prendido para siempre).
  *
  * Las funciones reciben `posts` y `tags` para poder probarlas con datos inventados; por defecto
  * usan los posts listados del sitio por la capa compartida de contenido (`sitePosts(platform)`:

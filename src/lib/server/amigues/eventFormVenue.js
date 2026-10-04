@@ -35,7 +35,6 @@ import {
 } from './editor.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
-import { isFlagOn } from '$lib/server/flags.js';
 import {
 	eventVenue,
 	eventVenueLink,
@@ -104,24 +103,21 @@ export async function eventVenueChoice(db, eventSlug) {
 
 /**
  * Para el formulario: los lugares, lo elegido para `eventSlug` (al crear: el evento que se
- * duplica, así la copia sale con el mismo lugar; sin evento, sin lugar) y si el sitio ya usa los
- * lugares (interruptor `perfiles_publicos`; apagado, el vínculo se guarda igual, como en Eventos
- * → Lugares). `null` sin base o si la base falla: el formulario muestra solo el «Dónde» en texto
- * libre, como antes.
+ * duplica, así la copia sale con el mismo lugar; sin evento, sin lugar). `null` sin base o si la
+ * base falla: el formulario muestra solo el «Dónde» en texto libre, como antes.
  *
  * @param {D1Database | null | undefined} db
  * @param {string | null} eventSlug
- * @returns {Promise<{ venues: VenueOption[], current: VenueChoice, flagOn: boolean } | null>}
+ * @returns {Promise<{ venues: VenueOption[], current: VenueChoice } | null>}
  */
 export async function venuePickerData(db, eventSlug) {
 	if (!db) return null;
 	try {
-		const [venues, current, flagOn] = await Promise.all([
+		const [venues, current] = await Promise.all([
 			venueOptions(db),
-			eventSlug ? eventVenueChoice(db, eventSlug) : venueChoice(null, null),
-			isFlagOn(db, 'perfiles_publicos')
+			eventSlug ? eventVenueChoice(db, eventSlug) : venueChoice(null, null)
 		]);
-		return { venues, current, flagOn };
+		return { venues, current };
 	} catch (e) {
 		console.error('[lugares] no se pudieron leer los lugares para el formulario', e);
 		return null;
@@ -134,7 +130,7 @@ export async function venuePickerData(db, eventSlug) {
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
- * @returns {Promise<{ title: string, slug: string, privacy: string, flagOn: boolean } | null>}
+ * @returns {Promise<{ title: string, slug: string, privacy: string } | null>}
  */
 export async function panelVenueRow(db, eventSlug) {
 	if (!db) return null;
@@ -144,8 +140,7 @@ export async function panelVenueRow(db, eventSlug) {
 		return {
 			title: link.venue.title,
 			slug: link.venue.slug,
-			privacy: eventPrivacyText(link.override, link.venue.data.venue_privacy),
-			flagOn: await isFlagOn(db, 'perfiles_publicos')
+			privacy: eventPrivacyText(link.override, link.venue.data.venue_privacy)
 		};
 	} catch (e) {
 		console.error('[lugares] no se pudo leer el lugar del evento para la ficha', e);

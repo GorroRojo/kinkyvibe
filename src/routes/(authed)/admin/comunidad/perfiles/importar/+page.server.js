@@ -3,7 +3,6 @@
  * la base de este entorno (preview o producción) y muestra la lista de revisión de la
  * clasificación (persona, proyecto o lugar, "a confirmar"). Es la forma de correr la importación en
  * las bases remotas: idempotente, se puede repetir (ver src/lib/server/amigues/importer.js).
- * Funciona con el interruptor `perfiles_publicos` apagado, para poder revisar antes de prenderlo.
  * Solo admins; queda en el registro.
  */
 import { error, fail } from '@sveltejs/kit';
@@ -19,7 +18,6 @@ import {
 	saveProfileFromPanel
 } from '$lib/server/amigues/editor.js';
 import { EDITOR_KINDS } from '$lib/server/admin/amiguesRoutes.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { getObject } from '$lib/server/objects/index.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -36,8 +34,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 		preview,
 		summary: summarizeImport(preview),
 		rows: await classificationRows(db),
-		kinds: EDITOR_KINDS,
-		flagOn: await perfilesPublicosEnabled(platform)
+		kinds: EDITOR_KINDS
 	};
 }
 

@@ -62,7 +62,7 @@ export const isDeletable = (kind) => typeof kind === 'string' && Object.hasOwn(D
 /**
  * Dónde vive lo que se borra. Hoy todo es un archivo del repo ('repo').
  *
- * COSTURA para los perfiles de la base (#137, interruptor `perfiles_publicos`): esta función
+ * COSTURA para los perfiles de la base (#137): esta función
  * va a devolver 'objects' para `amigues` y ese borrado va a ir por saveObject({ deleted: true })
  * (borrado suave y recuperable de la capa de objetos, #124) en lugar de un PR. Falta el camino
  * de las rutas, deshacer y «Recuperar» para eso; mientras tanto el botón "Borrar" solo aparece
