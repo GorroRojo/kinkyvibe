@@ -35,6 +35,7 @@
 <svelte:head>
 	<title>Emprendimientos y profesionales · Kinky Vibe</title>
 </svelte:head>
+<h1 class="page-title">Profesionales y emprendimientos</h1>
 <div class="glosario">
 	<p>
 		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" /> BDSM, que

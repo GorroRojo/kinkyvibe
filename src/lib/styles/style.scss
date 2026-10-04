@@ -555,7 +555,7 @@ textarea {
     centrado y sin el tamaño enorme del h1 de un post. **/
 .page-title {
 	max-width: 50rem;
-	margin: var(--space-s) auto 0;
+	margin: var(--space-s) auto var(--space-s);
 	padding-inline: var(--space-xs);
 	font-size: var(--text-2xl);
 	line-height: 1.15;
