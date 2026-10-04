@@ -11,9 +11,9 @@
 --    (proyecto), «Persona de Prueba» (persona) y «Perfil Oculto de Prueba» (oculto: no tiene que
 --    aparecer en ningún lado público).
 -- 2. Un rol agregado desde el panel: «Cuida la puerta».
--- 3. `demo_files`: un evento que solo existe en la demo, `demo-personas-2026-12`, con
---    `personas:` (los tres perfiles) y venta de entradas por transferencia. El editor y el panel
---    leen ese archivo; la página pública sigue leyendo el contenido del deploy (docs/demo.md).
+-- 3. Un evento que solo existe en la demo, `demo-personas-2026-12` (objeto `evento` en la base
+--    del preview, no listado), con sus personas (los tres perfiles) y venta de entradas por
+--    transferencia. El sitio, el editor y el panel lo leen de la base (docs/demo.md).
 -- 4. Preguntas: una general («¿Cómo te enteraste?», elegida por el evento) y una propia del
 --    evento («¿Alguna restricción alimentaria?»), y una orden aprobada con sus respuestas, para
 --    ver la pestaña Órdenes y su CSV.
@@ -22,7 +22,7 @@
 -- (los links de las personas llevan a su página en /amigues).
 --
 -- Se puede correr más de una vez (ids fijos e `INSERT OR IGNORE` / `INSERT OR REPLACE` en lo
--- que es solo de la demo). Requiere las migraciones hasta la 0018 (con la 0017). Escribe `objects` con SQL
+-- que es solo de la demo). Requiere las migraciones hasta la 0031. Escribe `objects` con SQL
 -- solo porque es una demo: en el código, el único camino es saveObject().
 
 INSERT OR IGNORE INTO object_types (type, origin, created_at) VALUES ('perfil', 'core', 1790000000000);
@@ -39,6 +39,8 @@ WHERE type = 'perfil' AND slug IN ('colectivo-de-prueba', 'persona-de-prueba', '
 
 INSERT OR IGNORE INTO persona_roles (name, created_at, created_by) VALUES ('Cuida la puerta', 1790000000000, 'demo');
 
+-- Los eventos van a la base como objetos `evento` (el sitio y el panel leen los eventos solo de
+-- la base). Antes iban como .md en `demo_files`: esas filas viejas se borran.
 CREATE TABLE IF NOT EXISTS demo_files (
 	path TEXT PRIMARY KEY,
 	content TEXT,
@@ -48,42 +50,18 @@ CREATE TABLE IF NOT EXISTS demo_files (
 	message TEXT,
 	updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+DELETE FROM demo_files WHERE path = 'src/lib/posts/calendario/demo-personas-2026-12.md';
 
-INSERT OR REPLACE INTO demo_files (path, content, author, message) VALUES (
-	'src/lib/posts/calendario/demo-personas-2026-12.md',
-	'---
-title: ''Demo: taller con personas y preguntas''
-summary: ''Evento inventado para la demo: quién organiza y facilita, y preguntas al inscribirse.''
-tags:
-  - español
-  - pago
-  - AMBA
-published_date: 2026-10-01
-start: 2026-12-12T19:00-03:00
-end: 2026-12-12T22:00-03:00
-status: abierto
-location: Calle Inventada 123, CABA
-location_name: Lugar de Prueba
-personas:
-  - perfil: colectivo-de-prueba
-    rol: Organiza
-  - perfil: persona-de-prueba
-    rol: Facilita
-  - perfil: perfil-oculto-de-prueba
-    rol: Cuida la puerta
-payment_methods:
-  - transferencia
-tickets:
-  - id: general
-    name: General
-    price: 9000
-    capacity: 30
----
-Taller inventado para probar las personas con rol y las preguntas de inscripción.
-',
-	'demo',
-	'[demo] n3-personas: evento con personas y preguntas'
-);
+INSERT OR IGNORE INTO object_types (type, origin, created_at) VALUES ('evento', 'core', 1790000000000);
+
+INSERT INTO objects (type, slug, title, data, search_text, visibility, created_at, created_by, updated_at, updated_by)
+VALUES ('evento', 'demo-personas-2026-12', 'Demo: taller con personas y preguntas',
+	'{"summary":"Evento inventado para la demo: quién organiza y facilita, y preguntas al inscribirse.","status":"abierto","start":"2026-12-12T19:00-03:00","end":"2026-12-12T22:00-03:00","body":"Taller inventado para probar las personas con rol y las preguntas de inscripción.","tags":["español","pago","AMBA"],"personas":[{"profile":"colectivo-de-prueba","role":"Organiza"},{"profile":"persona-de-prueba","role":"Facilita"},{"profile":"perfil-oculto-de-prueba","role":"Cuida la puerta"}],"location":"Calle Inventada 123, CABA","location_name":"Lugar de Prueba","published_date":"2026-10-01","unlisted":true,"extra":{"payment_methods":["transferencia"],"tickets":[{"id":"general","name":"General","price":9000,"capacity":30}]}}',
+	'Evento inventado para la demo: quién organiza y facilita, y preguntas al inscribirse.
+Taller inventado para probar las personas con rol y las preguntas de inscripción.', 'public', 1790000000000, 'demo', 1790000000000, 'demo')
+ON CONFLICT (type, slug) DO UPDATE SET title = excluded.title, data = excluded.data,
+	search_text = excluded.search_text, visibility = excluded.visibility, deleted_at = NULL,
+	updated_at = excluded.updated_at, updated_by = excluded.updated_by, version = objects.version + 1;
 
 INSERT OR REPLACE INTO signup_fields (id, event_slug, label, kind, required, options, position, created_at, updated_at, updated_by)
 VALUES
