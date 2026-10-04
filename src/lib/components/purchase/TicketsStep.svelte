@@ -512,8 +512,12 @@
 	button.chip:hover:not(:disabled) {
 		background: color-mix(in srgb, var(--2) 10%, white);
 	}
-	button.chip[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 3px var(--2);
+	/* el elegido, lleno de su color (como los montos de las propinas) */
+	button.chip[aria-pressed='true'],
+	button.chip[aria-pressed='true']:hover:not(:disabled) {
+		background: var(--2-dark);
+		color: white;
+		box-shadow: inset 0 0 0 2px var(--2-dark);
 		font-weight: bold;
 	}
 	.option {

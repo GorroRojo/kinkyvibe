@@ -21,7 +21,8 @@
 		ExternalLink,
 		LoaderCircle,
 		Save,
-		ShieldAlert
+		ShieldAlert,
+		Undo2
 	} from '@lucide/svelte';
 	import '$lib/components/admin/admin.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -559,8 +560,8 @@
 							: ' con el próximo número libre'}
 						(las imágenes que ya usa el texto no se tocan).
 					</svelte:fragment>
-					{#if upload.name}<button type="button" class="link" on:click={clearUpload}
-							>No cambiar la imagen</button
+					{#if upload.name}<button type="button" class="kv-link" on:click={clearUpload}
+							><Undo2 size={16} aria-hidden="true" /> No cambiar la imagen</button
 						>{/if}
 				</ImageSection>
 			{/if}

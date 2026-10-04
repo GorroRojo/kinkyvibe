@@ -10,6 +10,7 @@
 	en una grilla según el ancho del editor (container queries), no de la ventana.
 -->
 <script>
+	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
@@ -122,7 +123,6 @@
 			checked={state.enabled}
 			on:change={(e) => setEnabled(e.currentTarget.checked)}
 		/>
-		<span class="track" aria-hidden="true"></span>
 		<span>
 			<strong>Vender entradas por el sitio</strong>
 			<small
@@ -178,11 +178,11 @@
 							>
 							<button
 								type="button"
-								class="link remove"
+								class="kv-link remove"
 								on:click={() => removeType(i)}
 								disabled={taken > 0}
 								title={taken > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
-								>Sacar</button
+								><X size={16} aria-hidden="true" /> Sacar</button
 							>
 						</span>
 					</div>
@@ -711,49 +711,12 @@
 			outline-offset: 1px;
 		}
 	}
+	/* el interruptor en sí es el compartido (style.scss, `role="switch"`) */
 	.switch {
 		display: flex;
 		align-items: center;
 		gap: 0.7em;
 		cursor: pointer;
-		position: relative;
-		input {
-			position: absolute;
-			opacity: 0;
-			width: 1px;
-			height: 1px;
-			margin: 0;
-		}
-		.track {
-			flex: none;
-			width: 2.6em;
-			height: 1.5em;
-			border-radius: var(--radius-m);
-			background: #ccc;
-			position: relative;
-			transition: background 150ms;
-			&::after {
-				content: '';
-				position: absolute;
-				top: 0.2em;
-				left: 0.2em;
-				width: 1.1em;
-				height: 1.1em;
-				border-radius: 50%;
-				background: var(--surface, white);
-				transition: transform 150ms;
-			}
-		}
-		input:checked + .track {
-			background: var(--1);
-			&::after {
-				transform: translateX(1.1em);
-			}
-		}
-		input:focus-visible + .track {
-			outline: 3px solid var(--2-dark, #333);
-			outline-offset: 2px;
-		}
 		> span:last-child {
 			display: flex;
 			flex-direction: column;

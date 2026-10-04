@@ -249,7 +249,7 @@
 					Cambio sin guardar: se aplica al tocar «Guardar».
 				</p>{/if}
 			{#if shown}
-				<button type="button" class="link" on:click={remove}>Quitar la imagen</button>
+				<button type="button" class="kv-link" on:click={remove}>Quitar la imagen</button>
 			{/if}
 		</div>
 	</div>
@@ -315,7 +315,7 @@
 										? 'Subiendo…'
 										: 'Subir y usar esta imagen'}
 							</button>
-							<button type="button" class="link" on:click={clearFile}>Cancelar</button>
+							<button type="button" class="kv-link" on:click={clearFile}>Cancelar</button>
 						</div>
 					</div>
 				</div>
@@ -362,7 +362,7 @@
 							{#if canDelete}
 								<button
 									type="button"
-									class="link small"
+									class="kv-link small"
 									aria-label="Sacar «{image.title}» de la biblioteca"
 									on:click={() => deleteFromLibrary(image)}>Sacar</button
 								>
@@ -607,17 +607,11 @@
 		opacity: 0.6;
 		cursor: progress;
 	}
-	.link {
-		background: none;
-		border: 0;
-		padding: 0;
-		color: var(--link, var(--2, #2a5db0));
-		text-decoration: underline;
-		font: inherit;
-		cursor: pointer;
+	/* Acciones de texto: .kv-link (style.scss), acá solo el tamaño y la alineación. */
+	.kv-link {
 		align-self: flex-start;
 	}
-	.link.small {
+	.kv-link.small {
 		font-size: var(--step--1);
 	}
 	.error {

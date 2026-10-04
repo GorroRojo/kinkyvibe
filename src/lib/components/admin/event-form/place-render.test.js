@@ -79,7 +79,7 @@ describe('PlaceSection', () => {
 		expect(body).not.toContain('<details');
 	});
 
-	it('sin lugar elegido: el buscador, con las marcas, «+ Crear lugar» y el texto libre a la vista', () => {
+	it('sin lugar elegido: el buscador, con las marcas, «Crear lugar» y el texto libre a la vista', () => {
 		const body = place({
 			picker: { venues: VENUES, current: { venueId: null, privacy: null } },
 			choice: { venueId: null, privacy: null }
@@ -90,7 +90,10 @@ describe('PlaceSection', () => {
 		for (const mark of ['Oculto', 'No listado', 'Sin aprobar']) expect(body).toContain(mark);
 		// El panel ve la dirección (decisión de gorrite).
 		expect(body).toContain('Calle Inventada 123, Barrio Inventado');
-		expect(body).toContain('+ Crear lugar');
+		// Acción de texto (`.kv-link`): el «+» ahora es el ícono de adelante.
+		expect(body).toMatch(
+			/<button[^>]*class="kv-link"[^>]*>(?:(?!<\/button>)[\s\S])*<svg(?:(?!<\/button>)[\s\S])*Crear lugar\s*<\/button>/
+		);
 		expect(hasId(body, 'location-input')).toBe(true);
 		expect(body).not.toContain('<details');
 		expect(hasId(body, 'edit-venue-flag')).toBe(false);
