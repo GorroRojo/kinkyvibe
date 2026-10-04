@@ -30,7 +30,7 @@
 			autocomplete="off"
 			maxlength="40"
 			bind:value={lat}
-			placeholder="-34.6037"
+			placeholder="Ej.: -34.6037"
 			aria-invalid={errors.lat ? 'true' : undefined}
 		/>
 		{#if errors.lat}<small class={errorClass}>{errors.lat}</small>{/if}
@@ -44,7 +44,7 @@
 			autocomplete="off"
 			maxlength="40"
 			bind:value={lng}
-			placeholder="-58.3816"
+			placeholder="Ej.: -58.3816"
 			aria-invalid={errors.lng ? 'true' : undefined}
 		/>
 		{#if errors.lng}<small class={errorClass}>{errors.lng}</small>{/if}

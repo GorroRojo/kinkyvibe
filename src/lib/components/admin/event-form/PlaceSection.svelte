@@ -367,11 +367,11 @@
 					<div class="create" id="{idPrefix}-venue-create">
 						<label class="field">
 							<span>Nombre del lugar nuevo <span class="req">*</span></span>
-							<input bind:value={newName} maxlength="200" placeholder="Ej: Sala Inventada" />
+							<input bind:value={newName} maxlength="200" placeholder="Ej.: Sala Inventada" />
 						</label>
 						<label class="field">
 							<span>Dirección</span>
-							<input bind:value={newAddress} maxlength="500" placeholder="Calle 123" />
+							<input bind:value={newAddress} maxlength="500" placeholder="Ej.: Calle 123" />
 						</label>
 						<div class="listing" role="radiogroup" aria-label="En Amigues">
 							{#each LISTINGS as l (l)}

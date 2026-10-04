@@ -614,7 +614,7 @@ export const FIELDS = [
 	{ key: 'dress', label: 'Dress code / qué traer', placeholder: 'Dress code, qué llevar…', where: 'ficha', long: true },
 	{ key: 'access', label: 'Accesibilidad', placeholder: 'Rampa, baños sin género, LSA…', where: 'ficha', long: true },
 	{ key: 'tags', label: 'Etiquetas', where: 'ficha' },
-	{ key: 'cta', label: 'Llamado', placeholder: 'Inscribite en', where: 'barra de abajo' },
+	{ key: 'cta', label: 'Llamado', placeholder: 'Ej.: Inscribite en', where: 'barra de abajo' },
 	{ key: 'url', label: 'Link del evento', where: 'barra de abajo' }
 ];
 

@@ -50,6 +50,9 @@
 	--round-sm: 0.6rem;
 	--round-pill: 2em;
 	--focus-ring: 2px solid var(--2-dark);
+	/* placeholder text in inputs: neutral grey (never pink/violet), ~3.5:1 on white, far below
+	   the value text (--ink, ~12.6:1), so an empty field never looks filled */
+	--placeholder: #888;
 	/* minimum size of anything tappable on phones */
 	--tap: 2.75rem;
 }
@@ -133,6 +136,16 @@ input,
 select,
 textarea {
 	font-family: inherit;
+}
+
+/* One placeholder look for the whole site, panel and purchase flow: grey (--placeholder, the panel
+   redefines it for its dark theme) and italic, so a hint differs from a typed value by more than
+   colour. `:where()` keeps specificity at zero, but don't fight it from components: if a field
+   needs another tone, change the token. `opacity: 1` because Firefox dims placeholders. */
+:where(input, textarea)::placeholder {
+	color: var(--placeholder);
+	opacity: 1;
+	font-style: italic;
 }
 
 /* One visible keyboard focus style for the whole site (mouse clicks don't show it). */

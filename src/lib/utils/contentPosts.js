@@ -76,7 +76,7 @@ export const CONTENT_FIELDS = Object.freeze({
 			key: 'link_text',
 			label: 'Texto del botón del link',
 			type: 'text',
-			placeholder: 'Ir al sitio'
+			placeholder: 'Ej.: Ir al sitio'
 		},
 		{
 			key: 'redirect',
@@ -94,10 +94,10 @@ export const CONTENT_FIELDS = Object.freeze({
 			key: 'pronoun',
 			label: 'Pronombres',
 			type: 'text',
-			placeholder: 'https://pronombr.es/elle&el'
+			placeholder: 'Ej.: https://pronombr.es/elle&el'
 		},
 		{ key: 'gender_identity', label: 'Género', type: 'text' },
-		{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej: Educadore BDSM' },
+		{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej.: Educadore BDSM' },
 		{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://instagram.com/...' },
 		{ key: 'link_text', label: 'Texto del link', type: 'text' },
 		// The same contact fields /edit/amigues/... already has. Everything here is PUBLIC.

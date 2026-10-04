@@ -131,7 +131,7 @@
 					maxlength="32"
 					autocomplete="off"
 					autocapitalize="characters"
-					placeholder="AMIGUES20"
+					placeholder="Ej.: AMIGUES20"
 					value={values.code ?? ''}
 				/>
 				<small>3 a 32 letras, números, - o _. No distingue mayúsculas.</small>

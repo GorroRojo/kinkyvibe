@@ -66,7 +66,7 @@
 					name="name"
 					maxlength={ROLE_MAX}
 					required
-					placeholder="Ej: Cuida la puerta"
+					placeholder="Ej.: Cuida la puerta"
 					value={form?.role && !form.role.ok && 'name' in form.role ? form.role.name : ''}
 				/>
 			</label>

@@ -60,7 +60,7 @@ const byCategory = {
 			key: 'location',
 			label: 'Dónde',
 			type: 'text',
-			placeholder: 'Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»',
+			placeholder: 'Ej.: Calle 123, Ciudad · o «Plaza Lavalle, frente a la fuente»',
 			help: 'Para un lugar de una sola vez. Dejalo vacío si es online. Con un lugar elegido, la página muestra el lugar y no este texto.'
 		},
 		{
@@ -74,7 +74,7 @@ const byCategory = {
 			key: 'location_name',
 			label: 'Nombre del lugar',
 			type: 'text',
-			placeholder: 'Ej: El Surco'
+			placeholder: 'Ej.: El Surco'
 		},
 		{
 			key: 'link',
@@ -83,26 +83,26 @@ const byCategory = {
 			placeholder: 'https://forms.gle/...',
 			help: 'Solo se muestra cuando el estado es «Abierto».'
 		},
-		{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Inscribirme' }
+		{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Ej.: Inscribirme' }
 	],
 	amigues: [
 		{
 			key: 'pronoun',
 			label: 'Pronombres',
 			type: 'text',
-			placeholder: 'https://pronombr.es/elle&el'
+			placeholder: 'Ej.: https://pronombr.es/elle&el'
 		},
 		{ key: 'gender_identity', label: 'Género', type: 'text' },
-		{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej: Educador BDSM' },
+		{ key: 'job_title', label: 'Qué hace', type: 'text', placeholder: 'Ej.: Educadore BDSM' },
 		{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://instagram.com/...' },
 		{ key: 'email', label: 'Mail', type: 'email' },
-		{ key: 'tel', label: 'Teléfono', type: 'tel', placeholder: '+54 11 1234 5678' },
-		{ key: 'location', label: 'Dirección', type: 'text', placeholder: 'Calle 123, Ciudad' },
+		{ key: 'tel', label: 'Teléfono', type: 'tel', placeholder: 'Ej.: +54 11 1234 5678' },
+		{ key: 'location', label: 'Dirección', type: 'text', placeholder: 'Ej.: Calle 123, Ciudad' },
 		{ key: 'bday', label: 'Cumpleaños', type: 'date' }
 	],
 	material: [
 		{ key: 'link', label: 'Link', type: 'url', placeholder: 'https://...' },
-		{ key: 'link_text', label: 'Texto del link', type: 'text', placeholder: 'Ir al sitio' },
+		{ key: 'link_text', label: 'Texto del link', type: 'text', placeholder: 'Ej.: Ir al sitio' },
 		{ key: 'redirect', label: 'Redireccionar directo al link', type: 'checkbox', wide: true },
 		{ key: 'access_date', label: 'Última fecha de acceso', type: 'date' },
 		{ key: 'original_published_date', label: 'Fecha de publicación original', type: 'date' }
@@ -184,7 +184,7 @@ export function datosFields(mode, category = 'calendario') {
 		.filter((f) => mode !== 'nuevo' || !NOT_IN_NEW_EVENT.includes(f.key))
 		.map((f) =>
 			category === 'calendario' && f.key === 'title'
-				? { ...f, placeholder: 'Ej: Picantearla (62ª Edición)' }
+				? { ...f, placeholder: 'Ej.: Picantearla (62ª Edición)' }
 				: f
 		);
 }

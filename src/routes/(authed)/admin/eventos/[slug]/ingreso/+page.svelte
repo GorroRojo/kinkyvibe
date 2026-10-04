@@ -868,7 +868,7 @@
 					autocomplete="off"
 					autocapitalize="characters"
 					spellcheck="false"
-					placeholder="7HQ 4XM"
+					placeholder="Ej.: 7HQ 4XM"
 					required
 				/>
 			</label>
@@ -1027,7 +1027,7 @@
 				{#each Array.from({ length: Math.min(data.maxOrder, saleQty) - 1 }) as _, i (i)}
 					<input
 						name="holder_{i + 1}"
-						placeholder="Persona {i + 2}"
+						placeholder="Nombre de la persona {i + 2}"
 						autocomplete="off"
 						aria-label="Persona {i + 2}"
 					/>
