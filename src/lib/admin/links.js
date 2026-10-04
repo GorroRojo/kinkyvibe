@@ -56,11 +56,20 @@ export function editEventHref(slug) {
 }
 
 /**
- * Ficha de una cuenta del público en Cuentas.
+ * Ficha de una cuenta del público en Cuentas (la misma ficha de la persona, ver {@link personHref}).
  * @param {string} id
  */
 export function accountHref(id) {
 	return `/admin/comunidad/cuentas/${encodeURIComponent(id)}`;
+}
+
+/**
+ * Ficha de una persona (por el id corto de su mail, `personId` de $lib/server/admin/people.js). Es
+ * la misma ficha que la de su cuenta ({@link accountHref}).
+ * @param {string} id
+ */
+export function personHref(id) {
+	return `/admin/comunidad/personas/${encodeURIComponent(id)}`;
 }
 
 /**

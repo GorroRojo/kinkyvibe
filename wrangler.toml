@@ -53,6 +53,13 @@ migrations_dir = "migrations"
 binding = "BACKUPS"
 bucket_name = "kinkyvibe-backups"
 
+# Visitas anónimas (docs/analiticas.md): Workers Analytics Engine. El dataset se crea solo con
+# el primer dato. Nada de IPs, cookies ni cuentas. Los Previews no tienen este binding (el código
+# no hace nada sin él), así las pruebas no ensucian las visitas de producción.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "kinkyvibe_visitas"
+
 # Previews (una por rama que no sea main): no heredan nada de producción. Usan la base de
 # prueba y no tienen bucket de backups. Los secrets se cargan en el panel, en «Previews Base»;
 # las variables de texto van acá (si no, cada deploy las pisa).

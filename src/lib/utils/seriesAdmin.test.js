@@ -12,6 +12,7 @@ describe('seriesCreateOps', () => {
 		expect(seriesCreateOps({ name: '  Fiesta   Rara ', image: '', description: '' })).toEqual({
 			ok: true,
 			name: 'Fiesta Rara',
+			parent: SERIES_PARENT,
 			ops: [{ type: 'create', id: 'Fiesta Rara', parent: SERIES_PARENT }]
 		});
 		expect(
@@ -19,6 +20,7 @@ describe('seriesCreateOps', () => {
 		).toEqual({
 			ok: true,
 			name: 'Fiesta Rara',
+			parent: SERIES_PARENT,
 			ops: [
 				{ type: 'create', id: 'Fiesta Rara', parent: SERIES_PARENT, description: 'Una fiesta.' },
 				{ type: 'update', id: 'Fiesta Rara', set: { image: 'fiesta.webp' } }
@@ -32,6 +34,24 @@ describe('seriesCreateOps', () => {
 			error: 'Ya existe una etiqueta «Tomada».'
 		});
 		expect(seriesCreateOps({ name: 'X', image: '../secreto.webp' })).toMatchObject({ ok: false });
+	});
+	it('serie hija: dentro de una serie que existe, con su ícono', () => {
+		expect(
+			seriesCreateOps(
+				{ name: 'Serie Madre 2026', parent: 'Serie Madre', icon: '🪢' },
+				{ seriesIds: ['Serie Madre'] }
+			)
+		).toEqual({
+			ok: true,
+			name: 'Serie Madre 2026',
+			parent: 'Serie Madre',
+			ops: [{ type: 'create', id: 'Serie Madre 2026', parent: 'Serie Madre', icon: '🪢' }]
+		});
+		// Una madre que no es serie no se acepta (ni una etiqueta cualquiera).
+		expect(
+			seriesCreateOps({ name: 'Otra', parent: 'taller' }, { seriesIds: ['Serie Madre'] })
+		).toEqual({ ok: false, error: 'Elegí una de las series como madre (o ninguna).' });
+		expect(seriesCreateOps({ name: 'Otra', icon: '🪢'.repeat(9) })).toMatchObject({ ok: false });
 	});
 });
 

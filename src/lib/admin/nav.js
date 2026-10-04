@@ -99,7 +99,8 @@ import {
 	TicketPercent,
 	ToggleRight,
 	Users,
-	Video
+	Video,
+	Workflow
 } from '@lucide/svelte';
 
 /**
@@ -511,6 +512,18 @@ export const NAV = Object.freeze([
 		icon: ToggleRight,
 		emoji: '🎚️',
 		label: 'Interruptores',
+		area: 'ajustes',
+		sub: 'sistema',
+		soon: false
+	},
+	{
+		// Todo lo que corre solo (crons, mails programados, bot de Telegram; reglas más adelante),
+		// por ahora solo para mirar. Al lado de Interruptores: es "cómo está andando el sitio".
+		id: 'ajustes-automatizaciones',
+		href: '/admin/ajustes/automatizaciones',
+		icon: Workflow,
+		emoji: '🤖',
+		label: 'Automatizaciones',
 		area: 'ajustes',
 		sub: 'sistema',
 		soon: false

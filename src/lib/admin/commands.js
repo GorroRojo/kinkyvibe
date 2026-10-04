@@ -76,6 +76,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-plantillas': 'plantillas textos mails email compra recordatorio mensajes',
 	'ajustes-admins': 'admins permisos',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
+	'ajustes-automatizaciones':
+		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
 	cuentas: 'cuentas usuaries publico registradas',
 	amigues:
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
@@ -110,6 +112,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-plantillas': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
+	'ajustes-automatizaciones': 'history',
 	cuentas: 'person',
 	actividad: 'history',
 	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).

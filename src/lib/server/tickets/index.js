@@ -26,6 +26,7 @@ import { parseAllowlist, routeEmail } from './emailGuard.js';
 import { getEventTickets, listTicketedEvents } from './events.js';
 import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
+import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
 import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
@@ -271,6 +272,12 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	}
 	if (result.newlyApproved && result.order) {
 		const order = result.order;
+		// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
+		trackFunnel(platform?.env, {
+			slug: order.event_slug,
+			step: 'aprobada',
+			method: order.payment_method
+		});
 		const sending = sendOrderEmail({ db, order, tickets: result.tickets, origin, fetch: fetchFn });
 		const ctx = platform?.ctx;
 		if (ctx?.waitUntil) ctx.waitUntil(sending);
