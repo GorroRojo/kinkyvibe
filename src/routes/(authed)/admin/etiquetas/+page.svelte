@@ -118,8 +118,9 @@
 	/** @type {{icon: string, visible_name: string, color: string, image: string, description: string, related: string}} */
 	let fields = { icon: '', visible_name: '', color: '', image: '', description: '', related: '' };
 	let renameTo = '';
-	// Con la base, por defecto se renombra en las publicaciones sin dejar alias (RenameChoice).
-	let keepAlias = !data.dbMode;
+	// Al renombrar, por defecto el nombre viejo queda como alias: los links viejos siguen andando
+	// (RenameChoice; antes, con la base, se renombraba sin dejar alias).
+	let keepAlias = true;
 	let mergeInto = '';
 	let moveTo = '';
 	let newAlias = '';
@@ -146,7 +147,7 @@
 			related: (current.find((e) => e.id === id && !e.aliasOf)?.related ?? []).join(', ')
 		};
 		renameTo = '';
-		keepAlias = !data.dbMode;
+		keepAlias = true;
 		mergeInto = '';
 		moveTo = '';
 		newAlias = '';
@@ -592,7 +593,7 @@
 							target="_blank"
 							rel="noreferrer">Ver en la Kinkipedia</a
 						>
-						<button class="kv-btn"><Save size={16} /> Agregar a los cambios</button>
+						<button class="kv-btn"><Save size={16} /> Sumar a los cambios por guardar</button>
 					</div>
 				</form>
 

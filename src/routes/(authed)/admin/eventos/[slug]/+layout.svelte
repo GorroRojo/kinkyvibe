@@ -52,7 +52,7 @@
 {#if bare}
 	<slot />
 {:else}
-	<header class="event-head">
+	<header class="event-head" class:compact={editing}>
 		{#if e.thumb}
 			<img class="cover" src={e.thumb} alt="" />
 		{:else}
@@ -227,6 +227,20 @@
 		.actions {
 			justify-content: flex-end;
 			max-width: 22rem;
+		}
+	}
+	/* Editando en el celu: encabezado de una línea, así el formulario empieza más arriba. */
+	@media (max-width: 640px) {
+		.event-head.compact {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-areas: 'text';
+			margin-bottom: var(--space-2xs);
+		}
+		.compact .cover,
+		.compact .chips,
+		.compact .where,
+		.compact .actions {
+			display: none;
 		}
 	}
 	@media (max-width: 520px) {
