@@ -126,7 +126,7 @@ describe('VenueLocation compacto (la tarjeta del evento)', () => {
 describe('el mapa de OpenStreetMap', () => {
 	const pub = { ...addressView, level: 'public', name: 'Galpón Inventado', href: '/x' };
 
-	it('con la dirección a la vista: baldosas perezosas, «Abrir en OpenStreetMap», «Cómo llegar» y el crédito', () => {
+	it('con la dirección a la vista: baldosas perezosas, «Abrir en OpenStreetMap» y el crédito (sin el botón «Cómo llegar»)', () => {
 		for (const view of /** @type {import('$lib/utils/venues.js').VenueView[]} */ ([
 			addressView,
 			pub
@@ -138,10 +138,9 @@ describe('el mapa de OpenStreetMap', () => {
 				'href="https://www.openstreetmap.org/?mlat=-34.600000&amp;mlon=-58.400000#map=17/-34.600000/-58.400000"'
 			);
 			expect(body).toContain('>Abrir en OpenStreetMap</a>');
-			expect(body).toContain(
-				'href="https://www.openstreetmap.org/directions?route=%3B-34.600000%2C-58.400000#map=16/-34.600000/-58.400000"'
-			);
-			expect(body).toContain('>Cómo llegar</a>');
+			// gorrite (4/10): sin el link de indicaciones de OpenStreetMap.
+			expect(body).not.toContain('openstreetmap.org/directions');
+			expect(body).not.toContain('>Cómo llegar</a>');
 			expect(body).toContain('href="https://www.openstreetmap.org/copyright"');
 			expect(stripTags(body)).toMatch(/©\s+colaboradores de OpenStreetMap/);
 			// alto reservado desde el principio (no corre nada al cargar), ancho que se adapta

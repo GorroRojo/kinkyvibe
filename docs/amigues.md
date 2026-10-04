@@ -133,8 +133,9 @@ La página del lugar muestra su ubicación según su nivel por defecto (el mapa,
 **El mapa** (`VenueMap.svelte`): baldosas de OpenStreetMap como imágenes comunes con
 `loading="lazy"` (sin librerías, scripts ni iframes de afuera, así que no hace falta tocar la CSP),
 alto fijo (no corre nada al cargar) y ancho que se adapta al celular con el punto en el centro.
-Abajo, «Abrir en OpenStreetMap», «Cómo llegar» (las indicaciones de openstreetmap.org con el
-destino puesto) y el crédito «© colaboradores de OpenStreetMap». Sale solo en "Nombre + dirección"
+Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreetMap» (el botón de
+indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
+del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
 `venues.test.js` y `VenueLocation.test.js`).
 
