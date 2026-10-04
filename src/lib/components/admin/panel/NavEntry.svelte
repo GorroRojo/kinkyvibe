@@ -97,6 +97,9 @@
 			box-shadow: none;
 		}
 		cursor: default;
+		/* Si no entra, «Próximamente» baja a otro renglón (el nombre no se corta). */
+		flex-wrap: wrap;
+		row-gap: var(--space-3xs);
 		:global(svg) {
 			opacity: 0.7;
 		}
