@@ -5,8 +5,8 @@
  *
  * - `unlisted` es el `force_unlisted` de los .md; `force_unpublished` es la visibilidad `hidden`.
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce, tal cual.
- * - Las imágenes y archivos (PDF, video) siguen en la carpeta del post en el repo (R2 es un paso
- *   aparte).
+ * - La imagen principal es el edge `portada` hacia una `imagen` (R2, docs/imagenes.md); `featured`
+ *   es la imagen vieja del repo. Los archivos (PDF, video) siguen en la carpeta del post en el repo.
  *
  * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
@@ -44,7 +44,10 @@ const material = {
 		unlisted: { kind: 'boolean', label: 'No listado' },
 		extra: { kind: 'json', label: 'Otros datos del archivo', max: 50_000 }
 	},
-	edges: {},
+	edges: {
+		// La imagen principal (docs/imagenes.md); sin este edge, `featured` (la del repo).
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 }
+	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';
 		const problem = link && !/^\d+$/.test(link) ? linkProblem(link) : null;

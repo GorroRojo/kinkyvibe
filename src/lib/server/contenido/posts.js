@@ -36,6 +36,8 @@ import {
 	personaEdgesFromColumn,
 	withPersonaEdges
 } from './personasEdges.js';
+import { imageOf } from '$lib/server/media/library.js';
+import { mediaPath } from '$lib/server/media/sniff.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -95,13 +97,15 @@ async function contentStamp(db) {
 				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
 				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
 				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
-				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu,
+				(SELECT max(updated_at) FROM objects WHERE type = 'imagen') AS iu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
 	// `pu`: los perfiles de las personas son edges y la metadata lleva su dirección actual
 	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar.
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}`;
+	// `iu`: borrar (o volver a subir) una imagen cambia qué imagen muestra un post.
+	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}:${row?.iu}`;
 }
 
 /**
@@ -128,17 +132,24 @@ async function dbState(db) {
  */
 async function loadDbState(db, stamp, tree) {
 	const visible = visibleWhere(ANON, 'o');
+	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
 	// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
+	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene.
 	const rows = await db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
-				s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges FROM objects o
+				s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+				(SELECT json_extract(i.data, '$.key') FROM edges e
+					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
+					WHERE e.from_id = o.id AND e.kind = 'portada' AND ${visibleImage.sql}
+					ORDER BY e.position LIMIT 1) AS cover
+			FROM objects o
 			LEFT JOIN content_sources s ON s.object_id = o.id
 			WHERE o.type IN (${t}) AND ${visible.sql}
 			ORDER BY o.id`
 		)
-		.bind(...TYPES, ...visible.params)
+		.bind(...visibleImage.params, ...TYPES, ...visible.params)
 		.all();
 	/** @type {ProcessedPost[]} */
 	const listed = [];
@@ -172,7 +183,9 @@ async function loadDbState(db, stamp, tree) {
 		const post = await processPost(
 			undefined,
 			postID,
-			/** @type {any} */ (cat.toMeta(object)),
+			/** @type {any} */ (
+				withCover(cat.toMeta(object), typeof r.cover === 'string' ? r.cover : undefined)
+			),
 			true,
 			tree
 		);
@@ -180,6 +193,18 @@ async function loadDbState(db, stamp, tree) {
 		paths.set(Number(r.id), post.path);
 	}
 	return { stamp, listed, unlisted, paths };
+}
+
+/**
+ * La metadata con la imagen de la biblioteca en `featured` (si tiene); si no, tal cual (la imagen
+ * vieja del repo, que resuelve `processPost`).
+ * @template {Record<string, any>} M
+ * @param {M} meta
+ * @param {string | undefined} key
+ * @returns {M}
+ */
+export function withCover(meta, key) {
+	return key ? { ...meta, featured: mediaPath(key) } : meta;
 }
 
 /**
@@ -422,10 +447,11 @@ export async function siteContent(
 	if (!found) return null;
 	const [object] = await hydratePersonas(db, [found]);
 	const postID = ref.legacySlug ?? object.slug;
+	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (cat.toMeta(object)),
+		/** @type {any} */ (withCover(cat.toMeta(object), cover?.key)),
 		shallow
 	);
 	const body = html

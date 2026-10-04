@@ -4,8 +4,7 @@
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
-	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
-	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
@@ -30,7 +29,6 @@
 	} from '$lib/utils/personasPicker.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
-	import { emptyUpload, newEventImage } from '$lib/admin/imageState.js';
 	import { datosFieldId, datosFields, splitPlaceFields } from '$lib/admin/postFields.js';
 	import {
 		NO_VENUE,
@@ -61,7 +59,6 @@
 		deriveSlug,
 		describeSchedule,
 		formFromSource,
-		isNumericFeatured,
 		isValidDate,
 		parseEventDate,
 		prefillMonth,
@@ -210,44 +207,31 @@
 	}
 
 	/* ---------- image ---------- */
-	const hasSourceImage = Boolean(sourceFields.featured && source);
-	// A non-numeric `featured` names a file in src/lib/assets shared by several posts.
-	const sourceImageIsShared = hasSourceImage && !isNumericFeatured(sourceFields.featured);
-	/** @type {'keep'|'upload'|'none'} */
+	// El selector de imágenes (docs/imagenes.md): una de la biblioteca (edge `portada`), la del
+	// evento original (al duplicar) o ninguna.
+	/** La imagen de la biblioteca del original, si tiene. */
+	const sourceImage = source?.image ?? null;
+	const hasSourceImage = Boolean(source && (sourceImage || sourceFields.featured));
+	/** @type {'keep'|'library'|'none'} */
 	let featuredMode = hasSourceImage ? 'keep' : 'none';
-	/** La imagen elegida (ImageSection la revisa y suelta su URL). */
-	let upload = emptyUpload();
-	/** @type {ImageSection | undefined} */
-	let imageSection;
-	/**
-	 * Only asked when the original uses a shared image (src/lib/assets): is the new image for every
-	 * edition (replace the shared file) or only for this one (the new event's own folder)?
-	 * @type {''|'todas'|'esta'}
-	 */
-	let imageScope = '';
-	$: ({
-		askScope,
-		scope,
-		sharedNewName,
-		uploadFeatured,
-		preview: previewImage,
-		problem: scopeProblem
-	} = newEventImage({
-		mode: featuredMode,
-		sourceFeatured: sourceFields.featured,
-		sourceShared: sourceImageIsShared,
-		sourceUrl: source?.featuredUrl,
-		upload,
-		imageScope
-	}));
-	/** Events that show the shared image (from the server, when going to the review step). */
-	/** @type {Array<{slug: string, title: string, start: string}> | null} */
-	let affected = null;
-	/** @param {'keep'|'none'} mode */
-	function setImage(mode) {
-		featuredMode = mode;
-		imageSection?.resetInput();
-		upload = { ...upload, error: '' };
+	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
+	let pickedImage = null;
+	/** Para volver a armar el selector al elegir «Usar la imagen del evento original». */
+	let pickerKey = 0;
+	$: previewImage =
+		featuredMode === 'library'
+			? pickedImage?.url
+			: featuredMode === 'keep'
+				? (source?.featuredUrl ?? undefined)
+				: undefined;
+	/** @param {CustomEvent<{ image: any }>} e */
+	function onPick(e) {
+		featuredMode = e.detail.image ? 'library' : 'none';
+	}
+	function useSourceImage() {
+		featuredMode = 'keep';
+		pickedImage = null;
+		pickerKey += 1;
 	}
 
 	/* ---------- validation & generated file ---------- */
@@ -267,8 +251,6 @@
 			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
 			slugProblem,
 			serverSlugError,
-			upload.error,
-			scopeProblem,
 			mapError,
 			linkError,
 			...tagErrors,
@@ -277,18 +259,21 @@
 		].filter(Boolean)
 	);
 
-	$: generated = build(values, featuredMode, uploadFeatured, problems.length, tickets);
+	$: generated = build(values, featuredMode, problems.length, tickets);
 	/**
 	 * @param {typeof values} v
-	 * @param {'keep'|'upload'|'none'} mode
-	 * @param {string|number} uploadFeatured
+	 * @param {'keep'|'library'|'none'} mode con una imagen de la biblioteca, el archivo no lleva
+	 *   `featured` (la imagen es el edge `portada`)
 	 * @param {number} nProblems
 	 * @param {typeof tickets} tk
 	 */
-	function build(v, mode, uploadFeatured, nProblems, tk) {
+	function build(v, mode, nProblems, tk) {
 		if (nProblems) return { md: '', error: '' };
 		try {
-			const md = buildEventMarkdown(sourceRaw, { ...v, featuredMode: mode, uploadFeatured });
+			const md = buildEventMarkdown(sourceRaw, {
+				...v,
+				featuredMode: mode === 'keep' && !sourceImage ? 'keep' : 'none'
+			});
 			return { md: applyTicketsToMarkdown(md, tk, initialTickets), error: '' };
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
@@ -339,7 +324,6 @@
 		try {
 			const body = new FormData();
 			body.set('slug', slug);
-			if (scope === 'todas') body.set('sharedAsset', sourceFields.featured);
 			const response = await fetch('?/verificar', {
 				method: 'POST',
 				body,
@@ -348,7 +332,6 @@
 			/** @type {any} */
 			const result = deserialize(await response.text());
 			if (result.type === 'success') {
-				affected = result.data?.affected ?? null;
 				step = 'revisar';
 				confirming = false;
 				publishError = '';
@@ -514,9 +497,8 @@
 				</p>
 				{#if form.savedToDb}
 					<p class="note" id="done-db">
-						✅ Ya se ve en el sitio.{#if form.publish}{' '}La imagen nueva tarda unos minutos: <PublishStatus
-								pr={form.publish}
-							/>{/if}
+						✅ Ya se ve en el sitio.{#if form.publish}{' '}La imagen copiada del original tarda unos
+							minutos: <PublishStatus pr={form.publish} />{/if}
 					</p>
 				{:else}
 					<p class="note">
@@ -525,17 +507,6 @@
 						esperá un poco y recargá. Si pasan más de 15 minutos, avisale a
 						<a href="https://t.me/Gorro_Rojo">@Gorro_Rojo</a>.
 					</p>
-				{/if}
-				{#if form.imageScope === 'todas'}
-					<p class="note">
-						🖼️ La imagen nueva reemplazó a la compartida para todas las ediciones{#if form.affected?.length}
-							{' '}({form.affected.length}
-							{form.affected.length === 1 ? 'evento más' : 'eventos más'}){/if}.
-						{#if form.deleted?.length}Se borró <code>{form.deleted.join(', ')}</code> y se actualizaron
-							los eventos que la usaban.{/if}
-					</p>
-				{:else if form.imageScope === 'esta'}
-					<p class="note">🖼️ La imagen nueva se guardó solo para este evento.</p>
 				{/if}
 				{#if form.venueSaved}
 					<p class="note" id="done-venue">📍 El lugar quedó elegido para el evento.</p>
@@ -597,7 +568,6 @@
 				<input type="hidden" name="slug" value={slug} />
 				<input type="hidden" name="source" value={source?.slug ?? ''} />
 				<input type="hidden" name="featuredMode" value={featuredMode} />
-				<input type="hidden" name="imageScope" value={askScope ? imageScope : ''} />
 				<textarea hidden name="content" value={generated.md}></textarea>
 				{#each Object.entries(venueChoiceFields(venue, venueTouched)) as [name, value] (name)}
 					<input type="hidden" {name} {value} />
@@ -770,63 +740,22 @@
 						idPrefix="ev"
 					/>
 
-					<ImageSection
-						bind:this={imageSection}
-						bind:upload
-						src={previewImage}
-						inputId="ev-image"
-						buttonText={featuredMode === 'upload' ? 'Elegir otra imagen' : 'Subir una imagen nueva'}
-						maxImageBytes={data.maxImageBytes}
-						on:chosen={() => (featuredMode = 'upload')}
-					>
-						<svelte:fragment slot="before">
-							{#if featuredMode === 'keep' && sourceImageIsShared}
-								<p class="hint">
-									Se usa la misma imagen que el evento original. Es una imagen compartida del sitio
-									(<code>src/lib/assets/{sourceFields.featured}</code>): no se copia ni se modifica.
-								</p>
-							{:else if featuredMode === 'keep'}
-								<p class="hint">
-									Se usa la misma imagen que el evento original: se copia a la carpeta de este
-									evento. El evento original no cambia.
-								</p>
-							{:else if featuredMode === 'upload'}
-								<p class="hint">Nueva imagen: {upload.name}</p>
-							{/if}
-							{#if askScope}
-								<ImageScopeChoice
-									bind:scope={imageScope}
-									assetName={sourceFields.featured}
-									newName={sharedNewName}
-									ownFolder={slug ? `calendario/media/${slug}/` : ''}
-									idPrefix="ev"
-									invalid={showProblems}
-								/>
-							{/if}
-						</svelte:fragment>
-						{#if sourceImageIsShared && !askScope}
-							<p class="note" id="ev-image-where">
-								📁 Si subís una imagen nueva, te vamos a preguntar si es para todas las ediciones de
-								este evento o solo para esta.
-							</p>
-						{:else if !askScope}
-							<p class="note" id="ev-image-where">
-								📁 Una imagen nueva se guarda solo para este evento{#if slug}
-									{' '}(en <code>calendario/media/{slug}/</code>){/if}; el evento original no
-								cambia.
-							</p>
-						{/if}
-						{#if featuredMode !== 'none'}
-							<button type="button" class="link" on:click={() => setImage('none')}
-								>Quitar imagen</button
-							>
-						{/if}
-						{#if hasSourceImage && featuredMode !== 'keep'}
-							<button type="button" class="link" on:click={() => setImage('keep')}
-								>Usar la imagen del evento original</button
-							>
-						{/if}
-					</ImageSection>
+					{#key pickerKey}
+						<ImagePicker
+							bind:value={pickedImage}
+							legacyUrl={featuredMode === 'keep' ? source?.featuredUrl : null}
+							target={source ? `evento:${source.slug}` : null}
+							contextLabel="Del evento original"
+							idPrefix="ev-image"
+							canDelete
+							on:change={onPick}
+						/>
+					{/key}
+					{#if hasSourceImage && featuredMode !== 'keep'}
+						<button type="button" class="link" on:click={useSourceImage}
+							>Usar la imagen del evento original</button
+						>
+					{/if}
 
 					<BodySection bind:value={values.body} legend="📄 Texto largo de la página" id="ev-body">
 						<svelte:fragment slot="hint"
@@ -900,55 +829,15 @@
 						<dd id="review-tickets">{describeTicketsForm(tickets, formatARS)}</dd>
 						<dt>Imagen</dt>
 						<dd id="review-image">
-							{#if featuredMode === 'upload' && scope === 'todas'}
-								<strong>Nueva para todas las ediciones:</strong>
-								{upload.name} reemplaza la imagen compartida
-								<code>{sourceFields.featured}</code>{#if sharedNewName !== sourceFields.featured},
-									que pasa a llamarse <code>{sharedNewName}</code> (se borra la vieja y se actualizan
-									los eventos que la usaban){/if}. Cambia también en los eventos pasados.
-							{:else if featuredMode === 'upload'}
-								<strong>Nueva, solo para este evento:</strong>
-								{upload.name}, en
-								<code>calendario/media/{slug}/1.{upload.ext}</code>.{#if sourceImageIsShared}
-									{' '}La imagen compartida <code>{sourceFields.featured}</code> y los otros eventos no
-									cambian.{/if}
-							{:else if featuredMode === 'keep' && sourceImageIsShared}
-								La misma del evento original: la imagen compartida <code
-									>{sourceFields.featured}</code
-								> (no se copia ni se modifica).
+							{#if featuredMode === 'library'}
+								De la biblioteca: {pickedImage?.title ?? ''}
 							{:else if featuredMode === 'keep'}
-								La misma del evento original (copiada a este evento)
+								La misma del evento original
 							{:else}
 								Sin imagen
 							{/if}
 						</dd>
 					</dl>
-					{#if featuredMode === 'upload' && scope === 'todas'}
-						<div class="affected" id="review-affected">
-							{#if affected}
-								<p>
-									<strong>
-										{affected.length === 1 ? 'Este evento' : `Estos ${affected.length} eventos`} también
-										van a mostrar la imagen nueva{sharedNewName !== sourceFields.featured
-											? ' (se actualiza su archivo)'
-											: ''}:
-									</strong>
-								</p>
-								<ul>
-									{#each affected as ev}
-										<li>
-											<a href="/calendario/{ev.slug}" target="_blank" rel="noreferrer"
-												>{ev.title || ev.slug}</a
-											>
-											<small>{ev.start.slice(0, 10)}</small>
-										</li>
-									{/each}
-								</ul>
-							{:else}
-								<p>No pudimos listar los eventos que usan esta imagen.</p>
-							{/if}
-						</div>
-					{/if}
 					<FilePreview content={generated.md} savesToDb={data.savesToDb} />
 
 					<div class="bar publish">
@@ -1075,25 +964,6 @@
 		}
 		.cap::first-letter {
 			text-transform: uppercase;
-		}
-	}
-	.affected {
-		margin-top: 0.8em;
-		background: var(--warn-bg, #fff8e1);
-		border-radius: var(--radius-m);
-		padding: 0.6em 1em;
-		p {
-			margin: 0 0 0.3em;
-		}
-		ul {
-			margin: 0;
-			padding-left: 1.2em;
-			max-height: 16em;
-			overflow: auto;
-		}
-		small {
-			opacity: 0.7;
-			margin-left: 0.3em;
 		}
 	}
 	.confirm {

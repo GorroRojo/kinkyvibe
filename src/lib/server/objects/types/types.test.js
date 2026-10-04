@@ -15,16 +15,18 @@ const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar
 const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('tiene evento, lugar, perfil, etiqueta y material; el evento puede apuntar a un lugar (o a un perfil de lugar) y a perfiles', () => {
+	it('tiene evento, lugar, perfil, etiqueta, material e imagen; el evento puede apuntar a un lugar (o a un perfil de lugar), a perfiles y a su portada', () => {
 		expect([...coreTypes.types.keys()]).toEqual([
 			'evento',
 			'lugar',
 			'perfil',
 			'etiqueta',
-			'material'
+			'material',
+			'imagen'
 		]);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar', 'perfil'], max: 1 });
 		expect(evento.edges?.persona).toMatchObject({ to: ['perfil'] });
+		expect(evento.edges?.portada).toMatchObject({ to: ['imagen'], max: 1 });
 		expect(perfil.edges?.es_integrante_de).toMatchObject({ to: ['perfil'] });
 	});
 
@@ -261,5 +263,37 @@ describe('validateFields', () => {
 			'temas'
 		]);
 		expect(validateFields(fields, [])).toMatchObject({ ok: false });
+	});
+});
+
+describe('imagen', () => {
+	const imagen = /** @type {import('./index.js').CoreType} */ (coreTypes.get('imagen'));
+	const key = `img/${'a'.repeat(64)}.webp`;
+	it('una clave de R2 por contenido, su tipo y su peso', () => {
+		expect(
+			validateData(imagen, { key, mime: 'image/webp', size: 1200, width: 10, height: 5 })
+		).toMatchObject({
+			ok: true
+		});
+		expect(validateData(imagen, { key: '../otra.png', mime: 'image/webp', size: 1 })).toMatchObject(
+			{
+				ok: false,
+				errors: [{ path: 'key' }]
+			}
+		);
+		expect(validateData(imagen, { key, mime: 'image/svg+xml', size: 1 })).toMatchObject({
+			ok: false
+		});
+		expect(validateData(imagen, { key, mime: 'image/png' })).toMatchObject({ ok: false });
+	});
+	it('los usos son edges hacia la imagen, de a una', () => {
+		for (const [type, kind] of [
+			['evento', 'portada'],
+			['material', 'portada'],
+			['etiqueta', 'imagen'],
+			['perfil', 'avatar']
+		]) {
+			expect(coreTypes.get(type)?.edges?.[kind]).toMatchObject({ to: ['imagen'], max: 1 });
+		}
 	});
 });

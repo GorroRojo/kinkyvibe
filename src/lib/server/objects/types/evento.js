@@ -91,7 +91,8 @@ const evento = {
 		// dirección que no es de ningún perfil vivo (no hay a qué apuntar: no es una relación).
 		personas: { kind: 'json', array: true, label: 'Personas', max: 30_000 },
 		// Número de la imagen en la carpeta del evento («1») o archivo de src/lib/assets
-		// («cabaret-astral-miniatura.webp»). Las imágenes siguen en el repo (R2 es un paso aparte).
+		// («cabaret-astral-miniatura.webp»): la imagen vieja del repo. La nueva es el edge `portada`
+		// (docs/imagenes.md).
 		featured: { kind: 'text', label: 'Imagen principal', max: 200 },
 		logo: { kind: 'text', label: 'Logo', max: 200 },
 		location: { kind: 'text', label: 'Dónde', max: 500 },
@@ -118,7 +119,10 @@ const evento = {
 		// Talleres en varias partes (docs/talleres-partes.md): del taller (que es la parte 1) a cada
 		// una de las otras partes, en orden (`position`), sin `data`. Que una parte sea de un solo
 		// taller y que no haya partes de partes lo controla src/lib/server/eventos/partes.js.
-		parte: { label: 'Partes', to: ['evento'], max: 20 }
+		parte: { label: 'Partes', to: ['evento'], max: 20 },
+		// La imagen principal (docs/imagenes.md). Sin este edge, se usa `featured` (la imagen vieja
+		// del repo) hasta que se importen las imágenes.
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

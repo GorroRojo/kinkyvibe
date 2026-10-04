@@ -411,7 +411,8 @@ export const allDbEventObjects = (db) => allDbPostObjects(db, EVENT_CATEGORY);
 /**
  * @typedef {{
  *   path: string, category: string, slug: string, existing: DbPostFile | null, remove: boolean,
- *   title?: string, data?: Record<string, unknown>, visibility?: 'public' | 'hidden'
+ *   title?: string, data?: Record<string, unknown>, visibility?: 'public' | 'hidden',
+ *   edges?: Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>
  * }} PlannedWrite
  */
 
@@ -526,8 +527,10 @@ export function withContentDb(base) {
 
 		/**
 		 * @param {string} token
-		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean }} opts
-		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js
+		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean, edges?: Record<string, Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>> }} opts
+		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js.
+		 *   `edges`: por ruta, relaciones del post que cambian en el mismo guardado (por ejemplo la
+		 *   imagen, `{ portada: [id] }`; docs/imagenes.md). Solo para posts de la base.
 		 */
 		async commitFiles(token, opts) {
 			const { files, mustNotExist = [], unchanged = [] } = opts;
@@ -578,7 +581,8 @@ export function withContentDb(base) {
 					remove: false,
 					title: mapped.title,
 					data: valid.data,
-					visibility: mapped.visibility
+					visibility: mapped.visibility,
+					...(opts.edges?.[f.path] ? { edges: opts.edges[f.path] } : {})
 				});
 			}
 
@@ -690,7 +694,8 @@ async function writePost(db, w, actor) {
 				version: w.existing.object.version,
 				title: w.title,
 				data,
-				edges,
+				// Los edges `persona` (de `personas`) y los que manda quien guarda (la `portada`).
+				edges: { ...edges, ...w.edges },
 				visibility: w.visibility,
 				// Volver a crear un post borrado es deshacer el borrado.
 				...(w.existing.deleted ? { deleted: false } : {})
@@ -700,7 +705,14 @@ async function writePost(db, w, actor) {
 	}
 	return saveObject(
 		db,
-		{ type, slug: w.slug, title: w.title, data, edges, visibility: w.visibility },
+		{
+			type,
+			slug: w.slug,
+			title: w.title,
+			data,
+			edges: { ...edges, ...w.edges },
+			visibility: w.visibility
+		},
 		{ actor, also }
 	);
 }

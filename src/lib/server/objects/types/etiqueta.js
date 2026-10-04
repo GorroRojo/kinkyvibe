@@ -77,7 +77,9 @@ const etiqueta = {
 	edges: {
 		hijo_de: { label: 'Etiqueta madre', to: [TAG_TYPE] },
 		relacionada_con: { label: 'Relacionada con', to: [TAG_TYPE] },
-		alias_de: { label: 'Alias de', to: [TAG_TYPE], max: 1 }
+		alias_de: { label: 'Alias de', to: [TAG_TYPE], max: 1 },
+		// La imagen de una serie (docs/imagenes.md); sin este edge, `image` (la del repo).
+		imagen: { label: 'Imagen', to: ['imagen'], max: 1 }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

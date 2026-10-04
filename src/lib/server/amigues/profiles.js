@@ -116,18 +116,33 @@ export async function managerRole(db, accountId, profileId) {
  * @param {string} urlSlug
  * @param {Viewer} viewer
  * @param {{ accountId?: string }} [opts] la cuenta de la sesión, para saber si lo gestiona
- * @returns {Promise<{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null } | null>}
+ * @returns {Promise<{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null, avatarKey: string | null } | null>}
+ *   `avatarKey`: la clave de su imagen de la biblioteca (edge `avatar`, docs/imagenes.md), si
+ *   tiene una que ve cualquiera
  */
 export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {}) {
 	const ref = await resolveProfileSlug(db, urlSlug);
 	if (!ref) return null;
 	const object = await getObject(db, { id: ref.id }, viewer);
 	if (!object || object.type !== PROFILE_TYPE) return null;
-	const approved = await isApproved(db, object.id);
+	// Aprobado y su imagen, en una sola consulta.
+	const vi = visibleWhere(ANON, 'i');
+	const row = await db
+		.prepare(
+			`SELECT EXISTS (SELECT 1 FROM profile_approvals WHERE profile_id = ?) AS approved,
+				(SELECT json_extract(i.data, '$.key') FROM edges e
+					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
+					WHERE e.from_id = ? AND e.kind = 'avatar' AND ${vi.sql}
+					ORDER BY e.position LIMIT 1) AS avatar_key`
+		)
+		.bind(object.id, object.id, ...vi.params)
+		.first();
+	const approved = Boolean(row?.approved);
+	const avatarKey = typeof row?.avatar_key === 'string' ? row.avatar_key : null;
 	const role = accountId ? await managerRole(db, accountId, object.id) : null;
 	// Sin aprobar: solo admins y quienes lo gestionan.
 	if (!approved && viewer.role !== 'admin' && !role) return null;
-	return { object, legacySlug: ref.legacySlug, approved, role };
+	return { object, legacySlug: ref.legacySlug, approved, role, avatarKey };
 }
 
 /**

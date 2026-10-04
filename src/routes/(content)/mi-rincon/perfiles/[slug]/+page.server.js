@@ -44,6 +44,9 @@ import { rejectionOf } from '$lib/server/amigues/pendingVenues.js';
 import { coordinateText, reviewState } from '$lib/utils/venues.js';
 import { clientOf, mailSender } from '$lib/server/cuentas/web.js';
 import { organizedEventsForPage } from '$lib/server/personas/organiza.js';
+import { accountActor, memberViewer } from '$lib/server/cuentas/perfiles.js';
+import { findImage, imageOf, memberMayUse } from '$lib/server/media/library.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
 
 /** Dónde se pidió el código (para mostrar el aviso en esa parte de la página). */
 const CONFIRM_PLACES = ['gestion', 'borrar'];
@@ -124,6 +127,8 @@ export async function load(event) {
 						}
 					: null
 		},
+		// La imagen del perfil (edge `avatar`, docs/imagenes.md), para el selector de imágenes.
+		avatar: await imageOf(db, profile.id, 'avatar', memberViewer(member.id)).catch(() => null),
 		// Sin aprobar no aparece en el sitio (decisión de gorrite: los perfiles y lugares nuevos de
 		// las cuentas esperan a une admin). Un lugar rechazado tampoco, pero quien lo cargó lo sigue
 		// viendo, con el motivo, y lo vuelve a mandar con «Volver a mandar» (perfiles.js).
@@ -187,9 +192,38 @@ export const actions = {
 		const form = await event.request.formData();
 		const draft = profileForm(form);
 		const version = Number(field(form, 'version', 20));
+		// La imagen elegida en el selector: una que subió esta cuenta (o la que ya tenía el perfil).
+		const choice = readImageChoice(form.get('imageId'));
+		/** @type {number | null | undefined} */
+		let avatar;
+		if (choice.action === 'remove') avatar = null;
+		if (choice.action === 'set') {
+			const found = await getManagedProfile(db, member.id, slug);
+			const image = await findImage(db, choice.id, memberViewer(member.id));
+			const allowed =
+				image && found
+					? await memberMayUse(db, image.id, {
+							actor: accountActor(member.id),
+							objectId: found.profile.id
+						})
+					: false;
+			if (!image || !allowed) {
+				return fail(400, {
+					action: 'guardar',
+					error: 'La imagen elegida ya no está disponible. Elegí otra o subila de nuevo.',
+					errors: {},
+					draft
+				});
+			}
+			avatar = image.id;
+		}
 		let result;
 		try {
-			result = await updateProfile(db, member.id, slug, { ...draft, version });
+			result = await updateProfile(db, member.id, slug, {
+				...draft,
+				version,
+				...(avatar !== undefined ? { avatar } : {})
+			});
 		} catch (e) {
 			logDBError('perfiles: guardar', e);
 			return fail(500, { action: 'guardar', error: 'No se pudo guardar. Probá de nuevo.', draft });

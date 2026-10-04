@@ -12,6 +12,7 @@
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { CalendarPlus, Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -24,6 +25,19 @@
 	/** @type {any} */
 	export let form;
 	const icon = { size: 18, 'aria-hidden': true };
+	// El selector de imágenes (docs/imagenes.md): la imagen elegida va como edge `imagen` de la
+	// etiqueta de la serie; al elegir o sacar una, la vieja (`image`) se vacía.
+	/** @type {any} */
+	let newImage = null;
+	/** @type {any} */
+	let editImage = null;
+	let editImageTouched = false;
+	/** @param {any} s */
+	function startEdit(s) {
+		editImage = s.libraryImage;
+		editImageTouched = false;
+	}
+
 	let creating = false;
 	/**
 	 * Lo que se precarga en «Crear serie» (con «Serie por año»: el nombre con el año, la madre y su
@@ -110,6 +124,7 @@
 		{#if done.verb === 'creó'}Ponele la etiqueta a sus eventos.{/if}
 	</p>
 {/if}
+{#if form?.warning}<p class="kv-flash bad" role="alert">{form.warning}</p>{/if}
 
 {#if data.canCreate && creating}
 	<Card>
@@ -126,8 +141,16 @@
 					values={form?.editing ? {} : (form?.values ?? prefill)}
 					assets={data.assets}
 					{parents}
+					library
 				/>
 			{/key}
+			<ImagePicker
+				bind:value={newImage}
+				idPrefix="crear-imagen"
+				sectionId="sec-crear-imagen"
+				legend="Imagen (opcional)"
+				canDelete
+			/>
 			{#if form?.error && !form?.editing}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
 			<div class="kv-row">
 				<button class="kv-btn" type="submit" disabled={busy}
@@ -200,8 +223,10 @@
 								type="button"
 								class="kv-btn ghost small"
 								aria-expanded={editing === s.id}
-								on:click={() => (editing = editing === s.id ? '' : s.id)}
-								><Pencil size={16} aria-hidden="true" /> Editar</button
+								on:click={() => {
+									editing = editing === s.id ? '' : s.id;
+									startEdit(s);
+								}}><Pencil size={16} aria-hidden="true" /> Editar</button
 							>
 						{/if}
 						<CsvButton
@@ -223,8 +248,21 @@
 									: s.edit}
 								dbMode={data.dbMode}
 								assets={data.assets}
+								library
+								clearLegacy={editImageTouched}
 							/>
 						{/key}
+						<ImagePicker
+							bind:value={editImage}
+							legacyUrl={s.libraryImage ? null : s.image}
+							target="etiqueta:{s.id}"
+							contextLabel="De esta serie"
+							idPrefix="editar-imagen-{s.edit.id}"
+							sectionId="sec-editar-imagen-{s.edit.id}"
+							legend="Imagen (opcional)"
+							canDelete
+							on:change={() => (editImageTouched = true)}
+						/>
 						{#if form?.editing === s.id && form?.error}<p class="kv-flash bad" role="alert">
 								{form.error}
 							</p>{/if}

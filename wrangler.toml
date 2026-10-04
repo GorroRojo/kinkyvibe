@@ -60,9 +60,15 @@ bucket_name = "kinkyvibe-backups"
 binding = "ANALYTICS"
 dataset = "kinkyvibe_visitas"
 
+# Imágenes del sitio (docs/imagenes.md): las sube el panel y se sirven en /media/<clave>. El bucket
+# se creó a mano una vez.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "kinkyvibe-media"
+
 # Previews (una por rama que no sea main): no heredan nada de producción. Usan la base de
-# prueba y no tienen bucket de backups. Los secrets se cargan en el panel, en «Previews Base»;
-# las variables de texto van acá (si no, cada deploy las pisa).
+# prueba y el bucket de imágenes de prueba, y no tienen bucket de backups. Los secrets se cargan
+# en el panel, en «Previews Base»; las variables de texto van acá (si no, cada deploy las pisa).
 [previews]
 
 [previews.vars]
@@ -79,3 +85,7 @@ binding = "DB"
 database_name = "kinkyvibe-preview"
 database_id = "c7513f19-d6a1-467c-b694-3c0559675b9d"
 migrations_dir = "migrations"
+
+[[previews.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "kinkyvibe-media-preview"

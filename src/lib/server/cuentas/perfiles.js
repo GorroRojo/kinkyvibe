@@ -46,6 +46,7 @@ import {
 } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { normalizeProfileKind, profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { imageOf } from '$lib/server/media/library.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { logProfileCreated, logVenueResubmitted } from '$lib/server/admin/accountEvents.js';
@@ -483,11 +484,13 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 /**
  * Edita un perfil que la cuenta gestiona. `version` es la que se abrió en la página: si alguien
  * guardó en el medio, no se guarda nada y vuelve `MESSAGES.conflict` (409).
+ * `avatar`: la imagen de la biblioteca (id; `null` = sacarla; sin el campo, no cambia), en el
+ * mismo guardado (edge `avatar`, docs/imagenes.md). Quién puede elegir cuál lo revisa la ruta.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {string} slug
- * @param {ProfileInput & { version: number }} input
+ * @param {ProfileInput & { version: number, avatar?: number | null }} input
  * @param {{ now?: number }} [opts]
  * @returns {Promise<{ ok: true, profile: StoredObject } | Failure>}
  */
@@ -506,7 +509,10 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 				version: input.version,
 				title: text(input.title).trim(),
 				data: profileData(kind, input, profile.data),
-				visibility: /** @type {Visibility} */ (input.visibility || profile.visibility)
+				visibility: /** @type {Visibility} */ (input.visibility || profile.visibility),
+				...(input.avatar !== undefined
+					? { edges: { avatar: input.avatar ? [input.avatar] : [] } }
+					: {})
 			},
 			{ actor: accountActor(accountId), now }
 		);
@@ -1521,7 +1527,7 @@ export async function listGroupMembers(db, accountId, groupSlug) {
  * @typedef {{
  *   slug: string, title: string, kind: ProfileKind, bio: string | null, pronouns: string | null,
  *   links: string[], avatar: string | null, members: { slug: string, title: string }[] | null
- * }} PublicProfile
+ * }} PublicProfile `avatar`: la dirección de su imagen de la biblioteca (`/media/…`), o null
  */
 
 /**
@@ -1555,7 +1561,7 @@ export async function getPublicProfile(db, slug, viewer = ANON) {
 		bio: o.data.bio ?? null,
 		pronouns: o.data.pronouns ?? null,
 		links: Array.isArray(o.data.links) ? o.data.links : [],
-		avatar: o.data.avatar ?? null,
+		avatar: (await imageOf(db, o.id, 'avatar', viewer ?? ANON))?.url ?? null,
 		members
 	};
 }

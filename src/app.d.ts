@@ -6,20 +6,22 @@ declare global {
 	namespace App {
 		interface Locals {
 			/** Verified against GitHub in hooks.server.js; never read from client cookies. */
-			user: {
-				/** Numeric GitHub user id (what admin checks use). Always set for real sessions. */
-				id?: number,
-				login: string,
-				name: string | null,
-				avatar_url: string
-			} | undefined,
+			user:
+				| {
+						/** Numeric GitHub user id (what admin checks use). Always set for real sessions. */
+						id?: number;
+						login: string;
+						name: string | null;
+						avatar_url: string;
+				  }
+				| undefined;
 			/** GitHub OAuth token (server-only, never return it from a load). '' when not logged in. */
-			user_token: string,
+			user_token: string;
 			/**
 			 * Cuenta del público con sesión abierta (src/lib/server/cuentas/web.js). Independiente de
 			 * `user` (admins): una persona puede tener las dos, una o ninguna.
 			 */
-			member?: { id: string, email: string }
+			member?: { id: string; email: string };
 		}
 		// interface Error {}
 		// interface Locals {}
@@ -32,6 +34,8 @@ declare global {
 				BACKUPS?: import('@cloudflare/workers-types').R2Bucket;
 				/** Visitas anónimas (Analytics Engine, docs/analiticas.md). Solo en producción. */
 				ANALYTICS?: import('@cloudflare/workers-types').AnalyticsEngineDataset;
+				/** Bucket de R2 de las imágenes del sitio (docs/imagenes.md). Puede faltar (build). */
+				MEDIA?: import('@cloudflare/workers-types').R2Bucket;
 			};
 			ctx?: import('@cloudflare/workers-types').ExecutionContext;
 			caches?: import('@cloudflare/workers-types').CacheStorage;

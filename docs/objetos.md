@@ -156,15 +156,15 @@ Una persona o un proyecto con cuenta (decisión A2). Archivo: `src/lib/server/ob
 Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 [cuentas.md](cuentas.md) («Perfiles»).
 
-| Campo          | Clase      | Notas                                                                                          |
-| -------------- | ---------- | ---------------------------------------------------------------------------------------------- |
-| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                            |
-| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)    |
-| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                            |
-| `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
-| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
-| `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
-| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)               |
+| Campo          | Clase      | Notas                                                                                             |
+| -------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                               |
+| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)       |
+| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                               |
+| `pronouns`     | `text`     | hasta 40 caracteres                                                                               |
+| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno    |
+| `avatar`       | `text`     | sin uso: la imagen del perfil es el edge `avatar` hacia una `imagen` ([imagenes.md](imagenes.md)) |
+| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)                  |
 
 - `proyecto` antes se llamaba `grupo` (migración `0023_perfil_proyecto.sql`). El valor viejo se
   sigue aceptando: se lee como `proyecto` (`normalizeProfileKind`/`profileKindOf`) y el
@@ -203,6 +203,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
 | `lugar`   | `perfil` de lugar (máximo 1)   | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md))                 |
 | `persona` | `perfil` (uno por perfil)      | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                                   |
 | `parte`   | `evento` (máximo 20, en orden) | sin `data`; `position` = orden         | `src/lib/server/eventos/partes.js` ([talleres-partes.md](talleres-partes.md)) |
+| `portada` | `imagen` (máximo 1)            | sin `data`                             | `src/lib/server/media/library.js` ([imagenes.md](imagenes.md))                |
 
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
@@ -241,6 +242,13 @@ entradas por serie) y los `.md` las nombran por texto. Plan, en un PR propio:
 4. Migración: edges desde `data.tags` de los eventos de la base (por `key`, con `alias_de`), con
    la caché ya escrita, versión nueva y revisión `migracion`, como la 0035.
 5. Después, el material (`data.tags` y `data.personas`) con el mismo camino.
+
+### `imagen`
+
+Una imagen de la biblioteca (archivo en R2, binding `MEDIA`). Cada uso es un edge HACIA ella:
+evento → `portada`, material → `portada`, etiqueta (serie) → `imagen`, perfil → `avatar` (uno por
+objeto). Archivo: `src/lib/server/objects/types/imagen.js`; todo el detalle en
+[imagenes.md](imagenes.md).
 
 ### `etiqueta`
 

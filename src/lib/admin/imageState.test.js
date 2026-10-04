@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	SCOPE_PROBLEM,
-	chooseImage,
-	clearImage,
-	editEventImage,
-	emptyUpload,
-	newEventImage
-} from './imageState.js';
+import { chooseImage, clearImage, emptyUpload } from './imageState.js';
 
 const MB = 1024 * 1024;
 
@@ -71,78 +64,5 @@ describe('clearImage', () => {
 		expect(urls.revoked).toEqual(['blob:1']);
 		expect(clearImage(emptyUpload(), urls)).toEqual(emptyUpload());
 		expect(urls.revoked).toEqual(['blob:1']);
-	});
-});
-
-describe('newEventImage (crear o duplicar)', () => {
-	const upload = { url: 'blob:1', name: 'n.png', ext: /** @type {'png'} */ ('png'), error: '' };
-	const base = {
-		sourceFeatured: '1',
-		sourceShared: false,
-		sourceUrl: '/orig.jpg',
-		upload,
-		imageScope: /** @type {''} */ ('')
-	};
-	it('usar la del original, una nueva o ninguna', () => {
-		expect(newEventImage({ ...base, mode: 'keep' }).preview).toBe('/orig.jpg');
-		expect(newEventImage({ ...base, mode: 'upload' }).preview).toBe('blob:1');
-		expect(newEventImage({ ...base, mode: 'none' }).preview).toBe(undefined);
-	});
-	it('una nueva sobre una propia: va a la carpeta del evento (featured 1), sin preguntar', () => {
-		const r = newEventImage({ ...base, mode: 'upload' });
-		expect(r).toMatchObject({ askScope: false, scope: 'esta', uploadFeatured: 1, problem: '' });
-	});
-	it('una nueva sobre una compartida: pregunta; «todas» reemplaza el archivo compartido', () => {
-		const shared = {
-			...base,
-			sourceFeatured: 'fiesta.jpg',
-			sourceShared: true,
-			mode: /** @type {'upload'} */ ('upload')
-		};
-		expect(newEventImage(shared)).toMatchObject({ askScope: true, problem: SCOPE_PROBLEM });
-		expect(newEventImage({ ...shared, imageScope: 'todas' })).toMatchObject({
-			scope: 'todas',
-			sharedNewName: 'fiesta.png',
-			uploadFeatured: 'fiesta.png',
-			problem: ''
-		});
-		expect(newEventImage({ ...shared, imageScope: 'esta' })).toMatchObject({
-			scope: 'esta',
-			uploadFeatured: 1
-		});
-	});
-});
-
-describe('editEventImage (editar)', () => {
-	const upload = { url: 'blob:1', name: 'n.webp', ext: /** @type {'webp'} */ ('webp'), error: '' };
-	it('sin imagen nueva, featured no cambia', () => {
-		expect(
-			editEventImage({
-				image: { featured: '2', nextNumber: 3 },
-				upload: emptyUpload(),
-				imageScope: ''
-			})
-		).toMatchObject({ askScope: false, newFeatured: '', problem: '' });
-	});
-	it('una nueva sobre una propia: el próximo número libre', () => {
-		expect(
-			editEventImage({ image: { featured: '2', nextNumber: 3 }, upload, imageScope: '' })
-		).toMatchObject({ askScope: false, scope: 'esta', newFeatured: '3' });
-	});
-	it('una nueva sobre una compartida: pregunta, y «todas» le cambia la extensión al archivo', () => {
-		const image = { featured: 'fiesta.jpg', shared: true, nextNumber: 1 };
-		expect(editEventImage({ image, upload, imageScope: '' })).toMatchObject({
-			askScope: true,
-			problem: SCOPE_PROBLEM
-		});
-		expect(editEventImage({ image, upload, imageScope: 'todas' })).toMatchObject({
-			scope: 'todas',
-			sharedNewName: 'fiesta.webp',
-			newFeatured: 'fiesta.webp'
-		});
-		expect(editEventImage({ image, upload, imageScope: 'esta' })).toMatchObject({
-			scope: 'esta',
-			newFeatured: '1'
-		});
 	});
 });

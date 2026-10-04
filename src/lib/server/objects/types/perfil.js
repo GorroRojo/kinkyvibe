@@ -200,7 +200,9 @@ const perfil = {
 		}
 	},
 	edges: {
-		es_integrante_de: { label: 'Integrante de', to: ['perfil'] }
+		es_integrante_de: { label: 'Integrante de', to: ['perfil'] },
+		// La imagen del perfil (docs/imagenes.md). El campo `avatar` (texto) quedó sin uso.
+		avatar: { label: 'Imagen', to: ['imagen'], max: 1 }
 	},
 	normalize(data) {
 		// Una fila con el `kind` viejo se guarda (editada, borrada…) ya como `proyecto`.
