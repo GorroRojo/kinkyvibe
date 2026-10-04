@@ -101,7 +101,7 @@
 					maxlength="150"
 					required
 					disabled={locked || sending}
-					placeholder="Ej: Cambio de lugar"
+					placeholder="Ej.: Cambio de lugar"
 				/>
 				{#if result?.errors?.subject}<small class="error">{result.errors.subject}</small>{/if}
 			</label>

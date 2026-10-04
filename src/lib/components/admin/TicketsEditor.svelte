@@ -195,7 +195,7 @@
 							<input
 								id="{idPrefix}-ticket-name-{i}"
 								bind:value={t.name}
-								placeholder={i === 0 ? 'General' : 'Anticipada'}
+								placeholder={i === 0 ? 'Ej.: General' : 'Ej.: Anticipada'}
 								maxlength="60"
 							/>
 						</label>
@@ -227,7 +227,7 @@
 									id="{idPrefix}-ticket-min-{i}"
 									bind:value={t.min}
 									inputmode="numeric"
-									placeholder="0"
+									placeholder="Sin mínimo"
 								/>
 								<small>0 = quien no puede pagar, no paga.</small>
 							</label>
@@ -237,7 +237,7 @@
 									id="{idPrefix}-ticket-suggested-{i}"
 									bind:value={t.suggested}
 									inputmode="numeric"
-									placeholder="5000"
+									placeholder="Ej.: 5000"
 								/>
 								{#if parseAmount(t.suggested) !== null}
 									<small
@@ -270,7 +270,7 @@
 									id="{idPrefix}-ticket-price-{i}"
 									bind:value={t.price}
 									inputmode="numeric"
-									placeholder="10000"
+									placeholder="Ej.: 10000"
 								/>
 								<small
 									>{money(t.price)
@@ -439,7 +439,7 @@
 							id="{idPrefix}-door-price"
 							bind:value={state.doorPrice}
 							maxlength={DOOR_PRICE_MAX}
-							placeholder="$ 12.000, solo efectivo"
+							placeholder="Ej.: $ 12.000, solo efectivo"
 							aria-describedby="{idPrefix}-door-price-hint"
 						/>
 						<small id="{idPrefix}-door-price-hint"

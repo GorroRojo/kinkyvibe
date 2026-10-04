@@ -230,7 +230,7 @@
 							inputmode="numeric"
 							autocomplete="off"
 							maxlength="12"
-							placeholder="12.345.678"
+							placeholder="Ej.: 12.345.678"
 							aria-invalid={datosErrors.dni ? 'true' : undefined}
 						/>
 						{#if datosErrors.dni}<span class="field-error">{datosErrors.dni}</span>{/if}

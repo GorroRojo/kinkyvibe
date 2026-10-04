@@ -535,7 +535,9 @@
 				</div>
 
 				<form class="grid" on:submit|preventDefault={saveFields}>
-					<label>Ícono <input class="kv-input" bind:value={fields.icon} placeholder="🪢" /></label>
+					<label
+						>Ícono <input class="kv-input" bind:value={fields.icon} placeholder="Ej.: 🪢" /></label
+					>
 					<label
 						>Nombre visible <input
 							class="kv-input"
@@ -555,7 +557,7 @@
 							>Imagen (series) <input
 								class="kv-input"
 								bind:value={fields.image}
-								placeholder="serie.webp (de src/lib/assets)"
+								placeholder="Ej.: serie.webp (de src/lib/assets)"
 							/></label
 						>
 					{/if}

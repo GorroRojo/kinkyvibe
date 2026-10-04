@@ -17,6 +17,7 @@
 //   --bad / --bad-bg    rosa oscuro (--1)     --info / --info-bg  violeta (--2)
 //   --counter / --counter-ink  contadores     --field     borde de los inputs
 //   --card-round radio de las tarjetas        --shadow    sombra de las tarjetas
+//   --placeholder texto de ejemplo en inputs (gris, nunca rosa/violeta; la regla está en style.scss)
 //
 // Clases para las páginas: .kv-btn (píldora rosa), .kv-btn.ghost (borde rosa), .kv-btn.violet
 // (como "¿Todo gratis?"), .kv-input (input en píldora con borde rosa), .kv-table.
@@ -51,6 +52,7 @@
 	--counter: var(--4);
 	--counter-ink: #333;
 	--field: var(--1-light);
+	--placeholder: #888;
 	--bar-track: color-mix(in srgb, var(--2) 8%, #eee);
 	--card-round: calc(var(--round) * 1.25);
 	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
@@ -82,6 +84,7 @@
 	--counter: var(--4);
 	--counter-ink: #333;
 	--field: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--placeholder: #707070;
 	--bar-track: color-mix(in srgb, var(--2) 18%, #2a282d);
 	--card-round: calc(var(--round) * 1.25);
 	--shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
@@ -225,9 +228,6 @@
 		border-radius: 3em;
 		padding: 0.5em 1em;
 		min-width: 0;
-		&::placeholder {
-			color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
-		}
 		&:focus {
 			outline: 2px solid var(--accent);
 			outline-offset: 0;

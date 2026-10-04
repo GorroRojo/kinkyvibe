@@ -203,7 +203,7 @@
 					<input
 						class="kv-input"
 						name="holder_{i}"
-						placeholder="Persona {i + 1}"
+						placeholder="Nombre de la persona {i + 1}"
 						aria-label="Persona {i + 1}"
 						autocomplete="off"
 					/>

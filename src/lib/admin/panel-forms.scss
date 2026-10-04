@@ -42,9 +42,6 @@
 		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
-		&::placeholder {
-			color: color-mix(in srgb, var(--1-dark) 55%, var(--surface));
-		}
 		&:focus {
 			outline: 2px solid var(--accent);
 			outline-offset: 0;
