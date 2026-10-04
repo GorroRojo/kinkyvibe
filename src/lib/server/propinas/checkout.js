@@ -41,7 +41,8 @@ export function isSafeCheckoutUrl(url, origin) {
 /** @typedef {import('$lib/utils/propinas.js').TipFormValues} TipFormValues */
 
 /**
- * Lee el formulario (todo como texto acotado; el servidor valida después).
+ * Lee el formulario (todo como texto acotado; el servidor valida después). No lee `destination`:
+ * toda propina va al Fondo.
  * @param {FormData} form
  * @returns {TipFormValues}
  */
@@ -53,8 +54,7 @@ export function readTipForm(form) {
 		custom: get('custom', 20),
 		message: get('message', 600),
 		category: get('category', 20),
-		slug: get('slug', 160),
-		destination: get('destination', 20)
+		slug: get('slug', 160)
 	};
 }
 

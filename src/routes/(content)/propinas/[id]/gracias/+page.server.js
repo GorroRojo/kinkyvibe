@@ -24,7 +24,7 @@ export async function load({ params, platform, fetch, setHeaders }) {
 	if (!db || !tip) error(404, 'No encontramos esa propina.');
 	tip = await recheckTip({ db, gateway: await getGateway(fetch), tip });
 	return {
-		tip: { amount: tip.amount, status: tip.status },
+		tip: { amount: tip.amount, status: tip.status, destination: tip.destination },
 		// Siempre una ruta de este sitio armada acá (nunca una URL que venga de afuera).
 		postPath: tipPostPath(tip.post_category, tip.post_slug)
 	};

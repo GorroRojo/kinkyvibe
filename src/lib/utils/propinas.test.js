@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	KINKYVIBE_TAG,
 	TIP_MAX,
-	TIP_DEFAULT_DESTINATION,
+	TIP_DESTINATION,
 	TIP_DESTINATIONS,
 	TIP_DESTINATION_LABELS,
 	TIP_MESSAGE_MAX,
@@ -12,7 +12,6 @@ import {
 	showEventTip,
 	monthLabel,
 	parseTipAmount,
-	parseTipDestination,
 	parseTipMessage,
 	tipPost,
 	tipPostPath,
@@ -73,7 +72,7 @@ describe('validateTip', () => {
 			message: null,
 			category: 'material',
 			slug: 'una-guia',
-			destination: 'kinkyvibe'
+			destination: 'fondo'
 		});
 		expect(validateTip({ ...base, amount: 'otro', custom: '1.234' })).toMatchObject({
 			ok: true,
@@ -95,48 +94,30 @@ describe('validateTip', () => {
 describe('destino de la propina', () => {
 	const base = { amount: '2000', category: 'material', slug: 'una-guia', message: '' };
 
-	it('"Para KinkyVibe" (por defecto) o "Para el Fondo"', () => {
+	it('toda propina nueva va al Fondo; los destinos viejos se siguen nombrando', () => {
+		expect(TIP_DESTINATION).toBe('fondo');
 		expect(TIP_DESTINATIONS).toEqual(['kinkyvibe', 'fondo']);
-		expect(TIP_DEFAULT_DESTINATION).toBe('kinkyvibe');
 		expect(TIP_DESTINATION_LABELS).toEqual({
 			kinkyvibe: 'Para KinkyVibe',
 			fondo: 'Para el Fondo'
 		});
 	});
 
-	it('parseTipDestination: vacío = KinkyVibe; solo acepta los destinos conocidos', () => {
-		expect(parseTipDestination('kinkyvibe')).toBe('kinkyvibe');
-		expect(parseTipDestination('fondo')).toBe('fondo');
-		expect(parseTipDestination(' fondo ')).toBe('fondo');
-		for (const empty of ['', '  ', undefined, null]) {
-			expect(parseTipDestination(empty)).toBe('kinkyvibe');
+	it('validateTip siempre devuelve el Fondo e ignora lo que llegue en `destination`', () => {
+		for (const destination of [undefined, '', 'fondo', 'kinkyvibe', 'mi-bolsillo', 1, {}]) {
+			expect(validateTip({ ...base, destination })).toEqual({
+				ok: true,
+				amount: 2000,
+				message: null,
+				category: 'material',
+				slug: 'una-guia',
+				destination: 'fondo'
+			});
 		}
-		for (const bad of ['Fondo', 'FONDO', 'otro', 'kinkyvibe;fondo', 'fondo\u0000', 1, {}]) {
-			expect(parseTipDestination(bad)).toBeNull();
-		}
-	});
-
-	it('validateTip valida el destino en el servidor', () => {
-		expect(validateTip({ ...base, destination: 'fondo' })).toEqual({
-			ok: true,
-			amount: 2000,
-			message: null,
-			category: 'material',
-			slug: 'una-guia',
-			destination: 'fondo'
-		});
-		expect(validateTip({ ...base, destination: '' })).toMatchObject({
-			ok: true,
-			destination: 'kinkyvibe'
-		});
-		expect(validateTip({ ...base, destination: 'mi-bolsillo' })).toEqual({
+		// Un destino raro no suma un error: los errores siguen siendo solo de monto, mensaje y publicación.
+		expect(validateTip({ ...base, amount: '', destination: 'nope' })).toEqual({
 			ok: false,
-			errors: { destination: 'Elegí a dónde va tu propina.' }
-		});
-		// Junto con otros errores, cada uno en su campo.
-		expect(validateTip({ ...base, amount: '', destination: 'x' })).toEqual({
-			ok: false,
-			errors: { amount: 'Elegí un monto.', destination: 'Elegí a dónde va tu propina.' }
+			errors: { amount: 'Elegí un monto.' }
 		});
 	});
 });
