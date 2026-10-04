@@ -77,13 +77,8 @@
 		{#if done.db}
 			Ya está en la base: en menos de un minuto se ve en el sitio.
 			{#if done.posts}
-				El commit que cambia {done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} se ve cuando termine
-				de publicarse el sitio.
-				{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
-						href={done.commit}
-						target="_blank"
-						rel="noreferrer">Ver el commit</a
-					>{/if}
+				También se cambi{done.posts === 1 ? 'ó' : 'aron'}
+				{done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} (eventos y material, en la base).
 			{/if}
 		{:else}
 			Se ve cuando termine de publicarse el sitio.
@@ -207,8 +202,9 @@
 										No cambia ninguna publicación: «{confirm.from}» queda como alias.
 									{:else if confirm.posts}
 										Cambia{confirm.posts === 1 ? '' : 'n'}
-										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>,
-										con un commit{#if confirm.db}, y «{confirm.from}» deja de existir{/if}.
+										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>
+										(eventos y material, en la base){#if confirm.db}, y «{confirm.from}» deja de
+											existir{/if}.
 									{:else}
 										Ninguna publicación usa «{confirm.from}»: no hace falta cambiar ninguna.
 									{/if}

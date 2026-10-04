@@ -5,7 +5,7 @@ import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
-import { siteTags } from './index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
@@ -49,13 +49,14 @@ export function seriesSender(db, fetchFn) {
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
  */
 export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now() }) {
+	const platform = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }));
 	return runSeriesNotifications({
 		db,
 		// Los eventos de la base.
-		posts: await sitePosts(
-			/** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
-		),
-		tags: siteTags(),
+		posts: await sitePosts(platform),
+		// Las series de la base, leídas acá (no el árbol que dejó el último pedido): el cron no
+		// depende de que hooks.server.js haya corrido en este isolate.
+		tags: await siteTagManager(platform),
 		origin,
 		send: seriesSender(db, fetchFn),
 		now

@@ -7,9 +7,10 @@
  * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
  * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
- * /admin/etiquetas: en la base al momento (src/lib/server/etiquetas/panel.js; renombrar también
- * cambia las publicaciones). Ya no hay commits al archivo de etiquetas. Renombrar pide confirmar después de ver cuántas
- * publicaciones cambian.
+ * /admin/etiquetas: en la base al momento (src/lib/server/etiquetas/panel.js). Renombrar sin alias
+ * también cambia las ediciones (eventos y material), solo en la base: nada de esta página lee ni
+ * escribe GitHub ni el archivo de etiquetas (`repoAccess`). Renombrar pide confirmar después de ver
+ * cuántas publicaciones cambian.
  */
 import { fail } from '@sveltejs/kit';
 import { isAdmin, requireAdmin } from '$lib/server/auth';
@@ -19,6 +20,7 @@ import { allSeries, tagExists } from '$lib/server/series/index.js';
 import { subscriberCounts } from '$lib/server/series/subscriptions.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { dbPostsOnlyClient } from '$lib/server/contenido/repo.js';
 import {
 	NEEDS_IMPORT,
 	dbTagsForAdmin,
@@ -169,13 +171,19 @@ function editValues(tags, id) {
 }
 
 /**
- * Con qué hacer el commit de las publicaciones, o null si no se puede.
+ * Con qué reescribir las ediciones al renombrar: solo los posts de la base (eventos y material),
+ * nunca GitHub (`dbPostsOnlyClient`: ni lee ni escribe amigues ni la wiki). Quien guarda queda
+ * con su login (src/lib/server/contenido/author.js).
  * @param {App.Locals} locals
  * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
  */
 async function repoAccess(locals) {
 	const admin = getEventAdmin(locals);
-	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
+	return {
+		client: dbPostsOnlyClient(await getRepoClient()),
+		token: admin?.token ?? '',
+		who: admin?.name ?? locals.user?.login ?? 'panel'
+	};
 }
 
 /**

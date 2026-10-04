@@ -171,6 +171,10 @@ Eventos → Series › Editar):
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
   (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente del repo: los eventos y el
   material van a la base (se ve enseguida); las fichas de amigues y la wiki, con un commit.
+- **En Eventos → Series, solo la base**: renombrar una serie reescribe solo sus eventos y el
+  material (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`), sin leer ni escribir
+  GitHub. Si alguna ficha de amigues o página de la wiki usara la etiqueta de una serie (hoy
+  ninguna), queda con el nombre viejo: para eso, Etiquetas › Renombrar o «dejar el alias».
 - El archivo (`hardcodedTags.js`) no se toca nunca desde el panel: es solo el respaldo.
 
 ## Series (paso 4)
@@ -198,7 +202,9 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
   (imagen, descripción, cuántas ediciones y la próxima) que lleva a su página
   (`seriesSummaries`, `SeriesGrid.svelte`). Se esconde mientras se busca.
 - Todo lo de series lee el árbol en uso (la base), también «¿Es parte de una serie?» al
-  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5).
+  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5). Los crons de avisos
+  (series y «Lo que sigo») leen las etiquetas de la base ellos mismos (`siteTagManager`), sin
+  depender del árbol que dejó el último pedido en el isolate.
 
 ## Cómo probar
 

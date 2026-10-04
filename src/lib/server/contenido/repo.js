@@ -723,3 +723,59 @@ export async function readDbPostFile(path) {
 
 /** Lo mismo (nombre de la primera versión, solo eventos). */
 export const readDbEventFile = readDbPostFile;
+
+/** Un cambio que tocaría algo que no es un post de la base (amigues, la wiki, imágenes…). */
+export class NotInContentDbError extends Error {
+	/** @param {string} path */
+	constructor(path) {
+		super(`${path} no está en la base: este cambio solo puede tocar eventos y material.`);
+		this.name = 'NotInContentDbError';
+		this.path = path;
+	}
+}
+
+/**
+ * Un cliente del repo que solo ve y solo escribe los posts de la base (eventos y material), para
+ * lo que tiene que quedarse en la base sí o sí (Eventos → Series: renombrar una serie reescribe
+ * sus ediciones). Nunca llama a GitHub:
+ * - `getDirTexts` arma la carpeta de una categoría de la base desde la base (sin leer el repo);
+ *   las demás carpetas (amigues, la wiki) quedan vacías;
+ * - `getFile` solo lee posts de la base;
+ * - `commitFiles` tira {@link NotInContentDbError} si algún archivo no es un post de la base; si
+ *   todos lo son, guarda por `client` (envuelto con {@link withContentDb}: va solo a la base).
+ *
+ * @param {{ getFile: Function, commitFiles: Function }} client lo de getRepoClient()
+ */
+export function dbPostsOnlyClient(client) {
+	return {
+		/** @param {string} token @param {string} dir */
+		async getDirTexts(token, dir) {
+			const clean = dir.replace(/\/+$/, '');
+			const category = Object.keys(CONTENT_CATEGORIES).find((c) => dirOf(c) === clean);
+			const db = category ? activeContentDB() : null;
+			if (!db || !category) return [];
+			/** @type {Array<{ path: string, sha: string, text: string }>} */
+			const out = [];
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, text: e.raw });
+			}
+			return out;
+		},
+
+		/** @param {string} token @param {string} path */
+		async getFile(token, path) {
+			return postOfPath(path) ? client.getFile(token, path) : null;
+		},
+
+		/**
+		 * @param {string} token
+		 * @param {{ files: Array<{ path: string }> } & Record<string, any>} opts
+		 */
+		async commitFiles(token, opts) {
+			const outside = opts.files.find((f) => !postOfPath(f.path));
+			if (outside) throw new NotInContentDbError(outside.path);
+			return client.commitFiles(token, opts);
+		}
+	};
+}

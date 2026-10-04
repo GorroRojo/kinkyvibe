@@ -156,6 +156,54 @@ describe('leer', () => {
 	});
 });
 
+describe('dbPostsOnlyClient (Eventos → Series)', () => {
+	it('lee y guarda solo los posts de la base: nunca llama al repo', async () => {
+		const { repo, base, client } = await setup();
+		const calls = /** @type {string[]} */ ([]);
+		for (const k of ['getFile', 'getDirTexts', 'listTree', 'commitFiles']) {
+			const fn = /** @type {any} */ (base)[k];
+			/** @type {any} */ (base)[k] = (/** @type {any[]} */ ...args) => {
+				calls.push(k);
+				return fn(...args);
+			};
+		}
+		const only = repo.dbPostsOnlyClient(client);
+		const texts = await only.getDirTexts('t', DIR);
+		expect(texts.find((f) => f.path === path('taller-inventado-2031-02'))?.text).toContain(
+			'Nudos que no existen'
+		);
+		expect(texts.find((f) => f.path === path('sin-importar-2031-07'))).toBeUndefined();
+		expect(await only.getDirTexts('t', 'src/lib/posts/wiki')).toEqual([]);
+		expect(await only.getDirTexts('t', 'src/lib/posts/amigues')).toEqual([]);
+		expect(await only.getFile('t', 'src/lib/posts/wiki/algo.md')).toBeNull();
+
+		const err = await thrown(() =>
+			only.commitFiles('t', {
+				files: [
+					{ path: path('taller-inventado-2031-02'), content: 'x' },
+					{ path: 'src/lib/posts/wiki/algo.md', content: 'y' }
+				],
+				message: 'prueba'
+			})
+		);
+		expect(err).toBeInstanceOf(repo.NotInContentDbError);
+
+		const file = await only.getFile('t', path('taller-inventado-2031-02'));
+		const after = String(file).replace(
+			'title: Taller Inventado de Nudos',
+			'title: Taller Renombrado'
+		);
+		await only.commitFiles('t', {
+			files: [{ path: path('taller-inventado-2031-02'), content: after }],
+			message: 'prueba',
+			actor: 'admin-de-prueba'
+		});
+		expect((await objectOf('taller-inventado-2031-02')).title).toBe('Taller Renombrado');
+		expect(calls).toEqual([]);
+		expect(base.commits).toEqual([]);
+	});
+});
+
 describe('guardar', () => {
 	it('editar guarda en la base con versión nueva e historial, sin tocar el repo', async () => {
 		const { client, base } = await setup();
