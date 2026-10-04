@@ -241,6 +241,49 @@ export async function searchImages(db, { q = '', viewer, createdBy, limit = 24 }
 	return results.map((r) => publicImage(forViewer(rowToObject(r), viewer)));
 }
 
+/** Cómo se nombra cada tipo de objeto que usa una imagen («Usada en: material «…»»). */
+const USE_LABEL = Object.freeze({
+	evento: 'evento',
+	material: 'material',
+	etiqueta: 'etiqueta',
+	perfil: 'perfil'
+});
+
+/**
+ * Dónde se usa cada imagen (los objetos con un edge hacia ella), para que el buscador del selector
+ * diga de dónde es cada una: «material «Guía de prueba»». Hasta 3 por imagen; los dos extremos
+ * pasan por la visibilidad.
+ *
+ * @param {D1Database} db
+ * @param {number[]} imageIds
+ * @param {Viewer} viewer
+ * @returns {Promise<Map<number, string[]>>}
+ */
+export async function imageUses(db, imageIds, viewer) {
+	/** @type {Map<number, string[]>} */
+	const out = new Map();
+	const list = [...new Set(imageIds.filter((i) => Number.isSafeInteger(i) && i > 0))];
+	if (!list.length) return out;
+	const vs = visibleWhere(viewer, 's');
+	const { results } = await db
+		.prepare(
+			`SELECT DISTINCT e.to_id AS image, s.type AS type, s.title AS title FROM edges e
+			JOIN objects s ON s.id = e.from_id
+			WHERE e.to_id IN (SELECT value FROM json_each(?)) AND ${vs.sql}
+			ORDER BY s.id DESC`
+		)
+		.bind(JSON.stringify(list), ...vs.params)
+		.all();
+	for (const r of /** @type {{ image: number, type: string, title: string }[]} */ (results)) {
+		const label = /** @type {Record<string, string>} */ (USE_LABEL)[r.type];
+		if (!label) continue;
+		const uses = out.get(r.image) ?? [];
+		if (uses.length < 3) uses.push(`${label} «${r.title}»`);
+		out.set(r.image, uses);
+	}
+	return out;
+}
+
 /**
  * Las imágenes que usan estos objetos (cualquier edge hacia una imagen), sin repetir, las más
  * nuevas primero. Los dos extremos pasan por la visibilidad.

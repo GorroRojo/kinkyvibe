@@ -13,6 +13,7 @@ import {
 	findImage,
 	imageKeysByObject,
 	imageOf,
+	imageUses,
 	imagesUsedBy,
 	linkImage,
 	memberMayUse,
@@ -189,6 +190,10 @@ describe('buscar y usos', () => {
 		expect(ctx.map((i) => i.id).sort()).toEqual([i1.id, i2.id].sort());
 		expect(await contextImages(t.db, ev2.id, ADMIN, { seriesKeys: [] })).toEqual([]);
 		expect((await imagesUsedBy(t.db, [otro.id], ADMIN)).map((i) => i.id)).toEqual([i3.id]);
+		// Dónde se usa cada una (el buscador del selector lo muestra).
+		const uses = await imageUses(t.db, [i1.id, i2.id, i3.id], ADMIN);
+		expect(uses.get(i3.id)).toEqual([`evento «${otro.title}»`]);
+		expect(uses.get(i2.id)).toEqual(['etiqueta «Serie Prueba»']);
 
 		// Sacarla: el edge se va; volver a pedir lo mismo no guarda otra versión.
 		const before = ev1.version + 1;

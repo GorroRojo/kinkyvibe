@@ -16,11 +16,13 @@
 	 * - `legacyUrl`: la imagen vieja del repo, si el objeto todavía no tiene una de la biblioteca.
 	 * - `target`: `evento:<dirección>`… para «De este…» (sin `target`, no hay esa pestaña).
 	 * - `contextLabel`, `legend`, `idPrefix`, `form` (id del formulario del campo oculto).
-	 * - `canDelete`: muestra «Sacar de la biblioteca» (solo admins).
+	 * - `canDelete`: «Sacar imágenes de la biblioteca…» en «Buscar» (solo admins): recién ahí cada
+	 *   imagen muestra «Sacar».
 	 * - Evento `change`: se eligió o se sacó una imagen.
 	 */
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
+	import { Trash2 } from '@lucide/svelte';
 	import { IMAGE_FIELD, contextHref, imageFieldValue, searchHref } from '$lib/utils/imageChoice.js';
 	import { PICKABLE_TYPES, pickProblem, prepareImage } from '$lib/utils/imageResize.js';
 
@@ -124,8 +126,10 @@
 
 	/* ---------- Buscar y «De este…» ---------- */
 	let q = '';
-	/** @type {PublicImage[] | null} */
+	/** @type {(PublicImage & { usedIn?: string[] })[] | null} */
 	let results = null;
+	/** «Sacar imágenes de la biblioteca…»: recién ahí aparece «Sacar» en cada imagen. */
+	let managing = false;
 	let searching = false;
 	let searchError = '';
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -346,6 +350,18 @@
 					{q.trim() ? 'No encontramos imágenes con eso.' : 'La biblioteca todavía está vacía.'}
 				</p>
 			{:else}
+				{#if canDelete}
+					<!-- Sacar de la biblioteca: aparte, para no tenerlo debajo de cada imagen. -->
+					<p class="manage">
+						<button
+							type="button"
+							class="kv-link small"
+							aria-pressed={managing}
+							on:click={() => (managing = !managing)}
+							>{managing ? 'Listo' : 'Sacar imágenes de la biblioteca…'}</button
+						>
+					</p>
+				{/if}
 				<ul class="picker-grid">
 					{#each results as image (image.id)}
 						<li>
@@ -358,13 +374,17 @@
 							>
 								<img src={image.url} alt="" loading="lazy" />
 								<span>{image.title}</span>
+								{#if image.usedIn?.length}
+									<small class="used">En {image.usedIn.join(', ')}</small>
+								{/if}
 							</button>
-							{#if canDelete}
+							{#if canDelete && managing}
 								<button
 									type="button"
-									class="kv-link small"
+									class="kv-btn small danger"
 									aria-label="Sacar «{image.title}» de la biblioteca"
-									on:click={() => deleteFromLibrary(image)}>Sacar</button
+									on:click={() => deleteFromLibrary(image)}
+									><Trash2 size={14} aria-hidden="true" /> Sacar</button
 								>
 							{/if}
 						</li>
@@ -524,6 +544,15 @@
 		min-width: 0;
 	}
 	.fields label,
+	.manage {
+		margin: 0 0 var(--space-2xs);
+		text-align: right;
+	}
+	.used {
+		color: var(--muted);
+		font-size: var(--text-xs);
+		overflow-wrap: anywhere;
+	}
 	.search {
 		display: flex;
 		flex-direction: column;
