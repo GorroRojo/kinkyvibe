@@ -20,7 +20,7 @@
 	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
 	import { Globe, MapPin, ChevronDown, ArrowRight } from '@lucide/svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
-	import TagChip from '$lib/components/TagChip.svelte';
+	import { Button, TagChip } from '$lib/components/ui';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
 	import PartesTaller from '$lib/components/PartesTaller.svelte';
@@ -322,6 +322,7 @@
 				class:open={mapOpen}
 				aria-label="Mapa y cómo llegar"
 			>
+				<!-- Las clases de Button (secundario del sitio) a mano: Button no pasa aria-expanded. -->
 				<button
 					type="button"
 					class="pill-btn ghost map-toggle"
@@ -444,13 +445,16 @@
 					{/each}
 				</ul>
 				{#if related.past.length > pastShown}
-					<button type="button" class="pill-btn ghost more-past" on:click={() => (pastShown += 10)}
-						>Ver más pasados</button
+					<Button
+						surface="sitio"
+						variant="secondary"
+						class="more-past"
+						on:click={() => (pastShown += 10)}>Ver más pasados</Button
 					>
 				{/if}
 			{:else}
-				<button type="button" class="pill-btn ghost" on:click={showPast} disabled={loadedPast}
-					>{loadedPast ? 'Cargando…' : `Ver ${data.relatedPastCount} pasados`}</button
+				<Button surface="sitio" variant="secondary" on:click={showPast} busy={loadedPast}
+					>{loadedPast ? 'Cargando…' : `Ver ${data.relatedPastCount} pasados`}</Button
 				>
 			{/if}
 		</section>
@@ -541,7 +545,7 @@
 			color: var(--muted);
 		}
 	}
-	.more-past {
+	.related-past :global(.more-past) {
 		margin-top: var(--space-m);
 	}
 	.past-list {
