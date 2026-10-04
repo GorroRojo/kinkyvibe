@@ -168,7 +168,13 @@
 		<ul class="chips" aria-label="Elegidas">
 			{#each values as value, i}
 				{@const c = chip(value)}
-				<li class="chip" class:unknown={c.unknown} style:--chip-color={c.color} title={c.title}>
+				<li
+					class="chip"
+					class:unknown={c.unknown}
+					class:colored={!!c.color}
+					style:--chip-color={c.color}
+					title={c.title}
+				>
 					{#if c.thumb}<img src={c.thumb} alt="" class="avatar" />{/if}
 					<span
 						>{#if c.icon}<span aria-hidden="true">{c.icon}</span>
@@ -263,6 +269,11 @@
 		color: white;
 		font-size: var(--step--1);
 		line-height: 1.3;
+		/* con color propio (etiquetas): lleno con el color oscurecido, así el texto blanco se
+		   lee con todos los colores del árbol (como .kv-tag.on, docs/estilo.md) */
+		&.colored {
+			background: color-mix(in srgb, var(--chip-color) 75%, black);
+		}
 		&.unknown {
 			background: var(--surface, white);
 			color: var(--1-dark);

@@ -218,7 +218,8 @@
 		list-style: none;
 		display: inline-flex;
 		align-items: center;
-		background: var(--tag-color);
+		/* etiqueta elegida: llena con su color oscurecido, texto blanco (como .kv-tag.on) */
+		background: color-mix(in srgb, var(--tag-color) 75%, black);
 		color: white;
 		border-radius: 2em;
 		line-height: 1;

@@ -12,7 +12,7 @@
 //   --surface-2 filas hover, cajas suaves     --line      bordes y separadores
 //   --text      texto (#333)                  --muted     texto secundario
 //   --accent    rosa del sitio (--1)          --accent-ink texto sobre --accent
-//   --accent-text rosa legible como texto (botón secundario, segmentado)
+//   --accent-text rosa legible como texto (segmentado; hover del botón secundario)
 //   --error-ink texto sobre --error (botón permanente)
 //   --link      violeta del sitio (--2)       --link-bg   fondo del ítem activo
 //   --ok / --ok-bg      verde (--3)           --warn / --warn-bg  amarillo (--4)
@@ -120,6 +120,13 @@
 	--2-dark: color-mix(in srgb, var(--2) 55%, white);
 	--3-dark: color-mix(in srgb, var(--3) 75%, white);
 	--4-dark: color-mix(in srgb, var(--4) 85%, white);
+
+	// Chips de etiqueta (.kv-tag, style.scss): sobre el fondo oscuro, el color de la etiqueta
+	// aclarado para el texto y el borde (con los oscuros, como darkblue, el color solo no se ve).
+	.kv-tag {
+		--tag-ink: color-mix(in srgb, var(--tag-color, var(--1)) 45%, white);
+		--tag-line: var(--tag-ink);
+	}
 
 	// Los colores de sintaxis por defecto de CodeMirror (azules, violetas y grises oscuros) no se
 	// leen sobre fondo oscuro: en oscuro el texto del editor va en el color del texto (negritas,
@@ -252,11 +259,16 @@
 			background: var(--btn-bg-hover);
 			color: var(--btn-ink);
 		}
+		// Secundario: texto y borde en el rosa de la marca (decisión de gorrite, 4/10). Al pasar
+		// el mouse, fondo pálido y el texto pasa a --accent-text para seguir leyéndose.
 		&.ghost {
 			--btn-bg: var(--surface);
 			--btn-bg-hover: var(--bad-bg);
-			--btn-ink: var(--accent-text);
+			--btn-ink: var(--accent);
 			box-shadow: inset 0 0 0 2px var(--accent);
+			&:hover {
+				color: var(--accent-text);
+			}
 		}
 		&.violet {
 			--btn-bg: var(--accent);

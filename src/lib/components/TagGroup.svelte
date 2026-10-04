@@ -69,7 +69,7 @@
 									$page.url.searchParams.get('tags')?.split(',').includes(item)}
 								noBorder
 								--off-background="color-mix(in srgb, white 35%, transparent)"
-								--text-color="color-mix(in srgb, black 15%, var(--tag-color))"
+								--text-color="color-mix(in srgb, black 25%, var(--tag-color))"
 							/>
 						{:else}
 							<Tag
@@ -105,7 +105,10 @@
 		justify-content: center;
 		flex-wrap: wrap;
 		width: 100%;
-		--text-color: color-mix(in hsl, var(--tag-color) 100%, black);
+		/* texto y relleno (elegida) en el color de la etiqueta oscurecido, para que se lea sobre
+		   blanco y con texto blanco encima (docs/estilo.md, «Chip de etiqueta») */
+		--text-color: color-mix(in srgb, var(--tag-color) 75%, black);
+		--fill-color: color-mix(in srgb, var(--tag-color) 75%, black);
 		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
 		background: var(--faded-color);
 	}

@@ -27,6 +27,7 @@
 	import { contentAdminHref } from '$lib/admin/nav.js';
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import { filterContentRows, topTags } from '$lib/utils/contentPosts.js';
+	import TagChip from '$lib/components/TagChip.svelte';
 
 	/** @type {'material'|'amigues'} */
 	export let category;
@@ -194,7 +195,7 @@
 						</div>
 						{#if r.tags.length}
 							<div class="rtags">
-								{#each r.tags.slice(0, 8) as t}<span class="mini">{tagLabel(canon(t))}</span>{/each}
+								{#each r.tags.slice(0, 8) as t}<TagChip tag={canon(t)} />{/each}
 								{#if r.tags.length > 8}<span class="mini more">+{r.tags.length - 8}</span>{/if}
 							</div>
 						{/if}

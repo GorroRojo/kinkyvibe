@@ -48,8 +48,8 @@
 		gap: 0.45em;
 		font: inherit;
 		font-weight: bold;
-		/* botón secundario: píldora con borde rosa (como .pill-btn.ghost) */
-		color: var(--1-ink);
+		/* botón secundario: píldora con borde y texto rosa (como .pill-btn.ghost) */
+		color: var(--1);
 		background: var(--surface);
 		border: 2px solid var(--1);
 		border-radius: var(--radius-pill);
