@@ -44,7 +44,12 @@ const material = {
 		unlisted: { kind: 'boolean', label: 'No listado' },
 		extra: { kind: 'json', label: 'Otros datos del archivo', max: 50_000 }
 	},
-	edges: {},
+	edges: {
+		// Etiquetas, como en `evento`: un edge por etiqueta viva, `data: { at: [0, …] }` (su lugar en
+		// la lista de `tags`, src/lib/server/contenido/etiquetasEdges.js). Un nombre que no es de
+		// ninguna etiqueta queda en `data.tags`.
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: 60 }
+	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';
 		const problem = link && !/^\d+$/.test(link) ? linkProblem(link) : null;

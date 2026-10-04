@@ -30,12 +30,9 @@ import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY, EVENT_TYPE } from './eventos.js';
 import { renderContentBody } from './render.js';
-import {
-	hydratePersonas,
-	personaEdgesColumn,
-	personaEdgesFromColumn,
-	withPersonaEdges
-} from './personasEdges.js';
+import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
+import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
+import { hydrateContent, withContentEdges } from './relaciones.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -95,13 +92,15 @@ async function contentStamp(db) {
 				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
 				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
 				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
-				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu,
+				(SELECT max(updated_at) FROM objects WHERE type = 'etiqueta') AS tu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
 	// `pu`: los perfiles de las personas son edges y la metadata lleva su dirección actual
-	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar.
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}`;
+	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar. `tu`: lo mismo con
+	// el `key` de las etiquetas (./etiquetasEdges.js).
+	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}:${row?.tu}`;
 }
 
 /**
@@ -133,7 +132,8 @@ async function loadDbState(db, stamp, tree) {
 	const rows = await db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
-				s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges FROM objects o
+				s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+				${tagEdgesColumn('o')} AS tag_edges FROM objects o
 			LEFT JOIN content_sources s ON s.object_id = o.id
 			WHERE o.type IN (${t}) AND ${visible.sql}
 			ORDER BY o.id`
@@ -157,15 +157,12 @@ async function loadDbState(db, stamp, tree) {
 		}
 		const object = {
 			title: String(r.title),
-			// Los perfiles de `personas` son edges (./personasEdges.js), leídos en la misma consulta:
-			// la metadata lleva la lista entera.
-			data:
-				r.type === EVENT_TYPE
-					? withPersonaEdges(
-							/** @type {Record<string, any>} */ (data),
-							personaEdgesFromColumn(r.persona_edges)
-						)
-					: data,
+			// Los perfiles de `personas` y las etiquetas son edges (./relaciones.js), leídos en la
+			// misma consulta: la metadata lleva las listas enteras.
+			data: withContentEdges(String(r.type), /** @type {Record<string, any>} */ (data), {
+				personas: r.type === EVENT_TYPE ? personaEdgesFromColumn(r.persona_edges) : [],
+				tags: tagEdgesFromColumn(r.tag_edges)
+			}),
 			visibility: String(r.visibility)
 		};
 		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
@@ -420,7 +417,7 @@ export async function siteContent(
 	if (!ref) return null;
 	const found = await getObject(db, { id: ref.id }, viewer);
 	if (!found) return null;
-	const [object] = await hydratePersonas(db, [found]);
+	const [object] = await hydrateContent(db, [found]);
 	const postID = ref.legacySlug ?? object.slug;
 	const post = await processPost(
 		undefined,

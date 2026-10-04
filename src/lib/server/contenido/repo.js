@@ -36,13 +36,9 @@ import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
 import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
-import {
-	dehydratePersonas,
-	personaEdgesColumn,
-	personaEdgesFromColumn,
-	personaEdgesOf,
-	withPersonaEdges
-} from './personasEdges.js';
+import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
+import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
+import { contentEdgesOf, dehydrateContent, withContentEdges } from './relaciones.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -162,17 +158,18 @@ export async function findDbPostObject(db, category, slug) {
 	// tipo por el `OR` entre las dos tablas. Mismo orden: primero la dirección vieja, después la del
 	// objeto.
 	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
-	// Los edges `persona` van en la misma consulta (./personasEdges.js): la lista de personas entera.
+	// Los edges `persona` y `etiqueta` van en la misma consulta (./relaciones.js): las listas de
+	// personas y de etiquetas enteras.
 	const row = await db
 		.prepare(
-			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges FROM (
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges, tag_edges FROM (
 				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
-					0 AS pri FROM content_sources s
+					${tagEdgesColumn('o')} AS tag_edges, 0 AS pri FROM content_sources s
 				JOIN objects o ON o.id = s.object_id AND o.type = ?1
 				WHERE s.category = ?2 AND s.legacy_slug = ?3
 				UNION ALL
 				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
-					1 AS pri FROM objects o
+					${tagEdgesColumn('o')} AS tag_edges, 1 AS pri FROM objects o
 				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
 				WHERE o.type = ?1 AND o.slug = ?3
 			) ORDER BY pri LIMIT 1`
@@ -181,14 +178,17 @@ export async function findDbPostObject(db, category, slug) {
 		.first();
 	if (!row) return null;
 	// El objeto como lo da getObject(): sin la dirección vieja.
-	const { legacy_slug: legacy, persona_edges: personas, ...columns } = row;
+	const { legacy_slug: legacy, persona_edges: personas, tag_edges: tags, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
 	const seen = forViewer(object, PANEL);
-	const full =
-		seen.type === 'evento'
-			? { ...seen, data: withPersonaEdges(seen.data, personaEdgesFromColumn(personas)) }
-			: seen;
+	const full = {
+		...seen,
+		data: withContentEdges(seen.type, seen.data, {
+			personas: personaEdgesFromColumn(personas),
+			tags: tagEdgesFromColumn(tags)
+		})
+	};
 	return asPostObject(category, full, legacy ? String(legacy) : null);
 }
 
@@ -321,12 +321,14 @@ async function readPostsStamp(db, type, category) {
 				(SELECT max(id) FROM object_revisions) AS v,
 				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
 				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su,
-				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu,
+				(SELECT max(updated_at) FROM objects WHERE type = 'etiqueta') AS tu`
 		)
 		.bind(type, category)
 		.first();
-	// `pu`: la dirección de los perfiles de las personas (edges, ./personasEdges.js).
-	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}:${row?.pu}`;
+	// `pu`: la dirección de los perfiles de las personas (edges, ./personasEdges.js); `tu`: el `key`
+	// de las etiquetas (edges, ./etiquetasEdges.js).
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}:${row?.pu}:${row?.tu}`;
 }
 
 /**
@@ -345,15 +347,16 @@ async function readDbPostRows(db, type, category) {
 		)
 		.bind(type, category)
 		.all();
-	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js). Guardar un
-	// edge pasa por saveObject(), que cambia `updated_at`: la marca de arriba lo nota.
-	const personas = await personaEdgesOf(
+	// Con las listas de personas y de etiquetas enteras (los perfiles y las etiquetas son edges:
+	// ./relaciones.js), en una consulta para todos. Guardar un edge pasa por saveObject(), que
+	// cambia `updated_at`: la marca de arriba lo nota.
+	const linked = await contentEdgesOf(
 		db,
 		results.map((r) => Number(r.id))
 	);
-	if (!personas.size) return results;
+	if (!linked.size) return results;
 	return results.map((r) => {
-		const edges = personas.get(Number(r.id));
+		const edges = linked.get(Number(r.id));
 		if (!edges) return r;
 		let data;
 		try {
@@ -361,7 +364,7 @@ async function readDbPostRows(db, type, category) {
 		} catch {
 			return r;
 		}
-		return { ...r, data: JSON.stringify(withPersonaEdges(data, edges)) };
+		return { ...r, data: JSON.stringify(withContentEdges(String(r.type), data, edges)) };
 	});
 }
 
@@ -675,8 +678,8 @@ async function writePost(db, w, actor) {
 			{ actor, also }
 		);
 	}
-	// Los perfiles de `personas` van como edges, no en `data` (./personasEdges.js).
-	const { data, edges } = await dehydratePersonas(
+	// Los perfiles de `personas` y las etiquetas van como edges, no en `data` (./relaciones.js).
+	const { data, edges } = await dehydrateContent(
 		db,
 		w.category,
 		/** @type {Record<string, unknown>} */ (w.data)

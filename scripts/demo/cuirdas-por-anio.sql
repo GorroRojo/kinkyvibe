@@ -79,20 +79,38 @@ WHERE c.type = 'etiqueta' AND c.deleted_at IS NULL
 	AND json_extract(c.data, '$.key') IN ('Cuirdas Sudacas 2025', 'Cuirdas Sudacas 2026');
 
 -- 2. Cada edición en la base suma la etiqueta de su año (si esa serie existe y no la tiene ya).
+-- Desde la migración 0042 las etiquetas que existen son edges `etiqueta` (evento → etiqueta) y en
+-- `data.tags` quedan solo los nombres sueltos: «Cuirdas Sudacas» se busca en los dos lados. La de
+-- su año se suma como nombre en `data.tags` (al final de la lista, como antes): el sitio la lee
+-- igual (src/lib/server/contenido/etiquetasEdges.js) y el próximo guardado del evento la pasa a
+-- edge.
 UPDATE objects
-SET data = json_insert(data, '$.tags[#]',
-		'Cuirdas Sudacas ' || substr(json_extract(data, '$.start'), 1, 4)),
+SET data = json_set(data, '$.tags', json_insert(coalesce(json_extract(data, '$.tags'), '[]'), '$[#]',
+		'Cuirdas Sudacas ' || substr(json_extract(data, '$.start'), 1, 4))),
 	version = version + 1,
 	updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000,
 	updated_by = 'demo:cuirdas-por-anio'
 WHERE type = 'evento' AND deleted_at IS NULL
 	AND substr(json_extract(data, '$.start'), 1, 4) IN ('2025', '2026')
-	AND EXISTS (
-		SELECT 1 FROM json_each(objects.data, '$.tags') AS t WHERE t.value = 'Cuirdas Sudacas'
+	AND (
+		EXISTS (
+			SELECT 1 FROM json_each(objects.data, '$.tags') AS t WHERE t.value = 'Cuirdas Sudacas'
+		)
+		OR EXISTS (
+			SELECT 1 FROM edges AS e JOIN objects AS s ON s.id = e.to_id
+			WHERE e.from_id = objects.id AND e.kind = 'etiqueta'
+				AND json_extract(s.data, '$.key') = 'Cuirdas Sudacas'
+		)
 	)
 	AND NOT EXISTS (
 		SELECT 1 FROM json_each(objects.data, '$.tags') AS t
 		WHERE t.value = 'Cuirdas Sudacas ' || substr(json_extract(objects.data, '$.start'), 1, 4)
+	)
+	AND NOT EXISTS (
+		SELECT 1 FROM edges AS e JOIN objects AS s ON s.id = e.to_id
+		WHERE e.from_id = objects.id AND e.kind = 'etiqueta'
+			AND json_extract(s.data, '$.key') =
+				'Cuirdas Sudacas ' || substr(json_extract(objects.data, '$.start'), 1, 4)
 	)
 	AND EXISTS (
 		SELECT 1 FROM objects AS s
