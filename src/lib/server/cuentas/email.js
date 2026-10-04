@@ -33,7 +33,7 @@ const codeBlock = (code) =>
  */
 export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	const vence = expires({ now, expiresAt });
-	const subject = 'Tu código para ingresar a KinkyVibe';
+	const subject = 'Tu código para ingresar a Kinky Vibe';
 	const text = [
 		'Hola:',
 		'',
@@ -75,7 +75,7 @@ const CONFIRM_WHAT = {
 export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin }) {
 	const vence = expires({ now, expiresAt });
 	const what = CONFIRM_WHAT[purpose];
-	const subject = 'Tu código para confirmar en KinkyVibe';
+	const subject = 'Tu código para confirmar en Kinky Vibe';
 	const text = [
 		'Hola:',
 		'',
@@ -109,7 +109,7 @@ export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin })
  * @returns {{ subject: string, html: string, text: string }}
  */
 export function buildProfileInviteEmail({ groupTitle, url, origin }) {
-	const subject = 'Te invitaron a gestionar un perfil en KinkyVibe';
+	const subject = 'Te invitaron a gestionar un perfil en Kinky Vibe';
 	const text = [
 		'Hola:',
 		'',

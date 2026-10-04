@@ -386,7 +386,7 @@ aprobar").
   acepta (queda como `manager`) o la rechaza.
 - **Aviso por mail de la invitación.** Si hay una cuenta verificada y no borrada con ese mail (y
   todavía no gestiona el proyecto), le llega un aviso corto: "Te invitaron a gestionar un perfil en
-  KinkyVibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
+  Kinky Vibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
   quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos de ingreso
   (`deliverEmail`, que en los previews respeta `EMAIL_ALLOWLIST`).
 
