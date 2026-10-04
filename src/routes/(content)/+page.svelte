@@ -17,7 +17,7 @@
 			.catch(() => (loadedPast = false));
 	}
 
-	const title = 'KinkyVibe.ar';
+	const title = 'Kinky Vibe';
 	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
@@ -35,7 +35,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar</title>
+	<title>Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />

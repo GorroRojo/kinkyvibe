@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-	<title>Dejá una propina - KinkyVibe.ar</title>
+	<title>Dejá una propina · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

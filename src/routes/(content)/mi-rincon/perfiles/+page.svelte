@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-	<title>Perfiles - Mi rincón - KinkyVibe.ar</title>
+	<title>Perfiles · Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

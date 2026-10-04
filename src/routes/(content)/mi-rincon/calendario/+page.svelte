@@ -22,7 +22,7 @@
 </script>
 
 <svelte:head>
-	<title>Tu calendario - KinkyVibe.ar</title>
+	<title>Tu calendario · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

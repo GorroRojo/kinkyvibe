@@ -16,8 +16,10 @@
  * (../contenido/markdown.js) para reusar `buildImportedEvent` y el editor de entradas tal cual;
  * nunca se escribe un archivo.
  *
- * Lo que no se copia: la imagen propia del evento original (un número, en la carpeta del evento en
- * el repo: las imágenes todavía no están en la base); una imagen compartida (`src/lib/assets`) sí.
+ * La imagen: si el original tiene una de la biblioteca (edge `portada` a un objeto `imagen`), el
+ * borrador usa la misma (otro edge `portada` a esa imagen), como al duplicar desde el editor. Lo
+ * que no se copia: la imagen vieja propia del original (un número, en la carpeta del evento en el
+ * repo) cuando no tiene una de la biblioteca; una imagen compartida (`src/lib/assets`) sí.
  */
 import { parseDocument } from 'yaml';
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
@@ -27,6 +29,7 @@ import { markdownToPost } from '$lib/server/contenido/markdown.js';
 import { dehydrateContent } from '$lib/server/contenido/relaciones.js';
 import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { eventVenue } from '$lib/server/amigues/venues.js';
+import { imageOf } from '$lib/server/media/library.js';
 import { ObjectError } from '$lib/server/objects/errors.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
@@ -50,15 +53,28 @@ import {
 } from '$lib/utils/ticketsEditor.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
+
+/** Viewer de admin para leer la imagen del original (ve también las ocultas). */
+const PANEL = /** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
+	role: 'admin',
+	id: 'panel'
+});
 /** @typedef {import('$lib/utils/ticketsEditor.js').TicketsForm} TicketsForm */
 /** @typedef {import('$lib/utils/sourcePicker.js').ImportSource} ImportSource */
 
 /**
- * Filas por importación. Cada fila son unas pocas consultas a D1 (leer el original una vez por
- * evento, los perfiles de `personas`, el guardado con su historial); 40 es el mismo tope que la
- * importación de los `.md` (../contenido/importer.js), lejos del máximo de consultas por pedido.
+ * Filas por importación (lo que se puede pegar y crear de una vez). No van todas en un pedido: la
+ * página las manda de a {@link IMPORT_CHUNK}.
  */
-export const IMPORT_MAX_ROWS = 40;
+export const IMPORT_MAX_ROWS = 200;
+
+/**
+ * Filas por pedido. Cada fila son unas pocas consultas a D1 (leer el original una vez por evento,
+ * los perfiles de `personas`, el guardado con su historial); 40 es el mismo tope que la importación
+ * de los `.md` (../contenido/importer.js), lejos del máximo de consultas por pedido. La página
+ * repite pedidos de a 40 (primero revisa todas, después guarda) hasta terminar.
+ */
+export const IMPORT_CHUNK = 40;
 
 /** Las claves de la venta de entradas (y la meta) que el editor de entradas lee de un evento. */
 export const TICKET_META_KEYS = /** @type {const} */ ([
@@ -208,6 +224,13 @@ function withTickets(content, form) {
  * falla a mitad de camino (por ejemplo, alguien usó la dirección recién), los anteriores quedan
  * guardados y se informa cuál falló (`failed`).
  *
+ * Por tandas (la página manda de a {@link IMPORT_CHUNK}): `dryRun` solo arma y valida (no guarda
+ * nada); `allSlugs` son las direcciones de toda la importación, para que la dirección que se
+ * propone ante un choque no choque con otra fila de otra tanda. Todas las tandas de una importación
+ * usan el mismo `now`: una fila cuya dirección ya es un evento creado por `actor` justo en `now` es
+ * de esta misma importación (una tanda que se reintentó porque se cortó la respuesta), así que no
+ * se vuelve a crear ni cuenta como choque: vuelve en `created` con `again: true`.
+ *
  * @param {D1Database} db
  * @param {{
  *   rows: ImportRow[],
@@ -215,24 +238,30 @@ function withTickets(content, form) {
  *   superadmin?: boolean,
  *   today: string,
  *   taken: Set<string>,
- *   now?: number
+ *   now?: number,
+ *   dryRun?: boolean,
+ *   allSlugs?: Iterable<string>
  * }} input
  * @returns {Promise<
  *   | { ok: false, status: 400, rowErrors: Record<number, string> }
  *   | { ok: false, status: 409, conflicts: Record<number, string> }
- *   | { ok: true, created: CreatedDraft[], failed: { index: number, slug: string, message: string } | null }
+ *   | { ok: true, created: Array<CreatedDraft & { again?: boolean }>, failed: { index: number, slug: string, message: string } | null }
  * >}
  */
 export async function createImportedDrafts(
 	db,
-	{ rows, actor, superadmin = true, today, taken, now = Date.now() }
+	{ rows, actor, superadmin = true, today, taken, now = Date.now(), dryRun = false, allSlugs = [] }
 ) {
-	// Direcciones ocupadas: se propone otra (libre también dentro de la tanda).
+	// Filas que ya guardó esta misma importación (una tanda reintentada): no se crean de nuevo.
+	/** @type {Map<string, { id: number, slug: string, title: string }>} */
+	const already = dryRun ? new Map() : await savedByThisImport(db, rows, actor, now);
+
+	// Direcciones ocupadas: se propone otra (libre también dentro de toda la importación).
 	/** @type {Record<number, string>} */
 	const conflicts = {};
-	const batch = new Set(rows.map((r) => r.slug));
+	const batch = new Set([...allSlugs, ...rows.map((r) => r.slug)]);
 	rows.forEach((row, i) => {
-		if (taken.has(row.slug))
+		if (taken.has(row.slug) && !already.has(row.slug))
 			conflicts[i] = uniqueSlug(row.slug, (s) => taken.has(s) || batch.has(s));
 	});
 	if (Object.keys(conflicts).length) return { ok: false, status: 409, conflicts };
@@ -240,8 +269,8 @@ export async function createImportedDrafts(
 	const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
 		coreTypes.get(EVENT_TYPE)
 	);
-	/** Cada original se lee una vez (texto, objeto y lugar). */
-	/** @type {Map<string, Promise<{ file: Awaited<ReturnType<typeof findDbPost>>, venue: Awaited<ReturnType<typeof eventVenue>> }>>} */
+	/** Cada original se lee una vez (texto, objeto, lugar e imagen de la biblioteca). */
+	/** @type {Map<string, Promise<{ file: Awaited<ReturnType<typeof findDbPost>>, venue: Awaited<ReturnType<typeof eventVenue>>, image: Awaited<ReturnType<typeof imageOf>> }>>} */
 	const sources = new Map();
 	/** @param {string} slug */
 	const sourceOf = (slug) => {
@@ -249,8 +278,10 @@ export async function createImportedDrafts(
 		if (!p) {
 			p = (async () => {
 				const file = await findDbPost(db, EVENT_CATEGORY, slug);
-				const venue = file && !file.deleted ? await eventVenue(db, slug) : null;
-				return { file, venue };
+				const alive = file && !file.deleted;
+				const venue = alive ? await eventVenue(db, slug) : null;
+				const image = alive ? await imageOf(db, file.object.id, 'portada', PANEL) : null;
+				return { file, venue, image };
 			})();
 			sources.set(slug, p);
 		}
@@ -262,6 +293,7 @@ export async function createImportedDrafts(
 	/** @type {Array<{ index: number, row: ImportRow, title: string, data: Record<string, unknown>, edges: Record<string, unknown[]>, visibility: 'public' | 'hidden', notes: string[] }>} */
 	const planned = [];
 	for (const [i, row] of rows.entries()) {
+		if (already.has(row.slug)) continue;
 		try {
 			const src = row.source ? await sourceOf(row.source) : null;
 			if (row.source && (!src?.file || src.file.deleted)) {
@@ -280,9 +312,18 @@ export async function createImportedDrafts(
 			const notes = [...built.notes];
 			let content = built.content;
 			if (edited) content = withTickets(content, row.tickets);
-			// La imagen propia del original está en el repo: no se copia (las imágenes todavía no
-			// están en la base). Una compartida (src/lib/assets) sirve tal cual.
-			if (!fromTemplate && isNumericFeatured(built.featured)) {
+			// La imagen de la biblioteca del original (edge `portada`) se reusa: el borrador apunta a
+			// la misma imagen y la vieja del repo (`featured`) sobra.
+			const image = src?.image ?? null;
+			if (image) {
+				const fm = splitMarkdown(content);
+				content = joinMarkdown(
+					applyFrontmatterChanges(fm.frontmatter, { featured: REMOVE }),
+					fm.body
+				);
+			} else if (!fromTemplate && isNumericFeatured(built.featured)) {
+				// Sin imagen de la biblioteca, la propia del original está en el repo: no se copia.
+				// Una compartida (src/lib/assets) sirve tal cual.
 				const fm = splitMarkdown(content);
 				content = joinMarkdown(
 					applyFrontmatterChanges(fm.frontmatter, { featured: REMOVE }),
@@ -314,6 +355,7 @@ export async function createImportedDrafts(
 				? { location: '', location_name: '' }
 				: readEventFields(splitMarkdown(raw).frontmatter);
 			const placeChanged = placeFields(row.place ?? '', sourceFields).changed;
+			if (image) allEdges.portada = [image.id];
 			if (src?.venue && !placeChanged) {
 				allEdges.lugar = [
 					{
@@ -336,10 +378,18 @@ export async function createImportedDrafts(
 		}
 	}
 	if (Object.keys(rowErrors).length) return { ok: false, status: 400, rowErrors };
+	if (dryRun) return { ok: true, created: [], failed: null };
 
-	/** @type {CreatedDraft[]} */
+	/** @type {Array<CreatedDraft & { again?: boolean }>} */
 	const created = [];
-	for (const p of planned) {
+	const plannedByIndex = new Map(planned.map((p) => [p.index, p]));
+	for (const [index, row] of rows.entries()) {
+		const done = already.get(row.slug);
+		if (done) {
+			created.push({ ...done, source: row.source, notes: [], again: true });
+			continue;
+		}
+		const p = /** @type {(typeof planned)[number]} */ (plannedByIndex.get(index));
 		try {
 			const saved = await saveObject(
 				db,
@@ -371,4 +421,33 @@ export async function createImportedDrafts(
 		}
 	}
 	return { ok: true, created, failed: null };
+}
+
+/**
+ * Los eventos de `rows` que ya creó esta importación: misma dirección, creados por `actor` justo en
+ * `now` (todas las tandas de una importación guardan con el mismo `now`).
+ *
+ * @param {D1Database} db
+ * @param {ImportRow[]} rows
+ * @param {string} actor
+ * @param {number} now
+ * @returns {Promise<Map<string, { id: number, slug: string, title: string }>>}
+ */
+async function savedByThisImport(db, rows, actor, now) {
+	const slugs = [...new Set(rows.map((r) => r.slug).filter(Boolean))];
+	/** @type {Map<string, { id: number, slug: string, title: string }>} */
+	const out = new Map();
+	if (!slugs.length) return out;
+	const marks = slugs.map((_, i) => `?${i + 4}`).join(', ');
+	const { results } = await db
+		.prepare(
+			`SELECT id, slug, title FROM objects
+			 WHERE type = ?1 AND created_by = ?2 AND created_at = ?3 AND slug IN (${marks})`
+		)
+		.bind(EVENT_TYPE, actor, now, ...slugs)
+		.all();
+	for (const r of results) {
+		out.set(String(r.slug), { id: Number(r.id), slug: String(r.slug), title: String(r.title) });
+	}
+	return out;
 }

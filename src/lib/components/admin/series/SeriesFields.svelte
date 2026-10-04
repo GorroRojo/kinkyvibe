@@ -58,8 +58,8 @@
 					>{/each}
 			</select>
 			<small class="muted">
-				Para una serie por año (como «Cuirdas Sudacas 2026») o una edición especial. Sus eventos
-				llevan las dos etiquetas: la de esta serie y la de la madre.
+				Para una edición especial (como «Picantearla: Deluxe»). Sus eventos llevan las dos
+				etiquetas: la de esta serie y la de la madre.
 			</small>
 		</label>
 	{/if}

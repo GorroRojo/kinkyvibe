@@ -81,7 +81,7 @@
 			title: '¿Borrar esta nota?',
 			text: note.body,
 			confirmLabel: 'Borrar',
-			tone: 'danger'
+			tone: 'permanent'
 		});
 		if (!ok || !note) return;
 		busy = true;

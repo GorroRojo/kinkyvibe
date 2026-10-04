@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<title>Telegram - KinkyVibe.ar</title>
+	<title>Telegram · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

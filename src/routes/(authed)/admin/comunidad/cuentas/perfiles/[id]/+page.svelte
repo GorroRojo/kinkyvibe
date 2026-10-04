@@ -2,7 +2,8 @@
 	/**
 	 * Ficha de un perfil: datos (tipo, visibilidad, presentación, links), quiénes lo gestionan
 	 * (con link a cada cuenta) y las acciones de admins: marcar como revisado, ocultar y borrar.
-	 * Borrar se confirma en la misma página (sin ventanas de confirmación).
+	 * Borrar se confirma en la misma página (sin ventanas de confirmación) y después ofrece
+	 * «Deshacer» (también se puede recuperar desde Actividad).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -15,11 +16,13 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ClaimsCard from '$lib/components/admin/amigues/ClaimsCard.svelte';
+	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 
 	export let data;
 	export let form;
 
 	$: p = data.profile;
+	$: deleted = form && 'deleted' in form ? form.deleted : null;
 	let busy = '';
 
 	/** @param {string} name */
@@ -59,7 +62,18 @@
 	</svelte:fragment>
 </PageHeader>
 
-{#if form?.perfil}
+{#if deleted && p.deletedAt}
+	<form method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
+		<input type="hidden" name="id" value={deleted.id} />
+		<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
+		<UndoToast busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
+	</form>
+	<p class="kv-note">
+		Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"
+			>Actividad</a
+		>.
+	</p>
+{:else if form?.perfil}
 	<p class="kv-flash" class:bad={!form.perfil.ok} role="status">{form.perfil.message}</p>
 {/if}
 
@@ -181,8 +195,8 @@
 		<details class="danger">
 			<summary>Borrar el perfil</summary>
 			<p>
-				Deja de verse en todos lados, también para quienes lo gestionan. Es un borrado suave: se
-				puede deshacer desde la base, pero no desde el panel.
+				Deja de verse en todos lados, también para quienes lo gestionan. Lo podés deshacer enseguida
+				o recuperarlo después desde Actividad.
 			</p>
 			<form method="POST" action="?/borrar" use:enhance={submit('borrar')}>
 				<input type="hidden" name="version" value={p.version} />

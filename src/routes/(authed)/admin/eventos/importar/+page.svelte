@@ -337,82 +337,234 @@
 		isValidTime(item.startTime) && isValidTime(item.endTime) && item.endTime <= item.startTime;
 
 	/* ---------- create ---------- */
+	// Se guarda de a tandas (`data.chunk` filas por pedido, como Contenido → Importar): primero se
+	// revisan todas las tandas (`dryRun`, no guarda nada) y, si ninguna tiene problemas, se guardan
+	// una tras otra. Todas las tandas llevan el mismo `importAt`: si se corta y se reintenta una,
+	// el servidor reconoce lo que ya guardó y no lo duplica.
 	let confirming = false;
 	let submitting = false;
 	let globalError = '';
-	/** @type {null | {created: Array<{slug: string, title: string, url: string, notes: string[]}>, failed: null | {slug: string, title: string, message: string, pending: number}}} */
+	/** @typedef {{slug: string, title: string, url: string, notes: string[]}} Created */
+	/** @type {null | {created: Created[], failed: null | {slug: string, title: string, message: string, pending: number}}} */
 	let sent = null;
+	/** @type {null | { phase: 'check' | 'save', done: number, total: number }} */
+	let progress = null;
+	/**
+	 * La importación en curso (desde que se empezó a guardar): si se corta, «Seguir guardando»
+	 * retoma desde `next` con el mismo `importAt`.
+	 * @type {null | { list: Item[], payload: any[], allSlugs: string[], importAt: number, next: number, created: Created[] }}
+	 */
+	let run = null;
+
+	/** @param {Item} i */
+	const payloadOf = (i) => ({
+		title: i.title.trim(),
+		date: i.date,
+		startTime: i.startTime,
+		endTime: i.endTime,
+		place: i.place,
+		link: normalizeLink(i.link),
+		price: i.sheet.price,
+		source: i.source,
+		slug: i.slug.trim(),
+		// Only when they were changed: if not, the server copies the source's (and the price).
+		tickets: ticketsEdited(i) ? i.tickets : null
+	});
+
+	/**
+	 * @param {any[]} rows
+	 * @param {string[]} allSlugs
+	 * @param {{ dryRun?: boolean, importAt?: number }} opts
+	 * @returns {Promise<any>}
+	 */
+	async function postChunk(rows, allSlugs, { dryRun = false, importAt } = {}) {
+		const body = new FormData();
+		body.set('rows', JSON.stringify(rows));
+		body.set('allSlugs', JSON.stringify(allSlugs));
+		if (dryRun) body.set('dryRun', '1');
+		if (importAt) body.set('importAt', String(importAt));
+		const response = await fetch('?/crear', {
+			method: 'POST',
+			body,
+			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
+		});
+		return deserialize(await response.text());
+	}
+
+	/**
+	 * A failure before anything was saved: marks the rows (indexes are the chunk's, from `from`).
+	 * @param {any} result
+	 * @param {Item[]} list
+	 * @param {number} from
+	 */
+	async function showFailure(result, list, from) {
+		if (result.type === 'failure') {
+			globalError = result.data?.error ?? 'No se pudo guardar.';
+			for (const [i, msg] of Object.entries(result.data?.rowErrors ?? {})) {
+				const item = list[from + Number(i)];
+				if (item) {
+					item.serverError = String(msg);
+					item.open = true;
+				}
+			}
+			for (const [i, suggestion] of Object.entries(result.data?.conflicts ?? {})) {
+				const item = list[from + Number(i)];
+				if (item) {
+					item.slug = String(suggestion);
+					item.slugEdited = true;
+					item.notes = [
+						...item.notes,
+						`La dirección que habíamos propuesto ya existía: ahora es “${suggestion}”.`
+					];
+					item.open = true;
+				}
+			}
+			items = items;
+		} else if (result.type === 'error') {
+			globalError = result.error?.message ?? 'Algo salió mal.';
+		} else {
+			await applyAction(result);
+		}
+	}
+
+	/** Everything (or part of it) was saved: show the result. @param {null | {slug: string, title: string, message: string}} failed */
+	function finish(failed) {
+		if (!run) return;
+		const total = run.payload.length;
+		sent = {
+			created: run.created,
+			failed: failed ? { ...failed, pending: Math.max(0, total - run.created.length - 1) } : null
+		};
+		run = null;
+		items = [];
+		text = '';
+		readOnce = false;
+	}
+
+	/** Saves the chunks from `run.next` on. */
+	async function saveChunks() {
+		if (!run) return;
+		const r = run;
+		const total = r.payload.length;
+		while (r.next < total) {
+			const from = r.next;
+			progress = { phase: 'save', done: Math.min(from + data.chunk, total), total };
+			/** @type {any} */
+			let result;
+			try {
+				result = await postChunk(r.payload.slice(from, from + data.chunk), r.allSlugs, {
+					importAt: r.importAt
+				});
+			} catch {
+				result = { type: 'error', error: { message: '' } };
+			}
+			if (result.type === 'success') {
+				r.created = [...r.created, ...(result.data?.created ?? [])];
+				r.next = from + data.chunk;
+				run = r;
+				const failed = result.data?.failed;
+				if (failed) {
+					const title = r.list[from + Number(failed.index)]?.title ?? failed.slug;
+					finish({ slug: failed.slug, title, message: failed.message });
+					return;
+				}
+				continue;
+			}
+			if (result.type === 'failure' && !r.created.length) {
+				// Nothing saved yet (someone took an address since the check): as before.
+				run = null;
+				await showFailure(result, r.list, from);
+				return;
+			}
+			if (result.type === 'failure') {
+				const [i, message] = Object.entries(result.data?.rowErrors ?? {})[0] ??
+					Object.entries(result.data?.conflicts ?? {}).map(([k]) => [
+						k,
+						'la dirección ya existe'
+					])[0] ?? ['0', result.data?.error ?? 'no se pudo guardar'];
+				const item = r.list[from + Number(i)];
+				finish({ slug: item?.slug ?? '', title: item?.title ?? '', message: String(message) });
+				return;
+			}
+			// Cut off (no connection or a server error): keep `run` to resume with the same importAt.
+			globalError = `Se cortó a mitad de camino: se ${r.created.length === 1 ? 'guardó' : 'guardaron'} ${r.created.length} de ${total}. Tocá «Seguir guardando» para terminar (lo que ya se guardó no se duplica).`;
+			return;
+		}
+		finish(null);
+	}
 
 	async function create() {
 		submitting = true;
 		globalError = '';
 		for (const item of items) item.serverError = '';
-		const payload = included.map((i) => ({
-			title: i.title.trim(),
-			date: i.date,
-			startTime: i.startTime,
-			endTime: i.endTime,
-			place: i.place,
-			link: normalizeLink(i.link),
-			price: i.sheet.price,
-			source: i.source,
-			slug: i.slug.trim(),
-			// Only when they were changed: if not, the server copies the source's (and the price).
-			tickets: ticketsEdited(i) ? i.tickets : null
-		}));
+		const list = included.slice();
+		const payload = list.map(payloadOf);
+		const allSlugs = payload.map((p) => p.slug);
+		const total = payload.length;
 		try {
-			const body = new FormData();
-			body.set('rows', JSON.stringify(payload));
-			const response = await fetch('?/crear', {
-				method: 'POST',
-				body,
-				headers: { accept: 'application/json', 'x-sveltekit-action': 'true' }
-			});
-			/** @type {any} */
-			const result = deserialize(await response.text());
-			if (result.type === 'success') {
-				sent = result.data;
-				items = [];
-				text = '';
-				readOnce = false;
-			} else if (result.type === 'failure') {
-				globalError = result.data?.error ?? 'No se pudo guardar.';
-				for (const [i, msg] of Object.entries(result.data?.rowErrors ?? {})) {
-					const item = included[Number(i)];
-					if (item) {
-						item.serverError = String(msg);
-						item.open = true;
-					}
+			// 1. Revisar todas las tandas (no guarda nada).
+			for (let from = 0; from < total; from += data.chunk) {
+				progress = { phase: 'check', done: Math.min(from + data.chunk, total), total };
+				const result = await postChunk(payload.slice(from, from + data.chunk), allSlugs, {
+					dryRun: true
+				});
+				if (result.type !== 'success') {
+					await showFailure(result, list, from);
+					return;
 				}
-				for (const [i, suggestion] of Object.entries(result.data?.conflicts ?? {})) {
-					const item = included[Number(i)];
-					if (item) {
-						item.slug = String(suggestion);
-						item.slugEdited = true;
-						item.notes = [
-							...item.notes,
-							`La dirección que habíamos propuesto ya existía: ahora es “${suggestion}”.`
-						];
-						item.open = true;
-					}
-				}
-				items = items;
-			} else if (result.type === 'error') {
-				globalError = result.error?.message ?? 'Algo salió mal.';
-			} else {
-				await applyAction(result);
 			}
+			// 2. Guardar, de a tandas.
+			run = { list, payload, allSlugs, importAt: Date.now(), next: 0, created: [] };
+			await saveChunks();
 		} catch (e) {
 			globalError = 'No pudimos conectarnos con el sitio. ¿Tenés internet?';
 		} finally {
 			submitting = false;
-			confirming = false;
+			progress = null;
+			if (!run) confirming = false;
 		}
+		await scrollToResult();
+	}
+
+	async function resume() {
+		submitting = true;
+		globalError = '';
+		try {
+			await saveChunks();
+		} finally {
+			submitting = false;
+			progress = null;
+			if (!run) confirming = false;
+		}
+		await scrollToResult();
+	}
+
+	/** Stop after a cut: show what was saved. */
+	function stopHere() {
+		if (!run) return;
+		const r = run;
+		const item = r.list[r.next];
+		globalError = '';
+		confirming = false;
+		finish({
+			slug: item?.slug ?? '',
+			title: item?.title ?? '',
+			message: 'se cortó la conexión antes de guardarla'
+		});
+	}
+
+	async function scrollToResult() {
 		await tick();
 		document
 			.querySelector('.result, .global-error')
 			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
+
+	/** @param {{ phase: 'check' | 'save', done: number, total: number }} p */
+	const progressText = (p) =>
+		p.phase === 'check'
+			? `Revisando ${p.done} de ${p.total}…`
+			: `Guardando ${p.done} de ${p.total}…`;
 
 	/** @param {number} n @param {string} one @param {string} many */
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -767,12 +919,23 @@
 						<button class="button big" disabled={!canCreate} on:click={() => (confirming = true)}>
 							Crear {plural(included.length, 'borrador', 'borradores')}
 						</button>
+					{:else if run && !submitting}
+						<div class="confirm" role="alertdialog" aria-labelledby="resume-text">
+							<p id="resume-text">
+								Se guardaron {run.created.length} de {run.payload.length}.
+							</p>
+							<button class="button secondary" on:click={stopHere}>Dejar así</button>
+							<button class="button" id="resume-create" on:click={resume}>Seguir guardando</button>
+						</div>
 					{:else}
 						<div class="confirm" role="alertdialog" aria-labelledby="confirm-text">
 							<p id="confirm-text">
 								Se van a crear <strong
 									>{plural(included.length, 'evento', 'eventos')} no listados</strong
-								> en el sitio, todos juntos. ¿Seguimos?
+								>
+								en el sitio.
+								{#if included.length > data.chunk}Se guardan de a {data.chunk}: no cierres la página
+									hasta que termine.{/if} ¿Seguimos?
 							</p>
 							<button
 								class="button secondary"
@@ -782,6 +945,12 @@
 							<button class="button" id="confirm-create" on:click={create} disabled={submitting}>
 								{submitting ? 'Guardando…' : 'Sí, crear'}
 							</button>
+							{#if progress}
+								<p class="progress" aria-live="polite">
+									<progress max={progress.total} value={progress.done}></progress>
+									{progressText(progress)}
+								</p>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -1084,6 +1253,17 @@
 		p {
 			flex-basis: 100%;
 			margin: 0;
+		}
+		.progress {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: var(--space-3xs);
+			font-size: var(--text-sm);
+			progress {
+				width: min(100%, 20rem);
+				accent-color: var(--1);
+			}
 		}
 	}
 	.result {

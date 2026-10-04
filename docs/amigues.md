@@ -49,6 +49,10 @@ algo, escribir la dirección para confirmar).
   saltean los perfiles borrados (`visibleWhere`, `getEdges`, `eventVenue`), así que dejan de
   aparecer y vuelven al deshacer. Un evento cuyo lugar se borró muestra su «Dónde» en texto libre,
   si tiene (también en los mails de las entradas): la página de borrar lo avisa.
+- **Ficha del perfil en Comunidad › Cuentas** (`/admin/comunidad/cuentas/perfiles/<id>`):
+  «Borrar el perfil» usa el mismo borrado (`deleteDbProfile`, con su fila `objeto:perfil:<id>` en
+  `panel_deletions`), así que muestra «Deshacer» enseguida (`?/deshacer`,
+  `undoDbProfileDeletionById`) y queda en «Recuperar» de Actividad (gorrite, 4/10).
 - **Ficha con `.md`** (importada): como antes, por GitHub (el editor del `.md`). El editor de la
   base no ofrece borrarla.
 
@@ -129,8 +133,9 @@ La página del lugar muestra su ubicación según su nivel por defecto (el mapa,
 **El mapa** (`VenueMap.svelte`): baldosas de OpenStreetMap como imágenes comunes con
 `loading="lazy"` (sin librerías, scripts ni iframes de afuera, así que no hace falta tocar la CSP),
 alto fijo (no corre nada al cargar) y ancho que se adapta al celular con el punto en el centro.
-Abajo, «Abrir en OpenStreetMap», «Cómo llegar» (las indicaciones de openstreetmap.org con el
-destino puesto) y el crédito «© colaboradores de OpenStreetMap». Sale solo en "Nombre + dirección"
+Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreetMap» (el botón de
+indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
+del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
 `venues.test.js` y `VenueLocation.test.js`).
 

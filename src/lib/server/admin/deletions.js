@@ -693,6 +693,28 @@ export async function deleteDbProfile(db, actor, profile, { now = Date.now() } =
 }
 
 /**
+ * Deshace el borrado `id` de un perfil de la base (la ficha del perfil en Comunidad › Cuentas, que
+ * no pasa por GitHub ni necesita su token). Mismas reglas que {@link undoDeletion}; un borrado del
+ * repo es un error.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {number} id
+ * @param {{ now?: number }} [opts]
+ */
+export async function undoDbProfileDeletionById(db, actor, id, opts) {
+	const d = await getDeletion(db, id);
+	if (!d) throw new UndoError('No encontramos ese borrado.');
+	if (d.status !== 'borrado')
+		throw new UndoError(
+			d.status === 'deshecho' ? 'Ese borrado ya se deshizo.' : 'Ese perfil ya se recuperó.'
+		);
+	const profileId = dbProfileIdOf(d.path);
+	if (profileId === null) throw new UndoError('Ese borrado no es de un perfil de la base.');
+	return undoDbProfileDeletion(db, actor, d, profileId, opts);
+}
+
+/**
  * Deshace el borrado de un perfil de la base: `deleted_at` vuelve a NULL con saveObject() (con la
  * revisión y el estado del borrado en la misma tanda). Sus relaciones nunca se fueron.
  *

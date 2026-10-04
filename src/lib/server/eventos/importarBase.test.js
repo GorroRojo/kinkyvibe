@@ -11,6 +11,8 @@ import { dehydratePersonas } from '$lib/server/contenido/personasEdges.js';
 import { clearDbPostCache } from '$lib/server/contenido/repo.js';
 import { setEventVenue } from '$lib/server/amigues/venues.js';
 import { readTicketsForm, emptyTicketType } from '$lib/utils/ticketsEditor.js';
+import { storeImage } from '$lib/server/media/library.js';
+import { solidPng } from '$lib/server/media/testing.js';
 import { createImportedDrafts, importSources, takenEventSlugs } from './importarBase.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
@@ -211,6 +213,47 @@ describe('createImportedDrafts: escribe en la base', () => {
 		const o = await objectOf('fiesta-inventada-2099-11');
 		expect(o.data.featured).toBeUndefined();
 		expect(r.ok && r.created[0].notes.join(' ')).toMatch(/imagen del evento anterior no se copia/);
+	});
+
+	it('la imagen de la biblioteca del original se reusa (edge `portada` a la misma imagen), sin aviso', async () => {
+		const { image } = await storeImage(
+			t.db,
+			t.env.MEDIA,
+			{ bytes: solidPng(8, 8), name: 'fiesta.png', alt: 'Cuadrado violeta de prueba' },
+			{ actor: 'prueba' }
+		);
+		const src = /** @type {any} */ (
+			await t.db
+				.prepare(`SELECT id, version FROM objects WHERE type = 'evento' AND slug = ?1`)
+				.bind(SOURCE)
+				.first()
+		);
+		await saveObject(
+			t.db,
+			{ id: src.id, type: 'evento', version: src.version, edges: { portada: [image.id] } },
+			{ actor: 'prueba' }
+		);
+		clearDbPostCache();
+
+		const r = await create([row()]);
+		expect(r.ok).toBe(true);
+		const o = await objectOf('fiesta-inventada-2099-11');
+		expect(o.data.featured).toBeUndefined();
+		expect((await edgesOf(o.id)).filter((e) => e.kind === 'portada')).toEqual([
+			{ kind: 'portada', to: image.id, data: null }
+		]);
+		expect(r.ok && r.created[0].notes.join(' ')).not.toMatch(/imagen del evento anterior/);
+		// El original sigue con su imagen.
+		expect((await edgesOf(src.id)).filter((e) => e.kind === 'portada')).toEqual([
+			{ kind: 'portada', to: image.id, data: null }
+		]);
+	});
+
+	it('desde cero (sin evento anterior) no lleva imagen', async () => {
+		const r = await create([row({ source: '', slug: 'de-cero-inventado-2099-11' })]);
+		expect(r.ok).toBe(true);
+		const o = await objectOf('de-cero-inventado-2099-11');
+		expect((await edgesOf(o.id)).filter((e) => e.kind === 'portada')).toEqual([]);
 	});
 
 	it('un mail de la planilla queda como mailto: y abre la inscripción; tel: también vale', async () => {

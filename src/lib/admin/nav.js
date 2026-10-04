@@ -128,15 +128,15 @@ export const NAV_AREAS = Object.freeze([
 /**
  * Grupos del menú (barra lateral y panel "Más" del celu): el menú simplificado de la revisión de
  * UI (paso 3). Junta áreas chicas con la que se parecen, así arriba hay menos entradas: Inicio,
- * Eventos, Ventas (con Estadísticas), Comunidad (con Mensajes), Contenido (con Etiquetas) y
- * Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
+ * Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas), Estadísticas (sola, por
+ * pedido de gorrite) y Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
  * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
  * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
  * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true }[]}
  */
 export const NAV_GROUPS = Object.freeze([
 	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️', areas: ['eventos'] },
-	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas', 'estadisticas'] },
+	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas'] },
 	{
 		id: 'comunidad',
 		label: 'Comunidad',
@@ -150,6 +150,13 @@ export const NAV_GROUPS = Object.freeze([
 		icon: BookOpen,
 		emoji: '📚',
 		areas: ['contenido', 'etiquetas']
+	},
+	{
+		id: 'estadisticas',
+		label: 'Estadísticas',
+		icon: ChartLine,
+		emoji: '📈',
+		areas: ['estadisticas']
 	},
 	{
 		id: 'ajustes',

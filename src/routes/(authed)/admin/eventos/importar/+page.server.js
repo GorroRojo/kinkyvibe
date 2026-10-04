@@ -13,6 +13,7 @@ import { getDB } from '$lib/server/db';
 import { getEventAdmin, takenSlugsInBundle } from '$lib/server/eventos';
 import { panelAuthor } from '$lib/server/contenido/author.js';
 import {
+	IMPORT_CHUNK,
 	IMPORT_MAX_ROWS,
 	createImportedDrafts,
 	importSources,
@@ -24,9 +25,11 @@ import { seriesTagIds } from '$lib/utils/series.js';
 import { isValidDate, isValidTime, todayInArgentina, validateSlug } from '$lib/utils/eventDraft.js';
 
 const NO_PERMISSION =
-	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
 const NO_DB = 'Sin base de datos: no se puede importar.';
 const MAX_ROWS = IMPORT_MAX_ROWS;
+/** Cuánto puede diferir `importAt` (lo pone la página) de la hora del servidor. */
+const IMPORT_AT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** @param {unknown} e */
 function describeError(e) {
@@ -54,7 +57,7 @@ export async function load({ locals, url, platform }) {
 	const db = getDB(platform);
 	// `dbOn`: hay base (el contenido sale siempre de ahí; ya no hay interruptor `contenido_db`).
 	const dbOn = Boolean(db);
-	const base = { today: todayInArgentina(), maxRows: MAX_ROWS, dbOn };
+	const base = { today: todayInArgentina(), maxRows: MAX_ROWS, chunk: IMPORT_CHUNK, dbOn };
 	if (!db) return { ...base, events: [], takenSlugs: takenSlugsInBundle() };
 	return {
 		...base,
@@ -103,6 +106,20 @@ function rowProblem(row) {
 	return validateSlug(row.slug);
 }
 
+/**
+ * «Crear borradores», de a tandas de {@link IMPORT_CHUNK} filas (hasta {@link MAX_ROWS} en total).
+ * La página primero manda todas las tandas con `dryRun=1` (solo revisa: no guarda nada) y, si
+ * ninguna tiene problemas, las vuelve a mandar para guardar. Campos:
+ *
+ * - `rows`: las filas de esta tanda (JSON);
+ * - `allSlugs`: las direcciones de TODA la importación (JSON), para encontrar filas repetidas entre
+ *   tandas y proponer direcciones libres;
+ * - `importAt`: un número (ms) que la página elige al empezar a guardar y repite en cada tanda.
+ *   Es el `now` de todos los guardados: una tanda reintentada no duplica eventos (ver
+ *   `createImportedDrafts`).
+ *
+ * Los índices de `rowErrors` y `conflicts` son de la tanda.
+ */
 /** @type {import('./$types').Actions} */
 export const actions = {
 	crear: async ({ locals, request, platform }) => {
@@ -111,20 +128,48 @@ export const actions = {
 
 		/** @type {RowInput[]} */
 		let rows;
+		/** @type {string[]} */
+		let allSlugs;
+		let dryRun = false;
+		/** @type {number | null} */
+		let importAt = null;
 		try {
-			const parsed = JSON.parse(String((await request.formData()).get('rows') ?? '[]'));
+			const form = await request.formData();
+			const parsed = JSON.parse(String(form.get('rows') ?? '[]'));
 			if (!Array.isArray(parsed)) throw new Error();
 			rows = parsed.map(readRow);
+			const slugs = form.has('allSlugs') ? JSON.parse(String(form.get('allSlugs'))) : null;
+			if (slugs !== null && !Array.isArray(slugs)) throw new Error();
+			allSlugs = slugs ? slugs.map((/** @type {unknown} */ x) => String(x ?? '').trim()) : [];
+			dryRun = form.get('dryRun') === '1';
+			const at = String(form.get('importAt') ?? '').trim();
+			if (at) importAt = Number(at);
 		} catch (e) {
 			return fail(400, {
 				error: 'No llegaron bien las filas. Recargá la página y probá de nuevo.'
 			});
 		}
+		if (!allSlugs.length) allSlugs = rows.map((r) => r.slug);
 		if (!rows.length) return fail(400, { error: 'No elegiste ninguna fila para importar.' });
-		if (rows.length > MAX_ROWS) {
+		if (allSlugs.length > MAX_ROWS) {
 			return fail(400, {
 				error: `Podés importar hasta ${MAX_ROWS} eventos por vez. Destildá algunos.`
 			});
+		}
+		if (rows.length > IMPORT_CHUNK) {
+			return fail(400, {
+				error: `Llegaron más de ${IMPORT_CHUNK} filas juntas. Recargá la página y probá de nuevo.`
+			});
+		}
+		const now = Date.now();
+		// Sin `importAt` (un solo pedido), la hora del servidor.
+		if (importAt === null) importAt = now;
+		else if (!dryRun) {
+			if (!Number.isSafeInteger(importAt) || Math.abs(now - importAt) > IMPORT_AT_WINDOW_MS) {
+				return fail(400, {
+					error: 'No llegaron bien las filas. Recargá la página y probá de nuevo.'
+				});
+			}
 		}
 
 		/** @type {Record<number, string>} */
@@ -133,7 +178,8 @@ export const actions = {
 		rows.forEach((row, i) => {
 			const problem = rowProblem(row);
 			if (problem) rowErrors[i] = problem;
-			else if (seen.has(row.slug)) rowErrors[i] = 'Dos filas tienen la misma dirección.';
+			else if (seen.has(row.slug) || allSlugs.filter((x) => x === row.slug).length > 1)
+				rowErrors[i] = 'Dos filas tienen la misma dirección.';
 			seen.add(row.slug);
 		});
 		if (Object.keys(rowErrors).length) {
@@ -154,7 +200,10 @@ export const actions = {
 				actor: author?.login || admin.login,
 				superadmin: author ? author.superadmin : true,
 				today: todayInArgentina(),
-				taken: await takenEventSlugs(db, takenSlugsInBundle())
+				taken: await takenEventSlugs(db, takenSlugsInBundle()),
+				now: dryRun ? now : importAt,
+				dryRun,
+				allSlugs
 			});
 			if (!r.ok && r.status === 409) {
 				return fail(409, {
@@ -169,14 +218,16 @@ export const actions = {
 					rowErrors: r.rowErrors
 				});
 			}
-			const n = r.created.length;
+			if (dryRun) return { success: true, checked: rows.length, created: [], failed: null };
+			const fresh = r.created.filter((c) => !c.again);
+			const n = fresh.length;
 			if (n) {
 				await logAdminAction(db, locals, {
 					action: 'event.import',
 					targetType: 'event',
-					targetId: n === 1 ? r.created[0].slug : null,
+					targetId: n === 1 ? fresh[0].slug : null,
 					summary: `Importó ${n} ${n === 1 ? 'borrador' : 'borradores'} desde la planilla`,
-					detail: { slugs: r.created.map((c) => c.slug), base: true }
+					detail: { slugs: fresh.map((c) => c.slug), base: true }
 				});
 			}
 			return {
@@ -186,7 +237,7 @@ export const actions = {
 					? {
 							...r.failed,
 							title: rows[r.failed.index]?.title ?? r.failed.slug,
-							pending: rows.length - n - 1
+							pending: rows.length - r.created.length - 1
 						}
 					: null
 			};

@@ -41,7 +41,7 @@ import {
 	undoDeletion
 } from './deletions.js';
 
-const NO_PERMISSION = 'No tenés permiso para borrar. Probá cerrar sesión y volver a entrar.';
+const NO_PERMISSION = 'No tenés permiso para borrar. Probá salir y volver a entrar.';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));

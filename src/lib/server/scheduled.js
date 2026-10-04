@@ -143,7 +143,7 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 		case BACKUP_CRON: {
 			// Primero el backup (si falla, la corrida falla). El chequeo y el resumen mensual de las
 			// visitas después, y nunca la hacen fallar: lo que encuentra el chequeo queda en "Para
-			// revisar"; el resumen, en `analytics_monthly` (docs/analiticas.md).
+			// revisar"; el resumen, en `analytics_monthly` (meses de Argentina, docs/analiticas.md).
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
 			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
 			await runAnalyticsRollup(env, { now: new Date(controller.scheduledTime) });

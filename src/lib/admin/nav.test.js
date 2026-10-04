@@ -284,12 +284,14 @@ describe('NAV', () => {
 });
 
 describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
-	it('cinco entradas arriba: Eventos, Ventas, Comunidad, Contenido y Ajustes al pie', () => {
+	it('seis entradas: Eventos, Ventas, Comunidad, Contenido, Estadísticas (sola) y Ajustes al pie', () => {
+		// gorrite (4/10): Estadísticas vuelve a ser su propia entrada, fuera de Ventas.
 		expect(NAV_GROUPS.map((g) => g.label)).toEqual([
 			'Eventos',
 			'Ventas',
 			'Comunidad',
 			'Contenido',
+			'Estadísticas',
 			'Ajustes'
 		]);
 		expect(NAV_GROUPS.filter((g) => g.foot).map((g) => g.id)).toEqual(['ajustes']);
@@ -304,7 +306,8 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(new Set(inGroups).size).toBe(inGroups.length);
 	});
 	it('el grupo de cada área (y de un grupo, por su id)', () => {
-		expect(navGroupOf('estadisticas')?.id).toBe('ventas');
+		expect(navGroupOf('estadisticas')?.id).toBe('estadisticas');
+		expect(navGroupOf('ventas')?.id).toBe('ventas');
 		expect(navGroupOf('mensajes')?.id).toBe('comunidad');
 		expect(navGroupOf('etiquetas')?.id).toBe('contenido');
 		expect(navGroupOf('ajustes')?.id).toBe('ajustes');
@@ -315,9 +318,9 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		/** @param {string} g */
 		const blocks = (g) => navGroupSections(g).map((s) => [s.label, s.items.map((i) => i.id)]);
 		expect(blocks('ventas')).toEqual([
-			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']],
-			['Estadísticas', ['estadisticas']]
+			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
+		expect(blocks('estadisticas')).toEqual([['', ['estadisticas']]]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
 			['Mensajes', ['ajustes-plantillas', 'lo-que-sigo', 'bandeja']]
@@ -366,13 +369,9 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 		expect(sectionTabs('/admin/ajustes/actividad/')?.label).toBe('Secciones de Ajustes');
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
-		expect(labels('/admin/ventas')).toEqual([
-			'Todas las ventas',
-			'Transferencias',
-			'Códigos',
-			'Ventas en el tiempo'
-		]);
-		expect(labels('/admin/estadisticas')).toEqual(labels('/admin/ventas'));
+		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
+		// Estadísticas va sola: una sola sección, sin pestañas.
+		expect(sectionTabs('/admin/estadisticas')).toBe(null);
 		expect(labels('/admin/mensajes/plantillas')).toEqual([
 			'Personas',
 			'Perfiles',
