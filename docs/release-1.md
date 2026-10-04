@@ -5,6 +5,12 @@ grande de la interfaz, y (2) cómo rinden los endpoints que dejaron de prerender
 recomendaciones chicas. Relevado el 2/10/2026 sobre `main` (después de #169). Nada de esto
 cambia código: son tareas y propuestas para que gorrite decida.
 
+> **Actualización (Interruptores permanentes):** `cuentas`, `propinas`, `borrar_desde_panel`,
+> `perfiles_publicos` y `personas_eventos` quedaron **prendidos para siempre**, como antes
+> `series`, `etiquetas_db` y `contenido_db`: salieron de Ajustes → Interruptores y sus variables
+> `*_ENABLED` ya no hacen nada (tampoco `=0` para cortar). Lo que sigue sobre prenderlos y
+> apagarlos queda como registro; ver [interruptores.md](interruptores.md).
+
 ## 1. Checklist de Release 1
 
 ### Orden

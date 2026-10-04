@@ -1,7 +1,8 @@
 # Amigues y lugares (perfiles públicos)
 
-Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interruptor
-**`perfiles_publicos`, apagado** (Ajustes → Interruptores, o `PERFILES_PUBLICOS_ENABLED=1|0`).
+Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). El interruptor `perfiles_publicos`
+**quedó prendido para siempre** ([interruptores.md](interruptores.md)): con base, todo esto
+anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
 
 ## Qué hace
 
@@ -24,17 +25,17 @@ Noche 3, bloque A (decisiones de gorrite del 1/10 y B3). Todo detrás del interr
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del
   1/10; "Amigues" queda solo como nombre del directorio público `/amigues`): filtros por tipo,
-  origen y estado, CSV, «Para aprobar», los pedidos "Es mi perfil" y, con el interruptor apagado,
-  la pestaña «Fichas .md». El editor edita el perfil en la base (publica al guardar, con aviso de
+  origen y estado, CSV, «Para aprobar» y los pedidos "Es mi perfil" (sin base, la lista de fichas
+  `.md`). El editor edita el perfil en la base (publica al guardar, con aviso de
   conflicto); también **Perfiles → Importar y clasificar** y **Eventos → Lugares**.
 
-## Con el interruptor apagado
+## Sin base, o con fichas sin importar
 
-Todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas leen los `.md`. El
-panel deja igual importar, revisar la clasificación y cargar lugares, para preparar todo antes de
-prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra el sitio).
+Sin base, todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas leen los
+`.md`. Con base, una ficha `.md` que la base todavía no tiene se sigue mostrando (y editando)
+desde su archivo; la importación la pasa a la base con la misma dirección.
 
-## Prenderlo (orden recomendado)
+## Una base nueva (orden recomendado)
 
 1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
    (gorrite, como siempre: ver [datos.md](datos.md)).
@@ -43,11 +44,9 @@ prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra 
 3. Revisar la clasificación ("a confirmar"): confirmar o cambiar cada una (también hay CSV).
 4. Cargar los lugares en **Eventos → Lugares** y vincular los eventos (ahí o en el «📍 Lugar» del
    formulario de cada evento).
-5. Prender `perfiles_publicos`.
 
 Importar en local: `npm run amigues:import` (o `-- --dry` para ver qué haría). Demo con datos
-inventados: `node scripts/demo/n3-amigues.js` y después
-`PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin`.
+inventados: `node scripts/demo/n3-amigues.js` y después `npm run dev:admin`.
 
 ## Lo que nunca se tiene que romper
 
@@ -115,8 +114,7 @@ salidas (también el buscador) y los datos de las páginas. Si el `.md` de un ev
 
 **El buscador** sigue la regla de gorrite: si quien busca ya tiene una forma de llegar a algo
 navegando, lo puede encontrar buscando; nunca más. El índice es uno solo para todes (se recuerda
-en el servidor), así que es lo que alcanza une visitante sin cuenta. Con `perfiles_publicos`
-prendido lleva los lugares **listados** (están en `/amigues`) y los **no listados a los que lleva
+en el servidor), así que es lo que alcanza une visitante sin cuenta. Con base, lleva los lugares **listados** (están en `/amigues`) y los **no listados a los que lleva
 el link de un evento visible** (listado y publicado, con el nivel «Nombre + dirección» o «Sólo
 Nombre», y el lugar visible y aprobado: lo mismo que decide el link en la página del evento,
 `linkedVenues` en `src/lib/server/amigues/venues.js`). De cada lugar, lo que muestra su página:
