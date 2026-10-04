@@ -5,6 +5,7 @@
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { createCollapsible, melt } from '@melt-ui/svelte';
+	import { tagPagePath } from '$lib/utils/series.js';
 </script>
 
 <script>
@@ -81,7 +82,7 @@
 			<div class="itemtitle">
 				{#if !title && entry && entry.meta && entry.meta.wiki}
 					{tag?.icon ?? ''}
-					<a href="/wiki/{entry.meta.wiki}">
+					<a class="tap-target" href="/wiki/{entry.meta.wiki}">
 						<MiniMarkup value={entry.meta.title} />
 					</a>
 				{:else if title}
@@ -128,9 +129,13 @@
 									>Ver también:
 									{#each related as relatedTag, i}
 										{#if relatedTag.meta}
-											<a href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
+											<a class="tap-target" href="/wiki/{relatedTag.meta.wiki}"
+												>{relatedTag.meta.wiki}</a
+											>
 										{:else}
-											<a href="/wiki#{relatedTag?.visible_name ?? tag.id}">{relatedTag.id}</a>
+											<a class="tap-target" href={tagPagePath(relatedTag.id)}
+												>{relatedTag.visible_name ?? relatedTag.id}</a
+											>
 										{/if}
 										{i < tag.related.length - 1 ? ' | ' : ''}
 									{/each}

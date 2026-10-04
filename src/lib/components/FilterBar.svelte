@@ -32,7 +32,7 @@
 	<div class="option-group-wrapper">
 		<div class="option-group-title">Ver como</div>
 		<div id="display-type" class="option-group">
-			<label>
+			<label class="tap-target">
 				<input
 					type="radio"
 					name="display-type"
@@ -41,7 +41,7 @@
 					value="list"
 				/>lista
 			</label>
-			<label>
+			<label class="tap-target">
 				<input
 					type="radio"
 					name="display-type"
@@ -55,7 +55,7 @@
 	{#if event_toggle}
 		<div class="option-group-wrapper">
 			<div id="show-past-events" class="option-group">
-				<label>
+				<label class="tap-target">
 					<input
 						type="radio"
 						name="show-past-events"
@@ -64,7 +64,7 @@
 						value={true}
 					/>Mostrar
 				</label>
-				<label>
+				<label class="tap-target">
 					<input
 						type="radio"
 						name="show-past-events"

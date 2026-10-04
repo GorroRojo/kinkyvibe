@@ -68,11 +68,11 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 	it('la tarjeta «Tu calendario» lleva a Mi rincón → Calendario; nada de Lo que sigo', () => {
 		const html = rincon({ sigoOn: false });
 		expect(cards(html)).toEqual([
-			'Tu cuenta',
+			'Tus compras y entradas',
 			'Tu calendario',
-			'Tus compras',
 			'Mis datos',
 			'Contraseña',
+			'Tu cuenta',
 			'Borrar tu cuenta'
 		]);
 		expect(html).toContain('Tus eventos en tu calendario y los avisos de series que pediste.');
@@ -87,11 +87,11 @@ describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
 	it('«Lo que seguís y tu calendario» lleva a /mi-rincon/sigo', () => {
 		const html = rincon({ sigoOn: true });
 		expect(cards(html)).toEqual([
-			'Tu cuenta',
+			'Tus compras y entradas',
 			'Lo que seguís y tu calendario',
-			'Tus compras',
 			'Mis datos',
 			'Contraseña',
+			'Tu cuenta',
 			'Borrar tu cuenta'
 		]);
 		expect(count(html, '/mi-rincon/sigo')).toBe(1);
@@ -161,5 +161,48 @@ describe('los links a Mi rincón apuntan a rutas que existen', () => {
 	it('Lo que sigo ya no manda a Mi rincón → Calendario (está en la misma página)', () => {
 		expect(count(pages['Lo que sigo'], '/mi-rincon/calendario')).toBe(0);
 		expect(pages['Lo que sigo']).toContain('id="calendario"');
+	});
+});
+
+describe('Mi rincón: orden y borrar la cuenta', () => {
+	/** @param {any} [form] */
+	const page = (form = null) =>
+		render(Rincon, {
+			props: /** @type {any} */ ({
+				data: {
+					email: 'persona.prueba@example.com',
+					hasPassword: false,
+					createdAt: 0,
+					canHaveProfiles: false,
+					ordersError: false,
+					saved: { name: '', pronouns: '', hasDni: false, dniMasked: '' },
+					savedError: false,
+					orders: [],
+					sigoOn: true
+				},
+				form
+			})
+		}).body;
+
+	it('primero las compras, después lo que seguís y al final la cuenta («Salir») y borrarla', () => {
+		const html = page();
+		const at = (/** @type {string} */ s) => html.indexOf(s);
+		expect(at('id="compras-title"')).toBeGreaterThan(-1);
+		expect(at('id="compras-title"')).toBeLessThan(at('id="sigo-title"'));
+		expect(at('id="sigo-title"')).toBeLessThan(at('id="datos-title"'));
+		expect(at('id="pw-title"')).toBeLessThan(at('id="cuenta-title"'));
+		expect(at('id="cuenta-title"')).toBeLessThan(at('action="?/salir"'));
+		expect(at('action="?/salir"')).toBeLessThan(at('id="borrar-title"'));
+	});
+
+	it('el botón que borra la cuenta es rojo (.permanent); el paso del código no', () => {
+		const first = page();
+		expect(first).not.toMatch(/class="pill-btn permanent"/);
+		const html = page({ action: 'borrar', codeSentFor: 'delete' });
+		const button = html.match(
+			/<button[^>]*class="([^"]*)"[^>]*>(?:(?!<\/button>).)*Borrar mi cuenta/s
+		);
+		expect(button?.[1]).toContain('permanent');
+		expect(button?.[1]).not.toContain('ghost');
 	});
 });

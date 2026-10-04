@@ -148,7 +148,7 @@ describe('con cosas seguidas', () => {
 		expect(html).toMatch(/<span class="kind[^"]*">Lugar<\/span>/);
 	});
 
-	it('la grilla: En mi calendario aparte; Mail con sus interruptores; Telegram apagado', () => {
+	it('la grilla: En mi calendario aparte; Mail con sus interruptores; Telegram apagado no se dibuja', () => {
 		const html = page({ follows: [follows[0]] });
 		const inputs = [...html.matchAll(/<input[^>]*role="switch"[^>]*>/g)].map((m) => m[0]);
 		const named = (/** @type {string} */ n) => inputs.filter((i) => i.includes(`name="${n}"`));
@@ -156,15 +156,15 @@ describe('con cosas seguidas', () => {
 		expect(named('calendario')[0]).toContain('checked');
 		expect(named('mail_nuevo')[0]).toContain('checked');
 		expect(named('recordatorio')[0]).not.toContain('checked');
-		// Telegram: una celda por fila, apagadas, sin nombre (no mandan nada) y con la nota.
+		// Telegram apagado: sin columna repetida en cada cosa seguida (antes, dos celdas apagadas y
+		// «Próximamente» en cada una); lo explica una sola nota arriba.
 		const off = inputs.filter((i) => !i.includes('name='));
-		expect(off).toHaveLength(2);
-		for (const i of off) {
-			expect(i).toContain('disabled');
-			expect(i).toContain('aria-describedby="sigo-proximamente"');
-		}
-		expect(html).toContain('Próximamente');
-		expect(html).toContain('Vas a poder recibir esto por Telegram cuando conectes tu cuenta');
+		expect(off).toHaveLength(0);
+		expect(html).not.toContain('data-channel="telegram"');
+		expect(html).not.toContain('name="canal" value="telegram"');
+		expect(
+			html.match(/Vas a poder recibir esto por Telegram cuando conectes tu cuenta/g)
+		).toHaveLength(1);
 		expect(html).toContain('Algo nuevo');
 		expect(html).toContain('Recordatorio el día antes');
 		expect(html).toMatch(/<form[^>]*action="\?\/opciones"/);

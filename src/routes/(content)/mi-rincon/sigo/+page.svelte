@@ -56,6 +56,9 @@
 	$: channels = notifyChannels(data.telegram);
 	// La nota de lo que viene (Telegram), si hay alguna columna apagada.
 	$: soon = channels.find((c) => !c.enabled && c.note);
+	// Una columna apagada no se dibuja en cada cosa seguida (se repetía en todas): la explica una
+	// sola vez la nota de arriba (pedido de gorrite).
+	$: shownChannels = channels.filter((c) => c.enabled);
 </script>
 
 <svelte:head>
@@ -171,8 +174,7 @@
 										options={f.options}
 										name={f.name ?? f.title}
 										disabled={busy === rowId(f)}
-										{channels}
-										noteId={soon ? 'sigo-proximamente' : undefined}
+										channels={shownChannels}
 										on:change={autoSave}
 									/>
 									<noscript

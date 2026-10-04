@@ -36,11 +36,12 @@
 		text-align: center;
 		gap: var(--space-3xs);
 		padding: var(--space-m) var(--space-xs);
-		color: var(--text);
+		/* con los colores del panel; en el sitio (sin esos tokens), los del sitio */
+		color: var(--text, var(--ink));
 	}
 	.ico {
 		font-size: var(--text-2xl);
-		color: var(--accent);
+		color: var(--accent, var(--1));
 		display: grid;
 		place-items: center;
 	}

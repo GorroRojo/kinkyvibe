@@ -234,6 +234,22 @@ textarea {
 	border-color: var(--focus-field);
 }
 
+/** Zona de toque de al menos 44px (`--tap`) para algo chico (un chip, un link suelto), sin
+    cambiar lo que se ve: un ::after invisible que crece hasta 44px de alto y de ancho, centrado.
+    Si el elemento ya mide más, no hace nada. El contenedor no tiene que recortar (`overflow`),
+    si no la parte de afuera no se puede tocar. **/
+.tap-target {
+	position: relative;
+	&::after {
+		content: '';
+		position: absolute;
+		top: min(0px, calc((100% - var(--tap)) / 2));
+		bottom: min(0px, calc((100% - var(--tap)) / 2));
+		left: min(0px, calc((100% - var(--tap)) / 2));
+		right: min(0px, calc((100% - var(--tap)) / 2));
+	}
+}
+
 /** Chip de etiqueta (ver docs/estilo.md, «Piezas»; decisión de gorrite, 4/10): el emoji y el
     nombre de la etiqueta, con SU color (`--tag-color`, de `getColor()` del árbol; sin color, el
     rosa de la marca). Borde en el color y texto en el color oscurecido (`--tag-ink`: 75 % del
@@ -549,6 +565,17 @@ textarea {
 	box-shadow: var(--shadow);
 	padding: 1.1rem 1.2rem;
 	min-width: 0;
+}
+
+/** Título de las páginas de sección (inicio, calendario, material, amigues): el h1 de la página,
+    centrado y sin el tamaño enorme del h1 de un post. **/
+.page-title {
+	max-width: 50rem;
+	margin: var(--space-s) auto var(--space-s);
+	padding-inline: var(--space-xs);
+	font-size: var(--text-2xl);
+	line-height: 1.15;
+	text-align: center;
 }
 
 /** post formatting **/

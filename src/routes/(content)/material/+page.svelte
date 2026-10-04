@@ -16,6 +16,7 @@
 <svelte:head>
 	<title>Artículos, links y descargables · Kinky Vibe</title>
 </svelte:head>
+<h1 class="page-title">Artículos, links y descargables</h1>
 <div class="glosario">
 	<p>
 		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" /> sobre

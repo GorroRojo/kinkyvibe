@@ -48,12 +48,6 @@
 					<p class="hint">Por ahora no hay una próxima edición anunciada.</p>
 				{/if}
 			</div>
-			{#if s.past.length}
-				<details class="surface-card" open={!s.upcoming.length}>
-					<summary><h2>Ediciones pasadas <span class="n">{s.past.length}</span></h2></summary>
-					<EditionList editions={s.past} />
-				</details>
-			{/if}
 			<!-- Con cuenta y «Lo que sigo», «Avisame» es lo mismo que el botón «Seguir» de esta página
 			     (FollowButton): no se muestran los dos. Sin cuenta, el aviso por mail sigue acá. -->
 			{#if s.total && !(info.account.member && info.account.sigo)}
@@ -64,6 +58,14 @@
 					subscribed={info.account.subscribed}
 					heading={s.upcoming.length ? 'Avisame de las próximas ediciones' : 'Avisame si se repite'}
 				/>
+			{/if}
+			<!-- Las pasadas, después del aviso: de una serie larga se ven las 5 últimas y las demás
+			     quedan plegadas (antes «Avisame» quedaba abajo de 58 ediciones). -->
+			{#if s.past.length}
+				<div class="surface-card">
+					<h2>Ediciones pasadas <span class="n">{s.past.length}</span></h2>
+					<EditionList editions={s.past} visible={5} />
+				</div>
 			{/if}
 		{/if}
 		<!-- Con cuenta y «Lo que sigo», «Seguir» ya pone las fechas en tu calendario: no se ofrece
@@ -108,13 +110,6 @@
 	h2 {
 		margin: 0 0 0.4em;
 		font-size: var(--step-1);
-	}
-	summary {
-		cursor: pointer;
-		list-style-position: inside;
-	}
-	summary h2 {
-		display: inline;
 	}
 	.n {
 		color: var(--muted);

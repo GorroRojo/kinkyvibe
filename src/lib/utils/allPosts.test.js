@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCurrent, monthHasPastEvents } from './allPosts.js';
+import { isCurrent, monthCountLabel, monthHasPastEvents } from './allPosts.js';
 
 /** @param {Record<string, any>} meta */
 const post = (meta) => /** @type {ProcessedPost} */ (/** @type {unknown} */ ({ meta, path: '/x' }));
@@ -113,5 +113,14 @@ describe('monthHasPastEvents', () => {
 			post({ category: 'calendario', start: 'pronto' })
 		];
 		expect(monthHasPastEvents(posts, '2026-10', now)).toBe(false);
+	});
+});
+
+describe('monthCountLabel', () => {
+	const now = Date.parse('2026-10-04T15:00:00Z');
+	it('says the month and how many events, with the year only if it is not this one', () => {
+		expect(monthCountLabel('2026-10', 7, now)).toBe('Octubre · 7 eventos');
+		expect(monthCountLabel('2026-11', 1, now)).toBe('Noviembre · 1 evento');
+		expect(monthCountLabel('2027-01', 0, now)).toBe('Enero 2027 · 0 eventos');
 	});
 });
