@@ -216,7 +216,7 @@ describe('el material real se ve igual que hoy', () => {
 		const notSame = [];
 		for (const [path, raw] of Object.entries(texts)) {
 			// Con los interactivos como etiquetas del registro (`donde-y-como-golpear-un-cuerpo`).
-			const body = toRegisteredTags(bodyOf(raw));
+			const body = toRegisteredTags(bodyOf(raw) ?? '');
 			if (slugOf(path).startsWith('_') || !body) continue;
 			const r = await renderContentBody({ body, body_html: 'libre' }, 'material', slugOf(path));
 			if (!r.component) notSame.push(slugOf(path));

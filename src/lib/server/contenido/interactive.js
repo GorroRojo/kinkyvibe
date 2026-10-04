@@ -80,7 +80,10 @@ function hasMarker(node, marker) {
 		marker.lastIndex = 0;
 		return marker.test(node.value);
 	}
-	return Array.isArray(node.children) && node.children.some((c) => hasMarker(c, marker));
+	return (
+		Array.isArray(node.children) &&
+		node.children.some((/** @type {any} */ c) => hasMarker(c, marker))
+	);
 }
 
 /**

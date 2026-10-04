@@ -181,10 +181,14 @@ describe('los .md reales', () => {
 			'otro'
 		);
 		expect(fromText.component).toBe(false);
-		const compiled = /** @type {any} */ (
-			await import('/src/lib/posts/material/donde-y-como-golpear-un-cuerpo.md')
-		).default;
-		expect(normalizeHtml(render(ContentParts, { props: { parts: fromText.parts } }).body)).toBe(
+		const compiled = /** @type {Record<string, any>} */ (
+			import.meta.glob('/src/lib/posts/material/donde-y-como-golpear-un-cuerpo.md', {
+				import: 'default',
+				eager: true
+			})
+		)[path];
+		const parts = fromText.parts ?? [];
+		expect(normalizeHtml(render(ContentParts, { props: { parts } }).body)).toBe(
 			normalizeHtml(render(compiled).body)
 		);
 	});
