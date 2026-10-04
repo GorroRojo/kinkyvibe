@@ -551,6 +551,17 @@ textarea {
 	min-width: 0;
 }
 
+/** Título de las páginas de sección (inicio, calendario, material, amigues): el h1 de la página,
+    centrado y sin el tamaño enorme del h1 de un post. **/
+.page-title {
+	max-width: 50rem;
+	margin: var(--space-s) auto 0;
+	padding-inline: var(--space-xs);
+	font-size: var(--text-2xl);
+	line-height: 1.15;
+	text-align: center;
+}
+
 /** post formatting **/
 article {
 	padding: 10px;
