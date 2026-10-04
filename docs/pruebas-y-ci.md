@@ -37,6 +37,9 @@ Detalles de `e2e`:
 
 - El **Worker bundle** empaqueta `worker/index.js` con el build como lo haría el deploy, sin
   subir nada ni necesitar cuenta de Cloudflare. Si falla, el deploy también fallaría.
+- Antes de `vite preview`, `playwright.config.js` corre `scripts/import-content.js`: aplica las
+  migraciones a la base local y le importa los `.md` de eventos y material (el sitio los lee solo
+  de la base). La primera vez tarda ~1-2 minutos; después, segundos.
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
