@@ -4,6 +4,7 @@
 	import { eventHref } from '$lib/admin/nav.js';
 	import {
 		focusField,
+		isProblem,
 		markInvalid,
 		problemFields,
 		scheduleField
@@ -252,24 +253,24 @@
 	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
 	// Cada problema con su campo: el resumen linkea a cada uno y el primero recibe el foco.
-	$: problemItems = /** @type {import('$lib/admin/formProblems.js').Problem[]} */ (
-		[
-			!values.title.trim() && { text: 'Falta el título.', field: 'ev-title' },
-			...scheduleProblems(values).map((text) => ({ text, field: scheduleField(text) })),
-			!slug &&
-				isValidDate(values.startDate) && {
-					text: 'Falta la dirección de la página.',
-					field: 'ev-slug'
-				},
-			slugProblem && { text: slugProblem, field: 'ev-slug' },
-			serverSlugError && { text: serverSlugError, field: 'ev-slug' },
-			mapError && { text: mapError, field: 'ev-location-map' },
-			linkError && { text: linkError, field: 'ev-link' },
-			...tagErrors.map((text) => ({ text, field: 'ev-tags' })),
-			...peopleErrors.map((text) => ({ text, field: 'ev-authors' })),
-			...ticketsCheck.errors.map((e) => ({ text: `Entradas: ${e}`, field: 'ev-tickets' }))
-		].filter(Boolean)
-	);
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
+	let problemItems = [];
+	$: problemItems = /** @type {unknown[]} */ ([
+		!values.title.trim() && { text: 'Falta el título.', field: 'ev-title' },
+		...scheduleProblems(values).map((text) => ({ text, field: scheduleField(text) })),
+		!slug &&
+			isValidDate(values.startDate) && {
+				text: 'Falta la dirección de la página.',
+				field: 'ev-slug'
+			},
+		slugProblem && { text: slugProblem, field: 'ev-slug' },
+		serverSlugError && { text: serverSlugError, field: 'ev-slug' },
+		mapError && { text: mapError, field: 'ev-location-map' },
+		linkError && { text: linkError, field: 'ev-link' },
+		...tagErrors.map((text) => ({ text, field: 'ev-tags' })),
+		...peopleErrors.map((text) => ({ text, field: 'ev-authors' })),
+		...ticketsCheck.errors.map((e) => ({ text: `Entradas: ${e}`, field: 'ev-tickets' }))
+	]).filter(isProblem);
 	$: problems = problemItems.map((p) => p.text);
 	$: if (showProblems) tick().then(() => markInvalid(problemFields(problemItems)));
 

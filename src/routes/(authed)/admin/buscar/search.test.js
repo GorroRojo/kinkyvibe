@@ -102,9 +102,11 @@ describe('/admin/buscar', () => {
 		const body = await res.json();
 		// Sin base: los eventos (y las etiquetas, que salen del árbol en memoria; «fiesta» también
 		// es una etiqueta). Nada de lo que sale de la base.
-		expect(body.groups.map((/** @type {any} */ g) => g.id).filter((id) => id !== 'tags')).toEqual([
-			'events'
-		]);
+		expect(
+			body.groups
+				.map((/** @type {any} */ g) => g.id)
+				.filter((/** @type {string} */ id) => id !== 'tags')
+		).toEqual(['events']);
 		expect(body.groups[0].id).toBe('events');
 		expect(body.groups[0].items[0]).toMatchObject({
 			title: 'Fiesta Inventada',

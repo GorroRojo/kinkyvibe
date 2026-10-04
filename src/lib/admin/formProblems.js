@@ -12,6 +12,15 @@
  */
 
 /**
+ * Para `.filter(isProblem)` sobre una lista con `false`/`''` de los problemas que no están.
+ * @param {unknown} p
+ * @returns {p is Problem}
+ */
+export function isProblem(p) {
+	return Boolean(p) && typeof p === 'object';
+}
+
+/**
  * El campo de un problema de horario (los textos de `scheduleProblems`).
  * @param {string} text
  * @param {string} prefix el `idPrefix` de ScheduleSection (`ev` al crear)

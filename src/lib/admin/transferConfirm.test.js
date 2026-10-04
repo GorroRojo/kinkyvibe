@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { confirmPaymentQuestion, keepRows } from './transferConfirm.js';
 
-const row = (id) => ({
+const row = (/** @type {string} */ id) => ({
 	id,
 	reference: `KV-${id}`,
 	name: 'Persona Prueba',

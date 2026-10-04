@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { doorOptionLabel, doorSaleBreakdown } from './doorSale.js';
 import { computePrice } from '$lib/utils/tickets.js';
 
-const price = (option, quantity = 1) =>
+const price = (/** @type {any} */ option, quantity = 1) =>
 	computePrice({ price: 12000, fondo: 2400, option, quantity, discount: null, method: 'efectivo' });
 
 /** formatARS separa «$» del número con un espacio duro: acá se compara con espacios comunes. */
