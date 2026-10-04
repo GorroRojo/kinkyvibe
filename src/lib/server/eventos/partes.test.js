@@ -15,6 +15,7 @@ import {
 	createWorkshopPart,
 	panelParts,
 	readWorkshop,
+	setHideParts,
 	setPerPartTickets,
 	setWorkshopParts
 } from './partes.js';
@@ -265,5 +266,100 @@ describe('parte nueva y entradas', () => {
 			workshop: null,
 			suggestions: []
 		});
+	});
+});
+
+describe('«Si ocultás el taller, ocultar también sus partes»', () => {
+	/** Las direcciones de los eventos que ve el público en las listas y si ve cada página. */
+	async function publicView() {
+		const posts = await import('$lib/server/contenido/posts.js');
+		posts.clearContentCache();
+		const listed = (await posts.sitePosts(t.platform))
+			.map((p) => p.meta.postID)
+			.filter((s) => s.startsWith('taller'))
+			.sort();
+		/** @type {Record<string, boolean>} */
+		const pages = {};
+		for (const slug of ['taller', 'taller-parte-2']) {
+			pages[slug] = (await posts.siteEvent(t.platform, slug, { html: false })) !== null;
+		}
+		const admin = await posts.siteEvent(t.platform, 'taller-parte-2', {
+			viewer: { role: 'admin', id: 'admin-de-prueba' },
+			html: false
+		});
+		return { listed, pages, admin: admin !== null };
+	}
+
+	/** @param {'public' | 'hidden'} visibility */
+	async function setWorkshopVisibility(visibility) {
+		const row = /** @type {any} */ (
+			await t.db.prepare("SELECT id, version FROM objects WHERE slug = 'taller'").first()
+		);
+		await saveObject(
+			t.db,
+			{ id: Number(row.id), type: 'evento', version: Number(row.version), visibility },
+			{ actor: BY, now: Date.now() + 1000 }
+		);
+	}
+
+	it('apagado (por defecto): ocultar el taller no oculta sus partes, como siempre', async () => {
+		await event('taller', '2026-10-02T22:00-03:00', { data: { extra: { color: 'rosa' } } });
+		await event('taller-parte-2', '2026-10-09T22:00-03:00');
+		await setWorkshopParts(t.db, { eventSlug: 'taller', partSlugs: ['taller-parte-2'], by: BY });
+		expect((await readWorkshop(t.db, 'taller'))?.workshop.hideParts).toBe(false);
+		await setWorkshopVisibility('hidden');
+		expect(await publicView()).toEqual({
+			listed: ['taller-parte-2'],
+			pages: { taller: false, 'taller-parte-2': true },
+			admin: true
+		});
+	});
+
+	it('prendido: va en `extra` del taller y, con el taller oculto, las partes tampoco se ven', async () => {
+		await event('taller', '2026-10-02T22:00-03:00', { data: { extra: { color: 'rosa' } } });
+		await event('taller-parte-2', '2026-10-09T22:00-03:00');
+		await setWorkshopParts(t.db, { eventSlug: 'taller', partSlugs: ['taller-parte-2'], by: BY });
+		expect(await setHideParts(t.db, { eventSlug: 'taller', hideParts: true, by: BY })).toEqual({
+			ok: true
+		});
+		const data = await t.db.prepare("SELECT data FROM objects WHERE slug = 'taller'").first();
+		expect(JSON.parse(String(data?.data)).extra).toEqual({ color: 'rosa', ocultar_partes: true });
+		expect((await readWorkshop(t.db, 'taller'))?.workshop.hideParts).toBe(true);
+		expect((await panelParts(t.db, 'taller'))?.workshop?.workshop.hideParts).toBe(true);
+
+		// Con el taller a la vista, todo se ve igual.
+		expect(await publicView()).toEqual({
+			listed: ['taller', 'taller-parte-2'],
+			pages: { taller: true, 'taller-parte-2': true },
+			admin: true
+		});
+		// Taller oculto: la parte tampoco (salvo para admins).
+		await setWorkshopVisibility('hidden');
+		expect(await publicView()).toEqual({
+			listed: [],
+			pages: { taller: false, 'taller-parte-2': false },
+			admin: true
+		});
+
+		// Apagarlo vuelve a lo de siempre y saca la clave.
+		await setHideParts(t.db, { eventSlug: 'taller', hideParts: false, by: BY });
+		const back = await t.db.prepare("SELECT data FROM objects WHERE slug = 'taller'").first();
+		expect(JSON.parse(String(back?.data)).extra).toEqual({ color: 'rosa' });
+		expect((await publicView()).listed).toEqual(['taller-parte-2']);
+	});
+
+	it('una parte nueva no copia la opción (es solo del taller)', async () => {
+		await event('taller', '2026-10-02T22:00-03:00', {
+			data: { extra: { color: 'rosa', ocultar_partes: true } }
+		});
+		await createWorkshopPart(t.db, {
+			eventSlug: 'taller',
+			start: '2026-10-09T22:00-03:00',
+			by: BY
+		});
+		const part = await t.db
+			.prepare("SELECT data FROM objects WHERE slug = 'taller-parte-2'")
+			.first();
+		expect(JSON.parse(String(part?.data)).extra).toEqual({ color: 'rosa' });
 	});
 });
