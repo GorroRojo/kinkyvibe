@@ -1,8 +1,8 @@
 <script>
 	/**
 	 * «Seguir» de «Lo que sigo» (docs/lo-que-sigo.md) en la página de una etiqueta o un perfil.
-	 * Pregunta a /api/sigo al cargar (la página puede estar prerenderizada): con `lo_que_sigo` o
-	 * `cuentas` apagado (404) no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
+	 * Pregunta a /api/sigo al cargar (la página puede estar prerenderizada): con `lo_que_sigo`
+	 * apagado (404) no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
 	 * sesión, manda a /mi-rincon/sigo (?/seguir o ?/dejar); con JavaScript cambia acá mismo, sin
 	 * JavaScript muestra el resultado en Mi rincón → Lo que sigo.
 	 * Props: `kind` (`etiqueta` o `perfil`), `key` (nombre de la etiqueta o id del perfil),

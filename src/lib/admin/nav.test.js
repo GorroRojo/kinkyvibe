@@ -432,15 +432,20 @@ describe('navLink y navState', () => {
 		expect(navState({ ...base, flag: 'x', hiddenWhenOff: true })).toBe('ready');
 		expect(navState(base)).toBe('ready');
 	});
-	it('con el interruptor apagado se ve "prueba" o se esconde (si la página da 404)', () => {
-		const flags = { personas_eventos: false, cuentas: false };
+	// Lo de «interruptor apagado → "prueba" u oculta» con secciones reales se fue con los
+	// interruptores `personas_eventos`, `cuentas` y `propinas` (quedaron fijos); el mecanismo
+	// lo sigue cubriendo el test de navState de arriba.
+	it('las secciones que tenían interruptor se ven siempre, listas', () => {
+		const flags = { personas_eventos: false, cuentas: false, propinas: false };
 		const ids = navAreaItems('eventos', { flags }).map((i) => i.id);
 		// Series ya no tiene interruptor (quedó fijo): se ve siempre.
 		expect(ids).toContain('eventos-series');
-		expect(ids).not.toContain('ajustes-personas');
+		expect(ids).toContain('ajustes-personas');
 		expect(navAreaItems('comunidad', { flags }).map((i) => i.id)).toContain('cuentas');
-		const cuentas = navItem('cuentas');
-		expect(cuentas && navState(cuentas, flags)).toBe('prueba');
+		for (const id of ['cuentas', 'ajustes-personas', 'propinas']) {
+			const item = navItem(id);
+			expect(item && navState(item, flags), id).toBe('ready');
+		}
 	});
 	it('"Ocultar lo que viene" saca los próximamente del menú, y nada más', () => {
 		for (const a of NAV_AREAS) {
@@ -449,7 +454,7 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual(['cuentas', 'personas_eventos', 'propinas']);
+		expect(navFlagKeys().sort()).toEqual([]);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);

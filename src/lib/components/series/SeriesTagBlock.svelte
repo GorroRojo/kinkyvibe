@@ -1,8 +1,7 @@
 <script>
 	/**
 	 * Lo de series en la página de una etiqueta (/wiki/<etiqueta>, que puede estar prerenderizada):
-	 * lo pide a /api/series/<etiqueta> (forma slug: seriesApiPath) al cargar, así el interruptor `series` se respeta en el
-	 * momento. Apagado (404) no muestra nada. Si la etiqueta es una serie: su imagen, las próximas
+	 * lo pide a /api/series/<etiqueta> (forma slug: seriesApiPath) al cargar. Si no hay nada (404), no muestra nada. Si la etiqueta es una serie: su imagen, las próximas
 	 * ediciones primero y después las pasadas, y "Avisame si se repite". Si tiene eventos: el
 	 * calendario .ics para suscribirse.
 	 * Props: `tag` (id de la etiqueta).

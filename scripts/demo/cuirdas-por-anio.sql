@@ -14,8 +14,8 @@
 -- 1. Crea las etiquetas «Cuirdas Sudacas 2025» y «Cuirdas Sudacas 2026» (objetos `etiqueta`, con
 --    el ícono de la madre) como hijas de «Cuirdas Sudacas» (edge `hijo_de`). Si «Cuirdas Sudacas»
 --    no está en la base (etiquetas sin importar), no hace nada.
--- 2. A cada edición de Cuirdas Sudacas que esté en la base (objetos `evento`: interruptor
---    `contenido_db` e importación de Contenido → En la base), le suma la etiqueta de su año
+-- 2. A cada edición de Cuirdas Sudacas que esté en la base (objetos `evento`: lo que dejó la
+--    importación de Contenido → En la base), le suma la etiqueta de su año
 --    («Cuirdas Sudacas 2025» a las de junio de 2025, «Cuirdas Sudacas 2026» a las de julio de
 --    2026). La etiqueta «Cuirdas Sudacas» queda: así la página de la serie madre sigue mostrando
 --    todas las ediciones, como con «Picantearla» y sus hijas. Con los eventos solo en los `.md`,

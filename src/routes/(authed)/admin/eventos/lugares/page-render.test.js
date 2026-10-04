@@ -26,7 +26,6 @@ const page = (venues, links = []) =>
 	render(Page, {
 		props: {
 			data: /** @type {any} */ ({
-				flagOn: true,
 				pending: [],
 				rejected: [],
 				venues,

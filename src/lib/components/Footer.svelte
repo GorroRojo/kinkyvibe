@@ -13,17 +13,17 @@
 		UserRound,
 		HandCoins
 	} from '@lucide/svelte';
-	import { siTiktok, siInstagram, siTwitter, siKofi, siYoutube, siTelegram } from 'simple-icons';
+	import { siTiktok, siInstagram, siTwitter, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
 	import { supportLink } from '$lib/utils/footer.js';
 	/**
-	 * Datos del layout raíz (interruptores `cuentas` y `propinas`, `member`).
-	 * @type {{ cuentas?: boolean, member?: boolean, propinas?: boolean }}
+	 * Datos del layout raíz (`member`).
+	 * @type {{ member?: boolean }}
 	 */
 	export let data = {};
 	$: cuenta = accountLink(data);
-	$: apoyo = supportLink(data);
+	const apoyo = supportLink();
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);`;
 </script>
@@ -64,11 +64,7 @@
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
 				</li>
 				<li>
-					{#if apoyo.kind === 'cafecito'}
-						<a href={apoyo.href} target="_blank"><SimpleIcon icon={siKofi} />{apoyo.label}</a>
-					{:else}
-						<a href={apoyo.href} target="_blank"><HandCoins {style} />{apoyo.label}</a>
-					{/if}
+					<a href={apoyo.href} target="_blank"><HandCoins {style} />{apoyo.label}</a>
 				</li>
 			</ul>
 		</li>
@@ -102,7 +98,7 @@
 			</ul>
 		</li>
 		{#if cuenta}
-			<!-- Cuentas del público (docs/cuentas.md): solo con el interruptor prendido -->
+			<!-- Cuentas del público (docs/cuentas.md) -->
 			<li>
 				<h3>Tu cuenta</h3>
 				<ul>

@@ -2,11 +2,11 @@
 	/**
 	 * Sección «👥 Personas» del formulario: quiénes organizan (o escriben) y quiénes participan con
 	 * otro rol, en una sola lista (PersonasField). Antes eran dos: «Organizan» en Datos y
-	 * «Personas» (con el interruptor personas_eventos). La misma al crear un evento, al editar una
+	 * «Personas». La misma al crear un evento, al editar una
 	 * publicación (PostEditor) y en ContentEditor (material).
 	 *
-	 * Props: los de PersonasField (`items` y `roles` con bind) y `helpId`. Sin el interruptor
-	 * personas_eventos, `roles` es solo el rol de autores (`defaultRole`): no hay selector de rol ni
+	 * Props: los de PersonasField (`items` y `roles` con bind) y `helpId`. Sin base, `roles` es
+	 * solo el rol de autores (`defaultRole`): no hay selector de rol ni
 	 * perfiles de la base, como el viejo «Organizan».
 	 */
 	import PersonasField from './PersonasField.svelte';

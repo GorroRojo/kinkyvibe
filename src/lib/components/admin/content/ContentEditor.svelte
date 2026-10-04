@@ -116,8 +116,8 @@
 	}
 
 	/* ---------- personas (material): autores y el resto, en una sola lista ---------- */
-	// Como en el editor de eventos: `data.personas` ({ roles, profiles }) llega solo con el
-	// interruptor personas_eventos; apagado, es el «Autores» de siempre y `personas:` no se toca.
+	// Como en el editor de eventos: `data.personas` ({ roles, profiles }) llega con base; sin
+	// base, es el «Autores» de siempre y `personas:` no se toca.
 	const withPeople = hasAuthors(category);
 	const personasData = withPeople ? (data.personas ?? null) : null;
 	const authorRole = authorRoleOf(category);

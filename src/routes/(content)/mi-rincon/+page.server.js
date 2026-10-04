@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
  * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Con el
- * interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
+ * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
+ * sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo

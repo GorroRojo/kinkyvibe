@@ -568,7 +568,7 @@ export function typeAvailability(config, type, taken, now = Date.now()) {
  * del tipo; sin máximo de producto, solo el tope técnico ORDER_MAX_TOTAL para el total de la
  * orden); vacío = el sugerido. La opción queda `gorra` (sin fondo).
  *
- * Preguntas de inscripción (`config.fields`, interruptor `personas_eventos`): las respuestas
+ * Preguntas de inscripción (`config.fields`): las respuestas
  * llegan en `answers` (por `name` del campo) y sus errores van con ese mismo `name`. Solo se
  * piden las que aplican al tipo elegido; las de "una vez por entrada", una vez por entrada.
  *

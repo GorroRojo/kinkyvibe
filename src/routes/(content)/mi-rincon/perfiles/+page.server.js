@@ -3,7 +3,7 @@
  * a gestionar proyectos, las invitaciones de proyectos a sus perfiles de persona (aceptar o rechazar,
  * y la opción de no recibirlas) y los proyectos de los que son parte (con "Salir" a un clic). Reglas
  * en src/lib/server/cuentas/perfiles.js; docs/cuentas.md («Perfiles»).
- * Con el interruptor `cuentas` apagado da 404; sin sesión, lleva a /ingresar.
+ * Sin sesión, lleva a /ingresar.
  */
 import { fail, redirect } from '@sveltejs/kit';
 import { logDBError } from '$lib/server/db';

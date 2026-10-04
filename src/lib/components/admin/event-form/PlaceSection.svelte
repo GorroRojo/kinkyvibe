@@ -10,7 +10,7 @@
 	 * después de guardar el evento (src/lib/server/amigues/eventFormVenue.js).
 	 *
 	 * Props:
-	 * - `picker`: `data.venuePicker` ({ venues, current, flagOn }) o `null` (sin base: solo el texto
+	 * - `picker`: `data.venuePicker` ({ venues, current }) o `null` (sin base: solo el texto
 	 *   libre, como antes).
 	 * - `choice` (bind): lo elegido ({ venueId, privacy }).
 	 * - `fields`, `values` (bind), `idFor`, `errors`: los del «Dónde» en texto libre (FieldGrid).
@@ -41,7 +41,7 @@
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueOption} VenueOption */
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueChoice} VenueChoice */
 
-	/** @type {{ venues: VenueOption[], current: VenueChoice, flagOn: boolean } | null} */
+	/** @type {{ venues: VenueOption[], current: VenueChoice } | null} */
 	export let picker = null;
 	/** @type {VenueChoice} */
 	export let choice = { ...NO_VENUE };
@@ -224,13 +224,6 @@
 	<legend>📍 Lugar</legend>
 
 	{#if picker}
-		{#if !picker.flagOn}
-			<p class="hint" id="{idPrefix}-venue-flag">
-				El interruptor «Perfiles públicos» está apagado: la página del evento sigue mostrando el
-				texto libre. El lugar que elijas se guarda igual y se usa cuando se prenda.
-			</p>
-		{/if}
-
 		{#if chosen}
 			<div class="chosen" id="{idPrefix}-venue-chosen">
 				{#if editing}

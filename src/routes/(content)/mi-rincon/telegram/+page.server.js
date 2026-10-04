@@ -1,6 +1,6 @@
 /**
  * Mi rincón → Telegram (fase 2 del bot, docs/telegram.md): conectar la cuenta con el bot por un
- * código de un solo uso y desconectarla. Interruptores `telegram_bot`, `lo_que_sigo` y `cuentas`
+ * código de un solo uso y desconectarla. Interruptores `telegram_bot` y `lo_que_sigo`
  * (con cualquiera apagado, 404).
  *
  * La tarjeta vive en Mi rincón → Lo que sigo (`TelegramCard.svelte`) y manda sus formularios

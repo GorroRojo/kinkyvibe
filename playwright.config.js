@@ -16,9 +16,7 @@ const config = {
 		command: process.env.PW_NO_BUILD ? preview : `npm run build && ${preview}`,
 		port,
 		timeout: 300_000,
-		reuseExistingServer: !process.env.CI,
-		// Cuentas del público prendidas (tests/cuentas.spec.js). Apagadas, /ingresar da 404.
-		env: { CUENTAS_ENABLED: '1' }
+		reuseExistingServer: !process.env.CI
 	},
 	testDir: 'tests',
 	// La venta de entradas tiene su propia configuración (dev + mocks): playwright.tickets.config.js

@@ -100,10 +100,14 @@ describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 		expect(hidden).not.toContain('próximamente');
 	});
 
-	it('con el interruptor apagado, la sección dice "prueba"', () => {
+	// «Interruptor apagado → "prueba"» ya no tiene sección real (`cuentas` quedó prendido para
+	// siempre); el mecanismo lo cubre navState en src/lib/admin/nav.test.js.
+	it('Cuentas ya no dice "prueba" aunque llegue un `cuentas: false` viejo', () => {
 		const body = render(SideNav, {
 			props: { active: navItem('cuentas'), counts: {}, flags: { cuentas: false } }
 		}).body;
-		expect(body).toMatch(/href="\/admin\/comunidad\/cuentas"[^>]*>.*?prueba/s);
+		const link = body.match(/<a[^>]*href="\/admin\/comunidad\/cuentas"[^>]*>[\s\S]*?<\/a>/)?.[0];
+		expect(link).toBeTruthy();
+		expect(link).not.toContain('prueba');
 	});
 });

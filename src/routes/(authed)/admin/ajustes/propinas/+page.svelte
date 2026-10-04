@@ -64,12 +64,6 @@
 	{#if !data.dbAvailable}
 		<p class="kv-flash bad">No hay base de datos disponible.</p>
 	{/if}
-	{#if !data.enabled}
-		<p class="kv-flash" role="status">
-			El interruptor <b>Propinas</b> está apagado: las publicaciones muestran la nota del cafecito.
-			Se prende en <a href="/admin/ajustes/interruptores">Ajustes → Interruptores</a>.
-		</p>
-	{/if}
 
 	<div class="kv-stats">
 		<Stat label="Recibido" value={formatARS(s?.total ?? 0)} sub="propinas aprobadas" />

@@ -353,12 +353,9 @@ export async function loadAutomations({
 			what: 'A cada cuenta, cuando se anuncia un evento de algo que sigue.',
 			when: 'En cada vuelta, cuando aparece un evento nuevo',
 			lastRun: msOrNull(sigoRows?.nuevo_mail),
-			nextRun: on('lo_que_sigo') && on('cuentas') ? remindersNext : null,
-			state: on('lo_que_sigo') && on('cuentas') ? 'on' : 'off',
-			stateLabel:
-				on('lo_que_sigo') && on('cuentas')
-					? 'Prendido'
-					: 'Apagado (interruptores «Lo que sigo» y «Cuentas del público»)',
+			nextRun: on('lo_que_sigo') ? remindersNext : null,
+			state: on('lo_que_sigo') ? 'on' : 'off',
+			stateLabel: on('lo_que_sigo') ? 'Prendido' : 'Apagado (interruptor «Lo que sigo»)',
 			details: [],
 			configHref: '/admin/ajustes/interruptores',
 			configLabel: 'Interruptores'
@@ -369,12 +366,9 @@ export async function loadAutomations({
 			what: 'A cada cuenta, antes de los eventos de lo que sigue (si eligió recordatorio).',
 			when: 'En cada vuelta, antes de cada evento',
 			lastRun: msOrNull(sigoRows?.rec_mail),
-			nextRun: on('lo_que_sigo') && on('cuentas') ? remindersNext : null,
-			state: on('lo_que_sigo') && on('cuentas') ? 'on' : 'off',
-			stateLabel:
-				on('lo_que_sigo') && on('cuentas')
-					? 'Prendido'
-					: 'Apagado (interruptores «Lo que sigo» y «Cuentas del público»)',
+			nextRun: on('lo_que_sigo') ? remindersNext : null,
+			state: on('lo_que_sigo') ? 'on' : 'off',
+			stateLabel: on('lo_que_sigo') ? 'Prendido' : 'Apagado (interruptor «Lo que sigo»)',
 			details: [],
 			configHref: '/admin/ajustes/interruptores',
 			configLabel: 'Interruptores'

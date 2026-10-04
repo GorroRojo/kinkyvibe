@@ -35,8 +35,8 @@ cuentas es un link al sitio.
 
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 
-Detrás de **tres** interruptores: `telegram_bot`, `lo_que_sigo` y `cuentas`. Con cualquiera
-apagado no se ve nada de Telegram en Mi rincón, el bot contesta «Todavía no se puede conectar una
+Detrás de **dos** interruptores: `telegram_bot` y `lo_que_sigo` (las cuentas ya no tienen
+interruptor). Con cualquiera apagado no se ve nada de Telegram en Mi rincón, el bot contesta «Todavía no se puede conectar una
 cuenta con el bot» y el cron no manda nada por Telegram. Trae la migración
 `0033_telegram_avisos.sql`.
 
@@ -116,7 +116,7 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/link.js`             | Fase 2: códigos de un solo uso y chats vinculados                   |
 | `src/lib/server/telegram/send.js`             | Fase 2: mandar un mensaje desde el cron (`TELEGRAM_BOT_TOKEN`)      |
 | `src/lib/server/telegram/quiet.js`            | Fase 2: el horario de silencio (23 a 9, hora de Argentina)          |
-| `src/lib/server/telegram/web.js`              | Fase 2: los tres interruptores y lo que necesita Mi rincón          |
+| `src/lib/server/telegram/web.js`              | Fase 2: los dos interruptores y lo que necesita Mi rincón           |
 | `src/lib/components/sigo/TelegramCard.svelte` | Fase 2: la tarjeta «Telegram» de Lo que sigo                        |
 | `src/routes/(content)/mi-rincon/telegram/`    | Fase 2: las acciones de la tarjeta (`?/codigo`, `?/desconectar`)    |
 

@@ -1,7 +1,8 @@
 /**
- * Panel → Amigues con los perfiles en la base (interruptor `perfiles_publicos`): loads y actions
- * que usan /admin/comunidad/perfiles/[slug], /admin/comunidad/perfiles/nuevo y /admin/eventos/lugares. Con el
- * interruptor apagado, esas rutas siguen con el editor de .md de siempre (contentRoutes.js).
+ * Panel → Amigues con los perfiles en la base (el interruptor `perfiles_publicos` quedó prendido
+ * para siempre): loads y actions que usan /admin/comunidad/perfiles/[slug],
+ * /admin/comunidad/perfiles/nuevo y /admin/eventos/lugares. Sin base, o con un perfil que la base
+ * todavía no tiene, esas rutas siguen con el editor de .md de siempre (contentRoutes.js).
  *
  * Cada load y cada action llama a `requireAdmin`. Todo cambio queda en el registro de actividad.
  * La lógica está en src/lib/server/amigues/editor.js; acá, solo el pegamento con SvelteKit.
@@ -9,7 +10,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { logAdminAction } from './audit.js';
 import { deleteBackend } from './deletions.js';
 import {
@@ -30,29 +30,16 @@ import { KIND_LABELS } from '$lib/utils/perfiles.js';
 export const EDITOR_KINDS = Object.freeze({ ...KIND_LABELS });
 
 /**
- * ¿Las páginas de amigues del panel trabajan con la base? (interruptor prendido y base.)
+ * ¿Las páginas de amigues del panel trabajan con la base? (Con base, siempre.)
  *
  * @param {App.Platform | undefined} platform
  */
 export async function dbMode(platform) {
-	const db = getDB(platform);
-	return db && (await perfilesPublicosEnabled(platform)) ? db : null;
+	return getDB(platform) ?? null;
 }
 
 /**
- * ¿Se edita este perfil en la base? Los perfiles que solo existen en la base (lugares, los que
- * se crean en el panel), siempre. Las fichas importadas, solo con el interruptor prendido: con
- * el interruptor apagado el sitio muestra su .md, así que se sigue editando el .md.
- *
- * @param {App.Platform | undefined} platform
- * @param {{ legacySlug: string | null }} found
- */
-async function editsInDb(platform, found) {
-	return !found.legacySlug || (await perfilesPublicosEnabled(platform));
-}
-
-/**
- * El perfil del editor si se edita en la base (ver `editsInDb`), o `null`.
+ * El perfil del editor si está en la base, o `null`.
  *
  * @param {App.Platform | undefined} platform
  * @param {string} urlSlug
@@ -61,12 +48,12 @@ async function dbEditable(platform, urlSlug) {
 	const db = getDB(platform);
 	if (!db) return null;
 	const found = await loadEditableProfile(db, urlSlug);
-	return found && (await editsInDb(platform, found)) ? { db, found } : null;
+	return found ? { db, found } : null;
 }
 
 /**
- * Datos del editor de un perfil de la base, o `null` si no hay perfil con esa dirección o si
- * se edita su .md (ver `editsInDb`).
+ * Datos del editor de un perfil de la base, o `null` si la base no tiene perfil con esa
+ * dirección (entonces se edita su .md).
  *
  * @param {App.Platform | undefined} platform
  *

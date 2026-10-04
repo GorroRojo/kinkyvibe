@@ -295,9 +295,7 @@ export const NAV = Object.freeze([
 		emoji: '🧩',
 		label: 'Roles y preguntas',
 		area: 'eventos',
-		soon: false,
-		flag: 'personas_eventos',
-		hiddenWhenOff: true
+		soon: false
 	},
 
 	// Ventas
@@ -376,8 +374,7 @@ export const NAV = Object.freeze([
 		emoji: '👤',
 		label: 'Cuentas',
 		area: 'comunidad',
-		soon: false,
-		flag: 'cuentas'
+		soon: false
 	},
 
 	// Mensajes
@@ -525,8 +522,7 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
-		soon: false,
-		flag: 'propinas'
+		soon: false
 	},
 	{
 		id: 'ajustes-mails',
@@ -597,7 +593,7 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
 	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
 	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
-	// Interruptor `personas_eventos`: la ficha la muestra solo prendido.
+	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
 	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
 	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
 ]);

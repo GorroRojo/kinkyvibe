@@ -37,7 +37,7 @@ const { candidates, skipped } = planVenueImport(
 
 const body = render(Page, {
 	props: {
-		data: /** @type {any} */ ({ candidates, skipped, total: 5, flagOn: false })
+		data: /** @type {any} */ ({ candidates, skipped, total: 5 })
 	}
 }).body;
 

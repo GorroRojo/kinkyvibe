@@ -231,7 +231,7 @@ export function newLoad(category) {
 			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category)),
-			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			// Personas con rol en el material (sin base, null).
 			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
@@ -290,7 +290,7 @@ export function editLoad(category) {
 			savesToDb,
 			mock: isMockMode(),
 			...(await editorData(category)),
-			// Personas con rol en el material (interruptor personas_eventos; apagado, null).
+			// Personas con rol en el material (sin base, null).
 			personas: category === 'material' ? await editorPersonas(platform) : null
 		};
 	};
@@ -357,7 +357,7 @@ export function editorActions(category) {
 				return fail(400, { error: describe(e) });
 			}
 			if (problems.length) return fail(400, { error: problems.join(' ') });
-			// Personas con rol (interruptor personas_eventos): perfiles (o nombres) y roles válidos.
+			// Personas con rol: perfiles (o nombres) y roles válidos.
 			// Como en el editor de publicaciones, lo que el archivo ya tenía mal no bloquea.
 			const roles = category === 'material' ? await activeRoles(platform) : null;
 			if (roles) {

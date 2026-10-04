@@ -9,7 +9,6 @@ import { getDB } from '$lib/server/db';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { personasEventosEnabled } from '$lib/server/flags.js';
 import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { answerColumns, answerFor } from '$lib/utils/signupFields.js';
 
@@ -36,7 +35,7 @@ export async function GET({ locals, url, params, platform }) {
 		listOrders(db, params.slug),
 		listEventTickets(db, params.slug),
 		answersByOrder(db, params.slug),
-		eventFieldsForCsv(db, params.slug, platform)
+		eventFieldsForCsv(db, params.slug)
 	]);
 	// Una columna por pregunta de inscripción (las de hoy y las que solo tienen respuestas viejas).
 	// Sin preguntas ni respuestas, el CSV queda como siempre.
@@ -141,13 +140,11 @@ export async function GET({ locals, url, params, platform }) {
 
 /**
  * Las preguntas de hoy del evento (para que tengan columna aunque nadie las haya respondido),
- * solo con el interruptor `personas_eventos` prendido. Con un error, ninguna.
+ * Con un error, ninguna.
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} slug
- * @param {App.Platform | undefined} platform
  */
-async function eventFieldsForCsv(db, slug, platform) {
-	if (!(await personasEventosEnabled(platform))) return [];
+async function eventFieldsForCsv(db, slug) {
 	try {
 		return await fieldsForEvent(db, slug);
 	} catch (e) {

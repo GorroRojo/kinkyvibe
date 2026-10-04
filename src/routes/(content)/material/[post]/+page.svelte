@@ -9,7 +9,7 @@
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import Note from '$lib/components/Note.svelte';
-	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
@@ -164,7 +164,7 @@
 		{/if}
 	</div>
 	{#if isKinkyVibePost(data.meta)}
-		<PostSupport propinas={data.propinas} category="material" slug={$page.params.post ?? ''} />
+		<TipBlock category="material" slug={$page.params.post ?? ''} />
 	{/if}
 </article>
 

@@ -10,8 +10,8 @@ const mdLoad = editLoad('amigues');
 
 /**
  * El editor de la base (publica al toque, con control de versión) para los perfiles que solo están
- * en la base y, con el interruptor `perfiles_publicos` prendido, para las fichas importadas. Si no,
- * el editor del .md de siempre (cambios por PR).
+ * en la base y para las fichas importadas. Si la base no tiene el perfil (o no hay base), el
+ * editor del .md de siempre (cambios por PR).
  *
  * @type {import('./$types').PageServerLoad}
  */

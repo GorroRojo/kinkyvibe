@@ -87,9 +87,6 @@
 				</p>
 			{/if}
 			<p class="kv-note">{f.description}</p>
-			{#if f.key === 'personas_eventos' && (f.forced ?? f.enabled)}
-				<p><a href="/admin/eventos/roles">Configurar roles y preguntas →</a></p>
-			{/if}
 			{#if f.forced !== null}
 				<p class="kv-note">
 					La variable {f.envVar} (panel de Cloudflare) manda sobre este interruptor mientras exista.

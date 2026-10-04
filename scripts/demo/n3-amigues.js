@@ -7,7 +7,7 @@
 // - un perfil nuevo de una cuenta, esperando que une admin lo apruebe.
 //
 //   node scripts/demo/n3-amigues.js
-//   PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin
+//   npm run dev:admin
 //
 // Se puede correr más de una vez (no duplica). Escribe los perfiles con saveObject(). Nunca toca
 // una base remota (ver scripts/local-d1.js). Para importar también las fichas reales:
@@ -221,9 +221,7 @@ try {
 		.bind(fresh, creator, Date.now())
 		.run();
 	console.log('perfil «Perfil Demo Nuevo» de demo-crea@example.com, sin aprobar');
-	console.log(
-		'\nListo. Prendé el interruptor: PERFILES_PUBLICOS_ENABLED=1 CUENTAS_ENABLED=1 npm run dev:admin'
-	);
+	console.log('\nListo. Miralo con: npm run dev:admin');
 } finally {
 	await dispose();
 }

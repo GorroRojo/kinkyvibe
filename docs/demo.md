@@ -21,12 +21,12 @@ sin tocar el repo.
   «🧪 Entrar como admin de prueba». Hace `POST /login/demo`, que pone la cookie httpOnly `kvDemo`;
   `hooks.server.js` arma una sesión falsa (login `demo`, nombre «Admin de prueba», id `-1`, que no
   es un id de GitHub). «Cerrar sesión» borra la cookie.
-- **Entrar como persona de prueba** (cuentas del público, [cuentas.md](cuentas.md)): con el
-  interruptor `cuentas` prendido, el encabezado, `/login` e `/ingresar` llevan a `/ingresar/demo`,
+- **Entrar como persona de prueba** (cuentas del público, [cuentas.md](cuentas.md)): el
+  encabezado, `/login` e `/ingresar` llevan a `/ingresar/demo`,
   que deja elegir una cuenta inventada y entrar con un clic, sin código por mail:
   «Persona con entradas» (una entrada aprobada y dos etiquetas y un perfil seguidos), «Persona que
   gestiona un perfil» (dueñe de «Persona de Prueba») y «Cuenta recién creada» (nada). Las crea
-  `scripts/demo/n3-cuentas.sql` (después de `n3-personas.sql`; también prende `cuentas`).
+  `scripts/demo/n3-cuentas.sql` (después de `n3-personas.sql`).
   Mismas reglas que el admin de prueba: la página y su action dan 404 si no es
   `isPreviewDeploy()`. Además, solo entra a esas cuentas: la persona se elige por una clave (nunca
   por un id o un mail que mande el navegador) y la cuenta tiene que estar en la base con el id y
@@ -84,9 +84,9 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
    actividad reciente y «desde tu última visita». Los eventos van a `demo_files` (con el slug de
    la fecha que les toca); los `demo-*.md` del deploy de otras fechas se tapan. Es determinístico
    salvo por el corrimiento de fechas (mismas personas, montos y órdenes).
-3. **Prende los interruptores** de `N3_FLAGS` (`cuentas`, `propinas`, `perfiles_publicos`,
-   `personas_eventos`, `borrar_desde_panel`, `lo_que_sigo`; las series, las etiquetas y el
-   contenido desde la base ya no tienen interruptor) en la base del preview; los valores por defecto del código no cambian. Se pueden
+3. **Prende los interruptores** de `N3_FLAGS` (hoy solo `lo_que_sigo`; cuentas, propinas,
+   perfiles públicos, personas en eventos, borrar desde el panel, series, etiquetas y contenido
+   desde la base ya no tienen interruptor) en la base del preview; los valores por defecto del código no cambian. Se pueden
    apagar a mano hasta la próxima recarga.
 4. Carga lo de la Noche 3 en adelante: perfiles inventados con saveObject()
    (`src/lib/server/demo/seedProfiles.js`: un lugar por nivel de privacidad, un grupo con su

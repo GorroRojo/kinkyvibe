@@ -1,6 +1,6 @@
 // @ts-nocheck -- test code
-// Cuentas del público (docs/cuentas.md): con CUENTAS_ENABLED=1 (lo pone playwright.config.js),
-// /ingresar se muestra, el encabezado (también a 320 px) y el footer tienen "Entrar" y
+// Cuentas del público (docs/cuentas.md; ya sin interruptor): /ingresar se muestra, el
+// encabezado (también a 320 px) y el footer tienen "Entrar" y
 // /mi-rincon sin sesión lleva a /ingresar.
 // El login completo (código por mail) lo cubren los tests unitarios: acá no hay mails.
 import { expect, test } from '@playwright/test';
@@ -64,7 +64,11 @@ test('el footer lleva a Entrar (Tu cuenta) y el equipo entra al panel abajo de t
 	);
 	await expect(footer.getByRole('link', { name: 'Iniciar sesión' })).toHaveCount(0);
 	await expect(footer.getByRole('link', { name: 'Panel de admin' })).toHaveCount(0);
-	// Sin PROPINAS_ENABLED (interruptor apagado) sigue Cafecito.
-	await expect(footer.getByRole('link', { name: 'CafecitoApp' })).toBeVisible();
+	// Propinas ya sin interruptor: "Dejá una propina" al Fondo en lugar de Cafecito.
+	await expect(footer.getByRole('link', { name: 'Dejá una propina' })).toHaveAttribute(
+		'href',
+		'https://fondo.kinkyvibe.ar'
+	);
+	await expect(footer.getByRole('link', { name: 'CafecitoApp' })).toHaveCount(0);
 	await expect(footer).toContainText('Este sitio está en constante construcción.');
 });

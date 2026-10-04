@@ -78,8 +78,7 @@
 	/** El evento se guarda en la base y se ve enseguida. */
 	const copy = saveCopy(data.savesToDb);
 
-	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna (interruptor
-	// `series`): crear una serie nueva con el nombre sugerido, agregarlo a una que existe o no.
+	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna: crear una serie nueva con el nombre sugerido, agregarlo a una que existe o no.
 	const seriesPrompt = data.seriesPrompt;
 	/** @type {'' | 'crear' | 'agregar' | 'no'} */
 	let seriesChoice = '';
@@ -150,8 +149,8 @@
 	$: ticketsCheck = validateTicketsForm(tickets);
 
 	/* ---------- personas: quienes organizan y el resto, en una sola lista ---------- */
-	// Como en Editar: `data.personas` ({ roles, profiles }) llega solo con el interruptor
-	// personas_eventos; apagado, es el «Organizan» de siempre y `personas:` (de un evento que se
+	// Como en Editar: `data.personas` ({ roles, profiles }) llega con base; sin base,
+	// es el «Organizan» de siempre y `personas:` (de un evento que se
 	// duplica) queda como está. Se escribe en `authors:` y `personas:` ($lib/utils/personasList.js).
 	/** @type {{ roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null} */
 	const personasData = data.personas ?? null;

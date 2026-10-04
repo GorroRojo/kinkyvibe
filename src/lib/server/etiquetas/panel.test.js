@@ -1,5 +1,5 @@
 /**
- * Guardar desde el panel en la base (interruptor `etiquetas_db`): escribe, queda en Actividad y
+ * Guardar desde el panel en la base (el interruptor `etiquetas_db` quedó fijo): escribe, queda en Actividad y
  * olvida lo recordado; una operación imposible no escribe nada. Renombrar sin alias (lo de
  * siempre): primero un commit que cambia las publicaciones, después la base.
  */

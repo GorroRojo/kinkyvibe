@@ -71,17 +71,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/**
- * @param {string} perfiles '1' prendido, '0' apagado
- */
-function flags(perfiles) {
+/** Módulos recién cargados, sin variables de entorno. */
+function flags() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			PERFILES_PUBLICOS_ENABLED: perfiles,
-			CUENTAS_ENABLED: '1'
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 }
 
 /** Los eventos inventados, en la base (de donde salen los eventos), con su «Dónde». */
@@ -170,7 +163,7 @@ const mdPlace = (slug) => [`Calle Md ${slug}`, `Nombre Md ${slug}`, `mapa-md-${s
 
 describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	it('en ninguna salida pública aparece el «Dónde» del .md de un evento con lugar', async () => {
-		flags('1');
+		flags();
 		await seedEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();
@@ -188,7 +181,7 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	});
 
 	it('en su lugar va lo que el nivel deja ver', async () => {
-		flags('1');
+		flags();
 		await seedEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();
@@ -225,7 +218,7 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 	});
 
 	it('la página del lugar lista sus eventos sin el «Dónde» del .md', async () => {
-		flags('1');
+		flags();
 		await seedEvents();
 		const venue = await linkVenues();
 		const page = /** @type {any} */ (
@@ -243,19 +236,7 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md', () => {
 		}
 	});
 
-	it('con `perfiles_publicos` apagado, todo como antes (el «Dónde» del evento)', async () => {
-		flags('0');
-		await seedEvents();
-		await linkVenues();
-		const posts = await (
-			await (await import('../../api/posts/+server.js')).GET(fakeEvent())
-		).text();
-		expect(posts).toContain('Calle Md lugar-hidden');
-		const share = await (
-			await import('./[event]/compartir/+page.server.js')
-		).load(fakeEvent({ params: { event: 'lugar-hidden' } }));
-		expect(share).toMatchObject({ venue: null, meta: { location: 'Calle Md lugar-hidden' } });
-	});
+	// «Con `perfiles_publicos` apagado, todo como antes» se fue con el interruptor (quedó fijo).
 });
 
 describe('los eventos salen de la base, no de su .md', () => {
@@ -284,7 +265,7 @@ describe('los eventos salen de la base, no de su .md', () => {
 	const anyPlace = (slug) => [...mdPlace(slug), `Calle Base ${slug}`, `Nombre Base ${slug}`];
 
 	it('un evento de la base con lugar tampoco muestra su «Dónde» en ninguna salida', async () => {
-		flags('1');
+		flags();
 		await importEvents();
 		await linkVenues();
 		const outputs = await publicOutputs();

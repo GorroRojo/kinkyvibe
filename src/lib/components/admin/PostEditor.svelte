@@ -122,7 +122,7 @@
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
 
 	/* ---------- lugar (eventos): edge `lugar` del evento en la base, no en el archivo ---------- */
-	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice, flagOn: boolean } | null} */
+	/** @type {{ venues: any[], current: import('$lib/utils/venueChoice.js').VenueChoice } | null} */
 	const venuePicker = category === 'calendario' ? (data.venuePicker ?? null) : null;
 	const savedVenue = venuePicker?.current ?? NO_VENUE;
 	let venue = { ...savedVenue };
@@ -186,7 +186,7 @@
 	const hasAuthors = category !== 'amigues';
 
 	/* ---------- personas: quienes organizan o escriben y el resto, en una sola lista ---------- */
-	// `data.personas` ({ roles, profiles }) llega solo con el interruptor personas_eventos. Apagado,
+	// `data.personas` ({ roles, profiles }) llega con base. Sin base,
 	// la sección es el «Organizan» / «Autores» de siempre (sin roles) y `personas:` no se toca. Se
 	// guarda en `authors:` y `personas:` como siempre ($lib/utils/personasPicker.js); en la base,
 	// como una sola lista.

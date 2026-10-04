@@ -27,13 +27,10 @@ async function applySeed() {
 }
 
 describe('scripts/demo/n3-series.sql', () => {
-	it('se aplica (dos veces) y deja el interruptor prendido y suscripciones de prueba', async () => {
+	// Ya no prende el interruptor `series` (quedó prendido para siempre): se fue esa comprobación.
+	it('se aplica (dos veces) y deja suscripciones de prueba', async () => {
 		const sql = await applySeed();
 		await applySeed();
-		const flag = await t.db
-			.prepare("SELECT enabled FROM feature_flags WHERE key = 'series'")
-			.first();
-		expect(flag?.enabled).toBe(1);
 		expect(Object.fromEntries(await subscriberCounts(t.db))).toEqual({
 			Picantearla: { confirmed: 2, pending: 1 },
 			'Cine para Sucixs': { confirmed: 1, pending: 0 }

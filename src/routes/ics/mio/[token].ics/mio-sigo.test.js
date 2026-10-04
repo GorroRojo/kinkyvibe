@@ -53,15 +53,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** La ruta (series, cuentas y «Lo que sigo» prendidos). */
+/** La ruta (con «Lo que sigo» prendido). */
 async function route() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			CUENTAS_ENABLED: '1',
-			LO_QUE_SIGO_ENABLED: '1'
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: { LO_QUE_SIGO_ENABLED: '1' } }));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return import('./+server.js');
 }

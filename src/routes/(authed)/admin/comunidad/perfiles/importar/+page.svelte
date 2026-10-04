@@ -34,13 +34,6 @@
 />
 
 <div class="kv-stack">
-	{#if !data.flagOn}
-		<p class="kv-flash warn">
-			El interruptor «Perfiles públicos» está apagado: importar no cambia nada del sitio todavía.
-			Revisá la lista y prendelo en Ajustes → Interruptores cuando esté todo bien.
-		</p>
-	{/if}
-
 	<Card title="Importar">
 		<div class="kv-stats">
 			<Stat label="Nuevas" value={data.summary.created} />

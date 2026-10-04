@@ -36,7 +36,6 @@ export async function load({ data }) {
 		parts: content ? null : (post.parts ?? null),
 		meta: venue ? stripMdPlace(post.meta) : post.meta,
 		tickets: data.tickets ?? null,
-		venue,
-		propinas: data.propinas ?? false
+		venue
 	};
 }

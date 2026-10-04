@@ -14,24 +14,19 @@ Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son l
 "Perfiles" más abajo). Las passkeys y la compra con cuenta vienen después. Les admins siguen entrando con GitHub en `/login`: son dos
 cosas separadas (`locals.user` para admins, `locals.member` para cuentas) y una no toca a la otra.
 
-Todo está **detrás del interruptor `cuentas`, apagado**: sin prenderlo, `/ingresar` y
-`/mi-rincon` dan 404 y ni el encabezado ni el pie de página muestran nada. Prendido, el link
-"Ingresar"/"Mi rincón" está en el encabezado (también en pantallas de menos de 330 px, donde es lo
+Está **siempre prendido** (el interruptor `cuentas` quedó fijo, [interruptores.md](interruptores.md)):
+el link "Ingresar"/"Mi rincón" está en el encabezado (también en pantallas de menos de 330 px, donde es lo
 único que queda al lado del logo) y en la columna "Tu cuenta" del pie de página. El pie de página
 tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 
-## Cómo prenderlo
+## Qué necesita
 
-- **Desde el panel:** Ajustes → Interruptores → "Cuentas del público" → Prender. Tarda hasta 30
-  segundos en verse en todo el sitio (cada isolate recuerda el valor un rato) y queda en el
-  registro de actividad.
-- **Variable `CUENTAS_ENABLED`** (panel de Cloudflare): `1` lo fuerza prendido, `0` lo fuerza
-  apagado aunque el panel diga otra cosa (sirve para cortarlo de golpe). Sin la variable, manda el
-  panel.
-- Antes, en producción: aplicar la migración `0013_cuentas.sql` y tener `RESEND_API_KEY`. En un
+- **Ya no hay interruptor**: la variable `CUENTAS_ENABLED` y la fila `cuentas` de
+  `feature_flags` no hacen nada.
+- En producción: la migración `0013_cuentas.sql` (y las que siguen) y `RESEND_API_KEY`. En un
   preview, los códigos solo llegan a las direcciones de `EMAIL_ALLOWLIST` (ver [mails.md](mails.md)).
-- En local: `CUENTAS_ENABLED=1 npm run dev`. Sin `RESEND_API_KEY`, el mail no sale y el código se
-  ve en la consola de `vite dev` (solo en dev).
+- En local: `npm run dev`. Sin `RESEND_API_KEY`, el mail no sale y el código se ve en la consola
+  de `vite dev` (solo en dev).
 
 ## Lo que nunca se tiene que romper
 
@@ -78,7 +73,7 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
 | `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista                                    |
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
-| `feature_flags`     | los interruptores del panel (`cuentas` es el primero)                                                                                         |
+| `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
@@ -160,8 +155,7 @@ el código por mail sigue andando.
 - En Mi rincón, "Cerrar sesión en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
-- `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie y el interruptor
-  está prendido.
+- `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie (y base).
 
 ### Otras protecciones
 
@@ -190,7 +184,7 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
 
 ### Datos guardados para la compra
 
-Con sesión (y el interruptor `cuentas` prendido), la compra de entradas completa «Tus datos» con
+Con sesión, la compra de entradas completa «Tus datos» con
 lo que la cuenta tiene guardado, y la persona elige qué se guarda.
 
 - **Qué se completa:** nombre, pronombres y DNI guardados, y el **mail de la cuenta** (se puede
@@ -310,14 +304,13 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   (`profile.review`, `profile.hide` o `profile.delete`). Si son varios, van en una sola fila que
   lleva a Perfiles filtrado.
 
-**Página pública:** `/amigues`, detrás del interruptor `perfiles_publicos` (ver
-[amigues.md](amigues.md)): las fichas importadas, los perfiles aprobados por admins, "Es mi
+**Página pública:** `/amigues` (ver [amigues.md](amigues.md)): las fichas importadas, los perfiles aprobados por admins, "Es mi
 perfil" y los lugares. Una cuenta puede crear personas, proyectos y **lugares** (decisión de
 gorrite, [0022](decisiones/0022-lugares-desde-cuentas.md)); como todo perfil nuevo de una cuenta,
 aparece en el sitio recién cuando une admin lo aprueba (los lugares, en Eventos → Lugares → "Para
 aprobar").
 
-### Páginas (detrás del mismo interruptor `cuentas`)
+### Páginas
 
 - `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona, proyecto o lugar,
   nombre y quién lo puede ver) y las invitaciones a gestionar proyectos que le llegaron.
@@ -336,7 +329,7 @@ aprobar").
   - la opción "No recibir invitaciones de proyectos" (de la cuenta, para todos sus perfiles de
     persona; va en `accounts.preferences`, `noGroupInvites`).
 - Si la cuenta no gestiona ese perfil, da 404 (como si no existiera). Sin sesión, lleva a
-  `/ingresar`. Con el interruptor apagado, todo da 404.
+  `/ingresar`.
 - Sin ventanas de confirmación: borrar pide escribir el nombre del perfil en la misma página (y,
   si es un proyecto, el código por mail).
 
@@ -466,8 +459,7 @@ aprobar").
   revelan cuentas (tampoco con el aviso por mail) y sus límites, integrantes (invitar, aceptar,
   rechazar, no poder invitar ocultos, irse, el bloqueo de 30 días, no recibir invitaciones, los
   límites, que invitar no cambia la versión de la persona, visibilidad), que ninguna lectura
-  pública o de otra cuenta vincula perfiles ni muestra quién gestiona, y las páginas con el interruptor apagado
-  (404) y prendido.
+  pública o de otra cuenta vincula perfiles ni muestra quién gestiona.
 
 ## Dónde está el código
 
@@ -487,11 +479,10 @@ aprobar").
 ## Cómo probarlo
 
 - `npx vitest run src/lib/server/cuentas src/lib/server/flags.test.js "src/routes/(content)/mi-rincon"`:
-  códigos (vencimiento, intentos, límites), contraseñas, sesiones, borrado, compras por mail y el
-  interruptor apagado (404 y sin link).
-- `tests/cuentas.spec.js` (Playwright, con `CUENTAS_ENABLED=1` en `playwright.config.js`):
+  códigos (vencimiento, intentos, límites), contraseñas, sesiones, borrado y compras por mail.
+- `tests/cuentas.spec.js` (Playwright):
   `/ingresar` se ve y el encabezado (también a 320 px) y el pie de página llevan ahí.
-- A mano: `CUENTAS_ENABLED=1 npm run dev`, pedir un código en `/ingresar` y copiarlo de la
+- A mano: `npm run dev`, pedir un código en `/ingresar` y copiarlo de la
   consola.
 
 ## Límites conocidos
@@ -538,8 +529,9 @@ actualizá esta lista.
   borran por quedar sin nadie conservan sus datos y su `created_by`/`updated_by`; las invitaciones
   a gestionar para su mail vencen solas (solo guardan el hash). Las filas borradas (suave) siguen en los
   backups.
-- **Previews.** Cualquiera que entra a un preview es admin de demo y puede prender `cuentas` en la
-  base del preview (separada de producción, y los mails solo salen a `EMAIL_ALLOWLIST`).
+- **Previews.** Cualquiera que entra a un preview es admin de demo y puede entrar con las cuentas
+  de prueba en la base del preview (separada de producción, y los mails solo salen a
+  `EMAIL_ALLOWLIST`).
 
 ## Pendiente (partes siguientes)
 

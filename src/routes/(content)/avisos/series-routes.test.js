@@ -52,16 +52,13 @@ let mails = [];
  * Los módulos con los interruptores como se pida y posts inventados.
  * `extra`: más posts listados, además de los de fakeSeriesPosts.
  * `sigo`: el interruptor «Lo que sigo» (sin pedirlo, sin tocar, como antes).
- * @param {{ cuentas?: string, sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
+ * @param {{ sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
  */
-async function modules({ cuentas = '1', sigo, extra } = {}) {
+async function modules({ sigo, extra } = {}) {
 	vi.resetModules();
 	mails = [];
 	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			CUENTAS_ENABLED: cuentas,
-			...(sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {})
-		}
+		env: sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {}
 	}));
 	const now = Date.now();
 	const listed = [...fakeSeriesPosts(now), ...(extra?.(now) ?? [])];
@@ -165,7 +162,7 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const m = await modules();
 		await m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }));
 		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
-		// Lo que pone hooks.server.js con `etiquetas_db`: una «base» con otro nombre visible.
+		// Lo que pone hooks.server.js (las etiquetas de la base): una «base» con otro nombre visible.
 		/** @type {Record<string, any>[]} */
 		const list = JSON.parse(JSON.stringify(hardcodedTags));
 		const serie = list.find((e) => e.id === 'Picantearla');
@@ -510,8 +507,10 @@ describe('prendido: calendarios .ics', () => {
 		});
 	});
 
-	it('personal: con las cuentas apagadas, 404', async () => {
-		const m = await modules({ cuentas: '0' });
+	// Antes: «con las cuentas apagadas, 404»; `cuentas` quedó prendido para siempre. Queda el
+	// 404 de un token que no existe.
+	it('personal: un token que no existe, 404', async () => {
+		const m = await modules();
 		expect(
 			await thrown(() => m.icsMine.GET(ev({ params: { token: 'x'.repeat(43) } })))
 		).toMatchObject({

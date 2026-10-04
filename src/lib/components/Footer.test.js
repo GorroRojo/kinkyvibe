@@ -1,6 +1,7 @@
 /**
- * Pie de página: "Tu cuenta" (Ingresar / Mi rincón) solo con el interruptor `cuentas`, "Dejá una
- * propina" o Cafecito según `propinas`, y "Entrar al panel" para el equipo.
+ * Pie de página: "Tu cuenta" (Ingresar / Mi rincón), "Dejá una propina" y "Entrar al panel" para
+ * el equipo. Los interruptores `cuentas` y `propinas` quedaron prendidos para siempre: los casos
+ * «apagado» (sin "Tu cuenta", con Cafecito) se fueron con ellos.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -10,13 +11,10 @@ import Footer from './Footer.svelte';
 const html = (data) => render(Footer, { props: { data } }).body;
 
 describe('Footer', () => {
-	it('con todo apagado: sin "Tu cuenta", con Cafecito y el link al panel', () => {
-		const body = html({ cuentas: false, member: false, propinas: false });
-		expect(body).not.toContain('Tu cuenta');
-		expect(body).not.toContain('href="/ingresar"');
-		expect(body).not.toContain('href="/mi-rincon"');
-		expect(body).toContain('https://cafecito.app/kinkyvibe');
-		expect(body).toContain('CafecitoApp');
+	it('el link al panel, y nada de lo que había antes', () => {
+		const body = html({ member: false });
+		expect(body).not.toContain('cafecito.app');
+		expect(body).not.toContain('CafecitoApp');
 		expect(body).not.toContain('href="/propinas"');
 		expect(body).toMatch(/<a href="\/login"[^>]*>Entrar al panel<\/a>/);
 		// Lo que había antes ya no está.
@@ -25,29 +23,30 @@ describe('Footer', () => {
 		expect(body).not.toContain('href="/admin"');
 	});
 
-	it('sin datos (por las dudas) se ve como con todo apagado', () => {
+	it('sin datos (por las dudas) se ve como sin sesión', () => {
 		const body = render(Footer).body;
-		expect(body).not.toContain('Tu cuenta');
-		expect(body).toContain('CafecitoApp');
+		expect(body).toContain('Tu cuenta');
+		expect(body).toMatch(/href="\/ingresar"[^>]*>(?:(?!<\/a>)[\s\S])*Entrar\s*<\/a>/);
+		expect(body).toContain('Dejá una propina');
 		expect(body).toContain('Entrar al panel');
 	});
 
-	it('cuentas prendido sin sesión: "Tu cuenta" con Entrar', () => {
-		const body = html({ cuentas: true, member: false });
+	it('sin sesión: "Tu cuenta" con Entrar', () => {
+		const body = html({ member: false });
 		expect(body).toContain('Tu cuenta');
 		expect(body).toMatch(/href="\/ingresar"[^>]*>(?:(?!<\/a>)[\s\S])*Entrar\s*<\/a>/);
 		expect(body).not.toContain('href="/mi-rincon"');
 	});
 
-	it('cuentas prendido con sesión: "Tu cuenta" con Mi rincón', () => {
-		const body = html({ cuentas: true, member: true });
+	it('con sesión: "Tu cuenta" con Mi rincón', () => {
+		const body = html({ member: true });
 		expect(body).toContain('Tu cuenta');
 		expect(body).toMatch(/href="\/mi-rincon"[^>]*>[\s\S]*?Mi rincón/);
 		expect(body).not.toContain('href="/ingresar"');
 	});
 
-	it('propinas prendido: "Dejá una propina" en lugar de Cafecito', () => {
-		const body = html({ propinas: true });
+	it('"Dejá una propina" al Fondo, sin Cafecito', () => {
+		const body = html({});
 		expect(body).toMatch(/href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>[\s\S]*?Dejá una propina/);
 		expect(body).not.toContain('href="/propinas"');
 		expect(body).not.toContain('cafecito.app');

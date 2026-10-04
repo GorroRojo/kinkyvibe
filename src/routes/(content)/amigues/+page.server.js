@@ -1,11 +1,10 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import { getDB } from '$lib/server/db';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { KIND_FILTERS, amiguesListPosts } from '$lib/server/amigues/pages.js';
 
 /**
- * /amigues. Con el interruptor `perfiles_publicos` apagado (o sin base), las fichas .md como
- * siempre; prendido, los perfiles de la base (personas, proyectos y lugares). El filtro `?tipo=` se
+ * /amigues: los perfiles de la base (personas, proyectos y lugares; el interruptor
+ * `perfiles_publicos` quedó prendido para siempre). Sin base, las fichas .md. El filtro `?tipo=` se
  * aplica en la página: este load no lee `url`, para no volver a correr con cada cambio de los
  * filtros de PostList. Ver docs/amigues.md.
  *
@@ -13,7 +12,7 @@ import { KIND_FILTERS, amiguesListPosts } from '$lib/server/amigues/pages.js';
  */
 export async function load({ platform, locals, setHeaders }) {
 	const db = getDB(platform);
-	if (db && (await perfilesPublicosEnabled(platform))) {
+	if (db) {
 		// Lo que ve una cuenta o une admin puede incluir perfiles "solo con cuenta".
 		if (locals.member || locals.user) setHeaders({ 'cache-control': 'private, no-store' });
 		return { posts: await amiguesListPosts(db, locals), kinds: KIND_FILTERS };

@@ -1,7 +1,5 @@
 import { currentRelated, relatedPostsFor } from '$lib/utils';
 import { mentionPronouns } from '$lib/server/pronouns';
-import { propinasEnabled } from '$lib/server/flags.js';
-import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { error, redirect } from '@sveltejs/kit';
 import { siteContent, sitePosts } from '$lib/server/contenido/posts.js';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
@@ -36,9 +34,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
 		ticketStates: await ticketStatesFor(platform, related.relatedPosts),
 		pronouns: await mentionPronouns(),
-		// Personas con su rol (interruptor `personas_eventos`; apagado, `null`).
-		personas: await personasForPage(platform, post.meta),
-		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito.
-		propinas: isKinkyVibePost(post.meta) ? await propinasEnabled(platform) : false
+		// Personas con su rol (`null` si no hay nada que mostrar).
+		personas: await personasForPage(platform, post.meta)
 	};
 }

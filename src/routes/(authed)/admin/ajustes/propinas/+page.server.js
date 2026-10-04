@@ -4,7 +4,6 @@
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import { propinasEnabled } from '$lib/server/flags.js';
 import { listTips, tipSummary } from '$lib/server/propinas/index.js';
 import { TIP_DESTINATIONS } from '$lib/utils/propinas.js';
 
@@ -40,7 +39,6 @@ export async function load({ locals, url, platform, setHeaders }) {
 	}
 	return {
 		dbAvailable: Boolean(db),
-		enabled: await propinasEnabled(platform),
 		summary,
 		tips,
 		destination

@@ -5,7 +5,7 @@
  * - **Sin cuenta**: con el mail y doble confirmación. Se guarda el mail (hace falta para el aviso)
  *   y el hash del token del link de confirmar; sin confirmar no se le manda nada más, y el pedido
  *   vence en CONFIRM_TTL_MS (el cron lo borra).
- * - **Con cuenta** (interruptor `cuentas` prendido y sesión abierta): confirmada en el acto, sin
+ * - **Con cuenta** (sesión abierta): confirmada en el acto, sin
  *   guardar el mail (se usa el de la cuenta al mandar).
  *
  * Darse de baja borra la fila. El link de baja va firmado ($lib/server/signedLinks.js), así se

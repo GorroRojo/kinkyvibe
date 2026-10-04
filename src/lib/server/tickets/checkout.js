@@ -235,7 +235,7 @@ export async function getTicketsView(db, slug, fetchFn) {
 				waitingFor: null
 			};
 		}),
-		// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+		// Preguntas de inscripción (sin base, ninguna).
 		fields: await eventSignupFields(db, slug)
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
@@ -564,7 +564,7 @@ export async function buyAction(event) {
 			? { ...config, types: config.types.map((t) => (t.id === effective?.id ? effective : t)) }
 			: config;
 
-	// Preguntas de inscripción (interruptor `personas_eventos`; apagado, ninguna).
+	// Preguntas de inscripción (sin base, ninguna).
 	const fields = await eventSignupFields(db, params.event);
 	values.answers = readAnswers(form, fields, values.quantity);
 	const valid = validatePurchase(

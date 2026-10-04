@@ -1,7 +1,7 @@
 /**
  * POST /api/cron/recordatorios: manda una tanda de los mails que tocan: recordatorios (ver
  * $lib/server/tickets/reminders.js) y lo que quede de cada "Enviar el link a todes" (ver
- * `runMailQueue` en $lib/server/tickets/index.js). Con el interruptor `series` prendido, también
+ * `runMailQueue` en $lib/server/tickets/index.js). También
  * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
@@ -37,7 +37,7 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron series', error);
 		}
-		// «Lo que sigo» también aparte (interruptores `lo_que_sigo` y `cuentas`).
+		// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
 		let sigo = null;
 		try {
 			sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });

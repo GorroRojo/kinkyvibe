@@ -17,7 +17,6 @@ import {
 import { ObjectError, VersionConflictError } from '$lib/server/objects/index.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
 import { approvalAction, claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 
 /** @param {string | undefined} raw */
 function profileId(raw) {
@@ -36,10 +35,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	if (!detail) error(404, 'No encontramos ese perfil.');
 	return {
 		...detail,
-		// Pedidos "Es mi perfil" de este perfil (también los resueltos) y si el editor de la base
-		// está prendido (interruptor `perfiles_publicos`).
-		claims: await listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => []),
-		dbEditor: await perfilesPublicosEnabled(platform)
+		// Pedidos "Es mi perfil" de este perfil (también los resueltos).
+		claims: await listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => [])
 	};
 }
 
