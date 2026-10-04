@@ -14,7 +14,14 @@
 /** @typedef {import('../objects/save.js').SavedRef} SavedRef */
 
 /** De dónde vino un guardado. */
-export const REVISION_SOURCES = /** @type {const} */ (['import', 'panel', 'agenda', 'deshacer']);
+export const REVISION_SOURCES = /** @type {const} */ ([
+	'import',
+	'panel',
+	'agenda',
+	'deshacer',
+	'lugar',
+	'migracion'
+]);
 
 /**
  * La sentencia que copia el objeto recién guardado al historial. Va al final de `also` (después

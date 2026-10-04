@@ -185,7 +185,10 @@ async function profiles() {
 	return { colectivo, oculta };
 }
 
-/** Un repo de mentira vacío. */
+/**
+ * Un repo de mentira vacío.
+ * @returns {any}
+ */
 function fakeRepo() {
 	/** @type {any[]} */
 	const commits = [];
@@ -303,10 +306,12 @@ describe('guardar un evento desde el panel (contenido_db)', () => {
 		expect(eventToMeta(/** @type {any} */ (all.get(SLUG)).object)).toEqual(eventToMeta(old));
 		// Las páginas públicas: la del evento y las listas.
 		const posts = await import('./posts.js');
-		const page = await posts.sitePost(t.platform, 'calendario', SLUG);
+		const page = /** @type {any} */ (await posts.sitePost(t.platform, 'calendario', SLUG));
 		expect(page.meta.personas).toEqual(eventToMeta(old).personas);
 		expect(page.meta.authors).toEqual(eventToMeta(old).authors);
-		const listed = (await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG);
+		const listed = /** @type {any} */ (
+			(await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)
+		);
 		expect(listed?.meta.personas).toEqual(eventToMeta(old).personas);
 		// Lo que muestra la página: el perfil oculto y la dirección sin perfil, nunca.
 		const { resolvePersonas } = await import('$lib/server/personas/index.js');
@@ -384,10 +389,12 @@ describe('el perfil cambia de dirección', () => {
 			superadmin: true
 		});
 		const posts = await import('./posts.js');
-		const slugsIn = async () =>
-			((await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)?.meta.personas ?? [])
-				.map((/** @type {any} */ p) => p.perfil)
-				.filter(Boolean);
+		const slugsIn = async () => {
+			const post = /** @type {any} */ (
+				(await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)
+			);
+			return (post?.meta.personas ?? []).map((/** @type {any} */ p) => p.perfil).filter(Boolean);
+		};
 		expect(await slugsIn()).toContain('colectivo-inventado');
 		await saveObject(
 			t.db,
