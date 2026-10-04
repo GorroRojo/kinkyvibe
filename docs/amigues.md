@@ -107,6 +107,14 @@ en los recordatorios y en la página de su entrada (con la compra aprobada).
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").
 
+**El mapa** (`VenueMap.svelte`): baldosas de OpenStreetMap como imágenes comunes con
+`loading="lazy"` (sin librerías, scripts ni iframes de afuera, así que no hace falta tocar la CSP),
+alto fijo (no corre nada al cargar) y ancho que se adapta al celular con el punto en el centro.
+Abajo, «Abrir en OpenStreetMap», «Cómo llegar» (las indicaciones de openstreetmap.org con el
+destino puesto) y el crédito «© colaboradores de OpenStreetMap». Sale solo en "Nombre + dirección"
+y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
+`venues.test.js` y `VenueLocation.test.js`).
+
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir se
 arman al compilar desde los `.md`, así que no pueden contener nada de la base. La prueba
 `src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y revisa todas esas
