@@ -305,7 +305,7 @@
 								><ExternalLink size={18} aria-hidden="true" />Ver el sitio</a
 							>
 							<a href={logoutHref} data-sveltekit-reload
-								><LogOut size={18} aria-hidden="true" />Cerrar sesión</a
+								><LogOut size={18} aria-hidden="true" />Salir</a
 							>
 						</div>
 					</details>
@@ -443,7 +443,7 @@
 							>Ver el sitio<ExternalLink size={16} aria-hidden="true" /></a
 						>
 						<a class="kv-btn ghost small" href={logoutHref} data-sveltekit-reload
-							><LogOut size={16} aria-hidden="true" />Cerrar sesión</a
+							><LogOut size={16} aria-hidden="true" />Salir</a
 						>
 					</div>
 				</div>

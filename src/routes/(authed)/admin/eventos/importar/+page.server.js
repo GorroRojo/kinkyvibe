@@ -25,7 +25,7 @@ import { seriesTagIds } from '$lib/utils/series.js';
 import { isValidDate, isValidTime, todayInArgentina, validateSlug } from '$lib/utils/eventDraft.js';
 
 const NO_PERMISSION =
-	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
 const NO_DB = 'Sin base de datos: no se puede importar.';
 const MAX_ROWS = IMPORT_MAX_ROWS;
 /** Cuánto puede diferir `importAt` (lo pone la página) de la hora del servidor. */

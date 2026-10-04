@@ -34,7 +34,7 @@ import {
 } from '$lib/server/etiquetas/panel.js';
 
 const NO_PERMISSION =
-	'No tenés permiso para editar etiquetas. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para editar etiquetas. Probá salir y volver a entrar.';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {

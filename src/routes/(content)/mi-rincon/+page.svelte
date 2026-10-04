@@ -60,10 +60,10 @@
 		{/if}
 		<div class="row">
 			<form method="POST" action="?/salir">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión</button>
+				<button class="pill-btn ghost" type="submit">Salir</button>
 			</form>
 			<form method="POST" action="?/salirTodos">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión en todos lados</button>
+				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
 			</form>
 		</div>
 		<p class="hint">
