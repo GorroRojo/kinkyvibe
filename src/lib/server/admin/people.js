@@ -180,7 +180,7 @@ export function matchesPerson(p, q) {
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Notas internas (tabla person_notes, migración 0009)                                        */
+/* Notas internas (tabla person_notes, migraciones 0009 y 0045)                              */
 /* ------------------------------------------------------------------------------------------ */
 
 export const NOTE_MAX = 2000;
@@ -198,7 +198,7 @@ export const NOTE_MAX = 2000;
  * @returns {Promise<PersonNote[]>} la más nueva primero
  */
 export async function listNotes(db, email) {
-	if (!db) return [];
+	if (!db || !email) return [];
 	try {
 		const { results } = await db
 			.prepare(
@@ -228,7 +228,8 @@ export async function noteCounts(db) {
 	try {
 		const { results } = await db
 			.prepare(
-				'SELECT lower(trim(email)) AS email, COUNT(*) AS n FROM person_notes GROUP BY lower(trim(email))'
+				// Las notas de una cuenta borrada (sin mail, 0045) no son de ninguna persona por mail.
+				"SELECT lower(trim(email)) AS email, COUNT(*) AS n FROM person_notes WHERE trim(email) != '' GROUP BY lower(trim(email))"
 			)
 			.all();
 		return new Map(results.map((r) => [String(r.email), Number(r.n)]));
@@ -255,27 +256,46 @@ export function validateNote(raw) {
 }
 
 /**
+ * Una nota nueva: por el mail (normalizado) o, si no hay mail (una cuenta borrada), atada al id de
+ * la cuenta (`account_id`, migración 0045; `email` queda vacío).
+ *
  * @param {D1Database} db
- * @param {{ email: string, body: string, by: string, now?: number }} input
+ * @param {{ email?: string, accountId?: string, body: string, by: string, now?: number }} input
  */
-export async function addNote(db, { email, body, by, now = Date.now() }) {
-	const r = await db
-		.prepare(
-			'INSERT INTO person_notes (email, body, created_at, created_by) VALUES (?1, ?2, ?3, ?4) RETURNING id'
-		)
-		.bind(email, body, now, by)
-		.first();
+export async function addNote(db, { email = '', accountId = '', body, by, now = Date.now() }) {
+	if (!email && !accountId) throw new Error('Una nota necesita un mail o una cuenta.');
+	const r = email
+		? await db
+				.prepare(
+					'INSERT INTO person_notes (email, body, created_at, created_by) VALUES (?1, ?2, ?3, ?4) RETURNING id'
+				)
+				.bind(email, body, now, by)
+				.first()
+		: await db
+				.prepare(
+					"INSERT INTO person_notes (email, account_id, body, created_at, created_by) VALUES ('', ?1, ?2, ?3, ?4) RETURNING id"
+				)
+				.bind(accountId, body, now, by)
+				.first();
 	return Number(r?.id);
 }
 
 /**
+ * Borra una nota de esa persona: por su mail o, sin mail, por la cuenta a la que está atada.
+ *
  * @param {D1Database} db
- * @param {{ email: string, id: number }} input
+ * @param {{ email?: string, accountId?: string, id: number }} input
  */
-export async function deleteNote(db, { email, id }) {
-	const res = await db
-		.prepare('DELETE FROM person_notes WHERE id = ?1 AND lower(trim(email)) = ?2')
-		.bind(id, email)
-		.run();
+export async function deleteNote(db, { email = '', accountId = '', id }) {
+	if (!email && !accountId) return false;
+	const res = email
+		? await db
+				.prepare('DELETE FROM person_notes WHERE id = ?1 AND lower(trim(email)) = ?2')
+				.bind(id, email)
+				.run()
+		: await db
+				.prepare("DELETE FROM person_notes WHERE id = ?1 AND account_id = ?2 AND trim(email) = ''")
+				.bind(id, accountId)
+				.run();
 	return res.meta.changes === 1;
 }

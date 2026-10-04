@@ -372,6 +372,66 @@ describe('ficha de una persona', () => {
 		expect(byEmail.orders.map((/** @type {any} */ o) => o.id)).toContain(s.noAccount);
 	});
 
+	it('una cuenta borrada (sin mail) puede tener notas internas, atadas a la cuenta', async () => {
+		const s = await seedSol();
+		await deleteAccount(t.db, s.acc.id);
+		const params = { id: s.acc.id };
+		const before = /** @type {any} */ (await cuenta.load(fakeEvent({ params })));
+		const notesBefore = before.notes.length;
+		// En la página: el formulario está, con «Crear nota».
+		const page = render(Ficha, { props: { data: before, form: null } }).body;
+		expect(page).toContain('Crear nota');
+		expect(page).toContain('las notas quedan atadas a la cuenta');
+		expect(page).not.toContain('Guardar nota');
+
+		const add = await cuenta.actions.addNote(
+			fakeEvent({
+				path: `/admin/comunidad/cuentas/${s.acc.id}`,
+				params,
+				form: { body: 'Nota inventada' }
+			})
+		);
+		expect(add).toMatchObject({ note: { ok: true, message: 'Nota creada.' } });
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare("SELECT email, account_id FROM person_notes WHERE body = 'Nota inventada'")
+				.first()
+		);
+		expect(row).toEqual({ email: '', account_id: s.acc.id });
+		const after = /** @type {any} */ (await cuenta.load(fakeEvent({ params })));
+		expect(after.notes).toHaveLength(notesBefore + 1);
+		expect(after.notes[0]).toMatchObject({ body: 'Nota inventada', createdBy: admin.login });
+		// Una nota atada a la cuenta no le aparece a nadie por mail (ni cuenta como nota de alguien).
+		const byEmail = /** @type {any} */ (
+			await persona.load(fakeEvent({ params: { id: await personId('sol@example.com') } }))
+		);
+		expect(byEmail.notes.map((/** @type {any} */ n) => n.body)).not.toContain('Nota inventada');
+		const list = /** @type {any} */ (await personas.load(fakeEvent()));
+		expect(list.people.some((/** @type {any} */ p) => p.email === '')).toBe(false);
+
+		// Otra cuenta no la puede borrar; esta sí. Las dos cosas quedan en Actividad, sin el texto.
+		const other = await upsertVerifiedAccount(t.db, 'otra@example.com', { now: NOW });
+		await deleteAccount(t.db, other.id);
+		const wrong = await cuenta.actions.deleteNote(
+			fakeEvent({ params: { id: other.id }, form: { id: String(after.notes[0].id) } })
+		);
+		expect(/** @type {any} */ (wrong).status).toBe(404);
+		const del = await cuenta.actions.deleteNote(
+			fakeEvent({ params, form: { id: String(after.notes[0].id) } })
+		);
+		expect(del).toMatchObject({ note: { ok: true } });
+		expect((await cuenta.load(fakeEvent({ params }))).notes).toHaveLength(notesBefore);
+		const audit = [
+			...(await auditRows('person.note.add')),
+			...(await auditRows('person.note.delete'))
+		];
+		expect(audit.map((r) => [r.target_type, r.target_id, r.summary])).toEqual([
+			['account', s.acc.id, 'Agregó una nota a una cuenta borrada'],
+			['account', s.acc.id, 'Borró una nota de una cuenta borrada']
+		]);
+		expect(JSON.stringify(audit)).not.toContain('Nota inventada');
+	});
+
 	it('Personas agrupa sin mayúsculas ni espacios y cuenta las notas igual', async () => {
 		await insertOrder(t.db, { email: 'Mar@Example.com', name: 'Mar' });
 		await insertOrder(t.db, { email: ' mar@example.com ', name: 'Mar' });

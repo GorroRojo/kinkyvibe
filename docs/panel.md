@@ -67,7 +67,9 @@ entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que ge
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
 series, calendario y Telegram: nunca tokens ni el id del chat), Notas internas y Actividad. La
 ficha de una cuenta (`/admin/comunidad/cuentas/<id>`) muestra la misma ficha (también para una
-cuenta borrada), así que los links viejos siguen andando. El DNI no viene con la página: cada
+cuenta borrada), así que los links viejos siguen andando. Las notas internas van por el mail; una
+cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
+migración 0045, con `email` vacío). El DNI no viene con la página: cada
 «Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
