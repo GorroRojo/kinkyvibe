@@ -13,12 +13,17 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
 import { formatARS } from '$lib/utils/money.js';
 
 /** El texto visible, sin etiquetas ni comentarios (y con los espacios normalizados). */
-const text = (/** @type {string} */ html) =>
-	html
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.replace(/<[^>]+>/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
+const text = (/** @type {string} */ html) => {
+	// Hasta que no quede nada que sacar (un comentario o una etiqueta puede armarse con lo que
+	// queda al sacar otra).
+	let out = html;
+	let prev;
+	do {
+		prev = out;
+		out = out.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, ' ');
+	} while (out !== prev);
+	return out.replace(/\s+/g, ' ').trim();
+};
 /** Lo mismo para un texto armado con formatARS (lleva un espacio duro, que `\s` también encuentra). */
 const norm = (/** @type {string} */ s) => s.replace(/\s+/g, ' ');
 

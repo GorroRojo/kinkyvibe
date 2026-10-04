@@ -132,7 +132,7 @@ describe('meta de venta en el formulario de entradas', () => {
 	it('el resumen de la revisión dice la meta', () => {
 		const form = formOf(`${FM}meta_venta: plata:250000\n`);
 		expect(describeTicketsForm(form, formatARS)).toMatch(
-			new RegExp(` · Meta: ${formatARS(250000).replace(/[$.]/g, '\\$&')}$`)
+			new RegExp(` · Meta: ${formatARS(250000).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
 		);
 		const tickets = formOf(`${FM}meta_venta: entradas:30\n`);
 		expect(describeTicketsForm(tickets, formatARS)).toMatch(/ · Meta: 30 entradas$/);
