@@ -9,21 +9,20 @@ import {
 	profilesStamp
 } from '$lib/server/amigues/profiles.js';
 import { eventVenuesStamp, linkedVenues } from '$lib/server/amigues/venues.js';
-import { perfilesPublicosEnabled, seriesEnabled } from '$lib/server/flags.js';
+import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { buildSearchIndex } from '$lib/server/search/siteIndex.js';
 import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
 
-// Not prerendered: the tags follow the `etiquetas_db` switch (the file or the database,
-// docs/etiquetas.md), events and material follow `contenido_db` and the amigues profiles
-// `perfiles_publicos`; the database can't be read at build time. What goes in the index is
+// Not prerendered: the tags, events and material come from the database (docs/etiquetas.md,
+// docs/contenido.md) and the amigues profiles follow `perfiles_publicos`; the database can't be read at build time. What goes in the index is
 // decided in $lib/server/search/siteIndex.js (pure, with tests).
 export const prerender = false;
 
 /**
  * El índice armado (ya como JSON), por árbol de etiquetas y server instance. Sigue valiendo
  * mientras no cambie la marca de lo que lee de la base (`key`: el contenido, los perfiles, los
- * vínculos evento → lugar y el interruptor de series), como las listas de contenido (src/lib/server/contenido/posts.js): cada
+ * vínculos evento → lugar), como las listas de contenido (src/lib/server/contenido/posts.js): cada
  * pedido hace solo las consultas chicas de «¿cambió algo?».
  * @type {WeakMap<TagManager, { key: string, body: Promise<string> }>}
  */
@@ -32,7 +31,7 @@ const indexCache = new WeakMap();
 /** Markdown crudo de cada post, cargado sólo por este endpoint. */
 // `{ as: 'raw' }` is gone in Vite 8 (it returned the module instead of the text).
 const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
-	import.meta.glob('/src/lib/posts/*/*.md', { query: '?raw', import: 'default' })
+	import.meta.glob('/src/lib/posts/{amigues,wiki}/*.md', { query: '?raw', import: 'default' })
 );
 
 /**
@@ -43,21 +42,19 @@ const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 export async function GET({ platform }) {
 	const tagManager = currentSiteTags();
 	const db = getDB(platform);
-	const [contentStamp, profilesOn, series] = await Promise.all([
+	const [contentStamp, profilesOn] = await Promise.all([
 		siteContentStamp(platform),
-		perfilesPublicosEnabled(platform),
-		seriesEnabled(platform)
+		perfilesPublicosEnabled(platform)
 	]);
 	const profiles = Boolean(db && profilesOn);
 	const key = JSON.stringify([
 		contentStamp,
 		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
-		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null,
-		series
+		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null
 	]);
 	let entry = dev ? undefined : indexCache.get(tagManager);
 	if (!entry || entry.key !== key) {
-		const body = buildIndex(tagManager, platform, { profiles, series }).then(JSON.stringify);
+		const body = buildIndex(tagManager, platform, { profiles }).then(JSON.stringify);
 		const fresh = { key, body };
 		entry = fresh;
 		if (!dev) {
@@ -75,9 +72,9 @@ export async function GET({ platform }) {
 /**
  * @param {TagManager} tagManager
  * @param {App.Platform | undefined} platform
- * @param {{ profiles: boolean, series: boolean }} opts
+ * @param {{ profiles: boolean }} opts
  */
-async function buildIndex(tagManager, platform, { profiles, series }) {
+async function buildIndex(tagManager, platform, { profiles }) {
 	const db = getDB(platform);
 	const [posts, bodies, wikiPosts, profileList, imported] = await Promise.all([
 		sitePosts(platform),
@@ -107,6 +104,6 @@ async function buildIndex(tagManager, platform, { profiles, series }) {
 		},
 		profiles:
 			profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null,
-		series
+		series: true
 	});
 }

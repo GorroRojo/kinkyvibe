@@ -1,24 +1,24 @@
 /**
  * Guardar contenido (eventos y material) en la base desde el panel, sin cambiar las pantallas
- * (interruptor `contenido_db`).
+ * (decisión «Contenido solo en la base»: el interruptor `contenido_db` quedó prendido para
+ * siempre).
  *
  * Todo lo que el panel escribe pasa por un solo cliente del repo (`getRepoClient()`,
  * docs/publicar-contenido.md): el editor, cargar y duplicar eventos, la agenda, importar la
  * planilla, borrar, las etiquetas, las imágenes compartidas, el editor de material.
- * {@link withContentDb} envuelve ese cliente como lo hace el modo demo: con el interruptor
- * prendido, el .md de un post que está en la base (o uno nuevo) se lee y se guarda en la base;
- * todo lo demás (imágenes, el archivo de etiquetas, amigues, la wiki, los .md que la base no
- * tiene) sigue yendo al repo como siempre.
+ * {@link withContentDb} envuelve ese cliente como lo hace el modo demo: el .md de un evento o un
+ * material **siempre** se lee y se guarda en la base (nunca en GitHub); todo lo demás (imágenes,
+ * amigues, la wiki) sigue yendo al repo como siempre.
  *
  * - **Leer**: el texto se arma desde el objeto ({@link postToMarkdown}), con un «sha» que es el de
  *   ese texto: si alguien guarda en el medio, el texto cambia y el próximo guardado con el sha
- *   viejo da `FileChangedError`, como con GitHub.
+ *   viejo da `FileChangedError`, como con GitHub. Un evento o material que la base no tiene no
+ *   existe (aunque su .md siga en el repo).
  * - **Guardar**: cada archivo va con saveObject() (versión nueva cada vez, con el número de versión
  *   que se leyó; el historial queda en `object_revisions`), después del commit al repo de lo que no
  *   es de la base (si eso falla, la base no se toca). Se valida todo antes de escribir nada.
  * - **Borrar** un archivo es el borrado suave del objeto; volver a crearlo, deshacerlo.
- * - Los .md que la base no tiene y ya existen siguen yendo al .md (lo que sale en el sitio para esa
- *   dirección es el .md).
+ * - Sin base no se puede guardar un evento ni un material ({@link NoContentDbError}).
  *
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
@@ -26,7 +26,6 @@
 import { getRequestEvent } from '$app/server';
 import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
-import { isFlagOn } from '$lib/server/flags.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { forViewer, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { canSee } from '$lib/server/objects/visibility.js';
@@ -59,10 +58,17 @@ export function setContentDB(db) {
 	current = db ?? null;
 }
 
-/** La base, si el interruptor `contenido_db` está prendido; si no, `null`. */
-export async function activeContentDB() {
-	if (!current) return null;
-	return (await isFlagOn(current, 'contenido_db')) ? current : null;
+/** La base del contenido, o `null` si no hay. */
+export function activeContentDB() {
+	return current;
+}
+
+/** Sin base no hay dónde guardar eventos ni material (nunca van a GitHub). */
+export class NoContentDbError extends Error {
+	constructor() {
+		super('No hay base de datos: los eventos y el material se guardan solo en la base.');
+		this.name = 'NoContentDbError';
+	}
 }
 
 /** Quién mira desde el panel: lo ve todo (también lo oculto y lo borrado, para no pisarlo). */
@@ -410,8 +416,8 @@ export const allDbEventObjects = (db) => allDbPostObjects(db, EVENT_CATEGORY);
  */
 
 /**
- * Envuelve un cliente del repo (GitHub, el mock de `dev:admin` o el modo demo). Con el interruptor
- * apagado o sin base, cada función es la del cliente, sin cambios.
+ * Envuelve un cliente del repo (GitHub, el mock de `dev:admin` o el modo demo): los .md de eventos
+ * y material se leen y se guardan en la base; todo lo demás va al cliente, sin cambios.
  *
  * @template {Record<string, any>} C
  * @param {C} base
@@ -424,9 +430,8 @@ export function withContentDb(base) {
 	 */
 	async function postAt(path) {
 		const p = postOfPath(path);
-		if (!p) return null;
-		const db = await activeContentDB();
-		return db ? findDbPost(db, p.category, p.slug) : null;
+		const db = p ? activeContentDB() : null;
+		return db && p ? findDbPost(db, p.category, p.slug) : null;
 	}
 
 	/**
@@ -435,9 +440,8 @@ export function withContentDb(base) {
 	 */
 	async function hasPostAt(path) {
 		const p = postOfPath(path);
-		if (!p) return false;
-		const db = await activeContentDB();
-		return db ? (await findDbPostObject(db, p.category, p.slug)) !== null : false;
+		const db = p ? activeContentDB() : null;
+		return db && p ? (await findDbPostObject(db, p.category, p.slug)) !== null : false;
 	}
 
 	/** La categoría cuya carpeta es `dir` (sin la barra final), o null. @param {string} dir */
@@ -451,21 +455,22 @@ export function withContentDb(base) {
 
 		/** @param {string} token @param {string} path */
 		async getFile(token, path) {
+			if (!postOfPath(path)) return base.getFile(token, path);
 			const e = await postAt(path);
-			if (e) return e.deleted ? null : e.raw;
-			return base.getFile(token, path);
+			return e && !e.deleted ? e.raw : null;
 		},
 
 		/** @param {string} token @param {string} path */
 		async readFile(token, path) {
+			if (!postOfPath(path)) return base.readFile ? base.readFile(token, path) : null;
 			const e = await postAt(path);
-			if (e) return e.deleted ? null : { raw: e.raw, sha: e.sha, ref: 'base' };
-			return base.readFile ? base.readFile(token, path) : null;
+			return e && !e.deleted ? { raw: e.raw, sha: e.sha, ref: 'base' } : null;
 		},
 
 		/** @param {string} token @param {string} path @param {...any} rest */
 		async pathExists(token, path, ...rest) {
-			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer).
+			// Un post borrado en la base sigue ocupando su dirección (se puede deshacer). El .md que
+			// sigue en el repo como respaldo, también: su dirección no se reusa.
 			if (await hasPostAt(path)) return true;
 			return base.pathExists(token, path, ...rest);
 		},
@@ -478,48 +483,43 @@ export function withContentDb(base) {
 		},
 
 		/**
-		 * La carpeta de una categoría incluye los posts de la base (los borrados no).
+		 * La carpeta de una categoría: sus posts son los de la base (los borrados no); de lo que
+		 * hay en el repo quedan solo los archivos que no son posts (plantillas, carpetas de medios).
 		 * @param {string} token @param {string} path @param {any} [opts]
 		 */
 		async listTree(token, path, opts) {
 			const list = await base.listTree(token, path, opts);
 			const category = categoryOfDir(path);
-			const db = category ? await activeContentDB() : null;
-			if (!db || !category) return list;
-			const posts = await allDbPosts(db, category);
+			if (!category) return list;
+			const db = activeContentDB();
 			const out = list.filter(
-				(/** @type {{ path: string }} */ f) => !posts.get(postOfPath(f.path)?.slug ?? '')?.deleted
+				(/** @type {{ path: string }} */ f) => postOfPath(f.path)?.category !== category
 			);
-			const have = new Set(out.map((/** @type {{ path: string }} */ f) => f.path));
-			for (const [slug, e] of posts) {
-				const p = `${dirOf(category)}/${slug}.md`;
-				if (!e.deleted && !have.has(p)) out.push({ path: p, sha: e.sha, type: 'blob' });
+			if (!db) return out;
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, type: 'blob' });
 			}
 			return out;
 		},
 
 		/**
-		 * Los textos de la carpeta de una categoría, con los de la base en lugar de sus .md.
+		 * Los textos de la carpeta de una categoría: los de la base (y lo que no es un post).
 		 * @param {string} token @param {string} dir
 		 */
 		async getDirTexts(token, dir) {
-			const list = await base.getDirTexts(token, dir);
 			const category = categoryOfDir(dir);
-			const db = category ? await activeContentDB() : null;
-			if (!db || !category) return list;
-			const posts = await allDbPosts(db, category);
+			if (!category) return base.getDirTexts(token, dir);
+			const list = await base.getDirTexts(token, dir);
+			const db = activeContentDB();
 			/** @type {Array<{ path: string, sha: string, text: string }>} */
-			const out = [];
-			const seen = new Set();
-			for (const f of list) {
-				const e = posts.get(postOfPath(f.path)?.slug ?? '');
-				seen.add(f.path);
-				if (!e) out.push(f);
-				else if (!e.deleted) out.push({ path: f.path, sha: e.sha, text: e.raw });
-			}
-			for (const [slug, e] of posts) {
-				const p = `${dirOf(category)}/${slug}.md`;
-				if (!e.deleted && !seen.has(p)) out.push({ path: p, sha: e.sha, text: e.raw });
+			const out = list.filter(
+				(/** @type {{ path: string }} */ f) => postOfPath(f.path)?.category !== category
+			);
+			if (!db) return out;
+			for (const [slug, e] of await allDbPosts(db, category)) {
+				if (!e.deleted)
+					out.push({ path: `${dirOf(category)}/${slug}.md`, sha: e.sha, text: e.raw });
 			}
 			return out;
 		},
@@ -530,33 +530,31 @@ export function withContentDb(base) {
 		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js
 		 */
 		async commitFiles(token, opts) {
-			const db = await activeContentDB();
-			if (!db) return base.commitFiles(token, opts);
 			const { files, mustNotExist = [], unchanged = [] } = opts;
+			const isPost = (/** @type {string} */ path) => postOfPath(path) !== null;
+			if (!files.some((f) => isPost(f.path))) return base.commitFiles(token, opts);
+			const db = activeContentDB();
+			if (!db) throw new NoContentDbError();
 			// Quién guarda: el login de GitHub de le admin de este pedido (./author.js); nunca el
 			// nombre que se muestra (`pr.who`).
 			const author = panelAuthor();
 			const actor = String(author?.login || opts.actor || 'panel');
 			const superadmin = author ? author.superadmin : opts.superadmin === true;
 
-			// Qué archivos van a la base: los que la base tiene, y los nuevos.
+			// Todo .md de evento o material va a la base (nunca al repo).
 			/** @type {PlannedWrite[]} */
 			const writes = [];
-			/** @type {Set<string>} */
-			const toDb = new Set();
 			for (const f of files) {
 				const p = postOfPath(f.path);
 				if (!p) continue;
 				const existing = await findDbPost(db, p.category, p.slug);
-				if (!existing && (await base.pathExists(token, f.path))) continue; // solo .md: al repo
-				if (!existing && f.delete) continue;
-				toDb.add(f.path);
 				if (f.delete) {
-					writes.push({ path: f.path, ...p, existing, remove: true });
+					// Borrar lo que la base no tiene: no hay nada que borrar.
+					if (existing) writes.push({ path: f.path, ...p, existing, remove: true });
 					continue;
 				}
 				if (f.content === undefined) {
-					throw new Error(`No se puede copiar ${f.path} a la base: falta su texto.`);
+					throw new Error(`No se puede guardar ${f.path} en la base: falta su texto.`);
 				}
 				const mapped = markdownToPost(p.category, p.slug, f.content);
 				if (mapped.error && !existing) throw new Error(mapped.error);
@@ -583,31 +581,31 @@ export function withContentDb(base) {
 					visibility: mapped.visibility
 				});
 			}
-			if (!writes.length) return base.commitFiles(token, opts);
 
 			// Los mismos controles que un commit: lo que no tiene que existir y lo que no tiene que
 			// haber cambiado desde que se leyó.
 			for (const p of mustNotExist) {
-				if (!toDb.has(p)) continue;
+				if (!isPost(p)) continue;
 				const w = writes.find((x) => x.path === p);
 				// Uno borrado (suave) no cuenta: volver a crearlo es deshacer el borrado (también
 				// «Deshacer» de Borrar, que pide que no exista).
 				if (w?.existing && !w.existing.deleted) throw new PathExistsError(p);
 			}
 			for (const u of unchanged) {
-				if (!toDb.has(u.path)) continue;
+				if (!isPost(u.path)) continue;
 				const w = writes.find((x) => x.path === u.path);
-				if (w?.existing && w.existing.sha !== u.sha) throw new FileChangedError(u.path);
+				const sha = w ? w.existing?.sha : (await postAt(u.path))?.sha;
+				if (sha !== undefined && sha !== u.sha) throw new FileChangedError(u.path);
 			}
 
 			// Primero el repo (si algo falla ahí, la base no se toca), después la base.
-			const rest = files.filter((f) => !toDb.has(f.path));
+			const rest = files.filter((f) => !isPost(f.path));
 			const commit = rest.length
 				? await base.commitFiles(token, {
 						...opts,
 						files: rest,
-						mustNotExist: mustNotExist.filter((p) => !toDb.has(p)),
-						unchanged: unchanged.filter((u) => !toDb.has(u.path))
+						mustNotExist: mustNotExist.filter((p) => !isPost(p)),
+						unchanged: unchanged.filter((u) => !isPost(u.path))
 					})
 				: null;
 
@@ -710,8 +708,7 @@ async function writePost(db, w, actor) {
 /**
  * Lo que la base dice de un post para quien lo vende o lo muestra en el panel (la configuración
  * de entradas, el título, la fecha): la metadata como la de un .md, `null` si la base lo tiene
- * oculto o borrado (no se vende: «la base decide»), o `undefined` si la base no lo tiene: entonces
- * vale el .md.
+ * oculto o borrado (no se vende), o `undefined` si la base no lo tiene (tampoco existe).
  *
  * @param {DbPostObject | null | undefined} e
  * @returns {Record<string, any> | null | undefined}
@@ -723,25 +720,25 @@ function publicMetaOf(e) {
 }
 
 /**
- * {@link publicMetaOf} de un evento; `undefined` también con el interruptor apagado.
+ * {@link publicMetaOf} de un evento; `undefined` también sin base.
  *
  * @param {string} slug
  * @returns {Promise<Record<string, any> | null | undefined>}
  */
 export async function dbEventMeta(slug) {
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	if (!db) return undefined;
 	return publicMetaOf(await findDbPostObject(db, EVENT_CATEGORY, slug));
 }
 
 /**
- * Lo mismo para todos los eventos de la base de una vez (una consulta), por dirección; `null` con
- * el interruptor apagado.
+ * Lo mismo para todos los eventos de la base de una vez (una consulta), por dirección; `null` sin
+ * base.
  *
  * @returns {Promise<Map<string, Record<string, any> | null> | null>}
  */
 export async function dbEventMetas() {
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	if (!db) return null;
 	/** @type {Map<string, Record<string, any> | null>} */
 	const out = new Map();
@@ -751,14 +748,14 @@ export async function dbEventMetas() {
 
 /**
  * El texto de un post de la base para el editor (con el sha para guardar contra él); `null` si la
- * base no lo tiene o el interruptor está apagado; `{ deleted: true }` si está borrado.
+ * base no lo tiene (o no hay base); `{ deleted: true }` si está borrado.
  *
  * @param {string} path
  * @returns {Promise<{ raw: string, sha: string } | { deleted: true } | null>}
  */
 export async function readDbPostFile(path) {
 	const p = postOfPath(path);
-	const db = p ? await activeContentDB() : null;
+	const db = p ? activeContentDB() : null;
 	if (!db || !p) return null;
 	const e = await findDbPost(db, p.category, p.slug);
 	if (!e) return null;

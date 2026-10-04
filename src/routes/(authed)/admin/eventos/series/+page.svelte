@@ -5,7 +5,7 @@
 	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: el nombre
 	 * de la etiqueta (renombrar, con la misma elección que en Etiquetas; se confirma después de ver
 	 * cuántas publicaciones cambian), nombre visible, ícono, imagen y descripción. Se guarda como en
-	 * Etiquetas (commit al archivo, o en la base con el interruptor `etiquetas_db`).
+	 * Etiquetas (en la base).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';

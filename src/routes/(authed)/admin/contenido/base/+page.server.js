@@ -2,15 +2,15 @@
  * Contenido → En la base: importar los eventos y el material (.md) a la base de este entorno
  * (preview o producción) y ver si coinciden con sus .md. Es la forma de correr la importación en
  * las bases remotas: idempotente, se puede repetir, va de a tandas (D1 tiene un máximo de
- * consultas por pedido; la página sigue sola hasta terminar). Funciona con el interruptor
- * `contenido_db` apagado, para revisar antes de prenderlo. Solo admins; queda en el registro.
+ * consultas por pedido; la página sigue sola hasta terminar). El sitio lee los eventos y el
+ * material solo de la base: importar trae a la base lo que llega al repo como .md (sin pisar lo
+ * editado en el panel). Solo admins; queda en el registro.
  * Ver src/lib/server/contenido/importer.js y docs/contenido.md («En la base»).
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { contenidoDbEnabled } from '$lib/server/flags.js';
 import { bundledSourceFiles } from '$lib/server/contenido/bundle.js';
 import {
 	IMPORT_CHUNK,
@@ -53,8 +53,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	return {
 		categories,
 		labels: ACTION_LABELS,
-		chunk: IMPORT_CHUNK,
-		flagOn: await contenidoDbEnabled(platform)
+		chunk: IMPORT_CHUNK
 	};
 }
 

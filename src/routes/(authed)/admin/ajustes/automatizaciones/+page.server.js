@@ -11,7 +11,7 @@ import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { loadAutomations } from '$lib/server/admin/automatizaciones.js';
 
 /** Los interruptores que cambian qué corre. */
-const FLAG_KEYS = /** @type {const} */ (['series', 'lo_que_sigo', 'cuentas', 'telegram_bot']);
+const FLAG_KEYS = /** @type {const} */ (['lo_que_sigo', 'cuentas', 'telegram_bot']);
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {

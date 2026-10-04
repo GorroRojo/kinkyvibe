@@ -20,6 +20,7 @@ import {
 	personasToMd
 } from '../../utils/personasList.js';
 import evento from '../objects/types/evento.js';
+import { toRegisteredTags } from '../../utils/interactivos.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
 
@@ -131,7 +132,7 @@ export function mdToEvent(legacySlug, meta, body) {
 	warnings.push(...people.warnings);
 	if (isTrue(meta.force_unlisted)) data.unlisted = true;
 	if (isTrue(meta.redirect)) data.redirect = true;
-	const text = normalizeBody(body);
+	const text = normalizeBody(toRegisteredTags(body));
 	if (text) data.body = text;
 
 	/** @type {Record<string, unknown>} */

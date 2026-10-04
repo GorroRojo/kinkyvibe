@@ -150,9 +150,7 @@
 	<svelte:fragment slot="actions">
 		<CsvButton href={csvHref} />
 		<a class="kv-btn ghost" href="/admin/eventos/agenda"><Table2 {...icon} /> Agenda</a>
-		{#if data.seriesOn}<a class="kv-btn ghost" href="/admin/eventos/series"
-				><Repeat {...icon} /> Series</a
-			>{/if}
+		<a class="kv-btn ghost" href="/admin/eventos/series"><Repeat {...icon} /> Series</a>
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet {...icon} /> Importar planilla</a
 		>

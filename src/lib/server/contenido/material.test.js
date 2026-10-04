@@ -55,7 +55,7 @@ const fixtures = Object.keys(fixtureRaws)
 describe('el material real del repo', () => {
 	const entries = Object.entries(realMetas).filter(([p]) => !slugOf(p).startsWith('_'));
 
-	it('cada uno se importa (salvo los que usan componentes) y vuelve a dar lo mismo', () => {
+	it('cada uno se importa (también los interactivos registrados) y vuelve a dar lo mismo', () => {
 		/** @type {string[]} */
 		const problems = [];
 		/** @type {string[]} */
@@ -86,8 +86,10 @@ describe('el material real del repo', () => {
 				problems.push(`${slug}: texto para buscar`);
 		}
 		expect(problems).toEqual([]);
-		// Los dos que usan componentes interactivos siguen saliendo de su .md.
-		expect(components.sort()).toEqual(['donde-y-como-golpear-un-cuerpo', 'juego-de-peleas']);
+		// Ninguno usa un componente que no esté registrado (decisión 0004, $lib/utils/interactivos.js):
+		// `donde-y-como-golpear-un-cuerpo` pasa a `<kv-donde-golpear-un-cuerpo>` y el de
+		// `juego-de-peleas` está comentado (no se muestra).
+		expect(components).toEqual([]);
 	});
 });
 
@@ -116,13 +118,11 @@ beforeEach(async () => {
 	await resetDB(t.db);
 });
 afterEach(() => {
-	vi.doUnmock('$env/dynamic/private');
 	vi.resetModules();
 });
 
-async function setup(flag = '1') {
+async function setup() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
 	const posts = await import('./posts.js');
 	posts.clearContentCache();
 	const repo = await import('./repo.js');
@@ -131,29 +131,29 @@ async function setup(flag = '1') {
 }
 
 describe('paridad del material', () => {
-	it('se importa (el del componente no) y las páginas reciben lo mismo', async () => {
+	it('se importa (el del componente sin registrar no) y las páginas reciben lo mismo', async () => {
 		const r = await runImport(t.db, 'material', fixtures, { actor: 'importacion' });
 		expect(summarizeImport(r.plan)).toMatchObject({ created: 1, error: 1 });
-		const { posts } = await setup('1');
+		const { posts } = await setup();
 		const list = await posts.sitePosts(t.platform);
-		expect(list.map((p) => p.meta.postID)).toEqual(md.listed.map((p) => p.meta.postID));
+		const fromMd = md.listed.filter((p) => p.meta.postID !== 'mapa-interactivo-inventado');
+		expect(list.map((p) => p.meta.postID)).toEqual(fromMd.map((p) => p.meta.postID));
 		for (const [i, p] of list.entries()) {
-			expect(metaDiff(norm(p.meta), norm(md.listed[i].meta)), p.meta.postID).toEqual([]);
+			expect(metaDiff(norm(p.meta), norm(fromMd[i].meta)), p.meta.postID).toEqual([]);
 		}
 		const page = await posts.siteContent(t.platform, 'material', 'guia-inventada-de-nudos');
-		expect(page.mode).toBe('db');
-		const html = page.mode === 'db' ? (page.post?.html ?? '') : '';
+		const html = page?.html ?? '';
 		expect(html).toContain('<strong>inventada</strong>');
 		expect(html).toContain('href="/wiki/bondage"');
-		// El del componente sale de su .md.
-		expect(await posts.siteContent(t.platform, 'material', 'mapa-interactivo-inventado')).toEqual({
-			mode: 'md'
-		});
+		// El del componente sin registrar no está en la base: no se muestra (aunque tenga .md).
+		expect(
+			await posts.siteContent(t.platform, 'material', 'mapa-interactivo-inventado')
+		).toBeNull();
 	});
 
 	it('editar material desde el panel guarda en la base', async () => {
 		await runImport(t.db, 'material', fixtures, { actor: 'importacion' });
-		const { repo } = await setup('1');
+		const { repo } = await setup();
 		/** @type {any[]} */
 		const commits = [];
 		/** @type {Record<string, any>} */

@@ -1,8 +1,11 @@
 /**
  * El calendario personal con «Lo que sigo» lee los eventos por la capa compartida (`sitePosts`):
- * con `contenido_db` apagado, los `.md`; prendido, también los de la base, sin los ocultos ni
- * los no listados (por seguir algo nunca entra un evento no listado). Como siempre en un
- * calendario, lo que ya pasó queda. D1 de miniflare; eventos inventados.
+ * solo los de la base, sin los ocultos ni los no listados (por seguir algo nunca entra un evento
+ * no listado); un `.md` que no está en la base no entra. Como siempre en un calendario, lo que ya
+ * pasó queda. D1 de miniflare; eventos inventados.
+ *
+ * (La prueba «con `contenido_db` apagado» se sacó con el interruptor: el modo «.md» ya no existe.
+ * No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -50,16 +53,13 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** La ruta con `contenido_db` como se pida (series, cuentas y «Lo que sigo» prendidos). @param {string} flag */
-async function route(flag) {
+/** La ruta (series, cuentas y «Lo que sigo» prendidos). */
+async function route() {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
-			CONTENIDO_DB_ENABLED: flag,
-			SERIES_ENABLED: '1',
 			CUENTAS_ENABLED: '1',
-			LO_QUE_SIGO_ENABLED: '1',
-			ETIQUETAS_DB_ENABLED: '0'
+			LO_QUE_SIGO_ENABLED: '1'
 		}
 	}));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
@@ -117,15 +117,9 @@ async function feedSlugs(m, token) {
 }
 
 describe('/ics/mio con «Lo que sigo» lee por sitePosts', () => {
-	it('contenido_db apagado: lo seguido sale de los .md, aunque la base tenga eventos', async () => {
+	it('solo la base (no el .md), sin ocultos ni no listados', async () => {
 		const token = await seed();
-		expect(await feedSlugs(await route('0'), token)).toEqual(['md-proximo-inventado']);
-	});
-
-	it('contenido_db prendido: también la base, sin ocultos ni no listados', async () => {
-		const token = await seed();
-		expect(await feedSlugs(await route('1'), token)).toEqual([
-			'md-proximo-inventado',
+		expect(await feedSlugs(await route(), token)).toEqual([
 			'base-proximo-inventado',
 			'base-pasado-inventado'
 		]);

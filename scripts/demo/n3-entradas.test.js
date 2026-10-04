@@ -1,15 +1,15 @@
 /**
  * El seed de la demo (n3-entradas.sql) corre sobre una base migrada y deja lo que promete:
- * eventos con configuración de entradas válida y «Preventa 1» llena.
+ * eventos (objetos `evento` en la base) con configuración de entradas válida y «Preventa 1» llena.
  */
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseDocument } from 'yaml';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { createTestDB } from '$lib/server/db/testing.js';
 import { parseTicketConfig, typeAvailability } from '$lib/server/tickets/config.js';
 import { getTaken } from '$lib/server/tickets/orders.js';
-import { splitMarkdown } from '$lib/utils/eventDraft.js';
+import { eventToMeta } from '$lib/server/contenido/eventos.js';
+import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -24,19 +24,49 @@ afterAll(async () => {
 	await t?.dispose();
 });
 
+/**
+ * La metadata del evento de la demo, como la arma la base (la misma que lee el sitio), después de
+ * verificar que sus datos son válidos para el tipo `evento` (el chequeo nocturno no los marca).
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function eventMeta(db, slug) {
+	const row = await db
+		.prepare(
+			"SELECT title, data, visibility, version FROM objects WHERE type = 'evento' AND slug = ?1"
+		)
+		.bind(slug)
+		.first();
+	if (!row) throw new Error(`falta el evento ${slug}`);
+	const data = JSON.parse(String(row.data));
+	const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
+		coreTypes.get('evento')
+	);
+	expect(validateData(def, data).ok).toBe(true);
+	return eventToMeta({ title: String(row.title), data, visibility: String(row.visibility) });
+}
+
 /** @param {string} slug */
 async function configOf(slug) {
-	const row = await t.db
-		.prepare('SELECT content FROM demo_files WHERE path = ?1')
-		.bind(`src/lib/posts/calendario/${slug}.md`)
-		.first();
-	const meta = parseDocument(splitMarkdown(String(row?.content)).frontmatter).toJS();
+	const meta = await eventMeta(t.db, slug);
 	return /** @type {import('$lib/server/tickets/config.js').EventTickets} */ (
 		parseTicketConfig(meta)
 	);
 }
 
 describe('seed n3-entradas', () => {
+	it('los eventos son objetos `evento` no listados (versión 2: se corrió dos veces)', async () => {
+		for (const slug of ['demo-preventas-2026-12', 'demo-solo-anticipadas-2026-12']) {
+			expect((await eventMeta(t.db, slug)).force_unlisted).toBe(true);
+		}
+		const v = await t.db
+			.prepare(
+				"SELECT version FROM objects WHERE type = 'evento' AND slug = 'demo-preventas-2026-12'"
+			)
+			.first();
+		expect(v?.version).toBe(2);
+	});
+
 	it('evento con preventas: «Preventa 1» llena, vigente «Preventa 2»; «Última tanda» espera', async () => {
 		const config = await configOf('demo-preventas-2026-12');
 		const now = Date.parse('2026-10-01T12:00:00-03:00');

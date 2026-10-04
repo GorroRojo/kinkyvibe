@@ -30,7 +30,7 @@ afterEach(() => {
 async function modules({ sigo = '1', cuentas = '1' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { LO_QUE_SIGO_ENABLED: sigo, CUENTAS_ENABLED: cuentas, ETIQUETAS_DB_ENABLED: '0' }
+		env: { LO_QUE_SIGO_ENABLED: sigo, CUENTAS_ENABLED: cuentas }
 	}));
 	return {
 		api: await import('./+server.js'),

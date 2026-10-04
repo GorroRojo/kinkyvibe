@@ -10,6 +10,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { signWebhook } from '$lib/server/tickets/mercadopago.js';
 import PostSupport from '$lib/components/propinas/PostSupport.svelte';
 import { formatARS } from '$lib/utils/money.js';
+import { runImport } from '$lib/server/contenido/importer.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -41,6 +42,23 @@ const rawPosts = /** @type {Record<string, string>} */ (
 		eager: true
 	})
 );
+/** La metadata de cada publicación (se compila solo la que se pide). */
+const metaLoaders = /** @type {Record<string, () => Promise<Record<string, any>>>} */ (
+	import.meta.glob('/src/lib/posts/material/*.md', { import: 'metadata' })
+);
+
+/** Las dos publicaciones de la prueba, en la base (de donde sale el material). */
+async function seedMaterial() {
+	const files = [];
+	for (const kv of [true, false]) {
+		const slug = materialSlug(kv);
+		const path = `/src/lib/posts/material/${slug}.md`;
+		files.push({ legacySlug: slug, raw: rawPosts[path], meta: await metaLoaders[path]() });
+	}
+	const r = await runImport(t.db, 'material', files, { actor: 'prueba' });
+	expect(r.results.filter((x) => x.action === 'error')).toEqual([]);
+}
+
 /** @param {boolean} kv */
 function materialSlug(kv) {
 	for (const [path, raw] of Object.entries(rawPosts)) {
@@ -54,13 +72,14 @@ function materialSlug(kv) {
 /** Módulos con PROPINAS_ENABLED como se pida y MP configurado (con `fetch` simulado). */
 async function modules(flag = '1') {
 	vi.resetModules();
+	await seedMaterial();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: { PROPINAS_ENABLED: flag, MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
 	}));
 	// El load de /material/<post> también arma las relacionadas y los pronombres de las menciones,
 	// que importan (y compilan con mdsvex) todas las publicaciones del repo: más de 15 s la primera
 	// vez, y con la máquina cargada pasaba los 30 s del test. Acá solo importa `propinas`, así que
-	// esas dos listas van vacías; la publicación misma se sigue cargando de verdad con `fetchPost`.
+	// esas dos listas van vacías; la publicación misma sale de la base (`seedMaterial`).
 	vi.doMock('$lib/utils', async (importOriginal) => ({
 		.../** @type {object} */ (await importOriginal()),
 		fetchMarkdownPosts: async () => []
@@ -177,11 +196,13 @@ describe('interruptor prendido', () => {
 
 	it('findTipPost: solo publicaciones de KinkyVibe que existen', async () => {
 		const m = await modules('1');
-		expect(await m.posts.findTipPost('material', materialSlug(true))).toMatchObject({
+		expect(await m.posts.findTipPost('material', materialSlug(true), t.platform)).toMatchObject({
 			title: expect.any(String)
 		});
-		expect(await m.posts.findTipPost('material', materialSlug(false))).toBeNull();
-		expect(await m.posts.findTipPost('material', 'no-existe-esta-publicacion')).toBeNull();
+		expect(await m.posts.findTipPost('material', materialSlug(false), t.platform)).toBeNull();
+		expect(
+			await m.posts.findTipPost('material', 'no-existe-esta-publicacion', t.platform)
+		).toBeNull();
 	});
 
 	it('form action: valida, crea la preferencia y redirige a MP; con errores, 400', async () => {

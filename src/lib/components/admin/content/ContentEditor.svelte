@@ -6,7 +6,7 @@
 	$lib/server/admin/contentRoutes.js): one commit with the post and, optionally, a new image in
 	its media folder. While saving, «Guardar» is off with «Guardando…» (SaveButton); after saving, the
 	bar says how it went (SaveStatus). The copy depends on whether saving goes to the database
-	(`data.savesToDb`, switch `contenido_db`; see $lib/admin/saveCopy.js).
+	(`data.savesToDb`: material, always the database; see $lib/admin/saveCopy.js).
 -->
 <script>
 	import { argFormat } from '$lib/utils/dates.js';
@@ -84,7 +84,7 @@
 	const isNew = mode === 'nuevo';
 	const one = category === 'material' ? 'material' : 'perfil';
 	const tm = siteTags();
-	/** Con el interruptor `contenido_db` (material), se guarda en la base y se ve enseguida. */
+	/** El material se guarda en la base y se ve enseguida (amigues: con un PR). */
 	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */

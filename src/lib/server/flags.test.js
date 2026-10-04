@@ -83,7 +83,7 @@ describe('interruptores', () => {
 	});
 
 	it('una página que mira varios interruptores consulta la base una sola vez', async () => {
-		await setFlag(t.db, 'series', true, { by: 'admin-de-prueba' });
+		await setFlag(t.db, 'cuentas', true, { by: 'admin-de-prueba' });
 		await setFlag(t.db, 'propinas', true, { by: 'admin-de-prueba' });
 		clearFlagCache();
 		const counted = countingDB(t.db);
@@ -96,7 +96,7 @@ describe('interruptores', () => {
 		for (const k of keys) await isFlagOn(counted.db, k, { now: now + 1, envValue: '' });
 		expect(counted.queries).toBe(1);
 		expect(Object.fromEntries(keys.map((k, i) => [k, together[i]]))).toEqual(
-			Object.fromEntries(keys.map((k) => [k, k === 'series' || k === 'propinas']))
+			Object.fromEntries(keys.map((k) => [k, k === 'cuentas' || k === 'propinas']))
 		);
 		// Cuando vence, otra vez una sola.
 		await Promise.all(
@@ -107,7 +107,7 @@ describe('interruptores', () => {
 		clearFlagCache();
 		const bare = await createTestDB({ migrate: false });
 		try {
-			expect(await isFlagOn(bare.db, 'series', { envValue: '' })).toBe(false);
+			expect(await isFlagOn(bare.db, 'cuentas', { envValue: '' })).toBe(false);
 		} finally {
 			await bare.dispose();
 		}

@@ -10,8 +10,7 @@
  * pueda ver (haría falta un índice por persona).
  *
  * Qué entra:
- * - eventos y material listados y publicados (`sitePosts`: de la base o de los .md, interruptor
- *   `contenido_db`), con su cuerpo recortado;
+ * - eventos y material listados y publicados (`sitePosts`: de la base), con su cuerpo recortado;
  * - las fichas de amigues: con `perfiles_publicos` apagado, las .md; prendido, los perfiles que
  *   lista /amigues para el público (aprobados, ni ocultos, ni «solo con cuenta», ni no listados) más
  *   las .md que todavía no se importaron. El contacto de un perfil no entra;

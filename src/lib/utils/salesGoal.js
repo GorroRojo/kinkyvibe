@@ -5,7 +5,7 @@
  * contra la meta; sin meta, contra el cupo (como siempre).
  *
  * Se guarda en el evento, en la clave `meta_venta` del frontmatter (`meta_venta: plata:250000` o
- * `meta_venta: entradas:30`); con `contenido_db`, la misma clave dentro de `extra` del objeto
+ * `meta_venta: entradas:30`); en la base, la misma clave dentro de `extra` del objeto
  * `evento`, como el resto de la configuración de entradas. Duplicar un evento la copia como
  * cualquier otro campo.
  *

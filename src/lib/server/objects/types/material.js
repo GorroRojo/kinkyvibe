@@ -8,7 +8,7 @@
  * - Las imágenes y archivos (PDF, video) siguen en la carpeta del post en el repo (R2 es un paso
  *   aparte).
  *
- * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md, «En la base»).
+ * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
 import { linkProblem } from './evento.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';

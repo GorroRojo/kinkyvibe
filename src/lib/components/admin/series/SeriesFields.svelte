@@ -7,7 +7,8 @@
 	 *   imagen y la descripción);
 	 * - `values`: lo que ya tiene (o lo que se escribió antes de un error); en 'edit', `id` es el
 	 *   nombre de la etiqueta ahora y `key` el que se escribió;
-	 * - `dbMode`: interruptor `etiquetas_db` (cambia qué se puede elegir al renombrar);
+	 * - `dbMode`: siempre `true` hoy (las etiquetas están en la base; cambia qué se puede elegir al
+	 *   renombrar);
 	 * - `assets`: las imágenes de src/lib/assets para elegir;
 	 * - `parents` (solo 'create'): las series que pueden ser madre de la nueva (serie hija: una por
 	 *   año, una edición especial). Vacío = no se pregunta;

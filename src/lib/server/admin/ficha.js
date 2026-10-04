@@ -17,8 +17,7 @@ import { runQueries, rowsOf } from '$lib/server/db/batch.js';
 import { emailHash } from '$lib/server/cuentas/accounts.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
-import { getEventInfo, listEventMetas } from '$lib/server/tickets/events.js';
-import { parsePersonas, PERSONAS_KEY } from '$lib/utils/personas.js';
+import { getEventInfo } from '$lib/server/tickets/events.js';
 import { cleanSavedBuyer } from '$lib/utils/savedBuyer.js';
 import { groupPeople, normalizeEmail, personId } from './people.js';
 
@@ -45,8 +44,31 @@ const ORDER_IDS = `(SELECT o.id FROM orders o WHERE ${ORDER_MATCH})`;
 
 /** @param {unknown} v */
 const num = (v) => (v == null ? null : Number(v));
+
 /** @param {unknown} v */
 const str = (v) => (v == null ? '' : String(v));
+
+/**
+ * Los eventos (vivos) con un edge de ese `kind` (`?3`: `lugar` o `persona`) hacia un perfil que
+ * gestiona la persona (docs/objetos.md, «Relaciones del evento»), con su dirección (la del .md
+ * importado o la del objeto), título, fecha y el `data` del edge. Lectura interna, para el panel.
+ */
+const PROFILE_EDGES_SQL = `SELECT coalesce(cs.legacy_slug, ev.slug) AS event_slug, e.to_id AS profile_id, e.data,
+		ev.title, json_extract(ev.data, '$.start') AS start
+	FROM edges e
+	JOIN objects ev ON ev.id = e.from_id AND ev.type = 'evento' AND ev.deleted_at IS NULL
+	LEFT JOIN content_sources cs ON cs.object_id = ev.id AND cs.category = 'calendario'
+	WHERE e.kind = ?3
+		AND e.to_id IN (SELECT profile_id FROM profile_managers WHERE account_id IN ${ACC})
+	ORDER BY e.from_id, e.position, e.id`;
+
+/** @param {Record<string, unknown>} r una fila de {@link PROFILE_EDGES_SQL} */
+const profileEdgeRow = (r) => ({
+	slug: str(r.event_slug),
+	profileId: Number(r.profile_id),
+	title: str(r.title),
+	start: r.start == null ? null : String(r.start)
+});
 
 /**
  * Una consulta de la tanda con una sola sentencia.
@@ -334,13 +356,31 @@ function fichaQueries(key, extra) {
 					invitedBy: r.invited_by == null ? null : String(r.invited_by)
 				}))
 		),
-		venues: query(
-			'eventos de sus lugares',
+		venues: query('eventos de sus lugares', [], PROFILE_EDGES_SQL, [...p, 'lugar'], (rows) =>
+			rows.map(profileEdgeRow)
+		),
+		personaEvents: query(
+			'eventos de sus perfiles',
 			[],
-			`SELECT event_slug, venue_id FROM event_venues
-			WHERE venue_id IN (SELECT profile_id FROM profile_managers WHERE account_id IN ${ACC})`,
-			p,
-			(rows) => rows.map((r) => ({ slug: str(r.event_slug), profileId: Number(r.venue_id) }))
+			PROFILE_EDGES_SQL,
+			[...p, 'persona'],
+			(rows) =>
+				rows.map((r) => {
+					/** @type {unknown} */
+					let data = null;
+					try {
+						data = r.data == null ? null : JSON.parse(str(r.data));
+					} catch {
+						// datos rotos: el chequeo nocturno lo reporta
+					}
+					const roles =
+						data && typeof data === 'object' && Array.isArray(/** @type {any} */ (data).roles)
+							? /** @type {unknown[]} */ (/** @type {any} */ (data).roles).filter(
+									(x) => typeof x === 'string'
+								)
+							: [];
+					return { ...profileEdgeRow(r), roles: /** @type {string[]} */ (roles) };
+				})
 		),
 		follows: query(
 			'lo que sigue',
@@ -464,11 +504,11 @@ function fichaQueries(key, extra) {
  *
  * @param {D1Database} db
  * @param {FichaKey} key
- * @param {{ now?: number, eventInfo?: (slug: string) => Promise<{ title: string, start: string | null } | null>, eventMetas?: () => Promise<{ slug: string, meta: Record<string, any> }[]> }} [opts]
- *   `eventInfo` y `eventMetas`: de dónde salen los eventos (los tests los reemplazan)
+ * @param {{ now?: number, eventInfo?: (slug: string) => Promise<{ title: string, start: string | null } | null> }} [opts]
+ *   `eventInfo`: de dónde salen los eventos de órdenes, mails y avisos (los tests lo reemplazan)
  */
 export async function loadFicha(db, key, opts = {}) {
-	const { now = Date.now(), eventInfo = getEventInfo, eventMetas = listEventMetas } = opts;
+	const { now = Date.now(), eventInfo = getEventInfo } = opts;
 	const pid = key.email ? await personId(key.email) : '';
 	const hash = key.email ? await emailHash(key.email) : '';
 	const r = await runQueries(db, fichaQueries(key, { personId: pid, emailHash: hash }));
@@ -479,26 +519,14 @@ export async function loadFicha(db, key, opts = {}) {
 	const events = new Map();
 	/** @type {{ profileId: number, slug: string, rol: string }[]} */
 	const roles = [];
-	if (r.profiles.length) {
-		const bySlug = new Map(r.profiles.map((/** @type {any} */ p) => [p.slug, p.id]));
-		for (const { slug, meta } of await eventMetas()) {
-			const start = meta?.start instanceof Date ? meta.start.toISOString() : meta?.start;
-			let mentioned = false;
-			for (const e of parsePersonas(meta?.[PERSONAS_KEY])) {
-				const id = e.perfil ? bySlug.get(e.perfil) : undefined;
-				if (id === undefined) continue;
-				roles.push({ profileId: id, slug, rol: e.rol });
-				mentioned = true;
-			}
-			if (mentioned || r.venues.some((/** @type {any} */ v) => v.slug === slug)) {
-				events.set(slug, {
-					title: typeof meta?.title === 'string' && meta.title ? meta.title : slug,
-					start: start ? String(start) : null
-				});
-			}
-		}
+	// Los eventos de sus perfiles: edges `persona` (con sus roles) y `lugar` del evento.
+	for (const e of r.personaEvents) {
+		for (const rol of e.roles) roles.push({ profileId: e.profileId, slug: e.slug, rol });
 	}
 	for (const v of r.venues) roles.push({ profileId: v.profileId, slug: v.slug, rol: 'Lugar' });
+	for (const e of [...r.personaEvents, ...r.venues]) {
+		if (!events.has(e.slug)) events.set(e.slug, { title: e.title || e.slug, start: e.start });
+	}
 	const slugs = new Set([
 		...r.orders.map((/** @type {any} */ o) => str(o.event_slug)),
 		...r.mails.map((/** @type {any} */ m) => m.slug),

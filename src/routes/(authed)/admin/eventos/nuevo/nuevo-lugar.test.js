@@ -3,9 +3,9 @@
  * vincula recién después de crear el evento (con su dirección), con registro; el archivo es el
  * mismo que sin el «Lugar»; si crear falla (o el lugar ya no existe) no se vincula nada; al
  * duplicar, el formulario arranca con el lugar del original. «Sucede en» es el edge `lugar` del
- * evento en la base: con `contenido_db` el evento nuevo nace en la base y se vincula; si va a
- * GitHub (todavía no está en la base), se crea y avisa que el lugar no se guardó. Repo de mentira,
- * D1 de miniflare y datos inventados.
+ * evento en la base: el evento nuevo nace en la base y se vincula; si el cliente del repo no lo
+ * guarda en la base (no debería pasar), se crea y avisa que el lugar no se guardó. Repo de
+ * mentira, D1 de miniflare y datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -55,15 +55,14 @@ const EVENT_MD = [
 ].join('\n');
 
 /**
- * La ruta con un repo de mentira. `contenido` prende `contenido_db` (el cliente pasa por
- * withContentDb, como en producción: el evento nuevo va a la base).
+ * La ruta con un repo de mentira. Con `contenido` el cliente pasa por withContentDb, como en
+ * producción (el evento nuevo va a la base); sin, el repo de mentira solo (el evento no llega a la
+ * base).
  * @param {{ failCommit?: boolean, contenido?: boolean }} [opts]
  */
 async function page({ failCommit = false, contenido = false } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { SERIES_ENABLED: '0', CONTENIDO_DB_ENABLED: contenido ? '1' : '0' }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	/** @type {any[]} */
 	const commits = [];
 	const fake = {
@@ -83,7 +82,7 @@ async function page({ failCommit = false, contenido = false } = {}) {
 		const repo = await import('$lib/server/contenido/repo.js');
 		return {
 			.../** @type {any} */ (await importOriginal()),
-			getRepoClient: async () => repo.withContentDb(fake)
+			getRepoClient: async () => (contenido ? repo.withContentDb(fake) : fake)
 		};
 	});
 	const repo = await import('$lib/server/contenido/repo.js');
@@ -119,7 +118,7 @@ const lugar = async () =>
 
 describe('crear un evento con lugar', () => {
 	it('crea el evento y después vincula el lugar; el archivo es el mismo que sin el «Lugar»', async () => {
-		// Con `contenido_db`: el evento nuevo nace en la base y el lugar es su edge.
+		// El evento nuevo nace en la base y el lugar es su edge.
 		const control = await page({ contenido: true });
 		const plain = /** @type {any} */ (await control.mod.actions.publicar(publish({})));
 		expect(plain).toMatchObject({ success: true, venueSaved: false });
@@ -152,7 +151,7 @@ describe('crear un evento con lugar', () => {
 		expect(log.map((r) => r.action)).toEqual(['event.publish', 'event.venue_set']);
 	});
 
-	it('si el evento va a GitHub (todavía no está en la base), se crea igual y avisa que el lugar no', async () => {
+	it('si el evento no llega a la base, se crea igual y avisa que el lugar no', async () => {
 		const v = await lugar();
 		const { mod, commits } = await page();
 		const res = /** @type {any} */ (

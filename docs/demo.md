@@ -39,16 +39,19 @@ sin tocar el repo.
   build de producción (y en local) esas ramas se eliminan y nada importa el módulo demo.
 - **Contenido**: en un preview, `getRepoClient()` (`src/lib/server/eventos/index.js`) devuelve el
   cliente demo (`src/lib/server/demo/client.js`) en vez de GitHub, **sea quien sea que esté
-  logueade**: desde un preview nunca se commitea al repo. Los «commits» (crear, editar o duplicar
-  eventos, editar posts, y lo que se agregue usando `getRepoClient()`) se guardan en la tabla
-  `demo_files` de la base del preview.
-- **Lecturas**: primero `demo_files`; si el archivo no está ahí, el archivo tal como está en el
-  deploy (los `.md` de `src/lib/posts` se empaquetan como texto en el Worker del preview, con
-  `import.meta.glob`, ver `src/lib/server/demo/bundle.js`). La lista de eventos del panel y los
-  datos de los selectores de etiquetas/organizadores también suman lo de `demo_files`.
-  La configuración de entradas (`src/lib/server/tickets/events.js`: venta, puerta, panel de
-  entradas) también: un evento creado, editado o borrado en la demo vende (o deja de vender)
-  según `demo_files`. Las páginas públicas siguen leyendo el contenido del deploy.
+  logueade**: desde un preview nunca se commitea al repo. Los eventos y el material se leen y se
+  guardan en la base del preview, como en producción (los `.md` no se leen:
+  [contenido.md](contenido.md)); lo que todavía va al repo (imágenes, fichas de amigues, la wiki)
+  se guarda en la tabla `demo_files` de la base del preview.
+- **Lecturas** (lo que va al repo): primero `demo_files`; si el archivo no está ahí, el archivo tal
+  como está en el deploy (los `.md` de `src/lib/posts` se empaquetan como texto en el Worker del
+  preview, con `import.meta.glob`, ver `src/lib/server/demo/bundle.js`).
+- **Base del preview nueva**: hay que importar el contenido y las etiquetas desde el panel
+  (Contenido → En la base → Importar; Etiquetas → Importar a la base). Sin eso, el preview no
+  tiene eventos ni material.
+- **Datos inventados** (`scripts/demo/*.sql`): los eventos de la demo (`n3-entradas.sql`,
+  `n3-personas.sql`) son objetos `evento` no listados en la base del preview (antes eran `.md` en
+  `demo_files`, que el sitio ya no lee; el seed borra esas filas viejas). Necesitan la migración 0031.
 - **Aviso**: en `/admin` y `/edit` se ve «Modo demo: los cambios se guardan solo en la base de
   prueba».
 
@@ -82,8 +85,8 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
    la fecha que les toca); los `demo-*.md` del deploy de otras fechas se tapan. Es determinístico
    salvo por el corrimiento de fechas (mismas personas, montos y órdenes).
 3. **Prende los interruptores** de `N3_FLAGS` (`cuentas`, `propinas`, `perfiles_publicos`,
-   `personas_eventos`, `series`, `borrar_desde_panel`, `etiquetas_db`, `contenido_db`,
-   `lo_que_sigo`) en la base del preview; los valores por defecto del código no cambian. Se pueden
+   `personas_eventos`, `borrar_desde_panel`, `lo_que_sigo`; las series, las etiquetas y el
+   contenido desde la base ya no tienen interruptor) en la base del preview; los valores por defecto del código no cambian. Se pueden
    apagar a mano hasta la próxima recarga.
 4. Carga lo de la Noche 3 en adelante: perfiles inventados con saveObject()
    (`src/lib/server/demo/seedProfiles.js`: un lugar por nivel de privacidad, un grupo con su
@@ -167,6 +170,5 @@ Nunca se aplica nada de esto a la base `kinkyvibe`.
   guardó en `demo_files`.
 - Para probar como alguien del público: cargá `n3-personas.sql` y `n3-cuentas.sql` en la base del
   preview y tocá «🧪 Entrar como persona de prueba».
-- Pruebas: `npx vitest run src/lib/server/demo src/routes/api/preview-seed
-src/lib/server/tickets/events.demo.test.js` y, para la persona de prueba,
-  `npx vitest run "src/routes/(content)/ingresar/demo"`.
+- Pruebas: `npx vitest run src/lib/server/demo src/routes/api/preview-seed scripts/demo` y, para
+  la persona de prueba, `npx vitest run "src/routes/(content)/ingresar/demo"`.

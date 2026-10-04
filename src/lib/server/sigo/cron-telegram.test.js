@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeAccount } from '$lib/server/amigues/testing.js';
 import { fakeEvent, fakeSend } from '$lib/server/series/fixtures.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { consumeLinkCode, createLinkCode } from '../telegram/link.js';
 import { follow, setFollowOptions } from './follows.js';
 
@@ -37,6 +38,8 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	md.listed = [fakeEvent('md-manana-tg', NOW + 10 * HOUR, ['shibari'])];
+	// Los eventos salen de la base.
+	await seedPosts(t.db, md.listed, { now: NOW });
 	const a = await makeAccount(t.db, 'cron-tg');
 	await follow(t.db, a.id, TAG, { now: NOW - 30 * 24 * HOUR });
 	await setFollowOptions(t.db, a.id, TAG, {
@@ -58,7 +61,7 @@ afterEach(() => {
 async function cron(env) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { CONTENIDO_DB_ENABLED: '0', LO_QUE_SIGO_ENABLED: '1', CUENTAS_ENABLED: '1', ...env }
+		env: { LO_QUE_SIGO_ENABLED: '1', CUENTAS_ENABLED: '1', ...env }
 	}));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return import('./cron.js');

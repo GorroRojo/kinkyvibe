@@ -339,12 +339,13 @@ export async function loadAutomations({
 				'de la serie.',
 			when: 'En cada vuelta, cuando aparece una edición nueva',
 			lastRun: msOrNull(seriesRow?.last_sent),
-			nextRun: on('series') ? remindersNext : null,
-			state: on('series') ? 'on' : 'off',
-			stateLabel: on('series') ? 'Prendido' : 'Apagado (interruptor «Series de eventos»)',
+			// Las series ya no tienen interruptor: siempre prendidas.
+			nextRun: remindersNext,
+			state: 'on',
+			stateLabel: 'Prendido',
 			details: seriesRow ? [`${countOf(seriesRow.total)} avisos mandados en total`] : [],
-			configHref: on('series') ? '/admin/eventos/series' : '/admin/ajustes/interruptores',
-			configLabel: on('series') ? 'Eventos → Series' : 'Interruptores'
+			configHref: '/admin/eventos/series',
+			configLabel: 'Eventos → Series'
 		},
 		{
 			id: 'mail-sigo-nuevo',

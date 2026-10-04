@@ -22,7 +22,7 @@ featured: cine-para-sucixs-miniatura.webp
 status: abierto # abierto | anunciado | agotadas | cancelado
 opening_date: 2023-09-03Z-03:00
 start: 2023-10-21T19:00-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
-end: 2023-10-01T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
+end: 2023-10-21T23:30-03:00 # [YYYY]-[MM]-[DD]T[hh]:[mm]-03:00
 carrousel_background: '#671e9f'
 carrousel_color: 'white'
 carrousel_accent_text: '#ede843'

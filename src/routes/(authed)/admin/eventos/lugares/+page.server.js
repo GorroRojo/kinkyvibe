@@ -34,7 +34,7 @@ import { isVenuePrivacy } from '$lib/utils/venues.js';
 /** Los eventos (.md) para elegir, del más nuevo al más viejo, con si su archivo tiene dirección. */
 /** @param {App.Platform | undefined} platform */
 async function eventChoices(platform) {
-	// Con `contenido_db` prendido, también los eventos de la base.
+	// Los eventos de la base.
 	const [listed, unlisted] = await Promise.all([
 		sitePosts(platform, false, false),
 		sitePosts(platform, false, true)

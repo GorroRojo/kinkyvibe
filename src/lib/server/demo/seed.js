@@ -51,14 +51,8 @@ export const N3_FLAGS = Object.freeze([
 	'propinas',
 	'perfiles_publicos',
 	'personas_eventos',
-	'series',
 	'borrar_desde_panel',
-	// Noche 4: etiquetas desde la base (#164/#173). El demo importa las etiquetas desde el panel
-	// (Etiquetas → Importar); sin importar, el sitio sigue leyendo el archivo.
-	'etiquetas_db',
-	// Contenido a la base (#166/#167/#169). El demo importa desde Contenido → En la base; lo que
-	// no está en la base sigue saliendo de su .md.
-	'contenido_db',
+	// Series, etiquetas y contenido desde la base ya no tienen interruptor (siempre prendidos).
 	// «Lo que sigo» (#178–#182): seguir etiquetas, perfiles y lugares.
 	'lo_que_sigo'
 ]);

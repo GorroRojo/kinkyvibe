@@ -18,8 +18,10 @@
 import { mediaURL } from '$lib/utils';
 import { renderProfileBody } from '$lib/server/amigues/render.js';
 import { splitMarkdown } from '$lib/server/amigues/importer.js';
+import { toRegisteredTags } from '$lib/utils/interactivos.js';
 import { normalizeBody } from './eventos.js';
 import { renderFreeBody, scopeCss } from './freeHtml.js';
+import { interactiveParts, markBody, unmark } from './interactive.js';
 
 /** Clase del contenedor del texto con HTML libre: sus `<style>` se aplican solo adentro. */
 export const FREE_BODY_CLASS = 'kv-texto-libre';
@@ -62,8 +64,8 @@ export function contentMediaURL(category, folder, file) {
 }
 
 /**
- * El cuerpo del .md `<categoría>/<nombre>.md` de este deploy, como lo guarda la importación, o
- * `null` si no existe.
+ * El cuerpo del .md `<categoría>/<nombre>.md` de este deploy, como lo guarda la importación (con
+ * los interactivos como etiquetas del registro, $lib/utils/interactivos.js), o `null` si no existe.
  *
  * @param {string} category
  * @param {string} name
@@ -73,14 +75,21 @@ export async function bundledBody(category, name) {
 	const load = bundledRaws[`/src/lib/posts/${category}/${name}.md`];
 	if (!load) return null;
 	try {
-		return normalizeBody(splitMarkdown(await load()).body);
+		return normalizeBody(toRegisteredTags(splitMarkdown(await load()).body));
 	} catch {
 		return null;
 	}
 }
 
 /**
- * @typedef {{ html: string, css: string, component: boolean }} RenderedBody
+ * @typedef {{
+ *   html: string,
+ *   css: string,
+ *   component: boolean,
+ *   parts?: import('./interactive.js').Part[] | null
+ * }} RenderedBody
+ *   `parts`: solo si el texto tiene interactivos registrados (la página los muestra con
+ *   $lib/components/ContentParts.svelte en lugar de `html`).
  */
 
 /**
@@ -97,12 +106,27 @@ export async function renderContentBody(data, category, folder, { vars = {} } = 
 	/** @param {string} file @param {string} path */
 	const resolveMedia = (file, path) =>
 		contentMediaURL(category, /\/media\/([\w.-]+)\//.exec(path)?.[1] ?? folder, file);
-	if (data?.body_html === 'libre') {
-		if (body && (await bundledBody(category, folder)) === normalizeBody(body)) {
+	if (data?.body_html === 'libre' && body) {
+		if ((await bundledBody(category, folder)) === normalizeBody(body)) {
 			return { html: '', css: '', component: true };
 		}
-		const { html, css } = await renderFreeBody(body, { resolveMedia, vars });
-		return { html, css: scopeCss(css, `.${FREE_BODY_CLASS}`), component: false };
 	}
-	return { html: await renderProfileBody(body, { resolveMedia }), css: '', component: false };
+	// Los interactivos registrados como marcas (y toda otra `<kv-…` escapada), ver ./interactive.js.
+	const marked = markBody(body);
+	if (data?.body_html === 'libre') {
+		const { html, css } = await renderFreeBody(marked.text, { resolveMedia, vars });
+		return withParts({ html, css: scopeCss(css, `.${FREE_BODY_CLASS}`), component: false }, marked);
+	}
+	const html = await renderProfileBody(marked.text, { resolveMedia });
+	return withParts({ html, css: '', component: false }, marked);
+}
+
+/**
+ * @param {RenderedBody} rendered
+ * @param {import('./interactive.js').MarkedBody} marked
+ * @returns {RenderedBody}
+ */
+function withParts(rendered, marked) {
+	const parts = interactiveParts(rendered.html, marked);
+	return { ...rendered, html: unmark(rendered.html, marked), ...(parts ? { parts } : {}) };
 }

@@ -5,13 +5,13 @@
  */
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseDocument } from 'yaml';
 import { unstable_splitSqlQuery } from 'wrangler';
 import { createTestDB } from '$lib/server/db/testing.js';
 import { listRoles } from '$lib/server/personas/roles.js';
 import { resolvePersonas } from '$lib/server/personas/index.js';
 import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
-import { splitMarkdown } from '$lib/utils/eventDraft.js';
+import { eventToMeta } from '$lib/server/contenido/eventos.js';
+import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
 import { validatePersonas } from '$lib/utils/personas.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -28,13 +28,31 @@ afterAll(async () => {
 
 const SLUG = 'demo-personas-2026-12';
 
+/**
+ * La metadata del evento de la demo, como la arma la base (la misma que lee el sitio), después de
+ * verificar que sus datos son válidos para el tipo `evento` (el chequeo nocturno no los marca).
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function eventMeta(db, slug) {
+	const row = await db
+		.prepare(
+			"SELECT title, data, visibility, version FROM objects WHERE type = 'evento' AND slug = ?1"
+		)
+		.bind(slug)
+		.first();
+	if (!row) throw new Error(`falta el evento ${slug}`);
+	const data = JSON.parse(String(row.data));
+	const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
+		coreTypes.get('evento')
+	);
+	expect(validateData(def, data).ok).toBe(true);
+	return eventToMeta({ title: String(row.title), data, visibility: String(row.visibility) });
+}
+
 describe('seed n3-personas', () => {
 	it('evento con personas válidas; el perfil oculto no aparece', async () => {
-		const row = await t.db
-			.prepare('SELECT content FROM demo_files WHERE path = ?1')
-			.bind(`src/lib/posts/calendario/${SLUG}.md`)
-			.first();
-		const meta = parseDocument(splitMarkdown(String(row?.content)).frontmatter).toJS();
+		const meta = await eventMeta(t.db, SLUG);
 		const roles = await listRoles(t.db);
 		expect(roles).toContain('Cuida la puerta');
 		expect(validatePersonas(meta.personas, roles).ok).toBe(true);

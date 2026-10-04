@@ -72,9 +72,9 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 const fake = vi.hoisted(() => ({
 	/** @type {any[]} */ events: [],
 	/** @type {{ slug: string, config: any }[]} */ ticketed: [],
-	/** Los .md no listados (el contador «No listadas»). @type {any[]} */ unlisted: []
+	/** Las fichas .md no listadas (el contador «No listadas»). @type {any[]} */ unlisted: []
 }));
-vi.mock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: '1' } }));
+vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/eventos/index.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
 	listEvents: async () => structuredClone(fake.events),
@@ -592,8 +592,8 @@ async function seed() {
 		.prepare('INSERT INTO admin_last_seen (admin_id, seen_at, last_at) VALUES (?1, ?2, ?3)')
 		.bind(admin.id, NOW - 3 * DAY, NOW - 2 * HOUR)
 		.run();
-	// Un .md no listado (el contador del menú).
-	fake.unlisted = [{ meta: { category: 'calendario', postID: 'no-listado-inventado-2031-09' } }];
+	// Una ficha .md no listada (el contador del menú; los eventos no listados salen de la base).
+	fake.unlisted = [{ meta: { category: 'amigues', postID: 'perfil-no-listado-inventado' } }];
 }
 
 /** La fila de la última visita, para volver a dejarla igual entre las dos corridas. */

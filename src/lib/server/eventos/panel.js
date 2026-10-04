@@ -1,8 +1,7 @@
 /**
  * Datos de los eventos para las páginas del panel (/admin/eventos, la agenda y la ficha
- * /admin/eventos/<slug>). Parten de `listEvents()` (los eventos de este deploy; en los previews,
- * con los cambios del modo demo) y le suman del frontmatter lo que la lista no trae (etiquetas,
- * nombre del lugar, link, organizadores).
+ * /admin/eventos/<slug>). Parten de `listEvents()` (los eventos de la base) y le suman de su
+ * metadata lo que la lista no trae (etiquetas, nombre del lugar, link, organizadores).
  */
 import { featuredURL, listEvents } from './index.js';
 import { agendaRowFromMeta } from '$lib/utils/agenda.js';
@@ -10,66 +9,38 @@ import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
 import { splitEventTags } from '$lib/utils/adminTags.js';
 import { AR_OFFSET, parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 
-const metaModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
-
 /**
- * Frontmatter del .md de un evento en este deploy, o null.
- * @param {string} slug
- * @returns {Promise<Record<string, any> | null>}
- */
-async function fileMeta(slug) {
-	const load = metaModules[`/src/lib/posts/calendario/${slug}.md`];
-	if (!load || slug.startsWith('_')) return null;
-	try {
-		return /** @type {Record<string, any>} */ ((await load()) ?? null);
-	} catch (e) {
-		return null;
-	}
-}
-
-/**
- * Frontmatter de un evento en este deploy, o null.
+ * La metadata de un evento de la base (como la de un .md), o null si no está o está borrado.
+ * También los ocultos: el panel los ve.
  * @param {string} slug
  * @returns {Promise<Record<string, any> | null>}
  */
 export async function bundleMeta(slug) {
-	// Interruptor `contenido_db`: si la base tiene el evento, manda la base (también si está
-	// oculto: el panel lo ve).
 	const { activeContentDB, findDbPostObject } = await import('../contenido/repo.js');
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	const fromDb = db ? await findDbPostObject(db, 'calendario', slug) : null;
-	if (fromDb) {
-		const { eventToMeta } = await import('../contenido/eventos.js');
-		return fromDb.deleted ? null : eventToMeta(fromDb.object);
-	}
-	return fileMeta(slug);
+	if (!fromDb || fromDb.deleted) return null;
+	const { eventToMeta } = await import('../contenido/eventos.js');
+	return eventToMeta(fromDb.object);
 }
 
 /**
- * Lo mismo que {@link bundleMeta} para varios eventos de una vez: con el interruptor
- * `contenido_db`, UNA consulta para todos (no una o dos por evento) y sin armar el texto de cada
- * uno. Para las listas del panel.
+ * Lo mismo que {@link bundleMeta} para varios eventos de una vez: UNA consulta para todos (no una
+ * o dos por evento) y sin armar el texto de cada uno. Para las listas del panel.
  * @param {string[]} slugs
  * @returns {Promise<Map<string, Record<string, any> | null>>}
  */
 export async function bundleMetas(slugs) {
 	const { activeContentDB, allDbEventObjects, dbPostFinder } = await import('../contenido/repo.js');
 	const { eventToMeta } = await import('../contenido/eventos.js');
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	const find = db ? dbPostFinder(await allDbEventObjects(db)) : () => null;
 	/** @type {Map<string, Record<string, any> | null>} */
 	const out = new Map();
-	await Promise.all(
-		slugs.map(async (slug) => {
-			const fromDb = find(slug);
-			const meta = fromDb
-				? fromDb.deleted
-					? null
-					: eventToMeta(fromDb.object)
-				: await fileMeta(slug);
-			out.set(slug, meta);
-		})
-	);
+	for (const slug of slugs) {
+		const fromDb = find(slug);
+		out.set(slug, fromDb && !fromDb.deleted ? eventToMeta(fromDb.object) : null);
+	}
 	return out;
 }
 

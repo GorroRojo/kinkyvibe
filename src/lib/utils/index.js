@@ -160,7 +160,7 @@ export async function processPost(
 /**
  * Tags as the site shows them: each alias resolved to its tag id, sorted like the tag tree.
  * Shared by the .md posts and the profiles stored in the database. By default, the tag tree in
- * use (the file, or the database with the `etiquetas_db` switch: $lib/utils/siteTags.js).
+ * use (the database; the file only as a fallback: $lib/utils/siteTags.js).
  * @param {readonly string[]} tags
  * @param {TagManager} [tagManager]
  * @returns {string[]}
@@ -259,7 +259,9 @@ export function tagSorter(tagManager) {
 }
 
 /**
- * Fetches markdown posts and performs validations and transformations.
+ * Fetches markdown posts and performs validations and transformations: the amigues profiles (or
+ * the wiki). Events and material are not read from their .md any more: they come from the
+ * database (`sitePosts` in $lib/server/contenido/posts.js).
  * @param {boolean} wiki - Whether or not the posts are from the wiki
  * @param {boolean} unlisted - Whether or not the posts shown are unlisted
  * @return {Promise<ProcessedPost[]>} An array of validated and transformed posts.
@@ -268,8 +270,8 @@ export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
 	// Posts only change on deploy, so the processed list is computed once per
 	// server instance (not in dev, so edited posts show up without a restart).
 	// Callers get a fresh array and may sort it in place.
-	// The list is processed with the file's tag tree; with the `etiquetas_db` switch on, the
-	// tags are cleaned up again with the database's tree (once per tree: retaggedCache).
+	// The list is processed with the file's tag tree; when the database's tree is in use, the
+	// tags are cleaned up again with it (once per tree: retaggedCache).
 	const key = `${wiki}-${unlisted}`;
 	let posts = dev ? undefined : postsCache.get(key);
 	if (!posts) {
@@ -307,9 +309,9 @@ async function loadMarkdownPosts(wiki, unlisted) {
 	if (wiki) {
 		allPosts = Object.entries(import.meta.glob('$lib/posts/wiki/*.md'));
 	} else {
-		allPosts = Object.entries(import.meta.glob('$lib/posts/calendario/*.md'));
-		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/amigues/*.md')));
-		allPosts.push(...Object.entries(import.meta.glob('$lib/posts/material/*.md')));
+		// Los eventos y el material salen solo de la base ($lib/server/contenido/posts.js,
+		// `sitePosts`): sus .md quedan en el repo como respaldo, pero el sitio no los lee.
+		allPosts = Object.entries(import.meta.glob('$lib/posts/amigues/*.md'));
 	}
 	let processedPosts = [];
 	for (const [rawPath, constructor] of allPosts) {
@@ -335,17 +337,6 @@ async function loadMarkdownPosts(wiki, unlisted) {
 	});
 	return processedPosts;
 }
-
-/**
- * Listed posts minus calendar events that already started. PostList hides those
- * unless the viewer turns on "show past events", in which case the page loads the
- * full list with fetchAllPostsClient() from $lib/utils/allPosts.
- * @return {Promise<ProcessedPost[]>}
- */
-export const fetchCurrentPosts = async () => {
-	const now = Date.now();
-	return (await fetchMarkdownPosts()).filter((p) => isCurrent(p, now));
-};
 
 /**
  * Splits related posts for a page load: the ones PostList shows by default are

@@ -7,6 +7,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { venuePlaceMeta } from '$lib/utils/eventPlace.js';
 
@@ -75,12 +76,12 @@ async function venuePage(n) {
 		env: {
 			PERFILES_PUBLICOS_ENABLED: '1',
 			PERSONAS_EVENTOS_ENABLED: '1',
-			CUENTAS_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
-			ETIQUETAS_DB_ENABLED: '0'
+			CUENTAS_ENABLED: '0'
 		}
 	}));
 	fake.posts = Array.from({ length: n }, (_, i) => fakeEventPost(i));
+	// Los eventos salen de la base.
+	await seedPosts(t.db, fake.posts);
 	const venue = await makeProfile(t.db, {
 		title: 'Galpón Inventado',
 		kind: 'lugar',

@@ -163,8 +163,8 @@ lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca
 
 **Eventos → Lugares → «Importar de eventos»** (`/admin/eventos/lugares/importar`, solo admins)
 arma lugares con el «Dónde» que ya tienen los eventos (`location_name`, `location`,
-`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: los
-`.md`, o la base con `contenido_db` prendido). Reglas puras en `src/lib/utils/venueImport.js`;
+`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: la
+base). Reglas puras en `src/lib/utils/venueImport.js`;
 lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 
 - **Mismo lugar**: el mismo nombre, la misma calle y número o el mismo link al mapa, sin importar

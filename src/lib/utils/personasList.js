@@ -10,7 +10,7 @@
  *  { name: 'Persona Sin Perfil', role: 'Fotografía' }]    // un nombre libre con otro rol
  * ```
  *
- * - **En la base** (`contenido_db`): es lo que guarda `data.personas` de un `evento` o un
+ * - **En la base**: es lo que guarda `data.personas` de un `evento` o un
  *   `material` (./../server/contenido/eventos.js, material.js), una sola lista con quienes
  *   organizan o escriben incluides.
  * - **En los .md** no cambia nada: se escribe en los campos de siempre ({@link personasToMd}):

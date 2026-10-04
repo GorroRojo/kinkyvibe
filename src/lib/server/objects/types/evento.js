@@ -12,7 +12,7 @@
  *   (configuración de entradas, colores del carrusel…), tal cual, para que nada se pierda al
  *   importar. Cuando algo de ahí se use desde la base, se pasa a un campo propio.
  *
- * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md («En la base»)).
+ * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
 
 import { eventLinkProblem } from '../../../utils/eventLink.js';

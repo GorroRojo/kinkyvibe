@@ -143,12 +143,10 @@
 			</a>
 			para nunca perderte de nada!
 		</p>
-		{#if data.seriesLink}
-			<p class="series-link">
-				¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
-				ediciones.
-			</p>
-		{/if}
+		<p class="series-link">
+			¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
+			ediciones.
+		</p>
 	</div>
 </div>
 

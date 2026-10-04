@@ -1,12 +1,13 @@
 /**
  * Data the admin editors need about the site's content: which tags posts use (for the tag
  * picker) and the amigues profiles / names used as organizers (for the organizer picker).
- * Read from the posts bundled in this deploy, like the rest of the site.
+ * Events and material come from the database (the only source); amigues profiles and the wiki,
+ * from the posts bundled in this deploy, like the rest of the site.
  */
 import { isNumericFeatured } from '$lib/utils/eventDraft.js';
 import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 
-const posts = import.meta.glob('/src/lib/posts/{calendario,material,amigues,wiki}/*.md', {
+const posts = import.meta.glob('/src/lib/posts/{amigues,wiki}/*.md', {
 	import: 'metadata'
 });
 /** @type {Record<string, string>} */
@@ -38,25 +39,22 @@ async function allMeta() {
 }
 
 /**
- * Interruptor `contenido_db`: los eventos y el material que están en la base (también los
- * ocultos, que el panel ve) en lugar de su .md, y los que solo están en la base.
+ * Los eventos y el material de la base (también los ocultos, que el panel ve; no los borrados).
  * @param {PostMeta[]} posts
  */
 async function withDbPosts(posts) {
 	const { activeContentDB, allDbPostObjects } = await import('../contenido/repo.js');
 	const { CONTENT_CATEGORIES } = await import('../contenido/categories.js');
-	const db = await activeContentDB();
+	const db = activeContentDB();
 	if (!db) return posts;
-	/** @type {Map<string, PostMeta>} */
-	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
+	const out = [...posts];
 	for (const [category, cat] of Object.entries(CONTENT_CATEGORIES)) {
 		// Solo la metadata: sin armar el texto de cada post.
 		for (const [slug, e] of await allDbPostObjects(db, category)) {
-			if (e.deleted) byKey.delete(`${category}/${slug}`);
-			else byKey.set(`${category}/${slug}`, { category, slug, meta: cat.toMeta(e.object) });
+			if (!e.deleted) out.push({ category, slug, meta: cat.toMeta(e.object) });
 		}
 	}
-	return [...byKey.values()];
+	return out;
 }
 
 /**
@@ -71,6 +69,8 @@ async function withDemoPosts(posts) {
 	/** @type {Map<string, PostMeta>} */
 	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
 	for (const { category, slug, meta } of changed) {
+		// Los eventos y el material solo salen de la base (los guarda ahí también la demo).
+		if (category === 'calendario' || category === 'material') continue;
 		if (meta) byKey.set(`${category}/${slug}`, { category, slug, meta });
 		else byKey.delete(`${category}/${slug}`);
 	}
@@ -101,7 +101,7 @@ const list = (v) => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
  * How many posts of a category use each tag (as written).
  * @param {string} category
  * @param {PostMeta[]} [metas] what {@link contentMetas} gave, if the caller already has it (each
- *   call reads every post of the database with `contenido_db` on)
+ *   call reads every event and material post of the database)
  * @returns {Promise<Record<string, number>>}
  */
 export async function tagUsage(category, metas) {

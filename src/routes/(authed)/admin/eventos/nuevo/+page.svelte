@@ -78,7 +78,7 @@
 	/** @type {import('./$types').ActionData} */
 	export let form;
 
-	/** Con el interruptor `contenido_db`, el evento se guarda en la base y se ve enseguida. */
+	/** El evento se guarda en la base y se ve enseguida. */
 	const copy = saveCopy(data.savesToDb);
 
 	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna (interruptor
