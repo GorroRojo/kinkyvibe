@@ -8,6 +8,7 @@
 	import { CalendarDays, Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
+	import TagChip from '$lib/components/TagChip.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
 	import { eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 
@@ -83,7 +84,7 @@
 				{/if}
 				{#if e.kinkyvibe}<Badge tone="info">Fondo Kinky Vibe</Badge>{/if}
 				{#each e.tags.filter((t) => t !== 'KinkyVibe' && t !== e.place) as t}
-					<span class="tag">{t}</span>
+					<TagChip tag={t} />
 				{/each}
 			</div>
 		</div>
@@ -172,6 +173,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3xs);
+		align-items: center;
 		margin-top: 0.3rem;
 	}
 	.part-chip {
@@ -184,15 +186,6 @@
 	}
 	.part-chip:hover span {
 		text-decoration: underline;
-	}
-	.tag {
-		font-size: var(--text-xs);
-		font-weight: 700;
-		border-radius: 3em;
-		padding: 0.1em 0.6em;
-		/* chip de etiqueta: teñido (no interactivo) */
-		background: var(--bad-bg);
-		color: var(--accent-text);
 	}
 	.actions {
 		grid-area: actions;

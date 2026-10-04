@@ -29,9 +29,9 @@
 					{@const tag = tm.get(t)}
 					<button
 						type="button"
-						class="chip"
+						class="chip kv-tag"
 						aria-pressed={picked.has(t)}
-						style:--tag-color={tag?.getColor?.() ?? 'var(--1)'}
+						style:--tag-color={tag?.getColor?.() ?? undefined}
 						on:click={() => (tags = toggleQuickTag(tags, t, g, canon))}
 					>
 						{#if tag?.icon}<span aria-hidden="true">{tag.icon.trim()}</span>{/if}
@@ -66,23 +66,15 @@
 		flex-wrap: wrap;
 		gap: var(--space-3xs);
 	}
+	/* chip de etiqueta con su color (.kv-tag, style.scss); lleno cuando está elegido */
 	.chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3em;
-		border: 1px solid var(--field, var(--1-light));
-		background: var(--surface, #fff);
-		color: var(--text, inherit);
-		border-radius: 2em;
-		padding: var(--space-3xs) var(--space-xs);
 		min-height: 2.2rem;
+		padding: var(--space-3xs) var(--space-xs);
 		font-size: var(--text-sm);
+		font-weight: 400;
 		cursor: pointer;
 	}
 	.chip[aria-pressed='true'] {
-		background: var(--accent, var(--1));
-		border-color: var(--accent, var(--1));
-		color: var(--accent-ink, #fff);
 		font-weight: 700;
 	}
 </style>
