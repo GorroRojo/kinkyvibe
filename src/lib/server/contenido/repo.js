@@ -314,11 +314,13 @@ async function readPostsStamp(db, type, category) {
 				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
 				(SELECT max(id) FROM object_revisions) AS v,
 				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
 		)
 		.bind(type, category)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}`;
+	// `pu`: la dirección de los perfiles de las personas (edges, ./personasEdges.js).
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}:${row?.pu}`;
 }
 
 /**

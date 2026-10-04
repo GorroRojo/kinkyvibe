@@ -85,11 +85,14 @@ async function contentStamp(db) {
 			`SELECT (SELECT count(*) FROM objects WHERE type IN (${t})) AS n,
 				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
 				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}`;
+	// `pu`: los perfiles de las personas son edges y la metadata lleva su dirección actual
+	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar.
+	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}`;
 }
 
 /**

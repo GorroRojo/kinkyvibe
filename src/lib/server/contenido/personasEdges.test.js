@@ -373,6 +373,39 @@ describe('guardar un evento desde el panel (contenido_db)', () => {
 	});
 });
 
+describe('el perfil cambia de dirección', () => {
+	it('el evento lo sigue nombrando, con la dirección nueva (también en las listas recordadas)', async () => {
+		const { colectivo } = await profiles();
+		const { client, repo } = await setup();
+		await client.commitFiles('t', {
+			files: [{ path: PATH, content: MD() }],
+			message: 'nuevo',
+			actor: 'admin-inventade',
+			superadmin: true
+		});
+		const posts = await import('./posts.js');
+		const slugsIn = async () =>
+			((await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)?.meta.personas ?? [])
+				.map((/** @type {any} */ p) => p.perfil)
+				.filter(Boolean);
+		expect(await slugsIn()).toContain('colectivo-inventado');
+		await saveObject(
+			t.db,
+			{
+				id: colectivo.id,
+				type: 'perfil',
+				version: colectivo.version,
+				slug: 'colectivo-renombrado'
+			},
+			{ actor: 'a', now: Date.now() + 1000 }
+		);
+		expect(await slugsIn()).toContain('colectivo-renombrado');
+		expect(await slugsIn()).not.toContain('colectivo-inventado');
+		const all = await repo.allDbEventObjects(t.db);
+		expect(JSON.stringify(all.get(SLUG)?.object.data)).toContain('colectivo-renombrado');
+	});
+});
+
 describe('importar un .md', () => {
 	// La metadata como la da mdsvex (el frontmatter, por JSON).
 	const file = () => ({
