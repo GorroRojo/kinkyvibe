@@ -122,7 +122,11 @@ const evento = {
 		parte: { label: 'Partes', to: ['evento'], max: 20 },
 		// La imagen principal (docs/imagenes.md). Sin este edge, se usa `featured` (la imagen vieja
 		// del repo) hasta que se importen las imágenes.
-		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 }
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 },
+		// Etiquetas y series (docs/objetos.md, «Etiquetas de los eventos»): un edge por etiqueta viva,
+		// `data: { at: [0, …] }`: su lugar en la lista de `tags` (src/lib/server/contenido/
+		// etiquetasEdges.js). Un nombre que no es de ninguna etiqueta queda en `data.tags`.
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: EVENT_TAGS_MAX }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

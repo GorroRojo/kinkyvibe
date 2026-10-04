@@ -14,6 +14,7 @@ import { loadTagRecords } from '../../src/lib/server/etiquetas/read.js';
 import { recordsToRawTags } from '../../src/lib/server/etiquetas/model.js';
 import tagsFactory from '../../src/lib/utils/tags';
 import { seriesParentOf, seriesTagIds } from '../../src/lib/utils/series.js';
+import { tagEdgesOf, withTagEdges } from '../../src/lib/server/contenido/etiquetasEdges.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -110,6 +111,37 @@ describe('scripts/demo/cuirdas-por-anio.sql', () => {
 		expect(seriesParentOf(tm, 'Cuirdas Sudacas 2025', ids)).toBe('Cuirdas Sudacas');
 
 		// Datos que el código de hoy acepta: el chequeo nocturno no encuentra nada.
+		expect(await checkObjectsIntegrity(t.db)).toEqual([]);
+	});
+
+	it('con las etiquetas como edges (migración 0042), también suma la del año', async () => {
+		const root = await tag('evento recurrente');
+		const madre = await tag('Cuirdas Sudacas', { icon: '🪢' }, [root]);
+		const saved = await saveObject(
+			t.db,
+			{
+				type: 'evento',
+				title: 'Evento con edges',
+				slug: 'cuirdas-prueba-2026-2',
+				data: { start: '2026-07-11T15:00-03:00', tags: ['cuerdas'] },
+				edges: { etiqueta: [{ to: madre, data: { at: [0] } }] }
+			},
+			ctx
+		);
+
+		await applySeed();
+		await applySeed();
+
+		expect(await tagsOf(saved.id)).toEqual({
+			tags: ['cuerdas', 'Cuirdas Sudacas 2026'],
+			version: 2
+		});
+		const edges = await tagEdgesOf(t.db, [saved.id]);
+		expect(withTagEdges(await tagsOf(saved.id), edges.get(saved.id)).tags).toEqual([
+			'Cuirdas Sudacas',
+			'cuerdas',
+			'Cuirdas Sudacas 2026'
+		]);
 		expect(await checkObjectsIntegrity(t.db)).toEqual([]);
 	});
 

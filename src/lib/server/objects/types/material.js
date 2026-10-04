@@ -46,7 +46,11 @@ const material = {
 	},
 	edges: {
 		// La imagen principal (docs/imagenes.md); sin este edge, `featured` (la del repo).
-		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 }
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 },
+		// Etiquetas, como en `evento`: un edge por etiqueta viva, `data: { at: [0, …] }` (su lugar en
+		// la lista de `tags`, src/lib/server/contenido/etiquetasEdges.js). Un nombre que no es de
+		// ninguna etiqueta queda en `data.tags`.
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: 60 }
 	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';

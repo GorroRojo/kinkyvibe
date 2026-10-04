@@ -9,7 +9,8 @@
  *   con las mismas reglas que siempre (`buildImportedEvent`: no listado, `borrador: true`,
  *   «anunciado» o «abierto», etiquetas, la entrada General del «Valor»), le aplica las entradas que
  *   se eligieron y lo guarda con `saveObject()`: versión 1 con su historial, los perfiles de
- *   `personas` como edges `persona` y, si el lugar no cambió, el mismo edge `lugar` que el original.
+ *   `personas` como edges `persona`, las etiquetas vivas como edges `etiqueta` y, si el lugar no
+ *   cambió, el mismo edge `lugar` que el original.
  *
  * El texto del evento se arma en memoria con el mismo mapa que usa el panel
  * (../contenido/markdown.js) para reusar `buildImportedEvent` y el editor de entradas tal cual;
@@ -23,7 +24,7 @@ import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
 import { allDbEventObjects, bodyHtmlFor, findDbPost } from '$lib/server/contenido/repo.js';
 import { EVENT_CATEGORY, EVENT_TYPE, eventToMeta } from '$lib/server/contenido/eventos.js';
 import { markdownToPost } from '$lib/server/contenido/markdown.js';
-import { dehydratePersonas } from '$lib/server/contenido/personasEdges.js';
+import { dehydrateContent } from '$lib/server/contenido/relaciones.js';
 import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { eventVenue } from '$lib/server/amigues/venues.js';
 import { ObjectError } from '$lib/server/objects/errors.js';
@@ -304,7 +305,8 @@ export async function createImportedDrafts(
 			if (!valid.ok) {
 				throw new Error(`Revisá los datos: ${valid.errors.map((e) => e.message).join('; ')}`);
 			}
-			const { data, edges = {} } = await dehydratePersonas(db, EVENT_CATEGORY, valid.data);
+			// Personas con perfil y etiquetas vivas van como edges (`persona`, `etiqueta`).
+			const { data, edges = {} } = await dehydrateContent(db, EVENT_CATEGORY, valid.data);
 			/** @type {Record<string, unknown[]>} */
 			const allEdges = { ...edges };
 			// «Sucede en»: el mismo lugar que el original, salvo que la planilla diga otro.

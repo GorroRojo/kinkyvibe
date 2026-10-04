@@ -28,7 +28,7 @@ import { CONTENT_CATEGORIES } from './categories.js';
 import { dataDiff } from './parity.js';
 import { reshapePersonas } from '../../utils/personasList.js';
 import { revisionStatement } from './revisions.js';
-import { dehydratePersonas, personaEdgesOf, withPersonaEdges } from './personasEdges.js';
+import { contentEdgesOf, dehydrateContent, withContentEdges } from './relaciones.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./eventos.js').MappedEvent} Mapped */
@@ -87,16 +87,17 @@ export async function importedSources(db, category) {
 		.all();
 	/** @type {Map<string, ImportedSource>} */
 	const out = new Map();
-	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js), para comparar
-	// con lo que da el .md.
-	const personas = await personaEdgesOf(
+	// Con las listas de personas y de etiquetas enteras (los perfiles y las etiquetas son edges:
+	// ./relaciones.js), para comparar con lo que da el .md.
+	const linked = await contentEdgesOf(
 		db,
 		results.map((r) => Number(r.object_id))
 	);
+	const type = CONTENT_CATEGORIES[category]?.type ?? '';
 	for (const r of results) {
 		let data = {};
 		try {
-			data = withPersonaEdges(JSON.parse(String(r.data)), personas.get(Number(r.object_id)));
+			data = withContentEdges(type, JSON.parse(String(r.data)), linked.get(Number(r.object_id)));
 		} catch {
 			data = {};
 		}
@@ -340,8 +341,8 @@ export async function runImport(
  */
 async function writeRow(db, cat, category, row, { actor, now }) {
 	const mapped = /** @type {Mapped} */ (row.mapped);
-	// Los perfiles de `personas` van como edges, no en `data` (./personasEdges.js).
-	const { data, edges } = await dehydratePersonas(
+	// Los perfiles de `personas` y las etiquetas van como edges, no en `data` (./relaciones.js).
+	const { data, edges } = await dehydrateContent(
 		db,
 		category,
 		/** @type {Record<string, unknown>} */ (row.data)
