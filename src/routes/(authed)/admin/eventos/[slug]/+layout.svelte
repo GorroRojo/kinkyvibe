@@ -5,7 +5,7 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
+	import { CalendarDays, Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
@@ -48,7 +48,10 @@
 		{#if e.thumb}
 			<img class="cover" src={e.thumb} alt="" />
 		{:else}
-			<div class="cover gradient" aria-hidden="true"></div>
+			<!-- Sin imagen: el ícono grande del tipo (evento). -->
+			<div class="cover type-icon" aria-hidden="true">
+				<CalendarDays size={48} strokeWidth={1.75} />
+			</div>
 		{/if}
 		<div class="text">
 			<a class="back" href="/admin/eventos">← Eventos</a>
@@ -111,8 +114,12 @@
 		object-fit: cover;
 		box-shadow: var(--shadow);
 	}
-	.gradient {
-		background: linear-gradient(135deg, var(--1), var(--2));
+	.type-icon {
+		display: grid;
+		place-items: center;
+		background: var(--link-bg);
+		color: var(--link);
+		box-shadow: none;
 	}
 	.text {
 		grid-area: text;
@@ -153,9 +160,9 @@
 		font-weight: 700;
 		border-radius: 3em;
 		padding: 0.1em 0.6em;
-		background: var(--surface);
-		border: 1px solid var(--field);
-		color: var(--accent);
+		/* chip de etiqueta: teñido (no interactivo) */
+		background: var(--bad-bg);
+		color: var(--accent-text);
 	}
 	.actions {
 		grid-area: actions;

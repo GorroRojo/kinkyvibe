@@ -429,7 +429,7 @@
 	}
 	.error {
 		margin: 0;
-		color: var(--bad, #b00020);
+		color: var(--error, #b00020);
 		font-weight: bold;
 	}
 	.sr-only {

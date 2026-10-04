@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
 	import { CircleCheck } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -121,8 +122,15 @@
 							<form
 								method="POST"
 								action="?/cancel"
-								use:enhance={({ cancel }) => {
-									if (!confirm(`¿Cancelar ${o.reference}? Se libera el cupo.`)) cancel();
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: `¿Cancelar ${o.reference}?`,
+										text: 'Se libera el cupo.',
+										confirmLabel: 'Cancelar la orden',
+										cancelLabel: 'Volver',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
 								}}
 							>
 								<input type="hidden" name="order" value={o.id} />

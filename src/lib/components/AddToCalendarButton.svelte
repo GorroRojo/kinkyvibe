@@ -48,16 +48,17 @@
 		gap: 0.45em;
 		font: inherit;
 		font-weight: bold;
-		color: var(--2-dark);
-		background: white;
-		border: 2px solid var(--2);
+		/* botón secundario: píldora con borde rosa (como .pill-btn.ghost) */
+		color: var(--1-ink);
+		background: var(--surface);
+		border: 2px solid var(--1);
 		border-radius: var(--radius-pill);
 		padding: 0.45em 1.2em;
 		cursor: pointer;
 	}
 	.trigger:hover,
 	.trigger:focus-visible {
-		background: var(--2);
-		color: white;
+		background: var(--1-tint);
+		color: var(--1-ink);
 	}
 </style>

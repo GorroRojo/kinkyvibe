@@ -3,6 +3,7 @@
 	 * Bandeja de transferencias de todos los eventos: confirmar o cancelar, filtrar por evento, y
 	 * deshacer el rechazo de una cancelada en los últimos 7 días.
 	 */
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -193,8 +194,15 @@
 						<form
 							method="POST"
 							action="?/cancel"
-							use:enhance={({ cancel }) => {
-								if (!confirm(`¿Cancelar ${o.reference}? Se libera el cupo.`)) return cancel();
+							use:enhance={async ({ cancel }) => {
+								const ok = await askConfirm({
+									title: `¿Cancelar ${o.reference}?`,
+									text: 'Se libera el cupo.',
+									confirmLabel: 'Cancelar la orden',
+									cancelLabel: 'Volver',
+									tone: 'danger'
+								});
+								if (!ok) return cancel();
 								busy = o.id;
 								return async ({ update }) => {
 									await update();
@@ -247,8 +255,14 @@
 							<form
 								method="POST"
 								action="?/cancel"
-								use:enhance={({ cancel }) => {
-									if (!confirm(`¿Cancelar ${o.reference}?`)) cancel();
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: `¿Cancelar ${o.reference}?`,
+										confirmLabel: 'Cancelar la orden',
+										cancelLabel: 'Volver',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
 								}}
 							>
 								<input type="hidden" name="order" value={o.id} />

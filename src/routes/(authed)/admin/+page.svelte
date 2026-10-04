@@ -38,6 +38,9 @@
 		Link,
 		Mail,
 		ScanLine,
+		History,
+		Inbox,
+		Sparkles,
 		Tag,
 		TriangleAlert
 	} from '@lucide/svelte';
@@ -377,7 +380,11 @@
 								{/each}
 							</ul>
 						{:else}
-							<EmptyState emoji="✨" title="Nada para revisar" text="Todo al día. ¡Bien ahí!" />
+							<EmptyState
+								icon={Sparkles}
+								title="Nada para revisar"
+								text="Todo al día. ¡Bien ahí!"
+							/>
 						{/if}
 					</Card>
 				</div>
@@ -394,7 +401,7 @@
 					</svelte:fragment>
 					{#if !data.since}
 						<EmptyState
-							emoji="🕰️"
+							icon={History}
 							title="Sin datos"
 							text="Esta sección necesita la base de datos, que no está disponible en este entorno."
 						/>
@@ -504,7 +511,7 @@
 					</ul>
 				{:else}
 					<EmptyState
-						emoji="🗓️"
+						icon={CalendarDays}
 						title="No hay eventos próximos cargados"
 						text="Cargá uno o importá la planilla."
 					>
@@ -527,7 +534,7 @@
 					<Agenda days={data.agenda} />
 				{:else}
 					<EmptyState
-						emoji="🗓️"
+						icon={CalendarDays}
 						title="Semana tranquila"
 						text="No hay eventos, cierres de venta ni recordatorios en los próximos 7 días."
 					/>
@@ -550,7 +557,7 @@
 						>
 					{:else}
 						<EmptyState
-							emoji="📭"
+							icon={Inbox}
 							title="Sin actividad todavía"
 							text={data.dbAvailable
 								? 'Acá van a aparecer las compras, transferencias, ingresos y cambios de les admins.'

@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * Pestañas como links (cada una es una URL), con el estilo del menú del sitio: rosas en negrita
-	 * y la actual en una tarjeta blanca con texto violeta. En el celu se deslizan de costado.
+	 * y la actual en violeta sobre lila («estás acá»). En el celu se deslizan de costado.
 	 * Props: `tabs`: { href, label, count?, soon?, icon? }[] (`icon`: componente de Lucide,
 	 * opcional); `current` (opcional): el href activo. Si no se pasa, se usa la URL actual.
 	 */
@@ -63,10 +63,10 @@
 		color: var(--accent);
 		background: color-mix(in srgb, var(--surface) 55%, transparent);
 	}
+	/* «Estás acá»: violeta sobre lila, como en todo el panel y el sitio. */
 	.tab.on {
 		color: var(--link);
-		background: var(--surface);
-		box-shadow: var(--shadow-1);
+		background: var(--link-bg);
 	}
 	.tab.off {
 		color: var(--muted);

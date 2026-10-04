@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { Check, Trash2 } from '@lucide/svelte';
@@ -127,8 +128,13 @@
 							<form
 								method="POST"
 								action="?/deleteNote"
-								use:enhance={({ cancel }) => {
-									if (!confirm('¿Borrar esta nota?')) cancel();
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: '¿Borrar esta nota?',
+										confirmLabel: 'Borrar',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
 								}}
 							>
 								<input type="hidden" name="id" value={n.id} />

@@ -74,6 +74,7 @@
 		}
 		&.on {
 			color: var(--link);
+			background: var(--link-bg);
 			box-shadow: inset 0 0 0 2px var(--link);
 		}
 	}

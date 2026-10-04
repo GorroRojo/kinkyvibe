@@ -3,7 +3,7 @@
 	 * Aviso de "Guardaste X" con un botón Deshacer (la planilla y el calendario de la agenda).
 	 * Props: `message`, `busy` (deshaciendo: el botón se apaga), `floating` (default false: va en
 	 * el flujo de la página; true: flota abajo, como un toast), `canUndo` (default true: muestra el
-	 * botón), `error` (el aviso es un error: en rosa). Eventos: `undo`, `close` (solo con `floating`).
+	 * botón), `error` (el aviso es un error: en rojo). Eventos: `undo`, `close` (solo con `floating`).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { Undo2, X } from '@lucide/svelte';
@@ -46,8 +46,10 @@
 		padding: var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-xs);
 		margin-bottom: 1rem;
 	}
+	/* Malas noticias en rojo; «Guardado» y «Deshacer» siguen en verde. */
 	.undo.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.floating {
 		position: fixed;

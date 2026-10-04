@@ -1,10 +1,12 @@
 <script>
 	/**
 	 * Hoja del modo puerta (un <dialog> modal: Escape y tocar afuera la cierran). En el celu sube
-	 * desde abajo; en desktop es una ventana centrada. Props: `open` (bind), `title`.
+	 * desde abajo (se cierra con la X o deslizando el encabezado hacia abajo); en desktop es una
+	 * ventana centrada. Props: `open` (bind), `title`.
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { X } from '@lucide/svelte';
+	import { sheetDrag } from '$lib/admin/sheetDragAction.js';
 
 	export let open = false;
 	export let title = '';
@@ -12,6 +14,8 @@
 	const dispatch = createEventDispatcher();
 	/** @type {HTMLDialogElement | undefined} */
 	let dialog;
+	/** @type {HTMLElement | undefined} */
+	let sheetEl;
 
 	$: if (dialog) {
 		if (open && !dialog.open) dialog.showModal();
@@ -33,8 +37,15 @@
 		if (e.target === dialog) open = false;
 	}}
 >
-	<div class="sheet">
-		<header>
+	<div class="sheet" bind:this={sheetEl}>
+		<header
+			use:sheetDrag={{
+				sheet: sheetEl,
+				media: '(max-width: 699.98px)',
+				onClose: () => (open = false)
+			}}
+		>
+			<span class="grab" aria-hidden="true"></span>
 			<h2>{title}</h2>
 			<button type="button" class="close" on:click={() => (open = false)} aria-label="Cerrar">
 				<X size={22} />
@@ -73,6 +84,12 @@
 		dialog {
 			margin: auto;
 		}
+		.grab {
+			display: none;
+		}
+		header {
+			cursor: auto;
+		}
 		.sheet {
 			border-radius: var(--radius-l);
 			padding: var(--space-s) var(--space-s) var(--space-s);
@@ -82,6 +99,22 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
+		position: relative;
+		cursor: grab;
+	}
+	/* manija de arrastre (solo en el celu, donde la hoja sube desde abajo) */
+	.grab {
+		position: absolute;
+		top: -0.6rem;
+		left: 50%;
+		translate: -50% 0;
+		width: 2.5rem;
+		height: 0.3rem;
+		border-radius: var(--radius-pill);
+		background: var(--line);
+	}
+	.sheet {
+		transition: transform 200ms;
 	}
 	h2 {
 		margin: 0;

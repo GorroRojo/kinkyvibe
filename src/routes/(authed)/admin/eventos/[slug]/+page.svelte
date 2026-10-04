@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -161,10 +162,13 @@
 						<form
 							method="POST"
 							action="?/sendLink"
-							use:enhance={({ cancel }) => {
+							use:enhance={async ({ cancel }) => {
 								if (
 									data.stream?.pending &&
-									!confirm(`¿Mandar el link por mail a ${people(data.stream.pending)}?`)
+									!(await askConfirm({
+										title: `¿Mandar el link por mail a ${people(data.stream.pending)}?`,
+										confirmLabel: 'Mandar'
+									}))
 								)
 									cancel();
 							}}

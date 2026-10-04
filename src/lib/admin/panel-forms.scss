@@ -3,7 +3,8 @@
 //   import '$lib/admin/panel-forms.scss';
 //
 //   <label class="kv-field"><span>Etiqueta</span><input …><small>Ayuda</small></label>
-//   <p class="kv-flash ok|bad" role="status">…</p>
+//   <p class="kv-flash ok|bad|warn" role="status">…</p>   (bad = error, en rojo)
+//   <label class="kv-check"><input type="checkbox" …> Texto</label>   (casilla propia, panel.scss)
 //   <p class="kv-note">texto chico gris</p>
 
 .kv-panel {
@@ -25,10 +26,11 @@
 			color: var(--muted);
 		}
 		.kv-error {
-			color: var(--bad);
+			color: var(--error);
 		}
 	}
-	// Mismo aspecto que .kv-input (panel.scss): píldora con el borde rosa del buscador del sitio.
+	// Mismo aspecto que .kv-input (panel.scss): rectángulo neutro de 44px con letra de 16px; los
+	// buscadores (`type="search"`) en píldora.
 	.kv-field input:not([type='checkbox'], [type='radio']),
 	.kv-field select,
 	.kv-field textarea,
@@ -36,26 +38,23 @@
 		background: var(--surface);
 		color: var(--text);
 		border: 1px solid var(--field);
-		border-radius: 3em;
-		padding: 0.55em 1em;
-		min-height: 2.75rem;
+		border-radius: var(--radius-s);
+		padding: 0.5em 0.75em;
+		min-height: var(--tap);
+		font-size: var(--text-field);
 		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
-		&:focus {
-			outline: 2px solid var(--accent);
-			outline-offset: 0;
-		}
 		&[aria-invalid='true'] {
-			border-color: var(--bad);
+			border-color: var(--error);
 			border-width: 2px;
 		}
 	}
-	.kv-input {
-		min-height: 2.75rem;
+	.kv-field input[type='search'] {
+		border-radius: var(--radius-pill);
+		padding-inline: 1em;
 	}
 	.kv-field textarea {
-		border-radius: var(--radius-m);
 		resize: vertical;
 		line-height: 1.45;
 	}
@@ -63,12 +62,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
-		min-height: 2.75rem;
-		input {
-			width: 1.15rem;
-			height: 1.15rem;
-			accent-color: var(--accent);
-		}
+		min-height: var(--tap);
+		cursor: pointer;
 	}
 	.kv-note {
 		font-size: var(--text-sm);
@@ -82,9 +77,11 @@
 		background: var(--ok-bg);
 		color: var(--ok);
 		font-weight: 700;
-		&.bad {
-			background: var(--bad-bg);
-			color: var(--bad);
+		// Errores y malas noticias en rojo; «Guardado ✓» queda en verde (sin clase).
+		&.bad,
+		&.error {
+			background: var(--error-bg);
+			color: var(--error);
 		}
 		&.warn {
 			background: var(--warn-bg);
