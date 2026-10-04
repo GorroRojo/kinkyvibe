@@ -195,6 +195,52 @@ generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_stat
 importación, la lectura detrás de `contenido_db` y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
 
+**Relaciones del evento** (regla 4: edges, nunca direcciones ni ids en `data`; decisión de gorrite,
+«Contenido solo en la base», paso 3; migración `0035_relaciones_edges.sql` para lo ya guardado):
+
+| Edge      | Hacia                        | `data`                                 | Lo escribe / lo lee                                           |
+| --------- | ---------------------------- | -------------------------------------- | ------------------------------------------------------------- |
+| `lugar`   | `perfil` de lugar (máximo 1) | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md)) |
+| `persona` | `perfil` (uno por perfil)    | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                   |
+
+- **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
+  `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
+  importó de un `.md` y no estaba editado, sigue sin estarlo (`content_sources.imported_version`).
+  El evento tiene que estar en la base. La tabla vieja `event_venues` queda sin uso.
+- **`persona`**: los perfiles de la lista de personas. `at[i]` es el lugar de `roles[i]` en la
+  lista única (`src/lib/utils/personasList.js`), así leer arma la misma lista en el mismo orden.
+  En `data.personas` quedan los nombres sin perfil y las direcciones que no son de ningún perfil
+  vivo (no hay a qué apuntar). Se parte al guardar (`dehydratePersonas`: panel en
+  `contenido/repo.js`, importación en `contenido/importer.js`) y se arma al leer
+  (`hydratePersonas`/`withPersonaEdges`: listas y páginas en `contenido/posts.js`, panel en
+  `contenido/repo.js`, importación). Si `data.personas` ya nombra a un perfil que también tiene
+  edge (una lista entera escrita sin partir), manda esa y no se repite a nadie.
+- Las lecturas de estos edges son internas (deciden qué mostrar), sin filtrar por visibilidad,
+  igual que antes leían `event_venues` o el JSON: qué se ve de un lugar lo decide su nivel
+  (`venueView`) y qué perfiles se nombran, `src/lib/server/personas/index.js`.
+
+#### Etiquetas de los eventos (plan, todavía no)
+
+Las etiquetas (`data.tags`, por `key`) también son relaciones con objetos `etiqueta` (con
+`etiquetas_db`), pero las leen muchos caminos (listas y filtros, `/wiki/<etiqueta>`, series, los
+`.ics` de etiqueta y serie, «Lo que sigo», el buscador, el bot de Telegram, el RSS, la venta de
+entradas por serie) y los `.md` las nombran por texto. Plan, en un PR propio:
+
+1. **Edges `etiqueta`** (evento → `etiqueta`, `data: { orden }`) como fuente de verdad: guardar
+   (panel e importación) resuelve cada `key` a la etiqueta viva (siguiendo `alias_de` hasta la
+   canónica, o guardando el alias tal cual: decidir con gorrite) en la misma tanda de
+   `saveObject()`; un `key` que no es de ninguna etiqueta queda como texto (como hoy en el sitio).
+2. **`data.tags` como caché derivada**, solo para leer rápido (las listas leen ~600 posts sin
+   unir tablas): la escribe SOLO `saveObject()` desde los edges (una opción `derive` del tipo, en
+   la misma tanda), nunca quien guarda. El chequeo nocturno compara caché y edges
+   (`tags_out_of_sync`), y una prueba guarda, renombra y borra etiquetas y verifica que nunca se
+   desfasan.
+3. **Renombrar** una etiqueta pasa a ser editar su `key` (los edges no cambian) + rearmar la caché
+   de los eventos que la usan (en tandas, con su revisión), en vez de reescribir cada publicación.
+4. Migración: edges desde `data.tags` de los eventos de la base (por `key`, con `alias_de`), con
+   la caché ya escrita, versión nueva y revisión `migracion`, como la 0035.
+5. Después, el material (`data.tags` y `data.personas`) con el mismo camino.
+
 ### `etiqueta`
 
 Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones
@@ -249,3 +295,7 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 - Una prueba E2E que plante objetos privados de cada tipo y verifique que no aparecen en
   listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
+- Personas del material como edges `persona` (como los eventos, `personasEdges.js`).
+- Etiquetas de los eventos como edges (plan arriba, «Etiquetas de los eventos»).
+- Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
+  importación de un evento nuevo, `legacyVenueEdge`).

@@ -262,7 +262,7 @@ export async function linkedVenues(db, slugs) {
 
 /**
  * Una marca que cambia cuando cambia algún vínculo evento → lugar (agregar, sacar o cambiar el
- * nivel: cada cambio pasa por saveObject() sobre el evento, que actualiza su `updated_at`). Una
+ * nivel: cada cambio pasa por saveObject() sobre el evento, que le sube la `version`). Una
  * consulta chica, para quien recuerda algo armado con los vínculos (el índice de la búsqueda).
  *
  * @param {D1Database} db
@@ -271,7 +271,7 @@ export async function linkedVenues(db, slugs) {
 export async function eventVenuesStamp(db) {
 	const row = await db
 		.prepare(
-			`SELECT count(*) AS n, total(e.id) AS i, total(e.to_id) AS v, total(ev.updated_at) AS u,
+			`SELECT count(*) AS n, total(e.id) AS i, total(e.to_id) AS v, total(ev.version) AS u,
 				total(length(e.data)) AS p
 			FROM edges e JOIN objects ev ON ev.id = e.from_id WHERE e.kind = ?1`
 		)
