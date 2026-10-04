@@ -14,6 +14,7 @@
 import { env } from '$env/dynamic/private';
 import { escapeHtml } from '$lib/utils/escape.js';
 import { DEFAULT_CONTACT_EMAIL } from '$lib/utils/tickets.js';
+import { renderInlineHtml } from '$lib/utils/emailTemplates.js';
 
 /** Origen del sitio cuando el builder no recibe uno (ni hay SITE_URL). */
 export const DEFAULT_MAIL_ORIGIN = 'https://kinkyvibe.ar';
@@ -66,6 +67,83 @@ export function mailButton({ href, label }) {
 	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td style="border-radius:999px;background:${MAIL_COLORS.pink};">
 <a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:19px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>
 </td></tr></table>`;
+}
+
+/**
+ * El pie de todos los mails que se puede cambiar en Ajustes → Mails (`mail_footer_contact` y
+ * `mail_footer_signoff` de `ticket_settings`): la línea de contacto y la firma. Vacíos = estos
+ * textos (el mail sale byte a byte como siempre). Mismo formato seguro que las plantillas
+ * (`**negrita**`, links); en la línea de contacto, `{{contacto}}` es la dirección de contacto
+ * con su link `mailto:`.
+ */
+export const DEFAULT_MAIL_FOOTER = Object.freeze({
+	contact: '¿Dudas? Escribinos a {{contacto}}',
+	signoff: 'Kinky Vibe · Buenos Aires'
+});
+
+/** Las variables de la línea de contacto del pie. */
+export const MAIL_FOOTER_VARS = Object.freeze(['contacto']);
+
+/** @typedef {{ contact?: string | null, signoff?: string | null }} MailFooter */
+
+/** @param {string} contact */
+const contactLink = (contact) =>
+	`<a href="mailto:${escapeHtml(contact)}" style="color:${MAIL_COLORS.link};">${escapeHtml(contact)}</a>`;
+
+/** @param {string} inner ya en HTML */
+const signoffSpan = (inner) => `<span style="color:${MAIL_COLORS.faint};">${inner}</span>`;
+
+/** La línea de contacto de siempre, tal cual la escribe {@link mailLayout}. */
+const DEFAULT_CONTACT_LINE_RE = new RegExp(
+	`\n¿Dudas\\? Escribinos a (<a href="mailto:[^"<>]*" style="color:${MAIL_COLORS.link.replace(/[().]/g, '\\$&')};">[^<>]*</a>)<br>\n`,
+	'g'
+);
+
+/**
+ * Reemplaza la última coincidencia de `re` en `text`.
+ * @param {string} text
+ * @param {RegExp} re con `g`
+ * @param {(match: RegExpMatchArray) => string} to
+ */
+function replaceLast(text, re, to) {
+	const all = [...text.matchAll(re)];
+	const last = all[all.length - 1];
+	if (!last || last.index === undefined) return text;
+	return text.slice(0, last.index) + to(last) + text.slice(last.index + last[0].length);
+}
+
+/**
+ * El mail con el pie de los ajustes (lo cambia `deliver()` al mandar y la vista previa del editor
+ * de plantillas). Sin textos propios, el mismo HTML. Reemplaza solo la línea de contacto y la
+ * firma que escribió {@link mailLayout} (la última de cada una: el pie va al final; lo editable
+ * de las plantillas va escapado y nunca tiene esa forma).
+ *
+ * @param {string} html un mail armado con {@link mailLayout}
+ * @param {MailFooter | null | undefined} footer
+ */
+export function withMailFooter(html, footer) {
+	const contact = footer?.contact?.trim();
+	const signoff = footer?.signoff?.trim();
+	let out = html;
+	if (contact) {
+		out = replaceLast(out, DEFAULT_CONTACT_LINE_RE, (m) => {
+			const mark = '\u0003';
+			const line = renderInlineHtml(
+				contact.replace(/\{\{\s*contacto\s*\}\}/g, mark),
+				{}
+			).replaceAll(mark, m[1]);
+			return `\n${line}<br>\n`;
+		});
+	}
+	if (signoff) {
+		const def = signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff));
+		const at = out.lastIndexOf(def);
+		if (at !== -1) {
+			out =
+				out.slice(0, at) + signoffSpan(renderInlineHtml(signoff, {})) + out.slice(at + def.length);
+		}
+	}
+	return out;
 }
 
 /**
@@ -122,8 +200,8 @@ ${afterHtml}
 </td></tr>
 <tr><td style="padding:18px 8px 0;font-size:13px;line-height:1.5;color:${c.muted};text-align:center;">
 ${whyHtml}<br>
-¿Dudas? Escribinos a <a href="mailto:${escapeHtml(contact)}" style="color:${c.link};">${escapeHtml(contact)}</a><br>
-${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}<span style="color:${c.faint};">Kinky Vibe · Buenos Aires</span>
+¿Dudas? Escribinos a ${contactLink(contact)}<br>
+${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}${signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff))}
 </td></tr>
 </table></td></tr></table></body></html>`;
 }

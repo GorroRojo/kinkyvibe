@@ -74,9 +74,11 @@ const revisions = async (id) =>
 const target = (p) => ({ id: p.id, version: p.version, title: p.title, urlSlug: p.slug });
 
 describe('deleteBackend', () => {
-	it('only amigues profiles without a .md go to the database', () => {
+	// «Solo base»: también las fichas importadas de un .md se borran en la base (antes iban por el
+	// repo: ese modo ya no existe).
+	it('every amigues profile goes to the database, also the ones imported from a .md', () => {
 		expect(deleteBackend('amigues', { legacySlug: null })).toBe('objects');
-		expect(deleteBackend('amigues', { legacySlug: 'Ficha_Inventada' })).toBe('repo');
+		expect(deleteBackend('amigues', { legacySlug: 'Ficha_Inventada' })).toBe('objects');
 		expect(deleteBackend('amigues', null)).toBe('repo');
 		expect(deleteBackend('calendario', { legacySlug: null })).toBe('repo');
 	});

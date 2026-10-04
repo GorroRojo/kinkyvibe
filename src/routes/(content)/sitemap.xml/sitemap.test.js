@@ -4,14 +4,16 @@ import { GET } from './+server.js';
 
 // Compilar los ~600 posts reales tardaba ~20 s. Acá alcanzan unos de muestra; el sitemap real
 // (prerenderizado en el build) lo revisa tests/smoke.spec.js.
-vi.mock('$lib/utils', () => ({
-	fetchMarkdownPosts: async (/** @type {boolean} */ wiki) =>
-		wiki
-			? [{ path: '/wiki/BDSM', meta: {} }]
-			: [
-					{ path: '/calendario/fiesta', meta: { published_date: '2026-09-29Z-03:00' } },
-					{ path: '/material/sin-fecha', meta: {} }
-				]
+// Las publicaciones salen de la base (`sitePosts`) y las páginas de la wiki, de las etiquetas de la
+// base (`siteWikiPosts`, «solo base»): acá, de mentira.
+vi.mock('$lib/server/contenido/posts.js', () => ({
+	sitePosts: async () => [
+		{ path: '/calendario/fiesta', meta: { published_date: '2026-09-29Z-03:00' } },
+		{ path: '/material/sin-fecha', meta: {} }
+	]
+}));
+vi.mock('$lib/server/wiki/site.js', () => ({
+	siteWikiPosts: async () => [{ path: '/wiki/BDSM', meta: {} }]
 }));
 
 /** @param {string} path @param {Record<string, any>} meta */

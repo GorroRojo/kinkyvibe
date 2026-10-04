@@ -24,7 +24,8 @@ describe('pickSectionFields', () => {
 	it('entre las tres páginas cubren todas las claves editables', () => {
 		const keys = Object.values(SECTIONS).flatMap((s) => s.keys);
 		expect(new Set(keys).size).toBe(keys.length);
-		expect(keys).toHaveLength(10);
+		// 12: las 10 de antes más el pie de los mails (contacto y firma, Ajustes → Mails).
+		expect(keys).toHaveLength(12);
 	});
 });
 

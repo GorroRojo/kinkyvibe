@@ -605,7 +605,12 @@
 		{#if form?.note}
 			<p class="kv-flash" class:bad={!form.note.ok} role="status">{form.note.message}</p>
 		{/if}
-		{#if data.key.email}
+		{#if data.key.email || data.key.accountId}
+			{#if !data.key.email}
+				<p class="muted">
+					Esta cuenta está borrada y ya no tiene mail: las notas quedan atadas a la cuenta.
+				</p>
+			{/if}
 			<form
 				class="kv-form"
 				method="POST"
@@ -621,11 +626,11 @@
 					<textarea name="body" rows="3" maxlength="2000" bind:value={body}></textarea>
 				</label>
 				<div>
-					<button class="kv-btn" type="submit" disabled={!body.trim()}>Guardar nota</button>
+					<button class="kv-btn" type="submit" disabled={!body.trim()}>Crear nota</button>
 				</div>
 			</form>
 		{:else}
-			<p class="muted">Sin mail (cuenta borrada) no se pueden guardar notas.</p>
+			<p class="muted">Sin mail ni cuenta no se pueden crear notas.</p>
 		{/if}
 		{#if data.notes.length}
 			<ul class="notes">

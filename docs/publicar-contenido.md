@@ -1,8 +1,10 @@
 # Contenido desde el panel: cómo se publica
 
-Todo lo que el panel escribe en el repo (eventos nuevos, importados o editados, la agenda,
-material, amigues, wiki desde `/edit/...`, imágenes, ocultar/volver a listar, el editor de
-etiquetas) pasa por **un solo camino**: `commitFiles` en `src/lib/server/eventos/github.js`.
+Todo lo que el panel escribe pasa por **un solo camino**: el cliente del repo (`getRepoClient()`,
+con `commitFiles` en `src/lib/server/eventos/github.js`). Desde «Contenido solo en la base», los
+eventos, el material, los perfiles de amigues y la wiki **no llegan a GitHub**: `withContentDb`
+(`src/lib/server/contenido/repo.js`) los guarda en la base ([contenido.md](contenido.md)). Lo que
+sigue describe lo que todavía puede llegar al repo (imágenes viejas, el respaldo).
 
 `main` está protegida (el check `ci-ok` es obligatorio para todes), así que el panel **no
 commitea a `main`**. Cada guardado:

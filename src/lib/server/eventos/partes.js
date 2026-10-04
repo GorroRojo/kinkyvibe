@@ -21,6 +21,7 @@ import { ObjectError, VersionConflictError } from '../objects/errors.js';
 import { saveObject } from '../objects/save.js';
 import { revisionStatement } from '../contenido/revisions.js';
 import {
+	OCULTAR_PARTES_KEY,
 	PARTE_EDGE,
 	POR_PARTE_KEY,
 	newPartData,
@@ -59,6 +60,7 @@ const eventCols = (ev, cs) =>
 	json_extract(${ev}.data, '$.start') AS ${ev}_start, json_extract(${ev}.data, '$.end') AS ${ev}_end,
 	json_extract(${ev}.data, '$.status') AS ${ev}_status,
 	json_extract(${ev}.data, '$.extra.${POR_PARTE_KEY}') AS ${ev}_per_part,
+	json_extract(${ev}.data, '$.extra.${OCULTAR_PARTES_KEY}') AS ${ev}_hide_parts,
 	${ev}.visibility AS ${ev}_visibility, ${ev}.deleted_at AS ${ev}_deleted_at,
 	${ev}.created_by AS ${ev}_created_by`;
 
@@ -71,7 +73,7 @@ const eventJoin = (ev, cs) =>
 
 /**
  * @typedef {PartInfo & {
- *   id: number, version: number, objectSlug: string, perPart: boolean,
+ *   id: number, version: number, objectSlug: string, perPart: boolean, hideParts: boolean,
  *   visibility: string, deleted_at: number | null, created_by: string | null, type: string
  * }} EventRow
  */
@@ -96,6 +98,7 @@ function rowOf(r, ev) {
 		end: text(v('end')),
 		status: text(v('status')),
 		perPart: v('per_part') === 1 || v('per_part') === true || v('per_part') === 'true',
+		hideParts: v('hide_parts') === 1 || v('hide_parts') === true || v('hide_parts') === 'true',
 		visibility: String(v('visibility')),
 		deleted_at: v('deleted_at') == null ? null : Number(v('deleted_at')),
 		created_by: text(v('created_by')),
@@ -510,6 +513,35 @@ export async function setPerPartTickets(db, { eventSlug, perPart, by, now = Date
 			const extra = { ...(data.extra && typeof data.extra === 'object' ? data.extra : {}) };
 			if (perPart) extra[POR_PARTE_KEY] = true;
 			else delete extra[POR_PARTE_KEY];
+			if (Object.keys(extra).length) data.extra = extra;
+			else delete data.extra;
+			return { id: row.id, type: EVENT_TYPE, version: row.version, data };
+		},
+		{ by, now, keepImported: false }
+	);
+}
+
+/**
+ * Prende o apaga «Si ocultás el taller, ocultar también sus partes» (`extra.ocultar_partes`).
+ * Apagado (lo de siempre), cada parte tiene su propia visibilidad; prendido, una parte se ve solo
+ * si quien mira también ve el taller (`partVisibleWhere` en objects/visibility.js).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, hideParts: boolean, by: string, now?: number }} input
+ * @returns {Promise<WriteResult>}
+ */
+export async function setHideParts(db, { eventSlug, hideParts, by, now = Date.now() }) {
+	return saveWorkshop(
+		db,
+		eventSlug,
+		async (row) => {
+			if (row.hideParts === hideParts) return { ok: true };
+			const full = await db.prepare('SELECT data FROM objects WHERE id = ?1').bind(row.id).first();
+			/** @type {Record<string, any>} */
+			const data = JSON.parse(String(full?.data ?? '{}'));
+			const extra = { ...(data.extra && typeof data.extra === 'object' ? data.extra : {}) };
+			if (hideParts) extra[OCULTAR_PARTES_KEY] = true;
+			else delete extra[OCULTAR_PARTES_KEY];
 			if (Object.keys(extra).length) data.extra = extra;
 			else delete data.extra;
 			return { id: row.id, type: EVENT_TYPE, version: row.version, data };

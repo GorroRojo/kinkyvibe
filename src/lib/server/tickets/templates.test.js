@@ -3,7 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	EMAIL_TEMPLATES,
+	TEMPLATE_LINK_COLOR,
 	findVariables,
+	isSafeLinkUrl,
 	renderBlockHtml,
 	renderInlineHtml,
 	renderPlain,
@@ -15,6 +17,7 @@ import {
 import * as email from './email.js';
 import { emailCases, fixtureOrder, fixtureTickets } from './email.fixtures.js';
 import { previewEmail } from './templatePreview.js';
+import { MAIL_COLORS } from '$lib/server/email/layout.js';
 import {
 	deleteTemplateOverride,
 	getTemplateOverride,
@@ -162,6 +165,115 @@ describe('formato seguro', () => {
 			expect(validateTemplate(t.id, t.defaults), t.id).toMatchObject({ ok: true });
 			expect(Object.keys(sampleVars(t.id)).length).toBe(t.vars.length);
 		}
+	});
+});
+
+describe('links en las plantillas', () => {
+	const vars = {
+		nombre: 'Persona <de> Ejemplo',
+		evento: 'A & B',
+		link_estado: 'https://ejemplo.test/x?a=1&b=2'
+	};
+	const A = (/** @type {string} */ href, /** @type {string} */ text) =>
+		`<a href="${href}" style="color:${TEMPLATE_LINK_COLOR};">${text}</a>`;
+
+	it('el color es el de los links de la plantilla común', () => {
+		expect(TEMPLATE_LINK_COLOR).toBe(MAIL_COLORS.link);
+	});
+
+	it('https, http, mailto y tel van como link en el HTML y como «texto (dirección)» en el plano', () => {
+		const text =
+			'Mirá [la guía](https://ejemplo.test/guia?a=1&b=2), [la vieja](http://ejemplo.test), [escribinos](mailto:hola@ejemplo.test) o [llamanos](tel:+541100000000).';
+		expect(renderInlineHtml(text, vars)).toBe(
+			`Mirá ${A('https://ejemplo.test/guia?a=1&amp;b=2', 'la guía')}, ${A('http://ejemplo.test', 'la vieja')}, ${A('mailto:hola@ejemplo.test', 'escribinos')} o ${A('tel:+541100000000', 'llamanos')}.`
+		);
+		expect(renderPlain(text, vars, { links: true })).toBe(
+			'Mirá la guía (https://ejemplo.test/guia?a=1&b=2), la vieja (http://ejemplo.test), escribinos (mailto:hola@ejemplo.test) o llamanos (tel:+541100000000).'
+		);
+	});
+
+	it('javascript: y otras direcciones no son links: se ven como texto (y no se pueden guardar)', () => {
+		for (const url of [
+			'javascript:alert(1)',
+			'javascript:alert',
+			'data:text/html,hola',
+			'ftp://x.test',
+			'//x.test',
+			'JaVaScRiPt:void'
+		]) {
+			const text = `[clic](${url})`;
+			expect(isSafeLinkUrl(url), url).toBe(false);
+			expect(renderInlineHtml(text, vars), url).not.toContain('<a');
+			expect(renderPlain(text, vars, { links: true }), url).toBe(text);
+			const r = /** @type {any} */ (
+				validateTemplate('tickets', { subject: 'a', heading: 'b', body: `Hola ${text}` })
+			);
+			expect(r.ok, url).toBe(false);
+			expect(r.errors.body, url).toMatch(/https:\/\/, http:\/\/, mailto: o tel:/);
+		}
+		expect(renderInlineHtml('[clic](javascript:alert)', vars)).toBe('[clic](javascript:alert)');
+	});
+
+	it('las variables: en el texto del link se escapan; como dirección, su valor se revisa', () => {
+		expect(renderInlineHtml('[{{nombre}}]({{link_estado}})', vars)).toBe(
+			A('https://ejemplo.test/x?a=1&amp;b=2', 'Persona &lt;de&gt; Ejemplo')
+		);
+		expect(renderInlineHtml('[ver]({{nombre}})', vars)).toBe('[ver](Persona &lt;de&gt; Ejemplo)');
+		// Un valor con forma de link nunca se vuelve link.
+		expect(renderInlineHtml('{{nombre}}', { nombre: '[x](https://malo.test)' })).toBe(
+			'[x](https://malo.test)'
+		);
+		expect(
+			validateTemplate('transfer', {
+				subject: 'a',
+				heading: 'b',
+				body: 'Mirá [tu compra]({{link_estado}}).'
+			}).ok
+		).toBe(true);
+	});
+
+	it('el asunto no los interpreta; HTML sigue rechazado; negrita adentro del link', () => {
+		const ok = validateTemplate('tickets', {
+			subject: 'Mirá [esto](javascript:alert)',
+			heading: 'b',
+			body: '[**guía**](https://ejemplo.test)'
+		});
+		expect(ok.ok).toBe(true);
+		expect(renderInlineHtml('[**guía**](https://ejemplo.test)', vars)).toBe(
+			A('https://ejemplo.test', '<strong>guía</strong>')
+		);
+		const html = /** @type {any} */ (
+			validateTemplate('tickets', {
+				subject: 'a',
+				heading: 'b',
+				body: '<a href="https://ejemplo.test">guía</a>'
+			})
+		);
+		expect(html.errors.body).toMatch(/No se puede usar HTML/);
+	});
+
+	it('en un mail: link en el HTML, «texto (dirección)» en el plano y el asunto tal cual', () => {
+		const m = email.buildTicketEmail({
+			order: fixtureOrder(),
+			tickets: fixtureTickets(),
+			event: { title: 'Fiesta de prueba', start: '2026-10-10T22:00:00-03:00' },
+			typeName: 'General',
+			origin: 'https://kinkyvibe.example',
+			contactEmail: 'c@example.com',
+			template: {
+				subject: 'Mirá [la guía](https://ejemplo.test/guia)',
+				heading: 'Hola',
+				body: 'Leé [la guía](https://ejemplo.test/guia) antes de venir.',
+				help: 'Dudas: [escribinos](mailto:hola@ejemplo.test).'
+			}
+		});
+		expect(m.subject).toBe('Mirá [la guía](https://ejemplo.test/guia)');
+		expect(m.html).toContain(
+			`<p>Leé ${A('https://ejemplo.test/guia', 'la guía')} antes de venir.</p>`
+		);
+		expect(m.html).toContain(`Dudas: ${A('mailto:hola@ejemplo.test', 'escribinos')}.`);
+		expect(m.text).toContain('Leé la guía (https://ejemplo.test/guia) antes de venir.');
+		expect(m.text).toContain('Dudas: escribinos (mailto:hola@ejemplo.test).');
 	});
 });
 

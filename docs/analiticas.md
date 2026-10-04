@@ -131,8 +131,8 @@ hace 6 consultas cada vez que se abre (con caché de 5 minutos) y el cron, 12 po
   pasar el mouse por un link en la compu ya pide el `__data.json`; si después no se hace clic,
   igual cuenta como visita. Puede inflar un poco las visitas desde compu. Si molesta, cambiar a
   `"tap"` (precarga al tocar o al apretar el botón del mouse) lo resuelve.
-- Las páginas prerenderizadas de la wiki (`prerender = 'auto'`) se sirven como archivos estáticos y
-  no pasan por el Worker: esas visitas no se cuentan.
+- Las páginas de la wiki ya no se prerenderizan (salen de la base, «solo base»): desde ese cambio
+  sus visitas se cuentan como las demás.
 - El iPad con iPadOS se presenta como una Mac: cuenta como compu.
 - Se cuentan visitas, no personas (no hay forma de saber quién es quién, a propósito).
 

@@ -7,7 +7,7 @@
 import { error, json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { contactEmail, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
+import { contactEmail, mailFooter, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
 import { previewEmail } from '$lib/server/tickets/templatePreview.js';
 import { templateInput } from '$lib/server/admin/mailTemplates.js';
 import { templateDef, validateTemplate } from '$lib/utils/emailTemplates.js';
@@ -28,7 +28,8 @@ export async function POST({ locals, url, params, platform, request }) {
 	const message = previewEmail(def.id, valid.value, {
 		origin: siteOrigin(url),
 		contactEmail: contactEmail(),
-		replyTo: await replyToAddress(getDB(platform))
+		replyTo: await replyToAddress(getDB(platform)),
+		footer: await mailFooter(getDB(platform))
 	});
 	return json(
 		{ ...message, errors: valid.ok ? {} : valid.errors },

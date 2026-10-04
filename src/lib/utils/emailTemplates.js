@@ -14,8 +14,12 @@
  * - `{{variable}}` se reemplaza por su valor, siempre escapado (un nombre con `<b>` se ve tal
  *   cual, no como HTML). Una variable que no es de esa plantilla no se puede guardar.
  * - Todo el resto del texto también se escapa. Lo único que se interpreta es `**negrita**`,
- *   una línea en blanco (párrafo nuevo) y un salto de línea. La etiqueta y el botón son texto
- *   solo (sin negrita); la ayuda y el pie, una línea con negrita.
+ *   `[texto](dirección)` (un link), una línea en blanco (párrafo nuevo) y un salto de línea. La
+ *   etiqueta y el botón son texto solo (sin negrita; un link sale como «texto (dirección)»); la
+ *   ayuda y el pie, una línea con negrita y links.
+ * - Links: solo a `https://`, `http://`, `mailto:` y `tel:` ({@link isSafeLinkUrl}); con otra
+ *   dirección (`javascript:`…) no se puede guardar y, si igual llega, se ve como texto. En el
+ *   asunto no se interpretan (se ve tal cual). En el texto plano del mail: «texto (dirección)».
  * - Algo que parece una etiqueta HTML (`<a href…>`, `</p>`) no se puede guardar: igual se vería
  *   tal cual, pero así nadie cree que funciona.
  *
@@ -315,6 +319,60 @@ export function unknownVariables(id, tpl) {
 /** Algo que parece una etiqueta HTML: `<a …>`, `</p>`, `<br/>`, `<!-- -->`. */
 const HTML_TAG_RE = /<\/?[a-z!?][^<>]*>/i;
 
+/** Color de los links de las plantillas (el `MAIL_COLORS.link` de src/lib/server/email/layout.js). */
+export const TEMPLATE_LINK_COLOR = 'hsl(262,90%,45%)';
+
+/** Un link: `[texto](dirección)`, la dirección sin espacios ni paréntesis. */
+const LINK_RE = /\[([^[\]\n]+)\]\(([^\s()]+)\)/g;
+/** Lo que parece un link, para validar: la dirección hasta el primer espacio o `)`. */
+const LINK_LIKE_RE = /\[[^[\]\n]+\]\(([^\s)]*)/g;
+/** Las direcciones que puede tener un link. */
+const SAFE_URL_RE = /^(?:https?:\/\/[^\s<>"'`]+|mailto:[^\s<>"'`]+|tel:\+?[0-9][0-9().-]*)$/i;
+
+/**
+ * ¿Un link puede ir a esta dirección? Solo `https://`, `http://`, `mailto:` y `tel:`.
+ * @param {string} url
+ */
+export function isSafeLinkUrl(url) {
+	return SAFE_URL_RE.test(String(url ?? ''));
+}
+
+/** El error de un link a una dirección que no se puede usar. */
+export const LINK_ERROR =
+	'Los links solo pueden ir a direcciones que empiezan con https://, http://, mailto: o tel: (así: [texto](https://…)).';
+
+/**
+ * Valida un texto en el formato seguro: largo, sin HTML, solo esas variables, llaves cerradas y,
+ * si `links`, links solo a direcciones permitidas (la dirección puede ser una `{{variable}}`
+ * sola: su valor se revisa al armar el mail). `null` si está bien.
+ *
+ * @param {string} text ya limpio (no vacío)
+ * @param {{ max: number, vars: readonly string[], links?: boolean }} opts
+ * @returns {string | null}
+ */
+export function safeTextError(text, { max, vars, links = true }) {
+	if (text.length > max) return `Hasta ${max} caracteres.`;
+	if (HTML_TAG_RE.test(text))
+		return 'No se puede usar HTML: escribí texto común (para negrita, **así**; para un dato, una {{variable}}).';
+	const allowed = new Set(vars);
+	const unknown = findVariables(text).filter((n) => !allowed.has(n));
+	if (unknown.length)
+		return (
+			`${unknown.length === 1 ? 'Esta variable no existe' : 'Estas variables no existen'} en este mail: ` +
+			unknown.map((n) => `{{${n}}}`).join(', ') +
+			'.'
+		);
+	if (/\{\{|\}\}/.test(text.replace(VAR_RE, ''))) return 'Hay llaves {{ }} sin cerrar.';
+	if (links) {
+		for (const m of text.matchAll(LINK_LIKE_RE)) {
+			const url = m[1].trim();
+			const onlyVar = /^\{\{\s*[^{}\s]+\s*\}\}$/.test(url);
+			if (!onlyVar && !isSafeLinkUrl(url)) return LINK_ERROR;
+		}
+	}
+	return null;
+}
+
 /**
  * Valida y limpia una plantilla del formulario.
  *
@@ -351,26 +409,21 @@ export function validateTemplate(id, form, { optional = false } = {}) {
 	/** @type {Partial<Record<TemplateKey, string>>} */
 	const errors = {};
 	if (!templateDef(id)) return { ok: false, errors: { subject: 'No existe ese mail.' }, value };
+	const vars = templateDef(id)?.vars.map((v) => v.name) ?? [];
 	for (const key of TEMPLATE_KEYS) {
 		const required = !optional && TEMPLATE_MAIN.includes(/** @type {any} */ (key));
 		const text = value[key] ?? '';
 		if (!text) {
 			if (required) errors[key] = 'No puede quedar vacío.';
-		} else if (text.length > TEMPLATE_LIMITS[key])
-			errors[key] = `Hasta ${TEMPLATE_LIMITS[key]} caracteres.`;
-		else if (HTML_TAG_RE.test(text))
-			errors[key] =
-				'No se puede usar HTML: escribí texto común (para negrita, **así**; para un dato, una {{variable}}).';
-		else {
-			const unknown = unknownVariables(id, { [key]: text });
-			if (unknown.length)
-				errors[key] =
-					`${unknown.length === 1 ? 'Esta variable no existe' : 'Estas variables no existen'} en este mail: ` +
-					unknown.map((n) => `{{${n}}}`).join(', ') +
-					'.';
-			else if (/\{\{|\}\}/.test(text.replace(VAR_RE, '')))
-				errors[key] = 'Hay llaves {{ }} sin cerrar.';
+			continue;
 		}
+		// En el asunto los links no se interpretan (se ven tal cual).
+		const error = safeTextError(text, {
+			max: TEMPLATE_LIMITS[key],
+			vars,
+			links: key !== 'subject'
+		});
+		if (error) errors[key] = error;
 	}
 	return Object.keys(errors).length ? { ok: false, errors, value } : { ok: true, value };
 }
@@ -388,34 +441,76 @@ function fill(text, vars, map = (v) => v) {
 }
 
 /**
- * Texto plano (asunto y versión de texto del mail): sin `**`.
+ * Las variables reemplazadas por marcadores (`\u0000N\u0000`), para que su valor nunca se
+ * interprete (ni HTML, ni `**`, ni un link), y cómo volver a poner los valores.
  * @param {string} text
  * @param {Record<string, string | number>} vars
  */
-export function renderPlain(text, vars) {
-	return fill(String(text ?? '').replace(/\*\*/g, ''), vars);
+function marked(text, vars) {
+	/** @type {string[]} */
+	const values = [];
+	const out = fill(text, vars, (v) => {
+		values.push(v);
+		return `\u0000${values.length - 1}\u0000`;
+	});
+	/** @param {string} t @param {(v: string) => string} [map] */
+	const unmark = (t, map = (v) => v) =>
+		// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
+		t.replace(/\u0000(\d+)\u0000/g, (_, i) => map(values[Number(i)]));
+	return { text: out, unmark };
 }
 
 /**
- * Una línea en HTML: todo escapado, `**negrita**` y saltos de línea como <br>.
+ * Texto plano (asunto y versión de texto del mail): sin `**`. Con `links`, cada link
+ * `[texto](dirección)` a una dirección permitida sale como «texto (dirección)»; sin `links` (el
+ * asunto), tal cual.
+ * @param {string} text
+ * @param {Record<string, string | number>} vars
+ * @param {{ links?: boolean }} [opts]
+ */
+export function renderPlain(text, vars, { links = false } = {}) {
+	const clean = String(text ?? '').replace(/\*\*/g, '');
+	if (!links) return fill(clean, vars);
+	const m = marked(clean, vars);
+	return m.unmark(
+		m.text.replace(LINK_RE, (all, label, url) => {
+			const real = m.unmark(url);
+			return isSafeLinkUrl(real) ? `${label} (${real})` : all;
+		})
+	);
+}
+
+/**
+ * Una línea en HTML: todo escapado, `**negrita**`, links a direcciones permitidas y saltos de
+ * línea como <br>.
  * Las variables se ponen al final (con marcadores), así su valor nunca se interpreta: ni HTML
  * ni `**`.
  * @param {string} text
  * @param {Record<string, string | number>} vars
  */
 export function renderInlineHtml(text, vars) {
+	const m = marked(String(text ?? ''), vars);
+	// Los links a direcciones permitidas, con marcadores (`\u0001N\u0002` … `\u0001\u0002`) que
+	// el escape no toca; los demás quedan como texto.
 	/** @type {string[]} */
-	const values = [];
-	const marked = fill(text, vars, (v) => {
-		values.push(v);
-		return `\u0000${values.length - 1}\u0000`;
+	const urls = [];
+	const withLinks = m.text.replace(LINK_RE, (all, label, url) => {
+		const real = m.unmark(url);
+		if (!isSafeLinkUrl(real)) return all;
+		urls.push(real);
+		return `\u0001${urls.length - 1}\u0002${label}\u0001\u0002`;
 	});
-	return (
-		escapeHtml(marked)
+	return m.unmark(
+		escapeHtml(withLinks)
 			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 			.replace(/\n/g, '<br>')
-			// eslint-disable-next-line no-control-regex -- los marcadores de las variables usan \u0000
-			.replace(/\u0000(\d+)\u0000/g, (_, i) => escapeHtml(values[Number(i)]))
+			// eslint-disable-next-line no-control-regex -- marcadores de los links
+			.replace(/\u0001(\d+)\u0002/g, (_, i) => {
+				return `<a href="${escapeHtml(urls[Number(i)])}" style="color:${TEMPLATE_LINK_COLOR};">`;
+			})
+			// eslint-disable-next-line no-control-regex -- marcadores de los links
+			.replace(/\u0001\u0002/g, '</a>'),
+		escapeHtml
 	);
 }
 

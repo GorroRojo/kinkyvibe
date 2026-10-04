@@ -19,12 +19,17 @@ import { useSiteTags } from '$lib/utils/siteTags.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
 import { loadTagRecords } from './read.js';
+import { wikiEntriesOf } from './wikiPages.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {{ rawTags: readonly Record<string, unknown>[], fromDb: boolean }} TagSource */
+/**
+ * @typedef {{ rawTags: readonly Record<string, unknown>[], fromDb: boolean, wiki?: readonly import('./wikiPages.js').WikiEntry[] }} TagSource
+ *   `wiki`: las páginas de la Kinkipedia (el texto de la wiki de cada etiqueta que tiene uno;
+ *   ./wikiPages.js). Solo de la base: sin base no hay páginas de la wiki (como los eventos).
+ */
 
 /** @type {TagSource} */
-const FILE = Object.freeze({ rawTags: hardcodedTags, fromDb: false });
+const FILE = Object.freeze({ rawTags: hardcodedTags, fromDb: false, wiki: [] });
 
 /** @type {{ value: TagSource, expires: number } | null} */
 let cache = null;
@@ -41,8 +46,20 @@ export function clearTagSourceCache() {
  * @returns {Promise<Record<string, unknown>[] | null>}
  */
 export async function readDbRawTags(db) {
+	return (await readDbTags(db))?.rawTags ?? null;
+}
+
+/**
+ * Las etiquetas de la base (para `tagsFactory`) y las páginas de la wiki, o `null` si no hay
+ * ninguna etiqueta. Una sola lectura.
+ *
+ * @param {D1Database} db
+ */
+async function readDbTags(db) {
 	const records = await loadTagRecords(db);
-	return records.length ? recordsToRawTags(records) : null;
+	return records.length
+		? { rawTags: recordsToRawTags(records), wiki: wikiEntriesOf(records) }
+		: null;
 }
 
 /**
@@ -56,13 +73,21 @@ export async function tagSourceFrom(db, { now = Date.now() } = {}) {
 	/** @type {TagSource} */
 	let value = FILE;
 	try {
-		const rawTags = await readDbRawTags(db);
+		const read = await readDbTags(db);
 		// Sin cambios: la misma lista (el mismo objeto), así los árboles y los posts ya
-		// limpiados con ella se siguen usando (WeakMap por lista o por árbol).
+		// limpiados con ella se siguen usando (WeakMap por lista o por árbol). Si cambió solo el
+		// texto de una página de la wiki, el árbol sigue siendo el mismo.
 		const prev = cache?.value;
-		if (rawTags && prev?.fromDb && JSON.stringify(prev.rawTags) === JSON.stringify(rawTags))
-			value = prev;
-		else if (rawTags) value = { rawTags, fromDb: true };
+		const sameTree =
+			read && prev?.fromDb && JSON.stringify(prev.rawTags) === JSON.stringify(read.rawTags);
+		if (read && sameTree && JSON.stringify(prev?.wiki) === JSON.stringify(read.wiki))
+			value = /** @type {TagSource} */ (prev);
+		else if (read)
+			value = {
+				rawTags: sameTree ? /** @type {TagSource} */ (prev).rawTags : read.rawTags,
+				fromDb: true,
+				wiki: read.wiki
+			};
 	} catch (error) {
 		logDBError('etiquetas desde la base', error);
 	}

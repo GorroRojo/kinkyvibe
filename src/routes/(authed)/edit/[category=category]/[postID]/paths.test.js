@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { load } from './+page.server.js';
-import { utf8ToBase64 } from '$lib/utils/base64.js';
 
 // The pickers' data (tag usage, profiles, authors) is not what these tests are about.
 vi.mock('$lib/server/admin/content.js', () => ({
@@ -61,58 +60,38 @@ describe('post editor input validation', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	// Amigues (and the wiki) still live in the repo.
-	it('a valid post is fetched from the site repo and decoded as UTF-8', async () => {
-		// The editor reads the newest saved version: first the open content PRs (none here), then
-		// the file on main.
-		const text = '---\ntitle: Año 🏙️\n---\n\nñandú y amigues 🎉\n';
-		const fetchMock = vi.fn(async (/** @type {string} */ u) =>
-			u.includes('/pulls?')
-				? new Response('[]')
-				: new Response(
-						JSON.stringify({
-							type: 'file',
-							content: utf8ToBase64(text),
-							encoding: 'base64',
-							sha: 's'
-						})
-					)
-		);
+	// «Solo base»: amigues and the wiki moved to the database too, with their own editors in the
+	// panel. The tests that read an amigues .md from GitHub here went with that mode (nothing in this
+	// editor reads posts from GitHub any more).
+	it('amigues and wiki addresses go to their panel editors, without calling GitHub', async () => {
+		const fetchMock = vi.fn();
 		vi.stubGlobal('fetch', fetchMock);
-		const r = /** @type {any} */ (
-			await load(
-				/** @type {any} */ ({
-					locals,
-					url: new URL('https://kinkyvibe.ar/edit/amigues/fiesta'),
-					params: { category: 'amigues', postID: 'fiesta' }
-				})
-			)
-		);
-		expect(r.post.raw).toBe(text);
-		expect(r.post.sha).toBe('s');
-		expect(fetchMock.mock.calls.map((c) => /** @type {any} */ (c)[0])).toContain(
-			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/amigues/fiesta.md?ref=main'
-		);
-	});
-
-	it('a file GitHub sends without base64 content (over 1 MB) is an error, not an empty post', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (/** @type {string} */ u) =>
-				u.includes('/pulls?')
-					? new Response('[]')
-					: new Response(JSON.stringify({ type: 'file', content: '', encoding: 'none', sha: 's' }))
-			)
-		);
-		const e = await rejection(() =>
+		const amigues = await rejection(() =>
 			load(
 				/** @type {any} */ ({
 					locals,
-					url: new URL('https://kinkyvibe.ar/edit/amigues/fiesta'),
-					params: { category: 'amigues', postID: 'fiesta' }
+					url: new URL('https://kinkyvibe.ar/edit/amigues/Ficha_Inventada'),
+					params: { category: 'amigues', postID: 'Ficha_Inventada' }
 				})
 			)
 		);
-		expect(e.status).toBe(502);
+		expect(amigues).toMatchObject({
+			status: 303,
+			location: '/admin/comunidad/perfiles/Ficha_Inventada'
+		});
+		const wiki = await rejection(() =>
+			load(
+				/** @type {any} */ ({
+					locals,
+					url: new URL('https://kinkyvibe.ar/edit/wiki/termino-inventado'),
+					params: { category: 'wiki', postID: 'termino-inventado' }
+				})
+			)
+		);
+		expect(wiki).toMatchObject({
+			status: 303,
+			location: '/admin/etiquetas/wiki/termino-inventado'
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

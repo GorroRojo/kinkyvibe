@@ -48,6 +48,15 @@ const num = (v) => (v == null ? null : Number(v));
 /** @param {unknown} v */
 const str = (v) => (v == null ? '' : String(v));
 
+/** @param {Record<string, unknown>[]} rows notas (`person_notes`) */
+const noteRows = (rows) =>
+	rows.map((r) => ({
+		id: Number(r.id),
+		body: str(r.body),
+		createdAt: Number(r.created_at),
+		createdBy: str(r.created_by)
+	}));
+
 /**
  * Los eventos (vivos) con un edge de ese `kind` (`?3`: `lugar` o `persona`) hacia un perfil que
  * gestiona la persona (docs/objetos.md, «Relaciones del evento»), con su dirección (la del .md
@@ -104,7 +113,10 @@ export async function findPersonEmail(db, id) {
 	const found = await runQueries(db, {
 		accounts: emails('mails de cuentas', 'SELECT email AS e FROM accounts WHERE email IS NOT NULL'),
 		orders: emails('mails de órdenes', 'SELECT DISTINCT lower(trim(buyer_email)) AS e FROM orders'),
-		notes: emails('mails de notas', 'SELECT DISTINCT lower(trim(email)) AS e FROM person_notes'),
+		notes: emails(
+			'mails de notas',
+			"SELECT DISTINCT lower(trim(email)) AS e FROM person_notes WHERE trim(email) != ''"
+		),
 		series: emails(
 			'mails de series',
 			'SELECT DISTINCT email AS e FROM series_subscriptions WHERE email IS NOT NULL'
@@ -468,13 +480,18 @@ function fichaQueries(key, extra) {
 				WHERE lower(trim(email)) = ?1 ORDER BY created_at DESC, id DESC`
 				: null,
 			[key.email],
-			(rows) =>
-				rows.map((r) => ({
-					id: Number(r.id),
-					body: str(r.body),
-					createdAt: Number(r.created_at),
-					createdBy: str(r.created_by)
-				}))
+			noteRows
+		),
+		// Las notas atadas a la cuenta (una cuenta borrada no tiene mail; migración 0045). Aparte: sin
+		// la migración, falla solo esta y las de arriba se siguen viendo.
+		accountNotes: query(
+			'notas de la cuenta',
+			[],
+			`SELECT id, body, created_at, created_by FROM person_notes
+			WHERE account_id IS NOT NULL AND account_id IN ${ACC} AND trim(email) = ''
+			ORDER BY created_at DESC, id DESC`,
+			p,
+			noteRows
 		),
 		activity: query(
 			'actividad',
@@ -512,7 +529,11 @@ export async function loadFicha(db, key, opts = {}) {
 	const pid = key.email ? await personId(key.email) : '';
 	const hash = key.email ? await emailHash(key.email) : '';
 	const r = await runQueries(db, fichaQueries(key, { personId: pid, emailHash: hash }));
-	if (!r.account && !r.orders.length && !r.notes.length && !r.series.length) return null;
+	// Las de la cuenta y las del mail, juntas (la más nueva primero).
+	const notes = [...r.notes, ...r.accountNotes].sort(
+		(a, b) => b.createdAt - a.createdAt || b.id - a.id
+	);
+	if (!r.account && !r.orders.length && !notes.length && !r.series.length) return null;
 
 	// Títulos y fechas de los eventos (órdenes, mails, avisos, perfiles), una vez por evento.
 	/** @type {Map<string, { title: string, start: string | null }>} */
@@ -680,7 +701,7 @@ export async function loadFicha(db, key, opts = {}) {
 		series: r.series,
 		calendar: r.calendar,
 		telegram: r.telegram,
-		notes: r.notes,
+		notes,
 		activity: r.activity
 	};
 }

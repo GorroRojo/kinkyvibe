@@ -1,8 +1,9 @@
-// Importa los eventos y el material (src/lib/posts/{calendario,material}/*.md) a la base D1 LOCAL
-// (la de `npm run dev` y la de las pruebas E2E con `vite preview`). El sitio lee los eventos y el
-// material solo de la base (docs/contenido.md): sin esto, una base local nueva no tiene ninguno.
-// Si la base todavía no tiene etiquetas, también las importa (como `npm run tags:import`): el
-// editor de etiquetas solo guarda en la base (docs/etiquetas.md).
+// Importa los eventos y el material (src/lib/posts/{calendario,material}/*.md) y las fichas de
+// amigues (src/lib/posts/amigues/*.md, como `npm run amigues:import`) a la base D1 LOCAL (la de
+// `npm run dev` y la de las pruebas E2E con `vite preview`). El sitio lee todo eso solo de la base
+// (docs/contenido.md): sin esto, una base local nueva no tiene nada.
+// Si la base todavía no tiene etiquetas, también las importa (como `npm run tags:import`), con
+// los textos de la wiki: el sitio lee la Kinkipedia de las etiquetas (docs/etiquetas.md).
 // Idempotente: lo que no cambió no se toca y lo editado en el panel no se pisa (ver
 // src/lib/server/contenido/importer.js). Nunca toca una base remota (scripts/local-d1.js).
 //
@@ -24,7 +25,12 @@ import {
 	runImport,
 	summarizeImport
 } from '../src/lib/server/contenido/importer.js';
-import { sha256 } from '../src/lib/server/amigues/importer.js';
+import {
+	importAmigues,
+	sha256,
+	summarizeImport as summarizeAmigues
+} from '../src/lib/server/amigues/importer.js';
+import { readAmigueFiles } from '../src/lib/server/amigues/files.js';
 import { importTags, summarizeTagImport } from '../src/lib/server/etiquetas/importer.js';
 import hardcodedTags from '../src/lib/utils/hardcodedTags.js';
 import { openLocalD1 } from './local-d1.js';
@@ -94,11 +100,31 @@ async function seedTags(db) {
 	console.log(`etiquetas: ${s.created} nuevas, ${s.error} con error.`);
 }
 
+/**
+ * Las fichas de amigues (idempotente: lo que no cambió no se toca, lo editado en el panel no se
+ * pisa). Devuelve cuántas tuvieron error.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ */
+async function seedAmigues(db) {
+	const results = await importAmigues(db, await readAmigueFiles(), { actor: ACTOR, dryRun });
+	const s = summarizeAmigues(results);
+	for (const r of results.filter((x) => x.action === 'error')) {
+		console.log(`error amigues/${r.legacySlug}: ${r.message ?? ''}`);
+	}
+	if (!quiet || s.created || s.updated || s.error) {
+		console.log(
+			`${dryRun ? '[vista previa] ' : ''}amigues: ${s.created} nuevas, ${s.updated} actualizadas, ${s.error} con error.`
+		);
+	}
+	return s.error;
+}
+
 async function main() {
 	const { db, dispose } = await openLocalD1({ migrate });
 	let errors = 0;
 	try {
 		await seedTags(db);
+		errors += await seedAmigues(db);
 		for (const category of CATEGORIES) {
 			const files = await sourceFiles(db, category);
 			if (dryRun) {
@@ -138,9 +164,9 @@ try {
 } catch (e) {
 	if (!soft) throw e;
 	console.warn(
-		'\n⚠️  No se pudieron importar los eventos, el material y las etiquetas a la base local:\n' +
+		'\n⚠️  No se pudieron importar los eventos, el material, los perfiles y las etiquetas a la base local:\n' +
 			`   ${String(e)}\n` +
-			'   El sitio va a arrancar sin eventos ni material. Probá a mano con: npm run content:import\n'
+			'   El sitio va a arrancar sin ese contenido. Probá a mano con: npm run content:import\n'
 	);
 }
 if (soft) process.exitCode = 0;

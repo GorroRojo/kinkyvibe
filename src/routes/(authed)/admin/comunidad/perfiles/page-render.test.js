@@ -26,10 +26,12 @@ const dbData = () => ({
 });
 
 describe('/admin/comunidad/perfiles (Perfiles)', () => {
-	it('sin base (solo las fichas .md) muestra el link para importar', () => {
+	// «Solo base»: sin base ya no está la lista de las fichas .md; la página avisa que no hay base.
+	it('sin base: el aviso y el link para importar', () => {
 		const { body } = render(Page, {
-			props: { data: { editor: 'md', rows: [] }, form: null }
+			props: { data: { ...dbData(), dbAvailable: false }, form: null }
 		});
+		expect(body).toContain('No hay base de datos disponible.');
 		expect(body).toMatch(IMPORT_LINK);
 		expect(body).not.toMatch(HINT);
 		expect(body).not.toMatch(FICHAS_TAB);

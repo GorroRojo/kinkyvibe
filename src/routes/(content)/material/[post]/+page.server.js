@@ -19,10 +19,11 @@ export async function load({ params, platform, locals, setHeaders }) {
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
+	const posts = await sitePosts(platform);
 	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
 	const related = await relatedWithVenuePlaces(
 		getDB(platform),
-		currentRelated(relatedPostsFor(post.meta, await sitePosts(platform)))
+		currentRelated(relatedPostsFor(post.meta, posts))
 	);
 	return {
 		...post,
@@ -33,7 +34,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		...related,
 		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
 		ticketStates: await ticketStatesFor(platform, related.relatedPosts),
-		pronouns: await mentionPronouns(),
+		pronouns: await mentionPronouns(platform, posts),
 		// Personas con su rol (`null` si no hay nada que mostrar).
 		personas: await personasForPage(platform, post.meta)
 	};

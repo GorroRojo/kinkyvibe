@@ -105,7 +105,7 @@
 			Ya está en la base: en menos de un minuto se ve en el sitio.
 			{#if done.posts}
 				También se cambi{done.posts === 1 ? 'ó' : 'aron'}
-				{done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} (eventos y material, en la base).
+				{done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} (en la base).
 			{/if}
 		{:else}
 			Se ve cuando termine de publicarse el sitio.

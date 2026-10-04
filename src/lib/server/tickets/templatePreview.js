@@ -9,6 +9,7 @@ import {
 	buildTicketEmail,
 	buildTransferEmail
 } from './email.js';
+import { withMailFooter } from '$lib/server/email/layout.js';
 
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateId} TemplateId */
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateParts} TemplateParts */
@@ -91,10 +92,23 @@ function sampleTickets() {
  * @param {TemplateId} id
  * @param {TemplateParts | null} template ya junta (lo del evento sobre la general)
  * @param {{ origin: string, contactEmail: string, replyTo?: string, now?: number,
- *   event?: { title?: string, start?: string, location?: string, location_name?: string } }} ctx
+ *   event?: { title?: string, start?: string, location?: string, location_name?: string },
+ *   footer?: import('$lib/server/email/layout.js').MailFooter | null }} ctx
+ *   `footer`: el pie de Ajustes → Mails (como lo pone `deliver()` al mandar).
  * @returns {{ subject: string, html: string, text: string }}
  */
-export function previewEmail(
+export function previewEmail(id, template, ctx) {
+	const message = buildPreview(id, template, ctx);
+	return { ...message, html: withMailFooter(message.html, ctx.footer) };
+}
+
+/**
+ * @param {TemplateId} id
+ * @param {TemplateParts | null} template
+ * @param {Parameters<typeof previewEmail>[2]} ctx
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function buildPreview(
 	id,
 	template,
 	{ origin, contactEmail, replyTo, now = Date.now(), event: real }

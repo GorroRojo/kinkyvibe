@@ -16,7 +16,7 @@
 
 <PageHeader
 	title="Mails"
-	subtitle="Remitente, respuesta, recordatorios antes de cada evento y envíos en tandas."
+	subtitle="Remitente, respuesta, pie de los mails, recordatorios antes de cada evento y envíos en tandas."
 />
 <form
 	class="kv-form settings"
@@ -73,6 +73,54 @@
 		<p class="kv-note">
 			Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>. El
 			dominio del remitente tiene que estar verificado en Resend.
+		</p>
+	</Card>
+
+	<Card title="Pie de los mails">
+		<p class="kv-note">
+			Lo que va abajo de todos los mails, debajo de «por qué te llega» (ese se cambia en cada
+			plantilla). Texto común, <code>**negrita**</code> y links (<code>[texto](https://…)</code>,
+			también <code>mailto:</code> y <code>tel:</code>); no se acepta HTML.
+		</p>
+		<label class="kv-field">
+			<span>Línea de contacto</span>
+			<input
+				type="text"
+				name="mail_footer_contact"
+				value={value('mail_footer_contact')}
+				placeholder={data.footer.contact}
+				maxlength={data.footer.limits.mail_footer_contact}
+				autocomplete="off"
+				aria-describedby="footer-contact-help"
+				aria-invalid={errors.mail_footer_contact ? 'true' : undefined}
+			/>
+			{#if errors.mail_footer_contact}<small class="kv-error field-error"
+					>{errors.mail_footer_contact}</small
+				>{/if}
+			<small id="footer-contact-help" class="kv-note">
+				<code>{'{{contacto}}'}</code> es la dirección de contacto (<code
+					>{data.footer.contactEmail}</code
+				>), con su link para escribir.
+			</small>
+		</label>
+		<label class="kv-field">
+			<span>Firma</span>
+			<input
+				type="text"
+				name="mail_footer_signoff"
+				value={value('mail_footer_signoff')}
+				placeholder={data.footer.signoff}
+				maxlength={data.footer.limits.mail_footer_signoff}
+				autocomplete="off"
+				aria-invalid={errors.mail_footer_signoff ? 'true' : undefined}
+			/>
+			{#if errors.mail_footer_signoff}<small class="kv-error field-error"
+					>{errors.mail_footer_signoff}</small
+				>{/if}
+		</label>
+		<p class="kv-note">
+			Vacíos: «{data.footer.contact}» y «{data.footer.signoff}». La vista previa de las plantillas
+			ya los muestra.
 		</p>
 	</Card>
 

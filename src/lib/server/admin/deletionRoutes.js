@@ -2,9 +2,9 @@
  * Load y acciones de /admin/borrar/[kind]/[slug] (confirmar y borrar, deshacer) y la acción
  * «Recuperar» de Actividad. La lógica está en ./deletions.js; esto es el pegamento con SvelteKit.
  *
- * Los perfiles de amigues que viven solo en la base (sin .md) se borran y se deshacen en la base
- * (deleteBackend → 'objects': deleteDbProfile), sin leer ni escribir GitHub; el resto, por el
- * cliente del repo como siempre.
+ * Los perfiles de amigues (todos viven solo en la base, también las fichas importadas) se borran
+ * y se deshacen en la base (deleteBackend → 'objects': deleteDbProfile), sin leer ni escribir
+ * GitHub; el resto, por el cliente del repo (que guarda los eventos y el material en la base).
  *
  * Solo admins (loads: requireAdmin redirige o da 403; acciones: lo mismo, más 403 sin token de
  * GitHub). El interruptor `borrar_desde_panel` quedó prendido para siempre.
@@ -21,6 +21,7 @@ import {
 } from '$lib/server/eventos/github.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { loadEditableProfile } from '$lib/server/amigues/editor.js';
+import { urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { authorUsage, contentMetas } from './content.js';
 import { contentPullStatus } from './contentPulls.js';
@@ -69,8 +70,8 @@ async function planFor(platform, kind, slug, media) {
 }
 
 /**
- * El perfil de amigues con esa dirección si vive SOLO en la base (sin .md; no borrado), con su
- * plan de borrado; si no, `null` (va por el repo, como siempre).
+ * El perfil de amigues con esa dirección (no borrado), con su plan de borrado; si no es un perfil,
+ * `null`. Todo perfil vive solo en la base («solo base»): nunca va por el repo.
  * @param {App.Platform | undefined} platform
  * @param {string} kind
  * @param {string} slug
@@ -82,11 +83,12 @@ async function dbProfileTarget(platform, kind, slug) {
 	const found = await loadEditableProfile(db, slug);
 	if (!found || deleteBackend(kind, found) !== 'objects') return null;
 	const { object } = found;
+	const urlSlug = urlSlugOf(object, found.legacySlug);
 	const dependents = await dbProfileDependents(db, object, await contentMetas());
 	return {
 		db,
-		profile: { id: object.id, version: object.version, title: object.title, urlSlug: object.slug },
-		plan: dbProfileDeletionPlan({ slug: object.slug, dependents })
+		profile: { id: object.id, version: object.version, title: object.title, urlSlug },
+		plan: dbProfileDeletionPlan({ slug: urlSlug, dependents })
 	};
 }
 
@@ -138,6 +140,17 @@ export async function deletePageLoad({ locals, url, params, platform, setHeaders
 			exists: true,
 			title: inDb.profile.title,
 			plan: inDb.plan
+		};
+	// Un perfil que la base no tiene no existe (nunca se busca en GitHub).
+	if (kind === 'amigues')
+		return {
+			kind,
+			slug,
+			info,
+			backend: /** @type {'repo' | 'objects'} */ ('objects'),
+			exists: false,
+			title: slug,
+			plan: null
 		};
 	let files;
 	try {
@@ -191,6 +204,8 @@ export async function deleteAction(event) {
 			return fail(502, { error: 'No se pudo borrar: ' + describe(e) + '. Probá de nuevo.' });
 		}
 	}
+	if (kind === 'amigues')
+		return fail(404, { error: 'Ese perfil ya no existe (¿lo borró alguien más?).' });
 	const client = await getRepoClient();
 	let files;
 	try {

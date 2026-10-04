@@ -2,20 +2,21 @@
 
 ## Qué hace
 
-**Los eventos del calendario y el material viven solo en la base** («Contenido solo en la base»,
-decisión de gorrite; ver «En la base» abajo): el sitio los lee de ahí y el panel los guarda ahí, se
-ven enseguida y tienen historial. Sus `.md` siguen en el repo solo como respaldo (0004: se borran
-un mes después, con un tag de git): **el sitio no los lee** y editarlos no cambia nada. Los
-perfiles de amigues y los términos de la wiki siguen siendo archivos `.md` en el repo: al guardarlos,
-el panel abre un PR en GitHub ([publicar-contenido.md](publicar-contenido.md)).
+**Todo el contenido vive solo en la base** («Contenido solo en la base», decisión de gorrite; ver
+«En la base» abajo): los eventos del calendario, el material, los perfiles de amigues y las páginas
+de la wiki. El sitio los lee de ahí y el panel los guarda ahí, se ven enseguida y tienen historial.
+Sus `.md` siguen en el repo solo como respaldo (0004: se borran un mes después, con un tag de git):
+**el sitio no los lee** y editarlos no cambia nada (solo si después se vuelven a importar y el
+objeto no se editó en el panel). Ningún guardado de contenido del panel pasa por GitHub; solo las
+imágenes viejas del repo siguen ahí hasta pasarlas a R2 ([imagenes.md](imagenes.md)).
 
 ## Lo que nunca se tiene que romper
 
-- **Los `.md` no se reformatean.** Los de amigues y la wiki los edita gente no desarrolladora desde
-  el panel (y algunos tienen CRLF): están en `.prettierignore`. Cambiá solo lo que tengas que
-  cambiar.
-- **Eventos y material: solo la base.** Nunca un commit de un `.md` de evento o material desde el
-  panel (`withContentDb`, `src/lib/server/contenido/repo.js`); sin base, guardar da error.
+- **Los `.md` no se reformatean.** Quedan como respaldo (y algunos tienen CRLF): están en
+  `.prettierignore`. Cambiá solo lo que tengas que cambiar.
+- **Solo la base.** Nunca un commit de un `.md` de evento, material, amigues o la wiki desde el
+  panel (`withContentDb`, `src/lib/server/contenido/repo.js`; amigues y la wiki con
+  `src/lib/server/contenido/fichas.js`); sin base, guardar da error.
 - **Toda URL publicada sigue andando.** Si cambia un slug o una ruta, hace falta redirección.
 - **Guardar no pisa lo de otra persona.** El panel manda el sha del texto que abrió (en la base,
   el del texto que arma la base); si cambió en el medio, avisa (`FileChangedError`) en vez de pisar. Los borradores locales del editor
@@ -36,9 +37,11 @@ el panel abre un PR en GitHub ([publicar-contenido.md](publicar-contenido.md)).
 | Árbol de etiquetas                                                     | `src/lib/utils/hardcodedTags.js` (se edita desde Panel → Etiquetas)                                                     |
 | Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                                  |
 | Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                          |
-| Editores de material y amigues                                         | `src/routes/(authed)/admin/{material,amigues}/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                    |
-| Editor genérico de cualquier post                                      | `src/routes/(authed)/edit/[category]/[postID]/`                                                                         |
-| Commits a GitHub                                                       | `src/lib/server/eventos/github.js`; `getRepoClient()` en `eventos/index.js` elige GitHub, el mock de dev o la capa demo |
+| Editor de material                                                     | `src/routes/(authed)/admin/contenido/material/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                    |
+| Editor de perfiles (amigues)                                           | `src/routes/(authed)/admin/comunidad/perfiles/`, `src/lib/server/admin/amiguesRoutes.js` ([amigues.md](amigues.md))     |
+| Editor de la wiki                                                      | `src/routes/(authed)/admin/etiquetas/wiki/[term]/`, `src/lib/server/etiquetas/wikiEditor.js`                            |
+| Editor genérico (material; amigues y wiki llevan a sus editores)       | `src/routes/(authed)/edit/[category]/[postID]/`                                                                         |
+| Cliente del repo (solo imágenes llegan a GitHub)                       | `src/lib/server/eventos/github.js`; `getRepoClient()` en `eventos/index.js` elige GitHub, el mock de dev o la capa demo |
 | Cómo escribir un post a mano                                           | [`README.md`](../README.md) de la raíz                                                                                  |
 
 ## Cómo probar
@@ -95,26 +98,26 @@ y queda en Actividad. Un evento no listado a propósito, sin la marca, nunca se 
 Los borradores importados antes de esta marca no la tienen: se confirman desde el editor.
 
 **Cambiar etiquetas.** Panel → Etiquetas: se guarda en la base al momento; renombrar sin alias
-también cambia los eventos y el material (en la base) y las fichas de amigues y la wiki (con un
-PR) ([etiquetas.md](etiquetas.md)).
+también cambia los eventos, el material, los perfiles de amigues y la wiki, todo en la base y sin
+GitHub ([etiquetas.md](etiquetas.md)).
 
 **Ocultar sin borrar.** «No listado» en el editor (`force_unlisted`); se ven en Panel → No
 listadas.
 
-**Arreglar un evento o material.** Desde el panel (se guarda en la base). Editar su `.md` en el
-repo no cambia el sitio: solo si después se vuelve a importar (Contenido → En la base) y el objeto
-no se editó en el panel.
-
-**Arreglar una ficha de amigues o de la wiki a mano.** Editá solo las líneas necesarias, corré
-`npx vitest run src/tests/content.test.js` y, si arreglaste un problema conocido,
-`UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js`.
+**Arreglar un evento, un material, un perfil o una página de la wiki.** Desde el panel (se guarda en
+la base): los perfiles en Comunidad → Perfiles, la wiki en Etiquetas → cada etiqueta → «Entrada de
+la Kinkipedia» (`/admin/etiquetas/wiki/<dirección>`). Editar su `.md` en el repo no cambia el sitio:
+solo si después se vuelve a importar (Contenido → En la base; Perfiles → Importar y clasificar;
+Etiquetas → Importar a la base) y el objeto no se editó en el panel. Si tocás un `.md` del repo,
+editá solo las líneas necesarias y corré `npx vitest run src/tests/content.test.js`.
 
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
-La wiki no: sus textos pasan a ser el cuerpo de las etiquetas ([etiquetas.md](etiquetas.md)). El
-interruptor `contenido_db` **quedó prendido para siempre** y salió de Interruptores (paso 2 de
-«Contenido solo en la base»).
+Los **perfiles de amigues** (objetos `perfil`, [amigues.md](amigues.md)) y la **wiki** (sus textos
+son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también viven solo en la base desde
+el paso 2 de «solo base» (abajo, «Amigues y la wiki»). El interruptor `contenido_db` **quedó
+prendido para siempre** y salió de Interruptores (paso 2 de «Contenido solo en la base»).
 
 - **Leer** (`src/lib/server/contenido/posts.js`): las listas, la página de cada evento y material,
   el `.ics`, las etiquetas y series, la búsqueda, `/api/posts`, el RSS, el sitemap, la venta de
@@ -149,9 +152,12 @@ interruptor `contenido_db` **quedó prendido para siempre** y salió de Interrup
   nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo` (el de `juego-de-peleas`
   está comentado en su `.md` y no se muestra).
 - **Descargar todo** (botón en Contenido → En la base, `descargar.tar`,
-  `src/lib/server/contenido/download.js`): los eventos y el material de la base como `.md` en un
-  `.tar`, con la misma metadata y el mismo texto que los `.md` del repo (`download.test.js`); los
-  ocultos con `force_unpublished: true`; no los borrados.
+  `src/lib/server/contenido/download.js`): los eventos, el material, los perfiles de amigues
+  (`amigues/<dirección>.md`) y las páginas de la wiki (`wiki/<dirección>.md`) de la base como `.md`
+  en un `.tar`, con la misma metadata y el mismo texto que los `.md` del repo (`download.test.js`,
+  `fichas.test.js` con todas las fichas y páginas reales); los ocultos con `force_unpublished: true`;
+  no los borrados. Los perfiles llevan además su tipo (`kind:`) y, si tienen, lo que las fichas del
+  repo no tienen (más links, datos de un lugar): importar el `.md` descargado deja el mismo perfil.
 - **Importar** (Contenido → **En la base**, `/admin/contenido/base`): pasa los `.md` de este
   deploy a la base de ese entorno. Idempotente (`content_sources` guarda el SHA-256 de cada `.md`):
   lo que no cambió no se toca, lo editado o borrado en el panel tampoco (lo informa). Sirve para
@@ -159,8 +165,9 @@ interruptor `contenido_db` **quedó prendido para siempre** y salió de Interrup
   puede importar (frontmatter roto, un componente no registrado, un fin antes del inicio) **no se
   muestra**: hay que corregirlo e importar de nuevo.
 - **Base local**: `npm run dev` (y `dev:admin`, `dev:tickets`) importa los `.md` a la base local
-  antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla; si la base no
-  tiene etiquetas, también las importa); a mano, `npm run content:import`. Las pruebas E2E hacen lo mismo antes de `vite preview`.
+  antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla): eventos,
+  material, fichas de amigues y, si la base no tiene etiquetas, las etiquetas con los textos de la
+  wiki; a mano, `npm run content:import`. Las pruebas E2E hacen lo mismo antes de `vite preview`.
 - **Personas**: `authors:` y `personas:` de un `.md` se guardan como **una sola lista**,
   `[{ profile?, name?, role }]` (`src/lib/utils/personasList.js`; ver
   [personas-eventos.md](personas-eventos.md)). En los eventos y el material, cada perfil es un
@@ -186,9 +193,68 @@ interruptor `contenido_db` **quedó prendido para siempre** y salió de Interrup
 
 Lo que todavía no cambia (pasos siguientes):
 
-- Las imágenes siguen en el repo (`media/<slug>/`); R2 es un paso aparte. Una imagen nueva va en
-  un PR y se ve cuando se publica (unos minutos); el texto del evento se ve enseguida.
-- Los `.md` de eventos y material siguen en el repo como respaldo hasta que se borren (0004).
+- Las imágenes viejas siguen en el repo (`media/<slug>/`) hasta importarlas a R2
+  ([imagenes.md](imagenes.md)); las nuevas ya van a la biblioteca (R2) desde cada editor, también
+  la de un perfil.
+- Los `.md` de eventos, material, amigues y la wiki siguen en el repo como respaldo hasta que se
+  borren (0004).
+
+### Amigues y la wiki (paso 2 de «solo base»)
+
+- **Perfiles**: `/amigues`, la página de cada perfil, `sitePosts` (las listas, `/todo`, el sitemap,
+  «Más cosas de…», `/api/posts`), les autores de un evento o material y los pronombres de las
+  @menciones leen **solo la base** (`src/lib/server/amigues/asPost.js`, `pages.js`). Una ficha `.md`
+  que la base no tiene no existe (404) hasta que se importa. El panel edita y borra solo en la base
+  (sin el editor del `.md`); la imagen se elige en el selector de la biblioteca (R2, edge `avatar`).
+- **Wiki**: `/wiki/<término>`, el glosario (`/wiki` y el layout), el buscador y el sitemap leen el
+  texto de la wiki de cada etiqueta (`src/lib/server/wiki/site.js`, con el árbol de etiquetas: sin
+  consultas de más). **Ya no se prerenderiza**: se arma en cada pedido (ahora sus visitas se cuentan
+  en Analíticas). Se edita en Etiquetas → «Entrada de la Kinkipedia» (`wikiEditor.js`): en la base,
+  con historial, Actividad y control de versión.
+- **Lo que todavía trabaja con el texto de un `.md`** (renombrar una etiqueta en todas las
+  publicaciones, la dirección vieja `/edit/wiki/…`) lee y guarda en la base:
+  `src/lib/server/contenido/fichas.js` arma el `.md` de un perfil o de una página de la wiki desde la
+  base y lo vuelve a leer al guardar (con el mismo aviso si alguien guardó en el medio). No crea
+  perfiles nuevos (se crean en el panel) ni cambia la etiqueta de una página.
+- **Etiquetas → Renombrar** ya no hace commits: `dbRepoAccess` en `src/lib/server/etiquetas/panel.js`
+  (el mismo cliente solo-base que Eventos → Series).
+
+#### Pasos para el cambio (antes del deploy, gorrite)
+
+Sin migración nueva. En cada entorno (primero el preview, después producción), **con el deploy
+anterior** (que todavía muestra las fichas `.md`), o enseguida después del nuevo:
+
+1. **Perfiles → Importar y clasificar → «Importar las fichas»** (`/admin/comunidad/perfiles/importar`).
+   Idempotente; tiene que terminar sin errores (la prueba `fichas.test.js` verifica que todas las
+   fichas del repo se importan). Revisar el tipo de las que quedaron «a confirmar».
+2. **Etiquetas → «Importar a la base»** (`/admin/etiquetas/importar`): trae los textos de la wiki (y
+   las etiquetas de `tags:` de una página, `wiki_tags`, nuevas en este paso). Si las etiquetas ya
+   estaban importadas, repetirlo actualiza las que no se editaron en el panel.
+3. Revisar en el preview: `/amigues` (la cantidad de perfiles), `/amigues/<ficha>`, `/wiki`,
+   `/wiki/BDSM` y Contenido → En la base → «Descargar todo» (`amigues/` y `wiki/` adentro).
+4. Opcional: `npm run images:import` para pasar las imágenes del repo a R2 ([imagenes.md](imagenes.md)).
+
+Si el deploy nuevo sale antes de importar, `/amigues` queda vacío y `/wiki/<término>` muestra solo
+la etiqueta hasta correr los pasos 1 y 2 (no se pierde nada: los `.md` siguen en el repo).
+
+#### DECIDIDO POR CLAUDE, A CONFIRMAR (gorrite)
+
+1. **La wiki usa el tipo `etiqueta` que ya existía** (su texto de la wiki es el cuerpo de la
+   etiqueta, tu diseño en [etiquetas.md](etiquetas.md)); no hay un tipo nuevo. La dirección de una
+   página es la de su etiqueta (`tagSlug(key)`, igual a los nombres de los `.md`); un alias lleva a
+   la página de la etiqueta. Dos campos nuevos (opcionales, sin migración): `wiki_tags` y
+   `wiki_body_html` (sin valor = lo importado, HTML libre).
+2. **Editor de la wiki con campos** (título, resumen, autores, etiquetas, texto), no el texto crudo
+   del `.md`; «Sacar la entrada» saca el texto y deja la etiqueta.
+3. **Las listas del sitio** (`sitePosts`: `/todo`, el sitemap, `/api/posts`, «Más cosas de…») llevan
+   los perfiles que lista `/amigues` (aprobados, no ocultos, con la misma lista blanca): también los
+   lugares listados y los perfiles de cuentas aprobados, no solo las fichas de antes.
+4. **«Descargar todo»** suma a cada perfil su tipo (`kind:`) y lo que las fichas del repo no tienen
+   (más links, datos de un lugar, `show_members`); la importación los vuelve a leer.
+5. **Elegir o sacar una imagen de la biblioteca** en un perfil saca las imágenes viejas de la ficha
+   (`featured`, `logo`, `photo`), como `featured` en los eventos.
+6. Sin base: `/amigues` vacío y sin páginas de la wiki (como los eventos); una ficha sin importar
+   da 404.
 
 ## Lo que viene (decisión 0004)
 
@@ -197,4 +263,4 @@ Lo que todavía no cambia (pasos siguientes):
 - **Eventos primero.** Imágenes en un R2 propio. Slugs cambiables con redirección 301.
 - Los `.md` se borran del repo un mes después de migrar, dejando un tag de git.
 - Todo lo nuevo que escriba contenido pasa por `getRepoClient()` para que funcione igual en
-  producción, en `dev:admin` y en los previews (los eventos y el material, a la base de cada uno).
+  producción, en `dev:admin` y en los previews (todo el contenido, a la base de cada uno).

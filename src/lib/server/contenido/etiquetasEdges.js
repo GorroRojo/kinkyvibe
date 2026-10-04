@@ -248,3 +248,41 @@ export function withTagEdges(data, edges) {
 	if (kept.some((t) => typeof t === 'string' && linked.has(t))) return data;
 	return { ...data, tags: mergeTagItems(kept, edges) };
 }
+
+/**
+ * Las etiquetas que cada uno de esos objetos nombra por edge (con su `key` de HOY), por id: lo que
+ * cambia solo al renombrar la etiqueta, sin reescribir el objeto (etiquetas/rename.js). Si
+ * `data.tags` ya nombra a una de sus etiquetas (una lista entera escrita sin partir), manda el
+ * texto (como en {@link withTagEdges}) y ese objeto no aparece. Dos consultas para todos.
+ *
+ * @param {D1Database} db
+ * @param {readonly number[]} ids
+ * @returns {Promise<Map<number, Set<string>>>}
+ */
+export async function linkedTagKeysOf(db, ids) {
+	/** @type {Map<number, Set<string>>} */
+	const out = new Map();
+	const edges = await tagEdgesOf(db, ids);
+	if (!edges.size) return out;
+	const { results } = await db
+		.prepare(
+			`SELECT id, json_extract(data, '$.tags') AS tags FROM objects
+			WHERE id IN (SELECT value FROM json_each(?1))`
+		)
+		.bind(JSON.stringify([...edges.keys()]))
+		.all();
+	for (const r of results) {
+		const id = Number(r.id);
+		const linked = new Set((edges.get(id) ?? []).map((e) => e.key));
+		/** @type {unknown} */
+		let kept = [];
+		try {
+			kept = r.tags == null ? [] : JSON.parse(String(r.tags));
+		} catch {
+			kept = [];
+		}
+		if (Array.isArray(kept) && kept.some((t) => typeof t === 'string' && linked.has(t))) continue;
+		if (linked.size) out.set(id, linked);
+	}
+	return out;
+}

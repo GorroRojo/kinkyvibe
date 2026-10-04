@@ -240,11 +240,8 @@ describe('perfiles de la base', () => {
 		await seedProfiles();
 		const index = await (await endpoint()).get();
 		const amigues = index.docs.filter((d) => d.c === 'amigues').map((d) => d.h);
-		expect(amigues.sort()).toEqual([
-			'/amigues/Ficha_Sin_Importar',
-			'/amigues/lugar-listado',
-			'/amigues/persona-visible'
-		]);
+		// («Solo base»: una ficha .md sin importar ya no aparece.)
+		expect(amigues.sort()).toEqual(['/amigues/lugar-listado', '/amigues/persona-visible']);
 		const json = JSON.stringify(index);
 		for (const text of [
 			'Ficha Importada',

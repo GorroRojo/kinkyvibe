@@ -35,7 +35,9 @@ export const SECTIONS = Object.freeze({
 			'from_email',
 			'reply_to_email',
 			'reminders',
-			'mail_batch_size'
+			'mail_batch_size',
+			'mail_footer_contact',
+			'mail_footer_signoff'
 		])
 	}
 });

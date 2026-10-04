@@ -51,6 +51,7 @@
 	$: saved = (ws?.parts.slice(1) ?? []).map((p) => p.slug).join('\n');
 	$: dirty = order.map((p) => p.slug).join('\n') !== saved;
 	$: perPart = ws?.workshop.perPart ?? false;
+	$: hideParts = ws?.workshop.hideParts ?? false;
 	$: lastStart = order.length ? order[order.length - 1].start : (first?.start ?? null);
 
 	/** «2026-10-02T22:00-03:00» → «2026-10-02T22:00» (para el input). */
@@ -135,6 +136,13 @@
 		const body = new FormData();
 		if (/** @type {HTMLInputElement} */ (e.currentTarget).checked) body.set('por_parte', 'on');
 		post('partes_entradas', body);
+	}
+
+	/** @param {Event} e */
+	function toggleHideParts(e) {
+		const body = new FormData();
+		if (/** @type {HTMLInputElement} */ (e.currentTarget).checked) body.set('ocultar_partes', 'on');
+		post('partes_ocultar', body);
 	}
 </script>
 
@@ -248,6 +256,18 @@
 						{perPart
 							? 'Cada parte vende su propia entrada (configurala en la ficha de cada parte).'
 							: `Una sola entrada, la de este evento, vale para las ${total} partes. Tildalo si cada parte se vende por separado.`}
+					</small>
+				</span>
+			</label>
+
+			<label class="check">
+				<input type="checkbox" checked={hideParts} on:change={toggleHideParts} disabled={busy} />
+				<span>
+					<strong>Si ocultás el taller, ocultar también sus partes</strong>
+					<small>
+						{hideParts
+							? 'Mientras este evento esté oculto, sus partes tampoco se ven en el sitio (ni en el calendario ni en su página).'
+							: 'Cada parte se muestra u oculta por su cuenta, aunque ocultes este evento.'}
 					</small>
 				</span>
 			</label>

@@ -521,7 +521,7 @@ describe('links a la ficha del evento', () => {
 		expect(eventPanelLink('x', { tickets: true })).toBe('/admin/eventos/x/ventas');
 		expect(eventPanelLink('x')).toBe('/admin/eventos/x');
 	});
-	it('contentEditLink: los eventos se editan en la ficha, lo demás en /edit', () => {
+	it('contentEditLink: los eventos en la ficha, los perfiles y la wiki en la base, el material en /edit', () => {
 		expect(contentEditLink('/calendario/picantearla-2026-10')).toBe(
 			'/admin/eventos/picantearla-2026-10/editar'
 		);
@@ -529,10 +529,16 @@ describe('links a la ficha del evento', () => {
 			'/admin/eventos/picantearla-2026-10/editar'
 		);
 		expect(contentEditLink('/material/guia')).toBe('/edit/material/guia');
-		expect(contentEditLink('/amigues/alguien')).toBe('/edit/amigues/alguien');
+		// «Solo base»: los perfiles se editan en Comunidad › Perfiles (el editor del .md ya no existe).
+		expect(contentEditLink('/amigues/alguien')).toBe('/admin/comunidad/perfiles/alguien');
 		expect(contentEditLink('/calendario')).toBeNull();
 		expect(contentEditLink('/calendario/x/compartir')).toBeNull();
-		expect(contentEditLink('/wiki/algo')).toBeNull();
+		// La página de la wiki: su texto, en Etiquetas › Texto de la wiki.
+		expect(contentEditLink('/wiki/algo')).toBe('/admin/etiquetas/wiki/algo');
+		expect(contentEditLink('/wiki/Rancheadita-Kinky')).toBe(
+			'/admin/etiquetas/wiki/Rancheadita-Kinky'
+		);
+		expect(contentEditLink('/wiki')).toBeNull();
 	});
 	it('la agenda tiene su ítem', () => {
 		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');

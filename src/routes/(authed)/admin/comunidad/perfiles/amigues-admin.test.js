@@ -6,6 +6,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { saveObject } from '$lib/server/objects/save.js';
 import { ADMINS } from '$lib/server/auth';
 import { importAmigues } from '$lib/server/amigues/importer.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
@@ -284,6 +285,67 @@ describe('editor de la base', () => {
 			await m.edit.actions.confirmarTipo(fakeEvent({ params: { slug: 'Yuyo' }, form: {} }))
 		);
 		expect(confirm.perfil.ok).toBe(true);
+	});
+
+	// «Solo base»: la imagen de un perfil se elige en el selector de la biblioteca (R2), como en los
+	// demás editores, y va como edge `avatar` en el mismo guardado (antes se subía al repo).
+	it('la imagen del perfil se elige de la biblioteca: edge `avatar`, sin la imagen vieja del repo', async () => {
+		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
+		const hash = 'a'.repeat(64);
+		const image = await saveObject(
+			t.db,
+			{
+				type: 'imagen',
+				slug: hash,
+				title: 'Imagen inventada',
+				data: { key: `img/${hash}.webp`, mime: 'image/webp', size: 10, width: 1, height: 1 }
+			},
+			{ actor: 'admin-de-prueba' }
+		);
+		const m = await modules();
+		const opened = /** @type {any} */ (
+			await m.edit.load(
+				fakeEvent({ path: '/admin/comunidad/perfiles/Yuyo', params: { slug: 'Yuyo' } })
+			)
+		);
+		// Sin imagen de la biblioteca todavía: el selector muestra la de la ficha vieja.
+		expect(opened.image).toMatchObject({
+			current: null,
+			target: expect.stringMatching(/^perfil:/)
+		});
+		expect(opened.image.legacyUrl).toMatch(/\.(webp|jpe?g|png)/);
+		const saved = /** @type {any} */ (
+			await m.edit.actions.guardarPerfil(
+				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(opened, { imageId: String(image.id) }) })
+			)
+		);
+		expect(saved.perfil.ok).toBe(true);
+		const ref = await t.db
+			.prepare("SELECT s.profile_id AS id FROM profile_sources s WHERE s.legacy_slug = 'Yuyo'")
+			.first();
+		const edges = await t.db
+			.prepare("SELECT to_id FROM edges WHERE from_id = ?1 AND kind = 'avatar'")
+			.bind(ref?.id)
+			.all();
+		expect(edges.results).toEqual([{ to_id: image.id }]);
+		const row = await t.db.prepare('SELECT data FROM objects WHERE id = ?1').bind(ref?.id).first();
+		expect(JSON.parse(String(row?.data)).featured).toBeUndefined();
+		const after = /** @type {any} */ (await m.edit.load(fakeEvent({ params: { slug: 'Yuyo' } })));
+		expect(after.image).toMatchObject({ current: { id: image.id }, legacyUrl: null });
+		// La página pública muestra la de la biblioteca.
+		const page = /** @type {any} */ (
+			await (
+				await import('../../../../(content)/amigues/[profile]/+page.server.js')
+			).load(fakeEvent({ path: '/amigues/Yuyo', params: { profile: 'Yuyo' }, user: null }))
+		);
+		expect(page.profile.image).toBe(`/media/img/${hash}.webp`);
+		// Una imagen que no existe no se guarda.
+		const bad = /** @type {any} */ (
+			await m.edit.actions.guardarPerfil(
+				fakeEvent({ params: { slug: 'Yuyo' }, form: formOf(after, { imageId: '999999' }) })
+			)
+		);
+		expect(bad.status).toBe(400);
 	});
 
 	it('crear un lugar desde Eventos → Lugares: nace aprobado y abre su editor', async () => {

@@ -1,6 +1,7 @@
 /**
- * Ajustes → Mails: remitente y dirección de respuesta de los mails de entradas, los
- * recordatorios antes de cada evento y de a cuántos mails se mandan los envíos masivos. En D1 (`ticket_settings`). Solo admins.
+ * Ajustes → Mails: remitente y dirección de respuesta de los mails de entradas, el pie de todos
+ * los mails (contacto y firma), los recordatorios antes de cada evento y de a cuántos mails se
+ * mandan los envíos masivos. En D1 (`ticket_settings`). Solo admins.
  */
 import { env as privateEnv } from '$env/dynamic/private';
 import { requireAdmin } from '$lib/server/auth';
@@ -11,7 +12,12 @@ import {
 	describeReminder,
 	parseReminders
 } from '$lib/server/tickets/reminders.js';
-import { DEFAULT_FROM_EMAIL, DEFAULT_REPLY_TO } from '$lib/server/tickets/settings.js';
+import {
+	DEFAULT_FROM_EMAIL,
+	DEFAULT_REPLY_TO,
+	MAIL_FOOTER_LIMITS
+} from '$lib/server/tickets/settings.js';
+import { DEFAULT_MAIL_FOOTER, defaultMailContact } from '$lib/server/email/layout.js';
 import {
 	DEFAULT_MAIL_BATCH_SIZE,
 	MAX_MAIL_BATCH_SIZE,
@@ -45,6 +51,13 @@ export async function load({ locals, url, platform, setHeaders }) {
 		emailDefaults: {
 			from: privateEnv.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
 			replyTo: privateEnv.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO
+		},
+		// Pie de todos los mails: lo que sale si los campos quedan vacíos.
+		footer: {
+			contact: DEFAULT_MAIL_FOOTER.contact,
+			signoff: DEFAULT_MAIL_FOOTER.signoff,
+			contactEmail: defaultMailContact(),
+			limits: MAIL_FOOTER_LIMITS
 		}
 	};
 }

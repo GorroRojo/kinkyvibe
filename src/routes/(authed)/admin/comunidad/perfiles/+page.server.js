@@ -3,11 +3,10 @@
  * eran "Amigues" y "Cuentas › Perfiles"). Todos los perfiles de la base (personas, proyectos y
  * lugares; también ocultos y borrados), con filtros en la URL (`?q=`, `?tipo=`, `?origen=`,
  * `?estado=`; ver src/lib/admin/perfiles.js), cuántas fichas .md faltan importar y los pedidos
- * "Es mi perfil" (`?vista=pedidos`). Sin base, la lista de fichas .md de siempre (el interruptor
- * `perfiles_publicos` quedó prendido para siempre; `?vista=fichas` vieja muestra la lista de la
- * base). Solo admins: el `load` y cada action llaman a `requireAdmin`.
+ * "Es mi perfil" (`?vista=pedidos`). Solo la base («solo base»: las fichas .md ya no se muestran ni
+ * se editan; las que faltan se importan en «Importar y clasificar»). Sin base, la lista vacía con
+ * el aviso. Solo admins: el `load` y cada action llaman a `requireAdmin`.
  */
-import { listLoad, visibilityAction } from '$lib/server/admin/contentRoutes.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
@@ -18,8 +17,6 @@ import { bundledAmigueFiles } from '$lib/server/amigues/review.js';
 import { isImportable } from '$lib/server/amigues/importer.js';
 import { parseProfileFilters } from '$lib/admin/perfiles.js';
 
-const mdLoad = listLoad('amigues');
-
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	requireAdmin(event.locals, event.url);
@@ -27,12 +24,6 @@ export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
 	const db = getDB(event.platform);
 	const filters = parseProfileFilters(event.url.searchParams);
-	if (!db) {
-		return {
-			editor: /** @type {const} */ ('md'),
-			...(await mdLoad(event))
-		};
-	}
 	const view = filters.view === 'fichas' ? '' : filters.view;
 	const empty = {
 		editor: /** @type {const} */ ('db'),
@@ -43,6 +34,7 @@ export async function load(event) {
 		claims: /** @type {Awaited<ReturnType<typeof listClaims>>} */ ([]),
 		notImported: 0
 	};
+	if (!db) return empty;
 	try {
 		const [{ profiles, counts }, claims, imported, files] = await Promise.all([
 			listProfiles(db, filters),
@@ -70,8 +62,6 @@ export async function load(event) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	// Listar o sacar de la lista una ficha .md (pestaña «Fichas .md»).
-	visibilidad: visibilityAction('amigues'),
 	// Aprobar o rechazar un pedido "Es mi perfil".
 	pedido: claimDecisionAction
 };

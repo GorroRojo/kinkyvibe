@@ -33,8 +33,8 @@ un **edge** hacia ella (nunca un id adentro del JSON; ver [objetos.md](objetos.m
 
 ## El selector (ImagePicker)
 
-Lo usan el editor de eventos (Editar y Cargar/Duplicar), el de material, Eventos → Series y la
-imagen del perfil en Mi rincón. No hay página de biblioteca en el panel. Pestañas:
+Lo usan el editor de eventos (Editar y Cargar/Duplicar), el de material, Eventos → Series, la
+imagen del perfil en Mi rincón y el editor de perfiles del panel (Comunidad → Perfiles). No hay página de biblioteca en el panel. Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
@@ -70,8 +70,10 @@ series): **si un objeto no tiene edge, se usa el campo viejo**. Con edge, manda 
 (`withCover` en `src/lib/server/contenido/posts.js`, `seriesHeader` en `src/lib/server/series`,
 `toPublic` en `src/lib/server/amigues/pages.js`, `listEvents` en `src/lib/server/eventos`).
 
-Las fichas de amigues que todavía son `.md` siguen subiendo su imagen al repo (ContentEditor con
-ImageSection): pasan a la biblioteca cuando esas fichas pasen a la base.
+Las fichas de amigues ya viven solo en la base («solo base»): su imagen se elige en el selector
+(edge `avatar`, en el mismo guardado del editor de perfiles, `saveProfileFromPanel`); elegir o sacar
+una saca también las imágenes viejas de la ficha (`featured`, `logo`, `photo`). Sin edge, se sigue
+mostrando la imagen vieja del repo.
 
 ### Importación (una vez)
 
@@ -129,6 +131,7 @@ npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state
   hasta que se importe.
 - **El mismo archivo subido de nuevo** devuelve la imagen que ya existía (con su nombre de antes);
   si no tenía texto alternativo, toma el nuevo.
-- **Las fichas de amigues `.md`** siguen subiendo su imagen al repo (no son de la base todavía).
+- **Las fichas de amigues** (ya en la base) eligen su imagen en el selector, como los demás
+  editores; al elegir o sacar una se sacan `featured`, `logo` y `photo` de la ficha vieja.
 - **Importación**: crea imágenes para todo lo que hay en las carpetas (también lo que nada usa) y
   edges solo para eventos, material y series; las fichas de amigues no reciben `avatar`.

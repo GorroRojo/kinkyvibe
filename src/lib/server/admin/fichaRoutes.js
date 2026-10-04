@@ -43,6 +43,28 @@ export function fichaLoad(resolve, notFound) {
 }
 
 /**
+ * A quién van las notas de esta ficha: el mail, si hay; si no (una cuenta borrada), la cuenta
+ * (`account_id`, migración 0045). Con lo que se anota en Actividad (sin el mail). `null` si no hay
+ * ni mail ni cuenta.
+ *
+ * @param {D1Database} db
+ * @param {FichaKey} key
+ * @returns {Promise<{ where: { email?: string, accountId?: string }, audit: { targetType: string, targetId: string } } | null>}
+ */
+async function noteTarget(db, key) {
+	if (key.email) {
+		return {
+			where: { email: key.email },
+			audit: { targetType: 'person', targetId: await personId(key.email) }
+		};
+	}
+	const accountId = await accountIdOf(db, key);
+	return accountId
+		? { where: { accountId }, audit: { targetType: 'account', targetId: accountId } }
+		: null;
+}
+
+/**
  * Las actions de la ficha: el permiso «puede tener perfiles», las notas y «Mostrar» un DNI.
  * @param {ResolveKey} resolve
  */
@@ -104,29 +126,30 @@ export function fichaActions(resolve) {
 			};
 		},
 
+		// Una nota: por el mail de la persona o, si no tiene (una cuenta borrada), atada a la cuenta.
 		/** @param {import('@sveltejs/kit').RequestEvent} event */
 		addNote: async (event) => {
 			const admin = requireAdmin(event.locals, event.url);
 			const o = await open(event, 'note');
 			if (!o.db) return o.failed;
-			if (!o.key.email) {
-				return fail(400, {
-					note: { ok: false, message: 'Sin mail (cuenta borrada) no se pueden guardar notas.' }
-				});
+			const target = await noteTarget(o.db, o.key);
+			if (!target) {
+				return fail(404, { note: { ok: false, message: 'No encontramos a esa persona.' } });
 			}
 			const v = validateNote(
 				String((await event.request.formData()).get('body') ?? '').slice(0, 3000)
 			);
 			if (!v.ok) return fail(400, { note: { ok: false, message: v.error } });
-			await addNote(o.db, { email: o.key.email, body: v.body, by: admin.login });
+			await addNote(o.db, { ...target.where, body: v.body, by: admin.login });
 			// El texto de la nota no va al registro (puede ser sensible): solo que se agregó.
 			await logAdminAction(o.db, event.locals, {
 				action: 'person.note.add',
-				targetType: 'person',
-				targetId: await personId(o.key.email),
-				summary: 'Agregó una nota a una persona'
+				...target.audit,
+				summary: target.where.email
+					? 'Agregó una nota a una persona'
+					: 'Agregó una nota a una cuenta borrada'
 			});
-			return { note: { ok: true, message: 'Nota guardada.' } };
+			return { note: { ok: true, message: 'Nota creada.' } };
 		},
 
 		/** @param {import('@sveltejs/kit').RequestEvent} event */
@@ -135,18 +158,20 @@ export function fichaActions(resolve) {
 			const o = await open(event, 'note');
 			if (!o.db) return o.failed;
 			const id = Number((await event.request.formData()).get('id'));
+			const target = await noteTarget(o.db, o.key);
 			if (
-				!o.key.email ||
+				!target ||
 				!Number.isSafeInteger(id) ||
-				!(await deleteNote(o.db, { email: o.key.email, id }))
+				!(await deleteNote(o.db, { ...target.where, id }))
 			) {
 				return fail(404, { note: { ok: false, message: 'Esa nota ya no está.' } });
 			}
 			await logAdminAction(o.db, event.locals, {
 				action: 'person.note.delete',
-				targetType: 'person',
-				targetId: await personId(o.key.email),
-				summary: 'Borró una nota de una persona'
+				...target.audit,
+				summary: target.where.email
+					? 'Borró una nota de una persona'
+					: 'Borró una nota de una cuenta borrada'
 			});
 			return { note: { ok: true, message: 'Nota borrada.' } };
 		},

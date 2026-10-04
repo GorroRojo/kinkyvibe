@@ -1,4 +1,4 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
@@ -7,7 +7,7 @@ import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/serv
 import { findImage, imageOf } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import { resolveEventSlug } from '$lib/server/contenido/posts.js';
-import { PendingChangeError, readFile, UnreadableFileError } from '$lib/server/eventos/github.js';
+import { PendingChangeError } from '$lib/server/eventos/github.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
@@ -25,10 +25,11 @@ import {
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
-import { postOfPath, readDbPostFile } from '$lib/server/contenido/repo.js';
+import { isDbPath, readDbPostFile } from '$lib/server/contenido/repo.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb } from '$lib/admin/saveCopy.js';
 import { featuredOf } from '$lib/utils/sharedImage.js';
+import { wikiEditHref } from '$lib/admin/nav.js';
 
 /**
  * @param {{category: string, postID: string}} params
@@ -51,10 +52,23 @@ function rejectEvents(params) {
 	}
 }
 
+/**
+ * Los perfiles y las páginas de la wiki tienen su editor en el panel, en la base («solo base»):
+ * las direcciones viejas de este editor llevan ahí.
+ * @param {{category: string, postID: string}} params
+ */
+function redirectFichas(params) {
+	if (params.category === 'amigues') {
+		redirect(303, `/admin/comunidad/perfiles/${encodeURIComponent(params.postID)}`);
+	}
+	if (params.category === 'wiki') redirect(303, wikiEditHref(params.postID));
+}
+
 /** @type {import("./$types").PageServerLoad} */
 export async function load(event) {
 	postPath(event.params); // 400 para direcciones inválidas, antes que nada
 	rejectEvents(event.params);
+	redirectFichas(event.params);
 	return _editLoad(event);
 }
 
@@ -250,30 +264,14 @@ export const _editActions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
-	// Los eventos y el material se editan solo en la base (el sha es el de su texto, para avisar si
-	// alguien guardó en el medio; ver $lib/server/contenido/repo.js). Si la base no lo tiene, no
-	// existe (aunque su .md siga en el repo).
-	if (postOfPath(path)) {
-		const fromDb = await readDbPostFile(path);
-		if (!fromDb || 'deleted' in fromDb) throw error(404, 'No se encontró la publicación');
-		return { raw: fromDb.raw, sha: fromDb.sha, path };
-	}
-	if (usesLocalRepo()) {
-		// `npm run dev:admin` (reads the local checkout, see $lib/server/eventos/mock.js) or a
-		// preview deploy (demo mode: the demo layer in D1, then the deployed files).
-		const raw = await (await getRepoClient()).getFile(token, path);
-		if (raw === null) throw error(404, 'No se encontró la publicación');
-		return { raw, sha: 'dev-mock', path };
-	}
-	// Main, or the branch of this post's content PR that is still waiting to be published (so
-	// saving again builds on the last save; see commitFiles).
-	const file = await readFile(token, path).catch((e) => {
-		if (e instanceof UnreadableFileError)
-			throw error(502, 'GitHub no devolvió el contenido de la publicación.');
-		throw e;
-	});
-	if (!file) throw error(404, 'No se encontró la publicación');
-	return { raw: file.raw, sha: file.sha, path };
+	// Todo lo que este editor abre vive en la base (eventos y material; los perfiles y la wiki
+	// tienen sus editores en el panel): el sha es el de su texto, para avisar si alguien guardó en el
+	// medio (ver $lib/server/contenido/repo.js). Si la base no lo tiene, no existe (aunque su .md
+	// siga en el repo). Nunca se lee de GitHub.
+	if (!isDbPath(path)) throw error(404, 'No se encontró la publicación');
+	const fromDb = await readDbPostFile(path);
+	if (!fromDb || 'deleted' in fromDb) throw error(404, 'No se encontró la publicación');
+	return { raw: fromDb.raw, sha: fromDb.sha, path };
 }
 
 /**
