@@ -85,9 +85,10 @@ async function getUser(token) {
  * @type {import('@sveltejs/kit').HandleServerError | undefined}
  */
 export const handleError = PREVIEW_BUILD
-	? ({ error, message }) => {
+	? ({ error, message, status }) => {
 			console.error(error);
-			if (!isPreviewDeploy()) return { message };
+			// Una dirección que no existe no es un error para diagnosticar: el 404 de siempre.
+			if (!isPreviewDeploy() || status === 404) return { message };
 			const e = /** @type {any} */ (error);
 			return { message: `${message}: ${e?.message ?? e}`.slice(0, 500) };
 		}

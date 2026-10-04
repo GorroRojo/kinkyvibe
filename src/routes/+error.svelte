@@ -3,6 +3,10 @@
 	import { dev } from '$app/environment';
 	import { onMount } from 'svelte';
 	import logo from './logo.png';
+	import { Search } from '@lucide/svelte';
+	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
+	import { errorDetail } from '$lib/utils/errorPage.js';
+	import { searchOpen } from '$lib/utils/stores';
 
 	/**
 	 * Copy for each status. Anything not listed falls back to the generic
@@ -37,23 +41,10 @@
 		}
 	};
 
-	// Messages SvelteKit fills in on its own; they add nothing (and are in English).
-	const DEFAULT_MESSAGES = new Set([
-		'Not Found',
-		'Forbidden',
-		'Unauthorized',
-		'Internal Error',
-		'Internal Server Error',
-		'Method Not Allowed',
-		'Bad Request'
-	]);
-
 	$: status = $page.status;
 	$: copy = COPY[status] ?? (status >= 500 ? COPY['5xx'] : COPY['4xx']);
-	$: rawMessage = $page.error?.message ?? '';
-	// 4xx messages come from our own code; 5xx messages may be internals, so only in dev.
-	$: isDefault = DEFAULT_MESSAGES.has(rawMessage) || /^Error: \d+$/.test(rawMessage);
-	$: detail = rawMessage && !isDefault && (status < 500 || dev) ? rawMessage : '';
+	// Los mensajes de SvelteKit (en inglés) no se muestran; los 5xx, solo en desarrollo.
+	$: detail = errorDetail({ status, message: $page.error?.message, dev });
 	$: loginHref = `/login?redirectTo=${encodeURIComponent($page.url.pathname + $page.url.search)}`;
 
 	let canGoBack = false;
@@ -98,10 +89,20 @@
 				</button>
 			{/if}
 			<a class="btn" href="/" on:click={back}>Volver</a>
-			<a class="btn" href="/">Ir al inicio</a>
+			{#if status === 404}
+				<a class="btn" href="/calendario">Ver calendario</a>
+				<button class="btn" type="button" on:click={() => searchOpen.set(true)}>
+					<Search size="1em" strokeWidth={2.5} aria-hidden="true" />
+					Buscar
+				</button>
+			{:else}
+				<a class="btn" href="/">Ir al inicio</a>
+			{/if}
 		</div>
 	</section>
 </main>
+
+<SearchLauncher />
 
 <style>
 	.error-page {
@@ -173,6 +174,7 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		gap: var(--space-3xs);
 		min-height: 2.75rem;
 		padding: 0.5em 1.3em;
 		border-radius: 3em;
