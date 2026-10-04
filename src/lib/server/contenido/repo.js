@@ -770,7 +770,7 @@ export function dbPostsOnlyClient(client) {
 
 		/**
 		 * @param {string} token
-		 * @param {{ files: Array<{ path: string }> } & Record<string, any>} opts
+		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string } & Record<string, any>} opts
 		 */
 		async commitFiles(token, opts) {
 			const outside = opts.files.find((f) => !postOfPath(f.path));
