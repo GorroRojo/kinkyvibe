@@ -168,10 +168,10 @@
 					: ''}. ¿Lo recuperás?
 			</p>
 			<div class="btns">
-				<button type="button" class="btn" id="draft-recover" on:click={recoverStale}
+				<button type="button" class="kv-btn" id="draft-recover" on:click={recoverStale}
 					>Recuperar</button
 				>
-				<button type="button" class="btn ghost" id="draft-discard" on:click={discard}
+				<button type="button" class="kv-btn ghost" id="draft-discard" on:click={discard}
 					>Descartar</button
 				>
 			</div>
@@ -182,8 +182,8 @@
 				{#if notice.parts?.length}Tu borrador cambia: {notice.parts.join(', ')}.{/if}
 			</p>
 			<div class="btns">
-				<button type="button" class="btn" on:click={recoverStale}>Recuperarlos igual</button>
-				<button type="button" class="btn ghost" on:click={discard}>Descartarlos</button>
+				<button type="button" class="kv-btn" on:click={recoverStale}>Recuperarlos igual</button>
+				<button type="button" class="kv-btn ghost" on:click={discard}>Descartarlos</button>
 			</div>
 		{/if}
 	</div>
@@ -191,7 +191,7 @@
 
 <dialog
 	bind:this={dialog}
-	class="confirm"
+	class="kv-dialog"
 	aria-labelledby="kv-unsaved-title"
 	on:cancel={() => (pending = null)}
 >
@@ -200,10 +200,10 @@
 		Si salís ahora no se publican. Los dejamos guardados en este navegador y los recuperamos cuando
 		vuelvas a editar.
 	</p>
-	<div class="btns">
+	<div class="kv-dialog-btns">
 		<!-- svelte-ignore a11y-autofocus -->
-		<button type="button" class="btn" autofocus on:click={stay}>Seguir editando</button>
-		<button type="button" class="btn ghost" on:click={leave}>Salir igual</button>
+		<button type="button" class="kv-btn" autofocus on:click={stay}>Seguir editando</button>
+		<button type="button" class="kv-btn ghost" on:click={leave}>Salir igual</button>
 	</div>
 </dialog>
 
@@ -230,42 +230,5 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2xs);
-	}
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		border: 0;
-		border-radius: 3em;
-		padding: 0.5em 1.1em;
-		font: inherit;
-		font-weight: 700;
-		cursor: pointer;
-		background: var(--accent, hsl(319, 90%, 60%));
-		color: var(--accent-ink, white);
-	}
-	.btn.ghost {
-		background: transparent;
-		color: var(--accent, hsl(319, 90%, 60%));
-		box-shadow: inset 0 0 0 2px var(--accent, hsl(319, 90%, 60%));
-	}
-	.confirm {
-		border: 0;
-		border-radius: var(--card-round, 1rem);
-		background: var(--surface, white);
-		color: var(--text, #333);
-		box-shadow: var(--shadow, 0 0.1em 0.3em rgba(0, 0, 0, 0.1));
-		padding: var(--space-s) var(--space-s);
-		width: min(26rem, calc(100vw - 32px));
-	}
-	.confirm::backdrop {
-		background: var(--scrim, rgba(0, 0, 0, 0.4));
-		backdrop-filter: blur(3px);
-	}
-	.confirm h2 {
-		margin: 0 0 0.4rem;
-		font-size: var(--text-base);
-	}
-	.confirm p {
-		margin: 0 0 1rem;
 	}
 </style>

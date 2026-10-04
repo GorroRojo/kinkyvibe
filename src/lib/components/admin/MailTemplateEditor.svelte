@@ -11,6 +11,7 @@
 	 *
 	 * Las acciones del formulario (`?/save`, `?/reset`, `?/test`) las pone la página.
 	 */
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
@@ -259,8 +260,15 @@
 					type="submit"
 					formaction="?/reset"
 					formnovalidate
-					on:click={(e) => {
-						if (!confirm(resetConfirm)) e.preventDefault();
+					on:click={async (e) => {
+						const button = e.currentTarget;
+						e.preventDefault();
+						const ok = await askConfirm({
+							title: resetConfirm,
+							confirmLabel: resetLabel,
+							tone: 'danger'
+						});
+						if (ok) button.form?.requestSubmit(button);
 					}}
 				>
 					<RotateCcw size={16} aria-hidden="true" />

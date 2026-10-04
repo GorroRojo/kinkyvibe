@@ -134,9 +134,10 @@
 		box-sizing: border-box;
 		padding: 0 0.9em;
 	}
+	/* «Estás acá»: violeta sobre lila. */
 	.section-index a[aria-current='true'] {
-		background: var(--accent, hsl(319, 90%, 60%));
-		color: var(--accent-ink, white);
+		background: var(--link-bg, var(--2-tint));
+		color: var(--link, var(--2-dark));
 		font-weight: 700;
 	}
 	.section-index a:focus-visible {

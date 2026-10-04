@@ -400,13 +400,11 @@
 		font: inherit;
 		padding: 0.55em 0.7em;
 		border-radius: var(--radius-s);
-		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
-		min-height: 2.8em;
+		border: 1px solid var(--field);
+		background: var(--surface);
+		/* campo grande (~54px): solo en el flujo de compra (docs/estilo.md, «Piezas») */
+		min-height: 3.375rem;
 		min-width: 0;
-	}
-	input:focus-visible {
-		outline: 3px solid var(--2-light);
 	}
 
 	/* Cantidad: "Cantidad  [− n +]" en una línea, un stepper compacto. Los botones miden 44 × 44

@@ -32,6 +32,7 @@
 	import logo from '../../logo.png';
 	import { logoutHref as logoutLink } from '$lib/utils/authLinks.js';
 	import SearchBox from '$lib/components/admin/panel/SearchBox.svelte';
+	import ConfirmDialog from '$lib/components/admin/panel/ConfirmDialog.svelte';
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
 	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
@@ -228,6 +229,7 @@
 <svelte:window on:keydown={onKey} />
 
 <div class="kv-panel">
+	<ConfirmDialog />
 	{#if bare}
 		<slot />
 	{:else}
@@ -432,7 +434,7 @@
 								aria-hidden="true"
 							/>{THEME_LABELS[theme].label}</button
 						>
-						<a class="kv-btn violet small" href="/" target="_blank" rel="noopener"
+						<a class="kv-btn small" href="/" target="_blank" rel="noopener"
 							>Ver el sitio<ExternalLink size={16} aria-hidden="true" /></a
 						>
 						<a class="kv-btn ghost small" href={logoutHref} data-sveltekit-reload

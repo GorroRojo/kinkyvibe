@@ -273,8 +273,11 @@ test('link de la transmisión: se guarda en el admin y "Enviar el link a todes" 
 	const pending = Number((await send.innerText()).match(/\((\d+)/)?.[1]);
 	expect(pending).toBeGreaterThanOrEqual(1);
 	await shots(page, '12-gorra-admin-link', section);
-	page.once('dialog', (d) => d.accept());
+	// Pregunta con el diálogo de la página (ConfirmDialog), no con window.confirm.
 	await send.click();
+	const ask = page.getByRole('dialog', { name: /¿Mandar el link por mail a/ });
+	await expect(ask).toBeVisible();
+	await ask.getByRole('button', { name: 'Mandar' }).click();
 	await expect(section.getByText(new RegExp(`Link enviado a ${pending} persona`))).toBeVisible();
 	await expect(
 		section.getByRole('button', { name: '✓ Todes ya recibieron este link' })

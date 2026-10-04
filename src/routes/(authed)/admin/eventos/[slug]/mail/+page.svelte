@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { FlaskConical, Mail, Send } from '@lucide/svelte';
@@ -56,7 +57,14 @@
 	}
 
 	async function send() {
-		if (!locked && !confirm(`¿Mandar este aviso por mail a ${people(data.audience)}?`)) return;
+		if (
+			!locked &&
+			!(await askConfirm({
+				title: `¿Mandar este aviso por mail a ${people(data.audience)}?`,
+				confirmLabel: 'Mandar'
+			}))
+		)
+			return;
 		sending = true;
 		try {
 			// Tandas hasta que no quede nadie; si una tanda no logra mandar ninguno, se frena (se

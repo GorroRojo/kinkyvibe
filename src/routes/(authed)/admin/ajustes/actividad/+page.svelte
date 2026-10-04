@@ -6,7 +6,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import RecoverableDeletions from '$lib/components/admin/panel/RecoverableDeletions.svelte';
-	import { ChevronRight, ChevronsLeft, Filter, X } from '@lucide/svelte';
+	import { ChevronRight, ChevronsLeft, Filter, ScrollText, Unplug, X } from '@lucide/svelte';
 
 	export let data;
 	/** @type {any} */
@@ -113,13 +113,13 @@
 	<Card padded={false}>
 		{#if !data.dbAvailable}
 			<EmptyState
-				emoji="🔌"
+				icon={Unplug}
 				title="Sin base de datos"
 				text="El registro de actividad vive en la base de datos, que no está disponible en este entorno."
 			/>
 		{:else if !data.entries.length}
 			<EmptyState
-				emoji="📜"
+				icon={ScrollText}
 				title={filtered ? 'Nada con esos filtros' : 'Todavía no hay actividad'}
 				text={filtered
 					? 'Probá con otros filtros o limpialos.'

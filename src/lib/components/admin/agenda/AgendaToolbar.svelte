@@ -32,12 +32,10 @@
 		</div>
 	{/if}
 	<slot name="filters" />
-	<div class="views" role="group" aria-label="Vista">
+	<div class="kv-segmented" role="group" aria-label="Vista">
 		{#each CALENDAR_VIEWS as v (v.id)}
-			<button
-				class:on={view === v.id}
-				aria-pressed={view === v.id}
-				on:click={() => dispatch('view', v.id)}>{v.label}</button
+			<button type="button" aria-pressed={view === v.id} on:click={() => dispatch('view', v.id)}
+				>{v.label}</button
 			>
 		{/each}
 	</div>
@@ -83,32 +81,7 @@
 	.icon:hover {
 		background: var(--surface-2);
 	}
-	.views {
-		display: inline-flex;
-		background: var(--surface-2);
-		border: 1px solid var(--line);
-		border-radius: 2rem;
-		padding: 0.2rem;
-	}
-	.views button {
-		border: 0;
-		background: transparent;
-		color: var(--text);
-		border-radius: 2rem;
-		padding: 0.4rem var(--space-xs);
-		min-height: 2.2rem;
-		cursor: pointer;
-		font: inherit;
-		font-size: var(--text-sm);
-	}
-	.views button.on {
-		background: var(--surface);
-		color: var(--link);
-		font-weight: 700;
-		box-shadow: var(--shadow-1);
-	}
-	.icon:focus-visible,
-	.views button:focus-visible {
+	.icon:focus-visible {
 		outline: 2px solid var(--link);
 		outline-offset: 1px;
 	}

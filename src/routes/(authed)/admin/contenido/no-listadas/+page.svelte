@@ -4,7 +4,7 @@
 	 * tarjetas del sitio, que traen «Comprar entradas»). Cada fila lleva a su editor del panel y a
 	 * la página pública.
 	 */
-	import { ExternalLink, Pencil } from '@lucide/svelte';
+	import { ExternalLink, EyeOff, Pencil } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -79,7 +79,7 @@
 		</ul>
 	</Card>
 {:else}
-	<EmptyState emoji="🙈" title="No hay publicaciones no listadas" />
+	<EmptyState icon={EyeOff} title="No hay publicaciones no listadas" />
 {/if}
 
 <style>
