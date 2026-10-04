@@ -207,46 +207,22 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
   `look="search"` y `searchTagOptions`, como en Lo que sigo): sugiere entradas por nombre, nombre
   visible o alias y al elegir una lleva a `/wiki/<etiqueta>`; lo escrito sigue filtrando el árbol
   como antes. Arriba, un índice de secciones con anclas (`src/lib/utils/wikiIndex.js`).
-- **Series hijas** (una por año, o una edición especial): una serie puede estar dentro de otra
-  («Picantearla: Deluxe» dentro de «Picantearla»; «Cuirdas Sudacas 2026» dentro de «Cuirdas
-  Sudacas»). Sus eventos llevan **las dos** etiquetas: la de la hija y la de la madre, así la página
-  de la madre sigue con todas las ediciones. En Eventos → Series: «Crear serie» pregunta «¿Va
-  dentro de otra serie?» y cada serie de arriba tiene **«Serie por año»** (precarga «<serie>
-  <año>», la madre y su ícono). Lo arma `seriesCreateOps` con `parent` (solo una serie que existe).
+- **Series hijas** (una edición especial): una serie puede estar dentro de otra («Picantearla:
+  Deluxe» dentro de «Picantearla»). Sus eventos llevan **las dos** etiquetas: la de la hija y la de
+  la madre, así la página de la madre sigue con todas las ediciones. En Eventos → Series: «Crear
+  serie» pregunta «¿Va dentro de otra serie?». Lo arma `seriesCreateOps` con `parent` (solo una
+  serie que existe). El botón «Serie por año» se sacó (gorrite, 4/10): Cuirdas Sudacas va a ser un
+  taller en partes por año ([talleres-partes.md](talleres-partes.md)), en el corte, no como series
+  hijas.
 - Todo lo de series lee el árbol en uso (la base), también «¿Es parte de una serie?» al
   duplicar un evento, el ingreso y el link de baja de los avisos (paso 5). Los crons de avisos
   (series y «Lo que sigo») leen las etiquetas de la base ellos mismos (`siteTagManager`), sin
   depender del árbol que dejó el último pedido en el isolate.
 
-## Series hijas: una por año (Cuirdas Sudacas)
-
-Hoy las ediciones de Cuirdas Sudacas son 16 eventos (`src/lib/posts/calendario/cuirdas-sudacas-*`):
-4 de junio de 2025 (`-2025-06-dia-1` a `-dia-4`) y 12 de julio de 2026 (`-2026-07-*`), todos con la
-etiqueta «Cuirdas Sudacas» (hija de «evento recurrente», con 🪢 y su imagen). La idea es una serie
-por año dentro de «Cuirdas Sudacas».
-
-**En el preview**: `scripts/demo/cuirdas-por-anio.sql` (NUNCA en producción) crea «Cuirdas Sudacas
-2025» y «Cuirdas Sudacas 2026» en la base y etiqueta las ediciones que estén en la base. Necesita
-las etiquetas y los eventos importados en la base. Los comandos
-están en el encabezado del archivo; su prueba es `scripts/demo/cuirdas-por-anio.test.js`.
-
-**En producción (lo hace gorrite, desde el panel; nada de SQL a mano)**:
-
-1. Eventos → Series → «Cuirdas Sudacas» → **«Serie por año»**. Queda «Cuirdas Sudacas 2026» (con
-   la madre y el ícono ya elegidos); cambiá el año a 2025 si querés empezar por esa. «Crear serie».
-   Repetí para el otro año. Queda en la base al momento.
-2. Sumale la etiqueta del año a cada edición, **sin sacar** «Cuirdas Sudacas»: en la ficha de cada
-   evento → Editar → Etiquetas («Cuirdas Sudacas 2025» a los 4 días de 2025, «Cuirdas Sudacas
-   2026» a los 12 talleres de 2026). Cada guardado queda en la base al momento.
-3. Revisá `/wiki` (sección Series: Cuirdas Sudacas con sus dos años adentro) y
-   `/wiki/Cuirdas-Sudacas-2026` (sus ediciones).
-4. Para los años que vengan: «Serie por año» antes de cargar la primera edición, y cargar cada
-   edición con las dos etiquetas.
-
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/objects/types src/lib/server/etiquetas src/routes/\(authed\)/admin/eventos/series scripts/demo/cuirdas-por-anio.test.js
+npx vitest run src/lib/server/objects/types src/lib/server/etiquetas src/routes/\(authed\)/admin/eventos/series
 npm run db:migrate:local && npm run tags:import -- --dry
 ```
 

@@ -4,7 +4,7 @@
  * la base: acá solo se cuentan. Las ediciones se bajan en CSV (ediciones.csv).
  *
  * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente» o, con `parent`,
- * de otra serie (serie hija: una por año, como «Cuirdas Sudacas 2026»), con ícono, imagen (de
+ * de otra serie (serie hija: una edición especial, como «Picantearla: Deluxe»), con ícono, imagen (de
  * src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
  * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
@@ -33,8 +33,7 @@ import {
 	saveDbTagEdit
 } from '$lib/server/etiquetas/panel.js';
 
-const NO_PERMISSION =
-	'No tenés permiso para editar etiquetas. Probá salir y volver a entrar.';
+const NO_PERMISSION = 'No tenés permiso para editar etiquetas. Probá salir y volver a entrar.';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -71,7 +70,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 		series: series.map((s) => ({
 			id: s.id,
 			name: s.name,
-			// La serie madre, si es una serie hija (una por año, una edición especial).
+			// La serie madre, si es una serie hija (una edición especial).
 			parent: seriesParentOf(tags, s.id, ids),
 			icon: s.icon,
 			href: s.href,

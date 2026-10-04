@@ -10,7 +10,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import { CalendarPlus, Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
+	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -40,17 +40,11 @@
 
 	let creating = false;
 	/**
-	 * Lo que se precarga en «Crear serie» (con «Serie por año»: el nombre con el año, la madre y su
-	 * ícono). Vacío = el formulario en blanco.
+	 * Lo que se precarga en «Crear serie». Vacío = el formulario en blanco (se renueva cada vez que
+	 * se abre).
 	 * @type {Record<string, string>}
 	 */
 	let prefill = {};
-	/** @param {{ id: string, icon: string }} s */
-	function createYearly(s) {
-		prefill = { name: `${s.id} ${new Date().getFullYear()}`, parent: s.id, icon: s.icon ?? '' };
-		creating = true;
-		requestAnimationFrame(() => document.getElementById('crear-name')?.focus());
-	}
 	/** Las series que pueden ser madre (las de arriba: dos niveles alcanzan). */
 	$: parents = data.series
 		.filter((/** @type {any} */ s) => !s.parent)
@@ -209,15 +203,6 @@
 						</p>
 					</div>
 					<div class="kv-row">
-						{#if data.canCreate && !s.parent}
-							<button
-								type="button"
-								class="kv-btn ghost small"
-								title="Crear una serie hija para un año (por ejemplo «{s.id} {new Date().getFullYear()}»)"
-								on:click={() => createYearly(s)}
-								><CalendarPlus size={16} aria-hidden="true" /> Serie por año</button
-							>
-						{/if}
 						{#if data.canCreate}
 							<button
 								type="button"

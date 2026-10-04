@@ -19,8 +19,7 @@ const clean = (s) =>
 
 /**
  * Las operaciones del editor de etiquetas para crear una serie: hija de «evento recurrente» o, con
- * `parent`, de otra serie (una serie hija: una por año, como «Cuirdas Sudacas 2026», o una edición
- * especial, como «Picantearla: Deluxe»). Sus eventos llevan las dos etiquetas: la de la serie hija
+ * `parent`, de otra serie (una serie hija: una edición especial, como «Picantearla: Deluxe»). Sus eventos llevan las dos etiquetas: la de la serie hija
  * y la de la madre (así la página de la madre sigue mostrando todas las ediciones).
  *
  * @param {{ name: unknown, image?: unknown, description?: unknown, icon?: unknown, parent?: unknown }} input
