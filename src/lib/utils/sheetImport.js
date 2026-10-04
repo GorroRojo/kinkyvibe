@@ -557,12 +557,16 @@ export function composeSchedule(date, startTime, endTime) {
 
 /**
  * The sign-up link of a "Link Inscripción" cell: a web address (also a bare forms.gle/…), a
- * `mailto:` or a bare email address (→ `mailto:`). Anything else (or a link with another scheme),
- * ''. The result follows the site-wide rule of eventLink.js.
+ * `mailto:`, a bare email address (→ `mailto:`), a `tel:` or a page of the site (a cell that is
+ * just a path, "/calendario/…"). Anything else (or a link with another scheme), ''. The result
+ * follows the site-wide rule of eventLink.js.
  * @param {string} text
  */
 export function cleanLink(text) {
 	const t = String(text ?? '').trim();
+	if (/^\/[^/\s]\S*$/.test(t)) return eventLinkProblem(t) === null ? t : '';
+	const tel = t.match(/\btel:\+?\d[\d-]{5,}\d\b/i);
+	if (tel && !/https?:\/\//i.test(t)) return 'tel:' + tel[0].slice(4);
 	const m = t.match(
 		/(https?:\/\/\S+)|\b((?:forms\.gle|bit\.ly|docs\.google\.com|linktr\.ee)\/\S+)|\b(mailto:\S+)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i
 	);
@@ -570,6 +574,16 @@ export function cleanLink(text) {
 	const link =
 		m[1] ?? (m[2] ? 'https://' + m[2] : m[3] ? 'mailto:' + m[3].slice(7) : 'mailto:' + m[4]);
 	return eventLinkProblem(link) === null ? link : '';
+}
+
+/**
+ * The sign-up link as typed in the review screen: a bare email address becomes a `mailto:` link
+ * (like a "Link Inscripción" cell, see {@link cleanLink}); anything else, as is (trimmed).
+ * @param {string} link
+ */
+export function normalizeLink(link) {
+	const t = String(link ?? '').trim();
+	return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(t) ? `mailto:${t}` : t;
 }
 
 /**
