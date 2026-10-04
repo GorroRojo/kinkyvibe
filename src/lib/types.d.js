@@ -94,7 +94,10 @@
  * 		link?: URL
  * 		link_text?: string
  * 		borrador?: boolean
+ * 		parte?: { n: number, m: number }
  * }} CalendarioPostData */
+// `parte`: «Parte N de M» de un taller en varias partes (lo agrega el calendario,
+// docs/talleres-partes.md); no viene del evento.
 // `borrador: true`: un borrador del panel (importación de la planilla o carga rápida de la agenda),
 // no listado hasta que alguien lo confirma (ver src/lib/server/eventos/drafts.js).
 /** @typedef {PostData & {

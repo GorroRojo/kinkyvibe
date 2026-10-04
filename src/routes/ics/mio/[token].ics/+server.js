@@ -16,12 +16,10 @@ import { accountForFeed } from '$lib/server/series/feeds.js';
 import { calendarSlugs } from '$lib/server/sigo/calendar.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { requireSeries } from '$lib/server/series/web.js';
 import { feedVenues } from '$lib/server/amigues/venues.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform }) {
-	await requireSeries(platform);
 	if (!(await cuentasEnabled(platform))) error(404, 'Not found');
 	const db = getDB(platform);
 	if (!db) error(503, 'No disponible en este momento.');

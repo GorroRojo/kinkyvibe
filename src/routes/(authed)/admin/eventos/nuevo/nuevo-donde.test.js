@@ -52,10 +52,9 @@ const eventMd = (title, start) =>
 
 const SOURCE_MD = eventMd('Fiesta de Prueba (3ª Edición)', '2026-08-10T21:00-03:00');
 
-/** @param {string} flag */
-async function page(flag = '1') {
+async function page() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	/** @type {any[]} */
 	const commits = [];
 	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
@@ -102,7 +101,7 @@ const withMap = (map) =>
 
 describe('«Dónde» con link al mapa', () => {
 	it('un link https de OpenStreetMap se guarda tal cual', async () => {
-		const { mod, commits } = await page('0');
+		const { mod, commits } = await page();
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(
 				publish({ content: withMap('https://www.openstreetmap.org/node/1') })
@@ -115,7 +114,7 @@ describe('«Dónde» con link al mapa', () => {
 	});
 
 	it('un link que no es de un mapa (o no es https) no se guarda', async () => {
-		const { mod, commits } = await page('0');
+		const { mod, commits } = await page();
 		for (const map of ['http://www.openstreetmap.org/node/1', 'https://ejemplo.com/mapa']) {
 			const res = /** @type {any} */ (
 				await mod.actions.publicar(publish({ content: withMap(map) }))
@@ -136,7 +135,7 @@ const withLink = (link) =>
 
 describe('link de inscripción', () => {
 	it('un mail (mailto:) se guarda tal cual', async () => {
-		const { mod, commits } = await page('0');
+		const { mod, commits } = await page();
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(publish({ content: withLink('link: mailto:hola@ejemplo.test') }))
 		);
@@ -147,7 +146,7 @@ describe('link de inscripción', () => {
 	});
 
 	it('javascript: (u otro esquema) no se guarda', async () => {
-		const { mod, commits } = await page('0');
+		const { mod, commits } = await page();
 		for (const link of ["link: 'javascript:alert(1)'", "link: 'data:text/html,x'"]) {
 			const res = /** @type {any} */ (
 				await mod.actions.publicar(publish({ content: withLink(link) }))

@@ -11,6 +11,7 @@ import { listRoles } from '../personas/roles.js';
 import { resolvePersonas } from '../personas/index.js';
 import { publicVenueForEvent } from '../amigues/venues.js';
 import { ANON } from '../objects/index.js';
+import { makeEvent } from '../amigues/testing.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES } from './seedProfiles.js';
 import {
 	N3_CUSTOM_ROLE,
@@ -489,8 +490,19 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 				updated_by: 'GorroRojo'
 			})
 		]);
+		// Since migration 0035 «sucede en» is the event's `lugar` edge, so a venue can only be
+		// linked to an event that is in the database (in the demo, imported from Contenido → En la
+		// base). Put the next date of each venue's series there, as that import would.
+		const plan = buildData({ today: todayInArgentina(day1), now: day1 });
+		for (const v of DEMO_VENUES) {
+			const next = plan.events
+				.filter((e) => e.series === v.event && e.offset >= 0 && !e.draft)
+				.sort((a, b) => a.offset - b.offset)[0];
+			expect(await makeEvent(t.db, next.slug, { title: next.title })).not.toBeNull();
+		}
 		const r = await reloadDemoData(t.db, { now: day1 });
 		expect(r.skipped).toEqual([]);
+		expect(r.venuesLinked).toBe(DEMO_VENUES.length);
 		const again = await snapshot();
 		await reloadDemoData(t.db, { now: day1 });
 		expect(await snapshot()).toEqual(again);
@@ -537,12 +549,18 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		);
 
 		// Venues: one per privacy level, each on a demo event; the hidden one shows nothing.
-		expect(await count(`event_venues WHERE created_by = '${SEED_BY}'`)).toBe(DEMO_VENUES.length);
+		expect(
+			await count(`edges WHERE kind = 'lugar' AND created_by = '${SEED_BY}'
+				AND to_id IN (SELECT id FROM objects WHERE slug IN (${DEMO_VENUES.map((v) => `'${v.slug}'`).join(', ')}))`)
+		).toBe(DEMO_VENUES.length);
 		const hidden = /** @type {any} */ (
 			await t.db
 				.prepare(
-					`SELECT ev.event_slug FROM event_venues ev JOIN objects o ON o.id = ev.venue_id
-					WHERE o.slug = 'refugio-demo-oculto'`
+					`SELECT coalesce(cs.legacy_slug, ev.slug) AS event_slug FROM edges e
+					JOIN objects ev ON ev.id = e.from_id
+					LEFT JOIN content_sources cs ON cs.object_id = ev.id AND cs.category = 'calendario'
+					JOIN objects o ON o.id = e.to_id
+					WHERE e.kind = 'lugar' AND o.slug = 'refugio-demo-oculto'`
 				)
 				.first()
 		);

@@ -1,8 +1,8 @@
 /**
  * «Lugar» en el formulario de eventos (crear y editar; pedido de gorrite: elegir el lugar desde el
  * evento, no solo desde Eventos → Lugares). El vínculo es el edge `lugar` del evento en la base
- * (ver docs/amigues.md y ./venues.js), se guarde el texto del evento en GitHub o en la base
- * (`contenido_db`): el .md no cambia por elegir un lugar. El evento tiene que estar en la base.
+ * (ver docs/amigues.md y ./venues.js), no un campo del evento: su texto no cambia por elegir un
+ * lugar. El evento tiene que estar en la base.
  *
  * - {@link venuePickerData}: los lugares para el buscador y lo elegido ahora.
  * - {@link checkVenueChoice}: antes de guardar el evento (si el lugar no existe, no se guarda nada).

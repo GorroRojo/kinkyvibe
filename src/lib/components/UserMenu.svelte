@@ -98,7 +98,7 @@
 	}
 	.profile-pic {
 		display: block;
-		border-radius: 9999em;
+		border-radius: var(--radius-pill);
 		object-fit: cover;
 		max-height: 1.5em;
 		width: auto;

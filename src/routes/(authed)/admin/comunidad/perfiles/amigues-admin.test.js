@@ -15,11 +15,11 @@ import { getManagedProfile } from '$lib/server/cuentas/perfiles.js';
 import {
 	addManager,
 	makeAccount,
-	makeEvent,
 	makeProfile,
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
 import { rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { deleteProfileAsAdmin } from '$lib/server/admin/cuentas.js';
 import { toCsv } from '$lib/admin/csv.js';
 import {
@@ -311,6 +311,8 @@ describe('editor de la base', () => {
 describe('Eventos → Lugares', () => {
 	it('vincula un evento a un lugar con su privacidad, avisa si el .md tiene dirección, y lo saca', async () => {
 		const m = await modules('0');
+		// El evento sale de la base.
+		await seedPosts(t.db, fake.posts);
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const bad = /** @type {any} */ (
 			await m.lugares.actions.vincular(
@@ -318,15 +320,8 @@ describe('Eventos → Lugares', () => {
 			)
 		);
 		expect(bad.status).toBe(400);
-		// «Sucede en» es un edge del evento: un evento que todavía no está en la base no se vincula.
-		const notInDb = /** @type {any} */ (
-			await m.lugares.actions.vincular(
-				fakeEvent({ form: { evento: 'fiesta-inventada', lugar: String(v.id) } })
-			)
-		);
-		expect(notInDb.status).toBe(400);
-		expect(notInDb.data.link.message).toMatch(/todavía no está en la base/);
-		await makeEvent(t.db, 'fiesta-inventada');
+		// «Sucede en» es un edge del evento: los eventos que se pueden elegir ya están en la base (un
+		// evento que no está, como `no-existe`, no se vincula).
 		const ok = /** @type {any} */ (
 			await m.lugares.actions.vincular(
 				fakeEvent({

@@ -90,10 +90,10 @@
 		align-items: center;
 		gap: 0.5em;
 		padding: 0.35em 0.6em;
-		border-radius: 0.5em;
+		border-radius: var(--radius-s);
 		background: var(--2-dark);
 		color: white;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: bold;
 		white-space: nowrap;
 		opacity: 0;

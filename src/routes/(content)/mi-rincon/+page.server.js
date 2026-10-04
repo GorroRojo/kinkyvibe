@@ -28,7 +28,6 @@ import {
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
 import {
@@ -92,9 +91,6 @@ export async function load(event) {
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
 		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `series`: link a Mi rincón → Calendario (lo tuyo en .ics y avisos de series),
-		// solo sin «Lo que sigo».
-		seriesOn: await seriesEnabled(event.platform),
 		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
 		// calendario personal (docs/lo-que-sigo.md).
 		sigoOn: await sigoEnabled(event.platform),

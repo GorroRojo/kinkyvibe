@@ -8,4 +8,9 @@ describe('undoneMessage', () => {
 			'Listo: «Guía inventada» vuelve a estar. Se publica en unos minutos.'
 		);
 	});
+	it('a profile that lives only in the database is back right away (nothing to publish)', () => {
+		expect(undoneMessage({ mode: 'restored', title: 'Perfil inventado', immediate: true })).toBe(
+			'Listo: «Perfil inventado» vuelve a estar.'
+		);
+	});
 });

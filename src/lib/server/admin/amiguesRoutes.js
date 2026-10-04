@@ -11,6 +11,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { logAdminAction } from './audit.js';
+import { deleteBackend } from './deletions.js';
 import {
 	confirmKind,
 	createProfileFromPanel,
@@ -90,7 +91,9 @@ export async function editorPageData(platform, urlSlug) {
 		values: profileFormValues(object),
 		approval,
 		source,
-		kinds: EDITOR_KINDS
+		kinds: EDITOR_KINDS,
+		// Sin .md en el repo: se borra (y se deshace) en la base, desde /admin/borrar.
+		dbOnly: deleteBackend('amigues', { legacySlug }) === 'objects'
 	};
 }
 

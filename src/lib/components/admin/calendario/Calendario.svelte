@@ -263,7 +263,7 @@
 
 <style>
 	.loading {
-		padding: 3rem 0;
+		padding: var(--space-xl) 0;
 		text-align: center;
 	}
 	/* La librería con los colores del panel (claro y oscuro salen de los tokens de panel.scss). */
@@ -284,7 +284,7 @@
 		--ec-event-text-color: var(--text);
 		--ec-bg-event-color: var(--surface-2);
 		color-scheme: inherit;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		border-radius: var(--card-round);
 		background: var(--surface);
 	}
@@ -342,7 +342,7 @@
 		flex: none;
 		margin-left: auto;
 		padding: 0 0.4em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		border: 1px solid var(--warn);
 		color: var(--text);
 		background: var(--surface);
@@ -356,7 +356,7 @@
 		flex: none;
 		margin-left: auto;
 		padding: 0 0.4em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: var(--warn);
 		color: var(--surface);
 		font-size: 0.75em;
@@ -367,7 +367,7 @@
 	/* Nota de un día: su color (variables en `styles`, ver dayNotes.js), en cursiva y sin hora. */
 	.calendario :global(.ec-event.kv-nota) {
 		font-style: italic;
-		font-weight: 600;
+		font-weight: 700;
 		cursor: pointer;
 	}
 	.calendario :global(.ec-list .ec-event.kv-nota) {
@@ -430,7 +430,7 @@
 			display: none;
 		}
 		.calendario :global(.ec-day-grid.ec-month-view .ec-event) {
-			font-size: 0.75rem;
+			font-size: var(--text-xs);
 		}
 	}
 </style>

@@ -1,10 +1,10 @@
 /**
- * Lo que comparten las páginas del panel que editan etiquetas (Etiquetas, Eventos → Series) con
- * el interruptor `etiquetas_db`: si se edita la base o el archivo, y guardar en la base.
- * Con el interruptor apagado (o la base sin etiquetas), cada página sigue con su commit al archivo.
+ * Lo que comparten las páginas del panel que editan etiquetas (Etiquetas, Eventos → Series, el
+ * evento nuevo con serie nueva): las etiquetas se guardan siempre en la base (el interruptor
+ * `etiquetas_db` quedó prendido para siempre; ya no hay commits al archivo de etiquetas). Si la
+ * base todavía no tiene etiquetas, hay que importarlas primero ({@link NEEDS_IMPORT}).
  */
 import { getDB } from '$lib/server/db';
-import { etiquetasDbEnabled } from '$lib/server/flags.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { commitTagEdit, previewOf } from '$lib/server/admin/tagEditor.js';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
@@ -22,6 +22,11 @@ import { clearTagSourceCache } from './source.js';
  * @typedef {{ client: import('$lib/server/admin/tagEditor.js').TagClient, token: string, who: string } | null} RepoAccess
  */
 
+/** La base todavía no tiene etiquetas (o no se puede leer): no hay dónde guardar. */
+export const NEEDS_IMPORT =
+	'Las etiquetas todavía no están en la base: importalas primero en Etiquetas → «Importar a la ' +
+	'base» (/admin/etiquetas/importar).';
+
 /** Renombrar sin alias sin poder hacer commits. */
 export const NEEDS_REPO =
 	'Para renombrar también en las publicaciones hace falta poder guardar en GitHub (entrá con tu ' +
@@ -31,8 +36,9 @@ export const NEEDS_REPO =
 const describe = (e) => (e instanceof Error ? e.message : String(e));
 
 /**
- * Interruptor prendido y la base con etiquetas: las etiquetas de la base (TODAS, también las
- * ocultas, que el editor no tiene que borrar). Si no, `null`: se edita el archivo.
+ * Las etiquetas de la base (TODAS, también las ocultas, que el editor no tiene que borrar), o
+ * `null` si no hay base, no tiene etiquetas o no se puede leer (entonces no se puede editar:
+ * {@link NEEDS_IMPORT}).
  *
  * @param {App.Platform | undefined} platform
  * @param {string} login
@@ -40,12 +46,12 @@ const describe = (e) => (e instanceof Error ? e.message : String(e));
  */
 export async function dbTagsForAdmin(platform, login) {
 	const db = getDB(platform);
-	if (!db || !(await etiquetasDbEnabled(platform))) return null;
+	if (!db) return null;
 	try {
 		const records = await loadTagRecords(db, { role: 'admin', id: login });
 		return records.length ? { db, records } : null;
 	} catch {
-		return null; // sin la migración 0029: el archivo
+		return null; // sin la migración 0029
 	}
 }
 

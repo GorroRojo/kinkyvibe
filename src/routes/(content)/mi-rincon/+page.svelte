@@ -89,7 +89,7 @@
 			</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
 		</section>
-	{:else if data.seriesOn}
+	{:else}
 		<section class="surface-card" aria-labelledby="calendario-title">
 			<h2 id="calendario-title">Tu calendario</h2>
 			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>
@@ -413,7 +413,7 @@
 		width: 100%;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='text'],
 	input[type='password'] {
@@ -456,7 +456,7 @@
 		border-bottom: 1px solid var(--line);
 	}
 	.saved dt {
-		font-weight: 600;
+		font-weight: 700;
 		min-width: 6.5em;
 	}
 	.saved dd {
@@ -492,7 +492,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: var(--tap);
 		display: flex;
 		align-items: center;

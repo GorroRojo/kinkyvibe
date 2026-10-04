@@ -1,8 +1,12 @@
 /**
- * Guardar eventos en la base desde el panel (interruptor `contenido_db`): el cliente del repo
- * envuelto lee y guarda los eventos de la base, con versión nueva y historial en cada guardado,
- * aviso si alguien guardó en el medio, y deja todo lo demás (imágenes, .md que la base no tiene)
- * para el repo. Eventos inventados (fixtures/calendario) en un D1 de miniflare; el repo es de
+ * Guardar eventos en la base desde el panel: el cliente del repo envuelto lee y guarda los eventos
+ * SOLO en la base (nunca un .md de evento en el repo), con versión nueva y historial en cada
+ * guardado, aviso si alguien guardó en el medio, y deja lo demás (imágenes) para el repo. Cada
+ * entrada del panel (editor, cargar, importar la planilla, agenda, borradores, borrar, etiquetas)
+ * guarda en la base sin commits.
+ *
+ * (Las pruebas «con el interruptor apagado» se sacaron con el interruptor `contenido_db`: el modo
+ * «.md» ya no existe. No es aflojar las pruebas: es sacar un modo.) Eventos inventados (fixtures/calendario) en un D1 de miniflare; el repo es de
  * mentira (en memoria).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -87,14 +91,12 @@ beforeEach(async () => {
 	await runImport(t.db, 'calendario', files, { actor: 'importacion', now: Date.now() });
 });
 afterEach(() => {
-	vi.doUnmock('$env/dynamic/private');
 	vi.resetModules();
 });
 
-/** El módulo con el interruptor como se pida y la base registrada (como hooks.server.js). */
-async function setup(flag = '1') {
+/** El módulo con la base registrada (como hooks.server.js). */
+async function setup() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
 	const repo = await import('./repo.js');
 	repo.setContentDB(t.db);
 	const base = fakeRepo();
@@ -133,10 +135,9 @@ describe('leer', () => {
 		expect(raw).toContain('Nudos que no existen');
 		const file = await client.readFile('t', path('taller-inventado-2031-02'));
 		expect(file?.sha).toMatch(/^[0-9a-f]{40}$/);
-		// El que la base no tiene sale del repo.
-		expect(await client.getFile('t', path('sin-importar-2031-07'))).toBe(
-			raws['./fixtures/calendario/sin-importar-2031-07.md']
-		);
+		// El que la base no tiene no existe, aunque su .md esté en el repo.
+		expect(await client.getFile('t', path('sin-importar-2031-07'))).toBeNull();
+		expect(await client.readFile('t', path('sin-importar-2031-07'))).toBeNull();
 	});
 
 	it('la carpeta de eventos muestra los textos de la base', async () => {
@@ -144,7 +145,62 @@ describe('leer', () => {
 		const texts = await client.getDirTexts('t', DIR);
 		const taller = texts.find((f) => f.path === path('taller-inventado-2031-02'));
 		expect(taller?.sha).toMatch(/^[0-9a-f]{40}$/);
-		expect(texts.find((f) => f.path === path('sin-importar-2031-07'))?.sha).toMatch(/^repo:/);
+		expect(texts.find((f) => f.path === path('sin-importar-2031-07'))).toBeUndefined();
+		const tree = await client.listTree('t', DIR);
+		expect(tree.some((/** @type {any} */ f) => f.path === path('sin-importar-2031-07'))).toBe(
+			false
+		);
+		expect(
+			tree.find((/** @type {any} */ f) => f.path === path('taller-inventado-2031-02'))?.sha
+		).toMatch(/^[0-9a-f]{40}$/);
+	});
+});
+
+describe('dbPostsOnlyClient (Eventos → Series)', () => {
+	it('lee y guarda solo los posts de la base: nunca llama al repo', async () => {
+		const { repo, base, client } = await setup();
+		const calls = /** @type {string[]} */ ([]);
+		for (const k of ['getFile', 'getDirTexts', 'listTree', 'commitFiles']) {
+			const fn = /** @type {any} */ (base)[k];
+			/** @type {any} */ (base)[k] = (/** @type {any[]} */ ...args) => {
+				calls.push(k);
+				return fn(...args);
+			};
+		}
+		const only = repo.dbPostsOnlyClient(client);
+		const texts = await only.getDirTexts('t', DIR);
+		expect(texts.find((f) => f.path === path('taller-inventado-2031-02'))?.text).toContain(
+			'Nudos que no existen'
+		);
+		expect(texts.find((f) => f.path === path('sin-importar-2031-07'))).toBeUndefined();
+		expect(await only.getDirTexts('t', 'src/lib/posts/wiki')).toEqual([]);
+		expect(await only.getDirTexts('t', 'src/lib/posts/amigues')).toEqual([]);
+		expect(await only.getFile('t', 'src/lib/posts/wiki/algo.md')).toBeNull();
+
+		const err = await thrown(() =>
+			only.commitFiles('t', {
+				files: [
+					{ path: path('taller-inventado-2031-02'), content: 'x' },
+					{ path: 'src/lib/posts/wiki/algo.md', content: 'y' }
+				],
+				message: 'prueba'
+			})
+		);
+		expect(err).toBeInstanceOf(repo.NotInContentDbError);
+
+		const file = await only.getFile('t', path('taller-inventado-2031-02'));
+		const after = String(file).replace(
+			'title: Taller Inventado de Nudos',
+			'title: Taller Renombrado'
+		);
+		await only.commitFiles('t', {
+			files: [{ path: path('taller-inventado-2031-02'), content: after }],
+			message: 'prueba',
+			actor: 'admin-de-prueba'
+		});
+		expect((await objectOf('taller-inventado-2031-02')).title).toBe('Taller Renombrado');
+		expect(calls).toEqual([]);
+		expect(base.commits).toEqual([]);
 	});
 });
 
@@ -228,15 +284,37 @@ describe('guardar', () => {
 		expect(e?.constructor?.name).toBe(PathExistsError.name);
 	});
 
-	it('un .md que la base no tiene sigue yendo al repo', async () => {
+	it('un .md que la base no tiene (aunque esté en el repo) se guarda en la base, nunca en el repo', async () => {
 		const { client, base } = await setup();
 		const p = path('sin-importar-2031-07');
 		await client.commitFiles('t', {
 			files: [{ path: p, content: String(base.store.get(p)) + '\nMás.\n' }],
 			message: 'edita'
 		});
+		expect(base.commits).toEqual([]);
+		expect(await objectOf('sin-importar-2031-07')).toBeTruthy();
+		// Borrar uno que la base no tiene no borra el .md del repo.
+		await client.commitFiles('t', {
+			files: [{ path: path('no-existe-2031-11'), delete: true }],
+			message: 'borra'
+		});
+		expect(base.commits).toEqual([]);
+	});
+
+	it('sin base no se guarda un evento (tampoco en el repo); una imagen sola sí va al repo', async () => {
+		const { repo, client, base } = await setup();
+		repo.setContentDB(null);
+		const p = path('taller-inventado-2031-02');
+		const e = await thrown(() =>
+			client.commitFiles('t', { files: [{ path: p, content: 'x' }], message: 'x' })
+		);
+		expect(e?.name).toBe('NoContentDbError');
+		expect(base.commits).toEqual([]);
+		await client.commitFiles('t', {
+			files: [{ path: `${DIR}/media/taller-inventado-2031-02/3.webp`, base64: 'eA==' }],
+			message: 'imagen'
+		});
 		expect(base.commits).toHaveLength(1);
-		expect(await objectOf('sin-importar-2031-07')).toBeNull();
 	});
 
 	it('borrar es el borrado suave; volver a crearlo, deshacer', async () => {
@@ -310,17 +388,6 @@ describe('las entradas y el panel leen el evento de la base', () => {
 	});
 });
 
-describe('con el interruptor apagado', () => {
-	it('todo va al repo, como siempre', async () => {
-		const { client, base } = await setup('0');
-		const p = path('taller-inventado-2031-02');
-		expect(await client.getFile('t', p)).toBe(base.store.get(p));
-		await client.commitFiles('t', { files: [{ path: p, content: 'x' }], message: 'x' });
-		expect(base.commits).toHaveLength(1);
-		expect((await objectOf('taller-inventado-2031-02')).version).toBe(1);
-	});
-});
-
 describe('quién guarda: el login de GitHub en cada guardado del panel', () => {
 	// Les admins guardan con su login (hooks.server.js corre el pedido con resolveAsPanelAuthor);
 	// cada pantalla manda su nombre (`pr.who`, para el PR), que nunca es la autoría en la base.
@@ -335,6 +402,13 @@ describe('quién guarda: el login de GitHub en cada guardado del panel', () => {
 		const s = await setup();
 		const { runAsPanelAuthor } = await import('./author.js');
 		await runAsPanelAuthor({ login: LOGIN, name: NAME, superadmin: true }, () => fn(s));
+		// Solo la base: ningún .md al repo (borrar sí borra las imágenes del repo, que siguen ahí).
+		const mdPaths = s.base.commits.flatMap((/** @type {any} */ c) =>
+			c.files
+				.map((/** @type {any} */ f) => f.path)
+				.filter((/** @type {string} */ f) => f.endsWith('.md'))
+		);
+		expect(mdPaths).toEqual([]);
 		return s;
 	}
 	const lastBy = async (slug = SLUG) =>
@@ -518,7 +592,7 @@ describe('cómo se muestra el texto que se guarda (decisión 0004)', () => {
 	});
 });
 
-describe('borradores de la agenda (carga rápida y «Confirmar») con el interruptor prendido', () => {
+describe('borradores de la agenda (carga rápida y «Confirmar»)', () => {
 	const LOGIN = 'agenda-inventade';
 	const admin = { token: 't', name: 'Agenda Inventade (nombre visible)' };
 	const locals = /** @type {any} */ ({ user: { id: 1, login: LOGIN, name: admin.name } });
@@ -566,6 +640,7 @@ describe('borradores de la agenda (carga rápida y «Confirmar») con el interru
 		});
 		expect(confirmed).toMatchObject({ ok: true, status: 200 });
 		expect(s.base.store.has(path(made.slug))).toBe(false);
+		expect(s.base.commits).toEqual([]);
 		const after = JSON.parse((await objectOf(made.slug)).data);
 		expect(after.unlisted ?? false).toBe(false);
 		expect(JSON.stringify(after)).not.toContain(`"${DRAFT_KEY}"`);

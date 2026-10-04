@@ -17,6 +17,9 @@ import { setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
 import { insertOrder, insertTicket } from '$lib/server/admin/testRows.js';
 import { personId } from '$lib/server/admin/people.js';
 import { loadFicha } from '$lib/server/admin/ficha.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
+import { addManager, makeProfile } from '$lib/server/amigues/testing.js';
+import { setEventVenue } from '$lib/server/amigues/venues.js';
 import { personHref } from '$lib/admin/links.js';
 import Ficha from '$lib/components/admin/personas/Ficha.svelte';
 import * as personas from './+page.server.js';
@@ -390,27 +393,31 @@ describe('ficha de una persona', () => {
 		expect(del).toMatchObject({ note: { ok: true } });
 	});
 
-	it('los eventos donde participan sus perfiles (por el .md y por el lugar)', async () => {
+	it('los eventos donde participan sus perfiles (por los edges `persona` y `lugar`)', async () => {
 		const s = await seedSol();
+		// Los eventos, en la base: la importación pasa cada perfil de `personas` a un edge `persona`
+		// (un perfil que no existe queda como texto en el evento, sin edge).
+		await seedPosts(t.db, [
+			{
+				category: 'calendario',
+				postID: 'taller-inventado',
+				title: 'Taller inventado',
+				start: '2026-10-10T20:00:00-03:00',
+				personas: [{ perfil: s.profile.slug, rol: 'Facilita' }]
+			},
+			{
+				category: 'calendario',
+				postID: 'otro-evento',
+				title: 'Otro',
+				start: '2026-10-11T20:00:00-03:00',
+				personas: [{ perfil: 'otra', rol: 'Facilita' }]
+			}
+		]);
 		const data = await loadFicha(
 			t.db,
 			{ email: 'sol@example.com', accountId: '' },
 			{
 				now: NOW,
-				eventMetas: async () => [
-					{
-						slug: 'taller-inventado',
-						meta: {
-							title: 'Taller inventado',
-							start: '2026-10-10T20:00:00-03:00',
-							personas: [{ perfil: s.profile.slug, rol: 'Facilita' }]
-						}
-					},
-					{
-						slug: 'otro-evento',
-						meta: { title: 'Otro', personas: [{ perfil: 'otra', rol: 'Facilita' }] }
-					}
-				],
 				eventInfo: async (slug) => ({ title: `Título de ${slug}`, start: null })
 			}
 		);
@@ -420,6 +427,46 @@ describe('ficha de una persona', () => {
 				title: 'Taller inventado',
 				profile: 'Sol Inventade',
 				rol: 'Facilita'
+			})
+		]);
+	});
+	it('los eventos de sus lugares (edge `lugar` del evento)', async () => {
+		const s = await seedSol();
+		const venue = await makeProfile(t.db, { title: 'Sala Inventada', kind: 'lugar' });
+		await addManager(t.db, venue.id, s.acc.id);
+		await seedPosts(t.db, [
+			{
+				category: 'calendario',
+				postID: 'fiesta-inventada',
+				title: 'Fiesta inventada',
+				start: '2026-11-01T22:00:00-03:00'
+			},
+			{
+				category: 'calendario',
+				postID: 'sin-lugar',
+				title: 'Sin lugar',
+				start: '2026-11-02T22:00:00-03:00'
+			}
+		]);
+		const linked = await setEventVenue(t.db, {
+			eventSlug: 'fiesta-inventada',
+			venueId: venue.id,
+			privacy: null,
+			by: 'admin-de-prueba'
+		});
+		expect(linked).toMatchObject({ ok: true });
+		const data = await loadFicha(
+			t.db,
+			{ email: 'sol@example.com', accountId: '' },
+			{ now: NOW, eventInfo: async (slug) => ({ title: `Título de ${slug}`, start: null }) }
+		);
+		expect(data?.profileEvents).toEqual([
+			expect.objectContaining({
+				slug: 'fiesta-inventada',
+				title: 'Fiesta inventada',
+				start: '2026-11-01T22:00:00-03:00',
+				profile: 'Sala Inventada',
+				rol: 'Lugar'
 			})
 		]);
 	});

@@ -1,8 +1,10 @@
 /**
  * Las series, /material y la serie del modo puerta leen por la capa compartida de contenido
- * (`sitePosts`): con `contenido_db` apagado, los `.md`; prendido, también lo de la base (eventos
- * y material creados en el panel), sin lo oculto ni lo no listado. D1 de miniflare; datos
- * inventados.
+ * (`sitePosts`): solo la base (eventos y material), sin lo oculto ni lo no listado; un `.md` que
+ * no está en la base no aparece. D1 de miniflare; datos inventados.
+ *
+ * (Las pruebas «con `contenido_db` apagado» se sacaron con el interruptor: el modo «.md» ya no
+ * existe. No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -53,12 +55,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Los módulos con `contenido_db` como se pida. @param {string} flag */
-async function modules(flag) {
+/** Los módulos recién cargados. */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { CONTENIDO_DB_ENABLED: flag, ETIQUETAS_DB_ENABLED: '0' }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return {
 		series: await import('./index.js'),
@@ -105,35 +105,24 @@ async function seed() {
 const editionSlugs = (page) => [...page.upcoming, ...page.past].map((e) => e.slug).sort();
 
 describe('series por sitePosts', () => {
-	it('contenido_db apagado: solo los .md, aunque la base tenga eventos', async () => {
+	it('solo la base (no el .md), sin ocultas ni no listadas', async () => {
 		await seed();
-		const m = await modules('0');
-		const page = await m.series.seriesPage(SERIES, { platform: t.platform, now: NOW });
-		expect(editionSlugs(page)).toEqual(['serie-md-pasada']);
-		const summary = (await m.series.seriesSummaries({ platform: t.platform, now: NOW })).find(
-			(s) => s.id === SERIES
-		);
-		expect(summary).toMatchObject({ total: 1, next: null });
-		expect(await m.door.doorSeriesLabel('serie-base-proxima', t.platform)).toBe('');
-	});
-
-	it('contenido_db prendido: también la base (numeradas con las del .md), sin ocultas ni no listadas', async () => {
-		await seed();
-		const m = await modules('1');
+		const m = await modules();
 		const page = /** @type {any} */ (
 			await m.series.seriesPage(SERIES, { platform: t.platform, now: NOW })
 		);
-		expect(editionSlugs(page)).toEqual(['serie-base-proxima', 'serie-md-pasada']);
-		expect(page.upcoming[0]).toMatchObject({ slug: 'serie-base-proxima', number: 2 });
+		expect(editionSlugs(page)).toEqual(['serie-base-proxima']);
+		expect(page.upcoming[0]).toMatchObject({ slug: 'serie-base-proxima', number: 1 });
 		const summary = (await m.series.seriesSummaries({ platform: t.platform, now: NOW })).find(
 			(s) => s.id === SERIES
 		);
-		expect(summary).toMatchObject({ total: 2, next: { path: '/calendario/serie-base-proxima' } });
+		expect(summary).toMatchObject({ total: 1, next: { path: '/calendario/serie-base-proxima' } });
 		const all = (await m.series.allSeries({ platform: t.platform, now: NOW })).find(
 			(s) => s.id === SERIES
 		);
-		expect(all?.editions.map((e) => e.slug)).toEqual(['serie-md-pasada', 'serie-base-proxima']);
+		expect(all?.editions.map((e) => e.slug)).toEqual(['serie-base-proxima']);
 		expect(await m.door.doorSeriesLabel('serie-base-proxima', t.platform)).toBe(SERIES);
+		expect(await m.door.doorSeriesLabel('serie-md-pasada', t.platform)).toBe('');
 	});
 });
 
@@ -144,13 +133,8 @@ describe('/material por sitePosts', () => {
 			.map((/** @type {any} */ p) => p.meta.postID)
 			.sort();
 
-	it('apagado: solo los .md', async () => {
+	it('solo lo de la base, sin lo oculto (el .md no)', async () => {
 		await seed();
-		expect(await listed(await modules('0'))).toEqual(['nota-md-inventada']);
-	});
-
-	it('prendido: también lo de la base, sin lo oculto', async () => {
-		await seed();
-		expect(await listed(await modules('1'))).toEqual(['nota-base-inventada', 'nota-md-inventada']);
+		expect(await listed(await modules())).toEqual(['nota-base-inventada']);
 	});
 });

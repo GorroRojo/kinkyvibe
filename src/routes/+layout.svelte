@@ -11,7 +11,7 @@
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
-	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de la base; null = el del archivo.
+	// El árbol de la base (docs/etiquetas.md); null = el del archivo (respaldo).
 	$: useSiteTags(data.siteTags, [tagManager, wikiTagManager]);
 
 	// Modo demo (docs/demo.md): constante de compilación, como PREVIEW_BUILD en el servidor. En

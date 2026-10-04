@@ -20,6 +20,7 @@ export const REVISION_SOURCES = /** @type {const} */ ([
 	'agenda',
 	'deshacer',
 	'lugar',
+	'partes',
 	'migracion'
 ]);
 

@@ -65,9 +65,9 @@
 	}
 	li {
 		display: flex;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: center;
-		padding: 0.55rem 0;
+		padding: var(--space-2xs) 0;
 		border-top: 1px solid var(--line);
 	}
 	li:first-child {
@@ -126,7 +126,7 @@
 		box-shadow: inset 0 0 0 2px var(--ok);
 	}
 	time {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		white-space: nowrap;
 		align-self: flex-start;
 		padding-top: 0.15rem;

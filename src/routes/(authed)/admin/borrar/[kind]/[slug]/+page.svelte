@@ -56,7 +56,9 @@
 			<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
 			<UndoToast {busy} message="Borraste «{deleted.title}»." />
 		</form>
-		<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
+		{#if !deleted.immediate}
+			<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
+		{/if}
 		{#if problem}<p class="kv-flash bad" role="alert">{problem}</p>{/if}
 		<p class="kv-note">
 			Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"
@@ -94,7 +96,11 @@
 				{/if}
 				<ul class="reasons">
 					{#each plan.notes as n (n)}<li>{n}</li>{/each}
-					<li>Hasta que se publique lo podés deshacer, y después recuperarlo desde Actividad.</li>
+					{#if data.backend === 'objects'}
+						<li>Lo podés deshacer acá mismo, o recuperarlo más tarde desde Actividad.</li>
+					{:else}
+						<li>Hasta que se publique lo podés deshacer, y después recuperarlo desde Actividad.</li>
+					{/if}
 				</ul>
 				<form method="POST" action="?/borrar" use:enhance={submit} class="kv-form">
 					{#if plan.needsTyping}
@@ -111,7 +117,7 @@
 					{/if}
 					{#if problem}<p class="kv-flash bad" role="alert">{problem}</p>{/if}
 					<div class="kv-row">
-						<button class="kv-btn danger" type="submit" disabled={busy || !ready}>
+						<button class="kv-btn permanent" type="submit" disabled={busy || !ready}>
 							<Trash2 size={16} aria-hidden="true" />
 							{busy ? 'Borrando…' : `Borrar ${data.info.one}`}
 						</button>
@@ -129,10 +135,10 @@
 	}
 	.reasons {
 		margin: 0;
-		padding-left: 1.2rem;
+		padding-left: var(--space-s);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.reasons.bad {
 		color: var(--bad);
@@ -140,8 +146,8 @@
 	}
 	.warn {
 		background: var(--warn-bg);
-		border-radius: 0.8em;
-		padding: 0.7rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.warn .head {
 		margin: 0 0 0.3rem;
@@ -149,9 +155,5 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-	}
-	.kv-btn.danger {
-		background: var(--bad);
-		color: var(--surface);
 	}
 </style>

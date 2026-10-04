@@ -57,7 +57,7 @@
 
 <dialog
 	bind:this={dialog}
-	class="override"
+	class="kv-dialog override"
 	aria-labelledby="kv-override-title"
 	aria-describedby="kv-override-list"
 	on:cancel={() => close(null)}
@@ -70,38 +70,22 @@
 		Como admin podés seguir igual. Queda anotado en el registro de actividad, con quién fue y por
 		cuánto se pasó.
 	</p>
-	<div class="btns">
+	<div class="kv-dialog-btns">
 		<!-- svelte-ignore a11y-autofocus -->
-		<button type="button" class="btn ghost" autofocus on:click={() => close(null)}>Cancelar</button>
-		<button type="button" class="btn" on:click={() => close(key)}>{confirmLabel}</button>
+		<button type="button" class="kv-btn ghost" autofocus on:click={() => close(null)}
+			>Cancelar</button
+		>
+		<button type="button" class="kv-btn" on:click={() => close(key)}>{confirmLabel}</button>
 	</div>
 </dialog>
 
 <style>
 	.override {
-		border: 0;
-		border-radius: var(--card-round, 1rem);
-		background: var(--surface, white);
-		color: var(--text, #333);
-		box-shadow: var(--shadow, 0 0.1em 0.3em rgba(0, 0, 0, 0.1));
-		padding: 1.2rem 1.3rem;
-		width: min(28rem, calc(100vw - 32px));
 		border-top: 0.4rem solid var(--warn, #7a5b00);
-	}
-	.override::backdrop {
-		background: var(--scrim, rgba(0, 0, 0, 0.4));
-		backdrop-filter: blur(3px);
-	}
-	h2 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin: 0 0 0.6rem;
-		font-size: 1.2rem;
 	}
 	ul {
 		margin: 0 0 0.8rem;
-		padding: 0.6rem 0.8rem 0.6rem 1.8rem;
+		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-m);
 		background: var(--warn-bg, #fff3c4);
 		border-radius: var(--card-round, 1rem);
 	}
@@ -111,29 +95,6 @@
 	.note {
 		margin: 0 0 1rem;
 		color: var(--muted, #666);
-		font-size: 0.95rem;
-	}
-	.btns {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		gap: 0.5rem;
-	}
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		border: 0;
-		border-radius: 3em;
-		padding: 0.5em 1.1em;
-		font: inherit;
-		font-weight: 700;
-		cursor: pointer;
-		background: var(--accent, hsl(319, 90%, 60%));
-		color: var(--accent-ink, white);
-	}
-	.btn.ghost {
-		background: transparent;
-		color: var(--accent, hsl(319, 90%, 60%));
-		box-shadow: inset 0 0 0 2px var(--accent, hsl(319, 90%, 60%));
+		font-size: var(--text-sm);
 	}
 </style>

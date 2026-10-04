@@ -3,8 +3,10 @@
 ## Qué es
 
 Las etiquetas ordenan todo el sitio: los eventos, el material, les amigues y la Kinkipedia (la
-wiki) las nombran en su `tags:`. Hoy viven en un archivo, `src/lib/utils/hardcodedTags.js`, que se
-edita desde `/admin/etiquetas` con un commit. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
+wiki) las nombran en su `tags:`. Viven en la base (objetos `etiqueta`) y se editan desde
+`/admin/etiquetas`, que guarda en la base al momento. El archivo `src/lib/utils/hardcodedTags.js`
+queda solo como respaldo de lectura (sin base, o con la base sin etiquetas) y ya no se edita desde
+el panel. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
 «Etiquetas a objetos») las pasa a la base, como objetos ([objetos.md](objetos.md)).
 
 El diseño es de gorrite:
@@ -108,13 +110,15 @@ público) con sus relaciones, ambas puntas con `visibleWhere()`.
 
 ## Leer y editar desde la base (paso 3)
 
-Interruptor **«Etiquetas desde la base»** (`etiquetas_db`, variable `ETIQUETAS_DB_ENABLED`),
-apagado por defecto. Antes de prenderlo: importar (paso 2). El paso a paso para prenderlo (preview,
-producción) y apagarlo está en [interruptores.md](interruptores.md).
+El interruptor «Etiquetas desde la base» (`etiquetas_db`) **quedó prendido para siempre** y salió
+de Interruptores («Contenido solo en la base», paso 2): ya no hay commits al archivo de etiquetas.
+Una base nueva (un preview o la local) necesita importar primero (paso 2; en la compu,
+`npm run tags:import`): hasta entonces el sitio lee el archivo y el editor avisa que hay que
+importar.
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
-  `siteTagManager`). Apagado, o prendido pero con la base sin etiquetas o sin poder leerla: el
-  archivo, como siempre. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
+  `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: el archivo,
+  solo como respaldo. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
   nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
@@ -138,8 +142,8 @@ producción) y apagarlo está en [interruptores.md](interruptores.md).
     verifica: salen iguales con cualquier árbol).
   - `sigue-el-interruptor.test.js` prueba cada lugar con una «base» inventada.
 - Los textos de la Kinkipedia (`/wiki/<entrada>`) siguen saliendo de sus `.md`.
-- **Editor** (`/admin/etiquetas`): con el interruptor prendido y etiquetas en la base, la misma
-  página guarda en la base al momento (`src/lib/server/etiquetas/editor.js`). Usa las mismas
+- **Editor** (`/admin/etiquetas`): guarda en la base al momento (sin etiquetas en la base, la
+  página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
   operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
@@ -165,21 +169,25 @@ Eventos → Series › Editar):
 - Antes de confirmar se ve cuántas publicaciones cambian (y cómo): la vista previa de Etiquetas,
   o un paso de confirmación en Series.
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
-  (`src/lib/server/etiquetas/rename.js`): hoy los `.md` del repo; cuando el contenido pase a la
-  base (`contenido_db`), esa función tiene que sumar los posts de la base.
-- El archivo (`hardcodedTags.js`) no se toca al renombrar en la base: con el interruptor
-  prendido es solo el respaldo.
+  (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente del repo: los eventos y el
+  material van a la base (se ve enseguida); las fichas de amigues y la wiki, con un commit.
+- **En Eventos → Series, solo la base**: renombrar una serie reescribe solo sus eventos y el
+  material (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`), sin leer ni escribir
+  GitHub. Si alguna ficha de amigues o página de la wiki usara la etiqueta de una serie (hoy
+  ninguna), queda con el nombre viejo: para eso, Etiquetas › Renombrar o «dejar el alias».
+- El archivo (`hardcodedTags.js`) no se toca nunca desde el panel: es solo el respaldo.
 
 ## Series (paso 4)
 
-Las series son etiquetas hijas de «evento recurrente». Todo detrás del interruptor `series`.
+Las series son etiquetas hijas de «evento recurrente». El interruptor `series` quedó prendido
+para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 
 - **Eventos → Series** (`/admin/eventos/series`): «Crear serie» y, en cada serie, **«Editar»**:
   nombre de la etiqueta (renombrar, con la misma elección y el mismo valor por defecto que en
   Etiquetas, y un paso para confirmar después de ver cuántas publicaciones cambian), nombre
   visible, ícono, imagen (de `src/lib/assets`) y descripción (`seriesEditOps`,
-  `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: commit al archivo o, con
-  `etiquetas_db`, en la base al momento (`src/lib/server/etiquetas/panel.js`). Los campos son un
+  `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: en la base al momento
+  (`src/lib/server/etiquetas/panel.js`). Los campos son un
   componente (`SeriesFields.svelte`) que usan crear y editar.
 - **Imagen de la serie** (`image` de la etiqueta): un archivo de `src/lib/assets`
   (`picantearla-miniatura.webp`) o, sin copiarla, la imagen de un evento:
@@ -205,8 +213,10 @@ Las series son etiquetas hijas de «evento recurrente». Todo detrás del interr
   de la madre sigue con todas las ediciones. En Eventos → Series: «Crear serie» pregunta «¿Va
   dentro de otra serie?» y cada serie de arriba tiene **«Serie por año»** (precarga «<serie>
   <año>», la madre y su ícono). Lo arma `seriesCreateOps` con `parent` (solo una serie que existe).
-- Todo lo de series lee el árbol en uso (archivo o base), también «¿Es parte de una serie?» al
-  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5).
+- Todo lo de series lee el árbol en uso (la base), también «¿Es parte de una serie?» al
+  duplicar un evento, el ingreso y el link de baja de los avisos (paso 5). Los crons de avisos
+  (series y «Lo que sigo») leen las etiquetas de la base ellos mismos (`siteTagManager`), sin
+  depender del árbol que dejó el último pedido en el isolate.
 
 ## Series hijas: una por año (Cuirdas Sudacas)
 
@@ -217,19 +227,17 @@ por año dentro de «Cuirdas Sudacas».
 
 **En el preview**: `scripts/demo/cuirdas-por-anio.sql` (NUNCA en producción) crea «Cuirdas Sudacas
 2025» y «Cuirdas Sudacas 2026» en la base y etiqueta las ediciones que estén en la base. Necesita
-las etiquetas importadas (y, para etiquetar, los eventos en la base: `contenido_db`). Los comandos
+las etiquetas y los eventos importados en la base. Los comandos
 están en el encabezado del archivo; su prueba es `scripts/demo/cuirdas-por-anio.test.js`.
 
 **En producción (lo hace gorrite, desde el panel; nada de SQL a mano)**:
 
 1. Eventos → Series → «Cuirdas Sudacas» → **«Serie por año»**. Queda «Cuirdas Sudacas 2026» (con
    la madre y el ícono ya elegidos); cambiá el año a 2025 si querés empezar por esa. «Crear serie».
-   Repetí para el otro año. Con `etiquetas_db` apagado es un commit al archivo de etiquetas (se ve
-   cuando termina de publicarse); prendido, queda en la base al momento.
+   Repetí para el otro año. Queda en la base al momento.
 2. Sumale la etiqueta del año a cada edición, **sin sacar** «Cuirdas Sudacas»: en la ficha de cada
    evento → Editar → Etiquetas («Cuirdas Sudacas 2025» a los 4 días de 2025, «Cuirdas Sudacas
-   2026» a los 12 talleres de 2026). Cada guardado es un commit (o, con `contenido_db`, un
-   guardado en la base).
+   2026» a los 12 talleres de 2026). Cada guardado queda en la base al momento.
 3. Revisá `/wiki` (sección Series: Cuirdas Sudacas con sus dos años adentro) y
    `/wiki/Cuirdas-Sudacas-2026` (sus ediciones).
 4. Para los años que vengan: «Serie por año» antes de cargar la primera edición, y cargar cada

@@ -6,9 +6,9 @@
 --   (o --local para probar en la compu)
 --
 -- Qué carga:
--- 1. `demo_files`: dos eventos que solo existen en la demo (el panel y la venta leen su
---    configuración de entradas de ahí; ver docs/demo.md: las páginas públicas siguen leyendo
---    el contenido del deploy, así que la página pública de estos dos eventos no existe):
+-- 1. Dos eventos que solo existen en la demo, como objetos `evento` en la base del preview (el
+--    sitio, el panel y la venta leen los eventos solo de la base). Son no listados: no aparecen
+--    en las listas, pero su página existe:
 --    - `demo-preventas-2026-12`: «General» con tres tramos (5 a $ 8.000, 10 a $ 9.000 y el
 --      resto a $ 10.000, cupo 25) y «Última tanda» ($ 12.000), que se habilita cuando se agota
 --      General; con «Hay entradas en la puerta» y precio en la puerta.
@@ -17,8 +17,10 @@
 --    «Preventa 2»: en la demo se ve «Preventa 2 · $ 9.000».
 --
 -- Se puede correr más de una vez: reemplaza lo suyo (ids fijos, `INSERT OR REPLACE`).
--- Requiere las migraciones hasta la 0016 (`orders.ticket_tier`).
+-- Requiere las migraciones hasta la 0031 (`objects` con las columnas de eventos).
 
+-- Los eventos van a la base como objetos `evento` (el sitio y el panel leen los eventos solo de
+-- la base). Antes iban como .md en `demo_files`: esas filas viejas se borran.
 CREATE TABLE IF NOT EXISTS demo_files (
 	path TEXT PRIMARY KEY,
 	content TEXT,
@@ -28,100 +30,28 @@ CREATE TABLE IF NOT EXISTS demo_files (
 	message TEXT,
 	updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+DELETE FROM demo_files WHERE path = 'src/lib/posts/calendario/demo-preventas-2026-12.md';
+DELETE FROM demo_files WHERE path = 'src/lib/posts/calendario/demo-solo-anticipadas-2026-12.md';
 
-INSERT OR REPLACE INTO demo_files (path, content, author, message) VALUES (
-	'src/lib/posts/calendario/demo-preventas-2026-12.md',
-	'---
-title: ''Demo: fiesta con preventas''
-summary: ''Evento inventado para la demo: preventas escalonadas y una última tanda.''
-tags:
-  - español
-  - pago
-  - AMBA
-layout: calendario
-category: calendario
-authors:
-  - KinkyVibe
-force_unlisted: true
-status: abierto
-start: 2026-12-19T22:00-03:00
-end: 2026-12-20T04:00-03:00
-location: Calle Inventada 123, Ciudad de Buenos Aires
-location_name: Lugar de prueba
-modalidad: presencial
-tickets:
-  - id: general
-    name: General
-    capacity: 25
-    tiers:
-      - id: preventa-1
-        name: Preventa 1
-        price: 8000
-        quantity: 5
-      - id: preventa-2
-        name: Preventa 2
-        price: 9000
-        quantity: 10
-      - id: general
-        name: General
-        price: 10000
-  - id: ultima-tanda
-    name: Última tanda
-    price: 12000
-    capacity: 10
-    after: general
-payment_methods: [mercadopago, transferencia]
-puerta: true
-puerta_precio: $ 13.000, solo efectivo
----
+INSERT OR IGNORE INTO object_types (type, origin, created_at) VALUES ('evento', 'core', 1790000000000);
 
-Evento inventado para probar las preventas escalonadas en la demo.
-',
-	'demo',
-	'Noche 3 · C: evento de prueba con preventas'
-);
+INSERT INTO objects (type, slug, title, data, search_text, visibility, created_at, created_by, updated_at, updated_by)
+VALUES ('evento', 'demo-preventas-2026-12', 'Demo: fiesta con preventas',
+	'{"summary":"Evento inventado para la demo: preventas escalonadas y una última tanda.","status":"abierto","start":"2026-12-19T22:00-03:00","end":"2026-12-20T04:00-03:00","body":"Evento inventado para probar las preventas escalonadas en la demo.","tags":["español","pago","AMBA"],"personas":[{"name":"KinkyVibe","role":"Organiza"}],"location":"Calle Inventada 123, Ciudad de Buenos Aires","location_name":"Lugar de prueba","unlisted":true,"extra":{"modalidad":"presencial","tickets":[{"id":"general","name":"General","capacity":25,"tiers":[{"id":"preventa-1","name":"Preventa 1","price":8000,"quantity":5},{"id":"preventa-2","name":"Preventa 2","price":9000,"quantity":10},{"id":"general","name":"General","price":10000}]},{"id":"ultima-tanda","name":"Última tanda","price":12000,"capacity":10,"after":"general"}],"payment_methods":["mercadopago","transferencia"],"puerta":true,"puerta_precio":"$ 13.000, solo efectivo"}}',
+	'Evento inventado para la demo: preventas escalonadas y una última tanda.
+Evento inventado para probar las preventas escalonadas en la demo.', 'public', 1790000000000, 'demo', 1790000000000, 'demo')
+ON CONFLICT (type, slug) DO UPDATE SET title = excluded.title, data = excluded.data,
+	search_text = excluded.search_text, visibility = excluded.visibility, deleted_at = NULL,
+	updated_at = excluded.updated_at, updated_by = excluded.updated_by, version = objects.version + 1;
 
-INSERT OR REPLACE INTO demo_files (path, content, author, message) VALUES (
-	'src/lib/posts/calendario/demo-solo-anticipadas-2026-12.md',
-	'---
-title: ''Demo: taller solo con anticipadas''
-summary: ''Evento inventado para la demo: preventa por fecha y sin entradas en la puerta.''
-tags:
-  - español
-  - pago
-  - AMBA
-layout: calendario
-category: calendario
-authors:
-  - KinkyVibe
-force_unlisted: true
-status: abierto
-start: 2026-12-05T18:00-03:00
-end: 2026-12-05T21:00-03:00
-location: Calle Inventada 456, Ciudad de Buenos Aires
-location_name: Otro lugar de prueba
-modalidad: presencial
-tickets:
-  - id: entrada
-    name: Entrada
-    capacity: 15
-    tiers:
-      - id: anticipada
-        name: Anticipada
-        price: 6000
-        until: 2026-11-25T23:59-03:00
-      - id: entrada
-        name: Entrada
-        price: 7500
-payment_methods: [transferencia]
-puerta: false
----
-
-Evento inventado: solo entradas anticipadas.
-',
-	'demo',
-	'Noche 3 · C: evento de prueba solo anticipadas'
-);
+INSERT INTO objects (type, slug, title, data, search_text, visibility, created_at, created_by, updated_at, updated_by)
+VALUES ('evento', 'demo-solo-anticipadas-2026-12', 'Demo: taller solo con anticipadas',
+	'{"summary":"Evento inventado para la demo: preventa por fecha y sin entradas en la puerta.","status":"abierto","start":"2026-12-05T18:00-03:00","end":"2026-12-05T21:00-03:00","body":"Evento inventado: solo entradas anticipadas.","tags":["español","pago","AMBA"],"personas":[{"name":"KinkyVibe","role":"Organiza"}],"location":"Calle Inventada 456, Ciudad de Buenos Aires","location_name":"Otro lugar de prueba","unlisted":true,"extra":{"modalidad":"presencial","tickets":[{"id":"entrada","name":"Entrada","capacity":15,"tiers":[{"id":"anticipada","name":"Anticipada","price":6000,"until":"2026-11-25T23:59-03:00"},{"id":"entrada","name":"Entrada","price":7500}]}],"payment_methods":["transferencia"],"puerta":false}}',
+	'Evento inventado para la demo: preventa por fecha y sin entradas en la puerta.
+Evento inventado: solo entradas anticipadas.', 'public', 1790000000000, 'demo', 1790000000000, 'demo')
+ON CONFLICT (type, slug) DO UPDATE SET title = excluded.title, data = excluded.data,
+	search_text = excluded.search_text, visibility = excluded.visibility, deleted_at = NULL,
+	updated_at = excluded.updated_at, updated_by = excluded.updated_by, version = objects.version + 1;
 
 -- Órdenes aprobadas inventadas (personas de mentira, emails @example.com).
 DELETE FROM tickets WHERE event_slug = 'demo-preventas-2026-12';

@@ -80,6 +80,7 @@
 		</div>
 	{/if}
 </div>
+
 <style lang="scss">
 	.share {
 		position: relative;
@@ -91,16 +92,17 @@
 		gap: 0.45em;
 		font: inherit;
 		font-weight: bold;
-		color: var(--2-dark);
-		background: white;
-		border: 2px solid var(--2);
-		border-radius: 999em;
+		/* botón secundario: píldora con borde rosa (como .pill-btn.ghost) */
+		color: var(--1-ink);
+		background: var(--surface);
+		border: 2px solid var(--1);
+		border-radius: var(--radius-pill);
 		padding: 0.45em 1.2em;
 		cursor: pointer;
 		&:hover,
 		&:focus-visible {
-			background: var(--2);
-			color: white;
+			background: var(--1-tint);
+			color: var(--1-ink);
 		}
 	}
 	.menu {
@@ -111,8 +113,8 @@
 		translate: -50% 0;
 		min-width: 15em;
 		background: white;
-		border-radius: 0.8em;
-		box-shadow: 0 0.5em 2em rgba(0, 0, 0, 0.2);
+		border-radius: var(--radius-m);
+		box-shadow: var(--shadow-2);
 		outline: 2px solid var(--2-light);
 		padding: 0.4em;
 		display: flex;
@@ -127,7 +129,7 @@
 			color: var(--2-dark);
 			background: none;
 			border: 0;
-			border-radius: 0.5em;
+			border-radius: var(--radius-s);
 			padding: 0.6em 0.8em;
 			cursor: pointer;
 			text-decoration: none;

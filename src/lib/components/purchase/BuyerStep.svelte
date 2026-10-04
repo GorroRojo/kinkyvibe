@@ -243,7 +243,7 @@
 	}
 	.holder {
 		padding: 0.6em 0.9em 0.8em;
-		border-radius: 0.7em;
+		border-radius: var(--radius-s);
 		background: white;
 		outline: 2px solid color-mix(in srgb, var(--2) 25%, transparent);
 	}
@@ -269,14 +269,12 @@
 	input[type='email'] {
 		font: inherit;
 		padding: 0.55em 0.7em;
-		border-radius: 0.5em;
-		border: 2px solid color-mix(in srgb, var(--2) 45%, transparent);
-		background: white;
-		min-height: 2.8em;
+		border-radius: var(--radius-s);
+		border: 1px solid var(--field);
+		background: var(--surface);
+		/* campo grande (~54px): solo en el flujo de compra (docs/estilo.md, «Piezas») */
+		min-height: 3.375rem;
 		min-width: 0;
-	}
-	input:focus-visible {
-		outline: 3px solid var(--2-light);
 	}
 	.label-row {
 		display: flex;
@@ -305,7 +303,7 @@
 		flex-direction: column;
 		gap: 0.3em;
 		padding: 0.6em 0.9em;
-		border-radius: 0.7em;
+		border-radius: var(--radius-s);
 		background: color-mix(in srgb, var(--2) 8%, white);
 	}
 	.check {
@@ -324,7 +322,7 @@
 		accent-color: var(--2-dark);
 	}
 	.field-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--error);
 		font-size: var(--step--1);
 		margin: 0;
 	}

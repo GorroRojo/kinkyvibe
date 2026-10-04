@@ -207,11 +207,11 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.follow-add[aria-busy='true'] {
 		opacity: 0.7;

@@ -266,7 +266,7 @@
 <style>
 	.conflict ul {
 		margin: 0.4rem 0 0;
-		padding-left: 1.2rem;
+		padding-left: var(--space-s);
 		font-weight: 400;
 	}
 	.conflict p {
@@ -279,10 +279,10 @@
 	}
 	.venue {
 		border: 1px solid var(--field);
-		border-radius: 1em;
-		padding: 1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-xs);
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.venue legend {
 		font-weight: 700;
@@ -290,7 +290,7 @@
 	}
 	.mono {
 		font-family: ui-monospace, monospace;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.contact summary {
 		cursor: pointer;
@@ -298,6 +298,6 @@
 	}
 	.contact[open] {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 </style>

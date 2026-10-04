@@ -27,11 +27,11 @@
 		max-width: 66rem;
 	}
 	h1 {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 	}
 	.back {
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.mock {
 		background: var(--warn-bg);
@@ -42,7 +42,7 @@
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: var(--shadow);
-		border-radius: 1rem;
+		border-radius: var(--radius-m);
 	}
 	label.field,
 	.field-label {
@@ -58,12 +58,15 @@
 		background: var(--surface);
 		color: var(--text);
 		outline: 0;
-		border: 1px solid var(--line);
-		border-radius: 0.8rem;
-		min-height: 2.75rem;
+		// el campo neutro del panel (.kv-input): borde gris, radio chico, rosa con foco
+		border: 1px solid var(--field);
+		border-radius: var(--radius-s);
+		min-height: var(--tap);
+		font-size: var(--text-field);
 		&:focus {
-			outline: 2px solid var(--link);
-			outline-offset: 1px;
+			outline: 2px solid var(--focus-field);
+			outline-offset: 0;
+			border-color: var(--focus-field);
 		}
 	}
 	input[type='checkbox'],
@@ -75,9 +78,11 @@
 		color: var(--muted);
 		opacity: 1;
 	}
-	.req,
-	.error {
+	.req {
 		color: var(--bad);
+	}
+	.error {
+		color: var(--error);
 	}
 	.warning {
 		background: var(--warn-bg);
@@ -88,8 +93,8 @@
 		color: var(--text);
 	}
 	.problems {
-		background: var(--bad-bg);
-		color: var(--bad);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	// Botones: los del panel (rosa, pill) y el secundario blanco con borde.
 	.button {
@@ -101,14 +106,21 @@
 		color: var(--accent-ink);
 		border-radius: 2em;
 		font-weight: 700;
-		padding: 0.55rem 1.2rem;
-		box-shadow: 0 0.15em 0 var(--accent-dark);
+		padding: var(--space-2xs) var(--space-s);
+		box-shadow: none;
+		&:hover {
+			background: var(--accent-dark);
+		}
+		// secundario: píldora con borde rosa, como .kv-btn.ghost
 		&.secondary {
 			background: var(--surface);
-			color: var(--text);
+			color: var(--accent-text);
 			outline: 0;
-			border: 1px solid var(--line);
-			box-shadow: none;
+			border: 0;
+			box-shadow: inset 0 0 0 2px var(--accent);
+			&:hover {
+				background: var(--bad-bg);
+			}
 		}
 	}
 	button.link {

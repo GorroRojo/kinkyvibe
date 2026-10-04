@@ -5,7 +5,7 @@
 	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: el nombre
 	 * de la etiqueta (renombrar, con la misma elección que en Etiquetas; se confirma después de ver
 	 * cuántas publicaciones cambian), nombre visible, ícono, imagen y descripción. Se guarda como en
-	 * Etiquetas (commit al archivo, o en la base con el interruptor `etiquetas_db`).
+	 * Etiquetas (en la base).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -96,13 +96,8 @@
 		{#if done.db}
 			Ya está en la base: en menos de un minuto se ve en el sitio.
 			{#if done.posts}
-				El commit que cambia {done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} se ve cuando termine
-				de publicarse el sitio.
-				{#if done.publish}<PublishStatus pr={done.publish} />{:else if done.commit}<a
-						href={done.commit}
-						target="_blank"
-						rel="noreferrer">Ver el commit</a
-					>{/if}
+				También se cambi{done.posts === 1 ? 'ó' : 'aron'}
+				{done.posts} publicaci{done.posts === 1 ? 'ón' : 'ones'} (eventos y material, en la base).
 			{/if}
 		{:else}
 			Se ve cuando termine de publicarse el sitio.
@@ -242,8 +237,9 @@
 										No cambia ninguna publicación: «{confirm.from}» queda como alias.
 									{:else if confirm.posts}
 										Cambia{confirm.posts === 1 ? '' : 'n'}
-										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>,
-										con un commit{#if confirm.db}, y «{confirm.from}» deja de existir{/if}.
+										<strong>{confirm.posts} publicaci{confirm.posts === 1 ? 'ón' : 'ones'}</strong>
+										(eventos y material, en la base){#if confirm.db}, y «{confirm.from}» deja de
+											existir{/if}.
 									{:else}
 										Ninguna publicación usa «{confirm.from}»: no hace falta cambiar ninguna.
 									{/if}
@@ -315,11 +311,11 @@
 	}
 	.list {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: flex-start;
 		flex-wrap: wrap;
 	}
@@ -327,18 +323,18 @@
 		width: 96px;
 		height: 96px;
 		object-fit: cover;
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		flex: none;
 	}
 	.info {
 		flex: 1 1 14rem;
 		min-width: 0;
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	h2 {
 		margin: 0;
-		font-size: 1.2rem;
+		font-size: var(--text-base);
 	}
 	.form-title {
 		margin-bottom: 0.3rem;
@@ -347,7 +343,7 @@
 		margin: 0;
 	}
 	.small {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.muted {
 		color: var(--muted);
@@ -360,7 +356,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: 2.5rem;
 		display: flex;
 		align-items: center;

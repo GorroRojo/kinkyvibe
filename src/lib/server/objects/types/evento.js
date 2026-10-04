@@ -12,7 +12,7 @@
  *   (configuración de entradas, colores del carrusel…), tal cual, para que nada se pierda al
  *   importar. Cuando algo de ahí se use desde la base, se pasa a un campo propio.
  *
- * Se lee de la base con el interruptor `contenido_db` (docs/contenido.md («En la base»)).
+ * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
 
 import { eventLinkProblem } from '../../../utils/eventLink.js';
@@ -114,7 +114,11 @@ const evento = {
 		// cada rol con su lugar en la lista única de personas (`at`), así la lista se arma igual que
 		// antes (src/lib/server/contenido/personasEdges.js). Los nombres sin perfil no son relaciones:
 		// quedan en `data.personas`.
-		persona: { label: 'Personas con rol', to: ['perfil'] }
+		persona: { label: 'Personas con rol', to: ['perfil'] },
+		// Talleres en varias partes (docs/talleres-partes.md): del taller (que es la parte 1) a cada
+		// una de las otras partes, en orden (`position`), sin `data`. Que una parte sea de un solo
+		// taller y que no haya partes de partes lo controla src/lib/server/eventos/partes.js.
+		parte: { label: 'Partes', to: ['evento'], max: 20 }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

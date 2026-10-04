@@ -406,7 +406,7 @@
 		flex-direction: column;
 		gap: 0.3em;
 		padding: 0.5em 0.6em;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: var(--surface-2, #f3eef6);
 	}
 	.new-role label {
@@ -429,7 +429,7 @@
 	}
 	.error {
 		margin: 0;
-		color: var(--bad, #b00020);
+		color: var(--error, #b00020);
 		font-weight: bold;
 	}
 	.sr-only {

@@ -3,11 +3,11 @@
 	"version": "1.1.0",
 	"private": true,
 	"scripts": {
-		"predev": "node scripts/db-migrate-local.js",
+		"predev": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev": "vite dev",
-		"predev:tickets": "node scripts/db-migrate-local.js",
+		"predev:tickets": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev:tickets": "vite dev --mode tickets",
-		"predev:admin": "node scripts/db-migrate-local.js",
+		"predev:admin": "node scripts/db-migrate-local.js && node scripts/import-content.js --soft --no-migrate",
 		"dev:admin": "vite dev --mode admin",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -25,6 +25,7 @@
 		"db:restore": "node scripts/d1-restore.js",
 		"amigues:import": "node scripts/import-amigues.js",
 		"tags:import": "node scripts/import-tags.js",
+		"content:import": "node scripts/import-content.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."

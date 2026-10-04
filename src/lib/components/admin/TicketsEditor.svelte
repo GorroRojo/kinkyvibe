@@ -508,7 +508,7 @@
 		flex-direction: column;
 		gap: 0.5em;
 		background: var(--surface-2, #faf6fc);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 0.8em 0.8em;
 		min-width: 0;
 	}
@@ -730,7 +730,7 @@
 			flex: none;
 			width: 2.6em;
 			height: 1.5em;
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			background: #ccc;
 			position: relative;
 			transition: background 150ms;

@@ -670,7 +670,7 @@
 		width: 100%;
 	}
 	legend {
-		font-weight: 600;
+		font-weight: 700;
 		margin-bottom: 0.3em;
 	}
 	label {
@@ -679,7 +679,7 @@
 		width: 100%;
 	}
 	label > span:first-child {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	label.choice {
 		display: flex;
@@ -726,7 +726,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: var(--tap);
 		display: flex;
 		flex-wrap: wrap;
@@ -748,7 +748,7 @@
 		margin: 0.5em 0 0;
 	}
 	.draft dt {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.draft dd {
 		margin: 0 0 0.4em;
@@ -824,7 +824,7 @@
 		gap: 0.25em;
 	}
 	.coords :global(label > span:first-child) {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.coords :global(input) {
 		font: inherit;

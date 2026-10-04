@@ -22,7 +22,7 @@ featured: grupo-doms-miniatura.webp
 status: abierto # anunciado | abierto | agotadas | cancelado #
 opening_date: 2023-09-30Z-03:00
 start: 2023-11-28T20:30-03:00
-end: 2023-10-28T22:30-03:00
+end: 2023-11-28T22:30-03:00
 #location: Thames 240, Ciudad Autónoma de Buenos Aires
 #location_name: QI Centro Cultural
 link: https://forms.gle/d9mwYo118NuXUAz6A

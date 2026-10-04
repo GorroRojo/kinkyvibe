@@ -61,13 +61,13 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 		background: var(--surface);
 		color: var(--text);
 		border: 2px solid var(--link);
 		border-radius: var(--card-round);
 		box-shadow: var(--shadow);
-		padding: 0.6rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	@media (min-width: 900px) {
 		.confirm-prompt {
@@ -76,12 +76,12 @@
 	}
 	.question {
 		margin: 0;
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.btns {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-left: auto;
 	}
 </style>

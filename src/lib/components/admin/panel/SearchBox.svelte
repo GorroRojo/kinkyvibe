@@ -473,17 +473,17 @@
 		max-width: 34rem;
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		background: var(--surface);
 		border: 1px solid var(--field, var(--1-light));
 		border-radius: 3em;
-		padding: 0.5rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		/* parece un input vacío: el texto va como placeholder (token de style.scss / panel.scss) */
 		color: var(--placeholder);
 		text-align: left;
 		cursor: text;
 		&.compact {
-			padding: 0.5rem 0.8rem;
+			padding: var(--space-2xs) var(--space-xs);
 		}
 		:global(svg) {
 			flex: none;
@@ -498,7 +498,7 @@
 	}
 	kbd {
 		font: inherit;
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		background: var(--surface-2);
 		border: 1px solid var(--line);
 		border-radius: 0.4em;
@@ -514,7 +514,7 @@
 		border-radius: var(--card-round, 1.25rem);
 		background: var(--surface);
 		color: var(--text);
-		box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.25);
+		box-shadow: var(--shadow-3);
 		&::backdrop {
 			background: var(--scrim, rgba(30, 15, 40, 0.35));
 		}
@@ -531,8 +531,8 @@
 	.inrow {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.7rem 0.9rem;
+		gap: var(--space-2xs);
+		padding: var(--space-2xs) var(--space-xs);
 		border-bottom: 1px solid var(--line);
 		color: var(--muted);
 		input {
@@ -540,8 +540,8 @@
 			min-width: 0;
 			border: 0;
 			background: none;
-			font-size: 1.05rem;
-			padding: 0.3rem 0;
+			font-size: var(--text-field);
+			padding: var(--space-3xs) 0;
 			color: var(--text);
 			outline: none;
 			&::-webkit-search-cancel-button {
@@ -572,23 +572,23 @@
 	}
 	.list {
 		overflow-y: auto;
-		padding: 0.3rem 0.4rem 0.5rem;
+		padding: var(--space-3xs) 0.4rem var(--space-2xs);
 		flex: 1;
 	}
 	.gl {
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		letter-spacing: 0.09em;
 		text-transform: uppercase;
 		color: var(--muted);
 		font-weight: 700;
-		padding: 0.7rem 0.6rem 0.25rem;
+		padding: var(--space-2xs) var(--space-2xs) var(--space-3xs);
 	}
 	.opt {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
-		padding: 0.5rem 0.6rem;
-		border-radius: 0.7em;
+		gap: var(--space-2xs);
+		padding: var(--space-2xs) var(--space-2xs);
+		border-radius: var(--radius-s);
 		cursor: pointer;
 		min-height: 2.75rem;
 		&.on {
@@ -604,7 +604,7 @@
 		height: 2rem;
 		display: grid;
 		place-items: center;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: var(--surface-2);
 		color: var(--muted);
 	}
@@ -639,10 +639,10 @@
 	.foot {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 1rem;
-		padding: 0.55rem 0.9rem;
+		gap: var(--space-3xs) var(--space-xs);
+		padding: var(--space-2xs) var(--space-xs);
 		border-top: 1px solid var(--line);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 		kbd {
 			margin-right: 0.2rem;
@@ -661,22 +661,22 @@
 		width: min(40rem, calc(100% - 32px));
 	}
 	.helpbox {
-		padding: 1rem 1.2rem 1.2rem;
+		padding: var(--space-xs) var(--space-s) var(--space-s);
 		header {
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			gap: 1rem;
+			gap: var(--space-xs);
 		}
 		h2 {
 			margin: 0;
-			font-size: 1.15rem;
+			font-size: var(--text-base);
 			display: flex;
 			align-items: center;
-			gap: 0.5rem;
+			gap: var(--space-2xs);
 		}
 		h3 {
-			font-size: 0.72rem;
+			font-size: var(--text-xs);
 			letter-spacing: 0.09em;
 			text-transform: uppercase;
 			color: var(--muted);
@@ -688,11 +688,11 @@
 			padding: 0;
 			display: flex;
 			flex-direction: column;
-			gap: 0.35rem;
+			gap: var(--space-3xs);
 		}
 		li {
 			display: flex;
-			gap: 0.7rem;
+			gap: var(--space-2xs);
 			align-items: baseline;
 			&.off {
 				color: var(--muted);
@@ -707,7 +707,7 @@
 	.cols {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0 1.5rem;
+		gap: 0 var(--space-m);
 	}
 	@media (max-width: 899.98px) {
 		.palette,

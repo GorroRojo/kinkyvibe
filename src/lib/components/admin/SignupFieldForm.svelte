@@ -146,16 +146,16 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.scope legend {
-		font-weight: 600;
+		font-weight: 700;
 		margin-bottom: 0.2rem;
 	}
 	.types {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 1rem;
-		padding-left: 1.6rem;
+		gap: var(--space-3xs) var(--space-xs);
+		padding-left: var(--space-m);
 	}
 </style>

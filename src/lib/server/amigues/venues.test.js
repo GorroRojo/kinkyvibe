@@ -171,6 +171,68 @@ describe('el evento muestra lo que su nivel deja', () => {
 	});
 });
 
+describe('las coordenadas del mapa solo salen si la dirección es pública', () => {
+	/** Los niveles que muestran la dirección (y el mapa); en los demás, ni lat ni lng. */
+	const WITH_MAP = new Set(['public', 'address']);
+	const LEVELS = /** @type {const} */ (['public', 'name', 'address', 'area', 'hidden']);
+
+	it('en los datos de la página del evento, por el nivel del lugar o el del evento', async () => {
+		const m = await modules();
+		const venues = Object.fromEntries(
+			await Promise.all(LEVELS.map(async (p) => [p, await venue(p)]))
+		);
+		for (const venueLevel of LEVELS) {
+			for (const eventLevel of [null, ...LEVELS]) {
+				const slug = `mapa-${venueLevel}-${eventLevel ?? 'igual'}`;
+				const r = await m.setEventVenue(t.db, {
+					eventSlug: slug,
+					venueId: venues[venueLevel].id,
+					privacy: eventLevel,
+					by: 'a'
+				});
+				expect(r.ok).toBe(true);
+				// Lo mismo que carga +page.server.js del evento para quien no tiene cuenta.
+				const view = await m.eventPageVenue(t.db, slug, /** @type {App.Locals} */ ({}));
+				const level = eventLevel ?? venueLevel;
+				expect(view?.level).toBe(level);
+				const json = JSON.stringify(view);
+				if (WITH_MAP.has(level)) {
+					expect(view).toMatchObject({ lat: -34.6, lng: -58.4 });
+				} else {
+					expect(view).not.toHaveProperty('lat');
+					expect(view).not.toHaveProperty('lng');
+					expect(json).not.toMatch(/-34\.6|-58\.4/);
+				}
+			}
+		}
+	});
+
+	it('en las listas, el .ics y el buscador (withVenuePlaces, feedVenues), nunca', async () => {
+		const m = await modules();
+		const posts = [];
+		for (const level of LEVELS) {
+			const v = await venue(level);
+			await m.setEventVenue(t.db, {
+				eventSlug: `lista-${level}`,
+				venueId: v.id,
+				privacy: null,
+				by: 'a'
+			});
+			posts.push({ meta: { category: 'calendario', postID: `lista-${level}`, title: level } });
+		}
+		const out = await m.withVenuePlaces(t.db, posts);
+		expect(JSON.stringify(out)).not.toMatch(/-34\.6|-58\.4|"lat"|"lng"/);
+		const feed = await m.feedVenues(
+			t.db,
+			LEVELS.map((l) => `lista-${l}`)
+		);
+		for (const [slug, view] of feed) {
+			if (WITH_MAP.has(view.level)) continue;
+			expect(JSON.stringify(view), slug).not.toMatch(/-34\.6|-58\.4/);
+		}
+	});
+});
+
 describe('la página del lugar', () => {
 	it('lista solo los eventos que muestran el link al lugar (niveles 1 y 2)', async () => {
 		const m = await modules();

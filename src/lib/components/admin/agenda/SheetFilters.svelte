@@ -66,7 +66,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: 0.5rem 0.8rem;
+		gap: var(--space-2xs) var(--space-xs);
 		margin-bottom: 0.8rem;
 	}
 	.field {
@@ -76,7 +76,7 @@
 		min-width: 0;
 	}
 	.field > span:first-child {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		color: var(--muted);
 	}
@@ -97,7 +97,7 @@
 	}
 	.search input {
 		width: 100%;
-		padding-left: 2.2rem;
+		padding-left: var(--space-l);
 		box-sizing: border-box;
 	}
 	select {
@@ -105,11 +105,11 @@
 	}
 	.count {
 		margin: 0 0 0.6rem auto;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		white-space: nowrap;
 	}
 </style>

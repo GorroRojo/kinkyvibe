@@ -78,7 +78,7 @@
 	/** @type {import('./$types').ActionData} */
 	export let form;
 
-	/** Con el interruptor `contenido_db`, el evento se guarda en la base y se ve enseguida. */
+	/** El evento se guarda en la base y se ve enseguida. */
 	const copy = saveCopy(data.savesToDb);
 
 	// «¿Es parte de una serie?» al duplicar un evento que no está en ninguna (interruptor
@@ -1064,7 +1064,7 @@
 		grid-template-columns: auto 1fr;
 		gap: 0.3em 1em;
 		background: var(--surface, white);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.8em 1em;
 		dt {
 			font-weight: bold;
@@ -1080,7 +1080,7 @@
 	.affected {
 		margin-top: 0.8em;
 		background: var(--warn-bg, #fff8e1);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 1em;
 		p {
 			margin: 0 0 0.3em;
@@ -1100,7 +1100,7 @@
 		margin-top: 1em;
 		background: var(--surface-2, #fff7fb);
 		outline: 2px solid var(--1-light);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.8em 1em;
 		p {
 			margin: 0;
@@ -1108,9 +1108,9 @@
 	}
 	.done {
 		background: var(--surface, white);
-		border-radius: 1.2em;
+		border-radius: var(--radius-l);
 		padding: 1em 1.2em;
-		box-shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-1);
 		overflow-wrap: anywhere;
 		.small {
 			font-size: var(--step--1);

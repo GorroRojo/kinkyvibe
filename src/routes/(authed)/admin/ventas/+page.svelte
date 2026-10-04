@@ -213,7 +213,7 @@
 	.head {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 		align-items: baseline;
 		justify-content: space-between;
 	}
@@ -224,7 +224,7 @@
 	}
 	.name {
 		font-weight: 700;
-		font-size: 1.1rem;
+		font-size: var(--text-base);
 		overflow-wrap: anywhere;
 	}
 	td small {
@@ -245,7 +245,7 @@
 		}
 		.kv-table :global(th),
 		.kv-table :global(td) {
-			padding-inline: 0.35rem;
+			padding-inline: var(--space-3xs);
 		}
 	}
 	.bar-col .num {
@@ -267,13 +267,13 @@
 	.fondo {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem 1.5rem;
+		gap: var(--space-2xs) var(--space-m);
 		margin: 0;
-		padding-top: 0.6rem;
+		padding-top: var(--space-2xs);
 		border-top: 1px solid var(--line);
 	}
 	.fondo dt {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.fondo dd {

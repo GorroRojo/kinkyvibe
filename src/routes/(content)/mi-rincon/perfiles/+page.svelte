@@ -292,7 +292,7 @@
 		width: 100%;
 	}
 	legend {
-		font-weight: 600;
+		font-weight: 700;
 		margin-bottom: 0.3em;
 	}
 	label {
@@ -301,7 +301,7 @@
 		width: 100%;
 	}
 	label > span:first-child {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	label.choice {
 		display: flex;

@@ -192,16 +192,17 @@ los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `feat
 `location`…; `force_unlisted` → `unlisted`, `force_unpublished` → visibilidad `hidden`). Lo que el
 tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). Columnas
 generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
-importación, la lectura detrás de `contenido_db` y el historial (`object_revisions`):
+importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
 
 **Relaciones del evento** (regla 4: edges, nunca direcciones ni ids en `data`; decisión de gorrite,
 «Contenido solo en la base», paso 3; migración `0035_relaciones_edges.sql` para lo ya guardado):
 
-| Edge      | Hacia                        | `data`                                 | Lo escribe / lo lee                                           |
-| --------- | ---------------------------- | -------------------------------------- | ------------------------------------------------------------- |
-| `lugar`   | `perfil` de lugar (máximo 1) | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md)) |
-| `persona` | `perfil` (uno por perfil)    | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                   |
+| Edge      | Hacia                          | `data`                                 | Lo escribe / lo lee                                                           |
+| --------- | ------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------- |
+| `lugar`   | `perfil` de lugar (máximo 1)   | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md))                 |
+| `persona` | `perfil` (uno por perfil)      | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                                   |
+| `parte`   | `evento` (máximo 20, en orden) | sin `data`; `position` = orden         | `src/lib/server/eventos/partes.js` ([talleres-partes.md](talleres-partes.md)) |
 
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se

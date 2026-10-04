@@ -91,24 +91,24 @@
 		margin: 0.6rem 0 0;
 		padding: 0;
 		display: grid;
-		gap: 0.9rem;
+		gap: var(--space-xs);
 	}
 	.claims li {
 		border-top: 1px solid var(--field);
-		padding-top: 0.7rem;
+		padding-top: var(--space-2xs);
 		display: grid;
 		gap: 0.4rem;
 	}
 	.who {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		align-items: center;
 		overflow-wrap: anywhere;
 	}
 	blockquote {
 		margin: 0;
-		padding-left: 0.8rem;
+		padding-left: var(--space-xs);
 		border-left: 3px solid var(--field);
 		white-space: pre-line;
 		overflow-wrap: anywhere;

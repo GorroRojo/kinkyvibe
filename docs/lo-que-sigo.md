@@ -38,9 +38,8 @@ elegido con las opciones de siempre, sin salir de la página (`?/seguir`). Sin J
 campo con «Seguir» (el nombre de la etiqueta, un alias o la forma de la URL).
 
 Abajo, **«Tu calendario»** (`#calendario`): qué junta el calendario personal, «Mis entradas» y «Los
-eventos donde participo» y, con el interruptor `series`, el link secreto para suscribirse (se ve una
-sola vez; «Generar un link nuevo» revoca el anterior; `?/crearLink`, `?/revocarLink`). Sin
-`series` el `.ics` personal da 404, así que no se ofrece el link.
+eventos donde participo» y el link secreto para suscribirse (se ve una sola vez; «Generar un link
+nuevo» revoca el anterior; `?/crearLink`, `?/revocarLink`).
 
 Antes eran dos páginas: **Mi rincón → Calendario** (`/mi-rincon/calendario`) tenía el link y la
 lista de «Avisos de series», que con «Lo que sigo» ya son cosas seguidas. Con `lo_que_sigo`
@@ -100,7 +99,7 @@ Qué se sigue:
 ### El calendario personal
 
 `/ics/mio/<token>.ics` (el link está en Mi rincón → Lo que sigo → «Tu calendario»; sin
-`lo_que_sigo`, en Mi rincón → Calendario. Sigue necesitando el interruptor `series`) junta, con `lo_que_sigo` prendido (`src/lib/server/sigo/calendar.js`):
+`lo_que_sigo`, en Mi rincón → Calendario) junta, con `lo_que_sigo` prendido (`src/lib/server/sigo/calendar.js`):
 
 - **mis entradas**, incluidos los eventos no listados (son de la persona);
 - **los eventos donde participo**: los que nombran en `personas:` un perfil que la cuenta gestiona;
@@ -178,8 +177,8 @@ que se vuelva a prender.
 - El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
 - «Avisame» con cuenta deja también «en mi calendario» prendido.
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
-- El calendario personal sigue necesitando `series` (es donde se crea el link); «Lo que sigo» le
-  suma cosas pero no lo prende solo.
+- El calendario personal existe siempre (el interruptor `series` quedó fijo); «Lo que sigo» le
+  suma cosas.
 - Mi rincón muestra una sola tarjeta, «Lo que seguís y tu calendario», y la página se sigue
   llamando «Lo que sigo» (como el interruptor y los mails). `/mi-rincon/calendario` no redirige:
   muestra un aviso con el link.

@@ -6,7 +6,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import RecoverableDeletions from '$lib/components/admin/panel/RecoverableDeletions.svelte';
-	import { ChevronRight, ChevronsLeft, Filter, X } from '@lucide/svelte';
+	import { ChevronRight, ChevronsLeft, Filter, ScrollText, Unplug, X } from '@lucide/svelte';
 
 	export let data;
 	/** @type {any} */
@@ -113,13 +113,13 @@
 	<Card padded={false}>
 		{#if !data.dbAvailable}
 			<EmptyState
-				emoji="🔌"
+				icon={Unplug}
 				title="Sin base de datos"
 				text="El registro de actividad vive en la base de datos, que no está disponible en este entorno."
 			/>
 		{:else if !data.entries.length}
 			<EmptyState
-				emoji="📜"
+				icon={ScrollText}
 				title={filtered ? 'Nada con esos filtros' : 'Todavía no hay actividad'}
 				text={filtered
 					? 'Probá con otros filtros o limpialos.'
@@ -171,7 +171,7 @@
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: flex-end;
 		label {
 			display: flex;
@@ -180,7 +180,7 @@
 			min-width: 9rem;
 			flex: 1 1 9rem;
 			span {
-				font-size: 0.72rem;
+				font-size: var(--text-xs);
 				letter-spacing: 0.07em;
 				text-transform: uppercase;
 				color: var(--muted);
@@ -197,7 +197,7 @@
 		}
 		.buttons {
 			display: flex;
-			gap: 0.5rem;
+			gap: var(--space-2xs);
 			flex-wrap: wrap;
 		}
 	}
@@ -211,8 +211,8 @@
 		li {
 			display: grid;
 			grid-template-columns: 10rem minmax(0, 1fr);
-			gap: 0.8rem;
-			padding: 0.75rem 1.2rem;
+			gap: var(--space-xs);
+			padding: var(--space-xs) var(--space-s);
 			border-bottom: 1px solid var(--line);
 			&:last-child {
 				border-bottom: 0;
@@ -220,14 +220,14 @@
 		}
 		time {
 			color: var(--muted);
-			font-size: 0.85rem;
+			font-size: var(--text-xs);
 			font-variant-numeric: tabular-nums;
 			padding-top: 0.1rem;
 		}
 		.what {
 			display: flex;
 			flex-direction: column;
-			gap: 0.3rem;
+			gap: var(--space-3xs);
 			min-width: 0;
 			b {
 				overflow-wrap: anywhere;
@@ -236,9 +236,9 @@
 		.meta {
 			display: flex;
 			flex-wrap: wrap;
-			gap: 0.3rem 0.6rem;
+			gap: var(--space-3xs) var(--space-2xs);
 			align-items: center;
-			font-size: 0.85rem;
+			font-size: var(--text-xs);
 			a {
 				text-decoration: none;
 			}
@@ -251,13 +251,13 @@
 			color: var(--muted);
 			overflow-wrap: anywhere;
 			code {
-				font-size: 0.8rem;
+				font-size: var(--text-xs);
 			}
 		}
 	}
 	.pager {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		justify-content: flex-end;
 		margin-top: 1rem;
 	}
@@ -265,7 +265,7 @@
 		.log li {
 			grid-template-columns: minmax(0, 1fr);
 			gap: 0.2rem;
-			padding: 0.7rem 1rem;
+			padding: var(--space-2xs) var(--space-xs);
 		}
 	}
 </style>

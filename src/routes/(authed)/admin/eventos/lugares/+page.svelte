@@ -382,7 +382,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.grow {
 		flex: 1 1 16rem;
@@ -399,7 +399,7 @@
 	.link-form {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 		margin-top: 1rem;
 	}

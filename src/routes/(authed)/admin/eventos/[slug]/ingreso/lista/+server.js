@@ -6,17 +6,22 @@
 import { json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { doorCounts, offlineList } from '$lib/server/tickets/door.js';
+import { overlayPartCheckins, partDoorCounts } from '$lib/server/tickets/partCheckins.js';
 import { NO_STORE, cachedPrior, doorContext } from '../context.server.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET(event) {
 	requireAdmin(event.locals, event.url);
-	const { db, typeNames } = await doorContext(event);
-	const slug = event.params.slug;
+	// En una parte de un taller (docs/talleres-partes.md): las entradas del taller con el ingreso
+	// a esta parte.
+	const { db, typeNames, ticketSlug: slug, part } = await doorContext(event);
 	const prior = await cachedPrior(db, slug, event.platform);
-	const [tickets, counts] = await Promise.all([
+	const [all, counts] = await Promise.all([
 		offlineList(db, { slug, typeNames, prior }),
-		doorCounts(db, slug)
+		part ? partDoorCounts(db, slug, part.slug) : doorCounts(db, slug)
 	]);
+	const tickets = part
+		? await overlayPartCheckins(db, part.slug, all, { id: 'ticketId', at: 'at', by: 'by' })
+		: all;
 	return json({ at: Date.now(), tickets, counts }, { headers: NO_STORE });
 }

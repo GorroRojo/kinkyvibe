@@ -39,7 +39,7 @@
 
 <style>
 	.tag {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		border: 1.5px dashed var(--line);
 		color: var(--muted);
 		border-radius: 2em;
@@ -49,7 +49,7 @@
 	.soon {
 		border: 2px dashed var(--line);
 		border-radius: var(--card-round);
-		padding: 1rem;
+		padding: var(--space-xs);
 		max-width: 44rem;
 	}
 	.kv-note {

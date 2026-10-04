@@ -220,16 +220,14 @@ export const NAV = Object.freeze([
 		highlight: true
 	},
 	{
-		// Series de eventos (docs/decisiones/0005). Con el interruptor apagado la página da 404.
+		// Series de eventos (docs/decisiones/0005).
 		id: 'eventos-series',
 		href: '/admin/eventos/series',
 		icon: Repeat,
 		emoji: '🔁',
 		label: 'Series',
 		area: 'eventos',
-		soon: false,
-		flag: 'series',
-		hiddenWhenOff: true
+		soon: false
 	},
 	{
 		// Perfiles de tipo lugar y el "sucede en" de cada evento (docs/amigues.md), con las listas
@@ -412,8 +410,7 @@ export const NAV = Object.freeze([
 		emoji: '🗄️',
 		label: 'En la base',
 		area: 'contenido',
-		soon: false,
-		flag: 'contenido_db'
+		soon: false
 	},
 	{
 		id: 'colecciones',

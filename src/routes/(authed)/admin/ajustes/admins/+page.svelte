@@ -70,8 +70,8 @@
 	li {
 		display: flex;
 		align-items: center;
-		gap: 0.8rem;
-		padding: 0.8rem 1.2rem;
+		gap: var(--space-xs);
+		padding: var(--space-xs) var(--space-s);
 		border-top: 1px solid var(--line);
 	}
 	li:first-child {

@@ -6,7 +6,9 @@
 //   PW_CHROMIUM_PATH  use a specific Chromium binary instead of the one Playwright downloaded
 //                     (useful when the preinstalled browser revision doesn't match @playwright/test)
 const port = Number(process.env.PORT ?? 4173);
-const preview = `npm run preview -- --port ${port} --strictPort`;
+// Los eventos y el material salen solo de la base: antes de servir, se importan los .md del repo a
+// la base local (idempotente; scripts/import-content.js, que también aplica las migraciones).
+const preview = `node scripts/import-content.js --quiet && npm run preview -- --port ${port} --strictPort`;
 
 /** @type {import('@playwright/test').PlaywrightTestConfig} */
 const config = {

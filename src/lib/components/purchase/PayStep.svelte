@@ -106,7 +106,7 @@
 		min-height: 3.6em;
 		min-width: 0;
 		padding: 0.55em 0.8em;
-		border-radius: 0.7em;
+		border-radius: var(--radius-s);
 		background: white;
 		box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
 		cursor: pointer;
@@ -157,7 +157,7 @@
 	.conditions ul {
 		margin: 0.5em 0 0;
 		padding: 0.6em 0.8em 0.6em 2em;
-		border-radius: 0.5em;
+		border-radius: var(--radius-s);
 		background: white;
 	}
 	.conditions li {
@@ -208,7 +208,7 @@
 		cursor: not-allowed;
 	}
 	.field-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--error);
 		font-size: var(--step--1);
 		margin: 0;
 	}

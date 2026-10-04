@@ -34,6 +34,26 @@ Todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas l
 panel deja igual importar, revisar la clasificación y cargar lugares, para preparar todo antes de
 prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra el sitio).
 
+## Borrar un perfil desde el panel
+
+Con `borrar_desde_panel` prendido, el editor de un perfil tiene «Borrar…», que lleva a la página de
+confirmación de siempre (`/admin/borrar/amigues/<dirección>`: lo que depende del perfil y, si hay
+algo, escribir la dirección para confirmar).
+
+- **Perfil que vive solo en la base** (sin `.md`: los creados en el panel, los lugares, los de las
+  cuentas): se borra en la base, al toque y sin GitHub. Es el borrado suave del objeto
+  (`deleted_at` con `saveObject()`, con su revisión en `object_revisions`); «Deshacer» y
+  «Recuperar» (Actividad) lo vuelven atrás. Las relaciones (el edge `lugar` de los eventos,
+  personas con rol, integrantes, quién lo gestiona) **quedan guardadas**: quienes las leen ya se
+  saltean los perfiles borrados (`visibleWhere`, `getEdges`, `eventVenue`), así que dejan de
+  aparecer y vuelven al deshacer. Un evento cuyo lugar se borró muestra su «Dónde» en texto libre,
+  si tiene (también en los mails de las entradas): la página de borrar lo avisa.
+- **Ficha con `.md`** (importada): como antes, por GitHub (el editor del `.md`, con el interruptor
+  apagado). Con `perfiles_publicos` prendido, el editor de la base no ofrece borrarla.
+
+Código: `deleteDbProfile` y `deleteBackend` en `src/lib/server/admin/deletions.js`; pruebas en
+`deletions-db.test.js` y `src/routes/(authed)/admin/borrar/borrar.test.js`.
+
 ## Prenderlo (orden recomendado)
 
 1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`
@@ -107,6 +127,14 @@ en los recordatorios y en la página de su entrada (con la compra aprobada).
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").
 
+**El mapa** (`VenueMap.svelte`): baldosas de OpenStreetMap como imágenes comunes con
+`loading="lazy"` (sin librerías, scripts ni iframes de afuera, así que no hace falta tocar la CSP),
+alto fijo (no corre nada al cargar) y ancho que se adapta al celular con el punto en el centro.
+Abajo, «Abrir en OpenStreetMap», «Cómo llegar» (las indicaciones de openstreetmap.org con el
+destino puesto) y el crédito «© colaboradores de OpenStreetMap». Sale solo en "Nombre + dirección"
+y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
+`venues.test.js` y `VenueLocation.test.js`).
+
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir se
 arman al compilar desde los `.md`, así que no pueden contener nada de la base. La prueba
 `src/routes/(content)/amigues/amigues-routes.test.js` planta un lugar oculto y revisa todas esas
@@ -163,8 +191,8 @@ lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca
 
 **Eventos → Lugares → «Importar de eventos»** (`/admin/eventos/lugares/importar`, solo admins)
 arma lugares con el «Dónde» que ya tienen los eventos (`location_name`, `location`,
-`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: los
-`.md`, o la base con `contenido_db` prendido). Reglas puras en `src/lib/utils/venueImport.js`;
+`location_map`). Lee todos los eventos con los mismos lectores que el sitio (`sitePosts`: la
+base). Reglas puras en `src/lib/utils/venueImport.js`;
 lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 
 - **Mismo lugar**: el mismo nombre, la misma calle y número o el mismo link al mapa, sin importar

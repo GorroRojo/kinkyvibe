@@ -139,7 +139,6 @@ describe('loadAutomations', () => {
 		]);
 		const r = await loadAutomations({
 			db: t.db,
-			flags: { series: true },
 			salesSettings: {
 				reminders: JSON.stringify([
 					{ kind: 'hours_before', hours: 24, enabled: true },

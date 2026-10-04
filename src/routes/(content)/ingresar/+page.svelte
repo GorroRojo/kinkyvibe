@@ -152,7 +152,7 @@
 		gap: 0.25em;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='email'],
 	input[type='text'],
@@ -192,7 +192,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--2-dark);
 		min-height: var(--tap);
 		display: flex;

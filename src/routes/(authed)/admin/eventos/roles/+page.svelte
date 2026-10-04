@@ -109,7 +109,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		padding: 0.45rem 0;
 		border-top: 1px solid var(--line);
 	}
@@ -125,6 +125,6 @@
 	}
 	h3 {
 		margin: 1.2rem 0 0.5rem;
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 </style>

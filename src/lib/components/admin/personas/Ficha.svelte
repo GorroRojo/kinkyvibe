@@ -6,6 +6,7 @@
 	 * Actividad).
 	 * Props: `data` (lo del load), `form` (lo de las actions), `back` ({ href, label }).
 	 */
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -636,8 +637,13 @@
 							<form
 								method="POST"
 								action="?/deleteNote"
-								use:enhance={({ cancel }) => {
-									if (!confirm('¿Borrar esta nota?')) cancel();
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: '¿Borrar esta nota?',
+										confirmLabel: 'Borrar',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
 								}}
 							>
 								<input type="hidden" name="id" value={n.id} />
@@ -682,17 +688,17 @@
 		overflow-wrap: anywhere;
 	}
 	h3 {
-		font-size: 1rem;
+		font-size: var(--text-sm);
 		margin: 0.6rem 0 0;
 	}
 	.facts {
 		display: grid;
 		grid-template-columns: max-content 1fr;
-		gap: 0.35rem 1rem;
+		gap: var(--space-3xs) var(--space-xs);
 		margin: 0;
 	}
 	.facts.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 		margin-top: 0.3rem;
 	}
 	.facts dt {
@@ -725,7 +731,7 @@
 		padding: 0;
 	}
 	.orders > li {
-		padding: 0.8rem 0;
+		padding: var(--space-xs) 0;
 		border-top: 1px solid var(--line);
 		display: flex;
 		flex-direction: column;
@@ -745,34 +751,34 @@
 		overflow-wrap: anywhere;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.tickets li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.5rem;
+		gap: var(--space-3xs) var(--space-2xs);
 		align-items: center;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: 0.15rem 0;
 	}
 	.plain li {
-		padding: 0.25rem 0;
+		padding: var(--space-3xs) 0;
 		overflow-wrap: anywhere;
 	}
 	.quote {
 		margin: 0.2rem 0 0;
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 		color: var(--muted);
 		white-space: pre-wrap;
 	}
 	details summary {
 		cursor: pointer;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.notes li {
 		background: var(--surface-2);
-		border-radius: 0.8rem;
-		padding: 0.6rem 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		margin-top: 0.5rem;
 	}
 	.notes p {

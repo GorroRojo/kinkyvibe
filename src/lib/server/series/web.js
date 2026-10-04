@@ -1,12 +1,11 @@
 /**
- * Pegamento entre las series y SvelteKit: el interruptor, el envío de mails y la corrida del cron.
+ * Pegamento entre las series y SvelteKit: la base, el envío de mails y la corrida del cron.
  */
 import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { isFlagOn, seriesEnabled } from '$lib/server/flags.js';
 import { deliverEmail } from '$lib/server/tickets/index.js';
-import { siteTags } from './index.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
@@ -14,21 +13,12 @@ import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /**
- * Para las páginas y endpoints de series: 404 con el interruptor apagado (como si no existieran).
- *
- * @param {App.Platform | undefined} platform
- */
-export async function requireSeries(platform) {
-	if (!(await seriesEnabled(platform))) error(404, 'Not found');
-}
-
-/**
- * Lo mismo, y además la base (503 si falta).
+ * Para las páginas y endpoints de series que escriben o leen la base: la base (503 si falta).
+ * (El interruptor `series` quedó prendido para siempre.)
  *
  * @param {App.Platform | undefined} platform
  */
 export async function requireSeriesDB(platform) {
-	await requireSeries(platform);
 	const db = getDB(platform);
 	if (!db) error(503, 'No disponible en este momento.');
 	return db;
@@ -54,19 +44,19 @@ export function seriesSender(db, fetchFn) {
 }
 
 /**
- * La parte de series del cron de mails. Con el interruptor apagado no hace nada (`null`).
+ * La parte de series del cron de mails.
  *
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
  */
 export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now() }) {
-	if (!(await isFlagOn(db, 'series'))) return null;
+	const platform = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }));
 	return runSeriesNotifications({
 		db,
-		// Con `contenido_db` prendido, los eventos de la base (también los creados en el panel).
-		posts: await sitePosts(
-			/** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
-		),
-		tags: siteTags(),
+		// Los eventos de la base.
+		posts: await sitePosts(platform),
+		// Las series de la base, leídas acá (no el árbol que dejó el último pedido): el cron no
+		// depende de que hooks.server.js haya corrido en este isolate.
+		tags: await siteTagManager(platform),
 		origin,
 		send: seriesSender(db, fetchFn),
 		now

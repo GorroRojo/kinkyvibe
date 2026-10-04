@@ -129,7 +129,7 @@
 		background: color-mix(in srgb, var(--color) 2%, white);
 		padding: 1em 2em;
 		outline: 2px solid var(--color);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		color: color-mix(in srgb, var(--color) 50%, black);
 		margin-bottom: 2em;
 		line-height: 1.5;
@@ -183,7 +183,7 @@
 			color: var(--color);
 			border: 1px solid color-mix(in srgb, var(--color) 60%, transparent);
 			background: color-mix(in srgb, var(--color) 10%, transparent);
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			padding: 0.3em;
 			/* place-content: center; */
 			text-align: center;

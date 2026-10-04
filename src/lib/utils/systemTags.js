@@ -1,7 +1,7 @@
 /**
  * Etiquetas del sistema: las que el código nombra literalmente (por su id), así que se rompería
  * algo si se renombran o se fusionan con otra desde /admin/etiquetas. `applyTagOps`
- * (./tagConfig.js) lo frena, y por ahí pasan los dos modos del editor (archivo y `etiquetas_db`),
+ * (./tagConfig.js) lo frena, y por ahí pasa el editor (en la base),
  * Series y el panel. Se les puede cambiar el nombre visible, el ícono, la descripción, etc.
  *
  * Si agregás un nombre literal de etiqueta en src/, sumalo acá con el motivo.

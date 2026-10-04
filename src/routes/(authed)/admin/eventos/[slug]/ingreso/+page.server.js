@@ -10,6 +10,11 @@
  *   anticipadas) contesta 409 con `needsConfirmation`; la página pregunta con un diálogo y
  *   reenvía con `override` (ver overrides.js). Pasar un límite queda en el registro.
  * - `sync`: ingresos marcados sin conexión.
+ *
+ * En una parte (2 en adelante) de un taller con una sola entrada (docs/talleres-partes.md), las
+ * entradas son las del taller y el ingreso se marca por parte (`doorContext` → `part`,
+ * src/lib/server/tickets/partCheckins.js). Ahí no se vende en la puerta: la entrada es del taller
+ * entero y se vende en el modo puerta del taller.
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -40,29 +45,49 @@ import {
 	remainingOf
 } from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
+import {
+	applyQueuedPartCheckIns,
+	checkInPart,
+	overlayPartCheckins,
+	partDoorCounts,
+	undoPartCheckIn
+} from '$lib/server/tickets/partCheckins.js';
 import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './context.server.js';
+
+/**
+ * Contadores de la pantalla: los del evento o, en una parte de un taller, los de esa parte.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ ticketSlug: string, part: { slug: string } | null }} scope
+ */
+function countsFor(db, { ticketSlug, part }) {
+	return part ? partDoorCounts(db, ticketSlug, part.slug) : doorCounts(db, ticketSlug);
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	const admin = requireAdmin(event.locals, event.url);
 	event.setHeaders(NO_STORE);
-	const { db, config } = await doorContext(event, { fondo: true });
+	const { db, config, ticketSlug, part } = await doorContext(event, { fondo: true });
 	const [counts, sales, series] = await Promise.all([
-		doorCounts(db, event.params.slug),
-		getCounts(db, event.params.slug),
-		doorSeriesLabel(event.params.slug, event.platform)
+		countsFor(db, { ticketSlug, part }),
+		getCounts(db, ticketSlug),
+		doorSeriesLabel(ticketSlug, event.platform)
 	]);
 	return {
 		bare: true,
 		slug: event.params.slug,
 		title: config.title,
 		start: config.start ?? null,
+		// Parte de un taller: «Parte 2 de 3», con las entradas del taller.
+		part,
 		series,
 		login: admin.login,
 		counts,
 		fondoEnabled: config.fondoEnabled,
-		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`).
-		doorSales: doorSalesOpen(config),
+		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`). En una parte de
+		// un taller, nunca (la entrada es del taller entero).
+		doorSales: !part && doorSalesOpen(config),
 		doorPrice: config.door?.price ?? '',
 		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
 		maxOrder: PANEL_ORDER_HARD_MAX,
@@ -94,11 +119,13 @@ export async function load(event) {
  */
 async function checkinAction(event) {
 	const admin = requireAdmin(event.locals, event.url);
-	const { db, typeNames } = await doorContext(event);
-	const slug = event.params.slug;
+	const { db, typeNames, ticketSlug, part } = await doorContext(event);
+	const slug = ticketSlug;
 	const raw = (await event.request.formData()).get('token');
 	const token = await extractToken(db, slug, raw);
-	const r = await checkIn(db, { token, eventSlug: slug, by: admin.login });
+	const r = part
+		? await checkInPart(db, { token, ticketSlug, partSlug: part.slug, by: admin.login })
+		: await checkIn(db, { token, eventSlug: slug, by: admin.login });
 	const stamp = Date.now();
 	if (r.result === 'invalid') {
 		return { checkin: { result: r.result, stamp, card: null, otherEvent: null } };
@@ -115,7 +142,17 @@ async function checkinAction(event) {
 			}
 		};
 	}
-	const full = r.ticket ? await ticketWithBuyer(db, { id: r.ticket.id }) : null;
+	const found = r.ticket ? await ticketWithBuyer(db, { id: r.ticket.id }) : null;
+	const full =
+		found && part
+			? (
+					await overlayPartCheckins(db, part.slug, [found], {
+						id: 'id',
+						at: 'checked_in_at',
+						by: 'checked_in_by'
+					})
+				)[0]
+			: found;
 	const prior = await cachedPrior(db, slug, event.platform);
 	return {
 		checkin: {
@@ -124,7 +161,7 @@ async function checkinAction(event) {
 			card: full ? ticketCard(full, { typeNames, prior }) : null,
 			otherEvent: null
 		},
-		counts: await doorCounts(db, slug)
+		counts: await countsFor(db, { ticketSlug, part })
 	};
 }
 
@@ -134,35 +171,42 @@ export const actions = {
 
 	undo: async (event) => {
 		const admin = requireAdmin(event.locals, event.url);
-		const { db } = await doorContext(event);
+		const { db, ticketSlug, part } = await doorContext(event);
 		const ticketId = String((await event.request.formData()).get('ticket') ?? '').slice(0, 64);
 		const before = ticketId ? await ticketWithBuyer(db, { id: ticketId }) : null;
-		const ok = await undoCheckIn(db, { ticketId, eventSlug: event.params.slug });
+		const ok = part
+			? await undoPartCheckIn(db, { ticketId, ticketSlug, partSlug: part.slug })
+			: await undoCheckIn(db, { ticketId, eventSlug: ticketSlug });
 		if (ok && before) {
 			await logAdminAction(db, event.locals, {
 				action: 'checkin.undo',
 				targetType: 'order',
 				targetId: before.order_id,
 				summary: `Deshizo el ingreso de una entrada de ${orderRef(before.order_id)}`,
-				detail: { event: event.params.slug, ticket: ticketId, by: admin.login }
+				detail: {
+					event: event.params.slug,
+					...(part ? { workshop: ticketSlug } : {}),
+					ticket: ticketId,
+					by: admin.login
+				}
 			});
 		}
-		return { undo: { ok, ticketId }, counts: await doorCounts(db, event.params.slug) };
+		return { undo: { ok, ticketId }, counts: await countsFor(db, { ticketSlug, part }) };
 	},
 
 	reveal: async (event) => {
 		requireAdmin(event.locals, event.url);
-		const { db } = await doorContext(event);
+		const { db, ticketSlug } = await doorContext(event);
 		const ticketId = String((await event.request.formData()).get('ticket') ?? '').slice(0, 64);
-		const dni = await revealDni(db, event.locals, { slug: event.params.slug, ticketId });
+		const dni = await revealDni(db, event.locals, { slug: ticketSlug, ticketId });
 		if (!dni) return fail(404, { reveal: { ticketId, dni: null } });
 		return { reveal: { ticketId, dni } };
 	},
 
 	sync: async (event) => {
 		const admin = requireAdmin(event.locals, event.url);
-		const { db } = await doorContext(event);
-		const slug = event.params.slug;
+		const { db, ticketSlug, part } = await doorContext(event);
+		const slug = ticketSlug;
 		let raw;
 		try {
 			raw = JSON.parse(String((await event.request.formData()).get('queue') ?? ''));
@@ -171,30 +215,43 @@ export const actions = {
 		}
 		const items = parseQueue(raw);
 		if (!items) return fail(400, { sync: { ok: false, results: [] } });
-		const results = await applyQueuedCheckIns(db, {
-			eventSlug: slug,
-			by: admin.login,
-			items,
-			resolve: (value) => extractToken(db, slug, value)
-		});
+		const resolve = (/** @type {string} */ value) => extractToken(db, slug, value);
+		const results = part
+			? await applyQueuedPartCheckIns(db, {
+					ticketSlug,
+					partSlug: part.slug,
+					by: admin.login,
+					items,
+					resolve
+				})
+			: await applyQueuedCheckIns(db, { eventSlug: slug, by: admin.login, items, resolve });
 		const tally = /** @type {Record<string, number>} */ ({});
 		for (const r of results) tally[r.result] = (tally[r.result] ?? 0) + 1;
 		if (results.length) {
 			await logAdminAction(db, event.locals, {
 				action: 'checkin.sync',
 				targetType: 'event',
-				targetId: slug,
+				targetId: event.params.slug,
 				summary: `Sincronizó ${results.length} ${results.length === 1 ? 'ingreso marcado' : 'ingresos marcados'} sin conexión`,
 				detail: tally
 			});
 		}
-		return { sync: { ok: true, results }, counts: await doorCounts(db, slug) };
+		return { sync: { ok: true, results }, counts: await countsFor(db, { ticketSlug, part }) };
 	},
 
 	sell: async (event) => {
 		const admin = requireAdmin(event.locals, event.url);
-		const { db, config, typeNames } = await doorContext(event, { fondo: true });
+		const { db, config, typeNames, part } = await doorContext(event, { fondo: true });
 		const slug = event.params.slug;
+		if (part) {
+			return fail(400, {
+				sale: {
+					ok: false,
+					message: 'En una parte del taller no se vende: vendé en el modo puerta del taller.',
+					tickets: []
+				}
+			});
+		}
 		const form = await event.request.formData();
 		const text = (/** @type {string} */ name, max = 120) =>
 			String(form.get(name) ?? '')

@@ -25,7 +25,50 @@
 	--step-4: clamp(2.33rem, calc(2.08rem + 1.25vw), 3.05rem);
 	--step-5: clamp(2.8rem, calc(2.45rem + 1.77vw), 3.82rem);
 
-	--round: 1rem;
+	/** Texto: alias semánticos sobre los pasos de Utopia (ver docs/estilo.md). Usá estos en los
+	    componentes en vez de px/rem sueltos. Pesos: solo 400 y 700 (Lato no tiene 600). **/
+	--text-xs: var(--step--2); /* 12.5–12.8px: chips, contadores, notas al pie */
+	--text-sm: var(--step--1); /* 15–16px: texto secundario, tablas, la base del panel */
+	--text-base: var(--step-0); /* 18–20px: texto de lectura (posts) */
+	--text-lg: var(--step-1); /* 21.6–25px: subtítulos chicos */
+	--text-xl: var(--step-2); /* 26–31px: títulos de sección */
+	--text-2xl: var(--step-3); /* 31–39px: títulos de página */
+	--text-3xl: var(--step-4); /* 37–49px: títulos grandes (el h1 de los posts usa --step-5) */
+	/* inputs: nunca menos de 16px, si no Safari en iPhone hace zoom al tocarlos */
+	--text-field: max(1rem, var(--text-sm));
+
+	/** Espacio fluido (Utopia, mismos parámetros que el texto): gap, padding y márgenes.
+	    Los pares (--space-s-m) crecen más rápido: un paso en el celu, el siguiente en desktop. **/
+	/* @link https://utopia.fyi/space/calculator?c=320,18,1.2,1240,20,1.25,5,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
+	--space-3xs: clamp(0.28rem, calc(0.27rem + 0.05vw), 0.31rem);
+	--space-2xs: clamp(0.56rem, calc(0.54rem + 0.11vw), 0.63rem);
+	--space-xs: clamp(0.84rem, calc(0.81rem + 0.16vw), 0.94rem);
+	--space-s: clamp(1.13rem, calc(1.08rem + 0.22vw), 1.25rem);
+	--space-m: clamp(1.69rem, calc(1.62rem + 0.33vw), 1.88rem);
+	--space-l: clamp(2.25rem, calc(2.16rem + 0.43vw), 2.5rem);
+	--space-xl: clamp(3.38rem, calc(3.24rem + 0.65vw), 3.75rem);
+	--space-2xl: clamp(4.5rem, calc(4.33rem + 0.87vw), 5rem);
+	--space-3xl: clamp(6.75rem, calc(6.49rem + 1.3vw), 7.5rem);
+	--space-3xs-2xs: clamp(0.28rem, calc(0.16rem + 0.6vw), 0.63rem);
+	--space-2xs-xs: clamp(0.56rem, calc(0.43rem + 0.65vw), 0.94rem);
+	--space-xs-s: clamp(0.84rem, calc(0.7rem + 0.71vw), 1.25rem);
+	--space-s-m: clamp(1.13rem, calc(0.86rem + 1.3vw), 1.88rem);
+	--space-m-l: clamp(1.69rem, calc(1.4rem + 1.41vw), 2.5rem);
+	--space-l-xl: clamp(2.25rem, calc(1.73rem + 2.61vw), 3.75rem);
+	--space-xl-2xl: clamp(3.38rem, calc(2.81rem + 2.83vw), 5rem);
+	--space-2xl-3xl: clamp(4.5rem, calc(3.46rem + 5.22vw), 7.5rem);
+	--space-s-l: clamp(1.13rem, calc(0.65rem + 2.39vw), 2.5rem);
+
+	/** Radios, atados a la escala de espacio. **/
+	--radius-s: var(--space-2xs); /* 9–10px: chips cuadrados, inputs chicos, miniaturas */
+	--radius-m: var(--space-xs); /* 13.5–15px: tarjetas y cajas comunes */
+	--radius-l: var(--space-s); /* 18–20px: tarjetas grandes, diálogos */
+	--radius-pill: 999px; /* botones en píldora, chips redondos, buscador */
+
+	/** Sombras: solo estas tres. **/
+	--shadow-1: 0 0.1em 0.3em rgba(0, 0, 0, 0.1); /* tarjetas apoyadas */
+	--shadow-2: 0 0.2em 1em rgba(0, 0, 0, 0.15); /* menús, popovers, hover que levanta */
+	--shadow-3: 0 0.5em 2em rgba(0, 0, 0, 0.25); /* diálogos y paneles que flotan sobre todo */
 
 	/** Shared UI tokens, taken from what the public site already uses most (white rounded
 	    cards on #eee, pill buttons, soft shadow). Use these instead of hand-picked greys,
@@ -45,14 +88,24 @@
 	--muted: #625b68;
 	--line: #e4e0e8;
 	--hover: #f6f3f9;
-	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
-	--shadow-lift: 0.6em 0.6em 1em rgba(0, 0, 0, 0.1);
-	--round-sm: 0.6rem;
-	--round-pill: 2em;
+	/* error, malas noticias, avisos y acciones permanentes sin deshacer (~6.6:1 sobre blanco).
+	   «Guardado ✓» y «Deshacer» no: esos siguen en verde o neutro. */
+	--error: hsl(0, 75%, 40%);
+	--error-bg: hsl(0, 100%, 96%);
+	/* nombres viejos, se mantienen para no romper nada; en código nuevo usá --radius-* y --shadow-* */
+	--round: 1rem;
+	--round-sm: var(--radius-s);
+	--round-pill: var(--radius-pill);
+	--shadow: var(--shadow-1);
+	--shadow-lift: var(--shadow-2);
+	/* foco: anillo violeta para teclado en todo; borde rosa en los campos de texto */
 	--focus-ring: 2px solid var(--2-dark);
-	/* placeholder text in inputs: neutral grey (never pink/violet), ~3.5:1 on white, far below
+	--focus-field: var(--1);
+	/* placeholder text in inputs: neutral grey (never pink/violet), ~3.1:1 on white, far below
 	   the value text (--ink, ~12.6:1), so an empty field never looks filled */
-	--placeholder: #888;
+	--placeholder: #929292;
+	/* borde de los campos de texto, casillas y selects: gris neutro (el foco lo pone rosa) */
+	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
 	/* minimum size of anything tappable on phones */
 	--tap: 2.75rem;
 }
@@ -64,8 +117,9 @@
 	font-display: swap;
 	font-weight: 400;
 	src: url('./fonts/lato-latin-400-normal.woff2') format('woff2');
-	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
 	font-family: 'Lato';
@@ -73,9 +127,10 @@
 	font-display: swap;
 	font-weight: 400;
 	src: url('./fonts/lato-latin-ext-400-normal.woff2') format('woff2');
-	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
-		U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
-		U+2C60-2C7F, U+A720-A7FF;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
 }
 @font-face {
 	font-family: 'Lato';
@@ -83,8 +138,9 @@
 	font-display: swap;
 	font-weight: 700;
 	src: url('./fonts/lato-latin-700-normal.woff2') format('woff2');
-	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
 	font-family: 'Lato';
@@ -92,9 +148,10 @@
 	font-display: swap;
 	font-weight: 700;
 	src: url('./fonts/lato-latin-ext-700-normal.woff2') format('woff2');
-	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
-		U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
-		U+2C60-2C7F, U+A720-A7FF;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
 }
 body {
 	scroll-behavior: smooth;
@@ -154,10 +211,38 @@ textarea {
 	outline-offset: 2px;
 }
 
-/** Buttons: pink pill (main action, like the post CTAs) and white pill with a violet border
-    (secondary, like "Compartir").
-    Usable on <a> and <button>: <a class="pill-btn">, <button class="pill-btn ghost">. **/
+/* Text fields show focus with a pink border (also on mouse click, so you see where you're
+   typing). `:where()` keeps it overridable; the panel repeats it for its own tokens. */
+:where(
+	input:not(
+		[type='checkbox'],
+		[type='radio'],
+		[type='range'],
+		[type='color'],
+		[type='file'],
+		[type='button'],
+		[type='submit'],
+		[type='reset'],
+		[type='image']
+	),
+	textarea
+):focus {
+	outline: 2px solid var(--focus-field);
+	outline-offset: 0;
+	border-color: var(--focus-field);
+}
+
+/** Botones (ver docs/estilo.md, «Piezas»). En <a> y <button>:
+    .pill-btn            principal: píldora rosa llena (el botón de COMPRAR entradas es otro)
+    .pill-btn.ghost      secundario: píldora blanca con borde rosa
+    .pill-btn.danger     destructivo que se puede deshacer: rosa oscuro lleno, con ícono
+    .pill-btn.permanent  permanente, sin deshacer: rojo (--error)
+    .pill-btn.small      el único tamaño chico
+    .pill-btn.icon       solo ícono (con aria-label y title) **/
 .pill-btn {
+	--btn-bg: var(--1);
+	--btn-bg-hover: var(--1-dark);
+	--btn-ink: white;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -166,8 +251,8 @@ textarea {
 	padding: 0.55em 1.2em;
 	border: 0;
 	border-radius: var(--round-pill);
-	background: var(--1);
-	color: white;
+	background: var(--btn-bg);
+	color: var(--btn-ink);
 	font-size: inherit;
 	font-weight: 700;
 	line-height: 1.2;
@@ -176,22 +261,202 @@ textarea {
 	cursor: pointer;
 	transition: background 150ms;
 	&:hover {
-		background: var(--1-dark);
-		color: white;
+		background: var(--btn-bg-hover);
+		color: var(--btn-ink);
 	}
 	&.ghost {
-		background: var(--surface);
-		color: var(--2-dark);
-		border: 2px solid var(--2);
-		&:hover {
-			background: var(--2-tint);
-			color: var(--2-dark);
+		--btn-bg: var(--surface);
+		--btn-bg-hover: var(--1-tint);
+		--btn-ink: var(--1-ink);
+		box-shadow: inset 0 0 0 2px var(--1);
+	}
+	&.danger {
+		--btn-bg: var(--1-dark);
+		--btn-bg-hover: color-mix(in srgb, var(--1-dark) 80%, black);
+	}
+	&.permanent {
+		--btn-bg: var(--error);
+		--btn-bg-hover: color-mix(in srgb, var(--error) 80%, black);
+	}
+	&.small {
+		min-height: 2rem;
+		padding: 0.3em 0.85em;
+		font-size: var(--text-xs);
+	}
+	&.icon {
+		padding: 0;
+		width: var(--tap);
+		&.small {
+			width: 2rem;
 		}
 	}
 	&:disabled,
 	&[aria-disabled='true'] {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+}
+
+/* Piezas compartidas por el sitio y el panel (ver docs/estilo.md, «Piezas»). Usan los tokens del
+   panel cuando están (--accent, --field…) y si no los del sitio. */
+
+// Casillas propias, con los colores del sitio. Las que son interruptores (`role="switch"`)
+// usan el interruptor de abajo. Con `:where` no suma especificidad: un componente que dibuja
+// su propio control (por ejemplo los ocultos de un segmentado) sigue ganando.
+:where(input[type='checkbox']:not([role='switch'])) {
+	appearance: none;
+	flex: none;
+	display: inline-grid;
+	place-content: center;
+	width: 1.25rem;
+	height: 1.25rem;
+	margin: 0;
+	border: 2px solid var(--field);
+	border-radius: 0.3rem;
+	background: var(--surface);
+	cursor: pointer;
+	vertical-align: middle;
+	&::before {
+		content: '';
+		width: 0.7rem;
+		height: 0.7rem;
+		clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+		background: var(--accent-ink, white);
+		transform: scale(0);
+		transition: transform 120ms;
+	}
+	&:checked {
+		background: var(--accent, var(--1));
+		border-color: var(--accent, var(--1));
+		&::before {
+			transform: scale(1);
+		}
+	}
+	&:indeterminate {
+		background: var(--accent, var(--1));
+		border-color: var(--accent, var(--1));
+		&::before {
+			clip-path: inset(40% 0);
+			transform: scale(1);
+		}
+	}
+	&:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+}
+
+// Interruptor: <input type="checkbox" role="switch">. Para prender y apagar algo al instante,
+// sin botón Guardar (con Guardar, casilla). Mismo criterio de especificidad que la casilla.
+:where(input[type='checkbox'][role='switch']) {
+	appearance: none;
+	flex: none;
+	position: relative;
+	width: 2.75rem;
+	height: 1.5rem;
+	margin: 0;
+	border-radius: var(--radius-pill);
+	background: color-mix(in srgb, var(--muted) 45%, var(--surface));
+	cursor: pointer;
+	vertical-align: middle;
+	transition: background 150ms;
+	&::before {
+		content: '';
+		position: absolute;
+		top: 0.1875rem;
+		left: 0.1875rem;
+		width: 1.125rem;
+		height: 1.125rem;
+		border-radius: 50%;
+		background: white;
+		box-shadow: var(--shadow-1);
+		transition: translate 150ms;
+	}
+	&:checked {
+		background: var(--accent, var(--1));
+		&::before {
+			translate: 1.25rem 0;
+		}
+	}
+	&:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+}
+
+// Elegir uno de N: como «Mostrar | Ocultar» del sitio, más grande y en minúscula normal.
+//   <div class="kv-segmented" role="radiogroup" aria-label="…">
+//     <label><input type="radio" name="x" value="a" />Opción</label> …
+//   </div>
+.kv-segmented {
+	display: inline-flex;
+	flex-wrap: wrap;
+	padding: 0.15rem;
+	gap: 0.15rem;
+	background: var(--surface);
+	border: 1px solid var(--accent, var(--1));
+	border-radius: var(--radius-pill);
+	max-width: 100%;
+	> label,
+	> button,
+	> a {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-3xs);
+		min-height: calc(var(--tap) - 0.4rem);
+		padding: 0.2em 1em;
+		border: 0;
+		border-radius: var(--radius-pill);
+		background: transparent;
+		color: var(--accent-text, var(--1-ink));
+		font-size: var(--text-sm);
+		text-decoration: none;
+		cursor: pointer;
+		transition: background 150ms;
+		&:hover {
+			background: var(--bad-bg, var(--1-tint));
+			color: var(--accent-text, var(--1-ink));
+		}
+	}
+	> label:has(input:checked),
+	> [aria-pressed='true'],
+	> [aria-current] {
+		background: var(--accent, var(--1));
+		color: var(--accent-ink, white);
+		font-weight: 700;
+	}
+	> label:has(input:focus-visible) {
+		outline: var(--focus-ring);
+		outline-offset: 2px;
+	}
+	> label input {
+		position: absolute;
+		opacity: 0;
+		width: 1px;
+		height: 1px;
+		pointer-events: none;
+	}
+}
+
+// Link de texto que hace algo («Terminá al día siguiente», «Ver el archivo»): violeta,
+// subrayado y con un ícono adelante. Los «ver más» tienen su propio estilo.
+.kv-link {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-3xs);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--link, var(--2-dark));
+	font: inherit;
+	text-decoration: underline;
+	text-decoration-color: currentColor;
+	text-underline-offset: 0.15em;
+	cursor: pointer;
+	&:hover {
+		color: var(--link, var(--2-dark));
+		text-decoration-thickness: 2px;
 	}
 }
 

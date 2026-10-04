@@ -7,10 +7,14 @@
  * Datos inventados: una «base» que renombra Picantearla (con alias, así los posts de hoy se
  * resuelven) y le pone otro nombre visible, y un alias nuevo de KinkyVibe.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
-import { canonicalTags, fetchMarkdownPosts, fetchPost } from '$lib/utils';
+import { canonicalTags } from '$lib/utils';
+import { createTestDB } from '$lib/server/db/testing.js';
+import { runImport } from '$lib/server/contenido/importer.js';
+import { setContentDB } from '$lib/server/contenido/repo.js';
+import { sitePost, sitePosts } from '$lib/server/contenido/posts.js';
 import { currentSiteTags, setSiteTagList } from '$lib/utils/siteTags.js';
 import { tagManager } from '$lib/utils/stores.js';
 import { canonicalTag, siteTags as adminSiteTags } from '$lib/utils/adminTags.js';
@@ -42,6 +46,37 @@ function fakeDbList() {
 
 afterEach(() => setSiteTagList(null));
 
+/** Un evento real de la serie (público), en la base: de ahí salen los eventos. */
+const EVENT = 'picantearla-2024-02';
+const EVENT_PATH = `/src/lib/posts/calendario/${EVENT}.md`;
+const eventRaw = /** @type {Record<string, string>} */ (
+	import.meta.glob('/src/lib/posts/calendario/picantearla-2024-02.md', {
+		query: '?raw',
+		import: 'default',
+		eager: true
+	})
+)[EVENT_PATH];
+const eventMeta = /** @type {Record<string, any>} */ (
+	import.meta.glob('/src/lib/posts/calendario/picantearla-2024-02.md', {
+		import: 'metadata',
+		eager: true
+	})
+)[EVENT_PATH];
+
+/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+let t;
+beforeAll(async () => {
+	t = await createTestDB();
+	await runImport(t.db, 'calendario', [{ legacySlug: EVENT, raw: eventRaw, meta: eventMeta }], {
+		actor: 'prueba'
+	});
+	setContentDB(t.db);
+});
+afterAll(async () => {
+	setContentDB(null);
+	await t?.dispose();
+});
+
 describe('el árbol en uso', () => {
 	it('el hook pone la lista de la base (también en los stores del SSR) y vuelve al archivo', async () => {
 		const list = fakeDbList();
@@ -63,16 +98,14 @@ describe('las publicaciones', () => {
 		expect(canonicalTags(['Picantearla'])).toEqual([RENAMED]);
 	});
 
-	it('fetchMarkdownPosts y fetchPost: las etiquetas de los posts siguen al interruptor', async () => {
+	it('sitePosts y sitePost: las etiquetas de los eventos (de la base) siguen al árbol en uso', async () => {
 		const tagsOf = async () =>
-			(await fetchMarkdownPosts()).find((p) => p.meta.postID === 'picantearla-2024-02')?.meta.tags;
+			(await sitePosts(t.platform)).find((p) => p.meta.postID === EVENT)?.meta.tags;
 		expect(await tagsOf()).toContain('Picantearla');
 		setSiteTagList(fakeDbList());
 		expect(await tagsOf()).toContain(RENAMED);
 		expect(await tagsOf()).not.toContain('Picantearla');
-		expect((await fetchPost('calendario', 'picantearla-2024-02', true)).meta.tags).toContain(
-			RENAMED
-		);
+		expect((await sitePost(t.platform, 'calendario', EVENT)).meta.tags).toContain(RENAMED);
 		setSiteTagList(null);
 		expect(await tagsOf()).toContain('Picantearla');
 	});
@@ -81,11 +114,11 @@ describe('las publicaciones', () => {
 		const api = await import('../../../routes/api/posts/+server.js');
 		expect(api.prerender).toBe(false);
 		setSiteTagList(fakeDbList());
-		const res = await api.GET(/** @type {any} */ ({}));
+		const res = await api.GET(/** @type {any} */ ({ platform: t.platform }));
 		expect(res.headers.get('cache-control')).toMatch(/max-age=\d+/);
 		/** @type {ProcessedPost[]} */
 		const posts = await res.json();
-		const p = posts.find((x) => x.meta.postID === 'picantearla-2024-02');
+		const p = posts.find((x) => x.meta.postID === EVENT);
 		expect(p?.meta.tags).toContain(RENAMED);
 	});
 
@@ -135,8 +168,8 @@ describe('panel, series e ingreso', () => {
 		expect(seriesSiteTags().get('Picantearla').id).toBe(RENAMED);
 		expect(seriesTagIndex().get('picantearla')).toBe(RENAMED);
 		expect((await seriesPage('Picantearla'))?.name).toBe('Serie Inventada');
-		expect(await doorSeriesLabel('picantearla-2024-02')).toBe('Serie Inventada');
+		expect(await doorSeriesLabel(EVENT, t.platform)).toBe('Serie Inventada');
 		setSiteTagList(null);
-		expect(await doorSeriesLabel('picantearla-2024-02')).toBe('Picantearla');
+		expect(await doorSeriesLabel(EVENT, t.platform)).toBe('Picantearla');
 	});
 });

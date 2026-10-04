@@ -234,43 +234,41 @@
 			<noscript><button class="pill-btn ghost small" type="submit">Guardar</button></noscript>
 		</form>
 
-		{#if data.seriesOn}
-			<h3 id="cal-link-title">Tu link para suscribirte</h3>
-			<p class="hint">
-				El link es secreto: cualquiera que lo tenga ve tu calendario. Si lo compartiste sin querer,
-				generá uno nuevo y el anterior deja de andar.
+		<h3 id="cal-link-title">Tu link para suscribirte</h3>
+		<p class="hint">
+			El link es secreto: cualquiera que lo tenga ve tu calendario. Si lo compartiste sin querer,
+			generá uno nuevo y el anterior deja de andar.
+		</p>
+		{#if newUrl}
+			<p class="ok" role="status">
+				Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
 			</p>
-			{#if newUrl}
-				<p class="ok" role="status">
-					Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
-				</p>
-				<code class="feed-link">{newUrl}</code>
-				<CalendarSubscribe url={newUrl} label="tu calendario" />
-			{:else if revoked}
-				<p class="ok" role="status">Listo: el link dejó de andar.</p>
-			{/if}
-			{#if data.feed && !newUrl && !revoked}
-				<p>
-					Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
-						? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
-						: ''}.
-				</p>
-			{/if}
-			<div class="row">
-				<form method="POST" action="?/crearLink" use:enhance={submit('link')}>
-					<button class="pill-btn" type="submit" disabled={busy === 'link'}
-						>{hasLink ? 'Generar un link nuevo' : 'Crear mi link'}</button
+			<code class="feed-link">{newUrl}</code>
+			<CalendarSubscribe url={newUrl} label="tu calendario" />
+		{:else if revoked}
+			<p class="ok" role="status">Listo: el link dejó de andar.</p>
+		{/if}
+		{#if data.feed && !newUrl && !revoked}
+			<p>
+				Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
+					? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
+					: ''}.
+			</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/crearLink" use:enhance={submit('link')}>
+				<button class="pill-btn" type="submit" disabled={busy === 'link'}
+					>{hasLink ? 'Generar un link nuevo' : 'Crear mi link'}</button
+				>
+			</form>
+			{#if hasLink}
+				<form method="POST" action="?/revocarLink" use:enhance={submit('link')}>
+					<button class="pill-btn ghost" type="submit" disabled={busy === 'link'}
+						>Revocar el link</button
 					>
 				</form>
-				{#if hasLink}
-					<form method="POST" action="?/revocarLink" use:enhance={submit('link')}>
-						<button class="pill-btn ghost" type="submit" disabled={busy === 'link'}
-							>Revocar el link</button
-						>
-					</form>
-				{/if}
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</section>
 </div>
 
@@ -280,7 +278,7 @@
 		gap: 1em;
 		width: min(40rem, 100%);
 		margin: 1.5em auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		box-sizing: border-box;
 	}
 	h1 {
@@ -325,15 +323,15 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.count {
 		font-size: var(--step--1);
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--muted);
 		background: var(--surface);
 		border-radius: var(--round-pill);
@@ -344,10 +342,10 @@
 	.empty {
 		justify-items: center;
 		text-align: center;
-		padding-block: 1.6rem;
+		padding-block: var(--space-m);
 	}
 	.empty-icon {
-		font-size: 2.4rem;
+		font-size: var(--text-2xl);
 		line-height: 1;
 	}
 	.empty p {
@@ -367,7 +365,7 @@
 		display: grid;
 		gap: 0.5em;
 		border-inline-start: 0.35rem solid var(--accent);
-		padding-inline-start: 0.95rem;
+		padding-inline-start: var(--space-xs);
 	}
 	.gone {
 		--accent: var(--line);
@@ -386,7 +384,7 @@
 		height: 2.8rem;
 		border-radius: 50%;
 		background: color-mix(in srgb, var(--accent) 16%, var(--surface));
-		font-size: 1.45rem;
+		font-size: var(--text-lg);
 		line-height: 1;
 		overflow: hidden;
 	}
@@ -420,7 +418,7 @@
 	}
 	.kind {
 		font-size: var(--step--2);
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--muted);
 		border: 1px solid var(--line);
 		border-radius: var(--round-pill);

@@ -34,12 +34,12 @@
 		flex-direction: column;
 		align-items: center;
 		text-align: center;
-		gap: 0.3rem;
-		padding: 1.5rem 1rem;
+		gap: var(--space-3xs);
+		padding: var(--space-m) var(--space-xs);
 		color: var(--text);
 	}
 	.ico {
-		font-size: 2rem;
+		font-size: var(--text-2xl);
 		color: var(--accent);
 		display: grid;
 		place-items: center;
@@ -52,7 +52,7 @@
 	.actions {
 		margin-top: 0.5rem;
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 		justify-content: center;
 	}

@@ -75,7 +75,7 @@
 		transition: 200ms;
 		max-width: 20vw;
 		overflow-x: visible;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 
 		& > span > span {
 			position: relative;
@@ -84,13 +84,13 @@
 		}
 	}
 
+	/* «Estás acá»: violeta sobre lila (la misma regla que el panel). */
 	.current span {
-		color: var(--2);
-		--color: var(--2);
+		color: var(--2-dark);
+		--color: var(--2-dark);
 	}
 	.current a {
-		background: var(--surface);
-		box-shadow: var(--shadow);
+		background: var(--2-tint);
 	}
 	nav a span {
 		--color: var(--1);

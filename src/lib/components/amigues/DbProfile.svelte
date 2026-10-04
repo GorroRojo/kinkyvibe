@@ -152,11 +152,11 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 		justify-content: center;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		span {
 			font-size: var(--step--1);
 			padding: 0.3em 0.8em;
-			border-radius: 0.6em;
+			border-radius: var(--radius-s);
 			background: color-mix(in srgb, gold 30%, transparent);
 		}
 	}

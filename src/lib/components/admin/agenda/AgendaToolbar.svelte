@@ -32,12 +32,10 @@
 		</div>
 	{/if}
 	<slot name="filters" />
-	<div class="views" role="group" aria-label="Vista">
+	<div class="kv-segmented" role="group" aria-label="Vista">
 		{#each CALENDAR_VIEWS as v (v.id)}
-			<button
-				class:on={view === v.id}
-				aria-pressed={view === v.id}
-				on:click={() => dispatch('view', v.id)}>{v.label}</button
+			<button type="button" aria-pressed={view === v.id} on:click={() => dispatch('view', v.id)}
+				>{v.label}</button
 			>
 		{/each}
 	</div>
@@ -49,25 +47,25 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		margin-bottom: 0.8rem;
 	}
 	.nav {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 	}
 	h2 {
 		margin: 0 0 0 0.5rem;
-		font-size: 1.15rem;
+		font-size: var(--text-base);
 		white-space: nowrap;
 	}
 	h2::first-letter {
 		text-transform: uppercase;
 	}
 	.today {
-		padding: 0.35rem 0.9rem;
+		padding: var(--space-3xs) var(--space-xs);
 	}
 	.icon {
 		border: 0;
@@ -83,32 +81,7 @@
 	.icon:hover {
 		background: var(--surface-2);
 	}
-	.views {
-		display: inline-flex;
-		background: var(--surface-2);
-		border: 1px solid var(--line);
-		border-radius: 2rem;
-		padding: 0.2rem;
-	}
-	.views button {
-		border: 0;
-		background: transparent;
-		color: var(--text);
-		border-radius: 2rem;
-		padding: 0.4rem 0.8rem;
-		min-height: 2.2rem;
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.9rem;
-	}
-	.views button.on {
-		background: var(--surface);
-		color: var(--link);
-		font-weight: 700;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-	}
-	.icon:focus-visible,
-	.views button:focus-visible {
+	.icon:focus-visible {
 		outline: 2px solid var(--link);
 		outline-offset: 1px;
 	}

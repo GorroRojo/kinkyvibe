@@ -25,8 +25,8 @@ const FEED_ONLY_ITEMS = [
 /** How many posts the feed lists (newest first), like most sites do. */
 const FEED_LIMIT = 50;
 
-// Dinámico (antes se prerenderizaba): con el interruptor `contenido_db` prendido los eventos salen
-// de la base y pueden cambiar sin un deploy. Apagado, da lo mismo que el archivo de siempre.
+// Dinámico (antes se prerenderizaba): los eventos y el material salen de la base y pueden cambiar
+// sin un deploy.
 
 /** @param {{ platform?: App.Platform }} [event] */
 export const GET = async (event) => {

@@ -9,12 +9,14 @@
 	export let form;
 </script>
 
-<!-- Borrar desde el panel es para el .md (por PR). Los perfiles de la base todavía no se borran
-     desde acá: ver deleteBackend en src/lib/server/admin/deletions.js. -->
+<!-- Borrar desde el panel: el .md por PR; un perfil que vive solo en la base (sin .md), en la
+     base. Una ficha importada que todavía tiene su .md no se borra desde el editor de la base:
+     ver deleteBackend en src/lib/server/admin/deletions.js. -->
 {#if data.editor === 'db'}
 	{#key data.profile.id}
 		<ProfileDbEditor {data} {form} />
 	{/key}
+	{#if data.dbOnly}<DeleteLink kind="amigues" slug={data.profile.urlSlug} />{/if}
 {:else}
 	{#key data.slug}
 		<ContentEditor {data} {form} />

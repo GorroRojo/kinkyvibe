@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { onMount } from 'svelte';
 	import { FileSpreadsheet, FilePen, FlaskConical, Plus, StickyNote } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -64,14 +65,18 @@
 	});
 
 	/** @param {import('$lib/utils/calendario.js').CalendarView} next */
-	function setView(next) {
+	async function setView(next) {
 		if (next === view) return;
 		if (
 			next === 'planilla' &&
 			pendingCount &&
-			!confirm(
-				`Tenés ${pendingCount === 1 ? '1 evento movido' : `${pendingCount} eventos movidos`} sin guardar y la planilla no los muestra. Si cambiás de vista, se descartan (para no perderlos, tocá «Guardar cambios»). ¿Seguir?`
-			)
+			!(await askConfirm({
+				title: `Tenés ${pendingCount === 1 ? '1 evento movido' : `${pendingCount} eventos movidos`} sin guardar`,
+				text: 'La planilla no los muestra. Si cambiás de vista, se descartan (para no perderlos, tocá «Guardar cambios»).',
+				confirmLabel: 'Descartar y cambiar',
+				cancelLabel: 'Seguir acá',
+				tone: 'danger'
+			}))
 		)
 			return;
 		if (next === 'planilla') {
@@ -81,7 +86,13 @@
 		if (
 			view === 'planilla' &&
 			sheetDirty &&
-			!confirm('Hay filas de la planilla sin guardar. Si cambiás de vista, se pierden. ¿Seguir?')
+			!(await askConfirm({
+				title: 'Hay filas de la planilla sin guardar',
+				text: 'Si cambiás de vista, se pierden.',
+				confirmLabel: 'Descartar y cambiar',
+				cancelLabel: 'Seguir acá',
+				tone: 'danger'
+			}))
 		)
 			return;
 		view = next;
@@ -489,8 +500,8 @@
 <style>
 	.note {
 		background: var(--warn-bg);
-		border-radius: 0.8rem;
-		padding: 0.5rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.drafts-filter.on {
 		background: var(--warn-bg);
@@ -498,11 +509,11 @@
 		font-weight: 700;
 	}
 	.foot {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin-top: 0.8rem;
 	}
 	.loading {
-		padding: 3rem 0;
+		padding: var(--space-xl) 0;
 		text-align: center;
 	}
 </style>

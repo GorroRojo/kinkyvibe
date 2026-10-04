@@ -167,20 +167,20 @@
 <style>
 	.problems {
 		margin: 0;
-		padding-left: 1.2rem;
-		font-size: 0.85rem;
+		padding-left: var(--space-s);
+		font-size: var(--text-xs);
 	}
 	.block {
 		display: block;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.muted {
 		color: var(--kv-muted, #666);
 	}
 	h3 {
 		margin: 1rem 0 0.5rem;
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 </style>

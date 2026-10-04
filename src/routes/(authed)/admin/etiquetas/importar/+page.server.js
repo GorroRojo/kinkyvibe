@@ -1,8 +1,8 @@
 /**
  * Etiquetas → Importar etiquetas: pasa el archivo de etiquetas y los textos de la wiki de este
  * deploy a objetos `etiqueta` en la base de este entorno (preview o producción). Idempotente, se
- * puede repetir (src/lib/server/etiquetas/importer.js). Anda con el interruptor `etiquetas_db`
- * apagado, para revisar antes de prenderlo. Corre por tandas (`BUDGET` escrituras por pedido, por
+ * puede repetir (src/lib/server/etiquetas/importer.js): una base nueva (un preview) lo necesita
+ * antes de poder editar etiquetas. Corre por tandas (`BUDGET` escrituras por pedido, por
  * el límite de consultas de un Worker): la página vuelve a pedir sola hasta terminar.
  * Solo admins; queda en el registro.
  */

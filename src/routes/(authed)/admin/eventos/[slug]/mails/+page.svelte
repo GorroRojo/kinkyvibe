@@ -75,9 +75,9 @@
 	}
 	.list a {
 		display: flex;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.9rem 1.2rem;
+		padding: var(--space-xs) var(--space-s);
 		text-decoration: none;
 		color: var(--text);
 	}

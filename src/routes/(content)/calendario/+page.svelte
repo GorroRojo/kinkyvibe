@@ -8,8 +8,16 @@
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
+	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
+	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor; los pasados que se
+	// cargan después vienen sin ella y se les vuelve a poner).
+	const partLabels = new Map(
+		calendarioPosts
+			.filter((p) => p.meta.parte)
+			.map((p) => [String(p.meta.postID), /** @type {{ n: number, m: number }} */ (p.meta.parte)])
+	);
 	// past events come with just what the calendar grid needs; the list only gets
 	// them once they've been loaded in full
 	let loadedPast = false;
@@ -19,7 +27,9 @@
 		loadedPast = true;
 		fetchAllPostsClient()
 			.then((posts) => {
-				calendarioPosts = posts.filter((p) => p.meta.layout == 'calendario');
+				calendarioPosts = posts
+					.filter((p) => p.meta.layout == 'calendario')
+					.map((p) => withPartLabel(p, partLabels));
 				fullPosts = true;
 			})
 			.catch(() => (loadedPast = false));
@@ -109,6 +119,9 @@
 						>
 							<span>
 								{event.meta.title ?? ' '}
+								{#if event.meta.parte}
+									&sdot; <em class="part">{partLabel(event.meta.parte.n, event.meta.parte.m)}</em>
+								{/if}
 								&sdot;
 								<strong>{format(start, 'HH:mm')}</strong>
 							</span>
@@ -143,12 +156,10 @@
 			</a>
 			para nunca perderte de nada!
 		</p>
-		{#if data.seriesLink}
-			<p class="series-link">
-				¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
-				ediciones.
-			</p>
-		{/if}
+		<p class="series-link">
+			¿Te gusta algo que se repite? <a href="/wiki#series">Mirá todas las series</a> y seguí sus próximas
+			ediciones.
+		</p>
 	</div>
 </div>
 
@@ -198,7 +209,7 @@
 	#calendar {
 		max-width: 50rem;
 		margin-inline: auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		height: 40em;
 		margin-bottom: 3em;
 		padding-bottom: 3em;

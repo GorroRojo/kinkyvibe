@@ -8,6 +8,7 @@ import { json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { searchRows } from '$lib/server/tickets/checkin.js';
 import { searchTickets } from '$lib/server/tickets/orders.js';
+import { overlayPartCheckins } from '$lib/server/tickets/partCheckins.js';
 import { NO_STORE, doorContext } from '../context.server.js';
 
 /** Cuántas sugerencias como máximo. */
@@ -16,11 +17,19 @@ const LIMIT = 8;
 /** @type {import('./$types').RequestHandler} */
 export async function GET(event) {
 	requireAdmin(event.locals, event.url);
-	const { db, typeNames } = await doorContext(event);
+	// En una parte de un taller: las entradas del taller con el ingreso a esta parte.
+	const { db, typeNames, ticketSlug, part } = await doorContext(event);
 	const q = (event.url.searchParams.get('q') ?? '').trim().slice(0, 80);
-	const results =
+	const found =
 		q.length >= 2
-			? searchRows(await searchTickets(db, event.params.slug, q, { limit: LIMIT }), typeNames)
+			? searchRows(await searchTickets(db, ticketSlug, q, { limit: LIMIT }), typeNames)
 			: [];
+	const results = part
+		? await overlayPartCheckins(db, part.slug, found, {
+				id: 'id',
+				at: 'checkedInAt',
+				by: 'checkedInBy'
+			})
+		: found;
 	return json({ q, results }, { headers: NO_STORE });
 }

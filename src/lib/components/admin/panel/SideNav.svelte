@@ -104,7 +104,7 @@
 		margin-top: 0.5rem;
 		&.foot {
 			margin-top: auto;
-			padding-top: 0.5rem;
+			padding-top: var(--space-2xs);
 			border-top: 1px solid var(--line);
 		}
 	}
@@ -112,8 +112,8 @@
 	.area {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.45rem 0.8rem;
+		gap: var(--space-2xs);
+		padding: 0.45rem var(--space-xs);
 		border-radius: var(--round);
 		border: 0;
 		background: none;
@@ -155,9 +155,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 		+ .chev {
@@ -168,17 +168,17 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
-		padding-bottom: 0.3rem;
+		padding-bottom: var(--space-3xs);
 		&[hidden] {
 			display: none;
 		}
 	}
 	.sub {
-		font-size: 0.68rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: 0.45rem 0.8rem 0.1rem 2.3rem;
+		padding: 0.45rem var(--space-xs) 0.1rem var(--space-l);
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.area .chev {

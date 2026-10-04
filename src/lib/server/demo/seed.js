@@ -22,7 +22,7 @@
  * Sin imports de Node ni de `$lib`: corre en el Worker y en Node (los perfiles de prueba van con
  * saveObject(), en ./seedProfiles.js, que solo usa imports relativos).
  *
- * Noche 3 (rama de demo `claude/n3-demo`): además prende los interruptores nuevos
+ * Noche 3 en adelante: además prende los interruptores nuevos
  * (`N3_FLAGS`), y carga preventas escalonadas, gorra, propinas, personas
  * con rol y preguntas de inscripción, lugares con su privacidad, un pedido «Es mi perfil» y
  * suscripciones a series. Cada cosa en su sección, salteada si la base no tiene su migración.
@@ -51,15 +51,9 @@ export const N3_FLAGS = Object.freeze([
 	'propinas',
 	'perfiles_publicos',
 	'personas_eventos',
-	'series',
 	'borrar_desde_panel',
-	// Noche 4: etiquetas desde la base (#164/#173). El demo importa las etiquetas desde el panel
-	// (Etiquetas → Importar); sin importar, el sitio sigue leyendo el archivo.
-	'etiquetas_db',
-	// Contenido a la base (#166/#167/#169). El demo importa desde Contenido → En la base; lo que
-	// no está en la base sigue saliendo de su .md.
-	'contenido_db',
-	// «Lo que sigo» (#178–#182, todavía PRs): seguir etiquetas, perfiles y lugares.
+	// Series, etiquetas y contenido desde la base ya no tienen interruptor (siempre prendidos).
+	// «Lo que sigo» (#178–#182): seguir etiquetas, perfiles y lugares.
 	'lo_que_sigo'
 ]);
 /** Rol agregado "desde el panel" (#139), además de los fijos. */
@@ -532,8 +526,9 @@ export function eventMarkdown(e) {
 		'category: calendario',
 		'authors:',
 		...e.authors.map((a) => `  - ${a}`),
-		// Esta rama no se mergea: en su preview los eventos inventados se ven en el calendario,
-		// salvo el borrador (sin listar, como guarda el panel un borrador).
+		// En el preview de la rama `demo` (que los trae como .md, ver docs/demo.md) los eventos
+		// inventados se ven en el calendario, salvo el borrador (sin listar, como guarda el panel un
+		// borrador).
 		...(e.draft ? ['force_unlisted: true'] : []),
 		`status: ${e.status}`,
 		`start: ${arIso(e.start)}`,
@@ -1359,7 +1354,7 @@ export const SECTIONS = [
 			}).replace('INSERT INTO', 'INSERT OR IGNORE INTO')
 		]
 	},
-	// Noche 3 (rama de demo): cada sección se saltea si la base no tiene su migración.
+	// Noche 3: cada sección se saltea si la base no tiene su migración.
 	{
 		// Preventas (#134, migración 0016: `orders.ticket_tier` y su índice). Lo viejo se borra
 		// con las órdenes y entradas de los eventos `demo-*` (secciones de arriba).
@@ -1526,18 +1521,11 @@ export const SECTIONS = [
 	{
 		table: 'event_venues',
 		optional: true,
-		// "Sucede en" (#137): un lugar por nivel de privacidad, en la próxima fecha de cada serie
-		// (la Noche Látex de hoy). Los perfiles los crea ./seedProfiles.js.
+		// "Sucede en" (#137) ya no usa esta tabla: es el edge `lugar` del evento (migración 0035), y
+		// lo escribe `linkDemoVenues` después del batch. Acá solo se borran las filas que dejaron
+		// seeds anteriores.
 		reset: [`DELETE FROM event_venues WHERE created_by = ${sql(SEED_BY)};`],
-		rows: (d) =>
-			DEMO_VENUES.flatMap((v) => {
-				const id = d.profiles.get(v.slug);
-				const ev = nextOf(d, v.event);
-				if (!id || !ev) return [];
-				return [
-					`INSERT OR IGNORE INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by) VALUES (${sql(ev.slug)}, ${id}, NULL, ${d.now - 7 * DAY}, ${sql(SEED_BY)}, ${d.now - 7 * DAY}, ${sql(SEED_BY)});`
-				];
-			})
+		rows: () => []
 	},
 	{
 		table: 'profile_claims',
@@ -1655,6 +1643,39 @@ async function sha256Hex(text) {
 }
 
 /**
+ * "Sucede en" (#137): cada lugar de prueba en la próxima fecha de su serie. Desde la migración
+ * 0035 es el edge `lugar` del evento, así que solo se puede vincular un evento que esté en la base
+ * (importado desde Contenido → En la base); los que no están se saltean. Nunca pisa el lugar que
+ * un evento ya tenga. Devuelve cuántos vinculó.
+ *
+ * `../amigues/venues.js` usa imports `$lib`: se importa acá adentro para que el CLI
+ * (scripts/demo/seed.js, que no llama a esto) siga cargando este módulo en Node.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {SeedData} data
+ * @param {{ now: number, tables: Set<string> }} opts
+ */
+async function linkDemoVenues(db, data, { now, tables }) {
+	if (!tables.has('edges') || !data.profiles.size) return 0;
+	const { linkEventVenueIfFree } = await import('../amigues/venues.js');
+	let linked = 0;
+	for (const v of DEMO_VENUES) {
+		const venueId = data.profiles.get(v.slug);
+		const ev = nextOf(data, v.event);
+		if (!venueId || !ev) continue;
+		const ok = await linkEventVenueIfFree(db, {
+			eventSlug: ev.slug,
+			venueId,
+			privacy: null,
+			by: SEED_BY,
+			now
+		});
+		if (ok) linked++;
+	}
+	return linked;
+}
+
+/**
  * Borra los datos de prueba y los vuelve a cargar relativos a `now`, en un solo batch (atómico
  * en D1: si algo falla, quedan los de antes). Para la base de un preview, nunca producción.
  *
@@ -1677,6 +1698,7 @@ export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] }
 	}
 	const statements = seedStatements(data, { tables });
 	await db.batch(statements.map((s) => db.prepare(s)));
+	const venuesLinked = await linkDemoVenues(db, data, { now, tables });
 	const counts = /** @type {Record<string, number>} */ (
 		await db
 			.prepare(
@@ -1699,6 +1721,7 @@ export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] }
 		checkedIn: Number(counts?.checkedIn ?? 0),
 		pendingTransfers: Number(counts?.pendingTransfers ?? 0),
 		tonight: tonight ? { slug: tonight.slug, title: tonight.title } : null,
+		venuesLinked,
 		skipped: SECTIONS.filter((s) => !activeSections(tables).includes(s)).map((s) => s.table),
 		statements: statements.length
 	};

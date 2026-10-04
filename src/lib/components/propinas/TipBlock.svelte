@@ -122,7 +122,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		color: var(--2-dark);
 		min-height: var(--tap);
 		display: flex;
@@ -153,7 +153,7 @@
 	.error {
 		margin: 0;
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	button {
 		justify-self: start;

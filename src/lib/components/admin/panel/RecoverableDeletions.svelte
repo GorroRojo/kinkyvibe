@@ -99,7 +99,7 @@
 	.recover {
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		margin-bottom: 1rem;
 	}
 	.list {
@@ -112,8 +112,8 @@
 		align-items: center;
 		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: 0.5rem 1rem;
-		padding: 0.6rem 0;
+		gap: var(--space-2xs) var(--space-xs);
+		padding: var(--space-2xs) 0;
 		border-bottom: 1px solid var(--line);
 	}
 	li:last-child {

@@ -1,7 +1,8 @@
 /**
- * «Editar» en Eventos → Series: nombre visible, ícono, imagen y descripción de una serie. Con el
- * archivo (interruptor `etiquetas_db` apagado): un commit al archivo de etiquetas, con un cliente
- * del repo de mentira. Con la base (prendido y etiquetas importadas): al momento en la base.
+ * «Editar» en Eventos → Series: nombre visible, ícono, imagen y descripción de una serie, al
+ * momento en la base (etiquetas importadas; sin etiquetas en la base, pide importarlas). Ya no hay
+ * commits al archivo de etiquetas: las pruebas «con el archivo» se sacaron con ese modo (no es
+ * aflojar las pruebas: es sacar un modo).
  * D1 de miniflare para la base y el registro del panel. Renombrar la serie (el nombre de la
  * etiqueta): primero cuántas publicaciones cambian, después se guarda al confirmar.
  */
@@ -9,10 +10,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import { parseTagSource } from '$lib/utils/tagConfig.js';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
+import { saveObject } from '$lib/server/objects/save.js';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 
@@ -27,7 +28,8 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 });
-afterEach(() => {
+afterEach(async () => {
+	(await import('$lib/server/contenido/repo.js')).setContentDB(null);
 	vi.doUnmock('$env/dynamic/private');
 	vi.doUnmock('$lib/server/eventos');
 	vi.resetModules();
@@ -35,33 +37,74 @@ afterEach(() => {
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
-/** @param {Record<string, string>} env */
+/**
+ * La página con un repo de mentira detrás de `withContentDb` (como en producción): los eventos se
+ * leen y se guardan en la base; `commits` y `reads` son lo que llegaría a GitHub.
+ * @param {Record<string, string>} env
+ */
 async function page(env) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: '1', ...env } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: { ...env } }));
 	/** @type {any[]} */
 	const commits = [];
-	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
-		.../** @type {any} */ (await importOriginal()),
-		getRepoClient: async () => ({
-			getFile: async () => null, // usa la copia del deploy
-			// Un evento inventado de la serie (solo se lee al renombrar).
-			getDirTexts: async (/** @type {string} */ _t, /** @type {string} */ dir) =>
-				dir.endsWith('calendario') ? [{ path: `${dir}/edicion-de-prueba.md`, text: EVENT_MD }] : [],
-			commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
-				commits.push(c);
-				return { url: 'https://example.com/commit/prueba' };
-			}
-		})
-	}));
-	return { mod: await import('./+page.server.js'), commits };
+	/** @type {string[]} */
+	const reads = [];
+	vi.doMock('$lib/server/eventos', async (importOriginal) => {
+		const { withContentDb } = await import('$lib/server/contenido/repo.js');
+		return {
+			.../** @type {any} */ (await importOriginal()),
+			getRepoClient: async () =>
+				withContentDb({
+					getFile: async (/** @type {string} */ _t, /** @type {string} */ path) => {
+						reads.push(path);
+						return null;
+					},
+					// En el repo hay una página de la wiki con la serie: nunca se lee ni se escribe.
+					getDirTexts: async (/** @type {string} */ _t, /** @type {string} */ dir) => {
+						reads.push(dir);
+						return dir.endsWith('wiki')
+							? [{ path: `${dir}/termino-de-prueba.md`, text: WIKI_MD }]
+							: [];
+					},
+					commitFiles: async (/** @type {string} */ _token, /** @type {any} */ c) => {
+						commits.push(c);
+						return { url: 'https://example.com/commit/prueba' };
+					}
+				})
+		};
+	});
+	const repo = await import('$lib/server/contenido/repo.js');
+	repo.setContentDB(t.db);
+	return { mod: await import('./+page.server.js'), commits, reads };
+}
+
+/** Una edición inventada de la serie, en la base. */
+async function seedEdition() {
+	await saveObject(
+		t.db,
+		{
+			type: 'evento',
+			slug: 'edicion-de-prueba',
+			title: 'Edición de prueba',
+			data: { start: '2031-05-01T20:00:00-03:00', tags: ['Picantearla'] }
+		},
+		{ actor: 'admin-de-prueba' }
+	);
+}
+
+/** Las etiquetas de la edición, en la base. */
+async function editionTags() {
+	const row = /** @type {any} */ (
+		await t.db.prepare("SELECT data FROM objects WHERE slug = 'edicion-de-prueba'").first()
+	);
+	return JSON.parse(row.data).tags;
 }
 
 /** @param {Record<string, string>} form @param {any} [user] */
 const post = (form, user = admin) =>
 	fakeRequestEvent({ platform: t.platform, path: '/admin/eventos/series?/editar', user, form });
 
-const EVENT_MD = ['---', 'title: Edición de prueba', 'tags:', '  - Picantearla', '---', ''].join(
+const WIKI_MD = ['---', 'title: Término de prueba', 'tags:', '  - Picantearla', '---', ''].join(
 	'\n'
 );
 
@@ -74,19 +117,13 @@ const EDIT = {
 };
 
 describe('Editar serie', () => {
-	it('con el archivo: un commit que cambia solo esa etiqueta', async () => {
-		const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '0' });
-		const res = await mod.actions.editar(post(EDIT));
-		expect(res).toMatchObject({ edited: { name: 'Picantearla', db: false } });
-		expect(commits).toHaveLength(1);
-		const entries = parseTagSource(commits[0].files[0].content).items.map((i) => i.value);
-		expect(entries.find((e) => e.id === 'Picantearla')).toMatchObject({
-			visible_name: 'Picantearla (serie)',
-			icon: '🌶',
-			description: 'Una descripción de prueba.'
+	it('sin etiquetas en la base: no se guarda (hay que importarlas), sin commit', async () => {
+		const { mod, commits } = await page({});
+		expect(await mod.actions.editar(post(EDIT))).toMatchObject({
+			status: 503,
+			data: { error: expect.stringContaining('importalas') }
 		});
-		const log = await t.db.prepare('SELECT summary FROM admin_audit').all();
-		expect(log.results).toEqual([{ summary: 'Series: editar «Picantearla»' }]);
+		expect(commits).toHaveLength(0);
 	});
 
 	it('con la base: se guarda al momento, sin commit', async () => {
@@ -95,7 +132,7 @@ describe('Editar serie', () => {
 			{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
 			{ actor: 'admin-de-prueba' }
 		);
-		const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '1' });
+		const { mod, commits } = await page({});
 		const loaded = /** @type {any} */ (
 			await mod.load(
 				/** @type {any} */ (
@@ -124,8 +161,13 @@ describe('Editar serie', () => {
 		expect(nueva?.parents.map((p) => p.key)).toEqual(['evento recurrente']);
 	});
 
-	it('errores: sin cambios, una etiqueta que no es serie, sin permiso, interruptor apagado', async () => {
-		const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '0' });
+	it('errores: sin cambios, una etiqueta que no es serie, sin permiso', async () => {
+		await importTags(
+			t.db,
+			{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+			{ actor: 'admin-de-prueba' }
+		);
+		const { mod, commits } = await page({});
 		const current = /** @type {any} */ (
 			await mod.load(
 				/** @type {any} */ (
@@ -143,21 +185,20 @@ describe('Editar serie', () => {
 		expect(
 			await mod.actions.editar(post(EDIT, { id: 1, login: 'alguien-de-prueba' }))
 		).toMatchObject({ status: 403 });
-		const off = await page({ SERIES_ENABLED: '0' });
-		expect(await off.mod.actions.editar(post(EDIT))).toMatchObject({ status: 404 });
 		expect(commits).toHaveLength(0);
 	});
 
 	describe('renombrar la serie', () => {
 		const RENAME = { ...EDIT, key: 'Picantearla Renombrada' };
 
-		it('con la base: primero cuántas publicaciones cambian; al confirmar, commit y base sin alias', async () => {
+		it('con la base: primero cuántas publicaciones cambian; al confirmar, las ediciones y la serie cambian en la base (nada a GitHub)', async () => {
 			await importTags(
 				t.db,
 				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
 				{ actor: 'admin-de-prueba' }
 			);
-			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '1' });
+			await seedEdition();
+			const { mod, commits, reads } = await page({});
 			const asked = /** @type {any} */ (await mod.actions.editar(post(RENAME)));
 			expect(asked).toMatchObject({
 				editing: 'Picantearla',
@@ -183,8 +224,10 @@ describe('Editar serie', () => {
 					posts: 1
 				}
 			});
-			expect(commits).toHaveLength(1);
-			expect(commits[0].files[0].content).toContain('  - Picantearla Renombrada');
+			// La edición cambió en la base; a GitHub no llegó nada (ni se leyó la wiki ni amigues).
+			expect(await editionTags()).toEqual(['Picantearla Renombrada']);
+			expect(commits).toHaveLength(0);
+			expect(reads).toEqual([]);
 			const records = await loadTagRecords(t.db);
 			expect(records.some((r) => r.key === 'Picantearla')).toBe(false);
 			expect(records.find((r) => r.key === 'Picantearla Renombrada')?.data).toMatchObject({
@@ -198,7 +241,7 @@ describe('Editar serie', () => {
 				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
 				{ actor: 'admin-de-prueba' }
 			);
-			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '1' });
+			const { mod, commits } = await page({});
 			const withAlias = { ...RENAME, keepAlias: '1' };
 			expect(await mod.actions.editar(post(withAlias))).toMatchObject({
 				confirmRename: { keepAlias: '1', posts: 0 }
@@ -218,25 +261,8 @@ describe('Editar serie', () => {
 			expect(old?.aliasOf).toBe('Picantearla Renombrada');
 		});
 
-		it('con el archivo: el mismo commit renombra en el archivo y en las publicaciones', async () => {
-			const { mod, commits } = await page({ ETIQUETAS_DB_ENABLED: '0' });
-			expect(await mod.actions.editar(post(RENAME))).toMatchObject({
-				confirmRename: { posts: 1, db: false }
-			});
-			const res = await mod.actions.editar(
-				post({ ...RENAME, confirmTo: 'Picantearla Renombrada', confirmAlias: '' })
-			);
-			expect(res).toMatchObject({ edited: { name: 'Picantearla Renombrada', db: false } });
-			expect(commits).toHaveLength(1);
-			const paths = commits[0].files.map((/** @type {any} */ f) => f.path);
-			expect(paths).toEqual([
-				'src/lib/utils/hardcodedTags.js',
-				'src/lib/posts/calendario/edicion-de-prueba.md'
-			]);
-		});
-
 		it('un nombre que ya existe: error, sin preguntar', async () => {
-			const { mod } = await page({ ETIQUETAS_DB_ENABLED: '0' });
+			const { mod } = await page({});
 			expect(await mod.actions.editar(post({ ...EDIT, key: 'bondage' }))).toMatchObject({
 				status: 400,
 				data: { editing: 'Picantearla' }

@@ -12,15 +12,20 @@
 //   --surface-2 filas hover, cajas suaves     --line      bordes y separadores
 //   --text      texto (#333)                  --muted     texto secundario
 //   --accent    rosa del sitio (--1)          --accent-ink texto sobre --accent
+//   --accent-text rosa legible como texto (botón secundario, segmentado)
+//   --error-ink texto sobre --error (botón permanente)
 //   --link      violeta del sitio (--2)       --link-bg   fondo del ítem activo
 //   --ok / --ok-bg      verde (--3)           --warn / --warn-bg  amarillo (--4)
 //   --bad / --bad-bg    rosa oscuro (--1)     --info / --info-bg  violeta (--2)
 //   --counter / --counter-ink  contadores     --field     borde de los inputs
-//   --card-round radio de las tarjetas        --shadow    sombra de las tarjetas
+//   --card-round radio de las tarjetas (= --radius-l)  --shadow  sombra de las tarjetas (= --shadow-1)
+//   --shadow-1/2/3, --error/--error-bg, --focus-field: los del sitio, con valor oscuro acá
+//   Texto, espacio y radios: --text-*, --space-*, --radius-* de style.scss (ver docs/estilo.md)
 //   --placeholder texto de ejemplo en inputs (gris, nunca rosa/violeta; la regla está en style.scss)
 //
-// Clases para las páginas: .kv-btn (píldora rosa), .kv-btn.ghost (borde rosa), .kv-btn.violet
-// (como "¿Todo gratis?"), .kv-input (input en píldora con borde rosa), .kv-table.
+// Clases para las páginas (detalle en docs/estilo.md, «Piezas»): .kv-btn (píldora rosa) con
+// .ghost / .danger / .permanent / .small / .icon, .kv-input (rectángulo neutro; píldora si es
+// buscador), casillas e interruptores (`role="switch"`) propios, .kv-segmented, .kv-link, .kv-table.
 //
 // Tema: claro por defecto. Con el botón del panel se elige oscuro o automático (sigue a
 // `prefers-color-scheme`); la elección va en localStorage `kv-panel-theme` y se pone como
@@ -39,6 +44,7 @@
 	--accent: var(--1);
 	--accent-dark: var(--1-dark);
 	--accent-ink: white;
+	--accent-text: var(--1-ink);
 	--link: var(--2);
 	--link-bg: color-mix(in srgb, var(--2) 10%, white);
 	--ok: var(--3-dark);
@@ -51,11 +57,18 @@
 	--info-bg: color-mix(in srgb, var(--2) 10%, white);
 	--counter: var(--4);
 	--counter-ink: #333;
-	--field: var(--1-light);
-	--placeholder: #888;
+	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
+	--placeholder: #929292;
 	--bar-track: color-mix(in srgb, var(--2) 8%, #eee);
-	--card-round: calc(var(--round) * 1.25);
-	--shadow: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+	--card-round: var(--radius-l);
+	--shadow-1: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
+	--shadow-2: 0 0.2em 1em rgba(0, 0, 0, 0.15);
+	--shadow-3: 0 0.5em 2em rgba(0, 0, 0, 0.25);
+	--shadow: var(--shadow-1);
+	--error: hsl(0, 75%, 40%);
+	--error-bg: hsl(0, 100%, 96%);
+	--error-ink: white;
+	--focus-field: var(--accent);
 	--scrim: color-mix(in srgb, var(--2-dark) 30%, transparent);
 }
 
@@ -71,6 +84,7 @@
 	--accent: var(--1);
 	--accent-dark: color-mix(in srgb, var(--1) 70%, black);
 	--accent-ink: white;
+	--accent-text: color-mix(in srgb, var(--1) 60%, white);
 	--link: color-mix(in srgb, var(--2) 55%, white);
 	--link-bg: color-mix(in srgb, var(--2) 28%, #1a181d);
 	--ok: color-mix(in srgb, var(--3) 75%, white);
@@ -83,11 +97,18 @@
 	--info-bg: color-mix(in srgb, var(--2) 25%, #1a181d);
 	--counter: var(--4);
 	--counter-ink: #333;
-	--field: color-mix(in srgb, var(--1) 55%, #1a181d);
+	--field: color-mix(in srgb, var(--2) 25%, #4a474f);
 	--placeholder: #707070;
 	--bar-track: color-mix(in srgb, var(--2) 18%, #2a282d);
-	--card-round: calc(var(--round) * 1.25);
-	--shadow: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
+	--card-round: var(--radius-l);
+	--shadow-1: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
+	--shadow-2: 0 0.2em 1.2em rgba(0, 0, 0, 0.55);
+	--shadow-3: 0 0.5em 2.5em rgba(0, 0, 0, 0.7);
+	--shadow: var(--shadow-1);
+	--error: hsl(0, 85%, 72%);
+	--error-bg: color-mix(in srgb, hsl(0, 75%, 40%) 24%, #1a181d);
+	--error-ink: #1a181d;
+	--focus-field: var(--accent);
 	--scrim: rgba(0, 0, 0, 0.55);
 	// Las páginas viejas usan los tonos -light como fondo y los -dark como texto: en oscuro se
 	// invierten (mezclas de los mismos colores base del sitio, que no se redefinen).
@@ -126,6 +147,8 @@
 	min-height: 100vh;
 	min-height: 100dvh;
 	line-height: 1.4;
+	// tamaño base: el del navegador (16px = el tope de --text-sm); no lo bajamos a --text-sm
+	// para que los inputs no queden en 15px en el celu (Safari en iPhone hace zoom)
 
 	button,
 	input,
@@ -137,6 +160,25 @@
 	:focus-visible {
 		outline: 2px solid var(--link);
 		outline-offset: 2px;
+	}
+	// Campos de texto: borde rosa con foco (el resto sigue con el anillo violeta de teclado).
+	:where(
+		input:not(
+			[type='checkbox'],
+			[type='radio'],
+			[type='range'],
+			[type='color'],
+			[type='file'],
+			[type='button'],
+			[type='submit'],
+			[type='reset'],
+			[type='image']
+		),
+		textarea
+	):focus {
+		outline: 2px solid var(--focus-field);
+		outline-offset: 0;
+		border-color: var(--focus-field);
 	}
 	// Radios y checkboxes en el rosa del sitio, no en el azul del navegador. Con `:where` no suma
 	// especificidad: una página o un componente que elige otro color (`accent-color`) sigue ganando.
@@ -169,69 +211,153 @@
 		color: var(--muted);
 	}
 
-	// Botones en píldora, como los del sitio (sin sombra 3D): <a class="kv-btn"> o <button>.
+	// Botones (ver docs/estilo.md, «Piezas»): <a class="kv-btn"> o <button class="kv-btn">.
+	//   .kv-btn            principal: píldora rosa llena, sin sombra 3D
+	//   .kv-btn.ghost      secundario: píldora con borde rosa
+	//   .kv-btn.danger     destructivo que se puede deshacer: rosa oscuro lleno, con ícono
+	//   .kv-btn.permanent  permanente, sin deshacer (borrar para siempre): rojo (--error)
+	//   .kv-btn.small      el único tamaño chico (`.sm` es el mismo)
+	//   .kv-btn.icon       solo ícono (con aria-label y title), redondo
+	// `.violet` quedó por compatibilidad y se ve como el principal (sin violeta en botones).
 	.kv-btn {
+		--btn-bg: var(--accent);
+		--btn-bg-hover: var(--accent-dark);
+		--btn-ink: var(--accent-ink);
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4em;
-		background: var(--accent);
-		color: var(--accent-ink);
+		justify-content: center;
+		gap: var(--space-3xs);
+		min-height: var(--tap);
+		background: var(--btn-bg);
+		color: var(--btn-ink);
 		border: 0;
-		border-radius: 3em;
+		border-radius: var(--radius-pill);
 		padding: 0.5em 1.1em;
+		font-size: var(--text-sm);
 		font-weight: 700;
+		line-height: 1.2;
 		white-space: nowrap;
 		text-decoration: none;
 		cursor: pointer;
 		transition:
-			scale 150ms,
-			box-shadow 150ms;
+			background 150ms,
+			color 150ms;
 		&:hover {
-			color: var(--accent-ink);
-			scale: 1.04;
-			box-shadow: 0.2em 0.2em 0.8em rgba(1, 1, 1, 0.15);
+			background: var(--btn-bg-hover);
+			color: var(--btn-ink);
 		}
-		&:active {
-			scale: 1.01;
-			box-shadow: none;
-		}
-		// Borde rosa sobre blanco ("Filtrar por etiquetas").
 		&.ghost {
-			background: var(--surface);
-			color: var(--accent);
+			--btn-bg: var(--surface);
+			--btn-bg-hover: var(--bad-bg);
+			--btn-ink: var(--accent-text);
 			box-shadow: inset 0 0 0 2px var(--accent);
-			&:hover {
-				color: var(--accent);
+		}
+		&.violet {
+			--btn-bg: var(--accent);
+		}
+		&.danger {
+			--btn-bg: var(--accent-dark);
+			--btn-bg-hover: color-mix(in srgb, var(--accent-dark) 80%, black);
+			--btn-ink: white;
+		}
+		&.permanent {
+			--btn-bg: var(--error);
+			--btn-bg-hover: color-mix(in srgb, var(--error) 80%, black);
+			--btn-ink: var(--error-ink);
+		}
+		&.ghost.danger,
+		&.ghost.permanent {
+			--btn-bg: var(--surface);
+			box-shadow: inset 0 0 0 2px currentColor;
+		}
+		&.ghost.danger {
+			--btn-ink: var(--bad);
+			--btn-bg-hover: var(--bad-bg);
+		}
+		&.ghost.permanent {
+			--btn-ink: var(--error);
+			--btn-bg-hover: var(--error-bg);
+		}
+		&.small,
+		&.sm {
+			min-height: 2rem;
+			padding: 0.3em 0.85em;
+			font-size: var(--text-xs);
+		}
+		&.icon {
+			padding: 0;
+			width: var(--tap);
+			height: var(--tap);
+			&.small,
+			&.sm {
+				width: 2rem;
+				height: 2rem;
+				min-height: 2rem;
 			}
 		}
-		// Violeta ("¿Todo gratis?").
-		&.violet {
-			background: var(--2);
-			color: white;
-		}
-		&.small {
-			padding: 0.25em 0.8em;
-			font-size: 0.9em;
-		}
-		&:disabled {
+		&:disabled,
+		&[aria-disabled='true'] {
 			opacity: 0.6;
+			cursor: not-allowed;
+		}
+		&[aria-busy='true'] {
 			cursor: wait;
-			scale: 1;
 		}
 	}
 
-	// Input como el buscador del sitio: píldora blanca con borde rosa.
+	// Campos de texto: rectángulo neutro (borde gris, radio chico), 44px de alto, letra de 16px.
+	// Con foco, borde rosa (regla de arriba). Los buscadores (`type="search"` o `.search`) van en
+	// píldora. `.large` (~54px) es solo para el flujo de compra.
 	.kv-input {
 		background: var(--surface);
 		color: var(--text);
 		border: 1px solid var(--field);
-		border-radius: 3em;
-		padding: 0.5em 1em;
+		border-radius: var(--radius-s);
+		padding: 0.5em 0.75em;
+		min-height: var(--tap);
+		font-size: var(--text-field);
 		min-width: 0;
-		&:focus {
-			outline: 2px solid var(--accent);
-			outline-offset: 0;
+		&[type='search'],
+		&.search {
+			border-radius: var(--radius-pill);
+			padding-inline: 1em;
 		}
+		&.large {
+			min-height: 3.375rem;
+			font-size: var(--text-base);
+		}
+	}
+
+	// Diálogo centrado (confirmaciones): <dialog class="kv-dialog"> con <h2>, <p> y
+	// <div class="kv-dialog-btns">. Para «¿Seguro?» usá askConfirm ($lib/admin/confirm.js).
+	.kv-dialog {
+		border: 0;
+		border-radius: var(--card-round);
+		background: var(--surface);
+		color: var(--text);
+		box-shadow: var(--shadow-3);
+		padding: var(--space-s);
+		width: min(28rem, calc(100vw - 32px));
+		&::backdrop {
+			background: var(--scrim);
+			backdrop-filter: blur(3px);
+		}
+		h2 {
+			display: flex;
+			align-items: center;
+			gap: var(--space-2xs);
+			margin: 0 0 var(--space-2xs);
+			font-size: var(--text-base);
+		}
+		p {
+			margin: 0 0 var(--space-s);
+		}
+	}
+	.kv-dialog-btns {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: var(--space-2xs);
 	}
 
 	// Tablas: <div class="kv-table-wrap"><table class="kv-table">…

@@ -119,14 +119,14 @@
 		margin-bottom: 0.3em;
 	}
 	.req {
-		color: red;
+		color: var(--error);
 	}
 	small {
 		font-size: var(--step--1);
 		opacity: 0.75;
 	}
 	.error {
-		color: var(--bad, #b00020);
+		color: var(--error, #b00020);
 		margin: 0;
 		font-size: var(--step--1);
 	}
@@ -150,7 +150,8 @@
 			display: inline-block;
 			padding: 0.35em 0.85em;
 			border-radius: 2em;
-			background: var(--surface, white);
+			/* chip de etiqueta: teñido; lleno cuando está elegido */
+			background: color-mix(in srgb, var(--1) 10%, var(--surface, white));
 			color: var(--1-dark);
 			outline: 1px solid var(--1-light);
 			outline-offset: -1px;
@@ -189,7 +190,7 @@
 			flex: none;
 			width: 2.6em;
 			height: 1.5em;
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			background: #ccc;
 			position: relative;
 			transition: background 150ms;

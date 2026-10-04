@@ -110,8 +110,8 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1.5rem;
-		padding: 2rem 1rem;
+		gap: var(--space-m);
+		padding: var(--space-m) var(--space-xs);
 		font-family: 'Lato', sans-serif;
 	}
 	.logo img {
@@ -124,9 +124,9 @@
 		max-width: 32rem;
 		background: white;
 		border-radius: var(--round, 1rem);
-		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-1);
 		border-top: 0.4rem solid var(--1);
-		padding: 2rem 1.5rem 1.75rem;
+		padding: var(--space-m) var(--space-m) var(--space-m);
 		text-align: center;
 	}
 	.emoji {
@@ -158,7 +158,7 @@
 		margin: 1rem auto 0;
 		max-width: 26rem;
 		padding: 0.5em 0.8em;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-s);
 		background: color-mix(in srgb, var(--1-light) 12%, transparent);
 		font-size: var(--step--1, 0.95rem);
 	}
@@ -166,7 +166,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 0.75rem;
+		gap: var(--space-xs);
 		margin-top: 1.75rem;
 	}
 	.btn {
@@ -204,7 +204,7 @@
 	}
 	@media (max-width: 420px) {
 		.card {
-			padding-inline: 1.1rem;
+			padding-inline: var(--space-s);
 		}
 		.actions {
 			flex-direction: column;

@@ -1,4 +1,5 @@
 <script>
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -161,10 +162,13 @@
 						<form
 							method="POST"
 							action="?/sendLink"
-							use:enhance={({ cancel }) => {
+							use:enhance={async ({ cancel }) => {
 								if (
 									data.stream?.pending &&
-									!confirm(`¿Mandar el link por mail a ${people(data.stream.pending)}?`)
+									!(await askConfirm({
+										title: `¿Mandar el link por mail a ${people(data.stream.pending)}?`,
+										confirmLabel: 'Mandar'
+									}))
 								)
 									cancel();
 							}}
@@ -202,12 +206,12 @@
 	}
 	.grid {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
 		align-items: start;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.checklist {
@@ -216,17 +220,17 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 	}
 	.checklist li {
 		display: flex;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 		align-items: flex-start;
 	}
 	.checklist p {
 		margin: 0.1rem 0 0;
 		color: var(--muted);
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.mark {
 		flex: none;
@@ -245,7 +249,7 @@
 	.kv {
 		display: grid;
 		grid-template-columns: 6.5rem minmax(0, 1fr);
-		gap: 0.4rem 0.8rem;
+		gap: 0.4rem var(--space-xs);
 		margin: 0;
 	}
 	.kv dt {
@@ -259,7 +263,7 @@
 		display: block;
 	}
 	.small-link {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.first-up::first-letter {
 		text-transform: uppercase;
@@ -267,8 +271,8 @@
 	.flash {
 		background: var(--ok-bg);
 		color: var(--text);
-		padding: 0.5rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0;
 	}
 	.flash.error {
@@ -277,7 +281,7 @@
 	.stream-form {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: flex-end;
 	}
 	.stream-form label {
@@ -285,11 +289,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.stream-form input {
-		padding: 0.55rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		min-height: 2.75rem;
 		box-sizing: border-box;
 		border-radius: 3em;

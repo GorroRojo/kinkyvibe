@@ -6,7 +6,7 @@
 	$lib/server/admin/contentRoutes.js): one commit with the post and, optionally, a new image in
 	its media folder. While saving, «Guardar» is off with «Guardando…» (SaveButton); after saving, the
 	bar says how it went (SaveStatus). The copy depends on whether saving goes to the database
-	(`data.savesToDb`, switch `contenido_db`; see $lib/admin/saveCopy.js).
+	(`data.savesToDb`: material, always the database; see $lib/admin/saveCopy.js).
 -->
 <script>
 	import { argFormat } from '$lib/utils/dates.js';
@@ -84,7 +84,7 @@
 	const isNew = mode === 'nuevo';
 	const one = category === 'material' ? 'material' : 'perfil';
 	const tm = siteTags();
-	/** Con el interruptor `contenido_db` (material), se guarda en la base y se ve enseguida. */
+	/** El material se guarda en la base y se ve enseguida (amigues: con un PR). */
 	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
@@ -645,25 +645,25 @@
 	.content-editor {
 		max-width: 76rem;
 		padding: 0;
-		font-size: 1rem;
+		font-size: var(--text-field);
 		:global(fieldset.card) {
 			background: var(--surface);
 			box-shadow: var(--shadow);
-			border-radius: 1rem;
+			border-radius: var(--radius-m);
 		}
 		:global(fieldset.card > legend) {
 			display: flex;
 			align-items: center;
 			gap: 0.4em;
-			font-size: 1.1rem;
+			font-size: var(--text-base);
 		}
 	}
 	.banner {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
-		border-radius: 1rem;
-		padding: 0.6rem 1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 		&.ok {
 			background: var(--ok-bg);
@@ -674,7 +674,7 @@
 		display: flex;
 		align-items: stretch;
 		border: 1px solid var(--field);
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		overflow: hidden;
 		background: var(--surface);
 		.prefix {
@@ -700,8 +700,8 @@
 	}
 	.contact {
 		border: 1px dashed var(--line);
-		border-radius: 1rem;
-		padding: 0.5rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		summary {
 			cursor: pointer;
 			font-weight: 700;
@@ -712,9 +712,9 @@
 		.warn {
 			background: var(--warn-bg);
 			color: var(--warn);
-			border-radius: 0.8rem;
-			padding: 0.5rem 0.8rem;
-			font-size: 0.9rem;
+			border-radius: var(--radius-m);
+			padding: var(--space-2xs) var(--space-xs);
+			font-size: var(--text-sm);
 		}
 	}
 	/* The public site is light-only: its palette inside the previews, also in dark mode. */
@@ -737,9 +737,9 @@
 	.public-preview {
 		background: #fff;
 		color: #2f2a33;
-		border-radius: 1rem;
+		border-radius: var(--radius-m);
 		border: 1px solid var(--line);
-		padding: 1rem 1.2rem 1.5rem;
+		padding: var(--space-xs) var(--space-s) var(--space-m);
 		max-height: 48rem;
 		overflow: auto;
 		h1 {
@@ -766,7 +766,7 @@
 	}
 	textarea.raw {
 		font-family: monospace;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		width: 100%;
 	}
 	.later {

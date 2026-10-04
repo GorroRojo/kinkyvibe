@@ -22,8 +22,8 @@ export const load = async ({ locals, platform }) => {
 		// Interruptor `propinas` (docs/propinas.md): el pie de página muestra "Dejá una propina" en
 		// lugar de Cafecito.
 		propinas: await propinasEnabled(platform),
-		// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de etiquetas de la base, para los
-		// stores de las páginas (+layout.svelte). Apagado: null, y todo usa el archivo.
+		// El árbol de etiquetas de la base (docs/etiquetas.md), para los stores de las páginas
+		// (+layout.svelte). Sin etiquetas en la base: null, y todo usa el archivo de respaldo.
 		siteTags: tags.fromDb ? tags.rawTags : null
 	};
 };

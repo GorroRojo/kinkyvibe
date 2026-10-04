@@ -84,7 +84,7 @@
 		margin: 0;
 		padding: 0.1em 0.2em 0.2em;
 		border: 0;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		background: none;
 		box-shadow: none;
 		color: var(--muted);

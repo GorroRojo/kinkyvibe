@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Datos de prueba del modo demo, como SQL o como archivos. SOLO rama `claude/night-demo-data`:
- * no es para mergear. Nunca aplicar a la base `kinkyvibe` (producción).
+ * Datos de prueba del modo demo, como SQL o como archivos (docs/demo.md). Nunca aplicar a la
+ * base `kinkyvibe` (producción): solo a la de un preview o a la local. `--write-events` es para
+ * la rama `demo`: los .md que escribe nunca van a `main` (lo verifica demoGuard.test.js).
  *
  * Lo normal es no usar esto: en el preview, el aviso del modo demo tiene «Recargar datos de
  * prueba» (POST /api/preview-seed), que genera lo mismo relativo al momento en que se aprieta.

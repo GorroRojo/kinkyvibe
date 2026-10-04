@@ -4,6 +4,7 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
+	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
@@ -20,6 +21,7 @@
 	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
 	import { Globe, MapPin } from '@lucide/svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
+	import PartesTaller from '$lib/components/PartesTaller.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueSchema } from '$lib/utils/venues.js';
 	import { eventPlace } from '$lib/utils/eventPlace.js';
@@ -170,6 +172,7 @@
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
 	{#if data.series}<EventSeries series={data.series} part="nav" />{/if}
+	{#if data.partes}<PartesTaller partes={data.partes} part="nav" />{/if}
 
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
@@ -244,8 +247,13 @@
 				.join(' · ')}
 			<section class="buy-cta" id="entradas" aria-label="Entradas">
 				{#if t.open}
-					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
-						<span class="buy-title">Comprar entradas</span>
+					<!-- En una parte de un taller con una sola entrada, la entrada es la del taller. -->
+					<a class="buy-button" href="/calendario/{t.slug ?? data.meta.postID}/entradas">
+						<span class="buy-title"
+							>{data.partes && !data.partes.perPart
+								? 'Comprar entrada al taller'
+								: 'Comprar entradas'}</span
+						>
 						<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
 						y salía «desde $ 6.400· Quedan 5». -->
 						<span class="buy-meta"
@@ -276,6 +284,7 @@
 			</section>
 		{/if}
 	{/if}
+	{#if data.partes}<PartesTaller partes={data.partes} part="list" />{/if}
 	<div class="share-row">
 		{#if data.meta.status != 'cancelado'}
 			<AddToCalendarButton event={calendarEvent} />
@@ -302,8 +311,13 @@
 			<div class="kv-texto-libre">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html ownStyle}
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html data.html}
+				{#if data.parts}
+					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+					<ContentParts parts={data.parts} />
+				{:else}
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html data.html}
+				{/if}
 			</div>
 		{:else}
 			<svelte:component this={data.content} />
@@ -362,7 +376,7 @@
 		justify-content: center;
 		gap: 0.6em;
 		margin-top: 1.2em;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 	}
 	#tags {
 		margin-inline: auto;
@@ -375,7 +389,7 @@
 	.buy-cta {
 		max-width: 40rem;
 		margin: 1.2em auto 0;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 	.buy-button {
 		display: flex;
@@ -490,7 +504,7 @@
 			margin-top: 0.3em;
 			padding: 0.3em 0.8em;
 			border: 1px solid currentColor;
-			border-radius: 999px;
+			border-radius: var(--radius-pill);
 			color: inherit;
 			font-size: var(--step--1);
 			text-decoration: none;
@@ -512,7 +526,7 @@
 				--base-font-size-m: 18px;
 				--base-font-size-s: 18px;
 				display: block;
-				padding: 5px;
+				padding: var(--space-3xs);
 				position: relative;
 				font-size: var(--base-font-size-m);
 			}

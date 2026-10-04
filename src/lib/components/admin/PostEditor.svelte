@@ -94,7 +94,7 @@
 
 	const sha = data.post.sha ?? '';
 	const path = data.post.path ?? '';
-	/** Con el interruptor `contenido_db`, este post se guarda en la base (se ve enseguida). */
+	/** Los eventos y el material se guardan en la base (se ven enseguida). */
 	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */
@@ -700,7 +700,7 @@
 	.affected {
 		background: var(--warn-bg, #fff8e1);
 		color: var(--text, inherit);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 1em;
 		align-self: stretch;
 		p {
