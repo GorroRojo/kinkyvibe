@@ -267,6 +267,15 @@ test.describe('errores', () => {
 		const res = await request.get('/estilo');
 		expect(res.status()).toBe(404);
 	});
+
+	test('/estilo/evento/<opcion> (maquetas del evento) devuelve 404 fuera de un preview', async ({
+		request
+	}) => {
+		for (const opcion of ['actual', 'a', 'b', 'c']) {
+			const res = await request.get(`/estilo/evento/${opcion}`);
+			expect(res.status()).toBe(404);
+		}
+	});
 });
 
 test.describe('auth', () => {

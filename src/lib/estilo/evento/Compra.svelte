@@ -1,0 +1,86 @@
+<script>
+	/**
+	 * El bloque de compra de las maquetas: el mismo botón «Comprar entradas» de la página real
+	 * (calendario/[event]/+page.svelte, `.buy-cta`; docs/estilo.md: «el botón de comprar entradas
+	 * es otro y queda distinto»), copiado tal cual para no tocar la página. Solo el caso abierto,
+	 * con precio, «Quedan N», cierre de la venta y puerta.
+	 * Props: `tickets` (resumen de la venta), `wide` (ocupa todo el ancho de su caja).
+	 */
+	import { formatARS } from '$lib/utils/money.js';
+	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
+
+	/** @type {any} */
+	export let tickets;
+	export let wide = false;
+
+	$: price = [
+		tickets.priceFrom !== null ? `desde ${formatARS(tickets.priceFrom)}` : '',
+		tickets.gorraSuggested !== null ? 'a la gorra' : ''
+	]
+		.filter(Boolean)
+		.join(' · ');
+</script>
+
+<section class="buy-cta" class:wide id="entradas" aria-label="Entradas">
+	<a class="buy-button" href="#entradas">
+		<span class="buy-title">Comprar entradas</span>
+		<span class="buy-meta"
+			>{price}{#if tickets.left !== null}{' '}<strong class="buy-left"
+					>· {leftText(tickets.left)}</strong
+				>{/if}</span
+		>
+	</a>
+	{#if tickets.closesAt}
+		<p class="buy-when">{saleWindowText({ closesAt: tickets.closesAt })}.</p>
+	{/if}
+	{#if doorText(tickets.door)}
+		<p class="buy-when">{doorText(tickets.door)}</p>
+	{/if}
+</section>
+
+<style>
+	.buy-cta {
+		max-width: 40rem;
+		margin: 0 auto;
+	}
+	.buy-cta.wide {
+		max-width: none;
+		width: 100%;
+		margin: 0;
+	}
+	.buy-button {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.15em;
+		padding: 0.8em 1.2em;
+		border-radius: var(--round);
+		background: var(--1);
+		color: white;
+		text-decoration: none;
+		text-align: center;
+		box-shadow: 0 0.2em 0.8em color-mix(in srgb, var(--1) 40%, transparent);
+	}
+	.buy-button:hover,
+	.buy-button:focus-visible {
+		background: var(--1-dark);
+		color: white;
+		text-decoration: none;
+	}
+	.buy-title {
+		font-size: var(--step-2);
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.buy-meta {
+		font-size: var(--step-0);
+	}
+	.buy-left {
+		white-space: nowrap;
+	}
+	.buy-when {
+		text-align: center;
+		margin: 0.4em 0 0;
+		font-size: var(--step--1);
+	}
+</style>
