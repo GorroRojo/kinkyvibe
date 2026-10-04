@@ -55,6 +55,7 @@ import {
 import { clientAddress, clientHash } from './safeguards.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
+import { trackFunnel } from '$lib/server/analytics/track.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -723,6 +724,8 @@ export async function buyAction(event) {
 	}
 
 	const order = reserved.order;
+	// Embudo anónimo (docs/analiticas.md): solo el evento y el medio, nada de la orden.
+	trackFunnel(platform?.env, { slug: params.event, step: 'orden', method });
 	// Compra con cuenta: guarda o saca los datos según las casillas (nunca frena la compra).
 	const member = event.locals?.member;
 	if (member && values.accountForm) {
@@ -737,6 +740,9 @@ export async function buyAction(event) {
 	if (method === 'gratis') {
 		try {
 			const approved = await approveFreeOrder(db, order);
+			if (approved.newlyApproved) {
+				trackFunnel(platform?.env, { slug: params.event, step: 'aprobada', method });
+			}
 			if (approved.newlyApproved && approved.order && (await mailAllowed(db, order.buyer_email))) {
 				const approvedOrder = approved.order;
 				await inBackground(

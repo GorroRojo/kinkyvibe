@@ -58,7 +58,12 @@
 		<p class="door">{doorText(data.tickets.door)}</p>
 	{/if}
 
-	<TicketPurchase tickets={data.tickets} result={form?.buy} account={data.account} />
+	<TicketPurchase
+		tickets={data.tickets}
+		result={form?.buy}
+		account={data.account}
+		slug={$page.params.event}
+	/>
 </div>
 
 <style>

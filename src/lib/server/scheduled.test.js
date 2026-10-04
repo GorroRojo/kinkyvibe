@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
 import { createTestDB } from './db/testing.js';
+import { BINDING, DATASET } from './analytics/track.js';
 import { lastIntegrityRun } from './objects/integrity.js';
 import { saveObject } from './objects/save.js';
 import {
@@ -35,6 +36,16 @@ describe('wrangler.toml', () => {
 		]);
 		// Los Previews nunca escriben en el bucket de backups de producción.
 		expect(previews.r2_buckets ?? []).toEqual([]);
+	});
+
+	it('visitas anónimas: Analytics Engine solo en producción, con el dataset del código', () => {
+		const config = unstable_readConfig({ config: 'wrangler.toml' });
+		expect(config.analytics_engine_datasets).toEqual([
+			expect.objectContaining({ binding: BINDING, dataset: DATASET })
+		]);
+		// Los Previews no tienen el binding: el código no hace nada sin él.
+		const previews = /** @type {any} */ (config).previews;
+		expect(previews.analytics_engine_datasets ?? []).toEqual([]);
 	});
 });
 

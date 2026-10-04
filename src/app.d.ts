@@ -30,6 +30,8 @@ declare global {
 				DB?: import('@cloudflare/workers-types').D1Database;
 				/** Bucket de R2 de los backups de la base (solo en el Worker de producción). */
 				BACKUPS?: import('@cloudflare/workers-types').R2Bucket;
+				/** Visitas anónimas (Analytics Engine, docs/analiticas.md). Solo en producción. */
+				ANALYTICS?: import('@cloudflare/workers-types').AnalyticsEngineDataset;
 			};
 			ctx?: import('@cloudflare/workers-types').ExecutionContext;
 			caches?: import('@cloudflare/workers-types').CacheStorage;

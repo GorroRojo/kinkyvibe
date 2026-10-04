@@ -57,6 +57,7 @@
 	import TicketsStep from '$lib/components/purchase/TicketsStep.svelte';
 	import BuyerStep from '$lib/components/purchase/BuyerStep.svelte';
 	import PayStep from '$lib/components/purchase/PayStep.svelte';
+	import { sendFunnelStep } from '$lib/utils/funnelBeacon.js';
 
 	/** @typedef {{ name: string, pronouns: string }} HolderValues */
 	/**
@@ -77,6 +78,8 @@
 	 * @type {ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null}
 	 */
 	export let account = null;
+	/** Slug del evento: solo para el aviso anónimo de los pasos (docs/analiticas.md). */
+	export let slug = '';
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
@@ -266,6 +269,9 @@
 	async function showStep(s, o = {}) {
 		step = s;
 		if (s > reached) reached = s;
+		// Aviso anónimo (una vez por paso): solo el paso y el evento, nada del formulario.
+		if (s === STEP_BUYER) sendFunnelStep('datos', slug);
+		if (s === STEP_PAY) sendFunnelStep('pagar', slug);
 		await tick();
 		const section = headings[s]?.closest('section');
 		/** @type {HTMLElement | null | undefined} */

@@ -30,6 +30,7 @@ import {
 	setStreamLink
 } from '$lib/server/tickets/stream.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { trackFunnel } from '$lib/server/analytics/track.js';
 
 /**
  * Acciones de la venta de entradas de un evento (antes, una página por evento bajo Entradas). Cada pestaña de
@@ -143,6 +144,11 @@ export const eventTicketActions = {
 		});
 		if (r.result === 'confirmed' && r.order) {
 			const confirmed = r.order;
+			trackFunnel(platform?.env, {
+				slug: params.slug,
+				step: 'aprobada',
+				method: 'transferencia'
+			});
 			await logAdminAction(db, locals, {
 				action: 'transfer.confirm',
 				targetType: 'order',
