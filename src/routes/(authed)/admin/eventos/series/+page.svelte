@@ -10,7 +10,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
-	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
+	import { CalendarPlus, Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -25,6 +25,22 @@
 	export let form;
 	const icon = { size: 18, 'aria-hidden': true };
 	let creating = false;
+	/**
+	 * Lo que se precarga en «Crear serie» (con «Serie por año»: el nombre con el año, la madre y su
+	 * ícono). Vacío = el formulario en blanco.
+	 * @type {Record<string, string>}
+	 */
+	let prefill = {};
+	/** @param {{ id: string, icon: string }} s */
+	function createYearly(s) {
+		prefill = { name: `${s.id} ${new Date().getFullYear()}`, parent: s.id, icon: s.icon ?? '' };
+		creating = true;
+		requestAnimationFrame(() => document.getElementById('crear-name')?.focus());
+	}
+	/** Las series que pueden ser madre (las de arriba: dos niveles alcanzan). */
+	$: parents = data.series
+		.filter((/** @type {any} */ s) => !s.parent)
+		.map((/** @type {any} */ s) => ({ id: s.id, name: s.name, icon: s.icon }));
 	let busy = false;
 	/** La serie que se está editando (su id), o ''. */
 	let editing = '';
@@ -64,7 +80,10 @@
 				class="kv-btn"
 				aria-expanded={creating}
 				aria-controls="crear-serie"
-				on:click={() => (creating = !creating)}><Plus {...icon} /> Crear serie</button
+				on:click={() => {
+					prefill = {};
+					creating = !creating;
+				}}><Plus {...icon} /> Crear serie</button
 			>
 		{/if}
 	</svelte:fragment>
@@ -102,14 +121,18 @@
 		<form id="crear-serie" class="kv-form" method="POST" action="?/crear" use:enhance={submit}>
 			<h2 class="form-title">Crear serie</h2>
 			<p class="muted small">
-				Una serie es una etiqueta hija de «evento recurrente»: después, ponésela a cada edición.
+				Una serie es una etiqueta hija de «evento recurrente» (o de otra serie): después, ponésela a
+				cada edición.
 			</p>
-			<SeriesFields
-				mode="create"
-				id="crear"
-				values={form?.editing ? {} : (form?.values ?? {})}
-				assets={data.assets}
-			/>
+			{#key prefill}
+				<SeriesFields
+					mode="create"
+					id="crear"
+					values={form?.editing ? {} : (form?.values ?? prefill)}
+					assets={data.assets}
+					{parents}
+				/>
+			{/key}
 			{#if form?.error && !form?.editing}<p class="kv-flash bad" role="alert">{form.error}</p>{/if}
 			<div class="kv-row">
 				<button class="kv-btn" type="submit" disabled={busy}
@@ -142,6 +165,9 @@
 							{s.icon}
 							<a href={s.href} target="_blank" rel="noopener">{s.name}</a>
 						</h2>
+						{#if s.parent}
+							<p class="small"><Badge tone="info">Dentro de «{s.parent}»</Badge></p>
+						{/if}
 						<p class="muted small">
 							{s.total}
 							{s.total === 1 ? 'edición' : 'ediciones'} · {s.upcoming}
@@ -165,6 +191,15 @@
 						</p>
 					</div>
 					<div class="kv-row">
+						{#if data.canCreate && !s.parent}
+							<button
+								type="button"
+								class="kv-btn ghost small"
+								title="Crear una serie hija para un año (por ejemplo «{s.id} {new Date().getFullYear()}»)"
+								on:click={() => createYearly(s)}
+								><CalendarPlus size={16} aria-hidden="true" /> Serie por año</button
+							>
+						{/if}
 						{#if data.canCreate}
 							<button
 								type="button"
