@@ -6,6 +6,7 @@
 	 * Eventos: `undo`, `details`, `reveal` (DNI completo).
 	 */
 	import { createEventDispatcher } from 'svelte';
+	import { invalidTitle } from '$lib/admin/doorOffline.js';
 	import {
 		ChevronRight,
 		CircleCheck,
@@ -38,6 +39,8 @@
 		invalid: 'QR inválido',
 		error: 'No se pudo validar'
 	};
+	$: title =
+		scan.result === 'invalid' ? invalidTitle(scan.result, scan.typed) : TITLES[scan.result];
 
 	$: tone =
 		scan.result === 'ok' || scan.result === 'sold'
@@ -80,7 +83,7 @@
 			{#if tone === 'ok'}<CircleCheck size={34} strokeWidth={2.5} />
 			{:else if tone === 'warn'}<TriangleAlert size={34} strokeWidth={2.5} />
 			{:else}<CircleX size={34} strokeWidth={2.5} />{/if}
-			<span>{TITLES[scan.result]}</span>
+			<span>{title}</span>
 		</p>
 		{#if canUndo && card}
 			<button type="button" class="pill" on:click|stopPropagation={() => dispatch('undo', card)}>
@@ -140,7 +143,9 @@
 		<p class="who">Esta entrada es para: <strong>{scan.otherEvent ?? 'otro evento'}</strong></p>
 	{:else if scan.result === 'invalid'}
 		<p class="who">
-			{#if scan.offline}No está en la lista de este evento (QR inválido o de otro evento).
+			{#if scan.offline}No está en la lista de este evento ({scan.typed
+					? 'código mal escrito'
+					: 'QR inválido'} o de otro evento).
 			{:else}No existe ninguna entrada con ese código.{/if}
 		</p>
 	{:else if scan.message}

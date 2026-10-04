@@ -11,10 +11,11 @@
 
 <!-- Al guardar se vuelve a leer la página: el editor se arma de nuevo con el archivo guardado. -->
 {#key data.post}
-	<PostEditor {data} {form} category="calendario" postID={data.event.slug} embedded />
+	<PostEditor {data} {form} category="calendario" postID={data.event.slug} embedded>
+		<!-- Talleres en varias partes (docs/talleres-partes.md): en la columna del formulario y en
+		el índice, pero se guarda por su cuenta (no manda el formulario del evento). -->
+		<svelte:fragment slot="extra">
+			<PartesEditor state={data.partes} slug={data.event.slug} />
+		</svelte:fragment>
+	</PostEditor>
 {/key}
-
-<!-- Talleres en varias partes (docs/talleres-partes.md): va aparte del formulario del evento. -->
-<div class="kv-admin embedded">
-	<PartesEditor state={data.partes} slug={data.event.slug} />
-</div>

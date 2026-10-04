@@ -626,7 +626,7 @@ export function dbProfileDeletionPlan({ slug, dependents: d }) {
 		blockers: [],
 		warnings,
 		notes: [
-			`La página /amigues/${slug} deja de existir al toque (el perfil está solo en la base: no hay cambios en GitHub).`,
+			`La página /amigues/${slug} deja de existir enseguida.`,
 			'Las relaciones (lugar de eventos, personas con rol, integrantes) quedan guardadas: si lo deshacés, vuelven.'
 		],
 		needsTyping: warnings.length > 0,

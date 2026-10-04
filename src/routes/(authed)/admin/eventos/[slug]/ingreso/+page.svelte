@@ -19,6 +19,7 @@
 		Search,
 		Store,
 		TriangleAlert,
+		Undo2,
 		Volume2,
 		VolumeX,
 		WifiOff,
@@ -29,8 +30,10 @@
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
-	import { computePrice } from '$lib/utils/tickets.js';
+	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
+	import { doorOptionLabel, doorSaleBreakdown } from '$lib/admin/doorSale.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { entradas } from '$lib/utils/plural.js';
 	import {
 		applySyncResults,
 		findTicket,
@@ -41,7 +44,9 @@
 		mergeServerList,
 		parseScan,
 		saveDoorState,
-		undoLocal
+		undoLocal,
+		invalidTitle,
+		markRecentUndone
 	} from '$lib/admin/doorOffline.js';
 
 	export let data;
@@ -85,7 +90,7 @@
 	let busy = false;
 	/** @type {Record<string, string>} ticketId → DNI completo ya pedido */
 	let revealed = {};
-	/** @type {{ result: string, title: string, sub: string, at: number }[]} */
+	/** @type {import('$lib/admin/doorOffline.js').RecentScan[]} */
 	let recent = [];
 	let sound = false;
 	let wakeOk = false;
@@ -212,7 +217,7 @@
 			already: c ? `${c.holder} · ya ingresó` : 'Ya ingresó',
 			void: c ? `${c.holder} · anulada` : 'Entrada anulada',
 			'wrong-event': 'Entrada de otro evento',
-			invalid: 'QR inválido',
+			invalid: invalidTitle('invalid', s.typed),
 			error: 'No se pudo validar'
 		});
 		const sub =
@@ -223,10 +228,10 @@
 					: s.offline
 						? 'sin conexión'
 						: '';
-		recent = [{ result: s.result, title: titles[s.result], sub, at: Date.now() }, ...recent].slice(
-			0,
-			5
-		);
+		recent = [
+			{ result: s.result, title: titles[s.result], sub, at: Date.now(), ticketId: c?.ticketId },
+			...recent
+		].slice(0, 5);
 		persistRecent();
 	}
 
@@ -249,14 +254,17 @@
 	}
 
 	// --- Escanear / validar ---
-	/** @param {string} raw */
-	async function submitScan(raw) {
+	/**
+	 * @param {string} raw
+	 * @param {{ typed?: boolean }} [o] `typed`: escrito a mano («Escribir código»)
+	 */
+	async function submitScan(raw, { typed = false } = {}) {
 		const value = String(raw ?? '').trim();
 		if (!value || busy) return;
 		busy = true;
 		try {
 			if (!online) {
-				await offlineScan(value);
+				await offlineScan(value, typed);
 				return;
 			}
 			let r;
@@ -265,11 +273,11 @@
 			} catch {
 				// Sin red (aunque el navegador crea que hay): seguimos con la lista guardada.
 				online = false;
-				await offlineScan(value);
+				await offlineScan(value, typed);
 				return;
 			}
 			if (r.type === 'success' && r.data?.checkin) {
-				const s = /** @type {DoorScan} */ (r.data.checkin);
+				const s = /** @type {DoorScan} */ ({ ...r.data.checkin, typed });
 				show(s);
 				setCounts(r.data.counts);
 				if (s.result === 'ok') markLocal(s.card);
@@ -288,8 +296,11 @@
 		}
 	}
 
-	/** @param {string} value */
-	async function offlineScan(value) {
+	/**
+	 * @param {string} value
+	 * @param {boolean} [typed]
+	 */
+	async function offlineScan(value, typed = false) {
 		const parsed = parseScan(value);
 		const ticket = await findTicket(door.list, parsed);
 		const r = localCheckIn(door, parsed, ticket, {
@@ -300,7 +311,7 @@
 		door = r.state;
 		persist();
 		counts = localCounts(door.list);
-		show({ result: r.result, card: r.ticket, offline: true, stamp: Date.now() });
+		show({ result: r.result, card: r.ticket, offline: true, stamp: Date.now(), typed });
 	}
 
 	/** @param {CustomEvent<Card>} e */
@@ -313,6 +324,8 @@
 				persist();
 				counts = localCounts(door.list);
 				scan = null;
+				recent = markRecentUndone(recent, card.ticketId, card.holder);
+				persistRecent();
 				say(`Se deshizo el ingreso de ${card.holder}.`);
 				return;
 			}
@@ -323,6 +336,8 @@
 				setCounts(r.data.counts);
 				markLocal({ ...card, at: null, by: null });
 				scan = null;
+				recent = markRecentUndone(recent, card.ticketId, card.holder);
+				persistRecent();
 				say(`Se deshizo el ingreso de ${card.holder}.`);
 			} else say('No se pudo deshacer.');
 		} catch {
@@ -514,7 +529,7 @@
 		const value = code;
 		codeOpen = false;
 		code = '';
-		await submitScan(value);
+		await submitScan(value, { typed: true });
 	}
 
 	// --- Buscar persona (combobox con sugerencias; sin conexión, en la lista guardada) ---
@@ -629,7 +644,9 @@
 	$: if (sType && !sType.gorra && !sType.options.some((o) => o.id === saleOption)) {
 		saleOption = sType.fondo > 0 ? 'fondo' : 'completo';
 	}
-	$: salePrice = (() => {
+	$: salePrice = saleCalc?.total ?? null;
+	$: saleBreakdown = saleCalc ? doorSaleBreakdown(saleCalc, saleQty) : '';
+	$: saleCalc = (() => {
 		if (!sType) return null;
 		try {
 			const price = sType.gorra ? Number(saleAmount) : sType.price;
@@ -641,7 +658,7 @@
 				quantity: saleQty,
 				discount: null,
 				method: /** @type {any} */ (saleMethod)
-			}).total;
+			});
 		} catch {
 			return null;
 		}
@@ -828,14 +845,18 @@
 						{@const tone =
 							r.result === 'ok' || r.result === 'sold'
 								? 'ok'
-								: r.result === 'already'
-									? 'warn'
-									: 'bad'}
+								: r.result === 'undone'
+									? 'undone'
+									: r.result === 'already'
+										? 'warn'
+										: 'bad'}
 						<li>
 							<span class="dot {tone}" aria-hidden="true">
-								{#if tone === 'ok'}<CircleCheck size={20} />{:else if tone === 'warn'}<TriangleAlert
+								{#if tone === 'ok'}<CircleCheck size={20} />{:else if tone === 'undone'}<Undo2
 										size={20}
-									/>{:else}<CircleX size={20} />{/if}
+									/>{:else if tone === 'warn'}<TriangleAlert size={20} />{:else}<CircleX
+										size={20}
+									/>{/if}
 							</span>
 							<span class="txt">
 								<strong>{r.title}</strong>
@@ -948,7 +969,11 @@
 				<select name="type" bind:value={saleType} required>
 					{#each data.types as t (t.id)}
 						<option value={t.id}>
-							{t.name} · {t.gorra ? 'a la gorra' : formatARS(t.price)} · {t.available === null
+							{t.name} · {t.gorra
+								? 'a la gorra'
+								: t.fondo > 0
+									? `${formatARS(t.price)} (${formatARS(Math.max(0, t.price - t.fondo))} con el fondo)`
+									: formatARS(t.price)} · {t.available === null
 								? 'sin cupo'
 								: t.taken > (t.capacity ?? 0)
 									? `pasada del cupo (${t.taken} / ${t.capacity})`
@@ -980,11 +1005,16 @@
 					<label class="field">
 						<span>Precio</span>
 						<select name="option" bind:value={saleOption}>
-							{#each sType.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+							{#each sType.options as o (o.id)}<option value={o.id}
+									>{doorOptionLabel(o, defaultFondoOption(sType.fondo))}</option
+								>{/each}
 						</select>
 					</label>
 				{/if}
 			</div>
+			{#if saleBreakdown}
+				<p class="muted small" id="sale-breakdown">{saleBreakdown}</p>
+			{/if}
 			<fieldset class="methods">
 				<legend>Cómo pagó</legend>
 				<label
@@ -1151,7 +1181,7 @@
 				disabled={!online}
 			>
 				<RefreshCw size={22} /> Actualizar la lista {door.savedAt
-					? `(guardada ${hhmm(door.savedAt)}, ${door.list.length} entradas)`
+					? `(guardada ${hhmm(door.savedAt)}, ${entradas(door.list.length)})`
 					: ''}
 			</button>
 			<p class="muted small">
@@ -1441,6 +1471,10 @@
 	.dot.warn {
 		background: hsl(45, 60%, 17%);
 		color: var(--warn);
+	}
+	.dot.undone {
+		background: color-mix(in srgb, var(--muted) 20%, transparent);
+		color: var(--muted);
 	}
 	.dot.bad {
 		background: var(--bad-bg);

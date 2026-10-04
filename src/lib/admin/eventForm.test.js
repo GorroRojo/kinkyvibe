@@ -190,3 +190,17 @@ describe('borrador del formulario: decidir y comparar', () => {
 		expect(changedKeys({ a: null }, {})).toEqual([]);
 	});
 });
+
+describe('formSections: Partes', () => {
+	it('editar un evento con la sección Partes: va al final del índice', () => {
+		const list = formSections({ mode: 'editar', category: 'calendario', hasPartes: true });
+		expect(list.at(-1)).toEqual({ id: 'partes', icon: '🧩', label: 'Partes' });
+	});
+	it('sin la sección o en material: no está', () => {
+		const ids = (/** @type {any[]} */ l) => l.map((s) => s.id);
+		expect(ids(formSections({ mode: 'editar', category: 'calendario' }))).not.toContain('partes');
+		expect(
+			ids(formSections({ mode: 'editar', category: 'material', hasPartes: true }))
+		).not.toContain('partes');
+	});
+});

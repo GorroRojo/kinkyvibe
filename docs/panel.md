@@ -7,7 +7,8 @@ material y amigues, ver las ventas, confirmar transferencias, controlar el ingre
 mandar mails a quienes compraron, ajustar cobros, el Fondo y los textos de los mails, y ver quién
 cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins). Anda en la
 compu y en el celu, arranca en tema claro y tiene un buscador (`/` o Ctrl/⌘+K) que encuentra
-eventos, órdenes, entradas, códigos y personas.
+eventos, órdenes, entradas, códigos, personas, perfiles y etiquetas (y cada sección por sus
+palabras: «pie de mail», «alias», «reembolso»…, `NAV_KEYWORDS` en `src/lib/admin/commands.js`).
 
 ## Lo que nunca se tiene que romper
 
@@ -62,11 +63,12 @@ sección (Etiquetas, Estadísticas), que usan la URL del área.
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
-normalizado (sin espacios ni mayúsculas) y por su cuenta: Cuenta (fechas, contraseña sí/no, sesiones,
+normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
+resumen), Cuenta (fechas, contraseña sí/no, sesiones,
 «Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
-series, calendario y Telegram: nunca tokens ni el id del chat), Notas internas y Actividad. La
+series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
 ficha de una cuenta (`/admin/comunidad/cuentas/<id>`) muestra la misma ficha (también para una
 cuenta borrada), así que los links viejos siguen andando. Las notas internas van por el mail; una
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
@@ -90,6 +92,10 @@ Planilla:
   queda en Actividad (`event.confirm`). Publicarlo desde la planilla también le saca la marca.
 - **Filtro «A confirmar»** (calendario y planilla): solo los borradores con la marca. Un evento no
   listado a propósito (sin la marca) no aparece ahí ni ofrece «Confirmar».
+- **Una palabra para cada cosa**: «Borrador» es solo el que tiene la marca; un evento sin listar a
+  propósito dice «No listado» (lista de eventos, agenda, Inicio). El contador de Contenido › No
+  listadas no cuenta los eventos no listados a propósito, y el Inicio nunca destaca un borrador
+  como el evento de hoy.
 - **Limitación conocida**: un borrador recién creado se ve en la agenda hasta que recargás la
   página; después desaparece hasta que el sitio se vuelve a publicar con su commit (unos minutos),
   porque la agenda lee los eventos del deploy.

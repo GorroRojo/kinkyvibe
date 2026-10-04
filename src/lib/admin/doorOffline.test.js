@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+	invalidTitle,
+	markRecentUndone,
 	applySyncResults,
 	findTicket,
 	loadDoorState,
@@ -205,5 +207,24 @@ describe('buscar y guardar', () => {
 		expect(saveDoorState(broken, 'ev', state)).toBe(false);
 		mem['kv-door:roto'] = '{no';
 		expect(loadDoorState(storage, 'roto').list).toEqual([]);
+	});
+});
+
+describe('Puerta: textos y «Deshacer»', () => {
+	it('un código escrito que no existe es «Código no encontrado»; un QR, «QR inválido»', () => {
+		expect(invalidTitle('invalid', true)).toBe('Código no encontrado');
+		expect(invalidTitle('invalid', false)).toBe('QR inválido');
+		expect(invalidTitle('ok', true)).toBe('');
+	});
+	it('después de deshacer, el último ingreso de esa entrada deja de figurar como adentro', () => {
+		const recent = [
+			{ result: 'ok', title: 'Persona Uno · General', sub: '', at: 3, ticketId: 't1' },
+			{ result: 'ok', title: 'Persona Dos · General', sub: '', at: 2, ticketId: 't2' },
+			{ result: 'already', title: 'Persona Uno · ya ingresó', sub: '', at: 1, ticketId: 't1' }
+		];
+		const next = markRecentUndone(recent, 't1', 'Persona Uno');
+		expect(next[0]).toMatchObject({ result: 'undone', title: 'Persona Uno · ingreso deshecho' });
+		expect(next[1]).toEqual(recent[1]);
+		expect(next[2]).toEqual(recent[2]);
 	});
 });

@@ -5,7 +5,8 @@ import {
 	likeContains,
 	orderIdPrefix,
 	searchDatabase,
-	searchEvents
+	searchEvents,
+	searchTags
 } from './search.js';
 import { insertOrder, insertTicket } from './testRows.js';
 
@@ -77,7 +78,7 @@ describe('searchEvents', () => {
 
 describe('searchDatabase', () => {
 	it('sin base o con búsqueda corta devuelve vacío', async () => {
-		const empty = { orders: [], tickets: [], codes: [], people: [] };
+		const empty = { orders: [], tickets: [], codes: [], people: [], profiles: [] };
 		expect(await searchDatabase(null, 'ana')).toEqual(empty);
 		expect(await searchDatabase(t.db, 'a')).toEqual(empty);
 	});
@@ -168,5 +169,46 @@ describe('groupResults', () => {
 				(g) => g.id
 			)
 		).toEqual(['events', 'people', 'tickets']);
+	});
+});
+
+describe('searchDatabase: perfiles', () => {
+	it('por nombre, al editor del perfil', async () => {
+		const { saveObject } = await import('$lib/server/objects/save.js');
+		await saveObject(
+			t.db,
+			{
+				type: 'perfil',
+				slug: 'perfil-inventado',
+				title: 'Perfil Inventado',
+				data: { kind: 'persona' }
+			},
+			{ actor: 'admin-prueba' }
+		);
+		const r = await searchDatabase(t.db, 'inventado');
+		expect(r.profiles).toEqual([
+			expect.objectContaining({
+				title: 'Perfil Inventado',
+				href: '/admin/comunidad/perfiles/perfil-inventado'
+			})
+		]);
+	});
+});
+
+describe('searchTags', () => {
+	const tags = [
+		{ id: 'shibari', visible_name: 'Shibari', icon: '🪢' },
+		{ id: 'cuerdas', aliasOf: 'shibari' },
+		{ id: 'AMBA', visible_name: 'AMBA' }
+	];
+	it('por nombre, sin alias, al árbol con la etiqueta elegida', () => {
+		const r = searchTags(tags, 'shib');
+		expect(r).toHaveLength(1);
+		expect(r[0]).toMatchObject({
+			title: '🪢 Shibari',
+			href: '/admin/etiquetas?etiqueta=shibari'
+		});
+		expect(searchTags(tags, 'cuerd')).toEqual([]);
+		expect(searchTags(tags, 'a')).toEqual([]);
 	});
 });

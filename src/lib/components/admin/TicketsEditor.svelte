@@ -41,6 +41,20 @@
 	export let errors = [];
 	/** @type {string[]} */
 	export let warnings = [];
+	/**
+	 * Los errores se muestran recién cuando se sale de un campo (o cuando quien llama pide
+	 * `showErrors`, al guardar), no apenas se prende la venta con los campos todavía vacíos.
+	 * `touched` (con bind): ya se salió de algún campo.
+	 */
+	export let touched = false;
+	export let showErrors = false;
+	$: shownErrors = touched || showErrors ? errors : [];
+	/** @param {FocusEvent} e */
+	function onFocusOut(e) {
+		const t = /** @type {HTMLElement | null} */ (e.target);
+		// El interruptor de la venta no cuenta: prenderla no es haber completado nada.
+		if (t && t.getAttribute('role') !== 'switch') touched = true;
+	}
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
 	export let settingsHref = '/admin/ajustes/cobros';
@@ -112,7 +126,7 @@
 	};
 </script>
 
-<fieldset class="card tickets" id="{idPrefix}-tickets">
+<fieldset class="card tickets" id="{idPrefix}-tickets" on:focusout={onFocusOut}>
 	<legend>🎟️ Entradas</legend>
 
 	<label class="switch">
@@ -484,9 +498,9 @@
 		</details>
 
 		{#each warnings as w}<p class="warning">⚠️ {w}</p>{/each}
-		{#if errors.length}
+		{#if shownErrors.length}
 			<ul class="errors" id="{idPrefix}-tickets-errors">
-				{#each errors as e}<li class="error">{e}</li>{/each}
+				{#each shownErrors as e}<li class="error">{e}</li>{/each}
 			</ul>
 		{/if}
 	{/if}

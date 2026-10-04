@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { eventMissing, missingInputFromMeta, missingSummary } from './eventMissing.js';
+import {
+	eventMissing,
+	missingInputFromMeta,
+	missingSummary,
+	publishWarnings
+} from './eventMissing.js';
 
 /** Un evento completo (datos inventados). */
 const FULL = {
@@ -69,5 +74,45 @@ describe('missingSummary', () => {
 			'Falta: imagen, link o entradas'
 		);
 		expect(missingSummary([])).toBe('');
+	});
+});
+
+describe('publishWarnings (Revisar antes de publicar)', () => {
+	const base = {
+		image: true,
+		summary: 'Resumen',
+		location: 'Calle Falsa 123',
+		locationName: 'Lugar de prueba',
+		tags: ['AMBA', 'pago'],
+		authors: ['Alguien'],
+		link: 'https://example.com',
+		tickets: false,
+		status: 'abierto'
+	};
+	it('completo: sin avisos', () => {
+		expect(publishWarnings(base)).toEqual([]);
+	});
+	it('«Abierto» sin link ni entradas: lo dice', () => {
+		const w = publishWarnings({ ...base, link: '' });
+		expect(w.map((x) => x.id)).toEqual(['inscripcion']);
+		expect(w[0].detail).toContain('«Abierto»');
+	});
+	it('con entradas no hace falta el link', () => {
+		expect(publishWarnings({ ...base, link: '', tickets: true })).toEqual([]);
+	});
+	it('sin imagen', () => {
+		expect(publishWarnings({ ...base, image: false }).map((x) => x.id)).toEqual(['imagen']);
+	});
+	it('región presencial sin dónde: avisa que figura como Online', () => {
+		const w = publishWarnings({ ...base, location: '', locationName: '' });
+		expect(w.map((x) => x.id)).toEqual(['donde']);
+		expect(w[0].detail).toContain('AMBA');
+	});
+	it('un lugar elegido de la lista cuenta como dónde', () => {
+		expect(publishWarnings({ ...base, location: '', locationName: '', venue: true })).toEqual([]);
+	});
+	it('etiqueta Online con dirección: avisa la contradicción', () => {
+		const w = publishWarnings({ ...base, tags: ['Online', 'pago'] });
+		expect(w.map((x) => x.label)).toEqual(['Online o presencial']);
 	});
 });

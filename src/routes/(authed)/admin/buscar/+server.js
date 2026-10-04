@@ -9,8 +9,10 @@ import {
 	MIN_QUERY,
 	groupResults,
 	searchDatabase,
-	searchEvents
+	searchEvents,
+	searchTags
 } from '$lib/server/admin/search.js';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { checkinHref } from '$lib/admin/links.js';
@@ -61,7 +63,8 @@ export async function GET({ locals, url, platform }) {
 	const records = await searchDatabase(db, q, { titles });
 	const groups = groupResults({
 		events: searchEvents(visible, q, { ticketed }),
-		...records
+		...records,
+		tags: searchTags(currentSiteTags().tagsData(), q)
 	});
 	return json({ groups, today: todayEvents }, { headers });
 }

@@ -100,9 +100,12 @@
 							{/if}
 						</dl>
 						{#if a.details.length}
-							<ul class="details">
-								{#each a.details as d}<li>{d}</li>{/each}
-							</ul>
+							<details class="tech">
+								<summary>Para técnicos</summary>
+								<ul class="details">
+									{#each a.details as d}<li>{d}</li>{/each}
+								</ul>
+							</details>
 						{/if}
 						<p class="config"><a href={a.configHref}>Se configura en {a.configLabel} →</a></p>
 					</li>
@@ -116,10 +119,17 @@
 	</Card>
 
 	<p class="kv-note">
-		Los horarios de las tareas programadas están en <code>wrangler.toml</code> y solo corren en producción
-		(los previews no ejecutan crons). «Última vez» sale de lo que quedó guardado en la base: si no salió
-		ningún mail, no hay registro aunque la tarea haya corrido.
+		Las tareas programadas corren solas, solo en el sitio de verdad (no en las versiones de prueba).
+		«Última vez» sale de lo que quedó guardado: si no salió ningún mail, no hay registro aunque la
+		tarea haya corrido.
 	</p>
+	<details class="tech">
+		<summary>Para técnicos</summary>
+		<p class="kv-note">
+			Los horarios están en <code>wrangler.toml</code> (<code>[triggers]</code>); los previews no
+			ejecutan crons.
+		</p>
+	</details>
 </div>
 
 <style>
@@ -185,6 +195,11 @@
 	}
 	.facts dd {
 		margin: 0;
+	}
+	.tech summary {
+		cursor: pointer;
+		color: var(--muted);
+		font-size: var(--text-sm);
 	}
 	.details {
 		margin: 0;

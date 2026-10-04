@@ -33,7 +33,8 @@ export const OLDER_PAGE = 40;
 export const FILTERS = /** @type {const} */ ([
 	{ id: 'proximos', label: 'Próximos' },
 	{ id: 'pasados', label: 'Pasados' },
-	{ id: 'borradores', label: 'Borradores' },
+	// Todos los no listados (borradores de la agenda y los no listados a propósito).
+	{ id: 'borradores', label: 'No listados' },
 	{ id: 'sin-imagen', label: 'Sin imagen' }
 ]);
 

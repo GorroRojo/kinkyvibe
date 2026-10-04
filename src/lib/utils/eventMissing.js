@@ -98,3 +98,45 @@ export function missingSummary(items) {
 	if (!items.length) return '';
 	return `Falta: ${items.map((i) => i.label.toLowerCase()).join(', ')}`;
 }
+
+/**
+ * Avisos de «Revisar antes de publicar» (/admin/eventos/nuevo): lo de «Qué falta» más dos cosas
+ * que se escapan seguido. Son avisos, no bloquean: se puede publicar igual.
+ *
+ * - el estado es «Abierto» pero no hay cómo anotarse (ni link ni entradas);
+ * - tiene la etiqueta Online pero también una dirección o un lugar (o al revés: una región
+ *   presencial sin lugar, que en la revisión se lee como «Online»).
+ *
+ * @param {MissingInput & { venue?: boolean }} e `venue`: se eligió un lugar de la lista (la
+ *   dirección sale de ahí)
+ * @returns {MissingItem[]}
+ */
+export function publishWarnings(e) {
+	const withVenue = { ...e, locationName: e.venue ? e.locationName || 'lugar' : e.locationName };
+	const items = eventMissing(withVenue);
+	const tags = splitEventTags(list(e.tags));
+	const hasPlace = Boolean(e.venue || text(e.location) || text(e.locationName));
+	/** @type {MissingItem[]} */
+	const out = items.map((i) => {
+		if (i.id === 'inscripcion' && e.status === 'abierto')
+			return {
+				...i,
+				detail:
+					'Está «Abierto» pero no tiene link de inscripción ni entradas: no hay cómo anotarse.'
+			};
+		if (i.id === 'donde' && tags.place)
+			return {
+				...i,
+				detail: `Tiene la región «${tags.place}» pero no dice dónde (en la revisión figura como Online).`
+			};
+		return i;
+	});
+	if (tags.place === 'Online' && hasPlace) {
+		out.push({
+			id: 'donde',
+			label: 'Online o presencial',
+			detail: 'Tiene la etiqueta Online pero también un lugar o una dirección: revisá cuál va.'
+		});
+	}
+	return out;
+}

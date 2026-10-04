@@ -1,7 +1,7 @@
 <script>
 	/**
-	 * Ficha de una persona (src/lib/server/admin/ficha.js): Cuenta, Compras, Perfiles, Lo que
-	 * sigue, Notas internas y Actividad. La usan Comunidad › Personas › <persona> y Comunidad ›
+	 * Ficha de una persona (src/lib/server/admin/ficha.js): Notas internas (arriba, después del
+	 * resumen), Cuenta, Compras, Perfiles, Lo que sigue y Actividad. La usan Comunidad › Personas › <persona> y Comunidad ›
 	 * Cuentas › <cuenta>. El DNI no viene con la página: cada «Mostrar» lo pide aparte (y queda en
 	 * Actividad).
 	 * Props: `data` (lo del load), `form` (lo de las actions), `back` ({ href, label }).
@@ -141,12 +141,81 @@
 	</div>
 {/if}
 
+<!-- Notas internas: arriba, después del resumen (es lo primero que se mira al recibir a alguien). -->
+<div class="block" id="notas">
+	<Card title="Notas internas" icon={StickyNote}>
+		<p class="kv-note">
+			Solo las ven les admins. Nada de datos sensibles (DNI, salud, etc.): alcanza con lo que ayude
+			a recibir mejor a esta persona.
+		</p>
+		{#if form?.note}
+			<p class="kv-flash" class:bad={!form.note.ok} role="status">{form.note.message}</p>
+		{/if}
+		{#if data.key.email || data.key.accountId}
+			{#if !data.key.email}
+				<p class="muted">
+					Esta cuenta está borrada y ya no tiene mail: las notas quedan atadas a la cuenta.
+				</p>
+			{/if}
+			<form
+				class="kv-form"
+				method="POST"
+				action="?/addNote"
+				use:enhance={() =>
+					async ({ result, update }) => {
+						await update();
+						if (result.type === 'success') body = '';
+					}}
+			>
+				<label class="kv-field">
+					<span>Nueva nota</span>
+					<textarea name="body" rows="3" maxlength="2000" bind:value={body}></textarea>
+				</label>
+				<div>
+					<button class="kv-btn" type="submit" disabled={!body.trim()}>Crear nota</button>
+				</div>
+			</form>
+		{:else}
+			<p class="muted">Sin mail ni cuenta no se pueden crear notas.</p>
+		{/if}
+		{#if data.notes.length}
+			<ul class="notes">
+				{#each data.notes as n (n.id)}
+					<li>
+						<p>{n.body}</p>
+						<div class="kv-row">
+							<small class="muted">{fmtDateTime(n.createdAt)} · {n.createdBy}</small>
+							<form
+								method="POST"
+								action="?/deleteNote"
+								use:enhance={async ({ cancel }) => {
+									const ok = await askConfirm({
+										title: '¿Borrar esta nota?',
+										confirmLabel: 'Borrar',
+										tone: 'danger'
+									});
+									if (!ok) cancel();
+								}}
+							>
+								<input type="hidden" name="id" value={n.id} />
+								<button class="kv-btn ghost small" type="submit" aria-label="Borrar nota">
+									<Trash2 size={14} aria-hidden="true" /> Borrar
+								</button>
+							</form>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</Card>
+</div>
+
 <!-- Cuenta -->
 <div class="kv-grid-2 layout" id="cuenta">
 	<Card title="Cuenta" icon={UserRound}>
 		{#if !a}
 			<p class="muted">
-				No tiene cuenta con este mail. Si entra alguna vez con «Ingresar», aparece acá.
+				No tiene cuenta con este mail. Si entra alguna vez con «Entrar», aparece acá.
 			</p>
 		{:else}
 			<dl class="facts">
@@ -595,74 +664,8 @@
 	</Card>
 </div>
 
-<!-- Notas internas + Actividad -->
-<div class="kv-grid-2 block" id="notas">
-	<Card title="Notas internas" icon={StickyNote}>
-		<p class="kv-note">
-			Solo las ven les admins. Nada de datos sensibles (DNI, salud, etc.): alcanza con lo que ayude
-			a recibir mejor a esta persona.
-		</p>
-		{#if form?.note}
-			<p class="kv-flash" class:bad={!form.note.ok} role="status">{form.note.message}</p>
-		{/if}
-		{#if data.key.email || data.key.accountId}
-			{#if !data.key.email}
-				<p class="muted">
-					Esta cuenta está borrada y ya no tiene mail: las notas quedan atadas a la cuenta.
-				</p>
-			{/if}
-			<form
-				class="kv-form"
-				method="POST"
-				action="?/addNote"
-				use:enhance={() =>
-					async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') body = '';
-					}}
-			>
-				<label class="kv-field">
-					<span>Nueva nota</span>
-					<textarea name="body" rows="3" maxlength="2000" bind:value={body}></textarea>
-				</label>
-				<div>
-					<button class="kv-btn" type="submit" disabled={!body.trim()}>Crear nota</button>
-				</div>
-			</form>
-		{:else}
-			<p class="muted">Sin mail ni cuenta no se pueden crear notas.</p>
-		{/if}
-		{#if data.notes.length}
-			<ul class="notes">
-				{#each data.notes as n (n.id)}
-					<li>
-						<p>{n.body}</p>
-						<div class="kv-row">
-							<small class="muted">{fmtDateTime(n.createdAt)} · {n.createdBy}</small>
-							<form
-								method="POST"
-								action="?/deleteNote"
-								use:enhance={async ({ cancel }) => {
-									const ok = await askConfirm({
-										title: '¿Borrar esta nota?',
-										confirmLabel: 'Borrar',
-										tone: 'danger'
-									});
-									if (!ok) cancel();
-								}}
-							>
-								<input type="hidden" name="id" value={n.id} />
-								<button class="kv-btn ghost small" type="submit" aria-label="Borrar nota">
-									<Trash2 size={14} aria-hidden="true" /> Borrar
-								</button>
-							</form>
-						</div>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</Card>
-
+<!-- Actividad -->
+<div class="block" id="actividad">
 	<Card title="Actividad">
 		<p class="kv-note">
 			Lo que hicieron les admins con esta persona, su cuenta o sus compras (también cada DNI que se

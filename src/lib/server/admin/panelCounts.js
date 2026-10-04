@@ -41,7 +41,8 @@ export async function panelCounts(platform, now = Date.now()) {
 			statements: (db) => [countPendingClaimsStatement(db)],
 			read: (results) => readPendingClaimsCount(rowsOf(results)[0])
 		},
-		// Publicaciones no listadas (borradores).
+		// Lo no listado que hay que revisar: los borradores de la agenda (no los eventos no listados
+		// a propósito), el material y los perfiles no listados.
 		unlisted: unlistedQuery
 	});
 	if (orders) {

@@ -1,7 +1,7 @@
 <script>
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		AlertTriangle,
 		ArrowRightLeft,
@@ -118,12 +118,19 @@
 	/** @type {{icon: string, visible_name: string, color: string, image: string, description: string, related: string}} */
 	let fields = { icon: '', visible_name: '', color: '', image: '', description: '', related: '' };
 	let renameTo = '';
-	// Con la base, por defecto se renombra en las publicaciones sin dejar alias (RenameChoice).
-	let keepAlias = !data.dbMode;
+	// Al renombrar, por defecto el nombre viejo queda como alias: los links viejos siguen andando
+	// (RenameChoice; antes, con la base, se renombraba sin dejar alias).
+	let keepAlias = true;
 	let mergeInto = '';
 	let moveTo = '';
 	let newAlias = '';
 	let childName = '';
+	// `?etiqueta=<id>` (el buscador del panel): abre el árbol con esa etiqueta elegida.
+	onMount(() => {
+		const id = new URL(location.href).searchParams.get('etiqueta');
+		if (id && byIdNow().has(id)) selectTag(id);
+	});
+
 	/** @param {string} id */
 	function selectTag(id) {
 		selected = id;
@@ -140,7 +147,7 @@
 			related: (current.find((e) => e.id === id && !e.aliasOf)?.related ?? []).join(', ')
 		};
 		renameTo = '';
-		keepAlias = !data.dbMode;
+		keepAlias = true;
 		mergeInto = '';
 		moveTo = '';
 		newAlias = '';
@@ -288,9 +295,9 @@
 
 {#if data.dbMode}
 	<p class="note">
-		Las etiquetas se leen de la base: los cambios se guardan al momento, sin commits (renombrar en
-		las publicaciones también las cambia en la base). Los textos de la Kinkipedia también están en
-		la base: se editan desde cada etiqueta («Entrada de la Kinkipedia»).
+		Los cambios se guardan al momento (renombrar una etiqueta también la cambia en todas las
+		publicaciones que la usan). Los textos de la Kinkipedia también están en la base: se editan
+		desde cada etiqueta («Entrada de la Kinkipedia»).
 	</p>
 {/if}
 {#if data.mock}
@@ -586,7 +593,7 @@
 							target="_blank"
 							rel="noreferrer">Ver en la Kinkipedia</a
 						>
-						<button class="kv-btn"><Save size={16} /> Agregar a los cambios</button>
+						<button class="kv-btn"><Save size={16} /> Sumar a los cambios por guardar</button>
 					</div>
 				</form>
 

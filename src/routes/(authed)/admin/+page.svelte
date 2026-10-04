@@ -110,6 +110,7 @@
 	 */
 	function statusBadge(e) {
 		if (e.draft) return { tone: 'neutral', text: 'Borrador' };
+		if (e.unlisted) return { tone: 'neutral', text: 'No listado' };
 		switch (e.status) {
 			case 'cancelado':
 				return { tone: 'bad', text: 'Cancelado' };
@@ -196,7 +197,7 @@
 					{#if e.ticketed}
 						<a class="checkin-big" href={checkinHref(e.slug)}>
 							<ScanLine size={28} aria-hidden="true" />
-							<span>Abrir check-in</span>
+							<span>Abrir Puerta</span>
 						</a>
 					{/if}
 				</section>

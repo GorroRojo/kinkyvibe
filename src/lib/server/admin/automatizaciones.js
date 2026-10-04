@@ -259,7 +259,7 @@ export async function loadAutomations({
 			lastRunLabel: 'Último envío que salió',
 			nextRun: remindersNext,
 			state: 'on',
-			stateLabel: 'Corre solo en producción',
+			stateLabel: 'Corre solo en el sitio de verdad',
 			details: [`Cron: ${REMINDERS_CRON} (UTC)`, 'Los previews no ejecutan crons.'],
 			configHref: '/admin/ajustes/mails',
 			configLabel: 'Mails y envíos'
@@ -268,7 +268,7 @@ export async function loadAutomations({
 			id: 'cron-backup',
 			title: 'Backup nocturno',
 			what:
-				'Copia la base entera a R2 (un archivo por noche) y borra los viejos. Después corre el ' +
+				'Guarda una copia de todos los datos (una por noche) y borra las viejas. Después corre el ' +
 				'chequeo de integridad de los datos, que no arregla nada: lo que encuentra queda en ' +
 				'«Para revisar».',
 			when: describeCron(BACKUP_CRON),
@@ -279,7 +279,7 @@ export async function loadAutomations({
 			stateLabel:
 				integrity && countOf(integrity.problem_count) > 0
 					? `El último chequeo encontró ${countOf(integrity.problem_count)} problema(s)`
-					: 'Corre solo en producción',
+					: 'Corre solo en el sitio de verdad',
 			details: [
 				`Cron: ${BACKUP_CRON} (UTC)`,
 				backup ? `Archivo: ${backup.key}` : 'El bucket de backups solo existe en producción.'
@@ -384,9 +384,9 @@ export async function loadAutomations({
 		id: 'telegram',
 		title: 'Bot de Telegram',
 		what:
-			'Contesta /proximos y los botones en el momento (webhook). Con «Lo que sigo», también ' +
+			'Contesta al instante los mensajes y botones del bot. Con «Lo que sigo», también ' +
 			'manda los avisos por Telegram en cada vuelta de mails.',
-		when: 'Al instante (webhook) y en cada vuelta de mails',
+		when: 'Al instante y en cada vuelta de mails',
 		lastRun: msOrNull(sigoRows?.tg),
 		lastRunLabel: 'Último aviso por Telegram',
 		nextRun: null,
@@ -394,7 +394,7 @@ export async function loadAutomations({
 		stateLabel: botOn
 			? secretOk
 				? 'Prendido'
-				: 'Prendido, pero falta el secreto del webhook'
+				: 'Prendido, pero falta configurarlo (ver «Para técnicos»)'
 			: 'Apagado (interruptor «Bot de Telegram»)',
 		details: [
 			`Secreto del webhook: ${secretOk ? 'cargado' : 'no cargado'}`,
