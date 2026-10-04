@@ -56,7 +56,7 @@
 		"text": "Sobre tu entrada para Fiesta <b>de</b> prueba (sábado 10 de octubre de 2026, 22:00)\n\nCambio de horario\n\nHola Persona <de> Ejemplo:\n\nLes contamos que el evento empieza <una hora> más tarde.\n\nNos vemos & gracias.\n\nTe escribimos porque compraste una entrada para este evento. Si tenés alguna duda, respondé este mail o escribinos a contacto@example.com."
 	},
 	"login-code": {
-		"subject": "Tu código para ingresar a Kinky Vibe",
+		"subject": "Tu código para entrar a Kinky Vibe",
 		"text": "Hola:\n\nTu código para entrar a Kinky Vibe es: 482913\n\nEscribilo en la página donde lo pediste. Vence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón."
 	},
 	"confirm-code-password": {

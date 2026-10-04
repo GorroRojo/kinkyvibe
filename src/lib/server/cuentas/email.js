@@ -33,7 +33,7 @@ const codeBlock = (code) =>
  */
 export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	const vence = expires({ now, expiresAt });
-	const subject = 'Tu código para ingresar a Kinky Vibe';
+	const subject = 'Tu código para entrar a Kinky Vibe';
 	const text = [
 		'Hola:',
 		'',
