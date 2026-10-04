@@ -481,13 +481,15 @@
 		max-height: 18em;
 		overflow: auto;
 	}
+	/* Borde (no `outline`): la lista scrollea (`overflow: auto`) y recortaba el outline, que va por
+	   afuera del botón, así que de cada fila se veían solo las esquinas redondeadas. El fondo es
+	   el de las cajas suaves, para que la fila se distinga de la tarjeta. */
 	.option {
 		width: 100%;
 		text-align: left;
 		font: inherit;
-		background: var(--surface, white);
-		border: 0;
-		outline: 1px solid var(--1-light, #ddd);
+		background: var(--surface-2, #f6f0f8);
+		border: 1px solid var(--1-light, #ddd);
 		border-radius: 0.8em;
 		padding: 0.45em 0.8em;
 		min-height: 2.75rem;
@@ -496,7 +498,11 @@
 	}
 	.option:hover,
 	.option[aria-pressed='true'] {
-		outline-width: 2px;
+		border-color: var(--accent, var(--1));
+		box-shadow: inset 0 0 0 1px var(--accent, var(--1));
+	}
+	.option:focus-visible {
+		outline-offset: -3px;
 	}
 	.quick-edit {
 		display: grid;

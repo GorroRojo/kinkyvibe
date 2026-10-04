@@ -90,11 +90,18 @@ test.describe('rutas principales', () => {
 });
 
 test.describe('calendario', () => {
+	// Without ?viewdate the page opens on today's month (or the next one), so what it lists
+	// depended on the date the test ran: since October 2026 the repo's .md posts have no listed
+	// upcoming events (the October ones are `force_unlisted`) and the month it opens on is empty.
+	// A fixed month with known events (September 2026, `someter-2026-09` among them), with past
+	// events shown, checks the same thing every day.
 	test('lista eventos', async ({ page }) => {
 		await acceptAgeGate(page);
-		await page.goto('/calendario');
-		const links = page.locator('a[href^="/calendario/"]');
+		await page.goto('/calendario?viewdate=2026-09', { waitUntil: 'networkidle' });
+		await page.locator('#show-past-events').getByText('Mostrar').click();
+		const links = page.locator('#posts a[href^="/calendario/"]');
 		await expect(links.first()).toBeVisible();
+		await expect(page.locator('#posts a[href="/calendario/someter-2026-09"]')).toBeVisible();
 		expect(await links.count()).toBeGreaterThan(1);
 	});
 
@@ -119,7 +126,7 @@ test.describe('calendario', () => {
 	// Cloudflare), so crawlers/link previews saw 22:30 for a 19:30 -03:00 event.
 	test('el HTML del servidor muestra la hora del evento en hora argentina', async ({ request }) => {
 		const html = await (await request.get('/calendario/someter-2026-09')).text();
-		expect(html).toMatch(/class="dt-start"[^>]*>[^<]*a las 19:30 hs</);
+		expect(html).toMatch(/class="dt-start[^"]*"[^>]*>[^<]*a las 19:30 hs</);
 	});
 
 	// Regression test: the viewed month used to live in a module-level store, so one

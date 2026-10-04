@@ -3,14 +3,24 @@
  * cómo, a partir de lo que ya leyó el endpoint. Sin lecturas propias, así se prueba con datos
  * inventados en los dos estados de cada interruptor.
  *
- * Qué entra (lo mismo que ve cualquiera en las listas del sitio):
+ * La regla (gorrite): si quien busca ya tiene una forma de llegar a algo navegando el sitio, lo
+ * puede encontrar buscando; nunca más que eso (ni más cosas, ni más campos que los que muestra su
+ * página). El índice es uno solo para todes (se recuerda y se sirve igual a cualquiera): por eso
+ * es lo que alcanza une visitante sin cuenta. Lo «solo con cuenta» no entra aunque une miembre lo
+ * pueda ver (haría falta un índice por persona).
+ *
+ * Qué entra:
  * - eventos y material listados y publicados (`sitePosts`: de la base o de los .md, interruptor
  *   `contenido_db`), con su cuerpo recortado;
  * - las fichas de amigues: con `perfiles_publicos` apagado, las .md; prendido, los perfiles que
  *   lista /amigues para el público (aprobados, ni ocultos, ni «solo con cuenta», ni no listados) más
- *   las .md que todavía no se importaron. **Nunca los lugares** (perfiles de tipo `lugar`): el
- *   buscador no lleva lugares ni direcciones (src/lib/server/amigues/venues.js). Tampoco el
- *   contacto de un perfil ni el «Dónde» de los eventos;
+ *   las .md que todavía no se importaron. El contacto de un perfil no entra;
+ * - los lugares (perfiles de tipo `lugar`, con `perfiles_publicos` prendido): los listados en
+ *   /amigues y los no listados a los que lleva el link de un evento que está en el índice
+ *   (`linkedVenues` en src/lib/server/amigues/venues.js, que decide igual que la página del
+ *   evento). De cada uno, lo que muestra su página: nombre, descripción, etiquetas y, según su
+ *   nivel (`venuePageLevel`), barrio y ciudad. **Nunca la calle y número** ni «cómo llegar» o
+ *   «accesibilidad»; tampoco en qué eventos está. El «Dónde» de los eventos tampoco entra;
  * - la Kinkipedia: las entradas de la wiki y las etiquetas con descripción u otros nombres, con
  *   sus alias (los de la base vienen como `{ id, aliasOf }`, no como `aka`);
  * - las series (interruptor `series`): cada etiqueta que es serie, con su ícono, aunque no tenga
@@ -20,6 +30,7 @@ import { canonicalTags } from '$lib/utils';
 import { fold, stripMarkdown, truncate } from '$lib/utils/search';
 import { seriesTagIds, tagPagePath } from '$lib/utils/series.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { venuePageLevel, venueView } from '$lib/utils/venues.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('$lib/utils/search').RawSearchIndex} RawSearchIndex */
@@ -97,15 +108,39 @@ export function tagAliases(tags) {
 
 /**
  * ¿Un perfil de la base puede estar en el índice? Lo mismo que lista /amigues para el público
- * (lo decide la consulta; esto es la segunda llave) y nunca un lugar.
+ * (lo decide la consulta; esto es la segunda llave): público y listado. Vale también para los
+ * lugares listados.
  *
  * @param {IndexProfile} p
  */
 export function indexableProfile(p) {
 	const o = p.object;
-	if (!o || profileKindOf(o.data ?? {}) === 'lugar') return false;
+	if (!o) return false;
 	if (o.visibility && o.visibility !== 'public') return false;
 	return !o.data?.unlisted;
+}
+
+/**
+ * ¿Un lugar al que lleva el link de un evento visible puede estar en el índice? Lo decide
+ * `linkedVenues` (esto es la segunda llave): un lugar público para ANON (puede ser no listado).
+ *
+ * @param {IndexProfile} p
+ */
+export function indexableLinkedVenue(p) {
+	const o = p.object;
+	if (!o || profileKindOf(o.data ?? {}) !== 'lugar') return false;
+	return !o.visibility || o.visibility === 'public';
+}
+
+/**
+ * Barrio y ciudad de un lugar si su página los muestra (según `venuePageLevel`; nunca la calle).
+ *
+ * @param {IndexProfile['object']} o
+ * @returns {string}
+ */
+export function venueAreaText(o) {
+	const view = venueView(o, venuePageLevel(o.data?.venue_privacy), '');
+	return [view.area, view.city].filter(Boolean).join(', ');
 }
 
 /**
@@ -114,12 +149,17 @@ export function indexableProfile(p) {
  *   wikiPosts: readonly IndexPost[],
  *   tags: TagManager,
  *   body: (post: IndexPost) => Promise<string | undefined> | string | undefined,
- *   profiles?: { list: readonly IndexProfile[], imported: ReadonlySet<string> } | null,
+ *   profiles?: {
+ *     list: readonly IndexProfile[],
+ *     imported: ReadonlySet<string>,
+ *     linkedVenues?: readonly IndexProfile[]
+ *   } | null,
  *   series?: boolean
  * }} IndexInput
  * `posts`: lo listado del sitio (`sitePosts`: eventos, material y fichas .md); `wikiPosts`: las
  * entradas de la wiki; `body`: el markdown de un post (de la base o del .md); `profiles`: los
- * perfiles de la base si `perfiles_publicos` está prendido (`null`: las fichas .md); `series`: si
+ * perfiles de la base si `perfiles_publicos` está prendido (`null`: las fichas .md), con los lugares
+ * no listados a los que lleva el link de un evento del índice (`linkedVenues`); `series`: si
  * el interruptor `series` está prendido.
  */
 
@@ -163,19 +203,30 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles,
 		});
 	}
 
-	for (const p of profiles?.list ?? []) {
-		if (!indexableProfile(p)) continue;
+	/** @type {Set<string>} */
+	const profileHrefs = new Set();
+	const profileDocs = [
+		...(profiles?.list ?? []).filter(indexableProfile),
+		...(profiles?.linkedVenues ?? []).filter(indexableLinkedVenue)
+	];
+	for (const p of profileDocs) {
+		const href = `/amigues/${p.legacySlug || p.object.slug}`;
+		if (profileHrefs.has(href)) continue;
+		profileHrefs.add(href);
 		const d = p.object.data ?? {};
 		const tagIds = [...new Set(canonicalTags(strings(d.tags), tags))];
 		tagIds.forEach((t) => usedTags.add(t));
+		const body = plainBody(typeof d.body === 'string' ? d.body : '', 'amigues');
+		// Un lugar: barrio y ciudad solo si su página los muestra.
+		const area = profileKindOf(d) === 'lugar' ? venueAreaText(p.object) : '';
 		docs.push({
 			c: 'amigues',
-			h: `/amigues/${p.legacySlug || p.object.slug}`,
+			h: href,
 			t: str(p.object.title),
 			s: stripMarkdown(str(d.bio)),
 			g: tagIds,
 			a: strings(d.authors),
-			b: plainBody(typeof d.body === 'string' ? d.body : '', 'amigues')
+			b: [area, body].filter(Boolean).join(' · ')
 		});
 	}
 

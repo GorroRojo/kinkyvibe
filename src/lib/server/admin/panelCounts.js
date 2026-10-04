@@ -52,7 +52,8 @@ export async function panelCounts(platform, now = Date.now()) {
 	if (unlisted !== null) counts.unlisted = unlisted;
 	// Botón global "Para revisar": lo pendiente que se cuenta barato (transferencias, órdenes para
 	// revisar, perfiles y pedidos "Es mi perfil"). La tarjeta del Inicio puede listar algo más
-	// (mails sin mandar, recordatorios que fallaron…).
+	// (mails sin mandar, recordatorios que fallaron…) como avisos, pero el número que muestra el
+	// Inicio es este mismo (`reviewCountOf` en $lib/admin/nav.js).
 	counts.review =
 		(counts.transfers ?? 0) + (counts.reviewOrders ?? 0) + (counts.profilesToReview ?? 0);
 	return counts;

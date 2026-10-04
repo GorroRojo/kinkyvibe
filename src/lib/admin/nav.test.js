@@ -8,6 +8,7 @@ import {
 	NAV_AREAS,
 	REVIEW_LINK,
 	activeNavItem,
+	areaBackLink,
 	areaCount,
 	eventHref,
 	contentEditLink,
@@ -18,6 +19,7 @@ import {
 	navItem,
 	navLink,
 	navState,
+	reviewCountOf,
 	soonItemAt
 } from './nav.js';
 import { buildCommands, matchCommands } from './commands.js';
@@ -99,7 +101,8 @@ describe('NAV', () => {
 		// Cada página está en NAV o es parte de una sección (subpágina), salvo estas dos.
 		const outside = [
 			'/admin/borrar/[kind]/[slug]', // botón "Borrar" de cada ficha; "Recuperar" está en Actividad
-			'/admin/[...section=soon]' // la página "Próximamente"
+			'/admin/[...section=soon]', // la página "Próximamente"
+			'/admin/[...rest]' // el 404 del panel (cualquier dirección que no es de ninguna página)
 		];
 		for (const page of adminPages()) {
 			if (outside.includes(page)) continue;
@@ -262,6 +265,30 @@ describe('NAV', () => {
 	});
 	it('el botón "Para revisar" lleva a la tarjeta del Inicio', () => {
 		expect(REVIEW_LINK).toMatchObject({ href: '/admin#para-revisar', counter: 'review' });
+	});
+	it('"Para revisar": una sola cuenta para el botón de arriba y el Inicio', () => {
+		// Sale del mismo contador de panelCounts, aunque la tarjeta tenga más filas (avisos).
+		const counts = { review: 7, transfers: 3, reviewOrders: 1, profilesToReview: 3, unlisted: 10 };
+		expect(reviewCountOf(counts)).toBe(7);
+		expect(reviewCountOf({})).toBe(0);
+		expect(reviewCountOf(null)).toBe(0);
+		expect(reviewCountOf(undefined)).toBe(0);
+	});
+});
+
+describe('areaBackLink («← Área» arriba del título)', () => {
+	it('Plantillas vuelve a Mensajes, su área (no a Ajustes)', () => {
+		expect(navItem('ajustes-plantillas')?.area).toBe('mensajes');
+		expect(areaBackLink('ajustes-plantillas')).toEqual({
+			href: '/admin/mensajes',
+			label: 'Mensajes'
+		});
+	});
+	it('Códigos vuelve a Ventas; sin área o sin página del área, null', () => {
+		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
+		expect(areaBackLink('inicio')).toBe(null);
+		expect(areaBackLink('no-existe')).toBe(null);
+		expect(areaBackLink('ajustes-mails')).toBe(null);
 	});
 });
 

@@ -135,6 +135,11 @@
 		outline: 2px solid var(--link);
 		outline-offset: 2px;
 	}
+	// Radios y checkboxes en el rosa del sitio, no en el azul del navegador. Con `:where` no suma
+	// especificidad: una página o un componente que elige otro color (`accent-color`) sigue ganando.
+	:where(input[type='radio'], input[type='checkbox']) {
+		accent-color: var(--accent);
+	}
 	a {
 		color: inherit;
 		text-decoration-color: var(--accent);

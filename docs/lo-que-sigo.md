@@ -123,7 +123,9 @@ Los corre el cron de mails (POST /api/cron/recordatorios, cada 15 minutos) con `
   con ese mail, si lo seguía desde antes de que el cron viera el evento (`follow_events_seen`). La
   primera corrida de todas anota lo que ya estaba con fecha 0: prender el interruptor no manda una
   tanda de mails por todo lo ya anunciado.
-- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento.
+- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. No sale (ni por
+  mail ni por Telegram) si la cuenta ya tiene entrada (orden aprobada con su `account_id` o su
+  mail): le llegan los recordatorios de las entradas.
 
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque los interruptores estén apagados; apaga los

@@ -38,6 +38,12 @@ function walk(dir) {
 }
 
 /**
+ * El 404 del panel (`admin/[...rest]`): toma cualquier dirección que no es de ninguna página solo
+ * para responder 404 dentro del marco del panel, así que no es una ruta que "existe".
+ */
+const NOT_FOUND_ROUTE = '(authed)/admin/[...rest]';
+
+/**
  * Rutas del panel, como listas de segmentos (sin grupos `(…)`). Un segmento `[x]` o `[x=y]` es
  * dinámico; `[...x]` toma todo lo que sigue.
  * @returns {string[][]}
@@ -47,6 +53,7 @@ function adminRoutes() {
 		walk(ROUTES)
 			.filter((f) => ROUTE_FILES.some((r) => f.endsWith(`/${r}`)))
 			.map((f) => relative(ROUTES, f).split('/').slice(0, -1).join('/'))
+			.filter((d) => d !== NOT_FOUND_ROUTE)
 	);
 	return [...dirs]
 		.map((d) => d.split('/').filter((s) => s && !/^\(.*\)$/.test(s)))
@@ -126,6 +133,9 @@ describe('direcciones /admin escritas en el código', () => {
 		// La página "Próximamente" solo toma las direcciones reservadas.
 		expect(matchesRoute('/admin/mensajes', routes)).toBe(true);
 		expect(matchesRoute('/admin/mensajes/inventada', routes)).toBe(false);
+		// El 404 del panel no cuenta como ruta (si no, todo coincidiría).
+		expect(matchesRoute('/admin/inventada', routes)).toBe(false);
+		expect(routes.some((r) => r.join('/') === 'admin/[...rest]')).toBe(false);
 	});
 
 	it('lee las partes dinámicas de JS y de Svelte', () => {

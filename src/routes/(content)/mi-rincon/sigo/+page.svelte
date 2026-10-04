@@ -3,8 +3,8 @@
 	import FollowAdd from '$lib/components/sigo/FollowAdd.svelte';
 	import FollowOptions from '$lib/components/sigo/FollowOptions.svelte';
 	import CalendarSubscribe from '$lib/components/series/CalendarSubscribe.svelte';
-	import { TIMEZONE } from '$lib/utils/dates.js';
 	import TelegramCard from '$lib/components/sigo/TelegramCard.svelte';
+	import { TIMEZONE } from '$lib/utils/dates.js';
 	import { editionDateLabel } from '$lib/utils/series.js';
 	import { followEmoji, groupFollows, notifyChannels } from '$lib/utils/sigo.js';
 

@@ -1,13 +1,15 @@
 /**
  * /api/search-index.json con la base (D1 de miniflare; datos inventados): lo creado solo en la base
  * (eventos, material y perfiles) entra con los interruptores prendidos, lo oculto, no listado, sin
- * aprobar y los lugares nunca, y el índice recordado se vuelve a armar cuando cambia la base (y
- * solo entonces).
+ * aprobar nunca; los lugares, solo los que se alcanzan navegando (listados, o no listados con link
+ * desde un evento visible) y nunca su calle; y el índice recordado se vuelve a armar cuando cambia
+ * la base (y solo entonces).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { makeProfile } from '$lib/server/amigues/testing.js';
+import { setEventVenue } from '$lib/server/amigues/venues.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -247,11 +249,18 @@ describe('perfiles_publicos', () => {
 		});
 	}
 
-	it('prendido: los perfiles que lista /amigues, nunca ocultos, sin aprobar, no listados ni lugares', async () => {
+	// Antes: «nunca lugares». Ahora la regla de gorrite: lo que ya se alcanza navegando se puede
+	// encontrar buscando. Un lugar listado está en /amigues, así que entra (sin su calle); uno no
+	// listado sin ningún link que lleve a él, no.
+	it('prendido: los perfiles que lista /amigues (también lugares listados), nunca ocultos, sin aprobar ni no listados', async () => {
 		await seedProfiles();
 		const index = await (await endpoint()).get();
 		const amigues = index.docs.filter((d) => d.c === 'amigues').map((d) => d.h);
-		expect(amigues.sort()).toEqual(['/amigues/Ficha_Sin_Importar', '/amigues/persona-visible']);
+		expect(amigues.sort()).toEqual([
+			'/amigues/Ficha_Sin_Importar',
+			'/amigues/lugar-listado',
+			'/amigues/persona-visible'
+		]);
 		const json = JSON.stringify(index);
 		for (const text of [
 			'Ficha Importada',
@@ -259,14 +268,101 @@ describe('perfiles_publicos', () => {
 			'Persona Solo Cuentas',
 			'Persona Sin Aprobar',
 			'Persona No Listada',
-			'Lugar Listado',
 			'Lugar Desde Evento',
+			'lugar-desde-evento',
 			'Avenida Inventada',
 			'Pasaje Inventado',
 			'persona@example.invalid'
 		]) {
 			expect(json, text).not.toContain(text);
 		}
+	});
+
+	it('un lugar no listado entra solo si lo linkea un evento visible, y nunca su calle', async () => {
+		/** @param {string} slug @param {Record<string, unknown>} [data] @param {Partial<{ visibility: 'public' | 'hidden' | 'members', approved: boolean }>} [o] */
+		const venue = (slug, data = {}, o = {}) =>
+			makeProfile(t.db, {
+				title: `Lugar ${slug}`,
+				slug,
+				kind: 'lugar',
+				...o,
+				data: {
+					address: `Calle Secreta ${slug} 1`,
+					area: `Barrio ${slug}`,
+					venue_privacy: 'public',
+					unlisted: true,
+					...data
+				}
+			});
+		/** @param {string} eventSlug @param {{ id: number }} v @param {any} [privacy] */
+		const link = (eventSlug, v, privacy = null) =>
+			setEventVenue(t.db, { eventSlug, venueId: v.id, privacy, by: 'admin-inventade' });
+		// Un evento de la base no listado (su página no se alcanza navegando).
+		await dbObject('evento', 'evento-no-listado', {
+			start: '2031-03-03T20:00:00-03:00',
+			unlisted: true
+		});
+		// Linkeado desde un evento visible, «Nombre + dirección»: entra.
+		await link('evento-md-inventado', await venue('por-evento'));
+		const api = await endpoint();
+		let index = await api.get();
+		expect(hrefs(index)).toContain('/amigues/por-evento');
+		expect(index.docs.find((d) => d.h === '/amigues/por-evento')).toMatchObject({
+			t: 'Lugar por-evento',
+			b: 'Barrio por-evento'
+		});
+
+		// Cambiar el vínculo vuelve a armar el índice: el evento pasa a otro lugar, en «Sólo dirección
+		// parcial». El primero ya no tiene ningún link que lleve a él, y el nuevo tampoco (en ese
+		// nivel la página del evento no muestra el nombre ni el link).
+		const builds = api.builds.count;
+		await link('evento-md-inventado', await venue('nivel-barrio'), 'area');
+		index = await api.get();
+		expect(api.builds.count).toBe(builds + 1);
+		expect(JSON.stringify(index)).not.toContain('por-evento');
+		expect(JSON.stringify(index)).not.toContain('nivel-barrio');
+
+		// Ningún otro camino: solo desde un evento no listado, oculto para el público, sin aprobar,
+		// o con el evento en «Nada» o «Sólo dirección».
+		await resetDB(t.db);
+		await dbObject('evento', 'evento-no-listado', {
+			start: '2031-03-03T20:00:00-03:00',
+			unlisted: true
+		});
+		await dbObject('evento', 'evento-visible', { start: '2031-03-04T20:00:00-03:00' });
+		await dbObject('evento', 'evento-visible-2', { start: '2031-03-05T20:00:00-03:00' });
+		await link('evento-no-listado', await venue('desde-no-listado'));
+		await link('evento-md-inventado', await venue('oculto', {}, { visibility: 'hidden' }));
+		await link('evento-visible', await venue('sin-aprobar', {}, { approved: false }));
+		await link('evento-visible-2', await venue('evento-nada'), 'hidden');
+		index = await (await endpoint()).get();
+		const json = JSON.stringify(index);
+		for (const slug of ['desde-no-listado', 'oculto', 'sin-aprobar', 'evento-nada']) {
+			expect(json, slug).not.toContain(`Lugar ${slug}`);
+			expect(json, slug).not.toContain(`/amigues/${slug}`);
+		}
+		expect(json).not.toContain('Calle Secreta');
+	});
+
+	it('un lugar no listado linkeado en «Sólo dirección» no entra (su nombre no se muestra)', async () => {
+		await dbObject('evento', 'evento-visible', { start: '2031-03-04T20:00:00-03:00' });
+		const v = await makeProfile(t.db, {
+			title: 'Casa Particular Inventada',
+			slug: 'casa-particular',
+			kind: 'lugar',
+			data: { address: 'Calle De La Casa 5', venue_privacy: 'public', unlisted: true }
+		});
+		await setEventVenue(t.db, {
+			eventSlug: 'evento-visible',
+			venueId: v.id,
+			privacy: 'address',
+			by: 'admin-inventade',
+			now: NOW
+		});
+		const json = JSON.stringify(await (await endpoint()).get());
+		expect(json).not.toContain('Casa Particular');
+		expect(json).not.toContain('casa-particular');
+		expect(json).not.toContain('Calle De La Casa');
 	});
 
 	it('apagado: las fichas .md, ningún perfil de la base', async () => {

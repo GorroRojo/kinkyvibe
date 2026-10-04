@@ -1,13 +1,21 @@
 /**
  * El índice de la búsqueda global armado con datos inventados: las etiquetas del archivo y de la
  * base (alias como `aka` o como `{ id, aliasOf }`), las series, las fichas .md o los perfiles de la
- * base (interruptor `perfiles_publicos`), y lo que nunca entra: lo oculto, lo no listado, los
- * lugares, las direcciones y el contacto.
+ * base (interruptor `perfiles_publicos`), los lugares que se alcanzan navegando (listados, o no
+ * listados con link desde un evento visible) y lo que nunca entra: lo oculto, lo no listado sin
+ * camino, la calle de los lugares (y el barrio si su página no lo muestra) y el contacto.
  */
 import { describe, expect, it } from 'vitest';
 import tagsFactory from '$lib/utils/tags.js';
 import { prepareIndex, search } from '$lib/utils/search.js';
-import { buildSearchIndex, indexableProfile, plainBody, tagAliases } from './siteIndex.js';
+import {
+	buildSearchIndex,
+	indexableLinkedVenue,
+	indexableProfile,
+	plainBody,
+	tagAliases,
+	venueAreaText
+} from './siteIndex.js';
 
 /** Un árbol chico con una serie y sus series hijas, como lo da el archivo (alias con `aka`). */
 function fileTags() {
@@ -152,9 +160,67 @@ const PROFILES = [
 		area: 'Barrio Inventado',
 		venue_privacy: 'public'
 	}),
+	// Su página muestra solo el nombre: el barrio no puede salir.
+	profile('lugar-solo-nombre', 'Lugar Solo Nombre Inventado', {
+		kind: 'lugar',
+		address: 'Calle Del Nombre 11',
+		area: 'Barrio Escondido',
+		bio: 'Un sótano con escaleras',
+		venue_privacy: 'name'
+	}),
+	// «Sólo dirección»: su página se ve como «Sólo Nombre» (juntaría nombre y dirección).
+	profile('lugar-solo-direccion', 'Lugar Casa Inventada', {
+		kind: 'lugar',
+		address: 'Calle De La Casa 22',
+		area: 'Barrio De La Casa',
+		city: 'Ciudad De La Casa',
+		venue_privacy: 'address'
+	}),
+	// No listado en la lista (no debería venir de la consulta: segunda llave).
+	profile('lugar-no-listado', 'Lugar No Listado Inventado', {
+		kind: 'lugar',
+		unlisted: true,
+		venue_privacy: 'public'
+	}),
 	profile('persona-no-listada', 'Persona No Listada Inventada', { unlisted: true }),
 	profile('persona-oculta', 'Persona Oculta Inventada', {}, { visibility: 'hidden' }),
 	profile('persona-con-cuenta', 'Persona Solo Con Cuenta', {}, { visibility: 'members' })
+];
+
+/** Lugares a los que lleva el link de un evento visible (`linkedVenues`). */
+const LINKED_VENUES = [
+	profile('lugar-por-evento', 'Lugar Por Evento Inventado', {
+		kind: 'lugar',
+		unlisted: true,
+		address: 'Pasaje Del Evento 33',
+		area: 'Barrio Del Evento',
+		venue_privacy: 'public'
+	}),
+	// El listado también puede venir por un evento: sale una sola vez.
+	profile('lugar-listado', 'Lugar Listado Inventado', {
+		kind: 'lugar',
+		address: 'Avenida del Lugar 456',
+		area: 'Barrio Inventado',
+		venue_privacy: 'public'
+	}),
+	// Segunda llave: oculto, solo con cuenta o un perfil que no es lugar no entran por acá.
+	profile(
+		'lugar-oculto-por-evento',
+		'Lugar Oculto Por Evento',
+		{ kind: 'lugar' },
+		{
+			visibility: 'hidden'
+		}
+	),
+	profile(
+		'lugar-cuentas-por-evento',
+		'Lugar Cuentas Por Evento',
+		{ kind: 'lugar' },
+		{
+			visibility: 'members'
+		}
+	),
+	profile('persona-por-evento', 'Persona No Listada Por Evento', { unlisted: true })
 ];
 
 /**
@@ -166,7 +232,9 @@ function build({ tags = fileTags(), profiles = false, series = true } = {}) {
 		wikiPosts: WIKI,
 		tags,
 		body: (p) => BODIES[p.path],
-		profiles: profiles ? { list: PROFILES, imported: new Set(['Ficha_Vieja']) } : null,
+		profiles: profiles
+			? { list: PROFILES, imported: new Set(['Ficha_Vieja']), linkedVenues: LINKED_VENUES }
+			: null,
 		series
 	});
 }
@@ -273,6 +341,10 @@ describe('buildSearchIndex', () => {
 		expect(amigues.map((d) => d.h).sort()).toEqual([
 			'/amigues/Ficha_Sola',
 			'/amigues/Ficha_Vieja',
+			'/amigues/lugar-listado',
+			'/amigues/lugar-por-evento',
+			'/amigues/lugar-solo-direccion',
+			'/amigues/lugar-solo-nombre',
 			'/amigues/persona-nueva',
 			'/amigues/proyecto-nuevo'
 		]);
@@ -288,11 +360,40 @@ describe('buildSearchIndex', () => {
 		});
 	});
 
-	it('nunca: lugares, perfiles no listados, ocultos o solo con cuenta', async () => {
+	it('los lugares que se alcanzan navegando: nombre, descripción y lo que muestra su página', async () => {
+		const index = await build({ profiles: true });
+		const doc = (/** @type {string} */ h) => index.docs.find((d) => d.h === h);
+		// «Nombre + dirección»: su página muestra barrio (y ciudad); la calle nunca entra.
+		expect(doc('/amigues/lugar-listado')).toMatchObject({
+			c: 'amigues',
+			t: 'Lugar Listado Inventado',
+			b: 'Barrio Inventado'
+		});
+		expect(doc('/amigues/lugar-por-evento')).toMatchObject({
+			t: 'Lugar Por Evento Inventado',
+			b: 'Barrio Del Evento'
+		});
+		// «Sólo Nombre»: el nombre y la descripción, sin barrio.
+		expect(doc('/amigues/lugar-solo-nombre')).toEqual({
+			c: 'amigues',
+			h: '/amigues/lugar-solo-nombre',
+			t: 'Lugar Solo Nombre Inventado',
+			s: 'Un sótano con escaleras'
+		});
+		// Una sola vez aunque venga listado y por un evento.
+		expect(index.docs.filter((d) => d.h === '/amigues/lugar-listado')).toHaveLength(1);
+		// Se encuentra buscando por el barrio que muestra su página.
+		const found = search(prepareIndex(index), 'barrio del evento').map((h) => h.doc.h);
+		expect(found).toContain('/amigues/lugar-por-evento');
+	});
+
+	it('nunca: lugares sin camino, perfiles no listados, ocultos o solo con cuenta', async () => {
 		const json = JSON.stringify(await build({ profiles: true }));
 		for (const name of [
-			'Lugar Listado',
-			'lugar-listado',
+			'Lugar No Listado',
+			'lugar-no-listado',
+			'Lugar Oculto Por Evento',
+			'Lugar Cuentas Por Evento',
 			'Persona No Listada',
 			'Persona Oculta',
 			'Persona Solo Con Cuenta'
@@ -301,11 +402,19 @@ describe('buildSearchIndex', () => {
 		}
 	});
 
-	it('nunca: direcciones ni contacto de un perfil', async () => {
+	it('nunca: la calle de un lugar, el barrio si su página no lo muestra, ni contacto', async () => {
 		const json = JSON.stringify(await build({ profiles: true }));
 		for (const secret of [
+			// La calle y número no entran nunca (aunque la página de un lugar público la muestre).
 			'Avenida del Lugar',
-			'Barrio Inventado',
+			'Calle Del Nombre',
+			'Calle De La Casa',
+			'Pasaje Del Evento',
+			// El barrio y la ciudad, solo si la página del lugar los muestra (no en «Sólo Nombre» ni
+			// en «Sólo dirección», que su página muestra como «Sólo Nombre»).
+			'Barrio Escondido',
+			'Barrio De La Casa',
+			'Ciudad De La Casa',
 			'Pasaje Privado',
 			'contacto@example.invalid',
 			'0000-0000'
@@ -316,13 +425,40 @@ describe('buildSearchIndex', () => {
 });
 
 describe('indexableProfile', () => {
-	it('solo personas y proyectos públicos y listados', () => {
+	it('solo perfiles públicos y listados (también lugares: los lista /amigues)', () => {
 		expect(indexableProfile(profile('a', 'A'))).toBe(true);
 		expect(indexableProfile(profile('a', 'A', { kind: 'proyecto' }))).toBe(true);
-		expect(indexableProfile(profile('a', 'A', { kind: 'lugar' }))).toBe(false);
+		expect(indexableProfile(profile('a', 'A', { kind: 'lugar' }))).toBe(true);
+		expect(indexableProfile(profile('a', 'A', { kind: 'lugar', unlisted: true }))).toBe(false);
 		expect(indexableProfile(profile('a', 'A', { unlisted: true }))).toBe(false);
 		expect(indexableProfile(profile('a', 'A', {}, { visibility: 'hidden' }))).toBe(false);
 		expect(indexableProfile(profile('a', 'A', {}, { visibility: 'members' }))).toBe(false);
+	});
+});
+
+describe('indexableLinkedVenue', () => {
+	it('solo lugares públicos (pueden ser no listados)', () => {
+		expect(indexableLinkedVenue(profile('a', 'A', { kind: 'lugar', unlisted: true }))).toBe(true);
+		expect(indexableLinkedVenue(profile('a', 'A', { unlisted: true }))).toBe(false);
+		const hidden = profile('a', 'A', { kind: 'lugar' }, { visibility: 'hidden' });
+		expect(indexableLinkedVenue(hidden)).toBe(false);
+		const members = profile('a', 'A', { kind: 'lugar' }, { visibility: 'members' });
+		expect(indexableLinkedVenue(members)).toBe(false);
+	});
+});
+
+describe('venueAreaText', () => {
+	it('barrio y ciudad solo en los niveles en que la página del lugar los muestra', () => {
+		const data = { kind: 'lugar', address: 'Calle 1', area: 'Barrio', city: 'Ciudad' };
+		/** @param {string | undefined} venue_privacy */
+		const area = (venue_privacy) =>
+			venueAreaText(profile('a', 'A', { ...data, venue_privacy }).object);
+		expect(area(undefined)).toBe('Barrio, Ciudad');
+		expect(area('public')).toBe('Barrio, Ciudad');
+		expect(area('area')).toBe('Barrio, Ciudad');
+		expect(area('name')).toBe('');
+		expect(area('address')).toBe('');
+		expect(area('hidden')).toBe('');
 	});
 });
 

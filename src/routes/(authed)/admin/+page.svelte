@@ -16,7 +16,7 @@
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
-	import { navItem, navLink } from '$lib/admin/nav.js';
+	import { navItem, navLink, reviewCountOf } from '$lib/admin/nav.js';
 	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
@@ -66,6 +66,10 @@
 	}).format(data.now);
 	$: todayLabel = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
 	$: todoCount = data.todo.length;
+	// La misma cuenta que el botón "Para revisar" de arriba (`reviewCountOf`, de panelCounts): las
+	// filas de la tarjeta agrupan cosas (3 transferencias son una fila) y suman avisos que el
+	// botón no cuenta (sin imagen, borradores…), así que no se cuentan las filas.
+	$: reviewCount = reviewCountOf(data.panelCounts);
 	$: checkinItem = navItem('checkin');
 	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
@@ -159,8 +163,10 @@
 		<p class="muted">
 			<span>{todayLabel}</span>
 			·
-			{#if todoCount}
-				<a href="#para-revisar">{plural(todoCount, 'cosa para revisar', 'cosas para revisar')}</a>
+			{#if reviewCount}
+				<a href="#para-revisar">{plural(reviewCount, 'cosa para revisar', 'cosas para revisar')}</a>
+			{:else if todoCount}
+				<a href="#para-revisar">{plural(todoCount, 'aviso', 'avisos')}</a>
 			{:else}
 				todo al día
 			{/if}
@@ -272,7 +278,7 @@
 				<div id="para-revisar">
 					<Card title="Para revisar">
 						<svelte:fragment slot="actions">
-							{#if todoCount}<Badge tone="warn">{todoCount}</Badge>{/if}
+							{#if reviewCount}<Badge tone="warn">{reviewCount}</Badge>{/if}
 						</svelte:fragment>
 						{#if form?.resend}
 							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
