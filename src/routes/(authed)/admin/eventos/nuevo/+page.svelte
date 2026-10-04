@@ -1,5 +1,13 @@
 <script>
 	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { publishWarnings } from '$lib/utils/eventMissing.js';
+	import { eventHref } from '$lib/admin/nav.js';
+	import {
+		focusField,
+		markInvalid,
+		problemFields,
+		scheduleField
+	} from '$lib/admin/formProblems.js';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
@@ -243,20 +251,27 @@
 	$: linkProblem = values.link?.trim() ? eventLinkProblem(values.link.trim()) : null;
 	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
-	$: problems = /** @type {string[]} */ (
+	// Cada problema con su campo: el resumen linkea a cada uno y el primero recibe el foco.
+	$: problemItems = /** @type {import('$lib/admin/formProblems.js').Problem[]} */ (
 		[
-			!values.title.trim() && 'Falta el título.',
-			...scheduleProblems(values),
-			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
-			slugProblem,
-			serverSlugError,
-			mapError,
-			linkError,
-			...tagErrors,
-			...peopleErrors,
-			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
+			!values.title.trim() && { text: 'Falta el título.', field: 'ev-title' },
+			...scheduleProblems(values).map((text) => ({ text, field: scheduleField(text) })),
+			!slug &&
+				isValidDate(values.startDate) && {
+					text: 'Falta la dirección de la página.',
+					field: 'ev-slug'
+				},
+			slugProblem && { text: slugProblem, field: 'ev-slug' },
+			serverSlugError && { text: serverSlugError, field: 'ev-slug' },
+			mapError && { text: mapError, field: 'ev-location-map' },
+			linkError && { text: linkError, field: 'ev-link' },
+			...tagErrors.map((text) => ({ text, field: 'ev-tags' })),
+			...peopleErrors.map((text) => ({ text, field: 'ev-authors' })),
+			...ticketsCheck.errors.map((e) => ({ text: `Entradas: ${e}`, field: 'ev-tickets' }))
 		].filter(Boolean)
 	);
+	$: problems = problemItems.map((p) => p.text);
+	$: if (showProblems) tick().then(() => markInvalid(problemFields(problemItems)));
 
 	$: generated = build(values, featuredMode, problems.length, tickets);
 	/**
@@ -299,6 +314,20 @@
 		};
 	}
 
+	// «Revisar antes de publicar»: los avisos de «Qué falta» de la agenda (no bloquean).
+	$: reviewWarnings = publishWarnings({
+		image: featuredMode !== 'none',
+		summary: values.summary ?? '',
+		location: values.location ?? '',
+		locationName: values.location_name ?? '',
+		tags: splitList(values.tags),
+		authors: splitList(values.authors),
+		link: values.link ?? '',
+		tickets: tickets.enabled && tickets.types.length > 0,
+		status: values.status,
+		venue: venue.venueId != null
+	});
+
 	/* ---------- steps ---------- */
 	/** @type {'editar'|'revisar'} */
 	let step = 'editar';
@@ -316,7 +345,11 @@
 		checkError = '';
 		if (problems.length || generated.error) {
 			await tick();
-			document.querySelector('.problems')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			// Al primer campo que falta (con el foco); si no se encuentra, al resumen.
+			if (!focusField(problemItems[0]?.field ?? ''))
+				document
+					.querySelector('.problems')
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			return;
 		}
 		checking = true;
@@ -535,8 +568,19 @@
 								? ', '
 								: ''}{/each}
 					</p>{/if}
+				{#if form.savedToDb && form.slug}
+					<p class="buttons" id="done-next">
+						<a class="button" href={eventHref(form.slug)}>Abrir el evento</a>
+						<a class="button secondary" href={eventHref(form.slug, 'editar')}>Seguir editando</a>
+					</p>
+				{/if}
 				<p class="buttons">
-					<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
+					<a
+						class="button"
+						class:secondary={form.savedToDb && form.slug}
+						href="/admin/eventos/nuevo"
+						data-sveltekit-reload>Cargar otro evento</a
+					>
 					<a
 						class="button secondary"
 						href="/admin/eventos/nuevo?desde={form.slug}"
@@ -767,7 +811,11 @@
 						<div class="problems" role="alert">
 							<strong>Falta completar:</strong>
 							<ul>
-								{#each problems as p}<li>{p}</li>{/each}
+								{#each problemItems as p}<li>
+										<a href="#{p.field}" on:click|preventDefault={() => focusField(p.field)}
+											>{p.text}</a
+										>
+									</li>{/each}
 								{#if generated.error}<li>{generated.error}</li>{/if}
 							</ul>
 						</div>
@@ -788,6 +836,17 @@
 				<!-- ======================= STEP 2 ======================= -->
 				<div class="step" hidden={step !== 'revisar'}>
 					{#if publishError}<p class="error" role="alert">{publishError}</p>{/if}
+					{#if reviewWarnings.length}
+						<div class="warning review-warnings" id="review-warnings">
+							<strong>Antes de publicar, fijate:</strong>
+							<ul>
+								{#each reviewWarnings as w (w.id + w.label)}
+									<li><strong>{w.label}:</strong> {w.detail}</li>
+								{/each}
+							</ul>
+							<p class="small">Son avisos: podés publicar igual o volver a editar.</p>
+						</div>
+					{/if}
 					<p class="hint">Así se va a ver en la lista de eventos:</p>
 					{#if previewPost}
 						<div class="card-preview" aria-hidden="true">
@@ -900,6 +959,16 @@
 </main>
 
 <style lang="scss">
+	.review-warnings {
+		margin-bottom: var(--space-s);
+		ul {
+			margin: var(--space-3xs) 0;
+			padding-left: 1.2em;
+		}
+		p {
+			margin: 0;
+		}
+	}
 	.series-prompt .choices {
 		display: grid;
 		gap: 0.4rem;
