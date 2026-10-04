@@ -6,9 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB } from '../db/testing.js';
 import { analyticsConfig, clearSqlCache, runSql } from './sql.js';
 import {
+	argentineDay,
 	buildFunnel,
+	dailySql,
 	loadVisits,
+	monthKey,
 	monthLabel,
+	monthStart,
 	readMonthly,
 	runAnalyticsRollup,
 	saveMonth
@@ -161,8 +165,9 @@ describe('loadVisits', () => {
 				rate: 0.08
 			}
 		]);
-		// Las consultas en vivo arrancan el primer día del mes anterior.
-		expect(api.calls.some((c) => c.sql.includes("toDateTime('2026-09-01 00:00:00')"))).toBe(true);
+		// Las consultas en vivo arrancan el primer día del mes anterior, a la medianoche de
+		// Argentina (03:00 UTC).
+		expect(api.calls.some((c) => c.sql.includes("toDateTime('2026-09-01 03:00:00')"))).toBe(true);
 	});
 
 	it('si Cloudflare rechaza el token, lo dice (y no tira)', async () => {
@@ -189,12 +194,12 @@ describe('resumen mensual en D1', () => {
 			);
 			log.mockRestore();
 			expect(result).toEqual({ months: ['2026-09', '2026-10'] });
-			// Las consultas del mes van con los dos bordes.
+			// Las consultas del mes van con los dos bordes: medianoche de Argentina (03:00 UTC).
 			expect(
 				api.calls.some(
 					(c) =>
-						c.sql.includes("timestamp >= toDateTime('2026-09-01 00:00:00')") &&
-						c.sql.includes("timestamp < toDateTime('2026-10-01 00:00:00')")
+						c.sql.includes("timestamp >= toDateTime('2026-09-01 03:00:00')") &&
+						c.sql.includes("timestamp < toDateTime('2026-10-01 03:00:00')")
 				)
 			).toBe(true);
 			const rows = await readMonthly(db, '2026-11');
@@ -286,6 +291,69 @@ describe('resumen mensual en D1', () => {
 		).toBeNull();
 		log.mockRestore();
 		err.mockRestore();
+	});
+});
+
+describe('días y meses de Argentina (UTC−3)', () => {
+	it('una visita a la 01:00 UTC es del día (y del mes) anterior en Argentina', () => {
+		const late = new Date('2026-10-01T01:00:00Z'); // 30/9, 22:00 en Argentina
+		expect(argentineDay(late)).toBe('2026-09-30');
+		expect(monthKey(late)).toBe('2026-09');
+		expect(argentineDay(new Date('2026-10-01T03:00:00Z'))).toBe('2026-10-01');
+		// El mes de Argentina arranca a las 03:00 UTC del día 1.
+		expect(monthStart(late).toISOString()).toBe('2026-09-01T03:00:00.000Z');
+		expect(monthStart(late, 1).toISOString()).toBe('2026-10-01T03:00:00.000Z');
+		expect(monthStart(new Date('2026-01-15T12:00:00Z'), -1).toISOString()).toBe(
+			'2025-12-01T03:00:00.000Z'
+		);
+	});
+
+	it('la consulta por día agrupa con la hora corrida 3 horas (sin depender del huso de la API)', async () => {
+		const sql = dailySql(new Date('2026-09-01T03:00:00Z'));
+		expect(sql).toContain("toStartOfInterval(timestamp - INTERVAL '3' HOUR, INTERVAL '1' DAY)");
+		// Una API falsa que guarda visitas con su hora UTC y agrupa como dice la consulta.
+		const visits = ['2026-10-01T01:00:00Z', '2026-10-01T02:59:00Z', '2026-10-01T03:00:00Z'];
+		const api = fakeApi((q) => {
+			if (!q.includes('toStartOfInterval')) return [];
+			const shift = /timestamp - INTERVAL '(\d+)' HOUR/.exec(q);
+			const hours = shift ? Number(shift[1]) : 0;
+			/** @type {Map<string, number>} */
+			const byDay = new Map();
+			for (const v of visits) {
+				const day = new Date(Date.parse(v) - hours * 3_600_000).toISOString().slice(0, 10);
+				byDay.set(day, (byDay.get(day) ?? 0) + 1);
+			}
+			return [...byDay].map(([day, n]) => ({ day: `${day} 00:00:00`, n }));
+		});
+		const v = await loadVisits({
+			env,
+			db: null,
+			fetch: api.fetch,
+			now: new Date('2026-10-01T12:00:00Z')
+		});
+		const views = Object.fromEntries(v.daily.map((d) => [d.day, d.views]));
+		expect(views['2026-09-30']).toBe(2);
+		expect(views['2026-10-01']).toBe(1);
+		expect(v.months.map((m) => [m.month, m.views])).toEqual([
+			['2026-09', 2],
+			['2026-10', 1]
+		]);
+	});
+
+	it('el cron de la noche del 30/9 en Argentina (01:00 UTC del 1/10) resume agosto y septiembre', async () => {
+		const { db, dispose } = await createTestDB();
+		try {
+			const api = fakeApi(sample);
+			const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+			const result = await runAnalyticsRollup(
+				{ ...env, DB: db },
+				{ now: new Date('2026-10-01T01:00:00Z'), fetch: api.fetch }
+			);
+			log.mockRestore();
+			expect(result).toEqual({ months: ['2026-08', '2026-09'] });
+		} finally {
+			await dispose();
+		}
 	});
 });
 
