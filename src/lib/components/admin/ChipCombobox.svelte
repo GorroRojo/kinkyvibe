@@ -54,6 +54,12 @@
 	/** @type {(values: string[]) => void} */
 	export let onChange = () => {};
 	/**
+	 * Called with the typed text whenever it changes (typing, Escape that clears, after a pick),
+	 * for pages that also filter with what is typed (the Kinkipedia).
+	 * @type {(query: string) => void}
+	 */
+	export let onQuery = () => {};
+	/**
 	 * How a picked value joins the list. Returns the new list, or the same array to add nothing.
 	 * @type {(values: string[], value: string) => string[]}
 	 */
@@ -96,6 +102,7 @@
 			}
 		}
 		query = '';
+		onQuery(query);
 		active = -1;
 		await tick();
 		input?.focus();
@@ -139,13 +146,17 @@
 			if (open) {
 				e.preventDefault();
 				open = false;
-			} else query = '';
+			} else {
+				query = '';
+				onQuery(query);
+			}
 		} else if (e.key === 'Backspace' && !query && values.length) {
 			remove(values.length - 1);
 		}
 	}
 
 	function onInput() {
+		onQuery(query);
 		open = true;
 		// Highlight the best match while typing, so Enter adds it.
 		active = query.trim() ? 0 : -1;

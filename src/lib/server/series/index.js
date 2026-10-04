@@ -18,6 +18,7 @@ import {
 	seriesEditions,
 	seriesImage,
 	seriesOfTags,
+	seriesParentOf,
 	seriesTagIds,
 	splitEditions,
 	tagIdFromSlug,
@@ -146,16 +147,21 @@ export async function allSeries(opts = {}) {
 }
 
 /**
- * Las series para listarlas (la Kinkipedia): nombre, imagen, descripción, cuántas ediciones y la
- * próxima. Solo las que tienen al menos una edición, en el orden del árbol.
+ * Las series para listarlas (la Kinkipedia): nombre, imagen, descripción, cuántas ediciones, la
+ * próxima y la serie madre (`parent`, si es una serie hija). Solo las que tienen al menos una
+ * edición, en el orden del árbol.
  *
  * @param {SeriesOptions} [opts]
  */
 export async function seriesSummaries(opts = {}) {
-	return (await allSeries(opts))
+	const tags = opts.tags ?? siteTags();
+	const ids = seriesTagIds(tags);
+	return (await allSeries({ ...opts, tags }))
 		.filter((s) => s.editions.length)
 		.map(({ editions, upcoming, past, ...head }) => ({
 			...head,
+			// La serie madre, si es una serie hija (la Kinkipedia las agrupa: groupSeries).
+			parent: seriesParentOf(tags, head.id, ids),
 			total: editions.length,
 			next: upcoming[0]
 				? { title: upcoming[0].title, start: upcoming[0].start, path: upcoming[0].path }
