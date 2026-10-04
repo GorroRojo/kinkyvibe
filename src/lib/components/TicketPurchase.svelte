@@ -13,7 +13,12 @@
 	 * muestran son informativos: el servidor recalcula todo con el frontmatter del evento y la
 	 * base de datos.
 	 *
-	 * Lo que se va completando (y el paso) se guarda en `sessionStorage` (solo esta pestaña; se
+	 * Cada paso tiene su dirección (`?paso=2`, `?paso=3`; el primero, sin `?paso`), con una entrada
+	 * en el historial (`pushState` de SvelteKit, sin volver a cargar la página): «Atrás» del
+	 * navegador vuelve al paso anterior y una recarga se queda en el paso de la dirección (si los
+	 * anteriores siguen bien).
+	 *
+	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se
 	 * borra al cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale
 	 * bien. Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
 	 * sobrevive a cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca
@@ -25,8 +30,9 @@
 	 * datos para la próxima» y «Recordar mi DNI» (docs/cuentas.md, «Datos guardados»). Si el
 	 * servidor devolvió el formulario o hay un borrador, mandan esos. Sin cuenta, nada cambia.
 	 */
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { pushState, replaceState } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fieldsForTicketType } from '$lib/utils/signupFields.js';
 	import {
@@ -43,12 +49,15 @@
 		STEP_PAY,
 		STEP_TICKETS,
 		buyerStepErrors,
+		cheapestAvailableType,
 		errorsOutsideStep,
 		firstStepWithErrors,
 		furthestReachable,
 		gorraAmountFor,
 		payStepErrors,
 		purchaseSummary,
+		stepFromParams,
+		stepHref,
 		stepOfField,
 		ticketsStepErrors
 	} from '$lib/utils/purchaseSteps.js';
@@ -83,8 +92,8 @@
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
-	const firstAvailable = tickets.types.find((t) => t.available > 0 && !t.closed)?.id ?? '';
-	let type = initial.type || firstAvailable;
+	// Arranca elegida la más barata de las que se pueden comprar (la del «desde $ …» del evento).
+	let type = initial.type || cheapestAvailableType(tickets.types);
 	let quantity = Math.max(1, Math.trunc(Number(initial.quantity)) || 1);
 	let buyerName = initial.name ?? account?.name ?? '';
 	let buyerPronouns = initial.pronouns ?? account?.pronouns ?? '';
@@ -261,12 +270,34 @@
 		return Object.keys(found).length > 0;
 	}
 
+	/** Con la página ya montada: los cambios de paso van a la dirección (`?paso=`). */
+	let historyReady = false;
+
+	/**
+	 * Pone el paso en la dirección: `push` (una entrada nueva en el historial, para «Atrás»),
+	 * `replace` (corrige la actual) o `none` (ya está: vino de «Atrás»/«Adelante»).
+	 * @param {number} s
+	 * @param {'push' | 'replace' | 'none'} mode
+	 */
+	function syncUrl(s, mode) {
+		if (!historyReady || mode === 'none') return;
+		const href = stepHref(new URL(location.href), s);
+		if (href === location.pathname + location.search + location.hash) return;
+		try {
+			(mode === 'push' ? pushState : replaceState)(href, { paso: s + 1 });
+		} catch {
+			// sin router de SvelteKit (pruebas): el paso cambia igual, sin dirección propia
+		}
+	}
+
 	/**
 	 * Cambia de paso y lleva el foco a su título (así un lector de pantalla anuncia dónde está).
 	 * @param {number} s
-	 * @param {{ focus?: 'heading' | 'error' }} [o] `error`: al primer campo marcado del paso
+	 * @param {{ focus?: 'heading' | 'error', history?: 'push' | 'replace' | 'none' }} [o]
+	 *   `focus: 'error'`: al primer campo marcado del paso; `history`: ver syncUrl (`push`)
 	 */
 	async function showStep(s, o = {}) {
+		if (s !== step) syncUrl(s, o.history ?? 'push');
 		step = s;
 		if (s > reached) reached = s;
 		// Aviso anónimo (una vez por paso): solo el paso y el evento, nada del formulario.
@@ -325,8 +356,8 @@
 		errors = r?.errors ?? {};
 		tried = [false, false, false];
 		const s = firstStepWithErrors(errors);
-		if (s !== null) showStep(s, { focus: 'error' });
-		else if (r?.error) showStep(STEP_PAY, { focus: 'error' });
+		if (s !== null) showStep(s, { focus: 'error', history: 'replace' });
+		else if (r?.error) showStep(STEP_PAY, { focus: 'error', history: 'replace' });
 	}
 
 	// --- Borrador en sessionStorage (ver arriba) ---
@@ -379,21 +410,54 @@
 						holders[i] = { name: String(h?.name ?? ''), pronouns: String(h?.pronouns ?? '') };
 					});
 			}
-			// El paso donde estaba, si los anteriores siguen bien (sin mover el foco).
-			const saved = Math.max(0, Math.min(STEP_PAY, Math.trunc(Number(d.step)) || 0));
-			if (saved > 0) {
-				await tick();
-				const byStep = PURCHASE_STEPS.map((_, s) => (s < saved ? stepErrors(s) : {}));
-				step = furthestReachable(byStep, saved);
-				reached = step;
-			}
+		}
+		// El paso de la dirección (`?paso=`), si los anteriores están bien (sin mover el foco). Sin
+		// `?paso`, el primero (con lo completado). Si el servidor devolvió el formulario, manda su
+		// paso.
+		const wanted = result?.values ? null : stepFromParams(new URLSearchParams(location.search));
+		if (wanted !== null && wanted > 0) {
+			await tick();
+			const byStep = PURCHASE_STEPS.map((_, s) => (s < wanted ? stepErrors(s) : {}));
+			step = furthestReachable(byStep, wanted);
+			reached = Math.max(reached, step);
 		}
 		draftReady = true;
+		historyReady = true;
+		// La dirección dice el paso en el que quedó (por ejemplo, si `?paso=3` no se podía).
+		syncUrl(step, 'replace');
+		window.addEventListener('popstate', onPopState);
 	});
+
+	onDestroy(() => {
+		if (typeof window !== 'undefined') window.removeEventListener('popstate', onPopState);
+	});
+
+	/**
+	 * «Atrás» y «Adelante» del navegador entre los pasos: para atrás siempre; para adelante, solo
+	 * si los pasos del medio siguen bien (si no, se queda en el primero con errores y corrige la
+	 * dirección).
+	 */
+	function onPopState() {
+		const target = stepFromParams(new URLSearchParams(location.search)) ?? STEP_TICKETS;
+		if (target === step) return;
+		if (target < step) {
+			showStep(target, { history: 'none' });
+			return;
+		}
+		const byStep = PURCHASE_STEPS.map((_, s) => (s >= step && s < target ? stepErrors(s) : {}));
+		const stop = furthestReachable(byStep, target);
+		if (stop < target) {
+			tried[stop] = true;
+			checkStep(stop);
+			showStep(stop, { focus: 'error', history: 'replace' });
+			if (stop === step) syncUrl(stop, 'replace');
+			return;
+		}
+		showStep(target, { history: 'none' });
+	}
 
 	$: draft = {
 		v: DRAFT_VERSION,
-		step,
 		type,
 		quantity,
 		option,
