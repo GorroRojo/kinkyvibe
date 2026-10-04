@@ -159,7 +159,8 @@ describe('reserva de cupo', () => {
 			revenue: 24000,
 			fondo: 0,
 			contribution: 0,
-			surcharge: 0
+			surcharge: 0,
+			mpFee: 0
 		});
 		// Vencida la reserva del rechazo, vuelve a haber lugar; la aprobada nunca vence.
 		expect((await reserve({ quantity: 2, now: NOW + HOLD_MS + 1 })).ok).toBe(true);

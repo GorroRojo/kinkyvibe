@@ -52,7 +52,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			held: c?.held ?? 0,
 			revenue: c?.revenue ?? 0,
 			fondoUsed: c?.fondo ?? 0,
-			contribution: c?.contribution ?? 0
+			contribution: c?.contribution ?? 0,
+			mpFee: c?.mpFee ?? 0
 		};
 	});
 	// Sin cupo total si algún tipo no tiene cupo (`capacity: null`, sin límite).
@@ -75,6 +76,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		previous
 	});
 	const revenue = types.reduce((s, t) => s + t.revenue, 0);
+	// La comisión de Mercado Pago de lo cobrado: la meta en plata cuenta lo neto.
+	const mpFee = types.reduce((s, t) => s + t.mpFee, 0);
 	return {
 		chart,
 		types,
@@ -84,8 +87,9 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			revenue,
 			held: heldBreakdown(orders, now)
 		},
-		// Avance contra la meta de venta (`meta_venta`), o null: entonces, contra el cupo.
-		progress: goalProgress(config.goal, { sold, revenue }),
+		// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP), o
+		// null: entonces, contra el cupo.
+		progress: goalProgress(config.goal, { sold, revenue, mpFee }),
 		perDay: salesPerDay(orders, { now }),
 		closes,
 		payments: paymentSplit(orders),

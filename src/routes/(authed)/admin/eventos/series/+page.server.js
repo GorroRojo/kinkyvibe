@@ -7,8 +7,7 @@
  * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente», con imagen
  * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
- * visible, ícono, imagen, descripción y meta de venta por defecto de una serie (la heredan las
- * ediciones nuevas: $lib/utils/salesGoal.js). Se guardan por el mismo camino que
+ * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
  * /admin/etiquetas: un commit al archivo de etiquetas (planTagEdit / commitTagEdit) o, con el
  * interruptor `etiquetas_db`, en la base al momento (src/lib/server/etiquetas/panel.js; renombrar
  * en las publicaciones, además, un commit). Renombrar pide confirmar después de ver cuántas
@@ -26,7 +25,6 @@ import { subscriberCounts } from '$lib/server/series/subscriptions.js';
 import { requireSeries } from '$lib/server/series/web.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
-import { GOAL_KEY, parseSalesGoal, storedSalesGoal } from '$lib/utils/salesGoal.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
@@ -94,9 +92,7 @@ export const actions = {
 		const input = {
 			name: data.get('name'),
 			image: data.get('image'),
-			description: data.get('description'),
-			goal_kind: data.get('goal_kind') ?? '',
-			goal_value: data.get('goal_value') ?? ''
+			description: data.get('description')
 		};
 		const tags = await siteTagManager(platform);
 		const planned = seriesCreateOps(input, { exists: (n) => tagExists(n, tags) });
@@ -119,10 +115,7 @@ export const actions = {
 			visible_name: data.get('visible_name'),
 			icon: data.get('icon'),
 			image: data.get('image'),
-			description: data.get('description'),
-			// Meta de venta por defecto (sin el campo en el formulario, no se toca).
-			goal_kind: data.get('goal_kind') ?? undefined,
-			goal_value: data.get('goal_value') ?? ''
+			description: data.get('description')
 		};
 		const tags = await siteTagManager(platform);
 		const current = (await allSeries({ tags, platform })).some((s) => s.id === id)
@@ -181,8 +174,7 @@ function editValues(tags, id) {
 		visible_name: visible === id ? '' : visible,
 		icon: str(t?.icon).trim(),
 		image: str(t?.image).trim(),
-		description: str(t?.description),
-		meta_venta: storedSalesGoal(parseSalesGoal(t?.[GOAL_KEY]))
+		description: str(t?.description)
 	};
 }
 

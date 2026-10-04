@@ -15,7 +15,7 @@ import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch
 import { orderReference } from '$lib/utils/tickets.js';
 import { argFormat } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
-import { goalProgress } from '$lib/utils/salesGoal.js';
+import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
@@ -112,7 +112,11 @@ function query(what, fallback, statements, read) {
 const placeholders = (slugs) => slugs.map(() => '?').join(', ');
 
 /**
- * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number }} TypeTotals
+ * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number,
+ *   mpFee?: number }} TypeTotals
+ *
+ * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
+ * $lib/utils/salesGoal.js), para lo neto de la meta de venta.
  */
 
 /**
@@ -147,7 +151,8 @@ export function ticketTotalsQuery(slugs, now) {
 						THEN quantity ELSE 0 END) AS held,
 					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
 					SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
-					SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution
+					SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 				GROUP BY event_slug, ticket_type`
 							)
@@ -165,7 +170,8 @@ export function ticketTotalsQuery(slugs, now) {
 					held: Number(r.held ?? 0),
 					revenue: Number(r.revenue ?? 0),
 					fondo: Number(r.fondo ?? 0),
-					contribution: Number(r.contribution ?? 0)
+					contribution: Number(r.contribution ?? 0),
+					mpFee: Number(r.mp_fee ?? 0)
 				});
 			}
 			return out;
@@ -899,6 +905,7 @@ export function upcomingEvents({
 		let sold = 0;
 		let held = 0;
 		let revenue = 0;
+		let mpFee = 0;
 		let fondoNet = 0;
 		/** @type {UpcomingEvent['oversold']} */
 		const oversold = [];
@@ -914,6 +921,7 @@ export function upcomingEvents({
 		}
 		for (const c of byType.values()) {
 			revenue += c.revenue;
+			mpFee += c.mpFee ?? 0;
 			fondoNet += c.contribution - c.fondo;
 		}
 		const ci = checkins.get(e.slug);
@@ -937,8 +945,9 @@ export function upcomingEvents({
 			revenue,
 			fondoNet,
 			oversold,
-			// Avance contra la meta de venta (`meta_venta`); sin meta, null (se muestra el cupo).
-			progress: config ? goalProgress(config.goal, { sold, revenue }) : null,
+			// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP);
+			// sin meta, null (se muestra el cupo).
+			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee }) : null,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),

@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * Avance contra la meta de venta de un evento ($lib/utils/salesGoal.js, `goalProgress`): una
-	 * barra (violeta; verde al llegar) y el texto «$ 180.000 de $ 250.000 (72 %)» o «23 de 30
+	 * barra (violeta; verde al llegar) y el texto «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30
 	 * entradas». Pasarse de la meta es bueno: la barra queda llena, sin la marca roja del cupo.
 	 *
 	 * Props: `progress` (GoalProgress), `compact` (texto chico, para listas), `showText` (false =

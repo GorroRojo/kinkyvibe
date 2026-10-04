@@ -40,6 +40,7 @@ function row(over) {
 		goal: '',
 		sold: 0,
 		revenue: 0,
+		mpFee: 0,
 		transfers: 0,
 		i: 0,
 		...over
@@ -156,6 +157,7 @@ describe('ventas de la lista', () => {
 									event_slug: s,
 									sold: 3,
 									revenue: 30000,
+									mp_fee: 600,
 									transfers: 1
 								}))
 						};
@@ -180,6 +182,11 @@ describe('ventas de la lista', () => {
 		// Lo recaudado (para el avance contra una meta de venta en plata), en la misma consulta.
 		expect(calls[0].sql).toMatch(/THEN total ELSE 0 END\) AS revenue/);
 		expect(out.map((e) => e.revenue)).toEqual([30000, 0]);
+		// Y la comisión de Mercado Pago (solo de lo pagado con MP), para lo neto de la meta.
+		expect(calls[0].sql).toMatch(
+			/THEN CASE WHEN payment_method = 'mercadopago' THEN surcharge_amount ELSE 0 END ELSE 0 END\) AS mp_fee/
+		);
+		expect(out.map((e) => e.mpFee)).toEqual([600, 0]);
 	});
 
 	it('sin eventos o sin base no consulta nada', async () => {
