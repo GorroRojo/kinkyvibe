@@ -1,12 +1,12 @@
 <script>
 	// Botón que abre el buscador global (SearchPalette, vía SearchLauncher).
 	// variant="icon": círculo en la fila de redes del header (escritorio).
-	// En el celu el buscador es un ítem de la barra de navegación de abajo (Navbar.svelte).
+	// variant="fab": botón flotante abajo a la derecha, sobre la barra de navegación (celulares).
 	import { onMount } from 'svelte';
 	import { Search } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
 
-	/** @type {'icon'} */
+	/** @type {'icon' | 'fab'} */
 	export let variant = 'icon';
 
 	let shortcut = ['Ctrl', 'K'];
@@ -18,13 +18,14 @@
 <button
 	type="button"
 	class="search-btn {variant}"
+	class:hidden={variant === 'fab' && $searchOpen}
 	data-search-trigger={variant}
 	aria-label="Buscar (Ctrl+K)"
 	aria-haspopup="dialog"
 	aria-keyshortcuts="Control+K Meta+K"
 	on:click={() => searchOpen.set(true)}
 >
-	<Search size="0.95em" strokeWidth={2.75} aria-hidden="true" />
+	<Search size={variant === 'fab' ? 26 : '0.95em'} strokeWidth={2.75} aria-hidden="true" />
 	{#if variant === 'icon'}
 		<span class="tip" aria-hidden="true">
 			Buscar en todo el sitio
@@ -129,10 +130,46 @@
 		translate: -50% 0;
 	}
 
+	/* --- FAB (sólo celulares): flota sobre la barra de navegación inferior --- */
+	.fab {
+		display: none;
+	}
+	@media screen and (max-width: 680px) {
+		.fab {
+			display: grid;
+			position: fixed;
+			z-index: 3;
+			right: max(16px, env(safe-area-inset-right));
+			bottom: calc(var(--bottom-nav-height, 6rem) + 16px + env(safe-area-inset-bottom));
+			width: 56px;
+			height: 56px;
+			box-shadow:
+				0 4px 12px rgba(0, 0, 0, 0.22),
+				0 1px 3px rgba(0, 0, 0, 0.12);
+			animation: fab-in 220ms ease-out backwards;
+		}
+		.fab:active {
+			scale: 0.94;
+		}
+		.fab.hidden {
+			opacity: 0;
+			scale: 0.6;
+			pointer-events: none;
+		}
+	}
+	@keyframes fab-in {
+		from {
+			opacity: 0;
+			scale: 0.6;
+		}
+	}
 	@media (prefers-reduced-motion: reduce) {
 		.search-btn,
 		.tip {
 			transition: none;
+		}
+		.fab {
+			animation: none;
 		}
 	}
 </style>

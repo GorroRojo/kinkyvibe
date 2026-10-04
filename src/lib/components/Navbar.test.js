@@ -1,12 +1,11 @@
 /**
- * Menú del sitio: en el celu el buscador es un ítem más de la barra de abajo (antes era un botón
- * flotante que tapaba texto, errores de formularios y botones). Revisión de UX del sitio.
+ * Menú del sitio: en el celu el buscador es el botón flotante de abajo a la derecha, no un ítem de
+ * la barra (decisión de gorrite, 4/10, después de ver las dos versiones en la revisión de UX).
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
 import { BookOpen } from '@lucide/svelte';
-import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({ url: new URL('http://localhost/material') })
@@ -19,16 +18,11 @@ describe('Navbar', () => {
 		props: { links: [{ icon: BookOpen, name: 'Material', sub: 'Textos', href: '/material' }] }
 	}).body;
 
-	it('el buscador es un ítem de la lista, con su texto «Buscar»', () => {
-		const item = body.match(/<li class="search-item[^"]*"[^>]*>[\s\S]*?<\/li>/)?.[0] ?? '';
-		expect(item).toMatch(/<button[^>]*type="button"[^>]*aria-haspopup="dialog"/);
-		expect(stripHtmlTags(item).trim()).toBe('Buscar');
-		// dentro de la barra, no flotando aparte
-		expect(body.indexOf('search-item')).toBeLessThan(body.indexOf('</ul>'));
+	it('el buscador es el botón flotante, que abre el diálogo', () => {
+		expect(body).toMatch(/<button[^>]*data-search-trigger="fab"[^>]*aria-haspopup="dialog"/);
 	});
 
-	it('ya no hay botón flotante', () => {
-		expect(body).not.toContain('data-search-trigger="fab"');
-		expect(body).not.toMatch(/class="[^"]*\bfab\b/);
+	it('la barra no tiene un ítem «Buscar»', () => {
+		expect(body).not.toContain('search-item');
 	});
 });
